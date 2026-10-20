@@ -84,6 +84,10 @@ val object_file :
   string ->
   (unit, failure) result
 
+(** The runtime compiled for the target into a released toolchain's
+    directory of them (`--bundle-runtime`, docs/design/lowering.md §7). *)
+val bundle_runtime : target:string -> optimize:bool -> string -> (unit, failure) result
+
 (** The name of a file beside the output to write it under first, drawn
     from the random source. *)
 val temporary_name : Random.State.t -> string -> string

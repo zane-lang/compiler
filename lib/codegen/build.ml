@@ -171,15 +171,36 @@ let identity cc dir =
   | 0 -> ( try Some (In_channel.with_open_bin file In_channel.input_all) with Sys_error _ -> None)
   | _ -> None
 
+(* The runtime's files, each name and then its text, as the keys hash them. *)
+let sources = List.concat_map (fun (name, text) -> [ name; text ]) runtime_files
+
+(* The flags besides the target's that the runtime is compiled and the
+   program linked with, optimizing or not. *)
+let level ~optimize = [ (if optimize then "-O2" else "-O0"); "-pthread" ]
+
+(* The C compiler links for the target as it was written: `zig cc` reads
+   its own short triples, and not every normal form. *)
+let target_flag = function Some target -> [ "--target=" ^ target ] | None -> []
+
 (* The name a runtime compiled by *cc*, which says it is [identity], with
    [flags] for [triple] is kept under: everything that changes the object is
    in it. The triple is the build's own, given or the host's, so a build that
    names no target still keys its runtime by the one it links for. *)
 let runtime_key ~cc ~identity ~triple flags =
-  Digest.to_hex
-    (Digest.string
-       (String.concat "\000"
-          ((cc :: identity :: triple :: flags) @ List.concat_map (fun (name, text) -> [ name; text ]) runtime_files)))
+  Digest.to_hex (Digest.string (String.concat "\000" ((cc :: identity :: triple :: flags) @ sources)))
+
+(* Where a released toolchain keeps the runtimes it was released with:
+   `ZANE_RUNTIME_OBJECTS`, which its `zanec` sets only when it also sets the
+   C compiler, to the `zig cc` beside it that compiled them. *)
+let bundled_dir () = match Sys.getenv_opt "ZANE_RUNTIME_OBJECTS" with Some "" | None -> None | Some dir -> Some dir
+
+(* The name a runtime compiled with [level] for [triple] is bundled under.
+   It names no C compiler, since a bundle is used only with the one that
+   compiled it, and the target only in LLVM's normal form, so spellings that
+   normalize alike, and a build for the host that names none, link the same
+   object. *)
+let bundled_name ~triple level =
+  Digest.to_hex (Digest.string (String.concat "\000" ((triple :: level) @ sources))) ^ ".o"
 
 (* [object_] copied into the cache as [kept], through a temporary beside it
    renamed into place, so a build reading the cache never sees half an
@@ -198,33 +219,72 @@ let keep ~random ~object_ ~kept =
     Sys.rename temporary kept
   with Sys_error _ -> ( try Sys.remove temporary with Sys_error _ -> ())
 
-(* The runtime compiled for a build for [triple] with [flags], from the
-   sources already written to [dir]. The same compiler with the same flags
-   for the same triple always makes the same object of the same runtime, so
-   one compiled before is taken from [cache] when it has one, and one
-   compiled now is kept there; compiling it costs more than the rest of a
-   small program's build. *)
-let runtime_object ?cache ~cc ~triple ~flags dir =
-  let compile output =
-    let command =
-      Filename.quote_command cc (flags @ [ "-c"; "-o"; output; Filename.concat dir "zane.c" ])
-    in
-    match Sys.command command with
-    | 0 -> Ok output
-    | n -> Error (Printf.sprintf "`%s` exited with %d" command n)
-  in
+(* The runtime's sources in [dir] compiled by *cc* with [flags] into
+   [output]. *)
+let compile ~cc flags dir output =
+  let command = Filename.quote_command cc (flags @ [ "-c"; "-o"; output; Filename.concat dir "zane.c" ]) in
+  match Sys.command command with
+  | 0 -> Ok output
+  | n -> Error (Printf.sprintf "`%s` exited with %d" command n)
+
+(* The runtime compiled for a build for [triple], named [target] when one
+   was, from the sources already written to [dir]. The same compiler with the
+   same flags for the same triple always makes the same object of the same
+   runtime, so one compiled before is taken from [bundled], the toolchain's
+   own, or from [cache] when either has it, and one compiled now is kept in
+   [cache]; compiling it costs more than the rest of a small program's
+   build. *)
+let runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir =
+  let level = level ~optimize in
+  let flags = target_flag target @ level in
   let fresh = Filename.concat dir "runtime.o" in
-  match Option.bind cache (fun cache -> Option.map (fun id -> (cache, id)) (identity cc dir)) with
-  | None -> compile fresh
-  | Some (cache, identity) ->
-      let kept = Filename.concat (Filename.concat cache "runtime") (runtime_key ~cc ~identity ~triple flags ^ ".o") in
-      if Sys.file_exists kept then Ok kept
-      else
-        Result.map
-          (fun object_ ->
-            keep ~random:(Random.State.make_self_init ()) ~object_ ~kept;
-            object_)
-          (compile fresh)
+  match Option.map (fun bundled -> Filename.concat bundled (bundled_name ~triple level)) bundled with
+  | Some object_ when Sys.file_exists object_ -> Ok object_
+  | _ -> (
+      match Option.bind cache (fun cache -> Option.map (fun id -> (cache, id)) (identity cc dir)) with
+      | None -> compile ~cc flags dir fresh
+      | Some (cache, identity) ->
+          let kept =
+            Filename.concat (Filename.concat cache "runtime") (runtime_key ~cc ~identity ~triple flags ^ ".o")
+          in
+          if Sys.file_exists kept then Ok kept
+          else
+            Result.map
+              (fun object_ ->
+                keep ~random:(Random.State.make_self_init ()) ~object_ ~kept;
+                object_)
+              (compile ~cc flags dir fresh))
+
+(* A directory of its own for a build's temporary files, given to [f] and
+   removed with them however [f] ends, a raise included. *)
+let in_work_dir f =
+  let dir = Filename.temp_dir "zane" "" in
+  Fun.protect
+    ~finally:(fun () ->
+      List.iter
+        (fun f -> try Sys.remove (Filename.concat dir f) with Sys_error _ -> ())
+        ([ "program.o"; "runtime.o"; "cc-version" ] @ List.map fst runtime_files);
+      try Sys.rmdir dir with Sys_error _ -> ())
+    (fun () -> f dir)
+
+(* The runtime compiled for [target], with or without optimizing, into
+   [dir] under the name a build for that target looks for there
+   ([bundled_name]): what a release bundles for each target it ships
+   (docs/design/lowering.md §7). A target is required, since a C compiler
+   given none compiles for the processor it runs on. *)
+let bundle_runtime ~target ~optimize dir =
+  Result.bind (target_machine ~target ~optimize ()) @@ fun (triple, _) ->
+  in_work_dir @@ fun work ->
+  match
+    write_runtime work;
+    make_dirs dir
+  with
+  | exception Sys_error message -> Error (Printf.sprintf "cannot write the runtime: %s" message)
+  | () ->
+      let level = level ~optimize in
+      Result.map ignore
+        (compile ~cc:(cc ()) (target_flag (Some target) @ level) work
+           (Filename.concat dir (bundled_name ~triple level)))
 
 (* The module's object file alone, for a package other objects link with
    (docs/design/separate-compilation.md C3): no runtime, and no link. *)
@@ -237,16 +297,14 @@ let object_file ?target ?(optimize = false) m output =
 
 (* [link] is the objects of the program's stamped dependencies, which the C
    compiler links with it (docs/design/separate-compilation.md C7). [cache]
-   is where the compiled runtime is kept, [cache_dir ()] unless given. *)
-let executable ?target ?(optimize = false) ?(link = []) ?(cache = cache_dir ()) m output =
+   is where the compiled runtime is kept, [cache_dir ()] unless given, and
+   [bundled] where the toolchain keeps its own, [bundled_dir ()] unless
+   given. *)
+let executable ?target ?(optimize = false) ?(link = []) ?(bundled = bundled_dir ()) ?(cache = cache_dir ()) m
+    output =
   match prepare ?target ~optimize m with
   | Error _ as error -> error
   | Ok (triple, tm) -> (
-      let dir = Filename.temp_dir "zane" "" in
-      let obj = Filename.concat dir "program.o" in
-      (* The C compiler links for the target as it was written: `zig cc`
-         reads its own short triples, and not every normal form. *)
-      let target_flag = match target with Some target -> [ "--target=" ^ target ] | None -> [] in
       (* The runtime reads a Windows program's arguments through
          `CommandLineToArgvW`, which shell32 holds. A Windows program's
          main thread gets the 8 MiB of machine stack it has on Linux and
@@ -262,30 +320,23 @@ let executable ?target ?(optimize = false) ?(link = []) ?(cache = cache_dir ()) 
          on Linux it is a library of its own. *)
       let link = if windows then link @ [ "-lshell32"; "-Wl,--stack,8388608" ] else link @ [ "-lm" ] in
       let cc = cc () in
-      let flags = target_flag @ [ (if optimize then "-O2" else "-O0"); "-pthread" ] in
-      let command runtime = Filename.quote_command cc (flags @ [ "-o"; output; obj ] @ link @ [ runtime ]) in
-      (* The temporary files go however the build ends, a raise included. A
-         failure to write them is an error like any other, not an exception. *)
-      Fun.protect
-        ~finally:(fun () ->
-          List.iter
-            (fun f -> try Sys.remove (Filename.concat dir f) with Sys_error _ -> ())
-            ([ "program.o"; "runtime.o"; "cc-version" ] @ List.map fst runtime_files);
-          try Sys.rmdir dir with Sys_error _ -> ())
-        (fun () ->
-          match
-            Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm;
-            write_runtime dir
-          with
-          | exception Llvm_target.Error message ->
-              Error (Printf.sprintf "cannot write the object file: %s" message)
-          | exception Sys_error message ->
-              Error (Printf.sprintf "cannot write the runtime's sources: %s" message)
-          | () -> (
-              match runtime_object ?cache ~cc ~triple ~flags dir with
-              | Error _ as error -> error
-              | Ok runtime -> (
-                  let command = command runtime in
-                  match Sys.command command with
-                  | 0 -> Ok ()
-                  | n -> Error (Printf.sprintf "`%s` exited with %d" command n)))))
+      let flags = target_flag target @ level ~optimize in
+      let command obj runtime = Filename.quote_command cc (flags @ [ "-o"; output; obj ] @ link @ [ runtime ]) in
+      (* A failure to write the temporary files is an error like any other,
+         not an exception. *)
+      in_work_dir @@ fun dir ->
+      let obj = Filename.concat dir "program.o" in
+      match
+        Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm;
+        write_runtime dir
+      with
+      | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot write the object file: %s" message)
+      | exception Sys_error message -> Error (Printf.sprintf "cannot write the runtime's sources: %s" message)
+      | () -> (
+          match runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir with
+          | Error _ as error -> error
+          | Ok runtime -> (
+              let command = command obj runtime in
+              match Sys.command command with
+              | 0 -> Ok ()
+              | n -> Error (Printf.sprintf "`%s` exited with %d" command n))))

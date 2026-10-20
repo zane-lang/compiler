@@ -11,6 +11,10 @@ test -n "$root"
 mv "$root" "$out/toolchain with spaces"
 root="$out/toolchain with spaces"
 cp -R /source/tests/codegen/fixtures/hello "$out/hello"
+# Every build below links a runtime the release bundles, so none is
+# compiled into the cache.
+export ZANE_CACHE_DIR="$out/cache"
+test "$(find "$root/share/runtime" -name '*.o' | wc -l)" -eq 12
 for optimization in plain optimized; do
     flags=()
     [[ "$optimization" == plain ]] || flags+=(--optimize)
@@ -21,4 +25,7 @@ for optimization in plain optimized; do
     "$root/bin/zanec" "${flags[@]}" --target x86_64-windows-gnu \
         --build "$out/hello-$optimization.exe" --package "$out/hello"
 done
-echo 'Relocated compiler built and ran Linux programs and linked Windows programs'
+"$root/bin/zanec" --build "$out/hello-host" --package "$out/hello"
+"$out/hello-host" | cmp /source/tests/codegen/golden/hello.out -
+test ! -e "$ZANE_CACHE_DIR/runtime"
+echo 'Relocated compiler built and ran Linux programs and linked Windows programs with its bundled runtimes'

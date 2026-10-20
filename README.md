@@ -30,8 +30,8 @@ export PATH="$HOME/.zane/toolchains/$version/bin:$PATH"
 Keep the whole extracted directory together: `bin/zanec` loads its bundled
 libraries and uses its bundled Zig to compile the C runtime and link programs.
 The archive includes `toolchain.coda`, so the `zane` CLI recognizes it under
-`~/.zane/toolchains/<version>/`. The CLI's automatic toolchain installation
-command is not yet implemented. A different extraction directory also works
+`~/.zane/toolchains/<version>/`, where `zane toolchain install` puts it. A
+different extraction directory also works
 by setting `ZANE_COMPILER` to its `bin/zanec`.
 
 ```sh
@@ -39,9 +39,13 @@ zanec --target x86_64-linux-gnu --build hello --package path/to/hello
 zanec --target x86_64-windows-gnu --build hello.exe --package path/to/hello
 ```
 
-Set `ZANE_CC` to use another C compiler wrapper, or `ZIG` to use another Zig
-executable. The compiled C runtime is cached under `~/.cache/zane` (or
-`$XDG_CACHE_HOME/zane`); set `ZANE_CACHE_DIR` to keep it elsewhere. The compiler itself runs natively on Linux; Zig cross-compiles
+The archive bundles the C runtime compiled by its Zig for x86-64 and AArch64
+Linux, Windows and macOS, optimized and not, so a build for one of those
+links it without compiling it. Set `ZANE_CC` to use another C compiler
+wrapper, or `ZIG` to use another Zig executable; either way the bundled
+runtime is not used, and the runtime that compiler compiles is cached under
+`~/.cache/zane` (or `$XDG_CACHE_HOME/zane`); set `ZANE_CACHE_DIR` to keep it
+elsewhere. The compiler itself runs natively on Linux; Zig cross-compiles
 the generated Zane program's runtime and links its target executable.
 
 ## Publishing a compiler release

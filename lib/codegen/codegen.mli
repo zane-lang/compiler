@@ -51,3 +51,8 @@ val executable :
   Llvm.llmodule ->
   string ->
   (unit, string) result
+
+(** The runtime compiled for [target] into the directory a released
+    toolchain bundles it in, under the name a build for that target, with
+    the same [optimize], looks for there (docs/design/lowering.md §7). *)
+val bundle_runtime : target:string -> optimize:bool -> string -> (unit, string) result

@@ -347,6 +347,21 @@ which saves most of a small program's build. A build with no cache directory,
 or with a C compiler that will not say its version, compiles the runtime every
 time.
 
+A released toolchain links a runtime without compiling it at all. Its
+`zanec` sets `ZANE_RUNTIME_OBJECTS` to the toolchain's `share/runtime/`
+when it also sets the C compiler to its own `zig cc`, and a build looks
+there before the cache, for an object named by a hash of the runtime's
+sources, the target triple in LLVM's normal form and the flags besides the
+target's. Spellings of a target with one normal form, such as
+`x86_64-linux-gnu` and `x86_64-unknown-linux-gnu`, and a build for the host
+that names no target, so find one object; a spelling LLVM normalizes apart,
+such as one naming another vendor, compiles its own. Packaging fills the directory with `zanec --bundle-runtime DIR
+--target TRIPLE [--optimize]`, which compiles the runtime as a build for that
+target would, for each target `dev/release/package-linux.py` lists. A target
+is always named there, since a C compiler given none compiles for the
+processor it runs on. A build for any other target, or with another C
+compiler or Zig, compiles its runtime and keeps it in the cache.
+
 Lowering starts at the root package's `main` and lowers each verb the first
 time a call reaches it, so a program's unused declarations never need to
 lower. Whatever it cannot handle yet it refuses with a diagnostic at that

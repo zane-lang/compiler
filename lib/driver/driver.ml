@@ -139,6 +139,8 @@ let executable ?target ?pack ?(regions = no_regions) ~optimize ~link cgt output 
 let object_file ?target ?pack ?(regions = no_regions) ~optimize cgt output =
   built (emitted ?target ?pack regions cgt (fun m -> Codegen.object_file ?target ~optimize m output))
 
+let bundle_runtime ~target ~optimize dir = built (Codegen.bundle_runtime ~target ~optimize dir)
+
 (* A library is checked and built into an object, never into an
    executable. *)
 let buildable = function
