@@ -373,12 +373,13 @@ let linker_line ~triple ~system line =
 let asked_link ~cc ~triple args dir =
   let file = Filename.concat dir "cc-link" in
   let ask args =
-    match Sys.command (Filename.quote_command cc ~stdout:file ~stderr:file (args @ [ "-###" ])) with
+    let shown = List.nth args (List.length args - 1) in
+    match Sys.command (Filename.quote_command cc ~stdout:file ~stderr:file args) with
     | 0 -> (
         match In_channel.with_open_bin file In_channel.input_all with
-        | exception Sys_error _ -> Error "its `-###` could not be read"
+        | exception Sys_error _ -> Error (Printf.sprintf "its `%s` could not be read" shown)
         | text -> Ok (List.rev (String.split_on_char '\n' text)))
-    | n -> Error (Printf.sprintf "its `-###` exited with %d" n)
+    | n -> Error (Printf.sprintf "its `%s` exited with %d" shown n)
   in
   (* Zig's install directory, where its `libSystem` stubs are. *)
   let system () =
@@ -400,12 +401,12 @@ let asked_link ~cc ~triple args dir =
           lines
   in
   let found lines = List.find_map (linker_line ~triple ~system) lines in
-  match ask args with
+  match ask (args @ [ "-###" ]) with
   | Error _ as error -> error
   | Ok lines -> (
       match found lines with
       | Some _ as command -> Ok command
-      | None -> Ok (match ask (args @ [ "-fuse-ld=lld" ]) with Ok lines -> found lines | Error _ -> None))
+      | None -> Ok (match ask (args @ [ "-fuse-ld=lld"; "-###" ]) with Ok lines -> found lines | Error _ -> None))
 
 (* Where the command a build links with came from: asked for now and not
    kept, asked for now and [Kept] in the cache, kept by an earlier build
@@ -704,6 +705,7 @@ let bundle_link ~cc ~target ~triple ~tm level dir work runtime =
       let link = Filename.concat dir "link" in
       let files = Filename.concat link "files" in
       make_dirs files;
+      let random = Random.State.make_self_init () in
       let rec bundled previous = function
         | [] -> []
         | w :: rest ->
@@ -718,8 +720,7 @@ let bundle_link ~cc ~target ~triple ~tm level dir work runtime =
               then begin
                 let name = Digest.to_hex (Digest.file path) ^ "-" ^ Filename.basename path in
                 let kept = Filename.concat files name in
-                if not (Sys.file_exists kept) then
-                  keep ~random:(Random.State.make_self_init ()) ~object_:path ~kept;
+                if not (Sys.file_exists kept) then keep ~random ~object_:path ~kept;
                 if not (Sys.file_exists kept) then raise (Sys_error (Printf.sprintf "cannot copy %s" path));
                 option ^ "\001bundle/files/" ^ name
               end

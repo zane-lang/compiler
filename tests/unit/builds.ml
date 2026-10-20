@@ -102,7 +102,7 @@ let linked_in_process () =
       write_all path
         (Printf.sprintf
            "#!/bin/sh\n\
-            case \" $* \" in *' -### '*) ;; *' --version '*) echo fake 1.0; exit 0;; *) exit %d;; esac\n\
+            case \" $* \" in *' -### '*|*' -print-search-dirs '*) ;; *' --version '*) echo fake 1.0; exit 0;; *) exit %d;; esac\n\
             echo asked >> %s\n\
             %s >&2\n"
            (if links then 0 else 1)
