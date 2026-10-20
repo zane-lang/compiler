@@ -1718,3 +1718,27 @@ the margin, and the head passed it again. `just check-file-sizes` no
 longer warns about `lib/cgt/lower.ml`. On
 `main` before the split, `tests/memory-probes/run --check` failed once
 and passed when run again.
+
+### Batch 8c: environment, stage 1 (F24)
+
+F24's stages 2 and 3 follow in their own PRs.
+
+- **F24, stage 1** (`f616992`). `Env.t` (`lib/tst/model/env.ml`) holds
+  the diagnostics and five sub-records, each a type of its own: `names`
+  (Collect: the packages, their order and every declaration), `types`
+  (Type_decls: type and alias infos, `ready` and the two deferred
+  lists), `verbs` (Verb_signatures: signatures, constant types, the
+  overload registries, enum maps and the number parameters), `instances`
+  (Program and Check: the generic queue, instance keys, the runaway set,
+  the current chain from F01, the instances checked, `defining`, the
+  subscript results, the defaults, and the note) and `counters` (the
+  next declaration, type parameter and local). Every access names its
+  group, as `env.verbs.signatures`. Two things the plan did not name:
+  the counters include `next_decl`, which Collect alone writes, since the
+  other two are counters of every pass; and the list of instances checked
+  is `instances.checked`, not `instances.instances`. Collect annotates
+  two `package` values, whose `types` field the new `types` label
+  otherwise shadows. No golden or fixture changed.
+
+The commit built and passed `devbox run -- just test-compiler`, memory
+probes included, and `just check-file-sizes` passed.
