@@ -1171,7 +1171,21 @@ let cached_runtime () =
     let changed = Build.identity ~cache fake work in
     check "a changed C compiler is asked again" (changed = Some "fake 1.0 changed\n" && times () = 2);
     check "one found nowhere has none"
-      (Build.identity ~cache "zane-no-such-compiler" work = None)
+      (Build.identity ~cache "zane-no-such-compiler" work = None);
+    (* A name on the path is found where the shell would run it: a file of
+       the name that cannot run is passed over. *)
+    let first = Filename.concat directory "first" and second = Filename.concat directory "second" in
+    Sys.mkdir first 0o755;
+    Sys.mkdir second 0o755;
+    write_all (Filename.concat first "zane-cc") "not a program";
+    write_all (Filename.concat second "zane-cc") "#!/bin/sh\n";
+    Unix.chmod (Filename.concat second "zane-cc") 0o755;
+    let path = Sys.getenv_opt "PATH" in
+    Unix.putenv "PATH" (first ^ ":" ^ second);
+    let found = Build.located "zane-cc" in
+    Unix.putenv "PATH" (Option.value ~default:"" path);
+    check "a file on the path that cannot run is passed over"
+      (found = Some (Filename.concat second "zane-cc"))
   end
 
 (* A released toolchain's own runtimes are found by the triple a build is

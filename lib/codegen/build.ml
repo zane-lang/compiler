@@ -212,7 +212,8 @@ let keep ~random ~object_ ~kept =
   with Sys_error _ -> ( try Sys.remove temporary with Sys_error _ -> ())
 
 (* The file *cc* runs: itself when it names a directory, else the first file
-   of its name in a directory on the path; [None] when there is none. *)
+   of its name in a directory on the path that the shell would run, an empty
+   entry being the current directory; [None] when there is none. *)
 let located cc =
   if Filename.basename cc <> cc then Some cc
   else
@@ -224,10 +225,16 @@ let located cc =
     let names = if Sys.win32 then [ cc ^ ".exe"; cc ] else [ cc ] in
     List.find_map
       (fun dir ->
+        let dir = if dir = "" && not Sys.win32 then Filename.current_dir_name else dir in
+        let runs path =
+          Sys.win32
+          || match Unix.access path [ Unix.X_OK ] with () -> true | exception Unix.Unix_error _ -> false
+        in
         List.find_map
           (fun name ->
             let path = Filename.concat dir name in
-            if dir <> "" && Sys.file_exists path && not (Sys.is_directory path) then Some path else None)
+            if dir <> "" && Sys.file_exists path && (not (Sys.is_directory path)) && runs path then Some path
+            else None)
           names)
       dirs
 
