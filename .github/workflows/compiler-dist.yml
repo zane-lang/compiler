@@ -33,7 +33,34 @@ concurrency:
   group: compiler-dist-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Every job that needs nothing from another runs at once: the safeguards,
+# the compiler's tests and the package, whose programs then run on Windows
+# and macOS. A release publishes only when every job here has passed.
 jobs:
+  safeguards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test release safeguards
+        run: |
+          bash tests/release/tag.sh
+          python3 -m unittest discover -s tests/release -p '*_test.py' -v
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up compiler toolchain
+        uses: ./.github/actions/setup-ci
+      - name: Test compiler
+        run: devbox run -- just test-compiler
+
   linux:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -43,14 +70,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Test release safeguards
-        run: |
-          bash tests/release/tag.sh
-          python3 -m unittest discover -s tests/release -p '*_test.py' -v
       - name: Set up compiler toolchain
         uses: ./.github/actions/setup-ci
-      - name: Test compiler
-        run: devbox run -- just test-compiler
       - name: Install verified Zig
         run: .github/scripts/install-zig
       - name: Package compiler and runtime libraries
