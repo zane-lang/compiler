@@ -16,9 +16,9 @@ let name_of (n : N.Name.t) = n.N.Name.text
 
 let declaration env pkg file (d : N.Decl.t) =
   let make kind =
-    incr env.next_decl;
-    let decl = { id = !(env.next_decl); package = pkg.name; file; span = d.N.Decl.span; kind } in
-    Hashtbl.replace env.decls decl.id decl;
+    incr env.counters.next_decl;
+    let decl = { id = !(env.counters.next_decl); package = pkg.name; file; span = d.N.Decl.span; kind } in
+    Hashtbl.replace env.names.decls decl.id decl;
     pkg.decls <- decl :: pkg.decls;
     Some decl
   in
@@ -37,7 +37,7 @@ let declaration env pkg file (d : N.Decl.t) =
    constant and a function of the same name leave a plain name meaning two
    things with no call site to choose between them. Functions overload, and
    whether two of them may is pass 4's question. *)
-let file_under_names env pkg (decl : decl) =
+let file_under_names env (pkg : package) (decl : decl) =
   let report_twice (first : decl) at what =
     error env at
       (Printf.sprintf "%s %s is already declared at %s" what
@@ -272,7 +272,7 @@ let check_import_overloads env (file : file) =
                          (List.map
                             (fun (p : Signature.param) -> Ty.without_mut (Ty.strip_mode p.ty))
                             s.params))
-                     (Hashtbl.find_opt env.signatures d.id)
+                     (Hashtbl.find_opt env.verbs.signatures d.id)
                  in
                  (match
                     List.find_opt
@@ -348,7 +348,7 @@ let check_import_cycles env (loaded : (package * (file * Assembly.file) list) li
       Hashtbl.replace finished name ()
     end
   in
-  List.iter (visit []) !(env.package_order)
+  List.iter (visit []) !(env.names.package_order)
 
 let run env (assembled : Assembly.package list) =
   (* Every package is registered before any import is read, so an import may
@@ -373,8 +373,8 @@ let run env (assembled : Assembly.package list) =
             method_names = Hashtbl.create 16;
           }
         in
-        Hashtbl.replace env.packages p.id pkg;
-        env.package_order := !(env.package_order) @ [ p.id ];
+        Hashtbl.replace env.names.packages p.id pkg;
+        env.names.package_order := !(env.names.package_order) @ [ p.id ];
         (pkg, files))
       assembled
   in

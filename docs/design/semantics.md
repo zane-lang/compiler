@@ -22,7 +22,7 @@ modules by kind; module names stay flat, so `passes/collect.ml` is `Collect`:
 | Module | Holds |
 |---|---|
 | `passes/assembly.ml` | The packages, read from their directories (§2) |
-| `model/env.ml` | The declaration tables, each file's import map, and the diagnostics: one `Env.t` per check, passed to every pass |
+| `model/env.ml` | The declaration tables, each file's import map, and the diagnostics: one `Env.t` per check, passed to every pass, its tables grouped by the pass that fills them (`names`, `types`, `verbs`, `instances`) and the `counters` |
 | `passes/collect.ml` | Passes 1 and 2 |
 | `passes/type_decls.ml` | Type-expression resolution, and pass 3 |
 | `passes/verb_signatures.ml` | Pass 4 |

@@ -70,7 +70,7 @@ let typed_defaults env ?(report = true) (d : decl) (s : S.t) subst =
 let check_defaults env (d : decl) (s : S.t) =
   match typed_defaults env d s [] with
   | [] -> ()
-  | values -> if s.S.generics = [] then env.defaults := { T.Defaults.decl = d.id; args = []; values } :: !(env.defaults)
+  | values -> if s.S.generics = [] then env.instances.defaults := { T.Defaults.decl = d.id; args = []; values } :: !(env.instances.defaults)
 
 let package_context env (d : decl) =
   {
@@ -119,7 +119,7 @@ let declaration env (d : decl) : T.Decl.t option =
   let node : T.Decl.node option =
     match d.kind with
     | Type_decl { name; _ } -> (
-        match Hashtbl.find_opt env.type_infos d.id with
+        match Hashtbl.find_opt env.types.type_infos d.id with
         | Some info ->
             Some
               (T.Decl.Type
@@ -130,12 +130,12 @@ let declaration env (d : decl) : T.Decl.t option =
                    definition = type_definition info;
                  })
         | None -> (
-            match Hashtbl.find_opt env.alias_infos d.id with
+            match Hashtbl.find_opt env.types.alias_infos d.id with
             | Some a ->
                 Some (T.Decl.Alias { name = name.N.Name.text; params = a.alias_params; target = Type_decls.alias_target env a })
             | None -> None))
     | Constant { name; value; _ } ->
-        let ty = Option.value ~default:Ty.Error (Hashtbl.find_opt env.constant_types d.id) in
+        let ty = Option.value ~default:Ty.Error (Hashtbl.find_opt env.verbs.constant_types d.id) in
         let v = expr env (package_context env d) value in
         if not (Ty.assignable ~dst:ty ~src:v.T.Expr.ty) then
           error env v.T.Expr.span
@@ -145,7 +145,7 @@ let declaration env (d : decl) : T.Decl.t option =
                (quote name.N.Name.text) (quote (Ty.to_string ty)) (quote (Ty.to_string v.T.Expr.ty)));
         Some (T.Decl.Constant { name = name.N.Name.text; ty; value = v })
     | Enum_map { enum; property; entries; _ } ->
-        let ty = Option.value ~default:Ty.Error (Hashtbl.find_opt env.constant_types d.id) in
+        let ty = Option.value ~default:Ty.Error (Hashtbl.find_opt env.verbs.constant_types d.id) in
         let ctx = package_context env d in
         let entries =
           List.map (fun ((m : N.Name.t), value) -> (m.N.Name.text, coerce_to env ctx (expr env ctx value) ty)) entries
@@ -154,7 +154,7 @@ let declaration env (d : decl) : T.Decl.t option =
           (T.Decl.Enum_map
              { enum = Type_decls.resolve env (Type_decls.scope d.file) enum; property = property.N.Name.text; ty; entries })
     | Verb _ -> (
-        match Hashtbl.find_opt env.signatures d.id with
+        match Hashtbl.find_opt env.verbs.signatures d.id with
         | None -> None
         | Some s -> (
             check_defaults env d s;
@@ -164,7 +164,7 @@ let declaration env (d : decl) : T.Decl.t option =
                   let ty = subscript_result env d s [] d.span in
                   let key = subscript_key d.id [] s in
                   let params, value =
-                    match Hashtbl.find_opt env.subscript_instances key with
+                    match Hashtbl.find_opt env.instances.subscript_instances key with
                     | Some (_, _, ps, v) -> (ps, Some v)
                     | None -> ([], None)
                   in
@@ -186,16 +186,16 @@ let run env : T.Program.t =
       (fun name ->
         let pkg = package env name in
         { T.Package.name; decls = List.filter_map (declaration env) pkg.decls })
-      !(env.package_order)
+      !(env.names.package_order)
   in
   (* The latest instance asked for is checked first, so a chain is followed
      to its end before the instances beside it: one that never ends reaches
      the limit after as many steps, not after every instance its branches
      would have asked for. *)
-  while not (Stack.is_empty env.pending) do
-    let p = Stack.pop env.pending in
-    env.current_chain := p.p_decl.id :: p.p_chain;
-    Fun.protect ~finally:(fun () -> env.current_chain := []) @@ fun () ->
+  while not (Stack.is_empty env.instances.pending) do
+    let p = Stack.pop env.instances.pending in
+    env.instances.current_chain := p.p_decl.id :: p.p_chain;
+    Fun.protect ~finally:(fun () -> env.instances.current_chain := []) @@ fun () ->
     with_note env (describe_instance p.p_sig p.p_subst p.p_at) (fun () ->
       match p.p_sig.kind with
       | S.Subscript -> ()
@@ -203,12 +203,12 @@ let run env : T.Program.t =
           (match typed_defaults env ~report:false p.p_decl p.p_sig p.p_subst with
           | [] -> ()
           | values ->
-              env.defaults :=
+              env.instances.defaults :=
                 { T.Defaults.decl = p.p_decl.id; args = binding_args p.p_sig p.p_subst; values }
-                :: !(env.defaults));
+                :: !(env.instances.defaults));
           match check_body env p.p_decl p.p_sig p.p_subst with
           | Some (params, body) ->
-              env.instances :=
+              env.instances.checked :=
                 {
                   T.Instance.decl = p.p_decl.id;
                   signature = p.p_sig;
@@ -217,7 +217,7 @@ let run env : T.Program.t =
                   body;
                   note = Some (describe_instance p.p_sig p.p_subst p.p_at);
                 }
-                :: !(env.instances)
+                :: !(env.instances.checked)
           | None -> ()))
   done;
   (* D12 checks a generic body once per instantiation, so one nothing
@@ -232,21 +232,21 @@ let run env : T.Program.t =
   Hashtbl.iter
     (fun _ ((t : S.t), _, _, _) ->
       match t.S.owner with S.Declared id -> Hashtbl.replace instantiated_subscripts id () | _ -> ())
-    env.subscript_instances;
+    env.instances.subscript_instances;
   let instantiated (d : decl) (s : S.t) =
     match s.S.kind with
     | S.Subscript -> Hashtbl.mem instantiated_subscripts d.id
-    | _ -> Hashtbl.mem env.instantiated d.id
+    | _ -> Hashtbl.mem env.instances.instantiated d.id
   in
-  env.defining := true;
+  env.instances.defining := true;
   Fun.protect
-    ~finally:(fun () -> env.defining := false)
+    ~finally:(fun () -> env.instances.defining := false)
     (fun () ->
       List.iter
         (fun name ->
           List.iter
             (fun (d : decl) ->
-              match Hashtbl.find_opt env.signatures d.id with
+              match Hashtbl.find_opt env.verbs.signatures d.id with
               | Some s when s.S.generics <> [] && not (instantiated d s) ->
                   let subst =
                     List.filter_map
@@ -263,7 +263,7 @@ let run env : T.Program.t =
                       | _ -> ignore (check_body env d s subst))
               | _ -> ())
             (package env name).decls)
-        !(env.package_order));
+        !(env.names.package_order));
   (* Generic subscripts were instantiated as their call sites were typed. *)
   let subscript_bodies =
     Hashtbl.fold
@@ -280,14 +280,14 @@ let run env : T.Program.t =
             }
             :: acc
         | _ -> acc)
-      env.subscript_instances []
+      env.instances.subscript_instances []
   in
   let key (i : T.Instance.t) =
     (i.decl, String.concat "," (List.map (fun (_, a) -> Ty.arg_to_string a) i.args))
   in
-  let all = List.rev !(env.instances) @ subscript_bodies in
+  let all = List.rev !(env.instances.checked) @ subscript_bodies in
   {
     T.Program.packages;
     instances = List.sort (fun a b -> compare (key a) (key b)) all;
-    defaults = List.rev !(env.defaults);
+    defaults = List.rev !(env.instances.defaults);
   }

@@ -24,7 +24,7 @@ let describe_chain env chain =
   let links = List.rev chain in
   let shown = take 4 links in
   let name id =
-    match Hashtbl.find_opt env.signatures id with Some (s : S.t) -> quote s.name | None -> "?"
+    match Hashtbl.find_opt env.verbs.signatures id with Some (s : S.t) -> quote s.name | None -> "?"
   in
   String.concat ", " (List.map name shown) ^ if List.length links > List.length shown then ", ..." else ""
 
@@ -121,7 +121,7 @@ let request env ?(args = []) (s : S.t) subst at =
   match s.owner with
   | _ when not (check_result env s subst at) -> ()
   | _ when s.generics <> [] && not (check_kinds env s subst at args) -> ()
-  | _ when !(env.defining) -> ()
+  | _ when !(env.instances.defining) -> ()
   | S.Declared id when s.generics <> [] ->
       let args = binding_args s subst in
       if List.exists (fun (_, a) -> Ty.arg_contains_error a) args then ()
@@ -130,15 +130,15 @@ let request env ?(args = []) (s : S.t) subst at =
           string_of_int id ^ ":"
           ^ String.concat "," (List.map (fun (_, a) -> Ty.arg_to_string a) args)
         in
-        if not (Hashtbl.mem env.instance_keys key || Hashtbl.mem env.runaway id) then begin
-          Hashtbl.add env.instance_keys key ();
-          Hashtbl.replace env.instantiated id ();
-          let chain = id :: !(env.current_chain) in
+        if not (Hashtbl.mem env.instances.instance_keys key || Hashtbl.mem env.instances.runaway id) then begin
+          Hashtbl.add env.instances.instance_keys key ();
+          Hashtbl.replace env.instances.instantiated id ();
+          let chain = id :: !(env.instances.current_chain) in
           let count = List.length (List.filter (Int.equal id) chain) in
           if count > instance_limit then begin
             (* Reported once: the instances still waiting on this declaration
                ask for no more of it. *)
-            Hashtbl.replace env.runaway id ();
+            Hashtbl.replace env.instances.runaway id ();
             error env at
               (Printf.sprintf
                  "%s is instantiated more than %d times along one chain of instantiations, \
@@ -148,12 +148,12 @@ let request env ?(args = []) (s : S.t) subst at =
           else
             Stack.push
               {
-                p_decl = Hashtbl.find env.decls id;
+                p_decl = Hashtbl.find env.names.decls id;
                 p_sig = s;
                 p_subst = subst;
                 p_at = at;
-                p_chain = !(env.current_chain);
+                p_chain = !(env.instances.current_chain);
               }
-              env.pending
+              env.instances.pending
         end
   | _ -> ()

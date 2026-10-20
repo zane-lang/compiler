@@ -47,7 +47,7 @@ let is_integer_concept_type (te : N.Type_expr.t) =
 let rec is_reference env ?(seen = []) (t : Ty.t) =
   match t with
   | Ty.Named (tid, args) -> (
-      match Hashtbl.find_opt env.type_infos_by_id tid with
+      match Hashtbl.find_opt env.types.type_infos_by_id tid with
       | None -> false
       | Some info -> (
           match info.reference with
@@ -65,7 +65,7 @@ let rec is_reference env ?(seen = []) (t : Ty.t) =
   | Ty.Roaming t -> is_reference env ~seen t
   | _ -> false
 
-let type_info_of_id env tid = Hashtbl.find_opt env.type_infos_by_id tid
+let type_info_of_id env tid = Hashtbl.find_opt env.types.type_infos_by_id tid
 
 (* A concept type is never storage (syntax.md §2.8): not a field, not a
    local, not an element of a stored type. *)
@@ -107,7 +107,7 @@ let check_storage env ?(roaming = false) span what (t : Ty.t) =
    are known only once every type is defined, so a marker met before then
    is checked afterwards. *)
 let check_marker env span (marked : Ty.t) =
-  if !(env.ready) then begin
+  if !(env.types.ready) then begin
     match marked with
     | Ty.Reference (Ty.Param _ | Ty.Error) | Ty.Roaming (Ty.Param _ | Ty.Error) -> ()
     | Ty.Reference inner when not (is_reference env inner) ->
@@ -124,7 +124,7 @@ let check_marker env span (marked : Ty.t) =
              (quote (Ty.to_string inner)))
     | _ -> ()
   end
-  else env.deferred_marks := (marked, span) :: !(env.deferred_marks)
+  else env.types.deferred_marks := (marked, span) :: !(env.types.deferred_marks)
 
 (* A reference-typed result is a roaming owner or a reference, written `^T`
    or `&T`: a bare one would hand back a borrow, which is never returned
@@ -273,7 +273,7 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
   in
   match t with
   | Ty.Named (tid, args) when not (List.mem tid seen) -> (
-      match Hashtbl.find_opt env.type_infos_by_id tid with
+      match Hashtbl.find_opt env.types.type_infos_by_id tid with
       | Some ({ definition = Some (Struct fs | Variant fs); _ } as info) ->
           let value = info.reference = Some false in
           let step n = Printf.sprintf "%s's field %s" (quote (Ty.to_string t)) (quote n) in
@@ -365,7 +365,7 @@ let check_kinds env span (t : Ty.t) (args : (Ty.arg * Span.t) list) =
         in
         error env at (describe_wrong_kind found)
   in
-  if !(env.ready) then run () else env.deferred_kinds := run :: !(env.deferred_kinds)
+  if !(env.types.ready) then run () else env.types.deferred_kinds := run :: !(env.types.deferred_kinds)
 
 (* ---------------------------------------------------------------------- *)
 (* Resolution                                                             *)
@@ -564,7 +564,7 @@ and apply ?(param = false) env scope span head (name : N.Name_type.t) generics :
       | None -> Ty.Error)
   | Concept_type c -> concept ~param env scope span c generics
   | Declared d -> (
-      match Hashtbl.find_opt env.type_infos d.id with
+      match Hashtbl.find_opt env.types.type_infos d.id with
       | Some info -> (
           let kinds = List.map (fun (p : Ty.param) -> p.kind) info.params in
           match apply_args env scope span (quote info.tid.name) kinds generics with
@@ -574,7 +574,7 @@ and apply ?(param = false) env scope span head (name : N.Name_type.t) generics :
               t
           | None -> Ty.Error)
       | None -> (
-          match Hashtbl.find_opt env.alias_infos d.id with
+          match Hashtbl.find_opt env.types.alias_infos d.id with
           | Some alias -> (
               let kinds = List.map (fun (p : Ty.param) -> p.kind) alias.alias_params in
               match apply_args env scope span (quote (decl_name d)) kinds generics with
@@ -760,7 +760,7 @@ let register env () =
               in
               match (alias, is_mould) with
               | true, false ->
-                  Hashtbl.replace env.alias_infos d.id
+                  Hashtbl.replace env.types.alias_infos d.id
                     { alias_decl = d; alias_params = params; target = None; resolving = false }
               | _ ->
                   let info =
@@ -772,15 +772,15 @@ let register env () =
                       reference = None;
                     }
                   in
-                  Hashtbl.replace env.type_infos d.id info;
+                  Hashtbl.replace env.types.type_infos d.id info;
                   (* A type declared twice is reported where it is collected;
                      its id keeps naming the first declaration, the one name
                      lookup finds. *)
-                  if not (Hashtbl.mem env.type_infos_by_id info.tid) then
-                    Hashtbl.replace env.type_infos_by_id info.tid info)
+                  if not (Hashtbl.mem env.types.type_infos_by_id info.tid) then
+                    Hashtbl.replace env.types.type_infos_by_id info.tid info)
           | _ -> ())
         pkg.decls)
-    !(env.package_order)
+    !(env.names.package_order)
 
 let members env what (entries : N.Body_field.t list) resolve_field =
   let seen = Hashtbl.create 8 in
@@ -846,7 +846,7 @@ let define env (info : type_info) =
 (* Declarations in source order, so what a whole-table check reports does not
    depend on how a hash table happens to iterate. *)
 let infos_in_order env () =
-  Hashtbl.fold (fun _ info acc -> info :: acc) env.type_infos []
+  Hashtbl.fold (fun _ info acc -> info :: acc) env.types.type_infos []
   |> List.sort (fun (a : type_info) b -> compare a.decl.id b.decl.id)
 
 let check_distinct_cycles env () =
@@ -1088,13 +1088,13 @@ let check_value_downstream env () =
 let run env =
   register env ();
   List.iter (define env) (infos_in_order env ());
-  let aliases = Hashtbl.fold (fun _ a acc -> a :: acc) env.alias_infos [] in
+  let aliases = Hashtbl.fold (fun _ a acc -> a :: acc) env.types.alias_infos [] in
   List.iter (fun a -> ignore (alias_target env a)) (List.sort (fun a b -> compare a.alias_decl.id b.alias_decl.id) aliases);
   check_distinct_cycles env ();
   check_growing_arguments env ();
-  env.ready := true;
-  List.iter (fun (t, span) -> check_marker env span t) (List.rev !(env.deferred_marks));
-  env.deferred_marks := [];
-  List.iter (fun run -> run ()) (List.rev !(env.deferred_kinds));
-  env.deferred_kinds := [];
+  env.types.ready := true;
+  List.iter (fun (t, span) -> check_marker env span t) (List.rev !(env.types.deferred_marks));
+  env.types.deferred_marks := [];
+  List.iter (fun run -> run ()) (List.rev !(env.types.deferred_kinds));
+  env.types.deferred_kinds := [];
   check_value_downstream env ()
