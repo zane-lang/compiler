@@ -11,14 +11,17 @@
 #   pull request, or the last one queued in the merge group, carries the
 #   `perf-accepted` label), which turns that second failure into a warning.
 #   The merge queue checks again because the pull requests it combines can
-#   together be slower than each was alone.
-# - push to main: measure, compare for the record, and push to the branch
-#   GITHUB_SHA's row of stress.tsv, in date order, and its latest.tsv,
-#   unless the branch already holds a commit that comes after it. The commit
-#   is made with git's plumbing, on top of the branch as it is when it is
-#   pushed, so nothing is checked out and a push that loses a race is made
-#   again on the new tip. Only this event writes the branch, and the first
-#   one creates it.
+#   together be slower than each was alone. A program whose build key is
+#   its row's is not run again, since its counts are the row's, so a change
+#   that builds every program as main does runs none of them.
+# - push to main: measure every program, even one whose build key is its
+#   row's, so every row on the branch comes from a run; compare for the
+#   record, and push to the branch GITHUB_SHA's row of stress.tsv, in date
+#   order, and its latest.tsv, unless the branch already holds a commit
+#   that comes after it. The commit is made with git's plumbing, on top of
+#   the branch as it is when it is pushed, so nothing is checked out and a
+#   push that loses a race is made again on the new tip. Only this event
+#   writes the branch, and the first one creates it.
 # - anything else (a manual run, `just test-perf`): measure, compare, and
 #   fail only on a wrong output.
 #
@@ -82,7 +85,7 @@ pull_request | merge_group)
 push)
 	: "${GITHUB_SHA:?must be set}"
 	status=0
-	tests/perf/run "${against[@]}" --record "$work/new" --commit "$GITHUB_SHA" || status=$?
+	tests/perf/run "${against[@]}" --fresh --record "$work/new" --commit "$GITHUB_SHA" || status=$?
 	if [ ! -e "$work/new/latest.tsv" ]; then
 		echo "::error::a perf program failed to build, to run or to print its golden output"
 		exit 1

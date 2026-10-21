@@ -17,8 +17,8 @@ on:
 permissions:
   contents: read
 
-# A pull request's newest event replaces its run in progress: a label change
-# measures again too, so the check it reports is a measurement, never a skip.
+# A pull request's newest event replaces its run in progress, a label change
+# included, so the check it reports is for its newest state.
 # Every other run goes ahead on its own, and the script keeps the branch in
 # commit order however their pushes land.
 concurrency:

@@ -33,28 +33,41 @@ The `perf-log` branch holds two files, both written by CI:
 
 - `latest.tsv`, one row per program for the newest commit pushed to
   `main`: the program, the commit, its date in UTC, the estimated cycles,
-  and the instructions, first-level misses, last-level misses and
-  mispredicted branches they come from. Each push writes it over, so a
-  commit that makes a program faster is what the next pull request is held
-  to. A run that finishes after a later commit's keeps that commit's rows.
+  the instructions, first-level misses, last-level misses and
+  mispredicted branches they come from, and the program's build key
+  (below). Each push writes it over, so a commit that makes a program
+  faster is what the next pull request is held to. A run that finishes after a later commit's keeps that commit's rows.
 - `stress.tsv`, the `stress` program's row for every commit pushed to
   `main`, in date order. It starts at v0.14.
 
 `.github/workflows/perf.yml` runs `.github/scripts/perf`:
 
-- on a pull request, it measures every program and fails when one prints
-  the wrong output, or when its estimated cycles are more than 1% above its
-  row in `latest.tsv`. Labelling the pull request `perf-accepted` turns a
+- on a pull request, it builds every program, measures each one whose
+  build key is not its row's (below), and fails when one prints the wrong
+  output, or when its estimated cycles are more than 1% above its row in
+  `latest.tsv`. Labelling the pull request `perf-accepted` turns a
   slowdown into a warning, for a change that is slower on purpose, and the
-  push to `main` then records the new numbers. Any label change measures
-  again;
-- on a push to `main`, it measures, writes `latest.tsv` and appends to
-  `stress.tsv`;
+  push to `main` then records the new numbers. Any label change runs the
+  check again;
+- on a push to `main`, it measures every program, writes `latest.tsv` and
+  appends to `stress.tsv`;
 - in the merge queue, it checks again as for a pull request, since pull
   requests that each pass can together be slower; the label of the last
   pull request queued in the group decides whether a slowdown is accepted;
 - on a manual run, it measures and compares, and fails only on a wrong
   output.
+
+A program's build key hashes what its counts follow from: the executable
+built, its `arguments`, what it printed, `run` itself, and Valgrind's
+version and resolved path, which under Nix names the store path it was built
+as. The executable holds the compiler's code and the runtime as clang built
+and linked them, and names the C library it loads by its Nix store path, so
+every input the build scripts use is in it without being listed.
+On a pull request, in the merge queue and in `just test-perf`, a program is
+not run again when its build, taken with its golden output, has its row's
+key: it reports its row's counts, since the same build run the same way
+counts the same, and `run --fresh` measures it anyway. A push to `main`
+always measures every program.
 
 Every run but a push fails when it cannot read the branch, so a missing
 baseline never passes as a comparison. The rows are measured on x86-64, so
