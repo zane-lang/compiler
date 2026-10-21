@@ -1,0 +1,2 @@
+program	commit	date	cycles	instructions	l1_misses	ll_misses	mispredicts
+stress	7eab130326def01498513dcf98a9f0a717781ccd	2026-10-21T22:26:40Z	5604144923	4830760163	17465616	2992024	14976310
