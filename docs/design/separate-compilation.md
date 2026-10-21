@@ -261,7 +261,10 @@ rewritten with (`dependencies.md` §7), and refuses to reuse it under another.
 Major `0` is exempt from that promise (`dependencies.md` §14). While the
 compiler is at major `0`, a release may change layouts, signatures, the
 symbol spelling of C9 and the language itself, and it carries no code to
-read source, objects or flags of an earlier `0.x` compiler.
+read source, objects or flags of an earlier `0.x` compiler. `zane` adds no
+check of its own for major `0`: it accepts a dependency whose floor is an
+earlier `0.x`, and that build may fail, or link objects that disagree with
+the consumer and misbehave at run time.
 
 ---
 
