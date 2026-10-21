@@ -247,11 +247,14 @@ def main():
             lambda j: measure(zanec, *j, Path(work), valgrind, reusable.get(j)), jobs)}
     results = [(n, b, *measured[n, b]) for n in names for b in builds]
     broken = slower = False
-    promoted, split = {}, set()
+    # A program is promoted only when every build of it ran and printed the
+    # same output.
+    promoted, held = {}, set()
     print(f"{'program':12} {'build':9}" + "".join(f" {k:>14} {'change':>8}" for k in COUNTS))
     for name, build, result, error in results:
         if error:
             print(f"{name:12} {build:9} {error}")
+            held.add(name)
             broken = True
             continue
         row = rows.get((name, build))
@@ -260,12 +263,10 @@ def main():
         if result["reused"]:
             print(f"  the same build as {result['reused'][:12]}'s: its row, not run again")
         if options.promote:
-            # One golden output holds both builds, so builds that disagree
-            # promote neither's.
             first = promoted.setdefault(name, (build, result["output"]))
             if first[1] != result["output"]:
                 print(f"  printed {result['output']!r}, not the {first[0]} build's {first[1]!r}")
-                split.add(name)
+                held.add(name)
                 broken = True
             continue
         printed, slow = problems_of(name, result, row)
@@ -276,7 +277,7 @@ def main():
     if options.against and not rows:
         print(f"{options.against} has no rows yet: nothing to compare with")
     for name, (_, output) in promoted.items():
-        if name not in split:
+        if name not in held:
             (GOLDEN / f"{name}.out").write_text(output)
     if options.record and not broken:
         write_log(options.record, options.commit, [(n, b, r) for n, b, r, _ in results])
