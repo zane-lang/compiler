@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 # The perf programs against the `perf-log` branch (tests/perf/README.md),
-# which holds latest.tsv, each program's row for the newest commit pushed to
-# main, and stress.tsv, the stress program's row for every one of them. Run
+# which holds latest.tsv, each program's rows for the newest commit pushed to
+# main, one per build, and stress.tsv and stress-plain.tsv, the stress
+# program's optimized and plain rows for every one of them. Run
 # inside the devbox, with the event in EVENT_NAME: by perf.yml, and by
 # `just test-perf`, which names none of the events below.
 #
 # - pull_request and merge_group: measure every program and fail when one
 #   prints the wrong output, or when its estimated cycles are more than the
-#   tolerance above its row in latest.tsv, unless ACCEPTED is `true` (the
+#   tolerance above its row in latest.tsv, a build with no row passing, unless ACCEPTED is `true` (the
 #   pull request, or the last one queued in the merge group, carries the
 #   `perf-accepted` label), which turns that second failure into a warning.
 #   The merge queue checks again because the pull requests it combines can
-#   together be slower than each was alone. A program whose build key is
-#   its row's is not run again, since its counts are the row's, so a change
-#   that builds every program as main does runs none of them.
-# - push to main: measure every program, even one whose build key is its
-#   row's, so every row on the branch comes from a run; compare for the
-#   record, and push to the branch GITHUB_SHA's row of stress.tsv, in date
+#   together be slower than each was alone. A build whose key is its row's
+#   is not run again, since its counts are the row's, so a change that
+#   builds every program as main does runs none of them.
+# - push to main: measure every build, even one whose key is its row's, so
+#   every row on the branch comes from a run; compare for the record, and
+#   push to the branch GITHUB_SHA's rows of the two histories, each in date
 #   order, and its latest.tsv, unless the branch already holds a commit
 #   that comes after it. The commit is made with git's plumbing, on top of
 #   the branch as it is when it is pushed, so nothing is checked out and a
@@ -33,10 +34,12 @@ set -euo pipefail
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 logged=stress
+histories=("$logged" "$logged-plain")
 
 # The branch's files, into $work/log. Returns 1 when there is no branch and
 # exits when it cannot be read; each command carries its own exit, since a
-# function called in a condition runs without `set -e`.
+# function called in a condition runs without `set -e`. The plain history is
+# missing until the first push that measures plain builds writes it.
 fetch_log() {
 	rm -rf "$work/log"
 	mkdir -p "$work/log"
@@ -53,6 +56,9 @@ fetch_log() {
 	git fetch --quiet origin perf-log || exit 1
 	git show FETCH_HEAD:latest.tsv > "$work/log/latest.tsv" || exit 1
 	git show FETCH_HEAD:$logged.tsv > "$work/log/$logged.tsv" || exit 1
+	if git cat-file -e "FETCH_HEAD:$logged-plain.tsv" 2> /dev/null; then
+		git show "FETCH_HEAD:$logged-plain.tsv" > "$work/log/$logged-plain.tsv" || exit 1
+	fi
 }
 
 if ! fetch_log && [ "$EVENT_NAME" != push ]; then
@@ -106,22 +112,23 @@ push)
 				echo "the branch already holds $recorded, after $GITHUB_SHA; keeping its latest.tsv"
 				latest="$work/log/latest.tsv"
 			fi
-		else
-			head -n 1 "$work/new/$logged.tsv" > "$work/log/$logged.tsv"
 		fi
-		# This commit's row, once, among the others in date order (UTC, so
-		# the dates sort as text).
-		{
-			head -n 1 "$work/log/$logged.tsv"
+		entries=$(printf '100644 blob %s\tlatest.tsv' "$(git hash-object -w "$latest")")
+		for history in "${histories[@]}"; do
+			# A history the branch does not hold yet starts with its header.
+			[ -e "$work/log/$history.tsv" ] || head -n 1 "$work/new/$history.tsv" > "$work/log/$history.tsv"
+			# This commit's row, once, among the others in date order (UTC,
+			# so the dates sort as text).
 			{
-				tail -n +2 "$work/log/$logged.tsv" | awk -F'\t' -v sha="$GITHUB_SHA" '$2 != sha'
-				tail -n 1 "$work/new/$logged.tsv"
-			} | sort -s -t $'\t' -k 3,3
-		} > "$work/history.tsv"
-		latest_blob=$(git hash-object -w "$latest")
-		history_blob=$(git hash-object -w "$work/history.tsv")
-		tree=$(printf '100644 blob %s\tlatest.tsv\n100644 blob %s\t%s.tsv\n' \
-			"$latest_blob" "$history_blob" "$logged" | git mktree)
+				head -n 1 "$work/log/$history.tsv"
+				{
+					tail -n +2 "$work/log/$history.tsv" | awk -F'\t' -v sha="$GITHUB_SHA" '$2 != sha'
+					tail -n 1 "$work/new/$history.tsv"
+				} | sort -s -t $'\t' -k 3,3
+			} > "$work/$history.history.tsv"
+			entries+=$(printf '\n100644 blob %s\t%s.tsv' "$(git hash-object -w "$work/$history.history.tsv")" "$history")
+		done
+		tree=$(printf '%s\n' "$entries" | git mktree)
 		commit=$(git commit-tree "$tree" "${parents[@]}" -m "perf-log: ${GITHUB_SHA:0:12}")
 		if git push --quiet origin "$commit:refs/heads/perf-log"; then
 			exit 0

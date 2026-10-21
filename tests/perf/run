@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Measure each perf program's optimized build in estimated cycles.
+"""Measure each perf program's two builds in estimated cycles.
 
 Each directory here is one package, a program that reads its size from the
-`arguments` file beside it. It is built with `--optimize` and run once under
-Valgrind's Callgrind with the cache and branch simulators on, and what it
+`arguments` file beside it. It is built twice, `optimized` with `--optimize`
+and `plain` without it, as `zane run` builds, and each build is run once under
+Valgrind's Callgrind with the cache and branch simulators on. What each
 printed is held to `golden/NAME.out`. What the simulators counted for the
 whole process, the C library's work included, becomes estimated cycles:
 
@@ -17,28 +18,30 @@ same on every run of one build, which is what lets one commit's build be
 compared with the next; it is an estimate for a generic processor, not a
 time on any real one.
 
-    tests/perf/run                            # measure every program
+    tests/perf/run                            # measure every program, both builds
     tests/perf/run flips trees                # measure these
+    tests/perf/run --build plain              # measure one build of each
     tests/perf/run --against latest.tsv       # and fail if one is slower than its row there
     tests/perf/run --record DIR --commit SHA  # and write DIR's log as SHA's
     tests/perf/run --against latest.tsv --fresh  # and run even the builds its rows hold
     tests/perf/run --promote                  # write golden/NAME.out from this build
 
-`--against` fails when a program's estimated cycles are more than
-`TOLERANCE` above its row; a program with no row passes. `--record` writes
-`DIR/latest.tsv`, one row per program, over what was there, and appends the
-`LOGGED` program's row to `DIR/LOGGED.tsv`, its history. It records a build
+`--against` fails when a build's estimated cycles are more than
+`TOLERANCE` above its row; a build with no row passes. `--record` writes
+`DIR/latest.tsv`, one row per program and build, over what was there, and
+appends the `LOGGED` program's rows to its histories, `DIR/LOGGED.tsv` for
+the optimized build and `DIR/LOGGED-plain.tsv` for the plain one. It records a build
 that is slower and still fails, and records nothing when a program fails to
 build, to run or to print its golden output. CI keeps both on
 the `perf-log` branch (`.github/scripts/perf`). `--zanec`, or `ZANEC` in the
 environment, measures another build of the compiler.
 
-Each row also holds its program's build key: a hash of the executable built,
+Each row also holds its build's key: a hash of the executable built,
 its `arguments`, what it printed, this script, and Valgrind's resolved path
-and version, everything the counts follow from. With `--against`, a program
-is not run again when its build, taken with its golden output, has its row's
-key: the counts are the row's, since the same build run the same way counts
-the same. `--fresh` measures every program anyway.
+and version, everything the counts follow from. With `--against`, a build
+is not run again when it, taken with its golden output, has its row's key:
+the counts are the row's, since the same build run the same way counts the
+same. `--fresh` measures every build anyway.
 """
 
 import argparse
@@ -59,8 +62,17 @@ LOGGED = "stress"
 CACHES = ["--I1=32768,8,64", "--D1=32768,8,64", "--LL=8388608,16,64"]
 COUNTS = ["cycles", "instructions", "l1_misses", "ll_misses", "mispredicts"]
 COLUMNS = ["program", "commit", "date", *COUNTS]
-# The history keeps the columns it started with; latest.tsv adds the key.
-LATEST = [*COLUMNS, "key"]
+# The histories keep the columns they started with; latest.tsv adds the key
+# and the build. A row from before plain builds were measured has no build
+# column, and is the optimized one.
+LATEST = [*COLUMNS, "key", "build"]
+# Each build's flags. The plain one is what `zane run` builds.
+BUILDS = {"optimized": ["--optimize"], "plain": []}
+
+
+def history(build):
+    """The file the `LOGGED` program's rows for *build* are appended to."""
+    return f"{LOGGED}.tsv" if build == "optimized" else f"{LOGGED}-{build}.tsv"
 
 
 def programs():
@@ -89,15 +101,15 @@ def build_key(name, exe, printed, valgrind):
     return digest.hexdigest()
 
 
-def measure(zanec, name, work, valgrind, row):
-    """What program `name` printed and its counts, or why it has none. A
-    *row* with the build's key gives its counts without running it."""
-    exe, profile = work / name, work / f"{name}.callgrind"
+def measure(zanec, name, build, work, valgrind, row):
+    """What program `name`'s *build* printed and its counts, or why it has
+    none. A *row* with the build's key gives its counts without running it."""
+    exe, profile = work / f"{name}.{build}", work / f"{name}.{build}.callgrind"
     built = subprocess.run(
-        [zanec, "--build", exe, "--optimize", "--package", HERE / name],
+        [zanec, "--build", exe, *BUILDS[build], "--package", HERE / name],
         capture_output=True, text=True)
     if built.returncode:
-        return name, None, f"build failed:\n{built.stdout}{built.stderr}"
+        return name, build, None, f"build failed:\n{built.stdout}{built.stderr}"
     # A recorded key holds what its program printed, so a row whose key is
     # this build's printing the golden output printed that output too.
     out = GOLDEN / f"{name}.out"
@@ -105,7 +117,7 @@ def measure(zanec, name, work, valgrind, row):
         golden = out.read_text()
         key = build_key(name, exe, golden, valgrind)
         if row.get("key") == key:
-            return name, {
+            return name, build, {
                 "output": golden,
                 **{k: int(row[k]) for k in COUNTS},
                 "key": key,
@@ -117,12 +129,12 @@ def measure(zanec, name, work, valgrind, row):
          f"--callgrind-out-file={profile}", exe, *args],
         capture_output=True, text=True)
     if ran.returncode:
-        return name, None, f"exited with {ran.returncode}:\n{ran.stdout}{ran.stderr}"
+        return name, build, None, f"exited with {ran.returncode}:\n{ran.stdout}{ran.stderr}"
     e = totals(profile)
     l1 = e["I1mr"] + e["D1mr"] + e["D1mw"]
     ll = e["ILmr"] + e["DLmr"] + e["DLmw"]
     mispredicts = e["Bcm"] + e["Bim"]
-    return name, {
+    return name, build, {
         "output": ran.stdout,
         "cycles": e["Ir"] + 10 * l1 + 100 * ll + 20 * mispredicts,
         "instructions": e["Ir"],
@@ -135,13 +147,13 @@ def measure(zanec, name, work, valgrind, row):
 
 
 def read_rows(path):
-    """A log's rows, keyed by program; a missing log has none."""
+    """A log's rows, keyed by program and build; a missing log has none."""
     if path is None or not path.exists():
         return {}
     lines = path.read_text().splitlines()
     header = lines[0].split("\t")
     rows = [dict(zip(header, line.split("\t"))) for line in lines[1:] if line]
-    return {row["program"]: row for row in rows}
+    return {(row["program"], row.get("build", "optimized")): row for row in rows}
 
 
 def write_log(directory, commit, results):
@@ -154,18 +166,19 @@ def write_log(directory, commit, results):
         return "\t".join([name, commit, date, *(str(result[k]) for k in COUNTS), *extra]) + "\n"
 
     (directory / "latest.tsv").write_text(
-        "\t".join(LATEST) + "\n" + "".join(row(n, r, [r["key"]]) for n, r in results))
-    history = directory / f"{LOGGED}.tsv"
-    for name, result in results:
+        "\t".join(LATEST) + "\n" + "".join(row(n, r, [r["key"], b]) for n, b, r in results))
+    for name, build, result in results:
         if name == LOGGED:
-            if not history.exists():
-                history.write_text("\t".join(COLUMNS) + "\n")
-            with history.open("a") as log:
-                log.write(row(name, result))
+            log = directory / history(build)
+            if not log.exists():
+                log.write_text("\t".join(COLUMNS) + "\n")
+            with log.open("a") as out:
+                out.write(row(name, result))
 
 
 def problems_of(name, result, row):
-    """What is wrong with what `name` printed, and with how long it took."""
+    """What is wrong with what a build of `name` printed, and with how long
+    it took."""
     problems, slow = [], []
     out = GOLDEN / f"{name}.out"
     if not out.exists():
@@ -193,9 +206,11 @@ def main():
     parser.add_argument("--against", type=Path, metavar="LOG", help="fail if slower than LOG's rows")
     parser.add_argument("--record", type=Path, metavar="DIR", help="write DIR's log from this build")
     parser.add_argument("--commit", help="the commit recorded rows are for")
+    parser.add_argument("--build", choices=BUILDS, action="append", dest="builds",
+                        help="measure this build only; both when none is named")
     parser.add_argument("--promote", action="store_true", help="write golden/NAME.out from this build")
     parser.add_argument("--fresh", action="store_true",
-                        help="measure every program, even one whose build key is its row's")
+                        help="measure every build, even one whose key is its row's")
     parser.add_argument("--zanec", type=Path, default=os.environ.get("ZANEC"),
                         help="the compiler to build with (default: this checkout's)")
     options = parser.parse_args()
@@ -210,8 +225,9 @@ def main():
     unknown = [n for n in names if n not in programs()]
     if unknown:
         sys.exit(f"no perf program named {', '.join(unknown)}")
-    if options.record and options.names:
-        sys.exit("--record measures every program")
+    builds = options.builds or list(BUILDS)
+    if options.record and (options.names or options.builds):
+        sys.exit("--record measures every program's builds")
     orphans = [p.name for p in GOLDEN.iterdir() if p.stem not in programs()]
     if orphans:
         sys.exit(f"golden files for no program: {', '.join(sorted(orphans))}")
@@ -222,22 +238,35 @@ def main():
     # so a rebuild that keeps the version still changes the key.
     valgrind = str(Path(shutil.which("valgrind")).resolve()).encode() + subprocess.run(
         ["valgrind", "--version"], capture_output=True, check=True).stdout
+    # The longest run, stress's plain build, goes first, so that it does not
+    # start last on a pool already busy with the others.
+    jobs = sorted(((n, b) for n in names for b in builds),
+                  key=lambda j: (j[0] != LOGGED, j[1] != "plain"))
     with tempfile.TemporaryDirectory() as work, ThreadPoolExecutor(os.cpu_count() or 1) as pool:
-        results = list(pool.map(
-            lambda n: measure(zanec, n, Path(work), valgrind, reusable.get(n)), names))
+        measured = {(n, b): (r, e) for n, b, r, e in pool.map(
+            lambda j: measure(zanec, *j, Path(work), valgrind, reusable.get(j)), jobs)}
+    results = [(n, b, *measured[n, b]) for n in names for b in builds]
     broken = slower = False
-    print(f"{'program':12}" + "".join(f" {k:>14} {'change':>8}" for k in COUNTS))
-    for name, result, error in results:
+    promoted, split = {}, set()
+    print(f"{'program':12} {'build':9}" + "".join(f" {k:>14} {'change':>8}" for k in COUNTS))
+    for name, build, result, error in results:
         if error:
-            print(f"{name:12} {error}")
+            print(f"{name:12} {build:9} {error}")
             broken = True
             continue
-        row = rows.get(name)
-        print(f"{name:12}" + "".join(f" {result[k]:>14} {change(row, k, result[k]):>8}" for k in COUNTS))
+        row = rows.get((name, build))
+        print(f"{name:12} {build:9}"
+              + "".join(f" {result[k]:>14} {change(row, k, result[k]):>8}" for k in COUNTS))
         if result["reused"]:
             print(f"  the same build as {result['reused'][:12]}'s: its row, not run again")
         if options.promote:
-            (GOLDEN / f"{name}.out").write_text(result["output"])
+            # One golden output holds both builds, so builds that disagree
+            # promote neither's.
+            first = promoted.setdefault(name, (build, result["output"]))
+            if first[1] != result["output"]:
+                print(f"  printed {result['output']!r}, not the {first[0]} build's {first[1]!r}")
+                split.add(name)
+                broken = True
             continue
         printed, slow = problems_of(name, result, row)
         for problem in printed + slow:
@@ -246,8 +275,11 @@ def main():
         slower |= bool(slow)
     if options.against and not rows:
         print(f"{options.against} has no rows yet: nothing to compare with")
+    for name, (_, output) in promoted.items():
+        if name not in split:
+            (GOLDEN / f"{name}.out").write_text(output)
     if options.record and not broken:
-        write_log(options.record, options.commit, [(n, r) for n, r, _ in results])
+        write_log(options.record, options.commit, [(n, b, r) for n, b, r, _ in results])
     if broken or slower:
         sys.exit(1)
 
