@@ -372,6 +372,14 @@ spawns nothing and every snapshot where something may write back, the
 runtime's small list operations in line, and a loop over a list's elements,
 each written and read again, with no index check left in it.
 
+`tests/perf/` holds what an optimized build's code does at run time: each
+of its programs, most of them ports of the spec repo's `langbench/`, runs
+under Valgrind's Callgrind, and the instructions and conditional branches it
+executes are held to golden counts within 0.1%. A counted instruction is
+the same on every machine, so a change to codegen, to the pipeline LLVM runs
+or to what LLVM is told shows as a moved count rather than as noise in a
+timing ([`tests/perf/README.md`](../../tests/perf/README.md)).
+
 `tests/unit/` checks the evaluator's arithmetic against codegen's, its math
 functions, the intrinsic classes, a value written as code and read back, calls, outputs,
 memoization of a call that reaches a loop or a runtime function, or runs a

@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+"""Hold each perf program to the work its optimized build does.
+
+Each directory here is one package, a program that reads its size from the
+`arguments` file beside it. It is built with `--optimize`, run once under
+Valgrind's Callgrind, and held to two golden files: `golden/NAME.out`, what
+it printed, and `golden/NAME.counts`, how many instructions and conditional
+branches it executed. Callgrind counts the instructions a program executes
+rather than timing them, so the counts are the same on every run and every
+machine that builds with the same toolchain, which is what lets a change in
+the code the compiler emits show as a change here.
+
+Only the program's own instructions are held: its code and the runtime
+linked into it. What it executes in the C library and the dynamic loader is
+shown beside them and held to nothing, since the C library picks its
+`memcpy` and its other string functions by the processor it runs on, and the
+loader's work depends on the environment.
+
+A count may move by `TOLERANCE` of its golden value either way, which covers
+the little the runtime's start-up reads of the machine can change. A count
+that moves further fails the run, up or down: one that went down is held
+until the golden file says so too, so the files keep up with the compiler.
+
+    tests/perf/run              # check every program
+    tests/perf/run flips trees  # check these
+    tests/perf/run --promote    # write the golden files from this build
+
+`just test-perf` and `just promote-perf` run the first and the third. The
+counts are those of the devbox's toolchain; another C compiler or LLVM
+builds a different program.
+"""
+
+import argparse
+from concurrent.futures import ThreadPoolExecutor
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[1]
+GOLDEN = HERE / "golden"
+TOLERANCE = 0.001
+HELD = ("instructions", "branches")
+
+
+def programs():
+    return sorted(p.name for p in HERE.iterdir() if p.is_dir() and (p / "main.zn").exists())
+
+
+def counts_by_object(path):
+    """Each object's own instructions and conditional branches, from a
+    Callgrind profile: the cost lines under each `ob=`, without the inclusive
+    cost that follows each `calls=` line."""
+    names, totals, events = {}, {}, None
+    current, after_call = None, False
+    with open(path) as profile:
+        for line in profile:
+            line = line.rstrip("\n")
+            if line.startswith("events:"):
+                events = line.split()[1:]
+                continue
+            named = re.match(r"(c?ob)=\((\d+)\)(?: (.*))?$", line)
+            if named:
+                kind, key, name = named.groups()
+                if name:
+                    names[key] = name
+                if kind == "ob":
+                    current = names[key]
+                continue
+            if line.startswith("calls="):
+                after_call = True
+                continue
+            if line and (line[0].isdigit() or line[0] in "+-*"):
+                if after_call:
+                    after_call = False
+                    continue
+                costs = dict(zip(events, map(int, line.split()[1:])))
+                total = totals.setdefault(current, {"Ir": 0, "Bc": 0})
+                total["Ir"] += costs.get("Ir", 0)
+                total["Bc"] += costs.get("Bc", 0)
+    return totals
+
+
+def measure(zanec, name, work):
+    """What program `name` printed, and its own and the libraries' counts."""
+    exe = work / name
+    built = subprocess.run(
+        [zanec, "--build", exe, "--optimize", "--package", HERE / name],
+        capture_output=True, text=True)
+    if built.returncode:
+        return name, None, f"build failed:\n{built.stdout}{built.stderr}"
+    args = (HERE / name / "arguments").read_text().split()
+    profile = work / f"{name}.callgrind"
+    ran = subprocess.run(
+        ["valgrind", "-q", "--tool=callgrind", "--branch-sim=yes", f"--callgrind-out-file={profile}", exe, *args],
+        capture_output=True, text=True)
+    if ran.returncode:
+        return name, None, f"exited with {ran.returncode}:\n{ran.stdout}{ran.stderr}"
+    objects = counts_by_object(profile)
+    own = objects.get(str(exe), {"Ir": 0, "Bc": 0})
+    libraries = sum(c["Ir"] for o, c in objects.items() if o != str(exe))
+    return name, {
+        "output": ran.stdout,
+        "instructions": own["Ir"],
+        "branches": own["Bc"],
+        "libraries": libraries,
+    }, None
+
+
+def read_counts(name):
+    path = GOLDEN / f"{name}.counts"
+    if not path.exists():
+        return None
+    counts = {}
+    for line in path.read_text().splitlines():
+        key, value = line.split()
+        counts[key] = int(value)
+    return counts
+
+
+def write(name, result):
+    (GOLDEN / f"{name}.out").write_text(result["output"])
+    (GOLDEN / f"{name}.counts").write_text("".join(f"{k} {result[k]}\n" for k in HELD))
+
+
+def problems_of(name, result):
+    problems = []
+    out = GOLDEN / f"{name}.out"
+    if not out.exists():
+        problems.append(f"no golden/{name}.out")
+    elif out.read_text() != result["output"]:
+        problems.append(f"printed {result['output']!r}, not golden/{name}.out's {out.read_text()!r}")
+    golden = read_counts(name)
+    if golden is None:
+        problems.append(f"no golden/{name}.counts")
+        return problems
+    for key in HELD:
+        was, now = golden[key], result[key]
+        if abs(now - was) > TOLERANCE * was:
+            way = "more" if now > was else "fewer"
+            problems.append(f"{key}: {now} is {abs(now - was) / was:.2%} {way} than the golden {was}")
+    return problems
+
+
+def change(was, now):
+    return f"{(now - was) / was:+.2%}" if was else "new"
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("names", nargs="*", help="programs to run; every one when none is named")
+    parser.add_argument("--promote", action="store_true", help="write the golden files from this build")
+    options = parser.parse_args()
+    zanec = ROOT / "_build" / "default" / "bin" / "zanec" / "zanec.exe"
+    if not zanec.exists():
+        sys.exit("build zanec first: dune build bin/zanec/zanec.exe")
+    if shutil.which("valgrind") is None:
+        sys.exit("valgrind is not on PATH; run this inside the devbox (Linux only)")
+    names = options.names or programs()
+    unknown = [n for n in names if n not in programs()]
+    if unknown:
+        sys.exit(f"no perf program named {', '.join(unknown)}")
+    orphans = [p.name for p in GOLDEN.iterdir() if p.stem not in programs()]
+    if orphans:
+        sys.exit(f"golden files for no program: {', '.join(sorted(orphans))}")
+    with tempfile.TemporaryDirectory() as work, ThreadPoolExecutor(os.cpu_count() or 1) as pool:
+        results = list(pool.map(lambda n: measure(zanec, n, Path(work)), names))
+    failed = False
+    print(f"{'program':12} {'instructions':>14} {'change':>8} {'branches':>13} {'change':>8} {'libraries':>11}")
+    for name, result, error in results:
+        if error:
+            print(f"{name:12} {error}")
+            failed = True
+            continue
+        golden = read_counts(name) or {}
+        print(f"{name:12} {result['instructions']:>14} {change(golden.get('instructions'), result['instructions']):>8}"
+              f" {result['branches']:>13} {change(golden.get('branches'), result['branches']):>8}"
+              f" {result['libraries']:>11}")
+        if options.promote:
+            write(name, result)
+            continue
+        for problem in problems_of(name, result):
+            print(f"  {problem}")
+            failed = True
+    if failed:
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

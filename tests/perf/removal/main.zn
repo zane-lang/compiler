@@ -1,0 +1,80 @@
+/// Lists that shrink as well as grow, as langbench's gameloop: each of N
+/// frames pushes 30 value structs, removes the 20 oldest in order, and
+/// updates the rest, removing by swapping those whose points run out. The
+/// ordered removals move the later elements with `memmove`, whose own
+/// instructions are the C library's, not the program's.
+package removal;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\n")));
+	return Unit();
+}
+
+
+type Entity = struct {
+	id Int;
+	hp Int;
+}
+
+Entity(id Int, hp Int) => init{ id; hp; }
+
+Unit main() {
+	frames Int = size(Int(100));
+	entities List<Entity> = @primitives$List(Entity);
+	state Int(42);
+	total Int(0);
+	frame Int(1);
+	frame!to(frames) {
+		s Int(1);
+		s!to(Int(30)) {
+			state = @math$bitAnd(@operators$add(@operators$multiply(state, Int(1103515245)), Int(12345)), Int(2147483647));
+			entities!push(Entity(state, @operators$add(Int(5), @operators$add(state, @operators$negate(@operators$multiply(@operators$divide(state, Int(10)), Int(10)))))));
+		}
+		d Int(1);
+		d!to(Int(20)) {
+			entities!remove(Int(1));
+		}
+		k Int(1);
+		u Int(1);
+		u!to(entities:size()) {
+			entities[k].hp = @operators$add(entities[k].hp, @operators$negate(Int(1)));
+			spent Bool = @operators$lessThan(entities[k].hp, Int(1));
+			@controlflow$branch(spent, {
+				entities!swapRemove(k);
+			});
+			@controlflow$branch(@operators$not(spent), {
+				total = @operators$add(total, entities[k].hp);
+				k = @operators$add(k, Int(1));
+			});
+		}
+	}
+	say(@operators$concat(@operators$concat(String(entities:size()), String(" ")), String(total)));
+	return Unit();
+}

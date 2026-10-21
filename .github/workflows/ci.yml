@@ -87,6 +87,10 @@ jobs:
         if: matrix.suite == 'compiler'
         run: devbox run -- just test-compiler
 
+      - name: Perf tests
+        if: matrix.suite == 'compiler'
+        run: devbox run -- just test-perf
+
       - name: Grammar generator tests
         if: matrix.suite == 'highlighting' && needs.suites.outputs.highlighting != 'true'
         run: devbox run -- just test-grammar-generation

@@ -1,0 +1,137 @@
+/// The Benchmarks Game's fannkuch-redux, as langbench's fannkuch: every
+/// permutation of N items, each flipped by reversing its first k + 1 items
+/// while the first item k is not 0. Small lists indexed, written and
+/// rotated in place in short loops, and a recursion that counts flips.
+package flips;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\n")));
+	return Unit();
+}
+
+
+type Flips = #struct {
+	n Int;
+	perm1 List<Int>;
+	perm List<Int>;
+	count List<Int>;
+}
+
+Flips(n Int) => init{
+	n;
+	perm1 = @primitives$List(Int);
+	perm = @primitives$List(Int);
+	count = @primitives$List(Int);
+}
+
+Unit start(this Flips) mut {
+	i Int(1);
+	i!to(this.n) {
+		this.perm1!push(@operators$add(i, @operators$negate(Int(1))));
+		this.perm!push(Int(0));
+		this.count!push(Int(0));
+	}
+	return Unit();
+}
+
+/// Flips the copy until its first item is 0, and says how many flips that took.
+Int flip(this Flips) mut {
+	k Int = this.perm[Int(1)];
+	@controlflow$branch(@operators$equal(k, Int(0)), {
+		return Int(0);
+	});
+	i Int(1);
+	i!to(@operators$divide(@operators$add(k, Int(1)), Int(2))) {
+		j Int = @operators$add(@operators$add(k, Int(2)), @operators$negate(i));
+		t Int = this.perm[i];
+		this.perm[i] = this.perm[j];
+		this.perm[j] = t;
+	}
+	return @operators$add(Int(1), this!flip());
+}
+
+/// Steps to the next permutation from rank `from`, and returns the new rank.
+Int advance(this Flips, from Int) mut {
+	r Int = from;
+	step Int(1);
+	step!to(this.n) {
+		@controlflow$branch(@operators$equal(r, this.n), {
+			return r;
+		});
+		first Int = this.perm1[Int(1)];
+		i Int(1);
+		i!to(r) {
+			this.perm1[i] = this.perm1[@operators$add(i, Int(1))];
+		}
+		this.perm1[@operators$add(r, Int(1))] = first;
+		this.count[@operators$add(r, Int(1))] = @operators$add(this.count[@operators$add(r, Int(1))], @operators$negate(Int(1)));
+		@controlflow$branch(@operators$lessThan(Int(0), this.count[@operators$add(r, Int(1))]), {
+			return r;
+		});
+		r = @operators$add(r, Int(1));
+	}
+	return r;
+}
+
+Unit main() {
+	n Int = size(Int(7));
+	state Flips(n);
+	state!start();
+	permutations Int(1);
+	f Int(1);
+	f!to(n) {
+		permutations = @operators$multiply(permutations, f);
+	}
+	checksum Int(0);
+	most Int(0);
+	sign Int(1);
+	r Int = n;
+	p Int(1);
+	p!to(permutations) {
+		v Int(2);
+		v!to(r) {
+			state.count[v] = v;
+		}
+		r = Int(1);
+		i Int(1);
+		i!to(n) {
+			state.perm[i] = state.perm1[i];
+		}
+		flips Int = state!flip();
+		@controlflow$branch(@operators$lessThan(most, flips), {
+			most = flips;
+		});
+		checksum = @operators$add(checksum, @operators$multiply(sign, flips));
+		sign = @operators$negate(sign);
+		r = state!advance(r);
+	}
+	say(@operators$concat(@operators$concat(String(checksum), String(" ")), String(most)));
+	return Unit();
+}

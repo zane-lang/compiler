@@ -753,6 +753,68 @@
         }
       }
     },
+    "valgrind@latest": {
+      "last_modified": "2026-10-19T15:20:57Z",
+      "resolved": "github:NixOS/nixpkgs/682ba80136e2c8dacd6b8900f578a72329458901#valgrind",
+      "source": "devbox-search",
+      "version": "3.27.1",
+      "systems": {
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/d70fn33qak6jpd9agmg1ha8sm9ws92ba-valgrind-3.27.1",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/8y0lbkdqr3cx6ziax6l7h26sc535sqq7-valgrind-3.27.1-man",
+              "default": true
+            },
+            {
+              "name": "debug",
+              "path": "/nix/store/aqryczxdkwv4nn6nj8hzqhbqsr6wlffh-valgrind-3.27.1-debug"
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/z24wg2mwdznsasvg1c78hvp671851lfk-valgrind-3.27.1-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/6swll4zhr5hxijbc0h798zhq7arhciw2-valgrind-3.27.1-doc"
+            }
+          ],
+          "store_path": "/nix/store/d70fn33qak6jpd9agmg1ha8sm9ws92ba-valgrind-3.27.1"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/4298593522xgrr28874w20cvvs742r51-valgrind-3.27.1",
+              "default": true
+            },
+            {
+              "name": "man",
+              "path": "/nix/store/ldcgidq99iymgkgccz9h91blr8y3bqzc-valgrind-3.27.1-man",
+              "default": true
+            },
+            {
+              "name": "debug",
+              "path": "/nix/store/b44nzjyq6n1avi3bx7cq4ba7ssf9zipr-valgrind-3.27.1-debug"
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/jj22y7syjhkxrphhfbn9h8yx7jnivri9-valgrind-3.27.1-dev"
+            },
+            {
+              "name": "doc",
+              "path": "/nix/store/q91jjrd1l9vf395sphrf7aqicllfbpk4-valgrind-3.27.1-doc"
+            }
+          ],
+          "store_path": "/nix/store/4298593522xgrr28874w20cvvs742r51-valgrind-3.27.1"
+        }
+      }
+    },
     "zstd@latest": {
       "last_modified": "2026-10-14T08:20:44Z",
       "resolved": "github:NixOS/nixpkgs/319e4cebef10cbb636c6ea392137b52ad105336a#zstd",

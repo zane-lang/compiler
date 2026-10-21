@@ -34,7 +34,14 @@
         "x86_64-linux"
       ]
     },
-    "cmake": "latest"
+    "cmake": "latest",
+    "valgrind": {
+      "version": "latest",
+      "platforms": [
+        "x86_64-linux",
+        "aarch64-linux"
+      ]
+    }
   },
   "shell": {
     "init_hook": [

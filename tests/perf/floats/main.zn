@@ -1,0 +1,70 @@
+/// The Mandelbrot set, as langbench's mandelbrot: the points of an N by N
+/// grid that stay bounded through 50 steps. Floating-point arithmetic and
+/// comparison in nested loops, with an early return.
+package floats;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\n")));
+	return Unit();
+}
+
+
+Bool bounded(cr Float, ci Float) {
+	zr Float(0.0);
+	zi Float(0.0);
+	i Int(1);
+	i!to(Int(50)) {
+		tr Float = @operators$add(@operators$add(@operators$multiply(zr, zr), @operators$negate(@operators$multiply(zi, zi))), cr);
+		zi = @operators$add(@operators$multiply(@operators$multiply(Float(2.0), zr), zi), ci);
+		zr = tr;
+		@controlflow$branch(@operators$lessThan(Float(4.0), @operators$add(@operators$multiply(zr, zr), @operators$multiply(zi, zi))), {
+			return false;
+		});
+	}
+	return true;
+}
+
+Unit main() {
+	n Int = size(Int(20));
+	inside Int(0);
+	y Int(0);
+	y!to(@operators$add(n, @operators$negate(Int(1)))) {
+		x Int(0);
+		x!to(@operators$add(n, @operators$negate(Int(1)))) {
+			cr Float = @operators$add(@operators$divide(@operators$multiply(Float(2.0), @primitives$F64.round(x)), @primitives$F64.round(n)), @operators$negate(Float(1.5)));
+			ci Float = @operators$add(@operators$divide(@operators$multiply(Float(2.0), @primitives$F64.round(y)), @primitives$F64.round(n)), @operators$negate(Float(1.0)));
+			@controlflow$branch(bounded(cr, ci), {
+				inside = @operators$add(inside, Int(1));
+			});
+		}
+	}
+	say(@operators$concat(@operators$concat(String(n), String(" ")), String(inside)));
+	return Unit();
+}

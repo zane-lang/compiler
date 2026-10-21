@@ -1,0 +1,62 @@
+/// A list grown one value at a time, as langbench's listgrowth: twenty
+/// rounds each push N four-field value structs into a fresh list, which
+/// doubles its block as it fills, and read its last one.
+package growth;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\n")));
+	return Unit();
+}
+
+
+type Entity = struct {
+	id Int;
+	x Float;
+	y Float;
+	hp Int;
+}
+
+Entity(id Int, x Float, y Float, hp Int) => init{ id; x; y; hp; }
+
+Unit main() {
+	n Int = size(Int(1000));
+	total Int(0);
+	round Int(1);
+	round!to(Int(20)) {
+		list List<Entity> = @primitives$List(Entity);
+		i Int(1);
+		i!to(n) {
+			list!push(Entity(i, @operators$multiply(Float(0.5), @primitives$F64.round(i)), @operators$multiply(Float(0.25), @primitives$F64.round(i)), @operators$divide(i, Int(3))));
+		}
+		total = @operators$add(@operators$add(total, list[list:size()].hp), list:size());
+	}
+	say(@operators$concat(@operators$concat(String(n), String(" ")), String(total)));
+	return Unit();
+}
