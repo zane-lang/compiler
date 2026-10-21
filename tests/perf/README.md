@@ -57,15 +57,16 @@ The `perf-log` branch holds two files, both written by CI:
   output.
 
 A program's build key hashes what its counts follow from: the executable
-built, its `arguments`, its golden output, `run` itself, and Valgrind's
+built, its `arguments`, what it printed, `run` itself, and Valgrind's
 version and resolved path, which under Nix names the store path it was built
 as. The executable holds the compiler's code and the runtime as clang built
 and linked them, and names the C library it loads by its Nix store path, so
 every input the build scripts use is in it without being listed.
-A program whose key is its row's is not run again, on a pull request, in
-the merge queue or in `just test-perf`: it reports its row's counts, since
-the same build run the same way counts the same, and `run --fresh` measures
-it anyway. A push to `main` always measures every program.
+On a pull request, in the merge queue and in `just test-perf`, a program is
+not run again when its build, taken with its golden output, has its row's
+key: it reports its row's counts, since the same build run the same way
+counts the same, and `run --fresh` measures it anyway. A push to `main`
+always measures every program.
 
 Every run but a push fails when it cannot read the branch, so a missing
 baseline never passes as a comparison. The rows are measured on x86-64, so

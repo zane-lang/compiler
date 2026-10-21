@@ -34,10 +34,11 @@ the `perf-log` branch (`.github/scripts/perf`). `--zanec`, or `ZANEC` in the
 environment, measures another build of the compiler.
 
 Each row also holds its program's build key: a hash of the executable built,
-its `arguments`, its golden output, this script, and Valgrind's resolved
-path and version, everything the counts follow from. With `--against`, a program whose key is
-its row's is not run again: the counts are the row's, since the same build
-run the same way counts the same. `--fresh` measures every program anyway.
+its `arguments`, what it printed, this script, and Valgrind's resolved path
+and version, everything the counts follow from. With `--against`, a program
+is not run again when its build, taken with its golden output, has its row's
+key: the counts are the row's, since the same build run the same way counts
+the same. `--fresh` measures every program anyway.
 """
 
 import argparse
@@ -78,12 +79,12 @@ def totals(profile):
     raise ValueError(f"{profile} has no summary line")
 
 
-def build_key(name, exe, valgrind):
-    """What the counts of program `name` built as *exe* follow from, hashed."""
+def build_key(name, exe, printed, valgrind):
+    """What the counts of program `name` built as *exe*, printing *printed*,
+    follow from, hashed."""
     digest = hashlib.sha256()
-    out = GOLDEN / f"{name}.out"
     for part in [exe.read_bytes(), (HERE / name / "arguments").read_bytes(),
-                 out.read_bytes() if out.exists() else b"", Path(__file__).read_bytes(), valgrind]:
+                 printed.encode(), Path(__file__).read_bytes(), valgrind]:
         digest.update(hashlib.sha256(part).digest())
     return digest.hexdigest()
 
@@ -97,16 +98,19 @@ def measure(zanec, name, work, valgrind, row):
         capture_output=True, text=True)
     if built.returncode:
         return name, None, f"build failed:\n{built.stdout}{built.stderr}"
-    key = build_key(name, exe, valgrind)
-    if row and row.get("key") == key:
-        # The key holds the golden output, and a row is only recorded when
-        # its program printed that output.
-        return name, {
-            "output": (GOLDEN / f"{name}.out").read_text(),
-            **{k: int(row[k]) for k in COUNTS},
-            "key": key,
-            "reused": row["commit"],
-        }, None
+    # A recorded key holds what its program printed, so a row whose key is
+    # this build's printing the golden output printed that output too.
+    out = GOLDEN / f"{name}.out"
+    if row and out.exists():
+        golden = out.read_text()
+        key = build_key(name, exe, golden, valgrind)
+        if row.get("key") == key:
+            return name, {
+                "output": golden,
+                **{k: int(row[k]) for k in COUNTS},
+                "key": key,
+                "reused": row["commit"],
+            }, None
     args = (HERE / name / "arguments").read_text().split()
     ran = subprocess.run(
         ["valgrind", "-q", "--tool=callgrind", "--cache-sim=yes", "--branch-sim=yes", *CACHES,
@@ -125,7 +129,7 @@ def measure(zanec, name, work, valgrind, row):
         "l1_misses": l1,
         "ll_misses": ll,
         "mispredicts": mispredicts,
-        "key": key,
+        "key": build_key(name, exe, ran.stdout, valgrind),
         "reused": None,
     }, None
 
