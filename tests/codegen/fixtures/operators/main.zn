@@ -63,6 +63,12 @@ Truth <(left Num, right @concepts$Int) => left < Num(right)
 
 Truth <(left @concepts$Int, right Num) => Num(left) < right
 
+/// An array literal on the right of `<`, so on the left of a `>`.
+Truth <(left Num, right @concepts$Array<Num, 2>) {
+	held @primitives$Array<Num, 2> = @primitives$Array(right);
+	return left < held[Int(1)] + held[Int(2)];
+}
+
 Unit check(holds Truth) {
 	yes String("yes\n");
 	no String("no\n");
@@ -149,6 +155,11 @@ Unit main() {
 	written Truth = say(Num(9), a) > 5;
 	@program$console!print(line);
 	check(written);
+
+	// The array is made before the right operand runs: the line reads `a a b`.
+	summed Truth = [say(Num(2), a), say(Num(3), a)] > say(Num(4), b);
+	@program$console!print(line);
+	check(summed);
 
 	// Separated digits.
 	million Int(1'000'000);

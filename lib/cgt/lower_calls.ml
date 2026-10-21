@@ -133,6 +133,19 @@ and held_last w ?direct st ctx span v subject rest =
    passed on as it is. *)
 and held_argument w ?direct st ctx span v (p : T.Local.t) a =
   match (a, p.T.Local.ty) with
+  (* An array literal's elements are values, so the array is made now, as
+     [expand] would make it where it binds the parameter. *)
+  | T.Arg.Value e, Tty.Concept (Tty.Array_lit (t, n)) when expands v && is_array_lit (literal_of ctx e) ->
+      let arr = array_type t n in
+      let value = w.primitive st ctx span "@primitives$Array" [ a ] arr in
+      let id = fresh st in
+      let l = { p with T.Local.id = -id } in
+      Hashtbl.replace ctx.env l.T.Local.id (Slot id);
+      let hold =
+        if held st span arr then Stat.Hold { id; scope = arena st ctx.scope; value; layout = layout st span arr }
+        else Stat.Let { id; value }
+      in
+      ([ hold ], T.Arg.Value { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) })
   | T.Arg.Value e, Tty.Concept _ when expands v -> ([], T.Arg.Value e)
   | T.Arg.Value e, _ ->
       let value = argument w ?direct st ctx span v p e in
