@@ -34,8 +34,8 @@ the `perf-log` branch (`.github/scripts/perf`). `--zanec`, or `ZANEC` in the
 environment, measures another build of the compiler.
 
 Each row also holds its program's build key: a hash of the executable built,
-its `arguments`, its golden output, this script and Valgrind's version,
-everything the counts follow from. With `--against`, a program whose key is
+its `arguments`, its golden output, this script, and Valgrind's resolved
+path and version, everything the counts follow from. With `--against`, a program whose key is
 its row's is not run again: the counts are the row's, since the same build
 run the same way counts the same. `--fresh` measures every program anyway.
 """
@@ -214,7 +214,10 @@ def main():
     rows = read_rows(options.against)
     # Promoting writes what the program prints, so it always runs it.
     reusable = {} if options.fresh or options.promote else rows
-    valgrind = subprocess.run(["valgrind", "--version"], capture_output=True, check=True).stdout
+    # Valgrind as installed: under Nix its resolved path names the derivation,
+    # so a rebuild that keeps the version still changes the key.
+    valgrind = str(Path(shutil.which("valgrind")).resolve()).encode() + subprocess.run(
+        ["valgrind", "--version"], capture_output=True, check=True).stdout
     with tempfile.TemporaryDirectory() as work, ThreadPoolExecutor(os.cpu_count() or 1) as pool:
         results = list(pool.map(
             lambda n: measure(zanec, n, Path(work), valgrind, reusable.get(n)), names))
