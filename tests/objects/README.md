@@ -54,6 +54,9 @@ program linked from several objects wrote.
   and `remapped` a program that uses it and atlas. atlas's object is
   remapped from the first version onto `geometry11`, keeps no reference to
   the first, and links with `geometry11` alone.
+- `doubling` is a program of 24 verbs, each calling the one below it
+  twice. `optimization_test.py` checks that an unoptimized build keeps the
+  upper levels as calls rather than inlining 2^24 copies of the first.
 - `crossing` is a library of verbs that take and return values of one, two
   and three pieces, whose signatures `abi_test.py` reads for each target and
   with `--pack-aggregates`. A library exports them, so each keeps its

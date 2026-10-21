@@ -85,6 +85,15 @@ class OptimizationTests(unittest.TestCase):
         self.assertRegex(run("llvm-nm", obj),
                          rf' U .*{re.escape(STAMP)}math\$fib\(')
 
+    def test_unoptimized_inlining_stays_bounded(self):
+        # Each level calls the one below twice: inlining every level would
+        # make 2^24 copies, so the upper levels stay calls.
+        flags = ["--package", FIXTURES / "doubling"]
+        self.assertRegex(run(ZANEC, "--ll", *flags), r'call .*doubling\$level23\(')
+        exe = self.out / "doubling"
+        run(ZANEC, "--build", exe, *flags)
+        self.assertEqual(run_program(exe), "16777216\n")
+
     def test_cross_target_objects(self):
         for target in ["x86_64-pc-windows-msvc", "aarch64-apple-macosx11.0.0"]:
             obj = self.out / f"{target}.o"

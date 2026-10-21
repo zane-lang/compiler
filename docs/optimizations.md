@@ -249,17 +249,18 @@ something about Zane that LLVM does not know.
   builds and 5 runs: build 0.125 s → 0.130 s, run 6.40 s → 1.05 s, 6.1×
   faster; the optimized build takes 0.36 s and runs 0.17 s
 
-Every function of at most 24 instructions whose locals each take at most 64
-bytes, and whose callees are all such functions, is inlined into every caller:
-that is each of `core`'s one-line wrappers over an intrinsic, and never a
-recursive function or one holding a large value array, which would grow its
-caller's frame for good. A generic instance or a package constant stays a
-call, so an object still defines every one that C4 says it does. Three passes
-then promote the wrappers' scalars to registers, simplify what that makes
-constant and merge the blocks left behind. Each takes time in proportion to
-the instructions it reads; LLVM's own inliner, scalar replacement of
-aggregates and instruction combining, which do not on a large value array, are
-left out.
+Every function of at most 24 instructions, counted with the picked
+functions it calls inlined into it, whose locals each take at most 64
+bytes, and whose callees are all such functions, is inlined into every
+caller: that is each of `core`'s one-line wrappers over an intrinsic, and
+never a recursive function or one holding a large value array, which would
+grow its caller's frame for good. A generic instance or a package constant
+stays a call, so an object still defines every one that C4 says it does.
+Three passes then promote the wrappers' scalars to registers, simplify
+what that makes constant and merge the blocks left behind. Each takes time
+in proportion to the instructions it reads; LLVM's own inliner, scalar
+replacement of aggregates and instruction combining, which do not on a
+large value array, are left out.
 
 ### Code tuned for the processor clang would pick
 

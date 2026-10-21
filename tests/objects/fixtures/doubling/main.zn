@@ -1,0 +1,41 @@
+/// Twenty-four verbs, each calling the one below it twice, so that
+/// inlining all of them into `main` would make 2^24 copies of the first.
+/// An unoptimized build inlines a verb only while it stays short with its
+/// callees inlined (docs/design/optimization.md O12), so the chain stops
+/// being inlined a few levels up and the build stays small.
+package doubling;
+
+alias Int = @primitives$I64
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Int level0(x Int) => @operators$add(x, Int(1))
+Int level1(x Int) => @operators$add(level0(x), level0(x))
+Int level2(x Int) => @operators$add(level1(x), level1(x))
+Int level3(x Int) => @operators$add(level2(x), level2(x))
+Int level4(x Int) => @operators$add(level3(x), level3(x))
+Int level5(x Int) => @operators$add(level4(x), level4(x))
+Int level6(x Int) => @operators$add(level5(x), level5(x))
+Int level7(x Int) => @operators$add(level6(x), level6(x))
+Int level8(x Int) => @operators$add(level7(x), level7(x))
+Int level9(x Int) => @operators$add(level8(x), level8(x))
+Int level10(x Int) => @operators$add(level9(x), level9(x))
+Int level11(x Int) => @operators$add(level10(x), level10(x))
+Int level12(x Int) => @operators$add(level11(x), level11(x))
+Int level13(x Int) => @operators$add(level12(x), level12(x))
+Int level14(x Int) => @operators$add(level13(x), level13(x))
+Int level15(x Int) => @operators$add(level14(x), level14(x))
+Int level16(x Int) => @operators$add(level15(x), level15(x))
+Int level17(x Int) => @operators$add(level16(x), level16(x))
+Int level18(x Int) => @operators$add(level17(x), level17(x))
+Int level19(x Int) => @operators$add(level18(x), level18(x))
+Int level20(x Int) => @operators$add(level19(x), level19(x))
+Int level21(x Int) => @operators$add(level20(x), level20(x))
+Int level22(x Int) => @operators$add(level21(x), level21(x))
+Int level23(x Int) => @operators$add(level22(x), level22(x))
+Int level24(x Int) => @operators$add(level23(x), level23(x))
+
+Unit main() {
+	@program$console!print(@operators$concat(String(level24(Int(0))), String("\n")));
+	return Unit();
+}

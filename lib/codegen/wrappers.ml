@@ -8,11 +8,14 @@
    callee's locals stay the caller's for good, so inlining functions that
    hold large value arrays into one caller can make its frame overflow the
    stack. An unoptimized build therefore inlines only what [mark] picks, by
-   LLVM's always-inliner: a function at most [most] instructions long,
-   whose locals each take at most [largest] bytes, which is not [shared],
-   and every function it calls that has a body in the module is picked too.
-   A function that can reach itself is never picked, since nothing on the
-   cycle is picked first. *)
+   LLVM's always-inliner: a function whose locals each take at most
+   [largest] bytes, which is not [shared], whose every callee with a body
+   in the module is picked too, and which is at most [most] instructions
+   long once they are inlined into it. Measuring a function with its
+   callees inlined keeps a chain of functions that each call the one below
+   twice from doubling at every step: no call site grows its caller by more
+   than [most]. A function that can reach itself is never picked, since
+   nothing on the cycle is picked first. *)
 
 (* The type an `alloca` makes room for (llvm_stubs.c). *)
 external allocated_type : Llvm.llvalue -> Llvm.lltype = "zane_allocated_type"
@@ -22,7 +25,8 @@ let largest = 64L
 
 let fold_instrs g init f = Llvm.fold_left_blocks (fun acc b -> Llvm.fold_left_instrs g acc b) init f
 
-(* The functions with a body in the module that [f] calls by name. *)
+(* The functions with a body in the module that [f] calls by name, once
+   for each call. *)
 let callees f =
   fold_instrs
     (fun acc i ->
@@ -63,30 +67,35 @@ let mark data_layout m =
   let candidates =
     Llvm.fold_left_functions
       (fun acc f ->
+        let own = fold_instrs (fun n _ -> n + 1) 0 f in
         if
           (not (Llvm.is_declaration f))
           && not (shared f)
-          && fold_instrs (fun n _ -> n + 1) 0 f <= most
+          && own <= most
           && small_locals data_layout f
           && not (never_inlined f)
-        then (f, callees f) :: acc
+        then (f, own, callees f) :: acc
         else acc)
       [] m
   in
+  (* Each picked function, with its length once its callees are inlined. *)
   let picked = Hashtbl.create 64 in
   let rec grow () =
     let added =
       List.fold_left
-        (fun added (f, calls) ->
-          if (not (Hashtbl.mem picked f)) && List.for_all (Hashtbl.mem picked) calls then begin
-            Hashtbl.replace picked f ();
-            true
-          end
-          else added)
+        (fun added (f, own, calls) ->
+          if Hashtbl.mem picked f || not (List.for_all (Hashtbl.mem picked) calls) then added
+          else
+            let length = List.fold_left (fun n g -> n + Hashtbl.find picked g) own calls in
+            if length > most then added
+            else begin
+              Hashtbl.replace picked f length;
+              true
+            end)
         false candidates
     in
     if added then grow ()
   in
   grow ();
   let always = Llvm.create_enum_attr (Llvm.module_context m) "alwaysinline" 0L in
-  Hashtbl.iter (fun f () -> Llvm.add_function_attr f always Llvm.AttrIndex.Function) picked
+  Hashtbl.iter (fun f _ -> Llvm.add_function_attr f always Llvm.AttrIndex.Function) picked
