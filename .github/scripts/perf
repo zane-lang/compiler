@@ -74,12 +74,13 @@ pull_request)
 	;;
 push)
 	: "${GITHUB_SHA:?must be set}"
-	tests/perf/run "${against[@]}" --record "$work/new" --commit "$GITHUB_SHA" ||
-		echo "::warning::main is slower than its previous commit's rows"
+	status=0
+	tests/perf/run "${against[@]}" --record "$work/new" --commit "$GITHUB_SHA" || status=$?
 	if [ ! -e "$work/new/latest.tsv" ]; then
 		echo "::error::a perf program failed to build, to run or to print its golden output"
 		exit 1
 	fi
+	[ "$status" = 0 ] || echo "::warning::main is slower than its previous commit's rows"
 	export GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME:-github-actions[bot]}"
 	export GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-41898282+github-actions[bot]@users.noreply.github.com}"
 	export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"

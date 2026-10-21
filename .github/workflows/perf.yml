@@ -26,18 +26,16 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Pull requests, the merge queue and manual runs: measure and compare,
+  # with the workflow's read-only token, since a pull request's own code runs
+  # here. It reads the `perf-log` branch with that token.
   perf:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Only a push to main writes, to the `perf-log` branch.
-    permissions:
-      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # A push compares its commit with the branch's by ancestry.
-          fetch-depth: ${{ github.event_name == 'push' && '0' || '1' }}
 
       - name: Set up toolchain
         uses: ./.github/actions/setup-ci
@@ -49,4 +47,30 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           ACCEPTED: ${{ contains(github.event.pull_request.labels.*.name, 'perf-accepted') }}
+        run: devbox run -- .github/scripts/perf
+
+  # A push to main: measure and write the `perf-log` branch, which needs a
+  # token that can push. Only code already on main runs here.
+  record:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The script compares its commit with the branch's by ancestry.
+          fetch-depth: 0
+
+      - name: Set up toolchain
+        uses: ./.github/actions/setup-ci
+
+      - name: Build
+        run: devbox run -- dune build bin/zanec/zanec.exe
+
+      - name: Measure and record
+        env:
+          EVENT_NAME: push
         run: devbox run -- .github/scripts/perf
