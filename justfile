@@ -63,24 +63,17 @@ test-compiler: _require-menhir
 	tests/memory-probes/run --check
 	python3 tests/memory-probes/reclaim.py --check
 
-# How much work each optimized perf program does, counted under Valgrind and
-# held to tests/perf/golden/ (tests/perf/README.md). Linux only.
+# Each optimized perf program's estimated cycles under Valgrind, compared with
+# main's on the `perf-log` branch (tests/perf/README.md). Linux only.
 test-perf:
 	dune build bin/zanec/zanec.exe
-	tests/perf/run
+	EVENT_NAME=local .github/scripts/perf
 
-# Write tests/perf/golden/ from this build, after reading the table
-# `just test-perf` printed and satisfying yourself that each count moved as
-# the change intended.
+# Write tests/perf/golden/ from this build's output, for a new perf program or
+# one whose output a change moved on purpose.
 promote-perf:
 	dune build bin/zanec/zanec.exe
 	tests/perf/run --promote
-
-# This build's stress program, measured as the performance log measures it
-# (tests/perf/log/README.md) and compared with the log's last row. Linux only.
-perf-log:
-	dune build bin/zanec/zanec.exe
-	EVENT_NAME=local .github/scripts/perf-log
 
 # The test programs built for Windows and run under Wine, as CI runs them on
 # Windows itself (docs/design/platforms.md). Needs `zig` and `wine64`; set

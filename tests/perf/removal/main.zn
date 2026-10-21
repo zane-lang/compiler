@@ -1,8 +1,8 @@
 /// Lists that shrink as well as grow, as langbench's gameloop: each of N
 /// frames pushes 30 value structs, removes the 20 oldest in order, and
 /// updates the rest, removing by swapping those whose points run out. The
-/// ordered removals move the later elements with `memmove`, whose own
-/// instructions are the C library's, not the program's.
+/// ordered removals move the later elements with the C library's
+/// `memmove`.
 package removal;
 
 alias Int = @primitives$I64

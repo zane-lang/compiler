@@ -372,17 +372,15 @@ spawns nothing and every snapshot where something may write back, the
 runtime's small list operations in line, and a loop over a list's elements,
 each written and read again, with no index check left in it.
 
-`tests/perf/` holds what an optimized build's code does at run time: each
-of its programs, most of them ports of the spec repo's `langbench/`, runs
-under Valgrind's Callgrind, and the instructions and conditional branches it
-executes are held to golden counts within 0.1%. A counted instruction is
-the same on every machine, so a change to codegen, to the pipeline LLVM runs
-or to what LLVM is told shows as a moved count rather than as noise in a
-timing ([`tests/perf/README.md`](../../tests/perf/README.md)). Beside them,
-`tests/perf/log/` logs one large program's estimated cycles, from Valgrind's
-cache and branch simulators, for every commit on `main`, and fails a pull
-request that is more than 1% slower than the last
-([`tests/perf/log/README.md`](../../tests/perf/log/README.md)).
+`tests/perf/` holds how fast an optimized build's code runs: each of its
+programs, most of them ports of the spec repo's `langbench/`, runs under
+Valgrind's Callgrind with the cache and branch simulators on, and what they
+count becomes estimated cycles. A simulated cycle is the same on every run
+of one build, so a change to codegen, to the pipeline LLVM runs or to what
+LLVM is told shows as a moved number rather than as noise in a timing. CI
+keeps each program's number for the last commit on `main`, and one large
+program's for every commit, and fails a pull request that makes a program
+more than 1% slower ([`tests/perf/README.md`](../../tests/perf/README.md)).
 
 `tests/unit/` checks the evaluator's arithmetic against codegen's, its math
 functions, the intrinsic classes, a value written as code and read back, calls, outputs,

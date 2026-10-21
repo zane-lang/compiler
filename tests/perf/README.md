@@ -1,42 +1,68 @@
 # Perf tests
 
-`log/` is the other half: one large program whose estimated cycles CI logs
-for every commit on `main` and holds pull requests to
-([`log/README.md`](log/README.md)). The programs here are held one by one,
-to exact counts.
+How fast each program's optimized build runs, as estimated cycles from
+Valgrind's simulators rather than as a timing, so the number is the same on
+every run of one build. CI keeps every program's number for the last commit
+on `main`, and the history of one of them, `stress`, for every commit, and
+fails a pull request that makes a program slower.
 
-How much work each program's optimized build does, counted rather than
-timed. `run` builds each directory here with `--optimize`, runs it once
-under Valgrind's Callgrind with the size in its `arguments` file, and holds
-it to `golden/NAME.out`, what it printed, and `golden/NAME.counts`, the
-instructions and conditional branches it executed. A count is the same on
-every run and every machine that builds with the devbox's toolchain, so a
-change in the code the compiler emits shows here as a change in a count,
-where a timing would hide it in noise.
+## The number
 
-Only the program's own instructions are held: its code and the runtime
-linked into it. The C library's and the dynamic loader's are shown in the
-`libraries` column and held to nothing, since the C library picks its
-`memcpy` and string functions by the processor it runs on. A count may move
-by 0.1% of its golden value either way; one that moves further fails the
-run, down as well as up, so the golden files keep up with the compiler.
+`run` builds each directory here with `--optimize` and runs it once, with
+the size in its `arguments` file, under Callgrind with the cache and branch
+simulators on. It holds what the program printed to `golden/NAME.out`, so a
+build that breaks a program is caught rather than measured. The caches are
+fixed rather than read from the machine, so every machine simulates the same
+ones: 32 KiB first-level instruction and data caches and an 8 MiB last-level
+cache, each with 64-byte lines. From what the simulators count it estimates
+cycles:
 
-Counts measure work, not speed: a program that executes fewer instructions
-can still run slower on a given processor. A count that moves says the
-emitted code changed, and the diff and a timing on real hardware say whether
-for the better.
+    instructions + 10 x first-level misses + 100 x last-level misses
+                 + 20 x mispredicted branches
+
+The weights are roughly what each costs on a current core. The whole process
+is counted, the C library's work included. The result is an estimate for a
+generic processor, not a time on any real one: it moves when the compiler's
+code does more work, misses the cache more often or branches less
+predictably. Runs of one build in different environments differ by a few
+hundredths of a percent.
+
+## The log and the check
+
+The `perf-log` branch holds two files, both written by CI:
+
+- `latest.tsv`, one row per program for the last commit pushed to `main`:
+  the program, the commit, its date, the estimated cycles, and the
+  instructions, first-level misses, last-level misses and mispredicted
+  branches they come from. Each push writes it over, so a commit that makes
+  a program faster is what the next pull request is held to.
+- `stress.tsv`, the `stress` program's row for every commit pushed to
+  `main`, appended to. It starts at v0.14.
+
+`.github/workflows/perf.yml` runs `.github/scripts/perf`:
+
+- on a pull request, it measures every program and fails when one prints
+  the wrong output, or when its estimated cycles are more than 1% above its
+  row in `latest.tsv`. Labelling the pull request `perf-accepted` turns a
+  slowdown into a warning, for a change that is slower on purpose, and the
+  push to `main` then records the new numbers;
+- on a push to `main`, it measures, writes `latest.tsv` and appends to
+  `stress.tsv`;
+- in the merge queue and on a manual run, it measures and compares, and
+  fails only on a wrong output.
 
 ```sh
-devbox run -- just test-perf                # check every program
-devbox run -- tests/perf/run flips trees    # check these
-devbox run -- just promote-perf             # write the golden files from this build
+devbox run -- just test-perf              # every program against main's rows
+devbox run -- tests/perf/run flips trees  # these alone, compared with nothing
+devbox run -- just promote-perf           # write golden/ from this build's output
 ```
 
-Valgrind runs on Linux only. When a change moves a count, read the table
-`run` prints, satisfy yourself that the change is the one intended, and
-promote; the counts diff then records the change. To see where the
-instructions went, build the program with `--optimize` and run
-`valgrind --tool=callgrind --dump-instr=yes` on it.
+Valgrind runs on Linux only. To see where a change moved a number, compare
+the columns `run` prints, then build the program with `--optimize` and run
+`valgrind --tool=callgrind --cache-sim=yes --branch-sim=yes --dump-instr=yes`
+on it. A change to a program here changes what its row measures, so say so
+in its pull request, label it `perf-accepted` if the number rises, and
+promote its output if that changed.
 
 ## Programs
 
@@ -57,5 +83,14 @@ repo's `langbench/` and print what it prints at the same size.
 - `copies` is a tree of value variants copied whole and summed.
 - `texts` is numbers written as text, joined onto two lines and compared.
 - `removal` is a list of value structs that grows by pushes and shrinks by
-  ordered and swapping removals; its ordered removals' `memmove` is the C
-  library's work, in the `libraries` column.
+  ordered and swapping removals.
+- `stress` is the logged one, a large program of sixteen sections:
+  fannkuch-redux over small lists, binary-trees of reference nodes, trial
+  division, the Mandelbrot set, bodies in a list pulled together, a list
+  grown and one shrunk in order and by swapping, value trees copied whole,
+  strings built and compared, a working set past the simulated last-level
+  cache read at random, a matrix read by columns, quicksort and binary
+  search over random numbers, an open-addressed hash table, a bytecode
+  interpreter matching on variants, calls through function values chosen at
+  random, and plain recursion. Its argument is how many times the sections
+  run.

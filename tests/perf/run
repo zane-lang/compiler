@@ -1,40 +1,42 @@
 #!/usr/bin/env python3
-"""Hold each perf program to the work its optimized build does.
+"""Measure each perf program's optimized build in estimated cycles.
 
 Each directory here is one package, a program that reads its size from the
-`arguments` file beside it. It is built with `--optimize`, run once under
-Valgrind's Callgrind, and held to two golden files: `golden/NAME.out`, what
-it printed, and `golden/NAME.counts`, how many instructions and conditional
-branches it executed. Callgrind counts the instructions a program executes
-rather than timing them, so the counts are the same on every run and every
-machine that builds with the same toolchain, which is what lets a change in
-the code the compiler emits show as a change here.
+`arguments` file beside it. It is built with `--optimize` and run once under
+Valgrind's Callgrind with the cache and branch simulators on, and what it
+printed is held to `golden/NAME.out`. What the simulators counted for the
+whole process, the C library's work included, becomes estimated cycles:
 
-Only the program's own instructions are held: its code and the runtime
-linked into it. What it executes in the C library and the dynamic loader is
-shown beside them and held to nothing, since the C library picks its
-`memcpy` and its other string functions by the processor it runs on, and the
-loader's work depends on the environment.
+    instructions + 10 x first-level misses + 100 x last-level misses
+                 + 20 x mispredicted branches
 
-A count may move by `TOLERANCE` of its golden value either way, which covers
-the little the runtime's start-up reads of the machine can change. A count
-that moves further fails the run, up or down: one that went down is held
-until the golden file says so too, so the files keep up with the compiler.
+The caches simulated are fixed, not read from the machine, so every machine
+simulates the same ones: 32 KiB first-level instruction and data caches and
+an 8 MiB last-level cache, each with 64-byte lines. A simulated cycle is the
+same on every run of one build, which is what lets one commit's build be
+compared with the next; it is an estimate for a generic processor, not a
+time on any real one.
 
-    tests/perf/run              # check every program
-    tests/perf/run flips trees  # check these
-    tests/perf/run --promote    # write the golden files from this build
+    tests/perf/run                            # measure every program
+    tests/perf/run flips trees                # measure these
+    tests/perf/run --against latest.tsv       # and fail if one is slower than its row there
+    tests/perf/run --record DIR --commit SHA  # and write DIR's log as SHA's
+    tests/perf/run --promote                  # write golden/NAME.out from this build
 
-`just test-perf` and `just promote-perf` run the first and the third. The
-counts are those of the devbox's toolchain; another C compiler or LLVM
-builds a different program.
+`--against` fails when a program's estimated cycles are more than
+`TOLERANCE` above its row; a program with no row passes. `--record` writes
+`DIR/latest.tsv`, one row per program, over what was there, and appends the
+`LOGGED` program's row to `DIR/LOGGED.tsv`, its history. It records a build
+that is slower and still fails, and records nothing when a program fails to
+build, to run or to print its golden output. CI keeps both on
+the `perf-log` branch (`.github/scripts/perf`). `--zanec`, or `ZANEC` in the
+environment, measures another build of the compiler.
 """
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import sys
@@ -43,150 +45,161 @@ import tempfile
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 GOLDEN = HERE / "golden"
-TOLERANCE = 0.001
-HELD = ("instructions", "branches")
+TOLERANCE = 0.01
+LOGGED = "stress"
+CACHES = ["--I1=32768,8,64", "--D1=32768,8,64", "--LL=8388608,16,64"]
+COUNTS = ["cycles", "instructions", "l1_misses", "ll_misses", "mispredicts"]
+COLUMNS = ["program", "commit", "date", *COUNTS]
 
 
 def programs():
     return sorted(p.name for p in HERE.iterdir() if p.is_dir() and (p / "main.zn").exists())
 
 
-def counts_by_object(path):
-    """Each object's own instructions and conditional branches, from a
-    Callgrind profile: the cost lines under each `ob=`, without the inclusive
-    cost that follows each `calls=` line."""
-    names, totals, events = {}, {}, None
-    current, after_call = None, False
-    with open(path) as profile:
-        for line in profile:
-            line = line.rstrip("\n")
-            if line.startswith("events:"):
-                events = line.split()[1:]
-                continue
-            named = re.match(r"(c?ob)=\((\d+)\)(?: (.*))?$", line)
-            if named:
-                kind, key, name = named.groups()
-                if name:
-                    names[key] = name
-                if kind == "ob":
-                    current = names[key]
-                continue
-            if line.startswith("calls="):
-                after_call = True
-                continue
-            if line and (line[0].isdigit() or line[0] in "+-*"):
-                if after_call:
-                    after_call = False
-                    continue
-                costs = dict(zip(events, map(int, line.split()[1:])))
-                total = totals.setdefault(current, {"Ir": 0, "Bc": 0})
-                total["Ir"] += costs.get("Ir", 0)
-                total["Bc"] += costs.get("Bc", 0)
-    return totals
+def totals(profile):
+    """The whole process's count of each event Callgrind recorded: the
+    `summary:` line its profile ends with."""
+    events = None
+    for line in profile.read_text().splitlines():
+        if line.startswith("events:"):
+            events = line.split()[1:]
+        elif line.startswith("summary:"):
+            return dict(zip(events, map(int, line.split()[1:])))
+    raise ValueError(f"{profile} has no summary line")
 
 
 def measure(zanec, name, work):
-    """What program `name` printed, and its own and the libraries' counts."""
-    exe = work / name
+    """What program `name` printed and its counts, or why it has none."""
+    exe, profile = work / name, work / f"{name}.callgrind"
     built = subprocess.run(
         [zanec, "--build", exe, "--optimize", "--package", HERE / name],
         capture_output=True, text=True)
     if built.returncode:
         return name, None, f"build failed:\n{built.stdout}{built.stderr}"
     args = (HERE / name / "arguments").read_text().split()
-    profile = work / f"{name}.callgrind"
     ran = subprocess.run(
-        ["valgrind", "-q", "--tool=callgrind", "--branch-sim=yes", f"--callgrind-out-file={profile}", exe, *args],
+        ["valgrind", "-q", "--tool=callgrind", "--cache-sim=yes", "--branch-sim=yes", *CACHES,
+         f"--callgrind-out-file={profile}", exe, *args],
         capture_output=True, text=True)
     if ran.returncode:
         return name, None, f"exited with {ran.returncode}:\n{ran.stdout}{ran.stderr}"
-    objects = counts_by_object(profile)
-    own = objects.get(str(exe), {"Ir": 0, "Bc": 0})
-    libraries = sum(c["Ir"] for o, c in objects.items() if o != str(exe))
+    e = totals(profile)
+    l1 = e["I1mr"] + e["D1mr"] + e["D1mw"]
+    ll = e["ILmr"] + e["DLmr"] + e["DLmw"]
+    mispredicts = e["Bcm"] + e["Bim"]
     return name, {
         "output": ran.stdout,
-        "instructions": own["Ir"],
-        "branches": own["Bc"],
-        "libraries": libraries,
+        "cycles": e["Ir"] + 10 * l1 + 100 * ll + 20 * mispredicts,
+        "instructions": e["Ir"],
+        "l1_misses": l1,
+        "ll_misses": ll,
+        "mispredicts": mispredicts,
     }, None
 
 
-def read_counts(name):
-    path = GOLDEN / f"{name}.counts"
-    if not path.exists():
-        return None
-    counts = {}
-    for line in path.read_text().splitlines():
-        key, value = line.split()
-        counts[key] = int(value)
-    return counts
+def read_rows(path):
+    """A log's rows, keyed by program; a missing log has none."""
+    if path is None or not path.exists():
+        return {}
+    lines = path.read_text().splitlines()
+    header = lines[0].split("\t")
+    rows = [dict(zip(header, line.split("\t"))) for line in lines[1:] if line]
+    return {row["program"]: row for row in rows}
 
 
-def write(name, result):
-    (GOLDEN / f"{name}.out").write_text(result["output"])
-    (GOLDEN / f"{name}.counts").write_text("".join(f"{k} {result[k]}\n" for k in HELD))
+def write_log(directory, commit, results):
+    commit, date = subprocess.run(["git", "-C", ROOT, "show", "-s", "--format=%H %cI", commit],
+                                  capture_output=True, text=True, check=True).stdout.split()
+    directory.mkdir(parents=True, exist_ok=True)
+
+    def row(name, result):
+        return "\t".join([name, commit, date, *(str(result[k]) for k in COUNTS)]) + "\n"
+
+    header = "\t".join(COLUMNS) + "\n"
+    (directory / "latest.tsv").write_text(header + "".join(row(n, r) for n, r in results))
+    history = directory / f"{LOGGED}.tsv"
+    for name, result in results:
+        if name == LOGGED:
+            if not history.exists():
+                history.write_text(header)
+            with history.open("a") as log:
+                log.write(row(name, result))
 
 
-def problems_of(name, result):
-    problems = []
+def problems_of(name, result, row):
+    """What is wrong with what `name` printed, and with how long it took."""
+    problems, slow = [], []
     out = GOLDEN / f"{name}.out"
     if not out.exists():
         problems.append(f"no golden/{name}.out")
     elif out.read_text() != result["output"]:
         problems.append(f"printed {result['output']!r}, not golden/{name}.out's {out.read_text()!r}")
-    golden = read_counts(name)
-    if golden is None:
-        problems.append(f"no golden/{name}.counts")
-        return problems
-    for key in HELD:
-        was, now = golden[key], result[key]
-        if abs(now - was) > TOLERANCE * was:
-            way = "more" if now > was else "fewer"
-            problems.append(f"{key}: {now} is {abs(now - was) / was:.2%} {way} than the golden {was}")
-    return problems
+    if row:
+        was = int(row["cycles"])
+        if result["cycles"] > was * (1 + TOLERANCE):
+            slow.append(f"{(result['cycles'] - was) / was:.2%} more estimated cycles than"
+                            f" {row['commit'][:12]}'s {was}, past the {TOLERANCE:.0%} allowed")
+    return problems, slow
 
 
-def change(was, now):
+def change(row, key, now):
+    if not row:
+        return "new"
+    was = int(row[key])
     return f"{(now - was) / was:+.2%}" if was else "new"
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("names", nargs="*", help="programs to run; every one when none is named")
-    parser.add_argument("--promote", action="store_true", help="write the golden files from this build")
+    parser.add_argument("--against", type=Path, metavar="LOG", help="fail if slower than LOG's rows")
+    parser.add_argument("--record", type=Path, metavar="DIR", help="write DIR's log from this build")
+    parser.add_argument("--commit", help="the commit recorded rows are for")
+    parser.add_argument("--promote", action="store_true", help="write golden/NAME.out from this build")
+    parser.add_argument("--zanec", type=Path, default=os.environ.get("ZANEC"),
+                        help="the compiler to build with (default: this checkout's)")
     options = parser.parse_args()
-    zanec = ROOT / "_build" / "default" / "bin" / "zanec" / "zanec.exe"
-    if not zanec.exists():
-        sys.exit("build zanec first: dune build bin/zanec/zanec.exe")
+    if options.record and not options.commit:
+        sys.exit("--record needs --commit")
+    zanec = options.zanec or ROOT / "_build" / "default" / "bin" / "zanec" / "zanec.exe"
+    if not Path(zanec).exists():
+        sys.exit(f"no compiler at {zanec}: dune build bin/zanec/zanec.exe")
     if shutil.which("valgrind") is None:
         sys.exit("valgrind is not on PATH; run this inside the devbox (Linux only)")
     names = options.names or programs()
     unknown = [n for n in names if n not in programs()]
     if unknown:
         sys.exit(f"no perf program named {', '.join(unknown)}")
+    if options.record and options.names:
+        sys.exit("--record measures every program")
     orphans = [p.name for p in GOLDEN.iterdir() if p.stem not in programs()]
     if orphans:
         sys.exit(f"golden files for no program: {', '.join(sorted(orphans))}")
     with tempfile.TemporaryDirectory() as work, ThreadPoolExecutor(os.cpu_count() or 1) as pool:
         results = list(pool.map(lambda n: measure(zanec, n, Path(work)), names))
-    failed = False
-    print(f"{'program':12} {'instructions':>14} {'change':>8} {'branches':>13} {'change':>8} {'libraries':>11}")
+    rows = read_rows(options.against)
+    broken = slower = False
+    print(f"{'program':12}" + "".join(f" {k:>14} {'change':>8}" for k in COUNTS))
     for name, result, error in results:
         if error:
             print(f"{name:12} {error}")
-            failed = True
+            broken = True
             continue
-        golden = read_counts(name) or {}
-        print(f"{name:12} {result['instructions']:>14} {change(golden.get('instructions'), result['instructions']):>8}"
-              f" {result['branches']:>13} {change(golden.get('branches'), result['branches']):>8}"
-              f" {result['libraries']:>11}")
+        row = rows.get(name)
+        print(f"{name:12}" + "".join(f" {result[k]:>14} {change(row, k, result[k]):>8}" for k in COUNTS))
         if options.promote:
-            write(name, result)
+            (GOLDEN / f"{name}.out").write_text(result["output"])
             continue
-        for problem in problems_of(name, result):
+        printed, slow = problems_of(name, result, row)
+        for problem in printed + slow:
             print(f"  {problem}")
-            failed = True
-    if failed:
+        broken |= bool(printed)
+        slower |= bool(slow)
+    if options.against and not rows:
+        print(f"{options.against} has no rows yet: nothing to compare with")
+    if options.record and not broken:
+        write_log(options.record, options.commit, [(n, r) for n, r, _ in results])
+    if broken or slower:
         sys.exit(1)
 
 

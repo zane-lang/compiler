@@ -1,5 +1,5 @@
 /// One program that exercises much of what the compiler emits, for the
-/// performance log (tests/perf/log/README.md): list loops, reference trees,
+/// performance log (tests/perf/README.md): list loops, reference trees,
 /// division, floats, structs in lists, growth and removal, value copies,
 /// strings, a working set larger than the simulated last-level cache read at
 /// random, a matrix read by columns, sorting and searching random numbers,
