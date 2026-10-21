@@ -1,0 +1,95 @@
+name: Perf
+
+# The perf programs' estimated cycles (tests/perf/README.md): each push to
+# main writes every program's row over latest.tsv on the `perf-log` branch
+# and appends the stress program's to stress.tsv, and each pull request fails
+# when a program is more than the tolerance slower than its row. A pull
+# request labelled `perf-accepted` passes with a warning, and any label
+# change runs the check again.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  merge_group:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A pull request's newest event replaces its run in progress: a label change
+# measures again too, so the check it reports is a measurement, never a skip.
+# Every other run goes ahead on its own, and the script keeps the branch in
+# commit order however their pushes land.
+concurrency:
+  group: perf-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Pull requests, the merge queue and manual runs: measure and compare,
+  # with a read-only token, since a pull request's own code runs here. It
+  # reads the `perf-log` branch with that token.
+  perf:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Reading the labels of a pull request in the merge queue.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up toolchain
+        uses: ./.github/actions/setup-ci
+
+      - name: Build
+        run: devbox run -- dune build bin/zanec/zanec.exe
+
+      # A merge group's event carries no labels; its head ref names the last
+      # pull request queued in it, gh-readonly-queue/<base>/pr-<number>-<sha>.
+      - name: Read the queued pull request's labels
+        if: github.event_name == 'merge_group'
+        id: queued
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.event.merge_group.head_ref }}
+        run: |
+          number=$(sed -nE 's|.*/pr-([0-9]+)-[0-9a-f]+$|\1|p' <<< "$HEAD_REF")
+          test -n "$number"
+          accepted=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$number" \
+            --jq 'any(.labels[]; .name == "perf-accepted")')
+          echo "accepted=$accepted" >> "$GITHUB_OUTPUT"
+
+      - name: Measure
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          ACCEPTED: ${{ github.event_name == 'merge_group' && steps.queued.outputs.accepted || contains(github.event.pull_request.labels.*.name, 'perf-accepted') }}
+        run: devbox run -- .github/scripts/perf
+
+  # A push to main: measure and write the `perf-log` branch, which needs a
+  # token that can push. Only code already on main runs here.
+  record:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The script compares its commit with the branch's by ancestry.
+          fetch-depth: 0
+
+      - name: Set up toolchain
+        uses: ./.github/actions/setup-ci
+
+      - name: Build
+        run: devbox run -- dune build bin/zanec/zanec.exe
+
+      - name: Measure and record
+        env:
+          EVENT_NAME: push
+        run: devbox run -- .github/scripts/perf

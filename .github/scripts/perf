@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+# The perf programs against the `perf-log` branch (tests/perf/README.md),
+# which holds latest.tsv, each program's row for the newest commit pushed to
+# main, and stress.tsv, the stress program's row for every one of them. Run
+# inside the devbox, with the event in EVENT_NAME: by perf.yml, and by
+# `just test-perf`, which names none of the events below.
+#
+# - pull_request and merge_group: measure every program and fail when one
+#   prints the wrong output, or when its estimated cycles are more than the
+#   tolerance above its row in latest.tsv, unless ACCEPTED is `true` (the
+#   pull request, or the last one queued in the merge group, carries the
+#   `perf-accepted` label), which turns that second failure into a warning.
+#   The merge queue checks again because the pull requests it combines can
+#   together be slower than each was alone.
+# - push to main: measure, compare for the record, and push to the branch
+#   GITHUB_SHA's row of stress.tsv, in date order, and its latest.tsv,
+#   unless the branch already holds a commit that comes after it. The commit
+#   is made with git's plumbing, on top of the branch as it is when it is
+#   pushed, so nothing is checked out and a push that loses a race is made
+#   again on the new tip. Only this event writes the branch, and the first
+#   one creates it.
+# - anything else (a manual run, `just test-perf`): measure, compare, and
+#   fail only on a wrong output.
+#
+# Every event but a push fails when the branch cannot be read. The log is
+# measured on x86-64, so on another machine nothing is compared.
+set -euo pipefail
+
+: "${EVENT_NAME:?must be set}"
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+logged=stress
+
+# The branch's files, into $work/log. Returns 1 when there is no branch and
+# exits when it cannot be read; each command carries its own exit, since a
+# function called in a condition runs without `set -e`.
+fetch_log() {
+	rm -rf "$work/log"
+	mkdir -p "$work/log"
+	local found=0
+	git ls-remote --exit-code --heads origin perf-log > /dev/null || found=$?
+	case "$found" in
+	0) ;;
+	2) return 1 ;;
+	*)
+		echo "::error::cannot read origin's perf-log branch"
+		exit 1
+		;;
+	esac
+	git fetch --quiet origin perf-log || exit 1
+	git show FETCH_HEAD:latest.tsv > "$work/log/latest.tsv" || exit 1
+	git show FETCH_HEAD:$logged.tsv > "$work/log/$logged.tsv" || exit 1
+}
+
+if ! fetch_log && [ "$EVENT_NAME" != push ]; then
+	echo "::error::origin has no perf-log branch to compare with; a push to main creates it"
+	exit 1
+fi
+against=(--against "$work/log/latest.tsv")
+if [ "$(uname -m)" != x86_64 ]; then
+	echo "the log is measured on x86-64 and this is $(uname -m): comparing with nothing"
+	against=()
+fi
+case "$EVENT_NAME" in
+pull_request | merge_group)
+	status=0
+	tests/perf/run "${against[@]}" --record "$work/new" --commit HEAD || status=$?
+	if [ "$status" = 0 ]; then
+		exit 0
+	fi
+	if [ ! -e "$work/new/latest.tsv" ]; then
+		echo "::error::a perf program failed to build, to run or to print its golden output"
+		exit 1
+	fi
+	if [ "${ACCEPTED:-false}" = true ]; then
+		echo "::warning::slower than main, accepted by the perf-accepted label"
+		exit 0
+	fi
+	echo "::error::slower than main; label the pull request perf-accepted if that is intended"
+	exit 1
+	;;
+push)
+	: "${GITHUB_SHA:?must be set}"
+	status=0
+	tests/perf/run "${against[@]}" --record "$work/new" --commit "$GITHUB_SHA" || status=$?
+	if [ ! -e "$work/new/latest.tsv" ]; then
+		echo "::error::a perf program failed to build, to run or to print its golden output"
+		exit 1
+	fi
+	[ "$status" = 0 ] || echo "::warning::main is slower than its previous commit's rows"
+	export GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME:-github-actions[bot]}"
+	export GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-41898282+github-actions[bot]@users.noreply.github.com}"
+	export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+	for attempt in 1 2 3 4 5; do
+		parents=()
+		latest="$work/new/latest.tsv"
+		if fetch_log; then
+			parents=(-p "$(git rev-parse FETCH_HEAD)")
+			# A run for a later commit that finished first keeps its rows.
+			recorded=$(awk -F'\t' 'NR == 2 { print $2 }' "$work/log/latest.tsv")
+			if [ -n "$recorded" ] && git cat-file -e "$recorded^{commit}" 2> /dev/null &&
+				! git merge-base --is-ancestor "$recorded" "$GITHUB_SHA"; then
+				echo "the branch already holds $recorded, after $GITHUB_SHA; keeping its latest.tsv"
+				latest="$work/log/latest.tsv"
+			fi
+		else
+			head -n 1 "$work/new/$logged.tsv" > "$work/log/$logged.tsv"
+		fi
+		# This commit's row, once, among the others in date order (UTC, so
+		# the dates sort as text).
+		{
+			head -n 1 "$work/log/$logged.tsv"
+			{
+				tail -n +2 "$work/log/$logged.tsv" | awk -F'\t' -v sha="$GITHUB_SHA" '$2 != sha'
+				tail -n 1 "$work/new/$logged.tsv"
+			} | sort -s -t $'\t' -k 3,3
+		} > "$work/history.tsv"
+		latest_blob=$(git hash-object -w "$latest")
+		history_blob=$(git hash-object -w "$work/history.tsv")
+		tree=$(printf '100644 blob %s\tlatest.tsv\n100644 blob %s\t%s.tsv\n' \
+			"$latest_blob" "$history_blob" "$logged" | git mktree)
+		commit=$(git commit-tree "$tree" "${parents[@]}" -m "perf-log: ${GITHUB_SHA:0:12}")
+		if git push --quiet origin "$commit:refs/heads/perf-log"; then
+			exit 0
+		fi
+		echo "the push lost a race (attempt $attempt); trying again on the new tip"
+		sleep $((attempt * 2))
+	done
+	echo "::error::could not push the performance log"
+	exit 1
+	;;
+*)
+	status=0
+	tests/perf/run "${against[@]}" --record "$work/new" --commit HEAD || status=$?
+	if [ "$status" != 0 ] && [ ! -e "$work/new/latest.tsv" ]; then
+		exit 1
+	fi
+	[ "$status" = 0 ] || echo "::warning::slower than main"
+	;;
+esac

@@ -1,0 +1,92 @@
+/// Trial division, as langbench's trialdiv: the primes up to N, counted
+/// by dividing against a table of the primes below 4,000 that a sieve
+/// builds. Integer division by a divisor read from a list, and a list of
+/// flags written at a stride.
+package division;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\n")));
+	return Unit();
+}
+
+
+/// The primes below `bound`, by a sieve.
+^List<Int> primesBelow(bound Int) {
+	composite List<Bool> = @primitives$List(Bool);
+	i Int(1);
+	i!to(bound) {
+		composite!push(false);
+	}
+	primes ^List<Int> = @primitives$List(Int);
+	p Int(2);
+	p!to(@operators$add(bound, @operators$negate(Int(1)))) {
+		@controlflow$branch(@operators$not(composite[p]), {
+			primes!push(p);
+			start Int = @operators$multiply(p, p);
+			@controlflow$branch(@operators$lessThan(start, bound), {
+				j Int(0);
+				j!to(@operators$divide(@operators$add(@operators$add(bound, @operators$negate(Int(1))), @operators$negate(start)), p)) {
+					composite[@operators$add(start, @operators$multiply(j, p))] = true;
+				}
+			});
+		});
+	}
+	return primes;
+}
+
+/// Whether `k`, at least 2 and below the square of the table's bound, is
+/// prime.
+Bool isPrime(k Int, table &List<Int>) {
+	i Int(1);
+	i!to(table:size()) {
+		p Int = table[i];
+		@controlflow$branch(@operators$lessThan(k, @operators$multiply(p, p)), {
+			return true;
+		});
+		@controlflow$branch(@operators$equal(k, @operators$multiply(@operators$divide(k, p), p)), {
+			return false;
+		});
+	}
+	return true;
+}
+
+Unit main() {
+	table List<Int> = primesBelow(Int(4000));
+	n Int = size(Int(1000));
+	found Int(0);
+	k Int(2);
+	k!to(n) {
+		@controlflow$branch(isPrime(k, table), {
+			found = @operators$add(found, Int(1));
+		});
+	}
+	say(@operators$concat(@operators$concat(String(n), String(" ")), String(found)));
+	return Unit();
+}

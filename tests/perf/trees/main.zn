@@ -1,0 +1,94 @@
+/// The Benchmarks Game's binary-trees, as langbench's binarytrees: perfect
+/// binary trees of reference nodes built, walked and torn down, many small
+/// ones and one that lives through the run. A parent takes its children
+/// rather than copying them.
+package trees;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\n")));
+	return Unit();
+}
+
+
+type Tree = #variant {
+	leaf Unit;
+	node Pair;
+}
+
+type Pair = #struct {
+	left Tree;
+	right Tree;
+}
+
+Pair(left ^Tree, right ^Tree) => init{ left; right; }
+
+/// A perfect tree `depth` levels below its root.
+^Tree make(depth Int) {
+	@controlflow$branch(@operators$equal(depth, Int(0)), {
+		return Tree.leaf(Unit());
+	});
+	return Tree.node(Pair(make(@operators$add(depth, @operators$negate(Int(1)))), make(@operators$add(depth, @operators$negate(Int(1))))));
+}
+
+/// How many nodes the tree has.
+Int count(tree Tree) => match (tree) {
+	l leaf => Int(1);
+	p node => @operators$add(Int(1), @operators$add(count(p.left), count(p.right)));
+}
+
+Int power(exponent Int) {
+	result Int(1);
+	i Int(1);
+	i!to(exponent) {
+		result = @operators$multiply(result, Int(2));
+	}
+	return result;
+}
+
+Unit main() {
+	deepest Int = size(Int(6));
+	say(@operators$concat(String("stretch "), String(count(make(@operators$add(deepest, Int(1)))))));
+	kept Tree = make(deepest);
+	depth Int(4);
+	rounds Int = @operators$add(@operators$divide(@operators$add(deepest, @operators$negate(Int(4))), Int(2)), Int(1));
+	r Int(1);
+	r!to(rounds) {
+		iterations Int = power(@operators$add(@operators$add(deepest, @operators$negate(depth)), Int(4)));
+		total Int(0);
+		i Int(1);
+		i!to(iterations) {
+			total = @operators$add(total, count(make(depth)));
+		}
+		say(@operators$concat(@operators$concat(String(depth), String(" ")), String(total)));
+		depth = @operators$add(depth, Int(2));
+	}
+	say(@operators$concat(String("kept "), String(count(kept))));
+	return Unit();
+}
