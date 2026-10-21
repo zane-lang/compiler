@@ -33,10 +33,10 @@ The `perf-log` branch holds two files, both written by CI:
 
 - `latest.tsv`, one row per program for the newest commit pushed to
   `main`: the program, the commit, its date in UTC, the estimated cycles,
-  and the instructions, first-level misses, last-level misses and
-  mispredicted branches they come from. Each push writes it over, so a
-  commit that makes a program faster is what the next pull request is held
-  to. A run that finishes after a later commit's keeps that commit's rows.
+  the instructions, first-level misses, last-level misses and
+  mispredicted branches they come from, and the program's build key
+  (below). Each push writes it over, so a commit that makes a program
+  faster is what the next pull request is held to. A run that finishes after a later commit's keeps that commit's rows.
 - `stress.tsv`, the `stress` program's row for every commit pushed to
   `main`, in date order. It starts at v0.14.
 
@@ -55,6 +55,16 @@ The `perf-log` branch holds two files, both written by CI:
   pull request queued in the group decides whether a slowdown is accepted;
 - on a manual run, it measures and compares, and fails only on a wrong
   output.
+
+A program's build key hashes what its counts follow from: the executable
+built, its `arguments`, its golden output, `run` itself and Valgrind's
+version. The executable holds the compiler's code and the runtime as clang
+built and linked them, and names the C library it loads by its Nix store
+path, so every input the build scripts use is in it without being listed.
+A program whose key is its row's is not run again, on a pull request, in
+the merge queue or in `just test-perf`: it reports its row's counts, since
+the same build run the same way counts the same, and `run --fresh` measures
+it anyway. A push to `main` always measures every program.
 
 Every run but a push fails when it cannot read the branch, so a missing
 baseline never passes as a comparison. The rows are measured on x86-64, so
