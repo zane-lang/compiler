@@ -5,11 +5,13 @@
 # inside the devbox, with the event in EVENT_NAME: by perf.yml, and by
 # `just test-perf`, which names none of the events below.
 #
-# - pull_request: measure every program and fail when one prints the wrong
-#   output, or when its estimated cycles are more than the tolerance above
-#   its row in latest.tsv, unless ACCEPTED is `true` (the pull request
-#   carries the `perf-accepted` label), which turns that second failure
-#   into a warning.
+# - pull_request and merge_group: measure every program and fail when one
+#   prints the wrong output, or when its estimated cycles are more than the
+#   tolerance above its row in latest.tsv, unless ACCEPTED is `true` (the
+#   pull request, or the last one queued in the merge group, carries the
+#   `perf-accepted` label), which turns that second failure into a warning.
+#   The merge queue checks again because the pull requests it combines can
+#   together be slower than each was alone.
 # - push to main: measure, compare for the record, and push to the branch
 #   GITHUB_SHA's row of stress.tsv, in date order, and its latest.tsv,
 #   unless the branch already holds a commit that comes after it. The commit
@@ -17,10 +19,11 @@
 #   pushed, so nothing is checked out and a push that loses a race is made
 #   again on the new tip. Only this event writes the branch, and the first
 #   one creates it.
-# - anything else (the merge queue, a manual run, `just test-perf`):
-#   measure, compare, and fail only on a wrong output.
+# - anything else (a manual run, `just test-perf`): measure, compare, and
+#   fail only on a wrong output.
 #
-# Every event but a push fails when the branch cannot be read.
+# Every event but a push fails when the branch cannot be read. The log is
+# measured on x86-64, so on another machine nothing is compared.
 set -euo pipefail
 
 : "${EVENT_NAME:?must be set}"
@@ -54,8 +57,12 @@ if ! fetch_log && [ "$EVENT_NAME" != push ]; then
 	exit 1
 fi
 against=(--against "$work/log/latest.tsv")
+if [ "$(uname -m)" != x86_64 ]; then
+	echo "the log is measured on x86-64 and this is $(uname -m): comparing with nothing"
+	against=()
+fi
 case "$EVENT_NAME" in
-pull_request)
+pull_request | merge_group)
 	status=0
 	tests/perf/run "${against[@]}" --record "$work/new" --commit HEAD || status=$?
 	if [ "$status" = 0 ]; then

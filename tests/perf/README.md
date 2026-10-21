@@ -50,11 +50,15 @@ The `perf-log` branch holds two files, both written by CI:
   again;
 - on a push to `main`, it measures, writes `latest.tsv` and appends to
   `stress.tsv`;
-- in the merge queue and on a manual run, it measures and compares, and
-  fails only on a wrong output.
+- in the merge queue, it checks again as for a pull request, since pull
+  requests that each pass can together be slower; the label of the last
+  pull request queued in the group decides whether a slowdown is accepted;
+- on a manual run, it measures and compares, and fails only on a wrong
+  output.
 
 Every run but a push fails when it cannot read the branch, so a missing
-baseline never passes as a comparison.
+baseline never passes as a comparison. The rows are measured on x86-64, so
+on another machine `just test-perf` checks outputs and compares nothing.
 
 ```sh
 devbox run -- just test-perf              # every program against main's rows
