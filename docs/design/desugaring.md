@@ -139,8 +139,9 @@ that "if a type provides `<` for an operand pair, users automatically get `>`,
 has to either implement it separately, which the spec forbids, or do this
 rewrite later anyway.
 
-**CST → SST.** `Operator.t` drops from ten variants to five: `Add`, `Mul`,
-`Div`, `Eq`, `Less`. `Sub`, `NotEq`, `More`, `LessEq` and `MoreEq` disappear.
+**CST → SST.** `Operator.t` drops from twelve variants to seven: `Add`,
+`Mul`, `Div`, `Eq`, `Less`, `And`, `Or`. `Sub`, `NotEq`, `More`, `LessEq` and
+`MoreEq` disappear.
 
 **Two of the five swap their operands, and evaluation order survives it.**
 Operands are evaluated left to right, in written order, whatever operator they
