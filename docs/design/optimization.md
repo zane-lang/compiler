@@ -378,7 +378,11 @@ under Valgrind's Callgrind, and the instructions and conditional branches it
 executes are held to golden counts within 0.1%. A counted instruction is
 the same on every machine, so a change to codegen, to the pipeline LLVM runs
 or to what LLVM is told shows as a moved count rather than as noise in a
-timing ([`tests/perf/README.md`](../../tests/perf/README.md)).
+timing ([`tests/perf/README.md`](../../tests/perf/README.md)). Beside them,
+`tests/perf/log/` logs one large program's estimated cycles, from Valgrind's
+cache and branch simulators, for every commit on `main`, and fails a pull
+request that is more than 1% slower than the last
+([`tests/perf/log/README.md`](../../tests/perf/log/README.md)).
 
 `tests/unit/` checks the evaluator's arithmetic against codegen's, its math
 functions, the intrinsic classes, a value written as code and read back, calls, outputs,

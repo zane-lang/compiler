@@ -1,0 +1,51 @@
+name: Perf log
+
+# The performance log (tests/perf/log/README.md): each push to main appends
+# the stress program's estimated cycles to perf-log.tsv on the `perf-log`
+# branch, and each pull request fails when it is more than the tolerance
+# slower than the log's last row. A pull request labelled `perf-accepted`
+# passes with a warning, and adding or removing that label runs the check
+# again; other label changes do not.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  merge_group:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Pushes to main measure one at a time, in order, so their rows land in the
+# order the commits did.
+concurrency:
+  group: perf-log-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  perf-log:
+    if: >-
+      github.event_name != 'pull_request'
+      || (github.event.action != 'labeled' && github.event.action != 'unlabeled')
+      || github.event.label.name == 'perf-accepted'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Only a push to main writes, to the `perf-log` branch.
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up toolchain
+        uses: ./.github/actions/setup-ci
+
+      - name: Build
+        run: devbox run -- dune build bin/zanec/zanec.exe
+
+      - name: Measure and log
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          ACCEPTED: ${{ contains(github.event.pull_request.labels.*.name, 'perf-accepted') }}
+        run: devbox run -- .github/scripts/perf-log

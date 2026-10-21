@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# The performance log (tests/perf/log/README.md): perf-log.tsv on the
+# `perf-log` branch, one row per commit pushed to main. Run inside the devbox,
+# with the event in EVENT_NAME: by perf-log.yml, and by `just perf-log`,
+# which names none of the events below.
+#
+# - pull_request: measure the stress program and fail when its estimated
+#   cycles are more than the tolerance above the log's last row, unless
+#   ACCEPTED is `true` (the pull request carries the `perf-accepted` label),
+#   which turns the failure into a warning.
+# - push to main: measure, compare for the record, and append a row for
+#   GITHUB_SHA to the branch. The commit is made with git's plumbing, on
+#   top of the branch as it is when it is pushed, so nothing is checked out
+#   and a push that loses a race is made again on the new tip.
+# - anything else (the merge queue, a manual run): measure and compare, and
+#   fail on nothing, since the pull requests were held to the log already.
+set -euo pipefail
+
+: "${EVENT_NAME:?must be set}"
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+log="$work/perf-log.tsv"
+
+# The log as the branch has it, into $log; no branch yet is an empty log.
+fetch_log() {
+	rm -f "$log"
+	if git fetch --quiet origin perf-log 2>/dev/null; then
+		git show FETCH_HEAD:perf-log.tsv > "$log"
+		return 0
+	fi
+	return 1
+}
+
+fetch_log || true
+case "$EVENT_NAME" in
+pull_request)
+	if tests/perf/log/measure --check "$log"; then
+		exit 0
+	fi
+	if [ "${ACCEPTED:-false}" = true ]; then
+		echo "::warning::slower than the performance log, accepted by the perf-accepted label"
+		exit 0
+	fi
+	echo "::error::slower than the performance log; label the pull request perf-accepted if that is intended"
+	exit 1
+	;;
+push)
+	: "${GITHUB_SHA:?must be set}"
+	tests/perf/log/measure --check "$log" --append "$work/row.tsv" --commit "$GITHUB_SHA" ||
+		echo "::warning::main is slower than the performance log's last row"
+	row=$(tail -n 1 "$work/row.tsv")
+	export GIT_AUTHOR_NAME="github-actions[bot]" GIT_COMMITTER_NAME="github-actions[bot]"
+	export GIT_AUTHOR_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
+	export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+	for attempt in 1 2 3 4 5; do
+		parents=()
+		if fetch_log; then
+			parents=(-p "$(git rev-parse FETCH_HEAD)")
+		else
+			head -n 1 "$work/row.tsv" > "$log"
+		fi
+		printf '%s\n' "$row" >> "$log"
+		blob=$(git hash-object -w "$log")
+		tree=$(printf '100644 blob %s\tperf-log.tsv\n' "$blob" | git mktree)
+		commit=$(git commit-tree "$tree" "${parents[@]}" -m "perf-log: ${GITHUB_SHA:0:12}")
+		if git push --quiet origin "$commit:refs/heads/perf-log"; then
+			exit 0
+		fi
+		echo "the push lost a race (attempt $attempt); trying again on the new tip"
+		sleep $((attempt * 2))
+	done
+	echo "::error::could not push the performance log"
+	exit 1
+	;;
+*)
+	tests/perf/log/measure --check "$log" ||
+		echo "::warning::slower than the performance log's last row"
+	;;
+esac

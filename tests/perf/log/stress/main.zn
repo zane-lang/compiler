@@ -1,0 +1,832 @@
+/// One program that exercises much of what the compiler emits, for the
+/// performance log (tests/perf/log/README.md): list loops, reference trees,
+/// division, floats, structs in lists, growth and removal, value copies,
+/// strings, a working set larger than the simulated last-level cache read at
+/// random, a matrix read by columns, sorting and searching random numbers,
+/// a hash table, a bytecode interpreter that matches on variants, calls
+/// through function values, and plain recursion. Each section prints its
+/// name and a checksum, so a build that breaks one is caught before it is
+/// measured. The argument is how many times the sections run.
+package stress;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+alias Row = @primitives$List<Float>
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Int minus(a Int, b Int) => @operators$add(a, @operators$negate(b))
+Int times(a Int, b Int) => @operators$multiply(a, b)
+Int over(a Int, b Int) => @operators$divide(a, b)
+Int modulo(a Int, b Int) => minus(a, times(over(a, b), b))
+Bool below(a Int, b Int) => @operators$lessThan(a, b)
+Float real(v Int) => @primitives$F64.round(v)
+
+/// The scale the program was started with: its first argument, or 1.
+Int scale() {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(below(args:size(), Int(1)), {
+		return Int(1);
+	});
+	return args[Int(1)]:parseI64() ?? Int(1);
+}
+
+Unit report(name String, value Int) {
+	@program$console!print(@operators$concat(@operators$concat(name, String(" ")), @operators$concat(String(value), String("\n"))));
+	return Unit();
+}
+
+/// The linear congruential generator langbench uses.
+type Rng = struct {
+	state Int;
+}
+
+Rng(seed Int) => init{ state = seed; }
+
+Int next(this Rng) mut {
+	this.state = @math$bitAnd(@operators$add(times(this.state, Int(1103515245)), Int(12345)), Int(2147483647));
+	return this.state;
+}
+
+Int pick(this Rng, bound Int) mut => modulo(this!next(), bound)
+
+// ---------------------------------------------------------------------
+// Small lists rewritten in place: fannkuch-redux.
+
+type Flips = #struct {
+	n Int;
+	perm1 List<Int>;
+	perm List<Int>;
+	count List<Int>;
+}
+
+Flips(n Int) => init{
+	n;
+	perm1 = @primitives$List(Int);
+	perm = @primitives$List(Int);
+	count = @primitives$List(Int);
+}
+
+Int flip(this Flips) mut {
+	k Int = this.perm[Int(1)];
+	@controlflow$branch(@operators$equal(k, Int(0)), {
+		return Int(0);
+	});
+	i Int(1);
+	i!to(over(@operators$add(k, Int(1)), Int(2))) {
+		j Int = minus(@operators$add(k, Int(2)), i);
+		t Int = this.perm[i];
+		this.perm[i] = this.perm[j];
+		this.perm[j] = t;
+	}
+	return @operators$add(Int(1), this!flip());
+}
+
+Int advance(this Flips, from Int) mut {
+	r Int = from;
+	step Int(1);
+	step!to(this.n) {
+		@controlflow$branch(@operators$equal(r, this.n), {
+			return r;
+		});
+		first Int = this.perm1[Int(1)];
+		i Int(1);
+		i!to(r) {
+			this.perm1[i] = this.perm1[@operators$add(i, Int(1))];
+		}
+		this.perm1[@operators$add(r, Int(1))] = first;
+		this.count[@operators$add(r, Int(1))] = minus(this.count[@operators$add(r, Int(1))], Int(1));
+		@controlflow$branch(below(Int(0), this.count[@operators$add(r, Int(1))]), {
+			return r;
+		});
+		r = @operators$add(r, Int(1));
+	}
+	return r;
+}
+
+Int fannkuch(n Int) {
+	state Flips(n);
+	i Int(1);
+	i!to(n) {
+		state.perm1!push(minus(i, Int(1)));
+		state.perm!push(Int(0));
+		state.count!push(Int(0));
+	}
+	permutations Int(1);
+	f Int(1);
+	f!to(n) {
+		permutations = times(permutations, f);
+	}
+	checksum Int(0);
+	sign Int(1);
+	r Int = n;
+	p Int(1);
+	p!to(permutations) {
+		v Int(2);
+		v!to(r) {
+			state.count[v] = v;
+		}
+		r = Int(1);
+		c Int(1);
+		c!to(n) {
+			state.perm[c] = state.perm1[c];
+		}
+		checksum = @operators$add(checksum, times(sign, state!flip()));
+		sign = @operators$negate(sign);
+		r = state!advance(r);
+	}
+	return checksum;
+}
+
+// ---------------------------------------------------------------------
+// Reference trees that own their children: binary-trees.
+
+type Tree = #variant {
+	leaf Unit;
+	node Pair;
+}
+
+type Pair = #struct {
+	left Tree;
+	right Tree;
+}
+
+Pair(left ^Tree, right ^Tree) => init{ left; right; }
+
+^Tree grow(depth Int) {
+	@controlflow$branch(@operators$equal(depth, Int(0)), {
+		return Tree.leaf(Unit());
+	});
+	return Tree.node(Pair(grow(minus(depth, Int(1))), grow(minus(depth, Int(1)))));
+}
+
+Int nodes(tree Tree) => match (tree) {
+	l leaf => Int(1);
+	p node => @operators$add(Int(1), @operators$add(nodes(p.left), nodes(p.right)));
+}
+
+Int trees(depth Int, rounds Int) {
+	kept Tree = grow(depth);
+	total Int(0);
+	i Int(1);
+	i!to(rounds) {
+		total = @operators$add(total, nodes(grow(minus(depth, Int(4)))));
+	}
+	return @operators$add(total, nodes(kept));
+}
+
+// ---------------------------------------------------------------------
+// Division against a table a sieve builds: trial division.
+
+^List<Int> primesBelow(bound Int) {
+	composite List<Bool> = @primitives$List(Bool);
+	i Int(1);
+	i!to(bound) {
+		composite!push(false);
+	}
+	primes ^List<Int> = @primitives$List(Int);
+	p Int(2);
+	p!to(minus(bound, Int(1))) {
+		@controlflow$branch(@operators$not(composite[p]), {
+			primes!push(p);
+			start Int = times(p, p);
+			@controlflow$branch(below(start, bound), {
+				j Int(0);
+				j!to(over(minus(minus(bound, Int(1)), start), p)) {
+					composite[@operators$add(start, times(j, p))] = true;
+				}
+			});
+		});
+	}
+	return primes;
+}
+
+Bool prime(k Int, table &List<Int>) {
+	i Int(1);
+	i!to(table:size()) {
+		p Int = table[i];
+		@controlflow$branch(below(k, times(p, p)), {
+			return true;
+		});
+		@controlflow$branch(@operators$equal(k, times(over(k, p), p)), {
+			return false;
+		});
+	}
+	return true;
+}
+
+Int division(n Int) {
+	table List<Int> = primesBelow(Int(4000));
+	found Int(0);
+	k Int(2);
+	k!to(n) {
+		@controlflow$branch(prime(k, table), {
+			found = @operators$add(found, Int(1));
+		});
+	}
+	return found;
+}
+
+// ---------------------------------------------------------------------
+// Floating point: the Mandelbrot set, and bodies in a list pulled
+// together.
+
+Bool bounded(cr Float, ci Float) {
+	zr Float(0.0);
+	zi Float(0.0);
+	i Int(1);
+	i!to(Int(50)) {
+		tr Float = @operators$add(@operators$add(@operators$multiply(zr, zr), @operators$negate(@operators$multiply(zi, zi))), cr);
+		zi = @operators$add(@operators$multiply(@operators$multiply(Float(2.0), zr), zi), ci);
+		zr = tr;
+		@controlflow$branch(@operators$lessThan(Float(4.0), @operators$add(@operators$multiply(zr, zr), @operators$multiply(zi, zi))), {
+			return false;
+		});
+	}
+	return true;
+}
+
+Int mandelbrot(n Int) {
+	inside Int(0);
+	y Int(0);
+	y!to(minus(n, Int(1))) {
+		x Int(0);
+		x!to(minus(n, Int(1))) {
+			cr Float = @operators$add(@operators$divide(@operators$multiply(Float(2.0), real(x)), real(n)), @operators$negate(Float(1.5)));
+			ci Float = @operators$add(@operators$divide(@operators$multiply(Float(2.0), real(y)), real(n)), @operators$negate(Float(1.0)));
+			@controlflow$branch(bounded(cr, ci), {
+				inside = @operators$add(inside, Int(1));
+			});
+		}
+	}
+	return inside;
+}
+
+type Body = struct {
+	x Float;
+	y Float;
+	vx Float;
+	vy Float;
+	mass Float;
+}
+
+Body(x Float, y Float, mass Float) => init{ x; y; vx = Float(0.0); vy = Float(0.0); mass; }
+
+Int bodies(count Int, steps Int) {
+	rng Rng(Int(7));
+	all List<Body> = @primitives$List(Body);
+	i Int(1);
+	i!to(count) {
+		all!push(Body(real(rng!pick(Int(1000))), real(rng!pick(Int(1000))), real(@operators$add(Int(1), rng!pick(Int(10))))));
+	}
+	s Int(1);
+	s!to(steps) {
+		a Int(1);
+		a!to(count) {
+			b Int(1);
+			b!to(count) {
+				dx Float = @operators$add(all[b].x, @operators$negate(all[a].x));
+				dy Float = @operators$add(all[b].y, @operators$negate(all[a].y));
+				d Float = @operators$add(@operators$add(@operators$multiply(dx, dx), @operators$multiply(dy, dy)), Float(1.0));
+				pull Float = @operators$divide(all[b].mass, @operators$multiply(d, Float(1000.0)));
+				all[a].vx = @operators$add(all[a].vx, @operators$multiply(dx, pull));
+				all[a].vy = @operators$add(all[a].vy, @operators$multiply(dy, pull));
+			}
+		}
+		m Int(1);
+		m!to(count) {
+			all[m].x = @operators$add(all[m].x, all[m].vx);
+			all[m].y = @operators$add(all[m].y, all[m].vy);
+		}
+	}
+	return @primitives$I64.truncate(@operators$add(all[Int(1)].x, all[count].y));
+}
+
+// ---------------------------------------------------------------------
+// Structs in lists: grown one at a time, and shrunk in order and by
+// swapping.
+
+type Entity = struct {
+	id Int;
+	hp Int;
+}
+
+Entity(id Int, hp Int) => init{ id; hp; }
+
+Int growth(n Int, rounds Int) {
+	total Int(0);
+	r Int(1);
+	r!to(rounds) {
+		list List<Entity> = @primitives$List(Entity);
+		i Int(1);
+		i!to(n) {
+			list!push(Entity(i, over(i, Int(3))));
+		}
+		total = @operators$add(@operators$add(total, list[list:size()].hp), list:size());
+	}
+	return total;
+}
+
+Int removal(frames Int) {
+	rng Rng(Int(42));
+	entities List<Entity> = @primitives$List(Entity);
+	total Int(0);
+	frame Int(1);
+	frame!to(frames) {
+		s Int(1);
+		s!to(Int(30)) {
+			entities!push(Entity(rng!next(), @operators$add(Int(5), rng!pick(Int(10)))));
+		}
+		d Int(1);
+		d!to(Int(20)) {
+			entities!remove(Int(1));
+		}
+		k Int(1);
+		u Int(1);
+		u!to(entities:size()) {
+			entities[k].hp = minus(entities[k].hp, Int(1));
+			spent Bool = below(entities[k].hp, Int(1));
+			@controlflow$branch(spent, {
+				entities!swapRemove(k);
+			});
+			@controlflow$branch(@operators$not(spent), {
+				total = @operators$add(total, entities[k].hp);
+				k = @operators$add(k, Int(1));
+			});
+		}
+	}
+	return @operators$add(total, entities:size());
+}
+
+// ---------------------------------------------------------------------
+// A tree of values copied whole.
+
+type Shape = variant {
+	leaf Int;
+	node Branch;
+}
+
+type Branch = struct {
+	value Int;
+	left Shape;
+	right Shape;
+}
+
+Branch(value Int, left Shape, right Shape) => init{ value; left; right; }
+
+Shape shape(depth Int, value Int) {
+	@controlflow$branch(@operators$equal(depth, Int(0)), {
+		return Shape.leaf(value);
+	});
+	twice Int = times(value, Int(2));
+	return Shape.node(Branch(value, shape(minus(depth, Int(1)), twice), shape(minus(depth, Int(1)), @operators$add(twice, Int(1)))));
+}
+
+Int sum(tree Shape) => match (tree) {
+	v leaf => v;
+	b node => @operators$add(b.value, @operators$add(sum(b.left), sum(b.right)));
+}
+
+Int copies(depth Int, rounds Int) {
+	original Shape = shape(depth, Int(1));
+	total Int(0);
+	r Int(1);
+	r!to(rounds) {
+		copy Shape = original;
+		total = @operators$add(total, sum(copy));
+	}
+	return total;
+}
+
+// ---------------------------------------------------------------------
+// Strings: numbers written, joined, compared and read back.
+
+Int texts(n Int) {
+	same Int(0);
+	line String("");
+	other String("");
+	i Int(1);
+	i!to(n) {
+		digits String = String(i);
+		line = @operators$concat(@operators$concat(line, digits), String(","));
+		other = @operators$concat(other, @operators$concat(digits, String(",")));
+		@controlflow$branch(@operators$equal(line, other), {
+			same = @operators$add(same, digits:parseI64() ?? Int(0));
+		});
+		@controlflow$branch(@operators$equal(modulo(i, Int(100)), Int(0)), {
+			line = String("");
+			other = String("");
+		});
+	}
+	return same;
+}
+
+// ---------------------------------------------------------------------
+// Memory: a working set past the simulated last-level cache, read at
+// random, and a matrix read by its columns.
+
+Int scattered(size Int, reads Int) {
+	cells List<Int> = @primitives$List(Int);
+	i Int(1);
+	i!to(size) {
+		cells!push(i);
+	}
+	rng Rng(Int(3));
+	total Int(0);
+	r Int(1);
+	r!to(reads) {
+		at Int = @operators$add(Int(1), modulo(times(rng!next(), Int(7)), size));
+		total = @operators$add(total, cells[at]);
+		cells[at] = @operators$add(cells[at], Int(1));
+	}
+	return total;
+}
+
+Int matrix(n Int) {
+	a List<Row> = @primitives$List(Row);
+	b List<Row> = @primitives$List(Row);
+	i Int(1);
+	i!to(n) {
+		ra ^Row = @primitives$List(Float);
+		rb ^Row = @primitives$List(Float);
+		j Int(1);
+		j!to(n) {
+			ra!push(real(@operators$add(i, j)));
+			rb!push(real(minus(times(i, Int(2)), j)));
+		}
+		a!push(ra);
+		b!push(rb);
+	}
+	trace Float(0.0);
+	r Int(1);
+	r!to(n) {
+		c Int(1);
+		c!to(n) {
+			cell Float(0.0);
+			k Int(1);
+			k!to(n) {
+				cell = @operators$add(cell, @operators$multiply(a[r][k], b[k][c]));
+			}
+			@controlflow$branch(@operators$equal(r, c), {
+				trace = @operators$add(trace, cell);
+			});
+		}
+	}
+	return @primitives$I64.truncate(trace);
+}
+
+// ---------------------------------------------------------------------
+// Branches no predictor learns: sorting and searching random numbers.
+
+Int partition(this List<Int>, low Int, high Int) mut {
+	pivot Int = this[high];
+	store Int = low;
+	i Int = low;
+	i!to(minus(high, Int(1))) {
+		@controlflow$branch(below(this[i], pivot), {
+			t Int = this[i];
+			this[i] = this[store];
+			this[store] = t;
+			store = @operators$add(store, Int(1));
+		});
+	}
+	t Int = this[store];
+	this[store] = this[high];
+	this[high] = t;
+	return store;
+}
+
+Unit quicksort(this List<Int>, low Int, high Int) mut {
+	@controlflow$branch(@operators$not(below(low, high)), {
+		return Unit();
+	});
+	p Int = this!partition(low, high);
+	this!quicksort(low, minus(p, Int(1)));
+	this!quicksort(@operators$add(p, Int(1)), high);
+	return Unit();
+}
+
+/// The place of `wanted` in the sorted list, or 0.
+Int search(values &List<Int>, wanted Int) {
+	low Int(1);
+	high Int = values:size();
+	step Int(1);
+	step!to(Int(64)) {
+		@controlflow$branch(below(high, low), {
+			return Int(0);
+		});
+		middle Int = over(@operators$add(low, high), Int(2));
+		v Int = values[middle];
+		@controlflow$branch(@operators$equal(v, wanted), {
+			return middle;
+		});
+		@controlflow$branch(below(v, wanted), {
+			low = @operators$add(middle, Int(1));
+		});
+		@controlflow$branch(below(wanted, v), {
+			high = minus(middle, Int(1));
+		});
+	}
+	return Int(0);
+}
+
+Int sorting(n Int, lookups Int) {
+	rng Rng(Int(11));
+	values List<Int> = @primitives$List(Int);
+	i Int(1);
+	i!to(n) {
+		values!push(rng!pick(times(n, Int(4))));
+	}
+	values!quicksort(Int(1), n);
+	ordered Int(0);
+	c Int(2);
+	c!to(n) {
+		@controlflow$branch(@operators$not(below(values[c], values[minus(c, Int(1))])), {
+			ordered = @operators$add(ordered, Int(1));
+		});
+	}
+	found Int(0);
+	l Int(1);
+	l!to(lookups) {
+		@controlflow$branch(below(Int(0), search(values, rng!pick(times(n, Int(4))))), {
+			found = @operators$add(found, Int(1));
+		});
+	}
+	return @operators$add(times(ordered, Int(1000000)), found);
+}
+
+// ---------------------------------------------------------------------
+// A hash table: open addressing with linear probing.
+
+type Table = #struct {
+	slots Int;
+	keys List<Int>;
+	counts List<Int>;
+}
+
+Table(slots Int) => init{
+	slots;
+	keys = @primitives$List(Int);
+	counts = @primitives$List(Int);
+}
+
+Int home(this Table, key Int) => @operators$add(Int(1), modulo(times(key, Int(2654435761)), this.slots))
+
+/// Counts `key` once more, in its slot or the first free one after it.
+Unit insert(this Table, key Int) mut {
+	at Int = this:home(key);
+	probe Int(1);
+	probe!to(this.slots) {
+		@controlflow$branch(@operators$equal(this.keys[at], Int(0)), {
+			this.keys[at] = key;
+		});
+		@controlflow$branch(@operators$equal(this.keys[at], key), {
+			this.counts[at] = @operators$add(this.counts[at], Int(1));
+			return Unit();
+		});
+		at = @operators$add(modulo(at, this.slots), Int(1));
+	}
+	return Unit();
+}
+
+/// How many times `key` was counted.
+Int find(this Table, key Int) {
+	at Int = this:home(key);
+	probe Int(1);
+	probe!to(this.slots) {
+		@controlflow$branch(@operators$equal(this.keys[at], Int(0)), {
+			return Int(0);
+		});
+		@controlflow$branch(@operators$equal(this.keys[at], key), {
+			return this.counts[at];
+		});
+		at = @operators$add(modulo(at, this.slots), Int(1));
+	}
+	return Int(0);
+}
+
+Int hashing(slots Int, inserts Int, lookups Int) {
+	table Table(slots);
+	i Int(1);
+	i!to(slots) {
+		table.keys!push(Int(0));
+		table.counts!push(Int(0));
+	}
+	rng Rng(Int(5));
+	n Int(1);
+	n!to(inserts) {
+		table!insert(@operators$add(Int(1), rng!pick(times(inserts, Int(2)))));
+	}
+	hits Int(0);
+	m Int(1);
+	m!to(lookups) {
+		hits = @operators$add(hits, table:find(@operators$add(Int(1), rng!pick(times(inserts, Int(2))))));
+	}
+	return hits;
+}
+
+// ---------------------------------------------------------------------
+// A bytecode interpreter: each instruction a variant, matched in a loop.
+
+type Op = variant {
+	push Int;
+	add Unit;
+	multiply Unit;
+	load Int;
+	store Int;
+	jumpIfPositive Int;
+	halt Unit;
+}
+
+/// A machine's state: where it is in its code, its stack and its eight
+/// registers.
+type Machine = #struct {
+	pc Int;
+	stack List<Int>;
+	registers List<Int>;
+}
+
+Machine() => init{
+	pc = Int(1);
+	stack = @primitives$List(Int);
+	registers = @primitives$List(Int);
+}
+
+Int pop(this Machine) mut => this.stack!remove(this.stack:size())
+
+/// Runs one instruction, and says whether the machine runs on.
+Bool step(this Machine, op Op) mut => match (op) {
+	v push {
+		this.stack!push(v);
+		this.pc = @operators$add(this.pc, Int(1));
+		return true;
+	}
+	a add {
+		b Int = this!pop();
+		this.stack[this.stack:size()] = @operators$add(this.stack[this.stack:size()], b);
+		this.pc = @operators$add(this.pc, Int(1));
+		return true;
+	}
+	m multiply {
+		b Int = this!pop();
+		this.stack[this.stack:size()] = modulo(times(this.stack[this.stack:size()], b), Int(1000003));
+		this.pc = @operators$add(this.pc, Int(1));
+		return true;
+	}
+	at load {
+		this.stack!push(this.registers[at]);
+		this.pc = @operators$add(this.pc, Int(1));
+		return true;
+	}
+	at store {
+		this.registers[at] = this!pop();
+		this.pc = @operators$add(this.pc, Int(1));
+		return true;
+	}
+	target jumpIfPositive {
+		top Int = this!pop();
+		this.pc = @operators$add(this.pc, Int(1));
+		@controlflow$branch(below(Int(0), top), {
+			this.pc = target;
+		});
+		return true;
+	}
+	h halt => false;
+}
+
+/// Runs `code` until it halts or takes `limit` steps, and gives back its
+/// second register.
+Int interpret(code &List<Op>, limit Int) {
+	machine Machine();
+	r Int(1);
+	r!to(Int(8)) {
+		machine.registers!push(Int(0));
+	}
+	n Int(1);
+	n!to(limit) {
+		@controlflow$branch(@operators$not(machine!step(code[machine.pc])), {
+			return machine.registers[Int(2)];
+		});
+	}
+	return machine.registers[Int(2)];
+}
+
+Int interpreter(rounds Int) {
+	// r1 counts down from `rounds`; r2 accumulates r2 * 31 + r1.
+	code List<Op> = @primitives$List(Op);
+	start Int = @operators$add(rounds, Int(0));
+	code!push(Op.push(start));
+	code!push(Op.store(Int(1)));
+	code!push(Op.load(Int(2)));
+	code!push(Op.push(Int(31)));
+	code!push(Op.multiply(Unit()));
+	code!push(Op.load(Int(1)));
+	code!push(Op.add(Unit()));
+	code!push(Op.store(Int(2)));
+	code!push(Op.load(Int(1)));
+	code!push(Op.push(@operators$negate(Int(1))));
+	code!push(Op.add(Unit()));
+	code!push(Op.store(Int(1)));
+	code!push(Op.load(Int(1)));
+	code!push(Op.jumpIfPositive(Int(3)));
+	code!push(Op.halt(Unit()));
+	return interpret(code, times(rounds, Int(20)));
+}
+
+// ---------------------------------------------------------------------
+// Calls through function values, chosen at random, and plain recursion.
+
+Int[Int] chosen(k Int) {
+	@controlflow$branch(@operators$equal(k, Int(0)), {
+		return Int(x Int) { return @operators$add(x, Int(3)); }
+	});
+	@controlflow$branch(@operators$equal(k, Int(1)), {
+		return Int(x Int) { return modulo(times(x, Int(7)), Int(1000003)); }
+	});
+	@controlflow$branch(@operators$equal(k, Int(2)), {
+		return Int(x Int) { return minus(x, over(x, Int(5))); }
+	});
+	return Int(x Int) { return @math$bitXor(x, Int(21845)); }
+}
+
+Int calls(n Int) {
+	rng Rng(Int(9));
+	value Int(1);
+	i Int(1);
+	i!to(n) {
+		f Int[Int] = chosen(rng!pick(Int(4)));
+		value = f(value);
+	}
+	return value;
+}
+
+Int fibonacci(n Int) {
+	@controlflow$branch(below(n, Int(2)), {
+		return n;
+	});
+	return @operators$add(fibonacci(minus(n, Int(1))), fibonacci(minus(n, Int(2))));
+}
+
+// ---------------------------------------------------------------------
+
+/// Every section at a fixed size, run `rounds` times; each reports the sum
+/// of its checksums over the rounds.
+Unit main() {
+	rounds Int = scale();
+	names List<String> = @primitives$List(String);
+	sums List<Int> = @primitives$List(Int);
+	names!push(String("fannkuch"));
+	names!push(String("trees"));
+	names!push(String("division"));
+	names!push(String("mandelbrot"));
+	names!push(String("bodies"));
+	names!push(String("growth"));
+	names!push(String("removal"));
+	names!push(String("copies"));
+	names!push(String("texts"));
+	names!push(String("scattered"));
+	names!push(String("matrix"));
+	names!push(String("sorting"));
+	names!push(String("hashing"));
+	names!push(String("interpreter"));
+	names!push(String("calls"));
+	names!push(String("fibonacci"));
+	n Int(1);
+	n!to(names:size()) {
+		sums!push(Int(0));
+	}
+	r Int(1);
+	r!to(rounds) {
+		sums[Int(1)] = @operators$add(sums[Int(1)], fannkuch(Int(8)));
+		sums[Int(2)] = @operators$add(sums[Int(2)], trees(Int(14), Int(40)));
+		sums[Int(3)] = @operators$add(sums[Int(3)], division(Int(100000)));
+		sums[Int(4)] = @operators$add(sums[Int(4)], mandelbrot(Int(150)));
+		sums[Int(5)] = @operators$add(sums[Int(5)], bodies(Int(100), Int(20)));
+		sums[Int(6)] = @operators$add(sums[Int(6)], growth(Int(50000), Int(10)));
+		sums[Int(7)] = @operators$add(sums[Int(7)], removal(Int(5000)));
+		sums[Int(8)] = @operators$add(sums[Int(8)], copies(Int(12), Int(5)));
+		sums[Int(9)] = @operators$add(sums[Int(9)], texts(Int(10000)));
+		sums[Int(10)] = @operators$add(sums[Int(10)], scattered(Int(2000000), Int(1000000)));
+		sums[Int(11)] = @operators$add(sums[Int(11)], matrix(Int(120)));
+		sums[Int(12)] = @operators$add(sums[Int(12)], sorting(Int(100000), Int(100000)));
+		sums[Int(13)] = @operators$add(sums[Int(13)], hashing(Int(65536), Int(40000), Int(100000)));
+		sums[Int(14)] = @operators$add(sums[Int(14)], interpreter(Int(100000)));
+		sums[Int(15)] = @operators$add(sums[Int(15)], calls(Int(500000)));
+		sums[Int(16)] = @operators$add(sums[Int(16)], fibonacci(Int(25)));
+	}
+	k Int(1);
+	k!to(names:size()) {
+		report(names[k], sums[k]);
+	}
+	return Unit();
+}

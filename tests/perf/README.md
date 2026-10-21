@@ -1,5 +1,10 @@
 # Perf tests
 
+`log/` is the other half: one large program whose estimated cycles CI logs
+for every commit on `main` and holds pull requests to
+([`log/README.md`](log/README.md)). The programs here are held one by one,
+to exact counts.
+
 How much work each program's optimized build does, counted rather than
 timed. `run` builds each directory here with `--optimize`, runs it once
 under Valgrind's Callgrind with the size in its `arguments` file, and holds

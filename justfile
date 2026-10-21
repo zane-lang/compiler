@@ -76,6 +76,12 @@ promote-perf:
 	dune build bin/zanec/zanec.exe
 	tests/perf/run --promote
 
+# This build's stress program, measured as the performance log measures it
+# (tests/perf/log/README.md) and compared with the log's last row. Linux only.
+perf-log:
+	dune build bin/zanec/zanec.exe
+	EVENT_NAME=local .github/scripts/perf-log
+
 # The test programs built for Windows and run under Wine, as CI runs them on
 # Windows itself (docs/design/platforms.md). Needs `zig` and `wine64`; set
 # RUNNER to run them some other way.

@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""Measure the stress program as the performance log records it.
+
+`stress/` is one large program that exercises much of what the compiler
+emits (its header says what). This builds it with `--optimize`, runs it once
+under Valgrind's Callgrind with the cache and branch simulators on, checks
+that it printed `stress.out`, and turns what the simulators counted into
+estimated cycles:
+
+    instructions + 10 x first-level misses + 100 x last-level misses
+                 + 20 x mispredicted branches
+
+The caches simulated are fixed, not read from the machine, so every machine
+simulates the same ones: 32 KiB first-level instruction and data caches and
+an 8 MiB last-level cache, each 64-byte lines. The whole process is counted,
+the C library's work included, since that is work the program does. A
+simulated cycle is the same on every run of one build, which is what lets
+the log compare one commit's build with the next; it is an estimate of a
+generic processor, not a time on any real one.
+
+    tests/perf/log/measure                       # print this build's row
+    tests/perf/log/measure --check LOG           # and fail if it is slower than LOG's last row
+    tests/perf/log/measure --append LOG --commit SHA
+                                                 # and add it to LOG as SHA's
+
+A row is tab-separated: commit, date, estimated cycles, instructions,
+first-level misses, last-level misses, mispredicted branches. `--check`
+fails when the estimated cycles are more than `TOLERANCE` above the last
+row's; a log with no rows passes. CI keeps the log on the `perf-log` branch
+(`.github/scripts/perf-log`).
+"""
+
+import argparse
+import datetime
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[2]
+TOLERANCE = 0.01
+CACHES = ["--I1=32768,8,64", "--D1=32768,8,64", "--LL=8388608,16,64"]
+COLUMNS = ["commit", "date", "cycles", "instructions", "l1_misses", "ll_misses", "mispredicts"]
+
+
+def totals(profile):
+    """The whole process's count of each event Callgrind recorded: the
+    `summary:` line its profile ends with."""
+    events = None
+    for line in profile.read_text().splitlines():
+        if line.startswith("events:"):
+            events = line.split()[1:]
+        elif line.startswith("summary:"):
+            return dict(zip(events, map(int, line.split()[1:])))
+    sys.exit(f"{profile} has no summary line")
+
+
+def measure():
+    zanec = ROOT / "_build" / "default" / "bin" / "zanec" / "zanec.exe"
+    if not zanec.exists():
+        sys.exit("build zanec first: dune build bin/zanec/zanec.exe")
+    if shutil.which("valgrind") is None:
+        sys.exit("valgrind is not on PATH; run this inside the devbox (Linux only)")
+    with tempfile.TemporaryDirectory() as work:
+        exe, profile = Path(work) / "stress", Path(work) / "stress.callgrind"
+        subprocess.run([zanec, "--build", exe, "--optimize", "--package", HERE / "stress"], check=True)
+        args = (HERE / "stress" / "arguments").read_text().split()
+        ran = subprocess.run(
+            ["valgrind", "-q", "--tool=callgrind", "--cache-sim=yes", "--branch-sim=yes", *CACHES,
+             f"--callgrind-out-file={profile}", exe, *args],
+            capture_output=True, text=True)
+        if ran.returncode:
+            sys.exit(f"stress exited with {ran.returncode}:\n{ran.stdout}{ran.stderr}")
+        expected = (HERE / "stress.out").read_text()
+        if ran.stdout != expected:
+            sys.exit(f"stress printed\n{ran.stdout}\nnot stress.out's\n{expected}")
+        e = totals(profile)
+    l1 = e["I1mr"] + e["D1mr"] + e["D1mw"]
+    ll = e["ILmr"] + e["DLmr"] + e["DLmw"]
+    mispredicts = e["Bcm"] + e["Bim"]
+    return {
+        "cycles": e["Ir"] + 10 * l1 + 100 * ll + 20 * mispredicts,
+        "instructions": e["Ir"],
+        "l1_misses": l1,
+        "ll_misses": ll,
+        "mispredicts": mispredicts,
+    }
+
+
+def rows(log):
+    if not log.exists():
+        return []
+    return [dict(zip(COLUMNS, line.split("\t"))) for line in log.read_text().splitlines()
+            if line and not line.startswith("commit\t")]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--check", type=Path, metavar="LOG", help="fail if slower than LOG's last row")
+    parser.add_argument("--append", type=Path, metavar="LOG", help="add this build's row to LOG")
+    parser.add_argument("--commit", help="the commit an appended row is for")
+    options = parser.parse_args()
+    if options.append and not options.commit:
+        sys.exit("--append needs --commit")
+    now = measure()
+    for key in COLUMNS[2:]:
+        print(f"{key:13} {now[key]:>15}")
+    failed = False
+    if options.check:
+        logged = rows(options.check)
+        if not logged:
+            print("the log has no rows yet: nothing to compare with")
+        else:
+            last = logged[-1]
+            was = int(last["cycles"])
+            change = (now["cycles"] - was) / was
+            print(f"against {last['commit'][:12]} ({last['date']}): {was} estimated cycles, {change:+.2%}")
+            for key in COLUMNS[3:]:
+                old = int(last[key])
+                print(f"  {key:13} {old:>15} -> {now[key]:>15} ({(now[key] - old) / old if old else 0:+.2%})")
+            if change > TOLERANCE:
+                print(f"slower than the log's last row by more than {TOLERANCE:.0%}")
+                failed = True
+    if options.append:
+        date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        row = [options.commit, date] + [str(now[k]) for k in COLUMNS[2:]]
+        if not options.append.exists():
+            options.append.write_text("\t".join(COLUMNS) + "\n")
+        with options.append.open("a") as log:
+            log.write("\t".join(row) + "\n")
+    if failed:
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
