@@ -94,6 +94,10 @@ Weight(grams Num) => init{ grams; }
 
 Truth <(left Weight, right Weight) => left.grams < right.grams
 
+/// A literal parameter on the right of `-`, which flips it as it would the
+/// literal it stands for.
+Num less(value Num, by @concepts$Int) => value - by
+
 Weight heavy(grams Num, name String) {
 	@program$console!print(name);
 	return Weight(grams);
@@ -152,6 +156,14 @@ Unit main() {
 	check(Num(9) >= 9);
 	check(Num(9) ~= 8);
 	check(Num(9) - Num(5) == 4);
+
+	// A flipped literal is a literal: `- 1` is `+ ~1`, which the literal
+	// overload of `+` takes.
+	check(Num(9) - 1 == 8);
+	check(10 - Num(9) == 1);
+	check(Num(~2) + 3 == 1);
+	check(Num(~~2) == 2);
+	check(less(Num(9), 4) == 5);
 	written Truth = say(Num(9), a) > 5;
 	@program$console!print(line);
 	check(written);

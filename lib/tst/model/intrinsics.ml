@@ -97,6 +97,16 @@ let operator_token : Sst.Nodes.Operator.node -> string = function
   | And -> "and"
   | Or -> "or"
 
+(* A flipped numeric literal is the literal of the opposite sign
+   (operators.md §2.7), and no operator is called. [negated_digits] flips a
+   literal's text; a literal parameter's is known only where its verb is
+   written out, so `~n` is a call to [negate_literal], which no program can
+   name and lowering folds once it has the literal. *)
+let negate_literal = "@concepts$negate"
+
+let negated_digits s =
+  if String.length s > 0 && s.[0] = '-' then String.sub s 1 (String.length s - 1) else "-" ^ s
+
 (* `@operators$` (syntax.md §2.7): the machine operations the primitive
    operators of operators.md §2.1 are written over, one overload per operand
    type, both operands of that one type. There is no subtraction, since

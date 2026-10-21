@@ -46,6 +46,13 @@ let rec literal_of ctx (e : T.Expr.t) =
       | _ -> e)
   | T.Expr.Var (T.Name_ref.Number_param { value = Tst.Ty.Known n; _ }) ->
       { e with T.Expr.node = T.Expr.Integer_lit (string_of_int n) }
+  | T.Expr.Call { callee = { owner = Tst.Signature.Intrinsic spelling; _ }; args = [ T.Arg.Value v ]; _ }
+    when spelling = Tst.Intrinsics.negate_literal -> (
+      let lit = literal_of ctx v in
+      match lit.T.Expr.node with
+      | T.Expr.Integer_lit s -> { e with T.Expr.node = T.Expr.Integer_lit (Tst.Intrinsics.negated_digits s) }
+      | T.Expr.Decimal_lit s -> { e with T.Expr.node = T.Expr.Decimal_lit (Tst.Intrinsics.negated_digits s) }
+      | _ -> e)
   | _ -> e
 
 (* A numeric literal's digits, without the `'` that only separates groups of
