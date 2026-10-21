@@ -31,13 +31,14 @@ hundredths of a percent.
 
 The `perf-log` branch holds two files, both written by CI:
 
-- `latest.tsv`, one row per program for the last commit pushed to `main`:
-  the program, the commit, its date, the estimated cycles, and the
-  instructions, first-level misses, last-level misses and mispredicted
-  branches they come from. Each push writes it over, so a commit that makes
-  a program faster is what the next pull request is held to.
+- `latest.tsv`, one row per program for the newest commit pushed to
+  `main`: the program, the commit, its date in UTC, the estimated cycles,
+  and the instructions, first-level misses, last-level misses and
+  mispredicted branches they come from. Each push writes it over, so a
+  commit that makes a program faster is what the next pull request is held
+  to. A run that finishes after a later commit's keeps that commit's rows.
 - `stress.tsv`, the `stress` program's row for every commit pushed to
-  `main`, appended to. It starts at v0.14.
+  `main`, in date order. It starts at v0.14.
 
 `.github/workflows/perf.yml` runs `.github/scripts/perf`:
 
@@ -45,11 +46,15 @@ The `perf-log` branch holds two files, both written by CI:
   the wrong output, or when its estimated cycles are more than 1% above its
   row in `latest.tsv`. Labelling the pull request `perf-accepted` turns a
   slowdown into a warning, for a change that is slower on purpose, and the
-  push to `main` then records the new numbers;
+  push to `main` then records the new numbers. Any label change measures
+  again;
 - on a push to `main`, it measures, writes `latest.tsv` and appends to
   `stress.tsv`;
 - in the merge queue and on a manual run, it measures and compares, and
   fails only on a wrong output.
+
+Every run but a push fails when it cannot read the branch, so a missing
+baseline never passes as a comparison.
 
 ```sh
 devbox run -- just test-perf              # every program against main's rows

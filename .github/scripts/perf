@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The perf programs against the `perf-log` branch (tests/perf/README.md),
-# which holds latest.tsv, each program's row for the last commit pushed to
+# which holds latest.tsv, each program's row for the newest commit pushed to
 # main, and stress.tsv, the stress program's row for every one of them. Run
 # inside the devbox, with the event in EVENT_NAME: by perf.yml, and by
 # `just test-perf`, which names none of the events below.
@@ -10,13 +10,17 @@
 #   its row in latest.tsv, unless ACCEPTED is `true` (the pull request
 #   carries the `perf-accepted` label), which turns that second failure
 #   into a warning.
-# - push to main: measure, compare for the record, write latest.tsv over
-#   and append to stress.tsv as GITHUB_SHA's, and push them to the branch.
-#   The commit is made with git's plumbing, on top of the branch as it is
-#   when it is pushed, so nothing is checked out and a push that loses a
-#   race is made again on the new tip.
+# - push to main: measure, compare for the record, and push to the branch
+#   GITHUB_SHA's row of stress.tsv, in date order, and its latest.tsv,
+#   unless the branch already holds a commit that comes after it. The commit
+#   is made with git's plumbing, on top of the branch as it is when it is
+#   pushed, so nothing is checked out and a push that loses a race is made
+#   again on the new tip. Only this event writes the branch, and the first
+#   one creates it.
 # - anything else (the merge queue, a manual run, `just test-perf`):
 #   measure, compare, and fail only on a wrong output.
+#
+# Every event but a push fails when the branch cannot be read.
 set -euo pipefail
 
 : "${EVENT_NAME:?must be set}"
@@ -24,19 +28,31 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 logged=stress
 
-# The branch's files, into $work/log; no branch yet is an empty log.
+# The branch's files, into $work/log. Returns 1 when there is no branch and
+# exits when it cannot be read; each command carries its own exit, since a
+# function called in a condition runs without `set -e`.
 fetch_log() {
 	rm -rf "$work/log"
 	mkdir -p "$work/log"
-	if git fetch --quiet origin perf-log 2>/dev/null; then
-		git show FETCH_HEAD:latest.tsv > "$work/log/latest.tsv"
-		git show FETCH_HEAD:$logged.tsv > "$work/log/$logged.tsv"
-		return 0
-	fi
-	return 1
+	local found=0
+	git ls-remote --exit-code --heads origin perf-log > /dev/null || found=$?
+	case "$found" in
+	0) ;;
+	2) return 1 ;;
+	*)
+		echo "::error::cannot read origin's perf-log branch"
+		exit 1
+		;;
+	esac
+	git fetch --quiet origin perf-log || exit 1
+	git show FETCH_HEAD:latest.tsv > "$work/log/latest.tsv" || exit 1
+	git show FETCH_HEAD:$logged.tsv > "$work/log/$logged.tsv" || exit 1
 }
 
-fetch_log || true
+if ! fetch_log && [ "$EVENT_NAME" != push ]; then
+	echo "::error::origin has no perf-log branch to compare with; a push to main creates it"
+	exit 1
+fi
 against=(--against "$work/log/latest.tsv")
 case "$EVENT_NAME" in
 pull_request)
@@ -64,21 +80,37 @@ push)
 		echo "::error::a perf program failed to build, to run or to print its golden output"
 		exit 1
 	fi
-	row=$(tail -n 1 "$work/new/$logged.tsv")
 	export GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME:-github-actions[bot]}"
 	export GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-41898282+github-actions[bot]@users.noreply.github.com}"
 	export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 	for attempt in 1 2 3 4 5; do
 		parents=()
+		latest="$work/new/latest.tsv"
 		if fetch_log; then
 			parents=(-p "$(git rev-parse FETCH_HEAD)")
+			# A run for a later commit that finished first keeps its rows.
+			recorded=$(awk -F'\t' 'NR == 2 { print $2 }' "$work/log/latest.tsv")
+			if [ -n "$recorded" ] && git cat-file -e "$recorded^{commit}" 2> /dev/null &&
+				! git merge-base --is-ancestor "$recorded" "$GITHUB_SHA"; then
+				echo "the branch already holds $recorded, after $GITHUB_SHA; keeping its latest.tsv"
+				latest="$work/log/latest.tsv"
+			fi
 		else
 			head -n 1 "$work/new/$logged.tsv" > "$work/log/$logged.tsv"
 		fi
-		printf '%s\n' "$row" >> "$work/log/$logged.tsv"
-		latest=$(git hash-object -w "$work/new/latest.tsv")
-		history=$(git hash-object -w "$work/log/$logged.tsv")
-		tree=$(printf '100644 blob %s\tlatest.tsv\n100644 blob %s\t%s.tsv\n' "$latest" "$history" "$logged" | git mktree)
+		# This commit's row, once, among the others in date order (UTC, so
+		# the dates sort as text).
+		{
+			head -n 1 "$work/log/$logged.tsv"
+			{
+				tail -n +2 "$work/log/$logged.tsv" | awk -F'\t' -v sha="$GITHUB_SHA" '$2 != sha'
+				tail -n 1 "$work/new/$logged.tsv"
+			} | sort -s -t $'\t' -k 3,3
+		} > "$work/history.tsv"
+		latest_blob=$(git hash-object -w "$latest")
+		history_blob=$(git hash-object -w "$work/history.tsv")
+		tree=$(printf '100644 blob %s\tlatest.tsv\n100644 blob %s\t%s.tsv\n' \
+			"$latest_blob" "$history_blob" "$logged" | git mktree)
 		commit=$(git commit-tree "$tree" "${parents[@]}" -m "perf-log: ${GITHUB_SHA:0:12}")
 		if git push --quiet origin "$commit:refs/heads/perf-log"; then
 			exit 0

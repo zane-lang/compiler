@@ -4,8 +4,8 @@ name: Perf
 # main writes every program's row over latest.tsv on the `perf-log` branch
 # and appends the stress program's to stress.tsv, and each pull request fails
 # when a program is more than the tolerance slower than its row. A pull
-# request labelled `perf-accepted` passes with a warning, and adding or
-# removing that label runs the check again; other label changes do not.
+# request labelled `perf-accepted` passes with a warning, and any label
+# change runs the check again.
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
@@ -17,18 +17,16 @@ on:
 permissions:
   contents: read
 
-# Pushes to main measure one at a time, in order, so their rows land in the
-# order the commits did.
+# A pull request's newest event replaces its run in progress: a label change
+# measures again too, so the check it reports is a measurement, never a skip.
+# Every other run goes ahead on its own, and the script keeps the branch in
+# commit order however their pushes land.
 concurrency:
-  group: perf-${{ github.event.pull_request.number || github.ref }}
+  group: perf-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   perf:
-    if: >-
-      github.event_name != 'pull_request'
-      || (github.event.action != 'labeled' && github.event.action != 'unlabeled')
-      || github.event.label.name == 'perf-accepted'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Only a push to main writes, to the `perf-log` branch.
@@ -37,6 +35,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A push compares its commit with the branch's by ancestry.
+          fetch-depth: ${{ github.event_name == 'push' && '0' || '1' }}
 
       - name: Set up toolchain
         uses: ./.github/actions/setup-ci
