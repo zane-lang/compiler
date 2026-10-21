@@ -80,10 +80,10 @@ Unit main() {
 	check(@operators$not(@operators$equal(@operators$add(f64(0.1), f64(0.2)), f64(0.3))));
 
 	// `Bool` and `String`.
-	check(@operators$and(true, @operators$not(false)));
-	check(@operators$not(@operators$and(true, false)));
-	check(@operators$or(false, true));
-	check(@operators$not(@operators$or(false, false)));
+	check(@operators$conjoin(true, @operators$not(false)));
+	check(@operators$not(@operators$conjoin(true, false)));
+	check(@operators$disjoin(false, true));
+	check(@operators$not(@operators$disjoin(false, false)));
 	check(@operators$equal(true, true));
 	check(@operators$equal(@operators$concat(String("ab"), String("cd")), String("abcd")));
 	check(@operators$not(@operators$equal(String("ab"), String("abc"))));

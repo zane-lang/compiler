@@ -512,9 +512,9 @@ package | package desugar; import co … .early)); return Unit(); }
                 name_type | Unit
                   ident Unit | Unit
               constructor_args Positional | ()
-  decl Verb | Bool loose(a Int, b Int, o … n mixed '+ derivedLoose; }
-    verb_decl Func | Bool loose(a Int, b Int, o … n mixed '+ derivedLoose; }
-      name loose | loose
+  decl Verb | Bool joined(a Int, b Int,  …  mixed or derivedJoined; }
+    verb_decl Func | Bool joined(a Int, b Int,  …  mixed or derivedJoined; }
+      name joined | joined
       param | a Int
         name a | a
         param_type Concrete | Int
@@ -537,19 +537,19 @@ package | package desugar; import co … .early)); return Unit(); }
         type_expr Path | Bool
           name_type | Bool
             ident Bool | Bool
-      block | { mixed Bool = a < b '* b  … n mixed '+ derivedLoose; }
-        stat Decl | mixed Bool = a < b '* b < a '+ ok;
-          decl Var | mixed Bool = a < b '* b < a '+ ok
+      block | { mixed Bool = a < b and b …  mixed or derivedJoined; }
+        stat Decl | mixed Bool = a < b and b < a or ok;
+          decl Var | mixed Bool = a < b and b < a or ok
             name mixed | mixed
             type_expr Path | Bool
               name_type | Bool
                 ident Bool | Bool
-            expr VerbCall | a < b '* b < a '+ ok
-              verb_call Op | a < b '* b < a '+ ok
-                operator Add | '+
-                expr VerbCall | a < b '* b < a
-                  verb_call Op | a < b '* b < a
-                    operator Mul | '*
+            expr VerbCall | a < b and b < a or ok
+              verb_call Op | a < b and b < a or ok
+                operator Or | or
+                expr VerbCall | a < b and b < a
+                  verb_call Op | a < b and b < a
+                    operator And | and
                     expr VerbCall | a < b
                       verb_call Op | a < b
                         operator Less | <
@@ -571,15 +571,15 @@ package | package desugar; import co … .early)); return Unit(); }
                 expr NameExpr | ok
                   name_expr | ok
                     ident ok | ok
-        stat Decl | derivedLoose Bool = a >= b '* ok;
-          decl Var | derivedLoose Bool = a >= b '* ok
-            name derivedLoose | derivedLoose
+        stat Decl | derivedJoined Bool = a >= b and ok;
+          decl Var | derivedJoined Bool = a >= b and ok
+            name derivedJoined | derivedJoined
             type_expr Path | Bool
               name_type | Bool
                 ident Bool | Bool
-            expr VerbCall | a >= b '* ok
-              verb_call Op | a >= b '* ok
-                operator Mul | '*
+            expr VerbCall | a >= b and ok
+              verb_call Op | a >= b and ok
+                operator And | and
                 expr VerbCall | a >= b
                   verb_call Flip | a >= b
                     expr VerbCall | a >= b
@@ -594,16 +594,16 @@ package | package desugar; import co … .early)); return Unit(); }
                 expr NameExpr | ok
                   name_expr | ok
                     ident ok | ok
-        stat Ret | return mixed '+ derivedLoose;
-          expr VerbCall | mixed '+ derivedLoose
-            verb_call Op | mixed '+ derivedLoose
-              operator Add | '+
+        stat Ret | return mixed or derivedJoined;
+          expr VerbCall | mixed or derivedJoined
+            verb_call Op | mixed or derivedJoined
+              operator Or | or
               expr NameExpr | mixed
                 name_expr | mixed
                   ident mixed | mixed
-              expr NameExpr | derivedLoose
-                name_expr | derivedLoose
-                  ident derivedLoose | derivedLoose
+              expr NameExpr | derivedJoined
+                name_expr | derivedJoined
+                  ident derivedJoined | derivedJoined
   decl Verb | Int?String risky(value Int … < Int(0)); return value; }
     verb_decl Func | Int?String risky(value Int … < Int(0)); return value; }
       name risky | risky

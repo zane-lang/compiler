@@ -375,11 +375,9 @@ bad Int = 1'000';             // rejected
 ```
 
 The separator predates the spec's section on numeric literals, which does not
-mention one. It needs a digit on each side, and none of the loose operators of
-[`operators.md`](https://github.com/zane-lang/spec/blob/c4295ca/spec/operators.md)
-§3.1 has one before its `'`, so `2'*3` still lexes as `2 '* 3`
-(`docs/ambiguity/proof-obligations.md`). Reconciling means either the spec
-adopting the separator or the lexer dropping it.
+mention one. It needs a digit on each side, and `'` has no other use, so
+`2'*3` does not lex. Reconciling means either the spec adopting the separator
+or the lexer dropping it.
 
 ## 9. An exit ends the run of a block
 
@@ -596,6 +594,12 @@ never had.
   operator is an ordinary `Op` carrying the same `Operator.t` as the operator
   it mirrors. `and` and `or` are ordinary lowercase names again, reserved by
   nothing.
+
+  The spec later retired the loose tier and brought `and` and `or` back
+  ([`operators.md`](https://github.com/zane-lang/spec/blob/6e232ce/spec/operators.md) §2.4) as reserved operator words,
+  not keywords: intersection and union, overloadable like `+`, with both
+  operands evaluated. The compiler followed, and they are again two levels
+  below the comparisons, now carried by `Op` like every other operator.
 
 - **The compiler had a pipe, `callable|value`.** The spec fixed only its
   grouping, at level 2 of the precedence table, and never said what it did.

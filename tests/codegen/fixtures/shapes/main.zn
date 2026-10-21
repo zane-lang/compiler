@@ -18,7 +18,7 @@ Vec(x Int, y Int) => init{ x; y; }
 
 Vec +(left Vec, right Vec) => Vec(@operators$add(left.x, right.x), @operators$add(left.y, right.y))
 
-Bool ==(left Vec, right Vec) => @operators$and(@operators$equal(left.x, right.x), @operators$equal(left.y, right.y))
+Bool ==(left Vec, right Vec) => @operators$conjoin(@operators$equal(left.x, right.x), @operators$equal(left.y, right.y))
 
 /// A `mut` method writes its caller's place.
 Unit scale(this Vec, by Int) mut {

@@ -497,9 +497,9 @@ package | package desugar; import co … .early)); return Unit(); }
                   name_type | Unit
                     ident Unit | Unit
                 constructor_args | ()
-  decl | Bool loose(a Int, b Int, o … n mixed '+ derivedLoose; }
-    verb_decl | Bool loose(a Int, b Int, o … n mixed '+ derivedLoose; }
-      name loose | loose
+  decl | Bool joined(a Int, b Int,  …  mixed or derivedJoined; }
+    verb_decl | Bool joined(a Int, b Int,  …  mixed or derivedJoined; }
+      name joined | joined
       param | a Int
         name a | a
         param_type | Int
@@ -522,20 +522,20 @@ package | package desugar; import co … .early)); return Unit(); }
         type_expr | Bool
           name_type | Bool
             ident Bool | Bool
-      body | { mixed Bool = a < b '* b  … n mixed '+ derivedLoose; }
-        statement | mixed Bool = a < b '* b < a '+ ok;
-          stat | mixed Bool = a < b '* b < a '+ ok;
-            decl | mixed Bool = a < b '* b < a '+ ok
+      body | { mixed Bool = a < b and b …  mixed or derivedJoined; }
+        statement | mixed Bool = a < b and b < a or ok;
+          stat | mixed Bool = a < b and b < a or ok;
+            decl | mixed Bool = a < b and b < a or ok
               name mixed | mixed
               type_expr | Bool
                 name_type | Bool
                   ident Bool | Bool
-              expr | a < b '* b < a '+ ok
-                verb_call | a < b '* b < a '+ ok
-                  operator | '+
-                  expr | a < b '* b < a
-                    verb_call | a < b '* b < a
-                      operator | '*
+              expr | a < b and b < a or ok
+                verb_call | a < b and b < a or ok
+                  operator | or
+                  expr | a < b and b < a
+                    verb_call | a < b and b < a
+                      operator | and
                       expr | a < b
                         verb_call | a < b
                           operator | <
@@ -557,16 +557,16 @@ package | package desugar; import co … .early)); return Unit(); }
                   expr | ok
                     name_expr | ok
                       ident ok | ok
-        statement | derivedLoose Bool = a >= b '* ok;
-          stat | derivedLoose Bool = a >= b '* ok;
-            decl | derivedLoose Bool = a >= b '* ok
-              name derivedLoose | derivedLoose
+        statement | derivedJoined Bool = a >= b and ok;
+          stat | derivedJoined Bool = a >= b and ok;
+            decl | derivedJoined Bool = a >= b and ok
+              name derivedJoined | derivedJoined
               type_expr | Bool
                 name_type | Bool
                   ident Bool | Bool
-              expr | a >= b '* ok
-                verb_call | a >= b '* ok
-                  operator | '*
+              expr | a >= b and ok
+                verb_call | a >= b and ok
+                  operator | and
                   expr | a >= b
                     verb_call | a >= b
                       operator | >=
@@ -579,17 +579,17 @@ package | package desugar; import co … .early)); return Unit(); }
                   expr | ok
                     name_expr | ok
                       ident ok | ok
-        statement | return mixed '+ derivedLoose;
-          stat | return mixed '+ derivedLoose;
-            expr | mixed '+ derivedLoose
-              verb_call | mixed '+ derivedLoose
-                operator | '+
+        statement | return mixed or derivedJoined;
+          stat | return mixed or derivedJoined;
+            expr | mixed or derivedJoined
+              verb_call | mixed or derivedJoined
+                operator | or
                 expr | mixed
                   name_expr | mixed
                     ident mixed | mixed
-                expr | derivedLoose
-                  name_expr | derivedLoose
-                    ident derivedLoose | derivedLoose
+                expr | derivedJoined
+                  name_expr | derivedJoined
+                    ident derivedJoined | derivedJoined
   decl | Int?String risky(value Int … < Int(0)); return value; }
     verb_decl | Int?String risky(value Int … < Int(0)); return value; }
       name risky | risky

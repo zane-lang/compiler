@@ -17,8 +17,8 @@ Bool if(condition Bool, body @concepts$Block) {
 
 /// Runs when no earlier branch of the chain has, and records whether it did.
 Unit elif(this Bool, condition Bool, body @concepts$Block) mut {
-	@controlflow$branch(@operators$and(@operators$not(this), condition), body);
-	this = @operators$or(this, condition);
+	@controlflow$branch(@operators$conjoin(@operators$not(this), condition), body);
+	this = @operators$disjoin(this, condition);
 	return Unit();
 }
 

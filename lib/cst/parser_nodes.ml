@@ -69,15 +69,7 @@ let verb_decl loc node =
 let decl loc node = ({ Nodes.Decl.node; span = Span.of_loc loc } : Nodes.Decl.t)
 
 let operator loc node =
-  ({ Nodes.Operator.node; is_loose = false; span = Span.of_loc loc }
-    : Nodes.Operator.t)
-
-(* The same operator, written with its `'` prefix. Two constructors rather than
-   a flag at each of the twenty call sites, so the ten loose productions are
-   the only ones that say so. *)
-let loose_operator loc node =
-  ({ Nodes.Operator.node; is_loose = true; span = Span.of_loc loc }
-    : Nodes.Operator.t)
+  ({ Nodes.Operator.node; span = Span.of_loc loc } : Nodes.Operator.t)
 
 let concept loc node =
   ({ Nodes.Concept.node; span = Span.of_loc loc } : Nodes.Concept.t)

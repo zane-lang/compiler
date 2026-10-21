@@ -30,10 +30,9 @@ let name_expr_to_node (x : Nodes.Name_expr.t) =
   | Qualified { package; ident } -> Leaf (text package ^ "$" ^ text ident)
   | Intrinsic { package; ident } -> Leaf ("@" ^ text package ^ "$" ^ text ident)
 
-(* Five tokens, not ten, and no `'` prefix: the derived operators have been
-   written out into these and the loose forms have collapsed into their
-   unprefixed spelling. A `<` here may have been a `>` in the source, which is
-   what the span dump is for. *)
+(* Seven tokens, not twelve: the derived operators have been written out into
+   these. A `<` here may have been a `>` in the source, which is what the span
+   dump is for. *)
 let op_to_name (x : Nodes.Operator.t) =
   match x.Nodes.Operator.node with
   | Add -> "+"
@@ -41,6 +40,8 @@ let op_to_name (x : Nodes.Operator.t) =
   | Div -> "/"
   | Eq -> "=="
   | Less -> "<"
+  | And -> "and"
+  | Or -> "or"
 
 let rec concept_to_node (x : Nodes.Concept.t) =
   match x.Nodes.Concept.node with Type -> Leaf "Type" | Named name -> name_type_to_node name

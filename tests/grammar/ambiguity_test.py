@@ -620,19 +620,17 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             0,
         )
 
-    def test_a_loose_operator_groups_below_every_unprefixed_one(self) -> None:
-        # operators.md §3.1. The loose tier changes nothing but the nesting,
-        # so the nesting is the whole assertion: `'*` is level 6 and every
-        # unprefixed operator is levels 1-5, so both comparisons close before
-        # it joins them.
+    def test_and_groups_below_every_comparison(self) -> None:
+        # operators.md §3: `and` is level 5 and every comparison level 4, so
+        # both comparisons close before it joins them.
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT MORE LIDENT "
-            "LOOSE_STAR LIDENT MORE LIDENT SEMICOLON RCURLY EOF",
-            "Int length() { abort a > b '* c > d; }",
-            "mul(more(name, name), more(name, name))",
+            "AND LIDENT MORE LIDENT SEMICOLON RCURLY EOF",
+            "Int length() { abort a > b and c > d; }",
+            "and(more(name, name), more(name, name))",
         )
-        # The same operator unprefixed, for contrast: `*` is level 3, so it
-        # binds inside the comparison instead and `>` groups left.
+        # `*`, for contrast, is level 2: it binds inside the comparison and
+        # `>` groups left.
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT MORE LIDENT "
             "STAR LIDENT MORE LIDENT SEMICOLON RCURLY EOF",
@@ -640,42 +638,27 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "more(more(name, mul(name, name)), name)",
         )
 
-    def test_the_loose_tier_mirrors_the_order_it_came_from(self) -> None:
-        # §3.1's own second example: levels 6-8 keep the relative order of
-        # levels 3-5, so `'*` binds tighter than `'+` exactly as `*` does
-        # than `+`.
+    def test_and_binds_tighter_than_or(self) -> None:
+        # §3's own example: `and` at level 5 closes before `or` at level 6.
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT EQEQ LIDENT "
-            "LOOSE_STAR LIDENT EQEQ LIDENT LOOSE_PLUS LIDENT EQEQ LIDENT "
+            "AND LIDENT EQEQ LIDENT OR LIDENT EQEQ LIDENT "
             "SEMICOLON RCURLY EOF",
-            "Int length() { abort a == b '* c == d '+ e == f; }",
-            "add(mul(eq(name, name), eq(name, name)), eq(name, name))",
-        )
-        # And the loose comparisons are looser still, being level 8.
-        self.assert_grouping(
-            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT LOOSE_STAR "
-            "LIDENT LOOSE_LESS LIDENT LOOSE_STAR LIDENT SEMICOLON RCURLY EOF",
-            "Int length() { abort a '* b '< c '* d; }",
-            "less(mul(name, name), mul(name, name))",
-        )
-
-    def test_a_loose_operator_is_looser_than_its_own_unprefixed_form(
-        self,
-    ) -> None:
-        # The mirror is one tier deep and sits entirely below the unprefixed
-        # levels, so the two spellings of one operator are not equals: `+` at
-        # level 4 closes before `'*` at level 6 takes it.
-        self.assert_grouping(
-            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT LOOSE_STAR "
-            "LIDENT PLUS LIDENT SEMICOLON RCURLY EOF",
-            "Int length() { abort a '* b + c; }",
-            "mul(name, add(name, name))",
+            "Int length() { abort a == b and c == d or e == f; }",
+            "or(and(eq(name, name), eq(name, name)), eq(name, name))",
         )
         self.assert_grouping(
-            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT STAR LIDENT "
-            "LOOSE_STAR LIDENT SEMICOLON RCURLY EOF",
-            "Int length() { abort a * b '* c; }",
-            "mul(mul(name, name), name)",
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT OR LIDENT AND "
+            "LIDENT SEMICOLON RCURLY EOF",
+            "Int length() { abort a or b and c; }",
+            "or(name, and(name, name))",
+        )
+        # Each groups left with itself.
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT AND LIDENT AND "
+            "LIDENT SEMICOLON RCURLY EOF",
+            "Int length() { abort a and b and c; }",
+            "and(and(name, name), name)",
         )
 
     def test_a_type_is_never_parenthesised(self) -> None:

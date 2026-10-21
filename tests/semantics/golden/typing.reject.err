@@ -634,6 +634,14 @@ File "fixtures/typing/reject/bad/names.zn", line 23, characters 13-17:
 23 |     z Int = nope$value;
    |             ^^^^
 Error: no import in this file spells a package `nope`
+File "fixtures/typing/reject/bad/operands.zn", line 14, characters 19-24:
+14 |     feet Meters = a + b;
+   |                   ^^^^^
+Error: no operator `+` accepts (bad$Meters, bad$Feet); the candidates are `bad$Meters +(bad$Meters, bad$Meters)`; `@primitives$I64 +(@primitives$I64, @primitives$Bool)`
+File "fixtures/typing/reject/bad/operands.zn", line 15, characters 22-29:
+15 |     literal Meters = a + 2.0;
+   |                      ^^^^^^^
+Error: no operator `+` accepts (bad$Meters, @concepts$Float); the candidates are `bad$Meters +(bad$Meters, bad$Meters)`; `@primitives$I64 +(@primitives$I64, @primitives$Bool)`
 File "fixtures/typing/reject/bad/overloads.zn", line 6, characters 1-29:
 6 | Int same(other Int) => other
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1058,6 +1066,10 @@ File "fixtures/typing/reject/bad/types.zn", line 15, characters 1-19:
 15 | type Round = Robin
    | ^^^^^^^^^^^^^^^^^^
 Error: the type `Round` is defined in terms of itself
+File "fixtures/typing/reject/bad/uncalled.zn", line 7, characters 5-10:
+7 |     total Int = @operators$add(Int(1), String("a"));
+  |     ^^^^^
+Error: `total` names the declaration at fixtures/typing/reject/bad/operands.zn:13, and a local may not shadow a name in scope (in `neverCalled`, which nothing instantiates)
 File "fixtures/typing/reject/bad/uncalled.zn", line 7, characters 17-52:
 7 |     total Int = @operators$add(Int(1), String("a"));
   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

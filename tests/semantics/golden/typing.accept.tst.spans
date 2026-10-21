@@ -22,14 +22,14 @@ package app
     block | { @controlflow$branch(@ope … ndition); return Unit(); }
       stat Expr | @controlflow$branch(@opera … (this), condition), body);
         expr Call @controlflow$branch | @controlflow$branch(@opera … t(this), condition), body)
-          expr Call @operators$and | @operators$and(@operators$not(this), condition)
+          expr Call @operators$conjoin | @operators$conjoin(@operators$not(this), condition)
             expr Call @operators$not | @operators$not(this)
               expr Var this | this
             expr Var condition | condition
           expr Var body | body
-      stat Assign | this = @operators$or(this, condition);
+      stat Assign | this = @operators$disjoin(this, condition);
         expr Var this | this
-        expr Call @operators$or | @operators$or(this, condition)
+        expr Call @operators$disjoin | @operators$disjoin(this, condition)
           expr Var this | this
           expr Var condition | condition
       stat Return | return Unit();
@@ -210,8 +210,7 @@ package app
         local moved | moved
         expr Op + | origin + 3.0
           expr Var origin | origin
-          expr Coerce Vec2 | 3.0
-            expr Decimal_lit | 3.0
+          expr Decimal_lit | 3.0
       stat Expr | moved!scale(Float(2.0));
         expr Call scale | moved!scale(Float(2.0))
           expr Var moved | moved
@@ -618,6 +617,15 @@ package shapes
           expr Call @operators$negate | @operators$negate(value.y)
             expr Field y | value.y
               expr Var value | value
+  decl Verb + | Vec2 +(left Vec2, right @c … oat) => left + Vec2(right)
+    param left | left Vec2
+    param right | right @concepts$Float
+    block | => left + Vec2(right)
+      stat Return | => left + Vec2(right)
+        expr Op + | left + Vec2(right)
+          expr Var left | left
+          expr Construct Vec2 | Vec2(right)
+            expr Var right | right
   decl Verb length | Float length(this Vec2) => … $multiply(this.y, this.y))
     param this | Vec2
     block | => @operators$add(@operato … $multiply(this.y, this.y))

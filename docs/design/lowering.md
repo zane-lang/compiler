@@ -414,8 +414,6 @@ Lowering does not handle these yet, and refuses each where it is written:
 
 - a control-flow intrinsic, such as `@controlflow$branch`, used as a value
   rather than as a statement;
-- an operator that takes a block or a literal, which would be written out
-  where it is called (L11) as a verb that takes one is;
 - a store into the result of a spawned call that returns `Unit`, which has no
   storage.
 

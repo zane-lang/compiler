@@ -100,8 +100,7 @@ and EOF; the compiler emitter explicitly puts literal matches before patterns.
 
 The initial lexicon preserves Unicode names, a privacy underscore only at the
 start, apostrophes between integer digit groups, decimals with digits on both
-sides of the dot, strings with a backslash escaping any character, and the
-apostrophe-prefixed loose operators. Unicode tables are supplied by each
+sides of the dot, and strings with a backslash escaping any character. Unicode tables are supplied by each
 backend; their version can differ.
 
 Each token has exactly one of `literal`, `pattern`, or

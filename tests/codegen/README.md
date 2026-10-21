@@ -59,8 +59,9 @@ then run it again, read the golden diff and promote that.
 - `operators` is the derived operators of operators.md §2.3 on declared
   operators, written over `@operators$`: each gives its value, and a `a b`
   line shows its operands ran in written order however the desugaring passes
-  them. Then numeric literals whose digits a `'` separates. Every check prints
-  `yes` when it holds.
+  them. Then `and` and `or`, operators that take a literal on either side,
+  through the derived forms too, and numeric literals whose digits a `'`
+  separates. Every check prints `yes` when it holds.
 - `scalars` is every `@operators$` function on each type it takes, `F32`
   rounding, division by zero, and every conversion between two scalars
   (types.md §2.9), saturating truncation included, each
@@ -236,7 +237,6 @@ one for each construct lowering does not handle yet (docs/design/lowering.md
 stops firing by mistake:
 
 - `valueFlow` uses a control-flow intrinsic as a value;
-- `literalOperator` calls an operator that takes a literal;
 - `unitFuture` stores into a spawned call's `Unit` result.
 
 `literalRange` is a refusal of the program itself: a literal too large for

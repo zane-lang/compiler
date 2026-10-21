@@ -84,7 +84,7 @@ Unit main() {
 	check(@operators$equal(g.value, Int(2)));
 	g!bump();
 	check(@operators$equal(a.value, Int(3)));
-	check(@operators$and(@operators$equal(peek(g), Int(3)), @operators$equal(peek(a), Int(3))));
+	check(@operators$conjoin(@operators$equal(peek(g), Int(3)), @operators$equal(peek(a), Int(3))));
 	check(@operators$equal(g:twice(), Int(6)));
 
 	// An overwrite of a settled owner is made in place, and the reference

@@ -26,8 +26,8 @@ let operation w st ctx span spelling args (t : Tty.t) : Expr.t =
       let r = value r in
       let op : Sst.Nodes.Operator.node =
         match name with
-        | "add" | "or" | "concat" -> Add
-        | "multiply" | "and" -> Mul
+        | "add" | "disjoin" | "concat" -> Add
+        | "multiply" | "conjoin" -> Mul
         | "divide" -> Div
         | "equal" -> Eq
         | "lessThan" -> Less

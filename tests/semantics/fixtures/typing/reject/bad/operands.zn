@@ -1,0 +1,17 @@
+package bad;
+
+type Feet = struct { value Float; }
+type Meters = struct { value Float; }
+
+implicit Meters(feet Feet) => init{ value = feet.value; }
+implicit Meters(value @concepts$Float) => init{ value = Float(value); }
+
+Meters +(left Meters, right Meters) => left
+
+/// An operand is passed as written (operators.md §2.7): neither conversion
+/// to `Meters` is inserted, though a call's argument would take both.
+Unit total(a Meters, b Feet) {
+	feet Meters = a + b;
+	literal Meters = a + 2.0;
+	return Unit();
+}

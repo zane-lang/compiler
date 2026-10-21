@@ -74,7 +74,7 @@ Unit main() {
 	q Person{ name = String("ada"); }
 	check(@operators$equal(@operators$add(p.age, q.age), Int(36)));
 	g Tagged<Bool> = Tagged{ value = true; }
-	check(@operators$and(g.value, @operators$equal(g.count, Int(5))));
+	check(@operators$conjoin(g.value, @operators$equal(g.count, Int(5))));
 	h Tagged<Int> = Tagged{ count = Int(2); value = Int(9); }
 	check(@operators$equal(@operators$add(h.value, h.count), Int(11)));
 	s Scaled{ by = 3; b = noisy(String("b\n"), Int(2)); }

@@ -23,6 +23,10 @@ Vec2{ x Float; y Float = Float(0.0); } => init{ x; y; }
 Vec2 +(left Vec2, right Vec2) => Vec2(@operators$add(left.x, right.x), @operators$add(left.y, right.y))
 Vec2 ~(value Vec2) => Vec2(@operators$negate(value.x), @operators$negate(value.y))
 
+/// A literal operand takes an overload of its own, since an operand is never
+/// converted.
+Vec2 +(left Vec2, right @concepts$Float) => left + Vec2(right)
+
 Float length(this Vec2) => @operators$add(@operators$multiply(this.x, this.x), @operators$multiply(this.y, this.y))
 
 Unit scale(this Vec2, by Float) mut {

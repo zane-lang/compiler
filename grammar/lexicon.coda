@@ -308,16 +308,8 @@ literal_tokens [
   MOREEQ         >=            operator                keyword.operator
   LESS           <             operator                keyword.operator
   MORE           >             operator                keyword.operator
-  LOOSE_STAR     '*            operator                keyword.operator
-  LOOSE_SLASH    '/            operator                keyword.operator
-  LOOSE_PLUS     '+            operator                keyword.operator
-  LOOSE_MINUS    '-            operator                keyword.operator
-  LOOSE_EQEQ     '==           operator                keyword.operator
-  LOOSE_NOTEQ    '~=           operator                keyword.operator
-  LOOSE_LESSEQ   '<=           operator                keyword.operator
-  LOOSE_MOREEQ   '>=           operator                keyword.operator
-  LOOSE_LESS     '<            operator                keyword.operator
-  LOOSE_MORE     '>            operator                keyword.operator
+  AND            and           keyword.operator        keyword.operator.word
+  OR             or            keyword.operator        keyword.operator.word
   LTYPE          type          keyword                 keyword.control
   ALIAS          alias         keyword                 keyword.control
   UTYPE          Type          type.builtin            support.type

@@ -244,7 +244,7 @@ class BlockArgumentTests(ParserSyntaxTestCase):
         # An operand continues the statement past the brace just as a postfix
         # would, so the binary forms are closed off too.
         self.assert_rejects("Unit use() { total Int = run() { g(); } + Int(1); }")
-        self.assert_rejects("Unit use() { ok Bool = run() { g(); } '* other; }")
+        self.assert_rejects("Unit use() { ok Bool = run() { g(); } and other; }")
         self.assert_rejects("Unit use() { ok Bool = run() { g(); } == other; }")
         # Parentheses close the call before the operator sees it, which is how
         # such a value is continued.
@@ -619,13 +619,11 @@ class LiteralTests(ParserSyntaxTestCase):
         self.assert_parses("Unit f() { b Float = 1'000.25; return Unit(); }")
         self.assert_rejects("Unit f() { b Float = 1.000'001; return Unit(); }")
 
-    def test_a_quote_between_digits_is_still_a_separator(self) -> None:
-        # The separator wants digits on both sides, so it never collides with
-        # a loose operator, whichever side of the literal one sits on.
-        self.assert_parses("Unit use() { n Int = 1'000'000 '* Int(2); }")
-        self.assert_parses("Unit use() { n Int = Int(2) '* 1'000'000; }")
-        # With no space, the literal ends where the digits do.
-        self.assert_parses("Unit use() { n Int = 2'*3; }")
+    def test_a_quote_belongs_only_between_digits(self) -> None:
+        # The separator wants digits on both sides, and `'` has no other use.
+        self.assert_parses("Unit use() { n Int = 1'000'000 * Int(2); }")
+        self.assert_rejects("Unit use() { n Int = 2'*3; }")
+        self.assert_rejects("Unit use() { n Int = a '* b; }")
 
 
 class MatchAndEnumMapTests(ParserSyntaxTestCase):
@@ -738,47 +736,40 @@ class MouldTests(ParserSyntaxTestCase):
 
 
 class OperatorTests(ParserSyntaxTestCase):
-    """Operators, their loose forms, and member reads."""
+    """Operators, `and` and `or`, and member reads."""
 
     def test_comparison_chains_and_the_operators_that_join_them(self) -> None:
-        # `Bool` draws from the same operator set as every other type
-        # (operators.md §2.4): `*` is conjunction, `+` is disjunction. Joining
-        # two comparisons is what the loose tier of §3.1 is for.
+        # Comparisons group left (operators.md §3), and `and` and `or` join
+        # them from the two levels below (§2.4).
         self.assert_parses(
             '''
             Unit use() {
                 chained Bool = a < b < c;
                 equality Bool = a == b == c;
-                both Bool = a < b '* c < d;
-                either Bool = a '* b '+ c;
-                associative Bool = a '* b '* c;
+                both Bool = a < b and c < d;
+                either Bool = a and b or c;
+                associative Bool = a and b and c;
                 return Unit();
             }
             '''
         )
 
-    def test_a_quote_selects_the_loose_form_of_a_binary_operator(self) -> None:
-        # operators.md §3.1. The two examples the spec itself writes.
+    def test_and_and_or_are_operators(self) -> None:
+        # operators.md §3. The two examples the spec itself writes.
+        self.assert_parses("Unit use() { ready Bool = age > 18 and hasId; }")
         self.assert_parses(
-            "Unit use() { ready Bool = age > Int(18) '* hasId; }"
+            "Unit use() { band Bool = a == b and c == d or e == f; }"
         )
-        self.assert_parses(
-            "Unit use() { band Bool = a == b '* c == d '+ e == f; }"
-        )
-        # Every binary operator of §2 has one, and no other token does.
+        # An operator is written between its operands, never called.
+        self.assert_rejects("Unit use() { x Bool = and(a, b); }")
+        self.assert_rejects("Unit use() { x Bool = a and; }")
+
+    def test_there_is_no_loose_form(self) -> None:
+        # `'` prefixes no operator, so none of these reaches the grammar.
         for loose in ["'*", "'/", "'+", "'-", "'<", "'>", "'<=", "'>=",
                       "'==", "'~="]:
-            self.assert_parses(f"Unit use() {{ x Bool = a + b {loose} c + d; }}")
-
-    def test_the_loose_tier_is_one_deep_and_binary_only(self) -> None:
-        # Each of these is illegal in operators.md §3.1, and each is spelled
-        # with a token the lexer does not have: there is no `''`, no `'~` and
-        # no `'|`, so none of them reaches the grammar at all.
-        self.assert_rejects("Unit use() { x Bool = a ''* b; }")
+            self.assert_rejects(f"Unit use() {{ x Bool = a + b {loose} c + d; }}")
         self.assert_rejects("Unit use() { x Bool = '~a; }")
-        self.assert_rejects("Unit use() { x Bool = a '| f(); }")
-        # The `'` must touch its operator: the loose form is one token.
-        self.assert_rejects("Unit use() { x Bool = a ' * b; }")
 
     def test_there_is_no_pipe(self) -> None:
         # `|` is not a token, so a pipe stops at the lexer whatever its
@@ -800,34 +791,14 @@ class OperatorTests(ParserSyntaxTestCase):
             "Unit f() { x Int = e.a ? err { resolve Int(0); }; }"
         )
 
-    def test_a_loose_operator_declares_nothing(self) -> None:
-        # §3.1: the loose forms "add no token to the operator vocabulary" of
-        # §5.1, so an operator declaration names the unprefixed form only.
-        self.assert_parses(
-            "Pair<T> *(a Pair<T Type>, b Pair<T>) => Pair(a.left, a.right)"
-        )
-        self.assert_rejects(
-            "Pair<T> '*(a Pair<T Type>, b Pair<T>) => Pair(a.left, a.right)"
-        )
-        self.assert_rejects("Bool '==(a Pair<T Type>, b Pair<T>) => true")
-
-    def test_and_and_or_are_ordinary_names(self) -> None:
-        # operators.md §2.4 gives `Bool` the same operator set as every other
-        # type, with no `and` or `or` in it. They are no longer keywords, so
-        # they carry no meaning of their own in an expression...
-        self.assert_rejects("Unit use() { ok Bool = a and b; }")
-        self.assert_rejects("Unit use() { ok Bool = a or b; }")
-        # ...and, being unreserved, they are available as names again.
-        self.assert_parses(
-            """
-            Unit use() {
-                and Bool = true;
-                or Bool = false;
-                both Bool = and '* or;
-                return Unit();
-            }
-            """
-        )
+    def test_and_and_or_are_reserved(self) -> None:
+        # lexical.md §4.4: the two words are operator tokens, never names,
+        # including a member name after `$`.
+        self.assert_rejects("Unit use() { and Bool = true; }")
+        self.assert_rejects("Unit use() { or Bool = false; }")
+        self.assert_rejects("Unit use() { x Bool = @operators$and(a, b); }")
+        # Words that merely start with one are ordinary names.
+        self.assert_parses("Unit use() { order Bool = android or andes; }")
 
     def test_only_a_primitive_operator_may_be_declared(self) -> None:
         # operators.md 2.1 lists the implementable operators; 2.3 gives the
@@ -839,6 +810,8 @@ class OperatorTests(ParserSyntaxTestCase):
             "Int /(a Int, b Int) => a",
             "Bool ==(a Int, b Int) => Bool(true)",
             "Bool <(a Int, b Int) => Bool(true)",
+            "Bool and(a Bool, b Bool) => a",
+            "Bool or(a Bool, b Bool) => a",
             # The one unary operator, with a production of its own.
             "Int ~(a Int) => a",
         ):

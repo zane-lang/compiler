@@ -468,7 +468,8 @@ flows down.** The spec supports this directly:
   a coercion site (`types.md` §2.6, §4.2).
 - The coercion sites are exactly the positional arguments of calls and
   constructors, field-constructor entries, and enum-map entries. Declarations,
-  assignments and `return` are not coercion sites. `x Int = 20` is therefore a
+  assignments, `return` and the operands of an operator are not coercion
+  sites. `x Int = 20` is therefore a
   type error, not a coercion (§4.2).
 - Generic parameters are inferred from argument types. A bare literal
   "**MUST NOT** drive inference" (`generics.md` §5.4).
@@ -485,7 +486,7 @@ Where the typing rules need care:
 |---|---|
 | Name | Looked up in local scopes, then the file's import map and own package (§2–§3 of `packages.md`). A lambda body sees no enclosing locals: "Lambdas do not capture" (`functions.md` §7.4). A block argument does (`control-flow.md` §2.2). |
 | Method call | Candidates from the subject type's home package, then the current package (`functions.md` §6.1); a qualified callee names its package. The subject is never coerced (`types.md` §4.6). `:` must call a non-`mut` method and `!` a `mut` one (§2.5). |
-| Operator | Candidates from the operand types' home packages only; imports add none (`operators.md` §2.2). A swapped `Op` is resolved as the primitive with operands in passed order (see D8). |
+| Operator | Candidates from the operand types' home packages only; imports add none (`operators.md` §2.2). An operand is passed as written, so resolution stops after the generic phase and a literal operand needs an overload declaring its concept type (§2.7). `~` on a numeric literal calls nothing: it is typed as the literal of the opposite sign, and on a literal parameter as an internal `@concepts$negate` call that lowering folds once the literal is known. A swapped `Op` is resolved as the primitive with operands in passed order (see D8). |
 | Abort handler | Required on every abortable call and on every member read of a variant, rejected on a total member read (D13); the handler's `resolve` values must have the handled operation's success type; every path ends in `resolve`, `return` or `abort` (`error-handling.md` §3.1–§3.2). |
 | `match` | Every case covered by exactly one arm; every arm yields the same type — no arm is a coercion site, so "the same" is exact (`adt.md` §5). |
 | Block argument | Typed `@concepts$Block`: a block yields nothing (control-flow.md §2.4). |

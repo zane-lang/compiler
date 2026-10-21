@@ -75,7 +75,7 @@ Unit main() {
 	view &Engine = settled.engine;
 	settled = rebuilt(settled);
 	check(String("settled = rebuilt(settled)"), @operators$equal(view.power, Int(6)));
-	check(String("its strings"), @operators$and(@operators$equal(view.label, String("s+")), @operators$equal(settled.name, String("c+"))));
+	check(String("its strings"), @operators$conjoin(@operators$equal(view.label, String("s+")), @operators$equal(settled.name, String("c+"))));
 	settled.engine = Engine(@operators$multiply(settled.engine.power, Int(10)), @operators$concat(settled.engine.label, settled.name));
 	check(String("field rebuilt from itself"), @operators$equal(view.power, Int(60)));
 	check(String("its string"), @operators$equal(view.label, String("s+c+")));

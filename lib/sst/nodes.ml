@@ -47,12 +47,6 @@ module Generic_param = Cst.Nodes.Generic_param
    CST's [Operator.t]: it is unary, and it has its own node
    ([Verb_call.Flip]).
 
-   [is_loose] is gone as well. A loose operator "calls the same implementation
-   as its unprefixed form and differs only in where it groups" (§3.1), and the
-   grouping was settled before either tree existed; the CST keeps the `'`
-   because it records what was written, and this tree does not because it
-   records what it meant.
-
    The span is still the operator as written, which after a derived-operator
    rewrite is the operator the author actually typed: the `Less` in a lowered
    `a >= b` spans the `>=`. That is the rule for every synthesized node here --
@@ -70,6 +64,8 @@ module Operator = struct
     | Div
     | Eq
     | Less
+    | And
+    | Or
 end
 
 (* Whether a call wrote a subject, and with which marker.

@@ -71,6 +71,8 @@ let operator d (x : Operator.t) =
     | Operator.Div -> "Div"
     | Operator.Eq -> "Eq"
     | Operator.Less -> "Less"
+    | Operator.And -> "And"
+    | Operator.Or -> "Or"
   in
   line d ("operator " ^ which) x.Operator.span
 

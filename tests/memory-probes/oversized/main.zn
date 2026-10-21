@@ -64,7 +64,7 @@ Unit main() {
 	// 400,000 Ints is 3.2 MB of elements: an oversized span.
 	bag Bag = filled(Int(400000));
 	check(String("big list returned"), @operators$equal(bag.items:size(), Int(400000)));
-	check(String("its first and last"), @operators$and(@operators$equal(bag.items[Int(1)], Int(1)), @operators$equal(bag.items[Int(400000)], Int(400000))));
+	check(String("its first and last"), @operators$conjoin(@operators$equal(bag.items[Int(1)], Int(1)), @operators$equal(bag.items[Int(400000)], Int(400000))));
 
 	// 16 bytes doubled 17 times is 2 MiB.
 	big String("");
@@ -83,7 +83,7 @@ Unit main() {
 	j!to(Int(100000)) {
 		words!push(@operators$concat(String("w"), String("ord")));
 	}
-	check(String("list of 100000 strings"), @operators$and(@operators$equal(words:size(), Int(100000)), @operators$equal(words[Int(77777)], String("word"))));
+	check(String("list of 100000 strings"), @operators$conjoin(@operators$equal(words:size(), Int(100000)), @operators$equal(words[Int(77777)], String("word"))));
 
 	// A big list overwritten in place many times.
 	k Int(1);

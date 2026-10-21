@@ -2,9 +2,10 @@
 /// gives its value, and its operands run in the order they were written,
 /// whichever way round the desugaring passes them. A primitive has no
 /// operators of its own, so `Num` and `Truth` declare theirs over
-/// `@operators$`. Then a `'` between digits, which separates them and changes
-/// nothing (docs/spec-divergences.md §8). Every check prints `yes` when it
-/// holds and `no` when it does not.
+/// `@operators$`. Then `and` and `or`, the operators a literal operand takes
+/// through overloads of its own (operators.md §2.7), and a `'` between digits,
+/// which separates them and changes nothing (docs/spec-divergences.md §8).
+/// Every check prints `yes` when it holds and `no` when it does not.
 package operators;
 
 alias Int = @primitives$I64
@@ -23,15 +24,17 @@ Unit else(this Bool, body @concepts$Block) {
 	return Unit();
 }
 
-/// A truth value with the complement and conjunction the derived forms and
-/// the checks below need.
+/// A truth value with the complement, intersection and union the derived
+/// forms and the checks below need.
 type Truth = struct { holds Bool; }
 
 Truth(holds Bool) => init{ holds; }
 
 Truth ~(value Truth) => Truth(@operators$not(value.holds))
 
-Truth *(left Truth, right Truth) => Truth(@operators$and(left.holds, right.holds))
+Truth and(left Truth, right Truth) => Truth(@operators$conjoin(left.holds, right.holds))
+
+Truth or(left Truth, right Truth) => Truth(@operators$disjoin(left.holds, right.holds))
 
 /// A number with the four primitive operators the derived forms rest on.
 type Num = struct { value Int; }
@@ -47,6 +50,24 @@ Num ~(value Num) => Num(@operators$negate(value.value))
 Truth ==(left Num, right Num) => Truth(@operators$equal(left.value, right.value))
 
 Truth <(left Num, right Num) => Truth(@operators$lessThan(left.value, right.value))
+
+/// A literal on either side, which an operand takes only through an overload
+/// that declares it.
+Num +(left Num, right @concepts$Int) => left + Num(right)
+
+Num +(left @concepts$Int, right Num) => Num(left) + right
+
+Truth ==(left Num, right @concepts$Int) => left == Num(right)
+
+Truth <(left Num, right @concepts$Int) => left < Num(right)
+
+Truth <(left @concepts$Int, right Num) => Num(left) < right
+
+/// An array literal on the right of `<`, so on the left of a `>`.
+Truth <(left Num, right @concepts$Array<Num, 2>) {
+	held @primitives$Array<Num, 2> = @primitives$Array(right);
+	return left < held[Int(1)] + held[Int(2)];
+}
 
 Unit check(holds Truth) {
 	yes String("yes\n");
@@ -72,6 +93,10 @@ type Weight = struct { grams Num; }
 Weight(grams Num) => init{ grams; }
 
 Truth <(left Weight, right Weight) => left.grams < right.grams
+
+/// A literal parameter on the right of `-`, which flips it as it would the
+/// literal it stands for.
+Num less(value Num, by @concepts$Int) => value - by
 
 Weight heavy(grams Num, name String) {
 	@program$console!print(name);
@@ -102,7 +127,7 @@ Unit main() {
 	@program$console!print(line);
 	atLeast Truth = say(Num(1), a) >= say(Num(2), b);
 	@program$console!print(line);
-	check(~greater * atMost * ~atLeast);
+	check(~greater and atMost and ~atLeast);
 
 	// A `<` declared over another declared `<`, reached through the derived
 	// forms.
@@ -113,6 +138,40 @@ Unit main() {
 	lighter Truth = heavy(Num(1), a) > heavy(Num(2), b);
 	@program$console!print(line);
 	check(~lighter);
+
+	// `and` and `or`, below every comparison and `and` the tighter.
+	check(Num(1) < Num(2) and Num(3) < Num(4));
+	check(~(Num(1) < Num(2) and Num(4) < Num(3)));
+	check(Num(2) < Num(1) or Num(3) < Num(4));
+	check(Num(1) < Num(2) or Num(2) < Num(1) and Num(4) < Num(3));
+	check(~(Num(2) < Num(1) or Num(2) < Num(1) and Num(3) < Num(4)));
+
+	// Literal operands, each way round, and through the derived forms: `>`
+	// swaps a literal on the right to the left of `<`.
+	check(Num(9) + 1 == 10);
+	check(1 + Num(9) == 10);
+	check(Num(9) > 5);
+	check(~(Num(5) > 9));
+	check(5 < Num(9));
+	check(Num(9) >= 9);
+	check(Num(9) ~= 8);
+	check(Num(9) - Num(5) == 4);
+
+	// A flipped literal is a literal: `- 1` is `+ ~1`, which the literal
+	// overload of `+` takes.
+	check(Num(9) - 1 == 8);
+	check(10 - Num(9) == 1);
+	check(Num(~2) + 3 == 1);
+	check(Num(~~2) == 2);
+	check(less(Num(9), 4) == 5);
+	written Truth = say(Num(9), a) > 5;
+	@program$console!print(line);
+	check(written);
+
+	// The array is made before the right operand runs: the line reads `a a b`.
+	summed Truth = [say(Num(2), a), say(Num(3), a)] > say(Num(4), b);
+	@program$console!print(line);
+	check(summed);
 
 	// Separated digits.
 	million Int(1'000'000);

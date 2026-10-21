@@ -915,7 +915,8 @@ and case_form env ctx span tid payload built open_ case (args : N.Constructor_ar
 
 (* operators.md §2.2: the candidates are the operand types' home packages'
    operators, and nothing an import brings. Operands evaluate in written
-   order and are passed in the order the desugaring gives (§2.3). *)
+   order and are passed in the order the desugaring gives (§2.3), each as
+   written, with no implicit constructor inserted (§2.7). *)
 (* ---------------------------------------------------------------------- *)
 (* Calls: operators, flips and spawns                                     *)
 (* ---------------------------------------------------------------------- *)
@@ -944,7 +945,7 @@ and operator env ~flow ctx span (op : N.Operator.t) left right ~swapped handle =
     else
       match
         report_resolution env ~span ~what:(Printf.sprintf "operator %s" (quote token))
-          ~args:(describe_args actuals) (resolve env cands (positional actuals)) cands
+          ~args:(describe_args actuals) (resolve ~coerce:false env cands (positional actuals)) cands
       with
       | None ->
           skip_handler env ctx handle;
@@ -959,6 +960,29 @@ and operator env ~flow ctx span (op : N.Operator.t) left right ~swapped handle =
 
 and flip env ~flow ctx span value handle =
   let value = expr env ctx value in
+  match (value.T.Expr.ty, handle) with
+  | Ty.Concept ((Ty.Integer_lit | Ty.Decimal_lit) as c), None -> (negated_literal span c value, None)
+  | _ -> flip_call env ~flow ctx span value handle
+
+(* operators.md §2.7: `~` on a numeric literal is the literal of the
+   opposite sign. *)
+and negated_literal span concept (value : T.Expr.t) =
+  let node =
+    match value.T.Expr.node with
+    | T.Expr.Integer_lit s -> T.Expr.Integer_lit (Intrinsics.negated_digits s)
+    | T.Expr.Decimal_lit s -> T.Expr.Decimal_lit (Intrinsics.negated_digits s)
+    | T.Expr.Var (T.Name_ref.Number_param { value = Ty.Known n; _ }) -> T.Expr.Integer_lit (string_of_int (-n))
+    | _ ->
+        T.Expr.Call
+          {
+            callee = { T.Verb_ref.owner = S.Intrinsic Intrinsics.negate_literal; name = "~"; instance = [] };
+            args = [ T.Arg.Value value ];
+            handler = None;
+          }
+  in
+  mk node (Ty.Concept concept) span
+
+and flip_call env ~flow ctx span value handle =
   let actual = { arg = T.Arg.Value value; aty = value.T.Expr.ty; aspan = value.T.Expr.span; subject = false } in
   if Ty.contains_error value.T.Expr.ty then (skip_handler env ctx handle; (invalid span, None))
   else
@@ -974,7 +998,7 @@ and flip env ~flow ctx span value handle =
     else
       match
         report_resolution env ~span ~what:"operator `~`" ~args:(describe_args [ actual ])
-          (resolve env cands (positional [ actual ])) cands
+          (resolve ~coerce:false env cands (positional [ actual ])) cands
       with
       | None ->
           skip_handler env ctx handle;

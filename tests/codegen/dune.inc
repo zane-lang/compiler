@@ -4389,20 +4389,6 @@
   (diff golden/reject.hugeArray.err reject.hugeArray.err.actual)))
 
 (rule
- (deps (source_tree fixtures/reject/literalOperator))
- (action
-  (with-stderr-to
-   reject.literalOperator.err.actual
-   (with-accepted-exit-codes
-    1
-    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/literalOperator)))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/reject.literalOperator.err reject.literalOperator.err.actual)))
-
-(rule
  (deps (source_tree fixtures/reject/literalRange))
  (action
   (with-stderr-to
