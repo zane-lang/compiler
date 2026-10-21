@@ -258,6 +258,11 @@ older one.
 a newer compiler than the project's; it records the pin a cache entry was
 rewritten with (`dependencies.md` §7), and refuses to reuse it under another.
 
+Major `0` is exempt from that promise (`dependencies.md` §14). While the
+compiler is at major `0`, a release may change layouts, signatures, the
+symbol spelling of C9 and the language itself, and it carries no code to
+read source, objects or flags of an earlier `0.x` compiler.
+
 ---
 
 ## 5. The order it is built in
