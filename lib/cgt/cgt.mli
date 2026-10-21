@@ -18,8 +18,8 @@ module Traverse = Traverse
     yet is refused with a diagnostic at it, and so is a type no main
     context's range of frames of [fixed_region] bytes could hold
     ([Runtime.default_fixed_region] when absent). [import_bodies] retains
-    reachable stamped dependencies' functions with optimization-only
-    linkage. *)
+    reachable stamped dependencies' functions with linkage that lets LLVM
+    inline them and defines nothing. *)
 val lower :
   ?library:bool ->
   ?import_bodies:bool ->

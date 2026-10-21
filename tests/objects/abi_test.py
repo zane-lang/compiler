@@ -15,7 +15,7 @@ import unittest
 ZANEC = str(Path(sys.argv.pop(1)).resolve())
 HERE = Path(__file__).resolve().parent
 LARGEPARAM = HERE / "fixtures/largeparam"
-CROSSING = HERE / "../codegen/fixtures/crossing"
+CROSSING = HERE / "fixtures/crossing"
 FIXTURES = HERE / "fixtures"
 
 
@@ -57,18 +57,18 @@ class AbiTests(unittest.TestCase):
             ("x86_64-windows-gnu", by_address),
         ]:
             with self.subTest(target=target):
-                ir = zanec("--ll", "--target", target, "--package", CROSSING)
+                ir = zanec("--kind", "library", "--ll", "--target", target, "--package", CROSSING)
                 self.assertRegex(signature(ir, "crossing$swapped("), pair)
                 # One piece passes as itself everywhere, three nowhere.
                 self.assertRegex(signature(ir, "crossing$flipped("), r"\{ i32 \} %0\)")
                 self.assertRegex(signature(ir, "crossing$rotated("), r"\(ptr noalias sret")
 
     def test_packing_passes_words(self):
-        ir = zanec("--ll", "--pack-aggregates", "--target", "x86_64-linux-gnu", "--package", CROSSING)
+        ir = zanec("--kind", "library", "--ll", "--pack-aggregates", "--target", "x86_64-linux-gnu", "--package", CROSSING)
         # Three I32s, three pieces in 12 bytes, travel as two words.
         self.assertRegex(signature(ir, "crossing$reversed("), r'\{ i64, i64 \} @"[^"]*"\(i64 %0, i64 %1\)')
         self.assertRegex(signature(ir, "crossing$rotated("), r"\(ptr noalias sret")
-        ir = zanec("--ll", "--pack-aggregates", "--target", "x86_64-windows-gnu", "--package", CROSSING)
+        ir = zanec("--kind", "library", "--ll", "--pack-aggregates", "--target", "x86_64-windows-gnu", "--package", CROSSING)
         self.assertRegex(signature(ir, "crossing$flipped("), r'i64 @"[^"]*"\(i64 %0\)')
         self.assertRegex(signature(ir, "crossing$reversed("), r"\(ptr noalias sret")
 

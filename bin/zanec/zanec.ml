@@ -292,7 +292,7 @@ let ( let* ) = Result.bind
 (* Lowering and codegen, once semantics has accepted the program. *)
 let generate packages build program =
   let* cgt =
-    Driver.lower ~optimize:build.optimize ~regions:build.regions
+    Driver.lower ~regions:build.regions
       ~kind:(Option.value build.kind ~default:Application)
       packages program
   in

@@ -1,0 +1,45 @@
+/// A library of verbs that take and return values of one, two and three
+/// pieces (docs/design/lowering.md §9), whose signatures `abi_test.py`
+/// reads: a library exports each, so each keeps its function however its
+/// callers inline it.
+package crossing;
+
+alias I32 = @primitives$I32
+alias Int = @primitives$I64
+
+type Pair = struct {
+	x Int;
+	y Int;
+}
+
+Pair(x Int, y Int) => init{ x; y; }
+
+type Triple = struct {
+	x Int;
+	y Int;
+	z Int;
+}
+
+Triple(x Int, y Int, z Int) => init{ x; y; z; }
+
+/// Three pieces in 12 bytes: by address unless packed into two words.
+type Small = struct {
+	a I32;
+	b I32;
+	c I32;
+}
+
+Small(a I32, b I32, c I32) => init{ a; b; c; }
+
+type Light = enum [ red, green ]
+
+Pair swapped(p Pair) => Pair(p.y, p.x)
+
+Triple rotated(t Triple) => Triple(t.y, t.z, t.x)
+
+Small reversed(s Small) => Small(s.c, s.b, s.a)
+
+Light flipped(l Light) => match (l) {
+	red => Light.green;
+	green => Light.red;
+}

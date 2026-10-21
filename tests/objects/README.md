@@ -26,11 +26,12 @@ program linked from several objects wrote.
   own: `golden/atlas.stamped-root.symbols` shows what atlas reaches in
   geometry local to the object.
 - `survey` is a program that uses `geometry` from an object geometry was
-  built into on its own, with its stamp. Survey's object declares geometry's
-  verbs and makes the instance of geometry's generic at survey's own type,
-  and its own copy of the geometry constant it reads, which merges with
-  geometry's. The program links with geometry's object, and every check it
-  makes prints `yes` when it holds.
+  built into on its own, with its stamp. Survey's object inlines geometry's
+  smallest verbs and calls the rest, makes the instances of geometry's
+  generic that it needs, at survey's own type and at the type a verb it
+  takes in uses, and its own copy of the geometry constant it reads, which
+  merges with geometry's. The program links with geometry's object, and
+  every check it makes prints `yes` when it holds.
 
   geometry's own placeholder object is also rewritten with that stamp, as
   fetching rewrites a release's objects. It must define exactly what the
@@ -53,6 +54,10 @@ program linked from several objects wrote.
   and `remapped` a program that uses it and atlas. atlas's object is
   remapped from the first version onto `geometry11`, keeps no reference to
   the first, and links with `geometry11` alone.
+- `crossing` is a library of verbs that take and return values of one, two
+  and three pieces, whose signatures `abi_test.py` reads for each target and
+  with `--pack-aggregates`. A library exports them, so each keeps its
+  function even where an unoptimized build inlines it into its callers.
 - `layout` is a project laid out in `lib/` and `bin/`: `math`, which `gui`
   and its subpackage `gui.opengl` share, `_shaders`, private to the project,
   and the program `viewer`. Every library package is built into one object,

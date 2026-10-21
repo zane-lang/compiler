@@ -66,9 +66,9 @@
   (diff golden/atlas.symbols atlas.symbols.actual)))
 
 ; geometry built on its own with its stamp, as a dependency compiled from
-; source is, and survey built against it: survey's object declares
-; geometry's verbs and makes the instance it needs, and the program links
-; with geometry's object.
+; source is, and survey built against it: survey's object inlines
+; geometry's smallest verbs, calls the rest and makes the instances it
+; needs, and the program links with geometry's object.
 
 (rule
  (deps (source_tree fixtures/geometry))
@@ -741,7 +741,7 @@
 (rule
  (alias runtest)
  (deps abi_test.py (source_tree fixtures/largeparam) (source_tree fixtures/geometry)
-  (source_tree fixtures/survey) golden/survey.out (source_tree ../codegen/fixtures/crossing))
+  (source_tree fixtures/survey) golden/survey.out (source_tree fixtures/crossing))
  (action
   (run python3 %{dep:abi_test.py} %{exe:../../bin/zanec/zanec.exe})))
 

@@ -60,7 +60,8 @@ class OptimizationTests(unittest.TestCase):
     def test_folding_and_inlining(self):
         plain = run(ZANEC, "--cgt", *self.flags())
         folded = run(ZANEC, "--cgt", "--optimize", *self.flags())
-        self.assertIn("linkage: imported", plain)
+        # Both builds take in the bodies; only the optimized one folds them.
+        self.assertIn("linkage: available", plain)
         self.assertIn("linkage: available", folded)
         # Only main is inspected: dependency bodies retain their runtime loop.
         main = folded.split("symbol: app$main()", 1)[1].split("symbol:", 1)[0]
@@ -68,7 +69,10 @@ class OptimizationTests(unittest.TestCase):
         self.assertIn("100", main)
         before = run(ZANEC, "--ll", *self.flags())
         after = run(ZANEC, "--ll", "--optimize", *self.flags())
-        self.assertRegex(before, r'call .*math\$add\(')
+        # An unoptimized build inlines the wrappers too (optimization.md O12),
+        # and never a function that calls itself.
+        self.assertNotRegex(before, r'call .*math\$(?:add|_add|squared)\(')
+        self.assertRegex(before, r'call .*math\$fib\(')
         self.assertNotRegex(after, r'call .*math\$(?:add|_add|squared)\(')
         # Recursive calls that LLVM leaves behind still target the library.
         self.assertRegex(after, r'(?:call|declare).*math\$fib\(')

@@ -103,23 +103,31 @@ let probe_stack triple m =
       m
   end
 
+(* The passes an unoptimized build runs (docs/design/optimization.md O12):
+   inlining the functions [Wrappers.mark] picks, which takes the call out of
+   each of `core`'s one-line wrappers over an intrinsic, and the three that
+   clean up after it, putting the wrappers' scalars back in registers,
+   folding what that makes constant and merging the blocks left behind. Each
+   takes time in proportion to the instructions it reads. Scalar replacement
+   of aggregates and instruction combining are left out: on a value array of
+   thousands of elements they take longer than the whole `-O2` pipeline. *)
+let unoptimized_passes = "always-inline,function(mem2reg,instsimplify,simplifycfg)"
+
 (* The module emitted for *target* made ready to be written: its shared
-   functions in COMDATs, its stack probed and, when *optimize*, LLVM's
-   standard `-O2` pipeline run over it. Without it no pass runs, which is
-   what makes an unoptimized build fast. A program means the same either way
-   (docs/design/lowering.md §7). *)
+   functions in COMDATs, its stack probed, and LLVM's standard `-O2`
+   pipeline run over it when *optimize*, or else [unoptimized_passes]. A
+   program means the same either way (docs/design/lowering.md §7). *)
 let prepare ?target ?(optimize = false) m =
   Result.bind (target_machine ?target ~optimize ()) (fun (triple, tm) ->
       shared_in_comdats triple m;
       probe_stack triple m;
       let data_layout = Llvm_target.TargetMachine.data_layout tm in
       Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
-      if optimize then
-        Llvm_passbuilder.run_passes m "default<O2>" tm
-          (Llvm_passbuilder.create_passbuilder_options ())
-        |> Result.map (fun () -> (triple, tm))
-        |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
-      else Ok (triple, tm))
+      if not optimize then Wrappers.mark data_layout m;
+      Llvm_passbuilder.run_passes m (if optimize then "default<O2>" else unoptimized_passes) tm
+        (Llvm_passbuilder.create_passbuilder_options ())
+      |> Result.map (fun () -> (triple, tm))
+      |> Result.map_error (Printf.sprintf "cannot optimize the module: %s"))
 
 (* The C compiler that links: `ZANE_CC` if set, else `clang`. *)
 let cc () = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC")

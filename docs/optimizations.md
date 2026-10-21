@@ -15,8 +15,8 @@ links there.
   file.
 - Every entry has the same four fields, in this order, then a short
   description:
-  - **Builds:** `every build`, `optimized only` (`--optimize`), or `opt-in`
-    (with the flag that turns it on).
+  - **Builds:** `every build`, `optimized only` (`--optimize`),
+    `unoptimized only`, or `opt-in` (with the flag that turns it on).
   - **Where:** the files that implement it.
   - **Design:** the section of `docs/design/` that explains it.
   - **Effect:** a measured result, or `not measured`.
@@ -114,7 +114,7 @@ spawned write-back may race it. When no package in the build contains a
 
 ### Cross-package bodies for the optimizer
 
-- **Builds:** optimized only
+- **Builds:** every build
 - **Where:** `lib/cgt/program.ml` (`import_bodies`), `lib/driver/driver.ml`
 - **Design:** [`design/optimization.md`](design/optimization.md) O10,
   [`design/separate-compilation.md`](design/separate-compilation.md) C12
@@ -123,9 +123,11 @@ spawned write-back may race it. When no package in the build contains a
   1.6× faster
 
 Lowering follows calls into stamped dependencies and keeps their bodies
-with `available_externally` linkage. Stage 5 can evaluate those calls, and
-LLVM can inline them, while any call left still links against the
-dependency's own object.
+with `available_externally` linkage. In an optimized build stage 5 can
+evaluate those calls; in every build LLVM can inline them, while any call
+left still links against the dependency's own object. An unoptimized build
+needs them for its own inlining: `core`, linked as a separate object, is
+otherwise a declaration for every `+`.
 
 ### Type arguments pass nothing
 
@@ -234,6 +236,30 @@ folding, dead-code removal, common subexpressions, loop hoisting,
 unrolling and vectorization. The runtime is compiled with `-O2` too. The
 compiler implements a transformation itself only where it rests on
 something about Zane that LLVM does not know.
+
+### Inlining and its cleanup in unoptimized builds
+
+- **Builds:** unoptimized only
+- **Where:** `lib/codegen/wrappers.ml`, `lib/codegen/build.ml`
+  (`unoptimized_passes`, `prepare`)
+- **Design:** [`design/optimization.md`](design/optimization.md) O12
+- **Effect:** a speech-analysis program (a 10 s signal through a
+  short-time Fourier transform and a harmonic analysis), linked against
+  `core` built as its own object as `zane run` links it, medians of 7
+  builds and 5 runs: build 0.125 s → 0.130 s, run 6.40 s → 1.05 s, 6.1×
+  faster; the optimized build takes 0.36 s and runs 0.17 s
+
+Every function of at most 24 instructions whose locals each take at most 64
+bytes, and whose callees are all such functions, is inlined into every caller:
+that is each of `core`'s one-line wrappers over an intrinsic, and never a
+recursive function or one holding a large value array, which would grow its
+caller's frame for good. A generic instance or a package constant stays a
+call, so an object still defines every one that C4 says it does. Three passes
+then promote the wrappers' scalars to registers, simplify what that makes
+constant and merge the blocks left behind. Each takes time in proportion to
+the instructions it reads; LLVM's own inliner, scalar replacement of
+aggregates and instruction combining, which do not on a large value array, are
+left out.
 
 ### Code tuned for the processor clang would pick
 

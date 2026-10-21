@@ -2,16 +2,16 @@
    variable placed in a COMDAT of its own name
    (docs/design/separate-compilation.md C4), a target triple in LLVM's
    normal form, a load made atomic, an array type whose length takes more
-   than 32 bits, an attribute that carries a type, such as `sret`, and a
-   function's own type. And arrays the bindings do give, but wrongly when
-   empty: their `param_types`, `struct_element_types` and `function_attrs`
-   allocate an empty array as a block of no size in the minor heap, which
-   the collector does not allow and which corrupts the heap, so a process
-   that builds many programs crashes. These give OCaml's own empty array.
-   The bindings carry an LLVM pointer with its low bit
-   set; their `from_val` undoes that, and `to_val` sets it. The C API is declared
-   here rather than included, so the build needs no LLVM headers beyond the
-   bindings it already links. */
+   than 32 bits, an attribute that carries a type, such as `sret`, a
+   function's own type, and the type an `alloca` makes room for. And arrays
+   the bindings do give, but wrongly when empty: their `param_types`,
+   `struct_element_types` and `function_attrs` allocate an empty array as a
+   block of no size in the minor heap, which the collector does not allow
+   and which corrupts the heap, so a process that builds many programs
+   crashes. These give OCaml's own empty array. The bindings carry an LLVM
+   pointer with its low bit set; their `from_val` undoes that, and `to_val`
+   sets it. The C API is declared here rather than included, so the build
+   needs no LLVM headers beyond the bindings it already links. */
 
 #include <caml/alloc.h>
 #include <caml/fail.h>
@@ -38,6 +38,7 @@ extern void LLVMSetOrdering(LLVMValueRef access, int ordering);
 extern LLVMTypeRef LLVMArrayType2(LLVMTypeRef element, uint64_t count);
 extern uint64_t LLVMGetArrayLength2(LLVMTypeRef array);
 extern LLVMTypeRef LLVMGlobalGetValueType(LLVMValueRef global);
+extern LLVMTypeRef LLVMGetAllocatedType(LLVMValueRef alloca);
 extern unsigned LLVMGetEnumAttributeKindForName(const char *name, size_t length);
 extern LLVMAttributeRef LLVMCreateTypeAttribute(LLVMContextRef context, unsigned kind, LLVMTypeRef type);
 extern unsigned LLVMCountParamTypes(LLVMTypeRef function);
@@ -101,6 +102,11 @@ value zane_type_attr(value context, value name, value type) {
 value zane_global_value_type(value global) {
   CAMLparam1(global);
   CAMLreturn(to_val(LLVMGlobalGetValueType((LLVMValueRef)from_val(global))));
+}
+
+value zane_allocated_type(value alloca) {
+  CAMLparam1(alloca);
+  CAMLreturn(to_val(LLVMGetAllocatedType((LLVMValueRef)from_val(alloca))));
 }
 
 /* [count] pointers, which [fill] writes for [subject] and [index], as an
