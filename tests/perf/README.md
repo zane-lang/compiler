@@ -1,17 +1,20 @@
 # Perf tests
 
-How fast each program's optimized build runs, as estimated cycles from
-Valgrind's simulators rather than as a timing, so the number is the same on
-every run of one build. CI keeps every program's number for the last commit
-on `main`, and the history of one of them, `stress`, for every commit, and
-fails a pull request that makes a program slower.
+How fast each program runs, as estimated cycles from Valgrind's simulators
+rather than as a timing, so the number is the same on every run of one
+build. Each program is measured in two builds: `optimized`, built with
+`--optimize`, and `plain`, built without it, as `zane run` builds. CI keeps
+both numbers of every program for the last commit on `main`, and the history
+of one of them, `stress`, for every commit, and fails a pull request that
+makes either build of a program slower.
 
 ## The number
 
-`run` builds each directory here with `--optimize` and runs it once, with
-the size in its `arguments` file, under Callgrind with the cache and branch
-simulators on. It holds what the program printed to `golden/NAME.out`, so a
-build that breaks a program is caught rather than measured. The caches are
+`run` builds each directory here twice, with `--optimize` and without it,
+and runs each build once, with the size in its `arguments` file, under
+Callgrind with the cache and branch simulators on. It holds what each build
+printed to `golden/NAME.out`, which the two share, so a build that breaks a
+program is caught rather than measured. The caches are
 fixed rather than read from the machine, so every machine simulates the same
 ones: 32 KiB first-level instruction and data caches and an 8 MiB last-level
 cache, each with 64-byte lines. From what the simulators count it estimates
@@ -29,45 +32,49 @@ hundredths of a percent.
 
 ## The log and the check
 
-The `perf-log` branch holds two files, both written by CI:
+The `perf-log` branch holds three files, all written by CI:
 
-- `latest.tsv`, one row per program for the newest commit pushed to
-  `main`: the program, the commit, its date in UTC, the estimated cycles,
-  the instructions, first-level misses, last-level misses and
-  mispredicted branches they come from, and the program's build key
-  (below). Each push writes it over, so a commit that makes a program
-  faster is what the next pull request is held to. A run that finishes after a later commit's keeps that commit's rows.
-- `stress.tsv`, the `stress` program's row for every commit pushed to
-  `main`, in date order. It starts at v0.14.
+- `latest.tsv`, one row per program and build for the newest commit pushed
+  to `main`: the program, the commit, its date in UTC, the estimated
+  cycles, the instructions, first-level misses, last-level misses and
+  mispredicted branches they come from, the build's key (below), and the
+  build, `optimized` or `plain`. A row with no build is an optimized one,
+  from before plain builds were measured. Each push writes it over, so a
+  commit that makes a program faster is what the next pull request is held
+  to. A run that finishes after a later commit's keeps that commit's rows.
+- `stress.tsv`, the `stress` program's optimized row for every commit
+  pushed to `main`, in date order. It starts at v0.14.
+- `stress-plain.tsv`, the same for its plain build. It starts at the first
+  commit whose push measured plain builds.
 
 `.github/workflows/perf.yml` runs `.github/scripts/perf`:
 
-- on a pull request, it builds every program, measures each one whose
-  build key is not its row's (below), and fails when one prints the wrong
-  output, or when its estimated cycles are more than 1% above its row in
-  `latest.tsv`. Labelling the pull request `perf-accepted` turns a
+- on a pull request, it builds both builds of every program, measures each
+  one whose key is not its row's (below), and fails when one prints the
+  wrong output, or when its estimated cycles are more than 1% above its row
+  in `latest.tsv`; a build with no row passes. Labelling the pull request `perf-accepted` turns a
   slowdown into a warning, for a change that is slower on purpose, and the
   push to `main` then records the new numbers. Any label change runs the
   check again;
-- on a push to `main`, it measures every program, writes `latest.tsv` and
-  appends to `stress.tsv`;
+- on a push to `main`, it measures every build, writes `latest.tsv` and
+  appends to both histories;
 - in the merge queue, it checks again as for a pull request, since pull
   requests that each pass can together be slower; the label of the last
   pull request queued in the group decides whether a slowdown is accepted;
 - on a manual run, it measures and compares, and fails only on a wrong
   output.
 
-A program's build key hashes what its counts follow from: the executable
+A build's key hashes what its counts follow from: the executable
 built, its `arguments`, what it printed, `run` itself, and Valgrind's
 version and resolved path, which under Nix names the store path it was built
 as. The executable holds the compiler's code and the runtime as clang built
 and linked them, and names the C library it loads by its Nix store path, so
 every input the build scripts use is in it without being listed.
-On a pull request, in the merge queue and in `just test-perf`, a program is
-not run again when its build, taken with its golden output, has its row's
-key: it reports its row's counts, since the same build run the same way
-counts the same, and `run --fresh` measures it anyway. A push to `main`
-always measures every program.
+On a pull request, in the merge queue and in `just test-perf`, a build is
+not run again when it, taken with its golden output, has its row's key: it
+reports its row's counts, since the same build run the same way counts the
+same, and `run --fresh` measures it anyway. A push to `main` always measures
+every build.
 
 Every run but a push fails when it cannot read the branch, so a missing
 baseline never passes as a comparison. The rows are measured on x86-64, so
@@ -76,11 +83,13 @@ on another machine `just test-perf` checks outputs and compares nothing.
 ```sh
 devbox run -- just test-perf              # every program against main's rows
 devbox run -- tests/perf/run flips trees  # these alone, compared with nothing
+devbox run -- tests/perf/run --build plain  # one build of each program
 devbox run -- just promote-perf           # write golden/ from this build's output
 ```
 
 Valgrind runs on Linux only. To see where a change moved a number, compare
-the columns `run` prints, then build the program with `--optimize` and run
+the columns `run` prints, then build the program as the slower build was
+built, with or without `--optimize`, and run
 `valgrind --tool=callgrind --cache-sim=yes --branch-sim=yes --dump-instr=yes`
 on it. A change to a program here changes what its row measures, so say so
 in its pull request, label it `perf-accepted` if the number rises, and
@@ -89,7 +98,9 @@ promote its output if that changed.
 ## Programs
 
 Each is written against `@primitives$` and `@operators$` only, so it measures
-the compiler and its runtime, not `core`. Most port a program of the spec
+the compiler and its runtime, not `core`. `stress`, `trees` and `copies` name some of their arithmetic
+through one-line local functions such as `minus` and `below`, the shape of
+`core`'s wrappers, so their plain builds measure how well it inlines them. Most port a program of the spec
 repo's `langbench/` and print what it prints at the same size.
 
 - `flips` is fannkuch-redux: small lists indexed, written and rotated in

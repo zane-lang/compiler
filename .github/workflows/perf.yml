@@ -1,9 +1,10 @@
 name: Perf
 
-# The perf programs' estimated cycles (tests/perf/README.md): each push to
-# main writes every program's row over latest.tsv on the `perf-log` branch
-# and appends the stress program's to stress.tsv, and each pull request fails
-# when a program is more than the tolerance slower than its row. A pull
+# The perf programs' estimated cycles, optimized and plain
+# (tests/perf/README.md): each push to main writes every program's rows over
+# latest.tsv on the `perf-log` branch and appends the stress program's to
+# stress.tsv and stress-plain.tsv, and each pull request fails when a build
+# is more than the tolerance slower than its row. A pull
 # request labelled `perf-accepted` passes with a warning, and any label
 # change runs the check again.
 on:
