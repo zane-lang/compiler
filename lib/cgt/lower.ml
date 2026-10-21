@@ -96,8 +96,16 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
                 (fun () -> Lower_calls.argument walk st ctx span v for_left left)
                 (fun () -> Lower_calls.argument walk st ctx span v for_right right)
                 (fun l r -> Lower_calls.invoke walk st ctx span v [ l; r ] handler)
-          | Some v when expands v ->
-              refuse span "lowering does not handle an operator that takes a block or a literal yet"
+          (* An operator that takes a literal is expanded where it is called
+             (L11), as any verb with a concept parameter is. Its operands
+             still run in written order: when the desugaring swapped them,
+             the written left operand is held first. *)
+          | Some ({ params = [ _; pr ]; _ } as v) ->
+              let call args = Lower_calls.call walk st ctx span (Some v) args handler e.T.Expr.ty in
+              if swapped then
+                let lets, held = Lower_calls.held_argument walk st ctx span v pr (T.Arg.Value left) in
+                Lower_calls.held_in st lets (call [ T.Arg.Value right; held ])
+              else call [ T.Arg.Value left; T.Arg.Value right ]
           | _ -> Diagnostic.bug ~span "lowering: an operator with no verb to call"))
   | T.Expr.Flip { impl = { owner = S.Declared id; instance; _ }; value; handler } ->
       Lower_calls.call walk st ctx span (verb_of st id instance) [ T.Arg.Value value ] handler

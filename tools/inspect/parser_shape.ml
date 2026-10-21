@@ -1,13 +1,7 @@
 let parts name shapes = name ^ "(" ^ String.concat ", " shapes ^ ")"
 
 (* An operator call renders under its operator's own name, so a shape says both
-   how the expression grouped and which implementation each grouping calls.
-
-   A loose operator renders as the operator it mirrors, because that is what it
-   is: operators.md §3.1 gives it the same implementation and a level of its
-   own, so the only thing it changes is the nesting -- which is what a shape
-   shows. `a > b '* c > d` and `a > b * c > d` are told apart here by their
-   shape, not by a tag. *)
+   how the expression grouped and which implementation each grouping calls. *)
 let operator_name (op : Cst.Nodes.Operator.t) =
   match op.Cst.Nodes.Operator.node with
   | Cst.Nodes.Operator.Add -> "add"
@@ -20,6 +14,8 @@ let operator_name (op : Cst.Nodes.Operator.t) =
   | Cst.Nodes.Operator.MoreEq -> "more_eq"
   | Cst.Nodes.Operator.Less -> "less"
   | Cst.Nodes.Operator.More -> "more"
+  | Cst.Nodes.Operator.And -> "and"
+  | Cst.Nodes.Operator.Or -> "or"
 
 (* A block argument renders as [block] wherever it sits, so a shape says which
    call a block joined and in which position, which is the grouping question a

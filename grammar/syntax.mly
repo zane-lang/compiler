@@ -19,9 +19,8 @@ open Statement_shape
    they are abort handling and the postfix chain, placed where each has to be
    for the chain to thread. *)
 %right THICK_ARROW
-%left LOOSE_EQEQ LOOSE_NOTEQ LOOSE_LESSEQ LOOSE_MOREEQ LOOSE_LESS LOOSE_MORE  /* 7 */
-%left LOOSE_PLUS LOOSE_MINUS                    /* 6 */
-%left LOOSE_STAR LOOSE_SLASH                    /* 5 -- the loose tier, §3.1 */
+%left OR                                        /* 6 -- union */
+%left AND                                       /* 5 -- intersection */
 %left EQEQ NOTEQ LESSEQ MOREEQ LESS MORE        /* 4 -- comparisons */
 %left PLUS MINUS                                /* 3 */
 %left STAR SLASH                                /* 2 */
@@ -962,6 +961,8 @@ block_call:
   | PLUS  { operator $loc Nodes.Operator.Add }
   | STAR  { operator $loc Nodes.Operator.Mul }
   | SLASH  { operator $loc Nodes.Operator.Div }
+  | AND  { operator $loc Nodes.Operator.And }
+  | OR  { operator $loc Nodes.Operator.Or }
 
 %inline comparison_op:
   | EQEQ { operator $loc Nodes.Operator.Eq }
@@ -979,32 +980,13 @@ block_call:
   | STAR { operator $loc Nodes.Operator.Mul }
   | SLASH { operator $loc Nodes.Operator.Div }
 
-(* The loose forms carry the same [Operator.node] as the operators they mirror,
-   because a loose operator "calls the same implementation as its unprefixed
-   form and differs only in where it groups" (operators.md §3.1) and the
-   grouping is the tree. What they do not share is [is_loose], because the two
-   spellings are two different pieces of source and the CST records what was
-   parsed; collapsing them is the SST's job (docs/design/desugaring.md §2.2).
+(* Intersection and union (operators.md §2.4), each a level of its own below
+   every comparison. *)
+%inline and_op:
+  | AND { operator $loc Nodes.Operator.And }
 
-   §3.1 is explicit that the loose forms add no token to the operator
-   vocabulary of §5.1 -- so they declare nothing either, and the declaration
-   productions, which read the unprefixed rules below, do not admit them. *)
-
-%inline loose_comparison_op:
-  | LOOSE_EQEQ { loose_operator $loc Nodes.Operator.Eq }
-  | LOOSE_NOTEQ { loose_operator $loc Nodes.Operator.NotEq }
-  | LOOSE_LESSEQ { loose_operator $loc Nodes.Operator.LessEq }
-  | LOOSE_MOREEQ { loose_operator $loc Nodes.Operator.MoreEq }
-  | LOOSE_LESS  { loose_operator $loc Nodes.Operator.Less }
-  | LOOSE_MORE  { loose_operator $loc Nodes.Operator.More }
-
-%inline loose_additive_op:
-  | LOOSE_PLUS { loose_operator $loc Nodes.Operator.Add }
-  | LOOSE_MINUS { loose_operator $loc Nodes.Operator.Sub }
-
-%inline loose_multiplicative_op:
-  | LOOSE_STAR { loose_operator $loc Nodes.Operator.Mul }
-  | LOOSE_SLASH { loose_operator $loc Nodes.Operator.Div }
+%inline or_op:
+  | OR { operator $loc Nodes.Operator.Or }
 
 %inline match_selector:
   | case=lname {
@@ -1155,19 +1137,13 @@ expr:
            (verb_call $loc
               (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
     }
-  | left=expr op=loose_comparison_op right=expr %prec LOOSE_EQEQ {
+  | left=expr op=or_op right=expr %prec OR {
       expr $loc
         (Nodes.Expr.VerbCall
            (verb_call $loc
               (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
     }
-  | left=expr op=loose_additive_op right=expr %prec LOOSE_PLUS {
-      expr $loc
-        (Nodes.Expr.VerbCall
-           (verb_call $loc
-              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
-    }
-  | left=expr op=loose_multiplicative_op right=expr %prec LOOSE_STAR {
+  | left=expr op=and_op right=expr %prec AND {
       expr $loc
         (Nodes.Expr.VerbCall
            (verb_call $loc
@@ -1234,19 +1210,13 @@ expr_braced:
            (verb_call $loc
               (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
     }
-  | left=expr op=loose_comparison_op right=expr_braced {
+  | left=expr op=or_op right=expr_braced {
       expr $loc
         (Nodes.Expr.VerbCall
            (verb_call $loc
               (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
     }
-  | left=expr op=loose_additive_op right=expr_braced {
-      expr $loc
-        (Nodes.Expr.VerbCall
-           (verb_call $loc
-              (Nodes.Verb_call.Op { op; left; right; abort_handle = None })))
-    }
-  | left=expr op=loose_multiplicative_op right=expr_braced {
+  | left=expr op=and_op right=expr_braced {
       expr $loc
         (Nodes.Expr.VerbCall
            (verb_call $loc

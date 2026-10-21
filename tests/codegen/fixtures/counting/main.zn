@@ -17,8 +17,8 @@ Bool if(condition Bool, body @concepts$Block) {
 
 /// Runs when no earlier branch of the chain has, and records whether it did.
 Unit elif(this Bool, condition Bool, body @concepts$Block) mut {
-	@controlflow$branch(@operators$and(@operators$not(this), condition), body);
-	this = @operators$or(this, condition);
+	@controlflow$branch(@operators$conjoin(@operators$not(this), condition), body);
+	this = @operators$disjoin(this, condition);
 	return Unit();
 }
 
@@ -78,7 +78,7 @@ Unit main() {
 	if(@operators$equal(factorial(Int(10)), Int(3628800))) {
 		@program$console!print(yes);
 	}
-	if(@operators$and(@operators$equal(@operators$divide(Int(7), Int(2)), Int(3)), @operators$lessThan(Int(2), Int(3)))) {
+	if(@operators$conjoin(@operators$equal(@operators$divide(Int(7), Int(2)), Int(3)), @operators$lessThan(Int(2), Int(3)))) {
 		@program$console!print(yes);
 	}
 	if(@operators$equal(@operators$add(Float(1.5), Float(2.25)), Float(3.75))) {

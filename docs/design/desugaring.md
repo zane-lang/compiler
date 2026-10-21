@@ -65,11 +65,6 @@ The lambda-variable expansion is the one
 §3.8 spells out in full, and `func_type_of_lambda` / `meth_type_of_lambda`
 build the function type it calls for.
 
-The loose operators used to be the second entry here. They are now §2.2
-instead: the parser records the `'` prefix and the SST drops it, because a
-parser that collapsed the two spellings was deciding something the CST's own
-rule reserves for later.
-
 ---
 
 ## 2. The desugarings
@@ -110,40 +105,19 @@ constructors, both lambda kinds, match arms, and abort handlers.
 `.Constructor`, `.Flip`), both lambdas (`Func_lambda`, `Meth_lambda`), and
 match arms (`Match_arm.body`).
 
-### 2.2 Loose operators
+### 2.2 `and` and `or`
 
 ```
-a '* b    ->    a * b
+a and b    ->    a and b
 ```
 
-[`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
-§3.1: a loose operator "calls the same implementation as its unprefixed form
-and differs only in where it groups". Where it groups is settled by the parser,
-so by the time the node exists the `'` has already done its whole job.
-
-**CST → SST.** `Operator.is_loose` goes.
-
-That flag is the CST's half of this entry, and it is worth saying why it exists
-at all, because the obvious thing is for the parser to drop the prefix on the
-spot — which is what it used to do. Two reasons not to. The CST's stated job is
-to represent what was parsed, and `a '* b` and `a * b` are two different pieces
-of source; a tree that cannot tell them apart cannot be rendered back to say
-which the file held, which is what `to_tree_graph` is for.
-[`stages.md`](stages.md) is the other: desugaring belongs to the semantics
-stage, and a parser that collapses the two spellings is doing semantics work in
-the one stage that is supposed to be a transcription.
-
-Neither reason is about diagnostics. The spec's one illegal loose form,
-`a ''* b`, is rejected by the grammar before any `Operator.t` exists, so no
-flag on the node could be what reports it.
-
-The flag is always `false` on a declaration. §3.1 is explicit that the loose
-forms "add no token to the operator vocabulary" of §5.1, so there is nothing
-for a program to declare, and the declaration productions read the unprefixed
-rules only.
-
-This is the cheapest entry on the list — the SST reads one field and ignores it
-— and it is the one that keeps the boundary in `stages.md` true.
+[`operators.md`](https://github.com/zane-lang/spec/blob/6e232ce/spec/operators.md) §2.1 lists `and` and `or` among the
+primitive operators, so they cross to the SST unchanged, as `Operator.And` and
+`Operator.Or`. They are listed because a reader arriving from a language whose
+`&&` skips its right operand will look here for the rewrite into a branch, and
+there is none: both operands are evaluated, and the call is an ordinary
+operator call (§2.4 of the same document). Where they group is the parser's
+business, at the two levels below the comparisons (§3).
 
 ### 2.3 Derived operators
 
@@ -417,8 +391,7 @@ the syntax does not carry. They are listed so the refusal is on the record.
 |---|---|---|
 | `Body.t` | `Shorthand` \| `Longhand` | a statement list |
 | `Abort_handle.t` | `Shorthand` \| `Longhand` | one record |
-| `Operator.t` | 10 variants | 5 |
-| `Operator.is_loose` | `bool` | gone |
+| `Operator.t` | 12 variants | 7 |
 | `Field_arg.value` | `Expr.t option` | `Expr.t` |
 | `Match_pattern.cases` | `Name.t list` | `Name.t` |
 | declaration forms | `Var` + `VarShorthand` | `Var` |

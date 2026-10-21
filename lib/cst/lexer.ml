@@ -40,16 +40,8 @@ let rec token buf =
   | ">=" -> MOREEQ
   | "<" -> LESS
   | ">" -> MORE
-  | "'*" -> LOOSE_STAR
-  | "'/" -> LOOSE_SLASH
-  | "'+" -> LOOSE_PLUS
-  | "'-" -> LOOSE_MINUS
-  | "'==" -> LOOSE_EQEQ
-  | "'~=" -> LOOSE_NOTEQ
-  | "'<=" -> LOOSE_LESSEQ
-  | "'>=" -> LOOSE_MOREEQ
-  | "'<" -> LOOSE_LESS
-  | "'>" -> LOOSE_MORE
+  | "and" -> AND
+  | "or" -> OR
   | "type" -> LTYPE
   | "alias" -> ALIAS
   | "Type" -> UTYPE

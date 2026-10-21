@@ -915,7 +915,8 @@ and case_form env ctx span tid payload built open_ case (args : N.Constructor_ar
 
 (* operators.md §2.2: the candidates are the operand types' home packages'
    operators, and nothing an import brings. Operands evaluate in written
-   order and are passed in the order the desugaring gives (§2.3). *)
+   order and are passed in the order the desugaring gives (§2.3), each as
+   written, with no implicit constructor inserted (§2.7). *)
 (* ---------------------------------------------------------------------- *)
 (* Calls: operators, flips and spawns                                     *)
 (* ---------------------------------------------------------------------- *)
@@ -944,7 +945,7 @@ and operator env ~flow ctx span (op : N.Operator.t) left right ~swapped handle =
     else
       match
         report_resolution env ~span ~what:(Printf.sprintf "operator %s" (quote token))
-          ~args:(describe_args actuals) (resolve env cands (positional actuals)) cands
+          ~args:(describe_args actuals) (resolve ~coerce:false env cands (positional actuals)) cands
       with
       | None ->
           skip_handler env ctx handle;
@@ -974,7 +975,7 @@ and flip env ~flow ctx span value handle =
     else
       match
         report_resolution env ~span ~what:"operator `~`" ~args:(describe_args [ actual ])
-          (resolve env cands (positional [ actual ])) cands
+          (resolve ~coerce:false env cands (positional [ actual ])) cands
       with
       | None ->
           skip_handler env ctx handle;

@@ -13,12 +13,13 @@ let unit_ = { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
 
 let deref id t = { Expr.node = Expr.Deref { Expr.node = Expr.Local id; ty = Nodes.Ty.Ptr }; ty = t }
 
-let binop : Sst.Nodes.Operator.node -> Expr.binop = function
+let binop span : Sst.Nodes.Operator.node -> Expr.binop = function
   | Add -> Expr.Add
   | Mul -> Expr.Mul
   | Div -> Expr.Div
   | Eq -> Expr.Eq
   | Less -> Expr.Less
+  | And | Or -> Diagnostic.bug ~span "lowering: a storage primitive has no `and` or `or`"
 
 (* An exit ends the run of a block (docs/spec-divergences.md §9). Semantics
    rejects one anywhere else, so this is not reached. *)
@@ -106,4 +107,4 @@ let primitive_op span op t (l : Expr.t) (r : Expr.t) =
       let yes = { Expr.node = Expr.Int 1L; ty = Nodes.Ty.I64 } in
       { Expr.node = Expr.Binary { op = Expr.Eq; left = same; right = yes }; ty = t }
   | Nodes.Ty.Handle, _ -> Diagnostic.bug ~span "lowering: `@primitives$String` has no such operator"
-  | _ -> { Expr.node = Expr.Binary { op = binop op; left = l; right = r }; ty = t }
+  | _ -> { Expr.node = Expr.Binary { op = binop span op; left = l; right = r }; ty = t }

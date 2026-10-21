@@ -91,7 +91,7 @@ Unit main() {
 		u empty => Int(0);
 		t pair => Int(0);
 	}
-	check(String("binder writes the payload"), @operators$and(@operators$equal(n, Int(8)), @operators$equal(power(view), Int(8))));
+	check(String("binder writes the payload"), @operators$conjoin(@operators$equal(n, Int(8)), @operators$equal(power(view), Int(8))));
 
 	// Case changes in a loop destroy each payload.
 	i Int(1);
@@ -109,7 +109,7 @@ Unit main() {
 	second!tune();
 	check(String("write through element reference"), @operators$equal(row[Int(2)].power, Int(21)));
 	row = @primitives$ArrayRef.roaming([Engine(Int(4), String("d")), Engine(Int(5), String("e")), Engine(Int(6), String("f"))]);
-	check(String("whole ArrayRef overwrite seen"), @operators$and(@operators$equal(second.power, Int(5)), @operators$equal(second.label, String("e"))));
+	check(String("whole ArrayRef overwrite seen"), @operators$conjoin(@operators$equal(second.power, Int(5)), @operators$equal(second.label, String("e"))));
 
 	// Replaced from an inner block, whose blocks then drain.
 	row2 @primitives$ArrayRef<Engine, 2> = @primitives$ArrayRef.roaming([Engine(Int(1), String("a")), Engine(Int(2), String("b"))]);
@@ -118,13 +118,13 @@ Unit main() {
 		row2 = @primitives$ArrayRef.roaming([Engine(Int(3), @operators$concat(String("c"), String("c"))), Engine(Int(4), @operators$concat(String("d"), String("d")))]);
 	});
 	churn();
-	check(String("element ref after the ArrayRef is replaced from an inner block"), @operators$and(@operators$equal(second2.power, Int(4)), @operators$equal(second2.label, String("dd"))));
+	check(String("element ref after the ArrayRef is replaced from an inner block"), @operators$conjoin(@operators$equal(second2.power, Int(4)), @operators$equal(second2.label, String("dd"))));
 	shed Shed(@primitives$ArrayRef.roaming([Engine(Int(1), String("a")), Engine(Int(2), String("b"))]));
 	s &Engine = shed.row[Int(1)];
 	inner({
 		shed = Shed(@primitives$ArrayRef.roaming([Engine(Int(5), @operators$concat(String("e"), String("e"))), Engine(Int(6), String("f"))]));
 	});
 	churn();
-	check(String("element ref after its owner is replaced from an inner block"), @operators$and(@operators$equal(s.power, Int(5)), @operators$equal(s.label, String("ee"))));
+	check(String("element ref after its owner is replaced from an inner block"), @operators$conjoin(@operators$equal(s.power, Int(5)), @operators$equal(s.label, String("ee"))));
 	return Unit();
 }

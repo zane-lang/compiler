@@ -202,7 +202,7 @@ Unit main() {
 	check(@operators$equal(@operators$divide(I32(7), @operators$negate(I32(2))), @operators$negate(I32(3))));
 	nan Float = @operators$divide(Float(0.0), Float(0.0));
 	check(@operators$not(@operators$equal(nan, nan)));
-	check(@operators$and(@operators$not(@operators$lessThan(nan, Float(1.0))), @operators$not(@operators$lessThan(Float(1.0), nan))));
+	check(@operators$conjoin(@operators$not(@operators$lessThan(nan, Float(1.0))), @operators$not(@operators$lessThan(Float(1.0), nan))));
 	check(@operators$equal(@operators$negate(Float(0.0)), Float(0.0)));
 	check(@operators$lessThan(@operators$divide(Float(1.0), @operators$negate(Float(0.0))), Float(0.0)));
 	check(@operators$lessThan(Float(0.0), inverse(Float(0.0))));
@@ -210,7 +210,7 @@ Unit main() {
 	zero Float(0.0);
 	zero!negate();
 	check(@operators$lessThan(@operators$divide(Float(1.0), zero), Float(0.0)));
-	check(@operators$and(@operators$or(true, false), @operators$not(@operators$and(true, false))));
+	check(@operators$conjoin(@operators$disjoin(true, false), @operators$not(@operators$conjoin(true, false))));
 
 	// Strings, joined and compared.
 	check(@operators$equal(repeated(String("ab"), Int(3)), String("ababab")));

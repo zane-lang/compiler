@@ -1326,15 +1326,15 @@ package | package main; /// Every im … ettled"); return Unit(); }
                     constructor_args Positional | (0)
                       call_arg Value | 0
                         expr IntLit | 0
-        stat VerbCall | if(empty '* Operator.div = … bort "division by zero"; }
-          verb_call Call function | if(empty '* Operator.div = … bort "division by zero"; }
+        stat VerbCall | if(empty and Operator.div  … bort "division by zero"; }
+          verb_call Call function | if(empty and Operator.div  … bort "division by zero"; }
             expr NameExpr | if
               name_expr | if
                 ident if | if
-            call_arg Value | empty '* Operator.div == op
-              expr VerbCall | empty '* Operator.div == op
-                verb_call Op | empty '* Operator.div == op
-                  operator Mul | '*
+            call_arg Value | empty and Operator.div == op
+              expr VerbCall | empty and Operator.div == op
+                verb_call Op | empty and Operator.div == op
+                  operator And | and
                   expr NameExpr | empty
                     name_expr | empty
                       ident empty | empty
@@ -3027,18 +3027,18 @@ package | package main; /// Every im … ettled"); return Unit(); }
                     expr NameExpr | env
                       name_expr | env
                         ident env | env
-        stat Decl | settled Bool = Float(0) <  … 0) '+ answer == Float(42);
-          decl Var | settled Bool = Float(0) <  … 00) '+ answer == Float(42)
+        stat Decl | settled Bool = Float(0) <  … 0) or answer == Float(42);
+          decl Var | settled Bool = Float(0) <  … 00) or answer == Float(42)
             name settled | settled
             type_expr Path | Bool
               name_type | Bool
                 ident Bool | Bool
-            expr VerbCall | Float(0) < middle '* middl … 00) '+ answer == Float(42)
-              verb_call Op | Float(0) < middle '* middl … 00) '+ answer == Float(42)
-                operator Add | '+
-                expr VerbCall | Float(0) < middle '* middle < Float(100)
-                  verb_call Op | Float(0) < middle '* middle < Float(100)
-                    operator Mul | '*
+            expr VerbCall | Float(0) < middle and midd … 00) or answer == Float(42)
+              verb_call Op | Float(0) < middle and midd … 00) or answer == Float(42)
+                operator Or | or
+                expr VerbCall | Float(0) < middle and middle < Float(100)
+                  verb_call Op | Float(0) < middle and middle < Float(100)
+                    operator And | and
                     expr VerbCall | Float(0) < middle
                       verb_call Op | Float(0) < middle
                         operator Less | <

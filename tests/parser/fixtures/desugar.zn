@@ -72,11 +72,11 @@ Unit derived(a Int, b Int) {
 	return Unit();
 }
 
-/// §2.2 — the loose forms, which carry the same operator at a lower tier.
-Bool loose(a Int, b Int, ok Bool) {
-	mixed Bool = a < b '* b < a '+ ok;
-	derivedLoose Bool = a >= b '* ok;
-	return mixed '+ derivedLoose;
+/// §2.2 — `and` and `or`, which group below every comparison.
+Bool joined(a Int, b Int, ok Bool) {
+	mixed Bool = a < b and b < a or ok;
+	derivedJoined Bool = a >= b and ok;
+	return mixed or derivedJoined;
 }
 
 /// §2.4 — `??` is a handler whose only path resolves the fallback, and `?`

@@ -1289,16 +1289,16 @@ package | package main; /// Every im … ettled"); return Unit(); }
                       constructor_args | (0)
                         call_arg | 0
                           expr | 0
-        statement | if(empty '* Operator.div = … bort "division by zero"; }
-          stat | if(empty '* Operator.div = … bort "division by zero"; }
-            verb_call | if(empty '* Operator.div = … bort "division by zero"; }
+        statement | if(empty and Operator.div  … bort "division by zero"; }
+          stat | if(empty and Operator.div  … bort "division by zero"; }
+            verb_call | if(empty and Operator.div  … bort "division by zero"; }
               expr | if
                 name_expr | if
                   ident if | if
-              call_arg | empty '* Operator.div == op
-                expr | empty '* Operator.div == op
-                  verb_call | empty '* Operator.div == op
-                    operator | '*
+              call_arg | empty and Operator.div == op
+                expr | empty and Operator.div == op
+                  verb_call | empty and Operator.div == op
+                    operator | and
                     expr | empty
                       name_expr | empty
                         ident empty | empty
@@ -2903,19 +2903,19 @@ package | package main; /// Every im … ettled"); return Unit(); }
                   expr | env
                     name_expr | env
                       ident env | env
-        statement | settled Bool = Float(0) <  … 0) '+ answer == Float(42);
-          stat | settled Bool = Float(0) <  … 0) '+ answer == Float(42);
-            decl | settled Bool = Float(0) <  … 00) '+ answer == Float(42)
+        statement | settled Bool = Float(0) <  … 0) or answer == Float(42);
+          stat | settled Bool = Float(0) <  … 0) or answer == Float(42);
+            decl | settled Bool = Float(0) <  … 00) or answer == Float(42)
               name settled | settled
               type_expr | Bool
                 name_type | Bool
                   ident Bool | Bool
-              expr | Float(0) < middle '* middl … 00) '+ answer == Float(42)
-                verb_call | Float(0) < middle '* middl … 00) '+ answer == Float(42)
-                  operator | '+
-                  expr | Float(0) < middle '* middle < Float(100)
-                    verb_call | Float(0) < middle '* middle < Float(100)
-                      operator | '*
+              expr | Float(0) < middle and midd … 00) or answer == Float(42)
+                verb_call | Float(0) < middle and midd … 00) or answer == Float(42)
+                  operator | or
+                  expr | Float(0) < middle and middle < Float(100)
+                    verb_call | Float(0) < middle and middle < Float(100)
+                      operator | and
                       expr | Float(0) < middle
                         verb_call | Float(0) < middle
                           operator | <

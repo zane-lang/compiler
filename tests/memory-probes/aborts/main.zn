@@ -55,7 +55,7 @@ Unit main() {
 	a ^Engine = pick(Int(1)) ? e {
 		resolve e;
 	}
-	check(String("abort value moved out of the handler"), @operators$and(@operators$equal(a.power, Int(100)), @operators$equal(a.label, String("abort-value"))));
+	check(String("abort value moved out of the handler"), @operators$conjoin(@operators$equal(a.power, Int(100)), @operators$equal(a.label, String("abort-value"))));
 	b ^Engine = pick(Int(2)) ?? Engine(Int(0), String("fallback"));
 	check(String("result moved through ??"), @operators$equal(b.label, String("made-here")));
 	c Engine = maybe(Int(1)) ?? Engine(Int(5), String("fb"));

@@ -431,36 +431,19 @@ The ambiguous sentence now has one parse, an abortable verb type written in
 parenthesised spelling has none. Each is a case in
 [`tests/grammar/ambiguity_test.py`](../../tests/grammar/ambiguity_test.py).
 
-## The loose operator tier costs nothing
+## `and` and `or` cost nothing
 
-The loose forms of [`operators.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/operators.md)
-§3.1 — `'*` `'/` `'+` `'-` `'<` `'>` `'<=` `'>=` `'==` `'~=` — add ten terminals,
-three precedence levels and three `expr` productions, and **no new conflict
-block**. The census does not move at all, rather than moving by less than the
-rest of the ledger: measured with the project's own `--GLR` build and again
-without it, every conflict block before and after this change matches family for
-family, on `(kind, tokens involved, reductions)`, with none new and none gone.
+[`operators.md`](https://github.com/zane-lang/spec/blob/6e232ce/spec/operators.md) §3 puts `and` and `or` on two
+levels of their own below the comparisons. They are two terminals, two
+precedence levels and two `expr` productions (with their `expr_braced`
+twins), and they add **no conflict block**: the census in
+[`tests/grammar`](../../tests/grammar) does not move, family for family.
 
-Two things make that so. A loose operator is strictly infix and lexically
-distinct, so no loose token can begin an expression or end one — the decision
-the parser faces at each is the same decision it already faces at the operator
-being mirrored, and the precedence declaration settles it before it can become
-a conflict, exactly as `%left STAR SLASH` settles `*`. And the mirror is one
-tier deep by construction: the levels are fixed in the grammar rather than
-chosen by a program, so there is no recursion between the tiers for a state to
-have to unwind.
-
-The tier is also what let `and` and `or` go. They were the compiler's own
-stand-in for a level below the comparisons, and removing them — two terminals,
-two productions, a `Logic` node and its `Logic_op` — moves the census by nothing
-either, family for family, for the same reason: an infix level settled by a
-precedence declaration never reaches the automaton as a conflict.
-[`spec-divergences.md`](../spec-divergences.md) records that closure.
-
-The lexer carries the part of §3.1 that the grammar would have found expensive.
-Each loose form is a single token, so `'` must touch its operator, and the three
-spellings the spec calls illegal — `a ''* b`, `'~a`, `a '| f()` — are rejected
-for want of a token to spell them rather than by a rule that has to be stated
-and then defended. A `'` between digits stays the separator of an integer
-literal: that separator wants digits on both sides, and no loose form has them,
-so `1'000'000 '* Int(2)` and even `2'*3` come apart the one way.
+An infix operator that cannot begin or end an expression faces the parser
+with the same decision at every level, and the precedence declaration settles
+it before it can become a conflict, exactly as `%left STAR SLASH` settles `*`.
+That held for the ten loose terminals and three levels they replace, which
+moved the census by nothing either, and for the `and` and `or` keywords before
+those. Being words, the two are literal tokens the lexer prefers over a name
+of the same spelling, so `and` can never be an identifier, and a longer name
+such as `android` is still one.

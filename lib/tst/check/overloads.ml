@@ -225,7 +225,9 @@ let try_candidate env ~phase (s : S.t) (slots : actual option list) : outcome op
 
 type resolution = Resolved of outcome | No_match | Ambiguous of S.t list
 
-let resolve env candidates (slots_for : S.t -> actual option list option) =
+(* An operator call stops before the implicit phase: its operands are passed
+   as written (operators.md §2.7). *)
+let resolve ?(coerce = true) env candidates (slots_for : S.t -> actual option list option) =
   let attempt phase =
     List.filter_map
       (fun s -> Option.bind (slots_for s) (fun slots -> try_candidate env ~phase s slots))
@@ -239,7 +241,7 @@ let resolve env candidates (slots_for : S.t -> actual option list option) =
         | [ one ] -> Resolved one
         | several -> Ambiguous (List.map (fun o -> o.sig_) several))
   in
-  phases [ Direct; Generic; Implicit ]
+  phases (if coerce then [ Direct; Generic; Implicit ] else [ Direct; Generic ])
 
 let positional actuals (s : S.t) =
   match s.kind with

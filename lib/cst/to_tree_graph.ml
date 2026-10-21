@@ -148,7 +148,7 @@ and verb_call_to_node (x: Nodes.Verb_call.t) = match x.Nodes.Verb_call.node with
       ]))
   | Op { op; left; right; abort_handle } ->
       group "op_call" (fields [
-        ("op", Leaf (op_to_name op));
+        ("op", Leaf (op_token op));
         ("left", expr_to_node left);
         ("right", expr_to_node right);
         abort_field abort_handle;
@@ -222,13 +222,6 @@ and expr_to_node (x: Nodes.Expr.t) = match x.Nodes.Expr.node with
   | VerbCall x ->
       verb_call_to_node x
 
-(* The `'` prefix is part of what was written, so the rendered tree shows it.
-   A tree that printed `a '* b` and `a * b` the same way could not be read back
-   to tell which the source held. *)
-and op_to_name (x: Nodes.Operator.t) =
-  let prefix = if x.Nodes.Operator.is_loose then "'" else "" in
-  prefix ^ op_token x
-
 and op_token (x: Nodes.Operator.t) = match x.Nodes.Operator.node with
   | Add     -> "+"
   | Sub     -> "-"
@@ -240,6 +233,8 @@ and op_token (x: Nodes.Operator.t) = match x.Nodes.Operator.node with
   | MoreEq  -> ">="
   | Less    -> "<"
   | More    -> ">"
+  | And     -> "and"
+  | Or      -> "or"
 
 and abort_handle_to_node (x: Nodes.Abort_handle.t) = match x.Nodes.Abort_handle.node with
   | Longhand { binder; body } ->
@@ -464,7 +459,7 @@ and verb_decl_to_node (x: Nodes.Verb_decl.t) = match x.Nodes.Verb_decl.node with
       ])
   | Op x ->
       group "op_decl" (fields [
-        ("op",       Leaf (op_to_name x.op));
+        ("op",       Leaf (op_token x.op));
         ("param",    params_to_node x.params);
         ("ret_type", ret_to_node x.ret_type);
         ("body",     body_to_node x.body);

@@ -389,7 +389,7 @@
     │           ├── args:
     │           └── abort: none
     ├── declarations[15] > func_decl:
-    │   ├── name: loose
+    │   ├── name: joined
     │   ├── param[0]:
     │   │   ├── name: a
     │   │   └── type:
@@ -415,9 +415,9 @@
     │       │   │   ├── qualifier: Bool
     │       │   │   └── args:
     │       │   └── value > op_call:
-    │       │       ├── op: +
+    │       │       ├── op: or
     │       │       ├── left > op_call:
-    │       │       │   ├── op: *
+    │       │       │   ├── op: and
     │       │       │   ├── left > op_call:
     │       │       │   │   ├── op: <
     │       │       │   │   ├── left: a
@@ -436,12 +436,12 @@
     │       │       ├── swapped: false
     │       │       └── abort: none
     │       ├── stat[1] > var_decl:
-    │       │   ├── name: derivedLoose
+    │       │   ├── name: derivedJoined
     │       │   ├── type:
     │       │   │   ├── qualifier: Bool
     │       │   │   └── args:
     │       │   └── value > op_call:
-    │       │       ├── op: *
+    │       │       ├── op: and
     │       │       ├── left > flip_call:
     │       │       │   ├── value > op_call:
     │       │       │   │   ├── op: <
@@ -454,9 +454,9 @@
     │       │       ├── swapped: false
     │       │       └── abort: none
     │       └── stat[2] > ret_stat > op_call:
-    │           ├── op: +
+    │           ├── op: or
     │           ├── left: mixed
-    │           ├── right: derivedLoose
+    │           ├── right: derivedJoined
     │           ├── swapped: false
     │           └── abort: none
     ├── declarations[16] > func_decl:

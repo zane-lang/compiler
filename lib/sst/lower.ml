@@ -323,6 +323,8 @@ and derived_op span (op : C.Operator.t) left right ~written_right abort_handle
   | C.Operator.Div -> verb_call span (binop S.Operator.Div left right)
   | C.Operator.Eq -> verb_call span (binop S.Operator.Eq left right)
   | C.Operator.Less -> verb_call span (binop S.Operator.Less left right)
+  | C.Operator.And -> verb_call span (binop S.Operator.And left right)
+  | C.Operator.Or -> verb_call span (binop S.Operator.Or left right)
   (* `a - b` is `a + ~b`. The flip spans `- b`, which is the text it was made
      from; `a` and `b` keep their own spans either side of it.
 
@@ -599,6 +601,8 @@ and declared_operator (x : C.Operator.t) : S.Operator.t =
     | C.Operator.Div -> S.Operator.Div
     | C.Operator.Eq -> S.Operator.Eq
     | C.Operator.Less -> S.Operator.Less
+    | C.Operator.And -> S.Operator.And
+    | C.Operator.Or -> S.Operator.Or
     | C.Operator.Sub | C.Operator.NotEq | C.Operator.More | C.Operator.LessEq
     | C.Operator.MoreEq ->
         Diagnostic.bug ~span

@@ -94,6 +94,8 @@ let operator_token : Sst.Nodes.Operator.node -> string = function
   | Div -> "/"
   | Eq -> "=="
   | Less -> "<"
+  | And -> "and"
+  | Or -> "or"
 
 (* `@operators$` (syntax.md §2.7): the machine operations the primitive
    operators of operators.md §2.1 are written over, one overload per operand
@@ -120,8 +122,8 @@ let operator_functions =
       ])
     scalars
   @ [
-      binary "and" "Bool" (prim "Bool");
-      binary "or" "Bool" (prim "Bool");
+      binary "conjoin" "Bool" (prim "Bool");
+      binary "disjoin" "Bool" (prim "Bool");
       f "not" [ param "value" (prim "Bool") ] (prim "Bool");
       binary "equal" "Bool" (prim "Bool");
       binary "concat" "String" (prim "String");

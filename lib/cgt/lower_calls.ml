@@ -122,23 +122,26 @@ and held_last w ?direct st ctx span v subject rest =
   let held =
     match v.params with
     | _ :: params when List.length params = List.length rest ->
-        List.map2
-          (fun (p : T.Local.t) a ->
-            match (a, p.T.Local.ty) with
-            | T.Arg.Value e, Tty.Concept _ when expands v -> ([], T.Arg.Value e)
-            | T.Arg.Value e, _ ->
-                let value = argument w ?direct st ctx span v p e in
-                let id = fresh st in
-                let l = { p with T.Local.id = -id } in
-                Hashtbl.replace ctx.env l.T.Local.id
-                  (if by_address st v p then Pointer id else Slot id);
-                let read = { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) } in
-                ([ Stat.Let { id; value } ], T.Arg.Value read)
-            | (T.Arg.Block _ as b), _ -> ([], b))
-          params rest
+        List.map2 (held_argument w ?direct st ctx span v) params rest
     | _ -> Diagnostic.bug ~span "lowering: a `!` call with the wrong arguments"
   in
   (pins @ List.concat_map fst held, T.Arg.Value subject :: List.map snd held)
+
+(* One argument for parameter [p], run now and held in a slot of its own:
+   the statement that holds it, and the argument that reads it back. A
+   literal or a block an expanded verb takes stands for itself, so it is
+   passed on as it is. *)
+and held_argument w ?direct st ctx span v (p : T.Local.t) a =
+  match (a, p.T.Local.ty) with
+  | T.Arg.Value e, Tty.Concept _ when expands v -> ([], T.Arg.Value e)
+  | T.Arg.Value e, _ ->
+      let value = argument w ?direct st ctx span v p e in
+      let id = fresh st in
+      let l = { p with T.Local.id = -id } in
+      Hashtbl.replace ctx.env l.T.Local.id (if by_address st v p then Pointer id else Slot id);
+      let read = { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) } in
+      ([ Stat.Let { id; value } ], T.Arg.Value read)
+  | (T.Arg.Block _ as b), _ -> ([], b)
 
 (* [lets], then [value], as one expression. *)
 and held_in st lets (value : Expr.t) =

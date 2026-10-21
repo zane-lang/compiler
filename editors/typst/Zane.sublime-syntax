@@ -48,14 +48,8 @@ contexts:
       scope: constant.language.boolean.zane
     - match: "(?<![\\p{Alphabetic}0-9_])this(?![\\p{Alphabetic}0-9])"
       scope: variable.language.zane
-    - match: "'=="
-      scope: keyword.operator.zane
-    - match: "'\\~="
-      scope: keyword.operator.zane
-    - match: "'<="
-      scope: keyword.operator.zane
-    - match: "'>="
-      scope: keyword.operator.zane
+    - match: "(?<![\\p{Alphabetic}0-9_])and(?![\\p{Alphabetic}0-9])"
+      scope: keyword.operator.word.zane
     - match: "(?<![\\p{Alphabetic}0-9_])mut(?![\\p{Alphabetic}0-9])"
       scope: keyword.control.zane
     - match: "\\?\\?"
@@ -70,18 +64,8 @@ contexts:
       scope: keyword.operator.zane
     - match: ">="
       scope: keyword.operator.zane
-    - match: "'\\*"
-      scope: keyword.operator.zane
-    - match: "'/"
-      scope: keyword.operator.zane
-    - match: "'\\+"
-      scope: keyword.operator.zane
-    - match: "'\\-"
-      scope: keyword.operator.zane
-    - match: "'<"
-      scope: keyword.operator.zane
-    - match: "'>"
-      scope: keyword.operator.zane
+    - match: "(?<![\\p{Alphabetic}0-9_])or(?![\\p{Alphabetic}0-9])"
+      scope: keyword.operator.word.zane
     - match: "(?<![\\p{Alphabetic}0-9_])as(?![\\p{Alphabetic}0-9])"
       scope: keyword.control.zane
     - match: "\\("
