@@ -39,29 +39,37 @@ constants' makers and lifted lambdas.
 **O2. Only an optimized build runs it.** The driver runs stage 5 between
 lowering and codegen when `--optimize` is given, before LLVM's own `-O2`
 pipeline, and an unoptimized build skips it. `zane run` builds unoptimized, so
-it stays as fast to build as before. `zanec --cgt --optimize` prints the tree
+it never waits on the evaluator. `zanec --cgt --optimize` prints the tree
 stage 5 made, which is how the tests see what folded (§5).
 
 **O12. Each kind of build puts one speed first.** An optimized build makes
 the fastest program it can in a reasonable compile time, and is then made to
 build as fast as it can without the program running any slower: a change that
 shortens it at the cost of the program's speed, such as a lighter LLVM
-pipeline, is not made. An unoptimized build is the other way around: it
-builds as fast as it can, and the program it makes is then as fast as it can
-be without the build taking any longer. This holds for every stage, codegen
+pipeline, is not made. An unoptimized build is what `zane run` makes, so it
+answers to the time from the command to the program's result: its build stays
+close to the fastest it can be, and it does whatever work pays that time back
+at once. A pass belongs in it when it costs a build tens of milliseconds at
+most, takes time in proportion to the instructions it reads rather than to the
+size of a value they handle, and makes the programs it builds several times
+faster, so that a program running for more than a fraction of a second
+finishes sooner with it than without. Inlining is the clearest case: `core`
+writes even `Int +` as a one-line wrapper over an intrinsic, and a build that
+left every wrapper a call would run several times slower than one that
+inlined it for the cost of a few passes. This holds for every stage, codegen
 and the link included, not only for stage 5.
 
-**O10. Package boundaries do not block optimization.** When `--optimize` is
-given, lowering follows calls into stamped dependencies and retains their
-bodies with `Available` linkage. Stage 5 can evaluate these calls, including
-transitive calls, private helpers and named lambdas. LLVM receives their
-bodies with `available_externally` linkage: its ordinary `-O2` pipeline can
-inline arithmetic and other wrappers even when their arguments are runtime
-inputs. The bodies themselves define no symbols in the caller's object; any
-call left after optimization links against the dependency's original object.
-Unoptimized builds retain declarations alone and skip this additional
-lowering. Generic instances and package constants keep their existing shared
-linkage. No new artifact, linker option or package flag is required.
+**O10. Package boundaries do not block optimization.** In every build,
+lowering follows calls into stamped dependencies and retains their bodies with
+`Available` linkage. In an optimized build stage 5 can evaluate these calls,
+including transitive calls, private helpers and named lambdas. LLVM receives
+their bodies with `available_externally` linkage: its `-O2` pipeline, and the
+lighter one an unoptimized build runs (O12), can inline arithmetic and other
+wrappers even when their arguments are runtime inputs. The bodies themselves
+define no symbols in the caller's object; any call left after optimization
+links against the dependency's original object. Generic instances and package
+constants keep their existing shared linkage. No new artifact, linker option
+or package flag is required.
 
 **O11. Stage 5 does what LLVM cannot, and LLVM does the rest.** LLVM's
 `-O2` pipeline already folds constants, removes dead code, merges common

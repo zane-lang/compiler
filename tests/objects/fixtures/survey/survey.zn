@@ -1,7 +1,7 @@
 /// A program that uses geometry from objects geometry was built into on its
-/// own: geometry's verbs are only declared here, the instance of its generic
-/// at survey's own type is made here, and the program links with geometry's
-/// object. Every check prints `yes` when it holds and `no` when it does not.
+/// own: geometry's smallest verbs are inlined here and the rest called, the
+/// instances of its generic that survey needs are made here, and the
+/// program links with geometry's object. Every check prints `yes` when it holds and `no` when it does not.
 package survey;
 
 import geometry;

@@ -111,13 +111,16 @@ type regions = { fixed : int option; spawned : int option }
 
 let no_regions = { fixed = None; spawned = None }
 
-let lower ?(optimize = false) ?(regions = no_regions) ~kind packages program =
-  match Cgt.lower ~library:(kind = Library) ~import_bodies:optimize ?fixed_region:regions.fixed program with
+(* Every build takes in its stamped dependencies' bodies, which LLVM inlines
+   and defines in no object (docs/design/separate-compilation.md C12): an
+   unoptimized build's inlining needs them as much as an optimized one's. *)
+let lower ?(regions = no_regions) ~kind packages program =
+  match Cgt.lower ~library:(kind = Library) ~import_bodies:true ?fixed_region:regions.fixed program with
   | Ok cgt -> Ok cgt
   | Error d -> fail ~sources:(Assembly.sources packages) [ d ]
 
 (* Stage 5 (docs/design/optimization.md), which only an optimized build
-   runs: an unoptimized one is the same pipeline with no passes. *)
+   runs: an unoptimized one skips it. *)
 let optimize ~optimize cgt = if optimize then Optimize.run cgt else cgt
 
 (* Codegen's own failures -- an unknown target, a link that failed -- are

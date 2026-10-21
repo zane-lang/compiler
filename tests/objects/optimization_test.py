@@ -60,7 +60,8 @@ class OptimizationTests(unittest.TestCase):
     def test_folding_and_inlining(self):
         plain = run(ZANEC, "--cgt", *self.flags())
         folded = run(ZANEC, "--cgt", "--optimize", *self.flags())
-        self.assertIn("linkage: imported", plain)
+        # Both builds take in the bodies; only the optimized one folds them.
+        self.assertIn("linkage: available", plain)
         self.assertIn("linkage: available", folded)
         # Only main is inspected: dependency bodies retain their runtime loop.
         main = folded.split("symbol: app$main()", 1)[1].split("symbol:", 1)[0]
@@ -68,7 +69,10 @@ class OptimizationTests(unittest.TestCase):
         self.assertIn("100", main)
         before = run(ZANEC, "--ll", *self.flags())
         after = run(ZANEC, "--ll", "--optimize", *self.flags())
-        self.assertRegex(before, r'call .*math\$add\(')
+        # An unoptimized build inlines the wrappers too (optimization.md O12),
+        # and never a function that calls itself.
+        self.assertNotRegex(before, r'call .*math\$(?:add|_add|squared)\(')
+        self.assertRegex(before, r'call .*math\$fib\(')
         self.assertNotRegex(after, r'call .*math\$(?:add|_add|squared)\(')
         # Recursive calls that LLVM leaves behind still target the library.
         self.assertRegex(after, r'(?:call|declare).*math\$fib\(')
@@ -80,6 +84,15 @@ class OptimizationTests(unittest.TestCase):
         self.assertNotRegex(definitions, r' [TW] .*math\$(?:add|_add|down|fib|bump|divide)\(')
         self.assertRegex(run("llvm-nm", obj),
                          rf' U .*{re.escape(STAMP)}math\$fib\(')
+
+    def test_unoptimized_inlining_stays_bounded(self):
+        # Each level calls the one below twice: inlining every level would
+        # make 2^24 copies, so the upper levels stay calls.
+        flags = ["--package", FIXTURES / "doubling"]
+        self.assertRegex(run(ZANEC, "--ll", *flags), r'call .*doubling\$level23\(')
+        exe = self.out / "doubling"
+        run(ZANEC, "--build", exe, *flags)
+        self.assertEqual(run_program(exe), "16777216\n")
 
     def test_cross_target_objects(self):
         for target in ["x86_64-pc-windows-msvc", "aarch64-apple-macosx11.0.0"]:

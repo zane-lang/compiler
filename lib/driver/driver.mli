@@ -41,10 +41,10 @@ val buildable : kind option -> (unit, failure) result
     `--spawned-fixed-region`. [None] takes the default. *)
 type regions = { fixed : int option; spawned : int option }
 
-(** Stage 4. A type no main context's range of [regions] could hold is
-    refused where it is named. *)
+(** Stage 4, with the bodies of stamped dependencies' functions taken in
+    for LLVM to inline. A type no main context's range of [regions] could
+    hold is refused where it is named. *)
 val lower :
-  ?optimize:bool ->
   ?regions:regions ->
   kind:kind ->
   Tst.Assembly.package list ->

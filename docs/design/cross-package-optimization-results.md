@@ -3,8 +3,9 @@
 Tested on 2026-10-07. Optimized builds now retain reachable stamped
 dependency bodies for both the CGT evaluator and LLVM. LLVM receives them
 with `available_externally` linkage, so it can inline them while residual
-calls still link against the dependency object. Unoptimized builds keep
-declarations only. The implementation is C12 in
+calls still link against the dependency object. Unoptimized builds kept
+declarations only when these were measured; they now take the bodies in as
+well, for their own inlining (O12). The implementation is C12 in
 [`separate-compilation.md`](separate-compilation.md) and O10 in
 [`optimization.md`](optimization.md).
 
