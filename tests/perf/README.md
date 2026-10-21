@@ -42,14 +42,15 @@ The `perf-log` branch holds two files, both written by CI:
 
 `.github/workflows/perf.yml` runs `.github/scripts/perf`:
 
-- on a pull request, it measures every program and fails when one prints
-  the wrong output, or when its estimated cycles are more than 1% above its
-  row in `latest.tsv`. Labelling the pull request `perf-accepted` turns a
+- on a pull request, it builds every program, measures each one whose
+  build key is not its row's (below), and fails when one prints the wrong
+  output, or when its estimated cycles are more than 1% above its row in
+  `latest.tsv`. Labelling the pull request `perf-accepted` turns a
   slowdown into a warning, for a change that is slower on purpose, and the
-  push to `main` then records the new numbers. Any label change measures
-  again;
-- on a push to `main`, it measures, writes `latest.tsv` and appends to
-  `stress.tsv`;
+  push to `main` then records the new numbers. Any label change runs the
+  check again;
+- on a push to `main`, it measures every program, writes `latest.tsv` and
+  appends to `stress.tsv`;
 - in the merge queue, it checks again as for a pull request, since pull
   requests that each pass can together be slower; the label of the last
   pull request queued in the group decides whether a slowdown is accepted;
