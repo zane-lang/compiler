@@ -6,6 +6,10 @@ defines the language; these describe how this compiler implements it.
 - [`spec-divergences.md`](spec-divergences.md): where the compiler does
   something other than the spec says, or decides what the spec leaves open.
   Read it before relying on a spec section.
+- [`optimizations.md`](optimizations.md): every optimization the compiler
+  applies to the programs it builds, one entry each, with the builds that get
+  it and the design section that explains it. Add an entry with the change
+  that adds the optimization.
 - [`memory-semantics-findings.md`](memory-semantics-findings.md): the memory
   model probed with example programs (`tests/memory-probes/`): what holds,
   and the bugs and spec gaps found.
