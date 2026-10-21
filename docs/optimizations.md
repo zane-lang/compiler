@@ -235,6 +235,20 @@ unrolling and vectorization. The runtime is compiled with `-O2` too. The
 compiler implements a transformation itself only where it rests on
 something about Zane that LLVM does not know.
 
+### Code tuned for the processor clang would pick
+
+- **Builds:** every build (x86-64 targets)
+- **Where:** `lib/codegen/build.ml` (`cpu`)
+- **Design:** [`design/lowering.md`](design/lowering.md) L2
+- **Effect:** without it, `trialdiv` is 1.4× slower
+  ([#203](https://github.com/zane-lang/compiler/issues/203))
+
+The target machine tunes for `x86-64` on x86-64 and `core-avx2` on
+`x86_64h`, as clang does, rather than LLVM's bare `generic`. Both allow only
+instructions every processor of the architecture has, so the binary runs
+anywhere its target does, but get clang's choices, among them a 32-bit
+divide when both 64-bit operands fit.
+
 ### Small values cross calls in registers
 
 - **Builds:** every build
@@ -423,15 +437,16 @@ A load of an aggregate of 4 KiB or more used only by stores becomes a
 `memcpy` (or `memmove`, when source and destination may overlap) per store,
 rather than a value of thousands of parts.
 
-### Start function inlined
+### `main` inlined into the start function
 
 - **Builds:** optimized only
 - **Where:** `lib/cgt/program.ml`, LLVM's inliner
 - **Design:** [`design/lowering.md`](design/lowering.md) L16
 - **Effect:** not measured
 
-`zane.start`, which makes the package constants and calls `main`, is
-inlined into the entry, so an optimized program pays no call for it.
+The program's entry is the start function `zane.start`, emitted as
+`zane_main`, which makes the package constants and then calls `main`. LLVM
+inlines `main` into it, so an optimized program pays no call between them.
 
 ---
 
