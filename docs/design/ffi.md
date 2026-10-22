@@ -139,8 +139,9 @@ row.
 compiler.** Each package's interface headers are compiled once more, with the
 package's flags, as a translation unit that includes each of them, and
 `clang_stubs.cpp` walks its AST. What it hands back is a table, by name, of
-every function, variable, `struct` and `typedef` whose spelling location is
-in an interface header: each variable's canonical type and whether it has
+every function, variable, `struct` and `typedef` whose expansion location
+is in an interface header (so a declaration a macro from an included header
+writes, invoked in an interface header, is the interface header's): each variable's canonical type and whether it has
 external linkage; each function's canonical parameter and result types,
 `const` qualification of pointees, whether it is variadic, and whether it
 has a prototype at all; each `struct`'s fields with their canonical types,
@@ -334,9 +335,11 @@ retained the way its Zane is (`separate-compilation.md` C12, and
 [`optimization.md`](optimization.md) O10): compiled from the checkout to a
 module (F3), linked with `available_externally` linkage so LLVM may inline it
 and emits nothing for it, and defined in the dependency's own object. The
-retained copy drops the module's `llvm.global_ctors` and
-`llvm.global_dtors`: a C constructor or destructor runs once, from the
-dependency's object, and linking its record in again would run it twice.
+retained copy drops the module's `llvm.global_ctors`,
+`llvm.global_dtors`, `llvm.used` and `llvm.compiler.used`: a C constructor
+or destructor runs once, from the dependency's object, and an object marked
+`used` or `retain` is emitted there, so linking any of those records in again
+would run or emit it twice.
 
 Two conditions keep a retained body the same code the dependency's object
 runs:
