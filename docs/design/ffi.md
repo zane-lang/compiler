@@ -205,7 +205,10 @@ and AArch64, and LLVM leaves that classification to the front end. Rather
 than reimplement clang's for each target, the compiler writes, for each
 package, the glue: one C file per interface header, which includes that
 header alone and is compiled with the package's settings, so clang does the
-classification it already knows. Each entry goes in the file of the header
+classification it already knows. After the include, the file `#undef`s the
+name of every C function its entries call, so a macro the header defines
+with that name, such as `#define f(x) ((x) + 1)` after `int f(int);`,
+never stands in for the function the foreign verb names. Each entry goes in the file of the header
 that declares its C function. The glue holds:
 
 - one **thunk** per foreign verb, with a pointer ABI codegen can call
