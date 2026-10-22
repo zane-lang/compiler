@@ -257,9 +257,12 @@ where a function value flows, and the two agree in every object
 ([`lowering.md`](lowering.md), "Fixed while compiling").
 
 **F12. A handle is a pointer whose end calls its free thunk.** A handle's
-CGT type is one pointer. Its walk table ([`lowering.md`](lowering.md) §9)
+CGT type is a pair of words: the C object's pointer and the 64-bit stamp
+below, so the stamp travels with the handle wherever it is stored, in a
+local, a field or a list element, and needs no slot of its own. C
+receives only the pointer (F10). Its walk table ([`lowering.md`](lowering.md) §9)
 has an `.end` that calls the free thunk when the pointer is not null and
-a `.move` that copies the pointer and nulls the place moved from, so only
+a `.move` that copies both words and nulls the place moved from, so only
 the place a handle finally rests in releases it (`ffi.md` §4.2). It has no
 `.copy`: a handle is a reference type and is never copied. A capability's
 walk table has no `.end`, since nothing frees a C global, and a foreign
