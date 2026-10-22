@@ -106,7 +106,7 @@ Unit main() {
 	summed Int(0);
 	round = Int(1);
 	round!to(Int(10)) {
-		span Span = sum(round, @operators$add(numbers, round));
+		span Span = sum(round, @operators$add(numbers, @operators$add(round, @operators$negate(Int(1)))));
 		summed = @operators$add(summed, @operators$add(span.total, @operators$add(span.high, @operators$negate(span.low))));
 	}
 	say(@operators$concat(@operators$concat(String(numbers), String(" ")), String(summed)));
