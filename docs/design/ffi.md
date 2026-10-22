@@ -44,7 +44,11 @@ the C compiler is asked only for what it knows that the linked clang does
 not: where the target's C library headers are. The first build for a C
 compiler and a target runs it once on an empty source with `-E -v` and reads
 the list after `#include <...> search starts here:`, which GCC, clang and
-`zig cc` all print in that form; the list is kept in the cache, and every
+`zig cc` all print in that form; the list is kept in the cache, keyed by
+the C compiler's path and `--version` output, the target, and the values
+of the environment variables that change a C compiler's search
+(`CPATH`, `C_INCLUDE_PATH` and `SDKROOT`), so changing any of them probes
+again. Every
 compilation passes it to the linked driver as `-nostdlibinc` followed by
 one `-isystem` per directory, in order. An entry the list marks
 `(framework directory)`, as clang prints the SDK's framework paths on
@@ -64,7 +68,8 @@ MSVC's `cl.exe`, and `clang-cl` in its mode, take no `-E -v` and print no
 such list: they search the directories of the `INCLUDE` environment
 variable, which a Visual Studio developer shell sets. A `ZANE_CC` whose
 `--version` or `/?` names either is therefore not run for the list. Its
-directories are read from `INCLUDE`, split on `;`, and passed the same
+directories are read from `INCLUDE` in each build, never cached, split on
+`;`, and passed the same
 way, and a build that finds `INCLUDE` unset fails with an error saying to
 run from a developer shell. The default `ZANE_CC`, `zig cc`, needs neither,
 since it carries its own headers for every target.
@@ -316,7 +321,10 @@ becomes the C function's body at the call site. A dependency's C is
 retained the way its Zane is (`separate-compilation.md` C12, and
 [`optimization.md`](optimization.md) O10): compiled from the checkout to a
 module (F3), linked with `available_externally` linkage so LLVM may inline it
-and emits nothing for it, and defined in the dependency's own object.
+and emits nothing for it, and defined in the dependency's own object. The
+retained copy drops the module's `llvm.global_ctors` and
+`llvm.global_dtors`: a C constructor or destructor runs once, from the
+dependency's object, and linking its record in again would run it twice.
 
 Two conditions keep a retained body the same code the dependency's object
 runs:
