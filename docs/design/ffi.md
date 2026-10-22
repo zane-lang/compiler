@@ -421,7 +421,13 @@ models memory as bytes.
   as a spawned call's order is one of the orders it could have had (O8):
   the folded program computes what a run with the memory it needed
   computes, and a Zane program out of memory stops anyway
-  ([`lowering.md`](lowering.md) §9).
+  ([`lowering.md`](lowering.md) §9). A `malloc` allocation's bytes start
+  unwritten, so reading one before it is written stops the fold (next
+  item); a `calloc` allocation's start written as zero, as C requires; and
+  `realloc` keeps the written state of the bytes it carries over and leaves
+  any it adds unwritten. A `calloc` whose count times size overflows
+  `size_t` returns null in C, which no budget-limited fold reaches, so it
+  stops the fold.
 - **Undefined behavior stops the fold.** A read of a byte never written, an
   access outside an allocation or through a freed one, poison reaching a
   branch, a store or a call, a misaligned access, and a division by zero
