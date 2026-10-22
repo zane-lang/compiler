@@ -355,8 +355,9 @@ runs:
   A `source` or path dependency is built by the consumer, so its modules
   always agree.
 - **It shares no state the object owns.** A retained function that reaches
-  a C variable with internal linkage that is not `const` (a file-scope
-  `static` counter, say) is not retained: a copy of the variable in the
+  a C variable with internal linkage that is not `const`, or is `volatile`
+  (a file-scope `static` counter, or a `static const volatile` status
+  word), is not retained: a copy of the variable in the
   consumer would be a second variable, and the function's inlined and
   called forms would each see their own. Such a function, and everything
   that reaches it, is called. A `static const` table and a `static`
