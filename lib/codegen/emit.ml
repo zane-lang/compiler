@@ -51,6 +51,9 @@ type env = {
   registers : int;
   pack : bool;
   passings : (Ty.t, passing) Hashtbl.t;
+  (* The same for a result (see [results]). *)
+  results : int * int;
+  returnings : (Ty.t, passing) Hashtbl.t;
   globals : (string, Llvm.llvalue) Hashtbl.t;
   (* The walks of each layout the program names that lists a position. *)
   mutable walks : Walks.known option;
@@ -107,6 +110,14 @@ let rec pieces (t : Ty.t) =
   | Ty.Sum ts -> 1 + words ts
   | Ty.Array (t, n) -> n * pieces t
 
+(* How many of [pieces t] are floating-point. *)
+let rec floats (t : Ty.t) =
+  match t with
+  | Ty.F32 | Ty.F64 -> 1
+  | Ty.Struct ts -> List.fold_left (fun n t -> n + floats t) 0 ts
+  | Ty.Array (t, n) -> n * floats t
+  | _ -> 0
+
 (* The registers a value may take and still pass as itself, which is what
    the target's C calling convention gives one aggregate: 2 on x86-64
    Linux and macOS and on AArch64, 1 on x86-64 Windows. Every target is
@@ -115,6 +126,20 @@ let registers triple =
   match String.split_on_char '-' triple with
   | ("x86_64" | "amd64") :: rest when List.exists (String.starts_with ~prefix:"windows") rest -> 1
   | _ -> 2
+
+(* The pieces a result may take and still come back as itself, and how many
+   of them may be floating-point: what LLVM returns in registers. That is
+   3 and 2 on x86-64 (rax, rdx and rcx, xmm0 and xmm1) on every system, and
+   at least as many on AArch64, so a string or list handle comes back in
+   registers. A third floating-point piece on x86-64 would come back
+   through the x87 stack, and a fourth piece through memory LLVM
+   allocates itself. Elsewhere it is the limit for an argument. *)
+let results triple =
+  match String.split_on_char '-' triple with
+  | ("x86_64" | "x86_64h" | "amd64" | "aarch64" | "arm64" | "arm64e") :: _ -> (3, 2)
+  | _ ->
+      let n = registers triple in
+      (n, n)
 
 let aggregate = function Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Handle -> true | _ -> false
 
@@ -138,6 +163,25 @@ let passing env (t : Ty.t) =
       Hashtbl.replace env.passings t p;
       p
 
+(* How a result of type [t] comes back from a call: as [passing] decides
+   for an argument, but within [env.results], so a result may take more
+   registers than an argument. A larger one is written through an `sret`
+   pointer to a slot of the caller's. *)
+let returning env (t : Ty.t) =
+  match Hashtbl.find_opt env.returnings t with
+  | Some p -> p
+  | None ->
+      let most, most_floats = env.results in
+      let p =
+        let size = fst (size_align t) in
+        let words = (size + 7) / 8 in
+        if env.pack && aggregate t && size > 0 then if words <= most then Words words else Address
+        else if pieces t <= most && floats t <= most_floats then Itself
+        else Address
+      in
+      Hashtbl.replace env.returnings t p;
+      p
+
 (* The LLVM type [n] words travel as: one `i64`, or a struct of them. *)
 let words_type env n = if n = 1 then env.i64 else Llvm.struct_type env.ctx (Array.make n env.i64)
 
@@ -145,7 +189,7 @@ let words_type env n = if n = 1 then env.i64 else Llvm.struct_type env.ctx (Arra
    `Unit` parameter passes nothing. *)
 let abi env params ret =
   let kept = List.filter (fun t -> t <> Ty.Void) params in
-  let crossing t = if t = Ty.Void then Itself else passing env t in
+  let crossing t = if t = Ty.Void then Itself else returning env t in
   { params = List.map (fun t -> (t, passing env t)) kept; ret = (ret, crossing ret) }
 
 (* The LLVM function type of [a]: a result passed by address is written
@@ -1087,7 +1131,7 @@ and in_memory env fr b (e : Expr.t) =
   match e.Expr.node with
   | Expr.Local id when Hashtbl.mem fr.locals id -> fst (Hashtbl.find fr.locals id)
   | Expr.Deref p -> value_of env fr b p
-  | (Expr.Call _ | Expr.Call_value _) when passing env e.Expr.ty = Address -> (
+  | (Expr.Call _ | Expr.Call_value _) when returning env e.Expr.ty = Address -> (
       match call env fr b e with
       | `Stored p -> p
       | _ -> Diagnostic.bug "codegen: a result passed by address came back otherwise")
@@ -1110,7 +1154,7 @@ and stats env fr b body = List.iter (fun s -> if not (has_terminator b) then sta
 and stat env fr b (s : Stat.t) =
   match s with
   | Stat.Let { id; value = { Expr.node = Expr.Call _ | Expr.Call_value _; ty } as value }
-    when passing env ty = Address ->
+    when returning env ty = Address ->
       ignore (call ~into:(slot env fr id (lltype env ty)) env fr b value)
   | Stat.Let { id; value } -> (
       match expr env fr b value with
@@ -1191,7 +1235,7 @@ and stat env fr b (s : Stat.t) =
       if not (has_terminator b) then drain_scope env fr b arena;
       fr.open_ <- List.tl fr.open_
   | Stat.Hold { id; scope; value = { Expr.node = Expr.Call _ | Expr.Call_value _; ty } as value; layout = l }
-    when passing env ty = Address ->
+    when returning env ty = Address ->
       let slot = frame_slot env fr b scope id in
       ignore (call ~into:slot env fr b value);
       hold env fr b slot l;
@@ -1402,6 +1446,8 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       registers = registers triple;
       pack;
       passings = Hashtbl.create 32;
+      results = results triple;
+      returnings = Hashtbl.create 32;
       globals = Hashtbl.create 8;
       walks = None;
       handle_tag = fst (tags ctx);

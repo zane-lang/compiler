@@ -279,16 +279,23 @@ divide when both 64-bit operands fit.
 ### Small values cross calls in registers
 
 - **Builds:** every build
-- **Where:** `lib/codegen/emit.ml` (`passing`, `pieces`, `registers`)
+- **Where:** `lib/codegen/emit.ml` (`passing`, `returning`, `pieces`,
+  `registers`, `results`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "How a value
   crosses a call"
-- **Effect:** measured by `just bench-abi`; results pending
+- **Effect:** measured by `just bench-abi`; results pending. Results of
+  three pieces in registers rather than through `sret`: the `returns` perf
+  program's estimated cycles fall 5.4% optimized and 1.1% plain, and
+  langbench's `ntree` spends 9.4% fewer instructions in `grow`
+  ([#276](https://github.com/zane-lang/compiler/issues/276))
 
 A value of no more scalar pieces than the target's C convention gives one
 aggregate (2 on x86-64 Linux/macOS and AArch64, 1 on x86-64 Windows) is
-passed and returned as itself. A larger one is passed by address and
-returned through `sret`. An argument that is already a place is lent where
-it is, with no copy.
+passed as itself, and a larger one by address. A result of up to three
+pieces, at most two of them floating-point, comes back as itself on x86-64
+and AArch64, so a string or list handle does; a larger one comes back
+through `sret`. An argument that is already a place is lent where it is,
+with no copy.
 
 ### Packed aggregates
 

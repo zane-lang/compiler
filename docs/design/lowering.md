@@ -990,15 +990,29 @@ test passing.
     type, not LLVM's, so it cannot depend on the data layout, and worked out
     once per type. `{ I32; I32; I32; I32; }` is 16 bytes but 4 registers; a
     string or list handle is 3.
-  - **The limit.** A value of no more pieces than the target's C calling
-    convention gives one aggregate passes as itself: 2 on x86-64 Linux and
-    macOS and on AArch64, and 1 on x86-64 Windows (`Emit.registers`). A
-    larger one passes by address, and a larger result is written through a
-    leading `sret` pointer to a fresh slot of the caller's. The choice is
-    made per signature while compiling, so no call branches on it, and a
-    function value's call (L14) follows the same rule, since it depends only
-    on the type and the target. Objects for different targets never link,
-    so every object a program links agrees on it.
+  - **The limit.** An argument of no more pieces than the target's C
+    calling convention gives one aggregate passes as itself: 2 on x86-64
+    Linux and macOS and on AArch64, and 1 on x86-64 Windows
+    (`Emit.registers`). A larger one passes by address.
+  - **A result's limit.** A result comes back as itself while it takes no
+    more pieces than LLVM returns in registers (`Emit.results`,
+    `Emit.returning`): 3 on x86-64 and AArch64, on every system, at most 2
+    of them floating-point, and the argument limit on any other target. On
+    x86-64 that is `rax`, `rdx` and `rcx`, and `xmm0` and `xmm1`; a third
+    floating-point piece would come back on the x87 stack, and a fourth
+    piece through memory LLVM allocates itself. So a string or list handle,
+    and a reference-type result that holds one, comes back in registers. A
+    larger result is written through a leading `sret` pointer to a fresh
+    slot of the caller's. The result's limit is wider than the argument's
+    because a result through `sret` is stored by the callee and loaded
+    again by the caller after every call, which a recursive function that
+    builds list-holding nodes pays at each level
+    ([#276](https://github.com/zane-lang/compiler/issues/276)).
+  - **Fixed while compiling.** Both choices are made per signature while
+    compiling, so no call branches on them, and a function value's call
+    (L14) follows the same rules, since they depend only on the type and
+    the target. Objects for different targets never link, so every object
+    a program links agrees on them.
   - **The address passed.** An argument that is a place, a local or what an
     address names, is lent where it is: nothing else in the call writes what
     the call borrows ([`memory.md`](https://github.com/zane-lang/spec/blob/1d11ea4/spec/memory.md) §2.9.1), so no copy is needed. A
