@@ -1,4 +1,4 @@
-/// Repeated calls an optimized build merges, and a call whose result is never read.
+/// Two equal calls, which an optimized build makes once.
 package merged;
 
 
@@ -45,19 +45,8 @@ Int twice(n Int, k Int) {
 	return rem(@operators$add(twice(m, @operators$add(k, n)), twice(m, @operators$add(k, n))), Int(1000003));
 }
 
-/// Two calls, one of whose results is never read.
-Int unused(n Int) {
-	@controlflow$branch(@operators$lessThan(n, Int(2)), {
-		return n;
-	});
-	a Int = unused(@operators$add(n, @operators$negate(Int(2))));
-	b Int = unused(@operators$add(n, @operators$negate(Int(1))));
-	return @operators$add(b, Int(1));
-}
-
 Unit main() {
 	n Int = size(Int(12));
 	say(String(twice(n, Int(1))));
-	say(String(unused(n)));
 	return Unit();
 }

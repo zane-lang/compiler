@@ -31,12 +31,17 @@ let with_module ?target ?pack ?memos ?fixed_region ?spawned_fixed_region p f =
               | exception Cgt.Nodes.Ty.Too_large ->
                   Error "a scope's frame takes 2^48 bytes or more, past the limit on any value's size")))
 
-(* Whether an optimized build still calls [s] back from its own cycle at
-   least twice once LLVM's `-O2` has run over the program as it is, a call
-   inside a loop counting twice: [same] names the functions of [s]'s cycle.
-   A function whose every call LLVM inlined and folded has nothing left for
-   a table to save, nor does one whose repeated calls LLVM merged or
-   deleted as unused; a dispatcher would only stop LLVM doing so. *)
+(* What LLVM's `-O2` makes of the program as it is, for [Cgt.Memo.plan].
+   First, whether it still calls [s] back from its own cycle at least
+   twice, a call inside a loop counting twice: [same] names the functions
+   of [s]'s cycle. A function whose every call LLVM inlined and folded has
+   nothing left for a table to save, nor does one whose repeated calls LLVM
+   merged or deleted; a dispatcher would only stop LLVM doing so. Nor does
+   one LLVM has found some of whose parameters never matter, and dropped:
+   a table would key on them, and keep alive the work that makes them. Second,
+   the fewest instructions a call to [s] runs on its way to a return, a
+   call it makes counting one, which may be fewer than its body's nodes
+   once LLVM has dropped what nothing reads. *)
 let still_called ?target ?pack ?fixed_region ?spawned_fixed_region p =
   let names = Hashtbl.create 64 in
   List.iter
@@ -44,8 +49,11 @@ let still_called ?target ?pack ?fixed_region ?spawned_fixed_region p =
       let s = f.Cgt.Nodes.Func.symbol in
       Hashtbl.replace names (if pack = Some true then s ^ Emit.packed else s) s)
     p.Cgt.Nodes.Program.funcs;
-  (* Each function's calls by symbol, with whether the call is in a loop. *)
-  let sites = Hashtbl.create 64 in
+  (* Each function's calls by symbol, with whether the call is in a loop,
+     and its cheapest path in instructions. *)
+  let sites = Hashtbl.create 64 and cheapest = Hashtbl.create 64 in
+  (* The functions LLVM gave fewer parameters than codegen did. *)
+  let dropped = Hashtbl.create 8 in
   let found =
     with_module ?target ?pack ?fixed_region ?spawned_fixed_region p (fun m ->
         Result.map
@@ -84,27 +92,77 @@ let still_called ?target ?pack ?fixed_region ?spawned_fixed_region p =
                                 | None -> ())
                             | _ -> ())
                           b)
+                      fn;
+                    (* Each block's fewest instructions from the entry, through
+                       itself, until no block's count falls. *)
+                    let size b = Llvm.fold_left_instrs (fun n _ -> n + 1) 0 b in
+                    let dist = Hashtbl.create 16 in
+                    let entry = Llvm.entry_block fn in
+                    Hashtbl.replace dist (Llvm.value_of_block entry) (size entry);
+                    let changed = ref true in
+                    while !changed do
+                      changed := false;
+                      Llvm.iter_blocks
+                        (fun b ->
+                          match Hashtbl.find_opt dist (Llvm.value_of_block b) with
+                          | None -> ()
+                          | Some d ->
+                              Array.iter
+                                (fun n ->
+                                  let v = Llvm.value_of_block n and d' = d + size n in
+                                  match Hashtbl.find_opt dist v with
+                                  | Some old when old <= d' -> ()
+                                  | _ ->
+                                      Hashtbl.replace dist v d';
+                                      changed := true)
+                                (match Llvm.block_terminator b with Some t -> Llvm.successors t | None -> [||]))
+                        fn
+                    done;
+                    Llvm.iter_blocks
+                      (fun b ->
+                        match (Llvm.block_terminator b, Hashtbl.find_opt dist (Llvm.value_of_block b)) with
+                        | Some t, Some d when Llvm.instr_opcode t = Llvm.Opcode.Ret ->
+                            let least = match Hashtbl.find_opt cheapest s with Some l -> min l d | None -> d in
+                            Hashtbl.replace cheapest s least
+                        | _ -> ())
                       fn)
               m)
-          (Build.prepare ?target ~optimize:true m))
+          (let before = Hashtbl.create 64 in
+           Llvm.iter_functions (fun fn -> Hashtbl.replace before (Llvm.value_name fn) (Array.length (Llvm.params fn))) m;
+           let prepared = Build.prepare ?target ~optimize:true m in
+           Llvm.iter_functions
+             (fun fn ->
+               match (Hashtbl.find_opt names (Llvm.value_name fn), Hashtbl.find_opt before (Llvm.value_name fn)) with
+               | Some s, Some n when Array.length (Llvm.params fn) < n -> Hashtbl.replace dropped s ()
+               | _ -> ())
+             m;
+           prepared))
   in
   match found with
   | Ok () ->
-      fun s same -> List.fold_left (fun n (c, w) -> if same c then n + w else n) 0 (Hashtbl.find_all sites s) >= 2
-  | Error _ -> fun _ _ -> false
+      ( (fun s same ->
+          (not (Hashtbl.mem dropped s))
+          && List.fold_left (fun n (c, w) -> if same c then n + w else n) 0 (Hashtbl.find_all sites s) >= 2),
+        Hashtbl.find_opt cheapest )
+  | Error _ -> ((fun _ _ -> false), fun _ -> None)
 
 (* The program's module lives only while [f] runs: its context and the
    module are disposed however [f] or the emit ends, since LLVM's bindings
    free neither on their own. With [memoize], the functions [Cgt.Memo]
    picks are remembered; in an [optimize]d build, only those
-   [still_called] leaves, which it works out only once a function passes
-   every other test, so a program with none is compiled once. *)
+   [still_called] leaves, and each one's cheapest call is the fewer of its
+   nodes and of its instructions there. That is worked out only once a
+   function passes every other test, so a program with none is compiled
+   once. *)
 let with_program ?target ?pack ?(memoize = false) ?(optimize = false) ?fixed_region ?spawned_fixed_region p f =
   let p, memos =
     if not memoize then (p, [])
     else if optimize then
-      let called = lazy (still_called ?target ?pack ?fixed_region ?spawned_fixed_region p) in
-      Cgt.Memo.plan ~keep:(fun s same -> (Lazy.force called) s same) p
+      let view = lazy (still_called ?target ?pack ?fixed_region ?spawned_fixed_region p) in
+      Cgt.Memo.plan
+        ~keep:(fun s same -> fst (Lazy.force view) s same)
+        ~measured:(fun s -> if Lazy.is_val view then snd (Lazy.force view) s else None)
+        p
     else Cgt.Memo.plan p
   in
   with_module ?target ?pack ~memos ?fixed_region ?spawned_fixed_region p f

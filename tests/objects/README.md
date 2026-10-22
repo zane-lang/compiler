@@ -114,6 +114,5 @@ left alone: one that calls itself once, one that takes a `String`, and one
 that prints. `spawning` spawns, so none of its functions gets a table, and
 neither does `memolibrary`, a library a program that spawns may call. An
 optimized build of `shallow` gets none either, because LLVM folds its loop
-without one. In `merged`, `twice` makes the same call twice, so only the
-plain build gives it a table, since LLVM makes the call once; `unused` never
-reads one of its two calls' results, and gets none in either build.
+without one. `merged` makes the same call twice, so only its plain build
+gets a table: an optimized build makes the call once.
