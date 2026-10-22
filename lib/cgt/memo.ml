@@ -86,12 +86,37 @@ let alone (f : Func.t) =
          | _ -> false)
        ~stat:(function Stat.Spawn _ | Stat.Join _ -> true | _ -> false))
 
+(* The locals [body] reads. *)
+let read body =
+  let seen = Hashtbl.create 16 in
+  Traverse.walk_stats
+    (fun e -> match e.Expr.node with Expr.Local i | Expr.Address i -> Hashtbl.replace seen i () | _ -> ())
+    (fun _ -> ())
+    body;
+  seen
+
+(* The function [st] calls and its arguments, when the result is thrown
+   away: evaluated alone, or bound to a local [seen] says is never read. *)
+let discarded seen (st : Stat.t) =
+  match st with
+  | Stat.Let { id; value = { Expr.node = Expr.Call { fn; args }; _ } } when not (Hashtbl.mem seen id) -> Some (fn, args)
+  | Stat.Eval { Expr.node = Expr.Call { fn; args }; _ } -> Some (fn, args)
+  | _ -> None
+
 (* Each call site in [f], with a call inside a loop counted twice, since it
-   runs at least as often as two calls side by side. *)
+   runs at least as often as two calls side by side, and one whose result is
+   thrown away counted not at all, since LLVM deletes it when it is pure. *)
 let calls (f : Func.t) =
   let found = ref [] in
+  let seen = read f.Func.body in
   let rec stats weight ss = List.iter (stat weight) ss
   and stat weight (s : Stat.t) =
+    match discarded seen s with
+    | Some (fn, args) ->
+        found := (fn, 0) :: !found;
+        List.iter (expr weight) args
+    | None -> parts weight s
+  and parts weight (s : Stat.t) =
     let es, bodies = Traverse.stat_parts s in
     let inner = match s with Stat.Repeat _ -> 2 | _ -> weight in
     List.iter (expr weight) es;
@@ -359,6 +384,23 @@ let called_in remembered outside body =
     body;
   !found
 
+(* [body] with each call to a remembered function whose result is thrown
+   away made to the plain copy, which LLVM may delete as it would the
+   function itself; a lookup it may not, since it writes the table. *)
+let unread remembered body =
+  let seen = read body in
+  let rec stat (st : Stat.t) =
+    match discarded seen st with
+    | Some (fn, args) when Hashtbl.mem remembered fn -> (
+        let call = Expr.Call { fn = fn ^ suffix_plain; args = List.map (Traverse.map_expr (fun _ -> None) stat) args } in
+        match st with
+        | Stat.Let x -> Some [ Stat.Let { x with value = { x.value with Expr.node = call } } ]
+        | Stat.Eval e -> Some [ Stat.Eval { e with Expr.node = call } ]
+        | _ -> None)
+    | _ -> None
+  in
+  Traverse.map_stats (fun _ -> None) stat body
+
 (* Each loop of [body] that calls remembered functions from outside their
    cycle, run in two versions (#262). The decision is made once, before the
    loop: when every dispatcher it calls has stopped looking, the loop runs
@@ -433,10 +475,11 @@ let version remembered outside next body =
 
 (* The program with each remembered function replaced by its two copies,
    and the functions remembered, whose dispatchers codegen emits. Only a
-   function [keep] admits is remembered. Only a program that runs on one
-   thread remembers anything: the tables are not shared safely between
-   threads, and a library's functions may be called from a program's. *)
-let plan ?(keep = fun _ -> true) (p : Program.t) =
+   function [keep] admits, given the function and its cycle, is
+   remembered. Only a program that runs on one thread remembers anything:
+   the tables are not shared safely between threads, and a library's
+   functions may be called from a program's. *)
+let plan ?(keep = fun _ _ -> true) (p : Program.t) =
   if not p.Program.exclusive then (p, [])
   else
     let funcs = Hashtbl.create 64 in
@@ -469,7 +512,7 @@ let plan ?(keep = fun _ -> true) (p : Program.t) =
       && (match f.Func.linkage with Linkage.Local | Linkage.Exported | Linkage.Shared -> true | _ -> false)
       && fits f
       && List.fold_left (fun n (c, w) -> if same c s then n + w else n) 0 (Hashtbl.find sites s) >= 2
-      && keep s
+      && keep s (fun c -> same c s)
     in
     let memos = List.filter chosen p.Program.funcs in
     let remembered = Hashtbl.create 8 in
@@ -488,7 +531,7 @@ let plan ?(keep = fun _ -> true) (p : Program.t) =
       else
         let next = ref (largest_id f + 1) in
         let outside h = not (Hashtbl.mem comp s && same h s) in
-        { f with Func.body = version remembered outside next f.Func.body }
+        { f with Func.body = version remembered outside next (unread remembered f.Func.body) }
     in
     let funcs' =
       List.concat_map

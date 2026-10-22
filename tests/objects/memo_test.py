@@ -5,7 +5,9 @@ builds. Which functions get a table is read from the symbols of each table's
 state: one for a recursion whose arguments repeat, whether they are scalars,
 an array or a variant, or it reads a package constant, and none for a recursion that calls itself once, takes
 a String, prints, or runs in a program that spawns or in a library. An
-optimized build gives none to a function LLVM folds away without it."""
+optimized build gives none to a function LLVM folds away without it, or
+whose repeated calls LLVM merges; no build counts a call whose result is
+never read."""
 
 from pathlib import Path
 import os
@@ -106,6 +108,12 @@ class MemoTests(unittest.TestCase):
         self.assertEqual(self.tables("shallow", "plain"), ["shallow$walk(%primitives$I64, %primitives$I64)"])
         self.assertEqual(self.tables("shallow", "optimized"), [])
         self.assertEqual(self.tables("shallowin", "optimized"), ["shallowin$walk(%primitives$I64, %primitives$I64)"])
+
+    def test_calls_llvm_merges_or_deletes_do_not_count(self):
+        # `twice` makes the same call twice, which LLVM makes once; `unused`
+        # never reads one of its two calls' results, which LLVM deletes.
+        self.assertEqual(self.tables("merged", "plain"), ["merged$twice(%primitives$I64, %primitives$I64)"])
+        self.assertEqual(self.tables("merged", "optimized"), [])
 
 
 if __name__ == "__main__":

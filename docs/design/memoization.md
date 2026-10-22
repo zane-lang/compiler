@@ -40,13 +40,17 @@ A function gets a table when:
   A value of scalars only takes one word for each scalar, and any other
   value a word for each eight of its bytes.
 - **It calls back into its own cycle of calls at least twice.** A call inside
-  a loop counts twice. This is where a table can turn work that doubles at
-  each level into work linear in the depth. A function that calls itself
-  once gets nothing back from a table it fills on the way down.
-- **An optimized build still calls it.** The build runs LLVM's `-O2` over
-  the program without tables first, and leaves out every function that no
-  other function calls afterwards. When LLVM has inlined and folded every
-  call to a function, a table would only stop it doing so.
+  a loop counts twice, and a call whose result is never read counts not at
+  all, since LLVM deletes it; in every build that call goes to the plain
+  copy (M2). This is where a table can turn work that doubles at each level
+  into work linear in the depth. A function that calls itself once gets
+  nothing back from a table it fills on the way down.
+- **An optimized build still calls it back twice.** The build runs LLVM's
+  `-O2` over the program without tables first, and counts the calls back
+  into each function's cycle that are left, as above. When LLVM has inlined
+  and folded every call to a function, or made two equal calls one, a table
+  would only stop it doing so. The build compiles the program this extra
+  time only when a function passes every other test.
 
 Only a program that runs on one thread gets tables: no package of the
 build spawns, and it is not a library, whose functions a program that spawns
@@ -68,6 +72,10 @@ A function given a table becomes:
   go through the gates again.
 - **The plain copy.** Its calls into the cycle go straight to the other
   plain copies, so it runs as the function did before.
+
+A call whose result is never read goes to the plain copy wherever it is
+made, so LLVM may delete it. Through the gate it could not: the lookup
+writes the table.
 
 The table is direct-mapped and holds at most 64 KiB per function. Each entry
 is a tag, the argument words, the result words, and the work the result

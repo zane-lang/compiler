@@ -31,18 +31,21 @@ let with_module ?target ?pack ?memos ?fixed_region ?spawned_fixed_region p f =
               | exception Cgt.Nodes.Ty.Too_large ->
                   Error "a scope's frame takes 2^48 bytes or more, past the limit on any value's size")))
 
-(* The symbols of the functions an optimized build still calls from some
-   other function once LLVM's `-O2` has run over the program as it is: a
-   function whose every call LLVM inlined and folded has nothing left for a
-   table to save, and a dispatcher would only stop LLVM folding it. *)
+(* Whether an optimized build still calls [s] back from its own cycle at
+   least twice once LLVM's `-O2` has run over the program as it is, a call
+   inside a loop counting twice: [same] names the functions of [s]'s cycle.
+   A function whose every call LLVM inlined and folded has nothing left for
+   a table to save, nor does one whose repeated calls LLVM merged or
+   deleted as unused; a dispatcher would only stop LLVM doing so. *)
 let still_called ?target ?pack ?fixed_region ?spawned_fixed_region p =
-  let called = Hashtbl.create 64 in
   let names = Hashtbl.create 64 in
   List.iter
     (fun (f : Cgt.Nodes.Func.t) ->
       let s = f.Cgt.Nodes.Func.symbol in
       Hashtbl.replace names (if pack = Some true then s ^ Emit.packed else s) s)
     p.Cgt.Nodes.Program.funcs;
+  (* Each function's calls by symbol, with whether the call is in a loop. *)
+  let sites = Hashtbl.create 64 in
   let found =
     with_module ?target ?pack ?fixed_region ?spawned_fixed_region p (fun m ->
         Result.map
@@ -52,21 +55,43 @@ let still_called ?target ?pack ?fixed_region ?spawned_fixed_region p =
                 match Hashtbl.find_opt names (Llvm.value_name fn) with
                 | None -> ()
                 | Some s ->
-                    let rec uses = function
-                      | None -> ()
-                      | Some u ->
-                          let user = Llvm.user u in
-                          (match Llvm.classify_value user with
-                          | Llvm.ValueKind.Instruction _ ->
-                              if Llvm.block_parent (Llvm.instr_parent user) != fn then Hashtbl.replace called s ()
-                          | _ -> Hashtbl.replace called s ());
-                          uses (Llvm.use_succ u)
+                    (* Whether [b] can reach itself again. *)
+                    let looping b =
+                      let seen = Hashtbl.create 16 in
+                      let rec from b' =
+                        Array.exists
+                          (fun n ->
+                            n == b
+                            ||
+                            let v = Llvm.value_of_block n in
+                            (not (Hashtbl.mem seen v))
+                            && (Hashtbl.replace seen v ();
+                                from n))
+                          (match Llvm.block_terminator b' with Some t -> Llvm.successors t | None -> [||])
+                      in
+                      from b
                     in
-                    uses (Llvm.use_begin fn))
+                    Llvm.iter_blocks
+                      (fun b ->
+                        let inside = lazy (looping b) in
+                        Llvm.iter_instrs
+                          (fun i ->
+                            match Llvm.instr_opcode i with
+                            | Llvm.Opcode.Call -> (
+                                let callee = Llvm.operand i (Llvm.num_operands i - 1) in
+                                match Hashtbl.find_opt names (Llvm.value_name callee) with
+                                | Some c -> Hashtbl.add sites s (c, if Lazy.force inside then 2 else 1)
+                                | None -> ())
+                            | _ -> ())
+                          b)
+                      fn)
               m)
           (Build.prepare ?target ~optimize:true m))
   in
-  match found with Ok () -> fun s -> Hashtbl.mem called s | Error _ -> fun _ -> false
+  match found with
+  | Ok () ->
+      fun s same -> List.fold_left (fun n (c, w) -> if same c then n + w else n) 0 (Hashtbl.find_all sites s) >= 2
+  | Error _ -> fun _ _ -> false
 
 (* The program's module lives only while [f] runs: its context and the
    module are disposed however [f] or the emit ends, since LLVM's bindings
@@ -79,7 +104,7 @@ let with_program ?target ?pack ?(memoize = false) ?(optimize = false) ?fixed_reg
     if not memoize then (p, [])
     else if optimize then
       let called = lazy (still_called ?target ?pack ?fixed_region ?spawned_fixed_region p) in
-      Cgt.Memo.plan ~keep:(fun s -> (Lazy.force called) s) p
+      Cgt.Memo.plan ~keep:(fun s same -> (Lazy.force called) s same) p
     else Cgt.Memo.plan p
   in
   with_module ?target ?pack ~memos ?fixed_region ?spawned_fixed_region p f
