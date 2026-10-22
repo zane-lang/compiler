@@ -466,7 +466,7 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   library functions, and the budget.
 - The interface check's errors each have a fixture: a missing symbol, a
   wrong count, a type of another size on one target only (`long` built for
-  `x86_64-windows-gnu`), a `const` handle passed as a `mut` subject, a
+  `x86_64-windows-gnu`), a `const` handle passed as a `mut` subject or returned, a
   `struct` laid out differently, and a fixed flag a `define` tries to change.
 
 ---
