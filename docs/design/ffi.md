@@ -105,9 +105,9 @@ instead. With no cache directory, every build compiles every source.
 Two directories differ between machines without changing the code: the
 package's own, wherever its checkout lies, and the cache directory, which
 holds `zane_ffi.h` and the builtin headers (F1, F2). Each is mapped to a
-fixed name, `/zane/pkg` and `/zane/cache`, with `-ffile-prefix-map`, so
-`__FILE__`, the line markers and the front-end command all spell them the
-same on every machine. So the hash is the same for the same code wherever it
+fixed name, `/zane/pkg` and `/zane/cache`: `-ffile-prefix-map` makes
+`__FILE__` and debug information spell them so, and the hash applies the
+same mapping to the line markers and the front-end command. So the hash is the same for the same code wherever it
 is built, which F13's comparison of a publisher's hash with a consumer's
 relies on, and a path elsewhere, such as a system header's, still changes
 it.
