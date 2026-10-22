@@ -376,7 +376,8 @@ runs:
   called forms would each see their own. Such a function, and everything
   that reaches it, is called. A `static const` table and a `static`
   function are copied only where nothing can tell the copy from the
-  original: their contents are read and the function is called, and their
+  original, so never one placed in an explicit section, which the linker
+  may gather into a table that would then hold both: their contents are read and the function is called, and their
   address is never returned, stored, compared, converted to an integer or
   passed on. A function that lets such an address out would give one
   address inlined and another called, so it is called, like one that
