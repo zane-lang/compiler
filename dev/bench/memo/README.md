@@ -4,7 +4,8 @@ An experiment for [zane-lang/compiler#262](https://github.com/zane-lang/compiler
 `--memoize` remembers calls while the program runs, for the functions
 `lib/cgt/memo.ml` picks. A function is picked when:
 
-- it reaches no state and no capability;
+- its result depends only on its arguments: it reaches neither the console
+  nor the runtime, and reads only package constants, which never change;
 - every argument and its result is a fixed-size value (scalars, and
   structs, enums, variants and arrays of them, holding no handle or
   address), with at most eight words of arguments and eight of result (a

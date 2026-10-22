@@ -53,23 +53,30 @@ let fits (f : Func.t) =
   | _ -> false
 
 (* A runtime function a remembered body may call: one that computes, and
-   neither outputs, reads the program's arguments, makes a package
-   constant, nor spawns. *)
+   neither outputs, reads the program's arguments, nor spawns. Making a
+   package constant is allowed: a hit follows a miss with the same
+   arguments, which made every constant the body reads, and a constant is
+   made once. *)
 let computes : Runtime.fn -> bool = function
   | Runtime.Print | Runtime.Set_threads | Runtime.Set_threads_auto | Runtime.Arguments
-  | Runtime.Constant_begin | Runtime.Constant_end | Runtime.Writeback | Runtime.Spawn | Runtime.Join
-  | Runtime.Defer | Runtime.Defer_return ->
+  | Runtime.Writeback | Runtime.Spawn | Runtime.Join | Runtime.Defer | Runtime.Defer_return ->
       false
   | _ -> true
 
+(* What the program has, `@program$console` and `@program$runtime`, which
+   only the root package reaches, and without an argument (lower.ml). *)
+let program_value symbol = String.starts_with ~prefix:"zane.value." symbol
+
 (* Whether [f]'s own body reaches nothing but its parameters, its own
-   locals and the functions it calls, which [calls] lists. *)
+   locals, package constants and the functions it calls, which [calls]
+   lists. A package constant is the same on every call. *)
 let alone (f : Func.t) =
   not
     (Traverse.exists_in f.Func.body
        ~expr:(fun e ->
          match e.Expr.node with
-         | Expr.Global _ | Expr.Function _ | Expr.Call_value _ -> true
+         | Expr.Global symbol -> program_value symbol
+         | Expr.Function _ | Expr.Call_value _ -> true
          | Expr.Runtime { fn; _ } -> not (computes fn)
          | _ -> false)
        ~stat:(function Stat.Spawn _ | Stat.Join _ -> true | _ -> false))

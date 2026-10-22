@@ -3,7 +3,7 @@
 and optimized, without and with `--memoize`, and prints the same in all four
 builds. Which functions get a table is read from the symbols of each table's
 state: one for a recursion whose arguments repeat, whether they are scalars,
-an array or a variant, and none for a recursion that calls itself once, takes
+an array or a variant, or it reads a package constant, and none for a recursion that calls itself once, takes
 a String, prints, or runs in a program that spawns or in a library. An
 optimized build gives none to a function LLVM folds away without it."""
 
@@ -76,6 +76,7 @@ class MemoTests(unittest.TestCase):
     def test_a_repeating_recursion_gets_a_table(self):
         for name, function in [
             ("fib", "fib$fib(%primitives$I64)"),
+            ("constant", "constant$fib(%primitives$I64)"),
             ("ttt", "ttt$minimax(%primitives$Array<%primitives$I32, 9>, %primitives$I32)"),
             ("moves", "moves$ways(moves$Move, %primitives$I64)"),
         ]:
