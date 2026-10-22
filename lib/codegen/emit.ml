@@ -1427,7 +1427,7 @@ let func env (f : Func.t) =
    nothing up. A function whose arguments rarely repeat, or whose repeats
    save less than a lookup costs, pays for a bounded number of lookups and
    then runs as it would have. *)
-let memo_limit = 128
+let memo_limit = Cgt.Memo.limit
 let memo_lookup = 2
 let memo_bytes = 65536
 let memo_most_entries = 4096
@@ -1485,8 +1485,7 @@ let memo env (m : Cgt.Memo.t) =
         | _ -> Diagnostic.bug "codegen: a remembered value that is not words"
       in
       let ret, ret_passing = a.ret in
-      let state = Llvm.define_global (f.Func.symbol ^ ".memo.state") (Llvm.const_int i64 0) env.m in
-      Llvm.set_linkage Llvm.Linkage.Internal state;
+      let state = Hashtbl.find env.globals (Cgt.Memo.state_symbol f.Func.symbol) in
       (* The gate, under the function's own symbol, is inlined into every
          caller, so a caller whose dispatcher has stopped looking calls the
          plain copy directly, and LLVM may inline and fold it there as it

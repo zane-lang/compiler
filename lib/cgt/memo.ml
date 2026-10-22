@@ -126,6 +126,169 @@ let components (funcs : (string, Func.t) Hashtbl.t) edges =
 let suffix_body = ".memo"
 let suffix_plain = ".plain"
 
+(* A dispatcher's state: how far its lookups have cost more than its hits
+   saved, in calls. At [limit] it has stopped looking. *)
+let state_symbol s = s ^ ".memo.state"
+let limit = 128
+
+(* Every id a function names: one numbering covers locals, scopes, labels
+   and tasks (lower.ml's [fresh]). *)
+let largest_id (f : Func.t) =
+  let m = ref 0 in
+  let see i = if i > !m then m := i in
+  List.iter (fun (i, _) -> see i) f.Func.params;
+  Traverse.walk_stats
+    (fun e ->
+      match e.Expr.node with
+      | Expr.Local i | Expr.Address i -> see i
+      | Expr.Expand { label; result; _ } -> see label; Option.iter see result
+      | Expr.Escape { exit; _ } -> Option.iter see exit
+      | _ -> ())
+    (fun st ->
+      match st with
+      | Stat.Let { id; _ } -> see id
+      | Stat.Hold { id; scope; _ } | Stat.Reserve { id; scope; _ } -> see id; see scope
+      | Stat.Scope { id; _ } -> see id
+      | Stat.Assign { place; _ } -> see place.Expr.local
+      | Stat.Leave l | Stat.Join l -> see l
+      | Stat.Spawn { task; scope; dest; _ } -> see task; see scope; Option.iter see dest
+      | _ -> ())
+    f.Func.body;
+  !m
+
+(* [body] with every id it defines given a new number from [next], and every
+   use of one of them changed to match; ids defined outside it are kept. *)
+let renumber next body =
+  let map = Hashtbl.create 16 in
+  let define i =
+    let j = !next in
+    incr next;
+    Hashtbl.replace map i j
+  in
+  Traverse.walk_stats
+    (fun e ->
+      match e.Expr.node with
+      | Expr.Expand { label; result; _ } -> define label; Option.iter define result
+      | _ -> ())
+    (fun st ->
+      match st with
+      | Stat.Let { id; _ } | Stat.Hold { id; _ } | Stat.Reserve { id; _ } | Stat.Scope { id; _ } -> define id
+      | Stat.Spawn { task; dest; _ } -> define task; Option.iter define dest
+      | _ -> ())
+    body;
+  let r i = Option.value ~default:i (Hashtbl.find_opt map i) in
+  let rec expr (e : Expr.t) =
+    let e = Traverse.map_expr_parts expr stats e in
+    let node =
+      match e.Expr.node with
+      | Expr.Local i -> Expr.Local (r i)
+      | Expr.Address i -> Expr.Address (r i)
+      | Expr.Expand x -> Expr.Expand { x with label = r x.label; result = Option.map r x.result }
+      | Expr.Escape x -> Expr.Escape { x with exit = Option.map r x.exit }
+      | n -> n
+    in
+    { e with Expr.node }
+  and stats ss = List.map stat ss
+  and stat st =
+    match Traverse.map_stat_parts expr stats st with
+    | Stat.Let x -> Stat.Let { x with id = r x.id }
+    | Stat.Hold x -> Stat.Hold { x with id = r x.id; scope = r x.scope }
+    | Stat.Reserve x -> Stat.Reserve { x with id = r x.id; scope = r x.scope }
+    | Stat.Scope x -> Stat.Scope { x with id = r x.id }
+    | Stat.Assign x -> Stat.Assign { x with place = { x.place with Expr.local = r x.place.Expr.local } }
+    | Stat.Leave l -> Stat.Leave (r l)
+    | Stat.Join t -> Stat.Join (r t)
+    | Stat.Spawn x -> Stat.Spawn { x with task = r x.task; scope = r x.scope; dest = Option.map r x.dest }
+    | st -> st
+  in
+  stats body
+
+(* The functions remembered that [body] calls, by symbol, for which [outside]
+   holds: those whose cycle the caller is not in. *)
+let called_in remembered outside body =
+  let found = ref [] in
+  Traverse.walk_stats
+    (fun e ->
+      match e.Expr.node with
+      | Expr.Call { fn; _ } when Hashtbl.mem remembered fn && outside fn && not (List.mem fn !found) ->
+          found := fn :: !found
+      | _ -> ())
+    (fun _ -> ())
+    body;
+  !found
+
+(* Each loop of [body] that calls remembered functions from outside their
+   cycle, run in two versions (#262). The decision is made once, before the
+   loop: when every dispatcher it calls has stopped looking, the loop runs
+   as written, with each of those calls made to the plain copy, so nothing
+   in it checks a dispatcher and LLVM may optimize it as it would the
+   original. Otherwise a second copy runs, calling through the dispatchers
+   and checking before each round whether they have all stopped; if they
+   have, it leaves, and the first version runs the rounds left. *)
+let version remembered outside next body =
+  let i64 n = { Expr.node = Expr.Int (Int64.of_int n); ty = Ty.I64 } in
+  let local id t = { Expr.node = Expr.Local id; ty = t } in
+  let stopped h =
+    let state = { Expr.node = Expr.Deref { Expr.node = Expr.Global (state_symbol h); ty = Ty.Ptr }; ty = Ty.I64 } in
+    { Expr.node = Expr.Flip { Expr.node = Expr.Binary { op = Expr.Less; left = state; right = i64 limit }; ty = Ty.I1 }; ty = Ty.I1 }
+  in
+  let all = function
+    | [] -> { Expr.node = Expr.Bool true; ty = Ty.I1 }
+    | h :: rest ->
+        List.fold_left
+          (fun acc h -> { Expr.node = Expr.Binary { op = Expr.Mul; left = acc; right = stopped h }; ty = Ty.I1 })
+          (stopped h) rest
+  in
+  let rec plain hs (e : Expr.t) =
+    match e.Expr.node with
+    | Expr.Call { fn; args } when List.mem fn hs ->
+        Some { e with Expr.node = Expr.Call { fn = fn ^ suffix_plain; args = List.map (Traverse.map_expr (plain hs) (fun _ -> None)) args } }
+    | _ -> None
+  in
+  let rec stats body = Traverse.map_stats (fun _ -> None) loop body
+  and loop (st : Stat.t) =
+    match st with
+    | Stat.Repeat { count; body } -> (
+        match called_in remembered outside body with
+        | [] -> None
+        | hs ->
+            let n = !next and d = !next + 1 and leave = !next + 2 in
+            next := !next + 3;
+            let on = stats body in
+            let off = Traverse.map_stats (plain hs) (fun _ -> None) (renumber next body) in
+            let stopped_all = all hs in
+            let ty = count.Expr.ty in
+            let checked =
+              Stat.If { cond = stopped_all; body = [ Stat.Leave leave ] }
+              :: Stat.assign d { Expr.node = Expr.Binary { op = Expr.Add; left = local d ty; right = { (i64 1) with ty } }; ty }
+              :: on
+            in
+            Some
+              [
+                Stat.Let { id = n; value = count };
+                Stat.Let { id = d; value = { (i64 0) with ty } };
+                Stat.If
+                  {
+                    cond = { Expr.node = Expr.Flip stopped_all; ty = Ty.I1 };
+                    body =
+                      [
+                        Stat.Eval
+                          {
+                            Expr.node = Expr.Expand { label = leave; body = [ Stat.Repeat { count = local n ty; body = checked } ]; result = None };
+                            ty = Ty.Void;
+                          };
+                      ];
+                  };
+                Stat.Repeat
+                  {
+                    count = { Expr.node = Expr.Binary { op = Expr.Add; left = local n ty; right = { Expr.node = Expr.Flip (local d ty); ty } }; ty };
+                    body = off;
+                  };
+              ])
+    | _ -> None
+  in
+  stats body
+
 (* The program with each remembered function replaced by its two copies,
    and the functions remembered, whose dispatchers codegen emits. Only a
    function [keep] admits is remembered. A program
@@ -183,17 +346,27 @@ let plan ?(keep = fun _ -> true) (p : Program.t) =
       | _ -> None
     in
     let plain_of s body = Traverse.map_stats (plain_expr s) (fun _ -> None) body in
+    let versioned s (f : Func.t) =
+      if f.Func.linkage = Linkage.Imported then f
+      else
+        let next = ref (largest_id f + 1) in
+        let outside h = not (Hashtbl.mem comp s && same h s) in
+        { f with Func.body = version remembered outside next f.Func.body }
+    in
     let funcs' =
       List.concat_map
         (fun (f : Func.t) ->
           let s = f.Func.symbol in
           if Hashtbl.mem remembered s then
             [
-              { f with Func.symbol = s ^ suffix_body; linkage = Linkage.Local };
-              { f with Func.symbol = s ^ suffix_plain; linkage = Linkage.Local; body = plain_of s f.Func.body };
+              versioned s { f with Func.symbol = s ^ suffix_body; linkage = Linkage.Local };
+              versioned s { f with Func.symbol = s ^ suffix_plain; linkage = Linkage.Local; body = plain_of s f.Func.body };
             ]
-          else [ f ])
+          else [ versioned s f ])
         p.Program.funcs
     in
-    ( { p with Program.funcs = funcs' },
+    let states =
+      List.map (fun (f : Func.t) -> { Global.symbol = state_symbol f.Func.symbol; linkage = Linkage.Local; ty = Ty.I64 }) memos
+    in
+    ( { p with Program.funcs = funcs'; globals = p.Program.globals @ states },
       List.map (fun (f : Func.t) -> { func = f; body = f.Func.symbol ^ suffix_body; plain = f.Func.symbol ^ suffix_plain }) memos )
