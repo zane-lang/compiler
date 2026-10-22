@@ -3,6 +3,18 @@
     ├── layouts[0] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
+    ├── layouts[1] > layout:
+    │   ├── type: replayed$Named
+    │   └── positions[0]: text @0
+    ├── layouts[2] > layout:
+    │   ├── type: replayed$Countdown
+    │   └── positions[0]: box @8 of replayed$Countdown (16 bytes) when [0]=1
+    ├── layouts[3] > layout:
+    │   ├── type: replayed$Counter
+    │   └── positions:
+    ├── layouts[4] > layout:
+    │   ├── type: replayed$Holder
+    │   └── positions:
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -70,13 +82,13 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @51
-    │       │       │   ├── result: #52
+    │       │       │   ├── label: @80
+    │       │       │   ├── result: #81
     │       │       │   ├── body[0] > assign:
     │       │       │   │   ├── place: #11
     │       │       │   │   └── value: 6 : i64
     │       │       │   └── body[1] > assign:
-    │       │       │       ├── place: #52
+    │       │       │       ├── place: #81
     │       │       │       └── value: 12 : i64
     │       │       └── right: 12 : i64
     │       ├── body[9] > eval > call:
@@ -155,10 +167,218 @@
     │       ├── body[16] > let:
     │       │   ├── local: #22
     │       │   └── value: 5 : i64
-    │       ├── body[17] > assign:
-    │       │   ├── place: #22
-    │       │   └── value: 6 : i64
+    │       ├── body[17] > let:
+    │       │   ├── local: #23
+    │       │   └── value: 7 : i64
     │       ├── body[18] > eval > call:
+    │       │   ├── type: i64
+    │       │   ├── fn: replayed$bumped(this %primitives$I64, %primitives$I64)
+    │       │   ├── args[0]: address of #22 : ptr
+    │       │   └── args[1]: local #15 : i64
+    │       ├── body[19] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[20] > eval > expand:
+    │       │   ├── type: i64
+    │       │   ├── label: @83
+    │       │   ├── result: #84
+    │       │   ├── body[0] > assign:
+    │       │   │   ├── place: #23
+    │       │   │   └── value: 8 : i64
+    │       │   └── body[1] > assign:
+    │       │       ├── place: #84
+    │       │       └── value: 8 : i64
+    │       ├── body[21] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[22] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: replayed$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #22 : i64
+    │       │       └── right: 6 : i64
+    │       ├── body[23] > hold:
+    │       │   ├── local: #24
+    │       │   ├── scope: %4
+    │       │   ├── value: "hi" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[24] > overwrite:
+    │       │   ├── address: address of #24 : ptr
+    │       │   ├── value: "hi!" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[25] > eval > call:
+    │       │   ├── type: i64
+    │       │   ├── fn: replayed$bumped(this %primitives$I64, %primitives$I64)
+    │       │   ├── args[0]: address of #22 : ptr
+    │       │   └── args[1]: local #15 : i64
+    │       ├── body[26] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[27] > hold:
+    │       │   ├── local: #31
+    │       │   ├── scope: %4
+    │       │   ├── value > record:
+    │       │   │   ├── type: {handle, i64}
+    │       │   │   ├── members[0] > member 0: "x" : handle
+    │       │   │   └── members[1] > member 1: 1 : i64
+    │       │   └── layout: replayed$Named
+    │       ├── body[28] > overwrite:
+    │       │   ├── address: address of #31 : ptr
+    │       │   ├── value > record:
+    │       │   │   ├── type: {handle, i64}
+    │       │   │   ├── members[0] > member 0: "x!" : handle
+    │       │   │   └── members[1] > member 1: 1 : i64
+    │       │   └── layout: replayed$Named
+    │       ├── body[29] > eval > call:
+    │       │   ├── type: i64
+    │       │   ├── fn: replayed$bumped(this %primitives$I64, %primitives$I64)
+    │       │   ├── args[0]: address of #22 : ptr
+    │       │   └── args[1]: local #15 : i64
+    │       ├── body[30] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[31] > hold:
+    │       │   ├── local: #35
+    │       │   ├── scope: %4
+    │       │   ├── value > case:
+    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── index: 1
+    │       │   │   └── payload > box:
+    │       │   │       ├── value > case:
+    │       │   │       │   ├── type: <void | ptr>
+    │       │   │       │   ├── index: 0
+    │       │   │       │   └── payload: unit : void
+    │       │   │       └── layout: replayed$Countdown
+    │       │   └── layout: replayed$Countdown
+    │       ├── body[32] > overwrite:
+    │       │   ├── address: address of #35 : ptr
+    │       │   ├── value > case:
+    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── index: 1
+    │       │   │   └── payload > box:
+    │       │   │       ├── value > case:
+    │       │   │       │   ├── type: <void | ptr>
+    │       │   │       │   ├── index: 1
+    │       │   │       │   └── payload > box:
+    │       │   │       │       ├── value > case:
+    │       │   │       │       │   ├── type: <void | ptr>
+    │       │   │       │       │   ├── index: 0
+    │       │   │       │       │   └── payload: unit : void
+    │       │   │       │       └── layout: replayed$Countdown
+    │       │   │       └── layout: replayed$Countdown
+    │       │   └── layout: replayed$Countdown
+    │       ├── body[33] > eval > call:
+    │       │   ├── type: i64
+    │       │   ├── fn: replayed$bumped(this %primitives$I64, %primitives$I64)
+    │       │   ├── args[0]: address of #22 : ptr
+    │       │   └── args[1]: local #15 : i64
+    │       ├── body[34] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: replayed$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > expand:
+    │       │       │   ├── type: i64
+    │       │       │   ├── label: @38
+    │       │       │   ├── result: #39
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #40
+    │       │       │   │   └── value: address of #35 : ptr
+    │       │       │   └── body[1] > switch:
+    │       │       │       ├── value > deref:
+    │       │       │       │   ├── type: <void | ptr>
+    │       │       │       │   └── ptr: local #40 : ptr
+    │       │       │       ├── cases[0] > case 0[0] > let:
+    │       │       │       │   ├── local: #41
+    │       │       │       │   └── value > offset:
+    │       │       │       │       ├── within: <void | ptr>
+    │       │       │       │       ├── path: 0
+    │       │       │       │       └── base: local #40 : ptr
+    │       │       │       ├── cases[0] > case 0[1] > assign:
+    │       │       │       │   ├── place: #39
+    │       │       │       │   └── value: 0 : i64
+    │       │       │       ├── cases[0] > case 0[2]: leave @38
+    │       │       │       ├── cases[1] > case 1[0] > let:
+    │       │       │       │   ├── local: #42
+    │       │       │       │   └── value > deref:
+    │       │       │       │       ├── type: ptr
+    │       │       │       │       └── ptr > offset:
+    │       │       │       │           ├── within: <void | ptr>
+    │       │       │       │           ├── path: 1
+    │       │       │       │           └── base: local #40 : ptr
+    │       │       │       ├── cases[1] > case 1[1] > assign:
+    │       │       │       │   ├── place: #39
+    │       │       │       │   └── value > binary:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── op: +
+    │       │       │       │       ├── left: 1 : i64
+    │       │       │       │       └── right > call:
+    │       │       │       │           ├── type: i64
+    │       │       │       │           ├── fn: replayed$depth(replayed$Countdown)
+    │       │       │       │           └── args[0] > deref:
+    │       │       │       │               ├── type: <void | ptr>
+    │       │       │       │               └── ptr: local #42 : ptr
+    │       │       │       └── cases[1] > case 1[2]: leave @38
+    │       │       └── right: 2 : i64
+    │       ├── body[35] > hold:
+    │       │   ├── local: #46
+    │       │   ├── scope: %4
+    │       │   ├── value > record:
+    │       │   │   ├── type: {i64}
+    │       │   │   └── members[0] > member 0: 1 : i64
+    │       │   └── layout: replayed$Counter
+    │       ├── body[36] > hold:
+    │       │   ├── local: #50
+    │       │   ├── scope: %4
+    │       │   ├── value > expand:
+    │       │   │   ├── type: {ptr}
+    │       │   │   ├── label: @48
+    │       │   │   ├── result: #49
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #47
+    │       │   │   │   └── value: address of #46 : ptr
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #49
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @48
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {ptr}
+    │       │   │   │       │   └── members[0] > member 0: local #47 : ptr
+    │       │   │   │       └── layout: replayed$Holder
+    │       │   │   └── body[2]: leave @48
+    │       │   └── layout: replayed$Holder
+    │       ├── body[37] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: replayed$poke(this replayed$Holder, %primitives$I64)
+    │       │   ├── args[0]: address of #50 : ptr
+    │       │   └── args[1]: local #15 : i64
+    │       ├── body[38] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: replayed$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > deref:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base: address of #46 : ptr
+    │       │       └── right: 2 : i64
+    │       ├── body[39] > let:
+    │       │   ├── local: #51
+    │       │   └── value: 5 : i64
+    │       ├── body[40] > assign:
+    │       │   ├── place: #51
+    │       │   └── value: 6 : i64
+    │       ├── body[41] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: replayed$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -167,11 +387,11 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: replayed$bumped(this %primitives$I64, %primitives$I64)
-    │       │       │   ├── args[0]: address of #22 : ptr
+    │       │       │   ├── args[0]: address of #51 : ptr
     │       │       │   └── args[1]: local #15 : i64
     │       │       └── right: 7 : i64
-    │       ├── body[19] > hold:
-    │       │   ├── local: #27
+    │       ├── body[42] > hold:
+    │       │   ├── local: #56
     │       │   ├── scope: %4
     │       │   ├── value > call:
     │       │   │   ├── type: handle
@@ -179,7 +399,7 @@
     │       │   │   ├── args[0]: "0123456789" : handle
     │       │   │   └── args[1]: 7000 : i64
     │       │   └── layout: %primitives$String
-    │       ├── body[20] > eval > call:
+    │       ├── body[43] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: replayed$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -188,13 +408,13 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0]: local #27 : handle
+    │       │       │   ├── args[0]: local #56 : handle
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @32
-    │       │       │       ├── result: #33
+    │       │       │       ├── label: @61
+    │       │       │       ├── result: #62
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #31
+    │       │       │       │   ├── local: #60
     │       │       │       │   ├── scope: %4
     │       │       │       │   ├── value > call:
     │       │       │       │   │   ├── type: handle
@@ -203,28 +423,28 @@
     │       │       │       │   │   └── args[1]: 7000 : i64
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #33
-    │       │       │           └── value: local #31 : handle
+    │       │       │           ├── place: #62
+    │       │       │           └── value: local #60 : handle
     │       │       └── right: 1 : i64
-    │       ├── body[21] > eval > runtime:
+    │       ├── body[44] > eval > runtime:
     │       │   ├── type: i64
     │       │   ├── fn: zane_set_threads
     │       │   └── args[0]: 2 : i64
-    │       ├── body[22] > let:
-    │       │   ├── local: #37
+    │       ├── body[45] > let:
+    │       │   ├── local: #66
     │       │   └── value: 0 : i64
-    │       ├── body[23] > eval > runtime:
+    │       ├── body[46] > eval > runtime:
     │       │   ├── type: i64
     │       │   ├── fn: zane_set_threads
     │       │   └── args[0]: 0 : i64
-    │       ├── body[24] > assign:
-    │       │   ├── place: #37
+    │       ├── body[47] > assign:
+    │       │   ├── place: #66
     │       │   └── value: 1 : i64
-    │       ├── body[25] > eval > runtime:
+    │       ├── body[48] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       └── body[26] > return: unit : void
+    │       └── body[49] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: replayed$say(%primitives$String)
     │   ├── params[0]: local #1 : handle
@@ -390,57 +610,244 @@
     │       │   │   └── ptr: local #1 : ptr
     │       │   └── right: local #2 : i64
     │       └── right: -3000000 : i64
-    └── funcs[9] > func:
-        ├── symbol: replayed$repeated(%primitives$String, %primitives$I64)
-        ├── params[0]: local #1 : handle
+    ├── funcs[9] > func:
+    │   ├── symbol: replayed$shout(this %primitives$String)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       ├── body[0] > overwrite:
+    │       │   ├── address: local #1 : ptr
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: zane_text_join
+    │       │   │   ├── args[0] > deref:
+    │       │   │   │   ├── type: handle
+    │       │   │   │   └── ptr: local #1 : ptr
+    │       │   │   └── args[1]: "!" : handle
+    │       │   └── layout: %primitives$String
+    │       └── body[1] > return: unit : void
+    ├── funcs[10] > func:
+    │   ├── symbol: replayed$Named(%primitives$String, %primitives$I64)
+    │   ├── params[0]: local #1 : handle
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: {handle, i64}
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > record:
+    │       │   ├── type: {handle, i64}
+    │       │   ├── members[0] > member 0: local #1 : handle
+    │       │   └── members[1] > member 1: local #2 : i64
+    │       └── layout: replayed$Named
+    ├── funcs[11] > func:
+    │   ├── symbol: replayed$rename(this replayed$Named)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       ├── body[0] > overwrite:
+    │       │   ├── address > offset:
+    │       │   │   ├── within: {handle, i64}
+    │       │   │   ├── path: 0
+    │       │   │   └── base: local #1 : ptr
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: zane_text_join
+    │       │   │   ├── args[0] > member:
+    │       │   │   │   ├── type: handle
+    │       │   │   │   ├── index: 0
+    │       │   │   │   └── value > deref:
+    │       │   │   │       ├── type: {handle, i64}
+    │       │   │   │       └── ptr: local #1 : ptr
+    │       │   │   └── args[1]: "!" : handle
+    │       │   └── layout: %primitives$String
+    │       └── body[1] > return: unit : void
+    ├── funcs[12] > func:
+    │   ├── symbol: replayed$deepen(this replayed$Countdown)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > overwrite:
+    │   │   ├── address: local #1 : ptr
+    │   │   ├── value > case:
+    │   │   │   ├── type: <void | ptr>
+    │   │   │   ├── index: 1
+    │   │   │   └── payload > box:
+    │   │   │       ├── value > copy:
+    │   │   │       │   ├── type: <void | ptr>
+    │   │   │       │   ├── value > deref:
+    │   │   │       │   │   ├── type: <void | ptr>
+    │   │   │       │   │   └── ptr: local #1 : ptr
+    │   │   │       │   └── layout: replayed$Countdown
+    │   │   │       └── layout: replayed$Countdown
+    │   │   └── layout: replayed$Countdown
+    │   └── body[1] > return: unit : void
+    ├── funcs[13] > func:
+    │   ├── symbol: replayed$depth(replayed$Countdown)
+    │   ├── params[0]: local #1 : <void | ptr>
+    │   ├── ret: i64
+    │   └── body[0] > return > expand:
+    │       ├── type: i64
+    │       ├── label: @2
+    │       ├── result: #3
+    │       ├── body[0] > let:
+    │       │   ├── local: #4
+    │       │   └── value: address of #1 : ptr
+    │       └── body[1] > switch:
+    │           ├── value > deref:
+    │           │   ├── type: <void | ptr>
+    │           │   └── ptr: local #4 : ptr
+    │           ├── cases[0] > case 0[0] > let:
+    │           │   ├── local: #5
+    │           │   └── value > offset:
+    │           │       ├── within: <void | ptr>
+    │           │       ├── path: 0
+    │           │       └── base: local #4 : ptr
+    │           ├── cases[0] > case 0[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value: 0 : i64
+    │           ├── cases[0] > case 0[2]: leave @2
+    │           ├── cases[1] > case 1[0] > let:
+    │           │   ├── local: #6
+    │           │   └── value > deref:
+    │           │       ├── type: ptr
+    │           │       └── ptr > offset:
+    │           │           ├── within: <void | ptr>
+    │           │           ├── path: 1
+    │           │           └── base: local #4 : ptr
+    │           ├── cases[1] > case 1[1] > assign:
+    │           │   ├── place: #3
+    │           │   └── value > binary:
+    │           │       ├── type: i64
+    │           │       ├── op: +
+    │           │       ├── left: 1 : i64
+    │           │       └── right > expand:
+    │           │           ├── type: i64
+    │           │           ├── label: @9
+    │           │           ├── result: #10
+    │           │           ├── body[0] > let:
+    │           │           │   ├── local: #11
+    │           │           │   └── value: local #6 : ptr
+    │           │           └── body[1] > switch:
+    │           │               ├── value > deref:
+    │           │               │   ├── type: <void | ptr>
+    │           │               │   └── ptr: local #11 : ptr
+    │           │               ├── cases[0] > case 0[0] > let:
+    │           │               │   ├── local: #12
+    │           │               │   └── value > offset:
+    │           │               │       ├── within: <void | ptr>
+    │           │               │       ├── path: 0
+    │           │               │       └── base: local #11 : ptr
+    │           │               ├── cases[0] > case 0[1] > assign:
+    │           │               │   ├── place: #10
+    │           │               │   └── value: 0 : i64
+    │           │               ├── cases[0] > case 0[2]: leave @9
+    │           │               ├── cases[1] > case 1[0] > let:
+    │           │               │   ├── local: #13
+    │           │               │   └── value > deref:
+    │           │               │       ├── type: ptr
+    │           │               │       └── ptr > offset:
+    │           │               │           ├── within: <void | ptr>
+    │           │               │           ├── path: 1
+    │           │               │           └── base: local #11 : ptr
+    │           │               ├── cases[1] > case 1[1] > assign:
+    │           │               │   ├── place: #10
+    │           │               │   └── value > binary:
+    │           │               │       ├── type: i64
+    │           │               │       ├── op: +
+    │           │               │       ├── left: 1 : i64
+    │           │               │       └── right > call:
+    │           │               │           ├── type: i64
+    │           │               │           ├── fn: replayed$depth(replayed$Countdown)
+    │           │               │           └── args[0] > deref:
+    │           │               │               ├── type: <void | ptr>
+    │           │               │               └── ptr: local #13 : ptr
+    │           │               └── cases[1] > case 1[2]: leave @9
+    │           └── cases[1] > case 1[2]: leave @2
+    ├── funcs[14] > func:
+    │   ├── symbol: replayed$poke(this replayed$Holder, %primitives$I64)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: void
+    │   ├── body[0] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: replayed$tick(this replayed$Counter, %primitives$I64)
+    │   │   ├── args[0] > member:
+    │   │   │   ├── type: ptr
+    │   │   │   ├── index: 0
+    │   │   │   └── value > deref:
+    │   │   │       ├── type: {ptr}
+    │   │   │       └── ptr: local #1 : ptr
+    │   │   └── args[1]: local #2 : i64
+    │   └── body[1] > return: unit : void
+    ├── funcs[15] > func:
+    │   ├── symbol: replayed$repeated(%primitives$String, %primitives$I64)
+    │   ├── params[0]: local #1 : handle
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: handle
+    │   └── body[0] > scope:
+    │       ├── id: %4
+    │       ├── body[0] > hold:
+    │       │   ├── local: #3
+    │       │   ├── scope: %4
+    │       │   ├── value: "" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[1] > let:
+    │       │   ├── local: #5
+    │       │   └── value: 1 : i64
+    │       ├── body[2] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @7
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #6
+    │       │   │   └── value: local #2 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count > binary:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── op: +
+    │       │   │   │   ├── left > binary:
+    │       │   │   │   │   ├── type: i64
+    │       │   │   │   │   ├── op: +
+    │       │   │   │   │   ├── left: local #6 : i64
+    │       │   │   │   │   └── right: -1 : i64
+    │       │   │   │   └── right: 1 : i64
+    │       │   │   ├── body[0] > overwrite:
+    │       │   │   │   ├── address: address of #3 : ptr
+    │       │   │   │   ├── value > runtime:
+    │       │   │   │   │   ├── type: handle
+    │       │   │   │   │   ├── fn: zane_text_join
+    │       │   │   │   │   ├── args[0]: local #3 : handle
+    │       │   │   │   │   └── args[1]: local #1 : handle
+    │       │   │   │   └── layout: %primitives$String
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #5
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #5 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   └── body[2]: leave @7
+    │       └── body[3] > return > escape:
+    │           ├── exit: function
+    │           ├── value > copy:
+    │           │   ├── type: handle
+    │           │   ├── value: local #3 : handle
+    │           │   └── layout: %primitives$String
+    │           └── layout: %primitives$String
+    └── funcs[16] > func:
+        ├── symbol: replayed$tick(this replayed$Counter, %primitives$I64)
+        ├── params[0]: local #1 : ptr
         ├── params[1]: local #2 : i64
-        ├── ret: handle
-        └── body[0] > scope:
-            ├── id: %4
-            ├── body[0] > hold:
-            │   ├── local: #3
-            │   ├── scope: %4
-            │   ├── value: "" : handle
-            │   └── layout: %primitives$String
-            ├── body[1] > let:
-            │   ├── local: #5
-            │   └── value: 1 : i64
-            ├── body[2] > eval > expand:
-            │   ├── type: void
-            │   ├── label: @7
-            │   ├── body[0] > let:
-            │   │   ├── local: #6
-            │   │   └── value: local #2 : i64
-            │   ├── body[1] > repeat:
-            │   │   ├── count > binary:
-            │   │   │   ├── type: i64
-            │   │   │   ├── op: +
-            │   │   │   ├── left > binary:
-            │   │   │   │   ├── type: i64
-            │   │   │   │   ├── op: +
-            │   │   │   │   ├── left: local #6 : i64
-            │   │   │   │   └── right: -1 : i64
-            │   │   │   └── right: 1 : i64
-            │   │   ├── body[0] > overwrite:
-            │   │   │   ├── address: address of #3 : ptr
-            │   │   │   ├── value > runtime:
-            │   │   │   │   ├── type: handle
-            │   │   │   │   ├── fn: zane_text_join
-            │   │   │   │   ├── args[0]: local #3 : handle
-            │   │   │   │   └── args[1]: local #1 : handle
-            │   │   │   └── layout: %primitives$String
-            │   │   └── body[1] > assign:
-            │   │       ├── place: #5
-            │   │       └── value > binary:
-            │   │           ├── type: i64
-            │   │           ├── op: +
-            │   │           ├── left: local #5 : i64
-            │   │           └── right: 1 : i64
-            │   └── body[2]: leave @7
-            └── body[3] > return > escape:
-                ├── exit: function
-                ├── value > copy:
-                │   ├── type: handle
-                │   ├── value: local #3 : handle
-                │   └── layout: %primitives$String
-                └── layout: %primitives$String
+        ├── ret: void
+        ├── body[0] > assign:
+        │   ├── place: *#1.0
+        │   └── value > binary:
+        │       ├── type: i64
+        │       ├── op: +
+        │       ├── left > deref:
+        │       │   ├── type: i64
+        │       │   └── ptr > offset:
+        │       │       ├── within: {i64}
+        │       │       ├── path: 0
+        │       │       └── base: local #1 : ptr
+        │       └── right: local #2 : i64
+        └── body[1] > return: unit : void

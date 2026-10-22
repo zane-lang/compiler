@@ -282,6 +282,12 @@ and layout ?path st span (t : Tty.t) : Layout.t =
    not an owner. *)
 let owned st t = (not (Tty.is_ref t)) && reference st t
 
+(* A slot for a local of this type, recorded in [Func.values] when the type
+   is a value type. *)
+let slot st t id =
+  if not (Tty.is_ref t || reference st t) then st.values <- id :: st.values;
+  Slot id
+
 (* Whether a local of this type is a roaming owner: one the body may move
    on, or that dies with it (lifetimes.md §1.5). *)
 let roaming st t = Tty.is_roaming t && reference st t
