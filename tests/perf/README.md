@@ -119,6 +119,11 @@ repo's `langbench/` and print what it prints at the same size.
   langbench's ntree, four-way trees whose nodes own a growable list of
   children, each node returned whole as its list's handle, and numbers
   summed by halves, each half returned as a struct of three integers.
+- `kept` is a random generator held in a value struct, drawn from on
+  both sides of a call the running program makes on another local. An
+  optimized build works out both sets of draws while compiling, since the
+  call is given no address of the generator, so its optimized number moves
+  when folding forgets more than that call can write.
 - `removal` is a list of value structs that grows by pushes and shrinks by
   ordered and swapping removals.
 - `stress` is the logged one, a large program of sixteen sections:
