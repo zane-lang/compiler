@@ -42,8 +42,13 @@ release. The released toolchain's `zig cc` is built on a newer LLVM than the
 compiler's (19, `lowering.md` L2), and its bitcode would not load. So
 the C compiler is asked only for what it knows that the linked clang does
 not: where the target's C library headers are. The first build for a C
-compiler and a target runs it once on an empty source with `-E -v` and `--target=` the build's
-target, so a cross build probes the target's headers, not the host's, and reads
+compiler and a target runs it once on an empty source with `-E -v` for the
+build's target, so a cross build probes the target's headers, not the
+host's. A clang or `zig cc`, which `--version` names, is given `--target=`.
+A GCC builds for the one target it was configured for and takes no such
+option, so it is run as it is and its `-dumpmachine` must name the build's
+target; one that names another is an error saying to set `ZANE_CC` to a GCC
+for that target. The probe reads
 the list after `#include <...> search starts here:`, which GCC, clang and
 `zig cc` all print in that form; the list is kept in the cache, keyed by
 the C compiler's path and `--version` output, the target, and the values
