@@ -105,8 +105,9 @@ package's flags, as a translation unit that includes each of them, and
 `clang_stubs.cpp` walks its AST. What it hands back is a table, by name, of
 every function, `struct` and `typedef` whose spelling location is in an
 interface header: each function's canonical parameter and result types,
-`const` qualification of pointees, and whether it is variadic; each
-`struct`'s fields with their canonical types, offsets and the record's size
+`const` qualification of pointees, whether it is variadic, and whether it
+has a prototype at all; each `struct`'s fields with their canonical types,
+offsets, and bit widths where a field is a bit-field, and the record's size
 and alignment from clang's `ASTRecordLayout`. A declaration that only an
 included header makes is not in the table, which is how `ffi.md` §2.1's
 "seen by the C compiler and by nothing else" holds.
@@ -118,7 +119,14 @@ fails on Windows, where it is 32 bits, while it passes for a 64-bit
 `unsigned long` elsewhere; the error names the target, the C type and what it
 is there. A C-compatible value type is compared field by field against the
 `struct`'s offsets and sizes, laid out as lowering lays the Zane type out
-([`platforms.md`](platforms.md), "64-bit targets only"). The check runs in
+([`platforms.md`](platforms.md), "64-bit targets only"). Two forms are
+refused outright, whatever their sizes say. A function declared without a
+prototype, such as `int f();`, gives no parameter types to check, so a
+foreign verb naming one is an error; the header has to write `int f(void);`
+or the parameters. A `struct` with a bit-field can match a Zane field's
+offset and size while holding fewer bits, so no `struct` with one
+corresponds to a C-compatible value type (`ffi.md` §3.3's full-width fields
+exclude it). The check runs in
 every build, so `zane check` reports what a build would.
 
 **F7. The TST knows foreign verbs, handles and the system.** A foreign verb is
@@ -324,7 +332,15 @@ models memory as bytes.
   may depend on it.
 - **Instructions** are evaluated with LLVM's own meaning, and with the
   target's sizes: integer arithmetic at its width, with `nsw` and `nuw`
-  overflow giving poison; IEEE float arithmetic as `eval.ml` does it; `getelementptr`
+  overflow giving poison; IEEE float arithmetic as `eval.ml` does it, except
+  for a NaN's bits. `eval.ml` makes every NaN one canonical NaN, which no
+  Zane program can tell apart (O5), but C can read a float's bytes. So a NaN
+  that C arithmetic makes is a NaN of unknown bits: computing with it
+  folds, and reading its representation, by a `bitcast`, by loading its
+  bytes as an integer, or by copying them where they are read so, stops the
+  fold, since its sign and payload are the target machine's. A NaN written
+  as bits, as a constant or by storing an integer, keeps the bits it was
+  written with; `getelementptr`
   with the target's offsets; `load` and `store`; `phi`, `select`, `br`,
   `switch`; vectors elementwise; and the intrinsics clang emits at `-O0`
   (`memcpy`, `memmove`, `memset`, the overflow, bit-count, funnel-shift,
