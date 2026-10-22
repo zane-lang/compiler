@@ -46,7 +46,10 @@ compiler and a target runs it once on an empty source with `-E -v` and reads
 the list after `#include <...> search starts here:`, which GCC, clang and
 `zig cc` all print in that form; the list is kept in the cache, and every
 compilation passes it to the linked driver as `-nostdlibinc` followed by
-one `-isystem` per directory, in order. Nothing else the C compiler would
+one `-isystem` per directory, in order. An entry the list marks
+`(framework directory)`, as clang prints the SDK's framework paths on
+macOS, is passed as `-iframework` instead, so `<Foundation/Foundation.h>`
+is found as the C compiler would find it. Nothing else the C compiler would
 do is replayed, so a GCC's `cc1` options or a newer clang's never reach the
 linked one. `ZANE_CC` keeps its meaning: the compiler asked for the headers
 is that one.
@@ -278,8 +281,12 @@ Two conditions keep a retained body the same code the dependency's object
 runs:
 
 - **It is the code the object was built from.** A release archive records,
-  for each C source, the hash F3 keys its module by: the preprocessed text,
-  the front-end command and the compiler's version (F15). The consumer
+  for each C source and for the package's glue (F8), the hash F3 keys its
+  module by: the preprocessed text, the front-end command and the
+  compiler's version (F15). The glue includes every interface header, so
+  its hash covers what the thunks were made from even for a package whose
+  C is all in an archive or a system library, which has no C source to
+  hash. The consumer
   computes the same hash for the module it rebuilds from the checkout, and
   retains that module only when the two agree. Where they differ, because
   the consumer's system headers, include directories or compiler differ from
@@ -309,8 +316,8 @@ the module; the Zane module stays unoptimized and calls its thunks.
 
 **F15. A release archive holds one object per package build, C included.**
 `--object` writes the package's object with its C linked in (F13 or F14),
-and beside it a small file listing, for each of the package's C sources,
-the hash F3 keys its module by, which F13's first condition reads. The
+and beside it a small file listing, for each of the package's C sources
+and for its glue, the hash F3 keys its module by, which F13's first condition reads. The
 archive's layout is otherwise unchanged (`dependencies.md` §3.1); an `archive` row's library is part of the source
 checkout and is renamed at the consumer's link (F9).
 
@@ -444,11 +451,16 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
 - `golden/NAME.optimized.cgt` shows what folded: the literal checksum as a
   constant, the handle's whole life gone, the capability calls in place, the
   call reaching `sin` left as a call.
-- A fixture holds the hazard of `ffi.md` §5.5: a foreign verb declared with
-  no capability whose C reads an environment variable, built optimized with
-  the variable set, then run with it unset. The test asserts the value the
-  build saw is printed, so a change that quietly stops folding such calls,
-  or starts warning, is a decision, not an accident.
+- A fixture holds the hazard of `ffi.md` §5.5 as this compiler shows it. A
+  call that reaches the C library's own outside state, such as `getenv`,
+  never folds, since the C library has no body here (F16); what does fold
+  is C state of the package's own. So the fixture declares with no
+  capability a C function that returns the next value of a file-scope
+  counter, and calls it three times with its result printed and once with
+  its result unused. The test asserts what an optimized build prints (each
+  call folded from the counter's first value) against what a plain build
+  prints (1, 2, 3), so a change that stops folding such calls, or starts
+  warning about them, is a decision, not an accident.
 - `tests/unit/` checks `c_eval.ml` instruction by instruction against the
   same IR compiled and run, its undefined-behavior stops, the modelled C
   library functions, and the budget.
