@@ -2,7 +2,7 @@
 
 > **Status: designed, not built.** This page says how the compiler implements
 > the spec's C interface
-> ([`ffi.md`](https://github.com/zane-lang/spec/blob/93aef1e/spec/ffi.md)):
+> ([`ffi.md`](https://github.com/zane-lang/spec/blob/4a7c195/spec/ffi.md)):
 > compiling a package's C code, checking foreign verbs against it, calling
 > it, and evaluating it at compile time. Each decision is numbered
 > (**F1**…), and §7 lists the order they are built in.
@@ -387,9 +387,11 @@ models memory as bytes.
   fold, since its sign and payload are the target machine's. A NaN written
   as bits, as a constant or by storing an integer, keeps the bits it was
   written with; `getelementptr`
-  with the target's offsets; `load` and `store`, except a `volatile` one,
-  which stops the fold, as a `volatile` `memcpy`, `memmove` or `memset`
-  does, since a volatile access is one the program makes at run time;
+  with the target's offsets; `load` and `store`, except a `volatile` or
+  atomic one, which stops the fold, as a `volatile` `memcpy`, `memmove` or
+  `memset`, an `atomicrmw`, a `cmpxchg` and a `fence` do: a volatile access
+  is one the program makes at run time, and an atomic one exists to be seen
+  by another thread, which the fold cannot see;
   `phi`, `select`, `br`, `switch`; vectors elementwise; and the intrinsics clang emits at `-O0`
   (`memcpy`, `memmove`, `memset`, the overflow, bit-count, funnel-shift,
   `abs`, `smin`/`smax` families, the exact float functions, `lifetime`,
@@ -457,7 +459,14 @@ a Zane fold reaches a `Foreign_call`, its arguments are known values of
 `eval.ml`; `c_eval.ml` writes each into an allocation of its own laid out as
 F10's slots are, runs the thunk, and reads the result back into an `eval.ml`
 value. A view into a string, array or list is a read-only allocation
-holding a copy of its bytes, and a store into it stops the fold.
+holding a copy of its bytes, and a store into it stops the fold. `eval.ml`
+knows a value and not where it is stored (O5), so whether two views share
+storage at run time is unknown: two arguments from one variable do, two
+equal strings from different variables do not. A view's allocation is
+therefore marked as standing for storage of unknown identity, and comparing
+or subtracting a pointer into it with one into another allocation stops the
+fold (`ffi.md` §5.4's first exclusion). Pointers into two allocations that
+C made compare unequal, as C gives them.
 
 A data handle made during a fold is an allocation of `c_eval.ml`'s,
 which the handle's `eval.ml` value names. A fold that ends with such a
@@ -500,7 +509,7 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   prints (1, 2, 3), so a change that stops folding such calls, or starts
   warning about them, is a decision, not an accident.
 - `tests/unit/` checks `c_eval.ml` instruction by instruction against the
-  same IR compiled and run, its undefined-behavior and `volatile` stops, the modelled C
+  same IR compiled and run, its undefined-behavior, `volatile` and atomic stops, the view-identity stop, the modelled C
   library functions, and the budget.
 - The interface check's errors each have a fixture: a missing symbol, a
   wrong count, a type of another size on one target only (`long` built for
