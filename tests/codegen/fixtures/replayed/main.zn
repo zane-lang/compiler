@@ -4,7 +4,9 @@
 /// whose value is past the size cap stay runtime code, with the constant code
 /// inside them still folded; a store made inside an expression that folds is
 /// still made for a read that happens when the program runs, and what code
-/// left to run writes is not known after it. Each check
+/// left to run writes is not known after it: a value it is given no address
+/// of stays known, a string a `mut` call changed among them, and an owner it
+/// can reach through a stored reference does not. Each check
 /// prints `yes` when it holds and `no` when it does not, and every line
 /// written shows the order held.
 package replayed;
@@ -69,6 +71,60 @@ Int bumped(this Int, by Int) mut {
 
 Int double(n Int) => @operators$multiply(n, Int(2))
 
+Unit shout(this String) mut {
+	this = @operators$concat(this, String("!"));
+	return Unit();
+}
+
+type Named = struct {
+	name String;
+	n Int;
+}
+
+Named(name String, n Int) => init{ name; n; }
+
+Unit rename(this Named) mut {
+	this.name = @operators$concat(this.name, String("!"));
+	return Unit();
+}
+
+type Countdown = variant {
+	done Unit;
+	more Countdown;
+}
+
+Int depth(c Countdown) => match (c) {
+	d done => Int(0);
+	m more => @operators$add(Int(1), depth(m));
+}
+
+Unit deepen(this Countdown) mut {
+	this = Countdown.more(this);
+	return Unit();
+}
+
+type Counter = #struct {
+	n Int;
+}
+
+Counter(n Int) => init{ n; }
+
+type Holder = #struct {
+	at &Counter;
+}
+
+Holder(at &Counter) => init{ at; }
+
+Unit tick(this Counter, by Int) mut {
+	this.n = @operators$add(this.n, by);
+	return Unit();
+}
+
+Unit poke(this Holder, by Int) mut {
+	this.at!tick(by);
+	return Unit();
+}
+
 /// Reads its subject's own slot after three million steps, so the read
 /// happens when the program runs.
 Int slowly(this Int) mut {
@@ -109,6 +165,41 @@ Unit main() {
 	if(@operators$equal(z!bumped(one), Int(0))) {
 	}
 	check(@operators$equal(z, Int(6)));
+
+	// Code left to run given one value's address changes that value and no
+	// other: `q` stays known past it, though the call after the check takes
+	// its address too.
+	p Int(5);
+	q Int(7);
+	p!bumped(one);
+	check(@operators$equal(q, Int(7)));
+	q!bumped(Int(1));
+	check(@operators$equal(q, Int(8)));
+	check(@operators$equal(p, Int(6)));
+
+	// A string a `mut` call changes is stored back, and is known past code
+	// left to run that is given no address of it. So is a struct holding
+	// one. A variant whose payload is boxed is overwritten in place too, and
+	// read when the program runs.
+	word String("hi");
+	word!shout();
+	p!bumped(one);
+	check(@operators$equal(word, String("hi!")));
+	named Named(String("x"), Int(1));
+	named!rename();
+	p!bumped(one);
+	check(@operators$equal(named.name, String("x!")));
+	count Countdown = Countdown.more(Countdown.done(Unit()));
+	count!deepen();
+	p!bumped(one);
+	check(@operators$equal(depth(count), Int(2)));
+
+	// An owner reached through a reference stored in another: code left to
+	// run that is given the other can write it.
+	counter Counter(Int(1));
+	holder Holder(counter);
+	holder!poke(one);
+	check(@operators$equal(counter.n, Int(2)));
 
 	// A count that folds stores what it wrote, for the slot the running
 	// program reads.

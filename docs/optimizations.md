@@ -238,6 +238,23 @@ changed in place and read by later statements, which no single statement
 leaves known, still folds. The longest run that can end is replaced by its
 outputs and the locals it leaves.
 
+### Values kept known past code left to run
+
+- **Builds:** optimized only
+- **Where:** `lib/optimize/fold.ml` (`reach`, `writes`, `store_back`),
+  `lib/cgt/type_layout.ml` (`slot`)
+- **Design:** [`design/optimization.md`](design/optimization.md) O6
+- **Effect:** the perf program `kept`, optimized, −43% estimated cycles
+  and −64% of its instructions, its plain build unchanged; the other perf
+  programs and langbench's programs fold to the same trees as before
+
+Code that does not fold forgets only the locals it can write: those it is
+given an address of, and those an address of which may be kept. A value
+type keeps no address unless one is stored, returned or spawned, so a
+value-type local stays known past a call given no address of it, and a
+string, struct or boxed variant a `mut` call changed is stored back by an
+overwrite.
+
 ### Spawned calls folded
 
 - **Builds:** optimized only

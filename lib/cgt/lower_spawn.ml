@@ -201,6 +201,7 @@ let spawn_call w st ctx span v fn ~writes passed handler =
       params = [ (at, Nodes.Ty.Ptr) ];
       ret = Nodes.Ty.Void;
       body;
+      values = [];
     }
     :: st.spawned;
   let task = fresh st in

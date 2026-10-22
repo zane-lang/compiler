@@ -190,7 +190,8 @@ let construct_fields w st ctx span verb (fields : T.Field_value.t list) handler 
                     if out then begin
                       let l = { p with T.Local.id = -id } in
                       Hashtbl.replace ctx.env l.T.Local.id
-                        (if by_address st v p then Pointer id else Slot id);
+                        (if by_address st v p then Pointer id
+                         else Type_layout.slot st p.T.Local.ty id);
                       `Arg
                         (T.Arg.Value
                            { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l); ty = l.T.Local.ty })
