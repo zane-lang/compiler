@@ -1427,7 +1427,7 @@ let func env (f : Func.t) =
    nothing up. A function whose arguments rarely repeat, or whose repeats
    save less than a lookup costs, pays for a bounded number of lookups and
    then runs as it would have. *)
-let memo_limit = match Sys.getenv_opt "ZANE_MEMO_LIMIT" with Some s -> int_of_string s | None -> 1024
+let memo_limit = 128
 let memo_lookup = 2
 let memo_bytes = 65536
 let memo_most_entries = 4096
