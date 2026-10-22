@@ -814,6 +814,37 @@ let reached_locals () =
   check "a local not marked as a value is forgotten by any call"
     (used [ 1; 2 ] = [ local 1; local 2; local 3; local 5; local 3 ])
 
+(* A local bound by a [Let] whose value owns a box is not stored back by an
+   assignment, which would leave the box behind: the loop that changes it
+   stays. Held, the same value is stored back by an overwrite. *)
+let boxes_stored_back () =
+  let sum = C.Ty.Sum [ C.Ty.Void; C.Ty.Ptr ] in
+  let case i payload = e (C.Expr.Case { index = i; payload }) sum in
+  let boxed v = e (C.Expr.Box { value = v; layout = "chain" }) C.Ty.Ptr in
+  let none = case 0 (e C.Expr.Unit C.Ty.Void) in
+  let deeper = C.Stat.assign 1 (case 1 (boxed (case 1 (boxed none)))) in
+  let loop = C.Stat.Repeat { count = i64 1L; body = [ deeper ] } in
+  let use =
+    C.Stat.Eval (e (C.Expr.Call { fn = "use"; args = [ e (C.Expr.Local 1) sum ] }) C.Ty.Void)
+  in
+  let body bind = [ bind; loop; use; C.Stat.Return (i64 0L) ] in
+  let fold bind =
+    let f = func ~values:[ 1 ] "f" [] (body bind) in
+    (Fold.func (program []) (Value.Key.create 1) f).C.Func.body
+  in
+  let overwritten =
+    List.exists (function
+      | C.Stat.Overwrite { address = { C.Expr.node = C.Expr.Address 1; _ }; _ } -> true
+      | _ -> false)
+  in
+  check "a let that owns a box keeps the loop that changes it"
+    (List.exists
+       (function C.Stat.Repeat _ -> true | _ -> false)
+       (fold (C.Stat.Let { id = 1; value = case 1 (boxed none) })));
+  check "a held value that owns a box is overwritten"
+    (overwritten
+       (fold (C.Stat.Hold { id = 1; scope = 0; value = case 1 (boxed none); layout = "chain" })))
+
 (* A call's value and its outputs together count against the size cap,
    though each fits alone. *)
 let capped_replacement () =
@@ -1340,6 +1371,7 @@ let () =
   kept_store ();
   folded_function ();
   reached_locals ();
+  boxes_stored_back ();
   capped_replacement ();
   bounded_allocation ();
   replayed_outputs ();

@@ -257,8 +257,10 @@ type fn = {
      again. *)
   failed : unit V.Key.t;
   mutable next : int;
-  (* Locals bound by a plain [Let] of a type that owns nothing: an
-     [Assign] can store a new value in them. *)
+  (* Locals bound by a plain [Let] of a type that holds no handle or address
+     anywhere, so owns nothing: an [Assign] can store a new value in them.
+     An owner whose arena was folded away (Regions) is bound by a [Let] too,
+     and an assignment would leave the blocks it owns behind. *)
   plain : (int, unit) Hashtbl.t;
   (* Locals of a value type held in a scope's arena whose address is never
      kept (reach), by layout: an [Overwrite] can store a new value in them. *)
@@ -885,7 +887,7 @@ let func prog failed (f : Func.t) =
   else
     let plain = Hashtbl.create 16 in
     iter_stats f.Func.body ~expr:nothing ~stat:(function
-      | Stat.Let { id; value } when not (List.mem value.Expr.ty [ Ty.Handle; Ty.Ptr ]) ->
+      | Stat.Let { id; value } when not (holds_ref value.Expr.ty) ->
           Hashtbl.replace plain id ()
       | _ -> ());
     let reach = reach f in
