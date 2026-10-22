@@ -1,0 +1,135 @@
+/// MISSES ON A FIXED-SIZE KEY: the same search, also given the path that led to the position, so no key ever repeats.
+package tttpath;
+
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\n")));
+	return Unit();
+}
+
+alias I32 = @primitives$I32
+alias Board = @primitives$Array<I32, 9>
+
+I32 line(b Board, i Int, j Int, k Int) {
+	v I32 = b[i];
+	@controlflow$branch(@operators$equal(v, I32(0)), {
+		return I32(0);
+	});
+	@controlflow$branch(@operators$not(@operators$equal(b[j], v)), {
+		return I32(0);
+	});
+	@controlflow$branch(@operators$not(@operators$equal(b[k], v)), {
+		return I32(0);
+	});
+	return v;
+}
+
+I32 winner(b Board) {
+	w I32 = line(b, Int(1), Int(2), Int(3));
+	w = @operators$add(w, line(b, Int(4), Int(5), Int(6)));
+	w = @operators$add(w, line(b, Int(7), Int(8), Int(9)));
+	w = @operators$add(w, line(b, Int(1), Int(4), Int(7)));
+	w = @operators$add(w, line(b, Int(2), Int(5), Int(8)));
+	w = @operators$add(w, line(b, Int(3), Int(6), Int(9)));
+	w = @operators$add(w, line(b, Int(1), Int(5), Int(9)));
+	w = @operators$add(w, line(b, Int(3), Int(5), Int(7)));
+	return w;
+}
+
+/// The game's value with `p` to move, 1 for a win by X, -1 for one by O.
+I32 minimax(b Board, p I32, path Int) {
+	w I32 = winner(b);
+	@controlflow$branch(@operators$equal(w, I32(1)), {
+		return I32(1);
+	});
+	@controlflow$branch(@operators$lessThan(I32(1), w), {
+		return @operators$negate(I32(1));
+	});
+	best I32 = I32(0);
+	@controlflow$branch(@operators$equal(p, I32(1)), {
+		best = @operators$negate(I32(2));
+	});
+	@controlflow$branch(@operators$equal(p, I32(2)), {
+		best = I32(2);
+	});
+	moved Bool = false;
+	i Int(1);
+	i!to(Int(9)) {
+		@controlflow$branch(@operators$equal(b[i], I32(0)), {
+			next Board = b;
+			next[i] = p;
+			v I32 = minimax(next, @operators$add(I32(3), @operators$negate(p)), @operators$add(@operators$multiply(path, Int(10)), i));
+			moved = true;
+			@controlflow$branch(@operators$equal(p, I32(1)), {
+				@controlflow$branch(@operators$lessThan(best, v), {
+					best = v;
+				});
+			});
+			@controlflow$branch(@operators$equal(p, I32(2)), {
+				@controlflow$branch(@operators$lessThan(v, best), {
+					best = v;
+				});
+			});
+		});
+	}
+	@controlflow$branch(@operators$not(moved), {
+		return I32(0);
+	});
+	return best;
+}
+
+Unit main() {
+	reps Int = size(Int(9));
+	total I32 = I32(0);
+	wins I32 = I32(0);
+	losses I32 = I32(0);
+	r Int(1);
+	r!to(reps) {
+		b Board = @primitives$Array([I32(0), I32(0), I32(0), I32(0), I32(0), I32(0), I32(0), I32(0), I32(0)]);
+		k Int = @operators$add(r, @operators$negate(Int(1)));
+		x Int = @operators$add(@operators$add(k, @operators$negate(@operators$multiply(@operators$divide(k, Int(9)), Int(9)))), Int(1));
+		k = @operators$divide(k, Int(9));
+		o Int = @operators$add(@operators$add(k, @operators$negate(@operators$multiply(@operators$divide(k, Int(9)), Int(9)))), Int(1));
+		@controlflow$branch(@operators$not(@operators$equal(x, o)), {
+			b[x] = I32(1);
+			b[o] = I32(2);
+			v I32 = minimax(b, I32(1), r);
+			total = @operators$add(total, v);
+			@controlflow$branch(@operators$equal(v, I32(1)), {
+				wins = @operators$add(wins, I32(1));
+			});
+			@controlflow$branch(@operators$lessThan(v, I32(0)), {
+				losses = @operators$add(losses, I32(1));
+			});
+		});
+	}
+	say(@operators$concat(@operators$concat(@operators$concat(@operators$concat(String(total), String(" ")), String(wins)), String(" ")), String(losses)));
+	return Unit();
+}

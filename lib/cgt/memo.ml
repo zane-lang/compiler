@@ -22,23 +22,39 @@ type t = {
   func : Func.t;
   body : string;
   plain : string;
+  (* What a lookup is charged, in sixteenths of one of the function's
+     calls (see [charge]). *)
+  charge : int;
 }
 
-(* The 8-byte words a value of [t] is held in when remembered, or [None]
-   for a type that owns blocks or holds an address, whose value is not
-   its words alone. *)
-let rec words (t : Ty.t) =
+(* The 8-byte words a value of [t] is remembered in: its bytes, rounded
+   up. [None] for a type that owns a block or holds an address anywhere in
+   it, whose value is more than its bytes. *)
+let rec fixed (t : Ty.t) =
   match t with
-  | Ty.Void -> Some 0
-  | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> Some 1
-  | Ty.Struct ts ->
-      List.fold_left
-        (fun acc t -> match (acc, words t) with Some a, Some b -> Some (a + b) | _ -> None)
-        (Some 0) ts
-  | Ty.Handle | Ty.Ptr | Ty.Sum _ | Ty.Array _ -> None
+  | Ty.Handle | Ty.Ptr -> false
+  | Ty.Struct ts | Ty.Sum ts -> List.for_all fixed ts
+  | Ty.Array (t, _) -> fixed t
+  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
 
-let most_key_words = 4
-let most_result_words = 2
+let rec scalars (t : Ty.t) =
+  match t with
+  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
+  | Ty.Struct ts -> List.for_all scalars ts
+  | _ -> false
+
+(* A value of scalars only takes a word for each; any other its bytes. *)
+let words (t : Ty.t) =
+  if scalars t then
+    let rec count (t : Ty.t) = match t with Ty.Void -> 0 | Ty.Struct ts -> List.fold_left (fun n t -> n + count t) 0 ts | _ -> 1 in
+    Some (count t)
+  else if fixed t then Some ((fst (Ty.size_align t) + 7) / 8)
+  else None
+
+(* At most 64 bytes of arguments and 64 of result, so a lookup reads and
+   compares a few words. *)
+let most_key_words = 8
+let most_result_words = 8
 
 let fits (f : Func.t) =
   let key = List.fold_left (fun acc (_, t) -> match (acc, words t) with Some a, Some b -> Some (a + b) | _ -> None) (Some 0) f.Func.params in
@@ -127,9 +143,56 @@ let suffix_body = ".memo"
 let suffix_plain = ".plain"
 
 (* A dispatcher's state: how far its lookups have cost more than its hits
-   saved, in calls. At [limit] it has stopped looking. *)
+   saved, in sixteenths of a call. At [limit], 128 calls, it has stopped
+   looking. *)
 let state_symbol s = s ^ ".memo.state"
-let limit = 128
+let scale = 16
+let limit = 128 * scale
+
+(* The weight of one call to [f], for comparing a lookup with it: a node
+   each, a loop's body eight times over, and the weight of each function
+   it calls that is not remembered, whose work a call to [f] includes. A
+   remembered callee weighs one node: its own work is counted by the
+   calls a hit saves. *)
+let weight funcs remembered =
+  let known = Hashtbl.create 16 in
+  let rec of_func s =
+    match Hashtbl.find_opt known s with
+    | Some w -> w
+    | None -> (
+        Hashtbl.replace known s 1;
+        match Hashtbl.find_opt funcs s with
+        | None -> 1
+        | Some (f : Func.t) ->
+            let w = min 100_000 (stats 1 f.Func.body) in
+            Hashtbl.replace known s w;
+            w)
+  and stats times ss = List.fold_left (fun n st -> n + stat times st) 0 ss
+  and stat times (st : Stat.t) =
+    let es, bodies = Traverse.stat_parts st in
+    let inner = match st with Stat.Repeat _ -> min 100_000 (times * 8) | _ -> times in
+    times + List.fold_left (fun n e -> n + expr times e) 0 es + List.fold_left (fun n b -> n + stats inner b) 0 bodies
+  and expr times (e : Expr.t) =
+    let own =
+      match e.Expr.node with
+      | Expr.Call { fn; _ } when not (Hashtbl.mem remembered fn) -> times * of_func fn
+      | _ -> times
+    in
+    let es, bodies = Traverse.expr_parts e in
+    min 100_000 (own + List.fold_left (fun n e -> n + expr times e) 0 es + List.fold_left (fun n b -> n + stats times b) 0 bodies)
+  in
+  of_func
+
+(* What a lookup of [f] is charged, in sixteenths of a call: its own cost,
+   a few dozen instructions and a few more for each word of the key,
+   against the weight of a call. A function whose calls are heavy pays
+   little for each lookup, so it can look up for long before its hits
+   start to pay; one whose calls are light pays up to four calls. *)
+let charge weigh (f : Func.t) =
+  let key = List.fold_left (fun n (_, t) -> n + Option.value ~default:0 (words t)) 0 f.Func.params in
+  let lookup = 24 + (6 * key) in
+  let w = max 1 (weigh f.Func.symbol) in
+  max 1 (min (4 * scale) (((scale * lookup) + (w / 2)) / w))
 
 (* Every id a function names: one numbering covers locals, scopes, labels
    and tasks (lower.ml's [fresh]). *)
@@ -368,5 +431,9 @@ let plan ?(keep = fun _ -> true) (p : Program.t) =
     let states =
       List.map (fun (f : Func.t) -> { Global.symbol = state_symbol f.Func.symbol; linkage = Linkage.Local; ty = Ty.I64 }) memos
     in
+    let weigh = weight funcs remembered in
     ( { p with Program.funcs = funcs'; globals = p.Program.globals @ states },
-      List.map (fun (f : Func.t) -> { func = f; body = f.Func.symbol ^ suffix_body; plain = f.Func.symbol ^ suffix_plain }) memos )
+      List.map
+        (fun (f : Func.t) ->
+          { func = f; body = f.Func.symbol ^ suffix_body; plain = f.Func.symbol ^ suffix_plain; charge = charge weigh f })
+        memos )
