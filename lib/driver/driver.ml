@@ -121,7 +121,8 @@ let lower ?(regions = no_regions) ~kind packages program =
 
 (* Stage 5 (docs/design/optimization.md), which only an optimized build
    runs: an unoptimized one skips it. *)
-let optimize ~optimize cgt = if optimize then Optimize.run cgt else cgt
+let optimize ~optimize cgt =
+  if optimize && Sys.getenv_opt "ZANE_NO_FOLD" = None then Optimize.run cgt else cgt
 
 (* Codegen's own failures -- an unknown target, a link that failed -- are
    about the build, not about any file of it. *)

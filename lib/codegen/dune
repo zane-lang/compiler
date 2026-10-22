@@ -17,7 +17,7 @@
     (:include lld_cxx.sexp))))
  (c_library_flags
   (:include lld_libs.sexp))
- (libraries cgt diagnostic runtime_source unix llvm llvm.analysis llvm.irreader llvm.target llvm.passbuilder llvm.all_backends))
+ (libraries cgt diagnostic runtime_source unix llvm llvm.analysis llvm.irreader llvm.target llvm.passbuilder llvm.all_backends llvm.bitwriter))
 
 (rule
  (target abi.ml)

@@ -1,0 +1,102 @@
+/// A heavy calculation that says it started first: a Mandelbrot set counted
+/// row by row, then the Collatz chains below a bound, each in calls of its own.
+package heavy;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\n")));
+	return Unit();
+}
+
+Float real(v Int) => @primitives$F64.round(v)
+
+/// How many points of row `y` of an `n` by `n` grid stay within 2 for 50 steps.
+Int row(y Int, n Int) {
+	inside Int(0);
+	ci Float = @operators$add(@operators$divide(@operators$multiply(Float(2.0), real(y)), real(n)), @operators$negate(Float(1.0)));
+	x Int(1);
+	x!to(n) {
+		cr Float = @operators$add(@operators$divide(@operators$multiply(Float(2.0), real(x)), real(n)), @operators$negate(Float(1.5)));
+		zr Float(0.0);
+		zi Float(0.0);
+		escaped Bool = false;
+		k Int(1);
+		k!to(Int(50)) {
+			@controlflow$branch(@operators$not(escaped), {
+				t Float = @operators$add(@operators$add(@operators$multiply(zr, zr), @operators$negate(@operators$multiply(zi, zi))), cr);
+				zi = @operators$add(@operators$multiply(@operators$multiply(Float(2.0), zr), zi), ci);
+				zr = t;
+				@controlflow$branch(@operators$lessThan(Float(4.0), @operators$add(@operators$multiply(zr, zr), @operators$multiply(zi, zi))), {
+					escaped = true;
+				});
+			});
+		}
+		@controlflow$branch(@operators$not(escaped), {
+			inside = @operators$add(inside, Int(1));
+		});
+	}
+	return inside;
+}
+
+/// The steps the Collatz chain from `start` takes to reach 1.
+Int chain(start Int) {
+	v Int = start;
+	steps Int(0);
+	guard Int(1);
+	guard!to(Int(1000)) {
+		@controlflow$branch(@operators$lessThan(Int(1), v), {
+			half Int = @operators$divide(v, Int(2));
+			even Bool = @operators$equal(@operators$multiply(half, Int(2)), v);
+			@controlflow$branch(even, {
+				v = half;
+			});
+			@controlflow$branch(@operators$not(even), {
+				v = @operators$add(@operators$multiply(v, Int(3)), Int(1));
+			});
+			steps = @operators$add(steps, Int(1));
+		});
+	}
+	return steps;
+}
+
+Unit main() {
+	say(String("heavy: started"));
+	n Int = size(Int(1000));
+	inside Int(0);
+	y Int(1);
+	y!to(n) {
+		inside = @operators$add(inside, row(y, n));
+	}
+	longest Int(0);
+	s Int(1);
+	s!to(@operators$multiply(n, Int(300))) {
+		c Int = chain(s);
+		@controlflow$branch(@operators$lessThan(longest, c), {
+			longest = c;
+		});
+	}
+	say(@operators$concat(@operators$concat(String(inside), String(" ")), String(longest)));
+	return Unit();
+}

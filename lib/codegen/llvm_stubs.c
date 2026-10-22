@@ -162,3 +162,19 @@ value zane_function_attrs(value function, value index) {
   int i = Int_val(index);
   CAMLreturn(pointers(LLVMGetAttributeCountAtIndex(f, i), fill_function_attrs, f, i));
 }
+
+/* Experimental: LLVM's own command-line options, from `ZANE_LLVM_ARGS`. */
+void LLVMParseCommandLineOptions(int argc, const char *const *argv, const char *overview);
+
+value zane_llvm_options(value unit) {
+  static int parsed = 0;
+  const char *args = getenv("ZANE_LLVM_ARGS");
+  if (parsed || !args) return Val_unit;
+  parsed = 1;
+  char *copy = strdup(args);
+  const char *argv[64] = {"zanec"};
+  int argc = 1;
+  for (char *w = strtok(copy, " "); w && argc < 64; w = strtok(NULL, " ")) argv[argc++] = w;
+  LLVMParseCommandLineOptions(argc, argv, "");
+  return Val_unit;
+}

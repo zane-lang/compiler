@@ -2,6 +2,7 @@
    system's C compiler links it with the runtime (docs/design/lowering.md L2, L17). *)
 
 external normalize_triple : string -> string = "zane_normalize_triple"
+external llvm_options : unit -> unit = "zane_llvm_options"
 
 (* The processor code is tuned for on *triple*, as clang tunes it: on x86-64
    the baseline `x86-64`, on `x86_64h` the Haswell processor that
@@ -48,6 +49,7 @@ let sixty_four_bit triple layout =
    error, not an exception. *)
 let target_machine ?target ~optimize () =
   Llvm_all_backends.initialize ();
+  llvm_options ();
   let triple =
     match target with
     | Some target -> normalize_triple target
@@ -122,10 +124,16 @@ let prepare ?target ?(optimize = false) m =
       shared_in_comdats triple m;
       probe_stack triple m;
       let data_layout = Llvm_target.TargetMachine.data_layout tm in
+      let t0 = Unix.gettimeofday () in
+      let timed what = if Sys.getenv_opt "ZANE_TIME" <> None then Printf.eprintf "%s: %.0f ms\n%!" what ((Unix.gettimeofday () -. t0) *. 1000.) in
       Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
+      timed "big moves";
+      (match Sys.getenv_opt "ZANE_DUMP_PRE" with Some f -> ignore (Llvm_bitwriter.write_bitcode_file m f) | None -> ());
       if not optimize then Wrappers.mark data_layout m;
+      if Tiers.mode () = Some "1" then Tiers.definitions m;
       Llvm_passbuilder.run_passes m (if optimize then "default<O2>" else unoptimized_passes) tm
         (Llvm_passbuilder.create_passbuilder_options ())
+      |> Result.map (fun () -> timed "passes"; if Tiers.mode () = Some "0" then Tiers.slots m)
       |> Result.map (fun () -> (triple, tm))
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s"))
 
@@ -786,7 +794,7 @@ let executable ?target ?(optimize = false) ?(link = []) ?(bundled = bundled_dir 
   | Ok (triple, tm) -> (
       let cc = cc () in
       let level = level ~optimize and system = system_libraries target in
-      let flags = target_flag target @ level in
+      let flags = target_flag target @ level @ (if Tiers.mode () = Some "0" then [ "-Wl,--export-dynamic" ] else []) in
       let args obj runtime = flags @ [ "-o"; output; obj ] @ link @ system @ [ runtime ] in
       let bundled_link =
         Option.map
