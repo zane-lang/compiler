@@ -256,10 +256,13 @@ the place a handle finally rests in releases it (`ffi.md` §4.2). It has no
 A drain ends a scope's values with no order among them
 ([`lowering.md`](lowering.md) §9), but the spec orders release functions:
 those of one drain run in the reverse of the order their handles were made.
-So each handle a call makes is stamped with a number from a per-thread
-counter as it is made, and a drain that ends more than one handle collects
-their pointers and runs the release thunks by descending stamp, after the
-scope's other ends. A move keeps the stamp, since the handle is the same
+So each handle a call makes is stamped as it is made with a number from
+one process-wide counter, a 64-bit atomic fetch-and-add. Handles made by
+spawned calls on different pool threads still get distinct, comparable
+stamps, and a handle made from another is made after it in the program's
+happens-before order, so its stamp is larger. A drain that ends more than
+one handle collects their pointers and runs the release thunks by
+descending stamp, after the scope's other ends. A move keeps the stamp, since the handle is the same
 one. A drain that ends one handle or none does nothing more than it does
 now.
 
@@ -358,8 +361,10 @@ models memory as bytes.
   fold, since its sign and payload are the target machine's. A NaN written
   as bits, as a constant or by storing an integer, keeps the bits it was
   written with; `getelementptr`
-  with the target's offsets; `load` and `store`; `phi`, `select`, `br`,
-  `switch`; vectors elementwise; and the intrinsics clang emits at `-O0`
+  with the target's offsets; `load` and `store`, except a `volatile` one,
+  which stops the fold, as a `volatile` `memcpy`, `memmove` or `memset`
+  does, since a volatile access is one the program makes at run time;
+  `phi`, `select`, `br`, `switch`; vectors elementwise; and the intrinsics clang emits at `-O0`
   (`memcpy`, `memmove`, `memset`, the overflow, bit-count, funnel-shift,
   `abs`, `smin`/`smax` families, the exact float functions, `lifetime`,
   which does nothing, and `assume`, whose condition is evaluated: a false or
@@ -462,7 +467,7 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   prints (1, 2, 3), so a change that stops folding such calls, or starts
   warning about them, is a decision, not an accident.
 - `tests/unit/` checks `c_eval.ml` instruction by instruction against the
-  same IR compiled and run, its undefined-behavior stops, the modelled C
+  same IR compiled and run, its undefined-behavior and `volatile` stops, the modelled C
   library functions, and the budget.
 - The interface check's errors each have a fixture: a missing symbol, a
   wrong count, a type of another size on one target only (`long` built for
