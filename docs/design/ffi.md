@@ -256,6 +256,27 @@ retained the way its Zane is (`separate-compilation.md` C12, and
 module (F3), linked with `available_externally` linkage so LLVM may inline it
 and emits nothing for it, and defined in the dependency's own object.
 
+Two conditions keep a retained body the same code the dependency's object
+runs:
+
+- **It is the code the object was built from.** A release archive records,
+  for each C source, the hash F3 keys its module by: the preprocessed text,
+  the front-end command and the compiler's version (F15). The consumer
+  computes the same hash for the module it rebuilds from the checkout, and
+  retains that module only when the two agree. Where they differ, because
+  the consumer's system headers, include directories or compiler differ from
+  the publisher's, the dependency's C is called and never inlined or folded.
+  A `source` or path dependency is built by the consumer, so its modules
+  always agree.
+- **It shares no state the object owns.** A retained function that reaches
+  a C variable with internal linkage that is not `const` (a file-scope
+  `static` counter, say) is not retained: a copy of the variable in the
+  consumer would be a second variable, and the function's inlined and
+  called forms would each see their own. Such a function, and everything
+  that reaches it, is called. A `static const` table and a `static`
+  function are copied freely, since a copy of either behaves as the
+  original.
+
 **F14. An unoptimized build compiles the C apart.** `zane run` builds
 unoptimized and answers to the time from the command to the result
 ([`optimization.md`](optimization.md) O12). C written to be compiled with
@@ -266,8 +287,9 @@ the module; the Zane module stays unoptimized and calls its thunks.
 
 **F15. A release archive holds one object per package build, C included.**
 `--object` writes the package's object with its C linked in (F13 or F14),
-so a release archive's layout is unchanged
-(`dependencies.md` §3.1); an `archive` row's library is part of the source
+and beside it a small file listing, for each of the package's C sources,
+the hash F3 keys its module by, which F13's first condition reads. The
+archive's layout is otherwise unchanged (`dependencies.md` §3.1); an `archive` row's library is part of the source
 checkout and is renamed at the consumer's link (F9).
 
 ---
@@ -311,6 +333,20 @@ models memory as bytes.
   `malloc`, `calloc`, `realloc`, `free`, `abs`, `labs`, `llabs`. Any other is
   unknown, so the fold stops there, which is what keeps `sin` and its kin to
   the run time, as the Zane approximate functions are kept (O3).
+
+  Two of these give less than an exact value, and are modelled as what C
+  promises. `memcmp`, `strcmp` and `strncmp` promise only the sign of their
+  result, so the evaluator's result is a **sign-only** integer: comparing it
+  with zero folds, and anything else that would read its value (returning
+  it, storing it where Zane reads it, arithmetic on it) stops the fold.
+  `malloc`, `calloc` and `realloc` of a size of zero may or may not give a
+  null pointer, so a fold that makes one stops. An allocation of any other
+  size succeeds at compile time while it fits the budget (F19). A run that
+  runs out of memory there is a run the program could have had and did not,
+  as a spawned call's order is one of the orders it could have had (O8):
+  the folded program computes what a run with the memory it needed
+  computes, and a Zane program out of memory stops anyway
+  ([`lowering.md`](lowering.md) §9).
 - **Undefined behavior stops the fold.** A read of a byte never written, an
   access outside an allocation or through a freed one, poison reaching a
   branch, a store or a call, a misaligned access, and a division by zero
