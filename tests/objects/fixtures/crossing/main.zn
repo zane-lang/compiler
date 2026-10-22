@@ -1,4 +1,4 @@
-/// A library of verbs that take and return values of one, two and three
+/// A library of verbs that take and return values of one to four
 /// pieces (docs/design/lowering.md §9), whose signatures `abi_test.py`
 /// reads: a library exports each, so each keeps its function however its
 /// callers inline it.
@@ -6,6 +6,7 @@ package crossing;
 
 alias I32 = @primitives$I32
 alias Int = @primitives$I64
+alias Float = @primitives$F64
 
 type Pair = struct {
 	x Int;
@@ -22,6 +23,25 @@ type Triple = struct {
 
 Triple(x Int, y Int, z Int) => init{ x; y; z; }
 
+type Quad = struct {
+	w Int;
+	x Int;
+	y Int;
+	z Int;
+}
+
+Quad(w Int, x Int, y Int, z Int) => init{ w; x; y; z; }
+
+/// Three pieces, all floating-point: one more than x86-64 returns in
+/// registers.
+type Point = struct {
+	x Float;
+	y Float;
+	z Float;
+}
+
+Point(x Float, y Float, z Float) => init{ x; y; z; }
+
 /// Three pieces in 12 bytes: by address unless packed into two words.
 type Small = struct {
 	a I32;
@@ -36,6 +56,10 @@ type Light = enum [ red, green ]
 Pair swapped(p Pair) => Pair(p.y, p.x)
 
 Triple rotated(t Triple) => Triple(t.y, t.z, t.x)
+
+Quad turned(q Quad) => Quad(q.z, q.w, q.x, q.y)
+
+Point mirrored(p Point) => Point(p.z, p.y, p.x)
 
 Small reversed(s Small) => Small(s.c, s.b, s.a)
 

@@ -115,6 +115,10 @@ repo's `langbench/` and print what it prints at the same size.
   block that doubles.
 - `copies` is a tree of value variants copied whole and summed.
 - `texts` is numbers written as text, joined onto two lines and compared.
+- `returns` is results of three words returned from recursive calls:
+  langbench's ntree, four-way trees whose nodes own a growable list of
+  children, each node returned whole as its list's handle, and numbers
+  summed by halves, each half returned as a struct of three integers.
 - `removal` is a list of value structs that grows by pushes and shrinks by
   ordered and swapping removals.
 - `stress` is the logged one, a large program of sixteen sections:

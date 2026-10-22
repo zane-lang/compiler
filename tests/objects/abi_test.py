@@ -1,9 +1,10 @@
-"""How an aggregate crosses a call (docs/design/lowering.md §9): in
-registers while it takes no more than the target gives one, two on x86-64
-Linux and macOS and on AArch64 and one on x86-64 Windows, and by address
-past that; what a parameter passed by address and a result returned through
-`sret` tell LLVM; and `--pack-aggregates`, which passes an aggregate that
-fits in those registers as packed words."""
+"""How an aggregate crosses a call (docs/design/lowering.md §9): an
+argument in registers while it takes no more than the target gives one, two
+on x86-64 Linux and macOS and on AArch64 and one on x86-64 Windows, and a
+result while it takes no more than three, at most two of them
+floating-point; by address past that; what a parameter passed by address
+and a result returned through `sret` tell LLVM; and `--pack-aggregates`,
+which passes an aggregate that fits in those registers as packed words."""
 
 from pathlib import Path
 import re
@@ -50,7 +51,7 @@ class AbiTests(unittest.TestCase):
 
     def test_the_line_falls_where_the_target_puts_it(self):
         two = r'\{ i64, i64 \} @"[^"]*"\(\{ i64, i64 \} %0\)'
-        by_address = r'void @"[^"]*"\(ptr noalias sret\(\{ i64, i64 \}\) align 8 %0, ptr noalias readonly'
+        by_address = r'\{ i64, i64 \} @"[^"]*"\(ptr noalias readonly align 8 dereferenceable\(16\) %0\)'
         for target, pair in [
             ("x86_64-linux-gnu", two),
             ("aarch64-apple-darwin", two),
@@ -59,18 +60,26 @@ class AbiTests(unittest.TestCase):
             with self.subTest(target=target):
                 ir = zanec("--kind", "library", "--ll", "--target", target, "--package", CROSSING)
                 self.assertRegex(signature(ir, "crossing$swapped("), pair)
-                # One piece passes as itself everywhere, three nowhere.
+                # One piece passes as itself everywhere. Three pass by
+                # address and come back in registers, four come back
+                # through `sret`, and so do three floating-point ones.
                 self.assertRegex(signature(ir, "crossing$flipped("), r"\{ i32 \} %0\)")
-                self.assertRegex(signature(ir, "crossing$rotated("), r"\(ptr noalias sret")
+                self.assertRegex(
+                    signature(ir, "crossing$rotated("),
+                    r'^define \{ i64, i64, i64 \} @"[^"]*"\(ptr noalias readonly align 8 dereferenceable\(24\) %0\)')
+                self.assertRegex(signature(ir, "crossing$turned("), r"^define void .*\(ptr noalias sret\(\{ i64, i64, i64, i64 \}\)")
+                self.assertRegex(signature(ir, "crossing$mirrored("), r"^define void .*\(ptr noalias sret\(\{ double, double, double \}\)")
 
     def test_packing_passes_words(self):
         ir = zanec("--kind", "library", "--ll", "--pack-aggregates", "--target", "x86_64-linux-gnu", "--package", CROSSING)
         # Three I32s, three pieces in 12 bytes, travel as two words.
         self.assertRegex(signature(ir, "crossing$reversed("), r'\{ i64, i64 \} @"[^"]*"\(i64 %0, i64 %1\)')
-        self.assertRegex(signature(ir, "crossing$rotated("), r"\(ptr noalias sret")
+        # Three words come back as themselves, and four through `sret`.
+        self.assertRegex(signature(ir, "crossing$rotated("), r'^define \{ i64, i64, i64 \} @"[^"]*"\(ptr noalias readonly')
+        self.assertRegex(signature(ir, "crossing$turned("), r"\(ptr noalias sret")
         ir = zanec("--kind", "library", "--ll", "--pack-aggregates", "--target", "x86_64-windows-gnu", "--package", CROSSING)
         self.assertRegex(signature(ir, "crossing$flipped("), r'i64 @"[^"]*"\(i64 %0\)')
-        self.assertRegex(signature(ir, "crossing$reversed("), r"\(ptr noalias sret")
+        self.assertRegex(signature(ir, "crossing$reversed("), r'^define \{ i64, i64 \} @"[^"]*"\(ptr noalias readonly')
 
     def test_packed_and_unpacked_objects_do_not_link(self):
         # Packing changes how a call crosses, so a program built one way

@@ -124,8 +124,8 @@ let rewrite data_layout m =
           (large_loads f))
     m;
   (* A parameter or a result too large to move as one value: a signature
-     passes such an aggregate by address (Emit.passing), so one here is an
-     invariant broken, not a limit of the program's. *)
+     passes such an aggregate by address (Emit.passing, Emit.returning), so
+     one here is an invariant broken, not a limit of the program's. *)
   Llvm.iter_functions
     (fun f ->
       let fty = Emit.value_type f in

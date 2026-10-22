@@ -979,6 +979,8 @@ let emit_env ?(pack = false) ?(triple = "x86_64-unknown-linux-gnu") () =
     registers = Codegen__Emit.registers triple;
     pack;
     passings = Hashtbl.create 1;
+    results = Codegen__Emit.results triple;
+    returnings = Hashtbl.create 1;
     globals = Hashtbl.create 1;
     walks = None;
     handle_tag = fst tags;
@@ -1019,7 +1021,12 @@ let counted_pieces () =
     (count (T.Sum [ T.I64; T.Struct [ T.I64; T.I64 ]; T.Void ]) = 3);
   check "an array takes its element's times its length" (count (T.Array (T.Struct [ T.I64; T.I32 ], 5)) = 10);
   check "an array of Unit takes none" (count (T.Array (T.Void, 7)) = 0);
-  check "65,536 I64s take 65,536" (count (T.Array (T.I64, 65536)) = 65536)
+  check "65,536 I64s take 65,536" (count (T.Array (T.I64, 65536)) = 65536);
+  let floats = Codegen__Emit.floats in
+  check "a handle has no floating-point piece" (floats T.Handle = 0);
+  check "a struct has its members' floating-point pieces" (floats (T.Struct [ T.F64; T.I64; T.F32 ]) = 2);
+  check "an array has its element's times its length" (floats (T.Array (T.Struct [ T.F64; T.I32 ], 3)) = 3);
+  check "a variant's payload words are not floating-point" (floats (T.Sum [ T.F64; T.Void ]) = 0)
 
 (* Which way each type crosses, per target and with packing. *)
 let passings () =
@@ -1045,6 +1052,31 @@ let passings () =
   check "packed on Windows, one word fits" (E.passing packed_windows (T.Sum [ T.Void; T.Void ]) = E.Words 1);
   check "packed on Windows, two words go by address" (E.passing packed_windows small = E.Address);
   List.iter dispose [ linux; windows; packed; packed_windows ]
+
+(* Which way each type comes back as a result: within three pieces, at
+   most two of them floating-point, on x86-64 and AArch64, and within the
+   argument limit elsewhere. *)
+let returnings () =
+  let module T = Cgt.Nodes.Ty in
+  let module E = Codegen__Emit in
+  check "x86-64 Linux returns three pieces, two floating" (E.results "x86_64-unknown-linux-gnu" = (3, 2));
+  check "x86-64 Windows returns as many" (E.results "x86_64-unknown-windows-gnu" = (3, 2));
+  check "AArch64 macOS returns as many" (E.results "arm64-apple-macosx" = (3, 2));
+  check "RISC-V returns what it passes" (E.results "riscv64-unknown-linux-gnu" = (2, 2));
+  let linux = emit_env () and windows = emit_env ~triple:"x86_64-unknown-windows-gnu" () in
+  let packed = emit_env ~pack:true () in
+  check "a handle comes back as itself" (E.returning linux T.Handle = E.Itself);
+  check "a handle comes back as itself on Windows" (E.returning windows T.Handle = E.Itself);
+  check "a two-word variant comes back as itself"
+    (E.returning linux (T.Sum [ T.I64; T.Struct [ T.I64; T.I64 ] ]) = E.Itself);
+  check "four pieces come back by address"
+    (E.returning linux (T.Struct [ T.I32; T.I32; T.I32; T.I32 ]) = E.Address);
+  check "two floats come back as themselves" (E.returning linux (T.Struct [ T.F64; T.F64; T.I64 ]) = E.Itself);
+  check "three floats come back by address" (E.returning linux (T.Struct [ T.F64; T.F64; T.F64 ]) = E.Address);
+  check "65,536 I64s come back by address" (E.returning linux (T.Array (T.I64, 65536)) = E.Address);
+  check "packed, a handle comes back as three words" (E.returning packed T.Handle = E.Words 3);
+  check "packed, four words come back by address" (E.returning packed (T.Array (T.I64, 4)) = E.Address);
+  List.iter dispose [ linux; windows; packed ]
 
 (* The backstop: a function whose own type still passes or returns an
    aggregate too large to move as one value is a broken invariant. *)
@@ -1269,6 +1301,7 @@ let () =
   long_arrays ();
   counted_pieces ();
   passings ();
+  returnings ();
   backstop ();
   fixture_pairing ();
   escaped_locations ();

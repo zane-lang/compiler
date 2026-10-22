@@ -1,0 +1,114 @@
+/// Results of three words returned from recursive calls. Trees whose nodes
+/// own a growable list of children, as langbench's ntree: a complete
+/// four-way tree N levels deep, built, counted and torn down ten times, each
+/// node returned whole as its list's handle. Then 4^N numbers summed by
+/// halves ten times, from a different start each round, each half returned
+/// as a struct of three integers.
+package returns;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\n")));
+	return Unit();
+}
+
+
+type Node = #struct {
+	children List<Node>;
+}
+
+Node() => init{
+	children = @primitives$List(Node);
+}
+
+/// A complete four-way tree `depth` levels below its root.
+^Node grow(depth Int) {
+	node ^Node = Node();
+	@controlflow$branch(@operators$lessThan(Int(0), depth), {
+		k Int(1);
+		k!to(Int(4)) {
+			node.children!push(grow(@operators$add(depth, @operators$negate(Int(1)))));
+		}
+	});
+	return node;
+}
+
+/// How many nodes the tree has.
+Int count(node Node) {
+	total Int(1);
+	k Int(1);
+	k!to(node.children:size()) {
+		total = @operators$add(total, count(node.children[k]));
+	}
+	return total;
+}
+
+type Span = struct {
+	low Int;
+	high Int;
+	total Int;
+}
+
+Span(low Int, high Int, total Int) => init{ low; high; total; }
+
+/// The numbers from `low` to `high` and their sum, split in halves down to
+/// single numbers.
+Span sum(low Int, high Int) {
+	@controlflow$branch(@operators$equal(low, high), {
+		return Span(low, high, low);
+	});
+	middle Int = @operators$divide(@operators$add(low, high), Int(2));
+	left Span = sum(low, middle);
+	right Span = sum(@operators$add(middle, Int(1)), high);
+	return Span(left.low, right.high, @operators$add(left.total, right.total));
+}
+
+Unit main() {
+	depth Int = size(Int(6));
+	total Int(0);
+	round Int(1);
+	round!to(Int(10)) {
+		tree Node = grow(depth);
+		total = @operators$add(total, count(tree));
+	}
+	say(@operators$concat(@operators$concat(String(depth), String(" ")), String(total)));
+	numbers Int(1);
+	i Int(1);
+	i!to(depth) {
+		numbers = @operators$multiply(numbers, Int(4));
+	}
+	summed Int(0);
+	round = Int(1);
+	round!to(Int(10)) {
+		span Span = sum(round, @operators$add(numbers, round));
+		summed = @operators$add(summed, @operators$add(span.total, @operators$add(span.high, @operators$negate(span.low))));
+	}
+	say(@operators$concat(@operators$concat(String(numbers), String(" ")), String(summed)));
+	return Unit();
+}
