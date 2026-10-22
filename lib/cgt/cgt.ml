@@ -4,6 +4,7 @@ module Nodes = Nodes
 module Runtime = Runtime
 module Math = Math
 module Traverse = Traverse
+module Memo = Memo
 
 let lower = Program.program
 let to_node = To_tree_graph.program

@@ -60,6 +60,7 @@ val optimize : optimize:bool -> Cgt.Nodes.Program.t -> Cgt.Nodes.Program.t
 val ir :
   ?target:string ->
   ?pack:bool ->
+  ?memoize:bool ->
   ?regions:regions ->
   optimize:bool ->
   Cgt.Nodes.Program.t ->
@@ -68,6 +69,7 @@ val ir :
 val executable :
   ?target:string ->
   ?pack:bool ->
+  ?memoize:bool ->
   ?regions:regions ->
   optimize:bool ->
   link:string list ->
@@ -78,6 +80,7 @@ val executable :
 val object_file :
   ?target:string ->
   ?pack:bool ->
+  ?memoize:bool ->
   ?regions:regions ->
   optimize:bool ->
   Cgt.Nodes.Program.t ->
