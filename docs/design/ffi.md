@@ -106,8 +106,9 @@ row.
 compiler.** Each package's interface headers are compiled once more, with the
 package's flags, as a translation unit that includes each of them, and
 `clang_stubs.cpp` walks its AST. What it hands back is a table, by name, of
-every function, `struct` and `typedef` whose spelling location is in an
-interface header: each function's canonical parameter and result types,
+every function, variable, `struct` and `typedef` whose spelling location is
+in an interface header: each variable's canonical type and whether it has
+external linkage; each function's canonical parameter and result types,
 `const` qualification of pointees, whether it is variadic, and whether it
 has a prototype at all; each `struct`'s fields with their canonical types,
 offsets, and bit widths where a field is a bit-field, and the record's size
@@ -132,20 +133,29 @@ corresponds to a C-compatible value type (`ffi.md` §3.3's full-width fields
 exclude it). The check runs in
 every build, so `zane check` reports what a build would.
 
-**F7. The TST knows foreign verbs, handles and the system.** A foreign verb is
-a verb whose body is `Foreign { symbol; decl }`, with `decl` its entry in
-the table. Its capability facts (`effects.md` §5.2) are not derived from a
-body: `lib/tst/analyses/` gives a foreign verb the facts `ffi.md` §5.2's table
-gives its signature, and every other analysis reads them as it reads a
-verb's derived ones. `ffi.md` §5.3's rule, that only a `mut` method on a
-capability makes a foreign capability, is checked with the signature.
+**F7. The TST knows foreign verbs, handles and foreign variables.** A
+foreign verb is a verb whose body is `Foreign { symbol; decl }`, with `decl`
+its entry in the table. Its capability facts (`effects.md` §5.2) are not
+derived from a body: `lib/tst/analyses/` gives a foreign verb the facts
+`ffi.md` §5.2's table gives its signature, and every other analysis reads
+them as it reads a verb's derived ones.
 
-A foreign handle is `Ty.Handle { c_type; release; capability }`, a
-reference type with no fields: it is settled or roaming, moved and
-referenced, and destroyed, exactly like a `#struct`. `@runtime$System` is a
-runtime type beside `@runtime$Console`, and `@program$system` a program
-value beside `@program$console` ([`symbols.md`](symbols.md),
-"`zane.value.@program$system`").
+A foreign handle is `Ty.Handle { c_type; set; free; kind }`, a reference
+type with no fields: it is settled or roaming, moved and referenced, and
+destroyed, exactly like a `#struct`. `kind` is `Capability` when the type
+has no `free`, and otherwise read from the foreign verbs that return the
+type once every package's declarations are known: `Outside` when they are
+methods on a capability, `Data` when they are not, and a compile-time error
+at the type when they are both (`ffi.md` §4.2). The placements of `ffi.md`
+§4.4, and §5.3's rule that only a `mut` method on a capability makes an
+outside handle, are checked against `kind` with the signature.
+
+A foreign variable is a declaration statement
+`Foreign_var { name; ty; symbol; decl }`, where `decl` is the variable's
+entry in the table of `ty`'s package. The checker rejects one outside the
+root package, one whose `ty` is not a capability, and one whose entry is
+missing, lacks external linkage, or has another C type than `ty`'s
+`c_type`.
 
 ---
 
@@ -171,8 +181,9 @@ so clang does the classification it already knows. The glue holds:
   type. The thunk does the conversions of `ffi.md` §3.3 as C casts: an
   `@primitives$I32` passed to a `uint8_t` keeps its low bits, a returned
   `int16_t` widens by its sign.
-- one **release thunk** per foreign handle type, `void release(void *object)`,
-  which calls the release function with the pointer.
+- one **free thunk** per foreign handle type with a free function,
+  `void free_(void *object)`, which calls it with the pointer, and one
+  **set thunk** per type with a setter, `void set(void *dst, void *src)`.
 - for function values, the entries of F11.
 
 A thunk's name is the foreign verb's symbol ([`symbols.md`](symbols.md))
@@ -214,7 +225,6 @@ node passes the slots' addresses:
 | `@primitives$List<T>` | a `zane_span`: the list's block address and count |
 | C-compatible value type | the value, already in C's layout |
 | a handle | its pointer |
-| `@runtime$System` subject | nothing: it is not passed |
 
 A string, array or list is lent where it is: nothing else in the call writes
 what the call borrows (`memory.md` §2.9.1), and C never writes it, so its
@@ -246,22 +256,31 @@ The representation is fixed by the type alone, so it needs no analysis of
 where a function value flows, and the two agree in every object
 ([`lowering.md`](lowering.md), "Fixed while compiling").
 
-**F12. A handle is a pointer whose end calls its release thunk.** A handle's
+**F12. A handle is a pointer whose end calls its free thunk.** A handle's
 CGT type is one pointer. Its walk table ([`lowering.md`](lowering.md) §9)
-has an `.end` that calls the release thunk when the pointer is not null and
+has an `.end` that calls the free thunk when the pointer is not null and
 a `.move` that copies the pointer and nulls the place moved from, so only
 the place a handle finally rests in releases it (`ffi.md` §4.2). It has no
-`.copy`: a handle is a reference type and is never copied.
+`.copy`: a handle is a reference type and is never copied. A capability's
+walk table has no `.end`, since nothing frees a C global, and a foreign
+variable lowers to the address of its global under the name F9 gives it.
+
+An assignment to a settled place that holds a handle lowers, for each
+handle the overwrite reaches (`memory.md` §2.2), to a call of the set thunk
+with the place's pointer and the replacement's, and the replacement is
+dropped without its `.end`. The place keeps its stamp (below): handles made
+from the old object since hold the same address, so they still end
+first.
 
 A drain ends a scope's values with no order among them
-([`lowering.md`](lowering.md) §9), but the spec orders release functions:
+([`lowering.md`](lowering.md) §9), but the spec orders free functions:
 those of one drain run in the reverse of the order their handles were made.
 So each handle a call makes is stamped as it is made with a number from
 one process-wide counter, a 64-bit atomic fetch-and-add. Handles made by
 spawned calls on different pool threads still get distinct, comparable
 stamps, and a handle made from another is made after it in the program's
 happens-before order, so its stamp is larger. A drain that ends more than
-one handle collects their pointers and runs the release thunks by
+one handle collects their pointers and runs the free thunks by
 descending stamp, after the scope's other ends. A move keeps the stamp, since the handle is the same
 one. A drain that ends one handle or none does nothing more than it does
 now.
@@ -449,8 +468,9 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
 - `tests/ffi/` holds packages with C code, built for every target the
   codegen fixtures run on, plain and optimized, each held to one golden
   output: a pure C function called with a literal and with an argument, a
-  data handle made, written and released (its release counted by the C
-  code), a capability read and write, a string returned from C, a list and
+  data handle made, written, replaced through its setter and released (its
+  releases counted by the C code), a capability read and write, a file
+  opened, written and closed through a capability, a string returned from C, a list and
   an array lent to C, a C sort calling a Zane comparison, and a C library
   vendored by two versions of one package in one program.
 - `golden/NAME.optimized.cgt` shows what folded: the literal checksum as a
@@ -472,7 +492,10 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
 - The interface check's errors each have a fixture: a missing symbol, a
   wrong count, a type of another size on one target only (`long` built for
   `x86_64-windows-gnu`), a `const` handle passed as a `mut` subject or returned, a
-  `struct` laid out differently, and a fixed flag a `define` tries to change.
+  `struct` laid out differently, a fixed flag a `define` tries to change, an
+  overwrite of a settled handle without a setter, an outside handle passed
+  to a verb that is no method on a capability, and a foreign variable
+  outside the root package or naming a missing global.
 
 ---
 
@@ -482,12 +505,12 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
    directories kept in the cache, compiling a C file to a module of the
    compiler's context (F1, F2, F3).
 2. The interface table from the AST (F6).
-3. Foreign verbs, handle types and `@runtime$System` in the TST, with the
+3. Foreign verbs, handle types and foreign variables in the TST, with the
    interface check and the signature-given capability facts (F7).
 4. The glue and its thunks, `Foreign_call` lowering and codegen, renaming and
    linking the package's C module, for scalar, string, array, list and value
    type arguments and results (F8, F9, F10, F13, F14).
-5. Handles: release thunks, walks, null results (F12).
+5. Handles: free and set thunks, walks, null results (F12).
 6. Function values as C functions, with invokers (F11).
 7. Reading `c.coda`, and its `archive` and `system` rows (F4, F5).
 8. Release archives and dependencies' C, retained for inlining (F13, F15).
