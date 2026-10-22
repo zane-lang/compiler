@@ -49,8 +49,14 @@ compilation passes it to the linked driver as `-nostdlibinc` followed by
 one `-isystem` per directory, in order. An entry the list marks
 `(framework directory)`, as clang prints the SDK's framework paths on
 macOS, is passed as `-iframework` instead, so `<Foundation/Foundation.h>`
-is found as the C compiler would find it. Nothing else the C compiler would
-do is replayed, so a GCC's `cc1` options or a newer clang's never reach the
+is found as the C compiler would find it. The C compiler's own builtin
+headers are dropped from the list: the directory it names for
+`-print-file-name=include`, which GCC, clang and `zig cc` all answer, and,
+for GCC, the `include-fixed` beside it. Those hold its intrinsics and
+`<stddef.h>`, written for its own builtins, so the linked clang reads its
+own instead: they are embedded in the compiler, written once into the
+cache directory, and named with `-resource-dir`, which `-nostdlibinc`
+leaves searched. Nothing else the C compiler would do is replayed, so a GCC's `cc1` options or a newer clang's never reach the
 linked one. `ZANE_CC` keeps its meaning: it names the C compiler that is
 asked for the headers.
 
@@ -192,19 +198,25 @@ so clang does the classification it already knows. The glue holds:
 - for function values, the entries of F11.
 
 A thunk's name is the foreign verb's symbol ([`symbols.md`](symbols.md))
-with `.ffi` after it, given in C with an `__asm__` label, since a verb's
+with `.ffi` after it, a free or set thunk's is the handle type's symbol with
+`.free` or `.set`, and F11's entries are named the same way from the lambda's
+symbol, given in C with an `__asm__` label, since a verb's
 symbol is not a C identifier. An optimized build links the glue into the
 package's module (F13), where LLVM inlines each thunk into its caller, so an
 optimized call into C is a direct call with the target's own convention.
 
 **F9. A package's C globals are renamed before its module is linked.** Once a
 package's C modules and glue are linked into one, every function and
-variable it defines with external linkage is renamed to the package's
+variable it defines with external linkage, except the glue's own entries,
+is renamed to the package's
 symbol with `%c$` and its C name after it: `!zlib$%c$deflate` in a
 library, `viewer$%c$deflate` in a program. Renaming a global in its module
 renames its uses with it. The fetch-time rewrite then stamps the
 placeholder like any other (`separate-compilation.md` C9). A name holding
 `%c$` cannot be a Zane symbol, since no package name starts with `%`.
+The glue's entries (F8, F11) keep their names, which lowering's calls
+already use: they are derived from Zane symbols, so they carry the
+package's placeholder and cannot meet another package's.
 
 An `archive` row's members are renamed through the object rewriter that
 stamps placeholders (C9). The set of symbols the package's archives define
