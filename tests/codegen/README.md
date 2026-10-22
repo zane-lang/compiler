@@ -198,8 +198,10 @@ then run it again, read the golden diff and promote that.
   Every check prints `yes` when it holds.
 - `replayed` is what stage 5 keeps: output made while a value is computed,
   replayed in order; calls past the step budget, the depth and the size cap,
-  left to run; and a slot read when the program runs, after a store made by
-  code that folded.
+  left to run; a slot read when the program runs, after a store made by
+  code that folded; and what stays known past a call left to run: a value
+  it is given no address of, a string a `mut` call changed among them, but
+  not an owner it reaches through a reference stored in another.
 - `doubling` is output replayed from a remembered call, charged and capped
   (docs/design/optimization.md O6): a call that makes its previous level
   twice and prints once at its base folds to its prints at ten levels, stays

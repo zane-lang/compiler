@@ -106,15 +106,105 @@ let wide (f : Func.t) =
     !named;
   w
 
+(* What the addresses of a function's locals can reach: [escaped] is each
+   local an address of which may be kept past the code that takes it, and
+   [points] each pointer local bound to the address of one local, or of a
+   member of it, by that local.
+
+   A local of a value type that is not escaped is reached only where an
+   address of it is taken and used at once: lent to a call, read, moved out
+   of or stored through. No reference names it (memory.md §2.4), and a borrow
+   ends with its call (§2.9), so code given no address of it cannot write it.
+   Its address is kept when it is stored, returned, or held by a spawned call
+   until the call is joined, and every address of a local of any other type
+   counts as kept: a call it is lent to may make a reference to it and leave
+   that where other code finds it. *)
+type reach = { escaped : (int, unit) Hashtbl.t; points : (int, int) Hashtbl.t }
+
+let reach (f : Func.t) =
+  let values = Hashtbl.create 16 in
+  List.iter (fun i -> Hashtbl.replace values i ()) f.Func.values;
+  (* A pointer local stands for the local it points into when one [Let]
+     binds it and nothing else stores into it or takes its address. *)
+  let lets = Hashtbl.create 16 and barred = Hashtbl.create 16 in
+  iter_stats f.Func.body
+    ~expr:(fun e -> match e.Expr.node with Expr.Address i -> Hashtbl.replace barred i () | _ -> ())
+    ~stat:(function
+      | Stat.Let { id; _ } ->
+          Hashtbl.replace lets id (1 + Option.value ~default:0 (Hashtbl.find_opt lets id))
+      | Stat.Assign { place; _ } -> Hashtbl.replace barred place.Expr.local ()
+      | Stat.Hold { id; _ } | Stat.Reserve { id; _ } -> Hashtbl.replace barred id ()
+      | _ -> ());
+  let points = Hashtbl.create 16 in
+  let rec target (e : Expr.t) =
+    match e.Expr.node with
+    | Expr.Address i -> Some i
+    | Expr.Local p -> Hashtbl.find_opt points p
+    | Expr.Offset { base; _ } -> target base
+    | _ -> None
+  in
+  iter_stats f.Func.body ~expr:nothing ~stat:(function
+    | Stat.Let { id; value }
+      when value.Expr.ty = Ty.Ptr
+           && Hashtbl.find_opt lets id = Some 1
+           && not (Hashtbl.mem barred id) ->
+        Option.iter (Hashtbl.replace points id) (target value)
+    | _ -> ());
+  let escaped = Hashtbl.create 16 and kept = Hashtbl.create 16 in
+  (* [used] is whether an address in this position is used where it is
+     made. An address a call gives is a member of one it was given, so it
+     is used where the call's own value is. *)
+  let rec expr used (e : Expr.t) =
+    match e.Expr.node with
+    | Expr.Address i ->
+        Hashtbl.replace escaped i ();
+        if not used then Hashtbl.replace kept i ()
+    | Expr.Local p -> (
+        match Hashtbl.find_opt points p with
+        | Some i when not used -> Hashtbl.replace kept i ()
+        | _ -> ())
+    | Expr.Offset { base; _ } -> expr used base
+    | Expr.Call { args; _ } | Expr.Runtime { args; _ } ->
+        List.iter (expr (used || e.Expr.ty <> Ty.Ptr)) args
+    | Expr.Call_value { fn; args } ->
+        expr false fn;
+        List.iter (expr (used || e.Expr.ty <> Ty.Ptr)) args
+    | Expr.Deref x | Expr.Snapshot x | Expr.Take { address = x; _ } -> expr true x
+    | _ ->
+        let es, bodies = Traverse.expr_parts e in
+        List.iter (expr false) es;
+        List.iter (List.iter stat) bodies
+  and stat (s : Stat.t) =
+    match s with
+    | Stat.Let { id; value } -> expr (Hashtbl.mem points id) value
+    | Stat.Eval e -> expr true e
+    | Stat.Store { address; value }
+    | Stat.Overwrite { address; value; _ }
+    | Stat.Place { address; value; _ } ->
+        expr true address;
+        expr false value
+    | _ ->
+        let es, bodies = Traverse.stat_parts s in
+        List.iter (expr false) es;
+        List.iter (List.iter stat) bodies
+  in
+  List.iter stat f.Func.body;
+  Hashtbl.filter_map_inplace
+    (fun i () -> if Hashtbl.mem values i && not (Hashtbl.mem kept i) then None else Some ())
+    escaped;
+  { escaped; points }
+
 (* The locals a run of statements may change: those it stores in, whose
-   address it takes, or that it binds. Through an address it may also change
-   any local whose address was taken anywhere ([escaped]). *)
-let writes ~escaped ?expr stats =
+   address it takes, or that it binds, and the local each pointer it names
+   points into. Through an address it may also change any escaped local. *)
+let writes ~reach ?expr stats =
   let w = Hashtbl.create 16 in
   let through = ref false in
+  let pointed p = Option.iter (fun i -> Hashtbl.replace w i ()) (Hashtbl.find_opt reach.points p) in
   let on_expr (e : Expr.t) =
     match e.Expr.node with
     | Expr.Address i -> Hashtbl.replace w i ()
+    | Expr.Local p -> pointed p
     | Expr.Expand { result = Some r; _ } -> Hashtbl.replace w r ()
     | Expr.Call _ | Expr.Call_value _ | Expr.Runtime _ | Expr.Take _ -> through := true
     | _ -> ()
@@ -122,7 +212,10 @@ let writes ~escaped ?expr stats =
   let on_stat = function
     | Stat.Assign { place; _ } ->
         Hashtbl.replace w place.Expr.local ();
-        if place.Expr.deref then through := true
+        if place.Expr.deref then begin
+          pointed place.Expr.local;
+          through := true
+        end
     | Stat.Let { id; _ } | Stat.Hold { id; _ } | Stat.Reserve { id; _ } -> Hashtbl.replace w id ()
     | Stat.Spawn { task; dest; _ } ->
         Hashtbl.replace w task ();
@@ -133,7 +226,7 @@ let writes ~escaped ?expr stats =
   in
   Option.iter (iter_expr ~expr:on_expr ~stat:on_stat) expr;
   iter_stats ~expr:on_expr ~stat:on_stat stats;
-  if !through then Hashtbl.iter (fun i () -> Hashtbl.replace w i ()) escaped;
+  if !through then Hashtbl.iter (fun i () -> Hashtbl.replace w i ()) reach.escaped;
   w
 
 let leaves label stats =
@@ -156,8 +249,11 @@ type fn = {
   (* Locals bound by a plain [Let] of a type that owns nothing: an
      [Assign] can store a new value in them. *)
   plain : (int, unit) Hashtbl.t;
+  (* Locals of a value type held in a scope's arena whose address is never
+     kept (reach), by layout: an [Overwrite] can store a new value in them. *)
+  held : (int, Layout.t) Hashtbl.t;
   wide : (int, unit) Hashtbl.t;
-  escaped : (int, unit) Hashtbl.t;
+  reach : reach;
 }
 
 let fresh fn =
@@ -189,7 +285,9 @@ let replayed (e : Expr.t) =
            (function
              | Stat.Eval { Expr.node = Expr.Runtime { fn; args }; _ } ->
                  Intrinsics.classify fn = Intrinsics.Output && List.for_all Materialize.literal args
-             | Stat.Assign { place = { deref = false; path = []; _ }; value } -> Materialize.literal value
+             | Stat.Assign { place = { deref = false; path = []; _ }; value }
+             | Stat.Overwrite { address = { Expr.node = Expr.Address _; _ }; value; _ } ->
+                 Materialize.literal value
              | _ -> false)
            body
   | _ -> false
@@ -227,6 +325,21 @@ let costly stats =
     ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ -> found := true | _ -> ());
   !found
 
+(* A known value stored back into a local that folded code wrote: assigned to
+   a plain local, and overwritten in a held one, which returns the blocks
+   its old value owned, as an assignment to it does when the program runs. *)
+let store_back fn id ty c =
+  Option.bind (Materialize.expr ~fresh:(fun () -> fresh fn) ty c) (fun value ->
+      if Hashtbl.mem fn.plain id then Some (Stat.assign id value)
+      else
+        Option.map
+          (fun layout ->
+            let address = { Expr.node = Expr.Address id; ty = Ty.Ptr } in
+            Stat.Overwrite { address; value; layout })
+          (Hashtbl.find_opt fn.held id))
+
+let storable fn id = Hashtbl.mem fn.plain id || Hashtbl.mem fn.held id
+
 let call_key (e : Expr.t) =
   match e.Expr.node with
   | Expr.Call { fn; args } ->
@@ -249,9 +362,9 @@ let effects ?(value = 0) fn (env : known) (run : Eval.run) (fr : Eval.frame) =
           let before = Option.map fst (Hashtbl.find_opt env id) in
           match V.export c.V.value with
           | Some now when Option.fold ~none:false ~some:(V.same now) before -> ()
-          | Some now when Hashtbl.mem fn.plain id -> (
-              match Materialize.expr ~fresh:(fun () -> fresh fn) c.V.ty now with
-              | Some value -> assigns := (id, now, c.V.ty, Stat.assign id value) :: !assigns
+          | Some now when storable fn id -> (
+              match store_back fn id c.V.ty now with
+              | Some s -> assigns := (id, now, c.V.ty, s) :: !assigns
               | None -> V.stop "a written local whose value cannot be stored back")
           | _ -> V.stop "a written local that cannot be stored back")
       | _ -> if Hashtbl.mem fn.wide id then V.stop "a local bound here and named elsewhere")
@@ -408,7 +521,7 @@ let mark fn (env : known) (run : Eval.run) (fr : Eval.frame) ~named_after ~lengt
               let before = Option.map fst (Hashtbl.find_opt env id) in
               match V.export c.V.value with
               | Some now when Option.fold ~none:false ~some:(V.same now) before -> ()
-              | Some now when Hashtbl.mem fn.plain id -> stores := (id, now, c.V.ty) :: !stores
+              | Some now when storable fn id -> stores := (id, now, c.V.ty) :: !stores
               | _ -> V.stop "a written local that cannot be stored back")
           | _ when Hashtbl.mem fn.wide id -> V.stop "a local bound here and named elsewhere"
           | _ when named_after id -> (
@@ -487,7 +600,10 @@ let replace_run fn (env : known) m =
       (fun value -> (id, c, ty, make id value))
       (Materialize.expr ~fresh:(fun () -> fresh fn) ty c)
   in
-  let stores = List.map (written Stat.assign) m.stores
+  let stores =
+    List.map
+      (fun (id, c, ty) -> Option.map (fun s -> (id, c, ty, s)) (store_back fn id ty c))
+      m.stores
   and lets = List.map (written (fun id value -> Stat.Let { id; value })) m.lets in
   if List.exists Option.is_none (stores @ lets) then None
   else
@@ -531,7 +647,7 @@ let settle fn (env : known) (e : Expr.t) =
   match e.Expr.node with
   | Expr.Expand _ -> ()
   | _ when (not !acts) || Materialize.literal e || known_value e <> None -> ()
-  | _ -> forget env (writes ~escaped:fn.escaped ~expr:e [])
+  | _ -> forget env (writes ~reach:fn.reach ~expr:e [])
 
 let rec expr fn (env : known) (e : Expr.t) : Expr.t =
   match e.Expr.node with
@@ -555,7 +671,7 @@ let rec expr fn (env : known) (e : Expr.t) : Expr.t =
           let body = block fn env body in
           (* A body that leaves early ends at more than one place, so what
              it may have written is not known after it. *)
-          if leaves label body then forget env (writes ~escaped:fn.escaped body);
+          if leaves label body then forget env (writes ~reach:fn.reach body);
           let e = { e with Expr.node = Expr.Expand { label; body; result } } in
           match if costly body then None else tried e with Some replaced -> replaced | None -> e))
   | _ ->
@@ -612,10 +728,10 @@ and stat fn (env : known) (s : Stat.t) : Stat.t list =
     e
   in
   (* What a statement left in the tree may change is not known after it:
-     each local whose address it takes, and through an address any local
-     whose address was ever taken. *)
+     each local whose address it takes, and through an address any escaped
+     local (reach). *)
   let residual (s : Stat.t) =
-    let w = writes ~escaped:fn.escaped [ s ] in
+    let w = writes ~reach:fn.reach [ s ] in
     (match s with
     | Stat.Let { id; _ } | Stat.Hold { id; _ } -> Hashtbl.remove w id
     | Stat.Assign { place; _ } when not place.Expr.deref -> Hashtbl.remove w place.Expr.local
@@ -700,7 +816,7 @@ and stat fn (env : known) (s : Stat.t) : Stat.t list =
       | _ ->
           control start (Stat.If { cond; body }) (fun () ->
               let body = block fn (Hashtbl.copy env) body in
-              forget env (writes ~escaped:fn.escaped body);
+              forget env (writes ~reach:fn.reach body);
               [ Stat.If { cond; body } ]))
   | Stat.Repeat { count; body } -> (
       let start = Hashtbl.copy env in
@@ -711,9 +827,9 @@ and stat fn (env : known) (s : Stat.t) : Stat.t list =
           control start (Stat.Repeat { count; body }) (fun () ->
               (* What one pass writes is not known at the start of the
                  next. *)
-              forget env (writes ~escaped:fn.escaped body);
+              forget env (writes ~reach:fn.reach body);
               let body = block fn (Hashtbl.copy env) body in
-              forget env (writes ~escaped:fn.escaped body);
+              forget env (writes ~reach:fn.reach body);
               [ Stat.Repeat { count; body } ]))
   | Stat.Switch { value; cases } -> (
       let start = Hashtbl.copy env in
@@ -724,7 +840,7 @@ and stat fn (env : known) (s : Stat.t) : Stat.t list =
       | _ ->
           control start (Stat.Switch { value; cases }) (fun () ->
               let cases = List.map (fun (i, body) -> (i, block fn (Hashtbl.copy env) body)) cases in
-              List.iter (fun (_, body) -> forget env (writes ~escaped:fn.escaped body)) cases;
+              List.iter (fun (_, body) -> forget env (writes ~reach:fn.reach body)) cases;
               [ Stat.Switch { value; cases } ]))
   | Stat.Scope sc -> [ Stat.Scope { sc with body = block fn env sc.body } ]
   | Stat.Store { address; value } ->
@@ -756,13 +872,17 @@ and stat fn (env : known) (s : Stat.t) : Stat.t list =
 let func prog failed (f : Func.t) =
   if f.Func.linkage = Linkage.Imported then f
   else
-    let escaped = Hashtbl.create 16 in
     let plain = Hashtbl.create 16 in
-    iter_stats f.Func.body
-      ~expr:(fun e -> match e.Expr.node with Expr.Address i -> Hashtbl.replace escaped i () | _ -> ())
-      ~stat:(function
-        | Stat.Let { id; value } when not (List.mem value.Expr.ty [ Ty.Handle; Ty.Ptr ]) ->
-            Hashtbl.replace plain id ()
-        | _ -> ());
-    let fn = { prog; failed; next = largest f; plain; wide = wide f; escaped } in
+    iter_stats f.Func.body ~expr:nothing ~stat:(function
+      | Stat.Let { id; value } when not (List.mem value.Expr.ty [ Ty.Handle; Ty.Ptr ]) ->
+          Hashtbl.replace plain id ()
+      | _ -> ());
+    let reach = reach f in
+    let held = Hashtbl.create 16 in
+    iter_stats f.Func.body ~expr:nothing ~stat:(function
+      | Stat.Hold { id; layout; _ }
+        when List.mem id f.Func.values && not (Hashtbl.mem reach.escaped id) ->
+          Hashtbl.replace held id layout
+      | _ -> ());
+    let fn = { prog; failed; next = largest f; plain; held; wide = wide f; reach } in
     { f with Func.body = block fn (Hashtbl.create 16) f.Func.body }

@@ -380,11 +380,12 @@ let repeated_builds () =
   let module C = Cgt.Nodes in
   let f i =
     { C.Func.symbol = "f" ^ string_of_int i; linkage = C.Linkage.Exported; params = []; ret = C.Ty.I64;
-      body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ] }
+      body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ]; values = [] }
   in
   let empty =
     { C.Func.symbol = "empty"; linkage = C.Linkage.Exported; params = []; ret = C.Ty.Struct [];
-      body = [ C.Stat.Return { C.Expr.node = C.Expr.Record []; ty = C.Ty.Struct [] } ] }
+      body = [ C.Stat.Return { C.Expr.node = C.Expr.Record []; ty = C.Ty.Struct [] } ];
+      values = [] }
   in
   let p = { C.Program.funcs = empty :: List.init 2000 f; entry = None; layouts = []; globals = [] } in
   let built = ref 0 in
@@ -400,7 +401,7 @@ let disposed_modules () =
   let module C = Cgt.Nodes in
   let f =
     { C.Func.symbol = "f"; linkage = C.Linkage.Exported; params = []; ret = C.Ty.I64;
-      body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ] }
+      body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ]; values = [] }
   in
   let p = { C.Program.funcs = [ f ]; entry = None; layouts = []; globals = [] } in
   let dir = Filename.temp_dir "zane-unit" "" in
@@ -581,7 +582,8 @@ let program funcs =
     left = Eval.total;
   }
 
-let func symbol params body = { C.Func.symbol; linkage = C.Linkage.Local; params; ret = C.Ty.I64; body }
+let func ?(values = []) symbol params body =
+  { C.Func.symbol; linkage = C.Linkage.Local; params; ret = C.Ty.I64; body; values }
 
 (* A value made back into code, and read back, is the value it was. *)
 let materialized () =
@@ -762,6 +764,43 @@ let folded_function () =
   let f = Fold.func (program []) (Value.Key.create 1) (func "f" [] body) in
   check "a loop over a known local folds to what it wrote"
     (f.C.Func.body = [ C.Stat.Let { id = 1; value = i64 2L }; C.Stat.assign 1 (i64 16L); C.Stat.Return (i64 16L) ])
+
+(* Code left to run forgets the locals it can reach: one whose address it
+   is given, a value reached through a pointer local it is given, and one
+   whose address was stored, but not a value it is given no address of. A
+   local not marked as a value is reached by any call. *)
+let reached_locals () =
+  let local i = e (C.Expr.Local i) C.Ty.I64 and address i = e (C.Expr.Address i) C.Ty.Ptr in
+  let call fn args = C.Stat.Eval (e (C.Expr.Call { fn; args }) C.Ty.Void) in
+  let body =
+    [
+      C.Stat.Let { id = 1; value = i64 5L };
+      C.Stat.Let { id = 2; value = i64 0L };
+      C.Stat.Let { id = 3; value = i64 0L };
+      C.Stat.Let { id = 4; value = address 3 };
+      call "keep" [ e (C.Expr.Record [ (0, address 2) ]) (C.Ty.Struct [ C.Ty.Ptr ]) ];
+      C.Stat.assign 2 (i64 7L);
+      C.Stat.assign 3 (i64 9L);
+      call "opaque" [ address 1 ];
+      call "use" [ local 1 ];
+      call "use" [ local 2 ];
+      call "use" [ local 3 ];
+      call "opaque" [ e (C.Expr.Local 4) C.Ty.Ptr ];
+      call "use" [ local 3 ];
+    ]
+  in
+  let used values =
+    let f = Fold.func (program []) (Value.Key.create 1) (func ~values "f" [] body) in
+    List.filter_map
+      (function
+        | C.Stat.Eval { C.Expr.node = C.Expr.Call { fn = "use"; args = [ a ] }; _ } -> Some a
+        | _ -> None)
+      f.C.Func.body
+  in
+  check "a value given no address of stays known past a call; the others do not"
+    (used [ 1; 2; 3 ] = [ local 1; local 2; i64 9L; local 3 ]);
+  check "a local not marked as a value is forgotten by any call"
+    (used [ 1; 2 ] = [ local 1; local 2; local 3; local 3 ])
 
 (* A call's value and its outputs together count against the size cap,
    though each fits alone. *)
@@ -1288,6 +1327,7 @@ let () =
   stored_in_place ();
   kept_store ();
   folded_function ();
+  reached_locals ();
   capped_replacement ();
   bounded_allocation ();
   replayed_outputs ();
