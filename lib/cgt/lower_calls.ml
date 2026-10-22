@@ -83,8 +83,31 @@ let rec call w st ctx span verb args handler ret : Expr.t =
       | args -> plain_call w st ctx span v args handler ret)
 
 and plain_call w st ctx span v args handler ret =
-  if expands v then expand w st ctx span v args handler ret
+  if writes_out w st ctx span v args then expand w st ctx span v args handler ret
   else invoke w st ctx span v (arguments w st ctx span v args) handler
+
+(* Whether this call to [v] is replaced by its body (L11). An expression
+   verb's call is not when it gives a fresh value to a value parameter that
+   owns blocks: written out, the value would be held in a slot of the
+   caller's and copied wherever the body keeps it, where the verb's function
+   takes it instead (Regions.taken_params). *)
+and writes_out w st ctx span v args =
+  expands v
+  || inlines st ctx v
+     && List.length args = List.length v.params
+     && not
+          (List.exists2
+             (fun (p : T.Local.t) a ->
+               match a with
+               | T.Arg.Value e ->
+                   p.T.Local.name <> "this"
+                   && (not (owned st p.T.Local.ty))
+                   && (not (Tty.is_ref p.T.Local.ty))
+                   && (not (roaming st p.T.Local.ty))
+                   && held st span p.T.Local.ty
+                   && not (w.is_place e)
+               | T.Arg.Block _ -> false)
+             v.params args)
 
 (* A call through a function value, which is read before its arguments. *)
 and call_value w st ctx span (callee : T.Expr.t) args handler =
@@ -239,7 +262,7 @@ and argument w ?(direct = true) st ctx span v (p : T.Local.t) a =
   else if Tty.is_ref p.T.Local.ty then w.reference_to st ctx span a
   else if roaming st p.T.Local.ty then begin
     (if held st span p.T.Local.ty && not (w.is_place a) then
-       if (not direct) || expands v then
+       if (not direct) || written_out st ctx v then
          (* A callee Regions cannot see may drop it, so the arena stays. *)
          ctx.scope.wants <- (dropping, -1) :: ctx.scope.wants
        else
@@ -298,6 +321,7 @@ and expand w st ctx span v args handler ret =
     Diagnostic.bug ~span "lowering expected an argument for every parameter";
   let env = Hashtbl.create 8 in
   let bind (p : T.Local.t) b = Hashtbl.replace env p.T.Local.id b in
+
   let binds =
     List.concat
       (List.map2
@@ -358,6 +382,19 @@ and expand w st ctx span v args handler ret =
                    bind p (Pointer id);
                    settle () @ [ Stat.Let { id; value = at } ]
                | _ -> Diagnostic.bug ~span "lowering expected a place here")
+           (* A verb that writes none of its parameters reads a local it is
+              given where the caller keeps it: nothing else in the call
+              writes what the call borrows (memory.md §2.9.1), and nothing
+              the body runs can. *)
+           | ( T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); T.Expr.ty = at; _ },
+               _ )
+             when (not v.signature.S.is_mut)
+                  && (not (Tty.is_ref at))
+                  && (not (Tty.is_ref p.T.Local.ty))
+                  && (not (roaming st p.T.Local.ty))
+                  && match lookup ctx span l with Slot _ | Pointer _ -> true | _ -> false ->
+               bind p (lookup ctx span l);
+               []
            (* Any other place the body may write, or that it borrows, is lent
               by its address. *)
            | T.Arg.Value a, _
@@ -403,10 +440,25 @@ and expand w st ctx span v args handler ret =
       scope = ctx.scope;
     }
   in
+  (* A body that only returns a value is that value, unless the value names
+     the expansion, as an owner it moves out of the expansion does. *)
+  let named value =
+    Traverse.exists_in [ Stat.Eval value ]
+      ~expr:(fun e -> match e.Expr.node with Expr.Escape { exit; _ } -> exit = Some label | _ -> false)
+      ~stat:(function Stat.Leave l -> l = label | _ -> false)
+  in
   match binds @ w.block st inner v.body with
-  (* A body that only returns a value is that value. *)
   | [ Stat.Assign { place = { local; path = []; deref = false; _ }; value }; Stat.Leave l ]
-    when Some local = result && l = label ->
+    when Some local = result && l = label && not (named value) ->
       value
-  | [ Stat.Eval value; Stat.Leave l ] when result = None && l = label -> value
+  | [ Stat.Eval value; Stat.Leave l ] when result = None && l = label && not (named value) -> value
+  (* So is one that binds an argument and returns it, as a constructor that
+     wraps its argument does. *)
+  | [
+      Stat.Let { id; value };
+      Stat.Assign { place = { local; path = []; deref = false; _ }; value = { Expr.node = Expr.Local x; _ } };
+      Stat.Leave l;
+    ]
+    when x = id && Some local = result && l = label && not (named value) ->
+      value
   | body -> { Expr.node = Expr.Expand { label; body; result }; ty = t }

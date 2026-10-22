@@ -41,6 +41,11 @@ then run it again, read the golden diff and promote that.
   the branch around the `sdiv` (`Emit.divide`). Both builds run with the `arguments` file's lines.
   `arguments.optimized.cgt` shows what folds before the read and that the
   read itself stays. Every check prints `yes` when it holds.
+- `expressions` is verbs whose body is one expression, written out where they
+  are called (docs/design/lowering.md L11): a generic one's instance, a chain
+  of them, and one whose arguments print in the order they are written. A
+  spawned call to one still calls its function. `expressions.cgt` shows
+  `main` with no call to any of them.
 - `hello` prints a string literal through `@program$console`: the first program
   that ran (docs/design/lowering.md §8 step 2).
 - `counting` is step 2 of docs/design/lowering.md §8: scalar arithmetic, verbs

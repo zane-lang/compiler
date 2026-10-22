@@ -1773,6 +1773,86 @@
   (diff golden/entryWide.out entryWide.optimized.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/expressions))
+ (action
+  (with-stdout-to
+   expressions.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/expressions))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/expressions.cgt expressions.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/expressions))
+ (targets expressions.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build expressions.exe --package fixtures/expressions)))
+
+(rule
+ (deps (source_tree fixtures/expressions))
+ (targets expressions.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build expressions.optimized.exe --optimize --package fixtures/expressions)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    expressions.checked.out.actual
+    (run ./expressions.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/expressions.out expressions.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    expressions.unchecked.out.actual
+    (run ./expressions.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/expressions.out expressions.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    expressions.optimized.checked.out.actual
+    (run ./expressions.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/expressions.out expressions.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    expressions.optimized.unchecked.out.actual
+    (run ./expressions.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/expressions.out expressions.optimized.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/folding))
  (action
   (with-stdout-to

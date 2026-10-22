@@ -55,6 +55,28 @@ body, with the block or literal spliced in. `branch` becomes an `if`,
 `repeat` a counted loop, and an `implicit Int(value @concepts$Int)` embeds
 the literal directly. No closure or call is left for a block.
 
+### Expression verbs written out where they are called
+
+- **Builds:** every build
+- **Where:** `lib/cgt/verbs.ml` (`size`, `inlines`), `lib/cgt/lower_calls.ml`
+  (`writes_out`, `expand`)
+- **Design:** [`design/lowering.md`](design/lowering.md) L11
+- **Effect:** estimated cycles of the perf programs, plain and optimized:
+  `trees` −8.9% and −4.9%, `copies` −3.2% and −4.0%, `stress` −2.1% and
+  −0.5%, `flips` optimized +1.1% from branch placement alone, the rest
+  unchanged; the speech-analysis program's plain run −2.6% of its
+  instructions, its optimized run unchanged. The compiler runs 2.5% more
+  instructions building it plain and 6.8% more optimized
+
+A verb whose body is one expression it returns, with no abort, spawn or
+lambda in it, is replaced by its body at each direct call, as a block-taking
+verb is, and keeps its function for spawned calls and other objects. That is
+every one of `core`'s wrappers, generic ones such as `size` included, which
+the unoptimized build's own inliner leaves as calls. A chain of them is
+written out only while it stays 40 nodes, a recursive one is called inside
+itself, and a call that hands a fresh owner of blocks to a value parameter
+calls the function, which takes the value rather than copying it.
+
 ### Arenas only for blocks that need one
 
 - **Builds:** every build
@@ -255,7 +277,9 @@ bytes, and whose callees are all such functions, is inlined into every
 caller: that is each of `core`'s one-line wrappers over an intrinsic, and
 never a recursive function or one holding a large value array, which would
 grow its caller's frame for good. A generic instance or a package constant
-stays a call, so an object still defines every one that C4 says it does.
+stays a call, so an object still defines every one that C4 says it does;
+lowering has already written out the generic instances whose body is one
+expression.
 Three passes then promote the wrappers' scalars to registers, simplify
 what that makes constant and merge the blocks left behind. Each takes time
 in proportion to the instructions it reads; LLVM's own inliner, scalar

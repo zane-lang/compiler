@@ -1,7 +1,9 @@
 /// A library built into an object of its own: a public verb, a private one
 /// it calls, a method, a constructor, a lambda-variable, a package constant
-/// a verb reads, and a generic verb with an instance the library uses and a
-/// second generic it never uses.
+/// a verb reads, a verb that takes and returns a struct, and a generic verb
+/// with an instance the library uses and a second generic it never uses.
+/// `shifted` and `same` are written as statements, so a caller calls them
+/// rather than writing them out (docs/design/lowering.md L11).
 package geometry;
 
 alias Int = @primitives$I64
@@ -19,7 +21,10 @@ Int area(width Int, height Int) => _product(width, height)
 
 Int _product(a Int, b Int) => @operators$multiply(a, b)
 
-T same(value T Type) => value
+T same(value T Type) {
+	kept T = value;
+	return kept;
+}
 
 Int twice(x Int) => @operators$add(same(x), same(x))
 
@@ -32,3 +37,8 @@ double Int(x Int) {
 unit Int(10)
 
 Int scaled(x Int) => @operators$multiply(x, unit)
+
+Point shifted(p Point, by Int) {
+	x Int = @operators$add(p.x, by);
+	return Point(x, @operators$add(p.y, by));
+}

@@ -3,6 +3,7 @@ T !geometry$_product(%primitives$I64, %primitives$I64)
 T !geometry$area(%primitives$I64, %primitives$I64)
 T !geometry$double
 T !geometry$scaled(%primitives$I64)
+T !geometry$shifted(!geometry$Point, %primitives$I64)
 T !geometry$sum(this !geometry$Point)
 T !geometry$twice(%primitives$I64)
 V !geometry$unit.state

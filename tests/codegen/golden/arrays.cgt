@@ -25,7 +25,7 @@
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
-    │       ├── id: %12
+    │       ├── id: %27
     │       ├── body[0] > let:
     │       │   ├── local: #1
     │       │   └── value > record:
@@ -86,10 +86,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
-    │       │       │   ├── type: i64
-    │       │       │   ├── fn: arrays$count<%primitives$I64, 3>(%primitives$Array<%primitives$I64, 3>)
-    │       │       │   └── args[0]: local #1 : [3 x i64]
+    │       │       ├── left: 3 : i64
     │       │       └── right: 3 : i64
     │       ├── body[7] > eval > call:
     │       │   ├── type: void
@@ -97,29 +94,26 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
-    │       │       │   ├── type: i64
-    │       │       │   ├── fn: arrays$measured<3>(%primitives$Array<%primitives$I64, 3>, %concepts$Int)
-    │       │       │   └── args[0]: local #1 : [3 x i64]
+    │       │       ├── left: 3 : i64
     │       │       └── right: 3 : i64
     │       ├── body[8] > let:
-    │       │   ├── local: #4
+    │       │   ├── local: #8
     │       │   └── value: local #1 : [3 x i64]
     │       ├── body[9] > let:
-    │       │   ├── local: #5
+    │       │   ├── local: #9
     │       │   └── value: 3 : i64
     │       ├── body[10] > let:
-    │       │   ├── local: #6
+    │       │   ├── local: #10
     │       │   └── value: 0 : i64
     │       ├── body[11] > store:
     │       │   ├── address > runtime:
     │       │   │   ├── type: ptr
     │       │   │   ├── fn: zane_array_at
-    │       │   │   ├── args[0]: address of #4 : ptr
-    │       │   │   ├── args[1]: local #5 : i64
+    │       │   │   ├── args[0]: address of #8 : ptr
+    │       │   │   ├── args[1]: local #9 : i64
     │       │   │   ├── args[2]: 3 : i64
     │       │   │   └── args[3]: 8 : i64
-    │       │   └── value: local #6 : i64
+    │       │   └── value: local #10 : i64
     │       ├── body[12] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
@@ -149,37 +143,50 @@
     │       │       │       ├── fn: zane_array_at
     │       │       │       ├── args[0] > expand:
     │       │       │       │   ├── type: ptr
-    │       │       │       │   ├── label: @8
-    │       │       │       │   ├── result: #9
+    │       │       │       │   ├── label: @14
+    │       │       │       │   ├── result: #15
     │       │       │       │   ├── body[0] > let:
-    │       │       │       │   │   ├── local: #7
-    │       │       │       │   │   └── value > call:
+    │       │       │       │   │   ├── local: #13
+    │       │       │       │   │   └── value > record:
     │       │       │       │   │       ├── type: [3 x i64]
-    │       │       │       │   │       ├── fn: arrays$three()
-    │       │       │       │   │       └── args:
+    │       │       │       │   │       ├── members[0] > member 0: 7 : i64
+    │       │       │       │   │       ├── members[1] > member 1: 8 : i64
+    │       │       │       │   │       └── members[2] > member 2: 9 : i64
     │       │       │       │   └── body[1] > assign:
-    │       │       │       │       ├── place: #9
-    │       │       │       │       └── value: address of #7 : ptr
+    │       │       │       │       ├── place: #15
+    │       │       │       │       └── value: address of #13 : ptr
     │       │       │       ├── args[1]: 2 : i64
     │       │       │       ├── args[2]: 3 : i64
     │       │       │       └── args[3]: 8 : i64
     │       │       └── right: 8 : i64
     │       ├── body[14] > let:
-    │       │   ├── local: #10
-    │       │   └── value > call:
+    │       │   ├── local: #20
+    │       │   └── value > expand:
     │       │       ├── type: {[4 x i64], i64}
-    │       │       ├── fn: arrays$Grid(%primitives$Array<%primitives$I64, 4>, %primitives$I64)
-    │       │       ├── args[0] > record:
-    │       │       │   ├── type: [4 x i64]
-    │       │       │   ├── members[0] > member 0: 1 : i64
-    │       │       │   ├── members[1] > member 1: 2 : i64
-    │       │       │   ├── members[2] > member 2: 3 : i64
-    │       │       │   └── members[3] > member 3: 4 : i64
-    │       │       └── args[1]: 2 : i64
+    │       │       ├── label: @18
+    │       │       ├── result: #19
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #16
+    │       │       │   └── value > record:
+    │       │       │       ├── type: [4 x i64]
+    │       │       │       ├── members[0] > member 0: 1 : i64
+    │       │       │       ├── members[1] > member 1: 2 : i64
+    │       │       │       ├── members[2] > member 2: 3 : i64
+    │       │       │       └── members[3] > member 3: 4 : i64
+    │       │       ├── body[1] > let:
+    │       │       │   ├── local: #17
+    │       │       │   └── value: 2 : i64
+    │       │       ├── body[2] > assign:
+    │       │       │   ├── place: #19
+    │       │       │   └── value > record:
+    │       │       │       ├── type: {[4 x i64], i64}
+    │       │       │       ├── members[0] > member 0: local #16 : [4 x i64]
+    │       │       │       └── members[1] > member 1: local #17 : i64
+    │       │       └── body[3]: leave @18
     │       ├── body[15] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$set(this arrays$Grid, %primitives$I64, %primitives$I64)
-    │       │   ├── args[0]: address of #10 : ptr
+    │       │   ├── args[0]: address of #20 : ptr
     │       │   ├── args[1]: 4 : i64
     │       │   └── args[2]: 40 : i64
     │       ├── body[16] > eval > call:
@@ -188,25 +195,51 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: arrays$at(this arrays$Grid, %primitives$I64)
-    │       │       │   ├── args[0]: local #10 : {[4 x i64], i64}
-    │       │       │   └── args[1]: 4 : i64
+    │       │       │   ├── label: @22
+    │       │       │   ├── result: #23
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #21
+    │       │       │   │   └── value: 4 : i64
+    │       │       │   ├── body[1] > assign:
+    │       │       │   │   ├── place: #23
+    │       │       │   │   └── value > deref:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       └── ptr > runtime:
+    │       │       │   │           ├── type: ptr
+    │       │       │   │           ├── fn: zane_array_at
+    │       │       │   │           ├── args[0] > offset:
+    │       │       │   │           │   ├── within: {[4 x i64], i64}
+    │       │       │   │           │   ├── path: 0
+    │       │       │   │           │   └── base: address of #20 : ptr
+    │       │       │   │           ├── args[1]: local #21 : i64
+    │       │       │   │           ├── args[2]: 4 : i64
+    │       │       │   │           └── args[3]: 8 : i64
+    │       │       │   └── body[2]: leave @22
     │       │       └── right: 40 : i64
     │       ├── body[17] > hold:
-    │       │   ├── local: #11
-    │       │   ├── scope: %12
-    │       │   ├── value > call:
+    │       │   ├── local: #26
+    │       │   ├── scope: %27
+    │       │   ├── value > expand:
     │       │   │   ├── type: {{[4 x i64], i64}}
-    │       │   │   ├── fn: arrays$Box(arrays$Grid)
-    │       │   │   └── args[0]: local #10 : {[4 x i64], i64}
+    │       │   │   ├── label: @24
+    │       │   │   ├── result: #25
+    │       │   │   ├── body[0] > assign:
+    │       │   │   │   ├── place: #25
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @24
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {{[4 x i64], i64}}
+    │       │   │   │       │   └── members[0] > member 0: local #20 : {[4 x i64], i64}
+    │       │   │   │       └── layout: arrays$Box
+    │       │   │   └── body[1]: leave @24
     │       │   └── layout: arrays$Box
     │       ├── body[18] > let:
-    │       │   ├── local: #13
+    │       │   ├── local: #28
     │       │   └── value: 1 : i64
     │       ├── body[19] > let:
-    │       │   ├── local: #14
+    │       │   ├── local: #29
     │       │   └── value: 10 : i64
     │       ├── body[20] > store:
     │       │   ├── address > runtime:
@@ -218,11 +251,11 @@
     │       │   │   │   └── base > offset:
     │       │   │   │       ├── within: {{[4 x i64], i64}}
     │       │   │   │       ├── path: 0
-    │       │   │   │       └── base: address of #11 : ptr
-    │       │   │   ├── args[1]: local #13 : i64
+    │       │   │   │       └── base: address of #26 : ptr
+    │       │   │   ├── args[1]: local #28 : i64
     │       │   │   ├── args[2]: 4 : i64
     │       │   │   └── args[3]: 8 : i64
-    │       │   └── value: local #14 : i64
+    │       │   └── value: local #29 : i64
     │       ├── body[21] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrays$check(%primitives$Bool)
@@ -243,24 +276,42 @@
     │       │       │   │       │   └── base > offset:
     │       │       │   │       │       ├── within: {{[4 x i64], i64}}
     │       │       │   │       │       ├── path: 0
-    │       │       │   │       │       └── base: address of #11 : ptr
+    │       │       │   │       │       └── base: address of #26 : ptr
     │       │       │   │       ├── args[1]: 1 : i64
     │       │       │   │       ├── args[2]: 4 : i64
     │       │       │   │       └── args[3]: 8 : i64
-    │       │       │   └── right > call:
+    │       │       │   └── right > expand:
     │       │       │       ├── type: i64
-    │       │       │       ├── fn: arrays$at(this arrays$Grid, %primitives$I64)
-    │       │       │       ├── args[0] > deref:
-    │       │       │       │   ├── type: {[4 x i64], i64}
-    │       │       │       │   └── ptr > offset:
+    │       │       │       ├── label: @32
+    │       │       │       ├── result: #33
+    │       │       │       ├── body[0] > let:
+    │       │       │       │   ├── local: #30
+    │       │       │       │   └── value > offset:
     │       │       │       │       ├── within: {{[4 x i64], i64}}
     │       │       │       │       ├── path: 0
-    │       │       │       │       └── base: address of #11 : ptr
-    │       │       │       └── args[1]: 4 : i64
+    │       │       │       │       └── base: address of #26 : ptr
+    │       │       │       ├── body[1] > let:
+    │       │       │       │   ├── local: #31
+    │       │       │       │   └── value: 4 : i64
+    │       │       │       ├── body[2] > assign:
+    │       │       │       │   ├── place: #33
+    │       │       │       │   └── value > deref:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       └── ptr > runtime:
+    │       │       │       │           ├── type: ptr
+    │       │       │       │           ├── fn: zane_array_at
+    │       │       │       │           ├── args[0] > offset:
+    │       │       │       │           │   ├── within: {[4 x i64], i64}
+    │       │       │       │           │   ├── path: 0
+    │       │       │       │           │   └── base: local #30 : ptr
+    │       │       │       │           ├── args[1]: local #31 : i64
+    │       │       │       │           ├── args[2]: 4 : i64
+    │       │       │       │           └── args[3]: 8 : i64
+    │       │       │       └── body[3]: leave @32
     │       │       └── right: 50 : i64
     │       ├── body[22] > hold:
-    │       │   ├── local: #15
-    │       │   ├── scope: %12
+    │       │   ├── local: #34
+    │       │   ├── scope: %27
     │       │   ├── value > case:
     │       │   │   ├── type: <i64 | ptr>
     │       │   │   ├── index: 1
@@ -294,17 +345,74 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: arrays$total(arrays$Tree)
-    │       │       │   └── args[0]: local #15 : <i64 | ptr>
+    │       │       │   ├── label: @37
+    │       │       │   ├── result: #38
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #39
+    │       │       │   │   └── value: address of #34 : ptr
+    │       │       │   └── body[1] > switch:
+    │       │       │       ├── value > deref:
+    │       │       │       │   ├── type: <i64 | ptr>
+    │       │       │       │   └── ptr: local #39 : ptr
+    │       │       │       ├── cases[0] > case 0[0] > let:
+    │       │       │       │   ├── local: #40
+    │       │       │       │   └── value > offset:
+    │       │       │       │       ├── within: <i64 | ptr>
+    │       │       │       │       ├── path: 0
+    │       │       │       │       └── base: local #39 : ptr
+    │       │       │       ├── cases[0] > case 0[1] > assign:
+    │       │       │       │   ├── place: #38
+    │       │       │       │   └── value > deref:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       └── ptr: local #40 : ptr
+    │       │       │       ├── cases[0] > case 0[2]: leave @37
+    │       │       │       ├── cases[1] > case 1[0] > let:
+    │       │       │       │   ├── local: #41
+    │       │       │       │   └── value > deref:
+    │       │       │       │       ├── type: ptr
+    │       │       │       │       └── ptr > offset:
+    │       │       │       │           ├── within: <i64 | ptr>
+    │       │       │       │           ├── path: 1
+    │       │       │       │           └── base: local #39 : ptr
+    │       │       │       ├── cases[1] > case 1[1] > assign:
+    │       │       │       │   ├── place: #38
+    │       │       │       │   └── value > binary:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── op: +
+    │       │       │       │       ├── left > call:
+    │       │       │       │       │   ├── type: i64
+    │       │       │       │       │   ├── fn: arrays$total(arrays$Tree)
+    │       │       │       │       │   └── args[0] > deref:
+    │       │       │       │       │       ├── type: <i64 | ptr>
+    │       │       │       │       │       └── ptr > runtime:
+    │       │       │       │       │           ├── type: ptr
+    │       │       │       │       │           ├── fn: zane_array_at
+    │       │       │       │       │           ├── args[0]: local #41 : ptr
+    │       │       │       │       │           ├── args[1]: 1 : i64
+    │       │       │       │       │           ├── args[2]: 2 : i64
+    │       │       │       │       │           └── args[3]: 16 : i64
+    │       │       │       │       └── right > call:
+    │       │       │       │           ├── type: i64
+    │       │       │       │           ├── fn: arrays$total(arrays$Tree)
+    │       │       │       │           └── args[0] > deref:
+    │       │       │       │               ├── type: <i64 | ptr>
+    │       │       │       │               └── ptr > runtime:
+    │       │       │       │                   ├── type: ptr
+    │       │       │       │                   ├── fn: zane_array_at
+    │       │       │       │                   ├── args[0]: local #41 : ptr
+    │       │       │       │                   ├── args[1]: 2 : i64
+    │       │       │       │                   ├── args[2]: 2 : i64
+    │       │       │       │                   └── args[3]: 16 : i64
+    │       │       │       └── cases[1] > case 1[2]: leave @37
     │       │       └── right: 6 : i64
     │       ├── body[24] > hold:
-    │       │   ├── local: #16
-    │       │   ├── scope: %12
+    │       │   ├── local: #42
+    │       │   ├── scope: %27
     │       │   ├── value > copy:
     │       │   │   ├── type: <i64 | ptr>
-    │       │   │   ├── value: local #15 : <i64 | ptr>
+    │       │   │   ├── value: local #34 : <i64 | ptr>
     │       │   │   └── layout: arrays$Tree
     │       │   └── layout: arrays$Tree
     │       ├── body[25] > eval > call:
@@ -313,20 +421,77 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: arrays$total(arrays$Tree)
-    │       │       │   └── args[0]: local #16 : <i64 | ptr>
+    │       │       │   ├── label: @45
+    │       │       │   ├── result: #46
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #47
+    │       │       │   │   └── value: address of #42 : ptr
+    │       │       │   └── body[1] > switch:
+    │       │       │       ├── value > deref:
+    │       │       │       │   ├── type: <i64 | ptr>
+    │       │       │       │   └── ptr: local #47 : ptr
+    │       │       │       ├── cases[0] > case 0[0] > let:
+    │       │       │       │   ├── local: #48
+    │       │       │       │   └── value > offset:
+    │       │       │       │       ├── within: <i64 | ptr>
+    │       │       │       │       ├── path: 0
+    │       │       │       │       └── base: local #47 : ptr
+    │       │       │       ├── cases[0] > case 0[1] > assign:
+    │       │       │       │   ├── place: #46
+    │       │       │       │   └── value > deref:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       └── ptr: local #48 : ptr
+    │       │       │       ├── cases[0] > case 0[2]: leave @45
+    │       │       │       ├── cases[1] > case 1[0] > let:
+    │       │       │       │   ├── local: #49
+    │       │       │       │   └── value > deref:
+    │       │       │       │       ├── type: ptr
+    │       │       │       │       └── ptr > offset:
+    │       │       │       │           ├── within: <i64 | ptr>
+    │       │       │       │           ├── path: 1
+    │       │       │       │           └── base: local #47 : ptr
+    │       │       │       ├── cases[1] > case 1[1] > assign:
+    │       │       │       │   ├── place: #46
+    │       │       │       │   └── value > binary:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── op: +
+    │       │       │       │       ├── left > call:
+    │       │       │       │       │   ├── type: i64
+    │       │       │       │       │   ├── fn: arrays$total(arrays$Tree)
+    │       │       │       │       │   └── args[0] > deref:
+    │       │       │       │       │       ├── type: <i64 | ptr>
+    │       │       │       │       │       └── ptr > runtime:
+    │       │       │       │       │           ├── type: ptr
+    │       │       │       │       │           ├── fn: zane_array_at
+    │       │       │       │       │           ├── args[0]: local #49 : ptr
+    │       │       │       │       │           ├── args[1]: 1 : i64
+    │       │       │       │       │           ├── args[2]: 2 : i64
+    │       │       │       │       │           └── args[3]: 16 : i64
+    │       │       │       │       └── right > call:
+    │       │       │       │           ├── type: i64
+    │       │       │       │           ├── fn: arrays$total(arrays$Tree)
+    │       │       │       │           └── args[0] > deref:
+    │       │       │       │               ├── type: <i64 | ptr>
+    │       │       │       │               └── ptr > runtime:
+    │       │       │       │                   ├── type: ptr
+    │       │       │       │                   ├── fn: zane_array_at
+    │       │       │       │                   ├── args[0]: local #49 : ptr
+    │       │       │       │                   ├── args[1]: 2 : i64
+    │       │       │       │                   ├── args[2]: 2 : i64
+    │       │       │       │                   └── args[3]: 16 : i64
+    │       │       │       └── cases[1] > case 1[2]: leave @45
     │       │       └── right: 6 : i64
     │       ├── body[26] > let:
-    │       │   ├── local: #17
+    │       │   ├── local: #50
     │       │   └── value: 3 : i32
     │       ├── body[27] > let:
-    │       │   ├── local: #18
+    │       │   ├── local: #51
     │       │   └── value > binary:
     │       │       ├── type: i32
     │       │       ├── op: +
-    │       │       ├── left: local #17 : i32
+    │       │       ├── left: local #50 : i32
     │       │       └── right > binary:
     │       │           ├── type: i32
     │       │           ├── op: *
@@ -338,7 +503,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left: local #18 : i32
+    │       │       ├── left: local #51 : i32
     │       │       └── right: 11 : i32
     │       ├── body[29] > eval > call:
     │       │   ├── type: void
@@ -349,7 +514,7 @@
     │       │       ├── left > binary:
     │       │       │   ├── type: i32
     │       │       │   ├── op: /
-    │       │       │   ├── left: local #18 : i32
+    │       │       │   ├── left: local #51 : i32
     │       │       │   └── right: 2 : i32
     │       │       └── right: 5 : i32
     │       ├── body[30] > eval > call:
@@ -360,7 +525,7 @@
     │       │       ├── op: <
     │       │       ├── left > flip:
     │       │       │   ├── type: i32
-    │       │       │   └── value: local #18 : i32
+    │       │       │   └── value: local #51 : i32
     │       │       └── right: 0 : i32
     │       ├── body[31] > eval > call:
     │       │   ├── type: void
@@ -407,34 +572,6 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[3] > func:
-    │   ├── symbol: arrays$count<%primitives$I64, 3>(%primitives$Array<%primitives$I64, 3>)
-    │   ├── params[0]: local #1 : [3 x i64]
-    │   ├── ret: i64
-    │   └── body[0] > return: 3 : i64
-    ├── funcs[4] > func:
-    │   ├── symbol: arrays$measured<3>(%primitives$Array<%primitives$I64, 3>, %concepts$Int)
-    │   ├── params[0]: local #1 : [3 x i64]
-    │   ├── ret: i64
-    │   └── body[0] > return: 3 : i64
-    ├── funcs[5] > func:
-    │   ├── symbol: arrays$three()
-    │   ├── params:
-    │   ├── ret: [3 x i64]
-    │   └── body[0] > return > record:
-    │       ├── type: [3 x i64]
-    │       ├── members[0] > member 0: 7 : i64
-    │       ├── members[1] > member 1: 8 : i64
-    │       └── members[2] > member 2: 9 : i64
-    ├── funcs[6] > func:
-    │   ├── symbol: arrays$Grid(%primitives$Array<%primitives$I64, 4>, %primitives$I64)
-    │   ├── params[0]: local #1 : [4 x i64]
-    │   ├── params[1]: local #2 : i64
-    │   ├── ret: {[4 x i64], i64}
-    │   └── body[0] > return > record:
-    │       ├── type: {[4 x i64], i64}
-    │       ├── members[0] > member 0: local #1 : [4 x i64]
-    │       └── members[1] > member 1: local #2 : i64
-    ├── funcs[7] > func:
     │   ├── symbol: arrays$set(this arrays$Grid, %primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -459,34 +596,7 @@
     │   │   │   └── args[3]: 8 : i64
     │   │   └── value: local #5 : i64
     │   └── body[3] > return: unit : void
-    ├── funcs[8] > func:
-    │   ├── symbol: arrays$at(this arrays$Grid, %primitives$I64)
-    │   ├── params[0]: local #1 : {[4 x i64], i64}
-    │   ├── params[1]: local #2 : i64
-    │   ├── ret: i64
-    │   └── body[0] > return > deref:
-    │       ├── type: i64
-    │       └── ptr > runtime:
-    │           ├── type: ptr
-    │           ├── fn: zane_array_at
-    │           ├── args[0] > offset:
-    │           │   ├── within: {[4 x i64], i64}
-    │           │   ├── path: 0
-    │           │   └── base: address of #1 : ptr
-    │           ├── args[1]: local #2 : i64
-    │           ├── args[2]: 4 : i64
-    │           └── args[3]: 8 : i64
-    ├── funcs[9] > func:
-    │   ├── symbol: arrays$Box(arrays$Grid)
-    │   ├── params[0]: local #1 : {[4 x i64], i64}
-    │   ├── ret: {{[4 x i64], i64}}
-    │   └── body[0] > return > escape:
-    │       ├── exit: function
-    │       ├── value > record:
-    │       │   ├── type: {{[4 x i64], i64}}
-    │       │   └── members[0] > member 0: local #1 : {[4 x i64], i64}
-    │       └── layout: arrays$Box
-    └── funcs[10] > func:
+    └── funcs[4] > func:
         ├── symbol: arrays$total(arrays$Tree)
         ├── params[0]: local #1 : <i64 | ptr>
         ├── ret: i64
@@ -526,28 +636,162 @@
                 │   └── value > binary:
                 │       ├── type: i64
                 │       ├── op: +
-                │       ├── left > call:
+                │       ├── left > expand:
                 │       │   ├── type: i64
-                │       │   ├── fn: arrays$total(arrays$Tree)
-                │       │   └── args[0] > deref:
-                │       │       ├── type: <i64 | ptr>
-                │       │       └── ptr > runtime:
-                │       │           ├── type: ptr
-                │       │           ├── fn: zane_array_at
-                │       │           ├── args[0]: local #6 : ptr
-                │       │           ├── args[1]: 1 : i64
-                │       │           ├── args[2]: 2 : i64
-                │       │           └── args[3]: 16 : i64
-                │       └── right > call:
+                │       │   ├── label: @8
+                │       │   ├── result: #9
+                │       │   ├── body[0] > let:
+                │       │   │   ├── local: #7
+                │       │   │   └── value > deref:
+                │       │   │       ├── type: <i64 | ptr>
+                │       │   │       └── ptr > runtime:
+                │       │   │           ├── type: ptr
+                │       │   │           ├── fn: zane_array_at
+                │       │   │           ├── args[0]: local #6 : ptr
+                │       │   │           ├── args[1]: 1 : i64
+                │       │   │           ├── args[2]: 2 : i64
+                │       │   │           └── args[3]: 16 : i64
+                │       │   ├── body[1] > assign:
+                │       │   │   ├── place: #9
+                │       │   │   └── value > expand:
+                │       │   │       ├── type: i64
+                │       │   │       ├── label: @10
+                │       │   │       ├── result: #11
+                │       │   │       ├── body[0] > let:
+                │       │   │       │   ├── local: #12
+                │       │   │       │   └── value: address of #7 : ptr
+                │       │   │       └── body[1] > switch:
+                │       │   │           ├── value > deref:
+                │       │   │           │   ├── type: <i64 | ptr>
+                │       │   │           │   └── ptr: local #12 : ptr
+                │       │   │           ├── cases[0] > case 0[0] > let:
+                │       │   │           │   ├── local: #13
+                │       │   │           │   └── value > offset:
+                │       │   │           │       ├── within: <i64 | ptr>
+                │       │   │           │       ├── path: 0
+                │       │   │           │       └── base: local #12 : ptr
+                │       │   │           ├── cases[0] > case 0[1] > assign:
+                │       │   │           │   ├── place: #11
+                │       │   │           │   └── value > deref:
+                │       │   │           │       ├── type: i64
+                │       │   │           │       └── ptr: local #13 : ptr
+                │       │   │           ├── cases[0] > case 0[2]: leave @10
+                │       │   │           ├── cases[1] > case 1[0] > let:
+                │       │   │           │   ├── local: #14
+                │       │   │           │   └── value > deref:
+                │       │   │           │       ├── type: ptr
+                │       │   │           │       └── ptr > offset:
+                │       │   │           │           ├── within: <i64 | ptr>
+                │       │   │           │           ├── path: 1
+                │       │   │           │           └── base: local #12 : ptr
+                │       │   │           ├── cases[1] > case 1[1] > assign:
+                │       │   │           │   ├── place: #11
+                │       │   │           │   └── value > binary:
+                │       │   │           │       ├── type: i64
+                │       │   │           │       ├── op: +
+                │       │   │           │       ├── left > call:
+                │       │   │           │       │   ├── type: i64
+                │       │   │           │       │   ├── fn: arrays$total(arrays$Tree)
+                │       │   │           │       │   └── args[0] > deref:
+                │       │   │           │       │       ├── type: <i64 | ptr>
+                │       │   │           │       │       └── ptr > runtime:
+                │       │   │           │       │           ├── type: ptr
+                │       │   │           │       │           ├── fn: zane_array_at
+                │       │   │           │       │           ├── args[0]: local #14 : ptr
+                │       │   │           │       │           ├── args[1]: 1 : i64
+                │       │   │           │       │           ├── args[2]: 2 : i64
+                │       │   │           │       │           └── args[3]: 16 : i64
+                │       │   │           │       └── right > call:
+                │       │   │           │           ├── type: i64
+                │       │   │           │           ├── fn: arrays$total(arrays$Tree)
+                │       │   │           │           └── args[0] > deref:
+                │       │   │           │               ├── type: <i64 | ptr>
+                │       │   │           │               └── ptr > runtime:
+                │       │   │           │                   ├── type: ptr
+                │       │   │           │                   ├── fn: zane_array_at
+                │       │   │           │                   ├── args[0]: local #14 : ptr
+                │       │   │           │                   ├── args[1]: 2 : i64
+                │       │   │           │                   ├── args[2]: 2 : i64
+                │       │   │           │                   └── args[3]: 16 : i64
+                │       │   │           └── cases[1] > case 1[2]: leave @10
+                │       │   └── body[2]: leave @8
+                │       └── right > expand:
                 │           ├── type: i64
-                │           ├── fn: arrays$total(arrays$Tree)
-                │           └── args[0] > deref:
-                │               ├── type: <i64 | ptr>
-                │               └── ptr > runtime:
-                │                   ├── type: ptr
-                │                   ├── fn: zane_array_at
-                │                   ├── args[0]: local #6 : ptr
-                │                   ├── args[1]: 2 : i64
-                │                   ├── args[2]: 2 : i64
-                │                   └── args[3]: 16 : i64
+                │           ├── label: @16
+                │           ├── result: #17
+                │           ├── body[0] > let:
+                │           │   ├── local: #15
+                │           │   └── value > deref:
+                │           │       ├── type: <i64 | ptr>
+                │           │       └── ptr > runtime:
+                │           │           ├── type: ptr
+                │           │           ├── fn: zane_array_at
+                │           │           ├── args[0]: local #6 : ptr
+                │           │           ├── args[1]: 2 : i64
+                │           │           ├── args[2]: 2 : i64
+                │           │           └── args[3]: 16 : i64
+                │           ├── body[1] > assign:
+                │           │   ├── place: #17
+                │           │   └── value > expand:
+                │           │       ├── type: i64
+                │           │       ├── label: @18
+                │           │       ├── result: #19
+                │           │       ├── body[0] > let:
+                │           │       │   ├── local: #20
+                │           │       │   └── value: address of #15 : ptr
+                │           │       └── body[1] > switch:
+                │           │           ├── value > deref:
+                │           │           │   ├── type: <i64 | ptr>
+                │           │           │   └── ptr: local #20 : ptr
+                │           │           ├── cases[0] > case 0[0] > let:
+                │           │           │   ├── local: #21
+                │           │           │   └── value > offset:
+                │           │           │       ├── within: <i64 | ptr>
+                │           │           │       ├── path: 0
+                │           │           │       └── base: local #20 : ptr
+                │           │           ├── cases[0] > case 0[1] > assign:
+                │           │           │   ├── place: #19
+                │           │           │   └── value > deref:
+                │           │           │       ├── type: i64
+                │           │           │       └── ptr: local #21 : ptr
+                │           │           ├── cases[0] > case 0[2]: leave @18
+                │           │           ├── cases[1] > case 1[0] > let:
+                │           │           │   ├── local: #22
+                │           │           │   └── value > deref:
+                │           │           │       ├── type: ptr
+                │           │           │       └── ptr > offset:
+                │           │           │           ├── within: <i64 | ptr>
+                │           │           │           ├── path: 1
+                │           │           │           └── base: local #20 : ptr
+                │           │           ├── cases[1] > case 1[1] > assign:
+                │           │           │   ├── place: #19
+                │           │           │   └── value > binary:
+                │           │           │       ├── type: i64
+                │           │           │       ├── op: +
+                │           │           │       ├── left > call:
+                │           │           │       │   ├── type: i64
+                │           │           │       │   ├── fn: arrays$total(arrays$Tree)
+                │           │           │       │   └── args[0] > deref:
+                │           │           │       │       ├── type: <i64 | ptr>
+                │           │           │       │       └── ptr > runtime:
+                │           │           │       │           ├── type: ptr
+                │           │           │       │           ├── fn: zane_array_at
+                │           │           │       │           ├── args[0]: local #22 : ptr
+                │           │           │       │           ├── args[1]: 1 : i64
+                │           │           │       │           ├── args[2]: 2 : i64
+                │           │           │       │           └── args[3]: 16 : i64
+                │           │           │       └── right > call:
+                │           │           │           ├── type: i64
+                │           │           │           ├── fn: arrays$total(arrays$Tree)
+                │           │           │           └── args[0] > deref:
+                │           │           │               ├── type: <i64 | ptr>
+                │           │           │               └── ptr > runtime:
+                │           │           │                   ├── type: ptr
+                │           │           │                   ├── fn: zane_array_at
+                │           │           │                   ├── args[0]: local #22 : ptr
+                │           │           │                   ├── args[1]: 2 : i64
+                │           │           │                   ├── args[2]: 2 : i64
+                │           │           │                   └── args[3]: 16 : i64
+                │           │           └── cases[1] > case 1[2]: leave @18
+                │           └── body[2]: leave @16
                 └── cases[1] > case 1[2]: leave @2

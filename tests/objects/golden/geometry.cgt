@@ -36,11 +36,11 @@
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
     │   ├── ret: i64
-    │   └── body[0] > return > call:
+    │   └── body[0] > return > binary:
     │       ├── type: i64
-    │       ├── fn: !geometry$_product(%primitives$I64, %primitives$I64)
-    │       ├── args[0]: local #1 : i64
-    │       └── args[1]: local #2 : i64
+    │       ├── op: *
+    │       ├── left: local #1 : i64
+    │       └── right: local #2 : i64
     ├── funcs[3] > func:
     │   ├── symbol: !geometry$_product(%primitives$I64, %primitives$I64)
     │   ├── linkage: exported
@@ -94,12 +94,52 @@
     │               ├── fn: !geometry$unit
     │               └── args:
     ├── funcs[7] > func:
+    │   ├── symbol: !geometry$shifted(!geometry$Point, %primitives$I64)
+    │   ├── linkage: exported
+    │   ├── params[0]: local #1 : {i64, i64}
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: {i64, i64}
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > binary:
+    │   │       ├── type: i64
+    │   │       ├── op: +
+    │   │       ├── left > member:
+    │   │       │   ├── type: i64
+    │   │       │   ├── index: 0
+    │   │       │   └── value: local #1 : {i64, i64}
+    │   │       └── right: local #2 : i64
+    │   └── body[1] > return > expand:
+    │       ├── type: {i64, i64}
+    │       ├── label: @5
+    │       ├── result: #6
+    │       ├── body[0] > let:
+    │       │   ├── local: #4
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left > member:
+    │       │       │   ├── type: i64
+    │       │       │   ├── index: 1
+    │       │       │   └── value: local #1 : {i64, i64}
+    │       │       └── right: local #2 : i64
+    │       ├── body[1] > assign:
+    │       │   ├── place: #6
+    │       │   └── value > record:
+    │       │       ├── type: {i64, i64}
+    │       │       ├── members[0] > member 0: local #3 : i64
+    │       │       └── members[1] > member 1: local #4 : i64
+    │       └── body[2]: leave @5
+    ├── funcs[8] > func:
     │   ├── symbol: !geometry$same<%primitives$I64>(%primitives$I64)
     │   ├── linkage: shared
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
-    │   └── body[0] > return: local #1 : i64
-    └── funcs[8] > func:
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value: local #1 : i64
+    │   └── body[1] > return: local #2 : i64
+    └── funcs[9] > func:
         ├── symbol: !geometry$unit
         ├── linkage: shared
         ├── params:

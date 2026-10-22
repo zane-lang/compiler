@@ -396,36 +396,33 @@
     │       │       │               └── base: address of #56 : ptr
     │       │       └── right: 0 : i64
     │       ├── body[20] > let:
-    │       │   ├── local: #63
-    │       │   └── value > call:
-    │       │       ├── type: i64
-    │       │       ├── fn: spawned$Counter(%primitives$I64)
-    │       │       └── args[0]: 1 : i64
+    │       │   ├── local: #66
+    │       │   └── value: 1 : i64
     │       ├── body[21] > if:
     │       │   ├── cond: true : i1
     │       │   └── body[0] > scope:
-    │       │       ├── id: %67
+    │       │       ├── id: %70
     │       │       └── body[0] > spawn:
-    │       │           ├── task: #66
-    │       │           ├── scope: %67
+    │       │           ├── task: #69
+    │       │           ├── scope: %70
     │       │           ├── thunk: zane.spawn.9
     │       │           ├── frame: {void, ptr}
-    │       │           └── args[0]: address of #63 : ptr
+    │       │           └── args[0]: address of #66 : ptr
     │       ├── body[22] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawned$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left: local #63 : i64
+    │       │       ├── left: local #66 : i64
     │       │       └── right: 5 : i64
     │       ├── body[23] > spawn:
-    │       │   ├── task: #69
+    │       │   ├── task: #72
     │       │   ├── scope: %2
     │       │   ├── thunk: zane.spawn.10
     │       │   ├── frame: {ptr}
     │       │   ├── args:
-    │       │   ├── dest: #70
+    │       │   ├── dest: #73
     │       │   └── layout: %primitives$I64[this spawned$Counter, %primitives$I64]
     │       ├── body[24] > eval > call:
     │       │   ├── type: void
@@ -437,21 +434,21 @@
     │       │       │   ├── type: i64
     │       │       │   ├── fn > expand:
     │       │       │   │   ├── type: ptr
-    │       │       │   │   ├── label: @71
-    │       │       │   │   ├── result: #72
-    │       │       │   │   ├── body[0]: join #69
+    │       │       │   │   ├── label: @74
+    │       │       │   │   ├── result: #75
+    │       │       │   │   ├── body[0]: join #72
     │       │       │   │   └── body[1] > assign:
-    │       │       │   │       ├── place: #72
+    │       │       │   │       ├── place: #75
     │       │       │   │       └── value > deref:
     │       │       │   │           ├── type: ptr
-    │       │       │   │           └── ptr: address of #70 : ptr
-    │       │       │   ├── args[0]: address of #63 : ptr
+    │       │       │   │           └── ptr: address of #73 : ptr
+    │       │       │   ├── args[0]: address of #66 : ptr
     │       │       │   └── args[1]: 2 : i64
     │       │       └── right: 7 : i64
     │       ├── body[25] > return: unit : void
     │       └── body[26] > eval > expand:
     │           ├── type: void
-    │           ├── label: @73
+    │           ├── label: @76
     │           ├── body[0]: join #55
     │           └── body[1] > if:
     │               ├── cond: local #57 : i1
@@ -464,10 +461,10 @@
     │                   │   └── ptr: address of #56 : ptr
     │                   ├── cases[0] > case 0:
     │                   └── cases[1] > case 1[0] > scope:
-    │                       ├── id: %75
+    │                       ├── id: %78
     │                       ├── body[0] > hold:
-    │                       │   ├── local: #74
-    │                       │   ├── scope: %75
+    │                       │   ├── local: #77
+    │                       │   ├── scope: %78
     │                       │   ├── value > take:
     │                       │   │   ├── type: handle
     │                       │   │   ├── address > offset:
@@ -483,7 +480,7 @@
     │                       │   │   ├── index: 0
     │                       │   │   └── payload: 0 : i64
     │                       │   └── layout: outcome of %primitives$I64 ? %primitives$String
-    │                       └── body[2]: leave @73
+    │                       └── body[2]: leave @76
     ├── funcs[2] > func:
     │   ├── symbol: zane.intrinsic.1
     │   ├── params[0]: local #1 : ptr
@@ -660,11 +657,6 @@
     │       ├── index: 0
     │       └── payload: local #1 : i64
     ├── funcs[10] > func:
-    │   ├── symbol: spawned$Counter(%primitives$I64)
-    │   ├── params[0]: local #1 : i64
-    │   ├── ret: i64
-    │   └── body[0] > return: local #1 : i64
-    ├── funcs[11] > func:
     │   ├── symbol: zane.expanded.7
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: void
@@ -678,12 +670,12 @@
     │   │       │   └── ptr: local #1 : ptr
     │   │       └── right: 4 : i64
     │   └── body[1] > return: unit : void
-    ├── funcs[12] > func:
+    ├── funcs[11] > func:
     │   ├── symbol: spawned$maker()
     │   ├── params:
     │   ├── ret: ptr
     │   └── body[0] > return: function spawned$maker()$lambda1
-    ├── funcs[13] > func:
+    ├── funcs[12] > func:
     │   ├── symbol: spawned$maker()$lambda1
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -695,7 +687,7 @@
     │       │   ├── type: i64
     │       │   └── ptr: local #1 : ptr
     │       └── right: local #2 : i64
-    ├── funcs[14] > func:
+    ├── funcs[13] > func:
     │   ├── symbol: zane.spawn.1
     │   ├── params[0]: local #9 : ptr
     │   ├── ret: void
@@ -713,7 +705,7 @@
     │                   ├── within: {i64, ptr}
     │                   ├── path: 1
     │                   └── base: local #9 : ptr
-    ├── funcs[15] > func:
+    ├── funcs[14] > func:
     │   ├── symbol: zane.spawn.2
     │   ├── params[0]: local #14 : ptr
     │   ├── ret: void
@@ -731,7 +723,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #14 : ptr
-    ├── funcs[16] > func:
+    ├── funcs[15] > func:
     │   ├── symbol: zane.spawn.3
     │   ├── params[0]: local #17 : ptr
     │   ├── ret: void
@@ -749,7 +741,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #17 : ptr
-    ├── funcs[17] > func:
+    ├── funcs[16] > func:
     │   ├── symbol: zane.spawn.4
     │   ├── params[0]: local #20 : ptr
     │   ├── ret: void
@@ -767,7 +759,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #20 : ptr
-    ├── funcs[18] > func:
+    ├── funcs[17] > func:
     │   ├── symbol: zane.spawn.5
     │   ├── params[0]: local #29 : ptr
     │   ├── ret: void
@@ -780,7 +772,7 @@
     │           ├── type: f64
     │           ├── fn: zane.expanded.3
     │           └── args:
-    ├── funcs[19] > func:
+    ├── funcs[18] > func:
     │   ├── symbol: zane.spawn.6
     │   ├── params[0]: local #34 : ptr
     │   ├── ret: void
@@ -793,7 +785,7 @@
     │           ├── type: handle
     │           ├── fn: zane.expanded.4
     │           └── args:
-    ├── funcs[20] > func:
+    ├── funcs[19] > func:
     │   ├── symbol: zane.spawn.7
     │   ├── params[0]: local #43 : ptr
     │   ├── ret: void
@@ -811,7 +803,7 @@
     │                   ├── within: {i64, [3 x i64]}
     │                   ├── path: 1
     │                   └── base: local #43 : ptr
-    ├── funcs[21] > func:
+    ├── funcs[20] > func:
     │   ├── symbol: zane.spawn.8
     │   ├── params[0]: local #54 : ptr
     │   ├── ret: void
@@ -829,9 +821,9 @@
     │                   ├── within: {<i64 | handle | void>, i64}
     │                   ├── path: 1
     │                   └── base: local #54 : ptr
-    ├── funcs[22] > func:
+    ├── funcs[21] > func:
     │   ├── symbol: zane.spawn.9
-    │   ├── params[0]: local #65 : ptr
+    │   ├── params[0]: local #68 : ptr
     │   ├── ret: void
     │   └── body[0] > eval > call:
     │       ├── type: void
@@ -841,16 +833,16 @@
     │           └── ptr > offset:
     │               ├── within: {void, ptr}
     │               ├── path: 1
-    │               └── base: local #65 : ptr
-    └── funcs[23] > func:
+    │               └── base: local #68 : ptr
+    └── funcs[22] > func:
         ├── symbol: zane.spawn.10
-        ├── params[0]: local #68 : ptr
+        ├── params[0]: local #71 : ptr
         ├── ret: void
         └── body[0] > store:
             ├── address > offset:
             │   ├── within: {ptr}
             │   ├── path: 0
-            │   └── base: local #68 : ptr
+            │   └── base: local #71 : ptr
             └── value > call:
                 ├── type: ptr
                 ├── fn: spawned$maker()

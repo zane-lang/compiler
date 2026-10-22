@@ -7,14 +7,14 @@
     │   ├── type: references$Pin<references$Person>
     │   └── positions:
     ├── layouts[2] > layout:
-    │   ├── type: references$Wrap
-    │   └── positions:
-    ├── layouts[3] > layout:
-    │   ├── type: %primitives$String
-    │   └── positions[0]: text @0
-    ├── layouts[4] > layout:
     │   ├── type: ^references$Person
     │   └── positions:
+    ├── layouts[3] > layout:
+    │   ├── type: references$Wrap
+    │   └── positions:
+    ├── layouts[4] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
     ├── globals[0]: zane.value.@program$console : i64
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
@@ -29,18 +29,30 @@
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
-    │       ├── id: %2
+    │       ├── id: %5
     │       ├── body[0] > hold:
-    │       │   ├── local: #1
-    │       │   ├── scope: %2
-    │       │   ├── value > call:
+    │       │   ├── local: #4
+    │       │   ├── scope: %5
+    │       │   ├── value > expand:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: references$Person(%primitives$I64)
-    │       │   │   └── args[0]: 3 : i64
+    │       │   │   ├── label: @2
+    │       │   │   ├── result: #3
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #1
+    │       │   │   │   └── value: 3 : i64
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #3
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @2
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {i64}
+    │       │   │   │       │   └── members[0] > member 0: local #1 : i64
+    │       │   │   │       └── layout: references$Person
+    │       │   │   └── body[2]: leave @2
     │       │   └── layout: references$Person
     │       ├── body[1] > let:
-    │       │   ├── local: #3
-    │       │   └── value: address of #1 : ptr
+    │       │   ├── local: #6
+    │       │   └── value: address of #4 : ptr
     │       ├── body[2] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: references$check(%primitives$Bool)
@@ -50,26 +62,50 @@
     │       │       ├── left > binary:
     │       │       │   ├── type: i64
     │       │       │   ├── op: +
-    │       │       │   ├── left > call:
+    │       │       │   ├── left > expand:
     │       │       │   │   ├── type: i64
-    │       │       │   │   ├── fn: references$age(&references$Person)
-    │       │       │   │   └── args[0]: address of #1 : ptr
+    │       │       │   │   ├── label: @8
+    │       │       │   │   ├── result: #9
+    │       │       │   │   ├── body[0] > let:
+    │       │       │   │   │   ├── local: #7
+    │       │       │   │   │   └── value: address of #4 : ptr
+    │       │       │   │   ├── body[1] > assign:
+    │       │       │   │   │   ├── place: #9
+    │       │       │   │   │   └── value > deref:
+    │       │       │   │   │       ├── type: i64
+    │       │       │   │   │       └── ptr > offset:
+    │       │       │   │   │           ├── within: {i64}
+    │       │       │   │   │           ├── path: 0
+    │       │       │   │   │           └── base: local #7 : ptr
+    │       │       │   │   └── body[2]: leave @8
     │       │       │   └── right > deref:
     │       │       │       ├── type: i64
     │       │       │       └── ptr > offset:
     │       │       │           ├── within: {i64}
     │       │       │           ├── path: 0
-    │       │       │           └── base: local #3 : ptr
+    │       │       │           └── base: local #6 : ptr
     │       │       └── right: 6 : i64
     │       ├── body[3] > let:
-    │       │   ├── local: #4
-    │       │   └── value: local #3 : ptr
+    │       │   ├── local: #10
+    │       │   └── value: local #6 : ptr
     │       ├── body[4] > overwrite:
-    │       │   ├── address: address of #1 : ptr
-    │       │   ├── value > call:
+    │       │   ├── address: address of #4 : ptr
+    │       │   ├── value > expand:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: references$Person(%primitives$I64)
-    │       │   │   └── args[0]: 4 : i64
+    │       │   │   ├── label: @12
+    │       │   │   ├── result: #13
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #11
+    │       │   │   │   └── value: 4 : i64
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #13
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @12
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {i64}
+    │       │   │   │       │   └── members[0] > member 0: local #11 : i64
+    │       │   │   │       └── layout: references$Person
+    │       │   │   └── body[2]: leave @12
     │       │   └── layout: references$Person
     │       ├── body[5] > eval > call:
     │       │   ├── type: void
@@ -82,22 +118,46 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
     │       │       │       ├── path: 0
-    │       │       │       └── base: local #4 : ptr
+    │       │       │       └── base: local #10 : ptr
     │       │       └── right: 4 : i64
     │       ├── body[6] > hold:
-    │       │   ├── local: #5
-    │       │   ├── scope: %2
-    │       │   ├── value > call:
+    │       │   ├── local: #17
+    │       │   ├── scope: %5
+    │       │   ├── value > expand:
     │       │   │   ├── type: {ptr}
-    │       │   │   ├── fn: references$Pin<references$Person>(&references$Person)
-    │       │   │   └── args[0]: address of #1 : ptr
+    │       │   │   ├── label: @15
+    │       │   │   ├── result: #16
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #14
+    │       │   │   │   └── value: address of #4 : ptr
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #16
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @15
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {ptr}
+    │       │   │   │       │   └── members[0] > member 0: local #14 : ptr
+    │       │   │   │       └── layout: references$Pin<references$Person>
+    │       │   │   └── body[2]: leave @15
     │       │   └── layout: references$Pin<references$Person>
     │       ├── body[7] > overwrite:
-    │       │   ├── address: address of #1 : ptr
-    │       │   ├── value > call:
+    │       │   ├── address: address of #4 : ptr
+    │       │   ├── value > expand:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: references$Person(%primitives$I64)
-    │       │   │   └── args[0]: 5 : i64
+    │       │   │   ├── label: @19
+    │       │   │   ├── result: #20
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #18
+    │       │   │   │   └── value: 5 : i64
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #20
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @19
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {i64}
+    │       │   │   │       │   └── members[0] > member 0: local #18 : i64
+    │       │   │   │       └── layout: references$Person
+    │       │   │   └── body[2]: leave @19
     │       │   └── layout: references$Person
     │       ├── body[8] > eval > call:
     │       │   ├── type: void
@@ -113,7 +173,7 @@
     │       │       │       └── base > member:
     │       │       │           ├── type: ptr
     │       │       │           ├── index: 0
-    │       │       │           └── value: local #5 : {ptr}
+    │       │       │           └── value: local #17 : {ptr}
     │       │       └── right: 5 : i64
     │       ├── body[9] > eval > call:
     │       │   ├── type: void
@@ -121,97 +181,125 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: references$ageOf<references$Person>(&references$Person, references$Person)
-    │       │       │   ├── args[0]: address of #1 : ptr
-    │       │       │   └── args[1]: address of #1 : ptr
+    │       │       │   ├── label: @22
+    │       │       │   ├── result: #23
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #21
+    │       │       │   │   └── value: address of #4 : ptr
+    │       │       │   ├── body[1] > assign:
+    │       │       │   │   ├── place: #23
+    │       │       │   │   └── value > deref:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       └── ptr > offset:
+    │       │       │   │           ├── within: {i64}
+    │       │       │   │           ├── path: 0
+    │       │       │   │           └── base: address of #4 : ptr
+    │       │       │   └── body[2]: leave @22
     │       │       └── right: 5 : i64
     │       ├── body[10] > hold:
-    │       │   ├── local: #6
-    │       │   ├── scope: %2
-    │       │   ├── value > call:
+    │       │   ├── local: #30
+    │       │   ├── scope: %5
+    │       │   ├── value > expand:
     │       │   │   ├── type: {{i64}}
-    │       │   │   ├── fn: references$Wrap(^references$Person)
-    │       │   │   └── args[0] > call:
-    │       │   │       ├── type: {i64}
-    │       │   │       ├── fn: references$Person(%primitives$I64)
-    │       │   │       └── args[0]: 9 : i64
+    │       │   │   ├── label: @28
+    │       │   │   ├── result: #29
+    │       │   │   ├── body[0] > hold:
+    │       │   │   │   ├── local: #27
+    │       │   │   │   ├── scope: %5
+    │       │   │   │   ├── value > expand:
+    │       │   │   │   │   ├── type: {i64}
+    │       │   │   │   │   ├── label: @25
+    │       │   │   │   │   ├── result: #26
+    │       │   │   │   │   ├── body[0] > let:
+    │       │   │   │   │   │   ├── local: #24
+    │       │   │   │   │   │   └── value: 9 : i64
+    │       │   │   │   │   ├── body[1] > assign:
+    │       │   │   │   │   │   ├── place: #26
+    │       │   │   │   │   │   └── value > escape:
+    │       │   │   │   │   │       ├── exit: @25
+    │       │   │   │   │   │       ├── value > record:
+    │       │   │   │   │   │       │   ├── type: {i64}
+    │       │   │   │   │   │       │   └── members[0] > member 0: local #24 : i64
+    │       │   │   │   │   │       └── layout: references$Person
+    │       │   │   │   │   └── body[2]: leave @25
+    │       │   │   │   └── layout: ^references$Person
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #29
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @28
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {{i64}}
+    │       │   │   │       │   └── members[0] > member 0 > take:
+    │       │   │   │       │       ├── type: {i64}
+    │       │   │   │       │       ├── address: address of #27 : ptr
+    │       │   │   │       │       └── layout: references$Person
+    │       │   │   │       └── layout: references$Wrap
+    │       │   │   └── body[2]: leave @28
     │       │   └── layout: references$Wrap
     │       ├── body[11] > let:
-    │       │   ├── local: #11
+    │       │   ├── local: #35
     │       │   └── value > expand:
     │       │       ├── type: i64
-    │       │       ├── label: @7
-    │       │       ├── result: #8
+    │       │       ├── label: @31
+    │       │       ├── result: #32
     │       │       ├── body[0] > let:
-    │       │       │   ├── local: #9
+    │       │       │   ├── local: #33
     │       │       │   └── value > call:
     │       │       │       ├── type: <i64 | ptr | void>
     │       │       │       ├── fn: references$refuse(&references$Wrap)
-    │       │       │       └── args[0]: address of #6 : ptr
+    │       │       │       └── args[0]: address of #30 : ptr
     │       │       └── body[1] > switch:
-    │       │           ├── value: local #9 : <i64 | ptr | void>
+    │       │           ├── value: local #33 : <i64 | ptr | void>
     │       │           ├── cases[0] > case 0[0] > assign:
-    │       │           │   ├── place: #8
+    │       │           │   ├── place: #32
     │       │           │   └── value > payload:
     │       │           │       ├── type: i64
     │       │           │       ├── index: 0
-    │       │           │       └── value: local #9 : <i64 | ptr | void>
-    │       │           ├── cases[0] > case 0[1]: leave @7
+    │       │           │       └── value: local #33 : <i64 | ptr | void>
+    │       │           ├── cases[0] > case 0[1]: leave @31
     │       │           ├── cases[1] > case 1[0] > let:
-    │       │           │   ├── local: #10
+    │       │           │   ├── local: #34
     │       │           │   └── value > payload:
     │       │           │       ├── type: ptr
     │       │           │       ├── index: 1
-    │       │           │       └── value: local #9 : <i64 | ptr | void>
+    │       │           │       └── value: local #33 : <i64 | ptr | void>
     │       │           ├── cases[1] > case 1[1] > assign:
-    │       │           │   ├── place: #8
+    │       │           │   ├── place: #32
     │       │           │   └── value > deref:
     │       │           │       ├── type: i64
     │       │           │       └── ptr > offset:
     │       │           │           ├── within: {i64}
     │       │           │           ├── path: 0
-    │       │           │           └── base: local #10 : ptr
-    │       │           └── cases[1] > case 1[2]: leave @7
+    │       │           │           └── base: local #34 : ptr
+    │       │           └── cases[1] > case 1[2]: leave @31
     │       ├── body[12] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: references$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left: local #11 : i64
+    │       │       ├── left: local #35 : i64
     │       │       └── right: 9 : i64
-    │       ├── body[13] > eval > call:
+    │       ├── body[13] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── fn: references$pass(&%runtime$Console)
-    │       │   └── args[0]: global zane.value.@program$console
-    │       ├── body[14] > eval > call:
+    │       │   ├── label: @37
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #36
+    │       │   │   └── value: global zane.value.@program$console
+    │       │   ├── body[1] > eval: unit : void
+    │       │   └── body[2]: leave @37
+    │       ├── body[14] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── fn: references$pass(&%runtime$Console)
-    │       │   └── args[0]: global zane.value.@program$console
+    │       │   ├── label: @39
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #38
+    │       │   │   └── value: global zane.value.@program$console
+    │       │   ├── body[1] > eval: unit : void
+    │       │   └── body[2]: leave @39
     │       └── body[15] > return: unit : void
     ├── funcs[2] > func:
-    │   ├── symbol: references$Person(%primitives$I64)
-    │   ├── params[0]: local #1 : i64
-    │   ├── ret: {i64}
-    │   └── body[0] > return > escape:
-    │       ├── exit: function
-    │       ├── value > record:
-    │       │   ├── type: {i64}
-    │       │   └── members[0] > member 0: local #1 : i64
-    │       └── layout: references$Person
-    ├── funcs[3] > func:
-    │   ├── symbol: references$age(&references$Person)
-    │   ├── params[0]: local #1 : ptr
-    │   ├── ret: i64
-    │   └── body[0] > return > deref:
-    │       ├── type: i64
-    │       └── ptr > offset:
-    │           ├── within: {i64}
-    │           ├── path: 0
-    │           └── base: local #1 : ptr
-    ├── funcs[4] > func:
     │   ├── symbol: references$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -242,53 +330,14 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
-    ├── funcs[5] > func:
-    │   ├── symbol: references$Pin<references$Person>(&references$Person)
-    │   ├── params[0]: local #1 : ptr
-    │   ├── ret: {ptr}
-    │   └── body[0] > return > escape:
-    │       ├── exit: function
-    │       ├── value > record:
-    │       │   ├── type: {ptr}
-    │       │   └── members[0] > member 0: local #1 : ptr
-    │       └── layout: references$Pin<references$Person>
-    ├── funcs[6] > func:
-    │   ├── symbol: references$ageOf<references$Person>(&references$Person, references$Person)
-    │   ├── params[0]: local #1 : ptr
-    │   ├── params[1]: local #2 : ptr
-    │   ├── ret: i64
-    │   └── body[0] > return > deref:
-    │       ├── type: i64
-    │       └── ptr > offset:
-    │           ├── within: {i64}
-    │           ├── path: 0
-    │           └── base: local #2 : ptr
-    ├── funcs[7] > func:
-    │   ├── symbol: references$Wrap(^references$Person)
-    │   ├── params[0]: local #1 : {i64}
-    │   ├── ret: {{i64}}
-    │   ├── body[0] > let:
-    │   │   ├── local: #2
-    │   │   └── value: local #1 : {i64}
-    │   └── body[1] > return > escape:
-    │       ├── exit: function
-    │       ├── value > record:
-    │       │   ├── type: {{i64}}
-    │       │   └── members[0] > member 0: local #2 : {i64}
-    │       └── layout: references$Wrap
-    ├── funcs[8] > func:
-    │   ├── symbol: references$refuse(&references$Wrap)
-    │   ├── params[0]: local #1 : ptr
-    │   ├── ret: <i64 | ptr | void>
-    │   └── body[0] > return > case:
-    │       ├── type: <i64 | ptr | void>
-    │       ├── index: 1
-    │       └── payload > offset:
-    │           ├── within: {{i64}}
-    │           ├── path: 0
-    │           └── base: local #1 : ptr
-    └── funcs[9] > func:
-        ├── symbol: references$pass(&%runtime$Console)
+    └── funcs[3] > func:
+        ├── symbol: references$refuse(&references$Wrap)
         ├── params[0]: local #1 : ptr
-        ├── ret: void
-        └── body[0] > return: unit : void
+        ├── ret: <i64 | ptr | void>
+        └── body[0] > return > case:
+            ├── type: <i64 | ptr | void>
+            ├── index: 1
+            └── payload > offset:
+                ├── within: {{i64}}
+                ├── path: 0
+                └── base: local #1 : ptr

@@ -22,8 +22,8 @@ the arguments it was started with.
 the program lowering made and gives back a program of the same tree, so
 codegen reads an optimized and an unoptimized program alike. It works on the
 CGT rather than the TST because the CGT is what runs: every function in it is
-one instance (L4), block-taking verbs are already written out where they are
-called (L11), and it holds the functions the TST never had, such as package
+one instance (L4), block-taking and expression verbs are already written out
+where they are called (L11), and it holds the functions the TST never had, such as package
 constants' makers and lifted lambdas.
 
 | Module | Holds |
@@ -56,7 +56,9 @@ faster, so that a program running for more than a fraction of a second
 finishes sooner with it than without. Inlining is the clearest case: `core`
 writes even `Int +` as a one-line wrapper over an intrinsic, and a build that
 left every wrapper a call would run several times slower than one that
-inlined it for the cost of a few passes. This holds for every stage, codegen
+inlined it for the cost of a few passes. Lowering writes each such wrapper out
+where it is called, in both builds (L11), and an unoptimized build inlines
+what is left that is small with a pass of its own. This holds for every stage, codegen
 and the link included, not only for stage 5.
 
 **O10. Package boundaries do not block optimization.** In every build,
@@ -86,7 +88,7 @@ work stands:
 | Folding constants, choosing a known branch, dropping a loop that never runs (`fold.ml`) | Here as well as in LLVM: the evaluator needs these folds' results as its inputs, so they stay while it does |
 | Running calls, lists, strings, boxes, runs of statements, output and spawned calls (`eval.ml`) | Here: LLVM cannot run the runtime's functions, and does not know O4's replay of output. Measured on the fixtures, LLVM alone leaves the list constructors, spawns and snapshots in `folding`, `runs` and `removalFolded` that stage 5 removes |
 | Package constants (O9) | Here: a constant is made once, under the runtime's lock, and an unoptimized dependency shares its object, so it is not an immutable global LLVM could fold |
-| Inlining | LLVM, which sees a dependency's bodies through O10; nothing here chooses what to inline |
+| Inlining | Lowering, for a verb whose body is one expression, in every build (L11): it knows from the source which verbs those are, and needs no cost model to write one out. LLVM, for the rest, seeing a dependency's bodies through O10 |
 | Writing out block-taking verbs, generic instances, lambdas and spawn thunks | Lowering: a verb that takes a block has no function of its own to inline (L11) |
 | Copies, scopes and results in the caller's region (`lib/cgt/regions.ml`) | Lowering: each rests on ownership and regions, which LLVM does not see |
 | Each type's walks, frames and allocation fast paths | Codegen, which emits them as plain IR for LLVM to simplify further |

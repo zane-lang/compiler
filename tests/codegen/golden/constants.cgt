@@ -100,10 +100,21 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > binary:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: constants$peek()
-    │       │       │   └── args:
+    │       │       │   ├── op: +
+    │       │       │   ├── left > deref:
+    │       │       │   │   ├── type: i64
+    │       │       │   │   └── ptr > call:
+    │       │       │   │       ├── type: ptr
+    │       │       │   │       ├── fn: constants$doubled
+    │       │       │   │       └── args:
+    │       │       │   └── right > deref:
+    │       │       │       ├── type: i64
+    │       │       │       └── ptr > call:
+    │       │       │           ├── type: ptr
+    │       │       │           ├── fn: constants$early
+    │       │       │           └── args:
     │       │       └── right: 94 : i64
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
@@ -131,19 +142,19 @@
     │       │       │   │       └── args:
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @4
-    │       │       │       ├── result: #5
+    │       │       │       ├── label: @6
+    │       │       │       ├── result: #7
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #3
+    │       │       │       │   ├── local: #5
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "hello\n" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #5
-    │       │       │           └── value: local #3 : handle
+    │       │       │           ├── place: #7
+    │       │       │           └── value: local #5 : handle
     │       │       └── right: 1 : i64
     │       ├── body[6] > let:
-    │       │   ├── local: #6
+    │       │   ├── local: #8
     │       │   └── value > call:
     │       │       ├── type: ptr
     │       │       ├── fn: constants$ada
@@ -159,7 +170,7 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {handle, i64}
     │       │       │       ├── path: 1
-    │       │       │       └── base: local #6 : ptr
+    │       │       │       └── base: local #8 : ptr
     │       │       └── right: 36 : i64
     │       ├── body[8] > eval > call:
     │       │   ├── type: void
@@ -167,13 +178,25 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: constants$age(&constants$Person)
-    │       │       │   └── args[0] > call:
-    │       │       │       ├── type: ptr
-    │       │       │       ├── fn: constants$ada
-    │       │       │       └── args:
+    │       │       │   ├── label: @10
+    │       │       │   ├── result: #11
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #9
+    │       │       │   │   └── value > call:
+    │       │       │   │       ├── type: ptr
+    │       │       │   │       ├── fn: constants$ada
+    │       │       │   │       └── args:
+    │       │       │   ├── body[1] > assign:
+    │       │       │   │   ├── place: #11
+    │       │       │   │   └── value > snapshot:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       └── ptr > offset:
+    │       │       │   │           ├── within: {handle, i64}
+    │       │       │   │           ├── path: 1
+    │       │       │   │           └── base: local #9 : ptr
+    │       │       │   └── body[2]: leave @10
     │       │       └── right: 36 : i64
     │       ├── body[9] > eval > call:
     │       │   ├── type: void
@@ -195,16 +218,16 @@
     │       │       │   │           └── args:
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @8
-    │       │       │       ├── result: #9
+    │       │       │       ├── label: @13
+    │       │       │       ├── result: #14
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #7
+    │       │       │       │   ├── local: #12
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "ada" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #9
-    │       │       │           └── value: local #7 : handle
+    │       │       │           ├── place: #14
+    │       │       │           └── value: local #12 : handle
     │       │       └── right: 1 : i64
     │       ├── body[10] > eval > call:
     │       │   ├── type: void
@@ -235,12 +258,12 @@
     │       │       │               └── args:
     │       │       └── right: 0 : i64
     │       ├── body[11] > spawn:
-    │       │   ├── task: #11
+    │       │   ├── task: #16
     │       │   ├── scope: %2
     │       │   ├── thunk: zane.spawn.1
     │       │   ├── frame: {i64}
     │       │   ├── args:
-    │       │   ├── dest: #12
+    │       │   ├── dest: #17
     │       │   └── layout: %primitives$I64
     │       ├── body[12] > eval > call:
     │       │   ├── type: void
@@ -250,14 +273,14 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @13
-    │       │       │   ├── result: #14
-    │       │       │   ├── body[0]: join #11
+    │       │       │   ├── label: @18
+    │       │       │   ├── result: #19
+    │       │       │   ├── body[0]: join #16
     │       │       │   └── body[1] > assign:
-    │       │       │       ├── place: #14
+    │       │       │       ├── place: #19
     │       │       │       └── value > deref:
     │       │       │           ├── type: i64
-    │       │       │           └── ptr: address of #12 : ptr
+    │       │       │           └── ptr: address of #17 : ptr
     │       │       └── right: 94 : i64
     │       └── body[13] > return: unit : void
     ├── funcs[2] > func:
@@ -320,16 +343,6 @@
     │               ├── fn: constants$early
     │               └── args:
     ├── funcs[5] > func:
-    │   ├── symbol: constants$age(&constants$Person)
-    │   ├── params[0]: local #1 : ptr
-    │   ├── ret: i64
-    │   └── body[0] > return > snapshot:
-    │       ├── type: i64
-    │       └── ptr > offset:
-    │           ├── within: {handle, i64}
-    │           ├── path: 1
-    │           └── base: local #1 : ptr
-    ├── funcs[6] > func:
     │   ├── symbol: constants$limit
     │   ├── params:
     │   ├── ret: ptr
@@ -352,7 +365,7 @@
     │   │       ├── args[1]: global constants$limit.value
     │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global constants$limit.value
-    ├── funcs[7] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: constants$doubled
     │   ├── params:
     │   ├── ret: ptr
@@ -384,7 +397,7 @@
     │   │       ├── args[1]: global constants$doubled.value
     │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global constants$doubled.value
-    ├── funcs[8] > func:
+    ├── funcs[7] > func:
     │   ├── symbol: constants$early
     │   ├── params:
     │   ├── ret: ptr
@@ -416,7 +429,7 @@
     │   │       ├── args[1]: global constants$early.value
     │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global constants$early.value
-    ├── funcs[9] > func:
+    ├── funcs[8] > func:
     │   ├── symbol: constants$later
     │   ├── params:
     │   ├── ret: ptr
@@ -442,7 +455,7 @@
     │   │       ├── args[1]: global constants$later.value
     │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global constants$later.value
-    ├── funcs[10] > func:
+    ├── funcs[9] > func:
     │   ├── symbol: constants$loud(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -458,7 +471,7 @@
     │       │   ├── fn: constants$say(%primitives$String)
     │       │   └── args[0]: local #2 : handle
     │       └── body[2] > return: local #1 : i64
-    ├── funcs[11] > func:
+    ├── funcs[10] > func:
     │   ├── symbol: constants$greeting
     │   ├── params:
     │   ├── ret: ptr
@@ -509,7 +522,7 @@
     │   │           ├── args[1]: global constants$greeting.value
     │   │           └── args[2]: layout %primitives$String
     │   └── body[1] > return: global constants$greeting.value
-    ├── funcs[12] > func:
+    ├── funcs[11] > func:
     │   ├── symbol: constants$ada
     │   ├── params:
     │   ├── ret: ptr
@@ -536,7 +549,7 @@
     │   │       ├── args[1]: global constants$ada.value
     │   │       └── args[2]: layout constants$Person
     │   └── body[1] > return: global constants$ada.value
-    ├── funcs[13] > func:
+    ├── funcs[12] > func:
     │   ├── symbol: constants$Person{name %primitives$String; age %primitives$I64}
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : i64
@@ -548,7 +561,7 @@
     │       │   ├── members[0] > member 0: local #1 : handle
     │       │   └── members[1] > member 1: local #2 : i64
     │       └── layout: constants$Person
-    ├── funcs[14] > func:
+    ├── funcs[13] > func:
     │   ├── symbol: constants$origin
     │   ├── params:
     │   ├── ret: ptr
@@ -563,11 +576,23 @@
     │   │   │   └── right: 1 : i64
     │   │   ├── body[0] > store:
     │   │   │   ├── address: global constants$origin.value
-    │   │   │   └── value > call:
+    │   │   │   └── value > expand:
     │   │   │       ├── type: {i64, i64}
-    │   │   │       ├── fn: constants$Point(%primitives$I64, %primitives$I64)
-    │   │   │       ├── args[0]: 0 : i64
-    │   │   │       └── args[1]: 0 : i64
+    │   │   │       ├── label: @3
+    │   │   │       ├── result: #4
+    │   │   │       ├── body[0] > let:
+    │   │   │       │   ├── local: #1
+    │   │   │       │   └── value: 0 : i64
+    │   │   │       ├── body[1] > let:
+    │   │   │       │   ├── local: #2
+    │   │   │       │   └── value: 0 : i64
+    │   │   │       ├── body[2] > assign:
+    │   │   │       │   ├── place: #4
+    │   │   │       │   └── value > record:
+    │   │   │       │       ├── type: {i64, i64}
+    │   │   │       │       ├── members[0] > member 0: local #1 : i64
+    │   │   │       │       └── members[1] > member 1: local #2 : i64
+    │   │   │       └── body[3]: leave @3
     │   │   └── body[1] > eval > runtime:
     │   │       ├── type: void
     │   │       ├── fn: zane_constant_end
@@ -575,24 +600,15 @@
     │   │       ├── args[1]: global constants$origin.value
     │   │       └── args[2]: layout constants$Point
     │   └── body[1] > return: global constants$origin.value
-    ├── funcs[15] > func:
-    │   ├── symbol: constants$Point(%primitives$I64, %primitives$I64)
-    │   ├── params[0]: local #1 : i64
-    │   ├── params[1]: local #2 : i64
-    │   ├── ret: {i64, i64}
-    │   └── body[0] > return > record:
-    │       ├── type: {i64, i64}
-    │       ├── members[0] > member 0: local #1 : i64
-    │       └── members[1] > member 1: local #2 : i64
-    └── funcs[16] > func:
+    └── funcs[14] > func:
         ├── symbol: zane.spawn.1
-        ├── params[0]: local #10 : ptr
+        ├── params[0]: local #15 : ptr
         ├── ret: void
         └── body[0] > store:
             ├── address > offset:
             │   ├── within: {i64}
             │   ├── path: 0
-            │   └── base: local #10 : ptr
+            │   └── base: local #15 : ptr
             └── value > call:
                 ├── type: i64
                 ├── fn: constants$peek()

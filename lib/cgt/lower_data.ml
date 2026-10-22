@@ -170,6 +170,10 @@ let construct_fields w st ctx span verb (fields : T.Field_value.t list) handler 
            runs, and passed in its slot. A constructor expanded where it is
            called (L11) takes its literals as they are, and a stored value
            through a local of its own that names the store. *)
+        let in_slots = List.sort (fun (a, _) (b, _) -> compare a b) given in
+        let out =
+          Lower_calls.writes_out w st ctx span v (List.map (fun (_, e) -> T.Arg.Value e) in_slots)
+        in
         let stored =
           List.map
             (fun (slot, (e : T.Expr.t)) ->
@@ -181,7 +185,7 @@ let construct_fields w st ctx span verb (fields : T.Field_value.t list) handler 
                   let id = fresh st in
                   let read = { Expr.node = Expr.Local id; ty = value.Expr.ty } in
                   let named =
-                    if expands v then begin
+                    if out then begin
                       let l = { p with T.Local.id = -id } in
                       Hashtbl.replace ctx.env l.T.Local.id
                         (if by_address st v p then Pointer id else Slot id);
@@ -201,7 +205,7 @@ let construct_fields w st ctx span verb (fields : T.Field_value.t list) handler 
               | None -> Diagnostic.bug ~span (Printf.sprintf "lowering: argument slot %d is empty" slot))
         in
         let value =
-          if expands v then
+          if out then
             let arg = function `Arg a -> a | `Value _ -> Diagnostic.bug ~span "lowering expected an argument" in
             Lower_calls.expand w st ctx span v (List.map arg slots) handler ret
           else

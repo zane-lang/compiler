@@ -1,0 +1,39 @@
+/// Verbs whose body is one expression, written out where they are called
+/// (docs/design/lowering.md L11): an instance of a generic one, a chain of
+/// them, and one whose arguments run in the order they are written, as a
+/// call's do. A spawned call to one calls its function, which it keeps.
+/// `noted` is written as statements, so it is called. Each check prints
+/// `yes` when it holds and `no` when it does not.
+package expressions;
+
+alias Int = @primitives$I64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+T same(value T Type) => value
+
+Int plus(a Int, b Int) => @operators$add(a, b)
+
+Int twice(x Int) => plus(same(x), same(x))
+
+Int noted(n Int, label String) {
+	@program$console!print(label);
+	return n;
+}
+
+Unit main() {
+	check(@operators$equal(twice(Int(21)), Int(42)));
+	check(@operators$equal(plus(noted(Int(1), String("first\n")), noted(Int(2), String("second\n"))), Int(3)));
+	later Int = spawn plus(Int(4), Int(5));
+	check(@operators$equal(later, Int(9)));
+	return Unit();
+}

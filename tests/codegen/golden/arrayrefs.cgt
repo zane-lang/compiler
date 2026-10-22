@@ -10,10 +10,10 @@
     │   ├── type: %primitives$ArrayRef<arrayrefs$Player, 100>
     │   └── positions[0]: array @0 of 100 arrayrefs$Player (32 bytes apart)
     ├── layouts[3] > layout:
-    │   ├── type: arrayrefs$Squad
+    │   ├── type: ^%primitives$ArrayRef<arrayrefs$Player, 3>
     │   └── positions[0]: array @0 of 3 arrayrefs$Player (32 bytes apart)
     ├── layouts[4] > layout:
-    │   ├── type: ^%primitives$ArrayRef<arrayrefs$Player, 3>
+    │   ├── type: arrayrefs$Squad
     │   └── positions[0]: array @0 of 3 arrayrefs$Player (32 bytes apart)
     ├── layouts[5] > layout:
     │   ├── type: %primitives$ArrayRef<arrayrefs$Player, 4>
@@ -37,24 +37,63 @@
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
-    │       ├── id: %2
+    │       ├── id: %11
     │       ├── body[0] > hold:
-    │       │   ├── local: #1
-    │       │   ├── scope: %2
+    │       │   ├── local: #10
+    │       │   ├── scope: %11
     │       │   ├── value > record:
     │       │   │   ├── type: [3 x {i64, handle}]
-    │       │   │   ├── members[0] > member 0 > call:
+    │       │   │   ├── members[0] > member 0 > expand:
     │       │   │   │   ├── type: {i64, handle}
-    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │   │   │   └── args[0]: 1 : i64
-    │       │   │   ├── members[1] > member 1 > call:
+    │       │   │   │   ├── label: @2
+    │       │   │   │   ├── result: #3
+    │       │   │   │   ├── body[0] > let:
+    │       │   │   │   │   ├── local: #1
+    │       │   │   │   │   └── value: 1 : i64
+    │       │   │   │   ├── body[1] > assign:
+    │       │   │   │   │   ├── place: #3
+    │       │   │   │   │   └── value > escape:
+    │       │   │   │   │       ├── exit: @2
+    │       │   │   │   │       ├── value > record:
+    │       │   │   │   │       │   ├── type: {i64, handle}
+    │       │   │   │   │       │   ├── members[0] > member 0: local #1 : i64
+    │       │   │   │   │       │   └── members[1] > member 1: "p" : handle
+    │       │   │   │   │       └── layout: arrayrefs$Player
+    │       │   │   │   └── body[2]: leave @2
+    │       │   │   ├── members[1] > member 1 > expand:
     │       │   │   │   ├── type: {i64, handle}
-    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │   │   │   └── args[0]: 2 : i64
-    │       │   │   └── members[2] > member 2 > call:
+    │       │   │   │   ├── label: @5
+    │       │   │   │   ├── result: #6
+    │       │   │   │   ├── body[0] > let:
+    │       │   │   │   │   ├── local: #4
+    │       │   │   │   │   └── value: 2 : i64
+    │       │   │   │   ├── body[1] > assign:
+    │       │   │   │   │   ├── place: #6
+    │       │   │   │   │   └── value > escape:
+    │       │   │   │   │       ├── exit: @5
+    │       │   │   │   │       ├── value > record:
+    │       │   │   │   │       │   ├── type: {i64, handle}
+    │       │   │   │   │       │   ├── members[0] > member 0: local #4 : i64
+    │       │   │   │   │       │   └── members[1] > member 1: "p" : handle
+    │       │   │   │   │       └── layout: arrayrefs$Player
+    │       │   │   │   └── body[2]: leave @5
+    │       │   │   └── members[2] > member 2 > expand:
     │       │   │       ├── type: {i64, handle}
-    │       │   │       ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │   │       └── args[0]: 3 : i64
+    │       │   │       ├── label: @8
+    │       │   │       ├── result: #9
+    │       │   │       ├── body[0] > let:
+    │       │   │       │   ├── local: #7
+    │       │   │       │   └── value: 3 : i64
+    │       │   │       ├── body[1] > assign:
+    │       │   │       │   ├── place: #9
+    │       │   │       │   └── value > escape:
+    │       │   │       │       ├── exit: @8
+    │       │   │       │       ├── value > record:
+    │       │   │       │       │   ├── type: {i64, handle}
+    │       │   │       │       │   ├── members[0] > member 0: local #7 : i64
+    │       │   │       │       │   └── members[1] > member 1: "p" : handle
+    │       │   │       │       └── layout: arrayrefs$Player
+    │       │   │       └── body[2]: leave @8
     │       │   └── layout: %primitives$ArrayRef<arrayrefs$Player, 3>
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
@@ -70,19 +109,19 @@
     │       │       │       └── base > runtime:
     │       │       │           ├── type: ptr
     │       │       │           ├── fn: zane_array_at
-    │       │       │           ├── args[0]: address of #1 : ptr
+    │       │       │           ├── args[0]: address of #10 : ptr
     │       │       │           ├── args[1]: 2 : i64
     │       │       │           ├── args[2]: 3 : i64
     │       │       │           └── args[3]: 32 : i64
     │       │       └── right: 2 : i64
     │       ├── body[2] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── label: @5
+    │       │   ├── label: @14
     │       │   ├── body[0] > let:
-    │       │   │   ├── local: #3
+    │       │   │   ├── local: #12
     │       │   │   └── value: 2 : i64
     │       │   ├── body[1] > let:
-    │       │   │   ├── local: #4
+    │       │   │   ├── local: #13
     │       │   │   └── value: 10 : i64
     │       │   └── body[2] > eval > call:
     │       │       ├── type: void
@@ -90,11 +129,11 @@
     │       │       ├── args[0] > runtime:
     │       │       │   ├── type: ptr
     │       │       │   ├── fn: zane_array_at
-    │       │       │   ├── args[0]: address of #1 : ptr
-    │       │       │   ├── args[1]: local #3 : i64
+    │       │       │   ├── args[0]: address of #10 : ptr
+    │       │       │   ├── args[1]: local #12 : i64
     │       │       │   ├── args[2]: 3 : i64
     │       │       │   └── args[3]: 32 : i64
-    │       │       └── args[1]: local #4 : i64
+    │       │       └── args[1]: local #13 : i64
     │       ├── body[3] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrayrefs$check(%primitives$Bool)
@@ -109,38 +148,51 @@
     │       │       │       └── base > runtime:
     │       │       │           ├── type: ptr
     │       │       │           ├── fn: zane_array_at
-    │       │       │           ├── args[0]: address of #1 : ptr
+    │       │       │           ├── args[0]: address of #10 : ptr
     │       │       │           ├── args[1]: 2 : i64
     │       │       │           ├── args[2]: 3 : i64
     │       │       │           └── args[3]: 32 : i64
     │       │       └── right: 12 : i64
     │       ├── body[4] > let:
-    │       │   ├── local: #6
+    │       │   ├── local: #15
     │       │   └── value > runtime:
     │       │       ├── type: ptr
     │       │       ├── fn: zane_array_at
-    │       │       ├── args[0]: address of #1 : ptr
+    │       │       ├── args[0]: address of #10 : ptr
     │       │       ├── args[1]: 2 : i64
     │       │       ├── args[2]: 3 : i64
     │       │       └── args[3]: 32 : i64
     │       ├── body[5] > let:
-    │       │   ├── local: #7
+    │       │   ├── local: #16
     │       │   └── value: 2 : i64
     │       ├── body[6] > let:
-    │       │   ├── local: #8
-    │       │   └── value > call:
+    │       │   ├── local: #17
+    │       │   └── value > expand:
     │       │       ├── type: {i64, handle}
-    │       │       ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │       └── args[0]: 20 : i64
+    │       │       ├── label: @19
+    │       │       ├── result: #20
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #18
+    │       │       │   └── value: 20 : i64
+    │       │       ├── body[1] > assign:
+    │       │       │   ├── place: #20
+    │       │       │   └── value > escape:
+    │       │       │       ├── exit: @19
+    │       │       │       ├── value > record:
+    │       │       │       │   ├── type: {i64, handle}
+    │       │       │       │   ├── members[0] > member 0: local #18 : i64
+    │       │       │       │   └── members[1] > member 1: "p" : handle
+    │       │       │       └── layout: arrayrefs$Player
+    │       │       └── body[2]: leave @19
     │       ├── body[7] > overwrite:
     │       │   ├── address > runtime:
     │       │   │   ├── type: ptr
     │       │   │   ├── fn: zane_array_at
-    │       │   │   ├── args[0]: address of #1 : ptr
-    │       │   │   ├── args[1]: local #7 : i64
+    │       │   │   ├── args[0]: address of #10 : ptr
+    │       │   │   ├── args[1]: local #16 : i64
     │       │   │   ├── args[2]: 3 : i64
     │       │   │   └── args[3]: 32 : i64
-    │       │   ├── value: local #8 : {i64, handle}
+    │       │   ├── value: local #17 : {i64, handle}
     │       │   └── layout: arrayrefs$Player
     │       ├── body[8] > eval > call:
     │       │   ├── type: void
@@ -153,7 +205,7 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, handle}
     │       │       │       ├── path: 0
-    │       │       │       └── base: local #6 : ptr
+    │       │       │       └── base: local #15 : ptr
     │       │       └── right: 20 : i64
     │       ├── body[9] > eval > call:
     │       │   ├── type: void
@@ -161,21 +213,33 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: arrayrefs$scoreOf(&arrayrefs$Player)
-    │       │       │   └── args[0] > runtime:
-    │       │       │       ├── type: ptr
-    │       │       │       ├── fn: zane_array_at
-    │       │       │       ├── args[0]: address of #1 : ptr
-    │       │       │       ├── args[1]: 3 : i64
-    │       │       │       ├── args[2]: 3 : i64
-    │       │       │       └── args[3]: 32 : i64
+    │       │       │   ├── label: @22
+    │       │       │   ├── result: #23
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #21
+    │       │       │   │   └── value > runtime:
+    │       │       │   │       ├── type: ptr
+    │       │       │   │       ├── fn: zane_array_at
+    │       │       │   │       ├── args[0]: address of #10 : ptr
+    │       │       │   │       ├── args[1]: 3 : i64
+    │       │       │   │       ├── args[2]: 3 : i64
+    │       │       │   │       └── args[3]: 32 : i64
+    │       │       │   ├── body[1] > assign:
+    │       │       │   │   ├── place: #23
+    │       │       │   │   └── value > deref:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       └── ptr > offset:
+    │       │       │   │           ├── within: {i64, handle}
+    │       │       │   │           ├── path: 0
+    │       │       │   │           └── base: local #21 : ptr
+    │       │       │   └── body[2]: leave @22
     │       │       └── right: 3 : i64
     │       ├── body[10] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrayrefs$add(this arrayrefs$Player, %primitives$I64)
-    │       │   ├── args[0]: local #6 : ptr
+    │       │   ├── args[0]: local #15 : ptr
     │       │   └── args[1]: 1 : i64
     │       ├── body[11] > eval > call:
     │       │   ├── type: void
@@ -191,27 +255,66 @@
     │       │       │       └── base > runtime:
     │       │       │           ├── type: ptr
     │       │       │           ├── fn: zane_array_at
-    │       │       │           ├── args[0]: address of #1 : ptr
+    │       │       │           ├── args[0]: address of #10 : ptr
     │       │       │           ├── args[1]: 2 : i64
     │       │       │           ├── args[2]: 3 : i64
     │       │       │           └── args[3]: 32 : i64
     │       │       └── right: 21 : i64
     │       ├── body[12] > overwrite:
-    │       │   ├── address: address of #1 : ptr
+    │       │   ├── address: address of #10 : ptr
     │       │   ├── value > record:
     │       │   │   ├── type: [3 x {i64, handle}]
-    │       │   │   ├── members[0] > member 0 > call:
+    │       │   │   ├── members[0] > member 0 > expand:
     │       │   │   │   ├── type: {i64, handle}
-    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │   │   │   └── args[0]: 7 : i64
-    │       │   │   ├── members[1] > member 1 > call:
+    │       │   │   │   ├── label: @25
+    │       │   │   │   ├── result: #26
+    │       │   │   │   ├── body[0] > let:
+    │       │   │   │   │   ├── local: #24
+    │       │   │   │   │   └── value: 7 : i64
+    │       │   │   │   ├── body[1] > assign:
+    │       │   │   │   │   ├── place: #26
+    │       │   │   │   │   └── value > escape:
+    │       │   │   │   │       ├── exit: @25
+    │       │   │   │   │       ├── value > record:
+    │       │   │   │   │       │   ├── type: {i64, handle}
+    │       │   │   │   │       │   ├── members[0] > member 0: local #24 : i64
+    │       │   │   │   │       │   └── members[1] > member 1: "p" : handle
+    │       │   │   │   │       └── layout: arrayrefs$Player
+    │       │   │   │   └── body[2]: leave @25
+    │       │   │   ├── members[1] > member 1 > expand:
     │       │   │   │   ├── type: {i64, handle}
-    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │   │   │   └── args[0]: 8 : i64
-    │       │   │   └── members[2] > member 2 > call:
+    │       │   │   │   ├── label: @28
+    │       │   │   │   ├── result: #29
+    │       │   │   │   ├── body[0] > let:
+    │       │   │   │   │   ├── local: #27
+    │       │   │   │   │   └── value: 8 : i64
+    │       │   │   │   ├── body[1] > assign:
+    │       │   │   │   │   ├── place: #29
+    │       │   │   │   │   └── value > escape:
+    │       │   │   │   │       ├── exit: @28
+    │       │   │   │   │       ├── value > record:
+    │       │   │   │   │       │   ├── type: {i64, handle}
+    │       │   │   │   │       │   ├── members[0] > member 0: local #27 : i64
+    │       │   │   │   │       │   └── members[1] > member 1: "p" : handle
+    │       │   │   │   │       └── layout: arrayrefs$Player
+    │       │   │   │   └── body[2]: leave @28
+    │       │   │   └── members[2] > member 2 > expand:
     │       │   │       ├── type: {i64, handle}
-    │       │   │       ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │   │       └── args[0]: 9 : i64
+    │       │   │       ├── label: @31
+    │       │   │       ├── result: #32
+    │       │   │       ├── body[0] > let:
+    │       │   │       │   ├── local: #30
+    │       │   │       │   └── value: 9 : i64
+    │       │   │       ├── body[1] > assign:
+    │       │   │       │   ├── place: #32
+    │       │   │       │   └── value > escape:
+    │       │   │       │       ├── exit: @31
+    │       │   │       │       ├── value > record:
+    │       │   │       │       │   ├── type: {i64, handle}
+    │       │   │       │       │   ├── members[0] > member 0: local #30 : i64
+    │       │   │       │       │   └── members[1] > member 1: "p" : handle
+    │       │   │       │       └── layout: arrayrefs$Player
+    │       │   │       └── body[2]: leave @31
     │       │   └── layout: %primitives$ArrayRef<arrayrefs$Player, 3>
     │       ├── body[13] > eval > call:
     │       │   ├── type: void
@@ -224,56 +327,56 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, handle}
     │       │       │       ├── path: 0
-    │       │       │       └── base: local #6 : ptr
+    │       │       │       └── base: local #15 : ptr
     │       │       └── right: 8 : i64
     │       ├── body[14] > hold:
-    │       │   ├── local: #15
-    │       │   ├── scope: %2
+    │       │   ├── local: #39
+    │       │   ├── scope: %11
     │       │   ├── value > expand:
     │       │   │   ├── type: [100 x {i64, handle}]
-    │       │   │   ├── label: @13
-    │       │   │   ├── result: #14
+    │       │   │   ├── label: @37
+    │       │   │   ├── result: #38
     │       │   │   ├── body[0] > let:
-    │       │   │   │   ├── local: #9
+    │       │   │   │   ├── local: #33
     │       │   │   │   └── value: function arrayrefs$main()$lambda1
     │       │   │   ├── body[1] > reserve:
-    │       │   │   │   ├── local: #10
-    │       │   │   │   ├── scope: %2
+    │       │   │   │   ├── local: #34
+    │       │   │   │   ├── scope: %11
     │       │   │   │   ├── type: [100 x {i64, handle}]
     │       │   │   │   └── layout: %primitives$ArrayRef<arrayrefs$Player, 100>
     │       │   │   ├── body[2] > let:
-    │       │   │   │   ├── local: #11
+    │       │   │   │   ├── local: #35
     │       │   │   │   └── value: 1 : i64
     │       │   │   ├── body[3] > repeat:
     │       │   │   │   ├── count: 100 : i64
     │       │   │   │   ├── body[0] > let:
-    │       │   │   │   │   ├── local: #12
+    │       │   │   │   │   ├── local: #36
     │       │   │   │   │   └── value > call value:
     │       │   │   │   │       ├── type: {i64, handle}
-    │       │   │   │   │       ├── fn: local #9 : ptr
-    │       │   │   │   │       └── args[0]: local #11 : i64
+    │       │   │   │   │       ├── fn: local #33 : ptr
+    │       │   │   │   │       └── args[0]: local #35 : i64
     │       │   │   │   ├── body[1] > place:
     │       │   │   │   │   ├── address > runtime:
     │       │   │   │   │   │   ├── type: ptr
     │       │   │   │   │   │   ├── fn: zane_array_at
-    │       │   │   │   │   │   ├── args[0]: address of #10 : ptr
-    │       │   │   │   │   │   ├── args[1]: local #11 : i64
+    │       │   │   │   │   │   ├── args[0]: address of #34 : ptr
+    │       │   │   │   │   │   ├── args[1]: local #35 : i64
     │       │   │   │   │   │   ├── args[2]: 100 : i64
     │       │   │   │   │   │   └── args[3]: 32 : i64
-    │       │   │   │   │   ├── value: local #12 : {i64, handle}
+    │       │   │   │   │   ├── value: local #36 : {i64, handle}
     │       │   │   │   │   └── layout: arrayrefs$Player
     │       │   │   │   └── body[2] > assign:
-    │       │   │   │       ├── place: #11
+    │       │   │   │       ├── place: #35
     │       │   │   │       └── value > binary:
     │       │   │   │           ├── type: i64
     │       │   │   │           ├── op: +
-    │       │   │   │           ├── left: local #11 : i64
+    │       │   │   │           ├── left: local #35 : i64
     │       │   │   │           └── right: 1 : i64
     │       │   │   └── body[4] > assign:
-    │       │   │       ├── place: #14
+    │       │   │       ├── place: #38
     │       │   │       └── value > take:
     │       │   │           ├── type: [100 x {i64, handle}]
-    │       │   │           ├── address: address of #10 : ptr
+    │       │   │           ├── address: address of #34 : ptr
     │       │   │           └── layout: %primitives$ArrayRef<arrayrefs$Player, 100>
     │       │   └── layout: %primitives$ArrayRef<arrayrefs$Player, 100>
     │       ├── body[15] > eval > call:
@@ -290,7 +393,7 @@
     │       │       │       └── base > runtime:
     │       │       │           ├── type: ptr
     │       │       │           ├── fn: zane_array_at
-    │       │       │           ├── args[0]: address of #15 : ptr
+    │       │       │           ├── args[0]: address of #39 : ptr
     │       │       │           ├── args[1]: 10 : i64
     │       │       │           ├── args[2]: 100 : i64
     │       │       │           └── args[3]: 32 : i64
@@ -309,65 +412,134 @@
     │       │       │       └── base > runtime:
     │       │       │           ├── type: ptr
     │       │       │           ├── fn: zane_array_at
-    │       │       │           ├── args[0]: address of #15 : ptr
+    │       │       │           ├── args[0]: address of #39 : ptr
     │       │       │           ├── args[1]: 100 : i64
     │       │       │           ├── args[2]: 100 : i64
     │       │       │           └── args[3]: 32 : i64
     │       │       └── right: 10000 : i64
     │       ├── body[17] > hold:
-    │       │   ├── local: #16
-    │       │   ├── scope: %2
-    │       │   ├── value > call:
+    │       │   ├── local: #52
+    │       │   ├── scope: %11
+    │       │   ├── value > expand:
     │       │   │   ├── type: {[3 x {i64, handle}]}
-    │       │   │   ├── fn: arrayrefs$Squad(^%primitives$ArrayRef<arrayrefs$Player, 3>)
-    │       │   │   └── args[0] > record:
-    │       │   │       ├── type: [3 x {i64, handle}]
-    │       │   │       ├── members[0] > member 0 > call:
-    │       │   │       │   ├── type: {i64, handle}
-    │       │   │       │   ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │   │       │   └── args[0]: 5 : i64
-    │       │   │       ├── members[1] > member 1 > call:
-    │       │   │       │   ├── type: {i64, handle}
-    │       │   │       │   ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │   │       │   └── args[0]: 6 : i64
-    │       │   │       └── members[2] > member 2 > call:
-    │       │   │           ├── type: {i64, handle}
-    │       │   │           ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │   │           └── args[0]: 7 : i64
+    │       │   │   ├── label: @50
+    │       │   │   ├── result: #51
+    │       │   │   ├── body[0] > hold:
+    │       │   │   │   ├── local: #49
+    │       │   │   │   ├── scope: %11
+    │       │   │   │   ├── value > record:
+    │       │   │   │   │   ├── type: [3 x {i64, handle}]
+    │       │   │   │   │   ├── members[0] > member 0 > expand:
+    │       │   │   │   │   │   ├── type: {i64, handle}
+    │       │   │   │   │   │   ├── label: @41
+    │       │   │   │   │   │   ├── result: #42
+    │       │   │   │   │   │   ├── body[0] > let:
+    │       │   │   │   │   │   │   ├── local: #40
+    │       │   │   │   │   │   │   └── value: 5 : i64
+    │       │   │   │   │   │   ├── body[1] > assign:
+    │       │   │   │   │   │   │   ├── place: #42
+    │       │   │   │   │   │   │   └── value > escape:
+    │       │   │   │   │   │   │       ├── exit: @41
+    │       │   │   │   │   │   │       ├── value > record:
+    │       │   │   │   │   │   │       │   ├── type: {i64, handle}
+    │       │   │   │   │   │   │       │   ├── members[0] > member 0: local #40 : i64
+    │       │   │   │   │   │   │       │   └── members[1] > member 1: "p" : handle
+    │       │   │   │   │   │   │       └── layout: arrayrefs$Player
+    │       │   │   │   │   │   └── body[2]: leave @41
+    │       │   │   │   │   ├── members[1] > member 1 > expand:
+    │       │   │   │   │   │   ├── type: {i64, handle}
+    │       │   │   │   │   │   ├── label: @44
+    │       │   │   │   │   │   ├── result: #45
+    │       │   │   │   │   │   ├── body[0] > let:
+    │       │   │   │   │   │   │   ├── local: #43
+    │       │   │   │   │   │   │   └── value: 6 : i64
+    │       │   │   │   │   │   ├── body[1] > assign:
+    │       │   │   │   │   │   │   ├── place: #45
+    │       │   │   │   │   │   │   └── value > escape:
+    │       │   │   │   │   │   │       ├── exit: @44
+    │       │   │   │   │   │   │       ├── value > record:
+    │       │   │   │   │   │   │       │   ├── type: {i64, handle}
+    │       │   │   │   │   │   │       │   ├── members[0] > member 0: local #43 : i64
+    │       │   │   │   │   │   │       │   └── members[1] > member 1: "p" : handle
+    │       │   │   │   │   │   │       └── layout: arrayrefs$Player
+    │       │   │   │   │   │   └── body[2]: leave @44
+    │       │   │   │   │   └── members[2] > member 2 > expand:
+    │       │   │   │   │       ├── type: {i64, handle}
+    │       │   │   │   │       ├── label: @47
+    │       │   │   │   │       ├── result: #48
+    │       │   │   │   │       ├── body[0] > let:
+    │       │   │   │   │       │   ├── local: #46
+    │       │   │   │   │       │   └── value: 7 : i64
+    │       │   │   │   │       ├── body[1] > assign:
+    │       │   │   │   │       │   ├── place: #48
+    │       │   │   │   │       │   └── value > escape:
+    │       │   │   │   │       │       ├── exit: @47
+    │       │   │   │   │       │       ├── value > record:
+    │       │   │   │   │       │       │   ├── type: {i64, handle}
+    │       │   │   │   │       │       │   ├── members[0] > member 0: local #46 : i64
+    │       │   │   │   │       │       │   └── members[1] > member 1: "p" : handle
+    │       │   │   │   │       │       └── layout: arrayrefs$Player
+    │       │   │   │   │       └── body[2]: leave @47
+    │       │   │   │   └── layout: ^%primitives$ArrayRef<arrayrefs$Player, 3>
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #51
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @50
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {[3 x {i64, handle}]}
+    │       │   │   │       │   └── members[0] > member 0 > take:
+    │       │   │   │       │       ├── type: [3 x {i64, handle}]
+    │       │   │   │       │       ├── address: address of #49 : ptr
+    │       │   │   │       │       └── layout: %primitives$ArrayRef<arrayrefs$Player, 3>
+    │       │   │   │       └── layout: arrayrefs$Squad
+    │       │   │   └── body[2]: leave @50
     │       │   └── layout: arrayrefs$Squad
     │       ├── body[18] > let:
-    │       │   ├── local: #21
+    │       │   ├── local: #57
     │       │   └── value > expand:
     │       │       ├── type: ptr
-    │       │       ├── label: @19
-    │       │       ├── result: #20
+    │       │       ├── label: @55
+    │       │       ├── result: #56
     │       │       ├── body[0] > let:
-    │       │       │   ├── local: #17
-    │       │       │   └── value: address of #16 : ptr
+    │       │       │   ├── local: #53
+    │       │       │   └── value: address of #52 : ptr
     │       │       ├── body[1] > let:
-    │       │       │   ├── local: #18
+    │       │       │   ├── local: #54
     │       │       │   └── value: 1 : i64
     │       │       └── body[2] > assign:
-    │       │           ├── place: #20
+    │       │           ├── place: #56
     │       │           └── value > runtime:
     │       │               ├── type: ptr
     │       │               ├── fn: zane_array_at
     │       │               ├── args[0] > offset:
     │       │               │   ├── within: {[3 x {i64, handle}]}
     │       │               │   ├── path: 0
-    │       │               │   └── base: local #17 : ptr
-    │       │               ├── args[1]: local #18 : i64
+    │       │               │   └── base: local #53 : ptr
+    │       │               ├── args[1]: local #54 : i64
     │       │               ├── args[2]: 3 : i64
     │       │               └── args[3]: 32 : i64
     │       ├── body[19] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrayrefs$replace(this arrayrefs$Squad, %primitives$I64, ^arrayrefs$Player)
-    │       │   ├── args[0]: address of #16 : ptr
+    │       │   ├── args[0]: address of #52 : ptr
     │       │   ├── args[1]: 1 : i64
-    │       │   └── args[2] > call:
+    │       │   └── args[2] > expand:
     │       │       ├── type: {i64, handle}
-    │       │       ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │       └── args[0]: 50 : i64
+    │       │       ├── label: @59
+    │       │       ├── result: #60
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #58
+    │       │       │   └── value: 50 : i64
+    │       │       ├── body[1] > assign:
+    │       │       │   ├── place: #60
+    │       │       │   └── value > escape:
+    │       │       │       ├── exit: @59
+    │       │       │       ├── value > record:
+    │       │       │       │   ├── type: {i64, handle}
+    │       │       │       │   ├── members[0] > member 0: local #58 : i64
+    │       │       │       │   └── members[1] > member 1: "p" : handle
+    │       │       │       └── layout: arrayrefs$Player
+    │       │       └── body[2]: leave @59
     │       ├── body[20] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrayrefs$check(%primitives$Bool)
@@ -379,34 +551,73 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, handle}
     │       │       │       ├── path: 0
-    │       │       │       └── base: local #21 : ptr
+    │       │       │       └── base: local #57 : ptr
     │       │       └── right: 50 : i64
     │       ├── body[21] > hold:
-    │       │   ├── local: #22
-    │       │   ├── scope: %2
+    │       │   ├── local: #70
+    │       │   ├── scope: %11
     │       │   ├── value > record:
     │       │   │   ├── type: [3 x {i64, handle}]
-    │       │   │   ├── members[0] > member 0 > call:
+    │       │   │   ├── members[0] > member 0 > expand:
     │       │   │   │   ├── type: {i64, handle}
-    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │   │   │   └── args[0]: 4 : i64
-    │       │   │   ├── members[1] > member 1 > call:
+    │       │   │   │   ├── label: @62
+    │       │   │   │   ├── result: #63
+    │       │   │   │   ├── body[0] > let:
+    │       │   │   │   │   ├── local: #61
+    │       │   │   │   │   └── value: 4 : i64
+    │       │   │   │   ├── body[1] > assign:
+    │       │   │   │   │   ├── place: #63
+    │       │   │   │   │   └── value > escape:
+    │       │   │   │   │       ├── exit: @62
+    │       │   │   │   │       ├── value > record:
+    │       │   │   │   │       │   ├── type: {i64, handle}
+    │       │   │   │   │       │   ├── members[0] > member 0: local #61 : i64
+    │       │   │   │   │       │   └── members[1] > member 1: "p" : handle
+    │       │   │   │   │       └── layout: arrayrefs$Player
+    │       │   │   │   └── body[2]: leave @62
+    │       │   │   ├── members[1] > member 1 > expand:
     │       │   │   │   ├── type: {i64, handle}
-    │       │   │   │   ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │   │   │   └── args[0]: 5 : i64
-    │       │   │   └── members[2] > member 2 > call:
+    │       │   │   │   ├── label: @65
+    │       │   │   │   ├── result: #66
+    │       │   │   │   ├── body[0] > let:
+    │       │   │   │   │   ├── local: #64
+    │       │   │   │   │   └── value: 5 : i64
+    │       │   │   │   ├── body[1] > assign:
+    │       │   │   │   │   ├── place: #66
+    │       │   │   │   │   └── value > escape:
+    │       │   │   │   │       ├── exit: @65
+    │       │   │   │   │       ├── value > record:
+    │       │   │   │   │       │   ├── type: {i64, handle}
+    │       │   │   │   │       │   ├── members[0] > member 0: local #64 : i64
+    │       │   │   │   │       │   └── members[1] > member 1: "p" : handle
+    │       │   │   │   │       └── layout: arrayrefs$Player
+    │       │   │   │   └── body[2]: leave @65
+    │       │   │   └── members[2] > member 2 > expand:
     │       │   │       ├── type: {i64, handle}
-    │       │   │       ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │   │       └── args[0]: 6 : i64
+    │       │   │       ├── label: @68
+    │       │   │       ├── result: #69
+    │       │   │       ├── body[0] > let:
+    │       │   │       │   ├── local: #67
+    │       │   │       │   └── value: 6 : i64
+    │       │   │       ├── body[1] > assign:
+    │       │   │       │   ├── place: #69
+    │       │   │       │   └── value > escape:
+    │       │   │       │       ├── exit: @68
+    │       │   │       │       ├── value > record:
+    │       │   │       │       │   ├── type: {i64, handle}
+    │       │   │       │       │   ├── members[0] > member 0: local #67 : i64
+    │       │   │       │       │   └── members[1] > member 1: "p" : handle
+    │       │   │       │       └── layout: arrayrefs$Player
+    │       │   │       └── body[2]: leave @68
     │       │   └── layout: ^%primitives$ArrayRef<arrayrefs$Player, 3>
     │       ├── body[22] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── label: @25
+    │       │   ├── label: @73
     │       │   ├── body[0] > let:
-    │       │   │   ├── local: #23
+    │       │   │   ├── local: #71
     │       │   │   └── value: 1 : i64
     │       │   ├── body[1] > let:
-    │       │   │   ├── local: #24
+    │       │   │   ├── local: #72
     │       │   │   └── value: 1 : i64
     │       │   └── body[2] > eval > call:
     │       │       ├── type: void
@@ -414,17 +625,17 @@
     │       │       ├── args[0] > runtime:
     │       │       │   ├── type: ptr
     │       │       │   ├── fn: zane_array_at
-    │       │       │   ├── args[0]: address of #22 : ptr
-    │       │       │   ├── args[1]: local #23 : i64
+    │       │       │   ├── args[0]: address of #70 : ptr
+    │       │       │   ├── args[1]: local #71 : i64
     │       │       │   ├── args[2]: 3 : i64
     │       │       │   └── args[3]: 32 : i64
-    │       │       └── args[1]: local #24 : i64
+    │       │       └── args[1]: local #72 : i64
     │       ├── body[23] > hold:
-    │       │   ├── local: #26
-    │       │   ├── scope: %2
+    │       │   ├── local: #74
+    │       │   ├── scope: %11
     │       │   ├── value > take:
     │       │   │   ├── type: [3 x {i64, handle}]
-    │       │   │   ├── address: address of #22 : ptr
+    │       │   │   ├── address: address of #70 : ptr
     │       │   │   └── layout: %primitives$ArrayRef<arrayrefs$Player, 3>
     │       │   └── layout: %primitives$ArrayRef<arrayrefs$Player, 3>
     │       ├── body[24] > eval > call:
@@ -441,22 +652,22 @@
     │       │       │       └── base > runtime:
     │       │       │           ├── type: ptr
     │       │       │           ├── fn: zane_array_at
-    │       │       │           ├── args[0]: address of #26 : ptr
+    │       │       │           ├── args[0]: address of #74 : ptr
     │       │       │           ├── args[1]: 1 : i64
     │       │       │           ├── args[2]: 3 : i64
     │       │       │           └── args[3]: 32 : i64
     │       │       └── right: 5 : i64
     │       ├── body[25] > let:
-    │       │   ├── local: #27
+    │       │   ├── local: #75
     │       │   └── value: 0 : i64
     │       ├── body[26] > let:
-    │       │   ├── local: #28
+    │       │   ├── local: #76
     │       │   └── value: 1 : i64
     │       ├── body[27] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── label: @30
+    │       │   ├── label: @78
     │       │   ├── body[0] > let:
-    │       │   │   ├── local: #29
+    │       │   │   ├── local: #77
     │       │   │   └── value: 1000 : i64
     │       │   ├── body[1] > repeat:
     │       │   │   ├── count > binary:
@@ -465,71 +676,71 @@
     │       │   │   │   ├── left > binary:
     │       │   │   │   │   ├── type: i64
     │       │   │   │   │   ├── op: +
-    │       │   │   │   │   ├── left: local #29 : i64
+    │       │   │   │   │   ├── left: local #77 : i64
     │       │   │   │   │   └── right > flip:
     │       │   │   │   │       ├── type: i64
-    │       │   │   │   │       └── value: local #28 : i64
+    │       │   │   │   │       └── value: local #76 : i64
     │       │   │   │   └── right: 1 : i64
     │       │   │   ├── body[0] > if:
     │       │   │   │   ├── cond: true : i1
     │       │   │   │   └── body[0] > scope:
-    │       │   │   │       ├── id: %39
+    │       │   │   │       ├── id: %87
     │       │   │   │       ├── body[0] > hold:
-    │       │   │   │       │   ├── local: #40
-    │       │   │   │       │   ├── scope: %39
+    │       │   │   │       │   ├── local: #88
+    │       │   │   │       │   ├── scope: %87
     │       │   │   │       │   ├── value > expand:
     │       │   │   │       │   │   ├── type: [4 x {i64, handle}]
-    │       │   │   │       │   │   ├── label: @37
-    │       │   │   │       │   │   ├── result: #38
+    │       │   │   │       │   │   ├── label: @85
+    │       │   │   │       │   │   ├── result: #86
     │       │   │   │       │   │   ├── body[0] > let:
-    │       │   │   │       │   │   │   ├── local: #33
+    │       │   │   │       │   │   │   ├── local: #81
     │       │   │   │       │   │   │   └── value: function arrayrefs$main()$lambda2
     │       │   │   │       │   │   ├── body[1] > reserve:
-    │       │   │   │       │   │   │   ├── local: #34
-    │       │   │   │       │   │   │   ├── scope: %39
+    │       │   │   │       │   │   │   ├── local: #82
+    │       │   │   │       │   │   │   ├── scope: %87
     │       │   │   │       │   │   │   ├── type: [4 x {i64, handle}]
     │       │   │   │       │   │   │   └── layout: %primitives$ArrayRef<arrayrefs$Player, 4>
     │       │   │   │       │   │   ├── body[2] > let:
-    │       │   │   │       │   │   │   ├── local: #35
+    │       │   │   │       │   │   │   ├── local: #83
     │       │   │   │       │   │   │   └── value: 1 : i64
     │       │   │   │       │   │   ├── body[3] > repeat:
     │       │   │   │       │   │   │   ├── count: 4 : i64
     │       │   │   │       │   │   │   ├── body[0] > let:
-    │       │   │   │       │   │   │   │   ├── local: #36
+    │       │   │   │       │   │   │   │   ├── local: #84
     │       │   │   │       │   │   │   │   └── value > call value:
     │       │   │   │       │   │   │   │       ├── type: {i64, handle}
-    │       │   │   │       │   │   │   │       ├── fn: local #33 : ptr
-    │       │   │   │       │   │   │   │       └── args[0]: local #35 : i64
+    │       │   │   │       │   │   │   │       ├── fn: local #81 : ptr
+    │       │   │   │       │   │   │   │       └── args[0]: local #83 : i64
     │       │   │   │       │   │   │   ├── body[1] > place:
     │       │   │   │       │   │   │   │   ├── address > runtime:
     │       │   │   │       │   │   │   │   │   ├── type: ptr
     │       │   │   │       │   │   │   │   │   ├── fn: zane_array_at
-    │       │   │   │       │   │   │   │   │   ├── args[0]: address of #34 : ptr
-    │       │   │   │       │   │   │   │   │   ├── args[1]: local #35 : i64
+    │       │   │   │       │   │   │   │   │   ├── args[0]: address of #82 : ptr
+    │       │   │   │       │   │   │   │   │   ├── args[1]: local #83 : i64
     │       │   │   │       │   │   │   │   │   ├── args[2]: 4 : i64
     │       │   │   │       │   │   │   │   │   └── args[3]: 32 : i64
-    │       │   │   │       │   │   │   │   ├── value: local #36 : {i64, handle}
+    │       │   │   │       │   │   │   │   ├── value: local #84 : {i64, handle}
     │       │   │   │       │   │   │   │   └── layout: arrayrefs$Player
     │       │   │   │       │   │   │   └── body[2] > assign:
-    │       │   │   │       │   │   │       ├── place: #35
+    │       │   │   │       │   │   │       ├── place: #83
     │       │   │   │       │   │   │       └── value > binary:
     │       │   │   │       │   │   │           ├── type: i64
     │       │   │   │       │   │   │           ├── op: +
-    │       │   │   │       │   │   │           ├── left: local #35 : i64
+    │       │   │   │       │   │   │           ├── left: local #83 : i64
     │       │   │   │       │   │   │           └── right: 1 : i64
     │       │   │   │       │   │   └── body[4] > assign:
-    │       │   │   │       │   │       ├── place: #38
+    │       │   │   │       │   │       ├── place: #86
     │       │   │   │       │   │       └── value > take:
     │       │   │   │       │   │           ├── type: [4 x {i64, handle}]
-    │       │   │   │       │   │           ├── address: address of #34 : ptr
+    │       │   │   │       │   │           ├── address: address of #82 : ptr
     │       │   │   │       │   │           └── layout: %primitives$ArrayRef<arrayrefs$Player, 4>
     │       │   │   │       │   └── layout: %primitives$ArrayRef<arrayrefs$Player, 4>
     │       │   │   │       └── body[1] > assign:
-    │       │   │   │           ├── place: #27
+    │       │   │   │           ├── place: #75
     │       │   │   │           └── value > binary:
     │       │   │   │               ├── type: i64
     │       │   │   │               ├── op: +
-    │       │   │   │               ├── left: local #27 : i64
+    │       │   │   │               ├── left: local #75 : i64
     │       │   │   │               └── right > deref:
     │       │   │   │                   ├── type: i64
     │       │   │   │                   └── ptr > offset:
@@ -538,40 +749,29 @@
     │       │   │   │                       └── base > runtime:
     │       │   │   │                           ├── type: ptr
     │       │   │   │                           ├── fn: zane_array_at
-    │       │   │   │                           ├── args[0]: address of #40 : ptr
+    │       │   │   │                           ├── args[0]: address of #88 : ptr
     │       │   │   │                           ├── args[1]: 4 : i64
     │       │   │   │                           ├── args[2]: 4 : i64
     │       │   │   │                           └── args[3]: 32 : i64
     │       │   │   └── body[1] > assign:
-    │       │   │       ├── place: #28
+    │       │   │       ├── place: #76
     │       │   │       └── value > binary:
     │       │   │           ├── type: i64
     │       │   │           ├── op: +
-    │       │   │           ├── left: local #28 : i64
+    │       │   │           ├── left: local #76 : i64
     │       │   │           └── right: 1 : i64
     │       │   ├── body[2] > eval: unit : void
-    │       │   └── body[3]: leave @30
+    │       │   └── body[3]: leave @78
     │       ├── body[28] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: arrayrefs$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left: local #27 : i64
+    │       │       ├── left: local #75 : i64
     │       │       └── right: 4000 : i64
     │       └── body[29] > return: unit : void
     ├── funcs[2] > func:
-    │   ├── symbol: arrayrefs$Player(%primitives$I64)
-    │   ├── params[0]: local #1 : i64
-    │   ├── ret: {i64, handle}
-    │   └── body[0] > return > escape:
-    │       ├── exit: function
-    │       ├── value > record:
-    │       │   ├── type: {i64, handle}
-    │       │   ├── members[0] > member 0: local #1 : i64
-    │       │   └── members[1] > member 1: "p" : handle
-    │       └── layout: arrayrefs$Player
-    ├── funcs[3] > func:
     │   ├── symbol: arrayrefs$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -602,7 +802,7 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
-    ├── funcs[4] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: arrayrefs$add(this arrayrefs$Player, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -620,45 +820,35 @@
     │   │       │       └── base: local #1 : ptr
     │   │       └── right: local #2 : i64
     │   └── body[1] > return: unit : void
-    ├── funcs[5] > func:
-    │   ├── symbol: arrayrefs$scoreOf(&arrayrefs$Player)
-    │   ├── params[0]: local #1 : ptr
-    │   ├── ret: i64
-    │   └── body[0] > return > deref:
-    │       ├── type: i64
-    │       └── ptr > offset:
-    │           ├── within: {i64, handle}
-    │           ├── path: 0
-    │           └── base: local #1 : ptr
-    ├── funcs[6] > func:
+    ├── funcs[4] > func:
     │   ├── symbol: arrayrefs$main()$lambda1
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {i64, handle}
     │   └── body[0] > return > escape:
     │       ├── exit: function
-    │       ├── value > call:
+    │       ├── value > expand:
     │       │   ├── type: {i64, handle}
-    │       │   ├── fn: arrayrefs$Player(%primitives$I64)
-    │       │   └── args[0] > binary:
-    │       │       ├── type: i64
-    │       │       ├── op: *
-    │       │       ├── left: local #1 : i64
-    │       │       └── right: local #1 : i64
+    │       │   ├── label: @3
+    │       │   ├── result: #4
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #2
+    │       │   │   └── value > binary:
+    │       │   │       ├── type: i64
+    │       │   │       ├── op: *
+    │       │   │       ├── left: local #1 : i64
+    │       │   │       └── right: local #1 : i64
+    │       │   ├── body[1] > assign:
+    │       │   │   ├── place: #4
+    │       │   │   └── value > escape:
+    │       │   │       ├── exit: @3
+    │       │   │       ├── value > record:
+    │       │   │       │   ├── type: {i64, handle}
+    │       │   │       │   ├── members[0] > member 0: local #2 : i64
+    │       │   │       │   └── members[1] > member 1: "p" : handle
+    │       │   │       └── layout: arrayrefs$Player
+    │       │   └── body[2]: leave @3
     │       └── layout: ^arrayrefs$Player
-    ├── funcs[7] > func:
-    │   ├── symbol: arrayrefs$Squad(^%primitives$ArrayRef<arrayrefs$Player, 3>)
-    │   ├── params[0]: local #1 : [3 x {i64, handle}]
-    │   ├── ret: {[3 x {i64, handle}]}
-    │   ├── body[0] > let:
-    │   │   ├── local: #2
-    │   │   └── value: local #1 : [3 x {i64, handle}]
-    │   └── body[1] > return > escape:
-    │       ├── exit: function
-    │       ├── value > record:
-    │       │   ├── type: {[3 x {i64, handle}]}
-    │       │   └── members[0] > member 0: local #2 : [3 x {i64, handle}]
-    │       └── layout: arrayrefs$Squad
-    ├── funcs[8] > func:
+    ├── funcs[5] > func:
     │   ├── symbol: arrayrefs$replace(this arrayrefs$Squad, %primitives$I64, ^arrayrefs$Player)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -687,14 +877,24 @@
     │   │   ├── value: local #7 : {i64, handle}
     │   │   └── layout: arrayrefs$Player
     │   └── body[4] > return: unit : void
-    └── funcs[9] > func:
+    └── funcs[6] > func:
         ├── symbol: arrayrefs$main()$lambda2
         ├── params[0]: local #1 : i64
         ├── ret: {i64, handle}
         └── body[0] > return > escape:
             ├── exit: function
-            ├── value > call:
+            ├── value > expand:
             │   ├── type: {i64, handle}
-            │   ├── fn: arrayrefs$Player(%primitives$I64)
-            │   └── args[0]: local #1 : i64
+            │   ├── label: @2
+            │   ├── result: #3
+            │   ├── body[0] > assign:
+            │   │   ├── place: #3
+            │   │   └── value > escape:
+            │   │       ├── exit: @2
+            │   │       ├── value > record:
+            │   │       │   ├── type: {i64, handle}
+            │   │       │   ├── members[0] > member 0: local #1 : i64
+            │   │       │   └── members[1] > member 1: "p" : handle
+            │   │       └── layout: arrayrefs$Player
+            │   └── body[1]: leave @2
             └── layout: ^arrayrefs$Player
