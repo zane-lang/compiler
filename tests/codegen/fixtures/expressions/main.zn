@@ -2,7 +2,9 @@
 /// (docs/design/lowering.md L11): an instance of a generic one, a chain of
 /// them, and one whose arguments run in the order they are written, as a
 /// call's do. A spawned call to one calls its function, which it keeps.
-/// `noted` is written as statements, so it is called. Each check prints
+/// `noted` is written as statements, so it is called. `tripled` is called
+/// too: the verb it calls always expands, and its body is longer than an
+/// expression verb written out may be. Each check prints
 /// `yes` when it holds and `no` when it does not.
 package expressions;
 
@@ -30,9 +32,29 @@ Int noted(n Int, label String) {
 	return n;
 }
 
+Int stepped(x Int, k @concepts$Int) {
+	s0 Int = x;
+	s1 Int = @operators$add(s0, Int(k));
+	s2 Int = @operators$add(s1, Int(k));
+	s3 Int = @operators$add(s2, Int(k));
+	s4 Int = @operators$add(s3, Int(k));
+	s5 Int = @operators$add(s4, Int(k));
+	s6 Int = @operators$add(s5, Int(k));
+	s7 Int = @operators$add(s6, Int(k));
+	s8 Int = @operators$add(s7, Int(k));
+	s9 Int = @operators$add(s8, Int(k));
+	s10 Int = @operators$add(s9, Int(k));
+	s11 Int = @operators$add(s10, Int(k));
+	s12 Int = @operators$add(s11, Int(k));
+	return s12;
+}
+
+Int tripled(x Int) => stepped(x, 3)
+
 Unit main() {
 	check(@operators$equal(twice(Int(21)), Int(42)));
 	check(@operators$equal(plus(noted(Int(1), String("first\n")), noted(Int(2), String("second\n"))), Int(3)));
+	check(@operators$equal(tripled(Int(6)), Int(42)));
 	later Int = spawn plus(Int(4), Int(5));
 	check(@operators$equal(later, Int(9)));
 	return Unit();

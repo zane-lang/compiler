@@ -63,8 +63,9 @@ let expands (v : verb) =
    and an object built apart. It declares no abort, and its expression holds
    no spawn and no lambda, whose function is named after the verb it is
    written in. Each verb it calls that is written out counts with its own
-   size, so a chain of them is expanded only while it stays [most_expanded]
-   nodes or fewer. One that would be written out inside itself is called
+   size, and a verb that always expands counts with its whole body, so a
+   chain of them is expanded only while it stays [most_expanded] nodes or
+   fewer. One that would be written out inside itself is called
    there instead. *)
 let most_expanded = 40
 
@@ -83,43 +84,51 @@ let called (e : T.Expr.t) =
 (* Raised while counting a body that is not written out. *)
 exception Kept
 
+(* The nodes [v] adds where it is written out: an expression verb's
+   expression, or every statement of a verb that always expands, each with
+   the verbs it writes out counted in. [None] when it is not written out
+   that way, or not within [most_expanded]. *)
 let rec size st (v : verb) =
   match Hashtbl.find_opt st.sizes v.key with
   | Some n -> n
   | None ->
       (* A verb whose size is being counted is not written out in itself. *)
       Hashtbl.replace st.sizes v.key None;
+      let total = ref 0 in
+      let rec count (e : T.Expr.t) =
+        incr total;
+        (match e.T.Expr.node with T.Expr.Spawn _ | T.Expr.Lambda _ -> raise Kept | _ -> ());
+        (match called e with
+        | Some (id, instance) -> (
+            match verb_of st id instance with
+            | Some c -> (
+                match size st c with
+                | Some m -> total := !total + m
+                | None -> if expands c then raise Kept)
+            | None -> ())
+        | None -> ());
+        if !total > most_expanded then raise Kept;
+        List.iter
+          (function
+            | Tst.Traverse.Same x -> count x
+            | Tst.Traverse.Arm b | Tst.Traverse.Handler b | Tst.Traverse.Block b -> block b
+            | Tst.Traverse.Lambda _ -> raise Kept)
+          (Tst.Traverse.parts e)
+      and block (b : T.Block.t) =
+        List.iter (fun s -> List.iter count (Tst.Traverse.stat_exprs s)) b.T.Block.stats
+      in
       let n =
-        match v.body.T.Block.stats with
-        | [ { T.Stat.node = T.Stat.Return e; _ } ]
-          when v.decl >= 0 && Option.is_none v.signature.S.abort && not (expands v) -> (
-            let total = ref 0 in
-            let rec count (e : T.Expr.t) =
-              incr total;
-              (match e.T.Expr.node with T.Expr.Spawn _ | T.Expr.Lambda _ -> raise Kept | _ -> ());
-              (match called e with
-              | Some (id, instance) -> (
-                  match verb_of st id instance with
-                  | Some c when not (expands c) -> (
-                      match size st c with Some m -> total := !total + m | None -> ())
-                  | _ -> ())
-              | None -> ());
-              if !total > most_expanded then raise Kept;
-              List.iter
-                (function
-                  | Tst.Traverse.Same x -> count x
-                  | Tst.Traverse.Arm b | Tst.Traverse.Handler b | Tst.Traverse.Block b ->
-                      List.iter
-                        (fun s -> List.iter count (Tst.Traverse.stat_exprs s))
-                        b.T.Block.stats
-                  | Tst.Traverse.Lambda _ -> raise Kept)
-                (Tst.Traverse.parts e)
-            in
-            try
+        try
+          match v.body.T.Block.stats with
+          | _ when v.decl < 0 -> None
+          | _ when expands v ->
+              block v.body;
+              Some !total
+          | [ { T.Stat.node = T.Stat.Return e; _ } ] when Option.is_none v.signature.S.abort ->
               count e;
               Some !total
-            with Kept -> None)
-        | _ -> None
+          | _ -> None
+        with Kept -> None
       in
       Hashtbl.replace st.sizes v.key n;
       n

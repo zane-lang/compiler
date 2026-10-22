@@ -110,7 +110,18 @@
     │       │       │   │       └── right: local #20 : i64
     │       │       │   └── body[3]: leave @21
     │       │       └── right: 3 : i64
-    │       ├── body[2] > spawn:
+    │       ├── body[2] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: expressions$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: expressions$tripled(%primitives$I64)
+    │       │       │   └── args[0]: 6 : i64
+    │       │       └── right: 42 : i64
+    │       ├── body[3] > spawn:
     │       │   ├── task: #24
     │       │   ├── scope: %15
     │       │   ├── thunk: zane.spawn.1
@@ -119,7 +130,7 @@
     │       │   ├── args[1]: 5 : i64
     │       │   ├── dest: #25
     │       │   └── layout: %primitives$I64
-    │       ├── body[3] > eval > call:
+    │       ├── body[4] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: expressions$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -136,7 +147,7 @@
     │       │       │           ├── type: i64
     │       │       │           └── ptr: address of #25 : ptr
     │       │       └── right: 9 : i64
-    │       └── body[4] > return: unit : void
+    │       └── body[5] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: expressions$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
@@ -179,6 +190,105 @@
     │   │   └── args[0]: local #2 : handle
     │   └── body[1] > return: local #1 : i64
     ├── funcs[4] > func:
+    │   ├── symbol: expressions$tripled(%primitives$I64)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > expand:
+    │       ├── type: i64
+    │       ├── label: @2
+    │       ├── result: #3
+    │       ├── body[0] > let:
+    │       │   ├── local: #4
+    │       │   └── value: local #1 : i64
+    │       ├── body[1] > let:
+    │       │   ├── local: #5
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #4 : i64
+    │       │       └── right: 3 : i64
+    │       ├── body[2] > let:
+    │       │   ├── local: #6
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #5 : i64
+    │       │       └── right: 3 : i64
+    │       ├── body[3] > let:
+    │       │   ├── local: #7
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #6 : i64
+    │       │       └── right: 3 : i64
+    │       ├── body[4] > let:
+    │       │   ├── local: #8
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #7 : i64
+    │       │       └── right: 3 : i64
+    │       ├── body[5] > let:
+    │       │   ├── local: #9
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #8 : i64
+    │       │       └── right: 3 : i64
+    │       ├── body[6] > let:
+    │       │   ├── local: #10
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #9 : i64
+    │       │       └── right: 3 : i64
+    │       ├── body[7] > let:
+    │       │   ├── local: #11
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #10 : i64
+    │       │       └── right: 3 : i64
+    │       ├── body[8] > let:
+    │       │   ├── local: #12
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #11 : i64
+    │       │       └── right: 3 : i64
+    │       ├── body[9] > let:
+    │       │   ├── local: #13
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #12 : i64
+    │       │       └── right: 3 : i64
+    │       ├── body[10] > let:
+    │       │   ├── local: #14
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #13 : i64
+    │       │       └── right: 3 : i64
+    │       ├── body[11] > let:
+    │       │   ├── local: #15
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #14 : i64
+    │       │       └── right: 3 : i64
+    │       ├── body[12] > let:
+    │       │   ├── local: #16
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #15 : i64
+    │       │       └── right: 3 : i64
+    │       ├── body[13] > assign:
+    │       │   ├── place: #3
+    │       │   └── value: local #16 : i64
+    │       └── body[14]: leave @2
+    ├── funcs[5] > func:
     │   ├── symbol: expressions$plus(%primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : i64
@@ -188,7 +298,7 @@
     │       ├── op: +
     │       ├── left: local #1 : i64
     │       └── right: local #2 : i64
-    └── funcs[5] > func:
+    └── funcs[6] > func:
         ├── symbol: zane.spawn.1
         ├── params[0]: local #23 : ptr
         ├── ret: void
