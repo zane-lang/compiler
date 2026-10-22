@@ -78,8 +78,10 @@ since it carries its own headers for every target.
 settings.** The fixed flags are `-std=c17`, `-ffp-contract=off`,
 `-fno-fast-math`, `-fno-finite-math-only`, `-fno-associative-math` and
 `-fno-rounding-math` (`ffi.md` §2.2), the target triple, `-isystem` for the
-directory holding `zane_ffi.h`, and `-O0 -Xclang -disable-O0-optnone`, so the
-module comes out of the front end unoptimized but optimizable. The package's
+directory holding `zane_ffi.h`, and `-O2 -Xclang -disable-llvm-passes`, so the
+module comes out of the front end unoptimized but optimizable: `-O0` would
+mark every function `noinline`, which no later pipeline undoes, and F13's
+inlining across the two languages would never happen. The package's
 `include` and `define` rows come after, in the order its `c.coda` writes them
 (`ffi.md` §2.3). A setting that names one of the fixed flags, such as a
 `define` of `__FAST_MATH__`, is an error naming the row.
@@ -412,7 +414,7 @@ models memory as bytes.
   `memset`, an `atomicrmw`, a `cmpxchg` and a `fence` do: a volatile access
   is one the program makes at run time, and an atomic one exists to be seen
   by another thread, which the fold cannot see;
-  `phi`, `select`, `br`, `switch`; vectors elementwise; and the intrinsics clang emits at `-O0`
+  `phi`, `select`, `br`, `switch`; vectors elementwise; and the intrinsics clang emits with its LLVM passes disabled
   (`memcpy`, `memmove`, `memset`, the overflow, bit-count, funnel-shift,
   `abs`, `smin`/`smax` families, the exact float functions, `lifetime`,
   which does nothing, and `assume`, whose condition is evaluated: a false or
