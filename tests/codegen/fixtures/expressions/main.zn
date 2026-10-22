@@ -4,7 +4,8 @@
 /// call's do. A spawned call to one calls its function, which it keeps.
 /// `noted` is written as statements, so it is called. `tripled` is called
 /// too: the verb it calls always expands, and its body is longer than an
-/// expression verb written out may be. Each check prints
+/// expression verb written out may be. So are `starts`, whose verb spawns,
+/// and `first`, whose subscript is longer than that. Each check prints
 /// `yes` when it holds and `no` when it does not.
 package expressions;
 
@@ -12,6 +13,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
 
 Unit check(ok Bool) {
 	yes String("yes\n");
@@ -51,10 +53,33 @@ Int stepped(x Int, k @concepts$Int) {
 
 Int tripled(x Int) => stepped(x, 3)
 
+Unit started(n @concepts$Int) {
+	spawn noted(Int(n), String("spawned\n"));
+	return Unit();
+}
+
+Unit starts() => started(1)
+
+type Row = #struct {
+	items List<Int>;
+}
+
+Row() => init{
+	items = @primitives$List(Int);
+}
+
+(this Row)[i Int] => this.items[@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(i, Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0))]
+
+Int first(row Row) => row[Int(1)]
+
 Unit main() {
 	check(@operators$equal(twice(Int(21)), Int(42)));
 	check(@operators$equal(plus(noted(Int(1), String("first\n")), noted(Int(2), String("second\n"))), Int(3)));
 	check(@operators$equal(tripled(Int(6)), Int(42)));
+	starts();
+	row Row();
+	row.items!push(Int(7));
+	check(@operators$equal(first(row), Int(7)));
 	later Int = spawn plus(Int(4), Int(5));
 	check(@operators$equal(later, Int(9)));
 	return Unit();

@@ -60,25 +60,31 @@ let expands (v : verb) =
 (* L11: an expression verb, one whose body is a single expression it
    returns, is written out where it is called too, though it keeps its
    function for every use that needs one: a spawned call, a function value,
-   and an object built apart. It declares no abort, and its expression holds
-   no spawn and no lambda, whose function is named after the verb it is
-   written in. Each verb it calls that is written out counts with its own
-   size, and a verb that always expands counts with its whole body, so a
-   chain of them is expanded only while it stays [most_expanded] nodes or
-   fewer. One that would be written out inside itself is called
-   there instead. *)
+   and an object built apart. It declares no abort, and nothing it writes
+   out spawns or holds a lambda, whose function is named after the verb it
+   is written in. Each verb it calls that is written out counts with its own
+   size, and a verb that always expands, or a declared subscript, counts
+   with its whole body, so a chain of them is expanded only while it stays
+   [most_expanded] nodes or fewer. One that would be written out inside
+   itself is called there instead. *)
 let most_expanded = 40
 
-(* The declared verb an expression calls, with its instance. *)
+(* The declared verb an expression calls, with its instance, and whether
+   it is written out wherever it is used: a declared subscript always is
+   (functions.md §2.9). *)
 let called (e : T.Expr.t) =
+  let declared always (r : T.Verb_ref.t) =
+    match r.T.Verb_ref.owner with S.Declared id -> Some (id, r.T.Verb_ref.instance, always) | _ -> None
+  in
   match e.T.Expr.node with
   | T.Expr.Call { callee = r; _ }
   | T.Expr.Construct { ctor = r; _ }
   | T.Expr.Construct_fields { ctor = r; _ }
   | T.Expr.Op { impl = r; _ }
   | T.Expr.Flip { impl = r; _ }
-  | T.Expr.Coerce { ctor = r; _ } -> (
-      match r.T.Verb_ref.owner with S.Declared id -> Some (id, r.T.Verb_ref.instance) | _ -> None)
+  | T.Expr.Coerce { ctor = r; _ } ->
+      declared false r
+  | T.Expr.Subscript { impl = r; _ } -> declared true r
   | _ -> None
 
 (* Raised while counting a body that is not written out. *)
@@ -99,12 +105,12 @@ let rec size st (v : verb) =
         incr total;
         (match e.T.Expr.node with T.Expr.Spawn _ | T.Expr.Lambda _ -> raise Kept | _ -> ());
         (match called e with
-        | Some (id, instance) -> (
+        | Some (id, instance, always) -> (
             match verb_of st id instance with
             | Some c -> (
                 match size st c with
                 | Some m -> total := !total + m
-                | None -> if expands c then raise Kept)
+                | None -> if always || expands c then raise Kept)
             | None -> ())
         | None -> ());
         if !total > most_expanded then raise Kept;
@@ -115,7 +121,12 @@ let rec size st (v : verb) =
             | Tst.Traverse.Lambda _ -> raise Kept)
           (Tst.Traverse.parts e)
       and block (b : T.Block.t) =
-        List.iter (fun s -> List.iter count (Tst.Traverse.stat_exprs s)) b.T.Block.stats
+        List.iter
+          (fun (s : T.Stat.t) ->
+            match s.T.Stat.node with
+            | T.Stat.Spawn _ -> raise Kept
+            | _ -> List.iter count (Tst.Traverse.stat_exprs s))
+          b.T.Block.stats
       in
       let n =
         try
