@@ -204,13 +204,18 @@ binding rules hold, with one more: a verb that writes none of its parameters
 reads a local it is given where the caller keeps it, since nothing else in
 the call writes what the call borrows
 ([`memory.md`](https://github.com/zane-lang/spec/blob/ae25c51/spec/memory.md)
-§2.9.1) and nothing its body runs can. A verb qualifies when it declares no abort and
-its expression holds no spawn and no lambda, whose function is named after
-the verb it is written in. Its size counts the verbs it calls that are
-written out too, and a verb over 40 nodes with them is called, so a chain of
-verbs that each call the next twice stays a chain of calls a few levels up.
-One that would be written out inside itself, as a recursive verb would be,
-is called there instead. And a call that gives a fresh value to a value
+§2.9.1) and nothing its body runs can. A verb qualifies when it declares no
+abort and nothing it would write out spawns or holds a lambda, whose
+function is named after the verb it is written in. Its size counts what it
+writes out with it: each expression verb it calls, and the whole body of a
+verb that always expands and of a declared subscript. A verb over 40 nodes
+with them is called, so a chain of verbs that each call the next twice
+stays a chain of calls a few levels up. One that would be written out
+inside itself, as a recursive verb would be, is called there instead. So a
+recursive verb's own function writes each call to itself out once, and
+calls the function from the copy: a tree's walk does two levels of work per
+call, which is most of what writing out gains `copies` and optimized
+`trees`. And a call that gives a fresh value to a value
 parameter that owns blocks calls the function: written out, the value would
 be held in a slot of the caller's and copied wherever the body keeps it,
 where the function takes it as it is (`Regions.taken_params`).

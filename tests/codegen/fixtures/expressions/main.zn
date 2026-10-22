@@ -1,12 +1,13 @@
 /// Verbs whose body is one expression, written out where they are called
 /// (docs/design/lowering.md L11): an instance of a generic one, a chain of
 /// them, and one whose arguments run in the order they are written, as a
-/// call's do. A spawned call to one calls its function, which it keeps.
-/// `noted` is written as statements, so it is called. `tripled` is called
-/// too: the verb it calls always expands, and its body is longer than an
-/// expression verb written out may be. So are `starts`, whose verb spawns,
-/// and `first`, whose subscript is longer than that. Each check prints
-/// `yes` when it holds and `no` when it does not.
+/// call's do, each once however often the body names it. A spawned call to
+/// one calls its function, which it keeps. `noted` is written as
+/// statements, so it is called. `tripled` is called too: the verb it calls
+/// always expands, and its body is longer than an expression verb written
+/// out may be. So are `starts`, whose verb spawns, and `first`, whose
+/// subscript is longer than that. Each check prints `yes` when it holds and
+/// `no` when it does not.
 package expressions;
 
 alias Int = @primitives$I64
@@ -74,6 +75,7 @@ Int first(row Row) => row[Int(1)]
 
 Unit main() {
 	check(@operators$equal(twice(Int(21)), Int(42)));
+	check(@operators$equal(twice(noted(Int(21), String("once\n"))), Int(42)));
 	check(@operators$equal(plus(noted(Int(1), String("first\n")), noted(Int(2), String("second\n"))), Int(3)));
 	check(@operators$equal(tripled(Int(6)), Int(42)));
 	starts();

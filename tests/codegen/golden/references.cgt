@@ -13,6 +13,9 @@
     │   ├── type: references$Wrap
     │   └── positions:
     ├── layouts[4] > layout:
+    │   ├── type: references$Link
+    │   └── positions:
+    ├── layouts[5] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
     ├── globals[0]: zane.value.@program$console : i64
@@ -282,23 +285,91 @@
     │       │       ├── op: ==
     │       │       ├── left: local #35 : i64
     │       │       └── right: 9 : i64
-    │       ├── body[13] > eval > expand:
+    │       ├── body[13] > hold:
+    │       │   ├── local: #43
+    │       │   ├── scope: %5
+    │       │   ├── value > expand:
+    │       │   │   ├── type: {i64, ptr}
+    │       │   │   ├── label: @41
+    │       │   │   ├── result: #42
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #36
+    │       │   │   │   └── value: address of #4 : ptr
+    │       │   │   ├── body[1] > let:
+    │       │   │   │   ├── local: #37
+    │       │   │   │   └── value: 1 : i64
+    │       │   │   └── body[2] > assign:
+    │       │   │       ├── place: #42
+    │       │   │       └── value > expand:
+    │       │   │           ├── type: {i64, ptr}
+    │       │   │           ├── label: @39
+    │       │   │           ├── result: #40
+    │       │   │           ├── body[0] > let:
+    │       │   │           │   ├── local: #38
+    │       │   │           │   └── value: local #36 : ptr
+    │       │   │           ├── body[1] > assign:
+    │       │   │           │   ├── place: #40
+    │       │   │           │   └── value > escape:
+    │       │   │           │       ├── exit: @39
+    │       │   │           │       ├── value > record:
+    │       │   │           │       │   ├── type: {i64, ptr}
+    │       │   │           │       │   ├── members[0] > member 0: local #37 : i64
+    │       │   │           │       │   └── members[1] > member 1: local #38 : ptr
+    │       │   │           │       └── layout: references$Link
+    │       │   │           └── body[2]: leave @39
+    │       │   └── layout: references$Link
+    │       ├── body[14] > overwrite:
+    │       │   ├── address: address of #4 : ptr
+    │       │   ├── value > expand:
+    │       │   │   ├── type: {i64}
+    │       │   │   ├── label: @45
+    │       │   │   ├── result: #46
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #44
+    │       │   │   │   └── value: 6 : i64
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #46
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @45
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {i64}
+    │       │   │   │       │   └── members[0] > member 0: local #44 : i64
+    │       │   │   │       └── layout: references$Person
+    │       │   │   └── body[2]: leave @45
+    │       │   └── layout: references$Person
+    │       ├── body[15] > eval > call:
     │       │   ├── type: void
-    │       │   ├── label: @37
+    │       │   ├── fn: references$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > deref:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base > member:
+    │       │       │           ├── type: ptr
+    │       │       │           ├── index: 1
+    │       │       │           └── value: local #43 : {i64, ptr}
+    │       │       └── right: 6 : i64
+    │       ├── body[16] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @48
     │       │   ├── body[0] > let:
-    │       │   │   ├── local: #36
+    │       │   │   ├── local: #47
     │       │   │   └── value: global zane.value.@program$console
     │       │   ├── body[1] > eval: unit : void
-    │       │   └── body[2]: leave @37
-    │       ├── body[14] > eval > expand:
+    │       │   └── body[2]: leave @48
+    │       ├── body[17] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── label: @39
+    │       │   ├── label: @50
     │       │   ├── body[0] > let:
-    │       │   │   ├── local: #38
+    │       │   │   ├── local: #49
     │       │   │   └── value: global zane.value.@program$console
     │       │   ├── body[1] > eval: unit : void
-    │       │   └── body[2]: leave @39
-    │       └── body[15] > return: unit : void
+    │       │   └── body[2]: leave @50
+    │       └── body[18] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: references$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1

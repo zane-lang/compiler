@@ -66,7 +66,8 @@ let expands (v : verb) =
    size, and a verb that always expands, or a declared subscript, counts
    with its whole body, so a chain of them is expanded only while it stays
    [most_expanded] nodes or fewer. One that would be written out inside
-   itself is called there instead. *)
+   itself is called there instead, so its own function writes each call to
+   itself out once. *)
 let most_expanded = 40
 
 (* The declared verb an expression calls, with its instance, and whether

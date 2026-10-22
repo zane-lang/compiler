@@ -66,14 +66,14 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @21
-    │       │       │   ├── result: #22
+    │       │       │   ├── label: @17
+    │       │       │   ├── result: #18
     │       │       │   ├── body[0] > let:
     │       │       │   │   ├── local: #16
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: expressions$noted(%primitives$I64, %primitives$String)
-    │       │       │   │       ├── args[0]: 1 : i64
+    │       │       │   │       ├── args[0]: 21 : i64
     │       │       │   │       └── args[1] > expand:
     │       │       │   │           ├── type: handle
     │       │       │   │           ├── label: @13
@@ -81,39 +81,89 @@
     │       │       │   │           ├── body[0] > hold:
     │       │       │   │           │   ├── local: #12
     │       │       │   │           │   ├── scope: %15
-    │       │       │   │           │   ├── value: "first\n" : handle
+    │       │       │   │           │   ├── value: "once\n" : handle
     │       │       │   │           │   └── layout: %primitives$String
     │       │       │   │           └── body[1] > assign:
     │       │       │   │               ├── place: #14
     │       │       │   │               └── value: local #12 : handle
+    │       │       │   ├── body[1] > assign:
+    │       │       │   │   ├── place: #18
+    │       │       │   │   └── value > expand:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── label: @25
+    │       │       │   │       ├── result: #26
+    │       │       │   │       ├── body[0] > let:
+    │       │       │   │       │   ├── local: #21
+    │       │       │   │       │   └── value: local #16 : i64
+    │       │       │   │       ├── body[1] > let:
+    │       │       │   │       │   ├── local: #24
+    │       │       │   │       │   └── value: local #16 : i64
+    │       │       │   │       ├── body[2] > assign:
+    │       │       │   │       │   ├── place: #26
+    │       │       │   │       │   └── value > binary:
+    │       │       │   │       │       ├── type: i64
+    │       │       │   │       │       ├── op: +
+    │       │       │   │       │       ├── left: local #21 : i64
+    │       │       │   │       │       └── right: local #24 : i64
+    │       │       │   │       └── body[3]: leave @25
+    │       │       │   └── body[2]: leave @17
+    │       │       └── right: 42 : i64
+    │       ├── body[2] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: expressions$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > expand:
+    │       │       │   ├── type: i64
+    │       │       │   ├── label: @35
+    │       │       │   ├── result: #36
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #30
+    │       │       │   │   └── value > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: expressions$noted(%primitives$I64, %primitives$String)
+    │       │       │   │       ├── args[0]: 1 : i64
+    │       │       │   │       └── args[1] > expand:
+    │       │       │   │           ├── type: handle
+    │       │       │   │           ├── label: @28
+    │       │       │   │           ├── result: #29
+    │       │       │   │           ├── body[0] > hold:
+    │       │       │   │           │   ├── local: #27
+    │       │       │   │           │   ├── scope: %15
+    │       │       │   │           │   ├── value: "first\n" : handle
+    │       │       │   │           │   └── layout: %primitives$String
+    │       │       │   │           └── body[1] > assign:
+    │       │       │   │               ├── place: #29
+    │       │       │   │               └── value: local #27 : handle
     │       │       │   ├── body[1] > let:
-    │       │       │   │   ├── local: #20
+    │       │       │   │   ├── local: #34
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── fn: expressions$noted(%primitives$I64, %primitives$String)
     │       │       │   │       ├── args[0]: 2 : i64
     │       │       │   │       └── args[1] > expand:
     │       │       │   │           ├── type: handle
-    │       │       │   │           ├── label: @18
-    │       │       │   │           ├── result: #19
+    │       │       │   │           ├── label: @32
+    │       │       │   │           ├── result: #33
     │       │       │   │           ├── body[0] > hold:
-    │       │       │   │           │   ├── local: #17
+    │       │       │   │           │   ├── local: #31
     │       │       │   │           │   ├── scope: %15
     │       │       │   │           │   ├── value: "second\n" : handle
     │       │       │   │           │   └── layout: %primitives$String
     │       │       │   │           └── body[1] > assign:
-    │       │       │   │               ├── place: #19
-    │       │       │   │               └── value: local #17 : handle
+    │       │       │   │               ├── place: #33
+    │       │       │   │               └── value: local #31 : handle
     │       │       │   ├── body[2] > assign:
-    │       │       │   │   ├── place: #22
+    │       │       │   │   ├── place: #36
     │       │       │   │   └── value > binary:
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── op: +
-    │       │       │   │       ├── left: local #16 : i64
-    │       │       │   │       └── right: local #20 : i64
-    │       │       │   └── body[3]: leave @21
+    │       │       │   │       ├── left: local #30 : i64
+    │       │       │   │       └── right: local #34 : i64
+    │       │       │   └── body[3]: leave @35
     │       │       └── right: 3 : i64
-    │       ├── body[2] > eval > call:
+    │       ├── body[3] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: expressions$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -124,21 +174,21 @@
     │       │       │   ├── fn: expressions$tripled(%primitives$I64)
     │       │       │   └── args[0]: 6 : i64
     │       │       └── right: 42 : i64
-    │       ├── body[3] > eval > call:
+    │       ├── body[4] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: expressions$starts()
     │       │   └── args:
-    │       ├── body[4] > hold:
-    │       │   ├── local: #25
+    │       ├── body[5] > hold:
+    │       │   ├── local: #39
     │       │   ├── scope: %15
     │       │   ├── value > expand:
     │       │   │   ├── type: {handle}
-    │       │   │   ├── label: @23
-    │       │   │   ├── result: #24
+    │       │   │   ├── label: @37
+    │       │   │   ├── result: #38
     │       │   │   ├── body[0] > assign:
-    │       │   │   │   ├── place: #24
+    │       │   │   │   ├── place: #38
     │       │   │   │   └── value > escape:
-    │       │   │   │       ├── exit: @23
+    │       │   │   │       ├── exit: @37
     │       │   │   │       ├── value > record:
     │       │   │   │       │   ├── type: {handle}
     │       │   │   │       │   └── members[0] > member 0 > runtime:
@@ -146,29 +196,29 @@
     │       │   │   │       │       ├── fn: zane_list_new
     │       │   │   │       │       └── args:
     │       │   │   │       └── layout: expressions$Row
-    │       │   │   └── body[1]: leave @23
+    │       │   │   └── body[1]: leave @37
     │       │   └── layout: expressions$Row
-    │       ├── body[5] > eval > expand:
+    │       ├── body[6] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── label: @28
+    │       │   ├── label: @42
     │       │   ├── body[0] > let:
-    │       │   │   ├── local: #26
+    │       │   │   ├── local: #40
     │       │   │   └── value: 7 : i64
     │       │   ├── body[1] > let:
-    │       │   │   ├── local: #27
+    │       │   │   ├── local: #41
     │       │   │   └── value > runtime:
     │       │   │       ├── type: ptr
     │       │   │       ├── fn: zane_list_push
     │       │   │       ├── args[0] > offset:
     │       │   │       │   ├── within: {handle}
     │       │   │       │   ├── path: 0
-    │       │   │       │   └── base: address of #25 : ptr
+    │       │   │       │   └── base: address of #39 : ptr
     │       │   │       └── args[1]: 8 : i64
     │       │   └── body[2] > place:
-    │       │       ├── address: local #27 : ptr
-    │       │       ├── value: local #26 : i64
+    │       │       ├── address: local #41 : ptr
+    │       │       ├── value: local #40 : i64
     │       │       └── layout: %primitives$I64
-    │       ├── body[6] > eval > call:
+    │       ├── body[7] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: expressions$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -177,18 +227,18 @@
     │       │       ├── left > call:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: expressions$first(expressions$Row)
-    │       │       │   └── args[0]: address of #25 : ptr
+    │       │       │   └── args[0]: address of #39 : ptr
     │       │       └── right: 7 : i64
-    │       ├── body[7] > spawn:
-    │       │   ├── task: #30
+    │       ├── body[8] > spawn:
+    │       │   ├── task: #44
     │       │   ├── scope: %15
     │       │   ├── thunk: zane.spawn.1
     │       │   ├── frame: {i64, i64, i64}
     │       │   ├── args[0]: 4 : i64
     │       │   ├── args[1]: 5 : i64
-    │       │   ├── dest: #31
+    │       │   ├── dest: #45
     │       │   └── layout: %primitives$I64
-    │       ├── body[8] > eval > call:
+    │       ├── body[9] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: expressions$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -196,16 +246,16 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @32
-    │       │       │   ├── result: #33
-    │       │       │   ├── body[0]: join #30
+    │       │       │   ├── label: @46
+    │       │       │   ├── result: #47
+    │       │       │   ├── body[0]: join #44
     │       │       │   └── body[1] > assign:
-    │       │       │       ├── place: #33
+    │       │       │       ├── place: #47
     │       │       │       └── value > deref:
     │       │       │           ├── type: i64
-    │       │       │           └── ptr: address of #31 : ptr
+    │       │       │           └── ptr: address of #45 : ptr
     │       │       └── right: 9 : i64
-    │       └── body[9] > return: unit : void
+    │       └── body[10] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: expressions$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
@@ -472,13 +522,13 @@
     │       └── right: local #2 : i64
     ├── funcs[8] > func:
     │   ├── symbol: zane.spawn.1
-    │   ├── params[0]: local #29 : ptr
+    │   ├── params[0]: local #43 : ptr
     │   ├── ret: void
     │   └── body[0] > store:
     │       ├── address > offset:
     │       │   ├── within: {i64, i64, i64}
     │       │   ├── path: 0
-    │       │   └── base: local #29 : ptr
+    │       │   └── base: local #43 : ptr
     │       └── value > call:
     │           ├── type: i64
     │           ├── fn: expressions$plus(%primitives$I64, %primitives$I64)
@@ -487,13 +537,13 @@
     │           │   └── ptr > offset:
     │           │       ├── within: {i64, i64, i64}
     │           │       ├── path: 1
-    │           │       └── base: local #29 : ptr
+    │           │       └── base: local #43 : ptr
     │           └── args[1] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
     │                   ├── within: {i64, i64, i64}
     │                   ├── path: 2
-    │                   └── base: local #29 : ptr
+    │                   └── base: local #43 : ptr
     └── funcs[9] > func:
         ├── symbol: zane.spawn.2
         ├── params[0]: local #6 : ptr
