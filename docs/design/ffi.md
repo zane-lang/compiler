@@ -51,8 +51,8 @@ one `-isystem` per directory, in order. An entry the list marks
 macOS, is passed as `-iframework` instead, so `<Foundation/Foundation.h>`
 is found as the C compiler would find it. Nothing else the C compiler would
 do is replayed, so a GCC's `cc1` options or a newer clang's never reach the
-linked one. `ZANE_CC` keeps its meaning: the compiler asked for the headers
-is that one.
+linked one. `ZANE_CC` keeps its meaning: it names the C compiler that is
+asked for the headers.
 
 MSVC's `cl.exe`, and `clang-cl` in its mode, take no `-E -v` and print no
 such list: they search the directories of the `INCLUDE` environment
@@ -101,7 +101,8 @@ package's directory (`ffi.md` §2.3), beside the `.c` and `.h` files the
 compiler already reads from each `--package` directory, so they need no flags
 and nothing from the `zane` CLI. The compiler parses the file, keeps the rows
 whose `target` pattern matches the build's target, expands `source` patterns
-to the files they match, and checks that every path stays inside the
+to the `.c` files they match (a `.h` or any other file a pattern matches is
+not a C source and is skipped), and checks that every path stays inside the
 project. The project's root is the directory holding the `zane.coda` above
 the package, which the driver already finds. A path that leaves it, or a
 `source` pattern that matches nothing, is an error naming the file and the
@@ -127,10 +128,11 @@ included header makes is not in the table, which is how `ffi.md` §2.1's
 
 Stage 3 checks each foreign verb against that table by the rules of
 `ffi.md` §3.3 and §3.7. A C type corresponds to a Zane type by its canonical
-form, so `uLong` is checked as the `unsigned long` it is on the target, and
-fails on Windows, where it is 32 bits, while it passes for a 64-bit
-`unsigned long` elsewhere; the error names the target, the C type and what it
-is there. A C-compatible value type is compared field by field against the
+form, so `uLong` is checked as the `unsigned long` it is, which corresponds
+to no Zane type on any target, even where it is 64 bits, because its size
+differs between targets (`ffi.md` §3.3). The error names the C type, what it
+is on the target, and that a C function of the package converting it is the
+way to reach it. A C-compatible value type is compared field by field against the
 `struct`'s offsets and sizes, laid out as lowering lays the Zane type out
 ([`platforms.md`](platforms.md), "64-bit targets only"). Two forms are
 refused outright, whatever their sizes say. A function declared without a
@@ -461,8 +463,8 @@ is, and nothing after it that depends on its result folds.
 a Zane fold reaches a `Foreign_call`, its arguments are known values of
 `eval.ml`; `c_eval.ml` writes each into an allocation of its own laid out as
 F10's slots are, runs the thunk, and reads the result back into an `eval.ml`
-value. A view into a string or list is a read-only allocation holding a copy
-of its bytes, and a store into it stops the fold.
+value. A view into a string, array or list is a read-only allocation
+holding a copy of its bytes, and a store into it stops the fold.
 
 A data handle made during a fold is an allocation of `c_eval.ml`'s,
 which the handle's `eval.ml` value names. A fold that ends with such a
@@ -519,9 +521,10 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
 
 ## 7. The order it is built in
 
-1. The clang front end in process, with the C compiler's include
-   directories kept in the cache, compiling a C file to a module of the
-   compiler's context (F1, F2, F3).
+1. Reading `c.coda` and filtering its rows by target (F5), then the clang
+   front end in process, with the C compiler's include directories kept in
+   the cache, compiling a C file with the package's `include` and `define`
+   rows to a module of the compiler's context (F1, F2, F3).
 2. The interface table from the AST (F6).
 3. Foreign verbs, handle types and foreign variables in the TST, with the
    interface check and the signature-given capability facts (F7).
@@ -530,7 +533,7 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
    type arguments and results (F8, F9, F10, F13, F14).
 5. Handles: free and set thunks, walks, null results (F12).
 6. Function values as C functions, with invokers (F11).
-7. Reading `c.coda`, and its `archive` and `system` rows (F4, F5).
+7. `c.coda`'s `archive` and `system` rows (F4).
 8. Release archives and dependencies' C, retained for inlining (F13, F15).
 9. `c_eval.ml`, its classes in stage 5, and the crossing between the two
    evaluators (F16–F19).
