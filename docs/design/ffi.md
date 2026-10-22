@@ -42,7 +42,8 @@ release. The released toolchain's `zig cc` is built on a newer LLVM than the
 compiler's (19, `lowering.md` L2), and its bitcode would not load. So
 the C compiler is asked only for what it knows that the linked clang does
 not: where the target's C library headers are. The first build for a C
-compiler and a target runs it once on an empty source with `-E -v` and reads
+compiler and a target runs it once on an empty source with `-E -v` and `--target=` the build's
+target, so a cross build probes the target's headers, not the host's, and reads
 the list after `#include <...> search starts here:`, which GCC, clang and
 `zig cc` all print in that form; the list is kept in the cache, keyed by
 the C compiler's path and `--version` output, the target, and the values
@@ -137,8 +138,10 @@ row.
 
 **F6. Interface declarations are read from clang's AST, not parsed by the
 compiler.** Each package's interface headers are compiled once more, with the
-package's flags, as a translation unit that includes each of them, and
-`clang_stubs.cpp` walks its AST. What it hands back is a table, by name, of
+package's flags, each as a translation unit of its own that includes only
+it, since two headers that are each valid need not be valid together (each
+may define its own `static inline` helper, say), and `clang_stubs.cpp` walks
+the ASTs. What it hands back is a table, by name, of
 every function, variable, `struct` and `typedef` whose expansion location
 is in an interface header (so a declaration a macro from an included header
 writes, invoked in an interface header, is the interface header's): each variable's canonical type and whether it has
@@ -194,8 +197,10 @@ entry in the table of `ty`'s package, not the declaring one's. The checks of
 How a `struct` is passed by value differs between SysV x86-64, Windows x64
 and AArch64, and LLVM leaves that classification to the front end. Rather
 than reimplement clang's for each target, the compiler writes, for each
-package, one C file of glue and compiles it with the package's settings,
-so clang does the classification it already knows. The glue holds:
+package, the glue: one C file per interface header, which includes that
+header alone and is compiled with the package's settings, so clang does the
+classification it already knows. Each entry goes in the file of the header
+that declares its C function. The glue holds:
 
 - one **thunk** per foreign verb, with a pointer ABI codegen can call
   trivially:
@@ -347,7 +352,7 @@ runs:
 - **It is the code the object was built from.** A release archive records,
   for each C source and for the package's glue (F8), the hash F3 keys its
   module by: the preprocessed text, the front-end command and the
-  compiler's version (F15). The glue includes every interface header, so
+  compiler's version (F15). The glue's files include every interface header between them, so
   its hash covers what the thunks were made from even for a package whose
   C is all in an archive or a system library, which has no C source to
   hash. The consumer
@@ -502,9 +507,11 @@ equal strings from different variables do not. A view's allocation is
 therefore marked as standing for storage of unknown identity, and comparing
 or subtracting a pointer into it with one into another allocation stops the
 fold (`ffi.md` §5.4's first exclusion). Pointers into two allocations that
-C made compare unequal, as C gives them, except where either points one
-past its allocation's end: C lets such a pointer equal the start of the
-object laid out next, so that comparison stops the fold.
+C made compare unequal, as C gives them, except where either allocation is a
+global marked `unnamed_addr` or `local_unnamed_addr`, such as a string
+literal, which the optimizer or the linker may merge with an equal one, or
+where either points one past its allocation's end, which C lets equal the
+start of the object laid out next. Such a comparison stops the fold.
 
 A data handle made during a fold is an allocation of `c_eval.ml`'s,
 which the handle's `eval.ml` value names. A fold that ends with such a
