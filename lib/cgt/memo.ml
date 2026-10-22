@@ -52,11 +52,10 @@ let fits (f : Func.t) =
   | Some k, Some r -> k >= 1 && k <= most_key_words && r >= 1 && r <= most_result_words
   | _ -> false
 
-(* A runtime function a remembered body may call: one that computes, and
-   neither outputs, reads the program's arguments, nor spawns. Making a
-   package constant is allowed: a hit follows a miss with the same
-   arguments, which made every constant the body reads, and a constant is
-   made once. *)
+(* A runtime function a remembered body may call: one that computes or
+   makes a package constant, and neither outputs, reads the program's
+   arguments, nor spawns. A constant is made by its first read, so the miss
+   that computes a result has made every constant the result depends on. *)
 let computes : Runtime.fn -> bool = function
   | Runtime.Print | Runtime.Set_threads | Runtime.Set_threads_auto | Runtime.Arguments
   | Runtime.Writeback | Runtime.Spawn | Runtime.Join | Runtime.Defer | Runtime.Defer_return ->

@@ -17,20 +17,20 @@ A function gets a table when:
 
 - **Its result depends only on its arguments.** A function, or a method
   without `mut`, writes nothing its caller can see
-  ([`effects.md` §3](https://github.com/zane-lang/spec/blob/b480975/spec/effects.md#3-what-each-kind-of-verb-may-write)),
-  and a package holds only constants
-  ([`packages.md` §5.1](https://github.com/zane-lang/spec/blob/b480975/spec/packages.md#51-packages-contain-no-mutable-variables)),
-  which read the same on every call. A capability it is passed is a
-  reference, which the next rule keeps out of the key. What remains is the
-  root package, whose verbs reach the console and the runtime without an
-  argument and may print
+  ([`effects.md` §3](https://github.com/zane-lang/spec/blob/b480975/spec/effects.md#3-what-each-kind-of-verb-may-write)).
+  Besides its arguments, it reads package constants, which hold the same
+  value on every call
+  ([`packages.md` §5.1](https://github.com/zane-lang/spec/blob/b480975/spec/packages.md#51-packages-contain-no-mutable-variables)).
+  A constant is made by its first read, so the miss that computes a result
+  has made every constant the result depends on. A capability reaches a
+  function as a reference argument, which the next rule keeps out of the
+  key. The root package's verbs also reach the console and the runtime by
+  name, and may print with them
   ([`effects.md` §6.6](https://github.com/zane-lang/spec/blob/b480975/spec/effects.md#66-the-programs-console-and-runtime)).
-  So its body, and the body of every function it calls, reaches neither,
-  makes no call through a function value, and calls no runtime function
-  that outputs, reads the program's arguments or spawns. A callee with no
-  body here rules its caller out. Making a package constant is allowed: a
-  hit follows a miss with the same arguments, which made every constant the
-  body reads, and a constant is made once.
+  So the function's body, and the body of every function it calls, names
+  neither, makes no call through a function value, and calls no runtime
+  function that outputs, reads the program's arguments or spawns. A callee
+  with no body here rules its caller out.
 - **Its arguments and result are fixed-size values.** These are scalars, and
   structs, enums, variants and arrays of them, with no handle or address
   anywhere inside. A value of one of these types is its bytes, so equal bytes

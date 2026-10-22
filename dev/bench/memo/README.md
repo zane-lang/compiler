@@ -111,5 +111,5 @@ case: 300,000 calls from a loop, each doing little) measured a median of
 at all, because without the cache LLVM folds the whole loop.
 
 A program that spawns gets no tables, and neither does a library, which a
-program that spawns may call: the tables are not yet safe to share between
+program that spawns may call: the tables are not shared safely between
 threads.

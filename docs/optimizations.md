@@ -174,8 +174,9 @@ at run time; the body reads a number parameter as a constant.
   tic-tac-toe search keyed on its board (76–80%); programs whose arguments
   do not repeat within +0.4%
 
-A recursion that is pure, takes and returns fixed-size values, and calls
-back into its own cycle at least twice keeps a table of its results, so a
+A recursion whose result depends only on its arguments, which takes and
+returns fixed-size values, and which calls back into its own cycle at
+least twice keeps a table of its results, so a
 call whose arguments repeat returns at once. Each function scores its
 lookups against the calls its hits save, and stops looking for good when
 they do not pay. A loop decides once, before it starts, whether its calls
