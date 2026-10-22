@@ -707,6 +707,15 @@
  (action
   (run python3 %{dep:facts_test.py} %{exe:../../bin/zanec/zanec.exe})))
 
+; Calls remembered while the program runs (docs/design/memoization.md): every
+; fixture prints the same with and without `--memoize`, and the functions
+; given a table are the ones the rules pick.
+(rule
+ (alias runtest)
+ (deps memo_test.py (source_tree fixtures/memo) (source_tree fixtures/memolibrary))
+ (action
+  (run python3 %{dep:memo_test.py} %{exe:../../bin/zanec/zanec.exe})))
+
 ; What zanec accepts for the options that name and stamp packages: Unicode
 ; package names, as source spells them, and only a well-formed stamp.
 (rule

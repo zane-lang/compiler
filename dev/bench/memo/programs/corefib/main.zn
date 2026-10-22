@@ -1,0 +1,20 @@
+/// Naive Fibonacci in idiomatic core Zane.
+package corefib;
+
+import core$;
+import bench$;
+
+Int fib(n Int) {
+	if(n < Int(2)) {
+		return n;
+	}
+	return fib(n - Int(1)) + fib(n - Int(2));
+}
+
+Unit main() {
+	console Console(@program$console);
+	runtime Runtime(@program$runtime);
+	n Int = size(runtime, Int(25));
+	console!print(String(fib(n)));
+	return Unit();
+}

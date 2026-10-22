@@ -52,6 +52,8 @@ type build = {
   (* Whether small aggregates cross calls as packed words
      (docs/design/lowering.md §9): a measured experiment, off by default. *)
   pack : bool;
+  (* Whether calls are remembered while the program runs (Cgt.Memo). *)
+  memoize : bool;
 }
 
 (* `--rewrite STAMP INPUT OUTPUT` is fetching's step, not a build's: a
@@ -86,7 +88,7 @@ let print_usage () =
   prerr_endline "             [--kind application|library]";
   prerr_endline
     "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...]";
-  prerr_endline "             [--fixed-region BYTES] [--spawned-fixed-region BYTES] [--pack-aggregates]";
+  prerr_endline "             [--fixed-region BYTES] [--spawned-fixed-region BYTES] [--pack-aggregates] [--memoize]";
   prerr_endline "             [--import PACKAGE:KEY=PACKAGE ...]";
   prerr_endline "             --package [[STAMP]PATH=]DIR [--package [[STAMP]PATH=]DIR ...]";
   prerr_endline "       zanec --rewrite STAMP INPUT OUTPUT";
@@ -209,6 +211,7 @@ let arguments () =
     | "--optimize" :: rest when not build.optimize ->
         packages view { build with optimize = true } rest
     | "--pack-aggregates" :: rest when not build.pack -> packages view { build with pack = true } rest
+    | "--memoize" :: rest when not build.memoize -> packages view { build with memoize = true } rest
     | "--build" :: output :: rest when view = None && is_value output ->
         packages (Some (Build output)) build rest
     | "--object" :: output :: rest when view = None && is_value output ->
@@ -256,6 +259,7 @@ let arguments () =
       imports = [];
       regions = { Driver.fixed = None; spawned = None };
       pack = false;
+      memoize = false;
     }
   in
   match List.tl (Array.to_list Sys.argv) with
@@ -269,7 +273,7 @@ let arguments () =
   | [ "--bundle-runtime"; dir; "--target"; target; "--optimize" ] when List.for_all is_value [ dir; target ] ->
       Bundle_runtime { dir; target; optimize = true }
   | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
-    | "--link" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--check"
+    | "--link" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--memoize" | "--check"
     | "--decls" | "--tst" | "--cgt" | "--ll" )
     :: _ as rest ->
       packages None empty rest
@@ -296,18 +300,18 @@ let generate packages build program =
       ~kind:(Option.value build.kind ~default:Application)
       packages program
   in
-  let target = build.target and optimize = build.optimize and pack = build.pack in
+  let target = build.target and optimize = build.optimize and pack = build.pack and memoize = build.memoize in
   let cgt = Driver.optimize ~optimize cgt in
   match build.view with
   | Cgt ->
       print_string (Tree_graph.render (Cgt.to_node cgt));
       Ok ()
   | Ir ->
-      let* ir = Driver.ir ?target ~pack ~regions:build.regions ~optimize cgt in
+      let* ir = Driver.ir ?target ~pack ~memoize ~regions:build.regions ~optimize cgt in
       print_string ir;
       Ok ()
-  | Build output -> Driver.executable ?target ~pack ~regions:build.regions ~optimize ~link:build.link cgt output
-  | Object output -> Driver.object_file ?target ~pack ~regions:build.regions ~optimize cgt output
+  | Build output -> Driver.executable ?target ~pack ~memoize ~regions:build.regions ~optimize ~link:build.link cgt output
+  | Object output -> Driver.object_file ?target ~pack ~memoize ~regions:build.regions ~optimize cgt output
   | Assembled | Check | Declarations | Typed -> Ok ()
 
 (* Without `--kind`, a root is an application once it is lowered, since

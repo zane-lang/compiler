@@ -163,6 +163,25 @@ Each generic verb is lowered once per instance, so a type argument or an
 explicit number parameter has already picked the function and costs nothing
 at run time; the body reads a number parameter as a constant.
 
+### Calls remembered while the program runs
+
+- **Builds:** opt-in (`--memoize`)
+- **Where:** `lib/cgt/memo.ml`, `lib/codegen/emit.ml` (`memo`),
+  `lib/codegen/codegen.ml` (`still_called`)
+- **Design:** [`design/memoization.md`](design/memoization.md)
+- **Effect:** [`dev/bench/memo/`](../dev/bench/memo/README.md): recursions
+  that repeat their arguments 73–99.6% fewer estimated cycles, among them a
+  tic-tac-toe search keyed on its board (76–80%); programs whose arguments
+  do not repeat within +0.4%
+
+A recursion whose result depends only on its arguments, which takes and
+returns fixed-size values, and which calls back into its own cycle at
+least twice keeps a table of its results, so a
+call whose arguments repeat returns at once. Each function scores its
+lookups against the calls its hits save, and stops looking for good when
+they do not pay. A loop decides once, before it starts, whether its calls
+still look, so a loop whose functions have stopped runs as written.
+
 ---
 
 ## Compile-time evaluation (stage 5, `lib/optimize/`)
