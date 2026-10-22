@@ -167,6 +167,10 @@ type state = {
   (* Whether a member is boxed in the type that holds it, by holder and
      member (Type_layout.boxed). *)
   boxes : (Tty.t * Tty.t, bool) Hashtbl.t;
+  (* Each expression verb's size with what it expands written out, by verb
+     key, or [None] for a verb not expanded where it is called (L11,
+     Verbs.inlines). *)
+  sizes : (string, int option) Hashtbl.t;
 }
 
 (* The walk over a verb's body, in [Lower], as the rest of lowering reaches
@@ -220,6 +224,7 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     region;
     sized = Hashtbl.create 64;
     boxes = Hashtbl.create 64;
+    sizes = Hashtbl.create 64;
   }
 
 let fresh st =

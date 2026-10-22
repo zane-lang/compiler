@@ -63,6 +63,12 @@ class OptimizationTests(unittest.TestCase):
         # Both builds take in the bodies; only the optimized one folds them.
         self.assertIn("linkage: available", plain)
         self.assertIn("linkage: available", folded)
+        # Lowering writes a dependency's expression verbs out where they are
+        # called, a generic one's instance included (lowering.md L11), and
+        # calls the rest.
+        calls = plain.split("symbol: app$main()", 1)[1].split("symbol:", 1)[0]
+        self.assertNotRegex(calls, r'fn: .*math\$(?:add|_add|shifted|squared|kept)')
+        self.assertRegex(calls, r'fn: .*math\$fib\(')
         # Only main is inspected: dependency bodies retain their runtime loop.
         main = folded.split("symbol: app$main()", 1)[1].split("symbol:", 1)[0]
         self.assertNotIn("repeat", main)
@@ -71,7 +77,7 @@ class OptimizationTests(unittest.TestCase):
         after = run(ZANEC, "--ll", "--optimize", *self.flags())
         # An unoptimized build inlines the wrappers too (optimization.md O12),
         # and never a function that calls itself.
-        self.assertNotRegex(before, r'call .*math\$(?:add|_add|squared)\(')
+        self.assertNotRegex(before, r'call .*math\$(?:add|_add|squared|kept<)')
         self.assertRegex(before, r'call .*math\$fib\(')
         self.assertNotRegex(after, r'call .*math\$(?:add|_add|squared)\(')
         # Recursive calls that LLVM leaves behind still target the library.
@@ -86,8 +92,8 @@ class OptimizationTests(unittest.TestCase):
                          rf' U .*{re.escape(STAMP)}math\$fib\(')
 
     def test_unoptimized_inlining_stays_bounded(self):
-        # Each level calls the one below twice: inlining every level would
-        # make 2^24 copies, so the upper levels stay calls.
+        # Each level calls the one below twice: writing out or inlining every
+        # level would make 2^24 copies, so the upper levels stay calls.
         flags = ["--package", FIXTURES / "doubling"]
         self.assertRegex(run(ZANEC, "--ll", *flags), r'call .*doubling\$level23\(')
         exe = self.out / "doubling"
@@ -105,7 +111,7 @@ class OptimizationTests(unittest.TestCase):
                              rf' U _?.*{re.escape(STAMP)}math\$fib\(')
 
     def test_runtime_results(self):
-        expected = "library\n42\n100\n9\n10\n49\n8\n99\n4\n36\n16\n21\n"
+        expected = "library\n42\n100\n9\n10\n49\n7\n8\n99\n4\n36\n16\n21\n"
         for optimize in [False, True]:
             exe = self.out / f"app-{optimize}"
             run(ZANEC, "--build", exe, "--link", self.obj,

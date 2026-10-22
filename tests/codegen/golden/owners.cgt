@@ -46,13 +46,15 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: owners$funds(this owners$Account)
-    │       │       │   └── args[0]: address of #1 : ptr
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64, i64}
+    │       │       │       ├── path: 1
+    │       │       │       └── base: address of #1 : ptr
     │       │       └── right: 15 : i64
     │       ├── body[3] > hold:
-    │       │   ├── local: #3
+    │       │   ├── local: #5
     │       │   ├── scope: %2
     │       │   ├── value > take:
     │       │   │   ├── type: {i64, i64}
@@ -70,14 +72,27 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, i64}
     │       │       │       ├── path: 1
-    │       │       │       └── base: address of #3 : ptr
+    │       │       │       └── base: address of #5 : ptr
     │       │       └── right: 15 : i64
     │       ├── body[5] > overwrite:
     │       │   ├── address: address of #1 : ptr
-    │       │   ├── value > call:
+    │       │   ├── value > expand:
     │       │   │   ├── type: {i64, i64}
-    │       │   │   ├── fn: owners$Account(%primitives$I64)
-    │       │   │   └── args[0]: 2 : i64
+    │       │   │   ├── label: @7
+    │       │   │   ├── result: #8
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #6
+    │       │   │   │   └── value: 2 : i64
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #8
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @7
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {i64, i64}
+    │       │   │   │       │   ├── members[0] > member 0: local #6 : i64
+    │       │   │   │       │   └── members[1] > member 1: 0 : i64
+    │       │   │   │       └── layout: owners$Account
+    │       │   │   └── body[2]: leave @7
     │       │   └── layout: owners$Account
     │       ├── body[6] > eval > call:
     │       │   ├── type: void
@@ -98,10 +113,12 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: owners$balanceOf(owners$Account)
-    │       │       │   └── args[0]: address of #3 : ptr
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64, i64}
+    │       │       │       ├── path: 1
+    │       │       │       └── base: address of #5 : ptr
     │       │       └── right: 15 : i64
     │       ├── body[8] > eval > call:
     │       │   ├── type: void
@@ -109,10 +126,12 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: owners$balanceOf(owners$Account)
-    │       │       │   └── args[0]: address of #1 : ptr
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64, i64}
+    │       │       │       ├── path: 1
+    │       │       │       └── base: address of #1 : ptr
     │       │       └── right: 0 : i64
     │       ├── body[9] > eval > call:
     │       │   ├── type: void
@@ -120,16 +139,30 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: owners$closed(^owners$Account)
-    │       │       │   └── args[0] > take:
-    │       │       │       ├── type: {i64, i64}
-    │       │       │       ├── address: address of #1 : ptr
-    │       │       │       └── layout: ^owners$Account
+    │       │       │   ├── label: @14
+    │       │       │   ├── result: #15
+    │       │       │   ├── body[0] > hold:
+    │       │       │   │   ├── local: #13
+    │       │       │   │   ├── scope: %2
+    │       │       │   │   ├── value > take:
+    │       │       │   │   │   ├── type: {i64, i64}
+    │       │       │   │   │   ├── address: address of #1 : ptr
+    │       │       │   │   │   └── layout: ^owners$Account
+    │       │       │   │   └── layout: ^owners$Account
+    │       │       │   ├── body[1] > assign:
+    │       │       │   │   ├── place: #15
+    │       │       │   │   └── value > deref:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       └── ptr > offset:
+    │       │       │   │           ├── within: {i64, i64}
+    │       │       │   │           ├── path: 1
+    │       │       │   │           └── base: address of #13 : ptr
+    │       │       │   └── body[2]: leave @14
     │       │       └── right: 0 : i64
     │       ├── body[10] > hold:
-    │       │   ├── local: #4
+    │       │   ├── local: #16
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {i64, i64}
@@ -138,13 +171,13 @@
     │       │   │   └── args[1]: 7 : i64
     │       │   └── layout: ^owners$Account
     │       ├── body[11] > overwrite:
-    │       │   ├── address: address of #4 : ptr
+    │       │   ├── address: address of #16 : ptr
     │       │   ├── value > call:
     │       │   │   ├── type: {i64, i64}
     │       │   │   ├── fn: owners$relayed(^owners$Account)
     │       │   │   └── args[0] > take:
     │       │   │       ├── type: {i64, i64}
-    │       │   │       ├── address: address of #4 : ptr
+    │       │   │       ├── address: address of #16 : ptr
     │       │   │       └── layout: ^owners$Account
     │       │   └── layout: owners$Account
     │       ├── body[12] > eval > call:
@@ -158,7 +191,7 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64, i64}
     │       │       │       ├── path: 1
-    │       │       │       └── base: address of #4 : ptr
+    │       │       │       └── base: address of #16 : ptr
     │       │       └── right: 8 : i64
     │       ├── body[13] > eval > call:
     │       │   ├── type: void
@@ -166,13 +199,40 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: owners$closed(^owners$Account)
-    │       │       │   └── args[0] > call:
-    │       │       │       ├── type: {i64, i64}
-    │       │       │       ├── fn: owners$Account(%primitives$I64)
-    │       │       │       └── args[0]: 4 : i64
+    │       │       │   ├── label: @21
+    │       │       │   ├── result: #22
+    │       │       │   ├── body[0] > hold:
+    │       │       │   │   ├── local: #20
+    │       │       │   │   ├── scope: %2
+    │       │       │   │   ├── value > expand:
+    │       │       │   │   │   ├── type: {i64, i64}
+    │       │       │   │   │   ├── label: @18
+    │       │       │   │   │   ├── result: #19
+    │       │       │   │   │   ├── body[0] > let:
+    │       │       │   │   │   │   ├── local: #17
+    │       │       │   │   │   │   └── value: 4 : i64
+    │       │       │   │   │   ├── body[1] > assign:
+    │       │       │   │   │   │   ├── place: #19
+    │       │       │   │   │   │   └── value > escape:
+    │       │       │   │   │   │       ├── exit: @18
+    │       │       │   │   │   │       ├── value > record:
+    │       │       │   │   │   │       │   ├── type: {i64, i64}
+    │       │       │   │   │   │       │   ├── members[0] > member 0: local #17 : i64
+    │       │       │   │   │   │       │   └── members[1] > member 1: 0 : i64
+    │       │       │   │   │   │       └── layout: owners$Account
+    │       │       │   │   │   └── body[2]: leave @18
+    │       │       │   │   └── layout: ^owners$Account
+    │       │       │   ├── body[1] > assign:
+    │       │       │   │   ├── place: #22
+    │       │       │   │   └── value > deref:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       └── ptr > offset:
+    │       │       │   │           ├── within: {i64, i64}
+    │       │       │   │           ├── path: 1
+    │       │       │   │           └── base: address of #20 : ptr
+    │       │       │   └── body[2]: leave @21
     │       │       └── right: 0 : i64
     │       ├── body[14] > eval > call:
     │       │   ├── type: void
@@ -180,25 +240,37 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: owners$balanceOf(owners$Account)
-    │       │       │   └── args[0] > expand:
-    │       │       │       ├── type: ptr
-    │       │       │       ├── label: @6
-    │       │       │       ├── result: #7
-    │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #5
-    │       │       │       │   ├── scope: %2
-    │       │       │       │   ├── value > call:
-    │       │       │       │   │   ├── type: {i64, i64}
-    │       │       │       │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
-    │       │       │       │   │   ├── args[0]: 5 : i64
-    │       │       │       │   │   └── args[1]: 6 : i64
-    │       │       │       │   └── layout: owners$Account
-    │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #7
-    │       │       │           └── value: address of #5 : ptr
+    │       │       │   ├── label: @27
+    │       │       │   ├── result: #28
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #26
+    │       │       │   │   └── value > expand:
+    │       │       │   │       ├── type: ptr
+    │       │       │   │       ├── label: @24
+    │       │       │   │       ├── result: #25
+    │       │       │   │       ├── body[0] > hold:
+    │       │       │   │       │   ├── local: #23
+    │       │       │   │       │   ├── scope: %2
+    │       │       │   │       │   ├── value > call:
+    │       │       │   │       │   │   ├── type: {i64, i64}
+    │       │       │   │       │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
+    │       │       │   │       │   │   ├── args[0]: 5 : i64
+    │       │       │   │       │   │   └── args[1]: 6 : i64
+    │       │       │   │       │   └── layout: owners$Account
+    │       │       │   │       └── body[1] > assign:
+    │       │       │   │           ├── place: #25
+    │       │       │   │           └── value: address of #23 : ptr
+    │       │       │   ├── body[1] > assign:
+    │       │       │   │   ├── place: #28
+    │       │       │   │   └── value > deref:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       └── ptr > offset:
+    │       │       │   │           ├── within: {i64, i64}
+    │       │       │   │           ├── path: 1
+    │       │       │   │           └── base: local #26 : ptr
+    │       │       │   └── body[2]: leave @27
     │       │       └── right: 6 : i64
     │       ├── body[15] > eval > call:
     │       │   ├── type: void
@@ -216,48 +288,61 @@
     │       │       │       └── args[1]: 2 : i64
     │       │       └── right: 4 : i64
     │       ├── body[16] > hold:
-    │       │   ├── local: #8
+    │       │   ├── local: #32
     │       │   ├── scope: %2
     │       │   ├── value > case:
     │       │   │   ├── type: <void | {i64, i64}>
     │       │   │   ├── index: 1
-    │       │   │   └── payload > call:
+    │       │   │   └── payload > expand:
     │       │   │       ├── type: {i64, i64}
-    │       │   │       ├── fn: owners$Account(%primitives$I64)
-    │       │   │       └── args[0]: 3 : i64
+    │       │   │       ├── label: @30
+    │       │   │       ├── result: #31
+    │       │   │       ├── body[0] > let:
+    │       │   │       │   ├── local: #29
+    │       │   │       │   └── value: 3 : i64
+    │       │   │       ├── body[1] > assign:
+    │       │   │       │   ├── place: #31
+    │       │   │       │   └── value > escape:
+    │       │   │       │       ├── exit: @30
+    │       │   │       │       ├── value > record:
+    │       │   │       │       │   ├── type: {i64, i64}
+    │       │   │       │       │   ├── members[0] > member 0: local #29 : i64
+    │       │   │       │       │   └── members[1] > member 1: 0 : i64
+    │       │   │       │       └── layout: owners$Account
+    │       │   │       └── body[2]: leave @30
     │       │   └── layout: owners$Slot
     │       ├── body[17] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
-    │       │       ├── label: @9
-    │       │       ├── result: #10
+    │       │       ├── label: @33
+    │       │       ├── result: #34
     │       │       ├── body[0] > let:
-    │       │       │   ├── local: #11
-    │       │       │   └── value: address of #8 : ptr
+    │       │       │   ├── local: #35
+    │       │       │   └── value: address of #32 : ptr
     │       │       └── body[1] > switch:
     │       │           ├── value > deref:
     │       │           │   ├── type: <void | {i64, i64}>
-    │       │           │   └── ptr: local #11 : ptr
+    │       │           │   └── ptr: local #35 : ptr
     │       │           ├── cases[0] > case 0[0] > let:
-    │       │           │   ├── local: #12
+    │       │           │   ├── local: #36
     │       │           │   └── value > offset:
     │       │           │       ├── within: <void | {i64, i64}>
     │       │           │       ├── path: 0
-    │       │           │       └── base: local #11 : ptr
+    │       │           │       └── base: local #35 : ptr
     │       │           ├── cases[0] > case 0[1] > assign:
-    │       │           │   ├── place: #10
+    │       │           │   ├── place: #34
     │       │           │   └── value: false : i1
-    │       │           ├── cases[0] > case 0[2]: leave @9
+    │       │           ├── cases[0] > case 0[2]: leave @33
     │       │           ├── cases[1] > case 1[0] > let:
-    │       │           │   ├── local: #13
+    │       │           │   ├── local: #37
     │       │           │   └── value > offset:
     │       │           │       ├── within: <void | {i64, i64}>
     │       │           │       ├── path: 1
-    │       │           │       └── base: local #11 : ptr
+    │       │           │       └── base: local #35 : ptr
     │       │           ├── cases[1] > case 1[1] > assign:
-    │       │           │   ├── place: #10
+    │       │           │   ├── place: #34
     │       │           │   └── value > binary:
     │       │           │       ├── type: i1
     │       │           │       ├── op: ==
@@ -266,9 +351,9 @@
     │       │           │       │   └── ptr > offset:
     │       │           │       │       ├── within: {i64, i64}
     │       │           │       │       ├── path: 0
-    │       │           │       │       └── base: local #13 : ptr
+    │       │           │       │       └── base: local #37 : ptr
     │       │           │       └── right: 3 : i64
-    │       │           └── cases[1] > case 1[2]: leave @9
+    │       │           └── cases[1] > case 1[2]: leave @33
     │       ├── body[18] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: owners$check(%primitives$Bool)
@@ -288,31 +373,31 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @14
-    │       │       │   ├── result: #15
+    │       │       │   ├── label: @38
+    │       │       │   ├── result: #39
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #16
+    │       │       │   │   ├── local: #40
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | i64 | void>
     │       │       │   │       ├── fn: owners$overdrawn(%primitives$I64)
     │       │       │   │       └── args[0]: 1 : i64
     │       │       │   └── body[1] > switch:
-    │       │       │       ├── value: local #16 : <i64 | i64 | void>
+    │       │       │       ├── value: local #40 : <i64 | i64 | void>
     │       │       │       ├── cases[0] > case 0[0] > assign:
-    │       │       │       │   ├── place: #15
+    │       │       │       │   ├── place: #39
     │       │       │       │   └── value > payload:
     │       │       │       │       ├── type: i64
     │       │       │       │       ├── index: 0
-    │       │       │       │       └── value: local #16 : <i64 | i64 | void>
-    │       │       │       ├── cases[0] > case 0[1]: leave @14
+    │       │       │       │       └── value: local #40 : <i64 | i64 | void>
+    │       │       │       ├── cases[0] > case 0[1]: leave @38
     │       │       │       ├── cases[1] > case 1[0] > eval > payload:
     │       │       │       │   ├── type: i64
     │       │       │       │   ├── index: 1
-    │       │       │       │   └── value: local #16 : <i64 | i64 | void>
+    │       │       │       │   └── value: local #40 : <i64 | i64 | void>
     │       │       │       ├── cases[1] > case 1[1] > assign:
-    │       │       │       │   ├── place: #15
+    │       │       │       │   ├── place: #39
     │       │       │       │   └── value: 0 : i64
-    │       │       │       └── cases[1] > case 1[2]: leave @14
+    │       │       │       └── cases[1] > case 1[2]: leave @38
     │       │       └── right: 5 : i64
     │       ├── body[20] > eval > call:
     │       │   ├── type: void
@@ -322,37 +407,37 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @17
-    │       │       │   ├── result: #18
+    │       │       │   ├── label: @41
+    │       │       │   ├── result: #42
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #19
+    │       │       │   │   ├── local: #43
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | i64 | void>
     │       │       │   │       ├── fn: owners$overdrawn(%primitives$I64)
     │       │       │   │       └── args[0]: 7 : i64
     │       │       │   └── body[1] > switch:
-    │       │       │       ├── value: local #19 : <i64 | i64 | void>
+    │       │       │       ├── value: local #43 : <i64 | i64 | void>
     │       │       │       ├── cases[0] > case 0[0] > assign:
-    │       │       │       │   ├── place: #18
+    │       │       │       │   ├── place: #42
     │       │       │       │   └── value > payload:
     │       │       │       │       ├── type: i64
     │       │       │       │       ├── index: 0
-    │       │       │       │       └── value: local #19 : <i64 | i64 | void>
-    │       │       │       ├── cases[0] > case 0[1]: leave @17
+    │       │       │       │       └── value: local #43 : <i64 | i64 | void>
+    │       │       │       ├── cases[0] > case 0[1]: leave @41
     │       │       │       ├── cases[1] > case 1[0] > let:
-    │       │       │       │   ├── local: #20
+    │       │       │       │   ├── local: #44
     │       │       │       │   └── value > payload:
     │       │       │       │       ├── type: i64
     │       │       │       │       ├── index: 1
-    │       │       │       │       └── value: local #19 : <i64 | i64 | void>
+    │       │       │       │       └── value: local #43 : <i64 | i64 | void>
     │       │       │       ├── cases[1] > case 1[1] > assign:
-    │       │       │       │   ├── place: #18
+    │       │       │       │   ├── place: #42
     │       │       │       │   └── value > binary:
     │       │       │       │       ├── type: i64
     │       │       │       │       ├── op: +
-    │       │       │       │       ├── left: local #20 : i64
+    │       │       │       │       ├── left: local #44 : i64
     │       │       │       │       └── right: 1 : i64
-    │       │       │       └── cases[1] > case 1[2]: leave @17
+    │       │       │       └── cases[1] > case 1[2]: leave @41
     │       │       └── right: 8 : i64
     │       ├── body[21] > eval > call:
     │       │   ├── type: void
@@ -384,42 +469,42 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @21
-    │       │       │   ├── result: #22
+    │       │       │   ├── label: @45
+    │       │       │   ├── result: #46
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #23
+    │       │       │   │   ├── local: #47
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | {i64, i64} | void>
     │       │       │   │       ├── fn: owners$refused(%primitives$I64)
     │       │       │   │       └── args[0]: 0 : i64
     │       │       │   └── body[1] > switch:
-    │       │       │       ├── value: local #23 : <i64 | {i64, i64} | void>
+    │       │       │       ├── value: local #47 : <i64 | {i64, i64} | void>
     │       │       │       ├── cases[0] > case 0[0] > assign:
-    │       │       │       │   ├── place: #22
+    │       │       │       │   ├── place: #46
     │       │       │       │   └── value > payload:
     │       │       │       │       ├── type: i64
     │       │       │       │       ├── index: 0
-    │       │       │       │       └── value: local #23 : <i64 | {i64, i64} | void>
-    │       │       │       ├── cases[0] > case 0[1]: leave @21
+    │       │       │       │       └── value: local #47 : <i64 | {i64, i64} | void>
+    │       │       │       ├── cases[0] > case 0[1]: leave @45
     │       │       │       └── cases[1] > case 1[0] > scope:
-    │       │       │           ├── id: %25
+    │       │       │           ├── id: %49
     │       │       │           ├── body[0] > hold:
-    │       │       │           │   ├── local: #24
-    │       │       │           │   ├── scope: %25
+    │       │       │           │   ├── local: #48
+    │       │       │           │   ├── scope: %49
     │       │       │           │   ├── value > payload:
     │       │       │           │   │   ├── type: {i64, i64}
     │       │       │           │   │   ├── index: 1
-    │       │       │           │   │   └── value: local #23 : <i64 | {i64, i64} | void>
+    │       │       │           │   │   └── value: local #47 : <i64 | {i64, i64} | void>
     │       │       │           │   └── layout: ^owners$Account
     │       │       │           ├── body[1] > assign:
-    │       │       │           │   ├── place: #22
+    │       │       │           │   ├── place: #46
     │       │       │           │   └── value > deref:
     │       │       │           │       ├── type: i64
     │       │       │           │       └── ptr > offset:
     │       │       │           │           ├── within: {i64, i64}
     │       │       │           │           ├── path: 1
-    │       │       │           │           └── base: address of #24 : ptr
-    │       │       │           └── body[2]: leave @21
+    │       │       │           │           └── base: address of #48 : ptr
+    │       │       │           └── body[2]: leave @45
     │       │       └── right: 70 : i64
     │       ├── body[24] > eval > call:
     │       │   ├── type: void
@@ -429,42 +514,42 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @26
-    │       │       │   ├── result: #27
+    │       │       │   ├── label: @50
+    │       │       │   ├── result: #51
     │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #28
+    │       │       │   │   ├── local: #52
     │       │       │   │   └── value > call:
     │       │       │   │       ├── type: <i64 | {i64, i64} | void>
     │       │       │   │       ├── fn: owners$refused(%primitives$I64)
     │       │       │   │       └── args[0]: 4 : i64
     │       │       │   └── body[1] > switch:
-    │       │       │       ├── value: local #28 : <i64 | {i64, i64} | void>
+    │       │       │       ├── value: local #52 : <i64 | {i64, i64} | void>
     │       │       │       ├── cases[0] > case 0[0] > assign:
-    │       │       │       │   ├── place: #27
+    │       │       │       │   ├── place: #51
     │       │       │       │   └── value > payload:
     │       │       │       │       ├── type: i64
     │       │       │       │       ├── index: 0
-    │       │       │       │       └── value: local #28 : <i64 | {i64, i64} | void>
-    │       │       │       ├── cases[0] > case 0[1]: leave @26
+    │       │       │       │       └── value: local #52 : <i64 | {i64, i64} | void>
+    │       │       │       ├── cases[0] > case 0[1]: leave @50
     │       │       │       └── cases[1] > case 1[0] > scope:
-    │       │       │           ├── id: %30
+    │       │       │           ├── id: %54
     │       │       │           ├── body[0] > hold:
-    │       │       │           │   ├── local: #29
-    │       │       │           │   ├── scope: %30
+    │       │       │           │   ├── local: #53
+    │       │       │           │   ├── scope: %54
     │       │       │           │   ├── value > payload:
     │       │       │           │   │   ├── type: {i64, i64}
     │       │       │           │   │   ├── index: 1
-    │       │       │           │   │   └── value: local #28 : <i64 | {i64, i64} | void>
+    │       │       │           │   │   └── value: local #52 : <i64 | {i64, i64} | void>
     │       │       │           │   └── layout: ^owners$Account
     │       │       │           ├── body[1] > assign:
-    │       │       │           │   ├── place: #27
+    │       │       │           │   ├── place: #51
     │       │       │           │   └── value > deref:
     │       │       │           │       ├── type: i64
     │       │       │           │       └── ptr > offset:
     │       │       │           │           ├── within: {i64, i64}
     │       │       │           │           ├── path: 1
-    │       │       │           │           └── base: address of #29 : ptr
-    │       │       │           └── body[2]: leave @26
+    │       │       │           │           └── base: address of #53 : ptr
+    │       │       │           └── body[2]: leave @50
     │       │       └── right: 4 : i64
     │       ├── body[25] > eval > call:
     │       │   ├── type: void
@@ -472,13 +557,144 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: owners$chosen(owners$Choice)
-    │       │       │   └── args[0] > case:
-    │       │       │       ├── type: <i64 | void>
-    │       │       │       ├── index: 0
-    │       │       │       └── payload: 5 : i64
+    │       │       │   ├── label: @56
+    │       │       │   ├── result: #57
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #55
+    │       │       │   │   └── value > case:
+    │       │       │   │       ├── type: <i64 | void>
+    │       │       │   │       ├── index: 0
+    │       │       │   │       └── payload: 5 : i64
+    │       │       │   ├── body[1] > assign:
+    │       │       │   │   ├── place: #57
+    │       │       │   │   └── value > expand:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── label: @58
+    │       │       │   │       ├── result: #59
+    │       │       │   │       ├── body[0] > let:
+    │       │       │   │       │   ├── local: #60
+    │       │       │   │       │   └── value: address of #55 : ptr
+    │       │       │   │       └── body[1] > switch:
+    │       │       │   │           ├── value > deref:
+    │       │       │   │           │   ├── type: <i64 | void>
+    │       │       │   │           │   └── ptr: local #60 : ptr
+    │       │       │   │           ├── cases[0] > case 0[0] > let:
+    │       │       │   │           │   ├── local: #61
+    │       │       │   │           │   └── value > offset:
+    │       │       │   │           │       ├── within: <i64 | void>
+    │       │       │   │           │       ├── path: 0
+    │       │       │   │           │       └── base: local #60 : ptr
+    │       │       │   │           ├── cases[0] > case 0[1] > scope:
+    │       │       │   │           │   ├── id: %63
+    │       │       │   │           │   ├── body[0] > hold:
+    │       │       │   │           │   │   ├── local: #62
+    │       │       │   │           │   │   ├── scope: %63
+    │       │       │   │           │   │   ├── value > call:
+    │       │       │   │           │   │   │   ├── type: {i64, i64}
+    │       │       │   │           │   │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
+    │       │       │   │           │   │   │   ├── args[0] > deref:
+    │       │       │   │           │   │   │   │   ├── type: i64
+    │       │       │   │           │   │   │   │   └── ptr: local #61 : ptr
+    │       │       │   │           │   │   │   └── args[1] > deref:
+    │       │       │   │           │   │   │       ├── type: i64
+    │       │       │   │           │   │   │       └── ptr: local #61 : ptr
+    │       │       │   │           │   │   └── layout: ^owners$Account
+    │       │       │   │           │   ├── body[1] > eval > expand:
+    │       │       │   │           │   │   ├── type: i1
+    │       │       │   │           │   │   ├── label: @65
+    │       │       │   │           │   │   ├── result: #66
+    │       │       │   │           │   │   ├── body[0] > let:
+    │       │       │   │           │   │   │   ├── local: #64
+    │       │       │   │           │   │   │   └── value > binary:
+    │       │       │   │           │   │   │       ├── type: i1
+    │       │       │   │           │   │   │       ├── op: ==
+    │       │       │   │           │   │   │       ├── left > deref:
+    │       │       │   │           │   │   │       │   ├── type: i64
+    │       │       │   │           │   │   │       │   └── ptr > offset:
+    │       │       │   │           │   │   │       │       ├── within: {i64, i64}
+    │       │       │   │           │   │   │       │       ├── path: 1
+    │       │       │   │           │   │   │       │       └── base: address of #62 : ptr
+    │       │       │   │           │   │   │       └── right: 0 : i64
+    │       │       │   │           │   │   ├── body[1] > if:
+    │       │       │   │           │   │   │   ├── cond: local #64 : i1
+    │       │       │   │           │   │   │   └── body[0] > scope:
+    │       │       │   │           │   │   │       ├── id: %69
+    │       │       │   │           │   │   │       ├── body[0] > hold:
+    │       │       │   │           │   │   │       │   ├── local: #68
+    │       │       │   │           │   │   │       │   ├── scope: %69
+    │       │       │   │           │   │   │       │   ├── value: local #62 : {i64, i64}
+    │       │       │   │           │   │   │       │   └── layout: owners$Account
+    │       │       │   │           │   │   │       ├── body[1] > assign:
+    │       │       │   │           │   │   │       │   ├── place: #59
+    │       │       │   │           │   │   │       │   └── value > binary:
+    │       │       │   │           │   │   │       │       ├── type: i64
+    │       │       │   │           │   │   │       │       ├── op: *
+    │       │       │   │           │   │   │       │       ├── left > deref:
+    │       │       │   │           │   │   │       │       │   ├── type: i64
+    │       │       │   │           │   │   │       │       │   └── ptr > offset:
+    │       │       │   │           │   │   │       │       │       ├── within: {i64, i64}
+    │       │       │   │           │   │   │       │       │       ├── path: 0
+    │       │       │   │           │   │   │       │       │       └── base: address of #68 : ptr
+    │       │       │   │           │   │   │       │       └── right: 100 : i64
+    │       │       │   │           │   │   │       └── body[2]: leave @58
+    │       │       │   │           │   │   ├── body[2] > assign:
+    │       │       │   │           │   │   │   ├── place: #66
+    │       │       │   │           │   │   │   └── value: local #64 : i1
+    │       │       │   │           │   │   └── body[3]: leave @65
+    │       │       │   │           │   ├── body[2] > assign:
+    │       │       │   │           │   │   ├── place: #59
+    │       │       │   │           │   │   └── value > deref:
+    │       │       │   │           │   │       ├── type: i64
+    │       │       │   │           │   │       └── ptr > offset:
+    │       │       │   │           │   │           ├── within: {i64, i64}
+    │       │       │   │           │   │           ├── path: 1
+    │       │       │   │           │   │           └── base: address of #62 : ptr
+    │       │       │   │           │   └── body[3]: leave @58
+    │       │       │   │           ├── cases[1] > case 1[0] > let:
+    │       │       │   │           │   ├── local: #70
+    │       │       │   │           │   └── value > offset:
+    │       │       │   │           │       ├── within: <i64 | void>
+    │       │       │   │           │       ├── path: 1
+    │       │       │   │           │       └── base: local #60 : ptr
+    │       │       │   │           └── cases[1] > case 1[1] > scope:
+    │       │       │   │               ├── id: %75
+    │       │       │   │               ├── body[0] > hold:
+    │       │       │   │               │   ├── local: #74
+    │       │       │   │               │   ├── scope: %75
+    │       │       │   │               │   ├── value > expand:
+    │       │       │   │               │   │   ├── type: {i64, i64}
+    │       │       │   │               │   │   ├── label: @72
+    │       │       │   │               │   │   ├── result: #73
+    │       │       │   │               │   │   ├── body[0] > let:
+    │       │       │   │               │   │   │   ├── local: #71
+    │       │       │   │               │   │   │   └── value: 6 : i64
+    │       │       │   │               │   │   ├── body[1] > assign:
+    │       │       │   │               │   │   │   ├── place: #73
+    │       │       │   │               │   │   │   └── value > escape:
+    │       │       │   │               │   │   │       ├── exit: @72
+    │       │       │   │               │   │   │       ├── value > record:
+    │       │       │   │               │   │   │       │   ├── type: {i64, i64}
+    │       │       │   │               │   │   │       │   ├── members[0] > member 0: local #71 : i64
+    │       │       │   │               │   │   │       │   └── members[1] > member 1: 0 : i64
+    │       │       │   │               │   │   │       └── layout: owners$Account
+    │       │       │   │               │   │   └── body[2]: leave @72
+    │       │       │   │               │   └── layout: owners$Account
+    │       │       │   │               ├── body[1] > assign:
+    │       │       │   │               │   ├── place: #59
+    │       │       │   │               │   └── value > binary:
+    │       │       │   │               │       ├── type: i64
+    │       │       │   │               │       ├── op: *
+    │       │       │   │               │       ├── left > deref:
+    │       │       │   │               │       │   ├── type: i64
+    │       │       │   │               │       │   └── ptr > offset:
+    │       │       │   │               │       │       ├── within: {i64, i64}
+    │       │       │   │               │       │       ├── path: 0
+    │       │       │   │               │       │       └── base: address of #74 : ptr
+    │       │       │   │               │       └── right: 100 : i64
+    │       │       │   │               └── body[2]: leave @58
+    │       │       │   └── body[2]: leave @56
     │       │       └── right: 5 : i64
     │       ├── body[26] > eval > call:
     │       │   ├── type: void
@@ -486,13 +702,144 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: owners$chosen(owners$Choice)
-    │       │       │   └── args[0] > case:
-    │       │       │       ├── type: <i64 | void>
-    │       │       │       ├── index: 0
-    │       │       │       └── payload: 0 : i64
+    │       │       │   ├── label: @77
+    │       │       │   ├── result: #78
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #76
+    │       │       │   │   └── value > case:
+    │       │       │   │       ├── type: <i64 | void>
+    │       │       │   │       ├── index: 0
+    │       │       │   │       └── payload: 0 : i64
+    │       │       │   ├── body[1] > assign:
+    │       │       │   │   ├── place: #78
+    │       │       │   │   └── value > expand:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── label: @79
+    │       │       │   │       ├── result: #80
+    │       │       │   │       ├── body[0] > let:
+    │       │       │   │       │   ├── local: #81
+    │       │       │   │       │   └── value: address of #76 : ptr
+    │       │       │   │       └── body[1] > switch:
+    │       │       │   │           ├── value > deref:
+    │       │       │   │           │   ├── type: <i64 | void>
+    │       │       │   │           │   └── ptr: local #81 : ptr
+    │       │       │   │           ├── cases[0] > case 0[0] > let:
+    │       │       │   │           │   ├── local: #82
+    │       │       │   │           │   └── value > offset:
+    │       │       │   │           │       ├── within: <i64 | void>
+    │       │       │   │           │       ├── path: 0
+    │       │       │   │           │       └── base: local #81 : ptr
+    │       │       │   │           ├── cases[0] > case 0[1] > scope:
+    │       │       │   │           │   ├── id: %84
+    │       │       │   │           │   ├── body[0] > hold:
+    │       │       │   │           │   │   ├── local: #83
+    │       │       │   │           │   │   ├── scope: %84
+    │       │       │   │           │   │   ├── value > call:
+    │       │       │   │           │   │   │   ├── type: {i64, i64}
+    │       │       │   │           │   │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
+    │       │       │   │           │   │   │   ├── args[0] > deref:
+    │       │       │   │           │   │   │   │   ├── type: i64
+    │       │       │   │           │   │   │   │   └── ptr: local #82 : ptr
+    │       │       │   │           │   │   │   └── args[1] > deref:
+    │       │       │   │           │   │   │       ├── type: i64
+    │       │       │   │           │   │   │       └── ptr: local #82 : ptr
+    │       │       │   │           │   │   └── layout: ^owners$Account
+    │       │       │   │           │   ├── body[1] > eval > expand:
+    │       │       │   │           │   │   ├── type: i1
+    │       │       │   │           │   │   ├── label: @86
+    │       │       │   │           │   │   ├── result: #87
+    │       │       │   │           │   │   ├── body[0] > let:
+    │       │       │   │           │   │   │   ├── local: #85
+    │       │       │   │           │   │   │   └── value > binary:
+    │       │       │   │           │   │   │       ├── type: i1
+    │       │       │   │           │   │   │       ├── op: ==
+    │       │       │   │           │   │   │       ├── left > deref:
+    │       │       │   │           │   │   │       │   ├── type: i64
+    │       │       │   │           │   │   │       │   └── ptr > offset:
+    │       │       │   │           │   │   │       │       ├── within: {i64, i64}
+    │       │       │   │           │   │   │       │       ├── path: 1
+    │       │       │   │           │   │   │       │       └── base: address of #83 : ptr
+    │       │       │   │           │   │   │       └── right: 0 : i64
+    │       │       │   │           │   │   ├── body[1] > if:
+    │       │       │   │           │   │   │   ├── cond: local #85 : i1
+    │       │       │   │           │   │   │   └── body[0] > scope:
+    │       │       │   │           │   │   │       ├── id: %90
+    │       │       │   │           │   │   │       ├── body[0] > hold:
+    │       │       │   │           │   │   │       │   ├── local: #89
+    │       │       │   │           │   │   │       │   ├── scope: %90
+    │       │       │   │           │   │   │       │   ├── value: local #83 : {i64, i64}
+    │       │       │   │           │   │   │       │   └── layout: owners$Account
+    │       │       │   │           │   │   │       ├── body[1] > assign:
+    │       │       │   │           │   │   │       │   ├── place: #80
+    │       │       │   │           │   │   │       │   └── value > binary:
+    │       │       │   │           │   │   │       │       ├── type: i64
+    │       │       │   │           │   │   │       │       ├── op: *
+    │       │       │   │           │   │   │       │       ├── left > deref:
+    │       │       │   │           │   │   │       │       │   ├── type: i64
+    │       │       │   │           │   │   │       │       │   └── ptr > offset:
+    │       │       │   │           │   │   │       │       │       ├── within: {i64, i64}
+    │       │       │   │           │   │   │       │       │       ├── path: 0
+    │       │       │   │           │   │   │       │       │       └── base: address of #89 : ptr
+    │       │       │   │           │   │   │       │       └── right: 100 : i64
+    │       │       │   │           │   │   │       └── body[2]: leave @79
+    │       │       │   │           │   │   ├── body[2] > assign:
+    │       │       │   │           │   │   │   ├── place: #87
+    │       │       │   │           │   │   │   └── value: local #85 : i1
+    │       │       │   │           │   │   └── body[3]: leave @86
+    │       │       │   │           │   ├── body[2] > assign:
+    │       │       │   │           │   │   ├── place: #80
+    │       │       │   │           │   │   └── value > deref:
+    │       │       │   │           │   │       ├── type: i64
+    │       │       │   │           │   │       └── ptr > offset:
+    │       │       │   │           │   │           ├── within: {i64, i64}
+    │       │       │   │           │   │           ├── path: 1
+    │       │       │   │           │   │           └── base: address of #83 : ptr
+    │       │       │   │           │   └── body[3]: leave @79
+    │       │       │   │           ├── cases[1] > case 1[0] > let:
+    │       │       │   │           │   ├── local: #91
+    │       │       │   │           │   └── value > offset:
+    │       │       │   │           │       ├── within: <i64 | void>
+    │       │       │   │           │       ├── path: 1
+    │       │       │   │           │       └── base: local #81 : ptr
+    │       │       │   │           └── cases[1] > case 1[1] > scope:
+    │       │       │   │               ├── id: %96
+    │       │       │   │               ├── body[0] > hold:
+    │       │       │   │               │   ├── local: #95
+    │       │       │   │               │   ├── scope: %96
+    │       │       │   │               │   ├── value > expand:
+    │       │       │   │               │   │   ├── type: {i64, i64}
+    │       │       │   │               │   │   ├── label: @93
+    │       │       │   │               │   │   ├── result: #94
+    │       │       │   │               │   │   ├── body[0] > let:
+    │       │       │   │               │   │   │   ├── local: #92
+    │       │       │   │               │   │   │   └── value: 6 : i64
+    │       │       │   │               │   │   ├── body[1] > assign:
+    │       │       │   │               │   │   │   ├── place: #94
+    │       │       │   │               │   │   │   └── value > escape:
+    │       │       │   │               │   │   │       ├── exit: @93
+    │       │       │   │               │   │   │       ├── value > record:
+    │       │       │   │               │   │   │       │   ├── type: {i64, i64}
+    │       │       │   │               │   │   │       │   ├── members[0] > member 0: local #92 : i64
+    │       │       │   │               │   │   │       │   └── members[1] > member 1: 0 : i64
+    │       │       │   │               │   │   │       └── layout: owners$Account
+    │       │       │   │               │   │   └── body[2]: leave @93
+    │       │       │   │               │   └── layout: owners$Account
+    │       │       │   │               ├── body[1] > assign:
+    │       │       │   │               │   ├── place: #80
+    │       │       │   │               │   └── value > binary:
+    │       │       │   │               │       ├── type: i64
+    │       │       │   │               │       ├── op: *
+    │       │       │   │               │       ├── left > deref:
+    │       │       │   │               │       │   ├── type: i64
+    │       │       │   │               │       │   └── ptr > offset:
+    │       │       │   │               │       │       ├── within: {i64, i64}
+    │       │       │   │               │       │       ├── path: 0
+    │       │       │   │               │       │       └── base: address of #95 : ptr
+    │       │       │   │               │       └── right: 100 : i64
+    │       │       │   │               └── body[2]: leave @79
+    │       │       │   └── body[2]: leave @77
     │       │       └── right: 0 : i64
     │       ├── body[27] > eval > call:
     │       │   ├── type: void
@@ -500,25 +847,156 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: owners$chosen(owners$Choice)
-    │       │       │   └── args[0] > case:
-    │       │       │       ├── type: <i64 | void>
-    │       │       │       ├── index: 1
-    │       │       │       └── payload: unit : void
+    │       │       │   ├── label: @98
+    │       │       │   ├── result: #99
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #97
+    │       │       │   │   └── value > case:
+    │       │       │   │       ├── type: <i64 | void>
+    │       │       │   │       ├── index: 1
+    │       │       │   │       └── payload: unit : void
+    │       │       │   ├── body[1] > assign:
+    │       │       │   │   ├── place: #99
+    │       │       │   │   └── value > expand:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── label: @100
+    │       │       │   │       ├── result: #101
+    │       │       │   │       ├── body[0] > let:
+    │       │       │   │       │   ├── local: #102
+    │       │       │   │       │   └── value: address of #97 : ptr
+    │       │       │   │       └── body[1] > switch:
+    │       │       │   │           ├── value > deref:
+    │       │       │   │           │   ├── type: <i64 | void>
+    │       │       │   │           │   └── ptr: local #102 : ptr
+    │       │       │   │           ├── cases[0] > case 0[0] > let:
+    │       │       │   │           │   ├── local: #103
+    │       │       │   │           │   └── value > offset:
+    │       │       │   │           │       ├── within: <i64 | void>
+    │       │       │   │           │       ├── path: 0
+    │       │       │   │           │       └── base: local #102 : ptr
+    │       │       │   │           ├── cases[0] > case 0[1] > scope:
+    │       │       │   │           │   ├── id: %105
+    │       │       │   │           │   ├── body[0] > hold:
+    │       │       │   │           │   │   ├── local: #104
+    │       │       │   │           │   │   ├── scope: %105
+    │       │       │   │           │   │   ├── value > call:
+    │       │       │   │           │   │   │   ├── type: {i64, i64}
+    │       │       │   │           │   │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
+    │       │       │   │           │   │   │   ├── args[0] > deref:
+    │       │       │   │           │   │   │   │   ├── type: i64
+    │       │       │   │           │   │   │   │   └── ptr: local #103 : ptr
+    │       │       │   │           │   │   │   └── args[1] > deref:
+    │       │       │   │           │   │   │       ├── type: i64
+    │       │       │   │           │   │   │       └── ptr: local #103 : ptr
+    │       │       │   │           │   │   └── layout: ^owners$Account
+    │       │       │   │           │   ├── body[1] > eval > expand:
+    │       │       │   │           │   │   ├── type: i1
+    │       │       │   │           │   │   ├── label: @107
+    │       │       │   │           │   │   ├── result: #108
+    │       │       │   │           │   │   ├── body[0] > let:
+    │       │       │   │           │   │   │   ├── local: #106
+    │       │       │   │           │   │   │   └── value > binary:
+    │       │       │   │           │   │   │       ├── type: i1
+    │       │       │   │           │   │   │       ├── op: ==
+    │       │       │   │           │   │   │       ├── left > deref:
+    │       │       │   │           │   │   │       │   ├── type: i64
+    │       │       │   │           │   │   │       │   └── ptr > offset:
+    │       │       │   │           │   │   │       │       ├── within: {i64, i64}
+    │       │       │   │           │   │   │       │       ├── path: 1
+    │       │       │   │           │   │   │       │       └── base: address of #104 : ptr
+    │       │       │   │           │   │   │       └── right: 0 : i64
+    │       │       │   │           │   │   ├── body[1] > if:
+    │       │       │   │           │   │   │   ├── cond: local #106 : i1
+    │       │       │   │           │   │   │   └── body[0] > scope:
+    │       │       │   │           │   │   │       ├── id: %111
+    │       │       │   │           │   │   │       ├── body[0] > hold:
+    │       │       │   │           │   │   │       │   ├── local: #110
+    │       │       │   │           │   │   │       │   ├── scope: %111
+    │       │       │   │           │   │   │       │   ├── value: local #104 : {i64, i64}
+    │       │       │   │           │   │   │       │   └── layout: owners$Account
+    │       │       │   │           │   │   │       ├── body[1] > assign:
+    │       │       │   │           │   │   │       │   ├── place: #101
+    │       │       │   │           │   │   │       │   └── value > binary:
+    │       │       │   │           │   │   │       │       ├── type: i64
+    │       │       │   │           │   │   │       │       ├── op: *
+    │       │       │   │           │   │   │       │       ├── left > deref:
+    │       │       │   │           │   │   │       │       │   ├── type: i64
+    │       │       │   │           │   │   │       │       │   └── ptr > offset:
+    │       │       │   │           │   │   │       │       │       ├── within: {i64, i64}
+    │       │       │   │           │   │   │       │       │       ├── path: 0
+    │       │       │   │           │   │   │       │       │       └── base: address of #110 : ptr
+    │       │       │   │           │   │   │       │       └── right: 100 : i64
+    │       │       │   │           │   │   │       └── body[2]: leave @100
+    │       │       │   │           │   │   ├── body[2] > assign:
+    │       │       │   │           │   │   │   ├── place: #108
+    │       │       │   │           │   │   │   └── value: local #106 : i1
+    │       │       │   │           │   │   └── body[3]: leave @107
+    │       │       │   │           │   ├── body[2] > assign:
+    │       │       │   │           │   │   ├── place: #101
+    │       │       │   │           │   │   └── value > deref:
+    │       │       │   │           │   │       ├── type: i64
+    │       │       │   │           │   │       └── ptr > offset:
+    │       │       │   │           │   │           ├── within: {i64, i64}
+    │       │       │   │           │   │           ├── path: 1
+    │       │       │   │           │   │           └── base: address of #104 : ptr
+    │       │       │   │           │   └── body[3]: leave @100
+    │       │       │   │           ├── cases[1] > case 1[0] > let:
+    │       │       │   │           │   ├── local: #112
+    │       │       │   │           │   └── value > offset:
+    │       │       │   │           │       ├── within: <i64 | void>
+    │       │       │   │           │       ├── path: 1
+    │       │       │   │           │       └── base: local #102 : ptr
+    │       │       │   │           └── cases[1] > case 1[1] > scope:
+    │       │       │   │               ├── id: %117
+    │       │       │   │               ├── body[0] > hold:
+    │       │       │   │               │   ├── local: #116
+    │       │       │   │               │   ├── scope: %117
+    │       │       │   │               │   ├── value > expand:
+    │       │       │   │               │   │   ├── type: {i64, i64}
+    │       │       │   │               │   │   ├── label: @114
+    │       │       │   │               │   │   ├── result: #115
+    │       │       │   │               │   │   ├── body[0] > let:
+    │       │       │   │               │   │   │   ├── local: #113
+    │       │       │   │               │   │   │   └── value: 6 : i64
+    │       │       │   │               │   │   ├── body[1] > assign:
+    │       │       │   │               │   │   │   ├── place: #115
+    │       │       │   │               │   │   │   └── value > escape:
+    │       │       │   │               │   │   │       ├── exit: @114
+    │       │       │   │               │   │   │       ├── value > record:
+    │       │       │   │               │   │   │       │   ├── type: {i64, i64}
+    │       │       │   │               │   │   │       │   ├── members[0] > member 0: local #113 : i64
+    │       │       │   │               │   │   │       │   └── members[1] > member 1: 0 : i64
+    │       │       │   │               │   │   │       └── layout: owners$Account
+    │       │       │   │               │   │   └── body[2]: leave @114
+    │       │       │   │               │   └── layout: owners$Account
+    │       │       │   │               ├── body[1] > assign:
+    │       │       │   │               │   ├── place: #101
+    │       │       │   │               │   └── value > binary:
+    │       │       │   │               │       ├── type: i64
+    │       │       │   │               │       ├── op: *
+    │       │       │   │               │       ├── left > deref:
+    │       │       │   │               │       │   ├── type: i64
+    │       │       │   │               │       │   └── ptr > offset:
+    │       │       │   │               │       │       ├── within: {i64, i64}
+    │       │       │   │               │       │       ├── path: 0
+    │       │       │   │               │       │       └── base: address of #116 : ptr
+    │       │       │   │               │       └── right: 100 : i64
+    │       │       │   │               └── body[2]: leave @100
+    │       │       │   └── body[2]: leave @98
     │       │       └── right: 600 : i64
     │       ├── body[28] > let:
-    │       │   ├── local: #31
+    │       │   ├── local: #118
     │       │   └── value: 0 : i64
     │       ├── body[29] > let:
-    │       │   ├── local: #32
+    │       │   ├── local: #119
     │       │   └── value: 1 : i64
     │       ├── body[30] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── label: @34
+    │       │   ├── label: @121
     │       │   ├── body[0] > let:
-    │       │   │   ├── local: #33
+    │       │   │   ├── local: #120
     │       │   │   └── value: 100000 : i64
     │       │   ├── body[1] > repeat:
     │       │   │   ├── count > binary:
@@ -527,74 +1005,88 @@
     │       │   │   │   ├── left > binary:
     │       │   │   │   │   ├── type: i64
     │       │   │   │   │   ├── op: +
-    │       │   │   │   │   ├── left: local #33 : i64
+    │       │   │   │   │   ├── left: local #120 : i64
     │       │   │   │   │   └── right > flip:
     │       │   │   │   │       ├── type: i64
-    │       │   │   │   │       └── value: local #32 : i64
+    │       │   │   │   │       └── value: local #119 : i64
     │       │   │   │   └── right: 1 : i64
     │       │   │   ├── body[0] > if:
     │       │   │   │   ├── cond: true : i1
     │       │   │   │   └── body[0] > scope:
-    │       │   │   │       ├── id: %38
+    │       │   │   │       ├── id: %125
     │       │   │   │       ├── body[0] > hold:
-    │       │   │   │       │   ├── local: #37
-    │       │   │   │       │   ├── scope: %38
+    │       │   │   │       │   ├── local: #124
+    │       │   │   │       │   ├── scope: %125
     │       │   │   │       │   ├── value > call:
     │       │   │   │       │   │   ├── type: {i64, i64}
     │       │   │   │       │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
-    │       │   │   │       │   │   ├── args[0]: local #32 : i64
+    │       │   │   │       │   │   ├── args[0]: local #119 : i64
     │       │   │   │       │   │   └── args[1]: 1 : i64
     │       │   │   │       │   └── layout: ^owners$Account
     │       │   │   │       ├── body[1] > hold:
-    │       │   │   │       │   ├── local: #39
-    │       │   │   │       │   ├── scope: %38
+    │       │   │   │       │   ├── local: #126
+    │       │   │   │       │   ├── scope: %125
     │       │   │   │       │   ├── value > take:
     │       │   │   │       │   │   ├── type: {i64, i64}
-    │       │   │   │       │   │   ├── address: address of #37 : ptr
+    │       │   │   │       │   │   ├── address: address of #124 : ptr
     │       │   │   │       │   │   └── layout: owners$Account
     │       │   │   │       │   └── layout: owners$Account
     │       │   │   │       ├── body[2] > assign:
-    │       │   │   │       │   ├── place: #31
+    │       │   │   │       │   ├── place: #118
     │       │   │   │       │   └── value > binary:
     │       │   │   │       │       ├── type: i64
     │       │   │   │       │       ├── op: +
-    │       │   │   │       │       ├── left: local #31 : i64
+    │       │   │   │       │       ├── left: local #118 : i64
     │       │   │   │       │       └── right > deref:
     │       │   │   │       │           ├── type: i64
     │       │   │   │       │           └── ptr > offset:
     │       │   │   │       │               ├── within: {i64, i64}
     │       │   │   │       │               ├── path: 1
-    │       │   │   │       │               └── base: address of #39 : ptr
+    │       │   │   │       │               └── base: address of #126 : ptr
     │       │   │   │       └── body[3] > assign:
-    │       │   │   │           ├── place: #31
+    │       │   │   │           ├── place: #118
     │       │   │   │           └── value > binary:
     │       │   │   │               ├── type: i64
     │       │   │   │               ├── op: +
-    │       │   │   │               ├── left: local #31 : i64
-    │       │   │   │               └── right > call:
+    │       │   │   │               ├── left: local #118 : i64
+    │       │   │   │               └── right > expand:
     │       │   │   │                   ├── type: i64
-    │       │   │   │                   ├── fn: owners$closed(^owners$Account)
-    │       │   │   │                   └── args[0] > call:
-    │       │   │   │                       ├── type: {i64, i64}
-    │       │   │   │                       ├── fn: owners$opened(%primitives$I64, %primitives$I64)
-    │       │   │   │                       ├── args[0]: local #32 : i64
-    │       │   │   │                       └── args[1]: 0 : i64
+    │       │   │   │                   ├── label: @128
+    │       │   │   │                   ├── result: #129
+    │       │   │   │                   ├── body[0] > hold:
+    │       │   │   │                   │   ├── local: #127
+    │       │   │   │                   │   ├── scope: %125
+    │       │   │   │                   │   ├── value > call:
+    │       │   │   │                   │   │   ├── type: {i64, i64}
+    │       │   │   │                   │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
+    │       │   │   │                   │   │   ├── args[0]: local #119 : i64
+    │       │   │   │                   │   │   └── args[1]: 0 : i64
+    │       │   │   │                   │   └── layout: ^owners$Account
+    │       │   │   │                   ├── body[1] > assign:
+    │       │   │   │                   │   ├── place: #129
+    │       │   │   │                   │   └── value > deref:
+    │       │   │   │                   │       ├── type: i64
+    │       │   │   │                   │       └── ptr > offset:
+    │       │   │   │                   │           ├── within: {i64, i64}
+    │       │   │   │                   │           ├── path: 1
+    │       │   │   │                   │           └── base: address of #127 : ptr
+    │       │   │   │                   └── body[2]: leave @128
     │       │   │   └── body[1] > assign:
-    │       │   │       ├── place: #32
+    │       │   │       ├── place: #119
     │       │   │       └── value > binary:
     │       │   │           ├── type: i64
     │       │   │           ├── op: +
-    │       │   │           ├── left: local #32 : i64
+    │       │   │           ├── left: local #119 : i64
     │       │   │           └── right: 1 : i64
     │       │   ├── body[2] > eval: unit : void
-    │       │   └── body[3]: leave @34
+    │       │   └── body[3]: leave @121
     │       ├── body[31] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: owners$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left: local #31 : i64
+    │       │       ├── left: local #118 : i64
     │       │       └── right: 100000 : i64
     │       └── body[32] > return: unit : void
     ├── funcs[2] > func:
@@ -603,19 +1095,29 @@
     │   ├── params[1]: local #2 : i64
     │   ├── ret: {i64, i64}
     │   ├── body[0] > let:
-    │   │   ├── local: #3
-    │   │   └── value > call:
+    │   │   ├── local: #5
+    │   │   └── value > expand:
     │   │       ├── type: {i64, i64}
-    │   │       ├── fn: owners$Account(%primitives$I64)
-    │   │       └── args[0]: local #1 : i64
+    │   │       ├── label: @3
+    │   │       ├── result: #4
+    │   │       ├── body[0] > assign:
+    │   │       │   ├── place: #4
+    │   │       │   └── value > escape:
+    │   │       │       ├── exit: @3
+    │   │       │       ├── value > record:
+    │   │       │       │   ├── type: {i64, i64}
+    │   │       │       │   ├── members[0] > member 0: local #1 : i64
+    │   │       │       │   └── members[1] > member 1: 0 : i64
+    │   │       │       └── layout: owners$Account
+    │   │       └── body[1]: leave @3
     │   ├── body[1] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: owners$deposit(this owners$Account, %primitives$I64)
-    │   │   ├── args[0]: address of #3 : ptr
+    │   │   ├── args[0]: address of #5 : ptr
     │   │   └── args[1]: local #2 : i64
     │   └── body[2] > return > escape:
     │       ├── exit: function
-    │       ├── value: local #3 : {i64, i64}
+    │       ├── value: local #5 : {i64, i64}
     │       └── layout: ^owners$Account
     ├── funcs[3] > func:
     │   ├── symbol: owners$deposit(this owners$Account, %primitives$I64)
@@ -636,16 +1138,6 @@
     │   │       └── right: local #2 : i64
     │   └── body[1] > return: unit : void
     ├── funcs[4] > func:
-    │   ├── symbol: owners$funds(this owners$Account)
-    │   ├── params[0]: local #1 : ptr
-    │   ├── ret: i64
-    │   └── body[0] > return > deref:
-    │       ├── type: i64
-    │       └── ptr > offset:
-    │           ├── within: {i64, i64}
-    │           ├── path: 1
-    │           └── base: local #1 : ptr
-    ├── funcs[5] > func:
     │   ├── symbol: owners$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -676,45 +1168,7 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
-    ├── funcs[6] > func:
-    │   ├── symbol: owners$Account(%primitives$I64)
-    │   ├── params[0]: local #1 : i64
-    │   ├── ret: {i64, i64}
-    │   └── body[0] > return > escape:
-    │       ├── exit: function
-    │       ├── value > record:
-    │       │   ├── type: {i64, i64}
-    │       │   ├── members[0] > member 0: local #1 : i64
-    │       │   └── members[1] > member 1: 0 : i64
-    │       └── layout: owners$Account
-    ├── funcs[7] > func:
-    │   ├── symbol: owners$balanceOf(owners$Account)
-    │   ├── params[0]: local #1 : ptr
-    │   ├── ret: i64
-    │   └── body[0] > return > deref:
-    │       ├── type: i64
-    │       └── ptr > offset:
-    │           ├── within: {i64, i64}
-    │           ├── path: 1
-    │           └── base: local #1 : ptr
-    ├── funcs[8] > func:
-    │   ├── symbol: owners$closed(^owners$Account)
-    │   ├── params[0]: local #1 : {i64, i64}
-    │   ├── ret: i64
-    │   └── body[0] > scope:
-    │       ├── id: %3
-    │       ├── body[0] > hold:
-    │       │   ├── local: #2
-    │       │   ├── scope: %3
-    │       │   ├── value: local #1 : {i64, i64}
-    │       │   └── layout: ^owners$Account
-    │       └── body[1] > return > deref:
-    │           ├── type: i64
-    │           └── ptr > offset:
-    │               ├── within: {i64, i64}
-    │               ├── path: 1
-    │               └── base: address of #2 : ptr
-    ├── funcs[9] > func:
+    ├── funcs[5] > func:
     │   ├── symbol: owners$relayed(^owners$Account)
     │   ├── params[0]: local #1 : {i64, i64}
     │   ├── ret: {i64, i64}
@@ -733,7 +1187,7 @@
     │       ├── exit: function
     │       ├── value: local #4 : {i64, i64}
     │       └── layout: ^owners$Account
-    ├── funcs[10] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: owners$lent(^owners$Account)
     │   ├── params[0]: local #1 : {i64, i64}
     │   ├── ret: i64
@@ -745,23 +1199,39 @@
     │       │   ├── value: local #1 : {i64, i64}
     │       │   └── layout: ^owners$Account
     │       ├── body[1] > let:
-    │       │   ├── local: #4
-    │       │   └── value > call:
+    │       │   ├── local: #6
+    │       │   └── value > deref:
     │       │       ├── type: i64
-    │       │       ├── fn: owners$balanceOf(owners$Account)
-    │       │       └── args[0]: address of #2 : ptr
+    │       │       └── ptr > offset:
+    │       │           ├── within: {i64, i64}
+    │       │           ├── path: 1
+    │       │           └── base: address of #2 : ptr
     │       └── body[2] > return > binary:
     │           ├── type: i64
     │           ├── op: +
-    │           ├── left: local #4 : i64
-    │           └── right > call:
+    │           ├── left: local #6 : i64
+    │           └── right > expand:
     │               ├── type: i64
-    │               ├── fn: owners$closed(^owners$Account)
-    │               └── args[0] > take:
-    │                   ├── type: {i64, i64}
-    │                   ├── address: address of #2 : ptr
-    │                   └── layout: ^owners$Account
-    ├── funcs[11] > func:
+    │               ├── label: @8
+    │               ├── result: #9
+    │               ├── body[0] > hold:
+    │               │   ├── local: #7
+    │               │   ├── scope: %3
+    │               │   ├── value > take:
+    │               │   │   ├── type: {i64, i64}
+    │               │   │   ├── address: address of #2 : ptr
+    │               │   │   └── layout: ^owners$Account
+    │               │   └── layout: ^owners$Account
+    │               ├── body[1] > assign:
+    │               │   ├── place: #9
+    │               │   └── value > deref:
+    │               │       ├── type: i64
+    │               │       └── ptr > offset:
+    │               │           ├── within: {i64, i64}
+    │               │           ├── path: 1
+    │               │           └── base: address of #7 : ptr
+    │               └── body[2]: leave @8
+    ├── funcs[7] > func:
     │   ├── symbol: owners$richest(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -841,7 +1311,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @4
     │   └── body[2] > return: 0 : i64
-    ├── funcs[12] > func:
+    ├── funcs[8] > func:
     │   ├── symbol: owners$overdrawn(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <i64 | i64 | void>
@@ -907,7 +1377,7 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: address of #2 : ptr
-    ├── funcs[13] > func:
+    ├── funcs[9] > func:
     │   ├── symbol: owners$total(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -990,7 +1460,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
-    ├── funcs[14] > func:
+    ├── funcs[10] > func:
     │   ├── symbol: owners$dropped(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1021,21 +1491,35 @@
     │   │   │   ├── body[0] > if:
     │   │   │   │   ├── cond: true : i1
     │   │   │   │   └── body[0] > scope:
-    │   │   │   │       ├── id: %8
+    │   │   │   │       ├── id: %9
     │   │   │   │       └── body[0] > assign:
     │   │   │   │           ├── place: #2
     │   │   │   │           └── value > binary:
     │   │   │   │               ├── type: i64
     │   │   │   │               ├── op: +
     │   │   │   │               ├── left: local #2 : i64
-    │   │   │   │               └── right > call:
+    │   │   │   │               └── right > expand:
     │   │   │   │                   ├── type: i64
-    │   │   │   │                   ├── fn: owners$closed(^owners$Account)
-    │   │   │   │                   └── args[0] > call:
-    │   │   │   │                       ├── type: {i64, i64}
-    │   │   │   │                       ├── fn: owners$opened(%primitives$I64, %primitives$I64)
-    │   │   │   │                       ├── args[0]: local #3 : i64
-    │   │   │   │                       └── args[1]: local #3 : i64
+    │   │   │   │                   ├── label: @10
+    │   │   │   │                   ├── result: #11
+    │   │   │   │                   ├── body[0] > hold:
+    │   │   │   │                   │   ├── local: #8
+    │   │   │   │                   │   ├── scope: %9
+    │   │   │   │                   │   ├── value > call:
+    │   │   │   │                   │   │   ├── type: {i64, i64}
+    │   │   │   │                   │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
+    │   │   │   │                   │   │   ├── args[0]: local #3 : i64
+    │   │   │   │                   │   │   └── args[1]: local #3 : i64
+    │   │   │   │                   │   └── layout: ^owners$Account
+    │   │   │   │                   ├── body[1] > assign:
+    │   │   │   │                   │   ├── place: #11
+    │   │   │   │                   │   └── value > deref:
+    │   │   │   │                   │       ├── type: i64
+    │   │   │   │                   │       └── ptr > offset:
+    │   │   │   │                   │           ├── within: {i64, i64}
+    │   │   │   │                   │           ├── path: 1
+    │   │   │   │                   │           └── base: address of #8 : ptr
+    │   │   │   │                   └── body[2]: leave @10
     │   │   │   └── body[1] > assign:
     │   │   │       ├── place: #3
     │   │   │       └── value > binary:
@@ -1046,7 +1530,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
-    ├── funcs[15] > func:
+    ├── funcs[11] > func:
     │   ├── symbol: owners$refused(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: <i64 | {i64, i64} | void>
@@ -1085,123 +1569,7 @@
     │       ├── type: <i64 | {i64, i64} | void>
     │       ├── index: 0
     │       └── payload: local #1 : i64
-    ├── funcs[16] > func:
-    │   ├── symbol: owners$chosen(owners$Choice)
-    │   ├── params[0]: local #1 : <i64 | void>
-    │   ├── ret: i64
-    │   └── body[0] > return > expand:
-    │       ├── type: i64
-    │       ├── label: @2
-    │       ├── result: #3
-    │       ├── body[0] > let:
-    │       │   ├── local: #4
-    │       │   └── value: address of #1 : ptr
-    │       └── body[1] > switch:
-    │           ├── value > deref:
-    │           │   ├── type: <i64 | void>
-    │           │   └── ptr: local #4 : ptr
-    │           ├── cases[0] > case 0[0] > let:
-    │           │   ├── local: #5
-    │           │   └── value > offset:
-    │           │       ├── within: <i64 | void>
-    │           │       ├── path: 0
-    │           │       └── base: local #4 : ptr
-    │           ├── cases[0] > case 0[1] > scope:
-    │           │   ├── id: %7
-    │           │   ├── body[0] > hold:
-    │           │   │   ├── local: #6
-    │           │   │   ├── scope: %7
-    │           │   │   ├── value > call:
-    │           │   │   │   ├── type: {i64, i64}
-    │           │   │   │   ├── fn: owners$opened(%primitives$I64, %primitives$I64)
-    │           │   │   │   ├── args[0] > deref:
-    │           │   │   │   │   ├── type: i64
-    │           │   │   │   │   └── ptr: local #5 : ptr
-    │           │   │   │   └── args[1] > deref:
-    │           │   │   │       ├── type: i64
-    │           │   │   │       └── ptr: local #5 : ptr
-    │           │   │   └── layout: ^owners$Account
-    │           │   ├── body[1] > eval > expand:
-    │           │   │   ├── type: i1
-    │           │   │   ├── label: @9
-    │           │   │   ├── result: #10
-    │           │   │   ├── body[0] > let:
-    │           │   │   │   ├── local: #8
-    │           │   │   │   └── value > binary:
-    │           │   │   │       ├── type: i1
-    │           │   │   │       ├── op: ==
-    │           │   │   │       ├── left > deref:
-    │           │   │   │       │   ├── type: i64
-    │           │   │   │       │   └── ptr > offset:
-    │           │   │   │       │       ├── within: {i64, i64}
-    │           │   │   │       │       ├── path: 1
-    │           │   │   │       │       └── base: address of #6 : ptr
-    │           │   │   │       └── right: 0 : i64
-    │           │   │   ├── body[1] > if:
-    │           │   │   │   ├── cond: local #8 : i1
-    │           │   │   │   └── body[0] > scope:
-    │           │   │   │       ├── id: %13
-    │           │   │   │       ├── body[0] > hold:
-    │           │   │   │       │   ├── local: #12
-    │           │   │   │       │   ├── scope: %13
-    │           │   │   │       │   ├── value: local #6 : {i64, i64}
-    │           │   │   │       │   └── layout: owners$Account
-    │           │   │   │       ├── body[1] > assign:
-    │           │   │   │       │   ├── place: #3
-    │           │   │   │       │   └── value > binary:
-    │           │   │   │       │       ├── type: i64
-    │           │   │   │       │       ├── op: *
-    │           │   │   │       │       ├── left > deref:
-    │           │   │   │       │       │   ├── type: i64
-    │           │   │   │       │       │   └── ptr > offset:
-    │           │   │   │       │       │       ├── within: {i64, i64}
-    │           │   │   │       │       │       ├── path: 0
-    │           │   │   │       │       │       └── base: address of #12 : ptr
-    │           │   │   │       │       └── right: 100 : i64
-    │           │   │   │       └── body[2]: leave @2
-    │           │   │   ├── body[2] > assign:
-    │           │   │   │   ├── place: #10
-    │           │   │   │   └── value: local #8 : i1
-    │           │   │   └── body[3]: leave @9
-    │           │   ├── body[2] > assign:
-    │           │   │   ├── place: #3
-    │           │   │   └── value > deref:
-    │           │   │       ├── type: i64
-    │           │   │       └── ptr > offset:
-    │           │   │           ├── within: {i64, i64}
-    │           │   │           ├── path: 1
-    │           │   │           └── base: address of #6 : ptr
-    │           │   └── body[3]: leave @2
-    │           ├── cases[1] > case 1[0] > let:
-    │           │   ├── local: #14
-    │           │   └── value > offset:
-    │           │       ├── within: <i64 | void>
-    │           │       ├── path: 1
-    │           │       └── base: local #4 : ptr
-    │           └── cases[1] > case 1[1] > scope:
-    │               ├── id: %16
-    │               ├── body[0] > hold:
-    │               │   ├── local: #15
-    │               │   ├── scope: %16
-    │               │   ├── value > call:
-    │               │   │   ├── type: {i64, i64}
-    │               │   │   ├── fn: owners$Account(%primitives$I64)
-    │               │   │   └── args[0]: 6 : i64
-    │               │   └── layout: owners$Account
-    │               ├── body[1] > assign:
-    │               │   ├── place: #3
-    │               │   └── value > binary:
-    │               │       ├── type: i64
-    │               │       ├── op: *
-    │               │       ├── left > deref:
-    │               │       │   ├── type: i64
-    │               │       │   └── ptr > offset:
-    │               │       │       ├── within: {i64, i64}
-    │               │       │       ├── path: 0
-    │               │       │       └── base: address of #15 : ptr
-    │               │       └── right: 100 : i64
-    │               └── body[2]: leave @2
-    └── funcs[17] > func:
+    └── funcs[12] > func:
         ├── symbol: owners$guard(%primitives$Bool)
         ├── params[0]: local #1 : i1
         ├── ret: <void | void | void>

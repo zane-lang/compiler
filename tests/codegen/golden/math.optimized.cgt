@@ -335,161 +335,441 @@
     │   ├── body[77] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: sin
-    │   │       │   └── args[0]: 0x1p-1 : f64
-    │   │       └── args[1]: 0x1.eaee8744b05fp-2 : f64
+    │   │       ├── label: @736
+    │   │       ├── result: #737
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #732
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: sin
+    │   │       │       └── args[0]: 0x1p-1 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #735
+    │   │       │   └── value: 0x1.eaee8744b05fp-2 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #737
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f64
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f64
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #732 : f64
+    │   │       │       │       └── right: -0x1.eaee8744b05fp-2 : f64
+    │   │       │       └── right: 0x1.19799812dea11p-40 : f64
+    │   │       └── body[3]: leave @736
     │   ├── body[78] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: cos
-    │   │       │   └── args[0]: 0x1p-1 : f64
-    │   │       └── args[1]: 0x1.c1528065b7d5p-1 : f64
+    │   │       ├── label: @746
+    │   │       ├── result: #747
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #742
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: cos
+    │   │       │       └── args[0]: 0x1p-1 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #745
+    │   │       │   └── value: 0x1.c1528065b7d5p-1 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #747
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f64
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f64
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #742 : f64
+    │   │       │       │       └── right: -0x1.c1528065b7d5p-1 : f64
+    │   │       │       └── right: 0x1.19799812dea11p-40 : f64
+    │   │       └── body[3]: leave @746
     │   ├── body[79] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: tan
-    │   │       │   └── args[0]: 0x1p-1 : f64
-    │   │       └── args[1]: 0x1.17b4f5bf3474ap-1 : f64
+    │   │       ├── label: @756
+    │   │       ├── result: #757
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #752
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: tan
+    │   │       │       └── args[0]: 0x1p-1 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #755
+    │   │       │   └── value: 0x1.17b4f5bf3474ap-1 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #757
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f64
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f64
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #752 : f64
+    │   │       │       │       └── right: -0x1.17b4f5bf3474ap-1 : f64
+    │   │       │       └── right: 0x1.19799812dea11p-40 : f64
+    │   │       └── body[3]: leave @756
     │   ├── body[80] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: asin
-    │   │       │   └── args[0]: 0x1p-1 : f64
-    │   │       └── args[1]: 0x1.0c152382d7366p-1 : f64
+    │   │       ├── label: @766
+    │   │       ├── result: #767
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #762
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: asin
+    │   │       │       └── args[0]: 0x1p-1 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #765
+    │   │       │   └── value: 0x1.0c152382d7366p-1 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #767
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f64
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f64
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #762 : f64
+    │   │       │       │       └── right: -0x1.0c152382d7366p-1 : f64
+    │   │       │       └── right: 0x1.19799812dea11p-40 : f64
+    │   │       └── body[3]: leave @766
     │   ├── body[81] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: acos
-    │   │       │   └── args[0]: 0x1p-1 : f64
-    │   │       └── args[1]: 0x1.0c152382d7366p+0 : f64
+    │   │       ├── label: @776
+    │   │       ├── result: #777
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #772
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: acos
+    │   │       │       └── args[0]: 0x1p-1 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #775
+    │   │       │   └── value: 0x1.0c152382d7366p+0 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #777
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f64
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f64
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #772 : f64
+    │   │       │       │       └── right: -0x1.0c152382d7366p+0 : f64
+    │   │       │       └── right: 0x1.19799812dea11p-40 : f64
+    │   │       └── body[3]: leave @776
     │   ├── body[82] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: atan
-    │   │       │   └── args[0]: 0x1p+0 : f64
-    │   │       └── args[1]: 0x1.921fb54442d18p-1 : f64
+    │   │       ├── label: @786
+    │   │       ├── result: #787
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #782
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: atan
+    │   │       │       └── args[0]: 0x1p+0 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #785
+    │   │       │   └── value: 0x1.921fb54442d18p-1 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #787
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f64
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f64
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #782 : f64
+    │   │       │       │       └── right: -0x1.921fb54442d18p-1 : f64
+    │   │       │       └── right: 0x1.19799812dea11p-40 : f64
+    │   │       └── body[3]: leave @786
     │   ├── body[83] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: atan2
-    │   │       │   ├── args[0]: 0x1p+0 : f64
-    │   │       │   └── args[1]: -0x1p+0 : f64
-    │   │       └── args[1]: 0x1.2d97c7f3321d2p+1 : f64
+    │   │       ├── label: @798
+    │   │       ├── result: #799
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #794
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: atan2
+    │   │       │       ├── args[0]: 0x1p+0 : f64
+    │   │       │       └── args[1]: -0x1p+0 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #797
+    │   │       │   └── value: 0x1.2d97c7f3321d2p+1 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #799
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f64
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f64
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #794 : f64
+    │   │       │       │       └── right: -0x1.2d97c7f3321d2p+1 : f64
+    │   │       │       └── right: 0x1.19799812dea11p-40 : f64
+    │   │       └── body[3]: leave @798
     │   ├── body[84] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: exp
-    │   │       │   └── args[0]: 0x1p+0 : f64
-    │   │       └── args[1]: 0x1.5bf0a8b145769p+1 : f64
+    │   │       ├── label: @808
+    │   │       ├── result: #809
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #804
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: exp
+    │   │       │       └── args[0]: 0x1p+0 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #807
+    │   │       │   └── value: 0x1.5bf0a8b145769p+1 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #809
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f64
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f64
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #804 : f64
+    │   │       │       │       └── right: -0x1.5bf0a8b145769p+1 : f64
+    │   │       │       └── right: 0x1.19799812dea11p-40 : f64
+    │   │       └── body[3]: leave @808
     │   ├── body[85] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: log
-    │   │       │   └── args[0]: 0x1.4p+3 : f64
-    │   │       └── args[1]: 0x1.26bb1bbb55516p+1 : f64
+    │   │       ├── label: @818
+    │   │       ├── result: #819
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #814
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: log
+    │   │       │       └── args[0]: 0x1.4p+3 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #817
+    │   │       │   └── value: 0x1.26bb1bbb55516p+1 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #819
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f64
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f64
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #814 : f64
+    │   │       │       │       └── right: -0x1.26bb1bbb55516p+1 : f64
+    │   │       │       └── right: 0x1.19799812dea11p-40 : f64
+    │   │       └── body[3]: leave @818
     │   ├── body[86] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: pow
-    │   │       │   ├── args[0]: 0x1p+1 : f64
-    │   │       │   └── args[1]: 0x1.4p+3 : f64
-    │   │       └── args[1]: 0x1p+10 : f64
+    │   │       ├── label: @830
+    │   │       ├── result: #831
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #826
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: pow
+    │   │       │       ├── args[0]: 0x1p+1 : f64
+    │   │       │       └── args[1]: 0x1.4p+3 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #829
+    │   │       │   └── value: 0x1p+10 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #831
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f64
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f64
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #826 : f64
+    │   │       │       │       └── right: -0x1p+10 : f64
+    │   │       │       └── right: 0x1.19799812dea11p-40 : f64
+    │   │       └── body[3]: leave @830
     │   ├── body[87] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: cbrt
-    │   │       │   └── args[0]: -0x1.bp+4 : f64
-    │   │       └── args[1]: -0x1.8p+1 : f64
+    │   │       ├── label: @840
+    │   │       ├── result: #841
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #836
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: cbrt
+    │   │       │       └── args[0]: -0x1.bp+4 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #839
+    │   │       │   └── value: -0x1.8p+1 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #841
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f64
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f64
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #836 : f64
+    │   │       │       │       └── right: 0x1.8p+1 : f64
+    │   │       │       └── right: 0x1.19799812dea11p-40 : f64
+    │   │       └── body[3]: leave @840
     │   ├── body[88] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: hypot
-    │   │       │   ├── args[0]: 0x1.8p+1 : f64
-    │   │       │   └── args[1]: 0x1p+2 : f64
-    │   │       └── args[1]: 0x1.4p+2 : f64
+    │   │       ├── label: @852
+    │   │       ├── result: #853
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #848
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: hypot
+    │   │       │       ├── args[0]: 0x1.8p+1 : f64
+    │   │       │       └── args[1]: 0x1p+2 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #851
+    │   │       │   └── value: 0x1.4p+2 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #853
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f64
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f64
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #848 : f64
+    │   │       │       │       └── right: -0x1.4p+2 : f64
+    │   │       │       └── right: 0x1.19799812dea11p-40 : f64
+    │   │       └── body[3]: leave @852
     │   ├── body[89] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near32(%primitives$F32, %primitives$F32)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f32
-    │   │       │   ├── fn: sin
-    │   │       │   └── args[0]: 0x1p-1 : f32
-    │   │       └── args[1]: 0x1.eaee88p-2 : f32
+    │   │       ├── label: @862
+    │   │       ├── result: #863
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #858
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f32
+    │   │       │       ├── fn: sin
+    │   │       │       └── args[0]: 0x1p-1 : f32
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #861
+    │   │       │   └── value: 0x1.eaee88p-2 : f32
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #863
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f32
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f32
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #858 : f32
+    │   │       │       │       └── right: -0x1.eaee88p-2 : f32
+    │   │       │       └── right: 0x1.4f8b58p-17 : f32
+    │   │       └── body[3]: leave @862
     │   ├── body[90] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$near32(%primitives$F32, %primitives$F32)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f32
-    │   │       │   ├── fn: pow
-    │   │       │   ├── args[0]: 0x1p+1 : f32
-    │   │       │   └── args[1]: 0x1p-1 : f32
-    │   │       └── args[1]: 0x1.6a09e6p+0 : f32
+    │   │       ├── label: @874
+    │   │       ├── result: #875
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #870
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f32
+    │   │       │       ├── fn: pow
+    │   │       │       ├── args[0]: 0x1p+1 : f32
+    │   │       │       └── args[1]: 0x1p-1 : f32
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #873
+    │   │       │   └── value: 0x1.6a09e6p+0 : f32
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #875
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: <
+    │   │       │       ├── left > math:
+    │   │       │       │   ├── type: f32
+    │   │       │       │   ├── fn: abs
+    │   │       │       │   └── args[0] > binary:
+    │   │       │       │       ├── type: f32
+    │   │       │       │       ├── op: +
+    │   │       │       │       ├── left: local #870 : f32
+    │   │       │       │       └── right: -0x1.6a09e6p+0 : f32
+    │   │       │       └── right: 0x1.4f8b58p-17 : f32
+    │   │       └── body[3]: leave @874
     │   ├── body[91] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
@@ -505,227 +785,151 @@
     │   ├── body[92] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$isNan(%primitives$F64)
-    │   │       └── args[0] > math:
-    │   │           ├── type: f64
-    │   │           ├── fn: log
-    │   │           └── args[0]: -0x1p+0 : f64
+    │   │       ├── label: @891
+    │   │       ├── result: #892
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #890
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: log
+    │   │       │       └── args[0]: -0x1p+0 : f64
+    │   │       ├── body[1] > assign:
+    │   │       │   ├── place: #892
+    │   │       │   └── value > flip:
+    │   │       │       ├── type: i1
+    │   │       │       └── value > binary:
+    │   │       │           ├── type: i1
+    │   │       │           ├── op: ==
+    │   │       │           ├── left: local #890 : f64
+    │   │       │           └── right: local #890 : f64
+    │   │       └── body[2]: leave @891
     │   ├── body[93] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$isNan(%primitives$F64)
-    │   │       └── args[0] > math:
-    │   │           ├── type: f64
-    │   │           ├── fn: asin
-    │   │           └── args[0]: 0x1p+1 : f64
+    │   │       ├── label: @896
+    │   │       ├── result: #897
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #895
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: asin
+    │   │       │       └── args[0]: 0x1p+1 : f64
+    │   │       ├── body[1] > assign:
+    │   │       │   ├── place: #897
+    │   │       │   └── value > flip:
+    │   │       │       ├── type: i1
+    │   │       │       └── value > binary:
+    │   │       │           ├── type: i1
+    │   │       │           ├── op: ==
+    │   │       │           ├── left: local #895 : f64
+    │   │       │           └── right: local #895 : f64
+    │   │       └── body[2]: leave @896
     │   ├── body[94] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$equal(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: log
-    │   │       │   └── args[0]: 0x0p+0 : f64
-    │   │       └── args[1]: -infinity : f64
+    │   │       ├── label: @908
+    │   │       ├── result: #909
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #900
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: log
+    │   │       │       └── args[0]: 0x0p+0 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #907
+    │   │       │   └── value: -infinity : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #909
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: ==
+    │   │       │       ├── left: local #900 : f64
+    │   │       │       └── right: -infinity : f64
+    │   │       └── body[3]: leave @908
     │   ├── body[95] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$equal(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: pow
-    │   │       │   ├── args[0]: nan : f64
-    │   │       │   └── args[1]: 0x0p+0 : f64
-    │   │       └── args[1]: 0x1p+0 : f64
+    │   │       ├── label: @922
+    │   │       ├── result: #923
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #918
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: pow
+    │   │       │       ├── args[0]: nan : f64
+    │   │       │       └── args[1]: 0x0p+0 : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #921
+    │   │       │   └── value: 0x1p+0 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #923
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: ==
+    │   │       │       ├── left: local #918 : f64
+    │   │       │       └── right: 0x1p+0 : f64
+    │   │       └── body[3]: leave @922
     │   ├── body[96] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: math$check(%primitives$Bool)
-    │   │   └── args[0] > call:
+    │   │   └── args[0] > expand:
     │   │       ├── type: i1
-    │   │       ├── fn: math$equal(%primitives$F64, %primitives$F64)
-    │   │       ├── args[0] > math:
-    │   │       │   ├── type: f64
-    │   │       │   ├── fn: exp
-    │   │       │   └── args[0]: -infinity : f64
-    │   │       └── args[1]: 0x0p+0 : f64
+    │   │       ├── label: @934
+    │   │       ├── result: #935
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #930
+    │   │       │   └── value > math:
+    │   │       │       ├── type: f64
+    │   │       │       ├── fn: exp
+    │   │       │       └── args[0]: -infinity : f64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #933
+    │   │       │   └── value: 0x0p+0 : f64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #935
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i1
+    │   │       │       ├── op: ==
+    │   │       │       ├── left: local #930 : f64
+    │   │       │       └── right: 0x0p+0 : f64
+    │   │       └── body[3]: leave @934
     │   └── body[97] > return: unit : void
-    ├── funcs[2] > func:
-    │   ├── symbol: math$same(%primitives$I64, %primitives$I64)
-    │   ├── params[0]: local #1 : i64
-    │   ├── params[1]: local #2 : i64
-    │   ├── ret: i1
-    │   └── body[0] > return > binary:
-    │       ├── type: i1
-    │       ├── op: ==
-    │       ├── left: local #1 : i64
-    │       └── right: local #2 : i64
-    ├── funcs[3] > func:
-    │   ├── symbol: math$check(%primitives$Bool)
-    │   ├── params[0]: local #1 : i1
-    │   ├── ret: void
-    │   └── body[0] > scope:
-    │       ├── id: %3
-    │       ├── body[0] > hold:
-    │       │   ├── local: #2
-    │       │   ├── scope: %3
-    │       │   ├── value: "yes\n" : handle
-    │       │   └── layout: %primitives$String
-    │       ├── body[1] > hold:
-    │       │   ├── local: #4
-    │       │   ├── scope: %3
-    │       │   ├── value: "no\n" : handle
-    │       │   └── layout: %primitives$String
-    │       ├── body[2] > if:
-    │       │   ├── cond: local #1 : i1
-    │       │   └── body[0] > eval > runtime:
-    │       │       ├── type: void
-    │       │       ├── fn: zane_print
-    │       │       └── args[0]: "yes\n" : handle
-    │       ├── body[3] > if:
-    │       │   ├── cond > flip:
-    │       │   │   ├── type: i1
-    │       │   │   └── value: local #1 : i1
-    │       │   └── body[0] > eval > runtime:
-    │       │       ├── type: void
-    │       │       ├── fn: zane_print
-    │       │       └── args[0]: "no\n" : handle
-    │       └── body[4] > return: unit : void
-    ├── funcs[4] > func:
-    │   ├── symbol: math$minI64()
-    │   ├── params:
-    │   ├── ret: i64
-    │   └── body[0] > return: -9223372036854775808 : i64
-    ├── funcs[5] > func:
-    │   ├── symbol: math$same32(%primitives$I32, %primitives$I32)
-    │   ├── params[0]: local #1 : i32
-    │   ├── params[1]: local #2 : i32
-    │   ├── ret: i1
-    │   └── body[0] > return > binary:
-    │       ├── type: i1
-    │       ├── op: ==
-    │       ├── left: local #1 : i32
-    │       └── right: local #2 : i32
-    ├── funcs[6] > func:
-    │   ├── symbol: math$minI32()
-    │   ├── params:
-    │   ├── ret: i32
-    │   └── body[0] > return: -2147483648 : i32
-    ├── funcs[7] > func:
-    │   ├── symbol: math$equal(%primitives$F64, %primitives$F64)
-    │   ├── params[0]: local #1 : f64
-    │   ├── params[1]: local #2 : f64
-    │   ├── ret: i1
-    │   └── body[0] > return > binary:
-    │       ├── type: i1
-    │       ├── op: ==
-    │       ├── left: local #1 : f64
-    │       └── right: local #2 : f64
-    ├── funcs[8] > func:
-    │   ├── symbol: math$isNan(%primitives$F64)
-    │   ├── params[0]: local #1 : f64
-    │   ├── ret: i1
-    │   └── body[0] > return > flip:
-    │       ├── type: i1
-    │       └── value > binary:
-    │           ├── type: i1
-    │           ├── op: ==
-    │           ├── left: local #1 : f64
-    │           └── right: local #1 : f64
-    ├── funcs[9] > func:
-    │   ├── symbol: math$negativeZero(%primitives$F64)
-    │   ├── params[0]: local #1 : f64
-    │   ├── ret: i1
-    │   └── body[0] > return > binary:
-    │       ├── type: i1
-    │       ├── op: ==
-    │       ├── left > binary:
-    │       │   ├── type: f64
-    │       │   ├── op: /
-    │       │   ├── left: 0x1p+0 : f64
-    │       │   └── right: local #1 : f64
-    │       └── right: -infinity : f64
-    ├── funcs[10] > func:
-    │   ├── symbol: math$infinity()
-    │   ├── params:
-    │   ├── ret: f64
-    │   └── body[0] > return: infinity : f64
-    ├── funcs[11] > func:
-    │   ├── symbol: math$positiveZero(%primitives$F64)
-    │   ├── params[0]: local #1 : f64
-    │   ├── ret: i1
-    │   └── body[0] > return > binary:
-    │       ├── type: i1
-    │       ├── op: ==
-    │       ├── left > binary:
-    │       │   ├── type: f64
-    │       │   ├── op: /
-    │       │   ├── left: 0x1p+0 : f64
-    │       │   └── right: local #1 : f64
-    │       └── right: infinity : f64
-    ├── funcs[12] > func:
-    │   ├── symbol: math$nan()
-    │   ├── params:
-    │   ├── ret: f64
-    │   └── body[0] > return: nan : f64
-    ├── funcs[13] > func:
-    │   ├── symbol: math$nan32()
-    │   ├── params:
-    │   ├── ret: f32
-    │   └── body[0] > return: nan : f32
-    ├── funcs[14] > func:
-    │   ├── symbol: math$isNan32(%primitives$F32)
-    │   ├── params[0]: local #1 : f32
-    │   ├── ret: i1
-    │   └── body[0] > return > flip:
-    │       ├── type: i1
-    │       └── value > binary:
-    │           ├── type: i1
-    │           ├── op: ==
-    │           ├── left: local #1 : f32
-    │           └── right: local #1 : f32
-    ├── funcs[15] > func:
-    │   ├── symbol: math$near(%primitives$F64, %primitives$F64)
-    │   ├── params[0]: local #1 : f64
-    │   ├── params[1]: local #2 : f64
-    │   ├── ret: i1
-    │   └── body[0] > return > binary:
-    │       ├── type: i1
-    │       ├── op: <
-    │       ├── left > math:
-    │       │   ├── type: f64
-    │       │   ├── fn: abs
-    │       │   └── args[0] > binary:
-    │       │       ├── type: f64
-    │       │       ├── op: +
-    │       │       ├── left: local #1 : f64
-    │       │       └── right > flip:
-    │       │           ├── type: f64
-    │       │           └── value: local #2 : f64
-    │       └── right: 0x1.19799812dea11p-40 : f64
-    └── funcs[16] > func:
-        ├── symbol: math$near32(%primitives$F32, %primitives$F32)
-        ├── params[0]: local #1 : f32
-        ├── params[1]: local #2 : f32
-        ├── ret: i1
-        └── body[0] > return > binary:
-            ├── type: i1
-            ├── op: <
-            ├── left > math:
-            │   ├── type: f32
-            │   ├── fn: abs
-            │   └── args[0] > binary:
-            │       ├── type: f32
-            │       ├── op: +
-            │       ├── left: local #1 : f32
-            │       └── right > flip:
-            │           ├── type: f32
-            │           └── value: local #2 : f32
-            └── right: 0x1.4f8b58p-17 : f32
+    └── funcs[2] > func:
+        ├── symbol: math$check(%primitives$Bool)
+        ├── params[0]: local #1 : i1
+        ├── ret: void
+        └── body[0] > scope:
+            ├── id: %3
+            ├── body[0] > hold:
+            │   ├── local: #2
+            │   ├── scope: %3
+            │   ├── value: "yes\n" : handle
+            │   └── layout: %primitives$String
+            ├── body[1] > hold:
+            │   ├── local: #4
+            │   ├── scope: %3
+            │   ├── value: "no\n" : handle
+            │   └── layout: %primitives$String
+            ├── body[2] > if:
+            │   ├── cond: local #1 : i1
+            │   └── body[0] > eval > runtime:
+            │       ├── type: void
+            │       ├── fn: zane_print
+            │       └── args[0]: "yes\n" : handle
+            ├── body[3] > if:
+            │   ├── cond > flip:
+            │   │   ├── type: i1
+            │   │   └── value: local #1 : i1
+            │   └── body[0] > eval > runtime:
+            │       ├── type: void
+            │       ├── fn: zane_print
+            │       └── args[0]: "no\n" : handle
+            └── body[4] > return: unit : void

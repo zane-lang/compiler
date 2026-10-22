@@ -121,34 +121,45 @@
     │       │       │   ├── fn: zane_text_equal
     │       │       │   ├── args[0] > expand:
     │       │       │   │   ├── type: handle
-    │       │       │   │   ├── label: @14
-    │       │       │   │   ├── result: #15
+    │       │       │   │   ├── label: @16
+    │       │       │   │   ├── result: #17
     │       │       │   │   ├── body[0] > hold:
-    │       │       │   │   │   ├── local: #13
+    │       │       │   │   │   ├── local: #15
     │       │       │   │   │   ├── scope: %2
-    │       │       │   │   │   ├── value > call:
+    │       │       │   │   │   ├── value > expand:
     │       │       │   │   │   │   ├── type: handle
-    │       │       │   │   │   │   ├── fn: texts$twice(%primitives$String)
-    │       │       │   │   │   │   └── args[0]: local #1 : handle
+    │       │       │   │   │   │   ├── label: @13
+    │       │       │   │   │   │   ├── result: #14
+    │       │       │   │   │   │   ├── body[0] > assign:
+    │       │       │   │   │   │   │   ├── place: #14
+    │       │       │   │   │   │   │   └── value > escape:
+    │       │       │   │   │   │   │       ├── exit: @13
+    │       │       │   │   │   │   │       ├── value > runtime:
+    │       │       │   │   │   │   │       │   ├── type: handle
+    │       │       │   │   │   │   │       │   ├── fn: zane_text_join
+    │       │       │   │   │   │   │       │   ├── args[0]: local #1 : handle
+    │       │       │   │   │   │   │       │   └── args[1]: local #1 : handle
+    │       │       │   │   │   │   │       └── layout: %primitives$String
+    │       │       │   │   │   │   └── body[1]: leave @13
     │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
-    │       │       │   │       ├── place: #15
-    │       │       │   │       └── value: local #13 : handle
+    │       │       │   │       ├── place: #17
+    │       │       │   │       └── value: local #15 : handle
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @17
-    │       │       │       ├── result: #18
+    │       │       │       ├── label: @19
+    │       │       │       ├── result: #20
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #16
+    │       │       │       │   ├── local: #18
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "abab" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #18
-    │       │       │           └── value: local #16 : handle
+    │       │       │           ├── place: #20
+    │       │       │           └── value: local #18 : handle
     │       │       └── right: 1 : i64
     │       ├── body[6] > hold:
-    │       │   ├── local: #19
+    │       │   ├── local: #21
     │       │   ├── scope: %2
     │       │   ├── value > copy:
     │       │   │   ├── type: handle
@@ -164,19 +175,19 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0]: local #19 : handle
+    │       │       │   ├── args[0]: local #21 : handle
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @21
-    │       │       │       ├── result: #22
+    │       │       │       ├── label: @23
+    │       │       │       ├── result: #24
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #20
+    │       │       │       │   ├── local: #22
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "abcd\n" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #22
-    │       │       │           └── value: local #20 : handle
+    │       │       │           ├── place: #24
+    │       │       │           └── value: local #22 : handle
     │       │       └── right: 1 : i64
     │       ├── body[8] > overwrite:
     │       │   ├── address: address of #6 : ptr
@@ -194,16 +205,16 @@
     │       │       │   ├── args[0]: local #6 : handle
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @24
-    │       │       │       ├── result: #25
+    │       │       │       ├── label: @26
+    │       │       │       ├── result: #27
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #23
+    │       │       │       │   ├── local: #25
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "again" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #25
-    │       │       │           └── value: local #23 : handle
+    │       │       │           ├── place: #27
+    │       │       │           └── value: local #25 : handle
     │       │       └── right: 1 : i64
     │       ├── body[10] > eval > call:
     │       │   ├── type: void
@@ -214,22 +225,22 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0]: local #19 : handle
+    │       │       │   ├── args[0]: local #21 : handle
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @27
-    │       │       │       ├── result: #28
+    │       │       │       ├── label: @29
+    │       │       │       ├── result: #30
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #26
+    │       │       │       │   ├── local: #28
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "abcd\n" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #28
-    │       │       │           └── value: local #26 : handle
+    │       │       │           ├── place: #30
+    │       │       │           └── value: local #28 : handle
     │       │       └── right: 1 : i64
     │       ├── body[11] > hold:
-    │       │   ├── local: #32
+    │       │   ├── local: #34
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {handle}
@@ -237,8 +248,8 @@
     │       │   │   └── args[0]: "ada" : handle
     │       │   └── layout: texts$Person
     │       ├── body[12] > let:
-    │       │   ├── local: #33
-    │       │   └── value: address of #32 : ptr
+    │       │   ├── local: #35
+    │       │   └── value: address of #34 : ptr
     │       ├── body[13] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: texts$check(%primitives$Bool)
@@ -250,34 +261,66 @@
     │       │       │   ├── fn: zane_text_equal
     │       │       │   ├── args[0] > expand:
     │       │       │   │   ├── type: handle
-    │       │       │   │   ├── label: @35
-    │       │       │   │   ├── result: #36
+    │       │       │   │   ├── label: @44
+    │       │       │   │   ├── result: #45
     │       │       │   │   ├── body[0] > hold:
-    │       │       │   │   │   ├── local: #34
+    │       │       │   │   │   ├── local: #43
     │       │       │   │   │   ├── scope: %2
-    │       │       │   │   │   ├── value > call:
+    │       │       │   │   │   ├── value > expand:
     │       │       │   │   │   │   ├── type: handle
-    │       │       │   │   │   │   ├── fn: texts$greeting(this texts$Person)
-    │       │       │   │   │   │   └── args[0]: local #33 : ptr
+    │       │       │   │   │   │   ├── label: @37
+    │       │       │   │   │   │   ├── result: #38
+    │       │       │   │   │   │   ├── body[0] > let:
+    │       │       │   │   │   │   │   ├── local: #36
+    │       │       │   │   │   │   │   └── value: local #35 : ptr
+    │       │       │   │   │   │   └── body[1] > scope:
+    │       │       │   │   │   │       ├── id: %42
+    │       │       │   │   │   │       ├── body[0] > assign:
+    │       │       │   │   │   │       │   ├── place: #38
+    │       │       │   │   │   │       │   └── value > escape:
+    │       │       │   │   │   │       │       ├── exit: @37
+    │       │       │   │   │   │       │       ├── value > runtime:
+    │       │       │   │   │   │       │       │   ├── type: handle
+    │       │       │   │   │   │       │       │   ├── fn: zane_text_join
+    │       │       │   │   │   │       │       │   ├── args[0] > expand:
+    │       │       │   │   │   │       │       │   │   ├── type: handle
+    │       │       │   │   │   │       │       │   │   ├── label: @40
+    │       │       │   │   │   │       │       │   │   ├── result: #41
+    │       │       │   │   │   │       │       │   │   ├── body[0] > hold:
+    │       │       │   │   │   │       │       │   │   │   ├── local: #39
+    │       │       │   │   │   │       │       │   │   │   ├── scope: %42
+    │       │       │   │   │   │       │       │   │   │   ├── value: "hello, " : handle
+    │       │       │   │   │   │       │       │   │   │   └── layout: %primitives$String
+    │       │       │   │   │   │       │       │   │   └── body[1] > assign:
+    │       │       │   │   │   │       │       │   │       ├── place: #41
+    │       │       │   │   │   │       │       │   │       └── value: local #39 : handle
+    │       │       │   │   │   │       │       │   └── args[1] > deref:
+    │       │       │   │   │   │       │       │       ├── type: handle
+    │       │       │   │   │   │       │       │       └── ptr > offset:
+    │       │       │   │   │   │       │       │           ├── within: {handle}
+    │       │       │   │   │   │       │       │           ├── path: 0
+    │       │       │   │   │   │       │       │           └── base: local #36 : ptr
+    │       │       │   │   │   │       │       └── layout: %primitives$String
+    │       │       │   │   │   │       └── body[1]: leave @37
     │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
-    │       │       │   │       ├── place: #36
-    │       │       │   │       └── value: local #34 : handle
+    │       │       │   │       ├── place: #45
+    │       │       │   │       └── value: local #43 : handle
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @38
-    │       │       │       ├── result: #39
+    │       │       │       ├── label: @47
+    │       │       │       ├── result: #48
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #37
+    │       │       │       │   ├── local: #46
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "hello, ada" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #39
-    │       │       │           └── value: local #37 : handle
+    │       │       │           ├── place: #48
+    │       │       │           └── value: local #46 : handle
     │       │       └── right: 1 : i64
     │       ├── body[14] > hold:
-    │       │   ├── local: #40
+    │       │   ├── local: #49
     │       │   ├── scope: %2
     │       │   ├── value > copy:
     │       │   │   ├── type: handle
@@ -286,30 +329,30 @@
     │       │   │   │   └── ptr > offset:
     │       │   │   │       ├── within: {handle}
     │       │   │   │       ├── path: 0
-    │       │   │   │       └── base: address of #32 : ptr
+    │       │   │   │       └── base: address of #34 : ptr
     │       │   │   └── layout: %primitives$String
     │       │   └── layout: %primitives$String
     │       ├── body[15] > overwrite:
     │       │   ├── address > offset:
     │       │   │   ├── within: {handle}
     │       │   │   ├── path: 0
-    │       │   │   └── base: address of #32 : ptr
+    │       │   │   └── base: address of #34 : ptr
     │       │   ├── value > runtime:
     │       │   │   ├── type: handle
     │       │   │   ├── fn: zane_text_join
     │       │   │   ├── args[0]: local #1 : handle
     │       │   │   └── args[1] > expand:
     │       │   │       ├── type: handle
-    │       │   │       ├── label: @42
-    │       │   │       ├── result: #43
+    │       │   │       ├── label: @51
+    │       │   │       ├── result: #52
     │       │   │       ├── body[0] > hold:
-    │       │   │       │   ├── local: #41
+    │       │   │       │   ├── local: #50
     │       │   │       │   ├── scope: %2
     │       │   │       │   ├── value: "!" : handle
     │       │   │       │   └── layout: %primitives$String
     │       │   │       └── body[1] > assign:
-    │       │   │           ├── place: #43
-    │       │   │           └── value: local #41 : handle
+    │       │   │           ├── place: #52
+    │       │   │           └── value: local #50 : handle
     │       │   └── layout: %primitives$String
     │       ├── body[16] > eval > call:
     │       │   ├── type: void
@@ -322,31 +365,63 @@
     │       │       │   ├── fn: zane_text_equal
     │       │       │   ├── args[0] > expand:
     │       │       │   │   ├── type: handle
-    │       │       │   │   ├── label: @45
-    │       │       │   │   ├── result: #46
+    │       │       │   │   ├── label: @61
+    │       │       │   │   ├── result: #62
     │       │       │   │   ├── body[0] > hold:
-    │       │       │   │   │   ├── local: #44
+    │       │       │   │   │   ├── local: #60
     │       │       │   │   │   ├── scope: %2
-    │       │       │   │   │   ├── value > call:
+    │       │       │   │   │   ├── value > expand:
     │       │       │   │   │   │   ├── type: handle
-    │       │       │   │   │   │   ├── fn: texts$greeting(this texts$Person)
-    │       │       │   │   │   │   └── args[0]: local #33 : ptr
+    │       │       │   │   │   │   ├── label: @54
+    │       │       │   │   │   │   ├── result: #55
+    │       │       │   │   │   │   ├── body[0] > let:
+    │       │       │   │   │   │   │   ├── local: #53
+    │       │       │   │   │   │   │   └── value: local #35 : ptr
+    │       │       │   │   │   │   └── body[1] > scope:
+    │       │       │   │   │   │       ├── id: %59
+    │       │       │   │   │   │       ├── body[0] > assign:
+    │       │       │   │   │   │       │   ├── place: #55
+    │       │       │   │   │   │       │   └── value > escape:
+    │       │       │   │   │   │       │       ├── exit: @54
+    │       │       │   │   │   │       │       ├── value > runtime:
+    │       │       │   │   │   │       │       │   ├── type: handle
+    │       │       │   │   │   │       │       │   ├── fn: zane_text_join
+    │       │       │   │   │   │       │       │   ├── args[0] > expand:
+    │       │       │   │   │   │       │       │   │   ├── type: handle
+    │       │       │   │   │   │       │       │   │   ├── label: @57
+    │       │       │   │   │   │       │       │   │   ├── result: #58
+    │       │       │   │   │   │       │       │   │   ├── body[0] > hold:
+    │       │       │   │   │   │       │       │   │   │   ├── local: #56
+    │       │       │   │   │   │       │       │   │   │   ├── scope: %59
+    │       │       │   │   │   │       │       │   │   │   ├── value: "hello, " : handle
+    │       │       │   │   │   │       │       │   │   │   └── layout: %primitives$String
+    │       │       │   │   │   │       │       │   │   └── body[1] > assign:
+    │       │       │   │   │   │       │       │   │       ├── place: #58
+    │       │       │   │   │   │       │       │   │       └── value: local #56 : handle
+    │       │       │   │   │   │       │       │   └── args[1] > deref:
+    │       │       │   │   │   │       │       │       ├── type: handle
+    │       │       │   │   │   │       │       │       └── ptr > offset:
+    │       │       │   │   │   │       │       │           ├── within: {handle}
+    │       │       │   │   │   │       │       │           ├── path: 0
+    │       │       │   │   │   │       │       │           └── base: local #53 : ptr
+    │       │       │   │   │   │       │       └── layout: %primitives$String
+    │       │       │   │   │   │       └── body[1]: leave @54
     │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
-    │       │       │   │       ├── place: #46
-    │       │       │   │       └── value: local #44 : handle
+    │       │       │   │       ├── place: #62
+    │       │       │   │       └── value: local #60 : handle
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @48
-    │       │       │       ├── result: #49
+    │       │       │       ├── label: @64
+    │       │       │       ├── result: #65
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #47
+    │       │       │       │   ├── local: #63
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "hello, ab!" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #49
-    │       │       │           └── value: local #47 : handle
+    │       │       │           ├── place: #65
+    │       │       │           └── value: local #63 : handle
     │       │       └── right: 1 : i64
     │       ├── body[17] > eval > call:
     │       │   ├── type: void
@@ -357,22 +432,22 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0]: local #40 : handle
+    │       │       │   ├── args[0]: local #49 : handle
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @51
-    │       │       │       ├── result: #52
+    │       │       │       ├── label: @67
+    │       │       │       ├── result: #68
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #50
+    │       │       │       │   ├── local: #66
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "ada" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #52
-    │       │       │           └── value: local #50 : handle
+    │       │       │           ├── place: #68
+    │       │       │           └── value: local #66 : handle
     │       │       └── right: 1 : i64
     │       ├── body[18] > hold:
-    │       │   ├── local: #53
+    │       │   ├── local: #69
     │       │   ├── scope: %2
     │       │   ├── value > case:
     │       │   │   ├── type: <handle | void>
@@ -384,25 +459,25 @@
     │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
-    │       │       ├── label: @54
-    │       │       ├── result: #55
+    │       │       ├── label: @70
+    │       │       ├── result: #71
     │       │       ├── body[0] > let:
-    │       │       │   ├── local: #56
-    │       │       │   └── value: address of #53 : ptr
+    │       │       │   ├── local: #72
+    │       │       │   └── value: address of #69 : ptr
     │       │       └── body[1] > switch:
     │       │           ├── value > deref:
     │       │           │   ├── type: <handle | void>
-    │       │           │   └── ptr: local #56 : ptr
+    │       │           │   └── ptr: local #72 : ptr
     │       │           ├── cases[0] > case 0[0] > let:
-    │       │           │   ├── local: #57
+    │       │           │   ├── local: #73
     │       │           │   └── value > offset:
     │       │           │       ├── within: <handle | void>
     │       │           │       ├── path: 0
-    │       │           │       └── base: local #56 : ptr
+    │       │           │       └── base: local #72 : ptr
     │       │           ├── cases[0] > case 0[1] > scope:
-    │       │           │   ├── id: %61
+    │       │           │   ├── id: %77
     │       │           │   ├── body[0] > assign:
-    │       │           │   │   ├── place: #55
+    │       │           │   │   ├── place: #71
     │       │           │   │   └── value > binary:
     │       │           │   │       ├── type: i1
     │       │           │   │       ├── op: ==
@@ -411,40 +486,40 @@
     │       │           │   │       │   ├── fn: zane_text_equal
     │       │           │   │       │   ├── args[0] > deref:
     │       │           │   │       │   │   ├── type: handle
-    │       │           │   │       │   │   └── ptr: local #57 : ptr
+    │       │           │   │       │   │   └── ptr: local #73 : ptr
     │       │           │   │       │   └── args[1] > expand:
     │       │           │   │       │       ├── type: handle
-    │       │           │   │       │       ├── label: @59
-    │       │           │   │       │       ├── result: #60
+    │       │           │   │       │       ├── label: @75
+    │       │           │   │       │       ├── result: #76
     │       │           │   │       │       ├── body[0] > hold:
-    │       │           │   │       │       │   ├── local: #58
-    │       │           │   │       │       │   ├── scope: %61
+    │       │           │   │       │       │   ├── local: #74
+    │       │           │   │       │       │   ├── scope: %77
     │       │           │   │       │       │   ├── value: "abcd?" : handle
     │       │           │   │       │       │   └── layout: %primitives$String
     │       │           │   │       │       └── body[1] > assign:
-    │       │           │   │       │           ├── place: #60
-    │       │           │   │       │           └── value: local #58 : handle
+    │       │           │   │       │           ├── place: #76
+    │       │           │   │       │           └── value: local #74 : handle
     │       │           │   │       └── right: 1 : i64
-    │       │           │   └── body[1]: leave @54
+    │       │           │   └── body[1]: leave @70
     │       │           ├── cases[1] > case 1[0] > let:
-    │       │           │   ├── local: #62
+    │       │           │   ├── local: #78
     │       │           │   └── value > offset:
     │       │           │       ├── within: <handle | void>
     │       │           │       ├── path: 1
-    │       │           │       └── base: local #56 : ptr
+    │       │           │       └── base: local #72 : ptr
     │       │           ├── cases[1] > case 1[1] > assign:
-    │       │           │   ├── place: #55
+    │       │           │   ├── place: #71
     │       │           │   └── value: false : i1
-    │       │           └── cases[1] > case 1[2]: leave @54
+    │       │           └── cases[1] > case 1[2]: leave @70
     │       ├── body[20] > overwrite:
-    │       │   ├── address: address of #53 : ptr
+    │       │   ├── address: address of #69 : ptr
     │       │   ├── value > case:
     │       │   │   ├── type: <handle | void>
     │       │   │   ├── index: 1
     │       │   │   └── payload: unit : void
     │       │   └── layout: texts$Tagged
     │       ├── body[21] > hold:
-    │       │   ├── local: #66
+    │       │   ├── local: #82
     │       │   ├── scope: %2
     │       │   ├── value > call:
     │       │   │   ├── type: {handle}
@@ -454,32 +529,32 @@
     │       ├── body[22] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: texts$rename(this texts$Person, %primitives$String)
-    │       │   ├── args[0]: address of #66 : ptr
+    │       │   ├── args[0]: address of #82 : ptr
     │       │   └── args[1] > runtime:
     │       │       ├── type: handle
     │       │       ├── fn: zane_text_join
     │       │       ├── args[0]: local #1 : handle
     │       │       └── args[1] > expand:
     │       │           ├── type: handle
-    │       │           ├── label: @68
-    │       │           ├── result: #69
+    │       │           ├── label: @84
+    │       │           ├── result: #85
     │       │           ├── body[0] > hold:
-    │       │           │   ├── local: #67
+    │       │           │   ├── local: #83
     │       │           │   ├── scope: %2
     │       │           │   ├── value: "?" : handle
     │       │           │   └── layout: %primitives$String
     │       │           └── body[1] > assign:
-    │       │               ├── place: #69
-    │       │               └── value: local #67 : handle
+    │       │               ├── place: #85
+    │       │               └── value: local #83 : handle
     │       ├── body[23] > hold:
-    │       │   ├── local: #73
+    │       │   ├── local: #89
     │       │   ├── scope: %2
     │       │   ├── value > case:
     │       │   │   ├── type: <{handle} | void>
     │       │   │   ├── index: 0
     │       │   │   └── payload > take:
     │       │   │       ├── type: {handle}
-    │       │   │       ├── address: address of #66 : ptr
+    │       │   │       ├── address: address of #82 : ptr
     │       │   │       └── layout: texts$Person
     │       │   └── layout: texts$Holder
     │       ├── body[24] > eval > call:
@@ -487,25 +562,25 @@
     │       │   ├── fn: texts$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
-    │       │       ├── label: @74
-    │       │       ├── result: #75
+    │       │       ├── label: @90
+    │       │       ├── result: #91
     │       │       ├── body[0] > let:
-    │       │       │   ├── local: #76
-    │       │       │   └── value: address of #73 : ptr
+    │       │       │   ├── local: #92
+    │       │       │   └── value: address of #89 : ptr
     │       │       └── body[1] > switch:
     │       │           ├── value > deref:
     │       │           │   ├── type: <{handle} | void>
-    │       │           │   └── ptr: local #76 : ptr
+    │       │           │   └── ptr: local #92 : ptr
     │       │           ├── cases[0] > case 0[0] > let:
-    │       │           │   ├── local: #77
+    │       │           │   ├── local: #93
     │       │           │   └── value > offset:
     │       │           │       ├── within: <{handle} | void>
     │       │           │       ├── path: 0
-    │       │           │       └── base: local #76 : ptr
+    │       │           │       └── base: local #92 : ptr
     │       │           ├── cases[0] > case 0[1] > scope:
-    │       │           │   ├── id: %81
+    │       │           │   ├── id: %103
     │       │           │   ├── body[0] > assign:
-    │       │           │   │   ├── place: #75
+    │       │           │   │   ├── place: #91
     │       │           │   │   └── value > binary:
     │       │           │   │       ├── type: i1
     │       │           │   │       ├── op: ==
@@ -514,57 +589,97 @@
     │       │           │   │       │   ├── fn: zane_text_equal
     │       │           │   │       │   ├── args[0] > expand:
     │       │           │   │       │   │   ├── type: handle
-    │       │           │   │       │   │   ├── label: @79
-    │       │           │   │       │   │   ├── result: #80
+    │       │           │   │       │   │   ├── label: @101
+    │       │           │   │       │   │   ├── result: #102
     │       │           │   │       │   │   ├── body[0] > hold:
-    │       │           │   │       │   │   │   ├── local: #78
-    │       │           │   │       │   │   │   ├── scope: %81
-    │       │           │   │       │   │   │   ├── value > call:
+    │       │           │   │       │   │   │   ├── local: #100
+    │       │           │   │       │   │   │   ├── scope: %103
+    │       │           │   │       │   │   │   ├── value > expand:
     │       │           │   │       │   │   │   │   ├── type: handle
-    │       │           │   │       │   │   │   │   ├── fn: texts$greeting(this texts$Person)
-    │       │           │   │       │   │   │   │   └── args[0]: local #77 : ptr
+    │       │           │   │       │   │   │   │   ├── label: @94
+    │       │           │   │       │   │   │   │   ├── result: #95
+    │       │           │   │       │   │   │   │   └── body[0] > scope:
+    │       │           │   │       │   │   │   │       ├── id: %99
+    │       │           │   │       │   │   │   │       ├── body[0] > assign:
+    │       │           │   │       │   │   │   │       │   ├── place: #95
+    │       │           │   │       │   │   │   │       │   └── value > escape:
+    │       │           │   │       │   │   │   │       │       ├── exit: @94
+    │       │           │   │       │   │   │   │       │       ├── value > runtime:
+    │       │           │   │       │   │   │   │       │       │   ├── type: handle
+    │       │           │   │       │   │   │   │       │       │   ├── fn: zane_text_join
+    │       │           │   │       │   │   │   │       │       │   ├── args[0] > expand:
+    │       │           │   │       │   │   │   │       │       │   │   ├── type: handle
+    │       │           │   │       │   │   │   │       │       │   │   ├── label: @97
+    │       │           │   │       │   │   │   │       │       │   │   ├── result: #98
+    │       │           │   │       │   │   │   │       │       │   │   ├── body[0] > hold:
+    │       │           │   │       │   │   │   │       │       │   │   │   ├── local: #96
+    │       │           │   │       │   │   │   │       │       │   │   │   ├── scope: %99
+    │       │           │   │       │   │   │   │       │       │   │   │   ├── value: "hello, " : handle
+    │       │           │   │       │   │   │   │       │       │   │   │   └── layout: %primitives$String
+    │       │           │   │       │   │   │   │       │       │   │   └── body[1] > assign:
+    │       │           │   │       │   │   │   │       │       │   │       ├── place: #98
+    │       │           │   │       │   │   │   │       │       │   │       └── value: local #96 : handle
+    │       │           │   │       │   │   │   │       │       │   └── args[1] > deref:
+    │       │           │   │       │   │   │   │       │       │       ├── type: handle
+    │       │           │   │       │   │   │   │       │       │       └── ptr > offset:
+    │       │           │   │       │   │   │   │       │       │           ├── within: {handle}
+    │       │           │   │       │   │   │   │       │       │           ├── path: 0
+    │       │           │   │       │   │   │   │       │       │           └── base: local #93 : ptr
+    │       │           │   │       │   │   │   │       │       └── layout: %primitives$String
+    │       │           │   │       │   │   │   │       └── body[1]: leave @94
     │       │           │   │       │   │   │   └── layout: %primitives$String
     │       │           │   │       │   │   └── body[1] > assign:
-    │       │           │   │       │   │       ├── place: #80
-    │       │           │   │       │   │       └── value: local #78 : handle
+    │       │           │   │       │   │       ├── place: #102
+    │       │           │   │       │   │       └── value: local #100 : handle
     │       │           │   │       │   └── args[1] > expand:
     │       │           │   │       │       ├── type: handle
-    │       │           │   │       │       ├── label: @83
-    │       │           │   │       │       ├── result: #84
+    │       │           │   │       │       ├── label: @105
+    │       │           │   │       │       ├── result: #106
     │       │           │   │       │       ├── body[0] > hold:
-    │       │           │   │       │       │   ├── local: #82
-    │       │           │   │       │       │   ├── scope: %81
+    │       │           │   │       │       │   ├── local: #104
+    │       │           │   │       │       │   ├── scope: %103
     │       │           │   │       │       │   ├── value: "hello, ab?" : handle
     │       │           │   │       │       │   └── layout: %primitives$String
     │       │           │   │       │       └── body[1] > assign:
-    │       │           │   │       │           ├── place: #84
-    │       │           │   │       │           └── value: local #82 : handle
+    │       │           │   │       │           ├── place: #106
+    │       │           │   │       │           └── value: local #104 : handle
     │       │           │   │       └── right: 1 : i64
-    │       │           │   └── body[1]: leave @74
+    │       │           │   └── body[1]: leave @90
     │       │           ├── cases[1] > case 1[0] > let:
-    │       │           │   ├── local: #85
+    │       │           │   ├── local: #107
     │       │           │   └── value > offset:
     │       │           │       ├── within: <{handle} | void>
     │       │           │       ├── path: 1
-    │       │           │       └── base: local #76 : ptr
+    │       │           │       └── base: local #92 : ptr
     │       │           ├── cases[1] > case 1[1] > assign:
-    │       │           │   ├── place: #75
+    │       │           │   ├── place: #91
     │       │           │   └── value: false : i1
-    │       │           └── cases[1] > case 1[2]: leave @74
+    │       │           └── cases[1] > case 1[2]: leave @90
     │       ├── body[25] > overwrite:
-    │       │   ├── address: address of #73 : ptr
+    │       │   ├── address: address of #89 : ptr
     │       │   ├── value > case:
     │       │   │   ├── type: <{handle} | void>
     │       │   │   ├── index: 1
     │       │   │   └── payload: unit : void
     │       │   └── layout: texts$Holder
     │       ├── body[26] > hold:
-    │       │   ├── local: #86
+    │       │   ├── local: #110
     │       │   ├── scope: %2
-    │       │   ├── value > call:
+    │       │   ├── value > expand:
     │       │   │   ├── type: handle
-    │       │   │   ├── fn: texts$twice(%primitives$String)
-    │       │   │   └── args[0]: local #1 : handle
+    │       │   │   ├── label: @108
+    │       │   │   ├── result: #109
+    │       │   │   ├── body[0] > assign:
+    │       │   │   │   ├── place: #109
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @108
+    │       │   │   │       ├── value > runtime:
+    │       │   │   │       │   ├── type: handle
+    │       │   │   │       │   ├── fn: zane_text_join
+    │       │   │   │       │   ├── args[0]: local #1 : handle
+    │       │   │   │       │   └── args[1]: local #1 : handle
+    │       │   │   │       └── layout: %primitives$String
+    │       │   │   └── body[1]: leave @108
     │       │   └── layout: %primitives$String
     │       ├── body[27] > eval > call:
     │       │   ├── type: void
@@ -577,91 +692,91 @@
     │       │       │   ├── fn: zane_text_equal
     │       │       │   ├── args[0] > expand:
     │       │       │   │   ├── type: handle
-    │       │       │   │   ├── label: @96
-    │       │       │   │   ├── result: #97
+    │       │       │   │   ├── label: @120
+    │       │       │   │   ├── result: #121
     │       │       │   │   ├── body[0] > hold:
-    │       │       │   │   │   ├── local: #95
+    │       │       │   │   │   ├── local: #119
     │       │       │   │   │   ├── scope: %2
     │       │       │   │   │   ├── value > expand:
     │       │       │   │   │   │   ├── type: handle
-    │       │       │   │   │   │   ├── label: @90
-    │       │       │   │   │   │   ├── result: #91
+    │       │       │   │   │   │   ├── label: @114
+    │       │       │   │   │   │   ├── result: #115
     │       │       │   │   │   │   ├── body[0] > let:
-    │       │       │   │   │   │   │   ├── local: #92
+    │       │       │   │   │   │   │   ├── local: #116
     │       │       │   │   │   │   │   └── value > call:
     │       │       │   │   │   │   │       ├── type: <handle | handle | void>
     │       │       │   │   │   │   │       ├── fn: texts$refuse(%primitives$String)
     │       │       │   │   │   │   │       └── args[0] > expand:
     │       │       │   │   │   │   │           ├── type: handle
-    │       │       │   │   │   │   │           ├── label: @88
-    │       │       │   │   │   │   │           ├── result: #89
+    │       │       │   │   │   │   │           ├── label: @112
+    │       │       │   │   │   │   │           ├── result: #113
     │       │       │   │   │   │   │           ├── body[0] > hold:
-    │       │       │   │   │   │   │           │   ├── local: #87
+    │       │       │   │   │   │   │           │   ├── local: #111
     │       │       │   │   │   │   │           │   ├── scope: %2
     │       │       │   │   │   │   │           │   ├── value: "no" : handle
     │       │       │   │   │   │   │           │   └── layout: %primitives$String
     │       │       │   │   │   │   │           └── body[1] > assign:
-    │       │       │   │   │   │   │               ├── place: #89
-    │       │       │   │   │   │   │               └── value: local #87 : handle
+    │       │       │   │   │   │   │               ├── place: #113
+    │       │       │   │   │   │   │               └── value: local #111 : handle
     │       │       │   │   │   │   └── body[1] > switch:
-    │       │       │   │   │   │       ├── value: local #92 : <handle | handle | void>
+    │       │       │   │   │   │       ├── value: local #116 : <handle | handle | void>
     │       │       │   │   │   │       ├── cases[0] > case 0[0] > assign:
-    │       │       │   │   │   │       │   ├── place: #91
+    │       │       │   │   │   │       │   ├── place: #115
     │       │       │   │   │   │       │   └── value > payload:
     │       │       │   │   │   │       │       ├── type: handle
     │       │       │   │   │   │       │       ├── index: 0
-    │       │       │   │   │   │       │       └── value: local #92 : <handle | handle | void>
-    │       │       │   │   │   │       ├── cases[0] > case 0[1]: leave @90
+    │       │       │   │   │   │       │       └── value: local #116 : <handle | handle | void>
+    │       │       │   │   │   │       ├── cases[0] > case 0[1]: leave @114
     │       │       │   │   │   │       └── cases[1] > case 1[0] > scope:
-    │       │       │   │   │   │           ├── id: %94
+    │       │       │   │   │   │           ├── id: %118
     │       │       │   │   │   │           ├── body[0] > hold:
-    │       │       │   │   │   │           │   ├── local: #93
-    │       │       │   │   │   │           │   ├── scope: %94
+    │       │       │   │   │   │           │   ├── local: #117
+    │       │       │   │   │   │           │   ├── scope: %118
     │       │       │   │   │   │           │   ├── value > payload:
     │       │       │   │   │   │           │   │   ├── type: handle
     │       │       │   │   │   │           │   │   ├── index: 1
-    │       │       │   │   │   │           │   │   └── value: local #92 : <handle | handle | void>
+    │       │       │   │   │   │           │   │   └── value: local #116 : <handle | handle | void>
     │       │       │   │   │   │           │   └── layout: %primitives$String
     │       │       │   │   │   │           ├── body[1] > assign:
-    │       │       │   │   │   │           │   ├── place: #91
+    │       │       │   │   │   │           │   ├── place: #115
     │       │       │   │   │   │           │   └── value > escape:
-    │       │       │   │   │   │           │       ├── exit: @90
+    │       │       │   │   │   │           │       ├── exit: @114
     │       │       │   │   │   │           │       ├── value > copy:
     │       │       │   │   │   │           │       │   ├── type: handle
-    │       │       │   │   │   │           │       │   ├── value: local #93 : handle
+    │       │       │   │   │   │           │       │   ├── value: local #117 : handle
     │       │       │   │   │   │           │       │   └── layout: %primitives$String
     │       │       │   │   │   │           │       └── layout: %primitives$String
-    │       │       │   │   │   │           └── body[2]: leave @90
+    │       │       │   │   │   │           └── body[2]: leave @114
     │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
-    │       │       │   │       ├── place: #97
-    │       │       │   │       └── value: local #95 : handle
+    │       │       │   │       ├── place: #121
+    │       │       │   │       └── value: local #119 : handle
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @99
-    │       │       │       ├── result: #100
+    │       │       │       ├── label: @123
+    │       │       │       ├── result: #124
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #98
+    │       │       │       │   ├── local: #122
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "no!" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #100
-    │       │       │           └── value: local #98 : handle
+    │       │       │           ├── place: #124
+    │       │       │           └── value: local #122 : handle
     │       │       └── right: 1 : i64
     │       ├── body[28] > hold:
-    │       │   ├── local: #101
+    │       │   ├── local: #125
     │       │   ├── scope: %2
     │       │   ├── value: "" : handle
     │       │   └── layout: %primitives$String
     │       ├── body[29] > let:
-    │       │   ├── local: #102
+    │       │   ├── local: #126
     │       │   └── value: 1 : i64
     │       ├── body[30] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── label: @104
+    │       │   ├── label: @128
     │       │   ├── body[0] > let:
-    │       │   │   ├── local: #103
+    │       │   │   ├── local: #127
     │       │   │   └── value: 10000 : i64
     │       │   ├── body[1] > repeat:
     │       │   │   ├── count > binary:
@@ -670,63 +785,63 @@
     │       │   │   │   ├── left > binary:
     │       │   │   │   │   ├── type: i64
     │       │   │   │   │   ├── op: +
-    │       │   │   │   │   ├── left: local #103 : i64
+    │       │   │   │   │   ├── left: local #127 : i64
     │       │   │   │   │   └── right > flip:
     │       │   │   │   │       ├── type: i64
-    │       │   │   │   │       └── value: local #102 : i64
+    │       │   │   │   │       └── value: local #126 : i64
     │       │   │   │   └── right: 1 : i64
     │       │   │   ├── body[0] > if:
     │       │   │   │   ├── cond: true : i1
     │       │   │   │   └── body[0] > scope:
-    │       │   │   │       ├── id: %110
+    │       │   │   │       ├── id: %134
     │       │   │   │       ├── body[0] > hold:
-    │       │   │   │       │   ├── local: #111
-    │       │   │   │       │   ├── scope: %110
+    │       │   │   │       │   ├── local: #135
+    │       │   │   │       │   ├── scope: %134
     │       │   │   │       │   ├── value > runtime:
     │       │   │   │       │   │   ├── type: handle
     │       │   │   │       │   │   ├── fn: zane_text_join
     │       │   │   │       │   │   ├── args[0]: local #1 : handle
     │       │   │   │       │   │   └── args[1] > expand:
     │       │   │   │       │   │       ├── type: handle
-    │       │   │   │       │   │       ├── label: @108
-    │       │   │   │       │   │       ├── result: #109
+    │       │   │   │       │   │       ├── label: @132
+    │       │   │   │       │   │       ├── result: #133
     │       │   │   │       │   │       ├── body[0] > hold:
-    │       │   │   │       │   │       │   ├── local: #107
-    │       │   │   │       │   │       │   ├── scope: %110
+    │       │   │   │       │   │       │   ├── local: #131
+    │       │   │   │       │   │       │   ├── scope: %134
     │       │   │   │       │   │       │   ├── value: "y" : handle
     │       │   │   │       │   │       │   └── layout: %primitives$String
     │       │   │   │       │   │       └── body[1] > assign:
-    │       │   │   │       │   │           ├── place: #109
-    │       │   │   │       │   │           └── value: local #107 : handle
+    │       │   │   │       │   │           ├── place: #133
+    │       │   │   │       │   │           └── value: local #131 : handle
     │       │   │   │       │   └── layout: %primitives$String
     │       │   │   │       └── body[1] > overwrite:
-    │       │   │   │           ├── address: address of #101 : ptr
+    │       │   │   │           ├── address: address of #125 : ptr
     │       │   │   │           ├── value > runtime:
     │       │   │   │           │   ├── type: handle
     │       │   │   │           │   ├── fn: zane_text_join
-    │       │   │   │           │   ├── args[0]: local #111 : handle
+    │       │   │   │           │   ├── args[0]: local #135 : handle
     │       │   │   │           │   └── args[1] > expand:
     │       │   │   │           │       ├── type: handle
-    │       │   │   │           │       ├── label: @113
-    │       │   │   │           │       ├── result: #114
+    │       │   │   │           │       ├── label: @137
+    │       │   │   │           │       ├── result: #138
     │       │   │   │           │       ├── body[0] > hold:
-    │       │   │   │           │       │   ├── local: #112
-    │       │   │   │           │       │   ├── scope: %110
+    │       │   │   │           │       │   ├── local: #136
+    │       │   │   │           │       │   ├── scope: %134
     │       │   │   │           │       │   ├── value: "z" : handle
     │       │   │   │           │       │   └── layout: %primitives$String
     │       │   │   │           │       └── body[1] > assign:
-    │       │   │   │           │           ├── place: #114
-    │       │   │   │           │           └── value: local #112 : handle
+    │       │   │   │           │           ├── place: #138
+    │       │   │   │           │           └── value: local #136 : handle
     │       │   │   │           └── layout: %primitives$String
     │       │   │   └── body[1] > assign:
-    │       │   │       ├── place: #102
+    │       │   │       ├── place: #126
     │       │   │       └── value > binary:
     │       │   │           ├── type: i64
     │       │   │           ├── op: +
-    │       │   │           ├── left: local #102 : i64
+    │       │   │           ├── left: local #126 : i64
     │       │   │           └── right: 1 : i64
     │       │   ├── body[2] > eval: unit : void
-    │       │   └── body[3]: leave @104
+    │       │   └── body[3]: leave @128
     │       ├── body[31] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: texts$check(%primitives$Bool)
@@ -736,19 +851,19 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0]: local #101 : handle
+    │       │       │   ├── args[0]: local #125 : handle
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @116
-    │       │       │       ├── result: #117
+    │       │       │       ├── label: @140
+    │       │       │       ├── result: #141
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #115
+    │       │       │       │   ├── local: #139
     │       │       │       │   ├── scope: %2
     │       │       │       │   ├── value: "abyz" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #117
-    │       │       │           └── value: local #115 : handle
+    │       │       │           ├── place: #141
+    │       │       │           └── value: local #139 : handle
     │       │       └── right: 1 : i64
     │       └── body[32] > return: unit : void
     ├── funcs[2] > func:
@@ -783,18 +898,6 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[3] > func:
-    │   ├── symbol: texts$twice(%primitives$String)
-    │   ├── params[0]: local #1 : handle
-    │   ├── ret: handle
-    │   └── body[0] > return > escape:
-    │       ├── exit: function
-    │       ├── value > runtime:
-    │       │   ├── type: handle
-    │       │   ├── fn: zane_text_join
-    │       │   ├── args[0]: local #1 : handle
-    │       │   └── args[1]: local #1 : handle
-    │       └── layout: %primitives$String
-    ├── funcs[4] > func:
     │   ├── symbol: texts$Person(%primitives$String)
     │   ├── params[0]: local #1 : handle
     │   ├── ret: {handle}
@@ -804,37 +907,7 @@
     │       │   ├── type: {handle}
     │       │   └── members[0] > member 0: local #1 : handle
     │       └── layout: texts$Person
-    ├── funcs[5] > func:
-    │   ├── symbol: texts$greeting(this texts$Person)
-    │   ├── params[0]: local #1 : ptr
-    │   ├── ret: handle
-    │   └── body[0] > scope:
-    │       ├── id: %5
-    │       └── body[0] > return > escape:
-    │           ├── exit: function
-    │           ├── value > runtime:
-    │           │   ├── type: handle
-    │           │   ├── fn: zane_text_join
-    │           │   ├── args[0] > expand:
-    │           │   │   ├── type: handle
-    │           │   │   ├── label: @3
-    │           │   │   ├── result: #4
-    │           │   │   ├── body[0] > hold:
-    │           │   │   │   ├── local: #2
-    │           │   │   │   ├── scope: %5
-    │           │   │   │   ├── value: "hello, " : handle
-    │           │   │   │   └── layout: %primitives$String
-    │           │   │   └── body[1] > assign:
-    │           │   │       ├── place: #4
-    │           │   │       └── value: local #2 : handle
-    │           │   └── args[1] > deref:
-    │           │       ├── type: handle
-    │           │       └── ptr > offset:
-    │           │           ├── within: {handle}
-    │           │           ├── path: 0
-    │           │           └── base: local #1 : ptr
-    │           └── layout: %primitives$String
-    ├── funcs[6] > func:
+    ├── funcs[4] > func:
     │   ├── symbol: texts$rename(this texts$Person, %primitives$String)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : handle
@@ -847,7 +920,7 @@
     │   │   ├── value: local #2 : handle
     │   │   └── layout: %primitives$String
     │   └── body[1] > return: unit : void
-    └── funcs[7] > func:
+    └── funcs[5] > func:
         ├── symbol: texts$refuse(%primitives$String)
         ├── params[0]: local #1 : handle
         ├── ret: <handle | handle | void>

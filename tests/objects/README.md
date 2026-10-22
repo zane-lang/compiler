@@ -26,10 +26,11 @@ program linked from several objects wrote.
   own: `golden/atlas.stamped-root.symbols` shows what atlas reaches in
   geometry local to the object.
 - `survey` is a program that uses `geometry` from an object geometry was
-  built into on its own, with its stamp. Survey's object inlines geometry's
-  smallest verbs and calls the rest, makes the instances of geometry's
-  generic that it needs, at survey's own type and at the type a verb it
-  takes in uses, and its own copy of the geometry constant it reads, which
+  built into on its own, with its stamp. Survey's object writes out
+  geometry's verbs whose body is one expression and calls the rest, among
+  them `shifted`, which takes and returns a struct, makes the instances of
+  geometry's generic that it needs, at survey's own type and at the type a
+  verb it takes in uses, and its own copy of the geometry constant it reads, which
   merges with geometry's. The program links with geometry's object, and
   every check it makes prints `yes` when it holds.
 

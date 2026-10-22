@@ -347,13 +347,92 @@
     │   │   └── args[0] > binary:
     │   │       ├── type: i1
     │   │       ├── op: ==
-    │   │       ├── left > call:
+    │   │       ├── left > expand:
     │   │       │   ├── type: i64
-    │   │       │   ├── fn: outcomes$ratio(outcomes$Input)
-    │   │       │   └── args[0] > case:
-    │   │       │       ├── type: <i64 | void>
-    │   │       │       ├── index: 0
-    │   │       │       └── payload: 4 : i64
+    │   │       │   ├── label: @35
+    │   │       │   ├── result: #36
+    │   │       │   ├── body[0] > let:
+    │   │       │   │   ├── local: #34
+    │   │       │   │   └── value > case:
+    │   │       │   │       ├── type: <i64 | void>
+    │   │       │   │       ├── index: 0
+    │   │       │   │       └── payload: 4 : i64
+    │   │       │   ├── body[1] > assign:
+    │   │       │   │   ├── place: #36
+    │   │       │   │   └── value > expand:
+    │   │       │   │       ├── type: i64
+    │   │       │   │       ├── label: @37
+    │   │       │   │       ├── result: #38
+    │   │       │   │       ├── body[0] > let:
+    │   │       │   │       │   ├── local: #39
+    │   │       │   │       │   └── value: address of #34 : ptr
+    │   │       │   │       └── body[1] > switch:
+    │   │       │   │           ├── value > deref:
+    │   │       │   │           │   ├── type: <i64 | void>
+    │   │       │   │           │   └── ptr: local #39 : ptr
+    │   │       │   │           ├── cases[0] > case 0[0] > let:
+    │   │       │   │           │   ├── local: #40
+    │   │       │   │           │   └── value > offset:
+    │   │       │   │           │       ├── within: <i64 | void>
+    │   │       │   │           │       ├── path: 0
+    │   │       │   │           │       └── base: local #39 : ptr
+    │   │       │   │           ├── cases[0] > case 0[1] > assign:
+    │   │       │   │           │   ├── place: #38
+    │   │       │   │           │   └── value > expand:
+    │   │       │   │           │       ├── type: i64
+    │   │       │   │           │       ├── label: @41
+    │   │       │   │           │       ├── result: #42
+    │   │       │   │           │       ├── body[0] > let:
+    │   │       │   │           │       │   ├── local: #43
+    │   │       │   │           │       │   └── value > call:
+    │   │       │   │           │       │       ├── type: <i64 | i64 | void>
+    │   │       │   │           │       │       ├── fn: outcomes$divide(%primitives$I64, %primitives$I64)
+    │   │       │   │           │       │       ├── args[0]: 12 : i64
+    │   │       │   │           │       │       └── args[1] > deref:
+    │   │       │   │           │       │           ├── type: i64
+    │   │       │   │           │       │           └── ptr: local #40 : ptr
+    │   │       │   │           │       └── body[1] > switch:
+    │   │       │   │           │           ├── value: local #43 : <i64 | i64 | void>
+    │   │       │   │           │           ├── cases[0] > case 0[0] > assign:
+    │   │       │   │           │           │   ├── place: #42
+    │   │       │   │           │           │   └── value > payload:
+    │   │       │   │           │           │       ├── type: i64
+    │   │       │   │           │           │       ├── index: 0
+    │   │       │   │           │           │       └── value: local #43 : <i64 | i64 | void>
+    │   │       │   │           │           ├── cases[0] > case 0[1]: leave @41
+    │   │       │   │           │           ├── cases[1] > case 1[0] > let:
+    │   │       │   │           │           │   ├── local: #44
+    │   │       │   │           │           │   └── value > payload:
+    │   │       │   │           │           │       ├── type: i64
+    │   │       │   │           │           │       ├── index: 1
+    │   │       │   │           │           │       └── value: local #43 : <i64 | i64 | void>
+    │   │       │   │           │           ├── cases[1] > case 1[1] > assign:
+    │   │       │   │           │           │   ├── place: #38
+    │   │       │   │           │           │   └── value > binary:
+    │   │       │   │           │           │       ├── type: i64
+    │   │       │   │           │           │       ├── op: +
+    │   │       │   │           │           │       ├── left: local #44 : i64
+    │   │       │   │           │           │       └── right: 100 : i64
+    │   │       │   │           │           └── cases[1] > case 1[2]: leave @37
+    │   │       │   │           ├── cases[0] > case 0[2]: leave @37
+    │   │       │   │           ├── cases[1] > case 1[0] > let:
+    │   │       │   │           │   ├── local: #45
+    │   │       │   │           │   └── value > offset:
+    │   │       │   │           │       ├── within: <i64 | void>
+    │   │       │   │           │       ├── path: 1
+    │   │       │   │           │       └── base: local #39 : ptr
+    │   │       │   │           ├── cases[1] > case 1[1] > let:
+    │   │       │   │           │   ├── local: #46
+    │   │       │   │           │   └── value: 5 : i64
+    │   │       │   │           ├── cases[1] > case 1[2] > assign:
+    │   │       │   │           │   ├── place: #38
+    │   │       │   │           │   └── value > binary:
+    │   │       │   │           │       ├── type: i64
+    │   │       │   │           │       ├── op: +
+    │   │       │   │           │       ├── left: local #46 : i64
+    │   │       │   │           │       └── right: 100 : i64
+    │   │       │   │           └── cases[1] > case 1[3]: leave @37
+    │   │       │   └── body[2]: leave @35
     │   │       └── right: 3 : i64
     │   ├── body[14] > eval > call:
     │   │   ├── type: void
@@ -361,13 +440,92 @@
     │   │   └── args[0] > binary:
     │   │       ├── type: i1
     │   │       ├── op: ==
-    │   │       ├── left > call:
+    │   │       ├── left > expand:
     │   │       │   ├── type: i64
-    │   │       │   ├── fn: outcomes$ratio(outcomes$Input)
-    │   │       │   └── args[0] > case:
-    │   │       │       ├── type: <i64 | void>
-    │   │       │       ├── index: 0
-    │   │       │       └── payload: 0 : i64
+    │   │       │   ├── label: @48
+    │   │       │   ├── result: #49
+    │   │       │   ├── body[0] > let:
+    │   │       │   │   ├── local: #47
+    │   │       │   │   └── value > case:
+    │   │       │   │       ├── type: <i64 | void>
+    │   │       │   │       ├── index: 0
+    │   │       │   │       └── payload: 0 : i64
+    │   │       │   ├── body[1] > assign:
+    │   │       │   │   ├── place: #49
+    │   │       │   │   └── value > expand:
+    │   │       │   │       ├── type: i64
+    │   │       │   │       ├── label: @50
+    │   │       │   │       ├── result: #51
+    │   │       │   │       ├── body[0] > let:
+    │   │       │   │       │   ├── local: #52
+    │   │       │   │       │   └── value: address of #47 : ptr
+    │   │       │   │       └── body[1] > switch:
+    │   │       │   │           ├── value > deref:
+    │   │       │   │           │   ├── type: <i64 | void>
+    │   │       │   │           │   └── ptr: local #52 : ptr
+    │   │       │   │           ├── cases[0] > case 0[0] > let:
+    │   │       │   │           │   ├── local: #53
+    │   │       │   │           │   └── value > offset:
+    │   │       │   │           │       ├── within: <i64 | void>
+    │   │       │   │           │       ├── path: 0
+    │   │       │   │           │       └── base: local #52 : ptr
+    │   │       │   │           ├── cases[0] > case 0[1] > assign:
+    │   │       │   │           │   ├── place: #51
+    │   │       │   │           │   └── value > expand:
+    │   │       │   │           │       ├── type: i64
+    │   │       │   │           │       ├── label: @54
+    │   │       │   │           │       ├── result: #55
+    │   │       │   │           │       ├── body[0] > let:
+    │   │       │   │           │       │   ├── local: #56
+    │   │       │   │           │       │   └── value > call:
+    │   │       │   │           │       │       ├── type: <i64 | i64 | void>
+    │   │       │   │           │       │       ├── fn: outcomes$divide(%primitives$I64, %primitives$I64)
+    │   │       │   │           │       │       ├── args[0]: 12 : i64
+    │   │       │   │           │       │       └── args[1] > deref:
+    │   │       │   │           │       │           ├── type: i64
+    │   │       │   │           │       │           └── ptr: local #53 : ptr
+    │   │       │   │           │       └── body[1] > switch:
+    │   │       │   │           │           ├── value: local #56 : <i64 | i64 | void>
+    │   │       │   │           │           ├── cases[0] > case 0[0] > assign:
+    │   │       │   │           │           │   ├── place: #55
+    │   │       │   │           │           │   └── value > payload:
+    │   │       │   │           │           │       ├── type: i64
+    │   │       │   │           │           │       ├── index: 0
+    │   │       │   │           │           │       └── value: local #56 : <i64 | i64 | void>
+    │   │       │   │           │           ├── cases[0] > case 0[1]: leave @54
+    │   │       │   │           │           ├── cases[1] > case 1[0] > let:
+    │   │       │   │           │           │   ├── local: #57
+    │   │       │   │           │           │   └── value > payload:
+    │   │       │   │           │           │       ├── type: i64
+    │   │       │   │           │           │       ├── index: 1
+    │   │       │   │           │           │       └── value: local #56 : <i64 | i64 | void>
+    │   │       │   │           │           ├── cases[1] > case 1[1] > assign:
+    │   │       │   │           │           │   ├── place: #51
+    │   │       │   │           │           │   └── value > binary:
+    │   │       │   │           │           │       ├── type: i64
+    │   │       │   │           │           │       ├── op: +
+    │   │       │   │           │           │       ├── left: local #57 : i64
+    │   │       │   │           │           │       └── right: 100 : i64
+    │   │       │   │           │           └── cases[1] > case 1[2]: leave @50
+    │   │       │   │           ├── cases[0] > case 0[2]: leave @50
+    │   │       │   │           ├── cases[1] > case 1[0] > let:
+    │   │       │   │           │   ├── local: #58
+    │   │       │   │           │   └── value > offset:
+    │   │       │   │           │       ├── within: <i64 | void>
+    │   │       │   │           │       ├── path: 1
+    │   │       │   │           │       └── base: local #52 : ptr
+    │   │       │   │           ├── cases[1] > case 1[1] > let:
+    │   │       │   │           │   ├── local: #59
+    │   │       │   │           │   └── value: 5 : i64
+    │   │       │   │           ├── cases[1] > case 1[2] > assign:
+    │   │       │   │           │   ├── place: #51
+    │   │       │   │           │   └── value > binary:
+    │   │       │   │           │       ├── type: i64
+    │   │       │   │           │       ├── op: +
+    │   │       │   │           │       ├── left: local #59 : i64
+    │   │       │   │           │       └── right: 100 : i64
+    │   │       │   │           └── cases[1] > case 1[3]: leave @50
+    │   │       │   └── body[2]: leave @48
     │   │       └── right: 112 : i64
     │   ├── body[15] > eval > call:
     │   │   ├── type: void
@@ -375,22 +533,101 @@
     │   │   └── args[0] > binary:
     │   │       ├── type: i1
     │   │       ├── op: ==
-    │   │       ├── left > call:
+    │   │       ├── left > expand:
     │   │       │   ├── type: i64
-    │   │       │   ├── fn: outcomes$ratio(outcomes$Input)
-    │   │       │   └── args[0] > case:
-    │   │       │       ├── type: <i64 | void>
-    │   │       │       ├── index: 1
-    │   │       │       └── payload: unit : void
+    │   │       │   ├── label: @61
+    │   │       │   ├── result: #62
+    │   │       │   ├── body[0] > let:
+    │   │       │   │   ├── local: #60
+    │   │       │   │   └── value > case:
+    │   │       │   │       ├── type: <i64 | void>
+    │   │       │   │       ├── index: 1
+    │   │       │   │       └── payload: unit : void
+    │   │       │   ├── body[1] > assign:
+    │   │       │   │   ├── place: #62
+    │   │       │   │   └── value > expand:
+    │   │       │   │       ├── type: i64
+    │   │       │   │       ├── label: @63
+    │   │       │   │       ├── result: #64
+    │   │       │   │       ├── body[0] > let:
+    │   │       │   │       │   ├── local: #65
+    │   │       │   │       │   └── value: address of #60 : ptr
+    │   │       │   │       └── body[1] > switch:
+    │   │       │   │           ├── value > deref:
+    │   │       │   │           │   ├── type: <i64 | void>
+    │   │       │   │           │   └── ptr: local #65 : ptr
+    │   │       │   │           ├── cases[0] > case 0[0] > let:
+    │   │       │   │           │   ├── local: #66
+    │   │       │   │           │   └── value > offset:
+    │   │       │   │           │       ├── within: <i64 | void>
+    │   │       │   │           │       ├── path: 0
+    │   │       │   │           │       └── base: local #65 : ptr
+    │   │       │   │           ├── cases[0] > case 0[1] > assign:
+    │   │       │   │           │   ├── place: #64
+    │   │       │   │           │   └── value > expand:
+    │   │       │   │           │       ├── type: i64
+    │   │       │   │           │       ├── label: @67
+    │   │       │   │           │       ├── result: #68
+    │   │       │   │           │       ├── body[0] > let:
+    │   │       │   │           │       │   ├── local: #69
+    │   │       │   │           │       │   └── value > call:
+    │   │       │   │           │       │       ├── type: <i64 | i64 | void>
+    │   │       │   │           │       │       ├── fn: outcomes$divide(%primitives$I64, %primitives$I64)
+    │   │       │   │           │       │       ├── args[0]: 12 : i64
+    │   │       │   │           │       │       └── args[1] > deref:
+    │   │       │   │           │       │           ├── type: i64
+    │   │       │   │           │       │           └── ptr: local #66 : ptr
+    │   │       │   │           │       └── body[1] > switch:
+    │   │       │   │           │           ├── value: local #69 : <i64 | i64 | void>
+    │   │       │   │           │           ├── cases[0] > case 0[0] > assign:
+    │   │       │   │           │           │   ├── place: #68
+    │   │       │   │           │           │   └── value > payload:
+    │   │       │   │           │           │       ├── type: i64
+    │   │       │   │           │           │       ├── index: 0
+    │   │       │   │           │           │       └── value: local #69 : <i64 | i64 | void>
+    │   │       │   │           │           ├── cases[0] > case 0[1]: leave @67
+    │   │       │   │           │           ├── cases[1] > case 1[0] > let:
+    │   │       │   │           │           │   ├── local: #70
+    │   │       │   │           │           │   └── value > payload:
+    │   │       │   │           │           │       ├── type: i64
+    │   │       │   │           │           │       ├── index: 1
+    │   │       │   │           │           │       └── value: local #69 : <i64 | i64 | void>
+    │   │       │   │           │           ├── cases[1] > case 1[1] > assign:
+    │   │       │   │           │           │   ├── place: #64
+    │   │       │   │           │           │   └── value > binary:
+    │   │       │   │           │           │       ├── type: i64
+    │   │       │   │           │           │       ├── op: +
+    │   │       │   │           │           │       ├── left: local #70 : i64
+    │   │       │   │           │           │       └── right: 100 : i64
+    │   │       │   │           │           └── cases[1] > case 1[2]: leave @63
+    │   │       │   │           ├── cases[0] > case 0[2]: leave @63
+    │   │       │   │           ├── cases[1] > case 1[0] > let:
+    │   │       │   │           │   ├── local: #71
+    │   │       │   │           │   └── value > offset:
+    │   │       │   │           │       ├── within: <i64 | void>
+    │   │       │   │           │       ├── path: 1
+    │   │       │   │           │       └── base: local #65 : ptr
+    │   │       │   │           ├── cases[1] > case 1[1] > let:
+    │   │       │   │           │   ├── local: #72
+    │   │       │   │           │   └── value: 5 : i64
+    │   │       │   │           ├── cases[1] > case 1[2] > assign:
+    │   │       │   │           │   ├── place: #64
+    │   │       │   │           │   └── value > binary:
+    │   │       │   │           │       ├── type: i64
+    │   │       │   │           │       ├── op: +
+    │   │       │   │           │       ├── left: local #72 : i64
+    │   │       │   │           │       └── right: 100 : i64
+    │   │       │   │           └── cases[1] > case 1[3]: leave @63
+    │   │       │   └── body[2]: leave @61
     │   │       └── right: 105 : i64
     │   ├── body[16] > let:
-    │   │   ├── local: #34
+    │   │   ├── local: #73
     │   │   └── value > case:
     │   │       ├── type: <i64 | void>
     │   │       ├── index: 0
     │   │       └── payload: 7 : i64
     │   ├── body[17] > let:
-    │   │   ├── local: #35
+    │   │   ├── local: #74
     │   │   └── value > case:
     │   │       ├── type: <i64 | void>
     │   │       ├── index: 1
@@ -403,26 +640,26 @@
     │   │       ├── op: ==
     │   │       ├── left > expand:
     │   │       │   ├── type: i64
-    │   │       │   ├── label: @36
-    │   │       │   ├── result: #37
+    │   │       │   ├── label: @75
+    │   │       │   ├── result: #76
     │   │       │   ├── body[0] > let:
-    │   │       │   │   ├── local: #38
-    │   │       │   │   └── value: local #34 : <i64 | void>
+    │   │       │   │   ├── local: #77
+    │   │       │   │   └── value: local #73 : <i64 | void>
     │   │       │   ├── body[1] > switch:
-    │   │       │   │   ├── value: local #38 : <i64 | void>
+    │   │       │   │   ├── value: local #77 : <i64 | void>
     │   │       │   │   ├── cases[0] > case 0[0] > assign:
-    │   │       │   │   │   ├── place: #37
+    │   │       │   │   │   ├── place: #76
     │   │       │   │   │   └── value > payload:
     │   │       │   │   │       ├── type: i64
     │   │       │   │   │       ├── index: 0
-    │   │       │   │   │       └── value: local #38 : <i64 | void>
-    │   │       │   │   ├── cases[0] > case 0[1]: leave @36
+    │   │       │   │   │       └── value: local #77 : <i64 | void>
+    │   │       │   │   ├── cases[0] > case 0[1]: leave @75
     │   │       │   │   └── cases[1] > case 1:
     │   │       │   ├── body[2] > eval: unit : void
     │   │       │   ├── body[3] > assign:
-    │   │       │   │   ├── place: #37
+    │   │       │   │   ├── place: #76
     │   │       │   │   └── value: 0 : i64
-    │   │       │   └── body[4]: leave @36
+    │   │       │   └── body[4]: leave @75
     │   │       └── right: 7 : i64
     │   ├── body[19] > eval > call:
     │   │   ├── type: void
@@ -432,36 +669,36 @@
     │   │       ├── op: ==
     │   │       ├── left > expand:
     │   │       │   ├── type: i64
-    │   │       │   ├── label: @39
-    │   │       │   ├── result: #40
+    │   │       │   ├── label: @78
+    │   │       │   ├── result: #79
     │   │       │   ├── body[0] > let:
-    │   │       │   │   ├── local: #41
-    │   │       │   │   └── value: local #35 : <i64 | void>
+    │   │       │   │   ├── local: #80
+    │   │       │   │   └── value: local #74 : <i64 | void>
     │   │       │   ├── body[1] > switch:
-    │   │       │   │   ├── value: local #41 : <i64 | void>
+    │   │       │   │   ├── value: local #80 : <i64 | void>
     │   │       │   │   ├── cases[0] > case 0[0] > assign:
-    │   │       │   │   │   ├── place: #40
+    │   │       │   │   │   ├── place: #79
     │   │       │   │   │   └── value > payload:
     │   │       │   │   │       ├── type: i64
     │   │       │   │   │       ├── index: 0
-    │   │       │   │   │       └── value: local #41 : <i64 | void>
-    │   │       │   │   ├── cases[0] > case 0[1]: leave @39
+    │   │       │   │   │       └── value: local #80 : <i64 | void>
+    │   │       │   │   ├── cases[0] > case 0[1]: leave @78
     │   │       │   │   └── cases[1] > case 1:
     │   │       │   ├── body[2] > let:
-    │   │       │   │   ├── local: #42
+    │   │       │   │   ├── local: #81
     │   │       │   │   └── value: unit : void
     │   │       │   ├── body[3] > assign:
-    │   │       │   │   ├── place: #40
+    │   │       │   │   ├── place: #79
     │   │       │   │   └── value: 9 : i64
-    │   │       │   └── body[4]: leave @39
+    │   │       │   └── body[4]: leave @78
     │   │       └── right: 9 : i64
     │   ├── body[20] > let:
-    │   │   ├── local: #43
+    │   │   ├── local: #82
     │   │   └── value: 0 : i64
     │   ├── body[21] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: outcomes$addAllBut(this %primitives$I64, %primitives$I64)
-    │   │   ├── args[0]: address of #43 : ptr
+    │   │   ├── args[0]: address of #82 : ptr
     │   │   └── args[1]: 3 : i64
     │   ├── body[22] > eval > call:
     │   │   ├── type: void
@@ -469,41 +706,41 @@
     │   │   └── args[0] > binary:
     │   │       ├── type: i1
     │   │       ├── op: ==
-    │   │       ├── left: local #43 : i64
+    │   │       ├── left: local #82 : i64
     │   │       └── right: 52 : i64
     │   ├── body[23] > eval > expand:
     │   │   ├── type: i1
-    │   │   ├── label: @45
-    │   │   ├── result: #46
+    │   │   ├── label: @84
+    │   │   ├── result: #85
     │   │   ├── body[0] > let:
-    │   │   │   ├── local: #44
+    │   │   │   ├── local: #83
     │   │   │   └── value: true : i1
     │   │   ├── body[1] > if:
-    │   │   │   ├── cond: local #44 : i1
+    │   │   │   ├── cond: local #83 : i1
     │   │   │   └── body[0] > eval > expand:
     │   │   │       ├── type: void
-    │   │   │       ├── label: @47
+    │   │   │       ├── label: @86
     │   │   │       ├── body[0] > eval > expand:
     │   │   │       │   ├── type: void
-    │   │   │       │   ├── label: @48
+    │   │   │       │   ├── label: @87
     │   │   │       │   ├── body[0] > let:
-    │   │   │       │   │   ├── local: #49
+    │   │   │       │   │   ├── local: #88
     │   │   │       │   │   └── value > call:
     │   │   │       │   │       ├── type: <void | void | void>
     │   │   │       │   │       ├── fn: outcomes$guard(%primitives$Bool)
     │   │   │       │   │       └── args[0]: true : i1
     │   │   │       │   └── body[1] > switch:
-    │   │   │       │       ├── value: local #49 : <void | void | void>
-    │   │   │       │       ├── cases[0] > case 0[0]: leave @48
-    │   │   │       │       └── cases[1] > case 2[0]: leave @47
+    │   │   │       │       ├── value: local #88 : <void | void | void>
+    │   │   │       │       ├── cases[0] > case 0[0]: leave @87
+    │   │   │       │       └── cases[1] > case 2[0]: leave @86
     │   │   │       └── body[1] > eval > call:
     │   │   │           ├── type: void
     │   │   │           ├── fn: outcomes$check(%primitives$Bool)
     │   │   │           └── args[0]: false : i1
     │   │   ├── body[2] > assign:
-    │   │   │   ├── place: #46
-    │   │   │   └── value: local #44 : i1
-    │   │   └── body[3]: leave @45
+    │   │   │   ├── place: #85
+    │   │   │   └── value: local #83 : i1
+    │   │   └── body[3]: leave @84
     │   └── body[24] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: outcomes$divide(%primitives$I64, %primitives$I64)
@@ -682,83 +919,6 @@
     │       ├── index: 0
     │       └── payload: unit : void
     ├── funcs[7] > func:
-    │   ├── symbol: outcomes$ratio(outcomes$Input)
-    │   ├── params[0]: local #1 : <i64 | void>
-    │   ├── ret: i64
-    │   └── body[0] > return > expand:
-    │       ├── type: i64
-    │       ├── label: @2
-    │       ├── result: #3
-    │       ├── body[0] > let:
-    │       │   ├── local: #4
-    │       │   └── value: address of #1 : ptr
-    │       └── body[1] > switch:
-    │           ├── value > deref:
-    │           │   ├── type: <i64 | void>
-    │           │   └── ptr: local #4 : ptr
-    │           ├── cases[0] > case 0[0] > let:
-    │           │   ├── local: #5
-    │           │   └── value > offset:
-    │           │       ├── within: <i64 | void>
-    │           │       ├── path: 0
-    │           │       └── base: local #4 : ptr
-    │           ├── cases[0] > case 0[1] > assign:
-    │           │   ├── place: #3
-    │           │   └── value > expand:
-    │           │       ├── type: i64
-    │           │       ├── label: @6
-    │           │       ├── result: #7
-    │           │       ├── body[0] > let:
-    │           │       │   ├── local: #8
-    │           │       │   └── value > call:
-    │           │       │       ├── type: <i64 | i64 | void>
-    │           │       │       ├── fn: outcomes$divide(%primitives$I64, %primitives$I64)
-    │           │       │       ├── args[0]: 12 : i64
-    │           │       │       └── args[1] > deref:
-    │           │       │           ├── type: i64
-    │           │       │           └── ptr: local #5 : ptr
-    │           │       └── body[1] > switch:
-    │           │           ├── value: local #8 : <i64 | i64 | void>
-    │           │           ├── cases[0] > case 0[0] > assign:
-    │           │           │   ├── place: #7
-    │           │           │   └── value > payload:
-    │           │           │       ├── type: i64
-    │           │           │       ├── index: 0
-    │           │           │       └── value: local #8 : <i64 | i64 | void>
-    │           │           ├── cases[0] > case 0[1]: leave @6
-    │           │           ├── cases[1] > case 1[0] > let:
-    │           │           │   ├── local: #9
-    │           │           │   └── value > payload:
-    │           │           │       ├── type: i64
-    │           │           │       ├── index: 1
-    │           │           │       └── value: local #8 : <i64 | i64 | void>
-    │           │           ├── cases[1] > case 1[1] > assign:
-    │           │           │   ├── place: #3
-    │           │           │   └── value > binary:
-    │           │           │       ├── type: i64
-    │           │           │       ├── op: +
-    │           │           │       ├── left: local #9 : i64
-    │           │           │       └── right: 100 : i64
-    │           │           └── cases[1] > case 1[2]: leave @2
-    │           ├── cases[0] > case 0[2]: leave @2
-    │           ├── cases[1] > case 1[0] > let:
-    │           │   ├── local: #10
-    │           │   └── value > offset:
-    │           │       ├── within: <i64 | void>
-    │           │       ├── path: 1
-    │           │       └── base: local #4 : ptr
-    │           ├── cases[1] > case 1[1] > let:
-    │           │   ├── local: #11
-    │           │   └── value: 5 : i64
-    │           ├── cases[1] > case 1[2] > assign:
-    │           │   ├── place: #3
-    │           │   └── value > binary:
-    │           │       ├── type: i64
-    │           │       ├── op: +
-    │           │       ├── left: local #11 : i64
-    │           │       └── right: 100 : i64
-    │           └── cases[1] > case 1[3]: leave @2
-    ├── funcs[8] > func:
     │   ├── symbol: outcomes$addAllBut(this %primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -825,7 +985,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @5
     │   └── body[2] > return: unit : void
-    └── funcs[9] > func:
+    └── funcs[8] > func:
         ├── symbol: outcomes$guard(%primitives$Bool)
         ├── params[0]: local #1 : i1
         ├── ret: <void | void | void>

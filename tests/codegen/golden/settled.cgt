@@ -28,22 +28,34 @@
     │   ├── params:
     │   ├── ret: void
     │   └── body[0] > scope:
-    │       ├── id: %2
+    │       ├── id: %5
     │       ├── body[0] > hold:
-    │       │   ├── local: #1
-    │       │   ├── scope: %2
-    │       │   ├── value > call:
+    │       │   ├── local: #4
+    │       │   ├── scope: %5
+    │       │   ├── value > expand:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: settled$Node(%primitives$I64)
-    │       │   │   └── args[0]: 1 : i64
+    │       │   │   ├── label: @2
+    │       │   │   ├── result: #3
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #1
+    │       │   │   │   └── value: 1 : i64
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #3
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @2
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {i64}
+    │       │   │   │       │   └── members[0] > member 0: local #1 : i64
+    │       │   │   │       └── layout: settled$Node
+    │       │   │   └── body[2]: leave @2
     │       │   └── layout: settled$Node
     │       ├── body[1] > let:
-    │       │   ├── local: #3
-    │       │   └── value: address of #1 : ptr
+    │       │   ├── local: #6
+    │       │   └── value: address of #4 : ptr
     │       ├── body[2] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$bump(this settled$Node)
-    │       │   └── args[0]: address of #1 : ptr
+    │       │   └── args[0]: address of #4 : ptr
     │       ├── body[3] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$check(%primitives$Bool)
@@ -55,12 +67,12 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
     │       │       │       ├── path: 0
-    │       │       │       └── base: local #3 : ptr
+    │       │       │       └── base: local #6 : ptr
     │       │       └── right: 2 : i64
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$bump(this settled$Node)
-    │       │   └── args[0]: local #3 : ptr
+    │       │   └── args[0]: local #6 : ptr
     │       ├── body[5] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$check(%primitives$Bool)
@@ -72,7 +84,7 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
     │       │       │       ├── path: 0
-    │       │       │       └── base: address of #1 : ptr
+    │       │       │       └── base: address of #4 : ptr
     │       │       └── right: 3 : i64
     │       ├── body[6] > eval > call:
     │       │   ├── type: void
@@ -83,18 +95,42 @@
     │       │       ├── left > binary:
     │       │       │   ├── type: i1
     │       │       │   ├── op: ==
-    │       │       │   ├── left > call:
+    │       │       │   ├── left > expand:
     │       │       │   │   ├── type: i64
-    │       │       │   │   ├── fn: settled$peek(&settled$Node)
-    │       │       │   │   └── args[0]: local #3 : ptr
+    │       │       │   │   ├── label: @8
+    │       │       │   │   ├── result: #9
+    │       │       │   │   ├── body[0] > let:
+    │       │       │   │   │   ├── local: #7
+    │       │       │   │   │   └── value: local #6 : ptr
+    │       │       │   │   ├── body[1] > assign:
+    │       │       │   │   │   ├── place: #9
+    │       │       │   │   │   └── value > deref:
+    │       │       │   │   │       ├── type: i64
+    │       │       │   │   │       └── ptr > offset:
+    │       │       │   │   │           ├── within: {i64}
+    │       │       │   │   │           ├── path: 0
+    │       │       │   │   │           └── base: local #7 : ptr
+    │       │       │   │   └── body[2]: leave @8
     │       │       │   └── right: 3 : i64
     │       │       └── right > binary:
     │       │           ├── type: i1
     │       │           ├── op: ==
-    │       │           ├── left > call:
+    │       │           ├── left > expand:
     │       │           │   ├── type: i64
-    │       │           │   ├── fn: settled$peek(&settled$Node)
-    │       │           │   └── args[0]: address of #1 : ptr
+    │       │           │   ├── label: @11
+    │       │           │   ├── result: #12
+    │       │           │   ├── body[0] > let:
+    │       │           │   │   ├── local: #10
+    │       │           │   │   └── value: address of #4 : ptr
+    │       │           │   ├── body[1] > assign:
+    │       │           │   │   ├── place: #12
+    │       │           │   │   └── value > deref:
+    │       │           │   │       ├── type: i64
+    │       │           │   │       └── ptr > offset:
+    │       │           │   │           ├── within: {i64}
+    │       │           │   │           ├── path: 0
+    │       │           │   │           └── base: local #10 : ptr
+    │       │           │   └── body[2]: leave @11
     │       │           └── right: 3 : i64
     │       ├── body[7] > eval > call:
     │       │   ├── type: void
@@ -102,17 +138,45 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > call:
+    │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: settled$twice(this settled$Node)
-    │       │       │   └── args[0]: local #3 : ptr
+    │       │       │   ├── label: @14
+    │       │       │   ├── result: #15
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #13
+    │       │       │   │   └── value: local #6 : ptr
+    │       │       │   ├── body[1] > assign:
+    │       │       │   │   ├── place: #15
+    │       │       │   │   └── value > binary:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── op: *
+    │       │       │   │       ├── left > deref:
+    │       │       │   │       │   ├── type: i64
+    │       │       │   │       │   └── ptr > offset:
+    │       │       │   │       │       ├── within: {i64}
+    │       │       │   │       │       ├── path: 0
+    │       │       │   │       │       └── base: local #13 : ptr
+    │       │       │   │       └── right: 2 : i64
+    │       │       │   └── body[2]: leave @14
     │       │       └── right: 6 : i64
     │       ├── body[8] > overwrite:
-    │       │   ├── address: address of #1 : ptr
-    │       │   ├── value > call:
+    │       │   ├── address: address of #4 : ptr
+    │       │   ├── value > expand:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: settled$Node(%primitives$I64)
-    │       │   │   └── args[0]: 7 : i64
+    │       │   │   ├── label: @17
+    │       │   │   ├── result: #18
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #16
+    │       │   │   │   └── value: 7 : i64
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #18
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @17
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {i64}
+    │       │   │   │       │   └── members[0] > member 0: local #16 : i64
+    │       │   │   │       └── layout: settled$Node
+    │       │   │   └── body[2]: leave @17
     │       │   └── layout: settled$Node
     │       ├── body[9] > eval > call:
     │       │   ├── type: void
@@ -125,31 +189,43 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
     │       │       │       ├── path: 0
-    │       │       │       └── base: local #3 : ptr
+    │       │       │       └── base: local #6 : ptr
     │       │       └── right: 7 : i64
     │       ├── body[10] > hold:
-    │       │   ├── local: #4
-    │       │   ├── scope: %2
-    │       │   ├── value > call:
+    │       │   ├── local: #22
+    │       │   ├── scope: %5
+    │       │   ├── value > expand:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: settled$Node(%primitives$I64)
-    │       │   │   └── args[0]: 20 : i64
+    │       │   │   ├── label: @20
+    │       │   │   ├── result: #21
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #19
+    │       │   │   │   └── value: 20 : i64
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #21
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @20
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {i64}
+    │       │   │   │       │   └── members[0] > member 0: local #19 : i64
+    │       │   │   │       └── layout: settled$Node
+    │       │   │   └── body[2]: leave @20
     │       │   └── layout: ^settled$Node
     │       ├── body[11] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$bump(this settled$Node)
-    │       │   └── args[0]: address of #4 : ptr
+    │       │   └── args[0]: address of #22 : ptr
     │       ├── body[12] > hold:
-    │       │   ├── local: #5
-    │       │   ├── scope: %2
+    │       │   ├── local: #23
+    │       │   ├── scope: %5
     │       │   ├── value > take:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── address: address of #4 : ptr
+    │       │   │   ├── address: address of #22 : ptr
     │       │   │   └── layout: settled$Node
     │       │   └── layout: settled$Node
     │       ├── body[13] > let:
-    │       │   ├── local: #6
-    │       │   └── value: address of #5 : ptr
+    │       │   ├── local: #24
+    │       │   └── value: address of #23 : ptr
     │       ├── body[14] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$check(%primitives$Bool)
@@ -161,14 +237,26 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
     │       │       │       ├── path: 0
-    │       │       │       └── base: local #6 : ptr
+    │       │       │       └── base: local #24 : ptr
     │       │       └── right: 21 : i64
     │       ├── body[15] > overwrite:
-    │       │   ├── address: address of #5 : ptr
-    │       │   ├── value > call:
+    │       │   ├── address: address of #23 : ptr
+    │       │   ├── value > expand:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: settled$Node(%primitives$I64)
-    │       │   │   └── args[0]: 100 : i64
+    │       │   │   ├── label: @26
+    │       │   │   ├── result: #27
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #25
+    │       │   │   │   └── value: 100 : i64
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #27
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @26
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {i64}
+    │       │   │   │       │   └── members[0] > member 0: local #25 : i64
+    │       │   │   │       └── layout: settled$Node
+    │       │   │   └── body[2]: leave @26
     │       │   └── layout: settled$Node
     │       ├── body[16] > eval > call:
     │       │   ├── type: void
@@ -181,7 +269,7 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
     │       │       │       ├── path: 0
-    │       │       │       └── base: local #6 : ptr
+    │       │       │       └── base: local #24 : ptr
     │       │       └── right: 100 : i64
     │       ├── body[17] > eval > call:
     │       │   ├── type: void
@@ -197,12 +285,12 @@
     │       │       │       └── base > call:
     │       │       │           ├── type: ptr
     │       │       │           ├── fn: settled$larger(&settled$Node, &settled$Node)
-    │       │       │           ├── args[0]: address of #1 : ptr
-    │       │       │           └── args[1]: address of #5 : ptr
+    │       │       │           ├── args[0]: address of #4 : ptr
+    │       │       │           └── args[1]: address of #23 : ptr
     │       │       └── right: 100 : i64
     │       ├── body[18] > assign:
-    │       │   ├── place: #3
-    │       │   └── value: address of #5 : ptr
+    │       │   ├── place: #6
+    │       │   └── value: address of #23 : ptr
     │       ├── body[19] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$check(%primitives$Bool)
@@ -214,19 +302,51 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
     │       │       │       ├── path: 0
-    │       │       │       └── base: local #3 : ptr
+    │       │       │       └── base: local #6 : ptr
     │       │       └── right: 100 : i64
     │       ├── body[20] > hold:
-    │       │   ├── local: #7
-    │       │   ├── scope: %2
-    │       │   ├── value > call:
+    │       │   ├── local: #35
+    │       │   ├── scope: %5
+    │       │   ├── value > expand:
     │       │   │   ├── type: {ptr, {i64}}
-    │       │   │   ├── fn: settled$Car(&settled$Node, ^settled$Node)
-    │       │   │   ├── args[0]: address of #1 : ptr
-    │       │   │   └── args[1] > call:
-    │       │   │       ├── type: {i64}
-    │       │   │       ├── fn: settled$Node(%primitives$I64)
-    │       │   │       └── args[0]: 5 : i64
+    │       │   │   ├── label: @33
+    │       │   │   ├── result: #34
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #28
+    │       │   │   │   └── value: address of #4 : ptr
+    │       │   │   ├── body[1] > hold:
+    │       │   │   │   ├── local: #32
+    │       │   │   │   ├── scope: %5
+    │       │   │   │   ├── value > expand:
+    │       │   │   │   │   ├── type: {i64}
+    │       │   │   │   │   ├── label: @30
+    │       │   │   │   │   ├── result: #31
+    │       │   │   │   │   ├── body[0] > let:
+    │       │   │   │   │   │   ├── local: #29
+    │       │   │   │   │   │   └── value: 5 : i64
+    │       │   │   │   │   ├── body[1] > assign:
+    │       │   │   │   │   │   ├── place: #31
+    │       │   │   │   │   │   └── value > escape:
+    │       │   │   │   │   │       ├── exit: @30
+    │       │   │   │   │   │       ├── value > record:
+    │       │   │   │   │   │       │   ├── type: {i64}
+    │       │   │   │   │   │       │   └── members[0] > member 0: local #29 : i64
+    │       │   │   │   │   │       └── layout: settled$Node
+    │       │   │   │   │   └── body[2]: leave @30
+    │       │   │   │   └── layout: ^settled$Node
+    │       │   │   ├── body[2] > assign:
+    │       │   │   │   ├── place: #34
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @33
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {ptr, {i64}}
+    │       │   │   │       │   ├── members[0] > member 0: local #28 : ptr
+    │       │   │   │       │   └── members[1] > member 1 > take:
+    │       │   │   │       │       ├── type: {i64}
+    │       │   │   │       │       ├── address: address of #32 : ptr
+    │       │   │   │       │       └── layout: settled$Node
+    │       │   │   │       └── layout: settled$Car
+    │       │   │   └── body[3]: leave @33
     │       │   └── layout: settled$Car
     │       ├── body[21] > eval > call:
     │       │   ├── type: void
@@ -234,7 +354,7 @@
     │       │   └── args[0] > member:
     │       │       ├── type: ptr
     │       │       ├── index: 0
-    │       │       └── value: local #7 : {ptr, {i64}}
+    │       │       └── value: local #35 : {ptr, {i64}}
     │       ├── body[22] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$check(%primitives$Bool)
@@ -246,18 +366,18 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
     │       │       │       ├── path: 0
-    │       │       │       └── base: address of #1 : ptr
+    │       │       │       └── base: address of #4 : ptr
     │       │       └── right: 8 : i64
     │       ├── body[23] > let:
-    │       │   ├── local: #8
+    │       │   ├── local: #36
     │       │   └── value > offset:
     │       │       ├── within: {ptr, {i64}}
     │       │       ├── path: 1
-    │       │       └── base: address of #7 : ptr
+    │       │       └── base: address of #35 : ptr
     │       ├── body[24] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$bump(this settled$Node)
-    │       │   └── args[0]: local #8 : ptr
+    │       │   └── args[0]: local #36 : ptr
     │       ├── body[25] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$check(%primitives$Bool)
@@ -272,17 +392,29 @@
     │       │       │       └── base > offset:
     │       │       │           ├── within: {ptr, {i64}}
     │       │       │           ├── path: 1
-    │       │       │           └── base: address of #7 : ptr
+    │       │       │           └── base: address of #35 : ptr
     │       │       └── right: 6 : i64
     │       ├── body[26] > overwrite:
     │       │   ├── address > offset:
     │       │   │   ├── within: {ptr, {i64}}
     │       │   │   ├── path: 1
-    │       │   │   └── base: address of #7 : ptr
-    │       │   ├── value > call:
+    │       │   │   └── base: address of #35 : ptr
+    │       │   ├── value > expand:
     │       │   │   ├── type: {i64}
-    │       │   │   ├── fn: settled$Node(%primitives$I64)
-    │       │   │   └── args[0]: 50 : i64
+    │       │   │   ├── label: @38
+    │       │   │   ├── result: #39
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #37
+    │       │   │   │   └── value: 50 : i64
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #39
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @38
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {i64}
+    │       │   │   │       │   └── members[0] > member 0: local #37 : i64
+    │       │   │   │       └── layout: settled$Node
+    │       │   │   └── body[2]: leave @38
     │       │   └── layout: settled$Node
     │       ├── body[27] > eval > call:
     │       │   ├── type: void
@@ -295,18 +427,50 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
     │       │       │       ├── path: 0
-    │       │       │       └── base: local #8 : ptr
+    │       │       │       └── base: local #36 : ptr
     │       │       └── right: 50 : i64
     │       ├── body[28] > overwrite:
-    │       │   ├── address: address of #7 : ptr
-    │       │   ├── value > call:
+    │       │   ├── address: address of #35 : ptr
+    │       │   ├── value > expand:
     │       │   │   ├── type: {ptr, {i64}}
-    │       │   │   ├── fn: settled$Car(&settled$Node, ^settled$Node)
-    │       │   │   ├── args[0]: address of #5 : ptr
-    │       │   │   └── args[1] > call:
-    │       │   │       ├── type: {i64}
-    │       │   │       ├── fn: settled$Node(%primitives$I64)
-    │       │   │       └── args[0]: 60 : i64
+    │       │   │   ├── label: @45
+    │       │   │   ├── result: #46
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #40
+    │       │   │   │   └── value: address of #23 : ptr
+    │       │   │   ├── body[1] > hold:
+    │       │   │   │   ├── local: #44
+    │       │   │   │   ├── scope: %5
+    │       │   │   │   ├── value > expand:
+    │       │   │   │   │   ├── type: {i64}
+    │       │   │   │   │   ├── label: @42
+    │       │   │   │   │   ├── result: #43
+    │       │   │   │   │   ├── body[0] > let:
+    │       │   │   │   │   │   ├── local: #41
+    │       │   │   │   │   │   └── value: 60 : i64
+    │       │   │   │   │   ├── body[1] > assign:
+    │       │   │   │   │   │   ├── place: #43
+    │       │   │   │   │   │   └── value > escape:
+    │       │   │   │   │   │       ├── exit: @42
+    │       │   │   │   │   │       ├── value > record:
+    │       │   │   │   │   │       │   ├── type: {i64}
+    │       │   │   │   │   │       │   └── members[0] > member 0: local #41 : i64
+    │       │   │   │   │   │       └── layout: settled$Node
+    │       │   │   │   │   └── body[2]: leave @42
+    │       │   │   │   └── layout: ^settled$Node
+    │       │   │   ├── body[2] > assign:
+    │       │   │   │   ├── place: #46
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @45
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {ptr, {i64}}
+    │       │   │   │       │   ├── members[0] > member 0: local #40 : ptr
+    │       │   │   │       │   └── members[1] > member 1 > take:
+    │       │   │   │       │       ├── type: {i64}
+    │       │   │   │       │       ├── address: address of #44 : ptr
+    │       │   │   │       │       └── layout: settled$Node
+    │       │   │   │       └── layout: settled$Car
+    │       │   │   └── body[3]: leave @45
     │       │   └── layout: settled$Car
     │       ├── body[29] > eval > call:
     │       │   ├── type: void
@@ -319,7 +483,7 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
     │       │       │       ├── path: 0
-    │       │       │       └── base: local #8 : ptr
+    │       │       │       └── base: local #36 : ptr
     │       │       └── right: 60 : i64
     │       ├── body[30] > eval > call:
     │       │   ├── type: void
@@ -335,45 +499,57 @@
     │       │       │       └── base > member:
     │       │       │           ├── type: ptr
     │       │       │           ├── index: 0
-    │       │       │           └── value: local #7 : {ptr, {i64}}
+    │       │       │           └── value: local #35 : {ptr, {i64}}
     │       │       └── right: 100 : i64
     │       ├── body[31] > hold:
-    │       │   ├── local: #9
-    │       │   ├── scope: %2
+    │       │   ├── local: #50
+    │       │   ├── scope: %5
     │       │   ├── value > case:
     │       │   │   ├── type: <{i64} | void>
     │       │   │   ├── index: 0
-    │       │   │   └── payload > call:
+    │       │   │   └── payload > expand:
     │       │   │       ├── type: {i64}
-    │       │   │       ├── fn: settled$Node(%primitives$I64)
-    │       │   │       └── args[0]: 30 : i64
+    │       │   │       ├── label: @48
+    │       │   │       ├── result: #49
+    │       │   │       ├── body[0] > let:
+    │       │   │       │   ├── local: #47
+    │       │   │       │   └── value: 30 : i64
+    │       │   │       ├── body[1] > assign:
+    │       │   │       │   ├── place: #49
+    │       │   │       │   └── value > escape:
+    │       │   │       │       ├── exit: @48
+    │       │   │       │       ├── value > record:
+    │       │   │       │       │   ├── type: {i64}
+    │       │   │       │       │   └── members[0] > member 0: local #47 : i64
+    │       │   │       │       └── layout: settled$Node
+    │       │   │       └── body[2]: leave @48
     │       │   └── layout: settled$Holder
     │       ├── body[32] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
-    │       │       ├── label: @10
-    │       │       ├── result: #11
+    │       │       ├── label: @51
+    │       │       ├── result: #52
     │       │       ├── body[0] > let:
-    │       │       │   ├── local: #12
-    │       │       │   └── value: address of #9 : ptr
+    │       │       │   ├── local: #53
+    │       │       │   └── value: address of #50 : ptr
     │       │       └── body[1] > switch:
     │       │           ├── value > deref:
     │       │           │   ├── type: <{i64} | void>
-    │       │           │   └── ptr: local #12 : ptr
+    │       │           │   └── ptr: local #53 : ptr
     │       │           ├── cases[0] > case 0[0] > let:
-    │       │           │   ├── local: #13
+    │       │           │   ├── local: #54
     │       │           │   └── value > offset:
     │       │           │       ├── within: <{i64} | void>
     │       │           │       ├── path: 0
-    │       │           │       └── base: local #12 : ptr
+    │       │           │       └── base: local #53 : ptr
     │       │           ├── cases[0] > case 0[1] > eval > call:
     │       │           │   ├── type: void
     │       │           │   ├── fn: settled$bump(this settled$Node)
-    │       │           │   └── args[0]: local #13 : ptr
+    │       │           │   └── args[0]: local #54 : ptr
     │       │           ├── cases[0] > case 0[2] > assign:
-    │       │           │   ├── place: #11
+    │       │           │   ├── place: #52
     │       │           │   └── value > binary:
     │       │           │       ├── type: i1
     │       │           │       ├── op: ==
@@ -382,41 +558,41 @@
     │       │           │       │   └── ptr > offset:
     │       │           │       │       ├── within: {i64}
     │       │           │       │       ├── path: 0
-    │       │           │       │       └── base: local #13 : ptr
+    │       │           │       │       └── base: local #54 : ptr
     │       │           │       └── right: 31 : i64
-    │       │           ├── cases[0] > case 0[3]: leave @10
+    │       │           ├── cases[0] > case 0[3]: leave @51
     │       │           ├── cases[1] > case 1[0] > let:
-    │       │           │   ├── local: #14
+    │       │           │   ├── local: #55
     │       │           │   └── value > offset:
     │       │           │       ├── within: <{i64} | void>
     │       │           │       ├── path: 1
-    │       │           │       └── base: local #12 : ptr
+    │       │           │       └── base: local #53 : ptr
     │       │           ├── cases[1] > case 1[1] > assign:
-    │       │           │   ├── place: #11
+    │       │           │   ├── place: #52
     │       │           │   └── value: false : i1
-    │       │           └── cases[1] > case 1[2]: leave @10
+    │       │           └── cases[1] > case 1[2]: leave @51
     │       ├── body[33] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
-    │       │       ├── label: @15
-    │       │       ├── result: #16
+    │       │       ├── label: @56
+    │       │       ├── result: #57
     │       │       ├── body[0] > let:
-    │       │       │   ├── local: #17
-    │       │       │   └── value: address of #9 : ptr
+    │       │       │   ├── local: #58
+    │       │       │   └── value: address of #50 : ptr
     │       │       └── body[1] > switch:
     │       │           ├── value > deref:
     │       │           │   ├── type: <{i64} | void>
-    │       │           │   └── ptr: local #17 : ptr
+    │       │           │   └── ptr: local #58 : ptr
     │       │           ├── cases[0] > case 0[0] > let:
-    │       │           │   ├── local: #18
+    │       │           │   ├── local: #59
     │       │           │   └── value > offset:
     │       │           │       ├── within: <{i64} | void>
     │       │           │       ├── path: 0
-    │       │           │       └── base: local #17 : ptr
+    │       │           │       └── base: local #58 : ptr
     │       │           ├── cases[0] > case 0[1] > assign:
-    │       │           │   ├── place: #16
+    │       │           │   ├── place: #57
     │       │           │   └── value > binary:
     │       │           │       ├── type: i1
     │       │           │       ├── op: ==
@@ -425,56 +601,68 @@
     │       │           │       │   └── ptr > offset:
     │       │           │       │       ├── within: {i64}
     │       │           │       │       ├── path: 0
-    │       │           │       │       └── base: local #18 : ptr
+    │       │           │       │       └── base: local #59 : ptr
     │       │           │       └── right: 31 : i64
-    │       │           ├── cases[0] > case 0[2]: leave @15
+    │       │           ├── cases[0] > case 0[2]: leave @56
     │       │           ├── cases[1] > case 1[0] > let:
-    │       │           │   ├── local: #19
+    │       │           │   ├── local: #60
     │       │           │   └── value > offset:
     │       │           │       ├── within: <{i64} | void>
     │       │           │       ├── path: 1
-    │       │           │       └── base: local #17 : ptr
+    │       │           │       └── base: local #58 : ptr
     │       │           ├── cases[1] > case 1[1] > assign:
-    │       │           │   ├── place: #16
+    │       │           │   ├── place: #57
     │       │           │   └── value: false : i1
-    │       │           └── cases[1] > case 1[2]: leave @15
+    │       │           └── cases[1] > case 1[2]: leave @56
     │       ├── body[34] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
-    │       │       ├── label: @20
-    │       │       ├── result: #21
+    │       │       ├── label: @61
+    │       │       ├── result: #62
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #22
-    │       │       │   ├── scope: %2
+    │       │       │   ├── local: #66
+    │       │       │   ├── scope: %5
     │       │       │   ├── value > case:
     │       │       │   │   ├── type: <{i64} | void>
     │       │       │   │   ├── index: 0
-    │       │       │   │   └── payload > call:
+    │       │       │   │   └── payload > expand:
     │       │       │   │       ├── type: {i64}
-    │       │       │   │       ├── fn: settled$Node(%primitives$I64)
-    │       │       │   │       └── args[0]: 40 : i64
+    │       │       │   │       ├── label: @64
+    │       │       │   │       ├── result: #65
+    │       │       │   │       ├── body[0] > let:
+    │       │       │   │       │   ├── local: #63
+    │       │       │   │       │   └── value: 40 : i64
+    │       │       │   │       ├── body[1] > assign:
+    │       │       │   │       │   ├── place: #65
+    │       │       │   │       │   └── value > escape:
+    │       │       │   │       │       ├── exit: @64
+    │       │       │   │       │       ├── value > record:
+    │       │       │   │       │       │   ├── type: {i64}
+    │       │       │   │       │       │   └── members[0] > member 0: local #63 : i64
+    │       │       │   │       │       └── layout: settled$Node
+    │       │       │   │       └── body[2]: leave @64
     │       │       │   └── layout: settled$Holder
     │       │       ├── body[1] > let:
-    │       │       │   ├── local: #23
-    │       │       │   └── value: address of #22 : ptr
+    │       │       │   ├── local: #67
+    │       │       │   └── value: address of #66 : ptr
     │       │       └── body[2] > switch:
     │       │           ├── value > deref:
     │       │           │   ├── type: <{i64} | void>
-    │       │           │   └── ptr: local #23 : ptr
+    │       │           │   └── ptr: local #67 : ptr
     │       │           ├── cases[0] > case 0[0] > let:
-    │       │           │   ├── local: #24
+    │       │           │   ├── local: #68
     │       │           │   └── value > offset:
     │       │           │       ├── within: <{i64} | void>
     │       │           │       ├── path: 0
-    │       │           │       └── base: local #23 : ptr
+    │       │           │       └── base: local #67 : ptr
     │       │           ├── cases[0] > case 0[1] > eval > call:
     │       │           │   ├── type: void
     │       │           │   ├── fn: settled$bump(this settled$Node)
-    │       │           │   └── args[0]: local #24 : ptr
+    │       │           │   └── args[0]: local #68 : ptr
     │       │           ├── cases[0] > case 0[2] > assign:
-    │       │           │   ├── place: #21
+    │       │           │   ├── place: #62
     │       │           │   └── value > binary:
     │       │           │       ├── type: i1
     │       │           │       ├── op: ==
@@ -483,30 +671,30 @@
     │       │           │       │   └── ptr > offset:
     │       │           │       │       ├── within: {i64}
     │       │           │       │       ├── path: 0
-    │       │           │       │       └── base: local #24 : ptr
+    │       │           │       │       └── base: local #68 : ptr
     │       │           │       └── right: 41 : i64
-    │       │           ├── cases[0] > case 0[3]: leave @20
+    │       │           ├── cases[0] > case 0[3]: leave @61
     │       │           ├── cases[1] > case 1[0] > let:
-    │       │           │   ├── local: #25
+    │       │           │   ├── local: #69
     │       │           │   └── value > offset:
     │       │           │       ├── within: <{i64} | void>
     │       │           │       ├── path: 1
-    │       │           │       └── base: local #23 : ptr
+    │       │           │       └── base: local #67 : ptr
     │       │           ├── cases[1] > case 1[1] > assign:
-    │       │           │   ├── place: #21
+    │       │           │   ├── place: #62
     │       │           │   └── value: false : i1
-    │       │           └── cases[1] > case 1[2]: leave @20
+    │       │           └── cases[1] > case 1[2]: leave @61
     │       ├── body[35] > let:
-    │       │   ├── local: #26
+    │       │   ├── local: #70
     │       │   └── value: 0 : i64
     │       ├── body[36] > let:
-    │       │   ├── local: #27
+    │       │   ├── local: #71
     │       │   └── value: 1 : i64
     │       ├── body[37] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── label: @29
+    │       │   ├── label: @73
     │       │   ├── body[0] > let:
-    │       │   │   ├── local: #28
+    │       │   │   ├── local: #72
     │       │   │   └── value: 100000 : i64
     │       │   ├── body[1] > repeat:
     │       │   │   ├── count > binary:
@@ -515,65 +703,76 @@
     │       │   │   │   ├── left > binary:
     │       │   │   │   │   ├── type: i64
     │       │   │   │   │   ├── op: +
-    │       │   │   │   │   ├── left: local #28 : i64
+    │       │   │   │   │   ├── left: local #72 : i64
     │       │   │   │   │   └── right > flip:
     │       │   │   │   │       ├── type: i64
-    │       │   │   │   │       └── value: local #27 : i64
+    │       │   │   │   │       └── value: local #71 : i64
     │       │   │   │   └── right: 1 : i64
     │       │   │   ├── body[0] > if:
     │       │   │   │   ├── cond: true : i1
     │       │   │   │   └── body[0] > scope:
-    │       │   │   │       ├── id: %33
+    │       │   │   │       ├── id: %79
     │       │   │   │       ├── body[0] > hold:
-    │       │   │   │       │   ├── local: #32
-    │       │   │   │       │   ├── scope: %33
-    │       │   │   │       │   ├── value > call:
+    │       │   │   │       │   ├── local: #78
+    │       │   │   │       │   ├── scope: %79
+    │       │   │   │       │   ├── value > expand:
     │       │   │   │       │   │   ├── type: {i64}
-    │       │   │   │       │   │   ├── fn: settled$Node(%primitives$I64)
-    │       │   │   │       │   │   └── args[0]: local #27 : i64
+    │       │   │   │       │   │   ├── label: @76
+    │       │   │   │       │   │   ├── result: #77
+    │       │   │   │       │   │   ├── body[0] > assign:
+    │       │   │   │       │   │   │   ├── place: #77
+    │       │   │   │       │   │   │   └── value > escape:
+    │       │   │   │       │   │   │       ├── exit: @76
+    │       │   │   │       │   │   │       ├── value > record:
+    │       │   │   │       │   │   │       │   ├── type: {i64}
+    │       │   │   │       │   │   │       │   └── members[0] > member 0: local #71 : i64
+    │       │   │   │       │   │   │       └── layout: settled$Node
+    │       │   │   │       │   │   └── body[1]: leave @76
     │       │   │   │       │   └── layout: settled$Node
     │       │   │   │       ├── body[1] > let:
-    │       │   │   │       │   ├── local: #34
-    │       │   │   │       │   └── value: address of #32 : ptr
+    │       │   │   │       │   ├── local: #80
+    │       │   │   │       │   └── value: address of #78 : ptr
     │       │   │   │       └── body[2] > assign:
-    │       │   │   │           ├── place: #26
+    │       │   │   │           ├── place: #70
     │       │   │   │           └── value > binary:
     │       │   │   │               ├── type: i64
     │       │   │   │               ├── op: +
-    │       │   │   │               ├── left: local #26 : i64
-    │       │   │   │               └── right > call:
+    │       │   │   │               ├── left: local #70 : i64
+    │       │   │   │               └── right > expand:
     │       │   │   │                   ├── type: i64
-    │       │   │   │                   ├── fn: settled$peek(&settled$Node)
-    │       │   │   │                   └── args[0]: local #34 : ptr
+    │       │   │   │                   ├── label: @82
+    │       │   │   │                   ├── result: #83
+    │       │   │   │                   ├── body[0] > let:
+    │       │   │   │                   │   ├── local: #81
+    │       │   │   │                   │   └── value: local #80 : ptr
+    │       │   │   │                   ├── body[1] > assign:
+    │       │   │   │                   │   ├── place: #83
+    │       │   │   │                   │   └── value > deref:
+    │       │   │   │                   │       ├── type: i64
+    │       │   │   │                   │       └── ptr > offset:
+    │       │   │   │                   │           ├── within: {i64}
+    │       │   │   │                   │           ├── path: 0
+    │       │   │   │                   │           └── base: local #81 : ptr
+    │       │   │   │                   └── body[2]: leave @82
     │       │   │   └── body[1] > assign:
-    │       │   │       ├── place: #27
+    │       │   │       ├── place: #71
     │       │   │       └── value > binary:
     │       │   │           ├── type: i64
     │       │   │           ├── op: +
-    │       │   │           ├── left: local #27 : i64
+    │       │   │           ├── left: local #71 : i64
     │       │   │           └── right: 1 : i64
     │       │   ├── body[2] > eval: unit : void
-    │       │   └── body[3]: leave @29
+    │       │   └── body[3]: leave @73
     │       ├── body[38] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: settled$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left: local #26 : i64
+    │       │       ├── left: local #70 : i64
     │       │       └── right: 5000050000 : i64
     │       └── body[39] > return: unit : void
     ├── funcs[2] > func:
-    │   ├── symbol: settled$Node(%primitives$I64)
-    │   ├── params[0]: local #1 : i64
-    │   ├── ret: {i64}
-    │   └── body[0] > return > escape:
-    │       ├── exit: function
-    │       ├── value > record:
-    │       │   ├── type: {i64}
-    │       │   └── members[0] > member 0: local #1 : i64
-    │       └── layout: settled$Node
-    ├── funcs[3] > func:
     │   ├── symbol: settled$bump(this settled$Node)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: void
@@ -590,7 +789,7 @@
     │   │       │       └── base: local #1 : ptr
     │   │       └── right: 1 : i64
     │   └── body[1] > return: unit : void
-    ├── funcs[4] > func:
+    ├── funcs[3] > func:
     │   ├── symbol: settled$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
     │   ├── ret: void
@@ -621,76 +820,37 @@
     │       │       ├── fn: zane_print
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
-    ├── funcs[5] > func:
-    │   ├── symbol: settled$peek(&settled$Node)
-    │   ├── params[0]: local #1 : ptr
-    │   ├── ret: i64
-    │   └── body[0] > return > deref:
-    │       ├── type: i64
-    │       └── ptr > offset:
-    │           ├── within: {i64}
-    │           ├── path: 0
-    │           └── base: local #1 : ptr
-    ├── funcs[6] > func:
-    │   ├── symbol: settled$twice(this settled$Node)
-    │   ├── params[0]: local #1 : ptr
-    │   ├── ret: i64
-    │   └── body[0] > return > binary:
-    │       ├── type: i64
-    │       ├── op: *
-    │       ├── left > deref:
-    │       │   ├── type: i64
-    │       │   └── ptr > offset:
-    │       │       ├── within: {i64}
-    │       │       ├── path: 0
-    │       │       └── base: local #1 : ptr
-    │       └── right: 2 : i64
-    ├── funcs[7] > func:
-    │   ├── symbol: settled$larger(&settled$Node, &settled$Node)
-    │   ├── params[0]: local #1 : ptr
-    │   ├── params[1]: local #2 : ptr
-    │   ├── ret: ptr
-    │   ├── body[0] > eval > expand:
-    │   │   ├── type: i1
-    │   │   ├── label: @4
-    │   │   ├── result: #5
-    │   │   ├── body[0] > let:
-    │   │   │   ├── local: #3
-    │   │   │   └── value > binary:
-    │   │   │       ├── type: i1
-    │   │   │       ├── op: <
-    │   │   │       ├── left > deref:
-    │   │   │       │   ├── type: i64
-    │   │   │       │   └── ptr > offset:
-    │   │   │       │       ├── within: {i64}
-    │   │   │       │       ├── path: 0
-    │   │   │       │       └── base: local #2 : ptr
-    │   │   │       └── right > deref:
-    │   │   │           ├── type: i64
-    │   │   │           └── ptr > offset:
-    │   │   │               ├── within: {i64}
-    │   │   │               ├── path: 0
-    │   │   │               └── base: local #1 : ptr
-    │   │   ├── body[1] > if:
-    │   │   │   ├── cond: local #3 : i1
-    │   │   │   └── body[0] > return: local #1 : ptr
-    │   │   ├── body[2] > assign:
-    │   │   │   ├── place: #5
-    │   │   │   └── value: local #3 : i1
-    │   │   └── body[3]: leave @4
-    │   └── body[1] > return: local #2 : ptr
-    └── funcs[8] > func:
-        ├── symbol: settled$Car(&settled$Node, ^settled$Node)
+    └── funcs[4] > func:
+        ├── symbol: settled$larger(&settled$Node, &settled$Node)
         ├── params[0]: local #1 : ptr
-        ├── params[1]: local #2 : {i64}
-        ├── ret: {ptr, {i64}}
-        ├── body[0] > let:
-        │   ├── local: #3
-        │   └── value: local #2 : {i64}
-        └── body[1] > return > escape:
-            ├── exit: function
-            ├── value > record:
-            │   ├── type: {ptr, {i64}}
-            │   ├── members[0] > member 0: local #1 : ptr
-            │   └── members[1] > member 1: local #3 : {i64}
-            └── layout: settled$Car
+        ├── params[1]: local #2 : ptr
+        ├── ret: ptr
+        ├── body[0] > eval > expand:
+        │   ├── type: i1
+        │   ├── label: @4
+        │   ├── result: #5
+        │   ├── body[0] > let:
+        │   │   ├── local: #3
+        │   │   └── value > binary:
+        │   │       ├── type: i1
+        │   │       ├── op: <
+        │   │       ├── left > deref:
+        │   │       │   ├── type: i64
+        │   │       │   └── ptr > offset:
+        │   │       │       ├── within: {i64}
+        │   │       │       ├── path: 0
+        │   │       │       └── base: local #2 : ptr
+        │   │       └── right > deref:
+        │   │           ├── type: i64
+        │   │           └── ptr > offset:
+        │   │               ├── within: {i64}
+        │   │               ├── path: 0
+        │   │               └── base: local #1 : ptr
+        │   ├── body[1] > if:
+        │   │   ├── cond: local #3 : i1
+        │   │   └── body[0] > return: local #1 : ptr
+        │   ├── body[2] > assign:
+        │   │   ├── place: #5
+        │   │   └── value: local #3 : i1
+        │   └── body[3]: leave @4
+        └── body[1] > return: local #2 : ptr

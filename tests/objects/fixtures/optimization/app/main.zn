@@ -20,6 +20,7 @@ Unit main() {
     print(math$add(n, Int(2)));
     print(math$shifted(n));
     print(math$squared(n));
+    print(math$kept(n));
     n!math$bump();
     print(n);
     print(math$divide(n, Int(0)) ?? Int(99));

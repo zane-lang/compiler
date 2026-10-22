@@ -90,14 +90,18 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       | S.Intrinsic _ -> Diagnostic.bug ~span "lowering: an operator no package declared"
       | S.Declared id -> (
           match verb_of st id instance with
-          | Some ({ params = [ pl; pr ]; _ } as v) when not (expands v) ->
+          | Some ({ params = [ pl; pr ]; _ } as v)
+            when not
+                   (Lower_calls.writes_out walk st ctx span v
+                      (if swapped then [ T.Arg.Value right; T.Arg.Value left ]
+                       else [ T.Arg.Value left; T.Arg.Value right ])) ->
               let for_left, for_right = if swapped then (pr, pl) else (pl, pr) in
               operands
                 (fun () -> Lower_calls.argument walk st ctx span v for_left left)
                 (fun () -> Lower_calls.argument walk st ctx span v for_right right)
                 (fun l r -> Lower_calls.invoke walk st ctx span v [ l; r ] handler)
-          (* An operator that takes a literal is expanded where it is called
-             (L11), as any verb with a concept parameter is. Its operands
+          (* An operator that takes a literal, or whose body is one
+             expression, is expanded where it is called (L11). Its operands
              still run in written order: when the desugaring swapped them,
              the written left operand is held first. *)
           | Some ({ params = [ _; pr ]; _ } as v) ->

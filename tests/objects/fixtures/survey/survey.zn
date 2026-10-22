@@ -1,7 +1,7 @@
 /// A program that uses geometry from objects geometry was built into on its
-/// own: geometry's smallest verbs are inlined here and the rest called, the
-/// instances of its generic that survey needs are made here, and the
-/// program links with geometry's object. Every check prints `yes` when it holds and `no` when it does not.
+/// own: geometry's verbs whose body is one expression are written out here
+/// and the rest called, the instances of its generic that survey needs are
+/// made here, and the program links with geometry's object. Every check prints `yes` when it holds and `no` when it does not.
 package survey;
 
 import geometry;
@@ -36,5 +36,6 @@ Unit main() {
 	check(@operators$equal(geometry$double(Int(7)), Int(14)));
 	check(@operators$equal(geometry$scaled(geometry$unit), Int(100)));
 	check(@operators$equal(geometry$same(Plot(Int(6))).side, Int(6)));
+	check(@operators$equal(geometry$shifted(geometry$Point(Int(1), Int(2)), Int(1)):sum(), Int(5)));
 	return Unit();
 }
