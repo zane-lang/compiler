@@ -767,9 +767,10 @@ let folded_function () =
 
 (* Code left to run forgets the locals it can reach: one whose address it
    is given, a value reached through a pointer local it is given, and one
-   whose address was stored, but not a value it is given no address of. A
-   store through the pointer local leaves it standing for its local. A
-   local not marked as a value is reached by any call. *)
+   whose address was stored or came back in a call's result, but not a
+   value it is given no address of. A store through the pointer local
+   leaves it standing for its local. A local not marked as a value is
+   reached by any call. *)
 let reached_locals () =
   let local i = e (C.Expr.Local i) C.Ty.I64 and address i = e (C.Expr.Address i) C.Ty.Ptr in
   let call fn args = C.Stat.Eval (e (C.Expr.Call { fn; args }) C.Ty.Void) in
@@ -782,12 +783,20 @@ let reached_locals () =
       C.Stat.Assign
         { place = { local = 4; deref = true; ty = C.Ty.I64; path = [] }; value = i64 1L };
       call "keep" [ e (C.Expr.Record [ (0, address 2) ]) (C.Ty.Struct [ C.Ty.Ptr ]) ];
+      C.Stat.Let { id = 5; value = i64 0L };
+      C.Stat.Let
+        {
+          id = 6;
+          value = e (C.Expr.Call { fn = "pick"; args = [ address 5 ] }) (C.Ty.Struct [ C.Ty.Ptr ]);
+        };
       C.Stat.assign 2 (i64 7L);
       C.Stat.assign 3 (i64 9L);
+      C.Stat.assign 5 (i64 3L);
       call "opaque" [ address 1 ];
       call "use" [ local 1 ];
       call "use" [ local 2 ];
       call "use" [ local 3 ];
+      call "use" [ local 5 ];
       call "opaque" [ e (C.Expr.Local 4) C.Ty.Ptr ];
       call "use" [ local 3 ];
     ]
@@ -801,9 +810,9 @@ let reached_locals () =
       f.C.Func.body
   in
   check "a value given no address of stays known past a call; the others do not"
-    (used [ 1; 2; 3 ] = [ local 1; local 2; i64 9L; local 3 ]);
+    (used [ 1; 2; 3; 5 ] = [ local 1; local 2; i64 9L; local 5; local 3 ]);
   check "a local not marked as a value is forgotten by any call"
-    (used [ 1; 2 ] = [ local 1; local 2; local 3; local 3 ])
+    (used [ 1; 2 ] = [ local 1; local 2; local 3; local 5; local 3 ])
 
 (* A call's value and its outputs together count against the size cap,
    though each fits alone. *)

@@ -121,6 +121,14 @@ let wide (f : Func.t) =
    that where other code finds it. *)
 type reach = { escaped : (int, unit) Hashtbl.t; points : (int, int) Hashtbl.t }
 
+(* Whether a value of this type holds an address. *)
+let rec addresses (t : Ty.t) =
+  match t with
+  | Ty.Ptr -> true
+  | Ty.Struct ts | Ty.Sum ts -> List.exists addresses ts
+  | Ty.Array (t, _) -> addresses t
+  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle -> false
+
 let reach (f : Func.t) =
   let values = Hashtbl.create 16 in
   List.iter (fun i -> Hashtbl.replace values i ()) f.Func.values;
@@ -154,8 +162,9 @@ let reach (f : Func.t) =
     | _ -> ());
   let escaped = Hashtbl.create 16 and kept = Hashtbl.create 16 in
   (* [used] is whether an address in this position is used where it is
-     made. An address a call gives is a member of one it was given, so it
-     is used where the call's own value is. *)
+     made. An address a call gives, alone or in an aggregate, may be a
+     member of one it was given, so it is used where the call's own value
+     is. *)
   let rec expr used (e : Expr.t) =
     match e.Expr.node with
     | Expr.Address i ->
@@ -167,10 +176,10 @@ let reach (f : Func.t) =
         | _ -> ())
     | Expr.Offset { base; _ } -> expr used base
     | Expr.Call { args; _ } | Expr.Runtime { args; _ } ->
-        List.iter (expr (used || e.Expr.ty <> Ty.Ptr)) args
+        List.iter (expr (used || not (addresses e.Expr.ty))) args
     | Expr.Call_value { fn; args } ->
         expr false fn;
-        List.iter (expr (used || e.Expr.ty <> Ty.Ptr)) args
+        List.iter (expr (used || not (addresses e.Expr.ty))) args
     | Expr.Deref x | Expr.Snapshot x | Expr.Take { address = x; _ } -> expr true x
     | _ ->
         let es, bodies = Traverse.expr_parts e in
