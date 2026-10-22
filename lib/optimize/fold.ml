@@ -125,14 +125,16 @@ let reach (f : Func.t) =
   let values = Hashtbl.create 16 in
   List.iter (fun i -> Hashtbl.replace values i ()) f.Func.values;
   (* A pointer local stands for the local it points into when one [Let]
-     binds it and nothing else stores into it or takes its address. *)
+     binds it and nothing else stores into it or takes its address. A store
+     through it writes what it points into, which [writes] counts. *)
   let lets = Hashtbl.create 16 and barred = Hashtbl.create 16 in
   iter_stats f.Func.body
     ~expr:(fun e -> match e.Expr.node with Expr.Address i -> Hashtbl.replace barred i () | _ -> ())
     ~stat:(function
       | Stat.Let { id; _ } ->
           Hashtbl.replace lets id (1 + Option.value ~default:0 (Hashtbl.find_opt lets id))
-      | Stat.Assign { place; _ } -> Hashtbl.replace barred place.Expr.local ()
+      | Stat.Assign { place; _ } when not place.Expr.deref ->
+          Hashtbl.replace barred place.Expr.local ()
       | Stat.Hold { id; _ } | Stat.Reserve { id; _ } -> Hashtbl.replace barred id ()
       | _ -> ());
   let points = Hashtbl.create 16 in

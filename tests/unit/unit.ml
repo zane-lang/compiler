@@ -768,6 +768,7 @@ let folded_function () =
 (* Code left to run forgets the locals it can reach: one whose address it
    is given, a value reached through a pointer local it is given, and one
    whose address was stored, but not a value it is given no address of. A
+   store through the pointer local leaves it standing for its local. A
    local not marked as a value is reached by any call. *)
 let reached_locals () =
   let local i = e (C.Expr.Local i) C.Ty.I64 and address i = e (C.Expr.Address i) C.Ty.Ptr in
@@ -778,6 +779,8 @@ let reached_locals () =
       C.Stat.Let { id = 2; value = i64 0L };
       C.Stat.Let { id = 3; value = i64 0L };
       C.Stat.Let { id = 4; value = address 3 };
+      C.Stat.Assign
+        { place = { local = 4; deref = true; ty = C.Ty.I64; path = [] }; value = i64 1L };
       call "keep" [ e (C.Expr.Record [ (0, address 2) ]) (C.Ty.Struct [ C.Ty.Ptr ]) ];
       C.Stat.assign 2 (i64 7L);
       C.Stat.assign 3 (i64 9L);
