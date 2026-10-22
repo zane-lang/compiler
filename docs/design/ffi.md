@@ -54,6 +54,15 @@ do is replayed, so a GCC's `cc1` options or a newer clang's never reach the
 linked one. `ZANE_CC` keeps its meaning: the compiler asked for the headers
 is that one.
 
+MSVC's `cl.exe`, and `clang-cl` in its mode, take no `-E -v` and print no
+such list: they search the directories of the `INCLUDE` environment
+variable, which a Visual Studio developer shell sets. A `ZANE_CC` whose
+`--version` or `/?` names either is therefore not run for the list. Its
+directories are read from `INCLUDE`, split on `;`, and passed the same
+way, and a build that finds `INCLUDE` unset fails with an error saying to
+run from a developer shell. The default `ZANE_CC`, `zig cc`, needs neither,
+since it carries its own headers for every target.
+
 **F2. Every C source is compiled with fixed flags first, then the package's
 settings.** The fixed flags are `-std=c17`, `-ffp-contract=off`,
 `-fno-fast-math`, `-fno-finite-math-only`, `-fno-associative-math` and
