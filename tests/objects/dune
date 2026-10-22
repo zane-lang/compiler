@@ -712,7 +712,7 @@
 ; given a table are the ones the rules pick.
 (rule
  (alias runtest)
- (deps memo_test.py (source_tree fixtures/memo))
+ (deps memo_test.py (source_tree fixtures/memo) (source_tree fixtures/memolibrary))
  (action
   (run python3 %{dep:memo_test.py} %{exe:../../bin/zanec/zanec.exe})))
 

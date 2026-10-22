@@ -111,6 +111,7 @@ same in all four. `fib`, `ttt` (a board array) and `moves` (a variant)
 repeat their arguments and get one table each. `tree`, `phase` and
 `shallowin` mostly do not repeat them. `rejected` holds recursions that are
 left alone: one that calls itself once, one that takes a `String`, and one
-that prints. `spawning` spawns, so none of its functions gets a table. An
+that prints. `spawning` spawns, so none of its functions gets a table, and
+neither does `memolibrary`, a library a program that spawns may call. An
 optimized build of `shallow` gets none either, because LLVM folds its loop
 without one.

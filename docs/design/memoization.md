@@ -29,7 +29,9 @@ A function gets a table when:
   anywhere inside. A value of one of these types is its bytes, so equal bytes
   mean equal values. A string or a list owns a block, and a reference names
   an object whose owner can change it between calls, so neither is its
-  bytes. The arguments may take at most 64 bytes, and so may the result.
+  bytes. The arguments may take at most eight words, and so may the result.
+  A value of scalars only takes one word for each scalar, and any other
+  value a word for each eight of its bytes.
 - **It calls back into its own cycle of calls at least twice.** A call inside
   a loop counts twice. This is where a table can turn work that doubles at
   each level into work linear in the depth. A function that calls itself
@@ -39,8 +41,11 @@ A function gets a table when:
   other function calls afterwards. When LLVM has inlined and folded every
   call to a function, a table would only stop it doing so.
 
-A program that spawns gets no tables. The tables are not shared safely
-between threads.
+Only a program that runs on one thread gets tables: no package of the
+build spawns, and it is not a library, whose functions a program that spawns
+may call. The tables are not shared safely between threads. This is the
+condition under which reads through an owner are plain loads
+([`optimizations.md`](../optimizations.md#plain-loads-in-a-program-that-never-spawns)).
 
 ## M2. A function becomes four
 

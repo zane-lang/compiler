@@ -4,8 +4,8 @@ and optimized, without and with `--memoize`, and prints the same in all four
 builds. Which functions get a table is read from the symbols of each table's
 state: one for a recursion whose arguments repeat, whether they are scalars,
 an array or a variant, and none for a recursion that calls itself once, takes
-a String, prints, or runs in a program that spawns. An optimized build gives
-none to a function LLVM folds away without it."""
+a String, prints, or runs in a program that spawns or in a library. An
+optimized build gives none to a function LLVM folds away without it."""
 
 from pathlib import Path
 import os
@@ -16,6 +16,7 @@ import unittest
 
 ZANEC = str(Path(sys.argv.pop(1)).resolve())
 FIXTURES = Path(__file__).resolve().parent / "fixtures/memo"
+LIBRARY = Path(__file__).resolve().parent / "fixtures/memolibrary"
 BUILDS = {"plain": [], "optimized": ["--optimize"]}
 
 
@@ -87,6 +88,16 @@ class MemoTests(unittest.TestCase):
             for build in BUILDS:
                 with self.subTest(name=name, build=build):
                     self.assertEqual(self.tables(name, build), [])
+
+    def test_a_library_gets_none(self):
+        # A program that links the library may call `fib` from its threads.
+        for build in BUILDS:
+            with self.subTest(build=build):
+                result = subprocess.run([ZANEC, "--kind", "library", "--ll", *BUILDS[build], "--memoize",
+                                         "--package", LIBRARY], capture_output=True, text=True, timeout=300)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("memolibrary$fib", result.stdout)
+                self.assertNotIn(".memo.state", result.stdout)
 
     def test_an_optimized_build_leaves_out_what_llvm_folds(self):
         # `walk(r, 1)` with a literal depth folds into a closed form once

@@ -170,7 +170,7 @@ at run time; the body reads a number parameter as a constant.
   `lib/codegen/codegen.ml` (`still_called`)
 - **Design:** [`design/memoization.md`](design/memoization.md)
 - **Effect:** [`dev/bench/memo/`](../dev/bench/memo/README.md): recursions
-  that repeat their arguments 74–99.6% fewer estimated cycles, among them a
+  that repeat their arguments 73–99.6% fewer estimated cycles, among them a
   tic-tac-toe search keyed on its board (76–80%); programs whose arguments
   do not repeat within +0.4%
 

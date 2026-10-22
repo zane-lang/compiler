@@ -7,7 +7,9 @@ An experiment for [zane-lang/compiler#262](https://github.com/zane-lang/compiler
 - it reaches no state and no capability;
 - every argument and its result is a fixed-size value (scalars, and
   structs, enums, variants and arrays of them, holding no handle or
-  address), with at most 64 bytes of arguments and 64 of result;
+  address), with at most eight words of arguments and eight of result (a
+  word for each scalar of a value of scalars only, else for each eight
+  bytes);
 - it calls back into its own cycle of calls at least twice.
 
 In an optimized build it must also still be called after `-O2` has run
@@ -30,7 +32,9 @@ dispatchers runs, and before each round it checks whether they have all
 stopped. If they have, it hands the rounds that are left to the first
 version.
 
-    dev/bench/memo/run ZANEC OUTDIR programs/*        # these programs
+    dev/bench/memo/run ZANEC OUTDIR dev/bench/memo/programs/*   # these programs, but corefib
+    EXTRA="--package bench=… --package core=…" \
+      dev/bench/memo/run ZANEC OUTDIR dev/bench/memo/programs/corefib
     EXTRA="--package bench=… --package core=… --package math=…" \
       dev/bench/memo/run ZANEC OUTDIR LANGBENCH/bin/*  # langbench, with the size in an `arguments` file
 
@@ -105,5 +109,6 @@ case: 300,000 calls from a loop, each doing little) measured a median of
 150 runs, both dominated by process startup. `shallow` optimized has no table
 at all, because without the cache LLVM folds the whole loop.
 
-A program that spawns gets no tables: they are not yet safe to share
-between threads.
+A program that spawns gets no tables, and neither does a library, which a
+program that spawns may call: the tables are not yet safe to share between
+threads.

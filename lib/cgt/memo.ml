@@ -41,8 +41,8 @@ let words (t : Ty.t) =
   else if fixed t then Some ((fst (Ty.size_align t) + 7) / 8)
   else None
 
-(* At most 64 bytes of arguments and 64 of result, so a lookup reads and
-   compares a few words. *)
+(* At most eight words of arguments and eight of result, so a lookup reads
+   and compares a few words. *)
 let most_key_words = 8
 let most_result_words = 8
 
@@ -344,16 +344,11 @@ let version remembered outside next body =
 
 (* The program with each remembered function replaced by its two copies,
    and the functions remembered, whose dispatchers codegen emits. Only a
-   function [keep] admits is remembered. A program
-   that spawns remembers nothing: the tables are not shared safely between
-   threads. *)
+   function [keep] admits is remembered. Only a program that runs on one
+   thread remembers anything: the tables are not shared safely between
+   threads, and a library's functions may be called from a program's. *)
 let plan ?(keep = fun _ -> true) (p : Program.t) =
-  let spawns =
-    List.exists
-      (fun (f : Func.t) -> Traverse.exists_in f.Func.body ~expr:(fun _ -> false) ~stat:(function Stat.Spawn _ -> true | _ -> false))
-      p.Program.funcs
-  in
-  if spawns then (p, [])
+  if not p.Program.exclusive then (p, [])
   else
     let funcs = Hashtbl.create 64 in
     List.iter
