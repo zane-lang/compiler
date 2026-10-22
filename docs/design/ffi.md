@@ -230,7 +230,10 @@ A thunk's name is the foreign verb's symbol ([`symbols.md`](symbols.md))
 with `.ffi` after it, a free or set thunk's is the handle type's symbol with
 `.free` or `.set`, and F11's entries are named the same way from the lambda's
 symbol, given in C with an `__asm__` label, since a verb's
-symbol is not a C identifier. An optimized build links the glue into the
+symbol is not a C identifier. The label is the final symbol, with no
+prefix added, while LLVM gives lowering's declaration of the same name the
+target's global prefix, `_` on macOS, so the label is written with that
+prefix, read from the target's data layout. An optimized build links the glue into the
 package's module (F13), where LLVM inlines each thunk into its caller, so an
 optimized call into C is a direct call with the target's own convention.
 
