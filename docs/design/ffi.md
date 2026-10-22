@@ -274,8 +274,12 @@ runs:
   consumer would be a second variable, and the function's inlined and
   called forms would each see their own. Such a function, and everything
   that reaches it, is called. A `static const` table and a `static`
-  function are copied freely, since a copy of either behaves as the
-  original.
+  function are copied only where nothing can tell the copy from the
+  original: their contents are read and the function is called, and their
+  address is never returned, stored, compared, converted to an integer or
+  passed on. A function that lets such an address out would give one
+  address inlined and another called, so it is called, like one that
+  reaches mutable state.
 
 **F14. An unoptimized build compiles the C apart.** `zane run` builds
 unoptimized and answers to the time from the command to the result
@@ -324,8 +328,10 @@ models memory as bytes.
   with the target's offsets; `load` and `store`; `phi`, `select`, `br`,
   `switch`; vectors elementwise; and the intrinsics clang emits at `-O0`
   (`memcpy`, `memmove`, `memset`, the overflow, bit-count, funnel-shift,
-  `abs`, `smin`/`smax` families, the exact float functions, `lifetime` and
-  `assume`, which do nothing).
+  `abs`, `smin`/`smax` families, the exact float functions, `lifetime`,
+  which does nothing, and `assume`, whose condition is evaluated: a false or
+  poison one is undefined behavior and stops the fold, as the next item
+  says, since the optimized module may treat that path as unreachable).
 - **Calls** to a function the module defines are evaluated. A call to a
   function it only declares is evaluated when it is one of the C library's
   functions whose meaning is exact, which `c_eval.ml` models: `memcpy`,
