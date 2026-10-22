@@ -2,7 +2,7 @@
 
 > **Status: designed, not built.** This page says how the compiler implements
 > the spec's C interface
-> ([`ffi.md`](https://github.com/zane-lang/spec/blob/b45aee2/spec/ffi.md)):
+> ([`ffi.md`](https://github.com/zane-lang/spec/blob/f143200/spec/ffi.md)):
 > compiling a package's C code, checking foreign verbs against it, calling
 > it, and evaluating it at compile time. Each decision is numbered
 > (**F1**…), and §7 lists the order they are built in.
@@ -50,7 +50,7 @@ settings.** The fixed flags are `-std=c17`, `-ffp-contract=off`,
 `-fno-rounding-math` (`ffi.md` §2.2), the target triple, `-isystem` for the
 directory holding `zane_ffi.h`, and `-O0 -Xclang -disable-O0-optnone`, so the
 module comes out of the front end unoptimized but optimizable. The package's
-`include` and `define` rows come after, in the order the manifest writes them
+`include` and `define` rows come after, in the order its `c.coda` writes them
 (`ffi.md` §2.3). A setting that names one of the fixed flags, such as a
 `define` of `__FAST_MATH__`, is an error naming the row.
 
@@ -73,22 +73,16 @@ order the rows are written, after the program's objects and before the
 runtime's libraries. A system library the target's C compiler cannot find is
 an error naming the package and the row.
 
-**F5. The driver is given a package's C settings by `zane`.** `zanec`
-reads the `.c` and `.h` files of each `--package` directory itself. The
-manifest's `c` rows reach it as flags, one per row, with the package's path:
-
-```text
---c-source zlib=vendor/adler32.c
---c-include zlib=vendor
---c-define zlib=HAVE_UNISTD_H=1
---c-archive sqlite=prebuilt/x86_64-linux/libsqlite3.a
---c-system sqlite=sqlite3
-```
-
-The `zane` CLI reads the `c` block, keeps the rows whose `target` pattern
-matches the build's target, expands `source` patterns to the files they
-match, and checks that every path stays inside the project, so `zanec` sees
-plain paths. That part lives in the `zane` CLI, beside its reading of `deps`.
+**F5. `zanec` reads a package's `c.coda` itself.** The settings live in the
+package's directory (`ffi.md` §2.3), beside the `.c` and `.h` files the
+compiler already reads from each `--package` directory, so they need no flags
+and nothing from the `zane` CLI. The compiler parses the file, keeps the rows
+whose `target` pattern matches the build's target, expands `source` patterns
+to the files they match, and checks that every path stays inside the
+project. The project's root is the directory holding the `zane.coda` above
+the package, which the driver already finds. A path that leaves it, or a
+`source` pattern that matches nothing, is an error naming the file and the
+row.
 
 ---
 
@@ -387,7 +381,7 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
    type arguments and results (F8, F9, F10, F13, F14).
 5. Handles: release thunks, walks, null results (F12).
 6. Function values as C functions, with invokers (F11).
-7. `archive` and `system` rows, and the `zane` CLI's `c` block (F4, F5).
+7. Reading `c.coda`, and its `archive` and `system` rows (F4, F5).
 8. Release archives and dependencies' C, retained for inlining (F13, F15).
 9. `c_eval.ml`, its classes in stage 5, and the crossing between the two
    evaluators (F16–F19).
