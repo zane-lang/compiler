@@ -1062,6 +1062,8 @@ let returnings () =
   check "x86-64 Linux returns three pieces, two floating" (E.results "x86_64-unknown-linux-gnu" = (3, 2));
   check "x86-64 Windows returns as many" (E.results "x86_64-unknown-windows-gnu" = (3, 2));
   check "AArch64 macOS returns as many" (E.results "arm64-apple-macosx" = (3, 2));
+  check "Haswell x86-64 returns as many" (E.results "x86_64h-apple-darwin" = (3, 2));
+  check "arm64e returns as many" (E.results "arm64e-apple-macosx" = (3, 2));
   check "RISC-V returns what it passes" (E.results "riscv64-unknown-linux-gnu" = (2, 2));
   let linux = emit_env () and windows = emit_env ~triple:"x86_64-unknown-windows-gnu" () in
   let packed = emit_env ~pack:true () in

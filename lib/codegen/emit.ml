@@ -136,7 +136,7 @@ let registers triple =
    allocates itself. Elsewhere it is the limit for an argument. *)
 let results triple =
   match String.split_on_char '-' triple with
-  | ("x86_64" | "amd64" | "aarch64" | "arm64") :: _ -> (3, 2)
+  | ("x86_64" | "x86_64h" | "amd64" | "aarch64" | "arm64" | "arm64e") :: _ -> (3, 2)
   | _ ->
       let n = registers triple in
       (n, n)
