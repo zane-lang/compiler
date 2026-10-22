@@ -412,7 +412,7 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
   | T.Stat.Let { local; value } ->
       let value = moved st ctx span local.T.Local.ty value in
       let id = fresh st in
-      Hashtbl.replace ctx.env local.T.Local.id (Slot id);
+      Hashtbl.replace ctx.env local.T.Local.id (slot st local.T.Local.ty id);
       [ bind_local st ctx.scope local id value ]
   | T.Stat.Assign { target; value } when Lower_calls.subscripted target ->
       (* The destination's operands, then the value, and only then is the

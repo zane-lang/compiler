@@ -123,8 +123,10 @@ type state = {
      still to lower. *)
   symbols : (string, string) Hashtbl.t;
   pending : verb Queue.t;
-  (* The next local or label of the function being lowered. *)
+  (* The next local or label of the function being lowered, and its locals
+     that hold a value type (Func.values). *)
   mutable next : int;
+  mutable values : int list;
   (* What a `return` from the function being lowered returns its value as:
      itself, or the done case of its outcome (L12), and the verb's return
      type. *)
@@ -207,6 +209,7 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     symbols = Hashtbl.create 64;
     pending = Queue.create ();
     next = 0;
+    values = [];
     returns = Fun.id;
     ret = Tty.Error;
     aborts = Tty.Error;

@@ -210,16 +210,31 @@ work is done once, not again for the entry point that calls it.
 - An expression is tried once its children are folded and all its inputs are
   known: constants, known locals, or addresses of them. If evaluating it
   finishes, it is replaced by its value, with its outputs before it (O4) and
-  each known local it wrote stored back.
+  each known local it wrote stored back. A local bound by a plain `Let`,
+  which holds no list, string or box, is stored back by an assignment. A
+  value held in its scope's arena, such as a string, is stored back by an
+  overwrite, which returns the blocks its old value owned, as an
+  assignment to it does when the program runs; that takes a value whose
+  addresses are never kept (below), so nothing still names those blocks.
+  Code that writes any other local does not fold.
 - A control statement, a loop, a branch or a switch, is run whole when the
   locals it reads are known. A loop over known values leaves only what it
   wrote: `counting`'s nested loop becomes its prints.
 - A branch on a known condition becomes its body or nothing, a switch on a
   known case its one arm, and a loop with a count below one goes.
 - Whatever does not fold stays as it was, and what it may write is not known
-  after it: each local whose address it takes, every local it assigns, and,
-  when it can write through an address, every local whose address was ever
-  taken in the function. That holds inside an expression too: a call left
+  after it: each local whose address it takes or that a pointer it names
+  points into, every local it assigns, and, when it can write through an
+  address, every local an address of which may be kept. A local of a value
+  type keeps no address unless one is stored, returned or given to a
+  spawned call. No reference names a value
+  ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md)
+  §2.4), and a borrow of one ends with its call (§2.9), so code given no
+  address of it cannot write it, and what is known of it stays known past
+  that code. A pointer local bound once to an address of a local stands for
+  that local. Every address of a local of any other type counts as kept: a
+  call it is lent to may leave a reference to it where other code finds
+  it. That holds inside an expression too: a call left
   in place is not known past, by the operands and arguments after it or by
   the body of a condition it is part of. A loop's body is folded knowing nothing it writes,
   since one pass changes what the next starts with, and a body that leaves
@@ -348,8 +363,9 @@ same point and in the same order. How is left to the compiler. Stage 5's answer 
 - the bound on work is O6's: the step budgets, the depth and the size cap.
 
 Stage 5 leaves some such computations for run time, as §5.3 allows: a value
-holding a lent address, a list or box changed by code that does not fold
-with every statement that names it (only plain locals are stored back),
+holding a lent address, an owner of a reference type, a list among them,
+changed by code that does not fold with every statement that names it (only
+values are stored back),
 and a package constant's first-read check (O9).
 
 ---
@@ -368,8 +384,10 @@ optimized build makes, for the fixtures that show folding:
   spawned calls;
 - `replayed` keeps output in order, leaves the calls past the budget, the
   depth and the size cap to run, reads a slot when the program runs after a
-  store that folded, a count's included, and knows nothing past a call left
-  to run that writes a local;
+  store that folded, a count's included, knows nothing past a call left
+  to run that writes a local, and knows a value that call is given no
+  address of, a string a folded `mut` call stored back among them, but not
+  an owner it reaches through a stored reference;
 - `runs` folds a sieve as one run of statements, and keeps a list that is
   still named after the program's arguments are read;
 - `math` folds every exact math function at its edges, and keeps the
@@ -399,7 +417,8 @@ functions, the intrinsic classes, a value written as code and read back, calls, 
 memoization of a call that reaches a loop or a runtime function, or runs a
 large body or a long chain of small ones, and not of one that does none of
 these, a chain of calls that each make two staying
-linear, the budget, stores in place, two folds of handmade
+linear, the budget, stores in place, the locals a call left to run
+forgets, two folds of handmade
 functions, a replacement past the size cap only as a whole, a string that
 doubles past the budget, a call that replays its previous level's output
 twice stopping at the output cap, with a word and with empty prints, a member of a program variable written in place,
