@@ -17,6 +17,7 @@ open Lower
 let func st (v : verb) : Func.t =
   let span = v.body.T.Block.span in
   st.next <- 0;
+  st.values <- [];
   st.current <- symbol st v;
   let env = Hashtbl.create 16 in
   let params =
@@ -28,7 +29,7 @@ let func st (v : verb) : Func.t =
           (id, Nodes.Ty.Ptr)
         end
         else begin
-          Hashtbl.replace env p.T.Local.id (Slot id);
+          Hashtbl.replace env p.T.Local.id (slot st p.T.Local.ty id);
           (id, ty st p.T.Local.span p.T.Local.ty)
         end)
       v.params
@@ -42,7 +43,7 @@ let func st (v : verb) : Func.t =
          (fun (p : T.Local.t) (id, t) ->
            if roaming st p.T.Local.ty && held st p.T.Local.span p.T.Local.ty then begin
              let kept = fresh st in
-             Hashtbl.replace env p.T.Local.id (Slot kept);
+             Hashtbl.replace env p.T.Local.id (slot st p.T.Local.ty kept);
              [ bind_local st scope p kept { Expr.node = Expr.Local id; ty = t } ]
            end
            else [])
@@ -65,7 +66,7 @@ let func st (v : verb) : Func.t =
     if linkage = Linkage.Imported && st.import_bodies then Linkage.Available else linkage
   in
   if linkage = Linkage.Imported then
-    { Func.symbol = symbol st v; linkage; params; ret = returned o; body = [] }
+    { Func.symbol = symbol st v; linkage; params; ret = returned o; body = []; values = [] }
   else begin
     st.returns <- (if plain o then Fun.id else outcome_case o done_);
     st.ret <- v.signature.S.ret;
@@ -89,7 +90,8 @@ let func st (v : verb) : Func.t =
         scope = { arena = None; settles = []; wants = [] };
       }
     in
-    { Func.symbol = symbol st v; linkage; params; ret = returned o; body = block ~enter st ctx v.body }
+    let body = block ~enter st ctx v.body in
+    { Func.symbol = symbol st v; linkage; params; ret = returned o; body; values = st.values }
   end
 
 (* L16. The function that makes a package constant: the first call makes
@@ -139,6 +141,7 @@ let made st decl : Func.t =
     params = [];
     ret = Nodes.Ty.Ptr;
     body = [ Stat.If { cond = first; body }; Stat.Return (global value) ];
+    values = [];
   }
 
 (* docs/design/symbols.md: a lambda is called by the verb it is written in
@@ -397,6 +400,7 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
               params = [];
               ret = Nodes.Ty.Void;
               body = makes @ dropped;
+              values = [];
             }
           in
           finish ~start:(fun funcs -> [ start funcs ]) (Some "zane.start")

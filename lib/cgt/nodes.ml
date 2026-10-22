@@ -398,6 +398,9 @@ module Global = struct
   type t = { symbol : string; linkage : Linkage.t; ty : Ty.t }
 end
 
+(* [values] is each local that holds a value type. No reference names one
+   (memory.md §2.4), so its slot is reached only through the addresses the
+   function itself takes of it. *)
 module Func = struct
   type t = {
     symbol : string;
@@ -405,6 +408,7 @@ module Func = struct
     params : (int * Ty.t) list;
     ret : Ty.t;
     body : Stat.t list;
+    values : int list;
   }
 end
 

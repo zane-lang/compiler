@@ -112,6 +112,12 @@ A call site that mints a reference for an `&T` parameter, or moves an owner
 into a `^T` one, does so with an explicit CGT operation (§3), not inside the
 call.
 
+A function also lists its locals that hold a value type. No reference names
+one ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md)
+§2.4), so only the addresses the function takes of it reach its slot, which
+is what folding counts on when code it cannot run is given other addresses
+([`optimization.md`](optimization.md) O6).
+
 **L7. A result is written into a destination the caller names.** Every verb
 that returns something other than `Unit` or a scalar takes a pointer to the
 slot its result goes in. That is the spec's own model: a move into a return

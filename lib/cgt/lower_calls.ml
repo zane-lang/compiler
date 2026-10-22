@@ -55,7 +55,7 @@ let subscript w st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
             :: List.map2
                  (fun (p : T.Local.t) a ->
                    let id = fresh st in
-                   Hashtbl.replace env p.T.Local.id (Slot id);
+                   Hashtbl.replace env p.T.Local.id (slot st p.T.Local.ty id);
                    Stat.Let { id; value = w.borrow st ctx span a })
                  rest args
           in
@@ -163,7 +163,7 @@ and held_argument w ?direct st ctx span v (p : T.Local.t) a =
       let value = w.primitive st ctx span "@primitives$Array" [ a ] arr in
       let id = fresh st in
       let l = { p with T.Local.id = -id } in
-      Hashtbl.replace ctx.env l.T.Local.id (Slot id);
+      Hashtbl.replace ctx.env l.T.Local.id (slot st arr id);
       let hold =
         if held st span arr then Stat.Hold { id; scope = arena st ctx.scope; value; layout = layout st span arr }
         else Stat.Let { id; value }
@@ -174,7 +174,8 @@ and held_argument w ?direct st ctx span v (p : T.Local.t) a =
       let value = argument w ?direct st ctx span v p e in
       let id = fresh st in
       let l = { p with T.Local.id = -id } in
-      Hashtbl.replace ctx.env l.T.Local.id (if by_address st v p then Pointer id else Slot id);
+      Hashtbl.replace ctx.env l.T.Local.id
+        (if by_address st v p then Pointer id else slot st p.T.Local.ty id);
       let read = { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) } in
       ([ Stat.Let { id; value } ], T.Arg.Value read)
   | (T.Arg.Block _ as b), _ -> ([], b)
@@ -214,7 +215,7 @@ and pinned w st ctx span (e : T.Expr.t) : Stat.t list * T.Expr.t =
           (fun (a : T.Expr.t) ->
             let id = fresh st in
             let l = { T.Local.id = -id; name = "index"; ty = a.T.Expr.ty; span = a.T.Expr.span } in
-            Hashtbl.replace ctx.env l.T.Local.id (Slot id);
+            Hashtbl.replace ctx.env l.T.Local.id (slot st a.T.Expr.ty id);
             let read = { a with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) } in
             (Stat.Let { id; value = w.borrow st ctx span a }, read))
           args
@@ -347,7 +348,7 @@ and expand w st ctx span v args handler ret =
                let arr = array_type t n in
                let value = w.primitive st ctx span "@primitives$Array" [ arg ] arr in
                let id = fresh st in
-               bind p (Slot id);
+               bind p (slot st arr id);
                if held st span arr then
                  let layout = layout st span arr in
                  [ Stat.Hold { id; scope = arena st ctx.scope; value; layout } ]
@@ -408,7 +409,7 @@ and expand w st ctx span v args handler ret =
            | T.Arg.Value a, _ when roaming st p.T.Local.ty ->
                let value = w.moved st ctx span p.T.Local.ty a in
                let id = fresh st in
-               bind p (Slot id);
+               bind p (slot st p.T.Local.ty id);
                [ Build.bind st ctx.scope span p.T.Local.ty id value ]
            | T.Arg.Value a, _ ->
                let value =
@@ -416,7 +417,7 @@ and expand w st ctx span v args handler ret =
                  else w.borrow st ctx span a
                in
                let id = fresh st in
-               bind p (Slot id);
+               bind p (slot st p.T.Local.ty id);
                [ Stat.Let { id; value } ])
          v.params args)
   in

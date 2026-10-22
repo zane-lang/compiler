@@ -19,7 +19,7 @@ let handle w ?resolve ?dropped st ctx (h : T.Handler.t) label result span (value
     match (h.T.Handler.binder, dropped) with
     | Some l, _ ->
         let id = fresh st in
-        Hashtbl.replace ctx.env l.T.Local.id (Slot id);
+        Hashtbl.replace ctx.env l.T.Local.id (slot st l.T.Local.ty id);
         [ bind_local st scope l id value ]
     (* An abort value no binder names, of type [dropped], is still held
        here when it is an owner or owns a block, so the drain ends it. *)
