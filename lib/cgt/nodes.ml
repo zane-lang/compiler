@@ -416,12 +416,14 @@ end
    the runtime's C `main` calls (L16): always one that makes the package
    constants, if any, and then calls the root package's `main`. A library has
    none. [layouts] is each layout the program names, and [globals] each of
-   its variables. *)
+   its variables. [exclusive] is whether it runs on one thread: it is not a
+   library, and no package of the build spawns. *)
 module Program = struct
   type t = {
     funcs : Func.t list;
     entry : string option;
     layouts : (Layout.t * Layout.position list) list;
     globals : Global.t list;
+    exclusive : bool;
   }
 end

@@ -163,6 +163,25 @@ Each generic verb is lowered once per instance, so a type argument or an
 explicit number parameter has already picked the function and costs nothing
 at run time; the body reads a number parameter as a constant.
 
+### Calls remembered while the program runs
+
+- **Builds:** opt-in (`--memoize`)
+- **Where:** `lib/cgt/memo.ml`, `lib/codegen/emit.ml` (`memo`),
+  `lib/codegen/codegen.ml` (`still_called`)
+- **Design:** [`design/memoization.md`](design/memoization.md)
+- **Effect:** [`dev/bench/memo/`](../dev/bench/memo/README.md): recursions
+  that repeat their arguments 73–99.6% fewer estimated cycles, among them a
+  tic-tac-toe search keyed on its board (76–80%); programs whose arguments
+  do not repeat within +0.4%
+
+A recursion whose result depends only on its arguments, which takes and
+returns fixed-size values, and which calls back into its own cycle at
+least twice keeps a table of its results, so a
+call whose arguments repeat returns at once. Each function scores its
+lookups against the calls its hits save, and stops looking for good when
+they do not pay. A loop decides once, before it starts, whether its calls
+still look, so a loop whose functions have stopped runs as written.
+
 ---
 
 ## Compile-time evaluation (stage 5, `lib/optimize/`)
@@ -219,6 +238,23 @@ A run of statements in one block is evaluated together, so a list made,
 changed in place and read by later statements, which no single statement
 leaves known, still folds. The longest run that can end is replaced by its
 outputs and the locals it leaves.
+
+### Values kept known past code left to run
+
+- **Builds:** optimized only
+- **Where:** `lib/optimize/fold.ml` (`reach`, `writes`, `store_back`),
+  `lib/cgt/type_layout.ml` (`slot`)
+- **Design:** [`design/optimization.md`](design/optimization.md) O6
+- **Effect:** the perf program `kept`, optimized, −43% estimated cycles
+  and −64% of its instructions, its plain build unchanged; the other perf
+  programs and langbench's programs fold to the same trees as before
+
+Code that does not fold forgets only the locals it can write: those it is
+given an address of, and those an address of which may be kept. A value
+type keeps no address unless one is stored, returned or spawned, so a
+value-type local stays known past a call given no address of it, and a
+string, struct or boxed variant a `mut` call changed is stored back by an
+overwrite.
 
 ### Spawned calls folded
 

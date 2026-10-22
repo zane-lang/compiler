@@ -1,0 +1,12 @@
+/// A library whose public recursion repeats its arguments: a program that
+/// links it may call `fib` from threads this object never sees.
+package memolibrary;
+
+alias Int = @primitives$I64
+
+Int fib(n Int) {
+	@controlflow$branch(@operators$lessThan(n, Int(2)), {
+		return n;
+	});
+	return @operators$add(fib(@operators$add(n, @operators$negate(Int(1)))), fib(@operators$add(n, @operators$negate(Int(2)))));
+}

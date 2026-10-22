@@ -323,7 +323,7 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
       let funcs = drain [] in
       let funcs = start funcs @ funcs @ List.rev st.spawned in
       let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
-      Ok (Regions.run ~wants:st.wants { Program.funcs; entry; layouts; globals = List.rev st.globals })
+      Ok (Regions.run ~wants:st.wants { Program.funcs; entry; layouts; globals = List.rev st.globals; exclusive = st.exclusive })
     in
     if library then begin
       List.iter

@@ -1,0 +1,54 @@
+/// HITS THEN MISSES: a Fibonacci warm-up, then a long run of distinct-argument calls to the same function.
+package phase;
+
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\n")));
+	return Unit();
+}
+
+
+Int f(n Int, s Int) {
+	@controlflow$branch(@operators$lessThan(n, Int(2)), {
+		return @operators$add(n, s);
+	});
+	return @operators$add(f(@operators$add(n, @operators$negate(Int(1))), s), f(@operators$add(n, @operators$negate(Int(2))), s));
+}
+
+Unit main() {
+	reps Int = size(Int(100));
+	total Int = f(Int(25), Int(0));
+	s Int(1);
+	s!to(reps) {
+		total = @operators$add(total, f(Int(6), s));
+	}
+	say(String(total));
+	return Unit();
+}
