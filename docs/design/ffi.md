@@ -426,8 +426,8 @@ models memory as bytes.
   item); a `calloc` allocation's start written as zero, as C requires; and
   `realloc` keeps the written state of the bytes it carries over and leaves
   any it adds unwritten. A `calloc` whose count times size overflows
-  `size_t` returns null in C, which no budget-limited fold reaches, so it
-  stops the fold.
+  `size_t` gives null, as every C library does for it, and the fold goes on
+  with that null.
 - **Undefined behavior stops the fold.** A read of a byte never written, an
   access outside an allocation or through a freed one, poison reaching a
   branch, a store or a call, a misaligned access, and a division by zero
