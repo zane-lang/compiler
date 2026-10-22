@@ -437,7 +437,11 @@ models memory as bytes.
   bytes as an integer, or by copying them where they are read so, stops the
   fold, since its sign and payload are the target machine's. A NaN written
   as bits, as a constant or by storing an integer, keeps the bits it was
-  written with; `getelementptr`
+  written with. A float instruction carrying any fast-math flag
+  (`contract`, `reassoc`, `nnan`, `ninf`, `nsz`, `arcp`, `afn`) stops the
+  fold: a `#pragma` in the source can set one despite F2's flags, and the
+  optimized module may then fuse or reorder what the fold computed step by
+  step; `getelementptr`
   with the target's offsets; `load` and `store`, except a `volatile` or
   atomic one, which stops the fold, as a `volatile` `memcpy`, `memmove` or
   `memset`, an `atomicrmw`, a `cmpxchg` and a `fence` do: a volatile access
@@ -516,7 +520,9 @@ storage at run time is unknown: two arguments from one variable do, two
 equal strings from different variables do not. A view's allocation is
 therefore marked as standing for storage of unknown identity, and comparing
 or subtracting a pointer into it with one into another allocation stops the
-fold (`ffi.md` §5.4's first exclusion). Pointers into two allocations that
+fold (`ffi.md` §5.4's first exclusion). So does comparing the pointer of an
+empty view with null, since an empty string or list may hold a null block
+or a block it once used. Pointers into two allocations that
 C made compare unequal, as C gives them, except where either allocation is a
 global marked `unnamed_addr` or `local_unnamed_addr`, such as a string
 literal, which the optimizer or the linker may merge with an equal one, or
