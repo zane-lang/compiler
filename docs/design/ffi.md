@@ -250,6 +250,16 @@ a `.move` that copies the pointer and nulls the place moved from, so only
 the place a handle finally rests in releases it (`ffi.md` §4.2). It has no
 `.copy`: a handle is a reference type and is never copied.
 
+A drain ends a scope's values with no order among them
+([`lowering.md`](lowering.md) §9), but the spec orders release functions:
+those of one drain run in the reverse of the order their handles were made.
+So each handle a call makes is stamped with a number from a per-thread
+counter as it is made, and a drain that ends more than one handle collects
+their pointers and runs the release thunks by descending stamp, after the
+scope's other ends. A move keeps the stamp, since the handle is the same
+one. A drain that ends one handle or none does nothing more than it does
+now.
+
 ---
 
 ## 4. Optimized and unoptimized builds
