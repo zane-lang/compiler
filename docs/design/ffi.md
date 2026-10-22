@@ -29,20 +29,27 @@ same IR to evaluate it.
 LLVM.** The compiler already links LLD into itself
 ([`lowering.md`](lowering.md) §7, `lib/codegen/lld_stubs.cpp`) so that a
 build never starts a second LLVM. It links clang's front end the same way,
-in `lib/foreign/clang_stubs.cpp`, and runs a compilation in process: a
-`clang::CompilerInvocation` built from a `cc1` command line, an
-`EmitLLVMOnlyAction`, and the `llvm::Module` it makes handed to OCaml as an
-`Llvm.llmodule` of the compiler's own context.
+in `lib/foreign/clang_stubs.cpp`, and runs a compilation in process: the
+linked clang's own driver (`clang::driver::Driver`) turns a command line
+for the target into a `clang::CompilerInvocation`, an `EmitLLVMOnlyAction`
+runs it, and the `llvm::Module` it makes is handed to OCaml as an
+`Llvm.llmodule` of the compiler's own context. Every front-end option is
+therefore one the linked clang made itself, so all of them are ones it
+knows.
 
 The clang has to be the compiler's own because LLVM IR crosses no LLVM
 release. The released toolchain's `zig cc` is built on a newer LLVM than the
 compiler's (19, `lowering.md` L2), and its bitcode would not load. So
-`zig cc` is asked only for what it knows that clang does not: where the
-target's C library headers are. As the link already does, the first build
-for a C compiler, a target and a set of flags runs it once with `-###` and
-keeps the `cc1` command it prints in the cache; every compilation then runs
-that command, with its own source and settings put in, through the linked
-clang. `ZANE_CC` keeps its meaning: the command asked is that compiler's.
+the C compiler is asked only for what it knows that the linked clang does
+not: where the target's C library headers are. The first build for a C
+compiler and a target runs it once on an empty source with `-E -v` and reads
+the list after `#include <...> search starts here:`, which GCC, clang and
+`zig cc` all print in that form; the list is kept in the cache, and every
+compilation passes it to the linked driver as `-nostdlibinc` followed by
+one `-isystem` per directory, in order. Nothing else the C compiler would
+do is replayed, so a GCC's `cc1` options or a newer clang's never reach the
+linked one. `ZANE_CC` keeps its meaning: the compiler asked for the headers
+is that one.
 
 **F2. Every C source is compiled with fixed flags first, then the package's
 settings.** The fixed flags are `-std=c17`, `-ffp-contract=off`,
@@ -59,11 +66,15 @@ module comes out of the front end unoptimized but optimizable. The package's
 
 **F3. One package's C is one module, cached by what it was made from.** Each
 C source compiles to a module of its own, and the package's modules, with its
-glue (F7), are linked into one with LLVM's linker. A source's module is kept
+glue (F8), are linked into one with LLVM's linker. A source's module is kept
 in the cache directory as bitcode of the compiler's own LLVM, under a hash of
-the source's bytes, the bytes of every header clang read for it (from the
-compilation's dependency list), the `cc1` command, and the compiler's
-version. A later build that would compile the same source loads the bitcode
+the source's preprocessed text, with its line markers, the front-end
+command, and the compiler's version. The preprocessed text is what the
+compilation reads, and its line markers name the file each line came from,
+so the key changes with any header's contents, with which file an include
+resolves to, and with what `__FILE__` expands to. Each build preprocesses
+every source again, which costs a small part of compiling it, and a later
+build whose source preprocesses to the same text loads the bitcode
 instead. With no cache directory, every build compiles every source.
 
 **F4. Archives and system libraries go to the link.** An `archive` row's
@@ -168,10 +179,15 @@ renames its uses with it. The fetch-time rewrite then stamps the
 placeholder like any other (`separate-compilation.md` C9). A name holding
 `%c$` cannot be a Zane symbol, since no package name starts with `%`.
 
-An `archive` row's members are renamed with the same map, through the object
-rewriter that stamps placeholders (C9): first the set of symbols the members
-define, then each member rewritten with it. Undefined references, to the C
-library or a `system` library, keep their names.
+An `archive` row's members are renamed through the object rewriter that
+stamps placeholders (C9). The set of symbols the package's archives define
+is read first, before the package's module is renamed, and joins the map:
+each member is rewritten with it, and so is every declaration in the
+package's module of a symbol an archive defines, such as a thunk's call of
+a function an archive provides. So the module's references and the
+archive's definitions carry the same new name, and neither can bind to a
+symbol of that C name elsewhere. Undefined references, to the C library or
+a `system` library, keep their names.
 
 **F10. A foreign call is one CGT node, with its arguments laid out for C.**
 Lowering makes a call to a foreign verb a `Foreign_call { thunk; args; result;
@@ -271,8 +287,15 @@ models memory as bytes.
   and one per `malloc`, `calloc` or `realloc`. A pointer is an allocation
   and an offset into it, and arithmetic on it keeps the allocation, so a
   pointer is never confused with an integer that happens to equal it. A
-  `ptrtoint` gives a fixed, fake address per allocation, chosen the same way
-  in every run, and an `inttoptr` of one gives the pointer back.
+  `ptrtoint` gives an **address-derived integer**: it keeps the allocation
+  and offset it came from, and arithmetic on it keeps them too. An
+  `inttoptr` of one gives the pointer back, and two derived from one
+  allocation compare and subtract as their offsets do. Anything else that
+  would let the address's number matter stops the fold: returning one,
+  storing it where the Zane side reads it, comparing ones from two
+  allocations, or branching, hashing or dividing on one. Where a program's
+  allocations land is a fact of the running process, so no folded value
+  may depend on it.
 - **Instructions** are evaluated with LLVM's own meaning, and with the
   target's sizes: integer arithmetic at its width, with `nsw` and `nuw`
   overflow giving poison; IEEE float arithmetic as `eval.ml` does it; `getelementptr`
@@ -327,8 +350,8 @@ of its bytes, and a store into it stops the fold.
 A data handle made during a fold is an allocation of `c_eval.ml`'s,
 which the handle's `eval.ml` value names. A fold that ends with such a
 handle alive in a known local does not fold, as one that gives a lent
-address does not (O6): C memory has no code to be written back as
-(O7). Released within the fold, by the evaluator's model of the handle's
+address does not (O6): a C allocation has no CGT form, so it cannot be
+written back as code (O7). Released within the fold, by the evaluator's model of the handle's
 `.end`, it folds.
 
 A C call to a function value's C entry (F11) is evaluated by `eval.ml`, with
@@ -370,9 +393,9 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
 
 ## 7. The order it is built in
 
-1. The clang front end in process, with the `-###` command kept in the
-   cache, compiling a C file to a module of the compiler's context (F1, F2,
-   F3).
+1. The clang front end in process, with the C compiler's include
+   directories kept in the cache, compiling a C file to a module of the
+   compiler's context (F1, F2, F3).
 2. The interface table from the AST (F6).
 3. Foreign verbs, handle types and `@runtime$System` in the TST, with the
    interface check and the signature-given capability facts (F7).
