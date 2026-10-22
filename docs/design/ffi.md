@@ -103,8 +103,8 @@ and nothing from the `zane` CLI. The compiler parses the file, keeps the rows
 whose `target` pattern matches the build's target, expands `source` patterns
 to the `.c` files they match (a `.h` or any other file a pattern matches is
 not a C source and is skipped), and checks that every path stays inside the
-project. The project's root is the directory holding the `zane.coda` above
-the package, which the driver already finds. A path that leaves it, or a
+package's directory (`ffi.md` §2.3), which is the `--package` directory the
+compiler was given. A path that leaves it, or a
 `source` pattern that matches nothing, is an error naming the file and the
 row.
 
