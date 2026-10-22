@@ -1,18 +1,8 @@
-(* Calls remembered while the program runs (`--memoize`, an experiment; see
-   issue #262). A function is remembered when nothing it does can be seen but
-   its result, every argument and its result is a few scalars, and its body
-   calls back into its own cycle of calls more than once, which is where
-   remembering can turn work that doubles at each level into work linear in
-   the depth.
-
-   Each such function becomes three. Codegen emits a dispatcher under its
-   own symbol, which looks the arguments up in a table of the function's
-   own; [body] is the function as it was, run on a miss, whose calls back
-   into the cycle go through the dispatchers again; [plain] is the function
-   with every call into its cycle made to the other [plain] copies, which
-   look nothing up. A dispatcher whose lookups miss too often stops looking
-   and calls [plain], so a function whose arguments rarely repeat pays for
-   a bounded number of lookups and then runs as it would have. *)
+(* Calls remembered while the program runs (`--memoize`,
+   docs/design/memoization.md): which functions get a table (M1), each one
+   split into a body copy and a plain copy beside the dispatcher codegen
+   emits (M2), what a lookup is charged (M3), and the loops that decide once
+   whether their calls look (M4). *)
 
 open Nodes
 
