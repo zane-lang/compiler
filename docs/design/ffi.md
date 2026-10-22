@@ -2,18 +2,18 @@
 
 > **Status: designed, not built.** This page says how the compiler implements
 > the spec's C interface
-> ([`ffi.md`](https://github.com/zane-lang/spec/blob/f143200/spec/ffi.md)):
+> ([`ffi.md`](https://github.com/zane-lang/spec/blob/93aef1e/spec/ffi.md)):
 > compiling a package's C code, checking foreign verbs against it, calling
 > it, and evaluating it at compile time. Each decision is numbered
 > (**F1**…), and §7 lists the order they are built in.
 
-The spec asks four things of the compiler that no C interface it could copy
-does at once. It compiles each package's C itself, for the build's target
-(`ffi.md` §2.2). It checks every foreign verb against the C declaration of
-its symbol, as that target sees it (§3.7). It calls C without the compiler
-implementing any target's C calling convention by hand. And it folds a call
-into C the way it folds any other computation (§5.4), which means running C
-code inside the compiler with the target's meaning, not the host's.
+Each mechanism below cites the spec section whose rule it implements, and
+the rule itself is read there. Three of those sections shape the whole
+design together: compiling C for the build's target (`ffi.md` §2.2),
+checking foreign verbs as that target sees their declarations (§3.7), and
+folding calls into C (§5.4), which means running C inside the compiler with
+the target's meaning, not the host's. A fourth constraint is the compiler's
+own: it implements no target's C calling convention by hand.
 
 Every decision below follows from one choice: the compiler holds the C code
 as LLVM IR, made by a clang of its own LLVM, in the same `LLVMContext` as the
@@ -127,12 +127,10 @@ included header makes is not in the table, which is how `ffi.md` §2.1's
 "seen by the C compiler and by nothing else" holds.
 
 Stage 3 checks each foreign verb against that table by the rules of
-`ffi.md` §3.3 and §3.7. A C type corresponds to a Zane type by its canonical
-form, so `uLong` is checked as the `unsigned long` it is, which corresponds
-to no Zane type on any target, even where it is 64 bits, because its size
-differs between targets (`ffi.md` §3.3). The error names the C type, what it
-is on the target, and that a C function of the package converting it is the
-way to reach it. A C-compatible value type is compared field by field against the
+`ffi.md` §3.3 and §3.7. A C type is matched by its canonical form, so a
+`typedef` such as zlib's `uLong` is checked as the `unsigned long` it names.
+A type §3.3 refuses is reported with what it is on the target and a pointer
+to the converting C function §3.3 asks for. A C-compatible value type is compared field by field against the
 `struct`'s offsets and sizes, laid out as lowering lays the Zane type out
 ([`platforms.md`](platforms.md), "64-bit targets only"). Two forms are
 refused outright, whatever their sizes say. A function declared without a
@@ -154,19 +152,15 @@ them as it reads a verb's derived ones.
 A foreign handle is `Ty.Handle { c_type; set; free; kind }`, a reference
 type with no fields: it is settled or roaming, moved and referenced, and
 destroyed, exactly like a `#struct`. `kind` is `Capability` when the type
-has no `free`, and otherwise read from the foreign verbs that return the
-type once every package's declarations are known: `Outside` when they are
-methods on a capability, `Data` when they are not, and a compile-time error
-at the type when they are both (`ffi.md` §4.2). The placements of `ffi.md`
-§4.4, and §5.3's rule that only a `mut` method on a capability makes an
-outside handle, are checked against `kind` with the signature.
+has no `free`. Otherwise it waits until every package's declarations are
+known, then is read from the foreign verbs that return the type, by
+`ffi.md` §4.2. Each check of §4.4 and §5.3 is then a test of `kind` against
+the verb's signature, so none of them needs to look past the declaration.
 
 A foreign variable is a declaration statement
 `Foreign_var { name; ty; symbol; decl }`, where `decl` is the variable's
-entry in the table of `ty`'s package. The checker rejects one outside the
-root package, one whose `ty` is not a capability, and one whose entry is
-missing, lacks external linkage, or has another C type than `ty`'s
-`c_type`.
+entry in the table of `ty`'s package, not the declaring one's. The checks of
+`ffi.md` §5.1 read the linkage and C type F6 records for it.
 
 ---
 
@@ -237,17 +231,17 @@ node passes the slots' addresses:
 | C-compatible value type | the value, already in C's layout |
 | a handle | its pointer |
 
-A string, array or list is lent where it is: nothing else in the call writes
-what the call borrows (`memory.md` §2.9.1), and C never writes it, so its
-bytes are read in place and never copied going in.
+A string, array or list is passed where it is, never copied going in:
+`ffi.md` §3.4 and `memory.md` §2.9.1 together mean nothing writes it during
+the call.
 
 The result arrives in a slot of its C layout, and lowering makes the Zane
 value from it. A `zane_bytes` result is copied into a new string in the
 call's destination region through the runtime's string constructor, before
 any other foreign call can run on this thread. A handle result is checked for
-null: with an abort type the call aborts with `Unit` there
-([`lowering.md`](lowering.md) L12); without one the program stops with
-"a foreign function returned no object".
+null (`ffi.md` §3.5): the abort lowers as any `Unit` abort does
+([`lowering.md`](lowering.md) L12), and the stop prints "a foreign function
+returned no object".
 
 **F11. A function value of a C-compatible type is the address of a C
 function.** C can call a function pointer and nothing else, and a C function
@@ -273,8 +267,8 @@ below, so the stamp travels with the handle wherever it is stored, in a
 local, a field or a list element, and needs no slot of its own. C
 receives only the pointer (F10). Its walk table ([`lowering.md`](lowering.md) §9)
 has an `.end` that calls the free thunk when the pointer is not null and
-a `.move` that copies both words and nulls the place moved from, so only
-the place a handle finally rests in releases it (`ffi.md` §4.2). It has no
+a `.move` that copies both words and nulls the place moved from, as `ffi.md` §4.2's
+move rule needs. It has no
 `.copy`: a handle is a reference type and is never copied. A capability's
 walk table has no `.end`, since nothing frees a C global, and a foreign
 variable lowers to the address of its global under the name F9 gives it.
@@ -287,8 +281,7 @@ from the old object since hold the same address, so they still end
 first.
 
 A drain ends a scope's values with no order among them
-([`lowering.md`](lowering.md) §9), but the spec orders free functions:
-those of one drain run in the reverse of the order their handles were made.
+([`lowering.md`](lowering.md) §9), but `ffi.md` §4.2 orders free functions.
 So each handle a call makes is stamped as it is made with a number from
 one process-wide counter, a 64-bit atomic fetch-and-add. Handles made by
 spawned calls on different pool threads still get distinct, comparable
