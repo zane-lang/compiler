@@ -2,7 +2,7 @@
 
 > **Status: designed, not built.** This page says how the compiler implements
 > the spec's C interface
-> ([`ffi.md`](https://github.com/zane-lang/spec/blob/4a7c195/spec/ffi.md)):
+> ([`ffi.md`](https://github.com/zane-lang/spec/blob/6fed671/spec/ffi.md)):
 > compiling a package's C code, checking foreign verbs against it, calling
 > it, and evaluating it at compile time. Each decision is numbered
 > (**F1**…), and §7 lists the order they are built in.
@@ -150,8 +150,8 @@ may define its own `static inline` helper, say), and `clang_stubs.cpp` walks
 the ASTs. What it hands back is a table, by name, of
 every function, variable, `struct` and `typedef` whose expansion location
 is in an interface header (so a declaration a macro from an included header
-writes, invoked in an interface header, is the interface header's): each variable's canonical type and whether it has
-external linkage; each function's canonical parameter and result types,
+writes, invoked in an interface header, is the interface header's): each variable's canonical type, whether it has
+external linkage, and whether it is thread-local; each function's canonical parameter and result types,
 `const` qualification of pointees, whether it is variadic, and whether it
 has a prototype at all; each `struct`'s fields with their canonical types,
 offsets, and bit widths where a field is a bit-field, and the record's size
@@ -193,7 +193,8 @@ the verb's signature, so none of them needs to look past the declaration.
 A foreign variable is a declaration statement
 `Foreign_var { name; ty; symbol; decl }`, where `decl` is the variable's
 entry in the table of `ty`'s package, not the declaring one's. The checks of
-`ffi.md` §5.1 read the linkage and C type F6 records for it.
+`ffi.md` §5.1 read the linkage, thread-local storage and C type F6
+records for it.
 
 ---
 
@@ -233,10 +234,12 @@ A thunk's name is the foreign verb's symbol ([`symbols.md`](symbols.md))
 with `.ffi` after it, a free or set thunk's is the handle type's symbol with
 `.free` or `.set`, and F11's entries are named the same way from the lambda's
 symbol, given in C with an `__asm__` label, since a verb's
-symbol is not a C identifier. The label is the final symbol, with no
-prefix added, while LLVM gives lowering's declaration of the same name the
-target's global prefix, `_` on macOS, so the label is written with that
-prefix, read from the target's data layout. An optimized build links the glue into the
+symbol is not a C identifier. Clang names a labelled function in IR `\01`
+followed by the label, which LLVM emits as written, with no global prefix,
+so the label is the symbol after the target's global prefix (`_` on macOS,
+read from the target's data layout), and lowering declares each glue entry
+under that same IR name, `@"\01_pkg.ffi"` on macOS, so a call and the
+glue's definition are one function once the modules are linked. An optimized build links the glue into the
 package's module (F13), where LLVM inlines each thunk into its caller, so an
 optimized call into C is a direct call with the target's own convention.
 
@@ -581,7 +584,8 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   `struct` laid out differently, a fixed flag a `define` tries to change, an
   overwrite of a settled handle without a setter, an outside handle passed
   to a verb that is no method on a capability, and a foreign variable
-  outside the root package or naming a missing global.
+  outside the root package, naming a missing global, or naming a
+  `_Thread_local` one.
 
 ---
 
