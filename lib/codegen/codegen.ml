@@ -72,11 +72,14 @@ let still_called ?target ?pack ?fixed_region ?spawned_fixed_region p =
    module are disposed however [f] or the emit ends, since LLVM's bindings
    free neither on their own. With [memoize], the functions [Cgt.Memo]
    picks are remembered; in an [optimize]d build, only those
-   [still_called] leaves. *)
+   [still_called] leaves, which it works out only once a function passes
+   every other test, so a program with none is compiled once. *)
 let with_program ?target ?pack ?(memoize = false) ?(optimize = false) ?fixed_region ?spawned_fixed_region p f =
   let p, memos =
     if not memoize then (p, [])
-    else if optimize then Cgt.Memo.plan ~keep:(still_called ?target ?pack ?fixed_region ?spawned_fixed_region p) p
+    else if optimize then
+      let called = lazy (still_called ?target ?pack ?fixed_region ?spawned_fixed_region p) in
+      Cgt.Memo.plan ~keep:(fun s -> (Lazy.force called) s) p
     else Cgt.Memo.plan p
   in
   with_module ?target ?pack ~memos ?fixed_region ?spawned_fixed_region p f

@@ -1,8 +1,8 @@
 # Memoization: calls remembered while the program runs
 
-`--memoize` gives some functions a table of the results of their calls, and a
-call whose arguments are in the table returns the remembered result instead
-of running. It is opt-in, in plain and optimized builds alike
+Every build gives some functions a table of the results of their calls, and
+a call whose arguments are in the table returns the remembered result
+instead of running. `--no-memoize` builds without the tables
 ([zane-lang/compiler#262](https://github.com/zane-lang/compiler/issues/262)).
 The pass that picks the functions and rewrites the program is
 `lib/cgt/memo.ml`. It runs on the finished code-generation tree, after stage
@@ -89,8 +89,11 @@ Each function's state is a score, in sixteenths of one of its calls:
   for each node of its body, a loop's body eight times over, and the weight
   of each function it calls that has no table. The charge is between a
   sixteenth of a call and four calls.
-- **A hit subtracts the calls it saved.** A miss counts the calls with tables
-  that ran while its result was computed, and keeps the count in the entry.
+- **A hit subtracts the work it saved.** The work a result stands for is
+  what the calls that computed it would run without a table, counted from
+  below: each miss adds the weight of its function's cheapest call, and each
+  hit adds the work its own result stands for. The entry keeps that count,
+  and a hit is credited with it, measured against the weight of one call.
 - **The score never goes below zero.**
 
 Once the score reaches 128 calls, the function stops looking for the rest of
@@ -101,6 +104,16 @@ Because the charge is relative, a function whose calls are heavy can look up
 for a long time before its hits start to pay, as a search does before the
 first position it reaches twice. One whose calls are light gives up after a
 few dozen lookups.
+
+The cheapest call is the shortest path through the body to a return,
+weighed as above, with each loop run no times. Every call the hit skipped
+would have run at least that, whichever path it took, so the credit never
+exceeds what the hit saved. A recursion whose arguments repeat only where it
+bottoms out hits on half its calls, each saving one call of its cheapest
+path, and stops looking (`tests/perf/leaves`). The count is low for a call
+whose base case loops: its rounds are not counted, and such a function can
+stop looking though its hits would have paid (`lv1h20`,
+`dev/bench/memo/`).
 
 ## M4. A loop decides once
 

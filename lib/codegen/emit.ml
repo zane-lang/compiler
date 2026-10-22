@@ -1419,12 +1419,13 @@ let func env (f : Func.t) =
    direct-mapped: each entry is a tag, the argument words, the result words
    and the work the result took, found by a multiplicative hash of the
    arguments, and a miss overwrites whatever entry was there. The work is
-   how many remembered calls ran while the result was computed, counted by
-   [zane.memo.calls], so a hit knows how many calls it saved. The state
-   charges each lookup the function's [Cgt.Memo.charge] and credits each
-   hit with the calls it saved, never going below zero; once it reaches [memo_limit]
-   the dispatcher stops looking and calls the plain copy, which looks
-   nothing up. A function whose arguments rarely repeat, or whose repeats
+   what the result's calls would run without a table, counted from below
+   in [zane.memo.calls]: each miss adds its function's [Cgt.Memo.cheapest],
+   and each hit the work its entry kept; an entry keeps at most 2^40. The
+   state charges each lookup the function's [Cgt.Memo.charge] and credits
+   each hit with the work it saved, at [Cgt.Memo.credit], never going below
+   zero; once it reaches [memo_limit] the dispatcher stops looking and
+   calls the plain copy, which looks nothing up. A function whose arguments rarely repeat, or whose repeats
    save less than a lookup costs, pays for a bounded number of lookups and
    then runs as it would have. *)
 let memo_limit = Cgt.Memo.limit
@@ -1582,12 +1583,25 @@ let memo env (m : Cgt.Memo.t) =
       (Llvm.build_icmp Llvm.Icmp.Eq (Llvm.build_load i64 (at 0) "" b) tag "" b)
       (List.mapi (fun i w -> (i, w)) keys)
   in
+  let calls =
+    match Llvm.lookup_global "zane.memo.calls" env.m with
+    | Some g -> g
+    | None ->
+        let g = Llvm.define_global "zane.memo.calls" (Llvm.const_int i64 0) env.m in
+        Llvm.set_linkage Llvm.Linkage.Internal g;
+        g
+  in
   let hit = Llvm.append_block ctx "" fn and miss = Llvm.append_block ctx "" fn in
   ignore (Llvm.build_cond_br found hit miss b);
-  (* A hit: the state credited with the calls the result took, and the
-     result's words given back as it returns. *)
+  (* A hit: the work the result took added to the count of the miss it
+     runs in, the state credited with it, and the result's words given
+     back as it returns. *)
   Llvm.position_at_end hit b;
-  let saved = Llvm.build_mul (Llvm.build_load i64 (at weight) "" b) (Llvm.const_int i64 Cgt.Memo.scale) "" b in
+  let took = Llvm.build_load i64 (at weight) "" b in
+  ignore (Llvm.build_store (Llvm.build_add (Llvm.build_load i64 calls "" b) took "" b) calls b);
+  let saved =
+    Llvm.build_lshr (Llvm.build_mul took (Llvm.const_int i64 m.Cgt.Memo.credit) "" b) (Llvm.const_int i64 Cgt.Memo.credit_shift) "" b
+  in
   let down = Llvm.build_sub (Llvm.build_add st (Llvm.const_int i64 m.Cgt.Memo.charge) "" b) saved "" b in
   let floor = Llvm.build_select (Llvm.build_icmp Llvm.Icmp.Slt down (Llvm.const_int i64 0) "" b) (Llvm.const_int i64 0) down "" b in
   ignore (Llvm.build_store floor state b);
@@ -1610,22 +1624,16 @@ let memo env (m : Cgt.Memo.t) =
         copy (Llvm.param fn 0) p (fst (size_align ret));
         ignore (Llvm.build_ret_void b))
       else ignore (Llvm.build_ret (Llvm.build_load (lltype env ret) p "" b) b));
-  (* A miss: the body runs, counting the remembered calls it makes, and its
-     result is kept over whatever the entry held. *)
+  (* A miss: the body runs, counting the work of the remembered calls it
+     makes, and its result is kept over whatever the entry held. *)
   Llvm.position_at_end miss b;
   ignore (Llvm.build_store (Llvm.build_add st (Llvm.const_int i64 m.Cgt.Memo.charge) "" b) state b);
-  let calls =
-    match Llvm.lookup_global "zane.memo.calls" env.m with
-    | Some g -> g
-    | None ->
-        let g = Llvm.define_global "zane.memo.calls" (Llvm.const_int i64 0) env.m in
-        Llvm.set_linkage Llvm.Linkage.Internal g;
-        g
-  in
   let before = Llvm.build_load i64 calls "" b in
-  ignore (Llvm.build_store (Llvm.build_add before (Llvm.const_int i64 1) "" b) calls b);
+  ignore (Llvm.build_store (Llvm.build_add before (Llvm.const_int i64 m.Cgt.Memo.cheapest) "" b) calls b);
   let site = calling fn body bty in
   let work = Llvm.build_sub (Llvm.build_load i64 calls "" b) before "" b in
+  let most = Llvm.const_of_int64 i64 (Int64.shift_left 1L 40) false in
+  let work = Llvm.build_select (Llvm.build_icmp Llvm.Icmp.Ult work most "" b) work most "" b in
   ignore (Llvm.build_store work (at weight) b);
   let out =
     match ret_passing with

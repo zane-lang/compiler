@@ -1,6 +1,6 @@
-"""Calls remembered while the program runs, `--memoize`
+"""Calls remembered while the program runs, on unless `--no-memoize`
 (docs/design/memoization.md). Each fixture in fixtures/memo/ is built plain
-and optimized, without and with `--memoize`, and prints the same in all four
+and optimized, with and without `--no-memoize`, and prints the same in all four
 builds. Which functions get a table is read from the symbols of each table's
 state: one for a recursion whose arguments repeat, whether they are scalars,
 an array or a variant, or it reads a package constant, and none for a recursion that calls itself once, takes
@@ -49,7 +49,7 @@ class MemoTests(unittest.TestCase):
     def build(self, name, build, memoize):
         exe = self.out / f"{name}.{build}.{'memo' if memoize else 'base'}"
         if not exe.exists():
-            flags = [*BUILDS[build], *(["--memoize"] if memoize else [])]
+            flags = [*BUILDS[build], *([] if memoize else ["--no-memoize"])]
             result = subprocess.run([ZANEC, "--build", exe, *flags, "--package", FIXTURES / name],
                                     capture_output=True, text=True, timeout=300)
             if result.returncode:
@@ -94,7 +94,7 @@ class MemoTests(unittest.TestCase):
         # A program that links the library may call `fib` from its threads.
         for build in BUILDS:
             with self.subTest(build=build):
-                result = subprocess.run([ZANEC, "--kind", "library", "--ll", *BUILDS[build], "--memoize",
+                result = subprocess.run([ZANEC, "--kind", "library", "--ll", *BUILDS[build],
                                          "--package", LIBRARY], capture_output=True, text=True, timeout=300)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn("memolibrary$fib", result.stdout)

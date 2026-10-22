@@ -1,8 +1,9 @@
-# Runtime call caching (`--memoize`), measured
+# Runtime call caching, measured
 
-An experiment for [zane-lang/compiler#262](https://github.com/zane-lang/compiler/issues/262).
-`--memoize` remembers calls while the program runs, for the functions
-`lib/cgt/memo.ml` picks. A function is picked when:
+Measurements for [zane-lang/compiler#262](https://github.com/zane-lang/compiler/issues/262).
+Every build remembers calls while the program runs, for the functions
+`lib/cgt/memo.ml` picks, unless it is built with `--no-memoize`. A function
+is picked when:
 
 - its result depends only on its arguments: it reaches neither the console
   nor the runtime, and reads only package constants, which never change;
@@ -20,10 +21,12 @@ two copies of each picked function.
 Each function keeps a score. A lookup is charged the lookup's cost
 measured against the weight of one of the function's calls, which is
 estimated from the size of its body and of the functions it calls. A hit is
-credited with the calls it saved. The function stops looking for good once
-its lookups have cost 128 calls more than its hits saved. Because the charge
-is relative, a function with heavy calls can look up for longer before its
-hits start to pay, as a search does before its first transposition.
+credited with the work it saved, counted from below: the cheapest path
+through each call it skipped, with each loop run no times. The function
+stops looking for good once its lookups have cost 128 calls more than its
+hits saved. Because the charge is relative, a function with heavy calls can
+look up for longer before its hits start to pay, as a search does before its
+first transposition.
 
 A loop that calls a picked function from outside its recursion runs in two
 versions, chosen once before the loop. If every dispatcher it calls has
@@ -34,13 +37,13 @@ stopped. If they have, it hands the rounds that are left to the first
 version.
 
     dev/bench/memo/run ZANEC OUTDIR dev/bench/memo/programs/*   # these programs, but corefib
-    EXTRA="--package bench=… --package core=…" \
+    EXTRA="--package bench=… --package core=… --package math=…" \
       dev/bench/memo/run ZANEC OUTDIR dev/bench/memo/programs/corefib
     EXTRA="--package bench=… --package core=… --package math=…" \
       dev/bench/memo/run ZANEC OUTDIR LANGBENCH/bin/*  # langbench, with the size in an `arguments` file
 
-`run` builds each program plain and optimized, without and with
-`--memoize`, and reports Callgrind's estimated cycles, using
+`run` builds each program plain and optimized, with `--no-memoize` and
+without it, and reports Callgrind's estimated cycles, using
 `tests/perf/run`'s formula and caches.
 
 ## Programs
@@ -55,6 +58,8 @@ version.
 | `salted`, `random`, `tree` | never repeat an argument |
 | `tttpath` | `ttt` also given the path to each position, so no key repeats |
 | `split` | repeat a few leaves |
+| `leaves` | repeat only on the last level, whose calls do least: half the calls hit, and each hit saves less than a lookup costs |
+| `heavyleaf` | repeat only on the last two levels, whose calls run a loop of twenty rounds that the credit for a hit leaves out |
 | `shallow`, `shallowin` | worst case: a two-level recursion called 300,000 times from a loop, every argument new |
 
 ## Results

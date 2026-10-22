@@ -52,7 +52,8 @@ type build = {
   (* Whether small aggregates cross calls as packed words
      (docs/design/lowering.md §9): a measured experiment, off by default. *)
   pack : bool;
-  (* Whether calls are remembered while the program runs (Cgt.Memo). *)
+  (* Whether calls are remembered while the program runs (Cgt.Memo): on
+     unless `--no-memoize`. *)
   memoize : bool;
 }
 
@@ -88,7 +89,7 @@ let print_usage () =
   prerr_endline "             [--kind application|library]";
   prerr_endline
     "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...]";
-  prerr_endline "             [--fixed-region BYTES] [--spawned-fixed-region BYTES] [--pack-aggregates] [--memoize]";
+  prerr_endline "             [--fixed-region BYTES] [--spawned-fixed-region BYTES] [--pack-aggregates] [--no-memoize]";
   prerr_endline "             [--import PACKAGE:KEY=PACKAGE ...]";
   prerr_endline "             --package [[STAMP]PATH=]DIR [--package [[STAMP]PATH=]DIR ...]";
   prerr_endline "       zanec --rewrite STAMP INPUT OUTPUT";
@@ -211,7 +212,7 @@ let arguments () =
     | "--optimize" :: rest when not build.optimize ->
         packages view { build with optimize = true } rest
     | "--pack-aggregates" :: rest when not build.pack -> packages view { build with pack = true } rest
-    | "--memoize" :: rest when not build.memoize -> packages view { build with memoize = true } rest
+    | "--no-memoize" :: rest when build.memoize -> packages view { build with memoize = false } rest
     | "--build" :: output :: rest when view = None && is_value output ->
         packages (Some (Build output)) build rest
     | "--object" :: output :: rest when view = None && is_value output ->
@@ -259,7 +260,7 @@ let arguments () =
       imports = [];
       regions = { Driver.fixed = None; spawned = None };
       pack = false;
-      memoize = false;
+      memoize = true;
     }
   in
   match List.tl (Array.to_list Sys.argv) with
@@ -273,7 +274,7 @@ let arguments () =
   | [ "--bundle-runtime"; dir; "--target"; target; "--optimize" ] when List.for_all is_value [ dir; target ] ->
       Bundle_runtime { dir; target; optimize = true }
   | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
-    | "--link" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--memoize" | "--check"
+    | "--link" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--no-memoize" | "--check"
     | "--decls" | "--tst" | "--cgt" | "--ll" )
     :: _ as rest ->
       packages None empty rest

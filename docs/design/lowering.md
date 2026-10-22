@@ -473,6 +473,7 @@ The binary takes the same `--package` flags as the semantic views:
 | `--fixed-region BYTES` | the size of the main context's range of frames, a whole number of MiB, 256 MiB when absent (§9) |
 | `--spawned-fixed-region BYTES` | the size of each spawned call's range of frames, a whole number of MiB, 8 MiB when absent (§9) |
 | `--pack-aggregates` | passes an aggregate that fits in the registers a call gives it as packed 8-byte words rather than as itself or by address; off by default, an option to measure (§9) |
+| `--no-memoize` | builds without the tables of results calls are remembered in while the program runs ([`memoization.md`](memoization.md)) |
 
 `zanec --rewrite STAMP INPUT OUTPUT` takes no packages: it writes the
 library object `INPUT` to `OUTPUT` with its `!` placeholder turned into
