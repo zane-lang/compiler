@@ -102,6 +102,16 @@ every source again, which costs a small part of compiling it, and a later
 build whose source preprocesses to the same text loads the bitcode
 instead. With no cache directory, every build compiles every source.
 
+Two directories differ between machines without changing the code: the
+package's own, wherever its checkout lies, and the cache directory, which
+holds `zane_ffi.h` and the builtin headers (F1, F2). Each is mapped to a
+fixed name, `/zane/pkg` and `/zane/cache`, with `-ffile-prefix-map`, so
+`__FILE__`, the line markers and the front-end command all spell them the
+same on every machine. So the hash is the same for the same code wherever it
+is built, which F13's comparison of a publisher's hash with a consumer's
+relies on, and a path elsewhere, such as a system header's, still changes
+it.
+
 **F4. Archives and system libraries go to the link.** An `archive` row's
 static library is read member by member at the link, after its symbols are
 renamed (F9). A `system` row becomes a `-l` on the link command, in the
@@ -488,7 +498,9 @@ equal strings from different variables do not. A view's allocation is
 therefore marked as standing for storage of unknown identity, and comparing
 or subtracting a pointer into it with one into another allocation stops the
 fold (`ffi.md` §5.4's first exclusion). Pointers into two allocations that
-C made compare unequal, as C gives them.
+C made compare unequal, as C gives them, except where either points one
+past its allocation's end: C lets such a pointer equal the start of the
+object laid out next, so that comparison stops the fold.
 
 A data handle made during a fold is an allocation of `c_eval.ml`'s,
 which the handle's `eval.ml` value names. A fold that ends with such a
