@@ -43,6 +43,9 @@ One document per stage, in the order the compiler runs them.
 - [`design/platforms.md`](design/platforms.md): the targets the compiler
   builds for, how well each is supported, and what building for them may
   need.
+- [`design/ffi.md`](design/ffi.md): the C interface: compiling a package's
+  C with a clang of the compiler's own LLVM, checking foreign verbs, calling
+  C through generated glue, and folding C by interpreting its IR (F1…).
 
 ## Ambiguity
 

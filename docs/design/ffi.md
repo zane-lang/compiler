@@ -1,0 +1,396 @@
+# The C interface: building, calling and folding C
+
+> **Status: designed, not built.** This page says how the compiler implements
+> the spec's C interface
+> ([`ffi.md`](https://github.com/zane-lang/spec/blob/b45aee2/spec/ffi.md)):
+> compiling a package's C code, checking foreign verbs against it, calling
+> it, and evaluating it at compile time. Each decision is numbered
+> (**F1**…), and §7 lists the order they are built in.
+
+The spec asks four things of the compiler that no C interface it could copy
+does at once. It compiles each package's C itself, for the build's target
+(`ffi.md` §2.2). It checks every foreign verb against the C declaration of
+its symbol, as that target sees it (§3.7). It calls C without the compiler
+implementing any target's C calling convention by hand. And it folds a call
+into C the way it folds any other computation (§5.4), which means running C
+code inside the compiler with the target's meaning, not the host's.
+
+Every decision below follows from one choice: the compiler holds the C code
+as LLVM IR, made by a clang of its own LLVM, in the same `LLVMContext` as the
+Zane code it builds. Codegen links that IR into the package's module,
+LLVM's pipeline optimizes the two languages together, and stage 5 reads the
+same IR to evaluate it.
+
+---
+
+## 1. Compiling C
+
+**F1. The C front end is a clang linked into `zanec`, of the compiler's own
+LLVM.** The compiler already links LLD into itself
+([`lowering.md`](lowering.md) §7, `lib/codegen/lld_stubs.cpp`) so that a
+build never starts a second LLVM. It links clang's front end the same way,
+in `lib/foreign/clang_stubs.cpp`, and runs a compilation in process: a
+`clang::CompilerInvocation` built from a `cc1` command line, an
+`EmitLLVMOnlyAction`, and the `llvm::Module` it makes handed to OCaml as an
+`Llvm.llmodule` of the compiler's own context.
+
+The clang has to be the compiler's own because LLVM IR crosses no LLVM
+release. The released toolchain's `zig cc` is built on a newer LLVM than the
+compiler's (19, `lowering.md` L2), and its bitcode would not load. So
+`zig cc` is asked only for what it knows that clang does not: where the
+target's C library headers are. As the link already does, the first build
+for a C compiler, a target and a set of flags runs it once with `-###` and
+keeps the `cc1` command it prints in the cache; every compilation then runs
+that command, with its own source and settings put in, through the linked
+clang. `ZANE_CC` keeps its meaning: the command asked is that compiler's.
+
+**F2. Every C source is compiled with fixed flags first, then the package's
+settings.** The fixed flags are `-std=c17`, `-ffp-contract=off`,
+`-fno-fast-math`, `-fno-finite-math-only`, `-fno-associative-math` and
+`-fno-rounding-math` (`ffi.md` §2.2), the target triple, `-isystem` for the
+directory holding `zane_ffi.h`, and `-O0 -Xclang -disable-O0-optnone`, so the
+module comes out of the front end unoptimized but optimizable. The package's
+`include` and `define` rows come after, in the order the manifest writes them
+(`ffi.md` §2.3). A setting that names one of the fixed flags, such as a
+`define` of `__FAST_MATH__`, is an error naming the row.
+
+`zane_ffi.h` is embedded in the compiler like the runtime's headers
+([`lowering.md`](lowering.md) §7) and written once into the cache directory.
+
+**F3. One package's C is one module, cached by what it was made from.** Each
+C source compiles to a module of its own, and the package's modules, with its
+glue (F7), are linked into one with LLVM's linker. A source's module is kept
+in the cache directory as bitcode of the compiler's own LLVM, under a hash of
+the source's bytes, the bytes of every header clang read for it (from the
+compilation's dependency list), the `cc1` command, and the compiler's
+version. A later build that would compile the same source loads the bitcode
+instead. With no cache directory, every build compiles every source.
+
+**F4. Archives and system libraries go to the link.** An `archive` row's
+static library is read member by member at the link, after its symbols are
+renamed (F9). A `system` row becomes a `-l` on the link command, in the
+order the rows are written, after the program's objects and before the
+runtime's libraries. A system library the target's C compiler cannot find is
+an error naming the package and the row.
+
+**F5. The driver is given a package's C settings by `zane`.** `zanec`
+reads the `.c` and `.h` files of each `--package` directory itself. The
+manifest's `c` rows reach it as flags, one per row, with the package's path:
+
+```text
+--c-source zlib=vendor/adler32.c
+--c-include zlib=vendor
+--c-define zlib=HAVE_UNISTD_H=1
+--c-archive sqlite=prebuilt/x86_64-linux/libsqlite3.a
+--c-system sqlite=sqlite3
+```
+
+The `zane` CLI reads the `c` block, keeps the rows whose `target` pattern
+matches the build's target, expands `source` patterns to the files they
+match, and checks that every path stays inside the project, so `zanec` sees
+plain paths. That part lives in the `zane` CLI, beside its reading of `deps`.
+
+---
+
+## 2. Checking foreign verbs
+
+**F6. Interface declarations are read from clang's AST, not parsed by the
+compiler.** Each package's interface headers are compiled once more, with the
+package's flags, as a translation unit that includes each of them, and
+`clang_stubs.cpp` walks its AST. What it hands back is a table, by name, of
+every function, `struct` and `typedef` whose spelling location is in an
+interface header: each function's canonical parameter and result types,
+`const` qualification of pointees, and whether it is variadic; each
+`struct`'s fields with their canonical types, offsets and the record's size
+and alignment from clang's `ASTRecordLayout`. A declaration that only an
+included header makes is not in the table, which is how `ffi.md` §2.1's
+"seen by the C compiler and by nothing else" holds.
+
+Stage 3 checks each foreign verb against that table by the rules of
+`ffi.md` §3.3 and §3.7. A C type corresponds to a Zane type by its canonical
+form, so `uLong` is checked as the `unsigned long` it is on the target, and
+fails on Windows, where it is 32 bits, while it passes for a 64-bit
+`unsigned long` elsewhere; the error names the target, the C type and what it
+is there. A C-compatible value type is compared field by field against the
+`struct`'s offsets and sizes, laid out as lowering lays the Zane type out
+([`platforms.md`](platforms.md), "64-bit targets only"). The check runs in
+every build, so `zane check` reports what a build would.
+
+**F7. The TST knows foreign verbs, handles and the system.** A foreign verb is
+a verb whose body is `Foreign { symbol; decl }`, with `decl` its entry in
+the table. Its capability facts (`effects.md` §5.2) are not derived from a
+body: `lib/tst/analyses/` gives a foreign verb the facts `ffi.md` §5.2's table
+gives its signature, and every other analysis reads them as it reads a
+verb's derived ones. `ffi.md` §5.3's rule, that only a `mut` method on a
+capability makes a foreign capability, is checked with the signature.
+
+A foreign handle is `Ty.Handle { c_type; release; capability }`, a
+reference type with no fields: it is settled or roaming, moved and
+referenced, and destroyed, exactly like a `#struct`. `@runtime$System` is a
+runtime type beside `@runtime$Console`, and `@program$system` a program
+value beside `@program$console` ([`symbols.md`](symbols.md),
+"`zane.value.@program$system`").
+
+---
+
+## 3. Calling C
+
+**F8. Generated C does every call, so the compiler implements no C ABI.**
+How a `struct` is passed by value differs between SysV x86-64, Windows x64
+and AArch64, and LLVM leaves that classification to the front end. Rather
+than reimplement clang's for each target, the compiler writes, for each
+package, one C file of glue and compiles it with the package's settings,
+so clang does the classification it already knows. The glue holds:
+
+- one **thunk** per foreign verb, with a pointer ABI codegen can call
+  trivially:
+
+  ```c
+  void thunk(void *const *args, void *result) {
+      *(int64_t *)result = zane_crc32(*(const int64_t *)args[0], *(const zane_bytes *)args[1]);
+  }
+  ```
+
+  Each `args[i]` points to an argument already laid out as C lays out its
+  type. The thunk does the conversions of `ffi.md` §3.3 as C casts: an
+  `@primitives$I32` passed to a `uint8_t` keeps its low bits, a returned
+  `int16_t` widens by its sign.
+- one **release thunk** per foreign handle type, `void release(void *object)`,
+  which calls the release function with the pointer.
+- for function values, the entries of F11.
+
+A thunk's name is the foreign verb's symbol ([`symbols.md`](symbols.md))
+with `.ffi` after it, given in C with an `__asm__` label, since a verb's
+symbol is not a C identifier. An optimized build links the glue into the
+package's module (F13), where LLVM inlines each thunk into its caller, so an
+optimized call into C is a direct call with the target's own convention.
+
+**F9. A package's C globals are renamed before its module is linked.** Once a
+package's C modules and glue are linked into one, every function and
+variable it defines with external linkage is renamed to the package's
+symbol with `%c$` and its C name after it: `!zlib$%c$deflate` in a
+library, `viewer$%c$deflate` in a program. Renaming a global in its module
+renames its uses with it. The fetch-time rewrite then stamps the
+placeholder like any other (`separate-compilation.md` C9). A name holding
+`%c$` cannot be a Zane symbol, since no package name starts with `%`.
+
+An `archive` row's members are renamed with the same map, through the object
+rewriter that stamps placeholders (C9): first the set of symbols the members
+define, then each member rewritten with it. Undefined references, to the C
+library or a `system` library, keep their names.
+
+**F10. A foreign call is one CGT node, with its arguments laid out for C.**
+Lowering makes a call to a foreign verb a `Foreign_call { thunk; args; result;
+kind }`. Each argument is lowered to a slot holding its C layout, and the
+node passes the slots' addresses:
+
+| Zane argument | Slot holds |
+|---|---|
+| scalar primitive | the scalar |
+| `@primitives$Bool` | an `i8`, 0 or 1 |
+| `@primitives$String` | a `zane_bytes`: the string's byte address and length, from its handle |
+| `@primitives$Array<T, n>` | the address of the array, which already lays out as `T[n]` |
+| `@primitives$List<T>` | a `zane_span`: the list's block address and count |
+| C-compatible value type | the value, already in C's layout |
+| a handle | its pointer |
+| `@runtime$System` subject | nothing: it is not passed |
+
+A string, array or list is lent where it is: nothing else in the call writes
+what the call borrows (`memory.md` §2.9.1), and C never writes it, so its
+bytes are read in place and never copied going in.
+
+The result arrives in a slot of its C layout, and lowering makes the Zane
+value from it. A `zane_bytes` result is copied into a new string in the
+call's destination region through the runtime's string constructor, before
+any other foreign call can run on this thread. A handle result is checked for
+null: with an abort type the call aborts with `Unit` there
+([`lowering.md`](lowering.md) L12); without one the program stops with
+"a foreign function returned no object".
+
+**F11. A function value of a C-compatible type is the address of a C
+function.** C can call a function pointer and nothing else, and a C function
+pointer carries no context, so a value that only Zane can call cannot be
+handed to C. So every lambda whose type is C-compatible (`ffi.md` §3.6) is
+lifted with two entries: its Zane function (L14), and a C function in the
+glue that lays its arguments out and calls a pointer-ABI adapter of the Zane
+function, as a thunk does in the other direction. A function value of a
+C-compatible type is the address of its C entry, everywhere in the program,
+and a Zane call through such a value goes through a generated **invoker**,
+`void invoke(void (*f)(void), void *const *args, void *result)`, one per
+C-compatible type, which calls `f` with the C convention. Inlined, an invoker
+is an indirect call, so a call through such a function value costs what a
+call through a C function pointer costs.
+
+The representation is fixed by the type alone, so it needs no analysis of
+where a function value flows, and the two agree in every object
+([`lowering.md`](lowering.md), "Fixed while compiling").
+
+**F12. A handle is a pointer whose end calls its release thunk.** A handle's
+CGT type is one pointer. Its walk table ([`lowering.md`](lowering.md) §9)
+has an `.end` that calls the release thunk when the pointer is not null and
+a `.move` that copies the pointer and nulls the place moved from, so only
+the place a handle finally rests in releases it (`ffi.md` §4.2). It has no
+`.copy`: a handle is a reference type and is never copied.
+
+---
+
+## 4. Optimized and unoptimized builds
+
+**F13. An optimized build links the C into the Zane module.** The package's
+C module is linked into the module codegen makes for the package before
+LLVM's `-O2` pipeline runs, so the pipeline inlines across the two
+languages: a one-line Zane wrapper over a thunk over a small C function
+becomes the C function's body at the call site. A dependency's C is
+retained the way its Zane is (`separate-compilation.md` C12, and
+[`optimization.md`](optimization.md) O10): compiled from the checkout to a
+module (F3), linked with `available_externally` linkage so LLVM may inline it
+and emits nothing for it, and defined in the dependency's own object.
+
+**F14. An unoptimized build compiles the C apart.** `zane run` builds
+unoptimized and answers to the time from the command to the result
+([`optimization.md`](optimization.md) O12). C written to be compiled with
+optimization is many times slower without it, and its module is cached
+(F3), so an unoptimized build optimizes the package's C module on its own
+with `-O2` and emits it as an object of its own, kept in the cache beside
+the module; the Zane module stays unoptimized and calls its thunks.
+
+**F15. A release archive holds one object per package build, C included.**
+`--object` writes the package's object with its C linked in (F13 or F14),
+so a release archive's layout is unchanged
+(`dependencies.md` §3.1); an `archive` row's library is part of the source
+checkout and is renamed at the consumer's link (F9).
+
+---
+
+## 5. Folding through C
+
+**F16. Stage 5 evaluates C by interpreting its LLVM IR.** `lib/optimize/c_eval.ml`
+runs a function of a package's C module, before LLVM has optimized it, with
+the target's data layout. It is a second evaluator beside `eval.ml`, for a
+second language: `eval.ml` models what a Zane program means and never where
+its bytes are (O5), and C can tell where its bytes are, so `c_eval.ml`
+models memory as bytes.
+
+- **Memory** is a set of allocations, each a byte array with a size, an
+  alignment and a record of which bytes have been written: one per
+  `alloca`, one per global the module defines, made from its initializer,
+  and one per `malloc`, `calloc` or `realloc`. A pointer is an allocation
+  and an offset into it, and arithmetic on it keeps the allocation, so a
+  pointer is never confused with an integer that happens to equal it. A
+  `ptrtoint` gives a fixed, fake address per allocation, chosen the same way
+  in every run, and an `inttoptr` of one gives the pointer back.
+- **Instructions** are evaluated with LLVM's own meaning, and with the
+  target's sizes: integer arithmetic at its width, with `nsw` and `nuw`
+  overflow giving poison; IEEE float arithmetic as `eval.ml` does it; `getelementptr`
+  with the target's offsets; `load` and `store`; `phi`, `select`, `br`,
+  `switch`; vectors elementwise; and the intrinsics clang emits at `-O0`
+  (`memcpy`, `memmove`, `memset`, the overflow, bit-count, funnel-shift,
+  `abs`, `smin`/`smax` families, the exact float functions, `lifetime` and
+  `assume`, which do nothing).
+- **Calls** to a function the module defines are evaluated. A call to a
+  function it only declares is evaluated when it is one of the C library's
+  functions whose meaning is exact, which `c_eval.ml` models: `memcpy`,
+  `memmove`, `memset`, `memcmp`, `memchr`, `strlen`, `strcmp`, `strncmp`,
+  `malloc`, `calloc`, `realloc`, `free`, `abs`, `labs`, `llabs`. Any other is
+  unknown, so the fold stops there, which is what keeps `sin` and its kin to
+  the run time, as the Zane approximate functions are kept (O3).
+- **Undefined behavior stops the fold.** A read of a byte never written, an
+  access outside an allocation or through a freed one, poison reaching a
+  branch, a store or a call, a misaligned access, and a division by zero
+  each stop evaluation and leave the call to run time, as an index out of
+  range does in `eval.ml` (O6). C code with undefined behavior has no
+  meaning the spec defines, so leaving it to run is never wrong, and folding
+  it might be.
+
+The IR evaluated is the IR the program runs, before the pipeline has
+optimized it. Code without undefined behavior means the same before and
+after optimization, and F2's fixed flags take away the two freedoms that
+would let a float result differ between them: contraction into a fused
+operation and reassociation. So a folded call gives what the run would
+(`ffi.md` §5.4).
+
+**F17. A foreign call is classed by its signature.** The table of
+[`optimization.md`](optimization.md) O3 gains a row:
+
+| Foreign call | Class |
+|---|---|
+| touching no capability, its C body in the build | computed, by `c_eval.ml` |
+| touching no capability, its C in an archive or a system library | input |
+| reading a capability | input |
+| writing a capability | input, and left in place |
+
+A write through a capability is not replayed the way a `print` is (O4): the
+evaluator cannot know what C would have written, so the call stays where it
+is, and nothing after it that depends on its result folds.
+
+**F18. Values cross between the evaluators in the target's C layout.** When
+a Zane fold reaches a `Foreign_call`, its arguments are known values of
+`eval.ml`; `c_eval.ml` writes each into an allocation of its own laid out as
+F10's slots are, runs the thunk, and reads the result back into an `eval.ml`
+value. A view into a string or list is a read-only allocation holding a copy
+of its bytes, and a store into it stops the fold.
+
+A data handle made during a fold is an allocation of `c_eval.ml`'s,
+which the handle's `eval.ml` value names. A fold that ends with such a
+handle alive in a known local does not fold, as one that gives a lent
+address does not (O6): C memory has no code to be written back as
+(O7). Released within the fold, by the evaluator's model of the handle's
+`.end`, it folds.
+
+A C call to a function value's C entry (F11) is evaluated by `eval.ml`, with
+the arguments read from C memory, so a C sort with a Zane comparison folds.
+
+**F19. C evaluation spends the fold's budget.** Each instruction is a step,
+and work that grows with a size, a `memcpy` or a `memset`, costs a step for
+each 64 bytes, as O6 counts it. The limits of O6 hold across both
+evaluators, so a fold that calls C cannot run longer than one that does not.
+
+---
+
+## 6. How it is tested
+
+- `tests/ffi/` holds packages with C code, built for every target the
+  codegen fixtures run on, plain and optimized, each held to one golden
+  output: a pure C function called with a literal and with an argument, a
+  data handle made, written and released (its release counted by the C
+  code), a capability read and write, a string returned from C, a list and
+  an array lent to C, a C sort calling a Zane comparison, and a C library
+  vendored by two versions of one package in one program.
+- `golden/NAME.optimized.cgt` shows what folded: the literal checksum as a
+  constant, the handle's whole life gone, the capability calls in place, the
+  call reaching `sin` left as a call.
+- A fixture holds the hazard of `ffi.md` §5.5: a foreign verb declared with
+  no capability whose C reads an environment variable, built optimized with
+  the variable set, then run with it unset. The test asserts the value the
+  build saw is printed, so a change that quietly stops folding such calls,
+  or starts warning, is a decision, not an accident.
+- `tests/unit/` checks `c_eval.ml` instruction by instruction against the
+  same IR compiled and run, its undefined-behavior stops, the modelled C
+  library functions, and the budget.
+- The interface check's errors each have a fixture: a missing symbol, a
+  wrong count, a type of another size on one target only (`long` built for
+  `x86_64-windows-gnu`), a `const` handle passed as a `mut` subject, a
+  `struct` laid out differently, and a fixed flag a `define` tries to change.
+
+---
+
+## 7. The order it is built in
+
+1. The clang front end in process, with the `-###` command kept in the
+   cache, compiling a C file to a module of the compiler's context (F1, F2,
+   F3).
+2. The interface table from the AST (F6).
+3. Foreign verbs, handle types and `@runtime$System` in the TST, with the
+   interface check and the signature-given capability facts (F7).
+4. The glue and its thunks, `Foreign_call` lowering and codegen, renaming and
+   linking the package's C module, for scalar, string, array, list and value
+   type arguments and results (F8, F9, F10, F13, F14).
+5. Handles: release thunks, walks, null results (F12).
+6. Function values as C functions, with invokers (F11).
+7. `archive` and `system` rows, and the `zane` CLI's `c` block (F4, F5).
+8. Release archives and dependencies' C, retained for inlining (F13, F15).
+9. `c_eval.ml`, its classes in stage 5, and the crossing between the two
+   evaluators (F16–F19).
+10. The fixtures of §6 for each step as it lands, and an entry in
+    [`optimizations.md`](../optimizations.md) for the cross-language
+    inlining (F13) and the folding through C (F16).
