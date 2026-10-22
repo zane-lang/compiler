@@ -47,7 +47,8 @@ build's target, so a cross build probes the target's headers, not the
 host's. A clang or `zig cc`, which `--version` names, is given `--target=`.
 A GCC builds for the one target it was configured for and takes no such
 option, so it is run as it is and its `-dumpmachine` must name the build's
-target; one that names another is an error saying to set `ZANE_CC` to a GCC
+target, compared as LLVM normalizes a triple, so `x86_64-linux-gnu` and
+`x86_64-pc-linux-gnu` agree; one that names another is an error saying to set `ZANE_CC` to a GCC
 for that target. The probe reads
 the list after `#include <...> search starts here:`, which GCC, clang and
 `zig cc` all print in that form; the list is kept in the cache, keyed by
