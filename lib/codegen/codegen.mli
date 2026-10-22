@@ -37,22 +37,33 @@ val target_cpu : ?target:string -> unit -> (string, string) result
     that outlives the module. *)
 val ir : Llvm.llmodule -> string
 
+(** Which build of a tiered pair a module is (docs/design/tiers.md): the
+    plain program whose calls go through slots, or the optimized library
+    that fills them. A build that is neither is [Plain]. *)
+type tier = Tiers.tier = Plain | Tier0 | Tier1
+
 (** Readies a module [with_program] made for [target] to be written, and runs the
-    optimizer when [optimize]. *)
-val prepare : ?target:string -> ?optimize:bool -> Llvm.llmodule -> (unit, string) result
+    optimizer when [optimize] or for [Tier1]. *)
+val prepare : ?target:string -> ?optimize:bool -> ?tier:tier -> Llvm.llmodule -> (unit, string) result
 
 val object_file :
-  ?target:string -> ?optimize:bool -> Llvm.llmodule -> string -> (unit, string) result
+  ?target:string -> ?optimize:bool -> ?tier:tier -> Llvm.llmodule -> string -> (unit, string) result
 
 (** An executable at the given path, linked with the runtime and the objects
     in [link]. *)
 val executable :
   ?target:string ->
   ?optimize:bool ->
+  ?tier:tier ->
   ?link:string list ->
   Llvm.llmodule ->
   string ->
   (unit, string) result
+
+(** Tier 1 of a tiered build: the module optimized into the shared library
+    at the given path, which tier 0 loads while it runs, or the one the
+    cache keeps for the same module (docs/design/tiers.md). *)
+val shared_library : ?target:string -> Llvm.llmodule -> string -> (unit, string) result
 
 (** The runtime compiled for [target] into the directory a released
     toolchain bundles it in, under the name a build for that target, with

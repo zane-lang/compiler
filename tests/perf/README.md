@@ -2,18 +2,20 @@
 
 How fast each program runs, as estimated cycles from Valgrind's simulators
 rather than as a timing, so the number is the same on every run of one
-build. Each program is measured in two builds: `optimized`, built with
-`--optimize`, and `plain`, built without it, as `zane run` builds. CI keeps
-both numbers of every program for the last commit on `main`, and the history
-of one of them, `stress`, for every commit, and fails a pull request that
-makes either build of a program slower.
+build. Each program is measured in three builds: `optimized`, built with
+`--optimize`; `tiered`, as `zane run` builds it ([`tiers.md`](../../docs/design/tiers.md)),
+run with tier 1 in place before `main` runs; and `plain`, its tier 0 alone,
+as a program that ends before tier 1 arrives runs. CI keeps every build's
+numbers of every program for the last commit on `main`, and the history of
+one of them, `stress`, for every commit, and fails a pull request that
+makes any build of a program slower.
 
 ## The number
 
-`run` builds each directory here twice, with `--optimize` and without it,
-and runs each build once, with the size in its `arguments` file, under
+`run` builds each directory here three times, with `--optimize`, without it,
+and tiered with its tier 1 beside it, and runs each build once, with the size in its `arguments` file, under
 Callgrind with the cache and branch simulators on. It holds what each build
-printed to `golden/NAME.out`, which the two share, so a build that breaks a
+printed to `golden/NAME.out`, which the three share, so a build that breaks a
 program is caught rather than measured. The caches are
 fixed rather than read from the machine, so every machine simulates the same
 ones: 32 KiB first-level instruction and data caches and an 8 MiB last-level
@@ -38,18 +40,19 @@ The `perf-log` branch holds three files, all written by CI:
   to `main`: the program, the commit, its date in UTC, the estimated
   cycles, the instructions, first-level misses, last-level misses and
   mispredicted branches they come from, the build's key (below), and the
-  build, `optimized` or `plain`. A row with no build is an optimized one,
+  build, `optimized`, `plain` or `tiered`. A row with no build is an optimized one,
   from before plain builds were measured. Each push writes it over, so a
   commit that makes a program faster is what the next pull request is held
   to. A run that finishes after a later commit's keeps that commit's rows.
 - `stress.tsv`, the `stress` program's optimized row for every commit
   pushed to `main`, in date order. It starts at v0.14.
-- `stress-plain.tsv`, the same for its plain build. It starts at the first
-  commit whose push measured plain builds.
+- `stress-plain.tsv` and `stress-tiered.tsv`, the same for its plain and
+  tiered builds. Each starts at the first commit whose push measured that
+  build.
 
 `.github/workflows/perf.yml` runs `.github/scripts/perf`:
 
-- on a pull request, it builds both builds of every program, measures each
+- on a pull request, it builds every build of every program, measures each
   one whose key is not its row's (below), and fails when one prints the
   wrong output, or when its estimated cycles are more than 1% above its row
   in `latest.tsv`; a build with no row passes. Labelling the pull request `perf-accepted` turns a
@@ -57,7 +60,7 @@ The `perf-log` branch holds three files, all written by CI:
   push to `main` then records the new numbers. Any label change runs the
   check again;
 - on a push to `main`, it measures every build, writes `latest.tsv` and
-  appends to both histories;
+  appends to the histories;
 - in the merge queue, it checks again as for a pull request, since pull
   requests that each pass can together be slower; the label of the last
   pull request queued in the group decides whether a slowdown is accepted;
@@ -65,7 +68,7 @@ The `perf-log` branch holds three files, all written by CI:
   output.
 
 A build's key hashes what its counts follow from: the executable
-built, its `arguments`, what it printed, `run` itself, and Valgrind's
+built, and a tiered build's tier-1 library, its `arguments`, what it printed, `run` itself, and Valgrind's
 version and resolved path, which under Nix names the store path it was built
 as. The executable holds the compiler's code and the runtime as clang built
 and linked them, and names the C library it loads by its Nix store path, so

@@ -11,13 +11,13 @@
   (names llvm_stubs))
  (foreign_stubs
   (language cxx)
-  (names lld_stubs)
+  (names lld_stubs tier_stubs)
   (flags
    (:standard
     (:include lld_cxx.sexp))))
  (c_library_flags
   (:include lld_libs.sexp))
- (libraries cgt diagnostic runtime_source unix llvm llvm.analysis llvm.irreader llvm.target llvm.passbuilder llvm.all_backends llvm.bitwriter))
+ (libraries cgt diagnostic runtime_source unix llvm llvm.analysis llvm.irreader llvm.target llvm.passbuilder llvm.all_backends))
 
 (rule
  (target abi.ml)

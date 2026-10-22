@@ -14,9 +14,10 @@
 
    - codegen: `golden/NAME.cgt` prints fixture NAME's code-generation tree,
      `golden/NAME.optimized.cgt` the tree an optimized build makes of it,
-     and `golden/NAME.out` builds it, unoptimized and optimized, runs each
-     build with its drains checked (`ZANE_CHECK` 1) and unchecked (0), and
-     holds what all four runs of the program wrote. A
+     and `golden/NAME.out` builds it, unoptimized, optimized and tiered
+     (tier 0 with tier 1 loaded before `main`), runs each build with its
+     drains checked (`ZANE_CHECK` 1) and unchecked (0), and holds what all
+     six runs of the program wrote. A
      fixture whose `expected-status` file holds a status other than 0 is a
      program that stops: its golden file holds stdout and stderr together.
      A fixture's `arguments` file, one argument per line, is what both
@@ -98,27 +99,48 @@ let codegen () =
         Printf.printf
           "(rule\n (deps (source_tree %s))\n (targets %s.optimized.exe)\n (action\n  (run %s --build %s.optimized.exe --optimize%s --package %s)))\n\n"
           package name zanec name (flags name) package;
+        Printf.printf
+          "(rule\n (deps (source_tree %s))\n (targets %s.tiered.exe)\n (action\n  (run %s --build %s.tiered.exe --tiered%s --package %s)))\n\n"
+          package name zanec name (flags name) package;
+        Printf.printf
+          "(rule\n (deps (source_tree %s))\n (targets %s.tier1)\n (action\n  (run %s --tier-up %s.tier1%s --package %s)))\n\n"
+          package name zanec name (flags name) package;
         (* The optimized build is held to the same golden file: optimizing
-           never changes what a program does. So is each build run with its
-           drains checked and unchecked, which takes the drain lowering makes
-           in line (`Emit.drain_scope`): checking never changes it either. *)
+           never changes what a program does. So is the tiered build, run
+           with tier 1 in place of every function before `main` starts
+           (docs/design/tiers.md), so all of the program but `main` itself
+           runs optimized code; the runtime stops it when tier 1 does not
+           load. So is each build run with its drains checked and
+           unchecked, which takes the drain lowering makes in line
+           (`Emit.drain_scope`): checking never changes it either. *)
         List.iter
           (fun exe ->
             List.iter
               (fun (mode, check) ->
                 let actual = Printf.sprintf "%s.%s.out.actual" exe mode in
+                let tiered = exe = name ^ ".tiered" in
+                let deps = if tiered then Printf.sprintf " (deps %s.tier1)\n" name else "" in
+                let env inner =
+                  if tiered then
+                    Printf.sprintf
+                      "(setenv\n   ZANE_TIER_UP\n   ./%s.tier1\n   (setenv\n    ZANE_TIER_WAIT\n    1\n    %s))" name inner
+                  else inner
+                in
                 (match status name with
                 | 0 ->
-                    Printf.printf
-                      "(rule\n (action\n  (setenv\n   ZANE_CHECK\n   %s\n   (with-stdout-to\n    %s\n    (run ./%s.exe%s)))))\n\n"
-                      check actual exe (arguments name)
+                    Printf.printf "(rule\n%s (action\n  %s))\n\n" deps
+                      (env
+                         (Printf.sprintf "(setenv\n   ZANE_CHECK\n   %s\n   (with-stdout-to\n    %s\n    (run ./%s.exe%s)))"
+                            check actual exe (arguments name)))
                 | n ->
-                    Printf.printf
-                      "(rule\n (action\n  (setenv\n   ZANE_CHECK\n   %s\n   (with-outputs-to\n    %s\n    (with-accepted-exit-codes\n     %d\n     (run ./%s.exe%s))))))\n\n"
-                      check actual n exe (arguments name));
+                    Printf.printf "(rule\n%s (action\n  %s))\n\n" deps
+                      (env
+                         (Printf.sprintf
+                            "(setenv\n   ZANE_CHECK\n   %s\n   (with-outputs-to\n    %s\n    (with-accepted-exit-codes\n     %d\n     (run ./%s.exe%s))))"
+                            check actual n exe (arguments name))));
                 diff (name ^ ".out") actual)
               [ ("checked", "1"); ("unchecked", "0") ])
-          [ name; name ^ ".optimized" ]
+          [ name; name ^ ".optimized"; name ^ ".tiered" ]
       end)
     (List.sort_uniq compare (trees @ optimized @ outputs));
   List.iter
@@ -186,7 +208,7 @@ let semantics () =
 
 (* runtime *)
 
-let parts = [ "main"; "arena"; "region"; "block"; "value"; "list"; "slot"; "spawn"; "snapshot" ]
+let parts = [ "main"; "arena"; "region"; "block"; "value"; "list"; "slot"; "spawn"; "snapshot"; "tier" ]
 
 let runtime () =
   let sources = String.concat " " (List.map (Printf.sprintf "../../runtime/%s.c") parts) in

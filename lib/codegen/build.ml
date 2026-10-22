@@ -2,7 +2,10 @@
    system's C compiler links it with the runtime (docs/design/lowering.md L2, L17). *)
 
 external normalize_triple : string -> string = "zane_normalize_triple"
-external llvm_options : unit -> unit = "zane_llvm_options"
+
+(* LLVM's own options, as its command line would give them; once per
+   process, since LLVM reads them only once (llvm_stubs.c). *)
+external llvm_options : string array -> unit = "zane_llvm_options"
 
 (* The processor code is tuned for on *triple*, as clang tunes it: on x86-64
    the baseline `x86-64`, on `x86_64h` the Haswell processor that
@@ -49,7 +52,6 @@ let sixty_four_bit triple layout =
    error, not an exception. *)
 let target_machine ?target ~optimize () =
   Llvm_all_backends.initialize ();
-  llvm_options ();
   let triple =
     match target with
     | Some target -> normalize_triple target
@@ -118,24 +120,45 @@ let unoptimized_passes = "always-inline,function(mem2reg,instsimplify,simplifycf
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and LLVM's standard `-O2`
    pipeline run over it when *optimize*, or else [unoptimized_passes]. A
-   program means the same either way (docs/design/lowering.md §7). *)
-let prepare ?target ?(optimize = false) m =
+   program means the same either way (docs/design/lowering.md §7). A
+   [tier] of a tiered build is fingerprinted first, then made tier 0 or
+   tier 1 around its passes (docs/design/tiers.md); tier 1 runs
+   [Tiers.tier1_pipeline]. *)
+let prepare ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint m =
+  let optimize = optimize || tier = Tiers.Tier1 in
   Result.bind (target_machine ?target ~optimize ()) (fun (triple, tm) ->
+      let hash =
+        match (tier, fingerprint) with
+        | Tiers.Plain, _ -> ""
+        | _, Some hash -> hash
+        | _, None -> Tiers.fingerprint m
+      in
+      let exports = if tier = Tiers.Tier0 then Some (Tiers.exports m) else None in
+      let definitions = if tier = Tiers.Tier1 then Some (Tiers.tier1_definitions m) else None in
       shared_in_comdats triple m;
       probe_stack triple m;
       let data_layout = Llvm_target.TargetMachine.data_layout tm in
-      let t0 = Unix.gettimeofday () in
-      let timed what = if Sys.getenv_opt "ZANE_TIME" <> None then Printf.eprintf "%s: %.0f ms\n%!" what ((Unix.gettimeofday () -. t0) *. 1000.) in
       Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
-      timed "big moves";
-      (match Sys.getenv_opt "ZANE_DUMP_PRE" with Some f -> ignore (Llvm_bitwriter.write_bitcode_file m f) | None -> ());
       if not optimize then Wrappers.mark data_layout m;
-      if Tiers.mode () = Some "1" then Tiers.definitions m;
-      Llvm_passbuilder.run_passes m (if optimize then "default<O2>" else unoptimized_passes) tm
-        (Llvm_passbuilder.create_passbuilder_options ())
-      |> Result.map (fun () -> timed "passes"; if Tiers.mode () = Some "0" then Tiers.slots m)
-      |> Result.map (fun () -> (triple, tm))
-      |> Result.map_error (Printf.sprintf "cannot optimize the module: %s"))
+      let pipeline =
+        match tier with
+        | Tiers.Tier1 ->
+            llvm_options (Array.of_list ("zanec" :: Tiers.tier1_llvm_options));
+            Tiers.tier1_pipeline
+        | _ -> if optimize then "default<O2>" else unoptimized_passes
+      in
+      Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
+      |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
+      |> Fun.flip Result.bind (fun () ->
+             match (exports, definitions) with
+             | Some exports, _ -> Ok (Tiers.tier0 m ~hash ~exports)
+             | _, Some definitions ->
+                 Result.bind (Tiers.tier1_imports m ~hash definitions) (fun () ->
+                     match Llvm_analysis.verify_module m with
+                     | None -> Ok ()
+                     | Some why -> Error (Printf.sprintf "tier 1 is not a valid module: %s" why))
+             | None, None -> Ok ())
+      |> Result.map (fun () -> (triple, tm)))
 
 (* The C compiler that links: `ZANE_CC` if set, else `clang`. *)
 let cc () = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC")
@@ -468,6 +491,8 @@ let link_marks ?(bundle = "") ~obj ~runtime ~output () =
       ("\001nearstem", Filename.concat (Filename.dirname output) (Filename.basename stem));
       ("\001basestem", Filename.basename stem);
     ]
+    (* A shared library links no runtime (docs/design/tiers.md). *)
+    |> List.filter (fun (_, file) -> file <> "")
   in
   let stems = [ "\001stem"; "\001nearstem"; "\001basestem" ] in
   let mark w =
@@ -508,7 +533,8 @@ let marked_link ~cc ~triple ~args ~obj ~runtime ~output dir =
   | Ok None -> `Other "its linker is not LLD"
   | Ok (Some command) ->
       let command = List.map mark command in
-      if List.for_all (fun m -> named m command) [ "\001obj"; "\001runtime"; "\001output" ] then `Lld command
+      let files = [ "\001obj"; "\001output" ] @ if runtime = "" then [] else [ "\001runtime" ] in
+      if List.for_all (fun m -> named m command) files then `Lld command
       else `Other "its link command does not name the program's files"
 
 (* The linker command for a build of [obj] and [runtime] into [output] with
@@ -549,10 +575,34 @@ let link_command ?cache ~cc ~triple ~args ~obj ~runtime ~output dir =
 let bundled_link_name ~triple level system =
   Digest.to_hex (Digest.string (String.concat "\000" (("link" :: triple :: level) @ system)))
 
+(* Whether [target], or the host when there is none, is macOS, whose
+   libSystem holds the dynamic loader's functions. *)
+let darwin = function
+  | Some target ->
+      List.exists (fun p -> List.mem p (String.split_on_char '-' target)) [ "macos"; "darwin"; "apple" ]
+      || List.exists (fun p -> String.starts_with ~prefix:"macos" p || String.starts_with ~prefix:"darwin" p)
+           (String.split_on_char '-' target)
+  | None -> Sys.os_type = "Unix" && Sys.file_exists "/System/Library/CoreServices/SystemVersion.plist"
+
 (* Whether [target], or the host when there is none, is Windows. *)
 let windows = function
   | Some target -> List.mem "windows" (String.split_on_char '-' target)
   | None -> Sys.win32
+
+(* The libraries a shared library for [target] links with besides libc:
+   tier 1 of a tiered build, which takes the math library's functions from
+   the program and links it only for what LLVM itself calls. *)
+let shared_libraries target = if windows target then [] else [ "-lm" ]
+
+(* The flags that make a shared library rather than a program. *)
+let shared = [ "-shared" ]
+
+(* What a shared library is named with for [triple], in LLVM's normal
+   form. *)
+let shared_extension triple =
+  let parts = String.split_on_char '-' triple in
+  let has part = List.exists (fun p -> String.starts_with ~prefix:part p) parts in
+  if has "windows" then ".dll" else if has "darwin" || has "macos" || has "apple" then ".dylib" else ".so"
 
 (* The libraries every program for [target] links with besides libc. The
    approximate math functions are the C math library's (math.md §2.6):
@@ -563,7 +613,7 @@ let windows = function
    and macOS, where the linker would give it 1 MiB
    (docs/design/platforms.md). *)
 let system_libraries target =
-  if windows target then [ "-lshell32"; "-Wl,--stack,8388608" ] else [ "-lm" ]
+  if windows target then [ "-lshell32"; "-Wl,--stack,8388608" ] else if darwin target then [ "-lm" ] else [ "-lm"; "-ldl" ]
 
 (* [command] run by the LLD in the compiler; what it wrote when it fails. *)
 let lld_run command =
@@ -684,6 +734,7 @@ let in_work_dir f =
       List.iter
         (fun f -> try Sys.remove (Filename.concat dir f) with Sys_error _ -> ())
         ([ "program.o"; "program"; "program.exe"; "program.pdb"; "program.lib"; "runtime.o" ]
+        @ [ "library.o"; "library.so"; "library.dylib"; "library.dll"; "library.pdb"; "library.lib" ]
         @ [ "cc-version"; "cc-link"; "cc-link-words" ]
         @ List.map fst runtime_files);
       try Sys.rmdir dir with Sys_error _ -> ())
@@ -696,25 +747,24 @@ let in_work_dir f =
    contents. A released toolchain then links for [target] without running
    *cc* at all. The loader a program names (`--dynamic-linker`) is a path
    on the machine it runs on, not a file to copy. *)
-let bundle_link ~cc ~target ~triple ~tm level dir work runtime =
-  let system = system_libraries (Some target) in
-  let obj = Filename.concat work "program.o"
-  and output = Filename.concat work (if windows (Some target) then "program.exe" else "program") in
-  (* A program as small as the runtime links with (runtime/zane.h), for a
-     C compiler such as `zig cc` that links what it prints. *)
+(* An object for [triple] holding what [fill] puts in a module, for a
+   bundled link to name. *)
+let stub_object ~triple ~tm obj fill =
   let ctx = Llvm.create_context () in
   let m = Llvm.create_module ctx "program" in
   Llvm.set_target_triple triple m;
   Llvm.set_data_layout (Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm)) m;
-  let main = Llvm.define_function "zane_main" (Llvm.function_type (Llvm.void_type ctx) [||]) m in
-  ignore (Llvm.build_ret_void (Llvm.builder_at_end ctx (Llvm.entry_block main)));
-  List.iter
-    (fun name -> ignore (Llvm.define_global name (Llvm.const_int (Llvm.i64_type ctx) 0) m))
-    [ "zane_fixed_region"; "zane_spawned_fixed_region" ];
+  fill ctx m;
   Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm;
   Llvm.dispose_module m;
-  Llvm.dispose_context ctx;
-  let args = target_flag (Some target) @ level @ [ "-o"; output; obj ] @ system @ [ runtime ] in
+  Llvm.dispose_context ctx
+
+(* The command *cc* gives for [args], kept in [dir]'s `link/` under
+   [name], with every file it links besides [obj] copied into
+   `link/files/`, named for its contents. The loader a program names
+   (`--dynamic-linker`) is a path on the machine it runs on, not a file to
+   copy. *)
+let bundle_command ~cc ~target ~triple ~args ~obj ~runtime ~output ~name dir work =
   match marked_link ~cc ~triple ~args ~obj ~runtime ~output work with
   | `Other why | `Unasked why -> Error (Printf.sprintf "cannot bundle the link for `%s`: `%s`: %s" target cc why)
   | `Lld command ->
@@ -744,9 +794,39 @@ let bundle_link ~cc ~target ~triple ~tm level dir work runtime =
             in
             copied :: bundled w rest
       in
-      keep_text ~dir:work ~kept:(Filename.concat link (bundled_link_name ~triple level system))
-        (String.concat "\000" (bundled "" command));
+      keep_text ~dir:work ~kept:(Filename.concat link name) (String.concat "\000" (bundled "" command));
       Ok ()
+
+let bundle_link ~cc ~target ~triple ~tm level dir work runtime =
+  let system = system_libraries (Some target) in
+  let obj = Filename.concat work "program.o"
+  and output = Filename.concat work (if windows (Some target) then "program.exe" else "program") in
+  (* A program as small as the runtime links with (runtime/zane.h), for a
+     C compiler such as `zig cc` that links what it prints. *)
+  stub_object ~triple ~tm obj (fun ctx m ->
+      let main = Llvm.define_function "zane_main" (Llvm.function_type (Llvm.void_type ctx) [||]) m in
+      ignore (Llvm.build_ret_void (Llvm.builder_at_end ctx (Llvm.entry_block main)));
+      List.iter
+        (fun name -> ignore (Llvm.define_global name (Llvm.const_int (Llvm.i64_type ctx) 0) m))
+        [ "zane_fixed_region"; "zane_spawned_fixed_region" ]);
+  let args = target_flag (Some target) @ level @ [ "-o"; output; obj ] @ system @ [ runtime ] in
+  bundle_command ~cc ~target ~triple ~args ~obj ~runtime ~output ~name:(bundled_link_name ~triple level system) dir work
+
+(* The linker command *cc* gives for tier 1 of a tiered build for [target]
+   (docs/design/tiers.md), a shared library linked with [level], kept as
+   [bundle_link] keeps a program's, so a released toolchain links tier 1
+   without running *cc* either. *)
+let bundle_shared_link ~cc ~target ~triple ~tm level dir work =
+  let system = shared_libraries (Some target) in
+  let obj = Filename.concat work "library.o"
+  and output = Filename.concat work ("library" ^ shared_extension triple) in
+  stub_object ~triple ~tm obj (fun ctx m ->
+      let g = Llvm.define_global "__zane_tier1" (Llvm.const_int (Llvm.i64_type ctx) 0) m in
+      Llvm.set_dll_storage_class Llvm.DLLStorageClass.DLLExport g);
+  let args = target_flag (Some target) @ level @ shared @ [ "-o"; output; obj ] @ system in
+  bundle_command ~cc ~target ~triple ~args ~obj ~runtime:"" ~output
+    ~name:(bundled_link_name ~triple (shared @ level) system)
+    dir work
 
 (* The runtime compiled for [target], with or without optimizing, into
    [dir] under the name a build for that target looks for there
@@ -768,15 +848,18 @@ let bundle_runtime ~target ~optimize dir =
       match compile ~cc (target_flag (Some target) @ level) work runtime with
       | Error _ as error -> error
       | Ok _ -> (
-          match bundle_link ~cc ~target ~triple ~tm level dir work runtime with
+          match
+            Result.bind (bundle_link ~cc ~target ~triple ~tm level dir work runtime) (fun () ->
+                if optimize then bundle_shared_link ~cc ~target ~triple ~tm level dir work else Ok ())
+          with
           | result -> result
           | exception Sys_error message -> Error (Printf.sprintf "cannot bundle the link: %s" message)
           | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot bundle the link: %s" message)))
 
 (* The module's object file alone, for a package other objects link with
    (docs/design/separate-compilation.md C3): no runtime, and no link. *)
-let object_file ?target ?(optimize = false) m output =
-  Result.bind (prepare ?target ~optimize m) (fun (_, tm) ->
+let object_file ?target ?(optimize = false) ?tier m output =
+  Result.bind (prepare ?target ~optimize ?tier m) (fun (_, tm) ->
       match Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile output tm with
       | () -> Ok ()
       | exception Llvm_target.Error message ->
@@ -787,14 +870,14 @@ let object_file ?target ?(optimize = false) m output =
    is where the compiled runtime is kept, [cache_dir ()] unless given, and
    [bundled] where the toolchain keeps its own, [bundled_dir ()] unless
    given. *)
-let executable ?target ?(optimize = false) ?(link = []) ?(bundled = bundled_dir ()) ?(cache = cache_dir ()) m
-    output =
-  match prepare ?target ~optimize m with
+let executable ?target ?(optimize = false) ?tier ?(link = []) ?(bundled = bundled_dir ()) ?(cache = cache_dir ())
+    m output =
+  match prepare ?target ~optimize ?tier m with
   | Error _ as error -> error
   | Ok (triple, tm) -> (
       let cc = cc () in
       let level = level ~optimize and system = system_libraries target in
-      let flags = target_flag target @ level @ (if Tiers.mode () = Some "0" then [ "-Wl,--export-dynamic" ] else []) in
+      let flags = target_flag target @ level in
       let args obj runtime = flags @ [ "-o"; output; obj ] @ link @ system @ [ runtime ] in
       let bundled_link =
         Option.map
@@ -817,3 +900,123 @@ let executable ?target ?(optimize = false) ?(link = []) ?(bundled = bundled_dir 
           | Ok runtime -> (
               link_program ?cache ?bundled:bundled_link ~cc ~triple ~args:(args obj runtime) ~deps:link ~obj
                 ~runtime ~output dir)))
+
+(* How many tier-1 libraries the cache keeps: the newest, so an edit loop
+   does not fill the disk with every version it built. *)
+let kept_tiers = 32
+
+(* The compiler itself, as the cache tells one build of it from another:
+   the file that runs, its size and when it last changed. *)
+let compiler_identity () =
+  let path = Sys.executable_name in
+  match Unix.stat path with
+  | stat -> String.concat "\000" [ path; string_of_int stat.Unix.st_size; Printf.sprintf "%h" stat.Unix.st_mtime ]
+  | exception Unix.Unix_error _ -> path
+
+(* The oldest of [dir]'s files removed until [keep] are left. *)
+let trim dir keep =
+  match Sys.readdir dir with
+  | exception Sys_error _ -> ()
+  | names ->
+      let files =
+        Array.to_list names
+        |> List.filter (fun n -> not (String.starts_with ~prefix:"." n))
+        |> List.filter_map (fun n ->
+               let path = Filename.concat dir n in
+               match Unix.stat path with stat -> Some (stat.Unix.st_mtime, path) | exception Unix.Unix_error _ -> None)
+        |> List.sort (fun (a, _) (b, _) -> compare b a)
+      in
+      List.iteri (fun i (_, path) -> if i >= keep then try Sys.remove path with Sys_error _ -> ()) files
+
+(* [file] put at [output] whole: copied beside it and renamed into place,
+   so a reader never sees half of it. *)
+let install ~file ~output =
+  let temporary = output ^ ".partial" in
+  match
+    let contents = In_channel.with_open_bin file In_channel.input_all in
+    Out_channel.with_open_bin temporary (fun oc -> output_string oc contents);
+    Sys.rename temporary output
+  with
+  | () -> Ok ()
+  | exception Sys_error message ->
+      (try Sys.remove temporary with Sys_error _ -> ());
+      Error (Printf.sprintf "cannot write %s: %s" output message)
+
+(* [dir] and everything in it removed, as far as it can be. *)
+let rec remove_tree dir =
+  (match Sys.readdir dir with
+  | names ->
+      Array.iter
+        (fun n ->
+          let path = Filename.concat dir n in
+          if Sys.is_directory path then remove_tree path else try Sys.remove path with Sys_error _ -> ())
+        names
+  | exception Sys_error _ -> ());
+  try Sys.rmdir dir with Sys_error _ -> ()
+
+(* Tier 1 of a tiered build (docs/design/tiers.md): the module made tier 1
+   and linked into the shared library [output], against the C library only.
+   Its files are made in `OUTPUT.work/`, which is removed after, and the
+   library is renamed into place, so the program waiting for it never loads
+   half of one. The library is kept in [cache]'s `tier/` under the module's
+   fingerprint, the target, the C compiler and this compiler, and a later
+   build of the same module takes it from there without optimizing or
+   linking. *)
+let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = cache_dir ()) m output =
+  let work = output ^ ".work" in
+  remove_tree work;
+  match make_dirs work with
+  | exception Sys_error message -> Error (Printf.sprintf "cannot make %s: %s" work message)
+  | () ->
+      Fun.protect ~finally:(fun () -> remove_tree work) @@ fun () ->
+      let cc = cc () in
+      let fingerprint = Tiers.fingerprint m in
+      let triple = Llvm.target_triple m in
+      let kept =
+        Option.bind cache (fun cache ->
+            Option.map
+              (fun identity ->
+                let key =
+                  String.concat "\000"
+                    ([ fingerprint; triple; cc; identity; compiler_identity (); Tiers.tier1_pipeline ]
+                    @ Tiers.tier1_llvm_options)
+                in
+                Filename.concat (Filename.concat cache "tier")
+                  (Digest.to_hex (Digest.string key) ^ shared_extension triple))
+              (identity ~cache cc work))
+      in
+      match kept with
+      | Some kept when Sys.file_exists kept ->
+          (* Taken now, it is the newest the cache holds. *)
+          (try Unix.utimes kept 0. 0. with Unix.Unix_error _ -> ());
+          install ~file:kept ~output
+      | _ -> (
+          match prepare ?target ~tier:Tiers.Tier1 ~fingerprint m with
+          | Error _ as error -> error
+          | Ok (triple, tm) -> (
+              let obj = Filename.concat work "library.o" in
+              let library = Filename.concat work ("library" ^ shared_extension triple) in
+              match Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm with
+              | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot write the object file: %s" message)
+              | () -> (
+                  let level = level ~optimize:true and system = shared_libraries target in
+                  let args = target_flag target @ level @ shared @ [ "-o"; library; obj ] @ system in
+                  let bundled_link =
+                    Option.map
+                      (fun dir ->
+                        List.fold_left Filename.concat dir
+                          [ "link"; bundled_link_name ~triple (shared @ level) system ])
+                      bundled
+                  in
+                  match
+                    link_program ?cache ?bundled:bundled_link ~cc ~triple ~args ~deps:[] ~obj ~runtime:""
+                      ~output:library work
+                  with
+                  | Error _ as error -> error
+                  | Ok () ->
+                      Option.iter
+                        (fun kept ->
+                          keep ~random:(Random.State.make_self_init ()) ~object_:library ~kept;
+                          trim (Filename.dirname kept) kept_tiers)
+                        kept;
+                      install ~file:library ~output)))

@@ -18,10 +18,13 @@ type stage = Cst | Sst
    (`--object OUT`, docs/design/separate-compilation.md C3). A package's
    stamp names its symbols with its version and identity (C6), `--import`
    says which package each of a package's import keys names (C10), and
-   `--link` adds a stamped dependency's object to the link (C7). `--check`
+   `--link` adds a stamped dependency's object to the link (C7). A tiered
+   build (docs/design/tiers.md) is two: `--build OUT --tiered` makes tier
+   0, and `--tier-up OUT` tier 1, the shared library tier 0 loads while it
+   runs. `--check`
    runs semantics and prints nothing, so its exit status and diagnostics are
    the whole answer. *)
-type view = Assembled | Check | Declarations | Typed | Cgt | Ir | Build of string | Object of string
+type view = Assembled | Check | Declarations | Typed | Cgt | Ir | Build of string | Object of string | Tier_up of string
 
 (* What the root package is (packages.md §6.2): an application has a `main`
    to start from, and a library does not become an executable. Without
@@ -54,6 +57,8 @@ type build = {
   pack : bool;
   (* Whether calls are remembered while the program runs (Cgt.Memo). *)
   memoize : bool;
+  (* Whether `--build` makes tier 0 of a tiered build. *)
+  tiered : bool;
 }
 
 (* `--rewrite STAMP INPUT OUTPUT` is fetching's step, not a build's: a
@@ -84,7 +89,7 @@ let usage () = raise (Usage None)
 let print_usage () =
   prerr_endline "usage: zanec [--cst|--sst] (SOURCE|-)";
   prerr_endline
-    "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT|--object OUT]";
+    "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT [--tiered]|--object OUT|--tier-up OUT]";
   prerr_endline "             [--kind application|library]";
   prerr_endline
     "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...]";
@@ -189,6 +194,10 @@ let arguments () =
         let view = Option.value view ~default:Assembled in
         if build.packages = [] then usage ()
         else if build.link <> [] && (match view with Build _ -> false | _ -> true) then usage ()
+        (* Tier 0 is a build, and neither tier is the optimized build of
+           `--optimize`: tier 1 makes its own (docs/design/tiers.md). *)
+        else if build.tiered && ((match view with Build _ -> false | _ -> true) || build.optimize) then usage ()
+        else if (match view with Tier_up _ -> true | _ -> false) && build.optimize then usage ()
         else
           Packages
             {
@@ -212,6 +221,9 @@ let arguments () =
         packages view { build with optimize = true } rest
     | "--pack-aggregates" :: rest when not build.pack -> packages view { build with pack = true } rest
     | "--memoize" :: rest when not build.memoize -> packages view { build with memoize = true } rest
+    | "--tiered" :: rest when not build.tiered -> packages view { build with tiered = true } rest
+    | "--tier-up" :: output :: rest when view = None && is_value output ->
+        packages (Some (Tier_up output)) build rest
     | "--build" :: output :: rest when view = None && is_value output ->
         packages (Some (Build output)) build rest
     | "--object" :: output :: rest when view = None && is_value output ->
@@ -260,6 +272,7 @@ let arguments () =
       regions = { Driver.fixed = None; spawned = None };
       pack = false;
       memoize = false;
+      tiered = false;
     }
   in
   match List.tl (Array.to_list Sys.argv) with
@@ -274,6 +287,7 @@ let arguments () =
       Bundle_runtime { dir; target; optimize = true }
   | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
     | "--link" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--memoize" | "--check"
+    | "--tiered" | "--tier-up"
     | "--decls" | "--tst" | "--cgt" | "--ll" )
     :: _ as rest ->
       packages None empty rest
@@ -310,7 +324,10 @@ let generate packages build program =
       let* ir = Driver.ir ?target ~pack ~memoize ~regions:build.regions ~optimize cgt in
       print_string ir;
       Ok ()
-  | Build output -> Driver.executable ?target ~pack ~memoize ~regions:build.regions ~optimize ~link:build.link cgt output
+  | Build output ->
+      Driver.executable ?target ~pack ~memoize ~regions:build.regions ~tiered:build.tiered ~optimize ~link:build.link cgt
+        output
+  | Tier_up output -> Driver.tier_up ?target ~pack ~memoize ~regions:build.regions cgt output
   | Object output -> Driver.object_file ?target ~pack ~memoize ~regions:build.regions ~optimize cgt output
   | Assembled | Check | Declarations | Typed -> Ok ()
 
@@ -318,13 +335,13 @@ let generate packages build program =
    lowering starts from its `main`. *)
 let needs_main build =
   match (build.kind, build.view) with
-  | Some Application, _ | None, (Cgt | Ir | Build _ | Object _) -> true
+  | Some Application, _ | None, (Cgt | Ir | Build _ | Object _ | Tier_up _) -> true
   | Some Library, _ | None, (Assembled | Check | Declarations | Typed) -> false
 
 (* Semantics prints no tree when it found a problem, since a tree with holes
    in it is not what either view promises. *)
 let run_packages build =
-  let* () = match build.view with Build _ -> Driver.buildable build.kind | _ -> Ok () in
+  let* () = match build.view with Build _ | Tier_up _ -> Driver.buildable build.kind | _ -> Ok () in
   let root = Option.value build.kind ~default:Application = Application in
   let* packages =
     Driver.assemble ~root ~imports:build.imports ~stamps:build.stamps build.packages
@@ -333,7 +350,7 @@ let run_packages build =
   | Assembled ->
       print_string (Tree_graph.render (Tst.Assembly.to_node packages));
       Ok ()
-  | Check | Declarations | Typed | Cgt | Ir | Build _ | Object _ -> (
+  | Check | Declarations | Typed | Cgt | Ir | Build _ | Object _ | Tier_up _ -> (
       let* program = Driver.check packages in
       let* () = if needs_main build then Driver.require_main program else Ok () in
       match build.view with

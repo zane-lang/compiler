@@ -34,12 +34,13 @@ set -euo pipefail
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 logged=stress
-histories=("$logged" "$logged-plain")
+histories=("$logged" "$logged-plain" "$logged-tiered")
 
 # The branch's files, into $work/log. Returns 1 when there is no branch and
 # exits when it cannot be read; each command carries its own exit, since a
-# function called in a condition runs without `set -e`. The plain history is
-# missing until the first push that measures plain builds writes it.
+# function called in a condition runs without `set -e`. The plain and tiered
+# histories are missing until the first push that measures those builds
+# writes them.
 fetch_log() {
 	rm -rf "$work/log"
 	mkdir -p "$work/log"
@@ -56,9 +57,11 @@ fetch_log() {
 	git fetch --quiet origin perf-log || exit 1
 	git show FETCH_HEAD:latest.tsv > "$work/log/latest.tsv" || exit 1
 	git show FETCH_HEAD:$logged.tsv > "$work/log/$logged.tsv" || exit 1
-	if git cat-file -e "FETCH_HEAD:$logged-plain.tsv" 2> /dev/null; then
-		git show "FETCH_HEAD:$logged-plain.tsv" > "$work/log/$logged-plain.tsv" || exit 1
-	fi
+	for build in plain tiered; do
+		if git cat-file -e "FETCH_HEAD:$logged-$build.tsv" 2> /dev/null; then
+			git show "FETCH_HEAD:$logged-$build.tsv" > "$work/log/$logged-$build.tsv" || exit 1
+		fi
+	done
 }
 
 if ! fetch_log && [ "$EVENT_NAME" != push ]; then

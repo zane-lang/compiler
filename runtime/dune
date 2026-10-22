@@ -13,7 +13,7 @@
 
 (rule
  (target zane.c)
- (deps main.c arena.c region.c block.c value.c list.c slot.c spawn.c snapshot.c)
+ (deps main.c arena.c region.c block.c value.c list.c slot.c spawn.c snapshot.c tier.c)
  (action
   (with-stdout-to
    %{target}
@@ -26,7 +26,8 @@
     (cat list.c)
     (cat slot.c)
     (cat spawn.c)
-    (cat snapshot.c)))))
+    (cat snapshot.c)
+    (cat tier.c)))))
 
 (rule
  (target runtime_source.ml)
