@@ -313,7 +313,7 @@ node passes the slots' addresses:
 | `@primitives$String` | a `zane_bytes`: the string's byte address and length, from its handle |
 | `@primitives$Array<T, n>` | the address of the array, which already lays out as `T[n]` |
 | `@primitives$List<T>` | a `zane_span`: the list's block address and count |
-| C-compatible value type | the value, already in C's layout |
+| C-compatible value type | the value, already in C's layout, with its padding bytes zeroed |
 | a handle | its pointer |
 
 A string, array or list is passed where it is, never copied going in:
@@ -334,7 +334,8 @@ pointer carries no context, so a value that only Zane can call cannot be
 handed to C. So every lambda whose type is C-compatible (`ffi.md` §3.6) is
 lifted with two entries: its Zane function (L14), and a C function in the
 glue that lays its arguments out and calls a pointer-ABI adapter of the Zane
-function, as a thunk does in the other direction. A function value of a
+function, as a thunk does in the other direction, returning a C-compatible
+value type in a result slot whose padding bytes are zeroed, as F10's are. A function value of a
 C-compatible type is the address of its C entry, everywhere in the program,
 and a Zane call through such a value goes through a generated **invoker**,
 `void invoke(void (*f)(void), void *const *args, void *result)`, one per
@@ -559,7 +560,7 @@ is, and nothing after it that depends on its result folds.
 **F18. Values cross between the evaluators in the target's C layout.** When
 a Zane fold reaches a `Foreign_call`, its arguments are known values of
 `eval.ml`; `c_eval.ml` writes each into an allocation of its own laid out as
-F10's slots are, runs the thunk, and reads the result back into an `eval.ml`
+F10's slots are, padding bytes zero as there, runs the thunk, and reads the result back into an `eval.ml`
 value. A view into a string, array or list is a read-only allocation
 holding a copy of its bytes, and a store into it stops the fold. `eval.ml`
 knows a value and not where it is stored (O5), so whether two views share
