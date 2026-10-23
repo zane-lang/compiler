@@ -107,7 +107,7 @@ with `spec/` and `core/` in the current directory and `zanec` selecting one
 of the two compiler builds:
 
 ```sh
-zanec --no-root --optimize --object core.o \
+zanec --kind library --optimize --object core.o \
   --package 'v0.0%0123456789abcdef%core=core/lib/core'
 
 zanec --build mandelbrot --optimize --link core.o \
