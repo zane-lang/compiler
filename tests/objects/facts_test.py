@@ -123,7 +123,7 @@ class FactsTests(unittest.TestCase):
         # of its slot, two list handles, is there for the call.
         ir = run(ZANEC, "--ll", *packages("borrowed"))
         self.assertRegex(
-            ir, r'@"borrowed\$total\(&borrowed\$Field, [^"]*\)"\(ptr nonnull align 8 dereferenceable\(48\) %0')
+            ir, r'(?m)^define [^@\n]*@"borrowed\$total\(&borrowed\$Field, [^"]*\)"\(ptr nonnull align 8 dereferenceable\(48\) %0')
 
     def test_long_loops_lose_their_index_checks(self):
         # An optimized build emits a loop over elements twice, weighted to
