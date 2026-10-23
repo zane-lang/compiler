@@ -88,9 +88,10 @@ let alone (f : Func.t) =
 
 (* Each call site in [f], with a call inside a loop counted twice, since it
    runs at least as often as two calls side by side. A call equal to an
-   earlier one, the same function given the same arguments, counts for
-   nothing when those arguments read no local the body assigns: they have
-   the same values, and an optimizer makes the two calls one. A local
+   earlier one that always runs before it, the same function given the same
+   arguments, counts for nothing when those arguments read no local the
+   body assigns: they have the same values, and an optimizer makes the two
+   calls one. A local
    whose address is taken counts as assigned, since a store through the
    address changes it, and an argument that reads through an address is
    never taken to be the same twice. *)
@@ -119,7 +120,12 @@ let calls (f : Func.t) =
     let es, bodies = Traverse.stat_parts s in
     let inner = match s with Stat.Repeat _ -> 2 | _ -> weight in
     List.iter (expr weight) es;
-    List.iter (stats inner) bodies
+    List.iter (inside (stats inner)) bodies
+  (* A nested body may not run, so a call in it stands for no call after it. *)
+  and inside walk body =
+    let before = !made in
+    walk body;
+    made := before
   and expr weight (e : Expr.t) =
     (match e.Expr.node with
     | Expr.Call { fn; args } ->
@@ -129,7 +135,7 @@ let calls (f : Func.t) =
     | _ -> ());
     let es, bodies = Traverse.expr_parts e in
     List.iter (expr weight) es;
-    List.iter (stats weight) bodies
+    List.iter (inside (stats weight)) bodies
   in
   stats 1 f.Func.body;
   !found

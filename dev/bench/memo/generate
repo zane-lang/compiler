@@ -241,3 +241,4 @@ src.append(f"""Unit main() {{
 """)
 out.mkdir(parents=True, exist_ok=True)
 (out / "main.zn").write_text("\n".join(src).replace("package PKG;", f"package {out.name};", 1))
+(out / "arguments").write_text("")

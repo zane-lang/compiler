@@ -16,6 +16,12 @@ BUILDS = {"plain": [], "optimized": ["--optimize"], "tiered": ["--tiered"]}
 
 def one(seed):
     d = W / f"s{seed}"
+    try:
+        return run(seed, d)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+def run(seed, d):
     subprocess.run([sys.executable, HERE / "generate", str(seed), d], check=True)
     res = {}
     for build, given in BUILDS.items():

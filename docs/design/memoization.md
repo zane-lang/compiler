@@ -39,13 +39,14 @@ A function gets a table when:
   A value of scalars only takes one word for each scalar, and any other
   value a word for each eight of its bytes.
 - **It calls back into its own cycle of calls at least twice.** A call inside
-  a loop counts twice. A call equal to an earlier one, the same function
-  with the same arguments, counts for nothing when those arguments read no
-  local the body assigns or takes the address of, and nothing through an
-  address: the two have the same value, and an optimizer makes them one
-  call. This is where a table can turn work that doubles at
-  each level into work linear in the depth. A function that calls itself
-  once gets nothing back from a table it fills on the way down.
+  a loop counts twice. A call equal to an earlier one that always runs
+  before it, the same function with the same arguments, counts for nothing
+  when those arguments read no local the body assigns or takes the address
+  of, and nothing through an address: the two have the same value, and an
+  optimizer makes them one call. This is where a table can turn work that
+  doubles at each level into work linear in the depth. A function that
+  calls itself once gets nothing back from a table it fills on the way
+  down.
 
 The choice reads the tree alone, never what LLVM makes of the program. So
 the two tiers of a tiered build, which lower the same tree, plan the same

@@ -14,11 +14,11 @@ is picked when:
   bytes);
 - it calls back into its own cycle of calls at least twice.
 
-A call equal to an earlier one, with arguments that read no local the body
-assigns or takes the address of, and nothing through an address, counts
-once. Every build picks from the tree alone, so a tiered build's two tiers
-pick the same. `lib/codegen/emit.ml` (`memo`) emits a
-gate, a lookup and two copies of each picked function.
+A call equal to an earlier one that always runs before it, with arguments
+that read no local the body assigns or takes the address of, and nothing
+through an address, counts once. Every build picks from the tree alone, so
+a tiered build's two tiers pick the same. `lib/codegen/emit.ml` (`memo`)
+emits a gate, a lookup and two copies of each picked function.
 
 Each function keeps a score. A lookup is charged the lookup's cost
 measured against the weight of one of the function's calls, which is

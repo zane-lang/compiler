@@ -65,10 +65,10 @@ class MemoTests(unittest.TestCase):
                     raise AssertionError(f"{name} tier 1\n{result.stdout}{result.stderr}")
         return exe
 
-    def tables(self, name, build):
+    def tables(self, name, build, memoize=True):
         """The functions given a table: each one's state symbol, less its
         suffix."""
-        symbols = subprocess.run(["nm", self.build(name, build, True)], capture_output=True, text=True,
+        symbols = subprocess.run(["nm", self.build(name, build, memoize)], capture_output=True, text=True,
                                  check=True).stdout
         return sorted(line.split(" ", 2)[2][: -len(".memo.state")] for line in symbols.splitlines()
                       if line.endswith(".memo.state"))
@@ -81,6 +81,12 @@ class MemoTests(unittest.TestCase):
                 for memoize in (False, True):
                     with self.subTest(name=name, build=build, memoize=memoize):
                         self.assertEqual(run_program(self.build(name, build, memoize), *args), expected)
+
+    def test_no_memoize_gives_no_tables(self):
+        for name in sorted(p.name for p in FIXTURES.iterdir()):
+            for build in BUILDS:
+                with self.subTest(name=name, build=build):
+                    self.assertEqual(self.tables(name, build, memoize=False), [])
 
     def test_a_repeating_recursion_gets_a_table(self):
         for name, function in [
@@ -130,6 +136,13 @@ class MemoTests(unittest.TestCase):
         for build in BUILDS:
             with self.subTest(build=build):
                 self.assertEqual(self.tables("stepped", build), ["stepped$stepped(%primitives$I64, stepped$P)"])
+
+    def test_calls_in_blocks_that_may_not_run_are_not_equal(self):
+        # `apart` makes the same call in two blocks, each of which may run
+        # without the other.
+        for build in BUILDS:
+            with self.subTest(build=build):
+                self.assertEqual(self.tables("apart", build), ["apart$apart(%primitives$I64, %primitives$I64)"])
 
 
 if __name__ == "__main__":

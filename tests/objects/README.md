@@ -116,5 +116,6 @@ neither does `memolibrary`, a library a program that spawns may call.
 `merged` makes the same call twice, so it gets none in any build, since an
 optimizer makes the two calls one. `stepped` makes two calls that read the
 same local, which a mutating call between them changes through its address,
-so they count as two and it gets a table. Every build gives the same functions a
+so they count as two and it gets a table. `apart` makes the same call in two
+blocks that may each run without the other, so it gets one too. Every build gives the same functions a
 table, so the two tiers of a tiered build emit the same module.
