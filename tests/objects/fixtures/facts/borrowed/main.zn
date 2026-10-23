@@ -1,0 +1,34 @@
+/// Two lists read through an `&` reference by a recursive function, which
+/// lowering does not write out where it is called.
+package borrowed;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+type Field = #struct {
+	xs List<Float>;
+	ys List<Float>;
+}
+
+Field(xs ^List<Float>, ys ^List<Float>) => init{ xs; ys; }
+
+Float total(field &Field, depth Int) {
+	@controlflow$branch(@operators$lessThan(Int(0), depth), {
+		return total(field, @operators$add(depth, @operators$negate(Int(1))));
+	});
+	return @operators$add(field.xs[Int(1)], field.ys[Int(1)]);
+}
+
+Unit main() {
+	xs ^List<Float> = @primitives$List(Float);
+	ys ^List<Float> = @primitives$List(Float);
+	xs!push(Float(1.5));
+	ys!push(Float(2.5));
+	field Field(xs, ys);
+	@program$console!print(String(@primitives$I64.truncate(total(field, Int(2)))));
+	@program$console!print(String("\n"));
+	return Unit();
+}

@@ -141,6 +141,13 @@ repo's `langbench/` and print what it prints at the same size.
   the first 64 calls, so its numbers rise sharply when a table stops being
   picked for such a call or its hits stop paying
   ([`memoization.md`](../../docs/design/memoization.md) M1).
+- `borrows` is two lists of floats in a struct, read through an `&`
+  reference by a recursive function that stays out of line: one list on
+  every pass of a loop, the other only on the passes a comparison picks. Its
+  optimized and tiered numbers rise when the function is no longer told the
+  reference's whole slot is there to read
+  ([`lowering.md`](../../docs/design/lowering.md) §9), since it then reads
+  the second list's count and block after each check, inside the loop.
 - `removal` is a list of value structs that grows by pushes and shrinks by
   ordered and swapping removals.
 - `stress` is the logged one, a large program of sixteen sections:

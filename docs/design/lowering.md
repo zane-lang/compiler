@@ -1191,9 +1191,14 @@ test passing.
     made with them, across the write.
   - *A place's whole slot.* A `mut` subject, or an owned value passed by
     address, is the address of a slot of the caller's, which outlives the
-    call (the CGT `Func`'s `places`). Its parameter is `nonnull`, aligned and
+    call. An `&T` is the address of a settled owner's slot (memory.md
+    §4.1), which outlives the reference (§4.2): it never moves, and an
+    overwrite writes the slot in place, a boxed member's block included.
+    Nothing references a list element or a variant payload (§2.1), so no
+    `&T` names storage a push or a removal could move or free. Each such
+    parameter (the CGT `Func`'s `places`) is `nonnull`, aligned and
     `dereferenceable` for the slot's size. It is not `readonly` or
-    `noalias`, since the function writes the slot and another parameter
+    `noalias`, since the function may write the slot and another parameter
     may name it.
   - *An open scope's frame.* Once a scope is open, any slot of its frame
     may be read (above), and the frame is on a 16-byte boundary, since
