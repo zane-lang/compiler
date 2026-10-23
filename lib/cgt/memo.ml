@@ -235,15 +235,25 @@ let weight funcs remembered =
   of_func
 
 (* The weight of the cheapest call to [f]: the fewest nodes a call can run
-   before it returns, counted as [weight] counts them, with a loop run no
-   times. A hit saves at least this much for each call it saves, whichever
-   path those calls would have taken. Where a path is unclear the count is
-   too small, never too large: an exit inside an expression is taken as soon
-   as the expression starts. *)
+   before it returns, counted as [weight] counts them, with a loop whose
+   count is not a constant run no times. A hit saves at least this much for
+   each call it saves, whichever path those calls would have taken. Where a
+   path is unclear the count is too small, never too large: an exit inside
+   an expression is taken as soon as the expression starts. *)
 let least funcs remembered =
   let known = Hashtbl.create 16 in
   let inf = max_int / 4 in
   let ( +. ) a b = min inf (a + b) in
+  (* A part's exits: for each place it may leave to, the function's return
+     ([None]) or the end of the expansion a label names, the cheapest cost
+     to get there. *)
+  let join a b =
+    List.fold_left
+      (fun acc (k, c) -> match List.assoc_opt k acc with Some d when d <= c -> acc | _ -> (k, c) :: List.remove_assoc k acc)
+      a b
+  in
+  let after n ex = List.map (fun (k, c) -> (k, n +. c)) ex in
+  let cheapest ex = List.fold_left (fun n (_, c) -> min n c) inf ex in
   let rec of_func s =
     match Hashtbl.find_opt known s with
     | Some w -> w
@@ -253,45 +263,54 @@ let least funcs remembered =
         | None -> 1
         | Some (f : Func.t) ->
             let fall, exit = stats f.Func.body in
-            let w = max 1 (min 100_000 (min fall exit)) in
+            let w = max 1 (min 100_000 (min fall (cheapest exit))) in
             Hashtbl.replace known s w;
             w)
-  (* Each part's cheapest cost to run to its end, and to leave early. *)
+  (* Each part's cheapest cost to run to its end, and its exits. *)
   and stats ss =
     List.fold_left
       (fun (fall, exit) st ->
         let f, x = stat st in
-        (fall +. f, min exit (fall +. x)))
-      (0, inf) ss
+        (fall +. f, join exit (after fall x)))
+      (0, []) ss
   and parts es bodies =
     let fall = List.fold_left (fun n e -> n +. fst (expr e)) 0 es in
     let fall = List.fold_left (fun n b -> n +. fst (stats b)) fall bodies in
-    let exit = List.fold_left (fun n e -> min n (snd (expr e))) inf es in
-    let exit = List.fold_left (fun n b -> min n (snd (stats b))) exit bodies in
+    let exit = List.fold_left (fun n e -> join n (snd (expr e))) [] es in
+    let exit = List.fold_left (fun n b -> join n (snd (stats b))) exit bodies in
     (fall, exit)
   and stat (st : Stat.t) =
     match st with
-    | Stat.Return e -> (inf, 1 +. fst (expr e))
-    | Stat.Leave _ -> (inf, 1)
+    | Stat.Return e ->
+        let v, vx = expr e in
+        (inf, join vx [ (None, 1 +. v) ])
+    | Stat.Leave l -> (inf, [ (Some l, 1) ])
+    | Stat.Repeat { count = { Expr.node = Expr.Int n; _ } as cond; body } when Int64.compare n 0L > 0 ->
+        let c, cx = expr cond in
+        let f, x = stats body in
+        let n = Int64.to_int (Int64.min n 100_000L) in
+        let all = if f >= inf / n then inf else n * f in
+        (1 +. c +. all, join cx (after (1 +. c) x))
     | Stat.If { cond; body } | Stat.Repeat { count = cond; body } ->
         let c, cx = expr cond in
         let _, x = stats body in
-        (1 +. c, min cx (1 +. c +. x))
+        (1 +. c, join cx (after (1 +. c) x))
     | Stat.Switch { value; cases } ->
         let v, vx = expr value in
         let each = List.map (fun (_, b) -> stats b) cases in
         let fall = List.fold_left (fun n (f, _) -> min n f) inf each in
-        let exit = List.fold_left (fun n (_, x) -> min n x) inf each in
-        ((1 +. v) +. (if each = [] then 0 else fall), min vx (1 +. v +. exit))
+        let exit = List.fold_left (fun n (_, x) -> join n x) [] each in
+        ((1 +. v) +. (if each = [] then 0 else fall), join vx (after (1 +. v) exit))
     | _ ->
         let es, bodies = Traverse.stat_parts st in
         let fall, exit = parts es bodies in
         (1 +. fall, exit)
   and expr (e : Expr.t) =
     match e.Expr.node with
-    | Expr.Expand { body; _ } ->
+    | Expr.Expand { label; body; _ } ->
         let fall, exit = stats body in
-        (1 +. min fall exit, exit)
+        let ended = match List.assoc_opt (Some label) exit with Some c -> min fall c | None -> fall in
+        (1 +. ended, List.remove_assoc (Some label) exit)
     | _ ->
         let es, bodies = Traverse.expr_parts e in
         let fall, exit = parts es bodies in
@@ -516,7 +535,14 @@ let plan (p : Program.t) =
       && Some s <> p.Program.entry
       && (match f.Func.linkage with Linkage.Local | Linkage.Exported | Linkage.Shared -> true | _ -> false)
       && fits f
-      && List.fold_left (fun n (c, w) -> if same c s then n + w else n) 0 (Hashtbl.find sites s) >= 2
+      && (let self = List.fold_left (fun n (c, w) -> if same c s then n + w else n) 0 (Hashtbl.find sites s) in
+          let try_ = Option.value ~default:"" (Sys.getenv_opt "ZANE_MEMO_TRY") in
+          let has c = String.contains try_ c in
+          self >= (if has 'a' then 1 else 2)
+          || (has 'b' && self = 0
+             && Hashtbl.fold (fun c l n -> n || (not (same c s) && List.exists (fun (d, w) -> d = s && w >= 2) l)) sites false
+             && weight funcs (Hashtbl.create 1) s
+                >= (match Sys.getenv_opt "ZANE_MEMO_HEAVY" with Some h -> int_of_string h | None -> 64)))
     in
     let memos = List.filter chosen p.Program.funcs in
     let remembered = Hashtbl.create 8 in
