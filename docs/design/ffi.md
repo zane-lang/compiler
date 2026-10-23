@@ -167,8 +167,8 @@ Stage 3 checks each foreign verb against that table by the rules of
 `typedef` such as zlib's `uLong` is checked as the `unsigned long` it names.
 An integer type's size is checked against its width in clang's target
 information, which counts value bits, so a type with padding bits, whose
-width is less than its size, matches no full-width primitive (`ffi.md`
-§3.3).
+width is less than its size, matches no primitive, full-width or narrow
+(`ffi.md` §3.3).
 A type §3.3 refuses is reported with what it is on the target and a pointer
 to the converting C function §3.3 asks for. A C-compatible value type is compared field by field against the
 `struct`'s offsets and sizes, laid out as lowering lays the Zane type out
