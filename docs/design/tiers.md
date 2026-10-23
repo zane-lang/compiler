@@ -132,9 +132,11 @@ the oldest.
 **T11. A shared library is linked as a program is.** The link runs through
 the same command a program's does ([`lowering.md`](lowering.md) §7): asked of
 the C compiler once with `-shared` and kept, or bundled with a released
-toolchain beside the program's, and run by the LLD in the compiler. Tier 0
-links with the dynamic loader's library, `-ldl` on Linux; macOS's libSystem
-and Windows' kernel32 hold it already.
+toolchain beside the program's, and run by the LLD in the compiler. On
+Linux a program links `-ldl` as needed, since only glibc before 2.34 keeps
+`dlopen` there, and a later one's empty `libdl` would cost every run its
+loading; macOS's libSystem and Windows' kernel32 hold `dlopen`'s equivalent
+already.
 
 ---
 

@@ -147,7 +147,7 @@ program as a shared library, through each platform's own loader:
 
 | Platform | Tier 1 | Loaded with | Notes |
 |---|---|---|---|
-| Linux | `.so` | `dlopen` | tier 0 links `-ldl`, which glibc before 2.34 needs |
+| Linux | `.so` | `dlopen` | programs link `-ldl` as needed: only glibc before 2.34 keeps `dlopen` there |
 | macOS | `.dylib` | `dlopen` | libSystem holds the loader; LLD signs arm64 code ad hoc, as macOS requires |
 | Windows | `.dll` | `LoadLibraryW` | the path is converted from UTF-8 to UTF-16, as the arguments are; `zig cc` names no entry for a MinGW DLL, so the link names MinGW's, `DllMainCRTStartup` |
 

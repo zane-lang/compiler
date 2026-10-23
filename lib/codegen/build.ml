@@ -621,9 +621,13 @@ let shared_extension triple =
    through `CommandLineToArgvW`, which shell32 holds, and a Windows
    program's main thread gets the 8 MiB of machine stack it has on Linux
    and macOS, where the linker would give it 1 MiB
-   (docs/design/platforms.md). *)
+   (docs/design/platforms.md). The runtime loads tier 1 of a tiered build
+   with `dlopen` (docs/design/tiers.md), which glibc before 2.34 keeps in
+   libdl. That is linked only as needed: a later glibc's libdl defines
+   nothing a program takes, and the loader would still open it on every
+   run. *)
 let system_libraries target =
-  if windows target then [ "-lshell32"; "-Wl,--stack,8388608" ] else if darwin target then [ "-lm" ] else [ "-lm"; "-ldl" ]
+  if windows target then [ "-lshell32"; "-Wl,--stack,8388608" ] else if darwin target then [ "-lm" ] else [ "-lm"; "-Wl,--as-needed"; "-ldl"; "-Wl,--no-as-needed" ]
 
 (* [command] run by the LLD in the compiler; what it wrote when it fails. *)
 let lld_run command =
