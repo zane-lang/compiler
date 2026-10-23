@@ -1,6 +1,6 @@
 (* The LLVM pass pipelines a module goes through (docs/optimizations.md):
    [unoptimized] for a plain build and tier 0, [optimized] for an optimized
-   build and tier 1 (docs/design/tiers.md T2).
+   build, and [tier1] for tier 1 (docs/design/tiers.md T2).
 
    `elif` branches on `~this and condition`, where `this` is what the `if`
    before it branched on, so each way into it already decides that half.
