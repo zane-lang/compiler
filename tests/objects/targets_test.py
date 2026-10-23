@@ -18,7 +18,7 @@ def zanec(*args):
 
 class TargetTests(unittest.TestCase):
     def ll(self, target):
-        return zanec("--kind", "library", "--ll", "--target", target, "--package", GEOMETRY)
+        return zanec("--no-root", "--ll", "--target", target, "--package", GEOMETRY)
 
     def test_a_32_bit_target_is_refused(self):
         for target in ["i386-unknown-linux-gnu", "armv7-unknown-linux-gnueabihf"]:

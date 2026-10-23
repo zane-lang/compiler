@@ -47,7 +47,7 @@ class OptimizationTests(unittest.TestCase):
         cls.app = FIXTURES / "optimization/app"
         # Deliberately link an unoptimized dependency into optimized callers.
         cls.obj = cls.out / "math.o"
-        run(ZANEC, "--kind", "library", "--object", cls.obj,
+        run(ZANEC, "--no-root", "--object", cls.obj,
             "--package", f"{STAMP}math={cls.math}")
 
     @classmethod
@@ -120,7 +120,7 @@ class OptimizationTests(unittest.TestCase):
 
     def test_existing_library_features(self):
         obj = self.out / "geometry.o"
-        run(ZANEC, "--kind", "library", "--object", obj,
+        run(ZANEC, "--no-root", "--object", obj,
             "--stamp", f"geometry={STAMP}", "--package", FIXTURES / "geometry")
         exe = self.out / "survey"
         run(ZANEC, "--build", exe, "--optimize", "--link", obj,
@@ -139,7 +139,7 @@ class OptimizationTests(unittest.TestCase):
             (atlas, "atlas", ["--package", f"{geo1}={versions / 'geometry1'}"]),
         ]:
             obj = self.out / f"{fixture}.o"
-            run(ZANEC, "--kind", "library", "--object", obj, "--optimize",
+            run(ZANEC, "--no-root", "--object", obj, "--optimize",
                 "--package", f"{name}={versions / fixture}", *deps)
             objects += ["--link", obj]
         exe = self.out / "versions"

@@ -69,25 +69,25 @@
  (action
   (diff golden/assembly.reject.err assembly.reject.err.actual)))
 
-; A project as `zane` hands it over (docs/design/cli.md in zane-lang/zane): the
-; sources in `src/`, named by the manifest with `--package NAME=DIR`, and the
-; root's kind given with `--kind`. `project.app` checks an application
-; quietly. The others each fail one way: an application without `main`, a
-; library asked to become an executable, a file declaring a package other
-; than the one its manifest names, and a target LLVM does not know.
+; A project as `zane` hands it over (docs/design/cli.md in zane-lang/zane):
+; each package named by its directory in `lib/` or `bin/` with
+; `--package NAME=DIR`, and `--root` for a program's build and `--no-root` for
+; a library's. `project.app` checks a program quietly. The others each fail
+; one way: a root without `main`, a build without a root asked to become an
+; executable, a file declaring a package other than the one its directory
+; names, and a target LLVM does not know.
 
 (rule
- (deps (source_tree fixtures/project/app))
+ (deps (source_tree fixtures/project))
  (action
   (with-outputs-to
    project.app.check.actual
    (run
     %{exe:../../bin/zanec/zanec.exe}
     --check
-    --kind
-    application
+    --root
     --package
-    demo=fixtures/project/app/src))))
+    demo=fixtures/project/bin/demo))))
 
 (rule
  (alias runtest)
@@ -95,7 +95,7 @@
   (diff golden/project.app.check project.app.check.actual)))
 
 (rule
- (deps (source_tree fixtures/project/lib))
+ (deps (source_tree fixtures/project))
  (action
   (with-outputs-to
    project.no-main.err.actual
@@ -104,10 +104,9 @@
     (run
      %{exe:../../bin/zanec/zanec.exe}
      --check
-     --kind
-     application
+     --root
      --package
-     geometry=fixtures/project/lib/src)))))
+     idle=fixtures/project/bin/idle)))))
 
 (rule
  (alias runtest)
@@ -115,7 +114,7 @@
   (diff golden/project.no-main.err project.no-main.err.actual)))
 
 (rule
- (deps (source_tree fixtures/project/lib))
+ (deps (source_tree fixtures/project))
  (action
   (with-outputs-to
    project.library-build.err.actual
@@ -125,10 +124,9 @@
      %{exe:../../bin/zanec/zanec.exe}
      --build
      geometry.exe
-     --kind
-     library
+     --no-root
      --package
-     geometry=fixtures/project/lib/src)))))
+     geometry=fixtures/project/lib/geometry)))))
 
 (rule
  (alias runtest)
@@ -136,7 +134,7 @@
   (diff golden/project.library-build.err project.library-build.err.actual)))
 
 (rule
- (deps (source_tree fixtures/project/wrong))
+ (deps (source_tree fixtures/project))
  (action
   (with-outputs-to
    project.wrong-name.err.actual
@@ -146,7 +144,7 @@
      %{exe:../../bin/zanec/zanec.exe}
      --check
      --package
-     demo=fixtures/project/wrong/src)))))
+     wrong=fixtures/project/bin/wrong)))))
 
 (rule
  (alias runtest)
@@ -154,7 +152,7 @@
   (diff golden/project.wrong-name.err project.wrong-name.err.actual)))
 
 (rule
- (deps (source_tree fixtures/project/app))
+ (deps (source_tree fixtures/project))
  (action
   (with-outputs-to
    project.bad-target.err.actual
@@ -166,7 +164,7 @@
      --target
      nowhere-unknown-none
      --package
-     demo=fixtures/project/app/src)))))
+     demo=fixtures/project/bin/demo)))))
 
 (rule
  (alias runtest)
@@ -186,8 +184,7 @@
    (run
     %{exe:../../bin/zanec/zanec.exe}
     --check
-    --kind
-    application
+    --root
     --package
     fixtures/instances/accept/app))))
 
@@ -210,8 +207,7 @@
    (run
     %{exe:../../bin/zanec/zanec.exe}
     --check
-    --kind
-    application
+    --root
     --package
     fixtures/growing/accept/app))))
 

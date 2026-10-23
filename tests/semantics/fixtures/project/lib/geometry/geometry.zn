@@ -1,4 +1,4 @@
-/// A library: no `main`, which an application would need.
+/// A library package: never a root, so it has no `main` (packages.md §6.1).
 package geometry;
 
 alias Int = @primitives$I64

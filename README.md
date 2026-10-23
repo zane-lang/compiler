@@ -150,7 +150,7 @@ Common tools are available directly inside the development shell:
 ```sh
 zanec path/to/source.zn      # print the CST for a file, `-` for standard input
 zanec --tst --package DIR    # type-check a package and print its typed tree
-zanec --check --kind application --package app=path/to/app/src   # what `zane check` runs
+zanec --check --root --package app=path/to/project/bin/app   # what `zane check` runs for a program
 ambiguity profiles
 ambiguity search
 ambiguity search deep-function-body --timeout 1h --output deep-search.txt
