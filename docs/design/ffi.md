@@ -244,12 +244,19 @@ package's module (F13), where LLVM inlines each thunk into its caller, so an
 optimized call into C is a direct call with the target's own convention.
 
 **F9. A package's C globals are renamed before its module is linked.** Once a
-package's C modules and glue are linked into one, every function and
-variable it defines with external linkage, except the glue's own entries,
-is renamed to the package's
+package's C modules and glue are linked into one, every global value it
+defines with external linkage, except the glue's own entries, is renamed
+to the package's
 symbol with `%c$` and its C name after it: `!zlib$%c$deflate` in a
 library, `viewer$%c$deflate` in a program. Renaming a global in its module
-renames its uses with it. The fetch-time rewrite then stamps the
+renames its uses with it. The global values are the functions and
+variables, and also the aliases and indirect functions that
+`__attribute__((alias))` and `__attribute__((ifunc))` define, which
+LLVM keeps as global values of their own: an alias exported under its
+C name would meet the same alias from another version of the package.
+An alias's target and an indirect function's resolver are renamed by the
+same rule when they are external, and keep their names when internal, as
+any internal global does. The fetch-time rewrite then stamps the
 placeholder like any other (`separate-compilation.md` C9). A name holding
 `%c$` cannot be a Zane symbol, since no package name starts with `%`.
 The glue's entries (F8, F11) keep their names, which lowering's calls
@@ -328,7 +335,13 @@ handle the overwrite reaches (`memory.md` §2.2), to a call of the set thunk
 with the place's pointer and the replacement's, and the replacement is
 dropped without its `.end`. The place keeps its stamp (below): handles made
 from the old object since hold the same address, so they still end
-first.
+first. An overwrite that reaches more than one handle, such as a struct
+holding a connection and a statement prepared on it, runs their set
+thunks by descending stamp of the places, the order a drain frees them
+in (`ffi.md` §4.3), so a handle's old object is released before the old
+object it was made from. It collects the places as a drain collects its
+handles; an overwrite that reaches one handle calls its set thunk
+directly.
 
 A drain ends a scope's values with no order among them
 ([`lowering.md`](lowering.md) §9), but `ffi.md` §4.2 orders free functions.
@@ -558,10 +571,13 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   codegen fixtures run on, plain and optimized, each held to one golden
   output: a pure C function called with a literal and with an argument, a
   data handle made, written, replaced through its setter and released (its
-  releases counted by the C code), a capability read and write, a file
+  releases counted by the C code), a struct holding a data handle and one
+  made from it overwritten as a whole (the C code logging the order its
+  setters run in), a capability read and write, a file
   opened, written and closed through a capability, a string returned from C, a list and
   an array lent to C, a C sort calling a Zane comparison, and a C library
-  vendored by two versions of one package in one program.
+  vendored by two versions of one package in one program, which defines
+  a function, an alias of it and, on ELF targets, an indirect function.
 - `golden/NAME.optimized.cgt` shows what folded: the literal checksum as a
   constant, the handle's whole life gone, the capability calls in place, the
   call reaching `sin` left as a call.
