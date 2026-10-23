@@ -1,5 +1,6 @@
 /// Calls in a loop that do not recurse: a heavy one gets a table, a light
-/// one and a heavy one called outside any loop do not.
+/// one does not, and neither does a heavy one called outside any loop and
+/// in a loop that never runs.
 package looped;
 
 
@@ -66,6 +67,9 @@ Unit main() {
 	i!to(n) {
 		total = @operators$add(total, heavy(rem(i, Int(4))));
 		total = @operators$add(total, light(rem(i, Int(4))));
+		@controlflow$repeat(Int(0), {
+			total = @operators$add(total, alone(rem(i, Int(4))));
+		});
 	}
 	say(String(total));
 	return Unit();

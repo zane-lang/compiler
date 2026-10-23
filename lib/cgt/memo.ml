@@ -86,14 +86,22 @@ let alone (f : Func.t) =
          | _ -> false)
        ~stat:(function Stat.Spawn _ | Stat.Join _ -> true | _ -> false))
 
-(* Each function [f] calls, with whether the call is inside a loop. *)
+(* Each function [f] calls, with whether the call is inside a loop. A loop
+   whose count is a constant below one never runs its body, so a call there
+   is not in a loop. *)
 let calls (f : Func.t) =
   let found = ref [] in
   let rec stats looped ss = List.iter (stat looped) ss
   and stat looped (s : Stat.t) =
     let es, bodies = Traverse.stat_parts s in
     List.iter (expr looped) es;
-    List.iter (stats (looped || match s with Stat.Repeat _ -> true | _ -> false)) bodies
+    let inner =
+      match s with
+      | Stat.Repeat { count = { Expr.node = Expr.Int n; _ }; _ } -> Int64.compare n 0L > 0
+      | Stat.Repeat _ -> true
+      | _ -> looped
+    in
+    List.iter (stats inner) bodies
   and expr looped (e : Expr.t) =
     (match e.Expr.node with Expr.Call { fn; _ } -> found := (fn, looped) :: !found | _ -> ());
     let es, bodies = Traverse.expr_parts e in
@@ -209,8 +217,7 @@ let operations funcs =
     let es, bodies = Traverse.stat_parts st in
     let inner =
       match st with
-      | Stat.Repeat { count = { Expr.node = Expr.Int n; _ }; _ } when Int64.compare n 0L > 0 ->
-          cap (times * Int64.to_int (Int64.min n 100_000L))
+      | Stat.Repeat { count = { Expr.node = Expr.Int n; _ }; _ } -> cap (times * Int64.to_int (Int64.max 0L (Int64.min n 100_000L)))
       | Stat.Repeat _ -> cap (times * 8)
       | _ -> times
     in
@@ -538,6 +545,7 @@ let plan (p : Program.t) =
     Hashtbl.iter
       (fun c l -> List.iter (fun (d, inside) -> if inside && Hashtbl.mem comp d && not (same c d) then Hashtbl.replace looped d ()) l)
       sites;
+    let ops = operations funcs in
     let chosen (f : Func.t) =
       let s = f.Func.symbol in
       Hashtbl.mem pure s
@@ -545,7 +553,7 @@ let plan (p : Program.t) =
       && (match f.Func.linkage with Linkage.Local | Linkage.Exported | Linkage.Shared -> true | _ -> false)
       && fits f
       && (List.exists (fun (c, _) -> same c s) (Hashtbl.find sites s)
-         || (Hashtbl.mem looped s && operations funcs s >= 2 * lookup_cost f))
+         || (Hashtbl.mem looped s && ops s >= 2 * lookup_cost f))
     in
     let memos = List.filter chosen p.Program.funcs in
     let remembered = Hashtbl.create 8 in
