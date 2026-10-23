@@ -47,8 +47,11 @@ build's target, so a cross build probes the target's headers, not the
 host's. A clang or `zig cc`, which `--version` names, is given `--target=`.
 A GCC builds for the one target it was configured for and takes no such
 option, so it is run as it is and its `-dumpmachine` must name the build's
-target, compared as LLVM normalizes a triple, so `x86_64-linux-gnu` and
-`x86_64-pc-linux-gnu` agree; one that names another is an error saying to set `ZANE_CC` to a GCC
+target. The two triples are normalized as LLVM normalizes one and
+compared by architecture, operating system and environment, leaving out
+the vendor, which normalizing keeps (`pc` stays, a missing one becomes
+`unknown`) and which names no ABI on these targets, so `x86_64-linux-gnu`
+and `x86_64-pc-linux-gnu` agree; one that names another is an error saying to set `ZANE_CC` to a GCC
 for that target. The probe reads
 the list after `#include <...> search starts here:`, which GCC, clang and
 `zig cc` all print in that form; the list is kept in the cache, keyed by
@@ -467,7 +470,10 @@ models memory as bytes.
   and an offset into it, and arithmetic on it keeps the allocation, so a
   pointer is never confused with an integer that happens to equal it. A
   `ptrtoint` gives an **address-derived integer**: it keeps the allocation
-  and offset it came from, and arithmetic on it keeps them too. An
+  and offset it came from, and arithmetic on it keeps them too. One
+  narrower than a pointer, from a `ptrtoint` to a smaller integer or a
+  `trunc`, stops the fold, since the bits it drops are the running
+  address's and the evaluator has none to drop. An
   `inttoptr` of one gives the pointer back, and two derived from one
   allocation compare and subtract as their offsets do. Anything else that
   would let the address's number matter stops the fold: returning one,
