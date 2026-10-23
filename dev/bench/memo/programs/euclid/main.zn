@@ -1,6 +1,5 @@
-/// The same call in two blocks that may both run.
-package apart;
-
+/// A LINEAR RECURSION THAT NEVER REPEATS: each call recurses once, on arguments no call asked for before.
+package euclid;
 
 alias Int = @primitives$I64
 alias Float = @primitives$F64
@@ -36,26 +35,22 @@ Unit say(text String) {
 
 Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)))
 
-/// The same call in two blocks that may both run: neither always runs
-/// before the other, so they count as two.
-Int apart(n Int, k Int) {
-	@controlflow$branch(@operators$lessThan(n, Int(1)), {
-		return k;
+Int mix(k Int) => rem(@operators$add(@operators$multiply(k, Int(6364136223846793005)), Int(1442695040888963407)), Int(1000000007))
+
+Int gcd(a Int, b Int) {
+	@controlflow$branch(@operators$equal(b, Int(0)), {
+		return a;
 	});
-	m Int = @operators$add(n, @operators$negate(Int(1)));
-	a Int = Int(0);
-	b Int = Int(0);
-	@controlflow$branch(@operators$lessThan(Int(0), rem(n, Int(3))), {
-		a = apart(m, @operators$add(k, Int(1)));
-	});
-	@controlflow$branch(@operators$lessThan(Int(0), rem(n, Int(2))), {
-		b = apart(m, @operators$add(k, Int(1)));
-	});
-	return rem(@operators$add(@operators$add(a, b), k), Int(1000003));
+	return gcd(b, rem(a, b));
 }
 
 Unit main() {
-	n Int = size(Int(12));
-	say(String(apart(n, Int(1))));
+	reps Int = size(Int(100));
+	total Int(0);
+	r Int(1);
+	r!to(reps) {
+		total = @operators$add(total, gcd(mix(r), @operators$add(mix(@operators$add(r, Int(7))), Int(1))));
+	}
+	say(String(total));
 	return Unit();
 }

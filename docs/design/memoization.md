@@ -38,15 +38,20 @@ A function gets a table when:
   bytes. The arguments may take at most eight words, and so may the result.
   A value of scalars only takes one word for each scalar, and any other
   value a word for each eight of its bytes.
-- **It calls back into its own cycle of calls at least twice.** A call inside
-  a loop counts twice. A call equal to an earlier one that always runs
-  before it, the same function with the same arguments, counts for nothing
-  when those arguments read no local the body assigns or takes the address
-  of, and nothing through an address: the two have the same value, and an
-  optimizer makes them one call. This is where a table can turn work that
-  doubles at each level into work linear in the depth. A function that
-  calls itself once gets nothing back from a table it fills on the way
-  down.
+- **It calls back into its own cycle of calls, or it is heavy and called in
+  a loop.** A recursion's table pays when its arguments repeat, within one
+  call, as a search reaches a position twice, or across calls, as a loop
+  asks for the same depth again. A function outside any cycle gets a table
+  when a loop in another function calls it and one call runs at least twice
+  the operations of a lookup (M3), so a hit saves more than its lookup
+  costs. A call's operations estimate what an optimized build runs: one for
+  each computation, memory access and branch, a loop's body as often as a
+  constant count says or else eight times, a switch's dearest case, and one
+  for each call plus the operations of the function called. Naming a local,
+  a constant or a verb's expansion counts nothing, since an optimized build
+  keeps it in a register or folds it away. A light function in a loop gets no table, nor does a
+  heavy one called outside any loop, whose arguments repeat only if the
+  program calls it again.
 
 The choice reads the tree alone, never what LLVM makes of the program. So
 the two tiers of a tiered build, which lower the same tree, plan the same
@@ -110,12 +115,14 @@ first position it reaches twice. One whose calls are light gives up after a
 few dozen lookups.
 
 The cheapest call is the shortest path through the body to a return,
-weighed as above, with each loop run no times. Every call the hit skipped
+weighed as above, with a loop run as often as a constant count says, and any
+other loop run no times. A `return` inside a verb written out where it is
+called ends the verb, not the function, so the path goes on after it. Every call the hit skipped
 would have run at least that, whichever path it took, so the credit never
 exceeds what the hit saved. A recursion whose arguments repeat only where it
 bottoms out hits on half its calls, each saving one call of its cheapest
 path, and stops looking (`tests/perf/leaves`). The count is low for a call
-whose base case loops: its rounds are not counted, and such a function can
+whose base case loops as often as an argument says: its rounds are not counted, and such a function can
 stop looking though its hits would have paid (`lv1h20`,
 `dev/bench/memo/`).
 

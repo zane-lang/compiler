@@ -131,6 +131,11 @@ repo's `langbench/` and print what it prints at the same size.
   where each call does least. A table of its results hits on half its
   calls, and must stop looking, since each hit saves less than the lookups
   cost ([`memoization.md`](../../docs/design/memoization.md) M3).
+- `repeats` is a heavy call in a loop that asks for the same 64 arguments
+  over and over, with no recursion. A table of its results hits on all but
+  the first 64 calls, so its numbers rise sharply when a table stops being
+  picked for such a call or its hits stop paying
+  ([`memoization.md`](../../docs/design/memoization.md) M1).
 - `removal` is a list of value structs that grows by pushes and shrinks by
   ordered and swapping removals.
 - `stress` is the logged one, a large program of sixteen sections:
@@ -142,4 +147,9 @@ repo's `langbench/` and print what it prints at the same size.
   search over random numbers, an open-addressed hash table, a bytecode
   interpreter matching on variants, calls through function values chosen at
   random, and plain recursion. Its argument is how many times the sections
-  run.
+  run, and each section is given the round it runs in, so a table of its
+  results never finds a round it has seen. The round seeds a section's
+  generator, or is added to its checksum: `bodies` starts its generator at
+  7 plus the round, `removal` at 42, `scattered` at 3, `sorting` at 11,
+  `hashing` at 5 and `calls` at 9. Nothing else varies, so every run does
+  the same work and prints `golden/stress.out`.

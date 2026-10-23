@@ -86,72 +86,29 @@ let alone (f : Func.t) =
          | _ -> false)
        ~stat:(function Stat.Spawn _ | Stat.Join _ -> true | _ -> false))
 
-(* Each call site in [f], with a call inside a loop counted twice, since it
-   runs at least as often as two calls side by side. A call equal to an
-   earlier one that always runs before it, the same function given the same
-   arguments, counts for nothing when those arguments read no local the
-   body assigns: they have the same values, and an optimizer makes the two
-   calls one. A local
-   whose address is taken counts as assigned, since a store through the
-   address changes it, and an argument that reads through an address is
-   never taken to be the same twice. *)
+(* Each function [f] calls, with whether the call is inside a loop. A loop
+   whose count is a constant below one never runs its body, so a call there
+   is not in a loop. *)
 let calls (f : Func.t) =
-  let found = ref [] and made = ref [] in
-  let assigned = Hashtbl.create 8 in
-  Traverse.walk_stats
-    (fun e -> match e.Expr.node with Expr.Address i -> Hashtbl.replace assigned i () | _ -> ())
-    (function Stat.Assign { place; _ } -> Hashtbl.replace assigned place.Expr.local () | _ -> ())
-    f.Func.body;
-  let steady args =
-    List.for_all
-      (fun a ->
-        not
-          (Traverse.exists_in [ Stat.Eval a ]
-             ~expr:(fun e ->
-               match e.Expr.node with
-               | Expr.Local i | Expr.Address i -> Hashtbl.mem assigned i
-               | Expr.Deref _ | Expr.Take _ | Expr.Snapshot _ -> true
-               | _ -> false)
-             ~stat:(fun _ -> false)))
-      args
-  in
-  let rec stats weight ss = List.iter (stat weight) ss
-  and stat weight (s : Stat.t) =
+  let found = ref [] in
+  let rec stats looped ss = List.iter (stat looped) ss
+  and stat looped (s : Stat.t) =
     let es, bodies = Traverse.stat_parts s in
-    let inner = match s with Stat.Repeat _ -> 2 | _ -> weight in
-    List.iter (expr weight) es;
-    match s with
-    | Stat.Scope _ -> List.iter (stats inner) bodies
-    | _ -> List.iter (inside (stats inner)) bodies
-  (* A body that may not run: a call in it stands for no call after it. *)
-  and inside walk body =
-    let before = !made in
-    walk body;
-    made := before
-  and expr weight (e : Expr.t) =
-    match e.Expr.node with
-    | Expr.Call { fn; args } ->
-        let again = steady args && List.mem (fn, args) !made in
-        if steady args then made := (fn, args) :: !made;
-        found := (fn, if again then 0 else weight) :: !found;
-        List.iter (expr weight) args
-    | Expr.Expand { label; body; _ } ->
-        (* The statements before the first that may leave the expansion
-           always run; the rest may not. *)
-        let leaves st = Traverse.exists_in [ st ] ~expr:(fun _ -> false) ~stat:(function Stat.Leave l -> l = label | _ -> false) in
-        let rec split before = function
-          | st :: rest when not (leaves st) -> split (st :: before) rest
-          | rest -> (List.rev before, rest)
-        in
-        let always, maybe = split [] body in
-        stats weight always;
-        inside (stats weight) maybe
-    | _ ->
-        let es, bodies = Traverse.expr_parts e in
-        List.iter (expr weight) es;
-        List.iter (inside (stats weight)) bodies
+    List.iter (expr looped) es;
+    let inner =
+      match s with
+      | Stat.Repeat { count = { Expr.node = Expr.Int n; _ }; _ } -> Int64.compare n 0L > 0
+      | Stat.Repeat _ -> true
+      | _ -> looped
+    in
+    List.iter (stats inner) bodies
+  and expr looped (e : Expr.t) =
+    (match e.Expr.node with Expr.Call { fn; _ } -> found := (fn, looped) :: !found | _ -> ());
+    let es, bodies = Traverse.expr_parts e in
+    List.iter (expr looped) es;
+    List.iter (stats looped) bodies
   in
-  stats 1 f.Func.body;
+  stats false f.Func.body;
   !found
 
 (* The strongly connected components of the call graph, by Tarjan's
@@ -234,16 +191,80 @@ let weight funcs remembered =
   in
   of_func
 
+(* The operations one call to [f] runs, roughly the instructions an
+   optimized build gives it: what computes or touches memory counts one, a
+   branch one, a loop's body eight times over or as many times as a
+   constant count says, a switch its dearest case, and a call one and the
+   operations of the function called. What only names a value, a local, a constant or a verb's
+   expansion, counts nothing, since an optimized build keeps it in a
+   register or folds it away. *)
+let operations funcs =
+  let known = Hashtbl.create 16 in
+  let cap n = min 100_000 n in
+  let rec of_func s =
+    match Hashtbl.find_opt known s with
+    | Some w -> w
+    | None -> (
+        Hashtbl.replace known s 1;
+        match Hashtbl.find_opt funcs s with
+        | None -> 1
+        | Some (f : Func.t) ->
+            let w = stats 1 f.Func.body in
+            Hashtbl.replace known s w;
+            w)
+  and stats times ss = cap (List.fold_left (fun n st -> n + stat times st) 0 ss)
+  and stat times (st : Stat.t) =
+    let es, bodies = Traverse.stat_parts st in
+    let inner =
+      match st with
+      | Stat.Repeat { count = { Expr.node = Expr.Int n; _ }; _ } -> cap (times * Int64.to_int (Int64.max 0L (Int64.min n 100_000L)))
+      | Stat.Repeat _ -> cap (times * 8)
+      | _ -> times
+    in
+    let own =
+      match st with
+      | Stat.Let _ | Stat.Scope _ | Stat.Eval _ | Stat.Return _ | Stat.Leave _ -> 0
+      | Stat.Assign { place; _ } when not place.Expr.deref -> 0
+      | _ -> times
+    in
+    (* A switch runs one of its cases: the dearest, at most. *)
+    let within = List.map (stats inner) bodies in
+    let body = match st with Stat.Switch _ -> List.fold_left max 0 within | _ -> List.fold_left ( + ) 0 within in
+    cap (own + List.fold_left (fun n e -> n + expr times e) 0 es + body)
+  and expr times (e : Expr.t) =
+    let own =
+      match e.Expr.node with
+      | Expr.Int _ | Expr.Float _ | Expr.Bool _ | Expr.Text _ | Expr.Unit | Expr.Local _ | Expr.Address _ | Expr.Expand _
+      | Expr.Record _ | Expr.Member _ | Expr.Case _ | Expr.Payload _ | Expr.Function _ | Expr.Global _ | Expr.Layout _ ->
+          0
+      | Expr.Call { fn; _ } -> cap (times * (1 + of_func fn))
+      | _ -> times
+    in
+    let es, bodies = Traverse.expr_parts e in
+    cap (own + List.fold_left (fun n e -> n + expr times e) 0 es + List.fold_left (fun n b -> n + stats times b) 0 bodies)
+  in
+  of_func
+
 (* The weight of the cheapest call to [f]: the fewest nodes a call can run
-   before it returns, counted as [weight] counts them, with a loop run no
-   times. A hit saves at least this much for each call it saves, whichever
-   path those calls would have taken. Where a path is unclear the count is
-   too small, never too large: an exit inside an expression is taken as soon
-   as the expression starts. *)
+   before it returns, counted as [weight] counts them, with a loop whose
+   count is not a constant run no times. A hit saves at least this much for
+   each call it saves, whichever path those calls would have taken. Where a
+   path is unclear the count is too small, never too large: an exit inside
+   an expression is taken as soon as the expression starts. *)
 let least funcs remembered =
   let known = Hashtbl.create 16 in
   let inf = max_int / 4 in
   let ( +. ) a b = min inf (a + b) in
+  (* A part's exits: for each place it may leave to, the function's return
+     ([None]) or the end of the expansion a label names, the cheapest cost
+     to get there. *)
+  let join a b =
+    List.fold_left
+      (fun acc (k, c) -> match List.assoc_opt k acc with Some d when d <= c -> acc | _ -> (k, c) :: List.remove_assoc k acc)
+      a b
+  in
+  let after n ex = List.map (fun (k, c) -> (k, n +. c)) ex in
+  let cheapest ex = List.fold_left (fun n (_, c) -> min n c) inf ex in
   let rec of_func s =
     match Hashtbl.find_opt known s with
     | Some w -> w
@@ -253,45 +274,54 @@ let least funcs remembered =
         | None -> 1
         | Some (f : Func.t) ->
             let fall, exit = stats f.Func.body in
-            let w = max 1 (min 100_000 (min fall exit)) in
+            let w = max 1 (min 100_000 (min fall (cheapest exit))) in
             Hashtbl.replace known s w;
             w)
-  (* Each part's cheapest cost to run to its end, and to leave early. *)
+  (* Each part's cheapest cost to run to its end, and its exits. *)
   and stats ss =
     List.fold_left
       (fun (fall, exit) st ->
         let f, x = stat st in
-        (fall +. f, min exit (fall +. x)))
-      (0, inf) ss
+        (fall +. f, join exit (after fall x)))
+      (0, []) ss
   and parts es bodies =
     let fall = List.fold_left (fun n e -> n +. fst (expr e)) 0 es in
     let fall = List.fold_left (fun n b -> n +. fst (stats b)) fall bodies in
-    let exit = List.fold_left (fun n e -> min n (snd (expr e))) inf es in
-    let exit = List.fold_left (fun n b -> min n (snd (stats b))) exit bodies in
+    let exit = List.fold_left (fun n e -> join n (snd (expr e))) [] es in
+    let exit = List.fold_left (fun n b -> join n (snd (stats b))) exit bodies in
     (fall, exit)
   and stat (st : Stat.t) =
     match st with
-    | Stat.Return e -> (inf, 1 +. fst (expr e))
-    | Stat.Leave _ -> (inf, 1)
+    | Stat.Return e ->
+        let v, vx = expr e in
+        (inf, join vx [ (None, 1 +. v) ])
+    | Stat.Leave l -> (inf, [ (Some l, 1) ])
+    | Stat.Repeat { count = { Expr.node = Expr.Int n; _ } as cond; body } when Int64.compare n 0L > 0 ->
+        let c, cx = expr cond in
+        let f, x = stats body in
+        let n = Int64.to_int (Int64.min n 100_000L) in
+        let all = if f >= inf / n then inf else n * f in
+        (1 +. c +. all, join cx (after (1 +. c) x))
     | Stat.If { cond; body } | Stat.Repeat { count = cond; body } ->
         let c, cx = expr cond in
         let _, x = stats body in
-        (1 +. c, min cx (1 +. c +. x))
+        (1 +. c, join cx (after (1 +. c) x))
     | Stat.Switch { value; cases } ->
         let v, vx = expr value in
         let each = List.map (fun (_, b) -> stats b) cases in
         let fall = List.fold_left (fun n (f, _) -> min n f) inf each in
-        let exit = List.fold_left (fun n (_, x) -> min n x) inf each in
-        ((1 +. v) +. (if each = [] then 0 else fall), min vx (1 +. v +. exit))
+        let exit = List.fold_left (fun n (_, x) -> join n x) [] each in
+        ((1 +. v) +. (if each = [] then 0 else fall), join vx (after (1 +. v) exit))
     | _ ->
         let es, bodies = Traverse.stat_parts st in
         let fall, exit = parts es bodies in
         (1 +. fall, exit)
   and expr (e : Expr.t) =
     match e.Expr.node with
-    | Expr.Expand { body; _ } ->
+    | Expr.Expand { label; body; _ } ->
         let fall, exit = stats body in
-        (1 +. min fall exit, exit)
+        let ended = match List.assoc_opt (Some label) exit with Some c -> min fall c | None -> fall in
+        (1 +. ended, List.remove_assoc (Some label) exit)
     | _ ->
         let es, bodies = Traverse.expr_parts e in
         let fall, exit = parts es bodies in
@@ -304,16 +334,18 @@ let least funcs remembered =
   in
   of_func
 
-(* What a lookup of [f] is charged, in sixteenths of a call: its own cost,
-   a few dozen instructions and a few more for each word of the key,
+(* What a lookup of [f] costs: a few dozen instructions and a few more for
+   each word of the key. *)
+let lookup_cost (f : Func.t) =
+  24 + (6 * List.fold_left (fun n (_, t) -> n + Option.value ~default:0 (words t)) 0 f.Func.params)
+
+(* What a lookup of [f] is charged, in sixteenths of a call: its cost
    against the weight of a call. A function whose calls are heavy pays
    little for each lookup, so it can look up for long before its hits
    start to pay; one whose calls are light pays up to four calls. *)
 let charge weigh (f : Func.t) =
-  let key = List.fold_left (fun n (_, t) -> n + Option.value ~default:0 (words t)) 0 f.Func.params in
-  let lookup = 24 + (6 * key) in
   let w = max 1 (weigh f.Func.symbol) in
-  max 1 (min (4 * scale) (((scale * lookup) + (w / 2)) / w))
+  max 1 (min (4 * scale) (((scale * lookup_cost f) + (w / 2)) / w))
 
 (* What a hit of [f] is credited for each unit of weight it saved, in
    sixteenths of one of [f]'s calls, shifted left by [credit_shift] so a
@@ -510,13 +542,21 @@ let plan (p : Program.t) =
     done;
     let comp = components funcs callees in
     let same a b = Hashtbl.find_opt comp a = Some (Hashtbl.find comp b) in
+    (* Called in a loop of a function outside its own cycle, which may ask
+       for the same arguments again. *)
+    let looped = Hashtbl.create 8 in
+    Hashtbl.iter
+      (fun c l -> List.iter (fun (d, inside) -> if inside && Hashtbl.mem comp d && not (same c d) then Hashtbl.replace looped d ()) l)
+      sites;
+    let ops = operations funcs in
     let chosen (f : Func.t) =
       let s = f.Func.symbol in
       Hashtbl.mem pure s
       && Some s <> p.Program.entry
       && (match f.Func.linkage with Linkage.Local | Linkage.Exported | Linkage.Shared -> true | _ -> false)
       && fits f
-      && List.fold_left (fun n (c, w) -> if same c s then n + w else n) 0 (Hashtbl.find sites s) >= 2
+      && (List.exists (fun (c, _) -> same c s) (Hashtbl.find sites s)
+         || (Hashtbl.mem looped s && ops s >= 2 * lookup_cost f))
     in
     let memos = List.filter chosen p.Program.funcs in
     let remembered = Hashtbl.create 8 in

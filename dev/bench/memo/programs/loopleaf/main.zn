@@ -1,6 +1,5 @@
-/// Two calls with the same arguments, a local changed between them.
-package stepped;
-
+/// A HEAVY CALL IN A LOOP: no recursion, but the loop asks for the same few dozen arguments over and over, and each call mixes two hundred times.
+package loopleaf;
 
 alias Int = @primitives$I64
 alias Float = @primitives$F64
@@ -36,34 +35,23 @@ Unit say(text String) {
 
 Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)))
 
-type P = struct {
-	x Int;
-}
+Int mix(k Int) => rem(@operators$add(@operators$multiply(k, Int(6364136223846793005)), Int(1442695040888963407)), Int(1000000007))
 
-P(x Int) => init{ x; }
-
-/// Moves the point one step on.
-Unit bump(this P) mut {
-	this.x = @operators$add(this.x, Int(1));
-	return Unit();
-}
-
-/// Two calls that read the same local, which a call between them changes
-/// through its address: they differ, so the function calls back twice.
-Int stepped(n Int, p P) {
-	@controlflow$branch(@operators$lessThan(n, Int(1)), {
-		return p.x;
+Int heavy(k Int) {
+	x Int = k;
+	@controlflow$repeat(Int(200), {
+		x = mix(x);
 	});
-	m Int = @operators$add(n, @operators$negate(Int(1)));
-	q P = P(rem(p.x, Int(5)));
-	a Int = stepped(m, q);
-	q!bump();
-	b Int = stepped(m, q);
-	return rem(@operators$add(a, b), Int(1000003));
+	return x;
 }
 
 Unit main() {
-	n Int = size(Int(12));
-	say(String(stepped(n, P(Int(1)))));
+	reps Int = size(Int(100));
+	total Int(0);
+	r Int(1);
+	r!to(reps) {
+		total = @operators$add(total, heavy(rem(r, Int(64))));
+	}
+	say(String(total));
 	return Unit();
 }

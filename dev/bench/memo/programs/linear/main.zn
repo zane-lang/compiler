@@ -1,6 +1,5 @@
-/// A call in a verb written out where it is called, made again after it.
-package inlined;
-
+/// A LINEAR RECURSION CALLED AGAIN: each call recurses once, and the loop asks for the same few hundred depths over and over.
+package linear;
 
 alias Int = @primitives$I64
 alias Float = @primitives$F64
@@ -36,20 +35,22 @@ Unit say(text String) {
 
 Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)))
 
-/// A call inside a verb written out where it is called, then the same
-/// call again: the first always runs before the second, so they count once.
-Int inlined(n Int, k Int) {
+Int mix(k Int) => rem(@operators$add(@operators$multiply(k, Int(6364136223846793005)), Int(1442695040888963407)), Int(1000000007))
+
+Int chain(n Int) {
 	@controlflow$branch(@operators$lessThan(n, Int(1)), {
-		return k;
+		return Int(0);
 	});
-	m Int = @operators$add(n, @operators$negate(Int(1)));
-	a Int = rem(inlined(m, k), Int(1000003));
-	b Int = inlined(m, k);
-	return rem(@operators$add(a, b), Int(1000003));
+	return @operators$add(mix(n), chain(@operators$add(n, @operators$negate(Int(1)))));
 }
 
 Unit main() {
-	n Int = size(Int(12));
-	say(String(inlined(n, Int(1))));
+	reps Int = size(Int(100));
+	total Int(0);
+	r Int(1);
+	r!to(reps) {
+		total = @operators$add(total, chain(rem(r, Int(500))));
+	}
+	say(String(total));
 	return Unit();
 }
