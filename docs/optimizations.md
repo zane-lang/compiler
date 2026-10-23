@@ -442,8 +442,10 @@ A parameter passed by address is `readonly`, `noalias`, aligned and
 private copy. An `sret` result is `noalias`. Call sites carry the same
 attributes. A parameter that is the address of a slot that outlives the call, a
 `mut` subject, an owned value passed by address or an `&T`, is `nonnull`,
-aligned and `dereferenceable` for the whole slot, so a loop reads a list in
-it once rather than after every index check.
+aligned and `dereferenceable` for the whole slot when the slot holds a
+declared type, a list or a text, so a loop reads a list in it once rather
+than after every index check. A runtime value such as `Console` has no
+layout lowering knows, and gets none of these.
 
 ### List headers and scalars in separate alias classes
 
