@@ -428,18 +428,24 @@ to link.
 ### What LLVM is told about parameters
 
 - **Builds:** every build
-- **Where:** `lib/codegen/emit.ml`
+- **Where:** `lib/codegen/emit.ml`, and `lib/cgt/program.ml` for which
+  parameters are whole slots
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "What LLVM is
   told" (under "How a value crosses a call")
-- **Effect:** not measured
+- **Effect:** marking `&T` parameters took the perf program `borrows` from
+  70.9M to 59.5M estimated cycles optimized (−16%), and from 72.6M to
+  64.1M tiered (−12%); its plain build and every other perf program are
+  unchanged
 
 A parameter passed by address is `readonly`, `noalias`, aligned and
 `dereferenceable` for its size, so LLVM may treat the value behind it as a
 private copy. An `sret` result is `noalias`. Call sites carry the same
-attributes. A parameter that is the address of the caller's own slot, a
-`mut` subject or an owned value passed by address, is `nonnull`, aligned
-and `dereferenceable` for the whole slot, so a loop reads a list in it
-once rather than after every index check.
+attributes. A parameter that is the address of a slot that outlives the call, a
+`mut` subject, an owned value passed by address or an `&T`, is `nonnull`,
+aligned and `dereferenceable` for the whole slot when the slot holds a
+declared type, a list or a text, so a loop reads a list in it once rather
+than after every index check. A runtime value such as `Console` has no
+layout lowering knows, and gets none of these.
 
 ### List headers and scalars in separate alias classes
 

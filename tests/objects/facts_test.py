@@ -117,6 +117,14 @@ class FactsTests(unittest.TestCase):
         self.assertRegex(ir, r'@"bounce\$step\([^"]*\)"\(ptr nonnull align 8 dereferenceable\(48\) %0')
         self.assertRegex(ir, r'call void @llvm\.assume\(i1 true\) \[ "dereferenceable"\(ptr %[^,]+, i64 [0-9]+\), "align"')
 
+    def test_references_may_be_read_ahead(self):
+        # An `&T` parameter names a settled owner, which stays where it is
+        # for as long as the reference lives (memory.md §4.2), so the whole
+        # of its slot, two list handles, is there for the call.
+        ir = run(ZANEC, "--ll", *packages("borrowed"))
+        self.assertRegex(
+            ir, r'(?m)^define [^@\n]*@"borrowed\$total\(&borrowed\$Field, [^"]*\)"\(ptr nonnull align 8 dereferenceable\(48\) %0')
+
     def test_long_loops_lose_their_index_checks(self):
         # An optimized build emits a loop over elements twice, weighted to
         # go round 1,000 and 4 times (Emit.versioned), and IRCE splits the

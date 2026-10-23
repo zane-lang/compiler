@@ -40,6 +40,12 @@ let func st (v : verb) : Func.t =
           (id, Nodes.Ty.Ptr)
         end
         else begin
+          (* An `&T` parameter is a settled owner's address (memory.md
+             §4.1). That owner never moves and outlives the reference
+             (§4.2), so its whole slot is there for the call too. *)
+          (match p.T.Local.ty with
+          | Tty.Reference r when laid_out r -> places := (id, ty st p.T.Local.span r) :: !places
+          | _ -> ());
           Hashtbl.replace env p.T.Local.id (slot st p.T.Local.ty id);
           (id, ty st p.T.Local.span p.T.Local.ty)
         end)

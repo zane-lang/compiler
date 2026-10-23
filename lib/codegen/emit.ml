@@ -260,7 +260,7 @@ let declare_abi env f a =
     (abi_attrs env a)
 
 (* What a function's [places] (Func) tell LLVM: each is the address of a
-   whole slot of the caller's, so it is `nonnull`, aligned and
+   whole slot that outlives the call, so it is `nonnull`, aligned and
    dereferenceable for the slot's size. That lets the optimizer read
    through it ahead of a branch, as it hoists a list's length and storage
    out of a loop that checks its indices. Nothing more is promised: the

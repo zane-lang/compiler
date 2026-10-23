@@ -401,9 +401,10 @@ end
 (* [values] is each local that holds a value type. No reference names one
    (memory.md §2.4), so its slot is reached only through the addresses the
    function itself takes of it. [places] is each [Ptr] parameter that is the
-   address of a slot of the caller's, a `mut` subject or an owned value
-   passed by address, with the type that slot holds: the slot outlives the
-   call, so the whole of it can be read wherever the function is. *)
+   address of a slot that outlives the call, with the type that slot holds:
+   a `mut` subject or an owned value passed by address, a slot of the
+   caller's, and an `&T`, a settled owner's (memory.md §4.2). The whole slot
+   can be read wherever the function is. *)
 module Func = struct
   type t = {
     symbol : string;
