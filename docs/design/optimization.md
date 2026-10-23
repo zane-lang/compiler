@@ -97,7 +97,7 @@ work stands:
 | Copies, scopes and results in the caller's region (`lib/cgt/regions.ml`) | Lowering: each rests on ownership and regions, which LLVM does not see |
 | Each type's walks, frames and allocation fast paths | Codegen, which emits them as plain IR for LLVM to simplify further |
 | Bounds checks, a list's count and block, a push | Codegen emits them as plain arithmetic and branches, tagged so LLVM can keep the header across element writes, and says which places and frames may be read ahead; LLVM drops the checks it proves redundant ([`lowering.md`](lowering.md) §9, "What LLVM is told"), and its IRCE takes them out of the main part of a long loop, which codegen emits twice and weights ([`lowering.md`](lowering.md) §9, "The passes") |
-| An `elif` after its `if` | LLVM's jump threading, run before its other passes, which makes the two one chain ([`lowering.md`](lowering.md) §9, "The passes") |
+| An `elif` after its `if` | LLVM's jump threading, run before the passes that make a branch a select, which makes the two one chain ([`lowering.md`](lowering.md) §9, "The passes") |
 | A truncation, exact math | LLVM intrinsics (`llvm.fptosi.sat`, `llvm.sqrt`, …), which mean exactly what the spec says |
 | Division | Codegen's guards around `sdiv`, which by itself does not give `operators.md` §2.6's results |
 | Large aggregates (`lib/codegen/big_moves.ml`) | Codegen, since LLVM's code generator cannot move one at all, at either optimization level |

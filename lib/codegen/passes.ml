@@ -23,18 +23,16 @@
 let unoptimized =
   "always-inline,function(mem2reg,instsimplify,simplifycfg<no-speculate-blocks>,jump-threading,simplifycfg)"
 
-(* What runs on each function as it was emitted, before `-O2`: register
-   promotion, which jump threading needs to see the conditions, and jump
-   threading. *)
-let threading = "function(mem2reg,jump-threading)"
-
-(* An optimized build's passes: [threading], then LLVM's `-O2` with
-   inductive range check elimination (IRCE) where `-O2` has just rotated
-   each loop and hoisted what it reads (gen/o2_pipeline.sh). IRCE splits a
-   loop that checks a list index into a main loop whose checks it has
-   proved pass and the checked iterations around it; the passes after it
-   would turn the checks into exit tests it no longer recognizes. *)
-let optimized = String.concat "," [ threading; O2_pipeline.with_irce ]
+(* An optimized build's passes: LLVM's `-O2` with two added
+   (gen/o2_pipeline.sh). Jump threading runs at the end of the first
+   function simplification, once each function's locals are in registers
+   and before the inliner's passes make a branch a select. Inductive range
+   check elimination (IRCE) runs where `-O2` has just rotated each loop and
+   hoisted what it reads: it splits a loop that checks a list index into a
+   main loop whose checks it has proved pass and the checked iterations
+   around it, and the passes after it would turn the checks into exit tests
+   it no longer recognizes. *)
+let optimized = O2_pipeline.optimized
 
 (* The options LLVM is started with for [optimized]. IRCE splits a loop
    only when its header runs at least this many times for each entry to it,

@@ -299,8 +299,8 @@ check stay, but only store the folded value.
 
 The module goes through LLVM's `default<O2>` pipeline: inlining, constant
 folding, dead-code removal, common subexpressions, loop hoisting,
-unrolling and vectorization. The passes the next entries name run on each
-function first. The runtime is compiled with `-O2` too. The
+unrolling and vectorization, with the passes the next entries name added
+to it. The runtime is compiled with `-O2` too. The
 compiler implements a transformation itself only where it rests on
 something about Zane that LLVM does not know.
 
@@ -335,14 +335,15 @@ which do not on a large value array, are left out.
 ### An `elif` joined to the `if` before it
 
 - **Builds:** every build
-- **Where:** `lib/codegen/passes.ml` (`threading`, `unoptimized`)
+- **Where:** `lib/codegen/passes.ml` (`optimized`, `unoptimized`),
+  `lib/codegen/gen/o2_pipeline.sh`
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
 - **Effect:** the particle simulation of
   [zane-lang/compiler#292](https://github.com/zane-lang/compiler/issues/292)
   (100,000 particles bounced off four walls for 4,000 frames): optimized,
   18.1G → 12.1G instructions under Valgrind and run 1.74 s → 1.2 s;
   unoptimized, run 11.7 s → 11.1 s. `tests/perf` `removal`, 5-8% fewer
-  estimated cycles in every build; tier 1 of `floats`, 2.7% more
+  estimated cycles in every build
 
 `core`'s `elif` is a function that branches on `~this and condition`, so
 both of its halves reach LLVM as code. Jump threading, run while each
@@ -361,9 +362,9 @@ a loop.
 - **Effect:** the particle simulation of
   [zane-lang/compiler#292](https://github.com/zane-lang/compiler/issues/292):
   12.1G → 8.89G instructions under Valgrind, against 8.88G for the same
-  program in C at `-O2`. Langbench: `fannkuch` 2.0% more instructions,
-  `nbody` 0.3% fewer, the rest within 0.3%; `tests/perf` `flips`, tier 1
-  5% fewer estimated cycles
+  program in C at `-O2`. Langbench: `fannkuch` 1.6% more instructions,
+  `nbody` 0.3% and `trialdiv` 0.2% fewer, the rest within 0.1%;
+  `tests/perf` `flips`, tier 1 5% fewer estimated cycles
 
 LLVM's inductive range check elimination splits a loop that checks its
 element indices into a main loop it has proved needs no check and the few

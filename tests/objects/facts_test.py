@@ -104,7 +104,7 @@ class FactsTests(unittest.TestCase):
         # Each way into an `elif` already decides its `~this` half, so the
         # pair is one chain, as C's `else if` is, and neither body's work is
         # made a select that every pass round the loop pays for
-        # (Passes.threading).
+        # (Passes.optimized).
         for optimize in [[], ["--optimize"]]:
             ir = run(ZANEC, "--ll", *optimize, *packages("bounce"))
             self.assertNotRegex(ir, r"select i1 [^,]*, double", optimize)

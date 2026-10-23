@@ -383,7 +383,7 @@ let handle_field env instr =
 (* A list's count or room read from its header, which is never negative. *)
 let count_field env instr =
   let range =
-    Llvm.mdnode env.ctx [| Llvm.const_int env.i64 0; Llvm.const_of_int64 env.i64 Int64.max_int false |]
+    Llvm.mdnode env.ctx [| Llvm.const_int env.i64 0; Llvm.const_of_int64 env.i64 Int64.min_int false |]
   in
   Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "range") range;
   handle_field env instr
@@ -1412,6 +1412,10 @@ and stat env fr b (s : Stat.t) =
            goes round (docs/design/lowering.md, "The passes"). *)
         let long = block env fr and short = block env fr and joined = block env fr in
         let at_least = Llvm.build_icmp Llvm.Icmp.Sge n (Llvm.const_int env.i64 long_loop) "" b in
+        (* Taking the long copy is weighted as rare, so the short copy is
+           what falls through from the test; the long copy's own weights
+           still make its body hot. Weighting it common, or not at all,
+           costs langbench's `fannkuch` 1.5% more instructions. *)
         unlikely env (Llvm.build_cond_br at_least long short b);
         List.iter
           (fun (start, trips) ->

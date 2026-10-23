@@ -1218,8 +1218,8 @@ test passing.
 - **The passes.** `lib/codegen/passes.ml` names what LLVM runs over the
   module. An unoptimized build and tier 0 run `Passes.unoptimized`
   ([`optimization.md`](optimization.md) O12). An optimized build and tier 1
-  run `Passes.threading` on each function as it was emitted, then LLVM's
-  `default<O2>`. Each runs jump threading where it still sees each `elif`
+  run `Passes.optimized`, LLVM's `default<O2>` with two passes added. Each
+  runs jump threading where it still sees each `elif`
   as written: `core`'s `elif` branches on `~this and condition`, where
   `this` is what the `if` before it branched on, so each way into the
   `elif` already decides that half. Jump threading sends the `if`'s body
@@ -1227,14 +1227,18 @@ test passing.
   is one chain, as C's `else if` is. Once the CFG simplifier has made a
   cheap `if` body a `select`, both bodies' work runs on every pass round a
   loop instead. The unoptimized passes therefore merge blocks without
-  making selects before they thread, and the optimized ones thread before
-  `-O2`.
+  making selects before they thread, and the optimized ones thread at the
+  end of `-O2`'s first function simplification, once each function's
+  locals are in registers and before the inliner's passes run. Promoting
+  the locals in a pass of their own ahead of `-O2` would also do, but
+  leaves `-O2` a different order of values to allocate registers for,
+  which cost tier 1 of `tests/perf` `floats` 2.7%.
 
-  The optimized pipeline is LLVM's own `default<O2>` with inductive range
-  check elimination (IRCE) added where `-O2` has just rotated each loop and
+  The other added pass is inductive range check elimination (IRCE), run
+  where `-O2` has just rotated each loop and
   hoisted what it reads, ahead of the passes that would turn an index check
   into an exit test IRCE no longer recognizes.
-  `lib/codegen/gen/o2_pipeline.sh` writes that pipeline out at build time
+  `lib/codegen/gen/o2_pipeline.sh` writes the pipeline out at build time
   from the `opt` beside the LLVM the compiler is built against, so it
   tracks that LLVM's `-O2`. IRCE splits a loop whose element reads and
   writes are checked into the iterations its checks may fail on and a main
