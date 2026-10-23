@@ -2,10 +2,19 @@
 
 > **Status: designed, not built.** This page says how the compiler implements
 > the spec's C interface
-> ([`ffi.md`](https://github.com/zane-lang/spec/blob/6fed671/spec/ffi.md)):
+> ([`ffi.md`](https://github.com/zane-lang/spec/blob/9154871/spec/ffi.md)):
 > compiling a package's C code, checking foreign verbs against it, calling
 > it, and evaluating it at compile time. Each decision is numbered
 > (**F1**…), and §7 lists the order they are built in.
+
+The two documents divide the C interface between them. The spec states
+everything a Zane program or a package's C code can rely on: what is
+accepted, what a call does, which errors a build reports, and when a call is
+evaluated at compile time. This page holds only how the compiler meets
+that: mechanisms a user cannot observe, such as the clang it links, the
+glue it generates, how it renames symbols and caches modules, and how it
+evaluates C. A rule a user can observe belongs in the spec and is cited
+here, never restated; a mechanism belongs here and nowhere in the spec.
 
 Each mechanism below cites the spec section whose rule it implements, and
 the rule itself is read there. Three of those sections shape the whole
