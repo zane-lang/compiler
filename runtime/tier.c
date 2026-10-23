@@ -104,8 +104,11 @@ static int zane_tier_exists(const char *path) {
 
 static void zane_tier_pause(int ms) { Sleep((DWORD)ms); }
 
+/* `LoadLibraryW` takes a path's separators as backslashes only. */
 static const struct zane_tier1 *zane_tier_open(const char *path) {
 	wchar_t *wide = zane_tier_wide(path);
+	for (wchar_t *c = wide; c && *c; c++)
+		if (*c == L'/') *c = L'\\';
 	HMODULE library = wide ? LoadLibraryW(wide) : NULL;
 	free(wide);
 	return library ? (const struct zane_tier1 *)(void *)GetProcAddress(library, "__zane_tier1") : NULL;

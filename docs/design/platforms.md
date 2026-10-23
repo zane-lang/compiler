@@ -139,3 +139,20 @@ locale intact.
 A target is spelled as `zig cc` reads it, such as `x86_64-windows-gnu`. The
 compiler hands LLVM that triple's normal form, `x86_64-unknown-windows-gnu`,
 and the C compiler the triple as written.
+
+## Tiered builds
+
+A tiered build ([`tiers.md`](tiers.md)) loads tier 1 into the running
+program as a shared library, through each platform's own loader:
+
+| Platform | Tier 1 | Loaded with | Notes |
+|---|---|---|---|
+| Linux | `.so` | `dlopen` | tier 0 links `-ldl`, which glibc before 2.34 needs |
+| macOS | `.dylib` | `dlopen` | libSystem holds the loader; LLD signs arm64 code ad hoc, as macOS requires |
+| Windows | `.dll` | `LoadLibraryW` | the path is converted from UTF-8 to UTF-16, as the arguments are; `zig cc` names no entry for a MinGW DLL, so the link names MinGW's, `DllMainCRTStartup` |
+
+Tier 1 links against the C library alone and takes everything else from tier
+0 through its import table (T5), so no platform needs the program to export
+a symbol, nor an import library on Windows. Every codegen fixture runs tiered
+on Linux and, as Windows programs do, on Windows; a tiered `hello`, linked by
+the released toolchain, runs on macOS on both architectures.

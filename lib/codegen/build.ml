@@ -392,9 +392,19 @@ let linker_line ~triple ~system line =
     | [] -> []
   in
   let named program = Filename.remove_extension (Filename.basename program) in
+  (* `zig cc` names no entry for a MinGW DLL, which `lld-link` then takes
+     to be MSVC's; MinGW's is `DllMainCRTStartup`, as its own `ld` driver
+     names it. *)
+  let mingw_entry args =
+    if
+      List.mem "-lldmingw" args && List.mem "-DLL" args
+      && not (List.exists (fun a -> String.starts_with ~prefix:"-ENTRY:" (String.uppercase_ascii a)) args)
+    then args @ [ "-ENTRY:DllMainCRTStartup" ]
+    else args
+  in
   match words line with
   | program :: rest when Option.is_some (lld_named program) ->
-      Option.map (fun name -> name :: without_mllvm rest) (lld_named program)
+      Option.map (fun name -> name :: mingw_entry (without_mllvm rest)) (lld_named program)
   | program :: rest when named program = "collect2" -> Some ("ld.lld" :: without_plugin rest)
   | program :: "ld" :: rest when named program = "zig" ->
       Option.map
@@ -972,6 +982,11 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = cache_dir ()) m
       let cc = cc () in
       let fingerprint = Tiers.fingerprint m in
       let triple = Llvm.target_triple m in
+      (* A released toolchain's bundle is used only with the C compiler that
+         made it, so it names that compiler without asking it. *)
+      let cc_identity cache =
+        match bundled with Some dir -> Some ("bundled " ^ dir) | None -> identity ~cache cc work
+      in
       let kept =
         Option.bind cache (fun cache ->
             Option.map
@@ -983,7 +998,7 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = cache_dir ()) m
                 in
                 Filename.concat (Filename.concat cache "tier")
                   (Digest.to_hex (Digest.string key) ^ shared_extension triple))
-              (identity ~cache cc work))
+              (cc_identity cache))
       in
       match kept with
       | Some kept when Sys.file_exists kept ->

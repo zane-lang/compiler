@@ -38,15 +38,19 @@ constants' makers and lifted lambdas.
 
 **O2. Only an optimized build runs it.** The driver runs stage 5 between
 lowering and codegen when `--optimize` is given, before LLVM's own `-O2`
-pipeline, and an unoptimized build skips it. `zane run` builds unoptimized, so
-it never waits on the evaluator. `zanec --cgt --optimize` prints the tree
+pipeline, and an unoptimized build skips it. `zane run` starts the program
+as an unoptimized build and moves it to a lighter optimized one that skips
+stage 5 too ([`tiers.md`](tiers.md) T2), so it never waits on the evaluator. `zanec --cgt --optimize` prints the tree
 stage 5 made, which is how the tests see what folded (§5).
 
 **O12. Each kind of build puts one speed first.** An optimized build makes
 the fastest program it can in a reasonable compile time, and is then made to
 build as fast as it can without the program running any slower: a change that
 shortens it at the cost of the program's speed, such as a lighter LLVM
-pipeline, is not made. An unoptimized build is what `zane run` makes, so it
+pipeline, is not made. Tier 1 of a tiered build ([`tiers.md`](tiers.md)
+T2) is the third kind: an optimized build that puts its own arrival first,
+since tier 1 gains a program nothing once the program has ended. An
+unoptimized build is what `zane run` starts the program as, tier 0, so it
 answers to the time from the command to the program's result: its build stays
 close to the fastest it can be, and it does whatever work pays that time back
 at once. A pass belongs in it when it costs a build tens of milliseconds at

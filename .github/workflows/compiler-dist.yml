@@ -92,18 +92,19 @@ jobs:
             ubuntu:22.04 bash /source/dev/release/smoke-linux \
             "/source/dist/zane-compiler-$VERSION-linux-x86_64.tar.gz" /output
           mkdir -p windows-smoke
-          cp "$RUNNER_TEMP/release-smoke"/*.exe windows-smoke/
-          for name in plain optimized; do
+          cp "$RUNNER_TEMP/release-smoke"/*.exe "$RUNNER_TEMP/release-smoke"/*.dll windows-smoke/
+          for name in plain optimized tiered; do
             cp tests/codegen/golden/hello.out "windows-smoke/hello-$name.out"
             echo 0 > "windows-smoke/hello-$name.status"
           done
           for arch in x86_64 aarch64; do
             mkdir -p "macos-smoke/$arch"
-            for name in plain optimized; do
+            for name in plain optimized tiered; do
               cp "$RUNNER_TEMP/release-smoke/macos/hello-$arch-$name" "macos-smoke/$arch/hello-$name"
               cp tests/codegen/golden/hello.out "macos-smoke/$arch/hello-$name.out"
               echo 0 > "macos-smoke/$arch/hello-$name.status"
             done
+            cp "$RUNNER_TEMP/release-smoke/macos/hello-$arch-tiered.tier1.dylib" "macos-smoke/$arch/hello-tiered.tier1.dylib"
           done
       - name: Keep distribution
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -162,5 +163,5 @@ jobs:
           path: macos-smoke
       - name: Run cross-compiled programs on macOS
         run: |
-          chmod +x macos-smoke/${{ matrix.arch }}/hello-plain macos-smoke/${{ matrix.arch }}/hello-optimized
+          chmod +x macos-smoke/${{ matrix.arch }}/hello-plain macos-smoke/${{ matrix.arch }}/hello-optimized macos-smoke/${{ matrix.arch }}/hello-tiered
           dev/bin/check-programs macos-smoke/${{ matrix.arch }}
