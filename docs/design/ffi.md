@@ -273,6 +273,19 @@ archive's definitions carry the same new name, and neither can bind to a
 symbol of that C name elsewhere. Undefined references, to the C library or
 a `system` library, keep their names.
 
+A C source whose module holds assembly takes the archive's route. Clang
+keeps file-scope `__asm__` as the module's `module asm` text and a
+function's `__asm__` statement as an inline-assembly string, and either
+can define or name a symbol (`.globl foo`, `jmp foo`) that no global
+value in the module stands for, so renaming the module's globals would
+leave the assembly on the old name. Such a module is never linked into
+the package's module. It is optimized and emitted as an object of its own,
+as F14 emits C, and once assembled, its definitions and references are
+symbols like any object's: the symbols it defines join the map with the
+archives' before the package's module is renamed, and the object is
+rewritten with the map. Its functions are then called and never inlined
+or folded, since no module that F13 or F16 reads holds their bodies.
+
 **F10. A foreign call is one CGT node, with its arguments laid out for C.**
 Lowering makes a call to a foreign verb a `Foreign_call { thunk; args; result;
 kind }`. Each argument is lowered to a slot holding its C layout, and the
@@ -577,7 +590,9 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   opened, written and closed through a capability, a string returned from C, a list and
   an array lent to C, a C sort calling a Zane comparison, and a C library
   vendored by two versions of one package in one program, which defines
-  a function, an alias of it and, on ELF targets, an indirect function.
+  a function, an alias of it and, on ELF targets, an indirect function,
+  and a function in file-scope assembly that C calls and that jumps to a
+  C function of another of its sources.
 - `golden/NAME.optimized.cgt` shows what folded: the literal checksum as a
   constant, the handle's whole life gone, the capability calls in place, the
   call reaching `sin` left as a call.
