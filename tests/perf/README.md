@@ -4,8 +4,8 @@ How fast each program runs, as estimated cycles from Valgrind's simulators
 rather than as a timing, so the number is the same on every run of one
 build. Each program is measured in three builds: `optimized`, built with
 `--optimize`; `tiered`, as `zane run` builds it ([`tiers.md`](../../docs/design/tiers.md)),
-run with tier 1 in place before `main` runs; and `plain`, its tier 0 alone,
-as a program that ends before tier 1 arrives runs. CI keeps every build's
+run with tier 1 in place before `main` runs; and `plain`, the program
+unoptimized, as `zane run` built it before tiers. CI keeps every build's
 numbers of every program for the last commit on `main`, and the history of
 one of them, `stress`, for every commit, and fails a pull request that
 makes any build of a program slower.

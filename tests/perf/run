@@ -70,8 +70,8 @@ COLUMNS = ["program", "commit", "date", *COUNTS]
 LATEST = [*COLUMNS, "key", "build"]
 # Each build's flags. The tiered one is what `zane run` builds
 # (docs/design/tiers.md), measured with tier 1 in place before `main` runs,
-# so the same build counts the same; the plain one is its tier 0 alone, as
-# a program that ends before tier 1 arrives runs.
+# so the same build counts the same; the plain one is the program
+# unoptimized, as `zane run` built it before tiers.
 BUILDS = {"optimized": ["--optimize"], "plain": [], "tiered": ["--tiered"]}
 
 

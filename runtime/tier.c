@@ -226,6 +226,15 @@ static char *zane_tier_take(const char *name) {
 	return copy;
 }
 
+/* The program is ending, by returning from `main` or by any `exit`: the
+   thread stops waiting, and a load under way finishes first. */
+static void zane_tier_end(void) {
+	pthread_mutex_lock(&zane_tier_lock);
+	zane_tier_ending = 1;
+	while (zane_tier_loading) pthread_cond_wait(&zane_tier_done, &zane_tier_lock);
+	pthread_mutex_unlock(&zane_tier_lock);
+}
+
 void zane_tier_up(const struct zane_tier0 *tier) {
 	char *log = zane_tier_take("ZANE_TIER_LOG"), *wait = zane_tier_take("ZANE_TIER_WAIT");
 	zane_tier_log = log && strcmp(log, "0") != 0;
@@ -235,16 +244,18 @@ void zane_tier_up(const struct zane_tier0 *tier) {
 	free(log);
 	free(wait);
 	if (!zane_tier_path) return;
-	/* A test waits for tier 1 to know the program runs it, so one that does
-	   not load, or leaves a function in tier 0, stops the program. */
+	/* A test waits for tier 1 to know the program runs it, so one that is
+	   not there, does not load, or leaves a function in tier 0 stops the
+	   program. */
 	if (now) {
-		if (!zane_tier_load()) {
+		if (!zane_tier_exists(zane_tier_path) || !zane_tier_load()) {
 			zane_flush_output();
 			fprintf(stderr, "zane: tier 1 did not take every function\n");
 			exit(1);
 		}
 		return;
 	}
+	atexit(zane_tier_end);
 	pthread_t thread;
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
@@ -253,11 +264,3 @@ void zane_tier_up(const struct zane_tier0 *tier) {
 	pthread_attr_destroy(&attr);
 }
 
-/* The program is ending: the thread stops waiting, and a load under way
-   finishes first. */
-void zane_tier_end(void) {
-	pthread_mutex_lock(&zane_tier_lock);
-	zane_tier_ending = 1;
-	while (zane_tier_loading) pthread_cond_wait(&zane_tier_done, &zane_tier_lock);
-	pthread_mutex_unlock(&zane_tier_lock);
-}

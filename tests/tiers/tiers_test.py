@@ -125,6 +125,23 @@ class Tiers(unittest.TestCase):
         self.assertEqual(p.stdout, "")
         self.assertIn("zane: tier 1 did not take every function", p.stderr)
 
+    def test_waiting_for_a_library_that_is_not_there_stops_the_program(self):
+        env = dict(self.env, ZANE_TIER_UP=str(self.dir / "never.tier1"), ZANE_TIER_WAIT="1")
+        p = subprocess.run([str(self.tier0()), ROUNDS], capture_output=True, text=True, env=env, timeout=60)
+        self.assertEqual(p.returncode, 1)
+        self.assertEqual(p.stdout, "")
+        self.assertIn("zane: tier 1 did not take every function", p.stderr)
+
+    def test_a_stale_work_directory_that_links_elsewhere_removes_only_the_link(self):
+        elsewhere = self.dir / "elsewhere"
+        elsewhere.mkdir()
+        (elsewhere / "kept").write_text("kept")
+        library = self.dir / "linked.tier1"
+        Path(f"{library}.work").symlink_to(elsewhere, target_is_directory=True)
+        self.tier1("linked.tier1")
+        self.assertEqual((elsewhere / "kept").read_text(), "kept")
+        self.assertFalse(Path(f"{library}.work").exists())
+
     def test_takes_a_library_named_without_a_directory_from_the_current_one(self):
         self.tier1("bare.tier1")
         env = dict(self.env, ZANE_TIER_UP="bare.tier1", ZANE_TIER_WAIT="1")

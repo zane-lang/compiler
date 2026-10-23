@@ -956,17 +956,17 @@ let install ~file ~output =
       (try Sys.remove temporary with Sys_error _ -> ());
       Error (Printf.sprintf "cannot write %s: %s" output message)
 
-(* [dir] and everything in it removed, as far as it can be. *)
-let rec remove_tree dir =
-  (match Sys.readdir dir with
-  | names ->
-      Array.iter
-        (fun n ->
-          let path = Filename.concat dir n in
-          if Sys.is_directory path then remove_tree path else try Sys.remove path with Sys_error _ -> ())
-        names
-  | exception Sys_error _ -> ());
-  try Sys.rmdir dir with Sys_error _ -> ()
+(* [path] and everything in it removed, as far as it can be. A link is
+   removed itself, never what it points to. *)
+let rec remove_tree path =
+  match Unix.lstat path with
+  | { Unix.st_kind = Unix.S_DIR; _ } -> (
+      (match Sys.readdir path with
+      | names -> Array.iter (fun n -> remove_tree (Filename.concat path n)) names
+      | exception Sys_error _ -> ());
+      try Sys.rmdir path with Sys_error _ -> ())
+  | _ -> ( try Sys.remove path with Sys_error _ -> ())
+  | exception Unix.Unix_error _ -> ()
 
 (* Tier 1 of a tiered build (docs/design/tiers.md): the module made tier 1
    and linked into the shared library [output], against the C library only.
