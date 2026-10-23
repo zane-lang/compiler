@@ -124,6 +124,13 @@ class MemoTests(unittest.TestCase):
             with self.subTest(build=build):
                 self.assertEqual(self.tables("merged", build), [])
 
+    def test_calls_a_store_separates_are_not_equal(self):
+        # `stepped` calls itself twice with the same arguments, but changes
+        # the local it passes through its address between the two calls.
+        for build in BUILDS:
+            with self.subTest(build=build):
+                self.assertEqual(self.tables("stepped", build), ["stepped$stepped(%primitives$I64, stepped$P)"])
+
 
 if __name__ == "__main__":
     unittest.main()

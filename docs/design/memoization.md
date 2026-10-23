@@ -41,8 +41,9 @@ A function gets a table when:
 - **It calls back into its own cycle of calls at least twice.** A call inside
   a loop counts twice. A call equal to an earlier one, the same function
   with the same arguments, counts for nothing when those arguments read no
-  local the body assigns: the two have the same value, and an optimizer
-  makes them one call. This is where a table can turn work that doubles at
+  local the body assigns or takes the address of, and nothing through an
+  address: the two have the same value, and an optimizer makes them one
+  call. This is where a table can turn work that doubles at
   each level into work linear in the depth. A function that calls itself
   once gets nothing back from a table it fills on the way down.
 

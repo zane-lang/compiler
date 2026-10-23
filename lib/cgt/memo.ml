@@ -90,12 +90,15 @@ let alone (f : Func.t) =
    runs at least as often as two calls side by side. A call equal to an
    earlier one, the same function given the same arguments, counts for
    nothing when those arguments read no local the body assigns: they have
-   the same values, and an optimizer makes the two calls one. *)
+   the same values, and an optimizer makes the two calls one. A local
+   whose address is taken counts as assigned, since a store through the
+   address changes it, and an argument that reads through an address is
+   never taken to be the same twice. *)
 let calls (f : Func.t) =
   let found = ref [] and made = ref [] in
   let assigned = Hashtbl.create 8 in
   Traverse.walk_stats
-    (fun _ -> ())
+    (fun e -> match e.Expr.node with Expr.Address i -> Hashtbl.replace assigned i () | _ -> ())
     (function Stat.Assign { place; _ } -> Hashtbl.replace assigned place.Expr.local () | _ -> ())
     f.Func.body;
   let steady args =
@@ -103,7 +106,11 @@ let calls (f : Func.t) =
       (fun a ->
         not
           (Traverse.exists_in [ Stat.Eval a ]
-             ~expr:(fun e -> match e.Expr.node with Expr.Local i | Expr.Address i -> Hashtbl.mem assigned i | _ -> false)
+             ~expr:(fun e ->
+               match e.Expr.node with
+               | Expr.Local i | Expr.Address i -> Hashtbl.mem assigned i
+               | Expr.Deref _ | Expr.Take _ | Expr.Snapshot _ -> true
+               | _ -> false)
              ~stat:(fun _ -> false)))
       args
   in
@@ -262,7 +269,6 @@ let least funcs remembered =
         (1 +. fall, exit)
   and expr (e : Expr.t) =
     match e.Expr.node with
-    | Expr.Escape { value; _ } -> (inf, 1 +. fst (expr value))
     | Expr.Expand { body; _ } ->
         let fall, exit = stats body in
         (1 +. min fall exit, exit)
