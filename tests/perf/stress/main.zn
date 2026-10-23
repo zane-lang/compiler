@@ -784,6 +784,8 @@ Int fibonacci(n Int, round Int) {
 /// in, which seeds its generator or is added to its checksum, so no two
 /// calls of a section are equal and every round runs the section's work
 /// rather than finding its result in a table (docs/design/memoization.md).
+/// The seeds are fixed, each a constant plus the round, so every run with
+/// the same argument does the same work and prints the same.
 Unit main() {
 	rounds Int = scale();
 	names List<String> = @primitives$List(String);

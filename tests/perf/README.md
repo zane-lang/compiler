@@ -143,4 +143,8 @@ repo's `langbench/` and print what it prints at the same size.
   interpreter matching on variants, calls through function values chosen at
   random, and plain recursion. Its argument is how many times the sections
   run, and each section is given the round it runs in, so a table of its
-  results never finds a round it has seen.
+  results never finds a round it has seen. The round seeds a section's
+  generator, or is added to its checksum: `bodies` starts its generator at
+  7 plus the round, `removal` at 42, `scattered` at 3, `sorting` at 11,
+  `hashing` at 5 and `calls` at 9. Nothing else varies, so every run does
+  the same work and prints `golden/stress.out`.
