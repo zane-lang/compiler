@@ -63,9 +63,9 @@ objects="$(mktemp -d)"
 trap 'rm -rf "$objects"' EXIT
 geometry=tests/objects/fixtures/geometry
 survey=(--package tests/objects/fixtures/survey --package "$geometry")
-"$ZANEC" --kind library --target "$TARGET" --stamp "geometry=$STAMP" \
+"$ZANEC" --no-root --target "$TARGET" --stamp "geometry=$STAMP" \
 	--object "$objects/geometry.stamped.o" --package "$geometry"
-"$ZANEC" --kind library --target "$TARGET" --object "$objects/geometry.o" --package "$geometry"
+"$ZANEC" --no-root --target "$TARGET" --object "$objects/geometry.o" --package "$geometry"
 "$ZANEC" --rewrite "$STAMP" "$objects/geometry.o" "$objects/geometry.rewritten.o"
 for object in stamped rewritten; do
 	"$ZANEC" --target "$TARGET" --stamp "geometry=$STAMP" --link "$objects/geometry.$object.o" \

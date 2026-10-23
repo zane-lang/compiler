@@ -1,1 +1,1 @@
-Error: the application `geometry` declares no `main` to start from
+Error: the root package `idle` declares no `main` to start from

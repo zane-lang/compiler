@@ -59,7 +59,7 @@ class FactsTests(unittest.TestCase):
         for flags in [
             packages("busy", "cells"),
             packages("relay", "cells", "pool", stamped=["pool"]),
-            ["--kind", "library", *packages("cells")],
+            ["--no-root", *packages("cells")],
         ]:
             self.assertRegex(run(ZANEC, "--ll", *flags), SNAPSHOT, flags)
 
@@ -83,7 +83,7 @@ class FactsTests(unittest.TestCase):
 
     def test_discarded_removal_holds_nothing(self):
         # The cell `drop` takes out owns no block, so no scope holds it.
-        cgt = run(ZANEC, "--cgt", "--kind", "library", *packages("cells"))
+        cgt = run(ZANEC, "--cgt", "--no-root", *packages("cells"))
         drop = cgt.split("symbol: !cells$drop(", 1)[1].split("symbol:", 1)[0]
         self.assertIn("zane_list_swap_remove", drop)
         self.assertNotRegex(drop, r"scope|hold")
@@ -103,7 +103,7 @@ class FactsTests(unittest.TestCase):
     def test_programs_run(self):
         with tempfile.TemporaryDirectory() as temp:
             pool = Path(temp) / "pool.o"
-            run(ZANEC, "--kind", "library", "--object", pool, *packages("pool", stamped=["pool"]))
+            run(ZANEC, "--no-root", "--object", pool, *packages("pool", stamped=["pool"]))
             for optimize in [[], ["--optimize"]]:
                 for program, link, expected in [
                     ("quiet", [], "14 1\n"),

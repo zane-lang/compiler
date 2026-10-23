@@ -111,7 +111,7 @@ class MemoTests(unittest.TestCase):
         # A library is built plain or optimized; only a program is tiered.
         for build in ["plain", "optimized"]:
             with self.subTest(build=build):
-                result = subprocess.run([ZANEC, "--kind", "library", "--ll", *BUILDS[build],
+                result = subprocess.run([ZANEC, "--no-root", "--ll", *BUILDS[build],
                                          "--package", LIBRARY], capture_output=True, text=True, timeout=300)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn("memolibrary$fib", result.stdout)

@@ -92,7 +92,7 @@ def build(zanec, flags, out, programs, langbench, core):
         "--package", f"{STAMP}math={core / 'lib/math'}",
         "--import", f"{STAMP}math:core={STAMP}core",
     ]
-    run([zanec, "--kind", "library", *flags, "--object", core_o, *stamped])
+    run([zanec, "--no-root", *flags, "--object", core_o, *stamped])
     built = {}
     for test, source in programs:
         exe = out / f"{test['id']}.exe"

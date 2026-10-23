@@ -15,7 +15,7 @@
  (action
   (with-stdout-to
    geometry.cgt.actual
-   (run %{exe:../../bin/zanec/zanec.exe} --kind library --cgt --package fixtures/geometry))))
+   (run %{exe:../../bin/zanec/zanec.exe} --no-root --cgt --package fixtures/geometry))))
 
 (rule
  (alias runtest)
@@ -26,7 +26,7 @@
  (deps (source_tree fixtures/geometry))
  (targets geometry.o)
  (action
-  (run %{exe:../../bin/zanec/zanec.exe} --kind library --object geometry.o --package fixtures/geometry)))
+  (run %{exe:../../bin/zanec/zanec.exe} --no-root --object geometry.o --package fixtures/geometry)))
 
 (rule
  (deps (source_tree fixtures/atlas) (source_tree fixtures/geometry))
@@ -34,8 +34,7 @@
  (action
   (run
    %{exe:../../bin/zanec/zanec.exe}
-   --kind
-   library
+   --no-root
    --object
    atlas.o
    --package
@@ -76,8 +75,7 @@
  (action
   (run
    %{exe:../../bin/zanec/zanec.exe}
-   --kind
-   library
+   --no-root
    --stamp
    geometry=v1.0.1%3f9a1c02b7e4d6a8%
    --object
@@ -246,8 +244,8 @@
  (targets geometry.macos-x86_64.o geometry.macos-x86_64.stamped.o)
  (action
   (progn
-   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target x86_64-apple-macosx11.0.0 --object geometry.macos-x86_64.o --package fixtures/geometry)
-   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target x86_64-apple-macosx11.0.0 --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.macos-x86_64.stamped.o --package fixtures/geometry))))
+   (run %{exe:../../bin/zanec/zanec.exe} --no-root --target x86_64-apple-macosx11.0.0 --object geometry.macos-x86_64.o --package fixtures/geometry)
+   (run %{exe:../../bin/zanec/zanec.exe} --no-root --target x86_64-apple-macosx11.0.0 --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.macos-x86_64.stamped.o --package fixtures/geometry))))
 
 (rule
  (targets geometry.macos-x86_64.rewritten.o)
@@ -277,8 +275,8 @@
  (targets geometry.macos-arm64.o geometry.macos-arm64.stamped.o)
  (action
   (progn
-   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target arm64-apple-macosx11.0.0 --object geometry.macos-arm64.o --package fixtures/geometry)
-   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target arm64-apple-macosx11.0.0 --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.macos-arm64.stamped.o --package fixtures/geometry))))
+   (run %{exe:../../bin/zanec/zanec.exe} --no-root --target arm64-apple-macosx11.0.0 --object geometry.macos-arm64.o --package fixtures/geometry)
+   (run %{exe:../../bin/zanec/zanec.exe} --no-root --target arm64-apple-macosx11.0.0 --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.macos-arm64.stamped.o --package fixtures/geometry))))
 
 (rule
  (targets geometry.macos-arm64.rewritten.o)
@@ -304,8 +302,8 @@
  (targets geometry.windows-x86_64.o geometry.windows-x86_64.stamped.o)
  (action
   (progn
-   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target x86_64-pc-windows-msvc --object geometry.windows-x86_64.o --package fixtures/geometry)
-   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target x86_64-pc-windows-msvc --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.windows-x86_64.stamped.o --package fixtures/geometry))))
+   (run %{exe:../../bin/zanec/zanec.exe} --no-root --target x86_64-pc-windows-msvc --object geometry.windows-x86_64.o --package fixtures/geometry)
+   (run %{exe:../../bin/zanec/zanec.exe} --no-root --target x86_64-pc-windows-msvc --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.windows-x86_64.stamped.o --package fixtures/geometry))))
 
 (rule
  (targets geometry.windows-x86_64.rewritten.o)
@@ -335,8 +333,8 @@
  (targets geometry.windows-arm64.o geometry.windows-arm64.stamped.o)
  (action
   (progn
-   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target aarch64-pc-windows-msvc --object geometry.windows-arm64.o --package fixtures/geometry)
-   (run %{exe:../../bin/zanec/zanec.exe} --kind library --target aarch64-pc-windows-msvc --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.windows-arm64.stamped.o --package fixtures/geometry))))
+   (run %{exe:../../bin/zanec/zanec.exe} --no-root --target aarch64-pc-windows-msvc --object geometry.windows-arm64.o --package fixtures/geometry)
+   (run %{exe:../../bin/zanec/zanec.exe} --no-root --target aarch64-pc-windows-msvc --stamp geometry=v1.0.1%3f9a1c02b7e4d6a8% --object geometry.windows-arm64.stamped.o --package fixtures/geometry))))
 
 (rule
  (targets geometry.windows-arm64.rewritten.o)
@@ -368,9 +366,9 @@
  (targets versions.geometry1.o versions.geometry2.o versions.atlas.o)
  (action
   (progn
-   (run %{exe:../../bin/zanec/zanec.exe} --kind library --object versions.geometry1.o --package v1.0%0123456789abcdef%geometry=fixtures/versions/geometry1)
-   (run %{exe:../../bin/zanec/zanec.exe} --kind library --object versions.geometry2.o --package v2.0%0123456789abcdef%geometry=fixtures/versions/geometry2)
-   (run %{exe:../../bin/zanec/zanec.exe} --kind library --object versions.atlas.o --package v1.0%fedcba9876543210%atlas=fixtures/versions/atlas --package v1.0%0123456789abcdef%geometry=fixtures/versions/geometry1))))
+   (run %{exe:../../bin/zanec/zanec.exe} --no-root --object versions.geometry1.o --package v1.0%0123456789abcdef%geometry=fixtures/versions/geometry1)
+   (run %{exe:../../bin/zanec/zanec.exe} --no-root --object versions.geometry2.o --package v2.0%0123456789abcdef%geometry=fixtures/versions/geometry2)
+   (run %{exe:../../bin/zanec/zanec.exe} --no-root --object versions.atlas.o --package v1.0%fedcba9876543210%atlas=fixtures/versions/atlas --package v1.0%0123456789abcdef%geometry=fixtures/versions/geometry1))))
 
 (rule
  (deps (source_tree fixtures/versions))
@@ -447,7 +445,7 @@
  (deps (source_tree fixtures/versions))
  (targets versions.geometry11.o)
  (action
-  (run %{exe:../../bin/zanec/zanec.exe} --kind library --object versions.geometry11.o --package v1.1%0123456789abcdef%geometry=fixtures/versions/geometry11)))
+  (run %{exe:../../bin/zanec/zanec.exe} --no-root --object versions.geometry11.o --package v1.1%0123456789abcdef%geometry=fixtures/versions/geometry11)))
 
 (rule
  (targets versions.atlas.remapped.o)
@@ -534,7 +532,7 @@
  (deps (source_tree fixtures/layout))
  (targets layout.o)
  (action
-  (run %{exe:../../bin/zanec/zanec.exe} --kind library --object layout.o --package math=fixtures/layout/lib/math --package _shaders=fixtures/layout/lib/_shaders --package gui=fixtures/layout/lib/gui --package gui.opengl=fixtures/layout/lib/gui/opengl --import gui:opengl=gui.opengl --import gui:math=math --import gui.opengl:math=math --import gui.opengl:_shaders=_shaders)))
+  (run %{exe:../../bin/zanec/zanec.exe} --no-root --object layout.o --package math=fixtures/layout/lib/math --package _shaders=fixtures/layout/lib/_shaders --package gui=fixtures/layout/lib/gui --package gui.opengl=fixtures/layout/lib/gui/opengl --import gui:opengl=gui.opengl --import gui:math=math --import gui.opengl:math=math --import gui.opengl:_shaders=_shaders)))
 
 (rule
  (action
@@ -551,7 +549,7 @@
  (deps (source_tree fixtures/layout))
  (targets layout.stamped.o)
  (action
-  (run %{exe:../../bin/zanec/zanec.exe} --kind library --object layout.stamped.o --package v2.0%0123456789abcdef%math=fixtures/layout/lib/math --package v2.0%0123456789abcdef%_shaders=fixtures/layout/lib/_shaders --package v2.0%0123456789abcdef%gui=fixtures/layout/lib/gui --package v2.0%0123456789abcdef%gui.opengl=fixtures/layout/lib/gui/opengl --import v2.0%0123456789abcdef%gui:opengl=v2.0%0123456789abcdef%gui.opengl --import v2.0%0123456789abcdef%gui:math=v2.0%0123456789abcdef%math --import v2.0%0123456789abcdef%gui.opengl:math=v2.0%0123456789abcdef%math --import v2.0%0123456789abcdef%gui.opengl:_shaders=v2.0%0123456789abcdef%_shaders)))
+  (run %{exe:../../bin/zanec/zanec.exe} --no-root --object layout.stamped.o --package v2.0%0123456789abcdef%math=fixtures/layout/lib/math --package v2.0%0123456789abcdef%_shaders=fixtures/layout/lib/_shaders --package v2.0%0123456789abcdef%gui=fixtures/layout/lib/gui --package v2.0%0123456789abcdef%gui.opengl=fixtures/layout/lib/gui/opengl --import v2.0%0123456789abcdef%gui:opengl=v2.0%0123456789abcdef%gui.opengl --import v2.0%0123456789abcdef%gui:math=v2.0%0123456789abcdef%math --import v2.0%0123456789abcdef%gui.opengl:math=v2.0%0123456789abcdef%math --import v2.0%0123456789abcdef%gui.opengl:_shaders=v2.0%0123456789abcdef%_shaders)))
 
 (rule
  (action
@@ -642,7 +640,7 @@
    layout.noisy.err.actual
    (with-accepted-exit-codes
     1
-    (run %{exe:../../bin/zanec/zanec.exe} --kind library --check --package noisy=fixtures/layout/lib/noisy)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --no-root --check --package noisy=fixtures/layout/lib/noisy)))))
 
 (rule
  (alias runtest)
@@ -660,7 +658,7 @@
    layout.not-given.err.actual
    (with-accepted-exit-codes
     1
-    (run %{exe:../../bin/zanec/zanec.exe} --kind library --check --package math=fixtures/layout/lib/math --package _shaders=fixtures/layout/lib/_shaders --package gui=fixtures/layout/lib/gui --package gui.opengl=fixtures/layout/lib/gui/opengl --import gui:opengl=gui.opengl --import gui:math=math)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --no-root --check --package math=fixtures/layout/lib/math --package _shaders=fixtures/layout/lib/_shaders --package gui=fixtures/layout/lib/gui --package gui.opengl=fixtures/layout/lib/gui/opengl --import gui:opengl=gui.opengl --import gui:math=math)))))
 
 (rule
  (alias runtest)
@@ -675,7 +673,7 @@
  (deps (source_tree fixtures/atlas) (source_tree fixtures/geometry))
  (targets atlas.stamped-root.o)
  (action
-  (run %{exe:../../bin/zanec/zanec.exe} --kind library --stamp atlas=v1.0%fedcba9876543210% --object atlas.stamped-root.o --package fixtures/atlas --package fixtures/geometry)))
+  (run %{exe:../../bin/zanec/zanec.exe} --no-root --stamp atlas=v1.0%fedcba9876543210% --object atlas.stamped-root.o --package fixtures/atlas --package fixtures/geometry)))
 
 (rule
  (action
@@ -731,7 +729,7 @@
  (deps (source_tree fixtures/largeparam))
  (targets largeparam.o)
  (action
-  (run %{exe:../../bin/zanec/zanec.exe} --kind library --object largeparam.o --package fixtures/largeparam)))
+  (run %{exe:../../bin/zanec/zanec.exe} --no-root --object largeparam.o --package fixtures/largeparam)))
 
 (rule
  (action
