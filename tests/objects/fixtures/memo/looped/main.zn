@@ -1,6 +1,6 @@
 /// Calls in a loop that do not recurse: a heavy one gets a table, a light
-/// one does not, and neither does a heavy one called outside any loop and
-/// in a loop that never runs.
+/// one does not, nor one of many cases each light, nor a heavy one called
+/// outside any loop and in a loop that never runs.
 package looped;
 
 
@@ -52,6 +52,29 @@ Int light(k Int) {
 	return @operators$add(mix(k), Int(1));
 }
 
+type Pick = variant {
+	p1 Int;
+	p2 Int;
+	p3 Int;
+	p4 Int;
+	p5 Int;
+	p6 Int;
+	p7 Int;
+	p8 Int;
+}
+
+/// Each case does less than a lookup; only one runs.
+Int spread(p Pick) => match (p) {
+	v p1 => mix(mix(@operators$add(v, Int(1))));
+	v p2 => mix(mix(@operators$add(v, Int(2))));
+	v p3 => mix(mix(@operators$add(v, Int(3))));
+	v p4 => mix(mix(@operators$add(v, Int(4))));
+	v p5 => mix(mix(@operators$add(v, Int(5))));
+	v p6 => mix(mix(@operators$add(v, Int(6))));
+	v p7 => mix(mix(@operators$add(v, Int(7))));
+	v p8 => mix(mix(@operators$add(v, Int(8))));
+}
+
 Int alone(k Int) {
 	x Int = k;
 	@controlflow$repeat(Int(50), {
@@ -67,6 +90,7 @@ Unit main() {
 	i!to(n) {
 		total = @operators$add(total, heavy(rem(i, Int(4))));
 		total = @operators$add(total, light(rem(i, Int(4))));
+		total = @operators$add(total, spread(Pick.p3(rem(i, Int(4)))));
 		@controlflow$repeat(Int(0), {
 			total = @operators$add(total, alone(rem(i, Int(4))));
 		});

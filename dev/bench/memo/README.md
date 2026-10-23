@@ -18,9 +18,9 @@ is picked when:
 
 A call's operations estimate what an optimized build runs: computations,
 memory accesses, branches and calls, a loop's body as often as a constant
-count says or else eight times, and nothing for naming a local, a constant
-or a verb's expansion. Every build picks from the tree alone, so
-a tiered build's two tiers pick the same. `lib/codegen/emit.ml` (`memo`)
+count says or else eight times, a switch's dearest case, and nothing for
+naming a local, a constant or a verb's expansion. Every build picks from the
+tree alone, so a tiered build's two tiers pick the same. `lib/codegen/emit.ml` (`memo`)
 emits a gate, a lookup and two copies of each picked function.
 
 Each function keeps a score. A lookup is charged the lookup's cost
@@ -167,8 +167,9 @@ corefib       optimized         1       8,459,455         973,079   -88.50%  Tru
 corefib       tiered            1       8,632,256       1,160,130   -86.56%  True
 ```
 
-Every row with no repeats is within +0.32%, but `shallow` optimized. That
-is the cost of the lookups made before the function gives up, plus code
+Every row with no repeats is within +0.32%, but `shallow` optimized and
+`euclid` plain, which costs 148,000 cycles more on a run of 12 million,
++1.21%. That is the cost of the lookups made before the function gives up, plus code
 placement, which Callgrind's simple branch predictor is sensitive to.
 `shallow` optimized costs 25,000 cycles more, whatever its input: without a
 table LLVM folds its whole loop, and with one it makes the lookups before

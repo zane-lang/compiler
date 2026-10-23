@@ -46,10 +46,10 @@ A function gets a table when:
   the operations of a lookup (M3), so a hit saves more than its lookup
   costs. A call's operations estimate what an optimized build runs: one for
   each computation, memory access and branch, a loop's body as often as a
-  constant count says or else eight times, and one for each call plus the
-  operations of the function called. Naming a local, a constant or a verb's
-  expansion counts nothing, since an optimized build keeps it in a register
-  or folds it away. A light function in a loop gets no table, nor does a
+  constant count says or else eight times, a switch's dearest case, and one
+  for each call plus the operations of the function called. Naming a local,
+  a constant or a verb's expansion counts nothing, since an optimized build
+  keeps it in a register or folds it away. A light function in a loop gets no table, nor does a
   heavy one called outside any loop, whose arguments repeat only if the
   program calls it again.
 

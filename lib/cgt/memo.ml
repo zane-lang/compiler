@@ -194,8 +194,8 @@ let weight funcs remembered =
 (* The operations one call to [f] runs, roughly the instructions an
    optimized build gives it: what computes or touches memory counts one, a
    branch one, a loop's body eight times over or as many times as a
-   constant count says, and a call one and the operations of the function
-   called. What only names a value, a local, a constant or a verb's
+   constant count says, a switch its dearest case, and a call one and the
+   operations of the function called. What only names a value, a local, a constant or a verb's
    expansion, counts nothing, since an optimized build keeps it in a
    register or folds it away. *)
 let operations funcs =
@@ -227,7 +227,10 @@ let operations funcs =
       | Stat.Assign { place; _ } when not place.Expr.deref -> 0
       | _ -> times
     in
-    cap (own + List.fold_left (fun n e -> n + expr times e) 0 es + List.fold_left (fun n b -> n + stats inner b) 0 bodies)
+    (* A switch runs one of its cases: the dearest, at most. *)
+    let within = List.map (stats inner) bodies in
+    let body = match st with Stat.Switch _ -> List.fold_left max 0 within | _ -> List.fold_left ( + ) 0 within in
+    cap (own + List.fold_left (fun n e -> n + expr times e) 0 es + body)
   and expr times (e : Expr.t) =
     let own =
       match e.Expr.node with

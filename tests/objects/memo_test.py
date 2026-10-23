@@ -131,9 +131,10 @@ class MemoTests(unittest.TestCase):
                 self.assertEqual(self.tables("once", build), ["once$fact(%primitives$I64)"])
 
     def test_a_heavy_call_in_a_loop_gets_a_table(self):
-        # `light` is called in the same loop but does less than a lookup, and
-        # `alone` is as heavy but called once outside any loop, and else
-        # only in a loop that runs no times.
+        # `light` is called in the same loop but does less than a lookup, as
+        # does each case of `spread`, of which a call runs one; `alone` is as
+        # heavy as `heavy` but called once outside any loop, and else only in
+        # a loop that runs no times.
         for build in BUILDS:
             with self.subTest(build=build):
                 self.assertEqual(self.tables("looped", build), ["looped$heavy(%primitives$I64)"])
