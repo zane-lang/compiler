@@ -93,7 +93,8 @@ table also keeps each of them through tier 0's passes.
 calls `zane_tier_up` first (`runtime/tier.c`), with its fingerprint, slots
 and exports. When `ZANE_TIER_UP` names a file, a thread of the runtime's
 waits for it, a millisecond at a time for the first tenth of a second and
-five after, loads it (`dlopen`, or `LoadLibraryW` on Windows), and checks
+five after, loads it (`dlopen`, or `LoadLibraryW` on Windows; a name
+without a directory is the current directory's file), and checks
 its fingerprint. It fills tier 1's imports from tier 0's exports by name,
 then points each slot at tier 1's function of the same key with a release
 store, so a call that reads the new address sees the imports filled. A

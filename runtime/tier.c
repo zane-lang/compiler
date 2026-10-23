@@ -104,9 +104,18 @@ static int zane_tier_exists(const char *path) {
 
 static void zane_tier_pause(int ms) { Sleep((DWORD)ms); }
 
-/* `LoadLibraryW` takes a path's separators as backslashes only. */
+/* `LoadLibraryW` takes a path's separators as backslashes only, and
+   searches for a bare name as it searches for a system library, so one
+   gets `.\\` first. */
 static const struct zane_tier1 *zane_tier_open(const char *path) {
-	wchar_t *wide = zane_tier_wide(path);
+	wchar_t *named = zane_tier_wide(path);
+	int bare = named && !wcspbrk(named, L"/\\:");
+	wchar_t *wide = bare ? malloc(sizeof *wide * (wcslen(named) + 3)) : named;
+	if (bare && wide) {
+		wcscpy(wide, L".\\");
+		wcscat(wide, named);
+	}
+	if (bare) free(named);
 	for (wchar_t *c = wide; c && *c; c++)
 		if (*c == L'/') *c = L'\\';
 	HMODULE library = wide ? LoadLibraryW(wide) : NULL;
@@ -124,8 +133,16 @@ static void zane_tier_pause(int ms) {
 	nanosleep(&d, NULL);
 }
 
+/* `dlopen` searches for a name without a slash as it searches for a
+   system library, so one gets `./` first. */
 static const struct zane_tier1 *zane_tier_open(const char *path) {
-	void *library = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+	char *named = NULL;
+	if (!strchr(path, '/') && (named = malloc(strlen(path) + 3))) {
+		strcpy(named, "./");
+		strcat(named, path);
+	}
+	void *library = dlopen(named ? named : path, RTLD_NOW | RTLD_LOCAL);
+	free(named);
 	return library ? dlsym(library, "__zane_tier1") : NULL;
 }
 #endif

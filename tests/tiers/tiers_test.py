@@ -125,6 +125,13 @@ class Tiers(unittest.TestCase):
         self.assertEqual(p.stdout, "")
         self.assertIn("zane: tier 1 did not take every function", p.stderr)
 
+    def test_takes_a_library_named_without_a_directory_from_the_current_one(self):
+        self.tier1("bare.tier1")
+        env = dict(self.env, ZANE_TIER_UP="bare.tier1", ZANE_TIER_WAIT="1")
+        p = subprocess.run([str(self.tier0()), ROUNDS], capture_output=True, text=True, env=env, cwd=self.dir)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertEqual(p.stdout, self.plain())
+
     def test_takes_a_library_built_before_from_the_cache(self):
         first = self.tier1("first.tier1")
         kept = list((self.dir / "cache" / "tier").iterdir())
