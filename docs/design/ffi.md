@@ -290,6 +290,17 @@ archives' before the package's module is renamed, and the object is
 rewritten with the map. Its functions are then called and never inlined
 or folded, since no module that F13 or F16 reads holds their bodies.
 
+Section names are not renamed, so a linker set is refused (`ffi.md` §2.5).
+Two versions that both place entries in a section named `plugins` would
+share one `__start_plugins`/`__stop_plugins` range, and the boundary
+symbols are undefined references, which keep their names. After F3 compiles
+a module, any global it places in an explicit section whose name is a C
+identifier, the only kind the linker makes `__start_`/`__stop_` symbols
+for, is an error naming the package, the section and the global. The object
+rewriter applies the same test to the sections of an archive's members and
+of an object assembled from a module holding assembly. A section whose name
+is not a C identifier, such as `.text.hot` or `__DATA,__const`, is allowed.
+
 **F10. A foreign call is one CGT node, with its arguments laid out for C.**
 Lowering makes a call to a foreign verb a `Foreign_call { thunk; args; result;
 kind }`. Each argument is lowered to a slot holding its C layout, and the
@@ -618,9 +629,10 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   `x86_64-windows-gnu`), a `const` handle passed as a `mut` subject or returned, a
   `struct` laid out differently, a fixed flag a `define` tries to change, an
   overwrite of a settled handle without a setter, an outside handle passed
-  to a verb that is no method on a capability, and a foreign variable
+  to a verb that is no method on a capability, a foreign variable
   outside the root package, naming a missing global, or naming a
-  `_Thread_local` one.
+  `_Thread_local` one, and a package whose C places a global in a section
+  named `plugins`.
 
 ---
 
