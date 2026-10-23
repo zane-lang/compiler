@@ -823,7 +823,7 @@ let bundle_link ~cc ~target ~triple ~tm level dir work runtime =
       List.iter
         (fun name -> ignore (Llvm.define_global name (Llvm.const_int (Llvm.i64_type ctx) 0) m))
         [ "zane_fixed_region"; "zane_spawned_fixed_region" ]);
-  let args = target_flag (Some target) @ level @ [ "-o"; output; obj ] @ system @ [ runtime ] in
+  let args = target_flag (Some target) @ level @ [ "-o"; output; obj; runtime ] @ system in
   bundle_command ~cc ~target ~triple ~args ~obj ~runtime ~output ~name:(bundled_link_name ~triple level system) dir work
 
 (* The linker command *cc* gives for tier 1 of a tiered build for [target]
@@ -892,7 +892,7 @@ let executable ?target ?(optimize = false) ?tier ?(link = []) ?(bundled = bundle
       let cc = cc () in
       let level = level ~optimize and system = system_libraries target in
       let flags = target_flag target @ level in
-      let args obj runtime = flags @ [ "-o"; output; obj ] @ link @ system @ [ runtime ] in
+      let args obj runtime = flags @ [ "-o"; output; obj ] @ link @ [ runtime ] @ system in
       let bundled_link =
         Option.map
           (fun dir -> List.fold_left Filename.concat dir [ "link"; bundled_link_name ~triple level system ])
