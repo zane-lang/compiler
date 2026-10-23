@@ -120,22 +120,36 @@ let calls (f : Func.t) =
     let es, bodies = Traverse.stat_parts s in
     let inner = match s with Stat.Repeat _ -> 2 | _ -> weight in
     List.iter (expr weight) es;
-    List.iter (inside (stats inner)) bodies
-  (* A nested body may not run, so a call in it stands for no call after it. *)
+    match s with
+    | Stat.Scope _ -> List.iter (stats inner) bodies
+    | _ -> List.iter (inside (stats inner)) bodies
+  (* A body that may not run: a call in it stands for no call after it. *)
   and inside walk body =
     let before = !made in
     walk body;
     made := before
   and expr weight (e : Expr.t) =
-    (match e.Expr.node with
+    match e.Expr.node with
     | Expr.Call { fn; args } ->
         let again = steady args && List.mem (fn, args) !made in
         if steady args then made := (fn, args) :: !made;
-        found := (fn, if again then 0 else weight) :: !found
-    | _ -> ());
-    let es, bodies = Traverse.expr_parts e in
-    List.iter (expr weight) es;
-    List.iter (inside (stats weight)) bodies
+        found := (fn, if again then 0 else weight) :: !found;
+        List.iter (expr weight) args
+    | Expr.Expand { label; body; _ } ->
+        (* The statements before the first that may leave the expansion
+           always run; the rest may not. *)
+        let leaves st = Traverse.exists_in [ st ] ~expr:(fun _ -> false) ~stat:(function Stat.Leave l -> l = label | _ -> false) in
+        let rec split before = function
+          | st :: rest when not (leaves st) -> split (st :: before) rest
+          | rest -> (List.rev before, rest)
+        in
+        let always, maybe = split [] body in
+        stats weight always;
+        inside (stats weight) maybe
+    | _ ->
+        let es, bodies = Traverse.expr_parts e in
+        List.iter (expr weight) es;
+        List.iter (inside (stats weight)) bodies
   in
   stats 1 f.Func.body;
   !found

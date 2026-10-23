@@ -125,10 +125,13 @@ class MemoTests(unittest.TestCase):
                     self.assertEqual(self.tables(name, build), [f"{name}$walk(%primitives$I64, %primitives$I64)"])
 
     def test_equal_calls_count_once(self):
-        # `twice` makes the same call twice, which an optimizer makes once.
-        for build in BUILDS:
-            with self.subTest(build=build):
-                self.assertEqual(self.tables("merged", build), [])
+        # `twice` makes the same call twice, which an optimizer makes once;
+        # `inlined` makes it first inside a verb written out where it is
+        # called, which always runs before the second.
+        for name in ["merged", "inlined"]:
+            for build in BUILDS:
+                with self.subTest(name=name, build=build):
+                    self.assertEqual(self.tables(name, build), [])
 
     def test_calls_a_store_separates_are_not_equal(self):
         # `stepped` calls itself twice with the same arguments, but changes
