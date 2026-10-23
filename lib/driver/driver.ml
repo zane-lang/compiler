@@ -13,10 +13,6 @@ type failure = { diagnostics : Diagnostic.t list; sources : Source.Files.t }
 let fail ?(sources = []) diagnostics = Error { diagnostics; sources }
 let render failure = List.map (Diagnostic.render_in failure.sources) failure.diagnostics
 
-(* What the root package is (packages.md §6.2): an application has a `main`
-   to start from, and a library does not become an executable. *)
-type kind = Application | Library
-
 let not_stamp stamp =
   Printf.sprintf
     "`%s` is not a stamp: a version tag of letters, digits, `.`, `_`, `+` and `-`, then `%%`, 16 lowercase hexadecimal digits and `%%`"
@@ -77,8 +73,8 @@ let check packages =
   | { Tst.Semantics.diagnostics = []; program } -> Ok program
   | { Tst.Semantics.diagnostics; _ } -> fail ~sources:(Assembly.sources packages) diagnostics
 
-(* An application starts from `main` (packages.md §6.2), so one without it is
-   an error however far the build goes. This is the one check for `main`:
+(* A program starts from its root's `main` (packages.md §6.2), so a root
+   without it is an error however far the build goes. This is the one check for `main`:
    lowering takes it as given. *)
 let require_main (program : Tst.Nodes.Program.t) =
   match program.Tst.Nodes.Program.packages with
@@ -96,14 +92,14 @@ let require_main (program : Tst.Nodes.Program.t) =
         fail
           [
             Diagnostic.about_invocation
-              (Printf.sprintf "the application `%s` declares no `main` to start from"
+              (Printf.sprintf "the root package `%s` declares no `main` to start from"
                  root.Tst.Nodes.Package.name);
           ]
   | [] -> Ok ()
 
 (* Lowering refuses what it cannot handle yet with a diagnostic rather than
-   lowering it wrongly (docs/design/lowering.md). A library lowers from every
-   function it declares. *)
+   lowering it wrongly (docs/design/lowering.md). A build without a root
+   lowers from every function it declares. *)
 (* The sizes of each context's range of frames, from `--fixed-region` and
    `--spawned-fixed-region`; the defaults
    when absent. *)
@@ -114,8 +110,8 @@ let no_regions = { fixed = None; spawned = None }
 (* Every build takes in its stamped dependencies' bodies, which LLVM inlines
    and defines in no object (docs/design/separate-compilation.md C12): an
    unoptimized build's inlining needs them as much as an optimized one's. *)
-let lower ?(regions = no_regions) ~kind packages program =
-  match Cgt.lower ~library:(kind = Library) ~import_bodies:true ?fixed_region:regions.fixed program with
+let lower ?(regions = no_regions) ~root packages program =
+  match Cgt.lower ~library:(not root) ~import_bodies:true ?fixed_region:regions.fixed program with
   | Ok cgt -> Ok cgt
   | Error d -> fail ~sources:(Assembly.sources packages) [ d ]
 
@@ -156,10 +152,11 @@ let object_file ?target ?pack ?memoize ?(regions = no_regions) ~optimize cgt out
 
 let bundle_runtime ~target ~optimize dir = built (Codegen.bundle_runtime ~target ~optimize dir)
 
-(* A library is checked and built into an object, never into an
-   executable. *)
+(* A build without a root is checked and built into an object, never into
+   an executable. *)
 let buildable = function
-  | Some Library -> fail [ Diagnostic.about_invocation "a library is not built into an executable; check it with `--check`" ]
+  | Some false ->
+      fail [ Diagnostic.about_invocation "a build without a root is not built into an executable; check it with `--check`" ]
   | _ -> Ok ()
 
 (* The name of a file beside [output] to write it under before it is renamed

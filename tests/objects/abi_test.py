@@ -37,14 +37,14 @@ def signature(ir, name):
 
 class AbiTests(unittest.TestCase):
     def test_a_parameter_by_address_is_a_borrow(self):
-        ir = zanec("--kind", "library", "--ll", "--package", LARGEPARAM)
+        ir = zanec("--no-root", "--ll", "--package", LARGEPARAM)
         consume = signature(ir, "largeparam$consume(")
         self.assertIn("(ptr noalias readonly align 8 dereferenceable(524288) %0)", consume)
         self.assertNotIn("nocapture", consume)
         self.assertNotIn("[65536 x i64] %", ir)
 
     def test_a_result_by_address_is_written_through_sret(self):
-        ir = zanec("--kind", "library", "--ll", "--package", LARGEPARAM)
+        ir = zanec("--no-root", "--ll", "--package", LARGEPARAM)
         same = signature(ir, "largeparam$same(")
         self.assertRegex(same, r"^define void ")
         self.assertIn("(ptr noalias sret([65536 x i64]) align 8 %0, ptr noalias readonly", same)
@@ -58,7 +58,7 @@ class AbiTests(unittest.TestCase):
             ("x86_64-windows-gnu", by_address),
         ]:
             with self.subTest(target=target):
-                ir = zanec("--kind", "library", "--ll", "--target", target, "--package", CROSSING)
+                ir = zanec("--no-root", "--ll", "--target", target, "--package", CROSSING)
                 self.assertRegex(signature(ir, "crossing$swapped("), pair)
                 # One piece passes as itself everywhere. Three pass by
                 # address and come back in registers, four come back
@@ -71,13 +71,13 @@ class AbiTests(unittest.TestCase):
                 self.assertRegex(signature(ir, "crossing$mirrored("), r"^define void .*\(ptr noalias sret\(\{ double, double, double \}\)")
 
     def test_packing_passes_words(self):
-        ir = zanec("--kind", "library", "--ll", "--pack-aggregates", "--target", "x86_64-linux-gnu", "--package", CROSSING)
+        ir = zanec("--no-root", "--ll", "--pack-aggregates", "--target", "x86_64-linux-gnu", "--package", CROSSING)
         # Three I32s, three pieces in 12 bytes, travel as two words.
         self.assertRegex(signature(ir, "crossing$reversed("), r'\{ i64, i64 \} @"[^"]*"\(i64 %0, i64 %1\)')
         # Three words come back as themselves, and four through `sret`.
         self.assertRegex(signature(ir, "crossing$rotated("), r'^define \{ i64, i64, i64 \} @"[^"]*"\(ptr noalias readonly')
         self.assertRegex(signature(ir, "crossing$turned("), r"\(ptr noalias sret")
-        ir = zanec("--kind", "library", "--ll", "--pack-aggregates", "--target", "x86_64-windows-gnu", "--package", CROSSING)
+        ir = zanec("--no-root", "--ll", "--pack-aggregates", "--target", "x86_64-windows-gnu", "--package", CROSSING)
         self.assertRegex(signature(ir, "crossing$flipped("), r'i64 @"[^"]*"\(i64 %0\)')
         self.assertRegex(signature(ir, "crossing$reversed("), r'^define \{ i64, i64 \} @"[^"]*"\(ptr noalias readonly')
 
@@ -87,7 +87,7 @@ class AbiTests(unittest.TestCase):
         def build(temp, library, program):
             obj = Path(temp) / f"geometry{len(library)}.o"
             stamp = ["--stamp", "geometry=v1.0%0123456789abcdef%"]
-            zanec("--kind", "library", "--object", obj, *library, *stamp, "--package", FIXTURES / "geometry")
+            zanec("--no-root", "--object", obj, *library, *stamp, "--package", FIXTURES / "geometry")
             exe = Path(temp) / f"survey{len(library)}{len(program)}"
             return subprocess.run(
                 [ZANEC, "--build", exe, *program, "--link", obj, *stamp, "--package", FIXTURES / "survey",
@@ -111,7 +111,7 @@ class AbiTests(unittest.TestCase):
                 for optimize in [[], ["--optimize"]]:
                     with self.subTest(target=target, optimize=optimize):
                         output = Path(temp) / f"{target}{len(optimize)}.o"
-                        zanec("--kind", "library", "--object", output, "--target", target, *optimize,
+                        zanec("--no-root", "--object", output, "--target", target, *optimize,
                               "--package", LARGEPARAM)
                         self.assertGreater(output.stat().st_size, 0)
 

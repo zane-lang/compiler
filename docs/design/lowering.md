@@ -484,7 +484,7 @@ library object `INPUT` to `OUTPUT` with its `!` placeholder turned into
 reference to the package version stamped `FROM` moved to the version stamped
 `TO`, as remapping does (C11).
 
-`--kind library` refuses `--build`, since a library is not an executable.
+`--no-root` refuses `--build`, since a build without a root is not an executable.
 With it, lowering starts from every verb each of the project's own packages
 declares that is not generic and has a function of its own, and from their
 lambda-variables, rather than from `main`, and names them with the `!`

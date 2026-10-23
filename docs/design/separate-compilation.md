@@ -34,7 +34,7 @@ still belong to the dependency objects. With no stamps at all, that is the whole
 program in one module.
 
 In a program's build the first package is the root, which alone reaches
-`@program$`. A library's build, `--kind library`, has no root at all
+`@program$`. A library's build, given `--no-root`, has no root at all
 (`packages.md` §6.1), so none of its packages reaches `@program$`.
 
 **C2. A dependency is read from source.** The compiler type-checks against a
@@ -141,7 +141,7 @@ can stand in a symbol: no operator is spelled with one
 ([`functions.md`](https://github.com/zane-lang/spec/blob/main/spec/functions.md)
 §2.5). So the rewriter replaces every `!` it finds (C9).
 
-An application's root package defines no placeholder symbols: nothing links
+A program's root package defines no placeholder symbols: nothing links
 against it.
 
 **C6. A reference to a dependency's symbol is written already stamped.** When

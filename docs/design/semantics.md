@@ -117,7 +117,7 @@ stamp is known by its stamped name, and no two packages may share that
 identity; a package's imports name packages through the keys the driver
 gives it, or by name when the build is given no keys at all
 ([`separate-compilation.md`](separate-compilation.md) C10). `--check` runs semantics and prints nothing, and
-`--kind application` makes a root without `main` an error (§6.2).
+`--root` makes a root without `main` an error (§6.2).
 
 **D3. The compiler never names `core`.** `core` is an ordinary package
 ([`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6), so the compiler reads it as source and checks it by the

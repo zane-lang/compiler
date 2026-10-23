@@ -1,0 +1,8 @@
+/// A program package, named by its directory in `bin/` (packages.md §2.2).
+package demo;
+
+@primitives$Unit main() {
+	text @primitives$String("hello world");
+	@program$console!print(text);
+	return @primitives$Unit();
+}

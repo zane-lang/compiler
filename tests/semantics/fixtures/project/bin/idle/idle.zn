@@ -1,0 +1,6 @@
+/// A program package without the `main` its root needs (packages.md §6.2).
+package idle;
+
+alias Int = @primitives$I64
+
+Int double(n Int) => @operators$add(n, n)

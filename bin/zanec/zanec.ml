@@ -26,16 +26,16 @@ type stage = Cst | Sst
    the whole answer. *)
 type view = Assembled | Check | Declarations | Typed | Cgt | Ir | Build of string | Object of string | Tier_up of string
 
-(* What the root package is (packages.md §6.2): an application has a `main`
-   to start from, and a library does not become an executable. Without
-   `--kind`, `main` is required only to build. A library lowers from every
-   function it declares, with its symbols carrying the `!` placeholder
+(* Whether the build has a root package (packages.md §6.1): `--root` makes
+   the first package the root, which has a `main` to start from (§6.2), and
+   `--no-root` gives the build none, so it does not become an executable.
+   Without either, the first package is the root and `main` is required only
+   to build. A build without a root lowers from every function it declares,
+   with its symbols carrying the `!` placeholder
    (docs/design/separate-compilation.md C5). *)
-type kind = Driver.kind = Application | Library
-
 type build = {
   view : view;
-  kind : kind option;
+  root : bool option;
   (* The LLVM target triple to compile for; the host's when absent. *)
   target : string option;
   (* Whether `--cgt`, `--ll`, `--build` and `--object` optimize. A program means the
@@ -91,7 +91,7 @@ let print_usage () =
   prerr_endline "usage: zanec [--cst|--sst] (SOURCE|-)";
   prerr_endline
     "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT [--tiered]|--object OUT|--tier-up OUT]";
-  prerr_endline "             [--kind application|library]";
+  prerr_endline "             [--root|--no-root]";
   prerr_endline
     "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...]";
   prerr_endline "             [--fixed-region BYTES] [--spawned-fixed-region BYTES] [--pack-aggregates] [--no-memoize]";
@@ -211,11 +211,8 @@ let arguments () =
             }
     | "--package" :: dir :: rest when is_value dir ->
         packages view { build with packages = package_request dir :: build.packages } rest
-    | "--kind" :: kind :: rest when build.kind = None && is_value kind ->
-        let kind =
-          match kind with "application" -> Application | "library" -> Library | _ -> usage ()
-        in
-        packages view { build with kind = Some kind } rest
+    | "--root" :: rest when build.root = None -> packages view { build with root = Some true } rest
+    | "--no-root" :: rest when build.root = None -> packages view { build with root = Some false } rest
     | "--target" :: target :: rest when build.target = None && is_value target ->
         packages view { build with target = Some target } rest
     | "--optimize" :: rest when not build.optimize ->
@@ -263,7 +260,7 @@ let arguments () =
   let empty =
     {
       view = Assembled;
-      kind = None;
+      root = None;
       target = None;
       optimize = false;
       packages = [];
@@ -286,7 +283,7 @@ let arguments () =
       Bundle_runtime { dir; target; optimize = false }
   | [ "--bundle-runtime"; dir; "--target"; target; "--optimize" ] when List.for_all is_value [ dir; target ] ->
       Bundle_runtime { dir; target; optimize = true }
-  | ( "--package" | "--kind" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
+  | ( "--package" | "--root" | "--no-root" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
     | "--link" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--no-memoize" | "--check"
     | "--tiered" | "--tier-up"
     | "--decls" | "--tst" | "--cgt" | "--ll" )
@@ -312,7 +309,7 @@ let ( let* ) = Result.bind
 let generate packages build program =
   let* cgt =
     Driver.lower ~regions:build.regions
-      ~kind:(Option.value build.kind ~default:Application)
+      ~root:(Option.value build.root ~default:true)
       packages program
   in
   let target = build.target and optimize = build.optimize and pack = build.pack and memoize = build.memoize in
@@ -332,18 +329,18 @@ let generate packages build program =
   | Object output -> Driver.object_file ?target ~pack ~memoize ~regions:build.regions ~optimize cgt output
   | Assembled | Check | Declarations | Typed -> Ok ()
 
-(* Without `--kind`, a root is an application once it is lowered, since
-   lowering starts from its `main`. *)
+(* Without `--root` or `--no-root`, the root needs its `main` once it is
+   lowered, since lowering starts from it. *)
 let needs_main build =
-  match (build.kind, build.view) with
-  | Some Application, _ | None, (Cgt | Ir | Build _ | Object _ | Tier_up _) -> true
-  | Some Library, _ | None, (Assembled | Check | Declarations | Typed) -> false
+  match (build.root, build.view) with
+  | Some true, _ | None, (Cgt | Ir | Build _ | Object _ | Tier_up _) -> true
+  | Some false, _ | None, (Assembled | Check | Declarations | Typed) -> false
 
 (* Semantics prints no tree when it found a problem, since a tree with holes
    in it is not what either view promises. *)
 let run_packages build =
-  let* () = match build.view with Build _ | Tier_up _ -> Driver.buildable build.kind | _ -> Ok () in
-  let root = Option.value build.kind ~default:Application = Application in
+  let* () = match build.view with Build _ | Tier_up _ -> Driver.buildable build.root | _ -> Ok () in
+  let root = Option.value build.root ~default:true in
   let* packages =
     Driver.assemble ~root ~imports:build.imports ~stamps:build.stamps build.packages
   in

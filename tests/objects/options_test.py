@@ -87,7 +87,7 @@ class OptionTests(unittest.TestCase):
 
     def test_a_malformed_stamp_is_a_usage_error(self):
         output = self.root / "geometry.o"
-        result = zanec("--kind", "library", "--object", output,
+        result = zanec("--no-root", "--object", output,
                        "--stamp", "geometry=garbage", "--package", GEOMETRY)
         self.assert_status(result, 2)
         self.assertIn("usage: zanec", result.stderr)
@@ -95,7 +95,7 @@ class OptionTests(unittest.TestCase):
 
     def test_a_stamp_is_still_accepted(self):
         output = self.root / "geometry.o"
-        result = zanec("--kind", "library", "--object", output,
+        result = zanec("--no-root", "--object", output,
                        "--stamp", "geometry=v1.0.1%3f9a1c02b7e4d6a8%", "--package", GEOMETRY)
         self.assert_status(result, 0)
         self.assertTrue(output.exists())

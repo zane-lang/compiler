@@ -10,10 +10,6 @@ val fail : ?sources:Source.Files.t -> Diagnostic.t list -> ('a, failure) result
 (** Each diagnostic as a person reads it, in order. *)
 val render : failure -> string list
 
-(** What the root package is (packages.md §6.2): an application has a
-    `main` to start from, and a library does not become an executable. *)
-type kind = Application | Library
-
 (** The packages of the build, the first the root unless [root] is false,
     as in a library build, which has none (packages.md §6.1). [stamps]
     gives a package its stamp by path, and must name exactly one package
@@ -33,8 +29,9 @@ val check : Tst.Assembly.package list -> (Tst.Nodes.Program.t, failure) result
     takes as given. *)
 val require_main : Tst.Nodes.Program.t -> (unit, failure) result
 
-(** That a root of this kind may be built into an executable. *)
-val buildable : kind option -> (unit, failure) result
+(** That a build with [root], as `--root` or `--no-root` gives it, may be
+    built into an executable: one without a root may not. *)
+val buildable : bool option -> (unit, failure) result
 
 (** The size in bytes of the range each context reserves for its frames:
     the main context's, from `--fixed-region`, and each spawned call's, from
@@ -42,11 +39,12 @@ val buildable : kind option -> (unit, failure) result
 type regions = { fixed : int option; spawned : int option }
 
 (** Stage 4, with the bodies of stamped dependencies' functions taken in
-    for LLVM to inline. A type no main context's range of [regions] could
-    hold is refused where it is named. *)
+    for LLVM to inline. Without [root], it lowers from every function the
+    build declares rather than from the root's `main`. A type no main
+    context's range of [regions] could hold is refused where it is named. *)
 val lower :
   ?regions:regions ->
-  kind:kind ->
+  root:bool ->
   Tst.Assembly.package list ->
   Tst.Nodes.Program.t ->
   (Cgt.Nodes.Program.t, failure) result
