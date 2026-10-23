@@ -5,12 +5,15 @@ docs/design/optimization.md). Each directory under `fixtures/` is one package,
 lowered and printed as its code-generation tree when `golden/NAME.cgt` exists,
 printed as the tree an optimized build makes of it when
 `golden/NAME.optimized.cgt` exists, and built into an executable and run when
-`golden/NAME.out` exists, unoptimized and optimized: the golden files hold the
-trees and what both builds of the program wrote. A fixture whose
+`golden/NAME.out` exists, unoptimized, optimized and tiered: the golden
+files hold the trees and what every build of the program wrote. The tiered
+build is tier 0 run with its tier 1 loaded before `main`
+(docs/design/tiers.md T8), so all of the program but `main` itself runs tier
+1's code, and a tier 1 that does not load stops it. A fixture whose
 `expected-status` file holds a nonzero status stops with it, and its `.out`
 holds stdout and stderr together. A fixture's `arguments` file, one argument
-per line, is what both builds of its program run with, and its `flags` file,
-one per line, what both are built with besides.
+per line, is what every build of its program runs with, and its `flags` file,
+one per line, what every one is built with besides.
 
 Every program runs checked and unchecked, and both runs are held to the same
 golden file; each rule sets `ZANE_CHECK` itself. Checked (`ZANE_CHECK=1`),

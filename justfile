@@ -56,10 +56,14 @@ test-highlighting: test-grammar-generation
 # `tests/memory-probes/run` without `--check` and read the `git diff`.
 # `reclaim.py --check` holds each allocating loop to the same peak RSS at
 # 10,000 and 1,000,000 iterations, and its leaking control to clear growth.
+# tests/tiers/ runs tiered builds (docs/design/tiers.md) as `zane run` does:
+# a program moving to tier 1 while it runs, the libraries the runtime
+# refuses, and the cache.
 test-compiler: _require-menhir
 	dune build bin/zanec/zanec.exe
 	dune runtest tests/parser tests/semantics tests/codegen tests/runtime tests/objects tests/unit
 	python3 -m unittest tests.parser.syntax_test -v
+	python3 -m unittest tests.tiers.tiers_test -v
 	tests/memory-probes/run --check
 	python3 tests/memory-probes/reclaim.py --check
 

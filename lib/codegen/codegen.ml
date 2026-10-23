@@ -1,5 +1,7 @@
 (* Codegen's entry module (docs/design/lowering.md §1). *)
 
+type tier = Tiers.tier = Plain | Tier0 | Tier1
+
 (* Lowering refuses each type that reaches the size limit (Cgt.Nodes.Ty.limit)
    where it is named. A frame is laid out here, from slots each below it, and
    one whose slots together reach it is refused as the build's error. *)
@@ -174,8 +176,9 @@ let target_cpu ?target () =
     (fun (_, tm) -> Llvm_target.TargetMachine.cpu tm)
     (Build.target_machine ?target ~optimize:true ())
 
-let executable ?target ?optimize ?link m output =
-  Build.executable ?target ?optimize ?link m output
-let object_file ?target ?optimize m output = Build.object_file ?target ?optimize m output
-let prepare ?target ?optimize m = Result.map ignore (Build.prepare ?target ?optimize m)
+let executable ?target ?optimize ?tier ?link m output =
+  Build.executable ?target ?optimize ?tier ?link m output
+let shared_library ?target m output = Build.shared_library ?target m output
+let object_file ?target ?optimize ?tier m output = Build.object_file ?target ?optimize ?tier m output
+let prepare ?target ?optimize ?tier m = Result.map ignore (Build.prepare ?target ?optimize ?tier m)
 let bundle_runtime ~target ~optimize dir = Build.bundle_runtime ~target ~optimize dir

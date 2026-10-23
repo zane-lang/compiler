@@ -14,6 +14,10 @@ set -uo pipefail
 # nothing to wait for drains in line, by code lowering emits. Both runs are
 # held to the same output, and a mismatch names the mode it came from.
 #
+# A program NAME with a tier-1 library beside it, NAME.tier1 or NAME.tier1
+# with an extension such as `.dll`, runs with that library loaded before `main` runs
+# (docs/design/tiers.md), and stops when it does not load.
+#
 # Every program runs, and each mismatch is reported, before the check fails.
 
 DIR="${1:?usage: check-programs DIR}"
@@ -32,13 +36,17 @@ for status in "$DIR"/*.status; do
 	if [[ -f "$DIR/$name.args" ]]; then
 		while IFS= read -r arg || [[ -n "$arg" ]]; do args+=("$arg"); done <"$DIR/$name.args"
 	fi
+	tier=()
+	for library in "$DIR/$name.tier1" "$DIR/$name.tier1".*; do
+		[[ -f "$library" ]] && tier=(ZANE_TIER_UP="$library" ZANE_TIER_WAIT=1)
+	done
 	for check in 1 0; do
 		mode="ZANE_CHECK=$check"
 		actual_out="$(mktemp)"
 		if [[ "$expected" == 0 ]]; then
-			ZANE_CHECK="$check" ${runner[@]+"${runner[@]}"} "$program" ${args[@]+"${args[@]}"} >"$actual_out"
+			env ${tier[@]+"${tier[@]}"} ZANE_CHECK="$check" ${runner[@]+"${runner[@]}"} "$program" ${args[@]+"${args[@]}"} >"$actual_out"
 		else
-			ZANE_CHECK="$check" ${runner[@]+"${runner[@]}"} "$program" ${args[@]+"${args[@]}"} >"$actual_out" 2>&1
+			env ${tier[@]+"${tier[@]}"} ZANE_CHECK="$check" ${runner[@]+"${runner[@]}"} "$program" ${args[@]+"${args[@]}"} >"$actual_out" 2>&1
 		fi
 		status=$?
 		count=$((count + 1))

@@ -1,0 +1,10 @@
+/// Another program, whose tier 1 the runtime must refuse to load into `swap`.
+package other;
+
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+
+Unit main() {
+	@program$console!print(String("other\n"));
+	return Unit();
+}

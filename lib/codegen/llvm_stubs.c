@@ -162,3 +162,22 @@ value zane_function_attrs(value function, value index) {
   int i = Int_val(index);
   CAMLreturn(pointers(LLVMGetAttributeCountAtIndex(f, i), fill_function_attrs, f, i));
 }
+
+/* LLVM's own options, [args] as its command line would give them, the
+   first the program's name. LLVM reads them once per process, so a second
+   call does nothing. */
+void LLVMParseCommandLineOptions(int argc, const char *const *argv, const char *overview);
+
+value zane_llvm_options(value args) {
+  CAMLparam1(args);
+  static int parsed = 0;
+  if (!parsed) {
+    parsed = 1;
+    int argc = (int)Wosize_val(args);
+    const char **argv = malloc(sizeof *argv * (argc + 1));
+    for (int i = 0; i < argc; i++) argv[i] = strdup(String_val(Field(args, i)));
+    argv[argc] = NULL;
+    LLVMParseCommandLineOptions(argc, argv, "");
+  }
+  CAMLreturn(Val_unit);
+}

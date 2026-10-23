@@ -4,8 +4,10 @@ set -euo pipefail
 # Build the test programs for Windows into DIR, with what each must do beside
 # it, for `check-programs` to run on Windows (docs/design/platforms.md).
 #
-# Every codegen fixture with an expected output is built twice, as
-# tests/codegen/ builds it, plain and optimized. `survey` is built against
+# Every codegen fixture with an expected output is built three times, as
+# tests/codegen/ builds it: plain, optimized, and tiered, tier 0 as NAME.tiered.exe with
+# tier 1 beside it as NAME.tiered.tier1.dll, which `check-programs` loads
+# before `main` runs (docs/design/tiers.md). `survey` is built against
 # geometry's objects, both the one built from source with geometry's stamp
 # and geometry's placeholder object rewritten with it
 # (docs/design/separate-compilation.md C7, C9). Each program NAME.exe has
@@ -24,7 +26,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUT="$(mkdir -p "${1:?usage: windows-programs DIR}" && cd "$1" && pwd)"
 # What an earlier build left here is not this build's, and would be checked
 # as if it were.
-rm -f "$OUT"/*.exe "$OUT"/*.out "$OUT"/*.status "$OUT"/*.args
+rm -f "$OUT"/*.exe "$OUT"/*.dll "$OUT"/*.out "$OUT"/*.status "$OUT"/*.args
 TARGET=x86_64-windows-gnu
 STAMP='v1.0.1%3f9a1c02b7e4d6a8%'
 
@@ -49,12 +51,12 @@ for golden in tests/codegen/golden/*.out; do
 	fi
 	"$ZANEC" --target "$TARGET" --build "$OUT/$name.exe" ${flags[@]+"${flags[@]}"} --package "$fixture"
 	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" ${flags[@]+"${flags[@]}"} --package "$fixture"
-	expect "$name" "$golden" "$status"
-	expect "$name.optimized" "$golden" "$status"
-	if [[ -f "$fixture/arguments" ]]; then
-		cp "$fixture/arguments" "$OUT/$name.args"
-		cp "$fixture/arguments" "$OUT/$name.optimized.args"
-	fi
+	"$ZANEC" --target "$TARGET" --build "$OUT/$name.tiered.exe" --tiered ${flags[@]+"${flags[@]}"} --package "$fixture"
+	"$ZANEC" --target "$TARGET" --tier-up "$OUT/$name.tiered.tier1.dll" ${flags[@]+"${flags[@]}"} --package "$fixture"
+	for build in "$name" "$name.optimized" "$name.tiered"; do
+		expect "$build" "$golden" "$status"
+		if [[ -f "$fixture/arguments" ]]; then cp "$fixture/arguments" "$OUT/$build.args"; fi
+	done
 done
 
 objects="$(mktemp -d)"
