@@ -18,6 +18,14 @@ external type_attr : Llvm.llcontext -> string -> Llvm.lltype -> Llvm.llattribute
 (* A function's own type (llvm_stubs.c). *)
 external value_type : Llvm.llvalue -> Llvm.lltype = "zane_global_value_type"
 
+(* `llvm.assume` with `dereferenceable` and `align` bundles on an address,
+   at the end of a block, which the bindings cannot build (llvm_stubs.c):
+   the block, `llvm.assume` and its type, the address, its size and its
+   alignment. *)
+external assume_dereferenceable :
+  Llvm.llbasicblock -> Llvm.lltype -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue -> unit
+  = "zane_assume_dereferenceable_bytecode" "zane_assume_dereferenceable"
+
 (* The bindings' `param_types`, `struct_element_types` and `function_attrs`,
    correct when they give nothing (llvm_stubs.c). Codegen uses these
    instead. *)
@@ -247,6 +255,30 @@ let declare_abi env f a =
   List.iter
     (fun (i, attrs) -> List.iter (fun at -> Llvm.add_function_attr f at (Llvm.AttrIndex.Param i)) attrs)
     (abi_attrs env a)
+
+(* What a function's [places] (Func) tell LLVM: each is the address of a
+   whole slot of the caller's, so it is `nonnull`, aligned and
+   dereferenceable for the slot's size. That lets the optimizer read
+   through it ahead of a branch, as it hoists a list's length and storage
+   out of a loop that checks its indices. Nothing more is promised: the
+   function may write the slot, and another parameter may name it too. *)
+let declare_places env fn (f : Func.t) a =
+  let enum name v = Llvm.create_enum_attr env.ctx name v in
+  let kept = List.filter (fun (_, t) -> t <> Ty.Void) f.Func.params in
+  let width = function Itself | Address -> 1 | Words n -> n in
+  let first = if snd a.ret = Address then 1 else 0 in
+  ignore
+    (List.fold_left2
+       (fun i (id, _) (_, passing) ->
+         (match List.assoc_opt id f.Func.places with
+         | Some t when passing = Itself && fst (size_align t) > 0 ->
+             let size, align = size_align t in
+             List.iter
+               (fun at -> Llvm.add_function_attr fn at (Llvm.AttrIndex.Param i))
+               [ enum "nonnull" 0L; enum "align" (Int64.of_int align); enum "dereferenceable" (Int64.of_int size) ]
+         | _ -> ());
+         i + width passing)
+       first kept a.params)
 
 (* ---------------------------------------------------------------------- *)
 (* The runtime and its layouts                                            *)
@@ -524,7 +556,16 @@ and context_limit = Abi.context_limit
    the scope around it and to the one it skips to (runtime/zane_internal.h).
    A frame larger than the guard after the range is checked against the
    range's end first; a smaller one that does not fit faults in the guard.
-   Otherwise the runtime places it under the context's lock. *)
+   Otherwise the runtime places it under the context's lock.
+
+   Either way, reading any slot of the open scope's frame is safe: in the
+   range the runtime makes the slot's memory usable, and in the guard it
+   stops the program, which a frame that does not fit owes it at whichever
+   slot is touched first. The frame is on a 16-byte boundary, since every
+   frame is a multiple of 16 bytes (Frames) placed where the one before it
+   ended. The open scope tells LLVM both, so it may read a slot ahead of a
+   branch, as it hoists a list's count out of a loop that checks its
+   indices (docs/optimizations.md). *)
 let enter env fr b size =
   let ptr = env.ptr and i64 = env.i64 in
   let outer = Llvm.build_load ptr (open_scope env) "" b in
@@ -572,7 +613,17 @@ let enter env fr b size =
   let placed = call_runtime env b Cgt.Runtime.Scope_enter [| Llvm.const_int i64 size |] in
   ignore (Llvm.build_br opened b);
   Llvm.position_at_end opened b;
-  Llvm.build_phi [ (m, inline_end); (placed, shared) ] "" b
+  let frame = Llvm.build_phi [ (m, inline_end); (placed, shared) ] "" b in
+  let assume, assume_ty =
+    match Llvm.lookup_function "llvm.assume" env.m with
+    | Some f -> (f, value_type f)
+    | None ->
+        let t = Llvm.function_type (Llvm.void_type env.ctx) [| Llvm.i1_type env.ctx |] in
+        (Llvm.declare_function "llvm.assume" t env.m, t)
+  in
+  assume_dereferenceable (Llvm.insertion_block b) assume_ty assume frame (Llvm.const_int i64 size)
+    (Llvm.const_int i64 16);
+  frame
 
 (* A scope drains (L8). One that spawned nothing and has no dynamic chunk,
    while its context is this thread's alone and drains are not checked, has
@@ -1719,6 +1770,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       | Cgt.Nodes.Linkage.Available -> Llvm.set_linkage Llvm.Linkage.Available_externally fn
       | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr fn);
       declare_abi env fn a;
+      declare_places env fn f a;
       Hashtbl.replace env.abis f.Func.symbol a;
       Hashtbl.replace env.funcs f.Func.symbol (fn, fty))
     (p.Program.funcs @ List.map (fun (m : Cgt.Memo.t) -> m.Cgt.Memo.func) memos);

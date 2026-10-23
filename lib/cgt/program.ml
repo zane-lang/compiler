@@ -14,18 +14,29 @@ open Outcome
 open Build
 open Lower
 
+(* Whether a slot of type [t] has a layout lowering knows the size of: a
+   declared type, a list or a text. A runtime value such as `Console` is
+   the runtime's own, and has none. *)
+let rec laid_out (t : Tty.t) =
+  match t with
+  | Tty.Roaming t -> laid_out t
+  | Tty.Named _ -> true
+  | _ -> is_text t || is_list t
+
 let func st (v : verb) : Func.t =
   let span = v.body.T.Block.span in
   st.next <- 0;
   st.values <- [];
   st.current <- symbol st v;
   let env = Hashtbl.create 16 in
+  let places = ref [] in
   let params =
     List.map
       (fun (p : T.Local.t) ->
         let id = fresh st in
         if by_address st v p then begin
           Hashtbl.replace env p.T.Local.id (Pointer id);
+          if laid_out p.T.Local.ty then places := (id, ty st p.T.Local.span p.T.Local.ty) :: !places;
           (id, Nodes.Ty.Ptr)
         end
         else begin
@@ -34,6 +45,7 @@ let func st (v : verb) : Func.t =
         end)
       v.params
   in
+  let places = List.rev !places in
   (* A `^T` parameter is an owner of the body (lifetimes.md §1.5): it is held
      in the body's own arena, so the body's drain ends it unless the body
      moved it on. *)
@@ -66,7 +78,7 @@ let func st (v : verb) : Func.t =
     if linkage = Linkage.Imported && st.import_bodies then Linkage.Available else linkage
   in
   if linkage = Linkage.Imported then
-    { Func.symbol = symbol st v; linkage; params; ret = returned o; body = []; values = [] }
+    { Func.symbol = symbol st v; linkage; params; places; ret = returned o; body = []; values = [] }
   else begin
     st.returns <- (if plain o then Fun.id else outcome_case o done_);
     st.ret <- v.signature.S.ret;
@@ -91,7 +103,7 @@ let func st (v : verb) : Func.t =
       }
     in
     let body = block ~enter st ctx v.body in
-    { Func.symbol = symbol st v; linkage; params; ret = returned o; body; values = st.values }
+    { Func.symbol = symbol st v; linkage; params; places; ret = returned o; body; values = st.values }
   end
 
 (* L16. The function that makes a package constant: the first call makes
@@ -139,6 +151,7 @@ let made st decl : Func.t =
     Func.symbol = c.symbol;
     linkage;
     params = [];
+    places = [];
     ret = Nodes.Ty.Ptr;
     body = [ Stat.If { cond = first; body }; Stat.Return (global value) ];
     values = [];
@@ -398,6 +411,7 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
               Func.symbol = "zane.start";
               linkage = Linkage.Local;
               params = [];
+              places = [];
               ret = Nodes.Ty.Void;
               body = makes @ dropped;
               values = [];

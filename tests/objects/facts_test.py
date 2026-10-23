@@ -100,6 +100,33 @@ class FactsTests(unittest.TestCase):
         self.assertNotIn("@zane_out_of_range", loop)
         self.assertRegex(loop, r"store i64 .*!tbaa")
 
+    def test_elif_joins_the_if_before_it(self):
+        # Each way into an `elif` already decides its `~this` half, so the
+        # pair is one chain, as C's `else if` is, and neither body's work is
+        # made a select that every pass round the loop pays for
+        # (Passes.threading).
+        for optimize in [[], ["--optimize"]]:
+            ir = run(ZANEC, "--ll", *optimize, *packages("bounce"))
+            self.assertNotRegex(ir, r"select i1 [^,]*, double", optimize)
+
+    def test_places_and_frames_may_be_read_ahead(self):
+        # The method's subject is the whole of the caller's slot, two list
+        # handles, and `main`'s frame is all there once its scope is open,
+        # so the loops in both read each list's count and block once.
+        ir = run(ZANEC, "--ll", *packages("bounce"))
+        self.assertRegex(ir, r'@"bounce\$step\([^"]*\)"\(ptr nonnull align 8 dereferenceable\(48\) %0')
+        self.assertRegex(ir, r'call void @llvm\.assume\(i1 true\) \[ "dereferenceable"\(ptr %[^,]+, i64 [0-9]+\), "align"')
+
+    def test_bounce_runs_and_stops_out_of_range(self):
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "bounce"
+                run(ZANEC, "--build", exe, *optimize, *packages("bounce"))
+                self.assertEqual(run_program(exe, 20, 20, 3), "2727 963\n", optimize)
+                result = subprocess.run([str(exe), "20", "21", "3"], capture_output=True, text=True, timeout=60)
+                self.assertEqual((result.returncode, result.stdout, result.stderr),
+                                 (1, "", "index out of range\n"), optimize)
+
     def test_programs_run(self):
         with tempfile.TemporaryDirectory() as temp:
             pool = Path(temp) / "pool.o"

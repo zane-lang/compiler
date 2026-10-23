@@ -1,0 +1,101 @@
+/// Points bouncing between two walls: an `if` and the `elif` after it in a
+/// counted loop over lists, once in a method that writes its subject and
+/// once written out in `main`. Its first argument is how many points there
+/// are, its second how many of them each pass moves, and its third how
+/// many passes. Spawns nothing.
+package bounce;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit elif(this Bool, condition Bool, body @concepts$Block) mut {
+	@controlflow$branch(@operators$conjoin(@operators$not(this), condition), body);
+	this = @operators$disjoin(this, condition);
+	return Unit();
+}
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Int argument(args List<String>, at Int) => args[at]:parseI64() ?? Int(0)
+
+type Field = #struct {
+	xs List<Float>;
+	vs List<Float>;
+}
+
+Field(xs ^List<Float>, vs ^List<Float>) => init{ xs; vs; }
+
+/// Moves the first `moved` points one step, each turned back at a wall, and
+/// gives the sum of where they are.
+Float step(this Field, moved Int) mut {
+	sum Float(0.0);
+	j Int(1);
+	j!to(moved) {
+		x Float = @operators$add(this.xs[j], this.vs[j]);
+		v Float = this.vs[j];
+		low Bool = if(@operators$lessThan(x, Float(0.0))) {
+			x = @operators$negate(x);
+			v = @operators$negate(v);
+		}
+		low!elif(@operators$lessThan(Float(99.5), x)) {
+			x = @operators$add(Float(199.0), @operators$negate(x));
+			v = @operators$negate(v);
+		}
+		this.xs[j] = x;
+		this.vs[j] = v;
+		sum = @operators$add(sum, x);
+	}
+	return sum;
+}
+
+Unit main() {
+	args List<String> = @program$runtime:arguments();
+	points Int = argument(args, Int(1));
+	moved Int = argument(args, Int(2));
+	passes Int = argument(args, Int(3));
+	xs ^List<Float> = @primitives$List(Float);
+	vs ^List<Float> = @primitives$List(Float);
+	i Int(1);
+	i!to(points) {
+		xs!push(@primitives$F64.round(@operators$multiply(i, Int(7))));
+		vs!push(@primitives$F64.round(@operators$add(@operators$multiply(i, Int(3)), @operators$negate(Int(29)))));
+	}
+	field Field(xs, vs);
+	total Float(0.0);
+	p Int(1);
+	p!to(passes) {
+		total = @operators$add(total, field!step(moved));
+	}
+	back Float(0.0);
+	k Int(1);
+	k!to(moved) {
+		x Float = @operators$add(field.xs[k], field.vs[k]);
+		low Bool = if(@operators$lessThan(x, Float(0.0))) {
+			x = @operators$negate(x);
+		}
+		low!elif(@operators$lessThan(Float(99.5), x)) {
+			x = @operators$add(Float(199.0), @operators$negate(x));
+		}
+		back = @operators$add(back, x);
+	}
+	@program$console!print(@operators$concat(String(@primitives$I64.truncate(total)), String(" ")));
+	@program$console!print(@operators$concat(String(@primitives$I64.truncate(back)), String("\n")));
+	return Unit();
+}

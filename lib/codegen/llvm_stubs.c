@@ -1,6 +1,7 @@
 /* What LLVM's C API offers and its OCaml bindings do not: a function or a
    variable placed in a COMDAT of its own name
-   (docs/design/separate-compilation.md C4), a target triple in LLVM's
+   (docs/design/separate-compilation.md C4), an assumption that carries
+   operand bundles, a target triple in LLVM's
    normal form, a load made atomic, an array type whose length takes more
    than 32 bits, an attribute that carries a type, such as `sret`, a
    function's own type, and the type an `alloca` makes room for. And arrays
@@ -27,6 +28,9 @@ typedef struct LLVMComdat *LLVMComdatRef;
 typedef struct LLVMOpaqueType *LLVMTypeRef;
 typedef struct LLVMOpaqueContext *LLVMContextRef;
 typedef struct LLVMOpaqueAttributeRef *LLVMAttributeRef;
+typedef struct LLVMOpaqueBasicBlock *LLVMBasicBlockRef;
+typedef struct LLVMOpaqueBuilder *LLVMBuilderRef;
+typedef struct LLVMOpaqueOperandBundle *LLVMOperandBundleRef;
 
 extern void *from_val(value v);
 extern value to_val(void *ptr);
@@ -47,12 +51,53 @@ extern unsigned LLVMCountStructElementTypes(LLVMTypeRef structure);
 extern void LLVMGetStructElementTypes(LLVMTypeRef structure, LLVMTypeRef *types);
 extern unsigned LLVMGetAttributeCountAtIndex(LLVMValueRef function, int index);
 extern void LLVMGetAttributesAtIndex(LLVMValueRef function, int index, LLVMAttributeRef *attributes);
+extern LLVMContextRef LLVMGetTypeContext(LLVMTypeRef type);
+extern LLVMTypeRef LLVMInt1TypeInContext(LLVMContextRef context);
+extern LLVMValueRef LLVMConstInt(LLVMTypeRef type, unsigned long long n, int sign_extend);
+extern LLVMBuilderRef LLVMCreateBuilderInContext(LLVMContextRef context);
+extern void LLVMPositionBuilderAtEnd(LLVMBuilderRef builder, LLVMBasicBlockRef block);
+extern void LLVMDisposeBuilder(LLVMBuilderRef builder);
+extern LLVMOperandBundleRef LLVMCreateOperandBundle(const char *tag, size_t length, LLVMValueRef *args, unsigned count);
+extern void LLVMDisposeOperandBundle(LLVMOperandBundleRef bundle);
+extern LLVMValueRef LLVMBuildCallWithOperandBundles(LLVMBuilderRef builder, LLVMTypeRef type, LLVMValueRef fn,
+                                                    LLVMValueRef *args, unsigned count, LLVMOperandBundleRef *bundles,
+                                                    unsigned bundle_count, const char *name);
 
 value zane_set_own_comdat(value m, value f, value name) {
   CAMLparam3(m, f, name);
   LLVMComdatRef comdat = LLVMGetOrInsertComdat((LLVMModuleRef)from_val(m), String_val(name));
   LLVMSetComdat((LLVMValueRef)from_val(f), comdat);
   CAMLreturn(Val_unit);
+}
+
+/* `call void @llvm.assume(i1 true) ["dereferenceable"(ptr, size),
+   "align"(ptr, align)]` at the end of [block], where [assume] is
+   `llvm.assume` and [type] its type: the bytes from [at] to [at] + [size]
+   may be read at any point the call dominates. */
+value zane_assume_dereferenceable(value block, value type, value assume, value at, value size, value align) {
+  CAMLparam5(block, type, assume, at, size);
+  CAMLxparam1(align);
+  LLVMTypeRef t = (LLVMTypeRef)from_val(type);
+  LLVMContextRef context = LLVMGetTypeContext(t);
+  LLVMBuilderRef b = LLVMCreateBuilderInContext(context);
+  LLVMPositionBuilderAtEnd(b, (LLVMBasicBlockRef)from_val(block));
+  LLVMValueRef dereferenceable[] = { (LLVMValueRef)from_val(at), (LLVMValueRef)from_val(size) };
+  LLVMValueRef aligned[] = { (LLVMValueRef)from_val(at), (LLVMValueRef)from_val(align) };
+  LLVMOperandBundleRef bundles[] = {
+    LLVMCreateOperandBundle("dereferenceable", strlen("dereferenceable"), dereferenceable, 2),
+    LLVMCreateOperandBundle("align", strlen("align"), aligned, 2),
+  };
+  LLVMValueRef yes = LLVMConstInt(LLVMInt1TypeInContext(context), 1, 0);
+  LLVMBuildCallWithOperandBundles(b, t, (LLVMValueRef)from_val(assume), &yes, 1, bundles, 2, "");
+  LLVMDisposeOperandBundle(bundles[0]);
+  LLVMDisposeOperandBundle(bundles[1]);
+  LLVMDisposeBuilder(b);
+  CAMLreturn(Val_unit);
+}
+
+value zane_assume_dereferenceable_bytecode(value *argv, int argc) {
+  (void)argc;
+  return zane_assume_dereferenceable(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
 }
 
 value zane_normalize_triple(value triple) {

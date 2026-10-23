@@ -657,7 +657,10 @@ test passing.
     not fit faults in the guard; a larger one is checked against the
     range's end before it is placed, on a branch marked unlikely. Either way
     the program stops with "scopes nested too deep", the range's size, and
-    the manifest field that sets it, and exits with status 1.
+    the manifest field that sets it, and exits with status 1. So reading
+    any slot of an open scope's frame either reads the program's memory or
+    stops it as the frame was owed, whichever slot is read first, which
+    codegen tells LLVM ("What LLVM is told").
   - **The sizes come from the root manifest.** The main context reserves
     `--fixed-region` bytes, 256 MiB by default, and each spawned call's
     context `--spawned-fixed-region`, 8 MiB by default. `zane` passes them
@@ -1186,6 +1189,22 @@ test passing.
     that may touch both. So a write of an element's field leaves the count
     and the block LLVM read before it, and LLVM keeps them, and the check
     made with them, across the write.
+  - *A place's whole slot.* A `mut` subject, or an owned value passed by
+    address, is the address of a slot of the caller's, which outlives the
+    call (the CGT `Func`'s `places`). Its parameter is `nonnull`, aligned and
+    `dereferenceable` for the slot's size. It is not `readonly` or
+    `noalias`, since the function writes the slot and another parameter
+    may name it.
+  - *An open scope's frame.* Once a scope is open, any slot of its frame
+    may be read (above), and the frame is on a 16-byte boundary, since
+    every frame is a multiple of 16 bytes placed where the one before it
+    ended. The open scope says so with `llvm.assume` and its
+    `dereferenceable` and `align` operand bundles, which LLVM's OCaml
+    bindings cannot build (`llvm_stubs.c`).
+
+    Both let LLVM read a slot ahead of a branch: a list reached through
+    `this` or kept in `main`'s frame has its count and block loaded once
+    before a loop that checks its indices, rather than after each check.
   - *What some runtime functions do.* `zane_out_of_range` and
     `zane_too_deep` stop the program, so they are cold and do not return;
     `zane_text_equal` only reads memory, so what LLVM read before a call to
@@ -1196,6 +1215,20 @@ test passing.
     the count, in the function that removes. LLVM then sees exactly which
     bytes change, as it sees an element's address and a push's
     (`runtime/list.c` keeps the runtime's own forms of all three).
+- **The passes.** `lib/codegen/passes.ml` names what LLVM runs over the
+  module. An unoptimized build and tier 0 run `Passes.unoptimized`
+  ([`optimization.md`](optimization.md) O12). An optimized build and tier 1
+  run `Passes.threading` on each function as it was emitted, then LLVM's
+  `default<O2>`. Each runs jump threading where it still sees each `elif`
+  as written: `core`'s `elif` branches on `~this and condition`, where
+  `this` is what the `if` before it branched on, so each way into the
+  `elif` already decides that half. Jump threading sends the `if`'s body
+  straight past the `elif` and the other way to the condition alone, which
+  is one chain, as C's `else if` is. Once the CFG simplifier has made a
+  cheap `if` body a `select`, both bodies' work runs on every pass round a
+  loop instead. The unoptimized passes therefore merge blocks without
+  making selects before they thread, and the optimized ones thread before
+  `-O2`.
 - **A type argument passes nothing.** A generic verb is lowered once per
   instance the TST checked ([`semantics.md`](semantics.md) D12), with a
   symbol of its own, and a type written where a value goes, or a number

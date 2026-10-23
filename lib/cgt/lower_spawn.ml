@@ -199,6 +199,7 @@ let spawn_call w st ctx span v fn ~writes passed handler =
       Func.symbol = thunk;
       linkage = Linkage.Local;
       params = [ (at, Nodes.Ty.Ptr) ];
+      places = [];
       ret = Nodes.Ty.Void;
       body;
       values = [];

@@ -292,21 +292,23 @@ check stay, but only store the folded value.
 ### LLVM's `-O2` pipeline
 
 - **Builds:** optimized only
-- **Where:** `lib/codegen/build.ml` (`prepare`, `level`)
+- **Where:** `lib/codegen/passes.ml` (`optimized`, `run`),
+  `lib/codegen/build.ml` (`prepare`, `level`)
 - **Design:** [`design/optimization.md`](design/optimization.md) O11, O12
 - **Effect:** not measured
 
 The module goes through LLVM's `default<O2>` pipeline: inlining, constant
 folding, dead-code removal, common subexpressions, loop hoisting,
-unrolling and vectorization. The runtime is compiled with `-O2` too. The
+unrolling and vectorization. The passes the next entries name run on each
+function first. The runtime is compiled with `-O2` too. The
 compiler implements a transformation itself only where it rests on
 something about Zane that LLVM does not know.
 
 ### Inlining and its cleanup in unoptimized builds
 
 - **Builds:** unoptimized only
-- **Where:** `lib/codegen/wrappers.ml`, `lib/codegen/build.ml`
-  (`unoptimized_passes`, `prepare`)
+- **Where:** `lib/codegen/wrappers.ml`, `lib/codegen/passes.ml`
+  (`unoptimized`)
 - **Design:** [`design/optimization.md`](design/optimization.md) O12
 - **Effect:** a speech-analysis program (a 10 s signal through a
   short-time Fourier transform and a harmonic analysis), linked against
@@ -323,11 +325,31 @@ grow its caller's frame for good. A generic instance or a package constant
 stays a call, so an object still defines every one that C4 says it does;
 lowering has already written out the generic instances whose body is one
 expression.
-Three passes then promote the wrappers' scalars to registers, simplify
-what that makes constant and merge the blocks left behind. Each takes time
-in proportion to the instructions it reads; LLVM's own inliner, scalar
-replacement of aggregates and instruction combining, which do not on a
-large value array, are left out.
+Passes then promote the wrappers' scalars to registers, simplify what that
+makes constant, merge the blocks left behind without making a branch a
+select, join each `elif` to the `if` before it (next entry) and merge
+again. Each takes time in proportion to the instructions it reads; LLVM's
+own inliner, scalar replacement of aggregates and instruction combining,
+which do not on a large value array, are left out.
+
+### An `elif` joined to the `if` before it
+
+- **Builds:** every build
+- **Where:** `lib/codegen/passes.ml` (`threading`, `unoptimized`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
+- **Effect:** the particle simulation of
+  [zane-lang/compiler#292](https://github.com/zane-lang/compiler/issues/292)
+  (100,000 particles bounced off four walls for 4,000 frames): optimized,
+  18.1G → 12.1G instructions under Valgrind and run 1.74 s → 1.2 s;
+  unoptimized, run 11.7 s → 11.1 s. `tests/perf` `removal`, 5-8% fewer
+  estimated cycles in every build; tier 1 of `floats`, 2.7% more
+
+`core`'s `elif` is a function that branches on `~this and condition`, so
+both of its halves reach LLVM as code. Jump threading, run while each
+`elif` is still as written, sends the `if`'s body straight past the
+`elif`, which makes the two one chain as C's `else if` is. Otherwise LLVM
+turns a cheap `if` body into selects, and both bodies run every time round
+a loop.
 
 ### Code tuned for the processor clang would pick
 
@@ -389,7 +411,10 @@ to link.
 A parameter passed by address is `readonly`, `noalias`, aligned and
 `dereferenceable` for its size, so LLVM may treat the value behind it as a
 private copy. An `sret` result is `noalias`. Call sites carry the same
-attributes.
+attributes. A parameter that is the address of the caller's own slot, a
+`mut` subject or an owned value passed by address, is `nonnull`, aligned
+and `dereferenceable` for the whole slot, so a loop reads a list in it
+once rather than after every index check.
 
 ### List headers and scalars in separate alias classes
 
@@ -448,12 +473,16 @@ only when the block is full (on a branch marked unlikely). `remove` and
 - **Where:** `lib/codegen/frames.ml`, `lib/codegen/emit.ml`
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "A scope's
   slots are one frame, in one range per context"
-- **Effect:** not measured
+- **Effect:** telling LLVM the frame may be read: `tests/perf` `flips`,
+  tiered, 6.6% fewer estimated cycles
 
 Each scope's slots form one frame at fixed offsets, placed back to back in
 one range per context. While no spawned call is out, entering a scope is a
 bump of the frontier and a few stores, and a drain with nothing to wait for
-or return moves the frontier back, with no runtime call.
+or return moves the frontier back, with no runtime call. The open scope
+tells LLVM with `llvm.assume` that any slot of its frame may be read and
+that the frame is 16-byte aligned, so a loop reads a list kept in the
+frame once.
 
 ### Emitted walks per type, shared between alike types
 
