@@ -38,8 +38,9 @@ let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_regio
    free neither on their own. With [memoize], the functions [Cgt.Memo]
    picks are remembered, the same in every build, so a tiered build's two
    tiers emit the same module (docs/design/tiers.md T3). With [version],
-   each loop over elements is emitted twice for the optimized passes to
-   tell apart (Emit.versioned); a tiered build's two tiers both take it. *)
+   each loop over elements the optimized passes can split is emitted twice
+   for them to tell apart (Emit.versioned); a tiered build's two tiers
+   both take it. *)
 let with_program ?target ?pack ?(memoize = false) ?version ?fixed_region ?spawned_fixed_region p f =
   let p, memos = if memoize then Cgt.Memo.plan p else (p, []) in
   with_module ?target ?pack ~memos ?version ?fixed_region ?spawned_fixed_region p f

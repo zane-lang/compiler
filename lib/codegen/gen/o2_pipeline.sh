@@ -3,8 +3,10 @@
 # passes added (lib/codegen/passes.ml): jump threading at the end of the
 # first function simplification, once each function's locals are in
 # registers, and inductive range check elimination after the loop passes
-# that first rotate each loop and hoist what it reads. The `opt` of the LLVM
-# `$LLVM_CONFIG` names prints it, so it is that LLVM's pipeline.
+# that first rotate each loop and hoist what it reads. Then the same with
+# runtime loop unrolling off, for tier 1 (docs/design/tiers.md T2). The
+# `opt` of the LLVM `$LLVM_CONFIG` names prints it, so it is that LLVM's
+# pipeline.
 set -eu
 llvm_config=${LLVM_CONFIG:-llvm-config}
 opt="$("$llvm_config" --bindir)/opt"
@@ -26,3 +28,5 @@ add() {
 add 'sroa<modify-cfg>,early-cse<>' ',jump-threading' ')'
 add 'simple-loop-unswitch<no-nontrivial;trivial>)' ',irce' ',simplifycfg'
 printf 'let optimized = "%s"\n' "$pipeline"
+add 'loop-unroll<O2' ';no-runtime' '>'
+printf 'let tier1 = "%s"\n' "$pipeline"

@@ -109,7 +109,7 @@ let probe_stack triple m =
 
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and its passes run, the optimized
-   ones when *optimize* ([Passes.pipeline]). A program means the same either way
+   ones when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A program means the same either way
    (docs/design/lowering.md §7). A [tier] of a tiered build is fingerprinted
    first, then made tier 0 or tier 1 around its passes (docs/design/tiers.md);
    tier 1 runs the optimized ones. *)
@@ -129,10 +129,8 @@ let prepare ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint m =
       let data_layout = Llvm_target.TargetMachine.data_layout tm in
       Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
       if not optimize then Wrappers.mark data_layout m;
-      if optimize then
-        llvm_options
-          (Array.of_list (("zanec" :: Passes.llvm_options) @ if tier = Tiers.Tier1 then Tiers.tier1_llvm_options else []));
-      Llvm_passbuilder.run_passes m (Passes.pipeline ~optimize) tm (Llvm_passbuilder.create_passbuilder_options ())
+      if optimize then llvm_options (Array.of_list ("zanec" :: Passes.llvm_options));
+      Llvm_passbuilder.run_passes m (Passes.pipeline ~optimize ~tier1:(tier = Tiers.Tier1)) tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
       |> Fun.flip Result.bind (fun () ->
              match (exports, definitions) with
@@ -982,8 +980,8 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = cache_dir ()) m
               (fun identity ->
                 let key =
                   String.concat "\000"
-                    ([ fingerprint; triple; cc; identity; compiler_identity (); Tiers.tier1_pipeline ]
-                    @ Passes.llvm_options @ Tiers.tier1_llvm_options)
+                    ([ fingerprint; triple; cc; identity; compiler_identity (); Passes.tier1 ]
+                    @ Passes.llvm_options)
                 in
                 Filename.concat (Filename.concat cache "tier")
                   (Digest.to_hex (Digest.string key) ^ shared_extension triple))

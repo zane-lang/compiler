@@ -34,12 +34,18 @@ let unoptimized =
    it no longer recognizes. *)
 let optimized = O2_pipeline.optimized
 
-(* The options LLVM is started with for [optimized]. IRCE splits a loop
-   only when its header runs at least this many times for each entry to it,
-   since the split costs each entry more than a short loop saves: more than
-   LLVM guesses for a loop it knows nothing of, and fewer than codegen says
-   the long copy of a loop it emits twice goes round (Emit.versioned). *)
+(* [optimized] with runtime loop unrolling off, for tier 1
+   (docs/design/tiers.md T2). *)
+let tier1 = O2_pipeline.tier1
+
+(* The options LLVM is started with for [optimized] and [tier1], the same
+   for both, since LLVM reads them once for the whole process. IRCE splits a
+   loop only when its header runs at least this many times for each entry
+   to it, since the split costs each entry more than a short loop saves:
+   more than LLVM guesses for a loop it knows nothing of, and fewer than
+   codegen says the long copy of a loop it emits twice goes round
+   (Emit.versioned). *)
 let llvm_options = [ "-irce-min-runtime-iterations=64" ]
 
-(* [unoptimized], or [optimized] when *optimize*. *)
-let pipeline ~optimize = if optimize then optimized else unoptimized
+(* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*. *)
+let pipeline ~optimize ~tier1:is_tier1 = if is_tier1 then tier1 else if optimize then optimized else unoptimized

@@ -121,12 +121,15 @@ class FactsTests(unittest.TestCase):
         # An optimized build emits a loop over elements twice, weighted to
         # go round 1,000 and 4 times (Emit.versioned), and IRCE splits the
         # long copy into a main loop with no checks and the iterations after
-        # it, whose block names it gives (Passes.optimized). A plain build,
-        # whose passes have no use for the copies, emits each loop once.
+        # it, whose block names it gives (Passes.optimized): both of
+        # bounce's loops, the one in `step`, inlined into `main`, and the
+        # one in `main` itself. A plain build, whose passes have no use for
+        # the copies, emits each loop once.
         ir = run(ZANEC, "--ll", *packages("bounce"))
         self.assertNotIn('!{!"branch_weights", i32 1000, i32 1}', ir)
         ir = run(ZANEC, "--ll", "--optimize", *packages("bounce"))
-        self.assertRegex(ir, r"\nmain\.exit\.selector[.\w]*:")
+        selectors = set(re.findall(r"\n(main\.exit\.selector[.\w]*):", ir))
+        self.assertGreaterEqual(len(selectors), 2, selectors)
         self.assertRegex(ir, r"\npostloop[.\w]*:")
 
     def test_bounce_runs_and_stops_out_of_range(self):

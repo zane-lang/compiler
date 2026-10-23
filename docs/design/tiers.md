@@ -28,8 +28,7 @@ takes no `--link`, since it links nothing of the program's (T4).
 **T2. Tier 1 is a lighter optimized build than `--optimize`.** It skips
 stage 5, runs the optimized build's passes ([`lowering.md`](lowering.md)
 §9, "The passes") with runtime loop unrolling off, and generates optimized
-machine code (`Tiers.tier1_pipeline`,
-`Tiers.tier1_llvm_options`). Runtime unrolling is what made `-O2` take 16 s
+machine code (`Passes.tier1`). Runtime unrolling is what made `-O2` take 16 s
 of a 400-function program's 25 s build, against 2 s without it, for code
 about 5% slower; stage 5 takes seconds on programs that compute much ahead of
 time. A tier 1 that arrives late gains the program nothing, so it is built

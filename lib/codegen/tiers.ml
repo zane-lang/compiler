@@ -16,11 +16,6 @@ external import_uses : Llvm.llvalue -> Llvm.llvalue -> int -> bool = "zane_tier_
 
 type tier = Plain | Tier0 | Tier1
 
-(* What each tier is built with, and what the cache keys tier 1 by besides
-   the module: a change to how tier 1 is made changes it. *)
-let tier1_pipeline = Passes.optimized
-let tier1_llvm_options = [ "-unroll-runtime=false" ]
-
 (* The module's fingerprint, taken before anything changes it. Tier 0 and
    tier 1 lower the same tree and emit the same module, so the runtime
    loads tier 1 only into the program whose fingerprint it carries. *)
