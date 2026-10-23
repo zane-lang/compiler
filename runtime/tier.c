@@ -166,18 +166,21 @@ static int zane_tier_swap(const struct zane_tier1 *t1, double since) {
 		}
 		t1->import[i] = e->at;
 	}
-	int64_t moved = 0;
+	/* A library missing any of the program's functions is not this
+	   program's tier 1, so it takes none of them. */
 	for (int64_t i = 0; i < t0->slots; i++) {
-		const struct zane_tier_entry *d = zane_tier_find(t0->slot[i].key, t1->def, t1->defs);
-		if (d) {
-			__atomic_store_n((void **)t0->slot[i].at, d->at, __ATOMIC_RELEASE);
-			moved++;
+		if (!zane_tier_find(t0->slot[i].key, t1->def, t1->defs)) {
+			zane_tier_say("lacks a function of the program", since);
+			return 0;
 		}
 	}
+	for (int64_t i = 0; i < t0->slots; i++)
+		__atomic_store_n((void **)t0->slot[i].at, zane_tier_find(t0->slot[i].key, t1->def, t1->defs)->at,
+		                 __ATOMIC_RELEASE);
 	if (zane_tier_log)
-		fprintf(stderr, "zane: tier 1 runs %lld of %lld functions after %.0f ms\n", (long long)moved,
+		fprintf(stderr, "zane: tier 1 runs %lld of %lld functions after %.0f ms\n", (long long)t0->slots,
 		        (long long)t0->slots, (zane_tier_now() - since) * 1000);
-	return moved == t0->slots;
+	return 1;
 }
 
 /* Waits for tier 1, a millisecond at a time for the first tenth of a
@@ -245,7 +248,7 @@ void zane_tier_up(const struct zane_tier0 *tier) {
 	free(wait);
 	if (!zane_tier_path) return;
 	/* A test waits for tier 1 to know the program runs it, so one that is
-	   not there, does not load, or leaves a function in tier 0 stops the
+	   not there, does not load, or lacks a function stops the
 	   program. */
 	if (now) {
 		if (!zane_tier_exists(zane_tier_path) || !zane_tier_load()) {

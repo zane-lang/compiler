@@ -98,8 +98,9 @@ without a directory is the current directory's file), and checks
 its fingerprint. It fills tier 1's imports from tier 0's exports by name,
 then points each slot at tier 1's function of the same key with a release
 store, so a call that reads the new address sees the imports filled. A
-library that does not load, is another program's, or asks for a name tier 0
-does not have leaves the program in tier 0, and says so only when
+library that does not load, is another program's, asks for a name tier 0
+does not have, or lacks one of tier 0's functions leaves the program wholly
+in tier 0, and says so only when
 `ZANE_TIER_LOG` is set. The program removes the variables once read, so
 nothing it starts sees them. A program ending while tier 1 loads, by returning
 from `main` or by an `exit` such as a runtime error's, waits for
@@ -108,7 +109,7 @@ loader's lock can hang.
 
 **T8. `ZANE_TIER_WAIT=1` loads tier 1 before `main` runs.** It is for the
 tests: the whole program but `main` itself then runs tier 1, and a tier 1
-that is not there yet, does not load, or leaves a slot unfilled stops the
+that is not there yet, does not load, or lacks a function stops the
 program, so a test cannot pass on tier 0 alone, and one whose tier-1 build
 failed does not wait for it.
 
