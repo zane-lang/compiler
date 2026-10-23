@@ -104,14 +104,19 @@ well-formed stamp, and a malformed one is a usage error that writes no
 object. Its packages are written to a temporary directory, so no file name
 in the repository is Unicode.
 
-`memo_test.py` checks calls remembered while the program runs, `--memoize`
+`memo_test.py` checks calls remembered while the program runs
 (docs/design/memoization.md). Its `memo` fixtures are programs, each built
-plain and optimized, without and with `--memoize`, and each must print the
-same in all four. `fib`, `ttt` (a board array), `moves` (a variant) and
+plain, optimized and tiered (tier 1 loaded before `main`), with and without
+`--no-memoize`, and each must print the same in all six. `fib`, `ttt` (a board array), `moves` (a variant) and
 `constant` (which reads a package constant) repeat their arguments and get
 one table each. `tree`, `phase` and `shallowin` mostly do not repeat them. `rejected` holds recursions that are
 left alone: one that calls itself once, one that takes a `String`, and one
 that prints. `spawning` spawns, so none of its functions gets a table, and
-neither does `memolibrary`, a library a program that spawns may call. An
-optimized build of `shallow` gets none either, because LLVM folds its loop
-without one.
+neither does `memolibrary`, a library a program that spawns may call.
+`merged` makes the same call twice, so it gets none in any build, since an
+optimizer makes the two calls one, and so does `inlined`, whose first call
+is inside a verb written out where it is called, which always runs. `stepped` makes two calls that read the
+same local, which a mutating call between them changes through its address,
+so they count as two and it gets a table. `apart` makes the same call in two
+blocks that may each run without the other, so it gets one too. Every build gives the same functions a
+table, so the two tiers of a tiered build emit the same module.

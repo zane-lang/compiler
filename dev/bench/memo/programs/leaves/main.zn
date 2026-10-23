@@ -1,0 +1,56 @@
+/// HITS THAT DO NOT PAY: arguments repeat only on the last level, whose calls do least, so each hit saves less than a lookup costs.
+package leaves;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\n")));
+	return Unit();
+}
+
+Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)))
+
+Int mix(k Int) => rem(@operators$add(@operators$multiply(k, Int(6364136223846793005)), Int(1442695040888963407)), Int(1000000007))
+
+/// The sum over a complete binary tree n levels deep, whose leaves see only
+/// the keys 0 and 1.
+Int walk(n Int, k Int) {
+	@controlflow$branch(@operators$lessThan(n, Int(1)), {
+		return k;
+	});
+	@controlflow$branch(@operators$equal(n, Int(1)), {
+		return @operators$add(walk(Int(0), rem(k, Int(2))), walk(Int(0), rem(mix(k), Int(2))));
+	});
+	return @operators$add(walk(@operators$add(n, @operators$negate(Int(1))), mix(k)), walk(@operators$add(n, @operators$negate(Int(1))), mix(@operators$add(k, Int(1)))));
+}
+
+Unit main() {
+	n Int = size(Int(18));
+	say(String(walk(n, Int(5))));
+	return Unit();
+}

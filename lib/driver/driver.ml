@@ -128,30 +128,29 @@ let optimize ~optimize cgt = if optimize then Optimize.run cgt else cgt
 let built = function Ok v -> Ok v | Error message -> fail [ Diagnostic.about_invocation message ]
 
 (* The program's module exists only inside [f] (Codegen.with_program). *)
-let emitted ?target ?pack ?memoize ?optimize regions cgt f =
-  Codegen.with_program ?target ?pack ?memoize ?optimize ?fixed_region:regions.fixed ?spawned_fixed_region:regions.spawned cgt f
+let emitted ?target ?pack ?memoize regions cgt f =
+  Codegen.with_program ?target ?pack ?memoize ?fixed_region:regions.fixed ?spawned_fixed_region:regions.spawned cgt f
 
 let ir ?target ?pack ?memoize ?(regions = no_regions) ~optimize cgt =
   built
-    (emitted ?target ?pack ?memoize ~optimize regions cgt (fun m ->
+    (emitted ?target ?pack ?memoize regions cgt (fun m ->
          Result.map (fun () -> Codegen.ir m) (Codegen.prepare ?target ~optimize m)))
 
-(* A [tiered] build is tier 0 (docs/design/tiers.md). It plans what it
-   remembers as an unoptimized build does, as tier 1 does, so the two emit
-   the same module. *)
+(* A [tiered] build is tier 0 (docs/design/tiers.md). Every build plans
+   what it remembers alike, so it and tier 1 emit the same module. *)
 let executable ?target ?pack ?memoize ?(regions = no_regions) ?(tiered = false) ~optimize ~link cgt output =
   let tier = if tiered then Codegen.Tier0 else Codegen.Plain in
   built
-    (emitted ?target ?pack ?memoize ~optimize regions cgt (fun m ->
+    (emitted ?target ?pack ?memoize regions cgt (fun m ->
          Codegen.executable ?target ~optimize ~tier ~link m output))
 
 (* Tier 1 of a tiered build, from the tree lowering made, without stage 5,
    so it emits the module tier 0 does. *)
 let tier_up ?target ?pack ?memoize ?(regions = no_regions) cgt output =
-  built (emitted ?target ?pack ?memoize ~optimize:false regions cgt (fun m -> Codegen.shared_library ?target m output))
+  built (emitted ?target ?pack ?memoize regions cgt (fun m -> Codegen.shared_library ?target m output))
 
 let object_file ?target ?pack ?memoize ?(regions = no_regions) ~optimize cgt output =
-  built (emitted ?target ?pack ?memoize ~optimize regions cgt (fun m -> Codegen.object_file ?target ~optimize m output))
+  built (emitted ?target ?pack ?memoize regions cgt (fun m -> Codegen.object_file ?target ~optimize m output))
 
 let bundle_runtime ~target ~optimize dir = built (Codegen.bundle_runtime ~target ~optimize dir)
 

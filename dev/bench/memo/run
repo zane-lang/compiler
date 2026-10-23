@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Estimated cycles (tests/perf/run's formula and caches) for each program,
-plain and optimized, without and with --memoize."""
-import subprocess, sys, json
+plain, optimized and tiered (as `zane run` builds it, with tier 1 loaded
+before `main`), with --no-memoize and without it."""
+import os, subprocess, sys, json
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -10,6 +11,8 @@ OUT = Path(sys.argv[2])
 DIRS = [Path(d) for d in sys.argv[3:]]
 CACHES = ["--I1=32768,8,64", "--D1=32768,8,64", "--LL=8388608,16,64"]
 OUT.mkdir(parents=True, exist_ok=True)
+BUILDS = {"plain": [], "optimized": ["--optimize"], "tiered": ["--tiered"]}
+if os.environ.get("ONLY"): BUILDS = {k: v for k, v in BUILDS.items() if k in os.environ["ONLY"].split(",")}
 
 def totals(profile):
     events = None
@@ -23,17 +26,24 @@ def one(job):
     d, build, memo = job
     name = d.name
     exe = OUT / f"{name}.{build}.{memo}"
-    flags = (["--optimize"] if build == "optimized" else []) + (["--memoize"] if memo == "memo" else [])
-    import os; extra = os.environ.get("EXTRA", "").split()
+    flags = BUILDS[build] + ([] if memo == "memo" else ["--no-memoize"])
+    extra = os.environ.get("EXTRA", "").split()
     b = subprocess.run([ZANEC, "--build", exe, *flags, "--package", d, *extra], capture_output=True, text=True)
     if b.returncode:
         return job, {"error": b.stderr[-400:]}
+    env = None
+    if build == "tiered":
+        library = OUT / f"{name}.{build}.{memo}.tier1"
+        b = subprocess.run([ZANEC, "--tier-up", library, *flags[1:], "--package", d, *extra], capture_output=True, text=True)
+        if b.returncode:
+            return job, {"error": b.stderr[-400:]}
+        env = {**os.environ, "ZANE_TIER_UP": str(library), "ZANE_TIER_WAIT": "1"}
     nm = subprocess.run(["nm", exe], capture_output=True, text=True).stdout
     memos = sum(1 for l in nm.splitlines() if l.endswith(".memo.state"))
     args = (d / "arguments").read_text().split()
     prof = OUT / f"{name}.{build}.{memo}.cg"
     r = subprocess.run(["valgrind", "-q", "--tool=callgrind", "--cache-sim=yes", "--branch-sim=yes", *CACHES,
-                        f"--callgrind-out-file={prof}", exe, *args], capture_output=True, text=True)
+                        f"--callgrind-out-file={prof}", exe, *args], capture_output=True, text=True, env=env)
     if r.returncode:
         return job, {"error": r.stderr[-400:]}
     e = totals(prof)
@@ -42,13 +52,13 @@ def one(job):
     mis = e["Bcm"] + e["Bim"]
     return job, {"cycles": e["Ir"] + 10 * l1 + 100 * ll + 20 * mis, "instructions": e["Ir"], "output": r.stdout, "memos": memos}
 
-jobs = [(d, b, m) for d in DIRS for b in ("plain", "optimized") for m in ("base", "memo")]
+jobs = [(d, b, m) for d in DIRS for b in BUILDS for m in ("base", "memo")]
 with ThreadPoolExecutor(8) as ex:
     res = dict(ex.map(one, jobs))
 rows = []
 print(f"{'program':<14}{'build':<10}{'memoized':>9}{'base cycles':>16}{'memo cycles':>16}{'change':>10}  same output")
 for d in DIRS:
-    for b in ("plain", "optimized"):
+    for b in BUILDS:
         x, y = res[(d, b, "base")], res[(d, b, "memo")]
         if "error" in x or "error" in y:
             print(f"{d.name:<14}{b:<10} ERROR {x.get('error','')} {y.get('error','')}")

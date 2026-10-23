@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""generate SEED OUTDIR: a random program in OUTDIR, the same for each SEED.
+It holds one to three cycles of one or two recursive functions, each taking
+a depth and one to three values of the fixed-size types below and returning
+one. Each calls its cycle two or three times, some calls in a loop, with
+arguments narrowed to a few values so that they repeat, and `main` prints
+the result for each of a few dozen inputs. Integer arithmetic wraps and
+divides by zero to zero, and float division may give an infinity or NaN,
+so every program runs to its end."""
+import random, sys
+from pathlib import Path
+
+seed = int(sys.argv[1]); out = Path(sys.argv[2])
+R = random.Random(seed)
+TYPES = ["Int", "I32", "Float", "Bool", "S", "V", "Arr", "P"]
+
+HEADER = """package PKG;
+
+alias Int = @primitives$I64
+alias I32 = @primitives$I32
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+alias Arr = @primitives$Array<I32, 3>
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\\n")));
+	return Unit();
+}
+
+type S = struct {
+	a I32;
+	b Float;
+	c Bool;
+}
+
+S(a I32, b Float, c Bool) => init{ a; b; c; }
+
+type P = struct {
+	x Int;
+	y Int;
+}
+
+P(x Int, y Int) => init{ x; y; }
+
+type V = variant {
+	p Int;
+	q I32;
+	r Unit;
+}
+
+Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)))
+
+Int vInt(v V) => match (v) {
+	k p => k;
+	k q => @primitives$I64(k);
+	r => Int(7);
+}
+
+Int bInt(b Bool) {
+	@controlflow$branch(b, {
+		return Int(1);
+	});
+	return Int(0);
+}
+
+String sBool(b Bool) {
+	@controlflow$branch(b, {
+		return String("t");
+	});
+	return String("f");
+}
+
+String sS(s S) => @operators$concat(@operators$concat(@operators$concat(String(s.a), String("/")), @operators$concat(String(s.b), String("/"))), sBool(s.c))
+
+String sP(s P) => @operators$concat(@operators$concat(String(s.x), String(",")), String(s.y))
+
+String sV(v V) => match (v) {
+	k p => @operators$concat(String("p"), String(k));
+	k q => @operators$concat(String("q"), String(k));
+	r => String("r");
+}
+
+String sArr(a Arr) => @operators$concat(@operators$concat(@operators$concat(String(a[Int(1)]), String(",")), @operators$concat(String(a[Int(2)]), String(","))), String(a[Int(3)]))
+"""
+
+def add(a, b): return f"@operators$add({a}, {b})"
+def mul(a, b): return f"@operators$multiply({a}, {b})"
+def neg(a): return f"@operators$negate({a})"
+
+def lit(t):
+    k = R.randint(-5, 9)
+    if t in ("Int", "I32"): return f"{t}({k})" if k >= 0 else neg(f"{t}({-k})")
+    if t == "Float": return R.choice(["Float(0.5)", "Float(1.25)", neg("Float(2.0)"), "Float(3.0)", "Float(0.1)"])
+    if t == "Bool": return R.choice(["true", "false"])
+
+def gen(t, env, depth):
+    vs = env.get(t, [])
+    if depth <= 0 or R.random() < 0.25:
+        if vs and R.random() < 0.7: return R.choice(vs)
+        if t in ("Int", "I32", "Float", "Bool"): return lit(t)
+    d = depth - 1
+    if t == "Int":
+        return R.choice([
+            lambda: add(gen("Int", env, d), gen("Int", env, d)),
+            lambda: mul(gen("Int", env, d), gen("Int", env, d)),
+            lambda: neg(gen("Int", env, d)),
+            lambda: f"rem({gen('Int', env, d)}, Int({R.randint(2, 9)}))",
+            lambda: f"@operators$divide({gen('Int', env, d)}, {gen('Int', env, d)})",
+            lambda: f"@primitives$I64({gen('I32', env, d)})",
+            lambda: f"vInt({gen('V', env, d)})",
+            lambda: f"bInt({gen('Bool', env, d)})",
+            lambda: f"{gen('P', env, d)}.{R.choice('xy')}",
+        ])()
+    if t == "I32":
+        return R.choice([
+            lambda: add(gen("I32", env, d), gen("I32", env, d)),
+            lambda: mul(gen("I32", env, d), gen("I32", env, d)),
+            lambda: f"I32.wrap({gen('Int', env, d)})",
+            lambda: f"{gen('S', env, d)}.a",
+            lambda: f"{gen('Arr', env, d)}[Int({R.randint(1, 3)})]",
+        ])()
+    if t == "Float":
+        return R.choice([
+            lambda: add(gen("Float", env, d), gen("Float", env, d)),
+            lambda: mul(gen("Float", env, d), gen("Float", env, d)),
+            lambda: f"@operators$divide({gen('Float', env, d)}, {gen('Float', env, d)})",
+            lambda: f"@primitives$F64.round({gen('Int', env, d)})",
+            lambda: f"@primitives$F64({gen('I32', env, d)})",
+            lambda: f"{gen('S', env, d)}.b",
+        ])()
+    if t == "Bool":
+        return R.choice([
+            lambda: f"@operators$lessThan({gen('Int', env, d)}, {gen('Int', env, d)})",
+            lambda: f"@operators$lessThan({gen('Float', env, d)}, {gen('Float', env, d)})",
+            lambda: f"@operators$equal({gen('Float', env, d)}, {gen('Float', env, d)})",
+            lambda: f"@operators$equal({gen('I32', env, d)}, {gen('I32', env, d)})",
+            lambda: f"@operators$not({gen('Bool', env, d)})",
+            lambda: f"{gen('S', env, d)}.c",
+        ])()
+    if t == "S": return f"S({gen('I32', env, d)}, {gen('Float', env, d)}, {gen('Bool', env, d)})"
+    if t == "P": return f"P({gen('Int', env, d)}, {gen('Int', env, d)})"
+    if t == "Arr": return f"@primitives$Array([{gen('I32', env, d)}, {gen('I32', env, d)}, {gen('I32', env, d)}])"
+    if t == "V":
+        c = R.choice("pqr")
+        if c == "p": return f"V.p({gen('Int', env, d)})"
+        if c == "q": return f"V.q({gen('I32', env, d)})"
+        return "V.r(Unit())"
+
+# A narrow value of t, so that arguments repeat.
+def narrow(t, env):
+    m = R.randint(2, 6)
+    i = lambda: f"rem({gen('Int', env, 2)}, Int({R.randint(2, 6)}))"
+    if t == "Int": return f"rem({gen('Int', env, 2)}, Int({m}))"
+    if t == "I32": return f"I32.wrap({i()})"
+    if t == "Float": return R.choice([f"@operators$multiply(@primitives$F64.round({i()}), Float(0.5))",
+                                      f"@operators$divide(@primitives$F64.round({i()}), @primitives$F64.round({i()}))"])
+    if t == "Bool": return f"@operators$lessThan({i()}, Int(2))"
+    if t == "S": return f"S({narrow('I32', env)}, {narrow('Float', env)}, {narrow('Bool', env)})"
+    if t == "P": return f"P({narrow('Int', env)}, {narrow('Int', env)})"
+    if t == "Arr": return f"@primitives$Array([{narrow('I32', env)}, {narrow('I32', env)}, {narrow('I32', env)}])"
+    if t == "V":
+        c = R.choice("pqr")
+        return {"p": f"V.p({narrow('Int', env)})", "q": f"V.q({narrow('I32', env)})", "r": "V.r(Unit())"}[c]
+
+SHOW = {"Int": "String({})", "I32": "String({})", "Float": "String({})", "Bool": "sBool({})",
+        "S": "sS({})", "P": "sP({})", "V": "sV({})", "Arr": "sArr({})"}
+
+# Functions in groups: each group is a cycle of 1-2 recursive functions.
+funcs = []
+ngroups = R.randint(1, 3)
+for g in range(ngroups):
+    size = R.choice([1, 1, 2])
+    group = []
+    for k in range(size):
+        params = [(f"x{j}", R.choice(TYPES)) for j in range(R.randint(1, 3))]
+        group.append({"name": f"f{g}k{k}", "params": params, "ret": R.choice(TYPES)})
+    funcs.append(group)
+
+src = [HEADER]
+for gi, group in enumerate(funcs):
+    for f in group:
+        env = {"Int": ["d"]}
+        for n, t in f["params"]: env.setdefault(t, []).append(n)
+        ps = ", ".join(f"{n} {t}" for n, t in f["params"])
+        body = [f"{f['ret']} {f['name']}(d Int, {ps}) {{",
+                "\t@controlflow$branch(@operators$lessThan(d, Int(1)), {",
+                f"\t\treturn {gen(f['ret'], env, 3)};", "\t});"]
+        ncalls = R.randint(2, 3)
+        for c in range(ncalls):
+            callee = R.choice(group)
+            # a callee of a later group, for calls from one cycle into another
+            if gi + 1 < len(funcs) and R.random() < 0.3: callee = R.choice(funcs[gi + 1])
+            dec = R.choice([1, 1, 2])
+            args = ", ".join([f"@operators$add(d, @operators$negate(Int({dec})))"] + [narrow(t, env) for _, t in callee["params"]])
+            v = f"c{c}"
+            if R.random() < 0.25:
+                body.append(f"\t{v} {callee['ret']} = {lit(callee['ret']) if callee['ret'] in ('Int','I32','Float','Bool') else gen(callee['ret'], env, 1)};")
+                body.append(f"\tj{c} Int(1);")
+                body.append(f"\tj{c}!to(Int(2)) {{")
+                body.append(f"\t\t{v} = {callee['name']}({args});")
+                body.append("\t}")
+            else:
+                body.append(f"\t{v} {callee['ret']} = {callee['name']}({args});")
+            env.setdefault(callee["ret"], []).append(v)
+        body.append(f"\treturn {gen(f['ret'], env, 3)};")
+        body.append("}")
+        src.append("\n".join(body) + "\n")
+
+top = funcs[0][0]
+depth = R.randint(6, 14)
+env = {"Int": ["i"]}
+args = ", ".join([f"Int({depth})"] + [narrow(t, env) for _, t in top["params"]])
+src.append(f"""Unit main() {{
+	n Int = size(Int({R.randint(3, 40)}));
+	i Int(1);
+	i!to(n) {{
+		r {top['ret']} = {top['name']}({args});
+		say({SHOW[top['ret']].format('r')});
+	}}
+	return Unit();
+}}
+""")
+out.mkdir(parents=True, exist_ok=True)
+(out / "main.zn").write_text("\n".join(src).replace("package PKG;", f"package {out.name};", 1))
+(out / "arguments").write_text("")

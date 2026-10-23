@@ -1,8 +1,8 @@
-(* Calls remembered while the program runs (`--memoize`,
-   docs/design/memoization.md): which functions get a table (M1), each one
+(* Calls remembered while the program runs, unless `--no-memoize`
+   (docs/design/memoization.md): which functions get a table (M1), each one
    split into a body copy and a plain copy beside the dispatcher codegen
-   emits (M2), what a lookup is charged (M3), and the loops that decide once
-   whether their calls look (M4). *)
+   emits (M2), what a lookup is charged and a hit credited (M3), and the
+   loops that decide once whether their calls look (M4). *)
 
 open Nodes
 
@@ -15,6 +15,12 @@ type t = {
   (* What a lookup is charged, in sixteenths of one of the function's
      calls (see [charge]). *)
   charge : int;
+  (* The weight of its cheapest call, which each miss adds to the work
+     counted (see [least]). *)
+  cheapest : int;
+  (* What a hit is credited for each unit of the work it saved, in
+     sixteenths of a call, shifted left by [credit_shift] (see [credit]). *)
+  credit : int;
 }
 
 (* The 8-byte words a value of [t] is remembered in: its bytes, rounded
@@ -81,20 +87,69 @@ let alone (f : Func.t) =
        ~stat:(function Stat.Spawn _ | Stat.Join _ -> true | _ -> false))
 
 (* Each call site in [f], with a call inside a loop counted twice, since it
-   runs at least as often as two calls side by side. *)
+   runs at least as often as two calls side by side. A call equal to an
+   earlier one that always runs before it, the same function given the same
+   arguments, counts for nothing when those arguments read no local the
+   body assigns: they have the same values, and an optimizer makes the two
+   calls one. A local
+   whose address is taken counts as assigned, since a store through the
+   address changes it, and an argument that reads through an address is
+   never taken to be the same twice. *)
 let calls (f : Func.t) =
-  let found = ref [] in
+  let found = ref [] and made = ref [] in
+  let assigned = Hashtbl.create 8 in
+  Traverse.walk_stats
+    (fun e -> match e.Expr.node with Expr.Address i -> Hashtbl.replace assigned i () | _ -> ())
+    (function Stat.Assign { place; _ } -> Hashtbl.replace assigned place.Expr.local () | _ -> ())
+    f.Func.body;
+  let steady args =
+    List.for_all
+      (fun a ->
+        not
+          (Traverse.exists_in [ Stat.Eval a ]
+             ~expr:(fun e ->
+               match e.Expr.node with
+               | Expr.Local i | Expr.Address i -> Hashtbl.mem assigned i
+               | Expr.Deref _ | Expr.Take _ | Expr.Snapshot _ -> true
+               | _ -> false)
+             ~stat:(fun _ -> false)))
+      args
+  in
   let rec stats weight ss = List.iter (stat weight) ss
   and stat weight (s : Stat.t) =
     let es, bodies = Traverse.stat_parts s in
     let inner = match s with Stat.Repeat _ -> 2 | _ -> weight in
     List.iter (expr weight) es;
-    List.iter (stats inner) bodies
+    match s with
+    | Stat.Scope _ -> List.iter (stats inner) bodies
+    | _ -> List.iter (inside (stats inner)) bodies
+  (* A body that may not run: a call in it stands for no call after it. *)
+  and inside walk body =
+    let before = !made in
+    walk body;
+    made := before
   and expr weight (e : Expr.t) =
-    (match e.Expr.node with Expr.Call { fn; _ } -> found := (fn, weight) :: !found | _ -> ());
-    let es, bodies = Traverse.expr_parts e in
-    List.iter (expr weight) es;
-    List.iter (stats weight) bodies
+    match e.Expr.node with
+    | Expr.Call { fn; args } ->
+        let again = steady args && List.mem (fn, args) !made in
+        if steady args then made := (fn, args) :: !made;
+        found := (fn, if again then 0 else weight) :: !found;
+        List.iter (expr weight) args
+    | Expr.Expand { label; body; _ } ->
+        (* The statements before the first that may leave the expansion
+           always run; the rest may not. *)
+        let leaves st = Traverse.exists_in [ st ] ~expr:(fun _ -> false) ~stat:(function Stat.Leave l -> l = label | _ -> false) in
+        let rec split before = function
+          | st :: rest when not (leaves st) -> split (st :: before) rest
+          | rest -> (List.rev before, rest)
+        in
+        let always, maybe = split [] body in
+        stats weight always;
+        inside (stats weight) maybe
+    | _ ->
+        let es, bodies = Traverse.expr_parts e in
+        List.iter (expr weight) es;
+        List.iter (inside (stats weight)) bodies
   in
   stats 1 f.Func.body;
   !found
@@ -179,6 +234,76 @@ let weight funcs remembered =
   in
   of_func
 
+(* The weight of the cheapest call to [f]: the fewest nodes a call can run
+   before it returns, counted as [weight] counts them, with a loop run no
+   times. A hit saves at least this much for each call it saves, whichever
+   path those calls would have taken. Where a path is unclear the count is
+   too small, never too large: an exit inside an expression is taken as soon
+   as the expression starts. *)
+let least funcs remembered =
+  let known = Hashtbl.create 16 in
+  let inf = max_int / 4 in
+  let ( +. ) a b = min inf (a + b) in
+  let rec of_func s =
+    match Hashtbl.find_opt known s with
+    | Some w -> w
+    | None -> (
+        Hashtbl.replace known s 1;
+        match Hashtbl.find_opt funcs s with
+        | None -> 1
+        | Some (f : Func.t) ->
+            let fall, exit = stats f.Func.body in
+            let w = max 1 (min 100_000 (min fall exit)) in
+            Hashtbl.replace known s w;
+            w)
+  (* Each part's cheapest cost to run to its end, and to leave early. *)
+  and stats ss =
+    List.fold_left
+      (fun (fall, exit) st ->
+        let f, x = stat st in
+        (fall +. f, min exit (fall +. x)))
+      (0, inf) ss
+  and parts es bodies =
+    let fall = List.fold_left (fun n e -> n +. fst (expr e)) 0 es in
+    let fall = List.fold_left (fun n b -> n +. fst (stats b)) fall bodies in
+    let exit = List.fold_left (fun n e -> min n (snd (expr e))) inf es in
+    let exit = List.fold_left (fun n b -> min n (snd (stats b))) exit bodies in
+    (fall, exit)
+  and stat (st : Stat.t) =
+    match st with
+    | Stat.Return e -> (inf, 1 +. fst (expr e))
+    | Stat.Leave _ -> (inf, 1)
+    | Stat.If { cond; body } | Stat.Repeat { count = cond; body } ->
+        let c, cx = expr cond in
+        let _, x = stats body in
+        (1 +. c, min cx (1 +. c +. x))
+    | Stat.Switch { value; cases } ->
+        let v, vx = expr value in
+        let each = List.map (fun (_, b) -> stats b) cases in
+        let fall = List.fold_left (fun n (f, _) -> min n f) inf each in
+        let exit = List.fold_left (fun n (_, x) -> min n x) inf each in
+        ((1 +. v) +. (if each = [] then 0 else fall), min vx (1 +. v +. exit))
+    | _ ->
+        let es, bodies = Traverse.stat_parts st in
+        let fall, exit = parts es bodies in
+        (1 +. fall, exit)
+  and expr (e : Expr.t) =
+    match e.Expr.node with
+    | Expr.Expand { body; _ } ->
+        let fall, exit = stats body in
+        (1 +. min fall exit, exit)
+    | _ ->
+        let es, bodies = Traverse.expr_parts e in
+        let fall, exit = parts es bodies in
+        let own =
+          match e.Expr.node with
+          | Expr.Call { fn; _ } when not (Hashtbl.mem remembered fn) -> of_func fn
+          | _ -> 1
+        in
+        (own +. fall, exit)
+  in
+  of_func
+
 (* What a lookup of [f] is charged, in sixteenths of a call: its own cost,
    a few dozen instructions and a few more for each word of the key,
    against the weight of a call. A function whose calls are heavy pays
@@ -189,6 +314,12 @@ let charge weigh (f : Func.t) =
   let lookup = 24 + (6 * key) in
   let w = max 1 (weigh f.Func.symbol) in
   max 1 (min (4 * scale) (((scale * lookup) + (w / 2)) / w))
+
+(* What a hit of [f] is credited for each unit of weight it saved, in
+   sixteenths of one of [f]'s calls, shifted left by [credit_shift] so a
+   unit is worth a fraction of a sixteenth. *)
+let credit_shift = 16
+let credit weigh (f : Func.t) = (scale lsl credit_shift) / max 1 (weigh f.Func.symbol)
 
 (* Every id a function names: one numbering covers locals, scopes, labels
    and tasks (lower.ml's [fresh]). *)
@@ -350,10 +481,10 @@ let version remembered outside next body =
 
 (* The program with each remembered function replaced by its two copies,
    and the functions remembered, whose dispatchers codegen emits. Only a
-   function [keep] admits is remembered. Only a program that runs on one
-   thread remembers anything: the tables are not shared safely between
-   threads, and a library's functions may be called from a program's. *)
-let plan ?(keep = fun _ -> true) (p : Program.t) =
+   program that runs on one thread remembers anything: the tables are not
+   shared safely between threads, and a library's functions may be called
+   from a program's. *)
+let plan (p : Program.t) =
   if not p.Program.exclusive then (p, [])
   else
     let funcs = Hashtbl.create 64 in
@@ -382,7 +513,6 @@ let plan ?(keep = fun _ -> true) (p : Program.t) =
     let chosen (f : Func.t) =
       let s = f.Func.symbol in
       Hashtbl.mem pure s
-      && keep s
       && Some s <> p.Program.entry
       && (match f.Func.linkage with Linkage.Local | Linkage.Exported | Linkage.Shared -> true | _ -> false)
       && fits f
@@ -423,8 +553,16 @@ let plan ?(keep = fun _ -> true) (p : Program.t) =
       List.map (fun (f : Func.t) -> { Global.symbol = state_symbol f.Func.symbol; linkage = Linkage.Local; ty = Ty.I64 }) memos
     in
     let weigh = weight funcs remembered in
+    let cheapest = least funcs remembered in
     ( { p with Program.funcs = funcs'; globals = p.Program.globals @ states },
       List.map
         (fun (f : Func.t) ->
-          { func = f; body = f.Func.symbol ^ suffix_body; plain = f.Func.symbol ^ suffix_plain; charge = charge weigh f })
+          {
+            func = f;
+            body = f.Func.symbol ^ suffix_body;
+            plain = f.Func.symbol ^ suffix_plain;
+            charge = charge weigh f;
+            cheapest = cheapest f.Func.symbol;
+            credit = credit weigh f;
+          })
         memos )

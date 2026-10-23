@@ -16,7 +16,8 @@ links there.
 - Every entry has the same four fields, in this order, then a short
   description:
   - **Builds:** `every build`, `optimized only` (`--optimize`),
-    `unoptimized only`, or `opt-in` (with the flag that turns it on).
+    `unoptimized only`, or `opt-in` (with the flag that turns it on). An
+    optimization a flag turns off names the flag after the builds.
   - **Where:** the files that implement it.
   - **Design:** the section of `docs/design/` that explains it.
   - **Effect:** a measured result, or `not measured`.
@@ -165,22 +166,25 @@ at run time; the body reads a number parameter as a constant.
 
 ### Calls remembered while the program runs
 
-- **Builds:** opt-in (`--memoize`)
-- **Where:** `lib/cgt/memo.ml`, `lib/codegen/emit.ml` (`memo`),
-  `lib/codegen/codegen.ml` (`still_called`)
+- **Builds:** every build; `--no-memoize` turns it off
+- **Where:** `lib/cgt/memo.ml`, `lib/codegen/emit.ml` (`memo`)
 - **Design:** [`design/memoization.md`](design/memoization.md)
-- **Effect:** [`dev/bench/memo/`](../dev/bench/memo/README.md): recursions
-  that repeat their arguments 73–99.6% fewer estimated cycles, among them a
-  tic-tac-toe search keyed on its board (76–80%); programs whose arguments
-  do not repeat within +0.4%
+- **Effect:** [`dev/bench/memo/`](../dev/bench/memo/README.md), in plain,
+  optimized and tiered builds: recursions that repeat their arguments
+  70–99.6% fewer estimated cycles, among them a tic-tac-toe search keyed on
+  its board (74–80%); programs whose arguments do not repeat, or whose
+  repeats save less than a lookup costs, within +0.32%, but one that LLVM
+  folds whole without a table, which costs a fixed 25,000 cycles more. Over
+  150 random recursions, a median of 87% fewer plain, 37% optimized and
+  36% tiered, and at worst +0.5%, +1.2% and +2.1%.
 
 A recursion whose result depends only on its arguments, which takes and
 returns fixed-size values, and which calls back into its own cycle at
-least twice keeps a table of its results, so a
-call whose arguments repeat returns at once. Each function scores its
-lookups against the calls its hits save, and stops looking for good when
-they do not pay. A loop decides once, before it starts, whether its calls
-still look, so a loop whose functions have stopped runs as written.
+least twice keeps a table of its results, so a call whose arguments repeat
+returns at once. Each function scores its lookups against the work its hits
+save, counted from below, and stops looking for good when they do not pay.
+A loop decides once, before it starts, whether its calls still look, so a
+loop whose functions have stopped runs as written.
 
 ---
 

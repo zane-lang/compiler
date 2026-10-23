@@ -37,11 +37,11 @@ gave a result in 10.6 s, against 18.3 s plain and 31.8 s optimized.
 
 **T3. Both tiers emit the same module, and each carries its fingerprint.**
 Tier 1 lowers the tree tier 0 does, since it skips stage 5, and plans what
-it remembers (`--memoize`) as an unoptimized build does. So the two emit the
-same LLVM module, and each takes a hash of it before anything changes it
-(`Tiers.fingerprint`). The runtime loads tier 1 only into the program whose
-fingerprint it carries, so a library left from another program, or from the
-same program before an edit, is never run.
+it remembers from that tree alone ([`memoization.md`](memoization.md) M1).
+So the two emit the same LLVM module, and each takes a hash of it before
+anything changes it (`Tiers.fingerprint`). The runtime loads tier 1 only
+into the program whose fingerprint it carries, so a library left from
+another program, or from the same program before an edit, is never run.
 
 ---
 
