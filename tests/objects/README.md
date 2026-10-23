@@ -106,13 +106,13 @@ in the repository is Unicode.
 
 `memo_test.py` checks calls remembered while the program runs
 (docs/design/memoization.md). Its `memo` fixtures are programs, each built
-plain and optimized, with and without `--no-memoize`, and each must print
-the same in all four. `fib`, `ttt` (a board array), `moves` (a variant) and
+plain, optimized and tiered (tier 1 loaded before `main`), with and without
+`--no-memoize`, and each must print the same in all six. `fib`, `ttt` (a board array), `moves` (a variant) and
 `constant` (which reads a package constant) repeat their arguments and get
 one table each. `tree`, `phase` and `shallowin` mostly do not repeat them. `rejected` holds recursions that are
 left alone: one that calls itself once, one that takes a `String`, and one
 that prints. `spawning` spawns, so none of its functions gets a table, and
-neither does `memolibrary`, a library a program that spawns may call. An
-optimized build of `shallow` gets none either, because LLVM folds its loop
-without one. `merged` makes the same call twice, so only its plain build
-gets a table: an optimized build makes the call once.
+neither does `memolibrary`, a library a program that spawns may call.
+`merged` makes the same call twice, so it gets none in any build, since an
+optimizer makes the two calls one. Every build gives the same functions a
+table, so the two tiers of a tiered build emit the same module.

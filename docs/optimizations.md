@@ -167,8 +167,7 @@ at run time; the body reads a number parameter as a constant.
 ### Calls remembered while the program runs
 
 - **Builds:** every build; `--no-memoize` turns it off
-- **Where:** `lib/cgt/memo.ml`, `lib/codegen/emit.ml` (`memo`),
-  `lib/codegen/codegen.ml` (`still_called`)
+- **Where:** `lib/cgt/memo.ml`, `lib/codegen/emit.ml` (`memo`)
 - **Design:** [`design/memoization.md`](design/memoization.md)
 - **Effect:** [`dev/bench/memo/`](../dev/bench/memo/README.md): recursions
   that repeat their arguments 73–99.6% fewer estimated cycles, among them a

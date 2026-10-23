@@ -17,7 +17,6 @@ val with_program :
   ?target:string ->
   ?pack:bool ->
   ?memoize:bool ->
-  ?optimize:bool ->
   ?fixed_region:int ->
   ?spawned_fixed_region:int ->
   Cgt.Nodes.Program.t ->

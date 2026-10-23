@@ -1,12 +1,12 @@
 """Calls remembered while the program runs, on unless `--no-memoize`
-(docs/design/memoization.md). Each fixture in fixtures/memo/ is built plain
-and optimized, with and without `--no-memoize`, and prints the same in all four
-builds. Which functions get a table is read from the symbols of each table's
+(docs/design/memoization.md). Each fixture in fixtures/memo/ is built plain,
+optimized and tiered, with and without `--no-memoize`, and prints the same in
+all six builds. Which functions get a table is read from the symbols of each table's
 state: one for a recursion whose arguments repeat, whether they are scalars,
-an array or a variant, or it reads a package constant, and none for a recursion that calls itself once, takes
-a String, prints, or runs in a program that spawns or in a library. An
-optimized build gives none to a function LLVM folds away without it, or
-whose repeated calls LLVM merges."""
+an array or a variant, or it reads a package constant, and none for a
+recursion that calls itself once or twice with equal arguments, takes a
+String, prints, or runs in a program that spawns or in a library. Every
+build gives the same functions a table."""
 
 from pathlib import Path
 import os
@@ -18,17 +18,20 @@ import unittest
 ZANEC = str(Path(sys.argv.pop(1)).resolve())
 FIXTURES = Path(__file__).resolve().parent / "fixtures/memo"
 LIBRARY = Path(__file__).resolve().parent / "fixtures/memolibrary"
-BUILDS = {"plain": [], "optimized": ["--optimize"]}
+BUILDS = {"plain": [], "optimized": ["--optimize"], "tiered": ["--tiered"]}
 
 
 def run_program(exe, *args):
     """What a program wrote, run with its drains checked and unchecked
-    (`ZANE_CHECK` 1 and 0), as every program in this directory is run."""
+    (`ZANE_CHECK` 1 and 0), as every program in this directory is run. A
+    tiered build's tier 1, beside it, is loaded before `main`."""
     outputs = {}
+    tier1 = Path(f"{exe}.tier1")
+    tiers = {"ZANE_TIER_UP": str(tier1), "ZANE_TIER_WAIT": "1"} if tier1.exists() else {}
     for check in ("1", "0"):
         command = [str(exe), *map(str, args)]
         result = subprocess.run(command, capture_output=True, text=True, timeout=60,
-                                env={**os.environ, "ZANE_CHECK": check})
+                                env={**os.environ, "ZANE_CHECK": check, **tiers})
         if result.returncode:
             raise AssertionError(f"ZANE_CHECK={check} {command}\n{result.stdout}{result.stderr}")
         outputs[check] = result.stdout
@@ -55,6 +58,11 @@ class MemoTests(unittest.TestCase):
                                     capture_output=True, text=True, timeout=300)
             if result.returncode:
                 raise AssertionError(f"{name} {build}\n{result.stdout}{result.stderr}")
+            if build == "tiered":
+                result = subprocess.run([ZANEC, "--tier-up", f"{exe}.tier1", *flags[1:], "--package", FIXTURES / name],
+                                        capture_output=True, text=True, timeout=300)
+                if result.returncode:
+                    raise AssertionError(f"{name} tier 1\n{result.stdout}{result.stderr}")
         return exe
 
     def tables(self, name, build):
@@ -93,7 +101,8 @@ class MemoTests(unittest.TestCase):
 
     def test_a_library_gets_none(self):
         # A program that links the library may call `fib` from its threads.
-        for build in BUILDS:
+        # A library is built plain or optimized; only a program is tiered.
+        for build in ["plain", "optimized"]:
             with self.subTest(build=build):
                 result = subprocess.run([ZANEC, "--kind", "library", "--ll", *BUILDS[build],
                                          "--package", LIBRARY], capture_output=True, text=True, timeout=300)
@@ -101,17 +110,19 @@ class MemoTests(unittest.TestCase):
                 self.assertIn("memolibrary$fib", result.stdout)
                 self.assertNotIn(".memo.state", result.stdout)
 
-    def test_an_optimized_build_leaves_out_what_llvm_folds(self):
-        # `walk(r, 1)` with a literal depth folds into a closed form once
-        # LLVM inlines it; with the depth read from the input it cannot.
-        self.assertEqual(self.tables("shallow", "plain"), ["shallow$walk(%primitives$I64, %primitives$I64)"])
-        self.assertEqual(self.tables("shallow", "optimized"), [])
-        self.assertEqual(self.tables("shallowin", "optimized"), ["shallowin$walk(%primitives$I64, %primitives$I64)"])
+    def test_every_build_gives_the_same_tables(self):
+        # A tiered build's two tiers must emit one module, so no build's
+        # choice depends on what its optimizer would make of the program.
+        for name in ["shallow", "shallowin"]:
+            for build in BUILDS:
+                with self.subTest(name=name, build=build):
+                    self.assertEqual(self.tables(name, build), [f"{name}$walk(%primitives$I64, %primitives$I64)"])
 
-    def test_calls_llvm_merges_do_not_count(self):
-        # `twice` makes the same call twice, which LLVM makes once.
-        self.assertEqual(self.tables("merged", "plain"), ["merged$twice(%primitives$I64, %primitives$I64)"])
-        self.assertEqual(self.tables("merged", "optimized"), [])
+    def test_equal_calls_count_once(self):
+        # `twice` makes the same call twice, which an optimizer makes once.
+        for build in BUILDS:
+            with self.subTest(build=build):
+                self.assertEqual(self.tables("merged", build), [])
 
 
 if __name__ == "__main__":

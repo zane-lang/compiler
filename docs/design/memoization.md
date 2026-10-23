@@ -7,9 +7,8 @@ instead of running. `--no-memoize` builds without the tables
 The pass that picks the functions and rewrites the program is
 `lib/cgt/memo.ml`. It runs on the finished code-generation tree, after stage
 5 when there is one. Codegen (`lib/codegen/emit.ml`, `memo`) emits each
-table, and `lib/codegen/codegen.ml` (`still_called`) runs the optimized
-build's extra check. `dev/bench/memo/` holds the programs it was measured on
-and the results.
+table. `dev/bench/memo/` holds the programs it was measured on and the
+results.
 
 ## M1. Which functions get a table
 
@@ -40,18 +39,16 @@ A function gets a table when:
   A value of scalars only takes one word for each scalar, and any other
   value a word for each eight of its bytes.
 - **It calls back into its own cycle of calls at least twice.** A call inside
-  a loop counts twice. This is where a table can turn work that doubles at
+  a loop counts twice. A call equal to an earlier one, the same function
+  with the same arguments, counts for nothing when those arguments read no
+  local the body assigns: the two have the same value, and an optimizer
+  makes them one call. This is where a table can turn work that doubles at
   each level into work linear in the depth. A function that calls itself
   once gets nothing back from a table it fills on the way down.
-- **An optimized build still calls it back twice.** The build runs LLVM's
-  `-O2` over the program without tables first, and counts the calls back
-  into each function's cycle that are left, as above. When LLVM has inlined
-  and folded every call to a function, made two equal calls one, or deleted
-  a call whose result is never read, a table would only stop it doing so.
-  A function LLVM has given fewer parameters gets no table either: LLVM
-  found that some arguments never matter, and a table would key on them and
-  keep alive the work that makes them. The build compiles the program this
-  extra time only when a function passes every other test.
+
+The choice reads the tree alone, never what LLVM makes of the program. So
+the two tiers of a tiered build, which lower the same tree, plan the same
+tables and emit the same module ([`tiers.md`](tiers.md) T3).
 
 Only a program that runs on one thread gets tables: no package of the
 build spawns, and it is not a library, whose functions a program that spawns
@@ -111,10 +108,7 @@ first position it reaches twice. One whose calls are light gives up after a
 few dozen lookups.
 
 The cheapest call is the shortest path through the body to a return,
-weighed as above, with each loop run no times. An optimized build also
-counts the instructions on the shortest path to a return in the `-O2` code
-without tables, and takes the fewer, since LLVM may have dropped work the
-result never reads. Every call the hit skipped
+weighed as above, with each loop run no times. Every call the hit skipped
 would have run at least that, whichever path it took, so the credit never
 exceeds what the hit saved. A recursion whose arguments repeat only where it
 bottoms out hits on half its calls, each saving one call of its cheapest

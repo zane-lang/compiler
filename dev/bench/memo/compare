@@ -1,33 +1,41 @@
 #!/usr/bin/env python3
 """compare ZANEC FIRST LAST: the programs `generate` makes for the seeds
-FIRST to LAST, each built plain and optimized, with `--no-memoize` and
-without it, and run. Prints how many got a table and lists each seed whose
+FIRST to LAST, each built plain, optimized and tiered (tier 1 loaded before
+`main`), with `--no-memoize` and without it, and run. Prints how many got a table and lists each seed whose
 builds printed differently, leaving out a build that ran past 30 seconds.
 Writes the details to results-FIRST-LAST.json in the current directory."""
-import subprocess, sys, time, json, tempfile
+import os, subprocess, sys, time, json, tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 Z, first, last = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 W = Path(tempfile.mkdtemp())
+BUILDS = {"plain": [], "optimized": ["--optimize"], "tiered": ["--tiered"]}
 
 def one(seed):
     d = W / f"s{seed}"
     subprocess.run([sys.executable, HERE / "generate", str(seed), d], check=True)
     res = {}
-    for build in ("plain", "optimized"):
+    for build, given in BUILDS.items():
         for memo in (False, True):
             exe = d / f"{build}.{memo}"
-            flags = (["--optimize"] if build == "optimized" else []) + ([] if memo else ["--no-memoize"])
+            flags = given + ([] if memo else ["--no-memoize"])
             b = subprocess.run([Z, "--build", exe, *flags, "--package", d], capture_output=True, text=True)
             if b.returncode:
                 return seed, {"compile_error": b.stderr[-300:]}
+            env = None
+            if build == "tiered":
+                library = d / f"{build}.{memo}.tier1"
+                b = subprocess.run([Z, "--tier-up", library, *flags[1:], "--package", d], capture_output=True, text=True)
+                if b.returncode:
+                    return seed, {"compile_error": b.stderr[-300:]}
+                env = {**os.environ, "ZANE_TIER_UP": str(library), "ZANE_TIER_WAIT": "1"}
             nm = subprocess.run(["nm", exe], capture_output=True, text=True).stdout
             tables = sum(1 for l in nm.splitlines() if l.endswith(".memo.state"))
             t = time.perf_counter()
             try:
-                r = subprocess.run([exe], capture_output=True, text=True, timeout=30)
+                r = subprocess.run([exe], capture_output=True, text=True, timeout=30, env=env)
                 out = (r.returncode, r.stdout, r.stderr)
             except subprocess.TimeoutExpired:
                 out = ("timeout", "", "")
@@ -38,7 +46,7 @@ def one(seed):
         "same": all(o == base for o in outs.values()),
         "timeout": any(o[0] == "timeout" for o in outs.values()),
         "exit": base[0],
-        "tables": {f"{b}": res[(b, True)][1] for b in ("plain", "optimized")},
+        "tables": {f"{b}": res[(b, True)][1] for b in BUILDS},
         "times": {f"{b}.{m}": round(res[(b, m)][2], 4) for (b, m) in res},
         "outs": None if all(o == base for o in outs.values()) else {f"{k}": [o[0], o[1][-500:], o[2][-300:]] for k, o in outs.items()},
     }

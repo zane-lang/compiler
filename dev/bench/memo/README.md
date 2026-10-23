@@ -14,10 +14,10 @@ is picked when:
   bytes);
 - it calls back into its own cycle of calls at least twice.
 
-In an optimized build it must also still call back into its cycle twice,
-and keep all its parameters, after `-O2` has run without the cache.
-`lib/codegen/emit.ml` (`memo`) emits a gate, a lookup and two copies of
-each picked function.
+A call equal to an earlier one, with arguments that read no local the body
+assigns, counts once. Every build picks from the tree alone, so a tiered
+build's two tiers pick the same. `lib/codegen/emit.ml` (`memo`) emits a
+gate, a lookup and two copies of each picked function.
 
 Each function keeps a score. A lookup is charged the lookup's cost
 measured against the weight of one of the function's calls, which is

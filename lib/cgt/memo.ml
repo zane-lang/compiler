@@ -87,9 +87,26 @@ let alone (f : Func.t) =
        ~stat:(function Stat.Spawn _ | Stat.Join _ -> true | _ -> false))
 
 (* Each call site in [f], with a call inside a loop counted twice, since it
-   runs at least as often as two calls side by side. *)
+   runs at least as often as two calls side by side. A call equal to an
+   earlier one, the same function given the same arguments, counts for
+   nothing when those arguments read no local the body assigns: they have
+   the same values, and an optimizer makes the two calls one. *)
 let calls (f : Func.t) =
-  let found = ref [] in
+  let found = ref [] and made = ref [] in
+  let assigned = Hashtbl.create 8 in
+  Traverse.walk_stats
+    (fun _ -> ())
+    (function Stat.Assign { place; _ } -> Hashtbl.replace assigned place.Expr.local () | _ -> ())
+    f.Func.body;
+  let steady args =
+    List.for_all
+      (fun a ->
+        not
+          (Traverse.exists_in [ Stat.Eval a ]
+             ~expr:(fun e -> match e.Expr.node with Expr.Local i | Expr.Address i -> Hashtbl.mem assigned i | _ -> false)
+             ~stat:(fun _ -> false)))
+      args
+  in
   let rec stats weight ss = List.iter (stat weight) ss
   and stat weight (s : Stat.t) =
     let es, bodies = Traverse.stat_parts s in
@@ -97,7 +114,12 @@ let calls (f : Func.t) =
     List.iter (expr weight) es;
     List.iter (stats inner) bodies
   and expr weight (e : Expr.t) =
-    (match e.Expr.node with Expr.Call { fn; _ } -> found := (fn, weight) :: !found | _ -> ());
+    (match e.Expr.node with
+    | Expr.Call { fn; args } ->
+        let again = steady args && List.mem (fn, args) !made in
+        if steady args then made := (fn, args) :: !made;
+        found := (fn, if again then 0 else weight) :: !found
+    | _ -> ());
     let es, bodies = Traverse.expr_parts e in
     List.iter (expr weight) es;
     List.iter (stats weight) bodies
@@ -433,12 +455,10 @@ let version remembered outside next body =
 
 (* The program with each remembered function replaced by its two copies,
    and the functions remembered, whose dispatchers codegen emits. Only a
-   function [keep] admits, given the function and its cycle, is
-   remembered, and [measured] may give a cheapest call lighter than its
-   nodes (see [least]). Only a program that runs on one thread remembers anything:
-   the tables are not shared safely between threads, and a library's
-   functions may be called from a program's. *)
-let plan ?(keep = fun _ _ -> true) ?(measured = fun _ -> None) (p : Program.t) =
+   program that runs on one thread remembers anything: the tables are not
+   shared safely between threads, and a library's functions may be called
+   from a program's. *)
+let plan (p : Program.t) =
   if not p.Program.exclusive then (p, [])
   else
     let funcs = Hashtbl.create 64 in
@@ -471,7 +491,6 @@ let plan ?(keep = fun _ _ -> true) ?(measured = fun _ -> None) (p : Program.t) =
       && (match f.Func.linkage with Linkage.Local | Linkage.Exported | Linkage.Shared -> true | _ -> false)
       && fits f
       && List.fold_left (fun n (c, w) -> if same c s then n + w else n) 0 (Hashtbl.find sites s) >= 2
-      && keep s (fun c -> same c s)
     in
     let memos = List.filter chosen p.Program.funcs in
     let remembered = Hashtbl.create 8 in
@@ -517,9 +536,7 @@ let plan ?(keep = fun _ _ -> true) ?(measured = fun _ -> None) (p : Program.t) =
             body = f.Func.symbol ^ suffix_body;
             plain = f.Func.symbol ^ suffix_plain;
             charge = charge weigh f;
-            cheapest =
-              (let s = f.Func.symbol in
-               match measured s with Some m -> max 1 (min m (cheapest s)) | None -> cheapest s);
+            cheapest = cheapest f.Func.symbol;
             credit = credit weigh f;
           })
         memos )
