@@ -114,7 +114,7 @@ Int advance(this Flips, from Int) mut {
 	return r;
 }
 
-Int fannkuch(n Int) {
+Int fannkuch(n Int, round Int) {
 	state Flips(n);
 	i Int(1);
 	i!to(n) {
@@ -145,7 +145,7 @@ Int fannkuch(n Int) {
 		sign = @operators$negate(sign);
 		r = state!advance(r);
 	}
-	return checksum;
+	return @operators$add(checksum, round);
 }
 
 // ---------------------------------------------------------------------
@@ -175,14 +175,14 @@ Int nodes(tree Tree) => match (tree) {
 	p node => @operators$add(Int(1), @operators$add(nodes(p.left), nodes(p.right)));
 }
 
-Int trees(depth Int, rounds Int) {
+Int trees(depth Int, rounds Int, round Int) {
 	kept Tree = grow(depth);
 	total Int(0);
 	i Int(1);
 	i!to(rounds) {
 		total = @operators$add(total, nodes(grow(minus(depth, Int(4)))));
 	}
-	return @operators$add(total, nodes(kept));
+	return @operators$add(@operators$add(total, nodes(kept)), round);
 }
 
 // ---------------------------------------------------------------------
@@ -225,7 +225,7 @@ Bool prime(k Int, table &List<Int>) {
 	return true;
 }
 
-Int division(n Int) {
+Int division(n Int, round Int) {
 	table List<Int> = primesBelow(Int(4000));
 	found Int(0);
 	k Int(2);
@@ -234,7 +234,7 @@ Int division(n Int) {
 			found = @operators$add(found, Int(1));
 		});
 	}
-	return found;
+	return @operators$add(found, round);
 }
 
 // ---------------------------------------------------------------------
@@ -256,7 +256,7 @@ Bool bounded(cr Float, ci Float) {
 	return true;
 }
 
-Int mandelbrot(n Int) {
+Int mandelbrot(n Int, round Int) {
 	inside Int(0);
 	y Int(0);
 	y!to(minus(n, Int(1))) {
@@ -269,7 +269,7 @@ Int mandelbrot(n Int) {
 			});
 		}
 	}
-	return inside;
+	return @operators$add(inside, round);
 }
 
 type Body = struct {
@@ -282,8 +282,8 @@ type Body = struct {
 
 Body(x Float, y Float, mass Float) => init{ x; y; vx = Float(0.0); vy = Float(0.0); mass; }
 
-Int bodies(count Int, steps Int) {
-	rng Rng(Int(7));
+Int bodies(count Int, steps Int, round Int) {
+	rng Rng(@operators$add(Int(7), round));
 	all List<Body> = @primitives$List(Body);
 	i Int(1);
 	i!to(count) {
@@ -323,7 +323,7 @@ type Entity = struct {
 
 Entity(id Int, hp Int) => init{ id; hp; }
 
-Int growth(n Int, rounds Int) {
+Int growth(n Int, rounds Int, round Int) {
 	total Int(0);
 	r Int(1);
 	r!to(rounds) {
@@ -334,11 +334,11 @@ Int growth(n Int, rounds Int) {
 		}
 		total = @operators$add(@operators$add(total, list[list:size()].hp), list:size());
 	}
-	return total;
+	return @operators$add(total, round);
 }
 
-Int removal(frames Int) {
-	rng Rng(Int(42));
+Int removal(frames Int, round Int) {
+	rng Rng(@operators$add(Int(42), round));
 	entities List<Entity> = @primitives$List(Entity);
 	total Int(0);
 	frame Int(1);
@@ -397,7 +397,7 @@ Int sum(tree Shape) => match (tree) {
 	b node => @operators$add(b.value, @operators$add(sum(b.left), sum(b.right)));
 }
 
-Int copies(depth Int, rounds Int) {
+Int copies(depth Int, rounds Int, round Int) {
 	original Shape = shape(depth, Int(1));
 	total Int(0);
 	r Int(1);
@@ -405,13 +405,13 @@ Int copies(depth Int, rounds Int) {
 		copy Shape = original;
 		total = @operators$add(total, sum(copy));
 	}
-	return total;
+	return @operators$add(total, round);
 }
 
 // ---------------------------------------------------------------------
 // Strings: numbers written, joined, compared and read back.
 
-Int texts(n Int) {
+Int texts(n Int, round Int) {
 	same Int(0);
 	line String("");
 	other String("");
@@ -428,20 +428,20 @@ Int texts(n Int) {
 			other = String("");
 		});
 	}
-	return same;
+	return @operators$add(same, round);
 }
 
 // ---------------------------------------------------------------------
 // Memory: a working set past the simulated last-level cache, read at
 // random, and a matrix read by its columns.
 
-Int scattered(size Int, reads Int) {
+Int scattered(size Int, reads Int, round Int) {
 	cells List<Int> = @primitives$List(Int);
 	i Int(1);
 	i!to(size) {
 		cells!push(i);
 	}
-	rng Rng(Int(3));
+	rng Rng(@operators$add(Int(3), round));
 	total Int(0);
 	r Int(1);
 	r!to(reads) {
@@ -452,7 +452,7 @@ Int scattered(size Int, reads Int) {
 	return total;
 }
 
-Int matrix(n Int) {
+Int matrix(n Int, round Int) {
 	a List<Row> = @primitives$List(Row);
 	b List<Row> = @primitives$List(Row);
 	i Int(1);
@@ -482,7 +482,7 @@ Int matrix(n Int) {
 			});
 		}
 	}
-	return @primitives$I64.truncate(trace);
+	return @operators$add(@primitives$I64.truncate(trace), round);
 }
 
 // ---------------------------------------------------------------------
@@ -540,8 +540,8 @@ Int search(values &List<Int>, wanted Int) {
 	return Int(0);
 }
 
-Int sorting(n Int, lookups Int) {
-	rng Rng(Int(11));
+Int sorting(n Int, lookups Int, round Int) {
+	rng Rng(@operators$add(Int(11), round));
 	values List<Int> = @primitives$List(Int);
 	i Int(1);
 	i!to(n) {
@@ -615,14 +615,14 @@ Int find(this Table, key Int) {
 	return Int(0);
 }
 
-Int hashing(slots Int, inserts Int, lookups Int) {
+Int hashing(slots Int, inserts Int, lookups Int, round Int) {
 	table Table(slots);
 	i Int(1);
 	i!to(slots) {
 		table.keys!push(Int(0));
 		table.counts!push(Int(0));
 	}
-	rng Rng(Int(5));
+	rng Rng(@operators$add(Int(5), round));
 	n Int(1);
 	n!to(inserts) {
 		table!insert(@operators$add(Int(1), rng!pick(times(inserts, Int(2)))));
@@ -721,7 +721,7 @@ Int interpret(code &List<Op>, limit Int) {
 	return machine.registers[Int(2)];
 }
 
-Int interpreter(rounds Int) {
+Int interpreter(rounds Int, round Int) {
 	// r1 counts down from `rounds`; r2 accumulates r2 * 31 + r1.
 	code List<Op> = @primitives$List(Op);
 	start Int = @operators$add(rounds, Int(0));
@@ -740,7 +740,7 @@ Int interpreter(rounds Int) {
 	code!push(Op.load(Int(1)));
 	code!push(Op.jumpIfPositive(Int(3)));
 	code!push(Op.halt(Unit()));
-	return interpret(code, times(rounds, Int(20)));
+	return @operators$add(interpret(code, times(rounds, Int(20))), round);
 }
 
 // ---------------------------------------------------------------------
@@ -759,8 +759,8 @@ Int[Int] chosen(k Int) {
 	return Int(x Int) { return @math$bitXor(x, Int(21845)); }
 }
 
-Int calls(n Int) {
-	rng Rng(Int(9));
+Int calls(n Int, round Int) {
+	rng Rng(@operators$add(Int(9), round));
 	value Int(1);
 	i Int(1);
 	i!to(n) {
@@ -770,17 +770,20 @@ Int calls(n Int) {
 	return value;
 }
 
-Int fibonacci(n Int) {
+Int fibonacci(n Int, round Int) {
 	@controlflow$branch(below(n, Int(2)), {
 		return n;
 	});
-	return @operators$add(fibonacci(minus(n, Int(1))), fibonacci(minus(n, Int(2))));
+	return @operators$add(fibonacci(minus(n, Int(1)), round), fibonacci(minus(n, Int(2)), round));
 }
 
 // ---------------------------------------------------------------------
 
 /// Every section at a fixed size, run `rounds` times; each reports the sum
-/// of its checksums over the rounds.
+/// of its checksums over the rounds. Each call is given the round it runs
+/// in, which seeds its generator or is added to its checksum, so no two
+/// calls of a section are equal and every round runs the section's work
+/// rather than finding its result in a table (docs/design/memoization.md).
 Unit main() {
 	rounds Int = scale();
 	names List<String> = @primitives$List(String);
@@ -807,22 +810,22 @@ Unit main() {
 	}
 	r Int(1);
 	r!to(rounds) {
-		sums[Int(1)] = @operators$add(sums[Int(1)], fannkuch(Int(8)));
-		sums[Int(2)] = @operators$add(sums[Int(2)], trees(Int(14), Int(40)));
-		sums[Int(3)] = @operators$add(sums[Int(3)], division(Int(100000)));
-		sums[Int(4)] = @operators$add(sums[Int(4)], mandelbrot(Int(150)));
-		sums[Int(5)] = @operators$add(sums[Int(5)], bodies(Int(100), Int(20)));
-		sums[Int(6)] = @operators$add(sums[Int(6)], growth(Int(50000), Int(10)));
-		sums[Int(7)] = @operators$add(sums[Int(7)], removal(Int(5000)));
-		sums[Int(8)] = @operators$add(sums[Int(8)], copies(Int(12), Int(5)));
-		sums[Int(9)] = @operators$add(sums[Int(9)], texts(Int(10000)));
-		sums[Int(10)] = @operators$add(sums[Int(10)], scattered(Int(2000000), Int(1000000)));
-		sums[Int(11)] = @operators$add(sums[Int(11)], matrix(Int(120)));
-		sums[Int(12)] = @operators$add(sums[Int(12)], sorting(Int(100000), Int(100000)));
-		sums[Int(13)] = @operators$add(sums[Int(13)], hashing(Int(65536), Int(40000), Int(100000)));
-		sums[Int(14)] = @operators$add(sums[Int(14)], interpreter(Int(100000)));
-		sums[Int(15)] = @operators$add(sums[Int(15)], calls(Int(500000)));
-		sums[Int(16)] = @operators$add(sums[Int(16)], fibonacci(Int(25)));
+		sums[Int(1)] = @operators$add(sums[Int(1)], fannkuch(Int(8), r));
+		sums[Int(2)] = @operators$add(sums[Int(2)], trees(Int(14), Int(40), r));
+		sums[Int(3)] = @operators$add(sums[Int(3)], division(Int(100000), r));
+		sums[Int(4)] = @operators$add(sums[Int(4)], mandelbrot(Int(150), r));
+		sums[Int(5)] = @operators$add(sums[Int(5)], bodies(Int(100), Int(20), r));
+		sums[Int(6)] = @operators$add(sums[Int(6)], growth(Int(50000), Int(10), r));
+		sums[Int(7)] = @operators$add(sums[Int(7)], removal(Int(5000), r));
+		sums[Int(8)] = @operators$add(sums[Int(8)], copies(Int(12), Int(5), r));
+		sums[Int(9)] = @operators$add(sums[Int(9)], texts(Int(10000), r));
+		sums[Int(10)] = @operators$add(sums[Int(10)], scattered(Int(2000000), Int(1000000), r));
+		sums[Int(11)] = @operators$add(sums[Int(11)], matrix(Int(120), r));
+		sums[Int(12)] = @operators$add(sums[Int(12)], sorting(Int(100000), Int(100000), r));
+		sums[Int(13)] = @operators$add(sums[Int(13)], hashing(Int(65536), Int(40000), Int(100000), r));
+		sums[Int(14)] = @operators$add(sums[Int(14)], interpreter(Int(100000), r));
+		sums[Int(15)] = @operators$add(sums[Int(15)], calls(Int(500000), r));
+		sums[Int(16)] = @operators$add(sums[Int(16)], fibonacci(Int(25), r));
 	}
 	k Int(1);
 	k!to(names:size()) {

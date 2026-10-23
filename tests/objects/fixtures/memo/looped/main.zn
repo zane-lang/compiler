@@ -1,5 +1,6 @@
-/// The same call in two blocks that may both run.
-package apart;
+/// Calls in a loop that do not recurse: a heavy one gets a table, a light
+/// one and a heavy one called outside any loop do not.
+package looped;
 
 
 alias Int = @primitives$I64
@@ -36,26 +37,36 @@ Unit say(text String) {
 
 Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)))
 
-/// The same call in two blocks that may both run: neither always runs
-/// before the other, so they count as two.
-Int apart(n Int, k Int) {
-	@controlflow$branch(@operators$lessThan(n, Int(1)), {
-		return k;
+Int mix(k Int) => rem(@operators$add(@operators$multiply(k, Int(6364136223846793005)), Int(1442695040888963407)), Int(1000000007))
+
+Int heavy(k Int) {
+	x Int = k;
+	@controlflow$repeat(Int(50), {
+		x = mix(x);
 	});
-	m Int = @operators$add(n, @operators$negate(Int(1)));
-	a Int = Int(0);
-	b Int = Int(0);
-	@controlflow$branch(@operators$lessThan(Int(0), rem(n, Int(3))), {
-		a = apart(m, @operators$add(k, Int(1)));
+	return x;
+}
+
+Int light(k Int) {
+	return @operators$add(mix(k), Int(1));
+}
+
+Int alone(k Int) {
+	x Int = k;
+	@controlflow$repeat(Int(50), {
+		x = mix(x);
 	});
-	@controlflow$branch(@operators$lessThan(Int(0), rem(n, Int(2))), {
-		b = apart(m, @operators$add(k, Int(1)));
-	});
-	return rem(@operators$add(@operators$add(a, b), k), Int(1000003));
+	return x;
 }
 
 Unit main() {
-	n Int = size(Int(12));
-	say(String(apart(n, Int(1))));
+	n Int = size(Int(10));
+	total Int = alone(n);
+	i Int(1);
+	i!to(n) {
+		total = @operators$add(total, heavy(rem(i, Int(4))));
+		total = @operators$add(total, light(rem(i, Int(4))));
+	}
+	say(String(total));
 	return Unit();
 }

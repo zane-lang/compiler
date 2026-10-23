@@ -2,11 +2,12 @@
 (docs/design/memoization.md). Each fixture in fixtures/memo/ is built plain,
 optimized and tiered, with and without `--no-memoize`, and prints the same in
 all six builds. Which functions get a table is read from the symbols of each table's
-state: one for a recursion whose arguments repeat, whether they are scalars,
-an array or a variant, or it reads a package constant, and none for a
-recursion that calls itself once or twice with equal arguments, takes a
-String, prints, or runs in a program that spawns or in a library. Every
-build gives the same functions a table."""
+state: one for a recursion, whether its arguments are scalars, an array or a
+variant, it reads a package constant, or it calls itself once, and one for a
+heavy function called in a loop; none for a light function called in a loop,
+a heavy one called outside any loop, or a function that takes a String,
+prints, or runs in a program that spawns or in a library. Every build gives
+the same functions a table."""
 
 from pathlib import Path
 import os
@@ -124,28 +125,17 @@ class MemoTests(unittest.TestCase):
                 with self.subTest(name=name, build=build):
                     self.assertEqual(self.tables(name, build), [f"{name}$walk(%primitives$I64, %primitives$I64)"])
 
-    def test_equal_calls_count_once(self):
-        # `twice` makes the same call twice, which an optimizer makes once;
-        # `inlined` makes it first inside a verb written out where it is
-        # called, which always runs before the second.
-        for name in ["merged", "inlined"]:
-            for build in BUILDS:
-                with self.subTest(name=name, build=build):
-                    self.assertEqual(self.tables(name, build), [])
-
-    def test_calls_a_store_separates_are_not_equal(self):
-        # `stepped` calls itself twice with the same arguments, but changes
-        # the local it passes through its address between the two calls.
+    def test_a_recursion_that_calls_itself_once_gets_a_table(self):
         for build in BUILDS:
             with self.subTest(build=build):
-                self.assertEqual(self.tables("stepped", build), ["stepped$stepped(%primitives$I64, stepped$P)"])
+                self.assertEqual(self.tables("once", build), ["once$fact(%primitives$I64)"])
 
-    def test_calls_in_blocks_that_may_not_run_are_not_equal(self):
-        # `apart` makes the same call in two blocks, each of which may run
-        # without the other.
+    def test_a_heavy_call_in_a_loop_gets_a_table(self):
+        # `light` is called in the same loop but does less than a lookup, and
+        # `alone` is as heavy but called once, outside any loop.
         for build in BUILDS:
             with self.subTest(build=build):
-                self.assertEqual(self.tables("apart", build), ["apart$apart(%primitives$I64, %primitives$I64)"])
+                self.assertEqual(self.tables("looped", build), ["looped$heavy(%primitives$I64)"])
 
 
 if __name__ == "__main__":

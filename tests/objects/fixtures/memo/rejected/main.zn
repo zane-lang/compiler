@@ -1,4 +1,4 @@
-/// Recursions --memoize leaves alone: one call back into itself, a String argument, and a print.
+/// Recursions that get no table: one takes a String, and one prints.
 package rejected;
 
 
@@ -35,13 +35,6 @@ Unit say(text String) {
 }
 
 
-Int fact(n Int) {
-	@controlflow$branch(@operators$lessThan(n, Int(2)), {
-		return Int(1);
-	});
-	return @operators$multiply(n, fact(@operators$add(n, @operators$negate(Int(1)))));
-}
-
 Int count(s String, n Int) {
 	@controlflow$branch(@operators$lessThan(n, Int(2)), {
 		return n;
@@ -59,7 +52,6 @@ Int loud(n Int) {
 
 Unit main() {
 	n Int = size(Int(10));
-	say(String(fact(n)));
 	say(String(count(String("x"), n)));
 	say(String(loud(Int(4))));
 	return Unit();

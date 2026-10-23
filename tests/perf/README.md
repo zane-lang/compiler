@@ -142,4 +142,5 @@ repo's `langbench/` and print what it prints at the same size.
   search over random numbers, an open-addressed hash table, a bytecode
   interpreter matching on variants, calls through function values chosen at
   random, and plain recursion. Its argument is how many times the sections
-  run.
+  run, and each section is given the round it runs in, so a table of its
+  results never finds a round it has seen.

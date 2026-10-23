@@ -1,5 +1,6 @@
-/// Two calls with the same arguments, a local changed between them.
-package stepped;
+/// A recursion that calls itself once: a table pays when the program asks
+/// for the same depth again.
+package once;
 
 
 alias Int = @primitives$I64
@@ -34,36 +35,20 @@ Unit say(text String) {
 	return Unit();
 }
 
-Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)))
-
-type P = struct {
-	x Int;
-}
-
-P(x Int) => init{ x; }
-
-/// Moves the point one step on.
-Unit bump(this P) mut {
-	this.x = @operators$add(this.x, Int(1));
-	return Unit();
-}
-
-/// Two calls that read the same local, which a call between them changes
-/// through its address: they differ, so the function calls back twice.
-Int stepped(n Int, p P) {
-	@controlflow$branch(@operators$lessThan(n, Int(1)), {
-		return p.x;
+Int fact(n Int) {
+	@controlflow$branch(@operators$lessThan(n, Int(2)), {
+		return Int(1);
 	});
-	m Int = @operators$add(n, @operators$negate(Int(1)));
-	q P = P(rem(p.x, Int(5)));
-	a Int = stepped(m, q);
-	q!bump();
-	b Int = stepped(m, q);
-	return rem(@operators$add(a, b), Int(1000003));
+	return @operators$multiply(n, fact(@operators$add(n, @operators$negate(Int(1)))));
 }
 
 Unit main() {
-	n Int = size(Int(12));
-	say(String(stepped(n, P(Int(1)))));
+	n Int = size(Int(10));
+	total Int(0);
+	i Int(1);
+	i!to(n) {
+		total = @operators$add(total, fact(@operators$add(Int(1), @operators$divide(i, Int(2)))));
+	}
+	say(String(total));
 	return Unit();
 }

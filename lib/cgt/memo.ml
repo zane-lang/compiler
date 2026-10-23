@@ -86,72 +86,21 @@ let alone (f : Func.t) =
          | _ -> false)
        ~stat:(function Stat.Spawn _ | Stat.Join _ -> true | _ -> false))
 
-(* Each call site in [f], with a call inside a loop counted twice, since it
-   runs at least as often as two calls side by side. A call equal to an
-   earlier one that always runs before it, the same function given the same
-   arguments, counts for nothing when those arguments read no local the
-   body assigns: they have the same values, and an optimizer makes the two
-   calls one. A local
-   whose address is taken counts as assigned, since a store through the
-   address changes it, and an argument that reads through an address is
-   never taken to be the same twice. *)
+(* Each function [f] calls, with whether the call is inside a loop. *)
 let calls (f : Func.t) =
-  let found = ref [] and made = ref [] in
-  let assigned = Hashtbl.create 8 in
-  Traverse.walk_stats
-    (fun e -> match e.Expr.node with Expr.Address i -> Hashtbl.replace assigned i () | _ -> ())
-    (function Stat.Assign { place; _ } -> Hashtbl.replace assigned place.Expr.local () | _ -> ())
-    f.Func.body;
-  let steady args =
-    List.for_all
-      (fun a ->
-        not
-          (Traverse.exists_in [ Stat.Eval a ]
-             ~expr:(fun e ->
-               match e.Expr.node with
-               | Expr.Local i | Expr.Address i -> Hashtbl.mem assigned i
-               | Expr.Deref _ | Expr.Take _ | Expr.Snapshot _ -> true
-               | _ -> false)
-             ~stat:(fun _ -> false)))
-      args
-  in
-  let rec stats weight ss = List.iter (stat weight) ss
-  and stat weight (s : Stat.t) =
+  let found = ref [] in
+  let rec stats looped ss = List.iter (stat looped) ss
+  and stat looped (s : Stat.t) =
     let es, bodies = Traverse.stat_parts s in
-    let inner = match s with Stat.Repeat _ -> 2 | _ -> weight in
-    List.iter (expr weight) es;
-    match s with
-    | Stat.Scope _ -> List.iter (stats inner) bodies
-    | _ -> List.iter (inside (stats inner)) bodies
-  (* A body that may not run: a call in it stands for no call after it. *)
-  and inside walk body =
-    let before = !made in
-    walk body;
-    made := before
-  and expr weight (e : Expr.t) =
-    match e.Expr.node with
-    | Expr.Call { fn; args } ->
-        let again = steady args && List.mem (fn, args) !made in
-        if steady args then made := (fn, args) :: !made;
-        found := (fn, if again then 0 else weight) :: !found;
-        List.iter (expr weight) args
-    | Expr.Expand { label; body; _ } ->
-        (* The statements before the first that may leave the expansion
-           always run; the rest may not. *)
-        let leaves st = Traverse.exists_in [ st ] ~expr:(fun _ -> false) ~stat:(function Stat.Leave l -> l = label | _ -> false) in
-        let rec split before = function
-          | st :: rest when not (leaves st) -> split (st :: before) rest
-          | rest -> (List.rev before, rest)
-        in
-        let always, maybe = split [] body in
-        stats weight always;
-        inside (stats weight) maybe
-    | _ ->
-        let es, bodies = Traverse.expr_parts e in
-        List.iter (expr weight) es;
-        List.iter (inside (stats weight)) bodies
+    List.iter (expr looped) es;
+    List.iter (stats (looped || match s with Stat.Repeat _ -> true | _ -> false)) bodies
+  and expr looped (e : Expr.t) =
+    (match e.Expr.node with Expr.Call { fn; _ } -> found := (fn, looped) :: !found | _ -> ());
+    let es, bodies = Traverse.expr_parts e in
+    List.iter (expr looped) es;
+    List.iter (stats looped) bodies
   in
-  stats 1 f.Func.body;
+  stats false f.Func.body;
   !found
 
 (* The strongly connected components of the call graph, by Tarjan's
@@ -375,16 +324,18 @@ let least funcs remembered =
   in
   of_func
 
-(* What a lookup of [f] is charged, in sixteenths of a call: its own cost,
-   a few dozen instructions and a few more for each word of the key,
+(* What a lookup of [f] costs: a few dozen instructions and a few more for
+   each word of the key. *)
+let lookup_cost (f : Func.t) =
+  24 + (6 * List.fold_left (fun n (_, t) -> n + Option.value ~default:0 (words t)) 0 f.Func.params)
+
+(* What a lookup of [f] is charged, in sixteenths of a call: its cost
    against the weight of a call. A function whose calls are heavy pays
    little for each lookup, so it can look up for long before its hits
    start to pay; one whose calls are light pays up to four calls. *)
 let charge weigh (f : Func.t) =
-  let key = List.fold_left (fun n (_, t) -> n + Option.value ~default:0 (words t)) 0 f.Func.params in
-  let lookup = 24 + (6 * key) in
   let w = max 1 (weigh f.Func.symbol) in
-  max 1 (min (4 * scale) (((scale * lookup) + (w / 2)) / w))
+  max 1 (min (4 * scale) (((scale * lookup_cost f) + (w / 2)) / w))
 
 (* What a hit of [f] is credited for each unit of weight it saved, in
    sixteenths of one of [f]'s calls, shifted left by [credit_shift] so a
@@ -581,21 +532,20 @@ let plan (p : Program.t) =
     done;
     let comp = components funcs callees in
     let same a b = Hashtbl.find_opt comp a = Some (Hashtbl.find comp b) in
+    (* Called in a loop of a function outside its own cycle, which may ask
+       for the same arguments again. *)
+    let looped = Hashtbl.create 8 in
+    Hashtbl.iter
+      (fun c l -> List.iter (fun (d, inside) -> if inside && Hashtbl.mem comp d && not (same c d) then Hashtbl.replace looped d ()) l)
+      sites;
     let chosen (f : Func.t) =
       let s = f.Func.symbol in
       Hashtbl.mem pure s
       && Some s <> p.Program.entry
       && (match f.Func.linkage with Linkage.Local | Linkage.Exported | Linkage.Shared -> true | _ -> false)
       && fits f
-      && (let self = List.fold_left (fun n (c, w) -> if same c s then n + w else n) 0 (Hashtbl.find sites s) in
-          let try_ = Option.value ~default:"" (Sys.getenv_opt "ZANE_MEMO_TRY") in
-          let has c = String.contains try_ c in
-          self >= (if has 'a' then 1 else 2)
-          || (has 'b' && self = 0
-             && Hashtbl.fold (fun c l n -> n || (not (same c s) && List.exists (fun (d, w) -> d = s && w >= 2) l)) sites false
-             && operations funcs s
-                >= (match Sys.getenv_opt "ZANE_MEMO_HEAVY" with Some h -> int_of_string h | None -> 2)
-                   * (24 + (6 * List.fold_left (fun n (_, t) -> n + Option.value ~default:0 (words t)) 0 f.Func.params))))
+      && (List.exists (fun (c, _) -> same c s) (Hashtbl.find sites s)
+         || (Hashtbl.mem looped s && operations funcs s >= 2 * lookup_cost f))
     in
     let memos = List.filter chosen p.Program.funcs in
     let remembered = Hashtbl.create 8 in
