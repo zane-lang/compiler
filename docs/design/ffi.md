@@ -428,7 +428,8 @@ runs:
   computes the same hash for the module it rebuilds from the checkout, and
   retains that module only when the two agree. Where they differ, because
   the consumer's system headers, include directories or compiler differ from
-  the publisher's, the dependency's C is called and never inlined or folded.
+  the publisher's, the dependency's C is called and never inlined or folded
+(`ffi.md` §2.6).
   A `source` or path dependency is built by the consumer, so its modules
   always agree.
 - **It shares no state the object owns.** A retained function that reaches
