@@ -107,23 +107,12 @@ let probe_stack triple m =
       m
   end
 
-(* The passes an unoptimized build runs (docs/design/optimization.md O12):
-   inlining the functions [Wrappers.mark] picks, which takes the call out of
-   each of `core`'s one-line wrappers over an intrinsic, and the three that
-   clean up after it, putting the wrappers' scalars back in registers,
-   folding what that makes constant and merging the blocks left behind. Each
-   takes time in proportion to the instructions it reads. Scalar replacement
-   of aggregates and instruction combining are left out: on a value array of
-   thousands of elements they take longer than the whole `-O2` pipeline. *)
-let unoptimized_passes = "always-inline,function(mem2reg,instsimplify,simplifycfg)"
-
 (* The module emitted for *target* made ready to be written: its shared
-   functions in COMDATs, its stack probed, and LLVM's standard `-O2`
-   pipeline run over it when *optimize*, or else [unoptimized_passes]. A
-   program means the same either way (docs/design/lowering.md §7). A
-   [tier] of a tiered build is fingerprinted first, then made tier 0 or
-   tier 1 around its passes (docs/design/tiers.md); tier 1 runs
-   [Tiers.tier1_pipeline]. *)
+   functions in COMDATs, its stack probed, and its passes run, the optimized
+   ones when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A program means the same either way
+   (docs/design/lowering.md §7). A [tier] of a tiered build is fingerprinted
+   first, then made tier 0 or tier 1 around its passes (docs/design/tiers.md);
+   tier 1 runs the optimized ones. *)
 let prepare ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint m =
   let optimize = optimize || tier = Tiers.Tier1 in
   Result.bind (target_machine ?target ~optimize ()) (fun (triple, tm) ->
@@ -140,14 +129,8 @@ let prepare ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint m =
       let data_layout = Llvm_target.TargetMachine.data_layout tm in
       Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
       if not optimize then Wrappers.mark data_layout m;
-      let pipeline =
-        match tier with
-        | Tiers.Tier1 ->
-            llvm_options (Array.of_list ("zanec" :: Tiers.tier1_llvm_options));
-            Tiers.tier1_pipeline
-        | _ -> if optimize then "default<O2>" else unoptimized_passes
-      in
-      Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
+      if optimize then llvm_options (Array.of_list ("zanec" :: Passes.llvm_options));
+      Llvm_passbuilder.run_passes m (Passes.pipeline ~optimize ~tier1:(tier = Tiers.Tier1)) tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
       |> Fun.flip Result.bind (fun () ->
              match (exports, definitions) with
@@ -997,8 +980,8 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = cache_dir ()) m
               (fun identity ->
                 let key =
                   String.concat "\000"
-                    ([ fingerprint; triple; cc; identity; compiler_identity (); Tiers.tier1_pipeline ]
-                    @ Tiers.tier1_llvm_options)
+                    ([ fingerprint; triple; cc; identity; compiler_identity (); Passes.tier1 ]
+                    @ Passes.llvm_options)
                 in
                 Filename.concat (Filename.concat cache "tier")
                   (Digest.to_hex (Digest.string key) ^ shared_extension triple))

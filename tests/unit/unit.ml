@@ -381,11 +381,11 @@ let probed_abi () =
 let repeated_builds () =
   let module C = Cgt.Nodes in
   let f i =
-    { C.Func.symbol = "f" ^ string_of_int i; linkage = C.Linkage.Exported; params = []; ret = C.Ty.I64;
+    { C.Func.symbol = "f" ^ string_of_int i; linkage = C.Linkage.Exported; params = []; places = []; ret = C.Ty.I64;
       body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ]; values = [] }
   in
   let empty =
-    { C.Func.symbol = "empty"; linkage = C.Linkage.Exported; params = []; ret = C.Ty.Struct [];
+    { C.Func.symbol = "empty"; linkage = C.Linkage.Exported; params = []; places = []; ret = C.Ty.Struct [];
       body = [ C.Stat.Return { C.Expr.node = C.Expr.Record []; ty = C.Ty.Struct [] } ];
       values = [] }
   in
@@ -402,7 +402,7 @@ let repeated_builds () =
 let disposed_modules () =
   let module C = Cgt.Nodes in
   let f =
-    { C.Func.symbol = "f"; linkage = C.Linkage.Exported; params = []; ret = C.Ty.I64;
+    { C.Func.symbol = "f"; linkage = C.Linkage.Exported; params = []; places = []; ret = C.Ty.I64;
       body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ]; values = [] }
   in
   let p = { C.Program.funcs = [ f ]; entry = None; layouts = []; globals = []; exclusive = true } in
@@ -585,7 +585,7 @@ let program funcs =
   }
 
 let func ?(values = []) symbol params body =
-  { C.Func.symbol; linkage = C.Linkage.Local; params; ret = C.Ty.I64; body; values }
+  { C.Func.symbol; linkage = C.Linkage.Local; params; places = []; ret = C.Ty.I64; body; values }
 
 (* A value made back into code, and read back, is the value it was. *)
 let materialized () =
@@ -1069,6 +1069,7 @@ let emit_env ?(pack = false) ?(triple = "x86_64-unknown-linux-gnu") () =
     walks = None;
     handle_tag = fst tags;
     value_tag = snd tags;
+    version = false;
   }
 
 let dispose (env : Codegen__Emit.env) =
