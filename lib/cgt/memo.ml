@@ -234,6 +234,58 @@ let weight funcs remembered =
   in
   of_func
 
+(* The operations one call to [f] runs, roughly the instructions an
+   optimized build gives it: what computes or touches memory counts one, a
+   branch one, a loop's body eight times over or as many times as a
+   constant count says, and a call one and the operations of the function
+   called. What only names a value, a local, a constant or a verb's
+   expansion, counts nothing, since an optimized build keeps it in a
+   register or folds it away. *)
+let operations funcs =
+  let known = Hashtbl.create 16 in
+  let cap n = min 100_000 n in
+  let rec of_func s =
+    match Hashtbl.find_opt known s with
+    | Some w -> w
+    | None -> (
+        Hashtbl.replace known s 1;
+        match Hashtbl.find_opt funcs s with
+        | None -> 1
+        | Some (f : Func.t) ->
+            let w = stats 1 f.Func.body in
+            Hashtbl.replace known s w;
+            w)
+  and stats times ss = cap (List.fold_left (fun n st -> n + stat times st) 0 ss)
+  and stat times (st : Stat.t) =
+    let es, bodies = Traverse.stat_parts st in
+    let inner =
+      match st with
+      | Stat.Repeat { count = { Expr.node = Expr.Int n; _ }; _ } when Int64.compare n 0L > 0 ->
+          cap (times * Int64.to_int (Int64.min n 100_000L))
+      | Stat.Repeat _ -> cap (times * 8)
+      | _ -> times
+    in
+    let own =
+      match st with
+      | Stat.Let _ | Stat.Scope _ | Stat.Eval _ | Stat.Return _ | Stat.Leave _ -> 0
+      | Stat.Assign { place; _ } when not place.Expr.deref -> 0
+      | _ -> times
+    in
+    cap (own + List.fold_left (fun n e -> n + expr times e) 0 es + List.fold_left (fun n b -> n + stats inner b) 0 bodies)
+  and expr times (e : Expr.t) =
+    let own =
+      match e.Expr.node with
+      | Expr.Int _ | Expr.Float _ | Expr.Bool _ | Expr.Text _ | Expr.Unit | Expr.Local _ | Expr.Address _ | Expr.Expand _
+      | Expr.Record _ | Expr.Member _ | Expr.Case _ | Expr.Payload _ | Expr.Function _ | Expr.Global _ | Expr.Layout _ ->
+          0
+      | Expr.Call { fn; _ } -> cap (times * (1 + of_func fn))
+      | _ -> times
+    in
+    let es, bodies = Traverse.expr_parts e in
+    cap (own + List.fold_left (fun n e -> n + expr times e) 0 es + List.fold_left (fun n b -> n + stats times b) 0 bodies)
+  in
+  of_func
+
 (* The weight of the cheapest call to [f]: the fewest nodes a call can run
    before it returns, counted as [weight] counts them, with a loop whose
    count is not a constant run no times. A hit saves at least this much for
@@ -541,8 +593,9 @@ let plan (p : Program.t) =
           self >= (if has 'a' then 1 else 2)
           || (has 'b' && self = 0
              && Hashtbl.fold (fun c l n -> n || (not (same c s) && List.exists (fun (d, w) -> d = s && w >= 2) l)) sites false
-             && weight funcs (Hashtbl.create 1) s
-                >= (match Sys.getenv_opt "ZANE_MEMO_HEAVY" with Some h -> int_of_string h | None -> 64)))
+             && operations funcs s
+                >= (match Sys.getenv_opt "ZANE_MEMO_HEAVY" with Some h -> int_of_string h | None -> 2)
+                   * (24 + (6 * List.fold_left (fun n (_, t) -> n + Option.value ~default:0 (words t)) 0 f.Func.params))))
     in
     let memos = List.filter chosen p.Program.funcs in
     let remembered = Hashtbl.create 8 in
