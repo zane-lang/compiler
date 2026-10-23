@@ -66,13 +66,27 @@ val ir :
   Cgt.Nodes.Program.t ->
   (string, failure) result
 
+(** An executable; with [tiered], tier 0 of a tiered build, whose calls go
+    through slots that tier 1 fills while it runs (docs/design/tiers.md). *)
 val executable :
   ?target:string ->
   ?pack:bool ->
   ?memoize:bool ->
   ?regions:regions ->
+  ?tiered:bool ->
   optimize:bool ->
   link:string list ->
+  Cgt.Nodes.Program.t ->
+  string ->
+  (unit, failure) result
+
+(** Tier 1 of a tiered build: the program optimized into a shared library
+    for tier 0 to load (`--tier-up`, docs/design/tiers.md). *)
+val tier_up :
+  ?target:string ->
+  ?pack:bool ->
+  ?memoize:bool ->
+  ?regions:regions ->
   Cgt.Nodes.Program.t ->
   string ->
   (unit, failure) result

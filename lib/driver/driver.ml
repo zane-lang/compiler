@@ -136,8 +136,19 @@ let ir ?target ?pack ?memoize ?(regions = no_regions) ~optimize cgt =
     (emitted ?target ?pack ?memoize ~optimize regions cgt (fun m ->
          Result.map (fun () -> Codegen.ir m) (Codegen.prepare ?target ~optimize m)))
 
-let executable ?target ?pack ?memoize ?(regions = no_regions) ~optimize ~link cgt output =
-  built (emitted ?target ?pack ?memoize ~optimize regions cgt (fun m -> Codegen.executable ?target ~optimize ~link m output))
+(* A [tiered] build is tier 0 (docs/design/tiers.md). It plans what it
+   remembers as an unoptimized build does, as tier 1 does, so the two emit
+   the same module. *)
+let executable ?target ?pack ?memoize ?(regions = no_regions) ?(tiered = false) ~optimize ~link cgt output =
+  let tier = if tiered then Codegen.Tier0 else Codegen.Plain in
+  built
+    (emitted ?target ?pack ?memoize ~optimize regions cgt (fun m ->
+         Codegen.executable ?target ~optimize ~tier ~link m output))
+
+(* Tier 1 of a tiered build, from the tree lowering made, without stage 5,
+   so it emits the module tier 0 does. *)
+let tier_up ?target ?pack ?memoize ?(regions = no_regions) cgt output =
+  built (emitted ?target ?pack ?memoize ~optimize:false regions cgt (fun m -> Codegen.shared_library ?target m output))
 
 let object_file ?target ?pack ?memoize ?(regions = no_regions) ~optimize cgt output =
   built (emitted ?target ?pack ?memoize ~optimize regions cgt (fun m -> Codegen.object_file ?target ~optimize m output))

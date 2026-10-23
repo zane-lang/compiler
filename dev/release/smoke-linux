@@ -14,9 +14,13 @@ cp -R /source/tests/codegen/fixtures/hello "$out/hello"
 # Every build below links a runtime the release bundles with the linker
 # command and files the release bundles for it, so no C compiler runs: nothing
 # is compiled into the cache, nor asked for, and Zig never makes its cache.
+# The cache holds only the tier-1 libraries a tiered build keeps
+# (docs/design/tiers.md).
 export ZANE_CACHE_DIR="$out/cache" ZIG_GLOBAL_CACHE_DIR="$out/zig-cache" ZIG_LOCAL_CACHE_DIR="$out/zig-cache"
 test "$(find "$root/share/runtime" -maxdepth 1 -name '*.o' | wc -l)" -eq 12
-test "$(find "$root/share/runtime/link" -maxdepth 1 -type f | wc -l)" -eq 12
+# A program's link for each target and level, and an optimized shared
+# library's for each target, tier 1's.
+test "$(find "$root/share/runtime/link" -maxdepth 1 -type f | wc -l)" -eq 18
 mkdir -p "$out/macos"
 for optimization in plain optimized; do
     flags=()
@@ -32,8 +36,19 @@ for optimization in plain optimized; do
             --build "$out/macos/hello-$arch-$optimization" --package "$out/hello"
     done
 done
+# Tiered: tier 0 and tier 1 for each target, tier 1 loaded before `main`.
+"$root/bin/zanec" --target x86_64-linux-gnu --build "$out/hello-tiered" --tiered --package "$out/hello"
+"$root/bin/zanec" --target x86_64-linux-gnu --tier-up "$out/hello-tiered.tier1.so" --package "$out/hello"
+ZANE_TIER_UP="$out/hello-tiered.tier1.so" ZANE_TIER_WAIT=1 "$out/hello-tiered" > "$out/hello-tiered.out"
+cmp /source/tests/codegen/golden/hello.out "$out/hello-tiered.out"
+"$root/bin/zanec" --target x86_64-windows-gnu --build "$out/hello-tiered.exe" --tiered --package "$out/hello"
+"$root/bin/zanec" --target x86_64-windows-gnu --tier-up "$out/hello-tiered.tier1.dll" --package "$out/hello"
+for arch in x86_64 aarch64; do
+    "$root/bin/zanec" --target "$arch-macos" --build "$out/macos/hello-$arch-tiered" --tiered --package "$out/hello"
+    "$root/bin/zanec" --target "$arch-macos" --tier-up "$out/macos/hello-$arch-tiered.tier1.dylib" --package "$out/hello"
+done
 "$root/bin/zanec" --build "$out/hello-host" --package "$out/hello"
 "$out/hello-host" | cmp /source/tests/codegen/golden/hello.out -
-test ! -e "$ZANE_CACHE_DIR"
+test -z "$(find "$ZANE_CACHE_DIR" -mindepth 1 -maxdepth 1 ! -name tier)"
 test ! -e "$out/zig-cache"
 echo 'Relocated compiler built and ran Linux programs and linked Windows and macOS programs with its bundled runtimes and links, running no C compiler'

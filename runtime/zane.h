@@ -112,4 +112,9 @@ void zane_writeback(char *at, char *copy, int64_t size, const zane_type *type);
 void zane_join(char *frame);
 void zane_scope_drain(zane_mark *scope);
 
+/* tier.c: called first by tier 0 of a tiered build, with its slots and
+   what tier 1 may take from it (docs/design/tiers.md). */
+struct zane_tier0;
+void zane_tier_up(const struct zane_tier0 *tier);
+
 #endif

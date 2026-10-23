@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Measure each perf program's two builds in estimated cycles.
+"""Measure each perf program's three builds in estimated cycles.
 
 Each directory here is one package, a program that reads its size from the
-`arguments` file beside it. It is built twice, `optimized` with `--optimize`
-and `plain` without it, as `zane run` builds, and each build is run once under
+`arguments` file beside it. It is built three times: `optimized` with
+`--optimize`, `plain` without it, and `tiered` as `zane run` builds it, tier
+0 with tier 1 loaded before `main` runs (docs/design/tiers.md). Each build is
+run once under
 Valgrind's Callgrind with the cache and branch simulators on. What each
 printed is held to `golden/NAME.out`. What the simulators counted for the
 whole process, the C library's work included, becomes estimated cycles:
@@ -18,7 +20,7 @@ same on every run of one build, which is what lets one commit's build be
 compared with the next; it is an estimate for a generic processor, not a
 time on any real one.
 
-    tests/perf/run                            # measure every program, both builds
+    tests/perf/run                            # measure every program, every build
     tests/perf/run flips trees                # measure these
     tests/perf/run --build plain              # measure one build of each
     tests/perf/run --against latest.tsv       # and fail if one is slower than its row there
@@ -30,7 +32,7 @@ time on any real one.
 `TOLERANCE` above its row; a build with no row passes. `--record` writes
 `DIR/latest.tsv`, one row per program and build, over what was there, and
 appends the `LOGGED` program's rows to its histories, `DIR/LOGGED.tsv` for
-the optimized build and `DIR/LOGGED-plain.tsv` for the plain one. It records a build
+the optimized build and `DIR/LOGGED-BUILD.tsv` for each other one. It records a build
 that is slower and still fails, and records nothing when a program fails to
 build, to run or to print its golden output. CI keeps both on
 the `perf-log` branch (`.github/scripts/perf`). `--zanec`, or `ZANEC` in the
@@ -66,8 +68,11 @@ COLUMNS = ["program", "commit", "date", *COUNTS]
 # and the build. A row from before plain builds were measured has no build
 # column, and is the optimized one.
 LATEST = [*COLUMNS, "key", "build"]
-# Each build's flags. The plain one is what `zane run` builds.
-BUILDS = {"optimized": ["--optimize"], "plain": []}
+# Each build's flags. The tiered one is what `zane run` builds
+# (docs/design/tiers.md), measured with tier 1 in place before `main` runs,
+# so the same build counts the same; the plain one is the program
+# unoptimized, as `zane run` built it before tiers.
+BUILDS = {"optimized": ["--optimize"], "plain": [], "tiered": ["--tiered"]}
 
 
 def history(build):
@@ -91,12 +96,15 @@ def totals(profile):
     raise ValueError(f"{profile} has no summary line")
 
 
-def build_key(name, exe, printed, valgrind):
-    """What the counts of program `name` built as *exe*, printing *printed*,
-    follow from, hashed."""
+def build_key(name, exe, printed, valgrind, library=None):
+    """What the counts of program `name` built as *exe*, with tier 1 at
+    *library* for a tiered build, printing *printed*, follow from, hashed."""
     digest = hashlib.sha256()
-    for part in [exe.read_bytes(), (HERE / name / "arguments").read_bytes(),
-                 printed.encode(), Path(__file__).read_bytes(), valgrind]:
+    parts = [exe.read_bytes(), (HERE / name / "arguments").read_bytes(),
+             printed.encode(), Path(__file__).read_bytes(), valgrind]
+    if library:
+        parts.append(library.read_bytes())
+    for part in parts:
         digest.update(hashlib.sha256(part).digest())
     return digest.hexdigest()
 
@@ -110,12 +118,20 @@ def measure(zanec, name, build, work, valgrind, row):
         capture_output=True, text=True)
     if built.returncode:
         return name, build, None, f"build failed:\n{built.stdout}{built.stderr}"
+    library, env = None, None
+    if build == "tiered":
+        library = work / f"{name}.tier1"
+        built = subprocess.run([zanec, "--tier-up", library, "--package", HERE / name],
+                               capture_output=True, text=True)
+        if built.returncode:
+            return name, build, None, f"tier 1 failed to build:\n{built.stdout}{built.stderr}"
+        env = {**os.environ, "ZANE_TIER_UP": str(library), "ZANE_TIER_WAIT": "1"}
     # A recorded key holds what its program printed, so a row whose key is
     # this build's printing the golden output printed that output too.
     out = GOLDEN / f"{name}.out"
     if row and out.exists():
         golden = out.read_text()
-        key = build_key(name, exe, golden, valgrind)
+        key = build_key(name, exe, golden, valgrind, library)
         if row.get("key") == key:
             return name, build, {
                 "output": golden,
@@ -127,7 +143,7 @@ def measure(zanec, name, build, work, valgrind, row):
     ran = subprocess.run(
         ["valgrind", "-q", "--tool=callgrind", "--cache-sim=yes", "--branch-sim=yes", *CACHES,
          f"--callgrind-out-file={profile}", exe, *args],
-        capture_output=True, text=True)
+        capture_output=True, text=True, env=env)
     if ran.returncode:
         return name, build, None, f"exited with {ran.returncode}:\n{ran.stdout}{ran.stderr}"
     e = totals(profile)
@@ -141,7 +157,7 @@ def measure(zanec, name, build, work, valgrind, row):
         "l1_misses": l1,
         "ll_misses": ll,
         "mispredicts": mispredicts,
-        "key": build_key(name, exe, ran.stdout, valgrind),
+        "key": build_key(name, exe, ran.stdout, valgrind, library),
         "reused": None,
     }, None
 
@@ -207,7 +223,7 @@ def main():
     parser.add_argument("--record", type=Path, metavar="DIR", help="write DIR's log from this build")
     parser.add_argument("--commit", help="the commit recorded rows are for")
     parser.add_argument("--build", choices=BUILDS, action="append", dest="builds",
-                        help="measure this build only; both when none is named")
+                        help="measure this build only; every one when none is named")
     parser.add_argument("--promote", action="store_true", help="write golden/NAME.out from this build")
     parser.add_argument("--fresh", action="store_true",
                         help="measure every build, even one whose key is its row's")

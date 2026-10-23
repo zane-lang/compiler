@@ -339,11 +339,13 @@ let runtime_abi () =
             (List.length params = List.length params'
             && List.for_all2 (fun c t -> abi c = Some t) params params'))
     R.all;
-  (* `zane_main` is the one function the program defines rather than calls. *)
+  (* `zane_main` is the one function the program defines rather than calls,
+     and `zane_tier_up` the one codegen calls without a node of the tree:
+     tier 0 of a tiered build calls it first (docs/design/tiers.md). *)
   List.iter
     (fun (name, _, _) ->
       check (name ^ " in zane.h is a function the compiler knows")
-        (name = "zane_main" || List.exists (fun fn -> R.name fn = name) R.all))
+        (name = "zane_main" || name = "zane_tier_up" || List.exists (fun fn -> R.name fn = name) R.all))
     declared
 
 (* What the runtime's structs measure, as tests/runtime/abi/probe.c prints
