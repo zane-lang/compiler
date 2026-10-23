@@ -88,11 +88,12 @@ measured on; `run` takes the directories `generate` writes for them.
 
 Estimated cycles under Callgrind, x86-64 container, 2026-10-23. `memoized`
 is how many functions got a table. Every program printed the same output in
-all six builds. Of the repository's own perf programs (`tests/perf/`), four
-get a table: `floats` moved by +0.17% plain, +0.29% optimized and +0.32%
-tiered, `leaves` by +0.10% to +0.13%, `returns` by +0.01% to +0.02%, and
-`stress`, whose sixteen sections each get one, got 0.31% faster plain,
-0.34% optimized and 0.52% tiered. Of langbench, `mandelbrot` alone gets a
+all six builds. Of the repository's own perf programs (`tests/perf/`), five
+get a table. `repeats`, written for a heavy call in a loop, got 90.2% faster
+plain, 89.6% optimized and 89.1% tiered. `floats` moved by +0.17% plain,
++0.29% optimized and +0.32% tiered, `leaves` by +0.10% to +0.13%, and
+`returns` by +0.01% to +0.02%. `stress`, whose sixteen sections each get
+one, got 0.31% faster plain, 0.34% optimized and 0.52% tiered. Of langbench, `mandelbrot` alone gets a
 table, for a call whose arguments never repeat: at its check size it costs a
 fixed 170,000 cycles, +0.64% plain, +0.93% optimized and +1.00% tiered.
 

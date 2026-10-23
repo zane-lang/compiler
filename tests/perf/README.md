@@ -131,6 +131,11 @@ repo's `langbench/` and print what it prints at the same size.
   where each call does least. A table of its results hits on half its
   calls, and must stop looking, since each hit saves less than the lookups
   cost ([`memoization.md`](../../docs/design/memoization.md) M3).
+- `repeats` is a heavy call in a loop that asks for the same 64 arguments
+  over and over, with no recursion. A table of its results hits on all but
+  the first 64 calls, so its numbers rise sharply when a table stops being
+  picked for such a call or its hits stop paying
+  ([`memoization.md`](../../docs/design/memoization.md) M1).
 - `removal` is a list of value structs that grows by pushes and shrinks by
   ordered and swapping removals.
 - `stress` is the logged one, a large program of sixteen sections:
