@@ -14,7 +14,7 @@ let live_contexts () = Atomic.get live
 (* The program's module lives only while [f] runs: its context and the
    module are disposed however [f] or the emit ends, since LLVM's bindings
    free neither on their own. *)
-let with_module ?target ?pack ?memos ?fixed_region ?spawned_fixed_region p f =
+let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_region p f =
   Result.bind (Build.target_machine ?target ~optimize:false ()) (fun (triple, tm) ->
       let data_layout = Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm) in
       let ctx = Llvm.create_context () in
@@ -28,7 +28,7 @@ let with_module ?target ?pack ?memos ?fixed_region ?spawned_fixed_region p f =
           Fun.protect
             ~finally:(fun () -> Llvm.dispose_module m)
             (fun () ->
-              match Emit.program ?fixed_region ?spawned_fixed_region ?pack ?memos ~triple ~data_layout m p with
+              match Emit.program ?fixed_region ?spawned_fixed_region ?pack ?memos ?version ~triple ~data_layout m p with
               | () -> f m
               | exception Cgt.Nodes.Ty.Too_large ->
                   Error "a scope's frame takes 2^48 bytes or more, past the limit on any value's size")))
@@ -37,10 +37,12 @@ let with_module ?target ?pack ?memos ?fixed_region ?spawned_fixed_region p f =
    module are disposed however [f] or the emit ends, since LLVM's bindings
    free neither on their own. With [memoize], the functions [Cgt.Memo]
    picks are remembered, the same in every build, so a tiered build's two
-   tiers emit the same module (docs/design/tiers.md T3). *)
-let with_program ?target ?pack ?(memoize = false) ?fixed_region ?spawned_fixed_region p f =
+   tiers emit the same module (docs/design/tiers.md T3). With [version],
+   each loop over elements is emitted twice for the optimized passes to
+   tell apart (Emit.versioned); a tiered build's two tiers both take it. *)
+let with_program ?target ?pack ?(memoize = false) ?version ?fixed_region ?spawned_fixed_region p f =
   let p, memos = if memoize then Cgt.Memo.plan p else (p, []) in
-  with_module ?target ?pack ~memos ?fixed_region ?spawned_fixed_region p f
+  with_module ?target ?pack ~memos ?version ?fixed_region ?spawned_fixed_region p f
 
 let ir m = Llvm.string_of_llmodule m
 

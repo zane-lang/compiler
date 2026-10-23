@@ -28,9 +28,20 @@ let unoptimized =
    threading. *)
 let threading = "function(mem2reg,jump-threading)"
 
-(* An optimized build's passes, in the order [run] runs them. *)
-let optimized = String.concat "," [ threading; "default<O2>" ]
+(* An optimized build's passes: [threading], then LLVM's `-O2` with
+   inductive range check elimination (IRCE) where `-O2` has just rotated
+   each loop and hoisted what it reads (gen/o2_pipeline.sh). IRCE splits a
+   loop that checks a list index into a main loop whose checks it has
+   proved pass and the checked iterations around it; the passes after it
+   would turn the checks into exit tests it no longer recognizes. *)
+let optimized = String.concat "," [ threading; O2_pipeline.with_irce ]
 
-(* [m] made ready by [unoptimized], or by [optimized] when *optimize*, with
-   [run] running one pipeline over it. *)
-let run ~optimize run = run (if optimize then optimized else unoptimized)
+(* The options LLVM is started with for [optimized]. IRCE splits a loop
+   only when its header runs at least this many times for each entry to it,
+   since the split costs each entry more than a short loop saves: more than
+   LLVM guesses for a loop it knows nothing of, and fewer than codegen says
+   the long copy of a loop it emits twice goes round (Emit.versioned). *)
+let llvm_options = [ "-irce-min-runtime-iterations=64" ]
+
+(* [unoptimized], or [optimized] when *optimize*. *)
+let pipeline ~optimize = if optimize then optimized else unoptimized

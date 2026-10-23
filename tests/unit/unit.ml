@@ -1069,6 +1069,7 @@ let emit_env ?(pack = false) ?(triple = "x86_64-unknown-linux-gnu") () =
     walks = None;
     handle_tag = fst tags;
     value_tag = snd tags;
+    version = false;
   }
 
 let dispose (env : Codegen__Emit.env) =

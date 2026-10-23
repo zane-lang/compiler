@@ -2,7 +2,8 @@
 /// counted loop over lists, once in a method that writes its subject and
 /// once written out in `main`. Its first argument is how many points there
 /// are, its second how many of them each pass moves, and its third how
-/// many passes. Spawns nothing.
+/// many passes; fewer than 16 moved points run the short copy of each loop
+/// over them. Spawns nothing.
 package bounce;
 
 alias Int = @primitives$I64

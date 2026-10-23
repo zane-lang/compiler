@@ -12,11 +12,14 @@
     the main context's and each spawned call's; each takes its default when
     absent. With [pack], an aggregate that fits in the registers a call
     gives it passes as packed 8-byte words rather than by address
-    (docs/design/lowering.md §9); off when absent. *)
+    (docs/design/lowering.md §9); off when absent. With [version], each
+    loop over elements is emitted twice for the optimized passes
+    (docs/design/lowering.md §9, "The passes"); off when absent. *)
 val with_program :
   ?target:string ->
   ?pack:bool ->
   ?memoize:bool ->
+  ?version:bool ->
   ?fixed_region:int ->
   ?spawned_fixed_region:int ->
   Cgt.Nodes.Program.t ->

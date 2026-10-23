@@ -69,6 +69,9 @@ type env = {
      scalar (see [access]). *)
   handle_tag : Llvm.llvalue;
   value_tag : Llvm.llvalue;
+  (* Whether a loop over elements is emitted twice (see [versioned]), which
+     only the passes of an optimized build use. *)
+  version : bool;
 }
 
 (* ---------------------------------------------------------------------- *)
@@ -377,6 +380,14 @@ let handle_field env instr =
   Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "tbaa") env.handle_tag;
   instr
 
+(* A list's count or room read from its header, which is never negative. *)
+let count_field env instr =
+  let range =
+    Llvm.mdnode env.ctx [| Llvm.const_int env.i64 0; Llvm.const_of_int64 env.i64 Int64.max_int false |]
+  in
+  Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "range") range;
+  handle_field env instr
+
 (* A math function of `@math$` (math.md §2) on operands of type [t]. An
    exact one is an instruction or an LLVM intrinsic: a shift's count is
    taken modulo the width first, since LLVM gives no result for a count at
@@ -483,7 +494,8 @@ let text env s =
 (* What a function being built keeps: its symbol, its slots, the exit
    block of each expansion it is inside with how many arenas were open when
    it began, each open arena's record, the arenas open where it is building,
-   innermost first (L8), and where in its arena's frame each slot is. *)
+   innermost first (L8), where in its arena's frame each slot is, and how
+   many loops it is building inside. *)
 type frame = {
   fn : Llvm.llvalue;
   symbol : string;
@@ -496,6 +508,7 @@ type frame = {
      written to when that is by address. *)
   ret : Ty.t * passing;
   sret : Llvm.llvalue option;
+  mutable loops : int;
 }
 
 let call_runtime env b name args =
@@ -537,6 +550,44 @@ let unlikely env br =
     Llvm.mdnode env.ctx [| Llvm.mdstring env.ctx "branch_weights"; Llvm.const_int i32 1; Llvm.const_int i32 2000 |]
   in
   Llvm.set_metadata br (Llvm.mdkind_id env.ctx "prof") weights
+
+(* A loop's test, [br], weighted as going round [trips] times for each time
+   it leaves. *)
+let weigh env br trips =
+  let i32 = Llvm.i32_type env.ctx in
+  let weights =
+    Llvm.mdnode env.ctx [| Llvm.mdstring env.ctx "branch_weights"; Llvm.const_int i32 trips; Llvm.const_int i32 1 |]
+  in
+  Llvm.set_metadata br (Llvm.mdkind_id env.ctx "prof") weights
+
+(* The count from which a [versioned] loop runs its long copy, and how often
+   each copy is said to go round: the long one as a hot loop, the short one
+   fewer times than IRCE splits a loop's checks for (Passes.llvm_options). *)
+let long_loop = 16
+let long_trips = 1000
+let short_trips = 4
+
+(* Whether a loop with [body] in the function [symbol] is emitted twice
+   (Stat.Repeat): it holds no loop, no spawned call and no call back into
+   [symbol], whose cost would dwarf a check, nothing leaves it before its
+   count runs out, and it reads or writes a list's element, whose check IRCE
+   may take out of it. *)
+let versioned ~symbol body =
+  let inside = Hashtbl.create 8 in
+  Cgt.Traverse.walk_stats
+    (fun e -> match e.Expr.node with Expr.Expand { label; _ } -> Hashtbl.replace inside label () | _ -> ())
+    ignore body;
+  let indexes = function Cgt.Runtime.List_at | Cgt.Runtime.Array_at -> true | _ -> false in
+  (not
+     (Cgt.Traverse.exists_in body
+        ~expr:(fun e -> match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol | _ -> false)
+        ~stat:(function
+          | Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ | Stat.Return _ -> true
+          | Stat.Leave label -> not (Hashtbl.mem inside label)
+          | _ -> false)))
+  && Cgt.Traverse.exists_in body
+       ~expr:(fun e -> match e.Expr.node with Expr.Runtime { fn; _ } -> indexes fn | _ -> false)
+       ~stat:(fun _ -> false)
 
 (* Offsets into a scope's record and a context (runtime/zane_abi.h). *)
 let record_context = Abi.mark_context
@@ -751,7 +802,7 @@ let element env fr b fn args =
         let field i t =
           handle_field env (Llvm.build_load t (Llvm.build_struct_gep header list i "" b) "" b)
         in
-        (field 0 env.ptr, index, field 1 env.i64, stride)
+        (field 0 env.ptr, index, count_field env (Llvm.build_load env.i64 (Llvm.build_struct_gep header list 1 "" b) "" b), stride)
     | Cgt.Runtime.Array_at, [ array; index; count; stride ] -> (array, index, count, stride)
     | _ -> Diagnostic.bug "codegen: an element address with the wrong arguments"
   in
@@ -1332,21 +1383,44 @@ and stat env fr b (s : Stat.t) =
   | Stat.Repeat { count; body } ->
       (* The count is read once; a count below one runs the body no times. *)
       let n = value_of env fr b count in
-      let i = alloca env fr env.i64 in
-      ignore (Llvm.build_store (Llvm.const_int env.i64 0) i b);
-      let head = block env fr and step = block env fr and after = block env fr in
-      ignore (Llvm.build_br head b);
-      Llvm.position_at_end head b;
-      let current = Llvm.build_load env.i64 i "" b in
-      ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Slt current n "" b) step after b);
-      Llvm.position_at_end step b;
-      stats env fr b body;
-      if not (has_terminator b) then begin
+      let counted trips =
+        let i = alloca env fr env.i64 in
+        ignore (Llvm.build_store (Llvm.const_int env.i64 0) i b);
+        let head = block env fr and step = block env fr and after = block env fr in
+        ignore (Llvm.build_br head b);
+        Llvm.position_at_end head b;
         let current = Llvm.build_load env.i64 i "" b in
-        ignore (Llvm.build_store (Llvm.build_add current (Llvm.const_int env.i64 1) "" b) i b);
-        ignore (Llvm.build_br head b)
-      end;
-      Llvm.position_at_end after b
+        let test = Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Slt current n "" b) step after b in
+        Option.iter (weigh env test) trips;
+        Llvm.position_at_end step b;
+        fr.loops <- fr.loops + 1;
+        stats env fr b body;
+        fr.loops <- fr.loops - 1;
+        if not (has_terminator b) then begin
+          let current = Llvm.build_load env.i64 i "" b in
+          (* Below the count, so it cannot wrap. *)
+          let next = Llvm.build_nsw_add current (Llvm.const_int env.i64 1) "" b in
+          ignore (Llvm.build_store next i b);
+          ignore (Llvm.build_br head b)
+        end;
+        Llvm.position_at_end after b
+      in
+      if (not env.version) || fr.loops > 0 || not (versioned ~symbol:fr.symbol body) then counted None
+      else begin
+        (* A loop no other loop holds is emitted twice, for a count of at
+           least [long_loop] and for a smaller one, each saying how often it
+           goes round (docs/design/lowering.md, "The passes"). *)
+        let long = block env fr and short = block env fr and joined = block env fr in
+        let at_least = Llvm.build_icmp Llvm.Icmp.Sge n (Llvm.const_int env.i64 long_loop) "" b in
+        unlikely env (Llvm.build_cond_br at_least long short b);
+        List.iter
+          (fun (start, trips) ->
+            Llvm.position_at_end start b;
+            counted (Some trips);
+            ignore (Llvm.build_br joined b))
+          [ (long, long_trips); (short, short_trips) ];
+        Llvm.position_at_end joined b
+      end
   | Stat.Leave label ->
       let exit, depth = Hashtbl.find fr.labels label in
       drain env fr b depth;
@@ -1434,6 +1508,7 @@ let func env (f : Func.t) =
       offsets = Hashtbl.create 8;
       ret = a.ret;
       sret;
+      loops = 0;
     }
   in
   (* A parameter passed as itself is stored into a slot like any other
@@ -1713,8 +1788,8 @@ let memo env (m : Cgt.Memo.t) =
 let packed = "~packed"
 
 let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
-    ?(spawned_fixed_region = Cgt.Runtime.default_spawned_fixed_region) ?(pack = false) ?(memos = []) ~triple
-    ~data_layout m (p : Program.t) =
+    ?(spawned_fixed_region = Cgt.Runtime.default_spawned_fixed_region) ?(pack = false) ?(memos = []) ?(version = false)
+    ~triple ~data_layout m (p : Program.t) =
   let ctx = Llvm.module_context m in
   Llvm.set_target_triple triple m;
   Llvm.set_data_layout data_layout m;
@@ -1735,6 +1810,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       walks = None;
       handle_tag = fst (tags ctx);
       value_tag = snd (tags ctx);
+      version;
     }
   in
   env.walks <-

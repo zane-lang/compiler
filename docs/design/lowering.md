@@ -1229,6 +1229,29 @@ test passing.
   loop instead. The unoptimized passes therefore merge blocks without
   making selects before they thread, and the optimized ones thread before
   `-O2`.
+
+  The optimized pipeline is LLVM's own `default<O2>` with inductive range
+  check elimination (IRCE) added where `-O2` has just rotated each loop and
+  hoisted what it reads, ahead of the passes that would turn an index check
+  into an exit test IRCE no longer recognizes.
+  `lib/codegen/gen/o2_pipeline.sh` writes that pipeline out at build time
+  from the `opt` beside the LLVM the compiler is built against, so it
+  tracks that LLVM's `-O2`. IRCE splits a loop whose element reads and
+  writes are checked into the iterations its checks may fail on and a main
+  loop between them that it has proved needs none. The split costs each
+  entry to the loop a few dozen instructions, which a short loop does not
+  earn back, so IRCE runs only on a loop LLVM is told goes round at least
+  64 times for each entry (`Passes.llvm_options`). Codegen says which loops
+  those are: a `repeat` that no other loop holds, that holds no loop, spawn,
+  join, `return` or call back into its own function, that nothing leaves
+  early, and that reads or writes an element, is emitted twice (`Emit.versioned`) in an optimized build and in
+  both tiers of a tiered one, which emit the same module
+  ([`tiers.md`](tiers.md) T3); a plain build, whose passes have no use for the
+  copies, emits it once. A count of at least 16 runs
+  the copy whose branch weights say it goes round 1,000 times; a smaller
+  one runs the copy said to go round 4 times, which IRCE leaves alone. A
+  list's count is loaded with the range `[0, 2^63)`, which IRCE's bounds
+  need.
 - **A type argument passes nothing.** A generic verb is lowered once per
   instance the TST checked ([`semantics.md`](semantics.md) D12), with a
   symbol of its own, and a type written where a value goes, or a number

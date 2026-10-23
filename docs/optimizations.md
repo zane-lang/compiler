@@ -351,6 +351,30 @@ both of its halves reach LLVM as code. Jump threading, run while each
 turns a cheap `if` body into selects, and both bodies run every time round
 a loop.
 
+### Index checks taken out of long loops
+
+- **Builds:** optimized only (and tier 1)
+- **Where:** `lib/codegen/passes.ml` (`optimized`, `llvm_options`),
+  `lib/codegen/gen/o2_pipeline.sh`, `lib/codegen/emit.ml` (`versioned`,
+  `count_field`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
+- **Effect:** the particle simulation of
+  [zane-lang/compiler#292](https://github.com/zane-lang/compiler/issues/292):
+  12.1G → 8.89G instructions under Valgrind, against 8.88G for the same
+  program in C at `-O2`. Langbench: `fannkuch` 2.0% more instructions,
+  `nbody` 0.3% fewer, the rest within 0.3%; `tests/perf` `flips`, tier 1
+  5% fewer estimated cycles
+
+LLVM's inductive range check elimination splits a loop that checks its
+element indices into a main loop it has proved needs no check and the few
+iterations around it that might fail one, which still check and stop the
+program as the spec says. It runs inside `-O2` once each loop is rotated.
+An optimized build emits each loop it could help twice, with branch
+weights saying the long copy goes round 1,000 times and the short one 4,
+and IRCE splits only the long one, since the split costs a short loop more
+than it saves. A loop that calls back into its own function is left as it
+is: the call costs far more than the check.
+
 ### Code tuned for the processor clang would pick
 
 - **Builds:** every build (x86-64 targets)

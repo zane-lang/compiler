@@ -117,12 +117,25 @@ class FactsTests(unittest.TestCase):
         self.assertRegex(ir, r'@"bounce\$step\([^"]*\)"\(ptr nonnull align 8 dereferenceable\(48\) %0')
         self.assertRegex(ir, r'call void @llvm\.assume\(i1 true\) \[ "dereferenceable"\(ptr %[^,]+, i64 [0-9]+\), "align"')
 
+    def test_long_loops_lose_their_index_checks(self):
+        # An optimized build emits a loop over elements twice, weighted to
+        # go round 1,000 and 4 times (Emit.versioned), and IRCE splits the
+        # long copy into a main loop with no checks and the iterations after
+        # it, whose block names it gives (Passes.optimized). A plain build,
+        # whose passes have no use for the copies, emits each loop once.
+        ir = run(ZANEC, "--ll", *packages("bounce"))
+        self.assertNotIn('!{!"branch_weights", i32 1000, i32 1}', ir)
+        ir = run(ZANEC, "--ll", "--optimize", *packages("bounce"))
+        self.assertRegex(ir, r"\nmain\.exit\.selector[.\w]*:")
+        self.assertRegex(ir, r"\npostloop[.\w]*:")
+
     def test_bounce_runs_and_stops_out_of_range(self):
         with tempfile.TemporaryDirectory() as temp:
             for optimize in [[], ["--optimize"]]:
                 exe = Path(temp) / "bounce"
                 run(ZANEC, "--build", exe, *optimize, *packages("bounce"))
                 self.assertEqual(run_program(exe, 20, 20, 3), "2727 963\n", optimize)
+                self.assertEqual(run_program(exe, 20, 15, 3), "2268 806\n", optimize)
                 result = subprocess.run([str(exe), "20", "21", "3"], capture_output=True, text=True, timeout=60)
                 self.assertEqual((result.returncode, result.stdout, result.stderr),
                                  (1, "", "index out of range\n"), optimize)
