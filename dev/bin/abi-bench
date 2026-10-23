@@ -82,9 +82,10 @@ def packages(name, source, langbench, core):
     return flags + ["--import", f"{name}:bench=bench", "--import", f"{STAMP}math:core={STAMP}core"]
 
 
-def build(zanec, flags, out, programs, langbench, core):
+def build(zanec, rootless, flags, out, programs, langbench, core):
     """Each program built with [flags] into [out], linked with a core
-    object built the same way."""
+    object built the same way and [rootless], that compiler's spelling of
+    a build without a root."""
     out.mkdir(parents=True, exist_ok=True)
     core_o = out / "core.o"
     stamped = [
@@ -92,7 +93,7 @@ def build(zanec, flags, out, programs, langbench, core):
         "--package", f"{STAMP}math={core / 'lib/math'}",
         "--import", f"{STAMP}math:core={STAMP}core",
     ]
-    run([zanec, "--no-root", *flags, "--object", core_o, *stamped])
+    run([zanec, *rootless, *flags, "--object", core_o, *stamped])
     built = {}
     for test, source in programs:
         exe = out / f"{test['id']}.exe"
@@ -140,19 +141,20 @@ def main():
 
     base, current = compilers(args.base)
     target = ["--target", args.target] if args.target else []
+    # The base compiler predates `--no-root`, and says it with `--kind`.
     builds = {
-        "before the rule": (base, []),
-        "register rule": (current, []),
-        "rule with packing": (current, ["--pack-aggregates"]),
+        "before the rule": (base, ["--kind", "library"], []),
+        "register rule": (current, ["--no-root"], []),
+        "rule with packing": (current, ["--no-root"], ["--pack-aggregates"]),
     }
     runner = args.runner.split()
     runs, warmup = (1, 0) if args.quick else (args.runs, 1)
     samples = {}
-    for name, (zanec, flags) in builds.items():
+    for name, (zanec, rootless, flags) in builds.items():
         for optimize in [True, False]:
             column = f"{name}, {'optimized' if optimize else 'unoptimized'}"
             out = WORK / "programs" / column.replace(", ", "-").replace(" ", "-")
-            built = build(zanec, [*target, *(["--optimize"] if optimize else []), *flags],
+            built = build(zanec, rootless, [*target, *(["--optimize"] if optimize else []), *flags],
                           out, programs, langbench, core)
             for test, _ in programs:
                 exe = built[test["id"]]
