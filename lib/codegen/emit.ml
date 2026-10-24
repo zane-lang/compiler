@@ -847,8 +847,10 @@ let innermost fr p =
   || match fr.open_ with frame :: _ -> p == frame | [] -> false
 
 (* An empty list's first block of [first] bytes, made here when its handle
-   holds no block (an empty handle's items are null) and is in the innermost scope's region, the open one, as the runtime would
-   make it (runtime/arena.c): the next line-aligned bytes in the scope's
+   holds no block (its room is 0, as runtime/list.c reads it: the push's
+   fast path loads the room already, while a look at the items would load
+   them ahead of its check) and is in the innermost scope's region, the
+   open one, as the runtime would make it (runtime/arena.c): the next line-aligned bytes in the scope's
    heap when it has them and the scope has no returned block, which would
    come first; or, when nothing has yet been allocated in the scope, and so
    nothing returned, the first line-aligned bytes past its frame, which
@@ -868,8 +870,8 @@ let first_block env fr b ~header ~list ~fail ~first =
   let line p =
     Llvm.build_and (Llvm.build_add p (n (Abi.line - 1)) "" b) (Llvm.const_of_int64 i64 (Int64.of_int (-Abi.line)) true) "" b
   in
-  let items = handle_field env (Llvm.build_load ptr (Llvm.build_struct_gep header list 0 "" b) "" b) in
-  check (Llvm.build_icmp Llvm.Icmp.Eq items (Llvm.const_null ptr) "" b);
+  let room = handle_field env (Llvm.build_load i64 (Llvm.build_struct_gep header list 2 "" b) "" b) in
+  check (Llvm.build_icmp Llvm.Icmp.Eq room (n 0) "" b);
   let m = Llvm.build_load ptr (open_scope env) "" b in
   check (Llvm.build_icmp Llvm.Icmp.Ne m (Llvm.const_null ptr) "" b);
   let c = field env b ptr m record_context in
