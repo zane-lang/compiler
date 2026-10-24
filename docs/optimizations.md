@@ -321,7 +321,9 @@ the whole of it into its module, as the program's own, in place of the
 runtime's object, so LLVM optimizes the two as one program; a tiered build,
 and a library object, which run another object's runtime, take only the
 bodies safe to copy, the functions of the runtime they call, for LLVM to
-inline. Allocation, deferral, text joins and printing then cost no call.
+inline. Allocation, deferral and text joins then cost no call in either,
+and printing none in an executable with the whole runtime; with only the
+bodies, printing still calls the runtime, whose output buffer is its own.
 A runtime function that runs off the hot path, such as `zane_hold` under
 checked drains, is marked cold and stays a call, and so does a push's
 slow-path call, whose fast path emitted code already has.

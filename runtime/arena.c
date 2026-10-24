@@ -430,10 +430,11 @@ int zane_stretch(zane_mark *m, char *end, int64_t most) {
 /* Bytes from a region's frontier: where its heap has room, else in its
    frame, stretched to hold them, else in a fresh chunk, which becomes where
    the heap is. A block too large for any chunk is an oversized one, with
-   chunks of its own (§3.1). A frame a list has stretched past
-   ZANE_STRETCHED (list.c) may stretch by ZANE_STRETCH more, up to a
-   chunk's size, so a small block after the list, such as the record of the
-   stack its old block goes to, takes no chunk of its own. */
+   chunks of its own (§3.1). A frame already past ZANE_STRETCHED, by its
+   own slots or by a list that stretched it (list.c), may stretch by
+   ZANE_STRETCH more, up to a chunk's size, so a small block after such a
+   list, such as the record of the stack its old block goes to, takes no
+   chunk of its own. */
 static char *zane_frontier_of(zane_mark *m, int64_t size, int64_t align) {
 	zane_heap *h = &m->heap;
 	uintptr_t mask = (uintptr_t)align - 1;

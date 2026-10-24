@@ -156,7 +156,9 @@ stopped build's files from an earlier run are never taken for this one's.
 **T10. The cache keeps the newest 32 tier-1 libraries.** A library is kept
 in the cache directory ([`lowering.md`](lowering.md) §7) under `tier/`, named
 by a hash of the module's fingerprint, the target, the C compiler and what
-it says it is, this compiler's file, and T2's pipeline. A later `--tier-up`
+it says it is, the runtime's bitcode compiler and what it says it is when
+that is another one (`ZANE_BITCODE_CC`), this compiler's file, and T2's
+pipeline. A later `--tier-up`
 of the same module copies it after lowering and emitting, without running
 LLVM or the linker, so a program run again unchanged moves to tier 1 within
 its first moments. Taking one marks it newest; keeping one past 32 removes

@@ -79,7 +79,7 @@ class MemoTests(unittest.TestCase):
         # entries straddle two cache lines.
         found = 0
         for name in sorted(p.name for p in FIXTURES.iterdir()):
-            for build in ("plain", "optimized"):
+            for build in BUILDS:
                 symbols = subprocess.run(["nm", self.build(name, build, True)], capture_output=True,
                                          text=True, check=True).stdout
                 for line in symbols.splitlines():

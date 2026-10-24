@@ -1074,7 +1074,7 @@ let rec remove_tree path =
    Its files are made in `OUTPUT.work/`, which is removed after, and the
    library is renamed into place, so the program waiting for it never loads
    half of one. The library is kept in [cache]'s `tier/` under the module's
-   fingerprint, the target, the C compiler and this compiler, and a later
+   fingerprint, the target, the C compilers and this compiler, and a later
    build of the same module takes it from there without optimizing or
    linking. *)
 let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = cache_dir ()) m output =
@@ -1088,9 +1088,17 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = cache_dir ()) m
       let fingerprint = Tiers.fingerprint m in
       let triple = Llvm.target_triple m in
       (* A released toolchain's bundle is used only with the C compiler that
-         made it, so it names that compiler without asking it. *)
+         made it, so it names that compiler without asking it. Otherwise the
+         compiler of the runtime's bitcode is named too, since it decides
+         which of the runtime's bodies tier 1 takes. *)
       let cc_identity cache =
-        match bundled with Some dir -> Some ("bundled " ^ dir) | None -> identity ~cache cc work
+        match bundled with
+        | Some dir -> Some ("bundled " ^ dir)
+        | None ->
+            let bitcode = bitcode_cc () in
+            Option.bind (identity ~cache cc work) (fun id ->
+                if bitcode = cc then Some id
+                else Option.map (fun b -> String.concat "\000" [ id; bitcode; b ]) (identity ~cache bitcode work))
       in
       let kept =
         Option.bind cache (fun cache ->

@@ -545,7 +545,7 @@ The binary takes the same `--package` flags as the semantic views:
 | `--import PACKAGE:KEY=PACKAGE` | the package the first imports by `KEY`, each named by its identity (C10) |
 | `--link FILE` | links the object `FILE` into the program `--build` makes, as a stamped dependency's objects are (C7) |
 | `--target TRIPLE` | compiles `--ll`, `--build` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` for it; LLVM gets the triple's normal form, and the C compiler the triple as written ([`platforms.md`](platforms.md)) |
-| `--optimize` | runs stage 5 over the tree ([`optimization.md`](optimization.md)), then LLVM's `-O2` pipeline over the module, with the whole runtime in it (§7), generates optimized code, and compiles the runtime with `-O2` |
+| `--optimize` | runs stage 5 over the tree ([`optimization.md`](optimization.md)), then LLVM's `-O2` pipeline over the module, with the whole runtime in it for an executable and the runtime's bodies safe to copy for `--object` (§7), generates optimized code, and compiles the runtime with `-O2` |
 | `--fixed-region BYTES` | the size of the main context's range of frames, a whole number of MiB, 256 MiB when absent (§9) |
 | `--spawned-fixed-region BYTES` | the size of each spawned call's range of frames, a whole number of MiB, 8 MiB when absent (§9) |
 | `--pack-aggregates` | passes an aggregate that fits in the registers a call gives it as packed 8-byte words rather than as itself or by address; off by default, an option to measure (§9) |
@@ -857,9 +857,10 @@ test passing.
     most 64 KiB with its record and slots (`ZANE_STRETCH` and
     `ZANE_STRETCHED`, `runtime/zane_abi.h`), as long as the range holds
     it. A list whose block is last there grows in place by stretching the
-    frame further, to at most 1 MiB, and a small block after such a list,
-    as the record of the stack its old block goes to, stretches it 4 KiB
-    more rather than taking a chunk. An empty list's first block comes
+    frame further, to at most 1 MiB. A frame already past 64 KiB, by such
+    a list or by its own slots, stretches 4 KiB more for a small block, as
+    the record of the stack a list's old block goes to, rather than taking
+    a chunk, while it stays within a chunk's size. An empty list's first block comes
     from the emitted push itself, with no call, when the list's handle is
     in the innermost scope's region and the push is in a function with a
     scope of its own open: the next line of the scope's heap while it has
