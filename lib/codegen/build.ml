@@ -114,6 +114,12 @@ let probe_stack triple m =
 (* The C compiler that links: `ZANE_CC` if set, else `clang`. *)
 let cc () = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC")
 
+(* The C compiler that compiles the runtime's bitcode, `ZANE_BITCODE_CC`
+   when it is set and *cc* otherwise: a release's, whose own C compiler
+   writes bitcode newer than this LLVM reads (docs/design/lowering.md §7). *)
+let bitcode_cc () =
+  match Sys.getenv_opt "ZANE_BITCODE_CC" with Some "" | None -> cc () | Some cc -> cc
+
 (* The runtime as it is laid out in runtime/: its three headers beside the
    one translation unit that includes them. *)
 let runtime_files =
@@ -782,13 +788,13 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       let whole =
         match whole with
         | Some exported when optimize && tier = Tiers.Plain ->
-            with_runtime_bitcode ?bundled ?cache ~cc:(cc ()) ~triple ?target (function
+            with_runtime_bitcode ?bundled ?cache ~cc:(bitcode_cc ()) ~triple ?target (function
               | Some path -> Runtime_bodies.whole ~exported path m
               | None -> false)
         | _ -> false
       in
       if (optimize || tier = Tiers.Tier0) && not whole then
-        with_runtime_bitcode ?bundled ?cache ~cc:(cc ()) ~triple ?target
+        with_runtime_bitcode ?bundled ?cache ~cc:(bitcode_cc ()) ~triple ?target
           (Option.iter (fun path -> ignore (Runtime_bodies.add ~tiered:(tier <> Tiers.Plain) path m)));
       let exports = if tier = Tiers.Tier0 then Some (Tiers.exports m) else None in
       let definitions = if tier = Tiers.Tier1 then Some (Tiers.tier1_definitions m) else None in
@@ -934,7 +940,7 @@ let bundle_runtime ~target ~optimize dir =
       match compile ~cc ~triple (target_flag (Some target) @ level) work runtime with
       | Error _ as error -> error
       | Ok _ -> (
-          if optimize then bundle_bitcode ~cc ~triple ~target dir work;
+          if optimize then bundle_bitcode ~cc:(bitcode_cc ()) ~triple ~target dir work;
           match
             Result.bind (bundle_link ~cc ~target ~triple ~tm level dir work runtime) (fun () ->
                 if optimize then bundle_shared_link ~cc ~target ~triple ~tm level dir work else Ok ())

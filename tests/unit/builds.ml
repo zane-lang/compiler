@@ -323,7 +323,11 @@ exit 1
           "#!/bin/sh\n[ \"$1\" = --version ] && { echo newer; exit 0; }\n\
            while [ \"$1\" != -o ]; do shift; done; printf 'BC\\300\\336ZZZZZZZZ' > \"$2\"\n";
         Unix.chmod newer 0o755;
-        check "a C compiler whose bitcode this LLVM cannot read gives none" (bitcode ~cc:newer = None)
+        check "a C compiler whose bitcode this LLVM cannot read gives none" (bitcode ~cc:newer = None);
+        Unix.putenv "ZANE_BITCODE_CC" newer;
+        check "the bitcode's own C compiler is the one ZANE_BITCODE_CC names" (Build.bitcode_cc () = newer);
+        Unix.putenv "ZANE_BITCODE_CC" "";
+        check "and the C compiler otherwise" (Build.bitcode_cc () = Build.cc ())
       end;
       let unreadable = Filename.concat directory "unreadable.bc" in
       write_all unreadable ("BC\xc0\xde" ^ String.make 64 '\x5a');

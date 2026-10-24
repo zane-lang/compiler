@@ -105,7 +105,11 @@ exec "${ZIG:-$root/zig/zig}" cc "$@"
             (root / "bin" / name).chmod(0o755)
         # Through the wrappers, so the runtimes are compiled by the bundled
         # Zig exactly as a build with the released toolchain compiles them.
+        # Their bitcode is compiled by the devbox's clang, of the LLVM version
+        # zanec reads, with the headers that Zig compiles each target with
+        # (bitcode-cc).
         environment = {k: v for k, v in os.environ.items() if k not in ("ZANE_CC", "ZIG")}
+        environment["ZANE_BITCODE_CC"] = str(Path(__file__).resolve().parent / "bitcode-cc")
         for target in RUNTIME_TARGETS:
             for optimize in ([], ["--optimize"]):
                 subprocess.run(

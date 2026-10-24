@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""The C compiler a release compiles the runtime's bitcode with
+(`ZANE_BITCODE_CC`, docs/design/lowering.md §7): clang of the LLVM version
+`zanec` is built against, which reads only bitcode such a clang writes,
+given the C library headers and definitions Zig compiles the same command
+with. Zig compiles everything else in a release, and its clang is newer
+than `zanec`'s LLVM, so its own bitcode is unreadable there.
+
+`ZANE_CC`, the release's `zig cc`, is asked what it would run (`-###`) for
+the command as given, and clang runs the command with the definitions and
+the C library's header directories that compile names, and an Apple
+target's oldest system. Zig's copy of clang's builtin headers is left out,
+since they belong to its clang; this clang has its own.
+`ZANE_BITCODE_CLANG` names the clang, `clang` otherwise.
+"""
+
+import os
+import re
+import shlex
+import subprocess
+import sys
+
+
+def zig_flags(zig_cc, args):
+    """The definitions and C library header directories of the compile
+    `zig_cc` would run for `args`, as flags for another clang."""
+    listed = subprocess.run([zig_cc, *args, "-###"], capture_output=True, text=True)
+    lines = [line for line in listed.stderr.splitlines() if '"-cc1"' in line]
+    if listed.returncode or len(lines) != 1:
+        sys.exit(f"bitcode-cc: `zig cc -###` named no single compile:\n{listed.stderr}")
+    words = shlex.split(lines[0])
+    flags = []
+    for flag, value in zip(words, words[1:]):
+        if flag == "-isystem" and "/libc/include/" in value:
+            flags += ["-isystem", value]
+        elif flag == "-D":
+            flags += ["-D", value]
+        elif flag == "-triple":
+            # An Apple target names the oldest system it runs on, which
+            # decides what it may use, thread-local variables among it.
+            version = re.search(r"-apple-macosx([0-9.]+)", value)
+            if version:
+                flags.append(f"-mmacosx-version-min={version.group(1)}")
+    return flags
+
+
+def main(args):
+    clang = os.environ.get("ZANE_BITCODE_CLANG", "clang")
+    zig_cc = os.environ.get("ZANE_CC")
+    if not zig_cc:
+        sys.exit("bitcode-cc: ZANE_CC names no `zig cc` to take the target's headers from")
+    flags = zig_flags(zig_cc, args)
+    os.execvp(clang, [clang, *flags, *args])
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

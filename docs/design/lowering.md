@@ -443,8 +443,10 @@ library function in it would cost a symbol lookup as every run starts. A
 body taken loses any stack protection the C compiler gave it: it becomes
 the program's code, which has none, and inlined it would give its caller
 the protection too. Bitcode is read only by the LLVM that wrote it or a
-later one, so the C compiler must be a clang of the compiler's LLVM version
-or older, as devbox's is; with any other, or one that makes no bitcode, a
+later one, so the C compiler that compiles it, `ZANE_BITCODE_CC` or else
+the runtime's own, must be a clang of the compiler's LLVM version or older,
+as devbox's is; a release bundles bitcode a matching clang made (below).
+With any other, or one that makes no bitcode, a
 build links the runtime's object and calls its functions, and the cache
 keeps an empty file so the C compiler is asked once.
 
@@ -495,10 +497,14 @@ compiler for the command linking a program with it, through a program object
 defining only what the runtime takes from a program, and copies every file
 the command links besides the program's own into `link/files/`, named by its
 contents, where the command names it relative to the bundle. With
-`--optimize` it also compiles the runtime's bitcode beside the object,
-when the C compiler makes bitcode this compiler's LLVM reads; otherwise
-the release bundles none, and its optimized builds call the runtime's
-functions rather than inline them. The loader a
+`--optimize` it also compiles the runtime's bitcode beside the object, with
+the C compiler `ZANE_BITCODE_CC` names when it is set. Zig's clang is newer
+than the compiler's LLVM, which cannot read its bitcode, so packaging names
+`dev/release/bitcode-cc`: the devbox's clang, of the compiler's LLVM
+version, run with the C library headers and definitions Zig compiles the
+same target with, and an Apple target's oldest system. Bitcode this LLVM
+cannot read is not bundled, and an optimized build with that release links
+the runtime's object instead. The loader a
 program names, `--dynamic-linker`, is a path on the machine the program runs
 on, and is not copied. A program's other objects, its dependencies', are put
 in after its own. A target is always named there, since a C compiler given
