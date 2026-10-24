@@ -1566,7 +1566,8 @@ let func env (f : Func.t) =
    zero; once it reaches [memo_limit] the dispatcher stops looking and
    calls the plain copy, which looks nothing up. A function whose arguments rarely repeat, or whose repeats
    save less than a lookup costs, pays for a bounded number of lookups and
-   then runs as it would have. *)
+   then runs as it would have. The table starts on a cache line, so where
+   it lands in the binary does not decide which entries straddle two. *)
 let memo_limit = Cgt.Memo.limit
 let memo_bytes = 65536
 let memo_most_entries = 4096
@@ -1709,6 +1710,7 @@ let memo env (m : Cgt.Memo.t) =
   let entry_ty = Llvm.array_type i64 width in
   let table = Llvm.define_global (f.Func.symbol ^ ".memo.table") (Llvm.const_null (Llvm.array_type entry_ty entries)) env.m in
   Llvm.set_linkage Llvm.Linkage.Internal table;
+  Llvm.set_alignment Abi.line table;
   let st = Llvm.build_load i64 state "" b in
   let k = Llvm.const_of_int64 i64 (-7046029254386353131L) false in
   let h = List.fold_left (fun h w -> Llvm.build_mul (Llvm.build_xor h w "" b) k "" b) (Llvm.const_int i64 0) keys in

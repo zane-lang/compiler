@@ -125,4 +125,5 @@ is inside a verb written out where it is called, which always runs. `stepped` ma
 same local, which a mutating call between them changes through its address,
 so they count as two and it gets a table. `apart` makes the same call in two
 blocks that may each run without the other, so it gets one too. Every build gives the same functions a
-table, so the two tiers of a tiered build emit the same module.
+table, so the two tiers of a tiered build emit the same module, and every
+table starts on a cache line.
