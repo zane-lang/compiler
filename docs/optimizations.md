@@ -300,7 +300,9 @@ check stay, but only store the folded value.
 The module goes through LLVM's `default<O2>` pipeline: inlining, constant
 folding, dead-code removal, common subexpressions, loop hoisting,
 unrolling and vectorization, with the passes the next entries name added
-to it. The runtime is compiled with `-O2` too. The
+to it. The runtime is compiled with `-O2` too, and so is the one tier 0 of
+a tiered build links, since tier 1 calls it
+([`design/tiers.md`](design/tiers.md) T5). The
 compiler implements a transformation itself only where it rests on
 something about Zane that LLVM does not know.
 

@@ -465,7 +465,7 @@ The binary takes the same `--package` flags as the semantic views:
 | `--ll` | prints the LLVM module |
 | `--build OUT` | builds the program into the executable `OUT` |
 | `--object OUT` | writes the object file `OUT` of the project's own packages, with no runtime and no link ([`separate-compilation.md`](separate-compilation.md) C3) |
-| `--tiered` | with `--build`, makes tier 0 of a tiered build, whose calls go through slots tier 1 fills while it runs ([`tiers.md`](tiers.md) T1, T4) |
+| `--tiered` | with `--build`, makes tier 0 of a tiered build, whose calls go through slots tier 1 fills while it runs, linked with the runtime compiled with `-O2` ([`tiers.md`](tiers.md) T1, T4, T5) |
 | `--tier-up OUT` | makes tier 1 of a tiered build, the program optimized into the shared library `OUT` ([`tiers.md`](tiers.md) T1, T2) |
 | `--stamp PATH=STAMP` | names the symbols of the package at `PATH` with `STAMP`, as `--package STAMPPATH=DIR` does; a dependency given one arrives as objects of its own, so its verbs are declared rather than lowered (C1, C6, C10) |
 | `--import PACKAGE:KEY=PACKAGE` | the package the first imports by `KEY`, each named by its identity (C10) |

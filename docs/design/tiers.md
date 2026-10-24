@@ -78,6 +78,15 @@ variable's initial value, cannot be a load, and tier 1's build fails with
 the name of the import. The program then runs in tier 0, as it means the
 same.
 
+Since tier 1 calls tier 0's runtime, tier 0 links the runtime an optimized
+build does, compiled with `-O2` (`Build.executable`), so its allocation,
+scope drains and list growth run in tier 1 as fast as in an optimized
+build. Linking the unoptimized runtime instead, the tiered `returns` and
+`texts` perf programs took about twice the estimated cycles, and `stress`
+7% more ([`tests/perf/`](../../tests/perf/README.md)). Compiling the
+runtime with `-O2` takes about a third of a second longer, once for each
+cache, and a release bundles it already compiled.
+
 **T6. Tier 0 lists what tier 1 may import.** Before its passes, tier 0 makes
 a table of every name tier 1 may take, with its address
 (`zane.tier.exports`): each function and variable the module declares, each

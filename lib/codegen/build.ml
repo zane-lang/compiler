@@ -892,6 +892,9 @@ let executable ?target ?(optimize = false) ?tier ?(link = []) ?(bundled = bundle
       | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot write the object file: %s" message)
       | exception Sys_error message -> Error (Printf.sprintf "cannot write the runtime's sources: %s" message)
       | () -> (
+          (* Tier 1 calls tier 0's runtime (docs/design/tiers.md T5), so tier
+             0 links the optimized one. *)
+          let optimize = optimize || tier = Some Tiers.Tier0 in
           match runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir with
           | Error _ as error -> error
           | Ok runtime -> (
