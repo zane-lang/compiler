@@ -825,7 +825,8 @@ test passing.
   `listgrowth` in the spec's `langbench/`, which appends two million
   entities to a list twenty times, take less than half the time it did, and
   as much as C's `realloc` does within a few percent. A new list followed
-  by a run of pushes, with nothing else naming it until the last, has room
+  by a run of pushes, with nothing else naming it or able to leave until
+  the last, has room
   for the whole run made at its first push (`Emit.runs`), in that first
   block when the run fits in it and by `zane_list_reserve` otherwise, and
   the run's other pushes are stores with no check of the room. A list never

@@ -321,9 +321,10 @@ the whole of it into its module, as the program's own, in place of the
 runtime's object, so LLVM optimizes the two as one program; a tiered build,
 and a library object, which run another object's runtime, take only the
 bodies safe to copy, the functions of the runtime they call, for LLVM to
-inline. Allocation, deferral and text joins then cost no call in either,
-and printing none in an executable with the whole runtime; with only the
-bodies, printing still calls the runtime, whose output buffer is its own.
+inline. In optimized code, tier 1's included, allocation, deferral and
+text joins then cost no call, and printing none in an executable with the
+whole runtime; with only the bodies, printing still calls the runtime,
+whose output buffer is its own. Tier 0, built unoptimized, keeps the calls.
 A runtime function that runs off the hot path, such as `zane_hold` under
 checked drains, is marked cold and stays a call, and so does a push's
 slow-path call, whose fast path emitted code already has.
@@ -585,8 +586,8 @@ unroll.
 - **Effect:** `tests/perf` `scopes` 14% fewer estimated cycles optimized,
   13% plain, 15% tiered; the allocation benchmark `zalloc` 15% optimized
 
-A new list followed by a straight run of pushes, with nothing else naming
-the list between them, has room made for the whole run at its first push,
+A new list followed by a straight run of pushes, with nothing between
+them naming the list or able to leave, has room made for the whole run at its first push,
 in the first block the push makes itself when the run fits in it, else by
 `zane_list_reserve`. Every other push of the run is then a store and a new
 count, with no look at the room. Only the run's own pushes can reach a new

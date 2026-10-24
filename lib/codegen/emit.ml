@@ -1014,9 +1014,12 @@ let fresh_list (e : Expr.t) =
 (* The stride of [s] when it is one push onto the list in [id]: an
    expansion whose own body makes the push, after nothing that may leave
    it, and names the list nowhere else. *)
+let leaving ss =
+  Cgt.Traverse.exists_in ss ~expr:(fun _ -> false) ~stat:(function
+    | Stat.Leave _ | Stat.Return _ -> true
+    | _ -> false)
+
 let push_of id (s : Stat.t) =
-  let leaves = function Stat.Leave _ | Stat.Return _ -> true | _ -> false in
-  let leaving ss = Cgt.Traverse.exists_in ss ~expr:(fun _ -> false) ~stat:leaves in
   match s with
   | Stat.Eval { Expr.node = Expr.Expand { body; _ }; _ } ->
       let rec go before = function
@@ -1046,7 +1049,7 @@ let push_of id (s : Stat.t) =
 (* The runs of pushes in [body], each as the list's local and the pushes in
    it, when they are two or more: a new list's statement, then the pushes
    onto it that follow in [body] up to the first other statement that names
-   it. Nothing else can reach a new list, so only those pushes add to it
+   it or may leave. Nothing else can reach a new list, so only those pushes add to it
    in the run, each at most once, and the run's first push, which comes
    before every other, can make room for all of them. *)
 let runs body =
@@ -1054,7 +1057,7 @@ let runs body =
     | s :: rest -> (
         match push_of id s with
         | Some _ -> length id (n + 1) rest
-        | None -> if names id s then n else length id n rest)
+        | None -> if names id s || leaving [ s ] then n else length id n rest)
     | [] -> n
   in
   let rec scan acc = function
