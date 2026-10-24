@@ -28,7 +28,7 @@ class Tiers(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="zane-tiers-"))
         self.env = dict(os.environ, ZANE_CACHE_DIR=str(self.dir / "cache"))
-        for name in ("ZANE_TIER_UP", "ZANE_TIER_WAIT", "ZANE_TIER_LOG"):
+        for name in ("ZANE_TIER_UP", "ZANE_TIER_WAIT", "ZANE_TIER_LOG", "ZANE_RUNTIME_OBJECTS"):
             self.env.pop(name, None)
 
     def tearDown(self):
@@ -160,6 +160,17 @@ class Tiers(unittest.TestCase):
         self.assertTrue(second.read_bytes().endswith(b"from the cache"))
         self.assertFalse(Path(f"{second}.work").exists())
         self.assertFalse(Path(f"{second}.partial").exists())
+
+    def test_tier_0_links_the_optimized_runtime(self):
+        # Tier 1 calls tier 0's runtime, so tier 0 takes the one an
+        # optimized build compiles, and the cache holds one runtime for both.
+        self.tier0()
+        self.zanec("--build", str(self.dir / "swap.optimized"), "--optimize", "--package", str(FIXTURES / "swap"))
+        runtimes = list((self.dir / "cache" / "runtime").iterdir())
+        self.assertEqual(len(runtimes), 1)
+        self.zanec("--build", str(self.dir / "swap.plain"), "--package", str(FIXTURES / "swap"))
+        runtimes = list((self.dir / "cache" / "runtime").iterdir())
+        self.assertEqual(len(runtimes), 2)
 
     def test_the_cache_keeps_the_newest_libraries(self):
         tier = self.dir / "cache" / "tier"
