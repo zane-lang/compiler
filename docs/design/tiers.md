@@ -87,13 +87,26 @@ build. Linking the unoptimized runtime instead, the tiered `returns` and
 runtime with `-O2` takes about a third of a second longer, once for each
 cache, and a release bundles it already compiled.
 
-Tier 1 also takes the runtime's bodies for LLVM to inline, though not the
-whole runtime an optimized executable takes, since the runtime it runs is
-tier 0's ([`lowering.md`](lowering.md) §7), and tier 0 takes the same
-ones before it makes its table (T6), so it exports every runtime function
-and variable they reach. Neither tier takes a body that calls outside the
-runtime, so the table gains no C library function, each of which would be
-a symbol for the loader to look up as every run starts.
+Tier 1 also takes the runtime's bodies for LLVM to inline, and tier 0
+takes the same ones before it makes its table (T6), so it exports every
+runtime function and variable they reach. Neither tier takes a body that
+calls outside the runtime, so the table gains no C library function, each
+of which would be a symbol for the loader to look up as every run starts.
+
+Tier 1 takes bodies only, never the whole runtime an optimized executable
+takes into its module ([`lowering.md`](lowering.md) §7). Tier 1 is loaded
+into a process whose runtime is already running, tier 0's, and the
+runtime's state is that process's: its page table, its contexts, its
+output buffer and their locks. A whole runtime in tier 1 would be a second
+copy of that state, which tier 1's calls would read and change while tier
+0's runtime kept the first. So tier 1 copies a function's code only where
+the copy reaches the one state there is through tier 0's table, and every
+other function stays a call into tier 0's runtime: one that reads a
+`static` variable, which has no name tier 0 could export, or that takes
+the address of a function of the runtime's own, which a copy would not
+share. A body inlined into tier 1 reads a thread's variable, such as
+`zane_self`, through tier 0's function for it (T5), a call where an
+optimized executable reads it at its offset.
 
 **T6. Tier 0 lists what tier 1 may import.** Before its passes, tier 0 makes
 a table of every name tier 1 may take, with its address

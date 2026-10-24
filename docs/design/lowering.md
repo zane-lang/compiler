@@ -417,7 +417,8 @@ runtime's text would bury the program's.
 
 A tiered build's two tiers and an optimized library object (`--object`)
 cannot take the whole runtime, since the runtime they run is another
-object's: tier 0's, or the program's that links them. Before the passes
+object's: tier 0's, or the program's that links them ([`tiers.md`](tiers.md)
+T5 says what that leaves tier 1). Before the passes
 they link into the module the bodies of the runtime's functions it
 calls, and of the functions those call, as
 `available_externally` (`lib/codegen/runtime_bodies.ml`). LLVM inlines them
