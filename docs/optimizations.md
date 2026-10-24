@@ -322,6 +322,9 @@ runtime's object, so LLVM optimizes the two as one program; a tiered build,
 and a library object, which run another object's runtime, take only the
 bodies safe to copy, the functions of the runtime they call, for LLVM to
 inline. Allocation, deferral, text joins and printing then cost no call.
+A runtime function that runs off the hot path, such as `zane_hold` under
+checked drains, is marked cold and stays a call, and so does a push's
+slow-path call, whose fast path emitted code already has.
 
 ### Functions started on a cache line
 
@@ -335,6 +338,17 @@ Every function starts on a 64-byte boundary, so the branches inside it keep
 their place within their lines however the code before them changes, and a
 change to one function does not move another's into a predictor's
 conflicts.
+
+### Memo tables started on a cache line
+
+- **Builds:** every build; `--no-memoize` turns tables off
+- **Where:** `lib/codegen/emit.ml` (`memo`)
+- **Design:** [`design/memoization.md`](design/memoization.md) M2
+- **Effect:** `tests/perf` `depths` kept from 72% more first-level cache
+  misses when the table landed 16 bytes past a line
+
+Each memo table is aligned to 64 bytes, so where it lands in the binary
+does not decide which of its entries straddle two cache lines.
 
 ### Inlining and its cleanup in unoptimized builds
 
