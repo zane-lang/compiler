@@ -147,6 +147,17 @@ class FactsTests(unittest.TestCase):
         self.assertNotRegex(body("fill"), r"store i64 128, ")
         self.assertIn("@zane_list_push", body("fill"))
 
+    def test_runs_of_pushes_make_room_once(self):
+        # A new list pushed to four times in a row makes room for all four
+        # at its first push, so the room is compared once, and the other
+        # three pushes are stores with no look at it; past a first block,
+        # the runtime makes the room for all four (Emit.runs).
+        ir = run(ZANEC, "--ll", *packages("pushes"))
+        gather = re.search(r"(?ms)^define [^\n]*@\"pushes\$gather\(.*?^}", ir).group(0)
+        self.assertEqual(gather.count("icmp sgt"), 1, gather)
+        self.assertIn("@zane_list_reserve(", gather)
+        self.assertNotIn("@zane_list_push(", gather)
+
     def test_optimized_builds_inline_the_runtimes_bodies(self):
         # A plain build calls the runtime; an optimized one takes the bodies
         # of the functions it calls from the runtime's bitcode for LLVM to

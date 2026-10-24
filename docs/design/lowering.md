@@ -824,8 +824,12 @@ test passing.
   own open (below). Together these make
   `listgrowth` in the spec's `langbench/`, which appends two million
   entities to a list twenty times, take less than half the time it did, and
-  as much as C's `realloc` does within a few percent. It never shrinks: a
-  removal moves the element out of its place and closes the list over it,
+  as much as C's `realloc` does within a few percent. A new list followed
+  by a run of pushes, with nothing else naming it until the last, has room
+  for the whole run made at its first push (`Emit.runs`), in that first
+  block when the run fits in it and by `zane_list_reserve` otherwise, and
+  the run's other pushes are stores with no check of the room. A list never
+  shrinks: a removal moves the element out of its place and closes the list over it,
   by moving the later elements down or the last one in, and the list keeps
   the block until it dies. Where the runtime departs from the spec:
   - A block is placed where its value is made, which is the innermost

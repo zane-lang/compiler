@@ -4913,6 +4913,128 @@
   (diff golden/probed.out probed.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/pushRuns))
+ (targets pushRuns.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build pushRuns.exe --package fixtures/pushRuns)))
+
+(rule
+ (deps (source_tree fixtures/pushRuns))
+ (targets pushRuns.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build pushRuns.optimized.exe --optimize --package fixtures/pushRuns)))
+
+(rule
+ (deps (source_tree fixtures/pushRuns))
+ (targets pushRuns.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build pushRuns.tiered.exe --tiered --package fixtures/pushRuns)))
+
+(rule
+ (deps (source_tree fixtures/pushRuns))
+ (targets pushRuns.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up pushRuns.tier1 --package fixtures/pushRuns)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    pushRuns.checked.out.actual
+    (run ./pushRuns.exe "3")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/pushRuns.out pushRuns.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    pushRuns.unchecked.out.actual
+    (run ./pushRuns.exe "3")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/pushRuns.out pushRuns.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    pushRuns.optimized.checked.out.actual
+    (run ./pushRuns.optimized.exe "3")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/pushRuns.out pushRuns.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    pushRuns.optimized.unchecked.out.actual
+    (run ./pushRuns.optimized.exe "3")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/pushRuns.out pushRuns.optimized.unchecked.out.actual)))
+
+(rule
+ (deps pushRuns.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./pushRuns.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    pushRuns.tiered.checked.out.actual
+    (run ./pushRuns.tiered.exe "3")))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/pushRuns.out pushRuns.tiered.checked.out.actual)))
+
+(rule
+ (deps pushRuns.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./pushRuns.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    pushRuns.tiered.unchecked.out.actual
+    (run ./pushRuns.tiered.exe "3")))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/pushRuns.out pushRuns.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/range))
  (targets range.exe)
  (action

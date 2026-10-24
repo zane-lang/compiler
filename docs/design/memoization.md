@@ -6,7 +6,7 @@ instead of running. `--no-memoize` builds without the tables
 ([zane-lang/compiler#262](https://github.com/zane-lang/compiler/issues/262)).
 The pass that picks the functions and rewrites the program is
 `lib/cgt/memo.ml`. It runs on the finished code-generation tree, after stage
-5 when there is one. Codegen (`lib/codegen/emit.ml`, `memo`) emits each
+5 when there is one. Codegen (`lib/codegen/memos.ml`, `memo`) emits each
 table. `dev/bench/memo/` holds the programs it was measured on and the
 results.
 

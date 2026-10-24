@@ -138,6 +138,22 @@ void *zane_list_push(zane_list *list, int64_t stride) {
 	return zane_list_push_grown(list, stride);
 }
 
+/* As `zane_list_push`, with room made for `n` elements, this push's and
+   the `n - 1` after it, which emitted code then makes as plain stores with
+   no check of their own (docs/design/lowering.md §9). Emitted code calls
+   this only when the block lacks that room. */
+void *zane_list_reserve(zane_list *list, int64_t stride, int64_t n) {
+	if (!list->room && n * stride <= 128) {
+		char *block = zane_list_first(list);
+		if (block) {
+			list->count = 1;
+			return block;
+		}
+	}
+	if ((list->count + n) * stride > list->room) zane_list_grow(list, (list->count + n) * stride, stride);
+	return list->items + list->count++ * stride;
+}
+
 /* The element at `index`, counted from 1 (control-flow.md §3.4). */
 void *zane_list_at(zane_list *list, int64_t index, int64_t stride) {
 	if (index < 1 || index > list->count) zane_out_of_range();

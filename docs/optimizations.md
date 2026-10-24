@@ -167,7 +167,7 @@ at run time; the body reads a number parameter as a constant.
 ### Calls remembered while the program runs
 
 - **Builds:** every build; `--no-memoize` turns it off
-- **Where:** `lib/cgt/memo.ml`, `lib/codegen/emit.ml` (`memo`)
+- **Where:** `lib/cgt/memo.ml`, `lib/codegen/memos.ml` (`memo`)
 - **Design:** [`design/memoization.md`](design/memoization.md)
 - **Effect:** [`dev/bench/memo/`](../dev/bench/memo/README.md), in plain,
   optimized and tiered builds: recursions that repeat their arguments
@@ -342,7 +342,7 @@ conflicts.
 ### Memo tables started on a cache line
 
 - **Builds:** every build; `--no-memoize` turns tables off
-- **Where:** `lib/codegen/emit.ml` (`memo`)
+- **Where:** `lib/codegen/memos.ml` (`memo`)
 - **Design:** [`design/memoization.md`](design/memoization.md) M2
 - **Effect:** `tests/perf` `depths` kept from 72% more first-level cache
   misses when the table landed 16 bytes past a line
@@ -571,6 +571,25 @@ frame, in a function with a scope of its own open. Elsewhere
 `zane_list_push` makes it without a call of its own. A function with no
 scope keeps the call, so a short loop of pushes there stays small enough to
 unroll.
+
+### Runs of pushes given their room at once
+
+- **Builds:** every build
+- **Where:** `lib/codegen/emit.ml`, `runtime/list.c`
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Each scope's
+  dynamic region"
+- **Effect:** `tests/perf` `scopes` 14% fewer estimated cycles optimized,
+  13% plain, 15% tiered; the allocation benchmark `zalloc` 15% optimized
+
+A new list followed by a straight run of pushes, with nothing else naming
+the list between them, has room made for the whole run at its first push,
+in the first block the push makes itself when the run fits in it, else by
+`zane_list_reserve`. Every other push of the run is then a store and a new
+count, with no look at the room. Only the run's own pushes can reach a new
+list, each at most once, and the first comes before the rest, so the room
+it makes is never short. A held slot is listed for a checked drain before
+it is written, so LLVM sees the new list's empty header as the last write
+before the run.
 
 ### Scope frames at constant offsets, entered and drained inline
 

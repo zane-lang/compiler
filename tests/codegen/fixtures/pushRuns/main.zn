@@ -1,0 +1,147 @@
+/// Runs of pushes onto a new list (docs/design/lowering.md §9): the run's
+/// first push makes room for all of them, and the rest are made without a
+/// check. Eight floats fit the first block a scope makes itself; six strings
+/// and twenty integers do not, so the runtime makes their room; a list
+/// pushed to past its run grows as any other does; a read between pushes
+/// ends a run; and a run under a loop starts again with each new list. The
+/// values come from the program's argument, so no build computes them
+/// ahead of time. Each check prints `yes` when it holds and `no` when it
+/// does not.
+package pushRuns;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String("yes\n");
+	no String("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+/// Eight floats, 64 bytes, in the scope's own first block.
+Float floats(x Float) {
+	buf ^List<Float> = @primitives$List(Float);
+	buf!push(@operators$add(x, Float(0.0)));
+	buf!push(@operators$add(x, Float(1.0)));
+	buf!push(@operators$add(x, Float(2.0)));
+	buf!push(@operators$add(x, Float(3.0)));
+	buf!push(@operators$add(x, Float(4.0)));
+	buf!push(@operators$add(x, Float(5.0)));
+	buf!push(@operators$add(x, Float(6.0)));
+	buf!push(@operators$add(x, Float(7.0)));
+	sum Float(0.0);
+	j Int(1);
+	j!to(buf:size()) {
+		sum = @operators$add(sum, buf[j]);
+	}
+	return sum;
+}
+
+/// Six strings, 144 bytes, past a first block.
+String words(n Int) {
+	ws ^List<String> = @primitives$List(String);
+	ws!push(String(n));
+	ws!push(String("b"));
+	ws!push(String(@operators$add(n, Int(1))));
+	ws!push(String("d"));
+	ws!push(String(@operators$add(n, Int(2))));
+	ws!push(String("f"));
+	all String("");
+	j Int(1);
+	j!to(ws:size()) {
+		all = @operators$concat(all, ws[j]);
+	}
+	return all;
+}
+
+/// Twenty integers, then a hundred more in a loop, which grow the list past
+/// the room its run made.
+Int integers(n Int) {
+	xs ^List<Int> = @primitives$List(Int);
+	xs!push(@operators$add(n, Int(0)));
+	xs!push(@operators$add(n, Int(1)));
+	xs!push(@operators$add(n, Int(2)));
+	xs!push(@operators$add(n, Int(3)));
+	xs!push(@operators$add(n, Int(4)));
+	xs!push(@operators$add(n, Int(5)));
+	xs!push(@operators$add(n, Int(6)));
+	xs!push(@operators$add(n, Int(7)));
+	xs!push(@operators$add(n, Int(8)));
+	xs!push(@operators$add(n, Int(9)));
+	xs!push(@operators$add(n, Int(10)));
+	xs!push(@operators$add(n, Int(11)));
+	xs!push(@operators$add(n, Int(12)));
+	xs!push(@operators$add(n, Int(13)));
+	xs!push(@operators$add(n, Int(14)));
+	xs!push(@operators$add(n, Int(15)));
+	xs!push(@operators$add(n, Int(16)));
+	xs!push(@operators$add(n, Int(17)));
+	xs!push(@operators$add(n, Int(18)));
+	xs!push(@operators$add(n, Int(19)));
+	k Int(1);
+	k!to(Int(100)) {
+		xs!push(@operators$add(k, Int(0)));
+	}
+	sum Int(0);
+	j Int(1);
+	j!to(xs:size()) {
+		sum = @operators$add(sum, xs[j]);
+	}
+	return @operators$add(@operators$multiply(sum, Int(1000)), xs:size());
+}
+
+/// Two pushes, a read of the count, and two more: the read ends the run,
+/// and the two after it are checked as any push is.
+Int broken(n Int) {
+	xs ^List<Int> = @primitives$List(Int);
+	xs!push(@operators$add(n, Int(0)));
+	xs!push(@operators$add(n, Int(0)));
+	half Int = xs:size();
+	xs!push(@operators$add(half, Int(0)));
+	xs!push(@operators$add(half, Int(0)));
+	return @operators$add(@operators$add(xs[Int(1)], xs[Int(3)]), @operators$multiply(xs:size(), Int(100)));
+}
+
+/// A new list under a loop, with a run of three each time round.
+Int rounds(n Int) {
+	total Int(0);
+	k Int(1);
+	k!to(n) {
+		xs ^List<Int> = @primitives$List(Int);
+		xs!push(@operators$add(k, Int(0)));
+		xs!push(@operators$add(k, Int(0)));
+		xs!push(@operators$add(k, Int(0)));
+		total = @operators$add(total, @operators$add(xs[Int(3)], xs:size()));
+	}
+	return total;
+}
+
+Unit main() {
+	args List<String> = @program$runtime:arguments();
+	n Int = args[Int(1)]:parseI64() ?? Int(0);
+	x Float = @primitives$F64.round(n);
+	check(@operators$equal(floats(x), Float(52.0)));
+	check(@operators$equal(words(n), String("3b4d5f")));
+	check(@operators$equal(integers(n), Int(5300120)));
+	check(@operators$equal(broken(n), Int(405)));
+	check(@operators$equal(rounds(n), Int(15)));
+	return Unit();
+}
