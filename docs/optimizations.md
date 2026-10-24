@@ -456,12 +456,14 @@ layout lowering knows, and gets none of these.
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "What LLVM is
   told"
 - **Effect:** a loop writing and re-reading a list's elements keeps no
-  index check, and a loop that removes scalar elements keeps the count in a
-  register, in optimized and tiered builds (`tests/objects/facts_test.py`)
+  index check, a loop that removes scalar elements keeps the count in a
+  register, in optimized and tiered builds, and pushes of scalars in a row
+  keep the count and room (`tests/objects/facts_test.py`)
 
 Type-based alias tags say a list handle's fields never alias a scalar
-place, so writing an element's field does not invalidate the count and
-block LLVM already loaded, nor the bounds check made with them. A removal
+place, so writing an element's field, or the element a push makes room
+for, does not invalidate the count and block LLVM already loaded, nor the
+bounds check made with them. A removal
 of elements that hold no handle moves them as scalars, so it leaves the
 count too, and a loop removing from the list on one path reads the count
 once rather than on every pass

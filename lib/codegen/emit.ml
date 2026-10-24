@@ -751,10 +751,11 @@ let slot env fr id t =
   Hashtbl.replace fr.locals id (s, t);
   s
 
-(* A value moved into a fresh place: stored, and the blocks it owns that the
-   place's region outlives move into it (memory.md §3.5). *)
-let place env b p v l =
-  ignore (Llvm.build_store v p b);
+(* A value of type [t] moved into a fresh place: stored, tagged as [access]
+   tags it, and the blocks it owns that the place's region outlives move
+   into it (memory.md §3.5). *)
+let place env b t p v l =
+  ignore (access env t (Llvm.build_store v p b));
   if listed env l then ignore (call_runtime env b Cgt.Runtime.Arrive [| p; layout env l |])
 
 (* A value stored where its address can be passed. *)
@@ -1365,7 +1366,7 @@ and stat env fr b (s : Stat.t) =
       Hashtbl.replace fr.locals id (slot, lltype env t)
   | Stat.Place { address; value; layout = l } -> (
       let p = value_of env fr b address in
-      match expr env fr b value with Some v -> place env b p v l | None -> ())
+      match expr env fr b value with Some v -> place env b value.Expr.ty p v l | None -> ())
   | Stat.Store { address; value } -> (
       let p = value_of env fr b address in
       match expr env fr b value with

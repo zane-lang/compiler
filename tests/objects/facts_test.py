@@ -120,6 +120,22 @@ class FactsTests(unittest.TestCase):
                 run(ZANEC, "--build", exe, *optimize, *packages("culls"))
                 self.assertEqual(run_program(exe, 9), "64 7\n", optimize)
 
+    def test_pushes_of_scalars_leave_the_count(self):
+        # The element a push moves in is a scalar access, which cannot write
+        # the list's header, so pushes in a row keep the count and room they
+        # read in registers rather than reading them again after each.
+        ir = run(ZANEC, "--ll", *packages("pushes"))
+        gather = re.search(r"(?ms)^define [^\n]*@\"pushes\$gather\(.*?^}", ir).group(0)
+        stores = re.findall(r"store double [^\n]*", gather)
+        self.assertEqual(len(stores), 4, gather)
+        for store in stores:
+            self.assertIn("!tbaa", store)
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "pushes"
+                run(ZANEC, "--build", exe, *optimize, *packages("pushes"))
+                self.assertEqual(run_program(exe, 1), "10\n", optimize)
+
     def test_elif_joins_the_if_before_it(self):
         # Each way into an `elif` already decides its `~this` half, so the
         # pair is one chain, as C's `else if` is, and neither body's work is

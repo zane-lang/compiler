@@ -1203,7 +1203,8 @@ test passing.
     are disjoint storage, which type-based alias tags (`!tbaa`) say: the
     header fields read and written where an element is located, pushed or
     removed, and a handle loaded or stored whole, carry one tag, and a
-    scalar loaded or stored through an address carries the other, one for
+    scalar loaded or stored through an address, or moved into a fresh place
+    such as the element a push makes room for, carries the other, one for
     every scalar type. A removal's move of the elements after it carries
     the scalar tag too when no handle is among an element's bytes, since
     then it writes only scalar places. Every other access, a frame's, a
@@ -1211,8 +1212,9 @@ test passing.
     runtime's, carries none, which LLVM takes as one that may touch both.
     So a write of an element's field leaves the count and the block LLVM
     read before it, and LLVM keeps them, and the check made with them,
-    across the write, and a loop that removes scalar elements in one of
-    its ways keeps the count through the others.
+    across the write, pushes of scalars in a row keep the count and room
+    they read, and a loop that removes scalar elements in one of its ways
+    keeps the count through the others.
   - *A place's whole slot.* A `mut` subject, or an owned value passed by
     address, is the address of a slot of the caller's, which outlives the
     call. An `&T` is the address of a settled owner's slot

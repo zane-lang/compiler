@@ -97,7 +97,9 @@ loop, then runs each program, optimized and not. `culls` is a program whose
 `main` removes, in order, from a list of scalar structs and from a list of
 strings: the scalar list's moves carry the scalar tag and, in the optimized
 build, its loop keeps the count in a register, and the string list's moves
-carry none.
+carry none. `pushes` is a program whose `gather` pushes four
+scalars in a row onto a list of its own: each element it moves in carries
+the scalar tag.
 
 `options_test.py` checks what `zanec` accepts for the options that name and
 stamp packages. A package name in `--package NAME=DIR` or an `--import` key
