@@ -350,12 +350,13 @@ let walks env = Option.get env.walks
    place of a scalar type are disjoint storage. An access made here as one
    of the two says so with its tag: a handle's fields read and written where
    an element is located, pushed or removed, and a handle loaded or stored
-   whole, as the first; a scalar loaded or stored through an address as the
-   second. A scalar's tag is one for every scalar type, since storage the
-   program reads as one type it may have written as another the same size,
-   as a snapshot does. Everything else, a frame's or a walk's access, a copy
-   of an aggregate and the runtime's own, carries no tag, which LLVM takes
-   as one that may touch both. *)
+   whole, as the first; a scalar loaded or stored through an address, and
+   the elements a removal moves when no handle is among their bytes
+   ([remove]), as the second. A scalar's tag is one for every scalar type,
+   since storage the program reads as one type it may have written as
+   another the same size, as a snapshot does. Everything else, a frame's or
+   a walk's access, a copy of an aggregate and the runtime's own, carries no
+   tag, which LLVM takes as one that may touch both. *)
 let tags ctx =
   let root = Llvm.mdnode ctx [| Llvm.mdstring ctx "zane" |] in
   let tag name =
@@ -854,7 +855,10 @@ let push env fr b list stride =
    place; a swapping one moves the last element into the place, unless the
    place is the last. Either is made here, with the element's stride a
    constant, so LLVM sees which bytes move and that the count goes down by
-   one. *)
+   one. When the elements are scalars only, the move is a scalar access
+   ([tags]), so LLVM sees it leave every list's header as it was: a loop
+   that removes from a list in one of its ways keeps the count it read in
+   a register through the others. *)
 let remove env fr b fn list index stride =
   let header = Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |] in
   let i8 = Llvm.i8_type env.ctx and one = Llvm.const_int env.i64 1 in
@@ -872,10 +876,14 @@ let remove env fr b fn list index stride =
       | Some f -> f
       | None -> Llvm.declare_function name t env.m
     in
-    ignore (Llvm.build_call t f [| dst; src; size; Llvm.const_int i1 0 |] "" b)
+    let moved = Llvm.build_call t f [| dst; src; size; Llvm.const_int i1 0 |] "" b in
+    match fn with
+    | Cgt.Runtime.List_remove { scalars = true } | Cgt.Runtime.List_swap_remove { scalars = true } ->
+        Llvm.set_metadata moved (Llvm.mdkind_id env.ctx "tbaa") env.value_tag
+    | _ -> ()
   in
   (match fn with
-  | Cgt.Runtime.List_remove ->
+  | Cgt.Runtime.List_remove _ ->
       let later = Llvm.build_nsw_mul (Llvm.build_nsw_sub count index "" b) stride "" b in
       move "llvm.memmove.p0.p0.i64" at (Llvm.build_in_bounds_gep i8 at [| stride |] "" b) later
   | _ ->
@@ -1105,7 +1113,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       | `Nothing -> None)
   | Expr.Runtime { fn = (Cgt.Runtime.List_at | Cgt.Runtime.Array_at) as fn; args } ->
       Some (element env fr b fn (List.filter_map (expr env fr b) args))
-  | Expr.Runtime { fn = (Cgt.Runtime.List_remove | Cgt.Runtime.List_swap_remove) as fn; args } -> (
+  | Expr.Runtime { fn = (Cgt.Runtime.List_remove _ | Cgt.Runtime.List_swap_remove _) as fn; args } -> (
       match List.filter_map (expr env fr b) args with
       | [ list; index; stride ] ->
           remove env fr b fn list index stride;
