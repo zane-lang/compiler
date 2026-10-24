@@ -161,8 +161,10 @@ zane_mark *zane_region_at(const void *at) {
 	if (entry == 0) return zane_self->top;
 	if (!(entry & 1)) return (zane_mark *)entry;
 	zane_context *c = (zane_context *)(entry & ~(uintptr_t)1);
-	zane_mark *top = c->top;
-	if (top && !zane_guarded(c) && (const char *)at >= (const char *)top) return top;
+	if (!zane_guarded(c)) {
+		zane_mark *top = c->top;
+		if (top && (const char *)at >= (const char *)top) return top;
+	}
 	zane_lock(c);
 	zane_mark *m = zane_scope_holding(c, at);
 	zane_unlock(c);
