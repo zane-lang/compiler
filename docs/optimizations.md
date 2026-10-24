@@ -512,6 +512,22 @@ only when the block is full (on a branch marked unlikely), and an empty
 list's first block is often made inline too (below). `remove` and
 `swapRemove` are an inline `memmove`/`memcpy` and a decrement.
 
+### An empty list's first block made inline
+
+- **Builds:** every build
+- **Where:** `lib/codegen/emit.ml`, `runtime/list.c`
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Each scope's
+  dynamic region"
+- **Effect:** `tests/perf` `scopes` 16% fewer estimated cycles optimized,
+  13% plain
+
+A push onto an empty list in the innermost scope's region makes its first
+128-byte block itself, from the heap's room or a fresh stretch of the
+frame, in a function with a scope of its own open. Elsewhere
+`zane_list_push` makes it without a call of its own. A function with no
+scope keeps the call, so a short loop of pushes there stays small enough to
+unroll.
+
 ### Scope frames at constant offsets, entered and drained inline
 
 - **Builds:** every build
@@ -654,21 +670,17 @@ stretched past its slots 4 KiB at a time up to 64 KiB, before any chunk.
 The drain gives them back with the frame, so a scope whose blocks fit there
 maps no chunk and drains inline.
 
-### An empty list's first block made inline
+### The runtime compiled lean
 
 - **Builds:** every build
-- **Where:** `lib/codegen/emit.ml`, `runtime/list.c`
-- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Each scope's
-  dynamic region"
-- **Effect:** `tests/perf` `scopes` 16% fewer estimated cycles optimized,
-  13% plain
+- **Where:** `lib/codegen/build.ml`
+- **Design:** [`design/lowering.md`](design/lowering.md) §7
+- **Effect:** `tests/perf` `returns` 10% fewer estimated cycles optimized,
+  `texts` 6%, under the devbox's hardened clang
 
-A push onto an empty list in the innermost scope's region makes its first
-128-byte block itself, from the heap's room or a fresh stretch of the
-frame, in a function with a scope of its own open. Elsewhere
-`zane_list_push` makes it without a call of its own. A function with no
-scope keeps the call, so a short loop of pushes there stays small enough to
-unroll.
+The runtime is compiled without clearing the registers a function used
+before it returns, and without frame pointers except on Apple's targets,
+whatever the C compiler adds by default.
 
 ### List growth in place
 

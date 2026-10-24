@@ -384,6 +384,13 @@ which saves most of a small program's build. A build with no cache directory,
 or with a C compiler that will not say its version, compiles the runtime every
 time.
 
+The runtime is compiled with `-fzero-call-used-regs=skip` and, on every
+target but Apple's, whose ABI keeps frame pointers, `-fomit-frame-pointer`,
+whatever the C compiler would add by itself. Some toolchains add both by
+default, Nix's hardened clang among them, and they cost the runtime's small,
+hot functions more than anything else in them. A C compiler that refuses
+either compiles the runtime without them, and says nothing of it.
+
 The link itself runs in the compiler. Starting the C compiler and its linker
 as programs of their own costs about eight times the link: each loads LLVM's
 shared library again. So the first build for a C compiler, target, set of

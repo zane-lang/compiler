@@ -71,6 +71,15 @@ let target_machine ?target ~optimize () =
 external set_own_comdat : Llvm.llmodule -> Llvm.llvalue -> string -> unit
   = "zane_set_own_comdat"
 
+(* Whether [triple] is one of Apple's, whose objects are Mach-O. *)
+let macho triple =
+  let contains part =
+    let n = String.length part in
+    let rec at i = i <= String.length triple - n && (String.sub triple i n = part || at (i + 1)) in
+    at 0
+  in
+  List.exists contains [ "-apple-"; "darwin"; "macos"; "-ios" ]
+
 (* Every copy of a shared function, a generic instance, and of a shared
    variable, a package constant's, is kept to one by the linker
    (docs/design/separate-compilation.md C4). An ELF or COFF linker does that
@@ -78,12 +87,7 @@ external set_own_comdat : Llvm.llmodule -> Llvm.llvalue -> string -> unit
    refuses the second copy as a duplicate. Mach-O has no COMDATs, and its
    linker merges the copies by their weak definitions alone. *)
 let shared_in_comdats triple m =
-  let contains part =
-    let n = String.length part in
-    let rec at i = i <= String.length triple - n && (String.sub triple i n = part || at (i + 1)) in
-    at 0
-  in
-  let macho = List.exists contains [ "-apple-"; "darwin"; "macos"; "-ios" ] in
+  let macho = macho triple in
   let own v =
     if Llvm.linkage v = Llvm.Linkage.Link_once_odr && not (Llvm.is_declaration v) then
       set_own_comdat m v (Llvm.value_name v)
@@ -686,13 +690,27 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ~cc ~tri
               say text;
               Ok ()))
 
-(* The runtime's sources in [dir] compiled by *cc* with [flags] into
-   [output]. *)
-let compile ~cc flags dir output =
-  let command = Filename.quote_command cc (flags @ [ "-c"; "-o"; output; Filename.concat dir "zane.c" ]) in
-  match Sys.command command with
+(* What the runtime is compiled with besides [flags], whatever the C
+   compiler would add by itself: no clearing of the registers a function
+   used before it returns, and, but on Apple's targets, whose ABI keeps
+   them, no frame pointers. Some toolchains add both by default, Nix's
+   hardened clang among them, and they cost the runtime's small, hot
+   functions more than anything else in them (docs/optimizations.md). *)
+let tuning ~triple =
+  "-fzero-call-used-regs=skip" :: (if macho triple then [] else [ "-fomit-frame-pointer" ])
+
+(* The runtime's sources in [dir] compiled by *cc* with [flags] and the
+   [tuning] for [triple] into [output], or with [flags] alone by a C
+   compiler that does not take the tuning, which it says nothing of. *)
+let compile ~cc ~triple flags dir output =
+  let command ?stderr flags =
+    Filename.quote_command ?stderr cc (flags @ [ "-c"; "-o"; output; Filename.concat dir "zane.c" ])
+  in
+  match Sys.command (command ~stderr:Filename.null (flags @ tuning ~triple)) with
   | 0 -> Ok output
-  | n -> Error (Printf.sprintf "`%s` exited with %d" command n)
+  | _ -> (
+      let command = command flags in
+      match Sys.command command with 0 -> Ok output | n -> Error (Printf.sprintf "`%s` exited with %d" command n))
 
 (* The runtime compiled for a build for [triple], named [target] when one
    was, from the sources already written to [dir]. The same compiler with the
@@ -709,10 +727,11 @@ let runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir =
   | Some object_ when Sys.file_exists object_ -> Ok object_
   | _ -> (
       match Option.bind cache (fun cache -> Option.map (fun id -> (cache, id)) (identity ~cache cc dir)) with
-      | None -> compile ~cc flags dir fresh
+      | None -> compile ~cc ~triple flags dir fresh
       | Some (cache, identity) ->
           let kept =
-            Filename.concat (Filename.concat cache "runtime") (runtime_key ~cc ~identity ~triple flags ^ ".o")
+            Filename.concat (Filename.concat cache "runtime")
+              (runtime_key ~cc ~identity ~triple (flags @ tuning ~triple) ^ ".o")
           in
           if Sys.file_exists kept then Ok kept
           else
@@ -720,7 +739,7 @@ let runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir =
               (fun object_ ->
                 keep ~random:(Random.State.make_self_init ()) ~object_ ~kept;
                 object_)
-              (compile ~cc flags dir fresh))
+              (compile ~cc ~triple flags dir fresh))
 
 (* A directory of its own for a build's temporary files, given to [f] and
    removed with them however [f] ends, a raise included. *)
@@ -842,7 +861,7 @@ let bundle_runtime ~target ~optimize dir =
   | () -> (
       let level = level ~optimize and cc = cc () in
       let runtime = Filename.concat dir (bundled_name ~triple level) in
-      match compile ~cc (target_flag (Some target) @ level) work runtime with
+      match compile ~cc ~triple (target_flag (Some target) @ level) work runtime with
       | Error _ as error -> error
       | Ok _ -> (
           match

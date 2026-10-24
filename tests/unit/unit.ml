@@ -1203,6 +1203,31 @@ let sixty_four_bit () =
     (accepts "e-p:64:64-i64:64-f64:32"
     = Error "the target `t` aligns `double` to 4 bytes; this compiler builds for 64-bit targets only")
 
+(* The runtime is compiled without clearing registers on return, and without
+   frame pointers but on Apple's targets, whatever the C compiler adds by
+   itself; a compiler that refuses either compiles it without them, quietly. *)
+let runtime_tuning () =
+  check "a Linux runtime keeps no frame pointers and clears no registers"
+    (Codegen__Build.tuning ~triple:"x86_64-unknown-linux-gnu"
+    = [ "-fzero-call-used-regs=skip"; "-fomit-frame-pointer" ]);
+  check "an Apple runtime keeps its frame pointers"
+    (Codegen__Build.tuning ~triple:"arm64-apple-macosx14.0.0" = [ "-fzero-call-used-regs=skip" ]);
+  if not Sys.win32 then begin
+    let dir = Filename.temp_dir "zane-tuning" "" in
+    let cc = Filename.concat dir "cc" and output = Filename.concat dir "zane.o" in
+    (* A C compiler that refuses the tuning, and otherwise writes its output. *)
+    Out_channel.with_open_text cc (fun oc ->
+        output_string oc
+          "#!/bin/sh\nfor a; do [ \"$a\" = -fzero-call-used-regs=skip ] && exit 1; done\n\
+           while [ \"$1\" != -o ]; do shift; done; : > \"$2\"\n");
+    Unix.chmod cc 0o755;
+    check "a C compiler that refuses the tuning compiles the runtime without it"
+      (Codegen__Build.compile ~cc ~triple:"x86_64-unknown-linux-gnu" [ "-O2" ] dir output = Ok output
+      && Sys.file_exists output);
+    List.iter Sys.remove [ cc; output ];
+    Sys.rmdir dir
+  end
+
 (* ---------------------------------------------------------------------- *)
 (* The driver                                                             *)
 (* ---------------------------------------------------------------------- *)
@@ -1386,6 +1411,7 @@ let () =
   shared_walks ();
   target_cpus ();
   sixty_four_bit ();
+  runtime_tuning ();
   checked_sizes ();
   long_arrays ();
   counted_pieces ();
