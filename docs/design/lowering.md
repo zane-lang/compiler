@@ -493,7 +493,7 @@ or with their stamp when they have one (C6).
 
 Without `--optimize` no optimization runs over the program, neither stage 5
 nor LLVM's, which makes the build about three times faster; only the
-runtime tier 0 of a tiered build links is compiled with `-O2`
+runtime linked by tier 0 of a tiered build is compiled with `-O2`
 ([`tiers.md`](tiers.md) T5). `zane build`
 optimizes, and `zane run` makes both builds at once and moves the program
 from the unoptimized one to a lighter optimized one while it runs
