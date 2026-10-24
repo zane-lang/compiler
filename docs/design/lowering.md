@@ -384,17 +384,42 @@ which saves most of a small program's build. A build with no cache directory,
 or with a C compiler that will not say its version, compiles the runtime every
 time.
 
-The runtime is compiled with `-fzero-call-used-regs=skip` and, on every
-target but Apple's, whose ABI keeps frame pointers, `-fomit-frame-pointer`,
-whatever the C compiler would add by itself. Some toolchains add both by
-default, Nix's hardened clang among them, and they cost the runtime's small,
-hot functions more than anything else in them. A C compiler that refuses
-either compiles the runtime without them, and says nothing of it.
+The runtime is compiled with `-fzero-call-used-regs=skip`,
+`-fno-stack-protector`, `-fno-stack-clash-protection` and `-fno-wrapv`, and,
+on every target but Apple's, whose ABI keeps frame pointers,
+`-fomit-frame-pointer`, whatever the C compiler would add by itself. On ELF
+it also takes `-ftls-model=local-exec`: the runtime is only ever linked into
+an executable, so a thread's variable is read at a fixed offset from the
+thread's pointer, rather than through the descriptor a position-independent
+compile asks for. Some toolchains add the rest by default, Nix's hardened
+clang among them, and they cost the runtime's small, hot functions more than
+anything else in them; `-fwrapv`, signed arithmetic that wraps, keeps LLVM
+from simplifying the runtime's rounding of sizes. The C library's checked
+forms of its functions, which such a toolchain turns on with a
+`_FORTIFY_SOURCE` it defines after every flag, are turned off in
+`zane_internal.h` itself. A C compiler that refuses any of the flags
+compiles the runtime without them, and says nothing of it.
 
-An optimized build, and both tiers of a tiered one, also compile the runtime
-to LLVM bitcode, kept in the cache beside its objects under the same kind of
-key, and link into the module, before its passes, the bodies of the
-runtime's functions it calls, and of the functions those call, as
+An optimized executable takes the whole runtime into its module instead of
+linking the runtime's object: the runtime compiled to LLVM bitcode, kept in
+the cache beside its objects under the same kind of key, is linked in before
+the passes, every definition in it made the program's own, internal, or
+hidden when stamped dependencies' objects linked with the program call the
+runtime too, and an empty object takes the runtime's place in the link.
+There is then one copy of the runtime, so LLVM may inline any of it and sees
+the runtime and the program as one. Where a call is the slow path of
+something emitted code already does itself, such as a push past a list's
+room, it is marked `noinline`, since the runtime's body would only repeat
+the fast path there. A program built so is checked against the same golden
+files as every other build. `--ll` prints an optimized module as the
+builds below take it, with only the runtime's bodies, since the whole
+runtime's text would bury the program's.
+
+A tiered build's two tiers and an optimized library object (`--object`)
+cannot take the whole runtime, since the runtime they run is another
+object's: tier 0's, or the program's that links them. Before the passes
+they link into the module the bodies of the runtime's functions it
+calls, and of the functions those call, as
 `available_externally` (`lib/codegen/runtime_bodies.ml`). LLVM inlines them
 where it judges a call worth it, and every call it leaves still goes to the
 runtime the program links, so nothing the runtime keeps is copied: each of
@@ -419,8 +444,8 @@ the program's code, which has none, and inlined it would give its caller
 the protection too. Bitcode is read only by the LLVM that wrote it or a
 later one, so the C compiler must be a clang of the compiler's LLVM version
 or older, as devbox's is; with any other, or one that makes no bitcode, a
-build calls the runtime's functions, and the cache keeps an empty file so
-the C compiler is asked once.
+build links the runtime's object and calls its functions, and the cache
+keeps an empty file so the C compiler is asked once.
 
 The link itself runs in the compiler. Starting the C compiler and its linker
 as programs of their own costs about eight times the link: each loads LLVM's
@@ -513,7 +538,7 @@ The binary takes the same `--package` flags as the semantic views:
 | `--import PACKAGE:KEY=PACKAGE` | the package the first imports by `KEY`, each named by its identity (C10) |
 | `--link FILE` | links the object `FILE` into the program `--build` makes, as a stamped dependency's objects are (C7) |
 | `--target TRIPLE` | compiles `--ll`, `--build` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` for it; LLVM gets the triple's normal form, and the C compiler the triple as written ([`platforms.md`](platforms.md)) |
-| `--optimize` | runs stage 5 over the tree ([`optimization.md`](optimization.md)), then LLVM's `-O2` pipeline over the module, with the runtime's bodies for it to inline, generates optimized code, and compiles the runtime with `-O2` |
+| `--optimize` | runs stage 5 over the tree ([`optimization.md`](optimization.md)), then LLVM's `-O2` pipeline over the module, with the whole runtime in it (§7), generates optimized code, and compiles the runtime with `-O2` |
 | `--fixed-region BYTES` | the size of the main context's range of frames, a whole number of MiB, 256 MiB when absent (§9) |
 | `--spawned-fixed-region BYTES` | the size of each spawned call's range of frames, a whole number of MiB, 8 MiB when absent (§9) |
 | `--pack-aggregates` | passes an aggregate that fits in the registers a call gives it as packed 8-byte words rather than as itself or by address; off by default, an option to measure (§9) |
@@ -1342,6 +1367,14 @@ test passing.
   one runs the copy said to go round 4 times, which IRCE leaves alone. A
   list's count is loaded with the range `[0, 2^63)`, which IRCE's bounds
   need.
+
+  The same options start every function on a 64-byte line
+  (`-align-all-functions=6`), where LLVM would start it on 16 bytes. Which
+  branches share a predictor's entries depends on where they lie, so with
+  16-byte starts a change that only resized code before a function moved
+  its branches into new conflicts: an unchanged loop of `tests/perf`
+  `copies` mispredicted 40% more after an edit to other functions, and 64-byte
+  starts made both layouts mispredict as the first had.
 - **A type argument passes nothing.** A generic verb is lowered once per
   instance the TST checked ([`semantics.md`](semantics.md) D12), with a
   symbol of its own, and a type written where a value goes, or a number

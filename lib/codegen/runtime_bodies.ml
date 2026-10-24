@@ -195,3 +195,36 @@ let readable path =
   Option.iter Llvm.dispose_module rt;
   Llvm.dispose_context ctx;
   Option.is_some rt
+
+(* The whole runtime in the bitcode at [path] linked into [m] as the
+   program's own, for a program that links no runtime object beside it: one
+   copy of everything the runtime keeps, so every body may be inlined, and
+   LLVM sees the runtime and the program as one. Its definitions are kept
+   to the program, internal unless [exported], when other objects linked
+   with it call them, and hidden then; `main` is the program's entry. A
+   thread's variable is defined in the executable, so it is read at its
+   fixed offset. False, and [m] untouched, when there is no bitcode this
+   LLVM reads. *)
+let whole ~exported path m =
+  match read (Llvm.module_context m) path with
+  | None -> false
+  | Some rt ->
+      let own v = not (Llvm.is_declaration v || internal v || Llvm.value_name v = "main") in
+      let functions = Llvm.fold_left_functions (fun acc f -> if own f then Llvm.value_name f :: acc else acc) [] rt in
+      let globals = Llvm.fold_left_globals (fun acc g -> if own g then Llvm.value_name g :: acc else acc) [] rt in
+      Llvm.set_target_triple (Llvm.target_triple m) rt;
+      Llvm.set_data_layout (Llvm.data_layout m) rt;
+      Llvm_linker.link_modules m rt;
+      let keep v =
+        if exported then Llvm.set_visibility Llvm.Visibility.Hidden v else Llvm.set_linkage Llvm.Linkage.Internal v
+      in
+      List.iter (fun n -> Option.iter keep (Llvm.lookup_function n m)) functions;
+      List.iter
+        (fun n ->
+          Option.iter
+            (fun g ->
+              keep g;
+              if Llvm.is_thread_local g then Llvm.set_thread_local_mode Llvm.ThreadLocalMode.LocalExec g)
+            (Llvm.lookup_global n m))
+        globals;
+      true

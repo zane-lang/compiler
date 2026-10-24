@@ -312,14 +312,29 @@ something about Zane that LLVM does not know.
 - **Where:** `lib/codegen/runtime_bodies.ml`, `lib/codegen/build.ml`
 - **Design:** [`design/lowering.md`](design/lowering.md) §7,
   [`design/tiers.md`](design/tiers.md) T5
-- **Effect:** `tests/perf` `texts` 11% fewer estimated cycles optimized,
-  `scopes` 5%, `zalloc` 2%, `returns` 1%
+- **Effect:** `tests/perf` `texts` 16% fewer estimated cycles optimized,
+  `scopes` 7%, `zalloc` 4%, `returns` 4%, against the runtime linked as an
+  object
 
-The runtime is compiled to LLVM bitcode too, and the bodies of the runtime
-functions a program calls are linked into its module before its passes,
-for LLVM to inline: allocation, deferral, text joins and printing then cost
-no call. A body that keeps the runtime's own state, or that is cold, stays
-a call to the runtime the program links.
+The runtime is compiled to LLVM bitcode too. An optimized executable links
+the whole of it into its module, as the program's own, in place of the
+runtime's object, so LLVM optimizes the two as one program; a tiered build,
+and a library object, which run another object's runtime, take only the
+bodies safe to copy, the functions of the runtime they call, for LLVM to
+inline. Allocation, deferral, text joins and printing then cost no call.
+
+### Functions started on a cache line
+
+- **Builds:** optimized only
+- **Where:** `lib/codegen/passes.ml`
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
+- **Effect:** `tests/perf` `copies` kept from 5% more estimated cycles when
+  code before its loop changed size
+
+Every function starts on a 64-byte boundary, so the branches inside it keep
+their place within their lines however the code before them changes, and a
+change to one function does not move another's into a predictor's
+conflicts.
 
 ### Inlining and its cleanup in unoptimized builds
 
@@ -688,14 +703,17 @@ maps no chunk and drains inline.
 ### The runtime compiled lean
 
 - **Builds:** every build
-- **Where:** `lib/codegen/build.ml`
+- **Where:** `lib/codegen/build.ml`, `runtime/zane_internal.h`
 - **Design:** [`design/lowering.md`](design/lowering.md) §7
 - **Effect:** `tests/perf` `returns` 10% fewer estimated cycles optimized,
-  `texts` 6%, under the devbox's hardened clang
+  `texts` 6%, under the devbox's hardened clang; with the runtime inlined,
+  `texts` 3% more
 
 The runtime is compiled without clearing the registers a function used
-before it returns, and without frame pointers except on Apple's targets,
-whatever the C compiler adds by default.
+before it returns, without stack protection, the C library's checked
+functions or wrapping signed arithmetic, without frame pointers except on
+Apple's targets, and reading its threads' variables at their offsets in the
+executable, whatever the C compiler adds by default.
 
 ### List growth in place
 

@@ -661,7 +661,10 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ~cc ~tri
    hardened clang among them, and they cost the runtime's small, hot
    functions more than anything else in them (docs/optimizations.md). *)
 let tuning ~triple =
-  "-fzero-call-used-regs=skip" :: (if macho triple then [] else [ "-fomit-frame-pointer" ])
+  let coff = List.mem "windows" (String.split_on_char '-' triple) in
+  [ "-fzero-call-used-regs=skip"; "-fno-stack-protector"; "-fno-stack-clash-protection"; "-fno-wrapv" ]
+  @ (if macho triple then [] else [ "-fomit-frame-pointer" ])
+  @ if macho triple || coff then [] else [ "-ftls-model=local-exec" ]
 
 (* The runtime's sources in [dir] compiled by *cc* with [flags] and the
    [tuning] for [triple] into [output], or with [flags] alone by a C
@@ -766,8 +769,8 @@ let with_runtime_bitcode ?bundled ?cache ~cc ~triple ?target use =
    tier 1 runs the optimized ones. An optimized module, and both tiers, take
    the runtime's bodies for LLVM to inline first ([Runtime_bodies]), the
    tiers the same ones, so tier 0 exports what tier 1's may import. *)
-let prepare ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint ?(bundled = bundled_dir ())
-    ?(cache = cache_dir ()) m =
+let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint ?(bundled = bundled_dir ())
+    ?(cache = cache_dir ()) ?whole m =
   let optimize = optimize || tier = Tiers.Tier1 in
   Result.bind (target_machine ?target ~optimize ()) (fun (triple, tm) ->
       let hash =
@@ -776,7 +779,15 @@ let prepare ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint ?(bun
         | _, Some hash -> hash
         | _, None -> Tiers.fingerprint m
       in
-      if optimize || tier = Tiers.Tier0 then
+      let whole =
+        match whole with
+        | Some exported when optimize && tier = Tiers.Plain ->
+            with_runtime_bitcode ?bundled ?cache ~cc:(cc ()) ~triple ?target (function
+              | Some path -> Runtime_bodies.whole ~exported path m
+              | None -> false)
+        | _ -> false
+      in
+      if (optimize || tier = Tiers.Tier0) && not whole then
         with_runtime_bitcode ?bundled ?cache ~cc:(cc ()) ~triple ?target
           (Option.iter (fun path -> ignore (Runtime_bodies.add ~tiered:(tier <> Tiers.Plain) path m)));
       let exports = if tier = Tiers.Tier0 then Some (Tiers.exports m) else None in
@@ -798,7 +809,10 @@ let prepare ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint ?(bun
                      | None -> Ok ()
                      | Some why -> Error (Printf.sprintf "tier 1 is not a valid module: %s" why))
              | None, None -> Ok ())
-      |> Result.map (fun () -> (triple, tm)))
+      |> Result.map (fun () -> (triple, tm, whole)))
+
+let prepare ?target ?optimize ?tier ?fingerprint ?bundled ?cache m =
+  Result.map (fun (triple, tm, _) -> (triple, tm)) (prepare_whole ?target ?optimize ?tier ?fingerprint ?bundled ?cache m)
 
 (* The linker command *cc* gives for a program for [target], [triple] in
    LLVM's normal form, linking with [level] and the [runtime] bundled for
@@ -938,6 +952,21 @@ let object_file ?target ?(optimize = false) ?tier m output =
       | exception Llvm_target.Error message ->
           Error (Printf.sprintf "cannot write the object file: %s" message))
 
+(* An object of nothing, linked where the runtime would be when the
+   program's module holds the whole runtime ([Runtime_bodies.whole]). *)
+let empty_object ~triple tm path =
+  let ctx = Llvm.create_context () in
+  let m = Llvm.create_module ctx "runtime" in
+  Llvm.set_target_triple triple m;
+  let result =
+    match Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile path tm with
+    | () -> Ok path
+    | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot write the object file: %s" message)
+  in
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx;
+  result
+
 (* [link] is the objects of the program's stamped dependencies, which the C
    compiler links with it (docs/design/separate-compilation.md C7). [cache]
    is where the compiled runtime is kept, [cache_dir ()] unless given, and
@@ -945,9 +974,9 @@ let object_file ?target ?(optimize = false) ?tier m output =
    given. *)
 let executable ?target ?(optimize = false) ?tier ?(link = []) ?(bundled = bundled_dir ()) ?(cache = cache_dir ())
     m output =
-  match prepare ?target ~optimize ?tier m with
+  match prepare_whole ?target ~optimize ?tier ~whole:(link <> []) m with
   | Error _ as error -> error
-  | Ok (triple, tm) -> (
+  | Ok (triple, tm, whole) -> (
       let cc = cc () in
       let level = level ~optimize and system = system_libraries target in
       let flags = target_flag target @ level in
@@ -971,7 +1000,11 @@ let executable ?target ?(optimize = false) ?tier ?(link = []) ?(bundled = bundle
           (* Tier 1 calls tier 0's runtime (docs/design/tiers.md T5), so tier
              0 links the optimized one. *)
           let optimize = optimize || tier = Some Tiers.Tier0 in
-          match runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir with
+          let runtime =
+            if whole then empty_object ~triple tm (Filename.concat dir "runtime.o")
+            else runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir
+          in
+          match runtime with
           | Error _ as error -> error
           | Ok runtime -> (
               link_program ?cache ?bundled:bundled_link ~cc ~triple ~args:(args obj runtime) ~deps:link ~obj

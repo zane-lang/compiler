@@ -11,6 +11,11 @@
    (region.c) are not POSIX. */
 #define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
+/* The C library's checked forms of its print and string functions, which a
+   hardened toolchain turns on with a definition no flag can take back,
+   cost the runtime's text conversions more than the rest of them; the
+   runtime sizes every buffer it writes where it writes it. */
+#undef _FORTIFY_SOURCE
 
 #include <pthread.h>
 #include <sched.h>

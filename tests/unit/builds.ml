@@ -355,7 +355,7 @@ exit 1
       check "a body is kept" (body m "zane_defer");
       check "as one LLVM may inline, the runtime's own still linked"
         (Llvm.linkage (Option.get (Llvm.lookup_function "zane_defer" m)) = Llvm.Linkage.Available_externally);
-      check "a body that keeps the runtime's own state is not" (not (body m "zane_map"));
+      check "a body that keeps the runtime's own state is not" (not (body m "zane_output"));
       check "nor one that calls a function never inlined" (not (body m "zane_list_push"));
       check "nor a cold one" (not (body m "zane_hold"));
       check "no body kept protects the stack"
@@ -379,6 +379,29 @@ exit 1
       Llvm.dispose_module m;
       let m = taken ~tiered:true in
       check "a tiered one keeps no body that does" (body m "zane_defer" && not (calls_out m));
+      Llvm.dispose_module m;
+      (* A program that links no runtime object takes the whole runtime. *)
+      let whole ~exported =
+        let m = Llvm.create_module ctx "program" in
+        let t = Llvm.function_type (Llvm.void_type ctx) [||] in
+        ignore (Llvm.declare_function "zane_defer" t m);
+        check "the whole runtime is linked in" (Bodies.whole ~exported path m);
+        m
+      in
+      let defined m name = Option.get (Llvm.lookup_function name m) in
+      let m = whole ~exported:false in
+      check "with every body, the stateful and the cold ones too"
+        (List.for_all (body m) [ "zane_defer"; "zane_output"; "zane_list_push"; "zane_hold" ]);
+      check "each the program's own"
+        (Llvm.linkage (defined m "zane_output") = Llvm.Linkage.Internal
+        && Llvm.linkage (defined m "main") = Llvm.Linkage.External);
+      check "and a thread's variables at their offsets in the executable"
+        (Llvm.thread_local_mode (Option.get (Llvm.lookup_global "zane_self" m)) = Llvm.ThreadLocalMode.LocalExec);
+      Llvm.dispose_module m;
+      let m = whole ~exported:true in
+      check "other objects linked with it reach the runtime, which the program does not export"
+        (Llvm.linkage (defined m "zane_output") = Llvm.Linkage.External
+        && Llvm.visibility (defined m "zane_output") = Llvm.Visibility.Hidden);
       Llvm.dispose_module m;
       Llvm.dispose_context ctx
 

@@ -1207,11 +1207,14 @@ let sixty_four_bit () =
    frame pointers but on Apple's targets, whatever the C compiler adds by
    itself; a compiler that refuses either compiles it without them, quietly. *)
 let runtime_tuning () =
-  check "a Linux runtime keeps no frame pointers and clears no registers"
+  let unhardened = [ "-fzero-call-used-regs=skip"; "-fno-stack-protector"; "-fno-stack-clash-protection"; "-fno-wrapv" ] in
+  check "a Linux runtime keeps no frame pointers, is not hardened, and reads its threads' variables directly"
     (Codegen__Build.tuning ~triple:"x86_64-unknown-linux-gnu"
-    = [ "-fzero-call-used-regs=skip"; "-fomit-frame-pointer" ]);
+    = unhardened @ [ "-fomit-frame-pointer"; "-ftls-model=local-exec" ]);
   check "an Apple runtime keeps its frame pointers"
-    (Codegen__Build.tuning ~triple:"arm64-apple-macosx14.0.0" = [ "-fzero-call-used-regs=skip" ]);
+    (Codegen__Build.tuning ~triple:"arm64-apple-macosx14.0.0" = unhardened);
+  check "a Windows one keeps its threads' variables as COFF has them"
+    (Codegen__Build.tuning ~triple:"x86_64-pc-windows-gnu" = unhardened @ [ "-fomit-frame-pointer" ]);
   if not Sys.win32 then begin
     let dir = Filename.temp_dir "zane-tuning" "" in
     let cc = Filename.concat dir "cc" and output = Filename.concat dir "zane.o" in

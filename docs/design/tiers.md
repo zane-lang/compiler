@@ -87,8 +87,9 @@ build. Linking the unoptimized runtime instead, the tiered `returns` and
 runtime with `-O2` takes about a third of a second longer, once for each
 cache, and a release bundles it already compiled.
 
-Tier 1 also takes the runtime's bodies for LLVM to inline, as an optimized
-build does ([`lowering.md`](lowering.md) §7), and tier 0 takes the same
+Tier 1 also takes the runtime's bodies for LLVM to inline, though not the
+whole runtime an optimized executable takes, since the runtime it runs is
+tier 0's ([`lowering.md`](lowering.md) §7), and tier 0 takes the same
 ones before it makes its table (T6), so it exports every runtime function
 and variable they reach. Neither tier takes a body that calls outside the
 runtime, so the table gains no C library function, each of which would be

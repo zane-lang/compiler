@@ -946,6 +946,9 @@ let push env fr b list stride =
   Llvm.position_at_end runtime_ b;
   let f, fty = runtime env Cgt.Runtime.List_push in
   let grown = Llvm.build_call fty f [| list; stride |] "" b in
+  (* The paths above are the runtime's own fast ones, so its body would
+     only repeat them here (Runtime_bodies). *)
+  Llvm.add_call_site_attr grown (Llvm.create_enum_attr env.ctx "noinline" 0L) Llvm.AttrIndex.Function;
   ignore (Llvm.build_br pushed b);
   Llvm.position_at_end pushed b;
   Llvm.build_phi ((at, fits) :: (grown, runtime_) :: firsts) "" b
