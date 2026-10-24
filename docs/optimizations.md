@@ -167,7 +167,7 @@ at run time; the body reads a number parameter as a constant.
 ### Calls remembered while the program runs
 
 - **Builds:** every build; `--no-memoize` turns it off
-- **Where:** `lib/cgt/memo.ml`, `lib/codegen/emit.ml` (`memo`)
+- **Where:** `lib/cgt/memo.ml`, `lib/codegen/memos.ml` (`memo`)
 - **Design:** [`design/memoization.md`](design/memoization.md)
 - **Effect:** [`dev/bench/memo/`](../dev/bench/memo/README.md), in plain,
   optimized and tiered builds: recursions that repeat their arguments
@@ -305,6 +305,53 @@ tier 0 of a tiered build, since tier 1 calls it
 ([`design/tiers.md`](design/tiers.md) T5). The
 compiler implements a transformation itself only where it rests on
 something about Zane that LLVM does not know.
+
+### The runtime's bodies inlined
+
+- **Builds:** optimized only, and both tiers of a tiered build
+- **Where:** `lib/codegen/runtime_bodies.ml`, `lib/codegen/build.ml`
+- **Design:** [`design/lowering.md`](design/lowering.md) §7,
+  [`design/tiers.md`](design/tiers.md) T5
+- **Effect:** `tests/perf` `texts` 16% fewer estimated cycles optimized,
+  `scopes` 7%, `zalloc` 4%, `returns` 4%, against the runtime linked as an
+  object
+
+The runtime is compiled to LLVM bitcode too. An optimized executable links
+the whole of it into its module, as the program's own, in place of the
+runtime's object, so LLVM optimizes the two as one program; a tiered build,
+and a library object, which run another object's runtime, take only the
+bodies safe to copy, the functions of the runtime they call, for LLVM to
+inline. In optimized code, tier 1's included, allocation, deferral and
+text joins then cost no call, and printing none in an executable with the
+whole runtime; with only the bodies, printing still calls the runtime,
+whose output buffer is its own. Tier 0, built unoptimized, keeps the calls.
+A runtime function that runs off the hot path, such as `zane_hold` under
+checked drains, is marked cold and stays a call, and so does a push's
+slow-path call, whose fast path emitted code already has.
+
+### Functions started on a cache line
+
+- **Builds:** optimized only
+- **Where:** `lib/codegen/passes.ml`
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
+- **Effect:** `tests/perf` `copies` kept from 5% more estimated cycles when
+  code before its loop changed size
+
+Every function starts on a 64-byte boundary, so the branches inside it keep
+their place within their lines however the code before them changes, and a
+change to one function does not move another's into a predictor's
+conflicts.
+
+### Memo tables started on a cache line
+
+- **Builds:** every build; `--no-memoize` turns tables off
+- **Where:** `lib/codegen/memos.ml` (`memo`)
+- **Design:** [`design/memoization.md`](design/memoization.md) M2
+- **Effect:** `tests/perf` `depths` kept from 72% more first-level cache
+  misses when the table landed 16 bytes past a line
+
+Each memo table is aligned to 64 bytes, so where it lands in the binary
+does not decide which of its entries straddle two cache lines.
 
 ### Inlining and its cleanup in unoptimized builds
 
@@ -456,12 +503,14 @@ layout lowering knows, and gets none of these.
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "What LLVM is
   told"
 - **Effect:** a loop writing and re-reading a list's elements keeps no
-  index check, and a loop that removes scalar elements keeps the count in a
-  register, in optimized and tiered builds (`tests/objects/facts_test.py`)
+  index check, a loop that removes scalar elements keeps the count in a
+  register, in optimized and tiered builds, and pushes of scalars in a row
+  keep the count and room (`tests/objects/facts_test.py`)
 
 Type-based alias tags say a list handle's fields never alias a scalar
-place, so writing an element's field does not invalidate the count and
-block LLVM already loaded, nor the bounds check made with them. A removal
+place, so writing a scalar field of an element, or a scalar element a
+push makes room for, does not invalidate the count and block LLVM already
+loaded, nor the bounds check made with them. A removal
 of elements that hold no handle moves them as scalars, so it leaves the
 count too, and a loop removing from the list on one path reads the count
 once rather than on every pass
@@ -506,8 +555,46 @@ sees plain arithmetic and can hoist or drop checks it proves redundant.
 
 A new list is the constant empty handle. A push with room left takes the
 element's address and bumps the count inline, calling `zane_list_push`
-only when the block is full (on a branch marked unlikely). `remove` and
+only when the block is full (on a branch marked unlikely), and an empty
+list's first block is often made inline too (below). `remove` and
 `swapRemove` are an inline `memmove`/`memcpy` and a decrement.
+
+### An empty list's first block made inline
+
+- **Builds:** every build
+- **Where:** `lib/codegen/emit.ml`, `runtime/list.c`
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Each scope's
+  dynamic region"
+- **Effect:** `tests/perf` `scopes` 16% fewer estimated cycles optimized,
+  13% plain
+
+A push of an element of at most 128 bytes onto an empty list in the
+innermost scope's region makes its first 128-byte block itself, from the
+heap's room or a fresh stretch of the frame, in a function with a scope of
+its own open, when the scope has no returned block and its frame or heap
+has the room. Elsewhere
+`zane_list_push` makes it without a call of its own. A function with no
+scope keeps the call, so a short loop of pushes there stays small enough to
+unroll.
+
+### Runs of pushes given their room at once
+
+- **Builds:** every build
+- **Where:** `lib/codegen/emit.ml`, `runtime/list.c`
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Each scope's
+  dynamic region"
+- **Effect:** `tests/perf` `scopes` 14% fewer estimated cycles optimized,
+  13% plain, 15% tiered; the allocation benchmark `zalloc` 15% optimized
+
+A new list followed by a straight run of pushes, with nothing between
+them naming the list or able to leave, has room made for the whole run at its first push,
+in the first block the push makes itself when the run fits in it, else by
+`zane_list_reserve`. Every other push of the run is then a store and a new
+count, with no look at the room. Only the run's own pushes can reach a new
+list, each at most once, and the first comes before the rest, so the room
+it makes is never short. A held slot is listed for a checked drain before
+it is written, so LLVM sees the new list's empty header as the last write
+before the run.
 
 ### Scope frames at constant offsets, entered and drained inline
 
@@ -637,6 +724,35 @@ stack per size class, kept at fixed offsets so emitted code reads them
 directly. A drain releases the whole region at once and walks none of its
 values.
 
+### A scope's first blocks in its own frame
+
+- **Builds:** every build
+- **Where:** `runtime/arena.c`, `runtime/list.c`
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Each scope's
+  dynamic region"
+- **Effect:** `tests/perf` `scopes` 29% fewer estimated cycles optimized,
+  33% plain, 26% tiered
+
+While a scope is the innermost one, its blocks go into its own frame,
+stretched past its slots 4 KiB at a time up to 64 KiB, before any chunk.
+The drain gives them back with the frame, so a scope whose blocks fit there
+maps no chunk and drains inline.
+
+### The runtime compiled lean
+
+- **Builds:** every build
+- **Where:** `lib/codegen/build.ml`, `runtime/zane_internal.h`
+- **Design:** [`design/lowering.md`](design/lowering.md) §7
+- **Effect:** `tests/perf` `returns` 10% fewer estimated cycles optimized,
+  `texts` 6%, under the devbox's hardened clang; with the runtime inlined,
+  `texts` 3% more
+
+The runtime is compiled without clearing the registers a function used
+before it returns, without stack protection, the C library's checked
+functions or wrapping signed arithmetic, without frame pointers except on
+Apple's targets, and reading its threads' variables at their offsets in the
+executable, whatever the C compiler adds by default.
+
 ### List growth in place
 
 - **Builds:** every build
@@ -647,8 +763,9 @@ values.
   percent of C's `realloc`
 
 A list's block doubles from 128 bytes, in place when it is last at the
-frontier. Past 1 MiB it moves once into a reservation 64 times its size,
-and each later doubling commits more of it instead of moving the elements.
+frontier, stretching its scope's frame for it up to 1 MiB. Past 1 MiB it
+moves once into a reservation 64 times its size, and each later doubling
+commits more of it instead of moving the elements.
 
 ### Every overwrite in place
 

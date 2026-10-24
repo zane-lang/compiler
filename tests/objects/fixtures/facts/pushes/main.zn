@@ -1,0 +1,36 @@
+/// A list made in a function's own scope and pushed to four times in a row,
+/// each time a scalar it computes, then summed, as the allocation
+/// benchmark's `ent` does; and one pushed to by a function that opens no
+/// scope of its own.
+package pushes;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Float gather(a Float, b Float, c Float, d Float) {
+	buf List<Float> = @primitives$List(Float);
+	buf!push(@operators$multiply(a, Float(1.0)));
+	buf!push(@operators$multiply(b, Float(1.0)));
+	buf!push(@operators$multiply(c, Float(1.0)));
+	buf!push(@operators$multiply(d, Float(1.0)));
+	return @operators$add(@operators$add(buf[Int(1)], buf[Int(2)]), @operators$add(buf[Int(3)], buf[Int(4)]));
+}
+
+/// Pushes `x` onto the list.
+Unit fill(this List<Float>, x Float) mut {
+	this!push(x);
+	return Unit();
+}
+
+Unit main() {
+	args List<String> = @program$runtime:arguments();
+	x Float = args[Int(1)]:parseF64() ?? Float(0.0);
+	more List<Float> = @primitives$List(Float);
+	more!fill(x);
+	@program$console!print(String(@operators$add(gather(x, Float(2.0), Float(3.0), Float(4.0)), more[Int(1)])));
+	@program$console!print(String("\n"));
+	return Unit();
+}

@@ -44,8 +44,12 @@ let tier1 = O2_pipeline.tier1
    to it, since the split costs each entry more than a short loop saves:
    more than LLVM guesses for a loop it knows nothing of, and fewer than
    codegen says the long copy of a loop it emits twice goes round
-   (Emit.versioned). *)
-let llvm_options = [ "-irce-min-runtime-iterations=64" ]
+   (Emit.versioned). Every function starts on a 64-byte line, so where a
+   function lies within its line, and so which branches share a
+   predictor's entries, does not move when the code before it changes
+   size: a change elsewhere once cost an unchanged loop of `copies` 40%
+   more mispredicted branches (tests/perf). *)
+let llvm_options = [ "-irce-min-runtime-iterations=64"; "-align-all-functions=6" ]
 
 (* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*. *)
 let pipeline ~optimize ~tier1:is_tier1 = if is_tier1 then tier1 else if optimize then optimized else unoptimized

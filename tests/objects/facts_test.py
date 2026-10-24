@@ -120,6 +120,59 @@ class FactsTests(unittest.TestCase):
                 run(ZANEC, "--build", exe, *optimize, *packages("culls"))
                 self.assertEqual(run_program(exe, 9), "64 7\n", optimize)
 
+    def test_pushes_of_scalars_leave_the_count(self):
+        # The element a push moves in is a scalar access, tagged so LLVM
+        # sees it cannot write the list's header, which is what lets the
+        # optimizer keep the count and room of pushes in a row in registers.
+        # Each element store carries that tag.
+        ir = run(ZANEC, "--ll", *packages("pushes"))
+        gather = re.search(r"(?ms)^define [^\n]*@\"pushes\$gather\(.*?^}", ir).group(0)
+        stores = re.findall(r"store double [^\n]*", gather)
+        self.assertEqual(len(stores), 4, gather)
+        for store in stores:
+            self.assertIn("!tbaa", store)
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "pushes"
+                run(ZANEC, "--build", exe, *optimize, *packages("pushes"))
+                self.assertEqual(run_program(exe, 1), "11\n", optimize)
+
+    def test_first_blocks_are_made_inline_in_a_scope(self):
+        # An empty list's first block is made by the push itself, which
+        # stores its 128 bytes of room, in a function with a scope of its
+        # own open; one with none calls the runtime for it, so its code stays
+        # small (Emit.push).
+        ir = run(ZANEC, "--ll", *packages("pushes"))
+        body = lambda name: re.search(r"(?ms)^define [^\n]*@\"pushes\$" + name + r"\(.*?^}", ir).group(0)
+        self.assertRegex(body("gather"), r"store i64 128, ")
+        self.assertNotRegex(body("fill"), r"store i64 128, ")
+        self.assertIn("@zane_list_push", body("fill"))
+
+    def test_runs_of_pushes_make_room_once(self):
+        # A new list pushed to four times in a row makes room for all four
+        # at its first push, so the room is compared once, and the other
+        # three pushes are stores with no look at it; past a first block,
+        # the runtime makes the room for all four (Emit.runs).
+        ir = run(ZANEC, "--ll", *packages("pushes"))
+        gather = re.search(r"(?ms)^define [^\n]*@\"pushes\$gather\(.*?^}", ir).group(0)
+        self.assertEqual(gather.count("icmp sgt"), 1, gather)
+        self.assertIn("@zane_list_reserve(", gather)
+        self.assertNotIn("@zane_list_push(", gather)
+
+    def test_optimized_builds_inline_the_runtimes_bodies(self):
+        # A plain build calls the runtime; an optimized one takes the bodies
+        # of the functions it calls from the runtime's bitcode for LLVM to
+        # inline, all but a cold one's, which stays a call
+        # (lib/codegen/runtime_bodies.ml).
+        call = lambda name: re.compile(r"call [^\n]*@" + name + r"\(")
+        plain = run(ZANEC, "--ll", *packages("pushes"))
+        optimized = run(ZANEC, "--ll", "--optimize", *packages("pushes"))
+        for name in ["zane_defer", "zane_leaves"]:
+            self.assertRegex(plain, call(name))
+            self.assertNotRegex(optimized, call(name))
+        self.assertRegex(optimized, call("zane_hold"))
+        self.assertNotIn("available_externally", optimized)
+
     def test_elif_joins_the_if_before_it(self):
         # Each way into an `elif` already decides its `~this` half, so the
         # pair is one chain, as C's `else if` is, and neither body's work is

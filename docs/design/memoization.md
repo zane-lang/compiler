@@ -6,7 +6,7 @@ instead of running. `--no-memoize` builds without the tables
 ([zane-lang/compiler#262](https://github.com/zane-lang/compiler/issues/262)).
 The pass that picks the functions and rewrites the program is
 `lib/cgt/memo.ml`. It runs on the finished code-generation tree, after stage
-5 when there is one. Codegen (`lib/codegen/emit.ml`, `memo`) emits each
+5 when there is one. Codegen (`lib/codegen/memos.ml`, `memo`) emits each
 table. `dev/bench/memo/` holds the programs it was measured on and the
 results.
 
@@ -80,7 +80,10 @@ A function given a table becomes:
 
 The table is direct-mapped and holds at most 64 KiB per function. Each entry
 is a tag, the argument words, the result words, and the work the result
-took. A miss writes over whatever entry was there.
+took. A miss writes over whatever entry was there. The table starts on a
+cache line, so where it lands in the binary does not decide which entries
+straddle two: on `tests/perf` `depths`, a table that landed 16 bytes past
+one missed the first-level cache 72% more often.
 
 A value of scalars only is taken apart into one word per scalar. Any other
 value is copied into a zeroed buffer of words. The bytes such a value leaves

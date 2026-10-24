@@ -216,6 +216,43 @@ void zane_main(void) {
 	zane_scope_drain(outer);
 	check(zane_blocks() == 0);
 
+	/* A scope's first blocks go into its own frame, stretched past its
+	   slots, which the drain gives back with the frame: the scope maps no
+	   chunk. */
+	zane_mark *small = zane_scope_enter(0);
+	zane_list *few = test_slot(small, sizeof(zane_list), 8, NULL);
+	zane_list_new(few);
+	for (int64_t i = 0; i < 100; i++) *(int64_t *)zane_list_push(few, 8) = i;
+	check(zane_region_of(few->items) == small && few->items > (char *)few &&
+	      few->items + few->room <= zane_self->frontier && small->mappings == NULL);
+	zane_free(few->items, few->room, ZANE_LINE);
+	*few = (zane_list){ NULL, 0, 0 };
+	zane_scope_drain(small);
+	check(zane_self->frontier == (char *)small && zane_blocks() == 0);
+
+	/* A list grows in place in its scope's frame past where the scope's
+	   other blocks stop stretching it, up to a chunk's size. Past that it
+	   moves into an oversized block and goes on growing in place there,
+	   and the record of the stack its old block is returned to still fits
+	   in the frame, so the oversized block is the scope's one mapping. */
+	zane_mark *wide = zane_scope_enter(0);
+	zane_list *many = test_slot(wide, sizeof(zane_list), 8, NULL);
+	zane_list_new(many);
+	int64_t pushed = 0;
+	while (many->room < ZANE_CHUNK / 2) *(int64_t *)zane_list_push(many, 8) = pushed++;
+	check(many->room > ZANE_STRETCHED && many->items > (char *)many &&
+	      many->items + many->room <= zane_self->frontier && wide->mappings == NULL);
+	while (many->room == ZANE_CHUNK / 2) *(int64_t *)zane_list_push(many, 8) = pushed++;
+	char *moved = many->items;
+	check(wide->mappings != NULL && wide->mappings->next == NULL);
+	while (many->room < 4 * ZANE_CHUNK) *(int64_t *)zane_list_push(many, 8) = pushed++;
+	check(wide->mappings != NULL && many->items == moved && zane_region_of(many->items) == wide &&
+	      *(int64_t *)zane_list_at(many, pushed, 8) == pushed - 1);
+	zane_free(many->items, many->room, ZANE_LINE);
+	*many = (zane_list){ NULL, 0, 0 };
+	zane_scope_drain(wide);
+	check(zane_blocks() == 0);
+
 	/* A type that owns no blocks has no walks, and is passed as none. */
 	int64_t plain = 1, replacing_plain = 2;
 	zane_arrive((char *)&plain, NULL);

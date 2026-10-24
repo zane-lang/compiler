@@ -97,7 +97,9 @@ loop, then runs each program, optimized and not. `culls` is a program whose
 `main` removes, in order, from a list of scalar structs and from a list of
 strings: the scalar list's moves carry the scalar tag and, in the optimized
 build, its loop keeps the count in a register, and the string list's moves
-carry none.
+carry none. `pushes` is a program whose `gather` pushes four
+scalars in a row onto a list of its own: each element it moves in carries
+the scalar tag.
 
 `options_test.py` checks what `zanec` accepts for the options that name and
 stamp packages. A package name in `--package NAME=DIR` or an `--import` key
@@ -123,4 +125,5 @@ is inside a verb written out where it is called, which always runs. `stepped` ma
 same local, which a mutating call between them changes through its address,
 so they count as two and it gets a table. `apart` makes the same call in two
 blocks that may each run without the other, so it gets one too. Every build gives the same functions a
-table, so the two tiers of a tiered build emit the same module.
+table, so the two tiers of a tiered build emit the same module, and every
+table starts on a cache line.

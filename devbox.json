@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.18.4/.schema/devbox.schema.json",
   "packages": {
     "just": "latest",
-    "clang": "latest",
+    "clang_19": "latest",
     "lld_19": {
       "version": "latest",
       "outputs": [

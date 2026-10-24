@@ -18,6 +18,9 @@ cp -R /source/tests/codegen/fixtures/hello "$out/hello"
 # (docs/design/tiers.md).
 export ZANE_CACHE_DIR="$out/cache" ZIG_GLOBAL_CACHE_DIR="$out/zig-cache" ZIG_LOCAL_CACHE_DIR="$out/zig-cache"
 test "$(find "$root/share/runtime" -maxdepth 1 -name '*.o' | wc -l)" -eq 12
+# The optimized runtime's bitcode for each target, which an optimized build
+# links whole into its module (docs/design/lowering.md §7).
+test "$(find "$root/share/runtime" -maxdepth 1 -name '*.bc' -size +0 | wc -l)" -eq 6
 # A program's link for each target and level, and an optimized shared
 # library's for each target, tier 1's.
 test "$(find "$root/share/runtime/link" -maxdepth 1 -type f | wc -l)" -eq 18

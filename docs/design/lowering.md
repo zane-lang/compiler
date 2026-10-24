@@ -384,6 +384,72 @@ which saves most of a small program's build. A build with no cache directory,
 or with a C compiler that will not say its version, compiles the runtime every
 time.
 
+The runtime is compiled with `-fzero-call-used-regs=skip`,
+`-fno-stack-protector`, `-fno-stack-clash-protection` and `-fno-wrapv`, and,
+on every target but Apple's, whose ABI keeps frame pointers,
+`-fomit-frame-pointer`, whatever the C compiler would add by itself. On ELF
+it also takes `-ftls-model=local-exec`: the runtime is only ever linked into
+an executable, so a thread's variable is read at a fixed offset from the
+thread's pointer, rather than through the descriptor a position-independent
+compile asks for. Some toolchains add the rest by default, Nix's hardened
+clang among them, and they cost the runtime's small, hot functions more than
+anything else in them; `-fwrapv`, signed arithmetic that wraps, keeps LLVM
+from simplifying the runtime's rounding of sizes. The C library's checked
+forms of its functions, which such a toolchain turns on with a
+`_FORTIFY_SOURCE` it defines after every flag, are turned off in
+`zane_internal.h` itself. A C compiler that refuses any of the flags
+compiles the runtime without them, and says nothing of it.
+
+An optimized executable takes the whole runtime into its module instead of
+linking the runtime's object: the runtime compiled to LLVM bitcode, kept in
+the cache beside its objects under the same kind of key, is linked in before
+the passes, every definition in it made the program's own, internal, or
+hidden when stamped dependencies' objects linked with the program call the
+runtime too, and an empty object takes the runtime's place in the link.
+There is then one copy of the runtime, so LLVM may inline any of it and sees
+the runtime and the program as one. Where a call is the slow path of
+something emitted code already does itself, such as a push past a list's
+room, it is marked `noinline`, since the runtime's body would only repeat
+the fast path there. A program built so is checked against the same golden
+files as every other build. `--ll` prints an optimized module as the
+builds below take it, with only the runtime's bodies, since the whole
+runtime's text would bury the program's.
+
+A tiered build's two tiers and an optimized library object (`--object`)
+cannot take the whole runtime, since the runtime they run is another
+object's: tier 0's, or the program's that links them ([`tiers.md`](tiers.md)
+T5 says what that leaves tier 1). Before the passes
+they link into the module the bodies of the runtime's functions it
+calls, and of the functions those call, as
+`available_externally` (`lib/codegen/runtime_bodies.ml`). LLVM inlines them
+where it judges a call worth it, and every call it leaves still goes to the
+runtime the program links, so nothing the runtime keeps is copied: each of
+its variables comes in as a declaration of the runtime's own, a thread's
+read at a fixed offset from the thread's pointer as the program's own are.
+The bitcode is compiled position-independent, so no definition in it is
+taken for the program's. A body is left out, and its function stays a call,
+when it would not mean the same copied: it reads a variable of the
+runtime's own translation unit, which no other unit can name, takes the
+address of one of the unit's functions, which a copy would not share, or
+calls one marked `noinline` or `cold`, which would be copied whole; a
+function that calls such a function is left out too. A function marked
+`cold`, such as `zane_hold`, which runs only when drains are checked, is
+left out as well, since inlined it costs its caller registers on the path
+that never runs it. The variables the runtime's hot paths read, such as
+its page table, are therefore not `static`. In a tiered build a body that
+calls outside the runtime is left out as well, since tier 1 imports
+everything through tier 0's table ([`tiers.md`](tiers.md)), and each C
+library function in it would cost a symbol lookup as every run starts. A
+body taken loses any stack protection the C compiler gave it: it becomes
+the program's code, which has none, and inlined it would give its caller
+the protection too. Bitcode is read only by the LLVM that wrote it or a
+later one, so the C compiler that compiles it, `ZANE_BITCODE_CC` or else
+the runtime's own, must be a clang of the compiler's LLVM version or older,
+as devbox's is; a release bundles bitcode a matching clang made (below).
+With any other, or one that makes no bitcode, a
+build links the runtime's object and calls its functions, and the cache
+keeps an empty file so the C compiler is asked once.
+
 The link itself runs in the compiler. Starting the C compiler and its linker
 as programs of their own costs about eight times the link: each loads LLVM's
 shared library again. So the first build for a C compiler, target, set of
@@ -430,7 +496,15 @@ It compiles the runtime as a build for that target would, then asks the C
 compiler for the command linking a program with it, through a program object
 defining only what the runtime takes from a program, and copies every file
 the command links besides the program's own into `link/files/`, named by its
-contents, where the command names it relative to the bundle. The loader a
+contents, where the command names it relative to the bundle. With
+`--optimize` it also compiles the runtime's bitcode beside the object, with
+the C compiler `ZANE_BITCODE_CC` names when it is set. Zig's clang is newer
+than the compiler's LLVM, which cannot read its bitcode, so packaging names
+`dev/release/bitcode-cc`: the devbox's clang, of the compiler's LLVM
+version, run with the C library headers and definitions Zig compiles the
+same target with, and an Apple target's oldest system. Bitcode this LLVM
+cannot read is not bundled, and an optimized build with that release links
+the runtime's object instead. The loader a
 program names, `--dynamic-linker`, is a path on the machine the program runs
 on, and is not copied. A program's other objects, its dependencies', are put
 in after its own. A target is always named there, since a C compiler given
@@ -471,7 +545,7 @@ The binary takes the same `--package` flags as the semantic views:
 | `--import PACKAGE:KEY=PACKAGE` | the package the first imports by `KEY`, each named by its identity (C10) |
 | `--link FILE` | links the object `FILE` into the program `--build` makes, as a stamped dependency's objects are (C7) |
 | `--target TRIPLE` | compiles `--ll`, `--build` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` for it; LLVM gets the triple's normal form, and the C compiler the triple as written ([`platforms.md`](platforms.md)) |
-| `--optimize` | runs stage 5 over the tree ([`optimization.md`](optimization.md)), then LLVM's `-O2` pipeline over the module, generates optimized code, and compiles the runtime with `-O2` |
+| `--optimize` | runs stage 5 over the tree ([`optimization.md`](optimization.md)), then LLVM's `-O2` pipeline over the module, with the whole runtime in it for an executable and the runtime's bodies safe to copy for `--object` (§7), generates optimized code, and compiles the runtime with `-O2` |
 | `--fixed-region BYTES` | the size of the main context's range of frames, a whole number of MiB, 256 MiB when absent (§9) |
 | `--spawned-fixed-region BYTES` | the size of each spawned call's range of frames, a whole number of MiB, 8 MiB when absent (§9) |
 | `--pack-aggregates` | passes an aggregate that fits in the registers a call gives it as packed 8-byte words rather than as itself or by address; off by default, an option to measure (§9) |
@@ -745,11 +819,18 @@ test passing.
   reservation is the span alone, and a list that outgrows its reservation
   moves into a fresh one. A push is inline: while the block has room, the
   emitted code takes the element's address and counts it itself, and only a
-  full block calls `zane_list_push`, which grows it. Together these make
+  full block calls `zane_list_push`, which grows it. An empty list's first
+  block, of 128 bytes, is made inline too, in a function with a scope of its
+  own open (below). Together these make
   `listgrowth` in the spec's `langbench/`, which appends two million
   entities to a list twenty times, take less than half the time it did, and
-  as much as C's `realloc` does within a few percent. It never shrinks: a
-  removal moves the element out of its place and closes the list over it,
+  as much as C's `realloc` does within a few percent. A new list followed
+  by a run of pushes, with nothing else naming it or able to leave until
+  the last, has room
+  for the whole run made at its first push (`Emit.runs`), in that first
+  block when the run fits in it and by `zane_list_reserve` otherwise, and
+  the run's other pushes are stores with no check of the room. A list never
+  shrinks: a removal moves the element out of its place and closes the list over it,
   by moving the later elements down or the last one in, and the list keeps
   the block until it dies. Where the runtime departs from the spec:
   - A block is placed where its value is made, which is the innermost
@@ -771,6 +852,34 @@ test passing.
     (§3.1). Results are returned by value (below), so that scope is the
     caller's innermost, and the value moves again if the caller places it
     further out.
+  - A scope's first blocks are in its own frame, not in a chunk. While the
+    scope is its context's innermost, the frontier moves on past them: the
+    frame stretches beyond its slots by at least 4 KiB at a time, to at
+    most 64 KiB with its record and slots (`ZANE_STRETCH` and
+    `ZANE_STRETCHED`, `runtime/zane_abi.h`), as long as the range holds
+    it. A list whose block is last there grows in place by stretching the
+    frame further, to at most 1 MiB. A frame already past 64 KiB, by such
+    a list or by its own slots, stretches 4 KiB more for a small block, as
+    the record of the stack a list's old block goes to, rather than taking
+    a chunk, while it stays within a chunk's size. An empty list's first block comes
+    from the emitted push itself, with no call, when the list's handle is
+    in the innermost scope's region and the push is in a function with a
+    scope of its own open: the next line of the scope's heap while it has
+    room and no returned block, or, while nothing has been allocated in
+    the scope, a stretch of the frame. A function with none, as a
+    recursive one that only builds what it returns, keeps the call, so its
+    code stays small enough for LLVM to unroll its loops. A block that
+    comes once an inner scope has opened, or that the stretched frame
+    cannot hold, goes into a chunk of the scope's own as the spec has it. A drain moves the frontier back
+    to the record, which gives back the stretched bytes with the frame, so
+    a scope whose blocks all fit there maps no chunk, and its drain stays
+    inline. The spec keeps a scope's fixed-size and dynamic storage apart
+    (§3.1); a block here is still the scope's alone and is released with
+    it. On `tests/perf` `scopes`, whose every call makes and fills a small
+    list in a scope of its own, this takes 29% of the optimized build's
+    estimated cycles, 33% of the plain build's and 26% of the tiered
+    build's, since such a scope no longer maps, lists and gives back a
+    chunk.
   - The runtime finds a block's region from a map of every chunk it made,
     and a slot's from where each open scope's slots began, trying the
     innermost scope first, rather than from a segmented offset (§3.1). A dynamic chunk begins with a cache line of
@@ -1185,7 +1294,8 @@ test passing.
     are disjoint storage, which type-based alias tags (`!tbaa`) say: the
     header fields read and written where an element is located, pushed or
     removed, and a handle loaded or stored whole, carry one tag, and a
-    scalar loaded or stored through an address carries the other, one for
+    scalar loaded or stored through an address, or moved into a fresh place
+    such as the element a push makes room for, carries the other, one for
     every scalar type. A removal's move of the elements after it carries
     the scalar tag too when no handle is among an element's bytes, since
     then it writes only scalar places. Every other access, a frame's, a
@@ -1193,8 +1303,9 @@ test passing.
     runtime's, carries none, which LLVM takes as one that may touch both.
     So a write of an element's field leaves the count and the block LLVM
     read before it, and LLVM keeps them, and the check made with them,
-    across the write, and a loop that removes scalar elements in one of
-    its ways keeps the count through the others.
+    across the write, pushes of scalars in a row keep the count and room
+    they read, and a loop that removes scalar elements in one of its ways
+    keeps the count through the others.
   - *A place's whole slot.* A `mut` subject, or an owned value passed by
     address, is the address of a slot of the caller's, which outlives the
     call. An `&T` is the address of a settled owner's slot
@@ -1269,6 +1380,14 @@ test passing.
   one runs the copy said to go round 4 times, which IRCE leaves alone. A
   list's count is loaded with the range `[0, 2^63)`, which IRCE's bounds
   need.
+
+  The same options start every function on a 64-byte line
+  (`-align-all-functions=6`), where LLVM would start it on 16 bytes. Which
+  branches share a predictor's entries depends on where they lie, so with
+  16-byte starts a change that only resized code before a function moved
+  its branches into new conflicts: an unchanged loop of `tests/perf`
+  `copies` mispredicted 40% more after an edit to other functions, and 64-byte
+  starts made both layouts mispredict as the first had.
 - **A type argument passes nothing.** A generic verb is lowered once per
   instance the TST checked ([`semantics.md`](semantics.md) D12), with a
   symbol of its own, and a type written where a value goes, or a number

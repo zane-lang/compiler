@@ -7,7 +7,7 @@ variant, it reads a package constant, or it calls itself once, and one for a
 heavy function called in a loop; none for a light function called in a loop,
 a heavy one called outside any loop, or a function that takes a String,
 prints, or runs in a program that spawns or in a library. Every build gives
-the same functions a table."""
+the same functions a table, and every table starts on a cache line."""
 
 from pathlib import Path
 import os
@@ -73,6 +73,20 @@ class MemoTests(unittest.TestCase):
                                  check=True).stdout
         return sorted(line.split(" ", 2)[2][: -len(".memo.state")] for line in symbols.splitlines()
                       if line.endswith(".memo.state"))
+
+    def test_tables_start_on_a_cache_line(self):
+        # So where a table lands in the binary does not decide which of its
+        # entries straddle two cache lines.
+        found = 0
+        for name in sorted(p.name for p in FIXTURES.iterdir()):
+            for build in BUILDS:
+                symbols = subprocess.run(["nm", self.build(name, build, True)], capture_output=True,
+                                         text=True, check=True).stdout
+                for line in symbols.splitlines():
+                    if line.endswith(".memo.table"):
+                        found += 1
+                        self.assertEqual(int(line.split(" ", 1)[0], 16) % 64, 0, (name, build, line))
+        self.assertTrue(found)
 
     def test_every_build_prints_the_same(self):
         for name in sorted(p.name for p in FIXTURES.iterdir()):

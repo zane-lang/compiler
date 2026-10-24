@@ -9,7 +9,7 @@
    left anywhere else is reported as a limit rather than crashing LLVM. *)
 
 (* Aggregates of this many bytes or more are moved as memory. *)
-let large = 4096L
+let large = Int64.of_int Emit.large
 
 (* LLVM's limit on the parts of one value. *)
 let most_parts = 65535

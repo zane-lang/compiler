@@ -11,6 +11,102 @@ type tier = Tiers.tier = Plain | Tier0 | Tier1
 let live = Atomic.make 0
 let live_contexts () = Atomic.get live
 
+(* The program, emitted into [m], whose context and lifetime are its
+   caller's ([with_program]). Its entry is named `zane_main` whatever its symbol,
+   since that is the name the runtime calls (L16). A function other objects
+   link against keeps its symbol in theirs too, and one a stamped
+   dependency's objects define is only declared, or has an
+   [available_externally] body that LLVM can inline but never emits
+   (docs/design/separate-compilation.md); the rest are local to this one.
+   With [pack], every function but the entry is named with [packed] after
+   its symbol, so an object built with packing links only against objects
+   built with it too: one built without would call it with the other
+   convention (docs/design/lowering.md §9). The module is for [triple] from the start, so each access is emitted
+   with the alignment [data_layout] gives its type. *)
+let packed = "~packed"
+
+let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
+    ?(spawned_fixed_region = Cgt.Runtime.default_spawned_fixed_region) ?(pack = false) ?(memos = []) ?(version = false)
+    ~triple ~data_layout m (p : Cgt.Nodes.Program.t) =
+  let open Cgt.Nodes in
+  let open Emit in
+  let ctx = Llvm.module_context m in
+  Llvm.set_target_triple triple m;
+  Llvm.set_data_layout data_layout m;
+  let env =
+    {
+      ctx;
+      m;
+      ptr = Llvm.pointer_type ctx;
+      i64 = Llvm.i64_type ctx;
+      funcs = Hashtbl.create 32;
+      abis = Hashtbl.create 32;
+      registers = registers triple;
+      pack;
+      passings = Hashtbl.create 32;
+      results = results triple;
+      returnings = Hashtbl.create 32;
+      globals = Hashtbl.create 8;
+      walks = None;
+      handle_tag = fst (tags ctx);
+      value_tag = snd (tags ctx);
+      version;
+    }
+  in
+  env.walks <-
+    Some
+      (Walks.create
+         { Walks.ctx; m; ptr = env.ptr; i64 = env.i64; runtime = runtime env }
+         p.Program.layouts);
+  List.iter
+    (fun (g : Global.t) ->
+      let v = Llvm.define_global g.Global.symbol (Llvm.const_null (stored env g.Global.ty)) m in
+      (match g.Global.linkage with
+      | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal v
+      | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr v
+      | Cgt.Nodes.Linkage.Exported | Cgt.Nodes.Linkage.Imported -> ()
+      | Cgt.Nodes.Linkage.Available -> Diagnostic.bug "an optimization-only global");
+      Hashtbl.replace env.globals g.Global.symbol v)
+    p.Program.globals;
+  List.iter
+    (fun (f : Func.t) ->
+      let a = abi env (List.map snd f.Func.params) f.Func.ret in
+      let fty = abi_type env a in
+      let entry = Some f.Func.symbol = p.Program.entry in
+      let name = if entry then "zane_main" else if pack then f.Func.symbol ^ packed else f.Func.symbol in
+      let fn =
+        match f.Func.linkage with
+        | Cgt.Nodes.Linkage.Imported -> Llvm.declare_function name fty m
+        | _ -> Llvm.define_function name fty m
+      in
+      (match f.Func.linkage with
+      | _ when entry -> ()
+      | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal fn
+      | Cgt.Nodes.Linkage.Exported | Cgt.Nodes.Linkage.Imported -> ()
+      | Cgt.Nodes.Linkage.Available -> Llvm.set_linkage Llvm.Linkage.Available_externally fn
+      | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr fn);
+      declare_abi env fn a;
+      declare_places env fn f a;
+      Hashtbl.replace env.abis f.Func.symbol a;
+      Hashtbl.replace env.funcs f.Func.symbol (fn, fty))
+    (p.Program.funcs @ List.map (fun (m : Cgt.Memo.t) -> m.Cgt.Memo.func) memos);
+  List.iter
+    (fun (f : Func.t) -> if f.Func.linkage <> Cgt.Nodes.Linkage.Imported then func env f)
+    p.Program.funcs;
+  List.iter (Memos.memo env) memos;
+  (* The module with the program's entry also says how large each context's
+     range is, which the runtime reads when it makes one. *)
+  if Option.is_some p.Program.entry then
+    List.iter
+      (fun (name, size) ->
+        let g = Llvm.define_global name (Llvm.const_int env.i64 size) m in
+        Llvm.set_global_constant true g)
+      [ ("zane_fixed_region", fixed_region); ("zane_spawned_fixed_region", spawned_fixed_region) ];
+  Walks.finish (walks env);
+  match Llvm_analysis.verify_module m with
+  | Some problem -> Diagnostic.bug ("codegen built an invalid module: " ^ problem)
+  | None -> ()
+
 (* The program's module lives only while [f] runs: its context and the
    module are disposed however [f] or the emit ends, since LLVM's bindings
    free neither on their own. *)
@@ -28,7 +124,7 @@ let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_regio
           Fun.protect
             ~finally:(fun () -> Llvm.dispose_module m)
             (fun () ->
-              match Emit.program ?fixed_region ?spawned_fixed_region ?pack ?memos ?version ~triple ~data_layout m p with
+              match program ?fixed_region ?spawned_fixed_region ?pack ?memos ?version ~triple ~data_layout m p with
               | () -> f m
               | exception Cgt.Nodes.Ty.Too_large ->
                   Error "a scope's frame takes 2^48 bytes or more, past the limit on any value's size")))

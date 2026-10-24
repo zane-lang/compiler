@@ -11,6 +11,11 @@
    (region.c) are not POSIX. */
 #define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
+/* The C library's checked forms of its print and string functions, which a
+   hardened toolchain turns on with a definition no flag can take back,
+   cost the runtime's text conversions more than the rest of them; the
+   runtime sizes every buffer it writes where it writes it. */
+#undef _FORTIFY_SOURCE
 
 #include <pthread.h>
 #include <sched.h>
@@ -43,13 +48,16 @@
    step at a time, when the program first touches it, and a guard of
    unmapped addresses follows it, so a frame running past its end faults
    instead of being checked (region.c). Its dynamic region is where the
-   blocks its values own are: 1 MiB chunks of its own, each made at a
-   1 MiB boundary, with a bump frontier and a stack of returned blocks for
-   each size and alignment (§3.2), all given back at the drain with no walk
-   of what its values own. A value may own blocks in an outer region, which
-   a move into a deeper owner leaves where they are (§3.5); when the value
-   dies with this scope they are dead space there, given back when that
-   region drains in turn.
+   blocks its values own are, with a bump frontier and a stack of returned
+   blocks for each size and alignment (§3.2): first its own frame,
+   stretched past its slots while the scope is the innermost one, then
+   1 MiB chunks of its own, each made at a 1 MiB boundary, all given back
+   at the drain with no walk of what its values own. A scope whose blocks
+   all fit in its frame maps no chunk, so its drain stays inline, unless
+   it spawned a call, its context is shared, or drains are checked. A value
+   may own blocks in an outer region, which a move into a deeper owner
+   leaves where they are (§3.5); when the value dies with this scope they
+   are dead space there, given back when that region drains in turn.
 
    A program run with `ZANE_CHECK` set checks every drain instead: the
    scope's values return their blocks one by one, as they die, and a block
@@ -67,6 +75,11 @@ enum { ZANE_CHUNK = 1 << 20, ZANE_CONTEXTS = (1 << 16) - 1 };
    only a larger one. */
 _Static_assert(ZANE_GUARD == ZANE_CHUNK, "the guard is one chunk");
 enum { ZANE_STEP = ZANE_CHUNK };
+
+/* A stretch that starts at a frame's end holds a list's first block past
+   the next line, so a first stretch always moves the frontier by exactly
+   ZANE_STRETCH (zane_abi.h), as emitted code takes it to. */
+_Static_assert(ZANE_STRETCH % 16 == 0 && ZANE_STRETCH >= 128 + ZANE_LINE, "a first stretch holds a first block");
 
 enum { ZANE_PAGES = 1 << 14 };
 
@@ -178,6 +191,7 @@ _Static_assert(offsetof(zane_mark, outer) == ZANE_MARK_OUTER, "then the scope ar
 _Static_assert(offsetof(zane_mark, skip) == ZANE_MARK_SKIP, "then its skip");
 _Static_assert(offsetof(zane_mark, tasks) == ZANE_MARK_TASKS, "then its calls");
 _Static_assert(offsetof(zane_mark, mappings) == ZANE_MARK_MAPPINGS, "then its chunks");
+_Static_assert(offsetof(zane_mark, stacks) == ZANE_MARK_STACKS, "and its returned blocks' stacks");
 _Static_assert(sizeof(zane_mark) == ZANE_MARK_SIZE, "a frame's record is its own size");
 
 /* A context's range: `frontier` is where the next frame starts, `top` the
@@ -267,6 +281,8 @@ void zane_flush_output_in_fault(void);
 
 /* arena.c */
 extern pthread_mutex_t zane_memory;
+extern uintptr_t *zane_pages[];
+extern zane_context *zane_contexts[];
 extern int32_t zane_context_count;
 extern zane_context *zane_idle;
 extern _Thread_local zane_context *zane_self;
@@ -277,6 +293,7 @@ void zane_lock(zane_context *c);
 void zane_unlock(zane_context *c);
 zane_context *zane_context_new(void);
 uintptr_t *zane_page(const void *at, int make);
+uintptr_t zane_page_entry(const void *at);
 
 /* The program's arguments after its own name, kept by `main`. */
 extern int zane_argc;
@@ -284,9 +301,11 @@ extern char **zane_argv;
 void zane_unmap(zane_mark *region);
 char *zane_alloc_growable(zane_mark *region, int64_t size);
 int zane_extend(zane_mark *region, char *block, int64_t size);
+int zane_stretch(zane_mark *m, char *end, int64_t most);
 void zane_give_spares(zane_context *c);
 extern int64_t zane_warm_spares, zane_cold_spares, zane_cold_reuses;
 zane_stack *zane_find_stack(zane_mark *m, int64_t size, int64_t align);
+zane_stack *zane_stack_of(zane_mark *m, int64_t size, int64_t align);
 int64_t zane_blocks(void);
 
 /* block.c */
@@ -333,6 +352,7 @@ void zane_work_run(zane_work *w);
 void zane_end(char *base, const zane_type *type);
 
 /* region.c */
+extern size_t zane_system_page;
 void zane_regions_start(void);
 void zane_thread_start(void);
 void zane_thread_stop(void);

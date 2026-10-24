@@ -148,6 +148,10 @@ repo's `langbench/` and print what it prints at the same size.
   reference's whole slot is there to read
   ([`lowering.md`](../../docs/design/lowering.md) §9), since it then reads
   the second list's count and block after each check, inside the loop.
+- `scopes` measures short-lived lists, one to a call: each call pushes eight
+  floats into a fresh list in a scope of its own and sums it, so its
+  numbers rise when such a scope's block costs it a chunk again
+  ([`lowering.md`](../../docs/design/lowering.md) §9).
 - `removal` is a list of value structs that grows by pushes and shrinks by
   ordered and swapping removals.
 - `stress` is the logged one, a large program of sixteen sections:

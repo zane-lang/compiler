@@ -351,7 +351,7 @@ let runtime_abi () =
 (* What the runtime's structs measure, as tests/runtime/abi/probe.c prints
    it on this platform, against the numbers the compiler emits code with,
    which Abi reads from runtime/zane_abi.h. Every number is measured but the
-   two nothing but the header defines. *)
+   four nothing but the header defines. *)
 let probed_abi () =
   let probed =
     In_channel.with_open_text "../runtime/abi/probe.out" In_channel.input_lines
@@ -367,10 +367,10 @@ let probed_abi () =
         (Printf.sprintf "%s is %d in the runtime and in Abi" name value)
         (List.assoc_opt name Abi.values = Some value))
     probed;
-  check "every number in Abi is measured but ZANE_LINE and ZANE_GUARD"
+  check "every number in Abi is measured but ZANE_LINE, ZANE_STRETCH, ZANE_STRETCHED and ZANE_GUARD"
     (List.sort compare
        (List.filter (fun (name, _) -> not (List.mem_assoc name probed)) Abi.values |> List.map fst)
-    = [ "ZANE_GUARD"; "ZANE_LINE" ]);
+    = [ "ZANE_GUARD"; "ZANE_LINE"; "ZANE_STRETCH"; "ZANE_STRETCHED" ]);
   check "lowering lays a handle out as the runtime does"
     (Cgt.Nodes.Ty.size_align Cgt.Nodes.Ty.Handle = (Abi.handle_size, 8))
 
@@ -1203,6 +1203,34 @@ let sixty_four_bit () =
     (accepts "e-p:64:64-i64:64-f64:32"
     = Error "the target `t` aligns `double` to 4 bytes; this compiler builds for 64-bit targets only")
 
+(* The runtime is compiled without clearing registers on return, and without
+   frame pointers but on Apple's targets, whatever the C compiler adds by
+   itself; a compiler that refuses either compiles it without them, quietly. *)
+let runtime_tuning () =
+  let unhardened = [ "-fzero-call-used-regs=skip"; "-fno-stack-protector"; "-fno-stack-clash-protection"; "-fno-wrapv" ] in
+  check "a Linux runtime keeps no frame pointers, is not hardened, and reads its threads' variables directly"
+    (Codegen__Build.tuning ~triple:"x86_64-unknown-linux-gnu"
+    = unhardened @ [ "-fomit-frame-pointer"; "-ftls-model=local-exec" ]);
+  check "an Apple runtime keeps its frame pointers"
+    (Codegen__Build.tuning ~triple:"arm64-apple-macosx14.0.0" = unhardened);
+  check "a Windows one keeps its threads' variables as COFF has them"
+    (Codegen__Build.tuning ~triple:"x86_64-pc-windows-gnu" = unhardened @ [ "-fomit-frame-pointer" ]);
+  if not Sys.win32 then begin
+    let dir = Filename.temp_dir "zane-tuning" "" in
+    let cc = Filename.concat dir "cc" and output = Filename.concat dir "zane.o" in
+    (* A C compiler that refuses the tuning, and otherwise writes its output. *)
+    Out_channel.with_open_text cc (fun oc ->
+        output_string oc
+          "#!/bin/sh\nfor a; do [ \"$a\" = -fzero-call-used-regs=skip ] && exit 1; done\n\
+           while [ \"$1\" != -o ]; do shift; done; : > \"$2\"\n");
+    Unix.chmod cc 0o755;
+    check "a C compiler that refuses the tuning compiles the runtime without it"
+      (Codegen__Build.compile ~cc ~triple:"x86_64-unknown-linux-gnu" [ "-O2" ] dir output = Ok output
+      && Sys.file_exists output);
+    List.iter Sys.remove [ cc; output ];
+    Sys.rmdir dir
+  end
+
 (* ---------------------------------------------------------------------- *)
 (* The driver                                                             *)
 (* ---------------------------------------------------------------------- *)
@@ -1386,6 +1414,7 @@ let () =
   shared_walks ();
   target_cpus ();
   sixty_four_bit ();
+  runtime_tuning ();
   checked_sizes ();
   long_arrays ();
   counted_pieces ();
@@ -1397,6 +1426,7 @@ let () =
   Builds.cached_runtime ();
   Builds.linked_in_process ();
   Builds.bundled_runtime ();
+  Builds.runtime_bodies ();
   Builds.fatal_link ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();

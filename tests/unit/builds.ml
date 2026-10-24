@@ -254,6 +254,10 @@ let bundled_runtime () =
   check "as does a build for another triple" (not (found ~triple:"x86_64-unknown-linux-musl" ~optimize:false ()));
   check "an optimized runtime is bundled beside the other" (Result.is_ok (bundle true));
   check "and is linked by an optimized build" (found ~optimize:true ());
+  check "with its bitcode, which this LLVM reads"
+    (Build.with_runtime_bitcode ~bundled ~cc ~triple:host (function
+       | Some path -> String.starts_with ~prefix:bundled path && Codegen__Runtime_bodies.readable path
+       | None -> false));
   (* Each runtime is bundled with the command that links a program with
      it, which a build runs with its own files and its dependencies'. *)
   let linked = ref [] in
@@ -279,6 +283,131 @@ let bundled_runtime () =
     (bundled_files <> [] && List.for_all Sys.file_exists bundled_files);
   let refused = Build.bundle_runtime ~target:"i386-unknown-linux-gnu" ~optimize:false bundled in
   check "a target the compiler does not build for is refused" (Result.is_error refused)
+
+(* An optimized build takes the bodies of the runtime's functions it calls
+   from the runtime's bitcode, compiled once for each C compiler and kept;
+   a C compiler that makes none is asked once. A body is kept only where
+   copying it into the program means what calling the runtime's does. *)
+let runtime_bodies () =
+  let module Build = Codegen__Build in
+  let module Bodies = Codegen__Runtime_bodies in
+  let directory = Filename.temp_dir "zane-bodies" "" in
+  Fun.protect ~finally:(fun () -> remove_tree directory) @@ fun () ->
+  let cache = Filename.concat directory "cache" in
+  let triple = Llvm_target.Target.default_triple () in
+  let bitcode ~cc = Build.with_runtime_bitcode ~cache ~cc ~triple Fun.id in
+  match bitcode ~cc:(Build.cc ()) with
+  | None -> check "the C compiler makes bitcode this LLVM reads" false
+  | Some path ->
+      check "the runtime's bitcode is kept in the cache" (String.starts_with ~prefix:cache path);
+      check "and taken from it after" (bitcode ~cc:(Build.cc ()) = Some path);
+      if not Sys.win32 then begin
+        let cc = Filename.concat directory "cc" and asked = Filename.concat directory "asked" in
+        (* A C compiler that makes no bitcode, and counts the times it is asked. *)
+        write_all cc
+          (Printf.sprintf
+             "#!/bin/sh
+[ \"$1\" = --version ] && { echo plain; exit 0; }
+echo >> %s
+exit 1
+"
+             (Filename.quote asked));
+        Unix.chmod cc 0o755;
+        let times () = List.length (String.split_on_char '\n' (In_channel.with_open_bin asked In_channel.input_all)) in
+        check "a C compiler that makes no bitcode gives none" (bitcode ~cc = None);
+        let first = times () in
+        check "and is asked once" (bitcode ~cc = None && times () = first);
+        (* One that makes bitcode a newer LLVM wrote, which this one cannot read. *)
+        let newer = Filename.concat directory "newer-cc" in
+        write_all newer
+          "#!/bin/sh\n[ \"$1\" = --version ] && { echo newer; exit 0; }\n\
+           while [ \"$1\" != -o ]; do shift; done; printf 'BC\\300\\336ZZZZZZZZ' > \"$2\"\n";
+        Unix.chmod newer 0o755;
+        check "a C compiler whose bitcode this LLVM cannot read gives none" (bitcode ~cc:newer = None);
+        Unix.putenv "ZANE_BITCODE_CC" newer;
+        check "the bitcode's own C compiler is the one ZANE_BITCODE_CC names" (Build.bitcode_cc () = newer);
+        Unix.putenv "ZANE_BITCODE_CC" "";
+        check "and the C compiler otherwise" (Build.bitcode_cc () = Build.cc ())
+      end;
+      let unreadable = Filename.concat directory "unreadable.bc" in
+      write_all unreadable ("BC\xc0\xde" ^ String.make 64 '\x5a');
+      check "bitcode this LLVM cannot read is none, and the build goes on" (not (Bodies.readable unreadable));
+      let ctx = Llvm.create_context () in
+      let names =
+        match Bodies.read ctx path with
+        | None -> []
+        | Some rt ->
+            let names =
+              Llvm.fold_left_functions
+                (fun acc f -> if Llvm.is_declaration f || Bodies.internal f then acc else Llvm.value_name f :: acc)
+                [] rt
+            in
+            Llvm.dispose_module rt;
+            names
+      in
+      (* A module calling every function the runtime defines, given what
+         a build of it would take. *)
+      let taken ~tiered =
+        let m = Llvm.create_module ctx "program" in
+        let t = Llvm.function_type (Llvm.void_type ctx) [||] in
+        List.iter (fun name -> ignore (Llvm.declare_function name t m)) names;
+        check "the bodies are linked in" (Bodies.add ~tiered path m);
+        m
+      in
+      let body m name = Option.fold ~none:false ~some:(fun f -> not (Llvm.is_declaration f)) (Llvm.lookup_function name m) in
+      let m = taken ~tiered:false in
+      check "a body is kept" (body m "zane_defer");
+      check "as one LLVM may inline, the runtime's own still linked"
+        (Llvm.linkage (Option.get (Llvm.lookup_function "zane_defer" m)) = Llvm.Linkage.Available_externally);
+      check "a body that keeps the runtime's own state is not" (not (body m "zane_output"));
+      check "nor one that calls a function never inlined" (not (body m "zane_list_push"));
+      check "nor a cold one" (not (body m "zane_hold"));
+      check "no body kept protects the stack"
+        (Llvm.fold_left_functions
+           (fun ok f -> ok && (Llvm.is_declaration f || not (Bodies.marked f Bodies.protections)))
+           true m);
+      check "and the runtime's variables are declared, a thread's read at a fixed offset"
+        (Llvm.fold_left_globals
+           (fun ok g ->
+             ok
+             && (Bodies.internal g || Llvm.is_declaration g)
+             && ((not (Llvm.is_thread_local g)) || Llvm.thread_local_mode g = Llvm.ThreadLocalMode.InitialExec))
+           true m);
+      let outside v = Bodies.foreign v && not (List.mem (Llvm.value_name v) names) in
+      let calls_out m =
+        Llvm.fold_left_functions
+          (fun out f -> out || ((not (Llvm.is_declaration f)) && List.exists outside (fst (Bodies.uses f))))
+          false m
+      in
+      check "a build calls the C library from a body it keeps" (calls_out m);
+      Llvm.dispose_module m;
+      let m = taken ~tiered:true in
+      check "a tiered one keeps no body that does" (body m "zane_defer" && not (calls_out m));
+      Llvm.dispose_module m;
+      (* A program that links no runtime object takes the whole runtime. *)
+      let whole ~exported =
+        let m = Llvm.create_module ctx "program" in
+        let t = Llvm.function_type (Llvm.void_type ctx) [||] in
+        ignore (Llvm.declare_function "zane_defer" t m);
+        check "the whole runtime is linked in" (Bodies.whole ~exported path m);
+        m
+      in
+      let defined m name = Option.get (Llvm.lookup_function name m) in
+      let m = whole ~exported:false in
+      check "with every body, the stateful and the cold ones too"
+        (List.for_all (body m) [ "zane_defer"; "zane_output"; "zane_list_push"; "zane_hold" ]);
+      check "each the program's own"
+        (Llvm.linkage (defined m "zane_output") = Llvm.Linkage.Internal
+        && Llvm.linkage (defined m "main") = Llvm.Linkage.External);
+      check "and a thread's variables at their offsets in the executable"
+        (Llvm.thread_local_mode (Option.get (Llvm.lookup_global "zane_self" m)) = Llvm.ThreadLocalMode.LocalExec);
+      Llvm.dispose_module m;
+      let m = whole ~exported:true in
+      check "other objects linked with it reach the runtime, which the program does not export"
+        (Llvm.linkage (defined m "zane_output") = Llvm.Linkage.External
+        && Llvm.visibility (defined m "zane_output") = Llvm.Visibility.Hidden);
+      Llvm.dispose_module m;
+      Llvm.dispose_context ctx
 
 (* An error LLD cannot go on from, such as a corrupt object's, ends the link
    and comes back to the build, which links through the C compiler then;
