@@ -868,8 +868,8 @@ let first_block env fr b ~header ~list ~fail ~first =
   let line p =
     Llvm.build_and (Llvm.build_add p (n (Abi.line - 1)) "" b) (Llvm.const_of_int64 i64 (Int64.of_int (-Abi.line)) true) "" b
   in
-  let items = handle_field env (Llvm.build_load i64 (Llvm.build_struct_gep header list 0 "" b) "" b) in
-  check (Llvm.build_icmp Llvm.Icmp.Eq items (n 0) "" b);
+  let items = handle_field env (Llvm.build_load ptr (Llvm.build_struct_gep header list 0 "" b) "" b) in
+  check (Llvm.build_icmp Llvm.Icmp.Eq items (Llvm.const_null ptr) "" b);
   let m = Llvm.build_load ptr (open_scope env) "" b in
   check (Llvm.build_icmp Llvm.Icmp.Ne m (Llvm.const_null ptr) "" b);
   let c = field env b ptr m record_context in
