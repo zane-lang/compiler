@@ -28,7 +28,7 @@ class Tiers(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp(prefix="zane-tiers-"))
         self.env = dict(os.environ, ZANE_CACHE_DIR=str(self.dir / "cache"))
-        for name in ("ZANE_TIER_UP", "ZANE_TIER_WAIT", "ZANE_TIER_LOG"):
+        for name in ("ZANE_TIER_UP", "ZANE_TIER_WAIT", "ZANE_TIER_LOG", "ZANE_RUNTIME_OBJECTS"):
             self.env.pop(name, None)
 
     def tearDown(self):
