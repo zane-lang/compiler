@@ -306,6 +306,21 @@ tier 0 of a tiered build, since tier 1 calls it
 compiler implements a transformation itself only where it rests on
 something about Zane that LLVM does not know.
 
+### The runtime's bodies inlined
+
+- **Builds:** optimized only, and both tiers of a tiered build
+- **Where:** `lib/codegen/runtime_bodies.ml`, `lib/codegen/build.ml`
+- **Design:** [`design/lowering.md`](design/lowering.md) §7,
+  [`design/tiers.md`](design/tiers.md) T5
+- **Effect:** `tests/perf` `texts` 11% fewer estimated cycles optimized,
+  `scopes` 5%, `zalloc` 2%, `returns` 1%
+
+The runtime is compiled to LLVM bitcode too, and the bodies of the runtime
+functions a program calls are linked into its module before its passes,
+for LLVM to inline: allocation, deferral, text joins and printing then cost
+no call. A body that keeps the runtime's own state, or that is cold, stays
+a call to the runtime the program links.
+
 ### Inlining and its cleanup in unoptimized builds
 
 - **Builds:** unoptimized only

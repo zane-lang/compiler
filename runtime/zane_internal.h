@@ -275,6 +275,8 @@ void zane_flush_output_in_fault(void);
 
 /* arena.c */
 extern pthread_mutex_t zane_memory;
+extern uintptr_t *zane_pages[];
+extern zane_context *zane_contexts[];
 extern int32_t zane_context_count;
 extern zane_context *zane_idle;
 extern _Thread_local zane_context *zane_self;
@@ -285,6 +287,7 @@ void zane_lock(zane_context *c);
 void zane_unlock(zane_context *c);
 zane_context *zane_context_new(void);
 uintptr_t *zane_page(const void *at, int make);
+uintptr_t zane_page_entry(const void *at);
 
 /* The program's arguments after its own name, kept by `main`. */
 extern int zane_argc;
@@ -343,6 +346,7 @@ void zane_work_run(zane_work *w);
 void zane_end(char *base, const zane_type *type);
 
 /* region.c */
+extern size_t zane_system_page;
 void zane_regions_start(void);
 void zane_thread_start(void);
 void zane_thread_stop(void);

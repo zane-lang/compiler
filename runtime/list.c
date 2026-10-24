@@ -86,8 +86,7 @@ static inline char *zane_list_first(zane_list *list) {
 	zane_mark *m = zane_open;
 	if (!m) return NULL;
 	if ((char *)list < (char *)m || (char *)list >= m->context->frontier) {
-		uintptr_t *page = zane_page(list, 0);
-		if (page && __atomic_load_n(page, __ATOMIC_ACQUIRE)) return NULL;
+		if (zane_page_entry(list)) return NULL;
 	}
 	zane_heap *h = &m->heap;
 	char *block;

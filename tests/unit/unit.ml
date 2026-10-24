@@ -1423,6 +1423,7 @@ let () =
   Builds.cached_runtime ();
   Builds.linked_in_process ();
   Builds.bundled_runtime ();
+  Builds.runtime_bodies ();
   Builds.fatal_link ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();

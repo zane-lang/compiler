@@ -111,42 +111,6 @@ let probe_stack triple m =
       m
   end
 
-(* The module emitted for *target* made ready to be written: its shared
-   functions in COMDATs, its stack probed, and its passes run, the optimized
-   ones when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A program means the same either way
-   (docs/design/lowering.md §7). A [tier] of a tiered build is fingerprinted
-   first, then made tier 0 or tier 1 around its passes (docs/design/tiers.md);
-   tier 1 runs the optimized ones. *)
-let prepare ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint m =
-  let optimize = optimize || tier = Tiers.Tier1 in
-  Result.bind (target_machine ?target ~optimize ()) (fun (triple, tm) ->
-      let hash =
-        match (tier, fingerprint) with
-        | Tiers.Plain, _ -> ""
-        | _, Some hash -> hash
-        | _, None -> Tiers.fingerprint m
-      in
-      let exports = if tier = Tiers.Tier0 then Some (Tiers.exports m) else None in
-      let definitions = if tier = Tiers.Tier1 then Some (Tiers.tier1_definitions m) else None in
-      shared_in_comdats triple m;
-      probe_stack triple m;
-      let data_layout = Llvm_target.TargetMachine.data_layout tm in
-      Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
-      if not optimize then Wrappers.mark data_layout m;
-      if optimize then llvm_options (Array.of_list ("zanec" :: Passes.llvm_options));
-      Llvm_passbuilder.run_passes m (Passes.pipeline ~optimize ~tier1:(tier = Tiers.Tier1)) tm (Llvm_passbuilder.create_passbuilder_options ())
-      |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
-      |> Fun.flip Result.bind (fun () ->
-             match (exports, definitions) with
-             | Some exports, _ -> Ok (Tiers.tier0 m ~hash ~exports)
-             | _, Some definitions ->
-                 Result.bind (Tiers.tier1_imports m ~hash definitions) (fun () ->
-                     match Llvm_analysis.verify_module m with
-                     | None -> Ok ()
-                     | Some why -> Error (Printf.sprintf "tier 1 is not a valid module: %s" why))
-             | None, None -> Ok ())
-      |> Result.map (fun () -> (triple, tm)))
-
 (* The C compiler that links: `ZANE_CC` if set, else `clang`. *)
 let cc () = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC")
 
@@ -749,12 +713,92 @@ let in_work_dir f =
     ~finally:(fun () ->
       List.iter
         (fun f -> try Sys.remove (Filename.concat dir f) with Sys_error _ -> ())
-        ([ "program.o"; "program"; "program.exe"; "program.pdb"; "program.lib"; "runtime.o" ]
+        ([ "program.o"; "program"; "program.exe"; "program.pdb"; "program.lib"; "runtime.o"; "runtime.bc" ]
         @ [ "library.o"; "library.so"; "library.dylib"; "library.dll"; "library.pdb"; "library.lib" ]
         @ [ "cc-version"; "cc-link"; "cc-link-words" ]
         @ List.map fst runtime_files);
       try Sys.rmdir dir with Sys_error _ -> ())
     (fun () -> f dir)
+
+let bitcode_flags ~triple target =
+  let coff = List.mem "windows" (String.split_on_char '-' triple) in
+  target_flag target @ level ~optimize:true @ (if macho triple || coff then [] else [ "-fPIC" ]) @ [ "-emit-llvm" ]
+
+let bundled_bitcode_name ~triple = Filename.chop_suffix (bundled_name ~triple (level ~optimize:true)) ".o" ^ ".bc"
+
+(* [use] given the runtime as LLVM bitcode for [triple], compiled by *cc*
+   with the flags of an optimized runtime and position-independent, so no
+   definition in it is taken to be the program's own ([Runtime_bodies]), or
+   [None] when *cc* cannot make bitcode this LLVM reads. It is kept in
+   [cache] beside the objects, and a C compiler that could not make it as an
+   empty file, so it is asked once. A released toolchain compiles nothing: it has the bitcode
+   it bundles, or none. *)
+let with_runtime_bitcode ?bundled ?cache ~cc ~triple ?target use =
+  let flags = bitcode_flags ~triple target in
+  let present path = if (try (Unix.stat path).Unix.st_size > 0 with Unix.Unix_error _ -> false) then Some path else None in
+  match bundled with
+  | Some dir -> use (present (Filename.concat dir (bundled_bitcode_name ~triple)))
+  | None -> (
+      in_work_dir @@ fun dir ->
+      match write_runtime dir with
+      | exception Sys_error _ -> use None
+      | () -> (
+          let fresh = Filename.concat dir "runtime.bc" in
+          let compiled () = Result.is_ok (compile ~cc ~triple flags dir fresh) && Runtime_bodies.readable fresh in
+          match Option.bind cache (fun cache -> Option.map (fun id -> (cache, id)) (identity ~cache cc dir)) with
+          | None -> use (if compiled () then present fresh else None)
+          | Some (cache, identity) ->
+              let kept =
+                Filename.concat (Filename.concat cache "runtime")
+                  (runtime_key ~cc ~identity ~triple (flags @ tuning ~triple) ^ ".bc")
+              in
+              if not (Sys.file_exists kept) then begin
+                if not (compiled ()) then Out_channel.with_open_bin fresh (fun _ -> ());
+                keep ~random:(Random.State.make_self_init ()) ~object_:fresh ~kept
+              end;
+              use (match present kept with Some _ as kept -> kept | None -> present fresh)))
+
+(* The module emitted for *target* made ready to be written: its shared
+   functions in COMDATs, its stack probed, and its passes run, the optimized
+   ones when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A program means the same either way
+   (docs/design/lowering.md §7). A [tier] of a tiered build is fingerprinted
+   first, then made tier 0 or tier 1 around its passes (docs/design/tiers.md);
+   tier 1 runs the optimized ones. An optimized module, and both tiers, take
+   the runtime's bodies for LLVM to inline first ([Runtime_bodies]), the
+   tiers the same ones, so tier 0 exports what tier 1's may import. *)
+let prepare ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint ?(bundled = bundled_dir ())
+    ?(cache = cache_dir ()) m =
+  let optimize = optimize || tier = Tiers.Tier1 in
+  Result.bind (target_machine ?target ~optimize ()) (fun (triple, tm) ->
+      let hash =
+        match (tier, fingerprint) with
+        | Tiers.Plain, _ -> ""
+        | _, Some hash -> hash
+        | _, None -> Tiers.fingerprint m
+      in
+      if optimize || tier = Tiers.Tier0 then
+        with_runtime_bitcode ?bundled ?cache ~cc:(cc ()) ~triple ?target
+          (Option.iter (fun path -> ignore (Runtime_bodies.add ~tiered:(tier <> Tiers.Plain) path m)));
+      let exports = if tier = Tiers.Tier0 then Some (Tiers.exports m) else None in
+      let definitions = if tier = Tiers.Tier1 then Some (Tiers.tier1_definitions m) else None in
+      shared_in_comdats triple m;
+      probe_stack triple m;
+      let data_layout = Llvm_target.TargetMachine.data_layout tm in
+      Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
+      if not optimize then Wrappers.mark data_layout m;
+      if optimize then llvm_options (Array.of_list ("zanec" :: Passes.llvm_options));
+      Llvm_passbuilder.run_passes m (Passes.pipeline ~optimize ~tier1:(tier = Tiers.Tier1)) tm (Llvm_passbuilder.create_passbuilder_options ())
+      |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
+      |> Fun.flip Result.bind (fun () ->
+             match (exports, definitions) with
+             | Some exports, _ -> Ok (Tiers.tier0 m ~hash ~exports)
+             | _, Some definitions ->
+                 Result.bind (Tiers.tier1_imports m ~hash definitions) (fun () ->
+                     match Llvm_analysis.verify_module m with
+                     | None -> Ok ()
+                     | Some why -> Error (Printf.sprintf "tier 1 is not a valid module: %s" why))
+             | None, None -> Ok ())
+      |> Result.map (fun () -> (triple, tm)))
 
 (* The linker command *cc* gives for a program for [target], [triple] in
    LLVM's normal form, linking with [level] and the [runtime] bundled for
@@ -844,10 +888,22 @@ let bundle_shared_link ~cc ~target ~triple ~tm level dir work =
     ~name:(bundled_link_name ~triple (shared @ level) system)
     dir work
 
+(* The runtime's bitcode for [triple] beside its optimized object, under the
+   name a build looks for there ([with_runtime_bitcode]), when *cc* makes
+   bitcode this LLVM reads. One newer than it writes bitcode it cannot, and
+   the release then bundles none: its builds call the runtime's functions
+   rather than inline them. *)
+let bundle_bitcode ~cc ~triple ~target dir work =
+  let path = Filename.concat dir (bundled_bitcode_name ~triple) in
+  match compile ~cc ~triple (bitcode_flags ~triple (Some target)) work path with
+  | Ok _ when Runtime_bodies.readable path -> ()
+  | Ok _ | Error _ -> ( try Sys.remove path with Sys_error _ -> ())
+
 (* The runtime compiled for [target], with or without optimizing, into
    [dir] under the name a build for that target looks for there
    ([bundled_name]), and the linker command and files that link a program
-   with it ([bundle_link]): what a release bundles for each target it ships
+   with it ([bundle_link]), and an optimized one's bitcode
+   ([bundle_bitcode]): what a release bundles for each target it ships
    (docs/design/lowering.md §7). A target is required, since a C compiler
    given none compiles for the processor it runs on. *)
 let bundle_runtime ~target ~optimize dir =
@@ -864,6 +920,7 @@ let bundle_runtime ~target ~optimize dir =
       match compile ~cc ~triple (target_flag (Some target) @ level) work runtime with
       | Error _ as error -> error
       | Ok _ -> (
+          if optimize then bundle_bitcode ~cc ~triple ~target dir work;
           match
             Result.bind (bundle_link ~cc ~target ~triple ~tm level dir work runtime) (fun () ->
                 if optimize then bundle_shared_link ~cc ~target ~triple ~tm level dir work else Ok ())

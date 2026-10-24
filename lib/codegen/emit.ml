@@ -734,7 +734,7 @@ let hold env fr b slot l =
         "" b
     in
     let listing = block env fr and after = block env fr in
-    ignore (Llvm.build_cond_br on listing after b);
+    unlikely env (Llvm.build_cond_br on listing after b);
     Llvm.position_at_end listing b;
     ignore (call_runtime env b Cgt.Runtime.Hold [| slot; layout env l |]);
     ignore (Llvm.build_br after b);

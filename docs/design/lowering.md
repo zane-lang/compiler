@@ -391,6 +391,37 @@ default, Nix's hardened clang among them, and they cost the runtime's small,
 hot functions more than anything else in them. A C compiler that refuses
 either compiles the runtime without them, and says nothing of it.
 
+An optimized build, and both tiers of a tiered one, also compile the runtime
+to LLVM bitcode, kept in the cache beside its objects under the same kind of
+key, and link into the module, before its passes, the bodies of the
+runtime's functions it calls, and of the functions those call, as
+`available_externally` (`lib/codegen/runtime_bodies.ml`). LLVM inlines them
+where it judges a call worth it, and every call it leaves still goes to the
+runtime the program links, so nothing the runtime keeps is copied: each of
+its variables comes in as a declaration of the runtime's own, a thread's
+read at a fixed offset from the thread's pointer as the program's own are.
+The bitcode is compiled position-independent, so no definition in it is
+taken for the program's. A body is left out, and its function stays a call,
+when it would not mean the same copied: it reads a variable of the
+runtime's own translation unit, which no other unit can name, takes the
+address of one of the unit's functions, which a copy would not share, or
+calls one marked `noinline` or `cold`, which would be copied whole; a
+function that calls such a function is left out too. A function marked
+`cold`, such as `zane_hold`, which runs only when drains are checked, is
+left out as well, since inlined it costs its caller registers on the path
+that never runs it. The variables the runtime's hot paths read, such as
+its page table, are therefore not `static`. In a tiered build a body that
+calls outside the runtime is left out as well, since tier 1 imports
+everything through tier 0's table ([`tiers.md`](tiers.md)), and each C
+library function in it would cost a symbol lookup as every run starts. A
+body taken loses any stack protection the C compiler gave it: it becomes
+the program's code, which has none, and inlined it would give its caller
+the protection too. Bitcode is read only by the LLVM that wrote it or a
+later one, so the C compiler must be a clang of the compiler's LLVM version
+or older, as devbox's is; with any other, or one that makes no bitcode, a
+build calls the runtime's functions, and the cache keeps an empty file so
+the C compiler is asked once.
+
 The link itself runs in the compiler. Starting the C compiler and its linker
 as programs of their own costs about eight times the link: each loads LLVM's
 shared library again. So the first build for a C compiler, target, set of
@@ -437,7 +468,11 @@ It compiles the runtime as a build for that target would, then asks the C
 compiler for the command linking a program with it, through a program object
 defining only what the runtime takes from a program, and copies every file
 the command links besides the program's own into `link/files/`, named by its
-contents, where the command names it relative to the bundle. The loader a
+contents, where the command names it relative to the bundle. With
+`--optimize` it also compiles the runtime's bitcode beside the object,
+when the C compiler makes bitcode this compiler's LLVM reads; otherwise
+the release bundles none, and its optimized builds call the runtime's
+functions rather than inline them. The loader a
 program names, `--dynamic-linker`, is a path on the machine the program runs
 on, and is not copied. A program's other objects, its dependencies', are put
 in after its own. A target is always named there, since a C compiler given
@@ -478,7 +513,7 @@ The binary takes the same `--package` flags as the semantic views:
 | `--import PACKAGE:KEY=PACKAGE` | the package the first imports by `KEY`, each named by its identity (C10) |
 | `--link FILE` | links the object `FILE` into the program `--build` makes, as a stamped dependency's objects are (C7) |
 | `--target TRIPLE` | compiles `--ll`, `--build` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` for it; LLVM gets the triple's normal form, and the C compiler the triple as written ([`platforms.md`](platforms.md)) |
-| `--optimize` | runs stage 5 over the tree ([`optimization.md`](optimization.md)), then LLVM's `-O2` pipeline over the module, generates optimized code, and compiles the runtime with `-O2` |
+| `--optimize` | runs stage 5 over the tree ([`optimization.md`](optimization.md)), then LLVM's `-O2` pipeline over the module, with the runtime's bodies for it to inline, generates optimized code, and compiles the runtime with `-O2` |
 | `--fixed-region BYTES` | the size of the main context's range of frames, a whole number of MiB, 256 MiB when absent (§9) |
 | `--spawned-fixed-region BYTES` | the size of each spawned call's range of frames, a whole number of MiB, 8 MiB when absent (§9) |
 | `--pack-aggregates` | passes an aggregate that fits in the registers a call gives it as packed 8-byte words rather than as itself or by address; off by default, an option to measure (§9) |

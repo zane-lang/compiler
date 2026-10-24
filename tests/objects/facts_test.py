@@ -147,6 +147,20 @@ class FactsTests(unittest.TestCase):
         self.assertNotRegex(body("fill"), r"store i64 128, ")
         self.assertIn("@zane_list_push", body("fill"))
 
+    def test_optimized_builds_inline_the_runtimes_bodies(self):
+        # A plain build calls the runtime; an optimized one takes the bodies
+        # of the functions it calls from the runtime's bitcode for LLVM to
+        # inline, all but a cold one's, which stays a call
+        # (lib/codegen/runtime_bodies.ml).
+        call = lambda name: re.compile(r"call [^\n]*@" + name + r"\(")
+        plain = run(ZANEC, "--ll", *packages("pushes"))
+        optimized = run(ZANEC, "--ll", "--optimize", *packages("pushes"))
+        for name in ["zane_defer", "zane_leaves"]:
+            self.assertRegex(plain, call(name))
+            self.assertNotRegex(optimized, call(name))
+        self.assertRegex(optimized, call("zane_hold"))
+        self.assertNotIn("available_externally", optimized)
+
     def test_elif_joins_the_if_before_it(self):
         # Each way into an `elif` already decides its `~this` half, so the
         # pair is one chain, as C's `else if` is, and neither body's work is

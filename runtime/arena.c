@@ -14,8 +14,11 @@ pthread_mutex_t zane_memory = PTHREAD_MUTEX_INITIALIZER;
    or a context with its lowest bit set, for each MiB of the range it
    reserved for its frames, guard included. An oversized block's chunks are
    each listed. The fault handler reads it too (region.c), so a level, once
-   made, stays, and every entry is read and written whole. */
-static uintptr_t *zane_pages[ZANE_PAGES];
+   made, stays, and every entry is read and written whole. Like every
+   variable the runtime reads on a hot path, it is not `static`, so the
+   functions that read it may be inlined into a program
+   (lib/codegen/runtime_bodies.ml). */
+uintptr_t *zane_pages[ZANE_PAGES];
 
 uintptr_t *zane_page(const void *at, int make) {
 	uintptr_t page = (uintptr_t)at >> 20;
@@ -39,6 +42,14 @@ uintptr_t *zane_page(const void *at, int make) {
 	return entries + page % ZANE_PAGES;
 }
 
+/* What the MiB that holds `at` belongs to, as `zane_pages` lists it. */
+uintptr_t zane_page_entry(const void *at) {
+	uintptr_t page = (uintptr_t)at >> 20;
+	if (page / ZANE_PAGES >= ZANE_PAGES) return 0;
+	uintptr_t *entries = __atomic_load_n(&zane_pages[page / ZANE_PAGES], __ATOMIC_ACQUIRE);
+	return entries ? __atomic_load_n(&entries[page % ZANE_PAGES], __ATOMIC_ACQUIRE) : 0;
+}
+
 static void zane_set_page(const void *at, uintptr_t entry) {
 	__atomic_store_n(zane_page(at, 1), entry, __ATOMIC_RELEASE);
 }
@@ -46,7 +57,7 @@ static void zane_set_page(const void *at, uintptr_t entry) {
 /* Every context made, by its id, and those free for the next spawned call.
    A context takes its id under the lock, and is listed once its range is
    reserved. */
-static zane_context *zane_contexts[ZANE_CONTEXTS];
+zane_context *zane_contexts[ZANE_CONTEXTS];
 int32_t zane_context_count;
 zane_context *zane_idle;
 
@@ -146,8 +157,7 @@ static zane_mark *zane_scope_holding(zane_context *c, const char *at) {
    search tries that one first, and without the lock while the context is
    this thread's alone. */
 zane_mark *zane_region_at(const void *at) {
-	uintptr_t *page = zane_page(at, 0);
-	uintptr_t entry = page ? __atomic_load_n(page, __ATOMIC_ACQUIRE) : 0;
+	uintptr_t entry = zane_page_entry(at);
 	if (entry == 0) return zane_self->top;
 	if (!(entry & 1)) return (zane_mark *)entry;
 	zane_context *c = (zane_context *)(entry & ~(uintptr_t)1);

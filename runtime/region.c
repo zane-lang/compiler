@@ -103,7 +103,7 @@ int zane_decommit_range(char *at, size_t bytes) {
 
 /* The system's page size, the unit memory is given back in. Any thread
    may be the first to ask, and each finds the same. */
-static size_t zane_system_page;
+size_t zane_system_page;
 
 size_t zane_page_bytes(void) {
 	size_t page = __atomic_load_n(&zane_system_page, __ATOMIC_RELAXED);
@@ -214,8 +214,7 @@ void zane_too_deep(void) { zane_too_deep_in(zane_self); }
    since the step it touched is usable now. One in a guard stops the
    program. Any other is not the runtime's: 0. */
 static int zane_fault_at(char *at) {
-	uintptr_t *page = zane_page(at, 0);
-	uintptr_t entry = page ? __atomic_load_n(page, __ATOMIC_ACQUIRE) : 0;
+	uintptr_t entry = zane_page_entry(at);
 	if (!(entry & 1)) return 0;
 	zane_context *c = (zane_context *)(entry & ~(uintptr_t)1);
 	if (at < c->base || at >= c->limit + ZANE_GUARD) return 0;

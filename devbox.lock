@@ -1,51 +1,51 @@
 {
   "lockfile_version": "1",
   "packages": {
-    "clang@latest": {
-      "last_modified": "2026-10-14T08:20:44Z",
-      "resolved": "github:NixOS/nixpkgs/319e4cebef10cbb636c6ea392137b52ad105336a#clang",
+    "clang_19@latest": {
+      "last_modified": "2026-10-20T14:23:57Z",
+      "resolved": "github:NixOS/nixpkgs/5adc50831c259f87faeb09ddf930d43597197473#clang_19",
       "source": "devbox-search",
-      "version": "21.1.8",
+      "version": "19.1.7",
       "systems": {
         "aarch64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/v1zb8pqd25hsj0wd748nfczsa8ygciba-clang-wrapper-21.1.8",
+              "path": "/nix/store/crp42bqh1a085dnijaz6pas7wrb3d669-clang-wrapper-19.1.7",
               "default": true
             }
           ],
-          "store_path": "/nix/store/v1zb8pqd25hsj0wd748nfczsa8ygciba-clang-wrapper-21.1.8"
+          "store_path": "/nix/store/crp42bqh1a085dnijaz6pas7wrb3d669-clang-wrapper-19.1.7"
         },
         "aarch64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/gzngzbvfpbznl72z728pyf7xh93cidjk-clang-wrapper-21.1.8",
+              "path": "/nix/store/vcdwmk7nipppfis82bfk5cfsj17b1brl-clang-wrapper-19.1.7",
               "default": true
             }
           ],
-          "store_path": "/nix/store/gzngzbvfpbznl72z728pyf7xh93cidjk-clang-wrapper-21.1.8"
+          "store_path": "/nix/store/vcdwmk7nipppfis82bfk5cfsj17b1brl-clang-wrapper-19.1.7"
         },
         "x86_64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/vlqks7r68963zr1jbj8l546w4nw0i762-clang-wrapper-21.1.8",
+              "path": "/nix/store/rfawibd0vpk8ki2vp42a7x63iqlxqcvz-clang-wrapper-19.1.7",
               "default": true
             }
           ],
-          "store_path": "/nix/store/vlqks7r68963zr1jbj8l546w4nw0i762-clang-wrapper-21.1.8"
+          "store_path": "/nix/store/rfawibd0vpk8ki2vp42a7x63iqlxqcvz-clang-wrapper-19.1.7"
         },
         "x86_64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/2msw5nclhpsm80z65dqmjiv8kkras989-clang-wrapper-21.1.8",
+              "path": "/nix/store/aqszkicsg73paghcx19kc586cdzplm8f-clang-wrapper-19.1.7",
               "default": true
             }
           ],
-          "store_path": "/nix/store/2msw5nclhpsm80z65dqmjiv8kkras989-clang-wrapper-21.1.8"
+          "store_path": "/nix/store/aqszkicsg73paghcx19kc586cdzplm8f-clang-wrapper-19.1.7"
         }
       }
     },
