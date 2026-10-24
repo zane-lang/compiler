@@ -745,7 +745,9 @@ test passing.
   reservation is the span alone, and a list that outgrows its reservation
   moves into a fresh one. A push is inline: while the block has room, the
   emitted code takes the element's address and counts it itself, and only a
-  full block calls `zane_list_push`, which grows it. Together these make
+  full block calls `zane_list_push`, which grows it. An empty list's first
+  block, of 128 bytes, is made inline too, in a function with a scope of its
+  own open (below). Together these make
   `listgrowth` in the spec's `langbench/`, which appends two million
   entities to a list twenty times, take less than half the time it did, and
   as much as C's `realloc` does within a few percent. It never shrinks: a
@@ -775,11 +777,20 @@ test passing.
     scope is its context's innermost, the frontier moves on past them: the
     frame stretches beyond its slots by at least 4 KiB at a time, to at
     most 64 KiB with its record and slots (`ZANE_STRETCH` and
-    `ZANE_STRETCHED`, `runtime/zane_internal.h`), as long as the range
-    holds it. A list whose block is last there grows in place by
-    stretching the frame further. A block that comes once an inner scope
-    has opened, or that the stretched frame cannot hold, goes into a chunk
-    of the scope's own as the spec has it. A drain moves the frontier back
+    `ZANE_STRETCHED`, `runtime/zane_abi.h`), as long as the range holds
+    it. A list whose block is last there grows in place by stretching the
+    frame further, to at most 1 MiB, and a small block after such a list,
+    as the record of the stack its old block goes to, stretches it 4 KiB
+    more rather than taking a chunk. An empty list's first block comes
+    from the emitted push itself, with no call, when the list's handle is
+    in the innermost scope's region and the push is in a function with a
+    scope of its own open: the next line of the scope's heap while it has
+    room and no returned block, or, while nothing has been allocated in
+    the scope, a stretch of the frame. A function with none, as a
+    recursive one that only builds what it returns, keeps the call, so its
+    code stays small enough for LLVM to unroll its loops. A block that
+    comes once an inner scope has opened, or that the stretched frame
+    cannot hold, goes into a chunk of the scope's own as the spec has it. A drain moves the frontier back
     to the record, which gives back the stretched bytes with the frame, so
     a scope whose blocks all fit there maps no chunk, and its drain stays
     inline. The spec keeps a scope's fixed-size and dynamic storage apart

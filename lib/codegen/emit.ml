@@ -597,6 +597,7 @@ and record_outer = Abi.mark_outer
 and record_skip = Abi.mark_skip
 and record_tasks = Abi.mark_tasks
 and record_mappings = Abi.mark_mappings
+and record_stacks = Abi.mark_stacks
 and context_frontier = Abi.context_frontier
 and context_top = Abi.context_top
 and context_limit = Abi.context_limit
@@ -820,11 +821,97 @@ let element env fr b fn args =
   let bytes = Llvm.build_nsw_mul offset stride "" b in
   Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| bytes |] "" b
 
+(* Whether the address [p] is, by how it was made, in the innermost scope's
+   region while that scope is open: a slot of the function's innermost
+   frame, or of its machine stack, which the runtime counts as the
+   innermost scope's (runtime/arena.c). Anything else is found at run time. *)
+let innermost fr p =
+  let rec base v =
+    match Llvm.classify_value v with
+    | Llvm.ValueKind.Instruction Llvm.Opcode.GetElementPtr -> base (Llvm.operand v 0)
+    | _ -> v
+  in
+  let p = base p in
+  (match Llvm.classify_value p with Llvm.ValueKind.Instruction Llvm.Opcode.Alloca -> true | _ -> false)
+  || match fr.open_ with frame :: _ -> p == frame | [] -> false
+
+(* An empty list's first block of [first] bytes, made here when its handle
+   holds no block (an empty handle's items are null) and is in the innermost scope's region, the open one, as the runtime would
+   make it (runtime/arena.c): the next line-aligned bytes in the scope's
+   heap when it has them and the scope has no returned block, which would
+   come first; or, when nothing has yet been allocated in the scope, and so
+   nothing returned, the first line-aligned bytes past its frame, which
+   stretches by ZANE_STRETCH bytes for them. The handle is checked to be in
+   the frame unless [innermost] knows it is in the scope's region already.
+   Any check that fails goes to [fail]; otherwise the push is made and the
+   element's address is returned. *)
+let first_block env fr b ~header ~list ~fail ~first =
+  let ptr = env.ptr and i64 = env.i64 in
+  let n x = Llvm.const_int i64 x in
+  let check cond =
+    let next = block env fr in
+    ignore (Llvm.build_cond_br cond next fail b);
+    Llvm.position_at_end next b
+  in
+  let address p = Llvm.build_ptrtoint p i64 "" b in
+  let line p =
+    Llvm.build_and (Llvm.build_add p (n (Abi.line - 1)) "" b) (Llvm.const_of_int64 i64 (Int64.of_int (-Abi.line)) true) "" b
+  in
+  let items = handle_field env (Llvm.build_load i64 (Llvm.build_struct_gep header list 0 "" b) "" b) in
+  check (Llvm.build_icmp Llvm.Icmp.Eq items (n 0) "" b);
+  let m = Llvm.build_load ptr (open_scope env) "" b in
+  check (Llvm.build_icmp Llvm.Icmp.Ne m (Llvm.const_null ptr) "" b);
+  let c = field env b ptr m record_context in
+  let record = address m in
+  if not (innermost fr list) then begin
+    let at = address list in
+    let from = address (field env b ptr c context_frontier) in
+    check
+      (Llvm.build_and
+         (Llvm.build_icmp Llvm.Icmp.Uge at record "" b)
+         (Llvm.build_icmp Llvm.Icmp.Ult at from "" b)
+         "" b)
+  end;
+  let bump = field env b ptr m Walks.frontier in
+  let fresh = block env fr and used = block env fr and taken = block env fr in
+  ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Eq bump (Llvm.const_null ptr) "" b) fresh used b);
+  Llvm.position_at_end used b;
+  check (Llvm.build_icmp Llvm.Icmp.Eq (field env b ptr m record_stacks) (Llvm.const_null ptr) "" b);
+  let start_used = line (address bump) in
+  let ends = address (field env b ptr m Walks.frontier_end) in
+  check (Llvm.build_icmp Llvm.Icmp.Ule (Llvm.build_add start_used (n first) "" b) ends "" b);
+  let used_end = Llvm.insertion_block b in
+  ignore (Llvm.build_br taken b);
+  Llvm.position_at_end fresh b;
+  let frontier = field env b ptr c context_frontier in
+  let stretched = byte_at env b frontier Abi.stretch in
+  check (Llvm.build_icmp Llvm.Icmp.Ule (Llvm.build_sub (address stretched) record "" b) (n Abi.stretched) "" b);
+  check (Llvm.build_icmp Llvm.Icmp.Ule (address stretched) (address (field env b ptr c context_limit)) "" b);
+  set_field env b stretched c context_frontier;
+  set_field env b stretched m Walks.frontier_end;
+  let start_fresh = line (address frontier) in
+  let fresh_end = Llvm.insertion_block b in
+  ignore (Llvm.build_br taken b);
+  Llvm.position_at_end taken b;
+  let start = Llvm.build_phi [ (start_used, used_end); (start_fresh, fresh_end) ] "" b in
+  let start = Llvm.build_inttoptr start ptr "" b in
+  set_field env b (byte_at env b start first) m Walks.frontier;
+  let live = field env b i64 m Walks.live in
+  set_field env b (Llvm.build_add live (n 1) "" b) m Walks.live;
+  let store i v = ignore (handle_field env (Llvm.build_store v (Llvm.build_struct_gep header list i "" b) b)) in
+  store 0 start;
+  store 1 (n 1);
+  store 2 (n first);
+  start
+
 (* Room for one more element at the end of a list, [stride] bytes wide: the
    address the element is then moved into. While the list's block has room,
    the push is made here, so LLVM sees the count and the address the way it
-   sees any arithmetic; only a full block calls the runtime, which grows it
-   and makes the push (§9). *)
+   sees any arithmetic, and so is an empty list's first block in the
+   innermost scope ([first_block]) in a function with a scope of its own
+   open; otherwise the runtime grows the block and makes the push (§9). A
+   function with none keeps the call, so its code stays small enough for
+   LLVM to unroll a loop of a few pushes, as a recursive build makes. *)
 let push env fr b list stride =
   let header = Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |] in
   let count_at = Llvm.build_struct_gep header list 1 "" b in
@@ -844,11 +931,24 @@ let push env fr b list stride =
   ignore (handle_field env (Llvm.build_store next count_at b));
   ignore (Llvm.build_br pushed b);
   Llvm.position_at_end grow b;
+  let runtime_ = block env fr in
+  let firsts =
+    match Llvm.int64_of_const stride with
+    | Some s when s >= 1L && s <= 128L && fr.open_ <> [] ->
+        let made = first_block env fr b ~header ~list ~fail:runtime_ ~first:128 in
+        let made_end = Llvm.insertion_block b in
+        ignore (Llvm.build_br pushed b);
+        [ (made, made_end) ]
+    | _ ->
+        ignore (Llvm.build_br runtime_ b);
+        []
+  in
+  Llvm.position_at_end runtime_ b;
   let f, fty = runtime env Cgt.Runtime.List_push in
   let grown = Llvm.build_call fty f [| list; stride |] "" b in
   ignore (Llvm.build_br pushed b);
   Llvm.position_at_end pushed b;
-  Llvm.build_phi [ (at, fits); (grown, grow) ] "" b
+  Llvm.build_phi ((at, fits) :: (grown, runtime_) :: firsts) "" b
 
 (* A list closes over the element at [index], which the caller has checked
    and moved out of its place (runtime/list.c says the same of the

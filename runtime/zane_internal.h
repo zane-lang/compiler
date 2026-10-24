@@ -70,11 +70,10 @@ enum { ZANE_CHUNK = 1 << 20, ZANE_CONTEXTS = (1 << 16) - 1 };
 _Static_assert(ZANE_GUARD == ZANE_CHUNK, "the guard is one chunk");
 enum { ZANE_STEP = ZANE_CHUNK };
 
-/* A frame stretches for its scope's blocks by at least ZANE_STRETCH bytes,
-   so a scope's first small blocks stretch it once, and to at most
-   ZANE_STRETCHED bytes, its record and slots included, past which its
-   blocks go into chunks (arena.c). */
-enum { ZANE_STRETCH = 4096, ZANE_STRETCHED = 64 * 1024 };
+/* A stretch that starts at a frame's end holds a list's first block past
+   the next line, so a first stretch always moves the frontier by exactly
+   ZANE_STRETCH (zane_abi.h), as emitted code takes it to. */
+_Static_assert(ZANE_STRETCH % 16 == 0 && ZANE_STRETCH >= 128 + ZANE_LINE, "a first stretch holds a first block");
 
 enum { ZANE_PAGES = 1 << 14 };
 
@@ -186,6 +185,7 @@ _Static_assert(offsetof(zane_mark, outer) == ZANE_MARK_OUTER, "then the scope ar
 _Static_assert(offsetof(zane_mark, skip) == ZANE_MARK_SKIP, "then its skip");
 _Static_assert(offsetof(zane_mark, tasks) == ZANE_MARK_TASKS, "then its calls");
 _Static_assert(offsetof(zane_mark, mappings) == ZANE_MARK_MAPPINGS, "then its chunks");
+_Static_assert(offsetof(zane_mark, stacks) == ZANE_MARK_STACKS, "and its returned blocks' stacks");
 _Static_assert(sizeof(zane_mark) == ZANE_MARK_SIZE, "a frame's record is its own size");
 
 /* A context's range: `frontier` is where the next frame starts, `top` the
@@ -292,7 +292,7 @@ extern char **zane_argv;
 void zane_unmap(zane_mark *region);
 char *zane_alloc_growable(zane_mark *region, int64_t size);
 int zane_extend(zane_mark *region, char *block, int64_t size);
-int zane_stretch(zane_mark *m, char *end);
+int zane_stretch(zane_mark *m, char *end, int64_t most);
 void zane_give_spares(zane_context *c);
 extern int64_t zane_warm_spares, zane_cold_spares, zane_cold_reuses;
 zane_stack *zane_find_stack(zane_mark *m, int64_t size, int64_t align);

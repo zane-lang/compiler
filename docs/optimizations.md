@@ -508,7 +508,8 @@ sees plain arithmetic and can hoist or drop checks it proves redundant.
 
 A new list is the constant empty handle. A push with room left takes the
 element's address and bumps the count inline, calling `zane_list_push`
-only when the block is full (on a branch marked unlikely). `remove` and
+only when the block is full (on a branch marked unlikely), and an empty
+list's first block is often made inline too (below). `remove` and
 `swapRemove` are an inline `memmove`/`memcpy` and a decrement.
 
 ### Scope frames at constant offsets, entered and drained inline
@@ -653,6 +654,22 @@ stretched past its slots 4 KiB at a time up to 64 KiB, before any chunk.
 The drain gives them back with the frame, so a scope whose blocks fit there
 maps no chunk and drains inline.
 
+### An empty list's first block made inline
+
+- **Builds:** every build
+- **Where:** `lib/codegen/emit.ml`, `runtime/list.c`
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Each scope's
+  dynamic region"
+- **Effect:** `tests/perf` `scopes` 16% fewer estimated cycles optimized,
+  13% plain
+
+A push onto an empty list in the innermost scope's region makes its first
+128-byte block itself, from the heap's room or a fresh stretch of the
+frame, in a function with a scope of its own open. Elsewhere
+`zane_list_push` makes it without a call of its own. A function with no
+scope keeps the call, so a short loop of pushes there stays small enough to
+unroll.
+
 ### List growth in place
 
 - **Builds:** every build
@@ -663,7 +680,7 @@ maps no chunk and drains inline.
   percent of C's `realloc`
 
 A list's block doubles from 128 bytes, in place when it is last at the
-frontier, stretching its scope's frame for it while it can. Past 1 MiB it
+frontier, stretching its scope's frame for it up to 1 MiB. Past 1 MiB it
 moves once into a reservation 64 times its size, and each later doubling
 commits more of it instead of moving the elements.
 

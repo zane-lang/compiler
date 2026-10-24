@@ -230,16 +230,22 @@ void zane_main(void) {
 	zane_scope_drain(small);
 	check(zane_self->frontier == (char *)small && zane_blocks() == 0);
 
-	/* A list too large for the stretched frame moves into a chunk, and goes
-	   on growing in place there: the stack its old block is returned to
-	   does not land after it. */
+	/* A list grows in place in its scope's frame past where the scope's
+	   other blocks stop stretching it, up to a chunk's size. Past that it
+	   moves into an oversized block and goes on growing in place there,
+	   and the record of the stack its old block is returned to still fits
+	   in the frame, so the oversized block is the scope's one mapping. */
 	zane_mark *wide = zane_scope_enter(0);
 	zane_list *many = test_slot(wide, sizeof(zane_list), 8, NULL);
 	zane_list_new(many);
 	int64_t pushed = 0;
-	while (many->room < ZANE_STRETCHED) *(int64_t *)zane_list_push(many, 8) = pushed++;
+	while (many->room < ZANE_CHUNK / 2) *(int64_t *)zane_list_push(many, 8) = pushed++;
+	check(many->room > ZANE_STRETCHED && many->items > (char *)many &&
+	      many->items + many->room <= zane_self->frontier && wide->mappings == NULL);
+	while (many->room == ZANE_CHUNK / 2) *(int64_t *)zane_list_push(many, 8) = pushed++;
 	char *moved = many->items;
-	while (many->room < 4 * ZANE_STRETCHED) *(int64_t *)zane_list_push(many, 8) = pushed++;
+	check(wide->mappings != NULL && wide->mappings->next == NULL);
+	while (many->room < 4 * ZANE_CHUNK) *(int64_t *)zane_list_push(many, 8) = pushed++;
 	check(wide->mappings != NULL && many->items == moved && zane_region_of(many->items) == wide &&
 	      *(int64_t *)zane_list_at(many, pushed, 8) == pushed - 1);
 	zane_free(many->items, many->room, ZANE_LINE);

@@ -21,8 +21,8 @@ void zane_list_new(zane_list *out) { *out = (zane_list){ NULL, 0, 0 }; }
    doubles, from 128 bytes, in the region that holds its block (§3.6). Up to
    1 MiB it goes into a returned block of the doubled size, or grows in
    place when it is the last thing at the region's frontier with room after
-   it, in its chunk or in the scope's frame stretched to hold it
-   (arena.c), or else into new bytes there. Past that it is oversized:
+   it, in its chunk or in the scope's frame stretched to hold it, to at
+   most a chunk's size (arena.c), or else into new bytes there. Past that it is oversized:
    it grows in place while its reservation holds the doubled size, and
    otherwise moves into an oversized block of its own with a reservation
    that does. Nothing references an element, which is roaming (memory.md
@@ -53,7 +53,7 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 			zane_stack *s = zane_find_stack(region, room, ZANE_LINE);
 			grows = !(s && s->top) &&
 			        (room - list->room <= h->end - h->bump ||
-			         (h->end == region->context->frontier && zane_stretch(region, list->items + room)));
+			         (h->end == region->context->frontier && zane_stretch(region, list->items + room, ZANE_CHUNK)));
 		}
 		/* The block grows where it is, so nothing in it moves. */
 		if (grows) {
@@ -75,14 +75,68 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 	list->room = room;
 }
 
+/* An empty list's first block, 128 bytes, when its handle is in the
+   innermost scope's frame, or in no memory of the runtime's such as the
+   machine stack, while the context is this thread's alone, so the block is
+   that scope's and needs no lock (zane_region_at): a returned block of the
+   size first (§3.2), else the next bytes at the scope's frontier, in its
+   frame stretched to hold them when the heap has no room there. 0 when
+   none of that holds, and the list grows as any other does. */
+static inline char *zane_list_first(zane_list *list) {
+	zane_mark *m = zane_open;
+	if (!m) return NULL;
+	if ((char *)list < (char *)m || (char *)list >= m->context->frontier) {
+		uintptr_t *page = zane_page(list, 0);
+		if (page && __atomic_load_n(page, __ATOMIC_ACQUIRE)) return NULL;
+	}
+	zane_heap *h = &m->heap;
+	char *block;
+	zane_stack *s = m->stacks ? zane_find_stack(m, 128, ZANE_LINE) : NULL;
+	if (s && s->top) {
+		block = s->top;
+		s->top = *(char **)block;
+	} else {
+		uintptr_t mask = ZANE_LINE - 1;
+		uintptr_t start = ((uintptr_t)h->bump + mask) & ~mask;
+		if (!h->bump || start + 128 > (uintptr_t)h->end) {
+			char *frontier = m->context->frontier;
+			if (h->bump && h->end != frontier) return NULL;
+			if (!h->bump) start = ((uintptr_t)frontier + mask) & ~mask;
+			if (!zane_stretch(m, (char *)(start + 128), ZANE_STRETCHED)) return NULL;
+		}
+		block = (char *)start;
+		h->bump = block + 128;
+	}
+	h->live++;
+	list->items = block;
+	list->room = 128;
+	return block;
+}
+
+/* A push onto a full list: its block grown, then the push made. */
+static void *zane_list_push_grown(zane_list *list, int64_t stride) __attribute__((noinline));
+
+static void *zane_list_push_grown(zane_list *list, int64_t stride) {
+	zane_list_grow(list, (list->count + 1) * stride, stride);
+	return list->items + list->count++ * stride;
+}
+
 /* Room for one more element, `stride` bytes wide, at the end: the address
    the caller then moves it into. Emitted code makes the same push itself
    while the block has room, and calls this only when it is full
-   (docs/design/lowering.md §9). */
+   (docs/design/lowering.md §9). An empty list's first block is taken here
+   without a call, and anything else grows the list out of line, so this
+   needs no frame of its own. */
 void *zane_list_push(zane_list *list, int64_t stride) {
-	int64_t needed = (list->count + 1) * stride;
-	if (__builtin_expect(needed > list->room, 0)) zane_list_grow(list, needed, stride);
-	return list->items + list->count++ * stride;
+	if (__builtin_expect((list->count + 1) * stride <= list->room, 1)) return list->items + list->count++ * stride;
+	if (!list->room && stride <= 128) {
+		char *block = zane_list_first(list);
+		if (block) {
+			list->count = 1;
+			return block;
+		}
+	}
+	return zane_list_push_grown(list, stride);
 }
 
 /* The element at `index`, counted from 1 (control-flow.md §3.4). */

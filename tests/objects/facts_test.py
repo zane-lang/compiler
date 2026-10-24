@@ -134,7 +134,18 @@ class FactsTests(unittest.TestCase):
             for optimize in [[], ["--optimize"]]:
                 exe = Path(temp) / "pushes"
                 run(ZANEC, "--build", exe, *optimize, *packages("pushes"))
-                self.assertEqual(run_program(exe, 1), "10\n", optimize)
+                self.assertEqual(run_program(exe, 1), "11\n", optimize)
+
+    def test_first_blocks_are_made_inline_in_a_scope(self):
+        # An empty list's first block is made by the push itself, which
+        # stores its 128 bytes of room, in a function with a scope of its
+        # own open; one with none calls the runtime for it, so its code stays
+        # small (Emit.push).
+        ir = run(ZANEC, "--ll", *packages("pushes"))
+        body = lambda name: re.search(r"(?ms)^define [^\n]*@\"pushes\$" + name + r"\(.*?^}", ir).group(0)
+        self.assertRegex(body("gather"), r"store i64 128, ")
+        self.assertNotRegex(body("fill"), r"store i64 128, ")
+        self.assertIn("@zane_list_push", body("fill"))
 
     def test_elif_joins_the_if_before_it(self):
         # Each way into an `elif` already decides its `~this` half, so the

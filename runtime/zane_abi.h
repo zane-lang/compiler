@@ -26,6 +26,7 @@
 #define ZANE_MARK_SKIP 176
 #define ZANE_MARK_TASKS 184
 #define ZANE_MARK_MAPPINGS 192
+#define ZANE_MARK_STACKS 208
 #define ZANE_MARK_SIZE 224
 
 /* A context (`zane_context`): where its next frame starts, its innermost
@@ -45,6 +46,15 @@
 
 /* The alignment of a block a handle's elements are held in. */
 #define ZANE_LINE 64
+
+/* A frame stretches for its scope's blocks by at least ZANE_STRETCH bytes,
+   so a scope's first small blocks stretch it once, and to at most
+   ZANE_STRETCHED bytes, its record and slots included, past which its
+   blocks go into chunks (arena.c); a list growing in place stretches it
+   further (list.c). Emitted code makes a list's first block in a stretch
+   of its own (lib/codegen/emit.ml). */
+#define ZANE_STRETCH 4096
+#define ZANE_STRETCHED 65536
 
 /* The guard after a context's range, one chunk: a frame no larger, placed
    below the range's end, ends inside the guard at worst, so emitted code

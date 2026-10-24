@@ -351,7 +351,7 @@ let runtime_abi () =
 (* What the runtime's structs measure, as tests/runtime/abi/probe.c prints
    it on this platform, against the numbers the compiler emits code with,
    which Abi reads from runtime/zane_abi.h. Every number is measured but the
-   two nothing but the header defines. *)
+   four nothing but the header defines. *)
 let probed_abi () =
   let probed =
     In_channel.with_open_text "../runtime/abi/probe.out" In_channel.input_lines
@@ -367,10 +367,10 @@ let probed_abi () =
         (Printf.sprintf "%s is %d in the runtime and in Abi" name value)
         (List.assoc_opt name Abi.values = Some value))
     probed;
-  check "every number in Abi is measured but ZANE_LINE and ZANE_GUARD"
+  check "every number in Abi is measured but ZANE_LINE, ZANE_STRETCH, ZANE_STRETCHED and ZANE_GUARD"
     (List.sort compare
        (List.filter (fun (name, _) -> not (List.mem_assoc name probed)) Abi.values |> List.map fst)
-    = [ "ZANE_GUARD"; "ZANE_LINE" ]);
+    = [ "ZANE_GUARD"; "ZANE_LINE"; "ZANE_STRETCH"; "ZANE_STRETCHED" ]);
   check "lowering lays a handle out as the runtime does"
     (Cgt.Nodes.Ty.size_align Cgt.Nodes.Ty.Handle = (Abi.handle_size, 8))
 

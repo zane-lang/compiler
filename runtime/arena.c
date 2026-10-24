@@ -401,16 +401,16 @@ void zane_unmap(zane_mark *region) {
 
 /* Whether scope `m`'s frame stretches to `end`: it does while the scope is
    its context's innermost, by at least ZANE_STRETCH bytes and to a 16-byte
-   boundary, as long as the frame stays within ZANE_STRETCHED bytes and the
-   range (zane_internal.h). The frontier moves to its new end, and so does
+   boundary, as long as the frame stays within `most` bytes and the range
+   (zane_internal.h). The frontier moves to its new end, and so does
    the end of the scope's heap. Its context's lock is held. */
-int zane_stretch(zane_mark *m, char *end) {
+int zane_stretch(zane_mark *m, char *end, int64_t most) {
 	zane_context *c = m->context;
 	if (c->top != m) return 0;
 	uintptr_t to = (uintptr_t)end, least = (uintptr_t)c->frontier + ZANE_STRETCH;
 	if (to < least) to = least;
 	to = (to + 15) & ~(uintptr_t)15;
-	if (to - (uintptr_t)m > ZANE_STRETCHED || to > (uintptr_t)c->limit) return 0;
+	if (to - (uintptr_t)m > (uintptr_t)most || to > (uintptr_t)c->limit) return 0;
 	c->frontier = m->heap.end = (char *)to;
 	return 1;
 }
@@ -418,7 +418,10 @@ int zane_stretch(zane_mark *m, char *end) {
 /* Bytes from a region's frontier: where its heap has room, else in its
    frame, stretched to hold them, else in a fresh chunk, which becomes where
    the heap is. A block too large for any chunk is an oversized one, with
-   chunks of its own (§3.1). */
+   chunks of its own (§3.1). A frame a list has stretched past
+   ZANE_STRETCHED (list.c) may stretch by ZANE_STRETCH more, up to a
+   chunk's size, so a small block after the list, such as the record of the
+   stack its old block goes to, takes no chunk of its own. */
 static char *zane_frontier_of(zane_mark *m, int64_t size, int64_t align) {
 	zane_heap *h = &m->heap;
 	uintptr_t mask = (uintptr_t)align - 1;
@@ -429,7 +432,9 @@ static char *zane_frontier_of(zane_mark *m, int64_t size, int64_t align) {
 	}
 	char *frontier = m->context->frontier;
 	start = (((uintptr_t)(h->bump && h->end == frontier ? h->bump : frontier)) + mask) & ~mask;
-	if (zane_stretch(m, (char *)(start + (uintptr_t)size))) {
+	int64_t most = frontier - (char *)m;
+	most = most > ZANE_STRETCHED && most <= ZANE_CHUNK - ZANE_STRETCH ? most + ZANE_STRETCH : ZANE_STRETCHED;
+	if (zane_stretch(m, (char *)(start + (uintptr_t)size), most)) {
 		h->bump = (char *)(start + (uintptr_t)size);
 		return (char *)start;
 	}
