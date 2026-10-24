@@ -93,6 +93,16 @@ module Ty = struct
   (* A sum's payload starts after its tag. *)
   let payload_offset = 8
 
+  (* Whether a value of the type has a handle among its bytes: is one, or
+     has one as a member, a case's payload or an element. A boxed member's
+     payload and a reference's owner are in storage of their own, which a
+     [Ptr] names. *)
+  let rec holds_handle = function
+    | Handle -> true
+    | Struct ts | Sum ts -> List.exists holds_handle ts
+    | Array (t, _) -> holds_handle t
+    | Void | I1 | I32 | I64 | F32 | F64 | Ptr -> false
+
   let rec to_string = function
     | Void -> "void"
     | I1 -> "i1"

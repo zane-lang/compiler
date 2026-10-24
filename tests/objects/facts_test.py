@@ -100,6 +100,26 @@ class FactsTests(unittest.TestCase):
         self.assertNotIn("@zane_out_of_range", loop)
         self.assertRegex(loop, r"store i64 .*!tbaa")
 
+    def test_removals_of_scalars_leave_the_count(self):
+        # A move of elements that hold no handle is a scalar access, which
+        # cannot write a list's header, so the loop that removes foes from
+        # its list in one way keeps the count it read in a register through
+        # the other, and each bounds check compares against that register.
+        # A move of strings, each a handle, carries no tag.
+        ir = run(ZANEC, "--ll", "--optimize", *packages("culls"))
+        moves = re.findall(r"call void @llvm\.memmove\.p0\.p0\.i64\([^\n]*", ir)
+        self.assertEqual(sorted("!tbaa" in move for move in moves), [False, False, True, True], moves)
+        start = re.search(r"(?ms)^define [^\n]*@zane_main\(.*?^}", ir).group(0)
+        defined = dict(re.findall(r"(?m)^\s*(%[\w.]+) = (\w+)", start))
+        counts = re.findall(r"icmp ult i64 %[\w.]+, (%[\w.]+)", start)
+        self.assertTrue(counts)
+        self.assertNotIn("load", [defined.get(count) for count in counts])
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "culls"
+                run(ZANEC, "--build", exe, *optimize, *packages("culls"))
+                self.assertEqual(run_program(exe, 9), "64 7\n", optimize)
+
     def test_elif_joins_the_if_before_it(self):
         # Each way into an `elif` already decides its `~this` half, so the
         # pair is one chain, as C's `else if` is, and neither body's work is

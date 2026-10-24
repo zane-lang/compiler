@@ -825,16 +825,16 @@ and runtime run (fn : Cgt.Runtime.fn) args =
       | VList _ -> stop "an index out of range"
       | _ -> stop "an element of something not a list")
   (* The element at [index] has moved out: the list closes over its cell. *)
-  | _, ((Cgt.Runtime.List_remove | Cgt.Runtime.List_swap_remove) as fn), [ list; index; _ ] -> (
+  | _, ((Cgt.Runtime.List_remove _ | Cgt.Runtime.List_swap_remove _) as fn), [ list; index; _ ] -> (
       let i = Int64.to_int (int_of index) - 1 in
       match load (ptr_of list) with
       | VList l when i >= 0 && i < l.count ->
           let last = l.count - 1 in
-          if fn = Cgt.Runtime.List_remove then begin
-            bytes run (8 * (last - i));
-            Array.blit l.items (i + 1) l.items i (last - i)
-          end
-          else l.items.(i) <- l.items.(last);
+          (match fn with
+          | Cgt.Runtime.List_remove _ ->
+              bytes run (8 * (last - i));
+              Array.blit l.items (i + 1) l.items i (last - i)
+          | _ -> l.items.(i) <- l.items.(last));
           l.items.(last) <- cell Ty.Void VNull;
           l.count <- last;
           VUnit

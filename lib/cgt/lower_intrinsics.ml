@@ -236,16 +236,17 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
             | Some t -> t
             | None -> Diagnostic.bug ~span "lowering: a removal from something not a list"
           in
+          let lt = ty st span t in
+          let scalars = not (Nodes.Ty.holds_handle lt) in
           let fn =
-            if spelling = "@primitives$remove" then Runtime.List_remove
-            else Runtime.List_swap_remove
+            if spelling = "@primitives$remove" then Runtime.List_remove { scalars }
+            else Runtime.List_swap_remove { scalars }
           in
           let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
           let l = fresh st in
           let i = fresh st in
           let v = fresh st in
           let label = fresh st in
-          let lt = ty st span t in
           let s = int (stride st span t) in
           let the_list = local_ptr l in
           let the_index = { Expr.node = Expr.Local i; ty = Nodes.Ty.I64 } in

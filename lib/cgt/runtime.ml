@@ -3,7 +3,10 @@
    so a misspelled function is a compile error, and the unit tests check
    every [signature] against the prototype in zane.h, so the two
    declarations cannot drift apart. The last seven are called only by the
-   walks codegen emits for each type (lib/codegen/walks.ml). *)
+   walks codegen emits for each type (lib/codegen/walks.ml). A removal says
+   whether the list's elements are scalars only, no handle among their bytes
+   (Ty.holds_handle): codegen makes it in line, and its tag for the
+   elements it moves depends on that (Emit.remove). *)
 
 type fn =
   | Print
@@ -24,8 +27,8 @@ type fn =
   | List_new
   | List_push
   | List_at
-  | List_remove
-  | List_swap_remove
+  | List_remove of { scalars : bool }
+  | List_swap_remove of { scalars : bool }
   | Array_at
   | Out_of_range
   | Scope_drain
@@ -48,7 +51,7 @@ type fn =
   | Defer
   | Defer_return
 
-let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_at; List_remove; List_swap_remove; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return ]
+let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return ]
 
 let name = function
   | Print -> "zane_print"
@@ -69,8 +72,8 @@ let name = function
   | List_new -> "zane_list_new"
   | List_push -> "zane_list_push"
   | List_at -> "zane_list_at"
-  | List_remove -> "zane_list_remove"
-  | List_swap_remove -> "zane_list_swap_remove"
+  | List_remove _ -> "zane_list_remove"
+  | List_swap_remove _ -> "zane_list_swap_remove"
   | Array_at -> "zane_array_at"
   | Out_of_range -> "zane_out_of_range"
   | Scope_drain -> "zane_scope_drain"
@@ -117,8 +120,8 @@ let signature = function
   | List_new -> (Void, [ Ptr ])
   | List_push -> (Ptr, [ Ptr; I64 ])
   | List_at -> (Ptr, [ Ptr; I64; I64 ])
-  | List_remove -> (Void, [ Ptr; I64; I64 ])
-  | List_swap_remove -> (Void, [ Ptr; I64; I64 ])
+  | List_remove _ -> (Void, [ Ptr; I64; I64 ])
+  | List_swap_remove _ -> (Void, [ Ptr; I64; I64 ])
   | Array_at -> (Ptr, [ Ptr; I64; I64; I64 ])
   | Out_of_range -> (Void, [  ])
   | Scope_drain -> (Void, [ Ptr ])

@@ -1,0 +1,64 @@
+/// Two lists in `main`'s own frame, culled with ordered removals. A mob's
+/// foes are scalars only, and every pass of its loop writes each foe and
+/// removes it once its points run out, as langbench's gameloop does. A
+/// roll's names are strings.
+package culls;
+
+alias Int = @primitives$I64
+alias Unit = @primitives$Unit
+alias Bool = @primitives$Bool
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+type Foe = struct {
+	id Int;
+	hp Int;
+}
+
+Foe(id Int, hp Int) => init{ id; hp; }
+
+Unit main() {
+	args List<String> = @program$runtime:arguments();
+	n Int = args[Int(1)]:parseI64() ?? Int(0);
+	mob List<Foe> = @primitives$List(Foe);
+	roll List<String> = @primitives$List(String);
+	i Int(1);
+	i!to(n) {
+		mob!push(Foe(i, i));
+		roll!push(String(i));
+	}
+	total Int(0);
+	pass Int(1);
+	pass!to(Int(2)) {
+		k Int(1);
+		u Int(1);
+		u!to(mob:size()) {
+			mob[k].hp = @operators$add(mob[k].hp, @operators$negate(Int(1)));
+			spent Bool = @operators$lessThan(mob[k].hp, Int(1));
+			@controlflow$branch(spent, {
+				mob!remove(k);
+			});
+			@controlflow$branch(@operators$not(spent), {
+				total = @operators$add(total, mob[k].hp);
+				k = @operators$add(k, Int(1));
+			});
+		}
+	}
+	d Int(1);
+	d!to(Int(2)) {
+		roll!remove(Int(1));
+	}
+	@program$console!print(@operators$concat(String(total), String(" ")));
+	@program$console!print(@operators$concat(String(roll:size()), String("\n")));
+	return Unit();
+}

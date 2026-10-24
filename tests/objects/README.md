@@ -93,7 +93,10 @@ It also checks that the runtime's small list operations are made in line,
 that the cell `drop` removes and discards, which owns no block, is held in
 no scope, and
 that in `quiet`'s optimized build LLVM leaves no index check in `sweep`'s
-loop, then runs each program, optimized and not.
+loop, then runs each program, optimized and not. `culls` is a program whose
+`main` removes, in order, from a list of scalar structs and from a list of
+strings: the scalar list's moves carry the scalar tag and its loop keeps the
+count in a register, and the string list's moves carry none.
 
 `options_test.py` checks what `zanec` accepts for the options that name and
 stamp packages. A package name in `--package NAME=DIR` or an `--import` key
