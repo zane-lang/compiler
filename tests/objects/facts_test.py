@@ -121,9 +121,10 @@ class FactsTests(unittest.TestCase):
                 self.assertEqual(run_program(exe, 9), "64 7\n", optimize)
 
     def test_pushes_of_scalars_leave_the_count(self):
-        # The element a push moves in is a scalar access, which cannot write
-        # the list's header, so pushes in a row keep the count and room they
-        # read in registers rather than reading them again after each.
+        # The element a push moves in is a scalar access, tagged so LLVM
+        # sees it cannot write the list's header, which is what lets the
+        # optimizer keep the count and room of pushes in a row in registers.
+        # Each element store carries that tag.
         ir = run(ZANEC, "--ll", *packages("pushes"))
         gather = re.search(r"(?ms)^define [^\n]*@\"pushes\$gather\(.*?^}", ir).group(0)
         stores = re.findall(r"store double [^\n]*", gather)

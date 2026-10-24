@@ -87,7 +87,8 @@ build. Linking the unoptimized runtime instead, the tiered `returns` and
 runtime with `-O2` takes about a third of a second longer, once for each
 cache, and a release bundles it already compiled.
 
-Tier 1 also takes the runtime's bodies for LLVM to inline, and tier 0
+Tier 1 also takes the runtime's bodies for LLVM to inline when the
+runtime's bitcode is one this LLVM reads (`lowering.md` §7), and tier 0
 takes the same ones before it makes its table (T6), so it exports every
 runtime function and variable they reach. Neither tier takes a body that
 calls outside the runtime, so the table gains no C library function, each
@@ -104,7 +105,9 @@ the copy reaches the one state there is through tier 0's table, and every
 other function stays a call into tier 0's runtime: one that reads a
 `static` variable, which has no name tier 0 could export, or that takes
 the address of a function of the runtime's own, which a copy would not
-share. A body inlined into tier 1 reads a thread's variable, such as
+share. A function marked cold, and one that calls a function of the
+runtime's own marked cold or never inlined, stays a call too, as in any
+build that takes bodies. A body inlined into tier 1 reads a thread's variable, such as
 `zane_self`, through tier 0's function for it (T5), a call where an
 optimized executable reads it at its offset.
 

@@ -507,9 +507,9 @@ layout lowering knows, and gets none of these.
   keep the count and room (`tests/objects/facts_test.py`)
 
 Type-based alias tags say a list handle's fields never alias a scalar
-place, so writing an element's field, or the element a push makes room
-for, does not invalidate the count and block LLVM already loaded, nor the
-bounds check made with them. A removal
+place, so writing a scalar field of an element, or a scalar element a
+push makes room for, does not invalidate the count and block LLVM already
+loaded, nor the bounds check made with them. A removal
 of elements that hold no handle moves them as scalars, so it leaves the
 count too, and a loop removing from the list on one path reads the count
 once rather than on every pass
@@ -567,9 +567,11 @@ list's first block is often made inline too (below). `remove` and
 - **Effect:** `tests/perf` `scopes` 16% fewer estimated cycles optimized,
   13% plain
 
-A push onto an empty list in the innermost scope's region makes its first
-128-byte block itself, from the heap's room or a fresh stretch of the
-frame, in a function with a scope of its own open. Elsewhere
+A push of an element of at most 128 bytes onto an empty list in the
+innermost scope's region makes its first 128-byte block itself, from the
+heap's room or a fresh stretch of the frame, in a function with a scope of
+its own open, when the scope has no returned block and its frame or heap
+has the room. Elsewhere
 `zane_list_push` makes it without a call of its own. A function with no
 scope keeps the call, so a short loop of pushes there stays small enough to
 unroll.
