@@ -1,0 +1,76 @@
+/// Short-lived lists, one to a call, as the allocation benchmark's `ent`:
+/// N calls each push eight floats into a fresh list of their own scope and
+/// sum it, so the scope's only block dies with it at the drain.
+package scopes;
+
+alias Int = @primitives$I64
+alias Float = @primitives$F64
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\n")));
+	return Unit();
+}
+
+/// `n` times `k`, less its multiples of `m`.
+Int hash(n Int, m Int, k Int) {
+	q Int = @operators$multiply(n, k);
+	return @operators$add(q, @operators$negate(@operators$multiply(@operators$divide(q, m), m)));
+}
+
+Float entry(j Int, off Int) {
+	return @operators$multiply(@operators$add(@primitives$F64.round(hash(j, Int(101), off)), @operators$negate(Float(50.0))), Float(0.5));
+}
+
+/// The eight values pushed into a list of this call's own, and summed.
+Float gather(a0 Float, a1 Float, a2 Float, a3 Float, a4 Float, a5 Float, a6 Float, a7 Float) {
+	buf List<Float> = @primitives$List(Float);
+	one Float(1.0);
+	buf!push(@operators$multiply(a0, one));
+	buf!push(@operators$multiply(a1, one));
+	buf!push(@operators$multiply(a2, one));
+	buf!push(@operators$multiply(a3, one));
+	buf!push(@operators$multiply(a4, one));
+	buf!push(@operators$multiply(a5, one));
+	buf!push(@operators$multiply(a6, one));
+	buf!push(@operators$multiply(a7, one));
+	sum Float(0.0);
+	j Int(1);
+	j!to(Int(8)) {
+		sum = @operators$add(sum, buf[j]);
+	}
+	return sum;
+}
+
+Unit main() {
+	n Int = size(Int(1000));
+	total Float(0.0);
+	j Int(1);
+	j!to(n) {
+		total = @operators$add(total, gather(entry(j, Int(3)), entry(j, Int(4)), entry(j, Int(5)), entry(j, Int(6)), entry(j, Int(7)), entry(j, Int(8)), entry(j, Int(9)), entry(j, Int(10))));
+	}
+	say(String(@primitives$I64.truncate(total)));
+	return Unit();
+}

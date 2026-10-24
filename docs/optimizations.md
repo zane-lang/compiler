@@ -637,6 +637,20 @@ stack per size class, kept at fixed offsets so emitted code reads them
 directly. A drain releases the whole region at once and walks none of its
 values.
 
+### A scope's first blocks in its own frame
+
+- **Builds:** every build
+- **Where:** `runtime/arena.c`, `runtime/list.c`
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Each scope's
+  dynamic region"
+- **Effect:** `tests/perf` `scopes` 29% fewer estimated cycles optimized,
+  33% plain, 26% tiered
+
+While a scope is the innermost one, its blocks go into its own frame,
+stretched past its slots 4 KiB at a time up to 64 KiB, before any chunk.
+The drain gives them back with the frame, so a scope whose blocks fit there
+maps no chunk and drains inline.
+
 ### List growth in place
 
 - **Builds:** every build
@@ -647,8 +661,9 @@ values.
   percent of C's `realloc`
 
 A list's block doubles from 128 bytes, in place when it is last at the
-frontier. Past 1 MiB it moves once into a reservation 64 times its size,
-and each later doubling commits more of it instead of moving the elements.
+frontier, stretching its scope's frame for it while it can. Past 1 MiB it
+moves once into a reservation 64 times its size, and each later doubling
+commits more of it instead of moving the elements.
 
 ### Every overwrite in place
 

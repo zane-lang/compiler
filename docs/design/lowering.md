@@ -771,6 +771,24 @@ test passing.
     (§3.1). Results are returned by value (below), so that scope is the
     caller's innermost, and the value moves again if the caller places it
     further out.
+  - A scope's first blocks are in its own frame, not in a chunk. While the
+    scope is its context's innermost, the frontier moves on past them: the
+    frame stretches beyond its slots by at least 4 KiB at a time, to at
+    most 64 KiB with its record and slots (`ZANE_STRETCH` and
+    `ZANE_STRETCHED`, `runtime/zane_internal.h`), as long as the range
+    holds it. A list whose block is last there grows in place by
+    stretching the frame further. A block that comes once an inner scope
+    has opened, or that the stretched frame cannot hold, goes into a chunk
+    of the scope's own as the spec has it. A drain moves the frontier back
+    to the record, which gives back the stretched bytes with the frame, so
+    a scope whose blocks all fit there maps no chunk, and its drain stays
+    inline. The spec keeps a scope's fixed-size and dynamic storage apart
+    (§3.1); a block here is still the scope's alone and is released with
+    it. On `tests/perf` `scopes`, whose every call makes and fills a small
+    list in a scope of its own, this takes 29% of the optimized build's
+    estimated cycles, 33% of the plain build's and 26% of the tiered
+    build's, since such a scope no longer maps, lists and gives back a
+    chunk.
   - The runtime finds a block's region from a map of every chunk it made,
     and a slot's from where each open scope's slots began, trying the
     innermost scope first, rather than from a segmented offset (§3.1). A dynamic chunk begins with a cache line of

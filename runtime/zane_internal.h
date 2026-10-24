@@ -43,13 +43,15 @@
    step at a time, when the program first touches it, and a guard of
    unmapped addresses follows it, so a frame running past its end faults
    instead of being checked (region.c). Its dynamic region is where the
-   blocks its values own are: 1 MiB chunks of its own, each made at a
-   1 MiB boundary, with a bump frontier and a stack of returned blocks for
-   each size and alignment (§3.2), all given back at the drain with no walk
-   of what its values own. A value may own blocks in an outer region, which
-   a move into a deeper owner leaves where they are (§3.5); when the value
-   dies with this scope they are dead space there, given back when that
-   region drains in turn.
+   blocks its values own are, with a bump frontier and a stack of returned
+   blocks for each size and alignment (§3.2): first its own frame,
+   stretched past its slots while the scope is the innermost one, then
+   1 MiB chunks of its own, each made at a 1 MiB boundary, all given back
+   at the drain with no walk of what its values own. A scope whose blocks
+   all fit in its frame maps no chunk, so its drain stays inline. A value
+   may own blocks in an outer region, which a move into a deeper owner
+   leaves where they are (§3.5); when the value dies with this scope they
+   are dead space there, given back when that region drains in turn.
 
    A program run with `ZANE_CHECK` set checks every drain instead: the
    scope's values return their blocks one by one, as they die, and a block
@@ -67,6 +69,12 @@ enum { ZANE_CHUNK = 1 << 20, ZANE_CONTEXTS = (1 << 16) - 1 };
    only a larger one. */
 _Static_assert(ZANE_GUARD == ZANE_CHUNK, "the guard is one chunk");
 enum { ZANE_STEP = ZANE_CHUNK };
+
+/* A frame stretches for its scope's blocks by at least ZANE_STRETCH bytes,
+   so a scope's first small blocks stretch it once, and to at most
+   ZANE_STRETCHED bytes, its record and slots included, past which its
+   blocks go into chunks (arena.c). */
+enum { ZANE_STRETCH = 4096, ZANE_STRETCHED = 64 * 1024 };
 
 enum { ZANE_PAGES = 1 << 14 };
 
@@ -284,9 +292,11 @@ extern char **zane_argv;
 void zane_unmap(zane_mark *region);
 char *zane_alloc_growable(zane_mark *region, int64_t size);
 int zane_extend(zane_mark *region, char *block, int64_t size);
+int zane_stretch(zane_mark *m, char *end);
 void zane_give_spares(zane_context *c);
 extern int64_t zane_warm_spares, zane_cold_spares, zane_cold_reuses;
 zane_stack *zane_find_stack(zane_mark *m, int64_t size, int64_t align);
+zane_stack *zane_stack_of(zane_mark *m, int64_t size, int64_t align);
 int64_t zane_blocks(void);
 
 /* block.c */

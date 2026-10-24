@@ -143,13 +143,16 @@ static zane_mark *zane_scope_holding(zane_context *c, const char *at) {
    scope of the context whose range it is in whose frame holds it. Anything
    else, such as a value on the machine stack, is the innermost scope's
    here. Most slots asked about are the innermost scope's own, so the
-   search tries that one first. */
+   search tries that one first, and without the lock while the context is
+   this thread's alone. */
 zane_mark *zane_region_at(const void *at) {
 	uintptr_t *page = zane_page(at, 0);
 	uintptr_t entry = page ? __atomic_load_n(page, __ATOMIC_ACQUIRE) : 0;
 	if (entry == 0) return zane_self->top;
 	if (!(entry & 1)) return (zane_mark *)entry;
 	zane_context *c = (zane_context *)(entry & ~(uintptr_t)1);
+	zane_mark *top = c->top;
+	if (top && !zane_guarded(c) && (const char *)at >= (const char *)top) return top;
 	zane_lock(c);
 	zane_mark *m = zane_scope_holding(c, at);
 	zane_unlock(c);
@@ -396,21 +399,47 @@ void zane_unmap(zane_mark *region) {
 	region->stacks = NULL;
 }
 
-/* Bytes from a region's frontier, which moves to a fresh chunk when the
-   current one cannot hold them. A block too large for any chunk is an
-   oversized one, with chunks of its own (§3.1). */
+/* Whether scope `m`'s frame stretches to `end`: it does while the scope is
+   its context's innermost, by at least ZANE_STRETCH bytes and to a 16-byte
+   boundary, as long as the frame stays within ZANE_STRETCHED bytes and the
+   range (zane_internal.h). The frontier moves to its new end, and so does
+   the end of the scope's heap. Its context's lock is held. */
+int zane_stretch(zane_mark *m, char *end) {
+	zane_context *c = m->context;
+	if (c->top != m) return 0;
+	uintptr_t to = (uintptr_t)end, least = (uintptr_t)c->frontier + ZANE_STRETCH;
+	if (to < least) to = least;
+	to = (to + 15) & ~(uintptr_t)15;
+	if (to - (uintptr_t)m > ZANE_STRETCHED || to > (uintptr_t)c->limit) return 0;
+	c->frontier = m->heap.end = (char *)to;
+	return 1;
+}
+
+/* Bytes from a region's frontier: where its heap has room, else in its
+   frame, stretched to hold them, else in a fresh chunk, which becomes where
+   the heap is. A block too large for any chunk is an oversized one, with
+   chunks of its own (§3.1). */
 static char *zane_frontier_of(zane_mark *m, int64_t size, int64_t align) {
+	zane_heap *h = &m->heap;
+	uintptr_t mask = (uintptr_t)align - 1;
+	uintptr_t start = ((uintptr_t)h->bump + mask) & ~mask;
+	if (h->bump && start + (uintptr_t)size <= (uintptr_t)h->end) {
+		h->bump = (char *)(start + (uintptr_t)size);
+		return (char *)start;
+	}
+	char *frontier = m->context->frontier;
+	start = (((uintptr_t)(h->bump && h->end == frontier ? h->bump : frontier)) + mask) & ~mask;
+	if (zane_stretch(m, (char *)(start + (uintptr_t)size))) {
+		h->bump = (char *)(start + (uintptr_t)size);
+		return (char *)start;
+	}
 	if (size > ZANE_CHUNK - ZANE_LINE) {
 		size_t chunks = ((size_t)size + ZANE_LINE + ZANE_CHUNK - 1) / ZANE_CHUNK;
 		return (char *)zane_map(m, chunks * ZANE_CHUNK) + ZANE_LINE;
 	}
-	zane_heap *h = &m->heap;
-	uintptr_t start = ((uintptr_t)h->bump + (uintptr_t)align - 1) / (uintptr_t)align * (uintptr_t)align;
-	if (!h->bump || start + (uintptr_t)size > (uintptr_t)h->end) {
-		char *chunk = (char *)zane_map(m, ZANE_CHUNK);
-		start = (uintptr_t)chunk + ZANE_LINE;
-		h->end = chunk + ZANE_CHUNK;
-	}
+	char *chunk = (char *)zane_map(m, ZANE_CHUNK);
+	start = (uintptr_t)chunk + ZANE_LINE;
+	h->end = chunk + ZANE_CHUNK;
 	h->bump = (char *)(start + (uintptr_t)size);
 	return (char *)start;
 }
@@ -481,7 +510,7 @@ zane_stack *zane_find_stack(zane_mark *m, int64_t size, int64_t align) {
 }
 
 /* The same stack, made the first time a block is returned to it. */
-static zane_stack *zane_stack_of(zane_mark *m, int64_t size, int64_t align) {
+zane_stack *zane_stack_of(zane_mark *m, int64_t size, int64_t align) {
 	zane_stack *s = zane_find_stack(m, size, align);
 	if (s) return s;
 	s = (zane_stack *)zane_frontier_of(m, sizeof *s, 8);

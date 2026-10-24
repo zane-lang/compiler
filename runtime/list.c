@@ -21,7 +21,8 @@ void zane_list_new(zane_list *out) { *out = (zane_list){ NULL, 0, 0 }; }
    doubles, from 128 bytes, in the region that holds its block (§3.6). Up to
    1 MiB it goes into a returned block of the doubled size, or grows in
    place when it is the last thing at the region's frontier with room after
-   it in its chunk, or else into new bytes there. Past that it is oversized:
+   it, in its chunk or in the scope's frame stretched to hold it
+   (arena.c), or else into new bytes there. Past that it is oversized:
    it grows in place while its reservation holds the doubled size, and
    otherwise moves into an oversized block of its own with a reservation
    that does. Nothing references an element, which is roaming (memory.md
@@ -46,10 +47,14 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 		items = zane_alloc_growable(region, room);
 		zane_unlock(region->context);
 	} else {
-		zane_stack *s = zane_find_stack(region, room, ZANE_LINE);
 		zane_heap *h = &region->heap;
-		int grows = !(s && s->top) && list->room && list->items + list->room == h->bump &&
-		            room - list->room <= h->end - h->bump;
+		int grows = list->room && list->items + list->room == h->bump;
+		if (grows) {
+			zane_stack *s = zane_find_stack(region, room, ZANE_LINE);
+			grows = !(s && s->top) &&
+			        (room - list->room <= h->end - h->bump ||
+			         (h->end == region->context->frontier && zane_stretch(region, list->items + room)));
+		}
 		/* The block grows where it is, so nothing in it moves. */
 		if (grows) {
 			h->bump += room - list->room;
@@ -57,8 +62,12 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 			list->room = room;
 			return;
 		}
+		/* The old block's stack is made first: a stack's record comes from
+		   the frontier, and one made after the new block would stop that
+		   block growing in place. */
+		if (list->room) zane_stack_of(region, list->room, ZANE_LINE);
+		items = zane_alloc_held(region, room, ZANE_LINE);
 		zane_unlock(region->context);
-		items = zane_alloc(region, room, ZANE_LINE);
 	}
 	if (list->count) memcpy(items, list->items, (size_t)(list->count * stride));
 	if (list->room) zane_free(list->items, list->room, ZANE_LINE);
