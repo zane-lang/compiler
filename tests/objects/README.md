@@ -95,8 +95,9 @@ no scope, and
 that in `quiet`'s optimized build LLVM leaves no index check in `sweep`'s
 loop, then runs each program, optimized and not. `culls` is a program whose
 `main` removes, in order, from a list of scalar structs and from a list of
-strings: the scalar list's moves carry the scalar tag and its loop keeps the
-count in a register, and the string list's moves carry none.
+strings: the scalar list's moves carry the scalar tag and, in the optimized
+build, its loop keeps the count in a register, and the string list's moves
+carry none.
 
 `options_test.py` checks what `zanec` accepts for the options that name and
 stamp packages. A package name in `--package NAME=DIR` or an `--import` key
