@@ -35,6 +35,8 @@ One document per stage, in the order the compiler runs them.
 - [`design/memoization.md`](design/memoization.md): the calls remembered
   while the program runs, which functions get a table, and how a function
   stops looking when looking does not pay (M1…).
+- [`design/memo-tables.md`](design/memo-tables.md): the table layouts
+  measured against the one memoization uses, and why each lost.
 - [`design/generics.md`](design/generics.md): which package a generic instance
   belongs to and what it is called. A follow-on to `semantics.md` D12 and
   `lowering.md` L4.

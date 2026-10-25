@@ -131,7 +131,7 @@ let spawn_call w st ctx span v fn ~writes passed handler =
       when by_address st v this && this.T.Local.name = "this"
            && (not (reference st this.T.Local.ty))
            && (through_owner st subject || not writes) ->
-        Some (this.T.Local.ty, through_owner st subject)
+        Some (this.T.Local.ty, through_owner st subject && snapshots st subject)
     | _ -> None
   in
   let pre, args =

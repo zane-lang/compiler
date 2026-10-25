@@ -23,20 +23,17 @@ pthread_cond_t zane_finished = PTHREAD_COND_INITIALIZER;
 static int zane_started;
 int64_t zane_threads, zane_wanted, zane_queued;
 
-/* A queued call taken out of its deque to run; the deque's lock is held. */
+/* A queued call taken out of its deque to run; the deque's lock is held.
+   It leaves the count as it leaves the deque, so a thread that reads a
+   count above zero finds a call to take. */
 void zane_unlink(zane_deque *d, zane_task *t) {
 	if (t->before) t->before->after = t->after;
 	else d->first = t->after;
 	if (t->after) t->after->before = t->before;
 	else d->last = t->before;
 	t->before = t->after = NULL;
+	__atomic_sub_fetch(&zane_queued, 1, __ATOMIC_RELAXED);
 	zane_set_state(t, ZANE_RUNNING);
-}
-
-void zane_taken(void) {
-	pthread_mutex_lock(&zane_pool);
-	zane_queued--;
-	pthread_mutex_unlock(&zane_pool);
 }
 
 /* The newest call in a deque, or its oldest. */
@@ -45,7 +42,6 @@ static zane_task *zane_pop(zane_deque *d, int newest) {
 	zane_task *t = newest ? d->last : d->first;
 	if (t) zane_unlink(d, t);
 	pthread_mutex_unlock(&d->lock);
-	if (t) zane_taken();
 	return t;
 }
 
@@ -103,7 +99,7 @@ static void *zane_worker(void *deque) {
 			continue;
 		}
 		pthread_mutex_lock(&zane_pool);
-		while (zane_queued <= 0 && zane_threads <= zane_wanted)
+		while (__atomic_load_n(&zane_queued, __ATOMIC_RELAXED) <= 0 && zane_threads <= zane_wanted)
 			pthread_cond_wait(&zane_waiting, &zane_pool);
 		if (zane_threads > zane_wanted) {
 			zane_threads--;
@@ -188,7 +184,6 @@ void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *t
 	zane_open = NULL;
 	pthread_mutex_lock(&zane_pool);
 	if (!zane_started) zane_start();
-	zane_queued++;
 	pthread_mutex_unlock(&zane_pool);
 	zane_deque *d = &zane_deques[zane_mine];
 	pthread_mutex_lock(&d->lock);
@@ -198,6 +193,9 @@ void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *t
 	if (d->last) d->last->after = t;
 	else d->first = t;
 	d->last = t;
+	/* Counted once it is in the deque, and before the signal: a thread
+	   that read the count before waits by now, and is woken. */
+	__atomic_add_fetch(&zane_queued, 1, __ATOMIC_RELAXED);
 	pthread_mutex_unlock(&d->lock);
 	pthread_mutex_lock(&zane_pool);
 	pthread_cond_signal(&zane_waiting);

@@ -1,9 +1,24 @@
-/// A library that spawns.
+/// A library that spawns a call that writes an Int back into an owner.
 package pool;
 
-@primitives$I64 twice(n @primitives$I64) => @operators$add(n, n)
+type Tally = #struct {
+	n @primitives$I64;
+}
+
+Tally(n @primitives$I64) => init{ n; }
+
+@primitives$Unit twice(this @primitives$I64) mut {
+	this = @operators$add(this, this);
+	return @primitives$Unit();
+}
+
+@primitives$Unit start(this Tally) mut {
+	spawn this.n!twice();
+	return @primitives$Unit();
+}
 
 @primitives$I64 doubled(n @primitives$I64) {
-	m @primitives$I64 = spawn twice(n);
-	return m;
+	tally Tally(n);
+	tally!start();
+	return tally.n;
 }

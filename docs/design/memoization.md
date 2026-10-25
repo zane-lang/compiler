@@ -57,11 +57,29 @@ The choice reads the tree alone, never what LLVM makes of the program. So
 the two tiers of a tiered build, which lower the same tree, plan the same
 tables and emit the same module ([`tiers.md`](tiers.md) T3).
 
-Only a program that runs on one thread gets tables: no package of the
-build spawns, and it is not a library, whose functions a program that spawns
-may call. The tables are not shared safely between threads. This is the
-condition under which reads through an owner are plain loads
-([`optimizations.md`](../optimizations.md#plain-loads-in-a-program-that-never-spawns)).
+In a program that spawns, and in a library, whose functions a program that
+spawns may call, every thread uses one table for each function, so a result
+one thread made can be a hit on every other while its entry holds it. A
+remembered function reads only its arguments and constants, so the result
+is the same whichever thread made it. The entry's meta word then guards it:
+above the work it keeps a version, which a miss makes odd while it writes
+the entry and even again after. A lookup reads the meta word, then the entry, then the meta word
+again after an acquire fence, and takes the entry for a hit only when both
+reads are the same word with an even version. Every write changes the
+version, whichever arguments it is for, so a lookup never returns an entry
+written while it read. A miss claims the entry by swapping its meta word
+for one with an odd version, writes it only when no other miss held it,
+and publishes it by storing the meta word with the version even again and
+its work; a miss that finds it held leaves it, which costs at most a later
+miss. The version has 23 bits, so a lookup is misled only when 2^22 writes
+of its entry fall between its two reads. No word is spent on the guard.
+The state and the count of work stay each thread's own, as thread-local
+variables: the count measures the calls of one thread's stack, and the
+state is written on every lookup, which threads sharing it would contend
+for. A stamped dependency is built as a library, so its functions keep
+tables in its object, which the program's calls into it use; the bodies the
+program takes in to optimize with get none. A program that spawns nothing
+keeps plain entries, which no miss marks.
 
 ## M2. A function becomes four
 
@@ -72,15 +90,28 @@ A function given a table becomes:
   looking, or the lookup otherwise.
 - **The lookup, which is never inlined.** It hashes the arguments' words and
   probes one entry of the table. On a hit it returns the remembered result.
-  On a miss it runs the body copy and writes the entry over.
+  On a miss it runs the body copy and writes the entry over, when no other
+  thread is writing it (M1).
 - **The body copy, the function as written.** Its calls back into the cycle
   go through the gates again.
 - **The plain copy.** Its calls into the cycle go straight to the other
   plain copies, so it runs as the function did before.
 
-The table is direct-mapped and holds at most 64 KiB per function. Each entry
-is a tag, the argument words, the result words, and the work the result
-took. A miss writes over whatever entry was there. The table starts on a
+The table is direct-mapped and holds at most 256 KiB per function: as many
+entries as fit, a power of two, and at most 16,384. Each entry is the
+argument words, the result words, and a meta word holding the work the
+result took, and the version when threads share the table. An empty
+entry's work is 0, and a written one's at least the weight of its
+function's cheapest call, so a lookup never takes an empty entry for a hit,
+even for arguments of zeros, whose words it matches. A miss writes over
+whatever entry was there. The table is zero-initialized memory, which the
+system backs only where an entry has been written. On `dev/bench/memo`,
+256 KiB against 64 KiB and 1 MiB: `ttt`, whose positions outnumber a
+smaller table's entries, ran in 3.7 ms against 5.4 and 4.1, and `overlap`,
+whose repeats are all recent, in 3.4 ms against 2.9 and 4.3, a bigger table
+costing it the first write to each page (wall clock, the least of 40 runs,
+process start of about 2.5 ms included). The other layouts measured, and
+why each lost, are in [`memo-tables.md`](memo-tables.md). The table starts on a
 cache line, so where it lands in the binary does not decide which entries
 straddle two: on `tests/perf` `depths`, a table that landed 16 bytes past
 one missed the first-level cache 72% more often.

@@ -308,6 +308,75 @@ let rec through_owner st (e : T.Expr.t) =
   | T.Expr.Subscript _ -> true
   | _ -> false
 
+(* Whether a value of type [outer] holds one of type [inner]: is it, or has
+   it among the members it holds inline or boxed, however deep. *)
+let holds st outer inner =
+  let seen = Hashtbl.create 8 in
+  let rec go t =
+    Tty.equal t inner
+    || (not (Hashtbl.mem seen t))
+       &&
+       (Hashtbl.replace seen t ();
+        List.exists go (inline st t))
+  in
+  go (Tty.strip_mode outer)
+
+(* A type an owner is of, with what it is distinct from looked through. *)
+let rec owner_type st t =
+  match definition st t with Some (T.Decl.Distinct u, _) -> owner_type st u | _ -> t
+
+(* Where a place reached through an owner is: the type of the innermost
+   owner, and the steps from it down to the place, or [None] when a
+   declared subscript names it, whose body may name any place inside its
+   target. A value holds no owner (memory.md §2.10), so every byte of a
+   value inside an owner is reached from that owner alone, by one path. *)
+let rec owned_place st (e : T.Expr.t) =
+  let owner (target : T.Expr.t) =
+    Tty.is_ref target.T.Expr.ty || reference st (Tty.strip_mode target.T.Expr.ty)
+  in
+  let down (target : T.Expr.t) step =
+    if owner target then Some (owner_type st (Tty.strip_mode target.T.Expr.ty), [ step ])
+    else Option.map (fun (o, steps) -> (o, steps @ [ step ])) (owned_place st target)
+  in
+  match e.T.Expr.node with
+  | T.Expr.Field { target; field; _ } -> down target (Member field)
+  | T.Expr.Case_read { target; _ } -> down target Case
+  | T.Expr.Subscript { target; impl = { owner = Tst.Signature.Intrinsic "@primitives$[]"; _ }; _ } ->
+      down target Elem
+  | _ -> None
+
+(* Two places overlap when they are in owners of one type and one's steps
+   begin the other's. *)
+let overlap (o, steps) (o', steps') =
+  let rec prefix = function
+    | [], _ | _, [] -> true
+    | a :: rest, b :: rest' -> a = b && prefix (rest, rest')
+  in
+  Tty.equal o o' && prefix (steps, steps')
+
+(* What a spawned call writes back into the place [e], when it is reached
+   through an owner. *)
+let written_into st (e : T.Expr.t) =
+  { of_type = Tty.strip_mode e.T.Expr.ty; place = owned_place st e }
+
+(* Whether a read of the place [e], reached through an owner, takes a
+   snapshot: a spawned call may write back into a place that overlaps it
+   while the read takes its bytes (concurrency.md §4.4). Where either
+   place is not known, the read takes one when its type holds the written
+   value's, or that holds its type. *)
+let snapshots st (e : T.Expr.t) =
+  match st.written_back with
+  | None -> true
+  | Some ws ->
+      let t = Tty.strip_mode e.T.Expr.ty in
+      let at = owned_place st e in
+      List.exists
+        (fun w ->
+          match (at, w.place) with
+          | Some a, Some b -> overlap a b
+          | _ -> holds st t w.of_type || holds st w.of_type t)
+        ws
+
 (* Whether a value of this type owns a dynamic block (memory.md §3.6), which
    it returns when it dies and copies when it is copied. *)
 let owns st span t = (not (Tty.is_ref t)) && positions st span t 0 [] <> []

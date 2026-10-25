@@ -431,7 +431,7 @@
     │   ├── symbol: expressions$first(expressions$Row)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
-    │   └── body[0] > return > snapshot:
+    │   └── body[0] > return > deref:
     │       ├── type: i64
     │       └── ptr > expand:
     │           ├── type: ptr

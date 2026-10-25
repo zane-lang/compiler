@@ -246,7 +246,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {handle, i64}
@@ -309,7 +309,7 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > offset:
     │       │       │   │       ├── within: {handle, i64}
@@ -334,7 +334,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {handle, i64}
@@ -2070,7 +2070,7 @@
     │           ├── value > runtime:
     │           │   ├── type: handle
     │           │   ├── fn: zane_text_join
-    │           │   ├── args[0] > snapshot:
+    │           │   ├── args[0] > deref:
     │           │   │   ├── type: handle
     │           │   │   └── ptr > offset:
     │           │   │       ├── within: {handle, i64}
@@ -2093,7 +2093,7 @@
     │   ├── symbol: spawns$ageOf(spawns$Person)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
-    │   └── body[0] > return > snapshot:
+    │   └── body[0] > return > deref:
     │       ├── type: i64
     │       └── ptr > offset:
     │           ├── within: {handle, i64}

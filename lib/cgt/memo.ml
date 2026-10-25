@@ -512,97 +512,105 @@ let version remembered outside next body =
   stats body
 
 (* The program with each remembered function replaced by its two copies,
-   and the functions remembered, whose dispatchers codegen emits. Only a
-   program that runs on one thread remembers anything: the tables are not
-   shared safely between threads, and a library's functions may be called
-   from a program's. *)
+   and the functions remembered, whose dispatchers codegen emits. In a
+   program that spawns, and in a library, whose functions a program that
+   spawns may call, threads share each table, whose entries' tags guard
+   them (Memos), and each keeps its state of its own; a remembered
+   function reads only its arguments and constants, so a result any thread
+   made is the one every thread would. *)
 let plan (p : Program.t) =
-  if not p.Program.exclusive then (p, [])
-  else
-    let funcs = Hashtbl.create 64 in
-    List.iter
-      (fun (f : Func.t) -> if f.Func.linkage <> Linkage.Imported then Hashtbl.replace funcs f.Func.symbol f)
-      p.Program.funcs;
-    let sites = Hashtbl.create 64 in
-    Hashtbl.iter (fun s f -> Hashtbl.replace sites s (calls f)) funcs;
-    let callees s = List.map fst (Hashtbl.find sites s) in
-    (* Pure: alone, and calling only pure functions with bodies here. The
-       greatest such set, so a cycle of pure functions is pure. *)
-    let pure = Hashtbl.create 64 in
-    Hashtbl.iter (fun s f -> if alone f then Hashtbl.replace pure s ()) funcs;
-    let changed = ref true in
-    while !changed do
-      changed := false;
-      Hashtbl.iter
-        (fun s _ ->
-          if Hashtbl.mem pure s && not (List.for_all (fun c -> Hashtbl.mem pure c) (callees s)) then (
-            Hashtbl.remove pure s;
-            changed := true))
-        (Hashtbl.copy pure)
-    done;
-    let comp = components funcs callees in
-    let same a b = Hashtbl.find_opt comp a = Some (Hashtbl.find comp b) in
-    (* Called in a loop of a function outside its own cycle, which may ask
-       for the same arguments again. *)
-    let looped = Hashtbl.create 8 in
+  let funcs = Hashtbl.create 64 in
+  List.iter
+    (fun (f : Func.t) -> if f.Func.linkage <> Linkage.Imported then Hashtbl.replace funcs f.Func.symbol f)
+    p.Program.funcs;
+  let sites = Hashtbl.create 64 in
+  Hashtbl.iter (fun s f -> Hashtbl.replace sites s (calls f)) funcs;
+  let callees s = List.map fst (Hashtbl.find sites s) in
+  (* Pure: alone, and calling only pure functions with bodies here. The
+     greatest such set, so a cycle of pure functions is pure. *)
+  let pure = Hashtbl.create 64 in
+  Hashtbl.iter (fun s f -> if alone f then Hashtbl.replace pure s ()) funcs;
+  let changed = ref true in
+  while !changed do
+    changed := false;
     Hashtbl.iter
-      (fun c l -> List.iter (fun (d, inside) -> if inside && Hashtbl.mem comp d && not (same c d) then Hashtbl.replace looped d ()) l)
-      sites;
-    let ops = operations funcs in
-    let chosen (f : Func.t) =
-      let s = f.Func.symbol in
-      Hashtbl.mem pure s
-      && Some s <> p.Program.entry
-      && (match f.Func.linkage with Linkage.Local | Linkage.Exported | Linkage.Shared -> true | _ -> false)
-      && fits f
-      && (List.exists (fun (c, _) -> same c s) (Hashtbl.find sites s)
-         || (Hashtbl.mem looped s && ops s >= 2 * lookup_cost f))
-    in
-    let memos = List.filter chosen p.Program.funcs in
-    let remembered = Hashtbl.create 8 in
-    List.iter (fun (f : Func.t) -> Hashtbl.replace remembered f.Func.symbol ()) memos;
-    (* Each call into [s]'s own cycle made to the callee's plain copy, its
-       arguments rewritten the same way. *)
-    let rec plain_expr s (e : Expr.t) =
-      match e.Expr.node with
-      | Expr.Call { fn; args } when Hashtbl.mem remembered fn && same fn s ->
-          Some { e with Expr.node = Expr.Call { fn = fn ^ suffix_plain; args = List.map (Traverse.map_expr (plain_expr s) (fun _ -> None)) args } }
-      | _ -> None
-    in
-    let plain_of s body = Traverse.map_stats (plain_expr s) (fun _ -> None) body in
-    let versioned s (f : Func.t) =
-      if f.Func.linkage = Linkage.Imported then f
-      else
-        let next = ref (largest_id f + 1) in
-        let outside h = not (Hashtbl.mem comp s && same h s) in
-        { f with Func.body = version remembered outside next f.Func.body }
-    in
-    let funcs' =
-      List.concat_map
-        (fun (f : Func.t) ->
-          let s = f.Func.symbol in
-          if Hashtbl.mem remembered s then
-            [
-              versioned s { f with Func.symbol = s ^ suffix_body; linkage = Linkage.Local };
-              versioned s { f with Func.symbol = s ^ suffix_plain; linkage = Linkage.Local; body = plain_of s f.Func.body };
-            ]
-          else [ versioned s f ])
-        p.Program.funcs
-    in
-    let states =
-      List.map (fun (f : Func.t) -> { Global.symbol = state_symbol f.Func.symbol; linkage = Linkage.Local; ty = Ty.I64 }) memos
-    in
-    let weigh = weight funcs remembered in
-    let cheapest = least funcs remembered in
-    ( { p with Program.funcs = funcs'; globals = p.Program.globals @ states },
-      List.map
-        (fun (f : Func.t) ->
-          {
-            func = f;
-            body = f.Func.symbol ^ suffix_body;
-            plain = f.Func.symbol ^ suffix_plain;
-            charge = charge weigh f;
-            cheapest = cheapest f.Func.symbol;
-            credit = credit weigh f;
-          })
-        memos )
+      (fun s _ ->
+        if Hashtbl.mem pure s && not (List.for_all (fun c -> Hashtbl.mem pure c) (callees s)) then (
+          Hashtbl.remove pure s;
+          changed := true))
+      (Hashtbl.copy pure)
+  done;
+  let comp = components funcs callees in
+  let same a b = Hashtbl.find_opt comp a = Some (Hashtbl.find comp b) in
+  (* Called in a loop of a function outside its own cycle, which may ask
+     for the same arguments again. *)
+  let looped = Hashtbl.create 8 in
+  Hashtbl.iter
+    (fun c l -> List.iter (fun (d, inside) -> if inside && Hashtbl.mem comp d && not (same c d) then Hashtbl.replace looped d ()) l)
+    sites;
+  let ops = operations funcs in
+  let chosen (f : Func.t) =
+    let s = f.Func.symbol in
+    Hashtbl.mem pure s
+    && Some s <> p.Program.entry
+    && (match f.Func.linkage with Linkage.Local | Linkage.Exported | Linkage.Shared -> true | _ -> false)
+    && fits f
+    && (List.exists (fun (c, _) -> same c s) (Hashtbl.find sites s)
+       || (Hashtbl.mem looped s && ops s >= 2 * lookup_cost f))
+  in
+  let memos = List.filter chosen p.Program.funcs in
+  let remembered = Hashtbl.create 8 in
+  List.iter (fun (f : Func.t) -> Hashtbl.replace remembered f.Func.symbol ()) memos;
+  (* Each call into [s]'s own cycle made to the callee's plain copy, its
+     arguments rewritten the same way. *)
+  let rec plain_expr s (e : Expr.t) =
+    match e.Expr.node with
+    | Expr.Call { fn; args } when Hashtbl.mem remembered fn && same fn s ->
+        Some { e with Expr.node = Expr.Call { fn = fn ^ suffix_plain; args = List.map (Traverse.map_expr (plain_expr s) (fun _ -> None)) args } }
+    | _ -> None
+  in
+  let plain_of s body = Traverse.map_stats (plain_expr s) (fun _ -> None) body in
+  let versioned s (f : Func.t) =
+    if f.Func.linkage = Linkage.Imported then f
+    else
+      let next = ref (largest_id f + 1) in
+      let outside h = not (Hashtbl.mem comp s && same h s) in
+      { f with Func.body = version remembered outside next f.Func.body }
+  in
+  let funcs' =
+    List.concat_map
+      (fun (f : Func.t) ->
+        let s = f.Func.symbol in
+        if Hashtbl.mem remembered s then
+          [
+            versioned s { f with Func.symbol = s ^ suffix_body; linkage = Linkage.Local };
+            versioned s { f with Func.symbol = s ^ suffix_plain; linkage = Linkage.Local; body = plain_of s f.Func.body };
+          ]
+        else [ versioned s f ])
+      p.Program.funcs
+  in
+  let states =
+    List.map
+      (fun (f : Func.t) ->
+        {
+          Global.symbol = state_symbol f.Func.symbol;
+          linkage = Linkage.Local;
+          ty = Ty.I64;
+          per_thread = not p.Program.exclusive;
+        })
+      memos
+  in
+  let weigh = weight funcs remembered in
+  let cheapest = least funcs remembered in
+  ( { p with Program.funcs = funcs'; globals = p.Program.globals @ states },
+    List.map
+      (fun (f : Func.t) ->
+        {
+          func = f;
+          body = f.Func.symbol ^ suffix_body;
+          plain = f.Func.symbol ^ suffix_plain;
+          charge = charge weigh f;
+          cheapest = cheapest f.Func.symbol;
+          credit = credit weigh f;
+        })
+      memos )

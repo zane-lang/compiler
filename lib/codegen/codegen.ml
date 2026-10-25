@@ -61,6 +61,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
   List.iter
     (fun (g : Global.t) ->
       let v = Llvm.define_global g.Global.symbol (Llvm.const_null (stored env g.Global.ty)) m in
+      if g.Global.per_thread then Llvm.set_thread_local true v;
       (match g.Global.linkage with
       | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal v
       | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr v

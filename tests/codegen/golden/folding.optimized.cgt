@@ -636,7 +636,7 @@
     │       │   │   │       ├── type: i64
     │       │   │   │       ├── op: +
     │       │   │   │       ├── left: local #12 : i64
-    │       │   │   │       └── right > snapshot:
+    │       │   │   │       └── right > deref:
     │       │   │   │           ├── type: i64
     │       │   │   │           └── ptr > runtime:
     │       │   │   │               ├── type: ptr
@@ -849,7 +849,7 @@
     │   │   │   │       ├── type: i64
     │   │   │   │       ├── op: +
     │   │   │   │       ├── left: local #2 : i64
-    │   │   │   │       └── right > snapshot:
+    │   │   │   │       └── right > deref:
     │   │   │   │           ├── type: i64
     │   │   │   │           └── ptr > runtime:
     │   │   │   │               ├── type: ptr

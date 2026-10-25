@@ -131,8 +131,8 @@ let made st decl : Func.t =
   let lowered = ty st span c.ty in
   let value = c.symbol ^ ".value" and state = c.symbol ^ ".state" in
   st.globals <-
-    { Global.symbol = state; linkage; ty = Nodes.Ty.I64 }
-    :: { Global.symbol = value; linkage; ty = lowered }
+    { Global.symbol = state; linkage; ty = Nodes.Ty.I64; per_thread = false }
+    :: { Global.symbol = value; linkage; ty = lowered; per_thread = false }
     :: st.globals;
   let global g = ptr (Expr.Global g) in
   let scope = { arena = None; settles = []; wants = [] } in
@@ -203,38 +203,72 @@ let library_roots st (root : T.Package.t) =
       | _ -> ())
     root.T.Package.decls
 
-(* Whether any code of the program can spawn: a spawn, anywhere in any
-   package of the build, a stamped dependency's included, since its objects
-   are built from the source checked here (docs/design/separate-compilation.md
-   C2). A spawn read where it is written runs at once, but counts too. *)
-let spawns (p : T.Program.t) =
-  let rec block (b : T.Block.t) = List.exists stat b.T.Block.stats
+(* Every call the program spawns: a spawn anywhere in any package of the
+   build, a stamped dependency's included, since its objects are built from
+   the source checked here (docs/design/separate-compilation.md C2). A spawn
+   read where it is written runs at once, but counts too. *)
+let spawned (p : T.Program.t) =
+  let found = ref [] in
+  let call (e : T.Expr.t) =
+    found := (match e.T.Expr.node with T.Expr.Spawn inner -> inner | _ -> e) :: !found
+  in
+  let rec block (b : T.Block.t) = List.iter stat b.T.Block.stats
   and stat (s : T.Stat.t) =
-    match s.T.Stat.node with
-    | T.Stat.Spawn _ -> true
-    | _ -> List.exists expr (Tst.Traverse.stat_exprs s)
+    (match s.T.Stat.node with T.Stat.Spawn e -> call e | _ -> ());
+    List.iter expr (Tst.Traverse.stat_exprs s)
   and expr (e : T.Expr.t) =
-    match e.T.Expr.node with
-    | T.Expr.Spawn _ -> true
-    | _ ->
-        List.exists
-          (function
-            | Tst.Traverse.Same x -> expr x
-            | Tst.Traverse.Arm b | Tst.Traverse.Handler b | Tst.Traverse.Block b | Tst.Traverse.Lambda b ->
-                block b)
-          (Tst.Traverse.parts e)
+    (match e.T.Expr.node with T.Expr.Spawn inner -> call inner | _ -> ());
+    List.iter
+      (function
+        | Tst.Traverse.Same x -> expr x
+        | Tst.Traverse.Arm b | Tst.Traverse.Handler b | Tst.Traverse.Block b | Tst.Traverse.Lambda b ->
+            block b)
+      (Tst.Traverse.parts e)
   in
   let decl (d : T.Decl.t) =
     match d.T.Decl.node with
     | T.Decl.Verb { body = T.Decl.Checked { body; _ }; _ } -> block body
     | T.Decl.Subscript { value = Some e; _ } | T.Decl.Constant { value = e; _ } -> expr e
-    | T.Decl.Enum_map { entries; _ } -> List.exists (fun (_, e) -> expr e) entries
-    | _ -> false
+    | T.Decl.Enum_map { entries; _ } -> List.iter (fun (_, e) -> expr e) entries
+    | _ -> ()
   in
-  List.exists (fun (pkg : T.Package.t) -> List.exists decl pkg.T.Package.decls) p.T.Program.packages
-  || List.exists (fun (i : T.Instance.t) -> block i.T.Instance.body) p.T.Program.instances
-  || List.exists (fun (d : T.Defaults.t) -> List.exists (fun (_, e) -> expr e) d.T.Defaults.values)
-       p.T.Program.defaults
+  List.iter (fun (pkg : T.Package.t) -> List.iter decl pkg.T.Package.decls) p.T.Program.packages;
+  List.iter (fun (i : T.Instance.t) -> block i.T.Instance.body) p.T.Program.instances;
+  List.iter (fun (d : T.Defaults.t) -> List.iter (fun (_, e) -> expr e) d.T.Defaults.values) p.T.Program.defaults;
+  !found
+
+(* The places spawned calls may write back into (concurrency.md §4.4): each
+   `mut` call's subject reached through an owner, which the call works on a
+   copy of and writes back when it returns (Lower_spawn). A subject whose
+   type, or whose owner's, names a type parameter is in a generic verb's
+   body, which is lowered only as its instances, and they are walked too. *)
+let written_back st calls =
+  let subject (e : T.Expr.t) =
+    match e.T.Expr.node with
+    | T.Expr.Call { callee = { owner = S.Declared id; instance; _ }; args; _ } -> (
+        match verb_of st id instance with
+        | Some v when v.signature.S.is_mut -> (
+            match Lower_calls.passed v args with T.Arg.Value s :: _ -> Some s | _ -> None)
+        | Some _ -> None
+        | None -> ( match args with T.Arg.Value s :: _ -> Some s | _ -> None))
+    | T.Expr.Call_value { callee; args = T.Arg.Value s :: _; _ } -> (
+        match Tty.strip_mode callee.T.Expr.ty with
+        | Tty.Verb fv when not (fv.Tty.is_mut && Option.is_some fv.Tty.this_) -> None
+        | _ -> Some s)
+    | _ -> None
+  in
+  List.filter_map
+    (fun e ->
+      match subject e with
+      | Some s ->
+          let w = written_into st s in
+          let generic = function Some (o, _) -> Tty.free_params o <> [] | None -> false in
+          if Tty.free_params w.of_type = [] && (not (generic w.place)) && through_owner st s
+             && not (reference st w.of_type)
+          then Some w
+          else None
+      | None -> None)
+    calls
 
 (* A program lowers from its root package's `main`; a [library] from every
    function its own packages declare, into an object with no entry.
@@ -263,7 +297,8 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
   (* A program none of whose code spawns runs on one thread, so nothing
      writes back while it reads (lowering.md §9). A library's code may run
      in a program that spawns. *)
-  let exclusive = (not library) && not (spawns p) in
+  let calls = spawned p in
+  let exclusive = (not library) && calls = [] in
   let st = create ~region:fixed_region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
   let add decl instance signature params body =
     let key = key decl instance in
@@ -321,6 +356,7 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
       in
       add i.T.Instance.decl i.T.Instance.args signature i.T.Instance.params i.T.Instance.body)
     p.T.Program.instances;
+  if not library then st.written_back <- Some (written_back st calls);
   try
     (* The root package is the first (docs/design/semantics.md §2), and its `main`
        is where the program starts (packages.md §6.2). *)

@@ -86,93 +86,95 @@ measured on; `run` takes the directories `generate` writes for them.
 
 ## Results
 
-Estimated cycles under Callgrind, x86-64 container, 2026-10-23. `memoized`
-is how many functions got a table. Every program printed the same output in
-all six builds. Of the repository's own perf programs (`tests/perf/`), six
-get a table. `depths`, written for a recursion that calls itself once, got
-97.4% faster plain, 95.7% optimized and 95.7% tiered, and `repeats`, written
-for a heavy call in a loop, 90.2%, 89.6% and 89.1%. `floats` moved by +0.17% plain,
-+0.29% optimized and +0.32% tiered, `leaves` by +0.10% to +0.13%, and
-`returns` by +0.01% to +0.02%. `stress`, whose sixteen sections each get
-one, got 0.31% faster plain, 0.34% optimized and 0.52% tiered. Of langbench, `mandelbrot` alone gets a
-table, for a call whose arguments never repeat: at its check size it costs a
-fixed 170,000 cycles, +0.64% plain, +0.93% optimized and +1.00% tiered.
+Estimated cycles under Callgrind, x86-64 container, 2026-10-25, with tables
+of at most 256 KiB. `memoized` is how many functions got a table. Every
+program printed the same output in all six builds. Of the repository's own
+perf programs (`tests/perf/`), six get a table. `depths`, written for a
+recursion that calls itself once, got 97.6% faster plain, 96.1% optimized
+and 96.3% tiered, and `repeats`, written for a heavy call in a loop, 93.3%,
+92.8% and 92.3%. `floats` moved by +0.20% plain, +0.39% optimized and
++0.43% tiered, `leaves` by +0.09% to +0.11%, and `returns` by −0.90% plain
+and +0.02% to +0.03% otherwise. `stress`, whose sixteen sections each get
+one, got 0.32% faster plain, 0.33% optimized and 0.55% tiered. Of langbench,
+`mandelbrot` alone gets a table, for a call whose arguments never repeat:
+at its check size it costs a fixed 283,000 to 455,000 cycles, +0.85% plain,
++1.58% optimized and +1.69% tiered, the lookups it makes before it stops
+each reading a line of the table no other has.
 
 ```
 program       build      memoized     base cycles     memo cycles    change  same output
-binom         plain             1     142,678,159       1,035,892   -99.27%  True
-binom         optimized         1     103,305,590         997,728   -99.03%  True
-binom         tiered            1     103,465,152       1,166,988   -98.87%  True
-euclid        plain             1      12,245,816      12,393,812    +1.21%  True
-euclid        optimized         1       7,526,310       7,521,854    -0.06%  True
-euclid        tiered            1       7,688,997       7,688,233    -0.01%  True
-fib           plain             1      11,024,286         989,458   -91.02%  True
-fib           optimized         1       8,451,376         962,599   -88.61%  True
-fib           tiered            1       8,609,861       1,129,297   -86.88%  True
-heavyleaf     plain             1     174,290,707     174,141,725    -0.09%  True
-heavyleaf     optimized         1      70,835,206      70,850,257    +0.02%  True
-heavyleaf     tiered            1      70,995,015      71,027,095    +0.05%  True
-leaves        plain             1      72,086,367      72,154,947    +0.10%  True
-leaves        optimized         1      48,730,199      48,785,213    +0.11%  True
-leaves        tiered            1      48,892,158      48,955,863    +0.13%  True
-linear        plain             1     166,861,342       4,207,095   -97.48%  True
-linear        optimized         1      69,822,471       2,853,324   -95.91%  True
-linear        tiered            1      76,926,546       3,246,364   -95.78%  True
-loopcold      plain             1     106,059,898     106,210,221    +0.14%  True
-loopcold      optimized         1      49,515,168      49,585,568    +0.14%  True
-loopcold      tiered            1      49,676,980      49,774,126    +0.20%  True
-loopleaf      plain             1     106,240,832      10,285,002   -90.32%  True
-loopleaf      optimized         1      49,535,452       5,039,449   -89.83%  True
-loopleaf      tiered            1      49,697,448       5,308,553   -89.32%  True
-looplight     plain             0      13,980,136      13,980,136    +0.00%  True
-looplight     optimized         0       7,154,923       7,154,923    +0.00%  True
-looplight     tiered            0       7,316,883       7,316,883    +0.00%  True
-moves         plain             1     248,207,911       1,088,325   -99.56%  True
-moves         optimized         1     207,167,697         985,167   -99.52%  True
-moves         tiered            1     193,782,040       1,164,493   -99.40%  True
-overlap       plain             1      52,886,291       8,786,217   -83.39%  True
-overlap       optimized         1      39,858,823       5,710,833   -85.67%  True
-overlap       tiered            1      40,021,416       6,491,121   -83.78%  True
-phase         plain             1      15,548,978      10,772,123   -30.72%  True
-phase         optimized         1       7,417,557       7,391,654    -0.35%  True
-phase         tiered            1      10,805,295       7,568,061   -29.96%  True
-random        plain             1      51,865,891      51,898,000    +0.06%  True
-random        optimized         1      45,807,852      45,510,794    -0.65%  True
-random        tiered            1      45,969,553      45,839,035    -0.28%  True
-salted        plain             1      13,885,334      13,915,591    +0.22%  True
-salted        optimized         1      11,395,403      11,416,526    +0.19%  True
-salted        tiered            1      11,554,928      11,585,666    +0.27%  True
-shallow       plain             1      24,381,085      24,415,025    +0.14%  True
-shallow       optimized         1         957,150         982,199    +2.62%  True
-shallow       tiered            1      14,318,536      13,752,738    -3.95%  True
-shallowin     plain             1      24,380,546      24,414,846    +0.14%  True
-shallowin     optimized         1      14,157,434      13,580,274    -4.08%  True
-shallowin     tiered            1      14,316,803      13,751,141    -3.95%  True
-split         plain             1      83,886,786      84,156,632    +0.32%  True
-split         optimized         1      55,536,781      55,557,475    +0.04%  True
-split         tiered            1      55,816,952      55,726,936    -0.16%  True
-tree          plain             1      71,446,811      71,480,802    +0.05%  True
-tree          optimized         1      51,431,883      51,508,851    +0.15%  True
-tree          tiered            1      52,072,534      51,619,083    -0.87%  True
-tri           plain             1       5,109,466         988,225   -80.66%  True
-tri           optimized         1       3,593,182         960,681   -73.26%  True
-tri           tiered            1       3,752,673       1,129,697   -69.90%  True
-ttt           plain             1     434,215,992      85,242,568   -80.37%  True
-ttt           optimized         1     125,119,343      30,714,508   -75.45%  True
-ttt           tiered            1     127,139,885      32,486,764   -74.45%  True
-tttpath       plain             1     436,965,510     437,547,098    +0.13%  True
-tttpath       optimized         1     126,483,120     126,722,583    +0.19%  True
-tttpath       tiered            1     131,176,262     131,469,865    +0.22%  True
-corefib       plain             1      11,039,651       1,005,932   -90.89%  True
-corefib       optimized         1       8,459,455         973,079   -88.50%  True
-corefib       tiered            1       8,632,256       1,160,130   -86.56%  True
+binom         plain             1     142,700,741       1,053,547   -99.26%  True
+binom         optimized         1     103,321,406       1,011,264   -99.02%  True
+binom         tiered            1     103,475,972       1,171,059   -98.87%  True
+euclid        plain             1      12,268,716      12,285,013    +0.13%  True
+euclid        optimized         1       7,827,614       7,537,304    -3.71%  True
+euclid        tiered            1       7,700,185       7,696,288    -0.05%  True
+fib           plain             1      11,047,066       1,011,681   -90.84%  True
+fib           optimized         1       8,467,552         980,045   -88.43%  True
+fib           tiered            1       8,621,866       1,140,599   -86.77%  True
+heavyleaf     plain             1     174,969,012     174,171,877    -0.46%  True
+heavyleaf     optimized         1      70,854,482      70,869,999    +0.02%  True
+heavyleaf     tiered            1      71,012,144      71,043,319    +0.04%  True
+leaves        plain             1      72,109,047      72,174,267    +0.09%  True
+leaves        optimized         1      48,748,953      48,799,656    +0.10%  True
+leaves        tiered            1      48,904,262      48,960,167    +0.11%  True
+linear        plain             1     166,884,304       3,801,704   -97.72%  True
+linear        optimized         1      69,861,654       2,590,954   -96.29%  True
+linear        tiered            1      76,917,329       2,730,707   -96.45%  True
+loopcold      plain             1     106,082,931     106,233,458    +0.14%  True
+loopcold      optimized         1      49,533,950      49,623,543    +0.18%  True
+loopcold      tiered            1      49,687,821      49,784,226    +0.19%  True
+loopleaf      plain             1     106,263,589       6,954,582   -93.46%  True
+loopleaf      optimized         1      49,554,338       3,446,159   -93.05%  True
+loopleaf      tiered            1      49,708,341       3,701,534   -92.55%  True
+looplight     plain             0      14,002,519      14,002,519    +0.00%  True
+looplight     optimized         0       7,173,520       7,173,520    +0.00%  True
+looplight     tiered            0       7,327,141       7,327,141    +0.00%  True
+moves         plain             1     248,230,173       1,084,869   -99.56%  True
+moves         optimized         1     207,186,100       1,001,303   -99.52%  True
+moves         tiered            1     193,793,386       1,167,889   -99.40%  True
+overlap       plain             1      52,908,831       9,347,093   -82.33%  True
+overlap       optimized         1      42,517,566       6,488,171   -84.74%  True
+overlap       tiered            1      42,593,684       6,890,498   -83.82%  True
+phase         plain             1      15,971,342      10,792,210   -32.43%  True
+phase         optimized         1       7,434,161       7,406,928    -0.37%  True
+phase         tiered            1      10,814,978       7,572,956   -29.98%  True
+random        plain             1      51,888,434      51,917,229    +0.06%  True
+random        optimized         1      45,505,933      45,525,482    +0.04%  True
+random        tiered            1      45,661,136      45,844,765    +0.40%  True
+salted        plain             1      13,908,368      13,935,491    +0.20%  True
+salted        optimized         1      11,411,520      11,431,073    +0.17%  True
+salted        tiered            1      11,566,166      11,591,357    +0.22%  True
+shallow       plain             1      24,403,850      24,435,086    +0.13%  True
+shallow       optimized         1         973,886         996,297    +2.30%  True
+shallow       tiered            1      14,329,164      13,755,596    -4.00%  True
+shallowin     plain             1      24,403,768      24,434,624    +0.13%  True
+shallowin     optimized         1      14,174,279      13,594,733    -4.09%  True
+shallowin     tiered            1      14,327,869      13,755,852    -3.99%  True
+split         plain             1      84,390,178      83,936,200    -0.54%  True
+split         optimized         1      57,472,977      55,572,141    -3.31%  True
+split         tiered            1      55,706,898      55,732,527    +0.05%  True
+tree          plain             1      71,469,761      71,979,978    +0.71%  True
+tree          optimized         1      51,448,518      51,464,139    +0.03%  True
+tree          tiered            1      51,602,388      51,863,008    +0.51%  True
+tri           plain             1       5,132,727       1,011,676   -80.29%  True
+tri           optimized         1       3,609,619         979,838   -72.85%  True
+tri           tiered            1       3,764,353       1,138,761   -69.75%  True
+ttt           plain             1     438,566,337      17,155,793   -96.09%  True
+ttt           optimized         1     123,937,166       7,060,204   -94.30%  True
+ttt           tiered            1     126,509,474       7,425,469   -94.13%  True
+tttpath       plain             1     441,315,382     442,028,512    +0.16%  True
+tttpath       optimized         1     126,609,773     126,991,544    +0.30%  True
+tttpath       tiered            1     129,521,571     129,954,070    +0.33%  True
+corefib       plain             1      11,072,983       1,036,286   -90.64%  True
+corefib       optimized         1       8,485,302         998,142   -88.24%  True
+corefib       tiered            1       8,652,816       1,171,825   -86.46%  True
 ```
 
-Every row with no repeats is within +0.32%, but `shallow` optimized and
-`euclid` plain, which costs 148,000 cycles more on a run of 12 million,
-+1.21%. That is the cost of the lookups made before the function gives up, plus code
+Every row with no repeats is within +0.71%, but `shallow` optimized. That
+is the cost of the lookups made before the function gives up, plus code
 placement, which Callgrind's simple branch predictor is sensitive to.
-`shallow` optimized costs 25,000 cycles more, whatever its input: without a
+`shallow` optimized costs 22,000 cycles more, whatever its input: without a
 table LLVM folds its whole loop, and with one it makes the lookups before
 the function stops. On hardware, `shallowin` (the worst case: 300,000 calls
 from a loop, each doing little) measured a median of 4.58 ms against
@@ -186,25 +188,19 @@ each of which has at least one table in the plain build:
 
 | build | median | worst | above +1% | more than 10% faster |
 |---|---|---|---|---|
-| plain | −87.3% | +0.39% | 0 | 134 |
-| optimized | −36.6% | +1.23% | 1 | 96 |
-| tiered | −35.8% | +1.75% | 6 | 104 |
+| plain | −86.1% | +0.34% | 0 | 133 |
+| optimized | −37.3% | +0.95% | 0 | 96 |
+| tiered | −35.9% | +1.79% | 5 | 104 |
 
 The median is over the programs with a table in that build: all 150 plain
 and tiered, 137 optimized, where LLVM removed every call of the function in
 the other 13. The 300 programs of seeds 1 to 300, run through `compare`,
-printed the same in every build. Five of the rows above +1% run about a
-million cycles, and theirs is a fixed cost of 11,000 to 15,000 cycles: the
-lookups made before the function stops, and last-level misses on the code
-and the table that tier 1 adds. The other two grow with the input, by
-1.4–1.8%:
+printed the same in every build that finished in `compare`'s 30 seconds;
+seven builds without tables, of six programs, ran longer. The five rows
+above +1%, all tiered, run about 1.1 million cycles, and theirs is a fixed
+cost of 13,000 to 20,000 cycles: the lookups made before the function stops, and last-level misses
+on the code and the table that tier 1 adds.
 
-- `s22` runs fewer instructions with its table, but Callgrind's instruction
-  cache, 32 KiB in eight ways, misses ten times as often in the C library's
-  `printf`, which tier 1's code now shares sets with. With sixteen ways, or
-  64 KiB, the same build is 1% faster than without the table.
-- `s139` loses the same way, and to more mispredicted branches.
-
-A program that spawns gets no tables, and neither does a library, which a
-program that spawns may call: the tables are not shared safely between
-threads.
+A program that spawns, and a library, which a program that spawns may call,
+share each table between threads
+([`docs/design/memoization.md`](../../../docs/design/memoization.md) M1).

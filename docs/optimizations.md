@@ -123,17 +123,27 @@ A value parameter is read-only, so a value that owns blocks is passed where
 it is rather than copied whole. Only a callee that stores the parameter
 copies it.
 
-### Plain loads in a program that never spawns
+### Plain loads where nothing is written back
 
 - **Builds:** every build (programs, not libraries)
-- **Where:** `lib/cgt/program.ml` (`spawns`, `exclusive`), `lib/cgt/state.ml`
+- **Where:** `lib/cgt/program.ml` (`written_back`),
+  `lib/cgt/type_layout.ml` (`owned_place`, `snapshots`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "Snapshots"
-- **Effect:** lets LLVM forward stores to loads and keep fields in
-  registers across loops, which no atomic load allows
+- **Effect:** lets LLVM forward stores to loads, keep fields in registers
+  across loops and vectorize them, which no atomic load allows. Summing a
+  `List<Int>` in a program that spawns a call writing nothing back: 6.00 G
+  instructions as snapshots, 3.50 G as plain loads, what the program takes
+  without its spawn
 
-A value read through an owner is normally read as a snapshot, since a
-spawned write-back may race it. When no package in the build contains a
-`spawn`, nothing can write back, so every such read is a plain load.
+A value read through an owner may race a spawned write-back, the only write
+another thread makes to a place this thread can read. A write-back comes
+only from a spawned `mut` call whose subject is reached through an owner, so
+the places it can write are known from the source of every package in the
+build, each as the type of its innermost owner and the members, cases and
+elements down from it. A read takes a snapshot only when its place overlaps
+one of them; every other such read is a plain load, as is every read in a
+program that spawns nothing. Writing back `tally.n` leaves every other
+`Int` read plain.
 
 ### Cross-package bodies for the optimizer
 
@@ -172,14 +182,13 @@ at run time; the body reads a number parameter as a constant.
 - **Effect:** [`dev/bench/memo/`](../dev/bench/memo/README.md), in plain,
   optimized and tiered builds: recursions that repeat their arguments
   70–99.6% fewer estimated cycles, among them a tic-tac-toe search keyed on
-  its board (74–80%) and a recursion that calls itself once, called again
-  from a loop (96–97%); a heavy call in a loop whose arguments repeat
-  89–90%; programs whose arguments do not repeat, or whose repeats save
-  less than a lookup costs, within +0.32%, but one that LLVM folds whole
-  without a table, which costs a fixed 25,000 cycles more, and a plain build
-  of a recursion that calls itself once on new arguments, +1.2%. Over 150
-  random recursions, a median of 87% fewer plain, 37% optimized and 36%
-  tiered, and at worst +0.4%, +1.2% and +1.8%.
+  its board (94–96%) and a recursion that calls itself once, called again
+  from a loop (96–98%); a heavy call in a loop whose arguments repeat
+  93%; programs whose arguments do not repeat, or whose repeats save less
+  than a lookup costs, within +0.71%, but one that LLVM folds whole without
+  a table, which costs a fixed 22,000 cycles more. Over 150 random
+  recursions, a median of 86% fewer plain, 37% optimized and 36% tiered,
+  and at worst +0.34%, +0.95% and +1.79%.
 
 A function whose result depends only on its arguments, which takes and
 returns fixed-size values, and which calls back into its own cycle, or is
@@ -187,7 +196,11 @@ heavy and called from a loop, keeps a table of its results, so a call whose
 arguments repeat returns at once. Each function scores its lookups against
 the work its hits save, counted from below, and stops looking for good when
 they do not pay. A loop decides once, before it starts, whether its calls
-still look, so a loop whose functions have stopped runs as written.
+still look, so a loop whose functions have stopped runs as written. In a
+program that spawns, and in a library, threads share each table, whose
+entries' versions a lookup reads before and after it reads them, and keep
+their own state and count of work. A table holds at most 256 KiB, in
+memory the system backs only where an entry has been written.
 
 ---
 

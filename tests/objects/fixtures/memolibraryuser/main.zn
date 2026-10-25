@@ -1,0 +1,33 @@
+/// A program that spawns, and calls `memolibrary`'s `fib` from two spawned
+/// calls and from `main` at once.
+package memolibraryuser;
+
+import memolibrary$;
+
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String("\n")));
+	return @primitives$Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit main() {
+	n Int = size(Int(30));
+	a Int = spawn fib(n);
+	b Int = spawn fib(@operators$add(n, @operators$negate(Int(1))));
+	c Int = fib(@operators$add(n, @operators$negate(Int(2))));
+	say(String(@operators$add(@operators$add(a, b), c)));
+	return @primitives$Unit();
+}

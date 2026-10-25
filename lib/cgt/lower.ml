@@ -217,13 +217,13 @@ and value_of st ctx (e : T.Expr.t) =
 
 (* A value read out of its place. One reached through an owner is read as a
    snapshot (concurrency.md §4.4), or read where it is when no spawned call
-   can write it back meanwhile. *)
+   can write back a value it holds or that holds it. *)
 and read st ctx (e : T.Expr.t) =
   let span = e.T.Expr.span in
   if through_owner st e && not (reference st e.T.Expr.ty) then
     match addr st ctx span e with
     | Some p ->
-        let node = if st.exclusive then Expr.Deref p else Expr.Snapshot p in
+        let node = if snapshots st e then Expr.Snapshot p else Expr.Deref p in
         { Expr.node; ty = ty st span e.T.Expr.ty }
     | None -> expr st ctx e
   else expr st ctx e
@@ -270,7 +270,7 @@ and storage st ctx span (e : T.Expr.t) : Expr.t option =
   | T.Expr.Var (T.Name_ref.Intrinsic name) ->
       let symbol = "zane.value." ^ name in
       if not (List.exists (fun (g : Global.t) -> g.Global.symbol = symbol) st.globals) then
-        st.globals <- { Global.symbol; linkage = Linkage.Local; ty = Nodes.Ty.I64 } :: st.globals;
+        st.globals <- { Global.symbol; linkage = Linkage.Local; ty = Nodes.Ty.I64; per_thread = false } :: st.globals;
       Some (ptr (Expr.Global symbol))
   | T.Expr.Subscript { target; impl; args } ->
       Some (Lower_calls.subscript walk st ctx span target impl args)

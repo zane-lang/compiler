@@ -2,7 +2,7 @@
    variable placed in a COMDAT of its own name
    (docs/design/separate-compilation.md C4), an assumption that carries
    operand bundles, a target triple in LLVM's
-   normal form, a load made atomic, an array type whose length takes more
+   normal form, an access made atomic at any ordering, a fence, an array type whose length takes more
    than 32 bits, an attribute that carries a type, such as `sret`, a
    function's own type, and the type an `alloca` makes room for. And arrays
    the bindings do give, but wrongly when empty: their `param_types`,
@@ -57,6 +57,10 @@ extern LLVMValueRef LLVMConstInt(LLVMTypeRef type, unsigned long long n, int sig
 extern LLVMBuilderRef LLVMCreateBuilderInContext(LLVMContextRef context);
 extern void LLVMPositionBuilderAtEnd(LLVMBuilderRef builder, LLVMBasicBlockRef block);
 extern void LLVMDisposeBuilder(LLVMBuilderRef builder);
+extern LLVMValueRef LLVMBuildFence(LLVMBuilderRef builder, int ordering, int single_thread, const char *name);
+extern LLVMTypeRef LLVMTypeOf(LLVMValueRef v);
+extern LLVMValueRef LLVMBuildAtomicCmpXchg(LLVMBuilderRef builder, LLVMValueRef ptr, LLVMValueRef cmp, LLVMValueRef replacement,
+                                           int success_ordering, int failure_ordering, int single_thread);
 extern LLVMOperandBundleRef LLVMCreateOperandBundle(const char *tag, size_t length, LLVMValueRef *args, unsigned count);
 extern void LLVMDisposeOperandBundle(LLVMOperandBundleRef bundle);
 extern LLVMValueRef LLVMBuildCallWithOperandBundles(LLVMBuilderRef builder, LLVMTypeRef type, LLVMValueRef fn,
@@ -117,6 +121,37 @@ value zane_set_ordering(value access, value acquire) {
   CAMLparam2(access, acquire);
   LLVMSetOrdering((LLVMValueRef)from_val(access), Bool_val(acquire) ? 4 : 1);
   CAMLreturn(Val_unit);
+}
+
+/* An access made atomic at an ordering of `Llvm.AtomicOrdering.t`, whose
+   constructors are LLVMAtomicOrdering's values in order, and a fence at
+   one, at the end of [block], in the context of [type]. */
+value zane_set_atomic(value access, value ordering) {
+  CAMLparam2(access, ordering);
+  LLVMSetOrdering((LLVMValueRef)from_val(access), Int_val(ordering));
+  CAMLreturn(Val_unit);
+}
+
+value zane_fence(value type, value block, value ordering) {
+  CAMLparam3(type, block, ordering);
+  LLVMBuilderRef b = LLVMCreateBuilderInContext(LLVMGetTypeContext((LLVMTypeRef)from_val(type)));
+  LLVMPositionBuilderAtEnd(b, (LLVMBasicBlockRef)from_val(block));
+  LLVMBuildFence(b, Int_val(ordering), 0, "");
+  LLVMDisposeBuilder(b);
+  CAMLreturn(Val_unit);
+}
+
+/* A strong compare-and-swap of the word at [ptr] from [cmp] to
+   [replacement], acquire when it swaps and monotonic when it does not, at
+   the end of [block]. The bindings build none. */
+value zane_cmpxchg(value block, value ptr, value cmp, value replacement) {
+  CAMLparam4(block, ptr, cmp, replacement);
+  LLVMValueRef c = (LLVMValueRef)from_val(cmp);
+  LLVMBuilderRef b = LLVMCreateBuilderInContext(LLVMGetTypeContext(LLVMTypeOf(c)));
+  LLVMPositionBuilderAtEnd(b, (LLVMBasicBlockRef)from_val(block));
+  LLVMValueRef swap = LLVMBuildAtomicCmpXchg(b, (LLVMValueRef)from_val(ptr), c, (LLVMValueRef)from_val(replacement), 4, 2, 0);
+  LLVMDisposeBuilder(b);
+  CAMLreturn(to_val(swap));
 }
 
 /* An array type of [count] elements, and an array type's length, both 64

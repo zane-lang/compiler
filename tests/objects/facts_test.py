@@ -53,6 +53,22 @@ class FactsTests(unittest.TestCase):
             ir = run(ZANEC, "--ll", *optimize, *packages("quiet", "cells"))
             self.assertNotRegex(ir, SNAPSHOT)
 
+    def test_reads_need_no_snapshot_where_nothing_is_written_back(self):
+        # A spawned call that writes no subject back races no read.
+        for optimize in [[], ["--optimize"]]:
+            ir = run(ZANEC, "--ll", *optimize, *packages("idle", "cells"))
+            self.assertNotRegex(ir, SNAPSHOT)
+
+    def test_only_reads_of_a_place_written_back_take_snapshots(self):
+        # `busy` writes back a `Tally`'s Int: reading it back is a snapshot,
+        # and the cells' Int hits and Float heat, in owners of another type,
+        # are read plainly though they are values of the same types.
+        ir = run(ZANEC, "--ll", *packages("busy", "cells"))
+        self.assertRegex(ir, r"load atomic i64")
+        sweep = ir[ir.index('define internal i64 @"cells$sweep('):]
+        sweep = sweep[: sweep.index("\n}\n")]
+        self.assertNotRegex(sweep, SNAPSHOT)
+
     def test_reads_keep_snapshots_where_something_may_write_back(self):
         # A spawn in the program, in a stamped dependency it calls, or a
         # library's object, which may be linked into a program that spawns.
@@ -232,6 +248,7 @@ class FactsTests(unittest.TestCase):
                 for program, link, expected in [
                     ("quiet", [], "14 1\n"),
                     ("busy", [], "44 1\n"),
+                    ("idle", [], "44 1\n"),
                     ("relay", ["--link", pool], "44\n"),
                 ]:
                     exe = Path(temp) / program
