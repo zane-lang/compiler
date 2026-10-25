@@ -57,9 +57,12 @@ The choice reads the tree alone, never what LLVM makes of the program. So
 the two tiers of a tiered build, which lower the same tree, plan the same
 tables and emit the same module ([`tiers.md`](tiers.md) T3).
 
-A library gets no tables, since its functions may be called from any
-program's. A program that spawns gives each thread tables of its own: the
-table, the state and the count of work are thread-local variables. One table
+A program that spawns, and a library, whose functions a program that spawns
+may call, give each thread tables of its own: the table, the state and the
+count of work are thread-local variables. A stamped dependency is built as a
+library, so its functions keep tables of their own in its object, which the
+program's calls into it use; the bodies the program takes in to optimize
+with get none. One table
 is not shared safely between threads, and each thread's gives the same
 results, since a remembered function reads only its arguments and constants.
 A thread's tables take room in its machine stack, which is where a thread's

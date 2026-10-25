@@ -196,8 +196,8 @@ arguments repeat returns at once. Each function scores its lookups against
 the work its hits save, counted from below, and stops looking for good when
 they do not pay. A loop decides once, before it starts, whether its calls
 still look, so a loop whose functions have stopped runs as written. In a
-program that spawns, the tables, their states and the count of work are
-each thread's own.
+program that spawns, and in a library, the tables, their states and the
+count of work are each thread's own.
 
 ---
 

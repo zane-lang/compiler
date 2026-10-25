@@ -6,8 +6,8 @@ state: one for a recursion, whether its arguments are scalars, an array or a
 variant, it reads a package constant, or it calls itself once, and one for a
 heavy function called in a loop; none for a light function called in a loop,
 a heavy one called outside any loop, or a function that takes a String,
-prints, or is in a library. A program that spawns gives each thread tables of
-its own. Every build gives the same functions a table, and every table starts
+or prints. A program that spawns, and a library, give each thread tables of
+their own. Every build gives the same functions a table, and every table starts
 on a cache line."""
 
 from pathlib import Path
@@ -20,6 +20,8 @@ import unittest
 ZANEC = str(Path(sys.argv.pop(1)).resolve())
 FIXTURES = Path(__file__).resolve().parent / "fixtures/memo"
 LIBRARY = Path(__file__).resolve().parent / "fixtures/memolibrary"
+USER = Path(__file__).resolve().parent / "fixtures/memolibraryuser"
+STAMP = "v1.0%0123456789abcdef%"
 BUILDS = {"plain": [], "optimized": ["--optimize"], "tiered": ["--tiered"]}
 
 
@@ -138,7 +140,7 @@ class MemoTests(unittest.TestCase):
                     for line in memo:
                         self.assertEqual("thread_local" in line, per_thread, line)
 
-    def test_a_library_gets_none(self):
+    def test_a_library_has_tables_on_each_thread(self):
         # A program that links the library may call `fib` from its threads.
         # A library is built plain or optimized; only a program is tiered.
         for build in ["plain", "optimized"]:
@@ -146,8 +148,29 @@ class MemoTests(unittest.TestCase):
                 result = subprocess.run([ZANEC, "--no-root", "--ll", *BUILDS[build],
                                          "--package", LIBRARY], capture_output=True, text=True, timeout=300)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn("memolibrary$fib", result.stdout)
-                self.assertNotIn(".memo.state", result.stdout)
+                states = [line for line in result.stdout.splitlines()
+                          if line.startswith("@") and line.split(" ", 1)[0].endswith('.memo.state"')]
+                self.assertEqual(len(states), 1, states)
+                self.assertIn("memolibrary$fib", states[0])
+                self.assertIn("thread_local", states[0])
+
+    def test_a_library_remembers_for_a_program_that_spawns(self):
+        # The library's object, linked into a program that calls its `fib`
+        # from two spawned calls and `main` at once, prints what it does
+        # without tables.
+        library = [f"--package", f"{STAMP}memolibrary={LIBRARY}"]
+        outputs = {}
+        for build in ["plain", "optimized"]:
+            for memoize in (False, True):
+                flags = [*BUILDS[build], *([] if memoize else ["--no-memoize"])]
+                obj = self.out / f"memolibrary.{build}.{memoize}.o"
+                exe = self.out / f"memolibraryuser.{build}.{memoize}"
+                for command in ([ZANEC, "--no-root", "--object", obj, *flags, *library],
+                                [ZANEC, "--build", exe, *flags, "--link", obj, "--package", USER, *library]):
+                    result = subprocess.run(command, capture_output=True, text=True, timeout=300)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                outputs[(build, memoize)] = run_program(exe, 25)
+        self.assertEqual(set(outputs.values()), {"150050\n"}, outputs)
 
     def test_every_build_gives_the_same_tables(self):
         # A tiered build's two tiers must emit one module, so no build's
