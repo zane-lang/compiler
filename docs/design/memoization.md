@@ -110,7 +110,8 @@ system backs only where an entry has been written. On `dev/bench/memo`,
 smaller table's entries, ran in 3.7 ms against 5.4 and 4.1, and `overlap`,
 whose repeats are all recent, in 3.4 ms against 2.9 and 4.3, a bigger table
 costing it the first write to each page (wall clock, the least of 40 runs,
-process start of about 2.5 ms included). The table starts on a
+process start of about 2.5 ms included). The other layouts measured, and
+why each lost, are in [`memo-tables.md`](memo-tables.md). The table starts on a
 cache line, so where it lands in the binary does not decide which entries
 straddle two: on `tests/perf` `depths`, a table that landed 16 bytes past
 one missed the first-level cache 72% more often.
