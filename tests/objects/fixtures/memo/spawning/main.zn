@@ -1,5 +1,5 @@
 /// A program that spawns, whose spawned calls run `fib` on two threads at once:
-/// each thread has a table of its own.
+/// both threads use `fib`'s one table.
 package spawning;
 
 

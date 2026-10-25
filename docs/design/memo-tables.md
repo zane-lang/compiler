@@ -18,12 +18,13 @@ Every layout ran the 21 programs of [`dev/bench/memo/`](../../dev/bench/memo/REA
   layouts' runs interleaved in a random order. A run includes about 2.5 ms
   of process start, and differences under about 0.3 ms are noise.
 
-The two agree on which layout wins each program. Callgrind puts the
-estimate for a big table too low, since it counts neither the second-level
+The two disagree where a big table could win: Callgrind ranks 1 MiB first
+on `ttt`, `loopleaf` and `linear`, the wall clock 256 KiB on `ttt` and
+½ + ½ on the other two. Callgrind puts the estimate for a big table too low, since it counts neither the second-level
 cache nor the kernel's first write to each page, and on the 2–15 ms runs
 here those writes are most of a big table's cost.
 
-Three programs decide between layouts; the others moved by less than the
+Four programs decide between layouts; the others moved by less than the
 noise in every layout:
 
 - **`ttt`** asks for more positions than a 64 KiB table holds, and asks for
@@ -31,6 +32,9 @@ noise in every layout:
 - **`loopleaf`** asks for the same 64 arguments over and over. With 2048
   entries a few of them share an entry and evict each other on every round,
   so they never hit.
+- **`linear`** asks for the same 500 depths from a loop over and over. Its
+  entries fit any layout, so it measures what touching a table's pages
+  costs: 1 MiB and the growing table ran it slowest.
 - **`overlap`** grows 4000 trees whose neighbours share subtrees. It makes
   68,286 lookups of 36,036 distinct arguments, and every layout missed
   within 0.4% of 36,036 times: each miss is an argument's first call. No

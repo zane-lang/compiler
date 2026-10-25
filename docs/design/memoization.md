@@ -59,11 +59,11 @@ tables and emit the same module ([`tiers.md`](tiers.md) T3).
 
 In a program that spawns, and in a library, whose functions a program that
 spawns may call, every thread uses one table for each function, so a result
-one thread made is a hit on every other. A remembered function reads only
-its arguments and constants, so the result is the same whichever thread
-made it. The entry's meta word then guards it: above the work it keeps a
-version, which a miss makes odd while it writes the entry and even again
-after. A lookup reads the meta word, then the entry, then the meta word
+one thread made can be a hit on every other while its entry holds it. A
+remembered function reads only its arguments and constants, so the result
+is the same whichever thread made it. The entry's meta word then guards it:
+above the work it keeps a version, which a miss makes odd while it writes
+the entry and even again after. A lookup reads the meta word, then the entry, then the meta word
 again after an acquire fence, and takes the entry for a hit only when both
 reads are the same word with an even version. Every write changes the
 version, whichever arguments it is for, so a lookup never returns an entry
