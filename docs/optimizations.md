@@ -182,14 +182,13 @@ at run time; the body reads a number parameter as a constant.
 - **Effect:** [`dev/bench/memo/`](../dev/bench/memo/README.md), in plain,
   optimized and tiered builds: recursions that repeat their arguments
   70–99.6% fewer estimated cycles, among them a tic-tac-toe search keyed on
-  its board (74–80%) and a recursion that calls itself once, called again
-  from a loop (96–97%); a heavy call in a loop whose arguments repeat
-  89–90%; programs whose arguments do not repeat, or whose repeats save
-  less than a lookup costs, within +0.32%, but one that LLVM folds whole
-  without a table, which costs a fixed 25,000 cycles more, and a plain build
-  of a recursion that calls itself once on new arguments, +1.2%. Over 150
-  random recursions, a median of 87% fewer plain, 37% optimized and 36%
-  tiered, and at worst +0.4%, +1.2% and +1.8%.
+  its board (94–96%) and a recursion that calls itself once, called again
+  from a loop (96–98%); a heavy call in a loop whose arguments repeat
+  93%; programs whose arguments do not repeat, or whose repeats save less
+  than a lookup costs, within +0.71%, but one that LLVM folds whole without
+  a table, which costs a fixed 22,000 cycles more. Over 150 random
+  recursions, a median of 86% fewer plain, 37% optimized and 36% tiered,
+  and at worst +0.34%, +0.95% and +1.79%.
 
 A function whose result depends only on its arguments, which takes and
 returns fixed-size values, and which calls back into its own cycle, or is
