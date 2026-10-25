@@ -117,9 +117,9 @@ plain, optimized and tiered (tier 1 loaded before `main`), with and without
 `constant` (which reads a package constant) repeat their arguments and get
 one table each. `tree`, `phase` and `shallowin` mostly do not repeat them. `rejected` holds recursions that are
 left alone: one that calls itself once, one that takes a `String`, and one
-that prints. `spawning` runs `fib` from two spawned calls at once, and gets a
-table on each thread, as does `memolibrary`, a library whose object
-`memolibraryuser`, a program that spawns, links and calls from its threads.
+that prints. `spawning` runs `fib` from two spawned calls at once, which
+share its table, as do the threads of `memolibraryuser`, a program that
+spawns and calls `fib` in the object of `memolibrary`, a library.
 `merged` makes the same call twice, so it gets none in any build, since an
 optimizer makes the two calls one, and so does `inlined`, whose first call
 is inside a verb written out where it is called, which always runs. `stepped` makes two calls that read the

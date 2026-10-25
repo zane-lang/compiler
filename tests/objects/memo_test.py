@@ -6,8 +6,8 @@ state: one for a recursion, whether its arguments are scalars, an array or a
 variant, it reads a package constant, or it calls itself once, and one for a
 heavy function called in a loop; none for a light function called in a loop,
 a heavy one called outside any loop, or a function that takes a String,
-or prints. A program that spawns, and a library, give each thread tables of
-their own. Every build gives the same functions a table, and every table starts
+or prints. In a program that spawns, and in a library, threads share each
+table, and each keeps its own state. Every build gives the same functions a table, and every table starts
 on a cache line."""
 
 from pathlib import Path
@@ -42,6 +42,18 @@ def run_program(exe, *args):
     if outputs["1"] != outputs["0"]:
         raise AssertionError(f"{exe}: checked and unchecked runs differ")
     return outputs["1"]
+
+
+def memo_variables(ir):
+    """Whether each of a module's memo variables, its one remembered
+    function's state and table and the count of work, is thread-local."""
+    found = {}
+    for line in ir.splitlines():
+        name = line.split(" ", 1)[0]
+        for kind, suffix in [("state", '.memo.state"'), ("table", '.memo.table"'), ("calls", "@zane.memo.calls")]:
+            if line.startswith("@") and name.endswith(suffix):
+                found[kind] = "thread_local" in line
+    return found
 
 
 class MemoTests(unittest.TestCase):
@@ -124,23 +136,21 @@ class MemoTests(unittest.TestCase):
                 with self.subTest(name=name, build=build):
                     self.assertEqual(self.tables(name, build), [])
 
-    def test_a_program_that_spawns_has_tables_on_each_thread(self):
-        # Its spawned calls run `fib` on threads of the pool at once, and
-        # one table is not shared safely between threads.
-        for name, per_thread in [("spawning", True), ("fib", False)]:
+    def test_a_program_that_spawns_shares_its_tables(self):
+        # Its spawned calls run `fib` on threads of the pool at once. They
+        # share one table, each of whose entries has a version, and each
+        # thread keeps its own state and count of work.
+        for name, spawns in [("spawning", True), ("fib", False)]:
             for build in ["plain", "optimized"]:
                 with self.subTest(name=name, build=build):
                     result = subprocess.run([ZANEC, "--ll", *BUILDS[build], "--package", FIXTURES / name],
                                             capture_output=True, text=True, timeout=300)
                     self.assertEqual(result.returncode, 0, result.stderr)
-                    memo = [line for line in result.stdout.splitlines()
-                            if line.startswith("@") and ".memo." in line.split(" ", 1)[0]
-                            or line.startswith("@zane.memo.calls")]
-                    self.assertEqual(len(memo), 3, memo)
-                    for line in memo:
-                        self.assertEqual("thread_local" in line, per_thread, line)
+                    self.assertEqual(memo_variables(result.stdout), {
+                        "state": spawns, "table": False, "calls": spawns}, name)
+                    self.assertEqual("fence acquire" in result.stdout, spawns)
 
-    def test_a_library_has_tables_on_each_thread(self):
+    def test_a_library_shares_its_tables(self):
         # A program that links the library may call `fib` from its threads.
         # A library is built plain or optimized; only a program is tiered.
         for build in ["plain", "optimized"]:
@@ -148,11 +158,8 @@ class MemoTests(unittest.TestCase):
                 result = subprocess.run([ZANEC, "--no-root", "--ll", *BUILDS[build],
                                          "--package", LIBRARY], capture_output=True, text=True, timeout=300)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                states = [line for line in result.stdout.splitlines()
-                          if line.startswith("@") and line.split(" ", 1)[0].endswith('.memo.state"')]
-                self.assertEqual(len(states), 1, states)
-                self.assertIn("memolibrary$fib", states[0])
-                self.assertIn("thread_local", states[0])
+                self.assertIn('memolibrary$fib(%primitives$I64).memo.state"', result.stdout)
+                self.assertEqual(memo_variables(result.stdout), {"state": True, "table": False, "calls": True})
 
     def test_a_library_remembers_for_a_program_that_spawns(self):
         # The library's object, linked into a program that calls its `fib`

@@ -514,9 +514,10 @@ let version remembered outside next body =
 (* The program with each remembered function replaced by its two copies,
    and the functions remembered, whose dispatchers codegen emits. In a
    program that spawns, and in a library, whose functions a program that
-   spawns may call, each thread has tables of its own, since one table is
-   not shared safely between threads; a remembered function reads only its
-   arguments and constants, so any thread's table gives its result. *)
+   spawns may call, threads share each table, whose entries codegen
+   versions (Memos), and each keeps its state of its own; a remembered
+   function reads only its arguments and constants, so a result any thread
+   made is the one every thread would. *)
 let plan (p : Program.t) =
   let funcs = Hashtbl.create 64 in
   List.iter

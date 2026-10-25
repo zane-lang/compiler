@@ -57,17 +57,24 @@ The choice reads the tree alone, never what LLVM makes of the program. So
 the two tiers of a tiered build, which lower the same tree, plan the same
 tables and emit the same module ([`tiers.md`](tiers.md) T3).
 
-A program that spawns, and a library, whose functions a program that spawns
-may call, give each thread tables of its own: the table, the state and the
-count of work are thread-local variables. A stamped dependency is built as a
-library, so its functions keep tables of their own in its object, which the
-program's calls into it use; the bodies the program takes in to optimize
-with get none. One table
-is not shared safely between threads, and each thread's gives the same
-results, since a remembered function reads only its arguments and constants.
-A thread's tables take room in its machine stack, which is where a thread's
-variables live on Linux: at most 64 KiB for each remembered function. A
-program that spawns nothing keeps them as plain variables.
+In a program that spawns, and in a library, whose functions a program that
+spawns may call, every thread uses one table for each function, so a result
+one thread made is a hit on every other. A remembered function reads only
+its arguments and constants, so the result is the same whichever thread
+made it. Each entry then ends in a version, odd while a miss writes the
+entry. A lookup reads the version, then the entry, then the version again
+after an acquire fence, and takes the entry for a miss unless the two are
+the same and even, so it never returns an entry written while it read. A
+miss claims the entry by setting the version's low bit, and writes it only
+when no other miss held it, then publishes it with the next even version;
+a miss that finds it held leaves it, which costs at most a later miss. The
+state and the count of work stay each thread's own, as thread-local
+variables: the count measures the calls of one thread's stack, and the
+state is written on every lookup, which threads sharing it would contend
+for. A stamped dependency is built as a library, so its functions keep
+tables in its object, which the program's calls into it use; the bodies the
+program takes in to optimize with get none. A program that spawns nothing
+keeps plain entries with no version.
 
 ## M2. A function becomes four
 
@@ -78,7 +85,8 @@ A function given a table becomes:
   looking, or the lookup otherwise.
 - **The lookup, which is never inlined.** It hashes the arguments' words and
   probes one entry of the table. On a hit it returns the remembered result.
-  On a miss it runs the body copy and writes the entry over.
+  On a miss it runs the body copy and writes the entry over, when no other
+  thread is writing it (M1).
 - **The body copy, the function as written.** Its calls back into the cycle
   go through the gates again.
 - **The plain copy.** Its calls into the cycle go straight to the other
