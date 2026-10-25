@@ -152,10 +152,7 @@ static void zane_join_task(zane_task *t) {
 	   on no cycle, and its join does not wait. */
 	int waits = mine || zane_state(t) != ZANE_DONE;
 	if (waits) zane_wait_for(NULL, t);
-	if (mine) {
-		zane_taken();
-		zane_run(t);
-	}
+	if (mine) zane_run(t);
 	pthread_mutex_lock(&zane_pool);
 	while (zane_state(t) != ZANE_DONE) pthread_cond_wait(&zane_finished, &zane_pool);
 	zane_set_state(t, ZANE_JOINED);

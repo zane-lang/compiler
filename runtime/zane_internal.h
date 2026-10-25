@@ -377,7 +377,6 @@ extern pthread_mutex_t zane_pool;
 extern pthread_cond_t zane_finished;
 extern int64_t zane_threads, zane_wanted, zane_queued;
 void zane_unlink(zane_deque *d, zane_task *t);
-void zane_taken(void);
 void zane_run(zane_task *t);
 int64_t zane_processors(void);
 
