@@ -223,7 +223,7 @@ and read st ctx (e : T.Expr.t) =
   if through_owner st e && not (reference st e.T.Expr.ty) then
     match addr st ctx span e with
     | Some p ->
-        let node = if snapshots st e.T.Expr.ty then Expr.Snapshot p else Expr.Deref p in
+        let node = if snapshots st e then Expr.Snapshot p else Expr.Deref p in
         { Expr.node; ty = ty st span e.T.Expr.ty }
     | None -> expr st ctx e
   else expr st ctx e

@@ -1067,18 +1067,27 @@ test passing.
   ([#203](https://github.com/zane-lang/compiler/issues/203#issuecomment-6062273902)).
   How long retired values are kept is left to measurement.
 
-  A read of a type no write-back can touch is a plain load, read where it
+  A read of a place no write-back can touch is a plain load, read where it
   is. Only a spawned `mut` call whose subject is reached through an owner
-  writes back, and it writes only a value of its subject's type, so a read
-  races one only when its type holds that type or that type holds it,
-  member by member, boxed members included. Lowering collects those types
+  writes back, and it writes only its subject's place. A value holds no
+  owner, so every byte of a value inside an owner is reached from that
+  owner alone, by one path of members, cases and elements: a place is the
+  type of the innermost owner it is reached through and the steps from
+  there, and two places overlap only in owners of one type, when one's
+  steps begin the other's. Any two cases count as one step, since their
+  payloads share one room, and so do any two elements. A place a declared
+  subscript names is not known, since the subscript's body may name any
+  place inside its target, so a read of one, or of anything when one is
+  written back, races a write-back when its type holds the written value's
+  or that holds its type, member by member, boxed members included.
+  Lowering collects the places
   from the source of every package in the build, a stamped dependency's
   included, since its objects are built from that source
   ([`separate-compilation.md`](separate-compilation.md) C2), and a spawn
-  anywhere counts, reached or not. A subject whose type names a type
-  parameter is in a generic verb's body, which is lowered only as its
+  anywhere counts, reached or not. A subject whose type, or whose owner's,
+  names a type parameter is in a generic verb's body, which is lowered only as its
   instances, and they are collected too. A program that spawns nothing has
-  no such types, so every read is plain. A library's object keeps every
+  no such places, so every read is plain. A library's object keeps every
   snapshot, since a program that spawns may write back any value into it.
   The plain load is what lets LLVM forward a value just written to the read
   after it, keep a field in a register across a loop and vectorize the

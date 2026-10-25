@@ -237,11 +237,11 @@ let spawned (p : T.Program.t) =
   List.iter (fun (d : T.Defaults.t) -> List.iter (fun (_, e) -> expr e) d.T.Defaults.values) p.T.Program.defaults;
   !found
 
-(* The types of the values spawned calls may write back (concurrency.md
-   §4.4): each `mut` call's subject reached through an owner, which the call
-   works on a copy of and writes back when it returns (Lower_spawn). A
-   subject whose type names a type parameter is in a generic verb's body,
-   which is lowered only as its instances, and they are walked too. *)
+(* The places spawned calls may write back into (concurrency.md §4.4): each
+   `mut` call's subject reached through an owner, which the call works on a
+   copy of and writes back when it returns (Lower_spawn). A subject whose
+   type, or whose owner's, names a type parameter is in a generic verb's
+   body, which is lowered only as its instances, and they are walked too. *)
 let written_back st calls =
   let subject (e : T.Expr.t) =
     match e.T.Expr.node with
@@ -261,8 +261,12 @@ let written_back st calls =
     (fun e ->
       match subject e with
       | Some s ->
-          let t = Tty.strip_mode s.T.Expr.ty in
-          if Tty.free_params t = [] && through_owner st s && not (reference st t) then Some t else None
+          let w = written_into st s in
+          let generic = function Some (o, _) -> Tty.free_params o <> [] | None -> false in
+          if Tty.free_params w.of_type = [] && (not (generic w.place)) && through_owner st s
+             && not (reference st w.of_type)
+          then Some w
+          else None
       | None -> None)
     calls
 

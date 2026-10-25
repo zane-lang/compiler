@@ -1082,7 +1082,7 @@
     │   │   └── value > binary:
     │   │       ├── type: i64
     │   │       ├── op: *
-    │   │       ├── left > snapshot:
+    │   │       ├── left > deref:
     │   │       │   ├── type: i64
     │   │       │   └── ptr > offset:
     │   │       │       ├── within: {i64}
@@ -1094,7 +1094,7 @@
     │   ├── symbol: lambdas$main()$lambda10
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
-    │   └── body[0] > return > snapshot:
+    │   └── body[0] > return > deref:
     │       ├── type: i64
     │       └── ptr > offset:
     │           ├── within: {i64}

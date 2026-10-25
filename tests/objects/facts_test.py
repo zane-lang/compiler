@@ -59,12 +59,15 @@ class FactsTests(unittest.TestCase):
             ir = run(ZANEC, "--ll", *optimize, *packages("idle", "cells"))
             self.assertNotRegex(ir, SNAPSHOT)
 
-    def test_only_reads_of_a_type_written_back_take_snapshots(self):
-        # `busy` writes back an Int: the cells' Int hits are snapshots, and
-        # their Float heat, which no write-back holds, is read plainly.
+    def test_only_reads_of_a_place_written_back_take_snapshots(self):
+        # `busy` writes back a `Tally`'s Int: reading it back is a snapshot,
+        # and the cells' Int hits and Float heat, in owners of another type,
+        # are read plainly though they are values of the same types.
         ir = run(ZANEC, "--ll", *packages("busy", "cells"))
         self.assertRegex(ir, r"load atomic i64")
-        self.assertNotRegex(ir, r"load atomic double")
+        sweep = ir[ir.index('define internal i64 @"cells$sweep('):]
+        sweep = sweep[: sweep.index("\n}\n")]
+        self.assertNotRegex(sweep, SNAPSHOT)
 
     def test_reads_keep_snapshots_where_something_may_write_back(self):
         # A spawn in the program, in a stamped dependency it calls, or a

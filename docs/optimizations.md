@@ -127,7 +127,7 @@ copies it.
 
 - **Builds:** every build (programs, not libraries)
 - **Where:** `lib/cgt/program.ml` (`written_back`),
-  `lib/cgt/type_layout.ml` (`snapshots`)
+  `lib/cgt/type_layout.ml` (`owned_place`, `snapshots`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "Snapshots"
 - **Effect:** lets LLVM forward stores to loads, keep fields in registers
   across loops and vectorize them, which no atomic load allows. Summing a
@@ -138,10 +138,12 @@ copies it.
 A value read through an owner may race a spawned write-back, the only write
 another thread makes to a place this thread can read. A write-back comes
 only from a spawned `mut` call whose subject is reached through an owner, so
-the types it can write are known from the source of every package in the
-build. A read takes a snapshot only when its type holds one of them, or one
-of them holds it; every other such read is a plain load, as is every read
-in a program that spawns nothing.
+the places it can write are known from the source of every package in the
+build, each as the type of its innermost owner and the members, cases and
+elements down from it. A read takes a snapshot only when its place overlaps
+one of them; every other such read is a plain load, as is every read in a
+program that spawns nothing. Writing back `tally.n` leaves every other
+`Int` read plain.
 
 ### Cross-package bodies for the optimizer
 

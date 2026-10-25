@@ -87,6 +87,17 @@ and exit = Function | Leave of { label : int; result : int option; ret : Tty.t }
    empty, so Regions finds no parameter of it kept, and the arena stays. *)
 let dropping = ""
 
+(* A step from an owner down to a value it holds inline: a member, a case's
+   payload or an element. Any two cases are one step, since their payloads
+   share one room, and so are any two elements, whose indices are not
+   known. *)
+type step = Member of string | Case | Elem
+
+(* A place written back into: its value's type, and where it is, when it is
+   known, as the type of the innermost owner it is reached through and the
+   steps from there. *)
+type written = { of_type : Tty.t; place : (Tty.t * step list) option }
+
 (* A package constant: its symbol, its package, its declared type and its
    value. *)
 type constant = { symbol : string; package : string; ty : Tty.t; value : T.Expr.t }
@@ -153,12 +164,10 @@ type state = {
   (* Whether this is a program none of whose code spawns, which runs on
      one thread. *)
   exclusive : bool;
-  (* The value types a spawned call may write back into a place reached
-     through an owner (concurrency.md §4.4), or [None] for a library's,
-     which a program that spawns may write back any value into. A read
-     through an owner of a type that holds none of them, and that none of
-     them holds, races no write-back, and needs no snapshot. *)
-  mutable written_back : Tty.t list option;
+  (* The places a spawned call may write a value back into, reached through
+     an owner (concurrency.md §4.4), or [None] for a library's, which a
+     program that spawns may write back any value into (Type_layout.snapshots). *)
+  mutable written_back : written list option;
   exports : string -> bool;
   stamp : string -> string;
   stamped : string -> bool;
