@@ -199,8 +199,9 @@ the work its hits save, counted from below, and stops looking for good when
 they do not pay. A loop decides once, before it starts, whether its calls
 still look, so a loop whose functions have stopped runs as written. In a
 program that spawns, and in a library, threads share each table, whose
-entries' tags a lookup reads before and after it reads them, and keep
-their own state and count of work.
+entries' versions a lookup reads before and after it reads them, and keep
+their own state and count of work. A table holds at most 256 KiB, in
+memory the system backs only where an entry has been written.
 
 ---
 

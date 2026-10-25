@@ -58,6 +58,9 @@ extern LLVMBuilderRef LLVMCreateBuilderInContext(LLVMContextRef context);
 extern void LLVMPositionBuilderAtEnd(LLVMBuilderRef builder, LLVMBasicBlockRef block);
 extern void LLVMDisposeBuilder(LLVMBuilderRef builder);
 extern LLVMValueRef LLVMBuildFence(LLVMBuilderRef builder, int ordering, int single_thread, const char *name);
+extern LLVMTypeRef LLVMTypeOf(LLVMValueRef v);
+extern LLVMValueRef LLVMBuildAtomicCmpXchg(LLVMBuilderRef builder, LLVMValueRef ptr, LLVMValueRef cmp, LLVMValueRef replacement,
+                                           int success_ordering, int failure_ordering, int single_thread);
 extern LLVMOperandBundleRef LLVMCreateOperandBundle(const char *tag, size_t length, LLVMValueRef *args, unsigned count);
 extern void LLVMDisposeOperandBundle(LLVMOperandBundleRef bundle);
 extern LLVMValueRef LLVMBuildCallWithOperandBundles(LLVMBuilderRef builder, LLVMTypeRef type, LLVMValueRef fn,
@@ -136,6 +139,19 @@ value zane_fence(value type, value block, value ordering) {
   LLVMBuildFence(b, Int_val(ordering), 0, "");
   LLVMDisposeBuilder(b);
   CAMLreturn(Val_unit);
+}
+
+/* A strong compare-and-swap of the word at [ptr] from [cmp] to
+   [replacement], acquire when it swaps and monotonic when it does not, at
+   the end of [block]. The bindings build none. */
+value zane_cmpxchg(value block, value ptr, value cmp, value replacement) {
+  CAMLparam4(block, ptr, cmp, replacement);
+  LLVMValueRef c = (LLVMValueRef)from_val(cmp);
+  LLVMBuilderRef b = LLVMCreateBuilderInContext(LLVMGetTypeContext(LLVMTypeOf(c)));
+  LLVMPositionBuilderAtEnd(b, (LLVMBasicBlockRef)from_val(block));
+  LLVMValueRef swap = LLVMBuildAtomicCmpXchg(b, (LLVMValueRef)from_val(ptr), c, (LLVMValueRef)from_val(replacement), 4, 2, 0);
+  LLVMDisposeBuilder(b);
+  CAMLreturn(to_val(swap));
 }
 
 /* An array type of [count] elements, and an array type's length, both 64

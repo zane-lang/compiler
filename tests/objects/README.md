@@ -115,7 +115,8 @@ in the repository is Unicode.
 plain, optimized and tiered (tier 1 loaded before `main`), with and without
 `--no-memoize`, and each must print the same in all six. `fib`, `ttt` (a board array), `moves` (a variant) and
 `constant` (which reads a package constant) repeat their arguments and get
-one table each. `tree`, `phase` and `shallowin` mostly do not repeat them. `rejected` holds recursions that are
+one table each, and so does `zeros`, whose first call of 0 meets an empty
+entry and must miss. `tree`, `phase` and `shallowin` mostly do not repeat them. `rejected` holds recursions that are
 left alone: one that calls itself once, one that takes a `String`, and one
 that prints. `spawning` runs `fib` from two spawned calls at once, which
 share its table, as do the threads of `memolibraryuser`, a program that
@@ -126,5 +127,5 @@ is inside a verb written out where it is called, which always runs. `stepped` ma
 same local, which a mutating call between them changes through its address,
 so they count as two and it gets a table. `apart` makes the same call in two
 blocks that may each run without the other, so it gets one too. Every build gives the same functions a
-table, so the two tiers of a tiered build emit the same module, and every
-table starts on a cache line.
+table, so the two tiers of a tiered build emit the same module, every
+table starts on a cache line, and none holds more than 256 KiB.

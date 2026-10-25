@@ -5,11 +5,11 @@ open Cgt.Nodes
 open Emit
 
 (* A remembered function's dispatcher (Cgt.Memo). Its table is
-   direct-mapped: each entry is a tag, the argument words, the result words
-   and the work the result took, found by a multiplicative hash of the
-   arguments, and a miss overwrites whatever entry was there. The work is
-   what the result's calls would run without a table, counted from below
-   in [zane.memo.calls]: each miss adds its function's [Cgt.Memo.cheapest],
+   direct-mapped: each entry is the argument words, the result words and a
+   meta word holding the work the result took, found by a multiplicative
+   hash of the arguments, and a miss overwrites whatever entry was there.
+   The work is what the result's calls would run without a table, counted
+   from below in [zane.memo.calls]: each miss adds its function's [Cgt.Memo.cheapest],
    and each hit the work its entry kept; an entry keeps at most 2^40. The
    state charges each lookup the function's [Cgt.Memo.charge] and credits
    each hit with the work it saved, at [Cgt.Memo.credit], never going below
@@ -20,6 +20,7 @@ open Emit
    it lands in the binary does not decide which entries straddle two. *)
 external set_atomic : Llvm.llvalue -> int -> unit = "zane_set_atomic"
 external fence : Llvm.lltype -> Llvm.llbasicblock -> int -> unit = "zane_fence"
+external cmpxchg : Llvm.llbasicblock -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue = "zane_cmpxchg"
 
 (* LLVMAtomicOrdering's values. *)
 let monotonic = 2
@@ -27,8 +28,14 @@ let acquire = 4
 let release = 5
 
 let memo_limit = Cgt.Memo.limit
-let memo_bytes = 65536
-let memo_most_entries = 4096
+let memo_bytes = 262144
+let memo_most_entries = 16384
+
+(* An entry's meta word: the work in its low 41 bits, whose bound, 2^40,
+   they hold, and in a table threads share a version above them, odd while
+   a miss writes the entry. *)
+let work_mask = Int64.sub (Int64.shift_left 1L 41) 1L
+let writing = Int64.shift_left 1L 41
 
 let memo env (m : Cgt.Memo.t) =
   let f = m.Cgt.Memo.func in
@@ -158,12 +165,14 @@ let memo env (m : Cgt.Memo.t) =
       a.params
   in
   let result_words = match ret_passing with Words n -> n | (Itself | Address) when scalars ret -> count ret | Itself | Address -> words_of ret in
-  (* A table threads share: its tag is [busy] while a miss writes the
-     entry, so a lookup that reads it meanwhile sees the tag change and
-     takes the entry for a miss. *)
+  (* A table threads share keeps a version in each entry's meta word, which
+     a miss makes odd while it writes the entry and even again after, so a
+     lookup that reads the same even version before and after the entry's
+     words read none of them while they were written. *)
   let shared = Llvm.is_thread_local state in
-  let width = 1 + List.length keys + result_words + 1 in
-  let weight = width - 1 in
+  let nk = List.length keys in
+  let width = nk + result_words + 1 in
+  let meta = width - 1 in
   let entries =
     let rec down n = if n > 1 && (n * width * 8 > memo_bytes || n > memo_most_entries) then down (n / 2) else n in
     down memo_most_entries
@@ -178,34 +187,33 @@ let memo env (m : Cgt.Memo.t) =
   let h = List.fold_left (fun h w -> Llvm.build_mul (Llvm.build_xor h w "" b) k "" b) (Llvm.const_int i64 0) keys in
   let h = Llvm.build_mul (Llvm.build_xor h (Llvm.build_lshr h (Llvm.const_int i64 31) "" b) "" b) k "" b in
   let index = if bits = 0 then Llvm.const_int i64 0 else Llvm.build_lshr h (Llvm.const_int i64 (64 - bits)) "" b in
-  (* A tag has its low bit set, so it is neither an empty entry's, 0, nor
-     [busy]. *)
-  let tag = Llvm.build_or h (Llvm.const_int i64 1) "" b in
-  let busy = Llvm.const_int i64 2 in
   let at i = Llvm.build_in_bounds_gep (Llvm.array_type entry_ty entries) table [| Llvm.const_int i64 0; index; Llvm.const_int i64 i |] "" b in
   let atomic order access = if shared then set_atomic access order; access in
   let load i = atomic monotonic (Llvm.build_load i64 (at i) "" b) in
   let store w i = ignore (atomic monotonic (Llvm.build_store w (at i) b)) in
-  let begun = if shared then atomic acquire (Llvm.build_load i64 (at 0) "" b) else load 0 in
+  let zero = Llvm.const_int i64 0 in
+  let work_of m = Llvm.build_and m (Llvm.const_of_int64 i64 work_mask false) "" b in
+  let begun = if shared then atomic acquire (Llvm.build_load i64 (at meta) "" b) else load meta in
+  (* An empty entry's work is 0, and a written one's at least its
+     function's cheapest call, so an entry found is never an empty one whose
+     zeroed words match arguments of zeros. *)
   let found =
     List.fold_left
-      (fun acc (i, w) -> Llvm.build_and acc (Llvm.build_icmp Llvm.Icmp.Eq (load (i + 1)) w "" b) "" b)
-      (Llvm.build_icmp Llvm.Icmp.Eq begun tag "" b)
+      (fun acc (i, w) -> Llvm.build_and acc (Llvm.build_icmp Llvm.Icmp.Eq (load i) w "" b) "" b)
+      (Llvm.build_icmp Llvm.Icmp.Ne (work_of begun) zero "" b)
       (List.mapi (fun i w -> (i, w)) keys)
   in
-  (* What a hit gives back: read before the tag is read again, when the
-     table is shared, so the tag vouches for it. *)
-  let kept () = List.init result_words (fun i -> load (1 + List.length keys + i)) in
-  let early = if shared then Some (load weight, kept ()) else None in
-  (* A shared entry is found when its tag was the one sought before and
-     after its words were read. Another miss of the same arguments may have
-     written it meanwhile, which wrote the same result. *)
+  (* What a hit gives back: read before the meta word is read again, when
+     the table is shared, so the version vouches for it. *)
+  let kept () = List.init result_words (fun i -> load (nk + i)) in
+  let early = if shared then Some (kept ()) else None in
   let found =
     if not shared then found
     else begin
       fence i64 (Llvm.insertion_block b) acquire;
-      let again = atomic monotonic (Llvm.build_load i64 (at 0) "" b) in
-      Llvm.build_and found (Llvm.build_icmp Llvm.Icmp.Eq again tag "" b) "" b
+      let again = atomic monotonic (Llvm.build_load i64 (at meta) "" b) in
+      let even = Llvm.build_icmp Llvm.Icmp.Eq (Llvm.build_and begun (Llvm.const_of_int64 i64 writing false) "" b) zero "" b in
+      Llvm.build_and (Llvm.build_and found even "" b) (Llvm.build_icmp Llvm.Icmp.Eq again begun "" b) "" b
     end
   in
   let calls =
@@ -223,7 +231,8 @@ let memo env (m : Cgt.Memo.t) =
      runs in, the state credited with it, and the result's words given
      back as it returns. *)
   Llvm.position_at_end hit b;
-  let took, kept = match early with Some (took, kept) -> (took, kept) | None -> (load weight, kept ()) in
+  let took = work_of begun in
+  let kept = match early with Some kept -> kept | None -> kept () in
   ignore (Llvm.build_store (Llvm.build_add (Llvm.build_load i64 calls "" b) took "" b) calls b);
   let saved =
     Llvm.build_lshr (Llvm.build_mul took (Llvm.const_int i64 m.Cgt.Memo.credit) "" b) (Llvm.const_int i64 Cgt.Memo.credit_shift) "" b
@@ -267,27 +276,31 @@ let memo env (m : Cgt.Memo.t) =
     | Address -> of_place ret (Llvm.param fn 0)
   in
   let words () =
-    List.iteri (fun i w -> store w (i + 1)) keys;
-    List.iteri (fun i w -> store w (1 + List.length keys + i)) out
+    List.iteri (fun i w -> store w i) keys;
+    List.iteri (fun i w -> store w (nk + i)) out
   in
   if not shared then (
-    store work weight;
-    store tag 0;
-    words ())
+    words ();
+    store work meta)
   else begin
-    (* The entry is claimed by making its tag [busy], and given up when
-       another miss holds it, which writes it instead. The fence keeps the
-       entry's words from being written before the claim is, and the tag,
-       stored last, publishes them. *)
-    let held = Llvm.build_atomicrmw Llvm.AtomicRMWBinOp.Xchg (at 0) busy Llvm.AtomicOrdering.Acquire false "" b in
-    let claimed = Llvm.append_block ctx "" fn and left = Llvm.append_block ctx "" fn in
-    let free = Llvm.build_icmp Llvm.Icmp.Ne held busy "" b in
-    ignore (Llvm.build_cond_br free claimed left b);
+    (* The entry is claimed by making its version odd, and given up when
+       another miss is writing it, which writes it instead, or claimed it
+       first. The fence keeps the entry's words from being written before
+       the claim is, and the meta word, stored last with the version even
+       again and the work, publishes them. *)
+    let was = atomic monotonic (Llvm.build_load i64 (at meta) "" b) in
+    let idle = Llvm.append_block ctx "" fn and claimed = Llvm.append_block ctx "" fn and left = Llvm.append_block ctx "" fn in
+    let odd = Llvm.const_of_int64 i64 writing false in
+    ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Eq (Llvm.build_and was odd "" b) zero "" b) idle left b);
+    Llvm.position_at_end idle b;
+    let held = Llvm.build_add was odd "" b in
+    let swap = cmpxchg idle (at meta) was held in
+    ignore (Llvm.build_cond_br (Llvm.build_extractvalue swap 1 "" b) claimed left b);
     Llvm.position_at_end claimed b;
     fence i64 claimed release;
-    store work weight;
     words ();
-    ignore (atomic release (Llvm.build_store tag (at 0) b));
+    let version = Llvm.build_and (Llvm.build_add held odd "" b) (Llvm.const_of_int64 i64 (Int64.lognot work_mask) false) "" b in
+    ignore (atomic release (Llvm.build_store (Llvm.build_or version work "" b) (at meta) b));
     ignore (Llvm.build_br left b);
     Llvm.position_at_end left b
   end;

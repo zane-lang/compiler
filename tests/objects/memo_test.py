@@ -103,6 +103,20 @@ class MemoTests(unittest.TestCase):
                         self.assertEqual(int(line.split(" ", 1)[0], 16) % 64, 0, (name, build, line))
         self.assertTrue(found)
 
+    def test_a_table_holds_at_most_256_kib(self):
+        # Its entries are as many as fit, a power of two: ttt's, of six
+        # argument words, a result and a meta word, are 64 bytes, so it
+        # holds 4096 of them.
+        sizes = {}
+        for name in sorted(p.name for p in FIXTURES.iterdir()):
+            symbols = subprocess.run(["nm", "-S", self.build(name, "optimized", True)], capture_output=True,
+                                     text=True, check=True).stdout
+            for line in symbols.splitlines():
+                if line.endswith(".memo.table"):
+                    sizes[name] = int(line.split(" ", 2)[1], 16)
+                    self.assertLessEqual(sizes[name], 262144, (name, line))
+        self.assertEqual(sizes["ttt"], 262144)
+
     def test_every_build_prints_the_same(self):
         for name in sorted(p.name for p in FIXTURES.iterdir()):
             args = (FIXTURES / name / "arguments").read_text().split()
@@ -121,6 +135,7 @@ class MemoTests(unittest.TestCase):
     def test_a_repeating_recursion_gets_a_table(self):
         for name, function in [
             ("fib", "fib$fib(%primitives$I64)"),
+            ("zeros", "zeros$fib(%primitives$I64)"),
             ("constant", "constant$fib(%primitives$I64)"),
             ("ttt", "ttt$minimax(%primitives$Array<%primitives$I32, 9>, %primitives$I32)"),
             ("moves", "moves$ways(moves$Move, %primitives$I64)"),
@@ -138,7 +153,7 @@ class MemoTests(unittest.TestCase):
 
     def test_a_program_that_spawns_shares_its_tables(self):
         # Its spawned calls run `fib` on threads of the pool at once. They
-        # share one table, whose entries' tags guard them, and each thread
+        # share one table, whose entries' versions guard them, and each thread
         # keeps its own state and count of work.
         for name, spawns in [("spawning", True), ("fib", False)]:
             for build in ["plain", "optimized"]:
