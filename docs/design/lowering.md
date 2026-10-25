@@ -1067,16 +1067,22 @@ test passing.
   ([#203](https://github.com/zane-lang/compiler/issues/203#issuecomment-6062273902)).
   How long retired values are kept is left to measurement.
 
-  A program none of whose code spawns reads such a value where it is, as
-  a plain load. Only a spawned call writes back, and only spawned calls
-  run on the pool's threads, so in such a program nothing writes while it
-  reads. Lowering decides it from the source of every package in the build,
-  a stamped dependency's included, since its objects are built from that
-  source ([`separate-compilation.md`](separate-compilation.md) C2), and a
-  spawn anywhere counts, reached or not. A library's object keeps its
-  snapshots, since a program that spawns may link it. The plain load is
-  what lets LLVM forward a value just written to the read after it, and
-  keep a field in a register across a loop, which no atomic load allows.
+  A read of a type no write-back can touch is a plain load, read where it
+  is. Only a spawned `mut` call whose subject is reached through an owner
+  writes back, and it writes only a value of its subject's type, so a read
+  races one only when its type holds that type or that type holds it,
+  member by member, boxed members included. Lowering collects those types
+  from the source of every package in the build, a stamped dependency's
+  included, since its objects are built from that source
+  ([`separate-compilation.md`](separate-compilation.md) C2), and a spawn
+  anywhere counts, reached or not. A subject whose type names a type
+  parameter is in a generic verb's body, which is lowered only as its
+  instances, and they are collected too. A program that spawns nothing has
+  no such types, so every read is plain. A library's object keeps every
+  snapshot, since a program that spawns may write back any value into it.
+  The plain load is what lets LLVM forward a value just written to the read
+  after it, keep a field in a register across a loop and vectorize the
+  loop, which no atomic load allows.
 - **An owner lent to a running spawn.** The spawning block may not write an
   owner it lent a spawn that may still be reading it; the checker rejects
   that write ([`spec-divergences.md`](../spec-divergences.md) §11), so the

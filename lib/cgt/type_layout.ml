@@ -308,6 +308,27 @@ let rec through_owner st (e : T.Expr.t) =
   | T.Expr.Subscript _ -> true
   | _ -> false
 
+(* Whether a value of type [outer] holds one of type [inner]: is it, or has
+   it among the members it holds inline or boxed, however deep. *)
+let holds st outer inner =
+  let seen = Hashtbl.create 8 in
+  let rec go t =
+    Tty.equal t inner
+    || (not (Hashtbl.mem seen t))
+       &&
+       (Hashtbl.replace seen t ();
+        List.exists go (inline st t))
+  in
+  go (Tty.strip_mode outer)
+
+(* Whether a read through an owner of a value of this type takes a snapshot:
+   a spawned call may write back a value it holds, or one holding it, while
+   the read takes its bytes (concurrency.md §4.4). *)
+let snapshots st t =
+  match st.written_back with
+  | None -> true
+  | Some ws -> List.exists (fun w -> holds st t w || holds st w t) ws
+
 (* Whether a value of this type owns a dynamic block (memory.md §3.6), which
    it returns when it dies and copies when it is copied. *)
 let owns st span t = (not (Tty.is_ref t)) && positions st span t 0 [] <> []

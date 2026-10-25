@@ -915,7 +915,7 @@ let replayed_outputs () =
 let global_member () =
   let prog = program [] in
   Hashtbl.replace prog.Eval.globals "g"
-    { C.Global.symbol = "g"; linkage = C.Linkage.Local; ty = C.Ty.Struct [ C.Ty.I64; C.Ty.I64 ] };
+    { C.Global.symbol = "g"; linkage = C.Linkage.Local; ty = C.Ty.Struct [ C.Ty.I64; C.Ty.I64 ]; per_thread = false };
   let run = Eval.start prog in
   let c = Eval.global run "g" in
   Value.store { Value.cell = c; path = [ Value.Member 0 ]; owned = false } C.Ty.I64 (Value.VInt 1L);

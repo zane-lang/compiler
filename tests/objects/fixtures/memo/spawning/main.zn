@@ -1,4 +1,5 @@
-/// A program that spawns: --memoize gives none of its functions a table.
+/// A program that spawns, whose spawned calls run `fib` on two threads at once:
+/// each thread has a table of its own.
 package spawning;
 
 

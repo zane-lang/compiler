@@ -139,7 +139,7 @@ let spawn_call w st ctx span v fn ~writes passed handler =
     | Some (t, shared), first :: rest ->
         let loc = fresh st in
         let place = { Expr.node = Expr.Local loc; ty = Nodes.Ty.Ptr } in
-        let read = if shared then Expr.Snapshot place else Expr.Deref place in
+        let read = if shared && snapshots st t then Expr.Snapshot place else Expr.Deref place in
         let value = { Expr.node = read; ty = ty st span t } in
         let copy =
           if writes && owns st span t then

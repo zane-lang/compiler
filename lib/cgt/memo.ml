@@ -512,12 +512,13 @@ let version remembered outside next body =
   stats body
 
 (* The program with each remembered function replaced by its two copies,
-   and the functions remembered, whose dispatchers codegen emits. Only a
-   program that runs on one thread remembers anything: the tables are not
-   shared safely between threads, and a library's functions may be called
-   from a program's. *)
+   and the functions remembered, whose dispatchers codegen emits. A library
+   remembers nothing: its functions may be called from a program's. In a
+   program that spawns, each thread has tables of its own, since one table
+   is not shared safely between threads; a remembered function reads only
+   its arguments and constants, so any thread's table gives its result. *)
 let plan (p : Program.t) =
-  if not p.Program.exclusive then (p, [])
+  if p.Program.entry = None then (p, [])
   else
     let funcs = Hashtbl.create 64 in
     List.iter
@@ -590,7 +591,15 @@ let plan (p : Program.t) =
         p.Program.funcs
     in
     let states =
-      List.map (fun (f : Func.t) -> { Global.symbol = state_symbol f.Func.symbol; linkage = Linkage.Local; ty = Ty.I64 }) memos
+      List.map
+        (fun (f : Func.t) ->
+          {
+            Global.symbol = state_symbol f.Func.symbol;
+            linkage = Linkage.Local;
+            ty = Ty.I64;
+            per_thread = not p.Program.exclusive;
+          })
+        memos
     in
     let weigh = weight funcs remembered in
     let cheapest = least funcs remembered in

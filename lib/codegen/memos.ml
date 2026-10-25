@@ -161,6 +161,7 @@ let memo env (m : Cgt.Memo.t) =
   let table = Llvm.define_global (f.Func.symbol ^ ".memo.table") (Llvm.const_null (Llvm.array_type entry_ty entries)) env.m in
   Llvm.set_linkage Llvm.Linkage.Internal table;
   Llvm.set_alignment Abi.line table;
+  Llvm.set_thread_local (Llvm.is_thread_local state) table;
   let st = Llvm.build_load i64 state "" b in
   let k = Llvm.const_of_int64 i64 (-7046029254386353131L) false in
   let h = List.fold_left (fun h w -> Llvm.build_mul (Llvm.build_xor h w "" b) k "" b) (Llvm.const_int i64 0) keys in
@@ -180,6 +181,7 @@ let memo env (m : Cgt.Memo.t) =
     | None ->
         let g = Llvm.define_global "zane.memo.calls" (Llvm.const_int i64 0) env.m in
         Llvm.set_linkage Llvm.Linkage.Internal g;
+        Llvm.set_thread_local (Llvm.is_thread_local state) g;
         g
   in
   let hit = Llvm.append_block ctx "" fn and miss = Llvm.append_block ctx "" fn in

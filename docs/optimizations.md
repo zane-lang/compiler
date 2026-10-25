@@ -123,17 +123,25 @@ A value parameter is read-only, so a value that owns blocks is passed where
 it is rather than copied whole. Only a callee that stores the parameter
 copies it.
 
-### Plain loads in a program that never spawns
+### Plain loads where nothing is written back
 
 - **Builds:** every build (programs, not libraries)
-- **Where:** `lib/cgt/program.ml` (`spawns`, `exclusive`), `lib/cgt/state.ml`
+- **Where:** `lib/cgt/program.ml` (`written_back`),
+  `lib/cgt/type_layout.ml` (`snapshots`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "Snapshots"
-- **Effect:** lets LLVM forward stores to loads and keep fields in
-  registers across loops, which no atomic load allows
+- **Effect:** lets LLVM forward stores to loads, keep fields in registers
+  across loops and vectorize them, which no atomic load allows. Summing a
+  `List<Int>` in a program that spawns a call writing nothing back: 6.00 G
+  instructions as snapshots, 3.50 G as plain loads, what the program takes
+  without its spawn
 
-A value read through an owner is normally read as a snapshot, since a
-spawned write-back may race it. When no package in the build contains a
-`spawn`, nothing can write back, so every such read is a plain load.
+A value read through an owner may race a spawned write-back, the only write
+another thread makes to a place this thread can read. A write-back comes
+only from a spawned `mut` call whose subject is reached through an owner, so
+the types it can write are known from the source of every package in the
+build. A read takes a snapshot only when its type holds one of them, or one
+of them holds it; every other such read is a plain load, as is every read
+in a program that spawns nothing.
 
 ### Cross-package bodies for the optimizer
 
@@ -187,7 +195,9 @@ heavy and called from a loop, keeps a table of its results, so a call whose
 arguments repeat returns at once. Each function scores its lookups against
 the work its hits save, counted from below, and stops looking for good when
 they do not pay. A loop decides once, before it starts, whether its calls
-still look, so a loop whose functions have stopped runs as written.
+still look, so a loop whose functions have stopped runs as written. In a
+program that spawns, the tables, their states and the count of work are
+each thread's own.
 
 ---
 

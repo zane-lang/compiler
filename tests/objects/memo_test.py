@@ -6,8 +6,9 @@ state: one for a recursion, whether its arguments are scalars, an array or a
 variant, it reads a package constant, or it calls itself once, and one for a
 heavy function called in a loop; none for a light function called in a loop,
 a heavy one called outside any loop, or a function that takes a String,
-prints, or runs in a program that spawns or in a library. Every build gives
-the same functions a table, and every table starts on a cache line."""
+prints, or is in a library. A program that spawns gives each thread tables of
+its own. Every build gives the same functions a table, and every table starts
+on a cache line."""
 
 from pathlib import Path
 import os
@@ -109,16 +110,33 @@ class MemoTests(unittest.TestCase):
             ("constant", "constant$fib(%primitives$I64)"),
             ("ttt", "ttt$minimax(%primitives$Array<%primitives$I32, 9>, %primitives$I32)"),
             ("moves", "moves$ways(moves$Move, %primitives$I64)"),
+            ("spawning", "spawning$fib(%primitives$I64)"),
         ]:
             for build in BUILDS:
                 with self.subTest(name=name, build=build):
                     self.assertEqual(self.tables(name, build), [function])
 
     def test_what_is_left_alone_gets_none(self):
-        for name in ["rejected", "spawning"]:
+        for name in ["rejected"]:
             for build in BUILDS:
                 with self.subTest(name=name, build=build):
                     self.assertEqual(self.tables(name, build), [])
+
+    def test_a_program_that_spawns_has_tables_on_each_thread(self):
+        # Its spawned calls run `fib` on threads of the pool at once, and
+        # one table is not shared safely between threads.
+        for name, per_thread in [("spawning", True), ("fib", False)]:
+            for build in ["plain", "optimized"]:
+                with self.subTest(name=name, build=build):
+                    result = subprocess.run([ZANEC, "--ll", *BUILDS[build], "--package", FIXTURES / name],
+                                            capture_output=True, text=True, timeout=300)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    memo = [line for line in result.stdout.splitlines()
+                            if line.startswith("@") and ".memo." in line.split(" ", 1)[0]
+                            or line.startswith("@zane.memo.calls")]
+                    self.assertEqual(len(memo), 3, memo)
+                    for line in memo:
+                        self.assertEqual("thread_local" in line, per_thread, line)
 
     def test_a_library_gets_none(self):
         # A program that links the library may call `fib` from its threads.

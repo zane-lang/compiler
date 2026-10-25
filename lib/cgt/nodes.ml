@@ -404,8 +404,10 @@ end
 
 (* A variable of the program, zeroed until it is stored to: a package
    constant's value, and how far its making has got (L16). *)
+(* A variable of the program's. One [per_thread] has a copy on each thread,
+   which starts out zero there. *)
 module Global = struct
-  type t = { symbol : string; linkage : Linkage.t; ty : Ty.t }
+  type t = { symbol : string; linkage : Linkage.t; ty : Ty.t; per_thread : bool }
 end
 
 (* [values] is each local that holds a value type. No reference names one

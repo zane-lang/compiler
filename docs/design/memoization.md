@@ -57,11 +57,14 @@ The choice reads the tree alone, never what LLVM makes of the program. So
 the two tiers of a tiered build, which lower the same tree, plan the same
 tables and emit the same module ([`tiers.md`](tiers.md) T3).
 
-Only a program that runs on one thread gets tables: no package of the
-build spawns, and it is not a library, whose functions a program that spawns
-may call. The tables are not shared safely between threads. This is the
-condition under which reads through an owner are plain loads
-([`optimizations.md`](../optimizations.md#plain-loads-in-a-program-that-never-spawns)).
+A library gets no tables, since its functions may be called from any
+program's. A program that spawns gives each thread tables of its own: the
+table, the state and the count of work are thread-local variables. One table
+is not shared safely between threads, and each thread's gives the same
+results, since a remembered function reads only its arguments and constants.
+A thread's tables take room in its machine stack, which is where a thread's
+variables live on Linux: at most 64 KiB for each remembered function. A
+program that spawns nothing keeps them as plain variables.
 
 ## M2. A function becomes four
 

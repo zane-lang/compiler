@@ -165,7 +165,7 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > snapshot:
+    │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {handle, i64}
@@ -190,7 +190,7 @@
     │       │       │   │       └── args:
     │       │       │   ├── body[1] > assign:
     │       │       │   │   ├── place: #11
-    │       │       │   │   └── value > snapshot:
+    │       │       │   │   └── value > deref:
     │       │       │   │       ├── type: i64
     │       │       │   │       └── ptr > offset:
     │       │       │   │           ├── within: {handle, i64}
@@ -207,7 +207,7 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0] > snapshot:
+    │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > offset:
     │       │       │   │       ├── within: {handle, i64}

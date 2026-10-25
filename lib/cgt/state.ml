@@ -150,10 +150,15 @@ type state = {
   (* Retain reachable stamped dependency bodies for optimization. They are
      never emitted as ordinary definitions in this object's code. *)
   import_bodies : bool;
-  (* Whether this is a program none of whose code spawns: then no spawned
-     call ever writes back while a place is read, and a read through an
-     owner needs no snapshot. *)
+  (* Whether this is a program none of whose code spawns, which runs on
+     one thread. *)
   exclusive : bool;
+  (* The value types a spawned call may write back into a place reached
+     through an owner (concurrency.md §4.4), or [None] for a library's,
+     which a program that spawns may write back any value into. A read
+     through an owner of a type that holds none of them, and that none of
+     them holds, races no write-back, and needs no snapshot. *)
+  mutable written_back : Tty.t list option;
   exports : string -> bool;
   stamp : string -> string;
   stamped : string -> bool;
@@ -219,6 +224,7 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     library;
     import_bodies;
     exclusive;
+    written_back = (if library then None else Some []);
     exports;
     stamp;
     stamped;
