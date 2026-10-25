@@ -138,8 +138,8 @@ class MemoTests(unittest.TestCase):
 
     def test_a_program_that_spawns_shares_its_tables(self):
         # Its spawned calls run `fib` on threads of the pool at once. They
-        # share one table, each of whose entries has a version, and each
-        # thread keeps its own state and count of work.
+        # share one table, whose entries' tags guard them, and each thread
+        # keeps its own state and count of work.
         for name, spawns in [("spawning", True), ("fib", False)]:
             for build in ["plain", "optimized"]:
                 with self.subTest(name=name, build=build):
