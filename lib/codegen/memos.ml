@@ -158,8 +158,8 @@ let memo env (m : Cgt.Memo.t) =
       a.params
   in
   let result_words = match ret_passing with Words n -> n | (Itself | Address) when scalars ret -> count ret | Itself | Address -> words_of ret in
-  (* A table threads share: its tag's low bit is set while a miss writes
-     the entry, so a lookup that reads it meanwhile sees the tag change and
+  (* A table threads share: its tag is [busy] while a miss writes the
+     entry, so a lookup that reads it meanwhile sees the tag change and
      takes the entry for a miss. *)
   let shared = Llvm.is_thread_local state in
   let width = 1 + List.length keys + result_words + 1 in
@@ -175,17 +175,13 @@ let memo env (m : Cgt.Memo.t) =
   Llvm.set_alignment Abi.line table;
   let st = Llvm.build_load i64 state "" b in
   let k = Llvm.const_of_int64 i64 (-7046029254386353131L) false in
-  (* A shared table's hash starts away from 0, so arguments of 0 do not hash
-     to the tag of an empty entry. *)
-  let seed = if shared then Llvm.const_of_int64 i64 (-7046029254386353131L) false else Llvm.const_int i64 0 in
-  let h = List.fold_left (fun h w -> Llvm.build_mul (Llvm.build_xor h w "" b) k "" b) seed keys in
+  let h = List.fold_left (fun h w -> Llvm.build_mul (Llvm.build_xor h w "" b) k "" b) (Llvm.const_int i64 0) keys in
   let h = Llvm.build_mul (Llvm.build_xor h (Llvm.build_lshr h (Llvm.const_int i64 31) "" b) "" b) k "" b in
   let index = if bits = 0 then Llvm.const_int i64 0 else Llvm.build_lshr h (Llvm.const_int i64 (64 - bits)) "" b in
-  (* An empty entry's tag is 0. A plain table's tags have the low bit set,
-     and a shared table's have it clear, and set while a miss writes. *)
-  let tag =
-    if shared then Llvm.build_and h (Llvm.const_int i64 (-2)) "" b else Llvm.build_or h (Llvm.const_int i64 1) "" b
-  in
+  (* A tag has its low bit set, so it is neither an empty entry's, 0, nor
+     [busy]. *)
+  let tag = Llvm.build_or h (Llvm.const_int i64 1) "" b in
+  let busy = Llvm.const_int i64 2 in
   let at i = Llvm.build_in_bounds_gep (Llvm.array_type entry_ty entries) table [| Llvm.const_int i64 0; index; Llvm.const_int i64 i |] "" b in
   let atomic order access = if shared then set_atomic access order; access in
   let load i = atomic monotonic (Llvm.build_load i64 (at i) "" b) in
@@ -202,17 +198,14 @@ let memo env (m : Cgt.Memo.t) =
   let kept () = List.init result_words (fun i -> load (1 + List.length keys + i)) in
   let early = if shared then Some (load weight, kept ()) else None in
   (* A shared entry is found when its tag was the one sought before and
-     after its words were read, and is no empty entry's. Another miss of
-     the same arguments may have written it meanwhile, which wrote the same
-     result. *)
+     after its words were read. Another miss of the same arguments may have
+     written it meanwhile, which wrote the same result. *)
   let found =
     if not shared then found
     else begin
       fence i64 (Llvm.insertion_block b) acquire;
       let again = atomic monotonic (Llvm.build_load i64 (at 0) "" b) in
-      let same = Llvm.build_icmp Llvm.Icmp.Eq again tag "" b in
-      let filled = Llvm.build_icmp Llvm.Icmp.Ne tag (Llvm.const_int i64 0) "" b in
-      Llvm.build_and found (Llvm.build_and same filled "" b) "" b
+      Llvm.build_and found (Llvm.build_icmp Llvm.Icmp.Eq again tag "" b) "" b
     end
   in
   let calls =
@@ -282,16 +275,13 @@ let memo env (m : Cgt.Memo.t) =
     store tag 0;
     words ())
   else begin
-    (* The entry is claimed by setting its tag's low bit, and given up when
+    (* The entry is claimed by making its tag [busy], and given up when
        another miss holds it, which writes it instead. The fence keeps the
        entry's words from being written before the claim is, and the tag,
        stored last, publishes them. *)
-    let held =
-      Llvm.build_atomicrmw Llvm.AtomicRMWBinOp.Or (at 0) (Llvm.const_int i64 1) Llvm.AtomicOrdering.Acquire false
-        "" b
-    in
+    let held = Llvm.build_atomicrmw Llvm.AtomicRMWBinOp.Xchg (at 0) busy Llvm.AtomicOrdering.Acquire false "" b in
     let claimed = Llvm.append_block ctx "" fn and left = Llvm.append_block ctx "" fn in
-    let free = Llvm.build_icmp Llvm.Icmp.Eq (Llvm.build_and held (Llvm.const_int i64 1) "" b) (Llvm.const_int i64 0) "" b in
+    let free = Llvm.build_icmp Llvm.Icmp.Ne held busy "" b in
     ignore (Llvm.build_cond_br free claimed left b);
     Llvm.position_at_end claimed b;
     fence i64 claimed release;

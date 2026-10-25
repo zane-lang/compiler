@@ -61,25 +61,24 @@ In a program that spawns, and in a library, whose functions a program that
 spawns may call, every thread uses one table for each function, so a result
 one thread made is a hit on every other. A remembered function reads only
 its arguments and constants, so the result is the same whichever thread
-made it. The entry's tag then guards it: 0 is an empty entry, a tag is the
-arguments' hash with its low bit clear, and a miss sets the low bit while
-it writes. A lookup reads the tag, then the entry, then the tag again after
-an acquire fence, and takes the entry for a hit only when both reads are
-the tag it seeks, which is not 0, so it never returns an entry written
-while it read. A miss claims the entry by setting the tag's low bit,
-writes it only when no other miss held it, and publishes it by storing its
-tag; a miss that finds it held leaves it, which costs at most a later
-miss. A miss of the same arguments may write the entry while a lookup
-reads it and leave the same tag, but it writes the same result. The hash
-starts away from 0, so arguments of 0 do not hash to an empty entry's
-tag, and no word is spent on the guard. The
+made it. The entry's tag then guards it: 0 is an empty entry, 2 an entry a
+miss is writing, and any other tag is the arguments' hash with its low bit
+set, which is neither. A lookup reads the tag, then the entry, then the tag
+again after an acquire fence, and takes the entry for a hit only when both
+reads are the tag it seeks, so it never returns an entry written while it
+read. A miss claims the entry by swapping its tag for 2, writes it only
+when no other miss held it, and publishes it by storing its tag; a miss
+that finds it held leaves it, which costs at most a later miss. A miss of
+the same arguments may write the entry while a lookup reads it and leave
+the same tag, but it writes the same result. No word is spent on the
+guard. The
 state and the count of work stay each thread's own, as thread-local
 variables: the count measures the calls of one thread's stack, and the
 state is written on every lookup, which threads sharing it would contend
 for. A stamped dependency is built as a library, so its functions keep
 tables in its object, which the program's calls into it use; the bodies the
 program takes in to optimize with get none. A program that spawns nothing
-keeps plain entries, whose tags have the low bit set.
+keeps plain entries, which no miss marks.
 
 ## M2. A function becomes four
 
