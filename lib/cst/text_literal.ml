@@ -20,17 +20,27 @@ type part =
 
 and found = Type_identifier of string | Keyword of string | Nothing
 
-(* The identifier at the start of [s], as the lexer's LIDENT and UIDENT
+(* The identifier at byte [start] of [s], as the lexer's LIDENT and UIDENT
    rules read one (lexical.md §4): the longest one, so `\%name.txt` names
-   `name`, and `.txt` is text. *)
-let identifier s =
-  let buf = Utf8.from_string s in
+   `name`, and `.txt` is text. The bytes are read from [s] where they are,
+   as far as the identifier goes. *)
+let identifier s start =
+  let i = ref start in
+  let next () =
+    if !i < String.length s then begin
+      let c = s.[!i] in
+      incr i;
+      Some c
+    end
+    else None
+  in
+  let buf = Utf8.from_gen next in
   match%sedlex buf with
   | (lowercase | ("_", lowercase)), Star (alphabetic | '0' .. '9') -> `Value (Utf8.lexeme buf)
   | (uppercase | ("_", uppercase)), Star (alphabetic | '0' .. '9') -> `Type (Utf8.lexeme buf)
   | _ -> `None
 
-let identifier s = try identifier s with MalFormed -> `None
+let identifier s start = try identifier s start with MalFormed -> `None
 
 let scan written =
   let n = String.length written in
@@ -52,8 +62,7 @@ let scan written =
         | '%' -> (
             flush ();
             let start = i + 2 in
-            let rest = String.sub written start (n - start) in
-            match identifier rest with
+            match identifier written start with
             | `Value name when Lexer.is_lower_identifier name ->
                 parts := Name { text = name; offset = start } :: !parts;
                 go (start + String.length name)

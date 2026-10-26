@@ -31,8 +31,9 @@ open Termination
 (* ---------------------------------------------------------------------- *)
 
 (* The span of [length] bytes at [offset] in a string literal's written
-   text, which starts after the opening quote of the literal at [span]. *)
-let within_literal (span : Source.Span.t) written offset length =
+   text, which starts after the opening quote of the literal at [span].
+   Spans asked for left to right each go on from where the last ended. *)
+let within_literal (span : Source.Span.t) written =
   let rec advance (p : Lexing.position) i upto =
     if i >= upto then p
     else
@@ -44,8 +45,13 @@ let within_literal (span : Source.Span.t) written offset length =
       advance p (i + 1) upto
   in
   let first = { span.start_ with pos_cnum = span.start_.pos_cnum + 1 } in
-  let start_ = advance first 0 offset in
-  { Source.Span.start_; end_ = advance start_ offset (offset + length) }
+  let last = ref (0, first) in
+  fun offset length ->
+    let i, p = if fst !last <= offset then !last else (0, first) in
+    let start_ = advance p i offset in
+    let end_ = advance start_ offset (offset + length) in
+    last := (offset + length, end_);
+    { Source.Span.start_; end_ }
 
 let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   let span = e.N.Expr.span in
@@ -82,7 +88,7 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
    a coercion site, so the one implicit constructor that applies converts
    anything else (types.md §2.8). *)
 and text_literal env ctx span written =
-  let at offset length = within_literal span written offset length in
+  let at = within_literal span written in
   let piece = function
     | Cst.Text_literal.Text text -> Some (T.Expr.Fragment text)
     | Cst.Text_literal.Name { text; offset } ->

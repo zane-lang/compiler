@@ -477,7 +477,9 @@ flows down.** The spec supports this directly:
   "**MUST NOT** drive inference" (`generics.md` §5.4).
 
 So the only place a destination type matters is a coercion site, and there the
-destination comes from the candidate being tried, not from context. A call
+destination comes from the candidate being tried, not from context; an
+interpolation site has no candidates, and its destination is always
+`@primitives$String`. A call
 types its arguments first and then runs overload resolution. That is the three
 phases of `functions.md` §5 (direct, generic, implicit), each tried only if the
 one before found nothing.

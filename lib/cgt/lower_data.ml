@@ -78,31 +78,29 @@ let text w st ctx span (lit : T.Expr.t) : Expr.t =
   let prim = Tst.Intrinsics.prim "String" in
   let handle node = { Expr.node; ty = Nodes.Ty.Handle } in
   match lit.T.Expr.node with
-  | T.Expr.Text_lit [ T.Expr.Interpolation v ] -> w.moved st ctx span prim v
-  | T.Expr.Text_lit pieces ->
-      let part = function
-        | T.Expr.Fragment s -> handle (Expr.Text s)
-        | T.Expr.Interpolation v -> w.borrow st ctx span v
-      in
-      let parts =
-        List.filter_map
-          (function T.Expr.Fragment "" -> None | p -> Some (part p))
-          pieces
-      in
-      (* Each join but the last makes a string only the next one reads, so
-         this scope holds it, and its drain returns the bytes. *)
-      let held value =
-        let id = fresh st and label = fresh st and result = fresh st in
-        let body = [ bind st ctx.scope span prim id value; Stat.assign result (handle (Expr.Local id)) ] in
-        handle (Expr.Expand { label; body; result = Some result })
-      in
-      let rec join l = function
-        | [] -> l
-        | r :: rest ->
-            let joined = handle (Expr.Runtime { fn = Runtime.Text_join; args = [ l; r ] }) in
-            join (if rest = [] then joined else held joined) rest
-      in
-      join (List.hd parts) (List.tl parts)
+  | T.Expr.Text_lit pieces -> (
+      match List.filter (function T.Expr.Fragment "" -> false | _ -> true) pieces with
+      | [ T.Expr.Interpolation v ] -> w.moved st ctx span prim v
+      | pieces ->
+          let part = function
+            | T.Expr.Fragment s -> handle (Expr.Text s)
+            | T.Expr.Interpolation v -> w.borrow st ctx span v
+          in
+          let parts = List.map part pieces in
+          (* Each join but the last makes a string only the next one reads, so
+             this scope holds it, and its drain returns the bytes. *)
+          let held value =
+            let id = fresh st and label = fresh st and result = fresh st in
+            let body = [ bind st ctx.scope span prim id value; Stat.assign result (handle (Expr.Local id)) ] in
+            handle (Expr.Expand { label; body; result = Some result })
+          in
+          let rec join l = function
+            | [] -> l
+            | r :: rest ->
+                let joined = handle (Expr.Runtime { fn = Runtime.Text_join; args = [ l; r ] }) in
+                join (if rest = [] then joined else held joined) rest
+          in
+          join (List.hd parts) (List.tl parts))
   | _ -> Diagnostic.bug ~span "lowering expected a string literal here"
 
 (* A storage primitive's constructor: `Unit` has no storage, a list starts

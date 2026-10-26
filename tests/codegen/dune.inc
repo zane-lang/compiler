@@ -3085,6 +3085,18 @@
   (diff golden/entryWide.out entryWide.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/escapes))
+ (action
+  (with-stdout-to
+   escapes.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/escapes))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/escapes.cgt escapes.cgt.actual)))
+
+(rule
  (deps (source_tree fixtures/expressions))
  (action
   (with-stdout-to

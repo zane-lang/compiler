@@ -1156,7 +1156,8 @@ test passing.
   - **The constructor joins.** `Lower_data.text` joins the fragments and
     values in the runtime, each join but the last held in the scope so its
     drain returns the bytes; a literal of fragments alone is one constant,
-    an optimized build folds one whose values are all known.
+    an optimized build can fold one whose values are all known, within
+    its folding budget.
 - **How a value crosses a call.** L6 lends a value parameter by the address
   of the caller's slot and L7 has a result written into a destination the
   caller names. Lowering passes and returns value types, a reference-type
