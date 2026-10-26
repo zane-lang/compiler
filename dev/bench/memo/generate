@@ -16,14 +16,14 @@ TYPES = ["Int", "I32", "Float", "Bool", "S", "V", "Arr", "P"]
 
 HEADER = """package PKG;
 
-alias Int = @primitives$I64
-alias I32 = @primitives$I32
-alias Float = @primitives$F64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
-alias Arr = @primitives$Array<I32, 3>
+alias Int = @primitives$I64;
+alias I32 = @primitives$I32;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias List<T Type> = @primitives$List<T>;
+alias Arr = @primitives$Array<I32, 3>;
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
 	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
@@ -67,7 +67,7 @@ type V = variant {
 	r Unit;
 }
 
-Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)))
+Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)));
 
 Int vInt(v V) => match (v) {
 	k p => k;
@@ -89,9 +89,9 @@ String sBool(b Bool) {
 	return String("f");
 }
 
-String sS(s S) => @operators$concat(@operators$concat(@operators$concat(String(s.a), String("/")), @operators$concat(String(s.b), String("/"))), sBool(s.c))
+String sS(s S) => @operators$concat(@operators$concat(@operators$concat(String(s.a), String("/")), @operators$concat(String(s.b), String("/"))), sBool(s.c));
 
-String sP(s P) => @operators$concat(@operators$concat(String(s.x), String(",")), String(s.y))
+String sP(s P) => @operators$concat(@operators$concat(String(s.x), String(",")), String(s.y));
 
 String sV(v V) => match (v) {
 	k p => @operators$concat(String("p"), String(k));
@@ -99,7 +99,7 @@ String sV(v V) => match (v) {
 	r => String("r");
 }
 
-String sArr(a Arr) => @operators$concat(@operators$concat(@operators$concat(String(a[Int(1)]), String(",")), @operators$concat(String(a[Int(2)]), String(","))), String(a[Int(3)]))
+String sArr(a Arr) => @operators$concat(@operators$concat(@operators$concat(String(a[Int(1)]), String(",")), @operators$concat(String(a[Int(2)]), String(","))), String(a[Int(3)]));
 """
 
 def add(a, b): return f"@operators$add({a}, {b})"

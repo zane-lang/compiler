@@ -94,7 +94,7 @@ test-windows:
 test-grammar: _require-menhir
 	dune build tools/ambiguity/engine/ambiguity_search.exe tools/inspect/parser_shape.exe
 	dune runtest tests/grammar
-	python3 -m unittest tests.grammar.ambiguity_test -v
+	python3 -m unittest tests.grammar.ambiguity_test tests.grammar.type_arguments_test -v
 
 # The ambiguity tools' own tests: the search engine on small grammars, the
 # search CLI and its profiles, and the visible-stack proof's checker. They say

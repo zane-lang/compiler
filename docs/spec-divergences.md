@@ -397,7 +397,7 @@ declared at one, and every `match` dispatches on the live tag.
 
 ```zane
 e Expr = Expr.intLit(text);          // accepted
-String f(x Expr.intLit) => …        // rejected: a syntax error
+String f(x Expr.intLit) => …;       // rejected: a syntax error
 ```
 
 Nothing is lost that the compiler could otherwise rely on: a value of a
