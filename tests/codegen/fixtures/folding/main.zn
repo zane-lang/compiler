@@ -13,7 +13,7 @@ alias Float = @primitives$F64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -84,7 +84,7 @@ Int fib(n Int) {
 
 /// A list built and read inside one call: only the sum leaves it.
 Int squares(n Int) {
-	values List<Int> = @primitives$List(Int);
+	values ListRef<Int> = @primitives$ListRef(Int);
 	i Int(1);
 	i!to(n) {
 		values!push(@operators$multiply(i, i));
@@ -118,8 +118,8 @@ Int boxed(n Int) {
 }
 
 /// A list that leaves the call it is built in.
-^List<Int> upTo(n Int) {
-	values ^List<Int> = @primitives$List(Int);
+^ListRef<Int> upTo(n Int) {
+	values ^ListRef<Int> = @primitives$ListRef(Int);
 	i Int(1);
 	i!to(n) {
 		values!push(i);
@@ -127,14 +127,14 @@ Int boxed(n Int) {
 	return values;
 }
 
-^List<String> words() {
-	values ^List<String> = @primitives$List(String);
+^ListRef<String> words() {
+	values ^ListRef<String> = @primitives$ListRef(String);
 	values!push(String("fold"));
 	values!push(String("ed"));
 	return values;
 }
 
-Int sum(values &List<Int>) {
+Int sum(values &ListRef<Int>) {
 	total Int(0);
 	i Int(1);
 	i!to(values:size()) {
@@ -236,12 +236,12 @@ Unit main() {
 
 	// A list and a box made by a call, then changed: the statements that
 	// make, change and read them fold as one run.
-	made List<Int> = upTo(Int(4));
+	made ListRef<Int> = upTo(Int(4));
 	check(@operators$equal(sum(made), Int(10)));
 	made!push(Int(10));
 	made[Int(1)] = Int(7);
 	check(@operators$equal(sum(made), Int(26)));
-	text List<String> = words();
+	text ListRef<String> = words();
 	check(@operators$equal(@operators$concat(text[Int(1)], text[Int(2)]), String("folded")));
 	text!push(String("!"));
 	check(@operators$equal(text:size(), Int(3)));

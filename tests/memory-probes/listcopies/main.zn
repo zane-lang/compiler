@@ -1,0 +1,105 @@
+/// A value list (generics.md §8.3): a copy owns elements of its own, at
+/// every depth, whether it is bound, stored in a value struct, passed,
+/// returned or pushed into another list; and a value type may hold one.
+package listcopies;
+alias Int = @primitives$I64
+alias Bool = @primitives$Bool
+alias Unit = @primitives$Unit
+alias String = @primitives$String
+alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
+alias Words = List<String>
+
+Unit say(text String) {
+	@program$console!print(text);
+	return Unit();
+}
+
+/// Prints the label and `yes` when the condition holds, `no` when not.
+Unit check(label String, ok Bool) {
+	say(label);
+	@controlflow$branch(ok, { say(String.escaped(" yes\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String.escaped(" NO\n")); });
+	return Unit();
+}
+
+type Bag = struct { words List<String>; count Int; }
+Bag(words List<String>, count Int) => init{ words; count; }
+
+type Shelf = #struct { bag Bag; }
+Shelf(bag Bag) => init{ bag; }
+
+/// A list built in the callee's scope and returned, so its block escapes.
+List<String> made(n Int) {
+	words List<String> = @primitives$List(String);
+	i Int(1);
+	@controlflow$repeat(n, {
+		words!push(@operators$concat(String("w"), String(i)));
+		i = @operators$add(i, Int(1));
+	});
+	return words;
+}
+
+/// A borrowed list is read where it is, and its size is what the caller's
+/// list held.
+Int sizeOf(words List<String>) => words:size()
+
+/// A copy made inside the callee, grown there, and left behind.
+Int grownSize(words List<String>) {
+	mine List<String> = words;
+	mine!push(String("extra"));
+	return mine:size();
+}
+
+Unit main() {
+	a List<String> = @primitives$List(String);
+	a!push(String("one"));
+	a!push(String("two"));
+	b List<String> = a;
+	b!push(String("three"));
+	b[Int(1)] = String("changed");
+	check(String("a bound copy grows on its own"), @operators$equal(a:size(), Int(2)));
+	check(String("a bound copy's element is its own"), @operators$equal(a[Int(1)], String("one")));
+	check(String("the copy holds what was written"), @operators$conjoin(@operators$equal(b[Int(1)], String("changed")), @operators$equal(b:size(), Int(3))));
+
+	a = b;
+	b!push(String("four"));
+	check(String("an assigned copy is independent"), @operators$conjoin(@operators$equal(a:size(), Int(3)), @operators$equal(b:size(), Int(4))));
+
+	check(String("a borrowed list reads the caller's"), @operators$equal(sizeOf(a), Int(3)));
+	check(String("a copy in the callee leaves the caller's alone"), @operators$conjoin(@operators$equal(grownSize(a), Int(4)), @operators$equal(a:size(), Int(3))));
+
+	r List<String> = made(Int(5));
+	check(String("a returned list keeps its elements"), @operators$conjoin(@operators$equal(r:size(), Int(5)), @operators$equal(r[Int(5)], String("w5"))));
+
+	bag Bag(r, Int(5));
+	r!push(String("w6"));
+	check(String("a value struct holds a copy of the list"), @operators$equal(bag.words:size(), Int(5)));
+	other Bag = bag;
+	other.words[Int(1)] = String("first");
+	check(String("a copied struct's list is its own"), @operators$equal(bag.words[Int(1)], String("w1")));
+
+	shelf Shelf(bag);
+	shelf.bag.words!push(String("shelved"));
+	check(String("a list in an owner's value field grows in place"), @operators$conjoin(@operators$equal(shelf.bag.words:size(), Int(6)), @operators$equal(bag.words:size(), Int(5))));
+
+	nested List<List<String>> = @primitives$List(Words);
+	nested!push(a);
+	nested!push(a);
+	nested[Int(1)]!push(String("inner"));
+	check(String("lists nested in a list are each their own"), @operators$conjoin(@operators$equal(nested[Int(1)]:size(), Int(4)), @operators$equal(nested[Int(2)]:size(), Int(3))));
+	copy List<List<String>> = nested;
+	copy[Int(2)][Int(1)] = String("deep");
+	check(String("a copy of a nested list is deep"), @operators$equal(nested[Int(2)][Int(1)], String("changed")));
+
+	owners ListRef<List<String>> = @primitives$ListRef(Words);
+	owners!push(a);
+	owners[Int(1)]!push(String("held"));
+	check(String("a list pushed into a ListRef is a copy"), @operators$conjoin(@operators$equal(owners[Int(1)]:size(), Int(4)), @operators$equal(a:size(), Int(3))));
+
+	taken String = a!remove(Int(1));
+	check(String("remove moves out the first"), @operators$conjoin(@operators$equal(taken, String("changed")), @operators$equal(a[Int(1)], String("two"))));
+	swapped String = b!swapRemove(Int(1));
+	check(String("swapRemove moves the last into its place"), @operators$conjoin(@operators$equal(swapped, String("changed")), @operators$equal(b[Int(1)], String("four"))));
+	return Unit();
+}

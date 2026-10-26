@@ -12,8 +12,8 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
-alias Words = @primitives$List<String>
+alias ListRef<T Type> = @primitives$ListRef<T>
+alias Words = @primitives$ListRef<String>
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -27,10 +27,10 @@ Unit to(this Int, end Int, body @concepts$Block) mut {
 
 type Person = #struct {
 	name String;
-	friends List<String>;
+	friends ListRef<String>;
 }
 
-Person(name String) => init{ name; friends = @primitives$List(String); }
+Person(name String) => init{ name; friends = @primitives$ListRef(String); }
 
 type Choice = variant {
 	left Unit;
@@ -60,7 +60,7 @@ Unit check(ok Bool) {
 
 /// A list of strings built in a loop, where each pass holds one of its own.
 ^Words built(n Int) {
-	words ^Words = @primitives$List(String);
+	words ^Words = @primitives$ListRef(String);
 	i Int(1);
 	i!to(n) {
 		piece String = @operators$concat(String("w"), String("!"));
@@ -70,8 +70,8 @@ Unit check(ok Bool) {
 }
 
 /// A list of lists, returned from a scope nested in the call's.
-^List<Words> nested() {
-	rows ^List<Words> = @primitives$List(Words);
+^ListRef<Words> nested() {
+	rows ^ListRef<Words> = @primitives$ListRef(Words);
 	i Int(1);
 	i!to(Int(3)) {
 		rows!push(built(i));
@@ -102,16 +102,16 @@ Unit main() {
 	check(@operators$equal(p.friends[Int(1)], String("charles babbage")));
 
 	// A list returned from a loop's scopes, and a list of them.
-	words List<String> = built(Int(100));
+	words ListRef<String> = built(Int(100));
 	check(@operators$equal(words:size(), Int(100)));
 	check(@operators$equal(words[Int(100)], String("w!")));
-	rows List<Words> = nested();
+	rows ListRef<Words> = nested();
 	check(@operators$equal(rows[Int(3)]:size(), Int(3)));
 	check(@operators$equal(rows[Int(2)][Int(2)], String("w!")));
 
 	// Stored and pushed from an inner block, into an outer one's.
 	s String("");
-	late List<String> = @primitives$List(String);
+	late ListRef<String> = @primitives$ListRef(String);
 	i Int(1);
 	i!to(Int(50)) {
 		inner String = @operators$concat(String("in"), String("ner"));
@@ -127,7 +127,7 @@ Unit main() {
 
 	// A long list grows where it is while nothing follows it, and moves
 	// past what does.
-	long List<Int> = @primitives$List(Int);
+	long ListRef<Int> = @primitives$ListRef(Int);
 	j Int(1);
 	j!to(Int(100000)) {
 		long!push(j);

@@ -13,8 +13,8 @@ alias Float = @primitives$F64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
-alias Row = @primitives$List<Int>
+alias ListRef<T Type> = @primitives$ListRef<T>
+alias Row = @primitives$ListRef<Int>
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -35,11 +35,11 @@ Pair(count Int, weight Float) => init{ count; weight; }
 
 /// A list beside a scalar, in one owner.
 type Bag = #struct {
-	items List<Int>;
+	items ListRef<Int>;
 	total Int;
 }
 
-Bag() => init{ items = @primitives$List(Int); total = Int(0); }
+Bag() => init{ items = @primitives$ListRef(Int); total = Int(0); }
 
 /// Pushes `value` and adds it to the total.
 Unit add(this Bag, value Int) mut {
@@ -61,13 +61,13 @@ Unit check(ok Bool) {
 }
 
 Unit main() {
-	args List<String> = @program$runtime:arguments();
+	args @primitives$List<String> = @program$runtime:arguments();
 	n Int = args[Int(1)]:parseI64() ?? Int(0);
 	check(@operators$equal(n, Int(6)));
 
 	// A field written, then the same element read through the header again;
 	// each element's count is its index once the loop is done.
-	pairs List<Pair> = @primitives$List(Pair);
+	pairs ListRef<Pair> = @primitives$ListRef(Pair);
 	i Int(1);
 	i!to(n) {
 		pairs!push(Pair(Int(0), Float(0.5)));
@@ -109,10 +109,10 @@ Unit main() {
 	// Lists in a list: an inner list's header lives in the outer list's
 	// block, so a push to an element changes what an element read gives,
 	// and leaves the outer count as it was.
-	rows List<Row> = @primitives$List(Row);
+	rows ListRef<Row> = @primitives$ListRef(Row);
 	r Int(1);
 	r!to(n) {
-		rows!push(@primitives$List(Int));
+		rows!push(@primitives$ListRef(Int));
 	}
 	s Int(1);
 	s!to(rows:size()) {

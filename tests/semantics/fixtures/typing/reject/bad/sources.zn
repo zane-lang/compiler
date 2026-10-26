@@ -14,7 +14,7 @@ Int weight(bell &Bell) => bell.tone
 /// from one, or from a reference, through struct fields (memory.md §2.8).
 /// A list's element, a payload and a temporary are not one; a value that is
 /// already a reference is copied, from wherever it is.
-Unit mint(rack &Rack, bells &List<Bell>, hooks &@primitives$ArrayRef<&Bell, 2>, slot &Slot) {
+Unit mint(rack &Rack, bells &ListRef<Bell>, hooks &@primitives$ArrayRef<&Bell, 2>, slot &Slot) {
 	a &Bell = rack.bell;
 	b &Bell = bells[Int(1)];
 	c &Bell = hooks[Int(1)];
@@ -26,7 +26,7 @@ Unit mint(rack &Rack, bells &List<Bell>, hooks &@primitives$ArrayRef<&Bell, 2>, 
 		x full => ring(x).tone;
 		empty => Int(0);
 	}
-	tones List<Int> = @primitives$List(Int);
+	tones ListRef<Int> = @primitives$ListRef(Int);
 	tones[weight(bells[Int(1)])] = Int(1);
 	return Unit();
 }
@@ -47,7 +47,7 @@ Unit fixed() {
 /// A declared subscript is a reference source exactly when the projection
 /// its body ends at is one (functions.md §2.9).
 type Belfry = #struct { _row @primitives$ArrayRef<Bell, 2>; }
-type Cupboard = #struct { _items List<Bell>; }
+type Cupboard = #struct { _items ListRef<Bell>; }
 
 (this Belfry)[index Int] => this._row[index]
 (this Cupboard)[index Int] => this._items[index]

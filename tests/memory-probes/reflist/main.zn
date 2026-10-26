@@ -13,7 +13,7 @@ Port(n Int) => init{ n; }
 Unit main() {
 	p Port(Int(1));
 	r &Port = p;
-	refs @primitives$List<&Port> = @primitives$List(PortRef);  // ILLEGAL: a list holds owners
+	refs @primitives$ListRef<&Port> = @primitives$ListRef(PortRef);  // ILLEGAL: a list holds owners
 	row @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([r, r]);  // legal, and accepted
 	y &Port = row[Int(2)];                                    // legal
 	return Unit();

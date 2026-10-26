@@ -16,7 +16,7 @@ Unit loop(body @concepts$Block) => Unit()
 /// An owner moves from a roaming symbol, a field of one, a verb's result or
 /// a case form, and from nothing else (lifetimes.md §1.2): not a settled
 /// owner, a part of a borrow, an element, a reference or a payload.
-Unit sources(saucer Saucer, cups List<Cup>, order Order, ref &Cup) {
+Unit sources(saucer Saucer, cups ListRef<Cup>, order Order, ref &Cup) {
 	a Cup = brew();
 	b Cup = saucer.cup;
 	c Cup = cups[Int(1)];
@@ -86,7 +86,7 @@ Unit partly() {
 
 /// A generic parameter moves at the type it was called with.
 Unit stock(cup ^Cup) {
-	cups List<Cup> = @primitives$List(Cup);
+	cups ListRef<Cup> = @primitives$ListRef(Cup);
 	cups!push(cup);
 	see(cup);
 	return Unit();

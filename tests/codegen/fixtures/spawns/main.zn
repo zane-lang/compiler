@@ -11,7 +11,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -125,8 +125,8 @@ String nameOf(p &Person) {
 	return Person(@operators$concat(name, String(" lovelace")), age);
 }
 
-^List<String> words(n Int) {
-	all ^List<String> = @primitives$List(String);
+^ListRef<String> words(n Int) {
+	all ^ListRef<String> = @primitives$ListRef(String);
 	i Int(1);
 	i!to(n) {
 		all!push(@operators$concat(String("w"), String("!")));
@@ -207,7 +207,7 @@ Unit main() {
 	check(@operators$equal(h.age, Int(36)));
 
 	// A list built on another thread.
-	w List<String> = spawn words(Int(50));
+	w ListRef<String> = spawn words(Int(50));
 	check(@operators$equal(w:size(), Int(50)));
 
 	// A mutating call on a value, waited for when its block drains.

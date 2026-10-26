@@ -4,28 +4,28 @@
     │   ├── type: %primitives$I64
     │   └── positions:
     ├── layouts[1] > layout:
-    │   ├── type: %primitives$List<%primitives$I64>
+    │   ├── type: %primitives$ListRef<%primitives$I64>
     │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
     ├── layouts[2] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
     ├── layouts[3] > layout:
-    │   ├── type: %primitives$List<%primitives$String>
+    │   ├── type: %primitives$ListRef<%primitives$String>
     │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
     ├── layouts[4] > layout:
     │   ├── type: lists$Person
     │   └── positions[0]: text @0
     ├── layouts[5] > layout:
-    │   ├── type: %primitives$List<lists$Person>
+    │   ├── type: %primitives$ListRef<lists$Person>
     │   └── positions[0]: list @0 of lists$Person (32 bytes apart)
     ├── layouts[6] > layout:
     │   ├── type: ^lists$Person
     │   └── positions[0]: text @0
     ├── layouts[7] > layout:
-    │   ├── type: %primitives$List<%primitives$List<%primitives$I64>>
-    │   └── positions[0]: list @0 of %primitives$List<%primitives$I64> (24 bytes apart)
+    │   ├── type: %primitives$ListRef<%primitives$ListRef<%primitives$I64>>
+    │   └── positions[0]: list @0 of %primitives$ListRef<%primitives$I64> (24 bytes apart)
     ├── layouts[8] > layout:
-    │   ├── type: ^%primitives$List<%primitives$I64>
+    │   ├── type: ^%primitives$ListRef<%primitives$I64>
     │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
     ├── layouts[9] > layout:
     │   ├── type: lists$Stack<%primitives$String>
@@ -51,7 +51,7 @@
     │       │   │   ├── type: handle
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
-    │       │   └── layout: %primitives$List<%primitives$I64>
+    │       │   └── layout: %primitives$ListRef<%primitives$I64>
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lists$check(%primitives$Bool)
@@ -183,7 +183,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: lists$sum(&%primitives$List<%primitives$I64>)
+    │       │       │   ├── fn: lists$sum(&%primitives$ListRef<%primitives$I64>)
     │       │       │   └── args[0]: address of #1 : ptr
     │       │       └── right: 5000 : i64
     │       ├── body[10] > hold:
@@ -193,7 +193,7 @@
     │       │   │   ├── type: handle
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
-    │       │   └── layout: %primitives$List<%primitives$String>
+    │       │   └── layout: %primitives$ListRef<%primitives$String>
     │       ├── body[11] > eval > expand:
     │       │   ├── type: void
     │       │   ├── label: @19
@@ -340,7 +340,7 @@
     │       │   │   ├── type: handle
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
-    │       │   └── layout: %primitives$List<lists$Person>
+    │       │   └── layout: %primitives$ListRef<lists$Person>
     │       ├── body[20] > hold:
     │       │   ├── local: #39
     │       │   ├── scope: %2
@@ -544,7 +544,7 @@
     │       │   │   ├── type: handle
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
-    │       │   └── layout: %primitives$List<%primitives$List<%primitives$I64>>
+    │       │   └── layout: %primitives$ListRef<%primitives$ListRef<%primitives$I64>>
     │       ├── body[32] > let:
     │       │   ├── local: #67
     │       │   └── value: 1 : i64
@@ -577,7 +577,7 @@
     │       │   │   │       │   │   ├── type: handle
     │       │   │   │       │   │   ├── fn: zane_list_new
     │       │   │   │       │   │   └── args:
-    │       │   │   │       │   └── layout: ^%primitives$List<%primitives$I64>
+    │       │   │   │       │   └── layout: ^%primitives$ListRef<%primitives$I64>
     │       │   │   │       ├── body[1] > eval > expand:
     │       │   │   │       │   ├── type: void
     │       │   │   │       │   ├── label: @76
@@ -624,7 +624,7 @@
     │       │   │   │           │   └── value > take:
     │       │   │   │           │       ├── type: handle
     │       │   │   │           │       ├── address: address of #72 : ptr
-    │       │   │   │           │       └── layout: %primitives$List<%primitives$I64>
+    │       │   │   │           │       └── layout: %primitives$ListRef<%primitives$I64>
     │       │   │   │           ├── body[1] > let:
     │       │   │   │           │   ├── local: #81
     │       │   │   │           │   └── value > runtime:
@@ -635,7 +635,7 @@
     │       │   │   │           └── body[2] > place:
     │       │   │   │               ├── address: local #81 : ptr
     │       │   │   │               ├── value: local #80 : handle
-    │       │   │   │               └── layout: %primitives$List<%primitives$I64>
+    │       │   │   │               └── layout: %primitives$ListRef<%primitives$I64>
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #67
     │       │   │       └── value > binary:
@@ -799,7 +799,7 @@
     │       │       └── args[0]: local #4 : handle
     │       └── body[4] > return: unit : void
     ├── funcs[3] > func:
-    │   ├── symbol: lists$sum(&%primitives$List<%primitives$I64>)
+    │   ├── symbol: lists$sum(&%primitives$ListRef<%primitives$I64>)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
     │   ├── body[0] > let:

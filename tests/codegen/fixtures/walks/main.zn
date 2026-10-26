@@ -11,7 +11,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Unit check(ok Bool) {
 	yes String.escaped("yes\n");
@@ -120,7 +120,7 @@ Unit main() {
 	check(@operators$equal(size(t), Int(900)));
 
 	// A list of deep values: read out as a copy, and ended with the list.
-	values List<Countdown> = @primitives$List(Countdown);
+	values ListRef<Countdown> = @primitives$ListRef(Countdown);
 	values!push(countdown(Int(600)));
 	values!push(countdown(Int(300)));
 	read Countdown = values[Int(1)];

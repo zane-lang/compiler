@@ -1,4 +1,4 @@
-/// Lists: `@primitives$List<T>`, a handle to a block that grows (memory.md
+/// Lists: `@primitives$ListRef<T>`, a handle to a block that grows (memory.md
 /// §3.6). Pushed to, measured, indexed and written at an index; lists of
 /// scalars, strings, owners and lists; a generic type over one with a
 /// declared subscript, and a generic verb. A roaming owner moves into a
@@ -11,8 +11,8 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
-alias Row = @primitives$List<Int>
+alias ListRef<T Type> = @primitives$ListRef<T>
+alias Row = @primitives$ListRef<Int>
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -33,10 +33,10 @@ Person(name String, age Int) => init{ name; age; }
 
 /// A generic type over a list, with a declared subscript.
 type Stack<T Type> = #struct {
-	items List<T>;
+	items ListRef<T>;
 }
 
-Stack<T>(T Type) => init{ items = @primitives$List(T); }
+Stack<T>(T Type) => init{ items = @primitives$ListRef(T); }
 
 Unit add(this Stack<T Type>, value T) mut {
 	this.items!push(value);
@@ -46,9 +46,9 @@ Unit add(this Stack<T Type>, value T) mut {
 (this Stack<T Type>)[index Int] => this.items[index]
 
 /// A generic verb.
-Int count(values &List<T Type>) => values:size()
+Int count(values &ListRef<T Type>) => values:size()
 
-Int sum(values &List<Int>) {
+Int sum(values &ListRef<Int>) {
 	total Int(0);
 	i Int(1);
 	i!to(values:size()) {
@@ -71,7 +71,7 @@ Unit check(ok Bool) {
 
 Unit main() {
 	// Scalars: pushed, counted, read and written.
-	numbers List<Int> = @primitives$List(Int);
+	numbers ListRef<Int> = @primitives$ListRef(Int);
 	check(@operators$equal(numbers:size(), Int(0)));
 	i Int(1);
 	i!to(Int(100)) {
@@ -83,7 +83,7 @@ Unit main() {
 	check(@operators$equal(sum(numbers), Int(5000)));
 
 	// Strings, moved in and read where they are.
-	words List<String> = @primitives$List(String);
+	words ListRef<String> = @primitives$ListRef(String);
 	words!push(String("to"));
 	late String("be");
 	words!push(late);
@@ -93,7 +93,7 @@ Unit main() {
 
 	// Owners: a roaming one moves into the list, which keeps its elements
 	// through every block it grows into.
-	people List<Person> = @primitives$List(Person);
+	people ListRef<Person> = @primitives$ListRef(Person);
 	ada ^Person = Person(String("ada"), Int(36));
 	people!push(ada);
 	j Int(1);
@@ -109,10 +109,10 @@ Unit main() {
 	check(@operators$equal(people:size(), Int(1001)));
 
 	// A list of lists.
-	rows List<Row> = @primitives$List(Row);
+	rows ListRef<Row> = @primitives$ListRef(Row);
 	k Int(1);
 	k!to(Int(3)) {
-		row ^Row = @primitives$List(Int);
+		row ^Row = @primitives$ListRef(Int);
 		row!push(k);
 		row!push(@operators$multiply(k, Int(10)));
 		rows!push(row);

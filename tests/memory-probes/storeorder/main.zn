@@ -8,7 +8,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -38,30 +38,30 @@ Unit check(label String, ok Bool) {
 type Engine = #struct { power Int; label String; }
 Engine(power Int, label String) => init{ power; label; }
 
-Int growAndGive(this List<Int>, n Int) mut {
+Int growAndGive(this ListRef<Int>, n Int) mut {
 	i Int(1);
 	i!to(n) { this!push(i); }
 	return Int(4242);
 }
-^Engine growAndMake(this List<Engine>, n Int) mut {
+^Engine growAndMake(this ListRef<Engine>, n Int) mut {
 	i Int(1);
 	i!to(n) { this!push(Engine(i, String("fill"))); }
 	return Engine(Int(4242), String("new"));
 }
-type Box = #struct { items List<Int>; }
-Box() => init{ items = @primitives$List(Int); }
+type Box = #struct { items ListRef<Int>; }
+Box() => init{ items = @primitives$ListRef(Int); }
 
 Unit main() {
-	ints List<Int> = @primitives$List(Int);
+	ints ListRef<Int> = @primitives$ListRef(Int);
 	ints!push(Int(1));
-	pad List<Int> = @primitives$List(Int);
+	pad ListRef<Int> = @primitives$ListRef(Int);
 	pad!push(Int(0));
 	ints[Int(1)] = ints!growAndGive(Int(1000));
 	check(String("value element store whose right side grows the list"), @operators$equal(ints[Int(1)], Int(4242)));
 
-	engines List<Engine> = @primitives$List(Engine);
+	engines ListRef<Engine> = @primitives$ListRef(Engine);
 	engines!push(Engine(Int(1), String("e")));
-	pad2 List<Engine> = @primitives$List(Engine);
+	pad2 ListRef<Engine> = @primitives$ListRef(Engine);
 	pad2!push(Engine(Int(0), String("p")));
 	engines[Int(1)] = engines!growAndMake(Int(1000));
 	check(String("owner element store whose right side grows the list"), @operators$equal(engines[Int(1)].power, Int(4242)));

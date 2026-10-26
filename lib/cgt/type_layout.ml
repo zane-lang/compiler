@@ -27,8 +27,9 @@ let definition st (t : Tty.t) =
       | _ -> None)
   | _ -> None
 
-(* `@primitives$String`, a value type, and `@primitives$List<T>`, a
-   reference type: the storage primitives that are each a handle. *)
+(* `@primitives$String`, a value type, and `@primitives$List<T>` and
+   `@primitives$ListRef<T>`, a value and a reference type: the storage
+   primitives that are each a handle. *)
 let is_text = function
   | Tty.Intrinsic { namespace = "primitives"; name = "String"; args = [] } -> true
   | _ -> false
@@ -40,10 +41,14 @@ let scalar t =
   | _ -> false
 
 let element = function
-  | Tty.Intrinsic { namespace = "primitives"; name = "List"; args = [ Tty.Type e ] } -> Some e
+  | Tty.Intrinsic { namespace = "primitives"; name = "List" | "ListRef"; args = [ Tty.Type e ] } -> Some e
   | _ -> None
 
 let is_list t = Option.is_some (element t)
+
+let is_list_ref = function
+  | Tty.Intrinsic { namespace = "primitives"; name = "ListRef"; _ } -> true
+  | _ -> false
 
 (* `@primitives$Array<T, n>`, a value type, and `@primitives$ArrayRef<T, n>`,
    a reference type with the same layout (generics.md §8.4): the element
@@ -62,11 +67,11 @@ let is_array_ref = function
   | Tty.Intrinsic { namespace = "primitives"; name = "ArrayRef"; _ } -> true
   | _ -> false
 
-(* A reference type: a `#` type, a list or an `ArrayRef`, whose instances are
-   owned (memory.md §2.1). A roaming owner is one of its type. *)
+(* A reference type: a `#` type, a `ListRef` or an `ArrayRef`, whose
+   instances are owned (memory.md §2.1). A roaming owner is one of its type. *)
 let reference st t =
   let t = match t with Tty.Roaming t -> t | t -> t in
-  is_list t || is_array_ref t || match definition st t with Some (_, true) -> true | _ -> false
+  is_list_ref t || is_array_ref t || match definition st t with Some (_, true) -> true | _ -> false
 
 (* The types a type holds inline: its members and payloads, what it is
    distinct from, and an array's elements. A reference holds an address, and
@@ -294,7 +299,8 @@ let roaming st t = Tty.is_roaming t && reference st t
 
 (* Whether a place is reached through an owner: a member or a case of a
    reference-type instance, or of one a reference names, an element of a
-   list or an `ArrayRef`, and an element of an array reached through one. A
+   `ListRef` or an `ArrayRef`, and an element of an array or a value list
+   reached through one. A
    spawned call may write back a value there while another thread reads it
    (concurrency.md §4.4). *)
 let rec through_owner st (e : T.Expr.t) =
@@ -302,8 +308,8 @@ let rec through_owner st (e : T.Expr.t) =
   | T.Expr.Field { target; _ } | T.Expr.Case_read { target; _ } ->
       Tty.is_ref target.T.Expr.ty || reference st (Tty.strip_mode target.T.Expr.ty) || through_owner st target
   | T.Expr.Subscript { target; _ }
-    when Option.is_some (array_of (Tty.strip_mode target.T.Expr.ty))
-         && not (is_array_ref (Tty.strip_mode target.T.Expr.ty)) ->
+    when (let t = Tty.strip_mode target.T.Expr.ty in
+          (Option.is_some (array_of t) || is_list t) && not (reference st t)) ->
       through_owner st target
   | T.Expr.Subscript _ -> true
   | _ -> false

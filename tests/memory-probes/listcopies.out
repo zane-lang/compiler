@@ -1,0 +1,17 @@
+== checks; building and running
+a bound copy grows on its own yes
+a bound copy's element is its own yes
+the copy holds what was written yes
+an assigned copy is independent yes
+a borrowed list reads the caller's yes
+a copy in the callee leaves the caller's alone yes
+a returned list keeps its elements yes
+a value struct holds a copy of the list yes
+a copied struct's list is its own yes
+a list in an owner's value field grows in place yes
+lists nested in a list are each their own yes
+a copy of a nested list is deep yes
+a list pushed into a ListRef is a copy yes
+remove moves out the first yes
+swapRemove moves the last into its place yes
+== exit 0

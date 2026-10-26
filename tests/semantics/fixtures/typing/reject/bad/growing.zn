@@ -6,7 +6,7 @@ type Grow<T Type> = variant { done Unit; more Grow<Array<T, 2>>; }
 
 /// The argument may grow on any step of a cycle through other types.
 type Outer<T Type> = struct { inner Inner<T>; }
-type Inner<U Type> = variant { done Unit; more Outer<List<U>>; }
+type Inner<U Type> = variant { done Unit; more Outer<ListRef<U>>; }
 
 /// An `&` member is followed too.
 type Node<T Type> = #variant { last Unit; next &Node<Array<T, 2>>; }

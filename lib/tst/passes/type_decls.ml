@@ -294,7 +294,7 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
           wrong_kind env ~seen:(tid :: seen) (Ty.instantiate info.params args u)
       | _ -> None)
   | Ty.Intrinsic
-      { namespace = "primitives"; name = "List"; args = Ty.Type (Ty.Reference x as e) :: _ }
+      { namespace = "primitives"; name = "ListRef"; args = Ty.Type (Ty.Reference x as e) :: _ }
     when not (is_value env x) ->
       Some
         {
@@ -302,7 +302,7 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
           bad = e;
           slot = List_element;
         }
-  | Ty.Intrinsic { namespace = "primitives"; name = "Array"; args = Ty.Type e :: _ } when bad e ->
+  | Ty.Intrinsic { namespace = "primitives"; name = "Array" | "List"; args = Ty.Type e :: _ } when bad e ->
       Some
         {
           path = [ Printf.sprintf "the elements of %s" (quote (Ty.to_string t)) ];
@@ -329,7 +329,7 @@ let describe_wrong_kind { path; bad; slot } =
         (if path = [] then "" else " at " ^ String.concat ", then " path)
   | List_element ->
       Printf.sprintf
-        "%s is a reference, and it fills %s; a list's elements are owners, never references"
+        "%s is a reference, and it fills %s; a `ListRef`'s elements are owners, never references"
         (quote (Ty.to_string bad)) (String.concat ", then " path)
   | Bare_result ->
       Printf.sprintf

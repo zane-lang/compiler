@@ -10,7 +10,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
 	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
@@ -31,7 +31,7 @@ Unit check(ok Bool) {
 Unit main() {
 	// The primes below 100, counted and summed.
 	bound Int(100);
-	composite List<Bool> = @primitives$List(Bool);
+	composite ListRef<Bool> = @primitives$ListRef(Bool);
 	i Int(1);
 	i!to(bound) {
 		composite!push(false);
@@ -57,9 +57,9 @@ Unit main() {
 
 	// A list read after the arguments: it is made and pushed to where the
 	// program runs.
-	kept List<Int> = @primitives$List(Int);
+	kept ListRef<Int> = @primitives$ListRef(Int);
 	kept!push(Int(1));
-	args List<String> = @program$runtime:arguments();
+	args @primitives$List<String> = @program$runtime:arguments();
 	kept!push(args:size());
 	check(@operators$equal(kept:size(), Int(2)));
 	return Unit();

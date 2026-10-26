@@ -11,7 +11,7 @@ alias Float = @primitives$F64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -34,14 +34,14 @@ Unit to(this Int, end Int, body @concepts$Block) mut {
 	return Unit();
 }
 
-Int argument(args List<String>, at Int) => args[at]:parseI64() ?? Int(0)
+Int argument(args @primitives$List<String>, at Int) => args[at]:parseI64() ?? Int(0)
 
 type Field = #struct {
-	xs List<Float>;
-	vs List<Float>;
+	xs ListRef<Float>;
+	vs ListRef<Float>;
 }
 
-Field(xs ^List<Float>, vs ^List<Float>) => init{ xs; vs; }
+Field(xs ^ListRef<Float>, vs ^ListRef<Float>) => init{ xs; vs; }
 
 /// Moves the first `moved` points one step, each turned back at a wall, and
 /// gives the sum of where they are.
@@ -67,12 +67,12 @@ Float step(this Field, moved Int) mut {
 }
 
 Unit main() {
-	args List<String> = @program$runtime:arguments();
+	args @primitives$List<String> = @program$runtime:arguments();
 	points Int = argument(args, Int(1));
 	moved Int = argument(args, Int(2));
 	passes Int = argument(args, Int(3));
-	xs ^List<Float> = @primitives$List(Float);
-	vs ^List<Float> = @primitives$List(Float);
+	xs ^ListRef<Float> = @primitives$ListRef(Float);
+	vs ^ListRef<Float> = @primitives$ListRef(Float);
 	i Int(1);
 	i!to(points) {
 		xs!push(@primitives$F64.round(@operators$multiply(i, Int(7))));

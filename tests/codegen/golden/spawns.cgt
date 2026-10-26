@@ -13,7 +13,7 @@
     │   ├── type: ^spawns$Person
     │   └── positions[0]: text @0
     ├── layouts[4] > layout:
-    │   ├── type: ^%primitives$List<%primitives$String>
+    │   ├── type: ^%primitives$ListRef<%primitives$String>
     │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
     ├── layouts[5] > layout:
     │   ├── type: %primitives$Unit
@@ -348,7 +348,7 @@
     │       │   ├── frame: {handle, i64}
     │       │   ├── args[0]: 50 : i64
     │       │   ├── dest: #61
-    │       │   └── layout: ^%primitives$List<%primitives$String>
+    │       │   └── layout: ^%primitives$ListRef<%primitives$String>
     │       ├── body[22] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawns$check(%primitives$Bool)
@@ -917,7 +917,7 @@
     │       │       │   ├── frame: {handle, i64}
     │       │       │   ├── args[0]: 5 : i64
     │       │       │   ├── dest: #173
-    │       │       │   └── layout: ^%primitives$List<%primitives$String>
+    │       │       │   └── layout: ^%primitives$ListRef<%primitives$String>
     │       │       └── body[3] > spawn:
     │       │           ├── task: #175
     │       │           ├── scope: %161
@@ -955,7 +955,7 @@
     │       │       │   ├── frame: {handle, i64}
     │       │       │   ├── args[0]: 20 : i64
     │       │       │   ├── dest: #182
-    │       │       │   └── layout: ^%primitives$List<%primitives$String>
+    │       │       │   └── layout: ^%primitives$ListRef<%primitives$String>
     │       │       ├── body[1] > eval > expand:
     │       │       │   ├── type: void
     │       │       │   ├── label: @184
@@ -983,7 +983,7 @@
     │       │           ├── frame: {handle, i64}
     │       │           ├── args[0]: 20 : i64
     │       │           ├── dest: #189
-    │       │           └── layout: ^%primitives$List<%primitives$String>
+    │       │           └── layout: ^%primitives$ListRef<%primitives$String>
     │       ├── body[47] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_set_threads_auto
@@ -2142,7 +2142,7 @@
     │       │   │   ├── type: handle
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
-    │       │   └── layout: ^%primitives$List<%primitives$String>
+    │       │   └── layout: ^%primitives$ListRef<%primitives$String>
     │       ├── body[1] > let:
     │       │   ├── local: #4
     │       │   └── value: 1 : i64
@@ -2225,8 +2225,8 @@
     │           ├── value > take:
     │           │   ├── type: handle
     │           │   ├── address: address of #2 : ptr
-    │           │   └── layout: ^%primitives$List<%primitives$String>
-    │           └── layout: ^%primitives$List<%primitives$String>
+    │           │   └── layout: ^%primitives$ListRef<%primitives$String>
+    │           └── layout: ^%primitives$ListRef<%primitives$String>
     ├── funcs[10] > func:
     │   ├── symbol: spawns$add(this spawns$Tally, %primitives$I64)
     │   ├── params[0]: local #1 : ptr

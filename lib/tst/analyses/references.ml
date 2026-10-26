@@ -96,7 +96,7 @@ let mint env w (v : T.Expr.t) =
          roaming: the variant may change case while it lives"
   | States.Contingent, T.Expr.Subscript _ ->
       say
-        "a new reference must come from a settled place, and a list's element is roaming: \
+        "a new reference must come from a settled place, and a `ListRef`'s element is roaming: \
          elements come and go while the list lives; an `ArrayRef`'s elements may be referenced"
   | States.Contingent, _ ->
       say "a new reference must come from a settled place, and this is part of a temporary value"

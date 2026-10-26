@@ -5,7 +5,7 @@ package elemfield;
 
 alias Int = @primitives$I64
 alias Unit = @primitives$Unit
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 type Bolt = #struct { n Int; }
 Bolt(n Int) => init{ n; }
@@ -13,9 +13,9 @@ type Plate = #struct { bolt Bolt; }
 Plate(bolt ^Bolt) => init{ bolt; }
 
 Unit main() {
-	bolts List<Bolt> = @primitives$List(Bolt);
+	bolts ListRef<Bolt> = @primitives$ListRef(Bolt);
 	bolts!push(Bolt(Int(1)));
-	plates List<Plate> = @primitives$List(Plate);
+	plates ListRef<Plate> = @primitives$ListRef(Plate);
 	plates!push(Plate(Bolt(Int(2))));
 	a &Bolt = bolts[Int(0)];             // ILLEGAL: a list's element
 	b &Bolt = plates[Int(0)].bolt;       // ILLEGAL: a field of a list's element

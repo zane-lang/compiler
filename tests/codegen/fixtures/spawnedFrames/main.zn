@@ -6,7 +6,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 alias Wide = @primitives$ArrayRef<Int, 65536>
 
 Bool if(condition Bool, body @concepts$Block) {

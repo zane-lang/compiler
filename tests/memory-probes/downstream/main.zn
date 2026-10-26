@@ -6,14 +6,17 @@ package downstream;
 alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 type Engine = #struct { power Int; }
 Engine(power Int) => init{ power; }
 
 type BadOwner = struct { engine Engine; }                    // ILLEGAL
 type BadRef = struct { target &Engine; }                     // ILLEGAL
-type BadList = struct { items List<Int>; }                   // ILLEGAL: List is a reference type
+type BadList = struct { items ListRef<Int>; }                // ILLEGAL: ListRef is a reference type
 type BadArrRef = struct { items @primitives$ArrayRef<Int, 2>; }  // ILLEGAL: ArrayRef too
+type ListOfOwners = struct { items List<Engine>; }           // ILLEGAL: List is a value type
+type ListOfAmp = #struct { items List<&Engine>; }            // ILLEGAL
 type Inner = struct { e &Engine; }                           // ILLEGAL
 type Outer = struct { inner Inner; }                         // ILLEGAL transitively
 type Deeper = struct { outer Outer; }                        // ILLEGAL transitively
@@ -23,12 +26,13 @@ type ArrOfRef = struct { arr @primitives$Array<Engine, 2>; }  // ILLEGAL: Array 
 type ArrOfAmp = struct { arr @primitives$Array<&Engine, 2>; } // ILLEGAL
 type Caret = struct { e ^Engine; }                           // ILLEGAL (and ^ is no field type)
 type RCaret = #struct { e ^Engine; }                         // ILLEGAL: a field is never declared roaming (§2.8.1)
-type ListAmpInt = #struct { e List<&Int>; }                  // ILLEGAL: & over a value type (§2.4)
+type ListAmpInt = #struct { e ListRef<&Int>; }               // ILLEGAL: & over a value type (§2.4)
 
 type OkRec = variant { done Unit; more OkRec; }              // legal: a boxed member
 type OkVal = struct { a Int; b OkRec; }                      // legal
-type OkRef = #struct { e &Engine; owned Engine; items List<Engine>; }  // legal
-type RefList = #struct { refs List<&Engine>; }              // ILLEGAL: a list holds owners (generics.md §8.3)
+type OkValList = struct { items List<Int>; rows List<List<Int>>; }  // legal: a value list is a value
+type OkRef = #struct { e &Engine; owned Engine; items ListRef<Engine>; }  // legal
+type RefList = #struct { refs ListRef<&Engine>; }           // ILLEGAL: a ListRef holds owners (generics.md §8.5)
 
 /// A generic value type filled with a reference type reaches the same ban.
 type Gen<T Type> = struct { item T; }

@@ -103,7 +103,7 @@ let rec state ?(inside = []) s (e : T.Expr.t) =
       match impl.T.Verb_ref.owner with
       | S.Intrinsic _ ->
           let t = Ty.strip_mode target.T.Expr.ty in
-          if is_intrinsic "List" t then Contingent else fixed (base ())
+          if is_intrinsic "ListRef" t then Contingent else fixed (base ())
       | S.Declared id -> (
           match Hashtbl.find_opt s.projections id with
           (* A projection that reaches itself again is settled by nothing it

@@ -11,7 +11,7 @@ alias Float = @primitives$F64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
 
 Unit check(ok Bool) {
@@ -57,7 +57,7 @@ Int[this Counter, Int] maker() => Int(this Counter, n Int) {
 }
 
 Unit main() {
-	words List<String> = @primitives$List(String);
+	words ListRef<String> = @primitives$ListRef(String);
 	words!push(String("a"));
 	words!push(String("b"));
 	n Int = spawn words:size();

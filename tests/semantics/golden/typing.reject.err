@@ -59,7 +59,7 @@ File "fixtures/typing/reject/bad/borrows.zn", line 30, characters 15-26:
    |               ^^^^^^^^^^^
 Error: `own[]` is borrowed by this call, and its `mut` subject `own` overlaps it: nothing else in a call writes what the call borrows (memory.md §2.9.1)
 File "fixtures/typing/reject/bad/borrows.zn", line 32, characters 9-12:
-32 |         own = @primitives$List(Cargo);
+32 |         own = @primitives$ListRef(Cargo);
    |         ^^^
 Error: this writes `own`, which overlaps `own[]`, which this call borrows: nothing else in a call writes what the call borrows (memory.md §2.9.1)
 File "fixtures/typing/reject/bad/borrows.zn", line 34, characters 26-29:
@@ -298,10 +298,10 @@ File "fixtures/typing/reject/bad/growing.zn", line 5, characters 47-64:
 5 | type Grow<T Type> = variant { done Unit; more Grow<Array<T, 2>>; }
   |                                               ^^^^^^^^^^^^^^^^^
 Error: `Grow` holds itself at a growing argument: its case `more` passes `@primitives$Array<T, 2>` as `T` of `Grow`; where a type leads back to itself, each argument it passes back is one of its own parameters as written or names none of them
-File "fixtures/typing/reject/bad/growing.zn", line 9, characters 48-62:
-9 | type Inner<U Type> = variant { done Unit; more Outer<List<U>>; }
-  |                                                ^^^^^^^^^^^^^^
-Error: `Inner` holds itself at a growing argument: its case `more` passes `@primitives$List<U>` as `T` of `Outer`; where a type leads back to itself, each argument it passes back is one of its own parameters as written or names none of them
+File "fixtures/typing/reject/bad/growing.zn", line 9, characters 48-65:
+9 | type Inner<U Type> = variant { done Unit; more Outer<ListRef<U>>; }
+  |                                                ^^^^^^^^^^^^^^^^^
+Error: `Inner` holds itself at a growing argument: its case `more` passes `@primitives$ListRef<U>` as `T` of `Outer`; where a type leads back to itself, each argument it passes back is one of its own parameters as written or names none of them
 File "fixtures/typing/reject/bad/growing.zn", line 12, characters 48-66:
 12 | type Node<T Type> = #variant { last Unit; next &Node<Array<T, 2>>; }
    |                                                ^^^^^^^^^^^^^^^^^^
@@ -446,9 +446,9 @@ File "fixtures/typing/reject/bad/marks.zn", line 8, characters 30-35:
 8 | type Tether = #struct { kite ^Kite; }
   |                              ^^^^^
 Error: `^bad$Kite` is a roaming owner, and `^` is written only on a local, a parameter or a return type, so it cannot be a field
-File "fixtures/typing/reject/bad/marks.zn", line 10, characters 20-25:
-10 | alias Kites = List<^Kite>
-   |                    ^^^^^
+File "fixtures/typing/reject/bad/marks.zn", line 10, characters 23-28:
+10 | alias Kites = ListRef<^Kite>
+   |                       ^^^^^
 Error: `^bad$Kite` is a roaming owner, and `^` is written only on a local, a parameter or a return type, never inside another type's arguments
 File "fixtures/typing/reject/bad/marks.zn", line 12, characters 15-19:
 12 | Unit fly(span ^Int) => Unit()
@@ -502,10 +502,10 @@ File "fixtures/typing/reject/bad/marks.zn", line 58, characters 9-14:
 58 |     tap(count);
    |         ^^^^^
 Error: `@primitives$I64` is a value type, and it fills an `&` at the parameter `at`; `&` marks only a reference type, since a value is never referenced, only copied
-File "fixtures/typing/reject/bad/marks.zn", line 67, characters 23-28:
-67 | alias KiteRefs = List<&Kite>
-   |                       ^^^^^
-Error: `&bad$Kite` is a reference, and it fills the elements of `@primitives$List<&bad$Kite>`; a list's elements are owners, never references
+File "fixtures/typing/reject/bad/marks.zn", line 67, characters 26-31:
+67 | alias KiteRefs = ListRef<&Kite>
+   |                          ^^^^^
+Error: `&bad$Kite` is a reference, and it fills the elements of `@primitives$ListRef<&bad$Kite>`; a `ListRef`'s elements are owners, never references
 File "fixtures/typing/reject/bad/marks.zn", line 74, characters 11-15:
 74 |     count ^Int(9);
    |           ^^^^
@@ -869,7 +869,7 @@ Error: this stores a reference to `near`, whose block ends before `r`'s does
 File "fixtures/typing/reject/bad/sources.zn", line 19, characters 15-28:
 19 |     b &Bell = bells[Int(1)];
    |               ^^^^^^^^^^^^^
-Error: a new reference must come from a settled place, and a list's element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
+Error: a new reference must come from a settled place, and a `ListRef`'s element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
 File "fixtures/typing/reject/bad/sources.zn", line 21, characters 15-37:
 21 |     d &Bell = slot.full ?? rack.bell;
    |               ^^^^^^^^^^^^^^^^^^^^^^
@@ -881,7 +881,7 @@ Error: a new reference names a place, and this is a temporary value
 File "fixtures/typing/reject/bad/sources.zn", line 23, characters 20-33:
 23 |     f &Bell = ring(bells[Int(1)]);
    |                    ^^^^^^^^^^^^^
-Error: a new reference must come from a settled place, and a list's element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
+Error: a new reference must come from a settled place, and a `ListRef`'s element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
 File "fixtures/typing/reject/bad/sources.zn", line 26, characters 24-25:
 26 |         x full => ring(x).tone;
    |                        ^
@@ -889,7 +889,7 @@ Error: a new reference must come from a settled place, and a variant case's payl
 File "fixtures/typing/reject/bad/sources.zn", line 30, characters 18-31:
 30 |     tones[weight(bells[Int(1)])] = Int(1);
    |                  ^^^^^^^^^^^^^
-Error: a new reference must come from a settled place, and a list's element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
+Error: a new reference must come from a settled place, and a `ListRef`'s element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
 File "fixtures/typing/reject/bad/sources.zn", line 39, characters 15-20:
 39 |     s &Bell = spare;
    |               ^^^^^
@@ -901,7 +901,7 @@ Error: a new reference must come from a settled place, and this is a roaming own
 File "fixtures/typing/reject/bad/sources.zn", line 57, characters 15-31:
 57 |     b &Bell = cupboard[Int(1)];
    |               ^^^^^^^^^^^^^^^^
-Error: a new reference must come from a settled place, and a list's element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
+Error: a new reference must come from a settled place, and a `ListRef`'s element is roaming: elements come and go while the list lives; an `ArrayRef`'s elements may be referenced
 File "fixtures/typing/reject/bad/sources.zn", line 65, characters 17-21:
 65 |     this.hook = bell;
    |                 ^^^^
@@ -1061,7 +1061,7 @@ Error: `Holder` is a value type, so its member `guest` cannot be an `&`; only a 
 File "fixtures/typing/reject/bad/types.zn", line 5, characters 1-23:
 5 | type Holder = struct {
   | ^^^^^^^^^^^^^^^^^^^^^^
-Error: `Holder` is a value type, so its member `list` cannot hold `@primitives$List<@primitives$I64>`, a reference type; a value type is a value all the way down
+Error: `Holder` is a value type, so its member `list` cannot hold `@primitives$ListRef<@primitives$I64>`, a reference type; a value type is a value all the way down
 File "fixtures/typing/reject/bad/types.zn", line 6, characters 10-23:
 6 |     many Box<Int, Int>;
   |          ^^^^^^^^^^^^^

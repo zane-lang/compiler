@@ -7,4 +7,4 @@ alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
 alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>

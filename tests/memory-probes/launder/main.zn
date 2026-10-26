@@ -6,7 +6,7 @@ package launder;
 alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 alias PortRef = &Port
 
 Unit inner(body @concepts$Block) {
@@ -23,8 +23,8 @@ Plug(port &Port) => init{ port; }
 type Frame = #struct { plug Plug; }
 Frame(plug ^Plug) => init{ plug; }
 
-type Rack = #struct { plugs List<Plug>; slot &Port; }
-Rack(slot &Port) => init{ plugs = @primitives$List(Plug); slot; }
+type Rack = #struct { plugs ListRef<Plug>; slot &Port; }
+Rack(slot &Port) => init{ plugs = @primitives$ListRef(Plug); slot; }
 
 type Pin<T Type> = #struct { at &T; }
 Pin<T>(at &T Type) => init{ at; }
@@ -66,7 +66,7 @@ Unit main() {
 	rack Rack(far);
 	pin Pin<Port> = Pin(far);
 	arr @primitives$ArrayRef<&Port, 2> = @primitives$ArrayRef([r, r]);
-	plugs List<Plug> = @primitives$List(Plug);
+	plugs ListRef<Plug> = @primitives$ListRef(Plug);
 	plugs!push(Plug(far));
 	passer &Port(p &Port) => p;
 	inner({

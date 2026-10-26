@@ -22,7 +22,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -77,10 +77,10 @@ Int nodes(tree Tree) => match (tree) {
 }
 
 type Node = #struct {
-	children List<Node>;
+	children ListRef<Node>;
 }
 
-Node() => init{ children = @primitives$List(Node); }
+Node() => init{ children = @primitives$ListRef(Node); }
 
 /// Keeps the child, in a list its caller lent.
 Unit adopt(this Node, child ^Node) mut {
@@ -111,10 +111,10 @@ Int members(node Node) {
 
 type Item = #struct {
 	name String;
-	tags List<String>;
+	tags ListRef<String>;
 }
 
-Item(name String) => init{ name; tags = @primitives$List(String); }
+Item(name String) => init{ name; tags = @primitives$ListRef(String); }
 
 /// Drops what it is given.
 Int weigh(item ^Item) => item.tags:size()
@@ -123,10 +123,10 @@ Int weigh(item ^Item) => item.tags:size()
 ^Item latter(first ^Item, second ^Item) => second
 
 type Shelf = #struct {
-	items List<Item>;
+	items ListRef<Item>;
 }
 
-Shelf() => init{ items = @primitives$List(Item); }
+Shelf() => init{ items = @primitives$ListRef(Item); }
 
 /// Keeps the item, in a shelf its caller lent.
 Unit put(this Shelf, item ^Item) mut {

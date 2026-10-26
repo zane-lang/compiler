@@ -7,7 +7,7 @@ Kite(span Int) => init{ span; }
 /// parameter or a return type, and nowhere else (syntax.md §2.3).
 type Tether = #struct { kite ^Kite; }
 
-alias Kites = List<^Kite>
+alias Kites = ListRef<^Kite>
 
 Unit fly(span ^Int) => Unit()
 
@@ -64,7 +64,7 @@ Unit pegs(kite Kite) {
 
 /// A list's elements are owners, so its element type is never an `&`
 /// (generics.md §8.3); a fixed `ArrayRef` of references is fine.
-alias KiteRefs = List<&Kite>
+alias KiteRefs = ListRef<&Kite>
 
 Unit spool(row @primitives$ArrayRef<&Kite, 2>) => Unit()
 

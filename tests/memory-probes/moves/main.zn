@@ -8,7 +8,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -62,8 +62,8 @@ Unit consume(e ^Engine) => Unit()
 
 Int powerOf(e Engine) => e.power
 
-type Garage = #struct { cars List<Car>; }
-Garage() => init{ cars = @primitives$List(Car); }
+type Garage = #struct { cars ListRef<Car>; }
+Garage() => init{ cars = @primitives$ListRef(Car); }
 
 Unit park(this Garage, car ^Car) mut {
 	this.cars!push(car);

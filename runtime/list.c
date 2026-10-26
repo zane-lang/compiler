@@ -13,7 +13,7 @@ void zane_out_of_range(void) {
 	exit(1);
 }
 
-/* `@primitives$List(T)`: empty, owning no block. Emitted code makes the
+/* `@primitives$List(T)` and `@primitives$ListRef(T)`: empty, owning no block. Emitted code makes the
    same empty handle itself (docs/design/lowering.md §9). */
 void zane_list_new(zane_list *out) { *out = (zane_list){ NULL, 0, 0 }; }
 

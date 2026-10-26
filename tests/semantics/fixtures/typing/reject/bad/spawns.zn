@@ -122,8 +122,8 @@ Unit aliased() {
 		spawn other.reading!nudge();
 	});
 	g Gauge(Int(1));
-	gauges List<Gauge> = @primitives$List(Gauge);
-	view &List<Gauge> = gauges;
+	gauges ListRef<Gauge> = @primitives$ListRef(Gauge);
+	view &ListRef<Gauge> = gauges;
 	@controlflow$branch(true, {
 		spawn g!nudge();
 		spawn gauges[g.level]!nudge();

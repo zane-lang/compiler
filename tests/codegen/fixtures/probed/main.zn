@@ -13,7 +13,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -102,7 +102,7 @@ Unit to(this Int, end Int, body @concepts$Block) mut {
 	return Unit();
 }
 
-Int growAndGive(this List<Int>, n Int) mut {
+Int growAndGive(this ListRef<Int>, n Int) mut {
 	i Int(1);
 	i!to(n) { this!push(i); }
 	return Int(4242);
@@ -114,16 +114,16 @@ Unit bump(this Int, by Int) mut {
 }
 
 Unit order() {
-	ints List<Int> = @primitives$List(Int);
+	ints ListRef<Int> = @primitives$ListRef(Int);
 	ints!push(Int(1));
 	ints!push(Int(2));
-	pad List<Int> = @primitives$List(Int);
+	pad ListRef<Int> = @primitives$ListRef(Int);
 	pad!push(Int(0));
 	ints[Int(1)] = ints!growAndGive(Int(1000));
 	check(String("a store whose value grows the list"), @operators$equal(ints[Int(1)], Int(4242)));
 	ints[Int(2)]!bump(ints!growAndGive(Int(1000)));
 	check(String("a `!` call whose argument grows the list"), @operators$equal(ints[Int(2)], Int(4244)));
-	more List<Int> = @primitives$List(Int);
+	more ListRef<Int> = @primitives$ListRef(Int);
 	more!push(Int(3));
 	bumper Unit(this Int, by Int) mut {
 		this = @operators$add(this, by);

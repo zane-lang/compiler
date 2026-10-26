@@ -160,7 +160,7 @@ Unit main() {
 
 	// A value that is a single address, read out of a list, is one snapshot
 	// load; the copy made from it owns blocks of its own.
-	solos @primitives$List<Solo> = @primitives$List(Solo);
+	solos @primitives$ListRef<Solo> = @primitives$ListRef(Solo);
 	solos!push(Solo(Knot.go(Solo(Knot.go(Solo(Knot.stop(Unit())))))));
 	read Solo = solos[Int(1)];
 	check(@operators$equal(knots(read.next), Int(2)));

@@ -440,15 +440,25 @@ let fresh_param env ~name ~kind =
 (* The signature a call names: a declared verb's, or an intrinsic method's
    or function's. The overloads of one `@operators$` spelling differ only in
    the primitive they take, which no analysis asking this reads: every
-   parameter is a value, and none is a subject. *)
+   parameter is a value, and none is a subject. A generic overload is told
+   apart by its own parameters, which the call's instance fills: a list's
+   methods are one overload on `List` and one on `ListRef`. *)
 let signature_of env (r : Nodes.Verb_ref.t) =
   match r.Nodes.Verb_ref.owner with
   | Signature.Declared id -> Verbs.signature env.verbs id
-  | Signature.Intrinsic spelling ->
-      List.find_map
-        (fun (_, (sg : Signature.t)) ->
-          if sg.Signature.owner = Signature.Intrinsic spelling then Some sg else None)
-        (Intrinsics.methods @ List.map (fun ((_, n), sg) -> (n, sg)) Intrinsics.functions)
+  | Signature.Intrinsic spelling -> (
+      let named =
+        List.filter_map
+          (fun (_, (sg : Signature.t)) ->
+            if sg.Signature.owner = Signature.Intrinsic spelling then Some sg else None)
+          (Intrinsics.methods @ List.map (fun ((_, n), sg) -> (n, sg)) Intrinsics.functions)
+      in
+      let instantiated (sg : Signature.t) =
+        List.exists (fun ((p : Ty.param), _) -> List.exists (fun (g : Ty.param) -> g.id = p.id) sg.Signature.generics) r.Nodes.Verb_ref.instance
+      in
+      match List.find_opt instantiated named with
+      | Some sg -> Some sg
+      | None -> List.nth_opt named 0)
 
 let package env name = Names.package env.names name
 

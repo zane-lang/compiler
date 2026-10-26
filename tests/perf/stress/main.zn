@@ -14,8 +14,8 @@ alias Float = @primitives$F64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
-alias Row = @primitives$List<Float>
+alias ListRef<T Type> = @primitives$ListRef<T>
+alias Row = @primitives$ListRef<Float>
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
 	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
@@ -34,7 +34,7 @@ Float real(v Int) => @primitives$F64.round(v)
 
 /// The scale the program was started with: its first argument, or 1.
 Int scale() {
-	args List<String> = @program$runtime:arguments();
+	args @primitives$List<String> = @program$runtime:arguments();
 	@controlflow$branch(below(args:size(), Int(1)), {
 		return Int(1);
 	});
@@ -65,16 +65,16 @@ Int pick(this Rng, bound Int) mut => modulo(this!next(), bound)
 
 type Flips = #struct {
 	n Int;
-	perm1 List<Int>;
-	perm List<Int>;
-	count List<Int>;
+	perm1 ListRef<Int>;
+	perm ListRef<Int>;
+	count ListRef<Int>;
 }
 
 Flips(n Int) => init{
 	n;
-	perm1 = @primitives$List(Int);
-	perm = @primitives$List(Int);
-	count = @primitives$List(Int);
+	perm1 = @primitives$ListRef(Int);
+	perm = @primitives$ListRef(Int);
+	count = @primitives$ListRef(Int);
 }
 
 Int flip(this Flips) mut {
@@ -188,13 +188,13 @@ Int trees(depth Int, rounds Int, round Int) {
 // ---------------------------------------------------------------------
 // Division against a table a sieve builds: trial division.
 
-^List<Int> primesBelow(bound Int) {
-	composite List<Bool> = @primitives$List(Bool);
+^ListRef<Int> primesBelow(bound Int) {
+	composite ListRef<Bool> = @primitives$ListRef(Bool);
 	i Int(1);
 	i!to(bound) {
 		composite!push(false);
 	}
-	primes ^List<Int> = @primitives$List(Int);
+	primes ^ListRef<Int> = @primitives$ListRef(Int);
 	p Int(2);
 	p!to(minus(bound, Int(1))) {
 		@controlflow$branch(@operators$not(composite[p]), {
@@ -211,7 +211,7 @@ Int trees(depth Int, rounds Int, round Int) {
 	return primes;
 }
 
-Bool prime(k Int, table &List<Int>) {
+Bool prime(k Int, table &ListRef<Int>) {
 	i Int(1);
 	i!to(table:size()) {
 		p Int = table[i];
@@ -226,7 +226,7 @@ Bool prime(k Int, table &List<Int>) {
 }
 
 Int division(n Int, round Int) {
-	table List<Int> = primesBelow(Int(4000));
+	table ListRef<Int> = primesBelow(Int(4000));
 	found Int(0);
 	k Int(2);
 	k!to(n) {
@@ -284,7 +284,7 @@ Body(x Float, y Float, mass Float) => init{ x; y; vx = Float(0.0); vy = Float(0.
 
 Int bodies(count Int, steps Int, round Int) {
 	rng Rng(@operators$add(Int(7), round));
-	all List<Body> = @primitives$List(Body);
+	all ListRef<Body> = @primitives$ListRef(Body);
 	i Int(1);
 	i!to(count) {
 		all!push(Body(real(rng!pick(Int(1000))), real(rng!pick(Int(1000))), real(@operators$add(Int(1), rng!pick(Int(10))))));
@@ -327,7 +327,7 @@ Int growth(n Int, rounds Int, round Int) {
 	total Int(0);
 	r Int(1);
 	r!to(rounds) {
-		list List<Entity> = @primitives$List(Entity);
+		list ListRef<Entity> = @primitives$ListRef(Entity);
 		i Int(1);
 		i!to(n) {
 			list!push(Entity(i, over(i, Int(3))));
@@ -339,7 +339,7 @@ Int growth(n Int, rounds Int, round Int) {
 
 Int removal(frames Int, round Int) {
 	rng Rng(@operators$add(Int(42), round));
-	entities List<Entity> = @primitives$List(Entity);
+	entities ListRef<Entity> = @primitives$ListRef(Entity);
 	total Int(0);
 	frame Int(1);
 	frame!to(frames) {
@@ -436,7 +436,7 @@ Int texts(n Int, round Int) {
 // random, and a matrix read by its columns.
 
 Int scattered(size Int, reads Int, round Int) {
-	cells List<Int> = @primitives$List(Int);
+	cells ListRef<Int> = @primitives$ListRef(Int);
 	i Int(1);
 	i!to(size) {
 		cells!push(i);
@@ -453,12 +453,12 @@ Int scattered(size Int, reads Int, round Int) {
 }
 
 Int matrix(n Int, round Int) {
-	a List<Row> = @primitives$List(Row);
-	b List<Row> = @primitives$List(Row);
+	a ListRef<Row> = @primitives$ListRef(Row);
+	b ListRef<Row> = @primitives$ListRef(Row);
 	i Int(1);
 	i!to(n) {
-		ra ^Row = @primitives$List(Float);
-		rb ^Row = @primitives$List(Float);
+		ra ^Row = @primitives$ListRef(Float);
+		rb ^Row = @primitives$ListRef(Float);
 		j Int(1);
 		j!to(n) {
 			ra!push(real(@operators$add(i, j)));
@@ -488,7 +488,7 @@ Int matrix(n Int, round Int) {
 // ---------------------------------------------------------------------
 // Branches no predictor learns: sorting and searching random numbers.
 
-Int partition(this List<Int>, low Int, high Int) mut {
+Int partition(this ListRef<Int>, low Int, high Int) mut {
 	pivot Int = this[high];
 	store Int = low;
 	i Int = low;
@@ -506,7 +506,7 @@ Int partition(this List<Int>, low Int, high Int) mut {
 	return store;
 }
 
-Unit quicksort(this List<Int>, low Int, high Int) mut {
+Unit quicksort(this ListRef<Int>, low Int, high Int) mut {
 	@controlflow$branch(@operators$not(below(low, high)), {
 		return Unit();
 	});
@@ -517,7 +517,7 @@ Unit quicksort(this List<Int>, low Int, high Int) mut {
 }
 
 /// The place of `wanted` in the sorted list, or 0.
-Int search(values &List<Int>, wanted Int) {
+Int search(values &ListRef<Int>, wanted Int) {
 	low Int(1);
 	high Int = values:size();
 	step Int(1);
@@ -542,7 +542,7 @@ Int search(values &List<Int>, wanted Int) {
 
 Int sorting(n Int, lookups Int, round Int) {
 	rng Rng(@operators$add(Int(11), round));
-	values List<Int> = @primitives$List(Int);
+	values ListRef<Int> = @primitives$ListRef(Int);
 	i Int(1);
 	i!to(n) {
 		values!push(rng!pick(times(n, Int(4))));
@@ -570,14 +570,14 @@ Int sorting(n Int, lookups Int, round Int) {
 
 type Table = #struct {
 	slots Int;
-	keys List<Int>;
-	counts List<Int>;
+	keys ListRef<Int>;
+	counts ListRef<Int>;
 }
 
 Table(slots Int) => init{
 	slots;
-	keys = @primitives$List(Int);
-	counts = @primitives$List(Int);
+	keys = @primitives$ListRef(Int);
+	counts = @primitives$ListRef(Int);
 }
 
 Int home(this Table, key Int) => @operators$add(Int(1), modulo(times(key, Int(2654435761)), this.slots))
@@ -652,14 +652,14 @@ type Op = variant {
 /// registers.
 type Machine = #struct {
 	pc Int;
-	stack List<Int>;
-	registers List<Int>;
+	stack ListRef<Int>;
+	registers ListRef<Int>;
 }
 
 Machine() => init{
 	pc = Int(1);
-	stack = @primitives$List(Int);
-	registers = @primitives$List(Int);
+	stack = @primitives$ListRef(Int);
+	registers = @primitives$ListRef(Int);
 }
 
 Int pop(this Machine) mut => this.stack!remove(this.stack:size())
@@ -706,7 +706,7 @@ Bool step(this Machine, op Op) mut => match (op) {
 
 /// Runs `code` until it halts or takes `limit` steps, and gives back its
 /// second register.
-Int interpret(code &List<Op>, limit Int) {
+Int interpret(code &ListRef<Op>, limit Int) {
 	machine Machine();
 	r Int(1);
 	r!to(Int(8)) {
@@ -723,7 +723,7 @@ Int interpret(code &List<Op>, limit Int) {
 
 Int interpreter(rounds Int, round Int) {
 	// r1 counts down from `rounds`; r2 accumulates r2 * 31 + r1.
-	code List<Op> = @primitives$List(Op);
+	code ListRef<Op> = @primitives$ListRef(Op);
 	start Int = @operators$add(rounds, Int(0));
 	code!push(Op.push(start));
 	code!push(Op.store(Int(1)));
@@ -788,8 +788,8 @@ Int fibonacci(n Int, round Int) {
 /// the same argument does the same work and prints the same.
 Unit main() {
 	rounds Int = scale();
-	names List<String> = @primitives$List(String);
-	sums List<Int> = @primitives$List(Int);
+	names ListRef<String> = @primitives$ListRef(String);
+	sums ListRef<Int> = @primitives$ListRef(Int);
 	names!push(String("fannkuch"));
 	names!push(String("trees"));
 	names!push(String("division"));

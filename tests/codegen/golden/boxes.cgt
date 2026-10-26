@@ -39,7 +39,7 @@
     │   ├── type: boxes$Solo
     │   └── positions[0]: box @0 of boxes$Knot (16 bytes)
     ├── layouts[12] > layout:
-    │   ├── type: %primitives$List<boxes$Solo>
+    │   ├── type: %primitives$ListRef<boxes$Solo>
     │   └── positions[0]: list @0 of boxes$Solo (8 bytes apart)
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
@@ -1236,7 +1236,7 @@
     │       │   │   ├── type: handle
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
-    │       │   └── layout: %primitives$List<boxes$Solo>
+    │       │   └── layout: %primitives$ListRef<boxes$Solo>
     │       ├── body[28] > eval > expand:
     │       │   ├── type: void
     │       │   ├── label: @178

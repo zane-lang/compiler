@@ -183,7 +183,7 @@ checks the generic verbs nothing instantiates, which ask for none.
    ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.1, §2.4, [`syntax.md`](https://github.com/zane-lang/spec/blob/911d749/spec/syntax.md)
    §2.3); a type argument of the wrong kind, reported where it is written
    ([`generics.md`](https://github.com/zane-lang/spec/blob/911d749/spec/generics.md) §3.6),
-   including a `^` or a `List` element filled with an `&` type, and through
+   including a `^` or a `ListRef` element filled with an `&` type, and through
    a generic alias as through the type it names; a type that holds itself at
    a growing argument
    ([`generics.md`](https://github.com/zane-lang/spec/blob/8298a3a/spec/generics.md)
@@ -419,7 +419,7 @@ it. `Grow<Int>` holds a `Grow<Array<Int, 2>>`, and so on without end, and
 lowering, which writes out every instance with its own layout, could never
 finish one. The check runs over a graph whose nodes are the generic types'
 parameters. Each occurrence of `B<args>` in a member of `A`, inside `&`,
-`^` and the element types of `Array`, `ArrayRef` and `List` too, gives an
+`^` and the element types of `Array`, `ArrayRef`, `List` and `ListRef` too, gives an
 edge from each parameter of `A` an argument names to the parameter of `B`
 it fills: plain when the argument is that parameter itself, growing
 otherwise. A path from one of `A`'s parameters to another of them is a way
@@ -686,9 +686,9 @@ its own boolean type at a coercion site.
 (`syntax.md` §2.7, `types.md` §2.7). Beyond those, `intrinsics.ml` holds what
 a `core` needs to be written at all: the constructors, none of them implicit,
 that build an `@primitives$String` from an `@concepts$String` and a container
-primitive from its literal, element access on `@primitives$Array` and
-`@primitives$List`, and `push`, `size`, `remove` and `swapRemove` on
-`@primitives$List`. An index, a size and a count are each an
+primitive from its literal, element access on `@primitives$Array`,
+`@primitives$List` and `@primitives$ListRef`, and `push`, `size`, `remove`
+and `swapRemove` on both lists, one overload per list. An index, a size and a count are each an
 `@primitives$I64`. `remove` and `swapRemove` give the element at an index as
 `^T`, which moves it out, and the list closes over its place: `remove` moves
 the later elements down, keeping their order, and `swapRemove` moves the
