@@ -372,7 +372,7 @@ and block ?(enter = fun _ -> []) st ctx (b : T.Block.t) =
   close st scope body
 
 (* A block argument's code, where it was written. An exit ends this run of
-   it (docs/spec-divergences.md §7). *)
+   it (docs/spec-divergences.md §6). *)
 and code st ctx span (arg : T.Arg.t) =
   let run ctx b =
     let label = fresh st in

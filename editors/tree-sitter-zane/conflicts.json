@@ -64,7 +64,7 @@
     },
     {
       "rules": [
-        "app_braced",
+        "_member_braced",
         "stat"
       ],
       "symbol_sequence": [

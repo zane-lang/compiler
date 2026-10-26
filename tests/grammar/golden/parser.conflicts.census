@@ -30,8 +30,8 @@
   1  shift/reduce  [LPAREN LESS]  type_expr -> AT LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN LESS]  type_expr -> LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN LESS]  type_expr -> UIDENT
-  1  shift/reduce  [QSTNQSTN QSTNMARK]  app_braced -> braced_verb_call
   1  shift/reduce  [QSTNQSTN QSTNMARK]  expr -> SPAWN braced_verb_call
   1  shift/reduce  [QSTNQSTN QSTNMARK]  expr -> SPAWN unbraced_verb_call
   1  shift/reduce  [QSTNQSTN QSTNMARK]  func_callee -> unbraced_verb_call
+  1  shift/reduce  [QSTNQSTN QSTNMARK]  member_braced -> braced_verb_call
   6  shift/reduce  [RPAREN]  loption(separated_nonempty_list(COMMA,param)) ->

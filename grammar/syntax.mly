@@ -863,7 +863,7 @@ computed_call(trailer):
             };
         } : Nodes.Verb_call.t)
     }
-  | receiver=app part=meth_part LPAREN args=call_args RPAREN tail=trailer {
+  | receiver=member_target part=meth_part LPAREN args=call_args RPAREN tail=trailer {
       let is_mut, callee = part in
       let span = Span.of_loc $loc in
       fun abort_handle ->
@@ -899,9 +899,8 @@ unbraced_verb_call:
         } : Nodes.Verb_call.t)
     }
 
-(* The one [verb_call] that closes on a `}`: a constructor call by fields. Like
-   a [block_call] it is an expression rather than a postfix base (see
-   [app_braced]). *)
+(* The one [verb_call] that closes on a `}`: a constructor call by fields. It
+   takes `.`, `:` and `!` but no call or subscript (see [app_braced]). *)
 braced_verb_call:
   | name=constructor_name args=field_constructor_args {
       let span = Span.of_loc $loc in
@@ -1093,13 +1092,12 @@ primary:
   | name_expr=name_expr { expr $loc (Nodes.Expr.NameExpr name_expr) }
   | LPAREN e=expr RPAREN { expr $loc (Nodes.Expr.Parenthized e) }
 
-(* The values that close on a `}` without being a call. They are not [primary]
-   for the reason [app_braced] gives. *)
+(* The values other than a map literal that close on a `}` without being a
+   call. They are not [primary], for the reason [app_braced] gives. *)
 primary_braced:
   | INIT LCURLY fields=list(terminated(field_arg, SEMICOLON)) RCURLY {
       expr $loc (Nodes.Expr.Init fields)
     }
-  | value=map_lit { value }
   | value=match_expr { value }
 
 %inline type_member:
@@ -1113,7 +1111,7 @@ primary_braced:
 func_callee:
   | primary=primary { primary }
   | call=unbraced_verb_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
-  | target=app DOT field=lname {
+  | target=member_target DOT field=lname {
       expr $loc (Nodes.Expr.DotAccess { target; field; abort_handle = None })
     }
   | target=app LBRACKET args=separated_list(COMMA, expr) RBRACKET {
@@ -1123,6 +1121,15 @@ func_callee:
 app:
   | value=func_callee { value }
   | value=type_member { value }
+
+(* What a `.` field access or a `:`/`!` method call may follow: any [app], and
+   also a value that closes on a `}` ([member_braced]). None of `.`, `:` or `!`
+   can open a statement, so after such a brace the next token alone says
+   whether the value goes on or its statement has ended (syntax.md §4.9). A
+   `(` call and a `[` subscript can open one, and stay with [app]. *)
+%inline member_target:
+  | value=app { value }
+  | value=member_braced { value }
 
 expr:
   | app=app { app }
@@ -1248,13 +1255,22 @@ expr_braced:
       attach_abort_handle abort_handle (Span.of_loc $loc) value
     }
 
-(* The values other than a [block_call] that close on a `}`. None of them is a
-   postfix base: the brace that closes one may close its statement too
-   (lexical.md §6.3), and the two tokens a postfix can open with, `(` and `[`,
-   are the two a statement can open with. Were `match (x) { } (y)()` a call on
-   the match, it would also be the match's statement followed by the statement
-   `(y)()`. Parenthesize one to go on using its value. *)
+(* The values other than a [block_call] that close on a `}`. None takes a call
+   or a subscript (syntax.md §4.9): the brace that closes one may close its
+   statement too (lexical.md §6.3), and `(` and `[` are two tokens a statement
+   can open with. Were `match (x) { } (y)()` a call on the match, it would also
+   be the match's statement followed by the statement `(y)()`. Parenthesize one
+   to call or subscript its value. *)
 app_braced:
+  | value=member_braced { value }
+  | value=map_lit { value }
+
+(* The [app_braced] values that take a `.` field access and a `:` or `!`
+   method call ([member_target]): all but a map literal. A postfix base opens
+   the statement it is written first in, and a map literal there would open
+   the statement with a `{` (lexical.md §6.3.1), where it reads as the body of
+   whatever declaration the previous statement could still be. *)
+member_braced:
   | value=primary_braced { value }
   | call=braced_verb_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
 

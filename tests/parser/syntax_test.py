@@ -322,31 +322,48 @@ class TerminatorTests(ParserSyntaxTestCase):
         self.assert_rejects("Unit f() { abort false }")
         self.assert_rejects("Unit f() { x Int = y }")
 
-    def test_a_value_closed_by_a_brace_takes_no_postfix(self) -> None:
+    def test_a_value_closed_by_a_brace_takes_no_call_or_subscript(self) -> None:
         # The `}` of a match, a map literal, an `init` or a constructor call by
-        # fields may end its statement (lexical.md §6.3), so what follows it is
-        # the next statement rather than a call, subscript or member on it --
-        # the rule a trailing argument already follows.
+        # fields may end its statement (lexical.md §6.3), and a `(` or `[` can
+        # open the next one, so what follows it is that statement rather than
+        # a call or subscript on the value (syntax.md §4.9).
         self.assert_parses("Unit f() { abort match (x) { } (y)(); }")
         self.assert_parses("Unit f() { abort { k, v; } [y](); }")
         self.assert_parses("Unit f() { abort Foo{a = b;} (y)(); }")
         self.assert_rejects("Unit f() { abort match (x) { } (y); }")
         self.assert_rejects("Unit f() { x Int = { k, v; }[k]; }")
-        self.assert_rejects("Unit f() { x Int = Foo{a = b;}.a; }")
-        self.assert_rejects("Unit f() { x Int = Foo{a = b;}:size(); }")
         self.assert_rejects("Unit f() { use(match (x) { } (y)); }")
         # Parentheses close the value first, which is how it is continued.
         self.assert_parses("Unit f() { abort (match (x) { })(y); }")
         self.assert_parses("Unit f() { x Int = ({ k, v; })[k]; }")
-        self.assert_parses("Unit f() { x Int = (Foo{a = b;}).a; }")
-        self.assert_parses("Unit f() { x Int = (Foo{a = b;}):size(); }")
         self.assert_parses("Unit f() { use((match (x) { })(y)); }")
         # As an argument or an operand the value itself is unchanged.
         self.assert_parses("Unit f() { use(match (x) { }, { k, v; }); }")
         self.assert_parses("Unit f() { x Int = Foo{a = b;} ?? y; }")
 
+    def test_a_value_closed_by_a_brace_takes_a_member_postfix(self) -> None:
+        # `.`, `:` and `!` open no statement, so they continue the value
+        # written directly after its brace (syntax.md §4.9).
+        self.assert_parses("Unit f() { x Int = Foo{a = b;}.a; }")
+        self.assert_parses("Unit f() { x Int = Foo{a = b;}:size(); }")
+        self.assert_parses("Unit f() { Foo{a = b;}!grow(); }")
+        self.assert_parses("Unit f() { Foo{a = b;}.a = c; }")
+        self.assert_parses("Unit f() { x Int = init{a = b;}:size(); }")
+        self.assert_parses("Unit f() { x Int = match (m) { a => b; }.c + 1; }")
+        self.assert_parses("Int(v Int) => init{ _v = v; }:check();")
+        self.assert_parses("x Int = Foo{a = b;}.a;")
+        # The longer expression ends with the `.a`, so it owes its `;`.
+        self.assert_rejects("Unit f() { x Int = Foo{a = b;}.a }")
+        # A trailing argument's `}` ends its call statement (syntax.md §4.8).
+        self.assert_rejects("Unit f() { run() { }.a; }")
+        # A map literal written first would open its statement with a `{`
+        # (lexical.md §6.3.1), so it is continued through parentheses.
+        self.assert_rejects("Unit f() { x Int = { k, v; }:size(); }")
+        self.assert_parses("Unit f() { x Int = ({ k, v; }):size(); }")
+        self.assert_parses("Unit f() { x Int = (Foo{a = b;}).a; }")
+
     def test_a_constructor_call_trails_its_last_argument(self) -> None:
-        # Spec syntax.md §4.9 says this of calls in general, and a constructor
+        # Spec syntax.md §4.8 says this of calls in general, and a constructor
         # call is one. The empty argument list is the exception; it has its own
         # test below.
         self.assert_parses(
@@ -625,7 +642,7 @@ class LiteralTests(ParserSyntaxTestCase):
         self.assert_rejects("Unit f() { b Float = 3.; return Unit(); }")
         self.assert_rejects("Unit f() { b Float = .5; return Unit(); }")
         # The compiler's `'` separator groups digits before the `.` only
-        # (docs/spec-divergences.md §6).
+        # (docs/spec-divergences.md §5).
         self.assert_parses("Unit f() { b Float = 1'000.25; return Unit(); }")
         self.assert_rejects("Unit f() { b Float = 1.000'001; return Unit(); }")
 

@@ -927,6 +927,128 @@
   (diff golden/boxes.out boxes.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/bracePostfix))
+ (targets bracePostfix.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build bracePostfix.exe --package fixtures/bracePostfix)))
+
+(rule
+ (deps (source_tree fixtures/bracePostfix))
+ (targets bracePostfix.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build bracePostfix.optimized.exe --optimize --package fixtures/bracePostfix)))
+
+(rule
+ (deps (source_tree fixtures/bracePostfix))
+ (targets bracePostfix.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build bracePostfix.tiered.exe --tiered --package fixtures/bracePostfix)))
+
+(rule
+ (deps (source_tree fixtures/bracePostfix))
+ (targets bracePostfix.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up bracePostfix.tier1 --package fixtures/bracePostfix)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    bracePostfix.checked.out.actual
+    (run ./bracePostfix.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bracePostfix.out bracePostfix.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    bracePostfix.unchecked.out.actual
+    (run ./bracePostfix.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bracePostfix.out bracePostfix.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    bracePostfix.optimized.checked.out.actual
+    (run ./bracePostfix.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bracePostfix.out bracePostfix.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    bracePostfix.optimized.unchecked.out.actual
+    (run ./bracePostfix.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bracePostfix.out bracePostfix.optimized.unchecked.out.actual)))
+
+(rule
+ (deps bracePostfix.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./bracePostfix.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    bracePostfix.tiered.checked.out.actual
+    (run ./bracePostfix.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bracePostfix.out bracePostfix.tiered.checked.out.actual)))
+
+(rule
+ (deps bracePostfix.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./bracePostfix.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    bracePostfix.tiered.unchecked.out.actual
+    (run ./bracePostfix.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bracePostfix.out bracePostfix.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/constantCycle))
  (targets constantCycle.exe)
  (action

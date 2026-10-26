@@ -265,9 +265,9 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "x Foo = match A { } ( ) { }",
             0,
         )
-        # A value that closes on a `}` is not a postfix base at all, so the
-        # call is written on the parenthesized match, and on the parenthesized
-        # constructor inside the scrutinee list.
+        # A value that closes on a `}` takes no call, so the call is written
+        # on the parenthesized match, and on the parenthesized constructor
+        # inside the scrutinee list.
         self.assert_derivations(
             "LIDENT UIDENT EQUAL MATCH LPAREN LIDENT RPAREN LCURLY RCURLY "
             "LPAREN RPAREN LCURLY RCURLY EOF",
@@ -293,7 +293,7 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             1,
         )
 
-    def test_a_value_closed_by_a_brace_takes_no_postfix(self) -> None:
+    def test_a_value_closed_by_a_brace_takes_no_call_or_subscript(self) -> None:
         # After the `}` of a match, a map literal, an `init` or a constructor
         # call by fields, a `(` or `[` opens the next statement: it is not a
         # call or subscript on that value (lexical.md §6.3). Were it both, a
@@ -332,6 +332,90 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "RPAREN LCURLY RCURLY LPAREN LIDENT RPAREN SEMICOLON RCURLY EOF",
             "Unit f() { abort match (x) { } (y); }",
             0,
+        )
+
+    def test_a_value_closed_by_a_brace_takes_a_member_postfix(self) -> None:
+        # `.`, `:` and `!` open no statement, so after a match, an `init` or a
+        # constructor call by fields the next token alone says whether the
+        # value goes on (syntax.md §4.9).
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT MATCH LPAREN LIDENT "
+            "RPAREN LCURLY RCURLY DOT LIDENT SEMICOLON RCURLY EOF",
+            "Unit f() { abort match (x) { }.y; }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT MATCH LPAREN LIDENT "
+            "RPAREN LCURLY RCURLY COLON LIDENT LPAREN RPAREN SEMICOLON "
+            "RCURLY EOF",
+            "Unit f() { abort match (x) { }:m(); }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT UIDENT LCURLY LIDENT "
+            "SEMICOLON RCURLY EXCL LIDENT LPAREN RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { abort Foo { a; }!m(); }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT INIT LCURLY LIDENT "
+            "SEMICOLON RCURLY COLON LIDENT LPAREN RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { abort init { a; }:m(); }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT UIDENT LCURLY LIDENT "
+            "SEMICOLON RCURLY DOT LIDENT PLUS INT SEMICOLON RCURLY EOF",
+            "Unit f() { abort Foo { a; }.y + 1; }",
+            1,
+        )
+        self.assert_derivations(
+            "LIDENT UIDENT EQUAL UIDENT LCURLY LIDENT SEMICOLON RCURLY DOT "
+            "LIDENT SEMICOLON EOF",
+            "x Foo = Foo { a; }.y;",
+            1,
+        )
+        # A statement may open with one, as an assignment target or a call.
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY UIDENT LCURLY LIDENT "
+            "SEMICOLON RCURLY DOT LIDENT EQUAL INT SEMICOLON RCURLY EOF",
+            "Unit f() { Foo { a; }.y = 1; }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY UIDENT LCURLY LIDENT "
+            "SEMICOLON RCURLY COLON LIDENT LPAREN RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { Foo { a; }:m(); }",
+            1,
+        )
+        # The statement now ends after the field, so it owes its `;`.
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT MATCH LPAREN LIDENT "
+            "RPAREN LCURLY RCURLY DOT LIDENT RCURLY EOF",
+            "Unit f() { abort match (x) { }.y }",
+            0,
+        )
+        # A trailing argument's `}` ends its statement (syntax.md §4.8).
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LIDENT LPAREN RPAREN "
+            "LCURLY RCURLY DOT LIDENT SEMICOLON RCURLY EOF",
+            "Unit f() { abort run() { }.y; }",
+            0,
+        )
+        # A map literal is continued through parentheses: written first in a
+        # statement it would open it with a `{` (lexical.md §6.3.1).
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LCURLY LIDENT COMMA "
+            "LIDENT SEMICOLON RCURLY DOT LIDENT SEMICOLON RCURLY EOF",
+            "Unit f() { abort { k, v; }.y; }",
+            0,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LPAREN LCURLY LIDENT "
+            "COMMA LIDENT SEMICOLON RCURLY RPAREN DOT LIDENT SEMICOLON "
+            "RCURLY EOF",
+            "Unit f() { abort ({ k, v; }).y; }",
+            1,
         )
 
     def test_several_scrutinees_share_one_pair_of_parentheses(self) -> None:

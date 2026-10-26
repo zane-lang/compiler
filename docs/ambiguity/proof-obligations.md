@@ -98,7 +98,7 @@ are not independent problems:
 | `<`             | 18 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
 | `(`             | 3 | `list_verb_type_suffix_ ->` | a type opening a statement, against a call |
-| `?` `??`        | 4 | `expr -> SPAWN unbraced_verb_call`, `expr -> SPAWN braced_verb_call`, `func_callee -> unbraced_verb_call`, `app_braced -> braced_verb_call` | a spawned call against what follows it |
+| `?` `??`        | 4 | `expr -> SPAWN unbraced_verb_call`, `expr -> SPAWN braced_verb_call`, `func_callee -> unbraced_verb_call`, `member_braced -> braced_verb_call` | a spawned call against what follows it |
 
 `&` begins no expression: a reference is minted by storing a place into an
 `&` slot, so `&` only ever marks a type. Every fork that read a leading `&` as
@@ -196,31 +196,43 @@ derivation, and a statement with no mark is a parse error rather than a tree
 statement that ends in a brace; that spelling has one parse, since nothing
 begins with a `;`, so `Statement_check` still rejects it from the tree.
 
-**A value closed by a brace is not a postfix base.** The same question comes
-back one step later. A statement closed by a `}` is followed by the next
-statement, which may open with `(` or `[` — the two tokens a postfix opens
-with. So if a `match`, a map literal, an `init` or a constructor call by
-fields could take a call or a subscript, `abort match (x) { } (y)();` would
-read both as one statement and as `abort match (x) { }` followed by `(y)();`,
-and both would finish. That was
+**A value closed by a brace takes no call or subscript.** The same question
+comes back one step later. A statement closed by a `}` is followed by the next
+statement, which may open with `(` or `[` — the two tokens a call and a
+subscript open with. So if a `match`, a map literal, an `init` or a
+constructor call by fields could take either, `abort match (x) { } (y)();`
+would read both as one statement and as `abort match (x) { }` followed by
+`(y)();`, and both would finish. That was
 [#102](https://github.com/zane-lang/compiler/issues/102), five reduce/reduce
 states on `(` and `[`, and it measured two derivations in every statement form.
 
-So none of them is a postfix base: `primary_braced` and `braced_verb_call` are
-reached from `expr` through `app_braced`, beside `block_call`, which was
-already written that way for the same reason. The postfix forms take only
-`primary` and `unbraced_verb_call`, and a value that closes on a `}` is
-continued through parentheses — `(match (x) { })(y)`. That holds in every
-position, not only at a statement's tail, which is what lets the grammar decide
-it without knowing where the statement ends; lexical.md §6.3 requires it at the
-tail and says nothing elsewhere, so the rest is recorded in
-[`spec-divergences.md`](../spec-divergences.md).
+So the call and subscript productions take only an `app`, which neither
+`primary_braced` nor `braced_verb_call` is: those are reached from `expr`
+through `app_braced`, beside `block_call`, which was already written that way
+for the same reason. A value that closes on a `}` is called or subscripted
+through parentheses — `(match (x) { })(y)`. That holds in every position, not
+only at a statement's tail, which is what lets the grammar decide it without
+knowing where the statement ends; syntax.md §4.9 states it the same way.
 
 Each witness now has one derivation, the five reduce/reduce states are gone,
 and a postfix with nothing to open the next statement — `abort match (x) { }
 (y);` — is a parse error. The two `?` `??` states of the spawned-call row
 became four: the fork is the one it always was, now counted once per closing
 bracket of the call.
+
+A `.` field access and a `:` or `!` method call open no statement, so after the
+brace the next token alone says which reading holds, and the member forms take
+`member_target`: an `app` or `member_braced`, the `init`, `match` and
+constructor-by-fields values. That added no conflict state to either census.
+The map literal is the one braced value left out. A postfix base is the first
+thing in the statement it opens, and a map literal there would open the
+statement with a `{`, which lexical.md §6.3.1 forbids. Admitting it costs six
+`{` states against a field-constructor declaration's body, since after
+`Foo{ }` a `{` then either opens that body or a statement; restricting a
+statement's leftmost value instead means parameterizing the whole postfix chain
+by its braced bases, and the two copies meet in every state a block body shares
+with a map literal, which measured 25 new states. So a map literal is continued
+through parentheses, `({ k, v; }):size()`, and syntax.md §4.9 says so.
 
 What removed twelve conflicts and what brought them back is worth recording
 together. The twelve were on `[`, and all twelve were one adjacency: an enum

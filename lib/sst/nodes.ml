@@ -198,7 +198,7 @@ and Verb_call : sig
        subject is [args]'s first element, which is where functions.md §2.6 puts
        it. See [Call_form].
 
-       No [trailing]. The two spellings "are the same call" (syntax.md §4.9);
+       No [trailing]. The two spellings "are the same call" (syntax.md §4.8);
        the flag existed because they do not *end* the same way, which is what
        [Cst.Statement_check] needed to decide whether a `;` belonged. That
        check has already run and passed before this tree is built. *)
