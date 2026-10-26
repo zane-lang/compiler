@@ -346,7 +346,7 @@ computes it once and hands it to this analysis and the read-only one.
 
 The same spawn is lent every owner passed to it, directly or through a reference,
 until the same drain, and the block may not write one meanwhile
-([`spec-divergences.md`](../spec-divergences.md) §9): not by assignment, not as
+([`spec-divergences.md`](../spec-divergences.md) §8): not by assignment, not as
 a `!` call's subject, not by moving it out. A spawned `mut` call on part of it
 is allowed, since it writes back (docs/design/lowering.md §9). Where a write goes
 through a reference, the checker follows the reference to the place it was

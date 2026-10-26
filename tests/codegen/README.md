@@ -51,6 +51,10 @@ then run it again, read the golden diff and promote that.
   shows `main` calling only those kept as calls: `tripled`, `starts` and
   `first`, past the size bound or spawning, and `noted`, written as
   statements.
+- `bracePostfix` is a value that closes on a `}` continued directly after its
+  brace (syntax.md §4.9): a field constructor call followed by a `.` field, a
+  `:` method and a `!` method, an `init{ }` by a `:` method, and a `match` by
+  a `.` field.
 - `hello` prints a string literal through `@program$console`: the first program
   that ran (docs/design/lowering.md §8 step 2).
 - `interpolation` is string literals end to end (lexical.md §7.1, types.md

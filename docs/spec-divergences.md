@@ -17,7 +17,7 @@ settles, in one pass rather than section by section. Until then:
   the claim can be rechecked rather than taken on trust.
 
 A choice the spec leaves open is recorded here when a running program can
-observe it, as §8 and §11 are. The rest sit beside the design they belong
+observe it, as §7 and §10 are. The rest sit beside the design they belong
 to: what the type checker decides is in
 [`design/semantics.md`](design/semantics.md) §9, with D12 and D14, and how
 lowering and the runtime place and represent things is in
@@ -230,45 +230,7 @@ spelling, which is why it is recorded here rather than treated as a bug fix.
 Reconciling it means changing §4.8 and the §5.6 rationale together; if the spec
 later adds tuples, a tuple scrutinee needs its own `( )`.
 
-## 5. A value closed by a brace takes no postfix
-
-Checked against spec commit `f61c11b`, not the pin above.
-
-**Spec** — [`lexical.md`](https://github.com/zane-lang/spec/blob/f61c11b/spec/lexical.md)
-§6.3: a statement ending in `}` is closed by that brace, and "nothing may
-continue the statement past it either — a call or a subscript written there has
-nothing left to attach to". That is said of a statement's tail. Elsewhere the
-spec does not say whether a call, method call or member access may be written
-directly on a `match`, a map literal, an `init` or a constructor call by
-fields; [`syntax.md`](https://github.com/zane-lang/spec/blob/f61c11b/spec/syntax.md)
-§4.7 lets a `match` appear "anywhere an expression is legal". §4.5 already rules
-out a subscript on one, since a subscript needs a place expression and each of
-these is a temporary.
-
-**Compiler** — none of the four is a postfix base, in any position. A value
-closed by a `}` is continued through parentheses, which is the rule a trailing
-argument follows in syntax.md §4.8:
-
-```zane
-abort match (x) { } (y)();          // accepted: two statements, the second `(y)()`
-abort (match (x) { })(y);           // accepted
-use(match (x) { } (y));             // rejected
-size Int = (Foo{a = b;}):size();    // accepted
-size Int = Foo{a = b;}:size();      // rejected
-```
-
-At a statement's tail this is §6.3, and the grammar has to carry it there: the
-`(` and `[` a postfix opens with are the two tokens a statement can open with,
-so a braced value that took a postfix gave `abort match (x) { } (y)();` two
-complete parses
-([#102](https://github.com/zane-lang/compiler/issues/102)). Carrying it at the
-tail only would need the grammar to know where a statement ends while it is
-still inside an expression. Holding it in every position does not, and reads
-the same everywhere. What that costs is the parentheses in an argument or an
-operand, where the spec is silent; reconciling it means stating the rule in
-§4.7 and §4.1–4.2 of syntax.md.
-
-## 6. A `'` separates groups of digits in a numeric literal
+## 5. A `'` separates groups of digits in a numeric literal
 
 **Spec** — [`lexical.md`](https://github.com/zane-lang/spec/blob/c4295ca/spec/lexical.md)
 §7: "A numeric literal consists of digits and at most one `.`, which has at
@@ -292,7 +254,7 @@ mention one. It needs a digit on each side, and `'` has no other use, so
 `2'*3` does not lex. Reconciling means either the spec adopting the separator
 or the lexer dropping it.
 
-## 7. An exit ends the run of a block
+## 6. An exit ends the run of a block
 
 **Spec** — [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
 §2.3 and §4.2: `@controlflow$exitFromCall` ends the invocation that called
@@ -326,7 +288,7 @@ written there. `lib/tst/analyses/exits.ml` checks the calls, and
 `tests/semantics/fixtures/typing/reject/bad/exits.zn` is the rejected case.
 Reconciling means the spec adopting this reading.
 
-## 8. A spawned call's handler runs where the call settles
+## 7. A spawned call's handler runs where the call settles
 
 **Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
 §3.3: an abortable spawned call attaches `?` or `??` directly to the
@@ -338,7 +300,7 @@ or what happens when nothing reads the symbol.
 its local is first read, or where the block it is spawned in ends, when
 nothing has read it by then. Settling waits for the call. An abort runs the
 handler there, and an exit ends the run of the block the spawn is written in
-(§7), from there. A block left before it ends -- by a `return`, an exit or
+(§6), from there. A block left before it ends -- by a `return`, an exit or
 an `abort` -- still waits for the call as it drains, but runs no handler, and
 the outcome dies with the block.
 
@@ -354,7 +316,7 @@ check(q == Int(7));         // settled already: the handler does not run again
 `tests/codegen/fixtures/spawns` has these cases. Reconciling means the spec
 saying where the handler runs.
 
-## 9. A block does not write an owner it lent a running spawn
+## 8. A block does not write an owner it lent a running spawn
 
 **Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
 §4.2 lets spawned work read the reference-type object graph without writing
@@ -383,7 +345,7 @@ spawn dial.reading!nudge();      // accepted: written back (§4.4)
 Reconciling means the spec stating a rule for this write, this one or
 another.
 
-## 10. A case is not a type
+## 9. A case is not a type
 
 **Spec** — [`adt.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/adt.md)
 §3: "A member projected as a type is written `Expr.intLit`", and §5.2: "if the
@@ -405,7 +367,7 @@ projected case type would still be the whole variant (§3.2), and the
 narrowing it enables is an optimization the tag jump already gives. Reconciling
 means adding the type form and its narrowing, or the spec dropping it.
 
-## 11. An index out of range stops the program
+## 10. An index out of range stops the program
 
 **Spec** — silent. [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
 §5.2 fixes the ordinal base and leaves "the language-level behavior for
@@ -432,8 +394,9 @@ standing in for, the next when the compiler followed the spec in removing a
 form, the next when the spec's memory model made the compiler's departure
 unnecessary, the next when the spec settled a question the compiler had
 answered differently, the next when the spec dropped a form the compiler
-never had, and the last two when the spec gave a package-scope declaration
-the terminator a statement takes.
+never had, the next two when the spec gave a package-scope declaration the
+terminator a statement takes, and the last when the spec stated what may
+continue a value that closes on a brace.
 
 - **Statements are terminated, not separated.** The spec separated statements
   by newline and called it "the one place a newline is structural"; the
@@ -574,3 +537,15 @@ the terminator a statement takes.
   `main Unit() { }` parses two ways without one. The same §6.3 terminates them
   with every other declaration that does not end in a brace, so the
   compiler's `;` is now the spec's rule.
+
+- **A value closed by a brace took no postfix.** The spec said only that
+  nothing continues a statement past the brace that ends it, and the compiler
+  held a `match`, a map literal, an `init` and a constructor call by fields to
+  that in every position: none took a call, a subscript, a field access or a
+  method call, so `Vector2{x = 0; y = 0;}.x` was a syntax error. Spec
+  [`syntax.md`](https://github.com/zane-lang/spec/blob/8ed220ca1ce5dd18cdd277006f79eb8e2e93f94d/spec/syntax.md)
+  §4.9 now states the rule by token: a `.`, `:` or `!` opens no statement and
+  continues the value directly, except a map literal's, which a statement
+  would otherwise open with; a `(` or `[` can open one, so a call or subscript
+  is written on the parenthesized value. The compiler follows, with no new
+  conflict state ([`ambiguity/proof-obligations.md`](ambiguity/proof-obligations.md)).

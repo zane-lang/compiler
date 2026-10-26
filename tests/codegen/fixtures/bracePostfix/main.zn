@@ -1,0 +1,57 @@
+/// A value that closes on a `}` continued directly after its brace by a token
+/// that opens no statement (syntax.md §4.9): a field constructor call, an
+/// `init{ }` and a `match`, each followed by a `.` field access, a `:` or `!`
+/// method call, or an operator. Each check prints `yes` when it holds and
+/// `no` when it does not.
+package bracePostfix;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+type Rect = struct {
+	w Int;
+	h Int;
+}
+
+Rect{w Int; h Int;} => init{w; h;}
+
+Int area(this Rect) => @operators$multiply(this.w, this.h);
+
+Unit widen(this Rect, by Int) mut {
+	this.w = @operators$add(this.w, by);
+	return Unit();
+}
+
+Rect(side Int) => init{w = side; h = side;}:grown();
+
+Rect grown(this Rect) => Rect{w = @operators$add(this.w, Int(1)); h = this.h;}
+
+type Mode = enum [ fast, slow ];
+
+Int pick(mode Mode) => match (mode) {
+	fast => Rect{w = Int(1); h = Int(2);};
+	slow => Rect{w = Int(3); h = Int(4);};
+}.h;
+
+Unit main() {
+	check(@operators$equal(Rect{w = Int(2); h = Int(3);}.w, Int(2)));
+	check(@operators$equal(Rect{w = Int(2); h = Int(3);}:area(), Int(6)));
+	check(@operators$equal(Rect(Int(4)).w, Int(5)));
+	check(@operators$equal(pick(Mode.fast), Int(2)));
+	check(@operators$equal(pick(Mode.slow), Int(4)));
+	r Rect = Rect{w = Int(1); h = Int(1);}
+	r!widen(Int(2));
+	check(@operators$equal(r.w, Int(3)));
+	Rect{w = Int(1); h = Int(1);}!widen(Int(2));
+	return Unit();
+}

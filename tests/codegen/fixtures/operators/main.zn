@@ -4,7 +4,7 @@
 /// operators of its own, so `Num` and `Truth` declare theirs over
 /// `@operators$`. Then `and` and `or`, the operators a literal operand takes
 /// through overloads of its own (operators.md §2.7), and a `'` between digits,
-/// which separates them and changes nothing (docs/spec-divergences.md §6).
+/// which separates them and changes nothing (docs/spec-divergences.md §5).
 /// Every check prints `yes` when it holds and `no` when it does not.
 package operators;
 
