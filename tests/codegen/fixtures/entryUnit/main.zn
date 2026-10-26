@@ -2,9 +2,9 @@
 /// (docs/design/lowering.md L16).
 package entryUnit;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 Unit main() {
 	done String.escaped("main returns unit\n");

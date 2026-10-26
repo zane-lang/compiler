@@ -2,11 +2,11 @@
 /// list: the subject's address is taken before the argument relocates the
 /// list's block, so the method writes into the freed block.
 package subjectorder;
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);

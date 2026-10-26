@@ -28,7 +28,7 @@ import math$[floor, ceil];
 
 /// The operators the calculator understands. Peers carry no payload, so
 /// everything an operator knows about itself is attached from the outside.
-type Operator = enum [ add, sub, mul, div ]
+type Operator = enum [ add, sub, mul, div ];
 
 /// An enum map attaches uniform external data to every member of an enum. It
 /// is package-scope, exhaustive, and read field-style off the member.
@@ -68,7 +68,7 @@ Operator.fold Float[Float, Float] {
 }
 
 /// How loud a diagnostic is.
-type Severity = enum [ note, warning, failure ]
+type Severity = enum [ note, warning, failure ];
 
 Severity.label String {
 	note = "note";
@@ -89,8 +89,8 @@ Severity.exitCode Int {
 /// A raw type declaration names a distinct type; an alias names the same one.
 /// A `Column` is its own type and does not stand in for an `Int`, while an
 /// `Offset` is another spelling of one.
-type Column = Int
-alias Offset = Int
+type Column = Int;
+alias Offset = Int;
 
 /// Where in the source something was written.
 type Span = struct {
@@ -146,7 +146,7 @@ Formatter.plain() => init{
 
 /// Reading `.label` off `this.severity` is an enum-map access through a value
 /// rather than through the member name.
-String render(this Report) => this.severity.label + ": " + this.message
+String render(this Report) => this.severity.label + ": " + this.message;
 
 // ---------------------------------------------------------------------------
 // The expression tree: a sum mould that leads back to itself
@@ -192,7 +192,7 @@ Environment.of(names Array<String, 4>, values Array<Float, 4>) => init{
 }
 
 /// A subscript projects a place inside the subject and writes no return type.
-(this Environment)[index Int] => this.values[index]
+(this Environment)[index Int] => this.values[index];
 
 /// A read-only method, called with `:`. It aborts rather than returning a
 /// sentinel, so every caller has to say what an unknown name means.
@@ -239,7 +239,7 @@ Cursor(env &Environment) => init{ env; position = Int(1); }
 
 /// Reading through a guest is ordinary access; the subscript above resolves
 /// the same way it does on a host.
-Float peek(this Cursor) => this.env[this.position]
+Float peek(this Cursor) => this.env[this.position];
 
 // ---------------------------------------------------------------------------
 // Evaluation
@@ -301,7 +301,7 @@ Severity worst(left Severity, right Severity) => match (left, right) {
 
 /// A map read through a variable: the peer arrives as an ordinary parameter,
 /// and `.symbol` finds its entry all the same.
-String describe(op Operator) => "the " + op.symbol + " operator"
+String describe(op Operator) => "the " + op.symbol + " operator";
 
 // ---------------------------------------------------------------------------
 // Generics
@@ -319,18 +319,18 @@ Pair<T>(left T Type, right T) => init{ left; right; }
 
 /// An operator definition is a package-scope verb named after a token. It
 /// never takes `this`, so it is not a method.
-Pair<T> +(a Pair<T Type>, b Pair<T>) => Pair(a.left + b.left, a.right + b.right)
+Pair<T> +(a Pair<T Type>, b Pair<T>) => Pair(a.left + b.left, a.right + b.right);
 
 /// The prefix operator takes one parameter, and flips a composite one
 /// component at a time.
-Pair<T> ~(value Pair<T Type>) => Pair(~value.left, ~value.right)
+Pair<T> ~(value Pair<T Type>) => Pair(~value.left, ~value.right);
 
 /// A verb introduces a number parameter the same way, inside a parameter's
 /// own type.
-T first(values Array<T Type, n @concepts$Int>) => values[1]
+T first(values Array<T Type, n @concepts$Int>) => values[1];
 
 /// A concept-typed parameter accepts a source literal and lowers it.
-String quote(text @concepts$String) => "\"" + String(text) + "\""
+String quote(text @concepts$String) => "\"" + String(text) + "\"";
 
 /// A map literal carries `@concepts$Map<K, V>` the way an array literal
 /// carries `@concepts$Array<T, n>`, and is lowered by whatever consumes it.

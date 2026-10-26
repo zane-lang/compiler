@@ -7,10 +7,10 @@
 /// `no` when it does not.
 package settled;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 /// Runs the block when the condition holds, and reports whether it did.
 Bool if(condition Bool, body @concepts$Block) {
@@ -39,9 +39,9 @@ Unit bump(this Node) mut {
 	return Unit();
 }
 
-Int twice(this Node) => @operators$multiply(this.value, Int(2))
+Int twice(this Node) => @operators$multiply(this.value, Int(2));
 
-Int peek(node &Node) => node.value
+Int peek(node &Node) => node.value;
 
 /// Returns one of two references it was given.
 &Node larger(a &Node, b &Node) {

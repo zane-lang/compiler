@@ -2,12 +2,12 @@ package app;
 
 import shapes$[Vec2, Corner, Shape, area];
 
-alias Int = @primitives$I64
-alias Float = @primitives$F64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>;
 
 /// Runs the block when the condition holds, and reports whether it did.
 Bool if(condition Bool, body @concepts$Block) {
@@ -60,20 +60,20 @@ type Pair<T Type> = struct {
 
 Pair<T>(left T Type, right T) => init{ left; right; }
 
-T sum(pair Pair<T Type>) => @operators$add(pair.left, pair.right)
+T sum(pair Pair<T Type>) => @operators$add(pair.left, pair.right);
 
 /// A number parameter, read in a body position.
-Int count(values Array<T Type, n @concepts$Int>) => Int(n)
+Int count(values Array<T Type, n @concepts$Int>) => Int(n);
 
 /// An `@concepts$Int` value parameter the signature writes where a number
 /// goes, so it is an explicit number parameter.
-Int measured(values Array<Int, n>, n @concepts$Int) => Int(n)
+Int measured(values Array<Int, n>, n @concepts$Int) => Int(n);
 
 /// `n` reaches no type here, but it is handed to `measured`'s number
 /// parameter, and through `forwarded` to `relayed`'s: a number parameter
 /// passed on is a number parameter too.
-Int relayed(values Array<Int, 3>, n @concepts$Int) => measured(values, n)
-Int forwarded(values Array<Int, 3>, count @concepts$Int) => relayed(values, count)
+Int relayed(values Array<Int, 3>, n @concepts$Int) => measured(values, n);
+Int forwarded(values Array<Int, 3>, count @concepts$Int) => relayed(values, count);
 
 /// Only the body writes `n` where a number goes, and that is enough: the
 /// body's types depend on it, so it is a number parameter too.
@@ -84,8 +84,8 @@ Int sizedLike(values Array<Int, 3>, n @concepts$Int) {
 
 /// Overloads on the two literal concepts: a bare literal picks one by its
 /// spelling (generics.md §5.4).
-Pair<Int> pairOf(x @concepts$Int, y @concepts$Int) => Pair(Int(x), Int(y))
-Pair<Float> pairOf(x @concepts$Float, y @concepts$Float) => Pair(Float(x), Float(y))
+Pair<Int> pairOf(x @concepts$Int, y @concepts$Int) => Pair(Int(x), Int(y));
+Pair<Float> pairOf(x @concepts$Float, y @concepts$Float) => Pair(Float(x), Float(y));
 
 Float?String safeDivide(numerator Float, denominator Float) {
 	if(@operators$equal(denominator, Float(0.0))) {
@@ -112,7 +112,7 @@ Crew(lead ^Shape, backup &Shape) => init{ lead; backup; }
 	return kept;
 }
 
-&Shape leadOf(crew &Crew) => crew.lead
+&Shape leadOf(crew &Crew) => crew.lead;
 
 /// A generic owner takes its arguments from the value it is built with,
 /// whether or not it is declared roaming.
@@ -224,10 +224,10 @@ Unit main() {
 
 /// Nothing calls this. Its body is checked where it is declared, and
 /// everything in it depends on `T`, so there is nothing to report.
-T twice(value T Type) => value + value
+T twice(value T Type) => value + value;
 
 /// The math functions of `@math$` (math.md §2): an integer one, an exact
 /// float one taking three operands, and an approximate one.
-Int lowByte(value Int) => @math$bitAnd(@math$shiftRightLogical(value, Int(8)), Int(255))
-Float hypotenuse(a Float, b Float) => @math$sqrt(@math$fma(a, a, @operators$multiply(b, b)))
-Float heading(y Float, x Float) => @math$atan2(y, x)
+Int lowByte(value Int) => @math$bitAnd(@math$shiftRightLogical(value, Int(8)), Int(255));
+Float hypotenuse(a Float, b Float) => @math$sqrt(@math$fma(a, a, @operators$multiply(b, b)));
+Float heading(y Float, x Float) => @math$atan2(y, x);

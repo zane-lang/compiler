@@ -15,9 +15,9 @@ GEOMETRY = Path(__file__).resolve().parent / "fixtures/geometry"
 BOOKS = """\
 package {name};
 
-alias Int = @primitives$I64
+alias Int = @primitives$I64;
 
-Int pages() => Int(3)
+Int pages() => Int(3);
 """
 
 APP = """\
@@ -25,9 +25,9 @@ package app;
 
 import bücher;
 
-alias Int = @primitives$I64
+alias Int = @primitives$I64;
 
-Int count() => bücher$pages()
+Int count() => bücher$pages();
 """
 
 # A name that is no package name: an uppercase first letter, ASCII and not,

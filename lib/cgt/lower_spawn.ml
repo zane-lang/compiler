@@ -300,7 +300,7 @@ let spawn_call w st ctx span v fn ~writes passed handler =
 
    A call that can abort or exit settles on this thread, once, where it is
    first read, or where the block ends when nothing reads it first
-   (docs/spec-divergences.md §10). An abort runs the handler written at the
+   (docs/spec-divergences.md §8). An abort runs the handler written at the
    spawn (§3.3), or goes where an abort from here goes, and its `resolve`
    gives the result; an exit ends the run of the block the spawn is in. *)
 let rec spawn w st ctx span (e : T.Expr.t) =

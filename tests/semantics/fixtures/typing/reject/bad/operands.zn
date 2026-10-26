@@ -6,7 +6,7 @@ type Meters = struct { value Float; }
 implicit Meters(feet Feet) => init{ value = feet.value; }
 implicit Meters(value @concepts$Float) => init{ value = Float(value); }
 
-Meters +(left Meters, right Meters) => left
+Meters +(left Meters, right Meters) => left;
 
 /// An operand is passed as written (operators.md §2.7): neither conversion
 /// to `Meters` is inserted, though a call's argument would take both.

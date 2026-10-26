@@ -3,11 +3,11 @@
 /// frames holds, so lowering refuses the outer type where it is named.
 package nestedArray;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>;
 
-Array<Array<Int, 65536>, 65536> make() => make()
+Array<Array<Int, 65536>, 65536> make() => make();
 
 Unit main() {
 	big Array<Array<Int, 65536>, 65536> = make();

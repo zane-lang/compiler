@@ -9,10 +9,10 @@
 /// not.
 package owners;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 /// Runs the block when the condition holds, and reports whether it did.
 Bool if(condition Bool, body @concepts$Block) {
@@ -48,7 +48,7 @@ Unit deposit(this Account, amount Int) mut {
 	return Unit();
 }
 
-Int funds(this Account) => this.balance
+Int funds(this Account) => this.balance;
 
 /// Moves the roaming local it built out through its return.
 ^Account opened(owner Int, amount Int) {
@@ -58,10 +58,10 @@ Int funds(this Account) => this.balance
 }
 
 /// Borrows its argument.
-Int balanceOf(account Account) => account.balance
+Int balanceOf(account Account) => account.balance;
 
 /// Takes its argument, which dies with the body.
-Int closed(account ^Account) => account.balance
+Int closed(account ^Account) => account.balance;
 
 /// Takes its argument, lends it to a borrow, then hands it on to a take:
 /// a `^T` parameter is passed bare either way.

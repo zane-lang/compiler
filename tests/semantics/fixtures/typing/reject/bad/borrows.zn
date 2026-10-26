@@ -16,12 +16,12 @@ Unit setFrom(this Tally, other Tally) mut {
 	return Unit();
 }
 
-Unit stack(this ListRef<Cargo>, cargo Cargo) mut => Unit()
-Unit empty(this Lot) mut => Unit()
-Int lift(this Cargo) mut => this.weight
-Int weigh(cargo Cargo, body @concepts$Block) => cargo.weight
-Int compare(cargo Cargo, other Int) => cargo.weight
-Int grown(this ListRef<Cargo>) mut => Int(1)
+Unit stack(this ListRef<Cargo>, cargo Cargo) mut => Unit();
+Unit empty(this Lot) mut => Unit();
+Int lift(this Cargo) mut => this.weight;
+Int weigh(cargo Cargo, body @concepts$Block) => cargo.weight;
+Int compare(cargo Cargo, other Int) => cargo.weight;
+Int grown(this ListRef<Cargo>) mut => Int(1);
 
 Unit borrows() {
 	own ListRef<Cargo> = @primitives$ListRef(Cargo);
@@ -116,7 +116,7 @@ Int readAfter(n Int, body @concepts$Block) {
 	return n;
 }
 
-Int glance(from &ListRef<Int>, body @concepts$Block) => readAfter(from[Int(1)], body)
+Int glance(from &ListRef<Int>, body @concepts$Block) => readAfter(from[Int(1)], body);
 
 Unit apart() {
 	ints ListRef<Int> = @primitives$ListRef(Int);
@@ -182,7 +182,7 @@ type Socket = #struct { to &Cargo; }
 
 Socket(to &Cargo) => init{ to; }
 
-Int holding(socket Socket, body @concepts$Block) => Int(1)
+Int holding(socket Socket, body @concepts$Block) => Int(1);
 
 Unit repoint() {
 	near Cargo(Int(1));
@@ -222,8 +222,8 @@ type Bale = #struct { cargos ListRef<Cargo>; }
 Coffer{ first Int; second Int; } => init{ first; second; }
 Bale{ cargos ^ListRef<Cargo>; } => init{ cargos; }
 Bale(cargos ^ListRef<Cargo>) => init{ cargos; }
-Int swell(this ListRef<Int>) mut => Int(1)
-Int weighBale(cargo Cargo, bale Bale) => cargo.weight
+Int swell(this ListRef<Int>) mut => Int(1);
+Int weighBale(cargo Cargo, bale Bale) => cargo.weight;
 
 Unit coffers() {
 	ints ListRef<Int> = @primitives$ListRef(Int);

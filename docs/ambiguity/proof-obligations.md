@@ -59,8 +59,8 @@ numbers in a proof report refer to.
 
 | Automaton | Conflict states | with shift/reduce | with reduce/reduce |
 | --------- | --------------: | ----------------: | -----------------: |
-| `--GLR`, the parser that ships | 55 | 54 | 1 |
-| stock | 48 | 47 | 1 |
+| `--GLR`, the parser that ships | 50 | 50 | 0 |
+| stock | 43 | 43 | 0 |
 
 Menhir explains each conflict state once, so the explanations file holds one
 block per state; a state with both kinds of conflict counts in both of Menhir's
@@ -98,17 +98,15 @@ are not independent problems:
 | `<`             | 18 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
 | `(`             | 3 | `list_verb_type_suffix_ ->` | a type opening a statement, against a call |
-| `(`             | 3 | `app -> ... DOT LIDENT` | a type member ending a package-scope declaration, against a named constructor call |
-| `(`             | 1 | `app -> func_callee` | a package-scope declaration's value, against a call |
 | `?` `??`        | 4 | `expr -> SPAWN unbraced_verb_call`, `expr -> SPAWN braced_verb_call`, `func_callee -> unbraced_verb_call`, `app_braced -> braced_verb_call` | a spawned call against what follows it |
-| `(`             | 1 | `expr -> SPAWN unbraced_verb_call`, `func_callee -> unbraced_verb_call` | *(reduce/reduce)* the same, before a call |
 
 `&` begins no expression: a reference is minted by storing a place into an
 `&` slot, so `&` only ever marks a type. Every fork that read a leading `&` as
 either a type or a reference to the expression after it went away with the prefix
 form, ten states in each automaton: the three `(` / `<` states of a named type
 opening a constructor argument, and the same name, qualified name, type member
-and callee after `= &` that the `(` rows above still count without one.
+and callee after `= &` that the package-scope `(` rows below counted without
+one.
 
 The instantiation shorthand reaches the first `(` row a second time behind a
 `^`: `car ^Car(Int(1))` declares a roaming owner, and after `car ^Car` the
@@ -148,11 +146,17 @@ operators a declaration may name removes all eighteen and nothing else, which is
 language change rather than a restructuring, so it is a measurement here and
 not a proposal.
 
-The two package-scope rows are the one place a declaration still ends without
-a mark of its own. At package scope only `package` and `import` take a
-terminator, and a declaration may open with `(` — the subscript declaration `(this T)[…] => …` — so a value
-ending in a name or a type member meets a `(` that is either a call on it or
-the next declaration.
+**A package-scope declaration is closed by its own terminator too.** Until the
+spec gave package scope the statement rule (lexical.md §6.3), only `package`
+and `import` took a terminator there, and a declaration may open with `(` — the
+subscript declaration `(this T)[…] => …` — so a value ending in a name or a
+type member met a `(` that was either a call on it or the next declaration.
+That was five states in each automaton: three reducing `app -> … DOT LIDENT`, a
+type member against a named constructor call, one reducing
+`app -> func_callee`, and the reduce/reduce state reducing a spawned call
+against a callee. [`top_decl`](../../lib/cst/parser.mly) now takes the
+declaration forms of `stat`, each closed by a `;` or by the brace its tail ends
+in, so the value is closed before the `(` is read and all five went.
 
 **A statement is closed by its own terminator, and the grammar says which.**
 lexical.md §6.3 requires a `;` after every statement except one that ends in a
@@ -240,9 +244,10 @@ family — the optional statement terminator — and went with it.
 **`package` and `import` carry a `;`, and the grammar requires it.** They are
 the two declarations that end on a bare name — `import pkg$` ends just before
 one — so their own shape says nothing about where they stop, and the terminator
-says it instead. Every other package-scope declaration ends in a body, a
-bracket, or an expression and still takes none. The rule lives in `header_decl`
-and applies inside a body too, where the same two forms are statements.
+says it instead. They required it before any other package-scope declaration
+did, and they never end in a brace, so the rule lives in `header_decl` with no
+braced form, and applies inside a body too, where the same two forms are
+statements.
 
 This one is worth recording in full, because it was the first obligation that
 turned out to be a bug rather than a fork. The state reducing
@@ -272,8 +277,9 @@ each resolve to one derivation, and a lowercase *lambda-valued* declaration was
 not among them. A proof run on 2026-09-14 found the witness, the ten tokens
 `IMPORT LIDENT DOLLAR LIDENT UIDENT LPAREN RPAREN LCURLY RCURLY EOF`
 (`import length $ length Int ( ) { }`); the same run with `package` and
-`import` terminated no longer produced the candidate. [`spec-divergences.md`](../spec-divergences.md)
-§4 records what the terminator costs against the spec.
+`import` terminated no longer produced the candidate. The spec has since given
+every package-scope declaration a terminator, so the `;` here is the spec's
+rule as well as the grammar's.
 
 What it leaves behind is the general lesson the ledger is for: a continuation
 survey is evidence that an obligation is *plausible*, never that it holds.

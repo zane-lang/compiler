@@ -7,11 +7,11 @@ type Order = #variant { hot Cup; none Int; }
 Cup(size Int) => init{ size; }
 Saucer(cup ^Cup) => init{ cup; }
 
-Unit drink(cup ^Cup) => Unit()
-Unit see(cup Cup) => Unit()
-^Cup brew() => Cup(Int(1))
-Unit serve(first ^Cup, second ^Cup) => Unit()
-Unit loop(body @concepts$Block) => Unit()
+Unit drink(cup ^Cup) => Unit();
+Unit see(cup Cup) => Unit();
+^Cup brew() => Cup(Int(1));
+Unit serve(first ^Cup, second ^Cup) => Unit();
+Unit loop(body @concepts$Block) => Unit();
 
 /// An owner moves from a roaming symbol, a field of one, a verb's result or
 /// a case form, and from nothing else (lifetimes.md §1.2): not a settled
@@ -35,7 +35,7 @@ Unit borrowed(cup Cup) {
 	return Unit();
 }
 
-^Saucer give(this Saucer) => this
+^Saucer give(this Saucer) => this;
 
 /// A roaming symbol moves only in the block that declares it (§1.3), and a
 /// `^T` parameter is declared at the top of the body.
@@ -94,7 +94,7 @@ Unit stock(cup ^Cup) {
 
 /// A match arm hands its value to wherever the match's value goes: here a
 /// method's subject, which is a borrow, so `kept` still owns its cup.
-Int sip(this Cup) => this.size
+Int sip(this Cup) => this.size;
 
 Unit arms(order Order) {
 	kept ^Cup = Cup(Int(10));

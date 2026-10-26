@@ -2,13 +2,13 @@
 /// every depth, whether it is bound, stored in a value struct, passed,
 /// returned or pushed into another list; and a value type may hold one.
 package listcopies;
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
-alias ListRef<T Type> = @primitives$ListRef<T>
-alias Words = List<String>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias List<T Type> = @primitives$List<T>;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+alias Words = List<String>;
 
 Unit say(text String) {
 	@program$console!print(text);
@@ -42,7 +42,7 @@ List<String> made(n Int) {
 
 /// A borrowed list is read where it is, and its size is what the caller's
 /// list held.
-Int sizeOf(words List<String>) => words:size()
+Int sizeOf(words List<String>) => words:size();
 
 /// A copy made inside the callee, grown there, and left behind.
 Int grownSize(words List<String>) {

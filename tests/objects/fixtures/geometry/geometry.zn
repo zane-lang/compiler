@@ -6,7 +6,7 @@
 /// rather than writing them out (docs/design/lowering.md L11).
 package geometry;
 
-alias Int = @primitives$I64
+alias Int = @primitives$I64;
 
 type Point = struct {
 	x Int;
@@ -15,28 +15,28 @@ type Point = struct {
 
 Point(x Int, y Int) => init{ x; y; }
 
-Int sum(this Point) => @operators$add(this.x, this.y)
+Int sum(this Point) => @operators$add(this.x, this.y);
 
-Int area(width Int, height Int) => _product(width, height)
+Int area(width Int, height Int) => _product(width, height);
 
-Int _product(a Int, b Int) => @operators$multiply(a, b)
+Int _product(a Int, b Int) => @operators$multiply(a, b);
 
 T same(value T Type) {
 	kept T = value;
 	return kept;
 }
 
-Int twice(x Int) => @operators$add(same(x), same(x))
+Int twice(x Int) => @operators$add(same(x), same(x));
 
-T unused(value T Type) => value
+T unused(value T Type) => value;
 
 double Int(x Int) {
 	return @operators$add(x, x);
 }
 
-unit Int(10)
+unit Int(10);
 
-Int scaled(x Int) => @operators$multiply(x, unit)
+Int scaled(x Int) => @operators$multiply(x, unit);
 
 Point shifted(p Point, by Int) {
 	x Int = @operators$add(p.x, by);

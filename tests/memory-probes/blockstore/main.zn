@@ -4,9 +4,9 @@
 /// runs at most once. ILLEGAL marks what the spec rejects.
 package blockstore;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias Bool = @primitives$Bool
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);

@@ -97,7 +97,7 @@ class DeclarationTests(ParserSyntaxTestCase):
             '''
             type Node = #struct { next &Node; }
 
-            (this Node)[index Int] => this
+            (this Node)[index Int] => this;
 
             Unit work(this Node) mut {
                 this.next = this;
@@ -119,7 +119,7 @@ class DeclarationTests(ParserSyntaxTestCase):
                 data Array<T, n>;
             }
 
-            T first(values Array<T Type, n @concepts$Int>) => values[0]
+            T first(values Array<T Type, n @concepts$Int>) => values[0];
 
             Unit literals() {
                 values Array<Int, 3> = Array([Int(1), Int(2), Int(3)]);
@@ -194,13 +194,13 @@ class DeclarationTests(ParserSyntaxTestCase):
             "type Buffer<T Type, n @concepts$Int> = struct { data Array<T, n>; }"
         )
         self.assert_parses(
-            "Int size(this Buffer<T Type, n @concepts$Int>) => Int(n)"
+            "Int size(this Buffer<T Type, n @concepts$Int>) => Int(n);"
         )
         self.assert_parses("Array<T, n>(T Type, n @concepts$Int) => init{ }")
         self.assert_parses("implicit Float(value @concepts$Float) => init{ }")
         # There is no `Number` keyword, so the word is an ordinary type name.
         self.assert_parses("type Number = struct { raw Int; }")
-        self.assert_parses("Unit f(value core$Number) => Unit()")
+        self.assert_parses("Unit f(value core$Number) => Unit();")
 
 
 class BlockArgumentTests(ParserSyntaxTestCase):
@@ -397,7 +397,7 @@ class TerminatorTests(ParserSyntaxTestCase):
         # (syntax.md §3.8), and in statement position a constructor
         # declaration with a block body (§3.3). A nullary constructor call may
         # not trail, because it would be spelled exactly that way; the block
-        # goes inside the argument list. See docs/spec-divergences.md §3.
+        # goes inside the argument list. See docs/spec-divergences.md §2.
         self.assert_parses(
             '''
             Unit use() {
@@ -470,26 +470,36 @@ class TerminatorTests(ParserSyntaxTestCase):
         # The same work is a call taking a block argument.
         self.assert_parses("Unit use() { do() { std$print(\"scoped\"); } }")
 
-    def test_package_scope_declarations_take_no_terminator(self) -> None:
+    def test_package_scope_declarations_end_like_statements(self) -> None:
+        # A `;` unless the declaration ends in a `}`, as a statement in a body.
         self.assert_parses(
             '''
             package demo;
             import std;
 
-            type Meters = Int
-            alias Metres = Meters
+            type Meters = Int;
+            alias Metres = Meters;
+            type Point = struct { x Int; y Int; }
 
-            Int double(value Int) => value * Int(2)
-            answer Int = Int(42)
+            Int double(value Int) => value * Int(2);
+            Int triple(value Int) { return value * Int(3); }
+            Int pick(c Choice) => match (c) { a => Int(1); }
+            answer Int = Int(42);
             '''
         )
-        self.assert_rejects("Int double(value Int) => value * Int(2);")
-        self.assert_rejects("answer Int = Int(42);")
+        self.assert_rejects("Int double(value Int) => value * Int(2)")
+        self.assert_rejects("answer Int = Int(42)")
+        self.assert_rejects("type Meters = Int")
+        self.assert_rejects("alias Metres = Meters")
+        # The brace already ended these, so a `;` after it marks nothing.
+        self.assert_rejects("type Point = struct { x Int; y Int; };")
+        self.assert_rejects("Int triple(value Int) { return value * Int(3); };")
+        self.assert_rejects("Int pick(c Choice) => match (c) { a => Int(1); };")
 
-    def test_package_and_import_are_the_two_that_are_terminated(self) -> None:
+    def test_package_and_import_are_terminated(self) -> None:
         # They end on a bare name -- `import pkg$` ends just before one -- so
-        # nothing about their own shape says where they stop, and the `;` is
-        # what says it instead.
+        # their `;` also says where they stop, which nothing about their own
+        # shape does.
         self.assert_parses("package demo;")
         self.assert_rejects("package demo")
         self.assert_parses("import std;")
@@ -557,13 +567,13 @@ class ImportTests(ParserSyntaxTestCase):
         self.assert_parses(
             '''
             import math$;
-            answer Int = Int(4)
+            answer Int = Int(4);
 
             import text$;
-            Int double(v Int) => v * Int(2)
+            Int double(v Int) => v * Int(2);
 
             import shapes$;
-            type Meters = Int
+            type Meters = Int;
             '''
         )
 
@@ -615,7 +625,7 @@ class LiteralTests(ParserSyntaxTestCase):
         self.assert_rejects("Unit f() { b Float = 3.; return Unit(); }")
         self.assert_rejects("Unit f() { b Float = .5; return Unit(); }")
         # The compiler's `'` separator groups digits before the `.` only
-        # (docs/spec-divergences.md §8).
+        # (docs/spec-divergences.md §6).
         self.assert_parses("Unit f() { b Float = 1'000.25; return Unit(); }")
         self.assert_rejects("Unit f() { b Float = 1.000'001; return Unit(); }")
 
@@ -635,7 +645,7 @@ class MatchAndEnumMapTests(ParserSyntaxTestCase):
             package demo;
             import std;
 
-            type Color = enum [ red, green ]
+            type Color = enum [ red, green ];
             Color.label String {
                 red = "Red";
                 green = "Green";
@@ -658,7 +668,7 @@ class MatchAndEnumMapTests(ParserSyntaxTestCase):
     def test_an_enum_map_keeps_a_verb_typed_property(self) -> None:
         self.assert_parses(
             '''
-            type Color = enum [ red, green ]
+            type Color = enum [ red, green ];
 
             Color.render String[Int] {
                 red = renderRed;
@@ -670,7 +680,7 @@ class MatchAndEnumMapTests(ParserSyntaxTestCase):
     def test_match_arm_terminator_follows_the_body_shape(self) -> None:
         self.assert_parses(
             '''
-            type Color = enum [ red, green ]
+            type Color = enum [ red, green ];
 
             String show(c Color) {
                 label String = match (c) {
@@ -694,19 +704,19 @@ class MouldTests(ParserSyntaxTestCase):
             type Shaped = struct { x Int; }
             type Marked = #struct { next &Marked; }
             type Cased = variant { some Int; }
-            type Listed = enum [ red, green ]
+            type Listed = enum [ red, green ];
 
-            type Meters = Int
-            type Mapper<T Type> = T
-            alias Metres = Meters
+            type Meters = Int;
+            type Mapper<T Type> = T;
+            alias Metres = Meters;
             '''
         )
 
     def test_only_a_brace_mould_closes_a_declaration_in_a_body(self) -> None:
         # Which delimiter a mould uses is decided by its contents, and only a
-        # brace ends a statement: the peer mould is a `[ ]` list, so inside a
-        # body it is terminated like any other statement that does not end in
-        # a brace. At package scope neither takes a terminator.
+        # brace ends a declaration: the peer mould is a `[ ]` list, so it is
+        # terminated like any other declaration that does not end in a brace,
+        # inside a body and at package scope alike.
         self.assert_parses(
             '''
             Unit use() {
@@ -723,6 +733,9 @@ class MouldTests(ParserSyntaxTestCase):
         self.assert_rejects("Unit use() { type Listed = enum [ red, green ] }")
         self.assert_rejects("Unit use() { alias Aliased = enum [ up, down ] }")
         self.assert_rejects("Unit use() { type Braced = struct { x Int; }; }")
+        self.assert_parses("type Listed = enum [ red, green ];")
+        self.assert_rejects("type Listed = enum [ red, green ]")
+        self.assert_rejects("type Braced = struct { x Int; };")
 
     def test_alias_moulds_and_line_comments(self) -> None:
         self.assert_parses(
@@ -805,15 +818,15 @@ class OperatorTests(ParserSyntaxTestCase):
         # other five as fixed desugarings into that set and says they are
         # "not independently implementable".
         for source in (
-            "Int +(a Int, b Int) => a",
-            "Int *(a Int, b Int) => a",
-            "Int /(a Int, b Int) => a",
-            "Bool ==(a Int, b Int) => Bool(true)",
-            "Bool <(a Int, b Int) => Bool(true)",
-            "Bool and(a Bool, b Bool) => a",
-            "Bool or(a Bool, b Bool) => a",
+            "Int +(a Int, b Int) => a;",
+            "Int *(a Int, b Int) => a;",
+            "Int /(a Int, b Int) => a;",
+            "Bool ==(a Int, b Int) => Bool(true);",
+            "Bool <(a Int, b Int) => Bool(true);",
+            "Bool and(a Bool, b Bool) => a;",
+            "Bool or(a Bool, b Bool) => a;",
             # The one unary operator, with a production of its own.
-            "Int ~(a Int) => a",
+            "Int ~(a Int) => a;",
         ):
             with self.subTest(source=source):
                 self.assert_parses(source)

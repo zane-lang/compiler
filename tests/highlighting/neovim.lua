@@ -65,11 +65,11 @@ local role_cases = {
     roles = { { 'return', 'keyword.return' }, { 'abort', 'keyword.return' } },
   },
   {
-    source = 'Int f(operators Int) => @operators$add(operators, 1)',
+    source = 'Int f(operators Int) => @operators$add(operators, 1);',
     roles = { { '@operators', 'module', 1 }, { 'add', 'function.call' } },
   },
   {
-    source = 'Int f(x Int) => pkg$x(x)',
+    source = 'Int f(x Int) => pkg$x(x);',
     roles = { { 'pkg', 'module' }, { '$x', 'function.call', 1 } },
   },
   {

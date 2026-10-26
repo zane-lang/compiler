@@ -2,12 +2,12 @@
 package moves;
 
 
-alias Int = @primitives$I64
-alias Float = @primitives$F64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias List<T Type> = @primitives$List<T>;
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -46,7 +46,7 @@ Int value(m Move) => match (m) {
 	rest => Int(1);
 }
 
-Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)))
+Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)));
 
 Int ways(m Move, n Int) {
 	@controlflow$branch(@operators$lessThan(n, Int(1)), {

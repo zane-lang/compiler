@@ -2,9 +2,9 @@
 /// entry discards (docs/design/lowering.md L16).
 package entryString;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 String main() {
 	done String.escaped("main returns a string\n");

@@ -19,8 +19,8 @@ Unit couriers() {
 
 /// An argument passed to a borrow is lent for the whole call, so a later
 /// argument of the same call may not take it.
-Unit observe(before Parcel, taken ^Parcel) => Unit()
-Unit inspect(this Parcel, taken ^Parcel) => Unit()
+Unit observe(before Parcel, taken ^Parcel) => Unit();
+Unit inspect(this Parcel, taken ^Parcel) => Unit();
 
 Unit lending() {
 	p ^Parcel = Parcel(String("left"));
@@ -32,8 +32,8 @@ Unit lending() {
 
 /// A spawned call is lent the owners it borrows until its block drains, so
 /// passing one to a `^T` parameter, which moves it, is an error there.
-Unit glimpse(p Parcel) => Unit()
-Unit keep(p ^Parcel) => Unit()
+Unit glimpse(p Parcel) => Unit();
+Unit keep(p ^Parcel) => Unit();
 
 Unit loaned() {
 	p ^Parcel = Parcel(String("lent"));
@@ -53,7 +53,7 @@ Int?&Parcel wander() {
 
 /// A bare type parameter as a result hands back a borrow once it is filled
 /// with a reference type, which a written signature may not do.
-T same(p ^T Type) => p
+T same(p ^T Type) => p;
 
 Unit results() {
 	p Parcel = same(Parcel(String("same")));

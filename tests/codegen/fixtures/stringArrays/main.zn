@@ -9,16 +9,16 @@
 /// check prints `yes` when it holds and `no` when it does not.
 package stringArrays;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias Strings = @primitives$ArrayRef<String, 100000>
-alias Half = @primitives$ArrayRef<String, 50000>
-alias Ten = @primitives$Array<String, 10>
-alias Hundred = @primitives$Array<Ten, 10>
-alias Thousand = @primitives$Array<Hundred, 10>
-alias Some = @primitives$Array<Thousand, 20>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias Strings = @primitives$ArrayRef<String, 100000>;
+alias Half = @primitives$ArrayRef<String, 50000>;
+alias Ten = @primitives$Array<String, 10>;
+alias Hundred = @primitives$Array<Ten, 10>;
+alias Thousand = @primitives$Array<Hundred, 10>;
+alias Some = @primitives$Array<Thousand, 20>;
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
 	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
@@ -34,7 +34,7 @@ Unit check(ok Bool) {
 	return Unit();
 }
 
-Int read(text String) => text:parseI64() ?? Int(0)
+Int read(text String) => text:parseI64() ?? Int(0);
 
 /// The sum of every element, read back as a number.
 Int sum(values &Strings) {

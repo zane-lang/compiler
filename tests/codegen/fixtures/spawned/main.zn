@@ -6,13 +6,13 @@
 /// type. Each check prints `yes` when it holds and `no` when it does not.
 package spawned;
 
-alias Int = @primitives$I64
-alias Float = @primitives$F64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
-alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>;
 
 Unit check(ok Bool) {
 	yes String.escaped("yes\n");
@@ -22,11 +22,11 @@ Unit check(ok Bool) {
 	return Unit();
 }
 
-Int scaled(x Int, by @concepts$Int) => @operators$multiply(x, Int(by))
+Int scaled(x Int, by @concepts$Int) => @operators$multiply(x, Int(by));
 
-Float half(f @concepts$Float) => @operators$divide(Float(f), Float(2.0))
+Float half(f @concepts$Float) => @operators$divide(Float(f), Float(2.0));
 
-String greet(name @concepts$String) => @operators$concat(String(name), String("!"))
+String greet(name @concepts$String) => @operators$concat(String(name), String("!"));
 
 Int sum(values @concepts$Array<Int, 3>) {
 	held Array<Int, 3> = @primitives$Array(values);
@@ -34,7 +34,7 @@ Int sum(values @concepts$Array<Int, 3>) {
 }
 
 /// Hands its literal on to another verb expanded where it is called.
-Int total(values @concepts$Array<Int, 3>) => sum(values)
+Int total(values @concepts$Array<Int, 3>) => sum(values);
 
 Int?String careful(x Int, limit @concepts$Int) {
 	@controlflow$branch(@operators$lessThan(Int(limit), x), { abort String("over"); });

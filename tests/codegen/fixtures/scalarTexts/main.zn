@@ -1,12 +1,12 @@
 /// Scalar String constructors through typing, lowering, codegen and folding.
 package scalarTexts;
 
-alias I32 = @primitives$I32
-alias I64 = @primitives$I64
-alias F32 = @primitives$F32
-alias F64 = @primitives$F64
-alias String = @primitives$String
-alias Unit = @primitives$Unit
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+alias Unit = @primitives$Unit;
 
 Unit show(text String) {
 	@program$console!print(text);

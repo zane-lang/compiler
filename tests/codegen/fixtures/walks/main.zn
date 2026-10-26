@@ -7,11 +7,11 @@
 /// not.
 package walks;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Unit check(ok Bool) {
 	yes String.escaped("yes\n");
@@ -25,7 +25,7 @@ Unit check(ok Bool) {
 	return Unit();
 }
 
-Int less(n Int) => @operators$add(n, @operators$negate(Int(1)))
+Int less(n Int) => @operators$add(n, @operators$negate(Int(1)));
 
 type Countdown = variant {
 	done Unit;

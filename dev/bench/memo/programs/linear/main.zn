@@ -1,12 +1,12 @@
 /// A LINEAR RECURSION CALLED AGAIN: each call recurses once, and the loop asks for the same few hundred depths over and over.
 package linear;
 
-alias Int = @primitives$I64
-alias Float = @primitives$F64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias List<T Type> = @primitives$List<T>;
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -33,9 +33,9 @@ Unit say(text String) {
 	return Unit();
 }
 
-Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)))
+Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)));
 
-Int mix(k Int) => rem(@operators$add(@operators$multiply(k, Int(6364136223846793005)), Int(1442695040888963407)), Int(1000000007))
+Int mix(k Int) => rem(@operators$add(@operators$multiply(k, Int(6364136223846793005)), Int(1442695040888963407)), Int(1000000007));
 
 Int chain(n Int) {
 	@controlflow$branch(@operators$lessThan(n, Int(1)), {

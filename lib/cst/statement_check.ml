@@ -23,7 +23,8 @@
 let message (defect : Nodes.Statement_defect.t) =
   match defect with
   | Nodes.Statement_defect.Stray_semicolon ->
-      "a statement ending in `}` is closed by that brace and takes no `;`"
+      "a statement or declaration ending in `}` is closed by that brace and \
+       takes no `;`"
   | Nodes.Statement_defect.Continued_trailing_argument ->
       "a trailing argument ends the statement, so nothing may continue it; \
        parenthesize the call to go on using its value"
@@ -184,16 +185,29 @@ and in_constructor_params (params : Nodes.Constructor_params.t) =
            (fun (f : Nodes.Constructor_field.t) -> f.default)
            fields)
 
-(* [Ok ()] when every statement in the package ends the way its shape calls
-   for. Otherwise a diagnostic at the position recorded on the first offender,
-   as an empty span: a statement is wrong where it ends, not across its
-   text. *)
+(* [Ok ()] when every statement and package-scope declaration ends the way its
+   shape calls for. Otherwise a diagnostic at the position recorded on the
+   first offender, as an empty span: a statement is wrong where it ends, not
+   across its text. A declaration's own mark and the ones inside it are kept
+   apart, so the first is whichever comes earlier in the text. *)
 let check (package : Nodes.Package.t) =
-  match
+  let inside =
     List.fold_left
       (fun found decl ->
         match found with Some _ -> found | None -> in_decl decl)
       None package.Nodes.Package.decls
+  in
+  let own =
+    match package.Nodes.Package.defects with [] -> None | first :: _ -> Some first
+  in
+  let earlier ((_, a) as x) ((_, b) as y) =
+    if a.Lexing.pos_cnum <= b.Lexing.pos_cnum then x else y
+  in
+  match
+    match (own, inside) with
+    | Some x, Some y -> Some (earlier x y)
+    | (Some _ as found), None | None, (Some _ as found) -> found
+    | None, None -> None
   with
   | None -> Ok ()
   | Some (defect, position) ->

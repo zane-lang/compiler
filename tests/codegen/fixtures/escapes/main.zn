@@ -3,8 +3,8 @@
 /// plain constructor.
 package escapes;
 
-alias String = @primitives$String
-alias Unit = @primitives$Unit
+alias String = @primitives$String;
+alias Unit = @primitives$Unit;
 
 Unit main() {
 	@program$console!print(String.escaped("n[\n] t[\t] r[\r] zero[\0] backslash[\\\\] kept[\q]"));

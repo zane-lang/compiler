@@ -20,9 +20,9 @@ type Vec = struct {
 	y Int;
 }
 
-type Shape = enum [ round, square, oblong ]
+type Shape = enum [ round, square, oblong ];
 
-type Phase = enum [ early, late ]
+type Phase = enum [ early, late ];
 
 type Expr = variant {
 	intLit Int;
@@ -38,13 +38,13 @@ Vec.origin() => init{x = Int(0); y = Int(0);}
 
 implicit Vec(both Int) => init{x = both; y = both;}
 
-Int doubled(value Int) => value * Int(2)
+Int doubled(value Int) => value * Int(2);
 
-Int scaled(this Vec, factor Int) => this.x * factor
+Int scaled(this Vec, factor Int) => this.x * factor;
 
-Vec +(left Vec, right Vec) => Vec(left.x + right.x, left.y + right.y)
+Vec +(left Vec, right Vec) => Vec(left.x + right.x, left.y + right.y);
 
-Vec ~(value Vec) => Vec(~value.x, ~value.y)
+Vec ~(value Vec) => Vec(~value.x, ~value.y);
 
 /// The block-bodied forms, which the same rewrite must leave alone.
 Int tripled(value Int) {

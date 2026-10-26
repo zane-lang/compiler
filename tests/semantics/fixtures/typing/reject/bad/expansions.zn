@@ -34,6 +34,6 @@ type Stand = struct {
 	items Array<Int, 2>;
 }
 
-(this Stand)[index Int] => this.items[around(this, 1)]
+(this Stand)[index Int] => this.items[around(this, 1)];
 
-Int around(stand Stand, n @concepts$Int) => stand[Int(n)]
+Int around(stand Stand, n @concepts$Int) => stand[Int(n)];

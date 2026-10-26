@@ -4,8 +4,8 @@
 /// root cannot be stored into. ILLEGAL marks what the spec rejects.
 package throughparam;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
 
 type Leaf = #struct { n Int; }
 type Clip = #struct { leaf &Leaf; }

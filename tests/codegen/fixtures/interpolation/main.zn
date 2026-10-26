@@ -4,14 +4,14 @@
 /// literals that differ only in where a site falls stay apart.
 package interpolation;
 
-alias String = @primitives$String
-alias Unit = @primitives$Unit
-alias I64 = @primitives$I64
+alias String = @primitives$String;
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
 
 type Name = struct { _value String; }
 
 Name(value String) => init{ _value = value; }
-implicit String(name Name) => name._value
+implicit String(name Name) => name._value;
 
 Unit line(text String) {
 	@program$console!print(text);
@@ -27,7 +27,7 @@ Unit twice(text @concepts$String) {
 	return Unit();
 }
 
-Unit relayed(text @concepts$String) => twice(text)
+Unit relayed(text @concepts$String) => twice(text);
 
 /// Runs `change` before reading the literal it was given.
 Unit later(text @concepts$String, change @concepts$Block) {
@@ -36,7 +36,7 @@ Unit later(text @concepts$String, change @concepts$Block) {
 	return Unit();
 }
 
-String greet(who String) => String("hi \%who!")
+String greet(who String) => String("hi \%who!");
 
 /// Says when its implicit constructor runs.
 type Loud = struct { _value String; }
@@ -56,7 +56,7 @@ type Pair = struct { first String; second String; }
 
 Pair{ first String; second @concepts$String; } => init{ first; second = String(second); }
 
-String tagged(text @concepts$String) => String(text)
+String tagged(text @concepts$String) => String(text);
 
 Unit main() {
 	raw String("enrique");

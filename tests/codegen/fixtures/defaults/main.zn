@@ -6,10 +6,10 @@
 /// it holds and `no` when it does not.
 package defaults;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 Unit say(text String) {
 	@program$console!print(text);

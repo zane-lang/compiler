@@ -18,11 +18,11 @@
 /// Each check prints `yes` when it holds and `no` when it does not.
 package keeping;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -69,7 +69,7 @@ Pair(left ^Tree, right ^Tree) => init{ left; right; }
 
 /// A node over two trees it is given; spawned, it boxes owners another
 /// context made, and its result comes home to that context.
-^Tree joined(left ^Tree, right ^Tree) => Tree.node(Pair(left, right))
+^Tree joined(left ^Tree, right ^Tree) => Tree.node(Pair(left, right));
 
 Int nodes(tree Tree) => match (tree) {
 	l leaf => Int(1);
@@ -117,10 +117,10 @@ type Item = #struct {
 Item(name String) => init{ name; tags = @primitives$ListRef(String); }
 
 /// Drops what it is given.
-Int weigh(item ^Item) => item.tags:size()
+Int weigh(item ^Item) => item.tags:size();
 
 /// Keeps the second of the two, and drops the first.
-^Item latter(first ^Item, second ^Item) => second
+^Item latter(first ^Item, second ^Item) => second;
 
 type Shelf = #struct {
 	items ListRef<Item>;

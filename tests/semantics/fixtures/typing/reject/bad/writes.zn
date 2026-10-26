@@ -6,7 +6,7 @@ type Crate = variant { held Counter; none Int; }
 
 Counter(count Int) => init{ count; }
 
-Unit tick(this Counter) mut => Unit()
+Unit tick(this Counter) mut => Unit();
 
 /// A `!` call writes its subject, so a read-only binding may not be one:
 /// not a parameter, not a field or a case payload reached through one, and

@@ -1,8 +1,8 @@
 /// Collides with the `twin` `lib` brings in: same parameter types.
 package bad;
 
-Int twin(value Int) => value
+Int twin(value Int) => value;
 
 /// Collides with the `hook` `lib` brings in: only `mut` on the function type
 /// differs.
-Unit hook(f Unit[this Int]) => Unit()
+Unit hook(f Unit[this Int]) => Unit();

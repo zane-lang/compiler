@@ -6,7 +6,7 @@ package atlas;
 
 import geometry;
 
-alias Int = @primitives$I64
+alias Int = @primitives$I64;
 
 type Tile = struct {
 	size Int;
@@ -14,4 +14,4 @@ type Tile = struct {
 
 Tile(size Int) => init{ size; }
 
-Int cover(tile Tile) => geometry$area(geometry$same(tile).size, tile.size)
+Int cover(tile Tile) => geometry$area(geometry$same(tile).size, tile.size);

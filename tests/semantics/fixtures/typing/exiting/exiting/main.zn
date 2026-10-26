@@ -1,6 +1,6 @@
 package exiting;
 
-alias Unit = @primitives$Unit
+alias Unit = @primitives$Unit;
 
 Unit run(body @concepts$Block) {
 	@controlflow$branch(true, body);

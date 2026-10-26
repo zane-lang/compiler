@@ -2,11 +2,11 @@
 /// discards (docs/design/lowering.md L16).
 package entryArray;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
-alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>;
 
 Array<Int, 10> main() {
 	done String.escaped("main returns an array\n");

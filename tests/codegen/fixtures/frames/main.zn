@@ -3,12 +3,12 @@
 /// than a chunk, and frames of either size a few deep, all within the default
 /// range. Every check prints `yes` when it holds.
 package frames;
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
-alias Wide = @primitives$ArrayRef<Int, 65536>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+alias Wide = @primitives$ArrayRef<Int, 65536>;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);

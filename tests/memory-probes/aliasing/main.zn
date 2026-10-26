@@ -4,11 +4,11 @@
 /// to the caller's owner for the duration of the call", passed by borrow
 /// "as the semantic model rather than an optimization".
 package aliasing;
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -41,7 +41,7 @@ Engine(power Int, label String) => init{ power; label; }
 
 type Cup = #struct { size Int; }
 Cup(size Int) => init{ size; }
-Unit drink(cup ^Cup) => Unit()
+Unit drink(cup ^Cup) => Unit();
 Int keepAndRead(c Cup, d ^Cup) {
 	drink(d);
 	return c.size;

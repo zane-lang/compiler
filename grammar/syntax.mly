@@ -37,26 +37,43 @@ open Statement_shape
 (*************************)
 %%
 
-(* A package-scope declaration is not a statement and carries no terminator of
-   its own: it ends where its own body, bracket, or expression ends. A `;`
-   there would belong to nothing, since nothing follows a declaration that a
-   terminator would have to be told apart from -- the next declaration starts
-   with its own return type, binder, or keyword.
+(* A package-scope declaration ends the way a statement does: with a `;`,
+   unless it ends in a `}`, which closes it instead (lexical.md §6.3). So a
+   declaration is spelled the same at package scope and inside a body, and
+   [top_decl] takes the declaration forms of [stat] and no others.
 
-   `package` and `import` are the exception, and [header_decl] below says why.
-
-   Inside a body the same declaration is a statement and does take `;`, unless
-   it ends in a `}`; see [stat]. That is the one place the two levels differ in
-   how a declaration is spelled. *)
+   The defects a statement records travel the same way here: a `;` after a
+   declaration that already ended in a brace has one parse, so it is noted on
+   the package and [Statement_check] reports it. *)
 package:
   | decls=list(top_decl) EOF {
-      ({ Nodes.Package.decls; span = Span.of_loc $loc } : Nodes.Package.t)
+      ({
+         Nodes.Package.decls = List.map fst decls;
+         defects = List.filter_map snd decls;
+         span = Span.of_loc $loc;
+       }
+        : Nodes.Package.t)
     }
 
 top_decl:
-  | value=block_decl { value }
-  | value=simple_decl { value }
-  | value=header_decl SEMICOLON { value }
+  | decl=block_decl {
+      ( decl,
+        defect ~ends_in_brace:false ~ends_at:$endpos
+          ~continued:(decl_continues_past_trailing decl) )
+    }
+  | decl=header_decl SEMICOLON { (decl, None) }
+  | decl=simple_decl SEMICOLON {
+      ( decl,
+        defect
+          ~ends_in_brace:(decl_ends_in_brace decl)
+          ~ends_at:$endpos
+          ~continued:(decl_continues_past_trailing decl) )
+    }
+  | decl=simple_decl_braced {
+      ( decl,
+        defect ~ends_in_brace:false ~ends_at:$endpos
+          ~continued:(decl_continues_past_trailing decl) )
+    }
 
 (* An identifier, carrying where it was written.
 
@@ -462,12 +479,12 @@ import_decl:
       import $loc (Nodes.Import.All { package })
     }
 
-(* The two declarations that end in a bare name, and the only two that carry a
-   terminator at package scope.
+(* The two declarations that end in a bare name. Like every declaration that
+   does not end in a brace they take a `;`, and they never end in one, so they
+   have no braced form; for these two the `;` also keeps the grammar
+   unambiguous, which is why they are kept apart from [simple_decl].
 
-   Every other declaration ends in a body, a bracket, or an expression, so the
-   declaration after it starts where its own shape says it stopped. These two
-   stop at a name, and `import pkg$` stops before one: after the `$` a name is
+   These two stop at a name, and `import pkg$` stops before one: after the `$` a name is
    either the member being imported or the first token of the next
    declaration, and nothing in either shape tells the reader -- or the parser
    -- which. Carrying both readings until one fails to be a declaration is not
@@ -573,10 +590,10 @@ block_decl:
   | value=body_decl(block_body) { value }
   | value=type_decl(moulded_value) { value }
 
-(* Every declaration that is not closed by its own `{ }` body. At package scope
-   none of them takes a terminator; in a body each is a statement closed by a
-   `;`, and the ones that can end in a brace are written again in
-   [simple_decl_braced] for the statement that closes on it instead. *)
+(* Every declaration that is not closed by its own `{ }` body. Each is closed by
+   a `;`, at package scope and in a body alike, and the ones that can end in a
+   brace are written again in [simple_decl_braced] for the declaration that
+   closes on it instead. *)
 simple_decl:
   | value=body_decl(shorthand_body) { value }
   | value=type_decl(raw_value) { value }
@@ -617,9 +634,8 @@ simple_decl:
               (Nodes.Verb_decl.Subscript { this_type; params; value })))
     }
 
-(* The declarations a statement can end on a `}` with, and so the ones that
-   take no terminator there; see [stat]. At package scope no declaration takes
-   one, so [top_decl] reads [simple_decl] and never needs these. *)
+(* The declarations that can end on a `}`, and so the ones that take no
+   terminator when they do; see [stat] and [top_decl]. *)
 simple_decl_braced:
   | value=body_decl(shorthand_body_braced) { value }
   | name=lname type_=type_expr EQUAL value=expr_braced {

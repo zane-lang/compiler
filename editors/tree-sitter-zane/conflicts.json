@@ -6,6 +6,7 @@
       "rules": [
         "_body_decl_block_body_",
         "_body_decl_shorthand_body_",
+        "_body_decl_shorthand_body_braced_",
         "enum_map_decl",
         "type_expr"
       ],
@@ -63,20 +64,6 @@
     },
     {
       "rules": [
-        "_computed_call_no_trailing_arg_",
-        "_computed_call_trailing_arg_",
-        "app"
-      ],
-      "symbol_sequence": [
-        "identifier",
-        "type_expr",
-        "'='",
-        "func_callee"
-      ],
-      "lookahead": "'('"
-    },
-    {
-      "rules": [
         "app_braced",
         "stat"
       ],
@@ -109,23 +96,6 @@
     },
     {
       "rules": [
-        "_body_decl_block_body_",
-        "_body_decl_shorthand_body_",
-        "_body_decl_shorthand_body_braced_",
-        "enum_map_decl",
-        "type_expr"
-      ],
-      "symbol_sequence": [
-        "identifier",
-        "name_type",
-        "'('",
-        "'{'",
-        "name_type"
-      ],
-      "lookahead": "'<'"
-    },
-    {
-      "rules": [
         "func_callee",
         "stat"
       ],
@@ -137,20 +107,6 @@
         "unbraced_verb_call"
       ],
       "lookahead": "'?'"
-    },
-    {
-      "rules": [
-        "expr",
-        "func_callee"
-      ],
-      "symbol_sequence": [
-        "identifier",
-        "type_expr",
-        "'='",
-        "'spawn'",
-        "unbraced_verb_call"
-      ],
-      "lookahead": "'('"
     },
     {
       "rules": [
@@ -186,32 +142,14 @@
     },
     {
       "rules": [
-        "app",
-        "block_call",
-        "unbraced_verb_call"
-      ],
-      "symbol_sequence": [
-        "identifier",
-        "type_expr",
-        "'='",
-        "name_type",
-        "'.'",
-        "identifier"
-      ],
-      "lookahead": "'('"
-    },
-    {
-      "rules": [
         "abort_handle",
         "expr",
         "expr_braced"
       ],
       "symbol_sequence": [
         "identifier",
-        "name_type",
-        "'('",
-        "'{'",
-        "'abort'",
+        "type_expr",
+        "'='",
         "expr",
         "'??'",
         "expr"
@@ -225,10 +163,8 @@
       ],
       "symbol_sequence": [
         "identifier",
-        "name_type",
-        "'('",
-        "'{'",
-        "'abort'",
+        "type_expr",
+        "'='",
         "expr",
         "'=='",
         "expr"
@@ -243,10 +179,8 @@
       ],
       "symbol_sequence": [
         "identifier",
-        "name_type",
-        "'('",
-        "'{'",
-        "'abort'",
+        "type_expr",
+        "'='",
         "expr",
         "'?'",
         "identifier",

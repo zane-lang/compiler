@@ -1,15 +1,15 @@
 package math;
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
 
-offset Int(3)
-Int _add(a Int, b Int) => @operators$add(a, b)
-Int add(a Int, b Int) => _add(a, b)
-Int shifted(x Int) => add(x, offset)
-Int squared(x Int) => @operators$multiply(x, x)
+offset Int(3);
+Int _add(a Int, b Int) => @operators$add(a, b);
+Int add(a Int, b Int) => _add(a, b);
+Int shifted(x Int) => add(x, offset);
+Int squared(x Int) => @operators$multiply(x, x);
 // Generic, so its instance is a shared definition, which LLVM's inliner in
 // an unoptimized build leaves a call; lowering writes it out all the same.
-T kept(value T Type) => value
+T kept(value T Type) => value;
 Int sum(n Int) {
     result Int(0);
     @controlflow$repeat(n, { result = add(result, n); });
@@ -28,7 +28,7 @@ Int down(n Int) {
     return add(n, down(add(n, @operators$negate(Int(1)))));
 }
 // A package-level lambda variable, deliberately using name-first syntax.
-double Int(x Int) => add(x, x)
+double Int(x Int) => add(x, x);
 
 Int fib(n Int) {
     @controlflow$branch(@operators$lessThan(n, Int(2)), { return n; });

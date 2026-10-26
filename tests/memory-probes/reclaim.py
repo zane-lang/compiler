@@ -29,7 +29,7 @@ Engine(power Int, label String) => init{ power; label; }
 type Car = #struct { engine Engine; }
 Car(engine ^Engine) => init{ engine; }
 type Count = variant { done Int; more Count; }
-^Engine make(power Int) => Engine(power, @operators$concat(String("made"), String("!")))
+^Engine make(power Int) => Engine(power, @operators$concat(String("made"), String("!")));
 ^Engine?^Engine risky(power Int) {
 	abort Engine(power, @operators$concat(String("aborted"), String("!")));
 }

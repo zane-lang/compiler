@@ -5,10 +5,10 @@
 /// prints `yes` when it holds and `no` when it does not.
 package constants;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 Unit say(text String) {
 	@program$console!print(text);
@@ -43,17 +43,17 @@ type Point = struct {
 
 Point(x Int, y Int) => init{ x; y; }
 
-limit Int(42)
-doubled Int = @operators$multiply(limit, Int(2))
-early Int = @operators$add(later, Int(1))
-later Int = loud(Int(9))
-greeting String = @operators$concat(String("hel"), String.escaped("lo\n"))
+limit Int(42);
+doubled Int = @operators$multiply(limit, Int(2));
+early Int = @operators$add(later, Int(1));
+later Int = loud(Int(9));
+greeting String = @operators$concat(String("hel"), String.escaped("lo\n"));
 ada Person{ name = String("ada"); age = Int(36); }
-origin Point(Int(0), Int(0))
+origin Point(Int(0), Int(0));
 
-Int peek() => @operators$add(doubled, early)
+Int peek() => @operators$add(doubled, early);
 
-Int age(p &Person) => p.age
+Int age(p &Person) => p.age;
 
 Unit main() {
 	start String.escaped("main\n");

@@ -4,9 +4,9 @@
 /// immutable constants and verbs').
 package constants;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 type Engine = #struct { power Int; }
 Engine(power Int) => init{ power; }
@@ -17,11 +17,11 @@ Unit tune(this Engine) mut {
 type Car = #struct { engine &Engine; }
 Car(engine &Engine) => init{ engine; }
 
-garage Engine(Int(1))
-spare ^Engine = Engine(Int(2))                // ILLEGAL: ^ is no constant's type
-parked Car(garage)                            // legal: a reference to a constant
+garage Engine(Int(1));
+spare ^Engine = Engine(Int(2));               // ILLEGAL: ^ is no constant's type
+parked Car(garage);                           // legal: a reference to a constant
 
-Unit consume(e ^Engine) => Unit()
+Unit consume(e ^Engine) => Unit();
 
 Unit main() {
 	// text String;  ILLEGAL, and a parse error: no initial value. Left out so

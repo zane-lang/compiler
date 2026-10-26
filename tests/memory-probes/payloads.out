@@ -1,5 +1,5 @@
 File "payloads/main.zn", line 13, characters 25-69:
-13 | &Engine get(s &Slot) => s.full ?? s.full ?? s.full ?? Engine(Int(0))  // ILLEGAL: a payload is no reference source
+13 | &Engine get(s &Slot) => s.full ?? s.full ?? s.full ?? Engine(Int(0)); // ILLEGAL: a payload is no reference source
    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: a new reference must come from a settled place, and a variant case's payload is roaming: the variant may change case while it lives
 File "payloads/main.zn", line 20, characters 25-26:

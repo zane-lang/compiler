@@ -3,10 +3,10 @@
 /// Every line marked ILLEGAL should be reported, and nothing else.
 package downstream;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias List<T Type> = @primitives$List<T>
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias List<T Type> = @primitives$List<T>;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 type Engine = #struct { power Int; }
 Engine(power Int) => init{ power; }

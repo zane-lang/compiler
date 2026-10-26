@@ -6,13 +6,13 @@
 /// it does not.
 package scalars;
 
-alias I32 = @primitives$I32
-alias I64 = @primitives$I64
-alias F32 = @primitives$F32
-alias F64 = @primitives$F64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 Unit check(holds Bool) {
 	yes String.escaped("yes\n");
@@ -27,18 +27,18 @@ Unit check(holds Bool) {
 }
 
 /// Values the optimizer cannot see through unless it folds the call.
-I32 i32(value @concepts$Int) => I32(value)
-I64 i64(value @concepts$Int) => I64(value)
-F32 f32(value @concepts$Float) => F32(value)
-F64 f64(value @concepts$Float) => F64(value)
+I32 i32(value @concepts$Int) => I32(value);
+I64 i64(value @concepts$Int) => I64(value);
+F32 f32(value @concepts$Float) => F32(value);
+F64 f64(value @concepts$Float) => F64(value);
 
 /// One over zero, and zero over zero.
-F64 infinity() => @operators$divide(f64(1.0), f64(0.0))
-F64 nan() => @operators$divide(f64(0.0), f64(0.0))
+F64 infinity() => @operators$divide(f64(1.0), f64(0.0));
+F64 nan() => @operators$divide(f64(0.0), f64(0.0));
 
 /// The least of each integer type, which no literal writes.
-I32 minI32() => @operators$add(@operators$negate(I32(2147483647)), @operators$negate(I32(1)))
-I64 minI64() => @operators$add(@operators$negate(I64(9223372036854775807)), @operators$negate(I64(1)))
+I32 minI32() => @operators$add(@operators$negate(I32(2147483647)), @operators$negate(I32(1)));
+I64 minI64() => @operators$add(@operators$negate(I64(9223372036854775807)), @operators$negate(I64(1)));
 
 Unit main() {
 	// Each operation, on each type. There is no subtraction: `a + ~b`.

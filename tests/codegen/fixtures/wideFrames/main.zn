@@ -2,12 +2,12 @@
 /// guard after the range, so it is checked before it is placed, and the
 /// program stops with the same error.
 package wideFrames;
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
-alias Wide = @primitives$ArrayRef<Int, 65536>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+alias Wide = @primitives$ArrayRef<Int, 65536>;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);

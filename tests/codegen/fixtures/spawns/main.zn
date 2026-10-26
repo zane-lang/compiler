@@ -7,11 +7,11 @@
 /// prints `yes` when it holds and `no` when it does not.
 package spawns;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -162,7 +162,7 @@ Int pick(n Int) {
 	return n;
 }
 
-Int ageOf(p Person) => p.age
+Int ageOf(p Person) => p.age;
 
 Unit main() {
 	// The pool resized before it starts, and a count it refuses.

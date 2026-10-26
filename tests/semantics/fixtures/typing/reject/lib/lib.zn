@@ -6,9 +6,9 @@ package lib;
 /// §10).
 import bad;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 
 type Thing = struct {
@@ -16,11 +16,11 @@ type Thing = struct {
 	_hidden Int;
 }
 
-Int helper(value Int) => value
-Int _secret() => Int(1)
-Int area(this Thing) => this.value
-Int twin(value Int) => value
-Unit hook(f Unit[this Int] mut) => Unit()
+Int helper(value Int) => value;
+Int _secret() => Int(1);
+Int area(this Thing) => this.value;
+Int twin(value Int) => value;
+Unit hook(f Unit[this Int] mut) => Unit();
 
 Unit shout() {
 	text String("!");

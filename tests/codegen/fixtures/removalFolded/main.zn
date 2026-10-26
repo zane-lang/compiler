@@ -2,7 +2,7 @@
 /// the text it prints (docs/design/optimization.md).
 package removalFolded;
 
-alias Int = @primitives$I64
+alias Int = @primitives$I64;
 
 Int picked() {
 	xs @primitives$ListRef<Int> = @primitives$ListRef(Int);

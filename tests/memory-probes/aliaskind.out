@@ -3,7 +3,7 @@ File "aliaskind/main.zn", line 15, characters 38-44:
    |                                      ^^^^^^
 Error: `aliaskind$Engine` is a reference type, and it reaches the elements of `@primitives$Array<aliaskind$Engine, 2>`, a value type's slot; a value type holds only values, all the way down
 File "aliaskind/main.zn", line 16, characters 29-35:
-16 | Unit takesArray(slots Array<Engine, 2>) => Unit()      // ILLEGAL
+16 | Unit takesArray(slots Array<Engine, 2>) => Unit();     // ILLEGAL
    |                             ^^^^^^
 Error: `aliaskind$Engine` is a reference type, and it reaches the elements of `@primitives$Array<aliaskind$Engine, 2>`, a value type's slot; a value type holds only values, all the way down
 File "aliaskind/main.zn", line 17, characters 29-35:
@@ -11,7 +11,7 @@ File "aliaskind/main.zn", line 17, characters 29-35:
    |                             ^^^^^^
 Error: `aliaskind$Engine` is a reference type, and it reaches `aliaskind$Gen<aliaskind$Engine>`'s field `item`, a value type's slot; a value type holds only values, all the way down
 File "aliaskind/main.zn", line 18, characters 19-25:
-18 | Unit takesGen(g G<Engine>) => Unit()                   // ILLEGAL
+18 | Unit takesGen(g G<Engine>) => Unit();                  // ILLEGAL
    |                   ^^^^^^
 Error: `aliaskind$Engine` is a reference type, and it reaches `aliaskind$Gen<aliaskind$Engine>`'s field `item`, a value type's slot; a value type holds only values, all the way down
 File "aliaskind/main.zn", line 19, characters 27-35:

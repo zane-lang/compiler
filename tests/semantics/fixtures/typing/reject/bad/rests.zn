@@ -10,7 +10,7 @@ Plug(port &Port) => init{ port; }
 Frame(plug ^Plug, port ^Port) => init{ plug; port; }
 Bay() => init{ plugs = @primitives$ListRef(Plug); }
 
-Unit nest(body @concepts$Block) => Unit()
+Unit nest(body @concepts$Block) => Unit();
 
 /// A reference parameter stored into a place reached from another comes to
 /// rest there (lifetimes.md §1.11), and so does a taken one that carries a

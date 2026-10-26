@@ -645,6 +645,11 @@ end = Decl
 module Package = struct
   type t = {
     decls : Decl.t list;
+    (* How each package-scope declaration disagrees with the rules about where
+       it ends, in written order. A declaration there ends the way a statement
+       does, so these are the defects a [Statement] records, kept beside the
+       declarations rather than wrapping each one. *)
+    defects : (Statement_defect.t * Lexing.position) list;
     span : Span.t;
   }
 end

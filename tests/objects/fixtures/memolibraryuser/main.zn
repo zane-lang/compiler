@@ -4,9 +4,9 @@ package memolibraryuser;
 
 import memolibrary$;
 
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Unit say(text String) {
 	@program$console!print(@operators$concat(text, String.escaped("\n")));

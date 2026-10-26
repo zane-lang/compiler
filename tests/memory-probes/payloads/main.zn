@@ -2,16 +2,16 @@
 /// §2.8.1, lifetimes.md §1.2). ILLEGAL marks what the spec rejects.
 package payloads;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
 
 type Engine = #struct { power Int; }
 Engine(power Int) => init{ power; }
 
 type Slot = #variant { full Engine; empty Unit; }
 
-&Engine get(s &Slot) => s.full ?? s.full ?? s.full ?? Engine(Int(0))  // ILLEGAL: a payload is no reference source
-&Engine first(row &@primitives$ArrayRef<Engine, 2>) => row[Int(1)]       // legal: an element of an ArrayRef reached from an &T parameter
+&Engine get(s &Slot) => s.full ?? s.full ?? s.full ?? Engine(Int(0)); // ILLEGAL: a payload is no reference source
+&Engine first(row &@primitives$ArrayRef<Engine, 2>) => row[Int(1)];      // legal: an element of an ArrayRef reached from an &T parameter
 
 Unit main() {
 	slot Slot = Slot.full(Engine(Int(1)));

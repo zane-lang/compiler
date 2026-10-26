@@ -4,15 +4,15 @@
 /// operators of its own, so `Num` and `Truth` declare theirs over
 /// `@operators$`. Then `and` and `or`, the operators a literal operand takes
 /// through overloads of its own (operators.md §2.7), and a `'` between digits,
-/// which separates them and changes nothing (docs/spec-divergences.md §8).
+/// which separates them and changes nothing (docs/spec-divergences.md §6).
 /// Every check prints `yes` when it holds and `no` when it does not.
 package operators;
 
-alias Int = @primitives$I64
-alias Float = @primitives$F64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -30,11 +30,11 @@ type Truth = struct { holds Bool; }
 
 Truth(holds Bool) => init{ holds; }
 
-Truth ~(value Truth) => Truth(@operators$not(value.holds))
+Truth ~(value Truth) => Truth(@operators$not(value.holds));
 
-Truth and(left Truth, right Truth) => Truth(@operators$conjoin(left.holds, right.holds))
+Truth and(left Truth, right Truth) => Truth(@operators$conjoin(left.holds, right.holds));
 
-Truth or(left Truth, right Truth) => Truth(@operators$disjoin(left.holds, right.holds))
+Truth or(left Truth, right Truth) => Truth(@operators$disjoin(left.holds, right.holds));
 
 /// A number with the four primitive operators the derived forms rest on.
 type Num = struct { value Int; }
@@ -43,25 +43,25 @@ Num(value @concepts$Int) => init{ value = Int(value); }
 
 Num(value Int) => init{ value; }
 
-Num +(left Num, right Num) => Num(@operators$add(left.value, right.value))
+Num +(left Num, right Num) => Num(@operators$add(left.value, right.value));
 
-Num ~(value Num) => Num(@operators$negate(value.value))
+Num ~(value Num) => Num(@operators$negate(value.value));
 
-Truth ==(left Num, right Num) => Truth(@operators$equal(left.value, right.value))
+Truth ==(left Num, right Num) => Truth(@operators$equal(left.value, right.value));
 
-Truth <(left Num, right Num) => Truth(@operators$lessThan(left.value, right.value))
+Truth <(left Num, right Num) => Truth(@operators$lessThan(left.value, right.value));
 
 /// A literal on either side, which an operand takes only through an overload
 /// that declares it.
-Num +(left Num, right @concepts$Int) => left + Num(right)
+Num +(left Num, right @concepts$Int) => left + Num(right);
 
-Num +(left @concepts$Int, right Num) => Num(left) + right
+Num +(left @concepts$Int, right Num) => Num(left) + right;
 
-Truth ==(left Num, right @concepts$Int) => left == Num(right)
+Truth ==(left Num, right @concepts$Int) => left == Num(right);
 
-Truth <(left Num, right @concepts$Int) => left < Num(right)
+Truth <(left Num, right @concepts$Int) => left < Num(right);
 
-Truth <(left @concepts$Int, right Num) => Num(left) < right
+Truth <(left @concepts$Int, right Num) => Num(left) < right;
 
 /// An array literal on the right of `<`, so on the left of a `>`.
 Truth <(left Num, right @concepts$Array<Num, 2>) {
@@ -92,11 +92,11 @@ type Weight = struct { grams Num; }
 
 Weight(grams Num) => init{ grams; }
 
-Truth <(left Weight, right Weight) => left.grams < right.grams
+Truth <(left Weight, right Weight) => left.grams < right.grams;
 
 /// A literal parameter on the right of `-`, which flips it as it would the
 /// literal it stands for.
-Num less(value Num, by @concepts$Int) => value - by
+Num less(value Num, by @concepts$Int) => value - by;
 
 Weight heavy(grams Num, name String) {
 	@program$console!print(name);

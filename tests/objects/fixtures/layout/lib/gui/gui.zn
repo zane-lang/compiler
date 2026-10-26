@@ -4,6 +4,6 @@ package gui;
 import opengl;
 import math;
 
-alias Int = @primitives$I64
+alias Int = @primitives$I64;
 
-Int draw() => @operators$add(opengl$frame(), math$double(Int(1)))
+Int draw() => @operators$add(opengl$frame(), math$double(Int(1)));

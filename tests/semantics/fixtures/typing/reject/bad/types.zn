@@ -11,6 +11,6 @@ type Holder = struct {
 	inline Box<T Type>;
 }
 
-alias Loop = Loop
-type Round = Robin
-type Robin = Round
+alias Loop = Loop;
+type Round = Robin;
+type Robin = Round;

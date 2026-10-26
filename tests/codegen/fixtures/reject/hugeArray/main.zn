@@ -3,11 +3,11 @@
 /// than leaving the program to stop when it runs.
 package hugeArray;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>;
 
-Array<Int, 4294967296> make() => make()
+Array<Int, 4294967296> make() => make();
 
 Unit main() {
 	big Array<Int, 4294967296> = make();

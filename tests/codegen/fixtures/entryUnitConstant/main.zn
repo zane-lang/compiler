@@ -2,11 +2,11 @@
 /// (docs/design/lowering.md L16), in a package with a constant nothing reads.
 package entryUnitConstant;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
-unused Int(1)
+unused Int(1);
 
 Unit main() {
 	done String.escaped("main returns unit\n");

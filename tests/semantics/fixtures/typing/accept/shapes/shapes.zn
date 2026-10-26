@@ -2,9 +2,9 @@
 /// constructors with them, and an importer reaches them without naming them.
 package shapes;
 
-alias Float = @primitives$F64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Float = @primitives$F64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 type Vec2 = struct {
 	x Float;
@@ -20,14 +20,14 @@ Vec2.zero() => init{ x = Float(0.0); y = Float(0.0); }
 Vec2{ x Float; y Float = Float(0.0); } => init{ x; y; }
 
 /// Found through `Vec2`'s home, whatever the caller imports.
-Vec2 +(left Vec2, right Vec2) => Vec2(@operators$add(left.x, right.x), @operators$add(left.y, right.y))
-Vec2 ~(value Vec2) => Vec2(@operators$negate(value.x), @operators$negate(value.y))
+Vec2 +(left Vec2, right Vec2) => Vec2(@operators$add(left.x, right.x), @operators$add(left.y, right.y));
+Vec2 ~(value Vec2) => Vec2(@operators$negate(value.x), @operators$negate(value.y));
 
 /// A literal operand takes an overload of its own, since an operand is never
 /// converted.
-Vec2 +(left Vec2, right @concepts$Float) => left + Vec2(right)
+Vec2 +(left Vec2, right @concepts$Float) => left + Vec2(right);
 
-Float length(this Vec2) => @operators$add(@operators$multiply(this.x, this.x), @operators$multiply(this.y, this.y))
+Float length(this Vec2) => @operators$add(@operators$multiply(this.x, this.x), @operators$multiply(this.y, this.y));
 
 Unit scale(this Vec2, by Float) mut {
 	this.x = @operators$multiply(this.x, by);
@@ -44,7 +44,7 @@ type Shape = #variant {
 	point Vec2;
 }
 
-type Corner = enum [ topLeft, topRight, bottomLeft, bottomRight ]
+type Corner = enum [ topLeft, topRight, bottomLeft, bottomRight ];
 
 Corner.label String {
 	topLeft = String("top left");
@@ -60,11 +60,11 @@ type Meters = struct {
 }
 
 Meters(value Float) => init{ _value = value; }
-Meters +(left Meters, right Meters) => Meters(@operators$add(left._value, right._value))
-Float inFeet(distance Meters) => @operators$multiply(distance._value, Float(3.28))
+Meters +(left Meters, right Meters) => Meters(@operators$add(left._value, right._value));
+Float inFeet(distance Meters) => @operators$multiply(distance._value, Float(3.28));
 
 /// A private helper is invisible to every other package.
-Float _half(value Float) => @operators$divide(value, Float(2.0))
+Float _half(value Float) => @operators$divide(value, Float(2.0));
 
 Float area(shape &Shape) => match (shape) {
 	r circle => @operators$multiply(r, r);

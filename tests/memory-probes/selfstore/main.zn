@@ -4,11 +4,11 @@
 /// contents (memory.md §2.2, §2.3, §3.5), and an object wired to its own
 /// parts after it settles (§2.8.1).
 package selfstore;
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -54,7 +54,7 @@ type Kit = #struct { engine Engine; spare Engine; mount Mount; }
 Kit(engine ^Engine, spare ^Engine, mount ^Mount) => init{ engine; spare; mount; }
 
 /// Builds a fresh car from what a borrowed one holds.
-^Car rebuilt(car Car) => Car(Engine(@operators$add(car.engine.power, Int(1)), @operators$concat(car.engine.label, String("+"))), @operators$concat(car.name, String("+")))
+^Car rebuilt(car Car) => Car(Engine(@operators$add(car.engine.power, Int(1)), @operators$concat(car.engine.label, String("+"))), @operators$concat(car.name, String("+")));
 
 ^Car relay(car ^Car) {
 	kept ^Car = car;

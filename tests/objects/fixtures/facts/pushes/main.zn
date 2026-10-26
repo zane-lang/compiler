@@ -4,11 +4,11 @@
 /// scope of its own.
 package pushes;
 
-alias Int = @primitives$I64
-alias Float = @primitives$F64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Float gather(a Float, b Float, c Float, d Float) {
 	buf ListRef<Float> = @primitives$ListRef(Float);

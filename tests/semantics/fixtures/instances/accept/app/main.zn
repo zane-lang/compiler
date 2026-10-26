@@ -2,10 +2,10 @@
 /// types: each use is its own chain of instantiations, one deep (D12).
 package app;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
 
-Unit consume(x T Type) => Unit()
+Unit consume(x T Type) => Unit();
 
 type W1 = struct { v Int; }
 W1(v Int) => init{ v; }

@@ -9,7 +9,7 @@ Leaf(size Int) => init{ size; }
 Branch(leaf ^Leaf) => init{ leaf; }
 Pin(leaf &Leaf) => init{ leaf; }
 
-Unit inside(body @concepts$Block) => Unit()
+Unit inside(body @concepts$Block) => Unit();
 
 /// A store may not raise a value above what it names: a reference into a
 /// place scoped to a block that outlives the owner's (lifetimes.md §1.1).
@@ -43,7 +43,7 @@ Unit carry() {
 
 /// A returned reference is rooted in an `&T` parameter (§1.7), and so is one
 /// stored in `this`: the caller's frame outlives the body.
-&Leaf root(branch &Branch) => branch.leaf
+&Leaf root(branch &Branch) => branch.leaf;
 &Leaf lost() {
 	value Leaf(Int(6));
 	return value;
@@ -57,7 +57,7 @@ Unit hold(this Pin, other &Leaf) mut {
 }
 
 /// A call's result names what its arguments do.
-&Leaf pass(leaf &Leaf) => leaf
+&Leaf pass(leaf &Leaf) => leaf;
 &Leaf relay() {
 	value Leaf(Int(8));
 	return pass(value);

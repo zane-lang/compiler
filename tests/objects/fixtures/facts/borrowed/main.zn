@@ -2,11 +2,11 @@
 /// lowering does not write out where it is called.
 package borrowed;
 
-alias Int = @primitives$I64
-alias Float = @primitives$F64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 type Field = #struct {
 	xs ListRef<Float>;

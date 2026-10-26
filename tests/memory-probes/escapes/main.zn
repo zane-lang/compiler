@@ -4,11 +4,11 @@
 /// intact data. The runtime stops a program whose drain finds a block out.
 package escapes;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -36,7 +36,7 @@ Unit check(label String, ok Bool) {
 	return Unit();
 }
 
-alias Block = @concepts$Block
+alias Block = @concepts$Block;
 Unit inner(body Block) {
 	@controlflow$branch(true, body);
 	return Unit();

@@ -1,14 +1,14 @@
 package bad;
 
-Int pair(a Int, b Float) => a
-Int pair(a Float, b Int) => b
-Int one(value Int) => value
-Int one(value Float) => Int(1)
-T echo(value T Type) => value
-Int?String parse(text String) => Int(0)
-Unit repeat(body @concepts$Block) => Unit()
-Unit bump(this Int) mut => Unit()
-Int peek(this Int) => this
+Int pair(a Int, b Float) => a;
+Int pair(a Float, b Int) => b;
+Int one(value Int) => value;
+Int one(value Float) => Int(1);
+T echo(value T Type) => value;
+Int?String parse(text String) => Int(0);
+Unit repeat(body @concepts$Block) => Unit();
+Unit bump(this Int) mut => Unit();
+Int peek(this Int) => this;
 
 type Pick = variant { yes Int; no Bool; }
 
@@ -18,8 +18,8 @@ type Count = struct { raw Int; }
 implicit Count(value @concepts$Int) => init{ raw = Int(value); }
 type Score = struct { raw Int; }
 implicit Score(value @concepts$Int) => init{ raw = Int(value); }
-Int tally(a Score, b Count) => b.raw
-Int tally(a Count, b Score) => a.raw
+Int tally(a Score, b Count) => b.raw;
+Int tally(a Count, b Score) => a.raw;
 
 Unit calls() {
 	a Int = pair(Int(1), Int(2));

@@ -2,7 +2,7 @@
 /// links it may call `fib` from threads this object never sees.
 package memolibrary;
 
-alias Int = @primitives$I64
+alias Int = @primitives$I64;
 
 Int fib(n Int) {
 	@controlflow$branch(@operators$lessThan(n, Int(2)), {

@@ -5,10 +5,10 @@
 /// holds and `no` when it does not.
 package lambdas;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 /// Runs the block when the condition holds, and reports whether it did.
 Bool if(condition Bool, body @concepts$Block) {
@@ -21,7 +21,7 @@ square Int(x Int) {
 	return @operators$multiply(x, x);
 }
 
-Int twice(f Int[Int], x Int) => f(f(x))
+Int twice(f Int[Int], x Int) => f(f(x));
 
 /// A function value returned: the lambda written here, or the package's.
 Int[Int] pick(squaring Bool) {
@@ -68,7 +68,7 @@ type Tally = #struct {
 Tally(total Int) => init{ total; }
 
 /// An enum map whose entries are function values.
-type Op = enum [ twice, thrice ]
+type Op = enum [ twice, thrice ];
 
 Op.apply Int[Int] {
 	twice = Int(x Int) { return @operators$add(x, x); };

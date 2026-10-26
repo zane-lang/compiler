@@ -17,7 +17,7 @@ settles, in one pass rather than section by section. Until then:
   the claim can be rechecked rather than taken on trust.
 
 A choice the spec leaves open is recorded here when a running program can
-observe it, as §10 and §13 are. The rest sit beside the design they belong
+observe it, as §8 and §11 are. The rest sit beside the design they belong
 to: what the type checker decides is in
 [`design/semantics.md`](design/semantics.md) §9, with D12 and D14, and how
 lowering and the runtime place and represent things is in
@@ -128,94 +128,7 @@ the grammar was refusing the trailing form everywhere on the strength of it.
 Narrowing it to the empty argument list keeps every spelling the declaration
 and the lambda literal can take, and gives the rest back to the call.
 
-## 3. A declaration inside a body is terminated like the statement it is
-
-**Spec** — [`lexical.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/lexical.md)
-§6.3: "A **package-scope declaration** is not a statement and takes no
-terminator of its own; it ends where its own body or bracket ends." The forms
-in [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§1 are written bare throughout — `name VarType = expr`, `import packageName`,
-`type Name = TypeExpr`, `name ReturnType(param ParamType, ...) => expr`.
-
-**Compiler** — agrees at package scope, and applies the statement rule
-unchanged inside a body. A declaration written in a function body is a
-statement there, so it takes `;` unless it ends in a `}`:
-
-```zane
-type Meters = Int            // package scope: no terminator
-
-Unit use() {
-    answer Int = Int(42);    // in a body: terminated, like any statement
-    ran Bool = if(ready) {
-        start();
-    }                        // in a body: the brace ends it, so no `;`
-}
-```
-
-The spec's sentence covers the package-scope half and says nothing about the
-same declaration written inside a body, where §6.3's own rule — every statement
-is terminated, unless it ends in a `}` — is the only rule that applies. The
-compiler reads a declaration in a body as a statement and terminates it on that
-basis. The divergence is therefore narrow and may not be one at all: it is
-recorded because moving a declaration between the two levels changes how it is
-spelled, which is a real cost and worth stating out loud rather than
-discovering.
-
-A raw `type`/`alias`, a positional instantiation that does not trail its last
-argument (entry 2 above), a `=> expr` verb **whose expression does not itself
-end in a `}`**, and a type cast from the **peer mould** are the forms this is
-visible on — the peer mould's contents are a flat list of names, so it takes
-`[ ]` and closes on a `]` rather than a brace.
-`package` and `import` are spelled the same at both levels, since §5 gives them
-a terminator at both. A `struct`/`variant` mould, a `{ }` verb body, an
-enum map, and a `=> expr` verb whose expression *does* end in a `}` — a
-`match`, a handler, a trailing call — all end in a brace and are spelled the
-same at both levels. The parser reads this off the expression rather than off
-the form, so `Int f() => match (c) { … }` needs no `;` in a body while
-`Int f() => c` does.
-
-## 4. `package` and `import` are terminated
-
-**Spec** — [`lexical.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/lexical.md)
-§6.3: "A **package-scope declaration** is not a statement and takes no
-terminator of its own; it ends where its own body or bracket ends." The forms
-in [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§1.5 and §8.2 are written bare — `import packageName$member`, `package
-packageName`.
-
-**Compiler** — these two take a `;`, and the grammar requires it:
-
-```zane
-package main;
-import core$;
-import math$[floor, ceil];
-
-type Meters = Int            // every other declaration is still bare
-```
-
-The spec's sentence assumes a declaration ends where its own shape says it
-stopped, which is true of every form that closes on a body, a bracket, or an
-expression. `package pkg` and `import pkg$member` end on a bare name, and
-`import pkg$` ends just before one, so their shape says nothing about where
-they stop. That is not merely untidy: it is ambiguous. `import core$` followed
-by `main Unit() { }` parses both as a whole-package import and a lambda-valued
-declaration, and as a member import of `main` and a constructor declaration for
-`Unit`. Measured with `--check-tokens`, that bare spelling had two parses
-before the `;` was required; each terminated spelling has one, and the bare one
-is now rejected.
-
-Inside a body the same two forms are statements and the same two readings
-meet, and there the terminator is no divergence: §6.3 requires a `;` after
-every statement that does not end in a `}`, and the grammar carries that rule
-for every statement.
-
-`docs/ambiguity/proof-obligations.md` has the full account, in the ledger entry
-for the state reducing `import_decl -> IMPORT LIDENT DOLLAR`. Reconciling in
-the spec's direction needs the spec to say what separates two adjacent
-declarations when the first ends in a name; until it does, the compiler cannot
-drop the `;` without re-admitting the ambiguity.
-
-## 5. A type is passed only to a constructor, and only by bare name
+## 3. A type is passed only to a constructor, and only by bare name
 
 **Spec** — [`generics.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/generics.md)
 §5.3: "A type or number can instead be passed as an ordinary argument by
@@ -281,7 +194,7 @@ form added three reduce/reduce states against the verb-type suffix list;
 measurement. The bare-name rule is kept from then; it has not been re-measured
 for the constructor-argument position alone.
 
-## 6. A `match` parenthesizes its scrutinee list
+## 4. A `match` parenthesizes its scrutinee list
 
 **Spec** — [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
 §4.8: a `match` "names one or more scrutinees — a bare `,`-separated list, never
@@ -317,7 +230,7 @@ spelling, which is why it is recorded here rather than treated as a bug fix.
 Reconciling it means changing §4.8 and the §5.6 rationale together; if the spec
 later adds tuples, a tuple scrutinee needs its own `( )`.
 
-## 7. A value closed by a brace takes no postfix
+## 5. A value closed by a brace takes no postfix
 
 Checked against spec commit `f61c11b`, not the pin above.
 
@@ -355,7 +268,7 @@ the same everywhere. What that costs is the parentheses in an argument or an
 operand, where the spec is silent; reconciling it means stating the rule in
 §4.7 and §4.1–4.2 of syntax.md.
 
-## 8. A `'` separates groups of digits in a numeric literal
+## 6. A `'` separates groups of digits in a numeric literal
 
 **Spec** — [`lexical.md`](https://github.com/zane-lang/spec/blob/c4295ca/spec/lexical.md)
 §7: "A numeric literal consists of digits and at most one `.`, which has at
@@ -379,7 +292,7 @@ mention one. It needs a digit on each side, and `'` has no other use, so
 `2'*3` does not lex. Reconciling means either the spec adopting the separator
 or the lexer dropping it.
 
-## 9. An exit ends the run of a block
+## 7. An exit ends the run of a block
 
 **Spec** — [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
 §2.3 and §4.2: `@controlflow$exitFromCall` ends the invocation that called
@@ -413,7 +326,7 @@ written there. `lib/tst/analyses/exits.ml` checks the calls, and
 `tests/semantics/fixtures/typing/reject/bad/exits.zn` is the rejected case.
 Reconciling means the spec adopting this reading.
 
-## 10. A spawned call's handler runs where the call settles
+## 8. A spawned call's handler runs where the call settles
 
 **Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
 §3.3: an abortable spawned call attaches `?` or `??` directly to the
@@ -425,7 +338,7 @@ or what happens when nothing reads the symbol.
 its local is first read, or where the block it is spawned in ends, when
 nothing has read it by then. Settling waits for the call. An abort runs the
 handler there, and an exit ends the run of the block the spawn is written in
-(§9), from there. A block left before it ends -- by a `return`, an exit or
+(§7), from there. A block left before it ends -- by a `return`, an exit or
 an `abort` -- still waits for the call as it drains, but runs no handler, and
 the outcome dies with the block.
 
@@ -441,7 +354,7 @@ check(q == Int(7));         // settled already: the handler does not run again
 `tests/codegen/fixtures/spawns` has these cases. Reconciling means the spec
 saying where the handler runs.
 
-## 11. A block does not write an owner it lent a running spawn
+## 9. A block does not write an owner it lent a running spawn
 
 **Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
 §4.2 lets spawned work read the reference-type object graph without writing
@@ -470,7 +383,7 @@ spawn dial.reading!nudge();      // accepted: written back (§4.4)
 Reconciling means the spec stating a rule for this write, this one or
 another.
 
-## 12. A case is not a type
+## 10. A case is not a type
 
 **Spec** — [`adt.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/adt.md)
 §3: "A member projected as a type is written `Expr.intLit`", and §5.2: "if the
@@ -492,7 +405,7 @@ projected case type would still be the whole variant (§3.2), and the
 narrowing it enables is an optimization the tag jump already gives. Reconciling
 means adding the type form and its narrowing, or the spec dropping it.
 
-## 13. An index out of range stops the program
+## 11. An index out of range stops the program
 
 **Spec** — silent. [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
 §5.2 fixes the ordinal base and leaves "the language-level behavior for
@@ -518,8 +431,9 @@ closed from the other side, when the compiler adopted a spec rule it had been
 standing in for, the next when the compiler followed the spec in removing a
 form, the next when the spec's memory model made the compiler's departure
 unnecessary, the next when the spec settled a question the compiler had
-answered differently, and the last when the spec dropped a form the compiler
-never had.
+answered differently, the next when the spec dropped a form the compiler
+never had, and the last two when the spec gave a package-scope declaration
+the terminator a statement takes.
 
 - **Statements are terminated, not separated.** The spec separated statements
   by newline and called it "the one place a newline is structural"; the
@@ -642,3 +556,21 @@ never had.
   reached is nested in the chain's `else` (`control-flow.md` §2.4 and §3.3).
   That is the compiler's rule, and the rejection in
   `tests/semantics/fixtures/typing/reject/bad/exits.zn` now cites the spec.
+
+- **A declaration inside a body was terminated like the statement it is.**
+  The spec said a package-scope declaration "is not a statement and takes no
+  terminator of its own"; the compiler agreed at package scope and applied the
+  statement rule inside a body, so moving a declaration between the two levels
+  changed how it was spelled. Spec
+  [`lexical.md`](https://github.com/zane-lang/spec/blob/482bf99d4db1fa34c48042357e0baabc75126830/spec/lexical.md)
+  §6.3 now gives package scope the statement rule: a declaration ends with a
+  `;`, unless it ends in a `}`. The compiler follows at both levels, with
+  `top_decl` taking the declaration forms of `stat`, and a declaration is
+  spelled the same wherever it stands. Five conflict states in each automaton
+  went with it ([`ambiguity/proof-obligations.md`](ambiguity/proof-obligations.md)).
+
+- **`package` and `import` were terminated.** The spec wrote them bare, and
+  the compiler required a `;` after them, because `import core$` followed by
+  `main Unit() { }` parses two ways without one. The same §6.3 terminates them
+  with every other declaration that does not end in a brace, so the
+  compiler's `;` is now the spec's rule.

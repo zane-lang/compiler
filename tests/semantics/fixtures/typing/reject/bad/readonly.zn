@@ -6,7 +6,7 @@ type Desk = #struct { pen &Pen; }
 Pen(ink Int) => init{ ink; }
 Desk(pen &Pen) => init{ pen; }
 
-Unit fill(this Pen) mut => Unit()
+Unit fill(this Pen) mut => Unit();
 
 /// A `mut` method writes what its `this` reaches, references included.
 Unit use(this Desk) mut {
@@ -19,7 +19,7 @@ Unit hold(this Desk, pen &Pen) mut {
 	return Unit();
 }
 
-&Pen pass(pen &Pen) => pen
+&Pen pass(pen &Pen) => pen;
 
 /// A reference taken from a read-only parameter stays read-only wherever it
 /// goes: into a local, into a field through a constructor, back out of a
@@ -116,7 +116,7 @@ type Caddy = #struct { count Int; pen &Pen; }
 
 Caddy(count Int, pen &Pen) => init{ count; pen; }
 
-Unit tap(this Caddy) mut => Unit()
+Unit tap(this Caddy) mut => Unit();
 
 Unit stock(count Int) {
 	own Pen(Int(4));
@@ -146,9 +146,9 @@ Unit rotate(pen &Pen) {
 /// A summary does not depend on the order verbs are declared in: `forward`
 /// is walked before `make`, and still learns that only `other` reaches the
 /// result.
-^Desk forward(pen &Pen, other &Pen) => make(pen, other)
+^Desk forward(pen &Pen, other &Pen) => make(pen, other);
 
-^Desk make(pen &Pen, other &Pen) => Desk(other)
+^Desk make(pen &Pen, other &Pen) => Desk(other);
 
 Unit order(pen &Pen) {
 	own Pen(Int(6));

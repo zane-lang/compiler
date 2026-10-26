@@ -3,13 +3,13 @@
 /// nothing reads.
 package entryStructConstant;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
-unused Int(1)
+unused Int(1);
 
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 type Bag = #struct {
 	items ListRef<Int>;

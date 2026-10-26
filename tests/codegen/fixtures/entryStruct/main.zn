@@ -2,11 +2,11 @@
 /// entry discards (docs/design/lowering.md L16).
 package entryStruct;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 type Bag = #struct {
 	items ListRef<Int>;

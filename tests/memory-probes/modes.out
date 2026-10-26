@@ -3,15 +3,15 @@ File "modes/main.zn", line 21, characters 18-24:
    |                  ^^^^^^
 Error: `engine` is a borrow: the caller lends it for the call, and a borrow is never moved, stored or returned; a parameter that takes its argument is declared `^T`
 File "modes/main.zn", line 25, characters 33-39:
-25 | ^Engine relay(engine Engine) => engine  // ILLEGAL: a borrow is never moved
+25 | ^Engine relay(engine Engine) => engine; // ILLEGAL: a borrow is never moved
    |                                 ^^^^^^
 Error: `engine` is a borrow: the caller lends it for the call, and a borrow is never moved, stored or returned; a parameter that takes its argument is declared `^T`
 File "modes/main.zn", line 27, characters 1-39:
-27 | Engine relay2(engine Engine) => engine  // ILLEGAL
+27 | Engine relay2(engine Engine) => engine; // ILLEGAL
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `relay2` returns `modes$Engine`, a reference type, bare; a borrow is never returned, so write `^modes$Engine` to hand back an owner or `&modes$Engine` to hand back a reference
 File "modes/main.zn", line 27, characters 33-39:
-27 | Engine relay2(engine Engine) => engine  // ILLEGAL
+27 | Engine relay2(engine Engine) => engine; // ILLEGAL
    |                                 ^^^^^^
 Error: `engine` is a borrow: the caller lends it for the call, and a borrow is never moved, stored or returned; a parameter that takes its argument is declared `^T`
 File "modes/main.zn", line 30, characters 5-11:
@@ -35,11 +35,11 @@ File "modes/main.zn", line 51, characters 16-22:
    |                ^^^^^^
 Error: `engine` was moved on line 50, and is spent until a store refills it
 File "modes/main.zn", line 55, characters 37-43:
-55 | &Engine fromTake(engine ^Engine) => engine  // ILLEGAL: roaming, and scoped to the body
+55 | &Engine fromTake(engine ^Engine) => engine; // ILLEGAL: roaming, and scoped to the body
    |                                     ^^^^^^
 Error: a new reference must come from a settled place, and this is a roaming owner, which may still move; settle it first by moving it into an owner declared without `^`
 File "modes/main.zn", line 55, characters 37-43:
-55 | &Engine fromTake(engine ^Engine) => engine  // ILLEGAL: roaming, and scoped to the body
+55 | &Engine fromTake(engine ^Engine) => engine; // ILLEGAL: roaming, and scoped to the body
    |                                     ^^^^^^
 Error: this stores a reference to `engine` in the caller's result, which outlives the body `engine` is scoped to
 File "modes/main.zn", line 58, characters 17-23:
@@ -51,7 +51,7 @@ File "modes/main.zn", line 69, characters 5-11:
    |     ^^^^^^
 Error: a `!` call writes its subject, and `engine` is a parameter, which is read-only
 File "modes/main.zn", line 73, characters 30-34:
-73 | &Engine self(this Engine) => this  // ILLEGAL: the subject is a borrow
+73 | &Engine self(this Engine) => this; // ILLEGAL: the subject is a borrow
    |                              ^^^^
 Error: `this` is a borrow, never a source of a reference; a verb that hands out a reference into an object takes the object as an `&T` parameter
 File "modes/main.zn", line 88, characters 11-16:

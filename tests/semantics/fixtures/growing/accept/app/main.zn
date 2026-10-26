@@ -3,10 +3,10 @@
 /// instances, and are accepted (generics.md §2.4).
 package app;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 type Tree<T Type> = variant { leaf T; fork Pair<Tree<T>>; }
 type Pair<T Type> = struct { left T; right T; }
@@ -26,4 +26,4 @@ type Holder<T Type> = struct { items Array<T, 2>; chain Chain<Array<T, 3>>; }
 type Start<T Type> = variant { stop Unit; on Finish<Array<T, 2>>; }
 type Finish<U Type> = variant { stop Unit; on Start<Int>; }
 
-Unit main() => Unit()
+Unit main() => Unit();

@@ -7,22 +7,22 @@ Kite(span Int) => init{ span; }
 /// parameter or a return type, and nowhere else (syntax.md §2.3).
 type Tether = #struct { kite ^Kite; }
 
-alias Kites = ListRef<^Kite>
+alias Kites = ListRef<^Kite>;
 
-Unit fly(span ^Int) => Unit()
+Unit fly(span ^Int) => Unit();
 
-Unit tug(this ^Kite) => Unit()
+Unit tug(this ^Kite) => Unit();
 
 /// A reference-typed result is `^T` or `&T`: a bare one would hand back a
 /// borrow (memory.md §2.9). An abort hands its value to the caller as a
 /// return does, so an abort type follows the same rule.
-Kite build() => Kite(Int(1))
-Int?Kite refuse() => Int(0)
-Unit launch(make Kite[Int]) => Unit()
+Kite build() => Kite(Int(1));
+Int?Kite refuse() => Int(0);
+Unit launch(make Kite[Int]) => Unit();
 
 /// Overloads differ by more than a passing mode (functions.md §4.1).
-Unit hold(kite Kite) => Unit()
-Unit hold(kite ^Kite) => Unit()
+Unit hold(kite Kite) => Unit();
+Unit hold(kite ^Kite) => Unit();
 
 /// A reference type cannot fill a value mould's field, and the mistake is
 /// reported where the type enters (generics.md §3.6): the explicit argument,
@@ -30,9 +30,9 @@ Unit hold(kite ^Kite) => Unit()
 /// forwards it.
 type Hamper<T Type> = struct { item T; }
 Hamper<T>(item ^T Type) => init{ item; }
-Hamper<T> pack(item ^T Type) => Hamper(item)
+Hamper<T> pack(item ^T Type) => Hamper(item);
 
-alias Kited = Hamper<Kite>
+alias Kited = Hamper<Kite>;
 
 Unit wrong() {
 	a Hamper(Kite(Int(2)));
@@ -48,9 +48,9 @@ Unit wrong() {
 /// read from.
 type Peg<T Type> = #struct { at &T; }
 Peg<T>(at &T Type) => init{ at; }
-Unit tap(at &T Type) => Unit()
+Unit tap(at &T Type) => Unit();
 
-alias Pegged = Peg<Int>
+alias Pegged = Peg<Int>;
 
 Unit pegs(kite Kite) {
 	count Int = Int(7);
@@ -64,9 +64,9 @@ Unit pegs(kite Kite) {
 
 /// A list's elements are owners, so its element type is never an `&`
 /// (generics.md §8.3); a fixed `ArrayRef` of references is fine.
-alias KiteRefs = ListRef<&Kite>
+alias KiteRefs = ListRef<&Kite>;
 
-Unit spool(row @primitives$ArrayRef<&Kite, 2>) => Unit()
+Unit spool(row @primitives$ArrayRef<&Kite, 2>) => Unit();
 
 /// An instantiation shorthand takes `^` as its long form does, so on a value
 /// type it is the same mistake (syntax.md §1.1).
