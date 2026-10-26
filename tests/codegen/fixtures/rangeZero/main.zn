@@ -8,7 +8,7 @@ alias String = @primitives$String
 @primitives$Unit main() {
 	before String.escaped("before\n");
 	after String.escaped("after\n");
-	numbers @primitives$List<Int> = @primitives$List(Int);
+	numbers @primitives$ListRef<Int> = @primitives$ListRef(Int);
 	numbers!push(Int(1));
 	@program$console!print(before);
 	missing Int = numbers[Int(0)];

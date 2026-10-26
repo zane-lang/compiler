@@ -6,7 +6,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -39,15 +39,15 @@ Unit setTo(this Engine, n Int) mut {
 	this.power = n;
 	return Unit();
 }
-Int growAndGive(this List<Engine>, n Int) mut {
+Int growAndGive(this ListRef<Engine>, n Int) mut {
 	i Int(1);
 	i!to(n) { this!push(Engine(i, String("fill"))); }
 	return Int(4242);
 }
 Unit main() {
-	engines List<Engine> = @primitives$List(Engine);
+	engines ListRef<Engine> = @primitives$ListRef(Engine);
 	engines!push(Engine(Int(1), String("e")));
-	pad List<Engine> = @primitives$List(Engine);
+	pad ListRef<Engine> = @primitives$ListRef(Engine);
 	pad!push(Engine(Int(0), String("p")));
 	engines[Int(1)]!setTo(engines!growAndGive(Int(1000)));
 	check(String("element subject whose argument grows the list"), @operators$equal(engines[Int(1)].power, Int(4242)));

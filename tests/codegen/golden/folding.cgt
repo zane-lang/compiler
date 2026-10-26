@@ -7,19 +7,19 @@
     │   ├── type: %primitives$I64
     │   └── positions:
     ├── layouts[2] > layout:
-    │   ├── type: %primitives$List<%primitives$I64>
+    │   ├── type: %primitives$ListRef<%primitives$I64>
     │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
     ├── layouts[3] > layout:
-    │   ├── type: %primitives$List<%primitives$String>
+    │   ├── type: %primitives$ListRef<%primitives$String>
     │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
     ├── layouts[4] > layout:
     │   ├── type: folding$Countdown
     │   └── positions[0]: box @8 of folding$Countdown (16 bytes) when [0]=1
     ├── layouts[5] > layout:
-    │   ├── type: ^%primitives$List<%primitives$I64>
+    │   ├── type: ^%primitives$ListRef<%primitives$I64>
     │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
     ├── layouts[6] > layout:
-    │   ├── type: ^%primitives$List<%primitives$String>
+    │   ├── type: ^%primitives$ListRef<%primitives$String>
     │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
@@ -688,7 +688,7 @@
     │       │   │   ├── type: handle
     │       │   │   ├── fn: folding$upTo(%primitives$I64)
     │       │   │   └── args[0]: 4 : i64
-    │       │   └── layout: %primitives$List<%primitives$I64>
+    │       │   └── layout: %primitives$ListRef<%primitives$I64>
     │       ├── body[31] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: folding$check(%primitives$Bool)
@@ -697,7 +697,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: folding$sum(&%primitives$List<%primitives$I64>)
+    │       │       │   ├── fn: folding$sum(&%primitives$ListRef<%primitives$I64>)
     │       │       │   └── args[0]: address of #62 : ptr
     │       │       └── right: 10 : i64
     │       ├── body[32] > eval > expand:
@@ -739,7 +739,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── fn: folding$sum(&%primitives$List<%primitives$I64>)
+    │       │       │   ├── fn: folding$sum(&%primitives$ListRef<%primitives$I64>)
     │       │       │   └── args[0]: address of #62 : ptr
     │       │       └── right: 26 : i64
     │       ├── body[37] > hold:
@@ -749,7 +749,7 @@
     │       │   │   ├── type: handle
     │       │   │   ├── fn: folding$words()
     │       │   │   └── args:
-    │       │   └── layout: %primitives$List<%primitives$String>
+    │       │   └── layout: %primitives$ListRef<%primitives$String>
     │       ├── body[38] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: folding$check(%primitives$Bool)
@@ -1263,7 +1263,7 @@
     │       │   │   ├── type: handle
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
-    │       │   └── layout: %primitives$List<%primitives$I64>
+    │       │   └── layout: %primitives$ListRef<%primitives$I64>
     │       ├── body[1] > let:
     │       │   ├── local: #4
     │       │   └── value: 1 : i64
@@ -1532,9 +1532,9 @@
     │   └── body[3] > return > escape:
     │       ├── exit: function
     │       ├── value: local #2 : handle
-    │       └── layout: ^%primitives$List<%primitives$I64>
+    │       └── layout: ^%primitives$ListRef<%primitives$I64>
     ├── funcs[13] > func:
-    │   ├── symbol: folding$sum(&%primitives$List<%primitives$I64>)
+    │   ├── symbol: folding$sum(&%primitives$ListRef<%primitives$I64>)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
     │   ├── body[0] > let:
@@ -1639,7 +1639,7 @@
     │   └── body[3] > return > escape:
     │       ├── exit: function
     │       ├── value: local #1 : handle
-    │       └── layout: ^%primitives$List<%primitives$String>
+    │       └── layout: ^%primitives$ListRef<%primitives$String>
     ├── funcs[15] > func:
     │   ├── symbol: folding$countdown(%primitives$I64)
     │   ├── params[0]: local #1 : i64

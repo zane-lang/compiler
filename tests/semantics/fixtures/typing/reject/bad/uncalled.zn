@@ -11,7 +11,7 @@ T neverCalled(value T Type) {
 
 Int neverSized(values Array<T Type, n @concepts$Int>) => @operators$add(Int(n), 2.5)
 
-type Shelf<T Type> = #struct { items List<T>; }
+type Shelf<T Type> = #struct { items ListRef<T>; }
 
 /// A generic subscript nothing indexes is checked the same way.
 (this Shelf<T Type>)[index Int] => this.shelves[index]

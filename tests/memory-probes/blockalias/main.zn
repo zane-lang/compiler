@@ -7,7 +7,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -41,7 +41,7 @@ Unit churn() {
 	j Int(1);
 	j!to(Int(200)) {
 		s Slot = Slot.full(Engine(Int(999), @operators$concat(String("junk"), String("junk"))));
-		l List<Engine> = @primitives$List(Engine);
+		l ListRef<Engine> = @primitives$ListRef(Engine);
 		l!push(Engine(Int(999), String("junk")));
 	}
 	return Unit();
@@ -68,24 +68,24 @@ Unit main() {
 		slot = Slot.empty(Unit());  // ILLEGAL (memory.md §2.9.1)
 	});
 	check(String("payload borrowed while a block argument changes the case"), @operators$equal(a, Int(42)));
-	list List<Engine> = @primitives$List(Engine);
+	list ListRef<Engine> = @primitives$ListRef(Engine);
 	list!push(Engine(Int(42), String("x")));
 	b Int = readAfter(list[Int(1)], {
-		list = @primitives$List(Engine);  // ILLEGAL (memory.md §2.9.1)
+		list = @primitives$ListRef(Engine);  // ILLEGAL (memory.md §2.9.1)
 	});
 	check(String("element borrowed while a block argument replaces the list"), @operators$equal(b, Int(42)));
-	list3 List<Engine> = @primitives$List(Engine);
+	list3 ListRef<Engine> = @primitives$ListRef(Engine);
 	list3!push(Engine(Int(42), String("x")));
 	n Int = list3[Int(1)]:readSelfAfter({
-		list3 = @primitives$List(Engine);  // ILLEGAL (memory.md §2.9.1)
+		list3 = @primitives$ListRef(Engine);  // ILLEGAL (memory.md §2.9.1)
 	});
 	check(String("element subject freed by its own block"), @operators$equal(n, Int(42)));
 
-	victims List<Engine> = @primitives$List(Engine);
-	other List<Engine> = @primitives$List(Engine);
+	victims ListRef<Engine> = @primitives$ListRef(Engine);
+	other ListRef<Engine> = @primitives$ListRef(Engine);
 	other!push(Engine(Int(1), String("y")));
 	other[Int(1)]!setAfter({
-		other = @primitives$List(Engine);  // ILLEGAL (memory.md §2.9.1)
+		other = @primitives$ListRef(Engine);  // ILLEGAL (memory.md §2.9.1)
 		victims!push(Engine(Int(100), String("victim")));
 	});
 	check(String("victim untouched by a write through the freed subject"), @operators$equal(victims[Int(1)].power, Int(100)));

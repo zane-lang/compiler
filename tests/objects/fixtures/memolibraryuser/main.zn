@@ -6,7 +6,7 @@ import memolibrary$;
 
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Unit say(text String) {
 	@program$console!print(@operators$concat(text, String.escaped("\n")));
@@ -16,7 +16,7 @@ Unit say(text String) {
 /// The size the program was started with: its first argument, or
 /// `fallback` when it has none or the first spells no integer.
 Int size(fallback Int) {
-	args List<String> = @program$runtime:arguments();
+	args @primitives$List<String> = @program$runtime:arguments();
 	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
 		return fallback;
 	});

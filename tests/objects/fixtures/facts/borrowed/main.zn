@@ -6,14 +6,14 @@ alias Int = @primitives$I64
 alias Float = @primitives$F64
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 type Field = #struct {
-	xs List<Float>;
-	ys List<Float>;
+	xs ListRef<Float>;
+	ys ListRef<Float>;
 }
 
-Field(xs ^List<Float>, ys ^List<Float>) => init{ xs; ys; }
+Field(xs ^ListRef<Float>, ys ^ListRef<Float>) => init{ xs; ys; }
 
 Float total(field &Field, depth Int) {
 	@controlflow$branch(@operators$lessThan(Int(0), depth), {
@@ -23,8 +23,8 @@ Float total(field &Field, depth Int) {
 }
 
 Unit main() {
-	xs ^List<Float> = @primitives$List(Float);
-	ys ^List<Float> = @primitives$List(Float);
+	xs ^ListRef<Float> = @primitives$ListRef(Float);
+	ys ^ListRef<Float> = @primitives$ListRef(Float);
 	xs!push(Float(1.5));
 	ys!push(Float(2.5));
 	field Field(xs, ys);

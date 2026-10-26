@@ -14,7 +14,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Unit check(ok Bool) {
 	yes String.escaped("yes\n");
@@ -62,11 +62,11 @@ Unit started(n @concepts$Int) {
 Unit starts() => started(1)
 
 type Row = #struct {
-	items List<Int>;
+	items ListRef<Int>;
 }
 
 Row() => init{
-	items = @primitives$List(Int);
+	items = @primitives$ListRef(Int);
 }
 
 (this Row)[i Int] => this.items[@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(i, Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0))]

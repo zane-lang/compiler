@@ -44,7 +44,11 @@ let types =
     (* Array's layout as a reference type, whose elements are fixed storage
        (generics.md §8.4). *)
     t ~params:[ Ty.Type_kind; Ty.Number_kind ] ~reference:true "primitives" "ArrayRef";
-    t ~params:[ Ty.Type_kind ] ~reference:true "primitives" "List";
+    (* The dynamically sized counterparts (generics.md §8.3, §8.5): `List`
+       a value type, which is copied whole, and `ListRef` a reference type,
+       whose elements are owners. Both are a handle to one block. *)
+    t ~params:[ Ty.Type_kind ] "primitives" "List";
+    t ~params:[ Ty.Type_kind ] ~reference:true "primitives" "ListRef";
     t ~reference:true "runtime" "Console";
     t ~reference:true "runtime" "Runtime";
   ]
@@ -180,6 +184,7 @@ let constructors =
   let element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
   let list_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+  let list_ref_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let fixed name e n = prim name ~args:[ Ty.Type (Ty.Param e); Ty.Number (Ty.Number_param n) ] in
   let elements e n = Ty.Concept (Ty.Array_lit (Ty.Param e, Ty.Number_param n)) in
   let ref_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
@@ -241,6 +246,9 @@ let constructors =
       ctor ~generics:[ list_element ] "List"
         [ param ~binds:list_element "T" (Ty.Concept Ty.Type_value) ]
         (prim "List" ~args:[ Ty.Type (Ty.Param list_element) ]);
+      ctor ~generics:[ list_ref_element ] "ListRef"
+        [ param ~binds:list_ref_element "T" (Ty.Concept Ty.Type_value) ]
+        (prim "ListRef" ~args:[ Ty.Type (Ty.Param list_ref_element) ]);
     ]
 
 let subscripts =
@@ -249,6 +257,7 @@ let subscripts =
   let ref_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let ref_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
   let list_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+  let list_ref_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let subscript generics subject element =
     verb ~generics ~namespace:"primitives" ~kind:S.Subscript ~name:"[]"
       ~spelling:"@primitives$[]"
@@ -266,13 +275,14 @@ let subscripts =
     subscript [ list_element ]
       (prim "List" ~args:[ Ty.Type (Ty.Param list_element) ])
       (Ty.Param list_element);
+    subscript [ list_ref_element ]
+      (prim "ListRef" ~args:[ Ty.Type (Ty.Param list_ref_element) ])
+      (Ty.Param list_ref_element);
   ]
 
 (* Methods, keyed by name. A runtime type's methods are stated over storage
    primitives (effects.md §6.6). *)
 let methods =
-  let list_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
-  let list = prim "List" ~args:[ Ty.Type (Ty.Param list_element) ] in
   let meth ?(generics = []) ?abort ?(is_mut = false) namespace name params ret =
     ( name,
       verb ~generics ?abort ~is_mut ~namespace ~kind:S.Method ~name
@@ -289,7 +299,7 @@ let methods =
     (* The program's arguments, a read of the runtime (effects.md §6.6). *)
     meth "runtime" "arguments"
       [ param "this" (runtime "Runtime") ]
-      (Ty.Roaming (prim "List" ~args:[ Ty.Type (prim "String") ]));
+      (prim "List" ~args:[ Ty.Type (prim "String") ]);
     (* A number read from a string's text (types.md §2.10). *)
     meth ~abort:(Some (prim "Unit")) "primitives" "parseI64"
       [ param "this" (prim "String") ]
@@ -297,20 +307,29 @@ let methods =
     meth ~abort:(Some (prim "Unit")) "primitives" "parseF64"
       [ param "this" (prim "String") ]
       (prim "F64");
-    meth ~generics:[ list_element ] ~is_mut:true "primitives" "push"
-      [ param "this" list; param "value" (Ty.Roaming (Ty.Param list_element)) ]
-      (prim "Unit");
-    meth ~generics:[ list_element ] "primitives" "size" [ param "this" list ] (prim "I64");
-    (* The element at an index moves out and the list closes over its place
-       (lifetimes.md §2.1): `remove` shifts the later elements down, keeping
-       their order, and `swapRemove` moves the last element into it. *)
-    meth ~generics:[ list_element ] ~is_mut:true "primitives" "remove"
-      [ param "this" list; param "index" (prim "I64") ]
-      (Ty.Roaming (Ty.Param list_element));
-    meth ~generics:[ list_element ] ~is_mut:true "primitives" "swapRemove"
-      [ param "this" list; param "index" (prim "I64") ]
-      (Ty.Roaming (Ty.Param list_element));
   ]
+  (* A list's own methods, the same on `List` and `ListRef`, one overload
+     per subject. *)
+  @ List.concat_map
+      (fun name ->
+        let list_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+        let list = prim name ~args:[ Ty.Type (Ty.Param list_element) ] in
+        [
+          meth ~generics:[ list_element ] ~is_mut:true "primitives" "push"
+            [ param "this" list; param "value" (Ty.Roaming (Ty.Param list_element)) ]
+            (prim "Unit");
+          meth ~generics:[ list_element ] "primitives" "size" [ param "this" list ] (prim "I64");
+          (* The element at an index moves out and the list closes over its place
+             (lifetimes.md §2.1): `remove` shifts the later elements down, keeping
+             their order, and `swapRemove` moves the last element into it. *)
+          meth ~generics:[ list_element ] ~is_mut:true "primitives" "remove"
+            [ param "this" list; param "index" (prim "I64") ]
+            (Ty.Roaming (Ty.Param list_element));
+          meth ~generics:[ list_element ] ~is_mut:true "primitives" "swapRemove"
+            [ param "this" list; param "index" (prim "I64") ]
+            (Ty.Roaming (Ty.Param list_element));
+        ])
+      [ "List"; "ListRef" ]
 
 (* `@math$` (math.md §2): the math functions on scalar primitives, one
    overload per scalar each takes, every operand of that one type. The

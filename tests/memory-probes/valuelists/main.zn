@@ -6,7 +6,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -43,7 +43,7 @@ Int depth(c Count) => match (c) {
 }
 
 Unit main() {
-	pairs List<Pair> = @primitives$List(Pair);
+	pairs ListRef<Pair> = @primitives$ListRef(Pair);
 	pairs!push(Pair(String("a1"), String("b1")));
 	pairs!push(Pair(String("a2"), String("b2")));
 	out Pair = pairs[Int(1)];
@@ -57,7 +57,7 @@ Unit main() {
 	pairs[Int(2)] = Pair(pairs[Int(2)].b, pairs[Int(2)].a);
 	check(String("element overwritten from its own fields"), @operators$conjoin(@operators$equal(pairs[Int(2)].a, String("changed")), @operators$equal(pairs[Int(2)].b, String("a2"))));
 
-	counts List<Count> = @primitives$List(Count);
+	counts ListRef<Count> = @primitives$ListRef(Count);
 	counts!push(Count.more(Count.more(Count.done(String("x")))));
 	counts!push(counts[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
 	counts[Int(2)] = Count.more(counts[Int(2)]);

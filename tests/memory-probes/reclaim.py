@@ -43,11 +43,12 @@ cases={
 "inner_owner": ("", "e Engine = make(i);"),
 "roaming_refill": ("keep Car(make(Int(0)));", "r ^Engine = make(i); keep = Car(r); r = make(i); keep = Car(r);"),
 "aborted_owner": ("", "x ^Engine = risky(i) ? e { resolve e; }"),
-"control_push_grows": ("l List<Car> = @primitives$List(Car);", "l!push(Car(make(i)));"),
+"control_push_grows": ("l ListRef<Car> = @primitives$ListRef(Car);", "l!push(Car(make(i)));"),
 "deep_copy": ("c Count = Count.more(Count.more(Count.more(Count.done(Int(1))))); d Count = c;", "d = c;"),
-"list_elem_overwrite": ("l List<Car> = @primitives$List(Car); l!push(Car(make(Int(0))));", "l[Int(1)] = Car(make(i));"),
+"list_elem_overwrite": ("l ListRef<Car> = @primitives$ListRef(Car); l!push(Car(make(Int(0))));", "l[Int(1)] = Car(make(i));"),
 "string_concat_reset": ("s String(\"\"); k Int(0);", "s = @operators$concat(s, String(\"a\")); k = @operators$add(k, Int(1)); if(@operators$equal(k, Int(64))) { s = String(\"\"); k = Int(0); }"),
-"value_list_rebuild": ("l List<Int> = @primitives$List(Int);", "l = @primitives$List(Int); l!push(i); l!push(i);"),
+"value_list_rebuild": ("l ListRef<Int> = @primitives$ListRef(Int);", "l = @primitives$ListRef(Int); l!push(i); l!push(i);"),
+"list_copy": ("l @primitives$List<String> = @primitives$List(String); l!push(String(\"abc\")); m @primitives$List<String> = l;", "m = l; m!push(String(\"d\"));"),
 }
 args=sys.argv[1:]
 check=bool(args) and args[0]=="--check"

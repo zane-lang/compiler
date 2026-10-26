@@ -9,7 +9,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -86,8 +86,8 @@ Unit main() {
 	});
 
 	// A value carrying a reference, pushed by a lambda into an outer list.
-	plugs List<Plug> = @primitives$List(Plug);
-	keep Unit(this List<Plug>, p ^Plug) mut {
+	plugs ListRef<Plug> = @primitives$ListRef(Plug);
+	keep Unit(this ListRef<Plug>, p ^Plug) mut {
 		this!push(p);
 		return Unit();
 	}

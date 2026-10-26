@@ -8,7 +8,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -49,18 +49,18 @@ Int keepAndRead(c Cup, d ^Cup) {
 
 /// Pushes until the list's block moves, reuses the blocks it gave back, then
 /// reads the borrowed element.
-Int growThenRead(this List<Engine>, e Engine) mut {
+Int growThenRead(this ListRef<Engine>, e Engine) mut {
 	i Int(1);
 	i!to(Int(1000)) {
 		this!push(Engine(i, String("filler")));
 	}
 	j Int(1);
 	j!to(Int(1000)) {
-		other List<Engine> = @primitives$List(Engine);
+		other ListRef<Engine> = @primitives$ListRef(Engine);
 		other!push(Engine(Int(999), String("reuse")));
 		other!push(Engine(Int(999), String("reuse")));
 	}
-	reuse List<Engine> = @primitives$List(Engine);
+	reuse ListRef<Engine> = @primitives$ListRef(Engine);
 	reuse!push(Engine(Int(999), String("reuse")));
 	reuse!push(Engine(Int(999), String("reuse")));
 	return e.power;
@@ -89,7 +89,7 @@ type Slot = #variant { full Engine; empty Unit; }
 Unit churn() {
 	j Int(1);
 	j!to(Int(200)) {
-		l List<Engine> = @primitives$List(Engine);
+		l ListRef<Engine> = @primitives$ListRef(Engine);
 		l!push(Engine(Int(999), @operators$concat(String("junk"), String("junk"))));
 		s Slot = Slot.full(Engine(Int(999), @operators$concat(String("junk"), String("junk"))));
 	}
@@ -103,17 +103,17 @@ Int clearThenRead(this Slot, e Engine) mut {
 	return e.power;
 }
 
-Int replaceThenRead(this List<Engine>, e Engine) mut {
-	this = @primitives$List(Engine);
+Int replaceThenRead(this ListRef<Engine>, e Engine) mut {
+	this = @primitives$ListRef(Engine);
 	this!push(Engine(Int(999), @operators$concat(String("junk"), String("junk"))));
 	churn();
 	return e.power;
 }
 
-type Garage = #struct { items List<Engine>; }
-Garage() => init{ items = @primitives$List(Engine); }
+type Garage = #struct { items ListRef<Engine>; }
+Garage() => init{ items = @primitives$ListRef(Engine); }
 Int resetThenRead(this Garage, e Engine) mut {
-	this.items = @primitives$List(Engine);
+	this.items = @primitives$ListRef(Engine);
 	this.items!push(Engine(Int(999), @operators$concat(String("junk"), String("junk"))));
 	churn();
 	return e.power;
@@ -124,11 +124,11 @@ Unit main() {
 	// ILLEGAL (reported): the take ends the owner the borrow still lends.
 	// n Int = keepAndRead(cup, cup);
 
-	list List<Engine> = @primitives$List(Engine);
+	list ListRef<Engine> = @primitives$ListRef(Engine);
 	list!push(Engine(Int(42), String("first")));
 	// Something allocated after the list's block, so that growing it cannot
 	// extend it in place at the frontier.
-	pad List<Engine> = @primitives$List(Engine);
+	pad ListRef<Engine> = @primitives$ListRef(Engine);
 	pad!push(Engine(Int(0), String("pad")));
 	m Int = list!growThenRead(list[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
 	check(String("element borrowed while its list grows"), @operators$equal(m, Int(42)));
@@ -148,7 +148,7 @@ Unit main() {
 	a Int = slot!clearThenRead(slot.full ?? Engine(Int(0), String("none")));  // ILLEGAL (memory.md §2.9.1)
 	check(String("payload borrowed while its variant changes case"), @operators$equal(a, Int(42)));
 
-	list2 List<Engine> = @primitives$List(Engine);
+	list2 ListRef<Engine> = @primitives$ListRef(Engine);
 	list2!push(Engine(Int(42), @operators$concat(String("orig"), String("inal"))));
 	b Int = list2!replaceThenRead(list2[Int(1)]);  // ILLEGAL (memory.md §2.9.1)
 	check(String("element borrowed while its list is replaced"), @operators$equal(b, Int(42)));

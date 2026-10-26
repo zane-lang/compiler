@@ -7,7 +7,7 @@
     │   ├── type: %primitives$I64
     │   └── positions:
     ├── layouts[2] > layout:
-    │   ├── type: %primitives$List<%primitives$I64>
+    │   ├── type: %primitives$ListRef<%primitives$I64>
     │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
@@ -47,7 +47,7 @@
             │   │           ├── type: handle
             │   │           ├── fn: zane_list_new
             │   │           └── args:
-            │   └── layout: %primitives$List<%primitives$I64>
+            │   └── layout: %primitives$ListRef<%primitives$I64>
             ├── body[1] > eval > expand:
             │   ├── type: void
             │   ├── label: @5

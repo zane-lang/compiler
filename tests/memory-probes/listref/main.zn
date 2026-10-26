@@ -9,7 +9,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
 	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
@@ -26,13 +26,13 @@ Unit check(label String, ok Bool) {
 	return Unit();
 }
 
-type Bag = #struct { items List<Int>; tag Int; }
-Bag(tag Int) => init{ items = @primitives$List(Int); tag; }
+type Bag = #struct { items ListRef<Int>; tag Int; }
+Bag(tag Int) => init{ items = @primitives$ListRef(Int); tag; }
 
 Unit main() {
-	numbers List<Int> = @primitives$List(Int);
+	numbers ListRef<Int> = @primitives$ListRef(Int);
 	numbers!push(Int(7));
-	r &List<Int> = numbers;
+	r &ListRef<Int> = numbers;
 	i Int(1);
 	i!to(Int(300000)) { numbers!push(i); }
 	check(String("ref to settled list sees growth past 1 MiB"), @operators$equal(r:size(), Int(300001)));
@@ -43,7 +43,7 @@ Unit main() {
 	check(String("push through ref seen by owner"), @operators$equal(numbers[Int(300002)], Int(42)));
 
 	bag Bag(Int(1));
-	f &List<Int> = bag.items;
+	f &ListRef<Int> = bag.items;
 	j Int(1);
 	j!to(Int(200000)) { f!push(j); }
 	check(String("field-list ref grown through ref"), @operators$equal(bag.items:size(), Int(200000)));

@@ -14,7 +14,7 @@ alias Float = @primitives$F64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
 	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
@@ -38,7 +38,7 @@ Unit check(ok Bool) {
 
 /// Eight floats, 64 bytes, in the scope's own first block.
 Float floats(x Float) {
-	buf ^List<Float> = @primitives$List(Float);
+	buf ^ListRef<Float> = @primitives$ListRef(Float);
 	buf!push(@operators$add(x, Float(0.0)));
 	buf!push(@operators$add(x, Float(1.0)));
 	buf!push(@operators$add(x, Float(2.0)));
@@ -57,7 +57,7 @@ Float floats(x Float) {
 
 /// Six strings, 144 bytes, past a first block.
 String words(n Int) {
-	ws ^List<String> = @primitives$List(String);
+	ws ^ListRef<String> = @primitives$ListRef(String);
 	ws!push(String(n));
 	ws!push(String("b"));
 	ws!push(String(@operators$add(n, Int(1))));
@@ -75,7 +75,7 @@ String words(n Int) {
 /// Twenty integers, then a hundred more in a loop, which grow the list past
 /// the room its run made.
 Int integers(n Int) {
-	xs ^List<Int> = @primitives$List(Int);
+	xs ^ListRef<Int> = @primitives$ListRef(Int);
 	xs!push(@operators$add(n, Int(0)));
 	xs!push(@operators$add(n, Int(1)));
 	xs!push(@operators$add(n, Int(2)));
@@ -111,7 +111,7 @@ Int integers(n Int) {
 /// Two pushes, a read of the count, and two more: the read ends the run,
 /// and the two after it are checked as any push is.
 Int broken(n Int) {
-	xs ^List<Int> = @primitives$List(Int);
+	xs ^ListRef<Int> = @primitives$ListRef(Int);
 	xs!push(@operators$add(n, Int(0)));
 	xs!push(@operators$add(n, Int(0)));
 	half Int = xs:size();
@@ -125,7 +125,7 @@ Int rounds(n Int) {
 	total Int(0);
 	k Int(1);
 	k!to(n) {
-		xs ^List<Int> = @primitives$List(Int);
+		xs ^ListRef<Int> = @primitives$ListRef(Int);
 		xs!push(@operators$add(k, Int(0)));
 		xs!push(@operators$add(k, Int(0)));
 		xs!push(@operators$add(k, Int(0)));
@@ -135,7 +135,7 @@ Int rounds(n Int) {
 }
 
 Unit main() {
-	args List<String> = @program$runtime:arguments();
+	args @primitives$List<String> = @program$runtime:arguments();
 	n Int = args[Int(1)]:parseI64() ?? Int(0);
 	x Float = @primitives$F64.round(n);
 	check(@operators$equal(floats(x), Float(52.0)));

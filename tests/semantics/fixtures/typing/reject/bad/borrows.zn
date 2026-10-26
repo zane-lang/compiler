@@ -16,20 +16,20 @@ Unit setFrom(this Tally, other Tally) mut {
 	return Unit();
 }
 
-Unit stack(this List<Cargo>, cargo Cargo) mut => Unit()
+Unit stack(this ListRef<Cargo>, cargo Cargo) mut => Unit()
 Unit empty(this Lot) mut => Unit()
 Int lift(this Cargo) mut => this.weight
 Int weigh(cargo Cargo, body @concepts$Block) => cargo.weight
 Int compare(cargo Cargo, other Int) => cargo.weight
-Int grown(this List<Cargo>) mut => Int(1)
+Int grown(this ListRef<Cargo>) mut => Int(1)
 
 Unit borrows() {
-	own List<Cargo> = @primitives$List(Cargo);
+	own ListRef<Cargo> = @primitives$ListRef(Cargo);
 	t Tally(Int(1));
 	t!setFrom(t);
 	own!stack(own[Int(1)]);
 	weigh(own[Int(1)], {
-		own = @primitives$List(Cargo);
+		own = @primitives$ListRef(Cargo);
 	});
 	compare(own[Int(1)], own!grown());
 	mine Lot = Lot.none(Int(0));
@@ -48,7 +48,7 @@ Unit borrows() {
 	if(dirty) {
 		dirty = false;
 	}
-	tallies List<Tally> = @primitives$List(Tally);
+	tallies ListRef<Tally> = @primitives$ListRef(Tally);
 	front Tally = tallies[Int(1)];
 	tallies!push(front);
 	was Bool = dirty;
@@ -62,17 +62,17 @@ Unit borrows() {
 /// can: the binding runs before the loop body's next run, and inside a
 /// block argument before the block's later statements.
 Unit rebinds() {
-	heap List<Int> = @primitives$List(Int);
-	other List<Int> = @primitives$List(Int);
-	a &List<Int> = other;
-	b &List<Int> = heap;
+	heap ListRef<Int> = @primitives$ListRef(Int);
+	other ListRef<Int> = @primitives$ListRef(Int);
+	a &ListRef<Int> = other;
+	b &ListRef<Int> = heap;
 	@controlflow$repeat(Int(2), {
 		a!push(b[Int(1)]);
 		b = other;
 	});
-	own List<Cargo> = @primitives$List(Cargo);
-	spare List<Cargo> = @primitives$List(Cargo);
-	r &List<Cargo> = spare;
+	own ListRef<Cargo> = @primitives$ListRef(Cargo);
+	spare ListRef<Cargo> = @primitives$ListRef(Cargo);
+	r &ListRef<Cargo> = spare;
 	weigh(own[Int(1)], {
 		r = own;
 		r!stack(Cargo(Int(1)));
@@ -82,8 +82,8 @@ Unit rebinds() {
 
 /// What locates an assignment's destination runs as part of the block too.
 Unit locates() {
-	own List<Cargo> = @primitives$List(Cargo);
-	counts List<Int> = @primitives$List(Int);
+	own ListRef<Cargo> = @primitives$ListRef(Cargo);
+	counts ListRef<Int> = @primitives$ListRef(Int);
 	weigh(own[Int(1)], {
 		counts[own!grown()] = Int(1);
 	});
@@ -92,7 +92,7 @@ Unit locates() {
 
 /// A lambda at package scope is checked like a verb body.
 stacks Unit() {
-	own List<Cargo> = @primitives$List(Cargo);
+	own ListRef<Cargo> = @primitives$ListRef(Cargo);
 	own!stack(own[Int(1)]);
 	return Unit();
 }
@@ -101,12 +101,12 @@ stacks Unit() {
 /// parameter while the body runs; each call keeps its arguments apart in
 /// turn, and a caller that passes its own `&T` parameter along keeps it
 /// apart for its own callers.
-Unit append(this List<Int>, from &List<Int>) mut {
+Unit append(this ListRef<Int>, from &ListRef<Int>) mut {
 	this!push(from[Int(1)]);
 	return Unit();
 }
 
-Unit relay(this List<Int>, via &List<Int>) mut {
+Unit relay(this ListRef<Int>, via &ListRef<Int>) mut {
 	this!append(via);
 	return Unit();
 }
@@ -116,18 +116,18 @@ Int readAfter(n Int, body @concepts$Block) {
 	return n;
 }
 
-Int glance(from &List<Int>, body @concepts$Block) => readAfter(from[Int(1)], body)
+Int glance(from &ListRef<Int>, body @concepts$Block) => readAfter(from[Int(1)], body)
 
 Unit apart() {
-	ints List<Int> = @primitives$List(Int);
-	more List<Int> = @primitives$List(Int);
+	ints ListRef<Int> = @primitives$ListRef(Int);
+	more ListRef<Int> = @primitives$ListRef(Int);
 	ints!append(more);
 	ints!append(ints);
 	ints!relay(more);
 	ints!relay(ints);
-	r &List<Int> = more;
+	r &ListRef<Int> = more;
 	ints!append(r);
-	s &List<Int> = more;
+	s &ListRef<Int> = more;
 	s = ints;
 	ints!append(s);
 	a Int = glance(more, { ints!push(Int(1)); });
@@ -137,9 +137,9 @@ Unit apart() {
 
 /// Two `&` fields may name one object, and a `!` call writes what its
 /// subject reaches through its `&` fields too.
-type Twin = #struct { left &List<Int>; right &List<Int>; count Int; }
+type Twin = #struct { left &ListRef<Int>; right &ListRef<Int>; count Int; }
 
-Twin(left &List<Int>, right &List<Int>, count Int) => init{ left; right; count; }
+Twin(left &ListRef<Int>, right &ListRef<Int>, count Int) => init{ left; right; count; }
 
 Unit grow(this Twin) mut {
 	this.left!push(this.right[Int(1)]);
@@ -152,7 +152,7 @@ Unit fill(this Twin, n Int) mut {
 }
 
 Unit twins() {
-	ints List<Int> = @primitives$List(Int);
+	ints ListRef<Int> = @primitives$ListRef(Int);
 	t Twin(ints, ints, Int(0));
 	n Int = Int(3);
 	t!fill(n);
@@ -164,14 +164,14 @@ Unit twins() {
 /// arguments a summary counts.
 type Meter<T Type> = #struct { n Int; }
 
-Meter<T>(T Type, from &List<Int>, body @concepts$Block) {
+Meter<T>(T Type, from &ListRef<Int>, body @concepts$Block) {
 	got Int = readAfter(from[Int(1)], body);
 	return init{ n = got; }
 }
 
 Unit meters() {
-	ints List<Int> = @primitives$List(Int);
-	more List<Int> = @primitives$List(Int);
+	ints ListRef<Int> = @primitives$ListRef(Int);
+	more ListRef<Int> = @primitives$ListRef(Int);
 	a Meter<Int> = Meter(Int, more, { ints!push(Int(1)); });
 	b Meter<Int> = Meter(Int, ints, { ints!push(Int(1)); });
 	return Unit();
@@ -194,9 +194,9 @@ Unit repoint() {
 
 /// A `!` call writes what its subject reaches through a reference element
 /// as much as through an `&` field.
-type Holdall = #struct { lists @primitives$ArrayRef<&List<Int>, 1>; }
+type Holdall = #struct { lists @primitives$ArrayRef<&ListRef<Int>, 1>; }
 
-Holdall(lists ^@primitives$ArrayRef<&List<Int>, 1>) => init{ lists; }
+Holdall(lists ^@primitives$ArrayRef<&ListRef<Int>, 1>) => init{ lists; }
 
 Unit store(this Holdall, n Int) mut {
 	this.lists[Int(1)]!push(n);
@@ -204,9 +204,9 @@ Unit store(this Holdall, n Int) mut {
 }
 
 Unit holdalls() {
-	ints List<Int> = @primitives$List(Int);
+	ints ListRef<Int> = @primitives$ListRef(Int);
 	ints!push(Int(1));
-	list &List<Int> = ints;
+	list &ListRef<Int> = ints;
 	holdall Holdall(@primitives$ArrayRef([list]));
 	k Int = Int(2);
 	holdall!store(k);
@@ -217,20 +217,20 @@ Unit holdalls() {
 /// A field constructor is a call like any other: its entries run in written
 /// order, and an owner moved into a `^` field is written.
 type Coffer = struct { first Int; second Int; }
-type Bale = #struct { cargos List<Cargo>; }
+type Bale = #struct { cargos ListRef<Cargo>; }
 
 Coffer{ first Int; second Int; } => init{ first; second; }
-Bale{ cargos ^List<Cargo>; } => init{ cargos; }
-Bale(cargos ^List<Cargo>) => init{ cargos; }
-Int swell(this List<Int>) mut => Int(1)
+Bale{ cargos ^ListRef<Cargo>; } => init{ cargos; }
+Bale(cargos ^ListRef<Cargo>) => init{ cargos; }
+Int swell(this ListRef<Int>) mut => Int(1)
 Int weighBale(cargo Cargo, bale Bale) => cargo.weight
 
 Unit coffers() {
-	ints List<Int> = @primitives$List(Int);
+	ints ListRef<Int> = @primitives$ListRef(Int);
 	c Coffer{ first = ints[Int(1)]; second = ints!swell(); }
-	spare ^List<Cargo> = @primitives$List(Cargo);
+	spare ^ListRef<Cargo> = @primitives$ListRef(Cargo);
 	n Int = weighBale(spare[Int(1)], Bale{ cargos = spare; });
-	other ^List<Cargo> = @primitives$List(Cargo);
+	other ^ListRef<Cargo> = @primitives$ListRef(Cargo);
 	m Int = weighBale(other[Int(1)], Bale(other));
 	return Unit();
 }

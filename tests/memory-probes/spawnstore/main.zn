@@ -6,7 +6,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -53,7 +53,7 @@ Unit main() {
 	far Port(Int(1));
 	r &Port = far;
 	plug Plug(far);
-	plugs List<Plug> = @primitives$List(Plug);
+	plugs ListRef<Plug> = @primitives$ListRef(Plug);
 	inner({
 		near Port(Int(2));
 		r = spawn pass(near);           // ILLEGAL: the result names near

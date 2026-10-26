@@ -58,7 +58,7 @@ let members env (t : Ty.t) =
           | Some (Env.Distinct u) -> [ sub u ]
           | _ -> [])
       | _ -> [])
-  | Ty.Intrinsic { name = "List"; args = [ Ty.Type e ]; _ } -> [ e ]
+  | Ty.Intrinsic { name = "List" | "ListRef"; args = [ Ty.Type e ]; _ } -> [ e ]
   | Ty.Intrinsic { name = "ArrayRef"; args = Ty.Type e :: _; _ } -> [ e ]
   | _ -> []
 

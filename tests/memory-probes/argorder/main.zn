@@ -6,7 +6,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -40,7 +40,7 @@ Int clearAndGive(this Slot) mut {
 	this = Slot.empty(Unit());
 	return Int(0);
 }
-Int growAndGive(this List<Engine>, n Int) mut {
+Int growAndGive(this ListRef<Engine>, n Int) mut {
 	i Int(1);
 	i!to(n) { this!push(Engine(i, String("fill"))); }
 	return Int(0);
@@ -49,7 +49,7 @@ Unit churn() {
 	j Int(1);
 	j!to(Int(200)) {
 		s Slot = Slot.full(Engine(Int(999), @operators$concat(String("junk"), String("junk"))));
-		l List<Engine> = @primitives$List(Engine);
+		l ListRef<Engine> = @primitives$ListRef(Engine);
 		l!push(Engine(Int(999), String("junk")));
 	}
 	return Unit();
@@ -62,9 +62,9 @@ Unit main() {
 	slot Slot = Slot.full(Engine(Int(42), @operators$concat(String("orig"), String("inal"))));
 	a Int = readLater(slot.full ?? Engine(Int(0), String("none")), slot!clearAndGive());  // ILLEGAL (memory.md §2.9.1)
 	check(String("borrowed payload freed by a later argument"), @operators$equal(a, Int(42)));
-	list List<Engine> = @primitives$List(Engine);
+	list ListRef<Engine> = @primitives$ListRef(Engine);
 	list!push(Engine(Int(42), String("x")));
-	pad List<Engine> = @primitives$List(Engine);
+	pad ListRef<Engine> = @primitives$ListRef(Engine);
 	pad!push(Engine(Int(0), String("p")));
 	b Int = readLater(list[Int(1)], list!growAndGive(Int(1000)));  // ILLEGAL (memory.md §2.9.1)
 	check(String("borrowed element moved by a later argument"), @operators$equal(b, Int(42)));

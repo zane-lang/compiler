@@ -11,7 +11,7 @@ alias Float = @primitives$F64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -60,7 +60,7 @@ Unit main() {
 	check(@operators$equal(String("0.5"):parseF64() ?? Float(0.0), Float(0.5)));
 
 	// Every argument, in order, without the program's own name.
-	args List<String> = @program$runtime:arguments();
+	args @primitives$List<String> = @program$runtime:arguments();
 	check(@operators$equal(args:size(), Int(10)));
 	k Int(1);
 	k!to(args:size()) {

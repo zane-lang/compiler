@@ -8,7 +8,7 @@ alias Float = @primitives$F64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -23,7 +23,7 @@ Unit to(this Int, end Int, body @concepts$Block) mut {
 /// The size the program was started with: its first argument, or
 /// `fallback` when it has none or the first spells no integer.
 Int size(fallback Int) {
-	args List<String> = @program$runtime:arguments();
+	args @primitives$List<String> = @program$runtime:arguments();
 	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
 		return fallback;
 	});
@@ -50,7 +50,7 @@ Unit main() {
 	total Int(0);
 	round Int(1);
 	round!to(Int(20)) {
-		list List<Entity> = @primitives$List(Entity);
+		list ListRef<Entity> = @primitives$ListRef(Entity);
 		i Int(1);
 		i!to(n) {
 			list!push(Entity(i, @operators$multiply(Float(0.5), @primitives$F64.round(i)), @operators$multiply(Float(0.25), @primitives$F64.round(i)), @operators$divide(i, Int(3))));

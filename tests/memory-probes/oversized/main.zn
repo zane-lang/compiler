@@ -6,7 +6,7 @@ alias Int = @primitives$I64
 alias Bool = @primitives$Bool
 alias Unit = @primitives$Unit
 alias String = @primitives$String
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -39,8 +39,8 @@ Unit inner(body Block) {
 	return Unit();
 }
 
-type Bag = #struct { items List<Int>; }
-Bag() => init{ items = @primitives$List(Int); }
+type Bag = #struct { items ListRef<Int>; }
+Bag() => init{ items = @primitives$ListRef(Int); }
 
 ^Bag filled(n Int) {
 	bag ^Bag = Bag();
@@ -78,7 +78,7 @@ Unit main() {
 	check(String("copy independent of the source"), @operators$not(@operators$equal(copy, big)));
 
 	// A list of strings growing: each element's block stays its own.
-	words List<String> = @primitives$List(String);
+	words ListRef<String> = @primitives$ListRef(String);
 	j Int(1);
 	j!to(Int(100000)) {
 		words!push(@operators$concat(String("w"), String("ord")));

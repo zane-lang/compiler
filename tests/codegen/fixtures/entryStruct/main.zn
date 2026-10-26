@@ -6,19 +6,19 @@ alias Int = @primitives$I64
 alias Unit = @primitives$Unit
 alias String = @primitives$String
 
-alias List<T Type> = @primitives$List<T>
+alias ListRef<T Type> = @primitives$ListRef<T>
 
 type Bag = #struct {
-	items List<Int>;
+	items ListRef<Int>;
 	name String;
 }
 
-Bag(items ^List<Int>, name String) => init{ items; name; }
+Bag(items ^ListRef<Int>, name String) => init{ items; name; }
 
 ^Bag main() {
 	done String.escaped("main returns a struct\n");
 	@program$console!print(done);
-	items ^List<Int> = @primitives$List(Int);
+	items ^ListRef<Int> = @primitives$ListRef(Int);
 	items!push(Int(1));
 	items!push(Int(2));
 	return Bag(items, @operators$concat(String("a "), String("bag")));

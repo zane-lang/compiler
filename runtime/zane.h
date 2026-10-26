@@ -8,11 +8,12 @@
 
 #include <stdint.h>
 
-/* `@primitives$String`, a value type, and `@primitives$List<T>`, a
-   reference type: each a handle to its bytes or elements. A string has no
-   terminator, and its length is in bytes; a list's is in elements. `room`
-   is the size of the block the handle owns, or 0 when it owns none: a
-   literal's bytes are the program's own and are never returned. */
+/* `@primitives$String`, a value type, and `@primitives$List<T>` and
+   `@primitives$ListRef<T>`, a value and a reference type: each a handle to
+   its bytes or elements. A string has no terminator, and its length is in
+   bytes; a list's is in elements. `room` is the size of the block the
+   handle owns, or 0 when it owns none: a literal's bytes are the program's
+   own and are never returned. */
 typedef struct {
 	const char *bytes;
 	int64_t length, room;
