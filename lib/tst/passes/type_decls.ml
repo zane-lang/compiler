@@ -309,6 +309,13 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
           bad = e;
           slot = Value_slot;
         }
+  | Ty.Intrinsic
+      { namespace = "primitives"; name = "Array" | "ArrayRef" | "List" | "ListRef"; args = Ty.Type e :: _ }
+    ->
+      Option.map
+        (fun found ->
+          { found with path = Printf.sprintf "the elements of %s" (quote (Ty.to_string t)) :: found.path })
+        (wrong_kind env ~seen (Ty.strip_mode e))
   | _ -> None
 
 let describe_wrong_kind { path; bad; slot } =

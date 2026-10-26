@@ -39,6 +39,9 @@ type Gen<T Type> = struct { item T; }
 Gen<T>(item T Type) => init{ item; }
 type UseGen = #struct { g Gen<Engine>; }                     // ILLEGAL
 type UseGenInt = #struct { g Gen<Int>; }                     // legal
+type Rows<T Type> = struct { items List<List<T>>; }
+type UseRows = #struct { r Rows<Engine>; }                   // ILLEGAL: nested element reached
+type UseRowsInt = #struct { r Rows<Int>; }                   // legal
 
 Unit main() {
 	g Gen<Engine> = Gen(Engine(Int(1)));                     // ILLEGAL

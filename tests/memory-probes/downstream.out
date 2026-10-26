@@ -74,12 +74,16 @@ File "downstream/main.zn", line 40, characters 31-37:
 40 | type UseGen = #struct { g Gen<Engine>; }                     // ILLEGAL
    |                               ^^^^^^
 Error: `downstream$Engine` is a reference type, and it reaches `downstream$Gen<downstream$Engine>`'s field `item`, a value type's slot; a value type holds only values, all the way down
-File "downstream/main.zn", line 44, characters 11-17:
-44 |     g Gen<Engine> = Gen(Engine(Int(1)));                     // ILLEGAL
+File "downstream/main.zn", line 43, characters 33-39:
+43 | type UseRows = #struct { r Rows<Engine>; }                   // ILLEGAL: nested element reached
+   |                                 ^^^^^^
+Error: `downstream$Engine` is a reference type, and it reaches `downstream$Rows<downstream$Engine>`'s field `items`, then the elements of `@primitives$List<@primitives$List<downstream$Engine>>`, then the elements of `@primitives$List<downstream$Engine>`, a value type's slot; a value type holds only values, all the way down
+File "downstream/main.zn", line 47, characters 11-17:
+47 |     g Gen<Engine> = Gen(Engine(Int(1)));                     // ILLEGAL
    |           ^^^^^^
 Error: `downstream$Engine` is a reference type, and it reaches `downstream$Gen<downstream$Engine>`'s field `item`, a value type's slot; a value type holds only values, all the way down
-File "downstream/main.zn", line 44, characters 25-39:
-44 |     g Gen<Engine> = Gen(Engine(Int(1)));                     // ILLEGAL
+File "downstream/main.zn", line 47, characters 25-39:
+47 |     g Gen<Engine> = Gen(Engine(Int(1)));                     // ILLEGAL
    |                         ^^^^^^^^^^^^^^
 Error: `downstream$Engine` is a reference type, and it reaches `downstream$Gen<downstream$Engine>`'s field `item`, a value type's slot; a value type holds only values, all the way down
 == rejected
