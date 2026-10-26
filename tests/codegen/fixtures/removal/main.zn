@@ -62,13 +62,13 @@ Int growAndGive(this List<Row>, n Int) mut {
 
 /// An index given by a call, which says when it runs.
 Int firstIndex() {
-	@program$console!print(String("index\n"));
+	@program$console!print(String.escaped("index\n"));
 	return Int(1);
 }
 
 Unit check(ok Bool) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});

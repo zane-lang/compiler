@@ -29,6 +29,6 @@ Unit main() {
 	ys!push(Float(2.5));
 	field Field(xs, ys);
 	@program$console!print(String(@primitives$I64.truncate(total(field, Int(2)))));
-	@program$console!print(String("\n"));
+	@program$console!print(String.escaped("\n"));
 	return Unit();
 }

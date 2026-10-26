@@ -40,8 +40,8 @@ Int sinkWide(n Int) {
 }
 
 Unit main() {
-	say(String("start\n"));
+	say(String.escaped("start\n"));
 	n Int = spawn sink(Int(100));
-	@controlflow$branch(@operators$equal(n, Int(0)), { say(String("never\n")); });
+	@controlflow$branch(@operators$equal(n, Int(0)), { say(String.escaped("never\n")); });
 	return Unit();
 }

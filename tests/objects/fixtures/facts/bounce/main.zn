@@ -97,6 +97,6 @@ Unit main() {
 		back = @operators$add(back, x);
 	}
 	@program$console!print(@operators$concat(String(@primitives$I64.truncate(total)), String(" ")));
-	@program$console!print(@operators$concat(String(@primitives$I64.truncate(back)), String("\n")));
+	@program$console!print(@operators$concat(String(@primitives$I64.truncate(back)), String.escaped("\n")));
 	return Unit();
 }

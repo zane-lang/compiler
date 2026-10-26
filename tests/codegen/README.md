@@ -53,6 +53,15 @@ then run it again, read the golden diff and promote that.
   statements.
 - `hello` prints a string literal through `@program$console`: the first program
   that ran (docs/design/lowering.md §8 step 2).
+- `interpolation` is string literals end to end (lexical.md §7.1, types.md
+  §2.7, §2.8): the escaped quote and backslash, a backslash sequence kept
+  as written, `\%name` with a primitive and with an implicit conversion,
+  one beside another and before identifier punctuation, and a literal
+  passed to a concept parameter, read twice and passed on. A block run
+  before the literal is read changes the value it interpolated, and the
+  text keeps the value it had when the literal was written.
+  `String.escaped` reads `\n`, `\t`, `\r`, `\0` and `\\` in the literal's
+  text and not in a value interpolated into it.
 - `counting` is step 2 of docs/design/lowering.md §8: scalar arithmetic, verbs
   that call verbs, and the fixture's own `if`, `elif`, `else` and `to` expanded
   where they are called. Every check it makes prints `yes` when it holds.

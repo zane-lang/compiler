@@ -200,6 +200,9 @@ let constructors =
       scalars
   @ [
       ctor "String" [ param "value" (Ty.Concept Ty.Text_lit) ] (prim "String");
+      (* The literal with its text escapes read (types.md §2.7): only in its
+         literal text, never in a value interpolated into it. *)
+      ctor ~member:"escaped" "String" [ param "text" (Ty.Concept Ty.Text_lit) ] (prim "String");
       ctor "Unit" [] (prim "Unit");
       ctor ~generics:[ element; length ] "Array"
         [ param "values" (elements element length) ]

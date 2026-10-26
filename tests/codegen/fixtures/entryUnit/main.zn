@@ -7,7 +7,7 @@ alias Unit = @primitives$Unit
 alias String = @primitives$String
 
 Unit main() {
-	done String("main returns unit\n");
+	done String.escaped("main returns unit\n");
 	@program$console!print(done);
 	return Unit();
 }

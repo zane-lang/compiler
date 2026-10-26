@@ -36,6 +36,6 @@ Int level23(x Int) => @operators$add(level22(x), level22(x))
 Int level24(x Int) => @operators$add(level23(x), level23(x))
 
 Unit main() {
-	@program$console!print(@operators$concat(String(level24(Int(0))), String("\n")));
+	@program$console!print(@operators$concat(String(level24(Int(0))), String.escaped("\n")));
 	return Unit();
 }

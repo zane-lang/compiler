@@ -1,0 +1,68 @@
+/// String literals (lexical.md §7.1, types.md §2.7, §2.8): the escapes the
+/// language reads, interpolation, and `String.escaped`.
+package interpolation;
+
+alias String = @primitives$String
+alias Unit = @primitives$Unit
+alias I64 = @primitives$I64
+
+type Name = struct { _value String; }
+
+Name(value String) => init{ _value = value; }
+implicit String(name Name) => name._value
+
+Unit line(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+/// A concept parameter read twice, and passed on, prints the same text: the
+/// values were copied where the literal was written.
+Unit twice(text @concepts$String) {
+	line(String(text));
+	line(String(text));
+	return Unit();
+}
+
+Unit relayed(text @concepts$String) => twice(text)
+
+/// Runs `change` before reading the literal it was given.
+Unit later(text @concepts$String, change @concepts$Block) {
+	@controlflow$branch(true, change);
+	line(String(text));
+	return Unit();
+}
+
+String greet(who String) => String("hi \%who!")
+
+Unit main() {
+	raw String("enrique");
+	name Name(String("ana"));
+	count String(I64(42));
+
+	line(String("say \"hello\" \\ back\slash \n \w+"));
+	line(String("\\%raw is text"));
+	line(String("hello \%raw"));
+	line(String("\%raw"));
+	line(String("\%raw\%raw"));
+	line(String("\%raw.txt"));
+	line(String("count=\%count, raw=\%raw, name=\%name"));
+	twice("concept \%raw and \%name");
+	relayed("relayed \%raw");
+	line(greet(String("bob")));
+	changing String("before");
+	later("captured \%changing", { changing = String("after"); });
+	line(changing);
+
+	line(String.escaped("tab[\t] kept[\w \q] backslash[\\\\n]"));
+	@program$console!print(String.escaped("value \%raw\n"));
+	twiceEscaped("escaped through a parameter: \%raw\n");
+	return Unit();
+}
+
+Unit twiceEscaped(text @concepts$String) {
+	@program$console!print(String.escaped(text));
+	@program$console!print(String.escaped(text));
+	return Unit();
+}

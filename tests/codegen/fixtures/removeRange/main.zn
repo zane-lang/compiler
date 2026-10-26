@@ -7,8 +7,8 @@ alias Int = @primitives$I64
 alias String = @primitives$String
 
 @primitives$Unit main() {
-	before String("before\n");
-	after String("after\n");
+	before String.escaped("before\n");
+	after String.escaped("after\n");
 	numbers @primitives$List<Int> = @primitives$List(Int);
 	numbers!push(Int(1));
 	@program$console!print(before);

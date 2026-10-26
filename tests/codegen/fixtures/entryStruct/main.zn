@@ -16,7 +16,7 @@ type Bag = #struct {
 Bag(items ^List<Int>, name String) => init{ items; name; }
 
 ^Bag main() {
-	done String("main returns a struct\n");
+	done String.escaped("main returns a struct\n");
 	@program$console!print(done);
 	items ^List<Int> = @primitives$List(Int);
 	items!push(Int(1));

@@ -5,6 +5,6 @@ alias Unit = @primitives$Unit
 alias String = @primitives$String
 
 Unit main() {
-	@program$console!print(String("other\n"));
+	@program$console!print(String.escaped("other\n"));
 	return Unit();
 }

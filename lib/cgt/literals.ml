@@ -13,6 +13,37 @@ let text_of pieces =
     Some (String.concat "" (List.map (function T.Expr.Fragment s -> s | T.Expr.Interpolation _ -> "") pieces))
   else None
 
+(* `@primitives$String.escaped` reads these text escapes in a literal's
+   fragments (types.md §2.7). Any other backslash stays, with the character
+   after it. *)
+let escaped s =
+  let b = Buffer.create (String.length s) in
+  let n = String.length s in
+  let rec go i =
+    if i < n then
+      if s.[i] = '\\' && i + 1 < n then begin
+        (match s.[i + 1] with
+        | 'n' -> Buffer.add_char b '\n'
+        | 't' -> Buffer.add_char b '\t'
+        | 'r' -> Buffer.add_char b '\r'
+        | '0' -> Buffer.add_char b '\000'
+        | '\\' -> Buffer.add_char b '\\'
+        | c ->
+            Buffer.add_char b '\\';
+            Buffer.add_char b c);
+        go (i + 2)
+      end
+      else begin
+        Buffer.add_char b s.[i];
+        go (i + 1)
+      end
+  in
+  go 0;
+  Buffer.contents b
+
+let escape_pieces pieces =
+  List.map (function T.Expr.Fragment s -> T.Expr.Fragment (escaped s) | p -> p) pieces
+
 (* What names a value interpolated into a literal passed on to a concept
    parameter: the copy held for it where the literal was written (types.md
    §2.8). No identifier is spelled this way. *)
@@ -70,4 +101,6 @@ let literal ctx span name (arg : T.Expr.t) : Expr.t =
       else refuse span (Printf.sprintf "`%s` is out of range for `@primitives$%s`" s name)
   | "String", T.Expr.Text_lit pieces when Option.is_some (text_of pieces) ->
       { Expr.node = Expr.Text (Option.get (text_of pieces)); ty = Nodes.Ty.Handle }
+  | "String.escaped", T.Expr.Text_lit pieces when Option.is_some (text_of pieces) ->
+      { Expr.node = Expr.Text (escaped (Option.get (text_of pieces))); ty = Nodes.Ty.Handle }
   | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `@primitives$%s` of something not its literal" name)

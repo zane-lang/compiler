@@ -159,6 +159,12 @@ let primitive w st ctx span spelling args (t : Tty.t) : Expr.t =
   | _, [ T.Arg.Value v ] when scalar v.T.Expr.ty ->
       { Expr.node = Expr.Convert (w.expr st ctx v); ty = ty st span t }
   | "String", [ T.Arg.Value v ] when interpolates (literal_of ctx v) -> text w st ctx span (literal_of ctx v)
+  | "String.escaped", [ T.Arg.Value v ] when interpolates (literal_of ctx v) -> (
+      let lit = literal_of ctx v in
+      match lit.T.Expr.node with
+      | T.Expr.Text_lit pieces ->
+          text w st ctx span { lit with T.Expr.node = T.Expr.Text_lit (escape_pieces pieces) }
+      | _ -> Diagnostic.bug ~span "lowering expected a string literal here")
   | _, [ T.Arg.Value v ] -> literal ctx span name v
   | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling)
 

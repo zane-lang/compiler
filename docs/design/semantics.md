@@ -467,7 +467,9 @@ flows down.** The spec supports this directly:
 - A concept type becomes a storage type only through an implicit constructor at
   a coercion site (`types.md` §2.6, §4.2).
 - The coercion sites are exactly the positional arguments of calls and
-  constructors, field-constructor entries, and enum-map entries. Declarations,
+  constructors, field-constructor entries, enum-map entries, and string
+  interpolation sites, whose destination is `@primitives$String`
+  (`types.md` §2.8). Declarations,
   assignments, `return` and the operands of an operator are not coercion
   sites. `x Int = 20` is therefore a
   type error, not a coercion (§4.2).

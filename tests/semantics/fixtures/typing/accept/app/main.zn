@@ -217,6 +217,8 @@ Unit main() {
 	relayedShape Shape = relayed(Shape.circle(Float(6.0)));
 	nothing Int = zeroed(Int(7));
 
+	who String("world");
+	say(String.escaped("hello \%who\n"));
 	return Unit();
 }
 

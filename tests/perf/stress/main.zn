@@ -42,7 +42,7 @@ Int scale() {
 }
 
 Unit report(name String, value Int) {
-	@program$console!print(@operators$concat(@operators$concat(name, String(" ")), @operators$concat(String(value), String("\n"))));
+	@program$console!print(@operators$concat(@operators$concat(name, String(" ")), @operators$concat(String(value), String.escaped("\n"))));
 	return Unit();
 }
 

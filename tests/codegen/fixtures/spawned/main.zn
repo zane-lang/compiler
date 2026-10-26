@@ -15,8 +15,8 @@ alias List<T Type> = @primitives$List<T>
 alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
 
 Unit check(ok Bool) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	@controlflow$branch(ok, { @program$console!print(yes); });
 	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
 	return Unit();

@@ -10,7 +10,7 @@ alias String = @primitives$String
 unused Int(1)
 
 String main() {
-	done String("main returns a string\n");
+	done String.escaped("main returns a string\n");
 	@program$console!print(done);
 	return @operators$concat(String("owned "), String("text"));
 }

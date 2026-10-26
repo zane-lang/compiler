@@ -31,6 +31,6 @@ Unit main() {
 	more List<Float> = @primitives$List(Float);
 	more!fill(x);
 	@program$console!print(String(@operators$add(gather(x, Float(2.0), Float(3.0), Float(4.0)), more[Int(1)])));
-	@program$console!print(String("\n"));
+	@program$console!print(String.escaped("\n"));
 	return Unit();
 }

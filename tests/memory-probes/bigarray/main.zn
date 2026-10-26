@@ -9,6 +9,6 @@ alias String = @primitives$String
 
 Unit main() {
 	a @primitives$ArrayRef<Int, 65536> = @primitives$ArrayRef.fill(65536, Int(i Int) => i);
-	@controlflow$branch(@operators$equal(a[Int(3)], Int(3)), { @program$console!print(String("yes\n")); });
+	@controlflow$branch(@operators$equal(a[Int(3)], Int(3)), { @program$console!print(String.escaped("yes\n")); });
 	return Unit();
 }

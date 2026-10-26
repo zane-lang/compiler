@@ -1,0 +1,20 @@
+package bad;
+
+/// An interpolation site is `\%` and one value identifier, and requires
+/// `@primitives$String` (lexical.md §7.1, types.md §2.8).
+type Spelled = struct { _value String; }
+
+implicit String(spelled Spelled) => spelled._value
+
+Unit interpolations(tally Int, spelled Spelled) {
+	noName String = String("a \% b");
+	typeName String = String("a \%Type b");
+	keywordName String = String("a \%and b");
+	unknownName String = String("a \%nowhere b");
+	unconverted String = String("a \%tally b");
+	spanning String = String("a
+		\%tally");
+	/// Converted by `Spelled`'s implicit constructor: no error.
+	converted String = String("a \%spelled b");
+	return Unit();
+}

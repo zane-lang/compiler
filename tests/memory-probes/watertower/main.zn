@@ -30,8 +30,8 @@ Unit say(text String) {
 /// one print: spawned readers report at once, and a line written in two
 /// prints can have another reader's line land in the middle.
 Unit check(label String, ok Bool) {
-	@controlflow$branch(ok, { say(@operators$concat(label, String(" yes\n"))); });
-	@controlflow$branch(@operators$not(ok), { say(@operators$concat(label, String(" NO\n"))); });
+	@controlflow$branch(ok, { say(@operators$concat(label, String.escaped(" yes\n"))); });
+	@controlflow$branch(@operators$not(ok), { say(@operators$concat(label, String.escaped(" NO\n"))); });
 	return Unit();
 }
 alias Block = @concepts$Block

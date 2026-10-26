@@ -29,8 +29,8 @@ Unit say(text String) {
 /// Prints the label and `yes` when the condition holds, `no` when not.
 Unit check(label String, ok Bool) {
 	say(label);
-	@controlflow$branch(ok, { say(String(" yes\n")); });
-	@controlflow$branch(@operators$not(ok), { say(String(" NO\n")); });
+	@controlflow$branch(ok, { say(String.escaped(" yes\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String.escaped(" NO\n")); });
 	return Unit();
 }
 alias Block = @concepts$Block

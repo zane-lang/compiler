@@ -6,7 +6,7 @@ alias Unit = @primitives$Unit
 alias String = @primitives$String
 
 Unit shout() {
-	text String("hi\n");
+	text String.escaped("hi\n");
 	@program$console!print(text);
 	return Unit();
 }

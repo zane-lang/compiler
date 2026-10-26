@@ -24,8 +24,8 @@ Unit to(this Int, end Int, body @concepts$Block) mut {
 }
 
 Unit check(ok Bool) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});
@@ -64,7 +64,7 @@ Unit main() {
 	check(@operators$equal(args:size(), Int(10)));
 	k Int(1);
 	k!to(args:size()) {
-		@program$console!print(@operators$concat(args[k], String("|\n")));
+		@program$console!print(@operators$concat(args[k], String.escaped("|\n")));
 	}
 
 	// Integers: a literal's digits with an optional `-`, within an I64.

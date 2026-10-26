@@ -53,11 +53,11 @@ Int spin(n Int) {
 
 Unit main() {
 	tree(Int(10), String("w"));
-	say(String("\n"));
+	say(String.escaped("\n"));
 	tree(Int(17), String(""));
 	if(@operators$equal(spin(Int(3000000)), Int(0))) {
 		tree(Int(40), String(""));
 	}
-	say(String("done\n"));
+	say(String.escaped("done\n"));
 	return Unit();
 }

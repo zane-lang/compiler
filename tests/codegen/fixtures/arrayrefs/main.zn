@@ -52,8 +52,8 @@ Unit replace(this Squad, index Int, player ^Player) mut {
 }
 
 Unit check(ok Bool) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});

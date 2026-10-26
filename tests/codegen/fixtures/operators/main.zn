@@ -70,8 +70,8 @@ Truth <(left Num, right @concepts$Array<Num, 2>) {
 }
 
 Unit check(holds Truth) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	ran Bool = if(holds.holds) {
 		@program$console!print(yes);
 	}
@@ -106,7 +106,7 @@ Weight heavy(grams Num, name String) {
 Unit main() {
 	a String("a ");
 	b String("b ");
-	line String("\n");
+	line String.escaped("\n");
 
 	// The derived comparisons, each way round, and subtraction.
 	check(Num(9) > Num(5));

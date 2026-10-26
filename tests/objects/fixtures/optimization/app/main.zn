@@ -6,7 +6,7 @@ alias String = @primitives$String
 alias List<T Type> = @primitives$List<T>
 
 Unit print(n Int) {
-    @program$console!print(@operators$concat(String(n), String("\n")));
+    @program$console!print(@operators$concat(String(n), String.escaped("\n")));
     return Unit();
 }
 Unit main() {

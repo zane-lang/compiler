@@ -17,8 +17,8 @@ alias String = @primitives$String
 alias List<T Type> = @primitives$List<T>
 
 Unit check(ok Bool) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	@controlflow$branch(ok, { @program$console!print(yes); });
 	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
 	return Unit();
@@ -55,7 +55,7 @@ Int stepped(x Int, k @concepts$Int) {
 Int tripled(x Int) => stepped(x, 3)
 
 Unit started(n @concepts$Int) {
-	spawn noted(Int(n), String("spawned\n"));
+	spawn noted(Int(n), String.escaped("spawned\n"));
 	return Unit();
 }
 
@@ -75,8 +75,8 @@ Int first(row Row) => row[Int(1)]
 
 Unit main() {
 	check(@operators$equal(twice(Int(21)), Int(42)));
-	check(@operators$equal(twice(noted(Int(21), String("once\n"))), Int(42)));
-	check(@operators$equal(plus(noted(Int(1), String("first\n")), noted(Int(2), String("second\n"))), Int(3)));
+	check(@operators$equal(twice(noted(Int(21), String.escaped("once\n"))), Int(42)));
+	check(@operators$equal(plus(noted(Int(1), String.escaped("first\n")), noted(Int(2), String.escaped("second\n"))), Int(3)));
 	check(@operators$equal(tripled(Int(6)), Int(42)));
 	starts();
 	row Row();

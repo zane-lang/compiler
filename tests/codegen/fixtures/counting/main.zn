@@ -63,10 +63,10 @@ Int factorial(n Int) {
 }
 
 Unit main() {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	dot String(".");
-	line String("\n");
+	line String.escaped("\n");
 
 	// Arithmetic on each scalar.
 	ran Bool = if(@operators$equal(triangle(Int(10)), Int(55))) {

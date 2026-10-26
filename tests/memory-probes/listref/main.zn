@@ -21,8 +21,8 @@ Unit to(this Int, end Int, body @concepts$Block) mut {
 
 Unit check(label String, ok Bool) {
 	@program$console!print(label);
-	@controlflow$branch(ok, { @program$console!print(String(" yes\n")); });
-	@controlflow$branch(@operators$not(ok), { @program$console!print(String(" NO\n")); });
+	@controlflow$branch(ok, { @program$console!print(String.escaped(" yes\n")); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(String.escaped(" NO\n")); });
 	return Unit();
 }
 

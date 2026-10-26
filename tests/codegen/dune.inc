@@ -3743,6 +3743,128 @@
   (diff golden/hello.out hello.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/interpolation))
+ (targets interpolation.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build interpolation.exe --package fixtures/interpolation)))
+
+(rule
+ (deps (source_tree fixtures/interpolation))
+ (targets interpolation.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build interpolation.optimized.exe --optimize --package fixtures/interpolation)))
+
+(rule
+ (deps (source_tree fixtures/interpolation))
+ (targets interpolation.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build interpolation.tiered.exe --tiered --package fixtures/interpolation)))
+
+(rule
+ (deps (source_tree fixtures/interpolation))
+ (targets interpolation.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up interpolation.tier1 --package fixtures/interpolation)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    interpolation.checked.out.actual
+    (run ./interpolation.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/interpolation.out interpolation.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    interpolation.unchecked.out.actual
+    (run ./interpolation.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/interpolation.out interpolation.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    interpolation.optimized.checked.out.actual
+    (run ./interpolation.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/interpolation.out interpolation.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    interpolation.optimized.unchecked.out.actual
+    (run ./interpolation.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/interpolation.out interpolation.optimized.unchecked.out.actual)))
+
+(rule
+ (deps interpolation.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./interpolation.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    interpolation.tiered.checked.out.actual
+    (run ./interpolation.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/interpolation.out interpolation.tiered.checked.out.actual)))
+
+(rule
+ (deps interpolation.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./interpolation.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    interpolation.tiered.unchecked.out.actual
+    (run ./interpolation.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/interpolation.out interpolation.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/keeping))
  (action
   (with-stdout-to

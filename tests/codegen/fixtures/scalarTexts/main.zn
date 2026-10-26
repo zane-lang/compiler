@@ -10,7 +10,7 @@ alias Unit = @primitives$Unit
 
 Unit show(text String) {
 	@program$console!print(text);
-	@program$console!print(String("\n"));
+	@program$console!print(String.escaped("\n"));
 	return Unit();
 }
 
