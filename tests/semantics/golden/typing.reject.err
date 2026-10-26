@@ -302,12 +302,16 @@ File "fixtures/typing/reject/bad/growing.zn", line 9, characters 48-65:
 9 | type Inner<U Type> = variant { done Unit; more Outer<ListRef<U>>; }
   |                                                ^^^^^^^^^^^^^^^^^
 Error: `Inner` holds itself at a growing argument: its case `more` passes `@primitives$ListRef<U>` as `T` of `Outer`; where a type leads back to itself, each argument it passes back is one of its own parameters as written or names none of them
-File "fixtures/typing/reject/bad/growing.zn", line 12, characters 48-66:
-12 | type Node<T Type> = #variant { last Unit; next &Node<Array<T, 2>>; }
+File "fixtures/typing/reject/bad/growing.zn", line 11, characters 51-68:
+11 | type ValInner<U Type> = variant { done Unit; more ValOuter<List<U>>; }
+   |                                                   ^^^^^^^^^^^^^^^^^
+Error: `ValInner` holds itself at a growing argument: its case `more` passes `@primitives$List<U>` as `T` of `ValOuter`; where a type leads back to itself, each argument it passes back is one of its own parameters as written or names none of them
+File "fixtures/typing/reject/bad/growing.zn", line 14, characters 48-66:
+14 | type Node<T Type> = #variant { last Unit; next &Node<Array<T, 2>>; }
    |                                                ^^^^^^^^^^^^^^^^^^
 Error: `Node` holds itself at a growing argument: its case `next` passes `@primitives$Array<T, 2>` as `T` of `Node`; where a type leads back to itself, each argument it passes back is one of its own parameters as written or names none of them
-File "fixtures/typing/reject/bad/growing.zn", line 16, characters 57-79:
-16 | type Spread<T Type, U Type> = variant { done Unit; more Spread<Array<U, 2>, U>; }
+File "fixtures/typing/reject/bad/growing.zn", line 18, characters 57-79:
+18 | type Spread<T Type, U Type> = variant { done Unit; more Spread<Array<U, 2>, U>; }
    |                                                         ^^^^^^^^^^^^^^^^^^^^^^
 Error: `Spread` holds itself at a growing argument: its case `more` passes `@primitives$Array<U, 2>` as `T` of `Spread`; where a type leads back to itself, each argument it passes back is one of its own parameters as written or names none of them
 File "fixtures/typing/reject/bad/imports.zn", line 3, characters 8-15:

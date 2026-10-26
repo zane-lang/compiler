@@ -443,6 +443,9 @@ let fresh_param env ~name ~kind =
    parameter is a value, and none is a subject. A generic overload is told
    apart by its own parameters, which the call's instance fills: a list's
    methods are one overload on `List` and one on `ListRef`. *)
+let intrinsic_signatures =
+  Intrinsics.methods @ List.map (fun ((_, n), sg) -> (n, sg)) Intrinsics.functions
+
 let signature_of env (r : Nodes.Verb_ref.t) =
   match r.Nodes.Verb_ref.owner with
   | Signature.Declared id -> Verbs.signature env.verbs id
@@ -451,10 +454,13 @@ let signature_of env (r : Nodes.Verb_ref.t) =
         List.filter_map
           (fun (_, (sg : Signature.t)) ->
             if sg.Signature.owner = Signature.Intrinsic spelling then Some sg else None)
-          (Intrinsics.methods @ List.map (fun ((_, n), sg) -> (n, sg)) Intrinsics.functions)
+          intrinsic_signatures
       in
       let instantiated (sg : Signature.t) =
-        List.exists (fun ((p : Ty.param), _) -> List.exists (fun (g : Ty.param) -> g.id = p.id) sg.Signature.generics) r.Nodes.Verb_ref.instance
+        List.exists
+          (fun ((p : Ty.param), _) ->
+            List.exists (fun (g : Ty.param) -> g.id = p.id) sg.Signature.generics)
+          r.Nodes.Verb_ref.instance
       in
       match List.find_opt instantiated named with
       | Some sg -> Some sg
