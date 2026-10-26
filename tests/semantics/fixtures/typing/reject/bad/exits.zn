@@ -16,7 +16,7 @@ Unit early(ready Bool) {
 
 /// A block yields nothing: it takes no type argument, and a `resolve` in it
 /// finishes the handler around it, when there is one.
-Bool lazily(condition @concepts$Block<Bool>) => true
+Bool lazily(condition @concepts$Block<Bool>) => true;
 
 Unit yielding(ready Bool) {
 	done Bool = if(ready) {
@@ -49,7 +49,7 @@ Unit lambdaExits() {
 }
 
 /// An enum map's entries, too.
-type Step = enum [ only ]
+type Step = enum [ only ];
 
 Step.run Unit[] {
 	only = Unit() {

@@ -3,11 +3,11 @@
 /// naming the slot and observes the replacement.
 package overwrite;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -49,7 +49,7 @@ Link(head ^Engine, next ^Chain) => init{ head; next; }
 type Holder = #struct { link Link; }
 Holder(link ^Link) => init{ link; }
 
-Int powerOf(e &Engine) => e.power
+Int powerOf(e &Engine) => e.power;
 
 Unit main() {
 	car Car(Engine(Int(1)), String("a"));

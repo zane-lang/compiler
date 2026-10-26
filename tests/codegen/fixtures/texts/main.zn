@@ -7,10 +7,10 @@
 /// holds and `no` when it does not.
 package texts;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -28,7 +28,7 @@ type Person = #struct {
 
 Person(name String) => init{ name; }
 
-String greeting(this Person) => @operators$concat(String("hello, "), this.name)
+String greeting(this Person) => @operators$concat(String("hello, "), this.name);
 
 Unit rename(this Person, name String) mut {
 	this.name = name;
@@ -45,7 +45,7 @@ type Holder = #variant {
 	none Unit;
 }
 
-String twice(text String) => @operators$concat(text, text)
+String twice(text String) => @operators$concat(text, text);
 
 String?String refuse(text String) {
 	abort @operators$concat(text, String("!"));

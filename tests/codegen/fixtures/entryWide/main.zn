@@ -4,9 +4,9 @@
 /// (docs/design/lowering.md L16).
 package entryWide;
 
-alias Int = @primitives$I64
-alias String = @primitives$String
-alias Wide = @primitives$ArrayRef<Int, 65536>
+alias Int = @primitives$I64;
+alias String = @primitives$String;
+alias Wide = @primitives$ArrayRef<Int, 65536>;
 
 ^Wide make() {
 	return @primitives$ArrayRef.fill(65536, Int(i Int) => i);

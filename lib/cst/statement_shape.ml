@@ -271,6 +271,17 @@ let decl_continues_past_trailing (value : Nodes.Decl.t) =
   | Nodes.Decl.Alias _ ->
       false
 
+(* How a construct the grammar closed disagrees with the rules about where it
+   ends, if it does: a trailing argument continued past its `}`, or a `;` after
+   a construct that already ended in a brace. A package-scope declaration is
+   held to the same rules as a statement (lexical.md §6.3), so [Parser] asks
+   this for both. *)
+let defect ~ends_in_brace ~ends_at ~continued =
+  if continued then
+    Some (Nodes.Statement_defect.Continued_trailing_argument, ends_at)
+  else if ends_in_brace then Some (Nodes.Statement_defect.Stray_semicolon, ends_at)
+  else None
+
 (* Build a statement the grammar closed with a `;`, recording how it disagrees
    with the rules about where a statement ends, if it does.
 
@@ -284,13 +295,7 @@ let decl_continues_past_trailing (value : Nodes.Decl.t) =
    there would end the parse rather than the branch. [Statement_check] reads the
    mark off the tree that actually survived. *)
 let statement ~ends_in_brace ~ends_at ~continued ~loc node =
-  let defect =
-    if continued then
-      Some (Nodes.Statement_defect.Continued_trailing_argument, ends_at)
-    else if ends_in_brace then
-      Some (Nodes.Statement_defect.Stray_semicolon, ends_at)
-    else None
-  in
+  let defect = defect ~ends_in_brace ~ends_at ~continued in
   let span = Span.of_loc loc in
   ({ Nodes.Statement.stat = { Nodes.Stat.node; span }; defect; span }
     : Nodes.Statement.t)
@@ -309,11 +314,7 @@ let expr_statement ~ends_at ~loc build value =
    it, or in a constructor field's default -- and the rule does not bend for
    where the enclosing statement happens to end. *)
 let braced_statement ~ends_at ~continued ~loc node =
-  let defect =
-    if continued then
-      Some (Nodes.Statement_defect.Continued_trailing_argument, ends_at)
-    else None
-  in
+  let defect = defect ~ends_in_brace:false ~ends_at ~continued in
   let span = Span.of_loc loc in
   ({ Nodes.Statement.stat = { Nodes.Stat.node; span }; defect; span }
     : Nodes.Statement.t)

@@ -8,13 +8,13 @@ type Twice = struct { b Int; }
 type Pair<T Type> = struct { left T; right T; }
 type Pair = struct { only Int; }
 
-Int left(pair Pair<Int>) => pair.left
+Int left(pair Pair<Int>) => pair.left;
 
-limit Int(3)
-limit Int(4)
+limit Int(3);
+limit Int(4);
 
-Int limited(value Int) => value
-limited Int(5)
+Int limited(value Int) => value;
+limited Int(5);
 
 Unit names() {
 	x Int = unknown;

@@ -4,7 +4,7 @@ package idle;
 
 import cells$;
 
-Int twice(n Int) => @operators$add(n, n)
+Int twice(n Int) => @operators$add(n, n);
 
 Unit main() {
 	args @primitives$List<String> = @program$runtime:arguments();

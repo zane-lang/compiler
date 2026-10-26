@@ -8,7 +8,7 @@ type Vec = struct {
 
 Vec +(a Vec, b Vec) => Vec{x = a.x + b.x; y = a.y + b.y;} // params: a b a b a b
 
-Int dot(this Vec, other Vec) => this.x * other.x // params: other other
+Int dot(this Vec, other Vec) => this.x * other.x; // params: other other
 
 Vec{x Int; y Int;} => init{x; y;} // params: x y x y
 
@@ -20,11 +20,11 @@ Int scaled(factor Int, value Int) {
 	return twice(total); // params:
 }
 
-Int apply(f Int[Int], value Int) => f(value) // params: f value f value
+Int apply(f Int[Int], value Int) => f(value); // params: f value f value
 
 // Qualified names must not resolve to a same-named parameter.
-Int intrinsic(operators Int) => @operators$add(operators, 1) // params: operators operators
-Int qualified(x Int) => pkg$x(x) // params: x x
+Int intrinsic(operators Int) => @operators$add(operators, 1); // params: operators operators
+Int qualified(x Int) => pkg$x(x); // params: x x
 
 // An explicit initializer key is a member even when it names a parameter.
 Vec(x Int) => init{x = x; y = x;} // params: x x x

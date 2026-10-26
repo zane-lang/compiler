@@ -4,11 +4,11 @@
 /// payload's place, and an `ArrayRef`'s elements are settled under a settled
 /// root and overwritten in place.
 package variants;
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -54,9 +54,9 @@ Int power(s &Slot) => match (s) {
 	t pair => @operators$add(t.a.power, t.b.power);
 }
 
-^Slot fill(n Int) => Slot.full(Engine(n, String("filled")))
+^Slot fill(n Int) => Slot.full(Engine(n, String("filled")));
 
-alias Block = @concepts$Block
+alias Block = @concepts$Block;
 Unit inner(body Block) {
 	@controlflow$branch(true, body);
 	return Unit();

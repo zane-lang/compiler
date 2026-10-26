@@ -2,12 +2,12 @@
 /// one for spawned calls, here 2 MiB: frames of 512 KiB nested past it
 /// stop the program with an error that names its own manifest field.
 package spawnedFrames;
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
-alias Wide = @primitives$ArrayRef<Int, 65536>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+alias Wide = @primitives$ArrayRef<Int, 65536>;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);

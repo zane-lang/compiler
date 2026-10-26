@@ -3,10 +3,10 @@
 /// does not.
 package literalRange;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
 
-Int embed(n @concepts$Int) => Int(n)
+Int embed(n @concepts$Int) => Int(n);
 
 Unit main() {
 	big Int = embed(99999999999999999999);

@@ -3,8 +3,8 @@
 /// with the signature, so a call can be checked without the body in hand").
 package wires;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
 
 type Port = #struct { n Int; }
 Port(n Int) => init{ n; }
@@ -23,5 +23,5 @@ Unit relay(this Plug, port &Port) mut {
 	return Unit();
 }
 
-&Port pass(port &Port) => port
-&Port through(plug &Plug) => plug.port
+&Port pass(port &Port) => port;
+&Port through(plug &Plug) => plug.port;

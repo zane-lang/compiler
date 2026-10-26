@@ -10,11 +10,11 @@
 /// `no` when it does not.
 package expressions;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Unit check(ok Bool) {
 	yes String.escaped("yes\n");
@@ -24,11 +24,11 @@ Unit check(ok Bool) {
 	return Unit();
 }
 
-T same(value T Type) => value
+T same(value T Type) => value;
 
-Int plus(a Int, b Int) => @operators$add(a, b)
+Int plus(a Int, b Int) => @operators$add(a, b);
 
-Int twice(x Int) => plus(same(x), same(x))
+Int twice(x Int) => plus(same(x), same(x));
 
 Int noted(n Int, label String) {
 	@program$console!print(label);
@@ -52,14 +52,14 @@ Int stepped(x Int, k @concepts$Int) {
 	return s12;
 }
 
-Int tripled(x Int) => stepped(x, 3)
+Int tripled(x Int) => stepped(x, 3);
 
 Unit started(n @concepts$Int) {
 	spawn noted(Int(n), String.escaped("spawned\n"));
 	return Unit();
 }
 
-Unit starts() => started(1)
+Unit starts() => started(1);
 
 type Row = #struct {
 	items ListRef<Int>;
@@ -69,9 +69,9 @@ Row() => init{
 	items = @primitives$ListRef(Int);
 }
 
-(this Row)[i Int] => this.items[@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(i, Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0))]
+(this Row)[i Int] => this.items[@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(i, Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0)), Int(0))];
 
-Int first(row Row) => row[Int(1)]
+Int first(row Row) => row[Int(1)];
 
 Unit main() {
 	check(@operators$equal(twice(Int(21)), Int(42)));

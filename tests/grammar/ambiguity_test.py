@@ -399,8 +399,8 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         # two forms as package scope does.
         self.assert_derivations(
             "IMPORT LIDENT DOLLAR LIDENT UIDENT LPAREN RPAREN THICK_ARROW "
-            "INT EOF",
-            "import core$ main Int() => 1",
+            "INT SEMICOLON EOF",
+            "import core$ main Int() => 1;",
             0,
         )
         self.assert_derivations(
@@ -440,7 +440,7 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         # (syntax.md §3.8), and in statement position a constructor
         # declaration as well. A nullary constructor call may not trail,
         # because it would be spelled exactly that way; the block goes inside
-        # the argument list instead. See docs/spec-divergences.md §3.
+        # the argument list instead. See docs/spec-divergences.md §2.
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
             "UIDENT LPAREN RPAREN LCURLY RCURLY RCURLY EOF",
@@ -693,8 +693,8 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         )
         self.assert_derivations(
             "UIDENT QSTNMARK UIDENT LBRACKET UIDENT RBRACKET LIDENT LPAREN "
-            "RPAREN THICK_ARROW LIDENT EOF",
-            "Int?Unit[Int] make() => q",
+            "RPAREN THICK_ARROW LIDENT SEMICOLON EOF",
+            "Int?Unit[Int] make() => q;",
             1,
         )
 

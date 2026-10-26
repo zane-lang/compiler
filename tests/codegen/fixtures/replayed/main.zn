@@ -11,10 +11,10 @@
 /// written shows the order held.
 package replayed;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -69,7 +69,7 @@ Int bumped(this Int, by Int) mut {
 	return this;
 }
 
-Int double(n Int) => @operators$multiply(n, Int(2))
+Int double(n Int) => @operators$multiply(n, Int(2));
 
 Unit shout(this String) mut {
 	this = @operators$concat(this, String("!"));

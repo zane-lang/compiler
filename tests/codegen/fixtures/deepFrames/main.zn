@@ -2,12 +2,12 @@
 /// fit faults in the guard after the range, and the program stops with an
 /// error that names the manifest field (memory.md §3.1).
 package deepFrames;
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
-alias Wide = @primitives$ArrayRef<Int, 65536>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+alias Wide = @primitives$ArrayRef<Int, 65536>;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);

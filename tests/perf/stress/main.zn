@@ -9,13 +9,13 @@
 /// measured. The argument is how many times the sections run.
 package stress;
 
-alias Int = @primitives$I64
-alias Float = @primitives$F64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
-alias Row = @primitives$ListRef<Float>
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+alias Row = @primitives$ListRef<Float>;
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
 	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
@@ -25,12 +25,12 @@ Unit to(this Int, end Int, body @concepts$Block) mut {
 	return Unit();
 }
 
-Int minus(a Int, b Int) => @operators$add(a, @operators$negate(b))
-Int times(a Int, b Int) => @operators$multiply(a, b)
-Int over(a Int, b Int) => @operators$divide(a, b)
-Int modulo(a Int, b Int) => minus(a, times(over(a, b), b))
-Bool below(a Int, b Int) => @operators$lessThan(a, b)
-Float real(v Int) => @primitives$F64.round(v)
+Int minus(a Int, b Int) => @operators$add(a, @operators$negate(b));
+Int times(a Int, b Int) => @operators$multiply(a, b);
+Int over(a Int, b Int) => @operators$divide(a, b);
+Int modulo(a Int, b Int) => minus(a, times(over(a, b), b));
+Bool below(a Int, b Int) => @operators$lessThan(a, b);
+Float real(v Int) => @primitives$F64.round(v);
 
 /// The scale the program was started with: its first argument, or 1.
 Int scale() {
@@ -58,7 +58,7 @@ Int next(this Rng) mut {
 	return this.state;
 }
 
-Int pick(this Rng, bound Int) mut => modulo(this!next(), bound)
+Int pick(this Rng, bound Int) mut => modulo(this!next(), bound);
 
 // ---------------------------------------------------------------------
 // Small lists rewritten in place: fannkuch-redux.
@@ -580,7 +580,7 @@ Table(slots Int) => init{
 	counts = @primitives$ListRef(Int);
 }
 
-Int home(this Table, key Int) => @operators$add(Int(1), modulo(times(key, Int(2654435761)), this.slots))
+Int home(this Table, key Int) => @operators$add(Int(1), modulo(times(key, Int(2654435761)), this.slots));
 
 /// Counts `key` once more, in its slot or the first free one after it.
 Unit insert(this Table, key Int) mut {
@@ -662,7 +662,7 @@ Machine() => init{
 	registers = @primitives$ListRef(Int);
 }
 
-Int pop(this Machine) mut => this.stack!remove(this.stack:size())
+Int pop(this Machine) mut => this.stack!remove(this.stack:size());
 
 /// Runs one instruction, and says whether the machine runs on.
 Bool step(this Machine, op Op) mut => match (op) {

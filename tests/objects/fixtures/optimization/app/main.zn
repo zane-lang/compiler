@@ -1,9 +1,9 @@
 package app;
 import math;
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Unit print(n Int) {
     @program$console!print(@operators$concat(String(n), String.escaped("\n")));

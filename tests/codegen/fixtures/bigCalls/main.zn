@@ -6,11 +6,11 @@
 /// when it does not.
 package bigCalls;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias Wide = @primitives$ArrayRef<Int, 65536>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias Wide = @primitives$ArrayRef<Int, 65536>;
 
 Unit check(ok Bool) {
 	yes String.escaped("yes\n");
@@ -33,10 +33,10 @@ Unit check(ok Bool) {
 }
 
 /// Taken and read.
-Int ends(a ^Wide) => @operators$add(a[Int(1)], a[Int(65536)])
+Int ends(a ^Wide) => @operators$add(a[Int(1)], a[Int(65536)]);
 
 /// Borrowed and read.
-Int middle(a Wide) => a[Int(32768)]
+Int middle(a Wide) => a[Int(32768)];
 
 /// The same, held as function values.
 maker ^Wide(start Int) {

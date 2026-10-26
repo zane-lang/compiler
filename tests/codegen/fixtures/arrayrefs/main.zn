@@ -8,10 +8,10 @@
 /// holds and `no` when it does not.
 package arrayrefs;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -35,7 +35,7 @@ Unit add(this Player, n Int) mut {
 	return Unit();
 }
 
-Int scoreOf(p &Player) => p.score
+Int scoreOf(p &Player) => p.score;
 
 /// An owner whose members are an `ArrayRef`, projected by a subscript.
 type Squad = #struct {
@@ -44,7 +44,7 @@ type Squad = #struct {
 
 Squad(members ^@primitives$ArrayRef<Player, 3>) => init{ _members = members; }
 
-(this Squad)[index Int] => this._members[index]
+(this Squad)[index Int] => this._members[index];
 
 Unit replace(this Squad, index Int, player ^Player) mut {
 	this._members[index] = player;

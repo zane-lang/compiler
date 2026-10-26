@@ -3,11 +3,11 @@
 /// so lowering refuses its type where it is named.
 package beyondLimit;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>;
 
-Array<Int, 1152921504606846976> make() => make()
+Array<Int, 1152921504606846976> make() => make();
 
 Unit main() {
 	big Array<Int, 1152921504606846976> = make();

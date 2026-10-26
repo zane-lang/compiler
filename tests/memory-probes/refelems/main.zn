@@ -2,10 +2,10 @@
 /// as an element value"; §2.8). Everything here is legal.
 package refelems;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 Unit say(text String) {
 	@program$console!print(text);

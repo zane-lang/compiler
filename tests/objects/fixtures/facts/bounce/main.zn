@@ -6,12 +6,12 @@
 /// over them. Spawns nothing.
 package bounce;
 
-alias Int = @primitives$I64
-alias Float = @primitives$F64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -34,7 +34,7 @@ Unit to(this Int, end Int, body @concepts$Block) mut {
 	return Unit();
 }
 
-Int argument(args @primitives$List<String>, at Int) => args[at]:parseI64() ?? Int(0)
+Int argument(args @primitives$List<String>, at Int) => args[at]:parseI64() ?? Int(0);
 
 type Field = #struct {
 	xs ListRef<Float>;

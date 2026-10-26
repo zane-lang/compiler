@@ -1,5 +1,5 @@
 File "constants/main.zn", line 21, characters 7-14:
-21 | spare ^Engine = Engine(Int(2))                // ILLEGAL: ^ is no constant's type
+21 | spare ^Engine = Engine(Int(2));               // ILLEGAL: ^ is no constant's type
    |       ^^^^^^^
 Error: `^constants$Engine` is a roaming owner, and `^` is written only on a local, a parameter or a return type, so it cannot be a constant
 File "constants/main.zn", line 30, characters 16-22:

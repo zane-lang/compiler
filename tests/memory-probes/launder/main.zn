@@ -3,11 +3,11 @@
 /// marked ILLEGAL should be reported; lines marked legal should not.
 package launder;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias ListRef<T Type> = @primitives$ListRef<T>
-alias PortRef = &Port
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+alias PortRef = &Port;
 
 Unit inner(body @concepts$Block) {
 	@controlflow$branch(true, body);
@@ -39,8 +39,8 @@ Unit wire(this Plug, port &Port) mut {
 	return Unit();
 }
 
-&Port pick(this Frame, port &Port) => port
-&Port pass(port &Port) => port
+&Port pick(this Frame, port &Port) => port;
+&Port pass(port &Port) => port;
 &Port?Unit maybe(port &Port, fail Bool) {
 	@controlflow$branch(fail, { abort Unit(); });
 	return port;

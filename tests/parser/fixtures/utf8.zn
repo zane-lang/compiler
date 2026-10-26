@@ -32,7 +32,7 @@ String beschreiben(größe Größe) {
 }
 
 /// An enum whose members are multibyte, and the map hung off it.
-type Ausrichtung = enum [ oben, unten, außen ]
+type Ausrichtung = enum [ oben, unten, außen ];
 
 Ausrichtung.kürzel String {
 	oben = "o";

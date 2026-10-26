@@ -3,8 +3,8 @@
 /// what the spec rejects; QUESTION marks a case the spec does not settle.
 package modes;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
 
 type Engine = #struct { power Int; }
 type Car = #struct { engine &Engine; spare Engine; }
@@ -22,9 +22,9 @@ Unit setSpare(this Car, engine Engine) mut {
 	return Unit();
 }
 // borrow returned as an owner
-^Engine relay(engine Engine) => engine  // ILLEGAL: a borrow is never moved
+^Engine relay(engine Engine) => engine; // ILLEGAL: a borrow is never moved
 // borrow returned as a value of the type
-Engine relay2(engine Engine) => engine  // ILLEGAL
+Engine relay2(engine Engine) => engine; // ILLEGAL
 // borrow written
 Unit write(engine Engine) {
 	engine = Engine(Int(2));  // ILLEGAL: parameters are read-only
@@ -52,7 +52,7 @@ Unit twice(engine ^Engine) {
 	return Unit();
 }
 // take param minted
-&Engine fromTake(engine ^Engine) => engine  // ILLEGAL: roaming, and scoped to the body
+&Engine fromTake(engine ^Engine) => engine; // ILLEGAL: roaming, and scoped to the body
 // take param ref stored in local
 Unit takeRef(engine ^Engine) {
 	r &Engine = engine;  // ILLEGAL: a take is roaming
@@ -70,14 +70,14 @@ Int settle(engine ^Engine) {
 	return engine;
 }
 // the subject returned as ref
-&Engine self(this Engine) => this  // ILLEGAL: the subject is a borrow
+&Engine self(this Engine) => this; // ILLEGAL: the subject is a borrow
 // the subject stored in a ref field
 Unit selfStore(this Engine, car Car) {
 	return Unit();
 }
 // package constant
-garage Engine = Engine(Int(9))
-&Engine constRef() => garage  // QUESTION: §1.7 says only an &T parameter is a root; §1.1 allows it
+garage Engine = Engine(Int(9));
+&Engine constRef() => garage; // QUESTION: §1.7 says only an &T parameter is a root; §1.1 allows it
 Unit constLocal() {
 	r &Engine = garage;
 	return Unit();

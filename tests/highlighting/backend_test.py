@@ -105,9 +105,9 @@ class BackendTests(unittest.TestCase):
                 self.assertFalse(self.parser.parse(path.read_bytes()).root_node.has_error)
 
     def test_reserved_words_and_invalid_identifier_spellings(self):
-        for source in ('type Int = struct {}', 'type Intx = struct {}', 'type Résultat = struct {}', 'type _Type = struct {}', 'type Typex = struct {}', '_private Int = 1', '_return Int = 1', 'returning Int = 1'):
+        for source in ('type Int = struct {}', 'type Intx = struct {}', 'type Résultat = struct {}', 'type _Type = struct {}', 'type Typex = struct {}', '_private Int = 1;', '_return Int = 1;', 'returning Int = 1;'):
             self.assertFalse(self.parser.parse(source.encode()).root_node.has_error, source)
-        for source in ('return Int = 1', 'type Type = struct {}', 'type type = struct {}', 'a_b Int = 1', 'x Int = 1.5.2', 'x Int = @@@'):
+        for source in ('return Int = 1;', 'type Type = struct {}', 'type type = struct {}', 'a_b Int = 1;', 'x Int = 1.5.2;', 'x Int = @@@;'):
             self.assertTrue(self.parser.parse(source.encode()).root_node.has_error, source)
 
     def test_highlight_queries_capture_context_and_lexical_tokens(self):
@@ -124,10 +124,10 @@ class BackendTests(unittest.TestCase):
         # Anchors skip anonymous tokens, so an operator's or a lambda's first
         # parameter sits where a named verb's name does; neither is a function.
         cases = {
-            b'Int +(a Int, b Int) => a': [],
-            b'Int ~(a Int, b Int) => a': [],
-            b'f Int(x Int) => x': [],
-            b'Int f(x Int) => x': [b'f'],
+            b'Int +(a Int, b Int) => a;': [],
+            b'Int ~(a Int, b Int) => a;': [],
+            b'f Int(x Int) => x;': [],
+            b'Int f(x Int) => x;': [b'f'],
             b'Int f(this T, y Int) mut { return y; }': [b'f'],
             b'Unit main() { Int g() => 1; h Int(y Int) => y; Unit k() => f() {} }': [b'main', b'g', b'k'],
         }
@@ -152,10 +152,10 @@ class BackendTests(unittest.TestCase):
             b'package core; import lib; import lib as other; import lib$value as local; import lib$Thing as Alias; import lib$[value, Thing]; import lib$;',
             module=[b'core', b'lib', b'lib', b'other', b'lib', b'lib', b'lib', b'lib'])
         self.assert_roles(
-            b'type Wrapper = struct { value @primitives$I64; } alias Ref = &pkg$Thing',
+            b'type Wrapper = struct { value @primitives$I64; } alias Ref = &pkg$Thing;',
             module=[b'primitives', b'pkg'], **{'variable.member': [b'value']})
         self.assert_roles(
-            b'Int add(a Int, b Int) => @operators$add(a, b)',
+            b'Int add(a Int, b Int) => @operators$add(a, b);',
             module=[b'operators'], **{'function.call': [b'add']})
 
     def test_function_and_method_calls_with_and_without_trailing_blocks(self):
@@ -166,12 +166,12 @@ class BackendTests(unittest.TestCase):
             self.assert_roles(source, module=[b'pkg', b'verbs'], **{'function.method.call': [b'method', b'mutate', b'field'], 'variable.member': [b'field']})
 
     def test_namespace_markers_are_delimiters(self):
-        source = b'alias Int = @primitives$I64'
+        source = b'alias Int = @primitives$I64;'
         tree = self.parser.parse(source)
         self.assertFalse(tree.root_node.has_error)
         captures = QueryCursor(self.query).captures(tree.root_node)
         text = lambda role: [source[n.start_byte:n.end_byte] for n in sorted(captures.get(role, []), key=lambda n: n.start_byte)]
-        self.assertEqual(text('punctuation.delimiter'), [b'@', b'$'])
+        self.assertEqual(text('punctuation.delimiter'), [b'@', b'$', b';'])
         self.assertEqual(text('operator'), [b'='])
 
     def test_members_in_declarations_initializers_and_accesses(self):
@@ -179,10 +179,10 @@ class BackendTests(unittest.TestCase):
             b'type Vec = struct { x Int; y Int; } Vec(x Int, y Int) => init{x = x; y = y;}',
             **{'variable.member': [b'x', b'y', b'x', b'y']})
         self.assert_roles(
-            b'Vec zero() => Vec{x = 0; y = 0;} Int get(v Vec) => v.x',
+            b'Vec zero() => Vec{x = 0; y = 0;} Int get(v Vec) => v.x;',
             **{'variable.member': [b'x', b'y', b'x']})
         self.assert_roles(
-            b'Int get() => pkg$Enum.value',
+            b'Int get() => pkg$Enum.value;',
             module=[b'pkg'], **{'variable.member': [b'value']})
 
     @needs(SPAN_DUMP.exists(), 'requires span_dump.exe')
@@ -205,7 +205,7 @@ class BackendTests(unittest.TestCase):
                 self.assertEqual([source[n.start_byte:n.end_byte].decode() for n in nodes], expected)
 
     def test_comments_may_contain_backslashes(self):
-        source = b'x Int = 1 // a \\ b\nUnit main() {}'
+        source = b'x Int = 1; // a \\ b\nUnit main() {}'
         tree = self.parser.parse(source)
         self.assertFalse(tree.root_node.has_error)
         captures = QueryCursor(self.query).captures(tree.root_node)

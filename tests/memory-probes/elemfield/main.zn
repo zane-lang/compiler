@@ -3,9 +3,9 @@
 /// ILLEGAL marks what the spec rejects.
 package elemfield;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 type Bolt = #struct { n Int; }
 Bolt(n Int) => init{ n; }

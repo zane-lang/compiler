@@ -2,7 +2,7 @@
 /// three coordinates, so its layout differs from the first version's.
 package geometry;
 
-alias Int = @primitives$I64
+alias Int = @primitives$I64;
 
 type Point = struct {
 	x Int;
@@ -12,8 +12,8 @@ type Point = struct {
 
 Point(x Int, y Int, z Int) => init{ x; y; z; }
 
-Int size(this Point) => @operators$add(@operators$add(this.x, this.y), this.z)
+Int size(this Point) => @operators$add(@operators$add(this.x, this.y), this.z);
 
-Int version() => Int(2)
+Int version() => Int(2);
 
-T same(value T Type) => value
+T same(value T Type) => value;

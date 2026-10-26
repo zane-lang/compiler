@@ -1,7 +1,7 @@
 package bad;
 
 type Answer = variant { yes Int; no Bool; maybe Float; }
-type Light = enum [ red, green ]
+type Light = enum [ red, green ];
 
 Int answer(value Answer) => match (value) {
 	x yes => x;

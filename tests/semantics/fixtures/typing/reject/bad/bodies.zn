@@ -7,7 +7,7 @@ type Account = struct {
 
 Account(owner Int) => init{ owner; }
 
-frozen Int(1)
+frozen Int(1);
 
 Int noReturn(value Int) {
 	copy Int = value;

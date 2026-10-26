@@ -380,7 +380,7 @@ observes the replacement, as the reference-type case in finding 9 shows.)
 The rule exists already for spawned calls: lend `list[Int(1)]` to a
 `spawn` and then `list!push(…)` in the same block, and the compiler reports
 "this writes `list`, which may be part of an owner lent through `list[]` to
-a spawned call" (`spec-divergences.md` §11). A synchronous call lends for a
+a spawned call" (`spec-divergences.md` §9). A synchronous call lends for a
 shorter time but to a callee that can write through its subject, so the
 same reasoning applies within the call.
 
@@ -471,7 +471,7 @@ Probe `reflist`. `memory.md` §2.2 speaks of "an `&T` stored *as an element
 value*" and §2.8 reads `current &Weapon = weapons[1]` out of a
 `List<&Weapon>`. The compiler accepts the type and its constructor
 (`@primitives$List(PortRef)` through `alias PortRef = &Port`, since a type
-argument is a bare name, `spec-divergences.md` §5), but rejects every push:
+argument is a bare name, `spec-divergences.md` §3), but rejects every push:
 
 ```text
 refs!push(r);   // r &Port

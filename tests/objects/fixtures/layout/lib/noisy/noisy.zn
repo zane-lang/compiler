@@ -2,8 +2,8 @@
 /// library package may.
 package noisy;
 
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 Unit shout() {
 	text String.escaped("hi\n");

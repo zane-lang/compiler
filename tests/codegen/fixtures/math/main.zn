@@ -7,13 +7,13 @@
 /// prints `yes` when it holds and `no` when it does not.
 package math;
 
-alias I32 = @primitives$I32
-alias I64 = @primitives$I64
-alias F32 = @primitives$F32
-alias F64 = @primitives$F64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 Unit check(holds Bool) {
 	yes String.escaped("yes\n");
@@ -28,34 +28,34 @@ Unit check(holds Bool) {
 }
 
 /// Values the optimizer cannot see through unless it folds the call.
-I32 i32(value @concepts$Int) => I32(value)
-I64 i64(value @concepts$Int) => I64(value)
-F32 f32(value @concepts$Float) => F32(value)
-F64 f64(value @concepts$Float) => F64(value)
+I32 i32(value @concepts$Int) => I32(value);
+I64 i64(value @concepts$Int) => I64(value);
+F32 f32(value @concepts$Float) => F32(value);
+F64 f64(value @concepts$Float) => F64(value);
 
-I32 minusI32(value @concepts$Int) => @operators$negate(I32(value))
-I64 minus(value @concepts$Int) => @operators$negate(I64(value))
-F64 minusF(value @concepts$Float) => @operators$negate(F64(value))
+I32 minusI32(value @concepts$Int) => @operators$negate(I32(value));
+I64 minus(value @concepts$Int) => @operators$negate(I64(value));
+F64 minusF(value @concepts$Float) => @operators$negate(F64(value));
 
-I32 minI32() => @operators$add(@operators$negate(I32(2147483647)), @operators$negate(I32(1)))
-I64 minI64() => @operators$add(@operators$negate(I64(9223372036854775807)), @operators$negate(I64(1)))
-F64 infinity() => @operators$divide(f64(1.0), f64(0.0))
-F64 nan() => @operators$divide(f64(0.0), f64(0.0))
-F32 nan32() => @operators$divide(f32(0.0), f32(0.0))
+I32 minI32() => @operators$add(@operators$negate(I32(2147483647)), @operators$negate(I32(1)));
+I64 minI64() => @operators$add(@operators$negate(I64(9223372036854775807)), @operators$negate(I64(1)));
+F64 infinity() => @operators$divide(f64(1.0), f64(0.0));
+F64 nan() => @operators$divide(f64(0.0), f64(0.0));
+F32 nan32() => @operators$divide(f32(0.0), f32(0.0));
 
-Bool same(left I64, right I64) => @operators$equal(left, right)
-Bool same32(left I32, right I32) => @operators$equal(left, right)
-Bool equal(left F64, right F64) => @operators$equal(left, right)
-Bool isNan(value F64) => @operators$not(@operators$equal(value, value))
-Bool isNan32(value F32) => @operators$not(@operators$equal(value, value))
+Bool same(left I64, right I64) => @operators$equal(left, right);
+Bool same32(left I32, right I32) => @operators$equal(left, right);
+Bool equal(left F64, right F64) => @operators$equal(left, right);
+Bool isNan(value F64) => @operators$not(@operators$equal(value, value));
+Bool isNan32(value F32) => @operators$not(@operators$equal(value, value));
 
 /// A zero of each sign: one over it is an infinity of its sign.
-Bool negativeZero(value F64) => @operators$equal(@operators$divide(f64(1.0), value), @operators$negate(infinity()))
-Bool positiveZero(value F64) => @operators$equal(@operators$divide(f64(1.0), value), infinity())
+Bool negativeZero(value F64) => @operators$equal(@operators$divide(f64(1.0), value), @operators$negate(infinity()));
+Bool positiveZero(value F64) => @operators$equal(@operators$divide(f64(1.0), value), infinity());
 
 /// Within a tolerance of the true value.
-Bool near(value F64, expected F64) => @operators$lessThan(@math$abs(@operators$add(value, @operators$negate(expected))), f64(0.000000000001))
-Bool near32(value F32, expected F32) => @operators$lessThan(@math$abs(@operators$add(value, @operators$negate(expected))), f32(0.00001))
+Bool near(value F64, expected F64) => @operators$lessThan(@math$abs(@operators$add(value, @operators$negate(expected))), f64(0.000000000001));
+Bool near32(value F32, expected F32) => @operators$lessThan(@math$abs(@operators$add(value, @operators$negate(expected))), f32(0.00001));
 
 Unit main() {
 	// Bit operations on an `I64`.

@@ -4,8 +4,8 @@
 /// marks what the spec rejects.
 package spent;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
 
 type Cup = #struct { size Int; }
 type Saucer = #struct { cup Cup; }
@@ -15,12 +15,12 @@ Cup(size Int) => init{ size; }
 Saucer(cup ^Cup) => init{ cup; }
 Tray(saucer ^Saucer) => init{ saucer; }
 
-Unit drink(cup ^Cup) => Unit()
-Int see(cup Cup) => cup.size
-Int both(a Int, b Unit) => a
-Int both2(a Unit, b Int) => b
-Int?Unit risky(cup ^Cup) => Int(1)
-Unit loop(body @concepts$Block) => Unit()
+Unit drink(cup ^Cup) => Unit();
+Int see(cup Cup) => cup.size;
+Int both(a Int, b Unit) => a;
+Int both2(a Unit, b Int) => b;
+Int?Unit risky(cup ^Cup) => Int(1);
+Unit loop(body @concepts$Block) => Unit();
 
 Unit order1() {
 	cup ^Cup = Cup(Int(1));

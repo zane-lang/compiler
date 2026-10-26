@@ -2,8 +2,8 @@
 /// what it wrote so far (docs/design/lowering.md §9).
 package range;
 
-alias Int = @primitives$I64
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias String = @primitives$String;
 
 @primitives$Unit main() {
 	before String.escaped("before\n");

@@ -3,11 +3,11 @@
 /// prints `yes` when it holds and `no` when it does not.
 package shapes;
 
-alias Int = @primitives$I64
-alias Float = @primitives$F64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 type Vec = struct {
 	x Int;
@@ -16,9 +16,9 @@ type Vec = struct {
 
 Vec(x Int, y Int) => init{ x; y; }
 
-Vec +(left Vec, right Vec) => Vec(@operators$add(left.x, right.x), @operators$add(left.y, right.y))
+Vec +(left Vec, right Vec) => Vec(@operators$add(left.x, right.x), @operators$add(left.y, right.y));
 
-Bool ==(left Vec, right Vec) => @operators$conjoin(@operators$equal(left.x, right.x), @operators$equal(left.y, right.y))
+Bool ==(left Vec, right Vec) => @operators$conjoin(@operators$equal(left.x, right.x), @operators$equal(left.y, right.y));
 
 /// A `mut` method writes its caller's place.
 Unit scale(this Vec, by Int) mut {
@@ -51,7 +51,7 @@ type Shape = variant {
 	none Unit;
 }
 
-type Color = enum [ red, green, blue ]
+type Color = enum [ red, green, blue ];
 
 Color.warm Bool {
 	red = true;

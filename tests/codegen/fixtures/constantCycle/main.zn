@@ -5,19 +5,19 @@
 /// cycle's message instead of hanging.
 package constantCycle;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
-Int readSecond() => second
+Int readSecond() => second;
 
 Int viaSpawn() {
 	n Int = spawn readSecond();
 	return n;
 }
 
-first Int = viaSpawn()
-second Int = @operators$add(first, Int(1))
+first Int = viaSpawn();
+second Int = @operators$add(first, Int(1));
 
 Unit main() {
 	@program$console!print(String.escaped("unreached\n"));

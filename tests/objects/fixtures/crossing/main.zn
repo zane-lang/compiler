@@ -4,9 +4,9 @@
 /// callers inline it.
 package crossing;
 
-alias I32 = @primitives$I32
-alias Int = @primitives$I64
-alias Float = @primitives$F64
+alias I32 = @primitives$I32;
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
 
 type Pair = struct {
 	x Int;
@@ -51,17 +51,17 @@ type Small = struct {
 
 Small(a I32, b I32, c I32) => init{ a; b; c; }
 
-type Light = enum [ red, green ]
+type Light = enum [ red, green ];
 
-Pair swapped(p Pair) => Pair(p.y, p.x)
+Pair swapped(p Pair) => Pair(p.y, p.x);
 
-Triple rotated(t Triple) => Triple(t.y, t.z, t.x)
+Triple rotated(t Triple) => Triple(t.y, t.z, t.x);
 
-Quad turned(q Quad) => Quad(q.z, q.w, q.x, q.y)
+Quad turned(q Quad) => Quad(q.z, q.w, q.x, q.y);
 
-Point mirrored(p Point) => Point(p.z, p.y, p.x)
+Point mirrored(p Point) => Point(p.z, p.y, p.x);
 
-Small reversed(s Small) => Small(s.c, s.b, s.a)
+Small reversed(s Small) => Small(s.c, s.b, s.a);
 
 Light flipped(l Light) => match (l) {
 	red => Light.green;

@@ -16,7 +16,7 @@ type Dial = #struct {
 
 Dial(reading Gauge) => init{ reading; }
 
-Int glance(d &Dial) => d.reading.level
+Int glance(d &Dial) => d.reading.level;
 
 Unit nudge(this Gauge) mut {
 	this.level = @operators$add(this.level, Int(1));

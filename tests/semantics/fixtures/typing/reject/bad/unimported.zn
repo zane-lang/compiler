@@ -2,4 +2,4 @@
 /// and not by this one.
 package bad;
 
-Int unimported() => helper(Int(1))
+Int unimported() => helper(Int(1));

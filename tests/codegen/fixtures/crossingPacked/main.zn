@@ -5,11 +5,11 @@
 /// check prints `yes` when it holds and `no` when it does not.
 package crossingPacked;
 
-alias Int = @primitives$I64
-alias I32 = @primitives$I32
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias I32 = @primitives$I32;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 Unit check(ok Bool) {
 	yes String.escaped("yes\n");
@@ -26,7 +26,7 @@ type Solo = #struct {
 
 Solo(x Int) => init{ x; }
 
-^Solo solo(x Int) => Solo(x)
+^Solo solo(x Int) => Solo(x);
 
 ^Solo bumped(s ^Solo) {
 	kept ^Solo = s;
@@ -59,20 +59,20 @@ type Small = struct {
 
 Small(a I32, b I32, c I32) => init{ a; b; c; }
 
-Pair swapped(p Pair) => Pair(p.y, p.x)
+Pair swapped(p Pair) => Pair(p.y, p.x);
 
-Triple rotated(t Triple) => Triple(t.y, t.z, t.x)
+Triple rotated(t Triple) => Triple(t.y, t.z, t.x);
 
-Small reversed(s Small) => Small(s.c, s.b, s.a)
+Small reversed(s Small) => Small(s.c, s.b, s.a);
 
-Int pairSum(p Pair, q Pair) => @operators$add(@operators$add(p.x, p.y), @operators$add(q.x, q.y))
+Int pairSum(p Pair, q Pair) => @operators$add(@operators$add(p.x, p.y), @operators$add(q.x, q.y));
 
 Int tripleSum(t Triple, u Triple) =>
-	@operators$add(@operators$add(@operators$add(t.x, t.y), t.z), @operators$add(@operators$add(u.x, u.y), u.z))
+	@operators$add(@operators$add(@operators$add(t.x, t.y), t.z), @operators$add(@operators$add(u.x, u.y), u.z));
 
 /// One piece, two and three as variants: a tag alone, a tag and a word,
 /// and a tag and two words.
-type Light = enum [ red, green ]
+type Light = enum [ red, green ];
 
 type Maybe = variant {
 	some Int;

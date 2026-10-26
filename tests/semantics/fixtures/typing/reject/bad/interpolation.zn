@@ -4,7 +4,7 @@ package bad;
 /// `@primitives$String` (lexical.md §7.1, types.md §2.8).
 type Spelled = struct { _value String; }
 
-implicit String(spelled Spelled) => spelled._value
+implicit String(spelled Spelled) => spelled._value;
 
 Unit interpolations(tally Int, spelled Spelled) {
 	noName String = String("a \% b");

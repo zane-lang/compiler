@@ -7,10 +7,10 @@
 /// `yes` when it holds and `no` when it does not.
 package references;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
 
 Unit check(ok Bool) {
 	yes String.escaped("yes\n");
@@ -26,7 +26,7 @@ type Person = #struct {
 
 Person(age Int) => init{ age; }
 
-Int age(p &Person) => p.age
+Int age(p &Person) => p.age;
 
 type Pin<T Type> = #struct {
 	at &T;
@@ -34,7 +34,7 @@ type Pin<T Type> = #struct {
 
 Pin<T>(at &T Type) => init{ at; }
 
-Int ageOf(at &T Type, p Person) => p.age
+Int ageOf(at &T Type, p Person) => p.age;
 
 type Wrap = #struct {
 	child Person;

@@ -4,10 +4,10 @@
 /// sits between them. What is left to run sums with the size it was given.
 package kept;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -34,7 +34,7 @@ Unit say(text String) {
 	return Unit();
 }
 
-Int modulo(n Int, by Int) => @operators$add(n, @operators$negate(@operators$multiply(@operators$divide(n, by), by)))
+Int modulo(n Int, by Int) => @operators$add(n, @operators$negate(@operators$multiply(@operators$divide(n, by), by)));
 
 type Random = struct {
 	state Int;

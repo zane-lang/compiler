@@ -255,7 +255,7 @@ File "fixtures/typing/reject/bad/exits.zn", line 11, characters 9-20:
    |         ^^^^^^^^^^^
 Error: `guard` can exit, which ends the block its call is written in, and this call is in no block
 File "fixtures/typing/reject/bad/exits.zn", line 19, characters 23-44:
-19 | Bool lazily(condition @concepts$Block<Bool>) => true
+19 | Bool lazily(condition @concepts$Block<Bool>) => true;
    |                       ^^^^^^^^^^^^^^^^^^^^^
 Error: `@concepts$Block` takes no type argument: a block yields nothing (control-flow.md §2.4)
 File "fixtures/typing/reject/bad/exits.zn", line 23, characters 9-23:
@@ -291,7 +291,7 @@ File "fixtures/typing/reject/bad/expansions.zn", line 17, characters 5-16:
    |     ^^^^^^^^^^^
 Error: `pong` expands into itself: it takes a block or a literal, so each call to it is written out in place of the call, and this call is reached again
 File "fixtures/typing/reject/bad/expansions.zn", line 39, characters 45-58:
-39 | Int around(stand Stand, n @concepts$Int) => stand[Int(n)]
+39 | Int around(stand Stand, n @concepts$Int) => stand[Int(n)];
    |                                             ^^^^^^^^^^^^^
 Error: `around` expands into itself: it takes a block or a literal, so each call to it is written out in place of the call, and this call is reached again
 File "fixtures/typing/reject/bad/growing.zn", line 5, characters 47-64:
@@ -347,7 +347,7 @@ File "fixtures/typing/reject/bad/imports.zn", line 11, characters 1-16:
    | ^^^^^^^^^^^^^^^
 Error: this import brings `hook` from `lib`, which takes the same parameter types as the `hook` declared at fixtures/typing/reject/bad/twin.zn:8; the two cannot be told apart at a call
 File "fixtures/typing/reject/bad/instances.zn", line 5, characters 25-56:
-5 | T half(value T Type) => @operators$divide(value, value)
+5 | T half(value T Type) => @operators$divide(value, value);
   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: no `@operators$divide` accepts (@primitives$String, @primitives$String); the candidates are `@primitives$I32 @operators$divide(@primitives$I32, @primitives$I32)`; `@primitives$I64 @operators$divide(@primitives$I64, @primitives$I64)`; `@primitives$F32 @operators$divide(@primitives$F32, @primitives$F32)`; `@primitives$F64 @operators$divide(@primitives$F64, @primitives$F64)` (in `half` with T = @primitives$String, required at fixtures/typing/reject/bad/instances.zn:9)
 File "fixtures/typing/reject/bad/instances.zn", line 22, characters 5-16:
@@ -399,11 +399,11 @@ File "fixtures/typing/reject/bad/literals.zn", line 6, characters 25-28:
   |                         ^^^
 Error: a type's `< >` header holds `Type` and `@concepts$Int` parameters, and `Int` is neither (generics.md §3.3)
 File "fixtures/typing/reject/bad/literals.zn", line 10, characters 32-37:
-10 | Int first(values Array<T Type, n Int>) => Int(1)
+10 | Int first(values Array<T Type, n Int>) => Int(1);
    |                                ^^^^^
 Error: `n` introduces a parameter, which takes `Type` or `@concepts$Int` (generics.md §3.3)
 File "fixtures/typing/reject/bad/literals.zn", line 14, characters 55-74:
-14 | Int relayed(values Array<Int, 3>, n @concepts$Int) => measured(values, n)
+14 | Int relayed(values Array<Int, 3>, n @concepts$Int) => measured(values, n);
    |                                                       ^^^^^^^^^^^^^^^^^^^
 Error: no `measured` accepts (@primitives$Array<@primitives$I64, 3>, @concepts$Int); the candidate is `@primitives$I64 measured(@primitives$Array<@primitives$I64, n>, n @concepts$Int)` (in `relayed` with n = 4, required at fixtures/typing/reject/bad/literals.zn:44)
 File "fixtures/typing/reject/bad/literals.zn", line 18, characters 12-27:
@@ -431,15 +431,15 @@ File "fixtures/typing/reject/bad/literals.zn", line 47, characters 18-31:
    |                  ^^^^^^^^^^^^^
 Error: no `twice` accepts (@concepts$Int, @concepts$Float); the candidates are `@primitives$Unit twice(@concepts$Int, @concepts$Int)`; `@primitives$Unit twice(@concepts$Float, @concepts$Float)`; `@primitives$Unit twice(@concepts$Block)`
 File "fixtures/typing/reject/bad/literals.zn", line 52, characters 21-41:
-52 | Int tooBig() => Int(99999999999999999999)
+52 | Int tooBig() => Int(99999999999999999999);
    |                     ^^^^^^^^^^^^^^^^^^^^
 Error: `99999999999999999999` is out of range for `@primitives$I64`
 File "fixtures/typing/reject/bad/literals.zn", line 53, characters 46-56:
-53 | @primitives$I32 tooWide() => @primitives$I32(4294967296)
+53 | @primitives$I32 tooWide() => @primitives$I32(4294967296);
    |                                              ^^^^^^^^^^
 Error: `4294967296` is out of range for `@primitives$I32`
 File "fixtures/typing/reject/bad/literals.zn", line 54, characters 25-428:
-54 | Float tooFar() => Float(10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0)
+54 | Float tooFar() => Float(10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0);
    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0` is out of range for `@primitives$F64`
 File "fixtures/typing/reject/bad/literals.zn", line 61, characters 16-36:
@@ -451,35 +451,35 @@ File "fixtures/typing/reject/bad/marks.zn", line 8, characters 30-35:
   |                              ^^^^^
 Error: `^bad$Kite` is a roaming owner, and `^` is written only on a local, a parameter or a return type, so it cannot be a field
 File "fixtures/typing/reject/bad/marks.zn", line 10, characters 23-28:
-10 | alias Kites = ListRef<^Kite>
+10 | alias Kites = ListRef<^Kite>;
    |                       ^^^^^
 Error: `^bad$Kite` is a roaming owner, and `^` is written only on a local, a parameter or a return type, never inside another type's arguments
 File "fixtures/typing/reject/bad/marks.zn", line 12, characters 15-19:
-12 | Unit fly(span ^Int) => Unit()
+12 | Unit fly(span ^Int) => Unit();
    |               ^^^^
 Error: `@primitives$I64` is a value type, and `^` marks only a roaming owner of a reference type; a value is never owned, only copied
 File "fixtures/typing/reject/bad/marks.zn", line 14, characters 1-31:
-14 | Unit tug(this ^Kite) => Unit()
+14 | Unit tug(this ^Kite) => Unit();
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: the subject is written `^bad$Kite`, and it is always a borrow of the object the method is called on, so neither `^` nor `&` is written on `this`
 File "fixtures/typing/reject/bad/marks.zn", line 19, characters 1-29:
-19 | Kite build() => Kite(Int(1))
+19 | Kite build() => Kite(Int(1));
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `build` returns `bad$Kite`, a reference type, bare; a borrow is never returned, so write `^bad$Kite` to hand back an owner or `&bad$Kite` to hand back a reference
 File "fixtures/typing/reject/bad/marks.zn", line 20, characters 1-28:
-20 | Int?Kite refuse() => Int(0)
+20 | Int?Kite refuse() => Int(0);
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `refuse` aborts with `bad$Kite`, a reference type, bare; a borrow is never returned, so write `^bad$Kite` to hand back an owner or `&bad$Kite` to hand back a reference
 File "fixtures/typing/reject/bad/marks.zn", line 21, characters 1-38:
-21 | Unit launch(make Kite[Int]) => Unit()
+21 | Unit launch(make Kite[Int]) => Unit();
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: this function type returns `bad$Kite`, a reference type, bare; a borrow is never returned, so write `^bad$Kite` to hand back an owner or `&bad$Kite` to hand back a reference
 File "fixtures/typing/reject/bad/marks.zn", line 25, characters 1-32:
-25 | Unit hold(kite ^Kite) => Unit()
+25 | Unit hold(kite ^Kite) => Unit();
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: illegal overload set: this function differs from the one at fixtures/typing/reject/bad/marks.zn:24 only by the passing mode on a parameter; rename one declaration or choose a single signature
 File "fixtures/typing/reject/bad/marks.zn", line 35, characters 22-26:
-35 | alias Kited = Hamper<Kite>
+35 | alias Kited = Hamper<Kite>;
    |                      ^^^^
 Error: `bad$Kite` is a reference type, and it reaches `bad$Hamper<bad$Kite>`'s field `item`, a value type's slot; a value type holds only values, all the way down
 File "fixtures/typing/reject/bad/marks.zn", line 38, characters 14-26:
@@ -495,7 +495,7 @@ File "fixtures/typing/reject/bad/marks.zn", line 41, characters 25-53:
    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `bad$Kite` is a reference type, and it reaches the elements of `@primitives$Array<bad$Kite, 2>`, a value type's slot; a value type holds only values, all the way down
 File "fixtures/typing/reject/bad/marks.zn", line 53, characters 20-23:
-53 | alias Pegged = Peg<Int>
+53 | alias Pegged = Peg<Int>;
    |                    ^^^
 Error: `@primitives$I64` is a value type, and it fills an `&` at `bad$Peg<@primitives$I64>`'s field `at`; `&` marks only a reference type, since a value is never referenced, only copied
 File "fixtures/typing/reject/bad/marks.zn", line 57, characters 11-16:
@@ -507,7 +507,7 @@ File "fixtures/typing/reject/bad/marks.zn", line 58, characters 9-14:
    |         ^^^^^
 Error: `@primitives$I64` is a value type, and it fills an `&` at the parameter `at`; `&` marks only a reference type, since a value is never referenced, only copied
 File "fixtures/typing/reject/bad/marks.zn", line 67, characters 26-31:
-67 | alias KiteRefs = ListRef<&Kite>
+67 | alias KiteRefs = ListRef<&Kite>;
    |                          ^^^^^
 Error: `&bad$Kite` is a reference, and it fills the elements of `@primitives$ListRef<&bad$Kite>`; a `ListRef`'s elements are owners, never references
 File "fixtures/typing/reject/bad/marks.zn", line 74, characters 11-15:
@@ -555,19 +555,19 @@ File "fixtures/typing/reject/bad/matches.zn", line 34, characters 712-1030:
    |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: the match does not cover `red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, green`, `red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, green, red`, `red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, red, green, green` (and more than 4611686018427387899 more); every case needs an arm, and there is no default
 File "fixtures/typing/reject/bad/math.zn", line 9, characters 24-41:
-9 | F64 root(value I64) => @math$sqrt(value)
+9 | F64 root(value I64) => @math$sqrt(value);
   |                        ^^^^^^^^^^^^^^^^^
 Error: no `@math$sqrt` accepts (@primitives$I64); the candidates are `@primitives$F32 @math$sqrt(@primitives$F32)`; `@primitives$F64 @math$sqrt(@primitives$F64)`
 File "fixtures/typing/reject/bad/math.zn", line 12, characters 27-56:
-12 | F64 shifted(value F64) => @math$shiftLeft(value, value)
+12 | F64 shifted(value F64) => @math$shiftLeft(value, value);
    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: no `@math$shiftLeft` accepts (@primitives$F64, @primitives$F64); the candidates are `@primitives$I32 @math$shiftLeft(@primitives$I32, @primitives$I32)`; `@primitives$I64 @math$shiftLeft(@primitives$I64, @primitives$I64)`
 File "fixtures/typing/reject/bad/math.zn", line 15, characters 35-57:
-15 | F64 least(left F64, right I64) => @math$min(left, right)
+15 | F64 least(left F64, right I64) => @math$min(left, right);
    |                                   ^^^^^^^^^^^^^^^^^^^^^^
 Error: no `@math$min` accepts (@primitives$F64, @primitives$I64); the candidates are `@primitives$I32 @math$min(@primitives$I32, @primitives$I32)`; `@primitives$I64 @math$min(@primitives$I64, @primitives$I64)`; `@primitives$F32 @math$min(@primitives$F32, @primitives$F32)`; `@primitives$F64 @math$min(@primitives$F64, @primitives$F64)`
 File "fixtures/typing/reject/bad/math.zn", line 18, characters 37-47:
-18 | F64 tangentHyperbolic(value F64) => @math$tanh(value)
+18 | F64 tangentHyperbolic(value F64) => @math$tanh(value);
    |                                     ^^^^^^^^^^
 Error: no intrinsic operation named `@math$tanh`
 File "fixtures/typing/reject/bad/moves.zn", line 21, characters 13-23:
@@ -595,7 +595,7 @@ File "fixtures/typing/reject/bad/moves.zn", line 34, characters 11-14:
    |           ^^^
 Error: `cup` is a borrow: the caller lends it for the call, and a borrow is never moved, stored or returned; a parameter that takes its argument is declared `^T`
 File "fixtures/typing/reject/bad/moves.zn", line 38, characters 30-34:
-38 | ^Saucer give(this Saucer) => this
+38 | ^Saucer give(this Saucer) => this;
    |                              ^^^^
 Error: `this` is a borrow of the object the method was called on, and a method never moves it
 File "fixtures/typing/reject/bad/moves.zn", line 45, characters 15-20:
@@ -639,11 +639,11 @@ File "fixtures/typing/reject/bad/names.zn", line 9, characters 6-10:
   |      ^^^^
 Error: the type `Pair` is already declared at fixtures/typing/reject/bad/names.zn:8
 File "fixtures/typing/reject/bad/names.zn", line 14, characters 1-6:
-14 | limit Int(4)
+14 | limit Int(4);
    | ^^^^^
 Error: the name `limit` is already declared at fixtures/typing/reject/bad/names.zn:13
 File "fixtures/typing/reject/bad/names.zn", line 17, characters 1-8:
-17 | limited Int(5)
+17 | limited Int(5);
    | ^^^^^^^
 Error: the name `limited` is already declared at fixtures/typing/reject/bad/names.zn:16
 File "fixtures/typing/reject/bad/names.zn", line 20, characters 13-20:
@@ -671,31 +671,31 @@ File "fixtures/typing/reject/bad/operands.zn", line 15, characters 22-29:
    |                      ^^^^^^^
 Error: no operator `+` accepts (bad$Meters, @concepts$Float); the candidates are `bad$Meters +(bad$Meters, bad$Meters)`; `@primitives$I64 +(@primitives$I64, @primitives$Bool)`
 File "fixtures/typing/reject/bad/overloads.zn", line 6, characters 1-29:
-6 | Int same(other Int) => other
+6 | Int same(other Int) => other;
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: this function takes the same parameter types as the one at fixtures/typing/reject/bad/overloads.zn:5, so no call could tell them apart; parameter names, `this`, `mut` and the return type do not distinguish overloads
 File "fixtures/typing/reject/bad/overloads.zn", line 9, characters 1-39:
-9 | Unit consume(engine &Engine) => Unit()
+9 | Unit consume(engine &Engine) => Unit();
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: illegal overload set: this function differs from the one at fixtures/typing/reject/bad/overloads.zn:8 only by the passing mode on a parameter; rename one declaration or choose a single signature
 File "fixtures/typing/reject/bad/overloads.zn", line 13, characters 1-71:
-13 | Unit fleet(engines @concepts$Array<T Type, n @concepts$Int>) => Unit()
+13 | Unit fleet(engines @concepts$Array<T Type, n @concepts$Int>) => Unit();
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: illegal overload set: this function differs from the one at fixtures/typing/reject/bad/overloads.zn:12 only by the passing mode on a parameter; rename one declaration or choose a single signature
 File "fixtures/typing/reject/bad/overloads.zn", line 17, characters 1-45:
-17 | Unit tune(f Unit[this Engine] mut) => Unit()
+17 | Unit tune(f Unit[this Engine] mut) => Unit();
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: illegal overload set: this function differs from the one at fixtures/typing/reject/bad/overloads.zn:16 only by `mut` on a function-type parameter, and a function value that does not declare `mut` would match both; rename one declaration or choose a single signature
 File "fixtures/typing/reject/bad/overloads.zn", line 20, characters 1-36:
-20 | Int +(left Int, right Bool) => left
+20 | Int +(left Int, right Bool) => left;
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: the operator `+` on `@primitives$I64` and `@primitives$Bool` may be declared only in the home package of an operand type, and `bad` is not one
 File "fixtures/typing/reject/bad/overloads.zn", line 23, characters 1-38:
-23 | implicit Int(engine Engine) => Int(1)
+23 | implicit Int(engine Engine) => Int(1);
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: the source of an implicit constructor must be a value type or a concept type, and `bad$Engine` is a reference type
 File "fixtures/typing/reject/bad/overloads.zn", line 26, characters 1-41:
-26 | implicit Float(value Bool) => Float(0.0)
+26 | implicit Float(value Bool) => Float(0.0);
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: an implicit constructor from `@primitives$Bool` to `@primitives$F64` may be declared only in the home package of one of them, and `bad` is neither
 File "fixtures/typing/reject/bad/overloads.zn", line 30, characters 1-19:
@@ -715,7 +715,7 @@ File "fixtures/typing/reject/bad/overloads.zn", line 36, characters 1-7:
    | ^^^^^^
 Error: an enum map ranges over an enum, and `bad$Engine` is not one
 File "fixtures/typing/reject/bad/overloads.zn", line 40, characters 1-34:
-40 | Unit main(argument Int) => Unit()
+40 | Unit main(argument Int) => Unit();
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: `main` takes no parameters: the root package reaches the console and runtime through `@program$`
 File "fixtures/typing/reject/bad/overloads.zn", line 43, characters 1-18:
@@ -723,11 +723,11 @@ File "fixtures/typing/reject/bad/overloads.zn", line 43, characters 1-18:
    | ^^^^^^^^^^^^^^^^^
 Error: `main` declares no abort type: no caller exists to handle an abort
 File "fixtures/typing/reject/bad/privacy.zn", line 8, characters 37-44:
-8 | Int peekThing(thing Thing) => thing._hidden
+8 | Int peekThing(thing Thing) => thing._hidden;
   |                                     ^^^^^^^
 Error: `_hidden` is private to the package `lib` (types.md §2.3)
 File "fixtures/typing/reject/bad/privacy.zn", line 10, characters 37-44:
-10 | Int peekSubject(this Thing) => this._hidden
+10 | Int peekSubject(this Thing) => this._hidden;
    |                                     ^^^^^^^
 Error: `_hidden` is private to the package `lib` (types.md §2.3)
 File "fixtures/typing/reject/bad/privacy.zn", line 12, characters 41-48:
@@ -919,11 +919,11 @@ File "fixtures/typing/reject/bad/sources.zn", line 71, characters 17-26:
    |                 ^^^^^^^^^
 Error: `this` is a borrow, never a source of a reference; a verb that hands out a reference into an object takes the object as an `&T` parameter
 File "fixtures/typing/reject/bad/sources.zn", line 76, characters 26-30:
-76 | &Bell lend(bell Bell) => bell
+76 | &Bell lend(bell Bell) => bell;
    |                          ^^^^
 Error: a new reference must come from a settled place, and this is a borrow, which is the caller's only for the call; take the parameter as `&T` to keep a reference to it
 File "fixtures/typing/reject/bad/sources.zn", line 77, characters 25-34:
-77 | &Bell own(this Rack) => this.bell
+77 | &Bell own(this Rack) => this.bell;
    |                         ^^^^^^^^^
 Error: `this` is a borrow, never a source of a reference; a verb that hands out a reference into an object takes the object as an `&T` parameter
 File "fixtures/typing/reject/bad/sources.zn", line 83, characters 5-14:
@@ -1087,11 +1087,11 @@ File "fixtures/typing/reject/bad/types.zn", line 11, characters 16-22:
    |                ^^^^^^
 Error: `T` introduces a parameter, which only a verb signature may do; a type lists its parameters in its `< >` header
 File "fixtures/typing/reject/bad/types.zn", line 14, characters 1-18:
-14 | alias Loop = Loop
+14 | alias Loop = Loop;
    | ^^^^^^^^^^^^^^^^^
 Error: the alias `Loop` is defined in terms of itself
 File "fixtures/typing/reject/bad/types.zn", line 15, characters 1-19:
-15 | type Round = Robin
+15 | type Round = Robin;
    | ^^^^^^^^^^^^^^^^^^
 Error: the type `Round` is defined in terms of itself
 File "fixtures/typing/reject/bad/uncalled.zn", line 7, characters 5-10:
@@ -1107,15 +1107,15 @@ File "fixtures/typing/reject/bad/uncalled.zn", line 8, characters 19-26:
   |                   ^^^^^^^
 Error: no name `nowhere` is in scope (in `neverCalled`, which nothing instantiates)
 File "fixtures/typing/reject/bad/uncalled.zn", line 12, characters 58-85:
-12 | Int neverSized(values Array<T Type, n @concepts$Int>) => @operators$add(Int(n), 2.5)
+12 | Int neverSized(values Array<T Type, n @concepts$Int>) => @operators$add(Int(n), 2.5);
    |                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: no `@operators$add` accepts (@primitives$I64, @concepts$Float); the candidates are `@primitives$I32 @operators$add(@primitives$I32, @primitives$I32)`; `@primitives$I64 @operators$add(@primitives$I64, @primitives$I64)`; `@primitives$F32 @operators$add(@primitives$F32, @primitives$F32)`; `@primitives$F64 @operators$add(@primitives$F64, @primitives$F64)` (in `neverSized`, which nothing instantiates)
 File "fixtures/typing/reject/bad/uncalled.zn", line 17, characters 41-48:
-17 | (this Shelf<T Type>)[index Int] => this.shelves[index]
+17 | (this Shelf<T Type>)[index Int] => this.shelves[index];
    |                                         ^^^^^^^
 Error: `Shelf` has no field `shelves` (in `[]`, which nothing instantiates)
 File "fixtures/typing/reject/bad/unimported.zn", line 5, characters 21-27:
-5 | Int unimported() => helper(Int(1))
+5 | Int unimported() => helper(Int(1));
   |                     ^^^^^^
 Error: no function named `helper` is in scope; the package `lib` declares one, and like every package it needs an import
 File "fixtures/typing/reject/bad/writes.zn", line 15, characters 5-12:

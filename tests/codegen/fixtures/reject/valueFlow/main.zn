@@ -2,7 +2,7 @@
 /// lowering writes it out only as a statement.
 package valueFlow;
 
-alias Unit = @primitives$Unit
+alias Unit = @primitives$Unit;
 
 Unit main() {
 	done Unit = @controlflow$branch(true, { });

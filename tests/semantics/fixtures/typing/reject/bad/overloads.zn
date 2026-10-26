@@ -2,30 +2,30 @@ package bad;
 
 type Engine = #struct { power Int; }
 
-Int same(value Int) => value
-Int same(other Int) => other
+Int same(value Int) => value;
+Int same(other Int) => other;
 
-Unit consume(engine Engine) => Unit()
-Unit consume(engine &Engine) => Unit()
+Unit consume(engine Engine) => Unit();
+Unit consume(engine &Engine) => Unit();
 
 /// A literal's element mode is a passing mode too (generics.md §8.4).
-Unit fleet(engines @concepts$Array<^T Type, n @concepts$Int>) => Unit()
-Unit fleet(engines @concepts$Array<T Type, n @concepts$Int>) => Unit()
+Unit fleet(engines @concepts$Array<^T Type, n @concepts$Int>) => Unit();
+Unit fleet(engines @concepts$Array<T Type, n @concepts$Int>) => Unit();
 
 /// A function value that does not declare `mut` would match both.
-Unit tune(f Unit[this Engine]) => Unit()
-Unit tune(f Unit[this Engine] mut) => Unit()
+Unit tune(f Unit[this Engine]) => Unit();
+Unit tune(f Unit[this Engine] mut) => Unit();
 
 /// Neither operand is declared here.
-Int +(left Int, right Bool) => left
+Int +(left Int, right Bool) => left;
 
 /// A reference type is not a source a conversion may take.
-implicit Int(engine Engine) => Int(1)
+implicit Int(engine Engine) => Int(1);
 
 /// Neither end is declared here.
-implicit Float(value Bool) => Float(0.0)
+implicit Float(value Bool) => Float(0.0);
 
-type Level = enum [ low, high ]
+type Level = enum [ low, high ];
 
 Level.weight Int {
 	low = Int(1);
@@ -37,7 +37,7 @@ Engine.power Int {
 	low = Int(1);
 }
 
-Unit main(argument Int) => Unit()
+Unit main(argument Int) => Unit();
 
 /// `main` may return any type, but no caller exists to handle an abort.
 Int?Unit main() {

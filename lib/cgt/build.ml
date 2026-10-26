@@ -21,7 +21,7 @@ let binop span : Sst.Nodes.Operator.node -> Expr.binop = function
   | Less -> Expr.Less
   | And | Or -> Diagnostic.bug ~span "lowering: a storage primitive has no `and` or `or`"
 
-(* An exit ends the run of a block (docs/spec-divergences.md §9). Semantics
+(* An exit ends the run of a block (docs/spec-divergences.md §7). Semantics
    rejects one anywhere else, so this is not reached. *)
 let no_block span = Diagnostic.bug ~span "lowering: an exit ends the block its call is written in, and this is in none"
 

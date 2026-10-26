@@ -7,12 +7,12 @@
 /// Each check prints `yes` when it holds and `no` when it does not.
 package removal;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
-alias Row = @primitives$ListRef<Int>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+alias Row = @primitives$ListRef<Int>;
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.

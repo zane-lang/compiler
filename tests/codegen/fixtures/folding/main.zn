@@ -7,13 +7,13 @@
 /// unoptimized build, which folds nothing, shows the folded one is right.
 package folding;
 
-alias Int = @primitives$I64
-alias I32 = @primitives$I32
-alias Float = @primitives$F64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias I32 = @primitives$I32;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -177,14 +177,14 @@ Int unchanged(v Vec) {
 	return v.x;
 }
 
-Float inverse(x Float) => @operators$divide(Float(1.0), x)
+Float inverse(x Float) => @operators$divide(Float(1.0), x);
 
 Unit negate(this Float) mut {
 	this = @operators$negate(this);
 	return Unit();
 }
 
-Int twice(f Int[Int], x Int) => f(f(x))
+Int twice(f Int[Int], x Int) => f(f(x));
 
 Int pair(n Int) {
 	a Int = spawn fib(n);

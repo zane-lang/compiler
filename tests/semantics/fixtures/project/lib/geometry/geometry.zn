@@ -1,6 +1,6 @@
 /// A library package: never a root, so it has no `main` (packages.md §6.1).
 package geometry;
 
-alias Int = @primitives$I64
+alias Int = @primitives$I64;
 
-Int double(n Int) => @operators$add(n, n)
+Int double(n Int) => @operators$add(n, n);

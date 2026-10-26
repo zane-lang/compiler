@@ -2,9 +2,9 @@
 /// §2.9). QUESTION marks what the spec does not settle.
 package genref;
 
-alias Int = @primitives$I64
-alias Unit = @primitives$Unit
-alias PortRef = &Port
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias PortRef = &Port;
 
 type Port = #struct { n Int; }
 Port(n Int) => init{ n; }

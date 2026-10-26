@@ -2,12 +2,12 @@
 /// over: no recursion, but each call mixes 200 rounds, so a table of its
 /// results saves almost all of the loop's work after the first 64 calls.
 package repeats;
-alias Int = @primitives$I64
-alias Float = @primitives$F64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 /// Advances the counter through the inclusive range, running the block once
 /// per step.
@@ -34,9 +34,9 @@ Unit say(text String) {
 	return Unit();
 }
 
-Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)))
+Int rem(a Int, b Int) => @operators$add(a, @operators$negate(@operators$multiply(@operators$divide(a, b), b)));
 
-Int mix(k Int) => rem(@operators$add(@operators$multiply(k, Int(6364136223846793005)), Int(1442695040888963407)), Int(1000000007))
+Int mix(k Int) => rem(@operators$add(@operators$multiply(k, Int(6364136223846793005)), Int(1442695040888963407)), Int(1000000007));
 
 /// The key after 200 rounds of mixing.
 Int heavy(k Int) {

@@ -4,7 +4,7 @@ type Jar<T Type> = struct { item T; }
 
 Jar<T>(item T Type) => init{ item; }
 
-Jar<T> wrap(item T Type) => Jar(item)
+Jar<T> wrap(item T Type) => Jar(item);
 
 /// A block never escapes the call it is written at, so no type may hold one,
 /// even where no written type names it: each call below would build a `Jar`

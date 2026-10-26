@@ -4,11 +4,11 @@
 /// pushed into and overwritten in a list.
 package moves;
 
-alias Int = @primitives$I64
-alias Bool = @primitives$Bool
-alias Unit = @primitives$Unit
-alias String = @primitives$String
-alias ListRef<T Type> = @primitives$ListRef<T>
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
 
 Bool if(condition Bool, body @concepts$Block) {
 	@controlflow$branch(condition, body);
@@ -58,9 +58,9 @@ Car(engine ^Engine) => init{ engine; }
 	return kept;
 }
 
-Unit consume(e ^Engine) => Unit()
+Unit consume(e ^Engine) => Unit();
 
-Int powerOf(e Engine) => e.power
+Int powerOf(e Engine) => e.power;
 
 type Garage = #struct { cars ListRef<Car>; }
 Garage() => init{ cars = @primitives$ListRef(Car); }

@@ -4,7 +4,7 @@ type Note = #struct { pitch @primitives$I64; }
 
 Note(pitch @primitives$I64) => init{ pitch; }
 
-@primitives$Unit hear(note &Note) => @primitives$Unit()
+@primitives$Unit hear(note &Note) => @primitives$Unit();
 
 /// A reference names a place: a value built in the argument is a temporary,
 /// so it is stored first (memory.md §2.8).

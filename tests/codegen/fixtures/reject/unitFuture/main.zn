@@ -2,9 +2,9 @@
 /// no storage to store into.
 package unitFuture;
 
-alias Unit = @primitives$Unit
+alias Unit = @primitives$Unit;
 
-Unit nothing() => Unit()
+Unit nothing() => Unit();
 
 Unit main() {
 	later Unit = spawn nothing();

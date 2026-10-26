@@ -6,9 +6,9 @@ type Slot = #variant { full Bell; empty Int; }
 
 Bell(tone Int) => init{ tone; }
 
-&Bell ring(bell &Bell) => bell
-^Bell forge() => Bell(Int(1))
-Int weight(bell &Bell) => bell.tone
+&Bell ring(bell &Bell) => bell;
+^Bell forge() => Bell(Int(1));
+Int weight(bell &Bell) => bell.tone;
 
 /// A new reference comes from a settled place: a settled symbol, or a path
 /// from one, or from a reference, through struct fields (memory.md §2.8).
@@ -49,8 +49,8 @@ Unit fixed() {
 type Belfry = #struct { _row @primitives$ArrayRef<Bell, 2>; }
 type Cupboard = #struct { _items ListRef<Bell>; }
 
-(this Belfry)[index Int] => this._row[index]
-(this Cupboard)[index Int] => this._items[index]
+(this Belfry)[index Int] => this._row[index];
+(this Cupboard)[index Int] => this._items[index];
 
 Unit project(belfry &Belfry, cupboard &Cupboard) {
 	a &Bell = belfry[Int(1)];
@@ -73,8 +73,8 @@ Unit hang(this Rack, bell Bell, spare &Bell) mut {
 	return Unit();
 }
 
-&Bell lend(bell Bell) => bell
-&Bell own(this Rack) => this.bell
+&Bell lend(bell Bell) => bell;
+&Bell own(this Rack) => this.bell;
 
 /// A store never goes through a reference, unless the reference is a
 /// parameter the path starts at (lifetimes.md §1.1).
