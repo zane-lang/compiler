@@ -1,5 +1,7 @@
 /// String literals (lexical.md §7.1, types.md §2.7, §2.8): the escapes the
-/// language reads, interpolation, and `String.escaped`.
+/// language reads, interpolation, and `String.escaped`. Interpolated values
+/// run in written order among a field constructor's entries, and spawned
+/// literals that differ only in where a site falls stay apart.
 package interpolation;
 
 alias String = @primitives$String
@@ -36,6 +38,26 @@ Unit later(text @concepts$String, change @concepts$Block) {
 
 String greet(who String) => String("hi \%who!")
 
+/// Says when its implicit constructor runs.
+type Loud = struct { _value String; }
+
+Loud(value String) => init{ _value = value; }
+implicit String(loud Loud) {
+	line(String("read loud"));
+	return loud._value;
+}
+
+String noisy(text String) {
+	line(String("ran \%text"));
+	return text;
+}
+
+type Pair = struct { first String; second String; }
+
+Pair{ first String; second @concepts$String; } => init{ first; second = String(second); }
+
+String tagged(text @concepts$String) => String(text)
+
 Unit main() {
 	raw String("enrique");
 	name Name(String("ana"));
@@ -58,6 +80,16 @@ Unit main() {
 	line(String.escaped("tab[\t] kept[\w \q] backslash[\\\\n]"));
 	@program$console!print(String.escaped("value \%raw\n"));
 	twiceEscaped("escaped through a parameter: \%raw\n");
+
+	loud Loud(String("loud"));
+	pair Pair{ second = "second=\%loud"; first = noisy(String("first")); }
+	line(pair.first);
+	line(pair.second);
+
+	after String = spawn tagged("\%raw\\%");
+	before String = spawn tagged("\\%\%raw");
+	line(after);
+	line(before);
 	return Unit();
 }
 

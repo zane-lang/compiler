@@ -61,7 +61,10 @@ then run it again, read the golden diff and promote that.
   before the literal is read changes the value it interpolated, and the
   text keeps the value it had when the literal was written.
   `String.escaped` reads `\n`, `\t`, `\r`, `\0` and `\\` in the literal's
-  text and not in a value interpolated into it.
+  text and not in a value interpolated into it. A field constructor given
+  its entries out of order runs an interpolated value's implicit conversion
+  in written order, and two spawned literals that differ only in where a
+  site falls beside a written `\%` each get their own function.
 - `counting` is step 2 of docs/design/lowering.md §8: scalar arithmetic, verbs
   that call verbs, and the fixture's own `if`, `elif`, `else` and `to` expanded
   where they are called. Every check it makes prints `yes` when it holds.

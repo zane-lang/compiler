@@ -209,7 +209,8 @@ let construct_fields w st ctx span verb (fields : T.Field_value.t list) handler 
       else
         (* Each value is stored as the constructor takes it, in the order it
            runs, and passed in its slot. A constructor expanded where it is
-           called (L11) takes its literals as they are, and a stored value
+           called (L11) takes its literals as they are, with the values
+           interpolated into one captured in its turn, and a stored value
            through a local of its own that names the store, typed as the
            parameter it fills: an `&T` one's store holds the reference
            already, not a place to mint one from. *)
@@ -222,7 +223,9 @@ let construct_fields w st ctx span verb (fields : T.Field_value.t list) handler 
             (fun (slot, (e : T.Expr.t)) ->
               let p = List.nth v.params slot in
               match p.T.Local.ty with
-              | Tty.Concept _ when expands v -> (slot, [], `Arg (T.Arg.Value e))
+              | Tty.Concept _ when expands v ->
+                  let lets, lit = Lower_calls.captured w st ctx span ~into:ctx.env (literal_of ctx e) in
+                  (slot, lets, `Arg (T.Arg.Value (if lets = [] then e else lit)))
               | _ ->
                   let value = Lower_calls.argument w st ctx span v p e in
                   let id = fresh st in

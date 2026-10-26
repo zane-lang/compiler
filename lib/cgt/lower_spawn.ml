@@ -72,9 +72,11 @@ let specialized st ctx span (v : verb) args =
     match e.T.Expr.node with
     | T.Expr.Integer_lit s | T.Expr.Decimal_lit s -> s
     | T.Expr.Text_lit pieces ->
-        Printf.sprintf "%S"
-          (String.concat ""
-             (List.map (function T.Expr.Fragment s -> s | T.Expr.Interpolation _ -> "\\%") pieces))
+        (* Each fragment quoted, so a `\%` the text holds never reads as a
+           site, and two literals that differ only in where a site falls
+           never share a key. *)
+        String.concat " "
+          (List.map (function T.Expr.Fragment s -> Printf.sprintf "%S" s | T.Expr.Interpolation _ -> "\\%") pieces)
     | _ -> Diagnostic.bug ~span "lowering expected a literal here"
   in
   let key = Printf.sprintf "expanded %s(%s)" v.key (String.concat ", " (List.map text literals)) in

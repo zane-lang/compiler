@@ -16,3 +16,9 @@ tab[	] kept[\w \q] backslash[\n]
 value enrique
 escaped through a parameter: enrique
 escaped through a parameter: enrique
+read loud
+ran first
+first
+second=loud
+enrique\%
+\%enrique
