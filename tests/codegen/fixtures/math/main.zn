@@ -16,8 +16,8 @@ alias Unit = @primitives$Unit
 alias String = @primitives$String
 
 Unit check(holds Bool) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	@controlflow$branch(holds, {
 		@program$console!print(yes);
 	});

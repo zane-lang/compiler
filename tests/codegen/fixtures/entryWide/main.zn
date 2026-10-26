@@ -13,7 +13,7 @@ alias Wide = @primitives$ArrayRef<Int, 65536>
 }
 
 ^Wide main() {
-	done String("main returns 512 KiB\n");
+	done String.escaped("main returns 512 KiB\n");
 	@program$console!print(done);
 	return make();
 }

@@ -36,6 +36,6 @@ Int fib(n Int) {
 }
 
 Int loud(this @runtime$Console, n Int) mut {
-    this!print(@primitives$String("library\n"));
+    this!print(@primitives$String.escaped("library\n"));
     return add(n, n);
 }

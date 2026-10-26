@@ -13,6 +13,10 @@ type part =
   | Block of T.Block.t
   | Lambda of T.Block.t
 
+(* A string literal's interpolated values, in written order. *)
+let interpolations pieces =
+  List.filter_map (function T.Expr.Interpolation v -> Some v | T.Expr.Fragment _ -> None) pieces
+
 let parts (e : T.Expr.t) =
   let same es = List.map (fun x -> Same x) es in
   let handler = function Some (h : T.Handler.t) -> [ Handler h.T.Handler.body ] | None -> [] in
@@ -41,7 +45,8 @@ let parts (e : T.Expr.t) =
   | T.Expr.Match { scrutinees; arms; handler = h } ->
       same scrutinees @ List.map (fun (a : T.Arm.t) -> Arm a.T.Arm.body) arms @ handler h
   | T.Expr.Lambda { body; _ } -> [ Lambda body ]
-  | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Text_lit _ | T.Expr.Bool_lit _
+  | T.Expr.Text_lit pieces -> same (interpolations pieces)
+  | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Bool_lit _
   | T.Expr.Var _ | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Invalid ->
       []
 

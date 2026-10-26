@@ -16,15 +16,15 @@ Unit say(text String) {
 }
 
 Unit check(ok Bool) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	@controlflow$branch(ok, { say(yes); });
 	@controlflow$branch(@operators$not(ok), { say(no); });
 	return Unit();
 }
 
 Int loud(n Int) {
-	made String("made\n");
+	made String.escaped("made\n");
 	say(made);
 	return n;
 }
@@ -47,7 +47,7 @@ limit Int(42)
 doubled Int = @operators$multiply(limit, Int(2))
 early Int = @operators$add(later, Int(1))
 later Int = loud(Int(9))
-greeting String = @operators$concat(String("hel"), String("lo\n"))
+greeting String = @operators$concat(String("hel"), String.escaped("lo\n"))
 ada Person{ name = String("ada"); age = Int(36); }
 origin Point(Int(0), Int(0))
 
@@ -56,12 +56,12 @@ Int peek() => @operators$add(doubled, early)
 Int age(p &Person) => p.age
 
 Unit main() {
-	start String("main\n");
+	start String.escaped("main\n");
 	say(start);
 	check(@operators$equal(@operators$add(limit, Int(1)), Int(43)));
 	check(@operators$equal(peek(), Int(94)));
 	say(greeting);
-	check(@operators$equal(greeting, String("hello\n")));
+	check(@operators$equal(greeting, String.escaped("hello\n")));
 	g &Person = ada;
 	check(@operators$equal(g.age, Int(36)));
 	check(@operators$equal(age(ada), Int(36)));

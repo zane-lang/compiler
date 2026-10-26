@@ -100,7 +100,7 @@ let tst_samples () =
   [
     none (T.Expr.Integer_lit "1");
     none (T.Expr.Decimal_lit "1.5");
-    none (T.Expr.Text_lit "t");
+    (T.Expr.Text_lit [ T.Expr.Fragment "t"; T.Expr.Interpolation a; T.Expr.Interpolation c ], [ pa; pc ]);
     none (T.Expr.Bool_lit true);
     (T.Expr.Array_lit [ a; c ], [ pa; pc ]);
     (T.Expr.Map_lit [ (a, c); (k, v) ], [ pa; pc; pk; pv ]);

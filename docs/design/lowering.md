@@ -1140,9 +1140,24 @@ test passing.
 - **Moving to a newer LLVM.** llvm-project's bindings track every release,
   but opam packages them only up to 19. A newer release means building
   them from that release's `llvm/bindings/ocaml`, or waiting for opam.
-- **String escapes.** The spec names none, and the lexer keeps a backslash
-  with the character after it. Lowering decodes `\n`, `\t`, `\r` and `\0`, and
-  any other pair stands for its second character, until the spec says.
+- **String literals.** The lexer keeps a literal's text as written, and
+  `lib/cst/text_literal.ml` reads the escaped quote and backslash and the
+  `\%name` sites ([`lexical.md`](https://github.com/zane-lang/spec/blob/main/spec/lexical.md#71-string-literals-and-structural-escapes) §7.1). Any other backslash
+  sequence stays in the text: `@primitives$String` embeds it as it is, and
+  only `@primitives$String.escaped` reads `\n`, `\t`, `\r`, `\0` and `\\`
+  in the literal's fragments (`Literals.escaped`).
+  - **An interpolated value is copied where the literal is written.** Where
+    a literal becomes a concept argument (`Lower_calls.captured`), each
+    value is evaluated in written order and held in a slot of the caller's
+    scope, and the literal the parameter is bound to reads those slots, so
+    the body may read it any number of times, or pass it on, and see the
+    same text ([`types.md`](https://github.com/zane-lang/spec/blob/main/spec/types.md#28-string-concepts-and-interpolation) §2.8). A spawned call's function takes a
+    string parameter for each value instead (`Lower_spawn.specialized`).
+  - **The constructor joins.** `Lower_data.text` joins the fragments and
+    values in the runtime, each join but the last held in the scope so its
+    drain returns the bytes; a literal of fragments alone is one constant,
+    an optimized build can fold one whose values are all known, within
+    its folding budget.
 - **How a value crosses a call.** L6 lends a value parameter by the address
   of the caller's slot and L7 has a result written into a destination the
   caller names. Lowering passes and returns value types, a reference-type

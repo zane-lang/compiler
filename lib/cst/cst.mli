@@ -18,3 +18,20 @@ val to_span_text : source:string -> Nodes.Package.t -> string
     reads one (lexical.md §3): a name such as a package's, given anywhere but
     in source, is held to the rule the source is. A keyword is not one. *)
 val is_lower_identifier : string -> bool
+
+(** A string literal's structure (lexical.md §7.1), read from the text the
+    lexer keeps between its quotes. *)
+module Text_literal : sig
+  type part =
+    | Text of string  (** Literal text, with its escaped quotes and backslashes read. *)
+    | Name of { text : string; offset : int }
+        (** An interpolation site [\%name], and the byte offset of [name] in
+            the written text. *)
+    | Bad_name of { found : found; offset : int }
+        (** A [\%] no value identifier follows, and the offset of the
+            [\%]. *)
+
+  and found = Type_identifier of string | Keyword of string | Nothing
+
+  val scan : string -> part list
+end

@@ -1,0 +1,50 @@
+└── program:
+    ├── entry: zane.start
+    ├── layouts[0] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: escapes$main()
+    │       └── args:
+    └── funcs[1] > func:
+        ├── symbol: escapes$main()
+        ├── params:
+        ├── ret: void
+        └── body[0] > scope:
+            ├── id: %4
+            ├── body[0] > eval > runtime:
+            │   ├── type: void
+            │   ├── fn: zane_print
+            │   └── args[0] > expand:
+            │       ├── type: handle
+            │       ├── label: @2
+            │       ├── result: #3
+            │       ├── body[0] > hold:
+            │       │   ├── local: #1
+            │       │   ├── scope: %4
+            │       │   ├── value: "n[\n] t[\t] r[\r] zero[\000] backslash[\\] kept[\\q]" : handle
+            │       │   └── layout: %primitives$String
+            │       └── body[1] > assign:
+            │           ├── place: #3
+            │           └── value: local #1 : handle
+            ├── body[1] > eval > runtime:
+            │   ├── type: void
+            │   ├── fn: zane_print
+            │   └── args[0] > expand:
+            │       ├── type: handle
+            │       ├── label: @6
+            │       ├── result: #7
+            │       ├── body[0] > hold:
+            │       │   ├── local: #5
+            │       │   ├── scope: %4
+            │       │   ├── value: "n[\\n] t[\\t] r[\\r] zero[\\0] backslash[\\\\] kept[\\q]" : handle
+            │       │   └── layout: %primitives$String
+            │       └── body[1] > assign:
+            │           ├── place: #7
+            │           └── value: local #5 : handle
+            └── body[2] > return: unit : void

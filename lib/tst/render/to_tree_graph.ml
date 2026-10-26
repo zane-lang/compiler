@@ -47,7 +47,14 @@ let rec expr (e : Expr.t) : node =
   let node title children = group title (fields (("type", ty e.ty) :: children)) in
   match e.node with
   | Expr.Integer_lit s | Expr.Decimal_lit s -> leaf s
-  | Expr.Text_lit s -> leaf (Printf.sprintf "%S" s)
+  | Expr.Text_lit pieces when List.for_all (function Expr.Fragment _ -> true | _ -> false) pieces ->
+      leaf (Printf.sprintf "%S" (String.concat "" (List.map (function Expr.Fragment s -> s | _ -> "") pieces)))
+  | Expr.Text_lit pieces ->
+      let piece = function
+        | Expr.Fragment s -> Leaf (Printf.sprintf "%S" s)
+        | Expr.Interpolation v -> expr v
+      in
+      node "text" [ ("pieces", map_seq piece pieces) ]
   | Expr.Bool_lit b -> leaf (string_of_bool b)
   | Expr.Var r -> leaf (name_ref r)
   | Expr.Type_arg t -> leaf ("type " ^ Ty.to_string t)

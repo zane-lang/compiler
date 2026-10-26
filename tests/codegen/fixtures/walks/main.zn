@@ -14,8 +14,8 @@ alias String = @primitives$String
 alias List<T Type> = @primitives$List<T>
 
 Unit check(ok Bool) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});

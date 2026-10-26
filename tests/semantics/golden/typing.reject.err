@@ -354,6 +354,30 @@ File "fixtures/typing/reject/bad/instances.zn", line 34, characters 5-21:
 34 |     fork(Jar(value));
    |     ^^^^^^^^^^^^^^^^
 Error: `fork` is instantiated more than 64 times along one chain of instantiations, which begins `fork`, `fork`, `fork`, `fork`, ...; its calls to itself never reach a fixed set (in `fork` with T = bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<@primitives$I64>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>, required at fixtures/typing/reject/bad/instances.zn:35)
+File "fixtures/typing/reject/bad/interpolation.zn", line 10, characters 31-33:
+10 |     noName String = String("a \% b");
+   |                               ^^
+Error: `\%` starts an interpolation site, and a value identifier must follow it
+File "fixtures/typing/reject/bad/interpolation.zn", line 11, characters 33-39:
+11 |     typeName String = String("a \%Type b");
+   |                                 ^^^^^^
+Error: an interpolation site names a value symbol, and `Type` is a type identifier
+File "fixtures/typing/reject/bad/interpolation.zn", line 12, characters 36-41:
+12 |     keywordName String = String("a \%and b");
+   |                                    ^^^^^
+Error: an interpolation site names a value symbol, and `and` is a keyword
+File "fixtures/typing/reject/bad/interpolation.zn", line 13, characters 38-45:
+13 |     unknownName String = String("a \%nowhere b");
+   |                                      ^^^^^^^
+Error: no name `nowhere` is in scope
+File "fixtures/typing/reject/bad/interpolation.zn", line 14, characters 38-43:
+14 |     unconverted String = String("a \%tally b");
+   |                                      ^^^^^
+Error: an interpolation site requires `@primitives$String`, and this is `@primitives$I64`, with no implicit constructor between them
+File "fixtures/typing/reject/bad/interpolation.zn", line 16, characters 11-16:
+16 |         \%tally");
+   |           ^^^^^
+Error: an interpolation site requires `@primitives$String`, and this is `@primitives$I64`, with no implicit constructor between them
 File "fixtures/typing/reject/bad/lambdas.zn", line 5, characters 20-25:
 5 |     reads Int() => outer;
   |                    ^^^^^

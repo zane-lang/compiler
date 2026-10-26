@@ -59,6 +59,6 @@ Unit main() {
 		roll!remove(Int(1));
 	}
 	@program$console!print(@operators$concat(String(total), String(" ")));
-	@program$console!print(@operators$concat(String(roll:size()), String("\n")));
+	@program$console!print(@operators$concat(String(roll:size()), String.escaped("\n")));
 	return Unit();
 }

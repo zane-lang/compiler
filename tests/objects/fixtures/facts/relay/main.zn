@@ -9,6 +9,6 @@ Unit main() {
 	n Int = doubled(args[Int(1)]:parseI64() ?? Int(0));
 	grid Grid();
 	grid!fill(n);
-	@program$console!print(@operators$concat(String(grid!sweep()), String("\n")));
+	@program$console!print(@operators$concat(String(grid!sweep()), String.escaped("\n")));
 	return Unit();
 }

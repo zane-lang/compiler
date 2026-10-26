@@ -1,0 +1,13 @@
+/// Every escape `String.escaped` reads (types.md §2.7), seen in the text
+/// constant it lowers to, and the same sequences kept as written by the
+/// plain constructor.
+package escapes;
+
+alias String = @primitives$String
+alias Unit = @primitives$Unit
+
+Unit main() {
+	@program$console!print(String.escaped("n[\n] t[\t] r[\r] zero[\0] backslash[\\\\] kept[\q]"));
+	@program$console!print(String("n[\n] t[\t] r[\r] zero[\0] backslash[\\\\] kept[\q]"));
+	return Unit();
+}

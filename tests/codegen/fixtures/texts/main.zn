@@ -52,8 +52,8 @@ String?String refuse(text String) {
 }
 
 Unit check(ok Bool) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});
@@ -66,19 +66,19 @@ Unit check(ok Bool) {
 Unit main() {
 	// Joined, compared and printed.
 	a String("ab");
-	b String = @operators$concat(a, String("cd\n"));
+	b String = @operators$concat(a, String.escaped("cd\n"));
 	@program$console!print(b);
-	check(@operators$equal(@operators$concat(a, String("cd\n")), b));
+	check(@operators$equal(@operators$concat(a, String.escaped("cd\n")), b));
 	check(@operators$not(@operators$equal(a, b)));
 	check(@operators$equal(twice(a), String("abab")));
 
 	// A copy owns bytes of its own, so overwriting the original leaves it
 	// as it was.
 	c String = b;
-	check(@operators$equal(c, String("abcd\n")));
+	check(@operators$equal(c, String.escaped("abcd\n")));
 	b = String("again");
 	check(@operators$equal(b, String("again")));
-	check(@operators$equal(c, String("abcd\n")));
+	check(@operators$equal(c, String.escaped("abcd\n")));
 
 	// An owner holding a string, read through a reference, and its string
 	// replaced; a copy of the field keeps the old bytes.

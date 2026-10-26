@@ -5,10 +5,18 @@ open Nodes
 open State
 open Type_layout
 
-(* The spec names no escapes (lexical.md); the lexer keeps a backslash and the
-   character after it together, and these are the ones lowering decodes
-   (docs/design/lowering.md §9). Any other pair stands for itself. *)
-let unescape s =
+(* A string literal's text when nothing is interpolated into it. The
+   compiler-provided constructor keeps it as written, past the escaped quotes
+   and backslashes the checker read (types.md §2.7, lexical.md §7.1). *)
+let text_of pieces =
+  if List.for_all (function T.Expr.Fragment _ -> true | T.Expr.Interpolation _ -> false) pieces then
+    Some (String.concat "" (List.map (function T.Expr.Fragment s -> s | T.Expr.Interpolation _ -> "") pieces))
+  else None
+
+(* `@primitives$String.escaped` reads these text escapes in a literal's
+   fragments (types.md §2.7). Any other backslash stays, with the character
+   after it. *)
+let escaped s =
   let b = Buffer.create (String.length s) in
   let n = String.length s in
   let rec go i =
@@ -19,7 +27,10 @@ let unescape s =
         | 't' -> Buffer.add_char b '\t'
         | 'r' -> Buffer.add_char b '\r'
         | '0' -> Buffer.add_char b '\000'
-        | c -> Buffer.add_char b c);
+        | '\\' -> Buffer.add_char b '\\'
+        | c ->
+            Buffer.add_char b '\\';
+            Buffer.add_char b c);
         go (i + 2)
       end
       else begin
@@ -29,6 +40,17 @@ let unescape s =
   in
   go 0;
   Buffer.contents b
+
+let escape_pieces pieces =
+  List.map (function T.Expr.Fragment s -> T.Expr.Fragment (escaped s) | p -> p) pieces
+
+(* What names a value interpolated into a literal passed on to a concept
+   parameter: the copy held for it where the literal was written (types.md
+   §2.8). No identifier is spelled this way. *)
+let interpolated_name = "\\%"
+
+let interpolates (e : T.Expr.t) =
+  match e.T.Expr.node with T.Expr.Text_lit pieces -> Option.is_none (text_of pieces) | _ -> false
 
 let lookup ctx span (l : T.Local.t) =
   match Hashtbl.find_opt ctx.env l.T.Local.id with
@@ -77,5 +99,8 @@ let literal ctx span name (arg : T.Expr.t) : Expr.t =
       in
       if Float.is_finite value then { Expr.node = Expr.Float value; ty }
       else refuse span (Printf.sprintf "`%s` is out of range for `@primitives$%s`" s name)
-  | "String", T.Expr.Text_lit s -> { Expr.node = Expr.Text (unescape s); ty = Nodes.Ty.Handle }
+  | "String", T.Expr.Text_lit pieces when Option.is_some (text_of pieces) ->
+      { Expr.node = Expr.Text (Option.get (text_of pieces)); ty = Nodes.Ty.Handle }
+  | "String.escaped", T.Expr.Text_lit pieces when Option.is_some (text_of pieces) ->
+      { Expr.node = Expr.Text (escaped (Option.get (text_of pieces))); ty = Nodes.Ty.Handle }
   | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `@primitives$%s` of something not its literal" name)

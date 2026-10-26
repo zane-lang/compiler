@@ -17,8 +17,8 @@ Unit say(text String) {
 }
 
 Unit check(ok Bool) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	@controlflow$branch(ok, { say(yes); });
 	@controlflow$branch(@operators$not(ok), { say(no); });
 	return Unit();
@@ -45,7 +45,7 @@ Person{ name String("nobody"); age Int(0); } {
 	made String("made ");
 	say(made);
 	say(name);
-	end String("\n");
+	end String.escaped("\n");
 	say(end);
 	return init{ name; age; }
 }
@@ -68,7 +68,7 @@ Scaled{ a Int(1); b Int; by @concepts$Int; } => init{ a = @operators$multiply(a,
 Unit main() {
 	w Weapon{ rate = Int(2); }
 	check(@operators$equal(w.damage, @operators$add(@operators$multiply(Int(10), w.rate), @operators$negate(Int(10)))));
-	v Weapon{ damage = noisy(String("d "), Int(3)); rate = noisy(String("r\n"), Int(4)); }
+	v Weapon{ damage = noisy(String("d "), Int(3)); rate = noisy(String.escaped("r\n"), Int(4)); }
 	check(@operators$equal(@operators$add(v.damage, v.rate), Int(7)));
 	p Person{ age = Int(36); }
 	q Person{ name = String("ada"); }
@@ -77,7 +77,7 @@ Unit main() {
 	check(@operators$conjoin(g.value, @operators$equal(g.count, Int(5))));
 	h Tagged<Int> = Tagged{ count = Int(2); value = Int(9); }
 	check(@operators$equal(@operators$add(h.value, h.count), Int(11)));
-	s Scaled{ by = 3; b = noisy(String("b\n"), Int(2)); }
+	s Scaled{ by = 3; b = noisy(String.escaped("b\n"), Int(2)); }
 	check(@operators$equal(@operators$add(s.a, s.b), Int(9)));
 	return Unit();
 }

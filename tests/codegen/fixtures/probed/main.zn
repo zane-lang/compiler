@@ -27,8 +27,8 @@ Unit say(text String) {
 
 Unit check(label String, ok Bool) {
 	say(label);
-	@controlflow$branch(ok, { say(String(" yes\n")); });
-	@controlflow$branch(@operators$not(ok), { say(String(" no\n")); });
+	@controlflow$branch(ok, { say(String.escaped(" yes\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String.escaped(" no\n")); });
 	return Unit();
 }
 

@@ -38,8 +38,8 @@ Unit bump(this Top) mut {
 }
 
 Unit check(ok Bool) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});
@@ -1853,7 +1853,7 @@ type S299 = struct {
 S299(value Int, label String) => init{ value; label; }
 
 Unit main() {
-	s299 S299(Int(7), String("deep\n"));
+	s299 S299(Int(7), String.escaped("deep\n"));
 	s298 S298(s299);
 	s297 S297(s298);
 	s296 S296(s297);

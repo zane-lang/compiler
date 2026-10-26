@@ -83,8 +83,8 @@ type Shelf = #struct {
 Shelf(counter Counter) => init{ counter; }
 
 Unit check(ok Bool) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	@controlflow$branch(ok, {
 		@program$console!print(yes);
 	});
@@ -193,6 +193,6 @@ Unit main() {
 		@program$console!print(text);
 		return Unit();
 	}
-	say(String("said\n"));
+	say(String.escaped("said\n"));
 	return Unit();
 }

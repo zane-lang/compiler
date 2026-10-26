@@ -45,7 +45,9 @@ module rec Expr : sig
   and node =
     | Integer_lit of string
     | Decimal_lit of string
-    | Text_lit of string
+    (* A string literal's literal text and interpolated values, in written
+       order (types.md §2.8). *)
+    | Text_lit of piece list
     | Bool_lit of bool
     | Array_lit of t list
     | Map_lit of (t * t) list
@@ -97,6 +99,10 @@ module rec Expr : sig
     (* What an expression that failed to type becomes. Its [ty] is
        [Ty.Error], and the diagnostic has already been reported (D4). *)
     | Invalid
+
+  (* An interpolated value is the `@primitives$String` its site requires: the
+     symbol it names, or that symbol converted by an implicit constructor. *)
+  and piece = Fragment of string | Interpolation of t
 end =
   Expr
 

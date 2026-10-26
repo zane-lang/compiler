@@ -13,8 +13,8 @@ alias String = @primitives$String
 alias Wide = @primitives$ArrayRef<Int, 65536>
 
 Unit check(ok Bool) {
-	yes String("yes\n");
-	no String("no\n");
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
 	@controlflow$branch(ok, { @program$console!print(yes); });
 	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
 	return Unit();

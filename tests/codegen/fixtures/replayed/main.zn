@@ -35,14 +35,14 @@ Unit say(text String) {
 }
 
 Unit check(ok Bool) {
-	@controlflow$branch(ok, { say(String("yes\n")); });
-	@controlflow$branch(@operators$not(ok), { say(String("no\n")); });
+	@controlflow$branch(ok, { say(String.escaped("yes\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String.escaped("no\n")); });
 	return Unit();
 }
 
 /// Writes while it computes.
 Int loud(n Int) {
-	say(String("computing\n"));
+	say(String.escaped("computing\n"));
 	return @operators$multiply(n, Int(2));
 }
 
@@ -142,12 +142,12 @@ String repeated(word String, times Int) {
 }
 
 Unit main() {
-	say(String("first\n"));
+	say(String.escaped("first\n"));
 	check(@operators$equal(loud(Int(21)), Int(42)));
-	say(String("between\n"));
+	say(String.escaped("between\n"));
 	check(@operators$equal(spin(Int(3000000)), Int(3000000)));
 	check(@operators$equal(down(Int(5000)), Int(5000)));
-	say(String("after\n"));
+	say(String.escaped("after\n"));
 
 	// A store made inside an expression that folds is still made, for the
 	// read that happens when the program runs.

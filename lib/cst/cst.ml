@@ -4,3 +4,4 @@ let to_span_text = To_span_text.render
 
 let parse = Parse.package
 let is_lower_identifier = Lexer.is_lower_identifier
+module Text_literal = Text_literal

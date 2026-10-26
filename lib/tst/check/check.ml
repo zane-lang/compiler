@@ -30,12 +30,35 @@ open Termination
 (* Expressions                                                            *)
 (* ---------------------------------------------------------------------- *)
 
+(* The span of [length] bytes at [offset] in a string literal's written
+   text, which starts after the opening quote of the literal at [span].
+   Spans asked for left to right each go on from where the last ended. *)
+let within_literal (span : Source.Span.t) written =
+  let rec advance (p : Lexing.position) i upto =
+    if i >= upto then p
+    else
+      let cnum = p.pos_cnum + 1 in
+      let p =
+        if written.[i] = '\n' then { p with pos_cnum = cnum; pos_lnum = p.pos_lnum + 1; pos_bol = cnum }
+        else { p with pos_cnum = cnum }
+      in
+      advance p (i + 1) upto
+  in
+  let first = { span.start_ with pos_cnum = span.start_.pos_cnum + 1 } in
+  let last = ref (0, first) in
+  fun offset length ->
+    let i, p = if fst !last <= offset then !last else (0, first) in
+    let start_ = advance p i offset in
+    let end_ = advance start_ offset (offset + length) in
+    last := (offset + length, end_);
+    { Source.Span.start_; end_ }
+
 let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   let span = e.N.Expr.span in
   match e.N.Expr.node with
   | N.Expr.IntLit s -> mk (T.Expr.Integer_lit s) (Ty.Concept Ty.Integer_lit) span
   | N.Expr.DecimalLit s -> mk (T.Expr.Decimal_lit s) (Ty.Concept Ty.Decimal_lit) span
-  | N.Expr.StrLit s -> mk (T.Expr.Text_lit s) (Ty.Concept Ty.Text_lit) span
+  | N.Expr.StrLit s -> text_literal env ctx span s
   | N.Expr.BoolLit b -> mk (T.Expr.Bool_lit b) Ty.bool_primitive span
   | N.Expr.CollectionLit items -> array_literal env ctx span items
   | N.Expr.MapLit entries -> map_literal env ctx span entries
@@ -59,6 +82,57 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   | N.Expr.MethLambda l ->
       lambda env ctx span ~this_type:(Some l.N.Meth_lambda.this_type) ~params:l.N.Meth_lambda.params
         ~ret_type:l.N.Meth_lambda.ret_type ~is_mut:l.N.Meth_lambda.is_mut ~body:l.N.Meth_lambda.body
+
+(* lexical.md §7.1: the literal's structure, read once. Each interpolation
+   site names a value symbol of this scope, and requires `@primitives$String`:
+   a coercion site, so the one implicit constructor that applies converts
+   anything else (types.md §2.8). *)
+and text_literal env ctx span written =
+  let at = within_literal span written in
+  let piece = function
+    | Cst.Text_literal.Text text -> Some (T.Expr.Fragment text)
+    | Cst.Text_literal.Name { text; offset } ->
+        let span = at offset (String.length text) in
+        let name = { N.Name_expr.node = N.Name_expr.Ident { N.Name.text; span }; span } in
+        Some (T.Expr.Interpolation (interpolated env (name_value env ctx name)))
+    | Cst.Text_literal.Bad_name { found; offset } ->
+        let message, written =
+          match found with
+          | Cst.Text_literal.Nothing ->
+              ("`\\%` starts an interpolation site, and a value identifier must follow it", "")
+          | Cst.Text_literal.Keyword k ->
+              (Printf.sprintf "an interpolation site names a value symbol, and %s is a keyword" (quote k), k)
+          | Cst.Text_literal.Type_identifier t ->
+              ( Printf.sprintf "an interpolation site names a value symbol, and %s is a type identifier"
+                  (quote t),
+                t )
+        in
+        error env (at offset (2 + String.length written)) message;
+        None
+  in
+  let pieces = List.filter_map piece (Cst.Text_literal.scan written) in
+  mk (T.Expr.Text_lit pieces) (Ty.Concept Ty.Text_lit) span
+
+and interpolated env (v : T.Expr.t) =
+  let dst = Intrinsics.prim "String" in
+  if v.T.Expr.ty = Ty.Error || Ty.assignable ~dst ~src:v.T.Expr.ty then v
+  else
+    match implicit_constructors env ~src:v.T.Expr.ty ~dst with
+    | [ ((s, subst) as found) ] ->
+        request env s subst v.T.Expr.span;
+        coerce_value v found
+    | [] ->
+        error env v.T.Expr.span
+          (Printf.sprintf
+             "an interpolation site requires %s, and this is %s, with no implicit constructor between them"
+             (quote (Ty.to_string dst)) (quote (Ty.to_string v.T.Expr.ty)));
+        v
+    | several ->
+        error env v.T.Expr.span
+          (Printf.sprintf "more than one implicit constructor converts %s to %s: %s"
+             (quote (Ty.to_string v.T.Expr.ty)) (quote (Ty.to_string dst))
+             (String.concat ", " (List.map (fun ((s : S.t), _) -> quote (S.to_string s)) several)));
+        v
 
 (* syntax.md §2.9: every element already has the one element type; nothing
    searches for a common one. A literal of owners of one type and references

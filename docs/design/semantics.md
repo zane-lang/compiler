@@ -467,7 +467,9 @@ flows down.** The spec supports this directly:
 - A concept type becomes a storage type only through an implicit constructor at
   a coercion site (`types.md` §2.6, §4.2).
 - The coercion sites are exactly the positional arguments of calls and
-  constructors, field-constructor entries, and enum-map entries. Declarations,
+  constructors, field-constructor entries, enum-map entries, and string
+  interpolation sites, whose destination is `@primitives$String`
+  (`types.md` §2.8). Declarations,
   assignments, `return` and the operands of an operator are not coercion
   sites. `x Int = 20` is therefore a
   type error, not a coercion (§4.2).
@@ -475,7 +477,9 @@ flows down.** The spec supports this directly:
   "**MUST NOT** drive inference" (`generics.md` §5.4).
 
 So the only place a destination type matters is a coercion site, and there the
-destination comes from the candidate being tried, not from context. A call
+destination comes from the candidate being tried, not from context; an
+interpolation site has no candidates, and its destination is always
+`@primitives$String`. A call
 types its arguments first and then runs overload resolution. That is the three
 phases of `functions.md` §5 (direct, generic, implicit), each tried only if the
 one before found nothing.

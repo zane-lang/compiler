@@ -44,7 +44,7 @@ Int forever(n Int) {
 }
 
 Unit main() {
-	say(String("start\n"));
-	@controlflow$branch(@operators$equal(forever(Int(0)), Int(0)), { say(String("never\n")); });
+	say(String.escaped("start\n"));
+	@controlflow$branch(@operators$equal(forever(Int(0)), Int(0)), { say(String.escaped("never\n")); });
 	return Unit();
 }

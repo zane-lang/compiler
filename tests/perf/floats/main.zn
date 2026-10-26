@@ -31,7 +31,7 @@ Int size(fallback Int) {
 }
 
 Unit say(text String) {
-	@program$console!print(@operators$concat(text, String("\n")));
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
 	return Unit();
 }
 

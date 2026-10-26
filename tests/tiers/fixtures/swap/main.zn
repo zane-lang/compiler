@@ -36,12 +36,12 @@ Int walk(start Int) {
 }
 
 Unit main() {
-	@program$console!print(String("swap: started\n"));
+	@program$console!print(String.escaped("swap: started\n"));
 	total Int(0);
 	i Int(1);
 	i!to(rounds()) {
 		total = @math$bitAnd(@operators$add(total, walk(i)), Int(1048575));
 	}
-	@program$console!print(@operators$concat(String(total), String("\n")));
+	@program$console!print(@operators$concat(String(total), String.escaped("\n")));
 	return Unit();
 }

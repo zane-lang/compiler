@@ -9,7 +9,7 @@ alias String = @primitives$String
 alias List<T Type> = @primitives$List<T>
 
 Unit say(text String) {
-	@program$console!print(@operators$concat(text, String("\n")));
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
 	return @primitives$Unit();
 }
 

@@ -20,6 +20,6 @@ first Int = viaSpawn()
 second Int = @operators$add(first, Int(1))
 
 Unit main() {
-	@program$console!print(String("unreached\n"));
+	@program$console!print(String.escaped("unreached\n"));
 	return Unit();
 }
