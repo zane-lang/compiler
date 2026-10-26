@@ -71,6 +71,40 @@ let fill w st ctx span (make : T.Expr.t) (t : Tty.t) : Expr.t =
       { Expr.node = Expr.Expand { label; body; result = Some result }; ty = arr }
   | _ -> Diagnostic.bug ~span "lowering: `ArrayRef.fill` with the wrong arguments"
 
+(* A string concept's text with values interpolated into it (types.md §2.7,
+   §2.8): its fragments and values joined in written order, into a new
+   string that owns its bytes. *)
+let text w st ctx span (lit : T.Expr.t) : Expr.t =
+  let prim = Tst.Intrinsics.prim "String" in
+  let handle node = { Expr.node; ty = Nodes.Ty.Handle } in
+  match lit.T.Expr.node with
+  | T.Expr.Text_lit [ T.Expr.Interpolation v ] -> w.moved st ctx span prim v
+  | T.Expr.Text_lit pieces ->
+      let part = function
+        | T.Expr.Fragment s -> handle (Expr.Text s)
+        | T.Expr.Interpolation v -> w.borrow st ctx span v
+      in
+      let parts =
+        List.filter_map
+          (function T.Expr.Fragment "" -> None | p -> Some (part p))
+          pieces
+      in
+      (* Each join but the last makes a string only the next one reads, so
+         this scope holds it, and its drain returns the bytes. *)
+      let held value =
+        let id = fresh st and label = fresh st and result = fresh st in
+        let body = [ bind st ctx.scope span prim id value; Stat.assign result (handle (Expr.Local id)) ] in
+        handle (Expr.Expand { label; body; result = Some result })
+      in
+      let rec join l = function
+        | [] -> l
+        | r :: rest ->
+            let joined = handle (Expr.Runtime { fn = Runtime.Text_join; args = [ l; r ] }) in
+            join (if rest = [] then joined else held joined) rest
+      in
+      join (List.hd parts) (List.tl parts)
+  | _ -> Diagnostic.bug ~span "lowering expected a string literal here"
+
 (* A storage primitive's constructor: `Unit` has no storage, a list starts
    empty, and the others embed their literal. An array's literal is its
    elements, each a value moved into its place, in the order written. *)
@@ -124,6 +158,7 @@ let primitive w st ctx span spelling args (t : Tty.t) : Expr.t =
      widen, and the named ones wrap, truncate or round. *)
   | _, [ T.Arg.Value v ] when scalar v.T.Expr.ty ->
       { Expr.node = Expr.Convert (w.expr st ctx v); ty = ty st span t }
+  | "String", [ T.Arg.Value v ] when interpolates (literal_of ctx v) -> text w st ctx span (literal_of ctx v)
   | _, [ T.Arg.Value v ] -> literal ctx span name v
   | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling)
 

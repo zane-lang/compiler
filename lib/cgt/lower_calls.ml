@@ -169,7 +169,9 @@ and held_argument w ?direct st ctx span v (p : T.Local.t) a =
         else Stat.Let { id; value }
       in
       ([ hold ], T.Arg.Value { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) })
-  | T.Arg.Value e, Tty.Concept _ when expands v -> ([], T.Arg.Value e)
+  | T.Arg.Value e, Tty.Concept _ when expands v ->
+      let lets, lit = captured w st ctx span ~into:ctx.env (literal_of ctx e) in
+      if lets = [] then ([], T.Arg.Value e) else (lets, T.Arg.Value lit)
   | T.Arg.Value e, _ ->
       let value = argument w ?direct st ctx span v p e in
       let id = fresh st in
@@ -179,6 +181,36 @@ and held_argument w ?direct st ctx span v (p : T.Local.t) a =
       let read = { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) } in
       ([ Stat.Let { id; value } ], T.Arg.Value read)
   | (T.Arg.Block _ as b), _ -> ([], b)
+
+(* A string literal given to a concept parameter, with each value
+   interpolated into it evaluated where the literal is written, in written
+   order, and a copy of it held in a slot of this scope (types.md §2.8): the
+   statements that hold them, and the literal reading the slots instead.
+   The slots are named in [into] too, where the body reads the literal. A
+   literal passed on from a parameter already reads its slots, which [into]
+   is given as they are. *)
+and captured w st ctx span ~into (lit : T.Expr.t) =
+  match lit.T.Expr.node with
+  | T.Expr.Text_lit pieces when interpolates lit ->
+      let prim = Tst.Intrinsics.prim "String" in
+      let piece = function
+        | T.Expr.Interpolation { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } as p
+          when l.T.Local.name = interpolated_name ->
+            Hashtbl.replace into l.T.Local.id (lookup ctx span l);
+            ([], p)
+        | T.Expr.Interpolation v ->
+            let id = fresh st in
+            let l = { T.Local.id = -id; name = interpolated_name; ty = prim; span = v.T.Expr.span } in
+            let b = slot st prim id in
+            Hashtbl.replace ctx.env l.T.Local.id b;
+            Hashtbl.replace into l.T.Local.id b;
+            let hold = Build.bind st ctx.scope span prim id (w.moved st ctx span prim v) in
+            ([ hold ], T.Expr.Interpolation { v with T.Expr.node = T.Expr.Var (T.Name_ref.Local l); ty = prim })
+        | p -> ([], p)
+      in
+      let held = List.map piece pieces in
+      (List.concat_map fst held, { lit with T.Expr.node = T.Expr.Text_lit (List.map snd held) })
+  | _ -> ([], lit)
 
 (* [lets], then [value], as one expression. *)
 and held_in st lets (value : Expr.t) =
@@ -368,8 +400,9 @@ and expand w st ctx span v args handler ret =
                        bind p (Literal lit);
                        [])
                | _ ->
+                   let lets, lit = captured w st ctx span ~into:env lit in
                    bind p (Literal lit);
-                   [])
+                   lets)
            | ( T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); T.Expr.ty = at; _ },
                _ )
              when (p.T.Local.name = "this" || (owned st p.T.Local.ty && not (roaming st p.T.Local.ty)))

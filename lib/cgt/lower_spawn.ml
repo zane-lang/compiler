@@ -20,14 +20,36 @@ open Build
    its body reads it, one function for each verb and set of literals. A
    block argument cannot be spawned (concurrency.md §3.1), and an array
    literal's elements are values the spawn makes, so its parameter becomes
-   one the function takes, of the array's type. *)
+   one the function takes, of the array's type. So does each value
+   interpolated into a string literal (types.md §2.8): the function takes a
+   string for it, and the literal it is given reads that parameter. *)
 let specialized st ctx span (v : verb) args =
   let concept (p : T.Local.t) = match p.T.Local.ty with Tty.Concept c -> Some c | _ -> None in
   let pairs = List.combine v.params args in
+  let interpolated (p : T.Local.t) (lit : T.Expr.t) pieces =
+    let prim = Tst.Intrinsics.prim "String" in
+    let piece = function
+      | T.Expr.Interpolation (v : T.Expr.t) ->
+          let l = { T.Local.id = -fresh st; name = interpolated_name; ty = prim; span = v.T.Expr.span } in
+          ( [ Either.Right (l, T.Arg.Value v) ],
+            T.Expr.Interpolation { v with T.Expr.node = T.Expr.Var (T.Name_ref.Local l); ty = prim } )
+      | f -> ([], f)
+    in
+    let held = List.map piece pieces in
+    Either.Left (p.T.Local.id, { lit with T.Expr.node = T.Expr.Text_lit (List.map snd held) })
+    :: List.concat_map fst held
+  in
   let literals, kept =
-    List.partition_map
+    List.partition_map Fun.id
+    @@ List.concat_map
       (fun ((p : T.Local.t), arg) ->
         match (concept p, arg) with
+        | Some Tty.Text_lit, T.Arg.Value a when interpolates (literal_of ctx a) -> (
+            let lit = literal_of ctx a in
+            match lit.T.Expr.node with
+            | T.Expr.Text_lit pieces -> interpolated p lit pieces
+            | _ -> Diagnostic.bug ~span "lowering expected a string literal here")
+        | _ -> [ (match (concept p, arg) with
         | Some (Tty.Array_lit (t, n)), T.Arg.Value a ->
             let arr = array_type t n in
             let ctor =
@@ -43,13 +65,16 @@ let specialized st ctx span (v : verb) args =
         | Some (Tty.Integer_lit | Tty.Decimal_lit | Tty.Text_lit), T.Arg.Value a ->
             Left (p.T.Local.id, literal_of ctx a)
         | Some _, _ -> Diagnostic.bug ~span "lowering expected a literal here"
-        | None, _ -> Right (p, arg))
+        | None, _ -> Right (p, arg)) ])
       pairs
   in
   let text (_, (e : T.Expr.t)) =
     match e.T.Expr.node with
     | T.Expr.Integer_lit s | T.Expr.Decimal_lit s -> s
-    | T.Expr.Text_lit s -> Printf.sprintf "%S" s
+    | T.Expr.Text_lit pieces ->
+        Printf.sprintf "%S"
+          (String.concat ""
+             (List.map (function T.Expr.Fragment s -> s | T.Expr.Interpolation _ -> "\\%") pieces))
     | _ -> Diagnostic.bug ~span "lowering expected a literal here"
   in
   let key = Printf.sprintf "expanded %s(%s)" v.key (String.concat ", " (List.map text literals)) in

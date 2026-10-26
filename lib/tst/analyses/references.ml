@@ -135,9 +135,10 @@ let rec through env w (e : T.Expr.t) =
 
 let rec expr env w (e : T.Expr.t) =
   match e.T.Expr.node with
-  | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Text_lit _ | T.Expr.Bool_lit _
+  | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Bool_lit _
   | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Invalid | T.Expr.Var _ ->
       ()
+  | T.Expr.Text_lit pieces -> List.iter (expr env w) (Traverse.interpolations pieces)
   | T.Expr.Array_lit items ->
       let element =
         match e.T.Expr.ty with Ty.Concept (Ty.Array_lit (t, _)) -> t | _ -> Ty.Error

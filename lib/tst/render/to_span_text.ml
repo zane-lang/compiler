@@ -46,7 +46,9 @@ let rec expr d (e : Expr.t) =
   match e.Expr.node with
   | Expr.Integer_lit _ -> at "Integer_lit"
   | Expr.Decimal_lit _ -> at "Decimal_lit"
-  | Expr.Text_lit _ -> at "Text_lit"
+  | Expr.Text_lit pieces ->
+      at "Text_lit";
+      List.iter (function Expr.Interpolation v -> expr d v | Expr.Fragment _ -> ()) pieces
   | Expr.Bool_lit _ -> at "Bool_lit"
   | Expr.Var r ->
       at

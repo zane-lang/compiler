@@ -177,9 +177,12 @@ let rec expr env ?(into = Ty.Error) w (e : T.Expr.t) =
   | T.Expr.Var (T.Name_ref.Local l) -> use env w e l []
   | T.Expr.Field _ when Option.is_some (States.field_path e) -> (
       match States.field_path e with Some (l, path) -> use env w e l path | None -> ())
-  | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Text_lit _ | T.Expr.Bool_lit _
+  | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Bool_lit _
   | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Invalid | T.Expr.Var _ ->
       ()
+  (* Each interpolated value is copied into the literal (types.md §2.8). *)
+  | T.Expr.Text_lit pieces ->
+      List.iter (value env w (Intrinsics.prim "String")) (Traverse.interpolations pieces)
   | T.Expr.Array_lit items ->
       let element =
         match e.T.Expr.ty with Ty.Concept (Ty.Array_lit (t, _)) -> t | _ -> Ty.Error
