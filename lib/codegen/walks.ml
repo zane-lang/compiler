@@ -446,6 +446,17 @@ let move known c (p : Layout.position) =
     store c fresh h;
     fresh
   in
+  (* Each of the [count] elements [stride] bytes apart at [items], moved by
+     the walk [w]. *)
+  let move_elements ~stride items count w =
+    each c count (fun i ->
+        let e =
+          Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) items
+            [| Llvm.build_mul i (int env stride) "" c.b |]
+            "" c.b
+        in
+        visit c w.move e c.with_ c.extra)
+  in
   match p.kind with
   | Layout.Text ->
       let r = load c env.i64 (offset c h room) in
@@ -460,16 +471,7 @@ let move known c (p : Layout.position) =
           when_ c (leaves old) (fun () ->
               let count = load c env.i64 (offset c h length) in
               let items = relocate old r line (Llvm.build_mul count (int env stride) "" c.b) in
-              Option.iter
-                (fun w ->
-                  each c count (fun i ->
-                      let e =
-                        Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) items
-                          [| Llvm.build_mul i (int env stride) "" c.b |]
-                          "" c.b
-                      in
-                      visit c w.move e c.with_ c.extra))
-                (inner known elements)))
+              Option.iter (move_elements ~stride items count) (inner known elements)))
   | Layout.Box { size; payload } ->
       let old = load c env.ptr h in
       when_ c (nonzero c old) (fun () ->

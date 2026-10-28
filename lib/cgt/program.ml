@@ -284,6 +284,47 @@ let written_back st calls =
    library's own packages without a stamp are named with the `!`
    placeholder, and ones with a stamp are named with it, as a dependency
    compiled from source is. *)
+(* L16's constants, in the order they are made: the packages a package
+   depends on first, and within a package in the order declared. A constant
+   that is a lambda is a function, made by nothing. *)
+let constants_in_order (p : T.Program.t) =
+  let constant (d : T.Decl.t) =
+    match d.T.Decl.node with
+    | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda _; _ }; _ } -> None
+    | T.Decl.Constant _ -> Some d.T.Decl.id
+    | _ -> None
+  in
+  List.concat_map
+    (fun (pkg : T.Package.t) -> List.filter_map constant pkg.T.Package.decls)
+    (List.rev p.T.Program.packages)
+
+(* The entry the runtime calls, `zane.start`: [makes], then a call to
+   [entry], `main`'s symbol among [funcs], whose result it drops. *)
+let start_function st main span entry makes (funcs : Func.t list) =
+  let ret =
+    match List.find_opt (fun (f : Func.t) -> f.Func.symbol = entry) funcs with
+    | Some f -> f.Func.ret
+    | None -> Diagnostic.bug "lowering: `main` was not lowered"
+  in
+  let call = { Expr.node = Expr.Call { fn = entry; args = [] }; ty = ret } in
+  let t = main.signature.S.ret in
+  let dropped =
+    if held st span t then begin
+      let scope = { arena = None; settles = []; wants = [] } in
+      close st scope [ bind st scope span t (fresh st) call ]
+    end
+    else [ Stat.Eval call ]
+  in
+  {
+    Func.symbol = "zane.start";
+    linkage = Linkage.Local;
+    params = [];
+    places = [];
+    ret = Nodes.Ty.Void;
+    body = makes @ dropped;
+    values = [];
+  }
+
 let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime.default_fixed_region)
     (p : T.Program.t) =
   let stamp_of id =
@@ -410,18 +451,7 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
              packages a package depends on first, and within a package in
              the order declared. One that reads another makes that one
              first. *)
-          let constants =
-            List.concat_map
-              (fun (pkg : T.Package.t) ->
-                List.filter_map
-                  (fun (d : T.Decl.t) ->
-                    match d.T.Decl.node with
-                    | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda _; _ }; _ } -> None
-                    | T.Decl.Constant _ -> Some d.T.Decl.id
-                    | _ -> None)
-                  pkg.T.Package.decls)
-              (List.rev p.T.Program.packages)
-          in
+          let constants = constants_in_order p in
           (* The runtime calls `void zane_main(void)` (runtime/zane.h), so
              the entry is always a function of that type: one that makes the
              constants, if there are any, and then calls `main`, discarding
@@ -434,30 +464,7 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
           let entry = symbol st main in
           (* Made before [finish] drains, so what they call is lowered. *)
           let makes = List.map (fun decl -> Stat.Eval (constant st decl)) constants in
-          let start (funcs : Func.t list) =
-            let ret =
-              match List.find_opt (fun (f : Func.t) -> f.Func.symbol = entry) funcs with
-              | Some f -> f.Func.ret
-              | None -> Diagnostic.bug "lowering: `main` was not lowered"
-            in
-            let call = { Expr.node = Expr.Call { fn = entry; args = [] }; ty = ret } in
-            let t = main.signature.S.ret in
-            let dropped =
-              if held st span t then begin
-                let scope = { arena = None; settles = []; wants = [] } in
-                close st scope [ bind st scope span t (fresh st) call ]
-              end
-              else [ Stat.Eval call ]
-            in
-            {
-              Func.symbol = "zane.start";
-              linkage = Linkage.Local;
-              params = [];
-              places = [];
-              ret = Nodes.Ty.Void;
-              body = makes @ dropped;
-              values = [];
-            }
-          in
-          finish ~start:(fun funcs -> [ start funcs ]) (Some "zane.start")
+          finish
+            ~start:(fun funcs -> [ start_function st main span entry makes funcs ])
+            (Some "zane.start")
   with Refused d -> Error d

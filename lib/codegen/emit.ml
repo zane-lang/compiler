@@ -1494,6 +1494,18 @@ and to_words env fr b n v =
   List.init n (fun i ->
       Llvm.build_load env.i64 (Llvm.build_in_bounds_gep env.i64 slot [| Llvm.const_int env.i64 i |] "" b) "" b)
 
+(* [v] split into [n] words, and packed into one value of the [n]-word type
+   when there is more than one. *)
+and packed_words env fr b n v =
+  let words = to_words env fr b n v in
+  if n = 1 then List.hd words
+  else
+    List.fold_left
+      (fun (acc, i) w -> (Llvm.build_insertvalue acc w i "" b, i + 1))
+      (Llvm.undef (words_type env n), 0)
+      words
+    |> fst
+
 and stats env fr b body =
   List.iter (fun (id, n) -> Hashtbl.replace fr.runs id (Ahead n)) (runs body);
   List.iter (fun s -> if not (has_terminator b) then stat env fr b s) body
@@ -1554,18 +1566,7 @@ and stat env fr b (s : Stat.t) =
         | Address, Some dest, _ ->
             Option.iter (fun v -> ignore (Llvm.build_store v dest b)) (expr env fr b e);
             None
-        | Words n, _, _ ->
-            Option.map
-              (fun v ->
-                let words = to_words env fr b n v in
-                if n = 1 then List.hd words
-                else
-                  List.fold_left
-                    (fun (acc, i) w -> (Llvm.build_insertvalue acc w i "" b, i + 1))
-                    (Llvm.undef (words_type env n), 0)
-                    words
-                  |> fst)
-              (expr env fr b e)
+        | Words n, _, _ -> Option.map (packed_words env fr b n) (expr env fr b e)
         | _ -> expr env fr b e
       in
       drain env fr b 0;

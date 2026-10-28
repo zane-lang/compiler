@@ -141,20 +141,15 @@ let tier0 m ~hash ~exports:(count, table) =
     set_ordering v true;
     v
   in
-  List.iter
-    (fun fn ->
-      Llvm.iter_blocks
-        (fun bb ->
-          Llvm.iter_instrs
-            (fun i ->
-              if Llvm.instr_opcode i = Llvm.Opcode.Call then
-                let n = Llvm.num_operands i in
-                match Hashtbl.find_opt slots (Llvm.operand i (n - 1)) with
-                | Some slot -> Llvm.set_operand i (n - 1) (through slot (Llvm.builder_before ctx i))
-                | None -> ())
-            bb)
-        fn)
-    fs;
+  (* A direct call to a function with a slot calls through the slot. *)
+  let redirect i =
+    if Llvm.instr_opcode i = Llvm.Opcode.Call then
+      let n = Llvm.num_operands i in
+      match Hashtbl.find_opt slots (Llvm.operand i (n - 1)) with
+      | Some slot -> Llvm.set_operand i (n - 1) (through slot (Llvm.builder_before ctx i))
+      | None -> ()
+  in
+  List.iter (Llvm.iter_blocks (Llvm.iter_instrs redirect)) fs;
   List.iter
     (fun f ->
       let slot = Hashtbl.find slots f in

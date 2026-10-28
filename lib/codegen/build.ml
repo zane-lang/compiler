@@ -632,6 +632,30 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ~cc ~tri
     | Some command -> Lld { command; source = Bundled }
     | None -> link_command ?cache ~cc ~triple ~args ~obj ~runtime ~output dir
   in
+  (* Once *cc* has linked in place of the built-in LLD, the command LLD
+     failed with is forgotten, or kept marked so *cc* links from then on,
+     and the build says which. *)
+  let record_fallback source =
+    let failed = "zanec: warning: the built-in LLD could not link with the command" in
+    match source with
+    | Known kept ->
+        (try Sys.remove kept with Sys_error _ -> ());
+        say
+          (Printf.sprintf "%s kept for `%s`, so it linked instead; it is asked again next build\n"
+             failed cc)
+    | Kept kept ->
+        keep_text ~dir ~kept "\001the built-in LLD could not link with its command";
+        say
+          (Printf.sprintf
+             "%s `%s` gave, so it linked instead, as it will for this target and these flags until \
+              %s is removed\n"
+             failed cc kept)
+    | Asked -> say (Printf.sprintf "%s `%s` gave, so it linked instead\n" failed cc)
+    | Bundled ->
+        say
+          (Printf.sprintf "%s the toolchain bundles for this target, so `%s` linked instead\n"
+             failed cc)
+  in
   match plan with
   | Cc why -> through_cc why
   | Lld _ when not !lld_usable -> through_cc "the built-in LLD cannot run again in this process"
@@ -642,23 +666,7 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ~cc ~tri
           match through_cc "the built-in LLD could not link" with
           | Error _ as error -> error
           | Ok () ->
-              let failed = "zanec: warning: the built-in LLD could not link with the command" in
-              (match source with
-              | Known kept ->
-                  (try Sys.remove kept with Sys_error _ -> ());
-                  say
-                    (Printf.sprintf "%s kept for `%s`, so it linked instead; it is asked again next build\n"
-                       failed cc)
-              | Kept kept ->
-                  keep_text ~dir ~kept "\001the built-in LLD could not link with its command";
-                  say
-                    (Printf.sprintf
-                       "%s `%s` gave, so it linked instead, as it will for this target and these flags \
-                        until %s is removed\n"
-                       failed cc kept)
-              | Asked -> say (Printf.sprintf "%s `%s` gave, so it linked instead\n" failed cc)
-              | Bundled ->
-                  say (Printf.sprintf "%s the toolchain bundles for this target, so `%s` linked instead\n" failed cc));
+              record_fallback source;
               say text;
               Ok ()))
 
