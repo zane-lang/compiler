@@ -361,33 +361,35 @@ let promote env tables =
   let calls = Hashtbl.create 64 in
   List.iter (fun ((d : decl), v) -> Hashtbl.replace calls d.id (List.map (call_targets env index d) (body_calls v))) verbs;
   let changed = ref true in
+  (* Argument [i] of a call in [d]'s body promotes [d]'s parameter when it
+     passes that parameter bare where a callee takes a number. *)
+  let promote_argument (d : decl) ordinary (targets, args) i a =
+    match bare_name a with
+    | Some n
+      when List.mem n ordinary
+           && List.exists (fun t -> takes_number_at tables t (List.length args) i) targets ->
+        (* [ordinary] is this round's; an earlier call in the
+           same body may already have promoted [n]. *)
+        let before = Option.value ~default:[] (Hashtbl.find_opt tables.promoted d.id) in
+        if not (List.mem n before) then begin
+          Hashtbl.replace tables.promoted d.id (before @ [ n ]);
+          changed := true
+        end
+    | _ -> ()
+  in
+  let promote_verb ((d : decl), v) =
+    let ordinary =
+      List.filter_map Fun.id (positions v)
+      |> List.filter (fun n -> not (List.mem n (numbers_of tables d v)))
+    in
+    if ordinary <> [] then
+      List.iter
+        (fun ((_, args) as call) -> List.iteri (promote_argument d ordinary call) args)
+        (Hashtbl.find calls d.id)
+  in
   while !changed do
     changed := false;
-    List.iter
-      (fun ((d : decl), v) ->
-        let ordinary =
-          List.filter_map Fun.id (positions v) |> List.filter (fun n -> not (List.mem n (numbers_of tables d v)))
-        in
-        if ordinary <> [] then
-          List.iter
-            (fun (targets, args) ->
-              List.iteri
-                (fun i a ->
-                  match bare_name a with
-                  | Some n
-                    when List.mem n ordinary
-                         && List.exists (fun t -> takes_number_at tables t (List.length args) i) targets ->
-                      (* [ordinary] is this round's; an earlier call in the
-                         same body may already have promoted [n]. *)
-                      let before = Option.value ~default:[] (Hashtbl.find_opt tables.promoted d.id) in
-                      if not (List.mem n before) then begin
-                        Hashtbl.replace tables.promoted d.id (before @ [ n ]);
-                        changed := true
-                      end
-                  | _ -> ())
-                args)
-            (Hashtbl.find calls d.id))
-      verbs
+    List.iter promote_verb verbs
   done;
   env.diagnostics := saved
 

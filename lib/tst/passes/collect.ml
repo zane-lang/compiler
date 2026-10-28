@@ -155,54 +155,57 @@ let import_file env (file : file) (decls : N.Decl.t list) =
       Hashtbl.add file.bare spelling.N.Import_member.name
         { from = pkg; member = member.N.Import_member.name; at }
   in
+  (* `import p` or `import p as q`: the package under one qualifier. *)
+  let bring_package (p : N.Name.t) alias span =
+    match imported p with
+    | None -> ()
+    | Some id -> (
+        let spelling = Option.value ~default:p alias in
+        if Env.is_upper (name_of spelling) then
+          error env spelling.N.Name.span
+            (Printf.sprintf
+               "an alias keeps the initial case of the name it renames, so the package %s cannot \
+                be spelled %s"
+               (quote (name_of p))
+               (quote (name_of spelling)))
+        else
+          match Hashtbl.find_opt file.qualifiers (name_of spelling) with
+          | Some (other, at) ->
+              error env spelling.N.Name.span
+                (Printf.sprintf "%s already names the package %s, at %s"
+                   (quote (name_of spelling))
+                   (quote other) (where at))
+          | None ->
+              if record id (Whole (name_of spelling)) span then
+                Hashtbl.replace file.qualifiers (name_of spelling) (id, span))
+  in
+  (* `import p.*`: every public member of the package, bare. *)
+  let bring_all (p : N.Name.t) span =
+    match imported p with
+    | Some id when record id All_members span ->
+        let target = package env id in
+        let names =
+          Hashtbl.fold (fun n _ acc -> n :: acc) target.types []
+          @ Hashtbl.fold (fun n _ acc -> n :: acc) target.values []
+          |> List.filter (fun n -> not (is_private n))
+          |> List.sort_uniq String.compare
+        in
+        List.iter (fun n -> Hashtbl.add file.bare n { from = id; member = n; at = span }) names
+    | _ -> ()
+  in
   List.iter
     (fun (d : N.Decl.t) ->
       match d.N.Decl.node with
       | N.Decl.Import { N.Import.node; span } -> (
           match node with
-          | N.Import.Package { package = p; alias } -> (
-              match imported p with
-              | None -> ()
-              | Some id ->
-                let spelling = Option.value ~default:p alias in
-                if Env.is_upper (name_of spelling) then
-                  error env spelling.N.Name.span
-                    (Printf.sprintf
-                       "an alias keeps the initial case of the name it renames, so \
-                        the package %s cannot be spelled %s"
-                       (quote (name_of p))
-                       (quote (name_of spelling)))
-                else
-                  match Hashtbl.find_opt file.qualifiers (name_of spelling) with
-                  | Some (other, at) ->
-                      error env spelling.N.Name.span
-                        (Printf.sprintf "%s already names the package %s, at %s"
-                           (quote (name_of spelling))
-                           (quote other) (where at))
-                  | None ->
-                      if record id (Whole (name_of spelling)) span then
-                        Hashtbl.replace file.qualifiers (name_of spelling)
-                          (id, span))
+          | N.Import.Package { package = p; alias } -> bring_package p alias span
           | N.Import.Member { package = p; member; alias } ->
               Option.iter
                 (fun id -> bring id member (Option.value ~default:member alias) span)
                 (imported p)
           | N.Import.Members { package = p; members } ->
               Option.iter (fun id -> List.iter (fun m -> bring id m m span) members) (imported p)
-          | N.Import.All { package = p } -> (
-              match imported p with
-              | Some id when record id All_members span ->
-                let target = package env id in
-                let names =
-                  Hashtbl.fold (fun n _ acc -> n :: acc) target.types []
-                  @ Hashtbl.fold (fun n _ acc -> n :: acc) target.values []
-                  |> List.filter (fun n -> not (is_private n))
-                  |> List.sort_uniq String.compare
-                in
-                List.iter
-                  (fun n -> Hashtbl.add file.bare n { from = id; member = n; at = span })
-                  names
-              | _ -> ()))
+          | N.Import.All { package = p } -> bring_all p span)
       | _ -> ())
     decls
 

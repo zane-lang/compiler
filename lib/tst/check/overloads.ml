@@ -38,26 +38,26 @@ let arg_expr = function T.Arg.Value e -> Some e | T.Arg.Block _ -> None
    §4.5), so no import is involved. *)
 let implicit_constructors env ~src ~dst =
   let dst = Ty.strip_mode dst in
+  (* [s] with the bindings that take [src] to [dst], when it has one parameter
+     and those bindings fix every one of its generics. *)
+  let converts (s : S.t) =
+    let ( let* ) = Option.bind in
+    match s.params with
+    | [ p ] ->
+        let open_ = s.generics in
+        let* subst = Ty.unify ~open_ [] (Ty.strip_mode p.ty) (Ty.strip_mode src) in
+        let* subst = Ty.unify ~open_ subst s.ret dst in
+        if List.for_all (fun (q : Ty.param) -> List.mem_assoc q.id subst) open_ then Some (s, subst)
+        else None
+    | _ -> None
+  in
   match Verb_signatures.type_key dst with
   | None -> []
   | Some key ->
       let homes = List.filter_map Verb_signatures.home [ src; dst ] in
       Verbs.constructors env.verbs key
       |> List.filter (fun (s : S.t) -> S.is_implicit s && List.mem s.home homes)
-      |> List.filter_map (fun (s : S.t) ->
-             match s.params with
-             | [ p ] -> (
-                 let open_ = s.generics in
-                 match Ty.unify ~open_ [] (Ty.strip_mode p.ty) (Ty.strip_mode src) with
-                 | None -> None
-                 | Some subst -> (
-                     match Ty.unify ~open_ subst s.ret dst with
-                     | None -> None
-                     | Some subst ->
-                         if List.for_all (fun (q : Ty.param) -> List.mem_assoc q.id subst) open_
-                         then Some (s, subst)
-                         else None))
-             | _ -> None)
+      |> List.filter_map converts
 
 (* Building the node requests nothing: a candidate being tried may still be
    dropped, and only the one resolution picks asks for instances
@@ -156,6 +156,27 @@ let try_candidate env ~phase (s : S.t) (slots : actual option list) : outcome op
               | Some subst -> (Some subst, Some `Exact)
               | None -> (Some subst, Some `Convert)))
     in
+    (* An argument the implicit phase converts, through the one implicit
+       constructor that takes it to its parameter's type. *)
+    let convert site_errors subst (p : S.param) a =
+      let dst = Ty.subst subst p.ty in
+      match arg_expr a.arg with
+      | Some e when (not a.subject) && Ty.free_params dst = [] -> (
+          match implicit_constructors env ~src:a.aty ~dst with
+          | [ found ] -> Some (Some (T.Arg.Value (coerce_value e found)))
+          | [] -> None
+          | several ->
+              site_errors :=
+                ( a.aspan,
+                  Printf.sprintf "more than one implicit constructor converts %s to %s: %s"
+                    (quote (Ty.to_string a.aty))
+                    (quote (Ty.to_string dst))
+                    (String.concat ", "
+                       (List.map (fun ((s : S.t), _) -> quote (S.to_string s)) several)) )
+                :: !site_errors;
+              Some (Some a.arg))
+      | _ -> None
+    in
     let subst, marks =
       List.fold_left
         (fun (subst, marks) pair ->
@@ -191,29 +212,7 @@ let try_candidate env ~phase (s : S.t) (slots : actual option list) : outcome op
                 match (slot, mark) with
                 | None, _ -> Some None
                 | Some a, Some `Exact -> Some (Some (held_literal (Ty.subst subst p.ty) a.arg))
-                | Some a, Some `Convert -> (
-                    if a.subject then None
-                    else
-                      match arg_expr a.arg with
-                      | None -> None
-                      | Some e -> (
-                          let dst = Ty.subst subst p.ty in
-                          if Ty.free_params dst <> [] then None
-                          else
-                            match implicit_constructors env ~src:a.aty ~dst with
-                            | [ found ] -> Some (Some (T.Arg.Value (coerce_value e found)))
-                            | [] -> None
-                            | several ->
-                                site_errors :=
-                                  ( a.aspan,
-                                    Printf.sprintf
-                                      "more than one implicit constructor converts %s to %s: %s"
-                                      (quote (Ty.to_string a.aty))
-                                      (quote (Ty.to_string dst))
-                                      (String.concat ", "
-                                         (List.map (fun ((s : S.t), _) -> quote (S.to_string s)) several)) )
-                                  :: !site_errors;
-                                Some (Some a.arg)))
+                | Some a, Some `Convert -> convert site_errors subst p a
                 | _ -> None)
               pairs marks
           in

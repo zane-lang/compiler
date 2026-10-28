@@ -855,6 +855,36 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
                        (match s.kind with S.Constructor c -> c.member = member | _ -> false)
                        && List.mem s.home homes && accessible_sig ctx s)
           in
+          (* `Type(x, y)` against the positional constructors. *)
+          let positional_call ps =
+            let actuals = List.map (actual_of env ctx) ps in
+            if any_error actuals then invalid span
+            else
+              match
+                report_resolution env
+                  ~literal:(literal_drives_inference cands actuals)
+                  ~span ~what ~args:(describe_args actuals)
+                  (resolve env
+                     (List.filter
+                        (fun (s : S.t) ->
+                          match s.kind with S.Constructor { fields; _ } -> not fields | _ -> false)
+                        cands)
+                     (positional actuals))
+                  cands
+              with
+              | None -> invalid span
+              | Some o ->
+                  request env ~args:o.converted o.sig_ o.subst span;
+                  let ret = Ty.subst o.subst o.sig_.ret in
+                  mk
+                    (T.Expr.Construct
+                       {
+                         ctor = verb_ref o.sig_ o.subst;
+                         args = List.filter_map Fun.id o.converted;
+                         handler = None;
+                       })
+                    ret span
+          in
           no_handler ();
           if cands = [] then begin
             type_args ();
@@ -865,25 +895,7 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
           end
           else
             match args.N.Constructor_args.node with
-            | N.Constructor_args.Positional ps -> (
-                let actuals = List.map (actual_of env ctx) ps in
-                if any_error actuals then invalid span
-                else
-                  match
-                    report_resolution env ~literal:(literal_drives_inference cands actuals) ~span ~what
-                      ~args:(describe_args actuals)
-                      (resolve env (List.filter (fun (s : S.t) -> match s.kind with S.Constructor { fields; _ } -> not fields | _ -> false) cands)
-                         (positional actuals))
-                      cands
-                  with
-                  | None -> invalid span
-                  | Some o ->
-                      request env ~args:o.converted o.sig_ o.subst span;
-                      let ret = Ty.subst o.subst o.sig_.ret in
-                      mk
-                        (T.Expr.Construct
-                           { ctor = verb_ref o.sig_ o.subst; args = List.filter_map Fun.id o.converted; handler = None })
-                        ret span)
+            | N.Constructor_args.Positional ps -> positional_call ps
             | N.Constructor_args.Fields fs -> field_constructor_call env ctx span what cands fs))
 
 (* `Type{ a = x; b = y; }` against the field constructors: each entry fills

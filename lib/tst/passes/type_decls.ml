@@ -277,19 +277,20 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
       | Some ({ definition = Some (Struct fs | Variant fs); _ } as info) ->
           let value = info.reference = Some false in
           let step n = Printf.sprintf "%s's field %s" (quote (Ty.to_string t)) (quote n) in
-          List.find_map
-            (fun (n, raw) ->
-              let ft = Ty.instantiate info.params args raw in
-              if value && bad ft then Some { path = [ step n ]; bad = ft; slot = Value_slot }
-              else
-                match (filled_references env raw ft, bare_results env ~top:false raw ft) with
-                | (x, slot) :: _, _ -> Some { path = [ step n ]; bad = x; slot }
-                | [], x :: _ -> Some { path = [ step n ]; bad = x; slot = Bare_result }
-                | [], [] ->
-                    Option.map
-                      (fun found -> { found with path = step n :: found.path })
-                      (wrong_kind env ~seen:(tid :: seen) (Ty.strip_mode ft)))
-            fs
+          (* The first wrong kind a field holds, in the field itself or inside its type. *)
+          let in_field (n, raw) =
+            let ft = Ty.instantiate info.params args raw in
+            if value && bad ft then Some { path = [ step n ]; bad = ft; slot = Value_slot }
+            else
+              match (filled_references env raw ft, bare_results env ~top:false raw ft) with
+              | (x, slot) :: _, _ -> Some { path = [ step n ]; bad = x; slot }
+              | [], x :: _ -> Some { path = [ step n ]; bad = x; slot = Bare_result }
+              | [], [] ->
+                  Option.map
+                    (fun found -> { found with path = step n :: found.path })
+                    (wrong_kind env ~seen:(tid :: seen) (Ty.strip_mode ft))
+          in
+          List.find_map in_field fs
       | Some ({ definition = Some (Distinct u); _ } as info) ->
           wrong_kind env ~seen:(tid :: seen) (Ty.instantiate info.params args u)
       | _ -> None)
@@ -935,50 +936,52 @@ let check_growing_arguments env () =
     | _ -> []
   in
   let edges = ref [] in
+  (* The edges one argument adds: from each parameter it names to the
+     parameter of [target] it is passed for. *)
+  let add_argument_edges owner member (target : type_info) (param : Ty.param) arg =
+    let named =
+      match arg with
+      | Ty.Type t -> Ty.free_params t
+      | Ty.Number (Ty.Number_param p) -> [ p ]
+      | Ty.Number (Ty.Known _) -> []
+    in
+    let bare =
+      match arg with Ty.Type (Ty.Param _) | Ty.Number (Ty.Number_param _) -> true | _ -> false
+    in
+    List.iter
+      (fun (from : Ty.param) ->
+        edges :=
+          {
+            g_from = from.id;
+            g_to = param.id;
+            g_growing = not bare;
+            g_owner = owner;
+            g_member = member;
+            g_arg = arg;
+            g_target = target;
+            g_param = param;
+          }
+          :: !edges)
+      named
+  in
+  let rec occurrences owner member (t : Ty.t) =
+    match t with
+    | Ty.Named (tid, args) ->
+        (match type_info_of_id env tid with
+        | Some target when List.compare_lengths target.params args = 0 ->
+            List.iter2 (add_argument_edges owner member target) target.params args
+        | _ -> ());
+        List.iter (occurrences_arg owner member) args
+    | Ty.Intrinsic { args; _ } -> List.iter (occurrences_arg owner member) args
+    | Ty.Reference t | Ty.Roaming t -> occurrences owner member t
+    | _ -> ()
+  and occurrences_arg owner member = function
+    | Ty.Type t -> occurrences owner member t
+    | Ty.Number _ -> ()
+  in
   List.iter
     (fun (owner : type_info) ->
-      List.iter
-        (fun (_, member, t) ->
-          let rec occurrences (t : Ty.t) =
-            match t with
-            | Ty.Named (tid, args) ->
-                (match type_info_of_id env tid with
-                | Some target when List.compare_lengths target.params args = 0 ->
-                    List.iter2
-                      (fun (param : Ty.param) arg ->
-                        let named =
-                          match arg with
-                          | Ty.Type t -> Ty.free_params t
-                          | Ty.Number (Ty.Number_param p) -> [ p ]
-                          | Ty.Number (Ty.Known _) -> []
-                        in
-                        let bare =
-                          match arg with Ty.Type (Ty.Param _) | Ty.Number (Ty.Number_param _) -> true | _ -> false
-                        in
-                        List.iter
-                          (fun (from : Ty.param) ->
-                            edges :=
-                              {
-                                g_from = from.id;
-                                g_to = param.id;
-                                g_growing = not bare;
-                                g_owner = owner;
-                                g_member = member;
-                                g_arg = arg;
-                                g_target = target;
-                                g_param = param;
-                              }
-                              :: !edges)
-                          named)
-                      target.params args
-                | _ -> ());
-                List.iter occurrences_arg args
-            | Ty.Intrinsic { args; _ } -> List.iter occurrences_arg args
-            | Ty.Reference t | Ty.Roaming t -> occurrences t
-            | _ -> ()
-          and occurrences_arg = function Ty.Type t -> occurrences t | Ty.Number _ -> () in
-          occurrences t)
-        (members owner))
+      List.iter (fun (_, member, t) -> occurrences owner member t) (members owner))
     infos;
   let edges = List.rev !edges in
   if List.exists (fun e -> e.g_growing) edges then begin

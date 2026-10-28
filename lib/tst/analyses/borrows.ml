@@ -499,6 +499,17 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
          (if w.runs <> None then "whatever the block passed in writes" else describe w)
          overlaps (describe b) why)
   in
+  (* A write [w] by the `mut` subject of what the call borrows as [b]. *)
+  let report_subject_write b w =
+    settle_verdict (verdict w b) (fun overlaps ->
+        Env.error env b.expr.T.Expr.span
+          (Printf.sprintf
+             "%s is borrowed by this call, and its `mut` subject %s %s it: nothing else in a call \
+              writes what the call borrows (memory.md §2.9.1)"
+             (describe b)
+             (describe { w with behind = false })
+             (if w.behind then "reaches, through a reference it holds, what may hold" else overlaps)))
+  in
   let check_call (e : T.Expr.t) =
     match params_of e with
     | Some (is_method, is_mut, tys, args, apart) when List.length tys = List.length args ->
@@ -521,22 +532,7 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
         (match (subject, args) with
         | Some _, T.Arg.Value s :: _ when is_mut ->
             let ws = subject_writes s in
-            List.iter
-              (fun (_, b) ->
-                List.iter
-                  (fun w ->
-                    settle_verdict (verdict w b) (fun overlaps ->
-                        Env.error env b.expr.T.Expr.span
-                          (Printf.sprintf
-                             "%s is borrowed by this call, and its `mut` subject %s %s it: \
-                              nothing else in a call writes what the call borrows (memory.md \
-                              §2.9.1)"
-                             (describe b)
-                             (describe { w with behind = false })
-                             (if w.behind then "reaches, through a reference it holds, what may hold"
-                              else overlaps))))
-                  ws)
-              borrowed
+            List.iter (fun (_, b) -> List.iter (report_subject_write b) ws) borrowed
         | _ -> ());
         (* A block argument runs during the call. *)
         List.iter
