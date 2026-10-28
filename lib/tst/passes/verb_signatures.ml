@@ -575,6 +575,30 @@ let check_operator_home env (d : decl) (s : S.t) =
           operand type, and %s is not one"
          (quote s.name) operands (quote d.package))
 
+let check_implicit_source env (d : decl) (s : S.t) source_ty =
+  (match source_ty with
+  | Ty.Reference _ ->
+      error env d.span
+        "the source of an implicit constructor cannot be an `&`; it must be a value type or a \
+         concept type"
+  | Ty.Concept _ | Ty.Param _ | Ty.Error -> ()
+  | t ->
+      if Type_decls.is_reference env t then
+        error env d.span
+          (Printf.sprintf
+             "the source of an implicit constructor must be a value type or a concept type, and %s \
+              is a reference type"
+             (quote (Ty.to_string t))));
+  let homes = List.filter_map home [ source_ty; s.ret ] in
+  if not (List.mem (S.Package d.package) homes) then
+    error env d.span
+      (Printf.sprintf
+         "an implicit constructor from %s to %s may be declared only in the home package of one of \
+          them, and %s is neither"
+         (quote (Ty.to_string source_ty))
+         (quote (Ty.to_string s.ret))
+         (quote d.package))
+
 (* types.md §4.1, §4.4, §4.5. *)
 let check_implicit env (d : decl) (s : S.t) =
   match s.kind with
@@ -588,30 +612,7 @@ let check_implicit env (d : decl) (s : S.t) =
         error env d.span "an implicit constructor takes one positional parameter, not a field list"
       else
         match s.params with
-        | [ source ] ->
-            let source_ty = source.ty in
-            (match source_ty with
-            | Ty.Reference _ ->
-                error env d.span
-                  "the source of an implicit constructor cannot be an `&`; it must be a \
-                   value type or a concept type"
-            | Ty.Concept _ | Ty.Param _ | Ty.Error -> ()
-            | t ->
-                if Type_decls.is_reference env t then
-                  error env d.span
-                    (Printf.sprintf
-                       "the source of an implicit constructor must be a value type or a \
-                        concept type, and %s is a reference type"
-                       (quote (Ty.to_string t))));
-            let homes = List.filter_map home [ source_ty; s.ret ] in
-            if not (List.mem (S.Package d.package) homes) then
-              error env d.span
-                (Printf.sprintf
-                   "an implicit constructor from %s to %s may be declared only in the \
-                    home package of one of them, and %s is neither"
-                   (quote (Ty.to_string source_ty))
-                   (quote (Ty.to_string s.ret))
-                   (quote d.package))
+        | [ source ] -> check_implicit_source env d s source.ty
         | params ->
             error env d.span
               (Printf.sprintf "an implicit constructor takes exactly one parameter, and %d are declared"
@@ -657,6 +658,37 @@ let check_modes env (d : decl) (s : S.t) =
         s.abort;
       Type_decls.check_function_types env d.span s.ret
 
+(* Every member of the enum has exactly one entry. *)
+let check_enum_entries env (d : decl) (tid : Ty.type_id) members entries =
+  let seen = Hashtbl.create 8 in
+  let entry ((m : N.Name.t), _) =
+    if not (List.mem m.N.Name.text members) then
+      error env m.N.Name.span
+        (Printf.sprintf "%s has no member %s" (quote tid.Ty.name) (quote m.N.Name.text))
+    else if Hashtbl.mem seen m.N.Name.text then
+      error env m.N.Name.span
+        (Printf.sprintf "the member %s already has an entry" (quote m.N.Name.text))
+    else Hashtbl.add seen m.N.Name.text ()
+  in
+  List.iter entry entries;
+  let missing = List.filter (fun m -> not (Hashtbl.mem seen m)) members in
+  if missing <> [] then
+    error env d.span
+      (Printf.sprintf "an enum map covers every member, and this one has no entry for %s"
+         (String.concat ", " (List.map quote missing)))
+
+(* One package gives an enum at most one map of a name. *)
+let add_enum_map env (tables : verbs) (d : decl) (tid : Ty.type_id) (property : N.Name.t) ty =
+  let key = (tid, property.N.Name.text) in
+  let existing = Option.value ~default:[] (Hashtbl.find_opt tables.enum_maps key) in
+  (match List.find_opt (fun m -> m.map_decl.package = d.package) existing with
+  | Some first ->
+      error env property.N.Name.span
+        (Printf.sprintf "%s already has a map %s, at %s" (quote tid.Ty.name)
+           (quote property.N.Name.text) (where first.map_decl.span))
+  | None -> ());
+  Hashtbl.replace tables.enum_maps key (existing @ [ { map_decl = d; map_enum = tid; map_ty = ty } ])
+
 let enum_map env (tables : verbs) (d : decl) =
   match d.kind with
   | Enum_map { enum; property; type_; entries } -> (
@@ -670,32 +702,8 @@ let enum_map env (tables : verbs) (d : decl) =
       | Ty.Named (tid, _) -> (
           match Type_decls.type_info_of_id env tid with
           | Some { definition = Some (Enum members); _ } ->
-              let seen = Hashtbl.create 8 in
-              List.iter
-                (fun ((m : N.Name.t), _) ->
-                  if not (List.mem m.N.Name.text members) then
-                    error env m.N.Name.span
-                      (Printf.sprintf "%s has no member %s" (quote tid.Ty.name) (quote m.N.Name.text))
-                  else if Hashtbl.mem seen m.N.Name.text then
-                    error env m.N.Name.span
-                      (Printf.sprintf "the member %s already has an entry" (quote m.N.Name.text))
-                  else Hashtbl.add seen m.N.Name.text ())
-                entries;
-              let missing = List.filter (fun m -> not (Hashtbl.mem seen m)) members in
-              if missing <> [] then
-                error env d.span
-                  (Printf.sprintf "an enum map covers every member, and this one has no entry for %s"
-                     (String.concat ", " (List.map quote missing)));
-              let key = (tid, property.N.Name.text) in
-              let existing = Option.value ~default:[] (Hashtbl.find_opt tables.enum_maps key) in
-              (match List.find_opt (fun m -> m.map_decl.package = d.package) existing with
-              | Some first ->
-                  error env property.N.Name.span
-                    (Printf.sprintf "%s already has a map %s, at %s" (quote tid.Ty.name)
-                       (quote property.N.Name.text) (where first.map_decl.span))
-              | None -> ());
-              Hashtbl.replace tables.enum_maps key
-                (existing @ [ { map_decl = d; map_enum = tid; map_ty = ty } ])
+              check_enum_entries env d tid members entries;
+              add_enum_map env tables d tid property ty
           | _ ->
               error env enum.N.Type_expr.span
                 (Printf.sprintf "an enum map ranges over an enum, and %s is not one"
@@ -714,6 +722,20 @@ let constant env (tables : verbs) (d : decl) =
       Hashtbl.replace tables.constant_types d.id ty
   | _ -> ()
 
+(* Files a built signature under its kind, where a call looks for it. *)
+let register (tables : verbs) v (s : S.t) =
+  match s.kind with
+  | S.Method -> Hashtbl.add tables.methods s.name s
+  | S.Operator -> (
+      match v.N.Verb_decl.node with
+      | N.Verb_decl.Op { op; _ } -> Hashtbl.add tables.operators op.N.Operator.node s
+      | _ -> ())
+  | S.Flip -> tables.flips := !(tables.flips) @ [ s ]
+  | S.Subscript -> tables.subscripts := !(tables.subscripts) @ [ s ]
+  | S.Constructor _ -> (
+      match type_key s.ret with Some key -> Hashtbl.add tables.constructors key s | None -> ())
+  | S.Function -> ()
+
 (* Fills [tables] and hands on a view of them. *)
 let run env (tables : verbs) =
   let env = { env with verbs = Verbs.view tables } in
@@ -731,19 +753,7 @@ let run env (tables : verbs) =
               | Some s ->
                   Hashtbl.replace tables.signatures d.id s;
                   built := (d, s) :: !built;
-                  (match s.kind with
-                  | S.Method -> Hashtbl.add tables.methods s.name s
-                  | S.Operator -> (
-                      match v.N.Verb_decl.node with
-                      | N.Verb_decl.Op { op; _ } -> Hashtbl.add tables.operators op.N.Operator.node s
-                      | _ -> ())
-                  | S.Flip -> tables.flips := !(tables.flips) @ [ s ]
-                  | S.Subscript -> tables.subscripts := !(tables.subscripts) @ [ s ]
-                  | S.Constructor _ -> (
-                      match type_key s.ret with
-                      | Some key -> Hashtbl.add tables.constructors key s
-                      | None -> ())
-                  | S.Function -> ()))
+                  register tables v s)
           | Constant _ -> constant env tables d
           | Enum_map _ -> enum_map env tables d
           | Type_decl _ -> ())

@@ -418,34 +418,33 @@ and rest_value env w (v : Ty.verb) args =
   | _ -> ()
 
 and rests env w rs ~method_ tys via args =
-  begin
-    let tys = Array.of_list tys in
-    let args = Array.of_list args in
-    Rests.iter
-      (fun (i, j) ->
-        if i < Array.length args && j < Array.length args && i < Array.length tys then
-          match (args.(i), args.(j)) with
-          | T.Arg.Value v, T.Arg.Value d ->
-              let n =
-                if method_ && i = 0 then if Ty.is_ref v.T.Expr.ty then names env w v else place env w v
-                else stored env w tys.(i) v
-              in
-              let via = via i j in
-              let roots = place env w d in
-              Names.iter
-                (fun (o, root) ->
-                  let what =
-                    match o with
-                    | Caller | Param _ -> "the caller's " ^ Env.quote root
-                    | Global | Block _ -> Env.quote root
-                  in
-                  check env ~via w v o what n)
-                roots;
-              let kept = Names.fold (fun (o, _) n -> legal w o n) roots n in
-              Option.iter (fun l -> add w l kept) (root_local w d)
-          | _ -> ())
-      rs
-  end
+  let tys = Array.of_list tys in
+  let args = Array.of_list args in
+  Rests.iter
+    (fun (i, j) ->
+      if i < Array.length args && j < Array.length args && i < Array.length tys then
+        match (args.(i), args.(j)) with
+        | T.Arg.Value v, T.Arg.Value d -> rest_kept env w ~method_ tys via (i, j) v d
+        | _ -> ())
+    rs
+
+(* Argument [i], [v], kept in the place argument [j], [d], names: checked
+   against each root of that place, and recorded as held there. *)
+and rest_kept env w ~method_ tys via (i, j) v d =
+  let n =
+    if method_ && i = 0 then if Ty.is_ref v.T.Expr.ty then names env w v else place env w v
+    else stored env w tys.(i) v
+  in
+  let via = via i j in
+  let roots = place env w d in
+  let what (o, root) =
+    match o with
+    | Caller | Param _ -> "the caller's " ^ Env.quote root
+    | Global | Block _ -> Env.quote root
+  in
+  Names.iter (fun (o, root) -> check env ~via w v o (what (o, root)) n) roots;
+  let kept = Names.fold (fun (o, _) n -> legal w o n) roots n in
+  Option.iter (fun l -> add w l kept) (root_local w d)
 
 (* The local an argument is a place in, unless it is a parameter or the place
    is reached through a reference: that local holds what is stored there. *)

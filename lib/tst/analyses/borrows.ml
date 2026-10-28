@@ -285,6 +285,13 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
           else if i < 0 || List.exists (fun (j, _) -> j < 0) needs then Clash false
           else Apart_if needs
     in
+    (* Places that do not overlap but whose types may: apart when the
+       callers keep their roots apart. *)
+    let apart_by_roots pairs =
+      match List.filter_map (fun (x, y) -> root_pair x y) pairs with
+      | [] -> Apart
+      | needs -> Apart_if needs
+    in
     match (a.runs, b.runs) with
     | Some _, Some _ -> Apart
     | Some i, None -> running i b
@@ -295,10 +302,7 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
             let pairs = List.concat_map (fun x -> List.map (fun y -> (x, y)) ys) xs in
             if List.exists (fun (x, y) -> Spawns.overlap x y) pairs then Clash (List.length pairs = 1)
             else if not (by_type ()) then Apart
-            else (
-              match List.filter_map (fun (x, y) -> root_pair x y) pairs with
-              | [] -> Apart
-              | needs -> Apart_if needs)
+            else apart_by_roots pairs
         | _ -> if by_type () then Clash false else Apart)
   in
   let needs = ref Needs.empty in
@@ -309,6 +313,12 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
     | Apart -> ()
     | Clash sure -> if report then on_clash (if sure then "overlaps" else "may overlap")
     | Apart_if ps -> List.iter (fun p -> needs := Needs.add p !needs) ps
+  in
+  (* Whether an argument fills a parameter of the instance called, rather
+     than a binding parameter's type or number. *)
+  let takes_a_parameter ((p : S.param), a) =
+    Option.is_none p.S.binds
+    && match a with T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> false | _ -> true
   in
   (* The parameters of a call, by position, and its subject's when it has
      one, with what the callee needs kept apart. *)
@@ -323,11 +333,7 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
                them. *)
             let pairs =
               if List.length sg.S.params = List.length args then
-                List.filter
-                  (fun ((p : S.param), a) ->
-                    Option.is_none p.S.binds
-                    && match a with T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> false | _ -> true)
-                  (List.combine sg.S.params args)
+                List.filter takes_a_parameter (List.combine sg.S.params args)
               else []
             in
             Some

@@ -801,6 +801,21 @@ let members env what (entries : N.Body_field.t list) resolve_field =
           Some (name, resolve_field f))
     entries
 
+(* An enum's members, each listed once. *)
+let enum_members env names =
+  let seen = Hashtbl.create 8 in
+  let member (n : N.Name.t) =
+    if Hashtbl.mem seen n.N.Name.text then begin
+      error env n.N.Name.span (Printf.sprintf "the member %s is listed twice" (quote n.N.Name.text));
+      None
+    end
+    else begin
+      Hashtbl.add seen n.N.Name.text ();
+      Some n.N.Name.text
+    end
+  in
+  List.filter_map member names
+
 let define env (info : type_info) =
   match info.decl.kind with
   | Type_decl { value; _ } ->
@@ -823,21 +838,7 @@ let define env (info : type_info) =
               match mould.N.Mould.node with
               | N.Mould.Struct fields -> Struct (members env "field" fields field)
               | N.Mould.Variant cases -> Variant (members env "case" cases field)
-              | N.Mould.Enum names ->
-                  let seen = Hashtbl.create 8 in
-                  Enum
-                    (List.filter_map
-                       (fun (n : N.Name.t) ->
-                         if Hashtbl.mem seen n.N.Name.text then begin
-                           error env n.N.Name.span
-                             (Printf.sprintf "the member %s is listed twice" (quote n.N.Name.text));
-                           None
-                         end
-                         else begin
-                           Hashtbl.add seen n.N.Name.text ();
-                           Some n.N.Name.text
-                         end)
-                       names)
+              | N.Mould.Enum names -> Enum (enum_members env names)
             in
             (definition, Some reference)
       in
@@ -904,6 +905,13 @@ type growth = {
   g_param : Ty.param;
 }
 
+let field_span (info : type_info) name fields =
+  match
+    List.find_opt (fun (f : N.Body_field.t) -> f.N.Body_field.name.N.Name.text = name) fields
+  with
+  | Some f -> f.N.Body_field.type_.N.Type_expr.span
+  | None -> info.decl.span
+
 let member_span (info : type_info) name =
   match info.decl.kind with
   | Type_decl { value; _ } -> (
@@ -911,10 +919,7 @@ let member_span (info : type_info) name =
       | N.Type_or_moulded.Raw te -> te.N.Type_expr.span
       | N.Type_or_moulded.Moulded { N.Moulded.mould; _ } -> (
           match mould.N.Mould.node with
-          | N.Mould.Struct fields | N.Mould.Variant fields -> (
-              match List.find_opt (fun (f : N.Body_field.t) -> f.N.Body_field.name.N.Name.text = name) fields with
-              | Some f -> f.N.Body_field.type_.N.Type_expr.span
-              | None -> info.decl.span)
+          | N.Mould.Struct fields | N.Mould.Variant fields -> field_span info name fields
           | N.Mould.Enum _ -> info.decl.span))
   | _ -> info.decl.span
 

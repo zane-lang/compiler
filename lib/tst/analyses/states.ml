@@ -79,21 +79,23 @@ let is_intrinsic name = function
    from nor a place a reference may name, as an element is not. *)
 let fixed base = match base with Fresh -> Contingent | s -> s
 
+(* A local's own state: a binder's is contingent, a subject's borrowed,
+   and any other's follows from its type and whether it is a parameter. *)
+let local_state s (l : T.Local.t) =
+  if Hashtbl.mem s.binders l.T.Local.id then Contingent
+  else if Hashtbl.mem s.subjects l.T.Local.id then Borrowed
+  else
+    match l.T.Local.ty with
+    | Ty.Roaming _ -> Roaming
+    | Ty.Reference _ -> Settled
+    | _ -> if Hashtbl.mem s.params l.T.Local.id then Borrowed else Settled
+
 (* [inside] maps a subscript body's `this` to the state of the place it was
    called on, while that body's projection is followed. *)
 let rec state ?(inside = []) s (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) -> (
-      match List.assoc_opt l.T.Local.id inside with
-      | Some st -> st
-      | None ->
-          if Hashtbl.mem s.binders l.T.Local.id then Contingent
-          else if Hashtbl.mem s.subjects l.T.Local.id then Borrowed
-          else (
-            match l.T.Local.ty with
-            | Ty.Roaming _ -> Roaming
-            | Ty.Reference _ -> Settled
-            | _ -> if Hashtbl.mem s.params l.T.Local.id then Borrowed else Settled))
+      match List.assoc_opt l.T.Local.id inside with Some st -> st | None -> local_state s l)
   | T.Expr.Var (T.Name_ref.Global _ | T.Name_ref.Intrinsic _) -> Settled
   | T.Expr.Var _ -> Fresh
   | T.Expr.Field { target; _ } ->
