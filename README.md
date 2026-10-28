@@ -143,10 +143,11 @@ past 1,500. The warning is a prompt to split a file along a natural seam, not
 a rule to meet: a file that holds one thing and has no such seam stays past
 1,500 on purpose. `just check-file-sizes` runs the same check.
 
-CI also holds every hand-written OCaml file under `lib/`, `bin/` and `tools/`
-to five levels of nesting, counted on the parsed tree rather than on
-indentation; [`CONTRIBUTING.md`](CONTRIBUTING.md) says what counts and how to
-bring a deep function back under it. `just check-nesting` runs the same check.
+CI also fails any hand-written OCaml under `lib/`, `bin/` and `tools/` that
+nests past five levels, and warns about any that reaches five, counted on the
+parsed tree rather than on indentation. [`CONTRIBUTING.md`](CONTRIBUTING.md)
+says what counts, why three is the aim, and how to flatten deep code.
+`just check-nesting` runs the same check.
 
 ## Usage
 

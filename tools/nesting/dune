@@ -1,8 +1,9 @@
 ; How deeply each function nests, counted on the parsed tree rather than on
 ; indentation: every `match`, `function`/`fun`, `try`, `if`, `while` and `for`
 ; that encloses an expression is one level, and a function bound by `let` costs
-; none, so naming an inner step is what brings a deep function back under the
-; limit (CONTRIBUTING.md, "Keep nesting shallow"). `just check-nesting` runs it
+; none, so naming an inner step is what flattens a deep function. Past five
+; levels fails and five warns (CONTRIBUTING.md, "Keep nesting shallow").
+; `just check-nesting` runs it
 ; over the hand-written OCaml under lib/, bin/ and tools/, and tests/nesting/
 ; holds its output on small fixtures to checked-in expectations.
 (executable

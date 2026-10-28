@@ -1,4 +1,4 @@
-(* Five levels, the most the limit allows: fun > if > match > while > for. *)
+(* Five levels, the most the limit allows, which warns: fun > if > match > while > for. *)
 let deepest xs =
   List.iter
     (fun x ->

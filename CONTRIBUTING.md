@@ -28,15 +28,21 @@ In practice:
 
 ### Keep abstractions light
 
-Abstractions are welcome when they make code easier to change: a helper
-that names a repeated pattern, a type that keeps two kinds of value from
-being mixed up, a function that hides a fiddly detail behind a clear name.
+Abstractions are welcome when they make code easier to read or change: a
+function that names a step, a helper that names a repeated pattern, a type
+that keeps two kinds of value from being mixed up, a function that hides a
+fiddly detail behind a clear name. A well-named step pays for itself even
+when it is called once: its caller reads as a sequence of what happens, and
+the step can be read, tested and changed on its own.
 
-They should not cost the reader a tour of the codebase. A reader following
-one piece of behaviour should find it in one or two places, not by jumping
-through layers of indirection.
+What costs the reader is indirection, not names. A reader following one
+piece of behaviour should find it by reading down through named steps, not
+by jumping through layers that each forward to the next.
 
-- Abstract a pattern once it is actually repeated, not in anticipation.
+- Name a step whenever it makes its caller easier to read, even if nothing
+  else calls it.
+- Generalise a step, by parameterising it over what varies, once the
+  pattern is actually repeated, not in anticipation.
 - Prefer one plain function over a hierarchy of wrappers, functors or
   configuration that each forward to the next.
 - An abstraction should be understandable from its name and signature. If
@@ -47,22 +53,23 @@ through layers of indirection.
 
 ### Keep nesting shallow
 
-No function nests more than five levels deep. A level is an enclosing
-`match`, `function`/`fun`, `try`, `if`, `while` or `for`, counted on the
-parsed tree rather than on indentation, so reformatting neither hides depth
-nor adds it. An anonymous `fun x -> match x with` is one level, and an
-`else if` chain is one however long it is. CI runs the check, and
-`just check-nesting` runs it locally; [`tools/nesting/`](tools/nesting/) has
-the full count.
+Aim for three levels of nesting. Four is fine where the code needs it, five
+is for the outlier that reads worse split, and six fails CI. A level is an
+enclosing `match`, `function`/`fun`, `try`, `if`, `while` or `for`, counted
+on the parsed tree rather than on indentation, so reformatting neither hides
+depth nor adds it. An anonymous `fun x -> match x with` is one level, and an
+`else if` chain is one however long it is. CI warns at every place that
+reaches five and fails at every place past it; `just check-nesting` runs the
+same check locally, and [`tools/nesting/`](tools/nesting/) has the full
+count.
 
-The fix for a function past the limit is to name its inner steps as functions.
-A function bound by `let`, at top level or locally, costs no level of its own,
-by design: its body counts from where it is bound, so pulling an inline closure
-out into a named `let` brings the code back under the limit without moving it
-far from where it is used. For a chain of steps that each fail or continue,
-`let*` over `Result` or `Option` keeps the chain flat. This is the light kind of
-abstraction [Keep abstractions light](#keep-abstractions-light) asks for: a
-name for a step, read in the same place, not a new layer.
+The fix for deep code is to name its inner steps as functions. A function
+bound by `let`, at top level or locally, costs no level of its own, by design:
+its body counts from where it is bound, so pulling an inline closure out into
+a named `let` flattens the code without moving it far from where it is used.
+For a chain of steps that each fail or continue, `let*` over `Result` or
+`Option` keeps the chain flat. A warning at five is worth answering the same
+way unless the code is a straight line that a name would only interrupt.
 
 ### Match the code around it
 

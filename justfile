@@ -141,7 +141,8 @@ check-file-sizes:
 
 # Every hand-written OCaml file under lib/, bin/ and tools/ nested at most five
 # levels deep, counted on the parsed tree (CONTRIBUTING.md, "Keep nesting
-# shallow"), as CI checks it. The tool skips generated files by their first line.
+# shallow"), as CI checks it: past five fails, five warns. The tool skips
+# generated files by their first line.
 check-nesting:
 	#!/usr/bin/env bash
 	set -euo pipefail
