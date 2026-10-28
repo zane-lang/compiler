@@ -23,16 +23,24 @@ type headers = { root : string; resource : string; ffi : string }
 
 (* Every file [files] lists, written under [dir] unless already there: the
    name of the directory is a hash of their contents, so one that exists
-   holds them. *)
+   holds them. Each is written to a temporary of its own, created
+   exclusively, and renamed into place, so builds writing one directory at
+   once never see half a file. Raises [Sys_error] when [dir] cannot be
+   written. *)
 let write_files dir files =
+  let random = Random.State.make_self_init () in
   List.iter
     (fun (name, text) ->
       let path = Filename.concat dir name in
       if not (Sys.file_exists path) then begin
         Cache.make_dirs (Filename.dirname path);
-        let temporary = Printf.sprintf "%s.%08x" path (Random.bits ()) in
-        Out_channel.with_open_bin temporary (fun oc -> output_string oc text);
-        Sys.rename temporary path
+        let temporary = Printf.sprintf "%s.%08x" path (Random.State.bits random) in
+        Fun.protect
+          ~finally:(fun () -> try Sys.remove temporary with Sys_error _ -> ())
+          (fun () ->
+            Out_channel.with_open_gen [ Open_wronly; Open_creat; Open_excl; Open_binary ] 0o644 temporary
+              (fun oc -> output_string oc text);
+            Sys.rename temporary path)
       end)
     files
 
