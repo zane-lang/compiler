@@ -166,14 +166,15 @@ let managed_heap_bytes () =
   let stats = Gc.quick_stat () in
   float_of_int stats.heap_words *. float_of_int (Sys.word_size / 8)
 
+let resident_bytes_of line =
+  if String.starts_with ~prefix:"VmRSS:" line then
+    try Some (Scanf.sscanf line "VmRSS: %f kB" (fun kib -> kib *. 1024.)) with _ -> None
+  else None
+
 let resident_memory_bytes () =
   try
     Automaton.read_lines "/proc/self/status"
-    |> List.find_map (fun line ->
-           if String.starts_with ~prefix:"VmRSS:" line then
-             try Some (Scanf.sscanf line "VmRSS: %f kB" (fun kib -> kib *. 1024.))
-             with _ -> None
-           else None)
+    |> List.find_map resident_bytes_of
     |> Option.value ~default:(managed_heap_bytes ())
   with _ -> managed_heap_bytes ()
 
