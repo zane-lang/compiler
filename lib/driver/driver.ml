@@ -66,6 +66,14 @@ let assemble ?(root = true) ?(imports = []) ?(stamps = []) requests =
       | Ok packages -> Ok packages
       | Error { Assembly.diagnostics; sources } -> fail ~sources diagnostics)
 
+(* Each package's C (spec ffi.md §2), compiled for [target] by the linked
+   clang, with its `c.coda` read and checked (docs/design/ffi.md §1). *)
+let c_code ?target packages =
+  let dirs = List.map (fun (p : Assembly.package) -> p.Assembly.dir) packages in
+  match Foreign.compile_packages ~cc:(Codegen.c_compiler ()) ~target dirs with
+  | Ok c -> Ok c
+  | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics
+
 (* Semantics, which reports every problem it finds (docs/design/semantics.md
    D4) and gives no tree when there is one. *)
 let check packages =

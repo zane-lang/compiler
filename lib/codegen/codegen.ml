@@ -149,6 +149,8 @@ let target_cpu ?target () =
     (fun (_, tm) -> Llvm_target.TargetMachine.cpu tm)
     (Build.target_machine ?target ~optimize:true ())
 
+let c_compiler = Build.cc
+
 let executable ?target ?optimize ?tier ?link m output =
   Build.executable ?target ?optimize ?tier ?link m output
 let shared_library ?target m output = Build.shared_library ?target m output

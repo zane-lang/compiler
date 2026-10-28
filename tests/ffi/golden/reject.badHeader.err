@@ -1,0 +1,2 @@
+File "fixtures/reject/badHeader/c.coda":
+Error: the `c` table's header is `name value`; it is `setting value target`

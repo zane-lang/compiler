@@ -8,9 +8,12 @@ license notices, LGPL-2.1, and the GCC runtime exception are included here.
 
 The archive also includes:
 
-- LLVM 19, with its linker LLD built into the compiler (Apache-2.0 with LLVM
+- LLVM 19, with its linker LLD and clang's C front end built into the
+  compiler, and clang's builtin headers embedded in it (Apache-2.0 with LLVM
   exceptions):
   https://github.com/llvm/llvm-project/tree/llvmorg-19.1.7
+- Coda's parser and OCaml binding (MIT), built into the compiler from the
+  submodule at `vendor/coda`: https://github.com/zane-lang/coda
 - OCaml's native runtime (LGPL-2.1 with the OCaml linking exception):
   https://github.com/ocaml/ocaml
 - The ELF loader and shared libraries resolved by the build. The accompanying

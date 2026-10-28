@@ -1,0 +1,4 @@
+File "fixtures/reject/cError/broken.c", line 4, characters 16-16:
+4 |     return x * two;
+  |                ^
+Error: use of undeclared identifier 'two'

@@ -349,6 +349,7 @@ let run_packages build =
       print_string (Tree_graph.render (Tst.Assembly.to_node packages));
       Ok ()
   | Check | Declarations | Typed | Cgt | Ir | Build _ | Object _ | Tier_up _ -> (
+      let* _c = Driver.c_code ?target:build.target packages in
       let* program = Driver.check packages in
       let* () = if needs_main build then Driver.require_main program else Ok () in
       match build.view with

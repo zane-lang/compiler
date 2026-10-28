@@ -36,6 +36,10 @@ val live_contexts : unit -> int
     LLVM's default, [""]. *)
 val target_cpu : ?target:string -> unit -> (string, string) result
 
+(** The C compiler a build runs: `ZANE_CC`, else `clang`. It links, and
+    it says where a target's C headers are (docs/design/ffi.md F1). *)
+val c_compiler : unit -> string
+
 (** The module's text, as [prepare] left it, copied into an OCaml string
     that outlives the module. *)
 val ir : Llvm.llmodule -> string

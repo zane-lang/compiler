@@ -1,0 +1,42 @@
+; The C interface's front half (docs/design/ffi.md §1): a package's
+; `c.coda`, the include directories its target's C compiler searches, and
+; its C compiled to LLVM bitcode by clang's front end, linked in
+; (clang_stubs.cpp), with the modules kept in the cache. Codegen and
+; semantics read what it makes; it reads neither.
+(library
+ (name foreign)
+ (foreign_stubs
+  (language cxx)
+  (names clang_stubs)
+  (flags
+   (:standard
+    (:include clang_cxx.sexp))))
+ (c_library_flags
+  (:include clang_libs.sexp))
+ (libraries cache coda diagnostic source unix))
+
+(rule
+ (target clang_cxx.sexp)
+ (deps gen/clang_flags.sh (env_var LLVM_CONFIG) (env_var PATH))
+ (action (with-stdout-to %{target} (run sh gen/clang_flags.sh cxx))))
+
+(rule
+ (target clang_libs.sexp)
+ (deps gen/clang_flags.sh (env_var LLVM_CONFIG) (env_var PATH))
+ (action (with-stdout-to %{target} (run sh gen/clang_flags.sh libs))))
+
+(rule
+ (target builtin_headers.ml)
+ (deps gen/builtin_headers.sh (env_var PATH))
+ (action (with-stdout-to %{target} (run sh gen/builtin_headers.sh))))
+
+(rule
+ (target zane_ffi_header.ml)
+ (deps zane_ffi.h)
+ (action
+  (with-stdout-to
+   %{target}
+   (progn
+    (echo "let text = {zane_header|")
+    (cat zane_ffi.h)
+    (echo "|zane_header}\n")))))

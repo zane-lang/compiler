@@ -1,0 +1,3 @@
+; vendor/ holds git submodules whose own dune files build them as projects of
+; their own; the compiler builds what it needs of them from lib/.
+(data_only_dirs vendor)

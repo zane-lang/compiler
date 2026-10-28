@@ -1428,6 +1428,7 @@ let () =
   Builds.bundled_runtime ();
   Builds.runtime_bodies ();
   Builds.fatal_link ();
+  Foreign_c.run ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();
   disposed_modules ();

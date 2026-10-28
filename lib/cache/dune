@@ -1,0 +1,5 @@
+; Where builds keep what they compiled, shared by codegen and the C front
+; end (lib/foreign/).
+(library
+ (name cache)
+ (libraries unix))

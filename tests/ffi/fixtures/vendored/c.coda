@@ -1,0 +1,7 @@
+c [
+    setting  value             target
+    source   vendor/*.c        *
+    include  vendor/inc        *
+    define   ZANE_SCALE=3      *
+    define   ZANE_NEVER        *-nowhere-*
+]

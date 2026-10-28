@@ -1,8 +1,10 @@
 # The C interface: building, calling and folding C
 
-> **Status: designed, not built.** This page says how the compiler implements
-> the spec's C interface
-> ([`ffi.md`](https://github.com/zane-lang/spec/blob/9154871/spec/ffi.md)):
+> **Status: being built, in the order of §7.** Built: compiling a
+> package's C (F1, F2, F3, F5), in `lib/foreign/`. The rest is designed and
+> not yet built. This page says how the compiler implements the spec's C
+> interface
+> ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
 > compiling a package's C code, checking foreign verbs against it, calling
 > it, and evaluating it at compile time. Each decision is numbered
 > (**F1**…), and §7 lists the order they are built in.
@@ -41,10 +43,12 @@ build never starts a second LLVM. It links clang's front end the same way,
 in `lib/foreign/clang_stubs.cpp`, and runs a compilation in process: the
 linked clang's own driver (`clang::driver::Driver`) turns a command line
 for the target into a `clang::CompilerInvocation`, an `EmitLLVMOnlyAction`
-runs it, and the `llvm::Module` it makes is handed to OCaml as an
-`Llvm.llmodule` of the compiler's own context. Every front-end option is
-therefore one the linked clang made itself, so all of them are ones it
-knows.
+runs it, and the `llvm::Module` it makes is written as bitcode, the form
+the cache keeps it in (F3), which codegen reads into its own context.
+Every front-end option is therefore one the linked clang made itself, so
+all of them are ones it knows. The clang is `llvmPackages_19.libclang`, from
+the nixpkgs revision `llvm_19` resolves to, so it links the same
+`libLLVM`.
 
 The clang has to be the compiler's own because LLVM IR crosses no LLVM
 release. The released toolchain's `zig cc` is built on a newer LLVM than the
@@ -74,8 +78,10 @@ one `-isystem` per directory, in order. An entry the list marks
 macOS, is passed as `-iframework` instead, so `<Foundation/Foundation.h>`
 is found as the C compiler would find it. The C compiler's own builtin
 headers are dropped from the list: the directory it names for
-`-print-file-name=include`, which GCC, clang and `zig cc` all answer, and,
-for GCC, the `include-fixed` beside it. Those hold its intrinsics and
+`-print-file-name=include`, which GCC and clang answer, and, for GCC, the
+`include-fixed` beside it. `zig cc` answers that with a bare `include`, so
+a directory holding clang's own `__stddef_max_align_t.h`, which no C library
+ships, is taken for a builtin one too. Those hold its intrinsics and
 `<stddef.h>`, written for its own builtins, so the linked clang reads its
 own instead: they are embedded in the compiler, written once into the
 cache directory, and named with `-resource-dir`, which `-nostdlibinc`
@@ -96,14 +102,17 @@ since it carries its own headers for every target.
 **F2. Every C source is compiled with fixed flags first, then the package's
 settings.** The fixed flags are `-std=c17`, `-ffp-contract=off`,
 `-fno-fast-math`, `-fno-finite-math-only`, `-fno-associative-math` and
-`-fno-rounding-math` (`ffi.md` §2.2), the target triple, `-isystem` for the
-directory holding `zane_ffi.h`, and `-O2 -Xclang -disable-llvm-passes`, so the
+`-fno-rounding-math` (`ffi.md` §2.2), the target triple (the host's when the
+build names none), `-isystem` for the directory holding `zane_ffi.h`, and
+`-O2 -Xclang -disable-llvm-passes`, so the
 module comes out of the front end unoptimized but optimizable: `-O0` would
 mark every function `noinline`, which no later pipeline undoes, and F13's
 inlining across the two languages would never happen. The package's
 `include` and `define` rows come after, in the order its `c.coda` writes them
-(`ffi.md` §2.3). A setting that names one of the fixed flags, such as a
-`define` of `__FAST_MATH__`, is an error naming the row.
+(`ffi.md` §2.3). A setting that names one of the fixed flags is an error
+naming the row: a `define` of a macro those flags set, `__FAST_MATH__`,
+`__FINITE_MATH_ONLY__`, `__ROUNDING_MATH__`, `__NO_MATH_ERRNO__`,
+`__STDC__`, `__STDC_VERSION__` or `__STDC_HOSTED__`.
 
 `zane_ffi.h` is embedded in the compiler like the runtime's headers
 ([`lowering.md`](lowering.md) §7) and written once into the cache directory.
@@ -113,7 +122,8 @@ C source compiles to a module of its own, and the package's modules, with its
 glue (F8), are linked into one with LLVM's linker. A source's module is kept
 in the cache directory as bitcode of the compiler's own LLVM, under a hash of
 the source's preprocessed text, with its line markers, the front-end
-command, and the compiler's version. The preprocessed text is what the
+command, and the linked clang's full version, which is what makes the
+module from them. The preprocessed text is what the
 compilation reads, and its line markers name the file each line came from,
 so the key changes with any header's contents, with which file an include
 resolves to, and with what `__FILE__` expands to. Each build preprocesses
@@ -144,7 +154,8 @@ compiler already reads from each `--package` directory, so they need no flags
 and nothing from the `zane` CLI. The compiler parses the file, keeps the rows
 whose `target` pattern matches the build's target, expands `source` patterns
 to the `.c` files they match (a `.h` or any other file a pattern matches is
-not a C source and is skipped), and checks that every path stays inside the
+not a C source and is skipped; a `*` matches within one directory name, as
+`vendor/*.c` and `vendor/*/*.c` do), and checks that every path stays inside the
 package's directory (`ffi.md` §2.3), which is the `--package` directory the
 compiler was given. A path that leaves it, or a
 `source` pattern that matches nothing, is an error naming the file and the

@@ -1,0 +1,2 @@
+File "fixtures/reject/absolute/c.coda":
+Error: row 1: `/usr/include` is absolute; a path stays inside the package's directory

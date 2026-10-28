@@ -49,6 +49,7 @@ test-highlighting: test-grammar-generation
 # Promote an intended move with `just promote`. tests/unit/ tests the shared
 # helpers directly, so a broken one is named rather than found in a diff.
 # tests/nesting/ holds `just check-nesting`'s count to small fixtures.
+# tests/ffi/ holds packages with C code (docs/design/ffi.md).
 #
 # The memory-semantics probes (tests/memory-probes/) are held to their
 # committed NAME.out files: `run --check` fails on any difference, and on a
@@ -62,7 +63,7 @@ test-highlighting: test-grammar-generation
 # refuses, and the cache.
 test-compiler: _require-menhir
 	dune build bin/zanec/zanec.exe
-	dune runtest tests/parser tests/semantics tests/codegen tests/runtime tests/objects tests/unit tests/nesting
+	dune runtest tests/parser tests/semantics tests/codegen tests/ffi tests/runtime tests/objects tests/unit tests/nesting
 	python3 -m unittest tests.parser.syntax_test -v
 	python3 -m unittest tests.tiers.tiers_test -v
 	tests/memory-probes/run --check

@@ -1,0 +1,5 @@
+c [
+    setting  value         target
+    include  ../shared     *
+    source   ../shared/*.c *
+]

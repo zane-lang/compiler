@@ -22,6 +22,11 @@ val assemble :
   Tst.Assembly.request list ->
   (Tst.Assembly.package list, failure) result
 
+(** Each package's C compiled for [target], the host when it is absent:
+    its `c.coda` read, and its C sources compiled by the linked clang
+    (docs/design/ffi.md §1). *)
+val c_code : ?target:string -> Tst.Assembly.package list -> (Foreign.package list, failure) result
+
 (** Semantics, which gives no tree when it found a problem. *)
 val check : Tst.Assembly.package list -> (Tst.Nodes.Program.t, failure) result
 

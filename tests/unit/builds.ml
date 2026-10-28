@@ -58,15 +58,15 @@ let cached_runtime () =
     in
     let times () = match read_all asked with Some s -> List.length (String.split_on_char '\n' s) - 1 | None -> 0 in
     script "";
-    let first = Build.identity ~cache fake work in
+    let first = Cache.identity ~cache fake work in
     check "a C compiler's identity is asked the first time" (first = Some "fake 1.0\n" && times () = 1);
-    let again = Build.identity ~cache fake work in
+    let again = Cache.identity ~cache fake work in
     check "and kept after that" (again = first && times () = 1);
     script " changed";
-    let changed = Build.identity ~cache fake work in
+    let changed = Cache.identity ~cache fake work in
     check "a changed C compiler is asked again" (changed = Some "fake 1.0 changed\n" && times () = 2);
     check "one found nowhere has none"
-      (Build.identity ~cache "zane-no-such-compiler" work = None);
+      (Cache.identity ~cache "zane-no-such-compiler" work = None);
     (* A name on the path is found where the shell would run it: a file of
        the name that cannot run is passed over. *)
     let first = Filename.concat directory "first" and second = Filename.concat directory "second" in
@@ -77,7 +77,7 @@ let cached_runtime () =
     Unix.chmod (Filename.concat second "zane-cc") 0o755;
     let path = Sys.getenv_opt "PATH" in
     Unix.putenv "PATH" (first ^ ":" ^ second);
-    let found = Build.located "zane-cc" in
+    let found = Cache.located "zane-cc" in
     Unix.putenv "PATH" (Option.value ~default:"" path);
     check "a file on the path that cannot run is passed over"
       (found = Some (Filename.concat second "zane-cc"))

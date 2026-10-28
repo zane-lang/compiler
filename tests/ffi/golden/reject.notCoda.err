@@ -1,0 +1,4 @@
+File "fixtures/reject/notCoda/c.coda", line 2, characters 12-12:
+2 |     source "unterminated
+  |            ^
+Error: unterminated string
