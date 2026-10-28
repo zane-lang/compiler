@@ -53,6 +53,30 @@ let within_literal (span : Source.Span.t) written =
     last := (offset + length, end_);
     { Source.Span.start_; end_ }
 
+(* How a constructor call names what it builds, for a message: the type,
+   and the member when it names one. *)
+let constructor_named built member =
+  quote
+    ((match built with Ty.Named (tid, _) -> tid.Ty.name | t -> Ty.to_string t)
+    ^ Option.fold ~none:"" ~some:(fun m -> "." ^ m) member)
+
+(* The constructors of [built] named [member] that this call can reach:
+   declared in the home of the type or in this package, and accessible. *)
+let constructor_candidates env ctx built member =
+  let homes = List.filter_map Verb_signatures.home [ built ] @ [ S.Package ctx.package ] in
+  let named_member (s : S.t) =
+    match s.kind with S.Constructor c -> c.member = member | _ -> false
+  in
+  match Verb_signatures.type_key built with
+  | None -> []
+  | Some key ->
+      Verbs.constructors env.verbs key |> List.rev
+      |> List.filter (fun (s : S.t) ->
+          named_member s && List.mem s.home homes && accessible_sig ctx s)
+
+let is_positional_constructor (s : S.t) =
+  match s.kind with S.Constructor { fields; _ } -> not fields | _ -> false
+
 let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   let span = e.N.Expr.span in
   match e.N.Expr.node with
@@ -837,54 +861,8 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
                (quote m) (quote tid.Ty.name) tid.Ty.name m);
           invalid span
       | _ -> (
-          let what =
-            quote
-              ((match built with Ty.Named (tid, _) -> tid.Ty.name | t -> Ty.to_string t)
-              ^ Option.fold ~none:"" ~some:(fun m -> "." ^ m) member)
-          in
-          let homes =
-            List.filter_map Verb_signatures.home [ built ] @ [ S.Package ctx.package ]
-          in
-          let cands =
-            match Verb_signatures.type_key built with
-            | None -> []
-            | Some key ->
-                Verbs.constructors env.verbs key
-                |> List.rev
-                |> List.filter (fun (s : S.t) ->
-                       (match s.kind with S.Constructor c -> c.member = member | _ -> false)
-                       && List.mem s.home homes && accessible_sig ctx s)
-          in
-          (* `Type(x, y)` against the positional constructors. *)
-          let positional_call ps =
-            let actuals = List.map (actual_of env ctx) ps in
-            if any_error actuals then invalid span
-            else
-              match
-                report_resolution env
-                  ~literal:(literal_drives_inference cands actuals)
-                  ~span ~what ~args:(describe_args actuals)
-                  (resolve env
-                     (List.filter
-                        (fun (s : S.t) ->
-                          match s.kind with S.Constructor { fields; _ } -> not fields | _ -> false)
-                        cands)
-                     (positional actuals))
-                  cands
-              with
-              | None -> invalid span
-              | Some o ->
-                  request env ~args:o.converted o.sig_ o.subst span;
-                  let ret = Ty.subst o.subst o.sig_.ret in
-                  mk
-                    (T.Expr.Construct
-                       {
-                         ctor = verb_ref o.sig_ o.subst;
-                         args = List.filter_map Fun.id o.converted;
-                         handler = None;
-                       })
-                    ret span
-          in
+          let what = constructor_named built member in
+          let cands = constructor_candidates env ctx built member in
           no_handler ();
           if cands = [] then begin
             type_args ();
@@ -895,8 +873,35 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
           end
           else
             match args.N.Constructor_args.node with
-            | N.Constructor_args.Positional ps -> positional_call ps
+            | N.Constructor_args.Positional ps ->
+                positional_constructor_call env ctx span what cands ps
             | N.Constructor_args.Fields fs -> field_constructor_call env ctx span what cands fs))
+
+(* `Type(x, y)` against the positional constructors among [cands]. *)
+and positional_constructor_call env ctx span what cands ps =
+  let actuals = List.map (actual_of env ctx) ps in
+  if any_error actuals then invalid span
+  else
+    let positional_cands = List.filter is_positional_constructor cands in
+    match
+      report_resolution env
+        ~literal:(literal_drives_inference cands actuals)
+        ~span ~what ~args:(describe_args actuals)
+        (resolve env positional_cands (positional actuals))
+        cands
+    with
+    | None -> invalid span
+    | Some o ->
+        request env ~args:o.converted o.sig_ o.subst span;
+        let ret = Ty.subst o.subst o.sig_.ret in
+        mk
+          (T.Expr.Construct
+             {
+               ctor = verb_ref o.sig_ o.subst;
+               args = List.filter_map Fun.id o.converted;
+               handler = None;
+             })
+          ret span
 
 (* `Type{ a = x; b = y; }` against the field constructors: each entry fills
    the slot of the same name and is a coercion site; an entry left out must

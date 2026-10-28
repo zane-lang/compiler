@@ -760,6 +760,13 @@ let with_runtime_bitcode ?bundled ?cache ~cc ~triple ?target use =
     end;
     match present kept with Some _ as kept -> kept | None -> present fresh
   in
+  (* The cache, with what it knows *cc* as, when there is one. *)
+  let cache_identity dir =
+    let ( let* ) = Option.bind in
+    let* cache = cache in
+    let* identity = identity ~cache cc dir in
+    Some (cache, identity)
+  in
   match bundled with
   | Some dir -> use (present (Filename.concat dir (bundled_bitcode_name ~triple)))
   | None -> (
@@ -769,7 +776,7 @@ let with_runtime_bitcode ?bundled ?cache ~cc ~triple ?target use =
       | () -> (
           let fresh = Filename.concat dir "runtime.bc" in
           let compiled () = Result.is_ok (compile ~cc ~triple flags dir fresh) && Runtime_bodies.readable fresh in
-          match Option.bind cache (fun cache -> Option.map (fun id -> (cache, id)) (identity ~cache cc dir)) with
+          match cache_identity dir with
           | None -> use (if compiled () then present fresh else None)
           | Some (cache, identity) -> use (from_cache ~cache ~identity ~fresh compiled)))
 

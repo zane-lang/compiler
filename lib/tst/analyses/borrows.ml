@@ -510,6 +510,76 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
              (describe { w with behind = false })
              (if w.behind then "reaches, through a reference it holds, what may hold" else overlaps)))
   in
+  (* What block argument [a] writes while it runs during the call. *)
+  let block_writes a =
+    match (a, runs_of a) with
+    | T.Arg.Block blk, _ -> writes_block [] blk
+    | _, Some r -> [ r ]
+    | _ -> []
+  in
+  let report_block_writes lent (_, _, a) =
+    let ws = block_writes a in
+    List.iter
+      (fun (_, b) ->
+        List.iter
+          (fun w -> settle_verdict (verdict w b) (report_write w b "which this call borrows"))
+          ws)
+      lent
+  in
+  (* Argument [j], written after the one borrowed as [b], runs while [b] is
+     already lent. A take of the very place borrowed is the moves analysis's
+     to report (lifetimes.md §1.5). *)
+  let check_later_argument (i, b) (j, ty, a) =
+    match a with
+    | T.Arg.Value v when j > i ->
+        let ws = writes_expr [] v in
+        let ws =
+          match ty with
+          | Ty.Roaming _ ->
+              List.filter
+                (fun (w : claim) -> not (w.at <> None && equal_places w.at b.at))
+                (moved [] v)
+              @ ws
+          | _ -> ws
+        in
+        List.iter
+          (fun w ->
+            settle_verdict (verdict w b)
+              (report_write w b "which an earlier argument of this call borrows"))
+          ws
+    | _ -> ()
+  in
+  (* What the callee keeps apart from the `&` argument [pv]: the writes of
+     argument [o], the subject it writes or a block it runs. The callee's
+     own writes through the subject's `&` fields were checked in its body. *)
+  let apart_writes ~is_method ~arg (pv : T.Expr.t) o =
+    match arg o with
+    | T.Arg.Value s when o = 0 && is_method -> Option.to_list (claim s)
+    | T.Arg.Block blk -> writes_block [] blk
+    | a -> (
+        match runs_of a with
+        | Some r -> [ r ]
+        | None -> [ { expr = pv; at = None; ty = pv.T.Expr.ty; runs = Some (-1); behind = false } ])
+  in
+  let report_apart ~is_method (pv : T.Expr.t) o n w =
+    settle_verdict (verdict w n) (fun overlaps ->
+        Env.error env pv.T.Expr.span
+          (Printf.sprintf
+             "%s is passed to an `&` parameter this call reads through while %s, and the two may \
+              overlap: nothing else in a call writes what the call borrows (memory.md §2.9.1)"
+             (match Spawns.place_of pv with
+             | Some pl -> Spawns.describe pl
+             | None -> "this reference")
+             (if o = 0 && is_method then "it writes its subject"
+              else "it runs a block that writes it")))
+  in
+  let check_apart ~is_method ~arg (p, o) =
+    match arg p with
+    | T.Arg.Value pv ->
+        let n = named pv in
+        List.iter (report_apart ~is_method pv o n) (apart_writes ~is_method ~arg pv o)
+    | T.Arg.Block _ -> ()
+  in
   let check_call (e : T.Expr.t) =
     match params_of e with
     | Some (is_method, is_mut, tys, args, apart) when List.length tys = List.length args ->
@@ -535,83 +605,30 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
             List.iter (fun (_, b) -> List.iter (report_subject_write b) ws) borrowed
         | _ -> ());
         (* A block argument runs during the call. *)
-        List.iter
-          (fun (_, _, a) ->
-            let ws =
-              match (a, runs_of a) with
-              | T.Arg.Block blk, _ -> writes_block [] blk
-              | _, Some r -> [ r ]
-              | _ -> []
-            in
-            List.iter
-              (fun (_, b) ->
-                List.iter
-                  (fun w -> settle_verdict (verdict w b) (report_write w b "which this call borrows"))
-                  ws)
-              (Option.to_list subject @ borrowed))
-          indexed;
+        List.iter (report_block_writes (Option.to_list subject @ borrowed)) indexed;
         (* An argument written later runs while the borrow is already lent. *)
-        List.iter
-          (fun (i, b) ->
-            List.iter
-              (fun (j, ty, a) ->
-                match a with
-                | T.Arg.Value v when j > i ->
-                    let ws = writes_expr [] v in
-                    (* A take of the very place borrowed is the moves
-                       analysis's to report (lifetimes.md §1.5). *)
-                    let ws =
-                      match ty with
-                      | Ty.Roaming _ ->
-                          List.filter
-                            (fun (w : claim) -> not (w.at <> None && equal_places w.at b.at))
-                            (moved [] v)
-                          @ ws
-                      | _ -> ws
-                    in
-                    List.iter
-                      (fun w ->
-                        settle_verdict (verdict w b)
-                          (report_write w b "which an earlier argument of this call borrows"))
-                      ws
-                | _ -> ())
-              indexed)
-          borrowed;
+        List.iter (fun borrow -> List.iter (check_later_argument borrow) indexed) borrowed;
         (* What the callee needs kept apart: an `&T` argument from the
            subject it writes, or from a block it runs. *)
         let arg i = match List.nth_opt args i with Some a -> a | None -> T.Arg.Value e in
-        Needs.iter
-          (fun (p, o) ->
-            match arg p with
-            | T.Arg.Value pv ->
-                let n = named pv in
-                let ws =
-                  match arg o with
-                  (* The callee's own writes through the subject's `&`
-                     fields were checked in its body. *)
-                  | T.Arg.Value s when o = 0 && is_method -> Option.to_list (claim s)
-                  | T.Arg.Block blk -> writes_block [] blk
-                  | a -> (
-                      match runs_of a with
-                      | Some r -> [ r ]
-                      | None -> [ { expr = pv; at = None; ty = pv.T.Expr.ty; runs = Some (-1); behind = false } ])
-                in
-                List.iter
-                  (fun w ->
-                    settle_verdict (verdict w n) (fun overlaps ->
-                        Env.error env pv.T.Expr.span
-                          (Printf.sprintf
-                             "%s is passed to an `&` parameter this call reads through while %s, \
-                              and the two may overlap: nothing else in a call writes what the call \
-                              borrows (memory.md §2.9.1)"
-                             (match Spawns.place_of pv with
-                             | Some pl -> Spawns.describe pl
-                             | None -> "this reference")
-                             (if o = 0 && is_method then "it writes its subject"
-                              else "it runs a block that writes it"))))
-                  ws
-            | T.Arg.Block _ -> ())
-          apart
+        Needs.iter (check_apart ~is_method ~arg) apart
+    | _ -> ()
+  in
+  (* A write [w] in an arm whose binder names the payload of the scrutinee
+     [s]. *)
+  let report_binder_write s (binder : T.Local.t) w =
+    settle_verdict (verdict w s) (fun overlaps ->
+        Env.error env w.expr.T.Expr.span
+          (Printf.sprintf
+             "this writes %s, which %s the scrutinee %s while `%s` names its payload: an arm with \
+              a binder writes its scrutinee only through the binder (adt.md §5.1)"
+             (if w.runs <> None then "whatever the block passed in writes" else describe w)
+             overlaps (describe s) binder.T.Local.name))
+  in
+  let check_arm pos s (arm : T.Arm.t) =
+    match List.nth_opt arm.T.Arm.patterns pos with
+    | Some { T.Pattern.binder = Some binder; _ } ->
+        List.iter (report_binder_write s binder) (writes_block [] arm.T.Arm.body)
     | _ -> ()
   in
   (* A binder names its payload for the whole arm. *)
@@ -620,25 +637,7 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
       (fun pos (scrutinee : T.Expr.t) ->
         match claim scrutinee with
         | None -> ()
-        | Some s ->
-            List.iter
-              (fun (arm : T.Arm.t) ->
-                match List.nth_opt arm.T.Arm.patterns pos with
-                | Some { T.Pattern.binder = Some binder; _ } ->
-                    List.iter
-                      (fun w ->
-                        settle_verdict (verdict w s) (fun overlaps ->
-                            Env.error env w.expr.T.Expr.span
-                              (Printf.sprintf
-                                 "this writes %s, which %s the scrutinee %s while `%s` names \
-                                  its payload: an arm with a binder writes its scrutinee only \
-                                  through the binder (adt.md §5.1)"
-                                 (if w.runs <> None then "whatever the block passed in writes"
-                                  else describe w)
-                                 overlaps (describe s) binder.T.Local.name)))
-                      (writes_block [] arm.T.Arm.body)
-                | _ -> ())
-              m.T.Match.arms)
+        | Some s -> List.iter (check_arm pos s) m.T.Match.arms)
       m.T.Match.scrutinees
   in
   let rec block (b : T.Block.t) = List.iter stat b.T.Block.stats

@@ -183,6 +183,75 @@ let record w st ctx span t (fields : T.Field_value.t list) =
   | _, [ f ] when collapsed st t -> { (value f) with ty = lowered }
   | _ -> Diagnostic.bug ~span "lowering expected a value for every member here"
 
+(* The local a stored entry is passed through when the constructor is
+   expanded where it is called: a parameter of its own, numbered apart from
+   the store [id] it names, and typed as the parameter it fills. *)
+let named_store st ctx v (p : T.Local.t) (e : T.Expr.t) id =
+  let l = { p with T.Local.id = -id } in
+  Hashtbl.replace ctx.env l.T.Local.id
+    (if by_address st v p then Pointer id else Type_layout.slot st p.T.Local.ty id);
+  `Arg (T.Arg.Value { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l); ty = l.T.Local.ty })
+
+(* One entry of a field constructor called out of slot order: the lets that
+   store its value as it runs, and what is passed in its slot. A literal
+   for a constructor expanded where it is called (L11) is passed as it is,
+   with the values interpolated into one captured in its turn. *)
+let store_entry w st ctx span v ~out (slot, (e : T.Expr.t)) =
+  let p = List.nth v.params slot in
+  match p.T.Local.ty with
+  | Tty.Concept _ when expands v ->
+      let lets, lit = Lower_calls.captured w st ctx span ~into:ctx.env (literal_of ctx e) in
+      (slot, lets, `Arg (T.Arg.Value (if lets = [] then e else lit)))
+  | _ ->
+      let value = Lower_calls.argument w st ctx span v p e in
+      let id = fresh st in
+      let named =
+        if out then named_store st ctx v p e id
+        else `Value { Expr.node = Expr.Local id; ty = value.Expr.ty }
+      in
+      (slot, [ Stat.Let { id; value } ], named)
+
+(* Each value is stored as the constructor takes it, in the order it runs,
+   and passed in its slot. A stored value reaches an expanded constructor
+   through a local of its own that names the store ([named_store]): an `&T`
+   one's store holds the reference already, not a place to mint one from. *)
+let construct_reordered w st ctx span v given handler ret =
+  let in_slots = List.sort (fun (a, _) (b, _) -> compare a b) given in
+  let out =
+    Lower_calls.writes_out w st ctx span v (List.map (fun (_, e) -> T.Arg.Value e) in_slots)
+  in
+  let stored = List.map (store_entry w st ctx span v ~out) given in
+  let lets = List.concat_map (fun (_, l, _) -> l) stored in
+  let in_slot slot = List.find_map (fun (s, _, a) -> if s = slot then Some a else None) stored in
+  let slots =
+    List.init (List.length given) (fun slot ->
+        match in_slot slot with
+        | Some a -> a
+        | None -> Diagnostic.bug ~span (Printf.sprintf "lowering: argument slot %d is empty" slot))
+  in
+  let value =
+    if out then
+      let arg = function
+        | `Arg a -> a
+        | `Value _ -> Diagnostic.bug ~span "lowering expected an argument"
+      in
+      Lower_calls.expand w st ctx span v (List.map arg slots) handler ret
+    else
+      let value = function
+        | `Value a -> a
+        | `Arg _ -> Diagnostic.bug ~span "lowering expected a value"
+      in
+      Lower_calls.invoke w st ctx span v (List.map value slots) handler
+  in
+  let label = fresh st in
+  if value.Expr.ty = Nodes.Ty.Void then
+    let body = lets @ [ Stat.Eval value ] in
+    { Expr.node = Expr.Expand { label; body; result = None }; ty = value.Expr.ty }
+  else
+    let result = fresh st in
+    let body = lets @ [ Stat.assign result value ] in
+    { Expr.node = Expr.Expand { label; body; result = Some result }; ty = value.Expr.ty }
+
 (* types.md §3.3: a field-constructor call is a call to the constructor,
    with each entry's value in its slot and an entry left out given its
    default. The entries run in the order written, then the defaults in
@@ -204,63 +273,4 @@ let construct_fields w st ctx span verb (fields : T.Field_value.t list) handler 
         Lower_calls.call w st ctx span verb
           (List.map (fun (_, e) -> T.Arg.Value e) given)
           handler ret
-      else
-        (* Each value is stored as the constructor takes it, in the order it
-           runs, and passed in its slot. A constructor expanded where it is
-           called (L11) takes its literals as they are, with the values
-           interpolated into one captured in its turn, and a stored value
-           through a local of its own that names the store, typed as the
-           parameter it fills: an `&T` one's store holds the reference
-           already, not a place to mint one from. *)
-        let in_slots = List.sort (fun (a, _) (b, _) -> compare a b) given in
-        let out =
-          Lower_calls.writes_out w st ctx span v (List.map (fun (_, e) -> T.Arg.Value e) in_slots)
-        in
-        let store (slot, (e : T.Expr.t)) =
-          let p = List.nth v.params slot in
-          match p.T.Local.ty with
-          | Tty.Concept _ when expands v ->
-              let lets, lit = Lower_calls.captured w st ctx span ~into:ctx.env (literal_of ctx e) in
-              (slot, lets, `Arg (T.Arg.Value (if lets = [] then e else lit)))
-          | _ ->
-              let value = Lower_calls.argument w st ctx span v p e in
-              let id = fresh st in
-              let read = { Expr.node = Expr.Local id; ty = value.Expr.ty } in
-              let named =
-                if out then begin
-                  let l = { p with T.Local.id = -id } in
-                  Hashtbl.replace ctx.env l.T.Local.id
-                    (if by_address st v p then Pointer id else Type_layout.slot st p.T.Local.ty id);
-                  `Arg
-                    (T.Arg.Value
-                       { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l); ty = l.T.Local.ty })
-                end
-                else `Value read
-              in
-              (slot, [ Stat.Let { id; value } ], named)
-        in
-        let stored = List.map store given in
-        let lets = List.concat_map (fun (_, l, _) -> l) stored in
-        let in_slot slot = List.find_map (fun (s, _, a) -> if s = slot then Some a else None) stored in
-        let slots =
-          List.init (List.length given) (fun slot ->
-              match in_slot slot with
-              | Some a -> a
-              | None -> Diagnostic.bug ~span (Printf.sprintf "lowering: argument slot %d is empty" slot))
-        in
-        let value =
-          if out then
-            let arg = function `Arg a -> a | `Value _ -> Diagnostic.bug ~span "lowering expected an argument" in
-            Lower_calls.expand w st ctx span v (List.map arg slots) handler ret
-          else
-            let value = function `Value a -> a | `Arg _ -> Diagnostic.bug ~span "lowering expected a value" in
-            Lower_calls.invoke w st ctx span v (List.map value slots) handler
-        in
-        let label = fresh st in
-        if value.Expr.ty = Nodes.Ty.Void then
-          let body = lets @ [ Stat.Eval value ] in
-          { Expr.node = Expr.Expand { label; body; result = None }; ty = value.Expr.ty }
-        else
-          let result = fresh st in
-          let body = lets @ [ Stat.assign result value ] in
-          { Expr.node = Expr.Expand { label; body; result = Some result }; ty = value.Expr.ty }
+      else construct_reordered w st ctx span v given handler ret

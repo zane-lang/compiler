@@ -476,6 +476,19 @@ let initial_partitions engine jobs max_tokens min_tokens ~max_queue
       end
       else false
     in
+    (* A child no frontier on the next level shares a signature with,
+       queued there unless a budget stops partitioning first. *)
+    let add_child ~seen ~next ~next_count ~current_count key child =
+      if current_count + !next_count >= max_queue then
+        stop "the queue budget stopped initial partitioning"
+      else if !unique >= max_frontiers then stop "the frontier budget stopped initial partitioning"
+      else begin
+        Hashtbl.add seen key ();
+        incr unique;
+        incr next_count;
+        next := child :: !next
+      end
+    in
     (* The child [token] shifts [item] to, added to the next level unless a
        frontier already there has the same signature. *)
     let branch ~seen ~next ~next_count ~current_count item token =
@@ -484,24 +497,33 @@ let initial_partitions engine jobs max_tokens min_tokens ~max_queue
         if not (Automaton.IntMap.is_empty frontier) then begin
           let branched = item.branched || Recognizer.derivations frontier >= 2 in
           if branched && not item.branched then incr conflict_seeds;
-          let item =
+          let child =
             { tokens_rev = token :: item.tokens_rev; depth = item.depth + 1; frontier; branched }
           in
           let key = (branched, Recognizer.signature frontier) in
-          if not (Hashtbl.mem seen key) then begin
-            if current_count + !next_count >= max_queue then
-              stop "the queue budget stopped initial partitioning"
-            else if !unique >= max_frontiers then
-              stop "the frontier budget stopped initial partitioning"
-            else begin
-              Hashtbl.add seen key ();
-              incr unique;
-              incr next_count;
-              next := item :: !next
-            end
-          end
+          if not (Hashtbl.mem seen key) then
+            add_child ~seen ~next ~next_count ~current_count key child
         end
       end
+    in
+    (* [item] carried to the next level as it is when it already accepts
+       ambiguously, and otherwise replaced there by its children. *)
+    let expand ~seen ~next ~next_count ~current_count item =
+      if !stopped = None && over_budget () then ()
+      else if Recognizer.accepted_count engine item.frontier >= 2
+         && item.depth >= min_tokens then begin
+        if current_count + !next_count >= max_queue then
+          stop "the queue budget stopped initial partitioning"
+        else begin
+          next := item :: !next;
+          incr next_count
+        end
+      end
+      else
+        Automaton.StringSet.iter
+          (branch ~seen ~next ~next_count ~current_count item)
+          (Automaton.class_representatives engine.automaton
+             (Recognizer.possible_tokens engine item.frontier))
     in
     let depth = ref 0 in
     while !depth < split_depth && !stopped = None && !current <> [] do
@@ -510,24 +532,7 @@ let initial_partitions engine jobs max_tokens min_tokens ~max_queue
       let seen = Hashtbl.create (min 1_024 max_frontiers) in
       let next = ref [] in
       let next_count = ref 0 in
-      List.iter
-        (fun item ->
-          if !stopped = None && over_budget () then ()
-          else if Recognizer.accepted_count engine item.frontier >= 2
-             && item.depth >= min_tokens then begin
-            if current_count + !next_count >= max_queue then
-              stop "the queue budget stopped initial partitioning"
-            else begin
-              next := item :: !next;
-              incr next_count
-            end
-          end
-          else
-            Automaton.StringSet.iter
-              (branch ~seen ~next ~next_count ~current_count item)
-              (Automaton.class_representatives engine.automaton
-                 (Recognizer.possible_tokens engine item.frontier)))
-        !current;
+      List.iter (expand ~seen ~next ~next_count ~current_count) !current;
       (* If a budget stops this level partway through, [next] is only a
          partial set of children. Keep the last complete level so workers
          still cover every frontier within the token bound. *)
