@@ -476,6 +476,33 @@ let initial_partitions engine jobs max_tokens min_tokens ~max_queue
       end
       else false
     in
+    (* The child [token] shifts [item] to, added to the next level unless a
+       frontier already there has the same signature. *)
+    let branch ~seen ~next ~next_count ~current_count item token =
+      if !stopped = None && not (over_budget ()) then begin
+        let frontier = Recognizer.shift engine item.frontier token in
+        if not (Automaton.IntMap.is_empty frontier) then begin
+          let branched = item.branched || Recognizer.derivations frontier >= 2 in
+          if branched && not item.branched then incr conflict_seeds;
+          let item =
+            { tokens_rev = token :: item.tokens_rev; depth = item.depth + 1; frontier; branched }
+          in
+          let key = (branched, Recognizer.signature frontier) in
+          if not (Hashtbl.mem seen key) then begin
+            if current_count + !next_count >= max_queue then
+              stop "the queue budget stopped initial partitioning"
+            else if !unique >= max_frontiers then
+              stop "the frontier budget stopped initial partitioning"
+            else begin
+              Hashtbl.add seen key ();
+              incr unique;
+              incr next_count;
+              next := item :: !next
+            end
+          end
+        end
+      end
+    in
     let depth = ref 0 in
     while !depth < split_depth && !stopped = None && !current <> [] do
       let current_count = List.length !current in
@@ -497,37 +524,7 @@ let initial_partitions engine jobs max_tokens min_tokens ~max_queue
           end
           else
             Automaton.StringSet.iter
-              (fun token ->
-                if !stopped = None && not (over_budget ()) then begin
-                  let frontier = Recognizer.shift engine item.frontier token in
-                  if not (Automaton.IntMap.is_empty frontier) then begin
-                    let branched =
-                      item.branched || Recognizer.derivations frontier >= 2
-                    in
-                    if branched && not item.branched then incr conflict_seeds;
-                    let item =
-                      {
-                        tokens_rev = token :: item.tokens_rev;
-                        depth = item.depth + 1;
-                        frontier;
-                        branched;
-                      }
-                    in
-                    let key = (branched, Recognizer.signature frontier) in
-                    if not (Hashtbl.mem seen key) then begin
-                      if current_count + !next_count >= max_queue then
-                        stop "the queue budget stopped initial partitioning"
-                      else if !unique >= max_frontiers then
-                        stop "the frontier budget stopped initial partitioning"
-                      else begin
-                        Hashtbl.add seen key ();
-                        incr unique;
-                        incr next_count;
-                        next := item :: !next
-                      end
-                    end
-                  end
-                end)
+              (branch ~seen ~next ~next_count ~current_count item)
               (Automaton.class_representatives engine.automaton
                  (Recognizer.possible_tokens engine item.frontier)))
         !current;
