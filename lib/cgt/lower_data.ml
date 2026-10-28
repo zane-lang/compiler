@@ -216,33 +216,30 @@ let construct_fields w st ctx span verb (fields : T.Field_value.t list) handler 
         let out =
           Lower_calls.writes_out w st ctx span v (List.map (fun (_, e) -> T.Arg.Value e) in_slots)
         in
-        let stored =
-          List.map
-            (fun (slot, (e : T.Expr.t)) ->
-              let p = List.nth v.params slot in
-              match p.T.Local.ty with
-              | Tty.Concept _ when expands v ->
-                  let lets, lit = Lower_calls.captured w st ctx span ~into:ctx.env (literal_of ctx e) in
-                  (slot, lets, `Arg (T.Arg.Value (if lets = [] then e else lit)))
-              | _ ->
-                  let value = Lower_calls.argument w st ctx span v p e in
-                  let id = fresh st in
-                  let read = { Expr.node = Expr.Local id; ty = value.Expr.ty } in
-                  let named =
-                    if out then begin
-                      let l = { p with T.Local.id = -id } in
-                      Hashtbl.replace ctx.env l.T.Local.id
-                        (if by_address st v p then Pointer id
-                         else Type_layout.slot st p.T.Local.ty id);
-                      `Arg
-                        (T.Arg.Value
-                           { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l); ty = l.T.Local.ty })
-                    end
-                    else `Value read
-                  in
-                  (slot, [ Stat.Let { id; value } ], named))
-            given
+        let store (slot, (e : T.Expr.t)) =
+          let p = List.nth v.params slot in
+          match p.T.Local.ty with
+          | Tty.Concept _ when expands v ->
+              let lets, lit = Lower_calls.captured w st ctx span ~into:ctx.env (literal_of ctx e) in
+              (slot, lets, `Arg (T.Arg.Value (if lets = [] then e else lit)))
+          | _ ->
+              let value = Lower_calls.argument w st ctx span v p e in
+              let id = fresh st in
+              let read = { Expr.node = Expr.Local id; ty = value.Expr.ty } in
+              let named =
+                if out then begin
+                  let l = { p with T.Local.id = -id } in
+                  Hashtbl.replace ctx.env l.T.Local.id
+                    (if by_address st v p then Pointer id else Type_layout.slot st p.T.Local.ty id);
+                  `Arg
+                    (T.Arg.Value
+                       { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l); ty = l.T.Local.ty })
+                end
+                else `Value read
+              in
+              (slot, [ Stat.Let { id; value } ], named)
         in
+        let stored = List.map store given in
         let lets = List.concat_map (fun (_, l, _) -> l) stored in
         let in_slot slot = List.find_map (fun (s, _, a) -> if s = slot then Some a else None) stored in
         let slots =

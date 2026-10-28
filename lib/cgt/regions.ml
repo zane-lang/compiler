@@ -345,35 +345,39 @@ let taken_params funcs ~keeps =
         f.Func.body)
     funcs;
   let table = Hashtbl.create 16 in
+  (* Every read of [p] in [f]'s body, in order. *)
+  let reads_of (f : Func.t) p =
+    let reads = ref [] in
+    walk_stats
+      (fun e ->
+        match e.Expr.node with
+        | Expr.Local x when x = p -> reads := e :: !reads
+        | Expr.Copy { value = { Expr.node = Expr.Local x; _ }; _ } when x = p ->
+            reads := e :: !reads
+        | _ -> ())
+      (fun _ -> ())
+      f.Func.body;
+    List.rev !reads
+  in
+  let take (f : Func.t) held j (p, t) =
+    if t <> Ty.Ptr then
+      (* The copy is found before the read inside it. *)
+      match reads_of f p with
+      | [ ({ Expr.node = Expr.Copy { layout; _ }; _ } as copy); _ ] when not (List.mem j held) ->
+          if
+            followed f ~entry:true
+              ~start:(fun _ -> false)
+              ~event:(fun e -> e == copy)
+              ~refills:(fun _ -> false)
+              ~keeps
+          then Hashtbl.replace table (f.Func.symbol, j) (copy, layout)
+      | _ -> ()
+  in
   List.iter
     (fun (f : Func.t) ->
       if f.Func.linkage = Linkage.Local && not (Hashtbl.mem addressed f.Func.symbol) then
         let held = List.map fst (held_params f) in
-        List.iteri
-          (fun j (p, t) ->
-            if t <> Ty.Ptr then begin
-              let reads = ref [] in
-              walk_stats
-                (fun e ->
-                  match e.Expr.node with
-                  | Expr.Local x when x = p -> reads := e :: !reads
-                  | Expr.Copy { value = { Expr.node = Expr.Local x; _ }; _ } when x = p ->
-                      reads := e :: !reads
-                  | _ -> ())
-                (fun _ -> ())
-                f.Func.body;
-              (* The copy is found before the read inside it. *)
-              match List.rev !reads with
-              | [ ({ Expr.node = Expr.Copy { layout; _ }; _ } as copy); _ ]
-                when not (List.mem j held) ->
-                  if
-                    followed f ~entry:true ~start:(fun _ -> false)
-                      ~event:(fun e -> e == copy)
-                      ~refills:(fun _ -> false) ~keeps
-                  then Hashtbl.replace table (f.Func.symbol, j) (copy, layout)
-              | _ -> ()
-            end)
-          f.Func.params)
+        List.iteri (take f held) f.Func.params)
     funcs;
   table
 
