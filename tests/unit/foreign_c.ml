@@ -156,7 +156,9 @@ let interface_text () =
     (match List.assoc_opt "file" (I.merge partial complete).I.records with
     | Some { I.declared = true; layout = Some _; _ } -> true
     | _ -> false);
-  check "a malformed table is refused" (match I.read "fun 1:f 1 Q" with _ -> false | exception I.Malformed _ -> true)
+  check "a malformed table is refused" (match I.read "fun 1:f 1 Q" with _ -> false | exception I.Malformed _ -> true);
+  check "a name past the end is refused" (match I.read "fun 9:f" with _ -> false | exception I.Malformed _ -> true);
+  check "a bad number is refused" (match I.read "rec 1:r s 1 1 x" with _ -> false | exception I.Malformed _ -> true)
 
 (* A header compiled alone: what it declares, by its canonical types and
    the standard names written, and not what only an included header does;

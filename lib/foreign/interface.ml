@@ -64,6 +64,8 @@ let empty = { functions = []; variables = []; typedefs = []; records = [] }
 
 exception Malformed of string
 
+let number w = match int_of_string_opt w with Some n -> n | None -> raise (Malformed (w ^ " is no number"))
+
 (* The words of [text]: bare tokens, and names written as their length,
    `:` and their bytes, which may hold spaces. *)
 let words text =
@@ -76,7 +78,8 @@ let words text =
       let j = ref i in
       while !j < n && text.[!j] <> ' ' && text.[!j] <> ':' do incr j done;
       if !j < n && text.[!j] = ':' then
-        let len = int_of_string (String.sub text i (!j - i)) in
+        let len = number (String.sub text i (!j - i)) in
+        if len < 0 || !j + 1 + len > n then raise (Malformed "a name runs past the end of the table");
         go (!j + 1 + len) (String.sub text (!j + 1) len :: acc)
       else go !j (String.sub text i (!j - i) :: acc)
   in
@@ -85,7 +88,7 @@ let words text =
 let read text =
   let ws = ref (words text) in
   let next () = match !ws with w :: rest -> ws := rest; w | [] -> raise (Malformed "the table ended early") in
-  let int () = int_of_string (next ()) in
+  let int () = number (next ()) in
   let flag () = next () = "1" in
   let rec ty () =
     match next () with
