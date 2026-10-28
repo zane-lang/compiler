@@ -68,8 +68,13 @@ let compile_package ?cache ~fixed ~headers (dir, rows, sources) =
 (* Every package's C, once the target's include directories are known
    from [cc]. *)
 let compile_all ?cache ~work ~cc ~triple ~target packages =
-  let root = match cache with Some c -> Filename.concat c "foreign" | None -> work in
-  let headers = Compile.headers root in
+  (* A cache that cannot be written is no cache: the headers go in the
+     build's own directory, and nothing is kept. *)
+  let headers, cache =
+    match cache with
+    | Some c -> ( try (Compile.headers (Filename.concat c "foreign"), Some c) with Sys_error _ -> (Compile.headers work, None))
+    | None -> (Compile.headers work, None)
+  in
   match Probe.include_dirs ?cache ~dir:work ~cc target with
   | Error message -> Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] }
   | Ok include_dirs ->

@@ -105,11 +105,13 @@ let identity ~cache cc dir =
 
 (* [text] kept as [kept], written through a file of [dir]'s first. *)
 let keep_string ~dir ~kept text =
-  let file = Filename.concat dir (Printf.sprintf "kept-%08x" (Random.bits ())) in
+  let random = Random.State.make_self_init () in
+  let file = Filename.concat dir (Printf.sprintf "kept-%08x" (Random.State.bits random)) in
   try
     make_dirs dir;
-    Out_channel.with_open_bin file (fun oc -> output_string oc text);
-    keep ~random:(Random.State.make_self_init ()) ~object_:file ~kept;
+    Out_channel.with_open_gen [ Open_wronly; Open_creat; Open_excl; Open_binary ] 0o644 file (fun oc ->
+        output_string oc text);
+    keep ~random ~object_:file ~kept;
     Sys.remove file
   with Sys_error _ -> ( try Sys.remove file with Sys_error _ -> ())
 
