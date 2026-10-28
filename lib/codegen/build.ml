@@ -387,6 +387,13 @@ let asked_link ~cc ~triple args dir =
         | text -> Ok (List.rev (String.split_on_char '\n' text)))
     | n -> Error (Printf.sprintf "its `%s` exited with %d" shown n)
   in
+  (* The `libSystem` stubs under one of Zig's program directories. *)
+  let stubs_in dir =
+    let tbd =
+      List.fold_left Filename.concat (String.trim dir) [ "lib"; "libc"; "darwin"; "libSystem.tbd" ]
+    in
+    if Sys.file_exists tbd then Some tbd else None
+  in
   (* Zig's install directory, where its `libSystem` stubs are. *)
   let system () =
     match ask [ "-print-search-dirs" ] with
@@ -396,12 +403,7 @@ let asked_link ~cc ~triple args dir =
           (fun line ->
             Option.bind (String.index_opt line '=') (fun i ->
                 if String.starts_with ~prefix:"programs:" line then
-                  List.find_map
-                    (fun dir ->
-                      let tbd =
-                        List.fold_left Filename.concat (String.trim dir) [ "lib"; "libc"; "darwin"; "libSystem.tbd" ]
-                      in
-                      if Sys.file_exists tbd then Some tbd else None)
+                  List.find_map stubs_in
                     (String.split_on_char ':' (String.sub line (i + 1) (String.length line - i - 1)))
                 else None))
           lines
@@ -745,6 +747,19 @@ let bundled_bitcode_name ~triple = Filename.chop_suffix (bundled_name ~triple (l
 let with_runtime_bitcode ?bundled ?cache ~cc ~triple ?target use =
   let flags = bitcode_flags ~triple target in
   let present path = if (try (Unix.stat path).Unix.st_size > 0 with Unix.Unix_error _ -> false) then Some path else None in
+  (* The bitcode [cache] keeps for this *cc*, compiled into [fresh] and kept
+     first when it has none. *)
+  let from_cache ~cache ~identity ~fresh compiled =
+    let kept =
+      Filename.concat (Filename.concat cache "runtime")
+        (runtime_key ~cc ~identity ~triple (flags @ tuning ~triple) ^ ".bc")
+    in
+    if not (Sys.file_exists kept) then begin
+      if not (compiled ()) then Out_channel.with_open_bin fresh (fun _ -> ());
+      keep ~random:(Random.State.make_self_init ()) ~object_:fresh ~kept
+    end;
+    match present kept with Some _ as kept -> kept | None -> present fresh
+  in
   match bundled with
   | Some dir -> use (present (Filename.concat dir (bundled_bitcode_name ~triple)))
   | None -> (
@@ -756,16 +771,7 @@ let with_runtime_bitcode ?bundled ?cache ~cc ~triple ?target use =
           let compiled () = Result.is_ok (compile ~cc ~triple flags dir fresh) && Runtime_bodies.readable fresh in
           match Option.bind cache (fun cache -> Option.map (fun id -> (cache, id)) (identity ~cache cc dir)) with
           | None -> use (if compiled () then present fresh else None)
-          | Some (cache, identity) ->
-              let kept =
-                Filename.concat (Filename.concat cache "runtime")
-                  (runtime_key ~cc ~identity ~triple (flags @ tuning ~triple) ^ ".bc")
-              in
-              if not (Sys.file_exists kept) then begin
-                if not (compiled ()) then Out_channel.with_open_bin fresh (fun _ -> ());
-                keep ~random:(Random.State.make_self_init ()) ~object_:fresh ~kept
-              end;
-              use (match present kept with Some _ as kept -> kept | None -> present fresh)))
+          | Some (cache, identity) -> use (from_cache ~cache ~identity ~fresh compiled)))
 
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and its passes run, the optimized
@@ -919,6 +925,19 @@ let bundle_bitcode ~cc ~triple ~target dir work =
   | Ok _ when Runtime_bodies.readable path -> ()
   | Ok _ | Error _ -> ( try Sys.remove path with Sys_error _ -> ())
 
+(* What links a program with the runtime at [runtime] ([bundle_link]), and
+   for an optimized one also a shared library ([bundle_shared_link]). *)
+let bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime =
+  let ( let* ) = Result.bind in
+  match
+    let* () = bundle_link ~cc ~target ~triple ~tm level dir work runtime in
+    if optimize then bundle_shared_link ~cc ~target ~triple ~tm level dir work else Ok ()
+  with
+  | result -> result
+  | exception Sys_error message -> Error (Printf.sprintf "cannot bundle the link: %s" message)
+  | exception Llvm_target.Error message ->
+      Error (Printf.sprintf "cannot bundle the link: %s" message)
+
 (* The runtime compiled for [target], with or without optimizing, into
    [dir] under the name a build for that target looks for there
    ([bundled_name]), and the linker command and files that link a program
@@ -939,15 +958,9 @@ let bundle_runtime ~target ~optimize dir =
       let runtime = Filename.concat dir (bundled_name ~triple level) in
       match compile ~cc ~triple (target_flag (Some target) @ level) work runtime with
       | Error _ as error -> error
-      | Ok _ -> (
+      | Ok _ ->
           if optimize then bundle_bitcode ~cc:(bitcode_cc ()) ~triple ~target dir work;
-          match
-            Result.bind (bundle_link ~cc ~target ~triple ~tm level dir work runtime) (fun () ->
-                if optimize then bundle_shared_link ~cc ~target ~triple ~tm level dir work else Ok ())
-          with
-          | result -> result
-          | exception Sys_error message -> Error (Printf.sprintf "cannot bundle the link: %s" message)
-          | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot bundle the link: %s" message)))
+          bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime)
 
 (* The module's object file alone, for a package other objects link with
    (docs/design/separate-compilation.md C3): no runtime, and no link. *)
@@ -1095,10 +1108,13 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = cache_dir ()) m
         match bundled with
         | Some dir -> Some ("bundled " ^ dir)
         | None ->
+            let ( let* ) = Option.bind in
             let bitcode = bitcode_cc () in
-            Option.bind (identity ~cache cc work) (fun id ->
-                if bitcode = cc then Some id
-                else Option.map (fun b -> String.concat "\000" [ id; bitcode; b ]) (identity ~cache bitcode work))
+            let* id = identity ~cache cc work in
+            if bitcode = cc then Some id
+            else
+              let* b = identity ~cache bitcode work in
+              Some (String.concat "\000" [ id; bitcode; b ])
       in
       let kept =
         Option.bind cache (fun cache ->
@@ -1113,38 +1129,44 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = cache_dir ()) m
                   (Digest.to_hex (Digest.string key) ^ shared_extension triple))
               (cc_identity cache))
       in
+      (* Tier 1 of [m], linked into a library in [work], kept in the cache,
+         and installed. *)
+      let build () =
+        let ( let* ) = Result.bind in
+        let* triple, tm = prepare ?target ~tier:Tiers.Tier1 ~fingerprint m in
+        let obj = Filename.concat work "library.o" in
+        let library = Filename.concat work ("library" ^ shared_extension triple) in
+        let* () =
+          match
+            Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm
+          with
+          | exception Llvm_target.Error message ->
+              Error (Printf.sprintf "cannot write the object file: %s" message)
+          | () -> Ok ()
+        in
+        let level = level ~optimize:true and system = shared_libraries target in
+        let args = target_flag target @ level @ shared @ [ "-o"; library; obj ] @ system in
+        let bundled_link =
+          Option.map
+            (fun dir ->
+              List.fold_left Filename.concat dir
+                [ "link"; bundled_link_name ~triple (shared @ level) system ])
+            bundled
+        in
+        let* () =
+          link_program ?cache ?bundled:bundled_link ~cc ~triple ~args ~deps:[] ~obj ~runtime:""
+            ~output:library work
+        in
+        Option.iter
+          (fun kept ->
+            keep ~random:(Random.State.make_self_init ()) ~object_:library ~kept;
+            trim (Filename.dirname kept) kept_tiers)
+          kept;
+        install ~file:library ~output
+      in
       match kept with
       | Some kept when Sys.file_exists kept ->
           (* Taken now, it is the newest the cache holds. *)
           (try Unix.utimes kept 0. 0. with Unix.Unix_error _ -> ());
           install ~file:kept ~output
-      | _ -> (
-          match prepare ?target ~tier:Tiers.Tier1 ~fingerprint m with
-          | Error _ as error -> error
-          | Ok (triple, tm) -> (
-              let obj = Filename.concat work "library.o" in
-              let library = Filename.concat work ("library" ^ shared_extension triple) in
-              match Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm with
-              | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot write the object file: %s" message)
-              | () -> (
-                  let level = level ~optimize:true and system = shared_libraries target in
-                  let args = target_flag target @ level @ shared @ [ "-o"; library; obj ] @ system in
-                  let bundled_link =
-                    Option.map
-                      (fun dir ->
-                        List.fold_left Filename.concat dir
-                          [ "link"; bundled_link_name ~triple (shared @ level) system ])
-                      bundled
-                  in
-                  match
-                    link_program ?cache ?bundled:bundled_link ~cc ~triple ~args ~deps:[] ~obj ~runtime:""
-                      ~output:library work
-                  with
-                  | Error _ as error -> error
-                  | Ok () ->
-                      Option.iter
-                        (fun kept ->
-                          keep ~random:(Random.State.make_self_init ()) ~object_:library ~kept;
-                          trim (Filename.dirname kept) kept_tiers)
-                        kept;
-                      install ~file:library ~output)))
+      | _ -> build ()
