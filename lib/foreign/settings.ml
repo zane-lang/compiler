@@ -142,24 +142,20 @@ let parse_problem path (e : Coda.error) =
    order they are written: none when the package has no `c.coda`. *)
 let read ~triple dir =
   let path = Filename.concat dir file_name in
+  let applying rows =
+    let results = List.map (checked path) rows in
+    match List.filter_map (function Error p -> Some p | Ok _ -> None) results with
+    | [] ->
+        Ok (List.filter_map (function Ok (target, row) when glob_matches target triple -> Some row | _ -> None) results)
+    | problems -> Error problems
+  in
+  let parsed doc =
+    let rows = rows_of doc path in
+    Coda.free doc;
+    Result.bind rows applying
+  in
   if not (Sys.file_exists path) then Ok []
-  else
-    match Coda.parse_file path with
-    | Error e -> Error [ parse_problem path e ]
-    | Ok doc -> (
-        let rows = rows_of doc path in
-        Coda.free doc;
-        match rows with
-        | Error problems -> Error problems
-        | Ok rows ->
-            let results = List.map (checked path) rows in
-            let problems = List.filter_map (function Error p -> Some p | Ok _ -> None) results in
-            if problems <> [] then Error problems
-            else
-              Ok
-                (List.filter_map
-                   (function Ok (target, row) when glob_matches target triple -> Some row | _ -> None)
-                   results))
+  else match Coda.parse_file path with Error e -> Error [ parse_problem path e ] | Ok doc -> parsed doc
 
 (* Every file of [dir] matching [pattern], each part of which is a `*`
    pattern over one directory's entries, as paths relative to [dir]. *)
@@ -193,22 +189,22 @@ let sources dir rows =
     |> List.filter (fun f -> Filename.check_suffix f ".c" && not (Sys.is_directory (Filename.concat dir f)))
     |> List.sort compare
   in
-  let problems, listed =
-    List.fold_left
-      (fun (problems, listed) row ->
-        match (row.setting, relative_parts row.value) with
-        | Source, Ok parts -> (
-            match expand dir parts with
-            | [] -> (problem path row.number (Printf.sprintf "`%s` matches no file" row.value) :: problems, listed)
-            | found -> (problems, listed @ List.filter (fun f -> Filename.check_suffix f ".c") found))
-        | _ -> (problems, listed))
-      ([], []) rows
+  let listed row =
+    match (row.setting, relative_parts row.value) with
+    | Source, Ok parts -> (
+        match expand dir parts with
+        | [] -> Error (problem path row.number (Printf.sprintf "`%s` matches no file" row.value))
+        | found -> Ok (List.filter (fun f -> Filename.check_suffix f ".c") found))
+    | _ -> Ok []
   in
+  let results = List.map listed rows in
   let rec unique seen = function
     | [] -> []
     | f :: rest -> if List.mem f seen then unique seen rest else f :: unique (f :: seen) rest
   in
-  if problems <> [] then Error (List.rev problems) else Ok (unique [] (direct @ listed))
+  match List.filter_map (function Error p -> Some p | Ok _ -> None) results with
+  | [] -> Ok (unique [] (direct @ List.concat_map (function Ok fs -> fs | Error _ -> []) results))
+  | problems -> Error problems
 
 (* The package's interface headers (spec ffi.md §2.1): the `.h` files
    directly in [dir]. *)
