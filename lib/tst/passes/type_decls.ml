@@ -264,59 +264,52 @@ let rec bare_results env ~top (raw : Ty.t) (inst : Ty.t) =
         (List.map2 (fun r i -> match (r, i) with Ty.Type r, Ty.Type i -> inside r i | _ -> []) ra ia)
   | _ -> []
 
+(* Whether a value slot of type [ft] holds a reference. *)
+let holds_reference env (ft : Ty.t) =
+  match ft with
+  | Ty.Reference _ -> true
+  | Ty.Param _ | Ty.Error | Ty.Roaming _ -> false
+  | ft -> is_reference env ft
+
+(* A wrong kind found inside a part of a type, reached through [step]. *)
+let through step = Option.map (fun found -> { found with path = step :: found.path })
+
 let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
-  let bad (ft : Ty.t) =
-    match ft with
-    | Ty.Reference _ -> true
-    | Ty.Param _ | Ty.Error | Ty.Roaming _ -> false
-    | ft -> is_reference env ft
-  in
+  let elements () = Printf.sprintf "the elements of %s" (quote (Ty.to_string t)) in
   match t with
   | Ty.Named (tid, args) when not (List.mem tid seen) -> (
+      let seen = tid :: seen in
       match Types.type_info_of_id env.types tid with
       | Some ({ definition = Some (Struct fs | Variant fs); _ } as info) ->
-          let value = info.reference = Some false in
-          let step n = Printf.sprintf "%s's field %s" (quote (Ty.to_string t)) (quote n) in
-          List.find_map
-            (fun (n, raw) ->
-              let ft = Ty.instantiate info.params args raw in
-              if value && bad ft then Some { path = [ step n ]; bad = ft; slot = Value_slot }
-              else
-                match (filled_references env raw ft, bare_results env ~top:false raw ft) with
-                | (x, slot) :: _, _ -> Some { path = [ step n ]; bad = x; slot }
-                | [], x :: _ -> Some { path = [ step n ]; bad = x; slot = Bare_result }
-                | [], [] ->
-                    Option.map
-                      (fun found -> { found with path = step n :: found.path })
-                      (wrong_kind env ~seen:(tid :: seen) (Ty.strip_mode ft)))
-            fs
+          List.find_map (wrong_kind_in_field env ~seen t info args) fs
       | Some ({ definition = Some (Distinct u); _ } as info) ->
-          wrong_kind env ~seen:(tid :: seen) (Ty.instantiate info.params args u)
+          wrong_kind env ~seen (Ty.instantiate info.params args u)
       | _ -> None)
   | Ty.Intrinsic
       { namespace = "primitives"; name = "ListRef"; args = Ty.Type (Ty.Reference x as e) :: _ }
     when not (is_value env x) ->
-      Some
-        {
-          path = [ Printf.sprintf "the elements of %s" (quote (Ty.to_string t)) ];
-          bad = e;
-          slot = List_element;
-        }
-  | Ty.Intrinsic { namespace = "primitives"; name = "Array" | "List"; args = Ty.Type e :: _ } when bad e ->
-      Some
-        {
-          path = [ Printf.sprintf "the elements of %s" (quote (Ty.to_string t)) ];
-          bad = e;
-          slot = Value_slot;
-        }
+      Some { path = [ elements () ]; bad = e; slot = List_element }
+  | Ty.Intrinsic { namespace = "primitives"; name = "Array" | "List"; args = Ty.Type e :: _ }
+    when holds_reference env e ->
+      Some { path = [ elements () ]; bad = e; slot = Value_slot }
   | Ty.Intrinsic
       { namespace = "primitives"; name = "Array" | "ArrayRef" | "List" | "ListRef"; args = Ty.Type e :: _ }
     ->
-      Option.map
-        (fun found ->
-          { found with path = Printf.sprintf "the elements of %s" (quote (Ty.to_string t)) :: found.path })
-        (wrong_kind env ~seen (Ty.strip_mode e))
+      through (elements ()) (wrong_kind env ~seen (Ty.strip_mode e))
   | _ -> None
+
+(* The first wrong kind field [n] of [t] holds, in the field itself or
+   inside its type. *)
+and wrong_kind_in_field env ~seen t (info : type_info) args (n, raw) =
+  let step = Printf.sprintf "%s's field %s" (quote (Ty.to_string t)) (quote n) in
+  let ft = Ty.instantiate info.params args raw in
+  if info.reference = Some false && holds_reference env ft then
+    Some { path = [ step ]; bad = ft; slot = Value_slot }
+  else
+    match (filled_references env raw ft, bare_results env ~top:false raw ft) with
+    | (x, slot) :: _, _ -> Some { path = [ step ]; bad = x; slot }
+    | [], x :: _ -> Some { path = [ step ]; bad = x; slot = Bare_result }
+    | [], [] -> through step (wrong_kind env ~seen (Ty.strip_mode ft))
 
 let describe_wrong_kind { path; bad; slot } =
   (* An `&` type is a reference, not a reference type (memory.md §2.4). *)
@@ -808,6 +801,21 @@ let members env what (entries : N.Body_field.t list) resolve_field =
           Some (name, resolve_field f))
     entries
 
+(* An enum's members, each listed once. *)
+let enum_members env names =
+  let seen = Hashtbl.create 8 in
+  let member (n : N.Name.t) =
+    if Hashtbl.mem seen n.N.Name.text then begin
+      error env n.N.Name.span (Printf.sprintf "the member %s is listed twice" (quote n.N.Name.text));
+      None
+    end
+    else begin
+      Hashtbl.add seen n.N.Name.text ();
+      Some n.N.Name.text
+    end
+  in
+  List.filter_map member names
+
 let define env (info : type_info) =
   match info.decl.kind with
   | Type_decl { value; _ } ->
@@ -830,21 +838,7 @@ let define env (info : type_info) =
               match mould.N.Mould.node with
               | N.Mould.Struct fields -> Struct (members env "field" fields field)
               | N.Mould.Variant cases -> Variant (members env "case" cases field)
-              | N.Mould.Enum names ->
-                  let seen = Hashtbl.create 8 in
-                  Enum
-                    (List.filter_map
-                       (fun (n : N.Name.t) ->
-                         if Hashtbl.mem seen n.N.Name.text then begin
-                           error env n.N.Name.span
-                             (Printf.sprintf "the member %s is listed twice" (quote n.N.Name.text));
-                           None
-                         end
-                         else begin
-                           Hashtbl.add seen n.N.Name.text ();
-                           Some n.N.Name.text
-                         end)
-                       names)
+              | N.Mould.Enum names -> Enum (enum_members env names)
             in
             (definition, Some reference)
       in
@@ -911,6 +905,13 @@ type growth = {
   g_param : Ty.param;
 }
 
+let field_span (info : type_info) name fields =
+  match
+    List.find_opt (fun (f : N.Body_field.t) -> f.N.Body_field.name.N.Name.text = name) fields
+  with
+  | Some f -> f.N.Body_field.type_.N.Type_expr.span
+  | None -> info.decl.span
+
 let member_span (info : type_info) name =
   match info.decl.kind with
   | Type_decl { value; _ } -> (
@@ -918,10 +919,7 @@ let member_span (info : type_info) name =
       | N.Type_or_moulded.Raw te -> te.N.Type_expr.span
       | N.Type_or_moulded.Moulded { N.Moulded.mould; _ } -> (
           match mould.N.Mould.node with
-          | N.Mould.Struct fields | N.Mould.Variant fields -> (
-              match List.find_opt (fun (f : N.Body_field.t) -> f.N.Body_field.name.N.Name.text = name) fields with
-              | Some f -> f.N.Body_field.type_.N.Type_expr.span
-              | None -> info.decl.span)
+          | N.Mould.Struct fields | N.Mould.Variant fields -> field_span info name fields
           | N.Mould.Enum _ -> info.decl.span))
   | _ -> info.decl.span
 
@@ -935,50 +933,52 @@ let check_growing_arguments env () =
     | _ -> []
   in
   let edges = ref [] in
+  (* The edges one argument adds: from each parameter it names to the
+     parameter of [target] it is passed for. *)
+  let add_argument_edges owner member (target : type_info) (param : Ty.param) arg =
+    let named =
+      match arg with
+      | Ty.Type t -> Ty.free_params t
+      | Ty.Number (Ty.Number_param p) -> [ p ]
+      | Ty.Number (Ty.Known _) -> []
+    in
+    let bare =
+      match arg with Ty.Type (Ty.Param _) | Ty.Number (Ty.Number_param _) -> true | _ -> false
+    in
+    List.iter
+      (fun (from : Ty.param) ->
+        edges :=
+          {
+            g_from = from.id;
+            g_to = param.id;
+            g_growing = not bare;
+            g_owner = owner;
+            g_member = member;
+            g_arg = arg;
+            g_target = target;
+            g_param = param;
+          }
+          :: !edges)
+      named
+  in
+  let rec occurrences owner member (t : Ty.t) =
+    match t with
+    | Ty.Named (tid, args) ->
+        (match type_info_of_id env tid with
+        | Some target when List.compare_lengths target.params args = 0 ->
+            List.iter2 (add_argument_edges owner member target) target.params args
+        | _ -> ());
+        List.iter (occurrences_arg owner member) args
+    | Ty.Intrinsic { args; _ } -> List.iter (occurrences_arg owner member) args
+    | Ty.Reference t | Ty.Roaming t -> occurrences owner member t
+    | _ -> ()
+  and occurrences_arg owner member = function
+    | Ty.Type t -> occurrences owner member t
+    | Ty.Number _ -> ()
+  in
   List.iter
     (fun (owner : type_info) ->
-      List.iter
-        (fun (_, member, t) ->
-          let rec occurrences (t : Ty.t) =
-            match t with
-            | Ty.Named (tid, args) ->
-                (match type_info_of_id env tid with
-                | Some target when List.compare_lengths target.params args = 0 ->
-                    List.iter2
-                      (fun (param : Ty.param) arg ->
-                        let named =
-                          match arg with
-                          | Ty.Type t -> Ty.free_params t
-                          | Ty.Number (Ty.Number_param p) -> [ p ]
-                          | Ty.Number (Ty.Known _) -> []
-                        in
-                        let bare =
-                          match arg with Ty.Type (Ty.Param _) | Ty.Number (Ty.Number_param _) -> true | _ -> false
-                        in
-                        List.iter
-                          (fun (from : Ty.param) ->
-                            edges :=
-                              {
-                                g_from = from.id;
-                                g_to = param.id;
-                                g_growing = not bare;
-                                g_owner = owner;
-                                g_member = member;
-                                g_arg = arg;
-                                g_target = target;
-                                g_param = param;
-                              }
-                              :: !edges)
-                          named)
-                      target.params args
-                | _ -> ());
-                List.iter occurrences_arg args
-            | Ty.Intrinsic { args; _ } -> List.iter occurrences_arg args
-            | Ty.Reference t | Ty.Roaming t -> occurrences t
-            | _ -> ()
-          and occurrences_arg = function Ty.Type t -> occurrences t | Ty.Number _ -> () in
-          occurrences t)
-        (members owner))
+      List.iter (fun (_, member, t) -> occurrences owner member t) (members owner))
     infos;
   let edges = List.rev !edges in
   if List.exists (fun e -> e.g_growing) edges then begin
@@ -1018,6 +1018,40 @@ let check_growing_arguments env () =
       in
       List.find_opt through (e.g_owner :: List.filter (fun i -> i != e.g_owner) infos)
     in
+    (* The growing edge [e], reported once at the member it comes from. *)
+    let report_growing e (looping : type_info) =
+      let kind, _, _ = List.find (fun (_, n, _) -> n = e.g_member) (members e.g_owner) in
+      let which =
+        match kind with "definition" -> "definition" | _ -> kind ^ " " ^ quote e.g_member
+      in
+      let holder =
+        if looping == e.g_owner then "its " ^ which
+        else Printf.sprintf "the %s of %s" which (quote e.g_owner.tid.name)
+      in
+      error env
+        (member_span e.g_owner e.g_member)
+        (Printf.sprintf
+           "%s holds itself at a growing argument: %s passes %s as %s of %s; where a type leads \
+            back to itself, each argument it passes back is one of its own parameters as written \
+            or names none of them"
+           (quote looping.tid.name) holder
+           (quote (Ty.arg_to_string e.g_arg))
+           (quote e.g_param.name) (quote e.g_target.tid.name))
+    in
+    (* A reported member's type becomes [Ty.Error], so that nothing after
+       this pass walks it. *)
+    let blank_member (id, member) () =
+      match List.find_opt (fun (i : type_info) -> i.decl.id = id) infos with
+      | Some info ->
+          let blank fs = List.map (fun (n, t) -> (n, if n = member then Ty.Error else t)) fs in
+          info.definition <-
+            (match info.definition with
+            | Some (Struct fs) -> Some (Struct (blank fs))
+            | Some (Variant fs) -> Some (Variant (blank fs))
+            | Some (Distinct _) -> Some (Distinct Ty.Error)
+            | d -> d)
+      | None -> ()
+    in
     let reported = Hashtbl.create 4 in
     List.iter
       (fun e ->
@@ -1027,35 +1061,9 @@ let check_growing_arguments env () =
           | None -> ()
           | Some looping ->
               Hashtbl.add reported key ();
-              let kind, _, _ = List.find (fun (_, n, _) -> n = e.g_member) (members e.g_owner) in
-              let which =
-                match kind with "definition" -> "definition" | _ -> kind ^ " " ^ quote e.g_member
-              in
-              let holder =
-                if looping == e.g_owner then "its " ^ which
-                else Printf.sprintf "the %s of %s" which (quote e.g_owner.tid.name)
-              in
-              error env (member_span e.g_owner e.g_member)
-                (Printf.sprintf
-                   "%s holds itself at a growing argument: %s passes %s as %s of %s; where a type \
-                    leads back to itself, each argument it passes back is one of its own \
-                    parameters as written or names none of them"
-                   (quote looping.tid.name) holder (quote (Ty.arg_to_string e.g_arg))
-                   (quote e.g_param.name) (quote e.g_target.tid.name)))
+              report_growing e looping)
       edges;
-    Hashtbl.iter
-      (fun (id, member) () ->
-        match List.find_opt (fun (i : type_info) -> i.decl.id = id) infos with
-        | Some info ->
-            let blank fs = List.map (fun (n, t) -> (n, if n = member then Ty.Error else t)) fs in
-            info.definition <-
-              (match info.definition with
-              | Some (Struct fs) -> Some (Struct (blank fs))
-              | Some (Variant fs) -> Some (Variant (blank fs))
-              | Some (Distinct _) -> Some (Distinct Ty.Error)
-              | d -> d)
-        | None -> ())
-      reported
+    Hashtbl.iter blank_member reported
   end
 
 (* A value type is transitively a value: no reference-type or `&` member,

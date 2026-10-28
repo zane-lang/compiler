@@ -204,25 +204,35 @@ let write_replacing ~random ~output contents =
 (* The output is written only once the whole object has been rewritten, so a
    malformed input leaves nothing behind. *)
 let rewrite_object ~random ~stamps ~rewrite ~input ~output =
-  let fail_with message = fail [ Diagnostic.about_invocation message ] in
-  match List.find_opt (fun stamp -> not (Rewrite.is_stamp stamp)) stamps with
-  | Some stamp -> fail_with (not_stamp stamp)
-  | None -> (
+  let ( let* ) = Result.bind in
+  let rewritten =
+    let* () =
+      match List.find_opt (fun stamp -> not (Rewrite.is_stamp stamp)) stamps with
+      | Some stamp -> Error (not_stamp stamp)
+      | None -> Ok ()
+    in
+    let* () =
       match stamps with
       | [ from; to_ ] when not (Rewrite.same_package from to_) ->
-          fail_with
+          Error
             (Printf.sprintf
                "`%s` and `%s` are versions of two packages, since their identity hashes differ; \
                 remapping moves references between versions of one package"
                from to_)
-      | _ -> (
-          match In_channel.with_open_bin input In_channel.input_all with
-          | exception Sys_error message -> fail_with message
-          | contents -> (
-              match rewrite contents with
-              | Error message -> fail_with (input ^ ": " ^ message)
-              | Ok (rewritten, _) -> (
-                  match write_replacing ~random ~output rewritten with
-                  | Ok () -> Ok ()
-                  | Error message ->
-                      fail_with (Printf.sprintf "cannot write `%s`: %s" output message)))))
+      | _ -> Ok ()
+    in
+    let* contents =
+      match In_channel.with_open_bin input In_channel.input_all with
+      | exception Sys_error message -> Error message
+      | contents -> Ok contents
+    in
+    let* rewritten, _ =
+      Result.map_error (fun message -> input ^ ": " ^ message) (rewrite contents)
+    in
+    Result.map_error
+      (fun message -> Printf.sprintf "cannot write `%s`: %s" output message)
+      (write_replacing ~random ~output rewritten)
+  in
+  match rewritten with
+  | Ok () -> Ok ()
+  | Error message -> fail [ Diagnostic.about_invocation message ]

@@ -90,38 +90,36 @@ let rewrite data_layout m =
       f;
     !found
   in
+  let rewrite_load f load =
+    let users = uses load in
+    if users <> [] && List.for_all (is_store_of load) users then begin
+      let t = Llvm.type_of load in
+      let n = size t in
+      let src = Llvm.operand load 0 in
+      (* A store right after its load, with nothing between that may
+         write memory, copies straight from the source; any other
+         keeps what the load read in a slot of its own. *)
+      let from =
+        if List.for_all (quiet_between load) users then src
+        else begin
+          let entry = Llvm.builder_at ctx (Llvm.instr_begin (Llvm.entry_block f)) in
+          let held = Llvm.build_alloca t "" entry in
+          Llvm.set_alignment 8 held;
+          copy (Llvm.builder_before ctx load) held src n;
+          held
+        end
+      in
+      List.iter
+        (fun store ->
+          (if from == src then move else copy)
+            (Llvm.builder_before ctx store) (Llvm.operand store 1) from n;
+          Llvm.delete_instruction store)
+        users;
+      Llvm.delete_instruction load
+    end
+  in
   Llvm.iter_functions
-    (fun f ->
-      if not (Llvm.is_declaration f) then
-        List.iter
-          (fun load ->
-            let users = uses load in
-            if users <> [] && List.for_all (is_store_of load) users then begin
-              let t = Llvm.type_of load in
-              let n = size t in
-              let src = Llvm.operand load 0 in
-              (* A store right after its load, with nothing between that may
-                 write memory, copies straight from the source; any other
-                 keeps what the load read in a slot of its own. *)
-              let from =
-                if List.for_all (quiet_between load) users then src
-                else begin
-                  let entry = Llvm.builder_at ctx (Llvm.instr_begin (Llvm.entry_block f)) in
-                  let held = Llvm.build_alloca t "" entry in
-                  Llvm.set_alignment 8 held;
-                  copy (Llvm.builder_before ctx load) held src n;
-                  held
-                end
-              in
-              List.iter
-                (fun store ->
-                  (if from == src then move else copy)
-                    (Llvm.builder_before ctx store) (Llvm.operand store 1) from n;
-                  Llvm.delete_instruction store)
-                users;
-              Llvm.delete_instruction load
-            end)
-          (large_loads f))
+    (fun f -> if not (Llvm.is_declaration f) then List.iter (rewrite_load f) (large_loads f))
     m;
   (* A parameter or a result too large to move as one value: a signature
      passes such an aggregate by address (Emit.passing, Emit.returning), so

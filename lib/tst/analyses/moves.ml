@@ -73,6 +73,33 @@ let overlaps a b =
 (* Moving                                                                 *)
 (* ---------------------------------------------------------------------- *)
 
+(* A move out of the roaming symbol [l], or out of its field at [path]: a
+   move in the block that declares it marks the place spent, or the field
+   moved. *)
+let move_roaming env w (v : T.Expr.t) (l : T.Local.t) path =
+  let name = Env.quote l.T.Local.name in
+  if Hashtbl.find_opt w.declared l.T.Local.id <> Some w.block then
+    Env.error env v.T.Expr.span
+      (Printf.sprintf
+         "%s is declared in an enclosing block, and a roaming owner is moved only in the block \
+          that declares it"
+         name)
+  else if
+    (* Moving out of a place that is already spent was reported
+       as a use, and changes nothing. *)
+    Hashtbl.mem w.spent l.T.Local.id
+    || List.exists
+         (fun (p, _) -> overlaps p path)
+         (Option.value ~default:[] (Hashtbl.find_opt w.partly l.T.Local.id))
+  then ()
+  else if path = [] then begin
+    if not (Hashtbl.mem w.spent l.T.Local.id) then
+      Hashtbl.replace w.spent l.T.Local.id v.T.Expr.span
+  end
+  else
+    let old = Option.value ~default:[] (Hashtbl.find_opt w.partly l.T.Local.id) in
+    Hashtbl.replace w.partly l.T.Local.id ((path, v.T.Expr.span) :: old)
+
 let move env w (v : T.Expr.t) =
   let say what =
     Env.error env v.T.Expr.span
@@ -88,29 +115,7 @@ let move env w (v : T.Expr.t) =
     | States.Fresh, _ -> ()
     | States.Roaming, _ -> (
         match States.field_path v with
-        | Some (l, path) ->
-            let name = Env.quote l.T.Local.name in
-            if Hashtbl.find_opt w.declared l.T.Local.id <> Some w.block then
-              Env.error env v.T.Expr.span
-                (Printf.sprintf
-                   "%s is declared in an enclosing block, and a roaming owner is moved only in \
-                    the block that declares it"
-                   name)
-            else if
-              (* Moving out of a place that is already spent was reported
-                 as a use, and changes nothing. *)
-              Hashtbl.mem w.spent l.T.Local.id
-              || List.exists
-                   (fun (p, _) -> overlaps p path)
-                   (Option.value ~default:[] (Hashtbl.find_opt w.partly l.T.Local.id))
-            then ()
-            else if path = [] then begin
-              if not (Hashtbl.mem w.spent l.T.Local.id) then
-                Hashtbl.replace w.spent l.T.Local.id v.T.Expr.span
-            end
-            else
-              let old = Option.value ~default:[] (Hashtbl.find_opt w.partly l.T.Local.id) in
-              Hashtbl.replace w.partly l.T.Local.id ((path, v.T.Expr.span) :: old)
+        | Some (l, path) -> move_roaming env w v l path
         | None -> say "this place")
     | States.Settled, T.Expr.Var (T.Name_ref.Local l) ->
         Env.error env v.T.Expr.span

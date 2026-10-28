@@ -102,17 +102,21 @@ let rec size st (v : verb) =
       (* A verb whose size is being counted is not written out in itself. *)
       Hashtbl.replace st.sizes v.key None;
       let total = ref 0 in
+      (* The verb [e] calls, if it has one, and whether it always expands. *)
+      let callee e =
+        let ( let* ) = Option.bind in
+        let* id, instance, always = called e in
+        let* c = verb_of st id instance in
+        Some (c, always)
+      in
       let rec count (e : T.Expr.t) =
         incr total;
         (match e.T.Expr.node with T.Expr.Spawn _ | T.Expr.Lambda _ -> raise Kept | _ -> ());
-        (match called e with
-        | Some (id, instance, always) -> (
-            match verb_of st id instance with
-            | Some c -> (
-                match size st c with
-                | Some m -> total := !total + m
-                | None -> if always || expands c then raise Kept)
-            | None -> ())
+        (match callee e with
+        | Some (c, always) -> (
+            match size st c with
+            | Some m -> total := !total + m
+            | None -> if always || expands c then raise Kept)
         | None -> ());
         if !total > most_expanded then raise Kept;
         List.iter

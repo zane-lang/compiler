@@ -34,6 +34,22 @@ let closure_one engine stack_id token =
       let propagated = Hashtbl.create 16 in
       let queue = Queue.create () in
       Queue.add stack_id queue;
+      (* The stack [reduction] leaves when it pops [current], counted
+         [available] more times, and queued when that adds to its count. *)
+      let reduce current available reduction =
+        match Stack_pool.pop current reduction.Automaton.width with
+        | None -> ()
+        | Some base -> (
+            match
+              Hashtbl.find_opt engine.automaton.states.(base.state).transitions reduction.lhs
+            with
+            | None -> ()
+            | Some target ->
+                let reduced = Stack_pool.push engine.stacks base target in
+                let updated, delta = add_count reduced.id available !closure in
+                closure := updated;
+                if delta > 0 then Queue.add reduced.id queue)
+      in
       while not (Queue.is_empty queue) do
         let current_id = Queue.take queue in
         let count = Automaton.IntMap.find current_id !closure in
@@ -45,25 +61,7 @@ let closure_one engine stack_id token =
           Hashtbl.replace propagated current_id count;
           let current = Stack_pool.find engine.stacks current_id in
           let state = engine.automaton.states.(current.state) in
-          List.iter
-            (fun reduction ->
-              match Stack_pool.pop current reduction.Automaton.width with
-              | None -> ()
-              | Some base ->
-                  (match
-                     Hashtbl.find_opt
-                       engine.automaton.states.(base.state).transitions
-                       reduction.lhs
-                   with
-                  | None -> ()
-                  | Some target ->
-                      let reduced = Stack_pool.push engine.stacks base target in
-                      let updated, delta =
-                        add_count reduced.id available !closure
-                      in
-                      closure := updated;
-                      if delta > 0 then Queue.add reduced.id queue))
-            (reductions state token)
+          List.iter (reduce current available) (reductions state token)
         end
       done;
       Hashtbl.add engine.closure_cache (stack_id, token) !closure;

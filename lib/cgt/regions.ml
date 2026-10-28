@@ -313,19 +313,16 @@ let keeping funcs =
     funcs;
   let keeps fn j = Option.value ~default:false (Hashtbl.find_opt table (fn, j)) in
   let changed = ref true in
+  (* [f]'s parameter [j] stops being kept once its body can drop it. *)
+  let settle f (j, h) =
+    if keeps f.Func.symbol j && not (moved_on f h ~keeps) then begin
+      Hashtbl.replace table (f.Func.symbol, j) false;
+      changed := true
+    end
+  in
   while !changed do
     changed := false;
-    List.iter
-      (fun f ->
-        if has_body f then
-          List.iter
-            (fun (j, h) ->
-              if keeps f.Func.symbol j && not (moved_on f h ~keeps) then begin
-                Hashtbl.replace table (f.Func.symbol, j) false;
-                changed := true
-              end)
-            (held_params f))
-      funcs
+    List.iter (fun f -> if has_body f then List.iter (settle f) (held_params f)) funcs
   done;
   keeps
 
@@ -345,35 +342,39 @@ let taken_params funcs ~keeps =
         f.Func.body)
     funcs;
   let table = Hashtbl.create 16 in
+  (* Every read of [p] in [f]'s body, in order. *)
+  let reads_of (f : Func.t) p =
+    let reads = ref [] in
+    walk_stats
+      (fun e ->
+        match e.Expr.node with
+        | Expr.Local x when x = p -> reads := e :: !reads
+        | Expr.Copy { value = { Expr.node = Expr.Local x; _ }; _ } when x = p ->
+            reads := e :: !reads
+        | _ -> ())
+      (fun _ -> ())
+      f.Func.body;
+    List.rev !reads
+  in
+  let take (f : Func.t) held j (p, t) =
+    if t <> Ty.Ptr then
+      (* The copy is found before the read inside it. *)
+      match reads_of f p with
+      | [ ({ Expr.node = Expr.Copy { layout; _ }; _ } as copy); _ ] when not (List.mem j held) ->
+          if
+            followed f ~entry:true
+              ~start:(fun _ -> false)
+              ~event:(fun e -> e == copy)
+              ~refills:(fun _ -> false)
+              ~keeps
+          then Hashtbl.replace table (f.Func.symbol, j) (copy, layout)
+      | _ -> ()
+  in
   List.iter
     (fun (f : Func.t) ->
       if f.Func.linkage = Linkage.Local && not (Hashtbl.mem addressed f.Func.symbol) then
         let held = List.map fst (held_params f) in
-        List.iteri
-          (fun j (p, t) ->
-            if t <> Ty.Ptr then begin
-              let reads = ref [] in
-              walk_stats
-                (fun e ->
-                  match e.Expr.node with
-                  | Expr.Local x when x = p -> reads := e :: !reads
-                  | Expr.Copy { value = { Expr.node = Expr.Local x; _ }; _ } when x = p ->
-                      reads := e :: !reads
-                  | _ -> ())
-                (fun _ -> ())
-                f.Func.body;
-              (* The copy is found before the read inside it. *)
-              match List.rev !reads with
-              | [ ({ Expr.node = Expr.Copy { layout; _ }; _ } as copy); _ ]
-                when not (List.mem j held) ->
-                  if
-                    followed f ~entry:true ~start:(fun _ -> false)
-                      ~event:(fun e -> e == copy)
-                      ~refills:(fun _ -> false) ~keeps
-                  then Hashtbl.replace table (f.Func.symbol, j) (copy, layout)
-              | _ -> ()
-            end)
-          f.Func.params)
+        List.iteri (take f held) f.Func.params)
     funcs;
   table
 
@@ -408,22 +409,18 @@ let take_params funcs table =
         match e.Expr.node with Expr.Copy { value; _ } -> Some value | _ -> None
       else None
     in
-    let rec call_site (e : Expr.t) =
+    (* Argument [j] of a call to [fn], passed as the parameter takes it: a
+       borrowed fresh value as itself, anything else copied in. *)
+    let rec argument fn j (x : Expr.t) =
+      let x = map_expr call_site (fun _ -> None) x in
+      match (Hashtbl.find_opt table (fn, j), borrowed x) with
+      | None, _ -> x
+      | Some _, Some v -> v
+      | Some (_, layout), None -> { x with Expr.node = Expr.Copy { value = x; layout } }
+    and call_site (e : Expr.t) =
       match e.Expr.node with
       | Expr.Call { fn; args } ->
-          let args =
-            List.mapi
-              (fun j (x : Expr.t) ->
-                let x = map_expr call_site (fun _ -> None) x in
-                match Hashtbl.find_opt table (fn, j) with
-                | None -> x
-                | Some (_, layout) -> (
-                    match borrowed x with
-                    | Some v -> v
-                    | None -> { x with Expr.node = Expr.Copy { value = x; layout } }))
-              args
-          in
-          Some { e with Expr.node = Expr.Call { fn; args } }
+          Some { e with Expr.node = Expr.Call { fn; args = List.mapi (argument fn) args } }
       | _ -> fe e
     in
     List.map

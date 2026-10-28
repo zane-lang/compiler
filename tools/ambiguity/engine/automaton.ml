@@ -156,16 +156,18 @@ let parse_tokens grammar =
   let terminals = ref StringSet.empty in
   let aliases = Hashtbl.create 64 in
   let source = strip_comments (read_file grammar) in
+  let add_token token alias =
+    terminals := StringSet.add token !terminals;
+    Option.iter
+      (fun alias ->
+        let alias = try Scanf.unescaped alias with _ -> alias in
+        Hashtbl.replace aliases token alias)
+      alias
+  in
   List.iter
     (fun line ->
       if Str.string_match token_decl_re line 0 then
-        parse_token_specs (Str.matched_group 2 line) (fun token alias ->
-            terminals := StringSet.add token !terminals;
-            Option.iter
-              (fun alias ->
-                let alias = try Scanf.unescaped alias with _ -> alias in
-                Hashtbl.replace aliases token alias)
-              alias))
+        parse_token_specs (Str.matched_group 2 line) add_token)
     (split_lines source);
   (!terminals, aliases)
 
@@ -396,6 +398,28 @@ let parse_automaton path terminals aliases =
         Hashtbl.add table number state;
         state
   in
+  let add_reduction state reduction token =
+    let previous = Option.value (Hashtbl.find_opt state.reductions token) ~default:[] in
+    Hashtbl.replace state.reductions token (reduction :: previous)
+  in
+  (* A line inside the current state's block. *)
+  let state_line state line =
+    if Str.string_match transition_re line 0 then begin
+      let symbol = Str.matched_group 1 line in
+      let target = int_of_string (Str.matched_group 2 line) in
+      Hashtbl.replace state.transitions symbol target;
+      lookaheads := []
+    end
+    else if Str.string_match lookahead_re line 0 then lookaheads := words (Str.matched_group 1 line)
+    else if Str.string_match reduction_re line 0 then begin
+      let lhs = String.trim (Str.matched_group 1 line) in
+      let rhs = String.trim (Str.matched_group 2 line) in
+      let reduction = { lhs; width = List.length (words rhs); prod = fresh_production () } in
+      List.iter (add_reduction state reduction) !lookaheads
+    end
+    else if Str.string_match accept_re line 0 then
+      List.iter (fun token -> state.accepts <- StringSet.add token state.accepts) !lookaheads
+  in
   List.iter
     (fun line ->
       if Str.string_match state_re line 0 then begin
@@ -403,43 +427,7 @@ let parse_automaton path terminals aliases =
         current := Some (get_state number);
         lookaheads := []
       end
-      else
-        match !current with
-        | None -> ()
-        | Some state ->
-            if Str.string_match transition_re line 0 then begin
-              let symbol = Str.matched_group 1 line in
-              let target = int_of_string (Str.matched_group 2 line) in
-              Hashtbl.replace state.transitions symbol target;
-              lookaheads := []
-            end
-            else if Str.string_match lookahead_re line 0 then
-              lookaheads := words (Str.matched_group 1 line)
-            else if Str.string_match reduction_re line 0 then begin
-              let lhs = String.trim (Str.matched_group 1 line) in
-              let rhs = String.trim (Str.matched_group 2 line) in
-              let reduction =
-                {
-                  lhs;
-                  width = List.length (words rhs);
-                  prod = fresh_production ();
-                }
-              in
-              List.iter
-                (fun token ->
-                  let previous =
-                    Option.value (Hashtbl.find_opt state.reductions token)
-                      ~default:[]
-                  in
-                  Hashtbl.replace state.reductions token
-                    (reduction :: previous))
-                !lookaheads
-            end
-            else if Str.string_match accept_re line 0 then
-              List.iter
-                (fun token ->
-                  state.accepts <- StringSet.add token state.accepts)
-                !lookaheads)
+      else match !current with None -> () | Some state -> state_line state line)
     (read_lines path);
   let maximum = Hashtbl.fold (fun number _ value -> max number value) table 0 in
   let states = Array.init (maximum + 1) (fun number -> get_state number) in

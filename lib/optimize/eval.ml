@@ -79,23 +79,26 @@ let rec weigh funcs e =
         nodes := !nodes + n;
         !nodes > large_body
       in
+      (* Whether a call to [fn] makes [e] remembered: a second call does,
+         and so does one to a callee that is remembered or too large. *)
+      let call_remembers fn =
+        incr calls;
+        !calls > 1
+        ||
+        match Funcs.find_opt funcs fn with
+        | None -> false
+        (* A call to a function still being asked about is a
+           recursive call, which is worth remembering. *)
+        | Some { remembers = Asking; _ } -> true
+        | Some callee -> ( match weigh funcs callee with true, _ -> false | false, w -> large w)
+      in
       let r =
         Cgt.Traverse.exists_in e.func.Func.body
           ~expr:(fun x ->
             large (1 + size_steps x.Expr.ty)
             ||
             match x.Expr.node with
-            | Expr.Call { fn; _ } -> (
-                incr calls;
-                !calls > 1
-                ||
-                match Funcs.find_opt funcs fn with
-                | None -> false
-                (* A call to a function still being asked about is a
-                   recursive call, which is worth remembering. *)
-                | Some { remembers = Asking; _ } -> true
-                | Some callee -> (
-                    match weigh funcs callee with true, _ -> false | false, w -> large w))
+            | Expr.Call { fn; _ } -> call_remembers fn
             | Expr.Call_value _ | Expr.Runtime _ | Expr.Copy _ -> true
             | _ -> false)
           ~stat:(fun st ->
@@ -361,14 +364,16 @@ let float_text (t : Ty.t) f =
     in
     let limit = if t = Ty.F32 then 9 else 17 in
     let best = ref None in
+    (* A candidate that round-trips replaces a longer best. *)
+    let consider text =
+      let text = decimal_text text in
+      if same f (float_of_string text) then
+        match !best with
+        | Some held when String.length held <= String.length text -> ()
+        | _ -> best := Some text
+    in
     for precision = 1 to limit do
-      List.iter
-        (fun text ->
-          let text = decimal_text text in
-          if same f (float_of_string text) then
-            match !best with
-            | Some held when String.length held <= String.length text -> ()
-            | _ -> best := Some text)
+      List.iter consider
         [ Printf.sprintf "%.*g" precision f; Printf.sprintf "%.*e" (precision - 1) f ]
     done;
     match !best with Some text -> text | None -> stop "formatting a float"
@@ -518,6 +523,25 @@ let convert (from : Ty.t) (into : Ty.t) v =
 (* ---------------------------------------------------------------------- *)
 (* Expressions and statements                                             *)
 (* ---------------------------------------------------------------------- *)
+
+(* What a call output: the newest outputs at the head of [l], back to
+   [before], the outputs there were before it, oldest first. *)
+let outputs_since before l =
+  let rec since acc l =
+    if l == before then acc else match l with x :: r -> since (x :: acc) r | [] -> acc
+  in
+  since [] l
+
+(* A full list's items grown to twice as many, and at least four, so a push
+   has a slot to fill. *)
+let make_room run (l : list_) =
+  if l.count = Array.length l.items then begin
+    bytes run (8 * l.count);
+    l.items <-
+      Array.init
+        (max 4 (2 * l.count))
+        (fun i -> if i < l.count then l.items.(i) else cell Ty.Void VNull)
+  end
 
 let rec expr run fr (e : Expr.t) : v =
   tick run;
@@ -737,15 +761,10 @@ and call run fn args =
           e.frame <- Locals.size fr.locals;
           (match (key, export result) with
           | Some key, Some c ->
-              (* What this call output: the newest outputs, back to those
-                 there were before it. *)
-              let rec since acc l =
-                if l == before then acc else match l with x :: r -> since (x :: acc) r | [] -> acc
-              in
               Key.replace run.prog.memo key
                 {
                   result = c;
-                  outputs = since [] run.outputs;
+                  outputs = outputs_since before run.outputs;
                   count = run.output_count - count;
                   text = run.output_bytes - text;
                 }
@@ -807,11 +826,7 @@ and runtime run (fn : Cgt.Runtime.fn) args =
       match load (ptr_of list) with
       | VList l ->
           l.stride <- Int64.to_int (int_of stride);
-          if l.count = Array.length l.items then begin
-            bytes run (8 * l.count);
-            l.items <-
-              Array.init (max 4 (2 * l.count)) (fun i -> if i < l.count then l.items.(i) else cell Ty.Void VNull)
-          end;
+          make_room run l;
           let c = cell Ty.Void VNull in
           l.items.(l.count) <- c;
           l.count <- l.count + 1;

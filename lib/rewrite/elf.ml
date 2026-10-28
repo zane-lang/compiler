@@ -84,6 +84,15 @@ let rewrite ~rename input =
      and the end of the table they are appended after. *)
   let tables = Hashtbl.create 1 in
   let renamed = ref [] in
+  (* The symbol at [entry] given its new name, appended to [added], when
+     [rename] renames it. *)
+  let rename_entry strtab added entry =
+    let old = u32 l b entry in
+    if old <> 0 then
+      match rename (name b strtab old) with
+      | None -> ()
+      | Some fresh -> renamed := (entry, Appended.add added fresh) :: !renamed
+  in
   Array.iter
     (fun symtab ->
       (* A relocatable object a library is built into has no dynamic symbols.
@@ -108,12 +117,7 @@ let rewrite ~rename input =
               added
         in
         for i = 0 to (symtab.size / entsize) - 1 do
-          let entry = symtab.offset + (i * entsize) in
-          let old = u32 l b entry in
-          if old <> 0 then
-            match rename (name b strtab old) with
-            | None -> ()
-            | Some fresh -> renamed := (entry, Appended.add added fresh) :: !renamed
+          rename_entry strtab added (symtab.offset + (i * entsize))
         done
       end)
     sections;

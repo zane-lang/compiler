@@ -48,6 +48,7 @@ test-highlighting: test-grammar-generation
 # there and nothing anywhere else, and so is a rewrite that stopped happening.
 # Promote an intended move with `just promote`. tests/unit/ tests the shared
 # helpers directly, so a broken one is named rather than found in a diff.
+# tests/nesting/ holds `just check-nesting`'s count to small fixtures.
 #
 # The memory-semantics probes (tests/memory-probes/) are held to their
 # committed NAME.out files: `run --check` fails on any difference, and on a
@@ -61,7 +62,7 @@ test-highlighting: test-grammar-generation
 # refuses, and the cache.
 test-compiler: _require-menhir
 	dune build bin/zanec/zanec.exe
-	dune runtest tests/parser tests/semantics tests/codegen tests/runtime tests/objects tests/unit
+	dune runtest tests/parser tests/semantics tests/codegen tests/runtime tests/objects tests/unit tests/nesting
 	python3 -m unittest tests.parser.syntax_test -v
 	python3 -m unittest tests.tiers.tiers_test -v
 	tests/memory-probes/run --check
@@ -137,6 +138,16 @@ bench-abi *ARGS:
 # Every hand-written source file under 2,000 lines, as CI checks it.
 check-file-sizes:
 	.github/scripts/file-sizes
+
+# Every hand-written OCaml file under lib/, bin/ and tools/ nested at most five
+# levels deep, counted on the parsed tree (CONTRIBUTING.md, "Keep nesting
+# shallow"), as CI checks it: past five fails, five warns. The tool skips
+# generated files by their first line.
+check-nesting:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	dune build tools/nesting/nesting.exe
+	git ls-files -z -- 'lib/*.ml' 'bin/*.ml' 'tools/*.ml' | xargs -0 _build/default/tools/nesting/nesting.exe || exit 1
 
 # Accept the span expectation as it currently stands, after reading the diff
 # `just test-compiler` printed and satisfying yourself that each moved span

@@ -53,6 +53,38 @@ let within_literal (span : Source.Span.t) written =
     last := (offset + length, end_);
     { Source.Span.start_; end_ }
 
+(* How a constructor call names what it builds, for a message: the type,
+   and the member when it names one. *)
+let constructor_named built member =
+  quote
+    ((match built with Ty.Named (tid, _) -> tid.Ty.name | t -> Ty.to_string t)
+    ^ Option.fold ~none:"" ~some:(fun m -> "." ^ m) member)
+
+(* The constructors of [built] named [member] that this call can reach:
+   declared in the home of the type or in this package, and accessible. *)
+let constructor_candidates env ctx built member =
+  let homes = List.filter_map Verb_signatures.home [ built ] @ [ S.Package ctx.package ] in
+  let named_member (s : S.t) =
+    match s.kind with S.Constructor c -> c.member = member | _ -> false
+  in
+  match Verb_signatures.type_key built with
+  | None -> []
+  | Some key ->
+      Verbs.constructors env.verbs key |> List.rev
+      |> List.filter (fun (s : S.t) ->
+          named_member s && List.mem s.home homes && accessible_sig ctx s)
+
+(* The position and type of the field [name] among [declared]. *)
+let field_slot name declared =
+  let rec slot i = function
+    | [] -> None
+    | (n, t) :: rest -> if String.equal n name then Some (i, t) else slot (i + 1) rest
+  in
+  slot 0 declared
+
+let is_positional_constructor (s : S.t) =
+  match s.kind with S.Constructor { fields; _ } -> not fields | _ -> false
+
 let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   let span = e.N.Expr.span in
   match e.N.Expr.node with
@@ -394,6 +426,32 @@ and subscript env ctx span target args =
           let args = List.filter_map (function Some (T.Arg.Value e) -> Some e | _ -> None) (List.tl o.converted) in
           mk (T.Expr.Subscript { target; impl = verb_ref o.sig_ o.subst; args }) ty span
 
+(* One entry of `init{ }`, checked against the field of the same name in
+   [declared]: assigned once, and with a value of the field's type. *)
+and init_field env ctx built tid declared seen (f : N.Field_arg.t) =
+  let name = f.N.Field_arg.name.N.Name.text in
+  let value = expr env ctx f.N.Field_arg.value in
+  match field_slot name declared with
+  | None ->
+      error env f.N.Field_arg.name.N.Name.span
+        (Printf.sprintf "%s has no field %s" (quote (Ty.to_string built)) (quote name));
+      None
+  | Some (i, t) ->
+      private_field env ctx f.N.Field_arg.name.N.Name.span tid name;
+      if Hashtbl.mem seen name then
+        error env f.N.Field_arg.name.N.Name.span
+          (Printf.sprintf "the field %s is already assigned" (quote name))
+      else Hashtbl.add seen name ();
+      if not (Ty.assignable ~dst:t ~src:value.T.Expr.ty) then
+        error env value.T.Expr.span
+          (Printf.sprintf
+             "the field %s is %s, and this is %s; `init{ }` is not a coercion site, so a \
+              conversion is written out"
+             (quote name)
+             (quote (Ty.to_string t))
+             (quote (Ty.to_string value.T.Expr.ty)));
+      Some { T.Field_value.name; slot = i; value; span = f.N.Field_arg.span }
+
 and init env ctx span fields =
   match ctx.building with
   | None ->
@@ -404,35 +462,7 @@ and init env ctx span fields =
       match definition env built with
       | Some (tid, Struct declared) ->
           let seen = Hashtbl.create 8 in
-          let values =
-            List.filter_map
-              (fun (f : N.Field_arg.t) ->
-                let name = f.N.Field_arg.name.N.Name.text in
-                let value = expr env ctx f.N.Field_arg.value in
-                let rec slot i = function
-                  | [] -> None
-                  | (n, t) :: rest -> if String.equal n name then Some (i, t) else slot (i + 1) rest
-                in
-                match slot 0 declared with
-                | None ->
-                    error env f.N.Field_arg.name.N.Name.span
-                      (Printf.sprintf "%s has no field %s" (quote (Ty.to_string built)) (quote name));
-                    None
-                | Some (i, t) ->
-                    private_field env ctx f.N.Field_arg.name.N.Name.span tid name;
-                    if Hashtbl.mem seen name then
-                      error env f.N.Field_arg.name.N.Name.span
-                        (Printf.sprintf "the field %s is already assigned" (quote name))
-                    else Hashtbl.add seen name ();
-                    if not (Ty.assignable ~dst:t ~src:value.T.Expr.ty) then
-                      error env value.T.Expr.span
-                        (Printf.sprintf
-                           "the field %s is %s, and this is %s; `init{ }` is not a coercion \
-                            site, so a conversion is written out"
-                           (quote name) (quote (Ty.to_string t)) (quote (Ty.to_string value.T.Expr.ty)));
-                    Some { T.Field_value.name; slot = i; value; span = f.N.Field_arg.span })
-              fields
-          in
+          let values = List.filter_map (init_field env ctx built tid declared seen) fields in
           let missing = List.filter (fun (n, _) -> not (Hashtbl.mem seen n)) declared in
           if missing <> [] then
             error env span
@@ -592,21 +622,26 @@ and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
           error env at (Printf.sprintf "no intrinsic operation named %s" (quote ("@" ^ ns ^ "$" ^ text)));
           skip_handler env ctx handle;
           (invalid span, None)
-      | cands -> (
-          let name = "@" ^ ns ^ "$" ^ text in
-          if any_error actuals then (skip_handler env ctx handle; (invalid span, None))
-          else
-            match
-              report_resolution env ~span ~what:(quote name) ~args:(describe_args actuals)
-                (resolve env cands (positional actuals)) cands
-            with
-            | None ->
-                skip_handler env ctx handle;
-                (invalid span, None)
-            | Some o ->
-                finish_call env ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
-                    T.Expr.Call { callee; args; handler })))
+      | cands -> intrinsic_call env ~flow ctx span ("@" ^ ns ^ "$" ^ text) cands actuals handle)
   | _ -> value_call (expr env ctx callee)
+
+(* A call to the intrinsic operation [name], resolved among its [cands]. *)
+and intrinsic_call env ~flow ctx span name cands actuals handle =
+  if any_error actuals then (
+    skip_handler env ctx handle;
+    (invalid span, None))
+  else
+    match
+      report_resolution env ~span ~what:(quote name) ~args:(describe_args actuals)
+        (resolve env cands (positional actuals))
+        cands
+    with
+    | None ->
+        skip_handler env ctx handle;
+        (invalid span, None)
+    | Some o ->
+        finish_call env ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
+            T.Expr.Call { callee; args; handler })
 
 (* Calling a function value. It is one value with one type, so there is one
    candidate; its arguments are still coercion sites. *)
@@ -837,24 +872,8 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
                (quote m) (quote tid.Ty.name) tid.Ty.name m);
           invalid span
       | _ -> (
-          let what =
-            quote
-              ((match built with Ty.Named (tid, _) -> tid.Ty.name | t -> Ty.to_string t)
-              ^ Option.fold ~none:"" ~some:(fun m -> "." ^ m) member)
-          in
-          let homes =
-            List.filter_map Verb_signatures.home [ built ] @ [ S.Package ctx.package ]
-          in
-          let cands =
-            match Verb_signatures.type_key built with
-            | None -> []
-            | Some key ->
-                Verbs.constructors env.verbs key
-                |> List.rev
-                |> List.filter (fun (s : S.t) ->
-                       (match s.kind with S.Constructor c -> c.member = member | _ -> false)
-                       && List.mem s.home homes && accessible_sig ctx s)
-          in
+          let what = constructor_named built member in
+          let cands = constructor_candidates env ctx built member in
           no_handler ();
           if cands = [] then begin
             type_args ();
@@ -865,26 +884,35 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
           end
           else
             match args.N.Constructor_args.node with
-            | N.Constructor_args.Positional ps -> (
-                let actuals = List.map (actual_of env ctx) ps in
-                if any_error actuals then invalid span
-                else
-                  match
-                    report_resolution env ~literal:(literal_drives_inference cands actuals) ~span ~what
-                      ~args:(describe_args actuals)
-                      (resolve env (List.filter (fun (s : S.t) -> match s.kind with S.Constructor { fields; _ } -> not fields | _ -> false) cands)
-                         (positional actuals))
-                      cands
-                  with
-                  | None -> invalid span
-                  | Some o ->
-                      request env ~args:o.converted o.sig_ o.subst span;
-                      let ret = Ty.subst o.subst o.sig_.ret in
-                      mk
-                        (T.Expr.Construct
-                           { ctor = verb_ref o.sig_ o.subst; args = List.filter_map Fun.id o.converted; handler = None })
-                        ret span)
+            | N.Constructor_args.Positional ps ->
+                positional_constructor_call env ctx span what cands ps
             | N.Constructor_args.Fields fs -> field_constructor_call env ctx span what cands fs))
+
+(* `Type(x, y)` against the positional constructors among [cands]. *)
+and positional_constructor_call env ctx span what cands ps =
+  let actuals = List.map (actual_of env ctx) ps in
+  if any_error actuals then invalid span
+  else
+    let positional_cands = List.filter is_positional_constructor cands in
+    match
+      report_resolution env
+        ~literal:(literal_drives_inference cands actuals)
+        ~span ~what ~args:(describe_args actuals)
+        (resolve env positional_cands (positional actuals))
+        cands
+    with
+    | None -> invalid span
+    | Some o ->
+        request env ~args:o.converted o.sig_ o.subst span;
+        let ret = Ty.subst o.subst o.sig_.ret in
+        mk
+          (T.Expr.Construct
+             {
+               ctor = verb_ref o.sig_ o.subst;
+               args = List.filter_map Fun.id o.converted;
+               handler = None;
+             })
+          ret span
 
 (* `Type{ a = x; b = y; }` against the field constructors: each entry fills
    the slot of the same name and is a coercion site; an entry left out must
@@ -1002,6 +1030,14 @@ and operator env ~flow ctx span (op : N.Operator.t) left right ~swapped handle =
   let actuals =
     List.map (fun (e : T.Expr.t) -> { arg = T.Arg.Value e; aty = e.T.Expr.ty; aspan = e.T.Expr.span; subject = false }) passed
   in
+  (* The operator's node, with its operands back in the order written. *)
+  let op_node impl args handler =
+    match List.filter_map arg_expr args with
+    | [ a; b ] ->
+        let left, right = if swapped then (b, a) else (a, b) in
+        T.Expr.Op { op = op.N.Operator.node; impl; left; right; swapped; handler }
+    | _ -> T.Expr.Invalid
+  in
   if any_error actuals then (skip_handler env ctx handle; (invalid span, None))
   else
     let homes = List.filter_map (fun (e : T.Expr.t) -> Verb_signatures.home e.T.Expr.ty) passed in
@@ -1024,13 +1060,7 @@ and operator env ~flow ctx span (op : N.Operator.t) left right ~swapped handle =
       | None ->
           skip_handler env ctx handle;
           (invalid span, None)
-      | Some o ->
-          finish_call env ~flow ctx ~span ~what:(quote token) o handle (fun impl args handler ->
-              match List.filter_map arg_expr args with
-              | [ a; b ] ->
-                  let left, right = if swapped then (b, a) else (a, b) in
-                  T.Expr.Op { op = op.N.Operator.node; impl; left; right; swapped; handler }
-              | _ -> T.Expr.Invalid)
+      | Some o -> finish_call env ~flow ctx ~span ~what:(quote token) o handle op_node
 
 and flip env ~flow ctx span value handle =
   let value = expr env ctx value in

@@ -115,6 +115,27 @@ let type_definition (info : type_info) : T.Decl.definition =
   | Some (Distinct t) -> T.Decl.Distinct t
   | None -> T.Decl.Distinct Ty.Error
 
+(* A generic subscript is checked per instance; any other is checked here. *)
+let subscript_declaration env (d : decl) (s : S.t) =
+  if s.generics <> [] then T.Decl.Subscript { signature = s; params = []; value = None }
+  else
+    let ty = subscript_result env d s [] d.span in
+    let key = subscript_key d.id [] s in
+    let params, value =
+      match Hashtbl.find_opt env.instances.subscript_instances key with
+      | Some (_, _, ps, v) -> (ps, Some v)
+      | None -> ([], None)
+    in
+    T.Decl.Subscript { signature = { s with ret = ty }; params; value }
+
+let verb_declaration env (d : decl) (s : S.t) =
+  if s.generics <> [] then Some (T.Decl.Verb { signature = s; body = T.Decl.Per_instance })
+  else
+    match check_body env d s [] with
+    | Some (params, body) ->
+        Some (T.Decl.Verb { signature = s; body = T.Decl.Checked { params; body } })
+    | None -> None
+
 let declaration env (d : decl) : T.Decl.t option =
   let node : T.Decl.node option =
     match d.kind with
@@ -159,24 +180,8 @@ let declaration env (d : decl) : T.Decl.t option =
         | Some s -> (
             check_defaults env d s;
             match s.kind with
-            | S.Subscript ->
-                if s.generics = [] then begin
-                  let ty = subscript_result env d s [] d.span in
-                  let key = subscript_key d.id [] s in
-                  let params, value =
-                    match Hashtbl.find_opt env.instances.subscript_instances key with
-                    | Some (_, _, ps, v) -> (ps, Some v)
-                    | None -> ([], None)
-                  in
-                  Some (T.Decl.Subscript { signature = { s with ret = ty }; params; value })
-                end
-                else Some (T.Decl.Subscript { signature = s; params = []; value = None })
-            | _ ->
-                if s.generics <> [] then Some (T.Decl.Verb { signature = s; body = T.Decl.Per_instance })
-                else
-                  match check_body env d s [] with
-                  | Some (params, body) -> Some (T.Decl.Verb { signature = s; body = T.Decl.Checked { params; body } })
-                  | None -> None))
+            | S.Subscript -> Some (subscript_declaration env d s)
+            | _ -> verb_declaration env d s))
   in
   Option.map (fun node -> { T.Decl.id = d.id; span = d.span; node }) node
 

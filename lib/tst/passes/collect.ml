@@ -155,56 +155,75 @@ let import_file env (file : file) (decls : N.Decl.t list) =
       Hashtbl.add file.bare spelling.N.Import_member.name
         { from = pkg; member = member.N.Import_member.name; at }
   in
+  (* `import p` or `import p as q`: the package under one qualifier. *)
+  let bring_package (p : N.Name.t) alias span =
+    match imported p with
+    | None -> ()
+    | Some id -> (
+        let spelling = Option.value ~default:p alias in
+        if Env.is_upper (name_of spelling) then
+          error env spelling.N.Name.span
+            (Printf.sprintf
+               "an alias keeps the initial case of the name it renames, so the package %s cannot \
+                be spelled %s"
+               (quote (name_of p))
+               (quote (name_of spelling)))
+        else
+          match Hashtbl.find_opt file.qualifiers (name_of spelling) with
+          | Some (other, at) ->
+              error env spelling.N.Name.span
+                (Printf.sprintf "%s already names the package %s, at %s"
+                   (quote (name_of spelling))
+                   (quote other) (where at))
+          | None ->
+              if record id (Whole (name_of spelling)) span then
+                Hashtbl.replace file.qualifiers (name_of spelling) (id, span))
+  in
+  (* `import p.*`: every public member of the package, bare. *)
+  let bring_all (p : N.Name.t) span =
+    match imported p with
+    | Some id when record id All_members span ->
+        let target = package env id in
+        let names =
+          Hashtbl.fold (fun n _ acc -> n :: acc) target.types []
+          @ Hashtbl.fold (fun n _ acc -> n :: acc) target.values []
+          |> List.filter (fun n -> not (is_private n))
+          |> List.sort_uniq String.compare
+        in
+        List.iter (fun n -> Hashtbl.add file.bare n { from = id; member = n; at = span }) names
+    | _ -> ()
+  in
   List.iter
     (fun (d : N.Decl.t) ->
       match d.N.Decl.node with
       | N.Decl.Import { N.Import.node; span } -> (
           match node with
-          | N.Import.Package { package = p; alias } -> (
-              match imported p with
-              | None -> ()
-              | Some id ->
-                let spelling = Option.value ~default:p alias in
-                if Env.is_upper (name_of spelling) then
-                  error env spelling.N.Name.span
-                    (Printf.sprintf
-                       "an alias keeps the initial case of the name it renames, so \
-                        the package %s cannot be spelled %s"
-                       (quote (name_of p))
-                       (quote (name_of spelling)))
-                else
-                  match Hashtbl.find_opt file.qualifiers (name_of spelling) with
-                  | Some (other, at) ->
-                      error env spelling.N.Name.span
-                        (Printf.sprintf "%s already names the package %s, at %s"
-                           (quote (name_of spelling))
-                           (quote other) (where at))
-                  | None ->
-                      if record id (Whole (name_of spelling)) span then
-                        Hashtbl.replace file.qualifiers (name_of spelling)
-                          (id, span))
+          | N.Import.Package { package = p; alias } -> bring_package p alias span
           | N.Import.Member { package = p; member; alias } ->
               Option.iter
                 (fun id -> bring id member (Option.value ~default:member alias) span)
                 (imported p)
           | N.Import.Members { package = p; members } ->
               Option.iter (fun id -> List.iter (fun m -> bring id m m span) members) (imported p)
-          | N.Import.All { package = p } -> (
-              match imported p with
-              | Some id when record id All_members span ->
-                let target = package env id in
-                let names =
-                  Hashtbl.fold (fun n _ acc -> n :: acc) target.types []
-                  @ Hashtbl.fold (fun n _ acc -> n :: acc) target.values []
-                  |> List.filter (fun n -> not (is_private n))
-                  |> List.sort_uniq String.compare
-                in
-                List.iter
-                  (fun n -> Hashtbl.add file.bare n { from = id; member = n; at = span })
-                  names
-              | _ -> ()))
+          | N.Import.All { package = p } -> bring_all p span)
       | _ -> ())
     decls
+
+let report_collision env name b (d : decl) seen =
+  let clashes =
+    List.filter (fun ((e : decl), _) -> e.id <> d.id && not (is_function d && is_function e)) seen
+  in
+  match clashes with
+  | (other, other_at) :: _ ->
+      let where_other =
+        match other_at with
+        | None -> "is declared in this package, at " ^ where other.span
+        | Some at -> "is already imported at " ^ where at
+      in
+      error env b.at
+        (Printf.sprintf "this import brings %s from %s, but %s %s; an import never shadows"
+           (quote name) (quote b.from) (quote name) where_other)
+  | [] -> ()
 
 (* A bare name two imports bring, or an import and the file's own package,
    is legal only as an overload set of functions (packages.md §3.8). Anything
@@ -218,36 +237,37 @@ let check_import_collisions env (file : file) =
       let imports = List.rev (Hashtbl.find_all file.bare name) in
       let own = members_of env file.package name in
       let seen = ref (List.map (fun d -> (d, None)) own) in
+      let bring b (d : decl) =
+        report_collision env name b d !seen;
+        seen := !seen @ [ (d, Some b.at) ]
+      in
       List.iter
         (fun b ->
-          let brought =
-            members_of env b.from b.member |> List.filter (accessible ~from:file.package)
-          in
-          List.iter
-            (fun (d : decl) ->
-              let clashes =
-                List.filter
-                  (fun ((e : decl), _) ->
-                    e.id <> d.id && not (is_function d && is_function e))
-                  !seen
-              in
-              (match clashes with
-              | (other, other_at) :: _ ->
-                  let where_other =
-                    match other_at with
-                    | None -> "is declared in this package, at " ^ where other.span
-                    | Some at -> "is already imported at " ^ where at
-                  in
-                  error env b.at
-                    (Printf.sprintf
-                       "this import brings %s from %s, but %s %s; an import never \
-                        shadows"
-                       (quote name) (quote b.from) (quote name) where_other)
-              | [] -> ());
-              seen := !seen @ [ (d, Some b.at) ])
-            brought)
+          members_of env b.from b.member
+          |> List.filter (accessible ~from:file.package)
+          |> List.iter (bring b))
         imports)
     names
+
+let parameter_key env (d : decl) =
+  let param_ty (p : Signature.param) = Ty.without_mut (Ty.strip_mode p.ty) in
+  Option.map
+    (fun (s : Signature.t) -> Ty.canonical (List.map param_ty s.params))
+    (Verbs.signature env.verbs d.id)
+
+let report_overload env name b (d : decl) seen =
+  let key = parameter_key env in
+  let same_types ((e : decl), _) =
+    e.id <> d.id && e.package <> d.package && key e <> None && key e = key d
+  in
+  match List.find_opt same_types seen with
+  | Some (other, _) ->
+      error env b.at
+        (Printf.sprintf
+           "this import brings %s from %s, which takes the same parameter types as the %s declared \
+            at %s; the two cannot be told apart at a call"
+           (quote name) (quote b.from) (quote name) (where other.span))
+  | None -> ()
 
 (* The half of §3.8 that waits for signatures: functions of one bare name,
    from different packages, must differ in their parameter types. *)
@@ -260,43 +280,43 @@ let check_import_overloads env (file : file) =
         |> List.map (fun d -> (d, None))
       in
       let seen = ref own in
+      let bring b (d : decl) =
+        report_overload env name b d !seen;
+        if not (List.exists (fun ((e : decl), _) -> e.id = d.id) !seen) then
+          seen := !seen @ [ (d, Some b.at) ]
+      in
       List.iter
         (fun b ->
           members_of env b.from b.member
           |> List.filter (fun d -> is_function d && accessible ~from:file.package d)
-          |> List.iter (fun (d : decl) ->
-                 let key d =
-                   Option.map
-                     (fun (s : Signature.t) ->
-                       Ty.canonical
-                         (List.map
-                            (fun (p : Signature.param) -> Ty.without_mut (Ty.strip_mode p.ty))
-                            s.params))
-                     (Verbs.signature env.verbs d.id)
-                 in
-                 (match
-                    List.find_opt
-                      (fun ((e : decl), _) ->
-                        e.id <> d.id && e.package <> d.package
-                        && key e <> None && key e = key d)
-                      !seen
-                  with
-                 | Some (other, _) ->
-                     error env b.at
-                       (Printf.sprintf
-                          "this import brings %s from %s, which takes the same \
-                           parameter types as the %s declared at %s; the two cannot \
-                           be told apart at a call"
-                          (quote name) (quote b.from) (quote name) (where other.span))
-                 | None -> ());
-                 if not (List.exists (fun ((e : decl), _) -> e.id = d.id) !seen) then
-                   seen := !seen @ [ (d, Some b.at) ]))
+          |> List.iter (bring b))
         (List.rev (Hashtbl.find_all file.bare name)))
     names
 
 (* ---------------------------------------------------------------------- *)
 (* Both passes                                                            *)
 (* ---------------------------------------------------------------------- *)
+
+let add_import_edge env edges (pkg : package) file (d : N.Decl.t) =
+  match d.N.Decl.node with
+  | N.Decl.Import { N.Import.node; span } -> (
+      let key =
+        match node with
+        | N.Import.Package { package = p; _ }
+        | N.Import.Member { package = p; _ }
+        | N.Import.Members { package = p; _ }
+        | N.Import.All { package = p } ->
+            name_of p
+      in
+      match resolve_key env file key with
+      | Found target -> Hashtbl.add edges pkg.name (target, span)
+      | Own | Unknown | Not_given | Ambiguous _ -> ())
+  | _ -> ()
+
+(* The tail of [path] that starts at [target]. *)
+let rec cycle_to target = function
+  | p :: rest -> if String.equal p target then p :: rest else cycle_to target rest
+  | [] -> []
 
 (* The package dependency graph is acyclic (dependencies.md §10). Each import
    that closes a cycle is reported there, with the packages around the cycle
@@ -307,23 +327,7 @@ let check_import_cycles env (loaded : (package * (file * Assembly.file) list) li
     (fun ((pkg : package), files) ->
       List.iter
         (fun ((file : file), (f : Assembly.file)) ->
-          List.iter
-            (fun (d : N.Decl.t) ->
-              match d.N.Decl.node with
-              | N.Decl.Import { N.Import.node; span } -> (
-                  let key =
-                    match node with
-                    | N.Import.Package { package = p; _ }
-                    | N.Import.Member { package = p; _ }
-                    | N.Import.Members { package = p; _ }
-                    | N.Import.All { package = p } ->
-                        name_of p
-                  in
-                  match resolve_key env file key with
-                  | Found target -> Hashtbl.add edges pkg.name (target, span)
-                  | Own | Unknown | Not_given | Ambiguous _ -> ())
-              | _ -> ())
-            f.sst.N.Package.decls)
+          List.iter (add_import_edge env edges pkg file) f.sst.N.Package.decls)
         files)
     loaded;
   let finished = Hashtbl.create 16 in
@@ -332,11 +336,7 @@ let check_import_cycles env (loaded : (package * (file * Assembly.file) list) li
       List.iter
         (fun (target, span) ->
           if List.mem target path then begin
-            let rec from = function
-              | p :: rest -> if String.equal p target then p :: rest else from rest
-              | [] -> []
-            in
-            let cycle = from (List.rev (name :: path)) @ [ target ] in
+            let cycle = cycle_to target (List.rev (name :: path)) @ [ target ] in
             error env span
               (Printf.sprintf
                  "this import closes a cycle of packages, %s; the packages of a \
