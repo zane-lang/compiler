@@ -11,6 +11,7 @@ type run = { ok : bool; output : string; problems : problem list }
 
 external compile_raw : string array -> bool * string * (string * int * int * string) list = "zane_clang_compile"
 external preprocess_raw : string array -> bool * string * (string * int * int * string) list = "zane_clang_preprocess"
+external interface_raw : string array -> bool * string * (string * int * int * string) list = "zane_clang_interface"
 external version : unit -> string = "zane_clang_version"
 external host_triple : unit -> string = "zane_host_triple"
 external triple_parts : string -> string * string * string * string = "zane_triple_parts"
@@ -27,6 +28,10 @@ let compile args = of_raw (compile_raw (Array.of_list (driver :: args)))
 
 (* [args]' one source preprocessed, with its line markers. *)
 let preprocess args = of_raw (preprocess_raw (Array.of_list (driver :: args)))
+
+(* What [args]' one source, an interface header, declares, as the text
+   Interface reads. *)
+let interface args = of_raw (interface_raw (Array.of_list (driver :: args)))
 
 (* [triple] as LLVM normalizes it. *)
 let normalize triple =

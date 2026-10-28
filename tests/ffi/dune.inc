@@ -85,6 +85,20 @@
   (diff golden/reject.fixedMacro.err reject.fixedMacro.err.actual)))
 
 (rule
+ (deps (source_tree fixtures/reject/headerError))
+ (action
+  (with-stderr-to
+   reject.headerError.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/headerError)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.headerError.err reject.headerError.err.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/noMatch))
  (action
   (with-stderr-to

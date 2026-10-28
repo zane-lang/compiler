@@ -142,6 +142,18 @@ let diagnostics (problems : Clang.problem list) =
 
 type failure = { diagnostics : Diagnostic.t list; sources : Source.Files.t }
 
+(* What [path], an interface header, declares, compiled alone with
+   [flags] (docs/design/ffi.md F6). *)
+let interface flags path =
+  let read = Clang.interface (flags @ [ "-fsyntax-only"; "-x"; "c"; path ]) in
+  if not read.ok then
+    let diagnostics, sources = diagnostics read.problems in
+    Error { diagnostics; sources }
+  else
+    match Interface.read read.output with
+    | table -> Ok table
+    | exception Interface.Malformed why -> Diagnostic.bug ("the interface table of " ^ path ^ " is malformed: " ^ why)
+
 (* [path], a C source of the package in [dir], compiled with [flags], from
    the module cache under [cache] when it holds it. *)
 let compile_source ?cache ~maps flags path =

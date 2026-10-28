@@ -9,6 +9,10 @@
    data: bitcode, preprocessed text, and the errors the front end reported,
    each with the file, line and column it points at. */
 
+#include "clang/AST/ASTConsumer.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/Decl.h"
+#include "clang/AST/RecordLayout.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/SourceManager.h"
@@ -27,7 +31,9 @@
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
 
+#include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -157,6 +163,206 @@ value to_value(const Run &r) {
   CAMLreturn(result);
 }
 
+/* What a header declares, written as text for interface.ml to read: a
+   stream of words, each a bare token or, for a name, its length, `:` and
+   its bytes. A C type is written canonical, so a typedef reads as what it
+   names: `V` void, `B` bool, `I` an integer (sign, size and width in bits,
+   its name, and the standard typedef it was written through or nothing), `F` a floating type (size, whether it is IEEE, its name), `P`
+   a pointer (whether its pointee is const, the pointee), `R` a struct or
+   union (kind and name), `A` an array (count and element), `N` a function
+   with a prototype (whether variadic, the parameters, the result), `K` one
+   without, and `O` any other, by its spelling. */
+class Writer {
+public:
+  explicit Writer(clang::ASTContext &ctx) : ctx(ctx) {}
+  std::string out;
+  std::set<const clang::RecordDecl *> records;
+
+  void word(const std::string &w) { out += w; out += ' '; }
+  void num(uint64_t n) { word(std::to_string(n)); }
+  void str(const std::string &s) { out += std::to_string(s.size()); out += ':'; out += s; out += ' '; }
+
+  static std::string record_name(const clang::RecordDecl *d) {
+    if (d->getIdentifier()) return d->getName().str();
+    if (const clang::TypedefNameDecl *t = d->getTypedefNameForAnonDecl()) return t->getName().str();
+    return "";
+  }
+
+  /* The standard name an integer type was written through, if any: the
+     first of <stdint.h>'s and <stddef.h>'s typedefs that [q]'s sugar
+     passes, so `int64_t` is known as itself where it is a `long`. */
+  std::string standard_name(clang::QualType q) {
+    static const std::set<std::string> standard = {
+        "int8_t",  "uint8_t",  "int16_t", "uint16_t", "int32_t",  "uint32_t",  "int64_t",
+        "uint64_t", "size_t",  "ptrdiff_t", "intptr_t", "uintptr_t"};
+    clang::QualType cur = q;
+    while (true) {
+      if (const auto *t = llvm::dyn_cast<clang::TypedefType>(cur.getTypePtr())) {
+        std::string name = t->getDecl()->getName().str();
+        if (standard.count(name)) return name;
+      }
+      clang::QualType next = cur.getSingleStepDesugaredType(ctx);
+      if (next == cur) return "";
+      cur = next;
+    }
+  }
+
+  /* [q] as written: each part is read through its sugar, so the parts of
+     a pointer, an array or a function keep the typedefs they were written
+     with, and only a leaf is read canonical. */
+  void type(clang::QualType q) {
+    std::string standard = standard_name(q);
+    const clang::Type *t = q.getCanonicalType().getTypePtr();
+    if (t->isVoidType()) return word("V");
+    if (t->isBooleanType()) return word("B");
+    if (t->isEnumeralType()) {
+      word("O");
+      return str(q.getCanonicalType().getUnqualifiedType().getAsString());
+    }
+    if (t->isIntegerType()) {
+      word("I");
+      word(t->isSignedIntegerType() ? "s" : "u");
+      num(ctx.getTypeSize(q.getCanonicalType()));
+      num(ctx.getIntWidth(q.getCanonicalType()));
+      str(q.getCanonicalType().getUnqualifiedType().getAsString());
+      return str(standard);
+    }
+    if (t->isRealFloatingType()) {
+      const llvm::fltSemantics &sem = ctx.getFloatTypeSemantics(q.getCanonicalType());
+      bool ieee = &sem == &llvm::APFloat::IEEEsingle() || &sem == &llvm::APFloat::IEEEdouble();
+      word("F");
+      num(ctx.getTypeSize(q.getCanonicalType()));
+      word(ieee ? "1" : "0");
+      return str(q.getCanonicalType().getUnqualifiedType().getAsString());
+    }
+    if (const clang::PointerType *p = q->getAs<clang::PointerType>()) {
+      clang::QualType pointee = p->getPointeeType();
+      word("P");
+      word(pointee.isConstQualified() ? "1" : "0");
+      return type(pointee);
+    }
+    if (const clang::RecordType *r = t->getAs<clang::RecordType>()) {
+      const clang::RecordDecl *d = r->getDecl();
+      records.insert(llvm::cast<clang::RecordDecl>(d->getCanonicalDecl()));
+      word("R");
+      word(d->isUnion() ? "u" : "s");
+      return str(record_name(d));
+    }
+    if (const clang::ConstantArrayType *a = ctx.getAsConstantArrayType(q)) {
+      word("A");
+      num(a->getSize().getZExtValue());
+      return type(a->getElementType());
+    }
+    if (const clang::FunctionProtoType *f = q->getAs<clang::FunctionProtoType>()) {
+      word("N");
+      word(f->isVariadic() ? "1" : "0");
+      num(f->getNumParams());
+      for (clang::QualType p : f->getParamTypes()) type(p);
+      return type(f->getReturnType());
+    }
+    if (const clang::FunctionNoProtoType *f = q->getAs<clang::FunctionNoProtoType>()) {
+      word("K");
+      return type(f->getReturnType());
+    }
+    word("O");
+    str(q.getCanonicalType().getUnqualifiedType().getAsString());
+  }
+
+  /* Every struct a written type reached, laid out as the target lays it
+     out: its kind, whether the main file declares it, whether it is
+     complete, its size and alignment in bits, and each field's name, type,
+     offset in bits and bit-field width (-1 for none). A field's own struct
+     is written in turn. */
+  void layouts(const clang::SourceManager &sm) {
+    std::set<const clang::RecordDecl *> done;
+    while (true) {
+      const clang::RecordDecl *next = nullptr;
+      for (const clang::RecordDecl *d : records)
+        if (!done.count(d)) { next = d; break; }
+      if (!next) break;
+      done.insert(next);
+      const clang::RecordDecl *def = next->getDefinition();
+      bool in_main = false;
+      for (const clang::TagDecl *r : next->redecls())
+        if (sm.isInMainFile(sm.getExpansionLoc(r->getLocation()))) in_main = true;
+      word("rec");
+      str(record_name(next));
+      word(next->isUnion() ? "u" : "s");
+      word(in_main ? "1" : "0");
+      if (!def || def->isInvalidDecl()) {
+        word("0");
+        continue;
+      }
+      word("1");
+      const clang::ASTRecordLayout &layout = ctx.getASTRecordLayout(def);
+      num(ctx.toBits(layout.getSize()));
+      num(ctx.toBits(layout.getAlignment()));
+      std::vector<const clang::FieldDecl *> fields(def->field_begin(), def->field_end());
+      num(fields.size());
+      for (const clang::FieldDecl *f : fields) {
+        str(f->getName().str());
+        type(f->getType());
+        num(layout.getFieldOffset(f->getFieldIndex()));
+        word(f->isBitField() ? std::to_string(f->getBitWidthValue(ctx)) : "-1");
+      }
+    }
+  }
+
+private:
+  clang::ASTContext &ctx;
+};
+
+/* Every function, variable and typedef whose expansion location is in the
+   main file: the interface header compiled alone (docs/design/ffi.md F6). */
+class Interface : public clang::ASTConsumer {
+public:
+  explicit Interface(std::string &out) : out(out) {}
+
+  void HandleTranslationUnit(clang::ASTContext &ctx) override {
+    const clang::SourceManager &sm = ctx.getSourceManager();
+    Writer w(ctx);
+    for (clang::Decl *d : ctx.getTranslationUnitDecl()->decls()) {
+      if (!sm.isInMainFile(sm.getExpansionLoc(d->getLocation()))) continue;
+      if (auto *f = llvm::dyn_cast<clang::FunctionDecl>(d)) {
+        w.word("fun");
+        w.str(f->getName().str());
+        w.word(f->hasExternalFormalLinkage() ? "1" : "0");
+        w.type(f->getType());
+      } else if (auto *v = llvm::dyn_cast<clang::VarDecl>(d)) {
+        w.word("var");
+        w.str(v->getName().str());
+        w.word(v->hasExternalFormalLinkage() ? "1" : "0");
+        w.word(v->getTLSKind() != clang::VarDecl::TLS_None ? "1" : "0");
+        w.type(v->getType());
+      } else if (auto *t = llvm::dyn_cast<clang::TypedefNameDecl>(d)) {
+        w.word("typedef");
+        w.str(t->getName().str());
+        w.type(t->getUnderlyingType());
+      } else if (auto *r = llvm::dyn_cast<clang::RecordDecl>(d)) {
+        if (!Writer::record_name(r).empty()) w.records.insert(llvm::cast<clang::RecordDecl>(r->getCanonicalDecl()));
+      }
+    }
+    w.layouts(sm);
+    out = w.out;
+  }
+
+private:
+  std::string &out;
+};
+
+class InterfaceAction : public clang::ASTFrontendAction {
+public:
+  explicit InterfaceAction(std::string &out) : out(out) {}
+
+protected:
+  std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &, llvm::StringRef) override {
+    return std::make_unique<Interface>(out);
+  }
+
+private:
+  std::string &out;
+};
+
 } // namespace
 
 /* The module the command line's one source compiles to, as bitcode. */
@@ -217,4 +423,18 @@ extern "C" value zane_triple_parts(value triple) {
 extern "C" value zane_host_triple(value unit) {
   CAMLparam1(unit);
   CAMLreturn(caml_copy_string(llvm::sys::getDefaultTargetTriple().c_str()));
+}
+
+/* What the command line's one source, an interface header, declares, as
+   the text [Interface] writes. */
+extern "C" value zane_clang_interface(value args) {
+  CAMLparam1(args);
+  std::vector<std::string> owned = strings_of(args);
+  std::string text;
+  Run r = run(owned, [&](clang::CompilerInstance &ci) {
+    InterfaceAction action(text);
+    return ci.ExecuteAction(action);
+  });
+  r.output = text;
+  CAMLreturn(to_value(r));
 }

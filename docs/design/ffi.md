@@ -1,7 +1,8 @@
 # The C interface: building, calling and folding C
 
 > **Status: being built, in the order of §7.** Built: compiling a
-> package's C (F1, F2, F3, F5), in `lib/foreign/`. The rest is designed and
+> package's C (F1, F2, F3, F5) and reading its interface headers (F6), in
+> `lib/foreign/`. The rest is designed and
 > not yet built. This page says how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
@@ -182,9 +183,18 @@ and alignment from clang's `ASTRecordLayout`. A declaration that only an
 included header makes is not in the table, which is how `ffi.md` §2.1's
 "seen by the C compiler and by nothing else" holds.
 
+The table travels from C++ as text, words with names written as their
+length and bytes (`lib/foreign/interface.ml` reads it), so the stubs build
+no OCaml values beyond a string. An integer type also carries the first of
+`<stdint.h>`'s and `<stddef.h>`'s typedefs its sugar passes (`int64_t`,
+`size_t`, …), since §3.3 names those as well as the builtin types, and on a
+64-bit Linux target `int64_t` is canonically a `long`.
+
 Stage 3 checks each foreign verb against that table by the rules of
 `ffi.md` §3.3 and §3.7. A C type is matched by its canonical form, so a
-`typedef` such as zlib's `uLong` is checked as the `unsigned long` it names.
+`typedef` such as zlib's `uLong` is checked as the `unsigned long` it names,
+unless it was written through one of those standard typedefs, which is
+matched by that name.
 An integer type's size is checked against its width in clang's target
 information, which counts value bits, so a type with padding bits, whose
 width is less than its size, matches no primitive, full-width or narrow
