@@ -20,9 +20,9 @@
   "The Zane compiler, zanec: a sedlex lexer and a Menhir GLR grammar producing\na concrete syntax tree, desugaring into the SST, semantic analysis into the\ntyped TST, lowering into the CGT, LLVM code generation, and the C runtime\nlinked into every program. Also the developer tooling used to keep the grammar\nunambiguous.")
  (depends
   ; The project targets OCaml 5: devbox provides ocaml@latest and CI builds on
-  ; the ocaml-system switch that gives. 5.0 was the transitional first release
-  ; of the series, so the floor is the one after it.
-  (ocaml (>= 5.1))
+  ; the ocaml-system switch that gives. The floor is 5.2, whose parse tree
+  ; gives functions the shape tools/nesting reads through compiler-libs.
+  (ocaml (>= 5.2))
   ; lib/cst/dune builds the grammar with --GLR, which the 20260122 release line
   ; introduced along with the menhirGLR runtime that lib/cst links against.
   (menhir (>= 20260122))
