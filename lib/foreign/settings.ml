@@ -157,6 +157,11 @@ let read ~triple dir =
   if not (Sys.file_exists path) then Ok []
   else match Coda.parse_file path with Error e -> Error [ parse_problem path e ] | Ok doc -> parsed doc
 
+(* Whether [path] is a directory, or a file, as far as it can be read: an
+   entry that cannot be, such as a dangling symlink, is neither. *)
+let is_dir path = try Sys.is_directory path with Sys_error _ -> false
+let is_file path = try not (Sys.is_directory path) with Sys_error _ -> false
+
 (* Every file of [dir] matching [pattern], each part of which is a `*`
    pattern over one directory's entries, as paths relative to [dir]. *)
 let expand dir parts =
@@ -167,12 +172,12 @@ let expand dir parts =
         entries (Filename.concat dir prefix)
         |> List.filter (glob_matches last)
         |> List.map (fun e -> if prefix = "" then e else Filename.concat prefix e)
-        |> List.filter (fun p -> not (Sys.is_directory (Filename.concat dir p)))
+        |> List.filter (fun p -> is_file (Filename.concat dir p))
     | part :: rest ->
         entries (Filename.concat dir prefix)
         |> List.filter (glob_matches part)
         |> List.map (fun e -> if prefix = "" then e else Filename.concat prefix e)
-        |> List.filter (fun p -> Sys.is_directory (Filename.concat dir p))
+        |> List.filter (fun p -> is_dir (Filename.concat dir p))
         |> List.concat_map (fun p -> go p rest)
   in
   go "" parts
@@ -186,7 +191,7 @@ let sources dir rows =
   let path = Filename.concat dir file_name in
   let direct =
     (try Array.to_list (Sys.readdir dir) with Sys_error _ -> [])
-    |> List.filter (fun f -> Filename.check_suffix f ".c" && not (Sys.is_directory (Filename.concat dir f)))
+    |> List.filter (fun f -> Filename.check_suffix f ".c" && is_file (Filename.concat dir f))
     |> List.sort compare
   in
   let listed row =
@@ -198,9 +203,9 @@ let sources dir rows =
     | _ -> Ok []
   in
   let results = List.map listed rows in
-  let rec unique seen = function
-    | [] -> []
-    | f :: rest -> if List.mem f seen then unique seen rest else f :: unique (f :: seen) rest
+  let rec unique acc = function
+    | [] -> List.rev acc
+    | f :: rest -> unique (if List.mem f acc then acc else f :: acc) rest
   in
   match List.filter_map (function Error p -> Some p | Ok _ -> None) results with
   | [] -> Ok (unique [] (direct @ List.concat_map (function Ok fs -> fs | Error _ -> []) results))
@@ -210,5 +215,5 @@ let sources dir rows =
    directly in [dir]. *)
 let interface_headers dir =
   (try Array.to_list (Sys.readdir dir) with Sys_error _ -> [])
-  |> List.filter (fun f -> Filename.check_suffix f ".h" && not (Sys.is_directory (Filename.concat dir f)))
+  |> List.filter (fun f -> Filename.check_suffix f ".h" && is_file (Filename.concat dir f))
   |> List.sort compare

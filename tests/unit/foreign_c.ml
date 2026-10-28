@@ -99,6 +99,16 @@ let compiled () =
           check "a C source compiles to bitcode" (String.length b1 > 4 && String.sub b1 0 2 = "BC");
           check "a source's key does not depend on its directory" (k1 = k2)
       | _ -> check "a C source compiles" false);
+      (* A dangling symlink, such as an editor's lock file, is no source,
+         and a cache that cannot be written is no cache. *)
+      let linked = package "linked" source in
+      Unix.symlink "nowhere" (Filename.concat linked ".#a.c");
+      let blocked = Filename.concat base "blocked" in
+      write_all blocked "a file, not a directory";
+      (match Foreign.compile_packages ~cache:(Some (Filename.concat blocked "cache")) ~cc ~target:None [ linked ] with
+      | Ok [ { Foreign.sources = [ _ ]; _ } ] -> ()
+      | _ -> check "a dangling symlink and an unwritable cache leave the build alone" false);
+      Sys.remove (Filename.concat linked ".#a.c");
       let broken = package "broken" "int f(void) {\n  return missing;\n}\n" in
       match Foreign.compile_packages ~cache:None ~cc ~target:None [ broken ] with
       | Error { Foreign.diagnostics = [ d ]; _ } ->
@@ -146,7 +156,9 @@ let interface_text () =
     (match List.assoc_opt "file" (I.merge partial complete).I.records with
     | Some { I.declared = true; layout = Some _; _ } -> true
     | _ -> false);
-  check "a malformed table is refused" (match I.read "fun 1:f 1 Q" with _ -> false | exception I.Malformed _ -> true)
+  check "a malformed table is refused" (match I.read "fun 1:f 1 Q" with _ -> false | exception I.Malformed _ -> true);
+  check "a name past the end is refused" (match I.read "fun 9:f" with _ -> false | exception I.Malformed _ -> true);
+  check "a bad number is refused" (match I.read "rec 1:r s 1 1 x" with _ -> false | exception I.Malformed _ -> true)
 
 (* A header compiled alone: what it declares, by its canonical types and
    the standard names written, and not what only an included header does;

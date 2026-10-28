@@ -69,7 +69,8 @@ public:
     if (info.getLocation().isValid() && info.hasSourceManager()) {
       clang::PresumedLoc loc = info.getSourceManager().getPresumedLoc(info.getLocation());
       if (loc.isValid()) {
-        p.file = loc.getFilename();
+        const char *file = loc.getFilename();
+        p.file = file ? file : "";
         p.line = loc.getLine();
         p.column = loc.getColumn();
       }
