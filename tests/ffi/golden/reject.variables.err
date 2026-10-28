@@ -1,0 +1,28 @@
+File "fixtures/reject/variables/app/main.zn", line 19, characters 32-45:
+19 |     notCapability Data foreign "data_global";
+   |                                ^^^^^^^^^^^^^
+Error: a foreign variable's type is a foreign capability, and `app$Data` has a free function, so it owns what it refers to (ffi.md §5.1)
+File "fixtures/reject/variables/app/main.zn", line 20, characters 27-40:
+20 |     notHandle I64 foreign "data_global";
+   |                           ^^^^^^^^^^^^^
+Error: a foreign variable's type is a foreign capability, a `#handle` without a free function, and `@primitives$I64` is not one (ffi.md §5.1)
+File "fixtures/reject/variables/app/main.zn", line 21, characters 28-37:
+21 |     missing lib$Io foreign "nowhere";
+   |                            ^^^^^^^^^
+Error: no interface header of `lib` declares a global `nowhere` with external linkage (ffi.md §5.1)
+File "fixtures/reject/variables/app/main.zn", line 22, characters 30-43:
+22 |     undefined lib$Io foreign "io_declared";
+   |                              ^^^^^^^^^^^^^
+Error: no C source of `lib` defines `io_declared`, which its interface header declares: a foreign variable names a global the package's C code defines (ffi.md §5.1)
+File "fixtures/reject/variables/app/main.zn", line 23, characters 26-37:
+23 |     local lib$Io foreign "io_thread";
+   |                          ^^^^^^^^^^^
+Error: `io_thread` is thread-local, a separate object on each thread, and a call that reaches it may run on any thread (ffi.md §5.1)
+File "fixtures/reject/variables/app/main.zn", line 24, characters 30-40:
+24 |     wrongType lib$Io foreign "io_other";
+   |                              ^^^^^^^^^^
+Error: `io_other` is a `struct other_t`, and `Io`'s objects are `io_t` (ffi.md §5.1)
+File "fixtures/reject/variables/lib/lib.zn", line 16, characters 19-30:
+16 |     io Io foreign "io_global";
+   |                   ^^^^^^^^^^^
+Error: only the root package declares a foreign variable; every other package reaches a foreign capability through one passed to it (ffi.md §5.1)

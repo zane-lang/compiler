@@ -23,7 +23,8 @@ let definition st (t : Tty.t) =
           | T.Decl.Struct ms -> Some (T.Decl.Struct (members ms), reference)
           | T.Decl.Variant cs -> Some (T.Decl.Variant (members cs), reference)
           | T.Decl.Enum cs -> Some (T.Decl.Enum cs, reference)
-          | T.Decl.Distinct u -> Some (T.Decl.Distinct (sub u), reference))
+          | T.Decl.Distinct u -> Some (T.Decl.Distinct (sub u), reference)
+          | T.Decl.Handle _ -> Some (definition, reference))
       | _ -> None)
   | _ -> None
 

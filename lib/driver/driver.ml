@@ -76,8 +76,14 @@ let c_code ?target packages =
 
 (* Semantics, which reports every problem it finds (docs/design/semantics.md
    D4) and gives no tree when there is one. *)
-let check packages =
-  match Tst.check packages with
+let check ?(c = []) packages =
+  (* [c] is [c_code]'s for these packages, in their order; a caller that
+     compiled no C gives none. *)
+  let interfaces =
+    if c = [] then []
+    else List.map2 (fun (p : Assembly.package) (f : Foreign.package) -> (p.Assembly.id, f.Foreign.interface)) packages c
+  in
+  match Tst.check ~interfaces packages with
   | { Tst.Semantics.diagnostics = []; program } -> Ok program
   | { Tst.Semantics.diagnostics; _ } -> fail ~sources:(Assembly.sources packages) diagnostics
 

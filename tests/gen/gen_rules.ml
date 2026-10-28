@@ -26,8 +26,12 @@
      `golden/reject.NAME.err` is what lowering reports for the package
      `fixtures/reject/NAME`, a program semantics accepts and lowering refuses.
    - ffi: `golden/NAME.check` is what `zanec --check` prints, both
-     streams, for the package `fixtures/NAME`, which it accepts, and
-     `golden/reject.NAME.err` what it reports for `fixtures/reject/NAME`.
+     streams, for the build `fixtures/NAME`, which it accepts,
+     `golden/NAME.tst` its typed tree, and `golden/reject.NAME.err` what
+     it reports for `fixtures/reject/NAME`. A fixture holding `.zn` files is
+     one package; any other is a build of its subdirectories, in name
+     order, so the first is the root. Its `flags` file, one per line, is
+     what it is built with besides.
    - parser: `golden/NAME.STAGE.spans` is `span_dump --STAGE`, and
      `golden/NAME.STAGE.tree` `zanec --STAGE`, over `fixtures/NAME.zn`;
      `golden/reject.NAME.err` is what `zanec` reports for
@@ -160,21 +164,40 @@ let codegen () =
 
 (* ffi *)
 
+(* The `--package` arguments of the build [dir] holds: itself, when it
+   holds sources, else each subdirectory in name order. *)
+let packages dir =
+  if List.exists (fun f -> Filename.check_suffix f ".zn") (sorted dir) then " --package " ^ dir
+  else
+    List.filter (fun p -> Sys.is_directory (Filename.concat dir p)) (sorted dir)
+    |> List.map (fun p -> Printf.sprintf " --package %s/%s" dir p)
+    |> String.concat ""
+
+(* A fixture's `flags` file, one per line, as arguments quoted for dune. *)
+let flags_of dir =
+  let file = Filename.concat dir "flags" in
+  if Sys.file_exists file then
+    In_channel.with_open_text file In_channel.input_lines |> List.map (Printf.sprintf " %S") |> String.concat ""
+  else ""
+
 let ffi () =
   List.iter
     (fun golden ->
+      let build ~dir view =
+        Printf.sprintf "(run %s --%s%s%s)" zanec view (flags_of dir) (packages dir)
+      in
       match String.split_on_char '.' golden with
-      | [ name; "check" ] ->
-          let package = "fixtures/" ^ name in
-          Printf.printf
-            "(rule\n (deps (source_tree %s))\n (action\n  (with-outputs-to\n   %s.actual\n   (run %s --check --package %s))))\n\n"
-            package golden zanec package;
+      | [ name; ("check" | "tst") as view ] ->
+          let dir = "fixtures/" ^ name in
+          let stream = if view = "check" then "with-outputs-to" else "with-stdout-to" in
+          Printf.printf "(rule\n (deps (source_tree %s))\n (action\n  (%s\n   %s.actual\n   %s)))\n\n" dir stream
+            golden (build ~dir view);
           diff golden (golden ^ ".actual")
       | [ "reject"; name; "err" ] ->
-          let package = "fixtures/reject/" ^ name in
+          let dir = "fixtures/reject/" ^ name in
           Printf.printf
-            "(rule\n (deps (source_tree %s))\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    (run %s --check --package %s)))))\n\n"
-            package golden zanec package;
+            "(rule\n (deps (source_tree %s))\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    %s))))\n\n"
+            dir golden (build ~dir "check");
           diff golden (golden ^ ".actual")
       | _ -> failwith ("gen_rules: no rule makes golden/" ^ golden))
     (sorted "golden")

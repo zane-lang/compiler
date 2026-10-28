@@ -150,9 +150,9 @@ let interface flags path =
     let diagnostics, sources = diagnostics read.problems in
     Error { diagnostics; sources }
   else
-    match Interface.read read.output with
+    match C_interface.read read.output with
     | table -> Ok table
-    | exception Interface.Malformed why -> Diagnostic.bug ("the interface table of " ^ path ^ " is malformed: " ^ why)
+    | exception C_interface.Malformed why -> Diagnostic.bug ("the interface table of " ^ path ^ " is malformed: " ^ why)
 
 (* [path], a C source of the package in [dir], compiled with [flags], from
    the module cache under [cache] when it holds it. *)

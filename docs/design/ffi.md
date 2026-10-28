@@ -2,7 +2,9 @@
 
 > **Status: being built, in the order of §7.** Built: compiling a
 > package's C (F1, F2, F3, F5) and reading its interface headers (F6), in
-> `lib/foreign/`. The rest is designed and
+> `lib/foreign/` and `lib/c_interface/`, and foreign verbs, handles and
+> foreign variables in the grammar and semantics (F7); lowering refuses
+> them until F8 lands. The rest is designed and
 > not yet built. This page says how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
@@ -212,26 +214,40 @@ corresponds to a C-compatible value type (`ffi.md` §3.3's full-width fields
 exclude it). The check runs in
 every build, so `zane check` reports what a build would.
 
-**F7. The TST knows foreign verbs, handles and foreign variables.** A
-foreign verb is a verb whose body is `Foreign { symbol; decl }`, with `decl`
-its entry in the table. Its capability facts (`effects.md` §5.2) are not
-derived from a body: `lib/tst/analyses/` gives a foreign verb the facts
-`ffi.md` §5.2's table gives its signature, and every other analysis reads
-them as it reads a verb's derived ones.
+**F7. The TST knows foreign verbs, handles and foreign variables.** The
+grammar adds two keywords, `foreign` and `handle`. A foreign verb is a
+function or method whose SST declaration carries its C symbol in a
+`foreign` field, with an empty body over the `foreign` clause, so every
+pass that handles a function or a method handles it, and pass 5 checks no
+body. Its TST body is `Foreign { symbol; package; access; c_function }`:
+the C function's type is its entry in the table (F6), and its capability
+facts (`effects.md` §5.2) are not derived from a body but given by its
+signature, as `ffi.md` §5.2's table states, in `access` (`Pure`, `Reads`
+or `Writes`), which later stages read as they read a verb's derived ones.
 
-A foreign handle is `Ty.Handle { c_type; set; free; kind }`, a reference
-type with no fields: it is settled or roaming, moved and referenced, and
-destroyed, exactly like a `#struct`. `kind` is `Capability` when the type
-has no `free`. Otherwise it waits until every package's declarations are
-known, then is read from the foreign verbs that return the type, by
-`ffi.md` §4.2. Each check of §4.4 and §5.3 is then a test of `kind` against
-the verb's signature, so none of them needs to look past the declaration.
+A foreign handle is a type declaration whose definition is
+`Handle { c_type; set; free }`, a reference type with no fields: it is
+settled or roaming, moved and referenced, and destroyed, exactly like a
+`#struct`. Its kind is `Capability` when it has no `free`. Otherwise it
+waits until every package's signatures are known, then is read from the
+foreign verbs that return the type, by `ffi.md` §4.2. Each check of §4.4
+and §5.3 is then a test of the kind against the verb's signature, so none
+of them needs to look past the declaration. All of this is
+`lib/tst/passes/foreign_decls.ml`, the last step of pass 4, which reads
+each package's table through `Env.interfaces` and writes the kinds and the
+foreign verbs into pass 4's tables. The one rule that needs a place's
+state, that a settled handle without a setter is never overwritten
+(`ffi.md` §4.3), is in `references.ml` beside the other store rules.
 
-A foreign variable is a declaration statement
-`Foreign_var { name; ty; symbol; decl }`, where `decl` is the variable's
-entry in the table of `ty`'s package, not the declaring one's. The checks of
-`ffi.md` §5.1 read the linkage, thread-local storage and C type F6
-records for it.
+A foreign variable desugars to a symbol declaration whose value is an SST
+`Foreign_global` (desugaring.md §2.11), so a local or a package constant
+carries it unchanged; pass 5 types that value as the declared type, a TST
+`Foreign_global { symbol; package }` naming the package that declares the
+capability's type, whose table gives the variable's linkage, thread-local
+storage and C type for the checks of `ffi.md` §5.1. Whether the package's
+C code defines it is read from its compiled sources: F3's modules list the
+variables they define with external linkage, which the table carries as
+`defined`.
 
 ---
 

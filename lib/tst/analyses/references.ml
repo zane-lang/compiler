@@ -2,7 +2,9 @@
    half of the store rules, an analysis over the finished TST
    (docs/design/semantics.md D1).
 
-   Two rules, each decided by the store it looks at alone:
+   Two rules, each decided by the store it looks at alone, and the rule
+   about overwriting a foreign handle in place (ffi.md §4.3), decided the
+   same way:
 
    - A new reference is minted only from a settled place (memory.md §2.8): a
      settled symbol or package constant, or a path from one -- or from an
@@ -17,6 +19,11 @@
      beyond one belongs to a tree the path's root does not name. A reference
      parameter, or `this`, may be the root: the call site settles a store
      through it.
+
+   - An assignment to a settled place, or a borrowed one, which may be its
+     caller's settled owner, writes the replacement where the old value is,
+     so it is an error when what it overwrites holds a foreign handle without
+     a setter, directly or through owning fields.
 
    Every borrow falls out of the first rule and the move rule together
    (moves.ml): it is no place to mint from and no owner to move, so it is
@@ -66,6 +73,46 @@ let param_types env ?(subject = false) (r : T.Verb_ref.t) =
    (types.md §3.3). *)
 let entry_type env (r : T.Verb_ref.t) (f : T.Field_value.t) =
   List.nth_opt (param_types env r) f.T.Field_value.slot
+
+(* A foreign handle without a setter that a value of [t] holds in place:
+   itself, or one reached through the owning fields of the objects it holds,
+   its arrays' elements, and what a distinct type is. A list's element and a
+   variant's payload are replaced whole, and a reference holds no owner. *)
+let rec unsettable_handle env ?(depth = 0) (t : Ty.t) =
+  let inner = unsettable_handle env ~depth:(depth + 1) in
+  match Ty.strip_mode t with
+  | _ when depth > 16 -> None
+  | Ty.Named (tid, args) -> (
+      match Env.Types.type_info_of_id env.Env.types tid with
+      | Some { Env.definition = Some (Env.Handle { Nodes.Handle.set = None; _ }); _ } -> Some tid.Ty.name
+      | Some { Env.definition = Some (Env.Struct ms); params; _ } ->
+          List.find_map
+            (fun (_, mt) -> match mt with Ty.Reference _ -> None | mt -> inner (Ty.instantiate params args mt))
+            ms
+      | Some { Env.definition = Some (Env.Distinct u); params; _ } -> inner (Ty.instantiate params args u)
+      | _ -> None)
+  | Ty.Intrinsic { namespace = "primitives"; name = "Array" | "ArrayRef"; args = [ Ty.Type e; _ ] } -> inner e
+  | _ -> None
+
+(* ffi.md §4.3: overwriting a settled place writes the replacement where
+   the old value is, so a foreign handle it holds is replaced through its
+   setter, and one without a setter is never overwritten there. A borrow
+   is the caller's owner, which may be settled. *)
+let overwrite env w (target : T.Expr.t) =
+  let refuse place =
+    match unsettable_handle env target.T.Expr.ty with
+    | Some name ->
+        Env.error env target.T.Expr.span
+          (Printf.sprintf
+             "%s and holds a %s, which has no setter: a settled foreign handle is replaced only in place, \
+              through its setter (ffi.md §4.3)"
+             place (Env.quote name))
+    | None -> ()
+  in
+  match States.state w.states target with
+  | States.Settled -> refuse "this place is settled"
+  | States.Borrowed -> refuse "this place is lent by the caller, whose owner may be settled,"
+  | States.Roaming | States.Contingent | States.Fresh -> ()
 
 (* ---------------------------------------------------------------------- *)
 (* The two rules                                                          *)
@@ -136,7 +183,7 @@ let rec through env w (e : T.Expr.t) =
 let rec expr env w (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Bool_lit _
-  | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Invalid | T.Expr.Var _ ->
+  | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Invalid | T.Expr.Var _ | T.Expr.Foreign_global _ ->
       ()
   | T.Expr.Text_lit pieces -> List.iter (expr env w) (Traverse.interpolations pieces)
   | T.Expr.Array_lit items ->
@@ -286,6 +333,7 @@ and stat env w (s : T.Stat.t) =
       expr env w value;
       expr env w target;
       through env w target;
+      overwrite env w target;
       store env w target.T.Expr.ty value
   | T.Stat.Return e ->
       expr env w e;

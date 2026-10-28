@@ -1,0 +1,42 @@
+/// Foreign verbs checked against their C declarations (ffi.md §3.3, §3.7):
+/// a symbol no interface header declares as a function, a different number
+/// of parameters, a variadic or unprototyped function, a C type of another
+/// primitive, one whose size differs between targets, a struct laid out
+/// differently or holding a bit-field, and a list returned.
+package interface;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+type Packed = struct {
+	small I32;
+	big I64;
+}
+
+type Bits = struct {
+	flags I32;
+	more I32;
+}
+
+I64 missing(n I64) foreign "missing";
+I64 count(n I64) foreign "two_args";
+I64 printfLike(n I64) foreign "variadic";
+I64 old(n I64) foreign "unprototyped";
+I64 mismatched(n I64) foreign "takes_int";
+I64 wide(n I64) foreign "takes_long";
+Unit unit(u Unit) foreign "takes_void_ptr";
+F64 writable(xs @primitives$Array<F64, 2>) foreign "writable_array";
+I64 listed(xs @primitives$List<I64>) foreign "takes_bytes";
+Packed packed(p Packed) foreign "packed_pass";
+Bits bits(b Bits) foreign "bits_pass";
+I64 variable(n I64) foreign "not_a_function";
+@primitives$List<I64> list() foreign "returns_list";
+
+Unit main() {
+	return Unit();
+}

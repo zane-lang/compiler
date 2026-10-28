@@ -878,5 +878,43 @@ class OperatorTests(ParserSyntaxTestCase):
         )
 
 
+class ForeignTests(ParserSyntaxTestCase):
+    """The C interface's forms: foreign verbs, handles and variables."""
+
+    def test_foreign_forms(self) -> None:
+        self.assert_parses(
+            """
+            type Fs = #handle{ cType = "zane_fs_t"; }
+            type File = #handle{ cType = "zane_file_t"; free = "zane_fclose"; }
+            ^File?Unit open(this Fs, path String) mut foreign "zane_fopen";
+            I64 crc(data String) foreign "zane_crc";
+            files Fs foreign "zane_fs";
+
+            Unit main() {
+                local Fs foreign "zane_fs";
+                return Unit();
+            }
+            """
+        )
+
+    def test_foreign_is_no_body_or_value(self) -> None:
+        for source in (
+            # A foreign verb has no body, and `foreign` is not an expression.
+            'I64 now(this Clock) foreign "zane_now" { return I64(0); }',
+            'I64 now(this Clock) => foreign "zane_now";',
+            # Only a function or a method is foreign.
+            'Clock(n I64) foreign "zane_clock";',
+            'Int +(a Int, b Int) foreign "zane_add";',
+            # The symbol is a string literal, and a foreign variable has no `=`.
+            "I64 crc(data String) foreign zane_crc;",
+            'files Fs = foreign "zane_fs";',
+            # A handle's entries are `name = "string";`.
+            "type Fs = #handle{ cType = zane_fs_t; }",
+            'type Fs = #handle{ cType = "zane_fs_t" }',
+        ):
+            with self.subTest(source=source):
+                self.assert_rejects(source)
+
+
 if __name__ == "__main__":
     unittest.main()

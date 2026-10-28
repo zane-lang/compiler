@@ -205,7 +205,13 @@ checks the generic verbs nothing instantiates, which ask for none.
    - the operator home-package rule ([`operators.md`](https://github.com/zane-lang/spec/blob/e0b4249/spec/operators.md) §2.2);
    - implicit-constructor source and destination kinds, and the orphan rule
      (`types.md` §4.4–§4.5);
-   - enum-map exhaustiveness (`adt.md` §6).
+   - enum-map exhaustiveness (`adt.md` §6);
+   - the C interface's declarations, last, once every signature is known
+     (`lib/tst/passes/foreign_decls.ml`, [`ffi.md`](ffi.md) F7): each
+     foreign handle's C type and C functions, each handle type's kind, read
+     from the foreign verbs that make it, and each foreign verb against its
+     C function's declaration in its package's interface headers, with what
+     it reads and writes outside the program.
 5. **Bodies.** Type every verb body, constant, and enum-map entry against the
    signatures. Every signature is known before this pass starts, so bodies
    check in any order, which is what "order-independent" asks for (§2.3).
@@ -253,6 +259,11 @@ need nothing but the store in hand:
   §2.8); a value that is already a reference is copied, from anywhere;
 - a store never goes through a reference, unless that reference is a
   parameter the path starts at ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/911d749/spec/lifetimes.md) §1.1).
+
+The same walk holds a foreign handle to its setter ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md) §4.3): an
+assignment to a settled place, or to a borrow, whose caller's owner may be
+settled, is an error when what it overwrites holds a handle without one,
+directly or through owning fields.
 
 A borrow needs no rule of its own: it is no place to mint from and no owner
 to move from, so it is never stored or returned

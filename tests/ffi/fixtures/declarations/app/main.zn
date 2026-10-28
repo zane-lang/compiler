@@ -1,0 +1,65 @@
+/// The declarations of the C interface semantics accepts (ffi.md §3-§5): a
+/// foreign verb of each boundary type, a data handle with a setter, a
+/// capability declared by a foreign variable, and an outside handle made by
+/// a `mut` method on it. A settled handle with a setter is overwritten, and
+/// a roaming one without one.
+package app;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+import fs;
+
+type Vec3 = struct {
+	x F64;
+	y F64;
+	z F64;
+}
+
+type Pair = struct {
+	id I32;
+	weights @primitives$Array<F32, 3>;
+	at Vec3;
+}
+
+type Deflater = #handle{ cType = "deflater_t"; set = "deflater_set"; free = "deflater_free"; }
+
+I64 crc(c I64, data String) foreign "zane_crc32";
+Vec3 add(a Vec3, b Vec3) foreign "vec_add";
+Pair mirror(p Pair) foreign "pair_mirror";
+I32 narrow(byte I32, half I32) foreign "narrow";
+Bool odd(n I32) foreign "odd";
+F64 sum(xs @primitives$Array<F64, 4>, ys @primitives$List<I64>) foreign "sum";
+F64 fold(f F64[F64, I32], start F64) foreign "fold";
+String name(id I64) foreign "name";
+Unit reset() foreign "reset";
+^Deflater?Unit deflater(level I32) foreign "deflater_new";
+String deflate(this Deflater, input String) mut foreign "deflate";
+I64 totalIn(this Deflater) foreign "deflater_total_in";
+I64 compare(this Deflater, other Deflater) foreign "deflater_compare";
+
+type Stream = #struct {
+	_deflater Deflater;
+}
+
+Unit replace(this Stream) mut {
+	this._deflater = deflater(I32(9)) ? e { return Unit(); }
+	return Unit();
+}
+
+Unit main() {
+	files fs$Fs foreign "zane_fs";
+	log fs$File = files!fs$open(String("app.log"));
+	files!fs$write(log, String("started\n"));
+	size I64 = files:fs$size(log);
+	d Deflater = deflater(I32(6)) ? e { return Unit(); }
+	d = deflater(I32(9)) ? e { return Unit(); }
+	r ^fs$File = files!fs$open(String("b.log"));
+	r = files!fs$open(String("c.log"));
+	return Unit();
+}

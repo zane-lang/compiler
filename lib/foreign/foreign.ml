@@ -6,7 +6,7 @@ module Settings = Settings
 module Probe = Probe
 module Clang = Clang
 module Compile = Compile
-module Interface = Interface
+module Interface = C_interface
 
 (* What a package's C build is: the rows of its `c.coda` that apply to the
    build, its interface headers and what they declare, and its C sources
@@ -15,7 +15,7 @@ type package = {
   dir : string;
   rows : Settings.row list;
   headers : string list;
-  interface : Interface.t;
+  interface : C_interface.t;
   sources : Compile.source list;
 }
 
@@ -76,13 +76,15 @@ let compile_package ?cache ~fixed ~headers (dir, rows, sources) =
   let interface_headers = Settings.interface_headers dir in
   let interface =
     combine (List.map (fun h -> Compile.interface flags (Filename.concat dir h)) interface_headers)
-    |> Result.map (List.fold_left Interface.merge Interface.empty)
+    |> Result.map (List.fold_left C_interface.merge C_interface.empty)
   in
   let compiled =
     combine (List.map (fun s -> Compile.compile_source ?cache ~maps flags (Filename.concat dir s)) sources)
   in
+  let defined (sources : Compile.source list) = List.concat_map (fun (s : Compile.source) -> Clang.defined_variables s.bitcode) sources in
   both interface compiled
-  |> Result.map (fun (interface, sources) -> { dir; rows; headers = interface_headers; interface; sources })
+  |> Result.map (fun ((interface : C_interface.t), sources) ->
+         { dir; rows; headers = interface_headers; interface = { interface with defined = defined sources }; sources })
 
 (* Every package's C, once the target's include directories are known
    from [cc]. *)
@@ -95,7 +97,7 @@ let compile_all ?cache ~work ~cc ~triple ~target packages =
       let fixed = Compile.fixed_flags ~triple ~headers ~include_dirs in
       combine (List.map (compile_package ?cache ~fixed ~headers) packages)
 
-let no_c (dir, rows, _) = { dir; rows; headers = []; interface = Interface.empty; sources = [] }
+let no_c (dir, rows, _) = { dir; rows; headers = []; interface = C_interface.empty; sources = [] }
 
 let has_c (dir, _, sources) = sources <> [] || Settings.interface_headers dir <> []
 

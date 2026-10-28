@@ -1,0 +1,29 @@
+/// A foreign verb's forms (ffi.md §3.1, §3.5): no type or number parameter, no
+/// concept-typed parameter or block, a bare parameter, a `^` handle result,
+/// and an abort type only on a handle result, `@primitives$Unit`.
+package verbForms;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+type Owned = #handle{ cType = "o_t"; free = "o_free"; }
+
+type Box<T Type> = struct { value T; }
+
+T identity(value T Type) foreign "identity";
+I64 literal(n @concepts$Int) foreign "literal";
+Unit run(body @concepts$Block) foreign "run";
+I64 taken(o ^Owned) foreign "taken";
+&Owned referenced() foreign "referenced";
+I64?Unit failing(n I64) foreign "failing";
+^Owned?I64 badAbort() foreign "bad_abort";
+I64 notC(n I64) foreign "not a name";
+
+Unit main() {
+	return Unit();
+}

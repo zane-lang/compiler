@@ -10,8 +10,12 @@ type result = {
 (* Every pass, over tables of this check's own. Each pass fills its group's
    tables and hands on a view of them, and the next pass runs on that view:
    a pass runs only once the passes before it have. *)
-let check (packages : Assembly.package list) =
+(* [interfaces] gives what each package's C code declares and defines, by
+   package identity (docs/design/ffi.md F6); a package it leaves out has
+   no C. *)
+let check ?(interfaces = []) (packages : Assembly.package list) =
   let env = Env.start () in
+  List.iter (fun (id, i) -> Hashtbl.replace env.Env.interfaces id i) interfaces;
   let env = { env with names = Collect.run env (Env.names ()) packages } in
   let env = { env with types = Type_decls.run env (Env.types ()) } in
   let env = { env with verbs = Verb_signatures.run env (Env.verbs ()) } in

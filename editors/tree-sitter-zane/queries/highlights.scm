@@ -43,6 +43,8 @@
 "struct" @keyword
 "variant" @keyword
 "enum" @keyword
+"handle" @keyword
+"foreign" @keyword
 "package" @keyword
 "import" @keyword
 "as" @keyword

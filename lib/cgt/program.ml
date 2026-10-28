@@ -341,6 +341,7 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
   let calls = spawned p in
   let exclusive = (not library) && calls = [] in
   let st = create ~region:fixed_region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
+  let foreign = ref None in
   let add decl instance signature params body =
     let key = key decl instance in
     Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body; literals = [] };
@@ -374,6 +375,7 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
                   name_lambdas st owner { T.Block.stats = [ stat ]; span = value.T.Expr.span })
           | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
               add d.T.Decl.id [] signature params body
+          | T.Decl.Verb { body = T.Decl.Foreign _; _ } -> if !foreign = None then foreign := Some d.T.Decl.span
           (* A subscript's body is the place it names (functions.md §2.9). *)
           | T.Decl.Subscript { signature; params; value = Some e } ->
               let return = { T.Stat.node = T.Stat.Return e; span = e.T.Expr.span } in
@@ -399,6 +401,7 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
     p.T.Program.instances;
   if not library then st.written_back <- Some (written_back st calls);
   try
+    Option.iter (fun span -> refuse span "lowering does not handle a foreign verb yet (docs/design/ffi.md §7)") !foreign;
     (* The root package is the first (docs/design/semantics.md §2), and its `main`
        is where the program starts (packages.md §6.2). *)
     let root =
