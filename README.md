@@ -123,8 +123,8 @@ generator dependencies as described in [`grammar/README.md`](grammar/README.md).
 | `bin/zanec/` | The compiler binary, `zanec` |
 | `lib/` | One library per stage, `cst` → `sst` → `tst` → `cgt` → `optimize` → `codegen`, over `source`, `diagnostic` and `tree_graph`, and `driver`, which runs them in order |
 | `runtime/` | The C runtime every program links with |
-| `tests/` | One directory per thing tested: `parser`, `grammar`, `semantics`, `codegen`, `runtime`, `objects`, `unit`, `highlighting`, `ambiguity` |
-| `tools/` | Developer tools: the ambiguity engine and its front end, and `inspect` |
+| `tests/` | One directory per thing tested: `parser`, `grammar`, `semantics`, `codegen`, `runtime`, `objects`, `unit`, `highlighting`, `ambiguity`, `nesting` |
+| `tools/` | Developer tools: the ambiguity engine and its front end, `inspect`, and `nesting` |
 | `dev/` | Commands for the development shell (`dev/bin/`), their shared scripts (`dev/lib/`), and the toolchain bootstrap CI and the shell run (`dev/setup/`) |
 | `docs/` | Design and process documents; [`docs/README.md`](docs/README.md) is the index |
 
@@ -142,6 +142,11 @@ CI holds every hand-written source file to 2,000 lines, and warns about one
 past 1,500. The warning is a prompt to split a file along a natural seam, not
 a rule to meet: a file that holds one thing and has no such seam stays past
 1,500 on purpose. `just check-file-sizes` runs the same check.
+
+CI also holds every hand-written OCaml file under `lib/`, `bin/` and `tools/`
+to five levels of nesting, counted on the parsed tree rather than on
+indentation; [`CONTRIBUTING.md`](CONTRIBUTING.md) says what counts and how to
+bring a deep function back under it. `just check-nesting` runs the same check.
 
 ## Usage
 

@@ -1,0 +1,3 @@
+::error file=fixtures/depth6.ml,line=12::fixtures/depth6.ml:12 nests 6 deep (fun > if > match > while > for > if), past the limit of 5; name the inner steps as functions
+::error file=fixtures/let_values.ml,line=12::fixtures/let_values.ml:12 nests 6 deep (fun > if > match > for > match > if), past the limit of 5; name the inner steps as functions
+::error file=fixtures/let_values.ml,line=24::fixtures/let_values.ml:24 nests 6 deep (function > match > if > fun > if > try), past the limit of 5; name the inner steps as functions

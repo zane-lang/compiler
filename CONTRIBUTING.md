@@ -45,6 +45,25 @@ through layers of indirection.
 - If removing a layer would make the code shorter and just as clear, remove
   it.
 
+### Keep nesting shallow
+
+No function nests more than five levels deep. A level is an enclosing
+`match`, `function`/`fun`, `try`, `if`, `while` or `for`, counted on the
+parsed tree rather than on indentation, so reformatting neither hides depth
+nor adds it. An anonymous `fun x -> match x with` is one level, and an
+`else if` chain is one however long it is. CI runs the check, and
+`just check-nesting` runs it locally; [`tools/nesting/`](tools/nesting/) has
+the full count.
+
+The fix for a function past the limit is to name its inner steps as functions.
+A function bound by `let`, at top level or locally, costs no level of its own,
+by design: its body counts from where it is bound, so pulling an inline closure
+out into a named `let` brings the code back under the limit without moving it
+far from where it is used. For a chain of steps that each fail or continue,
+`let*` over `Result` or `Option` keeps the chain flat. This is the light kind of
+abstraction [Keep abstractions light](#keep-abstractions-light) asks for: a
+name for a step, read in the same place, not a new layer.
+
 ### Match the code around it
 
 Follow the naming, comment density and idiom of the module you are editing.

@@ -83,6 +83,13 @@ jobs:
         if: matrix.suite == 'compiler'
         run: devbox run -- just rebuild
 
+      # No hand-written OCaml nests more than five levels deep
+      # (`just check-nesting`). It parses the sources, so it needs the
+      # toolchain this suite has just built with.
+      - name: Check nesting
+        if: matrix.suite == 'compiler'
+        run: devbox run -- just check-nesting
+
       - name: Compiler tests
         if: matrix.suite == 'compiler'
         run: devbox run -- just test-compiler

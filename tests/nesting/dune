@@ -1,0 +1,38 @@
+; How tools/nesting counts depth, held to checked-in output.
+;
+; One fixture per rule of the count (tools/nesting/nesting.ml): `depth5.ml`
+; sits at the limit and `depth6.ml` one past it, with deeper nesting inside the
+; site that must not be reported again. `fun_match.ml`, `else_if.ml` and
+; `let_functions.ml` each reach exactly five only because the shape they
+; exercise -- `fun x -> match`, an `else if` chain, a function bound by `let` --
+; counts once or not at all, so a count that charged it would report them.
+; `let_values.ml` holds the two bindings that do count: a value that is a
+; `match`, and a `let f = function` with its cases. `generated.ml` is skipped
+; by its first line.
+;
+; The fixtures are only parsed, never compiled, so nothing here builds them.
+
+(rule
+ (deps (glob_files fixtures/*.ml))
+ (action
+  (with-stdout-to
+   nesting.actual
+   (with-accepted-exit-codes 1
+    (run %{exe:../../tools/nesting/nesting.exe} %{deps})))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/nesting.expected nesting.actual)))
+
+; The fixtures within the limit, on their own, report nothing and exit 0.
+(rule
+ (alias runtest)
+ (action
+  (run
+   %{exe:../../tools/nesting/nesting.exe}
+   %{dep:fixtures/depth5.ml}
+   %{dep:fixtures/fun_match.ml}
+   %{dep:fixtures/else_if.ml}
+   %{dep:fixtures/let_functions.ml}
+   %{dep:fixtures/generated.ml})))
