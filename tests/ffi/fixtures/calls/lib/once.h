@@ -17,6 +17,11 @@ static void once_help(void) { once_helped = 11; }
 __attribute__((constructor)) static void once_helper(void) { once_help(); }
 static inline long long once_helped_value(void) { return once_helped; }
 
+static long long once_pointed;
+static long long *once_target = &once_pointed;
+__attribute__((constructor)) static void once_point(void) { *once_target = 13; }
+static inline long long once_pointed_value(void) { return once_pointed; }
+
 #ifdef __APPLE__
 long long once_alias(long long x) { return once(x); }
 #else

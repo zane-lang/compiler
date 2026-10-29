@@ -347,7 +347,8 @@ constructor runs once, as it would for the C alone. One of a header no
 source includes runs from the glue, even beside a source's own of the
 same name. One that sets up the header's private state, which a function
 the glue keeps reads, such as a `static inline` one a thunk calls, stays
-too, itself or through a function of the glue it calls, since the
+too, itself, through a function of the glue it calls or through a
+private variable's initializer, such as a pointer to the state, since the
 source's copy sets up only the source's state; so does one that calls
 through a pointer, or calls a function something else calls too.
 

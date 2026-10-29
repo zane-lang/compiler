@@ -109,6 +109,7 @@ Unit main() {
 	show(String(lib$onceStarted()));
 	show(String(lib$onceValue()));
 	show(String(lib$onceHelped()));
+	show(String(lib$oncePointed()));
 	show(String(lib$primed()));
 	show(String(lib$primedRuns()));
 	show(String(lib$wasWarmed()));
