@@ -341,7 +341,10 @@ destructor that header defines is local to each copy, so the glue's is
 left out of its list when a module before it runs one of the same name
 whose instructions use the same constants and globals: it runs once, as
 it would for the C alone, and one of a header no source includes runs
-from the glue.
+from the glue. One that sets up the header's private state, which a
+function the glue keeps reads, such as a `static inline` one a thunk
+calls, stays too, since the source's copy sets up only the source's
+state.
 
 An `archive` row's members are renamed through the object rewriter that
 stamps placeholders (C9). The set of symbols the package's archives define
