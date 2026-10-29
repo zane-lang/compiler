@@ -528,6 +528,34 @@ extern "C" value zane_bitcode_defined_variables(value bitcode) {
   CAMLreturn(list);
 }
 
+/* The private state [bitcode]'s module defines: each named variable local
+   to it that the program can write. */
+extern "C" value zane_bitcode_private_state(value bitcode) {
+  CAMLparam1(bitcode);
+  CAMLlocal2(list, cell);
+  std::vector<std::string> names;
+  {
+    llvm::LLVMContext context;
+    llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
+    llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
+    if (module) {
+      for (const llvm::GlobalVariable &g : (*module)->globals())
+        if (g.hasLocalLinkage() && !g.isConstant() && g.hasName() && !g.getName().starts_with("llvm."))
+          names.push_back(g.getName().str());
+    } else {
+      llvm::consumeError(module.takeError());
+    }
+  }
+  list = Val_emptylist;
+  for (auto it = names.rbegin(); it != names.rend(); ++it) {
+    cell = caml_alloc(2, 0);
+    Store_field(cell, 0, caml_copy_string(it->c_str()));
+    Store_field(cell, 1, list);
+    list = cell;
+  }
+  CAMLreturn(list);
+}
+
 /* Every global object [bitcode]'s module places in an explicit section,
    with its section's name: the linker-set check reads them
    (docs/design/ffi.md F9). */

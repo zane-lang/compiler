@@ -20,6 +20,8 @@ type package = { prefix : string; sources : c_module list; glue : c_module list;
 external rename : Llvm.llmodule -> string -> string -> string list -> unit = "zane_rename_c_globals"
 external constructors : Llvm.llmodule -> string list = "zane_c_constructors"
 external drop_defined : Llvm.llmodule -> Llvm.llmodule -> string list -> unit = "zane_drop_defined"
+external share_state : Llvm.llmodule -> Llvm.llmodule -> string -> unit = "zane_share_state"
+external localize_shared : Llvm.llmodule -> unit = "zane_localize_shared"
 
 (* The bitcode [text] read into [ctx]. *)
 let parse ctx text =
@@ -56,14 +58,22 @@ let linked ?(glue = []) ~triple ~data_layout modules =
 let package_module ctx ~triple ~data_layout p =
   let parsed = List.map (fun c -> (c, parse ctx c.bitcode)) in
   let sources = parsed p.sources in
+  let glue = parsed p.glue in
+  let includes (g : c_module) (c : c_module) = List.exists (fun h -> List.mem h c.files) g.files in
+  (* A glue module's private state is the one source's including its
+     header (Foreign refuses one that several sources define), each
+     source's shared under a tag of its own. *)
+  List.iter
+    (fun (g, gm) ->
+      List.iteri (fun i (c, m) -> if includes g c then share_state gm m (string_of_int i)) sources)
+    glue;
   (* Read before the link renames a source's local functions. *)
-  let runs = List.map (fun (c, m) -> (c.files, constructors m)) sources in
-  let run_by (g : c_module) =
-    List.concat_map (fun (files, run) -> if List.exists (fun h -> List.mem h files) g.files then run else []) runs
-  in
-  let glue = List.map (fun (g, m) -> (m, run_by g)) (parsed p.glue) in
+  let runs = List.map (fun (c, m) -> (c, constructors m)) sources in
+  let run_by g = List.concat_map (fun (c, run) -> if includes g c then run else []) runs in
+  let glue = List.map (fun (g, m) -> (m, run_by g)) glue in
   Option.map
     (fun m ->
+      localize_shared m;
       rename m p.prefix (Walks.global_prefix data_layout) p.thunks;
       m)
     (linked ~glue ~triple ~data_layout (List.map snd sources))
