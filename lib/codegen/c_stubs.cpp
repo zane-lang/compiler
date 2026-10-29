@@ -25,6 +25,7 @@
 #include "llvm/IR/GlobalObject.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
 
 #include <map>
 #include <set>
@@ -271,12 +272,63 @@ static bool private_object(const llvm::GlobalVariable &v) {
   return v.hasLocalLinkage() && !v.hasGlobalUnnamedAddr() && v.hasName() && !v.getName().starts_with("llvm.");
 }
 
-/* Whether [a] and [b] can be one object: both writable, or both constant
-   with the same value. */
-static bool same_object(const llvm::GlobalVariable &a, const llvm::GlobalVariable &b) {
+/* [name] without the [prefix] [zane_share_state] gives a shared variable's
+   name, as both modules' copies of an object are named before sharing. */
+static llvm::StringRef own_name(llvm::StringRef name, llvm::StringRef prefix) {
+  return name.starts_with(prefix) ? name.drop_front(prefix.size()) : name;
+}
+
+static bool same_object(const llvm::GlobalVariable &a, const llvm::GlobalVariable &b, llvm::StringRef prefix,
+                        std::set<const llvm::GlobalVariable *> &assumed);
+
+/* Whether the glue's constant [a] and the source's [b] have the same value
+   once each object it points at is the other module's: a private object
+   the one its name and value match, a literal one of the same content, and
+   any other global value the one of its name. */
+static bool same_constant(const llvm::Constant *a, const llvm::Constant *b, llvm::StringRef prefix,
+                          std::set<const llvm::GlobalVariable *> &assumed) {
+  if (a == b) return true;
+  if (a->getType() != b->getType() || a->getValueID() != b->getValueID()) return false;
+  auto *ga = llvm::dyn_cast<llvm::GlobalValue>(a);
+  auto *gb = llvm::dyn_cast<llvm::GlobalValue>(b);
+  if (ga || gb) {
+    if (!ga || !gb) return false;
+    auto *va = llvm::dyn_cast<llvm::GlobalVariable>(ga);
+    auto *vb = llvm::dyn_cast<llvm::GlobalVariable>(gb);
+    if (va && vb && va->hasGlobalUnnamedAddr() && vb->hasGlobalUnnamedAddr() && va->isConstant() && vb->isConstant())
+      return same_object(*va, *vb, prefix, assumed);
+    if (own_name(ga->getName(), prefix) != own_name(gb->getName(), prefix) || ga->getName().empty()) return false;
+    return !(va && vb && va->hasInitializer() && vb->hasInitializer()) || same_object(*va, *vb, prefix, assumed);
+  }
+  if (llvm::isa<llvm::ConstantData>(a)) return false;
+  if (auto *ea = llvm::dyn_cast<llvm::ConstantExpr>(a))
+    if (ea->getOpcode() != llvm::cast<llvm::ConstantExpr>(b)->getOpcode()) return false;
+  if (auto *pa = llvm::dyn_cast<llvm::GEPOperator>(a))
+    if (pa->getSourceElementType() != llvm::cast<llvm::GEPOperator>(b)->getSourceElementType() ||
+        pa->isInBounds() != llvm::cast<llvm::GEPOperator>(b)->isInBounds())
+      return false;
+  if (a->getNumOperands() != b->getNumOperands()) return false;
+  for (unsigned i = 0; i < a->getNumOperands(); ++i)
+    if (!same_constant(llvm::cast<llvm::Constant>(a->getOperand(i)), llvm::cast<llvm::Constant>(b->getOperand(i)), prefix,
+                       assumed))
+      return false;
+  return true;
+}
+
+/* Whether the glue's [a] and the source's [b] can be one object: both
+   writable, or both constant with the same value, as [same_constant] reads
+   it. [assumed] holds the glue's objects already being compared, taken to
+   match, so an object pointing at itself compares. */
+static bool same_object(const llvm::GlobalVariable &a, const llvm::GlobalVariable &b, llvm::StringRef prefix,
+                        std::set<const llvm::GlobalVariable *> &assumed) {
   if (a.getValueType() != b.getValueType() || a.getThreadLocalMode() != b.getThreadLocalMode()) return false;
   if (a.isConstant() != b.isConstant()) return false;
-  return !a.isConstant() || (a.hasInitializer() && b.hasInitializer() && a.getInitializer() == b.getInitializer());
+  if (!a.isConstant()) return true;
+  if (!a.hasInitializer() || !b.hasInitializer()) return false;
+  if (!assumed.insert(&a).second) return true;
+  bool same = same_constant(a.getInitializer(), b.getInitializer(), prefix, assumed);
+  assumed.erase(&a);
+  return same;
 }
 
 /* The glue module [glue]'s private objects that [source], the one source
@@ -287,8 +339,8 @@ static bool same_object(const llvm::GlobalVariable &a, const llvm::GlobalVariabl
    own static, is one variable, so the source's of that name is the
    header's, and the glue's functions read and write the state the
    source's do, and see a constant at the address they see it at, as the C
-   alone would. A constant is one only with the same value, which in one
-   context is the same LLVM constant. */
+   alone would. A constant is one only with the same value, which may
+   point at other objects the two modules each have a copy of. */
 extern "C" value zane_share_state(value glue, value source, value tag) {
   CAMLparam3(glue, source, tag);
   llvm::Module *g = module_of(glue), *s = module_of(source);
@@ -303,7 +355,8 @@ extern "C" value zane_share_state(value glue, value source, value tag) {
       there = s->getNamedGlobal(name);
       if (!there || !private_object(*there)) continue;
     }
-    if (!same_object(*there, *v)) continue;
+    std::set<const llvm::GlobalVariable *> assumed;
+    if (!same_object(*v, *there, prefix, assumed)) continue;
     if (there->hasLocalLinkage()) {
       there->setName(joined);
       there->setLinkage(llvm::GlobalValue::ExternalLinkage);

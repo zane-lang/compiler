@@ -30,6 +30,15 @@ static const long long once_token = 5;
 const long long *once_token_at(void) { return &once_token; }
 static inline long long once_token_same(void) { return once_token_at() == &once_token; }
 
+static const long long once_pointee = 3;
+static const long long *const once_pointer = &once_pointee;
+static const char *const once_name = "once";
+const long long *const *once_pointer_at(void) { return &once_pointer; }
+const char *const *once_name_at(void) { return &once_name; }
+static inline long long once_pointers_same(void) {
+  return once_pointer_at() == &once_pointer && once_name_at() == &once_name;
+}
+
 #ifdef __APPLE__
 long long once_alias(long long x) { return once(x); }
 #else
