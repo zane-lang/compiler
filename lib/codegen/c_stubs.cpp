@@ -52,7 +52,9 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
   std::vector<llvm::GlobalValue *> renamed;
   for (llvm::GlobalValue &g : m->global_values()) {
     std::string name = g.getName().str();
-    if (g.isDeclaration() || g.hasLocalLinkage() || g.hasAppendingLinkage()) continue;
+    // An `available_externally` definition, such as a C library's inline
+    // copy of its own function, stands for a symbol another object defines.
+    if (g.isDeclarationForLinker() || g.hasLocalLinkage() || g.hasAppendingLinkage()) continue;
     if (name.rfind("llvm.", 0) == 0 || kept.count(label_of(name))) continue;
     renamed.push_back(&g);
   }
@@ -268,7 +270,7 @@ extern "C" value zane_drop_defined(value glue, value before, value run) {
     repeated.insert(std::string(String_val(Field(l, 0)), caml_string_length(Field(l, 0))));
   auto defined_before = [b](llvm::GlobalValue &v) {
     llvm::GlobalValue *there = b->getNamedValue(v.getName());
-    return there && !there->isDeclaration() && !there->hasLocalLinkage();
+    return there && !there->isDeclarationForLinker() && !there->hasLocalLinkage();
   };
   // An alias or an indirect function names a definition the glue may drop
   // below, so it goes first.

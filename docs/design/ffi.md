@@ -322,6 +322,10 @@ variables, and also the aliases and indirect functions that
 `__attribute__((alias))` and `__attribute__((ifunc))` define, which
 LLVM keeps as global values of their own: an alias exported under its
 C name would meet the same alias from another version of the package.
+An `available_externally` definition, such as the inline copy of `atoi`
+glibc's `<stdlib.h>` can give, is not one the package defines: it stands
+for the C library's symbol, keeps its name, and is never a definition that
+leaves the glue's copy a declaration.
 An alias's target and an indirect function's resolver are renamed by the
 same rule when they are external, and keep their names when internal, as
 any internal global does. The fetch-time rewrite then stamps the

@@ -219,12 +219,18 @@
     │   ├── params:
     │   └── result: i64
     ├── thunks[34] > thunk:
+    │   ├── symbol: lib$parsed().ffi
+    │   ├── package: lib
+    │   ├── calls: parsed
+    │   ├── params:
+    │   └── result: i64
+    ├── thunks[35] > thunk:
     │   ├── symbol: app$result().ffi
     │   ├── package: app
     │   ├── calls: result
     │   ├── params:
     │   └── result: i64
-    ├── thunks[35] > thunk:
+    ├── thunks[36] > thunk:
     │   ├── symbol: app$args(%primitives$I64).ffi
     │   ├── package: app
     │   ├── calls: args
@@ -1216,7 +1222,7 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$result()
+    │       │       │   │       ├── fn: lib$parsed()
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
@@ -1237,13 +1243,34 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$args(%primitives$I64)
-    │       │       │   │       └── args[0]: 21 : i64
+    │       │       │   │       ├── fn: app$result()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #148
     │       │           └── value: local #146 : handle
-    │       └── body[49] > return: unit : void
+    │       ├── body[49] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @150
+    │       │       ├── result: #151
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #149
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: app$args(%primitives$I64)
+    │       │       │   │       └── args[0]: 21 : i64
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #151
+    │       │           └── value: local #149 : handle
+    │       └── body[50] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: app$twice(%primitives$I64)
     │   ├── params[0]: local #1 : i64
@@ -1557,6 +1584,14 @@
     │       ├── fn: lib$wasWarmed().ffi
     │       └── args:
     ├── funcs[37] > func:
+    │   ├── symbol: lib$parsed()
+    │   ├── params:
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: lib$parsed().ffi
+    │       └── args:
+    ├── funcs[38] > func:
     │   ├── symbol: app$result()
     │   ├── params:
     │   ├── ret: i64
@@ -1564,7 +1599,7 @@
     │       ├── type: i64
     │       ├── fn: app$result().ffi
     │       └── args:
-    └── funcs[38] > func:
+    └── funcs[39] > func:
         ├── symbol: app$args(%primitives$I64)
         ├── params[0]: local #1 : i64
         ├── ret: i64
