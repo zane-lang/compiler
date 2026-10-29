@@ -307,7 +307,7 @@ static zane_mark *zane_pool_home(zane_list *out) {
    in place when it ends at its region's frontier, else moved to a block of
    that size there, or grown as a list grows once that passes a chunk. An
    empty handle gets its first block where `zane_pool_new` makes one. */
-__attribute__((noinline)) static void zane_pool_reserve(zane_list *pool, int64_t total) {
+__attribute__((noinline)) void zane_pool_reserve(zane_list *pool, int64_t total) {
 	if (total <= pool->room) return;
 	if (total > ZANE_POOL_MOST) zane_broken("a pooled variant past 2 GiB");
 	if (!pool->items) {
@@ -363,6 +363,16 @@ void zane_pool_new(zane_list *out) {
 	int64_t room = zane_pool_hint > ZANE_LIST_FIRST && zane_pool_reuse() ? zane_pool_hint : ZANE_LIST_FIRST;
 	zane_lock(r->context);
 	*out = (zane_list){ zane_pool_frontier(r, room), 0, room };
+	zane_unlock(r->context);
+}
+
+/* A pool for the handle at `out` as `zane_pool_new` makes one, in a block
+   that never needs to grow (`zane_alloc_unbounded`), for code that pushes
+   into it without checking its room (lib/codegen/pool_cache.ml). */
+void zane_pool_new_unbounded(zane_list *out) {
+	zane_mark *r = zane_pool_home(out);
+	zane_lock(r->context);
+	*out = (zane_list){ zane_alloc_unbounded(r), 0, ZANE_POOL_MOST - ZANE_LINE };
 	zane_unlock(r->context);
 }
 

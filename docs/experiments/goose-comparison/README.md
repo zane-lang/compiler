@@ -738,11 +738,101 @@ register through a frame, with no capacity check. Bringing Zane's push to
 that shape is the next prototype. The rest is below what this container
 can measure.
 
+## Goose's push shape (prototype, behind `ZANE_POOL_REGISTERS=1` and `ZANE_POOL_UNCHECKED=1`)
+
+The replay above runs as fast as Goose once its push has Goose's shape:
+the pool's top and count in registers through a frame, and no capacity
+check. This step builds that shape in Zane. Both switches are read by the
+compiler, so they take effect at build time.
+
+### Design
+
+- **`ZANE_POOL_REGISTERS=1`** (`lib/codegen/pool_cache.ml`, hooked into
+  `emit.ml`). A function that builds into a pool it is given (a pointer
+  parameter some push builds into, and the locals bound to it, used only
+  as arguments) keeps the pool's items, count and room in slots of its own,
+  which LLVM promotes to registers. Each push is inline: compare the new
+  count against the room, with a slow path that writes the count back,
+  calls `zane_pool_reserve` and reads all three again; then a `memcpy` of
+  the node, its links as 4-byte self-relative stores, and the new count in
+  its slot. The count goes back to the pool before a call or runtime
+  function is handed the pool and at every return, and all three are read
+  again after such a call. This is Goose's "Tops"/"Counts" caching
+  (implementation notes §6.10), with the same reason for flushing: a node
+  store may alias the pool's handle.
+- **`ZANE_POOL_UNCHECKED=1`** (implies the first) drops the room check.
+  `Pool_new` becomes `zane_pool_new_unbounded` (`runtime/list.c`), whose
+  block comes from `zane_alloc_unbounded` (`runtime/arena.c`): a 2 GiB
+  reservation that the runtime's fault handler commits as it is touched,
+  kept as a span after the pool dies so the next pool reuses it. The
+  pool's room is `INT32_MAX` less a line, the cap pools already have, so no
+  push can pass it and its links stay in range. This is Goose's data stack
+  (specification §1.3, C.4): a reservation whose growth is never checked.
+- Both runtime functions are declared to `Cgt.Runtime`, and classified as
+  inputs as the other pooled-variant functions are.
+
+The compiled unchecked `make` has Goose's shape: one load of the count,
+the node stores, and one store of the count per frame.
+
+### Correctness
+
+`fixtures.sh` runs the codegen fixtures with pooled variants under
+`ZANE_CHECK=1`, plain and with each switch: every affected fixture gives
+the same output. `stress/main.zn` builds and folds an `Expr` variant with
+nested pools, appends and copies; it gives the same result (`571557 31802
+136097 853`) under six combinations of the switches. With registers on, the
+IR of binarytrees has no `zane_pool_push` call left.
+
+### Results
+
+`variants.py` (RUNS=9; medians at binarytrees depth 16 and treecopy depth
+18, instructions from callgrind), checked against langbench's expected output first:
+
+| variant | binarytrees user | instructions | faults | treecopy user | instructions |
+| --- | --- | --- | --- | --- | --- |
+| zane, pooled, peel, packed | 0.064 s | 483 M | 1885 | 0.048 s | 186 M |
+| + registers | 0.057 s | 476 M | 1885 | 0.054 s | 186 M |
+| + unchecked | 0.051 s | 389 M | 1441 | 0.052 s | 185 M |
+| goose | 0.043 s | 659 M | 1038 | 0.104 s | 845 M |
+| goose-enum-pool | 0.041 s | 528 M | 1136 | 0.100 s | 515 M |
+
+`many.py`, the same builds interleaved, user time at depth 18 (least /
+median of 9):
+
+| build | binarytrees |
+| --- | --- |
+| zane, pooled, peel, packed | 0.241 / 0.306 s |
+| + registers | 0.229 / 0.274 s |
+| + unchecked | 0.224 / 0.257 s |
+| replay in Goose's shape (`goose_shape.c`) | 0.143 / 0.176 s |
+| goose-enum-pool | 0.154 / 0.197 s |
+
+- **binarytrees moves about a fifth closer.** Registers take the push off
+  the runtime call and save the reload of items and room after each node
+  store; dropping the check removes 18% of the instructions. Zane now runs
+  fewer instructions than either Goose port, by a quarter.
+- **It is still 1.2–1.3× Goose** where the replay of the same push shape
+  matched Goose. What the replay does not do is the per-tree work below.
+- **treecopy does not move**, within noise: its pools are made once and
+  copied whole, so it pushes little.
+
+### What is left of the gap
+
+With the push in Goose's shape, the remaining difference is around it.
+Callgrind at depth 16 puts about 21 M instructions in the runtime per tree
+that Goose does not run: `zane_unmap` 6.7 M, `zane_pool_new_unbounded`
+5.8 M, `zane_scope_drain` 4.6 M, `zane_page` 4.0 M. Each tree makes its own
+pool and returns its block when it dies; Goose resets one global stack.
+
+A trial that took the unbounded pool's reservation directly from `mmap`,
+writable from the start, was inconclusive (median 0.256 s against 0.230 s,
+least 0.204 s against 0.211 s) and was not kept.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
 | --- | --- | --- |
-| binarytrees | ~2.2× (pooled, peeled and packed: ~1.6×) | Zane runs fewer instructions than Goose, with the same node size, and reuses its pool's memory as Goose does. Goose's push keeps its top in a register through a frame and has no capacity check, which is worth 10–20% in the replay. The rest is in `make`, at its stores into the pool, and needs hardware counters to name. |
+| binarytrees | ~2.2× (pooled, peeled, packed and with Goose's push shape: ~1.2–1.3×) | Zane runs a quarter fewer instructions than Goose, with the same node size and push shape. A replay of that push runs as fast as Goose; what Zane adds is per-tree pool work in the runtime (about 21 M instructions at depth 16: making the pool, draining its scope, unmapping its block). Goose resets one global stack instead. |
 | ntree | ~1.6× | Zane executes 1.8× Goose's instructions and uses 1.4× its memory: a 24-byte list handle per node, plus each node's separate block. |
 | treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~1.0× | Closed. |
@@ -752,5 +842,8 @@ Without pooling, what is left is mostly representation: link width, handle
 size, and whether a tree's nodes sit in one pool or in separate blocks.
 The allocator's own paths account for little of it. Pooled variants address
 the representation, partial inlining a recursion's base case, and packing
-the node's size. For binarytrees, what is left is no longer visible in
-instruction counts or simulated caches.
+the node's size, and Goose's push shape the push itself.
+
+The next candidate for binarytrees is the per-tree cost: a pool that
+outlives one tree and is reset rather than made and returned, as Goose's
+global data stack is.

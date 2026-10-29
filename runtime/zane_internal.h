@@ -122,6 +122,11 @@ typedef struct zane_mapping {
 
 _Static_assert(sizeof(zane_mapping) <= ZANE_LINE, "a mapping's header fits before its blocks");
 
+/* An unbounded pool's bytes (arena.c, `zane_alloc_unbounded`): as many as a
+   pool's 32-bit links reach. */
+#define ZANE_UNBOUNDED ((int64_t)1 << 31)
+char *zane_alloc_unbounded(zane_mark *region);
+
 /* How many spare chunks stay warm, their pages resident: on each context
    for good, and in the pool idle contexts give theirs to. A context keeps
    any others warm until they sit unused through ZANE_COOLING of its later

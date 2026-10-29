@@ -99,6 +99,8 @@ char *zane_link(char *link);
 void zane_pool_copy(zane_list *out, const char *node, int64_t size, int64_t m0, int64_t m1, int64_t m2,
                     int64_t m3);
 void zane_pool_new(zane_list *out);
+void zane_pool_reserve(zane_list *pool, int64_t total);
+void zane_pool_new_unbounded(zane_list *out);
 int64_t zane_pool_push(zane_list *pool, const char *node, int64_t size, int64_t n, int64_t o0, int64_t l0,
                        int64_t o1, int64_t l1, int64_t o2, int64_t l2, int64_t o3, int64_t l3);
 int64_t zane_pool_append(zane_list *pool, zane_list *from, int64_t size);

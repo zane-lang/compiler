@@ -1,0 +1,73 @@
+package stress;
+
+import core$;
+
+type Expr = #variant {
+	num Int;
+	neg Expr;
+	add Pair;
+	mul Pair;
+}
+
+type Pair = #struct {
+	left Expr;
+	right Expr;
+}
+
+Pair(left ^Expr, right ^Expr) => init{ left; right; }
+
+Int rem(a Int, b Int) => a - (a / b) * b;
+
+/// A tree that mixes every case, `depth` levels deep.
+^Expr build(depth Int, seed Int) {
+	if(depth == 0) {
+		return Expr.num(seed);
+	}
+	if(rem(seed, Int(3)) == Int(0)) {
+		return Expr.neg(build(depth - Int(1), seed + Int(1)));
+	}
+	if(rem(seed, Int(3)) == Int(1)) {
+		return Expr.add(Pair(build(depth - Int(1), seed * Int(2)), other(depth - Int(1), seed + Int(5))));
+	}
+	return Expr.mul(Pair(other(depth - Int(1), seed + Int(7)), build(depth - Int(1), seed - Int(1))));
+}
+
+/// Another builder, called from `build`, so both build into one pool.
+^Expr other(depth Int, seed Int) {
+	if(depth < Int(2)) {
+		return Expr.num(seed * Int(10));
+	}
+	return Expr.add(Pair(build(depth - Int(2), seed + Int(3)), Expr.num(seed)));
+}
+
+Int eval(e Expr) => match (e) {
+	n num => n;
+	m neg => Int(0) - eval(m);
+	a add => eval(a.left) + eval(a.right);
+	p mul => rem(rem(eval(p.left), Int(1000)) * rem(eval(p.right), Int(1000)), Int(100003));
+}
+
+Int count(e Expr) => match (e) {
+	n num => Int(1);
+	m neg => Int(1) + count(m);
+	a add => Int(1) + count(a.left) + count(a.right);
+	p mul => Int(1) + count(p.left) + count(p.right);
+}
+
+Unit main() {
+	console Console(@program$console);
+	total Int = Int(0);
+	nodes Int = Int(0);
+	d Int = Int(1);
+	d!to(Int(18)) {
+		s Int = Int(0);
+		s!to(Int(5)) {
+			e Expr = build(d, s);
+			total = total + eval(e);
+			nodes = nodes + count(e);
+		}
+	}
+	kept Expr = build(Int(16), Int(4));
+	console!print(String(total) + " " + String(nodes) + " " + String(eval(kept)) + " " + String(count(kept)));
+	return Unit();
+}

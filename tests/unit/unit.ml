@@ -487,7 +487,7 @@ let intrinsic_classes () =
     = List.sort compare Cgt.Runtime.[ Print; Set_threads; Set_threads_auto ]);
   check "the program's arguments and the experimental pooled variants are the inputs"
     (List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all
-    = Cgt.Runtime.[ Arguments; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link ])
+    = Cgt.Runtime.[ Arguments; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded ])
 
 (* The math functions of `@math$` as the evaluator folds them (math.md §2),
    which the math codegen fixture holds both builds to as well, and which

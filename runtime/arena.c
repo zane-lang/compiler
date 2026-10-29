@@ -549,6 +549,43 @@ char *zane_alloc_growable(zane_mark *region, int64_t size) {
 	return base + ZANE_LINE;
 }
 
+/* Experimental pooled variants (docs/experiments/goose-comparison): a
+   block of `ZANE_UNBOUNDED` bytes in a region, writable from the start and
+   backed only where it is touched, as Goose reserves a data stack, so a
+   pool in it never needs its room checked. Only its first chunk is in the
+   chunk map: nothing asks which region holds an address past it. It is
+   kept warm for the context's next one, as a list's span is. Its context's
+   lock is held. */
+char *zane_alloc_unbounded(zane_mark *region) {
+	size_t total = (size_t)ZANE_UNBOUNDED + ZANE_CHUNK;
+	zane_context *c = region->context;
+	char *raw = NULL, *base = NULL;
+	for (zane_mapping **at = &c->spans; *at; at = &(*at)->next) {
+		zane_mapping *kept = *at;
+		if (kept->reserved >= total) {
+			*at = kept->next;
+			c->span_count--;
+			base = (char *)kept;
+			raw = kept->raw;
+			total = kept->reserved;
+			break;
+		}
+	}
+	if (!base) {
+		if (!(base = zane_reserve_aligned(total, &raw))) zane_broken("out of addresses for a pool");
+		if (!zane_commit_range(base, total)) zane_broken("out of memory for a pool");
+	}
+	zane_mapping *m = (zane_mapping *)base;
+	zane_set_page(base, (uintptr_t)region);
+	m->size = ZANE_CHUNK;
+	m->reserved = total;
+	m->raw = raw;
+	m->next = region->mappings;
+	region->mappings = m;
+	region->heap.live++;
+	return base + ZANE_LINE;
+}
+
 /* The oversized block at `block`, in `region`, grown in place to `size`
    bytes, or 0 when its reservation cannot hold them: what follows its
    usable bytes is made usable and listed as the region's. Its context's

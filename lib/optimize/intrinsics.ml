@@ -15,7 +15,7 @@ let classify : Cgt.Runtime.fn -> t = function
   | Print | Set_threads | Set_threads_auto -> Output
   | Arguments -> Input
   (* Experimental pooled variants, which the evaluator does not model. *)
-  | Pool_new | Pool_push | Pool_append | Pool_root | Pool_copy | Link -> Input
+  | Pool_new | Pool_push | Pool_append | Pool_root | Pool_copy | Link | Pool_reserve | Pool_new_unbounded -> Input
   | Text_join | Text_equal | Text_i32 | Text_i64 | Text_f32 | Text_f64
   | List_new | List_push | List_at | List_remove _ | List_swap_remove _ | Array_at | Constant_begin
   | Constant_end | Writeback

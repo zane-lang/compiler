@@ -1421,8 +1421,25 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
               Some (push env fr b ~unchecked:true list stride)
           | None -> Some (push env fr b list stride))
       | _ -> Diagnostic.bug "codegen: a push with the wrong arguments")
-  | Expr.Runtime { fn; args } -> (
+  | Expr.Runtime
+      {
+        fn = Cgt.Runtime.Pool_push;
+        args = { Expr.node = Expr.Local x; _ } :: node :: { Expr.node = Expr.Int size; _ } :: { Expr.node = Expr.Int n; _ } :: links;
+      }
+    when Pool_cache.held x ->
+      let rec pairs k = function
+        | o :: { Expr.node = Expr.Int l; _ } :: rest when k > 0 -> (value_of env fr b o, Int64.to_int l) :: pairs (k - 1) rest
+        | _ -> []
+      in
+      let node = value_of env fr b node in
+      let links = pairs (Int64.to_int n) links in
+      Some (Pool_cache.push env.ctx env.m b (Option.get !Pool_cache.current) node (Int64.to_int size) links)
+  | Expr.Runtime { fn = Cgt.Runtime.Pool_new; args = [ out ] } when Pool_cache.unchecked () ->
+      Pool_cache.fresh env.ctx env.m b (value_of env fr b out);
+      None
+  | Expr.Runtime { fn; args = given } -> (
       let f, fty = runtime env fn in
+      let args = given in
       let args =
         List.filter_map
           (fun (a : Expr.t) ->
@@ -1431,16 +1448,17 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
             | _, v -> v)
           args
       in
-      match e.Expr.ty with
-      | Ty.Void ->
-          ignore (Llvm.build_call fty f (Array.of_list args) "" b);
-          None
-      | Ty.Handle ->
-          let t = lltype env Ty.Handle in
-          let out = alloca env fr t in
-          ignore (Llvm.build_call fty f (Array.of_list (out :: args)) "" b);
-          Some (Llvm.build_load t out "" b)
-      | _ -> Some (Llvm.build_call fty f (Array.of_list args) "" b))
+      Pool_cache.around env.ctx b given (fun () ->
+          match e.Expr.ty with
+          | Ty.Void ->
+              ignore (Llvm.build_call fty f (Array.of_list args) "" b);
+              None
+          | Ty.Handle ->
+              let t = lltype env Ty.Handle in
+              let out = alloca env fr t in
+              ignore (Llvm.build_call fty f (Array.of_list (out :: args)) "" b);
+              Some (Llvm.build_load t out "" b)
+          | _ -> Some (Llvm.build_call fty f (Array.of_list args) "" b)))
   | Expr.Math { fn; args } ->
       (* The operands' instructions come in the order they are listed. *)
       let args = List.map (value_of env fr b) args in
@@ -1512,8 +1530,11 @@ and call ?into env fr b (e : Expr.t) =
     | Address -> Some (match into with Some p -> p | None -> alloca env fr (lltype env ret))
     | Itself | Words _ -> None
   in
+  let given = args in
   let args = pass a.params args in
-  let site = Llvm.build_call fty f (Array.of_list (Option.to_list dest @ args)) "" b in
+  let site =
+    Pool_cache.around env.ctx b given (fun () -> Llvm.build_call fty f (Array.of_list (Option.to_list dest @ args)) "" b)
+  in
   List.iter
     (fun (i, attrs) -> List.iter (fun at -> Llvm.add_call_site_attr site at (Llvm.AttrIndex.Param i)) attrs)
     (abi_attrs env a);
@@ -1628,6 +1649,7 @@ and stat env fr b (s : Stat.t) =
         | Words n, _, _ -> Option.map (packed_words env fr b n) (expr env fr b e)
         | _ -> expr env fr b e
       in
+      Option.iter (Pool_cache.flush env.ctx b) !Pool_cache.current;
       drain env fr b 0;
       match v with
       | Some v when ret <> Ty.Void -> ignore (Llvm.build_ret v b)
@@ -1856,7 +1878,14 @@ let func env (f : Func.t) =
           Hashtbl.replace fr.locals id (s, lltype env t))
     kept a.params;
   unwritten env f (List.filter_map (fun ((id, _), (_, p)) -> if p = Address then Some id else None) (List.combine kept a.params));
+  (Pool_cache.current :=
+     match if Pool_cache.on () then Pool_cache.pool_locals f else [] with
+     | p :: _ as ids ->
+         let handle = Llvm.build_load env.ptr (fst (Hashtbl.find fr.locals p)) "" b in
+         Some (Pool_cache.start env.ctx b ~alloca:(alloca env fr) ids handle)
+     | [] -> None);
   stats env fr b f.Func.body;
+  Pool_cache.current := None;
   if not (has_terminator b) then
     ignore
       (if f.Func.ret = Ty.Void || Option.is_some sret then Llvm.build_ret_void b

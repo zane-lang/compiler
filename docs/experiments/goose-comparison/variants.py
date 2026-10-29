@@ -30,6 +30,10 @@ ZANE = {
     "zane-pooled-peel": {"ZANE_POOLED_VARIANTS": "1", "ZANE_PARTIAL_INLINE": "1"},
     "zane-pooled-packed": {"ZANE_POOLED_VARIANTS": "1", "ZANE_PACKED_NODES": "1"},
     "zane-pooled-peel-packed": {"ZANE_POOLED_VARIANTS": "1", "ZANE_PARTIAL_INLINE": "1", "ZANE_PACKED_NODES": "1"},
+    "zane-pooled-peel-packed-regs": {"ZANE_POOLED_VARIANTS": "1", "ZANE_PARTIAL_INLINE": "1", "ZANE_PACKED_NODES": "1",
+                                     "ZANE_POOL_REGISTERS": "1"},
+    "zane-pooled-peel-packed-unchecked": {"ZANE_POOLED_VARIANTS": "1", "ZANE_PARTIAL_INLINE": "1",
+                                          "ZANE_PACKED_NODES": "1", "ZANE_POOL_UNCHECKED": "1"},
 }
 # ONLY=a,b builds and measures just those variants.
 if os.environ.get("ONLY"):
