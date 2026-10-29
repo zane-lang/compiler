@@ -1,3 +1,14 @@
+// The pooled binarytrees in plain C, to tell what the code's shape costs
+// from what Zane's code generation adds (README.md, "Pooled variants"). The
+// tree is built in one pool with relative 4-byte links, as Zane's pooled
+// variants are; the macros switch between Zane's shape and Goose's:
+//
+//   NODE=16, TAG=int32_t   Zane's node: a 4-byte tag padded to 8, two links
+//   NODE=9,  TAG=uint8_t   Goose's packed node: a 1-byte tag, two links
+//   INLINE_LEAF=1          a depth-0 child built in its parent, no call
+//
+//   clang -O2 [-DNODE=9 -DTAG=uint8_t] [-DINLINE_LEAF=1] -o emu pooled_emulation.c
+//   ./emu 16
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>

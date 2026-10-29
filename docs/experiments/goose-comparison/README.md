@@ -266,9 +266,13 @@ In addition:
 
 ### Results
 
-These were measured at the full sizes (depth 16 and 18). Wall time is the
-median of 9 runs; instruction counts are from callgrind. Bytes per node is
-measured as in the enum section. Every build prints the expected output at
+These were measured at the full sizes (depth 16 and 18) by `variants.py`,
+which builds every row it reports and checks each against `tests.py`. Unlike
+the earlier sections, the Zane rows here and in the partial inlining section
+come from this branch's own zanec, against `core` at the version the branch
+builds with, so their `zane` row is that compiler with both switches off,
+not v0.20. Wall time is the median of 9 runs; instruction counts are from
+callgrind. Bytes per node is measured as in the enum section. Every build prints the expected output at
 the check, mid and full sizes. "First cut" is the version that built each
 subtree as a pool of its own and merged the children's pools into the
 parent's (`zane_pool_node`, now removed).
@@ -374,7 +378,7 @@ it on.
 
 ### Results
 
-Measured as above, depth 16 and 18. "pooled" is
+Measured as above with `variants.py`, depth 16 and 18. "pooled" is
 `ZANE_POOLED_VARIANTS=1`, "peel" is `ZANE_PARTIAL_INLINE=1`. Wall time in
 this container moved by up to 2× between sessions (plain Zane's treecopy
 went from 0.142 s to 0.260 s with nothing changed), so compare rows within
