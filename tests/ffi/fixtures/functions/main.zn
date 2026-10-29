@@ -7,8 +7,9 @@
 /// own; and the same values called from Zane, passed, stored in a struct,
 /// and called through, with a `Bool`, a value type and no result among
 /// them; value types of one field and of an array alone, passed and
-/// returned through C; and one taking a `Unit`, a type C cannot call,
-/// which stays a function of the program's alone.
+/// returned through C; and ones taking a `Unit` or a value type that
+/// holds itself, types C cannot call, which stay functions of the
+/// program's alone.
 package functions;
 
 alias Unit = @primitives$Unit;
@@ -71,6 +72,11 @@ built I64(n I64) {
 	return @operators$multiply(xs:size(), n);
 }
 
+type Chain = struct {
+	value I64;
+	next Chain;
+}
+
 type Holder = struct {
 	f I64[I64];
 }
@@ -88,6 +94,7 @@ Unit when(p Bool[I32], i I32) {
 }
 
 I64 given(f I64[Unit, I64], x I64) => f(Unit(), x);
+I64 unused(f I64[Chain]) => I64(0);
 
 Unit call(f Unit[I64], n I64) {
 	f(n);
@@ -133,5 +140,6 @@ Unit main() {
 	show(String(qd.xs[I64(1)]));
 	show(String(qd.xs[I64(4)]));
 	show(String(given(I64(u Unit, x I64) { return @operators$add(x, I64(1)); }, I64(4))));
+	show(String(unused(I64(c Chain) { return c.value; })));
 	return Unit();
 }

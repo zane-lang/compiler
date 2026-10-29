@@ -14,13 +14,17 @@ open Type_layout
 
 (* The C type a value of the Zane type [t] crosses as in a function value
    C calls (spec ffi.md §3.6, docs/design/ffi.md F11), when it is one: a
-   scalar, a `Bool`, or a C-compatible value type (§3.3). *)
-let rec c_shape st span (t : Tty.t) : Callback.shape option =
+   scalar, a `Bool`, or a C-compatible value type (§3.3). A value type
+   that holds itself, through the types [seen] it is reached from, is
+   none. *)
+let rec c_shape ?(seen = []) st span (t : Tty.t) : Callback.shape option =
   let t = Tty.strip_mode t in
   match t with
   | Tty.Intrinsic { namespace = "primitives"; name = "Bool"; args = [] } -> Some Callback.Truth
   | _ when scalar t -> Some (Callback.Scalar (ty st span t))
+  | Tty.Named _ when List.mem t seen -> None
   | Tty.Named _ -> (
+      let c_shape = c_shape ~seen:(t :: seen) in
       match definition st t with
       | Some (T.Decl.Struct (_ :: _ as ms), false) ->
           let field (_, m) =
