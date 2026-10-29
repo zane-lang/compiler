@@ -19,6 +19,7 @@ type package = {
 }
 
 external rename : Llvm.llmodule -> string -> string -> string list -> unit = "zane_rename_c_globals"
+external drop_defined : Llvm.llmodule -> Llvm.llmodule -> unit = "zane_drop_defined"
 
 (* The bitcode [text] read into [ctx]. *)
 let parse ctx text =
@@ -29,8 +30,12 @@ let parse ctx text =
       try Llvm_bitreader.parse_bitcode ctx buffer
       with Llvm_bitreader.Error message -> Diagnostic.bug ("a C module the linked clang made does not read back: " ^ message))
 
-(* [modules] linked into the first, for [triple] and [data_layout]. *)
-let linked ~triple ~data_layout = function
+(* [modules] linked into the first, for [triple] and [data_layout], and
+   then [glue], each without the definitions the modules before it hold
+   (zane_drop_defined): an interface header's own definition, which the
+   glue compiles, is also compiled by every source that includes it. *)
+let linked ?(glue = []) ~triple ~data_layout modules =
+  match modules @ glue with
   | [] -> None
   | first :: rest ->
       List.iter
@@ -38,7 +43,11 @@ let linked ~triple ~data_layout = function
           Llvm.set_target_triple triple m;
           Llvm.set_data_layout data_layout m)
         (first :: rest);
-      List.iter (Llvm_linker.link_modules first) rest;
+      List.iter
+        (fun m ->
+          if List.memq m glue then drop_defined m first;
+          Llvm_linker.link_modules first m)
+        rest;
       Some first
 
 (* One package's C as one module, its globals renamed, in [ctx]. *)
@@ -49,7 +58,7 @@ let package_module ctx ~triple ~data_layout p =
     (fun m ->
       rename m p.prefix (Walks.global_prefix data_layout) p.thunks;
       m)
-    (linked ~triple ~data_layout (sources @ glue))
+    (linked ~glue ~triple ~data_layout sources)
 
 (* Every package's C as one module in [ctx], or [None] when there is none. *)
 let program_module ctx ~triple ~data_layout packages =
