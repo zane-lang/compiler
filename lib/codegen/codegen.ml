@@ -41,6 +41,8 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       i64 = Llvm.i64_type ctx;
       funcs = Hashtbl.create 32;
       abis = Hashtbl.create 32;
+      invokers = Hashtbl.create 8;
+      callable = Hashtbl.create 8;
       registers = registers triple;
       pack;
       passings = Hashtbl.create 32;
@@ -66,6 +68,10 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
         | _ -> Llvm.define_global g.Global.symbol (Llvm.const_null (stored env g.Global.ty)) m
       in
       if g.Global.per_thread then Llvm.set_thread_local true v;
+      (* The runtime's, read at a fixed offset from the thread's pointer as
+         Walks.zane_open is. *)
+      if g.Global.per_thread && g.Global.linkage = Cgt.Nodes.Linkage.Imported then
+        Llvm.set_thread_local_mode Llvm.ThreadLocalMode.InitialExec v;
       (match g.Global.linkage with
       | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal v
       | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr v
@@ -74,11 +80,22 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       Hashtbl.replace env.globals g.Global.symbol v)
     p.Program.globals;
   List.iter
+    (fun (c : Callback.t) -> Hashtbl.replace env.invokers (c.Callback.params, c.Callback.ret) c.Callback.symbol)
+    p.Program.invokers;
+  (* A lambda's adapter is named as the glue's C entry declares it
+     (docs/design/ffi.md F11). *)
+  let adapters = List.map (fun (c : Callback.t) -> Callback.adapter c.Callback.symbol) p.Program.callbacks in
+  List.iter
     (fun (f : Func.t) ->
       let a = abi env (List.map snd f.Func.params) f.Func.ret in
       let fty = abi_type env a in
       let entry = Some f.Func.symbol = p.Program.entry in
-      let name = if entry then "zane_main" else if pack then f.Func.symbol ^ packed else f.Func.symbol in
+      let name =
+        if entry then "zane_main"
+        else if List.mem f.Func.symbol adapters then Walks.foreign_name m f.Func.symbol
+        else if pack then f.Func.symbol ^ packed
+        else f.Func.symbol
+      in
       let fn =
         match f.Func.linkage with
         | Cgt.Nodes.Linkage.Imported -> Llvm.declare_function name fty m
@@ -93,6 +110,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       declare_abi env fn a;
       declare_places env fn f a;
       Hashtbl.replace env.abis f.Func.symbol a;
+      if Callback.crosses (List.map snd f.Func.params) f.Func.ret then Hashtbl.replace env.callable f.Func.symbol ();
       Hashtbl.replace env.funcs f.Func.symbol (fn, fty))
     (p.Program.funcs @ List.map (fun (m : Cgt.Memo.t) -> m.Cgt.Memo.func) memos);
   List.iter

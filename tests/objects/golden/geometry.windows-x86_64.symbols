@@ -1,5 +1,9 @@
+         U _tls_index
+         U zane_callback_attach
+         U zane_callback_detach
          U zane_constant_begin
          U zane_constant_end
+         U zane_self
 00000000 B v1.0.1%3f9a1c02b7e4d6a8%geometry$unit.state
 00000000 B v1.0.1%3f9a1c02b7e4d6a8%geometry$unit.value
 00000000 T v1.0.1%3f9a1c02b7e4d6a8%geometry$Point(%primitives$I64, %primitives$I64)
@@ -13,3 +17,5 @@
 00000070 T v1.0.1%3f9a1c02b7e4d6a8%geometry$double
 00000080 T v1.0.1%3f9a1c02b7e4d6a8%geometry$scaled(%primitives$I64)
 000000a0 T v1.0.1%3f9a1c02b7e4d6a8%geometry$shifted(v1.0.1%3f9a1c02b7e4d6a8%geometry$Point, %primitives$I64)
+000000c0 T v1.0.1%3f9a1c02b7e4d6a8%geometry$double.adapter
+00000130 T v1.0.1%3f9a1c02b7e4d6a8%geometry$double.c

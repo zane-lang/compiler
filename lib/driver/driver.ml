@@ -148,7 +148,7 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
         | F.Scalar _ -> Foreign.Glue.Scalar "double"
         | F.Bool -> Foreign.Glue.Bool
         | F.Unit -> Foreign.Glue.Unit
-        | F.View | F.Address | F.Value | F.Handle -> Foreign.Glue.Same
+        | F.View | F.Address | F.Value | F.Handle | F.Function -> Foreign.Glue.Same
       in
       let entry (t : F.t) =
         {
@@ -174,11 +174,53 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
                 })
             (Foreign.glue f (List.map entry entries))
       in
-      if c = [] then Ok []
-      else
-        match Foreign.combine (List.map2 one packages c) with
-        | Ok cs -> Ok (List.filter_map Fun.id cs)
-        | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
+      (* The object's function values C can call (docs/design/ffi.md F11):
+         its lambdas' C entries and its invokers, in one module of their
+         own, named by the lambdas' and the invokers' symbols. *)
+      let module C = Cgt.Nodes.Callback in
+      let rec shape (t : Cgt.Nodes.Ty.t) =
+        match t with
+        | Cgt.Nodes.Ty.I1 -> Foreign.Glue.Truth
+        | Cgt.Nodes.Ty.I32 -> Foreign.Glue.Value "int"
+        | Cgt.Nodes.Ty.I64 -> Foreign.Glue.Value "long long"
+        | Cgt.Nodes.Ty.F32 -> Foreign.Glue.Value "float"
+        | Cgt.Nodes.Ty.F64 -> Foreign.Glue.Value "double"
+        | Cgt.Nodes.Ty.Void -> Foreign.Glue.Nothing
+        | Cgt.Nodes.Ty.Struct fs ->
+            Foreign.Glue.Record
+              (List.map (function Cgt.Nodes.Ty.Array (e, n) -> (shape e, Some n) | f -> (shape f, None)) fs)
+        | _ -> Diagnostic.bug "codegen: a function value C calls with a type it does not take"
+      in
+      let callbacks () =
+        let p = cgt.Cgt.Nodes.Program.callbacks and i = cgt.Cgt.Nodes.Program.invokers in
+        if p = [] && i = [] then Ok None
+        else
+          let entry (c : C.t) =
+            {
+              Foreign.Glue.label = global_prefix ^ C.entry c.C.symbol;
+              adapter = global_prefix ^ C.adapter c.C.symbol;
+              params = List.map shape c.C.params;
+              result = shape c.C.ret;
+            }
+          in
+          let invoker (c : C.t) =
+            { Foreign.Glue.at = global_prefix ^ c.C.symbol; takes = List.map shape c.C.params; gives = shape c.C.ret }
+          in
+          Result.map
+            (fun (s : Foreign.Compile.source) ->
+              let id = match packages with (r : Assembly.package) :: _ -> r.Assembly.id | [] -> "" in
+              Some
+                {
+                  Codegen.prefix = (if root then "" else "!") ^ id ^ "$%c$";
+                  sources = [];
+                  glue = [ (s.key, s.bitcode) ];
+                  thunks = List.map (fun (c : C.t) -> C.entry c.C.symbol) p @ List.map (fun (c : C.t) -> c.C.symbol) i;
+                })
+            (Foreign.callbacks ~target (List.map entry p) (List.map invoker i))
+      in
+      match Foreign.combine ((if c = [] then [] else List.map2 one packages c) @ [ callbacks () ]) with
+      | Ok cs -> Ok (List.filter_map Fun.id cs)
+      | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
 
 (* Stage 5 (docs/design/optimization.md), which only an optimized build
    runs: an unoptimized one skips it. *)

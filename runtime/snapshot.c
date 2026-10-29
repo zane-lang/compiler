@@ -157,6 +157,23 @@ static void zane_release(zane_context *c) {
 	pthread_mutex_unlock(&zane_memory);
 }
 
+/* A thread the program did not start, one C made, that calls a function
+   value (docs/design/ffi.md F11) runs it in a context of its own, made
+   when the call comes in and back in the pool once it returns: the result
+   C takes holds no block. The adapter calls these only when the thread
+   has no context, so they stay out of it, cold. */
+__attribute__((cold, noinline)) void zane_callback_attach(void) {
+	zane_thread_start();
+	zane_self = zane_context_new();
+	zane_scope_enter(0);
+}
+
+__attribute__((cold, noinline)) void zane_callback_detach(void) {
+	zane_release(zane_self);
+	zane_self = NULL;
+	zane_thread_stop();
+}
+
 /* Waiting for a call (§3.2): one no thread has taken yet runs here, and one
    running elsewhere is waited for. Its result then comes home, once. */
 static void zane_join_task(zane_task *t) {

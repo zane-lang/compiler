@@ -115,6 +115,10 @@ void zane_no_object(void);
 void zane_handle_end(char *at, zane_thunk free_thunk);
 void zane_handle_set(char *at, char *with, zane_thunk set_thunk);
 
+/* snapshot.c */
+void zane_callback_attach(void);
+void zane_callback_detach(void);
+
 /* region.c */
 void zane_too_deep(void);
 

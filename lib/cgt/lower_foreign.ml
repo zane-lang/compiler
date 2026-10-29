@@ -22,7 +22,8 @@ let crossing st span (t : Tty.t) : Foreign.crossing =
   | _ when scalar t -> Foreign.Scalar (ty st span t)
   | _ when is_text t || is_list t -> Foreign.View
   | _ when Option.is_some (array_of t) -> Foreign.Address
-  | Tty.Verb _ -> refuse span "lowering does not pass a function value to C yet (docs/design/ffi.md §7)"
+  (* A function value is its lambda's C entry's address (F11). *)
+  | Tty.Verb _ -> Foreign.Function
   | Tty.Named _ -> (
       match definition st t with Some (T.Decl.Handle _, _) -> Foreign.Handle | _ -> Foreign.Value)
   | _ -> Diagnostic.bug ~span ("lowering: `" ^ Tty.to_string t ^ "` crosses into C as nothing it lays out")

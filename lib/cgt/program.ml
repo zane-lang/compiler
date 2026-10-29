@@ -439,7 +439,20 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
       let funcs = drain [] in
       let funcs = start funcs @ funcs @ List.rev st.spawned in
       let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
-      Ok (Regions.run ~wants:st.wants { Program.funcs; entry; layouts; globals = List.rev st.globals; foreign = List.rev st.thunks; exclusive = st.exclusive })
+      let package = st.stamp root.T.Package.name ^ root.T.Package.name in
+      let funcs, context, callbacks, invokers = Callbacks.add ~package ~lambdas:(List.map snd st.lambdas) funcs in
+      Ok
+        (Regions.run ~wants:st.wants
+           {
+             Program.funcs;
+             entry;
+             layouts;
+             globals = List.rev st.globals @ context;
+             foreign = List.rev st.thunks;
+             callbacks;
+             invokers;
+             exclusive = st.exclusive;
+           })
     in
     if library then begin
       List.iter

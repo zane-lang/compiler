@@ -53,6 +53,12 @@ type env = {
   funcs : (string, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
   (* How each of the program's functions is called, by symbol. *)
   abis : (string, abi) Hashtbl.t;
+  (* The invoker of each function type C can call, by its parameters' and
+     result's types (docs/design/ffi.md F11). *)
+  invokers : (Ty.t list * Ty.t, string) Hashtbl.t;
+  (* The functions whose declared types C can call, by symbol: a lambda
+     among them is its C entry's address as a value. *)
+  callable : (string, unit) Hashtbl.t;
   (* How many registers a value may take and still pass as itself, from
      the target (see [registers]), whether small aggregates are packed into
      words, and how each type passes, worked out once per type. *)
@@ -1275,7 +1281,11 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       Option.iter (fun v -> ignore (Llvm.build_store v block b)) (expr env fr b value);
       Some block
   | Expr.Layout l -> Some (layout env l)
-  | Expr.Function fn -> Some (fst (Hashtbl.find env.funcs fn))
+  (* A lambda C can call is its C entry's address, in every object
+     (docs/design/ffi.md F11). *)
+  | Expr.Function fn ->
+      if Hashtbl.mem env.callable fn then Some (Walks.thunk env.ctx env.m (Callback.entry fn))
+      else Some (fst (Hashtbl.find env.funcs fn))
   | Expr.Global g -> Some (Hashtbl.find env.globals g)
   | Expr.Snapshot p -> (
       let p = value_of env fr b p in
@@ -1441,6 +1451,21 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
    written to [into], a fresh slot the caller names, or to one made here;
    one that comes back as words is put back together in a slot. *)
 and call ?into env fr b (e : Expr.t) =
+  match e.Expr.node with
+  | Expr.Call_value { fn; args } when Callback.crosses (List.map (fun (a : Expr.t) -> a.Expr.ty) args) e.Expr.ty ->
+      (* A function value C can call is a C function's address, called
+         through its type's invoker (docs/design/ffi.md F11). *)
+      let invoker = Hashtbl.find env.invokers (List.map (fun (a : Expr.t) -> a.Expr.ty) args, e.Expr.ty) in
+      (match foreign_call env fr b invoker (fn :: args) e.Expr.ty with
+      | None -> `Nothing
+      | Some v when returning env e.Expr.ty = Address ->
+          let p = match into with Some p -> p | None -> alloca env fr (lltype env e.Expr.ty) in
+          ignore (Llvm.build_store v p b);
+          `Stored p
+      | Some v -> `Value v)
+  | _ -> direct ?into env fr b e
+
+and direct ?into env fr b (e : Expr.t) =
   let f, fty, a, args =
     match e.Expr.node with
     | Expr.Call { fn; args } ->

@@ -1,7 +1,10 @@
 R zane_fixed_region
 R zane_spawned_fixed_region
+T survey$invoke i64(i64)
 T zane_main
 U memcpy
+U memset
+U v1.0.1%3f9a1c02b7e4d6a8%geometry$double.c
 U v1.0.1%3f9a1c02b7e4d6a8%geometry$shifted(v1.0.1%3f9a1c02b7e4d6a8%geometry$Point, %primitives$I64)
 U zane_alloc
 U zane_alloc_held

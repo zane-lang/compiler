@@ -270,12 +270,16 @@ let local fr id =
 let bind fr id ty v = Locals.replace fr.locals id (cell ty v)
 
 (* A variable of the program: a constant's value and state, or a program
-   value such as the console, which holds nothing a program reads. *)
+   value such as the console, which holds nothing a program reads. One
+   another object defines, such as the runtime's context of the thread
+   (Cgt.Callbacks), holds what that object put there, so a read of it
+   stops. *)
 let global run g =
   match Hashtbl.find_opt run.cells g with
   | Some c -> c
   | None ->
-      let ty = match Hashtbl.find_opt run.prog.globals g with Some g -> g.Global.ty | None -> Ty.I64 in
+      let declared = Hashtbl.find_opt run.prog.globals g in
+      let ty = match declared with Some g -> g.Global.ty | None -> Ty.I64 in
       (* A constant that does not fold has no value here: its state stops a
          read of it, and its value holds nothing until the run that makes
          it stores one. *)
@@ -288,7 +292,8 @@ let global run g =
             | None, _ -> VNull)
         | Some { known = Some c; _ } -> import c
         | Some { known = None; _ } -> VNull
-        | None -> zero ty
+        | None -> (
+            match declared with Some { Global.linkage = Linkage.Imported; _ } -> VNull | _ -> zero ty)
       in
       let c = cell ~origin:(Global g) ty value in
       Hashtbl.replace run.cells g c;

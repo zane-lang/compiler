@@ -8,10 +8,9 @@
 > lists, C-compatible value types and handles, through the glue (F8), with
 > each package's C renamed (F9), linked into an optimized build (F13, the
 > program's own packages) and compiled apart in an unoptimized or tiered
-> one (F14); and handles and foreign variables at run time (F12).
-> Lowering refuses a foreign verb taking or giving a function value until
-> F11 lands, and a package's C holding assembly is refused until F9's
-> object route for it lands. The rest is
+> one (F14); handles and foreign variables at run time (F12); and
+> function values as C functions (F11). A package's C holding assembly is
+> refused until F9's object route for it lands. The rest is
 > designed and not yet built. This page says how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
@@ -405,16 +404,36 @@ returned no object".
 function.** C can call a function pointer and nothing else, and a C function
 pointer carries no context, so a value that only Zane can call cannot be
 handed to C. So every lambda whose type is C-compatible (`ffi.md` §3.6) is
-lifted with two entries: its Zane function (L14), and a C function in the
-glue that lays its arguments out and calls a pointer-ABI adapter of the Zane
-function, as a thunk does in the other direction, returning a C-compatible
-value type in a result slot whose padding bytes are zeroed, as F10's are. A function value of a
-C-compatible type is the address of its C entry, everywhere in the program,
-and a Zane call through such a value goes through a generated **invoker**,
-`void invoke(void (*f)(void), void *const *args, void *result)`, one per
-C-compatible type, which calls `f` with the C convention. Inlined, an invoker
-is an indirect call, so a call through such a function value costs what a
-call through a C function pointer costs.
+lifted with three functions: its Zane function (L14); an **adapter**, a
+Zane function of a thunk's pointer ABI that reads the arguments from their
+slots, calls the Zane function and stores its result, named by the
+lambda's symbol with `.adapter` after it; and a **C entry** in the glue,
+named with `.c`, which takes the arguments with the C convention, hands
+the adapter their addresses, a `Bool` as a byte, and returns what it
+stores in a result slot whose padding bytes are zeroed, as F10's are. The
+object that defines the lambda defines all three, after lowering
+(`lib/cgt/callbacks.ml`), and the object's C entries and invokers are a
+glue module of their own, compiled and linked as a package's glue is (F9,
+F13, F14). A function value of a C-compatible type is the address of its
+C entry, everywhere in the program, and a Zane call through such a value
+goes through a generated **invoker**, a thunk whose first slot holds the
+function value, which calls it with the C convention. There is one per
+C-compatible type in each object that calls through one, named by the
+object's package with `$invoke` and the type after it, such as
+`app$invoke i64(i64)`. Inlined, an invoker is an indirect call, so a call
+through such a function value costs what a call through a C function
+pointer costs.
+
+C may call a function value on a thread it started itself, which has no
+context of the runtime's. The adapter reads the runtime's context of the
+thread, `zane_self`, and when there is none has the runtime make one with
+one scope for the call (`zane_callback_attach`) and give it back once the
+call returns (`zane_callback_detach`): the result C takes is a
+C-compatible value and holds no block. Both are cold, so an optimized C
+entry is its lambda's body behind one load and one branch. A call on a
+thread of the program runs in that thread's context, as any call does.
+Stage 5 never folds the read: the value of a variable another object
+defines is unknown to it.
 
 The representation is fixed by the type alone, so it needs no analysis of
 where a function value flows, and the two agree in every object

@@ -488,8 +488,56 @@ module Foreign = struct
     | Value
     (* A foreign handle's pointer, the first word of its value. *)
     | Handle
+    (* A function value: the address of its lambda's C entry (Callback). *)
+    | Function
 
   type t = { thunk : string; package : string; c_function : string; params : crossing list; result : crossing }
+end
+
+(* A function value whose type C can call (docs/design/ffi.md F11): its
+   parameters are scalars, [I1]s and structs of scalars, arrays of them and
+   such structs, its result one of those or [Void]. The rule reads the
+   types alone, so a lambda's function and a call through a value of its
+   type agree on it in every object. Such a lambda's value is the address
+   of its C entry, which the glue defines and which calls its adapter, a
+   function of the program taking the addresses of slots holding its
+   arguments and of one for its result; a call through such a value goes
+   through the glue's invoker for its types, which calls the address with
+   C's convention. [symbol] is the lambda's, or the invoker's. *)
+module Callback = struct
+  type t = { symbol : string; params : Ty.t list; ret : Ty.t }
+
+  let rec field (t : Ty.t) =
+    match t with
+    | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
+    | Ty.Array ((Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64), _) -> true
+    | Ty.Struct fs -> fs <> [] && List.for_all field fs
+    | _ -> false
+
+  let plain (t : Ty.t) =
+    match t with Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Struct _ -> t = Ty.I1 || field t | _ -> false
+
+  let crosses params (ret : Ty.t) = List.for_all plain params && (ret = Ty.Void || plain ret)
+  let entry symbol = symbol ^ ".c"
+  let adapter symbol = symbol ^ ".adapter"
+
+  (* The invoker for [params] and [ret] in the object whose symbols start
+     with [package]: its types written out, after a space no verb's name
+     holds. *)
+  let invoker package params ret =
+    let rec spell (t : Ty.t) =
+      match t with
+      | Ty.I1 -> "i1"
+      | Ty.I32 -> "i32"
+      | Ty.I64 -> "i64"
+      | Ty.F32 -> "f32"
+      | Ty.F64 -> "f64"
+      | Ty.Void -> "void"
+      | Ty.Array (e, n) -> Printf.sprintf "[%d x %s]" n (spell e)
+      | Ty.Struct fs -> "{" ^ String.concat ", " (List.map spell fs) ^ "}"
+      | _ -> "?"
+    in
+    Printf.sprintf "%s$invoke %s(%s)" package (spell ret) (String.concat ", " (List.map spell params))
 end
 
 (* One program is one module (L15). [entry] is the symbol of the function
@@ -506,6 +554,8 @@ module Program = struct
     layouts : (Layout.t * Layout.position list) list;
     globals : Global.t list;
     foreign : Foreign.t list;
+    callbacks : Callback.t list;
+    invokers : Callback.t list;
     exclusive : bool;
   }
 end

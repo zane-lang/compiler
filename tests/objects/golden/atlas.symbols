@@ -4,6 +4,8 @@ T !geometry$Point(%primitives$I64, %primitives$I64)
 T !geometry$_product(%primitives$I64, %primitives$I64)
 T !geometry$area(%primitives$I64, %primitives$I64)
 T !geometry$double
+T !geometry$double.adapter
+T !geometry$double.c
 T !geometry$scaled(%primitives$I64)
 T !geometry$shifted(!geometry$Point, %primitives$I64)
 T !geometry$sum(this !geometry$Point)

@@ -390,7 +390,7 @@ let repeated_builds () =
       body = [ C.Stat.Return { C.Expr.node = C.Expr.Record []; ty = C.Ty.Struct [] } ];
       values = [] }
   in
-  let p = { C.Program.funcs = empty :: List.init 2000 f; entry = None; layouts = []; globals = []; foreign = []; exclusive = true } in
+  let p = { C.Program.funcs = empty :: List.init 2000 f; entry = None; layouts = []; globals = []; foreign = []; callbacks = []; invokers = []; exclusive = true } in
   let built = ref 0 in
   for _ = 1 to 60 do
     match Driver.ir ~optimize:false p with Ok _ -> incr built | Error _ -> ()
@@ -406,7 +406,7 @@ let disposed_modules () =
     { C.Func.symbol = "f"; linkage = C.Linkage.Exported; params = []; places = []; ret = C.Ty.I64;
       body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ]; values = [] }
   in
-  let p = { C.Program.funcs = [ f ]; entry = None; layouts = []; globals = []; foreign = []; exclusive = true } in
+  let p = { C.Program.funcs = [ f ]; entry = None; layouts = []; globals = []; foreign = []; callbacks = []; invokers = []; exclusive = true } in
   let dir = Filename.temp_dir "zane-unit" "" in
   let none () = Codegen.live_contexts () = 0 in
   check "a built object leaves no context"
@@ -478,8 +478,9 @@ let folded_arithmetic () =
 
 (* Every runtime function is in a class, and the outputs are the three
    docs/design/optimization.md O3 names. The program's arguments are the one
-   input an intrinsic reads; a foreign handle's stamp, and the stop when C
-   returns none, are the others. *)
+   input an intrinsic reads; a foreign handle's stamp, the stop when C
+   returns none, and the context a thread C started is given, are the
+   others. *)
 let intrinsic_classes () =
   let outputs =
     List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Output) Cgt.Runtime.all
@@ -487,9 +488,9 @@ let intrinsic_classes () =
   check "print and the thread count are the outputs"
     (List.sort compare outputs
     = List.sort compare Cgt.Runtime.[ Print; Set_threads; Set_threads_auto ]);
-  check "the program's arguments and a foreign handle's making are the inputs"
+  check "the program's arguments, a foreign handle's making and a callback's context are the inputs"
     (List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all
-    = Cgt.Runtime.[ Arguments; Handle_made; No_object ])
+    = Cgt.Runtime.[ Arguments; Handle_made; No_object; Callback_attach; Callback_detach ])
 
 (* The math functions of `@math$` as the evaluator folds them (math.md §2),
    which the math codegen fixture holds both builds to as well, and which
@@ -1062,6 +1063,8 @@ let emit_env ?(pack = false) ?(triple = "x86_64-unknown-linux-gnu") () =
     i64 = Llvm.i64_type ctx;
     funcs = Hashtbl.create 1;
     abis = Hashtbl.create 1;
+    invokers = Hashtbl.create 1;
+    callable = Hashtbl.create 1;
     registers = Codegen__Emit.registers triple;
     pack;
     passings = Hashtbl.create 1;

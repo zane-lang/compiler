@@ -147,6 +147,140 @@
   (diff golden/calls.out calls.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/functions))
+ (action
+  (with-stdout-to
+   functions.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/functions))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/functions.cgt functions.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/functions))
+ (targets functions.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build functions.exe --package fixtures/functions)))
+
+(rule
+ (deps (source_tree fixtures/functions))
+ (targets functions.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build functions.optimized.exe --optimize --package fixtures/functions)))
+
+(rule
+ (deps (source_tree fixtures/functions))
+ (targets functions.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build functions.tiered.exe --tiered --package fixtures/functions)))
+
+(rule
+ (deps (source_tree fixtures/functions))
+ (targets functions.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up functions.tier1 --package fixtures/functions)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    functions.checked.out.actual
+    (run ./functions.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/functions.out functions.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    functions.unchecked.out.actual
+    (run ./functions.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/functions.out functions.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    functions.optimized.checked.out.actual
+    (run ./functions.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/functions.out functions.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    functions.optimized.unchecked.out.actual
+    (run ./functions.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/functions.out functions.optimized.unchecked.out.actual)))
+
+(rule
+ (deps functions.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./functions.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    functions.tiered.checked.out.actual
+    (run ./functions.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/functions.out functions.tiered.checked.out.actual)))
+
+(rule
+ (deps functions.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./functions.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    functions.tiered.unchecked.out.actual
+    (run ./functions.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/functions.out functions.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/handles))
  (action
   (with-stdout-to
