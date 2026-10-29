@@ -1,5 +1,6 @@
 /// A settled handle without a setter is never overwritten (ffi.md §4.3):
-/// directly, through a struct holding it, or through `this`. A reference
+/// directly, through a struct holding it, through `this`, or through
+/// seventeen generic structs, each holding the next. A reference
 /// to one is rebound freely, since that overwrites no handle.
 package app;
 
@@ -25,6 +26,19 @@ type Owner = #struct {
 
 Unit reopen(this Owner, file ^fs$File) mut {
 	this._file = file;
+	return Unit();
+}
+
+type Box<T Type> = #struct {
+	v T;
+}
+
+type Deep = #struct {
+	_box Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<fs$File>>>>>>>>>>>>>>>>>;
+}
+
+Unit refill(this Deep, box ^Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<fs$File>>>>>>>>>>>>>>>>>) mut {
+	this._box = box;
 	return Unit();
 }
 

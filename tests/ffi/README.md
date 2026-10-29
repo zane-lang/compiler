@@ -19,7 +19,7 @@ per line, is what it is built with besides.
 | `reject/windowsInt` | A typedef that is 64 bits on Linux and 32 on Windows, refused in the Windows build only |
 | `reject/positions` | Handles where they may not stand, the wrong `const`, a capability returned, an outside handle made by a method that is not `mut`, a handle made both ways, and a constructor for a handle |
 | `reject/variables` | Foreign variables of the wrong type, naming a missing, undefined, thread-local or differently typed global, and one outside the root |
-| `reject/overwrite` | A settled handle without a setter overwritten directly, through a struct holding it, and through `this`, beside a reference to one rebound, which is no overwrite |
+| `reject/overwrite` | A settled handle without a setter overwritten directly, through a struct holding it, through `this`, and through seventeen nested generic structs, beside a reference to one rebound, which is no overwrite |
 | `reject/absolute` | An absolute path in a row |
 | `reject/badHeader` | A `c` table whose header is not `setting value target` |
 | `reject/badSetting` | A setting that does not exist |

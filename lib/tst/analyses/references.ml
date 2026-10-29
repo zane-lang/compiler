@@ -77,25 +77,35 @@ let entry_type env (r : T.Verb_ref.t) (f : T.Field_value.t) =
 (* A foreign handle without a setter that a value of [t] holds in place:
    itself, or one reached through the owning fields of the objects it holds,
    its arrays' elements, and what a distinct type is. A list's element and a
-   variant's payload are replaced whole, and a reference holds no owner. *)
-let rec unsettable_handle env ?(depth = 0) (t : Ty.t) =
-  let inner = unsettable_handle env ~depth:(depth + 1) in
-  match t with
-  | Ty.Reference _ -> None
-  | _ -> (
-  match Ty.strip_mode t with
-  | _ when depth > 16 -> None
-  | Ty.Named (tid, args) -> (
-      match Env.Types.type_info_of_id env.Env.types tid with
-      | Some { Env.definition = Some (Env.Handle { Nodes.Handle.set = None; _ }); _ } -> Some tid.Ty.name
-      | Some { Env.definition = Some (Env.Struct ms); params; _ } ->
-          List.find_map
-            (fun (_, mt) -> match mt with Ty.Reference _ -> None | mt -> inner (Ty.instantiate params args mt))
-            ms
-      | Some { Env.definition = Some (Env.Distinct u); params; _ } -> inner (Ty.instantiate params args u)
-      | _ -> None)
-  | Ty.Intrinsic { namespace = "primitives"; name = "Array" | "ArrayRef"; args = [ Ty.Type e; _ ] } -> inner e
-  | _ -> None)
+   variant's payload are replaced whole, and a reference holds no owner.
+
+   Each type is examined once, so a type that holds itself through those
+   edges ends the walk. Only one whose arguments grow at each step, as
+   `N<T>` holding an `N<Box<T>>`, never repeats; no value of it can be
+   made, since each must hold a deeper one, and the walk gives up on it
+   after [budget] types. *)
+let unsettable_handle env (t : Ty.t) =
+  let seen = Hashtbl.create 16 in
+  let budget = ref 100_000 in
+  let rec walk (t : Ty.t) =
+    match t with
+    | Ty.Reference _ -> None
+    | _ when Hashtbl.mem seen t || !budget = 0 -> None
+    | _ -> (
+        Hashtbl.add seen t ();
+        decr budget;
+        match Ty.strip_mode t with
+        | Ty.Named (tid, args) -> (
+            match Env.Types.type_info_of_id env.Env.types tid with
+            | Some { Env.definition = Some (Env.Handle { Nodes.Handle.set = None; _ }); _ } -> Some tid.Ty.name
+            | Some { Env.definition = Some (Env.Struct ms); params; _ } ->
+                List.find_map (fun (_, mt) -> walk (Ty.instantiate params args mt)) ms
+            | Some { Env.definition = Some (Env.Distinct u); params; _ } -> walk (Ty.instantiate params args u)
+            | _ -> None)
+        | Ty.Intrinsic { namespace = "primitives"; name = "Array" | "ArrayRef"; args = [ Ty.Type e; _ ] } -> walk e
+        | _ -> None)
+  in
+  walk t
 
 (* ffi.md §4.3: overwriting a settled place writes the replacement where
    the old value is, so a foreign handle it holds is replaced through its
