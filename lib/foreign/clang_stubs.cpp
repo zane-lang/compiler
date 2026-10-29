@@ -477,8 +477,9 @@ extern "C" value zane_clang_interface(value args) {
   CAMLreturn(to_value(r));
 }
 
-/* The global variables [bitcode]'s module defines with external linkage:
-   what a foreign variable may name (spec ffi.md §5.1). */
+/* The global variables [bitcode]'s module defines for other modules to
+   see, a weak definition among them: what a foreign variable may name
+   (spec ffi.md §5.1). */
 extern "C" value zane_bitcode_defined_variables(value bitcode) {
   CAMLparam1(bitcode);
   CAMLlocal2(list, cell);
@@ -489,7 +490,8 @@ extern "C" value zane_bitcode_defined_variables(value bitcode) {
     llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
     if (module) {
       for (const llvm::GlobalVariable &g : (*module)->globals())
-        if (!g.isDeclaration() && g.hasExternalLinkage()) names.push_back(g.getName().str());
+        if (!g.isDeclaration() && !g.hasLocalLinkage() && !g.hasAvailableExternallyLinkage())
+          names.push_back(g.getName().str());
     } else {
       llvm::consumeError(module.takeError());
     }

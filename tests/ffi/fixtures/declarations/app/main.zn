@@ -1,10 +1,10 @@
 /// The declarations of the C interface semantics accepts (ffi.md §3-§5): a
 /// foreign verb of each boundary type, a data handle with a setter, a
-/// capability declared by a foreign variable, and an outside handle made by
-/// a `mut` method on it. A settled handle with a setter is overwritten, and
-/// a roaming one without one. A struct tag and a typedef of the same name
-/// are two C types, and a handle's `cType` may name a bare tag. A value
-/// struct crosses however deeply its structs nest.
+/// capability declared by a foreign variable, one a weak C definition, and
+/// an outside handle made by a `mut` method on it. A settled handle with a
+/// setter is overwritten, and a roaming one without one. A struct tag and a
+/// typedef of the same name are two C types, and a handle's `cType` may name
+/// a bare tag. A value struct crosses however deeply its structs nest.
 package app;
 
 alias Unit = @primitives$Unit;
@@ -141,6 +141,8 @@ Unit main() {
 	log fs$File = files!fs$open(String("app.log"));
 	files!fs$write(log, String("started\n"));
 	size I64 = files:fs$size(log);
+	spare fs$Fs foreign "zane_spare";
+	spared I64 = spare:fs$size(log);
 	d Deflater = deflater(I32(6)) ? e { return Unit(); }
 	d = deflater(I32(9)) ? e { return Unit(); }
 	r ^fs$File = files!fs$open(String("b.log"));
