@@ -76,6 +76,13 @@
     │   ├── params[0]: function
     │   ├── params[1]: value
     │   └── result: value
+    ├── thunks[9] > thunk:
+    │   ├── symbol: functions$openBox(functions$Boxed[functions$Boxed], functions$Boxed).ffi
+    │   ├── package: functions
+    │   ├── calls: open_box
+    │   ├── params[0]: function
+    │   ├── params[1]: value
+    │   └── result: value
     ├── callbacks[0] > callback:
     │   ├── symbol: functions$half
     │   ├── entry: functions$entry functions$half
@@ -153,6 +160,11 @@
     │   ├── takes[0]: {[4 x i64]}
     │   └── gives: {[4 x i64]}
     ├── callbacks[15] > callback:
+    │   ├── symbol: functions$main()$lambda15
+    │   ├── entry: functions$entry functions$main()$lambda15
+    │   ├── takes[0]: {{}, i32}
+    │   └── gives: {{}, i32}
+    ├── callbacks[16] > callback:
     │   ├── symbol: functions$main()$lambda7
     │   ├── entry: functions$entry functions$main()$lambda7
     │   ├── takes[0]: i64
@@ -670,70 +682,114 @@
     │       │       └── body[1] > assign:
     │       │           ├── place: #79
     │       │           └── value: local #77 : handle
-    │       ├── body[27] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: functions$show(%primitives$String)
-    │       │   └── args[0] > expand:
-    │       │       ├── type: handle
-    │       │       ├── label: @85
-    │       │       ├── result: #86
-    │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #84
-    │       │       │   ├── scope: %4
-    │       │       │   ├── value > runtime:
-    │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @82
-    │       │       │   │       ├── result: #83
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #80
-    │       │       │   │       │   └── value: function functions$main()$lambda15
-    │       │       │   │       ├── body[1] > let:
-    │       │       │   │       │   ├── local: #81
-    │       │       │   │       │   └── value: 4 : i64
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #83
-    │       │       │   │       │   └── value > call value:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: local #80 : ptr
-    │       │       │   │       │       ├── args[0]: unit : void
-    │       │       │   │       │       └── args[1]: local #81 : i64
-    │       │       │   │       └── body[3]: leave @82
-    │       │       │   └── layout: %primitives$String
-    │       │       └── body[1] > assign:
-    │       │           ├── place: #86
-    │       │           └── value: local #84 : handle
+    │       ├── body[27] > let:
+    │       │   ├── local: #85
+    │       │   └── value > call:
+    │       │       ├── type: {void, i32}
+    │       │       ├── fn: functions$openBox(functions$Boxed[functions$Boxed], functions$Boxed)
+    │       │       ├── args[0]: function functions$main()$lambda15
+    │       │       └── args[1] > expand:
+    │       │           ├── type: {void, i32}
+    │       │           ├── label: @83
+    │       │           ├── result: #84
+    │       │           ├── body[0] > let:
+    │       │           │   ├── local: #81
+    │       │           │   └── value: unit : void
+    │       │           ├── body[1] > let:
+    │       │           │   ├── local: #82
+    │       │           │   └── value: 2 : i32
+    │       │           ├── body[2] > assign:
+    │       │           │   ├── place: #84
+    │       │           │   └── value > record:
+    │       │           │       ├── type: {void, i32}
+    │       │           │       ├── members[0] > member 0: local #81 : void
+    │       │           │       └── members[1] > member 1: local #82 : i32
+    │       │           └── body[3]: leave @83
     │       ├── body[28] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: functions$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @91
-    │       │       ├── result: #92
+    │       │       ├── label: @87
+    │       │       ├── result: #88
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #90
+    │       │       │   ├── local: #86
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i32
+    │       │       │   │   └── args[0] > member:
+    │       │       │   │       ├── type: i32
+    │       │       │   │       ├── index: 1
+    │       │       │   │       └── value: local #85 : {void, i32}
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #88
+    │       │           └── value: local #86 : handle
+    │       ├── body[29] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: functions$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @94
+    │       │       ├── result: #95
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #93
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > expand:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @88
-    │       │       │   │       ├── result: #89
+    │       │       │   │       ├── label: @91
+    │       │       │   │       ├── result: #92
     │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #87
+    │       │       │   │       │   ├── local: #89
     │       │       │   │       │   └── value: function functions$main()$lambda16
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #89
-    │       │       │   │       │   └── value: 0 : i64
-    │       │       │   │       └── body[2]: leave @88
+    │       │       │   │       ├── body[1] > let:
+    │       │       │   │       │   ├── local: #90
+    │       │       │   │       │   └── value: 4 : i64
+    │       │       │   │       ├── body[2] > assign:
+    │       │       │   │       │   ├── place: #92
+    │       │       │   │       │   └── value > call value:
+    │       │       │   │       │       ├── type: i64
+    │       │       │   │       │       ├── fn: local #89 : ptr
+    │       │       │   │       │       ├── args[0]: unit : void
+    │       │       │   │       │       └── args[1]: local #90 : i64
+    │       │       │   │       └── body[3]: leave @91
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #92
-    │       │           └── value: local #90 : handle
-    │       └── body[29] > return: unit : void
+    │       │           ├── place: #95
+    │       │           └── value: local #93 : handle
+    │       ├── body[30] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: functions$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @100
+    │       │       ├── result: #101
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #99
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > expand:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── label: @97
+    │       │       │   │       ├── result: #98
+    │       │       │   │       ├── body[0] > let:
+    │       │       │   │       │   ├── local: #96
+    │       │       │   │       │   └── value: function functions$main()$lambda17
+    │       │       │   │       ├── body[1] > assign:
+    │       │       │   │       │   ├── place: #98
+    │       │       │   │       │   └── value: 0 : i64
+    │       │       │   │       └── body[2]: leave @97
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #101
+    │       │           └── value: local #99 : handle
+    │       └── body[31] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: functions$half
     │   ├── params[0]: local #1 : f64
@@ -1181,6 +1237,47 @@
     │       └── args[1]: local #2 : [4 x i64]
     ├── funcs[29] > func:
     │   ├── symbol: functions$main()$lambda15
+    │   ├── params[0]: local #1 : {void, i32}
+    │   ├── ret: {void, i32}
+    │   └── body[0] > return > expand:
+    │       ├── type: {void, i32}
+    │       ├── label: @4
+    │       ├── result: #5
+    │       ├── body[0] > let:
+    │       │   ├── local: #2
+    │       │   └── value > member:
+    │       │       ├── type: void
+    │       │       ├── index: 0
+    │       │       └── value: local #1 : {void, i32}
+    │       ├── body[1] > let:
+    │       │   ├── local: #3
+    │       │   └── value > binary:
+    │       │       ├── type: i32
+    │       │       ├── op: +
+    │       │       ├── left > member:
+    │       │       │   ├── type: i32
+    │       │       │   ├── index: 1
+    │       │       │   └── value: local #1 : {void, i32}
+    │       │       └── right: 40 : i32
+    │       ├── body[2] > assign:
+    │       │   ├── place: #5
+    │       │   └── value > record:
+    │       │       ├── type: {void, i32}
+    │       │       ├── members[0] > member 0: local #2 : void
+    │       │       └── members[1] > member 1: local #3 : i32
+    │       └── body[3]: leave @4
+    ├── funcs[30] > func:
+    │   ├── symbol: functions$openBox(functions$Boxed[functions$Boxed], functions$Boxed)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : {void, i32}
+    │   ├── ret: {void, i32}
+    │   └── body[0] > return > foreign call:
+    │       ├── type: {void, i32}
+    │       ├── fn: functions$openBox(functions$Boxed[functions$Boxed], functions$Boxed).ffi
+    │       ├── args[0]: local #1 : ptr
+    │       └── args[1]: local #2 : {void, i32}
+    ├── funcs[31] > func:
+    │   ├── symbol: functions$main()$lambda16
     │   ├── params[0]: local #1 : void
     │   ├── params[1]: local #2 : i64
     │   ├── ret: i64
@@ -1189,20 +1286,20 @@
     │       ├── op: +
     │       ├── left: local #2 : i64
     │       └── right: 1 : i64
-    ├── funcs[30] > func:
-    │   ├── symbol: functions$main()$lambda16
+    ├── funcs[32] > func:
+    │   ├── symbol: functions$main()$lambda17
     │   ├── params[0]: local #1 : {i64, ptr}
     │   ├── ret: i64
     │   └── body[0] > return > member:
     │       ├── type: i64
     │       ├── index: 0
     │       └── value: local #1 : {i64, ptr}
-    ├── funcs[31] > func:
+    ├── funcs[33] > func:
     │   ├── symbol: functions$main()$lambda7
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > return: local #1 : i64
-    ├── funcs[32] > func:
+    ├── funcs[34] > func:
     │   ├── symbol: functions$half.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1242,7 +1339,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[33] > func:
+    ├── funcs[35] > func:
     │   ├── symbol: functions$main()$lambda1.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1282,7 +1379,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[34] > func:
+    ├── funcs[36] > func:
     │   ├── symbol: functions$main()$lambda2.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1322,7 +1419,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[35] > func:
+    ├── funcs[37] > func:
     │   ├── symbol: functions$main()$lambda3.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1362,7 +1459,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[36] > func:
+    ├── funcs[38] > func:
     │   ├── symbol: functions$main()$lambda4.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1400,7 +1497,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[37] > func:
+    ├── funcs[39] > func:
     │   ├── symbol: functions$built.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1440,7 +1537,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[38] > func:
+    ├── funcs[40] > func:
     │   ├── symbol: functions$main()$lambda5.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1488,7 +1585,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[39] > func:
+    ├── funcs[41] > func:
     │   ├── symbol: functions$main()$lambda6.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1528,7 +1625,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[40] > func:
+    ├── funcs[42] > func:
     │   ├── symbol: functions$main()$lambda8.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1568,7 +1665,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[41] > func:
+    ├── funcs[43] > func:
     │   ├── symbol: functions$main()$lambda9.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1608,7 +1705,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[42] > func:
+    ├── funcs[44] > func:
     │   ├── symbol: functions$main()$lambda10.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1648,7 +1745,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[43] > func:
+    ├── funcs[45] > func:
     │   ├── symbol: functions$main()$lambda11.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1688,7 +1785,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[44] > func:
+    ├── funcs[46] > func:
     │   ├── symbol: functions$main()$lambda12.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1726,7 +1823,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[45] > func:
+    ├── funcs[47] > func:
     │   ├── symbol: functions$main()$lambda13.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1766,7 +1863,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[46] > func:
+    ├── funcs[48] > func:
     │   ├── symbol: functions$main()$lambda14.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1806,7 +1903,47 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    └── funcs[47] > func:
+    ├── funcs[49] > func:
+    │   ├── symbol: functions$main()$lambda15.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: {void, i32}
+    │   │       ├── fn: functions$main()$lambda15
+    │   │       └── args[0] > deref:
+    │   │           ├── type: {void, i32}
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > offset:
+    │   │                   ├── within: {ptr}
+    │   │                   ├── path: 0
+    │   │                   └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    └── funcs[50] > func:
         ├── symbol: functions$main()$lambda7.adapter
         ├── linkage: shared
         ├── params[0]: local #0 : ptr
