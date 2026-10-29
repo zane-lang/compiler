@@ -3,14 +3,19 @@
     failures are about the build -- a target LLVM does not know, a link that
     failed -- and are messages, not diagnostics. *)
 
+(** One C module: its bitcode, the hash the cache keys it by, and the
+    files its code came from, by their real paths: a source's own and the
+    headers it includes, or the interface header a glue module compiles. *)
+type c_module = { key : string; bitcode : string; files : string list }
+
 (** One package's C code for the program (docs/design/ffi.md F9): the
     prefix its globals are renamed with, its sources' and its glue's
-    modules, each as bitcode with the hash the cache keys it by, and the
-    symbols of the thunks its glue defines, which keep their names. *)
+    modules, and the symbols of the thunks its glue defines, which keep
+    their names. *)
 type c_package = {
   prefix : string;
-  sources : (string * string) list;
-  glue : (string * string) list;
+  sources : c_module list;
+  glue : c_module list;
   thunks : string list;
 }
 

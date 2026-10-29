@@ -12,6 +12,11 @@ static long long once_state;
 __attribute__((constructor)) static void once_set(void) { once_state = 9; }
 static inline long long once_value(void) { return once_state; }
 
+static long long once_helped;
+static void once_help(void) { once_helped = 11; }
+__attribute__((constructor)) static void once_helper(void) { once_help(); }
+static inline long long once_helped_value(void) { return once_helped; }
+
 #ifdef __APPLE__
 long long once_alias(long long x) { return once(x); }
 #else

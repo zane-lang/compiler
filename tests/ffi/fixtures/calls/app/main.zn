@@ -108,7 +108,9 @@ Unit main() {
 	show(String(lib$onceIndirect(I64(4))));
 	show(String(lib$onceStarted()));
 	show(String(lib$onceValue()));
+	show(String(lib$onceHelped()));
 	show(String(lib$primed()));
+	show(String(lib$primedRuns()));
 	show(String(lib$wasWarmed()));
 	show(String(result()));
 	show(String(args(I64(21))));
