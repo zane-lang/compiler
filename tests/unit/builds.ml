@@ -177,6 +177,25 @@ let linked_in_process () =
       (Result.is_error (linked failing ~output:"five") && Buffer.length said = 0);
     check "and its command is kept"
       (command failing ~obj:"/w/program.o" ~runtime:"/r/runtime.o" ~output:"five" <> None && times () = before + 1);
+    let unfound _ = Error "ld.lld: error: unable to find library -lzane_gone\n" in
+    let libraries =
+      [
+        { Codegen__Foreign_c.name = "zane"; row = "row 1 of `c.coda`" };
+        { name = "zane_gone"; row = "row 2 of `c.coda`" };
+      ]
+    in
+    let obj = "/w/program.o" and runtime = "/r/runtime.o" and output = "six" in
+    check "a `system` library neither link finds is an error naming its row, not a row whose name begins it"
+      (Build.link_program ~cache ~lld:unfound ~say:(Buffer.add_string said) ~libraries ~cc:failing ~triple:"t"
+         ~deps:[] ~args:(args ~obj ~runtime ~output) ~obj ~runtime ~output work
+      = Error
+          "row 2 of `c.coda` names the system library `zane_gone`, which the linker cannot find for the \
+           build's target (ffi.md §2.4)");
+    check "and each linker's way of saying so is read"
+      (List.for_all
+         (fun text -> Build.unfound_library text "m")
+         [ "unable to find library -lm"; "ld: library not found for -lm"; "ld: cannot find -lm: No such file" ]
+      && not (Build.unfound_library "cannot find -lmx" "m"));
     Unix.putenv "ZANE_VERBOSE" "1";
     let quiet = linked gnu ~output:"x" in
     Unix.putenv "ZANE_VERBOSE" "";

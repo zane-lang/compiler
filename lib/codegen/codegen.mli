@@ -3,15 +3,30 @@
     failures are about the build -- a target LLVM does not know, a link that
     failed -- and are messages, not diagnostics. *)
 
-(** One package's C code for the program (docs/design/ffi.md F9): the
+(** A package's `archive` row's static library: a hash of its bytes, and
+    its members, each its name and its bytes (docs/design/ffi.md F4). *)
+type c_archive = { digest : string; members : (string * string) list }
+
+(** A package's `system` row's library, and the row, as an error about it
+    names it. *)
+type c_library = { name : string; row : string }
+
+(** One package's C code for the program (docs/design/ffi.md F4, F9): the
     prefix its globals are renamed with, its sources' and its glue's
     modules, each as bitcode with the hash the cache keys it by, and the
-    symbols of the thunks its glue defines, which keep their names. *)
+    symbols of the thunks its glue defines, which keep their names; the
+    objects its sources holding assembly were assembled into, each with
+    its module's hash, its archives, the C names those objects and
+    archives define, and its `system` libraries. *)
 type c_package = {
   prefix : string;
   sources : (string * string) list;
   glue : (string * string) list;
   thunks : string list;
+  objects : (string * string) list;
+  archives : c_archive list;
+  defined : string list;
+  libraries : c_library list;
 }
 
 (** [f] run on the program's module for [target], the host when it is

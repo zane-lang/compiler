@@ -1,0 +1,26 @@
+#!/bin/sh
+# The static library OUTPUT built from the C sources directly in DIR, for
+# TARGET when one is given and the host otherwise: what an `archive` row
+# of a fixture names (README.md). Each source is compiled by `ZANE_CC`,
+# position-independent where the target has such code, and the objects
+# archived by `AR`, LLVM's `llvm-ar` unless set, which writes the kind of
+# library the objects' format takes.
+set -eu
+output=$1
+dir=$2
+target=${3:-}
+cc=${ZANE_CC:-cc}
+ar=${AR:-llvm-ar}
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+set -- -std=c17 -O2 -c
+case "$target" in
+*windows*) ;;
+*) set -- "$@" -fPIC ;;
+esac
+[ -z "$target" ] || set -- "$@" "--target=$target"
+for source in "$dir"/*.c; do
+	"$cc" "$@" -o "$work/$(basename "$source" .c).o" "$source"
+done
+rm -f "$output"
+"$ar" rcs "$output" "$work"/*.o

@@ -6,7 +6,12 @@
    carry the package's. A name an `__asm__` label gave, which LLVM writes
    with a leading \1 and the target's global prefix spelled out, is read as
    the label and renamed by it, so the new name is mangled as any other. A COMDAT named after a renamed global
-   is renamed with it, so two versions of a package never share one. */
+   is renamed with it, so two versions of a package never share one. A
+   declaration is renamed when its name is one of the package's objects
+   defines, an archive's member or an object assembled from a source
+   holding assembly, so the module's uses reach the object's renamed
+   definition. What comes back is the C name of every global renamed, for
+   the objects to be renamed by. */
 
 #include "llvm/IR/Comdat.h"
 #include "llvm/IR/Constants.h"
@@ -27,6 +32,7 @@
 #include <vector>
 
 extern "C" {
+#include <caml/alloc.h>
 #include <caml/memory.h>
 #include <caml/mlvalues.h>
 }
@@ -34,11 +40,13 @@ extern "C" {
 /* The bindings carry an LLVM pointer with its low bit set (llvm_stubs.c). */
 static llvm::Module *module_of(value v) { return reinterpret_cast<llvm::Module *>(v & ~(value)1); }
 
-extern "C" value zane_rename_c_globals(value mod, value prefix, value global_prefix, value keep) {
-  CAMLparam4(mod, prefix, global_prefix, keep);
+extern "C" value zane_rename_c_globals(value mod, value prefix, value global_prefix, value keep, value declared) {
+  CAMLparam5(mod, prefix, global_prefix, keep, declared);
+  CAMLlocal3(names, cell, name);
   llvm::Module *m = module_of(mod);
-  std::set<std::string> kept;
+  std::set<std::string> kept, defined_apart;
   for (value l = keep; l != Val_emptylist; l = Field(l, 1)) kept.insert(String_val(Field(l, 0)));
+  for (value l = declared; l != Val_emptylist; l = Field(l, 1)) defined_apart.insert(String_val(Field(l, 0)));
   std::string p = String_val(prefix), target = String_val(global_prefix);
   auto label_of = [&](const std::string &name) {
     std::string label = name;
@@ -51,13 +59,16 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
   std::vector<llvm::GlobalValue *> renamed;
   for (llvm::GlobalValue &g : m->global_values()) {
     std::string name = g.getName().str();
-    if (g.isDeclaration() || g.hasLocalLinkage() || g.hasAppendingLinkage()) continue;
+    if (g.hasLocalLinkage() || g.hasAppendingLinkage()) continue;
+    if (g.isDeclaration() && !defined_apart.count(label_of(name))) continue;
     if (name.rfind("llvm.", 0) == 0 || kept.count(label_of(name))) continue;
     renamed.push_back(&g);
   }
+  std::vector<std::string> labels;
   std::map<llvm::Comdat *, llvm::Comdat *> comdats;
   for (llvm::GlobalValue *g : renamed) {
     std::string old = g->getName().str();
+    labels.push_back(label_of(old));
     g->setName(p + label_of(old));
     if (auto *o = llvm::dyn_cast<llvm::GlobalObject>(g))
       if (llvm::Comdat *c = o->getComdat())
@@ -74,7 +85,15 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
       auto it = comdats.find(c);
       if (it != comdats.end()) o.setComdat(it->second);
     }
-  CAMLreturn(Val_unit);
+  names = Val_emptylist;
+  for (auto it = labels.rbegin(); it != labels.rend(); ++it) {
+    name = caml_copy_string(it->c_str());
+    cell = caml_alloc(2, 0);
+    Store_field(cell, 0, name);
+    Store_field(cell, 1, names);
+    names = cell;
+  }
+  CAMLreturn(names);
 }
 
 /* A name without the `.N` the linker adds to a local one it renames. */

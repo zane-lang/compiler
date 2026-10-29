@@ -70,9 +70,12 @@ let assemble ?(root = true) ?(imports = []) ?(stamps = []) requests =
    clang, with its `c.coda` read and checked (docs/design/ffi.md §1). *)
 let c_code ?target packages =
   let dirs = List.map (fun (p : Assembly.package) -> p.Assembly.dir) packages in
-  match Foreign.compile_packages ~cc:(Codegen.c_compiler ()) ~target dirs with
-  | Ok c -> Ok c
-  | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics
+  match Codegen.target_cpu ?target () with
+  | Error message -> fail [ Diagnostic.about_invocation message ]
+  | Ok cpu -> (
+      match Foreign.compile_packages ~cc:(Codegen.c_compiler ()) ~cpu ~target dirs with
+      | Ok c -> Ok c
+      | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
 
 (* Semantics, which reports every problem it finds (docs/design/semantics.md
    D4) and gives no tree when there is one. *)
@@ -158,9 +161,40 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
           result = kind t.F.result;
         }
       in
+      (* A package's C apart from its module: the objects its sources
+         holding assembly were assembled into, its archives, and its
+         `system` libraries, each named by its row. *)
+      let apart (f : Foreign.package) =
+        let coda = Filename.concat f.Foreign.dir Foreign.Settings.file_name in
+        ( List.map (fun (a : Foreign.assembled) -> (a.source.key, a.object_)) f.Foreign.assembled,
+          List.map
+            (fun (a : Foreign.archive) -> { Codegen.digest = a.digest; members = a.members })
+            f.Foreign.archives,
+          List.map
+            (fun (number, name) ->
+              { Codegen.name; row = Printf.sprintf "row %d of `%s`" number coda })
+            (Foreign.libraries f) )
+      in
       let one (p : Assembly.package) (f : Foreign.package) =
         let entries = List.filter (fun (t : F.t) -> t.F.package = p.Assembly.id) cgt.Cgt.Nodes.Program.foreign in
-        if stamped p.Assembly.id || (f.Foreign.sources = [] && entries = []) then Ok None
+        let objects, archives, libraries = apart f in
+        let only_libraries =
+          {
+            Codegen.prefix = "";
+            sources = [];
+            glue = [];
+            thunks = [];
+            objects = [];
+            archives = [];
+            defined = [];
+            libraries;
+          }
+        in
+        let nothing_else = f.Foreign.sources = [] && objects = [] && archives = [] && entries = [] in
+        (* A stamped dependency's C is in its object, which still links
+           with its `system` libraries. *)
+        if stamped p.Assembly.id || nothing_else then
+          Ok (if libraries = [] then None else Some only_libraries)
         else
           Result.map
             (fun (glue : Foreign.Compile.source list) ->
@@ -171,6 +205,10 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
                   sources = modules f.Foreign.sources;
                   glue = modules glue;
                   thunks = List.map (fun (t : F.t) -> t.F.thunk) entries;
+                  objects;
+                  archives;
+                  defined = Foreign.object_defined f;
+                  libraries;
                 })
             (Foreign.glue f (List.map entry entries))
       in
@@ -214,6 +252,10 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
                   sources = [];
                   glue = [ (s.key, s.bitcode) ];
                   thunks = List.map (fun (c : C.t) -> c.C.entry) p @ List.map (fun (c : C.t) -> c.C.symbol) i;
+                  objects = [];
+                  archives = [];
+                  defined = [];
+                  libraries = [];
                 })
             (Foreign.callbacks ~target (List.map entry p) (List.map invoker i))
       in

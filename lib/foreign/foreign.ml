@@ -8,16 +8,34 @@ module Clang = Clang
 module Compile = Compile
 module Interface = C_interface
 module Glue = Glue
+module Objects = Objects
+
+(* A C source whose module holds assembly, emitted as an object of its own
+   (docs/design/ffi.md F9): its module, the object, and what the object
+   holds. *)
+type assembled = { source : Compile.source; object_ : string; contents : Objects.contents }
+
+(* An `archive` row's static library (docs/design/ffi.md F4): its path, a
+   hash of its bytes, its members, each its name and its bytes, and what
+   they hold between them. *)
+type archive = {
+  path : string;
+  digest : string;
+  members : (string * string) list;
+  held : Objects.contents;
+}
 
 (* What a package's C build is: the rows of its `c.coda` that apply to the
-   build, its interface headers and what they declare, and its C sources
-   compiled. *)
+   build, its interface headers and what they declare, its C sources
+   compiled, those holding assembly apart, and its archives read. *)
 type package = {
   dir : string;
   rows : Settings.row list;
   headers : string list;
   interface : C_interface.t;
   sources : Compile.source list;
+  assembled : assembled list;
+  archives : archive list;
   (* What each interface header declares, in the order they are read, and
      what compiling the package's glue needs: the flags its sources were
      compiled with, the directories they map, and the cache. *)
@@ -103,26 +121,109 @@ let linker_sets ~file (source : Compile.source) =
           sources = [];
         }
 
-(* A module holding assembly, which can name a symbol no global value
-   stands for, so renaming the module's globals would leave it on the old
-   name (docs/design/ffi.md F9). [file] is what the diagnostic names: the
-   source, or the interface header a glue file includes. *)
-let assembly ~file (source : Compile.source) =
+(* A glue module holding assembly, which can name a symbol no global value
+   stands for (docs/design/ffi.md F9). The glue's module is linked into the
+   package's, which is renamed by its global values, so assembly that
+   reaches it through an interface header would keep a name another
+   version of the package shares. *)
+let assembly ~header (source : Compile.source) =
   if Clang.has_assembly source.Compile.bitcode then
     Error
       {
         diagnostics =
           [
-            Diagnostic.in_file file
-              "this C holds assembly, which the compiler does not rename yet, so it would keep names another version of the package shares (docs/design/ffi.md F9)";
+            Diagnostic.in_file header
+              "this interface header holds assembly, which the glue that includes it cannot rename, \
+               since the glue is linked into the package's C module; move the assembly into a C \
+               source, which is assembled as an object of its own (docs/design/ffi.md F9)";
           ];
         sources = [];
       }
   else Ok source
 
-(* One package's C: its interface headers read and its sources compiled,
-   with the [fixed] flags and its own. *)
-let compile_package ?cache ~fixed ~headers (dir, rows, sources) =
+(* The sections of an object whose names are linker sets, each refused as
+   a module's are ([linker_sets]): [what] says what places something in
+   it, and [file] is the file the diagnostic names. *)
+let object_linker_sets ~file ~what (contents : Objects.contents) =
+  match List.sort_uniq compare (List.filter Settings.is_identifier contents.Objects.sections) with
+  | [] -> Ok contents
+  | placed ->
+      Error
+        {
+          diagnostics =
+            List.map
+              (fun section ->
+                Diagnostic.in_file file
+                  (Printf.sprintf
+                     "%s places something in the section `%s`, a linker set, which the package would share with every other version of it, since a section is gathered by its name (ffi.md §2.5)"
+                     what section))
+              placed;
+          sources = [];
+        }
+
+let refused file message = Error { diagnostics = [ Diagnostic.in_file file message ]; sources = [] }
+
+(* [source], whose module holds assembly, emitted for [triple] and [cpu] as
+   an object of its own and read (docs/design/ffi.md F9), from [cache]'s
+   when it holds it. *)
+let assemble ?cache ~triple ~cpu (source : Compile.source) =
+  let ( let* ) = Result.bind in
+  let file = source.Compile.path in
+  let* object_ =
+    match Objects.emit ?cache ~triple ~cpu ~key:source.Compile.key source.Compile.bitcode with
+    | Ok object_ -> Ok object_
+    | Error why -> refused file ("this C holds assembly, which could not be assembled: " ^ why)
+  in
+  let* contents =
+    match Objects.read object_ with
+    | Ok contents -> Ok contents
+    | Error why ->
+        Diagnostic.bug (Printf.sprintf "the object %s was assembled into does not read back: %s" file why)
+  in
+  let* contents = object_linker_sets ~file ~what:"the object this C is assembled into" contents in
+  Ok { source; object_; contents }
+
+(* The static library an `archive` row of [dir]'s names, read member by
+   member, each member's sections held to the linker-set test. *)
+let archive dir (row : Settings.row) =
+  let ( let* ) = Result.bind in
+  let coda = Filename.concat dir Settings.file_name and path = Filename.concat dir row.value in
+  let at_row message = Error { diagnostics = [ Settings.problem coda row.number message ]; sources = [] } in
+  let* bytes =
+    match Cache.read path with
+    | Some bytes -> Ok bytes
+    | None -> at_row (Printf.sprintf "`%s` cannot be read" row.value)
+  in
+  let* members =
+    match Objects.members bytes with
+    | Ok members -> Ok members
+    | Error why -> at_row (Printf.sprintf "`%s` is not a static library: %s" row.value why)
+  in
+  let member (name, member_bytes) =
+    match Objects.read member_bytes with
+    | Error why -> refused path (Printf.sprintf "the member `%s` is not an object file: %s" name why)
+    | Ok contents ->
+        object_linker_sets ~file:path ~what:(Printf.sprintf "the member `%s`" name) contents
+  in
+  let* held = combine (List.map member members) in
+  let union f = List.concat_map f held in
+  Ok
+    {
+      path;
+      digest = Digest.to_hex (Digest.string bytes);
+      members;
+      held =
+        {
+          Objects.defined = union (fun c -> c.Objects.defined);
+          data = union (fun c -> c.Objects.data);
+          sections = union (fun c -> c.Objects.sections);
+        };
+    }
+
+(* One package's C: its interface headers read, its sources compiled, with
+   the [fixed] flags and its own, those holding assembly emitted as objects
+   for [triple] and [cpu], and its archives read. *)
+let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
   let maps = Compile.prefix_maps ~dir ~headers in
   let flags = fixed @ Compile.map_flags maps @ Compile.package_flags dir rows in
   let interface_headers = Settings.interface_headers dir in
@@ -132,33 +233,59 @@ let compile_package ?cache ~fixed ~headers (dir, rows, sources) =
          (fun h -> Result.map (fun t -> (h, t)) (Compile.interface flags (Filename.concat dir h)))
          interface_headers)
   in
-  let compiled =
-    combine
-      (List.map
-         (fun s ->
-           let path = Filename.concat dir s in
-           Result.bind (Result.bind (Compile.compile_source ?cache ~maps flags path) (linker_sets ~file:path)) (assembly ~file:path))
-         sources)
+  (* A source holding assembly is never linked into the package's module:
+     it is an object of its own. *)
+  let compiled_source s =
+    let path = Filename.concat dir s in
+    let ( let* ) = Result.bind in
+    let* source = Compile.compile_source ?cache ~maps flags path in
+    let* source = linker_sets ~file:path source in
+    if Clang.has_assembly source.Compile.bitcode then
+      Result.map Either.right (assemble ?cache ~triple ~cpu source)
+    else Ok (Either.Left source)
   in
-  let defined (sources : Compile.source list) = List.concat_map (fun (s : Compile.source) -> Clang.defined_variables s.bitcode) sources in
-  both tables compiled
-  |> Result.map (fun (tables, sources) ->
+  let compiled = Result.map (List.partition_map Fun.id) (combine (List.map compiled_source sources)) in
+  let archive_row (row : Settings.row) = if row.setting = Settings.Archive then Some (archive dir row) else None in
+  let archives = combine (List.filter_map archive_row rows) in
+  let defined (sources : Compile.source list) assembled archives =
+    List.concat_map (fun (s : Compile.source) -> Clang.defined_variables s.bitcode) sources
+    @ List.concat_map (fun a -> a.contents.Objects.data) assembled
+    @ List.concat_map (fun a -> a.held.Objects.data) archives
+  in
+  both tables (both compiled archives)
+  |> Result.map (fun (tables, ((sources, assembled), archives)) ->
          let interface = List.fold_left C_interface.merge C_interface.empty (List.map snd tables) in
          {
            dir;
            rows;
            headers = interface_headers;
-           interface = { interface with defined = defined sources };
+           interface = { interface with defined = defined sources assembled archives };
            sources;
+           assembled;
+           archives;
            tables;
            flags;
            maps;
            cache;
          })
 
+(* The `system` rows of [p]'s `c.coda` that apply to the build, in the
+   order they are written: each row's number and the library it names. *)
+let libraries p =
+  List.filter_map
+    (fun (row : Settings.row) ->
+      if row.setting = Settings.System then Some (row.number, row.value) else None)
+    p.rows
+
+(* The C names every object of [p]'s defines: its assembled sources' and
+   its archives' members'. *)
+let object_defined p =
+  List.concat_map (fun a -> a.contents.Objects.defined) p.assembled
+  @ List.concat_map (fun a -> a.held.Objects.defined) p.archives
+
 (* Every package's C, once the target's include directories are known
    from [cc]. *)
-let compile_all ?cache ~work ~cc ~triple ~target packages =
+let compile_all ?cache ~work ~cc ~cpu ~triple ~target packages =
   (* A cache that cannot be written is no cache: the headers go in the
      build's own directory, and nothing is kept. *)
   let headers, cache =
@@ -170,23 +297,39 @@ let compile_all ?cache ~work ~cc ~triple ~target packages =
   | Error message -> Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] }
   | Ok include_dirs ->
       let fixed = Compile.fixed_flags ~triple ~headers ~include_dirs in
-      combine (List.map (compile_package ?cache ~fixed ~headers) packages)
+      combine (List.map (compile_package ?cache ~fixed ~headers ~triple ~cpu) packages)
 
 let no_c (dir, rows, _) =
-  { dir; rows; headers = []; interface = C_interface.empty; sources = []; tables = []; flags = []; maps = []; cache = None }
+  {
+    dir;
+    rows;
+    headers = [];
+    interface = C_interface.empty;
+    sources = [];
+    assembled = [];
+    archives = [];
+    tables = [];
+    flags = [];
+    maps = [];
+    cache = None;
+  }
 
-let has_c (dir, _, sources) = sources <> [] || Settings.interface_headers dir <> []
+let has_c (dir, rows, sources) =
+  sources <> [] || Settings.interface_headers dir <> []
+  || List.exists (fun (row : Settings.row) -> row.setting = Settings.Archive) rows
 
 (* Each of [dirs]' C build, for a build for [target], its C compiled by the
    linked clang with the include directories [cc] searches for that
-   target. A package with no C needs nothing of [cc], so a build with no C
-   anywhere never runs it. *)
-let compile_packages ?(cache = Cache.dir ()) ~cc ~target dirs =
+   target, and a source holding assembly emitted for [cpu], the processor
+   the build tunes for. A package with no C needs nothing of [cc], so a
+   build with no C anywhere never runs it. *)
+let compile_packages ?(cache = Cache.dir ()) ~cc ~cpu ~target dirs =
   let triple = triple target in
   let ( let* ) = Result.bind in
   let* packages = combine (List.map (read_settings ~triple) dirs) in
   let* packages = combine (List.map with_sources packages) in
-  if List.exists has_c packages then compile_all ?cache ~work:(work_dir ()) ~cc ~triple ~target packages
+  if List.exists has_c packages then
+    compile_all ?cache ~work:(work_dir ()) ~cc ~cpu ~triple ~target packages
   else Ok (List.map no_c packages)
 
 (* The glue refused, or not written, as a diagnostic. *)
@@ -194,16 +337,22 @@ let glue_refused message = Error { diagnostics = [ Diagnostic.about_invocation m
 let glue_unwritten message = glue_refused (Printf.sprintf "the glue could not be written: %s" message)
 
 (* One glue file, [text] for [header], written into [work] and compiled
-   with [maps] and [flags]. *)
-let glue_file p ~work ~maps ~flags (header, text) =
+   with [maps] and [flags]. What it is refused for names the header as the
+   package's directory was given, [dir] being where it lies. *)
+let glue_file p ~dir ~work ~maps ~flags (header, text) =
   let path = Filename.concat work (Filename.remove_extension (Filename.basename header) ^ ".glue.c") in
   match Out_channel.with_open_bin path (fun oc -> output_string oc text) with
   | exception Sys_error message -> glue_unwritten message
   | () ->
       let ( let* ) = Result.bind in
+      let shown =
+        match List.find_opt (fun (h, _) -> Filename.concat dir h = header) p.tables with
+        | Some (h, _) -> Filename.concat p.dir h
+        | None -> header
+      in
       let* source = Compile.compile_source ?cache:p.cache ~maps flags path in
-      let* source = linker_sets ~file:header source in
-      assembly ~file:header source
+      let* source = linker_sets ~file:shown source in
+      assembly ~header:shown source
 
 (* [files] written into a directory of their own and compiled. *)
 let glue_files p ~dir files =
@@ -215,7 +364,7 @@ let glue_files p ~dir files =
         (fun () ->
           let added = [ (dir, "/zane/pkg"); (work, "/zane/glue") ] in
           let maps = p.maps @ added and flags = p.flags @ Compile.map_flags added in
-          combine (List.map (glue_file p ~work ~maps ~flags) files))
+          combine (List.map (glue_file p ~dir ~work ~maps ~flags) files))
 
 (* [p]'s glue for [entries] (Glue), each file compiled as its sources
    were, from the cache when it holds it. The files are written to a

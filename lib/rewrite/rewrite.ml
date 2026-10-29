@@ -49,3 +49,5 @@ let remap ~from ~to_ input =
          from to_)
   else if String.equal from to_ then apply ~rename:(fun _ -> None) input
   else apply ~rename:(Name.remap ~from ~to_) input
+
+let rename = apply

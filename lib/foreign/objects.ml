@@ -1,0 +1,38 @@
+(* A package's C that reaches the link as objects rather than through its
+   module (docs/design/ffi.md F4, F9): an `archive` row's static library,
+   read member by member, and each C source whose module holds assembly,
+   emitted as an object of its own (object_stubs.cpp). The symbols an
+   object defines are what renaming needs of it, and its sections what
+   the linker-set test needs. *)
+
+external emit_raw : string -> string -> string -> (string, string) result = "zane_object_emit"
+external read_raw : string -> ((string * string) list * string list, string) result = "zane_object_read"
+external members_raw : string -> ((string * string) list, string) result = "zane_archive_members"
+
+(* What an object holds: the C names of the global symbols it defines,
+   and of those the ones that are data, and its sections' names. *)
+type contents = { defined : string list; data : string list; sections : string list }
+
+let read bytes =
+  Result.map
+    (fun (names, sections) ->
+      { defined = List.map fst names; data = List.filter_map (fun (n, kind) -> if kind = "data" then Some n else None) names; sections })
+    (read_raw bytes)
+
+(* The module [bitcode] holds optimized and emitted as an object for
+   [triple] and [cpu], kept in [cache]'s `foreign/assembled/` under a hash
+   of what made it: the module's own key, the target and the processor. *)
+let emit ?cache ~triple ~cpu ~key bitcode =
+  let key = Digest.to_hex (Digest.string (String.concat "\000" [ "assembled"; key; triple; cpu ])) in
+  let kept = Option.map (fun c -> List.fold_left Filename.concat c [ "foreign"; "assembled"; key ^ ".o" ]) cache in
+  match Option.bind kept Cache.read with
+  | Some object_ -> Ok object_
+  | None ->
+      Result.map
+        (fun object_ ->
+          Option.iter (fun kept -> Cache.keep_string ~dir:(Filename.dirname kept) ~kept object_) kept;
+          object_)
+        (emit_raw bitcode triple cpu)
+
+(* The members of a static library, each its name and its bytes. *)
+let members = members_raw

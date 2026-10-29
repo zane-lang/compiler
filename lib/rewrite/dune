@@ -1,4 +1,6 @@
-; The rewriter: a library's object file, its `!` placeholder turned into a
-; version stamp (docs/design/separate-compilation.md C9).
+; The rewriter: an object file with its symbols renamed, a library's `!`
+; placeholder turned into a version stamp
+; (docs/design/separate-compilation.md C9), and a package's C objects given
+; its renamed names (docs/design/ffi.md F9).
 (library
  (name rewrite))

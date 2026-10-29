@@ -1,0 +1,11 @@
+/// Linker sets the package's C places through objects rather than its
+/// module (ffi.md §2.5): a member of its archive placing data in one, and
+/// file-scope assembly placing data in another, each refused, beside a
+/// section of each that is not one.
+package objectLinkerSet;
+
+alias Unit = @primitives$Unit;
+
+Unit main() {
+	return Unit();
+}

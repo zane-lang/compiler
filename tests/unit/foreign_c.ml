@@ -145,7 +145,7 @@ let compiled () =
       let one = package "one" source and two = package "two" source in
       let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
       let keys dir =
-        match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ dir ] with
         | Ok [ { Foreign.sources = [ s ]; _ } ] -> Some (s.Compile.key, s.Compile.bitcode)
         | _ -> None
       in
@@ -167,7 +167,7 @@ let compiled () =
          line changes what it compiles to. *)
       let cache = Filename.concat base "cache" in
       let cached dir =
-        match Foreign.compile_packages ~cache:(Some cache) ~cc ~target:None [ dir ] with
+        match Foreign.compile_packages ~cache:(Some cache) ~cc ~cpu:"" ~target:None [ dir ] with
         | Ok [ { Foreign.sources = [ s ]; _ } ] -> Some (s.Compile.bitcode, s.Compile.key)
         | _ -> None
       in
@@ -196,12 +196,12 @@ let compiled () =
       Unix.symlink "nowhere" (Filename.concat linked ".#a.c");
       let blocked = Filename.concat base "blocked" in
       write_all blocked "a file, not a directory";
-      (match Foreign.compile_packages ~cache:(Some (Filename.concat blocked "cache")) ~cc ~target:None [ linked ] with
+      (match Foreign.compile_packages ~cache:(Some (Filename.concat blocked "cache")) ~cc ~cpu:"" ~target:None [ linked ] with
       | Ok [ { Foreign.sources = [ _ ]; _ } ] -> ()
       | _ -> check "a dangling symlink and an unwritable cache leave the build alone" false);
       Sys.remove (Filename.concat linked ".#a.c");
       let broken = package "broken" "int f(void) {\n  return missing;\n}\n" in
-      match Foreign.compile_packages ~cache:None ~cc ~target:None [ broken ] with
+      match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ broken ] with
       | Error { Foreign.diagnostics = [ d ]; _ } ->
           check "a C error is at its line"
             (match d.Diagnostic.location with
@@ -294,7 +294,7 @@ let interface_header () =
          MAKE(made)\n";
       let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
       let table target =
-        match Foreign.compile_packages ~cache:None ~cc ~target [ dir ] with
+        match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target [ dir ] with
         | Ok [ p ] -> Some p.Foreign.interface
         | _ -> None
       in
@@ -362,7 +362,7 @@ let glue_refusals () =
         let header = Filename.concat dir "api.h" in
         write_all header text;
         let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
-        match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ dir ] with
         | Ok [ p ] -> (
             let entry =
               { Foreign.Glue.label = "pkg.fenced.ffi"; c_function = "fenced"; params = []; result = Foreign.Glue.Scalar "int32_t" }
@@ -394,7 +394,7 @@ let glue_paths () =
         { Foreign.Glue.label = "pkg.fenced.ffi"; c_function = "fenced"; params = []; result = Foreign.Glue.Scalar "int32_t" }
       in
       check "a header under a directory named past ASCII is included by its glue"
-        (match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        (match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ dir ] with
         | Ok [ p ] -> ( match Foreign.glue p [ entry ] with Ok [ _ ] -> true | _ -> false)
         | _ -> false))
 
@@ -418,7 +418,7 @@ let glue_prototypes () =
         }
       in
       check "a function prototyped by a later header has its thunk in that header's glue"
-        (match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        (match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ dir ] with
         | Ok [ p ] -> ( match Foreign.glue p [ entry ] with Ok [ _ ] -> true | _ -> false)
         | _ -> false))
 

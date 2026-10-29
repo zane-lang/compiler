@@ -30,10 +30,13 @@
      `golden/NAME.tst` its typed tree, `golden/NAME.cgt`,
      `golden/NAME.optimized.cgt` and `golden/NAME.out` what they are in
      codegen, and `golden/reject.NAME.err` what it reports for
-     `fixtures/reject/NAME`. A fixture holding `.zn` files is
-     one package; any other is a build of its subdirectories, in name
-     order, so the first is the root. Its `flags` file, one per line, is
-     what it is built with besides.
+     `fixtures/reject/NAME`, or, when that fixture holds a file named
+     `build`, what `zanec --build` reports for it. A fixture holding `.zn`
+     files is one package; any other is a build of its subdirectories, in
+     name order, so the first is the root. Its `flags` file, one per line,
+     is what it is built with besides. A directory `NAME.archive` anywhere
+     in a fixture holds the C sources of the static library `NAME.a`
+     beside it, which `archive` builds for the fixture's rules.
    - parser: `golden/NAME.STAGE.spans` is `span_dump --STAGE`, and
      `golden/NAME.STAGE.tree` `zanec --STAGE`, over `fixtures/NAME.zn`;
      `golden/reject.NAME.err` is what `zanec` reports for
@@ -58,6 +61,24 @@ let chop_suffix ~suffix name =
 
 let diff golden actual =
   Printf.printf "(rule\n (alias runtest)\n (action\n  (diff golden/%s %s)))\n\n" golden actual
+
+(* Every directory named `NAME.archive` under [dir], each the sources of
+   the static library `NAME.a` beside it. *)
+let rec archive_dirs dir =
+  List.concat_map
+    (fun e ->
+      let path = Filename.concat dir e in
+      if not (Sys.is_directory path) then []
+      else if Filename.check_suffix e ".archive" then [ path ]
+      else archive_dirs path)
+    (sorted dir)
+
+(* What a rule over the fixture [dir] depends on: its files, and the
+   static libraries built from it. *)
+let fixture_deps dir =
+  String.concat " "
+    (Printf.sprintf "(source_tree %s)" dir
+    :: List.map (fun d -> Filename.chop_suffix d ".archive" ^ ".a") (archive_dirs dir))
 
 (* codegen *)
 
@@ -85,33 +106,34 @@ let flags = lines "flags"
    `NAME.optimized.cgt`, and its runs when it holds `NAME.out`. *)
 let program_rules ~goldens ~packages name =
   let package = "fixtures/" ^ name in
+  let deps = fixture_deps package in
   let has suffix = List.mem (name ^ suffix) goldens in
   begin
       if has ".cgt" then begin
         Printf.printf
-          "(rule\n (deps (source_tree %s))\n (action\n  (with-stdout-to\n   %s.cgt.actual\n   (run %s --cgt%s))))\n\n"
-          package name zanec packages;
+          "(rule\n (deps %s)\n (action\n  (with-stdout-to\n   %s.cgt.actual\n   (run %s --cgt%s))))\n\n"
+          deps name zanec packages;
         diff (name ^ ".cgt") (name ^ ".cgt.actual")
       end;
       if has ".optimized.cgt" then begin
         Printf.printf
-          "(rule\n (deps (source_tree %s))\n (action\n  (with-stdout-to\n   %s.optimized.cgt.actual\n   (run %s --cgt --optimize%s))))\n\n"
-          package name zanec packages;
+          "(rule\n (deps %s)\n (action\n  (with-stdout-to\n   %s.optimized.cgt.actual\n   (run %s --cgt --optimize%s))))\n\n"
+          deps name zanec packages;
         diff (name ^ ".optimized.cgt") (name ^ ".optimized.cgt.actual")
       end;
       if has ".out" then begin
         Printf.printf
-          "(rule\n (deps (source_tree %s))\n (targets %s.exe)\n (action\n  (run %s --build %s.exe%s%s)))\n\n"
-          package name zanec name (flags name) packages;
+          "(rule\n (deps %s)\n (targets %s.exe)\n (action\n  (run %s --build %s.exe%s%s)))\n\n"
+          deps name zanec name (flags name) packages;
         Printf.printf
-          "(rule\n (deps (source_tree %s))\n (targets %s.optimized.exe)\n (action\n  (run %s --build %s.optimized.exe --optimize%s%s)))\n\n"
-          package name zanec name (flags name) packages;
+          "(rule\n (deps %s)\n (targets %s.optimized.exe)\n (action\n  (run %s --build %s.optimized.exe --optimize%s%s)))\n\n"
+          deps name zanec name (flags name) packages;
         Printf.printf
-          "(rule\n (deps (source_tree %s))\n (targets %s.tiered.exe)\n (action\n  (run %s --build %s.tiered.exe --tiered%s%s)))\n\n"
-          package name zanec name (flags name) packages;
+          "(rule\n (deps %s)\n (targets %s.tiered.exe)\n (action\n  (run %s --build %s.tiered.exe --tiered%s%s)))\n\n"
+          deps name zanec name (flags name) packages;
         Printf.printf
-          "(rule\n (deps (source_tree %s))\n (targets %s.tier1)\n (action\n  (run %s --tier-up %s.tier1%s%s)))\n\n"
-          package name zanec name (flags name) packages;
+          "(rule\n (deps %s)\n (targets %s.tier1)\n (action\n  (run %s --tier-up %s.tier1%s%s)))\n\n"
+          deps name zanec name (flags name) packages;
         (* The optimized build is held to the same golden file: optimizing
            never changes what a program does. So is the tiered build, run
            with tier 1 in place of every function before `main` starts
@@ -166,8 +188,8 @@ let codegen () =
       | [ "reject"; name; "err" ] ->
           let package = "fixtures/reject/" ^ name in
           Printf.printf
-            "(rule\n (deps (source_tree %s))\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    (run %s --cgt --package %s)))))\n\n"
-            package golden zanec package;
+            "(rule\n (deps %s)\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    (run %s --cgt --package %s)))))\n\n"
+            (fixture_deps package) golden zanec package;
           diff golden (golden ^ ".actual")
       | _ -> ())
     goldens
@@ -190,7 +212,20 @@ let flags_of dir =
     In_channel.with_open_text file In_channel.input_lines |> List.map (Printf.sprintf " %S") |> String.concat ""
   else ""
 
+(* The rule that builds the static library of each `NAME.archive` in a
+   fixture, with the C compiler and archiver the build is given. *)
+let archive_rules () =
+  List.iter
+    (fun dir ->
+      let parent = Filename.dirname dir and base = Filename.basename dir in
+      let up = String.concat "/" (List.map (fun _ -> "..") (String.split_on_char '/' parent)) in
+      Printf.printf
+        "(subdir\n %s\n (rule\n  (targets %s.a)\n  (deps (glob_files %s/*) (env_var ZANE_CC) (env_var AR))\n  (action\n   (run sh %%{dep:%s/archive} %s.a %s))))\n\n"
+        parent (Filename.chop_suffix base ".archive") base up (Filename.chop_suffix base ".archive") base)
+    (archive_dirs "fixtures")
+
 let ffi () =
+  archive_rules ();
   let goldens = sorted "golden" in
   let program = function
     | [ name; "cgt" ] | [ name; "optimized"; "cgt" ] | [ name; "out" ] -> Some name
@@ -208,14 +243,17 @@ let ffi () =
       | [ name; ("check" | "tst") as view ] ->
           let dir = "fixtures/" ^ name in
           let stream = if view = "check" then "with-outputs-to" else "with-stdout-to" in
-          Printf.printf "(rule\n (deps (source_tree %s))\n (action\n  (%s\n   %s.actual\n   %s)))\n\n" dir stream
+          Printf.printf "(rule\n (deps %s)\n (action\n  (%s\n   %s.actual\n   %s)))\n\n" (fixture_deps dir) stream
             golden (build ~dir view);
           diff golden (golden ^ ".actual")
       | [ "reject"; name; "err" ] ->
           let dir = "fixtures/reject/" ^ name in
+          (* A fixture refused only when it is built is built, to a program
+             its refusal never writes. *)
+          let view = if Sys.file_exists (Filename.concat dir "build") then Printf.sprintf "build reject.%s.exe" name else "check" in
           Printf.printf
-            "(rule\n (deps (source_tree %s))\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    %s))))\n\n"
-            dir golden (build ~dir "check");
+            "(rule\n (deps %s)\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    %s))))\n\n"
+            (fixture_deps dir) golden (build ~dir view);
           diff golden (golden ^ ".actual")
       | parts when program parts <> None -> ()
       | _ -> failwith ("gen_rules: no rule makes golden/" ^ golden))
@@ -256,12 +294,12 @@ let semantics () =
         let run = Printf.sprintf "(run %s --%s%s)" tool view packages in
         if err then
           Printf.printf
-            "(rule\n (deps (source_tree %s))\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    %s))))\n\n"
-            dir golden run
+            "(rule\n (deps %s)\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    %s))))\n\n"
+            (fixture_deps dir) golden run
         else
           Printf.printf
-            "(rule\n (deps (source_tree %s))\n (action\n  (with-stdout-to\n   %s.actual\n   %s)))\n\n"
-            dir golden run;
+            "(rule\n (deps %s)\n (action\n  (with-stdout-to\n   %s.actual\n   %s)))\n\n"
+            (fixture_deps dir) golden run;
         diff golden (golden ^ ".actual")
       in
       match String.split_on_char '.' golden with

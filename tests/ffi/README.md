@@ -9,8 +9,14 @@ accepts, `golden/NAME.tst` its typed tree, `golden/NAME.cgt` and
 `golden/NAME.out` what it prints, built and run as tests/codegen builds
 and runs a program: unoptimized, optimized and tiered, with drains checked
 and unchecked. `golden/reject.NAME.err` holds what it reports for
-`fixtures/reject/NAME`. A fixture's `flags` file, one
-per line, is what it is built with besides.
+`fixtures/reject/NAME`, checked, or built when the fixture holds a file
+named `build`, for one refused only when it is built. A fixture's `flags`
+file, one per line, is what it is built with besides. A directory
+`NAME.archive` anywhere in a fixture holds the C sources of the static
+library `NAME.a` beside it, which an `archive` row names: the rules build
+it for the host with `archive`, from `ZANE_CC` and `llvm-ar` (`AR` when
+set), and `dev/bin/windows-programs` builds it for Windows in a copy of
+the fixtures.
 
 | Fixture | What it shows |
 |---|---|
@@ -18,6 +24,8 @@ per line, is what it is built with besides.
 | `declarations` | Every declaration semantics accepts: a foreign verb of each boundary type (scalars and narrow C integers, `Bool`, `Unit`, a string in and out, an array, a list, C-compatible value types, among them a struct tag and a typedef of the same name, a function value), a handle whose `cType` is a bare struct tag, a data handle with a setter overwritten where it is settled, a capability from a foreign variable, one of them a weak C definition and one an alias, and an outside handle made, passed, and overwritten where it roams |
 | `handles` | Handles at run time, each step's log printed once its scope has drained: a data handle written through a `mut` method and replaced through its setter where it is settled, one released where it roams and one dropped by the verb it moves into, a drain releasing a statement before the connection it was prepared on, a struct holding both overwritten whole with the statement's setter first, a list of handles with an element overwritten and the list replaced whole, handles made on and moved into spawned calls, a null result aborting a verb that declares it, a file opened, written and closed through a capability from a foreign variable, and a recursive verb reading outside state through a foreign variable of its own, which runs again rather than answering from a memoization table |
 | `functions` | Function values passed to C (F11): lambdas declared at package scope and written in place, called by C with numbers, a `Bool`, a value type holding an array, and no result; one writing the console; a comparison a C sort calls; one building a list, called on four threads C starts itself, each with an alternate signal stack of its own that it still has after the call; one calling into C with a lambda of its own; and the same values called from Zane, stored in a struct, and called through an invoker; value types of one `F32` field and of an array alone, which C passes as structs, passed and returned through C; and a lambda taking a `Unit`, which C cannot call and which stays a Zane function |
+| `assembly` | C holding assembly, each source assembled as an object of its own and renamed: file-scope `__asm__` defining `jump`, which jumps to a C function of another source and which a thunk and C both call, and `__asm__` statements in a function |
+| `archives` | Two packages vendoring two versions of one C library, `tally`, as `archive` rows' static libraries defining the same names: each reaches its own version's function, alias and, on glibc, indirect function, its own callback into the package's C, its `system` row's `cbrt`, and its own function in file-scope assembly that jumps to a C function of another of its sources |
 | `noObject` | A null result from a foreign verb that declares no abort, which stops the program |
 | `vendored` | A `c.coda` whose rows apply in order: a `source` pattern over a vendored tree (skipping a file that is not C), an `include` directory, a `define`, and a `define` for another target that does not apply |
 | `reject/handleForms` | A handle declared by `alias`, without `#`, with type parameters, or with entries it does not take |
@@ -37,5 +45,7 @@ per line, is what it is built with besides.
 | `reject/fixedMacro` | A `define` of a macro the fixed flags set |
 | `reject/noMatch` | A `source` pattern that matches no file |
 | `reject/linkerSet` | C placing globals in sections named as C identifiers, linker sets, each refused, beside one in a section that is not |
-| `reject/assembly` | C holding assembly, an `__asm__` statement in a function and file-scope `__asm__`, each refused until F9 routes it as an object |
+| `reject/objectLinkerSet` | Linker sets placed through objects: an archive's member placing data in `plugins` and file-scope assembly placing data in `zane_hooks`, each refused, beside a section of each that is not one |
+| `reject/headerAssembly` | An interface header holding assembly, which reaches the glue and is refused |
+| `reject/systemMissing` | A `system` row naming a library the linker cannot find, refused at the link by its row |
 | `reject/notCoda` | A `c.coda` that is not Coda, reported where the parser stopped |
