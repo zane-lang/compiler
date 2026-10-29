@@ -334,8 +334,14 @@ by their labels, not as whatever the glue defines: a function an interface
 header defines is compiled into the glue too, and is renamed as the
 sources' functions are. A source that includes that header compiles the
 same definition, so each glue module is linked after the sources with
-every definition the modules before it already hold made a declaration
-(`zane_drop_defined`), and the package keeps one copy.
+every definition the modules before it already hold, a function's, a
+variable's, an alias's or an indirect function's, made a declaration
+(`zane_drop_defined`), and the package keeps one copy. A constructor or
+destructor that header defines is local to each copy, so the glue's is
+left out of its list when a module before it runs one of the same name
+whose instructions use the same constants and globals: it runs once, as
+it would for the C alone, and one of a header no source includes runs
+from the glue.
 
 An `archive` row's members are renamed through the object rewriter that
 stamps placeholders (C9). The set of symbols the package's archives define
