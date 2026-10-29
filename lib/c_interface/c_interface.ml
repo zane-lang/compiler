@@ -26,8 +26,10 @@ type ctype =
   | Float of { size : int; ieee : bool; name : string }
   (* Whether what it points to is `const`, and what that is. *)
   | Pointer of { const : bool; pointee : ctype }
-  (* A struct or union, by its tag, or by the typedef that names an
-     anonymous one. *)
+  (* A struct or union, by its identity, which is how C spells it:
+     `struct` or `union` and its tag, as `struct file`, or the typedef that
+     names an anonymous one, as `vec3`. A tag and a typedef name are in
+     separate namespaces, and the identity keeps them apart. *)
   | Record of { union : bool; name : string }
   | Array of { count : int; element : ctype }
   | Function of { params : ctype list; result : ctype; variadic : bool }
@@ -211,7 +213,7 @@ let rec to_string = function
         (match params with [] when not variadic -> "void" | _ -> String.concat ", " (List.map to_string params))
         (if variadic then ", ..." else "")
   | Pointer { const; pointee } -> (if const then "const " else "") ^ to_string pointee ^ " *"
-  | Record { union; name } -> (if union then "union " else "struct ") ^ name
+  | Record { name; _ } -> name
   | Array { count; element } -> Printf.sprintf "%s[%d]" (to_string element) count
   | Function { params = []; result; variadic = false } -> to_string result ^ " (void)"
   | Function { params; result; variadic } ->
