@@ -14,3 +14,5 @@ packed packed_pass(packed p);
 bits bits_pass(bits b);
 extern int64_t not_a_function;
 zane_span returns_list(void);
+int32_t narrow_param(int32_t (*f)(int8_t));
+int32_t narrow_result(int16_t (*f)(int32_t));

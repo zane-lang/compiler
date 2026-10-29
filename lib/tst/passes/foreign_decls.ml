@@ -449,9 +449,18 @@ and function_corresponds env iface v (f : Ty.verb) c =
     match c with
     | C.Pointer { pointee = C.Function { params; result = r; variadic = false }; _ }
       when List.length params = List.length f.Ty.params -> (
-        let checks =
-          List.map2 (fun t p -> corresponds env iface v Param t p) f.Ty.params params @ [ corresponds env iface v Result f.Ty.ret r ]
+        (* C calls the function with these types, so a narrow C integer
+           type would hand the Zane function bits C never set. *)
+        let check position t p =
+          match crossing env t with
+          | Some (Scalar s) when not (full_width s p) ->
+              Error
+                (Printf.sprintf
+                   "C declares %s here, and a function value takes and gives a full-width C type of each scalar, never a narrower one (ffi.md §3.6)"
+                   (quote (C.to_string p)))
+          | _ -> corresponds env iface v position t p
         in
+        let checks = List.map2 (check Param) f.Ty.params params @ [ check Result f.Ty.ret r ] in
         match List.find_opt Result.is_error checks with Some e -> e | None -> Ok ())
     | _ ->
         Error
