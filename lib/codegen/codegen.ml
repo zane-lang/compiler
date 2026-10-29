@@ -155,10 +155,12 @@ let target_cpu ?target () =
 
 let c_compiler = Build.cc
 
+type c_module = Foreign_c.c_module = { key : string; bitcode : string; files : string list }
+
 type c_package = Foreign_c.package = {
   prefix : string;
-  sources : (string * string) list;
-  glue : (string * string) list;
+  sources : c_module list;
+  glue : c_module list;
   thunks : string list;
 }
 

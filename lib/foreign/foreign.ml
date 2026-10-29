@@ -194,7 +194,7 @@ let glue_refused message = Error { diagnostics = [ Diagnostic.about_invocation m
 let glue_unwritten message = glue_refused (Printf.sprintf "the glue could not be written: %s" message)
 
 (* One glue file, [text] for [header], written into [work] and compiled
-   with [maps] and [flags]. *)
+   with [maps] and [flags], with the real path of [header]. *)
 let glue_file p ~work ~maps ~flags (header, text) =
   let path = Filename.concat work (Filename.remove_extension (Filename.basename header) ^ ".glue.c") in
   match Out_channel.with_open_bin path (fun oc -> output_string oc text) with
@@ -203,7 +203,7 @@ let glue_file p ~work ~maps ~flags (header, text) =
       let ( let* ) = Result.bind in
       let* source = Compile.compile_source ?cache:p.cache ~maps flags path in
       let* source = linker_sets ~file:header source in
-      assembly ~file:header source
+      Result.map (fun source -> (Compile.real header, source)) (assembly ~file:header source)
 
 (* [files] written into a directory of their own and compiled. *)
 let glue_files p ~dir files =
@@ -218,7 +218,8 @@ let glue_files p ~dir files =
           combine (List.map (glue_file p ~work ~maps ~flags) files))
 
 (* [p]'s glue for [entries] (Glue), each file compiled as its sources
-   were, from the cache when it holds it. The files are written to a
+   were, from the cache when it holds it, beside the real path of the
+   interface header it compiles. The files are written to a
    directory of their own, named `/zane/glue` in the module and the hash
    as the package's directory is named `/zane/pkg`, and each includes its
    header by the absolute path the package's directory map names; a path

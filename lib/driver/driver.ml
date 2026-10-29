@@ -163,13 +163,13 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
         if stamped p.Assembly.id || (f.Foreign.sources = [] && entries = []) then Ok None
         else
           Result.map
-            (fun (glue : Foreign.Compile.source list) ->
-              let modules = List.map (fun (s : Foreign.Compile.source) -> (s.key, s.bitcode)) in
+            (fun glue ->
+              let c_module files (s : Foreign.Compile.source) = { Codegen.key = s.key; bitcode = s.bitcode; files } in
               Some
                 {
                   Codegen.prefix = (if root then "" else "!") ^ p.Assembly.id ^ "$%c$";
-                  sources = modules f.Foreign.sources;
-                  glue = modules glue;
+                  sources = List.map (fun (s : Foreign.Compile.source) -> c_module s.includes s) f.Foreign.sources;
+                  glue = List.map (fun (header, s) -> c_module [ header ] s) glue;
                   thunks = List.map (fun (t : F.t) -> t.F.thunk) entries;
                 })
             (Foreign.glue f (List.map entry entries))

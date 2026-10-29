@@ -124,16 +124,16 @@ let mapped_arg maps arg =
   | Some a -> a
   | None -> ( match after "-I" with Some a -> a | None -> mapped_path maps arg)
 
+(* Whether [line] of preprocessed C is a line marker, `# N "file"`. *)
+let marker line =
+  let n = String.length line in
+  n > 2 && line.[0] = '#' && line.[1] = ' ' && line.[2] >= '0' && line.[2] <= '9'
+
 (* [text], preprocessed C, with the file named by each line marker mapped,
    so the hash reads the paths as `__FILE__` does, which clang's own
    prefix map already spells mapped. Only a marker's file name is a path:
    the source text itself is kept as written. *)
 let mapped maps text =
-  let marker line =
-    let is_digit c = c >= '0' && c <= '9' in
-    let n = String.length line in
-    n > 2 && line.[0] = '#' && line.[1] = ' ' && is_digit line.[2]
-  in
   let line l =
     if not (marker l) then l
     else
@@ -149,8 +149,25 @@ let mapped maps text =
   in
   String.concat "\n" (List.map line (String.split_on_char '\n' text))
 
-(* One C source compiled, or what the front end said was wrong with it. *)
-type source = { path : string; bitcode : string; key : string }
+(* One C source compiled, or what the front end said was wrong with it,
+   and the files its code came from, each by its real path. *)
+type source = { path : string; bitcode : string; key : string; includes : string list }
+
+(* [path] with every link and `.` or `..` resolved, or as it is when it
+   names nothing. *)
+let real path = try Unix.realpath path with Unix.Unix_error _ -> path
+
+(* The files [text], preprocessed C, names in its line markers, by their
+   real paths: the source and every header it included. *)
+let included text =
+  let file line =
+    if marker line then
+      match String.index_opt line '"' with
+      | None -> None
+      | Some i -> Option.map (fun j -> String.sub line (i + 1) (j - i - 1)) (String.index_from_opt line (i + 1) '"')
+    else None
+  in
+  List.filter_map file (String.split_on_char '\n' text) |> List.sort_uniq compare |> List.map real |> List.sort_uniq compare
 
 (* The problems the front end reported, as diagnostics against the files
    they point into, and the text of those files. *)
@@ -219,8 +236,9 @@ let compile_source ?cache ~maps flags path =
     let placed = List.exists (fun w -> mentions w preprocessed.output) [ "__builtin_COLUMN"; "__builtin_LINE" ] in
     let cache = if placed then None else cache in
     let kept = Option.map (fun c -> Filename.concat (Filename.concat c "foreign/module") (key ^ ".bc")) cache in
+    let includes = included preprocessed.output in
     match Option.bind kept Cache.read with
-    | Some bitcode -> Ok { path; bitcode; key }
+    | Some bitcode -> Ok { path; bitcode; key; includes }
     | None ->
         let compiled = Clang.compile args in
         if not compiled.ok then
@@ -233,5 +251,5 @@ let compile_source ?cache ~maps flags path =
           (* A module compiled every time is keyed by what it compiled
              to, so nothing kept under its key outlives a change. *)
           let key = if placed then Digest.to_hex (Digest.string compiled.output) else key in
-          Ok { path; bitcode = compiled.output; key }
+          Ok { path; bitcode = compiled.output; key; includes }
         end
