@@ -168,7 +168,18 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; _ }
     when String.starts_with ~prefix:"@controlflow$" spelling ->
       refuse span (Printf.sprintf "lowering does not handle `%s` used as a value yet" spelling)
-  | T.Expr.Foreign_global _ -> refuse span "lowering does not handle a foreign variable yet (docs/design/ffi.md §7)"
+  (* A foreign variable's capability is the address of its C global, under
+     the name its package's renaming gives it (docs/design/ffi.md F9,
+     F12), and a stamp no drain reads, since nothing ends a capability. *)
+  | T.Expr.Foreign_global { symbol; package } ->
+      let global = st.stamp package ^ package ^ "$%c$" ^ symbol in
+      if not (List.exists (fun (g : Global.t) -> g.Global.symbol = global) st.globals) then
+        st.globals <-
+          { Global.symbol = global; linkage = Linkage.Imported; ty = Nodes.Ty.I64; per_thread = false }
+          :: st.globals;
+      let address = { Expr.node = Expr.Global global; ty = Nodes.Ty.Ptr } in
+      let stamp = { Expr.node = Expr.Int 0L; ty = Nodes.Ty.I64 } in
+      { Expr.node = Expr.Record [ (0, address); (1, stamp) ]; ty = ty st span e.T.Expr.ty }
   | _ -> Diagnostic.bug ~span "lowering: an expression of a form it has no case for"
 
 (* Two operands stored in the order they are given, then combined. *)
@@ -395,6 +406,16 @@ and code st ctx span (arg : T.Arg.t) =
       | _ -> Diagnostic.bug ~span "lowering expected a block here")
   | T.Arg.Value _ -> Diagnostic.bug ~span "lowering expected a block here"
 
+(* Whether an overwrite of [target] replaces the foreign handles it holds
+   through their setters (spec ffi.md §4.3): a settled place does, and so
+   does one the caller lends, whose owner may be settled. *)
+and setters st span (target : T.Expr.t) =
+  through_setters st span target.T.Expr.ty
+  &&
+  match Tst.States.state (Option.get st.places) target with
+  | Tst.States.Settled | Tst.States.Borrowed -> true
+  | Tst.States.Roaming | Tst.States.Contingent | Tst.States.Fresh -> false
+
 and stat st ctx (s : T.Stat.t) : Stat.t list =
   let span = s.T.Stat.span in
   match s.T.Stat.node with
@@ -432,7 +453,9 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       pins
       @ [ Stat.Let { id; value = v } ]
       @
-      if held st span t then [ Stat.Overwrite { address; value = read; layout = layout st span t } ]
+      if held st span t then
+        let setters = setters st span target in
+        [ Stat.Overwrite { address; value = read; layout = layout st span t; setters } ]
       else [ Stat.Store { address; value = read } ]
   | T.Stat.Assign { target; value } -> (
       let t = target.T.Expr.ty in
@@ -447,7 +470,7 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
            kept, and the rest of what it replaces returning its blocks. *)
         let address = address () in
         let value = moved st ctx span t value in
-        [ Stat.Overwrite { address; value; layout = layout st span t } ]
+        [ Stat.Overwrite { address; value; layout = layout st span t; setters = setters st span target } ]
       else
         match place st ctx span target with
         | Some place -> [ Stat.Assign { place; value = moved st ctx span t value } ]

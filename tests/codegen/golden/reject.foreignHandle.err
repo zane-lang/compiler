@@ -1,4 +1,0 @@
-File "fixtures/reject/foreignHandle/main.zn", line 12, characters 17-26:
-12 |     c Counter = counter() ? e { return Unit(); }
-   |                 ^^^^^^^^^
-Error: lowering does not handle a foreign handle yet (docs/design/ffi.md §7)

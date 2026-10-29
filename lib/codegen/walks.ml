@@ -1,9 +1,9 @@
 (* Each type's walks over the blocks its values own (docs/design/lowering.md
-   §9): a copy, an end, a move and an overwrite, emitted for each type
-   whose layout lists a position once the program needs them, and the
-   type's table of them, which the runtime is handed wherever it is to walk
-   a value of the type. Emitted code also vacates a value of the type
-   itself. A walk knows its type's positions, their offsets and the tags
+   §9): a copy, an end, a move, an overwrite and a settled overwrite,
+   emitted for each type whose layout lists a position once the program
+   needs them, and the type's table of them, which the runtime is handed
+   wherever it is to walk a value of the type. Emitted code also vacates a
+   value of the type itself. A walk knows its type's positions, their offsets and the tags
    each is under, so it reads each handle and box where it is and calls the
    walks of what they hold directly. Past [deepest] calls it hands a nested
    walk to the runtime's work instead, which runs it from the top, so a
@@ -25,6 +25,7 @@ type walks = {
   end_ : Llvm.llvalue;
   move : Llvm.llvalue;
   overwrite : Llvm.llvalue;
+  set : Llvm.llvalue;
   table : Llvm.llvalue;
 }
 
@@ -64,6 +65,27 @@ type fn = {
 }
 
 let int env n = Llvm.const_int env.i64 n
+
+(* The global prefix of the target a module's data layout describes: `_`
+   for Mach-O and 32-bit Windows, none for the rest. *)
+let global_prefix data_layout =
+  let parts = String.split_on_char '-' data_layout in
+  if List.mem "m:o" parts || List.mem "m:x" parts then "_" else ""
+
+(* The IR name of a glue entry whose label is [symbol] after the target's
+   global prefix (docs/design/ffi.md F8): clang names a function with an
+   `__asm__` label `\001` and the label when the target has a prefix, and
+   by the label alone when it has none. *)
+let foreign_name m symbol =
+  match global_prefix (Llvm.data_layout m) with "" -> symbol | prefix -> "\001" ^ prefix ^ symbol
+
+(* The glue's thunk [symbol], declared with a thunk's pointer ABI: the
+   address of a table of its arguments' slots, and of its result's. *)
+let thunk_type ctx = Llvm.function_type (Llvm.void_type ctx) [| Llvm.pointer_type ctx; Llvm.pointer_type ctx |]
+
+let thunk ctx m symbol =
+  let name = foreign_name m symbol in
+  match Llvm.lookup_function name m with Some f -> f | None -> Llvm.declare_function name (thunk_type ctx) m
 
 let offset c base n =
   if n = 0 then base
@@ -275,6 +297,12 @@ let define env name t =
   Llvm.set_linkage Llvm.Linkage.Internal f;
   f
 
+(* Whether a value of layout [l] holds a foreign handle, anywhere or, with
+   [settled], where a settled overwrite sets it (Layout.holds_handle). *)
+let holds_handle ?settled known l = Layout.holds_handle ?settled (Hashtbl.find_opt known.positions) l
+
+let sets known l = holds_handle ~settled:true known l
+
 (* The layout whose walks [l] shares (see [alike]). *)
 let shared known l = Option.value ~default:l (Hashtbl.find_opt known.alike l)
 
@@ -292,12 +320,15 @@ let walks known l =
       and end_ = walk "end"
       and move = walk "move"
       and overwrite = walk "overwrite" in
+      (* A layout whose settled overwrite replaces no handle through its
+         setter has the one overwrite. *)
+      let set = if sets known l then walk "set" else overwrite in
       let table =
-        Llvm.define_global l (Llvm.const_struct env.ctx [| copy; end_; move; overwrite |]) env.m
+        Llvm.define_global l (Llvm.const_struct env.ctx [| copy; end_; move; overwrite; set |]) env.m
       in
       Llvm.set_linkage Llvm.Linkage.Private table;
       Llvm.set_global_constant true table;
-      let w = { copy; end_; move; overwrite; table } in
+      let w = { copy; end_; move; overwrite; set; table } in
       Hashtbl.replace known.made l w;
       known.unbuilt <- (l, w) :: known.unbuilt;
       w
@@ -364,6 +395,8 @@ let copy known c (p : Layout.position) =
           Option.iter (fun w -> visit c w.copy fresh c.with_ (int env 0)) (inner known payload))
   | Layout.Array { count; stride; elements } ->
       each_element c h ~count ~stride (walks known elements).copy c.with_ (int env 0)
+  (* A handle is a reference type's, and is never copied. *)
+  | Layout.Foreign _ -> ()
 
 (* End: each block the value owns is returned once what lives in it has
    died, and its handle or box names none. A block whose contents are
@@ -429,7 +462,11 @@ let end_at known c base (p : Layout.position) =
                   defer w old));
       store c (Llvm.const_null env.ptr) h
   | Layout.Array { count; stride; elements } ->
-      each_element c h ~count ~stride (walks known elements).end_ (Llvm.const_null env.ptr) (int env 0));
+      each_element c h ~count ~stride (walks known elements).end_ (Llvm.const_null env.ptr) (int env 0)
+  (* The runtime calls the free thunk, or collects it to call in the
+     order of the handles' stamps (runtime/handle.c). *)
+  | Layout.Foreign { free; _ } ->
+      ignore (runtime c Cgt.Runtime.Handle_end [| h; thunk env.ctx env.m free |]));
   ()
 
 (* Move: each block the value owns that must move into the region the move
@@ -480,14 +517,25 @@ let move known c (p : Layout.position) =
               Option.iter (fun w -> visit c w.move fresh c.with_ c.extra) (inner known payload)))
   | Layout.Array { count; stride; elements } ->
       each_element c h ~count ~stride (walks known elements).move c.with_ c.extra
+  (* A C object never moves (spec ffi.md §4.2): its handle's words move
+     with the value. *)
+  | Layout.Foreign _ -> ()
 
 (* Overwrite (runtime/value.c, `zane_overwrite`): the place hands on its
    arrival first, so it arrives after everything below it. A box present
    in both the occupant and the replacement keeps its block, and the
    replacement's payload is written into it, recursively; everything else
-   the occupant owns ends. Then the replacement's bytes are written. *)
-let overwrite known self c (ps : Layout.position list) =
+   the occupant owns ends. Then the replacement's bytes are written.
+
+   A [settled] overwrite is of a settled or lent place (spec ffi.md §4.3):
+   a foreign handle there that is no variant's payload is replaced through
+   its set thunk instead, and the place keeps its pointer and stamp, which
+   the runtime writes over the replacement's before its bytes are written
+   (runtime/handle.c). What it reaches through a box or an array that is no
+   payload is overwritten as settled too. *)
+let overwrite known self ~settled c (ps : Layout.position list) =
   let env = c.env in
+  let replace (p : Layout.position) w = if settled && p.tags = [] then w.set else w.overwrite in
   let region = runtime c Cgt.Runtime.Region_at [| c.at |] in
   ignore (runtime c Cgt.Runtime.Defer [| c.work; self.move; c.at; region; int env 0 |]);
   let entry = Llvm.builder_at env.ctx (Llvm.instr_begin (Llvm.entry_block c.f)) in
@@ -517,7 +565,7 @@ let overwrite known self c (ps : Layout.position list) =
                 each c (int env count) (fun i ->
                     let next = Llvm.build_add c.depth (int env 1) "" c.b in
                     ignore
-                      (Llvm.build_call (walk_type env) w.overwrite
+                      (Llvm.build_call (walk_type env) (replace p w)
                          [| element_at c at stride i; element_at c with_ stride i; int env stride; c.work; next |]
                          "" c.b));
                 memcpy c with_ at (int env (count * stride))
@@ -525,6 +573,9 @@ let overwrite known self c (ps : Layout.position list) =
               (match present c c.with_ p with
               | None -> both ()
               | Some there -> either c there both (fun () -> end_at known c c.at p))
+          | Layout.Foreign { set = Some set; _ }, _ when settled && p.tags = [] ->
+              let at = offset c c.at p.offset and with_ = offset c c.with_ p.offset in
+              ignore (runtime c Cgt.Runtime.Handle_set [| at; with_; thunk env.ctx env.m set |])
           | _, None -> end_at known c c.at p
           | _, Some k ->
               let old = load c env.ptr (offset c c.at p.offset) in
@@ -572,7 +623,7 @@ let overwrite known self c (ps : Layout.position list) =
                     (fun () ->
                       let next = Llvm.build_add c.depth (int env 1) "" c.b in
                       ignore
-                        (Llvm.build_call (walk_type env) w.overwrite
+                        (Llvm.build_call (walk_type env) (replace p w)
                            [| old; incoming; n; c.work; next |]
                            "" c.b);
                       return ())
@@ -580,7 +631,7 @@ let overwrite known self c (ps : Layout.position list) =
                       ignore
                         (runtime c Cgt.Runtime.Defer_return [| c.work; incoming; n; int env 8 |]);
                       ignore
-                        (runtime c Cgt.Runtime.Defer [| c.work; w.overwrite; old; incoming; n |])))
+                        (runtime c Cgt.Runtime.Defer [| c.work; replace p w; old; incoming; n |])))
       | _ -> ())
     ps kept
 
@@ -591,7 +642,7 @@ let vacate element c (p : Layout.position) =
   let h = offset c c.at p.offset in
   match p.kind with
   | Layout.Text | Layout.List _ -> zero_handle c h
-  | Layout.Box _ -> store c (Llvm.const_null c.env.ptr) h
+  | Layout.Box _ | Layout.Foreign _ -> store c (Llvm.const_null c.env.ptr) h
   | Layout.Array { count; stride; elements } ->
       let f = element elements in
       each c (int c.env count) (fun i ->
@@ -637,10 +688,11 @@ let alike positions =
     let shape (p : Layout.position) =
       let kind =
         match p.kind with
-        | Layout.Text -> (0, 0, 0, 0)
-        | Layout.List { stride; elements } -> (1, stride, 0, nested elements)
-        | Layout.Array { count; stride; elements } -> (2, stride, count, nested elements)
-        | Layout.Box { size; payload } -> (3, size, 0, nested payload)
+        | Layout.Text -> (0, 0, 0, 0, [])
+        | Layout.List { stride; elements } -> (1, stride, 0, nested elements, [])
+        | Layout.Array { count; stride; elements } -> (2, stride, count, nested elements, [])
+        | Layout.Box { size; payload } -> (3, size, 0, nested payload, [])
+        | Layout.Foreign { free; set } -> (4, 0, 0, 0, free :: Option.to_list set)
       in
       (kind, p.offset, p.size, p.tags)
     in
@@ -737,5 +789,6 @@ let rec finish known =
       body env w.copy (all (copy known));
       body env w.end_ (all (fun c p -> end_at known c c.at p));
       body env w.move (all (move known));
-      body env w.overwrite (fun c -> overwrite known w c ps);
+      body env w.overwrite (fun c -> overwrite known w ~settled:false c ps);
+      if w.set != w.overwrite then body env w.set (fun c -> overwrite known w ~settled:true c ps);
       finish known

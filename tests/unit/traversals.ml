@@ -288,7 +288,7 @@ let cgt_stat_samples () =
     (C.Stat.Switch { value = a; cases = [ (0, b1); (1, b2) ] }, ([ a ], [ b1; b2 ]));
     none (C.Stat.Leave 1);
     (C.Stat.Store { address = a; value = c }, ([ a; c ], []));
-    (C.Stat.Overwrite { address = a; value = c; layout = "l" }, ([ a; c ], []));
+    (C.Stat.Overwrite { address = a; value = c; layout = "l"; setters = false }, ([ a; c ], []));
     (C.Stat.Place { address = a; value = c; layout = "l" }, ([ a; c ], []));
     none (C.Stat.Reserve { id = 1; scope = 2; ty = C.Ty.I64; layout = "l" });
     ( C.Stat.Spawn

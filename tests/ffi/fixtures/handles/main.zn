@@ -1,0 +1,166 @@
+/// Foreign handles at run time (ffi.md §4, docs/design/ffi.md F12): data
+/// handles made, written, replaced through their setters where they are
+/// settled and released where they roam, a struct holding a connection and
+/// a statement prepared on it overwritten whole, the release order of a
+/// drain, a list of handles, handles in spawned calls, a null result
+/// aborting, and a file opened,
+/// written and closed through a capability from a foreign variable. The C
+/// code logs each object made, set and freed, and the program prints the
+/// log after each step, once the step's scope has drained.
+package handles;
+
+alias Unit = @primitives$Unit;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+type Fs = #handle{ cType = "fs_t"; }
+type File = #handle{ cType = "file_t"; free = "fs_close"; }
+type Conn = #handle{ cType = "conn_t"; set = "conn_set"; free = "conn_free"; }
+type Stmt = #handle{ cType = "stmt_t"; set = "stmt_set"; free = "stmt_free"; }
+
+^Conn connect(id I32) foreign "conn_open";
+^Conn?Unit maybe(id I32) foreign "conn_maybe";
+I32 connId(this Conn) foreign "conn_id";
+Unit bump(this Conn) mut foreign "conn_bump";
+^Stmt prepare(this Conn, n I32) foreign "stmt_prepare";
+I32 stmtId(this Stmt) foreign "stmt_id";
+
+^File open(this Fs, path String) mut foreign "fs_open";
+Unit write(this Fs, file File, data String) mut foreign "fs_write";
+I64 written(this Fs) foreign "fs_written";
+String drain(this Fs) mut foreign "fs_drain";
+
+type Session = #struct {
+	conn Conn;
+	stmt Stmt;
+}
+
+Session(conn ^Conn, stmt ^Stmt) => init{ conn; stmt; }
+
+/// `this` is lent by the caller, whose owner may be settled, so its field
+/// is replaced through the setter too.
+Unit renew(this Session, id I32) mut {
+	this.conn = connect(id);
+	return Unit();
+}
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+/// A settled handle is replaced in place, through its setter, and keeps its
+/// place in the release order; one written through a `mut` method is read
+/// back.
+Unit settled() {
+	d Conn = connect(I32(5));
+	d!bump();
+	show(String(d:connId()));
+	d = connect(I32(7));
+	show(String(d:connId()));
+	return Unit();
+}
+
+/// A roaming handle overwritten is released at once, and one moved into a
+/// verb that drops it is released when that verb's scope drains.
+Unit dropped(c ^Conn) {
+	return Unit();
+}
+
+Unit roaming() {
+	r ^Conn = connect(I32(1));
+	r = connect(I32(2));
+	dropped(connect(I32(3)));
+	show(String(r:connId()));
+	return Unit();
+}
+
+/// A drain releases its handles in the reverse of the order they were made,
+/// so the statement goes before the connection it was prepared on.
+Unit order() {
+	a Conn = connect(I32(1));
+	s Stmt = a:prepare(I32(7));
+	b Conn = connect(I32(2));
+	show(String(s:stmtId()));
+	return Unit();
+}
+
+/// One overwrite reaches both handles of a session: the statement's setter
+/// runs before the connection's, by the places' stamps. A field replaced
+/// through `this` keeps its place's stamp too.
+Unit session() {
+	c ^Conn = connect(I32(1));
+	t ^Stmt = c:prepare(I32(1));
+	x Session = Session(c, t);
+	d ^Conn = connect(I32(2));
+	u ^Stmt = d:prepare(I32(2));
+	x = Session(d, u);
+	show(String(x.stmt:stmtId()));
+	x!renew(I32(3));
+	show(String(x.conn:connId()));
+	return Unit();
+}
+
+/// Each element of a list of handles is released with the list.
+Unit listed() {
+	cs @primitives$ListRef<Conn> = @primitives$ListRef(Conn);
+	cs!push(connect(I32(10)));
+	cs!push(connect(I32(11)));
+	show(String(cs[I64(2)]:connId()));
+	return Unit();
+}
+
+/// A handle made on a spawned call's thread is released there, and one
+/// moved into a spawned call is released when the call's scope drains.
+I32 madeThere(id I32) {
+	c Conn = connect(id);
+	return c:connId();
+}
+
+Unit spawned() {
+	n I32 = spawn madeThere(I32(20));
+	show(String(n));
+	spawn dropped(connect(I32(21)));
+	return Unit();
+}
+
+/// A null pointer from C aborts a verb that declares a `Unit` abort.
+Unit attempt(id I32) {
+	m Conn = maybe(id) ? e {
+		show(String("no connection"));
+		return Unit();
+	}
+	show(String(m:connId()));
+	return Unit();
+}
+
+Unit save(this Fs, path String) mut {
+	file File = this!open(path);
+	this!write(file, String("hello"));
+	return Unit();
+}
+
+Unit main() {
+	files Fs foreign "zane_fs";
+	settled();
+	show(files!drain());
+	roaming();
+	show(files!drain());
+	order();
+	show(files!drain());
+	session();
+	show(files!drain());
+	listed();
+	show(files!drain());
+	spawned();
+	show(files!drain());
+	attempt(@operators$negate(I32(1)));
+	attempt(I32(4));
+	show(files!drain());
+	files!save(String("a.log"));
+	show(String(files:written()));
+	show(files!drain());
+	return Unit();
+}

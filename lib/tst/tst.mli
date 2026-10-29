@@ -18,6 +18,11 @@ module Traverse = Traverse
 (** Which verbs can exit, which lowering asks of a verb's body. *)
 module Exits = Exits
 
+(** The state of the place an expression denotes, which lowering asks of
+    an overwritten place holding a foreign handle (docs/design/ffi.md
+    F12). *)
+module States = States
+
 (** The intrinsic namespaces' verbs, which lowering looks a method up in. *)
 module Intrinsics = Intrinsics
 

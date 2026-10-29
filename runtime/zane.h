@@ -30,19 +30,27 @@ typedef struct zane_mark zane_mark;
 typedef struct zane_work zane_work;
 
 /* A walk over the blocks one type's values own (memory.md §3.6): the
-   compiler emits four for each type that owns any (docs/design/lowering.md
-   §9). Each takes the place the value is at, what the walk works with --
-   the region a copy or a move puts blocks in, or the value an overwrite
-   writes -- and a number: where a move's blocks leave from, or the size of
-   the value an overwrite writes. A walk follows a nested value's blocks by
-   calling the walk of its type, `depth` deeper, or past a fixed depth by
-   handing it to `work` (`zane_defer`), so a value nested any number of
-   boxes deep is walked without the machine stack growing with it. */
+   compiler emits a table of five for each type that owns any
+   (docs/design/lowering.md §9), the last an overwrite of a settled place,
+   which replaces a foreign handle through its setter (docs/design/ffi.md
+   F12), and is the overwrite itself for a type that holds none. Each takes
+   the place the value is at, what the walk works with -- the region a copy
+   or a move puts blocks in, or the value an overwrite writes -- and a
+   number: where a move's blocks leave from, or the size of the value an
+   overwrite writes. A walk follows a nested value's blocks by calling the
+   walk of its type, `depth` deeper, or past a fixed depth by handing it to
+   `work` (`zane_defer`), so a value nested any number of boxes deep is
+   walked without the machine stack growing with it. */
 typedef void (*zane_walk)(char *at, char *with, int64_t extra, zane_work *work, int64_t depth);
 
 typedef struct {
-	zane_walk copy, end, move, overwrite;
+	zane_walk copy, end, move, overwrite, set;
 } zane_type;
+
+/* A thunk of a package's glue (docs/design/ffi.md F8): it takes the
+   addresses of slots holding its arguments, and of a slot for its
+   result. A handle's free and set thunks take its objects' pointers. */
+typedef void (*zane_thunk)(void *const *args, void *result);
 
 /* What the program defines: its entry, and the size of the range each
    context reserves for its frames, the main context's and each spawned
@@ -85,6 +93,7 @@ int64_t zane_leaves(const char *block, zane_mark *region, int64_t from);
 void zane_arrive(char *slot, const zane_type *type);
 void zane_promote(char *value, const zane_type *type, zane_mark *scope);
 void zane_overwrite(char *slot, char *incoming, int64_t size, const zane_type *type);
+void zane_overwrite_settled(char *slot, char *incoming, int64_t size, const zane_type *type);
 
 /* list.c */
 void zane_list_new(zane_list *out);
@@ -98,6 +107,12 @@ void zane_out_of_range(void);
 
 /* slot.c */
 void zane_hold(char *slot, const zane_type *type);
+
+/* handle.c */
+int64_t zane_handle_made(void *object);
+void zane_no_object(void);
+void zane_handle_end(char *at, zane_thunk free_thunk);
+void zane_handle_set(char *at, char *with, zane_thunk set_thunk);
 
 /* region.c */
 void zane_too_deep(void);

@@ -60,7 +60,11 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
          p.Program.layouts);
   List.iter
     (fun (g : Global.t) ->
-      let v = Llvm.define_global g.Global.symbol (Llvm.const_null (stored env g.Global.ty)) m in
+      let v =
+        match g.Global.linkage with
+        | Cgt.Nodes.Linkage.Imported -> Llvm.declare_global (stored env g.Global.ty) g.Global.symbol m
+        | _ -> Llvm.define_global g.Global.symbol (Llvm.const_null (stored env g.Global.ty)) m
+      in
       if g.Global.per_thread then Llvm.set_thread_local true v;
       (match g.Global.linkage with
       | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal v
@@ -164,7 +168,7 @@ type c_package = Foreign_c.package = {
 
 let global_prefix ?target () =
   Result.map
-    (fun (_, tm) -> Emit.global_prefix (Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm)))
+    (fun (_, tm) -> Walks.global_prefix (Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm)))
     (Build.target_machine ?target ~optimize:false ())
 
 let executable ?target ?optimize ?tier ?link m output =

@@ -47,7 +47,7 @@ let package_module ctx ~triple ~data_layout p =
   let sources = List.map (fun (_, bc) -> parse ctx bc) p.sources in
   Option.map
     (fun m ->
-      rename m p.prefix (Emit.global_prefix data_layout) p.thunks;
+      rename m p.prefix (Walks.global_prefix data_layout) p.thunks;
       m)
     (linked ~triple ~data_layout (sources @ glue))
 

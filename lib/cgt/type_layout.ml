@@ -138,7 +138,8 @@ let member_index _st _t slot = slot
    same shape and nothing more (memory.md §3.3), a reference is the address
    of the owner it names (§4.1), and a boxed member a pointer (adt.md §4).
    A function value is the address of the function a lambda was lifted to
-   (L14). *)
+   (L14). A foreign handle is its C object's pointer and its stamp
+   (docs/design/ffi.md F12). *)
 let rec shape st span (t : Tty.t) : Nodes.Ty.t =
   match t with
   | Tty.Roaming t -> shape st span t
@@ -171,7 +172,7 @@ let rec shape st span (t : Tty.t) : Nodes.Ty.t =
       | Some (T.Decl.Variant cs, true) -> sum (List.map (fun (_, c) -> member c) cs)
       | Some (T.Decl.Enum cs, true) -> sum (List.map (fun _ -> Nodes.Ty.Void) cs)
       | Some (T.Decl.Distinct u, _) -> member u
-      | Some (T.Decl.Handle _, _) -> refuse span "lowering does not handle a foreign handle yet (docs/design/ffi.md §7)"
+      | Some (T.Decl.Handle _, _) -> Nodes.Ty.Struct [ Nodes.Ty.Ptr; Nodes.Ty.I64 ]
       | _ -> unhandled span t)
   | _ -> unhandled span t
 
@@ -213,10 +214,30 @@ let stride st span t =
   let size, align = Nodes.Ty.size_align (ty st span t) in
   max 1 (Nodes.Ty.round_up size align)
 
+(* A foreign handle type's free and set thunks, named after the type
+   (docs/design/ffi.md F8), each recorded for the glue the first time a
+   layout names it. A capability has neither. *)
+let handle_thunks st (t : Tty.t) (h : T.Handle.t) =
+  match (t, h.T.Handle.free) with
+  | Tty.Named ({ package; _ }, _), Some free ->
+      let symbol = Symbol.ty ~stamp:st.stamp t in
+      let thunk suffix c_function params =
+        let name = symbol ^ suffix in
+        if not (List.exists (fun (f : Foreign.t) -> f.Foreign.thunk = name) st.thunks) then
+          st.thunks <-
+            { Foreign.thunk = name; package; c_function; params; result = Foreign.Unit } :: st.thunks;
+        name
+      in
+      let free = thunk ".free" free [ Foreign.Handle ] in
+      let set = Option.map (fun set -> thunk ".set" set [ Foreign.Handle; Foreign.Handle ]) h.T.Handle.set in
+      Some (free, set)
+  | _ -> None
+
 (* Where a type's owned blocks are (memory.md §3.6): each handle and each
    boxed member, down through variant payloads under the tag that makes each
-   live. An array whose elements own blocks is one position, which names
-   its element's layout, so that its positions do not grow with its length
+   live, and each foreign handle that owns its C object. An array whose
+   elements own blocks is one position, which names its element's layout,
+   so that its positions do not grow with its length
    (docs/design/lowering.md §9). A reference is an address, and owns
    nothing. *)
 let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Layout.position list =
@@ -249,6 +270,11 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
       match definition st t with
       | Some (T.Decl.Distinct u, _) -> positions st span u base tags
       | Some (T.Decl.Struct [ (_, m) ], false) when collapsed st t -> positions st span m base tags
+      | Some (T.Decl.Handle (h, _), _) -> (
+          match handle_thunks st t h with
+          | Some (free, set) ->
+              [ at (Layout.Foreign { free; set }) (fst (Nodes.Ty.size_align (ty st span t))) ]
+          | None -> [])
       | Some (definition, _) -> (
           let lowered = ty st span t in
           let member m base tags =
@@ -392,6 +418,11 @@ let owns st span t = (not (Tty.is_ref t)) && positions st span t 0 [] <> []
 (* Whether a local of this type is held in its scope's arena: an owner, or a
    value that owns a block, whose blocks go when the scope drains (L8). *)
 let held st span t = owned st t || owns st span t
+
+(* Whether an overwrite of a settled place of this type replaces a foreign
+   handle through its setter (spec ffi.md §4.3). *)
+let through_setters st span t =
+  (not (Tty.is_ref t)) && Layout.holds_handle ~settled:true (Hashtbl.find_opt st.layouts) (layout st span t)
 
 (* The sum inside a variant or enum. *)
 let sum_of _st _span _t (value : Expr.t) = value

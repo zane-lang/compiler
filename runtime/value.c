@@ -62,15 +62,34 @@ void zane_promote(char *value, const zane_type *type, zane_mark *scope) {
    on its arrival before anything below it is written, so the deepest
    arrive first. `incoming` is complete before this runs, so a replacement
    made from the occupant is safe (§2.3). */
+static void zane_replace(char *slot, char *incoming, int64_t size, zane_walk walk) {
+	zane_handle_jobs handles;
+	zane_handle_jobs_begin(&handles);
+	zane_work w;
+	zane_work_start(&w);
+	walk(slot, incoming, size, &w, 0);
+	zane_work_run(&w);
+	zane_handle_jobs_end(&handles);
+}
+
 void zane_overwrite(char *slot, char *incoming, int64_t size, const zane_type *type) {
 	if (!type) {
 		memcpy(slot, incoming, (size_t)size);
 		return;
 	}
-	zane_work w;
-	zane_work_start(&w);
-	type->overwrite(slot, incoming, size, &w, 0);
-	zane_work_run(&w);
+	zane_replace(slot, incoming, size, type->overwrite);
+}
+
+/* The same in a settled or lent place (spec ffi.md §4.3): a foreign handle
+   there is replaced through its setter, and keeps its object's address.
+   The handles an overwrite ends or sets are released by descending stamp,
+   once everything else is replaced. */
+void zane_overwrite_settled(char *slot, char *incoming, int64_t size, const zane_type *type) {
+	if (!type) {
+		memcpy(slot, incoming, (size_t)size);
+		return;
+	}
+	zane_replace(slot, incoming, size, type->set);
 }
 
 /* ---------------------------------------------------------------------- */

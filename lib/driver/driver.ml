@@ -148,7 +148,7 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
         | F.Scalar _ -> Foreign.Glue.Scalar "double"
         | F.Bool -> Foreign.Glue.Bool
         | F.Unit -> Foreign.Glue.Unit
-        | F.View | F.Address | F.Value -> Foreign.Glue.Same
+        | F.View | F.Address | F.Value | F.Handle -> Foreign.Glue.Same
       in
       let entry (t : F.t) =
         {

@@ -147,6 +147,274 @@
   (diff golden/calls.out calls.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/handles))
+ (action
+  (with-stdout-to
+   handles.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/handles))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/handles.cgt handles.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/handles))
+ (targets handles.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build handles.exe --package fixtures/handles)))
+
+(rule
+ (deps (source_tree fixtures/handles))
+ (targets handles.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build handles.optimized.exe --optimize --package fixtures/handles)))
+
+(rule
+ (deps (source_tree fixtures/handles))
+ (targets handles.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build handles.tiered.exe --tiered --package fixtures/handles)))
+
+(rule
+ (deps (source_tree fixtures/handles))
+ (targets handles.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up handles.tier1 --package fixtures/handles)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    handles.checked.out.actual
+    (run ./handles.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/handles.out handles.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    handles.unchecked.out.actual
+    (run ./handles.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/handles.out handles.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    handles.optimized.checked.out.actual
+    (run ./handles.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/handles.out handles.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    handles.optimized.unchecked.out.actual
+    (run ./handles.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/handles.out handles.optimized.unchecked.out.actual)))
+
+(rule
+ (deps handles.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./handles.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    handles.tiered.checked.out.actual
+    (run ./handles.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/handles.out handles.tiered.checked.out.actual)))
+
+(rule
+ (deps handles.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./handles.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    handles.tiered.unchecked.out.actual
+    (run ./handles.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/handles.out handles.tiered.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/noObject))
+ (targets noObject.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build noObject.exe --package fixtures/noObject)))
+
+(rule
+ (deps (source_tree fixtures/noObject))
+ (targets noObject.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build noObject.optimized.exe --optimize --package fixtures/noObject)))
+
+(rule
+ (deps (source_tree fixtures/noObject))
+ (targets noObject.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build noObject.tiered.exe --tiered --package fixtures/noObject)))
+
+(rule
+ (deps (source_tree fixtures/noObject))
+ (targets noObject.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up noObject.tier1 --package fixtures/noObject)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    noObject.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./noObject.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/noObject.out noObject.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    noObject.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./noObject.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/noObject.out noObject.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    noObject.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./noObject.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/noObject.out noObject.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    noObject.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./noObject.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/noObject.out noObject.optimized.unchecked.out.actual)))
+
+(rule
+ (deps noObject.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./noObject.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    noObject.tiered.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./noObject.tiered.exe))))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/noObject.out noObject.tiered.checked.out.actual)))
+
+(rule
+ (deps noObject.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./noObject.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    noObject.tiered.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./noObject.tiered.exe))))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/noObject.out noObject.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/declarations))
  (action
   (with-stdout-to

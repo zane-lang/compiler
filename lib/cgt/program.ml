@@ -110,7 +110,7 @@ let func st (v : verb) : Func.t =
     in
     let body =
       match Hashtbl.find_opt st.foreign_verbs v.key with
-      | Some f -> Lower_foreign.body st env span v f
+      | Some f -> Lower_foreign.body st ctx env span v f
       | None -> block ~enter st ctx v.body
     in
     { Func.symbol = symbol st v; linkage; params; places; ret = returned o; body; values = st.values }
@@ -189,7 +189,9 @@ let name_lambdas st owner (b : T.Block.t) =
 (* The functions a library's object holds, besides what they call: every
    verb of each of its own packages that is not generic and has a function of its
    own (L11), and every lambda-variable, which other objects call by name
-   (docs/design/separate-compilation.md C5). *)
+   (docs/design/separate-compilation.md C5); and the free and set thunks of
+   each of its foreign handle types, which ends and overwrites in other
+   objects call (docs/design/ffi.md F8). *)
 let library_roots st (root : T.Package.t) =
   List.iter
     (fun (d : T.Decl.t) ->
@@ -204,6 +206,8 @@ let library_roots st (root : T.Package.t) =
       | T.Decl.Subscript { signature; value = Some _; _ } -> declared signature
       | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda l; ty; span }; _ } ->
           Hashtbl.replace st.exported ("lambda " ^ Lower_lambda.lambda st span ty l) ()
+      | T.Decl.Type { name; params = []; definition = T.Decl.Handle (h, _); _ } ->
+          ignore (handle_thunks st (Tty.Named ({ Tty.package = root.T.Package.name; name }, [])) h)
       | _ -> ())
     root.T.Package.decls
 
@@ -345,6 +349,7 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
   let calls = spawned p in
   let exclusive = (not library) && calls = [] in
   let st = create ~region:fixed_region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
+  st.places <- Some (Tst.States.of_program p);
   let add decl instance signature params body =
     let key = key decl instance in
     Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body; literals = [] };
