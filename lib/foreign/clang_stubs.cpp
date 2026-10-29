@@ -496,8 +496,8 @@ extern "C" value zane_clang_interface(value args) {
 }
 
 /* The global variables [bitcode]'s module defines for other modules to
-   see, a weak definition among them: what a foreign variable may name
-   (spec ffi.md §5.1). */
+   see, a weak definition among them, and the aliases it gives them: what
+   a foreign variable may name (spec ffi.md §5.1). */
 extern "C" value zane_bitcode_defined_variables(value bitcode) {
   CAMLparam1(bitcode);
   CAMLlocal2(list, cell);
@@ -510,6 +510,10 @@ extern "C" value zane_bitcode_defined_variables(value bitcode) {
       for (const llvm::GlobalVariable &g : (*module)->globals())
         if (!g.isDeclaration() && !g.hasLocalLinkage() && !g.hasAvailableExternallyLinkage())
           names.push_back(g.getName().str());
+      for (const llvm::GlobalAlias &a : (*module)->aliases())
+        if (!a.hasLocalLinkage() && llvm::isa_and_nonnull<llvm::GlobalVariable>(a.getAliaseeObject()) &&
+            !a.getAliaseeObject()->isDeclaration())
+          names.push_back(a.getName().str());
     } else {
       llvm::consumeError(module.takeError());
     }
