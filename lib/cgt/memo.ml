@@ -74,14 +74,15 @@ let program_value symbol = String.starts_with ~prefix:"zane.value." symbol
 
 (* Whether [f]'s own body reaches nothing but its parameters, its own
    locals, package constants and the functions it calls, which [calls]
-   lists. A package constant is the same on every call. *)
+   lists. A package constant is the same on every call; a C function can
+   read and change state of its own, so a call to one is not. *)
 let alone (f : Func.t) =
   not
     (Traverse.exists_in f.Func.body
        ~expr:(fun e ->
          match e.Expr.node with
          | Expr.Global symbol -> program_value symbol
-         | Expr.Function _ | Expr.Call_value _ -> true
+         | Expr.Function _ | Expr.Call_value _ | Expr.Foreign_call _ -> true
          | Expr.Runtime { fn; _ } -> not (computes fn)
          | _ -> false)
        ~stat:(function Stat.Spawn _ | Stat.Join _ -> true | _ -> false))
