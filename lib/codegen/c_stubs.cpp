@@ -12,6 +12,7 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/GlobalIFunc.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/Function.h"
@@ -121,12 +122,44 @@ static std::vector<llvm::Function *> listed(llvm::Module *m, const char *list) {
   return fs;
 }
 
+/* Whether a function other than [f] uses [v], directly or through a
+   constant expression. */
+static bool used_beyond(llvm::Value *v, llvm::Function *f) {
+  for (llvm::User *u : v->users()) {
+    if (auto *i = llvm::dyn_cast<llvm::Instruction>(u)) {
+      if (i->getFunction() != f) return true;
+    } else if (llvm::isa<llvm::ConstantExpr>(u) && used_beyond(u, f))
+      return true;
+  }
+  return false;
+}
+
+/* Whether a private variable [f] reaches is used by any other function:
+   the glue's own copy of a header's state, which only [f] sets up for the
+   glue's functions that read it. */
+static bool sets_up_private_state(llvm::Function &f) {
+  std::vector<llvm::Value *> pending;
+  for (llvm::Instruction &i : llvm::instructions(f))
+    for (llvm::Value *op : i.operands()) pending.push_back(op);
+  while (!pending.empty()) {
+    llvm::Value *v = pending.back();
+    pending.pop_back();
+    if (auto *g = llvm::dyn_cast<llvm::GlobalVariable>(v)) {
+      if (g->hasLocalLinkage() && used_beyond(g, &f)) return true;
+    } else if (auto *c = llvm::dyn_cast<llvm::ConstantExpr>(v))
+      for (llvm::Value *op : c->operands()) pending.push_back(op);
+  }
+  return false;
+}
+
 /* The entries of the glue's appending list [list], `llvm.global_ctors` or
    `llvm.global_dtors`, that run a local function some module before it
    runs from its own list under the same name and doing the same: a
    constructor or destructor of a header a source includes, which runs
    once for the package's C, not again for the glue's copy. One of a header
-   no source includes stays. */
+   no source includes stays, and so does one that sets up private state a
+   function of the glue still reads, since the source's copy sets up only
+   its own. */
 static void drop_repeated(llvm::Module *g, llvm::Module *b, const char *list) {
   llvm::GlobalVariable *v = g->getNamedGlobal(list);
   if (!v || !v->hasInitializer()) return;
@@ -139,7 +172,8 @@ static void drop_repeated(llvm::Module *g, llvm::Module *b, const char *list) {
   for (llvm::Use &e : a->operands()) {
     auto *entry = llvm::cast<llvm::Constant>(e.get());
     auto *f = llvm::dyn_cast<llvm::Function>(entry->getOperand(1)->stripPointerCasts());
-    bool again = f && f->hasLocalLinkage() && run.count({unnumbered(f->getName()).str(), fingerprint(*f)});
+    bool again = f && f->hasLocalLinkage() && run.count({unnumbered(f->getName()).str(), fingerprint(*f)}) &&
+                 !sets_up_private_state(*f);
     if (!again) kept.push_back(entry);
   }
   if (kept.size() == a->getNumOperands()) return;
@@ -185,8 +219,6 @@ extern "C" value zane_drop_defined(value glue, value before) {
     llvm::GlobalValue *there = b->getNamedValue(v.getName());
     return there && !there->isDeclaration() && !there->hasLocalLinkage();
   };
-  drop_repeated(g, b, "llvm.global_ctors");
-  drop_repeated(g, b, "llvm.global_dtors");
   // An alias or an indirect function names a definition the glue may drop
   // below, so it goes first.
   std::vector<llvm::GlobalValue *> named;
@@ -211,5 +243,9 @@ extern "C" value zane_drop_defined(value glue, value before) {
     }
     o->setComdat(nullptr);
   }
+  // After the copies above are declarations, which no longer read any
+  // state of the glue's.
+  drop_repeated(g, b, "llvm.global_ctors");
+  drop_repeated(g, b, "llvm.global_dtors");
   CAMLreturn(Val_unit);
 }
