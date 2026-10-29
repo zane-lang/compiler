@@ -4,7 +4,8 @@
 /// one an alias, and an outside handle made by a `mut` method on it. A settled handle with a
 /// setter is overwritten, and a roaming one without one. A struct tag and a
 /// typedef of the same name are two C types, and a handle's `cType` may name
-/// a bare tag. A value struct crosses however deeply its structs nest.
+/// a bare tag. A value struct crosses however deeply its structs nest, and
+/// one holding each type below it twice, many thousand fields in all.
 package app;
 
 alias Unit = @primitives$Unit;
@@ -105,6 +106,90 @@ type N16 = struct {
 	inner N15;
 }
 
+type B0 = struct {
+	v I32;
+}
+
+type B1 = struct {
+	left B0;
+	right B0;
+}
+
+type B2 = struct {
+	left B1;
+	right B1;
+}
+
+type B3 = struct {
+	left B2;
+	right B2;
+}
+
+type B4 = struct {
+	left B3;
+	right B3;
+}
+
+type B5 = struct {
+	left B4;
+	right B4;
+}
+
+type B6 = struct {
+	left B5;
+	right B5;
+}
+
+type B7 = struct {
+	left B6;
+	right B6;
+}
+
+type B8 = struct {
+	left B7;
+	right B7;
+}
+
+type B9 = struct {
+	left B8;
+	right B8;
+}
+
+type B10 = struct {
+	left B9;
+	right B9;
+}
+
+type B11 = struct {
+	left B10;
+	right B10;
+}
+
+type B12 = struct {
+	left B11;
+	right B11;
+}
+
+type B13 = struct {
+	left B12;
+	right B12;
+}
+
+type B14 = struct {
+	left B13;
+	right B13;
+}
+
+type B15 = struct {
+	left B14;
+	right B14;
+}
+
+type B16 = struct {
+	left B15;
+	right B15;
+}
+
 type Cursor = #handle{ cType = "cursor"; free = "cursor_free"; }
 
 type Deflater = #handle{ cType = "deflater_t"; set = "deflater_set"; free = "deflater_free"; }
@@ -126,6 +211,7 @@ Twin twinTypedef(t Twin) foreign "twin_typedef";
 TwinTag twinTagged(t TwinTag) foreign "twin_tagged";
 ^Cursor?Unit cursor() foreign "cursor_new";
 N16 deep(x N16) foreign "deep";
+I32 wide(x B16) foreign "wide";
 
 type Stream = #struct {
 	_deflater Deflater;

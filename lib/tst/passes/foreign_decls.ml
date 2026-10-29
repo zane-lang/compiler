@@ -211,9 +211,12 @@ let scalar_name = function I32 -> "@primitives$I32" | I64 -> "@primitives$I64" |
    A struct that holds itself, which [path] finds, has no size and so is
    none. Only one whose arguments grow at each step, as `N<T>` holding an
    `N<Wrap<T>>`, never repeats; it has no size either, and the walk gives
-   up on it after [budget] types. *)
-let rec value_struct env ?(path = []) ?(budget = ref 100_000) (t : Ty.t) =
+   up on it after [budget] types. [checked] holds each type the walk has
+   already answered for, so a type a struct holds many times, as each
+   field of one holding two of the type before it, counts once. *)
+let rec value_struct env ?(path = []) ?(budget = ref 100_000) ?(checked = Hashtbl.create 16) (t : Ty.t) =
   match t with
+  | Ty.Named _ when Hashtbl.mem checked t -> Hashtbl.find checked t
   | Ty.Named (tid, args) when (not (List.mem t path)) && !budget > 0 -> (
       decr budget;
       match Type_decls.type_info_of_id env tid with
@@ -221,12 +224,19 @@ let rec value_struct env ?(path = []) ?(budget = ref 100_000) (t : Ty.t) =
           let s = Ty.bindings info.params args in
           let fields = List.map (fun (n, f) -> (n, Ty.subst s f)) fields in
           let path = t :: path in
-          if List.for_all (fun (_, f) -> field_compatible env ~path ~budget f) fields then Some (tid, fields) else None
+          let found =
+            if List.for_all (fun (_, f) -> field_compatible env ~path ~budget ~checked f) fields then Some (tid, fields)
+            else None
+          in
+          Hashtbl.replace checked t found;
+          found
       | _ -> None)
   | _ -> None
 
-and field_compatible env ~path ~budget t =
-  Option.is_some (scalar_of t) || Option.is_some (array_of t) || Option.is_some (value_struct env ~path ~budget t)
+and field_compatible env ~path ~budget ~checked t =
+  Option.is_some (scalar_of t)
+  || Option.is_some (array_of t)
+  || Option.is_some (value_struct env ~path ~budget ~checked t)
 
 and array_of = function
   | Ty.Intrinsic { namespace = "primitives"; name = "Array"; args = [ Ty.Type e; Ty.Number (Ty.Known n) ] } ->
