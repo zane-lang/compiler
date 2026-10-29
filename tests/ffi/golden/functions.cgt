@@ -9,6 +9,9 @@
     ├── layouts[2] > layout:
     │   ├── type: %primitives$List<%primitives$I64>
     │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
+    ├── layouts[3] > layout:
+    │   ├── type: functions$Chain
+    │   └── positions[0]: box @8 of functions$Chain (16 bytes)
     ├── globals[0]: zane_self : i64, imported
     ├── thunks[0] > thunk:
     │   ├── symbol: functions$apply(%primitives$F64[%primitives$F64], %primitives$F64).ffi
@@ -722,7 +725,35 @@
     │       │       └── body[1] > assign:
     │       │           ├── place: #86
     │       │           └── value: local #84 : handle
-    │       └── body[28] > return: unit : void
+    │       ├── body[28] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: functions$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @91
+    │       │       ├── result: #92
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #90
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > expand:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── label: @88
+    │       │       │   │       ├── result: #89
+    │       │       │   │       ├── body[0] > let:
+    │       │       │   │       │   ├── local: #87
+    │       │       │   │       │   └── value: function functions$main()$lambda16
+    │       │       │   │       ├── body[1] > assign:
+    │       │       │   │       │   ├── place: #89
+    │       │       │   │       │   └── value: 0 : i64
+    │       │       │   │       └── body[2]: leave @88
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #92
+    │       │           └── value: local #90 : handle
+    │       └── body[29] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: functions$half
     │   ├── params[0]: local #1 : f64
@@ -1181,11 +1212,19 @@
     │       ├── left: local #2 : i64
     │       └── right: 1 : i64
     ├── funcs[30] > func:
+    │   ├── symbol: functions$main()$lambda16
+    │   ├── params[0]: local #1 : {i64, ptr}
+    │   ├── ret: i64
+    │   └── body[0] > return > member:
+    │       ├── type: i64
+    │       ├── index: 0
+    │       └── value: local #1 : {i64, ptr}
+    ├── funcs[31] > func:
     │   ├── symbol: functions$main()$lambda7
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > return: local #1 : i64
-    ├── funcs[31] > func:
+    ├── funcs[32] > func:
     │   ├── symbol: functions$half.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1225,7 +1264,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[32] > func:
+    ├── funcs[33] > func:
     │   ├── symbol: functions$main()$lambda1.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1265,7 +1304,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[33] > func:
+    ├── funcs[34] > func:
     │   ├── symbol: functions$main()$lambda2.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1305,7 +1344,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[34] > func:
+    ├── funcs[35] > func:
     │   ├── symbol: functions$main()$lambda3.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1345,7 +1384,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[35] > func:
+    ├── funcs[36] > func:
     │   ├── symbol: functions$main()$lambda4.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1383,7 +1422,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[36] > func:
+    ├── funcs[37] > func:
     │   ├── symbol: functions$built.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1423,7 +1462,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[37] > func:
+    ├── funcs[38] > func:
     │   ├── symbol: functions$main()$lambda5.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1471,7 +1510,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[38] > func:
+    ├── funcs[39] > func:
     │   ├── symbol: functions$main()$lambda6.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1511,7 +1550,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[39] > func:
+    ├── funcs[40] > func:
     │   ├── symbol: functions$main()$lambda8.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1551,7 +1590,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[40] > func:
+    ├── funcs[41] > func:
     │   ├── symbol: functions$main()$lambda9.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1591,7 +1630,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[41] > func:
+    ├── funcs[42] > func:
     │   ├── symbol: functions$main()$lambda10.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1631,7 +1670,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[42] > func:
+    ├── funcs[43] > func:
     │   ├── symbol: functions$main()$lambda11.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1671,7 +1710,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[43] > func:
+    ├── funcs[44] > func:
     │   ├── symbol: functions$main()$lambda12.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1709,7 +1748,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[44] > func:
+    ├── funcs[45] > func:
     │   ├── symbol: functions$main()$lambda13.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1749,7 +1788,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[45] > func:
+    ├── funcs[46] > func:
     │   ├── symbol: functions$main()$lambda14.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1789,7 +1828,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    └── funcs[46] > func:
+    └── funcs[47] > func:
         ├── symbol: functions$main()$lambda7.adapter
         ├── linkage: shared
         ├── params[0]: local #0 : ptr

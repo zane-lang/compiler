@@ -278,8 +278,11 @@ How a `struct` is passed by value differs between SysV x86-64, Windows x64
 and AArch64, and LLVM leaves that classification to the front end. Rather
 than reimplement clang's for each target, the compiler writes, for each
 package, the glue: one C file per interface header, which includes that
-header alone and is compiled with the package's settings, so clang does the
-classification it already knows. After the include, the file `#undef`s the
+header and is compiled with the package's settings, so clang does the
+classification it already knows. The header comes first, so a feature-test
+macro it defines, such as `_GNU_SOURCE`, selects what the system headers
+declare as it does in a source including it first; `<stdint.h>` follows,
+for the fixed-width types the thunks read slots as. After the includes, the file `#undef`s the
 name of every C function its entries call, so a macro the header defines
 with that name, such as `#define f(x) ((x) + 1)` after `int f(int);`,
 never stands in for the function the foreign verb names. Each entry goes in the file of the header
@@ -334,6 +337,10 @@ variables, and also the aliases and indirect functions that
 `__attribute__((alias))` and `__attribute__((ifunc))` define, which
 LLVM keeps as global values of their own: an alias exported under its
 C name would meet the same alias from another version of the package.
+An `available_externally` definition, such as the inline copy of `atoi`
+glibc's `<stdlib.h>` can give, is not one the package defines: it stands
+for the C library's symbol, keeps its name, and is never a definition that
+leaves the glue's copy a declaration.
 An alias's target and an indirect function's resolver are renamed by the
 same rule when they are external, and keep their names when internal, as
 any internal global does. The fetch-time rewrite then stamps the

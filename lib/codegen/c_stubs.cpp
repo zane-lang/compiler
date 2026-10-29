@@ -60,7 +60,10 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
   for (llvm::GlobalValue &g : m->global_values()) {
     std::string name = g.getName().str();
     if (g.hasLocalLinkage() || g.hasAppendingLinkage()) continue;
-    if (g.isDeclaration() && !defined_apart.count(label_of(name))) continue;
+    // An `available_externally` definition, such as a C library's inline
+    // copy of its own function, stands for a symbol another object defines,
+    // renamed only where that object is one of the package's own.
+    if (g.isDeclarationForLinker() && !defined_apart.count(label_of(name))) continue;
     if (name.rfind("llvm.", 0) == 0 || kept.count(label_of(name))) continue;
     renamed.push_back(&g);
   }
@@ -316,7 +319,7 @@ extern "C" value zane_drop_defined(value glue, value before, value run) {
     repeated.insert(std::string(String_val(Field(l, 0)), caml_string_length(Field(l, 0))));
   declare_defined(g, [b](llvm::GlobalValue &v) {
     llvm::GlobalValue *there = b->getNamedValue(v.getName());
-    return there && !there->isDeclaration() && !there->hasLocalLinkage();
+    return there && !there->isDeclarationForLinker() && !there->hasLocalLinkage();
   });
   // After the copies above are declarations, which no longer read any
   // state of the glue's.
