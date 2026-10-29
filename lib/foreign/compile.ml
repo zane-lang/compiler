@@ -191,8 +191,17 @@ let interface flags path =
     | table -> Ok table
     | exception Interface.Malformed why -> Diagnostic.bug ("the interface table of " ^ path ^ " is malformed: " ^ why)
 
+(* Whether [text] holds [word] anywhere. *)
+let mentions word text =
+  let n = String.length word and m = String.length text in
+  let rec from i = i + n <= m && (String.sub text i n = word || from (i + 1)) in
+  from 0
+
 (* [path], a C source of the package in [dir], compiled with [flags], from
-   the module cache under [cache] when it holds it. *)
+   the module cache under [cache] when it holds it. The key is the
+   preprocessed text, which keeps each token's line but not its column, so
+   a module that asks for its column (`__builtin_COLUMN`) is compiled
+   every time instead. *)
 let compile_source ?cache ~maps flags path =
   let args = flags @ [ "-c"; path ] in
   let preprocessed = Clang.preprocess args in
@@ -206,6 +215,7 @@ let compile_source ?cache ~maps flags path =
            (String.concat "\000"
               [ "c-module"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
     in
+    let cache = if mentions "__builtin_COLUMN" preprocessed.output then None else cache in
     let kept = Option.map (fun c -> Filename.concat (Filename.concat c "foreign/module") (key ^ ".bc")) cache in
     match Option.bind kept Cache.read with
     | Some bitcode -> Ok { path; bitcode; key }

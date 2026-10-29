@@ -162,6 +162,20 @@ let compiled () =
       (match (keys one, keys changed) with
       | Some (k1, _), Some (k2, _) -> check "a source's key changes with its body" (k1 <> k2)
       | _ -> check "a changed C source compiles" false);
+      (* The preprocessed text keeps no column, so a module that reads its
+         column is never taken from the cache: moving the builtin along its
+         line changes what it compiles to. *)
+      let cache = Filename.concat base "cache" in
+      let cached dir =
+        match Foreign.compile_packages ~cache:(Some cache) ~cc ~target:None [ dir ] with
+        | Ok [ { Foreign.sources = [ s ]; _ } ] -> Some s.Compile.bitcode
+        | _ -> None
+      in
+      let near = package "near" "int f(void) { return __builtin_COLUMN(); }\n"
+      and far = package "far" "int f(void) { return      __builtin_COLUMN(); }\n" in
+      (match (cached near, cached far) with
+      | Some b1, Some b2 -> check "a module reading its column is compiled again when the column moves" (b1 <> b2)
+      | _ -> check "a module reading its column compiles" false);
       (* A dangling symlink, such as an editor's lock file, is no source,
          and a cache that cannot be written is no cache. *)
       let linked = package "linked" source in
