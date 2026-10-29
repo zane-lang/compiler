@@ -58,9 +58,12 @@ val lower :
     object, with the glue for the thunks the tree's foreign calls go through
     (docs/design/ffi.md F8, F9), for [target], the host when it is absent:
     [c] is [c_code]'s for the packages. A build without [root] is a
-    library's, whose C globals are renamed for fetching to stamp. *)
+    library's, whose C globals are renamed for fetching to stamp. A stamped
+    dependency's archives are renamed after the C names [link]'s objects
+    define with its prefix (docs/design/ffi.md F15). *)
 val c_modules :
   ?target:string ->
+  ?link:string list ->
   root:bool ->
   Tst.Assembly.package list ->
   Foreign.package list ->

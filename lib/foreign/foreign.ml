@@ -410,6 +410,36 @@ let shared_state (p : package) compiled =
   | [] -> Ok compiled
   | diagnostics -> Error { diagnostics; sources = [] }
 
+(* The glue [compiled], unless an interface header whose glue module runs
+   a constructor or destructor of the header's own was compiled into one
+   of [p]'s archives too, as the external definitions the archive defines
+   with it show: the glue's copies of those are dropped for the archive's
+   (Foreign_c), but which of the header's constructors a member runs, and
+   whether that member is linked at all, the archive does not say, so the
+   glue's could run beside them or in their place (docs/design/ffi.md
+   F9). *)
+let archived_constructors (p : package) compiled =
+  let refused (header, (glue : Compile.source)) =
+    match Clang.definitions glue.bitcode with
+    | _, false -> None
+    | defined, true -> (
+        match List.find_opt (fun a -> List.exists (fun n -> List.mem n a.held.Objects.defined) defined) p.archives with
+        | None -> None
+        | Some a ->
+            let file =
+              List.find_opt (fun h -> Compile.real (Filename.concat p.dir h) = header) p.headers
+              |> Option.fold ~none:header ~some:(Filename.concat p.dir)
+            in
+            Some
+              (Diagnostic.in_file file
+                 (Printf.sprintf
+                    "this interface header runs constructors or destructors of its own, and `%s` defines what it defines, since a member of it includes it, so the glue, which calls the header's functions, cannot tell which of them the archive runs (docs/design/ffi.md F9)"
+                    a.path)))
+  in
+  match List.filter_map refused compiled with
+  | [] -> Ok compiled
+  | diagnostics -> Error { diagnostics; sources = [] }
+
 (* [p]'s glue for [entries] (Glue), each file compiled as its sources
    were, from the cache when it holds it, beside the real path of the
    interface header it compiles. The files are written to a
@@ -428,7 +458,7 @@ let glue p (entries : Glue.entry list) =
       glue_refused
         (Printf.sprintf "the interface header `%s` cannot be included by its path, which holds a `\"` or a line break"
            header)
-  | None -> Result.bind (glue_files p ~dir files) (shared_state p)
+  | None -> Result.bind (Result.bind (glue_files p ~dir files) (shared_state p)) (archived_constructors p)
 
 (* The C entries of the function values C can call
    (docs/design/ffi.md F11, Glue.callbacks_file), compiled for [target] by

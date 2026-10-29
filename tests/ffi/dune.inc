@@ -17,6 +17,14 @@
    (run sh %{dep:../../../archive} tally.a tally.archive))))
 
 (subdir
+ fixtures/reject/archivedConstructor
+ (rule
+  (targets started.a)
+  (deps (glob_files started.archive/*) (env_var ZANE_CC) (env_var AR))
+  (action
+   (run sh %{dep:../../../archive} started.a started.archive))))
+
+(subdir
  fixtures/reject/objectLinkerSet
  (rule
   (targets hooks.a)
@@ -853,6 +861,20 @@
  (alias runtest)
  (action
   (diff golden/reject.absolute.err reject.absolute.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/archivedConstructor) fixtures/reject/archivedConstructor/started.a)
+ (action
+  (with-stderr-to
+   reject.archivedConstructor.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/archivedConstructor)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.archivedConstructor.ll.err reject.archivedConstructor.ll.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/assembledState))

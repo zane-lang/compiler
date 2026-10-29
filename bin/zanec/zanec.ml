@@ -311,7 +311,7 @@ let generate packages c_code build program =
   let* cgt = Driver.lower ~regions:build.regions ~root packages program in
   let target = build.target and optimize = build.optimize and pack = build.pack and memoize = build.memoize in
   let cgt = Driver.optimize ~optimize cgt in
-  let c () = Driver.c_modules ?target ~root packages c_code cgt in
+  let c () = Driver.c_modules ?target ~link:build.link ~root packages c_code cgt in
   match build.view with
   | Cgt ->
       print_string (Tree_graph.render (Cgt.to_node cgt));

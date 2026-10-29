@@ -25,6 +25,7 @@
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/LLVMContext.h"
@@ -611,4 +612,47 @@ extern "C" value zane_bitcode_has_assembly(value bitcode) {
     }
   }
   CAMLreturn(Val_bool(found));
+}
+
+/* What [bitcode]'s module defines visible to other modules, functions,
+   variables, aliases and indirect functions, and whether it runs a
+   constructor or destructor of its own: the check of a header an archive
+   compiled too reads them (docs/design/ffi.md F9). */
+extern "C" value zane_bitcode_definitions(value bitcode) {
+  CAMLparam1(bitcode);
+  CAMLlocal3(list, cell, pair);
+  std::vector<std::string> names;
+  bool runs = false;
+  {
+    llvm::LLVMContext context;
+    llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
+    llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
+    if (module) {
+      for (const llvm::GlobalValue &g : (*module)->global_values())
+        if (!g.isDeclarationForLinker() && !g.hasLocalLinkage() && !g.hasAppendingLinkage() &&
+            !g.getName().starts_with("llvm."))
+          names.push_back(g.getName().str());
+      for (const char *name : {"llvm.global_ctors", "llvm.global_dtors"})
+        if (const llvm::GlobalVariable *list = (*module)->getNamedGlobal(name))
+          if (const auto *entries = llvm::dyn_cast_or_null<llvm::ConstantArray>(
+                  list->hasInitializer() ? list->getInitializer() : nullptr))
+            for (const llvm::Use &entry : entries->operands())
+              if (const auto *s = llvm::dyn_cast<llvm::ConstantStruct>(entry.get()))
+                if (const auto *f = llvm::dyn_cast<llvm::Function>(s->getOperand(1)->stripPointerCasts()))
+                  if (f->hasLocalLinkage()) runs = true;
+    } else {
+      llvm::consumeError(module.takeError());
+    }
+  }
+  list = Val_emptylist;
+  for (auto it = names.rbegin(); it != names.rend(); ++it) {
+    cell = caml_alloc(2, 0);
+    Store_field(cell, 0, caml_copy_string(it->c_str()));
+    Store_field(cell, 1, list);
+    list = cell;
+  }
+  pair = caml_alloc(2, 0);
+  Store_field(pair, 0, list);
+  Store_field(pair, 1, Val_bool(runs));
+  CAMLreturn(pair);
 }

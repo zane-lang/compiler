@@ -9,3 +9,4 @@ I64 aliased() foreign "tally_alias";
 I64 indirect() foreign "tally_indirect";
 I64 root(x I64) foreign "tally_root";
 I64 hop(x I64) foreign "hop";
+I64 seeded() foreign "tally_seeded";

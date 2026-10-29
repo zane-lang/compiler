@@ -1,7 +1,8 @@
 /// Two packages that vendor the same C library, `tally`, as archives of
 /// two versions (ffi.md §2.4, §2.5): each reaches its own version's
 /// function, alias and indirect function, its own callback into the
-/// package's C, and its own assembly function, though every name is the
+/// package's C, and its own assembly function, and its own seed, which
+/// only its glue compiles and its archive reads, though every name is the
 /// same in both.
 package app;
 
@@ -29,5 +30,7 @@ Unit main() {
 	show(String(two$root(I64(27))));
 	show(String(one$hop(I64(10))));
 	show(String(two$hop(I64(10))));
+	show(String(one$seeded()));
+	show(String(two$seeded()));
 	return Unit();
 }

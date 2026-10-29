@@ -28,10 +28,7 @@ type c_module = { key : string; bitcode : string; files : string list }
    interface header's own definition, is renamed as the sources' are.
    Beside them, the objects its sources holding assembly were assembled
    into, each with the module it was made from, its archives, the C names
-   those objects and archives define, and its `system` libraries. With
-   [elsewhere], the package is a stamped dependency, whose object holds its
-   module and its assembled objects already: the module is made only for
-   the names it renames, and only the archives reach the link. *)
+   those objects and archives define, and its `system` libraries. *)
 type package = {
   prefix : string;
   sources : c_module list;
@@ -41,7 +38,6 @@ type package = {
   archives : archive list;
   defined : string list;
   libraries : library list;
-  elsewhere : bool;
 }
 
 (* What reaches the link beside the C module: the objects and archives of
@@ -188,9 +184,6 @@ let package_module ctx ~triple ~data_layout p =
     else renamed_apart ~triple ~global_prefix p (p.defined @ names)
   in
   match apart with
-  | Ok apart when p.elsewhere ->
-      Option.iter Llvm.dispose_module m;
-      Ok (None, { apart with objects = [] })
   | Ok apart -> Ok (m, apart)
   | Error _ as error ->
       Option.iter Llvm.dispose_module m;
@@ -217,9 +210,9 @@ let program_module ctx ~triple ~data_layout packages =
 let libraries packages = List.concat_map (fun p -> p.libraries) packages
 
 (* What the object an unoptimized build emits for the C is kept under: the
-   packages' prefixes and the hashes of their modules, objects and
-   archives, for [triple], from the compiler [compiler] names, whose
-   renaming and passes made it. *)
+   packages' prefixes, the hashes of their modules, objects and archives,
+   and the names those objects and archives are renamed by, for [triple],
+   from the compiler [compiler] names, whose renaming and passes made it. *)
 let key ~triple ~compiler packages =
   Digest.to_hex
     (Digest.string
@@ -227,8 +220,9 @@ let key ~triple ~compiler packages =
           ("c-object" :: triple :: compiler
           :: List.concat_map
                (fun p ->
-                 (p.prefix :: string_of_bool p.elsewhere :: List.map (fun c -> c.key) (p.sources @ p.glue))
+                 (p.prefix :: List.map (fun c -> c.key) (p.sources @ p.glue))
                  @ List.map (fun (c, _) -> c.key) p.objects
                  @ List.map (fun (a : archive) -> a.digest) p.archives
+                 @ ("" :: List.sort_uniq compare p.defined)
                  @ [ "" ])
                packages)))

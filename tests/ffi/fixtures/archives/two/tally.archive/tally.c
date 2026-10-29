@@ -26,3 +26,7 @@ long long tally_indirect(void) __attribute__((ifunc("tally_resolve")));
 #else
 long long tally_indirect(void) { return tally_version(); }
 #endif
+
+/* Defined by `seed.h`, which only the package's glue compiles. */
+extern long long tally_seed;
+long long tally_seeded(void) { return tally_seed * 10 + TALLY_VERSION; }

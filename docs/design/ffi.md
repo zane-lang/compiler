@@ -402,7 +402,11 @@ the header defines the same copies outside the module: the glue's
 definitions of every name the package's objects define are made
 declarations too (`zane_drop_defined_apart`), and an assembled source's
 constructors are read from its module, as a linked source's are, so the
-glue leaves out the ones its object runs. With no source in the module,
+glue leaves out the ones its object runs. An archive says neither which
+of a header's constructors its members run nor whether a member is
+linked, so a header whose glue runs a constructor or destructor of its
+own, and whose external definitions an archive defines too, since a
+member includes it, is refused. With no source in the module,
 the glue is linked into an empty module, so each glue module is still
 linked after one.
 
@@ -682,11 +686,11 @@ Apple's targets or Windows, so they stay apart: the release archive's
 rewrites each (C9 of [`separate-compilation.md`](separate-compilation.md)),
 and the consumer's link takes each with `--link`. An `archive` row's
 library is part of the source checkout and is renamed at the consumer's
-link (F4, F9). There the dependency's C module is made from its checkout
-only for the names it renames, which its archive's members use to reach
-the package's own C, and dropped; only the archives, renamed with the
-dependency's stamp after its C names, and its `system` libraries reach
-the link.
+link (F4, F9). There they are renamed after the C names the
+dependency's objects, the `--link` files, define with its stamped prefix:
+exactly the names its own build renamed, its glue's among them, which its
+archive's members use to reach the package's own C. Only the archives and
+its `system` libraries reach the link.
 
 ---
 
