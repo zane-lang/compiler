@@ -254,7 +254,20 @@
     │       │       ├── args[0]: spare #6 : fs$Fs
     │       │       └── args[1]: log #4 : fs$File
     │       ├── body[6] > let:
-    │       │   ├── local: d #9 : app$Deflater
+    │       │   ├── local: other #8 : fs$Fs
+    │       │   └── value > foreign_global:
+    │       │       ├── type: fs$Fs
+    │       │       ├── package: fs
+    │       │       └── symbol: zane_other
+    │       ├── body[7] > let:
+    │       │   ├── local: otherSize #9 : @primitives$I64
+    │       │   └── value > call:
+    │       │       ├── type: @primitives$I64
+    │       │       ├── callee: size #62
+    │       │       ├── args[0]: other #8 : fs$Fs
+    │       │       └── args[1]: log #4 : fs$File
+    │       ├── body[8] > let:
+    │       │   ├── local: d #11 : app$Deflater
     │       │   └── value > call:
     │       │       ├── type: app$Deflater
     │       │       ├── callee: deflater #40
@@ -263,13 +276,13 @@
     │       │       │   ├── ctor: @primitives$I32
     │       │       │   └── args[0]: 6 : @concepts$Int
     │       │       └── handler:
-    │       │           ├── binder: e #8 : @primitives$Unit
+    │       │           ├── binder: e #10 : @primitives$Unit
     │       │           └── body[0] > return > construct:
     │       │               ├── type: @primitives$Unit
     │       │               ├── ctor: @primitives$Unit
     │       │               └── args:
-    │       ├── body[7] > assign:
-    │       │   ├── target: d #9 : app$Deflater
+    │       ├── body[9] > assign:
+    │       │   ├── target: d #11 : app$Deflater
     │       │   └── value > call:
     │       │       ├── type: app$Deflater
     │       │       ├── callee: deflater #40
@@ -278,13 +291,13 @@
     │       │       │   ├── ctor: @primitives$I32
     │       │       │   └── args[0]: 9 : @concepts$Int
     │       │       └── handler:
-    │       │           ├── binder: e #10 : @primitives$Unit
+    │       │           ├── binder: e #12 : @primitives$Unit
     │       │           └── body[0] > return > construct:
     │       │               ├── type: @primitives$Unit
     │       │               ├── ctor: @primitives$Unit
     │       │               └── args:
-    │       ├── body[8] > let:
-    │       │   ├── local: r #11 : ^fs$File
+    │       ├── body[10] > let:
+    │       │   ├── local: r #13 : ^fs$File
     │       │   └── value > call:
     │       │       ├── type: fs$File
     │       │       ├── callee: open #60
@@ -293,8 +306,8 @@
     │       │           ├── type: @primitives$String
     │       │           ├── ctor: @primitives$String
     │       │           └── args[0]: "b.log" : @concepts$String
-    │       ├── body[9] > assign:
-    │       │   ├── target: r #11 : fs$File
+    │       ├── body[11] > assign:
+    │       │   ├── target: r #13 : fs$File
     │       │   └── value > call:
     │       │       ├── type: fs$File
     │       │       ├── callee: open #60
@@ -303,7 +316,7 @@
     │       │           ├── type: @primitives$String
     │       │           ├── ctor: @primitives$String
     │       │           └── args[0]: "c.log" : @concepts$String
-    │       └── body[10] > return > construct:
+    │       └── body[12] > return > construct:
     │           ├── type: @primitives$Unit
     │           ├── ctor: @primitives$Unit
     │           └── args:
