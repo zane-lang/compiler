@@ -26,12 +26,15 @@
     │   ├── type: %primitives$ListRef<handles$Conn>
     │   └── positions[0]: list @0 of handles$Conn (16 bytes apart)
     ├── layouts[8] > layout:
+    │   ├── type: ^%primitives$ListRef<handles$Conn>
+    │   └── positions[0]: list @0 of handles$Conn (16 bytes apart)
+    ├── layouts[9] > layout:
     │   ├── type: %primitives$I32
     │   └── positions:
-    ├── layouts[9] > layout:
+    ├── layouts[10] > layout:
     │   ├── type: %primitives$Unit
     │   └── positions:
-    ├── layouts[10] > layout:
+    ├── layouts[11] > layout:
     │   ├── type: handles$File
     │   └── positions[0]: handle @0 freed by handles$File.free
     ├── globals[0]: handles$%c$zane_fs : i64, imported
@@ -315,37 +318,37 @@
     │       │           └── value: local #21 : handle
     │       ├── body[16] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: handles$save(this handles$Fs, %primitives$String)
-    │       │   ├── args[0]: address of #1 : ptr
-    │       │   └── args[1] > expand:
+    │       │   ├── fn: handles$show(%primitives$String)
+    │       │   └── args[0] > expand:
     │       │       ├── type: handle
     │       │       ├── label: @25
     │       │       ├── result: #26
     │       │       ├── body[0] > hold:
     │       │       │   ├── local: #24
     │       │       │   ├── scope: %2
-    │       │       │   ├── value: "a.log" : handle
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: handles$seen(%primitives$I64)
+    │       │       │   │       └── args[0]: 3 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #26
     │       │           └── value: local #24 : handle
     │       ├── body[17] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: handles$show(%primitives$String)
-    │       │   └── args[0] > expand:
+    │       │   ├── fn: handles$save(this handles$Fs, %primitives$String)
+    │       │   ├── args[0]: address of #1 : ptr
+    │       │   └── args[1] > expand:
     │       │       ├── type: handle
     │       │       ├── label: @28
     │       │       ├── result: #29
     │       │       ├── body[0] > hold:
     │       │       │   ├── local: #27
     │       │       │   ├── scope: %2
-    │       │       │   ├── value > runtime:
-    │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: handles$written(this handles$Fs)
-    │       │       │   │       └── args[0]: address of #1 : ptr
+    │       │       │   ├── value: "a.log" : handle
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #29
@@ -360,15 +363,57 @@
     │       │       ├── body[0] > hold:
     │       │       │   ├── local: #30
     │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: handles$written(this handles$Fs)
+    │       │       │   │       └── args[0]: address of #1 : ptr
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #32
+    │       │           └── value: local #30 : handle
+    │       ├── body[19] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: handles$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @34
+    │       │       ├── result: #35
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #33
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: handles$seen(%primitives$I64)
+    │       │       │   │       └── args[0]: 3 : i64
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #35
+    │       │           └── value: local #33 : handle
+    │       ├── body[20] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: handles$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @37
+    │       │       ├── result: #38
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #36
+    │       │       │   ├── scope: %2
     │       │       │   ├── value > call:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: handles$drain(this handles$Fs)
     │       │       │   │   └── args[0]: address of #1 : ptr
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #32
-    │       │           └── value: local #30 : handle
-    │       └── body[19] > return: unit : void
+    │       │           ├── place: #38
+    │       │           └── value: local #36 : handle
+    │       └── body[21] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: handles$settled()
     │   ├── params:
@@ -841,7 +886,112 @@
     │       │       └── body[1] > assign:
     │       │           ├── place: #11
     │       │           └── value: local #9 : handle
-    │       └── body[4] > return: unit : void
+    │       ├── body[4] > let:
+    │       │   ├── local: #12
+    │       │   └── value: 1 : i64
+    │       ├── body[5] > let:
+    │       │   ├── local: #13
+    │       │   └── value > call:
+    │       │       ├── type: {ptr, i64}
+    │       │       ├── fn: handles$connect(%primitives$I32)
+    │       │       └── args[0]: 12 : i32
+    │       ├── body[6] > overwrite:
+    │       │   ├── address > runtime:
+    │       │   │   ├── type: ptr
+    │       │   │   ├── fn: zane_list_at
+    │       │   │   ├── args[0]: address of #1 : ptr
+    │       │   │   ├── args[1]: local #12 : i64
+    │       │   │   └── args[2]: 16 : i64
+    │       │   ├── value: local #13 : {ptr, i64}
+    │       │   └── layout: handles$Conn
+    │       ├── body[7] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: handles$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @15
+    │       │       ├── result: #16
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #14
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i32
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i32
+    │       │       │   │       ├── fn: handles$connId(this handles$Conn)
+    │       │       │   │       └── args[0] > runtime:
+    │       │       │   │           ├── type: ptr
+    │       │       │   │           ├── fn: zane_list_at
+    │       │       │   │           ├── args[0]: address of #1 : ptr
+    │       │       │   │           ├── args[1]: 1 : i64
+    │       │       │   │           └── args[2]: 16 : i64
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #16
+    │       │           └── value: local #14 : handle
+    │       ├── body[8] > hold:
+    │       │   ├── local: #17
+    │       │   ├── scope: %2
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: zane_list_new
+    │       │   │   └── args:
+    │       │   └── layout: ^%primitives$ListRef<handles$Conn>
+    │       ├── body[9] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @20
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #18
+    │       │   │   └── value > call:
+    │       │   │       ├── type: {ptr, i64}
+    │       │   │       ├── fn: handles$connect(%primitives$I32)
+    │       │   │       └── args[0]: 13 : i32
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #19
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #17 : ptr
+    │       │   │       └── args[1]: 16 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #19 : ptr
+    │       │       ├── value: local #18 : {ptr, i64}
+    │       │       └── layout: handles$Conn
+    │       ├── body[10] > overwrite:
+    │       │   ├── address: address of #1 : ptr
+    │       │   ├── value > take:
+    │       │   │   ├── type: handle
+    │       │   │   ├── address: address of #17 : ptr
+    │       │   │   └── layout: %primitives$ListRef<handles$Conn>
+    │       │   └── layout: %primitives$ListRef<handles$Conn>
+    │       ├── body[11] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: handles$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @22
+    │       │       ├── result: #23
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #21
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i32
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i32
+    │       │       │   │       ├── fn: handles$connId(this handles$Conn)
+    │       │       │   │       └── args[0] > runtime:
+    │       │       │   │           ├── type: ptr
+    │       │       │   │           ├── fn: zane_list_at
+    │       │       │   │           ├── args[0]: address of #1 : ptr
+    │       │       │   │           ├── args[1]: 1 : i64
+    │       │       │   │           └── args[2]: 16 : i64
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #23
+    │       │           └── value: local #21 : handle
+    │       └── body[12] > return: unit : void
     ├── funcs[9] > func:
     │   ├── symbol: handles$spawned()
     │   ├── params:
@@ -969,6 +1119,51 @@
     │       │           └── value: local #12 : handle
     │       └── body[2] > return: unit : void
     ├── funcs[11] > func:
+    │   ├── symbol: handles$seen(%primitives$I64)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value > record:
+    │       │   │   ├── type: {ptr, i64}
+    │       │   │   ├── members[0] > member 0: global handles$%c$zane_fs
+    │       │   │   └── members[1] > member 1: 0 : i64
+    │       │   └── layout: handles$Fs
+    │       ├── body[1] > eval > expand:
+    │       │   ├── type: i1
+    │       │   ├── label: @5
+    │       │   ├── result: #6
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #4
+    │       │   │   └── value > binary:
+    │       │   │       ├── type: i1
+    │       │   │       ├── op: ==
+    │       │   │       ├── left: local #1 : i64
+    │       │   │       └── right: 0 : i64
+    │       │   ├── body[1] > if:
+    │       │   │   ├── cond: local #4 : i1
+    │       │   │   └── body[0] > return > call:
+    │       │   │       ├── type: i64
+    │       │   │       ├── fn: handles$written(this handles$Fs)
+    │       │   │       └── args[0]: address of #2 : ptr
+    │       │   ├── body[2] > assign:
+    │       │   │   ├── place: #6
+    │       │   │   └── value: local #4 : i1
+    │       │   └── body[3]: leave @5
+    │       └── body[2] > return > call:
+    │           ├── type: i64
+    │           ├── fn: handles$seen(%primitives$I64)
+    │           └── args[0] > binary:
+    │               ├── type: i64
+    │               ├── op: +
+    │               ├── left: local #1 : i64
+    │               └── right > flip:
+    │                   ├── type: i64
+    │                   └── value: 1 : i64
+    ├── funcs[12] > func:
     │   ├── symbol: handles$save(this handles$Fs, %primitives$String)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : handle
@@ -1002,7 +1197,7 @@
     │       │           ├── place: #7
     │       │           └── value: local #5 : handle
     │       └── body[2] > return: unit : void
-    ├── funcs[12] > func:
+    ├── funcs[13] > func:
     │   ├── symbol: handles$written(this handles$Fs)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -1012,7 +1207,7 @@
     │       └── args[0] > deref:
     │           ├── type: {ptr, i64}
     │           └── ptr: local #1 : ptr
-    ├── funcs[13] > func:
+    ├── funcs[14] > func:
     │   ├── symbol: handles$connect(%primitives$I32)
     │   ├── params[0]: local #1 : i32
     │   ├── ret: {ptr, i64}
@@ -1042,7 +1237,7 @@
     │       ├── type: {ptr, i64}
     │       ├── members[0] > member 0: local #2 : ptr
     │       └── members[1] > member 1: local #3 : i64
-    ├── funcs[14] > func:
+    ├── funcs[15] > func:
     │   ├── symbol: handles$bump(this handles$Conn)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: void
@@ -1052,7 +1247,7 @@
     │       └── args[0] > deref:
     │           ├── type: {ptr, i64}
     │           └── ptr: local #1 : ptr
-    ├── funcs[15] > func:
+    ├── funcs[16] > func:
     │   ├── symbol: handles$connId(this handles$Conn)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i32
@@ -1062,7 +1257,7 @@
     │       └── args[0] > deref:
     │           ├── type: {ptr, i64}
     │           └── ptr: local #1 : ptr
-    ├── funcs[16] > func:
+    ├── funcs[17] > func:
     │   ├── symbol: handles$prepare(this handles$Conn, %primitives$I32)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i32
@@ -1096,7 +1291,7 @@
     │       ├── type: {ptr, i64}
     │       ├── members[0] > member 0: local #3 : ptr
     │       └── members[1] > member 1: local #4 : i64
-    ├── funcs[17] > func:
+    ├── funcs[18] > func:
     │   ├── symbol: handles$stmtId(this handles$Stmt)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i32
@@ -1106,7 +1301,7 @@
     │       └── args[0] > deref:
     │           ├── type: {ptr, i64}
     │           └── ptr: local #1 : ptr
-    ├── funcs[18] > func:
+    ├── funcs[19] > func:
     │   ├── symbol: handles$renew(this handles$Session, %primitives$I32)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i32
@@ -1123,7 +1318,7 @@
     │   │   ├── layout: handles$Conn
     │   │   └── setters: yes
     │   └── body[1] > return: unit : void
-    ├── funcs[19] > func:
+    ├── funcs[20] > func:
     │   ├── symbol: handles$madeThere(%primitives$I32)
     │   ├── params[0]: local #1 : i32
     │   ├── ret: i32
@@ -1141,7 +1336,7 @@
     │           ├── type: i32
     │           ├── fn: handles$connId(this handles$Conn)
     │           └── args[0]: address of #2 : ptr
-    ├── funcs[20] > func:
+    ├── funcs[21] > func:
     │   ├── symbol: handles$dropped(^handles$Conn)
     │   ├── params[0]: local #1 : {ptr, i64}
     │   ├── ret: void
@@ -1153,7 +1348,7 @@
     │       │   ├── value: local #1 : {ptr, i64}
     │       │   └── layout: ^handles$Conn
     │       └── body[1] > return: unit : void
-    ├── funcs[21] > func:
+    ├── funcs[22] > func:
     │   ├── symbol: handles$maybe(%primitives$I32)
     │   ├── params[0]: local #1 : i32
     │   ├── ret: <{ptr, i64} | void | void>
@@ -1186,7 +1381,7 @@
     │           ├── type: {ptr, i64}
     │           ├── members[0] > member 0: local #2 : ptr
     │           └── members[1] > member 1: local #3 : i64
-    ├── funcs[22] > func:
+    ├── funcs[23] > func:
     │   ├── symbol: handles$open(this handles$Fs, %primitives$String)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : handle
@@ -1220,7 +1415,7 @@
     │       ├── type: {ptr, i64}
     │       ├── members[0] > member 0: local #3 : ptr
     │       └── members[1] > member 1: local #4 : i64
-    ├── funcs[23] > func:
+    ├── funcs[24] > func:
     │   ├── symbol: handles$write(this handles$Fs, handles$File, %primitives$String)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : ptr
@@ -1236,7 +1431,7 @@
     │       │   ├── type: {ptr, i64}
     │       │   └── ptr: local #2 : ptr
     │       └── args[2]: local #3 : handle
-    ├── funcs[24] > func:
+    ├── funcs[25] > func:
     │   ├── symbol: zane.spawn.1
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: void
@@ -1254,7 +1449,7 @@
     │                   ├── within: {i32, i32}
     │                   ├── path: 1
     │                   └── base: local #1 : ptr
-    └── funcs[25] > func:
+    └── funcs[26] > func:
         ├── symbol: zane.spawn.2
         ├── params[0]: local #10 : ptr
         ├── ret: void

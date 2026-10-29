@@ -3,16 +3,19 @@
 /// settled and released where they roam, a struct holding a connection and
 /// a statement prepared on it overwritten whole, the release order of a
 /// drain, a list of handles, handles in spawned calls, a null result
-/// aborting, and a file opened,
-/// written and closed through a capability from a foreign variable. The C
-/// code logs each object made, set and freed, and the program prints the
-/// log after each step, once the step's scope has drained.
+/// aborting, a file opened, written and closed through a capability from a
+/// foreign variable, and a recursive verb reading outside state through a
+/// foreign variable of its own, which runs again rather than answering from
+/// a memoization table. The C code logs each object made, set and freed,
+/// and the program prints the log after each step, once the step's scope
+/// has drained.
 package handles;
 
 alias Unit = @primitives$Unit;
 alias I32 = @primitives$I32;
 alias I64 = @primitives$I64;
 alias String = @primitives$String;
+alias Bool = @primitives$Bool;
 
 type Fs = #handle{ cType = "fs_t"; }
 type File = #handle{ cType = "file_t"; free = "fs_close"; }
@@ -103,12 +106,20 @@ Unit session() {
 	return Unit();
 }
 
-/// Each element of a list of handles is released with the list.
+/// Each element of a list of handles is released with the list. An element
+/// overwritten is released at once, as a roaming owner's handle is, and so
+/// is each element of a list replaced whole.
 Unit listed() {
 	cs @primitives$ListRef<Conn> = @primitives$ListRef(Conn);
 	cs!push(connect(I32(10)));
 	cs!push(connect(I32(11)));
 	show(String(cs[I64(2)]:connId()));
+	cs[I64(1)] = connect(I32(12));
+	show(String(cs[I64(1)]:connId()));
+	ds ^@primitives$ListRef<Conn> = @primitives$ListRef(Conn);
+	ds!push(connect(I32(13)));
+	cs = ds;
+	show(String(cs[I64(1)]:connId()));
 	return Unit();
 }
 
@@ -136,6 +147,22 @@ Unit attempt(id I32) {
 	return Unit();
 }
 
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+/// A verb that reads outside state through a foreign variable of its own
+/// runs on every call: though it recurses on a scalar, its result is not
+/// remembered from an earlier call.
+I64 seen(depth I64) {
+	files Fs foreign "zane_fs";
+	if(@operators$equal(depth, I64(0))) {
+		return files:written();
+	}
+	return seen(@operators$add(depth, @operators$negate(I64(1))));
+}
+
 Unit save(this Fs, path String) mut {
 	file File = this!open(path);
 	this!write(file, String("hello"));
@@ -159,8 +186,10 @@ Unit main() {
 	attempt(@operators$negate(I32(1)));
 	attempt(I32(4));
 	show(files!drain());
+	show(String(seen(I64(3))));
 	files!save(String("a.log"));
 	show(String(files:written()));
+	show(String(seen(I64(3))));
 	show(files!drain());
 	return Unit();
 }

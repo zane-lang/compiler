@@ -35,10 +35,16 @@ free stmt 202
 free conn 3
 
 11
+12
+13
 open conn 10
 open conn 11
-free conn 11
+open conn 12
 free conn 10
+open conn 13
+free conn 12
+free conn 11
+free conn 13
 
 20
 open conn 20
@@ -51,6 +57,8 @@ no connection
 open conn 4
 free conn 4
 
+0
+5
 5
 open a.log
 write 5 bytes to a.log
