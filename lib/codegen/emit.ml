@@ -115,7 +115,10 @@ let rec lltype env (t : Ty.t) =
   | Ty.Handle -> Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |]
   | Ty.Handle32 -> List_handle.header env.ctx
   | Ty.Ptr -> env.ptr
+  | Ty.Ref -> Llvm.i32_type env.ctx
   | Ty.Struct ts -> Llvm.struct_type env.ctx (Array.of_list (List.map (stored env) ts))
+  | Ty.Sum ts when Ty.compact ts ->
+      Llvm.struct_type env.ctx [| Llvm.i32_type env.ctx; array_type (Llvm.i32_type env.ctx) (Ty.quads ts) |]
   | Ty.Sum ts -> (
       let tag = Llvm.i32_type env.ctx in
       match words ts with
@@ -146,9 +149,10 @@ and stored env t = if t = Ty.Void then Llvm.struct_type env.ctx [||] else lltype
 let rec pieces (t : Ty.t) =
   match t with
   | Ty.Void -> 0
-  | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr -> 1
+  | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref -> 1
   | Ty.Handle | Ty.Handle32 -> 3
   | Ty.Struct ts -> List.fold_left (fun n t -> n + pieces t) 0 ts
+  | Ty.Sum ts when Ty.compact ts -> 1 + Ty.quads ts
   | Ty.Sum ts -> 1 + words ts
   | Ty.Array (t, n) -> n * pieces t
   | Ty.Packed t -> (fst (Ty.size_align (Ty.Packed t)) + 7) / 8
@@ -404,7 +408,7 @@ let access env (t : Ty.t) instr =
   let tag =
     match t with
     | Ty.Handle | Ty.Handle32 -> Some env.handle_tag
-    | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr -> Some env.value_tag
+    | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref -> Some env.value_tag
     | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Packed _ -> None
   in
   Option.iter (Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "tbaa")) tag;
@@ -825,7 +829,7 @@ let has_terminator b =
    which retries a torn read and fences the same way. *)
 let snapshot_read t =
   let rec names_block = function
-    | Ty.Ptr | Ty.Handle | Ty.Handle32 -> true
+    | Ty.Ptr | Ty.Ref | Ty.Handle | Ty.Handle32 -> true
     | Ty.Struct ts | Ty.Sum ts -> List.exists names_block ts
     | Ty.Array (t, _) | Ty.Packed t -> names_block t
     | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
@@ -1196,6 +1200,11 @@ let divide env fr b l r =
 let convert env b (from : Ty.t) (into : Ty.t) v =
   let target = lltype env into in
   let is_float = function Ty.F32 | Ty.F64 -> true | _ -> false in
+  match (from, into) with
+  (* Experimental (Ref32): a box's block stored in 32 bits, and back. *)
+  | Ty.Ptr, Ty.Ref -> List_handle.encode env.ctx b v
+  | Ty.Ref, Ty.Ptr -> List_handle.decode env.ctx b v
+  | _ -> (
   match (is_float from, is_float into) with
   | false, false ->
       if Scalar.bits from < Scalar.bits into then Llvm.build_sext v target "" b
@@ -1216,7 +1225,7 @@ let convert env b (from : Ty.t) (into : Ty.t) v =
         | Some f -> f
         | None -> Llvm.declare_function name fty env.m
       in
-      Llvm.build_call fty f [| v |] "" b
+      Llvm.build_call fty f [| v |] "" b)
 
 let binary env fr b (op : Expr.binop) (t : Ty.t) l r =
   match (t, op) with

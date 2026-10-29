@@ -45,7 +45,9 @@ let outcome_layout st span (v : verb) =
       (match s.S.abort with Some a -> " ? " ^ Symbol.ty a | None -> "")
   in
   if not (Hashtbl.mem st.layouts name) then begin
-    let under tag t = positions st span t Nodes.Ty.payload_offset [ (0, tag) ] in
+    let o = outcome st span v in
+    let at = Nodes.Ty.payload_at (Nodes.Ty.Sum [ o.ok; Option.value o.aborts ~default:Nodes.Ty.Void; Nodes.Ty.Void ]) in
+    let under tag t = positions st span t at [ (0, tag) ] in
     let failed = match s.S.abort with Some a -> under aborted a | None -> [] in
     Hashtbl.replace st.layouts name (under done_ s.S.ret @ failed);
     st.named <- name :: st.named

@@ -260,6 +260,13 @@ let zero_list c h =
   List_handle.set_count c.env.ctx c.b (int c.env 0) h;
   List_handle.set_room c.env.ctx c.b (int c.env 0) h
 
+(* A boxed member's block (Layout.Box), stored in 32 bits with Ref32. *)
+let load_box c h =
+  if List_handle.on () then List_handle.decode c.env.ctx c.b (load c (Llvm.i32_type c.env.ctx) h)
+  else load c c.env.ptr h
+
+let store_box c v h = store c (if List_handle.on () then List_handle.encode c.env.ctx c.b v else v) h
+
 let zero_handle c h =
   store c (Llvm.const_null c.env.ptr) h;
   store c (int c.env 0) (offset c h length);
@@ -368,11 +375,11 @@ let copy known c (p : Layout.position) =
                   visit c w.copy e c.with_ (int env 0)))
             (inner known elements))
   | Layout.Box { size; payload } ->
-      let old = load c env.ptr h in
+      let old = load_box c h in
       when_ c (nonzero c old) (fun () ->
           let fresh = take c c.with_ size in
           memcpy c fresh old (int env size);
-          store c fresh h;
+          store_box c fresh h;
           Option.iter (fun w -> visit c w.copy fresh c.with_ (int env 0)) (inner known payload))
   | Layout.Array { count; stride; elements } ->
       each_element c h ~count ~stride (walks known elements).copy c.with_ (int env 0)
@@ -427,7 +434,7 @@ let end_at known c base (p : Layout.position) =
               each c count (fun i -> defer w (element i))));
       zero_list c h
   | Layout.Box { size; payload } ->
-      let old = load c env.ptr h in
+      let old = load_box c h in
       when_ c (nonzero c old) (fun () ->
           match inner known payload with
           | None -> return old (int env size) 8
@@ -439,7 +446,7 @@ let end_at known c base (p : Layout.position) =
                 (fun () ->
                   defer_return old (int env size) 8;
                   defer w old));
-      store c (Llvm.const_null env.ptr) h
+      store_box c (Llvm.const_null env.ptr) h
   | Layout.Array { count; stride; elements } ->
       each_element c h ~count ~stride (walks known elements).end_ (Llvm.const_null env.ptr) (int env 0));
   ()
@@ -488,10 +495,10 @@ let move known c (p : Layout.position) =
               in
               Option.iter (move_elements ~stride items count) (inner known elements)))
   | Layout.Box { size; payload } ->
-      let old = load c env.ptr h in
+      let old = load_box c h in
       when_ c (nonzero c old) (fun () ->
           when_ c (leaves old) (fun () ->
-              let fresh = relocate old (int env size) 8 (int env size) in
+              let fresh = relocate ~set:(fun v -> store_box c v h) old (int env size) 8 (int env size) in
               Option.iter (fun w -> visit c w.move fresh c.with_ c.extra) (inner known payload)))
   | Layout.Array { count; stride; elements } ->
       each_element c h ~count ~stride (walks known elements).move c.with_ c.extra
@@ -542,17 +549,17 @@ let overwrite known self c (ps : Layout.position list) =
               | Some there -> either c there both (fun () -> end_at known c c.at p))
           | _, None -> end_at known c c.at p
           | _, Some k ->
-              let old = load c env.ptr (offset c c.at p.offset) in
+              let old = load_box c (offset c c.at p.offset) in
               let both =
                 match present c c.with_ p with
-                | None -> nonzero c (load c env.ptr (offset c c.with_ p.offset))
+                | None -> nonzero c (load_box c (offset c c.with_ p.offset))
                 | Some there ->
                     (* The replacement's box is read only where it is there. *)
                     let check = block c and after = block c in
                     let from = Llvm.insertion_block c.b in
                     ignore (Llvm.build_cond_br there check after c.b);
                     Llvm.position_at_end check c.b;
-                    let named = nonzero c (load c env.ptr (offset c c.with_ p.offset)) in
+                    let named = nonzero c (load_box c (offset c c.with_ p.offset)) in
                     let checked = Llvm.insertion_block c.b in
                     ignore (Llvm.build_br after c.b);
                     Llvm.position_at_end after c.b;
@@ -573,8 +580,8 @@ let overwrite known self c (ps : Layout.position list) =
           let old = load c env.ptr k in
           when_ c (nonzero c old) (fun () ->
               let h = offset c c.at p.offset in
-              let incoming = load c env.ptr h in
-              store c old h;
+              let incoming = load_box c h in
+              store_box c old h;
               let n = int env size in
               let return () = ignore (runtime c Cgt.Runtime.Free [| incoming; n; int env 8 |]) in
               match inner known payload with
@@ -607,7 +614,7 @@ let vacate element c (p : Layout.position) =
   match p.kind with
   | Layout.Text -> zero_handle c h
   | Layout.List _ -> zero_list c h
-  | Layout.Box _ -> store c (Llvm.const_null c.env.ptr) h
+  | Layout.Box _ -> store_box c (Llvm.const_null c.env.ptr) h
   | Layout.Array { count; stride; elements } ->
       let f = element elements in
       each c (int c.env count) (fun i ->

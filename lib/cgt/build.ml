@@ -71,6 +71,16 @@ let bind_local st scope (l : T.Local.t) id value =
 
 let ptr node = { Expr.node; ty = Nodes.Ty.Ptr }
 
+(* The block of the boxed member whose slot [at] is (adt.md §4), and a block
+   on its way into such a slot: stored as a [Ref] with Ref32
+   (experimental). *)
+let box_block at =
+  if Ref32.on () then ptr (Expr.Convert { Expr.node = Expr.Deref at; ty = Nodes.Ty.Ref })
+  else ptr (Expr.Deref at)
+
+let boxed_value (block : Expr.t) =
+  if Ref32.on () then { Expr.node = Expr.Convert block; ty = Nodes.Ty.Ref } else block
+
 (* `@primitives$Array<T, n>`, and whether an expression is an array
    literal. *)
 let array_type t n =

@@ -38,6 +38,10 @@ module Ty = struct
        bits. *)
     | Handle32
     | Ptr
+    (* Experimental (Ref32): a boxed member's block, stored as its address
+       shifted right by 3 in 32 bits, which a [Convert] turns into a [Ptr]
+       and back. *)
+    | Ref
     | Struct of t list
     | Sum of t list
     | Array of t * int
@@ -70,6 +74,7 @@ module Ty = struct
     | I64 | F64 | Ptr -> (8, 8)
     | Handle -> (24, 8)
     | Handle32 -> (12, 4)
+    | Ref -> (4, 4)
     | Struct ts ->
         let size, align =
           List.fold_left
@@ -79,6 +84,7 @@ module Ty = struct
             (0, 1) ts
         in
         (below_limit (round_up size align), align)
+    | Sum ts when compact ts -> (below_limit (add 4 (times 4 (quads ts))), 4)
     | Sum ts -> ( match words ts with 0 -> (4, 4) | n -> (below_limit (add 8 (times 8 n)), 8))
     | Array (t, n) ->
         let size, align = size_align t in
@@ -93,6 +99,14 @@ module Ty = struct
   (* A sum's payload room, in 8-byte words: enough for its widest case, and
      aligned for every one, since no layout here needs more than 8. *)
   and words ts = List.fold_left (fun n t -> max n ((fst (size_align t) + 7) / 8)) 0 ts
+
+  (* Experimental (Ref32): a compact sum, whose cases' payloads all align
+     to 4 bytes or less, keeps its payload in 4-byte words right after its
+     4-byte tag. *)
+  and compact ts = Ref32.on () && words ts > 0 && List.for_all (fun t -> snd (size_align t) <= 4) ts
+
+  (* A compact sum's payload room, in 4-byte words. *)
+  and quads ts = List.fold_left (fun n t -> max n ((fst (size_align t) + 3) / 4)) 0 ts
 
   (* Where each member of a struct of [ts] starts. *)
   let offsets ts =
@@ -126,7 +140,7 @@ module Ty = struct
   let list_handle () = if Ref32.on () then Handle32 else Handle
 
   (* Where the sum [t]'s payload starts, packed or not. *)
-  let payload_at = function Packed _ -> 1 | _ -> payload_offset
+  let payload_at = function Packed _ -> 1 | Sum ts when compact ts -> 4 | _ -> payload_offset
 
   (* Whether a value of the type has a handle among its bytes: is one, or
      has one as a member, a case's payload or an element. A boxed member's
@@ -136,7 +150,7 @@ module Ty = struct
     | Handle | Handle32 -> true
     | Struct ts | Sum ts -> List.exists holds_handle ts
     | Array (t, _) | Packed t -> holds_handle t
-    | Void | I1 | I32 | I64 | F32 | F64 | Ptr -> false
+    | Void | I1 | I32 | I64 | F32 | F64 | Ptr | Ref -> false
 
   let rec to_string = function
     | Void -> "void"
@@ -148,6 +162,7 @@ module Ty = struct
     | Handle -> "handle"
     | Handle32 -> "handle32"
     | Ptr -> "ptr"
+    | Ref -> "ref"
     | Struct ts -> "{" ^ String.concat ", " (List.map to_string ts) ^ "}"
     | Sum ts -> "<" ^ String.concat " | " (List.map to_string ts) ^ ">"
     | Array (t, n) -> Printf.sprintf "[%d x %s]" n (to_string t)

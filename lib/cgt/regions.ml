@@ -118,6 +118,9 @@ let rec ex a st ~moving (e : Expr.t) =
       | Expr.Take { address = { Expr.node = Expr.Address c; _ }; _ } when carried c st ->
           if moving then (drop c st, true) else raise Unknown
       | Expr.Take { address; _ } -> (read st address, false)
+      (* A box's block on its way into its slot in 32 bits (Ref32) carries
+         what the block holds, as the box does. *)
+      | Expr.Convert x when e.Expr.ty = Ty.Ref -> ex a st ~moving x
       | Expr.Deref x | Expr.Flip x | Expr.Convert x | Expr.Snapshot x
       | Expr.Offset { base = x; _ } | Expr.Member { value = x; _ } | Expr.Copy { value = x; _ } ->
           (read st x, false)

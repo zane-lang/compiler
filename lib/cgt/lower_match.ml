@@ -105,7 +105,7 @@ let match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
                      let at = ptr (Expr.Offset { base = local_ptr pointer; within; path }) in
                      (* A boxed payload is in its block. *)
                      let boxed = boxed st tsty c in
-                     let value = if boxed then ptr (Expr.Deref at) else at in
+                     let value = if boxed then box_block at else at in
                      Hashtbl.replace ctx.env l.T.Local.id (Pointer bound);
                      [ Stat.Let { id = bound; value } ])
                a.patterns stored)
@@ -184,7 +184,7 @@ let case_place w st ctx span (target : T.Expr.t) case handler ret =
   let payload =
     let path = [ live ] in
     let at = ptr (Expr.Offset { base = local_ptr base; within; path }) in
-    if boxed st tsty ret then ptr (Expr.Deref at) else at
+    if boxed st tsty ret then box_block at else at
   in
   let cases =
     List.mapi

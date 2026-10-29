@@ -167,6 +167,10 @@ let member_index _st _t slot = slot
    of the owner it names (§4.1), and a boxed member a pointer (adt.md §4).
    A function value is the address of the function a lambda was lifted to
    (L14). *)
+(* A boxed member's type: the address of its block, in 32 bits with Ref32
+   (experimental). *)
+let box_type () = if Ref32.on () then Nodes.Ty.Ref else Nodes.Ty.Ptr
+
 let rec shape st span (t : Tty.t) : Nodes.Ty.t =
   match t with
   | Tty.Roaming t -> shape st span t
@@ -190,7 +194,7 @@ let rec shape st span (t : Tty.t) : Nodes.Ty.t =
       | None -> unhandled span t)
   | Tty.Named _ -> (
       let member m =
-        if boxed st t m then if pooled st m then Nodes.Ty.Handle else Nodes.Ty.Ptr else shape st span m
+        if boxed st t m then if pooled st m then Nodes.Ty.Handle else box_type () else shape st span m
       in
       let sum ts = Nodes.Ty.Sum ts in
       match definition st t with
@@ -289,13 +293,13 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
             else if boxed st t m then
               let size = fst (Nodes.Ty.size_align (ty st span m)) in
               let payload = layout st span m in
-              [ { Layout.kind = Layout.Box { size; payload }; offset = base; size = 8; tags } ]
+              [ { Layout.kind = Layout.Box { size; payload }; offset = base; size = fst (Nodes.Ty.size_align (box_type ())); tags } ]
             else positions st span m base tags
           in
           let variant cs sum =
             List.concat
               (List.mapi
-                 (fun i (_, c) -> member c (sum + Nodes.Ty.payload_offset) (tags @ [ (sum, i) ]))
+                 (fun i (_, c) -> member c (sum + Nodes.Ty.payload_at lowered) (tags @ [ (sum, i) ]))
                  cs)
           in
           match (definition, lowered) with

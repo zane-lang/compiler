@@ -264,7 +264,7 @@ and storage st ctx span (e : T.Expr.t) : Expr.t option =
             let within = ty st span owner in
             let at = ptr (Expr.Offset { base; within; path = [ member_index st owner slot ] }) in
             (* A boxed member's place is its payload, in its block. *)
-            if boxed st owner (field_type st span owner slot) then ptr (Expr.Deref at) else at)
+            if boxed st owner (field_type st span owner slot) then box_block at else at)
         base
   | T.Expr.Var (T.Name_ref.Global { decl; _ }) -> (
       match Hashtbl.find_opt st.constants decl with
