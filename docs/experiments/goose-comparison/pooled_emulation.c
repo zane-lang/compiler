@@ -9,8 +9,10 @@
 //   NO_CHECK=1             no room check on a push: the pool is reserved
 //                          once at the largest size it reaches, as on a
 //                          data stack
-//   FRESH=64               each tree in a pool of its own, 64 bytes at first
-//                          and doubling as it grows, as Zane's are
+//   CHECK_LOOP=1           `check` walks each right child in a loop and
+//                          calls only for the left, as Goose's compiles to
+//   FRESH=64               each tree in a pool of its own from malloc, 64
+//                          bytes at first and doubling with realloc
 //   ON_RETURN=1            no room check on a push; instead `make` leaves
 //                          room for three nodes when it returns, the most
 //                          one call pushes before it calls or returns
@@ -68,10 +70,23 @@ static int64_t make(int64_t d, pool *p) {
 	*(TAG *)m = 1; memcpy(m + L0, &a, 4); memcpy(m + L0 + 4, &b, 4);
 	p->count = at + NODE; LEAVE(p); return at;
 }
+#ifndef CHECK_LOOP
+#define CHECK_LOOP 0
+#endif
 static int64_t check(const char *n) {
+#if CHECK_LOOP
+	int64_t total = 0;
+	while (*(const TAG *)n != 0) {
+		int32_t a, b; memcpy(&a, n + L0, 4); memcpy(&b, n + L0 + 4, 4);
+		total += 1 + check(n + L0 + a);
+		n = n + L0 + 4 + b;
+	}
+	return total + 1;
+#else
 	if (*(const TAG *)n == 0) return 1;
 	int32_t a, b; memcpy(&a, n + L0, 4); memcpy(&b, n + L0 + 4, 4);
 	return 1 + check(n + L0 + a) + check(n + L0 + 4 + b);
+#endif
 }
 #ifndef FRESH
 #define FRESH 0

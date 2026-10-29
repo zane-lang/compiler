@@ -564,20 +564,99 @@ What this shows:
   against 528 M), and callgrind's cache simulation gives it about the same
   misses (2.2 M first-level against Goose's 1.9 M). Yet it takes 1.6
   times Goose's time.
-- **What is left is how pools are made.** The replay reuses one pool for
-  every tree, and Goose's data stack does the same. Zane makes a fresh pool
-  for each `check(make(d))`, starting at 64 bytes and doubling as the tree
-  grows. The replay's `FRESH=64` switch does that too, and its time goes
-  from 0.032–0.037 s to 0.040–0.049 s at depth 16, against Zane's
-  0.045–0.053 s in the same runs. Doubling costs Zane 29 M instructions
-  (`zane_pool_reserve` and its `memcpy`), and touches memory a reused
-  pool would not.
+- **How pools are made looked like the rest.** The replay reuses one pool
+  for every tree, and Goose's data stack does the same. Zane makes a fresh
+  pool for each `check(make(d))`, starting at 64 bytes and doubling as the
+  tree grows. The replay's `FRESH=64` switch does that with `malloc` and
+  `realloc`, and its time goes from 0.032–0.037 s to 0.040–0.049 s at
+  depth 16, against Zane's 0.045–0.053 s in the same runs. The next step
+  tried it in Zane and found otherwise: see "Pool reuse".
+
+## Pool reuse (prototype, behind `ZANE_POOL_REUSE=1` at run time)
+
+The packed nodes step put binarytrees' remaining gap on Zane making a fresh
+pool for each tree and growing it by doubling, where the replay and Goose
+reuse one. This step tries reuse in Zane.
+
+### Design
+
+- **A size hint.** Each thread remembers the largest room a pool has grown
+  to, up to a chunk (`zane_pool_hint`, `runtime/list.c`). With
+  `ZANE_POOL_REUSE=1` in the environment, `zane_pool_new` makes a new pool
+  that large at once, so a loop building trees of one depth grows its pool
+  once, on the first tree.
+- **The memory was already reused.** A new pool's block is at its region's
+  frontier. Each iteration's region drains before the next opens, so the
+  next pool's block is the same memory. A gdb breakpoint on
+  `zane_pool_new` at depth 10 showed 3 distinct addresses over 400 pools:
+  every pool after the first two starts at the same byte.
+- It is a run-time switch, so one binary is measured both ways
+  (`reuse_ab.py`).
+
+### Results
+
+binarytrees, pooled, peeled and packed, one binary:
+
+| | growth calls | instructions | user, depth 16 (least / median) | user, depth 18 (least / median) |
+| --- | --- | --- | --- | --- |
+| reuse off | 232,957 | 483 M | 0.058 / 0.066 s | 0.247 / 0.299 s |
+| reuse on | 49 | 480 M | 0.050 / 0.064 s | 0.237 / 0.297 s |
+
+The growth calls go, and so do the 19 M instructions they ran, but
+`zane_pool_new` gains 9 M making the larger blocks. The time does not
+move beyond noise, at either depth. treecopy, which builds two trees and
+copies them, does not move either (median 0.051 s off, 0.052 s on, at
+depth 18).
+
+So growing a pool was not the cost: it grew in place at the frontier, in
+memory that stayed warm. The replay's `FRESH=64` was slower for a reason
+Zane does not share: glibc's `realloc` serves a block past 128 KiB with
+`mmap`, so its large trees touch fresh pages every time.
+
+### Where the time is, then
+
+The gap to the replay grows with the tree: at depths 12 to 20, Zane takes
+1.25–1.45 times the replay's user time and 1.5–1.6 times Goose's. It is a
+cost per node. Ruled out, each with the same binaries:
+
+- **Instructions and simulated caches.** Zane runs the replay's instruction
+  count (480 M against 472 M at depth 16). Per function, callgrind's cache
+  simulation gives `make` and `check` the same first-level misses as the
+  replay's.
+- **`check` as a loop.** Goose's compiled `check` loops over each right
+  child and calls only for the left. The replay with `CHECK_LOOP=1` does
+  the same and takes the same time.
+- **Address layout.** Runs with randomization off (`setarch -R`) take the
+  same time.
+- **The handle next to the pool.** Zane's pool handle is in a frame, and
+  the pool's block can be cut from the same frame. The replay with its
+  handle right before the pool's bytes takes the same time.
+- **Huge pages and signals.** None of the three gets transparent huge
+  pages (`madvise` mode). Zane commits frames from a SIGSEGV handler, but
+  takes 2 signals and 46 `mprotect` calls in a whole run.
+
+Sampling with gdb at depth 22 (`sample.sh`) puts the gap in `make`:
+
+| | samples in `make` | in `check` |
+| --- | --- | --- |
+| zane | 70 (78%) | 17 (19%) |
+| replay | 42 (68%) | 20 (32%) |
+
+With Zane's total 1.4 times the replay's, its `make` takes about 1.6 times
+as long, and its `check` the same. The two `make`s are the same
+instructions in the same order. The samples in Zane's cluster just after
+its stores into the pool, and around the loads of the pool handle's count
+and items that follow. What makes those slower in Zane is something the
+simulator does not model, such as store forwarding, memory disambiguation
+or the TLB. Telling which needs hardware counters, which this container
+does not have. `perf stat -e cycles,instructions,dTLB-load-misses,ld_blocks.store_forward`
+on both binaries, on a machine that has them, is the next measurement.
 
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
 | --- | --- | --- |
-| binarytrees | ~2.2× (pooled, peeled and packed: ~1.6×) | Zane runs fewer instructions than Goose, with the same node size. What is left is a fresh pool per tree, grown by doubling, where Goose reuses its data stack. |
+| binarytrees | ~2.2× (pooled, peeled and packed: ~1.6×) | Zane runs fewer instructions than Goose, with the same node size, and reuses its pool's memory as Goose does. What is left is in `make`, at its stores into the pool, and needs hardware counters to name. |
 | ntree | ~1.6× | Zane executes 1.8× Goose's instructions and uses 1.4× its memory: a 24-byte list handle per node, plus each node's separate block. |
 | treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~1.0× | Closed. |
@@ -587,5 +666,5 @@ Without pooling, what is left is mostly representation: link width, handle
 size, and whether a tree's nodes sit in one pool or in separate blocks.
 The allocator's own paths account for little of it. Pooled variants address
 the representation, partial inlining a recursion's base case, and packing
-the node's size. For binarytrees, what is left then is the pool's life
-cycle: making one per tree and growing it by doubling.
+the node's size. For binarytrees, what is left is no longer visible in
+instruction counts or simulated caches.

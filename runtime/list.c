@@ -263,6 +263,22 @@ static int zane_pool_tag(const char *node) { return *(const uint8_t *)node; }
 /* The most bytes a pool holds, so that every link in it fits 32 bits. */
 enum { ZANE_POOL_MOST = INT32_MAX };
 
+/* Experimental pool reuse (`ZANE_POOL_REUSE=1` when the program runs): a
+   new pool starts as large as this thread's last pool grew, up to a
+   chunk, so a loop that builds trees of one size grows its pool once.
+   Each new pool's block is at its region's frontier, where the last one
+   was when its region drained, so it is the same memory, warm. */
+static _Thread_local int64_t zane_pool_hint;
+static int zane_pool_reusing = -1;
+
+static int zane_pool_reuse(void) {
+	if (zane_pool_reusing < 0) {
+		const char *v = getenv("ZANE_POOL_REUSE");
+		zane_pool_reusing = v && strcmp(v, "1") == 0;
+	}
+	return zane_pool_reusing;
+}
+
 /* Whether another thread may reach `c`, as zane_lock asks. */
 static int zane_pool_guarded(zane_context *c) { return c != zane_self || c->shared > 0; }
 
@@ -305,6 +321,7 @@ __attribute__((noinline)) static void zane_pool_reserve(zane_list *pool, int64_t
 	if (total < 2 * pool->room) total = 2 * pool->room;
 	if (total > ZANE_POOL_MOST) total = ZANE_POOL_MOST;
 	total = (total + 7) & ~(int64_t)7;
+	if (total <= ZANE_CHUNK - ZANE_LINE && total > zane_pool_hint) zane_pool_hint = total;
 	zane_mark *r = zane_pool_region(pool->items);
 	zane_heap *h = &r->heap;
 	zane_lock(r->context);
@@ -343,8 +360,9 @@ static void zane_pool_abandon(char *items) {
    into it grows it there (docs/experiments). */
 void zane_pool_new(zane_list *out) {
 	zane_mark *r = zane_pool_home(out);
+	int64_t room = zane_pool_hint > ZANE_LIST_FIRST && zane_pool_reuse() ? zane_pool_hint : ZANE_LIST_FIRST;
 	zane_lock(r->context);
-	*out = (zane_list){ zane_pool_frontier(r, ZANE_LIST_FIRST), 0, ZANE_LIST_FIRST };
+	*out = (zane_list){ zane_pool_frontier(r, room), 0, room };
 	zane_unlock(r->context);
 }
 
