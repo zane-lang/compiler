@@ -33,6 +33,10 @@ module Ty = struct
     | F32
     | F64
     | Handle
+    (* Experimental (Ref32): a list's handle with its items stored as their
+       address shifted right by 3, its count and its room, each in 32
+       bits. *)
+    | Handle32
     | Ptr
     | Struct of t list
     | Sum of t list
@@ -65,6 +69,7 @@ module Ty = struct
     | I32 | F32 -> (4, 4)
     | I64 | F64 | Ptr -> (8, 8)
     | Handle -> (24, 8)
+    | Handle32 -> (12, 4)
     | Struct ts ->
         let size, align =
           List.fold_left
@@ -117,6 +122,9 @@ module Ty = struct
   (* A sum's payload starts after its tag. *)
   let payload_offset = 8
 
+  (* A list's handle: [Handle32] with Ref32, else [Handle]. *)
+  let list_handle () = if Ref32.on () then Handle32 else Handle
+
   (* Where the sum [t]'s payload starts, packed or not. *)
   let payload_at = function Packed _ -> 1 | _ -> payload_offset
 
@@ -125,7 +133,7 @@ module Ty = struct
      payload and a reference's owner are in storage of their own, which a
      [Ptr] names. *)
   let rec holds_handle = function
-    | Handle -> true
+    | Handle | Handle32 -> true
     | Struct ts | Sum ts -> List.exists holds_handle ts
     | Array (t, _) | Packed t -> holds_handle t
     | Void | I1 | I32 | I64 | F32 | F64 | Ptr -> false
@@ -138,6 +146,7 @@ module Ty = struct
     | F32 -> "f32"
     | F64 -> "f64"
     | Handle -> "handle"
+    | Handle32 -> "handle32"
     | Ptr -> "ptr"
     | Struct ts -> "{" ^ String.concat ", " (List.map to_string ts) ^ "}"
     | Sum ts -> "<" ^ String.concat " | " (List.map to_string ts) ^ ">"

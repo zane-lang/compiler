@@ -113,6 +113,7 @@ let rec lltype env (t : Ty.t) =
   | Ty.F32 -> Llvm.float_type env.ctx
   | Ty.F64 -> Llvm.double_type env.ctx
   | Ty.Handle -> Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |]
+  | Ty.Handle32 -> List_handle.header env.ctx
   | Ty.Ptr -> env.ptr
   | Ty.Struct ts -> Llvm.struct_type env.ctx (Array.of_list (List.map (stored env) ts))
   | Ty.Sum ts -> (
@@ -146,7 +147,7 @@ let rec pieces (t : Ty.t) =
   match t with
   | Ty.Void -> 0
   | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr -> 1
-  | Ty.Handle -> 3
+  | Ty.Handle | Ty.Handle32 -> 3
   | Ty.Struct ts -> List.fold_left (fun n t -> n + pieces t) 0 ts
   | Ty.Sum ts -> 1 + words ts
   | Ty.Array (t, n) -> n * pieces t
@@ -183,7 +184,9 @@ let results triple =
       let n = registers triple in
       (n, n)
 
-let aggregate = function Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Handle | Ty.Packed _ -> true | _ -> false
+let aggregate = function
+  | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Handle | Ty.Handle32 | Ty.Packed _ -> true
+  | _ -> false
 
 (* How a value of type [t] crosses a call: as itself when it takes no more
    registers than [env.registers], and by the address of a slot otherwise.
@@ -400,7 +403,7 @@ let tags ctx =
 let access env (t : Ty.t) instr =
   let tag =
     match t with
-    | Ty.Handle -> Some env.handle_tag
+    | Ty.Handle | Ty.Handle32 -> Some env.handle_tag
     | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr -> Some env.value_tag
     | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Packed _ -> None
   in
@@ -822,7 +825,7 @@ let has_terminator b =
    which retries a torn read and fences the same way. *)
 let snapshot_read t =
   let rec names_block = function
-    | Ty.Ptr | Ty.Handle -> true
+    | Ty.Ptr | Ty.Handle | Ty.Handle32 -> true
     | Ty.Struct ts | Ty.Sum ts -> List.exists names_block ts
     | Ty.Array (t, _) | Ty.Packed t -> names_block t
     | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
@@ -840,11 +843,8 @@ let element env fr b fn args =
   let base, index, count, stride =
     match (fn, args) with
     | Cgt.Runtime.List_at, [ list; index; stride ] ->
-        let header = Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |] in
-        let field i t =
-          handle_field env (Llvm.build_load t (Llvm.build_struct_gep header list i "" b) "" b)
-        in
-        (field 0 env.ptr, index, count_field env (Llvm.build_load env.i64 (Llvm.build_struct_gep header list 1 "" b) "" b), stride)
+        let tag = handle_field env and count_tag = if List_handle.on () then handle_field env else count_field env in
+        (List_handle.items ~tag env.ctx b list, index, List_handle.count ~tag:count_tag env.ctx b list, stride)
     | Cgt.Runtime.Array_at, [ array; index; count; stride ] -> (array, index, count, stride)
     | _ -> Diagnostic.bug "codegen: an element address with the wrong arguments"
   in
@@ -907,7 +907,8 @@ let first_block env fr b ~header ~list ~fail ~first =
       (Llvm.const_of_int64 i64 (Int64.of_int (-Abi.list_align)) true)
       "" b
   in
-  let room = handle_field env (Llvm.build_load i64 (Llvm.build_struct_gep header list 2 "" b) "" b) in
+  ignore header;
+  let room = List_handle.room ~tag:(handle_field env) env.ctx b list in
   check (Llvm.build_icmp Llvm.Icmp.Eq room (n 0) "" b);
   let m = Llvm.build_load ptr (open_scope env) "" b in
   check (Llvm.build_icmp Llvm.Icmp.Ne m (Llvm.const_null ptr) "" b);
@@ -958,10 +959,10 @@ let first_block env fr b ~header ~list ~fail ~first =
   let start = Llvm.build_phi [ (top, pop); (start, bumped) ] "" b in
   let live = field env b i64 m Walks.live in
   set_field env b (Llvm.build_add live (n 1) "" b) m Walks.live;
-  let store i v = ignore (handle_field env (Llvm.build_store v (Llvm.build_struct_gep header list i "" b) b)) in
-  store 0 start;
-  store 1 (n 1);
-  store 2 (n first);
+  let tag = handle_field env in
+  List_handle.set_items ~tag env.ctx b start list;
+  List_handle.set_count ~tag env.ctx b (n 1) list;
+  List_handle.set_room ~tag env.ctx b (n first) list;
   start
 
 (* Room for one more element at the end of a list, [stride] bytes wide: the
@@ -977,18 +978,16 @@ let first_block env fr b ~header ~list ~fail ~first =
    the run, its own and those after it, and each of the others is made
    [unchecked], with no look at the room at all. *)
 let push env fr b ?(ahead = 1) ?(unchecked = false) list stride =
-  let header = Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |] in
-  let count_at = Llvm.build_struct_gep header list 1 "" b in
-  let count = handle_field env (Llvm.build_load env.i64 count_at "" b) in
-  let room_at = Llvm.build_struct_gep header list 2 "" b in
-  let room = handle_field env (Llvm.build_load env.i64 room_at "" b) in
+  let header = List_handle.header env.ctx in
+  let tag = handle_field env in
+  let count = List_handle.count ~tag env.ctx b list in
+  let room = List_handle.room ~tag env.ctx b list in
   let next = Llvm.build_nsw_add count (Llvm.const_int env.i64 1) "" b in
   let in_room () =
-    let items_at = Llvm.build_struct_gep header list 0 "" b in
-    let items = handle_field env (Llvm.build_load env.ptr items_at "" b) in
+    let items = List_handle.items ~tag env.ctx b list in
     let offset = Llvm.build_nsw_mul count stride "" b in
     let at = Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) items [| offset |] "" b in
-    ignore (handle_field env (Llvm.build_store next count_at b));
+    List_handle.set_count ~tag env.ctx b next list;
     at
   in
   if unchecked then in_room ()
@@ -1130,12 +1129,10 @@ let runs body =
    that removes from a list in one of its ways keeps the count it read in
    a register through the others. *)
 let remove env fr b fn list index stride =
-  let header = Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |] in
   let i8 = Llvm.i8_type env.ctx and one = Llvm.const_int env.i64 1 in
-  let count_at = Llvm.build_struct_gep header list 1 "" b in
-  let count = handle_field env (Llvm.build_load env.i64 count_at "" b) in
-  let items_at = Llvm.build_struct_gep header list 0 "" b in
-  let items = handle_field env (Llvm.build_load env.ptr items_at "" b) in
+  let tag = handle_field env in
+  let count = List_handle.count ~tag env.ctx b list in
+  let items = List_handle.items ~tag env.ctx b list in
   let slot n = Llvm.build_in_bounds_gep i8 items [| Llvm.build_nsw_mul n stride "" b |] "" b in
   let at = slot (Llvm.build_nsw_sub index one "" b) in
   let move name dst src size =
@@ -1164,7 +1161,7 @@ let remove env fr b fn list index stride =
       move "llvm.memcpy.p0.p0.i64" at (slot (Llvm.build_nsw_sub count one "" b)) stride;
       ignore (Llvm.build_br moved b);
       Llvm.position_at_end moved b);
-  ignore (handle_field env (Llvm.build_store (Llvm.build_nsw_sub count one "" b) count_at b))
+  List_handle.set_count ~tag env.ctx b (Llvm.build_nsw_sub count one "" b) list
 
 (* ---------------------------------------------------------------------- *)
 (* Arithmetic                                                             *)
@@ -1401,9 +1398,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           None
       | _ -> Diagnostic.bug "codegen: a removal with the wrong arguments")
   (* A new list is empty and owns no block (runtime/list.c). *)
-  | Expr.Runtime { fn = Cgt.Runtime.List_new; args = [] } ->
-      let zero = Llvm.const_int env.i64 0 in
-      Some (Llvm.const_struct env.ctx [| Llvm.const_null env.ptr; zero; zero |])
+  | Expr.Runtime { fn = Cgt.Runtime.List_new; args = [] } -> Some (Llvm.const_null (lltype env e.Expr.ty))
   | Expr.Runtime { fn = Cgt.Runtime.List_push; args } -> (
       let run =
         match args with
@@ -1444,7 +1439,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
         List.filter_map
           (fun (a : Expr.t) ->
             match (a.Expr.ty, expr env fr b a) with
-            | Ty.Handle, Some v -> Some (spill env fr b v)
+            | (Ty.Handle | Ty.Handle32), Some v -> Some (spill env fr b v)
             | _, v -> v)
           args
       in
@@ -1453,8 +1448,8 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           | Ty.Void ->
               ignore (Llvm.build_call fty f (Array.of_list args) "" b);
               None
-          | Ty.Handle ->
-              let t = lltype env Ty.Handle in
+          | (Ty.Handle | Ty.Handle32) as h ->
+              let t = lltype env h in
               let out = alloca env fr t in
               ignore (Llvm.build_call fty f (Array.of_list (out :: args)) "" b);
               Some (Llvm.build_load t out "" b)

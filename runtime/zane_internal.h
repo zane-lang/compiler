@@ -125,6 +125,13 @@ _Static_assert(sizeof(zane_mapping) <= ZANE_LINE, "a mapping's header fits befor
 /* An unbounded pool's bytes (arena.c, `zane_alloc_unbounded`): as many as a
    pool's 32-bit links reach. */
 #define ZANE_UNBOUNDED ((int64_t)1 << 31)
+#ifdef ZANE_REF32
+/* Experimental (docs/experiments/goose-comparison): the cage every
+   reservation is carved from (region.c), its addresses below 2^35, so one
+   shifted right by 3 fits 32 bits. */
+#define ZANE_CAGE_LOW ((uintptr_t)1 << 32)
+#define ZANE_CAGE_HIGH ((uintptr_t)1 << 35)
+#endif
 char *zane_alloc_unbounded(zane_mark *region);
 
 /* How many spare chunks stay warm, their pages resident: on each context
@@ -269,9 +276,13 @@ _Static_assert(sizeof(zane_task) == ZANE_TASK_SIZE, "lowering places a header of
 _Static_assert(offsetof(zane_text, length) == ZANE_HANDLE_LENGTH, "a string's length follows its bytes");
 _Static_assert(offsetof(zane_text, room) == ZANE_HANDLE_ROOM, "then its room");
 _Static_assert(sizeof(zane_text) == ZANE_HANDLE_SIZE, "a string is a handle");
+#ifdef ZANE_REF32
+_Static_assert(sizeof(zane_list) == 12, "a list is a 32-bit handle (List_handle)");
+#else
 _Static_assert(offsetof(zane_list, count) == ZANE_HANDLE_LENGTH, "a list's count follows its elements");
 _Static_assert(offsetof(zane_list, room) == ZANE_HANDLE_ROOM, "then its room");
 _Static_assert(sizeof(zane_list) == ZANE_HANDLE_SIZE, "a list is a handle");
+#endif
 
 enum { ZANE_QUEUED, ZANE_RUNNING, ZANE_DONE, ZANE_JOINED };
 

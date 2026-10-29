@@ -510,7 +510,13 @@ static size_t zane_span_bytes(int64_t size) {
 
 /* How many times a list's oversized block may grow in place, in bytes, over
    the size it is first made at. */
+#ifdef ZANE_REF32
+/* Inside the cage (region.c), a list reserves less, so its 28 GiB hold
+   lists that grow large. */
+enum { ZANE_HEADROOM = 8 };
+#else
 enum { ZANE_HEADROOM = 64 };
+#endif
 
 /* A list's oversized block of `size` bytes in a region, at the start of a
    reservation of addresses `ZANE_HEADROOM` times its span, so that it grows

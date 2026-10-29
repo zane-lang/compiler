@@ -119,7 +119,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
      names nothing the runtime needs. *)
   | T.Expr.Call
       { callee = { owner = S.Intrinsic "@runtime$arguments"; _ }; args = [ _ ]; handler = None } ->
-      { Expr.node = Expr.Runtime { fn = Runtime.Arguments; args = [] }; ty = Nodes.Ty.Handle }
+      { Expr.node = Expr.Runtime { fn = Runtime.Arguments; args = [] }; ty = Nodes.Ty.list_handle () }
   (* A number read from a string's text (types.md §2.10). The runtime writes
      it to [value]'s slot and says whether the text spelled one that fits;
      when it did not, the call aborts with `Unit`. *)
@@ -207,7 +207,10 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       match args with
       | [ T.Arg.Value list ] ->
           let value = w.borrow st ctx span list in
-          { Expr.node = Expr.Member { value; index = 1 }; ty = Nodes.Ty.I64 }
+          if value.Expr.ty = Nodes.Ty.Handle32 then
+            let count = { Expr.node = Expr.Member { value; index = 1 }; ty = Nodes.Ty.I32 } in
+            { Expr.node = Expr.Convert count; ty = Nodes.Ty.I64 }
+          else { Expr.node = Expr.Member { value; index = 1 }; ty = Nodes.Ty.I64 }
       | _ -> Diagnostic.bug ~span "lowering: `size` with the wrong arguments")
   | T.Expr.Call
       {

@@ -324,7 +324,7 @@ int64_t zane_parse_f64(const zane_text *text, double *out) {
    it and the strings' bytes are in the current scope's region, where the
    list then arrives in its place as any made value does. */
 void zane_arguments(zane_list *out) {
-	*out = (zane_list){ NULL, 0, 0 };
+	*out = ZL_MAKE(NULL, 0, 0);
 	if (zane_argc == 0) return;
 	int64_t stride = (int64_t)sizeof(zane_text);
 	int64_t room = 128;
@@ -340,5 +340,5 @@ void zane_arguments(zane_list *out) {
 		memcpy(bytes, zane_argv[i], (size_t)length);
 		items[i] = (zane_text){ bytes, length, length };
 	}
-	*out = (zane_list){ (char *)items, zane_argc, room };
+	*out = ZL_MAKE((char *)items, zane_argc, room);
 }

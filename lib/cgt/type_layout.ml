@@ -124,7 +124,7 @@ let boxed st holder member =
    value; inside its pool each node is the variant's sum with its payload
    inline, and each member of the variant's own type in it is a 32-bit link,
    the offset from the link to the node it names. *)
-let pooling = Sys.getenv_opt "ZANE_POOLED_VARIANTS" = Some "1"
+let pooling = Sys.getenv_opt "ZANE_POOLED_VARIANTS" = Some "1" && not (Ref32.on ())
 
 let unroamed = function Tty.Roaming t -> t | t -> t
 
@@ -170,7 +170,8 @@ let member_index _st _t slot = slot
 let rec shape st span (t : Tty.t) : Nodes.Ty.t =
   match t with
   | Tty.Roaming t -> shape st span t
-  | _ when is_text t || is_list t -> Nodes.Ty.Handle
+  | _ when is_text t -> Nodes.Ty.Handle
+  | _ when is_list t -> Nodes.Ty.list_handle ()
   | Tty.Named _ when pooled st t -> Nodes.Ty.Handle
   | Tty.Intrinsic { namespace = "primitives"; name; args = [] } -> (
       match name with
@@ -254,12 +255,13 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
   let positions = positions ~path and layout = layout ~path in
   let at kind size = { Layout.kind; offset = base; size; tags } in
   let handle = fst (Nodes.Ty.size_align Nodes.Ty.Handle) in
+  let list_handle = fst (Nodes.Ty.size_align (Nodes.Ty.list_handle ())) in
   match (t, element t) with
   | Tty.Reference _, _ -> []
   | Tty.Roaming t, _ -> positions st span t base tags
   | _, Some e ->
       let elements = layout st span e in
-      [ at (Layout.List { stride = stride st span e; elements }) handle ]
+      [ at (Layout.List { stride = stride st span e; elements }) list_handle ]
   | _ when is_text t -> [ at Layout.Text handle ]
   | _ when pooled st t -> [ at (Layout.List { stride = 1; elements = pool_bytes st }) handle ]
   | Tty.Intrinsic _, _ when Option.is_some (array_of t) -> (

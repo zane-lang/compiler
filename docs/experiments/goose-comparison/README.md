@@ -1026,6 +1026,55 @@ header (or implied by the count, since blocks are count-sized) brings it to
 16 bytes, and a 4-byte self-relative link with a 4-byte count, as pooled
 variants already use for their links, to 8.
 
+## 32-bit references (prototype, behind `ZANE_REF32=1`)
+
+The plan is in "What remains" below. This section grows as each part lands.
+
+### The cage
+
+`ZANE_REF32=1` makes the driver compile the runtime with `-DZANE_REF32`
+(`Build.level`, so the cached runtime is keyed by it). Every reservation
+the runtime makes goes through `zane_reserve_aligned` and
+`zane_release_addresses` (`runtime/region.c`), and with the flag both use
+the cage: one `PROT_NONE` reservation of the fixed range 4 GiB–32 GiB
+(`ZANE_CAGE_LOW`, `ZANE_CAGE_HIGH`), made once with
+`MAP_FIXED_NOREPLACE`. A reservation is the first released range that
+fits, else the next part of the cage; a release drops the pages and lists
+the range. Since every address in the cage is below 2^35 and blocks are
+word-aligned, a pointer into it is stored as its address shifted right by
+3: decoding is one shift, with no base to load, as the JVM's zero-based
+compressed pointers are. A large list reserves 8× its span instead of 64×
+(`ZANE_HEADROOM`), so lists leave room in the cage. Pooled variants are
+off under the switch.
+
+### List handles in 12 bytes
+
+A list's handle is `{items, count, room}`; with the switch each field is
+32 bits and `items` is stored shifted (CGT type `Handle32`, 12 bytes,
+alignment 4). Text keeps its 24-byte handle: its bytes may start anywhere,
+in the binary's literals too, so they are neither aligned nor in the cage.
+
+- `lib/codegen/list_handle.ml` reads and writes a handle's fields either
+  way; `emit.ml`'s inline element, push, first block and removal, and
+  `walks.ml`'s copy, end, move and vacate go through it.
+- `runtime/zane.h` defines `zane_list` with 32-bit fields and the
+  `ZL_ITEMS`, `ZL_SET_ITEMS`, `ZL_MAKE` macros `list.c` and `block.c` use.
+- `size` reads the 32-bit count and widens it.
+
+Every codegen fixture gives the same output with the switch as without
+(`ALL=1 fixtures.sh ZANE_REF32=1`), and the test suite passes with it off.
+
+ntree at depth 10, user time over 11 interleaved runs, and peak RSS:
+
+| build | least / median | peak RSS |
+| --- | --- | --- |
+| Zane, 12-byte list handles | 0.086 / 0.110 s | 18.1 MB |
+| Zane, plain | 0.135 / 0.153 s | 34.3 MB |
+| Goose | 0.079 / 0.093 s | 24.8 MB |
+
+ntree's node is now 12 bytes against Goose's 17, and Zane's tree takes
+less memory than Goose's.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |

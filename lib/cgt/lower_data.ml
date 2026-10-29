@@ -118,7 +118,7 @@ let primitive w st ctx span spelling args (t : Tty.t) : Expr.t =
   | "Unit", [] -> { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
   (* A new list is empty, and owns no block until its first `push`. *)
   | ("List" | "ListRef"), [ _ ] ->
-      { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = Nodes.Ty.Handle }
+      { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = Nodes.Ty.list_handle () }
   | "ArrayRef.fill", [ _; T.Arg.Value make ] -> fill w st ctx span make t
   | ("Array" | "ArrayRef" | "ArrayRef.refs" | "ArrayRef.roaming"), [ T.Arg.Value v ] -> (
       match ((literal_of ctx v).T.Expr.node, array_of (Tty.strip_mode t)) with

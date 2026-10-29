@@ -248,6 +248,18 @@ let box env f b size align =
     Llvm.build_phi [ (taken, inline_end); (found, shared) ] "" b
   end
 
+(* A list's handle's fields (List_handle), which take 32 bits each with
+   Ref32. *)
+let list_items c h = List_handle.items c.env.ctx c.b h
+let list_count c h = List_handle.count c.env.ctx c.b h
+let list_room c h = List_handle.room c.env.ctx c.b h
+let set_list_items c v h = List_handle.set_items c.env.ctx c.b v h
+
+let zero_list c h =
+  set_list_items c (Llvm.const_null c.env.ptr) h;
+  List_handle.set_count c.env.ctx c.b (int c.env 0) h;
+  List_handle.set_room c.env.ctx c.b (int c.env 0) h
+
 let zero_handle c h =
   store c (Llvm.const_null c.env.ptr) h;
   store c (int c.env 0) (offset c h length);
@@ -339,12 +351,12 @@ let copy known c (p : Layout.position) =
           store c bytes h;
           store c n (offset c h room))
   | Layout.List { stride; elements } ->
-      let r = load c env.i64 (offset c h room) in
+      let r = list_room c h in
       when_ c (nonzero c r) (fun () ->
-          let count = load c env.i64 (offset c h length) in
+          let count = list_count c h in
           let items = runtime c Cgt.Runtime.Alloc_held [| c.with_; r; int env list_align |] in
-          memcpy c items (load c env.ptr h) (Llvm.build_mul count (int env stride) "" c.b);
-          store c items h;
+          memcpy c items (list_items c h) (Llvm.build_mul count (int env stride) "" c.b);
+          set_list_items c items h;
           Option.iter
             (fun w ->
               each c count (fun i ->
@@ -395,12 +407,12 @@ let end_at known c base (p : Layout.position) =
       when_ c (nonzero c r) (fun () -> return (load c env.ptr h) r 8);
       zero_handle c h
   | Layout.List { stride; elements } ->
-      let r = load c env.i64 (offset c h room) in
-      let items = load c env.ptr h in
+      let r = list_room c h in
+      let items = list_items c h in
       (match inner known elements with
       | None -> when_ c (nonzero c r) (fun () -> return items r list_align)
       | Some w ->
-          let count = load c env.i64 (offset c h length) in
+          let count = list_count c h in
           let element i =
             Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) items
               [| Llvm.build_mul i (int env stride) "" c.b |]
@@ -413,7 +425,7 @@ let end_at known c base (p : Layout.position) =
             (fun () ->
               when_ c (nonzero c r) (fun () -> defer_return items r list_align);
               each c count (fun i -> defer w (element i))));
-      zero_handle c h
+      zero_list c h
   | Layout.Box { size; payload } ->
       let old = load c env.ptr h in
       when_ c (nonzero c old) (fun () ->
@@ -439,11 +451,11 @@ let move known c (p : Layout.position) =
   let env = c.env in
   let h = offset c c.at p.offset in
   let leaves block = nonzero c (runtime c Cgt.Runtime.Leaves [| block; c.with_; c.extra |]) in
-  let relocate old size align copied =
+  let relocate ?(set = fun v -> store c v h) old size align copied =
     let fresh = runtime c Cgt.Runtime.Alloc [| c.with_; size; int env align |] in
     memcpy c fresh old copied;
     ignore (runtime c Cgt.Runtime.Free [| old; size; int env align |]);
-    store c fresh h;
+    set fresh;
     fresh
   in
   (* Each of the [count] elements [stride] bytes apart at [items], moved by
@@ -465,12 +477,15 @@ let move known c (p : Layout.position) =
           when_ c (leaves old) (fun () ->
               ignore (relocate old r 8 (load c env.i64 (offset c h length)))))
   | Layout.List { stride; elements } ->
-      let r = load c env.i64 (offset c h room) in
+      let r = list_room c h in
       when_ c (nonzero c r) (fun () ->
-          let old = load c env.ptr h in
+          let old = list_items c h in
           when_ c (leaves old) (fun () ->
-              let count = load c env.i64 (offset c h length) in
-              let items = relocate old r list_align (Llvm.build_mul count (int env stride) "" c.b) in
+              let count = list_count c h in
+              let items =
+                relocate ~set:(fun v -> set_list_items c v h) old r list_align
+                  (Llvm.build_mul count (int env stride) "" c.b)
+              in
               Option.iter (move_elements ~stride items count) (inner known elements)))
   | Layout.Box { size; payload } ->
       let old = load c env.ptr h in
@@ -590,7 +605,8 @@ let overwrite known self c (ps : Layout.position list) =
 let vacate element c (p : Layout.position) =
   let h = offset c c.at p.offset in
   match p.kind with
-  | Layout.Text | Layout.List _ -> zero_handle c h
+  | Layout.Text -> zero_handle c h
+  | Layout.List _ -> zero_list c h
   | Layout.Box _ -> store c (Llvm.const_null c.env.ptr) h
   | Layout.Array { count; stride; elements } ->
       let f = element elements in

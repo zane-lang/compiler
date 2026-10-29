@@ -31,12 +31,12 @@ let rec expr ?fresh (t : Ty.t) (c : V.const) : Expr.t option =
   (* A list, made where it is used as a list is made anywhere: empty, then
      each element pushed in order, in the region of the scope the code is
      in, as a call's result would be. *)
-  | Ty.Handle, V.List { stride; element; layout; items } -> (
+  | (Ty.Handle | Ty.Handle32), V.List { stride; element; layout; items } -> (
       match fresh with
       | None -> None
       | Some fresh ->
           let label = fresh () and r = fresh () in
-          let make = Stat.assign r { Expr.node = Expr.Runtime { fn = Cgt.Runtime.List_new; args = [] }; ty = Ty.Handle } in
+          let make = Stat.assign r { Expr.node = Expr.Runtime { fn = Cgt.Runtime.List_new; args = [] }; ty = Ty.list_handle () } in
           let push c =
             Option.map
               (fun value ->

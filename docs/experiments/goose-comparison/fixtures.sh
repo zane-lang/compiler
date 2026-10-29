@@ -6,11 +6,14 @@
 #
 #   devbox run -- docs/experiments/goose-comparison/fixtures.sh \
 #     ZANE_POOLED_VARIANTS=1 ZANE_PACKED_NODES=1
+#
+# With ALL=1 every fixture is built and run both ways, for a switch that
+# changes the runtime too (ZANE_REF32).
 W=${WORK:-/tmp/zane-goose-fixtures}; mkdir -p "$W"; Z=$PWD/_build/default/bin/zanec/zanec.exe
 for d in tests/codegen/fixtures/*/; do
   n=$(basename "$d"); args=(); [ -f "$d/$n" ] && mapfile -t args < "$d/$n"
   a=$($Z --cgt --optimize --package "$d" 2>&1 | md5sum); b=$(env "$@" "$Z" --cgt --optimize --package "$d" 2>&1 | md5sum)
-  [ "$a" = "$b" ] && continue
+  [ "$a" = "$b" ] && [ -z "$ALL" ] && continue
   if ! env "$@" "$Z" --build "$W/$n.new" --package "$d" >/dev/null 2>"$W/$n.err"; then
     echo "$n: refused: $(grep -o 'pooled variants[^"]*' "$W/$n.err" | head -1)"; continue
   fi

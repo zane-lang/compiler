@@ -15,7 +15,7 @@ void zane_out_of_range(void) {
 
 /* `@primitives$List(T)` and `@primitives$ListRef(T)`: empty, owning no block. Emitted code makes the
    same empty handle itself (docs/design/lowering.md §9). */
-void zane_list_new(zane_list *out) { *out = (zane_list){ NULL, 0, 0 }; }
+void zane_list_new(zane_list *out) { *out = ZL_MAKE(NULL, 0, 0); }
 
 /* The list's block made at least `needed` bytes. A full list's block
    doubles, from four elements' bytes (zane_list_first_room), in the region that holds its block (§3.6). Up to
@@ -79,13 +79,13 @@ static inline int zane_list_returned(zane_mark *region, int64_t room) {
 }
 
 static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
-	int64_t room = list->room ? list->room * 2 : zane_list_first_room(stride, stride);
+	int64_t room = ZL_ROOM(list) ? ZL_ROOM(list) * 2 : zane_list_first_room(stride, stride);
 	while (room < needed) room *= 2;
-	zane_mark *region = zane_region_at(list->room ? (void *)list->items : (void *)list);
+	zane_mark *region = zane_region_at(ZL_ROOM(list) ? (void *)ZL_ITEMS(list) : (void *)list);
 	zane_lock(region->context);
 	char *items;
 	if (room > ZANE_CHUNK - ZANE_LINE) {
-		if (list->room > ZANE_CHUNK - ZANE_LINE && zane_extend(region, list->items, room)) {
+		if (ZL_ROOM(list) > ZANE_CHUNK - ZANE_LINE && zane_extend(region, ZL_ITEMS(list), room)) {
 			zane_unlock(region->context);
 			list->room = room;
 			return;
@@ -94,15 +94,15 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 		zane_unlock(region->context);
 	} else {
 		zane_heap *h = &region->heap;
-		int grows = list->room && list->items + list->room == h->bump;
+		int grows = ZL_ROOM(list) && ZL_ITEMS(list) + ZL_ROOM(list) == h->bump;
 		if (grows) {
 			grows = !zane_list_returned(region, room) &&
-			        (room - list->room <= h->end - h->bump ||
-			         (h->end == region->context->frontier && zane_stretch(region, list->items + room, ZANE_CHUNK)));
+			        (room - ZL_ROOM(list) <= h->end - h->bump ||
+			         (h->end == region->context->frontier && zane_stretch(region, ZL_ITEMS(list) + room, ZANE_CHUNK)));
 		}
 		/* The block grows where it is, so nothing in it moves. */
 		if (grows) {
-			h->bump += room - list->room;
+			h->bump += room - ZL_ROOM(list);
 			zane_unlock(region->context);
 			list->room = room;
 			return;
@@ -110,17 +110,17 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 		/* The old block's stack is made first: a stack's record comes from
 		   the frontier, and one made after the new block would stop that
 		   block growing in place. */
-		if (list->room > 8 * ZANE_CLASSES) zane_stack_of(region, list->room, ZANE_LIST_ALIGN);
+		if (ZL_ROOM(list) > 8 * ZANE_CLASSES) zane_stack_of(region, ZL_ROOM(list), ZANE_LIST_ALIGN);
 		items = zane_alloc_held(region, room, ZANE_LIST_ALIGN);
 		zane_unlock(region->context);
 	}
-	if (list->room > ZANE_CHUNK - ZANE_LINE) {
-		zane_list_move_out(region, items, list->items, list->count * stride);
+	if (ZL_ROOM(list) > ZANE_CHUNK - ZANE_LINE) {
+		zane_list_move_out(region, items, ZL_ITEMS(list), ZL_COUNT(list) * stride);
 	} else {
-		if (list->count) memcpy(items, list->items, (size_t)(list->count * stride));
-		if (list->room) zane_free(list->items, list->room, ZANE_LIST_ALIGN);
+		if (ZL_COUNT(list)) memcpy(items, ZL_ITEMS(list), (size_t)(ZL_COUNT(list) * stride));
+		if (ZL_ROOM(list)) zane_free(ZL_ITEMS(list), ZL_ROOM(list), ZANE_LIST_ALIGN);
 	}
-	list->items = items;
+	ZL_SET_ITEMS(list, items);
 	list->room = room;
 }
 
@@ -156,7 +156,7 @@ static inline char *zane_list_first(zane_list *list, int64_t room) {
 		h->bump = block + room;
 	}
 	h->live++;
-	list->items = block;
+	ZL_SET_ITEMS(list, block);
 	list->room = room;
 	return block;
 }
@@ -165,8 +165,8 @@ static inline char *zane_list_first(zane_list *list, int64_t room) {
 static void *zane_list_push_grown(zane_list *list, int64_t stride) __attribute__((noinline));
 
 static void *zane_list_push_grown(zane_list *list, int64_t stride) {
-	zane_list_grow(list, (list->count + 1) * stride, stride);
-	return list->items + list->count++ * stride;
+	zane_list_grow(list, (ZL_COUNT(list) + 1) * stride, stride);
+	return ZL_ITEMS(list) + list->count++ * stride;
 }
 
 /* Room for one more element, `stride` bytes wide, at the end: the address
@@ -176,8 +176,8 @@ static void *zane_list_push_grown(zane_list *list, int64_t stride) {
    without a call, and anything else grows the list out of line, so this
    needs no frame of its own. */
 void *zane_list_push(zane_list *list, int64_t stride) {
-	if (__builtin_expect((list->count + 1) * stride <= list->room, 1)) return list->items + list->count++ * stride;
-	if (!list->room && stride <= ZANE_LIST_FIRST) {
+	if (__builtin_expect((ZL_COUNT(list) + 1) * stride <= ZL_ROOM(list), 1)) return ZL_ITEMS(list) + list->count++ * stride;
+	if (!ZL_ROOM(list) && stride <= ZANE_LIST_FIRST) {
 		char *block = zane_list_first(list, zane_list_first_room(stride, stride));
 		if (block) {
 			list->count = 1;
@@ -192,21 +192,21 @@ void *zane_list_push(zane_list *list, int64_t stride) {
    no check of their own (docs/design/lowering.md §9). Emitted code calls
    this only when the block lacks that room. */
 void *zane_list_reserve(zane_list *list, int64_t stride, int64_t n) {
-	if (!list->room && n * stride <= ZANE_LIST_FIRST) {
+	if (!ZL_ROOM(list) && n * stride <= ZANE_LIST_FIRST) {
 		char *block = zane_list_first(list, zane_list_first_room(n * stride, stride));
 		if (block) {
 			list->count = 1;
 			return block;
 		}
 	}
-	if ((list->count + n) * stride > list->room) zane_list_grow(list, (list->count + n) * stride, stride);
-	return list->items + list->count++ * stride;
+	if ((ZL_COUNT(list) + n) * stride > ZL_ROOM(list)) zane_list_grow(list, (ZL_COUNT(list) + n) * stride, stride);
+	return ZL_ITEMS(list) + list->count++ * stride;
 }
 
 /* The element at `index`, counted from 1 (control-flow.md §3.4). */
 void *zane_list_at(zane_list *list, int64_t index, int64_t stride) {
-	if (index < 1 || index > list->count) zane_out_of_range();
-	return list->items + (index - 1) * stride;
+	if (index < 1 || index > ZL_COUNT(list)) zane_out_of_range();
+	return ZL_ITEMS(list) + (index - 1) * stride;
 }
 
 /* The list closes over the element at `index`, counted from 1, which the
@@ -215,16 +215,16 @@ void *zane_list_at(zane_list *list, int64_t index, int64_t stride) {
    element, so moving their bytes moves them. Emitted code makes the same
    removal itself, with the stride a constant (docs/design/lowering.md §9). */
 void zane_list_remove(zane_list *list, int64_t index, int64_t stride) {
-	char *at = list->items + (index - 1) * stride;
-	memmove(at, at + stride, (size_t)((list->count - index) * stride));
+	char *at = ZL_ITEMS(list) + (index - 1) * stride;
+	memmove(at, at + stride, (size_t)((ZL_COUNT(list) - index) * stride));
 	list->count--;
 }
 
 /* As `zane_list_remove`, but the last element moves into the place, so only
    one element moves and the order is not kept. */
 void zane_list_swap_remove(zane_list *list, int64_t index, int64_t stride) {
-	char *last = list->items + (list->count - 1) * stride;
-	if (index < list->count) memcpy(list->items + (index - 1) * stride, last, (size_t)stride);
+	char *last = ZL_ITEMS(list) + (ZL_COUNT(list) - 1) * stride;
+	if (index < ZL_COUNT(list)) memcpy(ZL_ITEMS(list) + (index - 1) * stride, last, (size_t)stride);
 	list->count--;
 }
 
@@ -235,6 +235,7 @@ void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride) {
 	return array + (index - 1) * stride;
 }
 
+#ifndef ZANE_REF32
 /* ---------------------------------------------------------------------- */
 /* Pooled variants (docs/experiments/goose-comparison)                    */
 /* ---------------------------------------------------------------------- */
@@ -458,3 +459,4 @@ void zane_pool_copy(zane_list *out, const char *node, int64_t size, int64_t m0, 
 	}
 	zane_pool_place(out, node, size, masks);
 }
+#endif

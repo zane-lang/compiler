@@ -19,10 +19,26 @@ typedef struct {
 	int64_t length, room;
 } zane_text;
 
+#ifdef ZANE_REF32
+/* Experimental (docs/experiments/goose-comparison): the items stored as
+   their address shifted right by 3, which the cage keeps below 2^35. */
+typedef struct {
+	uint32_t items, count, room;
+} zane_list;
+#define ZL_ITEMS(l) ((char *)((uintptr_t)(l)->items << 3))
+#define ZL_SET_ITEMS(l, p) ((l)->items = (uint32_t)((uintptr_t)(p) >> 3))
+#define ZL_MAKE(p, c, r) ((zane_list){ (uint32_t)((uintptr_t)(p) >> 3), (uint32_t)(c), (uint32_t)(r) })
+#else
 typedef struct {
 	char *items;
 	int64_t count, room;
 } zane_list;
+#define ZL_ITEMS(l) ((l)->items)
+#define ZL_SET_ITEMS(l, p) ((l)->items = (p))
+#define ZL_MAKE(p, c, r) ((zane_list){ (p), (c), (r) })
+#endif
+#define ZL_COUNT(l) ((int64_t)(l)->count)
+#define ZL_ROOM(l) ((int64_t)(l)->room)
 
 /* A scope's region, and the jobs of one walk over a value's blocks: what a
    walk is handed, kept opaque here. */
