@@ -131,6 +131,7 @@ Unit main() {
 	lib$onceShare(I64(7));
 	show(String(lib$onceShared()));
 	show(String(lib$onceTokenSame()));
+	show(String(lib$oncePointersSame()));
 	show(String(lib$primed()));
 	show(String(lib$primedRuns()));
 	show(String(lib$wasWarmed()));
