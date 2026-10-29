@@ -2,7 +2,9 @@
 /// `helper`, the variable `total` and the alias `named`: each package's C
 /// keeps its own, `defined_here`, which each package's interface header
 /// defines itself, among them. `plain.h` includes nothing, not even
-/// `<stdint.h>`.
+/// `<stdint.h>`. `once.h` defines a function and a variable with external
+/// linkage that `once.c`, which includes it, also defines: each is defined
+/// once in the package's C, though the glue includes the header too.
 package lib;
 
 alias I32 = @primitives$I32;
@@ -13,3 +15,5 @@ I64 named() foreign "named";
 I32 plus(a I32, b I32) foreign "plus";
 I64 widen(x I64) foreign "widen";
 I64 definedHere(x I64) foreign "defined_here";
+I64 once(x I64) foreign "once";
+I64 useOnce() foreign "use_once";

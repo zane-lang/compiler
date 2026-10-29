@@ -329,7 +329,10 @@ already use: they are derived from Zane symbols, so they carry the
 package's placeholder and cannot meet another package's. They are found
 by their labels, not as whatever the glue defines: a function an interface
 header defines is compiled into the glue too, and is renamed as the
-sources' functions are.
+sources' functions are. A source that includes that header compiles the
+same definition, so each glue module is linked after the sources with
+every definition the modules before it already hold made a declaration
+(`zane_drop_defined`), and the package keeps one copy.
 
 An `archive` row's members are renamed through the object rewriter that
 stamps placeholders (C9). The set of symbols the package's archives define

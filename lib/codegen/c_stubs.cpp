@@ -9,6 +9,8 @@
    is renamed with it, so two versions of a package never share one. */
 
 #include "llvm/IR/Comdat.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/GlobalObject.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Module.h"
@@ -66,5 +68,31 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
       auto it = comdats.find(c);
       if (it != comdats.end()) o.setComdat(it->second);
     }
+  CAMLreturn(Val_unit);
+}
+
+/* Each definition of a glue module that the package's modules linked
+   before it already define, under the same name and visible to other
+   modules, made a declaration, so the glue's copy of a function or
+   variable an interface header defines meets the copy of a source that
+   includes the header as a use, not a second definition. */
+extern "C" value zane_drop_defined(value glue, value before) {
+  CAMLparam2(glue, before);
+  llvm::Module *g = module_of(glue), *b = module_of(before);
+  std::vector<llvm::GlobalObject *> dropped;
+  for (llvm::GlobalObject &o : g->global_objects()) {
+    if (o.isDeclaration() || o.hasLocalLinkage()) continue;
+    llvm::GlobalValue *there = b->getNamedValue(o.getName());
+    if (there && !there->isDeclaration() && !there->hasLocalLinkage()) dropped.push_back(&o);
+  }
+  for (llvm::GlobalObject *o : dropped) {
+    if (auto *f = llvm::dyn_cast<llvm::Function>(o))
+      f->deleteBody();
+    else if (auto *v = llvm::dyn_cast<llvm::GlobalVariable>(o)) {
+      v->setInitializer(nullptr);
+      v->setLinkage(llvm::GlobalValue::ExternalLinkage);
+    }
+    o->setComdat(nullptr);
+  }
   CAMLreturn(Val_unit);
 }
