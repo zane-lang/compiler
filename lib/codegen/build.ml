@@ -978,19 +978,47 @@ let bundle_runtime ~target ~optimize dir =
           if optimize then bundle_bitcode ~cc:(bitcode_cc ()) ~triple ~target dir work;
           bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime)
 
+(* The path of the [i]th object [object_file] writes beside [output] for
+   the package's C sources holding assembly: `STEM.c.I.o`, [output]'s name
+   without its extension. *)
+let assembled_beside output i = Printf.sprintf "%s.c.%d.o" (Filename.remove_extension output) i
+
+(* Whether [name] is one [assembled_beside] gives for [output]. *)
+let is_assembled_beside output name =
+  let stem = Filename.basename (Filename.remove_extension output) ^ ".c." in
+  String.starts_with ~prefix:stem name
+  && Filename.check_suffix name ".o"
+  &&
+  let i = String.sub name (String.length stem) (String.length name - String.length stem - 2) in
+  i <> "" && String.for_all (fun c -> c >= '0' && c <= '9') i
+
+(* [objects] written beside [output], after those an earlier build wrote
+   there are removed, so a release built into the directory carries only
+   this build's (docs/design/ffi.md F15). *)
+let write_beside output objects =
+  let dir = Filename.dirname output in
+  match
+    Array.iter
+      (fun n -> if is_assembled_beside output n then Sys.remove (Filename.concat dir n))
+      (try Sys.readdir dir with Sys_error _ -> [||]);
+    List.iteri
+      (fun i bytes -> Out_channel.with_open_bin (assembled_beside output i) (fun oc -> output_string oc bytes))
+      objects
+  with
+  | () -> Ok ()
+  | exception Sys_error message -> Error (Printf.sprintf "cannot write the C code's objects: %s" message)
+
 (* The module's object file alone, for a package other objects link with
-   (docs/design/separate-compilation.md C3): no runtime, and no link. *)
+   (docs/design/separate-compilation.md C3): no runtime, and no link. The
+   objects its C sources holding assembly were assembled into, renamed,
+   are written beside it, and its archives are left to the consumer's
+   link, which renames them from the package's source (docs/design/ffi.md
+   F15). *)
 let object_file ?target ?(optimize = false) ?tier m output =
   Result.bind (prepare_whole ?target ~optimize ?tier m) (fun (_, tm, _, (apart : Foreign_c.apart)) ->
-      if apart.objects <> [] || apart.archives <> [] then
-        Error
-          "the package's C reaches the link as archives or objects assembled from its sources, which a \
-           package's object does not carry (docs/design/ffi.md F15)"
-      else
-        match Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile output tm with
-        | () -> Ok ()
-        | exception Llvm_target.Error message ->
-            Error (Printf.sprintf "cannot write the object file: %s" message))
+      match Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile output tm with
+      | () -> write_beside output apart.objects
+      | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot write the object file: %s" message))
 
 (* An object of nothing, linked where the runtime would be when the
    program's module holds the whole runtime ([Runtime_bodies.whole]). *)

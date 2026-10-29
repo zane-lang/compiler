@@ -11,7 +11,8 @@
 > one (F14); handles and foreign variables at run time (F12); function
 > values as C functions (F11); and `c.coda`'s `archive` and `system`
 > rows, with an archive's members and each source holding assembly
-> renamed as objects (F4, F9). The rest is
+> renamed as objects (F4, F9), both reaching a program built against a
+> release (F15). The rest is
 > designed and not yet built. This page says how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
@@ -162,7 +163,10 @@ written back as a static library by LLVM's archive writer
 GNU's for ELF, Darwin's for Apple's targets and COFF's for Windows, with
 a symbol table. The renamed libraries are passed to the link after every
 object, the program's and its dependencies', so each member an object
-uses is taken. A `system` row becomes a `-l` on the link command, in the
+uses is taken. A stamped dependency's archives reach the link of a
+program built against its release this way too: they are read from its
+source checkout and renamed with its stamped prefix (F15), so the members
+match the C names its rewritten object defines and uses. A `system` row becomes a `-l` on the link command, in the
 order the rows are written, after the program's objects and archives and
 before the runtime and its libraries. A system library the target's C compiler cannot find is
 an error naming the package and the row: the linker's own words for it,
@@ -658,12 +662,26 @@ it: tier 1 calls tier 0's thunks through its imports
 ([`tiers.md`](tiers.md) T5), so the program has one copy of its C's
 state, as it has one of the runtime's, whichever tier is running.
 
-**F15. A release archive holds one object per package build, C included.**
-`--object` writes the package's object with its C linked in (F13 or F14),
-and beside it a small file listing, for each of the package's C sources
-and for its glue, the hash F3 keys its module by, which F13's first condition reads. The
-archive's layout is otherwise unchanged (`dependencies.md` §3.1); an `archive` row's library is part of the source
-checkout and is renamed at the consumer's link (F9).
+**F15. A release archive holds a package build's object, C included, and
+the objects of its sources holding assembly.** `--object OUT` writes the
+package's object with its C linked in (F13 or F14), and beside it a small
+file listing, for each of the package's C sources and for its glue, the
+hash F3 keys its module by, which F13's first condition reads. Each
+source holding assembly is an object of its own (F9), renamed with the
+`!` placeholder as the package's object is, and `--object` writes these
+beside `OUT` too, as `STEM.c.0.o`, `STEM.c.1.o` and so on, `STEM` being
+`OUT` without its extension; one an earlier build wrote there under that
+name is removed first. LLVM's linkers cannot join objects into one for
+Apple's targets or Windows, so they stay apart: the release archive's
+`build/` directory holds them all (`dependencies.md` §3.1), fetching
+rewrites each (C9 of [`separate-compilation.md`](separate-compilation.md)),
+and the consumer's link takes each with `--link`. An `archive` row's
+library is part of the source checkout and is renamed at the consumer's
+link (F4, F9). There the dependency's C module is made from its checkout
+only for the names it renames, which its archive's members use to reach
+the package's own C, and dropped; only the archives, renamed with the
+dependency's stamp after its C names, and its `system` libraries reach
+the link.
 
 ---
 
@@ -828,7 +846,11 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   a function, an alias of it and, on ELF targets, an indirect function,
   as an `archive` row's library built by the test rules for the target,
   beside a `system` row and a function in file-scope assembly that C calls
-  and that jumps to a C function of another of its sources.
+  and that jumps to a C function of another of its sources. The same
+  program is linked against releases of its two packages too (F15): each
+  built by `--object`, its objects rewritten with a stamp as fetching
+  rewrites them, and the program built against them, its archives renamed
+  from the checkout at its link.
 - `golden/NAME.optimized.cgt` shows what folded: the literal checksum as a
   constant, the handle's whole life gone, the capability calls in place, the
   call reaching `sin` left as a call.

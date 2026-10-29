@@ -1,0 +1,45 @@
+#!/bin/sh
+# What the fixture DIR's root prints linked against its other packages as a
+# consumer links a release of them (docs/design/ffi.md F15): each built on
+# its own by `zanec --object`, its objects rewritten with a stamp as
+# fetching rewrites them (separate-compilation.md C9), and the root built
+# against them with that stamp, unoptimized and optimized, each run with
+# its drains checked and unchecked. Every run must print the same, which
+# is printed once. The root is DIR's first subdirectory in name order and
+# imports the others, which import none of each other.
+set -eu
+zanec=$1
+dir=$2
+stamp='v1.0%0123456789abcdef%'
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+root=
+set --
+for package in "$dir"/*/; do
+	name=$(basename "$package")
+	if [ -z "$root" ]; then
+		root=$name
+		continue
+	fi
+	"$zanec" --no-root --object "$work/$name.o" --package "$name=$package"
+	set -- "$@" --package "$stamp$name=$package" --import "$root:$name=$stamp$name"
+done
+for object in "$work"/*.o; do
+	"$zanec" --rewrite "$stamp" "$object" "$object.stamped"
+	set -- "$@" --link "$object.stamped"
+done
+first=
+for optimize in "" --optimize; do
+	"$zanec" --build "$work/$root.exe" $optimize --package "$root=$dir/$root" "$@"
+	for check in 1 0; do
+		out=$(ZANE_CHECK=$check "$work/$root.exe")
+		if [ -z "$first" ]; then
+			first=1
+			printf '%s\n' "$out"
+			expected=$out
+		elif [ "$out" != "$expected" ]; then
+			echo "released: the build${optimize:+ with $optimize}, ZANE_CHECK=$check, printed another output" >&2
+			exit 1
+		fi
+	done
+done

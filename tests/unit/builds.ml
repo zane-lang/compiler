@@ -456,3 +456,28 @@ let fatal_link () =
         | Error text -> text <> ""
         | Ok () -> false)
   | _ -> ()
+
+(* `--object OUT` writes the objects of the package's C sources holding
+   assembly beside `OUT`, as `STEM.c.N.o`, and removes those an earlier
+   build left there, so a release carries only its own
+   (docs/design/ffi.md F15). *)
+let assembled_beside () =
+  let module Build = Codegen__Build in
+  let directory = Filename.temp_dir "zane-beside" "" in
+  Fun.protect ~finally:(fun () -> remove_tree directory) @@ fun () ->
+  let output = Filename.concat directory "math.o" in
+  let file name = Filename.concat directory name in
+  let write name = Out_channel.with_open_bin (file name) (fun oc -> output_string oc "old") in
+  List.iter write [ "math.c.0.o"; "math.c.1.o"; "math.c.2.o"; "math.c.x.o"; "geometry.c.0.o"; "math.o" ];
+  check "each is named after the object it is written beside"
+    (Build.assembled_beside output 1 = file "math.c.1.o"
+    && Build.assembled_beside (Filename.concat directory "math") 0 = file "math.c.0.o");
+  let written = Build.write_beside output [ "first"; "second" ] in
+  let read name = In_channel.with_open_bin (file name) In_channel.input_all in
+  check "this build's are written"
+    (Result.is_ok written && read "math.c.0.o" = "first" && read "math.c.1.o" = "second");
+  check "an earlier build's are removed, and nothing else"
+    ((not (Sys.file_exists (file "math.c.2.o")))
+    && Sys.file_exists (file "math.c.x.o")
+    && Sys.file_exists (file "geometry.c.0.o")
+    && read "math.o" = "old")

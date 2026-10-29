@@ -1374,6 +1374,10 @@ let fixture_pairing () =
   check_pairs "a C interface package codegen refuses pairs with its error" P.Ffi
     ~fixtures:[ "fixtures/reject/sharedState" ]
     ~goldens:[ "reject.sharedState.ll.err" ] [];
+  check_pairs "a C interface build linked against releases pairs with its fixture" P.Ffi
+    ~fixtures:[ "fixtures/archives" ]
+    ~goldens:[ "archives.out"; "archives.released.out"; "gone.released.out" ]
+    [ "golden/gone.released.out is for fixtures/gone, which does not exist" ];
   check_pairs "a runtime test pairs with its output" P.Runtime ~fixtures:[ "arenas.c"; "texts.c" ]
     ~goldens:[ "arenas.out" ] [ "texts.c has no golden file" ];
   check_pairs "hand-written semantics rules are left alone" P.Semantics
@@ -1435,6 +1439,7 @@ let () =
   Builds.bundled_runtime ();
   Builds.runtime_bodies ();
   Builds.fatal_link ();
+  Builds.assembled_beside ();
   Foreign_c.run ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();

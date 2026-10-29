@@ -47,7 +47,9 @@ package in the graph; caching that is left to measurement (§6).
 **C3. `--object OUT` writes the project's object file.** It holds every
 library package the project compiles (C1), subpackages and `_`-prefixed
 packages included (`dependencies.md` §3.1). It is the library's counterpart
-to `--build`: no runtime and no link, only the object.
+to `--build`: no runtime and no link, only the object, and beside it the
+objects of the packages' C sources holding assembly, which cannot be
+renamed inside it ([`ffi.md`](ffi.md) F15).
 `--build OUT` keeps its meaning, a linked executable, and for a root with
 dependencies it compiles the root's object and links it with theirs (C7).
 

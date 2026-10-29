@@ -21,7 +21,10 @@ type c_library = { name : string; row : string }
     modules, and the symbols of the thunks its glue defines, which keep
     their names; the objects its sources holding assembly were assembled
     into, each with the module it was made from, its archives, the C names those
-    objects and archives define, and its `system` libraries. *)
+    objects and archives define, and its `system` libraries. With
+    [elsewhere], it is a stamped dependency whose object already holds its
+    C module and assembled objects, so only its archives, renamed as its
+    module's globals are, reach the link (docs/design/ffi.md F15). *)
 type c_package = {
   prefix : string;
   sources : c_module list;
@@ -31,6 +34,7 @@ type c_package = {
   archives : c_archive list;
   defined : string list;
   libraries : c_library list;
+  elsewhere : bool;
 }
 
 (** [f] run on the program's module for [target], the host when it is

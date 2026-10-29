@@ -817,6 +817,18 @@
   (diff golden/noObject.out noObject.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/archives) fixtures/archives/one/tally.a fixtures/archives/two/tally.a)
+ (action
+  (with-stdout-to
+   archives.released.out.actual
+   (run sh %{dep:released} %{exe:../../bin/zanec/zanec.exe} fixtures/archives))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/archives.released.out archives.released.out.actual)))
+
+(rule
  (deps (source_tree fixtures/declarations))
  (action
   (with-stdout-to

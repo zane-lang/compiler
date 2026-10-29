@@ -28,7 +28,10 @@ type c_module = { key : string; bitcode : string; files : string list }
    interface header's own definition, is renamed as the sources' are.
    Beside them, the objects its sources holding assembly were assembled
    into, each with the module it was made from, its archives, the C names
-   those objects and archives define, and its `system` libraries. *)
+   those objects and archives define, and its `system` libraries. With
+   [elsewhere], the package is a stamped dependency, whose object holds its
+   module and its assembled objects already: the module is made only for
+   the names it renames, and only the archives reach the link. *)
 type package = {
   prefix : string;
   sources : c_module list;
@@ -38,6 +41,7 @@ type package = {
   archives : archive list;
   defined : string list;
   libraries : library list;
+  elsewhere : bool;
 }
 
 (* What reaches the link beside the C module: the objects and archives of
@@ -184,6 +188,9 @@ let package_module ctx ~triple ~data_layout p =
     else renamed_apart ~triple ~global_prefix p (p.defined @ names)
   in
   match apart with
+  | Ok apart when p.elsewhere ->
+      Option.iter Llvm.dispose_module m;
+      Ok (None, { apart with objects = [] })
   | Ok apart -> Ok (m, apart)
   | Error _ as error ->
       Option.iter Llvm.dispose_module m;
@@ -220,7 +227,7 @@ let key ~triple ~compiler packages =
           ("c-object" :: triple :: compiler
           :: List.concat_map
                (fun p ->
-                 (p.prefix :: List.map (fun c -> c.key) (p.sources @ p.glue))
+                 (p.prefix :: string_of_bool p.elsewhere :: List.map (fun c -> c.key) (p.sources @ p.glue))
                  @ List.map (fun (c, _) -> c.key) p.objects
                  @ List.map (fun (a : archive) -> a.digest) p.archives
                  @ [ "" ])

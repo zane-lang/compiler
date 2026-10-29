@@ -135,12 +135,20 @@ let lower ?(regions = no_regions) ~root packages program =
 (* The C code each package of the build compiles into this object, for
    codegen to link (docs/design/ffi.md F8, F9): its sources' modules, and
    its glue's, made for the thunks [cgt]'s foreign calls go through. A
-   stamped dependency's C is in its own objects. Its globals are renamed
+   stamped dependency's C is in its own objects, and only its archives
+   and `system` libraries reach this link. Its globals are renamed
    after the package's symbols: `!` before the name in a library's
    object, which fetching stamps, and nothing in a program's. *)
 let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes.Program.t) =
   let module F = Cgt.Nodes.Foreign in
-  let stamped id = String.contains id '%' in
+  (* A package's stamp, all of its identity up to its last `%`. The
+     packages of the first one's are the project this object holds, and
+     an unstamped dependency of a stamped one is compiled in with them;
+     only a library's own unstamped packages are named with the `!`
+     placeholder (separate-compilation.md C1, C6), as Cgt names them. *)
+  let stamp id = match String.rindex_opt id '%' with Some i -> String.sub id 0 (i + 1) | None -> "" in
+  let project = match packages with (r : Assembly.package) :: _ -> stamp r.Assembly.id | [] -> "" in
+  let prefix id = (if (not root) && project = "" && stamp id = "" then "!" else "") ^ id ^ "$%c$" in
   match Codegen.global_prefix ?target () with
   | Error message -> fail [ Diagnostic.about_invocation message ]
   | Ok global_prefix -> (
@@ -181,30 +189,34 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
       let one (p : Assembly.package) (f : Foreign.package) =
         let entries = List.filter (fun (t : F.t) -> t.F.package = p.Assembly.id) cgt.Cgt.Nodes.Program.foreign in
         let objects, archives, libraries = apart f in
-        let only_libraries =
-          {
-            Codegen.prefix = "";
-            sources = [];
-            glue = [];
-            thunks = [];
-            objects = [];
-            archives = [];
-            defined = [];
-            libraries;
-          }
-        in
-        let nothing_else = f.Foreign.sources = [] && objects = [] && archives = [] && entries = [] in
-        (* A stamped dependency's C is in its object, which still links
-           with its `system` libraries. *)
-        if stamped p.Assembly.id || nothing_else then
-          Ok (if libraries = [] then None else Some only_libraries)
+        (* A stamped dependency's C is in its objects, which still link
+           with its `system` libraries and its archives, renamed as its
+           object's C globals are (docs/design/ffi.md F15). *)
+        let elsewhere = stamp p.Assembly.id <> "" && stamp p.Assembly.id <> project in
+        if (elsewhere && archives = []) || (f.Foreign.sources = [] && objects = [] && archives = [] && entries = [])
+        then
+          Ok
+            (if libraries = [] then None
+             else
+               Some
+                 {
+                   Codegen.prefix = "";
+                   sources = [];
+                   glue = [];
+                   thunks = [];
+                   objects = [];
+                   archives = [];
+                   defined = [];
+                   libraries;
+                   elsewhere;
+                 })
         else
           Result.map
             (fun glue ->
               let c_module files (s : Foreign.Compile.source) = { Codegen.key = s.key; bitcode = s.bitcode; files } in
               Some
                 {
-                  Codegen.prefix = (if root then "" else "!") ^ p.Assembly.id ^ "$%c$";
+                  Codegen.prefix = prefix p.Assembly.id;
                   sources = List.map (fun (s : Foreign.Compile.source) -> c_module s.includes s) f.Foreign.sources;
                   glue = List.map (fun (header, s) -> c_module [ header ] s) glue;
                   thunks = List.map (fun (t : F.t) -> t.F.thunk) entries;
@@ -212,6 +224,7 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
                   archives;
                   defined = Foreign.object_defined f;
                   libraries;
+                  elsewhere;
                 })
             (Foreign.glue f (List.map entry entries))
       in
@@ -247,7 +260,7 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
               let id = match packages with (r : Assembly.package) :: _ -> r.Assembly.id | [] -> "" in
               Some
                 {
-                  Codegen.prefix = (if root then "" else "!") ^ id ^ "$%c$";
+                  Codegen.prefix = prefix id;
                   sources = [];
                   glue = [ { Codegen.key = s.key; bitcode = s.bitcode; files = [] } ];
                   thunks = List.map (fun (c : C.t) -> c.C.entry) p;
@@ -255,6 +268,7 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
                   archives = [];
                   defined = [];
                   libraries = [];
+                  elsewhere = false;
                 })
             (Foreign.callbacks ~target (List.map entry p))
       in
