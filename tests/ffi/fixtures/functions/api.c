@@ -85,3 +85,4 @@ int64_t sorted(bool (*before)(int64_t, int64_t), const int64_t *xs) {
 ratio scale_ratio(ratio (*f)(ratio), ratio r) { return f(f(r)); }
 
 quad rotate_quad(quad (*f)(quad), quad q) { return f(q); }
+boxed open_box(boxed (*f)(boxed), boxed b) { return f(b); }

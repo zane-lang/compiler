@@ -14,7 +14,8 @@ open Type_layout
 
 (* The C type a value of the Zane type [t] crosses as in a function value
    C calls (spec ffi.md §3.6, docs/design/ffi.md F11), when it is one: a
-   scalar, a `Bool`, or a C-compatible value type (§3.3). A value type
+   scalar, a `Bool`, or a C-compatible value type (§3.3), one with no
+   fields among them, which C declares as an empty struct. A value type
    that holds itself, through the types [seen] it is reached from, is
    none. *)
 let rec c_shape ?(seen = []) st span (t : Tty.t) : Callback.shape option =
@@ -26,7 +27,7 @@ let rec c_shape ?(seen = []) st span (t : Tty.t) : Callback.shape option =
   | Tty.Named _ -> (
       let c_shape = c_shape ~seen:(t :: seen) in
       match definition st t with
-      | Some (T.Decl.Struct (_ :: _ as ms), false) ->
+      | Some (T.Decl.Struct ms, false) ->
           let field (_, m) =
             match (array_of m, c_shape st span m) with
             | Some (e, n), _ when scalar e -> Some (Callback.Scalar (ty st span e), Some n)
@@ -64,8 +65,10 @@ let crossing st span (t : Tty.t) : Foreign.crossing =
   | _ when scalar t -> Foreign.Scalar (ty st span t)
   | _ when is_text t || is_list t -> Foreign.View
   | _ when Option.is_some (array_of t) -> Foreign.Address
-  (* A function value hands C its lambda's C entry (F11). *)
-  | Tty.Verb _ -> Foreign.Function
+  (* A function value hands C its lambda's C entry (F11), which only a
+     lambda of a type [c_signature] reads has. *)
+  | Tty.Verb fv when Option.is_some (c_signature st span fv) -> Foreign.Function
+  | Tty.Verb _ -> Diagnostic.bug ~span ("lowering: C cannot call `" ^ Tty.to_string t ^ "`, which semantics let cross")
   | Tty.Named _ -> (
       match definition st t with Some (T.Decl.Handle _, _) -> Foreign.Handle | _ -> Foreign.Value)
   | _ -> Diagnostic.bug ~span ("lowering: `" ^ Tty.to_string t ^ "` crosses into C as nothing it lays out")
