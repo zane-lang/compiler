@@ -383,6 +383,20 @@
   (diff golden/reject.positions.err reject.positions.err.actual)))
 
 (rule
+ (deps (source_tree fixtures/reject/sharedState))
+ (action
+  (with-stderr-to
+   reject.sharedState.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/sharedState)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.sharedState.ll.err reject.sharedState.ll.err.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/variables))
  (action
   (with-stderr-to

@@ -192,7 +192,8 @@ static const char *const lists[] = {"llvm.global_ctors", "llvm.global_dtors"};
    the package's C, not again for the glue's copy. A source including the
    header defines only one local function of that name, the header's. One
    of a header no source includes stays, and so does one that sets up
-   private state a function of the glue still reads, since the source's
+   private state of the glue's own, which [zane_share_state] did not make
+   the source's and a function of the glue still reads, since the source's
    copy sets up only its own. */
 static void drop_repeated(llvm::Module *g, const std::set<std::string> &run, const char *list) {
   llvm::GlobalVariable *v = g->getNamedGlobal(list);
@@ -237,6 +238,70 @@ extern "C" value zane_c_constructors(value mod) {
         result = cell;
       }
   CAMLreturn(result);
+}
+
+/* What a private variable of a source's shared with a glue module is named
+   while the two are linked: the prefix, the source's [tag], a dot and its
+   own name. */
+static const char shared_prefix[] = "zane.shared.";
+
+/* Whether [v] is private state: a named variable local to its module that
+   the program can write. */
+static bool private_state(const llvm::GlobalVariable &v) {
+  return v.hasLocalLinkage() && !v.isConstant() && v.hasName() && !v.getName().starts_with("llvm.");
+}
+
+/* The glue module [glue]'s private state that [source], the one source
+   including its interface header, also defines, by name and type, made
+   one variable: the source's renamed [shared_prefix] [tag] `.` and its
+   name and made visible to the link, and the glue's made a declaration of
+   it. Within one translation unit a name at file scope, or a function's
+   own static, is one variable, so the source's of that name is the
+   header's, and the glue's functions read and write the state the
+   source's do, as the C alone would. */
+extern "C" value zane_share_state(value glue, value source, value tag) {
+  CAMLparam3(glue, source, tag);
+  llvm::Module *g = module_of(glue), *s = module_of(source);
+  std::string prefix = shared_prefix + std::string(String_val(tag)) + '.';
+  std::vector<llvm::GlobalVariable *> state;
+  for (llvm::GlobalVariable &v : g->globals())
+    if (private_state(v)) state.push_back(&v);
+  for (llvm::GlobalVariable *v : state) {
+    std::string name = v->getName().str(), joined = prefix + name;
+    llvm::GlobalVariable *there = s->getNamedGlobal(joined);
+    if (!there) {
+      there = s->getNamedGlobal(name);
+      if (!there || !private_state(*there)) continue;
+    }
+    if (there->getValueType() != v->getValueType() || there->getThreadLocalMode() != v->getThreadLocalMode()) continue;
+    if (there->hasLocalLinkage()) {
+      there->setName(joined);
+      there->setLinkage(llvm::GlobalValue::ExternalLinkage);
+      there->setVisibility(llvm::GlobalValue::HiddenVisibility);
+    }
+    auto *d = new llvm::GlobalVariable(*g, v->getValueType(), false, llvm::GlobalValue::ExternalLinkage, nullptr, joined,
+                                       nullptr, v->getThreadLocalMode(), v->getAddressSpace());
+    d->setVisibility(llvm::GlobalValue::HiddenVisibility);
+    v->replaceAllUsesWith(d);
+    v->eraseFromParent();
+  }
+  CAMLreturn(Val_unit);
+}
+
+/* Each variable [zane_share_state] shared in [mod], a package's linked
+   module, local again under its own name. */
+extern "C" value zane_localize_shared(value mod) {
+  CAMLparam1(mod);
+  llvm::Module *m = module_of(mod);
+  for (llvm::GlobalVariable &v : m->globals()) {
+    llvm::StringRef name = v.getName();
+    if (v.isDeclaration() || !name.starts_with(shared_prefix)) continue;
+    std::string own = name.drop_front(sizeof shared_prefix - 1).split('.').second.str();
+    v.setLinkage(llvm::GlobalValue::InternalLinkage);
+    v.setVisibility(llvm::GlobalValue::DefaultVisibility);
+    v.setName(own);
+  }
+  CAMLreturn(Val_unit);
 }
 
 /* A declaration of the global value [v] standing for it in its module, its

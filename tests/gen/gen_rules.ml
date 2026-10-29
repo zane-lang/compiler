@@ -30,7 +30,8 @@
      `golden/NAME.tst` its typed tree, `golden/NAME.cgt`,
      `golden/NAME.optimized.cgt` and `golden/NAME.out` what they are in
      codegen, and `golden/reject.NAME.err` what it reports for
-     `fixtures/reject/NAME`. A fixture holding `.zn` files is
+     `fixtures/reject/NAME`, or `golden/reject.NAME.ll.err` what
+     `zanec --ll` reports for one only codegen refuses. A fixture holding `.zn` files is
      one package; any other is a build of its subdirectories, in name
      order, so the first is the root. Its `flags` file, one per line, is
      what it is built with besides.
@@ -216,6 +217,12 @@ let ffi () =
           Printf.printf
             "(rule\n (deps (source_tree %s))\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    %s))))\n\n"
             dir golden (build ~dir "check");
+          diff golden (golden ^ ".actual")
+      | [ "reject"; name; "ll"; "err" ] ->
+          let dir = "fixtures/reject/" ^ name in
+          Printf.printf
+            "(rule\n (deps (source_tree %s))\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    %s))))\n\n"
+            dir golden (build ~dir "ll");
           diff golden (golden ^ ".actual")
       | parts when program parts <> None -> ()
       | _ -> failwith ("gen_rules: no rule makes golden/" ^ golden))

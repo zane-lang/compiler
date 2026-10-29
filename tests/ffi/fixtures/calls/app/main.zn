@@ -128,6 +128,8 @@ Unit main() {
 	show(String(lib$onceValue()));
 	show(String(lib$onceHelped()));
 	show(String(lib$oncePointed()));
+	lib$onceShare(I64(7));
+	show(String(lib$onceShared()));
 	show(String(lib$primed()));
 	show(String(lib$primedRuns()));
 	show(String(lib$wasWarmed()));
