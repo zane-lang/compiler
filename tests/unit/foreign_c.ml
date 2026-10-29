@@ -63,6 +63,52 @@ let search_lists () =
   check "cl.exe is MSVC" (Probe.kind_of ~name:"cl.exe" "" = Probe.Msvc);
   check "clang-cl is MSVC's mode" (Probe.kind_of ~name:"clang-cl" "clang version 19.1.7" = Probe.Msvc)
 
+(* A GCC the probe runs: a script that answers `--version`, `-dumpmachine`
+   and `-E -v` as a GCC built for [machine] does, its search list [dir]. *)
+let fake_gcc ~machine ~dir path =
+  write_all path
+    (Printf.sprintf
+       "#!/bin/sh\n\
+        case \"$1\" in\n\
+        --version) echo 'gcc (fake) 13.2.0' ;;\n\
+        -dumpmachine) echo %s ;;\n\
+        -E) printf '#include <...> search starts here:\\n %s\\nEnd of search list.\\n' >&2 ;;\n\
+        esac\n"
+       machine dir);
+  Unix.chmod path 0o755
+
+(* A GCC checked against the build's target when none is named, and the
+   probe's answer kept under the file a bare command runs. *)
+let probes () =
+  if not Sys.win32 then begin
+    let base = Filename.temp_dir "zane-probe-" "" in
+    let path = Sys.getenv_opt "PATH" in
+    Fun.protect
+      ~finally:(fun () ->
+        Unix.putenv "PATH" (Option.value ~default:"" path);
+        remove_tree base)
+      (fun () ->
+        let bin name =
+          let d = Filename.concat base name in
+          Sys.mkdir d 0o755;
+          d
+        in
+        let a = bin "a" and b = bin "b" and cache = bin "cache" and work = bin "work" in
+        fake_gcc ~machine:"x86_64-linux-gnu" ~dir:"/a/include" (Filename.concat a "gcc");
+        fake_gcc ~machine:"x86_64-linux-gnu" ~dir:"/b/include" (Filename.concat b "gcc");
+        let other = Filename.concat a "cross-gcc" in
+        fake_gcc ~machine:"aarch64-linux-gnu" ~dir:"/x/include" other;
+        let host = "x86_64-unknown-linux-gnu" in
+        check "a GCC for another target is refused when the host is the target"
+          (Result.is_error (Probe.include_dirs ~dir:work ~cc:other ~triple:host None));
+        let dirs on =
+          Unix.putenv "PATH" on;
+          Probe.include_dirs ~cache ~dir:work ~cc:"gcc" ~triple:host None
+        in
+        check "a bare gcc is probed where PATH finds it" (dirs a = Ok [ Probe.System "/a/include" ]);
+        check "another gcc PATH finds is probed again" (dirs b = Ok [ Probe.System "/b/include" ]))
+  end
+
 let triples () =
   check "a missing vendor is the same ABI" (Clang.same_abi "x86_64-linux-gnu" "x86_64-pc-linux-gnu");
   check "another environment is another ABI" (not (Clang.same_abi "x86_64-linux-gnu" "x86_64-linux-musl"));
@@ -257,6 +303,7 @@ let run () =
   patterns ();
   paths ();
   search_lists ();
+  probes ();
   triples ();
   mapping ();
   compiled ();
