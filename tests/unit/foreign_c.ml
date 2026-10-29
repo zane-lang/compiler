@@ -253,6 +253,8 @@ let interface_header () =
          typedef struct { int x; } Foo;\n\
          struct Foo { double y; };\n\
          void both(Foo a, struct Foo b);\n\
+         struct Outer { struct { int x; } a; struct { double y; } b; struct { char c; }; };\n\
+         void outer(struct Outer o);\n\
          MAKE(made)\n";
       let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
       let table target =
@@ -290,6 +292,13 @@ let interface_header () =
             && (match (List.assoc_opt "Foo" t.I.records, List.assoc_opt "struct Foo" t.I.records) with
                | Some { I.layout = Some { fields = [ { field = "x"; _ } ]; _ }; _ }, Some { I.layout = Some { fields = [ { field = "y"; _ } ]; _ }; _ } -> true
                | _ -> false));
+          let field_of name =
+            match List.assoc_opt name t.I.records with
+            | Some { I.layout = Some { fields = [ { field; _ } ]; _ }; _ } -> field
+            | _ -> ""
+          in
+          check "unnamed records nested in a struct are each their own"
+            (field_of "struct Outer.a" = "x" && field_of "struct Outer.b" = "y" && field_of "struct Outer.#2" = "c");
           let long_size t =
             match List.assoc_opt "wide" t.I.functions with
             | Some { I.ty = I.Function { result = I.Int { size; _ }; _ }; _ } -> size
