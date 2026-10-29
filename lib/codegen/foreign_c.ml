@@ -112,7 +112,7 @@ let renamed_apart ~triple ~global_prefix p names =
   List.iter (fun n -> Hashtbl.replace table n ()) names;
   let by_name symbol =
     let g = String.length global_prefix in
-    if String.length symbol >= g && String.sub symbol 0 g = global_prefix then
+    if String.starts_with ~prefix:global_prefix symbol then
       let label = String.sub symbol g (String.length symbol - g) in
       if Hashtbl.mem table label then Some (global_prefix ^ p.prefix ^ label) else None
     else None

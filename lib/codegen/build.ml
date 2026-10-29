@@ -515,9 +515,8 @@ let unfound_library text name =
     (fun before ->
       let word = before ^ name in
       let n = String.length word in
-      let rec from i =
-        i + n <= String.length text && ((String.sub text i n = word && ends (i + n)) || from (i + 1))
-      in
+      let rec at i j = j >= n || (text.[i + j] = word.[j] && at i (j + 1)) in
+      let rec from i = i <= String.length text - n && ((at i 0 && ends (i + n)) || from (i + 1)) in
       from 0)
     [ "unable to find library -l"; "library not found for -l"; "cannot find -l" ]
 
