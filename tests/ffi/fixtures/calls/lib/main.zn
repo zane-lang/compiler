@@ -36,3 +36,4 @@ I64 oncePointed() foreign "once_pointed_value";
 I64 primed() foreign "primed";
 I64 primedRuns() foreign "primed_runs_seen";
 I64 wasWarmed() foreign "was_warmed";
+I64 parsed() foreign "parsed";
