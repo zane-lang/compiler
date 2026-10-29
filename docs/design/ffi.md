@@ -60,7 +60,8 @@ build's target, so a cross build probes the target's headers, not the
 host's. A clang or `zig cc`, which `--version` names, is given `--target=`.
 A GCC builds for the one target it was configured for and takes no such
 option, so it is run as it is and its `-dumpmachine` must name the build's
-target. The two triples are normalized as LLVM normalizes one and
+target, the host's when none is named, since the C is compiled for that
+target either way. The two triples are normalized as LLVM normalizes one and
 compared by architecture, operating system and environment, leaving out
 the vendor, which normalizing keeps (`pc` stays, a missing one becomes
 `unknown`) and which names no ABI on these targets, so `x86_64-linux-gnu`
@@ -68,7 +69,8 @@ and `x86_64-pc-linux-gnu` agree; one that names another is an error saying to se
 for that target. The probe reads
 the list after `#include <...> search starts here:`, which GCC, clang and
 `zig cc` all print in that form; the list is kept in the cache, keyed by
-the C compiler's path and `--version` output, the target, and the values
+the C compiler's command, the file it runs (a bare `gcc` names whichever
+one `PATH` finds first), its `--version` output, the target, and the values
 of the environment variables that change a C compiler's search
 (`CPATH`, `C_INCLUDE_PATH` and `SDKROOT`), so changing any of them probes
 again. Every

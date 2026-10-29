@@ -92,18 +92,20 @@ let not_target ~cc ~triple machine =
     cc machine triple
 
 (* The directories [cc] searches when it compiles for [target] (the host
-   when [None]), its builtin headers left out. *)
+   when [None]), its builtin headers left out. [triple] is the build's
+   target, named or the host, which a GCC must build for whether or not the
+   target was named: the C is compiled for it either way. *)
 let asked ~dir ~kind ~cc ~triple target =
   let target_args = match (kind, target) with Clang, Some t -> [ "--target=" ^ t ] | _ -> [] in
   let checked =
-    match (kind, target) with
-    | Gcc, Some t -> (
+    match kind with
+    | Gcc -> (
         match run ~dir cc [ "-dumpmachine" ] with
         | true, machine ->
             let machine = String.trim machine in
-            if Clang.same_abi machine t then Ok () else Error (not_target ~cc ~triple:t machine)
+            if Clang.same_abi machine triple then Ok () else Error (not_target ~cc ~triple machine)
         | false, output -> Error (Printf.sprintf "the C compiler `%s` did not say its target: %s" cc (String.trim output)))
-    | _ -> Ok ()
+    | Clang | Msvc -> Ok ()
   in
   match checked with
   | Error _ as e -> e
@@ -144,11 +146,12 @@ let decode text =
 let search_variables = [ "CPATH"; "C_INCLUDE_PATH"; "SDKROOT" ]
 
 (* The include directories for a build for [target] (the host when
-   [None]), of the C compiler [cc], asked in [dir] and kept in [cache]
-   under the compiler's path and version, the target, and
-   [search_variables]. *)
-let include_dirs ?cache ~dir ~cc target =
-  let triple = Option.value ~default:"host" target in
+   [None]), whose triple is [triple], of the C compiler [cc], asked in
+   [dir] and kept in [cache] under the compiler's command, the file it
+   runs, its version, the target, and [search_variables]. The file it runs
+   is part of the key because a bare command such as `gcc` names whichever
+   one `PATH` finds first. *)
+let include_dirs ?cache ~dir ~cc ~triple target =
   let _, version = run ~dir cc [ "--version" ] in
   let version = if String.trim version = "" then snd (run ~dir cc [ "/?" ]) else version in
   match kind_of ~name:cc version with
@@ -158,7 +161,7 @@ let include_dirs ?cache ~dir ~cc target =
         Digest.to_hex
           (Digest.string
              (String.concat "\000"
-                ([ "include-dirs"; cc; version; triple ]
+                ([ "include-dirs"; cc; Option.value ~default:"" (Cache.located cc); version; triple ]
                 @ List.map (fun v -> v ^ "=" ^ Option.value ~default:"" (Sys.getenv_opt v)) search_variables)))
       in
       let kept = Option.map (fun c -> Filename.concat (Filename.concat c "foreign/include-dirs") key) cache in
