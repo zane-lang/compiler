@@ -62,18 +62,24 @@ for golden in tests/codegen/golden/*.out; do
 	done
 done
 
-# The C interface's run fixtures, each a build of its subdirectories in name
-# order, the first the root, as tests/ffi/ builds them.
+# The C interface's run fixtures, as tests/ffi/ builds them: one with
+# subdirectories a build of them in name order, the first the root, and any
+# other the one package it is, exiting with its `expected-status` when it
+# has one.
 for golden in tests/ffi/golden/*.out; do
 	fixture="$(basename "$golden" .out)"
 	name="ffi.$fixture"
+	dir="tests/ffi/fixtures/$fixture"
+	status=0
+	[[ -f "$dir/expected-status" ]] && status="$(tr -d '[:space:]' <"$dir/expected-status")"
 	packages=()
-	for dir in "tests/ffi/fixtures/$fixture"/*/; do packages+=(--package "${dir%/}"); done
+	for sub in "$dir"/*/; do [[ -d "$sub" ]] && packages+=(--package "${sub%/}"); done
+	((${#packages[@]})) || packages=(--package "$dir")
 	"$ZANEC" --target "$TARGET" --build "$OUT/$name.exe" "${packages[@]}"
 	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" "${packages[@]}"
 	"$ZANEC" --target "$TARGET" --build "$OUT/$name.tiered.exe" --tiered "${packages[@]}"
 	"$ZANEC" --target "$TARGET" --tier-up "$OUT/$name.tiered.tier1.dll" "${packages[@]}"
-	for build in "$name" "$name.optimized" "$name.tiered"; do expect "$build" "$golden" 0; done
+	for build in "$name" "$name.optimized" "$name.tiered"; do expect "$build" "$golden" "$status"; done
 done
 
 objects="$(mktemp -d)"

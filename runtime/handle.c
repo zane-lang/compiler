@@ -64,6 +64,7 @@ static int zane_younger_first(const void *a, const void *b) {
    from another goes first. */
 void zane_handle_jobs_end(zane_handle_jobs *rs) {
 	zane_collecting = rs->outer;
+	if (!rs->count) return;
 	qsort(rs->jobs, (size_t)rs->count, sizeof *rs->jobs, zane_younger_first);
 	for (int64_t i = 0; i < rs->count; i++) zane_handle_run(&rs->jobs[i]);
 	free(rs->jobs);

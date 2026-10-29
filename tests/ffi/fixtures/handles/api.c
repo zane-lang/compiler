@@ -18,9 +18,10 @@ fs_t zane_fs;
 static void note(const char *format, ...) {
 	va_list args;
 	va_start(args, format);
-	int n = vsnprintf(zane_fs.log + zane_fs.length, sizeof zane_fs.log - zane_fs.length, format, args);
+	size_t room = sizeof zane_fs.log - zane_fs.length;
+	int n = vsnprintf(zane_fs.log + zane_fs.length, room, format, args);
 	va_end(args);
-	if (n > 0) zane_fs.length += (size_t)n;
+	if (n > 0) zane_fs.length += (size_t)n < room ? (size_t)n : room - 1;
 }
 
 struct conn_t {

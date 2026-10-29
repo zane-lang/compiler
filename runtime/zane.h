@@ -93,6 +93,7 @@ int64_t zane_leaves(const char *block, zane_mark *region, int64_t from);
 void zane_arrive(char *slot, const zane_type *type);
 void zane_promote(char *value, const zane_type *type, zane_mark *scope);
 void zane_overwrite(char *slot, char *incoming, int64_t size, const zane_type *type);
+void zane_overwrite_handles(char *slot, char *incoming, int64_t size, const zane_type *type);
 void zane_overwrite_settled(char *slot, char *incoming, int64_t size, const zane_type *type);
 
 /* list.c */

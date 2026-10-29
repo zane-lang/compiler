@@ -1692,7 +1692,11 @@ and stat env fr b (s : Stat.t) =
           let incoming = spill env fr b v in
           let n x = Llvm.const_int env.i64 x in
           let size = n (fst (size_align value.Expr.ty)) in
-          let fn = if setters then Cgt.Runtime.Overwrite_settled else Cgt.Runtime.Overwrite in
+          let fn =
+            if setters then Cgt.Runtime.Overwrite_settled
+            else if Walks.holds_handle (walks env) l then Cgt.Runtime.Overwrite_handles
+            else Cgt.Runtime.Overwrite
+          in
           ignore (call_runtime env b fn [| p; incoming; size; layout env l |]))
   | Stat.If { cond; body } ->
       let c = value_of env fr b cond in

@@ -29,7 +29,7 @@ let classify : Cgt.Runtime.fn -> t = function
   | List_reserve | Scope_enter | Scope_drain | Hold | Too_deep | Promote | Arrive | Copy
   | Overwrite | Box | Spawn | Join | Snapshot | Out_of_range
   | Region_at | Alloc | Alloc_held | Free | Leaves | Defer | Defer_return
-  | Overwrite_settled | Handle_end | Handle_set ->
+  | Overwrite_handles | Overwrite_settled | Handle_end | Handle_set ->
       Computed
 
 (* What a math function of `@math$` on operands of type [t] is to a fold.

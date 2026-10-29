@@ -52,13 +52,14 @@ type fn =
   | Leaves
   | Defer
   | Defer_return
+  | Overwrite_handles
   | Overwrite_settled
   | Handle_made
   | No_object
   | Handle_end
   | Handle_set
 
-let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set ]
+let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set ]
 
 let name = function
   | Print -> "zane_print"
@@ -103,6 +104,7 @@ let name = function
   | Leaves -> "zane_leaves"
   | Defer -> "zane_defer"
   | Defer_return -> "zane_defer_return"
+  | Overwrite_handles -> "zane_overwrite_handles"
   | Overwrite_settled -> "zane_overwrite_settled"
   | Handle_made -> "zane_handle_made"
   | No_object -> "zane_no_object"
@@ -157,7 +159,7 @@ let signature = function
   | Leaves -> (I64, [ Ptr; Ptr; I64 ])
   | Defer -> (Void, [ Ptr; Ptr; Ptr; Ptr; I64 ])
   | Defer_return -> (Void, [ Ptr; Ptr; I64; I64 ])
-  | Overwrite_settled -> (Void, [ Ptr; Ptr; I64; Ptr ])
+  | Overwrite_handles | Overwrite_settled -> (Void, [ Ptr; Ptr; I64; Ptr ])
   | Handle_made -> (I64, [ Ptr ])
   | No_object -> (Void, [  ])
   | Handle_end -> (Void, [ Ptr; Ptr ])

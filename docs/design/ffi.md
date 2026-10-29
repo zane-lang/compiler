@@ -460,10 +460,13 @@ A slot whose value may hold a handle is listed among its scope's held
 slots whether or not drains are checked, and a scope holding one drains
 through the runtime. The drain ends those slots, collecting each free
 thunk with its handle's stamp, and once every slot has ended runs them by
-descending stamp. An overwrite collects the thunks of the handles it ends
-or sets the same way, so the set thunks of `ffi.md` §4.3 run by
-descending stamp of the places, the order a drain frees them in, and a
-handle's old object is released before the old object it was made from.
+descending stamp. An overwrite of a type that may hold a handle calls
+`zane_overwrite_handles`, or `zane_overwrite_settled` when it is marked
+`setters`, and either collects the thunks of the handles it ends or sets
+the same way, so the set thunks of `ffi.md` §4.3 run by descending stamp
+of the places, the order a drain frees them in, and a handle's old object
+is released before the old object it was made from. Every other
+overwrite calls `zane_overwrite`, which collects nothing.
 
 ---
 
