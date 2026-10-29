@@ -43,74 +43,145 @@
     │   │   ├── kind: value
     │   │   └── struct[0]: b : @primitives$F64
     │   ├── decls[11] > type:
-    │   │   ├── name: Cursor #12
+    │   │   ├── name: N0 #12
+    │   │   ├── kind: value
+    │   │   └── struct[0]: v : @primitives$I32
+    │   ├── decls[12] > type:
+    │   │   ├── name: N1 #13
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N0
+    │   ├── decls[13] > type:
+    │   │   ├── name: N2 #14
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N1
+    │   ├── decls[14] > type:
+    │   │   ├── name: N3 #15
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N2
+    │   ├── decls[15] > type:
+    │   │   ├── name: N4 #16
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N3
+    │   ├── decls[16] > type:
+    │   │   ├── name: N5 #17
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N4
+    │   ├── decls[17] > type:
+    │   │   ├── name: N6 #18
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N5
+    │   ├── decls[18] > type:
+    │   │   ├── name: N7 #19
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N6
+    │   ├── decls[19] > type:
+    │   │   ├── name: N8 #20
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N7
+    │   ├── decls[20] > type:
+    │   │   ├── name: N9 #21
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N8
+    │   ├── decls[21] > type:
+    │   │   ├── name: N10 #22
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N9
+    │   ├── decls[22] > type:
+    │   │   ├── name: N11 #23
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N10
+    │   ├── decls[23] > type:
+    │   │   ├── name: N12 #24
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N11
+    │   ├── decls[24] > type:
+    │   │   ├── name: N13 #25
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N12
+    │   ├── decls[25] > type:
+    │   │   ├── name: N14 #26
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N13
+    │   ├── decls[26] > type:
+    │   │   ├── name: N15 #27
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N14
+    │   ├── decls[27] > type:
+    │   │   ├── name: N16 #28
+    │   │   ├── kind: value
+    │   │   └── struct[0]: inner : app$N15
+    │   ├── decls[28] > type:
+    │   │   ├── name: Cursor #29
     │   │   ├── kind: reference
     │   │   └── handle:
     │   │       ├── kind: data
     │   │       ├── cType: cursor
     │   │       └── free: cursor_free
-    │   ├── decls[12] > type:
-    │   │   ├── name: Deflater #13
+    │   ├── decls[29] > type:
+    │   │   ├── name: Deflater #30
     │   │   ├── kind: reference
     │   │   └── handle:
     │   │       ├── kind: data
     │   │       ├── cType: deflater_t
     │   │       ├── set: deflater_set
     │   │       └── free: deflater_free
-    │   ├── decls[13] > verb:
-    │   │   ├── signature: @primitives$I64 crc(@primitives$I64, @primitives$String) #14
+    │   ├── decls[30] > verb:
+    │   │   ├── signature: @primitives$I64 crc(@primitives$I64, @primitives$String) #31
     │   │   └── foreign: zane_crc32 (pure, int64_t (int64_t, struct zane_bytes))
-    │   ├── decls[14] > verb:
-    │   │   ├── signature: app$Vec3 add(app$Vec3, app$Vec3) #15
+    │   ├── decls[31] > verb:
+    │   │   ├── signature: app$Vec3 add(app$Vec3, app$Vec3) #32
     │   │   └── foreign: vec_add (pure, vec3 (vec3, vec3))
-    │   ├── decls[15] > verb:
-    │   │   ├── signature: app$Pair mirror(app$Pair) #16
+    │   ├── decls[32] > verb:
+    │   │   ├── signature: app$Pair mirror(app$Pair) #33
     │   │   └── foreign: pair_mirror (pure, pair (pair))
-    │   ├── decls[16] > verb:
-    │   │   ├── signature: @primitives$I32 narrow(@primitives$I32, @primitives$I32) #17
+    │   ├── decls[33] > verb:
+    │   │   ├── signature: @primitives$I32 narrow(@primitives$I32, @primitives$I32) #34
     │   │   └── foreign: narrow (pure, int16_t (uint8_t, short))
-    │   ├── decls[17] > verb:
-    │   │   ├── signature: @primitives$Bool odd(@primitives$I32) #18
+    │   ├── decls[34] > verb:
+    │   │   ├── signature: @primitives$Bool odd(@primitives$I32) #35
     │   │   └── foreign: odd (pure, bool (int))
-    │   ├── decls[18] > verb:
-    │   │   ├── signature: @primitives$F64 sum(@primitives$Array<@primitives$F64, 4>, @primitives$List<@primitives$I64>) #19
+    │   ├── decls[35] > verb:
+    │   │   ├── signature: @primitives$F64 sum(@primitives$Array<@primitives$F64, 4>, @primitives$List<@primitives$I64>) #36
     │   │   └── foreign: sum (pure, double (const double *, struct zane_span))
-    │   ├── decls[19] > verb:
-    │   │   ├── signature: @primitives$F64 fold(@primitives$F64[@primitives$F64, @primitives$I32], @primitives$F64) #20
+    │   ├── decls[36] > verb:
+    │   │   ├── signature: @primitives$F64 fold(@primitives$F64[@primitives$F64, @primitives$I32], @primitives$F64) #37
     │   │   └── foreign: fold (pure, double (double (*)(double, int32_t), double))
-    │   ├── decls[20] > verb:
-    │   │   ├── signature: @primitives$String name(@primitives$I64) #21
+    │   ├── decls[37] > verb:
+    │   │   ├── signature: @primitives$String name(@primitives$I64) #38
     │   │   └── foreign: name (pure, struct zane_bytes (int64_t))
-    │   ├── decls[21] > verb:
-    │   │   ├── signature: @primitives$Unit reset() #22
+    │   ├── decls[38] > verb:
+    │   │   ├── signature: @primitives$Unit reset() #39
     │   │   └── foreign: reset (pure, void (void))
-    │   ├── decls[22] > verb:
-    │   │   ├── signature: ^app$Deflater?@primitives$Unit deflater(@primitives$I32) #23
+    │   ├── decls[39] > verb:
+    │   │   ├── signature: ^app$Deflater?@primitives$Unit deflater(@primitives$I32) #40
     │   │   └── foreign: deflater_new (pure, struct deflater_t * (int32_t))
-    │   ├── decls[23] > verb:
-    │   │   ├── signature: @primitives$String deflate(this app$Deflater, @primitives$String) mut #24
+    │   ├── decls[40] > verb:
+    │   │   ├── signature: @primitives$String deflate(this app$Deflater, @primitives$String) mut #41
     │   │   └── foreign: deflate (pure, struct zane_bytes (struct deflater_t *, struct zane_bytes))
-    │   ├── decls[24] > verb:
-    │   │   ├── signature: @primitives$I64 totalIn(this app$Deflater) #25
+    │   ├── decls[41] > verb:
+    │   │   ├── signature: @primitives$I64 totalIn(this app$Deflater) #42
     │   │   └── foreign: deflater_total_in (pure, int64_t (const struct deflater_t *))
-    │   ├── decls[25] > verb:
-    │   │   ├── signature: @primitives$I64 compare(this app$Deflater, app$Deflater) #26
+    │   ├── decls[42] > verb:
+    │   │   ├── signature: @primitives$I64 compare(this app$Deflater, app$Deflater) #43
     │   │   └── foreign: deflater_compare (pure, int64_t (const struct deflater_t *, const struct deflater_t *))
-    │   ├── decls[26] > verb:
-    │   │   ├── signature: app$Twin twinTypedef(app$Twin) #27
+    │   ├── decls[43] > verb:
+    │   │   ├── signature: app$Twin twinTypedef(app$Twin) #44
     │   │   └── foreign: twin_typedef (pure, twin (twin))
-    │   ├── decls[27] > verb:
-    │   │   ├── signature: app$TwinTag twinTagged(app$TwinTag) #28
+    │   ├── decls[44] > verb:
+    │   │   ├── signature: app$TwinTag twinTagged(app$TwinTag) #45
     │   │   └── foreign: twin_tagged (pure, struct twin (struct twin))
-    │   ├── decls[28] > verb:
-    │   │   ├── signature: ^app$Cursor?@primitives$Unit cursor() #29
+    │   ├── decls[45] > verb:
+    │   │   ├── signature: ^app$Cursor?@primitives$Unit cursor() #46
     │   │   └── foreign: cursor_new (pure, struct cursor * (void))
-    │   ├── decls[29] > type:
-    │   │   ├── name: Stream #30
+    │   ├── decls[46] > verb:
+    │   │   ├── signature: app$N16 deep(app$N16) #47
+    │   │   └── foreign: deep (pure, n16 (n16))
+    │   ├── decls[47] > type:
+    │   │   ├── name: Stream #48
     │   │   ├── kind: reference
     │   │   └── struct[0]: _deflater : app$Deflater
-    │   ├── decls[30] > verb:
-    │   │   ├── signature: @primitives$Unit replace(this app$Stream) mut #31
+    │   ├── decls[48] > verb:
+    │   │   ├── signature: @primitives$Unit replace(this app$Stream) mut #49
     │   │   ├── params[0]: this #1 : app$Stream
     │   │   ├── body[0] > assign:
     │   │   │   ├── target > field:
@@ -119,7 +190,7 @@
     │   │   │   │   └── field: _deflater (slot 0)
     │   │   │   └── value > call:
     │   │   │       ├── type: app$Deflater
-    │   │   │       ├── callee: deflater #23
+    │   │   │       ├── callee: deflater #40
     │   │   │       ├── args[0] > construct:
     │   │   │       │   ├── type: @primitives$I32
     │   │   │       │   ├── ctor: @primitives$I32
@@ -134,8 +205,8 @@
     │   │       ├── type: @primitives$Unit
     │   │       ├── ctor: @primitives$Unit
     │   │       └── args:
-    │   └── decls[31] > verb:
-    │       ├── signature: @primitives$Unit main() #32
+    │   └── decls[49] > verb:
+    │       ├── signature: @primitives$Unit main() #50
     │       ├── params:
     │       ├── body[0] > let:
     │       │   ├── local: files #3 : fs$Fs
@@ -147,7 +218,7 @@
     │       │   ├── local: log #4 : fs$File
     │       │   └── value > call:
     │       │       ├── type: fs$File
-    │       │       ├── callee: open #42
+    │       │       ├── callee: open #60
     │       │       ├── args[0]: files #3 : fs$Fs
     │       │       └── args[1] > construct:
     │       │           ├── type: @primitives$String
@@ -155,7 +226,7 @@
     │       │           └── args[0]: "app.log" : @concepts$String
     │       ├── body[2] > do > call:
     │       │   ├── type: @primitives$Unit
-    │       │   ├── callee: write #43
+    │       │   ├── callee: write #61
     │       │   ├── args[0]: files #3 : fs$Fs
     │       │   ├── args[1]: log #4 : fs$File
     │       │   └── args[2] > construct:
@@ -166,14 +237,14 @@
     │       │   ├── local: size #5 : @primitives$I64
     │       │   └── value > call:
     │       │       ├── type: @primitives$I64
-    │       │       ├── callee: size #44
+    │       │       ├── callee: size #62
     │       │       ├── args[0]: files #3 : fs$Fs
     │       │       └── args[1]: log #4 : fs$File
     │       ├── body[4] > let:
     │       │   ├── local: d #7 : app$Deflater
     │       │   └── value > call:
     │       │       ├── type: app$Deflater
-    │       │       ├── callee: deflater #23
+    │       │       ├── callee: deflater #40
     │       │       ├── args[0] > construct:
     │       │       │   ├── type: @primitives$I32
     │       │       │   ├── ctor: @primitives$I32
@@ -188,7 +259,7 @@
     │       │   ├── target: d #7 : app$Deflater
     │       │   └── value > call:
     │       │       ├── type: app$Deflater
-    │       │       ├── callee: deflater #23
+    │       │       ├── callee: deflater #40
     │       │       ├── args[0] > construct:
     │       │       │   ├── type: @primitives$I32
     │       │       │   ├── ctor: @primitives$I32
@@ -203,7 +274,7 @@
     │       │   ├── local: r #9 : ^fs$File
     │       │   └── value > call:
     │       │       ├── type: fs$File
-    │       │       ├── callee: open #42
+    │       │       ├── callee: open #60
     │       │       ├── args[0]: files #3 : fs$Fs
     │       │       └── args[1] > construct:
     │       │           ├── type: @primitives$String
@@ -213,7 +284,7 @@
     │       │   ├── target: r #9 : fs$File
     │       │   └── value > call:
     │       │       ├── type: fs$File
-    │       │       ├── callee: open #42
+    │       │       ├── callee: open #60
     │       │       ├── args[0]: files #3 : fs$Fs
     │       │       └── args[1] > construct:
     │       │           ├── type: @primitives$String
@@ -226,46 +297,46 @@
     ├── packages[1] > package:
     │   ├── name: fs
     │   ├── decls[0] > alias:
-    │   │   ├── name: Unit #33
+    │   │   ├── name: Unit #51
     │   │   └── target: @primitives$Unit
     │   ├── decls[1] > alias:
-    │   │   ├── name: Bool #34
+    │   │   ├── name: Bool #52
     │   │   └── target: @primitives$Bool
     │   ├── decls[2] > alias:
-    │   │   ├── name: I32 #35
+    │   │   ├── name: I32 #53
     │   │   └── target: @primitives$I32
     │   ├── decls[3] > alias:
-    │   │   ├── name: I64 #36
+    │   │   ├── name: I64 #54
     │   │   └── target: @primitives$I64
     │   ├── decls[4] > alias:
-    │   │   ├── name: F32 #37
+    │   │   ├── name: F32 #55
     │   │   └── target: @primitives$F32
     │   ├── decls[5] > alias:
-    │   │   ├── name: F64 #38
+    │   │   ├── name: F64 #56
     │   │   └── target: @primitives$F64
     │   ├── decls[6] > alias:
-    │   │   ├── name: String #39
+    │   │   ├── name: String #57
     │   │   └── target: @primitives$String
     │   ├── decls[7] > type:
-    │   │   ├── name: Fs #40
+    │   │   ├── name: Fs #58
     │   │   ├── kind: reference
     │   │   └── handle:
     │   │       ├── kind: capability
     │   │       └── cType: zane_fs_t
     │   ├── decls[8] > type:
-    │   │   ├── name: File #41
+    │   │   ├── name: File #59
     │   │   ├── kind: reference
     │   │   └── handle:
     │   │       ├── kind: outside
     │   │       ├── cType: zane_file_t
     │   │       └── free: zane_fclose
     │   ├── decls[9] > verb:
-    │   │   ├── signature: ^fs$File open(this fs$Fs, @primitives$String) mut #42
+    │   │   ├── signature: ^fs$File open(this fs$Fs, @primitives$String) mut #60
     │   │   └── foreign: zane_fopen (writes, struct zane_file_t * (struct zane_fs_t *, struct zane_bytes))
     │   ├── decls[10] > verb:
-    │   │   ├── signature: @primitives$Unit write(this fs$Fs, fs$File, @primitives$String) mut #43
+    │   │   ├── signature: @primitives$Unit write(this fs$Fs, fs$File, @primitives$String) mut #61
     │   │   └── foreign: zane_fwrite (writes, void (struct zane_fs_t *, struct zane_file_t *, struct zane_bytes))
     │   └── decls[11] > verb:
-    │       ├── signature: @primitives$I64 size(this fs$Fs, fs$File) #44
+    │       ├── signature: @primitives$I64 size(this fs$Fs, fs$File) #62
     │       └── foreign: zane_fsize (reads, int64_t (const struct zane_fs_t *, const struct zane_file_t *))
     └── instances:
