@@ -353,21 +353,26 @@ source can hold only one local function of that name, the header's: the
 constructor runs once, as it would for the C alone. One of a header no
 source includes runs from the glue, even beside a source's own of the
 same name.
-The header's private state, a variable local to its translation unit that
-the program can write, is one variable in the C alone, which the
-header's functions share, such as an external setter and a `static
-inline` getter a thunk calls. The glue's copy of it is the source's: before
-the link, each private variable the glue defines that the one source
-including the header defines too, by name and type, is the source's,
+The header's private objects, variables local to its translation unit
+whose address the program can see, are one object each in the C alone,
+which the header's functions share: state an external setter writes and a
+`static inline` getter a thunk calls reads, or a constant whose address
+both take. The glue's copy of each is the source's: before the link, each
+private variable the glue defines that the one source including the
+header defines too, by name and type, and for a constant with the same
+value, is the source's,
 renamed `zane.shared.N.NAME` (`N` the source's place in the package)
 and made visible to the link, with the glue's made a declaration of it
 (`zane_share_state`); once the package's modules are linked it is local
 again under its own name (`zane_localize_shared`). Within one
 translation unit a variable at file scope, or a function's own `static`,
 is one variable per name, so the source's of that name is the header's.
-A header whose private state the glue defines and that two or more of the
-sources including it define too is refused, naming them: C gives each of
-them a copy of its own, so none is the header's.
+A string literal, or any other variable whose address LLVM may merge, is
+none of these. A header whose writable private state the glue defines and
+that two or more of the sources including it define too is refused, naming
+them: C gives each of them a copy of its own, so none is the header's. A
+constant several sources define has one value, so the glue keeps a copy of
+its own, as C gives each source one.
 A constructor that sets up private state the glue keeps a copy of, which
 a function the glue keeps reads, stays, itself, through a function of the
 glue it calls or through a private variable's initializer, such as a

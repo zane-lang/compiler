@@ -13,7 +13,8 @@
 /// a function of the header's it calls and one that sets it through a
 /// pointer a variable of the header's holds. The glue's copy of the
 /// header's private state is `once.c`'s, so a `static inline` function
-/// the glue calls reads what a function `once.c` defines wrote.
+/// the glue calls reads what a function `once.c` defines wrote, and a
+/// constant of the header has one address, which the two compare.
 /// `primed.h`, which no source includes, has constructors of its own, run
 /// beside the one `lib.c` has, and beside the one `plain.c` has under the
 /// same name and doing the same, which is not the header's.
@@ -40,6 +41,7 @@ I64 onceHelped() foreign "once_helped_value";
 I64 oncePointed() foreign "once_pointed_value";
 Unit onceShare(x I64) foreign "once_share";
 I64 onceShared() foreign "once_shared_value";
+I64 onceTokenSame() foreign "once_token_same";
 I64 primed() foreign "primed";
 I64 primedRuns() foreign "primed_runs_seen";
 I64 wasWarmed() foreign "was_warmed";
