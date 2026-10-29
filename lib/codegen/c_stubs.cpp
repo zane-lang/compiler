@@ -136,8 +136,9 @@ static bool used_beyond(llvm::Value *v, const std::set<llvm::Function *> &fs) {
   return false;
 }
 
-/* Whether a private variable [f] reaches, itself or through the functions
-   of its module it calls, is used by any other function: the glue's own
+/* Whether a private variable [f] reaches, itself, through the functions
+   of its module it calls or through the initializer of a private variable
+   it reaches, is used by any other function: the glue's own
    copy of a header's state, which only [f] sets up for the glue's
    functions that read it. A function [f] reaches that something else uses
    too could read such state for it, and a call through a pointer could
@@ -159,10 +160,11 @@ static bool sets_up_private_state(llvm::Function &f) {
       llvm::Value *v = pending.back();
       pending.pop_back();
       if (auto *g = llvm::dyn_cast<llvm::GlobalVariable>(v)) {
-        if (g->hasLocalLinkage()) state.insert(g);
+        if (g->hasLocalLinkage() && state.insert(g).second && g->hasInitializer())
+          pending.push_back(g->getInitializer());
       } else if (auto *callee = llvm::dyn_cast<llvm::Function>(v)) {
         if (!callee->isDeclaration() && reached.insert(callee).second) to_read.push_back(callee);
-      } else if (auto *c = llvm::dyn_cast<llvm::ConstantExpr>(v))
+      } else if (auto *c = llvm::dyn_cast<llvm::Constant>(v); c && !llvm::isa<llvm::GlobalValue>(c))
         for (llvm::Value *op : c->operands()) pending.push_back(op);
     }
   }
