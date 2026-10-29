@@ -308,14 +308,17 @@ and field_offsets env fields =
 (* Whether a C-compatible value type's fields lay out as [record]'s do:
    the same number, in order, each of a full-width C type of the Zane
    field's scalar, an array of one, or a struct corresponding in turn, at
-   the same offset, and the two the same size. A struct with a bit-field
-   corresponds to none (docs/design/ffi.md F6). *)
+   the same offset, and the two the same size and alignment: C passes a
+   struct aligned more strictly than its fields, as `_Alignas` makes one,
+   differently, and its slot would be under-aligned. A struct with a
+   bit-field corresponds to none (docs/design/ffi.md F6). *)
 let rec struct_matches env iface fields record =
   match List.assoc_opt record iface.C.records with
   | Some { C.union = false; layout = Some l; _ } ->
-      let offsets, size, _ = field_offsets env fields in
+      let offsets, size, align = field_offsets env fields in
       List.length fields = List.length l.C.fields
       && size * 8 = l.C.size
+      && align * 8 = l.C.align
       && List.for_all2
            (fun ((_, t), offset) (cf : C.field) ->
              cf.C.bit_width = None && cf.C.offset = offset * 8 && field_matches env iface t cf.C.ty)
@@ -405,7 +408,7 @@ let rec corresponds env iface (v : verb) position (t : Ty.t) (c : C.ctype) =
       | C.Record { union = false; name } when struct_matches env iface fields name -> Ok ()
       | C.Record { union = false; name } ->
           Error
-            (Printf.sprintf "%s and the C type %s are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)"
+            (Printf.sprintf "%s and the C type %s are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets, and the same size and alignment (ffi.md §3.3)"
                (quote (Ty.to_string t)) (quote name))
       | _ -> differ (Printf.sprintf "%s crosses as a C struct of the same layout" (quote (Ty.to_string t))))
   | Some (Handle (tid, h)) -> handle_corresponds env iface v position tid h c
