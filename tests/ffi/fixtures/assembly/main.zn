@@ -2,7 +2,10 @@
 /// for, each source assembled as an object of its own: file-scope
 /// `__asm__` defining `jump`, which jumps to a C function of another
 /// source and which both a thunk and C call, and `__asm__` statements in
-/// a function.
+/// a function. `defined.h`, an interface header that source includes,
+/// defines a function, a variable and a constructor of its own, each
+/// defined, and the constructor run, once, though the glue compiles the
+/// header too.
 package assembly;
 
 alias Unit = @primitives$Unit;
@@ -12,6 +15,7 @@ alias String = @primitives$String;
 I64 jump(x I64) foreign "jump";
 I64 throughJump(x I64) foreign "through_jump";
 I64 fenced(x I64) foreign "fenced";
+I64 definedTwice(x I64) foreign "defined_twice";
 
 Unit show(text String) {
 	@program$console!print(text);
@@ -23,5 +27,6 @@ Unit main() {
 	show(String(jump(I64(14))));
 	show(String(throughJump(I64(14))));
 	show(String(fenced(I64(41))));
+	show(String(definedTwice(I64(20))));
 	return Unit();
 }

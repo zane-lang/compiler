@@ -1,6 +1,8 @@
 /* `jump`, written in file-scope assembly: it jumps to `landing`, a C
    function of another source, with the argument it was called with. */
 
+#include "defined.h"
+
 #define TEXT(x) #x
 #define SPELLED(x) TEXT(x)
 #define SYMBOL(name) SPELLED(__USER_LABEL_PREFIX__) #name

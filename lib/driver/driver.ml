@@ -166,7 +166,10 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
          `system` libraries, each named by its row. *)
       let apart (f : Foreign.package) =
         let coda = Filename.concat f.Foreign.dir Foreign.Settings.file_name in
-        ( List.map (fun (a : Foreign.assembled) -> (a.source.key, a.object_)) f.Foreign.assembled,
+        ( List.map
+            (fun (a : Foreign.assembled) ->
+              ({ Codegen.key = a.source.key; bitcode = a.source.bitcode; files = a.source.includes }, a.object_))
+            f.Foreign.assembled,
           List.map
             (fun (a : Foreign.archive) -> { Codegen.digest = a.digest; members = a.members })
             f.Foreign.archives,
@@ -197,13 +200,13 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
           Ok (if libraries = [] then None else Some only_libraries)
         else
           Result.map
-            (fun (glue : Foreign.Compile.source list) ->
-              let modules = List.map (fun (s : Foreign.Compile.source) -> (s.key, s.bitcode)) in
+            (fun glue ->
+              let c_module files (s : Foreign.Compile.source) = { Codegen.key = s.key; bitcode = s.bitcode; files } in
               Some
                 {
                   Codegen.prefix = (if root then "" else "!") ^ p.Assembly.id ^ "$%c$";
-                  sources = modules f.Foreign.sources;
-                  glue = modules glue;
+                  sources = List.map (fun (s : Foreign.Compile.source) -> c_module s.includes s) f.Foreign.sources;
+                  glue = List.map (fun (header, s) -> c_module [ header ] s) glue;
                   thunks = List.map (fun (t : F.t) -> t.F.thunk) entries;
                   objects;
                   archives;
@@ -250,7 +253,7 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
                 {
                   Codegen.prefix = (if root then "" else "!") ^ id ^ "$%c$";
                   sources = [];
-                  glue = [ (s.key, s.bitcode) ];
+                  glue = [ { Codegen.key = s.key; bitcode = s.bitcode; files = [] } ];
                   thunks = List.map (fun (c : C.t) -> c.C.entry) p @ List.map (fun (c : C.t) -> c.C.symbol) i;
                   objects = [];
                   archives = [];

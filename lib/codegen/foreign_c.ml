@@ -16,21 +16,25 @@ type archive = { digest : string; members : (string * string) list }
    names the row. *)
 type library = { name : string; row : string }
 
+(* One C module: its bitcode, the hash the cache keys it by, and the
+   files its code came from, by their real paths: a source's own and the
+   headers it includes, or the interface header a glue module compiles. *)
+type c_module = { key : string; bitcode : string; files : string list }
+
 (* One package's C: the prefix its renamed globals take, its sources'
-   modules and its glue's, each as bitcode with the hash the cache keys it
-   by, and the symbols of the thunks the glue defines, after the target's
-   global prefix. A thunk keeps its name, which is already the package's;
-   any other function the glue defines, as an interface header's own
-   definition, is renamed as the sources' are. Beside them, the objects its
-   sources holding assembly were assembled into, each with the hash of the
-   module it was made from, its archives, the C names those objects and
-   archives define, and its `system` libraries. *)
+   modules and its glue's, and the symbols of the thunks the glue defines,
+   after the target's global prefix. A thunk keeps its name, which is
+   already the package's; any other function the glue defines, as an
+   interface header's own definition, is renamed as the sources' are.
+   Beside them, the objects its sources holding assembly were assembled
+   into, each with the module it was made from, its archives, the C names
+   those objects and archives define, and its `system` libraries. *)
 type package = {
   prefix : string;
-  sources : (string * string) list;
-  glue : (string * string) list;
+  sources : c_module list;
+  glue : c_module list;
   thunks : string list;
-  objects : (string * string) list;
+  objects : (c_module * string) list;
   archives : archive list;
   defined : string list;
   libraries : library list;
@@ -45,7 +49,10 @@ let nothing_apart = { objects = []; archives = [] }
 external rename : Llvm.llmodule -> string -> string -> string list -> string list -> string list
   = "zane_rename_c_globals"
 
-external drop_defined : Llvm.llmodule -> Llvm.llmodule -> unit = "zane_drop_defined"
+external constructors : Llvm.llmodule -> string list = "zane_c_constructors"
+external drop_defined : Llvm.llmodule -> Llvm.llmodule -> string list -> unit = "zane_drop_defined"
+external drop_defined_apart : Llvm.llmodule -> string list -> unit = "zane_drop_defined_apart"
+
 external write_archive : int -> (string * string) list -> (string, string) result
   = "zane_write_archive"
 
@@ -61,9 +68,11 @@ let parse ctx text =
 (* [modules] linked into the first, for [triple] and [data_layout], and
    then [glue], each without the definitions the modules before it hold
    (zane_drop_defined): an interface header's own definition, which the
-   glue compiles, is also compiled by every source that includes it. *)
+   glue compiles, is also compiled by every source that includes it. Each
+   glue module comes with the constructors and destructors of the sources
+   that include its header. *)
 let linked ?(glue = []) ~triple ~data_layout modules =
-  match modules @ glue with
+  match modules @ List.map fst glue with
   | [] -> None
   | first :: rest ->
       List.iter
@@ -73,7 +82,7 @@ let linked ?(glue = []) ~triple ~data_layout modules =
         (first :: rest);
       List.iter
         (fun m ->
-          if List.memq m glue then drop_defined m first;
+          Option.iter (drop_defined m first) (List.assq_opt m glue);
           Llvm_linker.link_modules first m)
         rest;
       Some first
@@ -131,10 +140,29 @@ let renamed_apart ~triple ~global_prefix p names =
    reach the objects' definitions; then every name renamed in the module
    renames the objects, so an object's uses reach the module's. *)
 let package_module ctx ~triple ~data_layout p =
-  let glue = List.map (fun (_, bc) -> parse ctx bc) p.glue in
-  let sources = List.map (fun (_, bc) -> parse ctx bc) p.sources in
+  let parsed = List.map (fun c -> (c, parse ctx c.bitcode)) in
+  let sources = parsed p.sources in
+  (* Read before the link renames a source's local functions. A source
+     assembled apart runs its constructors from its object, so a header it
+     includes runs them there. *)
+  let assembled_runs (c, _) =
+    let m = parse ctx c.bitcode in
+    Fun.protect ~finally:(fun () -> Llvm.dispose_module m) (fun () -> (c.files, constructors m))
+  in
+  let runs = List.map (fun (c, m) -> (c.files, constructors m)) sources @ List.map assembled_runs p.objects in
+  let run_by (g : c_module) =
+    List.concat_map (fun (files, run) -> if List.exists (fun h -> List.mem h files) g.files then run else []) runs
+  in
+  let glue_module (g, m) =
+    if p.defined <> [] then drop_defined_apart m p.defined;
+    (m, run_by g)
+  in
+  let glue = List.map glue_module (parsed p.glue) in
   let global_prefix = Walks.global_prefix data_layout in
-  let m = linked ~glue ~triple ~data_layout sources in
+  (* With no source in the module, the glue is linked into an empty one,
+     so each glue module is still linked as one after the sources. *)
+  let base = match sources with [] when glue <> [] -> [ Llvm.create_module ctx "c" ] | _ -> List.map snd sources in
+  let m = linked ~glue ~triple ~data_layout base in
   let names =
     match m with Some m -> rename m p.prefix global_prefix p.thunks p.defined | None -> []
   in
@@ -179,7 +207,8 @@ let key ~triple ~compiler packages =
           ("c-object" :: triple :: compiler
           :: List.concat_map
                (fun p ->
-                 (p.prefix :: List.map fst (p.sources @ p.glue @ p.objects))
+                 (p.prefix :: List.map (fun c -> c.key) (p.sources @ p.glue))
+                 @ List.map (fun (c, _) -> c.key) p.objects
                  @ List.map (fun (a : archive) -> a.digest) p.archives
                  @ [ "" ])
                packages)))
