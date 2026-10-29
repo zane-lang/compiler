@@ -162,6 +162,20 @@ let compiled () =
       (match (keys one, keys changed) with
       | Some (k1, _), Some (k2, _) -> check "a source's key changes with its body" (k1 <> k2)
       | _ -> check "a changed C source compiles" false);
+      (* The preprocessed text keeps no column, so a module that reads its
+         column is never taken from the cache: moving the builtin along its
+         line changes what it compiles to. *)
+      let cache = Filename.concat base "cache" in
+      let cached dir =
+        match Foreign.compile_packages ~cache:(Some cache) ~cc ~target:None [ dir ] with
+        | Ok [ { Foreign.sources = [ s ]; _ } ] -> Some s.Compile.bitcode
+        | _ -> None
+      in
+      let near = package "near" "int f(void) { return __builtin_COLUMN(); }\n"
+      and far = package "far" "int f(void) { return      __builtin_COLUMN(); }\n" in
+      (match (cached near, cached far) with
+      | Some b1, Some b2 -> check "a module reading its column is compiled again when the column moves" (b1 <> b2)
+      | _ -> check "a module reading its column compiles" false);
       (* A dangling symlink, such as an editor's lock file, is no source,
          and a cache that cannot be written is no cache. *)
       let linked = package "linked" source in
@@ -253,6 +267,8 @@ let interface_header () =
          typedef struct { int x; } Foo;\n\
          struct Foo { double y; };\n\
          void both(Foo a, struct Foo b);\n\
+         struct Outer { struct { int x; } a; struct { double y; } b; struct { char c; }; };\n\
+         void outer(struct Outer o);\n\
          MAKE(made)\n";
       let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
       let table target =
@@ -290,6 +306,13 @@ let interface_header () =
             && (match (List.assoc_opt "Foo" t.I.records, List.assoc_opt "struct Foo" t.I.records) with
                | Some { I.layout = Some { fields = [ { field = "x"; _ } ]; _ }; _ }, Some { I.layout = Some { fields = [ { field = "y"; _ } ]; _ }; _ } -> true
                | _ -> false));
+          let field_of name =
+            match List.assoc_opt name t.I.records with
+            | Some { I.layout = Some { fields = [ { field; _ } ]; _ }; _ } -> field
+            | _ -> ""
+          in
+          check "unnamed records nested in a struct are each their own"
+            (field_of "struct Outer.a" = "x" && field_of "struct Outer.b" = "y" && field_of "struct Outer.#2" = "c");
           let long_size t =
             match List.assoc_opt "wide" t.I.functions with
             | Some { I.ty = I.Function { result = I.Int { size; _ }; _ }; _ } -> size
