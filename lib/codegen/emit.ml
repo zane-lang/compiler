@@ -512,6 +512,8 @@ type frame = {
   labels : (int, Llvm.llbasicblock * int) Hashtbl.t;
   arenas : (int, Llvm.llvalue) Hashtbl.t;
   mutable open_ : Llvm.llvalue list;
+  (* The open arenas that place a slot holding a foreign handle. *)
+  mutable handled : Llvm.llvalue list;
   offsets : (int, int) Hashtbl.t;
   (* The function's result type and how it comes back, and the slot it is
      written to when that is by address. *)
@@ -694,7 +696,8 @@ let enter env fr b size =
    holds no foreign handle, while its context is this thread's alone and
    drains are not checked, has nothing to wait for, end or give back but its
    frame, so the code moves the frontier back to its record itself.
-   Otherwise the runtime drains it. *)
+   Otherwise the runtime drains it. Only a scope that places a slot holding
+   a handle can hold one, so no other scope looks. *)
 let drain_scope env fr b m =
   let ptr = env.ptr in
   let null = Llvm.const_null ptr in
@@ -709,14 +712,11 @@ let drain_scope env fr b m =
       (Llvm.const_int (Llvm.i32_type env.ctx) 0)
       "" b
   in
-  let plain =
-    Llvm.build_and
-      (Llvm.build_and
-         (Llvm.build_and (empty (field env b ptr m record_tasks)) (empty (field env b ptr m record_mappings)) "" b)
-         (empty (field env b ptr m record_held))
-         "" b)
-      unchecked "" b
+  let alone = Llvm.build_and (empty (field env b ptr m record_tasks)) (empty (field env b ptr m record_mappings)) "" b in
+  let alone =
+    if List.memq m fr.handled then Llvm.build_and alone (empty (field env b ptr m record_held)) "" b else alone
   in
+  let plain = Llvm.build_and alone unchecked "" b in
   ignore (Llvm.build_cond_br plain inline runtime_ b);
   Llvm.position_at_end inline b;
   let c = field env b ptr m record_context in
@@ -1638,11 +1638,12 @@ and stat env fr b (s : Stat.t) =
       | Some v when ret <> Ty.Void -> ignore (Llvm.build_ret v b)
       | _ -> ignore (Llvm.build_ret_void b))
   | Stat.Scope { id; body } ->
-      let frame = Frames.layout fr.symbol id body in
+      let frame = Frames.layout ~handles:(Walks.holds_handle (walks env)) fr.symbol id body in
       Hashtbl.iter (Hashtbl.replace fr.offsets) frame.Frames.offsets;
       let arena = enter env fr b frame.Frames.size in
       Hashtbl.replace fr.arenas id arena;
       fr.open_ <- arena :: fr.open_;
+      if frame.Frames.handles then fr.handled <- arena :: fr.handled;
       stats env fr b body;
       if not (has_terminator b) then drain_scope env fr b arena;
       fr.open_ <- List.tl fr.open_
@@ -1835,6 +1836,7 @@ let func env (f : Func.t) =
       labels = Hashtbl.create 8;
       arenas = Hashtbl.create 4;
       open_ = [];
+      handled = [];
       offsets = Hashtbl.create 8;
       ret = a.ret;
       sret;
