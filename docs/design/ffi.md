@@ -228,7 +228,10 @@ width is less than its size, matches no primitive, full-width or narrow
 A type §3.3 refuses is reported with what it is on the target and a pointer
 to the converting C function §3.3 asks for. A C-compatible value type is compared field by field against the
 `struct`'s offsets and sizes, laid out as lowering lays the Zane type out
-([`platforms.md`](platforms.md), "64-bit targets only"). Two forms are
+([`platforms.md`](platforms.md), "64-bit targets only"), and the two must
+have the same size and alignment: a `struct` aligned more strictly than its
+fields, as `_Alignas` makes one, is passed differently by C and would sit
+in an under-aligned slot. Two forms are
 refused outright, whatever their sizes say. A function declared without a
 prototype, such as `int f();`, gives no parameter types to check, so a
 foreign verb naming one is an error; the header has to write `int f(void);`

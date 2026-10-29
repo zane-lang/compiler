@@ -37,7 +37,7 @@ fixtures.
 | `reject/handleForms` | A handle declared by `alias`, without `#`, with type parameters, or with entries it does not take |
 | `reject/handleC` | A handle's `cType`, free function and setter checked against the interface headers, including a type only an included header declares |
 | `reject/verbForms` | A generic foreign verb, a concept or block parameter, a marked parameter, a `&` result, and abort types where they are not allowed |
-| `reject/interface` | Foreign verbs checked against their C declarations: missing, the wrong count, variadic, unprototyped, other C types, `long`, structs laid out differently or with a bit-field, a list returned, and a function value whose C parameter or result is a narrow integer type |
+| `reject/interface` | Foreign verbs checked against their C declarations: missing, the wrong count, variadic, unprototyped, other C types, `long`, structs laid out differently, aligned more strictly by `_Alignas` or with a bit-field, a list returned, and a function value whose C parameter or result is a narrow integer type |
 | `reject/windowsInt` | A typedef that is 64 bits on Linux and 32 on Windows, refused in the Windows build only |
 | `reject/positions` | Handles where they may not stand, the wrong `const`, a capability returned, an outside handle made by a method that is not `mut`, a handle made both ways, and a constructor for a handle |
 | `reject/variables` | Foreign variables of the wrong type, naming a missing, undefined, thread-local or differently typed global, and one outside the root |
