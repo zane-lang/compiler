@@ -104,6 +104,8 @@ Unit main() {
 	show(String(lib$definedHere(I64(1))));
 	show(String(lib$once(I64(2))));
 	show(String(lib$useOnce()));
+	show(String(lib$primed()));
+	show(String(lib$wasWarmed()));
 	show(String(result()));
 	show(String(args(I64(21))));
 	return Unit();
