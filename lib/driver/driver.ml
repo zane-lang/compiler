@@ -170,6 +170,7 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
                   Codegen.prefix = (if root then "" else "!") ^ p.Assembly.id ^ "$%c$";
                   sources = modules f.Foreign.sources;
                   glue = modules glue;
+                  thunks = List.map (fun (t : F.t) -> t.F.thunk) entries;
                 })
             (Foreign.glue f (List.map entry entries))
       in

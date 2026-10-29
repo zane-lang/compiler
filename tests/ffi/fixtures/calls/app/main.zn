@@ -1,6 +1,8 @@
 /// Foreign verbs called (ffi.md §3): each type crossing into C and back,
 /// C's own state kept between calls, and C in two packages defining the
-/// same names, each package calling its own.
+/// same names, each package calling its own, among them a function each
+/// package's interface header defines itself. C functions named `result`
+/// and `args` are called as any other.
 package app;
 
 alias Unit = @primitives$Unit;
@@ -52,6 +54,9 @@ Unit reset() foreign "reset";
 I64 counter() foreign "counter";
 I64 helper() foreign "helper";
 I64 named() foreign "named";
+I64 definedHere(x I64) foreign "defined_here";
+I64 result() foreign "result";
+I64 args(n I64) foreign "args";
 
 Unit show(text String) {
 	@program$console!print(text);
@@ -93,5 +98,9 @@ Unit main() {
 	show(String(lib$named()));
 	show(String(lib$plus(I32(40), I32(2))));
 	show(String(lib$widen(I64(3))));
+	show(String(definedHere(I64(1))));
+	show(String(lib$definedHere(I64(1))));
+	show(String(result()));
+	show(String(args(I64(21))));
 	return Unit();
 }

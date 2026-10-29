@@ -133,6 +133,30 @@
     │   ├── calls: widen
     │   ├── params[0]: i64
     │   └── result: i64
+    ├── thunks[20] > thunk:
+    │   ├── symbol: app$definedHere(%primitives$I64).ffi
+    │   ├── package: app
+    │   ├── calls: defined_here
+    │   ├── params[0]: i64
+    │   └── result: i64
+    ├── thunks[21] > thunk:
+    │   ├── symbol: lib$definedHere(%primitives$I64).ffi
+    │   ├── package: lib
+    │   ├── calls: defined_here
+    │   ├── params[0]: i64
+    │   └── result: i64
+    ├── thunks[22] > thunk:
+    │   ├── symbol: app$result().ffi
+    │   ├── package: app
+    │   ├── calls: result
+    │   ├── params:
+    │   └── result: i64
+    ├── thunks[23] > thunk:
+    │   ├── symbol: app$args(%primitives$I64).ffi
+    │   ├── package: app
+    │   ├── calls: args
+    │   ├── params[0]: i64
+    │   └── result: i64
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -806,7 +830,91 @@
     │       │       └── body[1] > assign:
     │       │           ├── place: #100
     │       │           └── value: local #98 : handle
-    │       └── body[33] > return: unit : void
+    │       ├── body[33] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @102
+    │       │       ├── result: #103
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #101
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: app$definedHere(%primitives$I64)
+    │       │       │   │       └── args[0]: 1 : i64
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #103
+    │       │           └── value: local #101 : handle
+    │       ├── body[34] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @105
+    │       │       ├── result: #106
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #104
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: lib$definedHere(%primitives$I64)
+    │       │       │   │       └── args[0]: 1 : i64
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #106
+    │       │           └── value: local #104 : handle
+    │       ├── body[35] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @108
+    │       │       ├── result: #109
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #107
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: app$result()
+    │       │       │   │       └── args:
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #109
+    │       │           └── value: local #107 : handle
+    │       ├── body[36] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @111
+    │       │       ├── result: #112
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #110
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: app$args(%primitives$I64)
+    │       │       │   │       └── args[0]: 21 : i64
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #112
+    │       │           └── value: local #110 : handle
+    │       └── body[37] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: app$twice(%primitives$I64)
     │   ├── params[0]: local #1 : i64
@@ -997,11 +1105,43 @@
     │       ├── fn: lib$plus(%primitives$I32, %primitives$I32).ffi
     │       ├── args[0]: local #1 : i32
     │       └── args[1]: local #2 : i32
-    └── funcs[22] > func:
-        ├── symbol: lib$widen(%primitives$I64)
+    ├── funcs[22] > func:
+    │   ├── symbol: lib$widen(%primitives$I64)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: lib$widen(%primitives$I64).ffi
+    │       └── args[0]: local #1 : i64
+    ├── funcs[23] > func:
+    │   ├── symbol: app$definedHere(%primitives$I64)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: app$definedHere(%primitives$I64).ffi
+    │       └── args[0]: local #1 : i64
+    ├── funcs[24] > func:
+    │   ├── symbol: lib$definedHere(%primitives$I64)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: lib$definedHere(%primitives$I64).ffi
+    │       └── args[0]: local #1 : i64
+    ├── funcs[25] > func:
+    │   ├── symbol: app$result()
+    │   ├── params:
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: app$result().ffi
+    │       └── args:
+    └── funcs[26] > func:
+        ├── symbol: app$args(%primitives$I64)
         ├── params[0]: local #1 : i64
         ├── ret: i64
         └── body[0] > return > foreign call:
             ├── type: i64
-            ├── fn: lib$widen(%primitives$I64).ffi
+            ├── fn: app$args(%primitives$I64).ffi
             └── args[0]: local #1 : i64

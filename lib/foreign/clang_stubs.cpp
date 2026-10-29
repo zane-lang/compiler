@@ -25,6 +25,8 @@
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CrashRecoveryContext.h"
@@ -532,4 +534,30 @@ extern "C" value zane_bitcode_sections(value bitcode) {
     list = cell;
   }
   CAMLreturn(list);
+}
+
+/* Whether [bitcode]'s module holds assembly: file-scope `__asm__`, kept as
+   the module's `module asm` text, or an `__asm__` statement, kept as an
+   inline-assembly call. Either can name a symbol no global value stands
+   for, which renaming the module's globals would miss
+   (docs/design/ffi.md F9). */
+extern "C" value zane_bitcode_has_assembly(value bitcode) {
+  CAMLparam1(bitcode);
+  bool found = false;
+  {
+    llvm::LLVMContext context;
+    llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
+    llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
+    if (module) {
+      found = !(*module)->getModuleInlineAsm().empty();
+      for (const llvm::Function &f : **module)
+        for (const llvm::BasicBlock &b : f)
+          for (const llvm::Instruction &i : b)
+            if (const auto *call = llvm::dyn_cast<llvm::CallBase>(&i))
+              if (call->isInlineAsm()) found = true;
+    } else {
+      llvm::consumeError(module.takeError());
+    }
+  }
+  CAMLreturn(Val_bool(found));
 }

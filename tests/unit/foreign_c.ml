@@ -307,6 +307,25 @@ let interface_header () =
           check "long is 32 bits on Windows"
             (match table (Some "x86_64-windows-gnu") with Some w -> long_size w = 32 | None -> false))
 
+(* A function an interface header defines is compiled in the glue, and
+   one holding assembly is refused there, naming the header. *)
+let glue_assembly () =
+  let base = Filename.temp_dir "zane-glue-asm-" "" in
+  Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
+      let dir = Filename.concat base "pkg" in
+      Sys.mkdir dir 0o755;
+      let header = Filename.concat dir "api.h" in
+      write_all header "int fenced(void) { __asm__ volatile(\"\" ::: \"memory\"); return 1; }\n";
+      let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+      match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+      | Ok [ p ] -> (
+          let entry = { Foreign.Glue.label = "pkg.fenced.ffi"; c_function = "fenced"; params = []; result = Foreign.Glue.Scalar "int32_t" } in
+          match Foreign.glue p [ entry ] with
+          | Error { Foreign.diagnostics = [ { Diagnostic.location = Diagnostic.Location.File f; _ } ]; _ } ->
+              check "a header's function holding assembly is refused in its glue, naming the header" (f = header)
+          | _ -> check "a header's function holding assembly is refused in its glue" false)
+      | _ -> check "a header defining a function is read" false)
+
 let run () =
   patterns ();
   paths ();
@@ -316,4 +335,5 @@ let run () =
   mapping ();
   compiled ();
   interface_text ();
-  interface_header ()
+  interface_header ();
+  glue_assembly ()

@@ -10,7 +10,8 @@
 > program's own packages) and compiled apart in an unoptimized or tiered
 > one (F14).
 > Lowering refuses a foreign verb taking or giving a handle or a function
-> value, and a foreign variable, until F12 and F11 land. The rest is
+> value, and a foreign variable, until F12 and F11 land, and a package's
+> C holding assembly is refused until F9's object route for it lands. The rest is
 > designed and not yet built. This page says how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
@@ -277,12 +278,15 @@ that declares its C function. The glue holds:
   trivially:
 
   ```c
-  void thunk(void *const *args, void *result) {
-      *(int64_t *)result = zane_crc32(*(const int64_t *)args[0], *(const zane_bytes *)args[1]);
+  void thunk(void *const *__zane_args, void *__zane_result) {
+      *(int64_t *)__zane_result = zane_crc32(*(const int64_t *)__zane_args[0], *(const zane_bytes *)__zane_args[1]);
   }
   ```
 
-  Each `args[i]` points to an argument already laid out as C lays out its
+  Every identifier the glue declares begins `__zane_`, a name C reserves
+  to the implementation, so none hides a function the header declares,
+  as a parameter `result` would hide a C function `result`. Each
+  `__zane_args[i]` points to an argument already laid out as C lays out its
   type. The thunk does the conversions of `ffi.md` §3.3 as C casts: an
   `@primitives$I32` passed to a `uint8_t` keeps its low bits, a returned
   `int16_t` widens by its sign.
@@ -306,7 +310,7 @@ optimized call into C is a direct call with the target's own convention.
 
 **F9. A package's C globals are renamed before its module is linked.** Once a
 package's C modules and glue are linked into one, every global value it
-defines with external linkage, except the glue's own entries, is renamed
+defines with external linkage, except the glue's thunks, is renamed
 to the package's
 symbol with `%c$` and its C name after it: `!zlib$%c$deflate` in a
 library, `viewer$%c$deflate` in a program. Renaming a global in its module
@@ -322,7 +326,10 @@ placeholder like any other (`separate-compilation.md` C9). A name holding
 `%c$` cannot be a Zane symbol, since no package name starts with `%`.
 The glue's entries (F8, F11) keep their names, which lowering's calls
 already use: they are derived from Zane symbols, so they carry the
-package's placeholder and cannot meet another package's.
+package's placeholder and cannot meet another package's. They are found
+by their labels, not as whatever the glue defines: a function an interface
+header defines is compiled into the glue too, and is renamed as the
+sources' functions are.
 
 An `archive` row's members are renamed through the object rewriter that
 stamps placeholders (C9). The set of symbols the package's archives define

@@ -14,7 +14,7 @@ per line, is what it is built with besides.
 
 | Fixture | What it shows |
 |---|---|
-| `calls` | Foreign verbs called, each crossing into C and back: integers, a narrow C integer, `F32`, `Bool` both ways, `Unit`, a string in and one out, an array, a list, value types with and without padding, and C state kept between calls; and two packages whose C defines the same function, variable and alias names, each calling its own, one through a header that includes nothing, not even `<stdint.h>` |
+| `calls` | Foreign verbs called, each crossing into C and back: integers, a narrow C integer, `F32`, `Bool` both ways, `Unit`, a string in and one out, an array, a list, value types with and without padding, and C state kept between calls; and two packages whose C defines the same function, variable and alias names, each calling its own, one through a header that includes nothing, not even `<stdint.h>`, and a function each package's interface header defines itself; and C functions named `result` and `args`, which the glue's own names do not hide |
 | `declarations` | Every declaration semantics accepts: a foreign verb of each boundary type (scalars and narrow C integers, `Bool`, `Unit`, a string in and out, an array, a list, C-compatible value types, among them a struct tag and a typedef of the same name, a function value), a handle whose `cType` is a bare struct tag, a data handle with a setter overwritten where it is settled, a capability from a foreign variable, and an outside handle made, passed, and overwritten where it roams |
 | `vendored` | A `c.coda` whose rows apply in order: a `source` pattern over a vendored tree (skipping a file that is not C), an `include` directory, a `define`, and a `define` for another target that does not apply |
 | `reject/handleForms` | A handle declared by `alias`, without `#`, with type parameters, or with entries it does not take |
@@ -34,4 +34,5 @@ per line, is what it is built with besides.
 | `reject/fixedMacro` | A `define` of a macro the fixed flags set |
 | `reject/noMatch` | A `source` pattern that matches no file |
 | `reject/linkerSet` | C placing globals in sections named as C identifiers, linker sets, each refused, beside one in a section that is not |
+| `reject/assembly` | C holding assembly, an `__asm__` statement in a function and file-scope `__asm__`, each refused until F9 routes it as an object |
 | `reject/notCoda` | A `c.coda` that is not Coda, reported where the parser stopped |

@@ -4,9 +4,15 @@
     failed -- and are messages, not diagnostics. *)
 
 (** One package's C code for the program (docs/design/ffi.md F9): the
-    prefix its globals are renamed with, and its sources' and its glue's
-    modules, each as bitcode with the hash the cache keys it by. *)
-type c_package = { prefix : string; sources : (string * string) list; glue : (string * string) list }
+    prefix its globals are renamed with, its sources' and its glue's
+    modules, each as bitcode with the hash the cache keys it by, and the
+    symbols of the thunks its glue defines, which keep their names. *)
+type c_package = {
+  prefix : string;
+  sources : (string * string) list;
+  glue : (string * string) list;
+  thunks : string list;
+}
 
 (** [f] run on the program's module for [target], the host when it is
     absent, with that target's triple and data layout. The module and its

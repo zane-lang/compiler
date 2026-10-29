@@ -102,6 +102,23 @@ let linker_sets (source : Compile.source) =
           sources = [];
         }
 
+(* A module holding assembly, which can name a symbol no global value
+   stands for, so renaming the module's globals would leave it on the old
+   name (docs/design/ffi.md F9). [file] is what the diagnostic names: the
+   source, or the interface header a glue file includes. *)
+let assembly ~file (source : Compile.source) =
+  if Clang.has_assembly source.Compile.bitcode then
+    Error
+      {
+        diagnostics =
+          [
+            Diagnostic.in_file file
+              "this C holds assembly, which the compiler does not rename yet, so it would keep names another version of the package shares (docs/design/ffi.md F9)";
+          ];
+        sources = [];
+      }
+  else Ok source
+
 (* One package's C: its interface headers read and its sources compiled,
    with the [fixed] flags and its own. *)
 let compile_package ?cache ~fixed ~headers (dir, rows, sources) =
@@ -117,7 +134,9 @@ let compile_package ?cache ~fixed ~headers (dir, rows, sources) =
   let compiled =
     combine
       (List.map
-         (fun s -> Result.bind (Compile.compile_source ?cache ~maps flags (Filename.concat dir s)) linker_sets)
+         (fun s ->
+           let path = Filename.concat dir s in
+           Result.bind (Result.bind (Compile.compile_source ?cache ~maps flags path) linker_sets) (assembly ~file:path))
          sources)
   in
   let defined (sources : Compile.source list) = List.concat_map (fun (s : Compile.source) -> Clang.defined_variables s.bitcode) sources in
@@ -190,5 +209,5 @@ let glue p (entries : Glue.entry list) =
              (fun (header, text) ->
                let path = Filename.concat work (Filename.remove_extension (Filename.basename header) ^ ".glue.c") in
                Out_channel.with_open_bin path (fun oc -> output_string oc text);
-               Compile.compile_source ?cache:p.cache ~maps flags path)
+               Result.bind (Compile.compile_source ?cache:p.cache ~maps flags path) (assembly ~file:header))
              files))

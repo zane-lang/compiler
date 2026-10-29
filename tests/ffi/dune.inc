@@ -173,6 +173,20 @@
   (diff golden/reject.absolute.err reject.absolute.err.actual)))
 
 (rule
+ (deps (source_tree fixtures/reject/assembly))
+ (action
+  (with-stderr-to
+   reject.assembly.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/assembly)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.assembly.err reject.assembly.err.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/badHeader))
  (action
   (with-stderr-to

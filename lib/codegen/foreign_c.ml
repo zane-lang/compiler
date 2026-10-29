@@ -7,8 +7,16 @@
 
 (* One package's C: the prefix its renamed globals take, its sources'
    modules and its glue's, each as bitcode with the hash the cache keys it
-   by. *)
-type package = { prefix : string; sources : (string * string) list; glue : (string * string) list }
+   by, and the symbols of the thunks the glue defines, after the target's
+   global prefix. A thunk keeps its name, which is already the package's;
+   any other function the glue defines, as an interface header's own
+   definition, is renamed as the sources' are. *)
+type package = {
+  prefix : string;
+  sources : (string * string) list;
+  glue : (string * string) list;
+  thunks : string list;
+}
 
 external rename : Llvm.llmodule -> string -> string -> string list -> unit = "zane_rename_c_globals"
 
@@ -20,10 +28,6 @@ let parse ctx text =
     (fun () ->
       try Llvm_bitreader.parse_bitcode ctx buffer
       with Llvm_bitreader.Error message -> Diagnostic.bug ("a C module the linked clang made does not read back: " ^ message))
-
-(* The functions [m] defines. *)
-let defined m =
-  Llvm.fold_left_functions (fun acc f -> if Llvm.is_declaration f then acc else Llvm.value_name f :: acc) [] m
 
 (* [modules] linked into the first, for [triple] and [data_layout]. *)
 let linked ~triple ~data_layout = function
@@ -40,11 +44,10 @@ let linked ~triple ~data_layout = function
 (* One package's C as one module, its globals renamed, in [ctx]. *)
 let package_module ctx ~triple ~data_layout p =
   let glue = List.map (fun (_, bc) -> parse ctx bc) p.glue in
-  let entries = List.concat_map defined glue in
   let sources = List.map (fun (_, bc) -> parse ctx bc) p.sources in
   Option.map
     (fun m ->
-      rename m p.prefix (Emit.global_prefix data_layout) entries;
+      rename m p.prefix (Emit.global_prefix data_layout) p.thunks;
       m)
     (linked ~triple ~data_layout (sources @ glue))
 

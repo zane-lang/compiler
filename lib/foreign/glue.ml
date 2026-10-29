@@ -8,7 +8,10 @@
    of slots holding its arguments, each laid out as C lays out its type,
    and of a slot for the result, and does the call with the conversions
    of spec ffi.md §3.3 as C casts. It is named by an `__asm__` label, its
-   foreign verb's symbol, which is no C identifier. Each file is compiled
+   foreign verb's symbol, which is no C identifier. Every identifier the
+   glue declares itself begins `__zane_`, which C reserves to the
+   implementation, so none hides a function of the header, as a parameter
+   named `result` would hide a C function `result`. Each file is compiled
    as the package's sources are, with its settings, and kept in the cache
    alike. *)
 
@@ -39,28 +42,28 @@ let escaped s =
 let thunk n (e : entry) (f : C_interface.func) =
   let b = Buffer.create 256 in
   let line fmt = Printf.ksprintf (fun s -> Buffer.add_string b s; Buffer.add_char b '\n') fmt in
-  let name = Printf.sprintf "zane_thunk_%d" n in
-  line "void %s(void *const *args, void *result) __asm__(\"%s\");" name (escaped e.label);
-  line "void %s(void *const *args, void *result) {" name;
-  List.iteri (fun i s -> line "  typedef __typeof__(%s) zane_p%d;" s i) f.C_interface.spelled;
+  let name = Printf.sprintf "__zane_thunk_%d" n in
+  line "void %s(void *const *__zane_args, void *__zane_result) __asm__(\"%s\");" name (escaped e.label);
+  line "void %s(void *const *__zane_args, void *__zane_result) {" name;
+  List.iteri (fun i s -> line "  typedef __typeof__(%s) __zane_p%d;" s i) f.C_interface.spelled;
   let arg i = function
-    | Scalar c -> Printf.sprintf "(zane_p%d)*(const %s *)args[%d]" i c i
-    | Bool -> Printf.sprintf "(zane_p%d)(*(const unsigned char *)args[%d] & 1)" i i
-    | Same | Unit -> Printf.sprintf "*(const zane_p%d *)args[%d]" i i
+    | Scalar c -> Printf.sprintf "(__zane_p%d)*(const %s *)__zane_args[%d]" i c i
+    | Bool -> Printf.sprintf "(__zane_p%d)(*(const unsigned char *)__zane_args[%d] & 1)" i i
+    | Same | Unit -> Printf.sprintf "*(const __zane_p%d *)__zane_args[%d]" i i
   in
   let call = Printf.sprintf "%s(%s)" e.c_function (String.concat ", " (List.mapi arg e.params)) in
   (match e.result with
-  | Unit -> line "  (void)result;"
+  | Unit -> line "  (void)__zane_result;"
   | _ -> ());
-  if e.params = [] then line "  (void)args;";
+  if e.params = [] then line "  (void)__zane_args;";
   (match e.result with
   | Unit -> line "  %s;" call
-  | Scalar c -> line "  *(%s *)result = (%s)%s;" c c call
-  | Bool -> line "  *(unsigned char *)result = (unsigned char)(%s != 0);" call
+  | Scalar c -> line "  *(%s *)__zane_result = (%s)%s;" c c call
+  | Bool -> line "  *(unsigned char *)__zane_result = (unsigned char)(%s != 0);" call
   | Same ->
-      line "  typedef __typeof__(%s) zane_r;" f.C_interface.spelled_result;
-      line "  zane_r value = %s;" call;
-      line "  __builtin_memcpy(result, &value, sizeof value);");
+      line "  typedef __typeof__(%s) __zane_r;" f.C_interface.spelled_result;
+      line "  __zane_r __zane_value = %s;" call;
+      line "  __builtin_memcpy(__zane_result, &__zane_value, sizeof __zane_value);");
   line "}";
   Buffer.contents b
 

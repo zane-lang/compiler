@@ -155,7 +155,12 @@ let target_cpu ?target () =
 
 let c_compiler = Build.cc
 
-type c_package = Foreign_c.package = { prefix : string; sources : (string * string) list; glue : (string * string) list }
+type c_package = Foreign_c.package = {
+  prefix : string;
+  sources : (string * string) list;
+  glue : (string * string) list;
+  thunks : string list;
+}
 
 let global_prefix ?target () =
   Result.map

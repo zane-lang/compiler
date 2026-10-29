@@ -1,0 +1,4 @@
+File "fixtures/reject/assembly/file.c":
+Error: this C holds assembly, which the compiler does not rename yet, so it would keep names another version of the package shares (docs/design/ffi.md F9)
+File "fixtures/reject/assembly/statement.c":
+Error: this C holds assembly, which the compiler does not rename yet, so it would keep names another version of the package shares (docs/design/ffi.md F9)
