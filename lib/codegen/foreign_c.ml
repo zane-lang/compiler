@@ -56,10 +56,11 @@ let program_module ctx ~triple ~data_layout packages =
   linked ~triple ~data_layout (List.filter_map (package_module ctx ~triple ~data_layout) packages)
 
 (* What the object an unoptimized build emits for the C is kept under: the
-   packages' prefixes and the hashes of their modules, for [triple]. *)
-let key ~triple packages =
+   packages' prefixes and the hashes of their modules, for [triple], from
+   the compiler [compiler] names, whose renaming and passes made it. *)
+let key ~triple ~compiler packages =
   Digest.to_hex
     (Digest.string
        (String.concat "\000"
-          ("c-object" :: triple
+          ("c-object" :: triple :: compiler
           :: List.concat_map (fun p -> p.prefix :: List.map fst (p.sources @ p.glue) @ [ "" ]) packages)))

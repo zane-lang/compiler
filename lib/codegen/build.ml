@@ -962,6 +962,14 @@ let emit_c tm c dir kept =
           (try Cache.keep ~random:(Random.State.make_self_init ()) ~object_:fresh ~kept with Sys_error _ -> ());
           Ok (Some (if Sys.file_exists kept then kept else fresh)))
 
+(* The compiler itself, as the cache tells one build of it from another:
+   the file that runs, its size and when it last changed. *)
+let compiler_identity () =
+  let path = Sys.executable_name in
+  match Unix.stat path with
+  | stat -> String.concat "\000" [ path; string_of_int stat.Unix.st_size; Printf.sprintf "%h" stat.Unix.st_mtime ]
+  | exception Unix.Unix_error _ -> path
+
 (* The object an unoptimized executable links the C attached to [m] from
    (docs/design/ffi.md F14): the C optimized on its own and emitted with
    the optimized code generator, kept in [cache]'s `foreign/object/` under
@@ -973,9 +981,8 @@ let c_object ?target ?cache m dir =
   | Some packages -> (
       detach m;
       let triple = Llvm.target_triple m in
-      let kept =
-        Option.map (fun c -> List.fold_left Filename.concat c [ "foreign"; "object"; Foreign_c.key ~triple packages ^ ".o" ]) cache
-      in
+      let key = Foreign_c.key ~triple ~compiler:(compiler_identity ()) packages in
+      let kept = Option.map (fun c -> List.fold_left Filename.concat c [ "foreign"; "object"; key ^ ".o" ]) cache in
       match kept with
       | Some kept when Sys.file_exists kept -> Ok (Some kept)
       | _ -> (
@@ -1031,14 +1038,6 @@ let executable ?target ?(optimize = false) ?tier ?(link = []) ?(bundled = bundle
 (* How many tier-1 libraries the cache keeps: the newest, so an edit loop
    does not fill the disk with every version it built. *)
 let kept_tiers = 32
-
-(* The compiler itself, as the cache tells one build of it from another:
-   the file that runs, its size and when it last changed. *)
-let compiler_identity () =
-  let path = Sys.executable_name in
-  match Unix.stat path with
-  | stat -> String.concat "\000" [ path; string_of_int stat.Unix.st_size; Printf.sprintf "%h" stat.Unix.st_mtime ]
-  | exception Unix.Unix_error _ -> path
 
 (* The oldest of [dir]'s files removed until [keep] are left. *)
 let trim dir keep =

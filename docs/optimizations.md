@@ -360,16 +360,16 @@ to another's.
 
 ### A package's C optimized apart in unoptimized builds
 
-- **Builds:** unoptimized only, and both tiers of a tiered build
+- **Builds:** unoptimized only, and a tiered build's tier 0
 - **Where:** `lib/codegen/build.ml`
 - **Design:** [`design/ffi.md`](design/ffi.md) F14
 - **Effect:** not measured
 
 An unoptimized executable still runs its C optimized: the C modules and
 glue are linked into a module of their own, run through `-O2` and emitted
-as an object, which the cache keeps under a hash of the target and each
-source's own key (F3), so a rebuild that changes only Zane emits none of
-it again. The Zane module stays unoptimized and calls the thunks. A
+as an object, which the cache keeps under a hash of the target, the
+compiler and each source's own key (F3), so a rebuild that changes only
+Zane emits none of it again. The Zane module stays unoptimized and calls the thunks. A
 tiered build's tier 0 links the same object, and tier 1 calls its thunks
 through tier 0.
 
