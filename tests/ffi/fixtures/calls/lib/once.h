@@ -8,6 +8,10 @@ long long once_starts = 0;
 __attribute__((constructor)) static void once_start(void) { once_starts++; }
 long long once_started(void) { return once_starts; }
 
+static long long once_state;
+__attribute__((constructor)) static void once_set(void) { once_state = 9; }
+static inline long long once_value(void) { return once_state; }
+
 #ifdef __APPLE__
 long long once_alias(long long x) { return once(x); }
 #else
