@@ -146,7 +146,7 @@ let compile_all ?cache ~work ~cc ~triple ~target packages =
     | Some c -> ( try (Compile.headers (Filename.concat c "foreign"), Some c) with Sys_error _ -> (Compile.headers work, None))
     | None -> (Compile.headers work, None)
   in
-  match Probe.include_dirs ?cache ~dir:work ~cc target with
+  match Probe.include_dirs ?cache ~dir:work ~cc ~triple target with
   | Error message -> Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] }
   | Ok include_dirs ->
       let fixed = Compile.fixed_flags ~triple ~headers ~include_dirs in
