@@ -30,6 +30,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CrashRecoveryContext.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
@@ -195,11 +196,27 @@ public:
   /* A struct's identity, as C spells its type: `struct` or `union` and its
      tag, or the typedef that names an anonymous one. A tag and a typedef
      name are in separate namespaces, so `struct Foo` and the anonymous
-     struct a typedef `Foo` names are two records. */
+     struct a typedef `Foo` names are two records. An anonymous one with
+     neither is named for where it is declared: the record and field that
+     hold it, `struct Outer.a` (the field's position, `struct Outer.#0`,
+     when the field has no name), or else its file, line and column. */
   static std::string record_name(const clang::RecordDecl *d) {
     if (d->getIdentifier()) return (d->isUnion() ? "union " : "struct ") + d->getName().str();
     if (const clang::TypedefNameDecl *t = d->getTypedefNameForAnonDecl()) return t->getName().str();
-    return "";
+    if (const auto *outer = llvm::dyn_cast<clang::RecordDecl>(d->getDeclContext())) {
+      unsigned i = 0;
+      for (const clang::FieldDecl *f : outer->fields()) {
+        const clang::RecordDecl *held = f->getType()->getBaseElementTypeUnsafe()->getAsRecordDecl();
+        if (held && held->getCanonicalDecl() == d->getCanonicalDecl())
+          return record_name(outer) + "." + (f->getName().empty() ? "#" + std::to_string(i) : f->getName().str());
+        i++;
+      }
+    }
+    const clang::SourceManager &sm = d->getASTContext().getSourceManager();
+    clang::PresumedLoc at = sm.getPresumedLoc(sm.getExpansionLoc(d->getLocation()));
+    if (at.isInvalid()) return "";
+    return std::string(d->isUnion() ? "union" : "struct") + " at " + llvm::sys::path::filename(at.getFilename()).str() + ":" +
+           std::to_string(at.getLine()) + ":" + std::to_string(at.getColumn());
   }
 
   /* The standard name an integer type was written through, if any: the
