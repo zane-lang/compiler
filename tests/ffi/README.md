@@ -10,7 +10,7 @@ per line, is what it is built with besides.
 
 | Fixture | What it shows |
 |---|---|
-| `declarations` | Every declaration semantics accepts: a foreign verb of each boundary type (scalars and narrow C integers, `Bool`, `Unit`, a string in and out, an array, a list, C-compatible value types, a function value), a data handle with a setter overwritten where it is settled, a capability from a foreign variable, and an outside handle made, passed, and overwritten where it roams |
+| `declarations` | Every declaration semantics accepts: a foreign verb of each boundary type (scalars and narrow C integers, `Bool`, `Unit`, a string in and out, an array, a list, C-compatible value types, among them a struct tag and a typedef of the same name, a function value), a handle whose `cType` is a bare struct tag, a data handle with a setter overwritten where it is settled, a capability from a foreign variable, and an outside handle made, passed, and overwritten where it roams |
 | `vendored` | A `c.coda` whose rows apply in order: a `source` pattern over a vendored tree (skipping a file that is not C), an `include` directory, a `define`, and a `define` for another target that does not apply |
 | `reject/handleForms` | A handle declared by `alias`, without `#`, with type parameters, or with entries it does not take |
 | `reject/handleC` | A handle's `cType`, free function and setter checked against the interface headers, including a type only an included header declares |
