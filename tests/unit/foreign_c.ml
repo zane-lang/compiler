@@ -398,6 +398,30 @@ let glue_paths () =
         | Ok [ p ] -> ( match Foreign.glue p [ entry ] with Ok [ _ ] -> true | _ -> false)
         | _ -> false))
 
+(* A function one interface header declares without a prototype and a
+   later one with it has its thunk in the later header's glue, where the
+   prototype is in scope. *)
+let glue_prototypes () =
+  let base = Filename.temp_dir "zane-glue-" "" in
+  Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
+      let dir = Filename.concat base "pkg" in
+      Sys.mkdir dir 0o755;
+      write_all (Filename.concat dir "a.h") "int twice();\n";
+      write_all (Filename.concat dir "b.h") "int twice(int);\n";
+      let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+      let entry =
+        {
+          Foreign.Glue.label = "pkg.twice.ffi";
+          c_function = "twice";
+          params = [ Foreign.Glue.Scalar "int32_t" ];
+          result = Foreign.Glue.Scalar "int32_t";
+        }
+      in
+      check "a function prototyped by a later header has its thunk in that header's glue"
+        (match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        | Ok [ p ] -> ( match Foreign.glue p [ entry ] with Ok [ _ ] -> true | _ -> false)
+        | _ -> false))
+
 let run () =
   patterns ();
   paths ();
@@ -409,4 +433,5 @@ let run () =
   interface_text ();
   interface_header ();
   glue_refusals ();
-  glue_paths ()
+  glue_paths ();
+  glue_prototypes ()
