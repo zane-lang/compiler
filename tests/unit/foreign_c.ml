@@ -168,13 +168,17 @@ let compiled () =
       let cache = Filename.concat base "cache" in
       let cached dir =
         match Foreign.compile_packages ~cache:(Some cache) ~cc ~target:None [ dir ] with
-        | Ok [ { Foreign.sources = [ s ]; _ } ] -> Some s.Compile.bitcode
+        | Ok [ { Foreign.sources = [ s ]; _ } ] -> Some (s.Compile.bitcode, s.Compile.key)
         | _ -> None
       in
       let near = package "near" "int f(void) { return __builtin_COLUMN(); }\n"
       and far = package "far" "int f(void) { return      __builtin_COLUMN(); }\n" in
       (match (cached near, cached far) with
-      | Some b1, Some b2 -> check "a module reading its column is compiled again when the column moves" (b1 <> b2)
+      | Some (b1, k1), Some (b2, k2) ->
+          check "a module reading its column is compiled again when the column moves" (b1 <> b2);
+          (* Its key is what it compiled to, so what is kept under keys
+             built from it, an unoptimized build's C object, moves too. *)
+          check "a module reading its column is keyed by what it compiled to" (k1 <> k2)
       | _ -> check "a module reading its column compiles" false);
       (* Nor does it keep the line of a token inside a macro argument that
          spans lines: both of these preprocess to the same text, so a
@@ -182,7 +186,9 @@ let compiled () =
       let early = package "early" "#define I(x) x\nint f(void) { return I(\n__builtin_LINE()); }\n\n\nint g;\n"
       and late = package "late" "#define I(x) x\nint f(void) { return I(\n\n\n__builtin_LINE()); }\nint g;\n" in
       (match (cached early, cached late) with
-      | Some b1, Some b2 -> check "a module reading its line is compiled again when the line moves" (b1 <> b2)
+      | Some (b1, k1), Some (b2, k2) ->
+          check "a module reading its line is compiled again when the line moves" (b1 <> b2);
+          check "a module reading its line is keyed by what it compiled to" (k1 <> k2)
       | _ -> check "a module reading its line compiles" false);
       (* A dangling symlink, such as an editor's lock file, is no source,
          and a cache that cannot be written is no cache. *)

@@ -218,5 +218,8 @@ let compile_source ?cache ~maps flags path =
           Option.iter
             (fun kept -> Cache.keep_string ~dir:(Filename.dirname kept) ~kept compiled.output)
             kept;
+          (* A module compiled every time is keyed by what it compiled
+             to, so nothing kept under its key outlives a change. *)
+          let key = if placed then Digest.to_hex (Digest.string compiled.output) else key in
           Ok { path; bitcode = compiled.output; key }
         end
