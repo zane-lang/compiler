@@ -123,7 +123,8 @@ reservation, decommitted with `VirtualFree(MEM_DECOMMIT)` when it turns
 cold, and released with its whole reservation
 ([`lowering.md`](lowering.md) §9), a context's range of frames and a list's
 growing oversized span are reserved with
-`VirtualAlloc(MEM_RESERVE)` and made usable with `MEM_COMMIT`, the range
+`VirtualAlloc(MEM_RESERVE)` and made usable with `MEM_COMMIT`, a span a
+list has moved out of is decommitted with `MEM_DECOMMIT`, the range
 from a vectored exception handler, which also reports a full machine stack
 (`EXCEPTION_STACK_OVERFLOW`), winpthreads counts the processors, stdout
 and stderr are set to binary mode, so a program writes `\n` and not `\r\n`,

@@ -817,7 +817,10 @@ test passing.
   more of it usable instead of moving the elements. Where the system will
   not reserve that much, as under a cap on the address space, the
   reservation is the span alone, and a list that outgrows its reservation
-  moves into a fresh one. A push is inline: while the block has room, the
+  moves into a fresh one. The span it leaves gives its pages back to the
+  system a chunk at a time as the elements are copied out, all but the
+  first, which holds its mapping's header, and goes to no stack; its
+  addresses stay with the region until it drains. A push is inline: while the block has room, the
   emitted code takes the element's address and counts it itself, and only a
   full block calls `zane_list_push`, which grows it. An empty list's first
   block, of 128 bytes, is made inline too, in a function with a scope of its

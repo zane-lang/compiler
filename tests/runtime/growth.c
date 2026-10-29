@@ -3,7 +3,9 @@
    doubling makes more of it usable rather than moving the elements. An
    oversized block made without one, by a copy, moves into one at its next
    doubling. Where the reservation cannot be made, the block is reserved
-   alone and each doubling moves it, as a smaller block's does. */
+   alone and each doubling moves it, as a smaller block's does. A block
+   moved out of gives its memory back, so a list never holds its old
+   elements' bytes beside its new ones. */
 
 #include "walks.h"
 
@@ -22,10 +24,16 @@
 #include <sys/wait.h>
 #endif
 
+#ifdef __linux__
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
+
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
-/* The elements that fill 1 MiB, the first oversized size, and 32 MiB. */
-enum { SMALL = 1 << 17, LARGE = 1 << 22 };
+/* The elements that fill 1 MiB, the first oversized size, 32 MiB, and
+   64 MiB, the most the first oversized block's reservation holds. */
+enum { SMALL = 1 << 17, LARGE = 1 << 22, FULL = 1 << 23 };
 
 static void fill(zane_list *list, int64_t to) {
 	for (int64_t i = list->count + 1; i <= to; i++) *(int64_t *)zane_list_push(list, sizeof(int64_t)) = i;
@@ -78,6 +86,38 @@ static void exercise_copy(void) {
 	check(zane_blocks() == 0);
 }
 
+#ifdef __linux__
+/* Whether none of the pages from `at`, `bytes` long, is in memory. */
+static int given_back(char *at, size_t bytes) {
+	size_t page = (size_t)sysconf(_SC_PAGESIZE), pages = bytes / page;
+	unsigned char *resident = malloc(pages);
+	if (!resident || mincore(at, pages * page, resident) != 0) return 0;
+	int none = 1;
+	for (size_t i = 0; i < pages; i++)
+		if (resident[i] & 1) none = 0;
+	free(resident);
+	return none;
+}
+
+/* A list that outgrows its block's reservation moves into a new one, and
+   the pages of the block it left, all but the first, which holds the
+   block's header, are given back at once rather than when its scope
+   drains. */
+static void exercise_move_out(void) {
+	zane_mark *scope = zane_scope_enter(0);
+	zane_list *list = new_list(scope);
+	fill(list, FULL);
+	char *block = list->items;
+	size_t page = (size_t)sysconf(_SC_PAGESIZE);
+	char *header = block - ZANE_LINE;
+	fill(list, FULL + 1);
+	check(list->items != block && intact(list, FULL + 1));
+	check(given_back(header + page, (size_t)FULL * 8 + ZANE_LINE - page));
+	zane_scope_drain(scope);
+	check(zane_blocks() == 0);
+}
+#endif
+
 #if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 /* With too few addresses for a reservation, the block still grows, by
    moving. The child's limit leaves room for the main context's range and
@@ -108,6 +148,13 @@ static int without_reservation(void) {
 void zane_main(void) {
 	exercise_in_place();
 	exercise_copy();
+#ifdef __linux__
+	exercise_move_out();
+#else
+	check(1);
+	check(1);
+	check(1);
+#endif
 #if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 	check(without_reservation());
 #else

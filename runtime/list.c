@@ -27,10 +27,38 @@ void zane_list_new(zane_list *out) { *out = (zane_list){ NULL, 0, 0 }; }
    otherwise moves into an oversized block of its own with a reservation
    that does. Nothing references an element, which is roaming (memory.md
    §2.8.1), and the blocks the elements own stay where they are, so a move
-   copies their bytes and nothing else. Out of line, so the push the
-   program makes stays small. */
+   copies their bytes and nothing else. An oversized block moved out of
+   gives its memory back as the move goes (zane_list_move_out), so the
+   list never holds both blocks' bytes at once. Out of line, so the push
+   the program makes stays small. */
 static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride)
 	__attribute__((noinline));
+
+/* An oversized block's first `bytes` copied to `items`, a chunk at a time,
+   each of its pages given back to the system once its bytes are copied, and
+   the rest of it after the last. Its first page holds its mapping's header,
+   which stays until its region drains and gives back its addresses
+   (arena.c). Nothing takes the block again, so its region counts it no
+   longer. */
+static void zane_list_move_out(zane_mark *region, char *items, char *block, int64_t bytes) {
+	zane_mapping *m = (zane_mapping *)(block - ZANE_LINE);
+	uintptr_t page = zane_page_bytes();
+	char *given = (char *)m + page;
+	for (int64_t at = 0; at < bytes; at += ZANE_CHUNK) {
+		int64_t n = bytes - at < ZANE_CHUNK ? bytes - at : ZANE_CHUNK;
+		memcpy(items + at, block + at, (size_t)n);
+		char *copied = (char *)((uintptr_t)(block + at + n) & ~(page - 1));
+		if (copied > given) {
+			zane_decommit_range(given, (size_t)(copied - given));
+			given = copied;
+		}
+	}
+	char *end = (char *)m + m->size;
+	if (end > given) zane_decommit_range(given, (size_t)(end - given));
+	zane_lock(region->context);
+	region->heap.live--;
+	zane_unlock(region->context);
+}
 
 static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 	int64_t room = list->room ? list->room * 2 : 128;
@@ -69,8 +97,12 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 		items = zane_alloc_held(region, room, ZANE_LINE);
 		zane_unlock(region->context);
 	}
-	if (list->count) memcpy(items, list->items, (size_t)(list->count * stride));
-	if (list->room) zane_free(list->items, list->room, ZANE_LINE);
+	if (list->room > ZANE_CHUNK - ZANE_LINE) {
+		zane_list_move_out(region, items, list->items, list->count * stride);
+	} else {
+		if (list->count) memcpy(items, list->items, (size_t)(list->count * stride));
+		if (list->room) zane_free(list->items, list->room, ZANE_LINE);
+	}
 	list->items = items;
 	list->room = room;
 }
