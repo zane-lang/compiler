@@ -72,7 +72,16 @@ let mapping () =
   let maps = [ ("/home/a/zlib", "/zane/pkg"); ("/home/a/zlib/x", "/zane/other") ] in
   check "the longest directory is mapped first"
     (Compile.mapped maps "# 1 \"/home/a/zlib/x/y.h\"\n# 2 \"/home/a/zlib/z.h\""
-    = "# 1 \"/zane/other/y.h\"\n# 2 \"/zane/pkg/z.h\"")
+    = "# 1 \"/zane/other/y.h\"\n# 2 \"/zane/pkg/z.h\"");
+  (* Only a path is mapped: a package directory named like an identifier
+     leaves the source text, and a `-D` value, as written. *)
+  let maps = [ ("foo", "/zane/pkg") ] in
+  check "a line marker's file is mapped and the code is not"
+    (Compile.mapped maps "# 1 \"foo/a.c\"\nfoo f(void) { return \"foo\"; }\n# 3 \"food/b.h\""
+    = "# 1 \"/zane/pkg/a.c\"\nfoo f(void) { return \"foo\"; }\n# 3 \"food/b.h\"");
+  check "a path argument is mapped and a definition is not"
+    (List.map (Compile.mapped_arg maps) [ "-Ifoo/inc"; "-I"; "foo/inc"; "-Dfoo=1"; "foo/a.c"; "-ffile-prefix-map=foo=/zane/pkg" ]
+    = [ "-I/zane/pkg/inc"; "-I"; "/zane/pkg/inc"; "-Dfoo=1"; "/zane/pkg/a.c"; "-ffile-prefix-map=/zane/pkg=/zane/pkg" ])
 
 (* A package with one C source compiled twice from two directories: the
    bitcode is the same, so the key is, a change to its body changes the key,

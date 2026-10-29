@@ -95,30 +95,59 @@ let prefix_maps ~dir ~headers = [ (dir, "/zane/pkg"); (headers.root, "/zane/cach
 
 let map_flags maps = List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ "=" ^ to_) maps
 
-(* [text] with every occurrence of each mapped directory replaced by its
-   fixed name, longest first, so the hash reads the paths as `__FILE__`
-   does. *)
-let mapped maps text =
-  let replace text (from, to_) =
-    if from = "" then text
-    else
-      let n = String.length from in
-      let b = Buffer.create (String.length text) in
-      let rec go i =
-        if i > String.length text - n then Buffer.add_string b (String.sub text i (String.length text - i))
-        else if String.sub text i n = from then begin
-          Buffer.add_string b to_;
-          go (i + n)
-        end
-        else begin
-          Buffer.add_char b text.[i];
-          go (i + 1)
-        end
-      in
-      go 0;
-      Buffer.contents b
+(* [path] with the longest mapped directory it starts with replaced by its
+   fixed name. A directory is a prefix only up to a separator, so `inc`
+   does not map `include`. *)
+let mapped_path maps path =
+  let starts (from, _) =
+    let n = String.length from in
+    from <> "" && String.starts_with ~prefix:from path
+    && (String.length path = n || path.[n] = '/' || path.[n] = '=')
   in
-  List.fold_left replace text (List.sort (fun (a, _) (b, _) -> compare (String.length b) (String.length a)) maps)
+  let longest = List.sort (fun (a, _) (b, _) -> compare (String.length b) (String.length a)) maps in
+  match List.find_opt starts longest with
+  | Some (from, to_) ->
+      let n = String.length from in
+      to_ ^ String.sub path n (String.length path - n)
+  | None -> path
+
+(* A command-line argument with the directory it names mapped: a path, a
+   path joined to `-I`, or the directory a `-ffile-prefix-map` maps. Any
+   other text, such as a `-D` value, is kept as written. *)
+let mapped_arg maps arg =
+  let after prefix =
+    if String.starts_with ~prefix arg then
+      Some (prefix ^ mapped_path maps (String.sub arg (String.length prefix) (String.length arg - String.length prefix)))
+    else None
+  in
+  match after "-ffile-prefix-map=" with
+  | Some a -> a
+  | None -> ( match after "-I" with Some a -> a | None -> mapped_path maps arg)
+
+(* [text], preprocessed C, with the file named by each line marker mapped,
+   so the hash reads the paths as `__FILE__` does, which clang's own
+   prefix map already spells mapped. Only a marker's file name is a path:
+   the source text itself is kept as written. *)
+let mapped maps text =
+  let marker line =
+    let is_digit c = c >= '0' && c <= '9' in
+    let n = String.length line in
+    n > 2 && line.[0] = '#' && line.[1] = ' ' && is_digit line.[2]
+  in
+  let line l =
+    if not (marker l) then l
+    else
+      match String.index_opt l '"' with
+      | None -> l
+      | Some i -> (
+          match String.index_from_opt l (i + 1) '"' with
+          | None -> l
+          | Some j ->
+              String.sub l 0 (i + 1)
+              ^ mapped_path maps (String.sub l (i + 1) (j - i - 1))
+              ^ String.sub l j (String.length l - j))
+  in
+  String.concat "\n" (List.map line (String.split_on_char '\n' text))
 
 (* One C source compiled, or what the front end said was wrong with it. *)
 type source = { path : string; bitcode : string; key : string }
@@ -175,7 +204,7 @@ let compile_source ?cache ~maps flags path =
       Digest.to_hex
         (Digest.string
            (String.concat "\000"
-              [ "c-module"; Clang.version (); mapped maps (String.concat "\000" args); mapped maps preprocessed.output ]))
+              [ "c-module"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
     in
     let kept = Option.map (fun c -> Filename.concat (Filename.concat c "foreign/module") (key ^ ".bc")) cache in
     match Option.bind kept Cache.read with
