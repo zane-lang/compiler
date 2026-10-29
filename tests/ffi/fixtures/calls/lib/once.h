@@ -39,6 +39,16 @@ static inline long long once_pointers_same(void) {
   return once_pointer_at() == &once_pointer && once_name_at() == &once_name;
 }
 
+struct once_record { long long value; };
+static struct once_record once_kept;
+void once_keep(long long x) { once_kept.value = x; }
+static inline long long once_kept_value(void) { return once_kept.value; }
+
+static long long once_five(void) { return 5; }
+static long long (*once_call)(void) = once_five;
+long long once_called(void) { return once_call(); }
+static inline long long once_call_same(void) { return once_call == once_five; }
+
 #ifdef __APPLE__
 long long once_alias(long long x) { return once(x); }
 #else
