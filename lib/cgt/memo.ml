@@ -76,14 +76,15 @@ let program_value symbol = String.starts_with ~prefix:"zane.value." symbol
    locals, package constants and the functions it calls, which [calls]
    lists. A package constant is the same on every call; a global in
    [outside], a foreign variable's C global, is state outside the program
-   (lower.ml). *)
+   (lower.ml), and a C function can read and change state of its own, so
+   a call to one is not. *)
 let alone ~outside (f : Func.t) =
   not
     (Traverse.exists_in f.Func.body
        ~expr:(fun e ->
          match e.Expr.node with
          | Expr.Global symbol -> program_value symbol || Hashtbl.mem outside symbol
-         | Expr.Function _ | Expr.Call_value _ -> true
+         | Expr.Function _ | Expr.Call_value _ | Expr.Foreign_call _ -> true
          | Expr.Runtime { fn; _ } -> not (computes fn)
          | _ -> false)
        ~stat:(function Stat.Spawn _ | Stat.Join _ -> true | _ -> false))
