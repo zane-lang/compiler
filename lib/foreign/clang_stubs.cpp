@@ -176,7 +176,7 @@ value to_value(const Run &r) {
    names: `V` void, `B` bool, `I` an integer (sign, size and width in bits,
    its name, and the standard typedef it was written through or nothing), `F` a floating type (size, whether it is IEEE, its name), `P`
    a pointer (whether its pointee is const, the pointee), `R` a struct or
-   union (kind and name), `A` an array (count and element), `N` a function
+   union (kind and identity, below), `A` an array (count and element), `N` a function
    with a prototype (whether variadic, the parameters, the result), `K` one
    without, and `O` any other, by its spelling. */
 class Writer {
@@ -189,8 +189,12 @@ public:
   void num(uint64_t n) { word(std::to_string(n)); }
   void str(const std::string &s) { out += std::to_string(s.size()); out += ':'; out += s; out += ' '; }
 
+  /* A struct's identity, as C spells its type: `struct` or `union` and its
+     tag, or the typedef that names an anonymous one. A tag and a typedef
+     name are in separate namespaces, so `struct Foo` and the anonymous
+     struct a typedef `Foo` names are two records. */
   static std::string record_name(const clang::RecordDecl *d) {
-    if (d->getIdentifier()) return d->getName().str();
+    if (d->getIdentifier()) return (d->isUnion() ? "union " : "struct ") + d->getName().str();
     if (const clang::TypedefNameDecl *t = d->getTypedefNameForAnonDecl()) return t->getName().str();
     return "";
   }
