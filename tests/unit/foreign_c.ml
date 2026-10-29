@@ -199,6 +199,10 @@ let interface_header () =
          int64_t sum(const int64_t *xs, struct flags f);\n\
          int logf_(const char *fmt, ...);\n\
          int old();\n\
+         int later();\n\
+         int later(int x);\n\
+         int earlier(int x);\n\
+         int earlier();\n\
          long wide(long x);\n\
          MAKE(made)\n";
       let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
@@ -219,6 +223,10 @@ let interface_header () =
             | _ -> false);
           check "a variadic function" (match fn "logf_" with Some (I.Function { variadic = true; _ }) -> true | _ -> false);
           check "a function without a prototype" (match fn "old" with Some (I.Unprototyped _) -> true | _ -> false);
+          let once name = List.length (List.filter (fun (n, _) -> n = name) t.I.functions) = 1 in
+          let prototyped name = match fn name with Some (I.Function { params = [ _ ]; _ }) -> true | _ -> false in
+          check "a function declared again is read once, with its prototype in either order"
+            (once "later" && prototyped "later" && once "earlier" && prototyped "earlier");
           check "a function a macro of an included header writes is the interface's" (fn "made" <> None);
           check "an included header's own declaration is not" (fn "inner" = None);
           check "a thread-local variable"
