@@ -126,7 +126,7 @@ let rec addresses (t : Ty.t) =
   match t with
   | Ty.Ptr -> true
   | Ty.Struct ts | Ty.Sum ts -> List.exists addresses ts
-  | Ty.Array (t, _) -> addresses t
+  | Ty.Array (t, _) | Ty.Packed t -> addresses t
   | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle -> false
 
 let reach (f : Func.t) =
@@ -482,7 +482,7 @@ let rec holds_ref (t : Ty.t) =
   match t with
   | Ty.Handle | Ty.Ptr -> true
   | Ty.Struct ts | Ty.Sum ts -> List.exists holds_ref ts
-  | Ty.Array (t, _) -> holds_ref t
+  | Ty.Array (t, _) | Ty.Packed t -> holds_ref t
   | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
 
 (* Whether a run of statements binds a local of such a type. *)

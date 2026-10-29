@@ -325,6 +325,12 @@ and layout ?path st span (t : Tty.t) : Layout.t =
   end;
   name
 
+(* Experimental packed nodes (`ZANE_PACKED_NODES=1`): a node's sum and the
+   payload struct inside it with no padding, the tag one byte. *)
+let packed_nodes () = Sys.getenv_opt "ZANE_PACKED_NODES" = Some "1"
+
+let packing t = if packed_nodes () then Nodes.Ty.Packed t else t
+
 (* A pooled variant [p]'s node: its sum, each payload inline, a member of
    [p]'s type a link. The prototype pools only a variant whose payloads are
    [p] itself, a struct whose members of a pooled type are [p], or a type
@@ -347,12 +353,12 @@ let node_shape st span p =
     else if cycle_struct st c then
       match definition st (unroamed c) with
       | Some (T.Decl.Struct ms, _) ->
-          Nodes.Ty.Struct (List.map (fun (_, m) -> if pooled st m then link m else plain m) ms)
+          packing (Nodes.Ty.Struct (List.map (fun (_, m) -> if pooled st m then link m else plain m) ms))
       | _ -> unhandled span c
     else plain c
   in
   match definition st p with
-  | Some (T.Decl.Variant cs, _) -> Nodes.Ty.Sum (List.map (fun (_, c) -> payload c) cs)
+  | Some (T.Decl.Variant cs, _) -> packing (Nodes.Ty.Sum (List.map (fun (_, c) -> payload c) cs))
   | _ -> unhandled span p
 
 (* The node form of a payload or member type: a pooled variant's own node,
@@ -362,26 +368,27 @@ let node_ty st span t =
   else if cycle_struct st t then
     match definition st (unroamed t) with
     | Some (T.Decl.Struct ms, _) ->
-        Nodes.Ty.Struct (List.map (fun (_, m) -> if pooled st m then Nodes.Ty.I32 else shape st span m) ms)
+        packing (Nodes.Ty.Struct (List.map (fun (_, m) -> if pooled st m then Nodes.Ty.I32 else shape st span m) ms))
     | _ -> unhandled span t
   else ty st span t
 
 (* Where a pooled variant's nodes keep their links, for the runtime's
    copy of a subtree: for each of the first four cases, a mask with a bit
-   set for each 4-byte word of the node that is a link. *)
+   set for each byte of the node a link starts at. *)
 let node_masks st span p =
   let p = unroamed p in
-  let size = fst (Nodes.Ty.size_align (node_shape st span p)) in
-  if size > 256 then refuse span "pooled variants: a node past 256 bytes";
-  let word off = Int64.shift_left 1L ((Nodes.Ty.payload_offset + off) / 4) in
+  let node = node_shape st span p in
+  let size = fst (Nodes.Ty.size_align node) in
+  if size > 64 then refuse span "pooled variants: a node past 64 bytes";
+  let word off = Int64.shift_left 1L (Nodes.Ty.payload_at node + off) in
   let mask c =
     if pooled st c then word 0
     else if cycle_struct st c then
       match (definition st (unroamed c), node_ty st span c) with
-      | Some (T.Decl.Struct ms, _), Nodes.Ty.Struct ts ->
+      | Some (T.Decl.Struct ms, _), inner ->
           List.fold_left2
             (fun acc (_, m) off -> if pooled st m then Int64.logor acc (word off) else acc)
-            0L ms (Nodes.Ty.offsets ts)
+            0L ms (Nodes.Ty.member_offsets inner)
       | _ -> 0L
     else 0L
   in

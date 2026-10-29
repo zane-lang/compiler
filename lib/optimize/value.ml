@@ -85,6 +85,7 @@ let rec zero (t : Ty.t) =
   | Ty.Array (t, n) -> VRecord (Array.init n (fun _ -> zero t))
   | Ty.Sum [] -> VCase (0, VUnit)
   | Ty.Sum (t :: _) -> VCase (0, zero t)
+  | Ty.Packed t -> zero t
 
 (* An integer as a type holds it: an [I32] wraps at 32 bits, sign
    extended. *)
@@ -109,6 +110,7 @@ let rec ty_at (t : Ty.t) path =
   | Member i :: rest, Ty.Struct ts when i < List.length ts -> ty_at (List.nth ts i) rest
   | Member _ :: rest, Ty.Array (e, _) -> ty_at e rest
   | Payload i :: rest, Ty.Sum ts when i < List.length ts -> ty_at (List.nth ts i) rest
+  | path, Ty.Packed t -> ty_at t path
   | _ -> stop "a path through a type that has no such part"
 
 (* A value's own structs, arrays and cases, so that what holds it can be

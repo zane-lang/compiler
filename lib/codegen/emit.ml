@@ -84,6 +84,26 @@ let large = 4096
 let size_align = Ty.size_align
 let words = Ty.words
 
+(* Experimental packed nodes (Ty.Packed): the address of a place inside a
+   packed type is named [unaligned_name], and so is one inside such a
+   place, so that once a function is emitted every load and store through
+   one is marked as at any byte. *)
+let unaligned_name = "packed"
+
+let is_unaligned v =
+  match Llvm.classify_value v with
+  | Llvm.ValueKind.Instruction Llvm.Opcode.GetElementPtr -> String.starts_with ~prefix:unaligned_name (Llvm.value_name v)
+  | _ -> false
+
+let unaligned fn =
+  Llvm.iter_blocks
+    (Llvm.iter_instrs (fun i ->
+         match Llvm.instr_opcode i with
+         | Llvm.Opcode.Load when is_unaligned (Llvm.operand i 0) -> Llvm.set_alignment 1 i
+         | Llvm.Opcode.Store when is_unaligned (Llvm.operand i 1) -> Llvm.set_alignment 1 i
+         | _ -> ()))
+    fn
+
 let rec lltype env (t : Ty.t) =
   match t with
   | Ty.Void -> Llvm.void_type env.ctx
@@ -101,6 +121,13 @@ let rec lltype env (t : Ty.t) =
       | 0 -> Llvm.struct_type env.ctx [| tag |]
       | n -> Llvm.struct_type env.ctx [| tag; array_type env.i64 n |])
   | Ty.Array (t, n) -> array_type (stored env t) n
+  | Ty.Packed (Ty.Struct ts) -> Llvm.packed_struct_type env.ctx (Array.of_list (List.map (stored env) ts))
+  | Ty.Packed (Ty.Sum ts) -> (
+      let tag = Llvm.i8_type env.ctx in
+      match Ty.room ts with
+      | 0 -> Llvm.packed_struct_type env.ctx [| tag |]
+      | n -> Llvm.packed_struct_type env.ctx [| tag; array_type (Llvm.i8_type env.ctx) n |])
+  | Ty.Packed t -> lltype env t
 
 (* A `Unit` member takes no room, but keeps its index. *)
 and stored env t = if t = Ty.Void then Llvm.struct_type env.ctx [||] else lltype env t
@@ -123,6 +150,7 @@ let rec pieces (t : Ty.t) =
   | Ty.Struct ts -> List.fold_left (fun n t -> n + pieces t) 0 ts
   | Ty.Sum ts -> 1 + words ts
   | Ty.Array (t, n) -> n * pieces t
+  | Ty.Packed t -> (fst (Ty.size_align (Ty.Packed t)) + 7) / 8
 
 (* How many of [pieces t] are floating-point. *)
 let rec floats (t : Ty.t) =
@@ -155,7 +183,7 @@ let results triple =
       let n = registers triple in
       (n, n)
 
-let aggregate = function Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Handle -> true | _ -> false
+let aggregate = function Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Handle | Ty.Packed _ -> true | _ -> false
 
 (* How a value of type [t] crosses a call: as itself when it takes no more
    registers than [env.registers], and by the address of a slot otherwise.
@@ -374,7 +402,7 @@ let access env (t : Ty.t) instr =
     match t with
     | Ty.Handle -> Some env.handle_tag
     | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr -> Some env.value_tag
-    | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ -> None
+    | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Packed _ -> None
   in
   Option.iter (Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "tbaa")) tag;
   instr
@@ -796,7 +824,7 @@ let snapshot_read t =
   let rec names_block = function
     | Ty.Ptr | Ty.Handle -> true
     | Ty.Struct ts | Ty.Sum ts -> List.exists names_block ts
-    | Ty.Array (t, _) -> names_block t
+    | Ty.Array (t, _) | Ty.Packed t -> names_block t
     | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
   in
   if size_align t <> (8, 8) then `Runtime
@@ -1230,14 +1258,20 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
   | Expr.Int i -> Some (Llvm.const_of_int64 (lltype env e.Expr.ty) i true)
   | Expr.Offset { base; within; path } ->
       let base = value_of env fr b base in
+      (* A place inside a packed type may be at any byte: its address is
+         named so that `unaligned` marks what reads and writes it. *)
+      let gep t p i =
+        let packed = (match t with Ty.Packed _ -> true | _ -> false) || is_unaligned p in
+        Llvm.build_struct_gep (lltype env t) p i (if packed then unaligned_name else "") b
+      in
       let at, _ =
         List.fold_left
           (fun (p, t) i ->
             match t with
-            | Ty.Struct ts -> (Llvm.build_struct_gep (lltype env t) p i "" b, List.nth ts i)
+            | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> (gep t p i, List.nth ts i)
             (* A sum's payload room holds case [i]'s payload. *)
-            | Ty.Sum ts when List.nth ts i = Ty.Void -> (p, Ty.Void)
-            | Ty.Sum ts -> (Llvm.build_struct_gep (lltype env t) p 1 "" b, List.nth ts i)
+            | (Ty.Sum ts | Ty.Packed (Ty.Sum ts)) when List.nth ts i = Ty.Void -> (p, Ty.Void)
+            | Ty.Sum ts | Ty.Packed (Ty.Sum ts) -> (gep t p 1, List.nth ts i)
             | _ -> Diagnostic.bug "codegen: an offset through something not a struct")
           (base, within) path
       in
@@ -1333,11 +1367,15 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       | _, Some v -> Some (Llvm.build_extractvalue v index "" b))
   | Expr.Case { index; payload } ->
       let t = lltype env e.Expr.ty in
+      let packed = match e.Expr.ty with Ty.Packed _ -> true | _ -> false in
       let tmp = alloca env fr t in
       let tag = Llvm.build_struct_gep t tmp 0 "" b in
-      ignore (Llvm.build_store (Llvm.const_int (Llvm.i32_type env.ctx) index) tag b);
+      let tag_type = if packed then Llvm.i8_type env.ctx else Llvm.i32_type env.ctx in
+      ignore (Llvm.build_store (Llvm.const_int tag_type index) tag b);
       (match expr env fr b payload with
-      | Some p -> ignore (Llvm.build_store p (Llvm.build_struct_gep t tmp 1 "" b) b)
+      | Some p ->
+          let at = Llvm.build_struct_gep t tmp 1 (if packed then unaligned_name else "") b in
+          ignore (Llvm.build_store p at b)
       | None -> ());
       Some (Llvm.build_load t tmp "" b)
   | Expr.Payload { value; _ } -> (
@@ -1347,7 +1385,8 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           let sum = Llvm.type_of v in
           let tmp = alloca env fr sum in
           ignore (Llvm.build_store v tmp b);
-          Some (Llvm.build_load (lltype env t) (Llvm.build_struct_gep sum tmp 1 "" b) "" b))
+          let name = if Llvm.is_packed sum then unaligned_name else "" in
+          Some (Llvm.build_load (lltype env t) (Llvm.build_struct_gep sum tmp 1 name b) "" b))
   | Expr.Call _ | Expr.Call_value _ -> (
       match call env fr b e with
       | `Value v -> Some v
@@ -1563,7 +1602,7 @@ and stat env fr b (s : Stat.t) =
       List.iter
         (fun (i, body) ->
           let case = block env fr in
-          Llvm.add_case sw (Llvm.const_int (Llvm.i32_type env.ctx) i) case;
+          Llvm.add_case sw (Llvm.const_int (Llvm.type_of tag) i) case;
           Llvm.position_at_end case b;
           stats env fr b body;
           if not (has_terminator b) then ignore (Llvm.build_br after b))
@@ -1821,4 +1860,5 @@ let func env (f : Func.t) =
   if not (has_terminator b) then
     ignore
       (if f.Func.ret = Ty.Void || Option.is_some sret then Llvm.build_ret_void b
-       else Llvm.build_unreachable b)
+       else Llvm.build_unreachable b);
+  unaligned fn

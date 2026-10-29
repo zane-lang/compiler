@@ -19,7 +19,11 @@
    and what a reference holds: the address of the settled owner it names
    (memory.md §4.1). [I32] is `@primitives$I32`, [I64] `I64`, [F32] `F32`
    and [F64] `F64`. A boxed member is a [Ptr]
-   to its payload's block (adt.md §4). *)
+   to its payload's block (adt.md §4). [Packed] is a [Struct] or a [Sum]
+   with no padding and alignment 1, a sum's tag one byte and its payload
+   right after it: the experimental packed node of a pooled variant
+   (docs/experiments/goose-comparison). Its members keep their own
+   layouts. *)
 module Ty = struct
   type t =
     | Void
@@ -33,6 +37,7 @@ module Ty = struct
     | Struct of t list
     | Sum of t list
     | Array of t * int
+    | Packed of t
 
   (* No type takes [limit] bytes or more: no such value can be placed, since
      the runtime's chunk map covers 48-bit addresses
@@ -73,6 +78,12 @@ module Ty = struct
     | Array (t, n) ->
         let size, align = size_align t in
         (below_limit (times (round_up size align) n), align)
+    | Packed (Struct ts) -> (List.fold_left (fun size t -> below_limit (add size (fst (size_align t)))) 0 ts, 1)
+    | Packed (Sum ts) -> (below_limit (add 1 (room ts)), 1)
+    | Packed t -> size_align t
+
+  (* A packed sum's payload room in bytes: its widest case's. *)
+  and room ts = List.fold_left (fun n t -> max n (fst (size_align t))) 0 ts
 
   (* A sum's payload room, in 8-byte words: enough for its widest case, and
      aligned for every one, since no layout here needs more than 8. *)
@@ -90,8 +101,24 @@ module Ty = struct
     in
     List.rev offsets
 
+  (* Where each member of a packed struct of [ts] starts. *)
+  let packed_offsets ts =
+    List.rev (snd (List.fold_left (fun (at, acc) t -> (at + fst (size_align t), at :: acc)) (0, []) ts))
+
+  (* Where each member of the struct [t], packed or not, starts. *)
+  let member_offsets = function
+    | Struct ts -> offsets ts
+    | Packed (Struct ts) -> packed_offsets ts
+    | _ -> []
+
+  (* A struct's members, packed or not. *)
+  let members = function Struct ts | Packed (Struct ts) -> ts | _ -> []
+
   (* A sum's payload starts after its tag. *)
   let payload_offset = 8
+
+  (* Where the sum [t]'s payload starts, packed or not. *)
+  let payload_at = function Packed _ -> 1 | _ -> payload_offset
 
   (* Whether a value of the type has a handle among its bytes: is one, or
      has one as a member, a case's payload or an element. A boxed member's
@@ -100,7 +127,7 @@ module Ty = struct
   let rec holds_handle = function
     | Handle -> true
     | Struct ts | Sum ts -> List.exists holds_handle ts
-    | Array (t, _) -> holds_handle t
+    | Array (t, _) | Packed t -> holds_handle t
     | Void | I1 | I32 | I64 | F32 | F64 | Ptr -> false
 
   let rec to_string = function
@@ -115,6 +142,7 @@ module Ty = struct
     | Struct ts -> "{" ^ String.concat ", " (List.map to_string ts) ^ "}"
     | Sum ts -> "<" ^ String.concat " | " (List.map to_string ts) ^ ">"
     | Array (t, n) -> Printf.sprintf "[%d x %s]" n (to_string t)
+    | Packed t -> "packed " ^ to_string t
 end
 
 (* What a scalar conversion means (types.md §2.9), which the optimizer

@@ -516,15 +516,15 @@ and pool_into st ctx span dest t case payload =
   let node = node_shape st span t in
   let size = fst (Nodes.Ty.size_align node) in
   let zero = { Expr.node = Expr.Int 0L; ty = Nodes.Ty.I32 } in
-  let link_at path = Nodes.Ty.payload_offset + path in
+  let link_at path = Nodes.Ty.payload_at node + path in
   let lets, children, inline =
     if pooled st c then
       let o = fresh st in
       ([ Stat.Let { id = o; value = into st ctx span dest payload } ], [ (i64 o, link_at 0) ], zero)
     else if cycle_struct st c then begin
       let outer = ty st span c and inner = node_ty st span c in
-      let ms = match inner with Nodes.Ty.Struct ts -> ts | _ -> [] in
-      let offsets = Nodes.Ty.offsets ms in
+      let ms = Nodes.Ty.members inner in
+      let offsets = Nodes.Ty.member_offsets inner in
       let members =
         match definition st (Tty.strip_mode c) with
         | Some (T.Decl.Struct ms, _) -> List.map snd ms

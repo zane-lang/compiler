@@ -169,12 +169,17 @@ let rec by_address st (v : verb) (p : T.Local.t) =
    what it makes: that one is passed whole, as without pooling, so a
    temporary moves into the new value rather than being copied out of its
    node. A borrowed struct a pooled variant's payload is would be inside a
-   node or not, and the prototype takes neither. *)
+   node or not, and the prototype takes neither. A `mut` method's subject
+   is the caller's place, which the body may write a new root into. *)
 and viewed st (v : verb) (p : T.Local.t) =
   let t = p.T.Local.ty in
   if (not (Tty.is_ref t)) && (not (Tty.is_roaming t)) && cycle_struct st t then
     refuse p.T.Local.span "pooled variants: a borrowed parameter of a pooled variant's payload";
-  (not (Tty.is_ref t)) && (not (Tty.is_roaming t)) && pooled st t && not (stored v p)
+  (not (v.signature.S.is_mut && p.T.Local.name = "this"))
+  && (not (Tty.is_ref t))
+  && (not (Tty.is_roaming t))
+  && pooled st t
+  && not (stored v p)
 
 (* Whether [v]'s body returns [p] itself as a field of a value it makes. *)
 and stored (v : verb) (p : T.Local.t) =

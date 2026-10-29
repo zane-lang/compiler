@@ -250,7 +250,7 @@ variant's whole tree in one pool, with 32-bit links.
 Limits, refused with a diagnostic where they apply:
 
 - at most four links per node, in the first four cases;
-- nodes of at most 256 bytes;
+- nodes of at most 64 bytes (256 before packed nodes, below);
 - no owned block (string, list) in a node;
 - no other pooled type in a node;
 - no borrowed parameter whose type is the cycle's struct;
@@ -261,7 +261,7 @@ Limits, refused with a diagnostic where they apply:
 In addition:
 
 - `zane_pool_copy` recurses.
-- Links in a pool past 2 GiB abort.
+- A pool past 2 GiB aborts, when it grows past that (`zane_pool_reserve`).
 - A spawned call to a function that pours its result is not handled.
 
 ### Results
@@ -426,19 +426,166 @@ What this shows:
 - **treecopy barely moves,** since its time is in the copy and the walk,
   not in calls.
 
+## Packed nodes and the room check
+
+The partial inlining results left three things between pooled binarytrees
+and Goose: 16-byte nodes against Goose's 9, a room check on every push, and
+the pool's count kept in memory. This step takes on the first two.
+
+### The room check, in the C replay
+
+Before changing Zane, `pooled_emulation.c` got two more switches:
+`NO_CHECK=1` drops the check (the pool is made big enough once, as on a
+data stack), and `ON_RETURN=1` replaces it with one check per call, where
+`make` returns, leaving room for the three nodes the next frame may push.
+All rows build leaves in their parent (`INLINE_LEAF=1`). Instructions are
+from callgrind at depth 16, user time is the least of 15 runs at depth 18,
+over three rounds:
+
+| form | instructions | user, depth 18 |
+| --- | --- | --- |
+| 16-byte nodes, check per push | 472 M | 0.230–0.248 s |
+| 16-byte nodes, check per return | 412 M | 0.214–0.232 s |
+| 16-byte nodes, no check | 393 M | 0.210–0.237 s |
+| **9-byte nodes, check per push** | 472 M | **0.175–0.180 s** |
+| 9-byte nodes, check per return | 420 M | 0.215–0.234 s |
+| 9-byte nodes, no check | 401 M | 0.224–0.232 s |
+
+- **Packing is the gain.** With the check where it is, 9-byte nodes take
+  a quarter less time at the same instruction count.
+- **The check costs instructions, not time.** Dropping it saves 15% of the
+  instructions and, with 16-byte nodes, no measurable time. Its branch
+  always goes the same way, and the count and room it reads are in cache.
+- **With packed nodes, dropping it is slower,** in every round, though the
+  compiled `make` is as tight as before: it keeps the count in a register
+  between pushes and stores it once. The container has no hardware
+  counters, so why is unknown.
+
+So the room check stays. What Zane's own `make` had besides it was a
+range check on every link (two compares and branches per node) and a store
+of a zeroed payload, which the links then overwrote.
+
+### Design
+
+- **`ZANE_PACKED_NODES=1`**, with pooled variants, makes a node's sum and
+  the payload struct inside it packed: no padding, alignment 1, the tag one
+  byte, the payload right after it. A binarytrees node is 9 bytes, a
+  treecopy node 17.
+- **A CGT type, `Packed`,** wraps the sum or struct (`lib/cgt/nodes.ml`).
+  Its members keep their own layouts. Codegen gives it an LLVM packed
+  struct, `{i8, [n x i8]}` for a sum, and a 1-byte tag for `Case` and
+  `Switch`.
+- **Unaligned access.** An address inside a packed type is named `packed`
+  where codegen builds it (`Offset`, `Case`, `Payload`), and so is any
+  address inside one. Once a function is emitted, every load and store
+  through such an address gets alignment 1 (`Emit.unaligned`). In the
+  runtime, a link is read and written with `memcpy`. The marking follows
+  addresses within one expression, not through a local: a payload that is
+  neither a link nor the cycle's struct, such as an `Int` case, is bound
+  in a `match` as an address kept in a local, and a read through it keeps
+  its type's alignment. x86-64 and AArch64 load such a scalar from any
+  byte, but LLVM may assume the alignment. Neither benchmark has such a
+  payload.
+- **The runtime's masks** for copying a subtree now mark the byte each link
+  starts at, not a 4-byte word, so a node is at most 64 bytes. The runtime
+  reads a tag as its node's first byte, which is the whole tag of a packed
+  node and the low byte of a 4-byte one.
+- **The 2 GiB check moved** from every link to the slow path: a pool may not
+  grow past `INT32_MAX` bytes (`zane_pool_reserve`), so no link in it can
+  be out of range. The zeroed payload's store then goes too, since nothing
+  between it and the links' stores can branch away.
+
+### Found on the way
+
+Building every codegen fixture with pooled variants on, with and without
+packing, and comparing each against the plain build's output under
+`ZANE_CHECK=1` (`fixtures.sh` here), showed two bugs in the pooled prototype that the earlier
+steps had not caught: four fixtures (`folding`, `keeping`, `replayed`,
+`spawns`) failed with pooled variants alone.
+
+- **A `mut` method's subject was taken as a node.** `Verbs.viewed` passed
+  `this` of a `mut` method on a pooled variant as the address of its node.
+  The caller passes the address of its handle instead, which the method
+  writes a new root into. Reading the handle as a node misread its tag.
+  With 4-byte tags, the low half of a pointer was almost never a case
+  number, so it read as a leaf and went unnoticed. A 1-byte tag made it
+  crash, depending on where ASLR put the block. `viewed` now leaves a `mut`
+  subject alone.
+- **A pool moved into another stayed out.** Where a pooled value is not
+  built in place, `into` makes it and copies its pool onto the destination
+  (`zane_pool_append`). The source's block was then never given back, which
+  `ZANE_CHECK=1` reports as "a dynamic block outlived its owner". The
+  append now consumes its source. It does not free the block, which may be
+  in a frame. It stops counting it as out, and the block's region reclaims
+  it when it drains.
+
+With both fixed, the 5 fixtures the switches change and still compile
+match the plain build, under all three switches together too, 20 runs
+each for the four that failed. `arrays`, `boxes` and `walks` stay refused,
+as before. `just test-compiler` passes with the switches off.
+
+### Results
+
+Measured with `variants.py` as before (depth 16 and 18, 9 runs, every build
+checked against `tests.py`). The pooled rows include the moved range check
+and the fixes above, so they are not the earlier tables' rows. Their
+instruction counts dropped by 44 M on binarytrees: the range check.
+
+| binarytrees | wall | user | faults | instructions |
+| --- | --- | --- | --- | --- |
+| zane | 0.105 s | 0.094 s | 3.3k | 866 M |
+| zane, pooled | 0.104 s | 0.095 s | 2.8k | 611 M |
+| zane, pooled, packed | 0.104 s | 0.097 s | 1.9k | 611 M |
+| zane, pooled, peel | 0.077 s | 0.068 s | 2.8k | 480 M |
+| **zane, pooled, peel, packed** | **0.074 s** | **0.067 s** | 1.9k | 480 M |
+| goose (struct) | 0.054 s | 0.047 s | 1.0k | 659 M |
+| goose-enum-pool | 0.046 s | 0.042 s | 1.1k | 528 M |
+
+| treecopy | wall | user | faults | instructions | bytes/node |
+| --- | --- | --- | --- | --- | --- |
+| zane | 0.159 s | 0.133 s | 7.4k | 749 M | 28.0 |
+| zane, pooled | 0.090 s | 0.072 s | 6.6k | 173 M | 23.9 |
+| **zane, pooled, packed** | **0.067 s** | **0.052 s** | 4.8k | 179 M | **17.2** |
+| zane, pooled, peel, packed | 0.067 s | 0.058 s | 4.8k | 186 M | 16.9 |
+| goose (struct) | 0.117 s | 0.102 s | 4.4k | 845 M | 16.0 |
+| goose-enum-pool | 0.114 s | 0.099 s | 4.6k | 515 M | 17.0 |
+
+What this shows:
+
+- **treecopy: packing takes a quarter off.** Nodes are 17 bytes, Goose's
+  size, and a copy moves 30% fewer bytes. Pooled and packed, Zane runs
+  treecopy in 0.59 of Goose's time.
+- **binarytrees: packing changes almost nothing.** Pooled and peeled, it
+  saves a third of the page faults and a few percent of the time. `make`
+  now compiles to what the replay's fastest form compiles to: a 1-byte tag
+  store, two unaligned link stores, one room check per node. `check`
+  compiles to a 1-byte tag compare and unaligned link loads, two levels
+  peeled. Zane runs fewer instructions than Goose's pool port (480 M
+  against 528 M), and callgrind's cache simulation gives it about the same
+  misses (2.2 M first-level against Goose's 1.9 M). Yet it takes 1.6
+  times Goose's time.
+- **What is left is how pools are made.** The replay reuses one pool for
+  every tree, and Goose's data stack does the same. Zane makes a fresh pool
+  for each `check(make(d))`, starting at 64 bytes and doubling as the tree
+  grows. The replay's `FRESH=64` switch does that too, and its time goes
+  from 0.032–0.037 s to 0.040–0.049 s at depth 16, against Zane's
+  0.045–0.053 s in the same runs. Doubling costs Zane 29 M instructions
+  (`zane_pool_reserve` and its `memcpy`), and touches memory a reused
+  pool would not.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
 | --- | --- | --- |
-| binarytrees | ~2.2× (pooled and peeled: ~1.6×) | Pooled and peeled, Zane runs Goose's instruction count. What is left is 16-byte nodes against Goose's 9, a room check per push, and the pool's count kept in memory. |
+| binarytrees | ~2.2× (pooled, peeled and packed: ~1.6×) | Zane runs fewer instructions than Goose, with the same node size. What is left is a fresh pool per tree, grown by doubling, where Goose reuses its data stack. |
 | ntree | ~1.6× | Zane executes 1.8× Goose's instructions and uses 1.4× its memory: a 24-byte list handle per node, plus each node's separate block. |
-| treecopy | ~1.2× (pooled: 0.75×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`. Its nodes are still 24 bytes against Goose's 17. |
+| treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~1.0× | Closed. |
 | listgrowth | ~0.9× | Closed. |
 
 Without pooling, what is left is mostly representation: link width, handle
 size, and whether a tree's nodes sit in one pool or in separate blocks.
 The allocator's own paths account for little of it. Pooled variants address
-the representation; for binarytrees, what is left then is code generation:
-peeling a recursion's trivial base case into its caller, and packing a
-node's tag.
+the representation, partial inlining a recursion's base case, and packing
+the node's size. For binarytrees, what is left then is the pool's life
+cycle: making one per tree and growing it by doubling.

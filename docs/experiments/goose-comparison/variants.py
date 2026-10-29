@@ -21,14 +21,21 @@ RUNS = int(os.environ.get("RUNS", "9"))
 sys.path.insert(0, LB)
 import tests  # noqa: E402
 
+GOOSE_FORMS = {"goose": "", "goose-enum-pool": "_enum_pool"}
 # Each Zane variant and the switches it is built with.
 ZANE = {
     "zane": {},
     "zane-peel": {"ZANE_PARTIAL_INLINE": "1"},
     "zane-pooled": {"ZANE_POOLED_VARIANTS": "1"},
     "zane-pooled-peel": {"ZANE_POOLED_VARIANTS": "1", "ZANE_PARTIAL_INLINE": "1"},
+    "zane-pooled-packed": {"ZANE_POOLED_VARIANTS": "1", "ZANE_PACKED_NODES": "1"},
+    "zane-pooled-peel-packed": {"ZANE_POOLED_VARIANTS": "1", "ZANE_PARTIAL_INLINE": "1", "ZANE_PACKED_NODES": "1"},
 }
-GOOSE_FORMS = {"goose": "", "goose-enum-pool": "_enum_pool"}
+# ONLY=a,b builds and measures just those variants.
+if os.environ.get("ONLY"):
+    keep = os.environ["ONLY"].split(",")
+    ZANE = {k: v for k, v in ZANE.items() if k in keep}
+    GOOSE_FORMS = {k: v for k, v in GOOSE_FORMS.items() if k in keep}
 # Each test's measured depth, and how many of its trees are alive at the
 # peak, which bytes per node divides by.
 DEPTH = {"binarytrees": (16, 1), "treecopy": (18, 2)}

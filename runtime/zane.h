@@ -101,7 +101,7 @@ void zane_pool_copy(zane_list *out, const char *node, int64_t size, int64_t m0, 
 void zane_pool_new(zane_list *out);
 int64_t zane_pool_push(zane_list *pool, const char *node, int64_t size, int64_t n, int64_t o0, int64_t l0,
                        int64_t o1, int64_t l1, int64_t o2, int64_t l2, int64_t o3, int64_t l3);
-int64_t zane_pool_append(zane_list *pool, const zane_list *from, int64_t size);
+int64_t zane_pool_append(zane_list *pool, zane_list *from, int64_t size);
 void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride);
 void zane_out_of_range(void);
 
