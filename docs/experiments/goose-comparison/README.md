@@ -828,11 +828,102 @@ A trial that took the unbounded pool's reservation directly from `mmap`,
 writable from the start, was inconclusive (median 0.256 s against 0.230 s,
 least 0.204 s against 0.211 s) and was not kept.
 
+## Why Goose's `make` is faster: the handle's address
+
+After Goose's push shape, binarytrees was still 1.2–1.3× Goose. This step
+finds the rest by hand, from both compilers' output: Goose writes C
+(`goose bt.goose -O2 -o bt.c`, and `goose --emit-runtime rt.c` for its
+runtime), and Zane's IR (`zanec --ll`) builds with clang beside the
+runtime's `zane.c`, timing the same as `zanec --build` (0.198 / 0.257 s
+against 0.205 / 0.258 s at depth 18). Both can then be edited and rebuilt.
+
+### Where the time goes
+
+Cycle counters (`__builtin_readcyclecounter`) around the `make` call of
+each short-lived tree, over a depth-18 run:
+
+| | `make` | everything else |
+| --- | --- | --- |
+| Zane | ~340 M cycles | ~230 M cycles |
+| Goose | ~200 M cycles | ~210 M cycles |
+
+The gap is in `make`, and at every depth alike, about 1.6×: at depth 4,
+where a tree is 279 bytes and never leaves L1, as at depth 18. So it is not
+memory. Callgrind's simulated caches agree (the same D1 misses), neither
+program makes a system call per tree, neither has huge pages, and both
+reuse the same memory for each tree.
+
+### Same code, different chain
+
+The two compiled `make`s are the same instructions, Zane's a few fewer.
+The difference is where the pool's top lives:
+
+- Goose's is a global, read as `mov G(%rip)`: a constant address.
+- Zane's is behind the handle pointer `make` is given. Kept across the
+  recursive calls, the pointer sits in a callee-saved register (`rbx`),
+  which each callee pushes and pops.
+
+After a call, the caller reads the count through `rbx`. The callee has
+just stored that count, and has just restored `rbx` with a `pop`, which is
+itself a load forwarded from a store. So each frame's count load waits on
+two store-to-load forwards in a row where Goose's waits on one, and that
+chain runs through every frame of the build.
+
+### The harness
+
+`push-latency/` times `make` alone, in cycles per node, from the same
+mapping. `rh.c` drives Goose's `make` (`gmake.c`, written from its C), the
+variants in `gvar.c` and `rvar.c`, and Zane's own compiled `make`, taken
+from the IR by `rewrite.py`:
+
+```sh
+python3 rewrite.py zane.ll
+clang -O2 rh.c rvar.c gvar.c gmake.c make.ll -o rh
+./rh 0 8 200000   # 0 goose, 1 goose by pointer, 5 pointer handed back, 6 count in registers, 7 zane
+```
+
+| variant | depth 4 | depth 8 | depth 16 |
+| --- | --- | --- | --- |
+| Goose (global top) | 2.87 | 2.85–2.95 | 2.89 |
+| Goose, its stack passed by pointer | 4.59 | 4.19–4.23 | 3.28 |
+| by pointer, handed back in a register with the result | 2.82 | 2.42–3.32 | 2.33 |
+| Zane's shape, items and count in registers, the count returned | 2.64 | 2.70–3.10 | 2.46 |
+| Zane's compiled `make` | 4.88 | 4.78–5.13 | 5.20 |
+
+Passing Goose's own `make` its stack by pointer is all it takes to make it
+as slow as Zane's. Every other difference was tried in `gvar.c` (the
+`d == 0` case, the stores before the calls, links from a base or
+self-relative, a top pointer or items plus count) and none of them
+matters.
+
+### In the program
+
+`rewrite.py` also writes `global.ll`, binarytrees with `make` reaching its
+pool through a global, the handle copied in before each call and back out
+after. User time at depth 18, least / median of 11, interleaved:
+
+| build | binarytrees |
+| --- | --- |
+| Zane, from its IR | 0.198 / 0.257 s |
+| Zane, `make`'s pool in a global | 0.155 / 0.192 s |
+| Goose | 0.156 / 0.186 s |
+
+That closes the gap. What Goose does differently in binarytrees is that its
+pool's address is a constant. The per-tree runtime work named in the step
+before costs little next to it.
+
+A global is Goose's answer, and it only works for a pool that a
+whole program shares. A pooled value in Zane has a pool of its own, so the
+fix that fits is the harness's other two: hand the pool back in a register
+with the result, or pass items and count as arguments and return the new
+count, so that the count never goes through memory. The second is faster
+than Goose in the harness.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
 | --- | --- | --- |
-| binarytrees | ~2.2× (pooled, peeled, packed and with Goose's push shape: ~1.2–1.3×) | Zane runs a quarter fewer instructions than Goose, with the same node size and push shape. A replay of that push runs as fast as Goose; what Zane adds is per-tree pool work in the runtime (about 21 M instructions at depth 16: making the pool, draining its scope, unmapping its block). Goose resets one global stack instead. |
+| binarytrees | ~2.2× (pooled, peeled, packed and with Goose's push shape: ~1.2–1.3×) | The rest is the pool's address: Zane reads its count through a pointer restored from the stack in every frame, which puts a second store-to-load forward on the count's chain. With `make`'s pool in a global, Zane matches Goose. |
 | ntree | ~1.6× | Zane executes 1.8× Goose's instructions and uses 1.4× its memory: a 24-byte list handle per node, plus each node's separate block. |
 | treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~1.0× | Closed. |
@@ -844,6 +935,6 @@ The allocator's own paths account for little of it. Pooled variants address
 the representation, partial inlining a recursion's base case, and packing
 the node's size, and Goose's push shape the push itself.
 
-The next candidate for binarytrees is the per-tree cost: a pool that
-outlives one tree and is reset rather than made and returned, as Goose's
-global data stack is.
+The next candidate for binarytrees is a calling convention for functions
+that build into a pool: items and count passed in registers and the new
+count returned, so the count never goes through memory between frames.
