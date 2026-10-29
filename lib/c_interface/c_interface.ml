@@ -183,7 +183,9 @@ let read text =
 
 (* Two tables as one: each name's first entry, in the order the headers
    are read, with a struct one header declares and another completes
-   taken as declared and complete. *)
+   taken as declared and complete, and a function one header declares
+   without a prototype and another with one taken with the prototype, as
+   C's composite type is. *)
 let merge a b =
   let union_by_name xs ys = xs @ List.filter (fun (n, _) -> not (List.mem_assoc n xs)) ys in
   let records =
@@ -195,8 +197,16 @@ let merge a b =
         | None -> (n, r))
       a.records
   in
+  let functions =
+    List.map
+      (fun (n, (f : func)) ->
+        match (f.ty, List.assoc_opt n b.functions) with
+        | Unprototyped _, Some ({ ty = Function _; _ } as f') -> (n, { f with ty = f'.ty })
+        | _ -> (n, f))
+      a.functions
+  in
   {
-    functions = union_by_name a.functions b.functions;
+    functions = union_by_name functions b.functions;
     variables = union_by_name a.variables b.variables;
     typedefs = union_by_name a.typedefs b.typedefs;
     records = union_by_name records b.records;
