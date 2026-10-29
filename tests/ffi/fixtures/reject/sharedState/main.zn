@@ -1,0 +1,14 @@
+/// An interface header defining private state that two sources including
+/// it each define, which a `static inline` function the glue calls reads:
+/// the glue cannot share either source's copy, and is refused.
+package sharedState;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 sharedValue() foreign "shared_value";
+
+Unit main() {
+	sharedValue();
+	return Unit();
+}

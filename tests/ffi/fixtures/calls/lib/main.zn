@@ -11,7 +11,9 @@
 /// which a `static inline` function the glue calls reads, runs for the
 /// glue's copy of that state too, and so do one that sets it up through
 /// a function of the header's it calls and one that sets it through a
-/// pointer a variable of the header's holds.
+/// pointer a variable of the header's holds. The glue's copy of the
+/// header's private state is `once.c`'s, so a `static inline` function
+/// the glue calls reads what a function `once.c` defines wrote.
 /// `primed.h`, which no source includes, has constructors of its own, run
 /// beside the one `lib.c` has, and beside the one `plain.c` has under the
 /// same name and doing the same, which is not the header's.
@@ -21,6 +23,7 @@ package lib;
 
 alias I32 = @primitives$I32;
 alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
 
 I64 helper() foreign "helper";
 I64 named() foreign "named";
@@ -35,6 +38,8 @@ I64 onceStarted() foreign "once_started";
 I64 onceValue() foreign "once_value";
 I64 onceHelped() foreign "once_helped_value";
 I64 oncePointed() foreign "once_pointed_value";
+Unit onceShare(x I64) foreign "once_share";
+I64 onceShared() foreign "once_shared_value";
 I64 primed() foreign "primed";
 I64 primedRuns() foreign "primed_runs_seen";
 I64 wasWarmed() foreign "was_warmed";

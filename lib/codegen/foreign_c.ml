@@ -52,6 +52,8 @@ external rename : Llvm.llmodule -> string -> string -> string list -> string lis
 external constructors : Llvm.llmodule -> string list = "zane_c_constructors"
 external drop_defined : Llvm.llmodule -> Llvm.llmodule -> string list -> unit = "zane_drop_defined"
 external drop_defined_apart : Llvm.llmodule -> string list -> unit = "zane_drop_defined_apart"
+external share_state : Llvm.llmodule -> Llvm.llmodule -> string -> unit = "zane_share_state"
+external localize_shared : Llvm.llmodule -> unit = "zane_localize_shared"
 
 external write_archive : int -> (string * string) list -> (string, string) result
   = "zane_write_archive"
@@ -142,29 +144,40 @@ let renamed_apart ~triple ~global_prefix p names =
 let package_module ctx ~triple ~data_layout p =
   let parsed = List.map (fun c -> (c, parse ctx c.bitcode)) in
   let sources = parsed p.sources in
+  let glue = parsed p.glue in
+  let includes (g : c_module) (c : c_module) = List.exists (fun h -> List.mem h c.files) g.files in
+  (* A glue module's private state is the one source's including its
+     header (Foreign refuses one that several sources define), each
+     source's shared under a tag of its own. *)
+  List.iter
+    (fun (g, gm) ->
+      List.iteri (fun i (c, m) -> if includes g c then share_state gm m (string_of_int i)) sources)
+    glue;
   (* Read before the link renames a source's local functions. A source
      assembled apart runs its constructors from its object, so a header it
      includes runs them there. *)
   let assembled_runs (c, _) =
     let m = parse ctx c.bitcode in
-    Fun.protect ~finally:(fun () -> Llvm.dispose_module m) (fun () -> (c.files, constructors m))
+    Fun.protect ~finally:(fun () -> Llvm.dispose_module m) (fun () -> (c, constructors m))
   in
-  let runs = List.map (fun (c, m) -> (c.files, constructors m)) sources @ List.map assembled_runs p.objects in
-  let run_by (g : c_module) =
-    List.concat_map (fun (files, run) -> if List.exists (fun h -> List.mem h files) g.files then run else []) runs
-  in
+  let runs = List.map (fun (c, m) -> (c, constructors m)) sources @ List.map assembled_runs p.objects in
+  let run_by g = List.concat_map (fun (c, run) -> if includes g c then run else []) runs in
   let glue_module (g, m) =
     if p.defined <> [] then drop_defined_apart m p.defined;
     (m, run_by g)
   in
-  let glue = List.map glue_module (parsed p.glue) in
+  let glue = List.map glue_module glue in
   let global_prefix = Walks.global_prefix data_layout in
   (* With no source in the module, the glue is linked into an empty one,
      so each glue module is still linked as one after the sources. *)
   let base = match sources with [] when glue <> [] -> [ Llvm.create_module ctx "c" ] | _ -> List.map snd sources in
   let m = linked ~glue ~triple ~data_layout base in
   let names =
-    match m with Some m -> rename m p.prefix global_prefix p.thunks p.defined | None -> []
+    match m with
+    | Some m ->
+        localize_shared m;
+        rename m p.prefix global_prefix p.thunks p.defined
+    | None -> []
   in
   let apart =
     if p.objects = [] && p.archives = [] then Ok nothing_apart

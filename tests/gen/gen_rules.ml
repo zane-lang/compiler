@@ -31,12 +31,14 @@
      `golden/NAME.optimized.cgt` and `golden/NAME.out` what they are in
      codegen, and `golden/reject.NAME.err` what it reports for
      `fixtures/reject/NAME`, or, when that fixture holds a file named
-     `build`, what `zanec --build` reports for it. A fixture holding `.zn`
-     files is one package; any other is a build of its subdirectories, in
-     name order, so the first is the root. Its `flags` file, one per line,
-     is what it is built with besides. A directory `NAME.archive` anywhere
-     in a fixture holds the C sources of the static library `NAME.a`
-     beside it, which `archive` builds for the fixture's rules.
+     `build`, what `zanec --build` reports for it, or
+     `golden/reject.NAME.ll.err` what `zanec --ll` reports for one only
+     codegen refuses. A fixture holding `.zn` files is one package; any
+     other is a build of its subdirectories, in name order, so the first
+     is the root. Its `flags` file, one per line, is what it is built with
+     besides. A directory `NAME.archive` anywhere in a fixture holds the C
+     sources of the static library `NAME.a` beside it, which `archive`
+     builds for the fixture's rules.
    - parser: `golden/NAME.STAGE.spans` is `span_dump --STAGE`, and
      `golden/NAME.STAGE.tree` `zanec --STAGE`, over `fixtures/NAME.zn`;
      `golden/reject.NAME.err` is what `zanec` reports for
@@ -254,6 +256,12 @@ let ffi () =
           Printf.printf
             "(rule\n (deps %s)\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    %s))))\n\n"
             (fixture_deps dir) golden (build ~dir view);
+          diff golden (golden ^ ".actual")
+      | [ "reject"; name; "ll"; "err" ] ->
+          let dir = "fixtures/reject/" ^ name in
+          Printf.printf
+            "(rule\n (deps %s)\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    %s))))\n\n"
+            (fixture_deps dir) golden (build ~dir "ll");
           diff golden (golden ^ ".actual")
       | parts when program parts <> None -> ()
       | _ -> failwith ("gen_rules: no rule makes golden/" ^ golden))

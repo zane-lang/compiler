@@ -367,6 +367,49 @@ let glue_files p ~dir files =
           let maps = p.maps @ added and flags = p.flags @ Compile.map_flags added in
           combine (List.map (glue_file p ~dir ~work ~maps ~flags) files))
 
+(* The glue [compiled], each module beside the real path of its header,
+   unless several of [p]'s sources that include one header define private
+   state its glue module does: the glue's copy of that state is the one
+   source's including the header (Foreign_c), and C itself gives each
+   including source a copy of its own, so no one copy is the header's
+   (docs/design/ffi.md F9). One source assembled apart that defines it is
+   refused too, since its copy is in an object the glue's cannot share. *)
+let shared_state (p : package) compiled =
+  let listed paths =
+    match List.rev_map (fun path -> "`" ^ path ^ "`") paths with
+    | last :: (_ :: _ as rest) -> String.concat ", " (List.rev rest) ^ " and " ^ last
+    | [ only ] -> only
+    | [] -> ""
+  in
+  let refused (header, (glue : Compile.source)) =
+    let state = Clang.private_state glue.bitcode in
+    let defines (s : Compile.source) =
+      List.mem header s.includes && List.exists (fun v -> List.mem v state) (Clang.private_state s.bitcode)
+    in
+    let file () =
+      List.find_opt (fun h -> Compile.real (Filename.concat p.dir h) = header) p.headers
+      |> Option.fold ~none:header ~some:(Filename.concat p.dir)
+    in
+    let path (s : Compile.source) = s.path in
+    match (List.filter defines p.sources, List.filter defines (List.map (fun a -> a.source) p.assembled)) with
+    | ([] | [ _ ]), [] -> None
+    | defining, [] ->
+        Some
+          (Diagnostic.in_file (file ())
+             (Printf.sprintf
+                "this interface header defines private state that %s each define, since each includes it, so the glue, which calls the header's functions, cannot share the state of any one of them (docs/design/ffi.md F9)"
+                (listed (List.map path defining))))
+    | _, assembled ->
+        Some
+          (Diagnostic.in_file (file ())
+             (Printf.sprintf
+                "this interface header defines private state that %s, assembled apart since it holds assembly, defines too, since it includes it, so the glue, which calls the header's functions, cannot share it (docs/design/ffi.md F9)"
+                (listed (List.map path assembled))))
+  in
+  match List.filter_map refused compiled with
+  | [] -> Ok compiled
+  | diagnostics -> Error { diagnostics; sources = [] }
+
 (* [p]'s glue for [entries] (Glue), each file compiled as its sources
    were, from the cache when it holds it, beside the real path of the
    interface header it compiles. The files are written to a
@@ -385,7 +428,7 @@ let glue p (entries : Glue.entry list) =
       glue_refused
         (Printf.sprintf "the interface header `%s` cannot be included by its path, which holds a `\"` or a line break"
            header)
-  | None -> glue_files p ~dir files
+  | None -> Result.bind (glue_files p ~dir files) (shared_state p)
 
 (* The C entries and invokers of the function values C can call
    (docs/design/ffi.md F11, Glue.callbacks_file), compiled for [target] by

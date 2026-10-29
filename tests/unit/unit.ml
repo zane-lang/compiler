@@ -1371,6 +1371,9 @@ let fixture_pairing () =
       "golden/reject.syntax.err is for fixtures/reject/syntax.zn, which does not exist";
       "fixtures/reject/lost.zn has no golden file";
     ];
+  check_pairs "a C interface package codegen refuses pairs with its error" P.Ffi
+    ~fixtures:[ "fixtures/reject/sharedState" ]
+    ~goldens:[ "reject.sharedState.ll.err" ] [];
   check_pairs "a runtime test pairs with its output" P.Runtime ~fixtures:[ "arenas.c"; "texts.c" ]
     ~goldens:[ "arenas.out" ] [ "texts.c has no golden file" ];
   check_pairs "hand-written semantics rules are left alone" P.Semantics

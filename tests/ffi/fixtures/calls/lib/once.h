@@ -22,6 +22,10 @@ static long long *once_target = &once_pointed;
 __attribute__((constructor)) static void once_point(void) { *once_target = 13; }
 static inline long long once_pointed_value(void) { return once_pointed; }
 
+static long long once_shared;
+void once_share(long long x) { once_shared = x; }
+static inline long long once_shared_value(void) { return once_shared; }
+
 #ifdef __APPLE__
 long long once_alias(long long x) { return once(x); }
 #else

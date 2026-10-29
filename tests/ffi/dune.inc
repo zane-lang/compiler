@@ -843,6 +843,20 @@
   (diff golden/reject.absolute.err reject.absolute.err.actual)))
 
 (rule
+ (deps (source_tree fixtures/reject/assembledState))
+ (action
+  (with-stderr-to
+   reject.assembledState.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/assembledState)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.assembledState.ll.err reject.assembledState.ll.err.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/badHeader))
  (action
   (with-stderr-to
@@ -1065,6 +1079,20 @@
  (alias runtest)
  (action
   (diff golden/reject.positions.err reject.positions.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/sharedState))
+ (action
+  (with-stderr-to
+   reject.sharedState.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/sharedState)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.sharedState.ll.err reject.sharedState.ll.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/systemMissing))
