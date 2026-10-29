@@ -243,10 +243,11 @@ let interface_text () =
     (match List.assoc_opt "struct file" (I.merge partial complete).I.records with
     | Some { I.declared = true; layout = Some _; _ } -> true
     | _ -> false);
-  let old = I.read "fun 1:f 1 K V" and typed = I.read "fun 1:f 1 N 0 1 I s 4 32 3:int 3:int V" in
+  let old = I.read "fun 1:f 1 K V 0 4:void"
+  and typed = I.read "fun 1:f 1 N 0 1 I s 4 32 3:int 3:int V 1 3:int 4:void" in
   check "a function one header declares without a prototype and another with one has the prototype"
     (match List.assoc_opt "f" (I.merge old typed).I.functions with
-    | Some { I.ty = I.Function { params = [ _ ]; _ }; _ } -> true
+    | Some { I.ty = I.Function { params = [ _ ]; _ }; spelled = [ "int" ]; _ } -> true
     | _ -> false);
   check "a malformed table is refused" (match I.read "fun 1:f 1 Q" with _ -> false | exception I.Malformed _ -> true);
   check "a name past the end is refused" (match I.read "fun 9:f" with _ -> false | exception I.Malformed _ -> true);

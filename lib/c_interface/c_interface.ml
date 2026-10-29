@@ -206,7 +206,7 @@ let merge a b =
     List.map
       (fun (n, (f : func)) ->
         match (f.ty, List.assoc_opt n b.functions) with
-        | Unprototyped _, Some ({ ty = Function _; _ } as f') -> (n, { f with ty = f'.ty })
+        | Unprototyped _, Some ({ ty = Function _; _ } as f') -> (n, { f' with external_ = f.external_ })
         | _ -> (n, f))
       a.functions
   in
