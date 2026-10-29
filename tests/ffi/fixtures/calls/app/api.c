@@ -18,6 +18,8 @@ double sum(const double *xs, zane_span ys) {
   return s;
 }
 
+bool same(const double *a, const double *b) { return a == b; }
+
 zane_bytes greet(zane_bytes who) {
   static uint8_t buf[64];
   memcpy(buf, "hello, ", 7);

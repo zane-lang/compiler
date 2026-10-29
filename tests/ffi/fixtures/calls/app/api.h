@@ -11,6 +11,7 @@ float halve(float x);
 bool odd(int n);
 int32_t from_bool(bool b);
 double sum(const double *xs, zane_span ys);
+bool same(const double *a, const double *b);
 zane_bytes greet(zane_bytes who);
 int64_t length(zane_bytes text);
 vec3 vec_add(vec3 a, vec3 b);
