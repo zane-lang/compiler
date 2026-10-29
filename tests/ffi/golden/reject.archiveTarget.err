@@ -1,0 +1,2 @@
+File "fixtures/reject/archiveTarget/other.a":
+Error: the member `other.o` is for aarch64, and the build's target is for x86_64

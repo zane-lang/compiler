@@ -184,8 +184,10 @@ let assemble ?cache ~triple ~cpu (source : Compile.source) =
   Ok { source; object_; contents }
 
 (* The static library an `archive` row of [dir]'s names, read member by
-   member, each member's sections held to the linker-set test. *)
-let archive dir (row : Settings.row) =
+   member, each member's sections held to the linker-set test and its
+   architecture to [triple]'s, so a check refuses what the build's link
+   would. *)
+let archive ~triple dir (row : Settings.row) =
   let ( let* ) = Result.bind in
   let coda = Filename.concat dir Settings.file_name and path = Filename.concat dir row.value in
   let at_row message = Error { diagnostics = [ Settings.problem coda row.number message ]; sources = [] } in
@@ -199,9 +201,14 @@ let archive dir (row : Settings.row) =
     | Ok members -> Ok members
     | Error why -> at_row (Printf.sprintf "`%s` is not a static library: %s" row.value why)
   in
+  let target = Objects.triple_arch triple in
   let member (name, member_bytes) =
     match Objects.read member_bytes with
     | Error why -> refused path (Printf.sprintf "the member `%s` is not an object file: %s" name why)
+    | Ok contents when contents.Objects.arch <> target && target <> "unknown" ->
+        refused path
+          (Printf.sprintf "the member `%s` is for %s, and the build's target is for %s" name contents.Objects.arch
+             target)
     | Ok contents ->
         object_linker_sets ~file:path ~what:(Printf.sprintf "the member `%s`" name) contents
   in
@@ -216,7 +223,9 @@ let archive dir (row : Settings.row) =
         {
           Objects.defined = union (fun c -> c.Objects.defined);
           data = union (fun c -> c.Objects.data);
+          locals = union (fun c -> c.Objects.locals);
           sections = union (fun c -> c.Objects.sections);
+          arch = target;
         };
     }
 
@@ -245,7 +254,7 @@ let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
     else Ok (Either.Left source)
   in
   let compiled = Result.map (List.partition_map Fun.id) (combine (List.map compiled_source sources)) in
-  let archive_row (row : Settings.row) = if row.setting = Settings.Archive then Some (archive dir row) else None in
+  let archive_row (row : Settings.row) = if row.setting = Settings.Archive then Some (archive ~triple dir row) else None in
   let archives = combine (List.filter_map archive_row rows) in
   let defined (sources : Compile.source list) assembled archives =
     List.concat_map (fun (s : Compile.source) -> Clang.defined_variables s.bitcode) sources
@@ -373,7 +382,10 @@ let glue_files p ~dir files =
    source's including the header (Foreign_c), and C itself gives each
    including source a copy of its own, so no one copy is the header's
    (docs/design/ffi.md F9). One source assembled apart that defines it is
-   refused too, since its copy is in an object the glue's cannot share. *)
+   refused too, since its copy is in an object the glue's cannot share, and
+   so is an archive one of whose members holds a variable of its own of a
+   name the state has, which an archive's object holds for a header it
+   includes. *)
 let shared_state (p : package) compiled =
   let listed paths =
     match List.rev_map (fun path -> "`" ^ path ^ "`") paths with
@@ -392,7 +404,15 @@ let shared_state (p : package) compiled =
     in
     let path (s : Compile.source) = s.path in
     match (List.filter defines p.sources, List.filter defines (List.map (fun a -> a.source) p.assembled)) with
-    | ([] | [ _ ]), [] -> None
+    | ([] | [ _ ]), [] -> (
+        match List.find_opt (fun a -> List.exists (fun v -> List.mem v state) a.held.Objects.locals) p.archives with
+        | None -> None
+        | Some a ->
+            Some
+              (Diagnostic.in_file (file ())
+                 (Printf.sprintf
+                    "this interface header defines private state that `%s` holds a copy of, since a member of it includes it, so the glue, which calls the header's functions, cannot share it (docs/design/ffi.md F9)"
+                    a.path)))
     | defining, [] ->
         Some
           (Diagnostic.in_file (file ())

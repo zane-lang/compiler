@@ -185,12 +185,24 @@ let linked_in_process () =
       ]
     in
     let obj = "/w/program.o" and runtime = "/r/runtime.o" and output = "six" in
+    let unfinding = Filename.concat directory "unfinding-cc" in
+    write_all unfinding
+      "#!/bin/sh\n\
+       case \" $* \" in *' -### '*|*' -print-search-dirs '*) ;; *' --version '*) echo fake 1.0; exit 0;; *) echo 'ld: cannot find -lzane_gone' >&2; exit 1;; esac\n";
+    Unix.chmod unfinding 0o755;
+    let missing cc =
+      Build.link_program ~cache ~lld:unfound ~say:(Buffer.add_string said) ~libraries ~cc ~triple:"t" ~deps:[]
+        ~args:(args ~obj ~runtime ~output) ~obj ~runtime ~output work
+    in
     check "a `system` library neither link finds is an error naming its row, not a row whose name begins it"
-      (Build.link_program ~cache ~lld:unfound ~say:(Buffer.add_string said) ~libraries ~cc:failing ~triple:"t"
-         ~deps:[] ~args:(args ~obj ~runtime ~output) ~obj ~runtime ~output work
+      (missing unfinding
       = Error
           "row 2 of `c.coda` names the system library `zane_gone`, which the linker cannot find for the \
            build's target (ffi.md §2.4)");
+    check "but not when the C compiler fails for another reason, which its own error shows"
+      (match missing failing with
+      | Error e -> String.starts_with ~prefix:"`" e && not (String.starts_with ~prefix:"row" e)
+      | Ok () -> false);
     check "and each linker's way of saying so is read"
       (List.for_all
          (fun text -> Build.unfound_library text "m")

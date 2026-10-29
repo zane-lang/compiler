@@ -540,20 +540,22 @@ let library_error libraries text =
    command LLD fails on where *cc* links is warned of: one kept by an
    earlier build may have gone stale, and is asked for again next build;
    one just asked for is not, so *cc* links from then on. When *cc* fails
-   too, the program does not link, and nothing is forgotten; when either
+   too, the program does not link, and nothing is forgotten; when *cc*
    says it cannot find one of the `system` [libraries], the error names
    the row that asks for it, and what *cc* wrote is not repeated. [lld]
    runs the LLD. *)
 let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(libraries = []) ~cc ~triple
     ~args ~deps ~obj ~runtime ~output dir =
-  let through_cc ?(failed = "") why =
+  let through_cc why =
     if verbose () then say (Printf.sprintf "zanec: `%s` links: %s\n" cc why);
     let errors = Filename.concat dir "cc-errors" in
     let command = Filename.quote_command ~stderr:errors cc args in
     let code = Sys.command command in
     let written = Option.value ~default:"" (Cache.read errors) in
     (try Sys.remove errors with Sys_error _ -> ());
-    match (code, library_error libraries (failed ^ written)) with
+    (* Only *cc*'s own words name the row: what LLD said before it may be
+       why LLD failed and not why *cc* did. *)
+    match (code, library_error libraries written) with
     | 0, _ ->
         prerr_string written;
         Ok ()
@@ -608,7 +610,7 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
       match lld command with
       | Ok () -> Ok ()
       | Error text -> (
-          match through_cc ~failed:text "the built-in LLD could not link" with
+          match through_cc "the built-in LLD could not link" with
           | Error _ as error -> error
           | Ok () ->
               record_fallback source;

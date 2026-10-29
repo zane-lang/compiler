@@ -17,12 +17,28 @@
    (run sh %{dep:../../../archive} tally.a tally.archive))))
 
 (subdir
+ fixtures/reject/archiveTarget
+ (rule
+  (targets other.a)
+  (deps (glob_files other.archive/*) (env_var ZANE_CC) (env_var AR))
+  (action
+   (run sh %{dep:../../../archive} other.a other.archive))))
+
+(subdir
  fixtures/reject/archivedConstructor
  (rule
   (targets started.a)
   (deps (glob_files started.archive/*) (env_var ZANE_CC) (env_var AR))
   (action
    (run sh %{dep:../../../archive} started.a started.archive))))
+
+(subdir
+ fixtures/reject/archivedState
+ (rule
+  (targets counter.a)
+  (deps (glob_files counter.archive/*) (env_var ZANE_CC) (env_var AR))
+  (action
+   (run sh %{dep:../../../archive} counter.a counter.archive))))
 
 (subdir
  fixtures/reject/objectLinkerSet
@@ -863,6 +879,20 @@
   (diff golden/reject.absolute.err reject.absolute.err.actual)))
 
 (rule
+ (deps (source_tree fixtures/reject/archiveTarget) fixtures/reject/archiveTarget/other.a)
+ (action
+  (with-stderr-to
+   reject.archiveTarget.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/archiveTarget)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.archiveTarget.err reject.archiveTarget.err.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/archivedConstructor) fixtures/reject/archivedConstructor/started.a)
  (action
   (with-stderr-to
@@ -875,6 +905,20 @@
  (alias runtest)
  (action
   (diff golden/reject.archivedConstructor.ll.err reject.archivedConstructor.ll.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/archivedState) fixtures/reject/archivedState/counter.a)
+ (action
+  (with-stderr-to
+   reject.archivedState.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/archivedState)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.archivedState.ll.err reject.archivedState.ll.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/assembledState))

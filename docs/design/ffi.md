@@ -157,7 +157,9 @@ it.
 **F4. Archives and system libraries go to the link.** An `archive` row's
 static library is read member by member with LLVM's archive reader
 (`lib/foreign/object_stubs.cpp`) when the package's C is compiled, so a
-check reports what a build would, and each member is renamed (F9) and
+check reports what a build would: a member for another architecture than
+the build's target is refused there, naming the member, rather than at
+the link. Each member is renamed (F9) and
 written back as a static library by LLVM's archive writer
 (`lib/codegen/archive_stubs.cpp`), in the kind the target's linker reads:
 GNU's for ELF, Darwin's for Apple's targets and COFF's for Windows, with
@@ -393,7 +395,9 @@ them: C gives each of them a copy of its own, so none is the header's. A
 constant several sources define has one value, so the glue keeps a copy of
 its own, as C gives each source one. A header whose writable private
 state a source assembled apart (below) defines is refused too, since that
-copy is in an object of its own, which the glue's cannot share.
+copy is in an object of its own, which the glue's cannot share, and so is
+one an archive's member holds a variable of its own of the same name as,
+read from the member's local symbols: that member includes the header.
 A constructor that sets up private state the glue keeps a copy of, which
 a function the glue keeps reads, stays, itself, through a function of the
 glue it calls or through a private variable's initializer, such as a

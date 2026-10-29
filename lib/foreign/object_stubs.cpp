@@ -155,9 +155,9 @@ extern "C" value zane_object_emit(value bitcode, value triple, value cpu) {
    attribute names one. */
 extern "C" value zane_object_read(value bytes) {
   CAMLparam1(bytes);
-  CAMLlocal4(result, tuple, defined, sections);
+  CAMLlocal5(result, tuple, defined, sections, arch);
   std::vector<std::pair<std::string, std::string>> names, placed;
-  std::string failure;
+  std::string failure, architecture;
   {
     llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bytes), caml_string_length(bytes)), "object");
     llvm::Expected<std::unique_ptr<llvm::object::ObjectFile>> file = llvm::object::ObjectFile::createObjectFile(buffer);
@@ -166,6 +166,7 @@ extern "C" value zane_object_read(value bytes) {
     else {
       llvm::object::ObjectFile &o = **file;
       bool macho = o.isMachO();
+      architecture = llvm::Triple::getArchTypeName(o.getArch()).str();
       for (const llvm::object::SymbolRef &s : o.symbols()) {
         using F = llvm::object::BasicSymbolRef;
         llvm::Expected<uint32_t> flags = s.getFlags();
@@ -173,7 +174,7 @@ extern "C" value zane_object_read(value bytes) {
           llvm::consumeError(flags.takeError());
           continue;
         }
-        if ((*flags & F::SF_Undefined) || !(*flags & F::SF_Global) || (*flags & F::SF_FormatSpecific)) continue;
+        if ((*flags & F::SF_Undefined) || (*flags & F::SF_FormatSpecific)) continue;
         llvm::Expected<llvm::StringRef> name = s.getName();
         if (!name) {
           llvm::consumeError(name.takeError());
@@ -189,7 +190,14 @@ extern "C" value zane_object_read(value bytes) {
           if (n.empty() || n[0] != '_') continue;
           n = n.substr(1);
         }
-        names.emplace_back(n, *type == llvm::object::SymbolRef::ST_Data ? "data" : "code");
+        bool data = *type == llvm::object::SymbolRef::ST_Data;
+        // A local symbol matters only as private state: a variable of its
+        // own, which an interface header the glue compiles may define too.
+        if (!(*flags & F::SF_Global)) {
+          if (data && !n.empty()) names.emplace_back(n, "local");
+          continue;
+        }
+        names.emplace_back(n, data ? "data" : "code");
       }
       for (const llvm::object::SectionRef &s : o.sections()) {
         llvm::Expected<llvm::StringRef> name = s.getName();
@@ -210,10 +218,22 @@ extern "C" value zane_object_read(value bytes) {
   }
   defined = list_of(names, pair_of);
   sections = list_of(placed, [](const std::pair<std::string, std::string> &p) { return string_of(p.first); });
-  tuple = caml_alloc_tuple(2);
+  arch = string_of(architecture);
+  tuple = caml_alloc_tuple(3);
   Store_field(tuple, 0, defined);
   Store_field(tuple, 1, sections);
+  Store_field(tuple, 2, arch);
   result = ok(tuple);
+  CAMLreturn(result);
+}
+
+/* The architecture [triple] names, spelled as [zane_object_read] spells an
+   object's. */
+extern "C" value zane_triple_arch(value triple) {
+  CAMLparam1(triple);
+  CAMLlocal1(result);
+  std::string t(String_val(triple), caml_string_length(triple));
+  result = string_of(llvm::Triple::getArchTypeName(llvm::Triple(llvm::Triple::normalize(t)).getArch()).str());
   CAMLreturn(result);
 }
 
