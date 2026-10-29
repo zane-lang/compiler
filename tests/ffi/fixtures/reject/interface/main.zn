@@ -2,7 +2,8 @@
 /// a symbol no interface header declares as a function, a different number
 /// of parameters, a variadic or unprototyped function, a C type of another
 /// primitive, one whose size differs between targets, a struct laid out
-/// differently or holding a bit-field, and a list returned.
+/// differently or holding a bit-field, a list returned, and a function
+/// value whose C parameter or result is a narrow integer type (ffi.md §3.6).
 package interface;
 
 alias Unit = @primitives$Unit;
@@ -36,6 +37,8 @@ Packed packed(p Packed) foreign "packed_pass";
 Bits bits(b Bits) foreign "bits_pass";
 I64 variable(n I64) foreign "not_a_function";
 @primitives$List<I64> list() foreign "returns_list";
+I32 narrowParam(f I32[I32]) foreign "narrow_param";
+I32 narrowResult(f I32[I32]) foreign "narrow_result";
 
 Unit main() {
 	return Unit();
