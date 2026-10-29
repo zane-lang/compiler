@@ -82,8 +82,9 @@ let with_sources (dir, rows) =
    `__start_` and `__stop_` symbols named after it: one whose name is a C
    identifier (spec ffi.md §2.5). Its name is not renamed, so two versions
    of a package would share it, and a module that places a global in one
-   is refused (docs/design/ffi.md F9). *)
-let linker_sets (source : Compile.source) =
+   is refused (docs/design/ffi.md F9). [file] is what the diagnostic
+   names: the source, or the interface header a glue file includes. *)
+let linker_sets ~file (source : Compile.source) =
   match
     List.filter (fun (_, section) -> Settings.is_identifier section) (Clang.sections source.Compile.bitcode)
   with
@@ -94,7 +95,7 @@ let linker_sets (source : Compile.source) =
           diagnostics =
             List.map
               (fun (global, section) ->
-                Diagnostic.in_file source.Compile.path
+                Diagnostic.in_file file
                   (Printf.sprintf
                      "`%s` is placed in the section `%s`, a linker set, which the package would share with every other version of it, since a section is gathered by its name (ffi.md §2.5)"
                      global section))
@@ -136,7 +137,7 @@ let compile_package ?cache ~fixed ~headers (dir, rows, sources) =
       (List.map
          (fun s ->
            let path = Filename.concat dir s in
-           Result.bind (Result.bind (Compile.compile_source ?cache ~maps flags path) linker_sets) (assembly ~file:path))
+           Result.bind (Result.bind (Compile.compile_source ?cache ~maps flags path) (linker_sets ~file:path)) (assembly ~file:path))
          sources)
   in
   let defined (sources : Compile.source list) = List.concat_map (fun (s : Compile.source) -> Clang.defined_variables s.bitcode) sources in
@@ -209,5 +210,7 @@ let glue p (entries : Glue.entry list) =
              (fun (header, text) ->
                let path = Filename.concat work (Filename.remove_extension (Filename.basename header) ^ ".glue.c") in
                Out_channel.with_open_bin path (fun oc -> output_string oc text);
-               Result.bind (Compile.compile_source ?cache:p.cache ~maps flags path) (assembly ~file:header))
+               Result.bind
+                 (Result.bind (Compile.compile_source ?cache:p.cache ~maps flags path) (linker_sets ~file:header))
+                 (assembly ~file:header))
              files))

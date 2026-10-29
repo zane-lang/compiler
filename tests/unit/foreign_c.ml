@@ -308,23 +308,34 @@ let interface_header () =
             (match table (Some "x86_64-windows-gnu") with Some w -> long_size w = 32 | None -> false))
 
 (* A function an interface header defines is compiled in the glue, and
-   one holding assembly is refused there, naming the header. *)
-let glue_assembly () =
-  let base = Filename.temp_dir "zane-glue-asm-" "" in
-  Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
-      let dir = Filename.concat base "pkg" in
-      Sys.mkdir dir 0o755;
-      let header = Filename.concat dir "api.h" in
-      write_all header "int fenced(void) { __asm__ volatile(\"\" ::: \"memory\"); return 1; }\n";
-      let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
-      match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
-      | Ok [ p ] -> (
-          let entry = { Foreign.Glue.label = "pkg.fenced.ffi"; c_function = "fenced"; params = []; result = Foreign.Glue.Scalar "int32_t" } in
-          match Foreign.glue p [ entry ] with
-          | Error { Foreign.diagnostics = [ { Diagnostic.location = Diagnostic.Location.File f; _ } ]; _ } ->
-              check "a header's function holding assembly is refused in its glue, naming the header" (f = header)
-          | _ -> check "a header's function holding assembly is refused in its glue" false)
-      | _ -> check "a header defining a function is read" false)
+   one holding assembly, or a global the header places in a linker set, is
+   refused there, naming the header. *)
+let glue_refusals () =
+  let refused name text =
+    let base = Filename.temp_dir "zane-glue-" "" in
+    Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
+        let dir = Filename.concat base "pkg" in
+        Sys.mkdir dir 0o755;
+        let header = Filename.concat dir "api.h" in
+        write_all header text;
+        let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+        match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        | Ok [ p ] -> (
+            let entry =
+              { Foreign.Glue.label = "pkg.fenced.ffi"; c_function = "fenced"; params = []; result = Foreign.Glue.Scalar "int32_t" }
+            in
+            match Foreign.glue p [ entry ] with
+            | Error { Foreign.diagnostics = { Diagnostic.location = Diagnostic.Location.File f; _ } :: _; _ } ->
+                check name (f = header)
+            | _ -> check name false)
+        | _ -> check (name ^ ": the header is read") false)
+  in
+  refused "a header's function holding assembly is refused in its glue, naming the header"
+    "int fenced(void) { __asm__ volatile(\"\" ::: \"memory\"); return 1; }\n";
+  refused "a header's global in a linker set is refused in its glue, naming the header"
+    "__attribute__((used, section(\"plugins\"))) static const int entry = 1;\n\
+     extern const int __start_plugins, __stop_plugins;\n\
+     int fenced(void) { return &__stop_plugins - &__start_plugins; }\n"
 
 let run () =
   patterns ();
@@ -336,4 +347,4 @@ let run () =
   compiled ();
   interface_text ();
   interface_header ();
-  glue_assembly ()
+  glue_refusals ()
