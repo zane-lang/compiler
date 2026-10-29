@@ -360,7 +360,10 @@ which the header's functions share: state an external setter writes and a
 both take. The glue's copy of each is the source's: before the link, each
 private variable the glue defines that the one source including the
 header defines too, by name and type, and for a constant with the same
-value, is the source's,
+value, is the source's. A constant's value may point at other objects of
+the header's: it is the same when each pointed at is the other module's
+copy, a private object by name and value, a string literal by content,
+anything else by name. Such a variable is the source's,
 renamed `zane.shared.N.NAME` (`N` the source's place in the package)
 and made visible to the link, with the glue's made a declaration of it
 (`zane_share_state`); once the package's modules are linked it is local
