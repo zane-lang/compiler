@@ -2,7 +2,8 @@
 /// a symbol no interface header declares as a function, a different number
 /// of parameters, a variadic or unprototyped function, a C type of another
 /// primitive, one whose size differs between targets, a struct laid out
-/// differently or holding a bit-field, a list returned, and a function
+/// differently, aligned more strictly or holding a bit-field, a list
+/// returned, and a function
 /// value whose C parameter or result is a narrow integer type (ffi.md §3.6).
 package interface;
 
@@ -24,6 +25,11 @@ type Bits = struct {
 	more I32;
 }
 
+type Aligned = struct {
+	x I64;
+	y I64;
+}
+
 I64 missing(n I64) foreign "missing";
 I64 count(n I64) foreign "two_args";
 I64 printfLike(n I64) foreign "variadic";
@@ -35,6 +41,7 @@ F64 writable(xs @primitives$Array<F64, 2>) foreign "writable_array";
 I64 listed(xs @primitives$List<I64>) foreign "takes_bytes";
 Packed packed(p Packed) foreign "packed_pass";
 Bits bits(b Bits) foreign "bits_pass";
+I64 aligned(n I32, a Aligned) foreign "aligned_pass";
 I64 variable(n I64) foreign "not_a_function";
 @primitives$List<I64> list() foreign "returns_list";
 I32 narrowParam(f I32[I32]) foreign "narrow_param";
