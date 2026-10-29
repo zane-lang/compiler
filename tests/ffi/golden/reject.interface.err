@@ -1,72 +1,76 @@
-File "fixtures/reject/interface/main.zn", line 27, characters 28-37:
-27 | I64 missing(n I64) foreign "missing";
+File "fixtures/reject/interface/main.zn", line 33, characters 28-37:
+33 | I64 missing(n I64) foreign "missing";
    |                            ^^^^^^^^^
 Error: no interface header of `interface` declares `missing` as a function: a foreign verb names a C function its package's `.h` files declare (ffi.md §3.7)
-File "fixtures/reject/interface/main.zn", line 28, characters 26-36:
-28 | I64 count(n I64) foreign "two_args";
+File "fixtures/reject/interface/main.zn", line 34, characters 26-36:
+34 | I64 count(n I64) foreign "two_args";
    |                          ^^^^^^^^^^
 Error: `two_args` takes 2 parameters, and the foreign verb passes 1 (ffi.md §3.2)
-File "fixtures/reject/interface/main.zn", line 29, characters 31-41:
-29 | I64 printfLike(n I64) foreign "variadic";
+File "fixtures/reject/interface/main.zn", line 35, characters 31-41:
+35 | I64 printfLike(n I64) foreign "variadic";
    |                               ^^^^^^^^^^
 Error: `variadic` is variadic: reach it through a C function of the package that takes its arguments (ffi.md §3.3)
-File "fixtures/reject/interface/main.zn", line 30, characters 24-38:
-30 | I64 old(n I64) foreign "unprototyped";
+File "fixtures/reject/interface/main.zn", line 36, characters 24-38:
+36 | I64 old(n I64) foreign "unprototyped";
    |                        ^^^^^^^^^^^^^^
 Error: `unprototyped` is declared without a prototype, which gives no parameter types to check; declare it as `(void)` or with its parameters
-File "fixtures/reject/interface/main.zn", line 31, characters 18-21:
-31 | I64 mismatched(n I64) foreign "takes_int";
+File "fixtures/reject/interface/main.zn", line 37, characters 18-21:
+37 | I64 mismatched(n I64) foreign "takes_int";
    |                  ^^^
 Error: C declares `int` here, which is not one of `@primitives$I64`'s C types (ffi.md §3.3)
-File "fixtures/reject/interface/main.zn", line 32, characters 1-4:
-32 | I64 wide(n I64) foreign "takes_long";
+File "fixtures/reject/interface/main.zn", line 38, characters 1-4:
+38 | I64 wide(n I64) foreign "takes_long";
    | ^^^
 Error: C declares `long` here, which is not one of `@primitives$I64`'s C types (ffi.md §3.3); `long` has a size that differs between targets, so it corresponds to no Zane type: reach it through a C function of the package that converts it
-File "fixtures/reject/interface/main.zn", line 32, characters 12-15:
-32 | I64 wide(n I64) foreign "takes_long";
+File "fixtures/reject/interface/main.zn", line 38, characters 12-15:
+38 | I64 wide(n I64) foreign "takes_long";
    |            ^^^
 Error: C declares `long` here, which is not one of `@primitives$I64`'s C types (ffi.md §3.3); `long` has a size that differs between targets, so it corresponds to no Zane type: reach it through a C function of the package that converts it
-File "fixtures/reject/interface/main.zn", line 33, characters 13-17:
-33 | Unit unit(u Unit) foreign "takes_void_ptr";
+File "fixtures/reject/interface/main.zn", line 39, characters 13-17:
+39 | Unit unit(u Unit) foreign "takes_void_ptr";
    |             ^^^^
 Error: `@primitives$Unit` crosses into C only as a result, `void`
-File "fixtures/reject/interface/main.zn", line 34, characters 17-42:
-34 | F64 writable(xs @primitives$Array<F64, 2>) foreign "writable_array";
+File "fixtures/reject/interface/main.zn", line 40, characters 17-42:
+40 | F64 writable(xs @primitives$Array<F64, 2>) foreign "writable_array";
    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: C declares `double *` here, and `@primitives$Array<@primitives$F64, 2>` crosses as a `const` pointer to a full-width C type of its element
-File "fixtures/reject/interface/main.zn", line 35, characters 15-36:
-35 | I64 listed(xs @primitives$List<I64>) foreign "takes_bytes";
+File "fixtures/reject/interface/main.zn", line 41, characters 15-36:
+41 | I64 listed(xs @primitives$List<I64>) foreign "takes_bytes";
    |               ^^^^^^^^^^^^^^^^^^^^^
 Error: C declares `struct zane_bytes` here, and a `@primitives$List` crosses as a `zane_span`
-File "fixtures/reject/interface/main.zn", line 36, characters 1-7:
-36 | Packed packed(p Packed) foreign "packed_pass";
+File "fixtures/reject/interface/main.zn", line 42, characters 1-7:
+42 | Packed packed(p Packed) foreign "packed_pass";
    | ^^^^^^
-Error: `interface$Packed` and the C type `packed` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)
-File "fixtures/reject/interface/main.zn", line 36, characters 17-23:
-36 | Packed packed(p Packed) foreign "packed_pass";
+Error: `interface$Packed` and the C type `packed` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets, and the same size and alignment (ffi.md §3.3)
+File "fixtures/reject/interface/main.zn", line 42, characters 17-23:
+42 | Packed packed(p Packed) foreign "packed_pass";
    |                 ^^^^^^
-Error: `interface$Packed` and the C type `packed` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)
-File "fixtures/reject/interface/main.zn", line 37, characters 1-5:
-37 | Bits bits(b Bits) foreign "bits_pass";
+Error: `interface$Packed` and the C type `packed` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets, and the same size and alignment (ffi.md §3.3)
+File "fixtures/reject/interface/main.zn", line 43, characters 1-5:
+43 | Bits bits(b Bits) foreign "bits_pass";
    | ^^^^
-Error: `interface$Bits` and the C type `bits` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)
-File "fixtures/reject/interface/main.zn", line 37, characters 13-17:
-37 | Bits bits(b Bits) foreign "bits_pass";
+Error: `interface$Bits` and the C type `bits` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets, and the same size and alignment (ffi.md §3.3)
+File "fixtures/reject/interface/main.zn", line 43, characters 13-17:
+43 | Bits bits(b Bits) foreign "bits_pass";
    |             ^^^^
-Error: `interface$Bits` and the C type `bits` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)
-File "fixtures/reject/interface/main.zn", line 38, characters 29-45:
-38 | I64 variable(n I64) foreign "not_a_function";
+Error: `interface$Bits` and the C type `bits` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets, and the same size and alignment (ffi.md §3.3)
+File "fixtures/reject/interface/main.zn", line 44, characters 22-29:
+44 | I64 aligned(n I32, a Aligned) foreign "aligned_pass";
+   |                      ^^^^^^^
+Error: `interface$Aligned` and the C type `aligned` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets, and the same size and alignment (ffi.md §3.3)
+File "fixtures/reject/interface/main.zn", line 45, characters 29-45:
+45 | I64 variable(n I64) foreign "not_a_function";
    |                             ^^^^^^^^^^^^^^^^
 Error: no interface header of `interface` declares `not_a_function` as a function: a foreign verb names a C function its package's `.h` files declare (ffi.md §3.7)
-File "fixtures/reject/interface/main.zn", line 39, characters 1-22:
-39 | @primitives$List<I64> list() foreign "returns_list";
+File "fixtures/reject/interface/main.zn", line 46, characters 1-22:
+46 | @primitives$List<I64> list() foreign "returns_list";
    | ^^^^^^^^^^^^^^^^^^^^^
 Error: an array and a list cross into C only as parameters (ffi.md §3.5)
-File "fixtures/reject/interface/main.zn", line 40, characters 19-27:
-40 | I32 narrowParam(f I32[I32]) foreign "narrow_param";
+File "fixtures/reject/interface/main.zn", line 47, characters 19-27:
+47 | I32 narrowParam(f I32[I32]) foreign "narrow_param";
    |                   ^^^^^^^^
 Error: C declares `int8_t` here, and a function value takes and gives a full-width C type of each scalar, never a narrower one (ffi.md §3.6)
-File "fixtures/reject/interface/main.zn", line 41, characters 20-28:
-41 | I32 narrowResult(f I32[I32]) foreign "narrow_result";
+File "fixtures/reject/interface/main.zn", line 48, characters 20-28:
+48 | I32 narrowResult(f I32[I32]) foreign "narrow_result";
    |                    ^^^^^^^^
 Error: C declares `int16_t` here, and a function value takes and gives a full-width C type of each scalar, never a narrower one (ffi.md §3.6)
