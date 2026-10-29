@@ -160,7 +160,7 @@ static void zane_join_task(zane_task *t) {
 	if (waits) zane_waited();
 	if (t->size) {
 		memcpy(t->dest, t->frame, (size_t)t->size);
-		zane_arrive(t->dest, t->type);
+		zane_move(t->dest, t->type, zane_region_at(t->dest), 0);
 	}
 	zane_release(t->context);
 	t->owner->shared--;

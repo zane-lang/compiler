@@ -330,6 +330,12 @@ static zane_mapping *zane_take_warm(zane_context *c) {
    never keeps the peak its last call reached; past what the pool keeps
    warm, they turn cold. */
 void zane_give_spares(zane_context *c) {
+	while (c->spans) {
+		zane_mapping *m = c->spans;
+		c->spans = m->next;
+		zane_release_addresses(m->raw, (char *)m, m->reserved);
+	}
+	c->span_count = 0;
 	if (!c->spare) return;
 	pthread_mutex_lock(&zane_memory);
 	while (c->spare && zane_warm_spares < ZANE_POOL_WARM) {
@@ -383,11 +389,27 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 	return m;
 }
 
+/* A drained list's reservation kept mapped, its pages resident, for the
+   context's next list that grows past 1 MiB (zane_alloc_growable), while
+   the context keeps fewer than ZANE_WARM_SPANS; otherwise it goes back to
+   the system whole. */
+static void zane_keep_span(zane_context *c, zane_mapping *m) {
+	if (c->span_count >= ZANE_WARM_SPANS) {
+		zane_release_addresses(m->raw, (char *)m, m->reserved);
+		return;
+	}
+	m->stamp = c->drains;
+	m->next = c->spans;
+	c->spans = m;
+	c->span_count++;
+}
+
 /* A region's chunks given back, whatever is still in them (memory.md
    §3.2): each leaves the chunk map, and a whole chunk stays warm for the
    next region of the same context, until it has sat unused through
    ZANE_COOLING of the context's drains past the ZANE_WARM_KEPT it keeps
-   for good. A list's growable span gives back its whole reservation, and an
+   for good. A list's growable span is kept for the context's next list
+   (zane_keep_span) or gives back its whole reservation, and an
    oversized block its chunks. Its context's lock is held. */
 void zane_unmap(zane_mark *region) {
 	zane_context *c = region->context;
@@ -396,7 +418,7 @@ void zane_unmap(zane_mark *region) {
 		zane_mapping *m = region->mappings;
 		region->mappings = m->next;
 		for (size_t at = 0; at < m->size; at += ZANE_CHUNK) zane_set_page((char *)m + at, 0);
-		if (m->reserved) zane_release_addresses(m->raw, (char *)m, m->reserved);
+		if (m->reserved) zane_keep_span(c, m);
 		else if (m->size != ZANE_CHUNK) zane_chunks_drop(m, m->size);
 		else zane_keep_warm(c, m);
 	}
@@ -406,6 +428,16 @@ void zane_unmap(zane_mark *region) {
 		c->spare_last->next = NULL;
 		c->warm--;
 		zane_chill(m);
+	}
+	for (zane_mapping **at = &c->spans; *at;) {
+		zane_mapping *m = *at;
+		if (c->drains - m->stamp < ZANE_COOLING) {
+			at = &m->next;
+			continue;
+		}
+		*at = m->next;
+		c->span_count--;
+		zane_release_addresses(m->raw, (char *)m, m->reserved);
 	}
 	region->heap = (zane_heap){ 0 };
 	region->stacks = NULL;
@@ -480,8 +512,21 @@ enum { ZANE_HEADROOM = 64 };
    reservation is the span alone. Its context's lock is held. */
 char *zane_alloc_growable(zane_mark *region, int64_t size) {
 	size_t bytes = zane_span_bytes(size), reserved = bytes * ZANE_HEADROOM;
-	char *raw;
-	char *base = reserved / ZANE_HEADROOM == bytes ? zane_reserve_aligned(reserved, &raw) : NULL;
+	int fits = reserved / ZANE_HEADROOM == bytes;
+	zane_context *c = region->context;
+	char *raw = NULL, *base = NULL;
+	for (zane_mapping **at = &c->spans; *at; at = &(*at)->next) {
+		zane_mapping *kept = *at;
+		if (kept->reserved >= (fits ? reserved : bytes)) {
+			*at = kept->next;
+			c->span_count--;
+			base = (char *)kept;
+			raw = kept->raw;
+			reserved = kept->reserved;
+			break;
+		}
+	}
+	if (!base && fits) base = zane_reserve_aligned(reserved, &raw);
 	if (!base) base = zane_reserve_aligned(reserved = bytes, &raw);
 	if (!base) zane_broken("out of addresses for a list's elements");
 	if (!zane_commit_range(base, bytes)) zane_broken("out of memory for a list's elements");

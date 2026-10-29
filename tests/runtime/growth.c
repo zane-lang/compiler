@@ -5,7 +5,8 @@
    doubling. Where the reservation cannot be made, the block is reserved
    alone and each doubling moves it, as a smaller block's does. A block
    moved out of gives its memory back, so a list never holds its old
-   elements' bytes beside its new ones. */
+   elements' bytes beside its new ones, and a drained list's reservation
+   stays mapped for the next list to grow into. */
 
 #include "walks.h"
 
@@ -118,6 +119,22 @@ static void exercise_move_out(void) {
 }
 #endif
 
+/* A drained list's reservation stays mapped, and the next list to grow
+   past 1 MiB, in a later scope, grows into it. */
+static void exercise_warm(void) {
+	zane_mark *scope = zane_scope_enter(0);
+	zane_list *list = new_list(scope);
+	fill(list, 2 * SMALL);
+	char *block = list->items;
+	zane_scope_drain(scope);
+	scope = zane_scope_enter(0);
+	list = new_list(scope);
+	fill(list, 2 * SMALL);
+	check(list->items == block && intact(list, 2 * SMALL));
+	zane_scope_drain(scope);
+	check(zane_blocks() == 0);
+}
+
 #if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 /* With too few addresses for a reservation, the block still grows, by
    moving. The child's limit leaves room for the main context's range and
@@ -126,6 +143,7 @@ static int without_reservation(void) {
 	fflush(stdout);
 	pid_t child = fork();
 	if (child == 0) {
+		zane_give_spares(zane_self);
 		struct rlimit limit;
 		if (getrlimit(RLIMIT_AS, &limit) != 0) _exit(2);
 		rlim_t budget = (rlim_t)96 * 1024 * 1024 + (rlim_t)(zane_self->limit + ZANE_GUARD - zane_self->base);
@@ -155,6 +173,7 @@ void zane_main(void) {
 	check(1);
 	check(1);
 #endif
+	exercise_warm();
 #if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 	check(without_reservation());
 #else

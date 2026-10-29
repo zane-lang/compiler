@@ -848,7 +848,13 @@ test passing.
     as shorter-lived, so a result coming home always moves its blocks. A
     list's growth goes to the region that holds the list. A box and a hold
     are made in the innermost region, which every block of what they take
-    already outlives, so nothing arrives at either.
+    already outlives, so nothing arrives at either. For the same reason a
+    value arriving in the innermost region moves nothing, and its blocks are
+    not walked: `zane_arrive` returns at once there, and for a place in one
+    of that region's chunks, as a list's element is, the check is the
+    place's chunk-map entry against `zane_open`, which the program inlines.
+    A result coming home from another context is the one arrival that walks
+    its blocks wherever it lands.
   - A value leaving scopes that drain -- a `return`, a `resolve`, an
     `abort`, a `return` from a block argument or an arm -- moves every block
     it owns in them into the scope the exit returns to, before the drain
@@ -913,6 +919,13 @@ test passing.
     - **Reuse.** A region takes its context's latest warm spare, then one
       from the pool, then a cold one, then a new chunk. Counts beside each
       list keep every limit O(1).
+    - **Lists' reservations.** A drained list's oversized span keeps its
+      reservation and its pages: a context keeps up to `ZANE_WARM_SPANS`
+      (2) of them, each until it has sat unused through `ZANE_COOLING` of
+      its later drains, and gives them all back when its call is over. The
+      next list to grow past 1 MiB takes one whose reservation holds what
+      it would reserve, so a list built again each round grows into pages
+      already resident rather than faulting fresh ones in.
     - **Windows.** A 1 MiB-aligned reservation costs an extra MiB of
       addresses there, and `VirtualFree(MEM_RELEASE)` frees only a whole
       reservation, so chunks are carved from slabs of 64 MiB, or one of

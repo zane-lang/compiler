@@ -38,9 +38,25 @@ void zane_move(char *value, const zane_type *type, zane_mark *region, int64_t fr
 
 /* A value arrived at `slot`: the blocks it owns that the slot's region
    outlives move into it, which is an escape (memory.md §3.5); the rest stay
-   where they are. */
+   where they are. Emitted code calls this, so every block the value owns
+   was made in this context's open scopes or the program's region, or lent
+   by the call that spawned this context, which waits for it: a result
+   comes home from another context through `zane_join` instead. Each of
+   those outlives the innermost scope, so a slot there takes the value with
+   nothing to move, and its blocks are not walked. A slot in one of that
+   scope's dynamic chunks, such as a list's element, is found by its entry
+   in the chunk map alone, which emitted code can inline
+   (docs/design/lowering.md §7); any other slot is found out of line. */
 void zane_arrive(char *slot, const zane_type *type) {
-	if (type) zane_move(slot, type, zane_region_at(slot), 0);
+	if (!type) return;
+	if (zane_open && zane_page_entry(slot) == (uintptr_t)zane_open) return;
+	zane_arrive_at(slot, type);
+}
+
+void zane_arrive_at(char *slot, const zane_type *type) {
+	zane_mark *region = zane_region_at(slot);
+	if (region == zane_open) return;
+	zane_move(slot, type, region, 0);
 }
 
 /* A value leaves the scopes from `scope` in, which drain before it arrives

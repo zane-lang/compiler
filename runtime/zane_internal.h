@@ -128,6 +128,12 @@ _Static_assert(sizeof(zane_mapping) <= ZANE_LINE, "a mapping's header fits befor
    Every other drained chunk goes back to the system (arena.c). */
 enum { ZANE_WARM_KEPT = 4, ZANE_POOL_WARM = 16, ZANE_COOLING = 8, ZANE_COLD_KEPT = 256 };
 
+/* How many drained lists' reservations a context keeps mapped, their pages
+   resident, for its next lists to grow into. One it has not reused through
+   ZANE_COOLING of its later drains goes back, and so do all of them when
+   it goes idle. */
+enum { ZANE_WARM_SPANS = 2 };
+
 typedef struct zane_task zane_task;
 typedef struct zane_context zane_context;
 
@@ -216,6 +222,11 @@ struct zane_context {
 	   many, and how many times its regions gave chunks back. */
 	zane_mapping *spare, *spare_last;
 	int64_t warm, drains;
+	/* The reservations of lists' oversized spans its drained regions gave
+	   back, kept mapped for the next list that grows past 1 MiB, and how
+	   many (arena.c). */
+	zane_mapping *spans;
+	int64_t span_count;
 	zane_context *next;
 	/* What it waits for, as an edge of the graph of waits (value.c): the
 	   state of a package constant another context is making, or a call it
@@ -366,6 +377,8 @@ _Noreturn void zane_too_deep_in(zane_context *c);
 
 /* value.c */
 void zane_move(char *value, const zane_type *type, zane_mark *region, int64_t from);
+/* `zane_arrive` for a slot outside the innermost scope's dynamic chunks. */
+void zane_arrive_at(char *slot, const zane_type *type) __attribute__((noinline));
 void zane_wait_for(int64_t *constant, zane_task *call);
 void zane_waited(void);
 
