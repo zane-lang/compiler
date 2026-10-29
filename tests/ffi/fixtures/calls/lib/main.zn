@@ -1,9 +1,12 @@
 /// A package whose C defines the same names as the root's, the function
 /// `helper`, the variable `total` and the alias `named`: each package's C
-/// keeps its own.
+/// keeps its own. `plain.h` includes nothing, not even `<stdint.h>`.
 package lib;
 
+alias I32 = @primitives$I32;
 alias I64 = @primitives$I64;
 
 I64 helper() foreign "helper";
 I64 named() foreign "named";
+I32 plus(a I32, b I32) foreign "plus";
+I64 widen(x I64) foreign "widen";

@@ -120,6 +120,19 @@
     │   ├── calls: named
     │   ├── params:
     │   └── result: i64
+    ├── thunks[18] > thunk:
+    │   ├── symbol: lib$plus(%primitives$I32, %primitives$I32).ffi
+    │   ├── package: lib
+    │   ├── calls: plus
+    │   ├── params[0]: i32
+    │   ├── params[1]: i32
+    │   └── result: i32
+    ├── thunks[19] > thunk:
+    │   ├── symbol: lib$widen(%primitives$I64).ffi
+    │   ├── package: lib
+    │   ├── calls: widen
+    │   ├── params[0]: i64
+    │   └── result: i64
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -750,7 +763,50 @@
     │       │       └── body[1] > assign:
     │       │           ├── place: #94
     │       │           └── value: local #92 : handle
-    │       └── body[31] > return: unit : void
+    │       ├── body[31] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @96
+    │       │       ├── result: #97
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #95
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i32
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i32
+    │       │       │   │       ├── fn: lib$plus(%primitives$I32, %primitives$I32)
+    │       │       │   │       ├── args[0]: 40 : i32
+    │       │       │   │       └── args[1]: 2 : i32
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #97
+    │       │           └── value: local #95 : handle
+    │       ├── body[32] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @99
+    │       │       ├── result: #100
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #98
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: lib$widen(%primitives$I64)
+    │       │       │   │       └── args[0]: 3 : i64
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #100
+    │       │           └── value: local #98 : handle
+    │       └── body[33] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: app$twice(%primitives$I64)
     │   ├── params[0]: local #1 : i64
@@ -923,11 +979,29 @@
     │       ├── type: i64
     │       ├── fn: app$named().ffi
     │       └── args:
-    └── funcs[20] > func:
-        ├── symbol: lib$named()
-        ├── params:
+    ├── funcs[20] > func:
+    │   ├── symbol: lib$named()
+    │   ├── params:
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: lib$named().ffi
+    │       └── args:
+    ├── funcs[21] > func:
+    │   ├── symbol: lib$plus(%primitives$I32, %primitives$I32)
+    │   ├── params[0]: local #1 : i32
+    │   ├── params[1]: local #2 : i32
+    │   ├── ret: i32
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i32
+    │       ├── fn: lib$plus(%primitives$I32, %primitives$I32).ffi
+    │       ├── args[0]: local #1 : i32
+    │       └── args[1]: local #2 : i32
+    └── funcs[22] > func:
+        ├── symbol: lib$widen(%primitives$I64)
+        ├── params[0]: local #1 : i64
         ├── ret: i64
         └── body[0] > return > foreign call:
             ├── type: i64
-            ├── fn: lib$named().ffi
-            └── args:
+            ├── fn: lib$widen(%primitives$I64).ffi
+            └── args[0]: local #1 : i64

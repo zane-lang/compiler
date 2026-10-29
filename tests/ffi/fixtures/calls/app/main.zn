@@ -91,5 +91,7 @@ Unit main() {
 	show(String(lib$helper()));
 	show(String(named()));
 	show(String(lib$named()));
+	show(String(lib$plus(I32(40), I32(2))));
+	show(String(lib$widen(I64(3))));
 	return Unit();
 }
