@@ -35,8 +35,9 @@ let func st (v : verb) : Func.t =
       (fun (p : T.Local.t) ->
         let id = fresh st in
         if by_address st v p then begin
-          Hashtbl.replace env p.T.Local.id (Pointer id);
-          if laid_out p.T.Local.ty then places := (id, ty st p.T.Local.span p.T.Local.ty) :: !places;
+          Hashtbl.replace env p.T.Local.id (pointer_binding st v p id);
+          if laid_out p.T.Local.ty then
+            places := (id, if viewed st v p then node_ty st p.T.Local.span p.T.Local.ty else ty st p.T.Local.span p.T.Local.ty) :: !places;
           (id, Nodes.Ty.Ptr)
         end
         else begin

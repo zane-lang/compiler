@@ -36,6 +36,9 @@ type verb = {
 type binding =
   | Slot of int
   | Pointer of int
+  (* Experimental: a pointer to a pooled variant's node, or to a payload
+     inside one, laid out as Type_layout.node_ty says. *)
+  | Node of int
   | Literal of T.Expr.t
   | Code of closure
   | Future of { settle : unit -> Stat.t list; at : Expr.t option }
@@ -200,6 +203,7 @@ type walk = {
   lend : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
   reference_to : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
   moved : state -> ctx -> Source.Span.t -> Tty.t -> T.Expr.t -> Expr.t;
+  view : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
   is_place : T.Expr.t -> bool;
   block : ?enter:(scope -> Stat.t list) -> state -> ctx -> T.Block.t -> Stat.t list;
   primitive : state -> ctx -> Source.Span.t -> string -> T.Arg.t list -> Tty.t -> Expr.t;

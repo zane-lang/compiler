@@ -494,6 +494,14 @@ static char *zane_frontier_of(zane_mark *m, int64_t size, int64_t align) {
 	return (char *)start;
 }
 
+/* Experimental pooled variants (list.c): exactly `size` bytes, aligned to
+   a word, at a region's frontier, counted as a block out. The caller holds
+   the region's context's lock, or needs none. */
+char *zane_pool_frontier(zane_mark *m, int64_t size) {
+	m->heap.live++;
+	return zane_frontier_of(m, (size + 7) & ~(int64_t)7, 8);
+}
+
 /* The whole chunks an oversized block of `size` bytes takes, its mapping's
    header included. */
 static size_t zane_span_bytes(int64_t size) {
@@ -600,6 +608,8 @@ char *zane_alloc_held(zane_mark *region, int64_t size, int64_t align) {
 		block = s ? s->top : NULL;
 		if (block) s->top = *(char **)block;
 	}
+	if (!block && size > ZANE_CHUNK - ZANE_LINE && align <= ZANE_LINE)
+		return zane_alloc_growable(region, size);
 	if (!block) block = zane_frontier_of(region, size, align);
 	h->live++;
 	return block;

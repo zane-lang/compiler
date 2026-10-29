@@ -17,7 +17,7 @@ open Build
    there, and placed in a block of its own when the member is boxed. *)
 let member w st ctx span holder t (e : T.Expr.t) =
   let value = w.moved st ctx span t e in
-  if boxed st holder t then ptr (Expr.Box { value; layout = layout st span t }) else value
+  if boxed st holder t && not (pooled st t) then ptr (Expr.Box { value; layout = layout st span t }) else value
 
 (* `ArrayRef.fill(n, make)` (generics.md §8.4): a slot this scope holds,
    each element made by calling `make` with its position, counted from 1, in
@@ -189,7 +189,7 @@ let record w st ctx span t (fields : T.Field_value.t list) =
 let named_store st ctx v (p : T.Local.t) (e : T.Expr.t) id =
   let l = { p with T.Local.id = -id } in
   Hashtbl.replace ctx.env l.T.Local.id
-    (if by_address st v p then Pointer id else Type_layout.slot st p.T.Local.ty id);
+    (if by_address st v p then pointer_binding st v p id else Type_layout.slot st p.T.Local.ty id);
   `Arg (T.Arg.Value { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l); ty = l.T.Local.ty })
 
 (* One entry of a field constructor called out of slot order: the lets that

@@ -177,7 +177,7 @@ and held_argument w ?direct st ctx span v (p : T.Local.t) a =
       let id = fresh st in
       let l = { p with T.Local.id = -id } in
       Hashtbl.replace ctx.env l.T.Local.id
-        (if by_address st v p then Pointer id else slot st p.T.Local.ty id);
+        (if by_address st v p then pointer_binding st v p id else slot st p.T.Local.ty id);
       let read = { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) } in
       ([ Stat.Let { id; value } ], T.Arg.Value read)
   | (T.Arg.Block _ as b), _ -> ([], b)
@@ -291,7 +291,8 @@ and arguments w ?direct st ctx span v args =
    the owner, which Regions decides; a call through a function value, and a
    verb expanded here, which has no function of its own, can always. *)
 and argument w ?(direct = true) st ctx span v (p : T.Local.t) a =
-  if by_address st v p then w.lend st ctx span a
+  if viewed st v p then w.view st ctx span a
+  else if by_address st v p then w.lend st ctx span a
   else if Tty.is_ref p.T.Local.ty then w.reference_to st ctx span a
   else if roaming st p.T.Local.ty then begin
     (if held st span p.T.Local.ty && not (w.is_place a) then
@@ -406,6 +407,7 @@ and expand w st ctx span v args handler ret =
            | ( T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); T.Expr.ty = at; _ },
                _ )
              when (p.T.Local.name = "this" || (owned st p.T.Local.ty && not (roaming st p.T.Local.ty)))
+                  && (not (viewed st v p))
                   && not (Tty.is_ref at) -> (
                match lookup ctx span l with
                | (Slot _ | Pointer _) as b ->
@@ -426,9 +428,16 @@ and expand w st ctx span v args handler ret =
                   && (not (Tty.is_ref at))
                   && (not (Tty.is_ref p.T.Local.ty))
                   && (not (roaming st p.T.Local.ty))
+                  && (not (viewed st v p))
                   && match lookup ctx span l with Slot _ | Pointer _ -> true | _ -> false ->
                bind p (lookup ctx span l);
                []
+           (* A pooled variant is lent as its node (Type_layout.pooled). *)
+           | T.Arg.Value a, _ when viewed st v p ->
+               let value = w.view st ctx span a in
+               let id = fresh st in
+               bind p (Node id);
+               [ Stat.Let { id; value } ]
            (* Any other place the body may write, or that it borrows, is lent
               by its address. *)
            | T.Arg.Value a, _

@@ -287,6 +287,7 @@ enum { ZANE_DEQUES = 1 << 12 };
 
 /* main.c */
 void zane_broken(const char *what);
+char *zane_pool_frontier(zane_mark *m, int64_t size);
 void zane_output(const char *bytes, size_t n);
 int zane_flush_output(void);
 void zane_flush_output_in_fault(void);

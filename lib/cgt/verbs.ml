@@ -159,9 +159,39 @@ let written_out st ctx v = expands v || inlines st ctx v
    reference-type argument are passed as the address of the caller's place;
    the caller stays a full owner (memory.md §2.9). A `^T` argument is the
    moved value itself. *)
-let by_address st (v : verb) (p : T.Local.t) =
+let rec by_address st (v : verb) (p : T.Local.t) =
   (v.signature.S.is_mut && p.T.Local.name = "this")
   || (owned st p.T.Local.ty && not (Tty.is_roaming p.T.Local.ty))
+  || viewed st v p
+
+(* Experimental: a borrowed parameter of a pooled variant is the address of
+   its node (Type_layout.pooled), unless the verb returns it as a field of
+   what it makes: that one is passed whole, as without pooling, so a
+   temporary moves into the new value rather than being copied out of its
+   node. A borrowed struct a pooled variant's payload is would be inside a
+   node or not, and the prototype takes neither. *)
+and viewed st (v : verb) (p : T.Local.t) =
+  let t = p.T.Local.ty in
+  if (not (Tty.is_ref t)) && (not (Tty.is_roaming t)) && cycle_struct st t then
+    refuse p.T.Local.span "pooled variants: a borrowed parameter of a pooled variant's payload";
+  (not (Tty.is_ref t)) && (not (Tty.is_roaming t)) && pooled st t && not (stored v p)
+
+(* Whether [v]'s body returns [p] itself as a field of a value it makes. *)
+and stored (v : verb) (p : T.Local.t) =
+  let field (f : T.Field_value.t) =
+    match f.T.Field_value.value.T.Expr.node with
+    | T.Expr.Var (T.Name_ref.Local l) -> l.T.Local.id = p.T.Local.id
+    | _ -> false
+  in
+  List.exists
+    (fun (s : T.Stat.t) ->
+      match s.T.Stat.node with
+      | T.Stat.Return { T.Expr.node = T.Expr.Init fields; _ } -> List.exists field fields
+      | _ -> false)
+    v.body.T.Block.stats
+
+(* The binding of a parameter [by_address] passes. *)
+let pointer_binding st v (p : T.Local.t) id = if viewed st v p then Node id else Pointer id
 
 (* L14: a function value is called as a verb of its type would be, so its
    type gives the verb it is called as: the subject first, named `this`, as a

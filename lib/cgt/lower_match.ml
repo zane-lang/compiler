@@ -49,9 +49,9 @@ let match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
     List.map
       (fun (e : T.Expr.t) ->
         let tsty = Tty.strip_mode e.T.Expr.ty in
-        let within = ty st span tsty in
+        let within = if pooled st tsty then node_shape st span tsty else ty st span tsty in
         let lets, pointer =
-          match w.addr st ctx span e with
+          match (if pooled st tsty then Some (w.view st ctx span e) else w.addr st ctx span e) with
           | Some p ->
               let pointer = fresh st in
               ([ Stat.Let { id = pointer; value = p } ], pointer)
@@ -86,12 +86,26 @@ let match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
                  | Some l ->
                      let index = case_index st span tsty p.case in
                      let path = [ index ] in
+                     let c = payload_type st span tsty p.case in
+                     let bound = fresh st in
+                     if pooled st tsty then begin
+                       (* A pooled variant's payload is inline in its node,
+                          and one of its own type is a link. *)
+                       let within = node_shape st span tsty in
+                       let at = ptr (Expr.Offset { base = local_ptr pointer; within; path }) in
+                       let value =
+                         if pooled st c then ptr (Expr.Runtime { fn = Runtime.Link; args = [ at ] }) else at
+                       in
+                       Hashtbl.replace ctx.env l.T.Local.id
+                         (if pooled st c || cycle_struct st c then Node bound else Pointer bound);
+                       [ Stat.Let { id = bound; value } ]
+                     end
+                     else
                      let within = ty st span tsty in
                      let at = ptr (Expr.Offset { base = local_ptr pointer; within; path }) in
                      (* A boxed payload is in its block. *)
-                     let boxed = boxed st tsty (payload_type st span tsty p.case) in
+                     let boxed = boxed st tsty c in
                      let value = if boxed then ptr (Expr.Deref at) else at in
-                     let bound = fresh st in
                      Hashtbl.replace ctx.env l.T.Local.id (Pointer bound);
                      [ Stat.Let { id = bound; value } ])
                a.patterns stored)
@@ -156,6 +170,7 @@ let map_read w st ctx span target map ret =
    fills. Either way what the read gives has one owner, and a copy of it
    owns blocks of its own. *)
 let case_place w st ctx span (target : T.Expr.t) case handler ret =
+  if pooled st (Tty.strip_mode target.T.Expr.ty) then refuse span "pooled variants: a case read";
   let t = ty st span ret in
   let tsty = Tty.strip_mode target.T.Expr.ty in
   let within = ty st span tsty in
@@ -197,6 +212,7 @@ let case_place w st ctx span (target : T.Expr.t) case handler ret =
 (* A case read is its payload when the case is live, and runs its handler
    when another is (adt.md §5.2). The other cases fall through to it. *)
 let case_read w st ctx span (target : T.Expr.t) case handler ret =
+  if pooled st (Tty.strip_mode target.T.Expr.ty) then refuse span "pooled variants: a case read";
   let t = ty st span ret in
   if held st span ret then
     { Expr.node = Expr.Deref (case_place w st ctx span target case handler ret); ty = t }

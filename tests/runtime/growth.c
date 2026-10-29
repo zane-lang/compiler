@@ -69,8 +69,8 @@ static void exercise_in_place(void) {
 	check(zane_blocks() == 0 && *zane_page(block, 0) == 0 && *zane_page(last, 0) == 0);
 }
 
-/* A copy's oversized block is the copy's size alone, so its first doubling
-   moves it into a reservation, where the next grows in place. */
+/* A copy's oversized block takes a reservation as a growing list's does
+   (zane_alloc_held), so it grows in place from its first doubling. */
 static void exercise_copy(void) {
 	zane_mark *scope = zane_scope_enter(0);
 	zane_list *list = new_list(scope);
@@ -82,7 +82,7 @@ static void exercise_copy(void) {
 	fill(copy, SMALL + 1);
 	char *moved = copy->items;
 	fill(copy, 4 * SMALL);
-	check(moved != copied && copy->items == moved && intact(copy, 4 * SMALL) && intact(list, SMALL));
+	check(moved == copied && copy->items == moved && intact(copy, 4 * SMALL) && intact(list, SMALL));
 	zane_scope_drain(scope);
 	check(zane_blocks() == 0);
 }

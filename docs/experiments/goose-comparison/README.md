@@ -186,6 +186,112 @@ What this shows:
   108 bytes/node. So the gap there sits in how Zane holds the many
   short-lived trees, not in the node encoding.
 
+## Pooled variants (prototype, behind `ZANE_POOLED_VARIANTS=1`)
+
+The Goose enum ports showed that most of treecopy's gap is link width and
+node placement. This step tries Goose's representation in Zane: a recursive
+variant's whole tree in one pool, with 32-bit links.
+
+### Design
+
+- **Which types.** A variant one of whose cases holds a boxed payload, that is
+  a recursive variant (`Type_layout.pooled`). The struct inside the cycle
+  (`Pair`, `Branch`) stops being boxed: its members of the variant's type
+  are links inside the node.
+- **The root** is an ordinary 24-byte list handle `{items, count, room}`
+  over bytes. Its block holds the nodes, all one size, in post-order, so the
+  root is the last node.
+- **A node** is the variant's sum with its payload inline. Each member of the
+  variant's own type is an `i32` offset from the link to the node it names.
+  The offset is self-relative, so moving or copying a pool with `memcpy`
+  keeps every link valid. This is the thing Goose rejects in a fixed-mode
+  enum, and Zane can allow it because a variant's nodes are roaming: nothing
+  outside the pool references them (memory.md §2.1, §2.8.1).
+- **Building.** `Tree.node(Pair(l, r))` calls `zane_pool_node`, which takes
+  the child pools and makes one pool holding all of them plus the new node.
+  A depth-first build leaves the children's blocks end to end at the region's
+  frontier, so the common case joins them where they are and bumps the
+  frontier by one node: no copying at all. Children that do not lie end to
+  end, for example across a chunk boundary, are copied onto the largest of
+  them. An oversized child gives its pages back as it is copied out
+  (`zane_list_move_out`).
+- **Reading.** A borrowed parameter of a pooled type is a pointer to its node
+  (`zane_pool_root`), and `match` follows links with `zane_link`. A field
+  constructor that returns a parameter as a field takes it whole instead
+  (`Verbs.stored`), so a temporary moves into the new node rather than
+  being copied out of a view at every level.
+- **Copying a whole tree** is the list's copy: one `memcpy` of the pool.
+  Copying a subtree out of a node (`zane_pool_copy`) walks it.
+- **Oversized held blocks** come from a warm span reservation
+  (`zane_alloc_held` → `zane_alloc_growable`), which also applies outside
+  the experiment. Before this change, a 12 MB copy made every round mapped
+  fresh pages and faulted them in. `tests/runtime/growth.c` now expects a
+  copy's oversized block to grow in place.
+
+Limits, refused with a diagnostic where they apply:
+
+- at most four links per node, in the first four cases;
+- nodes of at most 256 bytes;
+- no owned block (string, list) in a node;
+- no other pooled type in a node;
+- no borrowed parameter whose type is the cycle's struct;
+- no reading a pooled subtree out as a value.
+
+In addition:
+
+- `zane_pool_copy` recurses.
+- The dead bytes between joined pools stay until the region drains.
+- Links in a pool past 2 GiB abort.
+
+### Results
+
+These were measured at the full sizes (depth 16 and 18). Wall time is the
+median of 9 runs; instruction counts are from callgrind. Bytes per node is
+measured as in the enum section. Every build prints the expected output at
+the check, mid and full sizes.
+
+| treecopy | wall | user | faults | instructions | bytes/node |
+| --- | --- | --- | --- | --- | --- |
+| zane | 0.160 s | 0.141 s | 7.4k | 749 M | 27.8 |
+| **zane, pooled** | **0.112 s** | **0.071 s** | 15.3k | **243 M** | 40.3 |
+| goose (struct) | 0.126 s | 0.112 s | 4.4k | 845 M | 15.6 |
+| goose-enum-pool | 0.110 s | 0.095 s | 4.6k | 515 M | 16.9 |
+
+| binarytrees | wall | user | faults | instructions | bytes/node |
+| --- | --- | --- | --- | --- | --- |
+| zane | 0.116 s | 0.103 s | 3.4k | 866 M | 74.6 |
+| zane, pooled | 0.212 s | 0.178 s | 12.1k | 2177 M | 238 |
+| goose (struct) | 0.054 s | 0.047 s | 1.0k | 659 M | 0 |
+| goose-enum-pool | 0.046 s | 0.041 s | 1.1k | 528 M | 0 |
+
+What this shows:
+
+- **treecopy: pooling wins on time.** Each round's whole-tree copy is a
+  single `memcpy`, with no per-node walk, so the program runs a third of
+  Zane's instructions and half of Goose's. Of all the forms, it has the
+  least user time. Its memory is still above Goose's, for two reasons:
+  - Nodes are 24 bytes, because the tag is padded to the `Int`'s alignment.
+  - Building a tree larger than a chunk writes each node twice: first at
+    the frontier, then into the oversized block it is copied onto.
+- **binarytrees: pooling loses.** The run makes about 15 M nodes:
+  - `zane_pool_node` costs about 77 instructions per node, even with the
+    leaf and adjacent-join fast paths, and the emitted `make` costs 40 more.
+    Goose's whole node costs about 35.
+  - Trees larger than a chunk (the stretch tree, the long-lived tree and
+    the depth-16 rounds) are copied once at each level above the chunk.
+    That costs 240 M instructions of `memcpy` and the extra page faults.
+- **Fixes along the way.** Each of these brought the prototype from 5.7 G
+  instructions on binarytrees, and 2.1 G on treecopy, to the figures above:
+  - stopping the per-level relocation of the pool on return (Regions);
+  - passing a field constructor's parameters whole;
+  - the runtime's fast paths;
+  - warm reservations for big copies.
+
+What the remaining gap needs is the build itself. Each child would be built
+directly at the end of its parent's pool, so a pool never crosses a chunk
+boundary as separate blocks, and the leaf and join bumps would be emitted
+inline rather than called. That is Goose's data stack in all but name.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |

@@ -93,6 +93,13 @@ void *zane_list_reserve(zane_list *list, int64_t stride, int64_t n);
 void *zane_list_at(zane_list *list, int64_t index, int64_t stride);
 void zane_list_remove(zane_list *list, int64_t index, int64_t stride);
 void zane_list_swap_remove(zane_list *list, int64_t index, int64_t stride);
+/* Experimental pooled variants (runtime/list.c). */
+char *zane_pool_root(zane_list *pool, int64_t size);
+char *zane_link(char *link);
+void zane_pool_copy(zane_list *out, const char *node, int64_t size, int64_t m0, int64_t m1, int64_t m2,
+                    int64_t m3);
+char *zane_pool_node(zane_list *out, const char *node, int64_t size, int64_t n, zane_list *c0, int64_t l0,
+                     zane_list *c1, int64_t l1, zane_list *c2, int64_t l2, zane_list *c3, int64_t l3);
 void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride);
 void zane_out_of_range(void);
 
