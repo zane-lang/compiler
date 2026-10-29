@@ -948,12 +948,90 @@ spectralnorm), startup and primes are level with Goose and C, as at the
 baseline. Particles and listgrowth have no variant types, so the switches
 do not touch them; their columns differ by the container's noise.
 
+## Why Zane is slower on ntree: the list handle
+
+ntree is the one test the switches leave behind (Zane ~1.6–1.75× Goose on
+the suite's ten rounds). Each round grows a four-way tree 10 levels deep
+(1.4 M nodes), counts it and drops it.
+
+### The two programs' trees
+
+- **Zane**'s `Node` is its `ListRef` of children and nothing else, so a
+  node *is* a 24-byte list handle `{items, count, room}`. A child's handle
+  is stored in its parent's elements block (four children, 96 bytes),
+  which is taken from the region at the first push, after the first
+  child's whole subtree is built. A leaf is a handle with no block.
+- **Goose**'s node holds its children inline, as a list of up to four
+  4-byte self-relative links and a count byte: 17 bytes. Nodes are pushed in
+  pre-order into one pool per round, and a leaf is built in its parent
+  (base-case inlining).
+
+So Zane's tree is 24 bytes a node against Goose's 17: 34 MB against 25 MB
+of peak RSS.
+
+### Where the time goes
+
+| measure | Zane | Goose |
+| --- | --- | --- |
+| instructions, `grow` with its runtime calls | 1031 M | 334 M |
+| instructions, `count` | 381 M | 437 M |
+| cycles, `grow` / `count` (counters around the calls, 10 rounds) | ~225 M / ~135 M | ~118 M / ~80 M |
+| cache lines missed per round (cachegrind, 2 MB last level) | 524 k | 371 k |
+| page faults, whole run | 8372 | 5972 |
+| user time, 50 rounds (least / median of 9) | 0.560 / 0.646 s | 0.392 / 0.425 s |
+
+Every round streams the whole tree through memory twice, each line once,
+and Zane's tree has 1.41× the lines. Faulting in the larger footprint is a
+one-time cost, so the gap narrows from about 1.65× over ten rounds to
+1.43–1.52× over fifty, which is the ratio of lines.
+
+`grow` runs three times Goose's instructions: per push a room check whose
+count goes through the stack (the handle's address is handed to
+`zane_list_push`), an arrive check (a page-table lookup), a runtime call
+(`zane_list_push`, then `zane_list_first`) at each node's first push, and a
+full call for every leaf, three in four nodes. Taking out the arrive check,
+building leaves inline, or both, in the IR, moves `grow` by at most 10–20%
+(least of 9, three rounds of runs), within this container's noise. The
+code is not where the gap is.
+
+### The layout, replayed
+
+`ntree-layout/replay.c` builds and counts the tree from one bump region in
+several layouts; `reprun.py` prints each one's least cycles over
+alternating passes (depth 10, ten rounds):
+
+| layout | grow | count | MB / round |
+| --- | --- | --- | --- |
+| Goose: 17-byte nodes, links inside | 67–70 M | 54–56 M | 22.7 |
+| Goose's shape, nodes padded to 24 bytes | 85–96 M | 62–67 M | 32.0 |
+| Zane: 24-byte handles in the parent's block | 109–117 M | 72–75 M | 32.0 |
+| Zane, the block taken before the children | 112–121 M | 61–62 M | 32.0 |
+| Zane's shape, a 16-byte handle `{items, count}` | 43–46 M | 60 M | 21.3 |
+| Zane's shape, an 8-byte handle `{link, count}` | 35–39 M | 42–45 M | 10.7 |
+
+- **The bytes cost both phases.** Padding Goose's nodes to Zane's 24 bytes
+  costs it a third more in `grow` and a tenth more in `count`.
+- **The order does not matter.** Taking the block before the children,
+  so that the tree lies in pre-order, does not change `grow`.
+- **The handle is the lever.** With a 16-byte handle, Zane's own shape
+  builds faster than Goose and counts as fast; with an 8-byte one it is
+  ahead in both. The 24-byte row's `grow` is pessimistic: C returns a
+  24-byte struct through memory, where Zane's `grow` returns it in three
+  registers.
+
+So what Zane loses on ntree is the list handle's size, paid once per node:
+a child list of four costs 96 bytes of handles where Goose's costs 16 of
+links. A smaller `ListRef` handle closes it: the room kept in the block's
+header (or implied by the count, since blocks are count-sized) brings it to
+16 bytes, and a 4-byte self-relative link with a 4-byte count, as pooled
+variants already use for their links, to 8.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
 | --- | --- | --- |
 | binarytrees | ~2.2× (pooled, peeled, packed and with Goose's push shape: ~1.2–1.3×) | The rest is the pool's address: Zane reads its count through a pointer restored from the stack in every frame, which puts a second store-to-load forward on the count's chain. With `make`'s pool in a global, Zane matches Goose. |
-| ntree | ~1.6× | Zane executes 1.8× Goose's instructions and uses 1.4× its memory: a 24-byte list handle per node, plus each node's separate block. |
+| ntree | ~1.6× (steady state 1.43–1.5×) | The list handle: each node is a 24-byte `{items, count, room}` in its parent's block, against Goose's 17-byte node with 4-byte links inside, so 1.41× the memory, streamed through twice a round. A replay of Zane's shape with a 16-byte handle builds faster than Goose and counts as fast. |
 | treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~1.0× | Closed. |
 | listgrowth | ~0.9× | Closed. |
