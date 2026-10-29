@@ -245,41 +245,52 @@ extern "C" value zane_c_constructors(value mod) {
    own name. */
 static const char shared_prefix[] = "zane.shared.";
 
-/* Whether [v] is private state: a named variable local to its module that
-   the program can write. */
-static bool private_state(const llvm::GlobalVariable &v) {
-  return v.hasLocalLinkage() && !v.isConstant() && v.hasName() && !v.getName().starts_with("llvm.");
+/* Whether [v] is a private object whose address the program can see: a
+   named variable local to its module, other than a string literal or any
+   other whose address LLVM is free to merge. */
+static bool private_object(const llvm::GlobalVariable &v) {
+  return v.hasLocalLinkage() && !v.hasGlobalUnnamedAddr() && v.hasName() && !v.getName().starts_with("llvm.");
 }
 
-/* The glue module [glue]'s private state that [source], the one source
+/* Whether [a] and [b] can be one object: both writable, or both constant
+   with the same value. */
+static bool same_object(const llvm::GlobalVariable &a, const llvm::GlobalVariable &b) {
+  if (a.getValueType() != b.getValueType() || a.getThreadLocalMode() != b.getThreadLocalMode()) return false;
+  if (a.isConstant() != b.isConstant()) return false;
+  return !a.isConstant() || (a.hasInitializer() && b.hasInitializer() && a.getInitializer() == b.getInitializer());
+}
+
+/* The glue module [glue]'s private objects that [source], the one source
    including its interface header, also defines, by name and type, made
    one variable: the source's renamed [shared_prefix] [tag] `.` and its
    name and made visible to the link, and the glue's made a declaration of
    it. Within one translation unit a name at file scope, or a function's
    own static, is one variable, so the source's of that name is the
    header's, and the glue's functions read and write the state the
-   source's do, as the C alone would. */
+   source's do, and see a constant at the address they see it at, as the C
+   alone would. A constant is one only with the same value, which in one
+   context is the same LLVM constant. */
 extern "C" value zane_share_state(value glue, value source, value tag) {
   CAMLparam3(glue, source, tag);
   llvm::Module *g = module_of(glue), *s = module_of(source);
   std::string prefix = shared_prefix + std::string(String_val(tag)) + '.';
   std::vector<llvm::GlobalVariable *> state;
   for (llvm::GlobalVariable &v : g->globals())
-    if (private_state(v)) state.push_back(&v);
+    if (private_object(v)) state.push_back(&v);
   for (llvm::GlobalVariable *v : state) {
     std::string name = v->getName().str(), joined = prefix + name;
     llvm::GlobalVariable *there = s->getNamedGlobal(joined);
     if (!there) {
       there = s->getNamedGlobal(name);
-      if (!there || !private_state(*there)) continue;
+      if (!there || !private_object(*there)) continue;
     }
-    if (there->getValueType() != v->getValueType() || there->getThreadLocalMode() != v->getThreadLocalMode()) continue;
+    if (!same_object(*there, *v)) continue;
     if (there->hasLocalLinkage()) {
       there->setName(joined);
       there->setLinkage(llvm::GlobalValue::ExternalLinkage);
       there->setVisibility(llvm::GlobalValue::HiddenVisibility);
     }
-    auto *d = new llvm::GlobalVariable(*g, v->getValueType(), false, llvm::GlobalValue::ExternalLinkage, nullptr, joined,
+    auto *d = new llvm::GlobalVariable(*g, v->getValueType(), v->isConstant(), llvm::GlobalValue::ExternalLinkage, nullptr, joined,
                                        nullptr, v->getThreadLocalMode(), v->getAddressSpace());
     d->setVisibility(llvm::GlobalValue::HiddenVisibility);
     v->replaceAllUsesWith(d);

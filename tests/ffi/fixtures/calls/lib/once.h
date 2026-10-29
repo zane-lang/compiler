@@ -26,6 +26,10 @@ static long long once_shared;
 void once_share(long long x) { once_shared = x; }
 static inline long long once_shared_value(void) { return once_shared; }
 
+static const long long once_token = 5;
+const long long *once_token_at(void) { return &once_token; }
+static inline long long once_token_same(void) { return once_token_at() == &once_token; }
+
 #ifdef __APPLE__
 long long once_alias(long long x) { return once(x); }
 #else
