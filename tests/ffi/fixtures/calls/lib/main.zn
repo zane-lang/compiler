@@ -9,9 +9,11 @@
 /// run, once in the package's C, though the glue includes the header too.
 /// A constructor of the header that sets up the header's private state,
 /// which a `static inline` function the glue calls reads, runs for the
-/// glue's copy of that state too.
-/// `primed.h`, which no source includes, has a constructor of its own, run
-/// beside the one `lib.c` has.
+/// glue's copy of that state too, and so does one that sets it up through
+/// a function of the header's it calls.
+/// `primed.h`, which no source includes, has constructors of its own, run
+/// beside the one `lib.c` has, and beside the one `plain.c` has under the
+/// same name and doing the same, which is not the header's.
 package lib;
 
 alias I32 = @primitives$I32;
@@ -28,5 +30,7 @@ I64 onceAlias(x I64) foreign "once_alias";
 I64 onceIndirect(x I64) foreign "once_indirect";
 I64 onceStarted() foreign "once_started";
 I64 onceValue() foreign "once_value";
+I64 onceHelped() foreign "once_helped_value";
 I64 primed() foreign "primed";
+I64 primedRuns() foreign "primed_runs_seen";
 I64 wasWarmed() foreign "was_warmed";

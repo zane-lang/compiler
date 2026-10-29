@@ -338,13 +338,18 @@ every definition the modules before it already hold, a function's, a
 variable's, an alias's or an indirect function's, made a declaration
 (`zane_drop_defined`), and the package keeps one copy. A constructor or
 destructor that header defines is local to each copy, so the glue's is
-left out of its list when a module before it runs one of the same name
-whose instructions use the same constants and globals: it runs once, as
-it would for the C alone, and one of a header no source includes runs
-from the glue. One that sets up the header's private state, which a
-function the glue keeps reads, such as a `static inline` one a thunk
-calls, stays too, since the source's copy sets up only the source's
-state.
+left out of its list when a source that includes the header runs one of
+the same name whose instructions use the same constants and globals. A
+source's preprocessed text, read every build for its key (F3), names in
+its line markers every file it includes, compared by real path, and the
+source can hold only one local function of that name, the header's: the
+constructor runs once, as it would for the C alone. One of a header no
+source includes runs from the glue, even beside a source's own of the
+same name. One that sets up the header's private state, which a function
+the glue keeps reads, such as a `static inline` one a thunk calls, stays
+too, itself or through a function of the glue it calls, since the
+source's copy sets up only the source's state; so does one that calls
+through a pointer, or calls a function something else calls too.
 
 An `archive` row's members are renamed through the object rewriter that
 stamps placeholders (C9). The set of symbols the package's archives define
