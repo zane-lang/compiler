@@ -75,8 +75,8 @@ let mapping () =
     = "# 1 \"/zane/other/y.h\"\n# 2 \"/zane/pkg/z.h\"")
 
 (* A package with one C source compiled twice from two directories: the
-   bitcode is the same, so the key is, and a source that fails to compile
-   is reported at its line. *)
+   bitcode is the same, so the key is, a change to its body changes the key,
+   and a source that fails to compile is reported at its line. *)
 let compiled () =
   let base = Filename.temp_dir "zane-foreign-" "" in
   Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
@@ -99,6 +99,14 @@ let compiled () =
           check "a C source compiles to bitcode" (String.length b1 > 4 && String.sub b1 0 2 = "BC");
           check "a source's key does not depend on its directory" (k1 = k2)
       | _ -> check "a C source compiles" false);
+      (* The key is made from the preprocessed text, so it holds the body:
+         changing only a function's body changes it. *)
+      let changed =
+        package "changed" "#include <zane_ffi.h>\nint64_t zane_size(zane_bytes b) { return (int64_t)b.size + 1; }\n"
+      in
+      (match (keys one, keys changed) with
+      | Some (k1, _), Some (k2, _) -> check "a source's key changes with its body" (k1 <> k2)
+      | _ -> check "a changed C source compiles" false);
       (* A dangling symlink, such as an editor's lock file, is no source,
          and a cache that cannot be written is no cache. *)
       let linked = package "linked" source in
