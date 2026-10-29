@@ -72,7 +72,16 @@ let mapping () =
   let maps = [ ("/home/a/zlib", "/zane/pkg"); ("/home/a/zlib/x", "/zane/other") ] in
   check "the longest directory is mapped first"
     (Compile.mapped maps "# 1 \"/home/a/zlib/x/y.h\"\n# 2 \"/home/a/zlib/z.h\""
-    = "# 1 \"/zane/other/y.h\"\n# 2 \"/zane/pkg/z.h\"")
+    = "# 1 \"/zane/other/y.h\"\n# 2 \"/zane/pkg/z.h\"");
+  (* Only a path is mapped: a package directory named like an identifier
+     leaves the source text, and a `-D` value, as written. *)
+  let maps = [ ("foo", "/zane/pkg") ] in
+  check "a line marker's file is mapped and the code is not"
+    (Compile.mapped maps "# 1 \"foo/a.c\"\nfoo f(void) { return \"foo\"; }\n# 3 \"food/b.h\""
+    = "# 1 \"/zane/pkg/a.c\"\nfoo f(void) { return \"foo\"; }\n# 3 \"food/b.h\"");
+  check "a path argument is mapped and a definition is not"
+    (List.map (Compile.mapped_arg maps) [ "-Ifoo/inc"; "-I"; "foo/inc"; "-Dfoo=1"; "foo/a.c"; "-ffile-prefix-map=foo=/zane/pkg" ]
+    = [ "-I/zane/pkg/inc"; "-I"; "/zane/pkg/inc"; "-Dfoo=1"; "/zane/pkg/a.c"; "-ffile-prefix-map=/zane/pkg=/zane/pkg" ])
 
 (* A package with one C source compiled twice from two directories: the
    bitcode is the same, so the key is, a change to its body changes the key,
@@ -190,6 +199,10 @@ let interface_header () =
          int64_t sum(const int64_t *xs, struct flags f);\n\
          int logf_(const char *fmt, ...);\n\
          int old();\n\
+         int later();\n\
+         int later(int x);\n\
+         int earlier(int x);\n\
+         int earlier();\n\
          long wide(long x);\n\
          MAKE(made)\n";
       let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
@@ -210,6 +223,10 @@ let interface_header () =
             | _ -> false);
           check "a variadic function" (match fn "logf_" with Some (I.Function { variadic = true; _ }) -> true | _ -> false);
           check "a function without a prototype" (match fn "old" with Some (I.Unprototyped _) -> true | _ -> false);
+          let once name = List.length (List.filter (fun (n, _) -> n = name) t.I.functions) = 1 in
+          let prototyped name = match fn name with Some (I.Function { params = [ _ ]; _ }) -> true | _ -> false in
+          check "a function declared again is read once, with its prototype in either order"
+            (once "later" && prototyped "later" && once "earlier" && prototyped "earlier");
           check "a function a macro of an included header writes is the interface's" (fn "made" <> None);
           check "an included header's own declaration is not" (fn "inner" = None);
           check "a thread-local variable"
