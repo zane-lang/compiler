@@ -76,6 +76,9 @@ find "$objects/ffi" -type d -name '*.archive' | while IFS= read -r sources; do
 done
 for golden in tests/ffi/golden/*.out; do
 	fixture="$(basename "$golden" .out)"
+	# `NAME.released.out` is linked against releases by tests/ffi/released,
+	# which runs on the host.
+	[[ $fixture == *.* ]] && continue
 	name="ffi.$fixture"
 	dir="$objects/ffi/$fixture"
 	status=0
