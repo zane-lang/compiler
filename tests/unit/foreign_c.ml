@@ -337,6 +337,24 @@ let glue_refusals () =
      extern const int __start_plugins, __stop_plugins;\n\
      int fenced(void) { return &__stop_plugins - &__start_plugins; }\n"
 
+(* A package whose directory's name holds a byte past ASCII still compiles
+   its glue: the glue includes the header by its path as it is spelled,
+   which a quoted header name reads without escapes. *)
+let glue_paths () =
+  let base = Filename.temp_dir "zane-glue-" "" in
+  Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
+      let dir = Filename.concat base "p\xc3\xa4ckage" in
+      Sys.mkdir dir 0o755;
+      write_all (Filename.concat dir "api.h") "static inline int fenced(void) { return 1; }\n";
+      let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+      let entry =
+        { Foreign.Glue.label = "pkg.fenced.ffi"; c_function = "fenced"; params = []; result = Foreign.Glue.Scalar "int32_t" }
+      in
+      check "a header under a directory named past ASCII is included by its glue"
+        (match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        | Ok [ p ] -> ( match Foreign.glue p [ entry ] with Ok [ _ ] -> true | _ -> false)
+        | _ -> false))
+
 let run () =
   patterns ();
   paths ();
@@ -347,4 +365,5 @@ let run () =
   compiled ();
   interface_text ();
   interface_header ();
-  glue_refusals ()
+  glue_refusals ();
+  glue_paths ()

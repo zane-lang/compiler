@@ -189,28 +189,49 @@ let compile_packages ?(cache = Cache.dir ()) ~cc ~target dirs =
   if List.exists has_c packages then compile_all ?cache ~work:(work_dir ()) ~cc ~triple ~target packages
   else Ok (List.map no_c packages)
 
+(* The glue refused, or not written, as a diagnostic. *)
+let glue_refused message = Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] }
+let glue_unwritten message = glue_refused (Printf.sprintf "the glue could not be written: %s" message)
+
+(* One glue file, [text] for [header], written into [work] and compiled
+   with [maps] and [flags]. *)
+let glue_file p ~work ~maps ~flags (header, text) =
+  let path = Filename.concat work (Filename.remove_extension (Filename.basename header) ^ ".glue.c") in
+  match Out_channel.with_open_bin path (fun oc -> output_string oc text) with
+  | exception Sys_error message -> glue_unwritten message
+  | () ->
+      let ( let* ) = Result.bind in
+      let* source = Compile.compile_source ?cache:p.cache ~maps flags path in
+      let* source = linker_sets ~file:header source in
+      assembly ~file:header source
+
+(* [files] written into a directory of their own and compiled. *)
+let glue_files p ~dir files =
+  match Filename.temp_dir "zane-glue-" "" with
+  | exception Sys_error message -> glue_unwritten message
+  | work ->
+      Fun.protect
+        ~finally:(fun () -> try remove work with Sys_error _ -> ())
+        (fun () ->
+          let added = [ (dir, "/zane/pkg"); (work, "/zane/glue") ] in
+          let maps = p.maps @ added and flags = p.flags @ Compile.map_flags added in
+          combine (List.map (glue_file p ~work ~maps ~flags) files))
+
 (* [p]'s glue for [entries] (Glue), each file compiled as its sources
    were, from the cache when it holds it. The files are written to a
    directory of their own, named `/zane/glue` in the module and the hash
    as the package's directory is named `/zane/pkg`, and each includes its
-   header by the absolute path the package's directory map names. *)
+   header by the absolute path the package's directory map names; a path
+   holding a double quote or a line break cannot be a quoted header name, and is
+   refused. *)
 let glue p (entries : Glue.entry list) =
-  if entries = [] then Ok []
-  else
-    let dir = if Filename.is_relative p.dir then Filename.concat (Sys.getcwd ()) p.dir else p.dir in
-    let files = Glue.files (List.map (fun (h, t) -> (Filename.concat dir h, t)) p.tables) entries in
-    let work = Filename.temp_dir "zane-glue-" "" in
-    Fun.protect
-      ~finally:(fun () -> try remove work with Sys_error _ -> ())
-      (fun () ->
-        let added = [ (dir, "/zane/pkg"); (work, "/zane/glue") ] in
-        let maps = p.maps @ added and flags = p.flags @ Compile.map_flags added in
-        combine
-          (List.map
-             (fun (header, text) ->
-               let path = Filename.concat work (Filename.remove_extension (Filename.basename header) ^ ".glue.c") in
-               Out_channel.with_open_bin path (fun oc -> output_string oc text);
-               Result.bind
-                 (Result.bind (Compile.compile_source ?cache:p.cache ~maps flags path) (linker_sets ~file:header))
-                 (assembly ~file:header))
-             files))
+  let dir = if Filename.is_relative p.dir then Filename.concat (Sys.getcwd ()) p.dir else p.dir in
+  let files = Glue.files (List.map (fun (h, t) -> (Filename.concat dir h, t)) p.tables) entries in
+  let quoted = String.exists (fun c -> c = '"' || c = '\n') in
+  match List.find_opt (fun (header, _) -> quoted header) files with
+  | _ when entries = [] -> Ok []
+  | Some (header, _) ->
+      glue_refused
+        (Printf.sprintf "the interface header `%s` cannot be included by its path, which holds a `\"` or a line break"
+           header)
+  | None -> glue_files p ~dir files

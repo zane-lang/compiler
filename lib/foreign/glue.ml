@@ -70,11 +70,13 @@ let thunk n (e : entry) (f : C_interface.func) =
 (* The glue file that includes [header], an absolute path, and defines
    [entries], each with its C function's declaration. `<stdint.h>` comes
    first, since a scalar slot is read as a fixed-width type, which a
-   header declaring only `int` or `long long` need not include. *)
+   header declaring only `int` or `long long` need not include. A quoted
+   header name is read as it is written, escapes and all, so the path goes
+   in unescaped; Foreign refuses one holding a double quote or a line break. *)
 let file ~header (entries : (entry * C_interface.func) list) =
   let b = Buffer.create 1024 in
   Buffer.add_string b "#include <stdint.h>\n";
-  Buffer.add_string b (Printf.sprintf "#include \"%s\"\n" (escaped header));
+  Buffer.add_string b (Printf.sprintf "#include \"%s\"\n" header);
   let called = List.sort_uniq compare (List.map (fun ((e : entry), _) -> e.c_function) entries) in
   List.iter (fun c -> Buffer.add_string b (Printf.sprintf "#undef %s\n" c)) called;
   List.iteri (fun n (e, f) -> Buffer.add_string b (thunk n e f)) entries;
