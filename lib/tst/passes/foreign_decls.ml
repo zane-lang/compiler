@@ -35,15 +35,17 @@ let handle_of env (t : Ty.t) =
 
 let is_capability (h : Nodes.Handle.t) = h.Nodes.Handle.free = None
 
-(* The struct a handle's `cType` names in [iface]: a typedef of a struct, or
-   a struct an interface header declares, completely or not (§4.1). *)
+(* The struct a handle's `cType` names in [iface], by its identity: a
+   typedef of a struct, or the tag of a struct an interface header
+   declares, completely or not (§4.1). *)
 let record_of iface c_type =
   match List.assoc_opt c_type iface.C.typedefs with
   | Some (C.Record { union = false; name }) -> Some name
   | Some _ -> None
   | None -> (
-      match List.assoc_opt c_type iface.C.records with
-      | Some { C.union = false; declared = true; _ } -> Some c_type
+      let tagged = "struct " ^ c_type in
+      match List.assoc_opt tagged iface.C.records with
+      | Some { C.union = false; declared = true; _ } -> Some tagged
       | _ -> None)
 
 (* A pointer to [record], `const` or not. *)
@@ -377,7 +379,7 @@ let rec corresponds env iface (v : verb) position (t : Ty.t) (c : C.ctype) =
   | Some Unit -> Error "`@primitives$Unit` crosses into C only as a result, `void`"
   | Some Bytes -> (
       match c with
-      | C.Record { union = false; name = "zane_bytes" } -> Ok ()
+      | C.Record { union = false; name = "struct zane_bytes" } -> Ok ()
       | _ -> differ "`@primitives$String` crosses as a `zane_bytes`")
   | Some (Array (s, n)) when position = Param -> (
       match c with
@@ -388,7 +390,7 @@ let rec corresponds env iface (v : verb) position (t : Ty.t) (c : C.ctype) =
                (scalar_name s) n))
   | Some (Span _) when position = Param -> (
       match c with
-      | C.Record { union = false; name = "zane_span" } -> Ok ()
+      | C.Record { union = false; name = "struct zane_span" } -> Ok ()
       | _ -> differ "a `@primitives$List` crosses as a `zane_span`")
   | Some (Array _ | Span _) -> Error "an array and a list cross into C only as parameters (ffi.md §3.5)"
   | Some (Value (_, fields)) -> (
@@ -396,7 +398,7 @@ let rec corresponds env iface (v : verb) position (t : Ty.t) (c : C.ctype) =
       | C.Record { union = false; name } when struct_matches env iface fields name -> Ok ()
       | C.Record { union = false; name } ->
           Error
-            (Printf.sprintf "%s and the C struct %s are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)"
+            (Printf.sprintf "%s and the C type %s are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)"
                (quote (Ty.to_string t)) (quote name))
       | _ -> differ (Printf.sprintf "%s crosses as a C struct of the same layout" (quote (Ty.to_string t))))
   | Some (Handle (tid, h)) -> handle_corresponds env iface v position tid h c

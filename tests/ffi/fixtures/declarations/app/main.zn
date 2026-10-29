@@ -2,7 +2,8 @@
 /// foreign verb of each boundary type, a data handle with a setter, a
 /// capability declared by a foreign variable, and an outside handle made by
 /// a `mut` method on it. A settled handle with a setter is overwritten, and
-/// a roaming one without one.
+/// a roaming one without one. A struct tag and a typedef of the same name
+/// are two C types, and a handle's `cType` may name a bare tag.
 package app;
 
 alias Unit = @primitives$Unit;
@@ -27,6 +28,16 @@ type Pair = struct {
 	at Vec3;
 }
 
+type Twin = struct {
+	a I32;
+}
+
+type TwinTag = struct {
+	b F64;
+}
+
+type Cursor = #handle{ cType = "cursor"; free = "cursor_free"; }
+
 type Deflater = #handle{ cType = "deflater_t"; set = "deflater_set"; free = "deflater_free"; }
 
 I64 crc(c I64, data String) foreign "zane_crc32";
@@ -42,6 +53,9 @@ Unit reset() foreign "reset";
 String deflate(this Deflater, input String) mut foreign "deflate";
 I64 totalIn(this Deflater) foreign "deflater_total_in";
 I64 compare(this Deflater, other Deflater) foreign "deflater_compare";
+Twin twinTypedef(t Twin) foreign "twin_typedef";
+TwinTag twinTagged(t TwinTag) foreign "twin_tagged";
+^Cursor?Unit cursor() foreign "cursor_new";
 
 type Stream = #struct {
 	_deflater Deflater;

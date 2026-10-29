@@ -41,19 +41,19 @@ Error: C declares `struct zane_bytes` here, and a `@primitives$List` crosses as 
 File "fixtures/reject/interface/main.zn", line 35, characters 1-7:
 35 | Packed packed(p Packed) foreign "packed_pass";
    | ^^^^^^
-Error: `interface$Packed` and the C struct `packed` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)
+Error: `interface$Packed` and the C type `packed` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)
 File "fixtures/reject/interface/main.zn", line 35, characters 17-23:
 35 | Packed packed(p Packed) foreign "packed_pass";
    |                 ^^^^^^
-Error: `interface$Packed` and the C struct `packed` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)
+Error: `interface$Packed` and the C type `packed` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)
 File "fixtures/reject/interface/main.zn", line 36, characters 1-5:
 36 | Bits bits(b Bits) foreign "bits_pass";
    | ^^^^
-Error: `interface$Bits` and the C struct `bits` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)
+Error: `interface$Bits` and the C type `bits` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)
 File "fixtures/reject/interface/main.zn", line 36, characters 13-17:
 36 | Bits bits(b Bits) foreign "bits_pass";
    |             ^^^^
-Error: `interface$Bits` and the C struct `bits` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)
+Error: `interface$Bits` and the C type `bits` are laid out differently: a C-compatible value type's C struct has the same fields, in order, each of a full-width C type of the Zane field's, at the same offsets (ffi.md §3.3)
 File "fixtures/reject/interface/main.zn", line 37, characters 29-45:
 37 | I64 variable(n I64) foreign "not_a_function";
    |                             ^^^^^^^^^^^^^^^^
