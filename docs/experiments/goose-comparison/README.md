@@ -1042,6 +1042,18 @@ The allocator's own paths account for little of it. Pooled variants address
 the representation, partial inlining a recursion's base case, and packing
 the node's size, and Goose's push shape the push itself.
 
-The next candidate for binarytrees is a calling convention for functions
-that build into a pool: items and count passed in registers and the new
-count returned, so the count never goes through memory between frames.
+The next step, decided: **every reference a 32-bit offset** (behind
+`ZANE_REF32=1`). The runtime reserves one range at startup, the cage, and
+carves every frame range, chunk and list block from it; a stored reference
+is `base + offset × 8`, so the cage reaches 32 GiB. What becomes 32-bit:
+`&T` fields and boxed members, and the items pointer of list and text
+handles, whose count and room become 32-bit too, so a handle is 12 bytes
+instead of 24 (one list holds at most 4 GiB). That puts ntree's node at 12
+bytes against Goose's 17. Because list blocks live in the cage, a large
+list reserves less headroom than its present 64× and moves when it
+outgrows it; listgrowth will show what that costs. Spawned contexts get
+smaller frame ranges inside the cage, and a full cage aborts.
+
+After that, for binarytrees: a calling convention for functions that build
+into a pool, items and count passed in registers and the new count
+returned, so the count never goes through memory between frames.
