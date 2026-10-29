@@ -575,7 +575,7 @@ let rec expr run fr (e : Expr.t) : v =
   | Expr.Call { fn; args } ->
       let args = List.map (expr run fr) args in
       call run fn args
-  | Expr.Call_value { fn; args; _ } -> (
+  | Expr.Call_value { fn; args } -> (
       let f = expr run fr fn in
       let args = List.map (expr run fr) args in
       match f with VFunc s -> call run s args | _ -> stop "a call through no function")

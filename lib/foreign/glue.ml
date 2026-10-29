@@ -109,22 +109,18 @@ let files tables entries =
       | mine -> Some (header, file ~header mine))
     tables
 
-(* What a function value's C entry and invoker pass (docs/design/ffi.md
+(* What a function value's C entry passes (docs/design/ffi.md
    F11): a scalar of the C type given, a `Bool` as `_Bool`, no value, or a
    struct of scalars, arrays of them and such structs, laid out as the
    Zane value type is. *)
 type shape = Value of string | Truth | Nothing | Record of (shape * int option) list
 
-(* A lambda's C entry, under [label], calling its adapter [adapter]; and
-   an invoker, under [label], calling the function value its first slot
-   holds. *)
+(* A lambda's C entry, under [label], calling its adapter [adapter]. *)
 type callback = { label : string; adapter : string; params : shape list; result : shape }
-type invoker = { at : string; takes : shape list; gives : shape }
 
-(* The file of the C entries [callbacks] and the invokers [invokers]: it
-   includes nothing, so it needs no C library's headers, and declares a
-   struct for each record shape. *)
-let callbacks_file (callbacks : callback list) (invokers : invoker list) =
+(* The file of the C entries [callbacks]: it includes nothing, so it needs
+   no C library's headers, and declares a struct for each record shape. *)
+let callbacks_file (callbacks : callback list) =
   let b = Buffer.create 1024 in
   let structs = Buffer.create 256 in
   let named = Hashtbl.create 8 in
@@ -178,26 +174,4 @@ let callbacks_file (callbacks : callback list) (invokers : invoker list) =
           line "  return __zane_r;");
       line "}")
     callbacks;
-  List.iteri
-    (fun n (i : invoker) ->
-      let name = Printf.sprintf "__zane_invoke_%d" n in
-      let params = if i.takes = [] then "void" else String.concat ", " (List.map c_type i.takes) in
-      let result = c_type i.gives in
-      line "void %s(void *const *__zane_args, void *__zane_result) __asm__(\"%s\");" name (escaped i.at);
-      line "void %s(void *const *__zane_args, void *__zane_result) {" name;
-      line "  typedef %s (*__zane_fn)(%s);" result params;
-      line "  __zane_fn __zane_f = *(__zane_fn const *)__zane_args[0];";
-      let arg k p =
-        if p = Truth then Printf.sprintf "(_Bool)(*(const unsigned char *)__zane_args[%d] & 1)" (k + 1)
-        else Printf.sprintf "*(const %s *)__zane_args[%d]" (c_type p) (k + 1)
-      in
-      let call = Printf.sprintf "__zane_f(%s)" (String.concat ", " (List.mapi arg i.takes)) in
-      (match i.gives with
-      | Nothing -> line "  (void)__zane_result;"; line "  %s;" call
-      | Truth -> line "  *(unsigned char *)__zane_result = (unsigned char)(%s != 0);" call
-      | _ ->
-          line "  %s __zane_v = %s;" result call;
-          line "  __builtin_memcpy(__zane_result, &__zane_v, sizeof __zane_v);");
-      line "}")
-    invokers;
   Buffer.contents structs ^ Buffer.contents b

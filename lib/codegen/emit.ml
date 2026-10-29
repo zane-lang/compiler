@@ -53,10 +53,10 @@ type env = {
   funcs : (string, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
   (* How each of the program's functions is called, by symbol. *)
   abis : (string, abi) Hashtbl.t;
-  (* The lambdas whose type C can call, by symbol, with their C entries'
-     symbols: each is its entry's address as a value (docs/design/ffi.md
-     F11). *)
-  callable : (string, string) Hashtbl.t;
+  (* The thunks of calls into C, by symbol, with whether each argument is
+     a function value, which C takes as its lambda's C entry
+     (docs/design/ffi.md F11). *)
+  entries : (string, bool list) Hashtbl.t;
   (* How many registers a value may take and still pass as itself, from
      the target (see [registers]), whether small aggregates are packed into
      words, and how each type passes, worked out once per type. *)
@@ -1279,12 +1279,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       Option.iter (fun v -> ignore (Llvm.build_store v block b)) (expr env fr b value);
       Some block
   | Expr.Layout l -> Some (layout env l)
-  (* A lambda C can call is its C entry's address, in every object
-     (docs/design/ffi.md F11). *)
-  | Expr.Function fn -> (
-      match Hashtbl.find_opt env.callable fn with
-      | Some entry -> Some (Walks.thunk env.ctx env.m entry)
-      | None -> Some (fst (Hashtbl.find env.funcs fn)))
+  | Expr.Function fn -> Some (fst (Hashtbl.find env.funcs fn))
   | Expr.Global g -> Some (Hashtbl.find env.globals g)
   | Expr.Snapshot p -> (
       let p = value_of env fr b p in
@@ -1450,26 +1445,12 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
    written to [into], a fresh slot the caller names, or to one made here;
    one that comes back as words is put back together in a slot. *)
 and call ?into env fr b (e : Expr.t) =
-  match e.Expr.node with
-  | Expr.Call_value { fn; args; invoker = Some invoker } ->
-      (* A function value C can call is a C function's address, called
-         through its type's invoker (docs/design/ffi.md F11). *)
-      (match foreign_call env fr b invoker (fn :: args) e.Expr.ty with
-      | None -> `Nothing
-      | Some v when returning env e.Expr.ty = Address ->
-          let p = match into with Some p -> p | None -> alloca env fr (lltype env e.Expr.ty) in
-          ignore (Llvm.build_store v p b);
-          `Stored p
-      | Some v -> `Value v)
-  | _ -> direct ?into env fr b e
-
-and direct ?into env fr b (e : Expr.t) =
   let f, fty, a, args =
     match e.Expr.node with
     | Expr.Call { fn; args } ->
         let f, fty = Hashtbl.find env.funcs fn in
         (f, fty, Hashtbl.find env.abis fn, args)
-    | Expr.Call_value { fn; args; invoker = None } ->
+    | Expr.Call_value { fn; args } ->
         (* The function's type is its arguments' and its result's, which the
            tree gives, as for a direct call. *)
         let f = value_of env fr b fn in
@@ -1517,11 +1498,23 @@ and direct ?into env fr b (e : Expr.t) =
    the arguments run in order, each is stored in a slot of its own as C lays
    out its type, a struct's padding zeroed and a `Bool` a byte, and the
    thunk is handed an array of the slots' addresses and a zeroed slot for
-   the result, from which the result is read back. *)
+   the result, from which the result is read back. A function value is
+   handed over as its lambda's C entry, read from the constant whose offset
+   from the lambda's code the 32 bits before it hold (docs/design/ffi.md
+   F11). *)
 and foreign_call env fr b thunk (args : Expr.t list) (ret : Ty.t) =
   let i8 = Llvm.i8_type env.ctx in
-  let slot_of (a : Expr.t) =
+  let functions = Option.value ~default:[] (Hashtbl.find_opt env.entries thunk) in
+  let entry v =
+    let i32 = Llvm.i32_type env.ctx in
+    let at = Llvm.build_gep i8 v [| Llvm.const_int env.i64 (-4) |] "" b in
+    let offset = Llvm.build_load i32 at "" b in
+    Llvm.set_alignment 4 offset;
+    Llvm.build_load env.ptr (Llvm.build_gep i8 v [| Llvm.build_sext offset env.i64 "" b |] "" b) "" b
+  in
+  let slot_of i (a : Expr.t) =
     let v = value_of env fr b a in
+    let v = if List.nth_opt functions i = Some true then entry v else v in
     match a.Expr.ty with
     | Ty.I1 -> spill env fr b (Llvm.build_zext v i8 "" b)
     | Ty.Struct _ as t ->
@@ -1531,7 +1524,7 @@ and foreign_call env fr b thunk (args : Expr.t list) (ret : Ty.t) =
         p
     | _ -> spill env fr b v
   in
-  let slots = List.map slot_of args in
+  let slots = List.mapi slot_of args in
   let table_type = Llvm.array_type env.ptr (max 1 (List.length slots)) in
   let table = alloca env fr table_type in
   List.iteri

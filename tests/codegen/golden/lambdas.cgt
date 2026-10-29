@@ -49,10 +49,6 @@
     │   ├── entry: lambdas$entry lambdas$pick(%primitives$Bool)$lambda1
     │   ├── takes[0]: i64
     │   └── gives: i64
-    ├── invokers[0] > invoker:
-    │   ├── symbol: lambdas$invoke i64(i64)
-    │   ├── takes[0]: i64
-    │   └── gives: i64
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -78,7 +74,6 @@
     │       │       ├── op: ==
     │       │       ├── left > call value:
     │       │       │   ├── type: i64
-    │       │       │   ├── invoker: lambdas$invoke i64(i64)
     │       │       │   ├── fn: local #1 : ptr
     │       │       │   └── args[0]: 3 : i64
     │       │       └── right: 6 : i64
@@ -99,11 +94,9 @@
     │       │       │   │   ├── place: #4
     │       │       │   │   └── value > call value:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │       ├── fn: local #1 : ptr
     │       │       │   │       └── args[0] > call value:
     │       │       │   │           ├── type: i64
-    │       │       │   │           ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │           ├── fn: local #1 : ptr
     │       │       │   │           └── args[0]: local #2 : i64
     │       │       │   └── body[2]: leave @3
@@ -128,11 +121,9 @@
     │       │       │   │   ├── place: #8
     │       │       │   │   └── value > call value:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │       ├── fn: local #5 : ptr
     │       │       │   │       └── args[0] > call value:
     │       │       │   │           ├── type: i64
-    │       │       │   │           ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │           ├── fn: local #5 : ptr
     │       │       │   │           └── args[0]: local #6 : i64
     │       │       │   └── body[3]: leave @7
@@ -157,11 +148,9 @@
     │       │       │   │   ├── place: #12
     │       │       │   │   └── value > call value:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │       ├── fn: local #9 : ptr
     │       │       │   │       └── args[0] > call value:
     │       │       │   │           ├── type: i64
-    │       │       │   │           ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │           ├── fn: local #9 : ptr
     │       │       │   │           └── args[0]: local #10 : i64
     │       │       │   └── body[3]: leave @11
@@ -174,7 +163,6 @@
     │       │       ├── op: ==
     │       │       ├── left > call value:
     │       │       │   ├── type: i64
-    │       │       │   ├── invoker: lambdas$invoke i64(i64)
     │       │       │   ├── fn > call:
     │       │       │   │   ├── type: ptr
     │       │       │   │   ├── fn: lambdas$pick(%primitives$Bool)
@@ -195,7 +183,6 @@
     │       │       ├── op: ==
     │       │       ├── left > call value:
     │       │       │   ├── type: i64
-    │       │       │   ├── invoker: lambdas$invoke i64(i64)
     │       │       │   ├── fn: local #13 : ptr
     │       │       │   └── args[0]: 5 : i64
     │       │       └── right: 6 : i64
@@ -842,7 +829,6 @@
     │       │       ├── op: ==
     │       │       ├── left > call value:
     │       │       │   ├── type: i64
-    │       │       │   ├── invoker: lambdas$invoke i64(i64)
     │       │       │   ├── fn: local #121 : ptr
     │       │       │   └── args[0]: 5 : i64
     │       │       └── right: 15 : i64
@@ -885,11 +871,9 @@
     │       │       │   │   ├── place: #128
     │       │       │   │   └── value > call value:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │       ├── fn: local #125 : ptr
     │       │       │   │       └── args[0] > call value:
     │       │       │   │           ├── type: i64
-    │       │       │   │           ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │           ├── fn: local #125 : ptr
     │       │       │   │           └── args[0]: local #126 : i64
     │       │       │   └── body[3]: leave @127
@@ -1004,7 +988,6 @@
     │   │       ├── place: #3
     │   │       └── value > call value:
     │   │           ├── type: i64
-    │   │           ├── invoker: lambdas$invoke i64(i64)
     │   │           ├── fn > member:
     │   │           │   ├── type: ptr
     │   │           │   ├── index: 0
@@ -1202,7 +1185,6 @@
     │       │   └── base: local #57 : ptr
     │       └── value > call value:
     │           ├── type: i64
-    │           ├── invoker: lambdas$invoke i64(i64)
     │           ├── fn > deref:
     │           │   ├── type: ptr
     │           │   └── ptr > offset:
@@ -1226,7 +1208,6 @@
     │       │   └── base: local #60 : ptr
     │       └── value > call value:
     │           ├── type: i64
-    │           ├── invoker: lambdas$invoke i64(i64)
     │           ├── fn > deref:
     │           │   ├── type: ptr
     │           │   └── ptr > offset:

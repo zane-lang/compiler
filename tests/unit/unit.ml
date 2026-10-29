@@ -390,7 +390,7 @@ let repeated_builds () =
       body = [ C.Stat.Return { C.Expr.node = C.Expr.Record []; ty = C.Ty.Struct [] } ];
       values = [] }
   in
-  let p = { C.Program.funcs = empty :: List.init 2000 f; entry = None; layouts = []; globals = []; foreign = []; callbacks = []; invokers = []; exclusive = true } in
+  let p = { C.Program.funcs = empty :: List.init 2000 f; entry = None; layouts = []; globals = []; foreign = []; callbacks = []; exclusive = true } in
   let built = ref 0 in
   for _ = 1 to 60 do
     match Driver.ir ~optimize:false p with Ok _ -> incr built | Error _ -> ()
@@ -406,7 +406,7 @@ let disposed_modules () =
     { C.Func.symbol = "f"; linkage = C.Linkage.Exported; params = []; places = []; ret = C.Ty.I64;
       body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ]; values = [] }
   in
-  let p = { C.Program.funcs = [ f ]; entry = None; layouts = []; globals = []; foreign = []; callbacks = []; invokers = []; exclusive = true } in
+  let p = { C.Program.funcs = [ f ]; entry = None; layouts = []; globals = []; foreign = []; callbacks = []; exclusive = true } in
   let dir = Filename.temp_dir "zane-unit" "" in
   let none () = Codegen.live_contexts () = 0 in
   check "a built object leaves no context"
@@ -1063,7 +1063,7 @@ let emit_env ?(pack = false) ?(triple = "x86_64-unknown-linux-gnu") () =
     i64 = Llvm.i64_type ctx;
     funcs = Hashtbl.create 1;
     abis = Hashtbl.create 1;
-    callable = Hashtbl.create 1;
+    entries = Hashtbl.create 1;
     registers = Codegen__Emit.registers triple;
     pack;
     passings = Hashtbl.create 1;

@@ -27,10 +27,6 @@
     │   ├── entry: folding$entry folding$main()$lambda1
     │   ├── takes[0]: i64
     │   └── gives: i64
-    ├── invokers[0] > invoker:
-    │   ├── symbol: folding$invoke i64(i64)
-    │   ├── takes[0]: i64
-    │   └── gives: i64
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -978,11 +974,9 @@
     │       │       │   │   ├── place: #96
     │       │       │   │   └── value > call value:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── invoker: folding$invoke i64(i64)
     │       │       │   │       ├── fn: local #93 : ptr
     │       │       │   │       └── args[0] > call value:
     │       │       │   │           ├── type: i64
-    │       │       │   │           ├── invoker: folding$invoke i64(i64)
     │       │       │   │           ├── fn: local #93 : ptr
     │       │       │   │           └── args[0]: local #94 : i64
     │       │       │   └── body[3]: leave @95

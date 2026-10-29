@@ -216,8 +216,8 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
             (Foreign.glue f (List.map entry entries))
       in
       (* The object's function values C can call (docs/design/ffi.md F11):
-         its lambdas' C entries and its invokers, in one module of their
-         own, named by the lambdas' and the invokers' symbols. *)
+         its lambdas' C entries, in one module of their own, named by the
+         lambdas' symbols. *)
       let module C = Cgt.Nodes.Callback in
       let rec shape (s : C.shape) =
         match s with
@@ -231,9 +231,8 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
         | C.Scalar _ -> Diagnostic.bug "codegen: a function value C calls with a type it does not take"
       in
       let callbacks () =
-        let p = List.filter (fun (c : C.t) -> c.C.here) cgt.Cgt.Nodes.Program.callbacks
-        and i = cgt.Cgt.Nodes.Program.invokers in
-        if p = [] && i = [] then Ok None
+        let p = List.filter (fun (c : C.t) -> c.C.here) cgt.Cgt.Nodes.Program.callbacks in
+        if p = [] then Ok None
         else
           let entry (c : C.t) =
             {
@@ -243,9 +242,6 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
               result = shape c.C.gives;
             }
           in
-          let invoker (c : C.t) =
-            { Foreign.Glue.at = global_prefix ^ c.C.symbol; takes = List.map shape c.C.takes; gives = shape c.C.gives }
-          in
           Result.map
             (fun (s : Foreign.Compile.source) ->
               let id = match packages with (r : Assembly.package) :: _ -> r.Assembly.id | [] -> "" in
@@ -254,13 +250,13 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
                   Codegen.prefix = (if root then "" else "!") ^ id ^ "$%c$";
                   sources = [];
                   glue = [ { Codegen.key = s.key; bitcode = s.bitcode; files = [] } ];
-                  thunks = List.map (fun (c : C.t) -> c.C.entry) p @ List.map (fun (c : C.t) -> c.C.symbol) i;
+                  thunks = List.map (fun (c : C.t) -> c.C.entry) p;
                   objects = [];
                   archives = [];
                   defined = [];
                   libraries = [];
                 })
-            (Foreign.callbacks ~target (List.map entry p) (List.map invoker i))
+            (Foreign.callbacks ~target (List.map entry p))
       in
       match Foreign.combine ((if c = [] then [] else List.map2 one packages c) @ [ callbacks () ]) with
       | Ok cs -> Ok (List.filter_map Fun.id cs)

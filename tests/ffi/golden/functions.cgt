@@ -157,22 +157,6 @@
     │   ├── entry: functions$entry functions$main()$lambda7
     │   ├── takes[0]: i64
     │   └── gives: i64
-    ├── invokers[0] > invoker:
-    │   ├── symbol: functions$invoke i1(i32)
-    │   ├── takes[0]: i32
-    │   └── gives: i1
-    ├── invokers[1] > invoker:
-    │   ├── symbol: functions$invoke i64(i64)
-    │   ├── takes[0]: i64
-    │   └── gives: i64
-    ├── invokers[2] > invoker:
-    │   ├── symbol: functions$invoke void(i64)
-    │   ├── takes[0]: i64
-    │   └── gives: void
-    ├── invokers[3] > invoker:
-    │   ├── symbol: functions$invoke {i32, i32, [2 x f64]}({i32, i32, [2 x f64]})
-    │   ├── takes[0]: {i32, i32, [2 x f64]}
-    │   └── gives: {i32, i32, [2 x f64]}
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -460,11 +444,9 @@
     │       │       │   │       │   ├── place: #39
     │       │       │   │       │   └── value > call value:
     │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── invoker: functions$invoke i64(i64)
     │       │       │   │       │       ├── fn: local #36 : ptr
     │       │       │   │       │       └── args[0] > call value:
     │       │       │   │       │           ├── type: i64
-    │       │       │   │       │           ├── invoker: functions$invoke i64(i64)
     │       │       │   │       │           ├── fn: local #36 : ptr
     │       │       │   │       │           └── args[0]: local #37 : i64
     │       │       │   │       └── body[3]: leave @38
@@ -490,7 +472,6 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call value:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── invoker: functions$invoke i64(i64)
     │       │       │   │       ├── fn: local #46 : ptr
     │       │       │   │       └── args[0]: 2 : i64
     │       │       │   └── layout: %primitives$String
@@ -532,7 +513,6 @@
     │       │       │   ├── place: #55
     │       │       │   └── value > call value:
     │       │       │       ├── type: {i32, i32, [2 x f64]}
-    │       │       │       ├── invoker: functions$invoke {i32, i32, [2 x f64]}({i32, i32, [2 x f64]})
     │       │       │       ├── fn: local #53 : ptr
     │       │       │       └── args[0]: local #16 : {i32, i32, [2 x f64]}
     │       │       └── body[2]: leave @54
@@ -1064,7 +1044,6 @@
     │   ├── body[0] > if:
     │   │   ├── cond > call value:
     │   │   │   ├── type: i1
-    │   │   │   ├── invoker: functions$invoke i1(i32)
     │   │   │   ├── fn: local #1 : ptr
     │   │   │   └── args[0]: local #2 : i32
     │   │   └── body[0] > scope:
@@ -1126,7 +1105,6 @@
     │   ├── ret: void
     │   ├── body[0] > eval > call value:
     │   │   ├── type: void
-    │   │   ├── invoker: functions$invoke void(i64)
     │   │   ├── fn: local #1 : ptr
     │   │   └── args[0]: local #2 : i64
     │   └── body[1] > return: unit : void

@@ -6,7 +6,6 @@ T !geometry$double
 T !geometry$double.adapter
 T !geometry$double.c
 T !geometry$entry !geometry$same<%primitives$I64>(%primitives$I64)$lambda1
-T !geometry$invoke i64(i64)
 T !geometry$scaled(%primitives$I64)
 T !geometry$shifted(!geometry$Point, %primitives$I64)
 T !geometry$sum(this !geometry$Point)
@@ -16,3 +15,6 @@ V !geometry$unit.value
 W !geometry$same<%primitives$I64>(%primitives$I64)
 W !geometry$same<%primitives$I64>(%primitives$I64)$lambda1.adapter
 W !geometry$unit
+d !geometry$double.c.address
+d !geometry$entry !geometry$same<%primitives$I64>(%primitives$I64)$lambda1.address
+t !geometry$same<%primitives$I64>(%primitives$I64)$lambda1

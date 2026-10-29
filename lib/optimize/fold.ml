@@ -177,7 +177,7 @@ let reach (f : Func.t) =
     | Expr.Offset { base; _ } -> expr used base
     | Expr.Call { args; _ } | Expr.Runtime { args; _ } ->
         List.iter (expr (used || not (addresses e.Expr.ty))) args
-    | Expr.Call_value { fn; args; _ } ->
+    | Expr.Call_value { fn; args } ->
         expr false fn;
         List.iter (expr (used || not (addresses e.Expr.ty))) args
     | Expr.Deref x | Expr.Snapshot x | Expr.Take { address = x; _ } -> expr true x
