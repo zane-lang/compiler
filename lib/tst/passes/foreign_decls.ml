@@ -206,20 +206,27 @@ let scalar_name = function I32 -> "@primitives$I32" | I64 -> "@primitives$I64" |
 
 (* A value type declared with `struct` whose fields are scalars, arrays of
    them, or such structs in turn: a C-compatible value type (§3.3), with its
-   fields' types. *)
-let rec value_struct env ?(depth = 0) (t : Ty.t) =
+   fields' types.
+
+   A struct that holds itself, which [path] finds, has no size and so is
+   none. Only one whose arguments grow at each step, as `N<T>` holding an
+   `N<Wrap<T>>`, never repeats; it has no size either, and the walk gives
+   up on it after [budget] types. *)
+let rec value_struct env ?(path = []) ?(budget = ref 100_000) (t : Ty.t) =
   match t with
-  | Ty.Named (tid, args) when depth < 16 -> (
+  | Ty.Named (tid, args) when (not (List.mem t path)) && !budget > 0 -> (
+      decr budget;
       match Type_decls.type_info_of_id env tid with
       | Some ({ definition = Some (Struct fields); reference = Some false; _ } as info) ->
           let s = Ty.bindings info.params args in
           let fields = List.map (fun (n, f) -> (n, Ty.subst s f)) fields in
-          if List.for_all (fun (_, f) -> field_compatible env ~depth f) fields then Some (tid, fields) else None
+          let path = t :: path in
+          if List.for_all (fun (_, f) -> field_compatible env ~path ~budget f) fields then Some (tid, fields) else None
       | _ -> None)
   | _ -> None
 
-and field_compatible env ~depth t =
-  Option.is_some (scalar_of t) || Option.is_some (array_of t) || Option.is_some (value_struct env ~depth:(depth + 1) t)
+and field_compatible env ~path ~budget t =
+  Option.is_some (scalar_of t) || Option.is_some (array_of t) || Option.is_some (value_struct env ~path ~budget t)
 
 and array_of = function
   | Ty.Intrinsic { namespace = "primitives"; name = "Array"; args = [ Ty.Type e; Ty.Number (Ty.Known n) ] } ->

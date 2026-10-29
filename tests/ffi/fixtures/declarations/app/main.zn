@@ -3,7 +3,8 @@
 /// capability declared by a foreign variable, and an outside handle made by
 /// a `mut` method on it. A settled handle with a setter is overwritten, and
 /// a roaming one without one. A struct tag and a typedef of the same name
-/// are two C types, and a handle's `cType` may name a bare tag.
+/// are two C types, and a handle's `cType` may name a bare tag. A value
+/// struct crosses however deeply its structs nest.
 package app;
 
 alias Unit = @primitives$Unit;
@@ -36,6 +37,74 @@ type TwinTag = struct {
 	b F64;
 }
 
+type N0 = struct {
+	v I32;
+}
+
+type N1 = struct {
+	inner N0;
+}
+
+type N2 = struct {
+	inner N1;
+}
+
+type N3 = struct {
+	inner N2;
+}
+
+type N4 = struct {
+	inner N3;
+}
+
+type N5 = struct {
+	inner N4;
+}
+
+type N6 = struct {
+	inner N5;
+}
+
+type N7 = struct {
+	inner N6;
+}
+
+type N8 = struct {
+	inner N7;
+}
+
+type N9 = struct {
+	inner N8;
+}
+
+type N10 = struct {
+	inner N9;
+}
+
+type N11 = struct {
+	inner N10;
+}
+
+type N12 = struct {
+	inner N11;
+}
+
+type N13 = struct {
+	inner N12;
+}
+
+type N14 = struct {
+	inner N13;
+}
+
+type N15 = struct {
+	inner N14;
+}
+
+type N16 = struct {
+	inner N15;
+}
+
 type Cursor = #handle{ cType = "cursor"; free = "cursor_free"; }
 
 type Deflater = #handle{ cType = "deflater_t"; set = "deflater_set"; free = "deflater_free"; }
@@ -56,6 +125,7 @@ I64 compare(this Deflater, other Deflater) foreign "deflater_compare";
 Twin twinTypedef(t Twin) foreign "twin_typedef";
 TwinTag twinTagged(t TwinTag) foreign "twin_tagged";
 ^Cursor?Unit cursor() foreign "cursor_new";
+N16 deep(x N16) foreign "deep";
 
 type Stream = #struct {
 	_deflater Deflater;
