@@ -132,6 +132,7 @@ Unit main() {
 	show(String(lib$primedRuns()));
 	show(String(lib$wasWarmed()));
 	show(String(lib$parsed()));
+	show(String(lib$gnuFound()));
 	show(String(result()));
 	show(String(args(I64(21))));
 	return Unit();

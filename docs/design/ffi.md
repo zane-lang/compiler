@@ -267,8 +267,11 @@ How a `struct` is passed by value differs between SysV x86-64, Windows x64
 and AArch64, and LLVM leaves that classification to the front end. Rather
 than reimplement clang's for each target, the compiler writes, for each
 package, the glue: one C file per interface header, which includes that
-header alone and is compiled with the package's settings, so clang does the
-classification it already knows. After the include, the file `#undef`s the
+header and is compiled with the package's settings, so clang does the
+classification it already knows. The header comes first, so a feature-test
+macro it defines, such as `_GNU_SOURCE`, selects what the system headers
+declare as it does in a source including it first; `<stdint.h>` follows,
+for the fixed-width types the thunks read slots as. After the includes, the file `#undef`s the
 name of every C function its entries call, so a macro the header defines
 with that name, such as `#define f(x) ((x) + 1)` after `int f(int);`,
 never stands in for the function the foreign verb names. Each entry goes in the file of the header
