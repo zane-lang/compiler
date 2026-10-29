@@ -366,7 +366,13 @@ header defines too, by name and type, and for a constant with the same
 value, is the source's. A constant's value may point at other objects of
 the header's: it is the same when each pointed at is the other module's
 copy, a private object by name and value, a string literal by content,
-anything else by name. Such a variable is the source's,
+anything else by name; a struct type matches the other module's copy of
+it field by field, as each module read names its own. A private function
+whose address the glue takes, as comparing it with a pointer of the
+header's does, is shared the same way, so the address the glue sees is
+the one the source's pointers hold; one the glue only calls, or lists as
+a constructor or destructor, stays its own. Such a variable or function
+is the source's,
 renamed `zane.shared.N.NAME` (`N` the source's place in the package)
 and made visible to the link, with the glue's made a declaration of it
 (`zane_share_state`); once the package's modules are linked it is local
