@@ -29,8 +29,9 @@ A function gets a table when:
   and reach outside state through a foreign variable they declare, whose
   capability is the address of a C global ([`ffi.md`](ffi.md) F12). So the
   function's body, and the body of every function it calls, names none of
-  these, makes no call through a function value, and calls no runtime
-  function that outputs, reads the program's arguments or spawns. A callee
+  these, makes no call through a function value or to a C function, which
+  can read and change state of its own, and calls no runtime function that
+  outputs, reads the program's arguments or spawns. A callee
   with no body here rules its caller out.
 - **Its arguments and result are fixed-size values.** These are scalars, and
   structs, enums, variants and arrays of them, with no handle or address

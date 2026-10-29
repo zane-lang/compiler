@@ -2,7 +2,8 @@
 /// C's own state kept between calls, and C in two packages defining the
 /// same names, each package calling its own, among them a function each
 /// package's interface header defines itself. C functions named `result`
-/// and `args` are called as any other.
+/// and `args` are called as any other. A recursive function reading C's
+/// state is never remembered (memoization.md), so it sees each change.
 package app;
 
 alias Unit = @primitives$Unit;
@@ -53,6 +54,19 @@ Tagged flip(t Tagged) foreign "flip";
 Unit addTo(n I64) foreign "add_to";
 Unit reset() foreign "reset";
 I64 counter() foreign "counter";
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+I64 counted(n I64) {
+	if(@operators$lessThan(n, I64(2))) {
+		return counter();
+	}
+	return @operators$add(counted(@operators$add(n, @operators$negate(I64(1)))), counted(@operators$add(n, @operators$negate(I64(2)))));
+}
+
 I64 helper() foreign "helper";
 I64 named() foreign "named";
 I64 definedHere(x I64) foreign "defined_here";
@@ -94,6 +108,10 @@ Unit main() {
 	show(String(counter()));
 	reset();
 	show(String(counter()));
+	show(String(counted(I64(10))));
+	addTo(I64(1));
+	show(String(counted(I64(10))));
+	reset();
 	show(String(helper()));
 	show(String(lib$helper()));
 	show(String(named()));
