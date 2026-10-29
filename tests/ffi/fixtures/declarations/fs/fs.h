@@ -5,6 +5,7 @@ typedef struct zane_file_t zane_file_t;
 
 extern zane_fs_t zane_fs;
 extern zane_fs_t zane_spare;
+extern zane_fs_t zane_other;
 
 zane_file_t *zane_fopen(zane_fs_t *fs, zane_bytes path);
 void zane_fwrite(zane_fs_t *fs, zane_file_t *file, zane_bytes data);
