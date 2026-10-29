@@ -31,8 +31,9 @@ def build(lang, tid):
         cmd = [ZANEC, "--build", exe, "--optimize", "--package", f"{tid}={LB}/bin/{tid}",
                "--package", f"bench={LB}/lib/bench", "--package", f"core={CORE}/core",
                "--package", f"math={CORE}/math"]
-    elif lang == "goose":
-        cmd = [GOOSE, "build", os.path.join(HERE, f"{tid}.goose"), "-o", exe,
+    elif lang.startswith("goose"):
+        form = lang[len("goose"):].replace("-", "_")
+        cmd = [GOOSE, "build", os.path.join(HERE, f"{tid}{form}.goose"), "-o", exe,
                "-O2", "--cc", clang]
     else:
         cmd = ["clang", "-O2", "-o", exe, f"{LB}/c/{tid}.c", "-lm", "-lpthread"]
@@ -65,13 +66,21 @@ def run_measured(exe, args):
 
 results = {}
 langs = ["zane-base"] if os.path.isdir(os.path.join(WORK, "bin-base")) else []
-langs += ["zane", "goose", "c"]
+langs += ["zane", "goose", "goose-enum-ref", "goose-enum-pool", "c"]
+# ONLY=a,b runs just those tests.
+only = os.environ.get("ONLY")
 for test in tests.TESTS:
     tid = test["id"]
+    if only and tid not in only.split(","):
+        continue
     args = test["check_args"] if QUICK else test["args"]
     expected = test["check_expected"] if QUICK else test["expected"]
     row = {}
     for lang in langs:
+        # A Goose form other than the main port runs where it has a file.
+        if lang.startswith("goose-") and not os.path.exists(
+                os.path.join(HERE, f"{tid}{lang[len('goose'):].replace('-', '_')}.goose")):
+            continue
         exe, bt = build(lang, tid)
         out, _ = run_once(exe, args)
         if out != expected:
@@ -89,7 +98,7 @@ for test in tests.TESTS:
             times = [0.0]
         row[lang] = {"build": bt, "median": statistics.median(times),
                      "min": min(times), "max": max(times), "rss_kb": rss}
-        print(f"{tid:13} {lang:9} build {bt:6.2f}s  median {row[lang]['median']:8.4f}s "
+        print(f"{tid:13} {lang:15} build {bt:6.2f}s  median {row[lang]['median']:8.4f}s "
               f"[{min(times):.4f}-{max(times):.4f}]  rss {rss/1024:8.1f} MB", flush=True)
     results[tid] = row
 with open(os.path.join(WORK, "quick.json" if QUICK else "results.json"), "w") as f:

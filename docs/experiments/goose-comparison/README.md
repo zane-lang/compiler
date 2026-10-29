@@ -130,6 +130,62 @@ allocfree now matches Goose, on less memory. It executes the same
 instructions as at the baseline, so all of its gain comes from step 2's page
 faults: fewer faults and warm pages.
 
+## Goose's enums against its struct ports
+
+The binarytrees and treecopy ports model the tree as a struct with nullable
+4-byte self-relative links: null links mean a leaf. Zane's programs use a
+variant. To check how much that choice matters, each test was also ported
+with a fixed-mode Goose `enum`, with its links written two ways:
+
+- **`*_enum_ref.goose`** links with plain 8-byte references (`Tree&`), in
+  the same local pools as the struct port.
+- **`*_enum_pool.goose`** links with 4-byte pool-relative references
+  (`Tree&<u32 in pool>`).
+
+Goose rejects a fixed-mode enum holding self-relative links, because a copy
+does not keep them (its spec §3.5, §3.9). A pool-relative link names a global
+pool in its type, so these ports keep two enums over two global pools: the
+long-lived tree and the scratch trees, or the original and the copies. They
+drop a tree by emptying its pool (`pool = []`).
+
+`run.py` runs these as the `goose-enum-ref` and `goose-enum-pool` columns.
+Every form prints the expected output.
+
+Instruction counts are from callgrind at the full sizes. Bytes per node is
+the growth in peak RSS from one depth to the next, divided by the nodes
+added, per tree alive. Wall time is the median of 9 runs.
+
+| treecopy | wall | instructions | bytes/node |
+| --- | --- | --- | --- |
+| zane | 0.167 s | 749 M | 27.9 |
+| goose (struct, self-relative u32) | 0.126 s | 845 M | 16.0 |
+| goose-enum-ref (enum, 8-byte refs) | 0.156 s | 579 M | 25.2 |
+| goose-enum-pool (enum, pool-relative u32) | 0.112 s | 515 M | 17.0 |
+
+| binarytrees | wall | instructions |
+| --- | --- | --- |
+| zane | 0.117 s | 866 M |
+| goose (struct) | 0.052 s | 659 M |
+| goose-enum-ref | 0.060 s | 476 M |
+| goose-enum-pool | 0.046 s | 528 M |
+
+What this shows:
+
+- **The struct ports did not flatter Goose.** Its enums run fewer
+  instructions than its struct ports: one tag match against two null
+  checks. With 4-byte links the enum is as dense as the struct (17 against
+  16 bytes/node) and at least as fast.
+- **On treecopy, link width accounts for the whole gap.** With 8-byte
+  references, Goose's enum has nearly Zane's density (25.2 against 27.9
+  bytes/node) and nearly Zane's time, while running fewer instructions.
+  Narrowing the links to 4 bytes is what takes Goose from Zane's time to
+  well below it.
+- **On binarytrees, something besides link width matters.** Every Goose
+  form stays at about half Zane's time, the 8-byte form included. Its peak
+  RSS barely rises above the process baseline, while Zane's measured
+  108 bytes/node. So the gap there sits in how Zane holds the many
+  short-lived trees, not in the node encoding.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
