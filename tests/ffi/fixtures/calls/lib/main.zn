@@ -2,9 +2,11 @@
 /// `helper`, the variable `total` and the alias `named`: each package's C
 /// keeps its own, `defined_here`, which each package's interface header
 /// defines itself, among them. `plain.h` includes nothing, not even
-/// `<stdint.h>`. `once.h` defines a function and a variable with external
-/// linkage that `once.c`, which includes it, also defines: each is defined
-/// once in the package's C, though the glue includes the header too.
+/// `<stdint.h>`. `once.h` defines functions, a variable, an alias and,
+/// where the C library resolves one, an indirect function with external
+/// linkage that `once.c`, which includes it, also defines, and a
+/// constructor of the header's own: each is defined, and the constructor
+/// run, once in the package's C, though the glue includes the header too.
 /// `primed.h`, which no source includes, has a constructor of its own, run
 /// beside the one `lib.c` has.
 package lib;
@@ -19,5 +21,8 @@ I64 widen(x I64) foreign "widen";
 I64 definedHere(x I64) foreign "defined_here";
 I64 once(x I64) foreign "once";
 I64 useOnce() foreign "use_once";
+I64 onceAlias(x I64) foreign "once_alias";
+I64 onceIndirect(x I64) foreign "once_indirect";
+I64 onceStarted() foreign "once_started";
 I64 primed() foreign "primed";
 I64 wasWarmed() foreign "was_warmed";

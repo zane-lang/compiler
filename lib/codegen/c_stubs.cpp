@@ -9,6 +9,11 @@
    is renamed with it, so two versions of a package never share one. */
 
 #include "llvm/IR/Comdat.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/GlobalAlias.h"
+#include "llvm/IR/GlobalIFunc.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/GlobalObject.h"
@@ -71,21 +76,131 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
   CAMLreturn(Val_unit);
 }
 
+/* A name without the `.N` the linker adds to a local one it renames. */
+static llvm::StringRef unnumbered(llvm::StringRef name) {
+  size_t dot = name.rfind('.');
+  if (dot == llvm::StringRef::npos || dot + 1 == name.size()) return name;
+  for (char c : name.substr(dot + 1))
+    if (c < '0' || c > '9') return name;
+  return name.substr(0, dot);
+}
+
+/* What a function does, as far as telling two copies of one header's
+   function apart from two different functions needs: its instructions'
+   opcodes, the constants they use and the globals they name. */
+static std::string fingerprint(llvm::Function &f) {
+  std::string s;
+  llvm::raw_string_ostream out(s);
+  for (llvm::BasicBlock &bb : f) {
+    out << '|';
+    for (llvm::Instruction &i : bb) {
+      out << i.getOpcodeName();
+      for (llvm::Value *op : i.operands()) {
+        if (auto *g = llvm::dyn_cast<llvm::GlobalValue>(op))
+          out << " @" << unnumbered(g->getName());
+        else if (auto *c = llvm::dyn_cast<llvm::ConstantInt>(op))
+          out << ' ' << c->getValue();
+        else if (auto *c = llvm::dyn_cast<llvm::ConstantFP>(op))
+          out << ' ' << c->getValueAPF().bitcastToAPInt();
+      }
+      out << ';';
+    }
+  }
+  return out.str();
+}
+
+/* The functions the appending list [list] of [m] runs. */
+static std::vector<llvm::Function *> listed(llvm::Module *m, const char *list) {
+  std::vector<llvm::Function *> fs;
+  llvm::GlobalVariable *v = m->getNamedGlobal(list);
+  if (!v || !v->hasInitializer()) return fs;
+  if (auto *a = llvm::dyn_cast<llvm::ConstantArray>(v->getInitializer()))
+    for (llvm::Use &e : a->operands())
+      if (auto *entry = llvm::dyn_cast<llvm::ConstantStruct>(e.get()))
+        if (auto *f = llvm::dyn_cast<llvm::Function>(entry->getOperand(1)->stripPointerCasts())) fs.push_back(f);
+  return fs;
+}
+
+/* The entries of the glue's appending list [list], `llvm.global_ctors` or
+   `llvm.global_dtors`, that run a local function some module before it
+   runs from its own list under the same name and doing the same: a
+   constructor or destructor of a header a source includes, which runs
+   once for the package's C, not again for the glue's copy. One of a header
+   no source includes stays. */
+static void drop_repeated(llvm::Module *g, llvm::Module *b, const char *list) {
+  llvm::GlobalVariable *v = g->getNamedGlobal(list);
+  if (!v || !v->hasInitializer()) return;
+  auto *a = llvm::dyn_cast<llvm::ConstantArray>(v->getInitializer());
+  if (!a) return;
+  std::set<std::pair<std::string, std::string>> run;
+  for (llvm::Function *f : listed(b, list))
+    if (f->hasLocalLinkage()) run.insert({unnumbered(f->getName()).str(), fingerprint(*f)});
+  std::vector<llvm::Constant *> kept;
+  for (llvm::Use &e : a->operands()) {
+    auto *entry = llvm::cast<llvm::Constant>(e.get());
+    auto *f = llvm::dyn_cast<llvm::Function>(entry->getOperand(1)->stripPointerCasts());
+    bool again = f && f->hasLocalLinkage() && run.count({unnumbered(f->getName()).str(), fingerprint(*f)});
+    if (!again) kept.push_back(entry);
+  }
+  if (kept.size() == a->getNumOperands()) return;
+  if (kept.empty()) {
+    v->eraseFromParent();
+    return;
+  }
+  llvm::ArrayType *t = llvm::ArrayType::get(a->getType()->getElementType(), kept.size());
+  auto *fresh = new llvm::GlobalVariable(*g, t, v->isConstant(), v->getLinkage(), llvm::ConstantArray::get(t, kept), "", v,
+                                         v->getThreadLocalMode(), v->getAddressSpace());
+  fresh->setSection(v->getSection());
+  fresh->takeName(v);
+  v->eraseFromParent();
+}
+
+/* A declaration of the global value [v] standing for it in its module, its
+   uses moved to the declaration and [v] gone: an alias or an indirect
+   function cannot be made a declaration in place. */
+static void declare_instead(llvm::GlobalValue *v) {
+  llvm::Module *m = v->getParent();
+  llvm::GlobalValue *d;
+  if (auto *ft = llvm::dyn_cast<llvm::FunctionType>(v->getValueType()))
+    d = llvm::Function::Create(ft, llvm::GlobalValue::ExternalLinkage, v->getAddressSpace(), "", m);
+  else
+    d = new llvm::GlobalVariable(*m, v->getValueType(), false, llvm::GlobalValue::ExternalLinkage, nullptr, "", nullptr,
+                                 llvm::GlobalValue::NotThreadLocal, v->getAddressSpace());
+  d->takeName(v);
+  v->replaceAllUsesWith(d);
+  v->eraseFromParent();
+}
+
 /* Each definition of a glue module that the package's modules linked
    before it already define, under the same name and visible to other
-   modules, made a declaration, so the glue's copy of a function or
-   variable an interface header defines meets the copy of a source that
-   includes the header as a use, not a second definition. */
+   modules, made a declaration, so the glue's copy of a function, variable,
+   alias or indirect function an interface header defines meets the copy
+   of a source that includes the header as a use, not a second definition;
+   and the glue's copy of such a header's constructors and destructors
+   left out of its lists. */
 extern "C" value zane_drop_defined(value glue, value before) {
   CAMLparam2(glue, before);
   llvm::Module *g = module_of(glue), *b = module_of(before);
+  auto defined_before = [b](llvm::GlobalValue &v) {
+    llvm::GlobalValue *there = b->getNamedValue(v.getName());
+    return there && !there->isDeclaration() && !there->hasLocalLinkage();
+  };
+  drop_repeated(g, b, "llvm.global_ctors");
+  drop_repeated(g, b, "llvm.global_dtors");
+  // An alias or an indirect function names a definition the glue may drop
+  // below, so it goes first.
+  std::vector<llvm::GlobalValue *> named;
+  for (llvm::GlobalAlias &a : g->aliases())
+    if (!a.hasLocalLinkage() && defined_before(a)) named.push_back(&a);
+  for (llvm::GlobalIFunc &i : g->ifuncs())
+    if (!i.hasLocalLinkage() && defined_before(i)) named.push_back(&i);
+  for (llvm::GlobalValue *v : named) declare_instead(v);
   std::vector<llvm::GlobalObject *> dropped;
   for (llvm::GlobalObject &o : g->global_objects()) {
     // An appending list, such as `llvm.global_ctors`, is concatenated by the
     // link: each module's entries are its own.
     if (o.isDeclaration() || o.hasLocalLinkage() || o.hasAppendingLinkage()) continue;
-    llvm::GlobalValue *there = b->getNamedValue(o.getName());
-    if (there && !there->isDeclaration() && !there->hasLocalLinkage()) dropped.push_back(&o);
+    if (defined_before(o)) dropped.push_back(&o);
   }
   for (llvm::GlobalObject *o : dropped) {
     if (auto *f = llvm::dyn_cast<llvm::Function>(o))
