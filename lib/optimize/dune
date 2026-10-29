@@ -3,7 +3,8 @@
 ; function the tree calls is to a fold, [Value] is what the evaluator
 ; computes with, [Eval] runs CGT at compile time, [Materialize] turns what it
 ; computed back into CGT, [Constants] finds the package constants that fold,
-; and [Fold] rewrites each function from the leaves up.
+; [Fold] rewrites each function from the leaves up, and [Peel], an
+; experiment, tries a callee's cheap way out before calling it.
 (library
  (name optimize)
  (libraries cgt diagnostic))

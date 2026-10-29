@@ -6,6 +6,7 @@
 open Cgt.Nodes
 
 let run (p : Program.t) =
+  let p = Peel.program p in
   let table f xs =
     let t = Hashtbl.create 64 in
     List.iter (fun x -> let k, v = f x in Hashtbl.replace t k v) xs;

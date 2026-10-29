@@ -328,11 +328,105 @@ What this shows:
     chunk-boundary copy;
   - keeping the push's slow path out of line, so the push inlines.
 
+## Partial inlining (prototype, behind `ZANE_PARTIAL_INLINE=1`)
+
+The C replay above put most of binarytrees' remaining gap on one call per
+leaf, which Goose's compiler avoids by building a depth-0 child in its
+parent's `make`. LLVM never inlines a function into itself, and its own
+partial inliner (`partial-inliner`, not part of `-O2`) leaves a
+self-recursive call alone: tried in front of the pipeline, it changed no
+instruction. So `lib/optimize/peel.ml` does it in stage 5, over the CGT,
+before folding.
+
+### Design
+
+- **The copy.** For each function, the pass makes a copy of its body with
+  every costly part replaced by a jump to the call:
+  - an arm of a branch or a switch that calls anything, loops, or opens a
+    scope;
+  - a statement that does, from there to the end of its list, unless the
+    statement's value is an expansion, whose body is cut the same way.
+- **What a copy may keep.** It keeps nothing the call would do again: an
+  effect, such as a pool push, is allowed only inside a value the copy
+  returns, which ends it. It may not allocate a box, copy, take or escape
+  a value, or open a scope. It must have at most 48 nodes, and some arm
+  must get out without jumping to the call.
+- **The rewrite.** Every call to a function with a copy, from any function,
+  that function itself included, becomes:
+  1. bind the arguments, once;
+  2. run the copy, in which each `return v` stores `v` and leaves;
+  3. if the copy jumped out, make the original call with the same
+     arguments.
+- **One level only.** A copy keeps no calls, so the rewrite happens once,
+  however the functions call each other.
+- **Two examples.**
+  - `make(depth - 1)` becomes "if `depth - 1` is 0, push a leaf here, else
+    call".
+  - `check(p.left)` becomes "if `p.left` is a leaf, the count is 1, else
+    call".
+
+It is the general mechanism the discussion arrived at, partial inlining,
+not a binarytrees special case. It changes the optimized code of 20 of the
+64 codegen fixtures (`tests/codegen/fixtures`), and all 20 print their
+expected output with it on. `just test-compiler` passes with it off; dune
+does not pass the variable to its actions, so the suite cannot be run with
+it on.
+
+### Results
+
+Measured as above, depth 16 and 18. "pooled" is
+`ZANE_POOLED_VARIANTS=1`, "peel" is `ZANE_PARTIAL_INLINE=1`. Wall time in
+this container moved by up to 2× between sessions (plain Zane's treecopy
+went from 0.142 s to 0.260 s with nothing changed), so compare rows within
+this table only.
+
+| binarytrees | wall | user | instructions | bytes/node |
+| --- | --- | --- | --- | --- |
+| zane | 0.119 s | 0.106 s | 866 M | 72.9 |
+| zane, peel | 0.116 s | 0.109 s | 886 M | 72.8 |
+| zane, pooled | 0.097 s | 0.091 s | 655 M | 35.9 |
+| **zane, pooled, peel** | **0.081 s** | **0.068 s** | **523 M** | 35.7 |
+| goose (struct) | 0.049 s | 0.044 s | 659 M | 0 |
+| goose-enum-pool | 0.050 s | 0.044 s | 528 M | 0 |
+
+| treecopy | wall | user | instructions | bytes/node |
+| --- | --- | --- | --- | --- |
+| zane | 0.260 s | 0.237 s | 749 M | 28.0 |
+| zane, peel | 0.252 s | 0.231 s | 760 M | 28.3 |
+| zane, pooled | 0.100 s | 0.086 s | 174 M | 24.2 |
+| zane, pooled, peel | 0.096 s | 0.078 s | 179 M | 24.0 |
+| goose (struct) | 0.129 s | 0.113 s | 845 M | 16.1 |
+| goose-enum-pool | 0.113 s | 0.103 s | 515 M | 17.0 |
+
+What this shows:
+
+- **Pooled binarytrees gains a quarter of its user time** (0.091 s →
+  0.068 s), and now runs Goose's instruction count. That is what the C
+  replay predicted for building leaves in their parent (0.108 s → 0.063 s
+  there). It is still 1.5× Goose. The replay puts the rest on:
+  - Goose's 9-byte packed nodes, against 16 bytes;
+  - Goose's pushes, which skip the room check;
+  - the pool's count, which Zane loads and stores through memory at every
+    push.
+- **`make` is where the time goes; `check` costs instructions.** `make`
+  drops from 484 M to 333 M instructions. `check` rises from 118 M to
+  144 M: where its child is not a leaf, the tag test runs twice, once in
+  the copy and once in the call. Calls it saves still make it a net gain
+  in time.
+- **Without pools, nothing changes.** Plain Zane's leaf is a boxed value
+  made in the callee's scope and escaped to the caller. The copy may not
+  allocate or escape, so `make` is not peeled, and `check`'s gain is lost
+  in noise. Building into the caller's destination is what makes the base
+  case cheap enough to copy. The same would hold for any value that owns a
+  block.
+- **treecopy barely moves,** since its time is in the copy and the walk,
+  not in calls.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
 | --- | --- | --- |
-| binarytrees | ~2.2× (pooled: ~2.4×) | Pooled, Zane runs Goose's instruction count. What is left is one call per leaf, which Goose's compiler peels off, plus 16-byte nodes against Goose's 9. |
+| binarytrees | ~2.2× (pooled and peeled: ~1.6×) | Pooled and peeled, Zane runs Goose's instruction count. What is left is 16-byte nodes against Goose's 9, a room check per push, and the pool's count kept in memory. |
 | ntree | ~1.6× | Zane executes 1.8× Goose's instructions and uses 1.4× its memory: a 24-byte list handle per node, plus each node's separate block. |
 | treecopy | ~1.2× (pooled: 0.75×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`. Its nodes are still 24 bytes against Goose's 17. |
 | allocfree | ~1.0× | Closed. |
