@@ -80,6 +80,9 @@ let entry_type env (r : T.Verb_ref.t) (f : T.Field_value.t) =
    variant's payload are replaced whole, and a reference holds no owner. *)
 let rec unsettable_handle env ?(depth = 0) (t : Ty.t) =
   let inner = unsettable_handle env ~depth:(depth + 1) in
+  match t with
+  | Ty.Reference _ -> None
+  | _ -> (
   match Ty.strip_mode t with
   | _ when depth > 16 -> None
   | Ty.Named (tid, args) -> (
@@ -92,7 +95,7 @@ let rec unsettable_handle env ?(depth = 0) (t : Ty.t) =
       | Some { Env.definition = Some (Env.Distinct u); params; _ } -> inner (Ty.instantiate params args u)
       | _ -> None)
   | Ty.Intrinsic { namespace = "primitives"; name = "Array" | "ArrayRef"; args = [ Ty.Type e; _ ] } -> inner e
-  | _ -> None
+  | _ -> None)
 
 (* ffi.md §4.3: overwriting a settled place writes the replacement where
    the old value is, so a foreign handle it holds is replaced through its

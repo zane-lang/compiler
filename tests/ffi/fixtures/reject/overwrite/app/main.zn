@@ -1,5 +1,6 @@
 /// A settled handle without a setter is never overwritten (ffi.md §4.3):
-/// directly, through a struct holding it, or through `this`.
+/// directly, through a struct holding it, or through `this`. A reference
+/// to one is rebound freely, since that overwrites no handle.
 package app;
 
 alias Unit = @primitives$Unit;
@@ -33,5 +34,8 @@ Unit main() {
 	log = files!fs$open(String("b.log"));
 	held Holder = Holder(files!fs$open(String("a.log")));
 	held = Holder(files!fs$open(String("b.log")));
+	other fs$File = files!fs$open(String("c.log"));
+	r &fs$File = log;
+	r = other;
 	return Unit();
 }
