@@ -441,10 +441,6 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
       let funcs = start funcs @ funcs @ List.rev st.spawned in
       let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
       let funcs, context, callbacks = Callbacks.add st.package (List.rev st.callbacks) funcs in
-      let invokers =
-        List.sort (fun (a : Callback.t) b -> compare a.Callback.symbol b.Callback.symbol)
-          (List.of_seq (Hashtbl.to_seq_values st.invokers))
-      in
       Ok
         (Regions.run ~wants:st.wants
            {
@@ -454,7 +450,6 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
              globals = List.rev st.globals @ context;
              foreign = List.rev st.thunks;
              callbacks;
-             invokers;
              exclusive = st.exclusive;
            })
     in

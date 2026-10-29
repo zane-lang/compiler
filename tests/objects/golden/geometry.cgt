@@ -14,10 +14,6 @@
     │   ├── entry: !geometry$entry !geometry$same<%primitives$I64>(%primitives$I64)$lambda1
     │   ├── takes[0]: i64
     │   └── gives: i64
-    ├── invokers[0] > invoker:
-    │   ├── symbol: !geometry$invoke i64(i64)
-    │   ├── takes[0]: i64
-    │   └── gives: i64
     ├── funcs[0] > func:
     │   ├── symbol: !geometry$Point(%primitives$I64, %primitives$I64)
     │   ├── linkage: exported
@@ -74,7 +70,6 @@
     │   ├── ret: i64
     │   └── body[0] > return > call value:
     │       ├── type: i64
-    │       ├── invoker: !geometry$invoke i64(i64)
     │       ├── fn: local #1 : ptr
     │       └── args[0]: local #2 : i64
     ├── funcs[5] > func:
@@ -177,7 +172,6 @@
     │   │   │   ├── place: #6
     │   │   │   └── value > call value:
     │   │   │       ├── type: i64
-    │   │   │       ├── invoker: !geometry$invoke i64(i64)
     │   │   │       ├── fn: local #3 : ptr
     │   │   │       └── args[0]: local #4 : i64
     │   │   └── body[3]: leave @5

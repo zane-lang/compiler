@@ -34,7 +34,7 @@ program linked from several objects wrote.
   built into on its own, with its stamp. Survey's object writes out
   geometry's verbs whose body is one expression and calls the rest, among
   them `shifted`, which takes and returns a struct, calls through
-  `double` by geometry's C entry with an invoker of its own, makes the instances of
+  `double`, which carries geometry's C entry before its code, makes the instances of
   geometry's generic that it needs, at survey's own type and at the type a
   verb it takes in uses, with the adapter and C entry of the lambda in it,
   which merge with geometry's, and its own copy of the geometry constant it reads, which

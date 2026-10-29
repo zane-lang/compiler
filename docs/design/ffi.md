@@ -454,23 +454,33 @@ C types the entry takes and gives are read from the lambda's Zane type when
 it is lowered, not from its CGT type: a value type of one field has its
 field's CGT type, and C passes a struct of one `float` and a `float`
 differently. The object that defines the lambda defines all three, after
-lowering (`lib/cgt/callbacks.ml`), and the object's C entries and invokers
+lowering (`lib/cgt/callbacks.ml`), and the object's C entries
 are a glue module of their own, compiled and linked as a package's glue is
 (F9, F13, F14). A lambda several objects lift, as each that makes a
 generic instance holding it does, has an entry of each object's own, named
 by its package with `$entry` and the lambda's symbol after it, and an
 adapter shared as the instance is, so that the linker keeps one.
 
-A function value of a C-compatible type is the address of a C entry,
-everywhere in the program, and a Zane call through such a value goes
-through a generated **invoker**, a thunk whose first slot holds the
-function value, which calls it with the C convention. Lowering names the
-invoker on the call (`Call_value`), from the Zane type as well. There is
-one per signature in each object that calls through one, named by the
-object's package with `$invoke` and the C types after it, such as
-`app$invoke i64(i64)` or `app$invoke {f32}({f32})`. Inlined, an invoker
-is an indirect call, so a call through such a function value costs what a
-call through a C function pointer costs.
+A function value of a C-compatible type is its Zane function's address, as
+any function value is, so a Zane call through it is a call through a
+pointer to the Zane function and costs what any call through a function
+value costs. C takes the C entry instead: the Zane function carries it in
+its **prefix data**, the 32 bits LLVM places just before the function's
+code, which hold the offset from the code of a constant of the same object
+holding the entry's address, named by the entry's symbol with `.address`
+after it. A call into C that passes a function value reads the offset, then
+the constant, once per pass (`Emit.foreign_call`). An offset, not an
+address, needs no relocation of the code where the program is
+position-independent, and an offset to a variable the object defines,
+rather than to the entry another object defines, is one every object format
+can write: ELF, COFF and Mach-O, x86-64 Mach-O's included. Each object that
+defines a lambda gives its definition the prefix, so the copy of a lambda
+several objects define that the linker keeps points at an entry of its own
+object. Tier 0's value of a function is the entry that calls through its
+slot (`tiers.md` T4), which takes the prefix data with the function's
+other uses; tier 1 defines no C entry, so its value of such a lambda is
+tier 0's, read from its import table under the lambda's symbol with
+`.tier.value` after it, and tier 1 calls its own copy only directly.
 
 C may call a function value on a thread it started itself, which has no
 context of the runtime's. The adapter reads the runtime's context of the
@@ -814,7 +824,7 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
    linking the package's C module, for scalar, string, array, list and value
    type arguments and results (F8, F9, F10, F13, F14).
 5. Handles: free and set thunks, walks, null results (F12).
-6. Function values as C functions, with invokers (F11).
+6. Function values as C functions, with their C entries in prefix data (F11).
 7. `c.coda`'s `archive` and `system` rows (F4).
 8. Release archives and dependencies' C, retained for inlining (F13, F15).
 9. `c_eval.ml`, its classes in stage 5, and the crossing between the two

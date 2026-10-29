@@ -2,11 +2,8 @@ R zane_fixed_region
 R zane_spawned_fixed_region
 T survey$entry v1.0.1%3f9a1c02b7e4d6a8%geometry$same<%primitives$I64>(%primitives$I64)$lambda1
 T survey$entry v1.0.1%3f9a1c02b7e4d6a8%geometry$same<survey$Plot>(survey$Plot)$lambda1
-T survey$invoke i64(i64)
 T zane_main
 U memcpy
-U memset
-U v1.0.1%3f9a1c02b7e4d6a8%geometry$double.c
 U v1.0.1%3f9a1c02b7e4d6a8%geometry$shifted(v1.0.1%3f9a1c02b7e4d6a8%geometry$Point, %primitives$I64)
 U zane_alloc
 U zane_alloc_held
@@ -32,9 +29,13 @@ W v1.0.1%3f9a1c02b7e4d6a8%geometry$same<%primitives$I64>(%primitives$I64)$lambda
 W v1.0.1%3f9a1c02b7e4d6a8%geometry$same<survey$Plot>(survey$Plot)
 W v1.0.1%3f9a1c02b7e4d6a8%geometry$same<survey$Plot>(survey$Plot)$lambda1.adapter
 W v1.0.1%3f9a1c02b7e4d6a8%geometry$unit
+d survey$entry v1.0.1%3f9a1c02b7e4d6a8%geometry$same<%primitives$I64>(%primitives$I64)$lambda1.address
+d survey$entry v1.0.1%3f9a1c02b7e4d6a8%geometry$same<survey$Plot>(survey$Plot)$lambda1.address
 t %primitives$String.copy
 t %primitives$String.end
 t %primitives$String.move
 t %primitives$String.overwrite
 t survey$check(%primitives$Bool)
 t survey$main()
+t v1.0.1%3f9a1c02b7e4d6a8%geometry$same<%primitives$I64>(%primitives$I64)$lambda1
+t v1.0.1%3f9a1c02b7e4d6a8%geometry$same<survey$Plot>(survey$Plot)$lambda1

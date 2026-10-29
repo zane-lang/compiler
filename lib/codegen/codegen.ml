@@ -25,6 +25,8 @@ let live_contexts () = Atomic.get live
    with the alignment [data_layout] gives its type. *)
 let packed = "~packed"
 
+external set_prefix_data : Llvm.llvalue -> Llvm.llvalue -> unit = "zane_set_prefix_data"
+
 let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
     ?(spawned_fixed_region = Cgt.Runtime.default_spawned_fixed_region) ?(pack = false) ?(memos = []) ?(version = false)
     ~triple ~data_layout m (p : Cgt.Nodes.Program.t) =
@@ -41,7 +43,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       i64 = Llvm.i64_type ctx;
       funcs = Hashtbl.create 32;
       abis = Hashtbl.create 32;
-      callable = Hashtbl.create 8;
+      entries = Hashtbl.create 8;
       registers = registers triple;
       pack;
       passings = Hashtbl.create 32;
@@ -78,7 +80,10 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       | Cgt.Nodes.Linkage.Available -> Diagnostic.bug "an optimization-only global");
       Hashtbl.replace env.globals g.Global.symbol v)
     p.Program.globals;
-  List.iter (fun (c : Callback.t) -> Hashtbl.replace env.callable c.Callback.symbol c.Callback.entry) p.Program.callbacks;
+  List.iter
+    (fun (f : Foreign.t) ->
+      Hashtbl.replace env.entries f.Foreign.thunk (List.map (fun c -> c = Foreign.Function) f.Foreign.params))
+    p.Program.foreign;
   (* A lambda's adapter is named as the glue's C entry declares it
      (docs/design/ffi.md F11). Only that entry calls it, which an
      unoptimized build emits as an object of its own, so a shared one is
@@ -116,6 +121,23 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       Hashtbl.replace env.abis f.Func.symbol a;
       Hashtbl.replace env.funcs f.Func.symbol (fn, fty))
     (p.Program.funcs @ List.map (fun (m : Cgt.Memo.t) -> m.Cgt.Memo.func) memos);
+  (* A lambda C can call is its Zane function, whose value a Zane call
+     calls directly; the 32 bits before its code hold the offset from it of
+     a constant of this object holding its C entry's address, which a call
+     into C reads (docs/design/ffi.md F11). An offset needs no relocation of
+     the code where the program is position-independent, and one to a
+     variable this object defines can be written for every object format,
+     x86-64 Mach-O's included, where the entry is another object's. *)
+  List.iter
+    (fun (c : Callback.t) ->
+      if c.Callback.here then
+        let fn, _ = Hashtbl.find env.funcs c.Callback.symbol in
+        let held = Llvm.define_global (c.Callback.entry ^ ".address") (Walks.thunk ctx m c.Callback.entry) m in
+        Llvm.set_linkage Llvm.Linkage.Internal held;
+        Llvm.set_global_constant true held;
+        let at v = Llvm.const_ptrtoint v env.i64 in
+        set_prefix_data fn (Llvm.const_trunc (Llvm.const_sub (at held) (at fn)) (Llvm.i32_type ctx)))
+    p.Program.callbacks;
   List.iter
     (fun (f : Func.t) -> if f.Func.linkage <> Cgt.Nodes.Linkage.Imported then func env f)
     p.Program.funcs;

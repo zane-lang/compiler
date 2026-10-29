@@ -16,7 +16,7 @@ let expr_parts (e : Expr.t) : Expr.t list * Stat.t list list =
   | Expr.Deref x | Expr.Flip x | Expr.Convert x | Expr.Snapshot x -> ([ x ], [])
   | Expr.Call { args; _ } | Expr.Runtime { args; _ } | Expr.Math { args; _ } | Expr.Foreign_call { args; _ } ->
       (args, [])
-  | Expr.Call_value { fn; args; _ } -> (fn :: args, [])
+  | Expr.Call_value { fn; args } -> (fn :: args, [])
   | Expr.Binary { left; right; _ } -> ([ left; right ], [])
   | Expr.Expand { body; _ } -> ([], [ body ])
   | Expr.Record ms -> (List.map snd ms, [])
@@ -77,9 +77,9 @@ let map_expr_parts me ms (e : Expr.t) : Expr.t =
     | Expr.Runtime { fn; args } -> Expr.Runtime { fn; args = List.map me args }
     | Expr.Foreign_call { thunk; args } -> Expr.Foreign_call { thunk; args = List.map me args }
     | Expr.Math { fn; args } -> Expr.Math { fn; args = List.map me args }
-    | Expr.Call_value { fn; args; invoker } ->
+    | Expr.Call_value { fn; args } ->
         let fn = me fn in
-        Expr.Call_value { fn; args = List.map me args; invoker }
+        Expr.Call_value { fn; args = List.map me args }
     | Expr.Binary { op; left; right } ->
         let left = me left in
         Expr.Binary { op; left; right = me right }

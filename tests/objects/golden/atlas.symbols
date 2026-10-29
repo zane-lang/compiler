@@ -2,7 +2,6 @@ T !atlas$Tile(%primitives$I64)
 T !atlas$cover(!atlas$Tile)
 T !atlas$entry !geometry$same<!atlas$Tile>(!atlas$Tile)$lambda1
 T !atlas$entry !geometry$same<%primitives$I64>(%primitives$I64)$lambda1
-T !atlas$invoke i64(i64)
 T !geometry$Point(%primitives$I64, %primitives$I64)
 T !geometry$_product(%primitives$I64, %primitives$I64)
 T !geometry$_through(%primitives$I64[%primitives$I64], %primitives$I64)
@@ -21,3 +20,8 @@ W !geometry$same<!atlas$Tile>(!atlas$Tile)$lambda1.adapter
 W !geometry$same<%primitives$I64>(%primitives$I64)
 W !geometry$same<%primitives$I64>(%primitives$I64)$lambda1.adapter
 W !geometry$unit
+d !atlas$entry !geometry$same<!atlas$Tile>(!atlas$Tile)$lambda1.address
+d !atlas$entry !geometry$same<%primitives$I64>(%primitives$I64)$lambda1.address
+d !geometry$double.c.address
+t !geometry$same<!atlas$Tile>(!atlas$Tile)$lambda1
+t !geometry$same<%primitives$I64>(%primitives$I64)$lambda1

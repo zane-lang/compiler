@@ -229,9 +229,8 @@ module Expr = struct
     (* A call to a function of the program, by its symbol (L6). *)
     | Call of { fn : string; args : t list }
     (* A call through a function value: [fn] is the function's address, run
-       before [args] (L14), called through the glue's [invoker] when its
-       type is one C can call (Callback). *)
-    | Call_value of { fn : t; args : t list; invoker : string option }
+       before [args] (L14). *)
+    | Call_value of { fn : t; args : t list }
     (* A call into the C runtime (L17), by the runtime's symbol. A string
        goes to it, and comes back from it, through the address of a copy. *)
     | Runtime of { fn : Runtime.fn; args : t list }
@@ -489,7 +488,8 @@ module Foreign = struct
     | Value
     (* A foreign handle's pointer, the first word of its value. *)
     | Handle
-    (* A function value: the address of its lambda's C entry (Callback). *)
+    (* A function value: C takes its lambda's C entry, whose offset the
+       word before the lambda's code holds (Callback). *)
     | Function
 
   type t = { thunk : string; package : string; c_function : string; params : crossing list; result : crossing }
@@ -501,17 +501,16 @@ end
    and a C-compatible value type as a [Record] of its fields, an array
    field with its length. The Zane type, not the CGT one, gives them, since
    a value type of one field has its field's CGT type and C passes the
-   two differently. Such a lambda's value is the address of its C entry,
-   which the glue defines and which calls its adapter, a function of the
-   program taking the addresses of slots holding its arguments and of one
-   for its result; a call through such a value goes through the glue's
-   invoker for its signature, which calls the address with C's
-   convention. [symbol] is the lambda's, or the invoker's, [here]
-   whether this object defines the lambda, and so its adapter and entry,
-   and [entry] the symbol of the entry. A lambda other objects define too,
-   as each that makes a generic instance holding it does, has an entry of
-   each object's own, named as its invokers are, and their adapters merge
-   into one. *)
+   two differently. Such a lambda's value is its Zane function's address,
+   as any lambda's is, and the function carries the offset of its C entry
+   in the word before its code: the entry, which the glue defines, calls
+   its adapter, a function of the program taking the addresses of slots
+   holding its arguments and of one for its result. [symbol] is the
+   lambda's, [here] whether this object defines the lambda, and so its
+   adapter and entry, and [entry] the symbol of the entry. A lambda other
+   objects define too, as each that makes a generic instance holding it
+   does, has an entry of each object's own, named by its package, and
+   their adapters merge into one. *)
 module Callback = struct
   type shape = Scalar of Ty.t | Truth | Nothing | Record of (shape * int option) list
   type t = { symbol : string; takes : shape list; gives : shape; here : bool; entry : string }
@@ -527,12 +526,6 @@ module Callback = struct
     | Record fs ->
         let field (f, n) = match n with Some n -> Printf.sprintf "[%d x %s]" n (spell f) | None -> spell f in
         "{" ^ String.concat ", " (List.map field fs) ^ "}"
-
-  (* The invoker for [takes] and [gives] in the object whose symbols start
-     with [package]: its C types written out, after a space no verb's name
-     holds. *)
-  let invoker package takes gives =
-    Printf.sprintf "%s$invoke %s(%s)" package (spell gives) (String.concat ", " (List.map spell takes))
 end
 
 (* One program is one module (L15). [entry] is the symbol of the function
@@ -550,7 +543,6 @@ module Program = struct
     globals : Global.t list;
     foreign : Foreign.t list;
     callbacks : Callback.t list;
-    invokers : Callback.t list;
     exclusive : bool;
   }
 end

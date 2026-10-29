@@ -114,7 +114,6 @@ and call_value w st ctx span (callee : T.Expr.t) args handler =
   match Tty.strip_mode callee.T.Expr.ty with
   | Tty.Verb fv -> (
       let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
-      let invoker = Lower_foreign.invoker st span fv in
       let (fn : Expr.t) = w.value_of st ctx callee in
       match args with
       | T.Arg.Value subject :: rest
@@ -125,8 +124,8 @@ and call_value w st ctx span (callee : T.Expr.t) args handler =
           let lets, args = held_last w ~direct:false st ctx span v subject rest in
           held_in st
             (Stat.Let { id; value = fn } :: lets)
-            (invoke w ~fn:read ?invoker st ctx span v (arguments w ~direct:false st ctx span v args) handler)
-      | _ -> invoke w ~fn ?invoker st ctx span v (arguments w ~direct:false st ctx span v args) handler)
+            (invoke w ~fn:read st ctx span v (arguments w ~direct:false st ctx span v args) handler)
+      | _ -> invoke w ~fn st ctx span v (arguments w ~direct:false st ctx span v args) handler)
   | _ -> Diagnostic.bug ~span "lowering expected a function value here"
 
 (* A `!` call whose subject is reached through a subscript (memory.md §2.12):
@@ -310,13 +309,12 @@ and argument w ?(direct = true) st ctx span v (p : T.Local.t) a =
 (* L12. A call that can end more than one way is switched on how it ended:
    done gives its result, aborted runs its handler, or the abort of the
    `match` it flows out of, and an exit ends this invocation too. The call
-   is to [v]'s function, or through [fn], a function value's address,
-   through [invoker] when C can call it (Lower_foreign.invoker). *)
-and invoke w ?fn ?invoker st ctx span v args handler =
+   is to [v]'s function, or through [fn], a function value's address. *)
+and invoke w ?fn st ctx span v args handler =
   let o = outcome st span v in
   let call =
     match fn with
-    | Some fn -> Expr.Call_value { fn; args; invoker }
+    | Some fn -> Expr.Call_value { fn; args }
     | None -> Expr.Call { fn = symbol st v; args }
   in
   let value = { Expr.node = call; ty = returned o } in

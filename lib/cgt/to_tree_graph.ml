@@ -117,12 +117,10 @@ let rec expr (e : Expr.t) =
       let exit = match exit with Some label -> Printf.sprintf "@%d" label | None -> "function" in
       group "escape" (fields [ ("exit", Leaf exit); ("value", expr value); ("layout", layout l) ])
   | Expr.Call { fn; args } -> call "call" fn args
-  | Expr.Call_value { fn; args; invoker } ->
+  | Expr.Call_value { fn; args } ->
       group "call value"
         (fields
-           ([ ("type", Leaf (Ty.to_string e.Expr.ty)) ]
-           @ Option.fold ~none:[] ~some:(fun i -> [ ("invoker", Leaf i) ]) invoker
-           @ [ ("fn", expr fn); ("args", map_seq expr args) ]))
+           [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("fn", expr fn); ("args", map_seq expr args) ])
   | Expr.Runtime { fn; args } -> call "runtime" (Runtime.name fn) args
   | Expr.Foreign_call { thunk; args } -> call "foreign call" thunk args
   | Expr.Math { fn; args } ->
@@ -288,14 +286,14 @@ let thunk (f : Foreign.t) =
          ("result", Leaf (crossing f.Foreign.result));
        ])
 
-let callback kind (c : Callback.t) =
-  group kind
+let callback (c : Callback.t) =
+  group "callback"
     (fields
-       ((if kind = "callback" && not c.Callback.here then [ ("defined", Leaf "elsewhere") ] else [])
+       ((if not c.Callback.here then [ ("defined", Leaf "elsewhere") ] else [])
        @ [
          ("symbol", Leaf c.Callback.symbol);
          ]
-       @ (if kind = "callback" && c.Callback.entry <> Callback.entry c.Callback.symbol then [ ("entry", Leaf c.Callback.entry) ] else [])
+       @ (if c.Callback.entry <> Callback.entry c.Callback.symbol then [ ("entry", Leaf c.Callback.entry) ] else [])
        @ [
          ("takes", map_seq (fun t -> Leaf (Callback.spell t)) c.Callback.takes);
          ("gives", Leaf (Callback.spell c.Callback.gives));
@@ -313,6 +311,5 @@ let program (p : Program.t) =
        ]
        @ (match p.Program.globals with [] -> [] | gs -> [ ("globals", map_seq global gs) ])
        @ (match p.Program.foreign with [] -> [] | fs -> [ ("thunks", map_seq thunk fs) ])
-       @ (match p.Program.callbacks with [] -> [] | cs -> [ ("callbacks", map_seq (callback "callback") cs) ])
-       @ (match p.Program.invokers with [] -> [] | is -> [ ("invokers", map_seq (callback "invoker") is) ])
+       @ (match p.Program.callbacks with [] -> [] | cs -> [ ("callbacks", map_seq callback cs) ])
        @ [ ("funcs", map_seq func p.Program.funcs) ]))

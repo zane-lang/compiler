@@ -54,17 +54,6 @@ let c_signature st span (fv : Tty.verb) =
     | Some gives when List.for_all Option.is_some takes -> Some (List.filter_map Fun.id takes, gives)
     | _ -> None
 
-(* The invoker a call through a value of the function type [fv] goes
-   through, if C can call it, made once per signature. *)
-let invoker st span (fv : Tty.verb) =
-  Option.map
-    (fun (takes, gives) ->
-      let symbol = Callback.invoker st.package takes gives in
-      if not (Hashtbl.mem st.invokers symbol) then
-        Hashtbl.replace st.invokers symbol { Callback.symbol; takes; gives; here = true; entry = symbol };
-      symbol)
-    (c_signature st span fv)
-
 (* How a value of the Zane type [t] crosses into C (spec ffi.md §3.3), as
    semantics has already checked it does. *)
 let crossing st span (t : Tty.t) : Foreign.crossing =
@@ -75,7 +64,7 @@ let crossing st span (t : Tty.t) : Foreign.crossing =
   | _ when scalar t -> Foreign.Scalar (ty st span t)
   | _ when is_text t || is_list t -> Foreign.View
   | _ when Option.is_some (array_of t) -> Foreign.Address
-  (* A function value is its lambda's C entry's address (F11). *)
+  (* A function value hands C its lambda's C entry (F11). *)
   | Tty.Verb _ -> Foreign.Function
   | Tty.Named _ -> (
       match definition st t with Some (T.Decl.Handle _, _) -> Foreign.Handle | _ -> Foreign.Value)

@@ -1,9 +1,8 @@
 (* Function values C can call (docs/design/ffi.md F11): after lowering,
    each lambda defined in this object whose type C can call
    (Lower_foreign.c_signature) gains its adapter. The glue defines the
-   lambdas' C entries and the invokers; codegen takes such a lambda's value
-   as its C entry's address and calls through the invoker each call
-   through such a value names. *)
+   lambdas' C entries, and codegen puts each entry's offset in the word
+   before its lambda's code, which a call into C reads. *)
 
 open Nodes
 

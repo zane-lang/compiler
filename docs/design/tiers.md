@@ -53,7 +53,10 @@ function's address, and makes every direct call to one a load of its slot
 with acquire ordering and a call through it (`Tiers.tier0`). Every other use
 of a function, a function value such as a lambda or a spawned call's body,
 is made a use of an entry function that calls through the slot, so it moves
-to tier 1 too. Each slot is listed under its key, the function's symbol and
+to tier 1 too. A lambda C can call carries its C entry in its prefix data
+([`ffi.md`](ffi.md) F11), which moves to the entry function with the value;
+tier 1, which defines no C entry, takes such a lambda's value from tier 0
+(T5) and calls its own copy only directly. Each slot is listed under its key, the function's symbol and
 LLVM type, so a body fills only a slot of its own type. A call already
 running finishes in tier 0, since its code cannot change under it; the next
 call of the function runs tier 1. Work written inline in `main`, which is
