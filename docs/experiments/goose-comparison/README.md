@@ -919,6 +919,35 @@ with the result, or pass items and count as arguments and return the new
 count, so that the count never goes through memory. The second is faster
 than Goose in the harness.
 
+## The whole suite again, with every step
+
+`run.py` once more over every test (RUNS=7, median wall time; peak RSS where
+it differs), with this branch's `zanec` and the `core` at its language
+version. The suite's sources are written for its pinned v0.20 release, so
+six of them no longer build; `langbench-current-language.patch` brings a
+copy up to the current language (a growable list of a reference type is a
+`ListRef`, a `List` is a value and takes no `^`, a declaration ending in
+`=>` takes a `;`), changing no algorithm. "switches" is
+`ZANE_POOLED_VARIANTS=1 ZANE_PARTIAL_INLINE=1 ZANE_PACKED_NODES=1
+ZANE_POOL_UNCHECKED=1`; Goose is the mean of the two runs' medians.
+gameloop stays out (Setup).
+
+| test | Zane v0.20 | Zane now | Zane now, switches | Goose | best Zane ÷ Goose |
+| --- | --- | --- | --- | --- | --- |
+| binarytrees | 0.121 s / 14.3 MB | 0.114 s / 14.3 MB | 0.060 s / 10.0 MB | 0.046 s / 10.8 MB | 1.3× |
+| treecopy | 0.208 s / 30.3 MB | 0.144 s / 30.3 MB | 0.060 s / 19.3 MB | 0.121 s / 18.2 MB | 0.5× |
+| ntree | 0.301 s / 44.9 MB | 0.186 s / 34.3 MB | 0.172 s | 0.106 s / 24.9 MB | 1.6× |
+| allocfree | 0.672 s | 0.322 s / 33.3 MB | 0.319 s | 0.309 s / 44.3 MB | 1.0× |
+| listgrowth | 0.652 s | 0.148 s | 0.134 s | 0.121 s | 1.1× |
+| entities | 0.539 s / 158 MB | 0.500 s / 94 MB | 0.504 s | 0.474 s / 94 MB | 1.05× |
+| particles | 0.145 s | 0.124 s | 0.105 s | 0.135 s | 0.8–0.9× |
+| concscan | 0.251 s / 158 MB | 0.233 s / 94 MB | 0.226 s | 2.15 s / 163 MB | 0.1× |
+
+The compute-bound tests (trialdiv, mandelbrot, fannkuch, nbody,
+spectralnorm), startup and primes are level with Goose and C, as at the
+baseline. Particles and listgrowth have no variant types, so the switches
+do not touch them; their columns differ by the container's noise.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |

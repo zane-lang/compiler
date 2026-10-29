@@ -1,0 +1,112 @@
+diff -ru /home/user/spec/langbench/bin/allocfree/main.zn lb/bin/allocfree/main.zn
+--- a/langbench/bin/allocfree/main.zn	2026-10-26 20:37:45.157782867 +0000
++++ b/langbench/bin/allocfree/main.zn	2026-10-29 21:35:32.312710477 +0000
+@@ -23,7 +23,7 @@
+ 	hash Int = Int(0);
+ 	round Int = Int(1);
+ 	round!to(Int(10)) {
+-		items List<Item> = List(Item);
++		items ListRef<Item> = ListRef(Item);
+ 		i Int = Int(1);
+ 		i!to(n) {
+ 			items!push(Item(i, Float(0.5) * Float(i), Float(0.25) * Float(i), i / 3));
+diff -ru /home/user/spec/langbench/bin/gameloop/main.zn lb/bin/gameloop/main.zn
+--- a/langbench/bin/gameloop/main.zn	2026-10-26 20:37:45.157782867 +0000
++++ b/langbench/bin/gameloop/main.zn	2026-10-29 21:35:32.314391097 +0000
+@@ -21,7 +21,7 @@
+ 	runtime Runtime(@program$runtime);
+ 	frames Int = size(runtime, Int(500));
+ 	rng Rng = Rng(Int(42));
+-	entities List<Entity> = List(Entity);
++	entities ListRef<Entity> = ListRef(Entity);
+ 	total Int = Int(0);
+ 	frame Int = Int(1);
+ 	frame!to(frames) {
+diff -ru /home/user/spec/langbench/bin/ntree/main.zn lb/bin/ntree/main.zn
+--- a/langbench/bin/ntree/main.zn	2026-10-26 20:37:45.157782867 +0000
++++ b/langbench/bin/ntree/main.zn	2026-10-29 21:35:32.316009569 +0000
+@@ -7,11 +7,11 @@
+ import bench$;
+ 
+ type Node = #struct {
+-	children List<Node>;
++	children ListRef<Node>;
+ }
+ 
+ Node() => init{
+-	children = List(Node);
++	children = ListRef(Node);
+ }
+ 
+ /// A complete four-way tree `depth` levels below its root.
+diff -ru /home/user/spec/langbench/bin/particles/main.zn lb/bin/particles/main.zn
+--- a/langbench/bin/particles/main.zn	2026-10-26 20:37:45.157782867 +0000
++++ b/langbench/bin/particles/main.zn	2026-10-29 21:35:32.317734199 +0000
+@@ -23,7 +23,7 @@
+ 	runtime Runtime(@program$runtime);
+ 	frames Int = size(runtime, Int(500));
+ 	rng Rng = Rng(Int(42));
+-	particles List<Particle> = List(Particle);
++	particles ListRef<Particle> = ListRef(Particle);
+ 	total Int = Int(0);
+ 	frame Int = Int(1);
+ 	frame!to(frames) {
+diff -ru /home/user/spec/langbench/bin/spectralnorm/main.zn lb/bin/spectralnorm/main.zn
+--- a/langbench/bin/spectralnorm/main.zn	2026-10-26 20:37:45.157782867 +0000
++++ b/langbench/bin/spectralnorm/main.zn	2026-10-29 21:35:32.308310735 +0000
+@@ -9,12 +9,12 @@
+ import bench$;
+ 
+ /// The matrix's entry at row `i` and column `j`, both from 0.
+-Float entry(i Int, j Int) => Float(1.0) / Float((i + j) * (i + j + Int(1)) / 2 + i + Int(1))
++Float entry(i Int, j Int) => Float(1.0) / Float((i + j) * (i + j + Int(1)) / 2 + i + Int(1));
+ 
+ /// The matrix times `v`.
+-^List<Float> times(v List<Float>) {
++List<Float> times(v List<Float>) {
+ 	n Int = v:size();
+-	out ^List<Float> = List(Float);
++	out List<Float> = List(Float);
+ 	i Int = Int(1);
+ 	i!to(n) {
+ 		sum Float = Float(0.0);
+@@ -28,9 +28,9 @@
+ }
+ 
+ /// The matrix's transpose times `v`.
+-^List<Float> timesTransposed(v List<Float>) {
++List<Float> timesTransposed(v List<Float>) {
+ 	n Int = v:size();
+-	out ^List<Float> = List(Float);
++	out List<Float> = List(Float);
+ 	i Int = Int(1);
+ 	i!to(n) {
+ 		sum Float = Float(0.0);
+@@ -44,7 +44,7 @@
+ }
+ 
+ /// The transpose times the matrix times `v`.
+-^List<Float> timesBoth(v List<Float>) => timesTransposed(times(v))
++List<Float> timesBoth(v List<Float>) => timesTransposed(times(v));
+ 
+ Unit main() {
+ 	console Console(@program$console);
+diff -ru /home/user/spec/langbench/bin/trialdiv/main.zn lb/bin/trialdiv/main.zn
+--- a/langbench/bin/trialdiv/main.zn	2026-10-26 20:37:45.157782867 +0000
++++ b/langbench/bin/trialdiv/main.zn	2026-10-29 21:35:32.304815181 +0000
+@@ -8,13 +8,13 @@
+ import bench$;
+ 
+ /// The primes below `bound`, by a sieve.
+-^List<Int> primesBelow(bound Int) {
++List<Int> primesBelow(bound Int) {
+ 	composite List<Bool> = List(Bool);
+ 	i Int = Int(1);
+ 	i!to(bound) {
+ 		composite!push(Bool(false));
+ 	}
+-	primes ^List<Int> = List(Int);
++	primes List<Int> = List(Int);
+ 	p Int = Int(2);
+ 	p!to(bound - Int(1)) {
+ 		if(~composite[p]) {
