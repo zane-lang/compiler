@@ -1075,6 +1075,50 @@ ntree at depth 10, user time over 11 interleaved runs, and peak RSS:
 ntree's node is now 12 bytes against Goose's 17, and Zane's tree takes
 less memory than Goose's.
 
+### Boxes in 4 bytes, and compact sums
+
+A boxed member (a recursive variant's or struct's member, adt.md §4) holds
+its block's address. With the switch it is a 4-byte `Ref`: `Type_layout`
+lays boxed members out as `Ref`, lowering wraps the `Box` that fills one in
+a `Convert` to `Ref` (`Build.boxed_value`) and reads one back with a
+`Convert` to `Ptr` (`Build.box_block`), and `emit.ml` makes the two
+conversions the shift right and left by 3. The walks load and store a
+box's slot through `Walks.load_box` and `store_box`.
+
+That alone shrinks no node: a sum's tag took a word and its payload
+started at offset 8. So a sum whose cases' payloads all align to 4 bytes or
+less is **compact** (`Nodes.Ty.compact`): a 4-byte tag, then its payload in
+4-byte words at offset 4 (`payload_at`), which `Case` and `Payload` reach
+as the second member of `{i32, [n x i32]}`. binarytrees' `Tree` is then 8
+bytes instead of 16, and a `Pair` 16 instead of 32. treecopy's `Tree`
+holds an `Int` in its leaf, so it stays 16.
+
+One thing broke on the way. The region pass (`regions.ml`) follows an owner
+through a `Case` and a `Box` to where it is returned; it read the new
+`Convert` as an ordinary read, so it could no longer see that `make`'s
+subtrees end up in its result. It then held them in a scope of `make`'s
+own and promoted them at each return, which moved every tree once per
+level: binarytrees at depth 18 took 14.2 s. A `Convert` whose result is a
+`Ref` now carries the owner as the `Box` under it does, and `make` is
+again a bump and three stores.
+
+The cage's first cut also reserved large lists with 8× headroom instead of
+64×, so that the cage would hold more of them. listgrowth then moved its
+items at each of the extra growths, with 3.5× the page faults, and
+allocfree went from 0.33 s to 0.53 s. With 64× restored, both match the
+plain build's faults and peak RSS. 64× of a 64 MB list is 4 GiB, so the
+28 GiB cage holds seven lists that large at once.
+
+listgrowth still looked slower by eye. At 500000 items, Callgrind counts
+26 instructions per push in `zane_main` against the plain build's 24: the
+two are the load and shift that decode `items`, which the inline push does
+on every call. Over 11 interleaved runs at 2000000 items the least wall
+time is 0.104 s against 0.087 s, but the medians (0.129 s, 0.116 s) and
+single runs overlap.
+
+Every fixture still gives the same output with the switch, and the test
+suite passes without it.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
