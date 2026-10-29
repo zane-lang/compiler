@@ -652,11 +652,97 @@ or the TLB. Telling which needs hardware counters, which this container
 does not have. `perf stat -e cycles,instructions,dTLB-load-misses,ld_blocks.store_forward`
 on both binaries, on a machine that has them, is the next measurement.
 
+## What Goose's documentation says
+
+Goose's release ships its specification (`docs/goose_spec.md`) and its
+compiler's implementation notes (`docs/implementation.md`). Read against
+the remaining binarytrees gap, they describe a push unlike Zane's in three
+ways, and two techniques Zane already has or does not need.
+
+### The push
+
+- **No capacity check, by construction.** Each data stack holds at most one
+  growable value, always the topmost one, and "growth is a pointer bump; no
+  capacity checks are emitted (address space is pre-reserved; guard pages
+  catch pathological overflow and abort safely)" (spec §1.3). A stack is a
+  2 GB reservation, writable with overcommit on POSIX, with an unmapped gap
+  after it (implementation §7, "Data stacks"; spec C.4). A push is
+  `*(T*)S.top = e; S.top += size; h.len++` (spec C.1).
+- **The top in a register.** "A stack the function can name keeps its top
+  in a local where the function grows it, synchronized with memory only
+  where something else can observe it: flushed before and reloaded after
+  calls that can reach the stack, and flushed at every exit"
+  (implementation §6.10, "Tops"), and the count with it ("Counts"). The
+  notes give the reason Zane's push reloads: "the C backend reloads both at
+  every access since any byte store may alias the header". Zane's `make`
+  stores the count after each push and reloads the handle's items and room
+  before the next, since its node stores are byte stores that may alias
+  the handle.
+- **The top is a global.** A stack's control block is a global (spec C.1),
+  so `make` takes no destination argument. Zane passes the pool's handle
+  by address.
+
+In Goose's compiled `make`, a frame that builds two leaves and their parent
+loads the top once, writes all 27 bytes, and stores the top and the count
+once. In Zane's, it does three pushes, each with a room check, a reload of
+the items pointer and a store of the count.
+
+- **Links from a base** (`in pool`, spec C.2, implementation §6.7) load as
+  `base + off` with the base in a register, where Zane's self-relative
+  links add to the link's own address. The notes measure no difference on
+  a structure built once and walked (§9.5), and neither does the replay
+  below.
+- **Base-case inlining** (§9.6) is what partial inlining does here.
+- **`1 + f(l) + f(r)` loses its right spine** (§9.6): Goose's `check` loops
+  over right children. The replay's `CHECK_LOOP=1` showed no gain from it.
+
+### Measured
+
+`goose_shape.c` replays binarytrees in Goose's shape: a global top kept in
+a register through each frame, no capacity check, 9-byte nodes, leaves in
+their parent, in a writable reservation; `SELF=1` makes its links
+self-relative. User time at depth 18, least and median of 9, alternating:
+
+| form | least | median |
+| --- | --- | --- |
+| replay, Zane's push (`INLINE_LEAF=1`, 9-byte nodes, malloc) | 0.187 s | 0.209 s |
+| replay, Goose's shape, links from the base | 0.168 s | 0.177 s |
+| replay, Goose's shape, self-relative links | 0.168 s | 0.192 s |
+| goose-enum-pool | 0.192 s | 0.203 s |
+| zane, pooled, peel, packed | 0.266 s | 0.290 s |
+
+The replay in Goose's shape runs as fast as Goose, with either kind of
+link. Zane's push costs the replay 10–20% against it. That is what the
+documentation's push accounts for.
+
+It does not account for Zane being slower than the replay of its own push.
+Two more things were tried for that, and neither settles it:
+
+- **The memory.** `pooled_emulation.c` with `MAP=1` puts its pools in an
+  `mmap` reservation that is writable from the start, at `OFFSET` bytes
+  into the page, and with `MAP=2` in one reserved inaccessible and made
+  writable with `mprotect`, as Zane's runtime commits memory. In one
+  session, the second was 15–20% slower than the first, and an offset of 0
+  slower than 16. In the next, with the same code, the first was as slow as
+  the second (0.241 s least, against 0.187 s from `malloc`). In this VM,
+  where a replay's memory lies moves its time by up to 25% between builds,
+  and no setting reproducibly explains it.
+- **Zane with writable reservations.** A trial run-time switch that made
+  every Zane reservation writable at once, as Goose's are, keeping only the
+  context guard inaccessible, changed every large mapping to `rw-p` and
+  left the time where it was (median 0.308 s off, 0.311 s on, depth 18).
+  It was not kept.
+
+So the part of the gap Goose's design explains is the push: its top in a
+register through a frame, with no capacity check. Bringing Zane's push to
+that shape is the next prototype. The rest is below what this container
+can measure.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
 | --- | --- | --- |
-| binarytrees | ~2.2× (pooled, peeled and packed: ~1.6×) | Zane runs fewer instructions than Goose, with the same node size, and reuses its pool's memory as Goose does. What is left is in `make`, at its stores into the pool, and needs hardware counters to name. |
+| binarytrees | ~2.2× (pooled, peeled and packed: ~1.6×) | Zane runs fewer instructions than Goose, with the same node size, and reuses its pool's memory as Goose does. Goose's push keeps its top in a register through a frame and has no capacity check, which is worth 10–20% in the replay. The rest is in `make`, at its stores into the pool, and needs hardware counters to name. |
 | ntree | ~1.6× | Zane executes 1.8× Goose's instructions and uses 1.4× its memory: a 24-byte list handle per node, plus each node's separate block. |
 | treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~1.0× | Closed. |

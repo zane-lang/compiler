@@ -13,6 +13,10 @@
 //                          calls only for the left, as Goose's compiles to
 //   FRESH=64               each tree in a pool of its own from malloc, 64
 //                          bytes at first and doubling with realloc
+//   MAP=1                  the pools mapped writable with mmap, OFFSET bytes
+//                          into their first page (default 16)
+//   MAP=2                  the pools reserved inaccessible and made writable
+//                          with mprotect, as Zane's runtime commits memory
 //   ON_RETURN=1            no room check on a push; instead `make` leaves
 //                          room for three nodes when it returns, the most
 //                          one call pushes before it calls or returns
@@ -23,6 +27,19 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/mman.h>
+#ifndef MAP
+#define MAP 0
+#endif
+#ifndef OFFSET
+#define OFFSET 16
+#endif
+static char *mapped(size_t n) {
+	n += 4096;
+	char *p = mmap(NULL, n, MAP == 2 ? PROT_NONE : PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+	if (p == MAP_FAILED || (MAP == 2 && mprotect(p, n, PROT_READ | PROT_WRITE))) abort();
+	return p + OFFSET;
+}
 #ifndef NODE
 #define NODE 16
 #endif
@@ -100,10 +117,10 @@ static int64_t tree(int64_t d, pool *s) {
 }
 int main(int argc, char **argv) {
 	int n = atoi(argv[1]);
-	int64_t big = NO_CHECK ? ((int64_t)2 << (n + 1)) * NODE : 128;
-	pool s = { malloc(big), 0, big };
+	int64_t big = (NO_CHECK | MAP) ? ((int64_t)2 << (n + 2)) * NODE : 128;
+	pool s = { MAP ? mapped(big) : malloc(big), 0, big };
 	printf("stretch %ld\n", (long)tree(n + 1, &s));
-	pool lp = { malloc(big), 0, big }; int64_t la = make(n, &lp);
+	pool lp = { MAP ? mapped(big) : malloc(big), 0, big }; int64_t la = make(n, &lp);
 	for (int d = 4; d <= n; d += 2) {
 		int64_t it = 1L << (n - d + 4), t = 0;
 		for (int64_t i = 0; i < it; i++) t += tree(d, &s);
