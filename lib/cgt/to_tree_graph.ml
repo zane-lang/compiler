@@ -116,6 +116,7 @@ let rec expr (e : Expr.t) =
         (fields
            [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("fn", expr fn); ("args", map_seq expr args) ])
   | Expr.Runtime { fn; args } -> call "runtime" (Runtime.name fn) args
+  | Expr.Foreign_call { thunk; args } -> call "foreign call" thunk args
   | Expr.Math { fn; args } ->
       group "math"
         (fields
@@ -256,6 +257,25 @@ let func (f : Func.t) =
          ("body", map_seq stat f.Func.body);
        ]))
 
+let crossing = function
+  | Foreign.Scalar t -> Ty.to_string t
+  | Foreign.Bool -> "bool"
+  | Foreign.Unit -> "void"
+  | Foreign.View -> "view"
+  | Foreign.Address -> "address"
+  | Foreign.Value -> "value"
+
+let thunk (f : Foreign.t) =
+  group "thunk"
+    (fields
+       [
+         ("symbol", Leaf f.Foreign.thunk);
+         ("package", Leaf f.Foreign.package);
+         ("calls", Leaf f.Foreign.c_function);
+         ("params", map_seq (fun c -> Leaf (crossing c)) f.Foreign.params);
+         ("result", Leaf (crossing f.Foreign.result));
+       ])
+
 let program (p : Program.t) =
   let named (name, ps) =
     group "layout" (fields [ ("type", Leaf name); ("positions", positions ps) ])
@@ -267,4 +287,5 @@ let program (p : Program.t) =
          ("layouts", map_seq named p.Program.layouts);
        ]
        @ (match p.Program.globals with [] -> [] | gs -> [ ("globals", map_seq global gs) ])
+       @ (match p.Program.foreign with [] -> [] | fs -> [ ("thunks", map_seq thunk fs) ])
        @ [ ("funcs", map_seq func p.Program.funcs) ]))

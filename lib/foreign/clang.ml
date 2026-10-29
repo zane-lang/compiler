@@ -14,6 +14,7 @@ external preprocess_raw : string array -> bool * string * (string * int * int * 
 external interface_raw : string array -> bool * string * (string * int * int * string) list = "zane_clang_interface"
 external version : unit -> string = "zane_clang_version"
 external defined_variables : string -> string list = "zane_bitcode_defined_variables"
+external sections : string -> (string * string) list = "zane_bitcode_sections"
 external host_triple : unit -> string = "zane_host_triple"
 external triple_parts : string -> string * string * string * string = "zane_triple_parts"
 

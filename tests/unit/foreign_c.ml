@@ -123,7 +123,7 @@ let compiled () =
 let interface_text () =
   let module I = Foreign.Interface in
   let text =
-    "fun 3:add 1 N 0 2 R s 4:vec3 I s 64 64 4:long 7:int64_t R s 4:vec3 var 1:g 1 1 P 1 V      rec 4:vec3 s 1 1 192 64 1 1:x F 64 1 6:double 0 -1 rec 4:file s 1 0"
+    "fun 3:add 1 N 0 2 R s 4:vec3 I s 64 64 4:long 7:int64_t R s 4:vec3 2 11:struct vec3 7:int64_t 11:struct vec3 var 1:g 1 1 P 1 V      rec 4:vec3 s 1 1 192 64 1 1:x F 64 1 6:double 0 -1 rec 4:file s 1 0"
   in
   let t = I.read text in
   check "a function's type is read"
@@ -142,6 +142,8 @@ let interface_text () =
                 variadic = false;
               };
           external_ = true;
+          spelled = [ "struct vec3"; "int64_t" ];
+          spelled_result = "struct vec3";
         });
   check "a thread-local variable is read"
     (match List.assoc_opt "g" t.I.variables with Some v -> v.I.thread_local | None -> false);
@@ -200,6 +202,12 @@ let interface_header () =
             (match fn "sum" with
             | Some (I.Function { params = [ I.Pointer { const = true; pointee = I.Int { standard = Some "int64_t"; _ } }; _ ]; _ }) -> true
             | _ -> false);
+          check "a function's types are spelled as the header writes them"
+            (match List.assoc_opt "sum" t.I.functions with
+            | Some { I.spelled = [ "const int64_t *"; "struct flags" ]; spelled_result = "int64_t"; _ } -> true
+            | _ -> false);
+          check "a typedef is spelled by its name"
+            (match List.assoc_opt "crc" t.I.functions with Some { I.spelled = [ "uLong" ]; _ } -> true | _ -> false);
           check "a variadic function" (match fn "logf_" with Some (I.Function { variadic = true; _ }) -> true | _ -> false);
           check "a function without a prototype" (match fn "old" with Some (I.Unprototyped _) -> true | _ -> false);
           check "a function a macro of an included header writes is the interface's" (fn "made" <> None);

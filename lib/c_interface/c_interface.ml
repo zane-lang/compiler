@@ -49,7 +49,10 @@ type record = {
 
 and layout = { size : int; align : int; fields : field list }
 
-type func = { ty : ctype; external_ : bool }
+(* A function's type, whether it has external linkage, and its
+   parameters' and its result's types as the header spells them, which the
+   glue names them by (docs/design/ffi.md F8). *)
+type func = { ty : ctype; external_ : bool; spelled : string list; spelled_result : string }
 type var = { ty : ctype; external_ : bool; thread_local : bool }
 
 (* A package's table, by name, and the variables its C code defines with
@@ -154,7 +157,9 @@ let read text =
         | "fun" ->
             let name = next () in
             let external_ = flag () in
-            let f = { ty = ty (); external_ } in
+            let ty = ty () in
+            let spelled = List.init (int ()) (fun _ -> next ()) in
+            let f = { ty; external_; spelled; spelled_result = next () } in
             entries { t with functions = (name, f) :: t.functions }
         | "var" ->
             let name = next () in

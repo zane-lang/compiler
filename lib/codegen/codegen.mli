@@ -3,6 +3,11 @@
     failures are about the build -- a target LLVM does not know, a link that
     failed -- and are messages, not diagnostics. *)
 
+(** One package's C code for the program (docs/design/ffi.md F9): the
+    prefix its globals are renamed with, and its sources' and its glue's
+    modules, each as bitcode with the hash the cache keys it by. *)
+type c_package = { prefix : string; sources : (string * string) list; glue : (string * string) list }
+
 (** [f] run on the program's module for [target], the host when it is
     absent, with that target's triple and data layout. The module and its
     context live only while [f] runs: both are disposed when it returns or
@@ -15,7 +20,9 @@
     (docs/design/lowering.md §9); off when absent. With [version], each
     loop over elements that the optimized passes can split is emitted
     twice (Emit.versioned, docs/design/lowering.md §9, "The passes"); off
-    when absent. *)
+    when absent. [c] is the packages' C code, which an optimized build, a
+    tier and an object link into the module, and an unoptimized executable
+    links as an object of its own (docs/design/ffi.md F13, F14). *)
 val with_program :
   ?target:string ->
   ?pack:bool ->
@@ -23,6 +30,7 @@ val with_program :
   ?version:bool ->
   ?fixed_region:int ->
   ?spawned_fixed_region:int ->
+  ?c:c_package list ->
   Cgt.Nodes.Program.t ->
   (Llvm.llmodule -> ('a, string) result) ->
   ('a, string) result
@@ -35,6 +43,11 @@ val live_contexts : unit -> int
     absent: [x86-64] on any x86-64 target, [core-avx2] on [x86_64h], else
     LLVM's default, [""]. *)
 val target_cpu : ?target:string -> unit -> (string, string) result
+
+(** The global prefix of [target]'s symbols, as its data layout says: `_`
+    on Mach-O, none on ELF and 64-bit COFF. A glue entry's `__asm__` label
+    is its symbol after it (docs/design/ffi.md F8). *)
+val global_prefix : ?target:string -> unit -> (string, string) result
 
 (** The C compiler a build runs: `ZANE_CC`, else `clang`. It links, and
     it says where a target's C headers are (docs/design/ffi.md F1). *)

@@ -69,6 +69,9 @@ from its import table (`Tiers.tier1_imports`, `tier_stubs.cpp`). A
 thread-local variable has an address only on a thread, so for one the table
 holds a function of tier 0's that gives the asking thread's. Tier 1 so has
 one copy of each of these, tier 0's, and each package constant is made once.
+A package's C is tier 0's alone in the same way: tier 1 defines none of
+it, and calls the glue's thunks through the table ([`ffi.md`](ffi.md)
+F14).
 It links against the C library alone, for what LLVM itself calls, such as
 `memcpy`, and needs nothing exported from the program: one mechanism serves
 ELF, Mach-O and COFF, where a DLL may not leave a symbol undefined.

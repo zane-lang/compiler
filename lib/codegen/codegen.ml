@@ -111,7 +111,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
 (* The program's module lives only while [f] runs: its context and the
    module are disposed however [f] or the emit ends, since LLVM's bindings
    free neither on their own. *)
-let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_region p f =
+let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_region ?(c = []) p f =
   Result.bind (Build.target_machine ?target ~optimize:false ()) (fun (triple, tm) ->
       let data_layout = Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm) in
       let ctx = Llvm.create_context () in
@@ -123,10 +123,14 @@ let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_regio
         (fun () ->
           let m = Llvm.create_module ctx "zane" in
           Fun.protect
-            ~finally:(fun () -> Llvm.dispose_module m)
+            ~finally:(fun () ->
+              Build.detach m;
+              Llvm.dispose_module m)
             (fun () ->
               match program ?fixed_region ?spawned_fixed_region ?pack ?memos ?version ~triple ~data_layout m p with
-              | () -> f m
+              | () ->
+                  Build.attach m c;
+                  f m
               | exception Cgt.Nodes.Ty.Too_large ->
                   Error "a scope's frame takes 2^48 bytes or more, past the limit on any value's size")))
 
@@ -138,9 +142,9 @@ let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_regio
    each loop over elements the optimized passes can split is emitted twice
    for them to tell apart (Emit.versioned); a tiered build's two tiers
    both take it. *)
-let with_program ?target ?pack ?(memoize = false) ?version ?fixed_region ?spawned_fixed_region p f =
+let with_program ?target ?pack ?(memoize = false) ?version ?fixed_region ?spawned_fixed_region ?c p f =
   let p, memos = if memoize then Cgt.Memo.plan p else (p, []) in
-  with_module ?target ?pack ~memos ?version ?fixed_region ?spawned_fixed_region p f
+  with_module ?target ?pack ~memos ?version ?fixed_region ?spawned_fixed_region ?c p f
 
 let ir m = Llvm.string_of_llmodule m
 
@@ -150,6 +154,13 @@ let target_cpu ?target () =
     (Build.target_machine ?target ~optimize:true ())
 
 let c_compiler = Build.cc
+
+type c_package = Foreign_c.package = { prefix : string; sources : (string * string) list; glue : (string * string) list }
+
+let global_prefix ?target () =
+  Result.map
+    (fun (_, tm) -> Emit.global_prefix (Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm)))
+    (Build.target_machine ?target ~optimize:false ())
 
 let executable ?target ?optimize ?tier ?link m output =
   Build.executable ?target ?optimize ?tier ?link m output

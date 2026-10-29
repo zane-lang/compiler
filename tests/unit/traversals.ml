@@ -204,8 +204,9 @@ let cgt_tag : C.Expr.node -> int = function
   | C.Expr.Global _ -> 26
   | C.Expr.Snapshot _ -> 27
   | C.Expr.Escape _ -> 28
+  | C.Expr.Foreign_call _ -> 29
 
-let cgt_count = 29
+let cgt_count = 30
 
 let cgt_stat_tag : C.Stat.t -> int = function
   | C.Stat.Let _ -> 0
@@ -250,6 +251,7 @@ let cgt_samples () =
     (C.Expr.Call_value { fn = a; args = [ c; k ] }, ([ a; c; k ], []));
     (C.Expr.Runtime { fn = Cgt.Runtime.Print; args = [ a; c ] }, ([ a; c ], []));
     (C.Expr.Math { fn = Cgt.Math.Bit_and; args = [ a; c ] }, ([ a; c ], []));
+    (C.Expr.Foreign_call { thunk = "f.ffi"; args = [ a; c ] }, ([ a; c ], []));
     (C.Expr.Binary { op = C.Expr.Add; left = a; right = c }, ([ a; c ], []));
     (C.Expr.Flip a, ([ a ], []));
     (C.Expr.Convert a, ([ a ], []));

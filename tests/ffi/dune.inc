@@ -1,6 +1,152 @@
 ; Written by tests/gen/gen_rules.ml. Promote a change with `dune promote`.
 
 (rule
+ (deps (source_tree fixtures/calls))
+ (action
+  (with-stdout-to
+   calls.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/calls/app --package fixtures/calls/lib))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/calls.cgt calls.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/calls))
+ (action
+  (with-stdout-to
+   calls.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/calls/app --package fixtures/calls/lib))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/calls.optimized.cgt calls.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/calls))
+ (targets calls.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build calls.exe --package fixtures/calls/app --package fixtures/calls/lib)))
+
+(rule
+ (deps (source_tree fixtures/calls))
+ (targets calls.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build calls.optimized.exe --optimize --package fixtures/calls/app --package fixtures/calls/lib)))
+
+(rule
+ (deps (source_tree fixtures/calls))
+ (targets calls.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build calls.tiered.exe --tiered --package fixtures/calls/app --package fixtures/calls/lib)))
+
+(rule
+ (deps (source_tree fixtures/calls))
+ (targets calls.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up calls.tier1 --package fixtures/calls/app --package fixtures/calls/lib)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    calls.checked.out.actual
+    (run ./calls.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/calls.out calls.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    calls.unchecked.out.actual
+    (run ./calls.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/calls.out calls.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    calls.optimized.checked.out.actual
+    (run ./calls.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/calls.out calls.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    calls.optimized.unchecked.out.actual
+    (run ./calls.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/calls.out calls.optimized.unchecked.out.actual)))
+
+(rule
+ (deps calls.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./calls.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    calls.tiered.checked.out.actual
+    (run ./calls.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/calls.out calls.tiered.checked.out.actual)))
+
+(rule
+ (deps calls.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./calls.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    calls.tiered.unchecked.out.actual
+    (run ./calls.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/calls.out calls.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/declarations))
  (action
   (with-stdout-to
@@ -151,6 +297,20 @@
  (alias runtest)
  (action
   (diff golden/reject.interface.err reject.interface.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/linkerSet))
+ (action
+  (with-stderr-to
+   reject.linkerSet.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/linkerSet)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.linkerSet.err reject.linkerSet.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/noMatch))

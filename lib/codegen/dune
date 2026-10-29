@@ -12,7 +12,7 @@
   (names llvm_stubs))
  (foreign_stubs
   (language cxx)
-  (names lld_stubs tier_stubs body_stubs)
+  (names lld_stubs tier_stubs body_stubs c_stubs)
   (flags
    (:standard
     (:include lld_cxx.sexp))))

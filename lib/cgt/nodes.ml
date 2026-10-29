@@ -207,6 +207,13 @@ module Expr = struct
     (* A call into the C runtime (L17), by the runtime's symbol. A string
        goes to it, and comes back from it, through the address of a copy. *)
     | Runtime of { fn : Runtime.fn; args : t list }
+    (* A call of a foreign verb's C function through the thunk the glue
+       gives it (docs/design/ffi.md F8, F10): each argument, run in the
+       order listed, is laid out as C lays out its type in a slot of its
+       own, its padding bytes zeroed, and the thunk is handed the slots'
+       addresses and the address of a zeroed slot for the result. A
+       [Bool] goes as a byte that is 0 or 1. *)
+    | Foreign_call of { thunk : string; args : t list }
     (* A math function of `@math$` (math.md §2) on operands of the node's
        type, run in the order listed. *)
     | Math of { fn : Math.fn; args : t list }
@@ -332,6 +339,7 @@ module Expr = struct
     | Call _ -> "Call"
     | Call_value _ -> "Call_value"
     | Runtime _ -> "Runtime"
+    | Foreign_call _ -> "Foreign_call"
     | Math _ -> "Math"
     | Binary _ -> "Binary"
     | Flip _ -> "Flip"
@@ -429,11 +437,32 @@ module Func = struct
   }
 end
 
+(* A foreign verb's thunk, for the glue to define (docs/design/ffi.md F8):
+   its symbol, the package whose C code it calls, the C function, and how
+   each argument and the result cross, as [Foreign_call] lays them out. *)
+module Foreign = struct
+  type crossing =
+    (* A scalar of the Zane type, which C converts to its own. *)
+    | Scalar of Ty.t
+    | Bool
+    | Unit
+    (* A string's or a list's handle, whose first two words are the
+       `zane_bytes` or `zane_span` C reads. *)
+    | View
+    (* An array's address. *)
+    | Address
+    (* A C-compatible value type, in C's layout. *)
+    | Value
+
+  type t = { thunk : string; package : string; c_function : string; params : crossing list; result : crossing }
+end
+
 (* One program is one module (L15). [entry] is the symbol of the function
    the runtime's C `main` calls (L16): always one that makes the package
    constants, if any, and then calls the root package's `main`. A library has
-   none. [layouts] is each layout the program names, and [globals] each of
-   its variables. [exclusive] is whether it runs on one thread: it is not a
+   none. [layouts] is each layout the program names, [globals] each of
+   its variables, and [foreign] each thunk its calls into C go through.
+   [exclusive] is whether it runs on one thread: it is not a
    library, and no package of the build spawns. *)
 module Program = struct
   type t = {
@@ -441,6 +470,7 @@ module Program = struct
     entry : string option;
     layouts : (Layout.t * Layout.position list) list;
     globals : Global.t list;
+    foreign : Foreign.t list;
     exclusive : bool;
   }
 end

@@ -272,7 +272,10 @@ one for each construct lowering does not handle yet (docs/design/lowering.md
 stops firing by mistake:
 
 - `valueFlow` uses a control-flow intrinsic as a value;
-- `unitFuture` stores into a spawned call's `Unit` result.
+- `unitFuture` stores into a spawned call's `Unit` result;
+- `foreignHandle` makes a foreign handle, `foreignFunction` passes a
+  function value to C, and `foreignVariable` declares a capability by a
+  foreign variable (docs/design/ffi.md §7, F11 and F12).
 
 `literalRange` is a refusal of the program itself: a literal too large for
 its primitive, which reaches the primitive through a verb's literal parameter

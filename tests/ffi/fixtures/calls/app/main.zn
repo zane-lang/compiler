@@ -1,0 +1,95 @@
+/// Foreign verbs called (ffi.md §3): each type crossing into C and back,
+/// C's own state kept between calls, and C in two packages defining the
+/// same names, each package calling its own.
+package app;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+import lib;
+
+type Vec3 = struct {
+	x F64;
+	y F64;
+	z F64;
+}
+
+Vec3(x F64, y F64, z F64) => init{ x; y; z; }
+
+type Pair = struct {
+	id I32;
+	weights @primitives$Array<F32, 3>;
+	at Vec3;
+}
+
+Pair(id I32, weights @primitives$Array<F32, 3>, at Vec3) => init{ id; weights; at; }
+
+type Tagged = struct {
+	tag I32;
+	n I64;
+}
+
+Tagged(tag I32, n I64) => init{ tag; n; }
+
+I64 twice(x I64) foreign "twice";
+I32 narrow(byte I32, half I32) foreign "narrow";
+F32 halve(x F32) foreign "halve";
+Bool odd(n I32) foreign "odd";
+I32 fromBool(b Bool) foreign "from_bool";
+F64 sum(xs @primitives$Array<F64, 4>, ys @primitives$List<I64>) foreign "sum";
+String greet(who String) foreign "greet";
+I64 length(text String) foreign "length";
+Vec3 add(a Vec3, b Vec3) foreign "vec_add";
+Pair mirror(p Pair) foreign "pair_mirror";
+Tagged flip(t Tagged) foreign "flip";
+Unit addTo(n I64) foreign "add_to";
+Unit reset() foreign "reset";
+I64 counter() foreign "counter";
+I64 helper() foreign "helper";
+I64 named() foreign "named";
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+Unit main() {
+	show(String(twice(I64(21))));
+	show(String(narrow(I32(200), I32(5))));
+	show(String(halve(F32(5.0))));
+	show(String(fromBool(odd(I32(7)))));
+	show(String(fromBool(odd(I32(8)))));
+	xs @primitives$Array<F64, 4> = @primitives$Array([F64(1.0), F64(2.0), F64(3.0), F64(4.0)]);
+	ys @primitives$List<I64> = @primitives$List(I64);
+	ys!push(I64(10));
+	ys!push(I64(20));
+	show(String(sum(xs, ys)));
+	hello String = greet(String("zane"));
+	show(hello);
+	show(String(length(hello)));
+	v Vec3 = add(Vec3(F64(1.0), F64(2.0), F64(3.0)), Vec3(F64(0.5), F64(0.5), F64(0.5)));
+	show(String(v.x));
+	show(String(v.z));
+	p Pair = mirror(Pair(I32(7), @primitives$Array([F32(1.0), F32(2.0), F32(3.0)]), v));
+	show(String(p.id));
+	show(String(p.weights[I64(1)]));
+	show(String(p.at.y));
+	t Tagged = flip(Tagged(I32(3), I64(41)));
+	show(String(t.tag));
+	show(String(t.n));
+	addTo(I64(1000));
+	show(String(counter()));
+	reset();
+	show(String(counter()));
+	show(String(helper()));
+	show(String(lib$helper()));
+	show(String(named()));
+	show(String(lib$named()));
+	return Unit();
+}

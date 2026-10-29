@@ -776,6 +776,32 @@ let spill env fr b v =
   ignore (Llvm.build_store v p b);
   p
 
+(* A struct value stored into the slot at [p] member by member, so the
+   bytes between its members keep what the slot held. *)
+let rec store_fields env b (t : Ty.t) v p =
+  match t with
+  | Ty.Struct ts ->
+      let st = lltype env t in
+      List.iteri
+        (fun i m ->
+          if m <> Ty.Void then
+            store_fields env b m (Llvm.build_extractvalue v i "" b) (Llvm.build_struct_gep st p i "" b))
+        ts
+  | _ -> ignore (Llvm.build_store v p b)
+
+(* The global prefix of the target a module's data layout describes: `_`
+   for Mach-O and 32-bit Windows, none for the rest. *)
+let global_prefix data_layout =
+  let parts = String.split_on_char '-' data_layout in
+  if List.mem "m:o" parts || List.mem "m:x" parts then "_" else ""
+
+(* The IR name of a glue entry whose label is [symbol] after the target's
+   global prefix (docs/design/ffi.md F8): clang names a function with an
+   `__asm__` label `\001` and the label when the target has a prefix, and
+   by the label alone when it has none. *)
+let foreign_name m symbol =
+  match global_prefix (Llvm.data_layout m) with "" -> symbol | prefix -> "\001" ^ prefix ^ symbol
+
 let has_terminator b =
   match Llvm.block_terminator (Llvm.insertion_block b) with Some _ -> true | None -> false
 
@@ -1382,6 +1408,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           ignore (Llvm.build_call fty f (Array.of_list (out :: args)) "" b);
           Some (Llvm.build_load t out "" b)
       | _ -> Some (Llvm.build_call fty f (Array.of_list args) "" b))
+  | Expr.Foreign_call { thunk; args } -> foreign_call env fr b thunk args e.Expr.ty
   | Expr.Math { fn; args } ->
       (* The operands' instructions come in the order they are listed. *)
       let args = List.map (value_of env fr b) args in
@@ -1466,6 +1493,50 @@ and call ?into env fr b (e : Expr.t) =
       ignore (Llvm.build_store site slot b);
       `Stored slot
   | _ -> `Value site
+
+(* A call into C through a thunk of the glue (docs/design/ffi.md F8, F10):
+   the arguments run in order, each is stored in a slot of its own as C lays
+   out its type, a struct's padding zeroed and a `Bool` a byte, and the
+   thunk is handed an array of the slots' addresses and a zeroed slot for
+   the result, from which the result is read back. *)
+and foreign_call env fr b thunk (args : Expr.t list) (ret : Ty.t) =
+  let i8 = Llvm.i8_type env.ctx in
+  let slot_of (a : Expr.t) =
+    let v = value_of env fr b a in
+    match a.Expr.ty with
+    | Ty.I1 -> spill env fr b (Llvm.build_zext v i8 "" b)
+    | Ty.Struct _ as t ->
+        let p = alloca env fr (lltype env t) in
+        zero env b p (fst (size_align t));
+        store_fields env b t v p;
+        p
+    | _ -> spill env fr b v
+  in
+  let slots = List.map slot_of args in
+  let table_type = Llvm.array_type env.ptr (max 1 (List.length slots)) in
+  let table = alloca env fr table_type in
+  List.iteri
+    (fun i s ->
+      let at = Llvm.build_in_bounds_gep table_type table [| Llvm.const_int env.i64 0; Llvm.const_int env.i64 i |] "" b in
+      ignore (Llvm.build_store s at b))
+    slots;
+  let result_type = match ret with Ty.I1 -> i8 | t -> lltype env t in
+  let result =
+    match ret with
+    | Ty.Void -> Llvm.const_null env.ptr
+    | _ ->
+        let p = alloca env fr result_type in
+        zero env b p (match ret with Ty.I1 -> 1 | t -> fst (size_align t));
+        p
+  in
+  let fty = Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr |] in
+  let name = foreign_name env.m thunk in
+  let f = match Llvm.lookup_function name env.m with Some f -> f | None -> Llvm.declare_function name fty env.m in
+  ignore (Llvm.build_call fty f [| table; result |] "" b);
+  match ret with
+  | Ty.Void -> None
+  | Ty.I1 -> Some (Llvm.build_icmp Llvm.Icmp.Ne (Llvm.build_load i8 result "" b) (Llvm.const_int i8 0) "" b)
+  | _ -> Some (Llvm.build_load result_type result "" b)
 
 (* The address of a slot holding [e]'s value, for a parameter passed by
    address. A place is lent where it is: nothing else in the call writes it

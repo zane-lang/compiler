@@ -8059,6 +8059,48 @@
   (diff golden/reject.beyondLimit.err reject.beyondLimit.err.actual)))
 
 (rule
+ (deps (source_tree fixtures/reject/foreignFunction))
+ (action
+  (with-stderr-to
+   reject.foreignFunction.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/foreignFunction)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.foreignFunction.err reject.foreignFunction.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/foreignHandle))
+ (action
+  (with-stderr-to
+   reject.foreignHandle.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/foreignHandle)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.foreignHandle.err reject.foreignHandle.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/foreignVariable))
+ (action
+  (with-stderr-to
+   reject.foreignVariable.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/foreignVariable)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.foreignVariable.err reject.foreignVariable.err.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/hugeArray))
  (action
   (with-stderr-to

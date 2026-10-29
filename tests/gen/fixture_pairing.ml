@@ -20,7 +20,8 @@ let fixture ?(hand_written = []) suite golden =
   | _ when List.mem golden hand_written -> Ok None
   | Codegen, ([ name; ("cgt" | "out") ] | [ name; "optimized"; "cgt" ]) ->
       Ok (Some ("fixtures/" ^ name))
-  | Ffi, [ name; ("check" | "tst") ] -> Ok (Some ("fixtures/" ^ name))
+  | Ffi, ([ name; ("check" | "tst" | "cgt" | "out") ] | [ name; "optimized"; "cgt" ]) ->
+      Ok (Some ("fixtures/" ^ name))
   | (Codegen | Ffi | Parser), [ "reject"; name; "err" ] ->
       Ok (Some ("fixtures/reject/" ^ name ^ if suite = Parser then ".zn" else ""))
   | Parser, [ name; _stage; ("spans" | "tree") ] -> Ok (Some ("fixtures/" ^ name ^ ".zn"))

@@ -171,6 +171,7 @@ let rec shape st span (t : Tty.t) : Nodes.Ty.t =
       | Some (T.Decl.Variant cs, true) -> sum (List.map (fun (_, c) -> member c) cs)
       | Some (T.Decl.Enum cs, true) -> sum (List.map (fun _ -> Nodes.Ty.Void) cs)
       | Some (T.Decl.Distinct u, _) -> member u
+      | Some (T.Decl.Handle _, _) -> refuse span "lowering does not handle a foreign handle yet (docs/design/ffi.md §7)"
       | _ -> unhandled span t)
   | _ -> unhandled span t
 

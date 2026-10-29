@@ -1,0 +1,9 @@
+/// A package whose C defines the same names as the root's, the function
+/// `helper`, the variable `total` and the alias `named`: each package's C
+/// keeps its own.
+package lib;
+
+alias I64 = @primitives$I64;
+
+I64 helper() foreign "helper";
+I64 named() foreign "named";

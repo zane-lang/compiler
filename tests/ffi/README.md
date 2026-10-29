@@ -4,12 +4,17 @@ Packages holding C code (spec `ffi.md`, docs/design/ffi.md). A directory
 under `fixtures/` holding `.zn` files is one package, and any other is a
 build of its subdirectories in name order, the first the root.
 `golden/NAME.check` holds what `zanec --check` prints for a build it
-accepts, `golden/NAME.tst` its typed tree, and `golden/reject.NAME.err`
-what it reports for `fixtures/reject/NAME`. A fixture's `flags` file, one
+accepts, `golden/NAME.tst` its typed tree, `golden/NAME.cgt` and
+`golden/NAME.optimized.cgt` its code-generation trees, and
+`golden/NAME.out` what it prints, built and run as tests/codegen builds
+and runs a program: unoptimized, optimized and tiered, with drains checked
+and unchecked. `golden/reject.NAME.err` holds what it reports for
+`fixtures/reject/NAME`. A fixture's `flags` file, one
 per line, is what it is built with besides.
 
 | Fixture | What it shows |
 |---|---|
+| `calls` | Foreign verbs called, each crossing into C and back: integers, a narrow C integer, `F32`, `Bool` both ways, `Unit`, a string in and one out, an array, a list, value types with and without padding, and C state kept between calls; and two packages whose C defines the same function, variable and alias names, each calling its own |
 | `declarations` | Every declaration semantics accepts: a foreign verb of each boundary type (scalars and narrow C integers, `Bool`, `Unit`, a string in and out, an array, a list, C-compatible value types, a function value), a data handle with a setter overwritten where it is settled, a capability from a foreign variable, and an outside handle made, passed, and overwritten where it roams |
 | `vendored` | A `c.coda` whose rows apply in order: a `source` pattern over a vendored tree (skipping a file that is not C), an `include` directory, a `define`, and a `define` for another target that does not apply |
 | `reject/handleForms` | A handle declared by `alias`, without `#`, with type parameters, or with entries it does not take |
@@ -28,4 +33,5 @@ per line, is what it is built with besides.
 | `reject/headerError` | An interface header that does not compile, reported at its line |
 | `reject/fixedMacro` | A `define` of a macro the fixed flags set |
 | `reject/noMatch` | A `source` pattern that matches no file |
+| `reject/linkerSet` | C placing globals in sections named as C identifiers, linker sets, each refused, beside one in a section that is not |
 | `reject/notCoda` | A `c.coda` that is not Coda, reported where the parser stopped |

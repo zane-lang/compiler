@@ -54,6 +54,19 @@ val lower :
   Tst.Nodes.Program.t ->
   (Cgt.Nodes.Program.t, failure) result
 
+(** The C code each unstamped package of the build compiles into this
+    object, with the glue for the thunks the tree's foreign calls go through
+    (docs/design/ffi.md F8, F9), for [target], the host when it is absent:
+    [c] is [c_code]'s for the packages. A build without [root] is a
+    library's, whose C globals are renamed for fetching to stamp. *)
+val c_modules :
+  ?target:string ->
+  root:bool ->
+  Tst.Assembly.package list ->
+  Foreign.package list ->
+  Cgt.Nodes.Program.t ->
+  (Codegen.c_package list, failure) result
+
 (** Stage 5 when [optimize], and the tree as it is otherwise. *)
 val optimize : optimize:bool -> Cgt.Nodes.Program.t -> Cgt.Nodes.Program.t
 
@@ -64,6 +77,7 @@ val ir :
   ?target:string ->
   ?pack:bool ->
   ?memoize:bool ->
+  ?c:Codegen.c_package list ->
   ?regions:regions ->
   optimize:bool ->
   Cgt.Nodes.Program.t ->
@@ -75,6 +89,7 @@ val executable :
   ?target:string ->
   ?pack:bool ->
   ?memoize:bool ->
+  ?c:Codegen.c_package list ->
   ?regions:regions ->
   ?tiered:bool ->
   optimize:bool ->
@@ -89,6 +104,7 @@ val tier_up :
   ?target:string ->
   ?pack:bool ->
   ?memoize:bool ->
+  ?c:Codegen.c_package list ->
   ?regions:regions ->
   Cgt.Nodes.Program.t ->
   string ->
@@ -98,6 +114,7 @@ val object_file :
   ?target:string ->
   ?pack:bool ->
   ?memoize:bool ->
+  ?c:Codegen.c_package list ->
   ?regions:regions ->
   optimize:bool ->
   Cgt.Nodes.Program.t ->

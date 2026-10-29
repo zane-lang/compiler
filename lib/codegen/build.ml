@@ -633,7 +633,7 @@ let in_work_dir f =
     ~finally:(fun () ->
       List.iter
         (fun f -> try Sys.remove (Filename.concat dir f) with Sys_error _ -> ())
-        ([ "program.o"; "program"; "program.exe"; "program.pdb"; "program.lib"; "runtime.o"; "runtime.bc" ]
+        ([ "program.o"; "program"; "program.exe"; "program.pdb"; "program.lib"; "runtime.o"; "runtime.bc"; "c.o" ]
         @ [ "library.o"; "library.so"; "library.dylib"; "library.dll"; "library.pdb"; "library.lib" ]
         @ [ "cc-version"; "cc-link"; "cc-link-words" ]
         @ List.map fst runtime_files);
@@ -689,6 +689,38 @@ let with_runtime_bitcode ?bundled ?cache ~cc ~triple ?target use =
           | None -> use (if compiled () then present fresh else None)
           | Some (cache, identity) -> use (from_cache ~cache ~identity ~fresh compiled)))
 
+(* Each program module's C (Foreign_c), from when [Codegen.with_program]
+   emits the module until a build links it in or emits it apart. *)
+let attached : (Llvm.llmodule * Foreign_c.package list) list ref = ref []
+
+let attach m packages = if packages <> [] then attached := (m, packages) :: !attached
+let detach m = attached := List.filter (fun (m', _) -> m' != m) !attached
+let attached_c m = List.assq_opt m !attached
+
+(* The C attached to [m] as one module in [m]'s context, optimized on its
+   own as clang's `-O2` would when [alone], or [None] when it has none. *)
+let c_module ?(alone = true) tm m packages =
+  let ctx = Llvm.module_context m in
+  match Foreign_c.program_module ctx ~triple:(Llvm.target_triple m) ~data_layout:(Llvm.data_layout m) packages with
+  | None -> Ok None
+  | Some c when not alone -> Ok (Some c)
+  | Some c -> (
+      match Llvm_passbuilder.run_passes c "default<O2>" tm (Llvm_passbuilder.create_passbuilder_options ()) with
+      | Ok () -> Ok (Some c)
+      | Error why ->
+          Llvm.dispose_module c;
+          Error (Printf.sprintf "cannot optimize the C code: %s" why))
+
+(* The C attached to [m] linked into it (docs/design/ffi.md F13): as it
+   was compiled for an optimized build, whose passes then run over both
+   languages at once, and optimized on its own first otherwise. *)
+let link_c ~optimize tm m =
+  match attached_c m with
+  | None -> Ok ()
+  | Some packages ->
+      detach m;
+      Result.map (Option.iter (Llvm_linker.link_modules m)) (c_module ~alone:(not optimize) tm m packages)
+
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and its passes run, the optimized
    ones when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A program means the same either way
@@ -698,7 +730,7 @@ let with_runtime_bitcode ?bundled ?cache ~cc ~triple ?target use =
    the runtime's bodies for LLVM to inline first ([Runtime_bodies]), the
    tiers the same ones, so tier 0 exports what tier 1's may import. *)
 let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint ?(bundled = bundled_dir ())
-    ?(cache = Cache.dir ()) ?whole m =
+    ?(cache = Cache.dir ()) ?whole ?(separate_c = false) m =
   let optimize = optimize || tier = Tiers.Tier1 in
   Result.bind (target_machine ?target ~optimize ()) (fun (triple, tm) ->
       let hash =
@@ -707,6 +739,17 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
         | _, Some hash -> hash
         | _, None -> Tiers.fingerprint m
       in
+      (* An unoptimized executable and tier 0 link the C as an object of
+         their own ([executable]), and tier 1 takes none: it calls tier 0's
+         thunks through its imports, so the program has one copy of the C's
+         state, as it has one of the runtime's (docs/design/tiers.md T5).
+         Every other build links it into the module. *)
+      let linked =
+        if tier = Tiers.Tier1 then Ok (detach m)
+        else if separate_c && not optimize then Ok ()
+        else link_c ~optimize:(optimize && tier = Tiers.Plain) tm m
+      in
+      Result.bind linked @@ fun () ->
       let whole =
         match whole with
         | Some exported when optimize && tier = Tiers.Plain ->
@@ -902,6 +945,45 @@ let empty_object ~triple tm path =
   Llvm.dispose_context ctx;
   result
 
+(* [c] emitted with [tm] to [dir]'s `c.o`, then kept at [kept] when there
+   is a cache; the path the linker reads. *)
+let emit_c tm c dir kept =
+  let fresh = Filename.concat dir "c.o" in
+  match
+    Fun.protect
+      ~finally:(fun () -> Llvm.dispose_module c)
+      (fun () -> Llvm_target.TargetMachine.emit_to_file c Llvm_target.CodeGenFileType.ObjectFile fresh tm)
+  with
+  | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot write the C code's object: %s" message)
+  | () -> (
+      match kept with
+      | None -> Ok (Some fresh)
+      | Some kept ->
+          (try Cache.keep ~random:(Random.State.make_self_init ()) ~object_:fresh ~kept with Sys_error _ -> ());
+          Ok (Some (if Sys.file_exists kept then kept else fresh)))
+
+(* The object an unoptimized executable links the C attached to [m] from
+   (docs/design/ffi.md F14): the C optimized on its own and emitted with
+   the optimized code generator, kept in [cache]'s `foreign/object/` under
+   [Foreign_c.key], or written to [dir] when there is no cache. [None]
+   when [m] has no C apart. *)
+let c_object ?target ?cache m dir =
+  match attached_c m with
+  | None -> Ok None
+  | Some packages -> (
+      detach m;
+      let triple = Llvm.target_triple m in
+      let kept =
+        Option.map (fun c -> List.fold_left Filename.concat c [ "foreign"; "object"; Foreign_c.key ~triple packages ^ ".o" ]) cache
+      in
+      match kept with
+      | Some kept when Sys.file_exists kept -> Ok (Some kept)
+      | _ -> (
+          let ( let* ) = Result.bind in
+          let* _, tm = target_machine ?target ~optimize:true () in
+          let* c = c_module tm m packages in
+          match c with None -> Ok None | Some c -> emit_c tm c dir kept))
+
 (* [link] is the objects of the program's stamped dependencies, which the C
    compiler links with it (docs/design/separate-compilation.md C7). [cache]
    is where the compiled runtime is kept, [Cache.dir ()] unless given, and
@@ -909,13 +991,13 @@ let empty_object ~triple tm path =
    given. *)
 let executable ?target ?(optimize = false) ?tier ?(link = []) ?(bundled = bundled_dir ()) ?(cache = Cache.dir ())
     m output =
-  match prepare_whole ?target ~optimize ?tier ~whole:(link <> []) m with
+  match prepare_whole ?target ~optimize ?tier ~whole:(link <> []) ~separate_c:true m with
   | Error _ as error -> error
   | Ok (triple, tm, whole) -> (
       let cc = cc () in
       let level = level ~optimize and system = system_libraries target in
       let flags = target_flag target @ level in
-      let args obj runtime = flags @ [ "-o"; output; obj ] @ link @ [ runtime ] @ system in
+      let args ?(c = []) obj runtime = flags @ [ "-o"; output; obj ] @ c @ link @ [ runtime ] @ system in
       let bundled_link =
         Option.map
           (fun dir -> List.fold_left Filename.concat dir [ "link"; bundled_link_name ~triple level system ])
@@ -939,11 +1021,12 @@ let executable ?target ?(optimize = false) ?tier ?(link = []) ?(bundled = bundle
             if whole then empty_object ~triple tm (Filename.concat dir "runtime.o")
             else runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir
           in
-          match runtime with
-          | Error _ as error -> error
-          | Ok runtime -> (
-              link_program ?cache ?bundled:bundled_link ~cc ~triple ~args:(args obj runtime) ~deps:link ~obj
-                ~runtime ~output dir)))
+          match (runtime, c_object ?target ?cache m dir) with
+          | (Error _ as error), _ | _, (Error _ as error) -> error
+          | Ok runtime, Ok c -> (
+              let c = Option.to_list c in
+              link_program ?cache ?bundled:bundled_link ~cc ~triple ~args:(args ~c obj runtime) ~deps:(c @ link)
+                ~obj ~runtime ~output dir)))
 
 (* How many tier-1 libraries the cache keeps: the newest, so an edit loop
    does not fill the disk with every version it built. *)

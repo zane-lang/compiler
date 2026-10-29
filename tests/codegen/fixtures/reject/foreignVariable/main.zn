@@ -1,0 +1,16 @@
+/// A capability declared by a foreign variable, which lowering refuses
+/// until handles run (docs/design/ffi.md F12).
+package foreignVariable;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+
+type Clock = #handle{ cType = "clock_t_"; }
+
+I64 now(this Clock) foreign "clock_now";
+
+Unit main() {
+	clock Clock foreign "zane_clock";
+	t I64 = clock:now();
+	return Unit();
+}

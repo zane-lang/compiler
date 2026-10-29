@@ -1,0 +1,14 @@
+/// A foreign verb that makes a handle, which lowering refuses until handles
+/// run (docs/design/ffi.md F12).
+package foreignHandle;
+
+alias Unit = @primitives$Unit;
+
+type Counter = #handle{ cType = "counter_t"; free = "counter_free"; }
+
+^Counter?Unit counter() foreign "counter_new";
+
+Unit main() {
+	c Counter = counter() ? e { return Unit(); }
+	return Unit();
+}

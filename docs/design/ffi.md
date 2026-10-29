@@ -2,10 +2,16 @@
 
 > **Status: being built, in the order of §7.** Built: compiling a
 > package's C (F1, F2, F3, F5) and reading its interface headers (F6), in
-> `lib/foreign/` and `lib/c_interface/`, and foreign verbs, handles and
-> foreign variables in the grammar and semantics (F7); lowering refuses
-> them until F8 lands. The rest is designed and
-> not yet built. This page says how the compiler implements the spec's C
+> `lib/foreign/` and `lib/c_interface/`; foreign verbs, handles and
+> foreign variables in the grammar and semantics (F7); and calls of
+> foreign verbs whose types are scalars, `Bool`, `Unit`, strings, arrays,
+> lists and C-compatible value types, through the glue (F8), with each
+> package's C renamed (F9), linked into an optimized build (F13, the
+> program's own packages) and compiled apart in an unoptimized or tiered
+> one (F14).
+> Lowering refuses a foreign verb taking or giving a handle or a function
+> value, and a foreign variable, until F12 and F11 land. The rest is
+> designed and not yet built. This page says how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
 > compiling a package's C code, checking foreign verbs against it, calling
@@ -351,9 +357,12 @@ of an object assembled from a module holding assembly. A section whose name
 is not a C identifier, such as `.text.hot` or `__DATA,__const`, is allowed.
 
 **F10. A foreign call is one CGT node, with its arguments laid out for C.**
-Lowering makes a call to a foreign verb a `Foreign_call { thunk; args; result;
-kind }`. Each argument is lowered to a slot holding its C layout, and the
-node passes the slots' addresses:
+Lowering gives each foreign verb a Zane function whose body is one
+`Foreign_call { thunk; args }`, and the program's list of thunks records
+how each argument and the result cross: as a scalar, a `Bool`, a view, an
+address, or a value. A call of the verb is a call of that function, which
+an optimized build inlines. Codegen lowers each argument to a slot holding
+its C layout, and the node passes the slots' addresses:
 
 | Zane argument | Slot holds |
 |---|---|
@@ -490,7 +499,11 @@ unoptimized and answers to the time from the command to the result
 optimization is many times slower without it, and its module is cached
 (F3), so an unoptimized build optimizes the package's C module on its own
 with `-O2` and emits it as an object of its own, kept in the cache beside
-the module; the Zane module stays unoptimized and calls its thunks.
+the module; the Zane module stays unoptimized and calls its thunks. A
+tiered build's tier 0 links the C the same way, and tier 1 takes none of
+it: tier 1 calls tier 0's thunks through its imports
+([`tiers.md`](tiers.md) T5), so the program has one copy of its C's
+state, as it has one of the runtime's, whichever tier is running.
 
 **F15. A release archive holds one object per package build, C included.**
 `--object` writes the package's object with its C linked in (F13 or F14),
