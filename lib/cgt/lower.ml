@@ -141,7 +141,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | T.Expr.Construct_fields { ctor = { owner = S.Declared id; instance; _ }; fields; handler } ->
       Lower_data.construct_fields walk st ctx span (verb_of st id instance) fields handler
         e.T.Expr.ty
-  | T.Expr.Case { case; payload } when pooled st e.T.Expr.ty -> pool_case st ctx span e.T.Expr.ty case payload
+  | T.Expr.Case _ when pooled st e.T.Expr.ty -> pool_value st ctx span e
   | T.Expr.Case { case; payload } ->
       let index = case_index st span e.T.Expr.ty case in
       let t = payload_type st span e.T.Expr.ty case in
@@ -411,23 +411,117 @@ and view st ctx span (e : T.Expr.t) : Expr.t =
       let size = { Expr.node = Expr.Int (Int64.of_int size); ty = Nodes.Ty.I64 } in
       ptr (Expr.Runtime { fn = Runtime.Pool_root; args = [ lend st ctx span e; size ] })
 
-(* A case of the pooled variant [t] built: its node, with each link zero,
-   made the root of a pool that the pools of the roots it links to are
-   moved into, and the links then written (runtime/list.c). *)
-and pool_case st ctx span t case payload =
+(* A pooled variant built as a value: a pool of its own, made here, that
+   [into] builds it in. *)
+and pool_value st ctx span (e : T.Expr.t) =
+  let handle = ty st span (Tty.strip_mode e.T.Expr.ty) in
+  let h = fresh st and label = fresh st and result = fresh st in
+  let address = ptr (Expr.Address h) in
+  let body =
+    [
+      Stat.Let { id = h; value = { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = handle } };
+      Stat.Eval { Expr.node = Expr.Runtime { fn = Runtime.Pool_new; args = [ address ] }; ty = Nodes.Ty.Void };
+      Stat.Eval (into st ctx span address e);
+      Stat.assign result { Expr.node = Expr.Local h; ty = handle };
+    ]
+  in
+  { Expr.node = Expr.Expand { label; body; result = Some result }; ty = handle }
+
+(* Experimental pooled variants: the pooled variant [e] built at the end of
+   the pool at [dest], and where its top node is there. A case is built
+   node by node, its subtrees first; a call to a function that pours its
+   result (Lower_calls.pours) is given the pool; anything else is made as
+   a value and its pool copied on. *)
+and into st ctx span dest (e : T.Expr.t) : Expr.t =
+  let t = Tty.strip_mode e.T.Expr.ty in
+  let poured =
+    match e.T.Expr.node with
+    | T.Expr.Call { callee = { owner = S.Declared id; instance; _ }; handler = None; _ } -> (
+        match verb_of st id instance with Some v when Lower_calls.pours st span v -> Some v | _ -> None)
+    | _ -> None
+  in
+  match (e.T.Expr.node, poured) with
+  | T.Expr.Case { case; payload }, _ -> pool_into st ctx span dest t case payload
+  | T.Expr.Call { args; _ }, Some v ->
+      let args = Lower_calls.arguments walk st ctx span v (Lower_calls.passed v args) in
+      { Expr.node = Expr.Call { fn = symbol st v; args = args @ [ dest ] }; ty = Nodes.Ty.I64 }
+  | _ ->
+      let h = fresh st and label = fresh st and result = fresh st in
+      let size = fst (Nodes.Ty.size_align (node_shape st span t)) in
+      let value = moved st ctx span t e in
+      let body =
+        [
+          Stat.Let { id = h; value };
+          Stat.assign result
+            {
+              Expr.node =
+                Expr.Runtime
+                  {
+                    fn = Runtime.Pool_append;
+                    args = [ dest; ptr (Expr.Address h); { Expr.node = Expr.Int (Int64.of_int size); ty = Nodes.Ty.I64 } ];
+                  };
+              ty = Nodes.Ty.I64;
+            };
+        ]
+      in
+      { Expr.node = Expr.Expand { label; body; result = Some result }; ty = Nodes.Ty.I64 }
+
+(* The values a cycle struct payload's members are made from, in the order
+   they are evaluated, each with the member it fills: the fields of an
+   `init`, or the arguments of a field constructor whose body returns its
+   parameters as fields, one each. [None] for any other payload. *)
+and payload_pieces st (payload : T.Expr.t) : (int * T.Expr.t) list option =
+  (* The arguments, by parameter index, of a field constructor whose body
+     returns its parameters as the fields of an `init`, one each. *)
+  let through id instance (given : (int * T.Expr.t) list) =
+    match verb_of st id instance with
+    | Some v -> (
+        match v.body.T.Block.stats with
+        | [ { T.Stat.node = T.Stat.Return { T.Expr.node = T.Expr.Init fields; _ }; _ } ]
+          when List.length fields = List.length v.params && List.length given = List.length v.params ->
+            let slot_of (p : T.Local.t) =
+              List.find_map
+                (fun (f : T.Field_value.t) ->
+                  match f.T.Field_value.value.T.Expr.node with
+                  | T.Expr.Var (T.Name_ref.Local l) when l.T.Local.id = p.T.Local.id -> Some f.T.Field_value.slot
+                  | _ -> None)
+                fields
+            in
+            let pieces = List.map (fun (i, a) -> Option.map (fun slot -> (slot, a)) (slot_of (List.nth v.params i))) given in
+            if List.for_all Option.is_some pieces then Some (List.map Option.get pieces) else None
+        | _ -> None)
+    | None -> None
+  in
+  let values args =
+    let given = List.mapi (fun i a -> match a with T.Arg.Value a -> Some (i, a) | T.Arg.Block _ -> None) args in
+    if List.for_all Option.is_some given then Some (List.map Option.get given) else None
+  in
+  match payload.T.Expr.node with
+  | T.Expr.Init fields -> Some (List.map (fun (f : T.Field_value.t) -> (f.T.Field_value.slot, f.T.Field_value.value)) fields)
+  | T.Expr.Call { callee = { owner = S.Declared id; instance; _ }; args; handler = None }
+  | T.Expr.Construct { ctor = { owner = S.Declared id; instance; _ }; args; handler = None } ->
+      Option.bind (values args) (through id instance)
+  | T.Expr.Construct_fields { ctor = { owner = S.Declared id; instance; _ }; fields; handler = None } ->
+      through id instance (List.map (fun (f : T.Field_value.t) -> (f.T.Field_value.slot, f.T.Field_value.value)) fields)
+  | _ -> None
+
+(* A case of the pooled variant [t] built at the end of the pool at [dest]:
+   the subtrees its links name first, then its node, whose links the
+   runtime writes (runtime/list.c). Where its node is. *)
+and pool_into st ctx span dest t case payload =
   let int k = { Expr.node = Expr.Int (Int64.of_int k); ty = Nodes.Ty.I64 } in
+  let i64 id = { Expr.node = Expr.Local id; ty = Nodes.Ty.I64 } in
   let index = case_index st span t case in
   let c = payload_type st span t case in
   let node = node_shape st span t in
-  let label = fresh st and out = fresh st and made = fresh st and held = fresh st in
+  let size = fst (Nodes.Ty.size_align node) in
   let zero = { Expr.node = Expr.Int 0L; ty = Nodes.Ty.I32 } in
   let link_at path = Nodes.Ty.payload_offset + path in
   let lets, children, inline =
     if pooled st c then
-      let v = moved st ctx span c payload in
-      ([ Stat.Let { id = held; value = v } ], [ (ptr (Expr.Address held), link_at 0) ], zero)
+      let o = fresh st in
+      ([ Stat.Let { id = o; value = into st ctx span dest payload } ], [ (i64 o, link_at 0) ], zero)
     else if cycle_struct st c then begin
-      let v = moved st ctx span c payload in
       let outer = ty st span c and inner = node_ty st span c in
       let ms = match inner with Nodes.Ty.Struct ts -> ts | _ -> [] in
       let offsets = Nodes.Ty.offsets ms in
@@ -436,50 +530,80 @@ and pool_case st ctx span t case payload =
         | Some (T.Decl.Struct ms, _) -> List.map snd ms
         | _ -> []
       in
-      let children = ref [] in
-      let record =
-        List.mapi
-          (fun i m ->
-            if pooled st m then begin
-              let at = ptr (Expr.Offset { base = ptr (Expr.Address held); within = outer; path = [ i ] }) in
-              children := (at, link_at (List.nth offsets i)) :: !children;
-              (i, zero)
-            end
-            else
-              let held_v = { Expr.node = Expr.Local held; ty = outer } in
-              (i, { Expr.node = Expr.Member { value = held_v; index = i }; ty = List.nth ms i }))
-          members
-      in
-      ([ Stat.Let { id = held; value = v } ], List.rev !children, { Expr.node = Expr.Record record; ty = inner })
+      match payload_pieces st payload with
+      | Some pieces ->
+          let made = List.map (fun (slot, e) -> (member_index st c slot, e, fresh st)) pieces in
+          let lets =
+            List.map
+              (fun (i, e, id) ->
+                let m = List.nth members i in
+                Stat.Let { id; value = (if pooled st m then into st ctx span dest e else moved st ctx span m e) })
+              made
+          in
+          let local_of i = List.find_map (fun (j, _, id) -> if i = j then Some id else None) made in
+          let children = ref [] in
+          let record =
+            List.mapi
+              (fun i m ->
+                let id = Option.get (local_of i) in
+                if pooled st m then begin
+                  children := (i64 id, link_at (List.nth offsets i)) :: !children;
+                  (i, zero)
+                end
+                else (i, { Expr.node = Expr.Local id; ty = List.nth ms i }))
+              members
+          in
+          (lets, List.rev !children, { Expr.node = Expr.Record record; ty = inner })
+      | None ->
+          let held = fresh st in
+          let held_v = { Expr.node = Expr.Local held; ty = outer } in
+          let lets = ref [ Stat.Let { id = held; value = moved st ctx span c payload } ] in
+          let children = ref [] in
+          let record =
+            List.mapi
+              (fun i m ->
+                if pooled st m then begin
+                  let o = fresh st in
+                  let at = ptr (Expr.Offset { base = ptr (Expr.Address held); within = outer; path = [ i ] }) in
+                  let msize = fst (Nodes.Ty.size_align (node_shape st span (Tty.strip_mode m))) in
+                  lets :=
+                    !lets
+                    @ [
+                        Stat.Let
+                          {
+                            id = o;
+                            value =
+                              { Expr.node = Expr.Runtime { fn = Runtime.Pool_append; args = [ dest; at; int msize ] }; ty = Nodes.Ty.I64 };
+                          };
+                      ];
+                  children := (i64 o, link_at (List.nth offsets i)) :: !children;
+                  (i, zero)
+                end
+                else (i, { Expr.node = Expr.Member { value = held_v; index = i }; ty = List.nth ms i }))
+              members
+          in
+          (!lets, List.rev !children, { Expr.node = Expr.Record record; ty = inner })
     end
     else ([], [], moved st ctx span c payload)
   in
   if List.length children > 4 then refuse span "pooled variants: a node with more than four links";
-  let value = { Expr.node = Expr.Case { index; payload = inline }; ty = node } in
-  let size = fst (Nodes.Ty.size_align node) in
+  let made = fresh st and label = fresh st and result = fresh st in
   let pairs =
-    List.concat_map (fun (c, l) -> [ c; int l ]) children
-    @ List.concat (List.init (4 - List.length children) (fun _ -> [ ptr (Expr.Address out); int 0 ]))
+    List.concat_map (fun (o, l) -> [ o; int l ]) children
+    @ List.concat (List.init (4 - List.length children) (fun _ -> [ int 0; int 0 ]))
   in
-  let call =
+  let push =
     Expr.Runtime
-      {
-        fn = Runtime.Pool_node;
-        args = [ ptr (Expr.Address out); ptr (Expr.Address made); int size; int (List.length children) ] @ pairs;
-      }
+      { fn = Runtime.Pool_push; args = [ dest; ptr (Expr.Address made); int size; int (List.length children) ] @ pairs }
   in
-  let handle = ty st span t in
-  let result = fresh st in
   let body =
     lets
     @ [
-        Stat.Let { id = out; value = { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = handle } };
-        Stat.Let { id = made; value };
-        Stat.Eval (ptr call);
-        Stat.assign result { Expr.node = Expr.Local out; ty = handle };
+        Stat.Let { id = made; value = { Expr.node = Expr.Case { index; payload = inline }; ty = node } };
+        Stat.assign result { Expr.node = push; ty = Nodes.Ty.I64 };
       ]
   in
-  { Expr.node = Expr.Expand { label; body; result = Some result }; ty = handle }
+  { Expr.node = Expr.Expand { label; body; result = Some result }; ty = Nodes.Ty.I64 }
 
 (* ---------------------------------------------------------------------- *)
 (* Blocks, statements and places                                          *)
@@ -603,6 +727,8 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
   | T.Stat.Expr e -> [ Stat.Eval (expr st ctx e) ]
   | T.Stat.Return e -> (
       match ctx.exit with
+      | Function when Option.is_some st.dest && pooled st (Tty.strip_mode st.ret) ->
+          [ Stat.Return (st.returns (into st ctx span (local_ptr (Option.get st.dest)) e)) ]
       | Function ->
           [ Stat.Return (st.returns (escape st span st.ret None (moved st ctx span st.ret e))) ]
       | Leave { label; result; ret } ->

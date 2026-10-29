@@ -53,6 +53,19 @@ let func st (v : verb) : Func.t =
       v.params
   in
   let places = List.rev !places in
+  (* Experimental: a function that pours its pooled result is given the
+     pool to build it in (Lower.into). *)
+  let pours = Lower_calls.pours st span v in
+  st.dest <- None;
+  let given =
+    if pours then begin
+      let d = fresh st in
+      st.dest <- Some d;
+      params @ [ (d, Nodes.Ty.Ptr) ]
+    end
+    else params
+  in
+  let returned o = if pours then Nodes.Ty.I64 else returned o in
   (* A `^T` parameter is an owner of the body (lifetimes.md §1.5): it is held
      in the body's own arena, so the body's drain ends it unless the body
      moved it on. *)
@@ -85,7 +98,7 @@ let func st (v : verb) : Func.t =
     if linkage = Linkage.Imported && st.import_bodies then Linkage.Available else linkage
   in
   if linkage = Linkage.Imported then
-    { Func.symbol = symbol st v; linkage; params; places; ret = returned o; body = []; values = [] }
+    { Func.symbol = symbol st v; linkage; params = given; places; ret = returned o; body = []; values = [] }
   else begin
     st.returns <- (if plain o then Fun.id else outcome_case o done_);
     st.ret <- v.signature.S.ret;
@@ -110,7 +123,7 @@ let func st (v : verb) : Func.t =
       }
     in
     let body = block ~enter st ctx v.body in
-    { Func.symbol = symbol st v; linkage; params; places; ret = returned o; body; values = st.values }
+    { Func.symbol = symbol st v; linkage; params = given; places; ret = returned o; body; values = st.values }
   end
 
 (* L16. The function that makes a package constant: the first call makes

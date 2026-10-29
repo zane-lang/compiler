@@ -205,24 +205,6 @@ and stat a st (s : Stat.t) =
           if not f then st
           else if place.Expr.path = [] && not place.Expr.deref then carry place.Expr.local st
           else raise Unknown
-      (* Experimental pooled variants: a node made from the pools the
-         locals it is given the addresses of hold moves those owners into
-         the root it writes to its first argument's local. *)
-      | Stat.Eval
-          {
-            Expr.node =
-              Expr.Runtime
-                { fn = Runtime.Pool_node; args = { Expr.node = Expr.Address out; _ } :: _ :: rest };
-            _;
-          } ->
-          let rec base (x : Expr.t) =
-            match x.Expr.node with
-            | Expr.Address c -> Some c
-            | Expr.Offset { base = b; _ } -> base b
-            | _ -> None
-          in
-          let given = List.filter_map (fun x -> match base x with Some c when carried c st -> Some c | _ -> None) rest in
-          if given = [] then st else carry out (List.fold_left (fun st c -> drop c st) st given)
       | Stat.Eval e ->
           let st, f = move st e in
           if f then raise Unknown;

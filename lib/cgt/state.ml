@@ -146,6 +146,9 @@ type state = {
      type. *)
   mutable returns : Expr.t -> Expr.t;
   mutable ret : Tty.t;
+  (* Experimental: the local holding the address of the pool a function
+     that returns a pooled variant builds its result in (Lower.into). *)
+  mutable dest : int option;
   (* The verb's abort type, which an `abort` hands its value on as. *)
   mutable aborts : Tty.t;
   (* The function each spawned call runs through, latest first. *)
@@ -230,6 +233,7 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     values = [];
     returns = Fun.id;
     ret = Tty.Error;
+    dest = None;
     aborts = Tty.Error;
     spawned = [];
     current = "";

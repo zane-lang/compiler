@@ -240,14 +240,11 @@ void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride) {
 /* ---------------------------------------------------------------------- */
 
 /* Experimental. A pooled variant's root is a list of bytes whose block
-   holds its nodes, all of one size, the root last. A block's room is a
-   whole number of words, so a pool's nodes may leave a few dead bytes
-   where two joined pools meet. A node's links to the
-   nodes below it are 32-bit offsets from the link to its target, so a pool
-   appended onto another keeps them. A pool's block is made exactly as
-   large as its nodes, at its region's frontier, so the pools a depth-first
-   build makes lie end to end, and joining two that do copies nothing. An
-   oversized pool copied onto another gives its pages back as it goes. */
+   holds its nodes, all of one size, each after the nodes below it, so the
+   root is last. A node's links to the nodes below it are 32-bit offsets
+   from the link to its target, so a pool copied onto the end of another
+   keeps them. A function that returns a pooled variant is given the pool
+   to build it in, and builds every node there (lower.ml, `into`). */
 
 /* The root's node. */
 char *zane_pool_root(zane_list *pool, int64_t size) { return pool->items + pool->count - size; }
@@ -279,11 +276,21 @@ static zane_mark *zane_pool_home(zane_list *out) {
 	return zane_region_at(out);
 }
 
-/* `pool`'s block made `total` bytes: in place when it ends at its region's
-   frontier, else moved to a block of exactly that size there, or grown as
-   a list grows once that passes a chunk. */
-static void zane_pool_reserve(zane_list *pool, int64_t total) {
+/* `pool`'s block made at least `total` bytes, and at least twice its room:
+   in place when it ends at its region's frontier, else moved to a block of
+   that size there, or grown as a list grows once that passes a chunk. An
+   empty handle gets its first block where `zane_pool_new` makes one. */
+__attribute__((noinline)) static void zane_pool_reserve(zane_list *pool, int64_t total) {
 	if (total <= pool->room) return;
+	if (!pool->items) {
+		zane_mark *r = zane_pool_home(pool);
+		zane_lock(r->context);
+		total = (total + 7) & ~(int64_t)7;
+		*pool = (zane_list){ zane_pool_frontier(r, total), pool->count, total };
+		zane_unlock(r->context);
+		return;
+	}
+	if (total < 2 * pool->room) total = 2 * pool->room;
 	total = (total + 7) & ~(int64_t)7;
 	zane_mark *r = zane_pool_region(pool->items);
 	zane_heap *h = &r->heap;
@@ -310,122 +317,46 @@ static void zane_pool_reserve(zane_list *pool, int64_t total) {
 	pool->room = total;
 }
 
-/* A node of `size` bytes, copied from `node`, made the root of a pool in
-   `out` that holds the `n` child pools too, each of which is moved in.
-   Children whose blocks lie end to end are joined where they are; any
-   other is copied onto the largest. Each child's root is linked from the
-   new node at `links[i]` bytes in. The new node's address. */
-static char *zane_pool_make(zane_list *out, const char *node, int64_t size, int64_t n, zane_list **children,
-                            const int64_t *links) {
-	int64_t roots[4];
-	zane_list pool;
-	if (n == 0) {
-		zane_mark *r = zane_pool_home(out);
-		zane_lock(r->context);
-		pool = (zane_list){ zane_pool_frontier(r, size), 0, (size + 7) & ~(int64_t)7 };
-		zane_unlock(r->context);
-	} else {
-		int order[4];
-		for (int i = 0; i < n; i++) {
-			int j = i;
-			while (j > 0 && children[order[j - 1]]->items > children[i]->items) {
-				order[j] = order[j - 1];
-				j--;
-			}
-			order[j] = i;
-		}
-		/* The children's blocks in address order, each run that lies end to
-		   end joined into one, and the largest run taken as the pool. */
-		zane_list runs[4];
-		int first[4], count = 0;
-		for (int k = 0; k < n; k++) {
-			zane_list *c = children[order[k]];
-			zane_list *last = count ? &runs[count - 1] : NULL;
-			if (last && last->items + last->room == c->items) {
-				roots[order[k]] = (c->items - last->items) + c->count - size;
-				last->count = (c->items - last->items) + c->count;
-				last->room += c->room;
-				zane_mark *r = zane_pool_region(c->items);
-				zane_lock(r->context);
-				r->heap.live--;
-				zane_unlock(r->context);
-			} else {
-				roots[order[k]] = c->count - size;
-				first[count] = k;
-				runs[count++] = *c;
-			}
-		}
-		int base = 0;
-		for (int k = 1; k < count; k++)
-			if (runs[k].count > runs[base].count) base = k;
-		int64_t total = runs[base].count + size;
-		for (int k = 0; k < count; k++)
-			if (k != base) total += runs[k].count;
-		pool = runs[base];
-		zane_pool_reserve(&pool, total);
-		for (int k = 0; k < count; k++) {
-			if (k == base) continue;
-			int64_t at = pool.count;
-			if (runs[k].room > ZANE_CHUNK - ZANE_LINE)
-				zane_list_move_out(zane_pool_region(runs[k].items), pool.items + at, runs[k].items, runs[k].count);
-			else {
-				memcpy(pool.items + at, runs[k].items, (size_t)runs[k].count);
-				zane_free(runs[k].items, runs[k].room, ZANE_LIST_ALIGN);
-			}
-			int end = k + 1 < count ? first[k + 1] : n;
-			for (int q = first[k]; q < end; q++) roots[order[q]] += at;
-			pool.count += runs[k].count;
-		}
-		for (int i = 0; i < n; i++) *children[i] = (zane_list){ NULL, 0, 0 };
-	}
-	zane_pool_reserve(&pool, pool.count + size);
-	char *made = pool.items + pool.count;
+/* A pool for the handle at `out`, empty, its first block made in the
+   region the handle's value is made in, so a build that a callee makes
+   into it grows it there (docs/experiments). */
+void zane_pool_new(zane_list *out) {
+	zane_mark *r = zane_pool_home(out);
+	zane_lock(r->context);
+	*out = (zane_list){ zane_pool_frontier(r, ZANE_LIST_FIRST), 0, ZANE_LIST_FIRST };
+	zane_unlock(r->context);
+}
+
+/* A node of `size` bytes, copied from `node`, put at the end of `pool`,
+   after the `n` subtrees it links to, whose top nodes are at the offsets
+   `o0`..`o3`; its link to each is written `l0`..`l3` bytes into it. Its
+   offset. */
+int64_t zane_pool_push(zane_list *pool, const char *node, int64_t size, int64_t n, int64_t o0, int64_t l0,
+                       int64_t o1, int64_t l1, int64_t o2, int64_t l2, int64_t o3, int64_t l3) {
+	int64_t at = pool->count;
+	if (__builtin_expect(at + size > pool->room, 0)) zane_pool_reserve(pool, at + size);
+	char *made = pool->items + at;
 	memcpy(made, node, (size_t)size);
-	pool.count += size;
+	int64_t to[4] = { o0, o1, o2, o3 }, links[4] = { l0, l1, l2, l3 };
 	for (int i = 0; i < n; i++) {
-		int64_t distance = (pool.items + roots[i]) - (made + links[i]);
+		int64_t distance = to[i] - (at + links[i]);
 		if (distance != (int32_t)distance) zane_broken("a pooled variant past 2 GiB");
 		*(int32_t *)(made + links[i]) = (int32_t)distance;
 	}
-	*out = pool;
-	return made;
+	pool->count = at + size;
+	return at;
 }
 
-/* `zane_pool_make` for a node with up to four links; `n` says how many of
-   the child pools and link offsets after it are given. */
-char *zane_pool_node(zane_list *out, const char *node, int64_t size, int64_t n, zane_list *c0, int64_t l0,
-                     zane_list *c1, int64_t l1, zane_list *c2, int64_t l2, zane_list *c3, int64_t l3) {
-	int64_t room = (size + 7) & ~(int64_t)7;
-	if (n == 0) {
-		zane_mark *m = zane_pool_home(out);
-		zane_heap *h = &m->heap;
-		if (h->bump && h->bump + room <= h->end && !zane_pool_guarded(m->context)) {
-			char *made = h->bump;
-			h->bump += room;
-			h->live++;
-			memcpy(made, node, (size_t)size);
-			*out = (zane_list){ made, size, room };
-			return made;
-		}
-	} else if (n == 2 && c0->items + c0->room == c1->items) {
-		zane_mark *m = zane_pool_region(c1->items);
-		zane_heap *h = &m->heap;
-		if (c1->items + c1->room == h->bump && h->bump + room <= h->end && !zane_pool_guarded(m->context)) {
-			char *items = c0->items, *made = h->bump;
-			h->bump += room;
-			h->live--;
-			memcpy(made, node, (size_t)size);
-			char *r0 = c0->items + c0->count - size, *r1 = c1->items + c1->count - size;
-			*(int32_t *)(made + l0) = (int32_t)(r0 - (made + l0));
-			*(int32_t *)(made + l1) = (int32_t)(r1 - (made + l1));
-			*c0 = *c1 = (zane_list){ NULL, 0, 0 };
-			*out = (zane_list){ items, made + size - items, made + room - items };
-			return made;
-		}
-	}
-	zane_list *children[4] = { c0, c1, c2, c3 };
-	int64_t links[4] = { l0, l1, l2, l3 };
-	return zane_pool_make(out, node, size, n, children, links);
+/* The pool `from` holds, its nodes `size` bytes each, copied onto the end
+   of `pool`. Its links are relative, so they hold. Its top node's offset
+   there. */
+int64_t zane_pool_append(zane_list *pool, const zane_list *from, int64_t size) {
+	if (from->count < size) zane_broken("an empty pooled variant");
+	int64_t at = pool->count;
+	if (at + from->count > pool->room) zane_pool_reserve(pool, at + from->count);
+	memcpy(pool->items + at, from->items, (size_t)from->count);
+	pool->count = at + from->count;
+	return pool->count - size;
 }
 
 /* How many nodes the subtree at `node` has, each link in a node of case

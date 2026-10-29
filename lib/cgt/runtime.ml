@@ -52,12 +52,14 @@ type fn =
   | Defer
   | Defer_return
   (* Experimental pooled variants (runtime/list.c). *)
-  | Pool_node
+  | Pool_new
+  | Pool_push
+  | Pool_append
   | Pool_root
   | Pool_copy
   | Link
 
-let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return; Pool_node; Pool_root; Pool_copy; Link ]
+let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link ]
 
 let name = function
   | Print -> "zane_print"
@@ -102,7 +104,9 @@ let name = function
   | Leaves -> "zane_leaves"
   | Defer -> "zane_defer"
   | Defer_return -> "zane_defer_return"
-  | Pool_node -> "zane_pool_node"
+  | Pool_new -> "zane_pool_new"
+  | Pool_push -> "zane_pool_push"
+  | Pool_append -> "zane_pool_append"
   | Pool_root -> "zane_pool_root"
   | Pool_copy -> "zane_pool_copy"
   | Link -> "zane_link"
@@ -155,7 +159,9 @@ let signature = function
   | Leaves -> (I64, [ Ptr; Ptr; I64 ])
   | Defer -> (Void, [ Ptr; Ptr; Ptr; Ptr; I64 ])
   | Defer_return -> (Void, [ Ptr; Ptr; I64; I64 ])
-  | Pool_node -> (Ptr, [ Ptr; Ptr; I64; I64; Ptr; I64; Ptr; I64; Ptr; I64; Ptr; I64 ])
+  | Pool_new -> (Void, [ Ptr ])
+  | Pool_push -> (I64, [ Ptr; Ptr; I64; I64; I64; I64; I64; I64; I64; I64; I64; I64 ])
+  | Pool_append -> (I64, [ Ptr; Ptr; I64 ])
   | Pool_root -> (Ptr, [ Ptr; I64 ])
   | Pool_copy -> (Void, [ Ptr; Ptr; I64; I64; I64; I64; I64 ])
   | Link -> (Ptr, [ Ptr ])

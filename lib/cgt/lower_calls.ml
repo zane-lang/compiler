@@ -73,6 +73,18 @@ let subscript w st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
       | _ -> Diagnostic.bug ~span "lowering: a declared subscript with no single place to name")
   | _ -> Diagnostic.bug ~span "lowering: a subscript of no owner it knows"
 
+(* Experimental pooled variants: whether [v]'s function builds its pooled
+   result in a pool its caller gives it, as one more parameter after its
+   own, and returns where the result's top node is in that pool
+   (Lower.into). A verb written out where it is called, or one that can
+   abort or exit, returns its result as before. *)
+let pours st span (v : verb) =
+  v.decl >= 0
+  && pooled st (Tty.strip_mode v.signature.S.ret)
+  && (not (expands v))
+  && Option.is_none (size st v)
+  && plain (outcome st span v)
+
 let rec call w st ctx span verb args handler ret : Expr.t =
   match verb with
   | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
@@ -312,6 +324,29 @@ and argument w ?(direct = true) st ctx span v (p : T.Local.t) a =
    `match` it flows out of, and an exit ends this invocation too. The call
    is to [v]'s function, or through [fn], a function value's address. *)
 and invoke w ?fn st ctx span v args handler =
+  if pours st span v then begin
+    if Option.is_some fn then refuse span "pooled variants: a function value that returns one";
+    poured st span v args
+  end
+  else invoked w ?fn st ctx span v args handler
+
+(* A call to a function that [pours] its result, given a new pool of its
+   own to build it in. *)
+and poured st span v args =
+  let handle = ty st span (Tty.strip_mode v.signature.S.ret) in
+  let h = fresh st and label = fresh st and result = fresh st in
+  let address = ptr (Expr.Address h) in
+  let body =
+    [
+      Stat.Let { id = h; value = { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = handle } };
+      Stat.Eval { Expr.node = Expr.Runtime { fn = Runtime.Pool_new; args = [ address ] }; ty = Nodes.Ty.Void };
+      Stat.Eval { Expr.node = Expr.Call { fn = symbol st v; args = args @ [ address ] }; ty = Nodes.Ty.I64 };
+      Stat.assign result { Expr.node = Expr.Local h; ty = handle };
+    ]
+  in
+  { Expr.node = Expr.Expand { label; body; result = Some result }; ty = handle }
+
+and invoked w ?fn st ctx span v args handler =
   let o = outcome st span v in
   let call =
     match fn with
