@@ -1119,12 +1119,38 @@ single runs overlap.
 Every fixture still gives the same output with the switch, and the test
 suite passes without it.
 
+### The suite with the switch
+
+`run.py` over every test with `ZANE_REF32=1` alone (RUNS=7, median wall
+time, peak RSS; the patched sources as above), against the "Zane now"
+column of the whole-suite table. Pooled variants are off under the switch,
+so the other switches are not set.
+
+| test | Zane now | Zane, `ZANE_REF32=1` | Goose (this run) | Ref32 ÷ Goose |
+| --- | --- | --- | --- | --- |
+| binarytrees | 0.114 s / 14.3 MB | 0.105 s / 10.0 MB | 0.049 s / 10.0 MB | 2.2× |
+| treecopy | 0.144 s / 30.3 MB | 0.146 s / 26.3 MB | 0.117 s / 18.3 MB | 1.25× |
+| ntree | 0.186 s / 34.3 MB | 0.133 s / 18.3 MB | 0.115 s / 24.9 MB | 1.16× |
+| allocfree | 0.322 s / 33.3 MB | 0.352 s / 33.3 MB | 0.377 s / 44.2 MB | 0.9× |
+| listgrowth | 0.148 s / 63.8 MB | 0.177 s / 63.8 MB | 0.130 s / 63.3 MB | 1.35× |
+| entities | 0.500 s / 94 MB | 0.493 s / 94 MB | 0.473 s / 94 MB | 1.04× |
+| particles | 0.124 s | 0.128 s | 0.134 s | 1.0× |
+| concscan | 0.233 s / 94 MB | 0.256 s / 94 MB | 2.34 s / 185 MB | 0.1× |
+
+The compute-bound tests, startup and primes stay level with Goose. ntree
+gains the most: its peak RSS falls below Goose's, and its time is within
+the container's noise of Goose's. binarytrees' and treecopy's trees shrink,
+but at the suite's small depths that does not show in their times, which
+depend on pooling, and pooling is off under the switch. listgrowth's median
+here is one run's noise against the interleaved timing above, where the
+switch costs two instructions a push.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
 | --- | --- | --- |
 | binarytrees | ~2.2× (pooled, peeled, packed and with Goose's push shape: ~1.2–1.3×) | The rest is the pool's address: Zane reads its count through a pointer restored from the stack in every frame, which puts a second store-to-load forward on the count's chain. With `make`'s pool in a global, Zane matches Goose. |
-| ntree | ~1.6× (steady state 1.43–1.5×) | The list handle: each node is a 24-byte `{items, count, room}` in its parent's block, against Goose's 17-byte node with 4-byte links inside, so 1.41× the memory, streamed through twice a round. A replay of Zane's shape with a 16-byte handle builds faster than Goose and counts as fast. |
+| ntree | ~1.6×; with `ZANE_REF32=1`, ~1.1–1.2× in the suite and level at depth 10 | The list handle was the gap: 24 bytes against Goose's 17-byte node. Under the switch it is 12 bytes, and Zane's tree takes less memory than Goose's. |
 | treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~1.0× | Closed. |
 | listgrowth | ~0.9× | Closed. |
@@ -1135,17 +1161,13 @@ The allocator's own paths account for little of it. Pooled variants address
 the representation, partial inlining a recursion's base case, and packing
 the node's size, and Goose's push shape the push itself.
 
-The next step, decided: **every reference a 32-bit offset** (behind
-`ZANE_REF32=1`). The runtime reserves one range at startup, the cage, and
-carves every frame range, chunk and list block from it; a stored reference
-is `base + offset × 8`, so the cage reaches 32 GiB. What becomes 32-bit:
-`&T` fields and boxed members, and the items pointer of list and text
-handles, whose count and room become 32-bit too, so a handle is 12 bytes
-instead of 24 (one list holds at most 4 GiB). That puts ntree's node at 12
-bytes against Goose's 17. Because list blocks live in the cage, a large
-list reserves less headroom than its present 64× and moves when it
-outgrows it; listgrowth will show what that costs. Spawned contexts get
-smaller frame ranges inside the cage, and a full cage aborts.
+**Every reference a 32-bit offset** is built, behind `ZANE_REF32=1` (32-bit
+references, above): list handles and boxed members are 32-bit, and sums
+whose payloads align to 4 bytes or less are compact. Not yet under the
+switch: `&T` fields stay 64-bit, since no test here uses them; text handles
+stay 24 bytes, since text bytes are unaligned and may sit in the binary;
+and pooled variants are off, so the switch and the pool cannot yet be
+measured together.
 
 After that, for binarytrees: a calling convention for functions that build
 into a pool, items and count passed in registers and the new count
