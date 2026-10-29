@@ -44,6 +44,7 @@ F32 halve(x F32) foreign "halve";
 Bool odd(n I32) foreign "odd";
 I32 fromBool(b Bool) foreign "from_bool";
 F64 sum(xs @primitives$Array<F64, 4>, ys @primitives$List<I64>) foreign "sum";
+Bool same(a @primitives$Array<F64, 4>, b @primitives$Array<F64, 4>) foreign "same";
 String greet(who String) foreign "greet";
 I64 length(text String) foreign "length";
 Vec3 add(a Vec3, b Vec3) foreign "vec_add";
@@ -75,6 +76,7 @@ Unit main() {
 	ys!push(I64(10));
 	ys!push(I64(20));
 	show(String(sum(xs, ys)));
+	show(String(fromBool(same(xs, xs))));
 	hello String = greet(String("zane"));
 	show(hello);
 	show(String(length(hello)));

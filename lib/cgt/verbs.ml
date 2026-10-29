@@ -158,10 +158,13 @@ let written_out st ctx v = expands v || inlines st ctx v
 (* L6: a `mut` method's subject, a reference-type subject, and a borrowed
    reference-type argument are passed as the address of the caller's place;
    the caller stays a full owner (memory.md §2.9). A `^T` argument is the
-   moved value itself. *)
+   moved value itself. An array given to a foreign verb is lent where it is
+   too, whatever its size, so C reads the caller's array (docs/design/ffi.md
+   F10). *)
 let by_address st (v : verb) (p : T.Local.t) =
   (v.signature.S.is_mut && p.T.Local.name = "this")
   || (owned st p.T.Local.ty && not (Tty.is_roaming p.T.Local.ty))
+  || (Hashtbl.mem st.foreign_verbs v.key && Option.is_some (array_of (Tty.strip_mode p.T.Local.ty)))
 
 (* L14: a function value is called as a verb of its type would be, so its
    type gives the verb it is called as: the subject first, named `this`, as a
