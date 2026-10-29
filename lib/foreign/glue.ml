@@ -83,12 +83,17 @@ let file ~header (entries : (entry * C_interface.func) list) =
   Buffer.contents b
 
 (* The interface header among [tables], in the order they are read, that
-   declares [name], with its declaration: the first, as the merged table
-   takes it. *)
+   declares [name], with its declaration, as the merged table takes it:
+   the first to give it a prototype, else the first. *)
 let declaring tables name =
-  List.find_map
-    (fun (header, (t : C_interface.t)) -> Option.map (fun f -> (header, f)) (List.assoc_opt name t.C_interface.functions))
-    tables
+  let declared =
+    List.filter_map
+      (fun (header, (t : C_interface.t)) -> Option.map (fun f -> (header, f)) (List.assoc_opt name t.C_interface.functions))
+      tables
+  in
+  match List.find_opt (fun (_, (f : C_interface.func)) -> match f.ty with C_interface.Function _ -> true | _ -> false) declared with
+  | Some d -> Some d
+  | None -> List.nth_opt declared 0
 
 (* [entries] grouped into the files of the headers that declare their C
    functions, in the order the headers are read. *)
