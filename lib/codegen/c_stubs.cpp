@@ -81,7 +81,9 @@ extern "C" value zane_drop_defined(value glue, value before) {
   llvm::Module *g = module_of(glue), *b = module_of(before);
   std::vector<llvm::GlobalObject *> dropped;
   for (llvm::GlobalObject &o : g->global_objects()) {
-    if (o.isDeclaration() || o.hasLocalLinkage()) continue;
+    // An appending list, such as `llvm.global_ctors`, is concatenated by the
+    // link: each module's entries are its own.
+    if (o.isDeclaration() || o.hasLocalLinkage() || o.hasAppendingLinkage()) continue;
     llvm::GlobalValue *there = b->getNamedValue(o.getName());
     if (there && !there->isDeclaration() && !there->hasLocalLinkage()) dropped.push_back(&o);
   }

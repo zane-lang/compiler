@@ -5,6 +5,8 @@
 /// `<stdint.h>`. `once.h` defines a function and a variable with external
 /// linkage that `once.c`, which includes it, also defines: each is defined
 /// once in the package's C, though the glue includes the header too.
+/// `primed.h`, which no source includes, has a constructor of its own, run
+/// beside the one `lib.c` has.
 package lib;
 
 alias I32 = @primitives$I32;
@@ -17,3 +19,5 @@ I64 widen(x I64) foreign "widen";
 I64 definedHere(x I64) foreign "defined_here";
 I64 once(x I64) foreign "once";
 I64 useOnce() foreign "use_once";
+I64 primed() foreign "primed";
+I64 wasWarmed() foreign "was_warmed";
