@@ -344,8 +344,17 @@ public:
   void HandleTranslationUnit(clang::ASTContext &ctx) override {
     const clang::SourceManager &sm = ctx.getSourceManager();
     Writer w(ctx);
+    /* A function or variable declared more than once is written once, at
+       its first declaration, with its most recent one's type: clang gives
+       that one the composite of them all, so `int f(); int f(int);` is a
+       prototype. */
+    std::set<const clang::Decl *> written;
     for (clang::Decl *d : ctx.getTranslationUnitDecl()->decls()) {
       if (!sm.isInMainFile(sm.getExpansionLoc(d->getLocation()))) continue;
+      if (llvm::isa<clang::FunctionDecl, clang::VarDecl>(d)) {
+        if (!written.insert(d->getCanonicalDecl()).second) continue;
+        d = d->getMostRecentDecl();
+      }
       if (auto *f = llvm::dyn_cast<clang::FunctionDecl>(d)) {
         w.word("fun");
         w.str(f->getName().str());
