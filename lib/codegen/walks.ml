@@ -44,7 +44,7 @@ let live = Abi.heap_live
    elements. *)
 let length = Abi.handle_length
 let room = Abi.handle_room
-let line = Abi.line
+let list_align = Abi.list_align
 
 (* A walk takes the place, what it works with, a number, the work it hands
    walks on to, and its depth (runtime/zane.h). *)
@@ -342,7 +342,7 @@ let copy known c (p : Layout.position) =
       let r = load c env.i64 (offset c h room) in
       when_ c (nonzero c r) (fun () ->
           let count = load c env.i64 (offset c h length) in
-          let items = runtime c Cgt.Runtime.Alloc_held [| c.with_; r; int env line |] in
+          let items = runtime c Cgt.Runtime.Alloc_held [| c.with_; r; int env list_align |] in
           memcpy c items (load c env.ptr h) (Llvm.build_mul count (int env stride) "" c.b);
           store c items h;
           Option.iter
@@ -398,7 +398,7 @@ let end_at known c base (p : Layout.position) =
       let r = load c env.i64 (offset c h room) in
       let items = load c env.ptr h in
       (match inner known elements with
-      | None -> when_ c (nonzero c r) (fun () -> return items r line)
+      | None -> when_ c (nonzero c r) (fun () -> return items r list_align)
       | Some w ->
           let count = load c env.i64 (offset c h length) in
           let element i =
@@ -409,9 +409,9 @@ let end_at known c base (p : Layout.position) =
           either c shallow
             (fun () ->
               each c count (fun i -> call w (element i));
-              when_ c (nonzero c r) (fun () -> return items r line))
+              when_ c (nonzero c r) (fun () -> return items r list_align))
             (fun () ->
-              when_ c (nonzero c r) (fun () -> defer_return items r line);
+              when_ c (nonzero c r) (fun () -> defer_return items r list_align);
               each c count (fun i -> defer w (element i))));
       zero_handle c h
   | Layout.Box { size; payload } ->
@@ -470,7 +470,7 @@ let move known c (p : Layout.position) =
           let old = load c env.ptr h in
           when_ c (leaves old) (fun () ->
               let count = load c env.i64 (offset c h length) in
-              let items = relocate old r line (Llvm.build_mul count (int env stride) "" c.b) in
+              let items = relocate old r list_align (Llvm.build_mul count (int env stride) "" c.b) in
               Option.iter (move_elements ~stride items count) (inner known elements)))
   | Layout.Box { size; payload } ->
       let old = load c env.ptr h in

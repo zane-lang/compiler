@@ -850,14 +850,20 @@ let innermost fr p =
    holds no block (its room is 0, as runtime/list.c reads it: the push's
    fast path loads the room already, while a look at the items would load
    them ahead of its check) and is in the innermost scope's region, the
-   open one, as the runtime would make it (runtime/arena.c): the next line-aligned bytes in the scope's
-   heap when it has them and the scope has no returned block, which would
-   come first; or, when nothing has yet been allocated in the scope, and so
-   nothing returned, the first line-aligned bytes past its frame, which
-   stretches by ZANE_STRETCH bytes for them. The handle is checked to be in
+   open one, as the runtime would make it (runtime/list.c): the top of the
+   scope's size class of [first] bytes when it holds a returned block; else
+   the next word-aligned bytes in the scope's heap when it has them; or,
+   when nothing has yet been allocated in the scope, the first word-aligned
+   bytes past its frame, which stretches by ZANE_STRETCH bytes for them. The handle is checked to be in
    the frame unless [innermost] knows it is in the scope's region already.
    Any check that fails goes to [fail]; otherwise the push is made and the
    element's address is returned. *)
+(* The bytes of a list's first block when its first push asks for [bytes]
+   of elements [stride] wide, as runtime/list.c sizes it. *)
+let first_room ~bytes ~stride =
+  let room = min Abi.list_first (max Abi.list_least (4 * stride)) in
+  (max room bytes + 7) / 8 * 8
+
 let first_block env fr b ~header ~list ~fail ~first =
   let ptr = env.ptr and i64 = env.i64 in
   let n x = Llvm.const_int i64 x in
@@ -867,8 +873,11 @@ let first_block env fr b ~header ~list ~fail ~first =
     Llvm.position_at_end next b
   in
   let address p = Llvm.build_ptrtoint p i64 "" b in
-  let line p =
-    Llvm.build_and (Llvm.build_add p (n (Abi.line - 1)) "" b) (Llvm.const_of_int64 i64 (Int64.of_int (-Abi.line)) true) "" b
+  let aligned p =
+    Llvm.build_and
+      (Llvm.build_add p (n (Abi.list_align - 1)) "" b)
+      (Llvm.const_of_int64 i64 (Int64.of_int (-Abi.list_align)) true)
+      "" b
   in
   let room = handle_field env (Llvm.build_load i64 (Llvm.build_struct_gep header list 2 "" b) "" b) in
   check (Llvm.build_icmp Llvm.Icmp.Eq room (n 0) "" b);
@@ -885,16 +894,23 @@ let first_block env fr b ~header ~list ~fail ~first =
          (Llvm.build_icmp Llvm.Icmp.Ult at from "" b)
          "" b)
   end;
+  let class_at = byte_at env b m (8 * ((first / 8) - 1)) in
+  let top = Llvm.build_load ptr class_at "" b in
+  let pop = block env fr and look = block env fr in
+  let fresh = block env fr and used = block env fr and taken = block env fr and bumped = block env fr in
+  ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Ne top (Llvm.const_null ptr) "" b) pop look b);
+  Llvm.position_at_end pop b;
+  ignore (Llvm.build_store (Llvm.build_load ptr top "" b) class_at b);
+  ignore (Llvm.build_br taken b);
+  Llvm.position_at_end look b;
   let bump = field env b ptr m Walks.frontier in
-  let fresh = block env fr and used = block env fr and taken = block env fr in
   ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Eq bump (Llvm.const_null ptr) "" b) fresh used b);
   Llvm.position_at_end used b;
-  check (Llvm.build_icmp Llvm.Icmp.Eq (field env b ptr m record_stacks) (Llvm.const_null ptr) "" b);
-  let start_used = line (address bump) in
+  let start_used = aligned (address bump) in
   let ends = address (field env b ptr m Walks.frontier_end) in
   check (Llvm.build_icmp Llvm.Icmp.Ule (Llvm.build_add start_used (n first) "" b) ends "" b);
   let used_end = Llvm.insertion_block b in
-  ignore (Llvm.build_br taken b);
+  ignore (Llvm.build_br bumped b);
   Llvm.position_at_end fresh b;
   let frontier = field env b ptr c context_frontier in
   let stretched = byte_at env b frontier Abi.stretch in
@@ -902,13 +918,16 @@ let first_block env fr b ~header ~list ~fail ~first =
   check (Llvm.build_icmp Llvm.Icmp.Ule (address stretched) (address (field env b ptr c context_limit)) "" b);
   set_field env b stretched c context_frontier;
   set_field env b stretched m Walks.frontier_end;
-  let start_fresh = line (address frontier) in
+  let start_fresh = aligned (address frontier) in
   let fresh_end = Llvm.insertion_block b in
-  ignore (Llvm.build_br taken b);
-  Llvm.position_at_end taken b;
+  ignore (Llvm.build_br bumped b);
+  Llvm.position_at_end bumped b;
   let start = Llvm.build_phi [ (start_used, used_end); (start_fresh, fresh_end) ] "" b in
   let start = Llvm.build_inttoptr start ptr "" b in
   set_field env b (byte_at env b start first) m Walks.frontier;
+  ignore (Llvm.build_br taken b);
+  Llvm.position_at_end taken b;
+  let start = Llvm.build_phi [ (top, pop); (start, bumped) ] "" b in
   let live = field env b i64 m Walks.live in
   set_field env b (Llvm.build_add live (n 1) "" b) m Walks.live;
   let store i v = ignore (handle_field env (Llvm.build_store v (Llvm.build_struct_gep header list i "" b) b)) in
@@ -959,8 +978,9 @@ let push env fr b ?(ahead = 1) ?(unchecked = false) list stride =
     let runtime_ = block env fr in
     let firsts =
       match Llvm.int64_of_const stride with
-      | Some s when s >= 1L && Int64.mul s (Int64.of_int ahead) <= 128L && fr.open_ <> [] ->
-          let made = first_block env fr b ~header ~list ~fail:runtime_ ~first:128 in
+      | Some s when s >= 1L && Int64.mul s (Int64.of_int ahead) <= Int64.of_int Abi.list_first && fr.open_ <> [] ->
+          let first = first_room ~bytes:(Int64.to_int s * ahead) ~stride:(Int64.to_int s) in
+          let made = first_block env fr b ~header ~list ~fail:runtime_ ~first in
           let made_end = Llvm.insertion_block b in
           ignore (Llvm.build_br pushed b);
           [ (made, made_end) ]

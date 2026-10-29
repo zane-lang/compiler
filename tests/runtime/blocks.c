@@ -92,7 +92,7 @@ void zane_main(void) {
 	node *now = zane_list_at(list, 1, sizeof(node));
 	check(now->value == 7 && now != first);
 	check(list->count == 101 && list->room == 1024 && zane_blocks() == 1);
-	zane_free(list->items, list->room, ZANE_LINE);
+	zane_free(list->items, list->room, ZANE_LIST_ALIGN);
 	*list = (zane_list){ NULL, 0, 0 };
 
 	/* A list of strings returns every block it owns at the drain. */
@@ -210,7 +210,7 @@ void zane_main(void) {
 		zane_list *l = lists[i];
 		/* These lists were placed with no type, so return their blocks
 		   by hand. */
-		zane_free(l->items, l->room, ZANE_LINE);
+		zane_free(l->items, l->room, ZANE_LIST_ALIGN);
 		*l = emptied;
 	}
 	zane_scope_drain(outer);
@@ -225,7 +225,7 @@ void zane_main(void) {
 	for (int64_t i = 0; i < 100; i++) *(int64_t *)zane_list_push(few, 8) = i;
 	check(zane_region_of(few->items) == small && few->items > (char *)few &&
 	      few->items + few->room <= zane_self->frontier && small->mappings == NULL);
-	zane_free(few->items, few->room, ZANE_LINE);
+	zane_free(few->items, few->room, ZANE_LIST_ALIGN);
 	*few = (zane_list){ NULL, 0, 0 };
 	zane_scope_drain(small);
 	check(zane_self->frontier == (char *)small && zane_blocks() == 0);
@@ -248,7 +248,7 @@ void zane_main(void) {
 	while (many->room < 4 * ZANE_CHUNK) *(int64_t *)zane_list_push(many, 8) = pushed++;
 	check(wide->mappings != NULL && many->items == moved && zane_region_of(many->items) == wide &&
 	      *(int64_t *)zane_list_at(many, pushed, 8) == pushed - 1);
-	zane_free(many->items, many->room, ZANE_LINE);
+	zane_free(many->items, many->room, ZANE_LIST_ALIGN);
 	*many = (zane_list){ NULL, 0, 0 };
 	zane_scope_drain(wide);
 	check(zane_blocks() == 0);

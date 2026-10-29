@@ -44,8 +44,17 @@
 #define ZANE_HANDLE_ROOM 16
 #define ZANE_HANDLE_SIZE 24
 
-/* The alignment of a block a handle's elements are held in. */
+/* The alignment of an oversized block's start past its mapping's header
+   (arena.c). */
 #define ZANE_LINE 64
+
+/* A list's block is aligned to a word, as every element is. Its first
+   holds four elements, but no fewer than ZANE_LIST_LEAST bytes and no more
+   than ZANE_LIST_FIRST unless one push asks for more, so that a list of
+   few small elements takes a size class's block (list.c). */
+#define ZANE_LIST_ALIGN 8
+#define ZANE_LIST_LEAST 32
+#define ZANE_LIST_FIRST 128
 
 /* A frame stretches for its scope's blocks by at least ZANE_STRETCH bytes,
    so a scope's first small blocks stretch it once, and to at most

@@ -18,7 +18,7 @@ void zane_out_of_range(void) {
 void zane_list_new(zane_list *out) { *out = (zane_list){ NULL, 0, 0 }; }
 
 /* The list's block made at least `needed` bytes. A full list's block
-   doubles, from 128 bytes, in the region that holds its block (§3.6). Up to
+   doubles, from four elements' bytes (zane_list_first_room), in the region that holds its block (§3.6). Up to
    1 MiB it goes into a returned block of the doubled size, or grows in
    place when it is the last thing at the region's frontier with room after
    it, in its chunk or in the scope's frame stretched to hold it, to at
@@ -60,8 +60,26 @@ static void zane_list_move_out(zane_mark *region, char *items, char *block, int6
 	zane_unlock(region->context);
 }
 
+/* The bytes of a list's first block when its first push asks for `bytes`
+   of elements `stride` wide (zane_abi.h). */
+static inline int64_t zane_list_first_room(int64_t bytes, int64_t stride) {
+	int64_t room = 4 * stride;
+	if (room < ZANE_LIST_LEAST) room = ZANE_LIST_LEAST;
+	if (room > ZANE_LIST_FIRST) room = ZANE_LIST_FIRST;
+	if (room < bytes) room = bytes;
+	return (room + 7) / 8 * 8;
+}
+
+/* Whether the region holds a returned block of `room` bytes, which an
+   allocation of the size takes before any new bytes (arena.c). */
+static inline int zane_list_returned(zane_mark *region, int64_t room) {
+	if (room <= 8 * ZANE_CLASSES) return region->heap.classes[room / 8 - 1] != NULL;
+	zane_stack *s = region->stacks ? zane_find_stack(region, room, ZANE_LIST_ALIGN) : NULL;
+	return s && s->top;
+}
+
 static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
-	int64_t room = list->room ? list->room * 2 : 128;
+	int64_t room = list->room ? list->room * 2 : zane_list_first_room(stride, stride);
 	while (room < needed) room *= 2;
 	zane_mark *region = zane_region_at(list->room ? (void *)list->items : (void *)list);
 	zane_lock(region->context);
@@ -78,8 +96,7 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 		zane_heap *h = &region->heap;
 		int grows = list->room && list->items + list->room == h->bump;
 		if (grows) {
-			zane_stack *s = zane_find_stack(region, room, ZANE_LINE);
-			grows = !(s && s->top) &&
+			grows = !zane_list_returned(region, room) &&
 			        (room - list->room <= h->end - h->bump ||
 			         (h->end == region->context->frontier && zane_stretch(region, list->items + room, ZANE_CHUNK)));
 		}
@@ -93,28 +110,28 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 		/* The old block's stack is made first: a stack's record comes from
 		   the frontier, and one made after the new block would stop that
 		   block growing in place. */
-		if (list->room) zane_stack_of(region, list->room, ZANE_LINE);
-		items = zane_alloc_held(region, room, ZANE_LINE);
+		if (list->room > 8 * ZANE_CLASSES) zane_stack_of(region, list->room, ZANE_LIST_ALIGN);
+		items = zane_alloc_held(region, room, ZANE_LIST_ALIGN);
 		zane_unlock(region->context);
 	}
 	if (list->room > ZANE_CHUNK - ZANE_LINE) {
 		zane_list_move_out(region, items, list->items, list->count * stride);
 	} else {
 		if (list->count) memcpy(items, list->items, (size_t)(list->count * stride));
-		if (list->room) zane_free(list->items, list->room, ZANE_LINE);
+		if (list->room) zane_free(list->items, list->room, ZANE_LIST_ALIGN);
 	}
 	list->items = items;
 	list->room = room;
 }
 
-/* An empty list's first block, 128 bytes, when its handle is in the
+/* An empty list's first block, `room` bytes, when its handle is in the
    innermost scope's frame, or in no memory of the runtime's such as the
    machine stack, while the context is this thread's alone, so the block is
    that scope's and needs no lock (zane_region_at): a returned block of the
-   size first (§3.2), else the next bytes at the scope's frontier, in its
+   size class first (§3.2), else the next bytes at the scope's frontier, in its
    frame stretched to hold them when the heap has no room there. 0 when
    none of that holds, and the list grows as any other does. */
-static inline char *zane_list_first(zane_list *list) {
+static inline char *zane_list_first(zane_list *list, int64_t room) {
 	zane_mark *m = zane_open;
 	if (!m) return NULL;
 	if ((char *)list < (char *)m || (char *)list >= m->context->frontier) {
@@ -122,25 +139,25 @@ static inline char *zane_list_first(zane_list *list) {
 	}
 	zane_heap *h = &m->heap;
 	char *block;
-	zane_stack *s = m->stacks ? zane_find_stack(m, 128, ZANE_LINE) : NULL;
-	if (s && s->top) {
-		block = s->top;
-		s->top = *(char **)block;
+	char **top = &h->classes[room / 8 - 1];
+	if (*top) {
+		block = *top;
+		*top = *(char **)block;
 	} else {
-		uintptr_t mask = ZANE_LINE - 1;
+		uintptr_t mask = ZANE_LIST_ALIGN - 1;
 		uintptr_t start = ((uintptr_t)h->bump + mask) & ~mask;
-		if (!h->bump || start + 128 > (uintptr_t)h->end) {
+		if (!h->bump || start + (uintptr_t)room > (uintptr_t)h->end) {
 			char *frontier = m->context->frontier;
 			if (h->bump && h->end != frontier) return NULL;
 			if (!h->bump) start = ((uintptr_t)frontier + mask) & ~mask;
-			if (!zane_stretch(m, (char *)(start + 128), ZANE_STRETCHED)) return NULL;
+			if (!zane_stretch(m, (char *)(start + (uintptr_t)room), ZANE_STRETCHED)) return NULL;
 		}
 		block = (char *)start;
-		h->bump = block + 128;
+		h->bump = block + room;
 	}
 	h->live++;
 	list->items = block;
-	list->room = 128;
+	list->room = room;
 	return block;
 }
 
@@ -160,8 +177,8 @@ static void *zane_list_push_grown(zane_list *list, int64_t stride) {
    needs no frame of its own. */
 void *zane_list_push(zane_list *list, int64_t stride) {
 	if (__builtin_expect((list->count + 1) * stride <= list->room, 1)) return list->items + list->count++ * stride;
-	if (!list->room && stride <= 128) {
-		char *block = zane_list_first(list);
+	if (!list->room && stride <= ZANE_LIST_FIRST) {
+		char *block = zane_list_first(list, zane_list_first_room(stride, stride));
 		if (block) {
 			list->count = 1;
 			return block;
@@ -175,8 +192,8 @@ void *zane_list_push(zane_list *list, int64_t stride) {
    no check of their own (docs/design/lowering.md §9). Emitted code calls
    this only when the block lacks that room. */
 void *zane_list_reserve(zane_list *list, int64_t stride, int64_t n) {
-	if (!list->room && n * stride <= 128) {
-		char *block = zane_list_first(list);
+	if (!list->room && n * stride <= ZANE_LIST_FIRST) {
+		char *block = zane_list_first(list, zane_list_first_room(n * stride, stride));
 		if (block) {
 			list->count = 1;
 			return block;

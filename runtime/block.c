@@ -329,7 +329,7 @@ void zane_arguments(zane_list *out) {
 	int64_t stride = (int64_t)sizeof(zane_text);
 	int64_t room = 128;
 	while (room < zane_argc * stride) room *= 2;
-	zane_text *items = (zane_text *)zane_alloc(zane_here(), room, ZANE_LINE);
+	zane_text *items = (zane_text *)zane_alloc(zane_here(), room, ZANE_LIST_ALIGN);
 	for (int i = 0; i < zane_argc; i++) {
 		int64_t length = (int64_t)strlen(zane_argv[i]);
 		if (length == 0) {

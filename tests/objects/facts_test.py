@@ -155,13 +155,13 @@ class FactsTests(unittest.TestCase):
 
     def test_first_blocks_are_made_inline_in_a_scope(self):
         # An empty list's first block is made by the push itself, which
-        # stores its 128 bytes of room, in a function with a scope of its
+        # stores its room for four of its 8-byte elements, in a function with a scope of its
         # own open; one with none calls the runtime for it, so its code stays
         # small (Emit.push).
         ir = run(ZANEC, "--ll", *packages("pushes"))
         body = lambda name: re.search(r"(?ms)^define [^\n]*@\"pushes\$" + name + r"\(.*?^}", ir).group(0)
-        self.assertRegex(body("gather"), r"store i64 128, ")
-        self.assertNotRegex(body("fill"), r"store i64 128, ")
+        self.assertRegex(body("gather"), r"store i64 32, ")
+        self.assertNotRegex(body("fill"), r"store i64 32, ")
         self.assertIn("@zane_list_push", body("fill"))
 
     def test_runs_of_pushes_make_room_once(self):

@@ -2,9 +2,9 @@
    each by the name runtime/zane_abi.h gives the number: the unit test
    compares it with the compiler's `Abi`, and dev/bin/windows-programs with
    the header itself, so a header that drifts from the structs fails on
-   every platform the tests build for. ZANE_LINE, ZANE_STRETCH,
-   ZANE_STRETCHED and ZANE_GUARD are not measured: nothing but the header
-   defines them. */
+   every platform the tests build for. ZANE_LINE, ZANE_LIST_ALIGN,
+   ZANE_LIST_LEAST, ZANE_LIST_FIRST, ZANE_STRETCH, ZANE_STRETCHED and
+   ZANE_GUARD are not measured: nothing but the header defines them. */
 
 #include "zane_internal.h"
 

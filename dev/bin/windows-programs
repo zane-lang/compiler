@@ -75,12 +75,12 @@ done
 
 # The runtime's structs as Windows lays them out (tests/runtime/abi/probe.c),
 # held to runtime/zane_abi.h, the numbers emitted code is built with: each
-# one the header gives, in its order, but ZANE_LINE, ZANE_STRETCH,
-# ZANE_STRETCHED and ZANE_GUARD, which nothing else defines.
+# one the header gives, in its order, but ZANE_LINE, the ZANE_LIST_ sizes,
+# ZANE_STRETCH, ZANE_STRETCHED and ZANE_GUARD, which nothing else defines.
 "$ZANE_CC" --target="$TARGET" -std=c11 -Wall -Wextra -Werror -O2 -I runtime \
 	-o "$OUT/abi.exe" tests/runtime/abi/probe.c
 sed -n 's/^#define \(ZANE_[A-Z0-9_]*\) \([0-9][0-9]*\)$/\1 \2/p' runtime/zane_abi.h |
-	grep -Ev '^ZANE_(LINE|STRETCH|STRETCHED|GUARD) ' >"$OUT/abi.out"
+	grep -Ev '^ZANE_(LINE|LIST_ALIGN|LIST_LEAST|LIST_FIRST|STRETCH|STRETCHED|GUARD) ' >"$OUT/abi.out"
 echo 0 >"$OUT/abi.status"
 
 echo "windows-programs: $(ls "$OUT"/*.exe | wc -l) programs in $OUT"

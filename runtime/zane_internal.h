@@ -79,7 +79,8 @@ enum { ZANE_STEP = ZANE_CHUNK };
 /* A stretch that starts at a frame's end holds a list's first block past
    the next line, so a first stretch always moves the frontier by exactly
    ZANE_STRETCH (zane_abi.h), as emitted code takes it to. */
-_Static_assert(ZANE_STRETCH % 16 == 0 && ZANE_STRETCH >= 128 + ZANE_LINE, "a first stretch holds a first block");
+_Static_assert(ZANE_STRETCH % 16 == 0 && ZANE_STRETCH >= ZANE_LIST_FIRST + ZANE_LIST_ALIGN, "a first stretch holds a first block");
+_Static_assert(ZANE_LIST_FIRST <= 8 * ZANE_CLASSES, "a first block comes from a size class");
 
 enum { ZANE_PAGES = 1 << 14 };
 
