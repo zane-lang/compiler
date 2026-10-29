@@ -7,8 +7,17 @@
     ├── globals[2]: zane_self : i64, imported
     ├── callbacks[0] > callback:
     │   ├── symbol: !geometry$double
-    │   ├── params[0]: i64
-    │   └── result: i64
+    │   ├── takes[0]: i64
+    │   └── gives: i64
+    ├── callbacks[1] > callback:
+    │   ├── symbol: !geometry$same<%primitives$I64>(%primitives$I64)$lambda1
+    │   ├── entry: !geometry$entry !geometry$same<%primitives$I64>(%primitives$I64)$lambda1
+    │   ├── takes[0]: i64
+    │   └── gives: i64
+    ├── invokers[0] > invoker:
+    │   ├── symbol: !geometry$invoke i64(i64)
+    │   ├── takes[0]: i64
+    │   └── gives: i64
     ├── funcs[0] > func:
     │   ├── symbol: !geometry$Point(%primitives$I64, %primitives$I64)
     │   ├── linkage: exported
@@ -58,6 +67,17 @@
     │       ├── left: local #1 : i64
     │       └── right: local #2 : i64
     ├── funcs[4] > func:
+    │   ├── symbol: !geometry$_through(%primitives$I64[%primitives$I64], %primitives$I64)
+    │   ├── linkage: exported
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > call value:
+    │       ├── type: i64
+    │       ├── invoker: !geometry$invoke i64(i64)
+    │       ├── fn: local #1 : ptr
+    │       └── args[0]: local #2 : i64
+    ├── funcs[5] > func:
     │   ├── symbol: !geometry$twice(%primitives$I64)
     │   ├── linkage: exported
     │   ├── params[0]: local #1 : i64
@@ -73,7 +93,7 @@
     │           ├── type: i64
     │           ├── fn: !geometry$same<%primitives$I64>(%primitives$I64)
     │           └── args[0]: local #1 : i64
-    ├── funcs[5] > func:
+    ├── funcs[6] > func:
     │   ├── symbol: !geometry$double
     │   ├── linkage: exported
     │   ├── params[0]: local #1 : i64
@@ -83,7 +103,7 @@
     │       ├── op: +
     │       ├── left: local #1 : i64
     │       └── right: local #1 : i64
-    ├── funcs[6] > func:
+    ├── funcs[7] > func:
     │   ├── symbol: !geometry$scaled(%primitives$I64)
     │   ├── linkage: exported
     │   ├── params[0]: local #1 : i64
@@ -98,7 +118,7 @@
     │               ├── type: ptr
     │               ├── fn: !geometry$unit
     │               └── args:
-    ├── funcs[7] > func:
+    ├── funcs[8] > func:
     │   ├── symbol: !geometry$shifted(!geometry$Point, %primitives$I64)
     │   ├── linkage: exported
     │   ├── params[0]: local #1 : {i64, i64}
@@ -135,7 +155,7 @@
     │       │       ├── members[0] > member 0: local #3 : i64
     │       │       └── members[1] > member 1: local #4 : i64
     │       └── body[2]: leave @5
-    ├── funcs[8] > func:
+    ├── funcs[9] > func:
     │   ├── symbol: !geometry$same<%primitives$I64>(%primitives$I64)
     │   ├── linkage: shared
     │   ├── params[0]: local #1 : i64
@@ -143,8 +163,31 @@
     │   ├── body[0] > let:
     │   │   ├── local: #2
     │   │   └── value: local #1 : i64
-    │   └── body[1] > return: local #2 : i64
-    ├── funcs[9] > func:
+    │   ├── body[1] > eval > expand:
+    │   │   ├── type: i64
+    │   │   ├── label: @5
+    │   │   ├── result: #6
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #3
+    │   │   │   └── value: function !geometry$same<%primitives$I64>(%primitives$I64)$lambda1
+    │   │   ├── body[1] > let:
+    │   │   │   ├── local: #4
+    │   │   │   └── value: 1 : i64
+    │   │   ├── body[2] > assign:
+    │   │   │   ├── place: #6
+    │   │   │   └── value > call value:
+    │   │   │       ├── type: i64
+    │   │   │       ├── invoker: !geometry$invoke i64(i64)
+    │   │   │       ├── fn: local #3 : ptr
+    │   │   │       └── args[0]: local #4 : i64
+    │   │   └── body[3]: leave @5
+    │   └── body[2] > return: local #2 : i64
+    ├── funcs[10] > func:
+    │   ├── symbol: !geometry$same<%primitives$I64>(%primitives$I64)$lambda1
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return: local #1 : i64
+    ├── funcs[11] > func:
     │   ├── symbol: !geometry$unit
     │   ├── linkage: shared
     │   ├── params:
@@ -168,9 +211,49 @@
     │   │       ├── args[1]: global !geometry$unit.value
     │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global !geometry$unit.value
-    └── funcs[10] > func:
-        ├── symbol: !geometry$double.adapter
-        ├── linkage: exported
+    ├── funcs[12] > func:
+    │   ├── symbol: !geometry$double.adapter
+    │   ├── linkage: exported
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: !geometry$double
+    │   │       └── args[0] > deref:
+    │   │           ├── type: i64
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > offset:
+    │   │                   ├── within: {ptr}
+    │   │                   ├── path: 0
+    │   │                   └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    └── funcs[13] > func:
+        ├── symbol: !geometry$same<%primitives$I64>(%primitives$I64)$lambda1.adapter
+        ├── linkage: shared
         ├── params[0]: local #0 : ptr
         ├── params[1]: local #1 : ptr
         ├── ret: void
@@ -193,7 +276,7 @@
         │   ├── address: local #1 : ptr
         │   └── value > call:
         │       ├── type: i64
-        │       ├── fn: !geometry$double
+        │       ├── fn: !geometry$same<%primitives$I64>(%primitives$I64)$lambda1
         │       └── args[0] > deref:
         │           ├── type: i64
         │           └── ptr > deref:

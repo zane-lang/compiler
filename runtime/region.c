@@ -252,15 +252,16 @@ void zane_regions_start(void) {
 /* The lowest address of this thread's machine stack, and the stack the
    handler runs on, since a fault from a full machine stack leaves none to
    run on. Each thread that runs the program's code sets both before it
-   does. */
+   does, keeping the alternate stack it had, which C may have set. */
 static _Thread_local char *zane_stack_low;
 static _Thread_local void *zane_signal_stack;
+static _Thread_local stack_t zane_prior_stack;
 
 enum { ZANE_SIGNAL_STACK = 64 * 1024 };
 
 void zane_thread_start(void) {
 	stack_t alternate = { .ss_sp = malloc(ZANE_SIGNAL_STACK), .ss_size = ZANE_SIGNAL_STACK, .ss_flags = 0 };
-	if (!alternate.ss_sp || sigaltstack(&alternate, NULL) != 0) zane_broken("no stack for the fault handler");
+	if (!alternate.ss_sp || sigaltstack(&alternate, &zane_prior_stack) != 0) zane_broken("no stack for the fault handler");
 	zane_signal_stack = alternate.ss_sp;
 #ifdef __APPLE__
 	pthread_t self = pthread_self();
@@ -277,10 +278,12 @@ void zane_thread_start(void) {
 }
 
 /* A thread that stops running the program's code, a pool worker the pool
-   no longer wants, gives back the handler's stack. */
+   no longer wants or one C made returning from a function value, gives back
+   the handler's stack and has the one it had before again. */
 void zane_thread_stop(void) {
-	stack_t off = { .ss_sp = NULL, .ss_size = 0, .ss_flags = SS_DISABLE };
-	sigaltstack(&off, NULL);
+	stack_t prior = zane_prior_stack;
+	prior.ss_flags &= SS_DISABLE;
+	sigaltstack(&prior, NULL);
 	free(zane_signal_stack);
 	zane_signal_stack = NULL;
 }

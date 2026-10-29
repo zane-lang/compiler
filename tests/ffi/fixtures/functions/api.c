@@ -1,4 +1,6 @@
+#define _XOPEN_SOURCE 700
 #include <pthread.h>
+#include <stdlib.h>
 #include "api.h"
 
 double apply(double (*f)(double), double x) { return f(x); }
@@ -28,11 +30,29 @@ typedef struct {
 	int64_t out;
 } job;
 
+#ifdef _WIN32
 static void *run(void *at) {
 	job *j = at;
 	j->out = j->f(j->x);
 	return NULL;
 }
+#else
+#include <signal.h>
+
+/* The thread's own alternate signal stack is still its own after the call. */
+static void *run(void *at) {
+	job *j = at;
+	stack_t own = { .ss_sp = malloc(64 * 1024), .ss_size = 64 * 1024, .ss_flags = 0 };
+	if (!own.ss_sp || sigaltstack(&own, NULL) != 0) abort();
+	j->out = j->f(j->x);
+	stack_t now;
+	if (sigaltstack(NULL, &now) != 0 || now.ss_sp != own.ss_sp || (now.ss_flags & SS_DISABLE)) j->out = -1;
+	stack_t off = { .ss_flags = SS_DISABLE };
+	sigaltstack(&off, NULL);
+	free(own.ss_sp);
+	return NULL;
+}
+#endif
 
 int64_t on_threads(int64_t (*f)(int64_t), int64_t x) {
 	enum { N = 4 };
@@ -40,7 +60,7 @@ int64_t on_threads(int64_t (*f)(int64_t), int64_t x) {
 	job jobs[N];
 	for (int i = 0; i < N; i++) {
 		jobs[i] = (job){ f, x + i, 0 };
-		pthread_create(&threads[i], NULL, run, &jobs[i]);
+		if (pthread_create(&threads[i], NULL, run, &jobs[i]) != 0) abort();
 	}
 	int64_t total = 0;
 	for (int i = 0; i < N; i++) {
@@ -61,3 +81,7 @@ int64_t sorted(bool (*before)(int64_t, int64_t), const int64_t *xs) {
 	for (int i = 0; i < 4; i++) digits = digits * 10 + ys[i];
 	return digits;
 }
+
+ratio scale_ratio(ratio (*f)(ratio), ratio r) { return f(f(r)); }
+
+quad rotate_quad(quad (*f)(quad), quad q) { return f(q); }

@@ -1063,7 +1063,6 @@ let emit_env ?(pack = false) ?(triple = "x86_64-unknown-linux-gnu") () =
     i64 = Llvm.i64_type ctx;
     funcs = Hashtbl.create 1;
     abis = Hashtbl.create 1;
-    invokers = Hashtbl.create 1;
     callable = Hashtbl.create 1;
     registers = Codegen__Emit.registers triple;
     pack;

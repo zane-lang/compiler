@@ -1,9 +1,9 @@
 (* Function values C can call (docs/design/ffi.md F11): after lowering,
    each lambda defined in this object whose type C can call
-   ([Nodes.Callback.crosses]) gains its adapter, and each call through a
-   function value of such a type its invoker. The glue defines the
-   lambdas' C entries and the invokers; codegen takes a lambda's value as
-   its C entry's address and calls through the invoker. *)
+   (Lower_foreign.c_signature) gains its adapter. The glue defines the
+   lambdas' C entries and the invokers; codegen takes such a lambda's value
+   as its C entry's address and calls through the invoker each call
+   through such a value names. *)
 
 open Nodes
 
@@ -17,7 +17,8 @@ let context = { Global.symbol = "zane_self"; linkage = Linkage.Imported; ty = Ty
    for its result, calls [f] with the arguments and stores what it gives.
    On a thread without a context, it has the runtime make one for the call
    and give it back after. C's entry calls it, so it is exported from this
-   object, and C names it by its symbol. *)
+   object, and C names it by its symbol; it is shared when [f] is not
+   exported, since each object that lifts [f] defines it. *)
 let adapter (f : Func.t) : Func.t =
   let ptr node = { Expr.node; ty = Ty.Ptr } in
   let table = Ty.Struct (List.map (fun _ -> Ty.Ptr) f.Func.params) in
@@ -31,7 +32,7 @@ let adapter (f : Func.t) : Func.t =
   let runtime fn = Stat.If { cond = fresh; body = [ Stat.Eval { Expr.node = Expr.Runtime { fn; args = [] }; ty = Ty.Void } ] } in
   {
     Func.symbol = Callback.adapter f.Func.symbol;
-    linkage = Linkage.Exported;
+    linkage = (if f.Func.linkage = Linkage.Exported then Linkage.Exported else Linkage.Shared);
     params = [ (0, Ty.Ptr); (1, Ty.Ptr) ];
     places = [];
     ret = Ty.Void;
@@ -50,32 +51,21 @@ let adapter (f : Func.t) : Func.t =
    one's. *)
 let defined (f : Func.t) = match f.Func.linkage with Linkage.Imported | Linkage.Available -> false | _ -> true
 
-(* Each call through a function value of a type C can call in [funcs], by
-   its types, once. *)
-let calls funcs =
-  let found = ref [] in
-  let call (e : Expr.t) =
-    match e.Expr.node with
-    | Expr.Call_value { args; _ } ->
-        let sg = (List.map (fun (a : Expr.t) -> a.Expr.ty) args, e.Expr.ty) in
-        if Callback.crosses (fst sg) (snd sg) && not (List.mem sg !found) then found := sg :: !found
-    | _ -> ()
+(* [funcs] with the adapters of [callbacks], the lambdas C can call, that
+   this object defines, each callback marked by whether it does, with an
+   entry named after [package], this object's, when other objects may
+   define it too, and the globals the adapters read. *)
+let add package (callbacks : Callback.t list) funcs =
+  let here = Hashtbl.create 16 in
+  List.iter (fun (f : Func.t) -> if defined f then Hashtbl.replace here f.Func.symbol f) funcs;
+  let marked (c : Callback.t) =
+    match Hashtbl.find_opt here c.Callback.symbol with
+    | Some f when f.Func.linkage = Linkage.Exported -> { c with Callback.here = true }
+    | Some _ -> { c with Callback.here = true; entry = Callback.shared_entry package c.Callback.symbol }
+    | None -> c
   in
-  List.iter (fun (f : Func.t) -> Traverse.walk_stats call ignore f.Func.body) funcs;
-  List.rev !found
-
-(* [funcs] with the adapters of [lambdas], the symbols of the program's
-   lambdas, the globals they read, and the callbacks and invokers of the
-   object whose symbols start with [package]. *)
-let add ~package ~lambdas funcs =
-  let lambda (f : Func.t) =
-    defined f && List.mem f.Func.symbol lambdas && Callback.crosses (List.map snd f.Func.params) f.Func.ret
+  let callbacks = List.map marked callbacks in
+  let lifted =
+    List.filter_map (fun (c : Callback.t) -> if c.Callback.here then Hashtbl.find_opt here c.Callback.symbol else None) callbacks
   in
-  let lifted = List.filter lambda funcs in
-  let callbacks =
-    List.map (fun (f : Func.t) -> { Callback.symbol = f.Func.symbol; params = List.map snd f.Func.params; ret = f.Func.ret }) lifted
-  in
-  let invokers =
-    List.map (fun (params, ret) -> { Callback.symbol = Callback.invoker package params ret; params; ret }) (calls funcs)
-  in
-  (funcs @ List.map adapter lifted, (if lifted = [] then [] else [ context ]), callbacks, invokers)
+  (funcs @ List.map adapter lifted, (if lifted = [] then [] else [ context ]), callbacks)

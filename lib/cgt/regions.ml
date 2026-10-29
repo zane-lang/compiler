@@ -156,7 +156,7 @@ let rec ex a st ~moving (e : Expr.t) =
           else if e.Expr.ty = Ty.Void then (consume st, false)
           else if moving then (st, true)
           else raise Unknown
-      | Expr.Call_value { fn; args } ->
+      | Expr.Call_value { fn; args; _ } ->
           let st = read st fn in
           List.fold_left
             (fun st x ->

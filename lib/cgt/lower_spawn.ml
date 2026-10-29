@@ -143,7 +143,7 @@ let wrapped st span (callee : T.Verb_ref.t) args ret =
 (* A spawned call to [v]'s function, or through [fn], a function value's
    address, which runs before the arguments and rides in the frame ahead of
    them. [writes] is whether the call may write its subject. *)
-let spawn_call w st ctx span v fn ~writes passed handler =
+let spawn_call w ?invoker st ctx span v fn ~writes passed handler =
   let o = outcome st span v in
   let whole = returned o in
   let args = Lower_calls.arguments w ~direct:(Option.is_none fn) st ctx span v passed in
@@ -196,7 +196,7 @@ let spawn_call w st ctx span v fn ~writes passed handler =
     match fn with
     | Some _ ->
         let fn = { Expr.node = Expr.Deref (member 1); ty = Nodes.Ty.Ptr } in
-        { Expr.node = Expr.Call_value { fn; args = given }; ty = whole }
+        { Expr.node = Expr.Call_value { fn; args = given; invoker }; ty = whole }
     | None -> { Expr.node = Expr.Call { fn = symbol st v; args = given }; ty = whole }
   in
   let writeback =
@@ -327,6 +327,7 @@ let rec spawn w st ctx span (e : T.Expr.t) =
       match Tty.strip_mode callee.T.Expr.ty with
       | Tty.Verb fv -> (
           let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
+          let invoker = Lower_foreign.invoker st span fv in
           let (fn : Expr.t) = w.value_of st ctx callee in
           match args with
           | T.Arg.Value subject :: rest
@@ -335,9 +336,9 @@ let rec spawn w st ctx span (e : T.Expr.t) =
               let read = { Expr.node = Expr.Local id; ty = fn.Expr.ty } in
               let lets, args = Lower_calls.held_last w ~direct:false st ctx span v subject rest in
               let stats, future =
-                spawn_call w st ctx span v (Some read) ~writes:true args handler
+                spawn_call w ?invoker st ctx span v (Some read) ~writes:true args handler
               in
               ((Stat.Let { id; value = fn } :: lets) @ stats, future)
-          | _ -> spawn_call w st ctx span v (Some fn) ~writes:fv.Tty.is_mut args handler)
+          | _ -> spawn_call w ?invoker st ctx span v (Some fn) ~writes:fv.Tty.is_mut args handler)
       | _ -> Diagnostic.bug ~span "lowering expected a function value here")
   | _ -> Diagnostic.bug ~span "lowering: a spawn of something not a call"

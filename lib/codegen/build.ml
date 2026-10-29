@@ -80,8 +80,9 @@ let macho triple =
   in
   List.exists contains [ "-apple-"; "darwin"; "macos"; "-ios" ]
 
-(* Every copy of a shared function, a generic instance, and of a shared
-   variable, a package constant's, is kept to one by the linker
+(* Every copy of a shared function, a generic instance or a lambda's
+   adapter (docs/design/ffi.md F11), and of a shared variable, a package
+   constant's, is kept to one by the linker
    (docs/design/separate-compilation.md C4). An ELF or COFF linker does that
    for a definition in a COMDAT of its own; without one, a COFF linker
    refuses the second copy as a duplicate. Mach-O has no COMDATs, and its
@@ -89,7 +90,8 @@ let macho triple =
 let shared_in_comdats triple m =
   let macho = macho triple in
   let own v =
-    if Llvm.linkage v = Llvm.Linkage.Link_once_odr && not (Llvm.is_declaration v) then
+    let shared = match Llvm.linkage v with Llvm.Linkage.Link_once_odr | Llvm.Linkage.Weak_odr -> true | _ -> false in
+    if shared && not (Llvm.is_declaration v) then
       set_own_comdat m v (Llvm.value_name v)
   in
   if not macho then begin

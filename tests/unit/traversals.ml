@@ -248,7 +248,7 @@ let cgt_samples () =
     none (C.Expr.Address 1);
     (C.Expr.Deref a, ([ a ], []));
     (C.Expr.Call { fn = "f"; args = [ a; c ] }, ([ a; c ], []));
-    (C.Expr.Call_value { fn = a; args = [ c; k ] }, ([ a; c; k ], []));
+    (C.Expr.Call_value { fn = a; args = [ c; k ]; invoker = None }, ([ a; c; k ], []));
     (C.Expr.Runtime { fn = Cgt.Runtime.Print; args = [ a; c ] }, ([ a; c ], []));
     (C.Expr.Math { fn = Cgt.Math.Bit_and; args = [ a; c ] }, ([ a; c ], []));
     (C.Expr.Foreign_call { thunk = "f.ffi"; args = [ a; c ] }, ([ a; c ], []));

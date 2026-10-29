@@ -12,6 +12,55 @@ open Nodes
 open State
 open Type_layout
 
+(* The C type a value of the Zane type [t] crosses as in a function value
+   C calls (spec ffi.md §3.6, docs/design/ffi.md F11), when it is one: a
+   scalar, a `Bool`, or a C-compatible value type (§3.3). *)
+let rec c_shape st span (t : Tty.t) : Callback.shape option =
+  let t = Tty.strip_mode t in
+  match t with
+  | Tty.Intrinsic { namespace = "primitives"; name = "Bool"; args = [] } -> Some Callback.Truth
+  | _ when scalar t -> Some (Callback.Scalar (ty st span t))
+  | Tty.Named _ -> (
+      match definition st t with
+      | Some (T.Decl.Struct (_ :: _ as ms), false) ->
+          let field (_, m) =
+            match (array_of m, c_shape st span m) with
+            | Some (e, n), _ when scalar e -> Some (Callback.Scalar (ty st span e), Some n)
+            | None, Some ((Callback.Scalar _ | Callback.Record _) as s) -> Some (s, None)
+            | _ -> None
+          in
+          let fields = List.map field ms in
+          if List.for_all Option.is_some fields then Some (Callback.Record (List.filter_map Fun.id fields)) else None
+      | _ -> None)
+  | _ -> None
+
+(* The C signature of the function type [fv], when C can call a value of
+   it: no subject, no abort, and C types for its parameters and result, a
+   `Unit` result returning nothing. *)
+let c_signature st span (fv : Tty.verb) =
+  if Option.is_some fv.Tty.this_ || Option.is_some fv.Tty.abort then None
+  else
+    let takes = List.map (c_shape st span) fv.Tty.params in
+    let gives =
+      match Tty.strip_mode fv.Tty.ret with
+      | Tty.Intrinsic { namespace = "primitives"; name = "Unit"; args = [] } -> Some Callback.Nothing
+      | r -> c_shape st span r
+    in
+    match gives with
+    | Some gives when List.for_all Option.is_some takes -> Some (List.filter_map Fun.id takes, gives)
+    | _ -> None
+
+(* The invoker a call through a value of the function type [fv] goes
+   through, if C can call it, made once per signature. *)
+let invoker st span (fv : Tty.verb) =
+  Option.map
+    (fun (takes, gives) ->
+      let symbol = Callback.invoker st.package takes gives in
+      if not (Hashtbl.mem st.invokers symbol) then
+        Hashtbl.replace st.invokers symbol { Callback.symbol; takes; gives; here = true; entry = symbol };
+      symbol)
+    (c_signature st span fv)
+
 (* How a value of the Zane type [t] crosses into C (spec ffi.md §3.3), as
    semantics has already checked it does. *)
 let crossing st span (t : Tty.t) : Foreign.crossing =

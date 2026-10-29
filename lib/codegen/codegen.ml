@@ -41,7 +41,6 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       i64 = Llvm.i64_type ctx;
       funcs = Hashtbl.create 32;
       abis = Hashtbl.create 32;
-      invokers = Hashtbl.create 8;
       callable = Hashtbl.create 8;
       registers = registers triple;
       pack;
@@ -79,12 +78,16 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       | Cgt.Nodes.Linkage.Available -> Diagnostic.bug "an optimization-only global");
       Hashtbl.replace env.globals g.Global.symbol v)
     p.Program.globals;
-  List.iter
-    (fun (c : Callback.t) -> Hashtbl.replace env.invokers (c.Callback.params, c.Callback.ret) c.Callback.symbol)
-    p.Program.invokers;
+  List.iter (fun (c : Callback.t) -> Hashtbl.replace env.callable c.Callback.symbol c.Callback.entry) p.Program.callbacks;
   (* A lambda's adapter is named as the glue's C entry declares it
-     (docs/design/ffi.md F11). *)
-  let adapters = List.map (fun (c : Callback.t) -> Callback.adapter c.Callback.symbol) p.Program.callbacks in
+     (docs/design/ffi.md F11). Only that entry calls it, which an
+     unoptimized build emits as an object of its own, so a shared one is
+     kept where nothing in this module calls it. *)
+  let adapters =
+    List.filter_map
+      (fun (c : Callback.t) -> if c.Callback.here then Some (Callback.adapter c.Callback.symbol) else None)
+      p.Program.callbacks
+  in
   List.iter
     (fun (f : Func.t) ->
       let a = abi env (List.map snd f.Func.params) f.Func.ret in
@@ -106,11 +109,11 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal fn
       | Cgt.Nodes.Linkage.Exported | Cgt.Nodes.Linkage.Imported -> ()
       | Cgt.Nodes.Linkage.Available -> Llvm.set_linkage Llvm.Linkage.Available_externally fn
+      | Cgt.Nodes.Linkage.Shared when List.mem f.Func.symbol adapters -> Llvm.set_linkage Llvm.Linkage.Weak_odr fn
       | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr fn);
       declare_abi env fn a;
       declare_places env fn f a;
       Hashtbl.replace env.abis f.Func.symbol a;
-      if Callback.crosses (List.map snd f.Func.params) f.Func.ret then Hashtbl.replace env.callable f.Func.symbol ();
       Hashtbl.replace env.funcs f.Func.symbol (fn, fty))
     (p.Program.funcs @ List.map (fun (m : Cgt.Memo.t) -> m.Cgt.Memo.func) memos);
   List.iter

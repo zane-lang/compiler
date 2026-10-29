@@ -178,33 +178,32 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
          its lambdas' C entries and its invokers, in one module of their
          own, named by the lambdas' and the invokers' symbols. *)
       let module C = Cgt.Nodes.Callback in
-      let rec shape (t : Cgt.Nodes.Ty.t) =
-        match t with
-        | Cgt.Nodes.Ty.I1 -> Foreign.Glue.Truth
-        | Cgt.Nodes.Ty.I32 -> Foreign.Glue.Value "int"
-        | Cgt.Nodes.Ty.I64 -> Foreign.Glue.Value "long long"
-        | Cgt.Nodes.Ty.F32 -> Foreign.Glue.Value "float"
-        | Cgt.Nodes.Ty.F64 -> Foreign.Glue.Value "double"
-        | Cgt.Nodes.Ty.Void -> Foreign.Glue.Nothing
-        | Cgt.Nodes.Ty.Struct fs ->
-            Foreign.Glue.Record
-              (List.map (function Cgt.Nodes.Ty.Array (e, n) -> (shape e, Some n) | f -> (shape f, None)) fs)
-        | _ -> Diagnostic.bug "codegen: a function value C calls with a type it does not take"
+      let rec shape (s : C.shape) =
+        match s with
+        | C.Truth -> Foreign.Glue.Truth
+        | C.Nothing -> Foreign.Glue.Nothing
+        | C.Scalar Cgt.Nodes.Ty.I32 -> Foreign.Glue.Value "int"
+        | C.Scalar Cgt.Nodes.Ty.I64 -> Foreign.Glue.Value "long long"
+        | C.Scalar Cgt.Nodes.Ty.F32 -> Foreign.Glue.Value "float"
+        | C.Scalar Cgt.Nodes.Ty.F64 -> Foreign.Glue.Value "double"
+        | C.Record fs -> Foreign.Glue.Record (List.map (fun (f, n) -> (shape f, n)) fs)
+        | C.Scalar _ -> Diagnostic.bug "codegen: a function value C calls with a type it does not take"
       in
       let callbacks () =
-        let p = cgt.Cgt.Nodes.Program.callbacks and i = cgt.Cgt.Nodes.Program.invokers in
+        let p = List.filter (fun (c : C.t) -> c.C.here) cgt.Cgt.Nodes.Program.callbacks
+        and i = cgt.Cgt.Nodes.Program.invokers in
         if p = [] && i = [] then Ok None
         else
           let entry (c : C.t) =
             {
-              Foreign.Glue.label = global_prefix ^ C.entry c.C.symbol;
+              Foreign.Glue.label = global_prefix ^ c.C.entry;
               adapter = global_prefix ^ C.adapter c.C.symbol;
-              params = List.map shape c.C.params;
-              result = shape c.C.ret;
+              params = List.map shape c.C.takes;
+              result = shape c.C.gives;
             }
           in
           let invoker (c : C.t) =
-            { Foreign.Glue.at = global_prefix ^ c.C.symbol; takes = List.map shape c.C.params; gives = shape c.C.ret }
+            { Foreign.Glue.at = global_prefix ^ c.C.symbol; takes = List.map shape c.C.takes; gives = shape c.C.gives }
           in
           Result.map
             (fun (s : Foreign.Compile.source) ->
@@ -214,7 +213,7 @@ let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes
                   Codegen.prefix = (if root then "" else "!") ^ id ^ "$%c$";
                   sources = [];
                   glue = [ (s.key, s.bitcode) ];
-                  thunks = List.map (fun (c : C.t) -> C.entry c.C.symbol) p @ List.map (fun (c : C.t) -> c.C.symbol) i;
+                  thunks = List.map (fun (c : C.t) -> c.C.entry) p @ List.map (fun (c : C.t) -> c.C.symbol) i;
                 })
             (Foreign.callbacks ~target (List.map entry p) (List.map invoker i))
       in

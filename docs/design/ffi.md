@@ -300,7 +300,8 @@ that declares its C function. The glue holds:
 A thunk's name is the foreign verb's symbol ([`symbols.md`](symbols.md))
 with `.ffi` after it, a free or set thunk's is the handle type's symbol with
 `.free` or `.set`, and F11's entries are named the same way from the lambda's
-symbol, given in C with an `__asm__` label, since a verb's
+symbol, or by the object's package when other objects lift the lambda too,
+given in C with an `__asm__` label, since a verb's
 symbol is not a C identifier. Clang names a labelled function in IR `\01`
 followed by the label, which LLVM emits as written, with no global prefix,
 so the label is the symbol after the target's global prefix (`_` on macOS,
@@ -411,25 +412,36 @@ lambda's symbol with `.adapter` after it; and a **C entry** in the glue,
 named with `.c`, which takes the arguments with the C convention, hands
 the adapter their addresses, a `Bool` as a byte, and returns what it
 stores in a result slot whose padding bytes are zeroed, as F10's are. The
-object that defines the lambda defines all three, after lowering
-(`lib/cgt/callbacks.ml`), and the object's C entries and invokers are a
-glue module of their own, compiled and linked as a package's glue is (F9,
-F13, F14). A function value of a C-compatible type is the address of its
-C entry, everywhere in the program, and a Zane call through such a value
-goes through a generated **invoker**, a thunk whose first slot holds the
-function value, which calls it with the C convention. There is one per
-C-compatible type in each object that calls through one, named by the
-object's package with `$invoke` and the type after it, such as
-`app$invoke i64(i64)`. Inlined, an invoker is an indirect call, so a call
-through such a function value costs what a call through a C function
-pointer costs.
+C types the entry takes and gives are read from the lambda's Zane type when
+it is lowered, not from its CGT type: a value type of one field has its
+field's CGT type, and C passes a struct of one `float` and a `float`
+differently. The object that defines the lambda defines all three, after
+lowering (`lib/cgt/callbacks.ml`), and the object's C entries and invokers
+are a glue module of their own, compiled and linked as a package's glue is
+(F9, F13, F14). A lambda several objects lift, as each that makes a
+generic instance holding it does, has an entry of each object's own, named
+by its package with `$entry` and the lambda's symbol after it, and an
+adapter shared as the instance is, so that the linker keeps one.
+
+A function value of a C-compatible type is the address of a C entry,
+everywhere in the program, and a Zane call through such a value goes
+through a generated **invoker**, a thunk whose first slot holds the
+function value, which calls it with the C convention. Lowering names the
+invoker on the call (`Call_value`), from the Zane type as well. There is
+one per signature in each object that calls through one, named by the
+object's package with `$invoke` and the C types after it, such as
+`app$invoke i64(i64)` or `app$invoke {f32}({f32})`. Inlined, an invoker
+is an indirect call, so a call through such a function value costs what a
+call through a C function pointer costs.
 
 C may call a function value on a thread it started itself, which has no
 context of the runtime's. The adapter reads the runtime's context of the
 thread, `zane_self`, and when there is none has the runtime make one with
 one scope for the call (`zane_callback_attach`) and give it back once the
 call returns (`zane_callback_detach`): the result C takes is a
-C-compatible value and holds no block. Both are cold, so an optimized C
+C-compatible value and holds no block. The runtime's alternate signal
+stack, which its fault handler runs on, stands in for the thread's own for
+the call, and the thread has its own back after. Both are cold, so an optimized C
 entry is its lambda's body behind one load and one branch. A call on a
 thread of the program runs in that thread's context, as any call does.
 Stage 5 never folds the read: the value of a variable another object

@@ -1,2 +1,6 @@
 T v1.0%fedcba9876543210%atlas$Tile(%primitives$I64)
 T v1.0%fedcba9876543210%atlas$cover(v1.0%fedcba9876543210%atlas$Tile)
+T v1.0%fedcba9876543210%atlas$entry geometry$same<v1.0%fedcba9876543210%atlas$Tile>(v1.0%fedcba9876543210%atlas$Tile)$lambda1
+T v1.0%fedcba9876543210%atlas$invoke i64(i64)
+W geometry$same<v1.0%fedcba9876543210%atlas$Tile>(v1.0%fedcba9876543210%atlas$Tile)$lambda1.adapter
+t geometry$same<v1.0%fedcba9876543210%atlas$Tile>(v1.0%fedcba9876543210%atlas$Tile)

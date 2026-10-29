@@ -24,12 +24,13 @@
     ├── globals[0]: zane_self : i64, imported
     ├── callbacks[0] > callback:
     │   ├── symbol: folding$main()$lambda1
-    │   ├── params[0]: i64
-    │   └── result: i64
+    │   ├── entry: folding$entry folding$main()$lambda1
+    │   ├── takes[0]: i64
+    │   └── gives: i64
     ├── invokers[0] > invoker:
     │   ├── symbol: folding$invoke i64(i64)
-    │   ├── params[0]: i64
-    │   └── result: i64
+    │   ├── takes[0]: i64
+    │   └── gives: i64
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -1201,7 +1202,7 @@
     │                   └── base: local #6 : ptr
     └── funcs[22] > func:
         ├── symbol: folding$main()$lambda1.adapter
-        ├── linkage: exported
+        ├── linkage: shared
         ├── params[0]: local #0 : ptr
         ├── params[1]: local #1 : ptr
         ├── ret: void

@@ -21,32 +21,38 @@
     ├── globals[0]: zane_self : i64, imported
     ├── callbacks[0] > callback:
     │   ├── symbol: lambdas$main()$lambda1
-    │   ├── params[0]: i64
-    │   └── result: i64
+    │   ├── entry: lambdas$entry lambdas$main()$lambda1
+    │   ├── takes[0]: i64
+    │   └── gives: i64
     ├── callbacks[1] > callback:
     │   ├── symbol: lambdas$square
-    │   ├── params[0]: i64
-    │   └── result: i64
+    │   ├── entry: lambdas$entry lambdas$square
+    │   ├── takes[0]: i64
+    │   └── gives: i64
     ├── callbacks[2] > callback:
     │   ├── symbol: lambdas$main()$lambda2
-    │   ├── params[0]: i64
-    │   └── result: i64
+    │   ├── entry: lambdas$entry lambdas$main()$lambda2
+    │   ├── takes[0]: i64
+    │   └── gives: i64
     ├── callbacks[3] > callback:
     │   ├── symbol: lambdas$Op.apply$lambda1
-    │   ├── params[0]: i64
-    │   └── result: i64
+    │   ├── entry: lambdas$entry lambdas$Op.apply$lambda1
+    │   ├── takes[0]: i64
+    │   └── gives: i64
     ├── callbacks[4] > callback:
     │   ├── symbol: lambdas$Op.apply$lambda2
-    │   ├── params[0]: i64
-    │   └── result: i64
+    │   ├── entry: lambdas$entry lambdas$Op.apply$lambda2
+    │   ├── takes[0]: i64
+    │   └── gives: i64
     ├── callbacks[5] > callback:
     │   ├── symbol: lambdas$pick(%primitives$Bool)$lambda1
-    │   ├── params[0]: i64
-    │   └── result: i64
+    │   ├── entry: lambdas$entry lambdas$pick(%primitives$Bool)$lambda1
+    │   ├── takes[0]: i64
+    │   └── gives: i64
     ├── invokers[0] > invoker:
     │   ├── symbol: lambdas$invoke i64(i64)
-    │   ├── params[0]: i64
-    │   └── result: i64
+    │   ├── takes[0]: i64
+    │   └── gives: i64
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -72,6 +78,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call value:
     │       │       │   ├── type: i64
+    │       │       │   ├── invoker: lambdas$invoke i64(i64)
     │       │       │   ├── fn: local #1 : ptr
     │       │       │   └── args[0]: 3 : i64
     │       │       └── right: 6 : i64
@@ -92,9 +99,11 @@
     │       │       │   │   ├── place: #4
     │       │       │   │   └── value > call value:
     │       │       │   │       ├── type: i64
+    │       │       │   │       ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │       ├── fn: local #1 : ptr
     │       │       │   │       └── args[0] > call value:
     │       │       │   │           ├── type: i64
+    │       │       │   │           ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │           ├── fn: local #1 : ptr
     │       │       │   │           └── args[0]: local #2 : i64
     │       │       │   └── body[2]: leave @3
@@ -119,9 +128,11 @@
     │       │       │   │   ├── place: #8
     │       │       │   │   └── value > call value:
     │       │       │   │       ├── type: i64
+    │       │       │   │       ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │       ├── fn: local #5 : ptr
     │       │       │   │       └── args[0] > call value:
     │       │       │   │           ├── type: i64
+    │       │       │   │           ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │           ├── fn: local #5 : ptr
     │       │       │   │           └── args[0]: local #6 : i64
     │       │       │   └── body[3]: leave @7
@@ -146,9 +157,11 @@
     │       │       │   │   ├── place: #12
     │       │       │   │   └── value > call value:
     │       │       │   │       ├── type: i64
+    │       │       │   │       ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │       ├── fn: local #9 : ptr
     │       │       │   │       └── args[0] > call value:
     │       │       │   │           ├── type: i64
+    │       │       │   │           ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │           ├── fn: local #9 : ptr
     │       │       │   │           └── args[0]: local #10 : i64
     │       │       │   └── body[3]: leave @11
@@ -161,6 +174,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call value:
     │       │       │   ├── type: i64
+    │       │       │   ├── invoker: lambdas$invoke i64(i64)
     │       │       │   ├── fn > call:
     │       │       │   │   ├── type: ptr
     │       │       │   │   ├── fn: lambdas$pick(%primitives$Bool)
@@ -181,6 +195,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call value:
     │       │       │   ├── type: i64
+    │       │       │   ├── invoker: lambdas$invoke i64(i64)
     │       │       │   ├── fn: local #13 : ptr
     │       │       │   └── args[0]: 5 : i64
     │       │       └── right: 6 : i64
@@ -827,6 +842,7 @@
     │       │       ├── op: ==
     │       │       ├── left > call value:
     │       │       │   ├── type: i64
+    │       │       │   ├── invoker: lambdas$invoke i64(i64)
     │       │       │   ├── fn: local #121 : ptr
     │       │       │   └── args[0]: 5 : i64
     │       │       └── right: 15 : i64
@@ -869,9 +885,11 @@
     │       │       │   │   ├── place: #128
     │       │       │   │   └── value > call value:
     │       │       │   │       ├── type: i64
+    │       │       │   │       ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │       ├── fn: local #125 : ptr
     │       │       │   │       └── args[0] > call value:
     │       │       │   │           ├── type: i64
+    │       │       │   │           ├── invoker: lambdas$invoke i64(i64)
     │       │       │   │           ├── fn: local #125 : ptr
     │       │       │   │           └── args[0]: local #126 : i64
     │       │       │   └── body[3]: leave @127
@@ -986,6 +1004,7 @@
     │   │       ├── place: #3
     │   │       └── value > call value:
     │   │           ├── type: i64
+    │   │           ├── invoker: lambdas$invoke i64(i64)
     │   │           ├── fn > member:
     │   │           │   ├── type: ptr
     │   │           │   ├── index: 0
@@ -1183,6 +1202,7 @@
     │       │   └── base: local #57 : ptr
     │       └── value > call value:
     │           ├── type: i64
+    │           ├── invoker: lambdas$invoke i64(i64)
     │           ├── fn > deref:
     │           │   ├── type: ptr
     │           │   └── ptr > offset:
@@ -1206,6 +1226,7 @@
     │       │   └── base: local #60 : ptr
     │       └── value > call value:
     │           ├── type: i64
+    │           ├── invoker: lambdas$invoke i64(i64)
     │           ├── fn > deref:
     │           │   ├── type: ptr
     │           │   └── ptr > offset:
@@ -1346,7 +1367,7 @@
     │               └── base: local #112 : ptr
     ├── funcs[29] > func:
     │   ├── symbol: lambdas$main()$lambda1.adapter
-    │   ├── linkage: exported
+    │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
     │   ├── params[1]: local #1 : ptr
     │   ├── ret: void
@@ -1386,7 +1407,7 @@
     │           └── args:
     ├── funcs[30] > func:
     │   ├── symbol: lambdas$square.adapter
-    │   ├── linkage: exported
+    │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
     │   ├── params[1]: local #1 : ptr
     │   ├── ret: void
@@ -1426,7 +1447,7 @@
     │           └── args:
     ├── funcs[31] > func:
     │   ├── symbol: lambdas$main()$lambda2.adapter
-    │   ├── linkage: exported
+    │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
     │   ├── params[1]: local #1 : ptr
     │   ├── ret: void
@@ -1466,7 +1487,7 @@
     │           └── args:
     ├── funcs[32] > func:
     │   ├── symbol: lambdas$Op.apply$lambda1.adapter
-    │   ├── linkage: exported
+    │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
     │   ├── params[1]: local #1 : ptr
     │   ├── ret: void
@@ -1506,7 +1527,7 @@
     │           └── args:
     ├── funcs[33] > func:
     │   ├── symbol: lambdas$Op.apply$lambda2.adapter
-    │   ├── linkage: exported
+    │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
     │   ├── params[1]: local #1 : ptr
     │   ├── ret: void
@@ -1546,7 +1567,7 @@
     │           └── args:
     └── funcs[34] > func:
         ├── symbol: lambdas$pick(%primitives$Bool)$lambda1.adapter
-        ├── linkage: exported
+        ├── linkage: shared
         ├── params[0]: local #0 : ptr
         ├── params[1]: local #1 : ptr
         ├── ret: void

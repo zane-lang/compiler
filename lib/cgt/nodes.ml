@@ -229,8 +229,9 @@ module Expr = struct
     (* A call to a function of the program, by its symbol (L6). *)
     | Call of { fn : string; args : t list }
     (* A call through a function value: [fn] is the function's address, run
-       before [args] (L14). *)
-    | Call_value of { fn : t; args : t list }
+       before [args] (L14), called through the glue's [invoker] when its
+       type is one C can call (Callback). *)
+    | Call_value of { fn : t; args : t list; invoker : string option }
     (* A call into the C runtime (L17), by the runtime's symbol. A string
        goes to it, and comes back from it, through the address of a copy. *)
     | Runtime of { fn : Runtime.fn; args : t list }
@@ -494,50 +495,44 @@ module Foreign = struct
   type t = { thunk : string; package : string; c_function : string; params : crossing list; result : crossing }
 end
 
-(* A function value whose type C can call (docs/design/ffi.md F11): its
-   parameters are scalars, [I1]s and structs of scalars, arrays of them and
-   such structs, its result one of those or [Void]. The rule reads the
-   types alone, so a lambda's function and a call through a value of its
-   type agree on it in every object. Such a lambda's value is the address
-   of its C entry, which the glue defines and which calls its adapter, a
-   function of the program taking the addresses of slots holding its
-   arguments and of one for its result; a call through such a value goes
-   through the glue's invoker for its types, which calls the address with
-   C's convention. [symbol] is the lambda's, or the invoker's. *)
+(* A function value whose type C can call (docs/design/ffi.md F11; spec
+   ffi.md §3.6), and the C types it crosses as, read from its Zane type
+   when it is lowered: a scalar, a `Bool` as [Truth], `Unit` as [Nothing],
+   and a C-compatible value type as a [Record] of its fields, an array
+   field with its length. The Zane type, not the CGT one, gives them, since
+   a value type of one field has its field's CGT type and C passes the
+   two differently. Such a lambda's value is the address of its C entry,
+   which the glue defines and which calls its adapter, a function of the
+   program taking the addresses of slots holding its arguments and of one
+   for its result; a call through such a value goes through the glue's
+   invoker for its signature, which calls the address with C's
+   convention. [symbol] is the lambda's, or the invoker's, [here]
+   whether this object defines the lambda, and so its adapter and entry,
+   and [entry] the symbol of the entry. A lambda other objects define too,
+   as each that makes a generic instance holding it does, has an entry of
+   each object's own, named as its invokers are, and their adapters merge
+   into one. *)
 module Callback = struct
-  type t = { symbol : string; params : Ty.t list; ret : Ty.t }
+  type shape = Scalar of Ty.t | Truth | Nothing | Record of (shape * int option) list
+  type t = { symbol : string; takes : shape list; gives : shape; here : bool; entry : string }
 
-  let rec field (t : Ty.t) =
-    match t with
-    | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
-    | Ty.Array ((Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64), _) -> true
-    | Ty.Struct fs -> fs <> [] && List.for_all field fs
-    | _ -> false
-
-  let plain (t : Ty.t) =
-    match t with Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Struct _ -> t = Ty.I1 || field t | _ -> false
-
-  let crosses params (ret : Ty.t) = List.for_all plain params && (ret = Ty.Void || plain ret)
   let entry symbol = symbol ^ ".c"
+  let shared_entry package symbol = Printf.sprintf "%s$entry %s" package symbol
   let adapter symbol = symbol ^ ".adapter"
 
-  (* The invoker for [params] and [ret] in the object whose symbols start
-     with [package]: its types written out, after a space no verb's name
+  let rec spell = function
+    | Scalar t -> Ty.to_string t
+    | Truth -> "i1"
+    | Nothing -> "void"
+    | Record fs ->
+        let field (f, n) = match n with Some n -> Printf.sprintf "[%d x %s]" n (spell f) | None -> spell f in
+        "{" ^ String.concat ", " (List.map field fs) ^ "}"
+
+  (* The invoker for [takes] and [gives] in the object whose symbols start
+     with [package]: its C types written out, after a space no verb's name
      holds. *)
-  let invoker package params ret =
-    let rec spell (t : Ty.t) =
-      match t with
-      | Ty.I1 -> "i1"
-      | Ty.I32 -> "i32"
-      | Ty.I64 -> "i64"
-      | Ty.F32 -> "f32"
-      | Ty.F64 -> "f64"
-      | Ty.Void -> "void"
-      | Ty.Array (e, n) -> Printf.sprintf "[%d x %s]" n (spell e)
-      | Ty.Struct fs -> "{" ^ String.concat ", " (List.map spell fs) ^ "}"
-      | _ -> "?"
-    in
-    Printf.sprintf "%s$invoke %s(%s)" package (spell ret) (String.concat ", " (List.map spell params))
+  let invoker package takes gives =
+    Printf.sprintf "%s$invoke %s(%s)" package (spell gives) (String.concat ", " (List.map spell takes))
 end
 
 (* One program is one module (L15). [entry] is the symbol of the function

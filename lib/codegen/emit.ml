@@ -53,12 +53,10 @@ type env = {
   funcs : (string, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
   (* How each of the program's functions is called, by symbol. *)
   abis : (string, abi) Hashtbl.t;
-  (* The invoker of each function type C can call, by its parameters' and
-     result's types (docs/design/ffi.md F11). *)
-  invokers : (Ty.t list * Ty.t, string) Hashtbl.t;
-  (* The functions whose declared types C can call, by symbol: a lambda
-     among them is its C entry's address as a value. *)
-  callable : (string, unit) Hashtbl.t;
+  (* The lambdas whose type C can call, by symbol, with their C entries'
+     symbols: each is its entry's address as a value (docs/design/ffi.md
+     F11). *)
+  callable : (string, string) Hashtbl.t;
   (* How many registers a value may take and still pass as itself, from
      the target (see [registers]), whether small aggregates are packed into
      words, and how each type passes, worked out once per type. *)
@@ -1283,9 +1281,10 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
   | Expr.Layout l -> Some (layout env l)
   (* A lambda C can call is its C entry's address, in every object
      (docs/design/ffi.md F11). *)
-  | Expr.Function fn ->
-      if Hashtbl.mem env.callable fn then Some (Walks.thunk env.ctx env.m (Callback.entry fn))
-      else Some (fst (Hashtbl.find env.funcs fn))
+  | Expr.Function fn -> (
+      match Hashtbl.find_opt env.callable fn with
+      | Some entry -> Some (Walks.thunk env.ctx env.m entry)
+      | None -> Some (fst (Hashtbl.find env.funcs fn)))
   | Expr.Global g -> Some (Hashtbl.find env.globals g)
   | Expr.Snapshot p -> (
       let p = value_of env fr b p in
@@ -1452,10 +1451,9 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
    one that comes back as words is put back together in a slot. *)
 and call ?into env fr b (e : Expr.t) =
   match e.Expr.node with
-  | Expr.Call_value { fn; args } when Callback.crosses (List.map (fun (a : Expr.t) -> a.Expr.ty) args) e.Expr.ty ->
+  | Expr.Call_value { fn; args; invoker = Some invoker } ->
       (* A function value C can call is a C function's address, called
          through its type's invoker (docs/design/ffi.md F11). *)
-      let invoker = Hashtbl.find env.invokers (List.map (fun (a : Expr.t) -> a.Expr.ty) args, e.Expr.ty) in
       (match foreign_call env fr b invoker (fn :: args) e.Expr.ty with
       | None -> `Nothing
       | Some v when returning env e.Expr.ty = Address ->
@@ -1471,7 +1469,7 @@ and direct ?into env fr b (e : Expr.t) =
     | Expr.Call { fn; args } ->
         let f, fty = Hashtbl.find env.funcs fn in
         (f, fty, Hashtbl.find env.abis fn, args)
-    | Expr.Call_value { fn; args } ->
+    | Expr.Call_value { fn; args; invoker = None } ->
         (* The function's type is its arguments' and its result's, which the
            tree gives, as for a direct call. *)
         let f = value_of env fr b fn in

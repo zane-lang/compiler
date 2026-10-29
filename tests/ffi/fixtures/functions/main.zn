@@ -6,13 +6,15 @@
 /// threads C starts itself; one that calls into C with a lambda of its
 /// own; and the same values called from Zane, passed, stored in a struct,
 /// and called through, with a `Bool`, a value type and no result among
-/// them; and one taking a `Unit`, a type C cannot call, which stays a
-/// function of the program's alone.
+/// them; value types of one field and of an array alone, passed and
+/// returned through C; and one taking a `Unit`, a type C cannot call,
+/// which stays a function of the program's alone.
 package functions;
 
 alias Unit = @primitives$Unit;
 alias Bool = @primitives$Bool;
 alias I32 = @primitives$I32;
+alias F32 = @primitives$F32;
 alias I64 = @primitives$I64;
 alias F64 = @primitives$F64;
 alias String = @primitives$String;
@@ -25,11 +27,27 @@ type Point = struct {
 
 Point(x I32, y I32, scale @primitives$Array<F64, 2>) => init{ x; y; scale; }
 
+/// A value type of one field, which C passes as that field's struct.
+type Ratio = struct {
+	v F32;
+}
+
+Ratio(v F32) => init{ v; }
+
+/// A value type holding only an array.
+type Quad = struct {
+	xs @primitives$Array<I64, 4>;
+}
+
+Quad(xs @primitives$Array<I64, 4>) => init{ xs; }
+
 F64 apply(f F64[F64], x F64) foreign "apply";
 I64 sumEach(f I64[I64], n I64) foreign "sum_each";
 I32 countIf(p Bool[I32], n I32) foreign "count_if";
 Point mapPoint(f Point[Point], p Point) foreign "map_point";
 Unit each(f Unit[I64], n I64) foreign "each";
+Ratio scaleRatio(f Ratio[Ratio], r Ratio) foreign "scale_ratio";
+Quad rotateQuad(f Quad[Quad], q Quad) foreign "rotate_quad";
 I64 onThreads(f I64[I64], x I64) foreign "on_threads";
 I64 sorted(before Bool[I64, I64], xs @primitives$Array<I64, 4>) foreign "sorted";
 
@@ -107,6 +125,13 @@ Unit main() {
 		show(String(i));
 		return Unit();
 	}, I64(7));
+	r Ratio = scaleRatio(Ratio(r Ratio) { return Ratio(@operators$multiply(r.v, F32(3.0))); }, Ratio(F32(0.5)));
+	show(String(r.v));
+	qd Quad = rotateQuad(Quad(q Quad) {
+		return Quad(@primitives$Array([q.xs[I64(4)], q.xs[I64(1)], q.xs[I64(2)], q.xs[I64(3)]]));
+	}, Quad(@primitives$Array([I64(1), I64(2), I64(3), I64(4)])));
+	show(String(qd.xs[I64(1)]));
+	show(String(qd.xs[I64(4)]));
 	show(String(given(I64(u Unit, x I64) { return @operators$add(x, I64(1)); }, I64(4))));
 	return Unit();
 }

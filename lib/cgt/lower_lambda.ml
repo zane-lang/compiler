@@ -17,6 +17,9 @@ let lambda st span t (l : T.Lambda.t) =
       let key = "lambda " ^ s in
       if not (Hashtbl.mem st.symbols key) then begin
         Hashtbl.replace st.symbols key s;
+        Option.iter
+          (fun (takes, gives) -> st.callbacks <- { Nodes.Callback.symbol = s; takes; gives; here = false; entry = Nodes.Callback.entry s } :: st.callbacks)
+          (Lower_foreign.c_signature st span fv);
         Queue.add (value_verb key fv l.T.Lambda.params l.T.Lambda.body) st.pending
       end;
       s
