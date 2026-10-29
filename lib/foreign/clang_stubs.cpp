@@ -101,8 +101,14 @@ public:
 protected:
   void ExecuteAction() override {
     clang::CompilerInstance &ci = getCompilerInstance();
+    /* What `-E` would set: the text itself, with line markers, rather than
+       the macro table an invocation without it prints. */
+    clang::PreprocessorOutputOptions &opts = ci.getPreprocessorOutputOpts();
+    opts.ShowCPP = 1;
+    opts.ShowLineMarkers = 1;
+    opts.ShowMacros = 0;
     llvm::raw_string_ostream os(out);
-    clang::DoPrintPreprocessedInput(ci.getPreprocessor(), &os, ci.getPreprocessorOutputOpts());
+    clang::DoPrintPreprocessedInput(ci.getPreprocessor(), &os, opts);
     os.flush();
   }
 
