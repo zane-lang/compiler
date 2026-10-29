@@ -176,6 +176,14 @@ let compiled () =
       (match (cached near, cached far) with
       | Some b1, Some b2 -> check "a module reading its column is compiled again when the column moves" (b1 <> b2)
       | _ -> check "a module reading its column compiles" false);
+      (* Nor does it keep the line of a token inside a macro argument that
+         spans lines: both of these preprocess to the same text, so a
+         module that reads its line is never taken from the cache either. *)
+      let early = package "early" "#define I(x) x\nint f(void) { return I(\n__builtin_LINE()); }\n\n\nint g;\n"
+      and late = package "late" "#define I(x) x\nint f(void) { return I(\n\n\n__builtin_LINE()); }\nint g;\n" in
+      (match (cached early, cached late) with
+      | Some b1, Some b2 -> check "a module reading its line is compiled again when the line moves" (b1 <> b2)
+      | _ -> check "a module reading its line compiles" false);
       (* A dangling symlink, such as an editor's lock file, is no source,
          and a cache that cannot be written is no cache. *)
       let linked = package "linked" source in

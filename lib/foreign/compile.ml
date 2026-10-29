@@ -187,9 +187,10 @@ let mentions word text =
 
 (* [path], a C source of the package in [dir], compiled with [flags], from
    the module cache under [cache] when it holds it. The key is the
-   preprocessed text, which keeps each token's line but not its column, so
-   a module that asks for its column (`__builtin_COLUMN`) is compiled
-   every time instead. *)
+   preprocessed text, which keeps neither a token's column nor the line of
+   one inside a macro argument that spans lines, so a module that asks for
+   either (`__builtin_COLUMN`, `__builtin_LINE`) is compiled every time
+   instead. *)
 let compile_source ?cache ~maps flags path =
   let args = flags @ [ "-c"; path ] in
   let preprocessed = Clang.preprocess args in
@@ -203,7 +204,8 @@ let compile_source ?cache ~maps flags path =
            (String.concat "\000"
               [ "c-module"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
     in
-    let cache = if mentions "__builtin_COLUMN" preprocessed.output then None else cache in
+    let placed = List.exists (fun w -> mentions w preprocessed.output) [ "__builtin_COLUMN"; "__builtin_LINE" ] in
+    let cache = if placed then None else cache in
     let kept = Option.map (fun c -> Filename.concat (Filename.concat c "foreign/module") (key ^ ".bc")) cache in
     match Option.bind kept Cache.read with
     | Some bitcode -> Ok { path; bitcode; key }
