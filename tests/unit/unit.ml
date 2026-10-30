@@ -1441,6 +1441,7 @@ let () =
   Builds.fatal_link ();
   Builds.assembled_beside ();
   Foreign_c.run ();
+  C_eval.run ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();
   disposed_modules ();
