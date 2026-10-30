@@ -149,10 +149,9 @@ let retained_c ~hashes ~(entry : ?label:(Cgt.Nodes.Foreign.t -> string) -> Cgt.N
   | _ when entries = [] || not (List.for_all own entries) -> Ok None
   | first :: _ ->
       let labels = first.H.labels in
-      let n = String.length id in
-      let label (t : Cgt.Nodes.Foreign.t) =
-        labels ^ String.sub t.Cgt.Nodes.Foreign.thunk n (String.length t.Cgt.Nodes.Foreign.thunk - n)
-      in
+      (* The package is named throughout a thunk's symbol, before it and in
+         each of its own types the verb names, as `this lib$State`. *)
+      let label (t : Cgt.Nodes.Foreign.t) = Rewrite.respell ~from:(id ^ "$") ~into:(labels ^ "$") t.Cgt.Nodes.Foreign.thunk in
       Result.map
         (fun glue ->
           let glue =
@@ -417,8 +416,15 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
       | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
 
 (* Stage 5 (docs/design/optimization.md), which only an optimized build
-   runs: an unoptimized one skips it. *)
-let optimize ~optimize cgt = if optimize then Optimize.run cgt else cgt
+   runs: an unoptimized one skips it. A call into C folds by running the
+   packages' C [c] (docs/design/ffi.md F16). *)
+let optimize ?target ?(c = []) ~optimize cgt =
+  if not optimize then Ok cgt
+  else if c = [] then Ok (Optimize.run cgt)
+  else
+    match Codegen.with_c_modules ?target c (fun modules -> Optimize.run ~c:modules cgt) with
+    | Ok cgt -> Ok cgt
+    | Error message -> fail [ Diagnostic.about_invocation message ]
 
 (* Codegen's own failures -- an unknown target, a link that failed -- are
    about the build, not about any file of it. *)

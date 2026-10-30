@@ -8,20 +8,20 @@
     │   └── positions[0]: text @0
     ├── layouts[2] > layout:
     │   ├── type: handles$Conn
-    │   └── positions[0]: handle @0 freed by handles$Conn.free, set by handles$Conn.set
+    │   └── positions[0]: handle @0 freed by handles$Conn.free, set by handles$Conn.setter
     ├── layouts[3] > layout:
     │   ├── type: ^handles$Conn
-    │   └── positions[0]: handle @0 freed by handles$Conn.free, set by handles$Conn.set
+    │   └── positions[0]: handle @0 freed by handles$Conn.free, set by handles$Conn.setter
     ├── layouts[4] > layout:
     │   ├── type: handles$Stmt
-    │   └── positions[0]: handle @0 freed by handles$Stmt.free, set by handles$Stmt.set
+    │   └── positions[0]: handle @0 freed by handles$Stmt.free, set by handles$Stmt.setter
     ├── layouts[5] > layout:
     │   ├── type: ^handles$Stmt
-    │   └── positions[0]: handle @0 freed by handles$Stmt.free, set by handles$Stmt.set
+    │   └── positions[0]: handle @0 freed by handles$Stmt.free, set by handles$Stmt.setter
     ├── layouts[6] > layout:
     │   ├── type: handles$Session
-    │   ├── positions[0]: handle @0 freed by handles$Conn.free, set by handles$Conn.set
-    │   └── positions[1]: handle @16 freed by handles$Stmt.free, set by handles$Stmt.set
+    │   ├── positions[0]: handle @0 freed by handles$Conn.free, set by handles$Conn.setter
+    │   └── positions[1]: handle @16 freed by handles$Stmt.free, set by handles$Stmt.setter
     ├── layouts[7] > layout:
     │   ├── type: %primitives$ListRef<handles$Conn>
     │   └── positions[0]: list @0 of handles$Conn (16 bytes apart)
@@ -45,7 +45,7 @@
     │   ├── params[0]: handle
     │   └── result: void
     ├── thunks[1] > thunk:
-    │   ├── symbol: handles$Conn.set
+    │   ├── symbol: handles$Conn.setter
     │   ├── package: handles
     │   ├── calls: conn_set
     │   ├── params[0]: handle
@@ -56,7 +56,8 @@
     │   ├── package: handles
     │   ├── calls: fs_drain
     │   ├── params[0]: handle
-    │   └── result: view
+    │   ├── result: view
+    │   └── reaches: a capability
     ├── thunks[3] > thunk:
     │   ├── symbol: handles$Stmt.free
     │   ├── package: handles
@@ -64,7 +65,7 @@
     │   ├── params[0]: handle
     │   └── result: void
     ├── thunks[4] > thunk:
-    │   ├── symbol: handles$Stmt.set
+    │   ├── symbol: handles$Stmt.setter
     │   ├── package: handles
     │   ├── calls: stmt_set
     │   ├── params[0]: handle
@@ -75,13 +76,15 @@
     │   ├── package: handles
     │   ├── calls: fs_close
     │   ├── params[0]: handle
-    │   └── result: void
+    │   ├── result: void
+    │   └── reaches: a capability
     ├── thunks[6] > thunk:
     │   ├── symbol: handles$written(this handles$Fs).ffi
     │   ├── package: handles
     │   ├── calls: fs_written
     │   ├── params[0]: handle
-    │   └── result: i64
+    │   ├── result: i64
+    │   └── reaches: a capability
     ├── thunks[7] > thunk:
     │   ├── symbol: handles$connect(%primitives$I32).ffi
     │   ├── package: handles
@@ -125,7 +128,8 @@
     │   ├── calls: fs_open
     │   ├── params[0]: handle
     │   ├── params[1]: view
-    │   └── result: handle
+    │   ├── result: handle
+    │   └── reaches: a capability
     ├── thunks[14] > thunk:
     │   ├── symbol: handles$write(this handles$Fs, handles$File, %primitives$String).ffi
     │   ├── package: handles
@@ -133,7 +137,8 @@
     │   ├── params[0]: handle
     │   ├── params[1]: handle
     │   ├── params[2]: view
-    │   └── result: void
+    │   ├── result: void
+    │   └── reaches: a capability
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:

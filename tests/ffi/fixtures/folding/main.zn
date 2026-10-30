@@ -1,0 +1,62 @@
+/// Calls into C folded where the program compiles (docs/design/ffi.md
+/// F16-F19, spec ffi.md §5.4): a pure C function called with a literal,
+/// whose result is a constant in the optimized tree, and with a value read
+/// through a capability, which stays a call; a data handle made, pushed
+/// to, replaced through its setter where it is settled, summed and
+/// released, whose whole life folds away; a capability's calls left in
+/// place; a C function reaching `sin`, which the C library alone has,
+/// left as a call; a C sort calling a Zane comparison, folded; and a
+/// string C returns, folded.
+package folding;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias F64 = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias String = @primitives$String;
+
+type Buffer = #handle{ cType = "buffer_t"; set = "buffer_set"; free = "buffer_free"; }
+type Ticker = #handle{ cType = "ticker_t"; }
+
+I64 checksum(text String) foreign "fold_checksum";
+^Buffer buffer(first I64) foreign "buffer_new";
+Unit push(this Buffer, x I64) mut foreign "buffer_push";
+I64 sum(this Buffer) foreign "buffer_sum";
+I64 next(this Ticker) mut foreign "ticker_next";
+F64 sine(x F64) foreign "fold_sine";
+I64 sorted(before Bool[I64, I64], xs @primitives$List<I64>) foreign "fold_sorted";
+String shout(text String) foreign "fold_shout";
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+/// Made, written, replaced through the setter, read and released: no
+/// handle outlives the call, so the call folds.
+I64 buffered() {
+	b Buffer = buffer(I64(1));
+	b!push(I64(2));
+	b!push(I64(3));
+	b = buffer(I64(10));
+	b!push(I64(20));
+	return b:sum();
+}
+
+Unit main() {
+	ticker Ticker foreign "zane_ticker";
+	show(String(checksum(String("zane"))));
+	show(String(checksum(String(ticker!next()))));
+	show(String(buffered()));
+	show(String(ticker!next()));
+	show(String(sine(F64(0.0))));
+	digits @primitives$List<I64> = @primitives$List(I64);
+	digits!push(I64(3));
+	digits!push(I64(1));
+	digits!push(I64(4));
+	digits!push(I64(2));
+	show(String(sorted(Bool(a I64, b I64) { return @operators$lessThan(b, a); }, digits)));
+	show(shout(String("folded")));
+	return Unit();
+}

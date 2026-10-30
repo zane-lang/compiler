@@ -478,9 +478,8 @@ let folded_arithmetic () =
 
 (* Every runtime function is in a class, and the outputs are the three
    docs/design/optimization.md O3 names. The program's arguments are the one
-   input an intrinsic reads; a foreign handle's stamp, the stop when C
-   returns none, and the context a thread C started is given, are the
-   others. *)
+   input an intrinsic reads; the stop when C returns no handle, and the
+   context a thread C started is given, are the others. *)
 let intrinsic_classes () =
   let outputs =
     List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Output) Cgt.Runtime.all
@@ -488,9 +487,9 @@ let intrinsic_classes () =
   check "print and the thread count are the outputs"
     (List.sort compare outputs
     = List.sort compare Cgt.Runtime.[ Print; Set_threads; Set_threads_auto ]);
-  check "the program's arguments, a foreign handle's making and a callback's context are the inputs"
+  check "the program's arguments, a null foreign handle and a callback's context are the inputs"
     (List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all
-    = Cgt.Runtime.[ Arguments; Handle_made; No_object; Callback_attach; Callback_detach ])
+    = Cgt.Runtime.[ Arguments; No_object; Callback_attach; Callback_detach ])
 
 (* The math functions of `@math$` as the evaluator folds them (math.md §2),
    which the math codegen fixture holds both builds to as well, and which
@@ -585,6 +584,8 @@ let program funcs =
     constants = Hashtbl.create 1;
     memo = Value.Key.create 8;
     left = Eval.total;
+    c = Optimize__C_cross.program None [] [];
+    holding = Hashtbl.create 1;
   }
 
 let func ?(values = []) symbol params body =
@@ -1239,9 +1240,20 @@ let runtime_tuning () =
 (* The driver                                                             *)
 (* ---------------------------------------------------------------------- *)
 
+(* A release's thunk label names its package before the verb and in each
+   of the package's own types the verb names (docs/design/ffi.md F13). *)
+let respelled_labels () =
+  check "a package respelled throughout a symbol"
+    (Rewrite.respell ~from:"v1%00%lib$" ~into:"!lib$" "v1%00%lib$next(this v1%00%lib$State).ffi"
+    = "!lib$next(this !lib$State).ffi");
+  check "a symbol naming no package is as it was" (Rewrite.respell ~from:"v1%00%lib$" ~into:"!lib$" "app$main()" = "app$main()");
+  check "a package whose name ends another's is that other's"
+    (Rewrite.respell ~from:"lib$" ~into:"!lib$" "lib$f(mylib$T)" = "!lib$f(mylib$T)")
+
 (* Rewriting writes beside its output under a name it creates exclusively.
    A name that is already there is someone else's file: it is kept, and the
    object goes out under the next name drawn. *)
+
 let rewriting_keeps_others_files () =
   let seed = [| 17 |] in
   let names output count =
@@ -1441,6 +1453,8 @@ let () =
   Builds.fatal_link ();
   Builds.assembled_beside ();
   Foreign_c.run ();
+  C_eval.run ();
+  respelled_labels ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();
   disposed_modules ();

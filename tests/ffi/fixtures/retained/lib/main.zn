@@ -3,8 +3,10 @@
 /// `square`, which reads a `static const` table, are inlined; `next`,
 /// which counts in a `static` variable, and `token_record` and
 /// `token_same`, which let a `static const`'s address out and compare it,
-/// are called; and `started` reads what a constructor with external
-/// linkage counted, which runs once, from the package's own object; and
+/// are called, each a method on the capability `State`, since what they
+/// keep is state another call reads; and `started` reads what a
+/// constructor with external linkage counted, which runs once, from the
+/// package's own object; and
 /// `fenced`, in a source holding assembly, is called in the object that
 /// source was assembled into.
 package lib;
@@ -14,8 +16,10 @@ alias Unit = @primitives$Unit;
 
 I64 add(a I64, b I64) foreign "add";
 I64 square(i I64) foreign "square";
-I64 next() foreign "next";
-Unit tokenRecord() foreign "token_record";
-I64 tokenSame() foreign "token_same";
+type State = #handle{ cType = "lib_state_t"; }
+
+I64 next(this State) mut foreign "next";
+Unit tokenRecord(this State) mut foreign "token_record";
+I64 tokenSame(this State) foreign "token_same";
 I64 started() foreign "started";
 I64 fenced(x I64) foreign "fenced";

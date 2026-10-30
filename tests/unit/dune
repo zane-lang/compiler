@@ -21,7 +21,7 @@
 
 (test
  (name unit)
- (libraries cache cgt codegen diagnostic driver foreign fixture_pairing llvm llvm.analysis llvm.bitwriter llvm.irreader llvm.target optimize rewrite source sst tree_graph tst unix)
+ (libraries cache cgt codegen diagnostic driver foreign fixture_pairing llvm llvm.analysis llvm.bitreader llvm.bitwriter llvm.irreader llvm.target optimize rewrite source sst tree_graph tst unix)
  (deps
   ../../runtime/zane.h
   ../runtime/abi/probe.out

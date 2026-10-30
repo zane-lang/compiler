@@ -206,8 +206,8 @@ let library_roots st (root : T.Package.t) =
       | T.Decl.Subscript { signature; value = Some _; _ } -> declared signature
       | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda l; ty; span }; _ } ->
           Hashtbl.replace st.exported ("lambda " ^ Lower_lambda.lambda st span ty l) ()
-      | T.Decl.Type { name; params = []; definition = T.Decl.Handle (h, _); _ } ->
-          ignore (handle_thunks st (Tty.Named ({ Tty.package = root.T.Package.name; name }, [])) h)
+      | T.Decl.Type { name; params = []; definition = T.Decl.Handle (h, kind); _ } ->
+          ignore (handle_thunks st (Tty.Named ({ Tty.package = root.T.Package.name; name }, [])) (h, kind))
       | _ -> ())
     root.T.Package.decls
 
@@ -223,8 +223,8 @@ let roots_of_glue st (pkg : T.Package.t) =
       match d.T.Decl.node with
       | T.Decl.Verb { signature; body = T.Decl.Foreign _ } when signature.S.generics = [] -> (
           match verb_of st d.T.Decl.id [] with Some v -> ignore (symbol st v) | None -> ())
-      | T.Decl.Type { name; params = []; definition = T.Decl.Handle (h, _); _ } ->
-          ignore (handle_thunks st (Tty.Named ({ Tty.package = pkg.T.Package.name; name }, [])) h)
+      | T.Decl.Type { name; params = []; definition = T.Decl.Handle (h, kind); _ } ->
+          ignore (handle_thunks st (Tty.Named ({ Tty.package = pkg.T.Package.name; name }, [])) (h, kind))
       | _ -> ())
     pkg.T.Package.decls
 

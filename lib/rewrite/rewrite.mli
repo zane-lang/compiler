@@ -21,3 +21,9 @@ val remap : from:string -> to_:string -> string -> (string * int, string) result
     many were: a package's C objects renamed with the names its module's
     globals take (docs/design/ffi.md F9). *)
 val rename : rename:(string -> string option) -> string -> (string * int, string) result
+
+(** [symbol] with every occurrence of [from] spelled [into]: a package's
+    name, which a symbol holds before its own name and in each of the
+    package's types it names. An occurrence that ends a longer name, as
+    [from] `lib$` ends `mylib$`, is another package's, and is kept. *)
+val respell : from:string -> into:string -> string -> string

@@ -122,6 +122,10 @@ type program = {
   (* The steps every fold of the program may take together, so that many
      calls that each run out of budget cannot make a build slow. *)
   mutable left : int;
+  (* The program's C and its thunks (docs/design/ffi.md F16, F17). *)
+  c : C_cross.program;
+  (* Whether a value of each layout asked about holds a foreign handle. *)
+  holding : (Layout.t, bool) Hashtbl.t;
 }
 
 (* The steps one fold may take, all the folds of a program, and how deep
@@ -129,22 +133,6 @@ type program = {
 let budget = 5_000_000
 let total = 50_000_000
 let max_depth = 2_000
-
-type run = {
-  prog : program;
-  mutable steps : int;
-  mutable depth : int;
-  mutable outputs : output list;
-  (* How many outputs [outputs] holds, and the bytes of their text. *)
-  mutable output_count : int;
-  mutable output_bytes : int;
-  cells : (string, cell) Hashtbl.t;
-  (* What each variable held when the run first read it, and that as a
-     constant: a store into a member writes the value in place. *)
-  initial : (string, v * const option) Hashtbl.t;
-  (* The constant this run is making, when it is making one (Constants). *)
-  making : string option;
-}
 
 (* The locals of one call. The function being folded has [outer]: the value
    the fold knows a local of it holds, read the first time it is needed. *)
@@ -187,6 +175,30 @@ module Locals = struct
     Option.iter (Hashtbl.iter f) t.far
 end
 
+type run = {
+  prog : program;
+  mutable steps : int;
+  mutable depth : int;
+  mutable outputs : output list;
+  (* How many outputs [outputs] holds, and the bytes of their text. *)
+  mutable output_count : int;
+  mutable output_bytes : int;
+  cells : (string, cell) Hashtbl.t;
+  (* What each variable held when the run first read it, and that as a
+     constant: a store into a member writes the value in place. *)
+  initial : (string, v * const option) Hashtbl.t;
+  (* The constant this run is making, when it is making one (Constants). *)
+  making : string option;
+  (* The run's C memory, made at its first call into C, and how many
+     handles that C has made: each run starts from C's initial state, as
+     each run of the program does (docs/design/ffi.md F16). *)
+  mutable c_run : C_eval.t option;
+  mutable stamps : int64;
+  (* Each held slot whose value may hold a foreign handle, by the frame
+     and scope whose drain ends it (docs/design/ffi.md F12). *)
+  mutable held : (Locals.t * int * cell * Layout.t) list;
+}
+
 type frame = { locals : Locals.t; outer : (int -> (const * Ty.t) option) option }
 
 exception Left of int
@@ -203,6 +215,9 @@ let start ?making prog =
     cells = Hashtbl.create 8;
     initial = Hashtbl.create 8;
     making;
+    c_run = None;
+    stamps = 0L;
+    held = [];
   }
 
 (* Whether the run wrote a variable of the program, which folding the code
@@ -220,6 +235,16 @@ let wrote_globals run =
       | None, None -> false
       | _ -> true)
     run.cells false
+
+(* Whether a value laid out as [layout] may hold a foreign handle, asked
+   once per layout. *)
+let holds run layout =
+  match Hashtbl.find_opt run.prog.holding layout with
+  | Some b -> b
+  | None ->
+      let b = Layout.holds_handle (Hashtbl.find_opt run.prog.layouts) layout in
+      Hashtbl.replace run.prog.holding layout b;
+      b
 
 let spend run n =
   run.steps <- run.steps - n;
@@ -582,9 +607,11 @@ let rec expr run fr (e : Expr.t) : v =
   | Expr.Runtime { fn; args } ->
       let args = List.map (expr run fr) args in
       runtime run fn args
-  (* C's code is run here once the evaluator knows it (docs/design/ffi.md
-     F16); until then a call into it is the running program's. *)
-  | Expr.Foreign_call _ -> stop "a call into C, which only the running program makes"
+  (* A call into C runs C's code (docs/design/ffi.md F16), its arguments
+     laid out in C's memory as codegen lays them out (F18). *)
+  | Expr.Foreign_call { thunk; args } ->
+      let values = List.map (fun (a : Expr.t) -> (expr run fr a, a.Expr.ty)) args in
+      foreign run thunk values e.Expr.ty
   | Expr.Binary { op; left; right } ->
       (* The left operand runs first. *)
       let l = expr run fr left in
@@ -649,11 +676,23 @@ and stats run fr body = List.iter (stat run fr) body
 and stat run fr (s : Stat.t) =
   tick run;
   match s with
-  | Stat.Let { id; value } | Stat.Hold { id; value; _ } ->
+  | Stat.Let { id; value } ->
       let v = expr run fr value in
       sized run value.Expr.ty;
       bind fr id value.Expr.ty v
-  | Stat.Scope { body; _ } -> stats run fr body
+  | Stat.Hold { id; scope; value; layout } ->
+      let v = expr run fr value in
+      sized run value.Expr.ty;
+      bind fr id value.Expr.ty v;
+      hold run fr scope id layout
+  (* Every way out of a scope drains it, ending the foreign handles its
+     held slots hold (docs/design/ffi.md F12). *)
+  | Stat.Scope { id; body } -> (
+      match stats run fr body with
+      | () -> drain run fr id
+      | exception ((Returned _ | Left _) as e) ->
+          drain run fr id;
+          raise e)
   | Stat.Assign { value; _ } when value.Expr.ty = Ty.Void -> ignore (expr run fr value)
   | Stat.Assign { place; value } ->
       let v = expr run fr value in
@@ -702,14 +741,33 @@ and stat run fr (s : Stat.t) =
       sized run value.Expr.ty;
       store p value.Expr.ty v;
       if p.path = [] then p.cell.layout <- Some layout
-  | Stat.Overwrite { address; value; layout } ->
+  | Stat.Overwrite { address; value; layout; setters } ->
       let p = ptr_of (expr run fr address) in
       let v = expr run fr value in
       bytes run (2 * weight v);
-      store p value.Expr.ty (overwrite run.prog.layouts layout value.Expr.ty (load p) v)
-  | Stat.Reserve { id; ty; _ } ->
+      let t = value.Expr.ty and layouts = run.prog.layouts in
+      let old = load p in
+      (* The old value's foreign handles end, or with [setters] are set
+         from the incoming ones where they are settled (F12). *)
+      let old, v =
+        if run.stamps = 0L || not (holds run layout) then (old, v)
+        else
+          let old, v, actions =
+            if setters then
+              let v, actions = Handles.settled layouts layout t old v [] in
+              (old, v, actions)
+            else
+              let old, actions = Handles.ended layouts layout t old [] in
+              (old, v, actions)
+          in
+          Handles.run_all (handle_thunk run) actions;
+          (old, v)
+      in
+      store p t (overwrite layouts layout t old v)
+  | Stat.Reserve { id; scope; ty; layout } ->
       sized run ty;
-      bind fr id ty (zero ty)
+      bind fr id ty (zero ty);
+      hold run fr scope id layout
   | Stat.Spawn { task; thunk; frame; args; dest; _ } ->
       (* Run where it is spawned (O8): its arguments first, in order, then
          the call, whose result is home at once. *)
@@ -736,6 +794,59 @@ and stat run fr (s : Stat.t) =
 (* ---------------------------------------------------------------------- *)
 (* Calls and the runtime                                                  *)
 (* ---------------------------------------------------------------------- *)
+
+(* The slot [id] recorded as held by [scope] of [fr], when its layout may
+   hold a foreign handle, which only a call into C can make. *)
+and hold run fr scope id layout =
+  if Hashtbl.length run.prog.c.C_cross.thunks > 0 && holds run layout then
+    Option.iter (fun c -> run.held <- (fr.locals, scope, c, layout) :: run.held) (Locals.find_opt fr.locals id)
+
+(* The held slots of [scope] in [fr] ended: every foreign handle they hold
+   released by its free thunk, by descending stamp (F12). *)
+and drain run fr scope =
+  if run.held <> [] then begin
+    let mine, others = List.partition (fun (l, s, _, _) -> l == fr.locals && s = scope) run.held in
+    run.held <- others;
+    if run.stamps > 0L then
+      Handles.run_all (handle_thunk run)
+        (List.fold_left
+           (fun acc (_, _, (c : cell), layout) ->
+             let v, acc = Handles.ended run.prog.layouts layout c.ty c.value acc in
+             c.value <- v;
+             acc)
+           [] mine)
+  end
+
+(* A foreign handle's free or set thunk run on its objects' pointers. *)
+and handle_thunk run thunk args = ignore (foreign run thunk (List.map (fun a -> (a, Ty.Ptr)) args) Ty.Void)
+
+(* A call of the glue's [thunk]: one that reaches a capability is the
+   running program's (F17), and any other runs the C it calls. *)
+and foreign run thunk args ret =
+  match Hashtbl.find_opt run.prog.c.C_cross.thunks thunk with
+  | None -> stop "a call into C with no thunk in the program"
+  | Some f when f.Foreign.capability ->
+      stop "a call that reads or writes a capability, which only the running program makes"
+  | Some f -> C_cross.call run.prog.c (c_run run) f args ret
+
+(* The run's C memory, made at its first call into C. A function value C
+   calls is run here, by its adapter (F18). *)
+and c_run run =
+  match (run.c_run, run.prog.c.C_cross.ir) with
+  | Some c, _ -> c
+  | None, None -> stop "a call into C whose body is not in the build"
+  | None, Some ir ->
+      let rec c =
+        lazy
+          (C_eval.create ir
+             {
+               C_eval.spend = spend run;
+               declared = (fun name args -> C_cross.adapter run.prog.c (Lazy.force c) name args (call run));
+             })
+      in
+      let c = Lazy.force c in
+      run.c_run <- Some c;
+      c
 
 and call run fn args =
   match Funcs.find_opt run.prog.funcs fn with
@@ -886,6 +997,12 @@ and runtime run (fn : Cgt.Runtime.fn) args =
   | _, Cgt.Runtime.Constant_end, [ state; _value; _layout ] ->
       store (ptr_of state) Ty.I64 (VInt (-1L));
       VUnit
+  (* A handle C made during the run takes the next of the run's own
+     stamps, which order its end among the others the run made (F12). *)
+  | _, Cgt.Runtime.Handle_made, [ VNull ] -> VInt 0L
+  | _, Cgt.Runtime.Handle_made, [ VForeign _ ] ->
+      run.stamps <- Int64.succ run.stamps;
+      VInt run.stamps
   | _, Cgt.Runtime.Writeback, [ target; copy; _size; _layout ] ->
       let from = ptr_of copy in
       store (ptr_of target) from.cell.ty (load from);

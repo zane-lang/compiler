@@ -2,14 +2,16 @@
 
 static int64_t counter;
 
-int64_t next(void) { return ++counter; }
+lib_state_t lib_state;
+
+int64_t next(lib_state_t *state) { state->calls++; return ++counter; }
 
 static const int64_t token = 5;
 const int64_t *token_seen;
 
-void token_record(void) { token_seen = &token; }
+void token_record(lib_state_t *state) { state->calls++; token_seen = &token; }
 
-int64_t token_same(void) { return token_seen == &token; }
+int64_t token_same(const lib_state_t *state) { (void)state; return token_seen == &token; }
 
 int64_t starts;
 

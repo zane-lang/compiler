@@ -149,7 +149,8 @@ let renamed_apart ~triple ~global_prefix p names =
 let package_name p = String.sub p.prefix 0 (String.length p.prefix - 4)
 
 (* Each thunk of the glue modules [glue], whose label names the package as
-   [labels] does, named by its label with the package's own name instead.
+   [labels] does, named by its label with the package's own name instead,
+   wherever the label names it: before the verb and in its own types.
    LLVM writes a label with a leading \1 and the target's global prefix
    spelled out where the target has one, and as it is elsewhere. *)
 let relabel ~global_prefix p glue labels =
@@ -159,8 +160,7 @@ let relabel ~global_prefix p glue labels =
   let relabelled name =
     let mark = if String.starts_with ~prefix:marked name then marked else "" in
     let label = String.sub name (String.length mark) (String.length name - String.length mark) in
-    if String.starts_with ~prefix:before label then
-      Some (mark ^ own ^ "$" ^ String.sub label (String.length before) (String.length label - String.length before))
+    if String.starts_with ~prefix:before label then Some (mark ^ Rewrite.respell ~from:before ~into:(own ^ "$") label)
     else None
   in
   List.iter

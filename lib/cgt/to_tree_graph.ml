@@ -278,13 +278,14 @@ let crossing = function
 let thunk (f : Foreign.t) =
   group "thunk"
     (fields
-       [
+       ([
          ("symbol", Leaf f.Foreign.thunk);
          ("package", Leaf f.Foreign.package);
          ("calls", Leaf f.Foreign.c_function);
          ("params", map_seq (fun c -> Leaf (crossing c)) f.Foreign.params);
          ("result", Leaf (crossing f.Foreign.result));
-       ])
+       ]
+       @ if f.Foreign.capability then [ ("reaches", Leaf "a capability") ] else []))
 
 let callback (c : Callback.t) =
   group "callback"

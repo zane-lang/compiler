@@ -1,6 +1,6 @@
 # The C interface: building, calling and folding C
 
-> **Status: being built, in the order of §7.** Built: compiling a
+> **Status: built**, in the order of §7: compiling a
 > package's C (F1, F2, F3, F5) and reading its interface headers (F6), in
 > `lib/foreign/` and `lib/c_interface/`; foreign verbs, handles and
 > foreign variables in the grammar and semantics (F7); and calls of
@@ -12,10 +12,10 @@
 > values as C functions (F11); and `c.coda`'s `archive` and `system`
 > rows, with an archive's members and each source holding assembly
 > renamed as objects (F4, F9), both reaching a program built against a
-> release (F15); and release archives' hashes of their C modules, with
+> release (F15); release archives' hashes of their C modules, with
 > a dependency's C retained for an optimized build to inline where they
-> agree (F13, F15). The rest is
-> designed and not yet built. This page says how the compiler implements the spec's C
+> agree (F13, F15); and C folded at compile time, in `lib/optimize/`
+> (F16–F19). This page says how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
 > compiling a package's C code, checking foreign verbs against it, calling
@@ -332,7 +332,7 @@ that declares its C function. The glue holds:
 
 A thunk's name is the foreign verb's symbol ([`symbols.md`](symbols.md))
 with `.ffi` after it, a free or set thunk's is the handle type's symbol with
-`.free` or `.set`, and F11's entries are named the same way from the lambda's
+`.free` or `.setter`, and F11's entries are named the same way from the lambda's
 symbol, or by the object's package when other objects lift the lambda too,
 given in C with an `__asm__` label, since a verb's
 symbol is not a C identifier. Clang names a labelled function in IR `\01`
@@ -796,6 +796,25 @@ second language: `eval.ml` models what a Zane program means and never where
 its bytes are (O5), and C can tell where its bytes are, so `c_eval.ml`
 models memory as bytes.
 
+The module is the one an optimized build links (F13): every package's C
+of the program, and each dependency's retained C where its hashes agree,
+built before stage 5 runs and kept for codegen. `lib/optimize/c_ir_stubs.cpp`
+writes out each function and global the evaluator reaches, once, as text
+`c_ir.ml` reads, with every offset already computed from the data layout:
+a `getelementptr` as a base, a constant offset and a scale for each
+variable index, a struct field at its offset, and a `byval` argument's
+size. A function that is only declared, or that the linker may replace,
+has no body there.
+
+Each fold's C starts from the state a run of the program starts its Zane
+code in: the module's globals made from their initializers as the fold
+first reaches each, and its constructors, the functions
+`llvm.global_ctors` lists, run by priority when the fold first calls into
+C. A constructor that stops stops every call into C of that fold, since
+no state it leaves is the one the running program has. A variable that is
+`thread_local` stops the fold, since each thread has its own, and so do
+calls nested more than 2,000 deep.
+
 - **Memory** is a set of allocations, each a byte array with a size, an
   alignment and a record of which bytes have been written: one per
   `alloca`, one per global the module defines, made from its initializer,
@@ -896,6 +915,12 @@ A write through a capability is not replayed the way a `print` is (O4): the
 evaluator cannot know what C would have written, so the call stays where it
 is, and nothing after it that depends on its result folds.
 
+Each thunk in the CGT (`Foreign.t`) says whether it reaches a capability:
+a foreign verb's when its signature reads or writes one (F7), and a handle
+type's free and set thunks when the handle is an outside one. A fold
+reaching one stops. One whose C is in an archive or a system library
+reaches a function the module only declares, which stops it as F16 says.
+
 **F18. Values cross between the evaluators in the target's C layout.** When
 a Zane fold reaches a `Foreign_call`, its arguments are known values of
 `eval.ml`; `c_eval.ml` writes each into an allocation of its own laid out as
@@ -921,7 +946,12 @@ which the handle's `eval.ml` value names. A fold that ends with such a
 handle alive in a known local does not fold, as one that gives a lent
 address does not (O6): a C allocation has no CGT form, so it cannot be
 written back as code (O7). Released within the fold, by the evaluator's model of the handle's
-`.end`, it folds.
+`.end`, it folds. The evaluator models F12's run-time rules: each handle a
+fold makes takes the next stamp of a count the fold keeps, a scope's drain
+ends the handles its held slots hold, an overwrite ends the old value's
+handles or, in a settled place, calls the set thunk with the old and the
+incoming object, and the thunks a drain or an overwrite calls run by
+descending stamp. A handle ended is nulled, as the runtime leaves it.
 
 A C call to a function value's C entry (F11) is evaluated by `eval.ml`, with
 the arguments read from C memory, so a C sort with a Zane comparison folds.
@@ -963,22 +993,25 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   runs once, are inlined. With hashes none of which agree, every thunk is
   called. `tests/unit/` checks the retained copy rule by rule, the hash
   file read, written and rewritten, and the glue's thunk order.
-- `golden/NAME.optimized.cgt` shows what folded: the literal checksum as a
-  constant, the handle's whole life gone, the capability calls in place, the
-  call reaching `sin` left as a call.
-- A fixture holds the hazard of `ffi.md` §5.5 as this compiler shows it. A
+- The `folding` fixture's `golden/folding.optimized.cgt` shows what folded:
+  the literal checksum as a constant, the handle's whole life gone, the
+  capability calls in place, the call reaching `sin` left as a call.
+- The `hazard` fixture holds the hazard of `ffi.md` §5.5 as this compiler shows it. A
   call that reaches the C library's own outside state, such as `getenv`,
   never folds, since the C library has no body here (F16); what does fold
   is C state of the package's own. So the fixture declares with no
   capability a C function that returns the next value of a file-scope
   counter, and calls it three times with its result printed and once with
   its result unused. The test asserts what an optimized build prints (each
-  call folded from the counter's first value) against what a plain build
-  prints (1, 2, 3), so a change that stops folding such calls, or starts
+  call folded from the counter's first value, 1, 1, 1, in
+  `golden/hazard.optimized.out`) against what a plain build prints (1, 2,
+  3), so a change that stops folding such calls, or starts
   warning about them, is a decision, not an accident.
 - `tests/unit/` checks `c_eval.ml` instruction by instruction against the
-  same IR compiled and run, its undefined-behavior, `volatile` and atomic stops, the view-identity stop, the modelled C
-  library functions, and the budget.
+  same IR compiled and run, a constructor's state among it; its
+  undefined-behavior, `volatile`, atomic, fast-math and thread-local
+  stops, the view-identity stop, the modelled C library functions, the
+  budget, and a constructor that stops stopping every call.
 - The interface check's errors each have a fixture: a missing symbol, a
   wrong count, a type of another size on one target only (`long` built for
   `x86_64-windows-gnu`), a `const` handle passed as a `mut` subject or returned, a

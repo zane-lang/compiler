@@ -214,10 +214,12 @@ let stride st span t =
   let size, align = Nodes.Ty.size_align (ty st span t) in
   max 1 (Nodes.Ty.round_up size align)
 
-(* A foreign handle type's free and set thunks, named after the type
-   (docs/design/ffi.md F8), each recorded for the glue the first time a
-   layout names it. A capability has neither. *)
-let handle_thunks st (t : Tty.t) (h : T.Handle.t) =
+(* A foreign handle type's free and set thunks (docs/design/ffi.md F8),
+   each recorded for the glue the first time a layout names it. Each is
+   named after the type, by a suffix no walk of the type has. An outside
+   handle's reach a capability (F17), since its object is outside state. A
+   capability has neither. *)
+let handle_thunks st (t : Tty.t) ((h : T.Handle.t), kind) =
   match (t, h.T.Handle.free) with
   | Tty.Named ({ package; _ }, _), Some free ->
       let symbol = Symbol.ty ~stamp:st.stamp t in
@@ -225,11 +227,19 @@ let handle_thunks st (t : Tty.t) (h : T.Handle.t) =
         let name = symbol ^ suffix in
         if not (List.exists (fun (f : Foreign.t) -> f.Foreign.thunk = name) st.thunks) then
           st.thunks <-
-            { Foreign.thunk = name; package; c_function; params; result = Foreign.Unit } :: st.thunks;
+            {
+              Foreign.thunk = name;
+              package;
+              c_function;
+              params;
+              result = Foreign.Unit;
+              capability = kind = T.Decl.Outside;
+            }
+            :: st.thunks;
         name
       in
       let free = thunk ".free" free [ Foreign.Handle ] in
-      let set = Option.map (fun set -> thunk ".set" set [ Foreign.Handle; Foreign.Handle ]) h.T.Handle.set in
+      let set = Option.map (fun set -> thunk ".setter" set [ Foreign.Handle; Foreign.Handle ]) h.T.Handle.set in
       Some (free, set)
   | _ -> None
 
@@ -270,8 +280,8 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
       match definition st t with
       | Some (T.Decl.Distinct u, _) -> positions st span u base tags
       | Some (T.Decl.Struct [ (_, m) ], false) when collapsed st t -> positions st span m base tags
-      | Some (T.Decl.Handle (h, _), _) -> (
-          match handle_thunks st t h with
+      | Some (T.Decl.Handle (h, kind), _) -> (
+          match handle_thunks st t (h, kind) with
           | Some (free, set) ->
               [ at (Layout.Foreign { free; set }) (fst (Nodes.Ty.size_align (ty st span t))) ]
           | None -> [])

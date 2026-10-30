@@ -26,6 +26,10 @@ type const =
   (* A boxed member's payload, in a block of its own. *)
   | Box of { ty : Ty.t; layout : Layout.t option; payload : const }
 
+(* What another evaluator holds for a value: a C object's address, which
+   C_cross adds. *)
+type foreign = ..
+
 type v =
   | VInt of int64
   | VFloat of float
@@ -42,6 +46,10 @@ type v =
   | VNull
   | VFunc of string
   | VLayout of Layout.t
+  (* A foreign handle's pointer, made by C during the run
+     (docs/design/ffi.md F18): it has no CGT form, so nothing holding it
+     folds. *)
+  | VForeign of foreign
 
 and list_ = { mutable items : cell array; mutable count : int; mutable stride : int }
 
@@ -229,8 +237,17 @@ let rec weight = function
   | VText _ -> 24
   | _ -> 8
 
+(* The path to a foreign handle's stamp, from the path to its pointer,
+   which a layout's position names: the two are the handle's words
+   (docs/design/ffi.md F12). *)
+let stamp_path at =
+  match List.rev at with Member 0 :: rest -> List.rev (Member 1 :: rest) | _ -> stop "a foreign handle laid out otherwise"
+
+(* A foreign handle at [at] in [v] vacated: a null pointer, stamped 0. *)
+let vacate_handle v at = set_path (set_path v at VNull) (stamp_path at) (VInt 0L)
+
 (* What a move leaves in the place it moved out of (zane_vacate): no list,
-   no string and no box. *)
+   no string, no box and a null foreign handle. *)
 let rec vacate layouts layout t v =
   List.fold_left
     (fun v ((p : Layout.position), at) ->
@@ -238,7 +255,7 @@ let rec vacate layouts layout t v =
       | Layout.Text -> set_path v at (VText "")
       | Layout.List _ -> set_path v at (empty ())
       | Layout.Box _ -> set_path v at VNull
-      | Layout.Foreign _ -> stop "a foreign handle, which only a call into C makes"
+      | Layout.Foreign _ -> vacate_handle v at
       | Layout.Array { elements; _ } ->
           let e, a = elements_at t v at in
           set_path v at (VRecord (Array.map (vacate layouts elements e) a)))
@@ -321,7 +338,7 @@ let rec export = function
       else None
   | VPtr { cell = c; path = []; owned = true } ->
       Option.map (fun payload -> Box { ty = c.ty; layout = c.layout; payload }) (export c.value)
-  | VPtr _ | VNull | VLayout _ -> None
+  | VPtr _ | VNull | VLayout _ | VForeign _ -> None
 
 (* Whether two constants are the same in every bit: [=] takes a zero for
    its negative, which a division tells apart. *)

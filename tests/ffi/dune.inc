@@ -519,6 +519,140 @@
   (diff golden/calls.out calls.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/folding))
+ (action
+  (with-stdout-to
+   folding.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/folding))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/folding.optimized.cgt folding.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/folding))
+ (targets folding.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build folding.exe --package fixtures/folding)))
+
+(rule
+ (deps (source_tree fixtures/folding))
+ (targets folding.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build folding.optimized.exe --optimize --package fixtures/folding)))
+
+(rule
+ (deps (source_tree fixtures/folding))
+ (targets folding.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build folding.tiered.exe --tiered --package fixtures/folding)))
+
+(rule
+ (deps (source_tree fixtures/folding))
+ (targets folding.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up folding.tier1 --package fixtures/folding)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    folding.checked.out.actual
+    (run ./folding.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/folding.out folding.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    folding.unchecked.out.actual
+    (run ./folding.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/folding.out folding.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    folding.optimized.checked.out.actual
+    (run ./folding.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/folding.out folding.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    folding.optimized.unchecked.out.actual
+    (run ./folding.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/folding.out folding.optimized.unchecked.out.actual)))
+
+(rule
+ (deps folding.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./folding.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    folding.tiered.checked.out.actual
+    (run ./folding.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/folding.out folding.tiered.checked.out.actual)))
+
+(rule
+ (deps folding.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./folding.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    folding.tiered.unchecked.out.actual
+    (run ./folding.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/folding.out folding.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/functions))
  (action
   (with-stdout-to
@@ -785,6 +919,128 @@
  (alias runtest)
  (action
   (diff golden/handles.out handles.tiered.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/hazard))
+ (targets hazard.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build hazard.exe --package fixtures/hazard)))
+
+(rule
+ (deps (source_tree fixtures/hazard))
+ (targets hazard.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build hazard.optimized.exe --optimize --package fixtures/hazard)))
+
+(rule
+ (deps (source_tree fixtures/hazard))
+ (targets hazard.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build hazard.tiered.exe --tiered --package fixtures/hazard)))
+
+(rule
+ (deps (source_tree fixtures/hazard))
+ (targets hazard.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up hazard.tier1 --package fixtures/hazard)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    hazard.checked.out.actual
+    (run ./hazard.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hazard.out hazard.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    hazard.unchecked.out.actual
+    (run ./hazard.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hazard.out hazard.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    hazard.optimized.checked.out.actual
+    (run ./hazard.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hazard.optimized.out hazard.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    hazard.optimized.unchecked.out.actual
+    (run ./hazard.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hazard.optimized.out hazard.optimized.unchecked.out.actual)))
+
+(rule
+ (deps hazard.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./hazard.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    hazard.tiered.checked.out.actual
+    (run ./hazard.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hazard.out hazard.tiered.checked.out.actual)))
+
+(rule
+ (deps hazard.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./hazard.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    hazard.tiered.unchecked.out.actual
+    (run ./hazard.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/hazard.out hazard.tiered.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/noObject))

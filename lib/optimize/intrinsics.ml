@@ -14,9 +14,11 @@ type t = Computed | Output | Input
 let classify : Cgt.Runtime.fn -> t = function
   | Print | Set_threads | Set_threads_auto -> Output
   | Arguments -> Input
-  (* A handle's stamp is the next of a counter the running program keeps,
-     and a null one follows a call into C, which no fold makes. *)
-  | Handle_made | No_object -> Input
+  (* A handle's stamp is the next of a counter the running program keeps:
+     a fold that makes one in a call into C keeps its own
+     (docs/design/ffi.md F18). A null handle stops the program. *)
+  | Handle_made -> Computed
+  | No_object -> Input
   (* Whether the thread has a context is a fact of the running program,
      and only a call from C, which no fold makes, runs either. *)
   | Callback_attach | Callback_detach -> Input
