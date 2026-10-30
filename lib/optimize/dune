@@ -3,7 +3,22 @@
 ; function the tree calls is to a fold, [Value] is what the evaluator
 ; computes with, [Eval] runs CGT at compile time, [Materialize] turns what it
 ; computed back into CGT, [Constants] finds the package constants that fold,
-; and [Fold] rewrites each function from the leaves up.
+; and [Fold] rewrites each function from the leaves up. A call into C is
+; run by [C_eval] on the package's C module (docs/design/ffi.md F16), which
+; [C_ir] reads through c_ir_stubs.cpp; [C_memory] is its memory,
+; [C_library] the C library functions it models, and [C_cross] carries
+; values between the two evaluators (F18).
 (library
  (name optimize)
- (libraries cgt diagnostic))
+ (foreign_stubs
+  (language cxx)
+  (names c_ir_stubs)
+  (flags
+   (:standard
+    (:include llvm_cxx.sexp))))
+ (libraries cgt diagnostic llvm))
+
+(rule
+ (target llvm_cxx.sexp)
+ (deps ../codegen/gen/lld_flags.sh (env_var LLVM_CONFIG) (env_var PATH))
+ (action (with-stdout-to %{target} (run sh ../codegen/gen/lld_flags.sh cxx))))
