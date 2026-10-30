@@ -25,7 +25,10 @@ let rec ended layouts layout t v acc =
 and ended_at layouts t ((p : Layout.position), at) v acc =
       match (p.Layout.kind, read_path v at) with
       | Layout.Foreign _, VNull -> (v, acc)
-      | Layout.Foreign { free; _ }, ptr -> (vacate_handle v at, { stamp = stamp_of v at; thunk = free; args = [ ptr ] } :: acc)
+      | Layout.Foreign { free; _ }, ptr ->
+          (* The stamp is read before the handle is vacated in place. *)
+          let stamp = stamp_of v at in
+          (vacate_handle v at, { stamp; thunk = free; args = [ ptr ] } :: acc)
       | Layout.Box { payload; _ }, VPtr b ->
           let inner, acc = ended layouts payload b.cell.ty b.cell.value acc in
           b.cell.value <- inner;

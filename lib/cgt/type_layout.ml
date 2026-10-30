@@ -214,9 +214,10 @@ let stride st span t =
   let size, align = Nodes.Ty.size_align (ty st span t) in
   max 1 (Nodes.Ty.round_up size align)
 
-(* A foreign handle type's free and set thunks, named after the type
-   (docs/design/ffi.md F8) by suffixes no walk of the type has, each recorded for the glue the first time a
-   layout names it, an outside handle's as reaching a capability (F17). A
+(* A foreign handle type's free and set thunks (docs/design/ffi.md F8),
+   each recorded for the glue the first time a layout names it. Each is
+   named after the type, by a suffix no walk of the type has. An outside
+   handle's reach a capability (F17), since its object is outside state. A
    capability has neither. *)
 let handle_thunks st (t : Tty.t) ((h : T.Handle.t), kind) =
   match (t, h.T.Handle.free) with

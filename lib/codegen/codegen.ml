@@ -196,7 +196,10 @@ let with_program ?target ?pack ?(memoize = false) ?version ?fixed_region ?spawne
 (* The packages' C as the program links it, for stage 5 to evaluate
    (docs/design/ffi.md F16): each package's module renamed and linked, and
    the retained ones of stamped dependencies beside them, in a context of
-   their own that lives only while [f] runs. *)
+   their own that lives only while [f] runs. A package's objects and
+   archives run their constructors in the program, and those may write the
+   C globals [f] would read from their initializers, so when any package
+   links code apart [f] is given no modules, and no call into C folds. *)
 let with_c_modules ?target c f =
   Result.bind (Build.target_machine ?target ~optimize:false ()) (fun (triple, tm) ->
       let data_layout = Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm) in
@@ -209,9 +212,12 @@ let with_c_modules ?target c f =
         (fun () ->
           match Foreign_c.program_module ctx ~triple ~data_layout c with
           | Error _ as e -> e
-          | Ok (m, retained, _) ->
+          | Ok (m, retained, apart) ->
               let modules = Option.to_list m @ retained in
-              Fun.protect ~finally:(fun () -> List.iter Llvm.dispose_module modules) (fun () -> Ok (f modules))))
+              let whole = apart.Foreign_c.objects = [] && apart.Foreign_c.archives = [] in
+              Fun.protect
+                ~finally:(fun () -> List.iter Llvm.dispose_module modules)
+                (fun () -> Ok (f (if whole then modules else [])))))
 
 let ir m = Llvm.string_of_llmodule m
 

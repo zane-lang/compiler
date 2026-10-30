@@ -105,6 +105,7 @@ and global t name =
   | None -> (
       match C_ir.global_of t.ir name with
       | Some (C_ir.Variable g) ->
+          if g.thread_local then stop "a thread-local variable, which each thread has its own of";
           let a = alloc ~readonly:g.constant (Global { name; unnamed = g.unnamed }) ~size:g.size ~align:g.align in
           let v = Ptr { alloc = a; off = 0 } in
           Hashtbl.replace t.globals name v;
@@ -295,8 +296,8 @@ let rec intrinsic t frame ret name (args : value list) =
   | "stacksave", [] -> Wild (Int64.of_int (List.length !frame + 1))
   | "stackrestore", [ Wild n ] ->
       let keep = Int64.to_int n - 1 in
-      let rec drop l = if List.length l <= keep then l else match l with a :: rest -> a.freed <- true; drop rest | [] -> [] in
-      frame := drop !frame;
+      let rec drop n l = if n <= keep then l else match l with a :: rest -> a.freed <- true; drop (n - 1) rest | [] -> [] in
+      frame := drop (List.length !frame) !frame;
       Poison
   | "threadlocal.address", _ -> stop "a thread-local variable, which each thread has its own of"
   | _ -> stop ("an intrinsic the evaluator does not model: " ^ name)

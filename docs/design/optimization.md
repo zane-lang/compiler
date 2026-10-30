@@ -377,6 +377,15 @@ same point and in the same order. How is left to the compiler. Stage 5's answer 
   unobservable;
 - the bound on work is O6's: the step budgets, the depth and the size cap.
 
+A call into C is the one place a fold can change what a program prints. A
+foreign verb that declares no capability says its C reads none
+([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)
+§5.4), and its C is folded on that word ([`ffi.md`](ffi.md) F17). C that
+keeps state of its own anyway, such as a file-scope counter, is folded
+from that state's first value at each call: the hazard spec `ffi.md` §5.5
+names and leaves to the program, which `tests/ffi/`'s `hazard` fixture
+holds.
+
 Stage 5 leaves some such computations for run time, as §5.3 allows: a value
 holding a lent address, an owner of a reference type, a list among them,
 changed by code that does not fold with every statement that names it (only

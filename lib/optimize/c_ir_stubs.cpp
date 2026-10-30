@@ -37,6 +37,17 @@ static Module *module_of(value v) { return reinterpret_cast<Module *>(v & ~(valu
 
 namespace {
 
+/* Whether a constant expression carries a flag that makes it poison on
+   overflow or an inexact result; the evaluator models those only on
+   instructions, so such a constant is one it does not model. */
+static bool wrap_flags(const ConstantExpr *ce) {
+  if (auto *o = dyn_cast<OverflowingBinaryOperator>(ce))
+    if (o->hasNoSignedWrap() || o->hasNoUnsignedWrap()) return true;
+  if (auto *e = dyn_cast<PossiblyExactOperator>(ce))
+    if (e->isExact()) return true;
+  return false;
+}
+
 struct Out {
   std::string s;
   const DataLayout &dl;
@@ -151,7 +162,7 @@ struct Out {
       w(ce->getOpcodeName());
       type(ce->getType());
       constant(ce->getOperand(0));
-    } else if (Instruction::isBinaryOp(ce->getOpcode())) {
+    } else if (Instruction::isBinaryOp(ce->getOpcode()) && !wrap_flags(ce)) {
       w("B");
       w(ce->getOpcodeName());
       constant(ce->getOperand(0));
@@ -228,8 +239,9 @@ struct Function_out : Out {
       operand(s->getPointerOperand());
     } else if (auto *g = dyn_cast<GetElementPtrInst>(&i)) {
       MapVector<Value *, APInt> variable;
-      APInt offset(64, 0);
-      if (g->getType()->isVectorTy() || !cast<GEPOperator>(g)->collectOffset(dl, 64, variable, offset)) {
+      unsigned width = dl.getIndexTypeSizeInBits(g->getType());
+      APInt offset(width, 0);
+      if (g->getType()->isVectorTy() || !cast<GEPOperator>(g)->collectOffset(dl, width, variable, offset)) {
         w("X");
         return;
       }

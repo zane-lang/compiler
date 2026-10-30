@@ -332,7 +332,7 @@ that declares its C function. The glue holds:
 
 A thunk's name is the foreign verb's symbol ([`symbols.md`](symbols.md))
 with `.ffi` after it, a free or set thunk's is the handle type's symbol with
-`.free` or `.set`, and F11's entries are named the same way from the lambda's
+`.free` or `.setter`, and F11's entries are named the same way from the lambda's
 symbol, or by the object's package when other objects lift the lambda too,
 given in C with an `__asm__` label, since a verb's
 symbol is not a C identifier. Clang names a labelled function in IR `\01`

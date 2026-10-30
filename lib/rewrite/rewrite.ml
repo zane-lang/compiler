@@ -56,7 +56,12 @@ let respell ~from ~into symbol =
   let b = Buffer.create (String.length symbol) and n = String.length from in
   let rec go i =
     if i >= String.length symbol then ()
-    else if n > 0 && i + n <= String.length symbol && String.sub symbol i n = from then begin
+    else if
+      n > 0
+      && i + n <= String.length symbol
+      && String.sub symbol i n = from
+      && (i = 0 || not (Name.is_tag_char symbol.[i - 1]))
+    then begin
       Buffer.add_string b into;
       go (i + n)
     end

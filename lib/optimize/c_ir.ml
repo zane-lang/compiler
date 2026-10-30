@@ -374,8 +374,15 @@ let lookup t table read decode defines name =
   match Hashtbl.find_opt table name with
   | Some x -> x
   | None ->
-      let texts = List.filter (fun s -> s <> "") (List.map (fun m -> read m name) t.modules) in
-      let chosen = match List.find_opt defines texts with Some s -> Some s | None -> List.nth_opt texts 0 in
+      let rec first declared = function
+        | [] -> declared
+        | m :: rest -> (
+            match read m name with
+            | "" -> first declared rest
+            | s when defines s -> Some s
+            | s -> first (if declared = None then Some s else declared) rest)
+      in
+      let chosen = first None t.modules in
       let x = Option.map decode chosen in
       Hashtbl.replace table name x;
       x

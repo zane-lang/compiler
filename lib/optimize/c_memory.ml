@@ -88,6 +88,9 @@ let rec store_size (t : C_ir.ty) =
   | C_ir.Int bits -> (bits + 7) / 8
   | C_ir.Float -> 4
   | C_ir.Double | C_ir.Ptr -> 8
+  (* LLVM packs a vector of elements narrower than a byte, as `<8 x i1>`,
+     into bits, which this byte model does not lay out. *)
+  | C_ir.Vector (_, C_ir.Int bits) when bits mod 8 <> 0 -> stop "a vector of elements narrower than a byte in memory"
   | C_ir.Vector (n, e) -> n * store_size e
   | C_ir.Struct { size; _ } -> size
   | C_ir.Array { count; stride; _ } -> count * stride

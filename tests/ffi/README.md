@@ -8,10 +8,11 @@ accepts, `golden/NAME.tst` its typed tree, `golden/NAME.cgt` and
 `golden/NAME.optimized.cgt` its code-generation trees, and
 `golden/NAME.out` what it prints, built and run as tests/codegen builds
 and runs a program: unoptimized, optimized and tiered, with drains checked
-and unchecked, or the optimized build's runs, when
-`golden/NAME.optimized.out` exists, what that holds: a program whose C
-keeps state a call folded at compile time reads (spec `ffi.md` §5.5)
-prints otherwise optimized. `golden/reject.NAME.err` holds what it reports for
+and unchecked. When `golden/NAME.optimized.out` exists, the optimized
+build's runs are held to it instead, and the unoptimized and tiered runs
+still to `golden/NAME.out`: it is for a program whose C keeps state that a
+call folded at compile time reads (spec `ffi.md` §5.5), so that it prints
+otherwise optimized. `golden/reject.NAME.err` holds what it reports for
 `fixtures/reject/NAME`, checked, or built when the fixture holds a file
 named `build`, for one refused only when it is built, and
 `golden/reject.NAME.ll.err` what `zanec --ll` reports for one only

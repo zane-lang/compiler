@@ -473,9 +473,9 @@ end
    verb's or a handle type's free or set thunk: its symbol, the package
    whose C code it calls, the C function, how each argument and the
    result cross, as [Foreign_call] lays them out, and whether a call of it
-   reads or writes capability-backed state, which stage 5 never folds
-   (F17): a method on a foreign capability, or an outside handle's free or
-   set thunk. *)
+   reads or writes capability-backed state, as a method on a foreign
+   capability and an outside handle's free or set thunk do: stage 5 never
+   folds such a call (F17). *)
 module Foreign = struct
   type crossing =
     (* A scalar of the Zane type, which C converts to its own. *)
