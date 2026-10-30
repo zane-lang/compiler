@@ -322,8 +322,11 @@ let generate packages c_code build program =
   let* cgt = Driver.lower ~regions:build.regions ~root packages program in
   let target = build.target and optimize = build.optimize and pack = build.pack and memoize = build.memoize in
   let cgt = Driver.optimize ~optimize cgt in
+  (* Only an optimized build retains a dependency's C (docs/design/ffi.md
+     F13), so only one writes its glue again to compare. *)
   let c () =
     let* hashes = Driver.read_hashes build.c_hashes in
+    let hashes = if optimize then hashes else [] in
     Driver.c_modules ?target ~link:build.link ~hashes ~root packages c_code cgt
   in
   match build.view with
