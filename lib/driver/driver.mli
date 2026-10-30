@@ -77,8 +77,15 @@ val c_modules :
   Cgt.Nodes.Program.t ->
   (Codegen.c_package list, failure) result
 
-(** Stage 5 when [optimize], and the tree as it is otherwise. *)
-val optimize : optimize:bool -> Cgt.Nodes.Program.t -> Cgt.Nodes.Program.t
+(** Stage 5 when [optimize], and the tree as it is otherwise. A call into
+    C folds by running [c], the packages' C code for [target]
+    (docs/design/ffi.md F16). *)
+val optimize :
+  ?target:string ->
+  ?c:Codegen.c_package list ->
+  optimize:bool ->
+  Cgt.Nodes.Program.t ->
+  (Cgt.Nodes.Program.t, failure) result
 
 (** The LLVM module's text. Each of these builds for [target], the host when
     it is absent, and with [pack] passes small aggregates as packed words

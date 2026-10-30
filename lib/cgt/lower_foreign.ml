@@ -135,6 +135,7 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
       c_function = f.T.Foreign.symbol;
       params = List.map fst args;
       result;
+      capability = f.T.Foreign.access <> T.Foreign.Pure;
     }
     :: st.thunks;
   match result with

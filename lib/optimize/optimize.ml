@@ -1,11 +1,12 @@
 (* Stage 5 (docs/design/optimization.md): every value the program can have at
    compile time computed there. The package constants that fold are found
    first, so that a read of one folds wherever it is; then each function is
-   folded from the leaves up. *)
+   folded from the leaves up. A call into C runs on the C modules [c]
+   (docs/design/ffi.md F16), which live while [run] does. *)
 
 open Cgt.Nodes
 
-let run (p : Program.t) =
+let run ?(c = []) (p : Program.t) =
   let table f xs =
     let t = Hashtbl.create 64 in
     List.iter (fun x -> let k, v = f x in Hashtbl.replace t k v) xs;
@@ -19,6 +20,8 @@ let run (p : Program.t) =
       constants = Hashtbl.create 16;
       memo = Value.Key.create 64;
       left = Eval.total;
+      c = C_cross.program (if c = [] then None else Some (C_ir.make c)) p.Program.foreign p.Program.callbacks;
+      holding = Hashtbl.create 16;
     }
   in
   Constants.find prog p.Program.funcs;

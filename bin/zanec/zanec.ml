@@ -324,12 +324,17 @@ let generate packages c_code build program =
      F13), so only one given its hashes writes its glue again to compare. *)
   let compare_glue = optimize && build.c_hashes <> [] in
   let* cgt = Driver.lower ~regions:build.regions ~compare_glue ~root packages program in
-  let cgt = Driver.optimize ~optimize cgt in
-  let c () =
+  (* The C is made from the lowered tree, whose thunks and function values
+     stage 5 keeps, and an optimized build makes it first, since stage 5
+     folds calls into it (docs/design/ffi.md F16). *)
+  let c_of cgt =
     let* hashes = Driver.read_hashes build.c_hashes in
     let hashes = if compare_glue then hashes else [] in
     Driver.c_modules ?target ~link:build.link ~hashes ~root packages c_code cgt
   in
+  let* made = if optimize then Result.map Option.some (c_of cgt) else Ok None in
+  let* cgt = Driver.optimize ?target ?c:made ~optimize cgt in
+  let c () = match made with Some c -> Ok c | None -> c_of cgt in
   match build.view with
   | Cgt ->
       print_string (Tree_graph.render (Cgt.to_node cgt));

@@ -86,6 +86,9 @@ let word r =
   | Some e ->
       r.at <- e + 1;
       String.sub r.text start (e - start)
+  | None when start < String.length r.text ->
+      r.at <- String.length r.text;
+      String.sub r.text start (r.at - start)
   | None -> raise Malformed
 
 let num r = match Int64.of_string_opt (word r) with Some n -> n | None -> raise Malformed
@@ -347,20 +350,23 @@ type t = {
   modules : Llvm.llmodule list;
   pointer_bits : int;
   little : bool;
+  (* What the target puts before a symbol: `_` on Mach-O, nothing on ELF
+     and 64-bit COFF. *)
+  prefix : string;
   funcs : (string, fn option) Hashtbl.t;
   globals : (string, global option) Hashtbl.t;
 }
 
 let make modules =
-  let pointer_bits, little =
+  let pointer_bits, little, prefix =
     match modules with
     | m :: _ -> (
         match String.split_on_char ' ' (layout_text m) with
-        | [ bits; little ] -> (int_of_string bits, little = "1")
-        | _ -> (64, true))
-    | [] -> (64, true)
+        | [ bits; little; prefix ] -> (int_of_string bits, little = "1", if prefix = "-" then "" else prefix)
+        | _ -> raise Malformed)
+    | [] -> (64, true, "")
   in
-  { modules; pointer_bits; little; funcs = Hashtbl.create 64; globals = Hashtbl.create 64 }
+  { modules; pointer_bits; little; prefix; funcs = Hashtbl.create 64; globals = Hashtbl.create 64 }
 
 (* The definition of [name] in the first module holding one, else its
    declaration in the first declaring it. *)
@@ -373,6 +379,19 @@ let lookup t table read decode defines name =
       let x = Option.map decode chosen in
       Hashtbl.replace table name x;
       x
+
+(* The IR name of a glue entry or a Zane function the glue names by an
+   `__asm__` label [symbol] after the global prefix (docs/design/ffi.md
+   F8): `\001` and the label where the target has a prefix, the label
+   alone where it has none. *)
+let labelled t symbol = if t.prefix = "" then symbol else "\001" ^ t.prefix ^ symbol
+
+(* The symbol a labelled IR name stands for. *)
+let unlabelled t name =
+  let mark = "\001" ^ t.prefix in
+  if t.prefix <> "" && String.starts_with ~prefix:mark name then
+    String.sub name (String.length mark) (String.length name - String.length mark)
+  else name
 
 let fn t name =
   lookup t t.funcs function_text

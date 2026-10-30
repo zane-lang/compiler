@@ -327,11 +327,13 @@ value text(const std::string &s) {
 
 } // namespace
 
-/* The pointer width in bits and whether the target is little-endian. */
+/* The pointer width in bits, whether the target is little-endian, and the
+   global prefix its symbols take, `-` for none. */
 extern "C" value zane_c_ir_layout(value m) {
   CAMLparam1(m);
   const DataLayout &dl = module_of(m)->getDataLayout();
-  std::string s = std::to_string(dl.getPointerSizeInBits()) + " " + (dl.isLittleEndian() ? "1" : "0");
+  std::string s = std::to_string(dl.getPointerSizeInBits()) + " " + (dl.isLittleEndian() ? "1" : "0") + " " +
+                  (dl.getGlobalPrefix() ? std::string(1, dl.getGlobalPrefix()) : std::string("-"));
   CAMLreturn(text(s));
 }
 

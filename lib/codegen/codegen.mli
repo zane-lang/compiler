@@ -66,6 +66,13 @@ val with_program :
   (Llvm.llmodule -> ('a, string) result) ->
   ('a, string) result
 
+(** [f] run on the packages' C modules for [target], the host when it is
+    absent, as the program links them: each package's renamed and linked,
+    and the retained modules of stamped dependencies (docs/design/ffi.md
+    F13). Stage 5 evaluates them (F16). They and their context are disposed
+    when [f] returns or raises, so nothing may keep them past it. *)
+val with_c_modules : ?target:string -> c_package list -> (Llvm.llmodule list -> 'a) -> ('a, string) result
+
 (** How many contexts [with_program] has made and not yet disposed: zero
     whenever no build is running. For the tests. *)
 val live_contexts : unit -> int

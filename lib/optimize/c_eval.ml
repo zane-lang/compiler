@@ -20,8 +20,8 @@ open C_memory
 type hooks = { spend : int -> unit; declared : string -> value list -> value option }
 
 (* One fold's C: the module, each global's address once it is made, and
-   the depth of calls. Every fold starts from the globals' initializers,
-   as every run of the program does. *)
+   the depth of calls. Every fold starts from C's state as a run of the
+   program starts its Zane code ([create]). *)
 type t = {
   ir : C_ir.t;
   hooks : hooks;
@@ -31,10 +31,6 @@ type t = {
 }
 
 let max_depth = 2_000
-
-let create ir hooks =
-  if not ir.C_ir.little then stop "C for a big-endian target";
-  { ir; hooks; globals = Hashtbl.create 16; functions = Hashtbl.create 16; depth = 0 }
 
 let spend t n = t.hooks.spend n
 
@@ -531,3 +527,28 @@ and exec t frame regs (i : C_ir.instr) =
       | _ -> stop "a switch on something not an integer")
   | C_ir.Unreachable -> stop "unreachable code reached, which is undefined behavior"
   | C_ir.Unknown -> stop ("an instruction the evaluator does not model: " ^ i.C_ir.opcode)
+
+(* ---------------------------------------------------------------------- *)
+(* A fold's C                                                             *)
+(* ---------------------------------------------------------------------- *)
+
+(* The module's constructors, by priority, as `llvm.global_ctors` lists
+   them: each entry its priority, function and data. *)
+let constructors t =
+  match C_ir.global_of t.ir "llvm.global_ctors" with
+  | Some (C_ir.Variable { init = C_ir.Cagg (_, entries); _ }) ->
+      let entry = function
+        | C_ir.Cagg (_, [| C_ir.Cint (_, priority); C_ir.Cfunction f; _ |]) -> Some (priority, f)
+        | _ -> None
+      in
+      List.map snd (List.stable_sort (fun (a, _) (b, _) -> compare a b) (List.filter_map entry (Array.to_list entries)))
+  | _ -> []
+
+(* A fold's C, its memory as a run of the program finds it when its Zane
+   code starts: every global from its initializer, and then each
+   constructor run, as the program runs them before `main`. *)
+let create ir hooks =
+  if not ir.C_ir.little then stop "C for a big-endian target";
+  let t = { ir; hooks; globals = Hashtbl.create 16; functions = Hashtbl.create 16; depth = 0 } in
+  List.iter (fun f -> ignore (call t f [])) (constructors t);
+  t
