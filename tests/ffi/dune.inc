@@ -33,6 +33,14 @@
    (run sh %{dep:../../../archive} started.a started.archive))))
 
 (subdir
+ fixtures/reject/archivedExternalConstructor
+ (rule
+  (targets started.a)
+  (deps (glob_files started.archive/*) (env_var ZANE_CC) (env_var AR))
+  (action
+   (run sh %{dep:../../../archive} started.a started.archive))))
+
+(subdir
  fixtures/reject/archivedState
  (rule
   (targets counter.a)
@@ -905,6 +913,20 @@
  (alias runtest)
  (action
   (diff golden/reject.archivedConstructor.ll.err reject.archivedConstructor.ll.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/archivedExternalConstructor) fixtures/reject/archivedExternalConstructor/started.a)
+ (action
+  (with-stderr-to
+   reject.archivedExternalConstructor.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/archivedExternalConstructor)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.archivedExternalConstructor.ll.err reject.archivedExternalConstructor.ll.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/archivedState) fixtures/reject/archivedState/counter.a)

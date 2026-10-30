@@ -1,0 +1,14 @@
+/// An interface header running an external constructor, which an
+/// `archive` row's member compiles too: as for a local one, the glue
+/// cannot tell whether the archive runs it, and is refused.
+package archivedExternalConstructor;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 starts() foreign "starts";
+
+Unit main() {
+	starts();
+	return Unit();
+}

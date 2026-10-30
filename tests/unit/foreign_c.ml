@@ -449,6 +449,31 @@ let asm_labels () =
   Llvm.dispose_module m;
   Llvm.dispose_context ctx
 
+(* A header's constructor with external linkage that a source assembled
+   apart defines too: the glue's copy is a declaration, and its entry is
+   left out of the glue's list, since the object runs its own. A local
+   one stays. *)
+let apart_constructors () =
+  let ctx = Llvm.create_context () in
+  let ir =
+    "@runs = global i64 0\n\
+     define void @start() {\n  ret void\n}\n\
+     define internal void @local_start() {\n  ret void\n}\n\
+     @llvm.global_ctors = appending global [2 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @start, ptr null }, { i32, ptr, ptr } { i32 65535, ptr @local_start, ptr null }]\n"
+  in
+  let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string ir) in
+  Codegen__Foreign_c.drop_defined_apart m "" [ "start"; "runs" ];
+  let entries =
+    match Llvm.lookup_global "llvm.global_ctors" m with
+    | Some list -> Llvm.num_operands (Llvm.global_initializer list |> Option.get)
+    | None -> 0
+  in
+  check "the glue's copy of an external constructor an object defines is a declaration"
+    (match Llvm.lookup_function "start" m with Some f -> Llvm.is_declaration f | None -> false);
+  check "the glue no longer runs an external constructor an object defines" (entries = 1);
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx
+
 let run () =
   patterns ();
   paths ();
@@ -462,4 +487,5 @@ let run () =
   glue_refusals ();
   glue_paths ();
   glue_prototypes ();
-  asm_labels ()
+  asm_labels ();
+  apart_constructors ()

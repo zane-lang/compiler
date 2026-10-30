@@ -37,9 +37,14 @@ let read bytes =
 
 (* The module [bitcode] holds optimized and emitted as an object for
    [triple] and [cpu], kept in [cache]'s `foreign/assembled/` under a hash
-   of what made it: the module's own key, the target and the processor. *)
+   of what made it: how the object is emitted, the module's own key, the
+   target and the processor. *)
 let emit ?cache ~triple ~cpu ~key bitcode =
-  let key = Digest.to_hex (Digest.string (String.concat "\000" [ "assembled"; key; triple; cpu ])) in
+  (* Named anew whenever the emitter changes what it makes, so an object
+     an earlier one made is not taken from the cache: `init_array` since
+     constructors go there. *)
+  let emitter = "assembled.init_array" in
+  let key = Digest.to_hex (Digest.string (String.concat "\000" [ emitter; key; triple; cpu ])) in
   let kept = Option.map (fun c -> List.fold_left Filename.concat c [ "foreign"; "assembled"; key ^ ".o" ]) cache in
   match Option.bind kept Cache.read with
   | Some object_ -> Ok object_

@@ -114,8 +114,12 @@ extern "C" value zane_object_emit(value bitcode, value triple, value cpu) {
       failure = lookup;
     else {
       std::unique_ptr<llvm::Module> m = std::move(*parsed);
+      // An ELF object's constructors go in `.init_array`, as clang puts
+      // them: the C library runs no `.ctors`.
+      llvm::TargetOptions options;
+      options.UseInitArray = true;
       std::unique_ptr<llvm::TargetMachine> tm(target->createTargetMachine(
-          name, String_val(cpu), "", llvm::TargetOptions(), llvm::Reloc::PIC_, std::nullopt, llvm::CodeGenOptLevel::Default));
+          name, String_val(cpu), "", options, llvm::Reloc::PIC_, std::nullopt, llvm::CodeGenOptLevel::Default));
       m->setTargetTriple(name);
       m->setDataLayout(tm->createDataLayout());
       llvm::LoopAnalysisManager lam;

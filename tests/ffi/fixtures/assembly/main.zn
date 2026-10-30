@@ -3,9 +3,9 @@
 /// `__asm__` defining `jump`, which jumps to a C function of another
 /// source and which both a thunk and C call, and `__asm__` statements in
 /// a function. `defined.h`, an interface header that source includes,
-/// defines a function, variables, one named by an `__asm__` label, and a
-/// constructor of its own, each defined, and the constructor run, once,
-/// though the glue compiles the header too.
+/// defines a function, variables, one named by an `__asm__` label, and
+/// constructors, one local and one external, each defined, and each
+/// constructor run, once, though the glue compiles the header too.
 package assembly;
 
 alias Unit = @primitives$Unit;

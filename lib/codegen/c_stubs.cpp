@@ -212,6 +212,32 @@ static const char *const lists[] = {"llvm.global_ctors", "llvm.global_dtors"};
    own name. */
 static const char shared_prefix[] = "zane.shared.";
 
+/* The entries of [g]'s appending list [list] whose function [dropped]
+   holds left out of it, and the list gone when none is left. */
+template <typename Dropped> static void drop_entries(llvm::Module *g, const char *list, Dropped dropped) {
+  llvm::GlobalVariable *v = g->getNamedGlobal(list);
+  if (!v || !v->hasInitializer()) return;
+  auto *a = llvm::dyn_cast<llvm::ConstantArray>(v->getInitializer());
+  if (!a) return;
+  std::vector<llvm::Constant *> kept;
+  for (llvm::Use &e : a->operands()) {
+    auto *entry = llvm::cast<llvm::Constant>(e.get());
+    auto *f = llvm::dyn_cast<llvm::Function>(entry->getOperand(1)->stripPointerCasts());
+    if (!f || !dropped(*f)) kept.push_back(entry);
+  }
+  if (kept.size() == a->getNumOperands()) return;
+  if (kept.empty()) {
+    v->eraseFromParent();
+    return;
+  }
+  llvm::ArrayType *t = llvm::ArrayType::get(a->getType()->getElementType(), kept.size());
+  auto *fresh = new llvm::GlobalVariable(*g, t, v->isConstant(), v->getLinkage(), llvm::ConstantArray::get(t, kept), "", v,
+                                         v->getThreadLocalMode(), v->getAddressSpace());
+  fresh->setSection(v->getSection());
+  fresh->takeName(v);
+  v->eraseFromParent();
+}
+
 /* The entries of the glue's appending list [list], `llvm.global_ctors` or
    `llvm.global_dtors`, that run a local function [run] holds, as
    [run_by] reads it: a constructor or destructor of the interface header
@@ -226,31 +252,12 @@ static const char shared_prefix[] = "zane.shared.";
    header defines and [zane_share_state] a private one, is a repeat when
    the modules [before] the glue list that function themselves. */
 static void drop_repeated(llvm::Module *g, llvm::Module *before, const std::set<std::string> &run, const char *list) {
-  llvm::GlobalVariable *v = g->getNamedGlobal(list);
-  if (!v || !v->hasInitializer()) return;
-  auto *a = llvm::dyn_cast<llvm::ConstantArray>(v->getInitializer());
-  if (!a) return;
   std::set<std::string> listed_before;
   for (llvm::Function *f : listed(before, list)) listed_before.insert(f->getName().str());
-  std::vector<llvm::Constant *> kept;
-  for (llvm::Use &e : a->operands()) {
-    auto *entry = llvm::cast<llvm::Constant>(e.get());
-    auto *f = llvm::dyn_cast<llvm::Function>(entry->getOperand(1)->stripPointerCasts());
-    bool again = f && (f->hasLocalLinkage() ? run.count(run_by(list, *f)) && !sets_up_private_state(*f)
-                                            : f->isDeclaration() && listed_before.count(f->getName().str()));
-    if (!again) kept.push_back(entry);
-  }
-  if (kept.size() == a->getNumOperands()) return;
-  if (kept.empty()) {
-    v->eraseFromParent();
-    return;
-  }
-  llvm::ArrayType *t = llvm::ArrayType::get(a->getType()->getElementType(), kept.size());
-  auto *fresh = new llvm::GlobalVariable(*g, t, v->isConstant(), v->getLinkage(), llvm::ConstantArray::get(t, kept), "", v,
-                                         v->getThreadLocalMode(), v->getAddressSpace());
-  fresh->setSection(v->getSection());
-  fresh->takeName(v);
-  v->eraseFromParent();
+  drop_entries(g, list, [&](llvm::Function &f) {
+    return f.hasLocalLinkage() ? run.count(run_by(list, f)) && !sets_up_private_state(f)
+                               : f.isDeclaration() && listed_before.count(f.getName().str());
+  });
 }
 
 /* The local constructors and destructors [mod], a source's module not yet
@@ -555,12 +562,19 @@ extern "C" value zane_drop_defined(value glue, value before, value run) {
    makes one the modules before it hold: an interface header's own
    definition, compiled into the glue too, meets the object's copy as a
    use. A global an `__asm__` label names is matched by the label, after
-   the target's [global_prefix], as the object's reader names it. */
+   the target's [global_prefix], as the object's reader names it. A
+   constructor or destructor with external linkage made a declaration so
+   is left out of the glue's lists: the object runs its own copy. (Foreign
+   refuses a header whose constructors an archive defines, so that object
+   is a source assembled apart.) */
 extern "C" value zane_drop_defined_apart(value glue, value global_prefix, value names) {
   CAMLparam3(glue, global_prefix, names);
   std::set<std::string> apart;
   for (value l = names; l != Val_emptylist; l = Field(l, 1)) apart.insert(String_val(Field(l, 0)));
   std::string target = String_val(global_prefix);
-  declare_defined(module_of(glue), [&](llvm::GlobalValue &v) { return apart.count(label_of(v.getName().str(), target)) > 0; });
+  auto held = [&](llvm::GlobalValue &v) { return apart.count(label_of(v.getName().str(), target)) > 0; };
+  llvm::Module *g = module_of(glue);
+  declare_defined(g, held);
+  for (const char *list : lists) drop_entries(g, list, [&](llvm::Function &f) { return f.isDeclaration() && held(f); });
   CAMLreturn(Val_unit);
 }

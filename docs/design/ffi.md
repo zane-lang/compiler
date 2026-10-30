@@ -431,12 +431,13 @@ definitions of every name the package's objects define are made
 declarations too (`zane_drop_defined_apart`), a labelled one's matched by
 its label, as an object names it, and an assembled source's
 constructors are read from its module, as a linked source's are, so the
-glue leaves out the ones its object runs. An archive says neither which
-of a header's constructors its members run nor whether a member is
-linked, so a header whose glue runs a constructor or destructor of its
-own, and whose external definitions an archive defines too, since a
-member includes it, is refused, a labelled definition again read by its
-label. With no source in the module,
+glue leaves out the ones its object runs; one with external linkage the
+glue's copy of is a declaration so is left out of the glue's list too.
+An archive says neither which of a header's constructors its members run
+nor whether a member is linked, so a header whose glue runs a
+constructor or destructor, local or external, and whose external
+definitions an archive defines too, since a member includes it, is
+refused, a labelled definition again read by its label. With no source in the module,
 the glue is linked into an empty module, so each glue module is still
 linked after one.
 
@@ -458,9 +459,11 @@ value in the module stands for, so renaming the module's globals would
 leave the assembly on the old name. Such a module is never linked into
 the package's module. It is optimized with `-O2` and emitted as an object of its own
 for the build's target and processor, as F14 emits C, when the package's
-C is compiled, so a check holds its sections to the test below, and the
-object is kept in the cache under the module's key (F3), the target and
-the processor. Once assembled, its definitions and references are
+C is compiled, so a check holds its sections to the test below, its
+constructors and destructors in `.init_array` and `.fini_array` on ELF
+as clang puts them, and the
+object is kept in the cache under how it is emitted, the module's key
+(F3), the target and the processor. Once assembled, its definitions and references are
 symbols like any object's: the symbols it defines join the map with the
 archives' before the package's module is renamed, and the object is
 rewritten with the map. Its functions are then called and never inlined

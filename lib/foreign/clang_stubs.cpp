@@ -617,7 +617,7 @@ extern "C" value zane_bitcode_has_assembly(value bitcode) {
 
 /* What [bitcode]'s module defines visible to other modules, functions,
    variables, aliases and indirect functions, and whether it runs a
-   constructor or destructor of its own: the check of a header an archive
+   constructor or destructor, local or external: the check of a header an archive
    compiled too reads them (docs/design/ffi.md F9). Each is its C name, as
    an object's reader names it: a name an `__asm__` label gave, which LLVM
    writes with a leading \1 and the target's global prefix spelled out, is
@@ -646,8 +646,7 @@ extern "C" value zane_bitcode_definitions(value bitcode) {
                   list->hasInitializer() ? list->getInitializer() : nullptr))
             for (const llvm::Use &entry : entries->operands())
               if (const auto *s = llvm::dyn_cast<llvm::ConstantStruct>(entry.get()))
-                if (const auto *f = llvm::dyn_cast<llvm::Function>(s->getOperand(1)->stripPointerCasts()))
-                  if (f->hasLocalLinkage()) runs = true;
+                if (llvm::isa<llvm::Function>(s->getOperand(1)->stripPointerCasts())) runs = true;
     } else {
       llvm::consumeError(module.takeError());
     }
