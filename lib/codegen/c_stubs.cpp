@@ -186,6 +186,11 @@ static std::string run_by(const char *list, llvm::Function &f) {
 
 static const char *const lists[] = {"llvm.global_ctors", "llvm.global_dtors"};
 
+/* What a private variable or function of a source's shared with a glue module is named
+   while the two are linked: the prefix, the source's [tag], a dot and its
+   own name. */
+static const char shared_prefix[] = "zane.shared.";
+
 /* The entries of the glue's appending list [list], `llvm.global_ctors` or
    `llvm.global_dtors`, that run a local function [run] holds, as
    [run_by] reads it: a constructor or destructor of the interface header
@@ -195,7 +200,8 @@ static const char *const lists[] = {"llvm.global_ctors", "llvm.global_dtors"};
    of a header no source includes stays, and so does one that sets up
    private state of the glue's own, which [zane_share_state] did not make
    the source's and a function of the glue still reads, since the source's
-   copy sets up only its own. */
+   copy sets up only its own. One [zane_share_state] made the source's is
+   the source's to run, which its own list does. */
 static void drop_repeated(llvm::Module *g, const std::set<std::string> &run, const char *list) {
   llvm::GlobalVariable *v = g->getNamedGlobal(list);
   if (!v || !v->hasInitializer()) return;
@@ -205,7 +211,8 @@ static void drop_repeated(llvm::Module *g, const std::set<std::string> &run, con
   for (llvm::Use &e : a->operands()) {
     auto *entry = llvm::cast<llvm::Constant>(e.get());
     auto *f = llvm::dyn_cast<llvm::Function>(entry->getOperand(1)->stripPointerCasts());
-    bool again = f && f->hasLocalLinkage() && run.count(run_by(list, *f)) && !sets_up_private_state(*f);
+    bool again = f && (f->hasLocalLinkage() ? run.count(run_by(list, *f)) && !sets_up_private_state(*f)
+                                            : f->isDeclaration() && f->getName().starts_with(shared_prefix));
     if (!again) kept.push_back(entry);
   }
   if (kept.size() == a->getNumOperands()) return;
@@ -241,10 +248,6 @@ extern "C" value zane_c_constructors(value mod) {
   CAMLreturn(result);
 }
 
-/* What a private variable of a source's shared with a glue module is named
-   while the two are linked: the prefix, the source's [tag], a dot and its
-   own name. */
-static const char shared_prefix[] = "zane.shared.";
 
 /* Whether [v] is a private object whose address the program can see: a
    named variable local to its module, other than a string literal or any
@@ -257,6 +260,22 @@ static bool private_object(const llvm::GlobalVariable &v) {
    named function local to its module and defined there. */
 static bool private_function(const llvm::Function &f) {
   return f.hasLocalLinkage() && !f.isDeclaration() && !f.hasGlobalUnnamedAddr() && f.hasName();
+}
+
+/* Whether [f]'s address is taken: a use of it other than a call of it or
+   its entry in a list of constructors or destructors. */
+static bool taken(const llvm::Function &f) {
+  for (const llvm::Use &u : f.uses()) {
+    const llvm::User *user = u.getUser();
+    if (auto *call = llvm::dyn_cast<llvm::CallBase>(user); call && call->isCallee(&u)) continue;
+    bool listing = llvm::isa<llvm::ConstantStruct>(user) && !user->user_empty();
+    for (const llvm::User *array : user->users())
+      for (const llvm::User *list : array->users())
+        if (!llvm::isa<llvm::GlobalVariable>(list) || !llvm::cast<llvm::GlobalVariable>(list)->getName().starts_with("llvm.global_"))
+          listing = false;
+    if (!listing) return true;
+  }
+  return false;
 }
 
 /* [name] without the [prefix] [zane_share_state] gives a shared variable's
@@ -356,8 +375,10 @@ static bool same_object(const llvm::GlobalVariable &a, const llvm::GlobalVariabl
    function whose address the glue takes, as a comparison with a pointer
    to it does, is shared the same way, so the glue sees the address the
    source's pointers hold; one only called stays the glue's own, to
-   inline, and a constructor or destructor stays its own too, as the glue's
-   list of them names it. */
+   inline. A constructor or destructor is shared so too, and the glue's
+   list then leaves it to the source's ([drop_repeated]), unless it sets up
+   private state the glue keeps a copy of, which only the glue's own
+   sets up. */
 extern "C" value zane_share_state(value glue, value source, value tag) {
   CAMLparam3(glue, source, tag);
   llvm::Module *g = module_of(glue), *s = module_of(source);
@@ -390,7 +411,7 @@ extern "C" value zane_share_state(value glue, value source, value tag) {
     for (llvm::Function *f : listed(g, list)) run.insert(f);
   std::vector<llvm::Function *> code;
   for (llvm::Function &f : g->functions())
-    if (private_function(f) && !run.count(&f) && f.hasAddressTaken()) code.push_back(&f);
+    if (private_function(f) && taken(f) && !(run.count(&f) && sets_up_private_state(f))) code.push_back(&f);
   for (llvm::Function *f : code) {
     std::string name = f->getName().str(), joined = prefix + name;
     llvm::Function *there = s->getFunction(joined);
