@@ -709,7 +709,8 @@ runs:
   The glue the consumer compares is the publisher's own: it is written
   for every foreign verb of the package and the free and set thunks of
   each of its handle types, as the package's library build lowers them,
-  whichever of them the program reaches, and each file of it holds its
+  whichever of them the program reaches (only an optimized build given
+  the hash file lowers them all), and each file of it holds its
   thunks in the order of their labels, under the labels the hash file
   names, the publisher's `!` placeholder where its build had one. Once
   compiled, its thunks take the dependency's stamped names. Each source

@@ -217,7 +217,7 @@ let library_roots st (root : T.Package.t) =
    the free and set thunks of each of its foreign handle types, as its own
    library build lowers them ([library_roots]), whichever of them the
    program's calls reach. *)
-let foreign_roots st (pkg : T.Package.t) =
+let roots_of_glue st (pkg : T.Package.t) =
   List.iter
     (fun (d : T.Decl.t) ->
       match d.T.Decl.node with
@@ -350,7 +350,7 @@ let start_function st main span entry makes (funcs : Func.t list) =
     values = [];
   }
 
-let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime.default_fixed_region)
+let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false) ?(fixed_region = Runtime.default_fixed_region)
     (p : T.Program.t) =
   let stamp_of id =
     match String.rindex_opt id '%' with Some i -> String.sub id 0 (i + 1) | None -> ""
@@ -470,9 +470,9 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
              exclusive = st.exclusive;
            })
     in
-    if import_bodies then
+    if foreign_roots then
       List.iter
-        (fun (pkg : T.Package.t) -> if stamped pkg.T.Package.name then foreign_roots st pkg)
+        (fun (pkg : T.Package.t) -> if stamped pkg.T.Package.name then roots_of_glue st pkg)
         p.T.Program.packages;
     if library then begin
       List.iter

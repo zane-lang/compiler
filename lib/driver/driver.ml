@@ -127,8 +127,8 @@ let no_regions = { fixed = None; spawned = None }
 (* Every build takes in its stamped dependencies' bodies, which LLVM inlines
    and defines in no object (docs/design/separate-compilation.md C12): an
    unoptimized build's inlining needs them as much as an optimized one's. *)
-let lower ?(regions = no_regions) ~root packages program =
-  match Cgt.lower ~library:(not root) ~import_bodies:true ?fixed_region:regions.fixed program with
+let lower ?(regions = no_regions) ?(compare_glue = false) ~root packages program =
+  match Cgt.lower ~library:(not root) ~import_bodies:true ~foreign_roots:compare_glue ?fixed_region:regions.fixed program with
   | Ok cgt -> Ok cgt
   | Error d -> fail ~sources:(Assembly.sources packages) [ d ]
 

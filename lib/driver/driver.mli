@@ -46,9 +46,13 @@ type regions = { fixed : int option; spawned : int option }
 (** Stage 4, with the bodies of stamped dependencies' functions taken in
     for LLVM to inline. Without [root], it lowers from every function the
     build declares rather than from the root's `main`. A type no main
-    context's range of [regions] could hold is refused where it is named. *)
+    context's range of [regions] could hold is refused where it is named.
+    With [compare_glue], every thunk of a stamped dependency's glue is
+    lowered too, for [c_modules] to write that glue again and compare it
+    with its release's (docs/design/ffi.md F13). *)
 val lower :
   ?regions:regions ->
+  ?compare_glue:bool ->
   root:bool ->
   Tst.Assembly.package list ->
   Tst.Nodes.Program.t ->
