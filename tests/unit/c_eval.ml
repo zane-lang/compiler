@@ -4,10 +4,11 @@
    prints what the target computes, and the two must agree. Then each of
    [stopping] must stop the evaluator rather than fold: undefined behavior,
    `volatile` and atomic accesses, a fast-math flag, a thread-local
-   variable, an integer wider than 64 bits (a switch on one too), a weak
-   declaration's address, an address's number, an
+   variable, an integer wider than 64 bits (a switch on one read as
+   unmodelled), a weak declaration's address, an address's number, an
    address moved further than any allocation spans, a C function with no
-   body, a zero-sized allocation, and a spent budget; and the sign-only result of `memcmp`.
+   body, a zero-sized allocation, and a spent budget; and the sign-only
+   result of `memcmp`.
    Then C reading the views F18 passes it, which fold, and comparing,
    subtracting or writing them, which stop; a `static` name two modules
    define, which stops; and a constructor that stops, which stops every
@@ -348,7 +349,16 @@ let stop base =
                   check (Printf.sprintf "C evaluation stops at %s: %s" name why) false)
             stopping;
           check "memcmp's result is only its sign"
-            (match evaluate m "s_memcmp" 1L 2L with Ok (C_memory.Sign (32, -1)) -> true | _ -> false))
+            (match evaluate m "s_memcmp" 1L 2L with Ok (C_memory.Sign (32, -1)) -> true | _ -> false);
+          (* The `sext` before it stops a run first, so the switch is
+             checked as read: unmodelled, its case values never read. *)
+          check "a switch wider than 64 bits is read as unmodelled"
+            (match C_ir.fn (C_ir.make [ m ]) "s_wide_switch" with
+            | Some (C_ir.Body f) ->
+                Array.exists
+                  (Array.exists (fun (i : C_ir.instr) -> i.opcode = "switch" && i.op = C_ir.Unknown))
+                  f.C_ir.blocks
+            | _ -> false))
 
 (* C given the views F18 makes of a string's bytes: read-only copies
    standing for storage whose identity is unknown. *)
