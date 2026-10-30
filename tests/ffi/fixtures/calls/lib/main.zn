@@ -16,7 +16,8 @@
 /// the glue calls reads what a function `once.c` defines wrote, and a
 /// constant of the header has one address, which the two compare, and so
 /// do constants pointing at another constant and at a string; a struct a
-/// function of it sets is one too, and a static function a pointer holds.
+/// function of it sets is one too, and a static function a pointer holds,
+/// a constructor among them, which still runs once.
 /// `primed.h`, which no source includes, has constructors of its own, run
 /// beside the one `lib.c` has, and beside the one `plain.c` has under the
 /// same name and doing the same, which is not the header's.
@@ -48,6 +49,9 @@ I64 oncePointersSame() foreign "once_pointers_same";
 Unit onceKeep(x I64) foreign "once_keep";
 I64 onceKept() foreign "once_kept_value";
 I64 onceCallSame() foreign "once_call_same";
+I64 onceSetupRuns() foreign "once_setup_runs";
+I64 onceSetupSame() foreign "once_setup_same";
+I64 onceExternalRuns() foreign "once_external_runs";
 I64 primed() foreign "primed";
 I64 primedRuns() foreign "primed_runs_seen";
 I64 wasWarmed() foreign "was_warmed";

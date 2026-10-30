@@ -135,6 +135,9 @@ Unit main() {
 	lib$onceKeep(I64(8));
 	show(String(lib$onceKept()));
 	show(String(lib$onceCallSame()));
+	show(String(lib$onceSetupRuns()));
+	show(String(lib$onceSetupSame()));
+	show(String(lib$onceExternalRuns()));
 	show(String(lib$primed()));
 	show(String(lib$primedRuns()));
 	show(String(lib$wasWarmed()));

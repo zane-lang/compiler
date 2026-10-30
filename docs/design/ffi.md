@@ -203,7 +203,7 @@ the ASTs. What it hands back is a table, by name, of
 every function, variable, `struct` and `typedef` whose expansion location
 is in an interface header (so a declaration a macro from an included header
 writes, invoked in an interface header, is the interface header's): each variable's canonical type, whether it has
-external linkage, and whether it is thread-local; each function's canonical parameter and result types,
+external linkage, whether it is thread-local, and whether it is `const`; each function's canonical parameter and result types,
 `const` qualification of pointees, whether it is variadic, and whether it
 has a prototype at all; each `struct`'s fields with their canonical types,
 offsets, and bit widths where a field is a bit-field, and the record's size
@@ -240,7 +240,12 @@ foreign verb naming one is an error; the header has to write `int f(void);`
 or the parameters. A `struct` with a bit-field can match a Zane field's
 offset and size while holding fewer bits, so no `struct` with one
 corresponds to a C-compatible value type (`ffi.md` §3.3's full-width fields
-exclude it). The check runs in
+exclude it). A `zane_bytes` or `zane_span` is the one `<zane_ffi.h>`
+declares (§3.4) only when its layout is: a `const` pointer to `uint8_t`, or
+to `void`, at offset 0 and a `size_t` after it, and nothing else. The
+toolchain puts `<zane_ffi.h>`'s directory on the include path but includes
+nothing itself, so a header may declare a struct of the tag of its own,
+and one laid out otherwise is refused. The check runs in
 every build, so `zane check` reports what a build would.
 
 **F7. The TST knows foreign verbs, handles and foreign variables.** The
@@ -273,7 +278,9 @@ A foreign variable desugars to a symbol declaration whose value is an SST
 carries it unchanged; pass 5 types that value as the declared type, a TST
 `Foreign_global { symbol; package }` naming the package that declares the
 capability's type, whose table gives the variable's linkage, thread-local
-storage and C type for the checks of `ffi.md` §5.1. Whether the package's
+storage, `const` qualification and C type for the checks of `ffi.md` §5.1:
+a `const` global is another C type than the capability's, whose `mut`
+methods C receives a writable pointer for. Whether the package's
 C code defines it is read from its compiled sources: F3's modules list the
 variables they define with external linkage, which the table carries as
 `defined`.
@@ -365,7 +372,10 @@ same definition, so each glue module is linked after the sources with
 every definition the modules before it already hold, a function's, a
 variable's, an alias's or an indirect function's, made a declaration
 (`zane_drop_defined`), and the package keeps one copy. A constructor or
-destructor that header defines is local to each copy, so the glue's is
+destructor with external linkage is one of those definitions, and the
+glue's list leaves it out when a module before the glue lists it itself,
+so it runs once. A constructor or
+destructor that header defines `static` is local to each copy, so the glue's is
 left out of its list when a source that includes the header runs one of
 the same name whose instructions use the same constants and globals. A
 source's preprocessed text, read every build for its key (F3), names in
@@ -388,8 +398,10 @@ anything else by name; a struct type matches the other module's copy of
 it field by field, as each module read names its own. A private function
 whose address the glue takes, as comparing it with a pointer of the
 header's does, is shared the same way, so the address the glue sees is
-the one the source's pointers hold; one the glue only calls, or lists as
-a constructor or destructor, stays its own. Such a variable or function
+the one the source's pointers hold; one the glue only calls stays its own.
+A constructor or destructor whose address is taken is shared so too, and
+the glue's list no longer runs it, since the source's does, unless it sets
+up private state the glue keeps a copy of. Such a variable or function
 is the source's,
 renamed `zane.shared.N.NAME` (`N` the source's place in the package)
 and made visible to the link, with the glue's made a declaration of it

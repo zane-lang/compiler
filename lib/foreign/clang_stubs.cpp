@@ -390,6 +390,7 @@ public:
         w.str(v->getName().str());
         w.word(v->hasExternalFormalLinkage() ? "1" : "0");
         w.word(v->getTLSKind() != clang::VarDecl::TLS_None ? "1" : "0");
+        w.word(v->getType().isConstant(v->getASTContext()) ? "1" : "0");
         w.type(v->getType());
       } else if (auto *t = llvm::dyn_cast<clang::TypedefNameDecl>(d)) {
         w.word("typedef");

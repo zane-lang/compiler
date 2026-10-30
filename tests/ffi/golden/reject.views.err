@@ -1,0 +1,8 @@
+File "fixtures/reject/views/main.zn", line 14, characters 1-7:
+14 | String readName() foreign "read_name";
+   | ^^^^^^
+Error: the interface header declares its own `struct zane_bytes`, laid out otherwise than `<zane_ffi.h>`'s `{ const uint8_t *data; size_t size; }` (ffi.md §3.4)
+File "fixtures/reject/views/main.zn", line 15, characters 14-35:
+15 | I64 count(xs @primitives$List<I64>) foreign "count";
+   |              ^^^^^^^^^^^^^^^^^^^^^
+Error: the interface header declares its own `struct zane_span`, laid out otherwise than `<zane_ffi.h>`'s `{ const void *data; size_t count; }` (ffi.md §3.4)
