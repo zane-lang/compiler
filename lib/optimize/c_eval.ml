@@ -44,7 +44,11 @@ let function_address t name =
     match Hashtbl.find_opt t.functions name with
     | Some a -> a
     | None ->
-        let defined = match C_ir.fn t.ir name with Some (C_ir.Body _) -> true | _ -> false in
+        (* A copy's definition is another object's, which may be a second
+           name's too. *)
+        let defined =
+          match C_ir.fn t.ir name with Some (C_ir.Body _) -> not (C_ir.copied t.ir name) | _ -> false
+        in
         let a = alloc (Function { name; defined }) ~size:0 ~align:1 in
         Hashtbl.replace t.functions name a;
         a

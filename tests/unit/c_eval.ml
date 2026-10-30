@@ -233,6 +233,9 @@ static ll far_target;
 static void *far = (void *)((uintptr_t)&far_target + (1ULL << 63));
 ll s_constant_far(ll a, ll b) { return (far == (void *)&far_target) + a + b; }
 ll s_outside_null(ll a, ll b) { ll x = a; return ((void *)((uintptr_t)&x - (uintptr_t)b * 64) == 0) + a; }
+ll copy_f(void) { return 1; }
+ll copy_g(void) { return 1; }
+ll s_copy_equal(ll a, ll b) { return same_function(copy_f, copy_g) + a + b; }
 int s_memcmp(ll a, ll b) { char x[2] = { (char)a, 0 }, y[2] = { (char)b, 0 }; return memcmp(x, y, 2); }
 |}
 
@@ -394,7 +397,22 @@ let stop base =
                 Array.exists
                   (Array.exists (fun (i : C_ir.instr) -> i.opcode = "switch" && i.op = C_ir.Unknown))
                   f.C_ir.blocks
-            | _ -> false))
+            | _ -> false);
+          (* Made `available_externally` here, as a retained module's are:
+             their definitions are another object's, of unknown identity.
+             Last, since it changes the module. *)
+          check "two defined functions' addresses compare unequal"
+            (evaluate m "s_copy_equal" 1L 1L = Ok (C_memory.Int (64, 2L)));
+          List.iter
+            (fun f ->
+              match Llvm.lookup_function f m with
+              | Some f -> Llvm.set_linkage Llvm.Linkage.Available_externally f
+              | None -> ())
+            [ "copy_f"; "copy_g" ];
+          check "copies' addresses compared stop"
+            (match evaluate m "s_copy_equal" 1L 1L with
+            | Error w -> String.starts_with ~prefix:"a comparison of addresses whose storage may be shared" w
+            | Ok _ -> false))
 
 (* C given the views F18 makes of a string's bytes: read-only copies
    standing for storage whose identity is unknown. *)

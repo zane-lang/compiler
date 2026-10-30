@@ -362,6 +362,9 @@ type t = {
   prefix : string;
   funcs : (string, fn option) Hashtbl.t;
   globals : (string, global option) Hashtbl.t;
+  (* The names read from an `available_externally` copy, whose definition
+     is another object's. *)
+  copies : (string, unit) Hashtbl.t;
 }
 
 let make modules =
@@ -373,7 +376,15 @@ let make modules =
         | _ -> raise Malformed)
     | [] -> (64, true, "")
   in
-  { modules; pointer_bits; little; prefix; funcs = Hashtbl.create 64; globals = Hashtbl.create 64 }
+  {
+    modules;
+    pointer_bits;
+    little;
+    prefix;
+    funcs = Hashtbl.create 64;
+    globals = Hashtbl.create 64;
+    copies = Hashtbl.create 8;
+  }
 
 (* The definition of [name] in the module holding one, else an
    `available_externally` copy of the library's (marked `E`), else its
@@ -393,7 +404,9 @@ let lookup t table read decode defines name =
         | [ s ] -> Some s
         | [] -> (
             match List.find_opt copy texts with
-            | Some s -> Some (String.sub s 2 (String.length s - 2))
+            | Some s ->
+                Hashtbl.replace t.copies name ();
+                Some (String.sub s 2 (String.length s - 2))
             | None -> List.nth_opt texts 0)
         | _ -> Value.stop ("a name more than one module defines: " ^ name)
       in
@@ -422,5 +435,8 @@ let fn t name =
       else Body (func s))
     (fun s -> s <> "W" && not (String.starts_with ~prefix:"D" s))
     name
+
+(* Whether [name] was read from an `available_externally` copy. *)
+let copied t name = Hashtbl.mem t.copies name
 
 let global_of t name = lookup t t.globals global_text global (fun s -> s <> "D" && s <> "W") name
