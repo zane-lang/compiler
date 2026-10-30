@@ -55,7 +55,9 @@ and layout = { size : int; align : int; fields : field list }
    parameters' and its result's types as the header spells them, which the
    glue names them by (docs/design/ffi.md F8). *)
 type func = { ty : ctype; external_ : bool; spelled : string list; spelled_result : string }
-type var = { ty : ctype; external_ : bool; thread_local : bool }
+(* A variable's type is read without its top-level `const`, which
+   [constant] keeps. *)
+type var = { ty : ctype; external_ : bool; thread_local : bool; constant : bool }
 
 (* A package's table, by name, and the variables its C code defines with
    external linkage, which its compiled sources say rather than its
@@ -167,7 +169,8 @@ let read text =
             let name = next () in
             let external_ = flag () in
             let thread_local = flag () in
-            let v = { ty = ty (); external_; thread_local } in
+            let constant = flag () in
+            let v = { ty = ty (); external_; thread_local; constant } in
             entries { t with variables = (name, v) :: t.variables }
         | "typedef" ->
             let name = next () in

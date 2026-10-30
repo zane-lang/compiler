@@ -22,6 +22,10 @@ File "fixtures/reject/variables/app/main.zn", line 24, characters 30-40:
 24 |     wrongType lib$Io foreign "io_other";
    |                              ^^^^^^^^^^
 Error: `io_other` is a `struct other_t`, and `Io`'s objects are `io_t` (ffi.md §5.1)
+File "fixtures/reject/variables/app/main.zn", line 25, characters 29-42:
+25 |     constant lib$Io foreign "io_constant";
+   |                             ^^^^^^^^^^^^^
+Error: `io_constant` is a `const` `struct io_t`, and `Io`'s objects are `io_t`, which a `mut` method writes (ffi.md §5.1)
 File "fixtures/reject/variables/lib/lib.zn", line 16, characters 19-30:
 16 |     io Io foreign "io_global";
    |                   ^^^^^^^^^^^
