@@ -421,7 +421,9 @@ its own, as C gives each source one. A header whose writable private
 state a source assembled apart (below) defines is refused too, since that
 copy is in an object of its own, which the glue's cannot share, and so is
 one an archive's member holds a variable of its own of the same name as,
-read from the member's local symbols: that member includes the header. A
+read from the member's local symbols: that member includes the header.
+Each is compared by its C name, so a variable an `__asm__` label names is
+compared by its label, as the header's external definitions are. A
 local symbol named after it with a `.` suffix counts too, since an
 optimized member's copy may be split or specialized into such pieces, as
 `state.0` and `state.1` for the fields of a struct `state`.

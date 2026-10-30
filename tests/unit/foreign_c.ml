@@ -426,9 +426,9 @@ let glue_prototypes () =
 
 (* A global an `__asm__` label names, as LLVM writes one for Mach-O, with
    a leading \1 and the target's `_` spelled out, read as the label an
-   object's reader names it by: a header's definitions name it so, and the
-   glue's copy of one an object assembled apart defines is made a
-   declaration. A Mach-O link is the only one that spells the prefix out,
+   object's reader names it by: a header's definitions and private state
+   name it so, and the glue's copy of one an object assembled apart
+   defines is made a declaration. A Mach-O link is the only one that spells the prefix out,
    and no test links one. *)
 let asm_labels () =
   let ctx = Llvm.create_context () in
@@ -446,6 +446,20 @@ let asm_labels () =
   let declared name = match Llvm.lookup_global name m with Some g -> Llvm.is_declaration g | None -> false in
   check "the glue's copy of a labelled definition an object defines is a declaration" (declared "\001_counter_label");
   check "a definition no object defines stays" (not (declared "plain"));
+  let state =
+    "target datalayout = \"e-m:o-i64:64-i128:128-n32:64-S128-Fn32\"\n\
+     target triple = \"arm64-apple-macosx\"\n\
+     @\"\\01_private_count\" = internal global i64 0\n\
+     @\"\\01_private_limit\" = internal constant i64 1\n\
+     define i64 @read() {\n  %v = load i64, ptr @\"\\01_private_count\"\n  %w = load i64, ptr @\"\\01_private_limit\"\n  %s = add i64 %v, %w\n  ret i64 %s\n}\n"
+  in
+  let sm = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string state) in
+  let state_bitcode = Llvm.MemoryBuffer.as_string (Llvm_bitwriter.write_bitcode_to_memory_buffer sm) in
+  Llvm.dispose_module sm;
+  check "labelled private state is named by its label, as an archive's local symbol is"
+    (Clang.private_state state_bitcode = [ "private_count" ]);
+  check "a labelled private constant is named by its label"
+    (Clang.private_identities state_bitcode = [ "private_limit" ]);
   Llvm.dispose_module m;
   Llvm.dispose_context ctx
 

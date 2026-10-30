@@ -530,8 +530,18 @@ extern "C" value zane_bitcode_defined_variables(value bitcode) {
   CAMLreturn(list);
 }
 
+/* [g]'s C name, as an object's reader names it: a name an `__asm__`
+   label gave, which LLVM writes with a leading \1 and the target's global
+   prefix spelled out, is the label. */
+static std::string c_name(const llvm::GlobalValue &g) {
+  char prefix = g.getParent()->getDataLayout().getGlobalPrefix();
+  llvm::StringRef name = g.getName();
+  if (name.consume_front("\1") && prefix) name.consume_front(llvm::StringRef(&prefix, 1));
+  return name.str();
+}
+
 /* The private state [bitcode]'s module defines: each named variable local
-   to it that the program can write. */
+   to it that the program can write, by its C name. */
 extern "C" value zane_bitcode_private_state(value bitcode) {
   CAMLparam1(bitcode);
   CAMLlocal2(list, cell);
@@ -543,7 +553,7 @@ extern "C" value zane_bitcode_private_state(value bitcode) {
     if (module) {
       for (const llvm::GlobalVariable &g : (*module)->globals())
         if (g.hasLocalLinkage() && !g.isConstant() && g.hasName() && !g.getName().starts_with("llvm."))
-          names.push_back(g.getName().str());
+          names.push_back(c_name(g));
     } else {
       llvm::consumeError(module.takeError());
     }
@@ -579,7 +589,7 @@ static bool address_seen(const llvm::Value *v) {
    addresses the program can see: each named constant local to it whose
    address LLVM may not merge with another's, as a variable's is, and each
    function local to it whose address is taken, so a copy of either is told
-   apart from it. */
+   apart from it. Each is its C name. */
 extern "C" value zane_bitcode_private_identities(value bitcode) {
   CAMLparam1(bitcode);
   CAMLlocal2(list, cell);
@@ -592,9 +602,9 @@ extern "C" value zane_bitcode_private_identities(value bitcode) {
       for (const llvm::GlobalVariable &g : (*module)->globals())
         if (g.hasLocalLinkage() && g.isConstant() && !g.hasGlobalUnnamedAddr() && g.hasName() &&
             !g.getName().starts_with("llvm."))
-          names.push_back(g.getName().str());
+          names.push_back(c_name(g));
       for (const llvm::Function &f : **module)
-        if (f.hasLocalLinkage() && f.hasName() && address_seen(&f)) names.push_back(f.getName().str());
+        if (f.hasLocalLinkage() && f.hasName() && address_seen(&f)) names.push_back(c_name(f));
     } else {
       llvm::consumeError(module.takeError());
     }
@@ -683,14 +693,10 @@ extern "C" value zane_bitcode_definitions(value bitcode) {
     llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
     llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
     if (module) {
-      char prefix = (*module)->getDataLayout().getGlobalPrefix();
       for (const llvm::GlobalValue &g : (*module)->global_values())
         if (!g.isDeclarationForLinker() && !g.hasLocalLinkage() && !g.hasAppendingLinkage() &&
-            !g.getName().starts_with("llvm.")) {
-          llvm::StringRef name = g.getName();
-          if (name.consume_front("\1") && prefix) name.consume_front(llvm::StringRef(&prefix, 1));
-          names.push_back(name.str());
-        }
+            !g.getName().starts_with("llvm."))
+          names.push_back(c_name(g));
       for (const char *name : {"llvm.global_ctors", "llvm.global_dtors"})
         if (const llvm::GlobalVariable *list = (*module)->getNamedGlobal(name))
           if (const auto *entries = llvm::dyn_cast_or_null<llvm::ConstantArray>(
@@ -729,13 +735,8 @@ extern "C" value zane_bitcode_declarations(value bitcode) {
     llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
     llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
     if (module) {
-      char prefix = (*module)->getDataLayout().getGlobalPrefix();
       for (const llvm::GlobalValue &g : (*module)->global_values())
-        if (g.isDeclaration() && !g.getName().starts_with("llvm.") && !g.use_empty()) {
-          llvm::StringRef name = g.getName();
-          if (name.consume_front("\1") && prefix) name.consume_front(llvm::StringRef(&prefix, 1));
-          names.push_back(name.str());
-        }
+        if (g.isDeclaration() && !g.getName().starts_with("llvm.") && !g.use_empty()) names.push_back(c_name(g));
     } else {
       llvm::consumeError(module.takeError());
     }
