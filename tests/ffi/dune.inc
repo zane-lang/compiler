@@ -17,6 +17,14 @@
    (run sh %{dep:../../../archive} tally.a tally.archive))))
 
 (subdir
+ fixtures/reject/archiveDirective
+ (rule
+  (targets linked.a)
+  (deps (glob_files linked.archive/*) (env_var ZANE_CC) (env_var AR))
+  (action
+   (run sh %{dep:../../../archive} linked.a linked.archive))))
+
+(subdir
  fixtures/reject/archiveExport
  (rule
   (targets exported.a)
@@ -917,6 +925,20 @@
  (alias runtest)
  (action
   (diff golden/reject.absolute.err reject.absolute.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/archiveDirective) fixtures/reject/archiveDirective/linked.a)
+ (action
+  (with-stderr-to
+   reject.archiveDirective.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/archiveDirective)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.archiveDirective.err reject.archiveDirective.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/archiveExport) fixtures/reject/archiveExport/exported.a)

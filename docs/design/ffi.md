@@ -503,9 +503,10 @@ them, a Mach-O one as `SEGMENT,section`: an error naming the archive and
 its member, or the source, and the section. A section whose name
 is not a C identifier, such as `.text.hot` or `__DATA,__const`, is allowed.
 A COFF object's linker directives, its `.drectve` section, are not
-renamed either: one naming a symbol the object defines, such as the
-`/EXPORT:` that `__declspec(dllexport)` writes, or an `/INCLUDE:` or
-`/ALTERNATENAME:`, would ask the link for the old name, so it is an
+renamed either: one naming a symbol the package renames, whichever of
+its sources, glue, archive members or assembled objects defines it, such
+as the `/EXPORT:` that `__declspec(dllexport)` writes, or an `/INCLUDE:`
+or `/ALTERNATENAME:`, would ask the link for the old name, so it is an
 error naming the archive and its member, or the source, and the symbol.
 So is a Mach-O global symbol without the `_` every C name takes there,
 which an `__asm__` label or assembly can define: it has no C name to
@@ -932,7 +933,8 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   `_Thread_local` one, a package whose C places a global in a section
   named `plugins`, one whose archive member or file-scope assembly places
   data in a linker set, an archive member exporting a function it defines
-  through a linker directive, one defining a Mach-O symbol no C name
+  through a linker directive, one naming in a directive a function another
+  member defines, one defining a Mach-O symbol no C name
   renames, and a `system` row naming a library the
   linker cannot find.
 

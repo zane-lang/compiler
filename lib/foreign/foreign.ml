@@ -16,13 +16,14 @@ module Objects = Objects
 type assembled = { source : Compile.source; object_ : string; contents : Objects.contents }
 
 (* An `archive` row's static library (docs/design/ffi.md F4): its path, a
-   hash of its bytes, its members, each its name and its bytes, and what
-   they hold between them. *)
+   hash of its bytes, its members, each its name and its bytes, what they
+   hold between them, and the names each member's linker directives name. *)
 type archive = {
   path : string;
   digest : string;
   members : (string * string) list;
   held : Objects.contents;
+  directed : (string * string list) list;
 }
 
 (* What a package's C build is: the rows of its `c.coda` that apply to the
@@ -162,25 +163,55 @@ let object_linker_sets ~file ~what (contents : Objects.contents) =
         }
 
 (* An object holding a symbol renaming cannot reach, refused, [what]
-   saying what the object is: one its linker directives name of those it
-   defines, since renaming rewrites its symbol table, not the directive,
-   which would ask the link for the old name; and a Mach-O global without
-   the `_` every C name takes there, which has no C name to rename it by,
-   so two versions of the package would define it twice. *)
+   saying what the object is: a Mach-O global without the `_` every C name
+   takes there, which has no C name to rename it by, so two versions of the
+   package would define it twice. *)
 let unreachable_symbols ~file ~what (contents : Objects.contents) =
-  let directed = List.filter (fun n -> List.mem n contents.Objects.defined) contents.directed in
-  let problem why name = Diagnostic.in_file file (Printf.sprintf why what name) in
-  match
-    List.map
-      (problem
-         "%s names `%s` in a linker directive, such as the export `__declspec(dllexport)` writes, which renaming the package's symbols cannot reach, so the link would ask for the old name (docs/design/ffi.md F9)")
-      (List.sort_uniq compare directed)
-    @ List.map
-        (problem
-           "%s defines the global symbol `%s` without the `_` a C name takes on this target, as an `__asm__` label or assembly can, which renaming the package's symbols cannot reach, so two versions of the package would both define it (docs/design/ffi.md F9)")
-        (List.sort_uniq compare contents.unprefixed)
-  with
+  match List.sort_uniq compare contents.Objects.unprefixed with
   | [] -> Ok contents
+  | unprefixed ->
+      Error
+        {
+          diagnostics =
+            List.map
+              (fun name ->
+                Diagnostic.in_file file
+                  (Printf.sprintf
+                     "%s defines the global symbol `%s` without the `_` a C name takes on this target, as an `__asm__` label or assembly can, which renaming the package's symbols cannot reach, so two versions of the package would both define it (docs/design/ffi.md F9)"
+                     what name))
+              unprefixed;
+          sources = [];
+        }
+
+(* [assembled] and [archives] refused when a linker directive one of them
+   holds names a symbol of [renamed], the C names the package renames,
+   whichever of its modules or objects defines it: renaming rewrites an
+   object's symbol table, not its directives, which would ask the link for
+   the old name. *)
+let directed_renamed ~renamed assembled archives =
+  let table = Hashtbl.create 64 in
+  List.iter (fun n -> Hashtbl.replace table n ()) renamed;
+  let problem file what name =
+    Diagnostic.in_file file
+      (Printf.sprintf
+         "%s names `%s` in a linker directive, such as the export `__declspec(dllexport)` writes, which renaming the package's symbols cannot reach, so the link would ask for the old name (docs/design/ffi.md F9)"
+         what name)
+  in
+  let check file what directed =
+    List.map (problem file what) (List.sort_uniq compare (List.filter (Hashtbl.mem table) directed))
+  in
+  match
+    List.concat_map
+      (fun a -> check a.source.Compile.path "the object this C is assembled into" a.contents.Objects.directed)
+      assembled
+    @ List.concat_map
+        (fun a ->
+          List.concat_map
+            (fun (name, directed) -> check a.path (Printf.sprintf "the member `%s`" name) directed)
+            a.directed)
+        archives
+  with
+  | [] -> Ok ()
   | diagnostics -> Error { diagnostics; sources = [] }
 
 let refused file message = Error { diagnostics = [ Diagnostic.in_file file message ]; sources = [] }
@@ -254,6 +285,7 @@ let archive ~triple dir (row : Settings.row) =
           directed = union (fun c -> c.Objects.directed);
           unprefixed = union (fun c -> c.Objects.unprefixed);
         };
+      directed = List.map2 (fun (name, _) c -> (name, c.Objects.directed)) members held;
     }
 
 (* One package's C: its interface headers read, its sources compiled, with
@@ -288,7 +320,15 @@ let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
     @ List.concat_map (fun a -> a.contents.Objects.data) assembled
     @ List.concat_map (fun a -> a.held.Objects.data) archives
   in
-  both tables (both compiled archives)
+  let directed (((sources : Compile.source list), assembled), archives) =
+    let renamed =
+      List.concat_map (fun (s : Compile.source) -> fst (Clang.definitions s.bitcode)) sources
+      @ List.concat_map (fun a -> a.contents.Objects.defined) assembled
+      @ List.concat_map (fun a -> a.held.Objects.defined) archives
+    in
+    Result.map (fun () -> ((sources, assembled), archives)) (directed_renamed ~renamed assembled archives)
+  in
+  both tables (Result.bind (both compiled archives) directed)
   |> Result.map (fun (tables, ((sources, assembled), archives)) ->
          let interface = List.fold_left C_interface.merge C_interface.empty (List.map snd tables) in
          {
@@ -498,6 +538,13 @@ let archived_constructors (p : package) compiled =
   | [] -> Ok compiled
   | diagnostics -> Error { diagnostics; sources = [] }
 
+(* The glue [compiled], unless a linker directive of [p]'s objects names
+   what the glue defines and renames, an interface header's own definition
+   no source compiles ([directed_renamed]). *)
+let directed_glue (p : package) compiled =
+  let renamed = List.concat_map (fun (_, (g : Compile.source)) -> fst (Clang.definitions g.bitcode)) compiled in
+  Result.map (fun () -> compiled) (directed_renamed ~renamed p.assembled p.archives)
+
 (* [p]'s glue for [entries] (Glue), each file compiled as its sources
    were, from the cache when it holds it, beside the real path of the
    interface header it compiles. The files are written to a
@@ -516,7 +563,10 @@ let glue p (entries : Glue.entry list) =
       glue_refused
         (Printf.sprintf "the interface header `%s` cannot be included by its path, which holds a `\"` or a line break"
            header)
-  | None -> Result.bind (Result.bind (glue_files p ~dir files) (shared_state p)) (archived_constructors p)
+  | None ->
+      Result.bind
+        (Result.bind (Result.bind (glue_files p ~dir files) (shared_state p)) (archived_constructors p))
+        (directed_glue p)
 
 (* The C entries of the function values C can call
    (docs/design/ffi.md F11, Glue.callbacks_file), compiled for [target] by
