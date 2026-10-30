@@ -509,30 +509,44 @@ let shared_state (p : package) compiled =
   | diagnostics -> Error { diagnostics; sources = [] }
 
 (* The glue [compiled], unless an interface header whose glue module runs
-   a constructor or destructor of the header's own was compiled into one
-   of [p]'s archives too, as the external definitions the archive defines
-   with it show: the glue's copies of those are dropped for the archive's
-   (Foreign_c), but which of the header's constructors a member runs, and
-   whether that member is linked at all, the archive does not say, so the
-   glue's could run beside them or in their place (docs/design/ffi.md
-   F9). *)
+   a constructor or destructor of the header's own could have been
+   compiled into one of [p]'s archives too: one defining what the glue
+   defines or uses, or one whose members run constructors or destructors
+   of their own (Objects.runs_code). A header of declarations, inline
+   functions and a static constructor shares no definition with a member
+   that includes it, and the member's copy of the constructor may be
+   folded into the initial value of a variable it sets, which the glue's
+   copy uses. The glue's copies of what the archive defines
+   are dropped for the archive's (Foreign_c), but which of the header's
+   constructors a member runs, and whether that member is linked at all,
+   the archive does not say, so the glue's could run beside them or in
+   their place (docs/design/ffi.md F9). *)
 let archived_constructors (p : package) compiled =
   let refused (header, (glue : Compile.source)) =
     match Clang.definitions glue.bitcode with
     | _, false -> None
     | defined, true -> (
-        match List.find_opt (fun a -> List.exists (fun n -> List.mem n a.held.Objects.defined) defined) p.archives with
-        | None -> None
-        | Some a ->
-            let file =
-              List.find_opt (fun h -> Compile.real (Filename.concat p.dir h) = header) p.headers
-              |> Option.fold ~none:header ~some:(Filename.concat p.dir)
-            in
+        let reached = defined @ Clang.declarations glue.bitcode in
+        let shares a = List.exists (fun n -> List.mem n a.held.Objects.defined) reached in
+        let runs a = List.exists Objects.runs_code a.held.Objects.sections in
+        let file () =
+          List.find_opt (fun h -> Compile.real (Filename.concat p.dir h) = header) p.headers
+          |> Option.fold ~none:header ~some:(Filename.concat p.dir)
+        in
+        match (List.find_opt shares p.archives, List.find_opt runs p.archives) with
+        | Some a, _ ->
             Some
-              (Diagnostic.in_file file
+              (Diagnostic.in_file (file ())
                  (Printf.sprintf
-                    "this interface header runs constructors or destructors of its own, and `%s` defines what it defines, since a member of it includes it, so the glue, which calls the header's functions, cannot tell which of them the archive runs (docs/design/ffi.md F9)"
-                    a.path)))
+                    "this interface header runs constructors or destructors of its own, and `%s` defines what it defines or uses, as a member including it would, so the glue, which calls the header's functions, cannot tell which of them the archive runs (docs/design/ffi.md F9)"
+                    a.path))
+        | None, Some a ->
+            Some
+              (Diagnostic.in_file (file ())
+                 (Printf.sprintf
+                    "this interface header runs constructors or destructors of its own, and a member of `%s` runs some too, which may be the header's, since an archive does not say which headers its members include, so the glue, which calls the header's functions, cannot tell whether they would run twice (docs/design/ffi.md F9)"
+                    a.path))
+        | None, None -> None)
   in
   match List.filter_map refused compiled with
   | [] -> Ok compiled

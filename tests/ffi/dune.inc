@@ -81,6 +81,22 @@
    (run sh %{dep:../../../archive} token.a token.archive))))
 
 (subdir
+ fixtures/reject/archivedHeaderConstructor
+ (rule
+  (targets counted.a)
+  (deps (glob_files counted.archive/*) (env_var ZANE_CC) (env_var AR))
+  (action
+   (run sh %{dep:../../../archive} counted.a counted.archive))))
+
+(subdir
+ fixtures/reject/archivedLibraryConstructor
+ (rule
+  (targets unbuffered.a)
+  (deps (glob_files unbuffered.archive/*) (env_var ZANE_CC) (env_var AR))
+  (action
+   (run sh %{dep:../../../archive} unbuffered.a unbuffered.archive))))
+
+(subdir
  fixtures/reject/archivedState
  (rule
   (targets counter.a)
@@ -1037,6 +1053,34 @@
  (alias runtest)
  (action
   (diff golden/reject.archivedFunction.ll.err reject.archivedFunction.ll.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/archivedHeaderConstructor) fixtures/reject/archivedHeaderConstructor/counted.a)
+ (action
+  (with-stderr-to
+   reject.archivedHeaderConstructor.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/archivedHeaderConstructor)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.archivedHeaderConstructor.ll.err reject.archivedHeaderConstructor.ll.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/archivedLibraryConstructor) fixtures/reject/archivedLibraryConstructor/unbuffered.a)
+ (action
+  (with-stderr-to
+   reject.archivedLibraryConstructor.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/archivedLibraryConstructor)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.archivedLibraryConstructor.ll.err reject.archivedLibraryConstructor.ll.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/archivedState) fixtures/reject/archivedState/counter.a)

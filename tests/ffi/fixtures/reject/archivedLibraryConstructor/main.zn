@@ -1,0 +1,15 @@
+/// An interface header whose static constructor reaches only the C
+/// library, which an `archive` row's member includes: the member shares
+/// nothing with the glue, but runs a constructor of its own, which may be
+/// the header's, so the glue is refused.
+package archivedLibraryConstructor;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 unbuffered() foreign "unbuffered";
+
+Unit main() {
+	unbuffered();
+	return Unit();
+}

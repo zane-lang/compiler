@@ -55,6 +55,8 @@ names, or, when it is empty, for an architecture other than the host's.
 | `reject/sharedState` | An interface header whose private state, which a `static inline` function the glue calls reads, two sources including it define, so the glue's copy can be neither's |
 | `reject/assembledState` | An interface header whose private state, which a `static inline` function the glue calls reads, a source holding assembly, assembled apart, defines too, refused: its copy is in the source's own object |
 | `reject/archivedConstructor` | An interface header running a constructor of its own whose definitions an `archive` row's member compiles too, refused: the archive does not say which of the header's constructors it runs |
+| `reject/archivedHeaderConstructor` | An interface header of declarations, an inline function and a static constructor, included by an `archive` row's member that defines the variable the constructor sets, which the member's copy of the constructor was folded into, refused |
+| `reject/archivedLibraryConstructor` | An interface header whose static constructor reaches only the C library, included by an `archive` row's member that shares nothing with the glue but runs a constructor of its own, refused: it may be the header's |
 | `reject/archivedExternalConstructor` | `reject/archivedConstructor` with the constructor external, refused the same way |
 | `reject/assembledConstant` | An interface header whose private constant, whose address the program can see, a source holding assembly, assembled apart, defines too, refused: the glue's copy would be told apart from the object's |
 | `reject/archivedConstant` | The same constant held by an `archive` row's member that includes the header, refused the same way |

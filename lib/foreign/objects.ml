@@ -50,6 +50,21 @@ let directive_names text =
   |> List.concat_map named
   |> List.filter (fun n -> n <> "")
 
+(* Whether [section] is one an object's constructors or destructors are
+   listed in, so linking the object runs them: ELF's `.init_array`,
+   `.fini_array`, `.preinit_array`, `.ctors` and `.dtors`, each perhaps
+   with a priority after a `.`; Mach-O's `__mod_init_func`,
+   `__mod_term_func` and `__init_offsets` in any segment; and COFF's
+   `.CRT$XC` and `.CRT$XT` groups. *)
+let runs_code section =
+  let named n = section = n || String.starts_with ~prefix:(n ^ ".") section in
+  List.exists named [ ".init_array"; ".fini_array"; ".preinit_array"; ".ctors"; ".dtors" ]
+  || List.exists
+       (fun n -> String.ends_with ~suffix:("," ^ n) section)
+       [ "__mod_init_func"; "__mod_term_func"; "__init_offsets" ]
+  || String.starts_with ~prefix:".CRT$XC" section
+  || String.starts_with ~prefix:".CRT$XT" section
+
 let read bytes =
   let kind k = List.filter_map (fun (n, kind) -> if kind = k then Some n else None) in
   Result.map

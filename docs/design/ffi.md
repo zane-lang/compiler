@@ -441,10 +441,16 @@ constructors are read from its module, as a linked source's are, so the
 glue leaves out the ones its object runs; one with external linkage the
 glue's copy of is a declaration so is left out of the glue's list too.
 An archive says neither which of a header's constructors its members run
-nor whether a member is linked, so a header whose glue runs a
-constructor or destructor, local or external, and whose external
-definitions an archive defines too, since a member includes it, is
-refused, a labelled definition again read by its label. With no source in the module,
+nor whether a member is linked, nor which headers a member includes. So
+a header whose glue runs a constructor or destructor, local or external,
+is refused when an archive could have compiled it too: when the archive
+defines what the glue defines or uses, a labelled definition again read
+by its label, or when a member runs constructors or destructors of its
+own, from `.init_array`, `.ctors`, `__mod_init_func` or `.CRT$XC` and
+their destructor sections. A header of declarations, inline functions and
+a static constructor shares no definition with a member including it, and
+the member's copy of the constructor may be folded into the initial
+value of a variable it sets, which the glue's copy uses. With no source in the module,
 the glue is linked into an empty module, so each glue module is still
 linked after one.
 

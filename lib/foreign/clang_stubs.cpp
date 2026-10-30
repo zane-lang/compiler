@@ -714,3 +714,38 @@ extern "C" value zane_bitcode_definitions(value bitcode) {
   Store_field(pair, 1, Val_bool(runs));
   CAMLreturn(pair);
 }
+
+/* What [bitcode]'s module uses from other modules without defining it,
+   functions and variables, each its C name as [zane_bitcode_definitions]
+   gives one: what a header's constructor may reach in an archive that
+   compiled the header too, as a variable the archive defines and its
+   folded copy of the constructor set (docs/design/ffi.md F9). */
+extern "C" value zane_bitcode_declarations(value bitcode) {
+  CAMLparam1(bitcode);
+  CAMLlocal2(list, cell);
+  std::vector<std::string> names;
+  {
+    llvm::LLVMContext context;
+    llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
+    llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
+    if (module) {
+      char prefix = (*module)->getDataLayout().getGlobalPrefix();
+      for (const llvm::GlobalValue &g : (*module)->global_values())
+        if (g.isDeclaration() && !g.getName().starts_with("llvm.") && !g.use_empty()) {
+          llvm::StringRef name = g.getName();
+          if (name.consume_front("\1") && prefix) name.consume_front(llvm::StringRef(&prefix, 1));
+          names.push_back(name.str());
+        }
+    } else {
+      llvm::consumeError(module.takeError());
+    }
+  }
+  list = Val_emptylist;
+  for (auto it = names.rbegin(); it != names.rend(); ++it) {
+    cell = caml_alloc(2, 0);
+    Store_field(cell, 0, caml_copy_string(it->c_str()));
+    Store_field(cell, 1, list);
+    list = cell;
+  }
+  CAMLreturn(list);
+}

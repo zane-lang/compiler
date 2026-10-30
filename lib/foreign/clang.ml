@@ -22,6 +22,9 @@ external has_assembly : string -> bool = "zane_bitcode_has_assembly"
 (* What [bitcode]'s module defines visible to other modules, and whether it
    runs a constructor or destructor of its own. *)
 external definitions : string -> string list * bool = "zane_bitcode_definitions"
+
+(* What [bitcode]'s module uses without defining it. *)
+external declarations : string -> string list = "zane_bitcode_declarations"
 external host_triple : unit -> string = "zane_host_triple"
 external triple_parts : string -> string * string * string * string = "zane_triple_parts"
 
