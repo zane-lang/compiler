@@ -1,6 +1,6 @@
 /// Foreign variables (ffi.md §5.1): of a capability's type, naming a global
 /// its package defines with external linkage and declares with the type's C
-/// type, not thread-local, and only in the root package.
+/// type, not `const` and not thread-local, and only in the root package.
 package app;
 
 alias Unit = @primitives$Unit;
@@ -22,6 +22,7 @@ Unit main() {
 	undefined lib$Io foreign "io_declared";
 	local lib$Io foreign "io_thread";
 	wrongType lib$Io foreign "io_other";
+	constant lib$Io foreign "io_constant";
 	good lib$Io foreign "io_global";
 	return Unit();
 }

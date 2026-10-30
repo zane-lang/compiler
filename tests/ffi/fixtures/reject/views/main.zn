@@ -1,0 +1,19 @@
+/// The views a string and a list cross as are `<zane_ffi.h>`'s (ffi.md
+/// §3.4): a header declaring its own `zane_bytes` or `zane_span`, laid out
+/// otherwise, declares no view.
+package views;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+String readName() foreign "read_name";
+I64 count(xs @primitives$List<I64>) foreign "count";
+
+Unit main() {
+	return Unit();
+}
