@@ -8,12 +8,13 @@
    modules can link against is `available_externally`, or a declaration
    when its body is not the object's code to copy: a variable that is not
    a constant, a weak definition another object may override, a constant
-   holding the address of something local to the module, and a function
-   that shares state the object owns or lets out an address a copy would
-   change. That is a function that reaches a variable local to the module
+   holding the address of something local to the module or of a label,
+   and a function that shares state the object owns or lets out an
+   address a copy would change. That is a function that reaches a variable local to the module
    that is not a constant (a `static` counter, or a `static const volatile`
    word, which LLVM holds as no constant either), or a local constant or
-   function placed in an explicit section, or that does anything with a
+   function placed in an explicit section, or takes a label's address
+   (a computed `goto`'s), or that does anything with a
    local constant's address but read through it (one whose address LLVM
    may merge, as a string literal's, aside), or with a local
    function's but call it, or that calls a local function that does any
@@ -33,6 +34,7 @@
 #include "llvm/IR/Operator.h"
 
 #include <set>
+#include <utility>
 #include <vector>
 
 extern "C" {
@@ -45,9 +47,11 @@ static llvm::Module *module_of(value v) { return reinterpret_cast<llvm::Module *
 static const char *const dropped_lists[] = {"llvm.global_ctors", "llvm.global_dtors", "llvm.used", "llvm.compiler.used"};
 
 /* Whether [c], a global's initializer, holds the address of anything
-   local to the module. */
+   local to the module, a label's among them: a copy's labels are not the
+   object's. */
 static bool holds_local(const llvm::Constant *c, std::set<const llvm::Constant *> &seen) {
   if (!c || !seen.insert(c).second) return false;
+  if (llvm::isa<llvm::BlockAddress>(c)) return true;
   if (auto *g = llvm::dyn_cast<llvm::GlobalValue>(c)) return g->hasLocalLinkage();
   for (const llvm::Use &op : c->operands())
     if (holds_local(llvm::cast<llvm::Constant>(op.get()), seen)) return true;
@@ -118,6 +122,11 @@ static std::set<llvm::Function *> unsafe_functions(llvm::Module *m) {
         mark(u);
     }
   }
+  // A function whose labels' addresses are taken lets out addresses a
+  // copy would change.
+  for (llvm::Function &f : m->functions())
+    for (llvm::BasicBlock &b : f)
+      if (b.hasAddressTaken()) unsafe.insert(&f);
   std::vector<llvm::Function *> work(unsafe.begin(), unsafe.end());
   while (!work.empty()) {
     llvm::Function *f = work.back();
@@ -184,20 +193,24 @@ extern "C" value zane_retain_c(value mod) {
   for (llvm::GlobalObject &o : m->global_objects()) o.setComdat(nullptr);
 
   std::set<llvm::Function *> unsafe = unsafe_functions(m);
+  // Each is judged before any body goes, since a body going changes the
+  // initializers that hold its labels' addresses.
+  std::vector<std::pair<llvm::GlobalObject *, bool>> judged;
   for (llvm::GlobalObject &o : m->global_objects()) {
-    if (o.isDeclaration()) continue;
-    if (o.hasLocalLinkage()) {
-      if (auto *f = llvm::dyn_cast<llvm::Function>(&o); f && unsafe.count(f)) f->dropAllReferences();
-      continue;
-    }
+    if (o.isDeclaration() || o.hasLocalLinkage()) continue;
     auto *f = llvm::dyn_cast<llvm::Function>(&o);
     auto *v = llvm::dyn_cast<llvm::GlobalVariable>(&o);
     bool keep = copyable(o.getLinkage()) &&
                 (f ? !unsafe.count(f) : v && v->isConstant() && !v->isThreadLocal() && !holds_local(v->getInitializer()));
+    judged.emplace_back(&o, keep);
+  }
+  for (llvm::Function &f : m->functions())
+    if (f.hasLocalLinkage() && !f.isDeclaration() && unsafe.count(&f)) f.dropAllReferences();
+  for (auto [o, keep] : judged) {
     if (keep)
-      o.setLinkage(llvm::GlobalValue::AvailableExternallyLinkage);
+      o->setLinkage(llvm::GlobalValue::AvailableExternallyLinkage);
     else
-      declare(o);
+      declare(*o);
   }
   // What is local and no longer reached goes, until nothing more does.
   for (bool changed = true; changed;) {

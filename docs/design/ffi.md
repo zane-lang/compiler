@@ -730,10 +730,12 @@ runs:
   passed on. A function that lets such an address out would give one
   address inlined and another called, so it is called, like one that
   reaches mutable state. A string literal's address, which LLVM may
-  merge with another's, is copied freely.
+  merge with another's, is copied freely. A function that takes a label's
+  address, as a computed `goto`'s table does, lets out the address of a
+  label the copy has again, so it is called too.
 
 A retained variable is a declaration, and so is a constant that holds a
-`static` object's address, a weak definition another object may
+`static` object's address or a label's, a weak definition another object may
 override, an alias and an indirect function: only bodies nothing can
 tell from the object's are copied. An optimized build links the retained
 modules into the program's module after the program's own C, since LLVM's

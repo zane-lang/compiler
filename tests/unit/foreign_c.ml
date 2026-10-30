@@ -568,7 +568,10 @@ let retained () =
      define ptr @hands_out() {\n  ret ptr @callback\n}\n\
      define void @says() {\n  call void @puts(ptr @.str)\n  ret void\n}\n\
      define weak i64 @replaceable() {\n  ret i64 2\n}\n\
-     define void @init() {\n  store i64 1, ptr @shared\n  ret void\n}\n"
+     define void @init() {\n  store i64 1, ptr @shared\n  ret void\n}\n\
+     @targets = private unnamed_addr constant [2 x ptr] [ptr blockaddress(@jumps, %one), ptr blockaddress(@jumps, %two)]\n\
+     @exported_targets = constant [1 x ptr] [ptr blockaddress(@jumps, %one)]\n\
+     define i64 @jumps(i64 %i) {\n  %p = getelementptr [2 x ptr], ptr @targets, i64 0, i64 %i\n  %t = load ptr, ptr %p\n  indirectbr ptr %t, [label %one, label %two]\none:\n  ret i64 1\ntwo:\n  ret i64 2\n}\n"
   in
   let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string ir) in
   check "a module with nothing local left unreached is retained" (Codegen__Foreign_c.retain m);
@@ -606,6 +609,8 @@ let retained () =
   check "a variable is a declaration" (is "shared" `Declared);
   check "a constant is retained" (is "fixed" `Retained);
   check "a constant holding a local address is a declaration" (is "holds" `Declared);
+  check "a function whose labels' addresses are taken is called" (is "jumps" `Declared);
+  check "a constant holding a label's address is a declaration" (is "exported_targets" `Declared);
   (match Llvm_analysis.verify_module m with
   | None -> ()
   | Some why -> check ("the retained module verifies: " ^ why) false);
