@@ -351,7 +351,10 @@ same definition, so each glue module is linked after the sources with
 every definition the modules before it already hold, a function's, a
 variable's, an alias's or an indirect function's, made a declaration
 (`zane_drop_defined`), and the package keeps one copy. A constructor or
-destructor that header defines is local to each copy, so the glue's is
+destructor with external linkage is one of those definitions, and the
+glue's list leaves it out when a module before the glue lists it itself,
+so it runs once. A constructor or
+destructor that header defines `static` is local to each copy, so the glue's is
 left out of its list when a source that includes the header runs one of
 the same name whose instructions use the same constants and globals. A
 source's preprocessed text, read every build for its key (F3), names in
