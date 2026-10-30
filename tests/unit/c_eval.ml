@@ -216,6 +216,8 @@ ll s_outside_equal(ll a, ll b) { ll x = a, y = b; return ((uintptr_t)&x - sizeof
 struct big { ll v[8]; };
 static ll *kept(struct big s) { return &s.v[0]; }
 ll s_byval_after(ll a, ll b) { struct big s = { { a, b } }; return *kept(s); }
+typedef ll lanes __attribute__((ext_vector_type(4)));
+ll s_lane(ll a, ll b) { lanes v = { a, b, a, b }; return v[b - 2]; }
 int s_memcmp(ll a, ll b) { char x[2] = { (char)a, 0 }, y[2] = { (char)b, 0 }; return memcmp(x, y, 2); }
 |}
 
@@ -253,6 +255,7 @@ let stopping =
     ("s_wide_switch", (1L, 1L), "an integer wider than 64 bits");
     ("s_outside_equal", (1L, 1L), "a comparison of an address outside its allocation");
     ("s_byval_after", (1L, 1L), "an access through a freed allocation");
+    ("s_lane", (1L, 1L), "poison returned");
   ]
 
 let compile base name source =

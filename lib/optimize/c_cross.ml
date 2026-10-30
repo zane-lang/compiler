@@ -97,7 +97,7 @@ and entry prog c symbol =
   | Some cb, Some ir -> C_eval.function_address c (C_ir.labelled ir cb.Callback.entry)
   | _ -> stop "a function value with no C entry in this build"
 
-let rec read (p : M.ptr) (t : Ty.t) =
+let rec read c (p : M.ptr) (t : Ty.t) =
   let at o = { p with M.off = p.M.off + o } in
   let scalar ty = M.load p.M.alloc p.M.off ty in
   let number = function
@@ -119,7 +119,8 @@ let rec read (p : M.ptr) (t : Ty.t) =
       | M.Null -> VNull
       | M.Ptr _ as x -> VForeign (C x)
       | _ -> stop "C gave an address that names nothing")
-  (* A string C returns, as the `zane_bytes` it wrote: its bytes copied. *)
+  (* A string C returns, as the `zane_bytes` it wrote: its bytes copied,
+     a step for each 64 as a view's are. *)
   | Ty.Handle -> (
       let n = Int64.to_int (number (M.load p.M.alloc (p.M.off + 8) (C_ir.Int 64))) in
       if n = 0 then VText ""
@@ -127,12 +128,13 @@ let rec read (p : M.ptr) (t : Ty.t) =
         match scalar C_ir.Ptr with
         | M.Ptr q ->
             M.check q n 1;
+            C_eval.spend c (n / 64);
             VText (String.init n (fun i -> Char.chr (M.byte { q with M.off = q.M.off + i })))
         | _ -> stop "C gave a string whose bytes are nowhere")
-  | Ty.Struct ts -> VRecord (Array.of_list (List.map2 (fun t o -> read (at o) t) ts (Ty.offsets ts)))
+  | Ty.Struct ts -> VRecord (Array.of_list (List.map2 (fun t o -> read c (at o) t) ts (Ty.offsets ts)))
   | Ty.Array (e, n) ->
       let s = stride e in
-      VRecord (Array.init n (fun i -> read (at (i * s)) e))
+      VRecord (Array.init n (fun i -> read c (at (i * s)) e))
   | _ -> stop "a result C cannot give"
 
 (* A slot of [t]'s C layout holding [v], its padding bytes zero, as
@@ -162,7 +164,7 @@ let call prog c (f : Foreign.t) (args : (v * Ty.t) list) (ret : Ty.t) =
   let result = match ret with Ty.Void -> None | t -> Some (slot prog c t (Value.zero t)) in
   let result_arg = match result with Some r -> pointer r | None -> M.Null in
   ignore (C_eval.call c (C_ir.labelled ir f.Foreign.thunk) [ pointer { M.alloc = table; off = 0 }; result_arg ]);
-  match result with Some r -> read r ret | None -> VUnit
+  match result with Some r -> read c r ret | None -> VUnit
 
 (* The CGT type a value of shape [s] has as a function value's argument or
    result (F11): a value type of one field has its field's type. *)
@@ -193,7 +195,7 @@ let adapter prog c name args zane =
       | Some cb, [ M.Ptr table; result ] ->
           let arg i s =
             match M.load table.M.alloc (table.M.off + (8 * i)) C_ir.Ptr with
-            | M.Ptr q -> read q (shape_ty s)
+            | M.Ptr q -> read c q (shape_ty s)
             | _ -> stop "an argument slot that is nowhere"
           in
           let values = List.mapi arg cb.Callback.takes in

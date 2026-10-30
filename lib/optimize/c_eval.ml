@@ -427,6 +427,9 @@ and block t frame regs f prev b =
   in
   step 0
 
+(* Whether [k], read unsigned, indexes a lane of [xs]. *)
+and within k xs = Int64.unsigned_compare k (Int64.of_int (Array.length xs)) < 0
+
 and exec t frame regs (i : C_ir.instr) =
   let value = operand t regs in
   let set v =
@@ -453,11 +456,11 @@ and exec t frame regs (i : C_ir.instr) =
           set v
       | "extractelement" -> (
           match (arg 0, arg 1) with
-          | Vec xs, Int (_, k) when Int64.to_int k < Array.length xs -> set xs.(Int64.to_int k)
+          | Vec xs, Int (_, k) when within k xs -> set xs.(Int64.to_int k)
           | _ -> set Poison)
       | "insertelement" -> (
           match (arg 0, arg 2) with
-          | Vec xs, Int (_, k) when Int64.to_int k < Array.length xs ->
+          | Vec xs, Int (_, k) when within k xs ->
               let xs = Array.copy xs in
               xs.(Int64.to_int k) <- arg 1;
               set (Vec xs)
