@@ -330,6 +330,17 @@ let rec has_poison = function Poison -> true | Vec a | Agg a -> Array.exists has
 
 let is_float_op = function "fadd" | "fsub" | "fmul" | "fdiv" | "frem" -> true | _ -> false
 
+(* Whether [ty] holds an integer wider than the evaluator's 64 bits. Every
+   value is a constant, which has none, or an instruction's, so refusing
+   each such instruction keeps them all out. *)
+let rec wide (ty : C_ir.ty) =
+  match ty with
+  | C_ir.Int n -> n > 64
+  | C_ir.Vector (_, e) -> wide e
+  | C_ir.Struct { fields; _ } -> Array.exists (fun (_, f) -> wide f) fields
+  | C_ir.Array { elem; _ } -> wide elem
+  | _ -> false
+
 (* A `select` of [a] or [b] by [c], elementwise for vectors. *)
 let select c a b =
   match (c, a, b) with
@@ -403,6 +414,7 @@ and block t frame regs f prev b =
   let rec step k =
     let i = instrs.(k) in
     spend t 1;
+    if wide i.C_ir.ty then stop "an integer wider than 64 bits";
     match exec t frame regs i with Some next -> next | None -> step (k + 1)
   in
   step 0
@@ -485,7 +497,7 @@ and exec t frame regs (i : C_ir.instr) =
       else
         let total = List.fold_left (fun s x -> Int64.add s (Option.get x)) offset parts in
         match value base with
-        | Ptr p -> set (Ptr { p with off = p.off + Int64.to_int total })
+        | Ptr p -> set (Ptr (moved p total))
         | Null -> set (if total = 0L then Null else Wild total)
         | Wild x -> set (Wild (Int64.add x total))
         | Poison -> set Poison

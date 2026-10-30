@@ -97,9 +97,8 @@ let rec binary_int opcode flags a b =
   | ("udiv" | "sdiv" | "urem" | "srem"), _, Poison -> stop "a division by poison"
   | _, Poison, _ | _, _, Poison -> Poison
   | _, Int (bits, x), Int (_, y) -> int_binary opcode flags bits x y
-  | "add", Addr (bits, p), Int (_, y) | "add", Int (_, y), Addr (bits, p) ->
-      Addr (bits, { p with off = p.off + Int64.to_int (sext bits y) })
-  | "sub", Addr (bits, p), Int (_, y) -> Addr (bits, { p with off = p.off - Int64.to_int (sext bits y) })
+  | "add", Addr (bits, p), Int (_, y) | "add", Int (_, y), Addr (bits, p) -> Addr (bits, moved p (sext bits y))
+  | "sub", Addr (bits, p), Int (_, y) -> Addr (bits, moved p (Int64.neg (sext bits y)))
   | "sub", Addr (bits, p), Addr (_, q) when p.alloc == q.alloc -> int bits (Int64.of_int (p.off - q.off))
   | _, (Addr _ | Ptr _ | Null | Wild _), _ | _, _, (Addr _ | Ptr _ | Null | Wild _) -> stop number
   | _, Sign _, _ | _, _, Sign _ -> stop sign_only

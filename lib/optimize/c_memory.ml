@@ -66,6 +66,18 @@ and fl = { double : bool; bits : int64; known : bool }
 
 and ptr = { alloc : alloc; off : int }
 
+(* [p] moved by [d] bytes. An offset kept in range can be held exactly
+   and is never confused with another: one that leaves it, or a move of
+   such a size, is one no allocation spans, whose wrapping only the
+   running address would decide. *)
+let moved p d =
+  let limit = 0x1_0000_0000_0000L in
+  let out x = x > limit || x < Int64.neg limit in
+  if out d then stop "an address moved further than any allocation spans";
+  let off = Int64.add (Int64.of_int p.off) d in
+  if out off then stop "an address moved further than any allocation spans";
+  { p with off = Int64.to_int off }
+
 let mask bits x = if bits >= 64 then x else Int64.logand x (Int64.pred (Int64.shift_left 1L bits))
 let int bits x = Int (bits, mask bits x)
 let truth b = Int (1, if b then 1L else 0L)
