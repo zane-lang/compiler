@@ -530,6 +530,186 @@ let indirect_alias () =
           check "both symbols of an alias are renamed" (count = 2);
           check "an alias's target is renamed with the symbol it names" (times "_p$foo" = 2 && times "_foo" = 0))
 
+(* A dependency's C module made a retained copy (docs/design/ffi.md F13,
+   retain_stubs.cpp): bodies that read only constants are
+   `available_externally`, and one that reaches local state, a local
+   constant in a section, or lets out a local constant's or function's
+   address is a declaration, as is a caller of a local function that does;
+   the lists of constructors and `used` objects and the file-scope
+   assembly go, and what nothing reaches any more is removed. *)
+let retained () =
+  let ctx = Llvm.create_context () in
+  let ir =
+    "target triple = \"x86_64-unknown-linux-gnu\"\n\
+     module asm \"nop\"\n\
+     @state = internal global i64 0\n\
+     @limit = internal constant i64 3\n\
+     @table = internal constant [2 x i64] [i64 1, i64 2]\n\
+     @token = internal constant i64 5\n\
+     @placed = internal constant i64 7, section \"zt\"\n\
+     @shared = global i64 0\n\
+     @fixed = constant i64 4\n\
+     @holds = constant ptr @token\n\
+     @.str = private unnamed_addr constant [2 x i8] c\"x\\00\"\n\
+     @llvm.used = appending global [1 x ptr] [ptr @limit], section \"llvm.metadata\"\n\
+     @llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @init, ptr null }]\n\
+     @alias = alias i64 (i64), ptr @pure\n\
+     declare void @puts(ptr)\n\
+     define i64 @pure(i64 %a) {\n  ret i64 %a\n}\n\
+     define i64 @counts() {\n  %v = load i64, ptr @state\n  ret i64 %v\n}\n\
+     define i64 @reads(i64 %i) {\n  %l = load i64, ptr @limit\n  %p = getelementptr [2 x i64], ptr @table, i64 0, i64 %i\n  %t = load i64, ptr %p\n  %s = add i64 %l, %t\n  ret i64 %s\n}\n\
+     define ptr @leaks() {\n  ret ptr @token\n}\n\
+     define i64 @reads_placed() {\n  %v = load i64, ptr @placed\n  ret i64 %v\n}\n\
+     define internal i64 @helper() {\n  %v = load i64, ptr @state\n  ret i64 %v\n}\n\
+     define i64 @calls_helper() {\n  %v = call i64 @helper()\n  ret i64 %v\n}\n\
+     define internal i64 @quiet() {\n  ret i64 1\n}\n\
+     define i64 @calls_quiet() {\n  %v = call i64 @quiet()\n  ret i64 %v\n}\n\
+     define internal void @callback() {\n  ret void\n}\n\
+     define ptr @hands_out() {\n  ret ptr @callback\n}\n\
+     define void @says() {\n  call void @puts(ptr @.str)\n  ret void\n}\n\
+     define weak i64 @replaceable() {\n  ret i64 2\n}\n\
+     define void @init() {\n  store i64 1, ptr @shared\n  ret void\n}\n\
+     @tls = thread_local global i64 0\n\
+     @tls_alias = thread_local alias i64, ptr @tls\n\
+     declare ptr @llvm.threadlocal.address.p0(ptr)\n\
+     define i64 @reads_tls() {\n  %p = call ptr @llvm.threadlocal.address.p0(ptr @tls_alias)\n  %v = load i64, ptr %p\n  ret i64 %v\n}\n\
+     @targets = private unnamed_addr constant [2 x ptr] [ptr blockaddress(@jumps, %one), ptr blockaddress(@jumps, %two)]\n\
+     @exported_targets = constant [1 x ptr] [ptr blockaddress(@jumps, %one)]\n\
+     define i64 @jumps(i64 %i) {\n  %p = getelementptr [2 x ptr], ptr @targets, i64 0, i64 %i\n  %t = load ptr, ptr %p\n  indirectbr ptr %t, [label %one, label %two]\none:\n  ret i64 1\ntwo:\n  ret i64 2\n}\n"
+  in
+  let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string ir) in
+  check "a module with nothing local left unreached is retained" (Codegen__Foreign_c.retain m);
+  let linkage name =
+    match Llvm.lookup_function name m with
+    | Some f when Llvm.is_declaration f -> Some `Declared
+    | Some f when Llvm.linkage f = Llvm.Linkage.Available_externally -> Some `Retained
+    | Some _ -> Some `Defined
+    | None -> (
+        match Llvm.lookup_global name m with
+        | Some g when Llvm.is_declaration g -> Some `Declared
+        | Some g when Llvm.linkage g = Llvm.Linkage.Available_externally -> Some `Retained
+        | Some _ -> Some `Defined
+        | None -> None)
+  in
+  let is name l = linkage name = Some l in
+  check "a function reading only its arguments is retained" (is "pure" `Retained);
+  check "one reading local constants is retained" (is "reads" `Retained);
+  check "one passing a string literal on is retained" (is "says" `Retained);
+  check "one calling a local function that is safe is retained" (is "calls_quiet" `Retained);
+  check "the local function it calls is copied" (is "quiet" `Defined);
+  check "a constructor is retained, its list gone" (is "init" `Retained && linkage "llvm.global_ctors" = None);
+  check "the `used` list is gone" (linkage "llvm.used" = None);
+  check "the file-scope assembly is gone"
+    (let text = Llvm.string_of_llmodule m in
+     not (List.exists (fun l -> String.starts_with ~prefix:"module asm" l) (String.split_on_char '\n' text)));
+  check "one reaching local state is called" (is "counts" `Declared);
+  check "one letting a local constant's address out is called" (is "leaks" `Declared);
+  check "one reading a local constant in a section is called" (is "reads_placed" `Declared);
+  check "one letting a local function's address out is called" (is "hands_out" `Declared);
+  check "a caller of a local function reaching state is called" (is "calls_helper" `Declared);
+  check "that local function and its state are removed" (linkage "helper" = None && linkage "state" = None);
+  check "a weak definition is called" (is "replaceable" `Declared);
+  check "an alias is a declaration" (is "alias" `Declared);
+  check "a thread's own alias is a declaration of a thread's own"
+    (match Llvm.lookup_global "tls_alias" m with Some g -> Llvm.is_declaration g && Llvm.is_thread_local g | None -> false);
+  check "a variable is a declaration" (is "shared" `Declared);
+  check "a constant is retained" (is "fixed" `Retained);
+  check "a constant holding a local address is a declaration" (is "holds" `Declared);
+  check "a function whose labels' addresses are taken is called" (is "jumps" `Declared);
+  check "a constant holding a label's address is a declaration" (is "exported_targets" `Declared);
+  (match Llvm_analysis.verify_module m with
+  | None -> ()
+  | Some why -> check ("the retained module verifies: " ^ why) false);
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx
+
+(* The file of C module hashes beside a package's object
+   (docs/design/ffi.md F15) reads back as written, and fetching's rewrite
+   stamps its packages, never their labels. *)
+let hashes () =
+  let module H = Foreign.Hashes in
+  let rows =
+    [
+      { H.package = "!lib"; labels = "!lib"; kind = H.Source; file = "a \"b\".c"; hash = "00ff" };
+      { H.package = "!lib"; labels = "!lib"; kind = H.Glue; file = "lib.h"; hash = "11ee" };
+    ]
+  in
+  let text = H.write rows in
+  check "the file is told from an object" (H.is text && not (H.is "\127ELF"));
+  check "the file reads back as written" (H.read text = Ok rows);
+  match H.rewrite ~stamp:"v1%0123456789abcdef%" text with
+  | Error why -> check ("the file is rewritten: " ^ why) false
+  | Ok (stamped, n) ->
+      check "each row is stamped" (n = 2);
+      check "the stamp names the package, and the labels keep the placeholder"
+        (match H.read stamped with
+        | Ok rs -> List.for_all (fun (r : H.row) -> r.H.package = "v1%0123456789abcdef%lib" && r.H.labels = "!lib") rs
+        | Error _ -> false)
+
+(* The rows an object's packages give its file of C module hashes are each
+   package's own, though one package's name ends another's. *)
+let own_hashes () =
+  let package id =
+    ( { Tst.Assembly.id; name = id; dir = "."; is_root = false; files = []; imports = []; keyed = true },
+      {
+        Foreign.dir = ".";
+        rows = [];
+        headers = [];
+        interface = C_interface.empty;
+        sources = [];
+        assembled = [];
+        archives = [];
+        tables = [];
+        flags = [];
+        maps = [];
+        cache = None;
+      },
+      {
+        Codegen.prefix = "!" ^ id ^ "$%c$";
+        sources = [];
+        glue = [ { Codegen.key = id ^ "-glue"; bitcode = ""; files = [ id ^ ".h" ] } ];
+        thunks = [];
+        objects = [];
+        archives = [];
+        defined = [];
+        libraries = [];
+        labels = None;
+      } )
+  in
+  let ps = [ package "lib"; package "olib" ] in
+  let rows =
+    Driver.hashes_of
+      (List.map (fun (a, _, _) -> a) ps)
+      (List.map (fun (_, f, _) -> f) ps)
+      (List.map (fun (_, _, k) -> k) ps)
+  in
+  check "each package's hashes are its own glue's"
+    (List.map (fun (r : Foreign.Hashes.row) -> (r.Foreign.Hashes.package, r.Foreign.Hashes.hash)) rows
+    = [ ("!lib", "lib-glue"); ("!olib", "olib-glue") ])
+
+(* A glue file's thunks come in the order of their labels, whatever order
+   the calls reaching them came in, so a release's consumer writes the
+   publisher's glue (docs/design/ffi.md F13). *)
+let glue_order () =
+  let table =
+    {
+      C_interface.empty with
+      functions =
+        [
+          ( "f",
+            {
+              C_interface.ty = C_interface.Function { params = []; result = C_interface.Void; variadic = false };
+              external_ = true;
+              spelled = [];
+              spelled_result = "void";
+            } );
+        ];
+    }
+  in
+  let entry label = { Foreign.Glue.label; c_function = "f"; params = []; result = Foreign.Glue.Unit } in
+  let text order = List.map snd (Foreign.Glue.files [ ("h.h", table) ] (List.map entry order)) in
+  check "a glue file does not depend on the order its thunks are reached" (text [ "b"; "a" ] = text [ "a"; "b" ])
+
 let run () =
   patterns ();
   paths ();
@@ -546,4 +726,8 @@ let run () =
   asm_labels ();
   apart_constructors ();
   directives ();
-  indirect_alias ()
+  indirect_alias ();
+  retained ();
+  hashes ();
+  own_hashes ();
+  glue_order ()

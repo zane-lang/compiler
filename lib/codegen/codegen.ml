@@ -215,6 +215,7 @@ type c_package = Foreign_c.package = {
   archives : c_archive list;
   defined : string list;
   libraries : c_library list;
+  labels : string option;
 }
 
 let global_prefix ?target () =

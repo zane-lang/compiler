@@ -33,9 +33,11 @@
      `fixtures/reject/NAME`, or, when that fixture holds a file named
      `build`, what `zanec --build` reports for it, or
      `golden/reject.NAME.ll.err` what `zanec --ll` reports for one only
-     codegen refuses, and `golden/NAME.released.out` what the fixture's
+     codegen refuses, `golden/NAME.released.out` what the fixture's
      root prints linked against releases of its other packages, which
-     `released` builds. A fixture holding `.zn` files is one package; any
+     `released` builds, and `golden/NAME.released.calls` what of those
+     packages the optimized build still calls, having inlined the rest
+     of what it retained of their C. A fixture holding `.zn` files is one package; any
      other is a build of its subdirectories, in name order, so the first
      is the root. Its `flags` file, one per line, is what it is built with
      besides. A directory `NAME.archive` anywhere in a fixture holds the C
@@ -259,11 +261,12 @@ let ffi () =
             "(rule\n (deps %s)\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    %s))))\n\n"
             (fixture_deps dir) golden (build ~dir view);
           diff golden (golden ^ ".actual")
-      | [ name; "released"; "out" ] ->
+      | [ name; "released"; ("out" | "calls" as what) ] ->
           let dir = "fixtures/" ^ name in
+          let mode = if what = "calls" then " --calls" else "" in
           Printf.printf
-            "(rule\n (deps %s)\n (action\n  (with-stdout-to\n   %s.actual\n   (run sh %%{dep:released} %s %s))))\n\n"
-            (fixture_deps dir) golden zanec dir;
+            "(rule\n (deps %s)\n (action\n  (with-stdout-to\n   %s.actual\n   (run sh %%{dep:released}%s %s %s))))\n\n"
+            (fixture_deps dir) golden mode zanec dir;
           diff golden (golden ^ ".actual")
       | [ "reject"; name; "ll"; "err" ] ->
           let dir = "fixtures/reject/" ^ name in

@@ -11,15 +11,17 @@
 ; driver checks a stamp and keeps a file its rewrite did not create, and the
 ; C interface's front half (foreign_c.ml): `c.coda`'s patterns and paths,
 ; what a C compiler's include list says, a C source compiled by the linked
-; clang, a global an `__asm__` label names read by its label, and a Mach-O
-; alias renamed with its target.
+; clang, a global an `__asm__` label names read by its label, a Mach-O
+; alias renamed with its target, a dependency's C module made a retained
+; copy, the file of C module hashes beside an object and its rows, and the glue's
+; thunks in the order of their labels.
 ;
 ; Overloads, State, Type_layout, Emit, Build and stage 5's modules are not re-exported by their libraries'
 ; entry modules, so they are reached by the names dune gives them.
 
 (test
  (name unit)
- (libraries cache cgt codegen diagnostic driver foreign fixture_pairing llvm llvm.bitwriter llvm.irreader llvm.target optimize rewrite source sst tree_graph tst unix)
+ (libraries cache cgt codegen diagnostic driver foreign fixture_pairing llvm llvm.analysis llvm.bitwriter llvm.irreader llvm.target optimize rewrite source sst tree_graph tst unix)
  (deps
   ../../runtime/zane.h
   ../runtime/abi/probe.out

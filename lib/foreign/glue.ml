@@ -99,8 +99,13 @@ let declaring tables name =
   | None -> List.nth_opt declared 0
 
 (* [entries] grouped into the files of the headers that declare their C
-   functions, in the order the headers are read. *)
+   functions, in the order the headers are read, each file's thunks in the
+   order of their labels: a release's consumer writes a dependency's glue
+   again from the thunks its own calls reach first, and the file's text,
+   which F3 keys its module by, must be the publisher's
+   (docs/design/ffi.md F13). *)
 let files tables entries =
+  let entries = List.sort_uniq (fun (a : entry) (b : entry) -> compare a.label b.label) entries in
   let placed = List.map (fun (e : entry) -> (e, declaring tables e.c_function)) entries in
   List.filter_map
     (fun (header, _) ->

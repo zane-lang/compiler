@@ -1,13 +1,29 @@
 #!/bin/sh
 # What the fixture DIR's root prints linked against its other packages as a
 # consumer links a release of them (docs/design/ffi.md F15): each built on
-# its own by `zanec --object`, its objects rewritten with a stamp as
-# fetching rewrites them (separate-compilation.md C9), and the root built
-# against them with that stamp, unoptimized and optimized, each run with
-# its drains checked and unchecked. Every run must print the same, which
-# is printed once. The root is DIR's first subdirectory in name order and
+# its own by `zanec --object`, its objects and the file of its C modules'
+# hashes rewritten with a stamp as fetching rewrites them
+# (separate-compilation.md C9), and the root built against them with that
+# stamp, given those hashes, unoptimized and optimized, each run with its
+# drains checked and unchecked, and optimized once more with the first
+# source's hash of each file disagreeing, so the build retains the rest of
+# that package's C and calls that source. Every run must print the same,
+# which is printed once. The root is DIR's first subdirectory in name order and
 # imports the others, which import none of each other.
+#
+# With `--calls` first, it prints instead what of the other packages the
+# optimized build's module still calls, their thunks and their C
+# functions, by their names without the stamp, one per line in name
+# order: what it retained of their C and inlined is gone from the list
+# (F13). Then, after a line `disagreeing:`, the same for hashes none of
+# which agree, as a consumer compiling against other system headers gets,
+# where nothing is retained and every thunk is called.
 set -eu
+calls=
+if [ "$1" = --calls ]; then
+	calls=1
+	shift
+fi
 zanec=$1
 dir=$2
 stamp='v1.0%0123456789abcdef%'
@@ -24,6 +40,26 @@ for package in "$dir"/*/; do
 	"$zanec" --no-root --object "$work/$name.o" --package "$name=$package"
 	set -- "$@" --package "$stamp$name=$package" --import "$root:$name=$stamp$name"
 done
+for hashes in "$work"/*.c.hashes; do
+	[ -e "$hashes" ] || continue
+	"$zanec" --rewrite "$stamp" "$hashes" "$hashes.stamped"
+	set -- "$@" --c-hashes "$hashes.stamped"
+done
+if [ -n "$calls" ]; then
+	called() {
+		"$zanec" --ll --optimize --package "$root=$dir/$root" "$@" >"$work/$root.ll"
+		grep -o "call [^@]*@\"$stamp[^\"]*\"" "$work/$root.ll" | sed 's/.*@"//; s/"$//' | sed "s/$stamp//" | sort -u
+	}
+	called "$@"
+	echo disagreeing:
+	for hashes in "$work"/*.c.hashes.stamped; do
+		[ -e "$hashes" ] || continue
+		sed 's/"[0-9a-f]*"$/"0"/' "$hashes" >"$hashes.other"
+		mv "$hashes.other" "$hashes"
+	done
+	called "$@"
+	exit 0
+fi
 for object in "$work"/*.o; do
 	"$zanec" --rewrite "$stamp" "$object" "$object.stamped"
 	set -- "$@" --link "$object.stamped"
@@ -43,3 +79,13 @@ for optimize in "" --optimize; do
 		fi
 	done
 done
+for hashes in "$work"/*.c.hashes.stamped; do
+	[ -e "$hashes" ] || continue
+	awk '!done && /"source"/ { sub(/"[0-9a-f]*"$/, "\"0\""); done = 1 } { print }' "$hashes" >"$hashes.other"
+	mv "$hashes.other" "$hashes"
+done
+"$zanec" --build "$work/$root.exe" --optimize --package "$root=$dir/$root" "$@"
+if [ "$(ZANE_CHECK=1 "$work/$root.exe")" != "$expected" ]; then
+	echo "released: the build with a source's hash disagreeing printed another output" >&2
+	exit 1
+fi

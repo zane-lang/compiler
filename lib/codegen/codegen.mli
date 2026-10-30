@@ -22,9 +22,11 @@ type c_library = { name : string; row : string }
     their names; the objects its sources holding assembly were assembled
     into, each with the module it was made from, its archives, the C names those
     objects and archives define, and its `system` libraries. A stamped
-    dependency's has only its archives and libraries, its C being in its
-    objects, and names the C names those objects define as its archives'
-    (docs/design/ffi.md F15). *)
+    dependency's C is in its objects, so it has its archives and libraries,
+    and names the C names those objects define as its archives'
+    (docs/design/ffi.md F15); with [labels], the package as its publisher's
+    glue labels named it, it also has the sources' and glue modules an
+    optimized build retains (F13). *)
 type c_package = {
   prefix : string;
   sources : c_module list;
@@ -34,6 +36,7 @@ type c_package = {
   archives : c_archive list;
   defined : string list;
   libraries : c_library list;
+  labels : string option;
 }
 
 (** [f] run on the program's module for [target], the host when it is

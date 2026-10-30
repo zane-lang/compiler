@@ -1,0 +1,30 @@
+/// Calls into a dependency's C (docs/design/ffi.md F13): each prints the
+/// same whether the dependency is compiled in or linked as a release
+/// whose C the build retains, inlining what it may copy and calling the
+/// rest.
+package app;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+import lib;
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+Unit main() {
+	show(String(lib$add(I64(2), I64(3))));
+	show(String(lib$square(I64(4))));
+	show(String(lib$next()));
+	show(String(lib$next()));
+	show(String(lib$next()));
+	lib$tokenRecord();
+	show(String(lib$tokenSame()));
+	show(String(lib$started()));
+	show(String(lib$fenced(I64(41))));
+	return Unit();
+}

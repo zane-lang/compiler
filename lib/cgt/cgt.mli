@@ -22,10 +22,13 @@ module Memo = Memo
     context's range of frames of [fixed_region] bytes could hold
     ([Runtime.default_fixed_region] when absent). [import_bodies] retains
     reachable stamped dependencies' functions with linkage that lets LLVM
-    inline them and defines nothing. *)
+    inline them and defines nothing, and [foreign_roots] lowers every thunk
+    of a stamped dependency's glue, for a build that writes that glue again
+    to compare with its release's (docs/design/ffi.md F13). *)
 val lower :
   ?library:bool ->
   ?import_bodies:bool ->
+  ?foreign_roots:bool ->
   ?fixed_region:int ->
   Tst.Nodes.Program.t ->
   (Nodes.Program.t, Diagnostic.t) result
