@@ -58,6 +58,8 @@ names, or, when it is empty, for an architecture other than the host's.
 | `reject/archivedExternalConstructor` | `reject/archivedConstructor` with the constructor external, refused the same way |
 | `reject/assembledConstant` | An interface header whose private constant, whose address the program can see, a source holding assembly, assembled apart, defines too, refused: the glue's copy would be told apart from the object's |
 | `reject/archivedConstant` | The same constant held by an `archive` row's member that includes the header, refused the same way |
+| `reject/assembledFunction` | An interface header whose private function, whose address the program can see, a source holding assembly, assembled apart, defines too, refused as the constant is |
+| `reject/archivedFunction` | The same function held by an `archive` row's member that includes the header, refused the same way |
 | `reject/archivedState` | An interface header whose private state, which a `static inline` function the glue calls reads, an `archive` row's member holds a copy of, refused: the glue cannot share it |
 | `reject/archiveExport` | An `archive` row's member, a Windows object, exporting the function it defines with `__declspec(dllexport)`, whose linker directive renaming cannot reach, refused when the package is checked |
 | `reject/archiveLabel` | An `archive` row's member, a Mach-O object, defining a global symbol an `__asm__` label names without the `_` a C name takes there, which renaming cannot reach, refused when the package is checked |

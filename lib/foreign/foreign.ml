@@ -409,10 +409,10 @@ let glue_files p ~dir files =
    source's including the header (Foreign_c), and C itself gives each
    including source a copy of its own, so no one copy is the header's
    (docs/design/ffi.md F9). One source assembled apart that defines it, or
-   a private constant of the header's whose address the program can see,
-   is refused too, since its copy is in an object the glue's cannot share,
-   and so is an archive one of whose members holds a variable of its own
-   of such a name, which an archive's object holds for a header it
+   a private constant or function of the header's whose address the
+   program can see, is refused too, since its copy is in an object the glue's cannot share,
+   and so is an archive one of whose members holds a variable or function
+   of its own of such a name, which an archive's object holds for a header it
    includes. *)
 let shared_state (p : package) compiled =
   let listed paths =
@@ -423,17 +423,18 @@ let shared_state (p : package) compiled =
   in
   let refused (header, (glue : Compile.source)) =
     let state = Clang.private_state glue.bitcode in
-    (* An object's copy of a private constant whose address the program
-       can see is told apart from the glue's, which the glue cannot share
-       either; two linked sources each keep their own, as in C. *)
-    let seen = state @ Clang.private_constants glue.bitcode in
+    (* An object's copy of a private constant or function whose address
+       the program can see is told apart from the glue's, which the glue
+       cannot share either; two linked sources each keep their own, as in
+       C. *)
+    let seen = state @ Clang.private_identities glue.bitcode in
     let holds among (s : Compile.source) =
       List.mem header s.includes && List.exists (fun v -> List.mem v among) (Clang.private_state s.bitcode)
     in
     let defines = holds state in
     let assembles (s : Compile.source) =
       holds seen s
-      || (List.mem header s.includes && List.exists (fun v -> List.mem v seen) (Clang.private_constants s.bitcode))
+      || (List.mem header s.includes && List.exists (fun v -> List.mem v seen) (Clang.private_identities s.bitcode))
     in
     let file () =
       List.find_opt (fun h -> Compile.real (Filename.concat p.dir h) = header) p.headers
@@ -448,7 +449,7 @@ let shared_state (p : package) compiled =
             Some
               (Diagnostic.in_file (file ())
                  (Printf.sprintf
-                    "this interface header defines private state, or a private constant whose address the program can see, that `%s` holds a copy of, since a member of it includes it, so the glue, which calls the header's functions, cannot share it (docs/design/ffi.md F9)"
+                    "this interface header defines private state, or a private constant or function whose address the program can see, that `%s` holds a copy of, since a member of it includes it, so the glue, which calls the header's functions, cannot share it (docs/design/ffi.md F9)"
                     a.path)))
     | defining, [] ->
         Some
@@ -460,7 +461,7 @@ let shared_state (p : package) compiled =
         Some
           (Diagnostic.in_file (file ())
              (Printf.sprintf
-                "this interface header defines private state, or a private constant whose address the program can see, that %s, assembled apart since it holds assembly, defines too, since it includes it, so the glue, which calls the header's functions, cannot share it (docs/design/ffi.md F9)"
+                "this interface header defines private state, or a private constant or function whose address the program can see, that %s, assembled apart since it holds assembly, defines too, since it includes it, so the glue, which calls the header's functions, cannot share it (docs/design/ffi.md F9)"
                 (listed (List.map path assembled))))
   in
   match List.filter_map refused compiled with

@@ -558,11 +558,29 @@ extern "C" value zane_bitcode_private_state(value bitcode) {
   CAMLreturn(list);
 }
 
-/* The private constants [bitcode]'s module defines whose addresses the
-   program can see: each named constant local to it whose address LLVM may
-   not merge with another's, as a variable's is, so a copy of it is told
+/* Whether [v] reaches the program as an address: a use other than a
+   call of it, or an entry of the constructor and destructor lists, which
+   only run it. */
+static bool address_seen(const llvm::Value *v) {
+  for (const llvm::User *u : v->users()) {
+    if (auto *call = llvm::dyn_cast<llvm::CallBase>(u)) {
+      if (call->getCalledOperand() != v) return true;
+    } else if (auto *g = llvm::dyn_cast<llvm::GlobalVariable>(u)) {
+      if (g->getName() != "llvm.global_ctors" && g->getName() != "llvm.global_dtors") return true;
+    } else if (llvm::isa<llvm::ConstantAggregate>(u) || llvm::isa<llvm::ConstantExpr>(u)) {
+      if (address_seen(u)) return true;
+    } else
+      return true;
+  }
+  return false;
+}
+
+/* The private constants and functions [bitcode]'s module defines whose
+   addresses the program can see: each named constant local to it whose
+   address LLVM may not merge with another's, as a variable's is, and each
+   function local to it whose address is taken, so a copy of either is told
    apart from it. */
-extern "C" value zane_bitcode_private_constants(value bitcode) {
+extern "C" value zane_bitcode_private_identities(value bitcode) {
   CAMLparam1(bitcode);
   CAMLlocal2(list, cell);
   std::vector<std::string> names;
@@ -575,6 +593,8 @@ extern "C" value zane_bitcode_private_constants(value bitcode) {
         if (g.hasLocalLinkage() && g.isConstant() && !g.hasGlobalUnnamedAddr() && g.hasName() &&
             !g.getName().starts_with("llvm."))
           names.push_back(g.getName().str());
+      for (const llvm::Function &f : **module)
+        if (f.hasLocalLinkage() && f.hasName() && address_seen(&f)) names.push_back(f.getName().str());
     } else {
       llvm::consumeError(module.takeError());
     }

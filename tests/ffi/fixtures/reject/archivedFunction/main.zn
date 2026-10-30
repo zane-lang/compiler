@@ -1,0 +1,15 @@
+/// An interface header defining a private function whose address the
+/// program can see, which an `archive` row's member holds a copy of,
+/// since it includes the header: the glue's copy would be told apart from
+/// the archive's, and is refused.
+package archivedFunction;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 tokenSame() foreign "token_same";
+
+Unit main() {
+	tokenSame();
+	return Unit();
+}

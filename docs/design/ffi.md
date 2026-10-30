@@ -422,8 +422,10 @@ state a source assembled apart (below) defines is refused too, since that
 copy is in an object of its own, which the glue's cannot share, and so is
 one an archive's member holds a variable of its own of the same name as,
 read from the member's local symbols: that member includes the header.
-Each holds for a private constant whose address the program can see, a
-copy of which is told apart from it, as it does for writable state.
+Each holds for a private constant or function whose address the program
+can see, a copy of which is told apart from it, as it does for writable
+state; a function only called, or run from the constructor list, is not
+one.
 A constructor that sets up private state the glue keeps a copy of, which
 a function the glue keeps reads, stays, itself, through a function of the
 glue it calls or through a private variable's initializer, such as a

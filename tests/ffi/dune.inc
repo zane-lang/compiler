@@ -65,6 +65,14 @@
    (run sh %{dep:../../../archive} started.a started.archive))))
 
 (subdir
+ fixtures/reject/archivedFunction
+ (rule
+  (targets token.a)
+  (deps (glob_files token.archive/*) (env_var ZANE_CC) (env_var AR))
+  (action
+   (run sh %{dep:../../../archive} token.a token.archive))))
+
+(subdir
  fixtures/reject/archivedState
  (rule
   (targets counter.a)
@@ -995,6 +1003,20 @@
   (diff golden/reject.archivedExternalConstructor.ll.err reject.archivedExternalConstructor.ll.err.actual)))
 
 (rule
+ (deps (source_tree fixtures/reject/archivedFunction) fixtures/reject/archivedFunction/token.a)
+ (action
+  (with-stderr-to
+   reject.archivedFunction.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/archivedFunction)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.archivedFunction.ll.err reject.archivedFunction.ll.err.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/archivedState) fixtures/reject/archivedState/counter.a)
  (action
   (with-stderr-to
@@ -1021,6 +1043,20 @@
  (alias runtest)
  (action
   (diff golden/reject.assembledConstant.ll.err reject.assembledConstant.ll.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/assembledFunction))
+ (action
+  (with-stderr-to
+   reject.assembledFunction.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/assembledFunction)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.assembledFunction.ll.err reject.assembledFunction.ll.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/assembledState))

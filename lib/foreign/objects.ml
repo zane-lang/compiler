@@ -12,8 +12,8 @@ external triple_arch : string -> string = "zane_triple_arch"
 external members_raw : string -> ((string * string) list, string) result = "zane_archive_members"
 
 (* What an object holds: the C names of the global symbols it defines,
-   and of those the ones that are data, the names of the variables local
-   to it, its sections' names, the architecture it is for, as
+   and of those the ones that are data, the names of the variables and
+   functions local to it, its sections' names, the architecture it is for, as
    [triple_arch] spells a triple's, the symbols its linker directives
    name, and, for Mach-O, the global symbols it defines without the `_`
    every C name takes there, which renaming cannot reach. *)

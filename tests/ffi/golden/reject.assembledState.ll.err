@@ -1,2 +1,2 @@
 File "fixtures/reject/assembledState/state.h":
-Error: this interface header defines private state, or a private constant whose address the program can see, that `fixtures/reject/assembledState/a.c`, assembled apart since it holds assembly, defines too, since it includes it, so the glue, which calls the header's functions, cannot share it (docs/design/ffi.md F9)
+Error: this interface header defines private state, or a private constant or function whose address the program can see, that `fixtures/reject/assembledState/a.c`, assembled apart since it holds assembly, defines too, since it includes it, so the glue, which calls the header's functions, cannot share it (docs/design/ffi.md F9)

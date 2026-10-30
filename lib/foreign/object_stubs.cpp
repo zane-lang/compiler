@@ -203,10 +203,12 @@ extern "C" value zane_object_read(value bytes) {
           }
           n = n.substr(1);
         }
-        // A local symbol matters only as private state: a variable of its
-        // own, which an interface header the glue compiles may define too.
+        // A local symbol matters only as a private object whose address
+        // the program can see: a variable or function of its own, which an
+        // interface header the glue compiles may define too.
+        bool code = *type == llvm::object::SymbolRef::ST_Function;
         if (!(*flags & F::SF_Global)) {
-          if (data && !n.empty()) names.emplace_back(n, "local");
+          if ((data || code) && !n.empty()) names.emplace_back(n, "local");
           continue;
         }
         names.emplace_back(n, data ? "data" : "code");

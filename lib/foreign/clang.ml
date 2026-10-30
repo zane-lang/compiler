@@ -15,7 +15,7 @@ external interface_raw : string array -> bool * string * (string * int * int * s
 external version : unit -> string = "zane_clang_version"
 external defined_variables : string -> string list = "zane_bitcode_defined_variables"
 external private_state : string -> string list = "zane_bitcode_private_state"
-external private_constants : string -> string list = "zane_bitcode_private_constants"
+external private_identities : string -> string list = "zane_bitcode_private_identities"
 external sections : string -> (string * string) list = "zane_bitcode_sections"
 external has_assembly : string -> bool = "zane_bitcode_has_assembly"
 
