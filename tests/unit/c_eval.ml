@@ -4,7 +4,8 @@
    prints what the target computes, and the two must agree. Then each of
    [stopping] must stop the evaluator rather than fold: undefined behavior,
    `volatile` and atomic accesses, a fast-math flag, a thread-local
-   variable, an integer wider than 64 bits, an address's number, an
+   variable, an integer wider than 64 bits (a switch on one too), a weak
+   declaration's address, an address's number, an
    address moved further than any allocation spans, a C function with no
    body, a zero-sized allocation, and a spent budget; and the sign-only result of `memcmp`.
    Then C reading the views F18 passes it, which fold, and comparing,
@@ -194,6 +195,17 @@ ll s_offset_order(ll a, ll b) { ll x = a; uintptr_t u = (uintptr_t)&x; return (u
 ll s_index_wraps(ll a, ll b) { ll x = a; ll *p = &x; return (p + ((ll)1 << 61) == p) + b; }
 ll s_address_far(ll a, ll b) { ll x = a; uintptr_t p = (uintptr_t)&x; return (p == p + ((uintptr_t)1 << 63)) + b; }
 ll s_wide(ll a, ll b) { return (__uint128_t)(uint64_t)a + (uint64_t)b > (uint64_t)a; }
+extern int optional __attribute__((weak));
+extern int maybe(void) __attribute__((weak));
+ll s_weak(ll a, ll b) { return (&optional != 0) + a + b; }
+ll s_weak_function(ll a, ll b) { return (maybe != 0) + a + b; }
+ll s_wide_switch(ll a, ll b) {
+  switch ((__int128)a) {
+  case (__int128)1 << 100: return b;
+  case 1: return a + b;
+  default: return 0;
+  }
+}
 int s_memcmp(ll a, ll b) { char x[2] = { (char)a, 0 }, y[2] = { (char)b, 0 }; return memcmp(x, y, 2); }
 |}
 
@@ -226,6 +238,9 @@ let stopping =
     ("s_wide", (-1L, 1L), "an integer wider than 64 bits");
     ("s_fast", (1L, 1L), "a float operation with a fast-math flag");
     ("s_thread_local", (1L, 1L), "a thread-local variable");
+    ("s_weak", (1L, 1L), "the address of `optional`, a weak declaration");
+    ("s_weak_function", (1L, 1L), "the address of `maybe`, a weak declaration");
+    ("s_wide_switch", (1L, 1L), "an integer wider than 64 bits");
   ]
 
 let compile base name source =

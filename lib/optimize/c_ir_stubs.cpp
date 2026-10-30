@@ -319,6 +319,12 @@ struct Function_out : Out {
         block(b->getSuccessor(1));
       } else block(b->getSuccessor(0));
     } else if (auto *sw = dyn_cast<SwitchInst>(&i)) {
+      // A case wider than 64 bits has no value in an int64_t.
+      if (sw->getCondition()->getType()->getIntegerBitWidth() > 64) {
+        w("X");
+        return;
+      }
+      w("S");
       operand(sw->getCondition());
       block(sw->getDefaultDest());
       n(sw->getNumCases());
@@ -367,14 +373,17 @@ extern "C" value zane_c_ir_layout(value m) {
   CAMLreturn(text(s));
 }
 
-/* The function [name]: empty when the module has none, `D` and its
-   whether it never returns when it only declares it or another object may
-   replace its definition, as a weak one, and its body otherwise. */
+/* The function [name]: empty when the module has none, `W` when it is a
+   weak declaration, which the linker leaves null where nothing defines
+   it, `D` and its whether it never returns when it only declares it or
+   another object may replace its definition, as a weak one, and its body
+   otherwise. */
 extern "C" value zane_c_ir_function(value m, value name) {
   CAMLparam2(m, name);
   Module *mod = module_of(m);
   Function *f = mod->getFunction(StringRef(String_val(name), caml_string_length(name)));
   if (!f) CAMLreturn(text(""));
+  if (f->hasExternalWeakLinkage()) CAMLreturn(text("W"));
   if (f->isDeclaration() || f->isInterposable()) CAMLreturn(text(std::string("D ") + (f->hasFnAttribute(Attribute::NoReturn) ? "1" : "0")));
   Function_out o(mod->getDataLayout());
   o.function(*f);
@@ -382,7 +391,7 @@ extern "C" value zane_c_ir_function(value m, value name) {
 }
 
 /* The global variable or alias [name]: empty when the module has none,
-   `D` when it only declares one, an alias's aliasee, and a variable's
+   `W` when it is a weak declaration, `D` when it only declares one, an alias's aliasee, and a variable's
    attributes and initializer: whether it is constant, thread-local,
    `unnamed_addr` (1 local, 2 global), its alignment and size. */
 extern "C" value zane_c_ir_global(value m, value name) {
@@ -397,6 +406,7 @@ extern "C" value zane_c_ir_global(value m, value name) {
   }
   GlobalVariable *g = mod->getGlobalVariable(n, true);
   if (!g) CAMLreturn(text(""));
+  if (g->hasExternalWeakLinkage()) CAMLreturn(text("W"));
   if (!g->hasInitializer() || g->isInterposable()) CAMLreturn(text("D"));
   o.w("V");
   o.n(g->isConstant());

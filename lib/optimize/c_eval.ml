@@ -34,7 +34,12 @@ let max_depth = 2_000
 
 let spend t n = t.hooks.spend n
 
+(* A weak declaration's address is null where nothing defines it, which
+   the program's link decides. *)
+let weak name = stop ("the address of `" ^ name ^ "`, a weak declaration")
+
 let function_address t name =
+  (match C_ir.fn t.ir name with Some C_ir.Weak -> weak name | _ -> ());
   let a =
     match Hashtbl.find_opt t.functions name with
     | Some a -> a
@@ -117,6 +122,7 @@ and global t name =
           let v = const t c in
           Hashtbl.replace t.globals name v;
           v
+      | Some C_ir.Weak_global -> weak name
       | Some C_ir.Elsewhere | None -> (
           match C_ir.fn t.ir name with
           | Some _ -> function_address t name
@@ -355,6 +361,7 @@ let rec call t name (args : value list) =
   if String.starts_with ~prefix:"llvm." name then stop ("an intrinsic called by its address: " ^ name);
   match C_ir.fn t.ir name with
   | Some (C_ir.Body f) -> run t f args
+  | Some C_ir.Weak -> weak name
   | Some (C_ir.Declared _) | None -> (
       match t.hooks.declared name args with
       | Some v -> v

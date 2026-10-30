@@ -268,19 +268,22 @@ let op r opcode =
         let yes = int r in
         Cond_br { cond; yes; no = int r }
       else Br (int r)
-  | "switch" ->
-      let value = operand r in
-      let default = int r in
-      let n = int r in
-      Switch
-        {
-          value;
-          default;
-          cases =
-            list n (fun () ->
-                let v = num r in
-                (v, int r));
-        }
+  | "switch" -> (
+      match word r with
+      | "S" ->
+          let value = operand r in
+          let default = int r in
+          let n = int r in
+          Switch
+            {
+              value;
+              default;
+              cases =
+                list n (fun () ->
+                    let v = num r in
+                    (v, int r));
+            }
+      | _ -> Unknown)
   | "unreachable" -> Unreachable
   | _ ->
       ignore (word r);
@@ -310,17 +313,20 @@ let func text =
 
 (* A global the module names: a variable it defines, with whether it is
    constant, thread-local, `unnamed_addr`, its alignment, size, type and
-   initializer; an alias of a constant; or one defined elsewhere. *)
+   initializer; an alias of a constant; one defined elsewhere; or a weak
+   declaration, null where nothing defines it. *)
 type global =
   | Variable of { constant : bool; thread_local : bool; unnamed : bool; align : int; size : int; ty : ty; init : const }
   | Alias of const
   | Elsewhere
+  | Weak_global
 
 let global text =
   let r = { text; at = 0 } in
   match word r with
   | "A" -> Alias (const r)
   | "D" -> Elsewhere
+  | "W" -> Weak_global
   | "V" ->
       let constant = bool r in
       let thread_local = bool r in
@@ -339,9 +345,10 @@ external layout_text : Llvm.llmodule -> string = "zane_c_ir_layout"
 external function_text : Llvm.llmodule -> string -> string = "zane_c_ir_function"
 external global_text : Llvm.llmodule -> string -> string = "zane_c_ir_global"
 
-(* A function the modules name: one with a body, or one only declared,
-   with whether it never returns. *)
-type fn = Body of func | Declared of { noreturn : bool }
+(* A function the modules name: one with a body, one only declared, with
+   whether it never returns, or a weak declaration, null where nothing
+   defines it. *)
+type fn = Body of func | Declared of { noreturn : bool } | Weak
 
 (* The program's C modules, which hold every package's C (and the
    retained ones of stamped dependencies), each name read from the first
@@ -405,9 +412,10 @@ let unlabelled t name =
 let fn t name =
   lookup t t.funcs function_text
     (fun s ->
-      if String.starts_with ~prefix:"D" s then Declared { noreturn = String.ends_with ~suffix:"1" s }
+      if s = "W" then Weak
+      else if String.starts_with ~prefix:"D" s then Declared { noreturn = String.ends_with ~suffix:"1" s }
       else Body (func s))
-    (fun s -> not (String.starts_with ~prefix:"D" s))
+    (fun s -> s <> "W" && not (String.starts_with ~prefix:"D" s))
     name
 
-let global_of t name = lookup t t.globals global_text global (fun s -> s <> "D") name
+let global_of t name = lookup t t.globals global_text global (fun s -> s <> "D" && s <> "W") name
