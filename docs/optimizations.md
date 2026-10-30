@@ -257,6 +257,11 @@ address's number, storage whose identity is unknown, and a C function
 the build has no body for, such as `sin`, stop the fold and leave the call
 to run. C evaluation spends the fold's budget.
 
+A call that reads C state the package keeps and that no capability names
+folds from that state's first value, so the optimized build can print
+what the plain one does not (spec `ffi.md` §5.5): the `hazard` fixture
+prints `1`, `1`, `1` optimized and `1`, `2`, `3` plain.
+
 ### Output replayed where it was made
 
 - **Builds:** optimized only
