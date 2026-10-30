@@ -12,7 +12,9 @@
 > values as C functions (F11); and `c.coda`'s `archive` and `system`
 > rows, with an archive's members and each source holding assembly
 > renamed as objects (F4, F9), both reaching a program built against a
-> release (F15). The rest is
+> release (F15); and release archives' hashes of their C modules, with
+> a dependency's C retained for an optimized build to inline where they
+> agree (F13, F15). The rest is
 > designed and not yet built. This page says how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
@@ -703,6 +705,16 @@ runs:
 (`ffi.md` §2.6).
   A `source` or path dependency is built by the consumer, so its modules
   always agree.
+
+  The glue the consumer compares is the publisher's own: it is written
+  for every foreign verb of the package and the free and set thunks of
+  each of its handle types, as the package's library build lowers them,
+  whichever of them the program reaches, and each file of it holds its
+  thunks in the order of their labels, under the labels the hash file
+  names, the publisher's `!` placeholder where its build had one. Once
+  compiled, its thunks take the dependency's stamped names. Each source
+  module and each glue module is retained on its own hash, and one whose
+  hash differs is called.
 - **It shares no state the object owns.** A retained function that reaches
   a C variable with internal linkage that is not `const`, or is `volatile`
   (a file-scope `static` counter, or a `static const volatile` status
@@ -716,7 +728,16 @@ runs:
   address is never returned, stored, compared, converted to an integer or
   passed on. A function that lets such an address out would give one
   address inlined and another called, so it is called, like one that
-  reaches mutable state.
+  reaches mutable state. A string literal's address, which LLVM may
+  merge with another's, is copied freely.
+
+A retained variable is a declaration, and so is a constant that holds a
+`static` object's address, a weak definition another object may
+override, an alias and an indirect function: only bodies nothing can
+tell from the object's are copied. An optimized build links the retained
+modules into the program's module after the program's own C, since LLVM's
+linker takes an `available_externally` body only into a module that
+already uses it. A build that compiles the C apart (F14) retains none.
 
 **F14. An unoptimized build compiles the C apart.** `zane run` builds
 unoptimized and answers to the time from the command to the result
@@ -734,9 +755,17 @@ state, as it has one of the runtime's, whichever tier is running.
 
 **F15. A release archive holds a package build's object, C included, and
 the objects of its sources holding assembly.** `--object OUT` writes the
-package's object with its C linked in (F13 or F14), and beside it a small
-file listing, for each of the package's C sources and for its glue, the
-hash F3 keys its module by, which F13's first condition reads. Each
+package's object with its C linked in (F13 or F14), and beside it
+`STEM.c.hashes`, `STEM` being `OUT` without its extension: for each of
+the packages' C sources and glue modules, the hash F3 keys its module
+by, which F13's first condition reads (`lib/foreign/hashes.ml`). It is a
+Coda table, `c-hashes`, of the package as the object's symbols name it,
+the package as its glue's labels name it, whether the module is a
+`source` or `glue`, the source or interface header it was compiled from,
+and the hash. `--rewrite` stamps the first column as it stamps the
+objects, and leaves the labels as they are; a consumer names the
+rewritten file with `--c-hashes`. An object holding no C module has no
+such file, and one an earlier build wrote there is removed. Each
 source holding assembly is an object of its own (F9), renamed with the
 `!` placeholder as the package's object is, and `--object` writes these
 beside `OUT` too, as `STEM.c.0.o`, `STEM.c.1.o` and so on, `STEM` being
@@ -918,9 +947,18 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   beside a `system` row and a function in file-scope assembly that C calls
   and that jumps to a C function of another of its sources. The same
   program is linked against releases of its two packages too (F15): each
-  built by `--object`, its objects rewritten with a stamp as fetching
-  rewrites them, and the program built against them, its archives renamed
-  from the checkout at its link.
+  built by `--object`, its objects and its file of hashes rewritten with a
+  stamp as fetching rewrites them, and the program built against them,
+  its archives renamed from the checkout at its link.
+- A release's C retained (F13): a dependency's C linked as a release
+  prints what it prints compiled in, and the optimized build still calls
+  only what reaches a `static` counter or lets out a `static const`'s
+  address, besides what is in its archives and assembled objects, while
+  every thunk, a pure function, one reading a `static const` table and
+  one reading what a constructor with external linkage counted, which
+  runs once, are inlined. With hashes none of which agree, every thunk is
+  called. `tests/unit/` checks the retained copy rule by rule, the hash
+  file read, written and rewritten, and the glue's thunk order.
 - `golden/NAME.optimized.cgt` shows what folded: the literal checksum as a
   constant, the handle's whole life gone, the capability calls in place, the
   call reaching `sin` left as a call.

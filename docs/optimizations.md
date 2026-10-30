@@ -346,7 +346,7 @@ slow-path call, whose fast path emitted code already has.
 
 - **Builds:** optimized only
 - **Where:** `lib/codegen/foreign_c.ml`, `lib/codegen/build.ml`,
-  `lib/foreign/glue.ml`
+  `lib/codegen/retain_stubs.cpp`, `lib/foreign/glue.ml`
 - **Design:** [`design/ffi.md`](design/ffi.md) F8, F13
 - **Effect:** not measured
 
@@ -356,7 +356,10 @@ calls and the C function the thunk calls are one program to the inliner:
 a call into a small C function becomes its body at the call site, with
 no argument table or result slot left. Each package's C globals are
 renamed first (F9), so linking them in cannot bind one package's names
-to another's.
+to another's. A dependency linked as a release has its C and glue compiled
+from its checkout and linked in as bodies to inline only, where their
+hashes agree with the ones the release published and nothing can tell an
+inlined copy from the dependency's object (F13).
 
 ### A package's C optimized apart in unoptimized builds
 
