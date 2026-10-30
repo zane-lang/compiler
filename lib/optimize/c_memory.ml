@@ -270,6 +270,8 @@ let distinct p q =
     stop "a comparison of an address one past its allocation's end";
   (* An address moved outside its allocation, as integer arithmetic may,
      can equal one in any other. *)
+  (* Storage that has ended may be handed out again, as another's. *)
+  if p.alloc.freed || q.alloc.freed then stop "a comparison of an address whose storage has ended";
   let outside r = r.off < 0 || r.off > r.alloc.size in
   if outside p || outside q then stop "a comparison of an address outside its allocation";
   true

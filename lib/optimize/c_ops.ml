@@ -163,6 +163,10 @@ let int_compare pred bits x y =
   | 37 | 41 -> c <= 0
   | _ -> stop "an integer comparison the evaluator does not model"
 
+(* A pointer whose storage has ended, by `free` or by its frame or call
+   returning, has no value C lets a program use. *)
+let dangling = "a use of an address whose storage has ended"
+
 let rec icmp pred a b =
   let equality = pred = 32 || pred = 33 in
   (* Two addresses into one allocation are equal as their offsets are. They
@@ -178,6 +182,8 @@ let rec icmp pred a b =
   in
   match (a, b) with
   | Poison, _ | _, Poison -> Poison
+  | Ptr p, _ when p.alloc.freed -> stop dangling
+  | _, Ptr p when p.alloc.freed -> stop dangling
   | Vec xs, Vec ys -> Vec (Array.map2 (icmp pred) xs ys)
   | Int (bits, x), Int (_, y) -> truth (int_compare pred bits x y)
   | (Ptr p, Ptr q | Addr (_, p), Addr (_, q)) when p.alloc == q.alloc -> offsets p q
@@ -296,6 +302,7 @@ and scalar_cast opcode has (from : C_ir.ty) (into : C_ir.ty) v =
   | "uitofp", Int (b, x) ->
       if has C_ir.nneg && sext b x < 0L then Poison else int_to_float ~unsigned:true ~double:into_double b x
   | "sitofp", Int (b, x) -> int_to_float ~unsigned:false ~double:into_double b x
+  | "ptrtoint", Ptr p when p.alloc.freed -> stop dangling
   | "ptrtoint", Ptr p -> if bits_of into >= 64 then Addr (bits_of into, p) else stop "an address truncated to fewer bits than it has"
   | "ptrtoint", Null -> Int (bits_of into, 0L)
   | "ptrtoint", Wild x -> int (bits_of into) x
