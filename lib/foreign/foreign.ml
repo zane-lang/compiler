@@ -9,6 +9,7 @@ module Compile = Compile
 module Interface = C_interface
 module Glue = Glue
 module Objects = Objects
+module Hashes = Hashes
 
 (* A C source whose module holds assembly, emitted as an object of its own
    (docs/design/ffi.md F9): its module, the object, and what the object

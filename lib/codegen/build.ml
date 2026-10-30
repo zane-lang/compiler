@@ -749,32 +749,37 @@ let attached_c m = List.assq_opt m !attached
 
 (* The C attached to [m] as one module in [m]'s context, optimized on its
    own as clang's `-O2` would when [alone], or [None] when it has none,
-   and what reaches the link apart from it (Foreign_c.apart). *)
+   the retained modules of stamped dependencies, which only a build that
+   is not [alone] links (Foreign_c.unretained), and what reaches the link
+   apart from it (Foreign_c.apart). *)
 let c_module ?(alone = true) tm m packages =
+  let packages = if alone then Foreign_c.unretained packages else packages in
   let ctx = Llvm.module_context m in
   match Foreign_c.program_module ctx ~triple:(Llvm.target_triple m) ~data_layout:(Llvm.data_layout m) packages with
   | Error _ as error -> error
-  | Ok ((None, _) as c) -> Ok c
-  | Ok ((Some _, _) as c) when not alone -> Ok c
-  | Ok ((Some c, _) as both) -> (
+  | Ok ((None, _, _) as c) -> Ok c
+  | Ok ((Some _, _, _) as c) when not alone -> Ok c
+  | Ok ((Some c, _, _) as all) -> (
       match Llvm_passbuilder.run_passes c "default<O2>" tm (Llvm_passbuilder.create_passbuilder_options ()) with
-      | Ok () -> Ok both
+      | Ok () -> Ok all
       | Error why ->
           Llvm.dispose_module c;
           Error (Printf.sprintf "cannot optimize the C code: %s" why))
 
 (* The C attached to [m] linked into it (docs/design/ffi.md F13): as it
    was compiled for an optimized build, whose passes then run over both
-   languages at once, and optimized on its own first otherwise. What
-   reaches the link apart from the module comes back. *)
+   languages at once, and optimized on its own first otherwise. The
+   retained modules of stamped dependencies are linked after it, for LLVM
+   to inline. What reaches the link apart from the module comes back. *)
 let link_c ~optimize tm m =
   match attached_c m with
   | None -> Ok Foreign_c.nothing_apart
   | Some packages ->
       detach m;
       Result.map
-        (fun (c, apart) ->
+        (fun (c, retained, apart) ->
           Option.iter (Llvm_linker.link_modules m) c;
+          List.iter (Llvm_linker.link_modules m) retained;
           apart)
         (c_module ~alone:(not optimize) tm m packages)
 
@@ -1126,6 +1131,7 @@ let c_object ?target ?cache m dir =
   | None -> Ok no_c_files
   | Some packages -> (
       detach m;
+      let packages = Foreign_c.unretained packages in
       let triple = Llvm.target_triple m in
       let key = Foreign_c.key ~triple ~compiler:(compiler_identity ()) packages in
       let stem =
@@ -1136,7 +1142,7 @@ let c_object ?target ?cache m dir =
       | None ->
           let ( let* ) = Result.bind in
           let* _, tm = target_machine ?target ~optimize:true () in
-          let* c, apart = c_module tm m packages in
+          let* c, _, apart = c_module tm m packages in
           let* c =
             match c with None -> Ok [] | Some c -> Result.map (fun o -> [ o ]) (emit_c tm c dir)
           in

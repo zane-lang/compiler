@@ -211,6 +211,23 @@ let library_roots st (root : T.Package.t) =
       | _ -> ())
     root.T.Package.decls
 
+(* What a stamped dependency's glue holds, which a consumer writes again
+   to compare with the glue its release was built from
+   (docs/design/ffi.md F13): a thunk for every foreign verb of [pkg] and
+   the free and set thunks of each of its foreign handle types, as its own
+   library build lowers them ([library_roots]), whichever of them the
+   program's calls reach. *)
+let foreign_roots st (pkg : T.Package.t) =
+  List.iter
+    (fun (d : T.Decl.t) ->
+      match d.T.Decl.node with
+      | T.Decl.Verb { signature; body = T.Decl.Foreign _ } when signature.S.generics = [] -> (
+          match verb_of st d.T.Decl.id [] with Some v -> ignore (symbol st v) | None -> ())
+      | T.Decl.Type { name; params = []; definition = T.Decl.Handle (h, _); _ } ->
+          ignore (handle_thunks st (Tty.Named ({ Tty.package = pkg.T.Package.name; name }, [])) h)
+      | _ -> ())
+    pkg.T.Package.decls
+
 (* Every call the program spawns: a spawn anywhere in any package of the
    build, a stamped dependency's included, since its objects are built from
    the source checked here (docs/design/separate-compilation.md C2). A spawn
@@ -453,6 +470,10 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
              exclusive = st.exclusive;
            })
     in
+    if import_bodies then
+      List.iter
+        (fun (pkg : T.Package.t) -> if stamped pkg.T.Package.name then foreign_roots st pkg)
+        p.T.Program.packages;
     if library then begin
       List.iter
         (fun (pkg : T.Package.t) -> if own pkg.T.Package.name then library_roots st pkg)

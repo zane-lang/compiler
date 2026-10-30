@@ -60,10 +60,13 @@ val lower :
     [c] is [c_code]'s for the packages. A build without [root] is a
     library's, whose C globals are renamed for fetching to stamp. A stamped
     dependency's archives are renamed after the C names [link]'s objects
-    define with its prefix (docs/design/ffi.md F15). *)
+    define with its prefix (docs/design/ffi.md F15), and the modules of
+    its C whose hashes agree with [hashes], the rows its release
+    published, are retained for an optimized build to inline (F13). *)
 val c_modules :
   ?target:string ->
   ?link:string list ->
+  ?hashes:Foreign.Hashes.row list ->
   root:bool ->
   Tst.Assembly.package list ->
   Foreign.package list ->
@@ -112,6 +115,19 @@ val tier_up :
   Cgt.Nodes.Program.t ->
   string ->
   (unit, failure) result
+
+(** The rows of the files of C module hashes [paths] name
+    (Foreign.Hashes), which `--c-hashes` gives. *)
+val read_hashes : string list -> (Foreign.Hashes.row list, failure) result
+
+(** The rows for the packages [c] (as [c_code] made them) that the object
+    holds, from [c_modules]' packages: what `--object` writes beside it
+    (docs/design/ffi.md F15). *)
+val hashes_of : Tst.Assembly.package list -> Foreign.package list -> Codegen.c_package list -> Foreign.Hashes.row list
+
+(** [rows] written beside the object [output] as `STEM.c.hashes`, after one
+    an earlier build wrote there is removed; none when [rows] is empty. *)
+val write_hashes : output:string -> Foreign.Hashes.row list -> (unit, failure) result
 
 val object_file :
   ?target:string ->

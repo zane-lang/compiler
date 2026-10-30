@@ -28,7 +28,14 @@ type c_module = { key : string; bitcode : string; files : string list }
    interface header's own definition, is renamed as the sources' are.
    Beside them, the objects its sources holding assembly were assembled
    into, each with the module it was made from, its archives, the C names
-   those objects and archives define, and its `system` libraries. *)
+   those objects and archives define, and its `system` libraries.
+
+   A stamped dependency's modules, when the consumer retains them
+   (docs/design/ffi.md F13), come with [labels]: the package as its glue's
+   labels name it, which is how its publisher named it, `!` before a
+   library's own package, so that the glue compiles to the publisher's
+   module. Its thunks take the package's stamped names back before the
+   module is linked, and every body in it is retained, never emitted. *)
 type package = {
   prefix : string;
   sources : c_module list;
@@ -38,6 +45,7 @@ type package = {
   archives : archive list;
   defined : string list;
   libraries : library list;
+  labels : string option;
 }
 
 (* What reaches the link beside the C module: the objects and archives of
@@ -54,6 +62,7 @@ external drop_defined : Llvm.llmodule -> Llvm.llmodule -> string list -> unit = 
 external drop_defined_apart : Llvm.llmodule -> string -> string list -> unit = "zane_drop_defined_apart"
 external share_state : Llvm.llmodule -> Llvm.llmodule -> string -> unit = "zane_share_state"
 external localize_shared : Llvm.llmodule -> unit = "zane_localize_shared"
+external retain : Llvm.llmodule -> bool = "zane_retain_c"
 
 external write_archive : int -> (string * string) list -> (string, string) result
   = "zane_write_archive"
@@ -136,6 +145,34 @@ let renamed_apart ~triple ~global_prefix p names =
   let* archives = all archive p.archives in
   Ok { objects; archives }
 
+(* The package [p]'s name, its prefix without the `$%c$` after it. *)
+let package_name p = String.sub p.prefix 0 (String.length p.prefix - 4)
+
+(* Each thunk of the glue modules [glue], whose label names the package as
+   [labels] does, named by its label with the package's own name instead.
+   LLVM writes a label with a leading \1 and the target's global prefix
+   spelled out where the target has one, and as it is elsewhere. *)
+let relabel ~global_prefix p glue labels =
+  let own = package_name p in
+  let marked = "\001" ^ global_prefix in
+  let before = labels ^ "$" in
+  let relabelled name =
+    let mark = if String.starts_with ~prefix:marked name then marked else "" in
+    let label = String.sub name (String.length mark) (String.length name - String.length mark) in
+    if String.starts_with ~prefix:before label then
+      Some (mark ^ own ^ "$" ^ String.sub label (String.length before) (String.length label - String.length before))
+    else None
+  in
+  List.iter
+    (Llvm.iter_functions (fun f -> Option.iter (fun n -> Llvm.set_value_name n f) (relabelled (Llvm.value_name f))))
+    glue
+
+(* [packages] without what a build that compiles the C apart leaves out:
+   the retained modules of stamped dependencies, whose bodies only an
+   optimized build linking the C in can inline (F13, F14). *)
+let unretained packages =
+  List.map (fun p -> if p.labels = None then p else { p with sources = []; glue = []; thunks = []; labels = None }) packages
+
 (* One package's C as one module, its globals renamed, in [ctx], with its
    objects and archives renamed to match. The names its objects define are
    renamed in the module first, declarations too, so the module's uses
@@ -168,6 +205,7 @@ let package_module ctx ~triple ~data_layout p =
     (m, run_by g)
   in
   let glue = List.map glue_module glue in
+  Option.iter (relabel ~global_prefix p (List.map fst glue)) p.labels;
   (* With no source in the module, the glue is linked into an empty one,
      so each glue module is still linked as one after the sources. *)
   let base = match sources with [] when glue <> [] -> [ Llvm.create_module ctx "c" ] | _ -> List.map snd sources in
@@ -178,6 +216,13 @@ let package_module ctx ~triple ~data_layout p =
         localize_shared m;
         rename m p.prefix global_prefix p.thunks p.defined
     | None -> []
+  in
+  let m =
+    match m with
+    | Some c when p.labels <> None && not (retain c) ->
+        Llvm.dispose_module c;
+        None
+    | m -> m
   in
   let apart =
     if p.objects = [] && p.archives = [] then Ok nothing_apart
@@ -190,20 +235,25 @@ let package_module ctx ~triple ~data_layout p =
       error
 
 (* Every package's C as one module in [ctx], or [None] when there is none,
-   and every package's objects and archives. *)
+   the retained modules of stamped dependencies apart from it (F13), and
+   every package's objects and archives. LLVM's linker takes an
+   `available_externally` body only into a module that already uses it, so
+   a retained module is linked into the program's own, never into the
+   others' C. *)
 let program_module ctx ~triple ~data_layout packages =
-  let rec each modules apart = function
-    | [] -> Ok (linked ~triple ~data_layout (List.rev modules), apart)
+  let rec each modules retained apart = function
+    | [] -> Ok (linked ~triple ~data_layout (List.rev modules), List.rev retained, apart)
     | p :: rest -> (
         match package_module ctx ~triple ~data_layout p with
         | Error _ as error ->
-            List.iter Llvm.dispose_module modules;
+            List.iter Llvm.dispose_module (modules @ retained);
             error
         | Ok (m, (a : apart)) ->
             let apart = { objects = apart.objects @ a.objects; archives = apart.archives @ a.archives } in
-            each (Option.to_list m @ modules) apart rest)
+            if p.labels = None then each (Option.to_list m @ modules) retained apart rest
+            else each modules (Option.to_list m @ retained) apart rest)
   in
-  each [] nothing_apart packages
+  each [] [] nothing_apart packages
 
 (* Every package's `system` libraries, in the order the packages and their
    rows come. *)

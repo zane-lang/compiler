@@ -132,6 +132,105 @@ let lower ?(regions = no_regions) ~root packages program =
   | Ok cgt -> Ok cgt
   | Error d -> fail ~sources:(Assembly.sources packages) [ d ]
 
+(* The modules of the stamped dependency [p]'s C, [f], that an optimized
+   build retains (docs/design/ffi.md F13): its sources' and its glue's whose
+   hashes agree with those its release published, [hashes], the glue
+   written again from its thunks, [entries], under the labels its
+   publisher's glue named them by. None when the release published none
+   for it, or none agree. *)
+let retained_c ~hashes ~(entry : ?label:(Cgt.Nodes.Foreign.t -> string) -> Cgt.Nodes.Foreign.t -> Foreign.Glue.entry) (p : Assembly.package) (f : Foreign.package) (entries : Cgt.Nodes.Foreign.t list) =
+  let module H = Foreign.Hashes in
+  let id = p.Assembly.id in
+  let rows = List.filter (fun (r : H.row) -> r.H.package = id) hashes in
+  let agreed kind key = List.exists (fun (r : H.row) -> r.H.kind = kind && r.H.hash = key) rows in
+  let own (t : Cgt.Nodes.Foreign.t) = String.starts_with ~prefix:(id ^ "$") t.Cgt.Nodes.Foreign.thunk in
+  match rows with
+  | [] -> Ok None
+  | _ when entries = [] || not (List.for_all own entries) -> Ok None
+  | first :: _ ->
+      let labels = first.H.labels in
+      let n = String.length id in
+      let label (t : Cgt.Nodes.Foreign.t) =
+        labels ^ String.sub t.Cgt.Nodes.Foreign.thunk n (String.length t.Cgt.Nodes.Foreign.thunk - n)
+      in
+      Result.map
+        (fun glue ->
+          let glue =
+            List.filter_map
+              (fun (header, (s : Foreign.Compile.source)) ->
+                if agreed H.Glue s.key then Some { Codegen.key = s.key; bitcode = s.bitcode; files = [ header ] } else None)
+              glue
+          in
+          let sources =
+            List.filter_map
+              (fun (s : Foreign.Compile.source) ->
+                if agreed H.Source s.key then Some { Codegen.key = s.key; bitcode = s.bitcode; files = s.includes }
+                else None)
+              f.Foreign.sources
+          in
+          if glue = [] then None else Some (labels, sources, glue))
+        (Foreign.glue f (List.map (fun t -> entry ~label t) entries))
+
+(* The rows of each file [paths] names, which `--object` wrote beside a
+   dependency's object (Foreign.Hashes). *)
+let read_hashes paths =
+  let one path =
+    match In_channel.with_open_bin path In_channel.input_all with
+    | exception Sys_error why -> Error why
+    | text -> Result.map_error (Printf.sprintf "`%s` is not a file of C module hashes: %s" path) (Foreign.Hashes.read text)
+  in
+  match Foreign.combine (List.map (fun p -> Result.map_error (fun m -> { Foreign.diagnostics = [ Diagnostic.about_invocation m ]; sources = [] }) (one p)) paths) with
+  | Ok rows -> Ok (List.concat rows)
+  | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics
+
+(* The rows of the file [Foreign.Hashes] names for the packages this
+   object holds, as [c_modules] made their C, [cs]: each C source's hash,
+   from [c], and each glue module's, the package and its labels named as
+   its symbols are, and the file relative to the package's directory. *)
+let hashes_of packages (c : Foreign.package list) (cs : Codegen.c_package list) =
+  let module H = Foreign.Hashes in
+  let relative dir file =
+    let dir = if Filename.is_relative dir then Filename.concat (Sys.getcwd ()) dir else dir in
+    let dir = Foreign.Compile.real dir ^ Filename.dir_sep in
+    let file = Foreign.Compile.real file in
+    if String.starts_with ~prefix:dir file then String.sub file (String.length dir) (String.length file - String.length dir)
+    else Filename.basename file
+  in
+  let rows (p : Assembly.package) (f : Foreign.package) =
+    let mine (k : Codegen.c_package) =
+      k.Codegen.labels = None && String.ends_with ~suffix:(p.Assembly.id ^ "$%c$") k.Codegen.prefix
+    in
+    match List.filter mine cs with
+    | [] -> []
+    | k :: _ as ks ->
+        let name = String.sub k.Codegen.prefix 0 (String.length k.Codegen.prefix - 4) in
+        let row kind file hash = { H.package = name; labels = name; kind; file = relative p.Assembly.dir file; hash } in
+        let glue =
+          List.concat_map
+            (fun (k : Codegen.c_package) ->
+              List.filter_map
+                (fun (m : Codegen.c_module) ->
+                  match m.Codegen.files with [ header ] -> Some (row H.Glue header m.Codegen.key) | _ -> None)
+                k.Codegen.glue)
+            ks
+        in
+        let sources = if k.Codegen.sources = [] then [] else f.Foreign.sources in
+        List.map (fun (s : Foreign.Compile.source) -> row H.Source s.path s.key) sources @ glue
+  in
+  if c = [] then [] else List.concat (List.map2 rows packages c)
+
+(* [rows] written beside the object [output], as `STEM.c.hashes`, after
+   one an earlier build wrote there is removed: none is written when the
+   object holds no C module. *)
+let write_hashes ~output rows =
+  let path = Filename.remove_extension output ^ ".c.hashes" in
+  match
+    if Sys.file_exists path then Sys.remove path;
+    if rows <> [] then Out_channel.with_open_bin path (fun oc -> output_string oc (Foreign.Hashes.write rows))
+  with
+  | () -> Ok ()
+  | exception Sys_error why -> fail [ Diagnostic.about_invocation ("cannot write the C modules' hashes: " ^ why) ]
+
 (* The C code each package of the build compiles into this object, for
    codegen to link (docs/design/ffi.md F8, F9): its sources' modules, and
    its glue's, made for the thunks [cgt]'s foreign calls go through. A
@@ -139,7 +238,7 @@ let lower ?(regions = no_regions) ~root packages program =
    and `system` libraries reach this link. Its globals are renamed
    after the package's symbols: `!` before the name in a library's
    object, which fetching stamps, and nothing in a program's. *)
-let c_modules ?target ?(link = []) ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes.Program.t) =
+let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes.Program.t) =
   let module F = Cgt.Nodes.Foreign in
   (* A package's stamp, all of its identity up to its last `%`. The
      packages of the first one's are the project this object holds, and
@@ -168,9 +267,9 @@ let c_modules ?target ?(link = []) ~root packages (c : Foreign.package list) (cg
         | F.Unit -> Foreign.Glue.Unit
         | F.View | F.Address | F.Value | F.Handle | F.Function -> Foreign.Glue.Same
       in
-      let entry (t : F.t) =
+      let entry ?(label = fun (t : F.t) -> t.F.thunk) (t : F.t) =
         {
-          Foreign.Glue.label = global_prefix ^ t.F.thunk;
+          Foreign.Glue.label = global_prefix ^ label t;
           c_function = t.F.c_function;
           params = List.map kind t.F.params;
           result = kind t.F.result;
@@ -217,22 +316,35 @@ let c_modules ?target ?(link = []) ~root packages (c : Foreign.package list) (cg
       let one (p : Assembly.package) (f : Foreign.package) =
         let entries = List.filter (fun (t : F.t) -> t.F.package = p.Assembly.id) cgt.Cgt.Nodes.Program.foreign in
         let objects, archives, libraries = apart f in
-        let package ?(sources = []) ?(glue = []) ?(thunks = []) ?(objects = []) ?(archives = []) ?(defined = []) () =
-          { Codegen.prefix = prefix p.Assembly.id; sources; glue; thunks; objects; archives; defined; libraries }
+        let package ?(sources = []) ?(glue = []) ?(thunks = []) ?(objects = []) ?(archives = []) ?(defined = []) ?labels
+            () =
+          { Codegen.prefix = prefix p.Assembly.id; sources; glue; thunks; objects; archives; defined; libraries; labels }
         in
         (* A stamped dependency's C is in its objects, which link with its
            `system` libraries and its archives. The archives are renamed
            after the C names those objects define with its prefix, the
            names its own build renamed (docs/design/ffi.md F15). *)
         let elsewhere = stamp p.Assembly.id <> "" && stamp p.Assembly.id <> project in
-        if elsewhere && archives <> [] then
-          match Lazy.force published with
-          | Error message ->
-              Error { Foreign.Compile.diagnostics = [ Diagnostic.about_invocation message ]; sources = [] }
-          | Ok names ->
-              let defined = after (prefix p.Assembly.id) (List.concat names) in
-              Ok (Some (package ~archives ~defined:(Foreign.object_defined f @ defined) ()))
-        else if elsewhere || (f.Foreign.sources = [] && objects = [] && archives = [] && entries = []) then
+        let ( let* ) = Result.bind in
+        if elsewhere then
+          let* defined =
+            if archives = [] then Ok []
+            else
+              match Lazy.force published with
+              | Error message ->
+                  Error { Foreign.Compile.diagnostics = [ Diagnostic.about_invocation message ]; sources = [] }
+              | Ok names -> Ok (Foreign.object_defined f @ after (prefix p.Assembly.id) (List.concat names))
+          in
+          let* retained = retained_c ~hashes ~entry p f entries in
+          match retained with
+          | Some (labels, sources, glue) ->
+              Ok
+                (Some
+                   (package ~sources ~glue ~thunks:(List.map (fun (t : F.t) -> t.F.thunk) entries) ~archives ~defined
+                      ~labels ()))
+          | None when archives <> [] -> Ok (Some (package ~archives ~defined ()))
+          | None -> Ok (if libraries = [] then None else Some (package ()))
+        else if f.Foreign.sources = [] && objects = [] && archives = [] && entries = [] then
           Ok (if libraries = [] then None else Some (package ()))
         else
           Result.map
@@ -286,6 +398,7 @@ let c_modules ?target ?(link = []) ~root packages (c : Foreign.package list) (cg
                   archives = [];
                   defined = [];
                   libraries = [];
+                  labels = None;
                 })
             (Foreign.callbacks ~target (List.map entry p))
       in
