@@ -236,6 +236,27 @@ constant, a record, a box, or a list made and pushed in one expansion.
 Exact math folds; approximate math and `F32` `fma` stay calls, since their
 result is the target's C library's.
 
+### Calls into C run at compile time
+
+- **Builds:** optimized only
+- **Where:** `lib/optimize/c_eval.ml`, `lib/optimize/c_cross.ml`,
+  `lib/optimize/c_ir_stubs.cpp`, `lib/optimize/handles.ml`
+- **Design:** [`design/ffi.md`](design/ffi.md) F16–F19
+- **Effect:** folds the checksum of a literal, a data handle's whole life,
+  a C sort with a Zane comparison and a string C returns in the
+  `folding` fixture of `tests/ffi/`
+
+A foreign call whose arguments are known, and which reaches no
+capability, runs at compile time: a second evaluator interprets the LLVM
+IR of the package's C, before LLVM has optimized it, with memory as bytes
+and the target's layout, and the values cross in the layout the glue
+gives them. A data handle made and released within the fold folds with
+it, its setter and free function run in the order the program runs them.
+Undefined behavior, a `volatile` or atomic access, a fast-math flag, an
+address's number, storage whose identity is unknown, and a C function
+the build has no body for, such as `sin`, stop the fold and leave the call
+to run. C evaluation spends the fold's budget.
+
 ### Output replayed where it was made
 
 - **Builds:** optimized only

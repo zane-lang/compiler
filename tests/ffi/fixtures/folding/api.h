@@ -6,7 +6,7 @@
 int64_t fold_checksum(zane_bytes text);
 
 /* A buffer of numbers the program owns: made, pushed to, summed, set from
-   another and freed, each counting its frees in a variable of its own. */
+   another and freed. */
 typedef struct buffer_t buffer_t;
 buffer_t *buffer_new(int64_t first);
 void buffer_push(buffer_t *buffer, int64_t x);

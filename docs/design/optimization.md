@@ -131,15 +131,22 @@ classified:
 | `@runtime$print` | `Print` | output (O4) |
 | `@runtime$setThreads`, `setThreadsAuto` | `Set_threads`, `Set_threads_auto` | output (O4) |
 | `@runtime$arguments` | `Arguments` | input |
-| a foreign handle a call into C gives | `Handle_made`, `No_object` | input |
+| a foreign call touching no capability, its C body in the build | `Foreign_call` | computed, by the C evaluator ([`ffi.md`](ffi.md) F16–F19) |
+| a foreign call touching no capability, its C in an archive or a system library | `Foreign_call` | input |
+| a foreign call reading or writing a capability | `Foreign_call` | input, and left in place |
+| a foreign handle a call into C gives | `Handle_made` | computed |
+| a null handle a call into C gives | `No_object` | input |
 
 `arguments` is the one intrinsic that reads input (effects.md §6.6), so a
 fold stops where it is reached, and everything computed before it still
 folds. `setThreadsAuto` reads the processor count, but gives nothing back, so
 no value of the program depends on it. An intrinsic added later that reads
 input, a console read or the time, joins `arguments` in the input class.
-A foreign handle's stamp is an input as well: it is the next of a count
-the running program keeps ([`ffi.md`](ffi.md) F12).
+A foreign handle's stamp is the next of a count the running program keeps
+([`ffi.md`](ffi.md) F12); a fold that makes one keeps a count of its own,
+so the handles it makes are ordered as the running program orders them,
+and a handle made in a fold has to be released in it for the fold to
+stand (F18).
 
 The approximate math functions are inputs for another reason: their result
 is the C math library's where the program runs

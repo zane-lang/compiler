@@ -3,15 +3,19 @@
    the linked clang, evaluated, and the bitcode linked into a program that
    prints what the target computes, and the two must agree. Then each of
    [stopping] must stop the evaluator rather than fold: undefined behavior,
-   `volatile` and atomic accesses, an address's number, a C function with
-   no body, a zero-sized allocation, and a spent budget; and the sign-only
-   result of `memcmp`. *)
+   `volatile` and atomic accesses, a fast-math flag, a thread-local
+   variable, an address's number, a C function with no body, a zero-sized
+   allocation, and a spent budget; and the sign-only result of `memcmp`.
+   Then C reading the views F18 passes it, which fold, and comparing,
+   subtracting or writing them, which stop; and a constructor that stops,
+   which stops every call. *)
 
 open Support
 module Value = Optimize__Value
 module C_ir = Optimize__C_ir
 module C_memory = Optimize__C_memory
 module C_eval = Optimize__C_eval
+module C_cross = Optimize__C_cross
 
 (* Each function takes two `long long` and returns one. *)
 let agreeing =
@@ -40,6 +44,9 @@ ll t_ternary(ll a, ll b) { return a > b ? a - b : b - a; }
 ll t_while(ll a, ll b) { ll n = 0; while (a > 1) { a = a % 2 ? 3 * a + 1 : a / 2; n++; } return n + b; }
 static ll fib(ll n) { return n < 2 ? n : fib(n - 1) + fib(n - 2); }
 ll t_recursion(ll a, ll b) { return fib(a) + b; }
+static ll seeded;
+__attribute__((constructor)) static void seed(void) { seeded = 41; }
+ll t_constructor(ll a, ll b) { return seeded + a + b; }
 
 ll t_double(ll a, ll b) { double x = (double)a / 3.0, y = (double)b * 0.1; double r = x * y + x / (y + 1.0) - x; ll bits; memcpy(&bits, &r, 8); return bits; }
 ll t_float(ll a, ll b) { float x = (float)a / 7.0f, y = (float)b * 0.3f; float r = x * y - x / (y + 1.0f); int32_t bits; memcpy(&bits, &r, 4); return bits; }
@@ -116,6 +123,7 @@ let cases =
     ("t_ternary", [ (3L, 10L); (10L, 3L) ]);
     ("t_while", [ (27L, 0L); (97L, 1L) ]);
     ("t_recursion", [ (15L, 1L) ]);
+    ("t_constructor", [ (1L, 0L) ]);
     ("t_double", [ (10L, 3L); (-7L, 22L); (1L, -10L) ]);
     ("t_float", [ (10L, 3L); (-7L, 22L); (123456L, 789L) ]);
     ("t_float_convert", [ (-1L, -1L); (0x7fffff7fffffffffL, 0x20000000000001L); (16777217L, 9007199254740993L); (-0x7fffffffffffffffL, 3L) ]);
@@ -173,6 +181,13 @@ ll s_store_string(ll a, ll b) { char *s = (char *)"abc"; s[0] = (char)a; return 
 ll s_poison_branch(ll a, ll b) { int x = (int)a + 1; if (x > (int)a) return b; return 0; }
 ll s_compare_literals(ll a, ll b) { const char *x = "same", *y = "other"; return (x == y) + a + b; }
 ll s_one_past(ll a, ll b) { ll x = a, y = b; return &x + 1 == &y; }
+ll s_fast(ll a, ll b) {
+#pragma clang fp reassociate(on)
+  double x = (double)a + (double)b + 1.0;
+  return (ll)x;
+}
+static _Thread_local ll counted;
+ll s_thread_local(ll a, ll b) { counted += a; return counted + b; }
 int s_memcmp(ll a, ll b) { char x[2] = { (char)a, 0 }, y[2] = { (char)b, 0 }; return memcmp(x, y, 2); }
 |}
 
@@ -199,6 +214,8 @@ let stopping =
     ("s_poison_branch", (0x7fffffffL, 1L), "poison");
     ("s_compare_literals", (1L, 1L), "a comparison of addresses whose storage may be shared");
     ("s_one_past", (1L, 1L), "a comparison of an address one past");
+    ("s_fast", (1L, 1L), "a float operation with a fast-math flag");
+    ("s_thread_local", (1L, 1L), "a thread-local variable");
   ]
 
 let compile base name source =
@@ -225,7 +242,7 @@ let budget = 2_000_000
 
 (* What evaluating [name] on [a] and [b] gives: its value, or why it
    stopped. *)
-let evaluate m name a b =
+let evaluate_on m name args =
   let left = ref budget in
   let hooks =
     {
@@ -236,11 +253,13 @@ let evaluate m name a b =
       declared = (fun _ _ -> None);
     }
   in
-  match C_eval.call (C_eval.create (C_ir.make [ m ]) hooks) name [ C_memory.Int (64, a); C_memory.Int (64, b) ] with
+  match C_eval.call (C_eval.create (C_ir.make [ m ]) hooks) name (args ()) with
   | C_memory.Poison -> Error "poison returned"
   | C_memory.Addr _ -> Error "the numeric value of an address returned"
   | v -> Ok v
   | exception Value.Stop why -> Error why
+
+let evaluate m name a b = evaluate_on m name (fun () -> [ C_memory.Int (64, a); C_memory.Int (64, b) ])
 
 (* What the target prints for each case: the bitcode linked into a
    program calling each case. *)
@@ -303,8 +322,71 @@ let stop base =
           check "memcmp's result is only its sign"
             (match evaluate m "s_memcmp" 1L 2L with Ok (C_memory.Sign (32, -1)) -> true | _ -> false))
 
+(* C given the views F18 makes of a string's bytes: read-only copies
+   standing for storage whose identity is unknown. *)
+let views_source =
+  {|
+#include <stddef.h>
+#include <stdlib.h>
+
+typedef long long ll;
+
+ll v_sum(const unsigned char *x, ll n) { ll s = 0; for (ll i = 0; i < n; i++) s += x[i]; return s; }
+ll v_same(const char *x, const char *y) { return x == y; }
+ll v_heap(const char *x) { char *p = malloc(1); ll r = x == p; free(p); return r; }
+ll v_distance(const char *x, const char *y) { return x - y; }
+ll v_null(const char *x) { return x == NULL; }
+ll v_store(char *x) { x[0] = 'z'; return 0; }
+|}
+
+let text s =
+  C_cross.view ~size:(String.length s) ~align:1 (fun a ->
+      String.iteri (fun i c -> C_memory.put_bytes a i 1 (Int64.of_int (Char.code c))) s)
+
+let views base =
+  match compile base "views" views_source with
+  | None -> check "the C evaluator's view cases compile" false
+  | Some bitcode ->
+      with_module bitcode (fun m ->
+          check "C reads a view's bytes"
+            (evaluate_on m "v_sum" (fun () -> [ text "zane"; C_memory.Int (64, 4L) ]) = Ok (C_memory.Int (64, 430L)));
+          List.iter
+            (fun (name, args, why) ->
+              match evaluate_on m name args with
+              | Error w when String.starts_with ~prefix:why w -> ()
+              | r ->
+                  Printf.printf "  %s: %s\n" name (match r with Ok _ -> "folded" | Error w -> "stopped: " ^ w);
+                  check (Printf.sprintf "C evaluation stops at %s: %s" name why) false)
+            [
+              ("v_same", (fun () -> [ text "zane"; text "zane" ]), "a comparison of addresses whose storage may be shared");
+              ("v_heap", (fun () -> [ text "zane" ]), "a comparison of addresses whose storage may be shared");
+              ("v_distance", (fun () -> [ text "ab"; text "ab" ]), "the numeric value of an address");
+              ("v_null", (fun () -> [ text "" ]), "a comparison of an empty view's address with null");
+              ("v_store", (fun () -> [ text "zane" ]), "a store into memory C may not write");
+            ];
+          check "a view that is not empty is not null" (evaluate_on m "v_null" (fun () -> [ text "z" ]) = Ok (C_memory.Int (64, 0L))))
+
+(* A constructor that stops leaves no state the running program has. *)
+let constructed_source =
+  {|
+typedef long long ll;
+static volatile int touched;
+__attribute__((constructor)) static void touch(void) { touched = 1; }
+ll c_add(ll a, ll b) { return a + b; }
+|}
+
+let constructed base =
+  match compile base "constructed" constructed_source with
+  | None -> check "the C evaluator's constructor case compiles" false
+  | Some bitcode ->
+      with_module bitcode (fun m ->
+          check "a constructor that stops stops every call"
+            (match evaluate m "c_add" 1L 2L with Error w -> String.starts_with ~prefix:"a volatile access" w | Ok _ -> false))
+
 let run () =
   let base = Filename.temp_dir "zane-c-eval-" "" in
   Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
       agree base;
-      stop base)
+      stop base;
+      views base;
+      constructed base)

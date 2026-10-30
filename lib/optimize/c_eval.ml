@@ -330,6 +330,15 @@ let rec has_poison = function Poison -> true | Vec a | Agg a -> Array.exists has
 
 let is_float_op = function "fadd" | "fsub" | "fmul" | "fdiv" | "frem" -> true | _ -> false
 
+(* A `select` of [a] or [b] by [c], elementwise for vectors. *)
+let select c a b =
+  match (c, a, b) with
+  | Int (1, c), _, _ -> if c = 1L then a else b
+  | Vec cs, Vec xs, Vec ys -> Vec (Array.mapi (fun k c -> match c with Int (1, 1L) -> xs.(k) | Int _ -> ys.(k) | _ -> Poison) cs)
+  | Vec _, _, _ -> stop "a select of vectors given others"
+  | Poison, _, _ -> Poison
+  | _ -> stop "a select on something not an i1"
+
 let rec call t name (args : value list) =
   if String.starts_with ~prefix:"llvm." name then stop ("an intrinsic called by its address: " ^ name);
   match C_ir.fn t.ir name with
@@ -417,16 +426,7 @@ and exec t frame regs (i : C_ir.instr) =
       | "fcmp" ->
           fast ();
           set (C_ops.fcmp pred (arg 0) (arg 1))
-      | "select" -> (
-          let a = arg 1 and b = arg 2 in
-          match arg 0 with
-          | Int (1, c) -> set (if c = 1L then a else b)
-          | Vec cs -> (
-              match (a, b) with
-              | Vec xs, Vec ys -> set (Vec (Array.mapi (fun k c -> match c with Int (1, 1L) -> xs.(k) | Int _ -> ys.(k) | _ -> Poison) cs))
-              | _ -> stop "a select of vectors given others")
-          | Poison -> set Poison
-          | _ -> stop "a select on something not an i1")
+      | "select" -> set (select (arg 0) (arg 1) (arg 2))
       | "freeze" ->
           let v = arg 0 in
           if has_poison v then stop "a freeze of poison, which takes an arbitrary value";
