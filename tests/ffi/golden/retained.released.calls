@@ -1,8 +1,10 @@
+lib$%c$fenced
 lib$%c$next
 lib$%c$token_record
 lib$%c$token_same
 disagreeing:
 lib$add(%primitives$I64, %primitives$I64).ffi
+lib$fenced(%primitives$I64).ffi
 lib$next().ffi
 lib$square(%primitives$I64).ffi
 lib$started().ffi

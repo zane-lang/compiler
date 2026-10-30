@@ -6,3 +6,4 @@ int64_t next(void);
 void token_record(void);
 int64_t token_same(void);
 int64_t started(void);
+int64_t fenced(int64_t x);

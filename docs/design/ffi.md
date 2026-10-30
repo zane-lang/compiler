@@ -953,7 +953,8 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
 - A release's C retained (F13): a dependency's C linked as a release
   prints what it prints compiled in, and the optimized build still calls
   only what reaches a `static` counter or lets out a `static const`'s
-  address, besides what is in its archives and assembled objects, while
+  address, besides what is in its archives and assembled objects, a
+  source holding assembly among them, while
   every thunk, a pure function, one reading a `static const` table and
   one reading what a constructor with external linkage counted, which
   runs once, are inlined. With hashes none of which agree, every thunk is
