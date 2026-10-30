@@ -617,7 +617,10 @@ extern "C" value zane_bitcode_has_assembly(value bitcode) {
 /* What [bitcode]'s module defines visible to other modules, functions,
    variables, aliases and indirect functions, and whether it runs a
    constructor or destructor of its own: the check of a header an archive
-   compiled too reads them (docs/design/ffi.md F9). */
+   compiled too reads them (docs/design/ffi.md F9). Each is its C name, as
+   an object's reader names it: a name an `__asm__` label gave, which LLVM
+   writes with a leading \1 and the target's global prefix spelled out, is
+   the label. */
 extern "C" value zane_bitcode_definitions(value bitcode) {
   CAMLparam1(bitcode);
   CAMLlocal3(list, cell, pair);
@@ -628,10 +631,14 @@ extern "C" value zane_bitcode_definitions(value bitcode) {
     llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
     llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
     if (module) {
+      char prefix = (*module)->getDataLayout().getGlobalPrefix();
       for (const llvm::GlobalValue &g : (*module)->global_values())
         if (!g.isDeclarationForLinker() && !g.hasLocalLinkage() && !g.hasAppendingLinkage() &&
-            !g.getName().starts_with("llvm."))
-          names.push_back(g.getName().str());
+            !g.getName().starts_with("llvm.")) {
+          llvm::StringRef name = g.getName();
+          if (name.consume_front("\1") && prefix) name.consume_front(llvm::StringRef(&prefix, 1));
+          names.push_back(name.str());
+        }
       for (const char *name : {"llvm.global_ctors", "llvm.global_dtors"})
         if (const llvm::GlobalVariable *list = (*module)->getNamedGlobal(name))
           if (const auto *entries = llvm::dyn_cast_or_null<llvm::ConstantArray>(

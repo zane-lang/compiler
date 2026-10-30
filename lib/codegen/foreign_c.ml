@@ -51,7 +51,7 @@ external rename : Llvm.llmodule -> string -> string -> string list -> string lis
 
 external constructors : Llvm.llmodule -> string list = "zane_c_constructors"
 external drop_defined : Llvm.llmodule -> Llvm.llmodule -> string list -> unit = "zane_drop_defined"
-external drop_defined_apart : Llvm.llmodule -> string list -> unit = "zane_drop_defined_apart"
+external drop_defined_apart : Llvm.llmodule -> string -> string list -> unit = "zane_drop_defined_apart"
 external share_state : Llvm.llmodule -> Llvm.llmodule -> string -> unit = "zane_share_state"
 external localize_shared : Llvm.llmodule -> unit = "zane_localize_shared"
 
@@ -162,12 +162,12 @@ let package_module ctx ~triple ~data_layout p =
   in
   let runs = List.map (fun (c, m) -> (c, constructors m)) sources @ List.map assembled_runs p.objects in
   let run_by g = List.concat_map (fun (c, run) -> if includes g c then run else []) runs in
+  let global_prefix = Walks.global_prefix data_layout in
   let glue_module (g, m) =
-    if p.defined <> [] then drop_defined_apart m p.defined;
+    if p.defined <> [] then drop_defined_apart m global_prefix p.defined;
     (m, run_by g)
   in
   let glue = List.map glue_module glue in
-  let global_prefix = Walks.global_prefix data_layout in
   (* With no source in the module, the glue is linked into an empty one,
      so each glue module is still linked as one after the sources. *)
   let base = match sources with [] when glue <> [] -> [ Llvm.create_module ctx "c" ] | _ -> List.map snd sources in

@@ -3,10 +3,6 @@
 
 #include "defined.h"
 
-#define TEXT(x) #x
-#define SPELLED(x) TEXT(x)
-#define SYMBOL(name) SPELLED(__USER_LABEL_PREFIX__) #name
-
 #if defined(__aarch64__)
 #define JUMP "b"
 #else

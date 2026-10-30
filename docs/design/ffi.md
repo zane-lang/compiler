@@ -410,13 +410,15 @@ something else calls too.
 A source assembled apart, or an archive built from sources, that includes
 the header defines the same copies outside the module: the glue's
 definitions of every name the package's objects define are made
-declarations too (`zane_drop_defined_apart`), and an assembled source's
+declarations too (`zane_drop_defined_apart`), a labelled one's matched by
+its label, as an object names it, and an assembled source's
 constructors are read from its module, as a linked source's are, so the
 glue leaves out the ones its object runs. An archive says neither which
 of a header's constructors its members run nor whether a member is
 linked, so a header whose glue runs a constructor or destructor of its
 own, and whose external definitions an archive defines too, since a
-member includes it, is refused. With no source in the module,
+member includes it, is refused, a labelled definition again read by its
+label. With no source in the module,
 the glue is linked into an empty module, so each glue module is still
 linked after one.
 

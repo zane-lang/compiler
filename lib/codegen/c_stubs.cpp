@@ -41,6 +41,16 @@ extern "C" {
 /* The bindings carry an LLVM pointer with its low bit set (llvm_stubs.c). */
 static llvm::Module *module_of(value v) { return reinterpret_cast<llvm::Module *>(v & ~(value)1); }
 
+/* The C name of the global [name]: an `__asm__` label, which LLVM writes
+   with a leading \1 and [target]'s global prefix spelled out, read as the
+   label. */
+static std::string label_of(const std::string &name, const std::string &target) {
+  if (name.empty() || name[0] != '\1') return name;
+  std::string label = name.substr(1);
+  if (!target.empty() && label.rfind(target, 0) == 0) label = label.substr(target.size());
+  return label;
+}
+
 extern "C" value zane_rename_c_globals(value mod, value prefix, value global_prefix, value keep, value declared) {
   CAMLparam5(mod, prefix, global_prefix, keep, declared);
   CAMLlocal3(names, cell, name);
@@ -49,14 +59,6 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
   for (value l = keep; l != Val_emptylist; l = Field(l, 1)) kept.insert(String_val(Field(l, 0)));
   for (value l = declared; l != Val_emptylist; l = Field(l, 1)) defined_apart.insert(String_val(Field(l, 0)));
   std::string p = String_val(prefix), target = String_val(global_prefix);
-  auto label_of = [&](const std::string &name) {
-    std::string label = name;
-    if (!label.empty() && label[0] == '\1') {
-      label = label.substr(1);
-      if (!target.empty() && label.rfind(target, 0) == 0) label = label.substr(target.size());
-    }
-    return label;
-  };
   std::vector<llvm::GlobalValue *> renamed;
   for (llvm::GlobalValue &g : m->global_values()) {
     std::string name = g.getName().str();
@@ -64,16 +66,16 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
     // An `available_externally` definition, such as a C library's inline
     // copy of its own function, stands for a symbol another object defines,
     // renamed only where that object is one of the package's own.
-    if (g.isDeclarationForLinker() && !defined_apart.count(label_of(name))) continue;
-    if (name.rfind("llvm.", 0) == 0 || kept.count(label_of(name))) continue;
+    if (g.isDeclarationForLinker() && !defined_apart.count(label_of(name, target))) continue;
+    if (name.rfind("llvm.", 0) == 0 || kept.count(label_of(name, target))) continue;
     renamed.push_back(&g);
   }
   std::vector<std::string> labels;
   std::map<llvm::Comdat *, llvm::Comdat *> comdats;
   for (llvm::GlobalValue *g : renamed) {
     std::string old = g->getName().str();
-    labels.push_back(label_of(old));
-    g->setName(p + label_of(old));
+    labels.push_back(label_of(old, target));
+    g->setName(p + label_of(old, target));
     if (auto *o = llvm::dyn_cast<llvm::GlobalObject>(g))
       if (llvm::Comdat *c = o->getComdat())
         if (c->getName() == old) {
@@ -461,11 +463,13 @@ extern "C" value zane_drop_defined(value glue, value before, value run) {
    source holding assembly, made a declaration, as [zane_drop_defined]
    makes one the modules before it hold: an interface header's own
    definition, compiled into the glue too, meets the object's copy as a
-   use. */
-extern "C" value zane_drop_defined_apart(value glue, value names) {
-  CAMLparam2(glue, names);
+   use. A global an `__asm__` label names is matched by the label, after
+   the target's [global_prefix], as the object's reader names it. */
+extern "C" value zane_drop_defined_apart(value glue, value global_prefix, value names) {
+  CAMLparam3(glue, global_prefix, names);
   std::set<std::string> apart;
   for (value l = names; l != Val_emptylist; l = Field(l, 1)) apart.insert(String_val(Field(l, 0)));
-  declare_defined(module_of(glue), [&apart](llvm::GlobalValue &v) { return apart.count(v.getName().str()) > 0; });
+  std::string target = String_val(global_prefix);
+  declare_defined(module_of(glue), [&](llvm::GlobalValue &v) { return apart.count(label_of(v.getName().str(), target)) > 0; });
   CAMLreturn(Val_unit);
 }

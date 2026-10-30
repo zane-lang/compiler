@@ -422,6 +422,31 @@ let glue_prototypes () =
         | Ok [ p ] -> ( match Foreign.glue p [ entry ] with Ok [ _ ] -> true | _ -> false)
         | _ -> false))
 
+(* A global an `__asm__` label names, as LLVM writes one for Mach-O, with
+   a leading \1 and the target's `_` spelled out, read as the label an
+   object's reader names it by: a header's definitions name it so, and the
+   glue's copy of one an object assembled apart defines is made a
+   declaration. A Mach-O link is the only one that spells the prefix out,
+   and no test links one. *)
+let asm_labels () =
+  let ctx = Llvm.create_context () in
+  let ir =
+    "target datalayout = \"e-m:o-i64:64-i128:128-n32:64-S128-Fn32\"\n\
+     target triple = \"arm64-apple-macosx\"\n\
+     @\"\\01_counter_label\" = global i64 1\n\
+     @plain = global i64 2\n"
+  in
+  let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string ir) in
+  let bitcode = Llvm.MemoryBuffer.as_string (Llvm_bitwriter.write_bitcode_to_memory_buffer m) in
+  check "a header's labelled definition is named by its label"
+    (List.sort compare (fst (Clang.definitions bitcode)) = [ "counter_label"; "plain" ]);
+  Codegen__Foreign_c.drop_defined_apart m "_" [ "counter_label" ];
+  let declared name = match Llvm.lookup_global name m with Some g -> Llvm.is_declaration g | None -> false in
+  check "the glue's copy of a labelled definition an object defines is a declaration" (declared "\001_counter_label");
+  check "a definition no object defines stays" (not (declared "plain"));
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx
+
 let run () =
   patterns ();
   paths ();
@@ -434,4 +459,5 @@ let run () =
   interface_header ();
   glue_refusals ();
   glue_paths ();
-  glue_prototypes ()
+  glue_prototypes ();
+  asm_labels ()
