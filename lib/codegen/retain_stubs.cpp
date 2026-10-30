@@ -140,7 +140,8 @@ static std::set<llvm::Function *> unsafe_functions(llvm::Module *m) {
   return unsafe;
 }
 
-/* A declaration standing for the alias or indirect function [v]. */
+/* A declaration standing for the alias or indirect function [v], a
+   thread's own when [v] is. */
 static void declare_instead(llvm::GlobalValue *v) {
   llvm::Module *m = v->getParent();
   llvm::GlobalValue *d;
@@ -148,7 +149,7 @@ static void declare_instead(llvm::GlobalValue *v) {
     d = llvm::Function::Create(ft, llvm::GlobalValue::ExternalLinkage, v->getAddressSpace(), "", m);
   else
     d = new llvm::GlobalVariable(*m, v->getValueType(), false, llvm::GlobalValue::ExternalLinkage, nullptr, "", nullptr,
-                                 llvm::GlobalValue::NotThreadLocal, v->getAddressSpace());
+                                 v->getThreadLocalMode(), v->getAddressSpace());
   d->takeName(v);
   v->replaceAllUsesWith(d);
   v->eraseFromParent();

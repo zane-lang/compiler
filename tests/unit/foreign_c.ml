@@ -569,6 +569,10 @@ let retained () =
      define void @says() {\n  call void @puts(ptr @.str)\n  ret void\n}\n\
      define weak i64 @replaceable() {\n  ret i64 2\n}\n\
      define void @init() {\n  store i64 1, ptr @shared\n  ret void\n}\n\
+     @tls = thread_local global i64 0\n\
+     @tls_alias = thread_local alias i64, ptr @tls\n\
+     declare ptr @llvm.threadlocal.address.p0(ptr)\n\
+     define i64 @reads_tls() {\n  %p = call ptr @llvm.threadlocal.address.p0(ptr @tls_alias)\n  %v = load i64, ptr %p\n  ret i64 %v\n}\n\
      @targets = private unnamed_addr constant [2 x ptr] [ptr blockaddress(@jumps, %one), ptr blockaddress(@jumps, %two)]\n\
      @exported_targets = constant [1 x ptr] [ptr blockaddress(@jumps, %one)]\n\
      define i64 @jumps(i64 %i) {\n  %p = getelementptr [2 x ptr], ptr @targets, i64 0, i64 %i\n  %t = load ptr, ptr %p\n  indirectbr ptr %t, [label %one, label %two]\none:\n  ret i64 1\ntwo:\n  ret i64 2\n}\n"
@@ -606,6 +610,8 @@ let retained () =
   check "that local function and its state are removed" (linkage "helper" = None && linkage "state" = None);
   check "a weak definition is called" (is "replaceable" `Declared);
   check "an alias is a declaration" (is "alias" `Declared);
+  check "a thread's own alias is a declaration of a thread's own"
+    (match Llvm.lookup_global "tls_alias" m with Some g -> Llvm.is_declaration g && Llvm.is_thread_local g | None -> false);
   check "a variable is a declaration" (is "shared" `Declared);
   check "a constant is retained" (is "fixed" `Retained);
   check "a constant holding a local address is a declaration" (is "holds" `Declared);
