@@ -73,6 +73,30 @@ void zane_overwrite(char *slot, char *incoming, int64_t size, const zane_type *t
 	zane_work_run(&w);
 }
 
+/* The same for a type that may hold a foreign handle, through [walk]: the
+   handles it ends or sets are released by descending stamp, once
+   everything else is replaced (spec ffi.md §4.3). Emitted code calls the
+   overwrite above for every other type, which pays nothing for this. */
+static void zane_replace(char *slot, char *incoming, int64_t size, zane_walk walk) {
+	zane_handle_jobs handles;
+	zane_handle_jobs_begin(&handles);
+	zane_work w;
+	zane_work_start(&w);
+	walk(slot, incoming, size, &w, 0);
+	zane_work_run(&w);
+	zane_handle_jobs_end(&handles);
+}
+
+void zane_overwrite_handles(char *slot, char *incoming, int64_t size, const zane_type *type) {
+	zane_replace(slot, incoming, size, type->overwrite);
+}
+
+/* In a settled or lent place (spec ffi.md §4.3), a foreign handle is
+   replaced through its setter, and keeps its object's address. */
+void zane_overwrite_settled(char *slot, char *incoming, int64_t size, const zane_type *type) {
+	zane_replace(slot, incoming, size, type->set);
+}
+
 /* ---------------------------------------------------------------------- */
 /* Package constants (docs/design/lowering.md L16)                        */
 /* ---------------------------------------------------------------------- */

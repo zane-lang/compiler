@@ -6,7 +6,8 @@ open Nodes
 
 (* A layout, one position per line: a string's handle as `text @8 when
    [0]=1`, a list's as `list @8 of T (16 bytes
-   apart)`, and a boxed member as `box @8 of T (24 bytes)`. *)
+   apart)`, a boxed member as `box @8 of T (24 bytes)`, and a foreign
+   handle as `handle @0 freed by T.free, set by T.set`. *)
 let positions (ps : Layout.position list) =
   map_seq
     (fun (p : Layout.position) ->
@@ -24,7 +25,12 @@ let positions (ps : Layout.position list) =
       | Layout.Array { count; stride; elements } ->
           Leaf (Printf.sprintf "array @%d of %d %s (%d bytes apart)%s" p.offset count elements stride tags)
       | Layout.Box { size; payload } ->
-          Leaf (Printf.sprintf "box @%d of %s (%d bytes)%s" p.offset payload size tags))
+          Leaf (Printf.sprintf "box @%d of %s (%d bytes)%s" p.offset payload size tags)
+      | Layout.Foreign { free; set } ->
+          Leaf
+            (Printf.sprintf "handle @%d freed by %s%s%s" p.offset free
+               (match set with Some s -> ", set by " ^ s | None -> "")
+               tags))
     ps
 
 let layout (l : Layout.t) = Leaf l
@@ -164,9 +170,11 @@ and stat = function
            @ [ ("layout", layout l) ]))
   | Stat.Store { address; value } ->
       group "store" (fields [ ("address", expr address); ("value", expr value) ])
-  | Stat.Overwrite { address; value; layout = l } ->
+  | Stat.Overwrite { address; value; layout = l; setters } ->
       group "overwrite"
-        (fields [ ("address", expr address); ("value", expr value); ("layout", layout l) ])
+        (fields
+           ([ ("address", expr address); ("value", expr value); ("layout", layout l) ]
+           @ if setters then [ ("setters", Leaf "yes") ] else []))
   | Stat.Place { address; value; layout = l } ->
       group "place"
         (fields [ ("address", expr address); ("value", expr value); ("layout", layout l) ])
@@ -264,6 +272,7 @@ let crossing = function
   | Foreign.View -> "view"
   | Foreign.Address -> "address"
   | Foreign.Value -> "value"
+  | Foreign.Handle -> "handle"
 
 let thunk (f : Foreign.t) =
   group "thunk"

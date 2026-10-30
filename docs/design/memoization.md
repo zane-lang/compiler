@@ -25,9 +25,11 @@ A function gets a table when:
   function as a reference argument, which the next rule keeps out of the
   key. The root package's verbs also reach the console and the runtime by
   name, and may print with them
-  ([`effects.md` §6.6](https://github.com/zane-lang/spec/blob/b480975/spec/effects.md#66-the-programs-console-and-runtime)).
-  So the function's body, and the body of every function it calls, names
-  neither, makes no call through a function value or to a C function, which
+  ([`effects.md` §6.6](https://github.com/zane-lang/spec/blob/b480975/spec/effects.md#66-the-programs-console-and-runtime)),
+  and reach outside state through a foreign variable they declare, whose
+  capability is the address of a C global ([`ffi.md`](ffi.md) F12). So the
+  function's body, and the body of every function it calls, names none of
+  these, makes no call through a function value or to a C function, which
   can read and change state of its own, and calls no runtime function that
   outputs, reads the program's arguments or spawns. A callee
   with no body here rules its caller out.

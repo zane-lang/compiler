@@ -180,9 +180,36 @@ module Layout = struct
        position's offset: one position for them all, however many. *)
     | Array of { count : int; stride : int; elements : string }
     | Box of { size : int; payload : string }
+    (* A foreign handle that owns its C object (docs/design/ffi.md F12):
+       its pointer and its stamp, ended by the free thunk [free] and, in a
+       settled place, overwritten through the set thunk [set]. *)
+    | Foreign of { free : string; set : string option }
 
   type position = { kind : kind; offset : int; size : int; tags : (int * int) list }
   type t = string
+
+  (* Whether a value of layout [l], whose positions [find] gives, holds a
+     foreign handle: anywhere, or with [settled] only where a settled
+     overwrite replaces it through its setter, in no variant's payload and
+     no list (spec ffi.md §4.3). *)
+  let holds_handle ?(settled = false) find l =
+    let seen = Hashtbl.create 8 in
+    let rec go l =
+      (not (Hashtbl.mem seen l))
+      &&
+      (Hashtbl.replace seen l ();
+       List.exists
+         (fun p ->
+           ((not settled) || p.tags = [])
+           &&
+           match p.kind with
+           | Foreign _ -> true
+           | Box { payload = l; _ } | Array { elements = l; _ } -> go l
+           | List { elements = l; _ } -> (not settled) && go l
+           | Text -> false)
+         (Option.value ~default:[] (find l)))
+    in
+    go l
 end
 
 module Expr = struct
@@ -298,7 +325,12 @@ module Expr = struct
        member's block kept, the other blocks the old value owned returned,
        and the new one's arriving in the place's region. *)
     | Store of { address : t; value : t }
-    | Overwrite of { address : t; value : t; layout : Layout.t }
+    (* With [setters], the place is settled or lent (memory.md §2.2) and
+       the value holds a foreign handle that is no variant's payload nor a
+       list's element: each such handle is replaced through its setter,
+       keeping its object's address (spec ffi.md §4.3). Without, it ends
+       as everything else the old value owns does. *)
+    | Overwrite of { address : t; value : t; layout : Layout.t; setters : bool }
     (* A value moved into a fresh place at an address: stored, and the
        blocks it owns that the place's region outlives move into it, which is
        an escape (memory.md §3.5). *)
@@ -380,7 +412,7 @@ module Stat = struct
     | Switch of { value : Expr.t; cases : (int * t list) list }
     | Leave of int
     | Store of { address : Expr.t; value : Expr.t }
-    | Overwrite of { address : Expr.t; value : Expr.t; layout : Layout.t }
+    | Overwrite of { address : Expr.t; value : Expr.t; layout : Layout.t; setters : bool }
     | Place of { address : Expr.t; value : Expr.t; layout : Layout.t }
     | Reserve of { id : int; scope : int; ty : Ty.t; layout : Layout.t }
     | Spawn of {
@@ -437,9 +469,10 @@ module Func = struct
   }
 end
 
-(* A foreign verb's thunk, for the glue to define (docs/design/ffi.md F8):
-   its symbol, the package whose C code it calls, the C function, and how
-   each argument and the result cross, as [Foreign_call] lays them out. *)
+(* A thunk for the glue to define (docs/design/ffi.md F8), a foreign
+   verb's or a handle type's free or set thunk: its symbol, the package
+   whose C code it calls, the C function, and how each argument and the
+   result cross, as [Foreign_call] lays them out. *)
 module Foreign = struct
   type crossing =
     (* A scalar of the Zane type, which C converts to its own. *)
@@ -453,6 +486,8 @@ module Foreign = struct
     | Address
     (* A C-compatible value type, in C's layout. *)
     | Value
+    (* A foreign handle's pointer, the first word of its value. *)
+    | Handle
 
   type t = { thunk : string; package : string; c_function : string; params : crossing list; result : crossing }
 end
@@ -461,7 +496,7 @@ end
    the runtime's C `main` calls (L16): always one that makes the package
    constants, if any, and then calls the root package's `main`. A library has
    none. [layouts] is each layout the program names, [globals] each of
-   its variables, and [foreign] each thunk its calls into C go through.
+   its variables, and [foreign] each thunk of the glue it calls.
    [exclusive] is whether it runs on one thread: it is not a
    library, and no package of the build spawns. *)
 module Program = struct

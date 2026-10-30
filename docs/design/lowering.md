@@ -439,7 +439,8 @@ runtime's own translation unit, which no other unit can name, takes the
 address of one of the unit's functions, which a copy would not share, or
 calls one marked `noinline` or `cold`, which would be copied whole; a
 function that calls such a function is left out too. A function marked
-`cold`, such as `zane_hold`, which runs only when drains are checked, is
+`cold`, such as `zane_hold`, which runs only when drains are checked or
+a slot's value may hold a foreign handle, is
 left out as well, since inlined it costs its caller registers on the path
 that never runs it. The variables the runtime's hot paths read, such as
 its page table, are therefore not `static`. In a tiered build a body that
@@ -723,8 +724,9 @@ test passing.
     takes the frontier as the frame's start, moves it past the frame, zeroes
     the record and links it to the scope around it. A slot is the frame's
     start plus its offset. A drain that has no spawned call to wait for, no
-    dynamic chunk to give back and no check to run moves the frontier back
-    to the record. Otherwise both call the runtime, which does the same
+    dynamic chunk to give back, no foreign handle to end and no check to
+    run moves the frontier back to the record; only a scope that places a
+    slot that may hold a handle looks for one. Otherwise both call the runtime, which does the same
     under the context's lock. A reserved slot and a spawned call's header
     and result slot are zeroed where they are placed; a held slot is written
     at once.
@@ -943,9 +945,12 @@ test passing.
     drains with it. A dropped result that owns no block has nothing for a
     drain to end, so nothing holds it: the element a discarded `swapRemove`
     moves out needs no scope.
-  - A drain walks none of its values. Nothing that outlives the scope owns
-    a block in its region, since an escape moves its blocks out first, so
-    every block still there dies with it. A value of the scope may own
+  - A drain walks none of its values but those that may hold a foreign
+    handle, whose C object only its free function releases: a slot of one
+    is listed as its value arrives whether or not drains are checked, and
+    the drain ends it ([`ffi.md`](ffi.md) F12). Nothing that outlives the
+    scope owns a block in its region, since an escape moves its blocks out
+    first, so every block still there dies with it. A value of the scope may own
     blocks in an outer region, which a move into a deeper owner, such as a
     `^T` parameter, leaves where they are (§3.5). They are dead space there
     until that region drains. They cannot pile up. A symbol moved there is
@@ -964,8 +969,12 @@ test passing.
   Nothing a program does can tell these apart.
 - **Each type's walks.** Copying, ending, moving and overwriting a value
   each walk the blocks it owns, down through the blocks inside them. Codegen
-  emits the four walks for each type whose layout lists a block, the first
-  time the program walks a value of it, and a table of them, named for the type, which is what the runtime is handed
+  emits the four walks for each type whose layout lists a block, and a
+  fifth, an overwrite of a settled place, for a type that holds a foreign
+  handle such an overwrite replaces through its setter ([`ffi.md`](ffi.md)
+  F12); the table of any other type names its overwrite there too. It
+  emits them the first time the program walks a value of the type, and a
+  table of them, named for the type, which is what the runtime is handed
   wherever it is to walk a value of the type: a copy, a slot whose value a
   checked drain ends, an arrival, a promotion, an overwrite, a spawned
   call's result, a write-back and a constant. A type that owns no blocks has

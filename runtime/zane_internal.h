@@ -191,6 +191,7 @@ _Static_assert(offsetof(zane_mark, outer) == ZANE_MARK_OUTER, "then the scope ar
 _Static_assert(offsetof(zane_mark, skip) == ZANE_MARK_SKIP, "then its skip");
 _Static_assert(offsetof(zane_mark, tasks) == ZANE_MARK_TASKS, "then its calls");
 _Static_assert(offsetof(zane_mark, mappings) == ZANE_MARK_MAPPINGS, "then its chunks");
+_Static_assert(offsetof(zane_mark, held) == ZANE_MARK_HELD, "then what it holds");
 _Static_assert(offsetof(zane_mark, stacks) == ZANE_MARK_STACKS, "and its returned blocks' stacks");
 _Static_assert(sizeof(zane_mark) == ZANE_MARK_SIZE, "a frame's record is its own size");
 
@@ -350,6 +351,25 @@ static inline int zane_work_pop(zane_work *w, zane_job *job) {
 void zane_work_end(zane_work *w);
 void zane_work_run(zane_work *w);
 void zane_end(char *base, const zane_type *type);
+
+/* handle.c: a foreign handle's release, a free or set thunk's call with
+   the stamp of the place it was ended or set in, and the releases a drain
+   or an overwrite collects, to run by descending stamp once it is done. */
+typedef struct {
+	int64_t stamp;
+	zane_thunk thunk;
+	void *object, *replacement;
+} zane_handle_job;
+
+typedef struct zane_handle_jobs {
+	zane_handle_job *jobs;
+	int64_t count, room;
+	struct zane_handle_jobs *outer;
+} zane_handle_jobs;
+
+void zane_handle_jobs_begin(zane_handle_jobs *rs);
+void zane_handle_jobs_end(zane_handle_jobs *rs);
+void zane_handle_jobs_drop(zane_handle_jobs *rs);
 
 /* region.c */
 extern size_t zane_system_page;

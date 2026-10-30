@@ -74,14 +74,16 @@ let program_value symbol = String.starts_with ~prefix:"zane.value." symbol
 
 (* Whether [f]'s own body reaches nothing but its parameters, its own
    locals, package constants and the functions it calls, which [calls]
-   lists. A package constant is the same on every call; a C function can
-   read and change state of its own, so a call to one is not. *)
-let alone (f : Func.t) =
+   lists. A package constant is the same on every call; a global in
+   [outside], a foreign variable's C global, is state outside the program
+   (lower.ml), and a C function can read and change state of its own, so
+   a call to one is not. *)
+let alone ~outside (f : Func.t) =
   not
     (Traverse.exists_in f.Func.body
        ~expr:(fun e ->
          match e.Expr.node with
-         | Expr.Global symbol -> program_value symbol
+         | Expr.Global symbol -> program_value symbol || Hashtbl.mem outside symbol
          | Expr.Function _ | Expr.Call_value _ | Expr.Foreign_call _ -> true
          | Expr.Runtime { fn; _ } -> not (computes fn)
          | _ -> false)
@@ -529,8 +531,12 @@ let plan (p : Program.t) =
   let callees s = List.map fst (Hashtbl.find sites s) in
   (* Pure: alone, and calling only pure functions with bodies here. The
      greatest such set, so a cycle of pure functions is pure. *)
+  let outside = Hashtbl.create 8 in
+  List.iter
+    (fun (g : Global.t) -> if g.Global.linkage = Linkage.Imported then Hashtbl.replace outside g.Global.symbol ())
+    p.Program.globals;
   let pure = Hashtbl.create 64 in
-  Hashtbl.iter (fun s f -> if alone f then Hashtbl.replace pure s ()) funcs;
+  Hashtbl.iter (fun s f -> if alone ~outside f then Hashtbl.replace pure s ()) funcs;
   let changed = ref true in
   while !changed do
     changed := false;

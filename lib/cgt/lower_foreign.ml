@@ -23,15 +23,40 @@ let crossing st span (t : Tty.t) : Foreign.crossing =
   | _ when is_text t || is_list t -> Foreign.View
   | _ when Option.is_some (array_of t) -> Foreign.Address
   | Tty.Verb _ -> refuse span "lowering does not pass a function value to C yet (docs/design/ffi.md §7)"
-  | Tty.Named _ -> Foreign.Value
+  | Tty.Named _ -> (
+      match definition st t with Some (T.Decl.Handle _, _) -> Foreign.Handle | _ -> Foreign.Value)
   | _ -> Diagnostic.bug ~span ("lowering: `" ^ Tty.to_string t ^ "` crosses into C as nothing it lays out")
 
 (* The thunk of the verb whose function is [symbol]. *)
 let thunk symbol = symbol ^ ".ffi"
 
+(* A handle C returned: stamped as it is made (docs/design/ffi.md F12),
+   and a null pointer, which the runtime stamps 0, aborts the call with
+   `Unit` when the verb declares that abort, and otherwise stops the
+   program (spec ffi.md §3.5). *)
+let made st ctx span (v : verb) (call : Expr.t) =
+  let node t node = { Expr.node; ty = t } in
+  let pointer = fresh st and stamp = fresh st in
+  let pointer_ = node Nodes.Ty.Ptr (Expr.Local pointer) and stamp_ = node Nodes.Ty.I64 (Expr.Local stamp) in
+  let made = node Nodes.Ty.I64 (Expr.Runtime { fn = Runtime.Handle_made; args = [ pointer_ ] }) in
+  let zero = node Nodes.Ty.I64 (Expr.Int 0L) in
+  let null = node Nodes.Ty.I1 (Expr.Binary { op = Expr.Eq; left = stamp_; right = zero }) in
+  let refused =
+    match v.signature.S.abort with
+    | Some _ -> ctx.abort span (node Nodes.Ty.Void Expr.Unit)
+    | None -> [ Stat.Eval (node Nodes.Ty.Void (Expr.Runtime { fn = Runtime.No_object; args = [] })) ]
+  in
+  let handle = node (ty st span v.signature.S.ret) (Expr.Record [ (0, pointer_); (1, stamp_) ]) in
+  [
+    Stat.Let { id = pointer; value = call };
+    Stat.Let { id = stamp; value = made };
+    Stat.If { cond = null; body = refused };
+    Stat.Return (st.returns handle);
+  ]
+
 (* The function's body: [params] are its parameters' locals, as [env]
    binds them, and [f] is the C function the verb names. *)
-let body st env span (v : verb) (f : T.Foreign.t) : Stat.t list =
+let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
   let symbol = Verbs.symbol st v in
   let arg (p : T.Local.t) =
     let t = ty st span p.T.Local.ty in
@@ -50,7 +75,9 @@ let body st env span (v : verb) (f : T.Foreign.t) : Stat.t list =
   let args = List.map arg v.params in
   let ret = v.signature.S.ret in
   let result = crossing st span ret in
-  let call_ty = match result with Foreign.Unit -> Nodes.Ty.Void | _ -> ty st span ret in
+  let call_ty =
+    match result with Foreign.Unit -> Nodes.Ty.Void | Foreign.Handle -> Nodes.Ty.Ptr | _ -> ty st span ret
+  in
   let call =
     { Expr.node = Expr.Foreign_call { thunk = thunk symbol; args = List.map snd args }; ty = call_ty }
   in
@@ -72,4 +99,5 @@ let body st env span (v : verb) (f : T.Foreign.t) : Stat.t list =
   | Foreign.View ->
       let empty = { Expr.node = Expr.Text ""; ty = Nodes.Ty.Handle } in
       [ Stat.Return (st.returns { Expr.node = Expr.Runtime { fn = Runtime.Text_join; args = [ call; empty ] }; ty = Nodes.Ty.Handle }) ]
+  | Foreign.Handle -> made st ctx span v call
   | _ -> [ Stat.Return (st.returns call) ]

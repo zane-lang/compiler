@@ -191,6 +191,9 @@ type state = {
      functions lowered so far call, latest first (docs/design/ffi.md F8). *)
   foreign_verbs : (string, T.Foreign.t) Hashtbl.t;
   mutable thunks : Foreign.t list;
+  (* Each body's subjects, parameters and binders, which say whether a
+     place overwritten is settled (Tst.States.of_program). *)
+  mutable places : Tst.States.t option;
 }
 
 (* The walk over a verb's body, in [Lower], as the rest of lowering reaches
@@ -249,6 +252,7 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     sizes = Hashtbl.create 64;
     foreign_verbs = Hashtbl.create 8;
     thunks = [];
+    places = None;
   }
 
 let fresh st =

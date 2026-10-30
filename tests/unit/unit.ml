@@ -316,6 +316,7 @@ let abi c =
     let words = List.filter (fun w -> w <> "" && w <> "const") (String.split_on_char ' ' c) in
     match words with
     | [ "void" ] -> Some R.Void
+    | ("zane_thunk" :: _) -> Some R.Ptr
     | ("int64_t" :: _) -> Some R.I64
     | (("uint32_t" | "int32_t") :: _) -> Some R.I32
     | ("float" :: _) -> Some R.F32
@@ -477,7 +478,8 @@ let folded_arithmetic () =
 
 (* Every runtime function is in a class, and the outputs are the three
    docs/design/optimization.md O3 names. The program's arguments are the one
-   input. *)
+   input an intrinsic reads; a foreign handle's stamp, and the stop when C
+   returns none, are the others. *)
 let intrinsic_classes () =
   let outputs =
     List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Output) Cgt.Runtime.all
@@ -485,9 +487,9 @@ let intrinsic_classes () =
   check "print and the thread count are the outputs"
     (List.sort compare outputs
     = List.sort compare Cgt.Runtime.[ Print; Set_threads; Set_threads_auto ]);
-  check "the program's arguments are the one input"
+  check "the program's arguments and a foreign handle's making are the inputs"
     (List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all
-    = Cgt.Runtime.[ Arguments ])
+    = Cgt.Runtime.[ Arguments; Handle_made; No_object ])
 
 (* The math functions of `@math$` as the evaluator folds them (math.md §2),
    which the math codegen fixture holds both builds to as well, and which

@@ -238,6 +238,7 @@ let rec vacate layouts layout t v =
       | Layout.Text -> set_path v at (VText "")
       | Layout.List _ -> set_path v at (empty ())
       | Layout.Box _ -> set_path v at VNull
+      | Layout.Foreign _ -> stop "a foreign handle, which only a call into C makes"
       | Layout.Array { elements; _ } ->
           let e, a = elements_at t v at in
           set_path v at (VRecord (Array.map (vacate layouts elements e) a)))

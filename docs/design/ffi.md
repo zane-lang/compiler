@@ -5,13 +5,13 @@
 > `lib/foreign/` and `lib/c_interface/`; foreign verbs, handles and
 > foreign variables in the grammar and semantics (F7); and calls of
 > foreign verbs whose types are scalars, `Bool`, `Unit`, strings, arrays,
-> lists and C-compatible value types, through the glue (F8), with each
-> package's C renamed (F9), linked into an optimized build (F13, the
+> lists, C-compatible value types and handles, through the glue (F8), with
+> each package's C renamed (F9), linked into an optimized build (F13, the
 > program's own packages) and compiled apart in an unoptimized or tiered
-> one (F14).
-> Lowering refuses a foreign verb taking or giving a handle or a function
-> value, and a foreign variable, until F12 and F11 land, and a package's
-> C holding assembly is refused until F9's object route for it lands. The rest is
+> one (F14); and handles and foreign variables at run time (F12).
+> Lowering refuses a foreign verb taking or giving a function value until
+> F11 lands, and a package's C holding assembly is refused until F9's
+> object route for it lands. The rest is
 > designed and not yet built. This page says how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
@@ -303,9 +303,12 @@ that declares its C function. The glue holds:
   type. The thunk does the conversions of `ffi.md` §3.3 as C casts: an
   `@primitives$I32` passed to a `uint8_t` keeps its low bits, a returned
   `int16_t` widens by its sign.
-- one **free thunk** per foreign handle type with a free function,
-  `void free_(void *object)`, which calls it with the pointer, and one
-  **set thunk** per type with a setter, `void set(void *dst, void *src)`.
+- one **free thunk** per foreign handle type with a free function, and one
+  **set thunk** per type with a setter: thunks of the same pointer ABI,
+  whose arguments are the objects' pointers, which call the free function
+  with the one and the setter with the two. A library's object defines
+  them for each of its handle types, since another object's ends and
+  overwrites call them.
 - for function values, the entries of F11.
 
 A thunk's name is the foreign verb's symbol ([`symbols.md`](symbols.md))
@@ -488,26 +491,30 @@ where a function value flows, and the two agree in every object
 CGT type is a pair of words: the C object's pointer and the 64-bit stamp
 below, so the stamp travels with the handle wherever it is stored, in a
 local, a field or a list element, and needs no slot of its own. C
-receives only the pointer (F10). Its walk table ([`lowering.md`](lowering.md) §9)
-has an `.end` that calls the free thunk when the pointer is not null and
-a `.move` that copies both words and nulls the place moved from, as `ffi.md` §4.2's
-move rule needs. It has no
-`.copy`: a handle is a reference type and is never copied. A capability's
-walk table has no `.end`, since nothing frees a C global, and a foreign
-variable lowers to the address of its global under the name F9 gives it.
+receives only the pointer (F10). A handle type with a free function is a
+position of its layout, as a string's handle is
+([`lowering.md`](lowering.md) §9), naming its free and set thunks. Its end
+calls the runtime's `zane_handle_end`, which calls the free thunk when the
+pointer is not null and nulls it, so `ffi.md` §4.2's free runs exactly
+once; a vacated place holds a null pointer, so a handle moved on is ended
+only where it lands. Its copy and move do nothing: a handle is a
+reference type and is never copied, and a C object never moves, so its
+two words move with the value that holds them. A capability is no
+position, since nothing frees a C global, and a foreign variable lowers
+to the address of its global under the name F9 gives it, with a stamp of
+0 that nothing reads.
 
-An assignment to a settled place that holds a handle lowers, for each
-handle the overwrite reaches (`memory.md` §2.2), to a call of the set thunk
-with the place's pointer and the replacement's, and the replacement is
-dropped without its `.end`. The place keeps its stamp (below): handles made
-from the old object since hold the same address, so they still end
-first. An overwrite that reaches more than one handle, such as a struct
-holding a connection and a statement prepared on it, runs their set
-thunks by descending stamp of the places, the order a drain frees them
-in (`ffi.md` §4.3), so a handle's old object is released before the old
-object it was made from. It collects the places as a drain collects its
-handles; an overwrite that reaches one handle calls its set thunk
-directly.
+An assignment to a settled or lent place whose value holds a handle that
+is no variant's payload and no list's element is an `Overwrite` marked
+`setters`, which calls the runtime's `zane_overwrite_settled`. That runs
+the type's fifth walk, a settled overwrite, which is the overwrite except
+at such a handle: there `zane_handle_set` takes the place's pointer and
+the replacement's, and writes the place's pointer and stamp over the
+replacement's before the replacement's bytes are copied in, so the place
+keeps its stamp (below): handles made from the old object since hold the
+same address, so they still end first. The replacement is dropped
+without its `.end`, since the set thunk consumes it. A handle in a
+payload or a list is ended and replaced, as a roaming owner's is.
 
 A drain ends a scope's values with no order among them
 ([`lowering.md`](lowering.md) §9), but `ffi.md` §4.2 orders free functions.
@@ -515,11 +522,21 @@ So each handle a call makes is stamped as it is made with a number from
 one process-wide counter, a 64-bit atomic fetch-and-add. Handles made by
 spawned calls on different pool threads still get distinct, comparable
 stamps, and a handle made from another is made after it in the program's
-happens-before order, so its stamp is larger. A drain that ends more than
-one handle collects their pointers and runs the free thunks by
-descending stamp, after the scope's other ends. A move keeps the stamp, since the handle is the same
-one. A drain that ends one handle or none does nothing more than it does
-now.
+happens-before order, so its stamp is larger. A move keeps the stamp,
+since the handle is the same one. A null pointer is stamped 0, which
+lowering tests for the abort or stop of `ffi.md` §3.5.
+
+A slot whose value may hold a handle is listed among its scope's held
+slots whether or not drains are checked, and a scope holding one drains
+through the runtime. The drain ends those slots, collecting each free
+thunk with its handle's stamp, and once every slot has ended runs them by
+descending stamp. An overwrite of a type that may hold a handle calls
+`zane_overwrite_handles`, or `zane_overwrite_settled` when it is marked
+`setters`, and either collects the thunks of the handles it ends or sets
+the same way, so the set thunks of `ffi.md` §4.3 run by descending stamp
+of the places, the order a drain frees them in, and a handle's old object
+is released before the old object it was made from. Every other
+overwrite calls `zane_overwrite`, which collects nothing.
 
 ---
 

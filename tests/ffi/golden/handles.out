@@ -1,0 +1,66 @@
+6
+7
+open conn 5
+open conn 7
+set conn 6 to 7
+free conn 7
+
+2
+open conn 1
+open conn 2
+free conn 1
+open conn 3
+free conn 3
+free conn 2
+
+107
+open conn 1
+prepare stmt 107
+open conn 2
+free conn 2
+free stmt 107
+free conn 1
+
+202
+3
+open conn 1
+prepare stmt 101
+open conn 2
+prepare stmt 202
+set stmt 101 to 202
+set conn 1 to 2
+open conn 3
+set conn 2 to 3
+free stmt 202
+free conn 3
+
+11
+12
+13
+open conn 10
+open conn 11
+open conn 12
+free conn 10
+open conn 13
+free conn 12
+free conn 11
+free conn 13
+
+20
+open conn 20
+free conn 20
+open conn 21
+free conn 21
+
+no connection
+4
+open conn 4
+free conn 4
+
+0
+5
+5
+open a.log
+write 5 bytes to a.log
+close a.log
+

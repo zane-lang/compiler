@@ -21,6 +21,9 @@ type t = {
   (* Where each slot is, by its local, and each spawned call's header, by
      its task. *)
   offsets : (int, int) Hashtbl.t;
+  (* Whether a slot the scope places has a layout [handles] holds: only
+     such a slot is listed for the drain whether or not drains are checked. *)
+  handles : bool;
 }
 
 (* The frame of scope [id], whose statements are [body]. A slot the scope
@@ -29,8 +32,9 @@ type t = {
    which places its own, is lowering's mistake. Every offset is checked
    against Ty.limit before it is taken, and a frame that reaches it raises
    Ty.Too_large. *)
-let layout symbol id body =
+let layout ?(handles = fun _ -> false) symbol id body =
   let offsets = Hashtbl.create 8 in
+  let holds = ref false in
   let size = ref record in
   let place key (bytes, align) =
     if align > 16 then Diagnostic.bug (Printf.sprintf "frames: `%s` has a slot aligned past 16" symbol);
@@ -46,11 +50,13 @@ let layout symbol id body =
   in
   let rec stat again (s : Stat.t) =
     (match s with
-    | Stat.Hold { id = local; scope; value; _ } when scope = id ->
+    | Stat.Hold { id = local; scope; value; layout } when scope = id ->
         placed ~again;
+        if handles layout then holds := true;
         place local (Ty.size_align value.Expr.ty)
-    | Stat.Reserve { id = local; scope; ty; _ } when scope = id ->
+    | Stat.Reserve { id = local; scope; ty; layout } when scope = id ->
         placed ~again;
+        if handles layout then holds := true;
         place local (Ty.size_align ty)
     | Stat.Spawn { task = t; scope; frame; dest; _ } when scope = id ->
         placed ~again;
@@ -71,4 +77,4 @@ let layout symbol id body =
     List.iter (List.iter (stat again)) bodies
   in
   List.iter (stat false) body;
-  { size = Ty.below_limit (Ty.round_up !size 16); offsets }
+  { size = Ty.below_limit (Ty.round_up !size 16); offsets; handles = !holds }

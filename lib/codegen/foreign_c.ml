@@ -74,7 +74,7 @@ let package_module ctx ~triple ~data_layout p =
   Option.map
     (fun m ->
       localize_shared m;
-      rename m p.prefix (Emit.global_prefix data_layout) p.thunks;
+      rename m p.prefix (Walks.global_prefix data_layout) p.thunks;
       m)
     (linked ~glue ~triple ~data_layout (List.map snd sources))
 

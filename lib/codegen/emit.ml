@@ -512,6 +512,8 @@ type frame = {
   labels : (int, Llvm.llbasicblock * int) Hashtbl.t;
   arenas : (int, Llvm.llvalue) Hashtbl.t;
   mutable open_ : Llvm.llvalue list;
+  (* The open arenas that place a slot holding a foreign handle. *)
+  mutable handled : Llvm.llvalue list;
   offsets : (int, int) Hashtbl.t;
   (* The function's result type and how it comes back, and the slot it is
      written to when that is by address. *)
@@ -608,6 +610,7 @@ and record_outer = Abi.mark_outer
 and record_skip = Abi.mark_skip
 and record_tasks = Abi.mark_tasks
 and record_mappings = Abi.mark_mappings
+and record_held = Abi.mark_held
 and record_stacks = Abi.mark_stacks
 and context_frontier = Abi.context_frontier
 and context_top = Abi.context_top
@@ -689,10 +692,12 @@ let enter env fr b size =
     (Llvm.const_int i64 16);
   frame
 
-(* A scope drains (L8). One that spawned nothing and has no dynamic chunk,
-   while its context is this thread's alone and drains are not checked, has
-   nothing to wait for or give back but its frame, so the code moves the
-   frontier back to its record itself. Otherwise the runtime drains it. *)
+(* A scope drains (L8). One that spawned nothing, has no dynamic chunk and
+   holds no foreign handle, while its context is this thread's alone and
+   drains are not checked, has nothing to wait for, end or give back but its
+   frame, so the code moves the frontier back to its record itself.
+   Otherwise the runtime drains it. Only a scope that places a slot holding
+   a handle can hold one, so no other scope looks. *)
 let drain_scope env fr b m =
   let ptr = env.ptr in
   let null = Llvm.const_null ptr in
@@ -707,11 +712,11 @@ let drain_scope env fr b m =
       (Llvm.const_int (Llvm.i32_type env.ctx) 0)
       "" b
   in
-  let plain =
-    Llvm.build_and
-      (Llvm.build_and (empty (field env b ptr m record_tasks)) (empty (field env b ptr m record_mappings)) "" b)
-      unchecked "" b
+  let alone = Llvm.build_and (empty (field env b ptr m record_tasks)) (empty (field env b ptr m record_mappings)) "" b in
+  let alone =
+    if List.memq m fr.handled then Llvm.build_and alone (empty (field env b ptr m record_held)) "" b else alone
   in
+  let plain = Llvm.build_and alone unchecked "" b in
   ignore (Llvm.build_cond_br plain inline runtime_ b);
   Llvm.position_at_end inline b;
   let c = field env b ptr m record_context in
@@ -735,9 +740,13 @@ let frame_slot env fr b scope id =
   byte_at env b (Hashtbl.find fr.arenas scope) (Hashtbl.find fr.offsets id)
 
 (* With checked drains, a slot whose value may own blocks is listed as its
-   value arrives, so the drain can return them (runtime/slot.c). *)
+   value arrives, so the drain can return them (runtime/slot.c). One whose
+   value may hold a foreign handle is listed whether or not drains are
+   checked, so the drain ends the handle (docs/design/ffi.md F12). *)
 let hold env fr b slot l =
-  if listed env l then begin
+  if Walks.holds_handle (walks env) l then
+    ignore (call_runtime env b Cgt.Runtime.Hold [| slot; layout env l |])
+  else if listed env l then begin
     let on =
       Llvm.build_icmp Llvm.Icmp.Ne
         (Llvm.build_load (Llvm.i32_type env.ctx) (checking env) "" b)
@@ -788,19 +797,6 @@ let rec store_fields env b (t : Ty.t) v p =
             store_fields env b m (Llvm.build_extractvalue v i "" b) (Llvm.build_struct_gep st p i "" b))
         ts
   | _ -> ignore (Llvm.build_store v p b)
-
-(* The global prefix of the target a module's data layout describes: `_`
-   for Mach-O and 32-bit Windows, none for the rest. *)
-let global_prefix data_layout =
-  let parts = String.split_on_char '-' data_layout in
-  if List.mem "m:o" parts || List.mem "m:x" parts then "_" else ""
-
-(* The IR name of a glue entry whose label is [symbol] after the target's
-   global prefix (docs/design/ffi.md F8): clang names a function with an
-   `__asm__` label `\001` and the label when the target has a prefix, and
-   by the label alone when it has none. *)
-let foreign_name m symbol =
-  match global_prefix (Llvm.data_layout m) with "" -> symbol | prefix -> "\001" ^ prefix ^ symbol
 
 let has_terminator b =
   match Llvm.block_terminator (Llvm.insertion_block b) with Some _ -> true | None -> false
@@ -1529,10 +1525,7 @@ and foreign_call env fr b thunk (args : Expr.t list) (ret : Ty.t) =
         zero env b p (match ret with Ty.I1 -> 1 | t -> fst (size_align t));
         p
   in
-  let fty = Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; env.ptr |] in
-  let name = foreign_name env.m thunk in
-  let f = match Llvm.lookup_function name env.m with Some f -> f | None -> Llvm.declare_function name fty env.m in
-  ignore (Llvm.build_call fty f [| table; result |] "" b);
+  ignore (Llvm.build_call (Walks.thunk_type env.ctx) (Walks.thunk env.ctx env.m thunk) [| table; result |] "" b);
   match ret with
   | Ty.Void -> None
   | Ty.I1 -> Some (Llvm.build_icmp Llvm.Icmp.Ne (Llvm.build_load i8 result "" b) (Llvm.const_int i8 0) "" b)
@@ -1645,11 +1638,12 @@ and stat env fr b (s : Stat.t) =
       | Some v when ret <> Ty.Void -> ignore (Llvm.build_ret v b)
       | _ -> ignore (Llvm.build_ret_void b))
   | Stat.Scope { id; body } ->
-      let frame = Frames.layout fr.symbol id body in
+      let frame = Frames.layout ~handles:(Walks.holds_handle (walks env)) fr.symbol id body in
       Hashtbl.iter (Hashtbl.replace fr.offsets) frame.Frames.offsets;
       let arena = enter env fr b frame.Frames.size in
       Hashtbl.replace fr.arenas id arena;
       fr.open_ <- arena :: fr.open_;
+      if frame.Frames.handles then fr.handled <- arena :: fr.handled;
       stats env fr b body;
       if not (has_terminator b) then drain_scope env fr b arena;
       fr.open_ <- List.tl fr.open_
@@ -1691,7 +1685,7 @@ and stat env fr b (s : Stat.t) =
       match expr env fr b value with
       | Some v -> ignore (access env value.Expr.ty (Llvm.build_store v p b))
       | None -> ())
-  | Stat.Overwrite { address; value; layout = l } -> (
+  | Stat.Overwrite { address; value; layout = l; setters } -> (
       let p = value_of env fr b address in
       match expr env fr b value with
       | None -> ()
@@ -1699,7 +1693,12 @@ and stat env fr b (s : Stat.t) =
           let incoming = spill env fr b v in
           let n x = Llvm.const_int env.i64 x in
           let size = n (fst (size_align value.Expr.ty)) in
-          ignore (call_runtime env b Cgt.Runtime.Overwrite [| p; incoming; size; layout env l |]))
+          let fn =
+            if setters then Cgt.Runtime.Overwrite_settled
+            else if Walks.holds_handle (walks env) l then Cgt.Runtime.Overwrite_handles
+            else Cgt.Runtime.Overwrite
+          in
+          ignore (call_runtime env b fn [| p; incoming; size; layout env l |]))
   | Stat.If { cond; body } ->
       let c = value_of env fr b cond in
       let taken = block env fr and after = block env fr in
@@ -1837,6 +1836,7 @@ let func env (f : Func.t) =
       labels = Hashtbl.create 8;
       arenas = Hashtbl.create 4;
       open_ = [];
+      handled = [];
       offsets = Hashtbl.create 8;
       ret = a.ret;
       sret;

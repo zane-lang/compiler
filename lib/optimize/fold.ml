@@ -348,7 +348,7 @@ let store_back fn id ty c =
         Option.map
           (fun layout ->
             let address = { Expr.node = Expr.Address id; ty = Ty.Ptr } in
-            Stat.Overwrite { address; value; layout })
+            Stat.Overwrite { address; value; layout; setters = false })
           (Hashtbl.find_opt fn.held id))
 
 let storable fn id = Hashtbl.mem fn.plain id || Hashtbl.mem fn.held id

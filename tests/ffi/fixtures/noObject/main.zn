@@ -1,0 +1,18 @@
+/// A foreign verb that gives a handle and declares no abort stops the
+/// program when C returns a null pointer (ffi.md §3.5), once what it
+/// printed before is out.
+package noObject;
+
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+type Conn = #handle{ cType = "conn_t"; free = "conn_free"; }
+
+^Conn none() foreign "conn_none";
+
+Unit main() {
+	@program$console!print(String.escaped("before\n"));
+	c Conn = none();
+	@program$console!print(String.escaped("after\n"));
+	return Unit();
+}
