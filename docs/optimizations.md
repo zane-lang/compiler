@@ -382,6 +382,11 @@ from its checkout and linked in as bodies to inline only, where their
 hashes agree with the ones the release published and nothing can tell an
 inlined copy from the dependency's object (F13).
 
+The `retained` fixture of `tests/ffi/` shows it: its
+`golden/retained.released.calls` lists what of a release's C the
+optimized build still calls, the rest inlined, and `archives` shows the
+same for C an archive holds.
+
 ### A package's C optimized apart in unoptimized builds
 
 - **Builds:** unoptimized only, and a tiered build's tier 0
