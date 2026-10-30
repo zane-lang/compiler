@@ -53,6 +53,10 @@ type env = {
   funcs : (string, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
   (* How each of the program's functions is called, by symbol. *)
   abis : (string, abi) Hashtbl.t;
+  (* The thunks of calls into C, by symbol, with whether each argument is
+     a function value, which C takes as its lambda's C entry
+     (docs/design/ffi.md F11). *)
+  entries : (string, bool list) Hashtbl.t;
   (* How many registers a value may take and still pass as itself, from
      the target (see [registers]), whether small aggregates are packed into
      words, and how each type passes, worked out once per type. *)
@@ -1494,11 +1498,23 @@ and call ?into env fr b (e : Expr.t) =
    the arguments run in order, each is stored in a slot of its own as C lays
    out its type, a struct's padding zeroed and a `Bool` a byte, and the
    thunk is handed an array of the slots' addresses and a zeroed slot for
-   the result, from which the result is read back. *)
+   the result, from which the result is read back. A function value is
+   handed over as its lambda's C entry, read from the constant whose offset
+   from the lambda's code the 32 bits before it hold (docs/design/ffi.md
+   F11). *)
 and foreign_call env fr b thunk (args : Expr.t list) (ret : Ty.t) =
   let i8 = Llvm.i8_type env.ctx in
-  let slot_of (a : Expr.t) =
+  let functions = Option.value ~default:[] (Hashtbl.find_opt env.entries thunk) in
+  let entry v =
+    let i32 = Llvm.i32_type env.ctx in
+    let at = Llvm.build_gep i8 v [| Llvm.const_int env.i64 (-4) |] "" b in
+    let offset = Llvm.build_load i32 at "" b in
+    Llvm.set_alignment 4 offset;
+    Llvm.build_load env.ptr (Llvm.build_gep i8 v [| Llvm.build_sext offset env.i64 "" b |] "" b) "" b
+  in
+  let slot_of i (a : Expr.t) =
     let v = value_of env fr b a in
+    let v = if List.nth_opt functions i = Some true then entry v else v in
     match a.Expr.ty with
     | Ty.I1 -> spill env fr b (Llvm.build_zext v i8 "" b)
     | Ty.Struct _ as t ->
@@ -1508,7 +1524,7 @@ and foreign_call env fr b thunk (args : Expr.t list) (ret : Ty.t) =
         p
     | _ -> spill env fr b v
   in
-  let slots = List.map slot_of args in
+  let slots = List.mapi slot_of args in
   let table_type = Llvm.array_type env.ptr (max 1 (List.length slots)) in
   let table = alloca env fr table_type in
   List.iteri

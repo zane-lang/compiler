@@ -273,3 +273,27 @@ let glue p (entries : Glue.entry list) =
         (Printf.sprintf "the interface header `%s` cannot be included by its path, which holds a `\"` or a line break"
            header)
   | None -> Result.bind (glue_files p ~dir files) (shared_state p)
+
+(* The C entries of the function values C can call
+   (docs/design/ffi.md F11, Glue.callbacks_file), compiled for [target] by
+   the linked clang, from the cache when it holds them. The file includes
+   nothing, so it needs no C library's headers. *)
+let callbacks ?(cache = Cache.dir ()) ~target (entries : Glue.callback list) =
+  let triple = triple target in
+  match Filename.temp_dir "zane-callbacks-" "" with
+  | exception Sys_error message -> glue_unwritten message
+  | work ->
+      Fun.protect
+        ~finally:(fun () -> try remove work with Sys_error _ -> ())
+        (fun () ->
+          let headers, cache =
+            match cache with
+            | Some c -> ( try (Compile.headers (Filename.concat c "foreign"), Some c) with Sys_error _ -> (Compile.headers work, None))
+            | None -> (Compile.headers work, None)
+          in
+          let maps = [ (work, "/zane/glue") ] in
+          let flags = Compile.fixed_flags ~triple ~headers ~include_dirs:[] @ Compile.map_flags maps in
+          let path = Filename.concat work "callbacks.c" in
+          match Out_channel.with_open_bin path (fun oc -> output_string oc (Glue.callbacks_file entries)) with
+          | exception Sys_error message -> glue_unwritten message
+          | () -> Compile.compile_source ?cache ~maps flags path)

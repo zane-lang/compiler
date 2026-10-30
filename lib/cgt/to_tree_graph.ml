@@ -273,6 +273,7 @@ let crossing = function
   | Foreign.Address -> "address"
   | Foreign.Value -> "value"
   | Foreign.Handle -> "handle"
+  | Foreign.Function -> "function"
 
 let thunk (f : Foreign.t) =
   group "thunk"
@@ -284,6 +285,19 @@ let thunk (f : Foreign.t) =
          ("params", map_seq (fun c -> Leaf (crossing c)) f.Foreign.params);
          ("result", Leaf (crossing f.Foreign.result));
        ])
+
+let callback (c : Callback.t) =
+  group "callback"
+    (fields
+       ((if not c.Callback.here then [ ("defined", Leaf "elsewhere") ] else [])
+       @ [
+         ("symbol", Leaf c.Callback.symbol);
+         ]
+       @ (if c.Callback.entry <> Callback.entry c.Callback.symbol then [ ("entry", Leaf c.Callback.entry) ] else [])
+       @ [
+         ("takes", map_seq (fun t -> Leaf (Callback.spell t)) c.Callback.takes);
+         ("gives", Leaf (Callback.spell c.Callback.gives));
+         ]))
 
 let program (p : Program.t) =
   let named (name, ps) =
@@ -297,4 +311,5 @@ let program (p : Program.t) =
        ]
        @ (match p.Program.globals with [] -> [] | gs -> [ ("globals", map_seq global gs) ])
        @ (match p.Program.foreign with [] -> [] | fs -> [ ("thunks", map_seq thunk fs) ])
+       @ (match p.Program.callbacks with [] -> [] | cs -> [ ("callbacks", map_seq callback cs) ])
        @ [ ("funcs", map_seq func p.Program.funcs) ]))

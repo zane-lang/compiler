@@ -21,6 +21,12 @@
     ├── layouts[6] > layout:
     │   ├── type: ^%primitives$ListRef<%primitives$String>
     │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
+    ├── globals[0]: zane_self : i64, imported
+    ├── callbacks[0] > callback:
+    │   ├── symbol: folding$main()$lambda1
+    │   ├── entry: folding$entry folding$main()$lambda1
+    │   ├── takes[0]: i64
+    │   └── gives: i64
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -1899,21 +1905,61 @@
     │                   ├── within: {i64, i64}
     │                   ├── path: 1
     │                   └── base: local #2 : ptr
-    └── funcs[21] > func:
-        ├── symbol: zane.spawn.2
-        ├── params[0]: local #6 : ptr
+    ├── funcs[21] > func:
+    │   ├── symbol: zane.spawn.2
+    │   ├── params[0]: local #6 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {i64, i64}
+    │       │   ├── path: 0
+    │       │   └── base: local #6 : ptr
+    │       └── value > call:
+    │           ├── type: i64
+    │           ├── fn: folding$fib(%primitives$I64)
+    │           └── args[0] > deref:
+    │               ├── type: i64
+    │               └── ptr > offset:
+    │                   ├── within: {i64, i64}
+    │                   ├── path: 1
+    │                   └── base: local #6 : ptr
+    └── funcs[22] > func:
+        ├── symbol: folding$main()$lambda1.adapter
+        ├── linkage: shared
+        ├── params[0]: local #0 : ptr
+        ├── params[1]: local #1 : ptr
         ├── ret: void
-        └── body[0] > store:
-            ├── address > offset:
-            │   ├── within: {i64, i64}
-            │   ├── path: 0
-            │   └── base: local #6 : ptr
-            └── value > call:
-                ├── type: i64
-                ├── fn: folding$fib(%primitives$I64)
-                └── args[0] > deref:
-                    ├── type: i64
-                    └── ptr > offset:
-                        ├── within: {i64, i64}
-                        ├── path: 1
-                        └── base: local #6 : ptr
+        ├── body[0] > let:
+        │   ├── local: #2
+        │   └── value > binary:
+        │       ├── type: i1
+        │       ├── op: ==
+        │       ├── left > deref:
+        │       │   ├── type: i64
+        │       │   └── ptr: global zane_self
+        │       └── right: 0 : i64
+        ├── body[1] > if:
+        │   ├── cond: local #2 : i1
+        │   └── body[0] > eval > runtime:
+        │       ├── type: void
+        │       ├── fn: zane_callback_attach
+        │       └── args:
+        ├── body[2] > store:
+        │   ├── address: local #1 : ptr
+        │   └── value > call:
+        │       ├── type: i64
+        │       ├── fn: folding$main()$lambda1
+        │       └── args[0] > deref:
+        │           ├── type: i64
+        │           └── ptr > deref:
+        │               ├── type: ptr
+        │               └── ptr > offset:
+        │                   ├── within: {ptr}
+        │                   ├── path: 0
+        │                   └── base: local #0 : ptr
+        └── body[3] > if:
+            ├── cond: local #2 : i1
+            └── body[0] > eval > runtime:
+                ├── type: void
+                ├── fn: zane_callback_detach
+                └── args:

@@ -12,6 +12,49 @@ open Nodes
 open State
 open Type_layout
 
+(* The C type a value of the Zane type [t] crosses as in a function value
+   C calls (spec ffi.md §3.6, docs/design/ffi.md F11), when it is one: a
+   scalar, a `Bool`, or a C-compatible value type (§3.3), one with no
+   fields among them, which C declares as an empty struct. A value type
+   that holds itself, through the types [seen] it is reached from, is
+   none. *)
+let rec c_shape ?(seen = []) st span (t : Tty.t) : Callback.shape option =
+  let t = Tty.strip_mode t in
+  match t with
+  | Tty.Intrinsic { namespace = "primitives"; name = "Bool"; args = [] } -> Some Callback.Truth
+  | _ when scalar t -> Some (Callback.Scalar (ty st span t))
+  | Tty.Named _ when List.mem t seen -> None
+  | Tty.Named _ -> (
+      let c_shape = c_shape ~seen:(t :: seen) in
+      match definition st t with
+      | Some (T.Decl.Struct ms, false) ->
+          let field (_, m) =
+            match (array_of m, c_shape st span m) with
+            | Some (e, n), _ when scalar e -> Some (Callback.Scalar (ty st span e), Some n)
+            | None, Some ((Callback.Scalar _ | Callback.Record _) as s) -> Some (s, None)
+            | _ -> None
+          in
+          let fields = List.map field ms in
+          if List.for_all Option.is_some fields then Some (Callback.Record (List.filter_map Fun.id fields)) else None
+      | _ -> None)
+  | _ -> None
+
+(* The C signature of the function type [fv], when C can call a value of
+   it: no subject, no abort, and C types for its parameters and result, a
+   `Unit` result returning nothing. *)
+let c_signature st span (fv : Tty.verb) =
+  if Option.is_some fv.Tty.this_ || Option.is_some fv.Tty.abort then None
+  else
+    let takes = List.map (c_shape st span) fv.Tty.params in
+    let gives =
+      match Tty.strip_mode fv.Tty.ret with
+      | Tty.Intrinsic { namespace = "primitives"; name = "Unit"; args = [] } -> Some Callback.Nothing
+      | r -> c_shape st span r
+    in
+    match gives with
+    | Some gives when List.for_all Option.is_some takes -> Some (List.filter_map Fun.id takes, gives)
+    | _ -> None
+
 (* How a value of the Zane type [t] crosses into C (spec ffi.md §3.3), as
    semantics has already checked it does. *)
 let crossing st span (t : Tty.t) : Foreign.crossing =
@@ -22,7 +65,10 @@ let crossing st span (t : Tty.t) : Foreign.crossing =
   | _ when scalar t -> Foreign.Scalar (ty st span t)
   | _ when is_text t || is_list t -> Foreign.View
   | _ when Option.is_some (array_of t) -> Foreign.Address
-  | Tty.Verb _ -> refuse span "lowering does not pass a function value to C yet (docs/design/ffi.md §7)"
+  (* A function value hands C its lambda's C entry (F11), which only a
+     lambda of a type [c_signature] reads has. *)
+  | Tty.Verb fv when Option.is_some (c_signature st span fv) -> Foreign.Function
+  | Tty.Verb _ -> Diagnostic.bug ~span ("lowering: C cannot call `" ^ Tty.to_string t ^ "`, which semantics let cross")
   | Tty.Named _ -> (
       match definition st t with Some (T.Decl.Handle _, _) -> Foreign.Handle | _ -> Foreign.Value)
   | _ -> Diagnostic.bug ~span ("lowering: `" ^ Tty.to_string t ^ "` crosses into C as nothing it lays out")

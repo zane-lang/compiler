@@ -8,10 +8,9 @@
 > lists, C-compatible value types and handles, through the glue (F8), with
 > each package's C renamed (F9), linked into an optimized build (F13, the
 > program's own packages) and compiled apart in an unoptimized or tiered
-> one (F14); and handles and foreign variables at run time (F12).
-> Lowering refuses a foreign verb taking or giving a function value until
-> F11 lands, and a package's C holding assembly is refused until F9's
-> object route for it lands. The rest is
+> one (F14); handles and foreign variables at run time (F12); and
+> function values as C functions (F11). A package's C holding assembly is
+> refused until F9's object route for it lands. The rest is
 > designed and not yet built. This page says how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
@@ -314,7 +313,8 @@ that declares its C function. The glue holds:
 A thunk's name is the foreign verb's symbol ([`symbols.md`](symbols.md))
 with `.ffi` after it, a free or set thunk's is the handle type's symbol with
 `.free` or `.set`, and F11's entries are named the same way from the lambda's
-symbol, given in C with an `__asm__` label, since a verb's
+symbol, or by the object's package when other objects lift the lambda too,
+given in C with an `__asm__` label, since a verb's
 symbol is not a C identifier. Clang names a labelled function in IR `\01`
 followed by the label, which LLVM emits as written, with no global prefix,
 so the label is the symbol after the target's global prefix (`_` on macOS,
@@ -472,16 +472,57 @@ returned no object".
 function.** C can call a function pointer and nothing else, and a C function
 pointer carries no context, so a value that only Zane can call cannot be
 handed to C. So every lambda whose type is C-compatible (`ffi.md` §3.6) is
-lifted with two entries: its Zane function (L14), and a C function in the
-glue that lays its arguments out and calls a pointer-ABI adapter of the Zane
-function, as a thunk does in the other direction, returning a C-compatible
-value type in a result slot whose padding bytes are zeroed, as F10's are. A function value of a
-C-compatible type is the address of its C entry, everywhere in the program,
-and a Zane call through such a value goes through a generated **invoker**,
-`void invoke(void (*f)(void), void *const *args, void *result)`, one per
-C-compatible type, which calls `f` with the C convention. Inlined, an invoker
-is an indirect call, so a call through such a function value costs what a
-call through a C function pointer costs.
+lifted with three functions: its Zane function (L14); an **adapter**, a
+Zane function of a thunk's pointer ABI that reads the arguments from their
+slots, calls the Zane function and stores its result, named by the
+lambda's symbol with `.adapter` after it; and a **C entry** in the glue,
+named with `.c`, which takes the arguments with the C convention, hands
+the adapter their addresses, a `Bool` as a byte, and returns what it
+stores in a result slot whose padding bytes are zeroed, as F10's are. The
+C types the entry takes and gives are read from the lambda's Zane type when
+it is lowered, not from its CGT type: a value type of one field has its
+field's CGT type, and C passes a struct of one `float` and a `float`
+differently. The object that defines the lambda defines all three, after
+lowering (`lib/cgt/callbacks.ml`), and the object's C entries
+are a glue module of their own, compiled and linked as a package's glue is
+(F9, F13, F14). A lambda several objects lift, as each that makes a
+generic instance holding it does, has an entry of each object's own, named
+by its package with `$entry` and the lambda's symbol after it, and an
+adapter shared as the instance is, so that the linker keeps one.
+
+A function value of a C-compatible type is its Zane function's address, as
+any function value is, so a Zane call through it is a call through a
+pointer to the Zane function and costs what any call through a function
+value costs. C takes the C entry instead: the Zane function carries it in
+its **prefix data**, the 32 bits LLVM places just before the function's
+code, which hold the offset from the code of a constant of the same object
+holding the entry's address, named by the entry's symbol with `.address`
+after it. A call into C that passes a function value reads the offset, then
+the constant, once per pass (`Emit.foreign_call`). An offset, not an
+address, needs no relocation of the code where the program is
+position-independent, and an offset to a variable the object defines,
+rather than to the entry another object defines, is one every object format
+can write: ELF, COFF and Mach-O, x86-64 Mach-O's included. Each object that
+defines a lambda gives its definition the prefix, so the copy of a lambda
+several objects define that the linker keeps points at an entry of its own
+object. Tier 0's value of a function is the entry that calls through its
+slot (`tiers.md` T4), which takes the prefix data with the function's
+other uses; tier 1 defines no C entry, so its value of such a lambda is
+tier 0's, read from its import table under the lambda's symbol with
+`.tier.value` after it, and tier 1 calls its own copy only directly.
+
+C may call a function value on a thread it started itself, which has no
+context of the runtime's. The adapter reads the runtime's context of the
+thread, `zane_self`, and when there is none has the runtime make one with
+one scope for the call (`zane_callback_attach`) and give it back once the
+call returns (`zane_callback_detach`): the result C takes is a
+C-compatible value and holds no block. The runtime's alternate signal
+stack, which its fault handler runs on, stands in for the thread's own for
+the call, and the thread has its own back after. Both are cold, so an optimized C
+entry is its lambda's body behind one load and one branch. A call on a
+thread of the program runs in that thread's context, as any call does.
+Stage 5 never folds the read: the value of a variable another object
+defines is unknown to it.
 
 The representation is fixed by the type alone, so it needs no analysis of
 where a function value flows, and the two agree in every object
@@ -812,7 +853,7 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
    linking the package's C module, for scalar, string, array, list and value
    type arguments and results (F8, F9, F10, F13, F14).
 5. Handles: free and set thunks, walks, null results (F12).
-6. Function values as C functions, with invokers (F11).
+6. Function values as C functions, with their C entries in prefix data (F11).
 7. `c.coda`'s `archive` and `system` rows (F4).
 8. Release archives and dependencies' C, retained for inlining (F13, F15).
 9. `c_eval.ml`, its classes in stage 5, and the crossing between the two

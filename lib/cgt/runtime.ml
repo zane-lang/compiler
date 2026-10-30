@@ -4,7 +4,9 @@
    every [signature] against the prototype in zane.h, so the two
    declarations cannot drift apart. [Region_at] to [Defer_return], and
    [Handle_end] and [Handle_set], are called only by the walks codegen
-   emits for each type (lib/codegen/walks.ml). A removal says
+   emits for each type (lib/codegen/walks.ml). [Callback_attach] and
+   [Callback_detach] are called only by a lambda's adapter, on a thread
+   without a context (docs/design/ffi.md F11). A removal says
    whether the list's elements are scalars only, no handle among their bytes
    (Ty.holds_handle): codegen makes it in line, and its tag for the
    elements it moves depends on that (Emit.remove). *)
@@ -58,8 +60,10 @@ type fn =
   | No_object
   | Handle_end
   | Handle_set
+  | Callback_attach
+  | Callback_detach
 
-let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set ]
+let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach ]
 
 let name = function
   | Print -> "zane_print"
@@ -110,6 +114,8 @@ let name = function
   | No_object -> "zane_no_object"
   | Handle_end -> "zane_handle_end"
   | Handle_set -> "zane_handle_set"
+  | Callback_attach -> "zane_callback_attach"
+  | Callback_detach -> "zane_callback_detach"
 
 (* A value as the C ABI passes it: [I32] a `uint32_t`, [I64] an `int64_t`,
    and [Ptr] any pointer, a function's included. *)
@@ -164,6 +170,7 @@ let signature = function
   | No_object -> (Void, [  ])
   | Handle_end -> (Void, [ Ptr; Ptr ])
   | Handle_set -> (Void, [ Ptr; Ptr; Ptr ])
+  | Callback_attach | Callback_detach -> (Void, [])
 
 (* The size of the range each context reserves for its frames, the main
    context's and each spawned call's, when the root manifest gives none

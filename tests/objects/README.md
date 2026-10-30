@@ -15,7 +15,12 @@ program linked from several objects wrote.
   under the `!` placeholder, private ones included, and the instance of its
   generic verb that it uses is shared, as are the function and variables of
   the package constant one of its verbs reads. Its other generic verb has no instance,
-  so the object holds nothing for it.
+  so the object holds nothing for it. Its lambda-variable `double` has a
+  type C can call, so the object also defines its adapter and C entry
+  (docs/design/ffi.md F11), which call into the runtime for a context when
+  C calls `double` on a thread of its own. The body of its generic verb
+  `same` holds a lambda of such a type too, lifted with each instance, so
+  that lambda's adapter and C entry are shared, as the instance is.
 - `atlas` is a library package that uses `geometry` as another library
   package of the same project, built with it into one object. What both
   declare is exported under the `!` placeholder, an instance of geometry's
@@ -28,9 +33,11 @@ program linked from several objects wrote.
 - `survey` is a program that uses `geometry` from an object geometry was
   built into on its own, with its stamp. Survey's object writes out
   geometry's verbs whose body is one expression and calls the rest, among
-  them `shifted`, which takes and returns a struct, makes the instances of
+  them `shifted`, which takes and returns a struct, calls through
+  `double`, which carries geometry's C entry before its code, makes the instances of
   geometry's generic that it needs, at survey's own type and at the type a
-  verb it takes in uses, and its own copy of the geometry constant it reads, which
+  verb it takes in uses, with the adapter and C entry of the lambda in it,
+  which merge with geometry's, and its own copy of the geometry constant it reads, which
   merges with geometry's. The program links with geometry's object, and
   every check it makes prints `yes` when it holds.
 

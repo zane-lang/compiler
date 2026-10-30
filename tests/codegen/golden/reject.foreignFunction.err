@@ -1,4 +1,0 @@
-File "fixtures/reject/foreignFunction/main.zn", line 8, characters 1-45:
-8 | F64 apply(f F64[F64], x F64) foreign "apply";
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: lowering does not pass a function value to C yet (docs/design/ffi.md §7)

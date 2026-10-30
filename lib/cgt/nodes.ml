@@ -488,8 +488,44 @@ module Foreign = struct
     | Value
     (* A foreign handle's pointer, the first word of its value. *)
     | Handle
+    (* A function value: C takes its lambda's C entry, whose offset the
+       word before the lambda's code holds (Callback). *)
+    | Function
 
   type t = { thunk : string; package : string; c_function : string; params : crossing list; result : crossing }
+end
+
+(* A function value whose type C can call (docs/design/ffi.md F11; spec
+   ffi.md §3.6), and the C types it crosses as, read from its Zane type
+   when it is lowered: a scalar, a `Bool` as [Truth], `Unit` as [Nothing],
+   and a C-compatible value type as a [Record] of its fields, an array
+   field with its length. The Zane type, not the CGT one, gives them, since
+   a value type of one field has its field's CGT type and C passes the
+   two differently. Such a lambda's value is its Zane function's address,
+   as any lambda's is, and the function carries the offset of its C entry
+   in the word before its code: the entry, which the glue defines, calls
+   its adapter, a function of the program taking the addresses of slots
+   holding its arguments and of one for its result. [symbol] is the
+   lambda's, [here] whether this object defines the lambda, and so its
+   adapter and entry, and [entry] the symbol of the entry. A lambda other
+   objects define too, as each that makes a generic instance holding it
+   does, has an entry of each object's own, named by its package, and
+   their adapters merge into one. *)
+module Callback = struct
+  type shape = Scalar of Ty.t | Truth | Nothing | Record of (shape * int option) list
+  type t = { symbol : string; takes : shape list; gives : shape; here : bool; entry : string }
+
+  let entry symbol = symbol ^ ".c"
+  let shared_entry package symbol = Printf.sprintf "%s$entry %s" package symbol
+  let adapter symbol = symbol ^ ".adapter"
+
+  let rec spell = function
+    | Scalar t -> Ty.to_string t
+    | Truth -> "i1"
+    | Nothing -> "void"
+    | Record fs ->
+        let field (f, n) = match n with Some n -> Printf.sprintf "[%d x %s]" n (spell f) | None -> spell f in
+        "{" ^ String.concat ", " (List.map field fs) ^ "}"
 end
 
 (* One program is one module (L15). [entry] is the symbol of the function
@@ -506,6 +542,7 @@ module Program = struct
     layouts : (Layout.t * Layout.position list) list;
     globals : Global.t list;
     foreign : Foreign.t list;
+    callbacks : Callback.t list;
     exclusive : bool;
   }
 end

@@ -350,6 +350,7 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
   let exclusive = (not library) && calls = [] in
   let st = create ~region:fixed_region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
   st.places <- Some (Tst.States.of_program p);
+  (match p.T.Program.packages with r :: _ -> st.package <- st.stamp r.T.Package.name ^ r.T.Package.name | [] -> ());
   let add decl instance signature params body =
     let key = key decl instance in
     Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body; literals = [] };
@@ -439,7 +440,18 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
       let funcs = drain [] in
       let funcs = start funcs @ funcs @ List.rev st.spawned in
       let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
-      Ok (Regions.run ~wants:st.wants { Program.funcs; entry; layouts; globals = List.rev st.globals; foreign = List.rev st.thunks; exclusive = st.exclusive })
+      let funcs, context, callbacks = Callbacks.add st.package (List.rev st.callbacks) funcs in
+      Ok
+        (Regions.run ~wants:st.wants
+           {
+             Program.funcs;
+             entry;
+             layouts;
+             globals = List.rev st.globals @ context;
+             foreign = List.rev st.thunks;
+             callbacks;
+             exclusive = st.exclusive;
+           })
     in
     if library then begin
       List.iter

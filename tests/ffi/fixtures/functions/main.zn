@@ -1,0 +1,162 @@
+/// Function values crossing into C (ffi.md §3.6, docs/design/ffi.md F11):
+/// lambdas declared at package scope and written in place, passed to C and
+/// called there with numbers, a `Bool`, a value type holding an array, and
+/// no result; one that writes the console, called by C on this thread; a
+/// comparison a C sort calls; one that builds a list, called by C on
+/// threads C starts itself; one that calls into C with a lambda of its
+/// own; and the same values called from Zane, passed, stored in a struct,
+/// and called through, with a `Bool`, a value type and no result among
+/// them; value types of one field and of an array alone, and one holding a
+/// value type with no fields, passed and returned through C; and ones taking a `Unit` or a value type that
+/// holds itself, types C cannot call, which stay functions of the
+/// program's alone.
+package functions;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias F32 = @primitives$F32;
+alias I64 = @primitives$I64;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+type Point = struct {
+	x I32;
+	y I32;
+	scale @primitives$Array<F64, 2>;
+}
+
+Point(x I32, y I32, scale @primitives$Array<F64, 2>) => init{ x; y; scale; }
+
+/// A value type of one field, which C passes as that field's struct.
+type Ratio = struct {
+	v F32;
+}
+
+Ratio(v F32) => init{ v; }
+
+/// A value type holding only an array.
+type Quad = struct {
+	xs @primitives$Array<I64, 4>;
+}
+
+Quad(xs @primitives$Array<I64, 4>) => init{ xs; }
+
+/// A value type with no fields, which C declares as an empty struct.
+type Nothing = struct {
+}
+
+Nothing() => init{}
+
+/// A value type holding one with no fields.
+type Boxed = struct {
+	e Nothing;
+	x I32;
+}
+
+Boxed(e Nothing, x I32) => init{ e; x; }
+
+F64 apply(f F64[F64], x F64) foreign "apply";
+I64 sumEach(f I64[I64], n I64) foreign "sum_each";
+I32 countIf(p Bool[I32], n I32) foreign "count_if";
+Point mapPoint(f Point[Point], p Point) foreign "map_point";
+Unit each(f Unit[I64], n I64) foreign "each";
+Ratio scaleRatio(f Ratio[Ratio], r Ratio) foreign "scale_ratio";
+Quad rotateQuad(f Quad[Quad], q Quad) foreign "rotate_quad";
+Boxed openBox(f Boxed[Boxed], b Boxed) foreign "open_box";
+I64 onThreads(f I64[I64], x I64) foreign "on_threads";
+I64 sorted(before Bool[I64, I64], xs @primitives$Array<I64, 4>) foreign "sorted";
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+/// A lambda-variable declared at package scope.
+half F64(x F64) {
+	return @operators$divide(x, F64(2.0));
+}
+
+/// A list built on whatever thread runs it.
+built I64(n I64) {
+	xs @primitives$List<I64> = @primitives$List(I64);
+	@controlflow$repeat(n, {
+		xs!push(n);
+	});
+	return @operators$multiply(xs:size(), n);
+}
+
+type Chain = struct {
+	value I64;
+	next Chain;
+}
+
+type Holder = struct {
+	f I64[I64];
+}
+
+Holder(f I64[I64]) => init{ f; }
+
+I64 twice(f I64[I64], x I64) => f(f(x));
+Point again(f Point[Point], p Point) => f(p);
+
+Unit when(p Bool[I32], i I32) {
+	@controlflow$branch(p(i), {
+		show(String("held"));
+	});
+	return Unit();
+}
+
+I64 given(f I64[Unit, I64], x I64) => f(Unit(), x);
+I64 unused(f I64[Chain]) => I64(0);
+
+Unit call(f Unit[I64], n I64) {
+	f(n);
+	return Unit();
+}
+
+Unit main() {
+	show(String(apply(half, F64(3.0))));
+	show(String(sumEach(I64(x I64) { return @operators$multiply(x, x); }, I64(4))));
+	show(String(countIf(Bool(i I32) { return @operators$lessThan(i, I32(4)); }, I32(10))));
+	p Point = mapPoint(Point(p Point) {
+		return Point(@operators$add(p.x, I32(1)), @operators$multiply(p.y, I32(2)), p.scale);
+	}, Point(I32(1), I32(3), @primitives$Array([F64(0.5), F64(2.5)])));
+	show(String(p.x));
+	show(String(p.y));
+	show(String(p.scale[I64(2)]));
+	each(Unit(i I64) {
+		show(String(i));
+		return Unit();
+	}, I64(3));
+	show(String(onThreads(built, I64(3))));
+	digits @primitives$Array<I64, 4> = @primitives$Array([I64(3), I64(1), I64(4), I64(2)]);
+	show(String(sorted(Bool(a I64, b I64) { return @operators$lessThan(b, a); }, digits)));
+	show(String(sumEach(I64(n I64) { return sumEach(I64(k I64) { return k; }, n); }, I64(4))));
+	show(String(twice(I64(x I64) { return @operators$add(x, I64(10)); }, I64(1))));
+	h Holder = Holder(built);
+	show(String(h.f(I64(2))));
+	show(String(sumEach(h.f, I64(2))));
+	q Point = again(Point(p Point) { return Point(p.y, p.x, p.scale); }, p);
+	show(String(q.x));
+	show(String(q.scale[I64(1)]));
+	when(Bool(i I32) { return @operators$lessThan(i, I32(4)); }, I32(2));
+	when(Bool(i I32) { return @operators$lessThan(i, I32(4)); }, I32(5));
+	call(Unit(i I64) {
+		show(String(i));
+		return Unit();
+	}, I64(7));
+	r Ratio = scaleRatio(Ratio(r Ratio) { return Ratio(@operators$multiply(r.v, F32(3.0))); }, Ratio(F32(0.5)));
+	show(String(r.v));
+	qd Quad = rotateQuad(Quad(q Quad) {
+		return Quad(@primitives$Array([q.xs[I64(4)], q.xs[I64(1)], q.xs[I64(2)], q.xs[I64(3)]]));
+	}, Quad(@primitives$Array([I64(1), I64(2), I64(3), I64(4)])));
+	show(String(qd.xs[I64(1)]));
+	show(String(qd.xs[I64(4)]));
+	bx Boxed = openBox(Boxed(b Boxed) { return Boxed(b.e, @operators$add(b.x, I32(40))); }, Boxed(Nothing(), I32(2)));
+	show(String(bx.x));
+	show(String(given(I64(u Unit, x I64) { return @operators$add(x, I64(1)); }, I64(4))));
+	show(String(unused(I64(c Chain) { return c.value; })));
+	return Unit();
+}

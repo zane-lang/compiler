@@ -108,3 +108,70 @@ let files tables entries =
       | [] -> None
       | mine -> Some (header, file ~header mine))
     tables
+
+(* What a function value's C entry passes (docs/design/ffi.md
+   F11): a scalar of the C type given, a `Bool` as `_Bool`, no value, or a
+   struct of scalars, arrays of them and such structs, laid out as the
+   Zane value type is. *)
+type shape = Value of string | Truth | Nothing | Record of (shape * int option) list
+
+(* A lambda's C entry, under [label], calling its adapter [adapter]. *)
+type callback = { label : string; adapter : string; params : shape list; result : shape }
+
+(* The file of the C entries [callbacks]: it includes nothing, so it needs
+   no C library's headers, and declares a struct for each record shape. *)
+let callbacks_file (callbacks : callback list) =
+  let b = Buffer.create 1024 in
+  let structs = Buffer.create 256 in
+  let named = Hashtbl.create 8 in
+  let line fmt = Printf.ksprintf (fun s -> Buffer.add_string b s; Buffer.add_char b '\n') fmt in
+  let rec c_type = function
+    | Value c -> c
+    | Truth -> "_Bool"
+    | Nothing -> "void"
+    | Record members as r -> (
+        match Hashtbl.find_opt named r with
+        | Some n -> n
+        | None ->
+            let fields =
+              List.mapi
+                (fun i (m, count) ->
+                  let t = c_type m in
+                  match count with
+                  | Some n -> Printf.sprintf "%s __zane_f%d[%d];" t i n
+                  | None -> Printf.sprintf "%s __zane_f%d;" t i)
+                members
+            in
+            let n = Printf.sprintf "struct __zane_s%d" (Hashtbl.length named) in
+            Hashtbl.replace named r n;
+            Buffer.add_string structs (Printf.sprintf "%s { %s };\n" n (String.concat " " fields));
+            n)
+  in
+  List.iteri
+    (fun n (c : callback) ->
+      let name = Printf.sprintf "__zane_entry_%d" n and adapter = Printf.sprintf "__zane_adapter_%d" n in
+      let params = List.mapi (fun i p -> Printf.sprintf "%s __zane_a%d" (c_type p) i) c.params in
+      let params = if params = [] then "void" else String.concat ", " params in
+      let result = c_type c.result in
+      line "void %s(void *const *__zane_args, void *__zane_result) __asm__(\"%s\");" adapter (escaped c.adapter);
+      line "%s %s(%s) __asm__(\"%s\");" result name params (escaped c.label);
+      line "__attribute__((no_stack_protector)) %s %s(%s) {" result name params;
+      List.iteri (fun i p -> if p = Truth then line "  unsigned char __zane_b%d = __zane_a%d;" i i) c.params;
+      let slot i p = if p = Truth then Printf.sprintf "&__zane_b%d" i else Printf.sprintf "&__zane_a%d" i in
+      (match c.params with
+      | [] -> line "  void *__zane_args[1] = { 0 };"
+      | ps -> line "  void *__zane_args[] = { %s };" (String.concat ", " (List.mapi slot ps)));
+      (match c.result with
+      | Nothing -> line "  %s(__zane_args, 0);" adapter
+      | Truth ->
+          line "  unsigned char __zane_r = 0;";
+          line "  %s(__zane_args, &__zane_r);" adapter;
+          line "  return __zane_r != 0;"
+      | _ ->
+          line "  %s __zane_r;" result;
+          line "  __builtin_memset(&__zane_r, 0, sizeof __zane_r);";
+          line "  %s(__zane_args, &__zane_r);" adapter;
+          line "  return __zane_r;");
+      line "}")
+    callbacks;
+  Buffer.contents structs ^ Buffer.contents b

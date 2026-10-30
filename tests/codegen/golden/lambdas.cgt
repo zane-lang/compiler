@@ -18,6 +18,37 @@
     ├── layouts[5] > layout:
     │   ├── type: lambdas$Counter
     │   └── positions:
+    ├── globals[0]: zane_self : i64, imported
+    ├── callbacks[0] > callback:
+    │   ├── symbol: lambdas$main()$lambda1
+    │   ├── entry: lambdas$entry lambdas$main()$lambda1
+    │   ├── takes[0]: i64
+    │   └── gives: i64
+    ├── callbacks[1] > callback:
+    │   ├── symbol: lambdas$square
+    │   ├── entry: lambdas$entry lambdas$square
+    │   ├── takes[0]: i64
+    │   └── gives: i64
+    ├── callbacks[2] > callback:
+    │   ├── symbol: lambdas$main()$lambda2
+    │   ├── entry: lambdas$entry lambdas$main()$lambda2
+    │   ├── takes[0]: i64
+    │   └── gives: i64
+    ├── callbacks[3] > callback:
+    │   ├── symbol: lambdas$Op.apply$lambda1
+    │   ├── entry: lambdas$entry lambdas$Op.apply$lambda1
+    │   ├── takes[0]: i64
+    │   └── gives: i64
+    ├── callbacks[4] > callback:
+    │   ├── symbol: lambdas$Op.apply$lambda2
+    │   ├── entry: lambdas$entry lambdas$Op.apply$lambda2
+    │   ├── takes[0]: i64
+    │   └── gives: i64
+    ├── callbacks[5] > callback:
+    │   ├── symbol: lambdas$pick(%primitives$Bool)$lambda1
+    │   ├── entry: lambdas$entry lambdas$pick(%primitives$Bool)$lambda1
+    │   ├── takes[0]: i64
+    │   └── gives: i64
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -1294,24 +1325,264 @@
     │       │   └── base: local #108 : ptr
     │       ├── args[2]: 8 : i64
     │       └── args[3]: layout lambdas$Counter
-    └── funcs[28] > func:
-        ├── symbol: zane.spawn.7
-        ├── params[0]: local #112 : ptr
+    ├── funcs[28] > func:
+    │   ├── symbol: zane.spawn.7
+    │   ├── params[0]: local #112 : ptr
+    │   ├── ret: void
+    │   └── body[0] > store:
+    │       ├── address > offset:
+    │       │   ├── within: {i64, ptr, ptr, i64}
+    │       │   ├── path: 0
+    │       │   └── base: local #112 : ptr
+    │       └── value > call value:
+    │           ├── type: i64
+    │           ├── fn > deref:
+    │           │   ├── type: ptr
+    │           │   └── ptr > offset:
+    │           │       ├── within: {i64, ptr, ptr, i64}
+    │           │       ├── path: 1
+    │           │       └── base: local #112 : ptr
+    │           └── args[0] > offset:
+    │               ├── within: {i64, ptr, ptr, i64}
+    │               ├── path: 3
+    │               └── base: local #112 : ptr
+    ├── funcs[29] > func:
+    │   ├── symbol: lambdas$main()$lambda1.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: lambdas$main()$lambda1
+    │   │       └── args[0] > deref:
+    │   │           ├── type: i64
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > offset:
+    │   │                   ├── within: {ptr}
+    │   │                   ├── path: 0
+    │   │                   └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    ├── funcs[30] > func:
+    │   ├── symbol: lambdas$square.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: lambdas$square
+    │   │       └── args[0] > deref:
+    │   │           ├── type: i64
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > offset:
+    │   │                   ├── within: {ptr}
+    │   │                   ├── path: 0
+    │   │                   └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    ├── funcs[31] > func:
+    │   ├── symbol: lambdas$main()$lambda2.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: lambdas$main()$lambda2
+    │   │       └── args[0] > deref:
+    │   │           ├── type: i64
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > offset:
+    │   │                   ├── within: {ptr}
+    │   │                   ├── path: 0
+    │   │                   └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    ├── funcs[32] > func:
+    │   ├── symbol: lambdas$Op.apply$lambda1.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: lambdas$Op.apply$lambda1
+    │   │       └── args[0] > deref:
+    │   │           ├── type: i64
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > offset:
+    │   │                   ├── within: {ptr}
+    │   │                   ├── path: 0
+    │   │                   └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    ├── funcs[33] > func:
+    │   ├── symbol: lambdas$Op.apply$lambda2.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: lambdas$Op.apply$lambda2
+    │   │       └── args[0] > deref:
+    │   │           ├── type: i64
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > offset:
+    │   │                   ├── within: {ptr}
+    │   │                   ├── path: 0
+    │   │                   └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    └── funcs[34] > func:
+        ├── symbol: lambdas$pick(%primitives$Bool)$lambda1.adapter
+        ├── linkage: shared
+        ├── params[0]: local #0 : ptr
+        ├── params[1]: local #1 : ptr
         ├── ret: void
-        └── body[0] > store:
-            ├── address > offset:
-            │   ├── within: {i64, ptr, ptr, i64}
-            │   ├── path: 0
-            │   └── base: local #112 : ptr
-            └── value > call value:
-                ├── type: i64
-                ├── fn > deref:
-                │   ├── type: ptr
-                │   └── ptr > offset:
-                │       ├── within: {i64, ptr, ptr, i64}
-                │       ├── path: 1
-                │       └── base: local #112 : ptr
-                └── args[0] > offset:
-                    ├── within: {i64, ptr, ptr, i64}
-                    ├── path: 3
-                    └── base: local #112 : ptr
+        ├── body[0] > let:
+        │   ├── local: #2
+        │   └── value > binary:
+        │       ├── type: i1
+        │       ├── op: ==
+        │       ├── left > deref:
+        │       │   ├── type: i64
+        │       │   └── ptr: global zane_self
+        │       └── right: 0 : i64
+        ├── body[1] > if:
+        │   ├── cond: local #2 : i1
+        │   └── body[0] > eval > runtime:
+        │       ├── type: void
+        │       ├── fn: zane_callback_attach
+        │       └── args:
+        ├── body[2] > store:
+        │   ├── address: local #1 : ptr
+        │   └── value > call:
+        │       ├── type: i64
+        │       ├── fn: lambdas$pick(%primitives$Bool)$lambda1
+        │       └── args[0] > deref:
+        │           ├── type: i64
+        │           └── ptr > deref:
+        │               ├── type: ptr
+        │               └── ptr > offset:
+        │                   ├── within: {ptr}
+        │                   ├── path: 0
+        │                   └── base: local #0 : ptr
+        └── body[3] > if:
+            ├── cond: local #2 : i1
+            └── body[0] > eval > runtime:
+                ├── type: void
+                ├── fn: zane_callback_detach
+                └── args:

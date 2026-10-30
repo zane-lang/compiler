@@ -130,6 +130,11 @@ type state = {
      one thing that tells two lambdas apart: an instance's body has lambdas
      of its own. *)
   mutable lambdas : (T.Block.t * string) list;
+  (* The lambdas whose type C can call, with the C types they cross as
+     (docs/design/ffi.md F11), and [package], the root package's symbol
+     prefix, which names the C entries of lambdas other objects lift too. *)
+  mutable callbacks : Callback.t list;
+  mutable package : string;
   (* Symbols already lowered or on their way, by verb key, and the verbs
      still to lower. *)
   symbols : (string, string) Hashtbl.t;
@@ -225,6 +230,8 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     globals = [];
     defaults = Hashtbl.create 8;
     lambdas = [];
+    callbacks = [];
+    package = "";
     layouts = Hashtbl.create 16;
     named = [];
     symbols = Hashtbl.create 64;
