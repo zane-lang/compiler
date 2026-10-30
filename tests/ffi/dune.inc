@@ -97,6 +97,14 @@
    (run sh %{dep:../../../archive} unbuffered.a unbuffered.archive))))
 
 (subdir
+ fixtures/reject/archivedSplitState
+ (rule
+  (targets split.a)
+  (deps (glob_files split.archive/*) (env_var ZANE_CC) (env_var AR))
+  (action
+   (run sh %{dep:../../../archive} split.a split.archive))))
+
+(subdir
  fixtures/reject/archivedState
  (rule
   (targets counter.a)
@@ -1081,6 +1089,20 @@
  (alias runtest)
  (action
   (diff golden/reject.archivedLibraryConstructor.ll.err reject.archivedLibraryConstructor.ll.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/archivedSplitState) fixtures/reject/archivedSplitState/split.a)
+ (action
+  (with-stderr-to
+   reject.archivedSplitState.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/archivedSplitState)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.archivedSplitState.ll.err reject.archivedSplitState.ll.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/archivedState) fixtures/reject/archivedState/counter.a)

@@ -480,7 +480,7 @@ let assembled_beside () =
   let output = Filename.concat directory "math.o" in
   let file name = Filename.concat directory name in
   let write name = Out_channel.with_open_bin (file name) (fun oc -> output_string oc "old") in
-  List.iter write [ "math.c.0.o"; "math.c.1.o"; "math.c.2.o"; "math.c.x.o"; "geometry.c.0.o"; "math.o" ];
+  List.iter write [ "math.c.0.o"; "math.c.1.o"; "math.c.2.o"; "math.c.x.o"; "math.c.o"; "geometry.c.0.o"; "math.o" ];
   check "each is named after the object it is written beside"
     (Build.assembled_beside output 1 = file "math.c.1.o"
     && Build.assembled_beside (Filename.concat directory "math") 0 = file "math.c.0.o");
@@ -491,5 +491,6 @@ let assembled_beside () =
   check "an earlier build's are removed, and nothing else"
     ((not (Sys.file_exists (file "math.c.2.o")))
     && Sys.file_exists (file "math.c.x.o")
+    && Sys.file_exists (file "math.c.o")
     && Sys.file_exists (file "geometry.c.0.o")
     && read "math.o" = "old")

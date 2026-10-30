@@ -421,7 +421,10 @@ its own, as C gives each source one. A header whose writable private
 state a source assembled apart (below) defines is refused too, since that
 copy is in an object of its own, which the glue's cannot share, and so is
 one an archive's member holds a variable of its own of the same name as,
-read from the member's local symbols: that member includes the header.
+read from the member's local symbols: that member includes the header. A
+local symbol named after it with a `.` suffix counts too, since an
+optimized member's copy may be split or specialized into such pieces, as
+`state.0` and `state.1` for the fields of a struct `state`.
 Each holds for a private constant or function whose address the program
 can see, a copy of which is told apart from it, as it does for writable
 state; a function only called, or run from the constructor list, is not

@@ -483,7 +483,12 @@ let shared_state (p : package) compiled =
     let path (s : Compile.source) = s.path in
     match (List.filter defines p.sources, List.filter assembles (List.map (fun a -> a.source) p.assembled)) with
     | ([] | [ _ ]), [] -> (
-        match List.find_opt (fun a -> List.exists (fun v -> List.mem v seen) a.held.Objects.locals) p.archives with
+        (* An optimized member's copy may have been split or specialized
+           into variables and functions LLVM names after it with a suffix:
+           `state.0` for a field of `state`. *)
+        let copy v n = v = n || String.starts_with ~prefix:(n ^ ".") v in
+        let holds a = List.exists (fun v -> List.exists (copy v) seen) a.held.Objects.locals in
+        match List.find_opt holds p.archives with
         | None -> None
         | Some a ->
             Some

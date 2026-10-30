@@ -991,11 +991,11 @@ let assembled_beside output i = Printf.sprintf "%s.c.%d.o" (Filename.remove_exte
 (* Whether [name] is one [assembled_beside] gives for [output]. *)
 let is_assembled_beside output name =
   let stem = Filename.basename (Filename.remove_extension output) ^ ".c." in
+  let digits = String.length name - String.length stem - 2 in
   String.starts_with ~prefix:stem name
   && Filename.check_suffix name ".o"
-  &&
-  let i = String.sub name (String.length stem) (String.length name - String.length stem - 2) in
-  i <> "" && String.for_all (fun c -> c >= '0' && c <= '9') i
+  && digits > 0
+  && String.for_all (fun c -> c >= '0' && c <= '9') (String.sub name (String.length stem) digits)
 
 (* [objects] written beside [output], after those an earlier build wrote
    there are removed, so a release built into the directory carries only
