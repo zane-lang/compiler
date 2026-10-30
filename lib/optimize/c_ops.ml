@@ -190,6 +190,8 @@ let rec icmp pred a b =
   | (Ptr p, Ptr q | Addr (_, p), Addr (_, q)) when equality -> truth (distinct p q = (pred = 33))
   | (Ptr p, Null | Null, Ptr p) when equality ->
       if maybe_null p then stop "a comparison of an empty view's address with null";
+      (* Moved outside its allocation, an address may be any number, 0 too. *)
+      if not (inside p) then stop "a comparison with null of an address outside its allocation";
       truth (pred = 33)
   | Null, Null -> truth (int_compare pred 64 0L 0L)
   | (Wild x, Null) -> truth (int_compare pred 64 x 0L)

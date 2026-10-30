@@ -122,7 +122,10 @@ let rec read c (p : M.ptr) (t : Ty.t) =
   (* A string C returns, as the `zane_bytes` it wrote: its bytes copied,
      a step for each 64 as a view's are. *)
   | Ty.Handle -> (
-      let n = Int64.to_int (number (M.load p.M.alloc (p.M.off + 8) (C_ir.Int 64))) in
+      let size = number (M.load p.M.alloc (p.M.off + 8) (C_ir.Int 64)) in
+      (* Read unsigned: a length past any allocation names no bytes. *)
+      if Int64.unsigned_compare size 0x1_0000_0000_0000L > 0 then stop "a string longer than any allocation";
+      let n = Int64.to_int size in
       if n = 0 then VText ""
       else
         match scalar C_ir.Ptr with

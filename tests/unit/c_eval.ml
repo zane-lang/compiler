@@ -232,6 +232,7 @@ ll s_extern_function_equal(ll a, ll b) { return same_function(outside_f, outside
 static ll far_target;
 static void *far = (void *)((uintptr_t)&far_target + (1ULL << 63));
 ll s_constant_far(ll a, ll b) { return (far == (void *)&far_target) + a + b; }
+ll s_outside_null(ll a, ll b) { ll x = a; return ((void *)((uintptr_t)&x - (uintptr_t)b * 64) == 0) + a; }
 int s_memcmp(ll a, ll b) { char x[2] = { (char)a, 0 }, y[2] = { (char)b, 0 }; return memcmp(x, y, 2); }
 |}
 
@@ -276,6 +277,7 @@ let stopping =
     ("s_huge_global", (1L, 1L), "the step budget ran out");
     ("s_extern_function_equal", (1L, 1L), "a comparison of addresses whose storage may be shared");
     ("s_constant_far", (1L, 1L), "an address moved further than any allocation spans");
+    ("s_outside_null", (1L, 1L), "a comparison with null of an address outside its allocation");
   ]
 
 let compile base name source =
@@ -441,7 +443,19 @@ let views base =
               ("v_store", (fun c -> [ text "zane" c ]), "a store into memory C may not write");
             ];
           check "a view that is not empty is not null"
-            (evaluate_on m "v_null" (fun c -> [ text "z" c ]) = Ok (C_memory.Int (64, 0L))))
+            (evaluate_on m "v_null" (fun c -> [ text "z" c ]) = Ok (C_memory.Int (64, 0L)));
+          (* A `zane_bytes` C writes back whose length, read unsigned, no
+             allocation spans. *)
+          check "a string C returns longer than any allocation stops"
+            (let hooks = { C_eval.spend = (fun _ -> ()); declared = (fun _ _ -> None) } in
+             let c = C_eval.create (C_ir.make [ m ]) hooks in
+             let slot = C_memory.alloc C_memory.Stack ~size:16 ~align:8 in
+             let bytes = C_memory.alloc C_memory.Heap ~size:1 ~align:1 in
+             C_memory.store slot 0 C_ir.Ptr (C_memory.Ptr { C_memory.alloc = bytes; off = 0 });
+             C_memory.store slot 8 (C_ir.Int 64) (C_memory.Int (64, -1L));
+             match C_cross.read c { C_memory.alloc = slot; off = 0 } Cgt.Nodes.Ty.Handle with
+             | _ -> false
+             | exception Value.Stop w -> String.starts_with ~prefix:"a string longer than any allocation" w))
 
 (* Two modules each defining a `static` helper of one name, as the
    program's C and a retained dependency's may: a call of it stops, since
