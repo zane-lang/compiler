@@ -484,6 +484,38 @@ let directives () =
   check "an include and an alternate name are read" (names "/include:a -ALTERNATENAME:b=c" = [ "a"; "b"; "c" ]);
   check "a directive naming no symbol is skipped" (names "/DEFAULTLIB:msvcrt -merge:.a=.b" = [])
 
+(* A Mach-O indirect symbol, the alias `_alias = _foo` defines, renamed
+   with its target: the target is named by a string-table offset in the
+   symbol's value, which the rewriter renames as it does a symbol's name. *)
+let indirect_alias () =
+  let ctx = Llvm.create_context () in
+  let ir =
+    "target triple = \"arm64-apple-macosx\"\n\
+     module asm \".globl _alias\"\n\
+     module asm \"_alias = _foo\"\n"
+  in
+  let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string ir) in
+  let bitcode = Llvm.MemoryBuffer.as_string (Llvm_bitwriter.write_bitcode_to_memory_buffer m) in
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx;
+  match Foreign.Objects.emit ~triple:"arm64-apple-macosx" ~cpu:"generic" ~key:"indirect" bitcode with
+  | Error why -> check ("a Mach-O alias is assembled: " ^ why) false
+  | Ok object_ -> (
+      let renamed = function "_foo" -> Some "_p$foo" | "_alias" -> Some "_p$alias" | _ -> None in
+      match Rewrite.rename ~rename:renamed object_ with
+      | Error why -> check ("a Mach-O alias is renamed: " ^ why) false
+      | Ok (bytes, count) ->
+          let seen = ref [] in
+          ignore
+            (Rewrite.rename
+               ~rename:(fun n ->
+                 seen := n :: !seen;
+                 None)
+               bytes);
+          let times n = List.length (List.filter (( = ) n) !seen) in
+          check "both symbols of an alias are renamed" (count = 2);
+          check "an alias's target is renamed with the symbol it names" (times "_p$foo" = 2 && times "_foo" = 0))
+
 let run () =
   patterns ();
   paths ();
@@ -499,4 +531,5 @@ let run () =
   glue_prototypes ();
   asm_labels ();
   apart_constructors ();
-  directives ()
+  directives ();
+  indirect_alias ()

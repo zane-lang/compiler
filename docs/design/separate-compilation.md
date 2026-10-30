@@ -206,8 +206,10 @@ the string table last in the file, so it grows where it is; ELF does not, so
 its table is copied to the end of the file first, and the old one stays
 behind, unread. A COFF symbol holds a name of up to 8 bytes in its own
 record, and a stamped name never fits there, so it moves to the string
-table. Nothing else in the object moves, since relocations, section groups
-and COMDATs name a symbol by its index. The rewritten object defines exactly
+table. A Mach-O indirect symbol, the alias `_alias = _target` defines,
+names its target by a string-table offset in its value, so that name is
+renamed as a symbol's is. Nothing else in the object moves, since
+relocations, section groups and COMDATs name a symbol by its index. The rewritten object defines exactly
 what one built from source with `--stamp` does.
 
 **C11. `zanec --remap FROM TO INPUT OUTPUT` moves an object's references

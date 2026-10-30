@@ -5,12 +5,18 @@
    and each renamed symbol points at its new name. An object's string table
    is the last thing in its file, so the table simply grows; one that is not
    is copied to the end first, as an ELF one is. Nothing else in the file
-   moves, since relocations name a symbol by its index. *)
+   moves, since relocations name a symbol by its index. An indirect symbol
+   (`N_INDR`, an alias `_alias = _target` defines) names its target by a
+   string-table offset in its value, so that name is renamed as a symbol's
+   is. *)
 
 open Field
 
 let mh_object = 1
 let lc_symtab = 0x2
+let n_stab = 0xe0
+let n_type = 0x0e
+let n_indr = 0xa
 
 let magic s =
   if String.length s < 4 then None
@@ -61,21 +67,31 @@ let rewrite ~rename input =
       within b ~offset:symoff ~size:(nsyms * entsize) "the symbol table";
       within b ~offset:stroff ~size:strsize "the string table";
       let added = Appended.create strsize in
+      (* Each renamed name, by the field naming it and whether that field is
+         a symbol's own name rather than an indirect symbol's target. *)
       let renamed = ref [] in
+      let name ~own field strx what =
+        if strx <> 0 then
+          match rename (cstring b ~table:stroff ~size:strsize ~at:strx what) with
+          | None -> ()
+          | Some fresh -> renamed := (field, own, Appended.add added fresh) :: !renamed
+      in
+      let value entry = if wide then u64 ~little b (entry + 8) else u32 (entry + 8) in
       for i = 0 to nsyms - 1 do
         let entry = symoff + (i * entsize) in
-        let strx = u32 entry in
-        if strx <> 0 then
-          let old =
-            cstring b ~table:stroff ~size:strsize ~at:strx "a symbol's name"
-          in
-          match rename old with
-          | None -> ()
-          | Some fresh -> renamed := (entry, Appended.add added fresh) :: !renamed
+        name ~own:true entry (u32 entry) "a symbol's name";
+        let kind = u8 b (entry + 4) in
+        if kind land n_stab = 0 && kind land n_type = n_indr then
+          name ~own:false entry (value entry) "an indirect symbol's target"
       done;
       if Appended.is_empty added then (input, 0)
       else begin
-        List.iter (fun (entry, at) -> set_u32 ~little b entry at) !renamed;
+        List.iter
+          (fun (entry, own, at) ->
+            if own then set_u32 ~little b entry at
+            else if wide then set_u64 ~little b (entry + 8) at
+            else set_u32 ~little b (entry + 8) at)
+          !renamed;
         (* The grown table keeps the alignment its entries had: 8 bytes in a
            64-bit file, 4 in a 32-bit one. *)
         let align = if wide then 8 else 4 in
@@ -98,5 +114,5 @@ let rewrite ~rename input =
         let result = Buffer.to_bytes out in
         set_u32 ~little result (command + 16) offset;
         set_u32 ~little result (command + 20) size;
-        (Bytes.to_string result, List.length !renamed)
+        (Bytes.to_string result, List.length (List.filter (fun (_, own, _) -> own) !renamed))
       end
