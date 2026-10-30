@@ -56,6 +56,11 @@ void (*once_setup_at(void))(void) { return once_setup_ref; }
 long long once_setup_runs(void) { return once_setups; }
 static inline long long once_setup_same(void) { return once_setup_ref == once_setup; }
 
+long long once_external_setups = 0;
+__attribute__((constructor)) void once_external_setup(void) { once_external_setups++; }
+__attribute__((destructor)) void once_external_teardown(void) {}
+long long once_external_runs(void) { return once_external_setups; }
+
 #ifdef __APPLE__
 long long once_alias(long long x) { return once(x); }
 #else
