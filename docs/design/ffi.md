@@ -371,7 +371,10 @@ sources' functions are. A source that includes that header compiles the
 same definition, so each glue module is linked after the sources with
 every definition the modules before it already hold, a function's, a
 variable's, an alias's or an indirect function's, made a declaration
-(`zane_drop_defined`), and the package keeps one copy. A constructor or
+(`zane_drop_defined`), and the package keeps one copy. Every object a
+build emits, its C's included, places an ELF target's constructors and
+destructors in `.init_array` and `.fini_array`, as clang does, since the
+C library runs no `.ctors` (`zane_use_init_array`). A constructor or
 destructor with external linkage is one of those definitions, and the
 glue's list leaves it out when a module before the glue lists it itself,
 so it runs once. A constructor or
@@ -459,9 +462,7 @@ value in the module stands for, so renaming the module's globals would
 leave the assembly on the old name. Such a module is never linked into
 the package's module. It is optimized with `-O2` and emitted as an object of its own
 for the build's target and processor, as F14 emits C, when the package's
-C is compiled, so a check holds its sections to the test below, its
-constructors and destructors in `.init_array` and `.fini_array` on ELF
-as clang puts them, and the
+C is compiled, so a check holds its sections to the test below, and the
 object is kept in the cache under how it is emitted, the module's key
 (F3), the target and the processor. Once assembled, its definitions and references are
 symbols like any object's: the symbols it defines join the map with the

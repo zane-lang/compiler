@@ -44,12 +44,15 @@ let sixty_four_bit triple layout =
     | Some (name, t) -> Error (refused (Printf.sprintf "aligns `%s` to %d bytes" name (align t)))
     | None -> Ok ()
 
+external use_init_array : Llvm_target.TargetMachine.t -> unit = "zane_use_init_array"
+
 (* The machine for *target*, an LLVM triple, or for the host when it is
-   absent. The triple is taken in LLVM's normal form, which reads a short
-   spelling such as `x86_64-windows-gnu` as the Windows triple it is, where
-   LLVM would otherwise take `windows` for the vendor and build for no
-   operating system. An unknown triple, or one that is not 64-bit, is an
-   error, not an exception. *)
+   absent, putting an ELF object's constructors where the C library runs
+   them (init_array_stubs.cpp). The triple is taken in LLVM's normal form,
+   which reads a short spelling such as `x86_64-windows-gnu` as the
+   Windows triple it is, where LLVM would otherwise take `windows` for the
+   vendor and build for no operating system. An unknown triple, or one
+   that is not 64-bit, is an error, not an exception. *)
 let target_machine ?target ~optimize () =
   Llvm_all_backends.initialize ();
   let triple =
@@ -64,6 +67,7 @@ let target_machine ?target ~optimize () =
         Llvm_target.TargetMachine.create ~triple ~cpu:(cpu triple) ~level
           ~reloc_mode:Llvm_target.RelocMode.PIC target
       in
+      use_init_array tm;
       Result.map (fun () -> (triple, tm)) (sixty_four_bit triple (Llvm_target.TargetMachine.data_layout tm))
   | exception Llvm_target.Error message ->
       Error (Printf.sprintf "cannot compile for the target `%s`: %s" triple message)

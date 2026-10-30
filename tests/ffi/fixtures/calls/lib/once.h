@@ -5,7 +5,10 @@ long long once(long long x) { return x + once_count; }
 long long use_once(void);
 
 long long once_starts = 0;
-__attribute__((constructor)) static void once_start(void) { once_starts++; }
+/* Read through `volatile`, so no optimizer runs the constructor as it
+   compiles it: it runs only if the program runs constructors. */
+volatile long long once_step = 1;
+__attribute__((constructor)) static void once_start(void) { once_starts += once_step; }
 long long once_started(void) { return once_starts; }
 
 static long long once_state;
