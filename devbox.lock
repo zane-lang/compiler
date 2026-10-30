@@ -133,6 +133,9 @@
         }
       }
     },
+    "github:NixOS/nixpkgs/d3b13ad75cc492690728f9307e443dec9ef9a20e#llvmPackages_19.libclang": {
+      "resolved": "github:NixOS/nixpkgs/d3b13ad75cc492690728f9307e443dec9ef9a20e#llvmPackages_19.libclang"
+    },
     "github:NixOS/nixpkgs/nixpkgs-unstable": {
       "last_modified": "2026-10-24T11:44:37Z",
       "resolved": "github:NixOS/nixpkgs/d3b13ad75cc492690728f9307e443dec9ef9a20e?lastModified=1792842277&narHash=sha256-pGPnZGi8y9d76xNeracniXO3dsYVROEmMkMc8jD0Ihc%3D"

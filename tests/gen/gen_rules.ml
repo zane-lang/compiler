@@ -1,5 +1,5 @@
-(* The dune rules of tests/codegen/, tests/parser/, tests/runtime/ and
-   tests/semantics/, written
+(* The dune rules of tests/codegen/, tests/ffi/, tests/parser/,
+   tests/runtime/ and tests/semantics/, written
    from what those directories hold. Each directory's `dune` includes the
    `dune.inc` this prints, and diffs it against a fresh run, so a fixture
    added without its rules fails `dune runtest` until `dune promote` writes
@@ -25,6 +25,9 @@
      are built with besides.
      `golden/reject.NAME.err` is what lowering reports for the package
      `fixtures/reject/NAME`, a program semantics accepts and lowering refuses.
+   - ffi: `golden/NAME.check` is what `zanec --check` prints, both
+     streams, for the package `fixtures/NAME`, which it accepts, and
+     `golden/reject.NAME.err` what it reports for `fixtures/reject/NAME`.
    - parser: `golden/NAME.STAGE.spans` is `span_dump --STAGE`, and
      `golden/NAME.STAGE.tree` `zanec --STAGE`, over `fixtures/NAME.zn`;
      `golden/reject.NAME.err` is what `zanec` reports for
@@ -155,6 +158,27 @@ let codegen () =
       | _ -> ())
     goldens
 
+(* ffi *)
+
+let ffi () =
+  List.iter
+    (fun golden ->
+      match String.split_on_char '.' golden with
+      | [ name; "check" ] ->
+          let package = "fixtures/" ^ name in
+          Printf.printf
+            "(rule\n (deps (source_tree %s))\n (action\n  (with-outputs-to\n   %s.actual\n   (run %s --check --package %s))))\n\n"
+            package golden zanec package;
+          diff golden (golden ^ ".actual")
+      | [ "reject"; name; "err" ] ->
+          let package = "fixtures/reject/" ^ name in
+          Printf.printf
+            "(rule\n (deps (source_tree %s))\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    (run %s --check --package %s)))))\n\n"
+            package golden zanec package;
+          diff golden (golden ^ ".actual")
+      | _ -> failwith ("gen_rules: no rule makes golden/" ^ golden))
+    (sorted "golden")
+
 (* parser *)
 
 let parser () =
@@ -227,7 +251,7 @@ let runtime () =
 let fixtures = function
   | Fixture_pairing.Runtime -> List.filter (fun f -> Filename.check_suffix f ".c") (sorted ".")
   | Semantics -> List.map (Filename.concat "fixtures/typing") (sorted "fixtures/typing")
-  | Codegen | Parser ->
+  | Codegen | Ffi | Parser ->
       let entries dir = List.map (Filename.concat dir) (sorted dir) in
       List.filter (fun f -> f <> "fixtures/reject") (entries "fixtures") @ entries "fixtures/reject"
 
@@ -256,11 +280,12 @@ let () =
   let suite, rules =
     match Sys.argv with
     | [| _; "codegen" |] -> (Fixture_pairing.Codegen, codegen)
+    | [| _; "ffi" |] -> (Fixture_pairing.Ffi, ffi)
     | [| _; "parser" |] -> (Parser, parser)
     | [| _; "runtime" |] -> (Runtime, runtime)
     | [| _; "semantics" |] -> (Semantics, semantics)
     | _ ->
-        prerr_endline "usage: gen_rules (codegen|parser|runtime|semantics)";
+        prerr_endline "usage: gen_rules (codegen|ffi|parser|runtime|semantics)";
         exit 2
   in
   match

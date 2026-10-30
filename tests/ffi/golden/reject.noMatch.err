@@ -1,0 +1,2 @@
+File "fixtures/reject/noMatch/c.coda":
+Error: row 1: `vendor/*.c` matches no file

@@ -1,0 +1,2 @@
+File "fixtures/reject/fixedMacro/c.coda":
+Error: row 1: `__FAST_MATH__` is set by the flags every C source is compiled with, and cannot be defined
