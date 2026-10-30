@@ -51,3 +51,19 @@ let remap ~from ~to_ input =
   else apply ~rename:(Name.remap ~from ~to_) input
 
 let rename = apply
+
+let respell ~from ~into symbol =
+  let b = Buffer.create (String.length symbol) and n = String.length from in
+  let rec go i =
+    if i >= String.length symbol then ()
+    else if n > 0 && i + n <= String.length symbol && String.sub symbol i n = from then begin
+      Buffer.add_string b into;
+      go (i + n)
+    end
+    else begin
+      Buffer.add_char b symbol.[i];
+      go (i + 1)
+    end
+  in
+  go 0;
+  Buffer.contents b

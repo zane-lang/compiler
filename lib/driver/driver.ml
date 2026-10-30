@@ -149,10 +149,9 @@ let retained_c ~hashes ~(entry : ?label:(Cgt.Nodes.Foreign.t -> string) -> Cgt.N
   | _ when entries = [] || not (List.for_all own entries) -> Ok None
   | first :: _ ->
       let labels = first.H.labels in
-      let n = String.length id in
-      let label (t : Cgt.Nodes.Foreign.t) =
-        labels ^ String.sub t.Cgt.Nodes.Foreign.thunk n (String.length t.Cgt.Nodes.Foreign.thunk - n)
-      in
+      (* The package is named throughout a thunk's symbol, before it and in
+         each of its own types the verb names, as `this lib$State`. *)
+      let label (t : Cgt.Nodes.Foreign.t) = Rewrite.respell ~from:(id ^ "$") ~into:(labels ^ "$") t.Cgt.Nodes.Foreign.thunk in
       Result.map
         (fun glue ->
           let glue =

@@ -5,8 +5,8 @@ lib$%c$token_same
 disagreeing:
 lib$add(%primitives$I64, %primitives$I64).ffi
 lib$fenced(%primitives$I64).ffi
-lib$next().ffi
+lib$next(this v1.0%0123456789abcdef%lib$State).ffi
 lib$square(%primitives$I64).ffi
 lib$started().ffi
-lib$tokenRecord().ffi
-lib$tokenSame().ffi
+lib$tokenRecord(this v1.0%0123456789abcdef%lib$State).ffi
+lib$tokenSame(this v1.0%0123456789abcdef%lib$State).ffi

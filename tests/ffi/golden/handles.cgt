@@ -56,7 +56,8 @@
     │   ├── package: handles
     │   ├── calls: fs_drain
     │   ├── params[0]: handle
-    │   └── result: view
+    │   ├── result: view
+    │   └── reaches: a capability
     ├── thunks[3] > thunk:
     │   ├── symbol: handles$Stmt.free
     │   ├── package: handles
@@ -75,13 +76,15 @@
     │   ├── package: handles
     │   ├── calls: fs_close
     │   ├── params[0]: handle
-    │   └── result: void
+    │   ├── result: void
+    │   └── reaches: a capability
     ├── thunks[6] > thunk:
     │   ├── symbol: handles$written(this handles$Fs).ffi
     │   ├── package: handles
     │   ├── calls: fs_written
     │   ├── params[0]: handle
-    │   └── result: i64
+    │   ├── result: i64
+    │   └── reaches: a capability
     ├── thunks[7] > thunk:
     │   ├── symbol: handles$connect(%primitives$I32).ffi
     │   ├── package: handles
@@ -125,7 +128,8 @@
     │   ├── calls: fs_open
     │   ├── params[0]: handle
     │   ├── params[1]: view
-    │   └── result: handle
+    │   ├── result: handle
+    │   └── reaches: a capability
     ├── thunks[14] > thunk:
     │   ├── symbol: handles$write(this handles$Fs, handles$File, %primitives$String).ffi
     │   ├── package: handles
@@ -133,7 +137,8 @@
     │   ├── params[0]: handle
     │   ├── params[1]: handle
     │   ├── params[2]: view
-    │   └── result: void
+    │   ├── result: void
+    │   └── reaches: a capability
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:

@@ -1244,6 +1244,14 @@ let runtime_tuning () =
 (* Rewriting writes beside its output under a name it creates exclusively.
    A name that is already there is someone else's file: it is kept, and the
    object goes out under the next name drawn. *)
+(* A release's thunk label names its package before the verb and in each
+   of the package's own types the verb names (docs/design/ffi.md F13). *)
+let respelled_labels () =
+  check "a package respelled throughout a symbol"
+    (Rewrite.respell ~from:"v1%00%lib$" ~into:"!lib$" "v1%00%lib$next(this v1%00%lib$State).ffi"
+    = "!lib$next(this !lib$State).ffi");
+  check "a symbol naming no package is as it was" (Rewrite.respell ~from:"v1%00%lib$" ~into:"!lib$" "app$main()" = "app$main()")
+
 let rewriting_keeps_others_files () =
   let seed = [| 17 |] in
   let names output count =
@@ -1444,6 +1452,7 @@ let () =
   Builds.assembled_beside ();
   Foreign_c.run ();
   C_eval.run ();
+  respelled_labels ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();
   disposed_modules ();

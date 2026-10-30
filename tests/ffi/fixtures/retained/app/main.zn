@@ -17,13 +17,14 @@ Unit show(text String) {
 }
 
 Unit main() {
+	state lib$State foreign "lib_state";
 	show(String(lib$add(I64(2), I64(3))));
 	show(String(lib$square(I64(4))));
-	show(String(lib$next()));
-	show(String(lib$next()));
-	show(String(lib$next()));
-	lib$tokenRecord();
-	show(String(lib$tokenSame()));
+	show(String(state!lib$next()));
+	show(String(state!lib$next()));
+	show(String(state!lib$next()));
+	state!lib$tokenRecord();
+	show(String(state:lib$tokenSame()));
 	show(String(lib$started()));
 	show(String(lib$fenced(I64(41))));
 	return Unit();
