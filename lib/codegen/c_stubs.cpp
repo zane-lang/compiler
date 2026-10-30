@@ -274,10 +274,39 @@ static bool private_object(const llvm::GlobalVariable &v) {
   return v.hasLocalLinkage() && !v.hasGlobalUnnamedAddr() && v.hasName() && !v.getName().starts_with("llvm.");
 }
 
+/* Whether [f] is a private function whose address the program can see: a
+   named function local to its module and defined there. */
+static bool private_function(const llvm::Function &f) {
+  return f.hasLocalLinkage() && !f.isDeclaration() && !f.hasGlobalUnnamedAddr() && f.hasName();
+}
+
 /* [name] without the [prefix] [zane_share_state] gives a shared variable's
    name, as both modules' copies of an object are named before sharing. */
 static llvm::StringRef own_name(llvm::StringRef name, llvm::StringRef prefix) {
   return name.starts_with(prefix) ? name.drop_front(prefix.size()) : name;
+}
+
+/* Whether the glue's type [a] and the source's [b] are one C type: each
+   module read into the context names its own copy of a struct, so a named
+   struct is the other's with the same packing and fields in turn. */
+static bool same_type(llvm::Type *a, llvm::Type *b) {
+  if (a == b) return true;
+  if (a->getTypeID() != b->getTypeID() || a->getNumContainedTypes() != b->getNumContainedTypes()) return false;
+  if (auto *sa = llvm::dyn_cast<llvm::StructType>(a)) {
+    auto *sb = llvm::cast<llvm::StructType>(b);
+    if (sa->isOpaque() || sb->isOpaque() || sa->isPacked() != sb->isPacked()) return false;
+  } else if (auto *aa = llvm::dyn_cast<llvm::ArrayType>(a)) {
+    if (aa->getNumElements() != llvm::cast<llvm::ArrayType>(b)->getNumElements()) return false;
+  } else if (auto *fa = llvm::dyn_cast<llvm::FunctionType>(a)) {
+    if (fa->isVarArg() != llvm::cast<llvm::FunctionType>(b)->isVarArg()) return false;
+  } else if (!llvm::isa<llvm::FixedVectorType>(a)) {
+    return false;
+  } else if (llvm::cast<llvm::FixedVectorType>(a)->getNumElements() != llvm::cast<llvm::FixedVectorType>(b)->getNumElements()) {
+    return false;
+  }
+  for (unsigned i = 0; i < a->getNumContainedTypes(); ++i)
+    if (!same_type(a->getContainedType(i), b->getContainedType(i))) return false;
+  return true;
 }
 
 static bool same_object(const llvm::GlobalVariable &a, const llvm::GlobalVariable &b, llvm::StringRef prefix,
@@ -290,7 +319,7 @@ static bool same_object(const llvm::GlobalVariable &a, const llvm::GlobalVariabl
 static bool same_constant(const llvm::Constant *a, const llvm::Constant *b, llvm::StringRef prefix,
                           std::set<const llvm::GlobalVariable *> &assumed) {
   if (a == b) return true;
-  if (a->getType() != b->getType() || a->getValueID() != b->getValueID()) return false;
+  if (!same_type(a->getType(), b->getType()) || a->getValueID() != b->getValueID()) return false;
   auto *ga = llvm::dyn_cast<llvm::GlobalValue>(a);
   auto *gb = llvm::dyn_cast<llvm::GlobalValue>(b);
   if (ga || gb) {
@@ -302,11 +331,13 @@ static bool same_constant(const llvm::Constant *a, const llvm::Constant *b, llvm
     if (own_name(ga->getName(), prefix) != own_name(gb->getName(), prefix) || ga->getName().empty()) return false;
     return !(va && vb && va->hasInitializer() && vb->hasInitializer()) || same_object(*va, *vb, prefix, assumed);
   }
-  if (llvm::isa<llvm::ConstantData>(a)) return false;
+  if (llvm::isa<llvm::ConstantData>(a))
+    return llvm::isa<llvm::ConstantAggregateZero>(a) || llvm::isa<llvm::UndefValue>(a) ||
+           llvm::isa<llvm::ConstantPointerNull>(a);
   if (auto *ea = llvm::dyn_cast<llvm::ConstantExpr>(a))
     if (ea->getOpcode() != llvm::cast<llvm::ConstantExpr>(b)->getOpcode()) return false;
   if (auto *pa = llvm::dyn_cast<llvm::GEPOperator>(a))
-    if (pa->getSourceElementType() != llvm::cast<llvm::GEPOperator>(b)->getSourceElementType() ||
+    if (!same_type(pa->getSourceElementType(), llvm::cast<llvm::GEPOperator>(b)->getSourceElementType()) ||
         pa->isInBounds() != llvm::cast<llvm::GEPOperator>(b)->isInBounds())
       return false;
   if (a->getNumOperands() != b->getNumOperands()) return false;
@@ -323,7 +354,7 @@ static bool same_constant(const llvm::Constant *a, const llvm::Constant *b, llvm
    match, so an object pointing at itself compares. */
 static bool same_object(const llvm::GlobalVariable &a, const llvm::GlobalVariable &b, llvm::StringRef prefix,
                         std::set<const llvm::GlobalVariable *> &assumed) {
-  if (a.getValueType() != b.getValueType() || a.getThreadLocalMode() != b.getThreadLocalMode()) return false;
+  if (!same_type(a.getValueType(), b.getValueType()) || a.getThreadLocalMode() != b.getThreadLocalMode()) return false;
   if (a.isConstant() != b.isConstant()) return false;
   if (!a.isConstant()) return true;
   if (!a.hasInitializer() || !b.hasInitializer()) return false;
@@ -342,7 +373,12 @@ static bool same_object(const llvm::GlobalVariable &a, const llvm::GlobalVariabl
    header's, and the glue's functions read and write the state the
    source's do, and see a constant at the address they see it at, as the C
    alone would. A constant is one only with the same value, which may
-   point at other objects the two modules each have a copy of. */
+   point at other objects the two modules each have a copy of. A private
+   function whose address the glue takes, as a comparison with a pointer
+   to it does, is shared the same way, so the glue sees the address the
+   source's pointers hold; one only called stays the glue's own, to
+   inline, and a constructor or destructor stays its own too, as the glue's
+   list of them names it. */
 extern "C" value zane_share_state(value glue, value source, value tag) {
   CAMLparam3(glue, source, tag);
   llvm::Module *g = module_of(glue), *s = module_of(source);
@@ -370,22 +406,52 @@ extern "C" value zane_share_state(value glue, value source, value tag) {
     v->replaceAllUsesWith(d);
     v->eraseFromParent();
   }
+  std::set<llvm::Function *> run;
+  for (const char *list : lists)
+    for (llvm::Function *f : listed(g, list)) run.insert(f);
+  std::vector<llvm::Function *> code;
+  for (llvm::Function &f : g->functions())
+    if (private_function(f) && !run.count(&f) && f.hasAddressTaken()) code.push_back(&f);
+  for (llvm::Function *f : code) {
+    std::string name = f->getName().str(), joined = prefix + name;
+    llvm::Function *there = s->getFunction(joined);
+    if (!there) {
+      there = s->getFunction(name);
+      if (!there || !private_function(*there)) continue;
+      there->setName(joined);
+      there->setLinkage(llvm::GlobalValue::ExternalLinkage);
+      there->setVisibility(llvm::GlobalValue::HiddenVisibility);
+    }
+    if (!same_type(f->getFunctionType(), there->getFunctionType())) continue;
+    llvm::Function *d = llvm::Function::Create(f->getFunctionType(), llvm::GlobalValue::ExternalLinkage,
+                                               f->getAddressSpace(), joined, g);
+    d->setVisibility(llvm::GlobalValue::HiddenVisibility);
+    d->setCallingConv(f->getCallingConv());
+    d->setAttributes(f->getAttributes());
+    f->replaceAllUsesWith(d);
+    f->eraseFromParent();
+  }
   CAMLreturn(Val_unit);
 }
 
-/* Each variable [zane_share_state] shared in [mod], a package's linked
-   module, local again under its own name. */
+/* [v], a variable or function [zane_share_state] shared, local again
+   under its own name. */
+static void localize(llvm::GlobalObject &v) {
+  llvm::StringRef name = v.getName();
+  if (v.isDeclaration() || !name.starts_with(shared_prefix)) return;
+  std::string own = name.drop_front(sizeof shared_prefix - 1).split('.').second.str();
+  v.setLinkage(llvm::GlobalValue::InternalLinkage);
+  v.setVisibility(llvm::GlobalValue::DefaultVisibility);
+  v.setName(own);
+}
+
+/* Each variable and function [zane_share_state] shared in [mod], a
+   package's linked module, local again under its own name. */
 extern "C" value zane_localize_shared(value mod) {
   CAMLparam1(mod);
   llvm::Module *m = module_of(mod);
-  for (llvm::GlobalVariable &v : m->globals()) {
-    llvm::StringRef name = v.getName();
-    if (v.isDeclaration() || !name.starts_with(shared_prefix)) continue;
-    std::string own = name.drop_front(sizeof shared_prefix - 1).split('.').second.str();
-    v.setLinkage(llvm::GlobalValue::InternalLinkage);
-    v.setVisibility(llvm::GlobalValue::DefaultVisibility);
-    v.setName(own);
-  }
+  for (llvm::GlobalVariable &v : m->globals()) localize(v);
+  for (llvm::Function &f : m->functions()) localize(f);
   CAMLreturn(Val_unit);
 }
 
