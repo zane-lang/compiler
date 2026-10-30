@@ -377,7 +377,7 @@ extern "C" value zane_c_ir_layout(value m) {
    weak declaration, which the linker leaves null where nothing defines
    it, `D` and its whether it never returns when it only declares it or
    another object may replace its definition, as a weak one, and its body
-   otherwise. */
+   otherwise, after `E` when it is an `available_externally` copy. */
 extern "C" value zane_c_ir_function(value m, value name) {
   CAMLparam2(m, name);
   Module *mod = module_of(m);
@@ -386,14 +386,17 @@ extern "C" value zane_c_ir_function(value m, value name) {
   if (f->hasExternalWeakLinkage()) CAMLreturn(text("W"));
   if (f->isDeclaration() || f->isInterposable()) CAMLreturn(text(std::string("D ") + (f->hasFnAttribute(Attribute::NoReturn) ? "1" : "0")));
   Function_out o(mod->getDataLayout());
+  if (f->hasAvailableExternallyLinkage()) o.w("E");
   o.function(*f);
   CAMLreturn(text(o.s));
 }
 
 /* The global variable or alias [name]: empty when the module has none,
-   `W` when it is a weak declaration, `D` when it only declares one, an alias's aliasee, and a variable's
-   attributes and initializer: whether it is constant, thread-local,
-   `unnamed_addr` (1 local, 2 global), its alignment and size. */
+   `W` when it is a weak declaration, `D` when it only declares one, an
+   alias's aliasee, and a variable's attributes and initializer, after `E`
+   for an `available_externally` copy: whether it is constant,
+   thread-local, `unnamed_addr` (1 local, 2 global), its alignment and
+   size. */
 extern "C" value zane_c_ir_global(value m, value name) {
   CAMLparam2(m, name);
   Module *mod = module_of(m);
@@ -408,6 +411,7 @@ extern "C" value zane_c_ir_global(value m, value name) {
   if (!g) CAMLreturn(text(""));
   if (g->hasExternalWeakLinkage()) CAMLreturn(text("W"));
   if (!g->hasInitializer() || g->isInterposable()) CAMLreturn(text("D"));
+  if (g->hasAvailableExternallyLinkage()) o.w("E");
   o.w("V");
   o.n(g->isConstant());
   o.n(g->isThreadLocal());

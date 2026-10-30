@@ -375,7 +375,8 @@ let make modules =
   in
   { modules; pointer_bits; little; prefix; funcs = Hashtbl.create 64; globals = Hashtbl.create 64 }
 
-(* The definition of [name] in the module holding one, else its
+(* The definition of [name] in the module holding one, else an
+   `available_externally` copy of the library's (marked `E`), else its
    declaration in the first declaring it. Renaming gives every name with
    external linkage one module (F9), so a name two modules define is local
    to each, as a `static` function of the program's C and one of a retained
@@ -386,10 +387,14 @@ let lookup t table read decode defines name =
   | Some x -> x
   | None ->
       let texts = List.filter (fun s -> s <> "") (List.map (fun m -> read m name) t.modules) in
+      let copy s = String.starts_with ~prefix:"E " s in
       let chosen =
-        match List.filter defines texts with
+        match List.filter (fun s -> defines s && not (copy s)) texts with
         | [ s ] -> Some s
-        | [] -> List.nth_opt texts 0
+        | [] -> (
+            match List.find_opt copy texts with
+            | Some s -> Some (String.sub s 2 (String.length s - 2))
+            | None -> List.nth_opt texts 0)
         | _ -> Value.stop ("a name more than one module defines: " ^ name)
       in
       let x = Option.map decode chosen in

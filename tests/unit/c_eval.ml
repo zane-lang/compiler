@@ -386,28 +386,39 @@ let views base =
                   Printf.printf "  %s: %s\n" name (match r with Ok _ -> "folded" | Error w -> "stopped: " ^ w);
                   check (Printf.sprintf "C evaluation stops at %s: %s" name why) false)
             [
-              ("v_same", (fun c -> [ text "zane" c; text "zane" c ]), "a comparison of addresses whose storage may be shared");
-              ("v_heap", (fun c -> [ text "zane" c ]), "a comparison of addresses whose storage may be shared");
+              ( "v_same",
+                (fun c -> [ text "zane" c; text "zane" c ]),
+                "a comparison of addresses whose storage may be shared" );
+              ( "v_heap",
+                (fun c -> [ text "zane" c ]),
+                "a comparison of addresses whose storage may be shared" );
               ("v_distance", (fun c -> [ text "ab" c; text "ab" c ]), "the numeric value of an address");
               ("v_null", (fun c -> [ text "" c ]), "a comparison of an empty view's address with null");
               ("v_store", (fun c -> [ text "zane" c ]), "a store into memory C may not write");
             ];
-          check "a view that is not empty is not null" (evaluate_on m "v_null" (fun c -> [ text "z" c ]) = Ok (C_memory.Int (64, 0L))))
+          check "a view that is not empty is not null"
+            (evaluate_on m "v_null" (fun c -> [ text "z" c ]) = Ok (C_memory.Int (64, 0L))))
 
 (* Two modules each defining a `static` helper of one name, as the
    program's C and a retained dependency's may: a call of it stops, since
    the name alone does not say whose it is. *)
 let shared_static base =
-  let source k = Printf.sprintf "typedef long long ll;\nstatic ll helper(void) { return %d; }\nll call_%d(ll a, ll b) { return helper() + a + b; }\n" k k in
+  let source k =
+    Printf.sprintf
+      ("typedef long long ll;\nstatic ll helper(void) { return %d; }\n"
+     ^^ "ll call_%d(ll a, ll b) { return helper() + a + b; }\n")
+      k k
+  in
   match (compile base "first" (source 1), compile base "second" (source 2)) with
   | Some first, Some second ->
       with_module first (fun m1 ->
           with_module second (fun m2 ->
               let hooks = { C_eval.spend = (fun _ -> ()); declared = (fun _ _ -> None) } in
               check "a static name two modules define stops a call of it"
-                (match C_eval.call (C_eval.create (C_ir.make [ m1; m2 ]) hooks) "call_2" [ C_memory.Int (64, 0L); C_memory.Int (64, 0L) ] with
-                | _ -> false
-                | exception Value.Stop w -> String.starts_with ~prefix:"a name more than one module defines" w)))
+                (let c = C_eval.create (C_ir.make [ m1; m2 ]) hooks in
+                 match C_eval.call c "call_2" [ C_memory.Int (64, 0L); C_memory.Int (64, 0L) ] with
+                 | _ -> false
+                 | exception Value.Stop w -> String.starts_with ~prefix:"a name more than one module defines" w)))
   | _ -> check "the C evaluator's two-module case compiles" false
 
 (* A constructor that stops leaves no state the running program has. *)
