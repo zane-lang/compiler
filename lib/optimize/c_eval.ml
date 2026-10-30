@@ -488,7 +488,13 @@ and exec t frame regs (i : C_ir.instr) =
   | C_ir.Gep { base; offset; terms } -> (
       let index (o, bits, scale) =
         match value o with
-        | Int (_, x) -> Some (Int64.mul (C_ops.sext bits x) scale)
+        | Int (_, x) ->
+            (* A product that wraps would move the address by less than
+               it asks, so it stops, as a move no allocation spans does. *)
+            let x = C_ops.sext bits x in
+            let p = Int64.mul x scale in
+            if scale <> 0L && Int64.div p scale <> x then stop "an address moved further than any allocation spans";
+            Some p
         | Poison -> None
         | Addr _ -> stop C_ops.number
         | _ -> stop "an index that is not an integer"

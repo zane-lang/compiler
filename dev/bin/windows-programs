@@ -90,7 +90,13 @@ for golden in tests/ffi/golden/*.out; do
 	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" "${packages[@]}"
 	"$ZANEC" --target "$TARGET" --build "$OUT/$name.tiered.exe" --tiered "${packages[@]}"
 	"$ZANEC" --target "$TARGET" --tier-up "$OUT/$name.tiered.tier1.dll" "${packages[@]}"
-	for build in "$name" "$name.optimized" "$name.tiered"; do expect "$build" "$golden" "$status"; done
+	# An optimized build whose folded C prints otherwise is held to
+	# `NAME.optimized.out` (spec ffi.md §5.5), as tests/ffi/ holds it.
+	optimized="$golden"
+	[[ -f "${golden%.out}.optimized.out" ]] && optimized="${golden%.out}.optimized.out"
+	expect "$name" "$golden" "$status"
+	expect "$name.optimized" "$optimized" "$status"
+	expect "$name.tiered" "$golden" "$status"
 done
 
 geometry=tests/objects/fixtures/geometry

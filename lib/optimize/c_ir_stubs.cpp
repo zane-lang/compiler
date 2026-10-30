@@ -15,6 +15,7 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/InlineAsm.h"
@@ -36,6 +37,22 @@ using namespace llvm;
 static Module *module_of(value v) { return reinterpret_cast<Module *>(v & ~(value)1); }
 
 namespace {
+
+/* Whether the constant indices of [gep] sum, scaled, past what [width]
+   bits hold: `collectOffset` wraps them, so an address moved by more than
+   any allocation spans would read as one moved by less. */
+static bool offset_wraps(GEPOperator *gep, const DataLayout &dl, unsigned width) {
+  APInt sum(width, 0);
+  bool over = false;
+  for (auto t = gep_type_begin(gep), e = gep_type_end(gep); t != e && !over; ++t) {
+    auto *ci = dyn_cast<ConstantInt>(t.getOperand());
+    if (!ci || t.isStruct()) continue;
+    APInt index = ci->getValue().sextOrTrunc(width);
+    APInt step = index.smul_ov(APInt(width, t.getSequentialElementStride(dl).getFixedValue()), over);
+    if (!over) sum = sum.sadd_ov(step, over);
+  }
+  return over;
+}
 
 /* Whether a constant expression carries a flag that makes it poison on
    overflow or an inexact result; the evaluator models those only on
@@ -150,7 +167,7 @@ struct Out {
   void expression(ConstantExpr *ce) {
     if (auto *gep = dyn_cast<GEPOperator>(ce)) {
       APInt offset(dl.getIndexTypeSizeInBits(gep->getType()), 0);
-      if (gep->getType()->isVectorTy() || !gep->accumulateConstantOffset(dl, offset)) {
+      if (gep->getType()->isVectorTy() || offset_wraps(gep, dl, offset.getBitWidth()) || !gep->accumulateConstantOffset(dl, offset)) {
         w("X");
         return;
       }
@@ -241,7 +258,8 @@ struct Function_out : Out {
       MapVector<Value *, APInt> variable;
       unsigned width = dl.getIndexTypeSizeInBits(g->getType());
       APInt offset(width, 0);
-      if (g->getType()->isVectorTy() || !cast<GEPOperator>(g)->collectOffset(dl, width, variable, offset)) {
+      if (g->getType()->isVectorTy() || offset_wraps(cast<GEPOperator>(g), dl, width) ||
+          !cast<GEPOperator>(g)->collectOffset(dl, width, variable, offset)) {
         w("X");
         return;
       }
