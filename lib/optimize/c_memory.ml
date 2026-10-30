@@ -260,13 +260,18 @@ let fill p n b =
 (* Whether two pointers into different allocations are unequal, as C
    gives them, or whether their order is only the running process's: it
    is, where either allocation stands for storage of unknown identity, may
-   be merged with an equal one, or is pointed one past its end, which C
-   lets equal the start of the object laid out next. *)
+   be merged with an equal one, is pointed one past its end, which C lets
+   equal the start of the object laid out next, or is pointed outside it
+   by integer arithmetic. *)
 let distinct p q =
   let merged a = match a.kind with View _ -> true | Global { unnamed; _ } -> unnamed | _ -> false in
   if merged p.alloc || merged q.alloc then stop "a comparison of addresses whose storage may be shared";
   if (p.off = p.alloc.size && p.alloc.size > 0) || (q.off = q.alloc.size && q.alloc.size > 0) then
     stop "a comparison of an address one past its allocation's end";
+  (* An address moved outside its allocation, as integer arithmetic may,
+     can equal one in any other. *)
+  let outside r = r.off < 0 || r.off > r.alloc.size in
+  if outside p || outside q then stop "a comparison of an address outside its allocation";
   true
 
 (* Whether [p] may be null at run time: a pointer into an empty view, whose

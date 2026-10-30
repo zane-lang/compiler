@@ -6,8 +6,9 @@
    `volatile` and atomic accesses, a fast-math flag, a thread-local
    variable, an integer wider than 64 bits (a switch on one read as
    unmodelled), a weak declaration's address, an address's number, an
-   address moved further than any allocation spans, a C function with no
-   body, a zero-sized allocation, and a spent budget; and the sign-only
+   address moved further than any allocation spans or compared from
+   outside its allocation, a `byval` copy used after its call, a C function
+   with no body, a zero-sized allocation, and a spent budget; and the sign-only
    result of `memcmp`.
    Then C reading the views F18 passes it, which fold, and comparing,
    subtracting or writing them, which stop; a `static` name two modules
@@ -68,6 +69,9 @@ ll t_array(ll a, ll b) { ll xs[16]; for (int i = 0; i < 16; i++) xs[i] = i * a +
 struct point { int32_t x; int64_t y; char tag; };
 static struct point make(ll a, ll b) { struct point p = { (int32_t)a, b, 'q' }; return p; }
 ll t_struct(ll a, ll b) { struct point p = make(a, b); struct point q = p; q.x += 1; return q.x + q.y * 3 + q.tag; }
+struct wide { ll v[8]; };
+static ll ends(struct wide w) { w.v[0] += 1; return w.v[0] + w.v[7]; }
+ll t_byval(ll a, ll b) { struct wide w = { { a } }; w.v[7] = b; ll s = 0; for (int i = 0; i < 10; i++) s += ends(w); return s + w.v[0]; }
 static const int16_t table[] = { 3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5 };
 ll t_table(ll a, ll b) { return table[a % 11] * 10 + table[b % 11]; }
 static ll counter = 10;
@@ -136,6 +140,7 @@ let cases =
     ("t_float_builtins", [ (7L, 2L); (-9L, 81L); (10L, 3L); (6L, 5L) ]);
     ("t_array", [ (3L, 4L) ]);
     ("t_struct", [ (5L, 6L) ]);
+    ("t_byval", [ (5L, 6L) ]);
     ("t_table", [ (3L, 15L) ]);
     ("t_global", [ (5L, 3L) ]);
     ("t_memory", [ (0L, 1L); (7L, 2L); (15L, 3L) ]);
@@ -207,6 +212,10 @@ ll s_wide_switch(ll a, ll b) {
   default: return 0;
   }
 }
+ll s_outside_equal(ll a, ll b) { ll x = a, y = b; return ((uintptr_t)&x - sizeof x == (uintptr_t)&y) + b; }
+struct big { ll v[8]; };
+static ll *kept(struct big s) { return &s.v[0]; }
+ll s_byval_after(ll a, ll b) { struct big s = { { a, b } }; return *kept(s); }
 int s_memcmp(ll a, ll b) { char x[2] = { (char)a, 0 }, y[2] = { (char)b, 0 }; return memcmp(x, y, 2); }
 |}
 
@@ -242,6 +251,8 @@ let stopping =
     ("s_weak", (1L, 1L), "the address of `optional`, a weak declaration");
     ("s_weak_function", (1L, 1L), "the address of `maybe`, a weak declaration");
     ("s_wide_switch", (1L, 1L), "an integer wider than 64 bits");
+    ("s_outside_equal", (1L, 1L), "a comparison of an address outside its allocation");
+    ("s_byval_after", (1L, 1L), "an access through a freed allocation");
   ]
 
 let compile base name source =

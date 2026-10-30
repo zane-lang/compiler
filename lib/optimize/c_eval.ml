@@ -516,24 +516,32 @@ and exec t frame regs (i : C_ir.instr) =
         | Wild x -> set (Wild (Int64.add x total))
         | Poison -> set Poison
         | _ -> stop "an address computed from something not an address")
-  | C_ir.Call { callee; args } -> (
+  | C_ir.Call { callee; args } ->
+      (* A `byval` argument's copy lives as long as the call: it is paid
+         for as `mem*`-style work and freed when the call returns. *)
+      let copies = ref [] in
       let pass (byval, o) =
         let v = value o in
         if v = Poison then stop "poison passed to a call";
         if byval < 0 then v
         else
           let src = ptr_of v in
+          spend t (byval / 64);
           let a = alloc Stack ~size:byval ~align:16 in
-          frame := a :: !frame;
+          copies := a :: !copies;
           copy ~dst:{ alloc = a; off = 0 } ~src byval;
           Ptr { alloc = a; off = 0 }
       in
       let args = List.map pass args in
-      match callee with
-      | C_ir.Direct name when String.starts_with ~prefix:"llvm." name -> set (intrinsic t frame i.C_ir.ty name args)
-      | C_ir.Direct name -> set (call t name args)
-      | C_ir.Indirect o -> set (call_value t (value o) args)
-      | C_ir.Inline_asm -> stop "inline assembly")
+      let result =
+        match callee with
+        | C_ir.Direct name when String.starts_with ~prefix:"llvm." name -> intrinsic t frame i.C_ir.ty name args
+        | C_ir.Direct name -> call t name args
+        | C_ir.Indirect o -> call_value t (value o) args
+        | C_ir.Inline_asm -> stop "inline assembly"
+      in
+      List.iter (fun a -> a.freed <- true) !copies;
+      set result
   | C_ir.Extract { indices; agg } -> set (path_get (value agg) indices)
   | C_ir.Insert { indices; agg; value = v } -> set (path_set (value agg) indices (value v))
   | C_ir.Shuffle { a; b; mask } -> (
