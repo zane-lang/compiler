@@ -4,7 +4,9 @@
 # of a fixture names (README.md). Each source is compiled by `ZANE_CC`,
 # position-independent where the target has such code, and the objects
 # archived by `AR`, LLVM's `llvm-ar` unless set, which writes the kind of
-# library the objects' format takes.
+# library the objects' format takes. A directory holding a file `strip` has
+# each object stripped of the symbols no relocation needs first, by
+# `STRIP`, LLVM's `llvm-strip` unless set, as a vendor's release may be.
 set -eu
 output=$1
 dir=$2
@@ -32,5 +34,10 @@ esac
 for source in "$dir"/*.c; do
 	"$cc" "$@" -o "$work/$(basename "$source" .c).o" "$source"
 done
+if [ -f "$dir/strip" ]; then
+	for object in "$work"/*.o; do
+		"${STRIP:-llvm-strip}" --strip-unneeded "$object"
+	done
+fi
 rm -f "$output"
 "$ar" rcs "$output" "$work"/*.o

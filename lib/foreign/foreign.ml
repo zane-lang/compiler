@@ -487,8 +487,14 @@ let shared_state (p : package) compiled =
            into variables and functions LLVM names after it with a suffix:
            `state.0` for a field of `state`. *)
         let copy v n = v = n || String.starts_with ~prefix:(n ^ ".") v in
-        let holds a = List.exists (fun v -> List.exists (copy v) seen) a.held.Objects.locals in
-        match List.find_opt holds p.archives with
+        let named a = List.exists (fun v -> List.exists (copy v) seen) a.held.Objects.locals in
+        (* A member that defines the header's external definitions, whose
+           copies the glue drops for its, compiled the header, so it holds
+           a copy of the state whatever its symbols say: stripping an
+           archive takes its local symbols' names away. *)
+        let defined = fst (Clang.definitions glue.bitcode) in
+        let shares a = seen <> [] && List.exists (fun n -> List.mem n a.held.Objects.defined) defined in
+        match List.find_opt (fun a -> named a || shares a) p.archives with
         | None -> None
         | Some a ->
             Some

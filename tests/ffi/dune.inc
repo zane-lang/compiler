@@ -4,7 +4,7 @@
  fixtures/archives/one
  (rule
   (targets tally.a)
-  (deps (glob_files tally.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files tally.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} tally.a tally.archive))))
 
@@ -12,7 +12,7 @@
  fixtures/archives/two
  (rule
   (targets tally.a)
-  (deps (glob_files tally.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files tally.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} tally.a tally.archive))))
 
@@ -20,7 +20,7 @@
  fixtures/reject/archiveDirective
  (rule
   (targets linked.a)
-  (deps (glob_files linked.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files linked.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} linked.a linked.archive))))
 
@@ -28,7 +28,7 @@
  fixtures/reject/archiveExport
  (rule
   (targets exported.a)
-  (deps (glob_files exported.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files exported.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} exported.a exported.archive))))
 
@@ -36,7 +36,7 @@
  fixtures/reject/archiveLabel
  (rule
   (targets labelled.a)
-  (deps (glob_files labelled.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files labelled.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} labelled.a labelled.archive))))
 
@@ -44,7 +44,7 @@
  fixtures/reject/archiveTarget
  (rule
   (targets other.a)
-  (deps (glob_files other.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files other.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} other.a other.archive))))
 
@@ -52,7 +52,7 @@
  fixtures/reject/archivedConstant
  (rule
   (targets token.a)
-  (deps (glob_files token.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files token.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} token.a token.archive))))
 
@@ -60,7 +60,7 @@
  fixtures/reject/archivedConstructor
  (rule
   (targets started.a)
-  (deps (glob_files started.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files started.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} started.a started.archive))))
 
@@ -68,7 +68,7 @@
  fixtures/reject/archivedExternalConstructor
  (rule
   (targets started.a)
-  (deps (glob_files started.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files started.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} started.a started.archive))))
 
@@ -76,7 +76,7 @@
  fixtures/reject/archivedFunction
  (rule
   (targets token.a)
-  (deps (glob_files token.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files token.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} token.a token.archive))))
 
@@ -84,7 +84,7 @@
  fixtures/reject/archivedHeaderConstructor
  (rule
   (targets counted.a)
-  (deps (glob_files counted.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files counted.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} counted.a counted.archive))))
 
@@ -92,7 +92,7 @@
  fixtures/reject/archivedLibraryConstructor
  (rule
   (targets unbuffered.a)
-  (deps (glob_files unbuffered.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files unbuffered.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} unbuffered.a unbuffered.archive))))
 
@@ -100,7 +100,7 @@
  fixtures/reject/archivedSplitState
  (rule
   (targets split.a)
-  (deps (glob_files split.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files split.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} split.a split.archive))))
 
@@ -108,15 +108,23 @@
  fixtures/reject/archivedState
  (rule
   (targets counter.a)
-  (deps (glob_files counter.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files counter.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} counter.a counter.archive))))
+
+(subdir
+ fixtures/reject/archivedStrippedState
+ (rule
+  (targets stripped.a)
+  (deps (glob_files stripped.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
+  (action
+   (run sh %{dep:../../../archive} stripped.a stripped.archive))))
 
 (subdir
  fixtures/reject/objectLinkerSet
  (rule
   (targets hooks.a)
-  (deps (glob_files hooks.archive/*) (env_var ZANE_CC) (env_var AR))
+  (deps (glob_files hooks.archive/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))
   (action
    (run sh %{dep:../../../archive} hooks.a hooks.archive))))
 
@@ -1117,6 +1125,20 @@
  (alias runtest)
  (action
   (diff golden/reject.archivedState.ll.err reject.archivedState.ll.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/archivedStrippedState) fixtures/reject/archivedStrippedState/stripped.a)
+ (action
+  (with-stderr-to
+   reject.archivedStrippedState.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/archivedStrippedState)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.archivedStrippedState.ll.err reject.archivedStrippedState.ll.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/assembledConstant))

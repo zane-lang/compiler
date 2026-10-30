@@ -426,7 +426,10 @@ Each is compared by its C name, so a variable an `__asm__` label names is
 compared by its label, as the header's external definitions are. A
 local symbol named after it with a `.` suffix counts too, since an
 optimized member's copy may be split or specialized into such pieces, as
-`state.0` and `state.1` for the fields of a struct `state`.
+`state.0` and `state.1` for the fields of a struct `state`. And a member
+defining the header's external definitions, whose copies the glue drops
+for its, compiled the header, so it is refused whatever its local symbols
+say, as when an archive is stripped of the names no relocation needs.
 Each holds for a private constant or function whose address the program
 can see, a copy of which is told apart from it, as it does for writable
 state; a function only called, or run from the constructor list, is not

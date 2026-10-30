@@ -224,7 +224,7 @@ let archive_rules () =
       let parent = Filename.dirname dir and base = Filename.basename dir in
       let up = String.concat "/" (List.map (fun _ -> "..") (String.split_on_char '/' parent)) in
       Printf.printf
-        "(subdir\n %s\n (rule\n  (targets %s.a)\n  (deps (glob_files %s/*) (env_var ZANE_CC) (env_var AR))\n  (action\n   (run sh %%{dep:%s/archive} %s.a %s))))\n\n"
+        "(subdir\n %s\n (rule\n  (targets %s.a)\n  (deps (glob_files %s/*) (env_var ZANE_CC) (env_var AR) (env_var STRIP))\n  (action\n   (run sh %%{dep:%s/archive} %s.a %s))))\n\n"
         parent (Filename.chop_suffix base ".archive") base up (Filename.chop_suffix base ".archive") base)
     (archive_dirs "fixtures")
 

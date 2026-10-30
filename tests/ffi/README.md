@@ -24,6 +24,8 @@ from `ZANE_CC` and `llvm-ar` (`AR` when set), and
 `dev/bin/windows-programs` builds it for Windows in a copy of the
 fixtures. One holding a file `target` is built for the triple the file
 names, or, when it is empty, for an architecture other than the host's.
+One holding a file `strip` has its objects stripped of the symbols no
+relocation needs, by `llvm-strip` (`STRIP` when set).
 
 | Fixture | What it shows |
 |---|---|
@@ -64,6 +66,7 @@ names, or, when it is empty, for an architecture other than the host's.
 | `reject/archivedFunction` | The same function held by an `archive` row's member that includes the header, refused the same way |
 | `reject/archivedState` | An interface header whose private state, which a `static inline` function the glue calls reads, an `archive` row's member holds a copy of, refused: the glue cannot share it |
 | `reject/archivedSplitState` | `reject/archivedState` with the member optimized, its copy of a private struct split into `state.0` and `state.1`, refused the same way |
+| `reject/archivedStrippedState` | `reject/archivedState` with the member's local symbols stripped, so no name shows its copy of the state; it defines the header's external function, so it compiled the header, and is refused the same way |
 | `reject/archiveDirective` | An `archive` row's member, a Windows object, asking the link through an `-include:` linker directive for a function another member defines, which the package renames and renaming cannot reach in the directive, refused when the package is checked |
 | `reject/archiveExport` | An `archive` row's member, a Windows object, exporting the function it defines with `__declspec(dllexport)`, whose linker directive renaming cannot reach, refused when the package is checked |
 | `reject/archiveLabel` | An `archive` row's member, a Mach-O object, defining a global symbol an `__asm__` label names without the `_` a C name takes there, which renaming cannot reach, refused when the package is checked |

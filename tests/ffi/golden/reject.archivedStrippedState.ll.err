@@ -1,0 +1,2 @@
+File "fixtures/reject/archivedStrippedState/stripped.h":
+Error: this interface header defines private state, or a private constant or function whose address the program can see, that `fixtures/reject/archivedStrippedState/stripped.a` holds a copy of, since a member of it includes it, so the glue, which calls the header's functions, cannot share it (docs/design/ffi.md F9)
