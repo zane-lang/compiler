@@ -377,8 +377,10 @@ anything else by name; a struct type matches the other module's copy of
 it field by field, as each module read names its own. A private function
 whose address the glue takes, as comparing it with a pointer of the
 header's does, is shared the same way, so the address the glue sees is
-the one the source's pointers hold; one the glue only calls, or lists as
-a constructor or destructor, stays its own. Such a variable or function
+the one the source's pointers hold; one the glue only calls stays its own.
+A constructor or destructor whose address is taken is shared so too, and
+the glue's list no longer runs it, since the source's does, unless it sets
+up private state the glue keeps a copy of. Such a variable or function
 is the source's,
 renamed `zane.shared.N.NAME` (`N` the source's place in the package)
 and made visible to the link, with the glue's made a declaration of it
