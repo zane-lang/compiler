@@ -15,7 +15,9 @@
 > release (F15); release archives' hashes of their C modules, with
 > a dependency's C retained for an optimized build to inline where they
 > agree (F13, F15); and C folded at compile time, in `lib/optimize/`
-> (F16–F19). This page says how the compiler implements the spec's C
+> (F16–F19); the fixtures of §6 and the entries of
+> [`optimizations.md`](../optimizations.md) for F13 and F16 are in place
+> too, so every step of §7 is built. This page says how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
 > compiling a package's C code, checking foreign verbs against it, calling
@@ -1005,16 +1007,19 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   its result unused. The test asserts what an optimized build prints (each
   call folded from the counter's first value, 1, 1, 1, in
   `golden/hazard.optimized.out`) against what a plain build prints (1, 2,
-  3), so a change that stops folding such calls, or starts
-  warning about them, is a decision, not an accident.
+  3), so a change that stops folding such calls is a decision, not an
+  accident.
 - `tests/unit/` checks `c_eval.ml` instruction by instruction against the
   same IR compiled and run, a constructor's state among it; its
   undefined-behavior, `volatile`, atomic, fast-math and thread-local
   stops, the view-identity stop, the modelled C library functions, the
   budget, and a constructor that stops stopping every call.
 - The interface check's errors each have a fixture: a missing symbol, a
-  wrong count, a type of another size on one target only (`long` built for
-  `x86_64-windows-gnu`), a `const` handle passed as a `mut` subject or returned, a
+  wrong count, a type of another size on one target only (a typedef that is
+  `long long` on Linux and `int` on `x86_64-windows-gnu`), `long`, whose size differs
+  between targets,
+  a handle whose `const` qualification differs from C's as a subject, a
+  parameter or a result, a
   `struct` laid out differently, a fixed flag a `define` tries to change, an
   overwrite of a settled handle without a setter, an outside handle passed
   to a verb that is no method on a capability, a foreign variable

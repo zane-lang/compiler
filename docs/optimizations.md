@@ -257,6 +257,11 @@ address's number, storage whose identity is unknown, and a C function
 the build has no body for, such as `sin`, stop the fold and leave the call
 to run. C evaluation spends the fold's budget.
 
+A call that reads C state the package keeps and that no capability names
+folds from that state's first value, so the optimized build can print
+what the plain one does not (spec `ffi.md` §5.5): the `hazard` fixture
+prints `1`, `1`, `1` optimized and `1`, `2`, `3` plain.
+
 ### Output replayed where it was made
 
 - **Builds:** optimized only
@@ -381,6 +386,13 @@ to another's. A dependency linked as a release has its C and glue compiled
 from its checkout and linked in as bodies to inline only, where their
 hashes agree with the ones the release published and nothing can tell an
 inlined copy from the dependency's object (F13).
+
+The `retained` fixture of `tests/ffi/` shows it: its
+`golden/retained.released.calls` lists which parts of a release's C the
+optimized build still calls, the rest inlined or folded at compile time. What an `archive` row's
+library and an assembled object hold is the exception, called as the
+dependency's object defines it, and the `archives` fixture's
+`golden/archives.released.calls` shows that.
 
 ### A package's C optimized apart in unoptimized builds
 
