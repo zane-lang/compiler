@@ -29,7 +29,10 @@
      streams, for the build `fixtures/NAME`, which it accepts,
      `golden/NAME.tst` its typed tree, `golden/NAME.cgt`,
      `golden/NAME.optimized.cgt` and `golden/NAME.out` what they are in
-     codegen, and `golden/reject.NAME.err` what it reports for
+     codegen, `golden/NAME.optimized.out`, when there is one, what the
+     optimized build's runs print in place of `golden/NAME.out`, for a
+     program whose optimized build may print otherwise (spec ffi.md §5.5),
+     and `golden/reject.NAME.err` what it reports for
      `fixtures/reject/NAME`, or, when that fixture holds a file named
      `build`, what `zanec --build` reports for it, or
      `golden/reject.NAME.ll.err` what `zanec --ll` reports for one only
@@ -141,7 +144,9 @@ let program_rules ~goldens ~packages name =
           "(rule\n (deps %s)\n (targets %s.tier1)\n (action\n  (run %s --tier-up %s.tier1%s%s)))\n\n"
           deps name zanec name (flags name) packages;
         (* The optimized build is held to the same golden file: optimizing
-           never changes what a program does. So is the tiered build, run
+           never changes what a program does, but for an ffi fixture with
+           `golden/NAME.optimized.out`, whose C keeps state a folded call
+           reads at compile time (spec ffi.md §5.5). So is the tiered build, run
            with tier 1 in place of every function before `main` starts
            (docs/design/tiers.md), so all of the program but `main` itself
            runs optimized code; the runtime stops it when tier 1 does not
@@ -161,6 +166,11 @@ let program_rules ~goldens ~packages name =
                       "(setenv\n   ZANE_TIER_UP\n   ./%s.tier1\n   (setenv\n    ZANE_TIER_WAIT\n    1\n    %s))" name inner
                   else inner
                 in
+                (* An optimized build that may print otherwise is held to
+                   its own golden file (spec ffi.md §5.5). *)
+                let golden =
+                  if exe = name ^ ".optimized" && has ".optimized.out" then name ^ ".optimized.out" else name ^ ".out"
+                in
                 (match status name with
                 | 0 ->
                     Printf.printf "(rule\n%s (action\n  %s))\n\n" deps
@@ -173,7 +183,7 @@ let program_rules ~goldens ~packages name =
                          (Printf.sprintf
                             "(setenv\n   ZANE_CHECK\n   %s\n   (with-outputs-to\n    %s\n    (with-accepted-exit-codes\n     %d\n     (run ./%s.exe%s))))"
                             check actual n exe (arguments name))));
-                diff (name ^ ".out") actual)
+                diff golden actual)
               [ ("checked", "1"); ("unchecked", "0") ])
           [ name; name ^ ".optimized"; name ^ ".tiered" ]
       end
@@ -234,7 +244,7 @@ let ffi () =
   archive_rules ();
   let goldens = sorted "golden" in
   let program = function
-    | [ name; "cgt" ] | [ name; "optimized"; "cgt" ] | [ name; "out" ] -> Some name
+    | [ name; "cgt" ] | [ name; "optimized"; ("cgt" | "out") ] | [ name; "out" ] -> Some name
     | _ -> None
   in
   List.iter

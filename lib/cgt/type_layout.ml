@@ -215,7 +215,7 @@ let stride st span t =
   max 1 (Nodes.Ty.round_up size align)
 
 (* A foreign handle type's free and set thunks, named after the type
-   (docs/design/ffi.md F8), each recorded for the glue the first time a
+   (docs/design/ffi.md F8) by suffixes no walk of the type has, each recorded for the glue the first time a
    layout names it, an outside handle's as reaching a capability (F17). A
    capability has neither. *)
 let handle_thunks st (t : Tty.t) ((h : T.Handle.t), kind) =
@@ -238,7 +238,7 @@ let handle_thunks st (t : Tty.t) ((h : T.Handle.t), kind) =
         name
       in
       let free = thunk ".free" free [ Foreign.Handle ] in
-      let set = Option.map (fun set -> thunk ".set" set [ Foreign.Handle; Foreign.Handle ]) h.T.Handle.set in
+      let set = Option.map (fun set -> thunk ".setter" set [ Foreign.Handle; Foreign.Handle ]) h.T.Handle.set in
       Some (free, set)
   | _ -> None
 

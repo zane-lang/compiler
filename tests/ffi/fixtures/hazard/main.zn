@@ -1,0 +1,29 @@
+/// The hazard of spec ffi.md §5.5 as this compiler shows it: a foreign
+/// verb declared with no capability whose C function counts in a
+/// file-scope variable. Each call depends on nothing the program reads at
+/// run time, so an optimized build evaluates each one as it compiles,
+/// from the variable's first value, and leaves out the call whose result
+/// is unused: it prints 1 three times where a plain build prints 1, 2
+/// and 3 (golden/hazard.optimized.out, golden/hazard.out).
+package hazard;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias Int = @primitives$I64;
+alias String = @primitives$String;
+
+I64 next() foreign "zane_counter_next";
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+Unit main() {
+	show(String(next()));
+	show(String(next()));
+	show(String(next()));
+	next();
+	return Unit();
+}

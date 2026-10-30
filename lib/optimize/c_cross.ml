@@ -67,6 +67,10 @@ let rec write prog c (p : M.ptr) (t : Ty.t) (v : v) =
             (view ~size:(s * n) ~align:(snd (Ty.size_align e)) (fun a ->
                  Array.iteri (fun i x -> write prog c { M.alloc = a; off = i * s } e x) elems))
       | _ -> stop "an address C cannot read")
+  (* An empty string or list, as a result slot starts out. *)
+  | Ty.Handle, VNull ->
+      scalar C_ir.Ptr M.Null;
+      M.store p.M.alloc (p.M.off + 8) (C_ir.Int 64) (M.Int (64, 0L))
   | Ty.Handle, VText s ->
       let n = String.length s in
       scalar C_ir.Ptr (view ~size:n ~align:1 (fun a -> String.iteri (fun i ch -> M.put_bytes a i 1 (Int64.of_int (Char.code ch))) s));

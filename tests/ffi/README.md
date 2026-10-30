@@ -8,7 +8,10 @@ accepts, `golden/NAME.tst` its typed tree, `golden/NAME.cgt` and
 `golden/NAME.optimized.cgt` its code-generation trees, and
 `golden/NAME.out` what it prints, built and run as tests/codegen builds
 and runs a program: unoptimized, optimized and tiered, with drains checked
-and unchecked. `golden/reject.NAME.err` holds what it reports for
+and unchecked, or the optimized build's runs, when
+`golden/NAME.optimized.out` exists, what that holds: a program whose C
+keeps state a call folded at compile time reads (spec `ffi.md` §5.5)
+prints otherwise optimized. `golden/reject.NAME.err` holds what it reports for
 `fixtures/reject/NAME`, checked, or built when the fixture holds a file
 named `build`, for one refused only when it is built, and
 `golden/reject.NAME.ll.err` what `zanec --ll` reports for one only
@@ -40,6 +43,8 @@ relocation needs, by `llvm-strip` (`STRIP` when set).
 | `assembly` | C holding assembly, each source assembled as an object of its own and renamed: file-scope `__asm__` defining `jump`, which jumps to a C function of another source and which a thunk and C both call, and `__asm__` statements in a function; an interface header that source includes defines a function, variables, one named by an `__asm__` label, and constructors, one local and one external, each defined, and each constructor run, once |
 | `archives` | Two packages vendoring two versions of one C library, `tally`, as `archive` rows' static libraries defining the same names: each reaches its own version's function, alias and, on glibc, indirect function, its own callback into the package's C, its `system` row's `cbrt`, and its own function in file-scope assembly that jumps to a C function of another of its sources, and its own seed, a variable a header defines that only the glue compiles and a second member of the archive reads, also linked against a release of each package: its object and the one assembled from `hop.c`, written by `--object` and stamped, and its archive renamed from its source at the program's link, the release's C retained but for what its archives and assembled objects hold |
 | `retained` | A dependency's C linked as a release and retained where its hashes agree: a pure function, one reading a `static const` table, and one reading what a constructor with external linkage counted, which runs once, inlined with every thunk, those of methods on a capability of the package's own type among them, whose labels name the package twice; one counting in a `static` variable, one storing a `static const`'s address and one comparing it, each a method on that capability since what it keeps another call reads, and one in a source holding assembly, called, each printing what it prints compiled in |
+| `folding` | Calls into C folded where the program compiles (docs/design/ffi.md F16–F19): a pure C function called with a literal, a constant in the optimized tree, and with a value read through a capability, which stays a call; a data handle made, pushed to, which reallocates its C storage, replaced through its setter where it is settled, summed and released, whose whole life folds away; a capability's calls left in place; a C function reaching `sin`, which the C library alone has, left as a call; a C sort calling a Zane comparison, folded; and a string C returns, folded |
+| `hazard` | The hazard of spec `ffi.md` §5.5: a C function declared with no capability that returns the next value of a file-scope counter, called three times with its result printed and once unused, which a plain build prints as 1, 2, 3 and an optimized build, each call folded from the counter's first value, as 1, 1, 1 |
 | `noObject` | A null result from a foreign verb that declares no abort, which stops the program |
 | `vendored` | A `c.coda` whose rows apply in order: a `source` pattern over a vendored tree (skipping a file that is not C), an `include` directory, a `define`, and a `define` for another target that does not apply |
 | `reject/handleForms` | A handle declared by `alias`, without `#`, with type parameters, or with entries it does not take |

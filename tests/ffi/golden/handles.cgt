@@ -8,20 +8,20 @@
     │   └── positions[0]: text @0
     ├── layouts[2] > layout:
     │   ├── type: handles$Conn
-    │   └── positions[0]: handle @0 freed by handles$Conn.free, set by handles$Conn.set
+    │   └── positions[0]: handle @0 freed by handles$Conn.free, set by handles$Conn.setter
     ├── layouts[3] > layout:
     │   ├── type: ^handles$Conn
-    │   └── positions[0]: handle @0 freed by handles$Conn.free, set by handles$Conn.set
+    │   └── positions[0]: handle @0 freed by handles$Conn.free, set by handles$Conn.setter
     ├── layouts[4] > layout:
     │   ├── type: handles$Stmt
-    │   └── positions[0]: handle @0 freed by handles$Stmt.free, set by handles$Stmt.set
+    │   └── positions[0]: handle @0 freed by handles$Stmt.free, set by handles$Stmt.setter
     ├── layouts[5] > layout:
     │   ├── type: ^handles$Stmt
-    │   └── positions[0]: handle @0 freed by handles$Stmt.free, set by handles$Stmt.set
+    │   └── positions[0]: handle @0 freed by handles$Stmt.free, set by handles$Stmt.setter
     ├── layouts[6] > layout:
     │   ├── type: handles$Session
-    │   ├── positions[0]: handle @0 freed by handles$Conn.free, set by handles$Conn.set
-    │   └── positions[1]: handle @16 freed by handles$Stmt.free, set by handles$Stmt.set
+    │   ├── positions[0]: handle @0 freed by handles$Conn.free, set by handles$Conn.setter
+    │   └── positions[1]: handle @16 freed by handles$Stmt.free, set by handles$Stmt.setter
     ├── layouts[7] > layout:
     │   ├── type: %primitives$ListRef<handles$Conn>
     │   └── positions[0]: list @0 of handles$Conn (16 bytes apart)
@@ -45,7 +45,7 @@
     │   ├── params[0]: handle
     │   └── result: void
     ├── thunks[1] > thunk:
-    │   ├── symbol: handles$Conn.set
+    │   ├── symbol: handles$Conn.setter
     │   ├── package: handles
     │   ├── calls: conn_set
     │   ├── params[0]: handle
@@ -65,7 +65,7 @@
     │   ├── params[0]: handle
     │   └── result: void
     ├── thunks[4] > thunk:
-    │   ├── symbol: handles$Stmt.set
+    │   ├── symbol: handles$Stmt.setter
     │   ├── package: handles
     │   ├── calls: stmt_set
     │   ├── params[0]: handle

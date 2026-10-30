@@ -65,8 +65,11 @@ let rec settled layouts layout t old incoming acc =
       let both = List.assoc_opt p theirs = Some at in
       match (p.Layout.kind, read_path old at) with
       | Layout.Foreign { set = Some set; _ }, ptr when both && p.Layout.tags = [] && ptr <> VNull ->
+          (* Read before the place takes the old pointer: [set_path] writes
+             into [incoming]'s records. *)
+          let replacement = read_path incoming at in
           let kept = set_path (set_path incoming at ptr) (stamp_path at) (VInt (stamp_of old at)) in
-          (kept, { stamp = stamp_of old at; thunk = set; args = [ ptr; read_path incoming at ] } :: acc)
+          (kept, { stamp = stamp_of old at; thunk = set; args = [ ptr; replacement ] } :: acc)
       | Layout.Box { payload; _ }, VPtr b when both -> (
           match read_path incoming at with
           | VPtr n ->
