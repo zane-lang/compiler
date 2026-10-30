@@ -383,7 +383,7 @@ hashes agree with the ones the release published and nothing can tell an
 inlined copy from the dependency's object (F13).
 
 The `retained` fixture of `tests/ffi/` shows it: its
-`golden/retained.released.calls` lists what of a release's C the
+`golden/retained.released.calls` lists which parts of a release's C the
 optimized build still calls, the rest inlined, and `archives` shows the
 same for C an archive holds.
 

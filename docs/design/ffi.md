@@ -1017,8 +1017,8 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
 - The interface check's errors each have a fixture: a missing symbol, a
   wrong count, a type of another size on one target only (a typedef that is
   `long long` on Linux and `int` on `x86_64-windows-gnu`), `long`,
-  a handle whose `const` differs from C's as a subject, a parameter or a
-  result, a
+  a handle whose `const` qualification differs from C's as a subject, a
+  parameter or a result, a
   `struct` laid out differently, a fixed flag a `define` tries to change, an
   overwrite of a settled handle without a setter, an outside handle passed
   to a verb that is no method on a capability, a foreign variable
