@@ -44,7 +44,8 @@ let function_address t name =
     match Hashtbl.find_opt t.functions name with
     | Some a -> a
     | None ->
-        let a = alloc (Function name) ~size:0 ~align:1 in
+        let defined = match C_ir.fn t.ir name with Some (C_ir.Body _) -> true | _ -> false in
+        let a = alloc (Function { name; defined }) ~size:0 ~align:1 in
         Hashtbl.replace t.functions name a;
         a
   in
@@ -88,11 +89,10 @@ let rec const t (c : C_ir.const) =
   | C_ir.Cfunction name -> function_address t name
   | C_ir.Cglobal name -> global t name
   | C_ir.Cgep (base, off) -> (
-      let off = Int64.to_int off in
       match const t base with
-      | Ptr p -> Ptr { p with off = p.off + off }
-      | Null -> if off = 0 then Null else Wild (Int64.of_int off)
-      | Wild x -> Wild (Int64.add x (Int64.of_int off))
+      | Ptr p -> Ptr (moved p off)
+      | Null -> if off = 0L then Null else Wild off
+      | Wild x -> Wild (Int64.add x off)
       | _ -> stop "a constant address into nothing")
   | C_ir.Ccast (op, into, c) ->
       let v = const t c in
@@ -372,7 +372,7 @@ let rec call t name (args : value list) =
 
 and call_value t f args =
   match f with
-  | Ptr { alloc = { kind = Function name; _ }; off = 0 } -> call t name args
+  | Ptr { alloc = { kind = Function { name; _ }; _ }; off = 0 } -> call t name args
   | _ -> stop "a call through an address that is no function"
 
 and run t (f : C_ir.func) args =

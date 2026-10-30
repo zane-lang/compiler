@@ -226,6 +226,12 @@ static ll same(int *x, int *y) { return x == y; }
 ll s_extern_equal(ll a, ll b) { return same(&outside_one, &outside_two) + a + b; }
 static char huge[1ULL << 34];
 ll s_huge_global(ll a, ll b) { return huge[a] + b; }
+extern ll outside_f(void), outside_g(void);
+static ll same_function(ll (*x)(void), ll (*y)(void)) { return x == y; }
+ll s_extern_function_equal(ll a, ll b) { return same_function(outside_f, outside_g) + a + b; }
+static ll far_target;
+static void *far = (void *)((uintptr_t)&far_target + (1ULL << 63));
+ll s_constant_far(ll a, ll b) { return (far == (void *)&far_target) + a + b; }
 int s_memcmp(ll a, ll b) { char x[2] = { (char)a, 0 }, y[2] = { (char)b, 0 }; return memcmp(x, y, 2); }
 |}
 
@@ -268,6 +274,8 @@ let stopping =
     ("s_lane", (1L, 1L), "poison returned");
     ("s_extern_equal", (1L, 1L), "a comparison of addresses whose storage may be shared");
     ("s_huge_global", (1L, 1L), "the step budget ran out");
+    ("s_extern_function_equal", (1L, 1L), "a comparison of addresses whose storage may be shared");
+    ("s_constant_far", (1L, 1L), "an address moved further than any allocation spans");
   ]
 
 let compile base name source =
