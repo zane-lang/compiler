@@ -221,6 +221,11 @@ ll s_byval_compared(ll a, ll b) { struct big s = { { a, b } }; return (kept(s) !
 ll s_freed_compared(ll a, ll b) { ll *p = malloc(8); free(p); ll *q = malloc(8); ll r = (p == q) + a; free(q); return r + b; }
 typedef ll lanes __attribute__((ext_vector_type(4)));
 ll s_lane(ll a, ll b) { lanes v = { a, b, a, b }; return v[b - 2]; }
+extern int outside_one, outside_two;
+static ll same(int *x, int *y) { return x == y; }
+ll s_extern_equal(ll a, ll b) { return same(&outside_one, &outside_two) + a + b; }
+static char huge[1ULL << 34];
+ll s_huge_global(ll a, ll b) { return huge[a] + b; }
 int s_memcmp(ll a, ll b) { char x[2] = { (char)a, 0 }, y[2] = { (char)b, 0 }; return memcmp(x, y, 2); }
 |}
 
@@ -261,6 +266,8 @@ let stopping =
     ("s_byval_compared", (1L, 1L), "a use of an address whose storage has ended");
     ("s_freed_compared", (1L, 1L), "a use of an address whose storage has ended");
     ("s_lane", (1L, 1L), "poison returned");
+    ("s_extern_equal", (1L, 1L), "a comparison of addresses whose storage may be shared");
+    ("s_huge_global", (1L, 1L), "the step budget ran out");
   ]
 
 let compile base name source =

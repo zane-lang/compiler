@@ -111,10 +111,10 @@ and global t name =
       match C_ir.global_of t.ir name with
       | Some (C_ir.Variable g) ->
           if g.thread_local then stop "a thread-local variable, which each thread has its own of";
+          spend t (g.size / 64);
           let a = alloc ~readonly:g.constant (Global { name; unnamed = g.unnamed }) ~size:g.size ~align:g.align in
           let v = Ptr { alloc = a; off = 0 } in
           Hashtbl.replace t.globals name v;
-          spend t (g.size / 64);
           zero_fill a 0 g.size;
           initialize t a 0 g.ty g.init;
           v
