@@ -338,6 +338,14 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
           let* retained = retained_c ~hashes ~entry p f entries in
           match retained with
           | Some (labels, sources, glue) ->
+              (* Every C name the package's sources define is the
+                 object's, renamed so, declarations too: a retained module
+                 reaches a source whose hash differs, and so is called, by
+                 the name the dependency's object defines it under. *)
+              let defined =
+                defined
+                @ List.concat_map (fun (s : Foreign.Compile.source) -> fst (Foreign.Clang.definitions s.bitcode)) f.Foreign.sources
+              in
               Ok
                 (Some
                    (package ~sources ~glue ~thunks:(List.map (fun (t : F.t) -> t.F.thunk) entries) ~archives ~defined

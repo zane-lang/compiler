@@ -5,8 +5,10 @@
 # hashes rewritten with a stamp as fetching rewrites them
 # (separate-compilation.md C9), and the root built against them with that
 # stamp, given those hashes, unoptimized and optimized, each run with its
-# drains checked and unchecked. Every run must print the same, which is
-# printed once. The root is DIR's first subdirectory in name order and
+# drains checked and unchecked, and optimized once more with the first
+# source's hash of each file disagreeing, so the build retains the rest of
+# that package's C and calls that source. Every run must print the same,
+# which is printed once. The root is DIR's first subdirectory in name order and
 # imports the others, which import none of each other.
 #
 # With `--calls` first, it prints instead what of the other packages the
@@ -77,3 +79,13 @@ for optimize in "" --optimize; do
 		fi
 	done
 done
+for hashes in "$work"/*.c.hashes.stamped; do
+	[ -e "$hashes" ] || continue
+	awk '!done && /"source"/ { sub(/"[0-9a-f]*"$/, "\"0\""); done = 1 } { print }' "$hashes" >"$hashes.other"
+	mv "$hashes.other" "$hashes"
+done
+"$zanec" --build "$work/$root.exe" --optimize --package "$root=$dir/$root" "$@"
+if [ "$(ZANE_CHECK=1 "$work/$root.exe")" != "$expected" ]; then
+	echo "released: the build with a source's hash disagreeing printed another output" >&2
+	exit 1
+fi
