@@ -379,10 +379,32 @@ let handle_pointer env (v : verb) kind position =
   | Nodes.Decl.Data, Subject -> Ok (not mut)
   | Nodes.Decl.Data, Param -> Ok true
 
+(* Whether [iface]'s struct [name] is a view as `<zane_ffi.h>` declares it
+   (§3.4): a `const` pointer to what [element] accepts, then a `size_t`,
+   and nothing else. A header may declare its own of the tag, and the tag
+   alone says nothing of its layout. *)
+let is_view iface name element =
+  match List.assoc_opt name iface.C.records with
+  | Some { C.union = false; layout = Some { C.size; fields = [ p; n ]; _ }; _ } -> (
+      match (p.C.ty, n.C.ty) with
+      | C.Pointer { const = true; pointee }, C.Int { signed = false; size = bits; width; _ } ->
+          element pointee && width = bits && p.C.offset = 0 && n.C.offset = bits && size = 2 * bits
+          && p.C.bit_width = None && n.C.bit_width = None
+      | _ -> false)
+  | _ -> false
+
+(* What a string's view points to: bytes, `uint8_t`. *)
+let bytes = function C.Int { signed = false; size = 8; width = 8; _ } -> true | _ -> false
+
 (* Whether the Zane type [t] at [position] corresponds to the C type [c],
    as [Error] with why when it does not. *)
 let rec corresponds env iface (v : verb) position (t : Ty.t) (c : C.ctype) =
   let differ what = Error (Printf.sprintf "C declares %s here, and %s%s" (quote (C.to_string c)) what (unsupported_hint c)) in
+  let not_view tag fields =
+    Error
+      (Printf.sprintf "the interface header declares its own `struct %s`, laid out otherwise than `<zane_ffi.h>`'s `{ %s }` (ffi.md §3.4)"
+         tag fields)
+  in
   match crossing env t with
   | None ->
       Error
@@ -399,7 +421,8 @@ let rec corresponds env iface (v : verb) position (t : Ty.t) (c : C.ctype) =
   | Some Unit -> Error "`@primitives$Unit` crosses into C only as a result, `void`"
   | Some Bytes -> (
       match c with
-      | C.Record { union = false; name = "struct zane_bytes" } -> Ok ()
+      | C.Record { union = false; name = "struct zane_bytes" as r } when is_view iface r bytes -> Ok ()
+      | C.Record { union = false; name = "struct zane_bytes" } -> not_view "zane_bytes" "const uint8_t *data; size_t size;"
       | _ -> differ "`@primitives$String` crosses as a `zane_bytes`")
   | Some (Array (s, n)) when position = Param -> (
       match c with
@@ -410,7 +433,8 @@ let rec corresponds env iface (v : verb) position (t : Ty.t) (c : C.ctype) =
                (scalar_name s) n))
   | Some (Span _) when position = Param -> (
       match c with
-      | C.Record { union = false; name = "struct zane_span" } -> Ok ()
+      | C.Record { union = false; name = "struct zane_span" as r } when is_view iface r (( = ) C.Void) -> Ok ()
+      | C.Record { union = false; name = "struct zane_span" } -> not_view "zane_span" "const void *data; size_t count;"
       | _ -> differ "a `@primitives$List` crosses as a `zane_span`")
   | Some (Array _ | Span _) -> Error "an array and a list cross into C only as parameters (ffi.md §3.5)"
   | Some (Value (_, fields)) -> (
@@ -660,6 +684,10 @@ let global env ~package ~span ~declared (symbol : N.Name.t) : Nodes.Expr.t =
             fail
               (Printf.sprintf "%s is thread-local, a separate object on each thread, and a call that reaches it may run on any thread (ffi.md §5.1)"
                  (quote name))
+        | Some { C.constant = true; C.ty; _ } ->
+            fail
+              (Printf.sprintf "%s is a `const` %s, and %s's objects are %s, which a `mut` method writes (ffi.md §5.1)"
+                 (quote name) (quote (C.to_string ty)) (quote tid.Ty.name) (quote h.Nodes.Handle.c_type))
         | Some { C.ty = C.Record { union = false; name = r }; _ } when Some r = record ->
             { Nodes.Expr.node = Nodes.Expr.Foreign_global { symbol = name; package = owner }; ty = declared; span }
         | Some { C.ty; _ } ->

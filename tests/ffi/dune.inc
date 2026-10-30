@@ -237,6 +237,20 @@
   (diff golden/reject.verbForms.err reject.verbForms.err.actual)))
 
 (rule
+ (deps (source_tree fixtures/reject/views))
+ (action
+  (with-stderr-to
+   reject.views.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/views)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.views.err reject.views.err.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/windowsInt))
  (action
   (with-stderr-to

@@ -18,7 +18,8 @@ per line, is what it is built with besides.
 | `reject/interface` | Foreign verbs checked against their C declarations: missing, the wrong count, variadic, unprototyped, other C types, `long`, structs laid out differently, aligned more strictly by `_Alignas` or with a bit-field, a list returned, and a function value whose C parameter or result is a narrow integer type |
 | `reject/windowsInt` | A typedef that is 64 bits on Linux and 32 on Windows, refused in the Windows build only |
 | `reject/positions` | Handles where they may not stand, the wrong `const`, a capability returned, an outside handle made by a method that is not `mut`, a handle made both ways, and a constructor for a handle |
-| `reject/variables` | Foreign variables of the wrong type, naming a missing, undefined, thread-local or differently typed global, and one outside the root |
+| `reject/variables` | Foreign variables of the wrong type, naming a missing, undefined, thread-local, `const` or differently typed global, and one outside the root |
+| `reject/views` | A header declaring its own `zane_bytes` and `zane_span`, laid out otherwise than `<zane_ffi.h>`'s, for a string result and a list parameter |
 | `reject/overwrite` | A settled handle without a setter overwritten directly, through a struct holding it, through `this`, and through seventeen nested generic structs, beside a reference to one rebound, which is no overwrite |
 | `reject/absolute` | An absolute path in a row |
 | `reject/badHeader` | A `c` table whose header is not `setting value target` |
