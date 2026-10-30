@@ -13,7 +13,7 @@
 ; what a C compiler's include list says, a C source compiled by the linked
 ; clang, a global an `__asm__` label names read by its label, a Mach-O
 ; alias renamed with its target, a dependency's C module made a retained
-; copy, the file of C module hashes beside an object, and the glue's
+; copy, the file of C module hashes beside an object and its rows, and the glue's
 ; thunks in the order of their labels.
 ;
 ; Overloads, State, Type_layout, Emit, Build and stage 5's modules are not re-exported by their libraries'

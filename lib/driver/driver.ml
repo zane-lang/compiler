@@ -197,8 +197,9 @@ let hashes_of packages (c : Foreign.package list) (cs : Codegen.c_package list) 
     else Filename.basename file
   in
   let rows (p : Assembly.package) (f : Foreign.package) =
+    let own = p.Assembly.id ^ "$%c$" in
     let mine (k : Codegen.c_package) =
-      k.Codegen.labels = None && String.ends_with ~suffix:(p.Assembly.id ^ "$%c$") k.Codegen.prefix
+      k.Codegen.labels = None && (k.Codegen.prefix = own || k.Codegen.prefix = "!" ^ own)
     in
     match List.filter mine cs with
     | [] -> []

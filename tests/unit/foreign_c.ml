@@ -635,6 +635,47 @@ let hashes () =
         | Ok rs -> List.for_all (fun (r : H.row) -> r.H.package = "v1%0123456789abcdef%lib" && r.H.labels = "!lib") rs
         | Error _ -> false)
 
+(* The rows an object's packages give its file of C module hashes are each
+   package's own, though one package's name ends another's. *)
+let own_hashes () =
+  let package id =
+    ( { Tst.Assembly.id; name = id; dir = "."; is_root = false; files = []; imports = []; keyed = true },
+      {
+        Foreign.dir = ".";
+        rows = [];
+        headers = [];
+        interface = C_interface.empty;
+        sources = [];
+        assembled = [];
+        archives = [];
+        tables = [];
+        flags = [];
+        maps = [];
+        cache = None;
+      },
+      {
+        Codegen.prefix = "!" ^ id ^ "$%c$";
+        sources = [];
+        glue = [ { Codegen.key = id ^ "-glue"; bitcode = ""; files = [ id ^ ".h" ] } ];
+        thunks = [];
+        objects = [];
+        archives = [];
+        defined = [];
+        libraries = [];
+        labels = None;
+      } )
+  in
+  let ps = [ package "lib"; package "olib" ] in
+  let rows =
+    Driver.hashes_of
+      (List.map (fun (a, _, _) -> a) ps)
+      (List.map (fun (_, f, _) -> f) ps)
+      (List.map (fun (_, _, k) -> k) ps)
+  in
+  check "each package's hashes are its own glue's"
+    (List.map (fun (r : Foreign.Hashes.row) -> (r.Foreign.Hashes.package, r.Foreign.Hashes.hash)) rows
+    = [ ("!lib", "lib-glue"); ("!olib", "olib-glue") ])
+
 (* A glue file's thunks come in the order of their labels, whatever order
    the calls reaching them came in, so a release's consumer writes the
    publisher's glue (docs/design/ffi.md F13). *)
@@ -677,4 +718,5 @@ let run () =
   indirect_alias ();
   retained ();
   hashes ();
+  own_hashes ();
   glue_order ()
