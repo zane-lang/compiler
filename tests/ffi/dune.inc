@@ -921,6 +921,140 @@
   (diff golden/noObject.out noObject.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/retained))
+ (targets retained.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build retained.exe --package fixtures/retained/app --package fixtures/retained/lib)))
+
+(rule
+ (deps (source_tree fixtures/retained))
+ (targets retained.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build retained.optimized.exe --optimize --package fixtures/retained/app --package fixtures/retained/lib)))
+
+(rule
+ (deps (source_tree fixtures/retained))
+ (targets retained.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build retained.tiered.exe --tiered --package fixtures/retained/app --package fixtures/retained/lib)))
+
+(rule
+ (deps (source_tree fixtures/retained))
+ (targets retained.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up retained.tier1 --package fixtures/retained/app --package fixtures/retained/lib)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    retained.checked.out.actual
+    (run ./retained.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/retained.out retained.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    retained.unchecked.out.actual
+    (run ./retained.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/retained.out retained.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    retained.optimized.checked.out.actual
+    (run ./retained.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/retained.out retained.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    retained.optimized.unchecked.out.actual
+    (run ./retained.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/retained.out retained.optimized.unchecked.out.actual)))
+
+(rule
+ (deps retained.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./retained.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    retained.tiered.checked.out.actual
+    (run ./retained.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/retained.out retained.tiered.checked.out.actual)))
+
+(rule
+ (deps retained.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./retained.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    retained.tiered.unchecked.out.actual
+    (run ./retained.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/retained.out retained.tiered.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/archives) fixtures/archives/one/tally.a fixtures/archives/two/tally.a)
+ (action
+  (with-stdout-to
+   archives.released.calls.actual
+   (run sh %{dep:released} --calls %{exe:../../bin/zanec/zanec.exe} fixtures/archives))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/archives.released.calls archives.released.calls.actual)))
+
+(rule
  (deps (source_tree fixtures/archives) fixtures/archives/one/tally.a fixtures/archives/two/tally.a)
  (action
   (with-stdout-to
@@ -1489,6 +1623,30 @@
  (alias runtest)
  (action
   (diff golden/reject.windowsInt.err reject.windowsInt.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/retained))
+ (action
+  (with-stdout-to
+   retained.released.calls.actual
+   (run sh %{dep:released} --calls %{exe:../../bin/zanec/zanec.exe} fixtures/retained))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/retained.released.calls retained.released.calls.actual)))
+
+(rule
+ (deps (source_tree fixtures/retained))
+ (action
+  (with-stdout-to
+   retained.released.out.actual
+   (run sh %{dep:released} %{exe:../../bin/zanec/zanec.exe} fixtures/retained))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/retained.released.out retained.released.out.actual)))
 
 (rule
  (deps (source_tree fixtures/vendored))

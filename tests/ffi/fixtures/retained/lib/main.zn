@@ -1,0 +1,18 @@
+/// A package whose C a release's consumer retains where nothing can tell
+/// the copy from the original (docs/design/ffi.md F13): `add` and
+/// `square`, which reads a `static const` table, are inlined; `next`,
+/// which counts in a `static` variable, and `token_record` and
+/// `token_same`, which let a `static const`'s address out and compare it,
+/// are called; and `started` reads what a constructor with external
+/// linkage counted, which runs once, from the package's own object.
+package lib;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 add(a I64, b I64) foreign "add";
+I64 square(i I64) foreign "square";
+I64 next() foreign "next";
+Unit tokenRecord() foreign "token_record";
+I64 tokenSame() foreign "token_same";
+I64 started() foreign "started";
