@@ -383,9 +383,11 @@ hashes agree with the ones the release published and nothing can tell an
 inlined copy from the dependency's object (F13).
 
 The `retained` fixture of `tests/ffi/` shows it: its
-`golden/retained.released.calls` lists which parts of a release's C the
-optimized build still calls, the rest inlined, and `archives` shows the
-same for C an archive holds.
+`golden/retained.released.calls` lists what of a release's C the
+optimized build still calls, the rest inlined. What an `archive` row's
+library and an assembled object hold is the exception, called as the
+dependency's object defines it, and the `archives` fixture's
+`golden/archives.released.calls` shows that.
 
 ### A package's C optimized apart in unoptimized builds
 
