@@ -1,0 +1,28 @@
+/// Foreign variables (ffi.md §5.1): of a capability's type, naming a global
+/// its package defines with external linkage and declares with the type's C
+/// type, not `const` and not thread-local, and only in the root package.
+package app;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+import lib;
+
+type Data = #handle{ cType = "data_t"; free = "data_free"; }
+
+Unit main() {
+	notCapability Data foreign "data_global";
+	notHandle I64 foreign "data_global";
+	missing lib$Io foreign "nowhere";
+	undefined lib$Io foreign "io_declared";
+	local lib$Io foreign "io_thread";
+	wrongType lib$Io foreign "io_other";
+	constant lib$Io foreign "io_constant";
+	good lib$Io foreign "io_global";
+	return Unit();
+}

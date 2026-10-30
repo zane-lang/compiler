@@ -422,6 +422,9 @@ and block (x : C.Body.t) : S.Block.t =
       { S.Block.stats = List.map statement stats; span }
   | C.Body.Shorthand value ->
       { S.Block.stats = [ stat span (S.Stat.Ret (expression value)) ]; span }
+  (* The grammar writes `foreign` only on a function or a method, which
+     [verb_decl] reads before it asks for a block. *)
+  | C.Body.Foreign _ -> Diagnostic.bug ~span "a foreign body where a block is needed"
 
 (* §2.10: the [Statement.t] wrapper is dropped. It paired a statement with how
    its terminator disagreed with the rules, and [Cst.parse] refuses a package
@@ -484,6 +487,7 @@ and mould (x : C.Mould.t) : S.Mould.t =
     | C.Mould.Struct fields -> S.Mould.Struct (List.map body_field fields)
     | C.Mould.Variant fields -> S.Mould.Variant (List.map body_field fields)
     | C.Mould.Enum members -> S.Mould.Enum (List.map name members)
+    | C.Mould.Handle entries -> S.Mould.Handle (List.map (fun (k, v) -> (name k, name v)) entries)
   in
   { S.Mould.node; span }
 
@@ -526,20 +530,30 @@ and constructor_params (x : C.Constructor_params.t) : S.Constructor_params.t =
   in
   { S.Constructor_params.node; span }
 
+(* A function's or method's body, and its C symbol when it is a foreign
+   verb, whose body is then an empty block over the `foreign` clause. *)
+and verb_body (b : C.Body.t) =
+  match b.C.Body.node with
+  | C.Body.Foreign symbol -> ({ S.Block.stats = []; span = b.C.Body.span }, Some (name symbol))
+  | C.Body.Shorthand _ | C.Body.Longhand _ -> (block b, None)
+
 and verb_decl (x : C.Verb_decl.t) : S.Verb_decl.t =
   let span = x.C.Verb_decl.span in
   let node =
     match x.C.Verb_decl.node with
     | C.Verb_decl.Func { name = n; params; ret_type = r; body = b } ->
+        let body, foreign = verb_body b in
         S.Verb_decl.Func
           {
             name = name n;
             params = List.map param params;
             ret_type = ret_type r;
-            body = block b;
+            body;
+            foreign;
           }
     | C.Verb_decl.Meth { name = n; this_type; params; ret_type = r; is_mut;
                          body = b } ->
+        let body, foreign = verb_body b in
         S.Verb_decl.Meth
           {
             name = name n;
@@ -547,7 +561,8 @@ and verb_decl (x : C.Verb_decl.t) : S.Verb_decl.t =
             params = List.map param params;
             ret_type = ret_type r;
             is_mut;
-            body = block b;
+            body;
+            foreign;
           }
     (* The grammar admits only the primitive operators here, so the derived
        rewrite above has no declaration to contradict. See
@@ -695,6 +710,11 @@ and declaration (x : C.Decl.t) : S.Decl.t =
               List.map (fun (m, v) -> (name m, expression v)) entries;
           }
     | C.Decl.Verb v -> S.Decl.Verb (verb_decl v)
+    (* `name T foreign "sym"` is `name T = <the global sym>`: a symbol
+       declaration like any other, whose value [Tst] types as [T]. *)
+    | C.Decl.ForeignVar { name = n; type_; symbol } ->
+        let value = { S.Expr.node = S.Expr.Foreign_global (name symbol); span = symbol.C.Name.span } in
+        S.Decl.Var { name = name n; type_ = type_expr type_; value }
   in
   { S.Decl.node; span }
 

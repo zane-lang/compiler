@@ -47,8 +47,9 @@ let tst_tag : T.Expr.node -> int = function
   | T.Expr.Coerce _ -> 23
   | T.Expr.Lambda _ -> 24
   | T.Expr.Invalid -> 25
+  | T.Expr.Foreign_global _ -> 26
 
-let tst_count = 26
+let tst_count = 27
 
 let tst_stat_tag : T.Stat.node -> int = function
   | T.Stat.Expr _ -> 0
@@ -134,6 +135,7 @@ let tst_samples () =
     (T.Expr.Coerce { ctor = verb; value = a }, [ pa ]);
     (T.Expr.Lambda { params = []; body = lam }, [ P.Lambda lam ]);
     none T.Expr.Invalid;
+    none (T.Expr.Foreign_global { symbol = "zane_fs"; package = "fs" });
   ]
 
 let tst_stat_samples () =

@@ -332,6 +332,9 @@ and Mould : sig
     | Struct of Body_field.t list
     | Variant of Body_field.t list
     | Enum of Name.t list
+    (* A foreign handle's entries, each a name and the string written for
+       it, without its quotes. *)
+    | Handle of (Name.t * Name.t) list
 end = Mould
 
 and Moulded : sig
@@ -510,6 +513,8 @@ and Body : sig
   and node =
     | Shorthand of Expr.t
     | Longhand of Statement.t list
+    (* A foreign verb's C symbol, as the string literal wrote it. *)
+    | Foreign of Name.t
 end = Body
 
 and Ret_type : sig
@@ -635,6 +640,8 @@ and Decl : sig
         entries : (Name.t * Expr.t) list;
       }
     | Verb of Verb_decl.t
+    (* A foreign variable: a handle to the C global [symbol] names. *)
+    | ForeignVar of { name : Name.t; type_ : Type_expr.t; symbol : Name.t }
 end = Decl
 
 (* ---------------------------------------------------------------------- *)

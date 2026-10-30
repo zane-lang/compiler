@@ -586,6 +586,39 @@ type_decl(value_form):
       decl $loc (Nodes.Decl.Alias { name; params; value })
     }
 
+(* A foreign verb (syntax.md §3.11): a function or method whose body is a
+   C function, written as `foreign` and the C symbol where another verb
+   writes its body, after `mut` when the verb has it. Only these two forms
+   take one: a foreign verb is never a constructor, an operator or a
+   subscript (ffi.md §3.1). *)
+foreign_decl:
+  | ret_type=ret_type name=lname LPAREN params=separated_list(COMMA, param) RPAREN body=foreign_body {
+      decl $loc
+        (Nodes.Decl.Verb
+           (verb_decl $loc
+              (Nodes.Verb_decl.Func { name; params; ret_type; body })))
+    }
+  | ret_type=ret_type name=lname LPAREN THIS this_type=type_expr
+    params=loption(preceded(COMMA, separated_nonempty_list(COMMA, param)))
+    RPAREN is_mut=boption(MUT) body=foreign_body {
+      decl $loc
+        (Nodes.Decl.Verb
+           (verb_decl $loc
+              (Nodes.Verb_decl.Meth {
+                name;
+                this_type;
+                params;
+                ret_type;
+                is_mut;
+                body;
+              })))
+    }
+
+foreign_body:
+  | FOREIGN symbol=STRING {
+      body $loc (Nodes.Body.Foreign (mk_name $loc(symbol) symbol))
+    }
+
 block_decl:
   | value=body_decl(block_body) { value }
   | value=type_decl(moulded_value) { value }
@@ -596,6 +629,12 @@ block_decl:
    closes on it instead. *)
 simple_decl:
   | value=body_decl(shorthand_body) { value }
+  | value=foreign_decl { value }
+  (* A foreign variable (syntax.md §1.1, ffi.md §5.1): `foreign` and the C
+     global's symbol in place of an initializer. *)
+  | name=lname type_=type_expr FOREIGN symbol=STRING {
+      decl $loc (Nodes.Decl.ForeignVar { name; type_; symbol = mk_name $loc(symbol) symbol })
+    }
   | value=type_decl(raw_value) { value }
   | value=type_decl(enum_moulded_value) { value }
   | name=lname type_=type_expr EQUAL value=expr {
@@ -741,6 +780,12 @@ enum_map_decl:
   | VARIANT LCURLY fields=list(body_field) RCURLY {
       mould $loc (Nodes.Mould.Variant fields)
     }
+  (* A foreign handle (syntax.md §2.16): named string entries, written like
+     a field-constructor call. Semantics holds it to `type` and to `#`, and
+     says which entries it takes. *)
+  | HANDLE LCURLY entries=list(handle_entry) RCURLY {
+      mould $loc (Nodes.Mould.Handle entries)
+    }
 
 (* The peer mould's contents are a flat list of names, so it takes `[ ]` and
    closes on a `]`. Which delimiter a mould uses is decided by its contents,
@@ -769,6 +814,11 @@ enum_map_decl:
         axis = type_axis $loc(hash) Nodes.Type_axis.Reference;
         span = Span.of_loc $loc;
       } : Nodes.Moulded.t)
+    }
+
+%inline handle_entry:
+  | name=lname EQUAL value=STRING SEMICOLON {
+      (name, mk_name $loc(value) value)
     }
 
 %inline body_field:

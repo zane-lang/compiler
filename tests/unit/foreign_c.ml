@@ -209,12 +209,12 @@ let compiled () =
             | _ -> false)
       | _ -> check "a C error is reported once" false)
 
-(* The table's text read back: names with spaces, nested types, and a
-   struct's layout. *)
+(* The table's text read back: names with spaces, nested types, a
+   variable's flags, and a struct's layout. *)
 let interface_text () =
   let module I = Foreign.Interface in
   let text =
-    "fun 3:add 1 N 0 2 R s 4:vec3 I s 64 64 4:long 7:int64_t R s 4:vec3 var 1:g 1 1 P 1 V      rec 4:vec3 s 1 1 192 64 1 1:x F 64 1 6:double 0 -1 rec 11:struct file s 1 0"
+    "fun 3:add 1 N 0 2 R s 4:vec3 I s 64 64 4:long 7:int64_t R s 4:vec3 var 1:g 1 1 1 P 1 V      rec 4:vec3 s 1 1 192 64 1 1:x F 64 1 6:double 0 -1 rec 11:struct file s 1 0"
   in
   let t = I.read text in
   check "a function's type is read"
@@ -236,6 +236,8 @@ let interface_text () =
         });
   check "a thread-local variable is read"
     (match List.assoc_opt "g" t.I.variables with Some v -> v.I.thread_local | None -> false);
+  check "a `const` variable is read"
+    (match List.assoc_opt "g" t.I.variables with Some v -> v.I.constant | None -> false);
   check "a struct's layout is read"
     (match List.assoc_opt "vec3" t.I.records with
     | Some { I.layout = Some { size = 192; fields = [ { field = "x"; offset = 0; _ } ]; _ }; _ } -> true

@@ -26,7 +26,7 @@ module Semantics = Semantics
 
 (** Every pass over the assembled packages: the program, and every problem
     found, in source order. *)
-val check : Assembly.package list -> Semantics.result
+val check : ?interfaces:(string * C_interface.t) list -> Assembly.package list -> Semantics.result
 
 (** The program as `zanec --decls` (without [bodies]) and `--tst` print it. *)
 val to_node : bodies:bool -> Nodes.Program.t -> Tree_graph.node

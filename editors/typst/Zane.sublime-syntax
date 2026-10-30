@@ -16,11 +16,15 @@ contexts:
       scope: keyword.control.zane
     - match: "(?<![\\p{Alphabetic}0-9_])variant(?![\\p{Alphabetic}0-9])"
       scope: keyword.control.zane
+    - match: "(?<![\\p{Alphabetic}0-9_])foreign(?![\\p{Alphabetic}0-9])"
+      scope: keyword.control.zane
     - match: "(?<![\\p{Alphabetic}0-9_])package(?![\\p{Alphabetic}0-9])"
       scope: keyword.control.zane
     - match: "(?<![\\p{Alphabetic}0-9_])resolve(?![\\p{Alphabetic}0-9])"
       scope: keyword.control.zane
     - match: "(?<![\\p{Alphabetic}0-9_])struct(?![\\p{Alphabetic}0-9])"
+      scope: keyword.control.zane
+    - match: "(?<![\\p{Alphabetic}0-9_])handle(?![\\p{Alphabetic}0-9])"
       scope: keyword.control.zane
     - match: "(?<![\\p{Alphabetic}0-9_])import(?![\\p{Alphabetic}0-9])"
       scope: keyword.control.zane

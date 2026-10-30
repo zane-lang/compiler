@@ -1,0 +1,23 @@
+/// A handle's C type and C functions checked against the interface headers
+/// (ffi.md §4.1).
+package handleC;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+type Missing = #handle{ cType = "missing_t"; }
+type Union = #handle{ cType = "u_t"; }
+type NoFree = #handle{ cType = "a_t"; free = "nowhere"; }
+type ConstFree = #handle{ cType = "a_t"; free = "a_release"; }
+type StatusFree = #handle{ cType = "a_t"; free = "a_close"; }
+type BadSet = #handle{ cType = "a_t"; set = "a_swap"; free = "a_free"; }
+type Included = #handle{ cType = "inner_t"; }
+
+Unit main() {
+	return Unit();
+}

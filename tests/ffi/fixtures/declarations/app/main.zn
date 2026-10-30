@@ -1,0 +1,239 @@
+/// The declarations of the C interface semantics accepts (ffi.md §3-§5): a
+/// foreign verb of each boundary type, a data handle with a setter, a
+/// capability declared by a foreign variable, one a weak C definition and
+/// one an alias, and an outside handle made by a `mut` method on it. A settled handle with a
+/// setter is overwritten, and a roaming one without one. A struct tag and a
+/// typedef of the same name are two C types, and a handle's `cType` may name
+/// a bare tag. A value struct crosses however deeply its structs nest, and
+/// one holding each type below it twice, many thousand fields in all.
+package app;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+import fs;
+
+type Vec3 = struct {
+	x F64;
+	y F64;
+	z F64;
+}
+
+type Pair = struct {
+	id I32;
+	weights @primitives$Array<F32, 3>;
+	at Vec3;
+}
+
+type Twin = struct {
+	a I32;
+}
+
+type TwinTag = struct {
+	b F64;
+}
+
+type N0 = struct {
+	v I32;
+}
+
+type N1 = struct {
+	inner N0;
+}
+
+type N2 = struct {
+	inner N1;
+}
+
+type N3 = struct {
+	inner N2;
+}
+
+type N4 = struct {
+	inner N3;
+}
+
+type N5 = struct {
+	inner N4;
+}
+
+type N6 = struct {
+	inner N5;
+}
+
+type N7 = struct {
+	inner N6;
+}
+
+type N8 = struct {
+	inner N7;
+}
+
+type N9 = struct {
+	inner N8;
+}
+
+type N10 = struct {
+	inner N9;
+}
+
+type N11 = struct {
+	inner N10;
+}
+
+type N12 = struct {
+	inner N11;
+}
+
+type N13 = struct {
+	inner N12;
+}
+
+type N14 = struct {
+	inner N13;
+}
+
+type N15 = struct {
+	inner N14;
+}
+
+type N16 = struct {
+	inner N15;
+}
+
+type B0 = struct {
+	v I32;
+}
+
+type B1 = struct {
+	left B0;
+	right B0;
+}
+
+type B2 = struct {
+	left B1;
+	right B1;
+}
+
+type B3 = struct {
+	left B2;
+	right B2;
+}
+
+type B4 = struct {
+	left B3;
+	right B3;
+}
+
+type B5 = struct {
+	left B4;
+	right B4;
+}
+
+type B6 = struct {
+	left B5;
+	right B5;
+}
+
+type B7 = struct {
+	left B6;
+	right B6;
+}
+
+type B8 = struct {
+	left B7;
+	right B7;
+}
+
+type B9 = struct {
+	left B8;
+	right B8;
+}
+
+type B10 = struct {
+	left B9;
+	right B9;
+}
+
+type B11 = struct {
+	left B10;
+	right B10;
+}
+
+type B12 = struct {
+	left B11;
+	right B11;
+}
+
+type B13 = struct {
+	left B12;
+	right B12;
+}
+
+type B14 = struct {
+	left B13;
+	right B13;
+}
+
+type B15 = struct {
+	left B14;
+	right B14;
+}
+
+type B16 = struct {
+	left B15;
+	right B15;
+}
+
+type Cursor = #handle{ cType = "cursor"; free = "cursor_free"; }
+
+type Deflater = #handle{ cType = "deflater_t"; set = "deflater_set"; free = "deflater_free"; }
+
+I64 crc(c I64, data String) foreign "zane_crc32";
+Vec3 add(a Vec3, b Vec3) foreign "vec_add";
+Pair mirror(p Pair) foreign "pair_mirror";
+I32 narrow(byte I32, half I32) foreign "narrow";
+Bool odd(n I32) foreign "odd";
+F64 sum(xs @primitives$Array<F64, 4>, ys @primitives$List<I64>) foreign "sum";
+F64 fold(f F64[F64, I32], start F64) foreign "fold";
+String name(id I64) foreign "name";
+Unit reset() foreign "reset";
+^Deflater?Unit deflater(level I32) foreign "deflater_new";
+String deflate(this Deflater, input String) mut foreign "deflate";
+I64 totalIn(this Deflater) foreign "deflater_total_in";
+I64 compare(this Deflater, other Deflater) foreign "deflater_compare";
+Twin twinTypedef(t Twin) foreign "twin_typedef";
+TwinTag twinTagged(t TwinTag) foreign "twin_tagged";
+^Cursor?Unit cursor() foreign "cursor_new";
+N16 deep(x N16) foreign "deep";
+I32 wide(x B16) foreign "wide";
+
+type Stream = #struct {
+	_deflater Deflater;
+}
+
+Unit replace(this Stream) mut {
+	this._deflater = deflater(I32(9)) ? e { return Unit(); }
+	return Unit();
+}
+
+Unit main() {
+	files fs$Fs foreign "zane_fs";
+	log fs$File = files!fs$open(String("app.log"));
+	files!fs$write(log, String("started\n"));
+	size I64 = files:fs$size(log);
+	spare fs$Fs foreign "zane_spare";
+	spared I64 = spare:fs$size(log);
+	other fs$Fs foreign "zane_other";
+	otherSize I64 = other:fs$size(log);
+	d Deflater = deflater(I32(6)) ? e { return Unit(); }
+	d = deflater(I32(9)) ? e { return Unit(); }
+	r ^fs$File = files!fs$open(String("b.log"));
+	r = files!fs$open(String("c.log"));
+	return Unit();
+}

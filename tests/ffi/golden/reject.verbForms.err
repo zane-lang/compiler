@@ -1,0 +1,44 @@
+File "fixtures/reject/verbForms/main.zn", line 18, characters 1-44:
+18 | T identity(value T Type) foreign "identity";
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a foreign verb takes no type or number parameter (ffi.md §3.1)
+File "fixtures/reject/verbForms/main.zn", line 18, characters 34-44:
+18 | T identity(value T Type) foreign "identity";
+   |                                  ^^^^^^^^^^
+Error: no interface header of `verbForms` declares `identity` as a function: a foreign verb names a C function its package's `.h` files declare (ffi.md §3.7)
+File "fixtures/reject/verbForms/main.zn", line 19, characters 15-28:
+19 | I64 literal(n @concepts$Int) foreign "literal";
+   |               ^^^^^^^^^^^^^
+Error: a foreign verb takes no concept-typed parameter and no block (ffi.md §3.1)
+File "fixtures/reject/verbForms/main.zn", line 19, characters 38-47:
+19 | I64 literal(n @concepts$Int) foreign "literal";
+   |                                      ^^^^^^^^^
+Error: no interface header of `verbForms` declares `literal` as a function: a foreign verb names a C function its package's `.h` files declare (ffi.md §3.7)
+File "fixtures/reject/verbForms/main.zn", line 20, characters 15-30:
+20 | Unit run(body @concepts$Block) foreign "run";
+   |               ^^^^^^^^^^^^^^^
+Error: a foreign verb takes no concept-typed parameter and no block (ffi.md §3.1)
+File "fixtures/reject/verbForms/main.zn", line 20, characters 40-45:
+20 | Unit run(body @concepts$Block) foreign "run";
+   |                                        ^^^^^
+Error: no interface header of `verbForms` declares `run` as a function: a foreign verb names a C function its package's `.h` files declare (ffi.md §3.7)
+File "fixtures/reject/verbForms/main.zn", line 21, characters 13-19:
+21 | I64 taken(o ^Owned) foreign "taken";
+   |             ^^^^^^
+Error: a foreign verb's parameter is written bare: C borrows what it is passed (ffi.md §3.4, §4.4)
+File "fixtures/reject/verbForms/main.zn", line 22, characters 1-7:
+22 | &Owned referenced() foreign "referenced";
+   | ^^^^^^
+Error: a foreign verb returns a handle as a new roaming owner, written `^` (ffi.md §3.5)
+File "fixtures/reject/verbForms/main.zn", line 23, characters 1-4:
+23 | I64?Unit failing(n I64) foreign "failing";
+   | ^^^
+Error: only a foreign verb that returns a handle declares an abort type: a C function signals failure through its result, and the package's Zane code turns that into an abort (ffi.md §3.5)
+File "fixtures/reject/verbForms/main.zn", line 24, characters 1-7:
+24 | ^Owned?I64 badAbort() foreign "bad_abort";
+   | ^^^^^^
+Error: a foreign verb that returns a handle aborts with `@primitives$Unit`, when the C function returns a null pointer (ffi.md §3.5)
+File "fixtures/reject/verbForms/main.zn", line 25, characters 25-37:
+25 | I64 notC(n I64) foreign "not a name";
+   |                         ^^^^^^^^^^^^
+Error: `not a name` is not a C name: a foreign verb names its C function's symbol

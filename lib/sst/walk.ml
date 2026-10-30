@@ -37,7 +37,7 @@ and decl v acc (d : Decl.t) =
 
 and expr v acc (e : Expr.t) =
   match e.Expr.node with
-  | Expr.IntLit _ | Expr.DecimalLit _ | Expr.StrLit _ | Expr.BoolLit _ | Expr.NameExpr _
+  | Expr.IntLit _ | Expr.DecimalLit _ | Expr.StrLit _ | Expr.BoolLit _ | Expr.NameExpr _ | Expr.Foreign_global _
   | Expr.TypeMember _ | Expr.TypeValue _ ->
       acc
   | Expr.CollectionLit items -> List.fold_left (expr v) acc items

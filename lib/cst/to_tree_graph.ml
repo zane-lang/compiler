@@ -77,6 +77,9 @@ and mould_to_node (x: Nodes.Mould.t) = match x.Nodes.Mould.node with
   | Struct x -> group "struct" (map_seq body_field_to_node x)
   | Variant x -> group "variant" (map_seq body_field_to_node x)
   | Enum x -> group "enum" (map_seq (fun x -> Leaf (text x)) x)
+  | Handle x ->
+      group "handle"
+        (map_seq (fun (key, value) -> fields [ ("entry", Leaf (text key)); ("value", Leaf (text value)) ]) x)
 
 and generic_arg_to_node (x: Nodes.Generic_arg.t) = match x.Nodes.Generic_arg.node with
   | Type x -> type_to_node x
@@ -285,6 +288,7 @@ and body_to_node (x: Nodes.Body.t) = match x.Nodes.Body.node with
       ])
   | Shorthand x ->
       group "ret_shorthand" (expr_to_node x)
+  | Foreign x -> group "foreign" (Leaf (text x))
 
 and ret_to_node (x: Nodes.Ret_type.t) = match x.Nodes.Ret_type.node with
   | Safe ret -> type_to_node ret
@@ -412,6 +416,12 @@ and decl_to_node (x: Nodes.Decl.t) = match x.Nodes.Decl.node with
         ("entries", map_seq enum_map_entry_to_node x.entries);
       ])
   | Verb x -> verb_decl_to_node x
+  | ForeignVar x ->
+      group "foreign_var_decl" (fields [
+        ("name", Leaf (text x.name));
+        ("type", type_to_node x.type_);
+        ("symbol", Leaf (text x.symbol));
+      ])
 
 and verb_decl_to_node (x: Nodes.Verb_decl.t) = match x.Nodes.Verb_decl.node with
   | Func x ->

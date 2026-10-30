@@ -13,7 +13,7 @@
     (:include clang_cxx.sexp))))
  (c_library_flags
   (:include clang_libs.sexp))
- (libraries cache coda diagnostic source unix))
+ (libraries c_interface cache coda diagnostic source unix))
 
 (rule
  (target clang_cxx.sexp)

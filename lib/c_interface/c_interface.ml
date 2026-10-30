@@ -52,17 +52,22 @@ type record = {
 and layout = { size : int; align : int; fields : field list }
 
 type func = { ty : ctype; external_ : bool }
-type var = { ty : ctype; external_ : bool; thread_local : bool }
+(* A variable's type is read without its top-level `const`, which
+   [constant] keeps. *)
+type var = { ty : ctype; external_ : bool; thread_local : bool; constant : bool }
 
-(* A package's table, by name. *)
+(* A package's table, by name, and the variables its C code defines with
+   external linkage, which its compiled sources say rather than its
+   headers: a foreign variable names one (spec ffi.md §5.1). *)
 type t = {
   functions : (string * func) list;
   variables : (string * var) list;
   typedefs : (string * ctype) list;
   records : (string * record) list;
+  defined : string list;
 }
 
-let empty = { functions = []; variables = []; typedefs = []; records = [] }
+let empty = { functions = []; variables = []; typedefs = []; records = []; defined = [] }
 
 exception Malformed of string
 
@@ -125,6 +130,26 @@ let read text =
     | "O" -> Other (next ())
     | w -> raise (Malformed ("no type is written " ^ w))
   in
+  let field () =
+    let field = next () in
+    let ty = ty () in
+    let offset = int () in
+    let bit_width = match int () with -1 -> None | w -> Some w in
+    { field; ty; offset; bit_width }
+  in
+  let record () =
+    let union = next () = "u" in
+    let declared = flag () in
+    let layout =
+      if flag () then
+        let size = int () in
+        let align = int () in
+        let n = int () in
+        Some { size; align; fields = List.init n (fun _ -> field ()) }
+      else None
+    in
+    { union; declared; layout }
+  in
   let rec entries t =
     match !ws with
     | [] -> t
@@ -139,36 +164,25 @@ let read text =
             let name = next () in
             let external_ = flag () in
             let thread_local = flag () in
-            let v = { ty = ty (); external_; thread_local } in
+            let constant = flag () in
+            let v = { ty = ty (); external_; thread_local; constant } in
             entries { t with variables = (name, v) :: t.variables }
         | "typedef" ->
             let name = next () in
             entries { t with typedefs = (name, ty ()) :: t.typedefs }
         | "rec" ->
             let name = next () in
-            let union = next () = "u" in
-            let declared = flag () in
-            let layout =
-              if flag () then
-                let size = int () in
-                let align = int () in
-                let n = int () in
-                let fields =
-                  List.init n (fun _ ->
-                      let field = next () in
-                      let ty = ty () in
-                      let offset = int () in
-                      let bit_width = match int () with -1 -> None | w -> Some w in
-                      { field; ty; offset; bit_width })
-                in
-                Some { size; align; fields }
-              else None
-            in
-            entries { t with records = (name, { union; declared; layout }) :: t.records }
+            entries { t with records = (name, record ()) :: t.records }
         | w -> raise (Malformed ("no entry is written " ^ w)))
   in
   let t = entries empty in
-  { functions = List.rev t.functions; variables = List.rev t.variables; typedefs = List.rev t.typedefs; records = List.rev t.records }
+  {
+    functions = List.rev t.functions;
+    variables = List.rev t.variables;
+    typedefs = List.rev t.typedefs;
+    records = List.rev t.records;
+    defined = [];
+  }
 
 (* Two tables as one: each name's first entry, in the order the headers
    are read, with a struct one header declares and another completes
@@ -199,6 +213,7 @@ let merge a b =
     variables = union_by_name a.variables b.variables;
     typedefs = union_by_name a.typedefs b.typedefs;
     records = union_by_name records b.records;
+    defined = a.defined @ List.filter (fun n -> not (List.mem n a.defined)) b.defined;
   }
 
 (* A type as C writes it, for a diagnostic. *)
@@ -206,6 +221,10 @@ let rec to_string = function
   | Void -> "void"
   | Bool -> "bool"
   | Int { standard = Some name; _ } | Int { name; _ } | Float { name; _ } -> name
+  | Pointer { pointee = Function { params; result; variadic }; _ } ->
+      Printf.sprintf "%s (*)(%s%s)" (to_string result)
+        (match params with [] when not variadic -> "void" | _ -> String.concat ", " (List.map to_string params))
+        (if variadic then ", ..." else "")
   | Pointer { const; pointee } -> (if const then "const " else "") ^ to_string pointee ^ " *"
   | Record { name; _ } -> name
   | Array { count; element } -> Printf.sprintf "%s[%d]" (to_string element) count

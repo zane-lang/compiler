@@ -1,0 +1,26 @@
+/// Where a handle may stand in a foreign verb, and the pointer C receives
+/// there (ffi.md §4.2, §4.4, §5.3).
+package app;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+import io;
+
+type Data = #handle{ cType = "data_t"; free = "data_free"; }
+
+I64 capabilityParam(c io$Io) foreign "capability_param";
+I64 dataWritable(this Data) foreign "data_writable";
+I64 dataConst(this Data) mut foreign "data_const";
+I64 dataParam(d Data) foreign "data_param_writable";
+^Data dataResult() foreign "data_const_result";
+^io$Io capabilityResult() foreign "capability_result";
+
+Unit main() {
+	return Unit();
+}

@@ -126,6 +126,9 @@ type definition =
   | Variant of (string * Ty.t) list
   | Enum of string list
   | Distinct of Ty.t
+  (* A foreign handle (ffi.md §4.1): the C type its objects have, and the
+     C functions that replace and release one, when Zane owns them. *)
+  | Handle of Nodes.Handle.t
 
 type type_info = {
   tid : Ty.type_id;
@@ -211,6 +214,11 @@ type verbs = {
   enum_maps : (Ty.type_id * string, enum_map list) Hashtbl.t;
   promoted : (int, string list) Hashtbl.t;
   own_numbers : (int, string list) Hashtbl.t;
+  (* Each foreign handle type's kind, once every foreign verb that makes
+     one is known (ffi.md §4.2), and each foreign verb's C function, by
+     declaration ([Foreign_decls]). *)
+  handle_kinds : (Ty.type_id, Nodes.Decl.handle_kind) Hashtbl.t;
+  foreign_verbs : (int, Nodes.Foreign.t) Hashtbl.t;
 }
 
 (* Pass 5 ([Program]) asks for generic instances while it checks bodies: the
@@ -311,6 +319,8 @@ module Verbs : sig
   val flips : t -> Signature.t list
   val subscripts : t -> Signature.t list
   val enum_maps : t -> Ty.type_id * string -> enum_map list option
+  val handle_kind : t -> Ty.type_id -> Nodes.Decl.handle_kind option
+  val foreign_verb : t -> int -> Nodes.Foreign.t option
 end = struct
   type t = verbs
 
@@ -323,6 +333,8 @@ end = struct
   let flips t = !(t.flips)
   let subscripts t = !(t.subscripts)
   let enum_maps t key = Hashtbl.find_opt t.enum_maps key
+  let handle_kind t tid = Hashtbl.find_opt t.handle_kinds tid
+  let foreign_verb t id = Hashtbl.find_opt t.foreign_verbs id
 end
 
 (* What a pass is given: the diagnostics, the note an error carries (set
@@ -334,6 +346,9 @@ type ('names, 'types, 'verbs, 'instances) t = {
   diagnostics : Diagnostic.t list ref;
   note : string option ref;
   counters : counters;
+  (* What each package's C code declares and defines, by package identity
+     (docs/design/ffi.md F6): the input foreign verbs are checked against. *)
+  interfaces : (string, C_interface.t) Hashtbl.t;
   names : 'names;
   types : 'types;
   verbs : 'verbs;
@@ -349,6 +364,7 @@ let start () =
     diagnostics = ref [];
     note = ref None;
     counters = { next_decl = ref 0; next_param = ref intrinsic_params; next_local = ref 0 };
+    interfaces = Hashtbl.create 4;
     names = ();
     types = ();
     verbs = ();
@@ -374,6 +390,8 @@ let verbs () =
       enum_maps = Hashtbl.create 16;
       promoted = Hashtbl.create 64;
       own_numbers = Hashtbl.create 64;
+      handle_kinds = Hashtbl.create 8;
+      foreign_verbs = Hashtbl.create 16;
     }
   in
   List.iter

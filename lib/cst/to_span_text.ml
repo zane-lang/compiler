@@ -276,6 +276,7 @@ and body d (x : Body.t) =
   match x.Body.node with
   | Body.Shorthand e -> expr d e
   | Body.Longhand stats -> each d statement stats
+  | Body.Foreign symbol -> name d "symbol" symbol
 
 and statement d (x : Statement.t) =
   line d "statement" x.Statement.span;
@@ -298,6 +299,12 @@ and mould d (x : Mould.t) =
   match x.Mould.node with
   | Mould.Struct fs | Mould.Variant fs -> each d body_field fs
   | Mould.Enum members -> List.iter (name d "member") members
+  | Mould.Handle entries ->
+      List.iter
+        (fun (key, value) ->
+          name d "entry" key;
+          name d "value" value)
+        entries
 
 and body_field d (x : Body_field.t) =
   line d "body_field" x.Body_field.span;
@@ -379,6 +386,10 @@ and decl d (x : Decl.t) =
           expr d value)
         entries
   | Decl.Verb v -> verb_decl d v
+  | Decl.ForeignVar { name = n; type_; symbol } ->
+      name d "name" n;
+      type_expr d type_;
+      name d "symbol" symbol
 
 (* [source] is the text the spans index into, which is the text that was
    parsed. Handing it in rather than re-reading the file keeps this honest for

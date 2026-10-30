@@ -1,0 +1,8 @@
+File "fixtures/reject/windowsInt/main.zn", line 13, characters 1-4:
+13 | I64 scaled(n I64) foreign "scaled";
+   | ^^^
+Error: C declares `int` here, which is not one of `@primitives$I64`'s C types (ffi.md §3.3)
+File "fixtures/reject/windowsInt/main.zn", line 13, characters 14-17:
+13 | I64 scaled(n I64) foreign "scaled";
+   |              ^^^
+Error: C declares `int` here, which is not one of `@primitives$I64`'s C types (ffi.md §3.3)

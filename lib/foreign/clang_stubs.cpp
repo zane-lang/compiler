@@ -23,6 +23,7 @@
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Frontend/Utils.h"
 #include "clang/Lex/Preprocessor.h"
+#include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -370,6 +371,7 @@ public:
         w.str(v->getName().str());
         w.word(v->hasExternalFormalLinkage() ? "1" : "0");
         w.word(v->getTLSKind() != clang::VarDecl::TLS_None ? "1" : "0");
+        w.word(v->getType().isConstant(v->getASTContext()) ? "1" : "0");
         w.type(v->getType());
       } else if (auto *t = llvm::dyn_cast<clang::TypedefNameDecl>(d)) {
         w.word("typedef");
@@ -474,4 +476,37 @@ extern "C" value zane_clang_interface(value args) {
   });
   r.output = text;
   CAMLreturn(to_value(r));
+}
+
+/* The global variables [bitcode]'s module defines for other modules to
+   see, a weak definition among them, and the aliases it gives them: what
+   a foreign variable may name (spec ffi.md §5.1). */
+extern "C" value zane_bitcode_defined_variables(value bitcode) {
+  CAMLparam1(bitcode);
+  CAMLlocal2(list, cell);
+  std::vector<std::string> names;
+  {
+    llvm::LLVMContext context;
+    llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
+    llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
+    if (module) {
+      for (const llvm::GlobalVariable &g : (*module)->globals())
+        if (!g.isDeclaration() && !g.hasLocalLinkage() && !g.hasAvailableExternallyLinkage())
+          names.push_back(g.getName().str());
+      for (const llvm::GlobalAlias &a : (*module)->aliases())
+        if (!a.hasLocalLinkage() && llvm::isa_and_nonnull<llvm::GlobalVariable>(a.getAliaseeObject()) &&
+            !a.getAliaseeObject()->isDeclaration())
+          names.push_back(a.getName().str());
+    } else {
+      llvm::consumeError(module.takeError());
+    }
+  }
+  list = Val_emptylist;
+  for (auto it = names.rbegin(); it != names.rend(); ++it) {
+    cell = caml_alloc(2, 0);
+    Store_field(cell, 0, caml_copy_string(it->c_str()));
+    Store_field(cell, 1, list);
+    list = cell;
+  }
+  CAMLreturn(list);
 }

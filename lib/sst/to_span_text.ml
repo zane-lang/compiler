@@ -198,6 +198,9 @@ and expr d (x : Expr.t) =
   | Expr.IntLit _ -> line d "expr IntLit" at
   | Expr.DecimalLit _ -> line d "expr DecimalLit" at
   | Expr.StrLit _ -> line d "expr StrLit" at
+  | Expr.Foreign_global symbol ->
+      line d "expr Foreign_global" at;
+      name (deeper d) "symbol" symbol
   | Expr.BoolLit _ -> line d "expr BoolLit" at
   | Expr.CollectionLit items ->
       line d "expr CollectionLit" at;
@@ -382,6 +385,13 @@ and mould d (x : Mould.t) =
   | Mould.Enum members ->
       line d "mould Enum" x.Mould.span;
       each (deeper d) (fun d m -> name d "member" m) members
+  | Mould.Handle entries ->
+      line d "mould Handle" x.Mould.span;
+      each (deeper d)
+        (fun d (k, v) ->
+          name d "entry" k;
+          name d "value" v)
+        entries
 
 and moulded d (x : Moulded.t) =
   line d "moulded" x.Moulded.span;
@@ -415,20 +425,22 @@ and constructor_params d (x : Constructor_params.t) =
 and verb_decl d (x : Verb_decl.t) =
   let at = x.Verb_decl.span in
   match x.Verb_decl.node with
-  | Verb_decl.Func { name = n; params; ret_type = r; body } ->
+  | Verb_decl.Func { name = n; params; ret_type = r; body; foreign } ->
       line d "verb_decl Func" at;
       name (deeper d) "name" n;
       each (deeper d) param params;
       ret_type (deeper d) r;
-      block (deeper d) body
-  | Verb_decl.Meth { name = n; this_type; params; ret_type = r; is_mut; body }
+      block (deeper d) body;
+      opt (deeper d) (fun d s -> name d "foreign" s) foreign
+  | Verb_decl.Meth { name = n; this_type; params; ret_type = r; is_mut; body; foreign }
     ->
       line d (if is_mut then "verb_decl Meth mut" else "verb_decl Meth") at;
       name (deeper d) "name" n;
       type_expr (deeper d) this_type;
       each (deeper d) param params;
       ret_type (deeper d) r;
-      block (deeper d) body
+      block (deeper d) body;
+      opt (deeper d) (fun d s -> name d "foreign" s) foreign
   | Verb_decl.Op { op; params; ret_type = r; body } ->
       line d "verb_decl Op" at;
       operator (deeper d) op;

@@ -28,7 +28,7 @@ val assemble :
 val c_code : ?target:string -> Tst.Assembly.package list -> (Foreign.package list, failure) result
 
 (** Semantics, which gives no tree when it found a problem. *)
-val check : Tst.Assembly.package list -> (Tst.Nodes.Program.t, failure) result
+val check : ?c:Foreign.package list -> Tst.Assembly.package list -> (Tst.Nodes.Program.t, failure) result
 
 (** That the root declares a `main`: the one check for it, which lowering
     takes as given. *)

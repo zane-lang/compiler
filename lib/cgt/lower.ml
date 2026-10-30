@@ -168,6 +168,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; _ }
     when String.starts_with ~prefix:"@controlflow$" spelling ->
       refuse span (Printf.sprintf "lowering does not handle `%s` used as a value yet" spelling)
+  | T.Expr.Foreign_global _ -> refuse span "lowering does not handle a foreign variable yet (docs/design/ffi.md §7)"
   | _ -> Diagnostic.bug ~span "lowering: an expression of a form it has no case for"
 
 (* Two operands stored in the order they are given, then combined. *)

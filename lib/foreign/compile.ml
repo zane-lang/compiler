@@ -187,9 +187,9 @@ let interface flags path =
     let diagnostics, sources = diagnostics read.problems in
     Error { diagnostics; sources }
   else
-    match Interface.read read.output with
+    match C_interface.read read.output with
     | table -> Ok table
-    | exception Interface.Malformed why -> Diagnostic.bug ("the interface table of " ^ path ^ " is malformed: " ^ why)
+    | exception C_interface.Malformed why -> Diagnostic.bug ("the interface table of " ^ path ^ " is malformed: " ^ why)
 
 (* Whether [text] holds [word] anywhere. *)
 let mentions word text =

@@ -105,6 +105,13 @@ constructors, both lambda kinds, match arms, and abort handlers.
 `.Constructor`, `.Flip`), both lambdas (`Func_lambda`, `Meth_lambda`), and
 match arms (`Match_arm.body`).
 
+A foreign verb's `foreign "symbol"` body
+([`syntax.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/syntax.md)
+§3.11) is not a statement list at all. The CST's `Body.Foreign` arm becomes
+the `foreign` field of the SST's `Func` or `Meth`, with an empty body
+spanning the clause, so the verb is still a function or a method to every
+pass, and the field says its body is C.
+
 ### 2.2 `and` and `or`
 
 ```
@@ -258,6 +265,19 @@ resolution is needed — but note what the rewrite does *not* settle: whether
 `Expr.intLit(...)` is a variant case form or a named constructor call is
 decided by what `Expr` turns out to be, and the SST does not know. It does not
 have to. Both yield the base type, which is all this rewrite claims.
+
+A foreign variable is the same rewrite with nothing to construct
+([`syntax.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/syntax.md)
+§1.1):
+
+```
+files Fs foreign "zane_fs"   ->   files Fs = <the global zane_fs>
+```
+
+`Decl.ForeignVar` becomes a `Var` whose value is the expression
+`Foreign_global`, which nothing else makes. Semantics types it as the
+declared type, since only the declaration says what the global is a handle
+of, and the symbol is then a local or a package constant like any other.
 
 ### 2.8 Parentheses
 
