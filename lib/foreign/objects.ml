@@ -6,32 +6,59 @@
    the linker-set test needs. *)
 
 external emit_raw : string -> string -> string -> (string, string) result = "zane_object_emit"
-external read_raw : string -> ((string * string) list * string list * string, string) result = "zane_object_read"
+external read_raw : string -> ((string * string) list * string list * string * string, string) result
+  = "zane_object_read"
 external triple_arch : string -> string = "zane_triple_arch"
 external members_raw : string -> ((string * string) list, string) result = "zane_archive_members"
 
 (* What an object holds: the C names of the global symbols it defines,
    and of those the ones that are data, the names of the variables local
-   to it, its sections' names, and the architecture it is for, as
-   [triple_arch] spells a triple's. *)
+   to it, its sections' names, the architecture it is for, as
+   [triple_arch] spells a triple's, and the symbols its linker directives
+   name. *)
 type contents = {
   defined : string list;
   data : string list;
   locals : string list;
   sections : string list;
   arch : string;
+  directed : string list;
 }
+
+(* The symbols the COFF linker directives [text] names, as a `.drectve`
+   section holds them: `/EXPORT:NAME[=INTERNAL][,...]`, which
+   `__declspec(dllexport)` writes, `/INCLUDE:NAME` and
+   `/ALTERNATENAME:NAME=OTHER`, each spelled with `/` or `-`, in any case,
+   and quoted or not. Other directives name no symbol. *)
+let directive_names text =
+  let unquoted s = String.concat "" (String.split_on_char '"' s) in
+  let named token =
+    match String.index_opt token ':' with
+    | None -> []
+    | Some i when i > 1 && (token.[0] = '/' || token.[0] = '-') -> (
+        let argument = unquoted (String.sub token (i + 1) (String.length token - i - 1)) in
+        let first = List.hd (String.split_on_char ',' argument) in
+        match String.lowercase_ascii (String.sub token 1 (i - 1)) with
+        | "export" | "alternatename" -> String.split_on_char '=' first
+        | "include" -> [ first ]
+        | _ -> [])
+    | Some _ -> []
+  in
+  String.split_on_char ' ' (String.map (function '\t' | '\n' | '\r' | '\000' -> ' ' | c -> c) text)
+  |> List.concat_map named
+  |> List.filter (fun n -> n <> "")
 
 let read bytes =
   let kind k = List.filter_map (fun (n, kind) -> if kind = k then Some n else None) in
   Result.map
-    (fun (names, sections, arch) ->
+    (fun (names, sections, arch, directives) ->
       {
         defined = List.filter_map (fun (n, kind) -> if kind = "local" then None else Some n) names;
         data = kind "data" names;
         locals = kind "local" names;
         sections;
         arch;
+        directed = directive_names directives;
       })
     (read_raw bytes)
 

@@ -17,12 +17,28 @@
    (run sh %{dep:../../../archive} tally.a tally.archive))))
 
 (subdir
+ fixtures/reject/archiveExport
+ (rule
+  (targets exported.a)
+  (deps (glob_files exported.archive/*) (env_var ZANE_CC) (env_var AR))
+  (action
+   (run sh %{dep:../../../archive} exported.a exported.archive))))
+
+(subdir
  fixtures/reject/archiveTarget
  (rule
   (targets other.a)
   (deps (glob_files other.archive/*) (env_var ZANE_CC) (env_var AR))
   (action
    (run sh %{dep:../../../archive} other.a other.archive))))
+
+(subdir
+ fixtures/reject/archivedConstant
+ (rule
+  (targets token.a)
+  (deps (glob_files token.archive/*) (env_var ZANE_CC) (env_var AR))
+  (action
+   (run sh %{dep:../../../archive} token.a token.archive))))
 
 (subdir
  fixtures/reject/archivedConstructor
@@ -887,6 +903,20 @@
   (diff golden/reject.absolute.err reject.absolute.err.actual)))
 
 (rule
+ (deps (source_tree fixtures/reject/archiveExport) fixtures/reject/archiveExport/exported.a)
+ (action
+  (with-stderr-to
+   reject.archiveExport.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/archiveExport)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.archiveExport.err reject.archiveExport.err.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/archiveTarget) fixtures/reject/archiveTarget/other.a)
  (action
   (with-stderr-to
@@ -899,6 +929,20 @@
  (alias runtest)
  (action
   (diff golden/reject.archiveTarget.err reject.archiveTarget.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/archivedConstant) fixtures/reject/archivedConstant/token.a)
+ (action
+  (with-stderr-to
+   reject.archivedConstant.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/archivedConstant)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.archivedConstant.ll.err reject.archivedConstant.ll.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/archivedConstructor) fixtures/reject/archivedConstructor/started.a)
@@ -941,6 +985,20 @@
  (alias runtest)
  (action
   (diff golden/reject.archivedState.ll.err reject.archivedState.ll.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/assembledConstant))
+ (action
+  (with-stderr-to
+   reject.assembledConstant.ll.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/assembledConstant)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.assembledConstant.ll.err reject.assembledConstant.ll.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/assembledState))

@@ -152,16 +152,18 @@ extern "C" value zane_object_emit(value bitcode, value triple, value cpu) {
 }
 
 /* What the object [bytes] holds, as far as renaming it needs: the C names
-   of the global symbols it defines, each with whether it is data, and the
-   names of its sections. A Mach-O name is read without the `_` every C
+   of the global symbols it defines, each with whether it is data, the
+   names of its sections, its architecture and, for COFF, the text of its
+   `.drectve` section, the directives it passes the linker. A Mach-O name is read without the `_` every C
    name takes there, and one without it, which no C name can be, is left
    out; a Mach-O section is named `SEGMENT,section`, as C's `section`
    attribute names one. */
 extern "C" value zane_object_read(value bytes) {
   CAMLparam1(bytes);
   CAMLlocal5(result, tuple, defined, sections, arch);
+  CAMLlocal1(directed);
   std::vector<std::pair<std::string, std::string>> names, placed;
-  std::string failure, architecture;
+  std::string failure, architecture, directives;
   {
     llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bytes), caml_string_length(bytes)), "object");
     llvm::Expected<std::unique_ptr<llvm::object::ObjectFile>> file = llvm::object::ObjectFile::createObjectFile(buffer);
@@ -212,6 +214,13 @@ extern "C" value zane_object_read(value bytes) {
         std::string n = name->str();
         if (auto *m = llvm::dyn_cast<llvm::object::MachOObjectFile>(&o))
           n = m->getSectionFinalSegmentName(s.getRawDataRefImpl()).str() + "," + n;
+        if (o.isCOFF() && n == ".drectve") {
+          llvm::Expected<llvm::StringRef> text = s.getContents();
+          if (text)
+            directives += text->str() + " ";
+          else
+            llvm::consumeError(text.takeError());
+        }
         placed.emplace_back(n, "");
       }
     }
@@ -223,10 +232,12 @@ extern "C" value zane_object_read(value bytes) {
   defined = list_of(names, pair_of);
   sections = list_of(placed, [](const std::pair<std::string, std::string> &p) { return string_of(p.first); });
   arch = string_of(architecture);
-  tuple = caml_alloc_tuple(3);
+  directed = string_of(directives);
+  tuple = caml_alloc_tuple(4);
   Store_field(tuple, 0, defined);
   Store_field(tuple, 1, sections);
   Store_field(tuple, 2, arch);
+  Store_field(tuple, 3, directed);
   result = ok(tuple);
   CAMLreturn(result);
 }

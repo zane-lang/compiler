@@ -474,6 +474,16 @@ let apart_constructors () =
   Llvm.dispose_module m;
   Llvm.dispose_context ctx
 
+(* The symbols a COFF `.drectve` section's directives name, which an
+   archive member or assembled object may not name of its own. *)
+let directives () =
+  let names = Foreign.Objects.directive_names in
+  check "an export names its symbol" (names " /EXPORT:foo" = [ "foo" ]);
+  check "an export's data flag and quotes are not part of the name" (names "-export:\"bar\",DATA" = [ "bar" ]);
+  check "an export under another name names both" (names "/EXPORT:out=inner" = [ "out"; "inner" ]);
+  check "an include and an alternate name are read" (names "/include:a -ALTERNATENAME:b=c" = [ "a"; "b"; "c" ]);
+  check "a directive naming no symbol is skipped" (names "/DEFAULTLIB:msvcrt -merge:.a=.b" = [])
+
 let run () =
   patterns ();
   paths ();
@@ -488,4 +498,5 @@ let run () =
   glue_paths ();
   glue_prototypes ();
   asm_labels ();
-  apart_constructors ()
+  apart_constructors ();
+  directives ()

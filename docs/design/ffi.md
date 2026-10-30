@@ -422,6 +422,8 @@ state a source assembled apart (below) defines is refused too, since that
 copy is in an object of its own, which the glue's cannot share, and so is
 one an archive's member holds a variable of its own of the same name as,
 read from the member's local symbols: that member includes the header.
+Each holds for a private constant whose address the program can see, a
+copy of which is told apart from it, as it does for writable state.
 A constructor that sets up private state the glue keeps a copy of, which
 a function the glue keeps reads, stays, itself, through a function of the
 glue it calls or through a private variable's initializer, such as a
@@ -498,6 +500,11 @@ assembled from a module holding assembly, as LLVM's object reader names
 them, a Mach-O one as `SEGMENT,section`: an error naming the archive and
 its member, or the source, and the section. A section whose name
 is not a C identifier, such as `.text.hot` or `__DATA,__const`, is allowed.
+A COFF object's linker directives, its `.drectve` section, are not
+renamed either: one naming a symbol the object defines, such as the
+`/EXPORT:` that `__declspec(dllexport)` writes, or an `/INCLUDE:` or
+`/ALTERNATENAME:`, would ask the link for the old name, so it is an
+error naming the archive and its member, or the source, and the symbol.
 
 **F10. A foreign call is one CGT node, with its arguments laid out for C.**
 Lowering gives each foreign verb a Zane function whose body is one
@@ -919,8 +926,9 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   outside the root package, naming a missing global, or naming a
   `_Thread_local` one, a package whose C places a global in a section
   named `plugins`, one whose archive member or file-scope assembly places
-  data in a linker set, and a `system` row naming a library the linker
-  cannot find.
+  data in a linker set, an archive member exporting a function it defines
+  through a linker directive, and a `system` row naming a library the
+  linker cannot find.
 
 ---
 

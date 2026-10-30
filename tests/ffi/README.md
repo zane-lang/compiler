@@ -22,8 +22,8 @@ holds the C sources of the static library `NAME.a` beside it, which an
 `archive` row names: the rules build it for the host with `archive`,
 from `ZANE_CC` and `llvm-ar` (`AR` when set), and
 `dev/bin/windows-programs` builds it for Windows in a copy of the
-fixtures. One holding a file `target` is built for an architecture other
-than the host's.
+fixtures. One holding a file `target` is built for the triple the file
+names, or, when it is empty, for an architecture other than the host's.
 
 | Fixture | What it shows |
 |---|---|
@@ -56,7 +56,10 @@ than the host's.
 | `reject/assembledState` | An interface header whose private state, which a `static inline` function the glue calls reads, a source holding assembly, assembled apart, defines too, refused: its copy is in the source's own object |
 | `reject/archivedConstructor` | An interface header running a constructor of its own whose definitions an `archive` row's member compiles too, refused: the archive does not say which of the header's constructors it runs |
 | `reject/archivedExternalConstructor` | `reject/archivedConstructor` with the constructor external, refused the same way |
+| `reject/assembledConstant` | An interface header whose private constant, whose address the program can see, a source holding assembly, assembled apart, defines too, refused: the glue's copy would be told apart from the object's |
+| `reject/archivedConstant` | The same constant held by an `archive` row's member that includes the header, refused the same way |
 | `reject/archivedState` | An interface header whose private state, which a `static inline` function the glue calls reads, an `archive` row's member holds a copy of, refused: the glue cannot share it |
+| `reject/archiveExport` | An `archive` row's member, a Windows object, exporting the function it defines with `__declspec(dllexport)`, whose linker directive renaming cannot reach, refused when the package is checked |
 | `reject/archiveTarget` | An `archive` row's library built for another architecture than the build's target, refused when the package is checked |
 | `reject/linkerSet` | C placing globals in sections named as C identifiers, linker sets, each refused, beside one in a section that is not |
 | `reject/objectLinkerSet` | Linker sets placed through objects: an archive's member placing data in `plugins` and file-scope assembly placing data in `zane_hooks`, each refused, beside a section of each that is not one |

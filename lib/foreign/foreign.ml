@@ -161,6 +161,26 @@ let object_linker_sets ~file ~what (contents : Objects.contents) =
           sources = [];
         }
 
+(* An object whose linker directives name a symbol it defines, refused:
+   renaming rewrites its symbol table, not the directive, which would ask
+   the link for the old name. [what] says what the object is. *)
+let object_directives ~file ~what (contents : Objects.contents) =
+  match List.sort_uniq compare (List.filter (fun n -> List.mem n contents.Objects.defined) contents.directed) with
+  | [] -> Ok contents
+  | named ->
+      Error
+        {
+          diagnostics =
+            List.map
+              (fun name ->
+                Diagnostic.in_file file
+                  (Printf.sprintf
+                     "%s names `%s` in a linker directive, such as the export `__declspec(dllexport)` writes, which renaming the package's symbols cannot reach, so the link would ask for the old name (docs/design/ffi.md F9)"
+                     what name))
+              named;
+          sources = [];
+        }
+
 let refused file message = Error { diagnostics = [ Diagnostic.in_file file message ]; sources = [] }
 
 (* [source], whose module holds assembly, emitted for [triple] and [cpu] as
@@ -180,13 +200,15 @@ let assemble ?cache ~triple ~cpu (source : Compile.source) =
     | Error why ->
         Diagnostic.bug (Printf.sprintf "the object %s was assembled into does not read back: %s" file why)
   in
-  let* contents = object_linker_sets ~file ~what:"the object this C is assembled into" contents in
+  let what = "the object this C is assembled into" in
+  let* contents = object_linker_sets ~file ~what contents in
+  let* contents = object_directives ~file ~what contents in
   Ok { source; object_; contents }
 
 (* The static library an `archive` row of [dir]'s names, read member by
-   member, each member's sections held to the linker-set test and its
-   architecture to [triple]'s, so a check refuses what the build's link
-   would. *)
+   member, each member's sections held to the linker-set test, its linker
+   directives to [object_directives] and its architecture to [triple]'s,
+   so a check refuses what the build's link would. *)
 let archive ~triple dir (row : Settings.row) =
   let ( let* ) = Result.bind in
   let coda = Filename.concat dir Settings.file_name and path = Filename.concat dir row.value in
@@ -210,7 +232,8 @@ let archive ~triple dir (row : Settings.row) =
           (Printf.sprintf "the member `%s` is for %s, and the build's target is for %s" name contents.Objects.arch
              target)
     | Ok contents ->
-        object_linker_sets ~file:path ~what:(Printf.sprintf "the member `%s`" name) contents
+        let what = Printf.sprintf "the member `%s`" name in
+        Result.bind (object_linker_sets ~file:path ~what contents) (object_directives ~file:path ~what)
   in
   let* held = combine (List.map member members) in
   let union f = List.concat_map f held in
@@ -226,6 +249,7 @@ let archive ~triple dir (row : Settings.row) =
           locals = union (fun c -> c.Objects.locals);
           sections = union (fun c -> c.Objects.sections);
           arch = target;
+          directed = union (fun c -> c.Objects.directed);
         };
     }
 
@@ -381,10 +405,11 @@ let glue_files p ~dir files =
    state its glue module does: the glue's copy of that state is the one
    source's including the header (Foreign_c), and C itself gives each
    including source a copy of its own, so no one copy is the header's
-   (docs/design/ffi.md F9). One source assembled apart that defines it is
-   refused too, since its copy is in an object the glue's cannot share, and
-   so is an archive one of whose members holds a variable of its own of a
-   name the state has, which an archive's object holds for a header it
+   (docs/design/ffi.md F9). One source assembled apart that defines it, or
+   a private constant of the header's whose address the program can see,
+   is refused too, since its copy is in an object the glue's cannot share,
+   and so is an archive one of whose members holds a variable of its own
+   of such a name, which an archive's object holds for a header it
    includes. *)
 let shared_state (p : package) compiled =
   let listed paths =
@@ -395,23 +420,32 @@ let shared_state (p : package) compiled =
   in
   let refused (header, (glue : Compile.source)) =
     let state = Clang.private_state glue.bitcode in
-    let defines (s : Compile.source) =
-      List.mem header s.includes && List.exists (fun v -> List.mem v state) (Clang.private_state s.bitcode)
+    (* An object's copy of a private constant whose address the program
+       can see is told apart from the glue's, which the glue cannot share
+       either; two linked sources each keep their own, as in C. *)
+    let seen = state @ Clang.private_constants glue.bitcode in
+    let holds among (s : Compile.source) =
+      List.mem header s.includes && List.exists (fun v -> List.mem v among) (Clang.private_state s.bitcode)
+    in
+    let defines = holds state in
+    let assembles (s : Compile.source) =
+      holds seen s
+      || (List.mem header s.includes && List.exists (fun v -> List.mem v seen) (Clang.private_constants s.bitcode))
     in
     let file () =
       List.find_opt (fun h -> Compile.real (Filename.concat p.dir h) = header) p.headers
       |> Option.fold ~none:header ~some:(Filename.concat p.dir)
     in
     let path (s : Compile.source) = s.path in
-    match (List.filter defines p.sources, List.filter defines (List.map (fun a -> a.source) p.assembled)) with
+    match (List.filter defines p.sources, List.filter assembles (List.map (fun a -> a.source) p.assembled)) with
     | ([] | [ _ ]), [] -> (
-        match List.find_opt (fun a -> List.exists (fun v -> List.mem v state) a.held.Objects.locals) p.archives with
+        match List.find_opt (fun a -> List.exists (fun v -> List.mem v seen) a.held.Objects.locals) p.archives with
         | None -> None
         | Some a ->
             Some
               (Diagnostic.in_file (file ())
                  (Printf.sprintf
-                    "this interface header defines private state that `%s` holds a copy of, since a member of it includes it, so the glue, which calls the header's functions, cannot share it (docs/design/ffi.md F9)"
+                    "this interface header defines private state, or a private constant whose address the program can see, that `%s` holds a copy of, since a member of it includes it, so the glue, which calls the header's functions, cannot share it (docs/design/ffi.md F9)"
                     a.path)))
     | defining, [] ->
         Some
@@ -423,7 +457,7 @@ let shared_state (p : package) compiled =
         Some
           (Diagnostic.in_file (file ())
              (Printf.sprintf
-                "this interface header defines private state that %s, assembled apart since it holds assembly, defines too, since it includes it, so the glue, which calls the header's functions, cannot share it (docs/design/ffi.md F9)"
+                "this interface header defines private state, or a private constant whose address the program can see, that %s, assembled apart since it holds assembly, defines too, since it includes it, so the glue, which calls the header's functions, cannot share it (docs/design/ffi.md F9)"
                 (listed (List.map path assembled))))
   in
   match List.filter_map refused compiled with
