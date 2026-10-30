@@ -38,7 +38,10 @@ let stride t =
 
 (* A view of [size] bytes, which [write] writes into a read-only
    allocation of their own, and its address. *)
-let view ~size ~align write =
+let view c ~size ~align write =
+  (* Copying the bytes costs a step for each 64, as C copying them does
+     (F19). *)
+  C_eval.spend c (size / 64);
   let a = M.alloc ~readonly:true (M.View { empty = size = 0 }) ~size ~align in
   write a;
   M.Ptr { M.alloc = a; off = 0 }
@@ -64,7 +67,7 @@ let rec write prog c (p : M.ptr) (t : Ty.t) (v : v) =
           let s = stride e in
           let elems = match load q with VRecord a -> a | _ -> stop "an array that holds no elements" in
           scalar C_ir.Ptr
-            (view ~size:(s * n) ~align:(snd (Ty.size_align e)) (fun a ->
+            (view c ~size:(s * n) ~align:(snd (Ty.size_align e)) (fun a ->
                  Array.iteri (fun i x -> write prog c { M.alloc = a; off = i * s } e x) elems))
       | _ -> stop "an address C cannot read")
   (* An empty string or list, as a result slot starts out. *)
@@ -73,13 +76,13 @@ let rec write prog c (p : M.ptr) (t : Ty.t) (v : v) =
       M.store p.M.alloc (p.M.off + 8) (C_ir.Int 64) (M.Int (64, 0L))
   | Ty.Handle, VText s ->
       let n = String.length s in
-      scalar C_ir.Ptr (view ~size:n ~align:1 (fun a -> String.iteri (fun i ch -> M.put_bytes a i 1 (Int64.of_int (Char.code ch))) s));
+      scalar C_ir.Ptr (view c ~size:n ~align:1 (fun a -> String.iteri (fun i ch -> M.put_bytes a i 1 (Int64.of_int (Char.code ch))) s));
       M.store p.M.alloc (p.M.off + 8) (C_ir.Int 64) (M.Int (64, Int64.of_int n))
   | Ty.Handle, VList l ->
       let items = Array.sub l.items 0 l.count in
       let align = Array.fold_left (fun a (x : cell) -> max a (snd (Ty.size_align x.ty))) 1 items in
       scalar C_ir.Ptr
-        (view ~size:(l.stride * l.count) ~align (fun a ->
+        (view c ~size:(l.stride * l.count) ~align (fun a ->
              Array.iteri (fun i (x : cell) -> write prog c { M.alloc = a; off = i * l.stride } x.ty x.value) items));
       M.store p.M.alloc (p.M.off + 8) (C_ir.Int 64) (M.Int (64, Int64.of_int l.count))
   | Ty.Struct ts, VRecord a -> List.iteri (fun i (t, o) -> write prog c (at o) t a.(i)) (List.combine ts (Ty.offsets ts))

@@ -165,7 +165,17 @@ let int_compare pred bits x y =
 
 let rec icmp pred a b =
   let equality = pred = 32 || pred = 33 in
-  let offsets p q = truth (int_compare pred 64 (Int64.of_int p.off) (Int64.of_int q.off)) in
+  (* Two addresses into one allocation are equal as their offsets are. They
+     are ordered as their offsets are only while both lie within it, up to
+     one past its end: an allocation does not wrap around, and an offset
+     outside it, as -1, is ordered against the others by the running
+     address. *)
+  let inside p = p.off >= 0 && p.off <= p.alloc.size in
+  let offsets p q =
+    if (not equality) && not (inside p && inside q) then
+      stop "a comparison of addresses outside their allocation, whose order only the running process has";
+    truth (int_compare pred 64 (Int64.of_int p.off) (Int64.of_int q.off))
+  in
   match (a, b) with
   | Poison, _ | _, Poison -> Poison
   | Vec xs, Vec ys -> Vec (Array.map2 (icmp pred) xs ys)

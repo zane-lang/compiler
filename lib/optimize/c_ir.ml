@@ -368,21 +368,23 @@ let make modules =
   in
   { modules; pointer_bits; little; prefix; funcs = Hashtbl.create 64; globals = Hashtbl.create 64 }
 
-(* The definition of [name] in the first module holding one, else its
-   declaration in the first declaring it. *)
+(* The definition of [name] in the module holding one, else its
+   declaration in the first declaring it. Renaming gives every name with
+   external linkage one module (F9), so a name two modules define is local
+   to each, as a `static` function of the program's C and one of a retained
+   dependency's may be: which the caller means is its own module's, which
+   a name alone does not say, so reaching it stops. *)
 let lookup t table read decode defines name =
   match Hashtbl.find_opt table name with
   | Some x -> x
   | None ->
-      let rec first declared = function
-        | [] -> declared
-        | m :: rest -> (
-            match read m name with
-            | "" -> first declared rest
-            | s when defines s -> Some s
-            | s -> first (if declared = None then Some s else declared) rest)
+      let texts = List.filter (fun s -> s <> "") (List.map (fun m -> read m name) t.modules) in
+      let chosen =
+        match List.filter defines texts with
+        | [ s ] -> Some s
+        | [] -> List.nth_opt texts 0
+        | _ -> Value.stop ("a name more than one module defines: " ^ name)
       in
-      let chosen = first None t.modules in
       let x = Option.map decode chosen in
       Hashtbl.replace table name x;
       x

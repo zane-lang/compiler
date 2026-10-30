@@ -8,8 +8,9 @@
    address moved further than any allocation spans, a C function with no
    body, a zero-sized allocation, and a spent budget; and the sign-only result of `memcmp`.
    Then C reading the views F18 passes it, which fold, and comparing,
-   subtracting or writing them, which stop; and a constructor that stops,
-   which stops every call. *)
+   subtracting or writing them, which stop; a `static` name two modules
+   define, which stops; and a constructor that stops, which stops every
+   call. *)
 
 open Support
 module Value = Optimize__Value
@@ -189,6 +190,7 @@ ll s_fast(ll a, ll b) {
 }
 static _Thread_local ll counted;
 ll s_thread_local(ll a, ll b) { counted += a; return counted + b; }
+ll s_offset_order(ll a, ll b) { ll x = a; uintptr_t u = (uintptr_t)&x; return (u - 1 < u) + b; }
 ll s_index_wraps(ll a, ll b) { ll x = a; ll *p = &x; return (p + ((ll)1 << 61) == p) + b; }
 ll s_address_far(ll a, ll b) { ll x = a; uintptr_t p = (uintptr_t)&x; return (p == p + ((uintptr_t)1 << 63)) + b; }
 ll s_wide(ll a, ll b) { return (__uint128_t)(uint64_t)a + (uint64_t)b > (uint64_t)a; }
@@ -218,6 +220,7 @@ let stopping =
     ("s_poison_branch", (0x7fffffffL, 1L), "poison");
     ("s_compare_literals", (1L, 1L), "a comparison of addresses whose storage may be shared");
     ("s_one_past", (1L, 1L), "a comparison of an address one past");
+    ("s_offset_order", (1L, 0L), "a comparison of addresses outside their allocation");
     ("s_index_wraps", (1L, 0L), "an instruction the evaluator does not model: getelementptr");
     ("s_address_far", (1L, 0L), "an address moved further than any allocation spans");
     ("s_wide", (-1L, 1L), "an integer wider than 64 bits");
@@ -260,13 +263,16 @@ let evaluate_on m name args =
       declared = (fun _ _ -> None);
     }
   in
-  match C_eval.call (C_eval.create (C_ir.make [ m ]) hooks) name (args ()) with
+  match
+    let c = C_eval.create (C_ir.make [ m ]) hooks in
+    C_eval.call c name (args c)
+  with
   | C_memory.Poison -> Error "poison returned"
   | C_memory.Addr _ -> Error "the numeric value of an address returned"
   | v -> Ok v
   | exception Value.Stop why -> Error why
 
-let evaluate m name a b = evaluate_on m name (fun () -> [ C_memory.Int (64, a); C_memory.Int (64, b) ])
+let evaluate m name a b = evaluate_on m name (fun _ -> [ C_memory.Int (64, a); C_memory.Int (64, b) ])
 
 (* What the target prints for each case: the bitcode linked into a
    program calling each case. *)
@@ -346,8 +352,8 @@ ll v_null(const char *x) { return x == NULL; }
 ll v_store(char *x) { x[0] = 'z'; return 0; }
 |}
 
-let text s =
-  C_cross.view ~size:(String.length s) ~align:1 (fun a ->
+let text s c =
+  C_cross.view c ~size:(String.length s) ~align:1 (fun a ->
       String.iteri (fun i c -> C_memory.put_bytes a i 1 (Int64.of_int (Char.code c))) s)
 
 let views base =
@@ -356,7 +362,7 @@ let views base =
   | Some bitcode ->
       with_module bitcode (fun m ->
           check "C reads a view's bytes"
-            (evaluate_on m "v_sum" (fun () -> [ text "zane"; C_memory.Int (64, 4L) ]) = Ok (C_memory.Int (64, 430L)));
+            (evaluate_on m "v_sum" (fun c -> [ text "zane" c; C_memory.Int (64, 4L) ]) = Ok (C_memory.Int (64, 430L)));
           List.iter
             (fun (name, args, why) ->
               match evaluate_on m name args with
@@ -365,13 +371,29 @@ let views base =
                   Printf.printf "  %s: %s\n" name (match r with Ok _ -> "folded" | Error w -> "stopped: " ^ w);
                   check (Printf.sprintf "C evaluation stops at %s: %s" name why) false)
             [
-              ("v_same", (fun () -> [ text "zane"; text "zane" ]), "a comparison of addresses whose storage may be shared");
-              ("v_heap", (fun () -> [ text "zane" ]), "a comparison of addresses whose storage may be shared");
-              ("v_distance", (fun () -> [ text "ab"; text "ab" ]), "the numeric value of an address");
-              ("v_null", (fun () -> [ text "" ]), "a comparison of an empty view's address with null");
-              ("v_store", (fun () -> [ text "zane" ]), "a store into memory C may not write");
+              ("v_same", (fun c -> [ text "zane" c; text "zane" c ]), "a comparison of addresses whose storage may be shared");
+              ("v_heap", (fun c -> [ text "zane" c ]), "a comparison of addresses whose storage may be shared");
+              ("v_distance", (fun c -> [ text "ab" c; text "ab" c ]), "the numeric value of an address");
+              ("v_null", (fun c -> [ text "" c ]), "a comparison of an empty view's address with null");
+              ("v_store", (fun c -> [ text "zane" c ]), "a store into memory C may not write");
             ];
-          check "a view that is not empty is not null" (evaluate_on m "v_null" (fun () -> [ text "z" ]) = Ok (C_memory.Int (64, 0L))))
+          check "a view that is not empty is not null" (evaluate_on m "v_null" (fun c -> [ text "z" c ]) = Ok (C_memory.Int (64, 0L))))
+
+(* Two modules each defining a `static` helper of one name, as the
+   program's C and a retained dependency's may: a call of it stops, since
+   the name alone does not say whose it is. *)
+let shared_static base =
+  let source k = Printf.sprintf "typedef long long ll;\nstatic ll helper(void) { return %d; }\nll call_%d(ll a, ll b) { return helper() + a + b; }\n" k k in
+  match (compile base "first" (source 1), compile base "second" (source 2)) with
+  | Some first, Some second ->
+      with_module first (fun m1 ->
+          with_module second (fun m2 ->
+              let hooks = { C_eval.spend = (fun _ -> ()); declared = (fun _ _ -> None) } in
+              check "a static name two modules define stops a call of it"
+                (match C_eval.call (C_eval.create (C_ir.make [ m1; m2 ]) hooks) "call_2" [ C_memory.Int (64, 0L); C_memory.Int (64, 0L) ] with
+                | _ -> false
+                | exception Value.Stop w -> String.starts_with ~prefix:"a name more than one module defines" w)))
+  | _ -> check "the C evaluator's two-module case compiles" false
 
 (* A constructor that stops leaves no state the running program has. *)
 let constructed_source =
@@ -396,4 +418,5 @@ let run () =
       agree base;
       stop base;
       views base;
+      shared_static base;
       constructed base)
