@@ -13,6 +13,7 @@ under `fixtures/` one package. `golden/NAME.check` holds what
 | `reject/badSetting` | A setting that does not exist |
 | `reject/cError` | A C source that does not compile, reported at its line |
 | `reject/escapes` | Paths that leave the package's directory through `..`, each reported |
+| `reject/headerError` | An interface header that does not compile, reported at its line |
 | `reject/fixedMacro` | A `define` of a macro the fixed flags set |
 | `reject/noMatch` | A `source` pattern that matches no file |
 | `reject/notCoda` | A `c.coda` that is not Coda, reported where the parser stopped |

@@ -6,13 +6,16 @@ module Settings = Settings
 module Probe = Probe
 module Clang = Clang
 module Compile = Compile
+module Interface = Interface
 
 (* What a package's C build is: the rows of its `c.coda` that apply to the
-   build, its interface headers, and its C sources compiled. *)
+   build, its interface headers and what they declare, and its C sources
+   compiled. *)
 type package = {
   dir : string;
   rows : Settings.row list;
   headers : string list;
+  interface : Interface.t;
   sources : Compile.source list;
 }
 
@@ -45,6 +48,13 @@ let combine results =
         sources = List.concat_map (fun (f : failure) -> f.sources) failures;
       }
 
+(* Both results as one: the second's value, or every problem either had. *)
+let both a b =
+  match (a, b) with
+  | Ok a, Ok b -> Ok (a, b)
+  | Error e, Ok _ | Ok _, Error e -> Error e
+  | Error a, Error b -> Error { diagnostics = a.diagnostics @ b.diagnostics; sources = a.sources @ b.sources }
+
 (* [dir]'s `c.coda`, the rows that apply to a build for [triple]. *)
 let read_settings ~triple dir =
   let coda = Filename.concat dir Settings.file_name in
@@ -58,12 +68,21 @@ let with_sources (dir, rows) =
   |> Result.map_error (fun diagnostics -> { diagnostics; sources = [] })
   |> Result.map (fun sources -> (dir, rows, sources))
 
-(* One package's C sources compiled, with the [fixed] flags and its own. *)
+(* One package's C: its interface headers read and its sources compiled,
+   with the [fixed] flags and its own. *)
 let compile_package ?cache ~fixed ~headers (dir, rows, sources) =
   let maps = Compile.prefix_maps ~dir ~headers in
   let flags = fixed @ Compile.map_flags maps @ Compile.package_flags dir rows in
-  combine (List.map (fun s -> Compile.compile_source ?cache ~maps flags (Filename.concat dir s)) sources)
-  |> Result.map (fun sources -> { dir; rows; headers = Settings.interface_headers dir; sources })
+  let interface_headers = Settings.interface_headers dir in
+  let interface =
+    combine (List.map (fun h -> Compile.interface flags (Filename.concat dir h)) interface_headers)
+    |> Result.map (List.fold_left Interface.merge Interface.empty)
+  in
+  let compiled =
+    combine (List.map (fun s -> Compile.compile_source ?cache ~maps flags (Filename.concat dir s)) sources)
+  in
+  both interface compiled
+  |> Result.map (fun (interface, sources) -> { dir; rows; headers = interface_headers; interface; sources })
 
 (* Every package's C, once the target's include directories are known
    from [cc]. *)
@@ -81,7 +100,9 @@ let compile_all ?cache ~work ~cc ~triple ~target packages =
       let fixed = Compile.fixed_flags ~triple ~headers ~include_dirs in
       combine (List.map (compile_package ?cache ~fixed ~headers) packages)
 
-let no_c (dir, rows, _) = { dir; rows; headers = Settings.interface_headers dir; sources = [] }
+let no_c (dir, rows, _) = { dir; rows; headers = []; interface = Interface.empty; sources = [] }
+
+let has_c (dir, _, sources) = sources <> [] || Settings.interface_headers dir <> []
 
 (* Each of [dirs]' C build, for a build for [target], its C compiled by the
    linked clang with the include directories [cc] searches for that
@@ -92,6 +113,6 @@ let compile_packages ?(cache = Cache.dir ()) ~cc ~target dirs =
   let ( let* ) = Result.bind in
   let* packages = combine (List.map (read_settings ~triple) dirs) in
   let* packages = combine (List.map with_sources packages) in
-  if List.exists (fun (_, _, sources) -> sources <> []) packages then
+  if List.exists has_c packages then
     with_work_dir (fun work -> compile_all ?cache ~work ~cc ~triple ~target packages)
   else Ok (List.map no_c packages)
