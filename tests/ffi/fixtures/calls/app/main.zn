@@ -137,6 +137,7 @@ Unit main() {
 	show(String(lib$onceCallSame()));
 	show(String(lib$onceSetupRuns()));
 	show(String(lib$onceSetupSame()));
+	show(String(lib$onceExternalRuns()));
 	show(String(lib$primed()));
 	show(String(lib$primedRuns()));
 	show(String(lib$wasWarmed()));

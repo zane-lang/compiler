@@ -200,19 +200,23 @@ static const char shared_prefix[] = "zane.shared.";
    of a header no source includes stays, and so does one that sets up
    private state of the glue's own, which [zane_share_state] did not make
    the source's and a function of the glue still reads, since the source's
-   copy sets up only its own. One [zane_share_state] made the source's is
-   the source's to run, which its own list does. */
-static void drop_repeated(llvm::Module *g, const std::set<std::string> &run, const char *list) {
+   copy sets up only its own. An entry for a function the glue no longer
+   defines, as [zane_drop_defined] left one with external linkage the
+   header defines and [zane_share_state] a private one, is a repeat when
+   the modules [before] the glue list that function themselves. */
+static void drop_repeated(llvm::Module *g, llvm::Module *before, const std::set<std::string> &run, const char *list) {
   llvm::GlobalVariable *v = g->getNamedGlobal(list);
   if (!v || !v->hasInitializer()) return;
   auto *a = llvm::dyn_cast<llvm::ConstantArray>(v->getInitializer());
   if (!a) return;
+  std::set<std::string> listed_before;
+  for (llvm::Function *f : listed(before, list)) listed_before.insert(f->getName().str());
   std::vector<llvm::Constant *> kept;
   for (llvm::Use &e : a->operands()) {
     auto *entry = llvm::cast<llvm::Constant>(e.get());
     auto *f = llvm::dyn_cast<llvm::Function>(entry->getOperand(1)->stripPointerCasts());
     bool again = f && (f->hasLocalLinkage() ? run.count(run_by(list, *f)) && !sets_up_private_state(*f)
-                                            : f->isDeclaration() && f->getName().starts_with(shared_prefix));
+                                            : f->isDeclaration() && listed_before.count(f->getName().str()));
     if (!again) kept.push_back(entry);
   }
   if (kept.size() == a->getNumOperands()) return;
@@ -514,6 +518,6 @@ extern "C" value zane_drop_defined(value glue, value before, value run) {
   }
   // After the copies above are declarations, which no longer read any
   // state of the glue's.
-  for (const char *list : lists) drop_repeated(g, repeated, list);
+  for (const char *list : lists) drop_repeated(g, b, repeated, list);
   CAMLreturn(Val_unit);
 }

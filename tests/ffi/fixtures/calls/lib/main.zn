@@ -51,6 +51,7 @@ I64 onceKept() foreign "once_kept_value";
 I64 onceCallSame() foreign "once_call_same";
 I64 onceSetupRuns() foreign "once_setup_runs";
 I64 onceSetupSame() foreign "once_setup_same";
+I64 onceExternalRuns() foreign "once_external_runs";
 I64 primed() foreign "primed";
 I64 primedRuns() foreign "primed_runs_seen";
 I64 wasWarmed() foreign "was_warmed";
