@@ -14,8 +14,9 @@ external members_raw : string -> ((string * string) list, string) result = "zane
 (* What an object holds: the C names of the global symbols it defines,
    and of those the ones that are data, the names of the variables local
    to it, its sections' names, the architecture it is for, as
-   [triple_arch] spells a triple's, and the symbols its linker directives
-   name. *)
+   [triple_arch] spells a triple's, the symbols its linker directives
+   name, and, for Mach-O, the global symbols it defines without the `_`
+   every C name takes there, which renaming cannot reach. *)
 type contents = {
   defined : string list;
   data : string list;
@@ -23,6 +24,7 @@ type contents = {
   sections : string list;
   arch : string;
   directed : string list;
+  unprefixed : string list;
 }
 
 (* The symbols the COFF linker directives [text] names, as a `.drectve`
@@ -53,12 +55,14 @@ let read bytes =
   Result.map
     (fun (names, sections, arch, directives) ->
       {
-        defined = List.filter_map (fun (n, kind) -> if kind = "local" then None else Some n) names;
+        defined =
+          List.filter_map (fun (n, kind) -> if kind = "local" || kind = "unprefixed" then None else Some n) names;
         data = kind "data" names;
         locals = kind "local" names;
         sections;
         arch;
         directed = directive_names directives;
+        unprefixed = kind "unprefixed" names;
       })
     (read_raw bytes)
 

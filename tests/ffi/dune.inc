@@ -25,6 +25,14 @@
    (run sh %{dep:../../../archive} exported.a exported.archive))))
 
 (subdir
+ fixtures/reject/archiveLabel
+ (rule
+  (targets labelled.a)
+  (deps (glob_files labelled.archive/*) (env_var ZANE_CC) (env_var AR))
+  (action
+   (run sh %{dep:../../../archive} labelled.a labelled.archive))))
+
+(subdir
  fixtures/reject/archiveTarget
  (rule
   (targets other.a)
@@ -915,6 +923,20 @@
  (alias runtest)
  (action
   (diff golden/reject.archiveExport.err reject.archiveExport.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/archiveLabel) fixtures/reject/archiveLabel/labelled.a)
+ (action
+  (with-stderr-to
+   reject.archiveLabel.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/archiveLabel)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.archiveLabel.err reject.archiveLabel.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/archiveTarget) fixtures/reject/archiveTarget/other.a)

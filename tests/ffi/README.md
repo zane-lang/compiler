@@ -60,6 +60,7 @@ names, or, when it is empty, for an architecture other than the host's.
 | `reject/archivedConstant` | The same constant held by an `archive` row's member that includes the header, refused the same way |
 | `reject/archivedState` | An interface header whose private state, which a `static inline` function the glue calls reads, an `archive` row's member holds a copy of, refused: the glue cannot share it |
 | `reject/archiveExport` | An `archive` row's member, a Windows object, exporting the function it defines with `__declspec(dllexport)`, whose linker directive renaming cannot reach, refused when the package is checked |
+| `reject/archiveLabel` | An `archive` row's member, a Mach-O object, defining a global symbol an `__asm__` label names without the `_` a C name takes there, which renaming cannot reach, refused when the package is checked |
 | `reject/archiveTarget` | An `archive` row's library built for another architecture than the build's target, refused when the package is checked |
 | `reject/linkerSet` | C placing globals in sections named as C identifiers, linker sets, each refused, beside one in a section that is not |
 | `reject/objectLinkerSet` | Linker sets placed through objects: an archive's member placing data in `plugins` and file-scope assembly placing data in `zane_hooks`, each refused, beside a section of each that is not one |

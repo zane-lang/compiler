@@ -161,25 +161,27 @@ let object_linker_sets ~file ~what (contents : Objects.contents) =
           sources = [];
         }
 
-(* An object whose linker directives name a symbol it defines, refused:
-   renaming rewrites its symbol table, not the directive, which would ask
-   the link for the old name. [what] says what the object is. *)
-let object_directives ~file ~what (contents : Objects.contents) =
-  match List.sort_uniq compare (List.filter (fun n -> List.mem n contents.Objects.defined) contents.directed) with
+(* An object holding a symbol renaming cannot reach, refused, [what]
+   saying what the object is: one its linker directives name of those it
+   defines, since renaming rewrites its symbol table, not the directive,
+   which would ask the link for the old name; and a Mach-O global without
+   the `_` every C name takes there, which has no C name to rename it by,
+   so two versions of the package would define it twice. *)
+let unreachable_symbols ~file ~what (contents : Objects.contents) =
+  let directed = List.filter (fun n -> List.mem n contents.Objects.defined) contents.directed in
+  let problem why name = Diagnostic.in_file file (Printf.sprintf why what name) in
+  match
+    List.map
+      (problem
+         "%s names `%s` in a linker directive, such as the export `__declspec(dllexport)` writes, which renaming the package's symbols cannot reach, so the link would ask for the old name (docs/design/ffi.md F9)")
+      (List.sort_uniq compare directed)
+    @ List.map
+        (problem
+           "%s defines the global symbol `%s` without the `_` a C name takes on this target, as an `__asm__` label or assembly can, which renaming the package's symbols cannot reach, so two versions of the package would both define it (docs/design/ffi.md F9)")
+        (List.sort_uniq compare contents.unprefixed)
+  with
   | [] -> Ok contents
-  | named ->
-      Error
-        {
-          diagnostics =
-            List.map
-              (fun name ->
-                Diagnostic.in_file file
-                  (Printf.sprintf
-                     "%s names `%s` in a linker directive, such as the export `__declspec(dllexport)` writes, which renaming the package's symbols cannot reach, so the link would ask for the old name (docs/design/ffi.md F9)"
-                     what name))
-              named;
-          sources = [];
-        }
+  | diagnostics -> Error { diagnostics; sources = [] }
 
 let refused file message = Error { diagnostics = [ Diagnostic.in_file file message ]; sources = [] }
 
@@ -202,12 +204,12 @@ let assemble ?cache ~triple ~cpu (source : Compile.source) =
   in
   let what = "the object this C is assembled into" in
   let* contents = object_linker_sets ~file ~what contents in
-  let* contents = object_directives ~file ~what contents in
+  let* contents = unreachable_symbols ~file ~what contents in
   Ok { source; object_; contents }
 
 (* The static library an `archive` row of [dir]'s names, read member by
-   member, each member's sections held to the linker-set test, its linker
-   directives to [object_directives] and its architecture to [triple]'s,
+   member, each member's sections held to the linker-set test, its
+   symbols to [unreachable_symbols] and its architecture to [triple]'s,
    so a check refuses what the build's link would. *)
 let archive ~triple dir (row : Settings.row) =
   let ( let* ) = Result.bind in
@@ -233,7 +235,7 @@ let archive ~triple dir (row : Settings.row) =
              target)
     | Ok contents ->
         let what = Printf.sprintf "the member `%s`" name in
-        Result.bind (object_linker_sets ~file:path ~what contents) (object_directives ~file:path ~what)
+        Result.bind (object_linker_sets ~file:path ~what contents) (unreachable_symbols ~file:path ~what)
   in
   let* held = combine (List.map member members) in
   let union f = List.concat_map f held in
@@ -250,6 +252,7 @@ let archive ~triple dir (row : Settings.row) =
           sections = union (fun c -> c.Objects.sections);
           arch = target;
           directed = union (fun c -> c.Objects.directed);
+          unprefixed = union (fun c -> c.Objects.unprefixed);
         };
     }
 

@@ -505,6 +505,9 @@ renamed either: one naming a symbol the object defines, such as the
 `/EXPORT:` that `__declspec(dllexport)` writes, or an `/INCLUDE:` or
 `/ALTERNATENAME:`, would ask the link for the old name, so it is an
 error naming the archive and its member, or the source, and the symbol.
+So is a Mach-O global symbol without the `_` every C name takes there,
+which an `__asm__` label or assembly can define: it has no C name to
+rename it by, so two versions of the package would both define it.
 
 **F10. A foreign call is one CGT node, with its arguments laid out for C.**
 Lowering gives each foreign verb a Zane function whose body is one
@@ -927,7 +930,8 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   `_Thread_local` one, a package whose C places a global in a section
   named `plugins`, one whose archive member or file-scope assembly places
   data in a linker set, an archive member exporting a function it defines
-  through a linker directive, and a `system` row naming a library the
+  through a linker directive, one defining a Mach-O symbol no C name
+  renames, and a `system` row naming a library the
   linker cannot find.
 
 ---

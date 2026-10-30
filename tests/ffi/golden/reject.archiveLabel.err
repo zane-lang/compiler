@@ -1,0 +1,2 @@
+File "fixtures/reject/archiveLabel/labelled.a":
+Error: the member `labelled.o` defines the global symbol `helper` without the `_` a C name takes on this target, as an `__asm__` label or assembly can, which renaming the package's symbols cannot reach, so two versions of the package would both define it (docs/design/ffi.md F9)

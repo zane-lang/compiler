@@ -154,10 +154,11 @@ extern "C" value zane_object_emit(value bitcode, value triple, value cpu) {
 /* What the object [bytes] holds, as far as renaming it needs: the C names
    of the global symbols it defines, each with whether it is data, the
    names of its sections, its architecture and, for COFF, the text of its
-   `.drectve` section, the directives it passes the linker. A Mach-O name is read without the `_` every C
-   name takes there, and one without it, which no C name can be, is left
-   out; a Mach-O section is named `SEGMENT,section`, as C's `section`
-   attribute names one. */
+   `.drectve` section, the directives it passes the linker. A Mach-O name
+   is read without the `_` every C name takes there, and a global one
+   without it, which no C name can be, is reported as unprefixed; a
+   Mach-O section is named `SEGMENT,section`, as C's `section` attribute
+   names one. */
 extern "C" value zane_object_read(value bytes) {
   CAMLparam1(bytes);
   CAMLlocal5(result, tuple, defined, sections, arch);
@@ -192,11 +193,16 @@ extern "C" value zane_object_read(value bytes) {
           continue;
         }
         std::string n = name->str();
+        bool data = *type == llvm::object::SymbolRef::ST_Data;
         if (macho) {
-          if (n.empty() || n[0] != '_') continue;
+          // A global without the `_` an `__asm__` label or assembly gave
+          // has no C name to rename it by: it is reported as such.
+          if (n.empty() || n[0] != '_') {
+            if (!n.empty() && (*flags & F::SF_Global)) names.emplace_back(n, "unprefixed");
+            continue;
+          }
           n = n.substr(1);
         }
-        bool data = *type == llvm::object::SymbolRef::ST_Data;
         // A local symbol matters only as private state: a variable of its
         // own, which an interface header the glue compiles may define too.
         if (!(*flags & F::SF_Global)) {
