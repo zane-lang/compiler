@@ -99,7 +99,7 @@ let rec weigh funcs e =
             ||
             match x.Expr.node with
             | Expr.Call { fn; _ } -> call_remembers fn
-            | Expr.Call_value _ | Expr.Runtime _ | Expr.Copy _ -> true
+            | Expr.Call_value _ | Expr.Runtime _ | Expr.Foreign_call _ | Expr.Copy _ -> true
             | _ -> false)
           ~stat:(fun st ->
             large (1 + match st with Stat.Reserve { ty; _ } -> size_steps ty | _ -> 0)
@@ -577,6 +577,9 @@ let rec expr run fr (e : Expr.t) : v =
   | Expr.Runtime { fn; args } ->
       let args = List.map (expr run fr) args in
       runtime run fn args
+  (* C's code is run here once the evaluator knows it (docs/design/ffi.md
+     F16); until then a call into it is the running program's. *)
+  | Expr.Foreign_call _ -> stop "a call into C, which only the running program makes"
   | Expr.Binary { op; left; right } ->
       (* The left operand runs first. *)
       let l = expr run fr left in

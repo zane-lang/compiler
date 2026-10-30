@@ -25,6 +25,8 @@
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/IR/InlineAsm.h"
+#include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CrashRecoveryContext.h"
@@ -297,6 +299,21 @@ public:
     str(q.getCanonicalType().getUnqualifiedType().getAsString());
   }
 
+  /* A function's parameter types and result type as the header spells
+     them, for the glue to name them by (docs/design/ffi.md F8): how many
+     parameters, then each, then the result. */
+  void spellings(clang::QualType q) {
+    const clang::PrintingPolicy &policy = ctx.getPrintingPolicy();
+    if (const clang::FunctionProtoType *f = q->getAs<clang::FunctionProtoType>()) {
+      num(f->getNumParams());
+      for (clang::QualType p : f->getParamTypes()) str(p.getAsString(policy));
+      return str(f->getReturnType().getAsString(policy));
+    }
+    num(0);
+    if (const clang::FunctionType *f = q->getAs<clang::FunctionType>()) return str(f->getReturnType().getAsString(policy));
+    str("");
+  }
+
   /* Every struct a written type reached, laid out as the target lays it
      out: its kind, whether the main file declares it, whether it is
      complete, its size and alignment in bits, and each field's name, type,
@@ -366,6 +383,7 @@ public:
         w.str(f->getName().str());
         w.word(f->hasExternalFormalLinkage() ? "1" : "0");
         w.type(f->getType());
+        w.spellings(f->getType());
       } else if (auto *v = llvm::dyn_cast<clang::VarDecl>(d)) {
         w.word("var");
         w.str(v->getName().str());
@@ -509,4 +527,89 @@ extern "C" value zane_bitcode_defined_variables(value bitcode) {
     list = cell;
   }
   CAMLreturn(list);
+}
+
+/* The private state [bitcode]'s module defines: each named variable local
+   to it that the program can write. */
+extern "C" value zane_bitcode_private_state(value bitcode) {
+  CAMLparam1(bitcode);
+  CAMLlocal2(list, cell);
+  std::vector<std::string> names;
+  {
+    llvm::LLVMContext context;
+    llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
+    llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
+    if (module) {
+      for (const llvm::GlobalVariable &g : (*module)->globals())
+        if (g.hasLocalLinkage() && !g.isConstant() && g.hasName() && !g.getName().starts_with("llvm."))
+          names.push_back(g.getName().str());
+    } else {
+      llvm::consumeError(module.takeError());
+    }
+  }
+  list = Val_emptylist;
+  for (auto it = names.rbegin(); it != names.rend(); ++it) {
+    cell = caml_alloc(2, 0);
+    Store_field(cell, 0, caml_copy_string(it->c_str()));
+    Store_field(cell, 1, list);
+    list = cell;
+  }
+  CAMLreturn(list);
+}
+
+/* Every global object [bitcode]'s module places in an explicit section,
+   with its section's name: the linker-set check reads them
+   (docs/design/ffi.md F9). */
+extern "C" value zane_bitcode_sections(value bitcode) {
+  CAMLparam1(bitcode);
+  CAMLlocal3(list, cell, pair);
+  std::vector<std::pair<std::string, std::string>> placed;
+  {
+    llvm::LLVMContext context;
+    llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
+    llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
+    if (module) {
+      for (const llvm::GlobalObject &g : (*module)->global_objects())
+        if (g.hasSection()) placed.emplace_back(g.getName().str(), g.getSection().str());
+    } else {
+      llvm::consumeError(module.takeError());
+    }
+  }
+  list = Val_emptylist;
+  for (auto it = placed.rbegin(); it != placed.rend(); ++it) {
+    pair = caml_alloc_tuple(2);
+    Store_field(pair, 0, caml_copy_string(it->first.c_str()));
+    Store_field(pair, 1, caml_copy_string(it->second.c_str()));
+    cell = caml_alloc(2, 0);
+    Store_field(cell, 0, pair);
+    Store_field(cell, 1, list);
+    list = cell;
+  }
+  CAMLreturn(list);
+}
+
+/* Whether [bitcode]'s module holds assembly: file-scope `__asm__`, kept as
+   the module's `module asm` text, or an `__asm__` statement, kept as an
+   inline-assembly call. Either can name a symbol no global value stands
+   for, which renaming the module's globals would miss
+   (docs/design/ffi.md F9). */
+extern "C" value zane_bitcode_has_assembly(value bitcode) {
+  CAMLparam1(bitcode);
+  bool found = false;
+  {
+    llvm::LLVMContext context;
+    llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
+    llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
+    if (module) {
+      found = !(*module)->getModuleInlineAsm().empty();
+      for (const llvm::Function &f : **module)
+        for (const llvm::BasicBlock &b : f)
+          for (const llvm::Instruction &i : b)
+            if (const auto *call = llvm::dyn_cast<llvm::CallBase>(&i))
+              if (call->isInlineAsm()) found = true;
+    } else {
+      llvm::consumeError(module.takeError());
+    }
+  }
+  CAMLreturn(Val_bool(found));
 }

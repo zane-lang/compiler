@@ -1,0 +1,9 @@
+#include <zane_ffi.h>
+
+static int64_t primed_value;
+__attribute__((constructor)) static void prime(void) { primed_value = 7; }
+int64_t primed(void) { return primed_value; }
+
+int64_t primed_runs;
+__attribute__((constructor)) static void prime_run(void) { primed_runs++; }
+int64_t primed_runs_seen(void) { return primed_runs; }

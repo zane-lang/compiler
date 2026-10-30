@@ -1,0 +1,4 @@
+File "fixtures/reject/foreignVariable/main.zn", line 13, characters 25-37:
+13 |     clock Clock foreign "zane_clock";
+   |                         ^^^^^^^^^^^^
+Error: lowering does not handle a foreign variable yet (docs/design/ffi.md §7)

@@ -51,7 +51,10 @@ type record = {
 
 and layout = { size : int; align : int; fields : field list }
 
-type func = { ty : ctype; external_ : bool }
+(* A function's type, whether it has external linkage, and its
+   parameters' and its result's types as the header spells them, which the
+   glue names them by (docs/design/ffi.md F8). *)
+type func = { ty : ctype; external_ : bool; spelled : string list; spelled_result : string }
 (* A variable's type is read without its top-level `const`, which
    [constant] keeps. *)
 type var = { ty : ctype; external_ : bool; thread_local : bool; constant : bool }
@@ -158,7 +161,9 @@ let read text =
         | "fun" ->
             let name = next () in
             let external_ = flag () in
-            let f = { ty = ty (); external_ } in
+            let ty = ty () in
+            let spelled = List.init (int ()) (fun _ -> next ()) in
+            let f = { ty; external_; spelled; spelled_result = next () } in
             entries { t with functions = (name, f) :: t.functions }
         | "var" ->
             let name = next () in
@@ -204,7 +209,7 @@ let merge a b =
     List.map
       (fun (n, (f : func)) ->
         match (f.ty, List.assoc_opt n b.functions) with
-        | Unprototyped _, Some ({ ty = Function _; _ } as f') -> (n, { f with ty = f'.ty })
+        | Unprototyped _, Some ({ ty = Function _; _ } as f') -> (n, { f' with external_ = f.external_ })
         | _ -> (n, f))
       a.functions
   in

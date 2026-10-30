@@ -306,27 +306,31 @@ let run_file stage (filename, input) =
 let ( let* ) = Result.bind
 
 (* Lowering and codegen, once semantics has accepted the program. *)
-let generate packages build program =
-  let* cgt =
-    Driver.lower ~regions:build.regions
-      ~root:(Option.value build.root ~default:true)
-      packages program
-  in
+let generate packages c_code build program =
+  let root = Option.value build.root ~default:true in
+  let* cgt = Driver.lower ~regions:build.regions ~root packages program in
   let target = build.target and optimize = build.optimize and pack = build.pack and memoize = build.memoize in
   let cgt = Driver.optimize ~optimize cgt in
+  let c () = Driver.c_modules ?target ~root packages c_code cgt in
   match build.view with
   | Cgt ->
       print_string (Tree_graph.render (Cgt.to_node cgt));
       Ok ()
   | Ir ->
-      let* ir = Driver.ir ?target ~pack ~memoize ~regions:build.regions ~optimize cgt in
+      let* c = c () in
+      let* ir = Driver.ir ?target ~pack ~memoize ~c ~regions:build.regions ~optimize cgt in
       print_string ir;
       Ok ()
   | Build output ->
-      Driver.executable ?target ~pack ~memoize ~regions:build.regions ~tiered:build.tiered ~optimize ~link:build.link cgt
-        output
-  | Tier_up output -> Driver.tier_up ?target ~pack ~memoize ~regions:build.regions cgt output
-  | Object output -> Driver.object_file ?target ~pack ~memoize ~regions:build.regions ~optimize cgt output
+      let* c = c () in
+      Driver.executable ?target ~pack ~memoize ~c ~regions:build.regions ~tiered:build.tiered ~optimize
+        ~link:build.link cgt output
+  | Tier_up output ->
+      let* c = c () in
+      Driver.tier_up ?target ~pack ~memoize ~c ~regions:build.regions cgt output
+  | Object output ->
+      let* c = c () in
+      Driver.object_file ?target ~pack ~memoize ~c ~regions:build.regions ~optimize cgt output
   | Assembled | Check | Declarations | Typed -> Ok ()
 
 (* Without `--root` or `--no-root`, the root needs its `main` once it is
@@ -357,7 +361,7 @@ let run_packages build =
       | Declarations | Typed ->
           print_string (Tree_graph.render (Tst.to_node ~bodies:(build.view = Typed) program));
           Ok ()
-      | _ -> generate packages build program)
+      | _ -> generate packages c build program)
 
 (* The one place the binary exits: 0 when the run did what it was asked,
    1 when the compiler refused the program, 2 for a command it cannot run,

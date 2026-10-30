@@ -108,7 +108,11 @@ let func st (v : verb) : Func.t =
         scope = { arena = None; settles = []; wants = [] };
       }
     in
-    let body = block ~enter st ctx v.body in
+    let body =
+      match Hashtbl.find_opt st.foreign_verbs v.key with
+      | Some f -> Lower_foreign.body st env span v f
+      | None -> block ~enter st ctx v.body
+    in
     { Func.symbol = symbol st v; linkage; params; places; ret = returned o; body; values = st.values }
   end
 
@@ -196,7 +200,7 @@ let library_roots st (root : T.Package.t) =
           | _ -> ()
       in
       match d.T.Decl.node with
-      | T.Decl.Verb { signature; body = T.Decl.Checked _ } -> declared signature
+      | T.Decl.Verb { signature; body = T.Decl.Checked _ | T.Decl.Foreign _ } -> declared signature
       | T.Decl.Subscript { signature; value = Some _; _ } -> declared signature
       | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda l; ty; span }; _ } ->
           Hashtbl.replace st.exported ("lambda " ^ Lower_lambda.lambda st span ty l) ()
@@ -341,7 +345,6 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
   let calls = spawned p in
   let exclusive = (not library) && calls = [] in
   let st = create ~region:fixed_region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
-  let foreign = ref None in
   let add decl instance signature params body =
     let key = key decl instance in
     Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body; literals = [] };
@@ -375,7 +378,17 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
                   name_lambdas st owner { T.Block.stats = [ stat ]; span = value.T.Expr.span })
           | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
               add d.T.Decl.id [] signature params body
-          | T.Decl.Verb { body = T.Decl.Foreign _; _ } -> if !foreign = None then foreign := Some d.T.Decl.span
+          (* A foreign verb's function takes the parameters its signature
+             names, and calls into C (Lower_foreign). *)
+          | T.Decl.Verb { signature; body = T.Decl.Foreign f } ->
+              let span = d.T.Decl.span in
+              let params =
+                List.mapi
+                  (fun i (p : S.param) -> { T.Local.id = -(i + 1); name = p.S.name; ty = p.S.ty; span })
+                  signature.S.params
+              in
+              Hashtbl.replace st.foreign_verbs (key d.T.Decl.id []) f;
+              add d.T.Decl.id [] signature params { T.Block.stats = []; span }
           (* A subscript's body is the place it names (functions.md §2.9). *)
           | T.Decl.Subscript { signature; params; value = Some e } ->
               let return = { T.Stat.node = T.Stat.Return e; span = e.T.Expr.span } in
@@ -401,7 +414,6 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
     p.T.Program.instances;
   if not library then st.written_back <- Some (written_back st calls);
   try
-    Option.iter (fun span -> refuse span "lowering does not handle a foreign verb yet (docs/design/ffi.md §7)") !foreign;
     (* The root package is the first (docs/design/semantics.md §2), and its `main`
        is where the program starts (packages.md §6.2). *)
     let root =
@@ -422,7 +434,7 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
       let funcs = drain [] in
       let funcs = start funcs @ funcs @ List.rev st.spawned in
       let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
-      Ok (Regions.run ~wants:st.wants { Program.funcs; entry; layouts; globals = List.rev st.globals; exclusive = st.exclusive })
+      Ok (Regions.run ~wants:st.wants { Program.funcs; entry; layouts; globals = List.rev st.globals; foreign = List.rev st.thunks; exclusive = st.exclusive })
     in
     if library then begin
       List.iter

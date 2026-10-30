@@ -17,6 +17,9 @@ set -euo pipefail
 # with besides; a program expected to fail is held to what it writes on both
 # streams, as tests/codegen/ holds it.
 #
+# Each C interface fixture NAME with an expected output is built the same
+# three ways, from its packages, as ffi.NAME.
+#
 # `abi` is the runtime's probe of its own structs, held to runtime/zane_abi.h.
 #
 # The programs link with `zig cc`, which carries Windows' C library and
@@ -57,6 +60,20 @@ for golden in tests/codegen/golden/*.out; do
 		expect "$build" "$golden" "$status"
 		if [[ -f "$fixture/arguments" ]]; then cp "$fixture/arguments" "$OUT/$build.args"; fi
 	done
+done
+
+# The C interface's run fixtures, each a build of its subdirectories in name
+# order, the first the root, as tests/ffi/ builds them.
+for golden in tests/ffi/golden/*.out; do
+	fixture="$(basename "$golden" .out)"
+	name="ffi.$fixture"
+	packages=()
+	for dir in "tests/ffi/fixtures/$fixture"/*/; do packages+=(--package "${dir%/}"); done
+	"$ZANEC" --target "$TARGET" --build "$OUT/$name.exe" "${packages[@]}"
+	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" "${packages[@]}"
+	"$ZANEC" --target "$TARGET" --build "$OUT/$name.tiered.exe" --tiered "${packages[@]}"
+	"$ZANEC" --target "$TARGET" --tier-up "$OUT/$name.tiered.tier1.dll" "${packages[@]}"
+	for build in "$name" "$name.optimized" "$name.tiered"; do expect "$build" "$golden" 0; done
 done
 
 objects="$(mktemp -d)"

@@ -1,0 +1,59 @@
+/// A package whose C defines the same names as the root's, the function
+/// `helper`, the variable `total` and the alias `named`: each package's C
+/// keeps its own, `defined_here`, which each package's interface header
+/// defines itself, among them. `plain.h` includes nothing, not even
+/// `<stdint.h>`. `once.h` defines functions, a variable, an alias and,
+/// where the C library resolves one, an indirect function with external
+/// linkage that `once.c`, which includes it, also defines, and a
+/// constructor of the header's own: each is defined, and the constructor
+/// run, once in the package's C, though the glue includes the header too.
+/// A constructor of the header that sets up the header's private state,
+/// which a `static inline` function the glue calls reads, runs for the
+/// glue's copy of that state too, and so do one that sets it up through
+/// a function of the header's it calls and one that sets it through a
+/// pointer a variable of the header's holds. The glue's copy of the
+/// header's private state is `once.c`'s, so a `static inline` function
+/// the glue calls reads what a function `once.c` defines wrote, and a
+/// constant of the header has one address, which the two compare, and so
+/// do constants pointing at another constant and at a string; a struct a
+/// function of it sets is one too, and a static function a pointer holds,
+/// a constructor among them, which still runs once.
+/// `primed.h`, which no source includes, has constructors of its own, run
+/// beside the one `lib.c` has, and beside the one `plain.c` has under the
+/// same name and doing the same, which is not the header's.
+/// `gnu.h` selects glibc's GNU features before it includes a system
+/// header, which the glue keeps by including it before any of its own.
+package lib;
+
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 helper() foreign "helper";
+I64 named() foreign "named";
+I32 plus(a I32, b I32) foreign "plus";
+I64 widen(x I64) foreign "widen";
+I64 definedHere(x I64) foreign "defined_here";
+I64 once(x I64) foreign "once";
+I64 useOnce() foreign "use_once";
+I64 onceAlias(x I64) foreign "once_alias";
+I64 onceIndirect(x I64) foreign "once_indirect";
+I64 onceStarted() foreign "once_started";
+I64 onceValue() foreign "once_value";
+I64 onceHelped() foreign "once_helped_value";
+I64 oncePointed() foreign "once_pointed_value";
+Unit onceShare(x I64) foreign "once_share";
+I64 onceShared() foreign "once_shared_value";
+I64 onceTokenSame() foreign "once_token_same";
+I64 oncePointersSame() foreign "once_pointers_same";
+Unit onceKeep(x I64) foreign "once_keep";
+I64 onceKept() foreign "once_kept_value";
+I64 onceCallSame() foreign "once_call_same";
+I64 onceSetupRuns() foreign "once_setup_runs";
+I64 onceSetupSame() foreign "once_setup_same";
+I64 onceExternalRuns() foreign "once_external_runs";
+I64 primed() foreign "primed";
+I64 primedRuns() foreign "primed_runs_seen";
+I64 wasWarmed() foreign "was_warmed";
+I64 parsed() foreign "parsed";
+I64 gnuFound() foreign "gnu_found";

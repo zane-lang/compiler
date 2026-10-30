@@ -187,6 +187,10 @@ type state = {
      key, or [None] for a verb not expanded where it is called (L11,
      Verbs.inlines). *)
   sizes : (string, int option) Hashtbl.t;
+  (* Each foreign verb's C function, by verb key, and each thunk the
+     functions lowered so far call, latest first (docs/design/ffi.md F8). *)
+  foreign_verbs : (string, T.Foreign.t) Hashtbl.t;
+  mutable thunks : Foreign.t list;
 }
 
 (* The walk over a verb's body, in [Lower], as the rest of lowering reaches
@@ -243,6 +247,8 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     sized = Hashtbl.create 64;
     boxes = Hashtbl.create 64;
     sizes = Hashtbl.create 64;
+    foreign_verbs = Hashtbl.create 8;
+    thunks = [];
   }
 
 let fresh st =

@@ -4,12 +4,18 @@ Packages holding C code (spec `ffi.md`, docs/design/ffi.md). A directory
 under `fixtures/` holding `.zn` files is one package, and any other is a
 build of its subdirectories in name order, the first the root.
 `golden/NAME.check` holds what `zanec --check` prints for a build it
-accepts, `golden/NAME.tst` its typed tree, and `golden/reject.NAME.err`
-what it reports for `fixtures/reject/NAME`. A fixture's `flags` file, one
+accepts, `golden/NAME.tst` its typed tree, `golden/NAME.cgt` and
+`golden/NAME.optimized.cgt` its code-generation trees, and
+`golden/NAME.out` what it prints, built and run as tests/codegen builds
+and runs a program: unoptimized, optimized and tiered, with drains checked
+and unchecked. `golden/reject.NAME.err` holds what it reports for
+`fixtures/reject/NAME`, and `golden/reject.NAME.ll.err` what `zanec --ll`
+reports for one only codegen refuses. A fixture's `flags` file, one
 per line, is what it is built with besides.
 
 | Fixture | What it shows |
 |---|---|
+| `calls` | Foreign verbs called, each crossing into C and back: integers, a narrow C integer, `F32`, `Bool` both ways, `Unit`, a string in and one out, an array, lent where it is so C sees one address for it given twice, a list, value types with and without padding, and C state kept between calls, which a recursive function reading it sees change, since a call to C keeps a function from being remembered; and two packages whose C defines the same function, variable and alias names, each calling its own, one through a header that includes nothing, not even `<stdint.h>`, a function each package's interface header defines itself, and functions, a variable, an alias and, on glibc, an indirect function a header defines with external linkage that a source including it defines too, each defined once though the glue includes the header as well, a constructor of that header's own, run once, and one with external linkage, run once too, one setting up the header's private state, which a `static inline` function a thunk calls reads, directly, through a function of the header's it calls and through a pointer a variable of the header's holds, and private state of that header an external function of it sets, which a `static inline` function a thunk calls reads, one variable in the package as in the C alone, and constants of the header whose addresses the two compare, one a number, one pointing at another such constant and one at a string literal, a struct of that header an external function of it sets, and pointer variables of the header holding a `static` function of it and a constructor of it, which the glue compares with those functions, the constructor still running once, and constructors in an interface header no source includes, which run beside a source's own, one beside a source's of the same name doing the same that is not the header's; a `static inline` function of a header that selects glibc's GNU features before it includes a system header, which the glue includes before `<stdint.h>`; a C function taking the address of `atoi`, which `<stdlib.h>` may define `available_externally`, and C functions named `result` and `args`, which the glue's own names do not hide |
 | `declarations` | Every declaration semantics accepts: a foreign verb of each boundary type (scalars and narrow C integers, `Bool`, `Unit`, a string in and out, an array, a list, C-compatible value types, among them a struct tag and a typedef of the same name and one holding each struct below it twice, 65,536 fields in all, a function value), a handle whose `cType` is a bare struct tag, a data handle with a setter overwritten where it is settled, a capability from a foreign variable, one of them a weak C definition and one an alias, and an outside handle made, passed, and overwritten where it roams |
 | `vendored` | A `c.coda` whose rows apply in order: a `source` pattern over a vendored tree (skipping a file that is not C), an `include` directory, a `define`, and a `define` for another target that does not apply |
 | `reject/handleForms` | A handle declared by `alias`, without `#`, with type parameters, or with entries it does not take |
@@ -29,4 +35,7 @@ per line, is what it is built with besides.
 | `reject/headerError` | An interface header that does not compile, reported at its line |
 | `reject/fixedMacro` | A `define` of a macro the fixed flags set |
 | `reject/noMatch` | A `source` pattern that matches no file |
+| `reject/sharedState` | An interface header whose private state, which a `static inline` function the glue calls reads, two sources including it define, so the glue's copy can be neither's |
+| `reject/linkerSet` | C placing globals in sections named as C identifiers, linker sets, each refused, beside one in a section that is not |
+| `reject/assembly` | C holding assembly, an `__asm__` statement in a function and file-scope `__asm__`, each refused until F9 routes it as an object |
 | `reject/notCoda` | A `c.coda` that is not Coda, reported where the parser stopped |

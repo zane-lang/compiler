@@ -2,10 +2,17 @@
 
 > **Status: being built, in the order of §7.** Built: compiling a
 > package's C (F1, F2, F3, F5) and reading its interface headers (F6), in
-> `lib/foreign/` and `lib/c_interface/`, and foreign verbs, handles and
-> foreign variables in the grammar and semantics (F7); lowering refuses
-> them until F8 lands. The rest is designed and
-> not yet built. This page says how the compiler implements the spec's C
+> `lib/foreign/` and `lib/c_interface/`; foreign verbs, handles and
+> foreign variables in the grammar and semantics (F7); and calls of
+> foreign verbs whose types are scalars, `Bool`, `Unit`, strings, arrays,
+> lists and C-compatible value types, through the glue (F8), with each
+> package's C renamed (F9), linked into an optimized build (F13, the
+> program's own packages) and compiled apart in an unoptimized or tiered
+> one (F14).
+> Lowering refuses a foreign verb taking or giving a handle or a function
+> value, and a foreign variable, until F12 and F11 land, and a package's
+> C holding assembly is refused until F9's object route for it lands. The rest is
+> designed and not yet built. This page says how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
 > compiling a package's C code, checking foreign verbs against it, calling
@@ -270,8 +277,11 @@ How a `struct` is passed by value differs between SysV x86-64, Windows x64
 and AArch64, and LLVM leaves that classification to the front end. Rather
 than reimplement clang's for each target, the compiler writes, for each
 package, the glue: one C file per interface header, which includes that
-header alone and is compiled with the package's settings, so clang does the
-classification it already knows. After the include, the file `#undef`s the
+header and is compiled with the package's settings, so clang does the
+classification it already knows. The header comes first, so a feature-test
+macro it defines, such as `_GNU_SOURCE`, selects what the system headers
+declare as it does in a source including it first; `<stdint.h>` follows,
+for the fixed-width types the thunks read slots as. After the includes, the file `#undef`s the
 name of every C function its entries call, so a macro the header defines
 with that name, such as `#define f(x) ((x) + 1)` after `int f(int);`,
 never stands in for the function the foreign verb names. Each entry goes in the file of the header
@@ -281,12 +291,15 @@ that declares its C function. The glue holds:
   trivially:
 
   ```c
-  void thunk(void *const *args, void *result) {
-      *(int64_t *)result = zane_crc32(*(const int64_t *)args[0], *(const zane_bytes *)args[1]);
+  void thunk(void *const *__zane_args, void *__zane_result) {
+      *(int64_t *)__zane_result = zane_crc32(*(const int64_t *)__zane_args[0], *(const zane_bytes *)__zane_args[1]);
   }
   ```
 
-  Each `args[i]` points to an argument already laid out as C lays out its
+  Every identifier the glue declares begins `__zane_`, a name C reserves
+  to the implementation, so none hides a function the header declares,
+  as a parameter `result` would hide a C function `result`. Each
+  `__zane_args[i]` points to an argument already laid out as C lays out its
   type. The thunk does the conversions of `ffi.md` §3.3 as C casts: an
   `@primitives$I32` passed to a `uint8_t` keeps its low bits, a returned
   `int16_t` widens by its sign.
@@ -310,7 +323,7 @@ optimized call into C is a direct call with the target's own convention.
 
 **F9. A package's C globals are renamed before its module is linked.** Once a
 package's C modules and glue are linked into one, every global value it
-defines with external linkage, except the glue's own entries, is renamed
+defines with external linkage, except the glue's thunks, is renamed
 to the package's
 symbol with `%c$` and its C name after it: `!zlib$%c$deflate` in a
 library, `viewer$%c$deflate` in a program. Renaming a global in its module
@@ -319,6 +332,10 @@ variables, and also the aliases and indirect functions that
 `__attribute__((alias))` and `__attribute__((ifunc))` define, which
 LLVM keeps as global values of their own: an alias exported under its
 C name would meet the same alias from another version of the package.
+An `available_externally` definition, such as the inline copy of `atoi`
+glibc's `<stdlib.h>` can give, is not one the package defines: it stands
+for the C library's symbol, keeps its name, and is never a definition that
+leaves the glue's copy a declaration.
 An alias's target and an indirect function's resolver are renamed by the
 same rule when they are external, and keep their names when internal, as
 any internal global does. The fetch-time rewrite then stamps the
@@ -326,7 +343,63 @@ placeholder like any other (`separate-compilation.md` C9). A name holding
 `%c$` cannot be a Zane symbol, since no package name starts with `%`.
 The glue's entries (F8, F11) keep their names, which lowering's calls
 already use: they are derived from Zane symbols, so they carry the
-package's placeholder and cannot meet another package's.
+package's placeholder and cannot meet another package's. They are found
+by their labels, not as whatever the glue defines: a function an interface
+header defines is compiled into the glue too, and is renamed as the
+sources' functions are. A source that includes that header compiles the
+same definition, so each glue module is linked after the sources with
+every definition the modules before it already hold, a function's, a
+variable's, an alias's or an indirect function's, made a declaration
+(`zane_drop_defined`), and the package keeps one copy. A constructor or
+destructor with external linkage is one of those definitions, and the
+glue's list leaves it out when a module before the glue lists it itself,
+so it runs once. A constructor or
+destructor that header defines `static` is local to each copy, so the glue's is
+left out of its list when a source that includes the header runs one of
+the same name whose instructions use the same constants and globals. A
+source's preprocessed text, read every build for its key (F3), names in
+its line markers every file it includes, compared by real path, and the
+source can hold only one local function of that name, the header's: the
+constructor runs once, as it would for the C alone. One of a header no
+source includes runs from the glue, even beside a source's own of the
+same name.
+The header's private objects, variables local to its translation unit
+whose address the program can see, are one object each in the C alone,
+which the header's functions share: state an external setter writes and a
+`static inline` getter a thunk calls reads, or a constant whose address
+both take. The glue's copy of each is the source's: before the link, each
+private variable the glue defines that the one source including the
+header defines too, by name and type, and for a constant with the same
+value, is the source's. A constant's value may point at other objects of
+the header's: it is the same when each pointed at is the other module's
+copy, a private object by name and value, a string literal by content,
+anything else by name; a struct type matches the other module's copy of
+it field by field, as each module read names its own. A private function
+whose address the glue takes, as comparing it with a pointer of the
+header's does, is shared the same way, so the address the glue sees is
+the one the source's pointers hold; one the glue only calls stays its own.
+A constructor or destructor whose address is taken is shared so too, and
+the glue's list no longer runs it, since the source's does, unless it sets
+up private state the glue keeps a copy of. Such a variable or function
+is the source's,
+renamed `zane.shared.N.NAME` (`N` the source's place in the package)
+and made visible to the link, with the glue's made a declaration of it
+(`zane_share_state`); once the package's modules are linked it is local
+again under its own name (`zane_localize_shared`). Within one
+translation unit a variable at file scope, or a function's own `static`,
+is one variable per name, so the source's of that name is the header's.
+A string literal, or any other variable whose address LLVM may merge, is
+none of these. A header whose writable private state the glue defines and
+that two or more of the sources including it define too is refused, naming
+them: C gives each of them a copy of its own, so none is the header's. A
+constant several sources define has one value, so the glue keeps a copy of
+its own, as C gives each source one.
+A constructor that sets up private state the glue keeps a copy of, which
+a function the glue keeps reads, stays, itself, through a function of the
+glue it calls or through a private variable's initializer, such as a
+pointer to the state, since the source's copy sets up only the source's
+state; so does one that calls through a pointer, or calls a function
+something else calls too.
 
 An `archive` row's members are renamed through the object rewriter that
 stamps placeholders (C9). The set of symbols the package's archives define
@@ -363,9 +436,12 @@ of an object assembled from a module holding assembly. A section whose name
 is not a C identifier, such as `.text.hot` or `__DATA,__const`, is allowed.
 
 **F10. A foreign call is one CGT node, with its arguments laid out for C.**
-Lowering makes a call to a foreign verb a `Foreign_call { thunk; args; result;
-kind }`. Each argument is lowered to a slot holding its C layout, and the
-node passes the slots' addresses:
+Lowering gives each foreign verb a Zane function whose body is one
+`Foreign_call { thunk; args }`, and the program's list of thunks records
+how each argument and the result cross: as a scalar, a `Bool`, a view, an
+address, or a value. A call of the verb is a call of that function, which
+an optimized build inlines. Codegen lowers each argument to a slot holding
+its C layout, and the node passes the slots' addresses:
 
 | Zane argument | Slot holds |
 |---|---|
@@ -502,7 +578,11 @@ unoptimized and answers to the time from the command to the result
 optimization is many times slower without it, and its module is cached
 (F3), so an unoptimized build optimizes the package's C module on its own
 with `-O2` and emits it as an object of its own, kept in the cache beside
-the module; the Zane module stays unoptimized and calls its thunks.
+the module; the Zane module stays unoptimized and calls its thunks. A
+tiered build's tier 0 links the C the same way, and tier 1 takes none of
+it: tier 1 calls tier 0's thunks through its imports
+([`tiers.md`](tiers.md) T5), so the program has one copy of its C's
+state, as it has one of the runtime's, whichever tier is running.
 
 **F15. A release archive holds one object per package build, C included.**
 `--object` writes the package's object with its C linked in (F13 or F14),

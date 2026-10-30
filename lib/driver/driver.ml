@@ -129,6 +129,57 @@ let lower ?(regions = no_regions) ~root packages program =
   | Ok cgt -> Ok cgt
   | Error d -> fail ~sources:(Assembly.sources packages) [ d ]
 
+(* The C code each package of the build compiles into this object, for
+   codegen to link (docs/design/ffi.md F8, F9): its sources' modules, and
+   its glue's, made for the thunks [cgt]'s foreign calls go through. A
+   stamped dependency's C is in its own objects. Its globals are renamed
+   after the package's symbols: `!` before the name in a library's
+   object, which fetching stamps, and nothing in a program's. *)
+let c_modules ?target ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes.Program.t) =
+  let module F = Cgt.Nodes.Foreign in
+  let stamped id = String.contains id '%' in
+  match Codegen.global_prefix ?target () with
+  | Error message -> fail [ Diagnostic.about_invocation message ]
+  | Ok global_prefix -> (
+      let kind = function
+        | F.Scalar Cgt.Nodes.Ty.I32 -> Foreign.Glue.Scalar "int32_t"
+        | F.Scalar Cgt.Nodes.Ty.I64 -> Foreign.Glue.Scalar "int64_t"
+        | F.Scalar Cgt.Nodes.Ty.F32 -> Foreign.Glue.Scalar "float"
+        | F.Scalar _ -> Foreign.Glue.Scalar "double"
+        | F.Bool -> Foreign.Glue.Bool
+        | F.Unit -> Foreign.Glue.Unit
+        | F.View | F.Address | F.Value -> Foreign.Glue.Same
+      in
+      let entry (t : F.t) =
+        {
+          Foreign.Glue.label = global_prefix ^ t.F.thunk;
+          c_function = t.F.c_function;
+          params = List.map kind t.F.params;
+          result = kind t.F.result;
+        }
+      in
+      let one (p : Assembly.package) (f : Foreign.package) =
+        let entries = List.filter (fun (t : F.t) -> t.F.package = p.Assembly.id) cgt.Cgt.Nodes.Program.foreign in
+        if stamped p.Assembly.id || (f.Foreign.sources = [] && entries = []) then Ok None
+        else
+          Result.map
+            (fun glue ->
+              let c_module files (s : Foreign.Compile.source) = { Codegen.key = s.key; bitcode = s.bitcode; files } in
+              Some
+                {
+                  Codegen.prefix = (if root then "" else "!") ^ p.Assembly.id ^ "$%c$";
+                  sources = List.map (fun (s : Foreign.Compile.source) -> c_module s.includes s) f.Foreign.sources;
+                  glue = List.map (fun (header, s) -> c_module [ header ] s) glue;
+                  thunks = List.map (fun (t : F.t) -> t.F.thunk) entries;
+                })
+            (Foreign.glue f (List.map entry entries))
+      in
+      if c = [] then Ok []
+      else
+        match Foreign.combine (List.map2 one packages c) with
+        | Ok cs -> Ok (List.filter_map Fun.id cs)
+        | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
+
 (* Stage 5 (docs/design/optimization.md), which only an optimized build
    runs: an unoptimized one skips it. *)
 let optimize ~optimize cgt = if optimize then Optimize.run cgt else cgt
@@ -139,30 +190,30 @@ let built = function Ok v -> Ok v | Error message -> fail [ Diagnostic.about_inv
 
 (* The program's module exists only inside [f] (Codegen.with_program),
    emitted for the optimized passes when [version]. *)
-let emitted ?target ?pack ?memoize ~version regions cgt f =
+let emitted ?target ?pack ?memoize ?c ~version regions cgt f =
   Codegen.with_program ?target ?pack ?memoize ~version ?fixed_region:regions.fixed
-    ?spawned_fixed_region:regions.spawned cgt f
+    ?spawned_fixed_region:regions.spawned ?c cgt f
 
-let ir ?target ?pack ?memoize ?(regions = no_regions) ~optimize cgt =
+let ir ?target ?pack ?memoize ?c ?(regions = no_regions) ~optimize cgt =
   built
-    (emitted ?target ?pack ?memoize ~version:optimize regions cgt (fun m ->
+    (emitted ?target ?pack ?memoize ?c ~version:optimize regions cgt (fun m ->
          Result.map (fun () -> Codegen.ir m) (Codegen.prepare ?target ~optimize m)))
 
 (* A [tiered] build is tier 0 (docs/design/tiers.md). Every build plans
    what it remembers alike, so it and tier 1 emit the same module. *)
-let executable ?target ?pack ?memoize ?(regions = no_regions) ?(tiered = false) ~optimize ~link cgt output =
+let executable ?target ?pack ?memoize ?c ?(regions = no_regions) ?(tiered = false) ~optimize ~link cgt output =
   let tier = if tiered then Codegen.Tier0 else Codegen.Plain in
   built
-    (emitted ?target ?pack ?memoize ~version:(optimize || tiered) regions cgt (fun m ->
+    (emitted ?target ?pack ?memoize ?c ~version:(optimize || tiered) regions cgt (fun m ->
          Codegen.executable ?target ~optimize ~tier ~link m output))
 
 (* Tier 1 of a tiered build, from the tree lowering made, without stage 5,
    so it emits the module tier 0 does. *)
-let tier_up ?target ?pack ?memoize ?(regions = no_regions) cgt output =
-  built (emitted ?target ?pack ?memoize ~version:true regions cgt (fun m -> Codegen.shared_library ?target m output))
+let tier_up ?target ?pack ?memoize ?c ?(regions = no_regions) cgt output =
+  built (emitted ?target ?pack ?memoize ?c ~version:true regions cgt (fun m -> Codegen.shared_library ?target m output))
 
-let object_file ?target ?pack ?memoize ?(regions = no_regions) ~optimize cgt output =
-  built (emitted ?target ?pack ?memoize ~version:optimize regions cgt (fun m -> Codegen.object_file ?target ~optimize m output))
+let object_file ?target ?pack ?memoize ?c ?(regions = no_regions) ~optimize cgt output =
+  built (emitted ?target ?pack ?memoize ?c ~version:optimize regions cgt (fun m -> Codegen.object_file ?target ~optimize m output))
 
 let bundle_runtime ~target ~optimize dir = built (Codegen.bundle_runtime ~target ~optimize dir)
 

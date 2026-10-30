@@ -122,7 +122,7 @@ let rec ex a st ~moving (e : Expr.t) =
       | Expr.Offset { base = x; _ } | Expr.Member { value = x; _ } | Expr.Copy { value = x; _ } ->
           (read st x, false)
       | Expr.Binary { left; right; _ } -> (read (read st left) right, false)
-      | Expr.Math { args; _ } -> (List.fold_left read st args, false)
+      | Expr.Math { args; _ } | Expr.Foreign_call { args; _ } -> (List.fold_left read st args, false)
       | Expr.Record ms ->
           List.fold_left
             (fun (st, any) (_, x) ->

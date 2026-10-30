@@ -342,6 +342,37 @@ A runtime function that runs off the hot path, such as `zane_hold` under
 checked drains, is marked cold and stays a call, and so does a push's
 slow-path call, whose fast path emitted code already has.
 
+### A package's C inlined into the Zane that calls it
+
+- **Builds:** optimized only
+- **Where:** `lib/codegen/foreign_c.ml`, `lib/codegen/build.ml`,
+  `lib/foreign/glue.ml`
+- **Design:** [`design/ffi.md`](design/ffi.md) F8, F13
+- **Effect:** not measured
+
+A package's C modules and its glue are linked into the program's module
+before LLVM's passes run, so a foreign verb's function, the thunk it
+calls and the C function the thunk calls are one program to the inliner:
+a call into a small C function becomes its body at the call site, with
+no argument table or result slot left. Each package's C globals are
+renamed first (F9), so linking them in cannot bind one package's names
+to another's.
+
+### A package's C optimized apart in unoptimized builds
+
+- **Builds:** unoptimized only, and a tiered build's tier 0
+- **Where:** `lib/codegen/build.ml`
+- **Design:** [`design/ffi.md`](design/ffi.md) F14
+- **Effect:** not measured
+
+An unoptimized executable still runs its C optimized: the C modules and
+glue are linked into a module of their own, run through `-O2` and emitted
+as an object, which the cache keeps under a hash of the target, the
+compiler and each source's own key (F3), so a rebuild that changes only
+Zane emits none of it again. The Zane module stays unoptimized and calls the thunks. A
+tiered build's tier 0 links the same object, and tier 1 calls its thunks
+through tier 0.
+
 ### Functions started on a cache line
 
 - **Builds:** optimized only

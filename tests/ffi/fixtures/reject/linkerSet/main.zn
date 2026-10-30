@@ -1,0 +1,9 @@
+/// C placing globals in a section named as a C identifier, a linker set,
+/// which the linker would merge across packages: each one refused.
+package linkerSet;
+
+alias Unit = @primitives$Unit;
+
+Unit main() {
+	return Unit();
+}

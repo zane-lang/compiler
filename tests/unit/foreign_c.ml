@@ -214,7 +214,7 @@ let compiled () =
 let interface_text () =
   let module I = Foreign.Interface in
   let text =
-    "fun 3:add 1 N 0 2 R s 4:vec3 I s 64 64 4:long 7:int64_t R s 4:vec3 var 1:g 1 1 1 P 1 V      rec 4:vec3 s 1 1 192 64 1 1:x F 64 1 6:double 0 -1 rec 11:struct file s 1 0"
+    "fun 3:add 1 N 0 2 R s 4:vec3 I s 64 64 4:long 7:int64_t R s 4:vec3 2 4:vec3 7:int64_t 4:vec3 var 1:g 1 1 1 P 1 V      rec 4:vec3 s 1 1 192 64 1 1:x F 64 1 6:double 0 -1 rec 11:struct file s 1 0"
   in
   let t = I.read text in
   check "a function's type is read"
@@ -233,6 +233,8 @@ let interface_text () =
                 variadic = false;
               };
           external_ = true;
+          spelled = [ "vec3"; "int64_t" ];
+          spelled_result = "vec3";
         });
   check "a thread-local variable is read"
     (match List.assoc_opt "g" t.I.variables with Some v -> v.I.thread_local | None -> false);
@@ -249,10 +251,11 @@ let interface_text () =
     (match List.assoc_opt "struct file" (I.merge partial complete).I.records with
     | Some { I.declared = true; layout = Some _; _ } -> true
     | _ -> false);
-  let old = I.read "fun 1:f 1 K V" and typed = I.read "fun 1:f 1 N 0 1 I s 4 32 3:int 3:int V" in
+  let old = I.read "fun 1:f 1 K V 0 4:void"
+  and typed = I.read "fun 1:f 1 N 0 1 I s 4 32 3:int 3:int V 1 3:int 4:void" in
   check "a function one header declares without a prototype and another with one has the prototype"
     (match List.assoc_opt "f" (I.merge old typed).I.functions with
-    | Some { I.ty = I.Function { params = [ _ ]; _ }; _ } -> true
+    | Some { I.ty = I.Function { params = [ _ ]; _ }; spelled = [ "int" ]; _ } -> true
     | _ -> false);
   check "a malformed table is refused" (match I.read "fun 1:f 1 Q" with _ -> false | exception I.Malformed _ -> true);
   check "a name past the end is refused" (match I.read "fun 9:f" with _ -> false | exception I.Malformed _ -> true);
@@ -307,6 +310,12 @@ let interface_header () =
             (match fn "sum" with
             | Some (I.Function { params = [ I.Pointer { const = true; pointee = I.Int { standard = Some "int64_t"; _ } }; _ ]; _ }) -> true
             | _ -> false);
+          check "a function's types are spelled as the header writes them"
+            (match List.assoc_opt "sum" t.I.functions with
+            | Some { I.spelled = [ "const int64_t *"; "struct flags" ]; spelled_result = "int64_t"; _ } -> true
+            | _ -> false);
+          check "a typedef is spelled by its name"
+            (match List.assoc_opt "crc" t.I.functions with Some { I.spelled = [ "uLong" ]; _ } -> true | _ -> false);
           check "a variadic function" (match fn "logf_" with Some (I.Function { variadic = true; _ }) -> true | _ -> false);
           check "a function without a prototype" (match fn "old" with Some (I.Unprototyped _) -> true | _ -> false);
           let once name = List.length (List.filter (fun (n, _) -> n = name) t.I.functions) = 1 in
@@ -343,6 +352,78 @@ let interface_header () =
           check "long is 32 bits on Windows"
             (match table (Some "x86_64-windows-gnu") with Some w -> long_size w = 32 | None -> false))
 
+(* A function an interface header defines is compiled in the glue, and
+   one holding assembly, or a global the header places in a linker set, is
+   refused there, naming the header. *)
+let glue_refusals () =
+  let refused name text =
+    let base = Filename.temp_dir "zane-glue-" "" in
+    Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
+        let dir = Filename.concat base "pkg" in
+        Sys.mkdir dir 0o755;
+        let header = Filename.concat dir "api.h" in
+        write_all header text;
+        let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+        match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        | Ok [ p ] -> (
+            let entry =
+              { Foreign.Glue.label = "pkg.fenced.ffi"; c_function = "fenced"; params = []; result = Foreign.Glue.Scalar "int32_t" }
+            in
+            match Foreign.glue p [ entry ] with
+            | Error { Foreign.diagnostics = { Diagnostic.location = Diagnostic.Location.File f; _ } :: _; _ } ->
+                check name (f = header)
+            | _ -> check name false)
+        | _ -> check (name ^ ": the header is read") false)
+  in
+  refused "a header's function holding assembly is refused in its glue, naming the header"
+    "int fenced(void) { __asm__ volatile(\"\" ::: \"memory\"); return 1; }\n";
+  refused "a header's global in a linker set is refused in its glue, naming the header"
+    "__attribute__((used, section(\"plugins\"))) static const int entry = 1;\n\
+     extern const int __start_plugins, __stop_plugins;\n\
+     int fenced(void) { return &__stop_plugins - &__start_plugins; }\n"
+
+(* A package whose directory's name holds a byte past ASCII still compiles
+   its glue: the glue includes the header by its path as it is spelled,
+   which a quoted header name reads without escapes. *)
+let glue_paths () =
+  let base = Filename.temp_dir "zane-glue-" "" in
+  Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
+      let dir = Filename.concat base "p\xc3\xa4ckage" in
+      Sys.mkdir dir 0o755;
+      write_all (Filename.concat dir "api.h") "static inline int fenced(void) { return 1; }\n";
+      let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+      let entry =
+        { Foreign.Glue.label = "pkg.fenced.ffi"; c_function = "fenced"; params = []; result = Foreign.Glue.Scalar "int32_t" }
+      in
+      check "a header under a directory named past ASCII is included by its glue"
+        (match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        | Ok [ p ] -> ( match Foreign.glue p [ entry ] with Ok [ _ ] -> true | _ -> false)
+        | _ -> false))
+
+(* A function one interface header declares without a prototype and a
+   later one with it has its thunk in the later header's glue, where the
+   prototype is in scope. *)
+let glue_prototypes () =
+  let base = Filename.temp_dir "zane-glue-" "" in
+  Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
+      let dir = Filename.concat base "pkg" in
+      Sys.mkdir dir 0o755;
+      write_all (Filename.concat dir "a.h") "int twice();\n";
+      write_all (Filename.concat dir "b.h") "int twice(int);\n";
+      let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+      let entry =
+        {
+          Foreign.Glue.label = "pkg.twice.ffi";
+          c_function = "twice";
+          params = [ Foreign.Glue.Scalar "int32_t" ];
+          result = Foreign.Glue.Scalar "int32_t";
+        }
+      in
+      check "a function prototyped by a later header has its thunk in that header's glue"
+        (match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        | Ok [ p ] -> ( match Foreign.glue p [ entry ] with Ok [ _ ] -> true | _ -> false)
+        | _ -> false))
+
 let run () =
   patterns ();
   paths ();
@@ -352,4 +433,7 @@ let run () =
   mapping ();
   compiled ();
   interface_text ();
-  interface_header ()
+  interface_header ();
+  glue_refusals ();
+  glue_paths ();
+  glue_prototypes ()

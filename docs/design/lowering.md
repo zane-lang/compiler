@@ -349,6 +349,12 @@ math library's function of the same name when it is approximate, marked
 Its result is then the library's where the program runs, as §2.6 has it
 (`platforms.md`).
 
+A call to a foreign verb, a Zane function whose body is C
+([`ffi.md`](ffi.md)), lowers to a `Foreign_call` node naming a thunk the
+package's glue defines. Codegen lays each argument out as C lays out its
+type and calls the thunk with their addresses (ffi.md F8, F10), so codegen
+implements no C calling convention.
+
 ---
 
 ## 7. How it is built, and how to look at it
