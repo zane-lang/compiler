@@ -1,0 +1,36 @@
+/// Two packages that vendor the same C library, `tally`, as archives of
+/// two versions (ffi.md §2.4, §2.5): each reaches its own version's
+/// function, alias and indirect function, its own callback into the
+/// package's C, and its own assembly function, and its own seed, which
+/// only its glue compiles and its archive reads, though every name is the
+/// same in both.
+package app;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+import one;
+import two;
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+Unit main() {
+	show(String(one$version()));
+	show(String(two$version()));
+	show(String(one$aliased()));
+	show(String(two$aliased()));
+	show(String(one$indirect()));
+	show(String(two$indirect()));
+	show(String(one$root(I64(27))));
+	show(String(two$root(I64(27))));
+	show(String(one$hop(I64(10))));
+	show(String(two$hop(I64(10))));
+	show(String(one$seeded()));
+	show(String(two$seeded()));
+	return Unit();
+}

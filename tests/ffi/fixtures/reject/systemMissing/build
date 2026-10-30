@@ -1,0 +1,2 @@
+A reject fixture holding this file is refused only when it is built: its rule
+builds it rather than checking it (tests/gen/gen_rules.ml).

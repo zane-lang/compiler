@@ -65,11 +65,22 @@ done
 # The C interface's run fixtures, as tests/ffi/ builds them: one with
 # subdirectories a build of them in name order, the first the root, and any
 # other the one package it is, exiting with its `expected-status` when it
-# has one.
+# has one. They are built from a copy, in which each `NAME.archive` has its
+# static library `NAME.a` built beside it for Windows, as tests/ffi/'s
+# rules build it for the host.
+objects="$(mktemp -d)"
+trap 'rm -rf "$objects"' EXIT
+cp -R tests/ffi/fixtures "$objects/ffi"
+find "$objects/ffi" -type d -name '*.archive' | while IFS= read -r sources; do
+	tests/ffi/archive "${sources%.archive}.a" "$sources" "$TARGET"
+done
 for golden in tests/ffi/golden/*.out; do
 	fixture="$(basename "$golden" .out)"
+	# `NAME.released.out` is linked against releases by tests/ffi/released,
+	# which runs on the host.
+	[[ $fixture == *.* ]] && continue
 	name="ffi.$fixture"
-	dir="tests/ffi/fixtures/$fixture"
+	dir="$objects/ffi/$fixture"
 	status=0
 	[[ -f "$dir/expected-status" ]] && status="$(tr -d '[:space:]' <"$dir/expected-status")"
 	packages=()
@@ -82,8 +93,6 @@ for golden in tests/ffi/golden/*.out; do
 	for build in "$name" "$name.optimized" "$name.tiered"; do expect "$build" "$golden" "$status"; done
 done
 
-objects="$(mktemp -d)"
-trap 'rm -rf "$objects"' EXIT
 geometry=tests/objects/fixtures/geometry
 survey=(--package tests/objects/fixtures/survey --package "$geometry")
 "$ZANEC" --no-root --target "$TARGET" --stamp "geometry=$STAMP" \

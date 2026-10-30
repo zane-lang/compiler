@@ -1,0 +1,14 @@
+/// An interface header holding assembly, which reaches the glue that
+/// includes it and is linked into the package's module, so it is refused
+/// when the glue is compiled for the foreign verb that calls it.
+package headerAssembly;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+
+I64 fenced(x I64) foreign "fenced";
+
+Unit main() {
+	fenced(I64(1));
+	return Unit();
+}

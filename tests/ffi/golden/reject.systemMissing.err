@@ -1,0 +1,1 @@
+Error: row 2 of `fixtures/reject/systemMissing/c.coda` names the system library `zane_missing`, which the linker cannot find for the build's target (ffi.md §2.4)

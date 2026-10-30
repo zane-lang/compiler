@@ -4,7 +4,9 @@
 ; runtime/zane_abi.h, so the offsets and sizes emitted code relies on are the
 ; runtime's own, and [O2_pipeline] by gen/o2_pipeline.sh from the LLVM it
 ; links. LLD is linked in as a library (lld_stubs.cpp), its flags found by
-; gen/lld_flags.sh.
+; gen/lld_flags.sh. A package's C objects are renamed by [Rewrite] and its
+; archives written back by LLVM's archive writer (archive_stubs.cpp). The
+; target machine puts constructors in `.init_array` (init_array_stubs.cpp).
 (library
  (name codegen)
  (foreign_stubs
@@ -12,13 +14,13 @@
   (names llvm_stubs))
  (foreign_stubs
   (language cxx)
-  (names lld_stubs tier_stubs body_stubs c_stubs prefix_stubs)
+  (names lld_stubs tier_stubs body_stubs c_stubs prefix_stubs archive_stubs init_array_stubs)
   (flags
    (:standard
     (:include lld_cxx.sexp))))
  (c_library_flags
   (:include lld_libs.sexp))
- (libraries cache cgt diagnostic runtime_source unix llvm llvm.analysis llvm.irreader llvm.bitreader llvm.linker llvm.target llvm.passbuilder llvm.all_backends))
+ (libraries cache cgt diagnostic rewrite runtime_source unix llvm llvm.analysis llvm.irreader llvm.bitreader llvm.linker llvm.target llvm.passbuilder llvm.all_backends))
 
 (rule
  (target abi.ml)

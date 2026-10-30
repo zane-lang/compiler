@@ -1,0 +1,12 @@
+/// A package vendoring version 2 of the C library `tally` as a prebuilt
+/// archive, beside a function of its own in file-scope assembly.
+package two;
+
+alias I64 = @primitives$I64;
+
+I64 version() foreign "tally_version";
+I64 aliased() foreign "tally_alias";
+I64 indirect() foreign "tally_indirect";
+I64 root(x I64) foreign "tally_root";
+I64 hop(x I64) foreign "hop";
+I64 seeded() foreign "tally_seeded";

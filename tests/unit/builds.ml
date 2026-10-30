@@ -177,6 +177,37 @@ let linked_in_process () =
       (Result.is_error (linked failing ~output:"five") && Buffer.length said = 0);
     check "and its command is kept"
       (command failing ~obj:"/w/program.o" ~runtime:"/r/runtime.o" ~output:"five" <> None && times () = before + 1);
+    let unfound _ = Error "ld.lld: error: unable to find library -lzane_gone\n" in
+    let libraries =
+      [
+        { Codegen__Foreign_c.name = "zane"; row = "row 1 of `c.coda`" };
+        { name = "zane_gone"; row = "row 2 of `c.coda`" };
+      ]
+    in
+    let obj = "/w/program.o" and runtime = "/r/runtime.o" and output = "six" in
+    let unfinding = Filename.concat directory "unfinding-cc" in
+    write_all unfinding
+      "#!/bin/sh\n\
+       case \" $* \" in *' -### '*|*' -print-search-dirs '*) ;; *' --version '*) echo fake 1.0; exit 0;; *) echo 'ld: cannot find -lzane_gone' >&2; exit 1;; esac\n";
+    Unix.chmod unfinding 0o755;
+    let missing cc =
+      Build.link_program ~cache ~lld:unfound ~say:(Buffer.add_string said) ~libraries ~cc ~triple:"t" ~deps:[]
+        ~args:(args ~obj ~runtime ~output) ~obj ~runtime ~output work
+    in
+    check "a `system` library neither link finds is an error naming its row, not a row whose name begins it"
+      (missing unfinding
+      = Error
+          "row 2 of `c.coda` names the system library `zane_gone`, which the linker cannot find for the \
+           build's target (ffi.md §2.4)");
+    check "but not when the C compiler fails for another reason, which its own error shows"
+      (match missing failing with
+      | Error e -> String.starts_with ~prefix:"`" e && not (String.starts_with ~prefix:"row" e)
+      | Ok () -> false);
+    check "and each linker's way of saying so is read"
+      (List.for_all
+         (fun text -> Build.unfound_library text "m")
+         [ "unable to find library -lm"; "ld: library not found for -lm"; "ld: cannot find -lm: No such file" ]
+      && not (Build.unfound_library "cannot find -lmx" "m"));
     Unix.putenv "ZANE_VERBOSE" "1";
     let quiet = linked gnu ~output:"x" in
     Unix.putenv "ZANE_VERBOSE" "";
@@ -437,3 +468,29 @@ let fatal_link () =
         | Error text -> text <> ""
         | Ok () -> false)
   | _ -> ()
+
+(* `--object OUT` writes the objects of the package's C sources holding
+   assembly beside `OUT`, as `STEM.c.N.o`, and removes those an earlier
+   build left there, so a release carries only its own
+   (docs/design/ffi.md F15). *)
+let assembled_beside () =
+  let module Build = Codegen__Build in
+  let directory = Filename.temp_dir "zane-beside" "" in
+  Fun.protect ~finally:(fun () -> remove_tree directory) @@ fun () ->
+  let output = Filename.concat directory "math.o" in
+  let file name = Filename.concat directory name in
+  let write name = Out_channel.with_open_bin (file name) (fun oc -> output_string oc "old") in
+  List.iter write [ "math.c.0.o"; "math.c.1.o"; "math.c.2.o"; "math.c.x.o"; "math.c.o"; "geometry.c.0.o"; "math.o" ];
+  check "each is named after the object it is written beside"
+    (Build.assembled_beside output 1 = file "math.c.1.o"
+    && Build.assembled_beside (Filename.concat directory "math") 0 = file "math.c.0.o");
+  let written = Build.write_beside output [ "first"; "second" ] in
+  let read name = In_channel.with_open_bin (file name) In_channel.input_all in
+  check "this build's are written"
+    (Result.is_ok written && read "math.c.0.o" = "first" && read "math.c.1.o" = "second");
+  check "an earlier build's are removed, and nothing else"
+    ((not (Sys.file_exists (file "math.c.2.o")))
+    && Sys.file_exists (file "math.c.x.o")
+    && Sys.file_exists (file "math.c.o")
+    && Sys.file_exists (file "geometry.c.0.o")
+    && read "math.o" = "old")

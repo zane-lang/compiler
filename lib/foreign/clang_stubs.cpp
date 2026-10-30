@@ -25,6 +25,7 @@
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/LLVMContext.h"
@@ -529,8 +530,18 @@ extern "C" value zane_bitcode_defined_variables(value bitcode) {
   CAMLreturn(list);
 }
 
+/* [g]'s C name, as an object's reader names it: a name an `__asm__`
+   label gave, which LLVM writes with a leading \1 and the target's global
+   prefix spelled out, is the label. */
+static std::string c_name(const llvm::GlobalValue &g) {
+  char prefix = g.getParent()->getDataLayout().getGlobalPrefix();
+  llvm::StringRef name = g.getName();
+  if (name.consume_front("\1") && prefix) name.consume_front(llvm::StringRef(&prefix, 1));
+  return name.str();
+}
+
 /* The private state [bitcode]'s module defines: each named variable local
-   to it that the program can write. */
+   to it that the program can write, by its C name. */
 extern "C" value zane_bitcode_private_state(value bitcode) {
   CAMLparam1(bitcode);
   CAMLlocal2(list, cell);
@@ -542,7 +553,58 @@ extern "C" value zane_bitcode_private_state(value bitcode) {
     if (module) {
       for (const llvm::GlobalVariable &g : (*module)->globals())
         if (g.hasLocalLinkage() && !g.isConstant() && g.hasName() && !g.getName().starts_with("llvm."))
-          names.push_back(g.getName().str());
+          names.push_back(c_name(g));
+    } else {
+      llvm::consumeError(module.takeError());
+    }
+  }
+  list = Val_emptylist;
+  for (auto it = names.rbegin(); it != names.rend(); ++it) {
+    cell = caml_alloc(2, 0);
+    Store_field(cell, 0, caml_copy_string(it->c_str()));
+    Store_field(cell, 1, list);
+    list = cell;
+  }
+  CAMLreturn(list);
+}
+
+/* Whether [v] reaches the program as an address: a use other than a
+   call of it, or an entry of the constructor and destructor lists, which
+   only run it. */
+static bool address_seen(const llvm::Value *v) {
+  for (const llvm::User *u : v->users()) {
+    if (auto *call = llvm::dyn_cast<llvm::CallBase>(u)) {
+      if (call->getCalledOperand() != v) return true;
+    } else if (auto *g = llvm::dyn_cast<llvm::GlobalVariable>(u)) {
+      if (g->getName() != "llvm.global_ctors" && g->getName() != "llvm.global_dtors") return true;
+    } else if (llvm::isa<llvm::ConstantAggregate>(u) || llvm::isa<llvm::ConstantExpr>(u)) {
+      if (address_seen(u)) return true;
+    } else
+      return true;
+  }
+  return false;
+}
+
+/* The private constants and functions [bitcode]'s module defines whose
+   addresses the program can see: each named constant local to it whose
+   address LLVM may not merge with another's, as a variable's is, and each
+   function local to it whose address is taken, so a copy of either is told
+   apart from it. Each is its C name. */
+extern "C" value zane_bitcode_private_identities(value bitcode) {
+  CAMLparam1(bitcode);
+  CAMLlocal2(list, cell);
+  std::vector<std::string> names;
+  {
+    llvm::LLVMContext context;
+    llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
+    llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
+    if (module) {
+      for (const llvm::GlobalVariable &g : (*module)->globals())
+        if (g.hasLocalLinkage() && g.isConstant() && !g.hasGlobalUnnamedAddr() && g.hasName() &&
+            !g.getName().starts_with("llvm."))
+          names.push_back(c_name(g));
+      for (const llvm::Function &f : **module)
+        if (f.hasLocalLinkage() && f.hasName() && address_seen(&f)) names.push_back(c_name(f));
     } else {
       llvm::consumeError(module.takeError());
     }
@@ -612,4 +674,79 @@ extern "C" value zane_bitcode_has_assembly(value bitcode) {
     }
   }
   CAMLreturn(Val_bool(found));
+}
+
+/* What [bitcode]'s module defines visible to other modules, functions,
+   variables, aliases and indirect functions, and whether it runs a
+   constructor or destructor, local or external: the check of a header an archive
+   compiled too reads them (docs/design/ffi.md F9). Each is its C name, as
+   an object's reader names it: a name an `__asm__` label gave, which LLVM
+   writes with a leading \1 and the target's global prefix spelled out, is
+   the label. */
+extern "C" value zane_bitcode_definitions(value bitcode) {
+  CAMLparam1(bitcode);
+  CAMLlocal3(list, cell, pair);
+  std::vector<std::string> names;
+  bool runs = false;
+  {
+    llvm::LLVMContext context;
+    llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
+    llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
+    if (module) {
+      for (const llvm::GlobalValue &g : (*module)->global_values())
+        if (!g.isDeclarationForLinker() && !g.hasLocalLinkage() && !g.hasAppendingLinkage() &&
+            !g.getName().starts_with("llvm."))
+          names.push_back(c_name(g));
+      for (const char *name : {"llvm.global_ctors", "llvm.global_dtors"})
+        if (const llvm::GlobalVariable *list = (*module)->getNamedGlobal(name))
+          if (const auto *entries = llvm::dyn_cast_or_null<llvm::ConstantArray>(
+                  list->hasInitializer() ? list->getInitializer() : nullptr))
+            for (const llvm::Use &entry : entries->operands())
+              if (const auto *s = llvm::dyn_cast<llvm::ConstantStruct>(entry.get()))
+                if (llvm::isa<llvm::Function>(s->getOperand(1)->stripPointerCasts())) runs = true;
+    } else {
+      llvm::consumeError(module.takeError());
+    }
+  }
+  list = Val_emptylist;
+  for (auto it = names.rbegin(); it != names.rend(); ++it) {
+    cell = caml_alloc(2, 0);
+    Store_field(cell, 0, caml_copy_string(it->c_str()));
+    Store_field(cell, 1, list);
+    list = cell;
+  }
+  pair = caml_alloc(2, 0);
+  Store_field(pair, 0, list);
+  Store_field(pair, 1, Val_bool(runs));
+  CAMLreturn(pair);
+}
+
+/* What [bitcode]'s module uses from other modules without defining it,
+   functions and variables, each its C name as [zane_bitcode_definitions]
+   gives one: what a header's constructor may reach in an archive that
+   compiled the header too, as a variable the archive defines and its
+   folded copy of the constructor set (docs/design/ffi.md F9). */
+extern "C" value zane_bitcode_declarations(value bitcode) {
+  CAMLparam1(bitcode);
+  CAMLlocal2(list, cell);
+  std::vector<std::string> names;
+  {
+    llvm::LLVMContext context;
+    llvm::MemoryBufferRef buffer(llvm::StringRef(String_val(bitcode), caml_string_length(bitcode)), "c");
+    llvm::Expected<std::unique_ptr<llvm::Module>> module = llvm::parseBitcodeFile(buffer, context);
+    if (module) {
+      for (const llvm::GlobalValue &g : (*module)->global_values())
+        if (g.isDeclaration() && !g.getName().starts_with("llvm.") && !g.use_empty()) names.push_back(c_name(g));
+    } else {
+      llvm::consumeError(module.takeError());
+    }
+  }
+  list = Val_emptylist;
+  for (auto it = names.rbegin(); it != names.rend(); ++it) {
+    cell = caml_alloc(2, 0);
+    Store_field(cell, 0, caml_copy_string(it->c_str()));
+    Store_field(cell, 1, list);
+    list = cell;
+  }
+  CAMLreturn(list);
 }

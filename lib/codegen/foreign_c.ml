@@ -1,9 +1,20 @@
-(* The packages' C code in the program (docs/design/ffi.md F9, F13, F14):
-   each package's C modules and glue linked into one module, its globals
-   renamed, and the packages' modules linked together. An optimized build
-   links that into the program's module before its passes run, so LLVM
-   inlines across the two languages; an unoptimized one optimizes it alone
-   and emits it as an object of its own, which the cache keeps. *)
+(* The packages' C code in the program (docs/design/ffi.md F4, F9, F13,
+   F14): each package's C modules and glue linked into one module, its
+   globals renamed, and the packages' modules linked together. An optimized
+   build links that into the program's module before its passes run, so
+   LLVM inlines across the two languages; an unoptimized one optimizes it
+   alone and emits it as an object of its own, which the cache keeps. A
+   package's archives' members and the objects its sources holding
+   assembly were assembled into reach the link beside it, renamed with the
+   names its module's globals take. *)
+
+(* An `archive` row's static library: a hash of its bytes, and its members,
+   each its name and its bytes. *)
+type archive = { digest : string; members : (string * string) list }
+
+(* A `system` row's library, by its name, and the row, as an error about it
+   names the row. *)
+type library = { name : string; row : string }
 
 (* One C module: its bitcode, the hash the cache keys it by, and the
    files its code came from, by their real paths: a source's own and the
@@ -14,14 +25,38 @@ type c_module = { key : string; bitcode : string; files : string list }
    modules and its glue's, and the symbols of the thunks the glue defines,
    after the target's global prefix. A thunk keeps its name, which is
    already the package's; any other function the glue defines, as an
-   interface header's own definition, is renamed as the sources' are. *)
-type package = { prefix : string; sources : c_module list; glue : c_module list; thunks : string list }
+   interface header's own definition, is renamed as the sources' are.
+   Beside them, the objects its sources holding assembly were assembled
+   into, each with the module it was made from, its archives, the C names
+   those objects and archives define, and its `system` libraries. *)
+type package = {
+  prefix : string;
+  sources : c_module list;
+  glue : c_module list;
+  thunks : string list;
+  objects : (c_module * string) list;
+  archives : archive list;
+  defined : string list;
+  libraries : library list;
+}
 
-external rename : Llvm.llmodule -> string -> string -> string list -> unit = "zane_rename_c_globals"
+(* What reaches the link beside the C module: the objects and archives of
+   every package, renamed, each as its bytes. *)
+type apart = { objects : string list; archives : string list }
+
+let nothing_apart = { objects = []; archives = [] }
+
+external rename : Llvm.llmodule -> string -> string -> string list -> string list -> string list
+  = "zane_rename_c_globals"
+
 external constructors : Llvm.llmodule -> string list = "zane_c_constructors"
 external drop_defined : Llvm.llmodule -> Llvm.llmodule -> string list -> unit = "zane_drop_defined"
+external drop_defined_apart : Llvm.llmodule -> string -> string list -> unit = "zane_drop_defined_apart"
 external share_state : Llvm.llmodule -> Llvm.llmodule -> string -> unit = "zane_share_state"
 external localize_shared : Llvm.llmodule -> unit = "zane_localize_shared"
+
+external write_archive : int -> (string * string) list -> (string, string) result
+  = "zane_write_archive"
 
 (* The bitcode [text] read into [ctx]. *)
 let parse ctx text =
@@ -54,7 +89,58 @@ let linked ?(glue = []) ~triple ~data_layout modules =
         rest;
       Some first
 
-(* One package's C as one module, its globals renamed, in [ctx]. *)
+(* The kind of static library [triple]'s linker reads, as
+   zane_write_archive numbers them: Darwin's on Apple's targets, COFF's on
+   Windows, GNU's elsewhere. *)
+let archive_kind triple =
+  let parts = String.split_on_char '-' triple in
+  let has part = List.exists (fun p -> String.starts_with ~prefix:part p) parts in
+  if has "darwin" || has "macos" || has "apple" || has "ios" then 1
+  else if has "windows" then 2
+  else 0
+
+(* [p]'s objects and archives renamed, each symbol whose C name is in
+   [names] taking [p]'s prefix after [global_prefix], as the module's
+   globals of those names did: definitions and references alike. A symbol
+   of any other name, such as the C library's, keeps it. *)
+let renamed_apart ~triple ~global_prefix p names =
+  let table = Hashtbl.create 64 in
+  List.iter (fun n -> Hashtbl.replace table n ()) names;
+  let by_name symbol =
+    let g = String.length global_prefix in
+    if String.starts_with ~prefix:global_prefix symbol then
+      let label = String.sub symbol g (String.length symbol - g) in
+      if Hashtbl.mem table label then Some (global_prefix ^ p.prefix ^ label) else None
+    else None
+  in
+  let one what bytes =
+    Rewrite.rename ~rename:by_name bytes
+    |> Result.map fst
+    |> Result.map_error (Printf.sprintf "cannot rename %s: %s" what)
+  in
+  let ( let* ) = Result.bind in
+  let rec all f = function
+    | [] -> Ok []
+    | x :: rest ->
+        let* y = f x in
+        let* ys = all f rest in
+        Ok (y :: ys)
+  in
+  let member (name, bytes) = Result.map (fun b -> (name, b)) (one ("the archive member " ^ name) bytes) in
+  let archive (a : archive) =
+    let* members = all member a.members in
+    write_archive (archive_kind triple) members
+    |> Result.map_error (Printf.sprintf "cannot write a renamed archive: %s")
+  in
+  let* objects = all (fun (_, bytes) -> one "an object assembled from the package's C" bytes) p.objects in
+  let* archives = all archive p.archives in
+  Ok { objects; archives }
+
+(* One package's C as one module, its globals renamed, in [ctx], with its
+   objects and archives renamed to match. The names its objects define are
+   renamed in the module first, declarations too, so the module's uses
+   reach the objects' definitions; then every name renamed in the module
+   renames the objects, so an object's uses reach the module's. *)
 let package_module ctx ~triple ~data_layout p =
   let parsed = List.map (fun c -> (c, parse ctx c.bitcode)) in
   let sources = parsed p.sources in
@@ -67,27 +153,76 @@ let package_module ctx ~triple ~data_layout p =
     (fun (g, gm) ->
       List.iteri (fun i (c, m) -> if includes g c then share_state gm m (string_of_int i)) sources)
     glue;
-  (* Read before the link renames a source's local functions. *)
-  let runs = List.map (fun (c, m) -> (c, constructors m)) sources in
+  (* Read before the link renames a source's local functions. A source
+     assembled apart runs its constructors from its object, so a header it
+     includes runs them there. *)
+  let assembled_runs (c, _) =
+    let m = parse ctx c.bitcode in
+    Fun.protect ~finally:(fun () -> Llvm.dispose_module m) (fun () -> (c, constructors m))
+  in
+  let runs = List.map (fun (c, m) -> (c, constructors m)) sources @ List.map assembled_runs p.objects in
   let run_by g = List.concat_map (fun (c, run) -> if includes g c then run else []) runs in
-  let glue = List.map (fun (g, m) -> (m, run_by g)) glue in
-  Option.map
-    (fun m ->
-      localize_shared m;
-      rename m p.prefix (Walks.global_prefix data_layout) p.thunks;
-      m)
-    (linked ~glue ~triple ~data_layout (List.map snd sources))
+  let global_prefix = Walks.global_prefix data_layout in
+  let glue_module (g, m) =
+    if p.defined <> [] then drop_defined_apart m global_prefix p.defined;
+    (m, run_by g)
+  in
+  let glue = List.map glue_module glue in
+  (* With no source in the module, the glue is linked into an empty one,
+     so each glue module is still linked as one after the sources. *)
+  let base = match sources with [] when glue <> [] -> [ Llvm.create_module ctx "c" ] | _ -> List.map snd sources in
+  let m = linked ~glue ~triple ~data_layout base in
+  let names =
+    match m with
+    | Some m ->
+        localize_shared m;
+        rename m p.prefix global_prefix p.thunks p.defined
+    | None -> []
+  in
+  let apart =
+    if p.objects = [] && p.archives = [] then Ok nothing_apart
+    else renamed_apart ~triple ~global_prefix p (p.defined @ names)
+  in
+  match apart with
+  | Ok apart -> Ok (m, apart)
+  | Error _ as error ->
+      Option.iter Llvm.dispose_module m;
+      error
 
-(* Every package's C as one module in [ctx], or [None] when there is none. *)
+(* Every package's C as one module in [ctx], or [None] when there is none,
+   and every package's objects and archives. *)
 let program_module ctx ~triple ~data_layout packages =
-  linked ~triple ~data_layout (List.filter_map (package_module ctx ~triple ~data_layout) packages)
+  let rec each modules apart = function
+    | [] -> Ok (linked ~triple ~data_layout (List.rev modules), apart)
+    | p :: rest -> (
+        match package_module ctx ~triple ~data_layout p with
+        | Error _ as error ->
+            List.iter Llvm.dispose_module modules;
+            error
+        | Ok (m, (a : apart)) ->
+            let apart = { objects = apart.objects @ a.objects; archives = apart.archives @ a.archives } in
+            each (Option.to_list m @ modules) apart rest)
+  in
+  each [] nothing_apart packages
+
+(* Every package's `system` libraries, in the order the packages and their
+   rows come. *)
+let libraries packages = List.concat_map (fun p -> p.libraries) packages
 
 (* What the object an unoptimized build emits for the C is kept under: the
-   packages' prefixes and the hashes of their modules, for [triple], from
-   the compiler [compiler] names, whose renaming and passes made it. *)
+   packages' prefixes, the hashes of their modules, objects and archives,
+   and the names those objects and archives are renamed by, for [triple],
+   from the compiler [compiler] names, whose renaming and passes made it. *)
 let key ~triple ~compiler packages =
   Digest.to_hex
     (Digest.string
        (String.concat "\000"
           ("c-object" :: triple :: compiler
-          :: List.concat_map (fun p -> p.prefix :: List.map (fun c -> c.key) (p.sources @ p.glue) @ [ "" ]) packages)))
+          :: List.concat_map
+               (fun p ->
+                 (p.prefix :: List.map (fun c -> c.key) (p.sources @ p.glue))
+                 @ List.map (fun (c, _) -> c.key) p.objects
+                 @ List.map (fun (a : archive) -> a.digest) p.archives
+                 @ ("" :: List.sort_uniq compare p.defined)
+                 @ [ "" ])
+               packages)))

@@ -145,7 +145,7 @@ let compiled () =
       let one = package "one" source and two = package "two" source in
       let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
       let keys dir =
-        match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ dir ] with
         | Ok [ { Foreign.sources = [ s ]; _ } ] -> Some (s.Compile.key, s.Compile.bitcode)
         | _ -> None
       in
@@ -167,7 +167,7 @@ let compiled () =
          line changes what it compiles to. *)
       let cache = Filename.concat base "cache" in
       let cached dir =
-        match Foreign.compile_packages ~cache:(Some cache) ~cc ~target:None [ dir ] with
+        match Foreign.compile_packages ~cache:(Some cache) ~cc ~cpu:"" ~target:None [ dir ] with
         | Ok [ { Foreign.sources = [ s ]; _ } ] -> Some (s.Compile.bitcode, s.Compile.key)
         | _ -> None
       in
@@ -196,12 +196,12 @@ let compiled () =
       Unix.symlink "nowhere" (Filename.concat linked ".#a.c");
       let blocked = Filename.concat base "blocked" in
       write_all blocked "a file, not a directory";
-      (match Foreign.compile_packages ~cache:(Some (Filename.concat blocked "cache")) ~cc ~target:None [ linked ] with
+      (match Foreign.compile_packages ~cache:(Some (Filename.concat blocked "cache")) ~cc ~cpu:"" ~target:None [ linked ] with
       | Ok [ { Foreign.sources = [ _ ]; _ } ] -> ()
       | _ -> check "a dangling symlink and an unwritable cache leave the build alone" false);
       Sys.remove (Filename.concat linked ".#a.c");
       let broken = package "broken" "int f(void) {\n  return missing;\n}\n" in
-      match Foreign.compile_packages ~cache:None ~cc ~target:None [ broken ] with
+      match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ broken ] with
       | Error { Foreign.diagnostics = [ d ]; _ } ->
           check "a C error is at its line"
             (match d.Diagnostic.location with
@@ -296,7 +296,7 @@ let interface_header () =
          MAKE(made)\n";
       let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
       let table target =
-        match Foreign.compile_packages ~cache:None ~cc ~target [ dir ] with
+        match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target [ dir ] with
         | Ok [ p ] -> Some p.Foreign.interface
         | _ -> None
       in
@@ -364,7 +364,7 @@ let glue_refusals () =
         let header = Filename.concat dir "api.h" in
         write_all header text;
         let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
-        match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ dir ] with
         | Ok [ p ] -> (
             let entry =
               { Foreign.Glue.label = "pkg.fenced.ffi"; c_function = "fenced"; params = []; result = Foreign.Glue.Scalar "int32_t" }
@@ -396,7 +396,7 @@ let glue_paths () =
         { Foreign.Glue.label = "pkg.fenced.ffi"; c_function = "fenced"; params = []; result = Foreign.Glue.Scalar "int32_t" }
       in
       check "a header under a directory named past ASCII is included by its glue"
-        (match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        (match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ dir ] with
         | Ok [ p ] -> ( match Foreign.glue p [ entry ] with Ok [ _ ] -> true | _ -> false)
         | _ -> false))
 
@@ -420,9 +420,115 @@ let glue_prototypes () =
         }
       in
       check "a function prototyped by a later header has its thunk in that header's glue"
-        (match Foreign.compile_packages ~cache:None ~cc ~target:None [ dir ] with
+        (match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ dir ] with
         | Ok [ p ] -> ( match Foreign.glue p [ entry ] with Ok [ _ ] -> true | _ -> false)
         | _ -> false))
+
+(* A global an `__asm__` label names, as LLVM writes one for Mach-O, with
+   a leading \1 and the target's `_` spelled out, read as the label an
+   object's reader names it by: a header's definitions and private state
+   name it so, and the glue's copy of one an object assembled apart
+   defines is made a declaration. A Mach-O link is the only one that spells the prefix out,
+   and no test links one. *)
+let asm_labels () =
+  let ctx = Llvm.create_context () in
+  let ir =
+    "target datalayout = \"e-m:o-i64:64-i128:128-n32:64-S128-Fn32\"\n\
+     target triple = \"arm64-apple-macosx\"\n\
+     @\"\\01_counter_label\" = global i64 1\n\
+     @plain = global i64 2\n"
+  in
+  let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string ir) in
+  let bitcode = Llvm.MemoryBuffer.as_string (Llvm_bitwriter.write_bitcode_to_memory_buffer m) in
+  check "a header's labelled definition is named by its label"
+    (List.sort compare (fst (Clang.definitions bitcode)) = [ "counter_label"; "plain" ]);
+  Codegen__Foreign_c.drop_defined_apart m "_" [ "counter_label" ];
+  let declared name = match Llvm.lookup_global name m with Some g -> Llvm.is_declaration g | None -> false in
+  check "the glue's copy of a labelled definition an object defines is a declaration" (declared "\001_counter_label");
+  check "a definition no object defines stays" (not (declared "plain"));
+  let state =
+    "target datalayout = \"e-m:o-i64:64-i128:128-n32:64-S128-Fn32\"\n\
+     target triple = \"arm64-apple-macosx\"\n\
+     @\"\\01_private_count\" = internal global i64 0\n\
+     @\"\\01_private_limit\" = internal constant i64 1\n\
+     define i64 @read() {\n  %v = load i64, ptr @\"\\01_private_count\"\n  %w = load i64, ptr @\"\\01_private_limit\"\n  %s = add i64 %v, %w\n  ret i64 %s\n}\n"
+  in
+  let sm = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string state) in
+  let state_bitcode = Llvm.MemoryBuffer.as_string (Llvm_bitwriter.write_bitcode_to_memory_buffer sm) in
+  Llvm.dispose_module sm;
+  check "labelled private state is named by its label, as an archive's local symbol is"
+    (Clang.private_state state_bitcode = [ "private_count" ]);
+  check "a labelled private constant is named by its label"
+    (Clang.private_identities state_bitcode = [ "private_limit" ]);
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx
+
+(* A header's constructor with external linkage that a source assembled
+   apart defines too: the glue's copy is a declaration, and its entry is
+   left out of the glue's list, since the object runs its own. A local
+   one stays. *)
+let apart_constructors () =
+  let ctx = Llvm.create_context () in
+  let ir =
+    "@runs = global i64 0\n\
+     define void @start() {\n  ret void\n}\n\
+     define internal void @local_start() {\n  ret void\n}\n\
+     @llvm.global_ctors = appending global [2 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @start, ptr null }, { i32, ptr, ptr } { i32 65535, ptr @local_start, ptr null }]\n"
+  in
+  let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string ir) in
+  Codegen__Foreign_c.drop_defined_apart m "" [ "start"; "runs" ];
+  let entries =
+    match Llvm.lookup_global "llvm.global_ctors" m with
+    | Some list -> Llvm.num_operands (Llvm.global_initializer list |> Option.get)
+    | None -> 0
+  in
+  check "the glue's copy of an external constructor an object defines is a declaration"
+    (match Llvm.lookup_function "start" m with Some f -> Llvm.is_declaration f | None -> false);
+  check "the glue no longer runs an external constructor an object defines" (entries = 1);
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx
+
+(* The symbols a COFF `.drectve` section's directives name, which an
+   archive member or assembled object may not name of its own. *)
+let directives () =
+  let names = Foreign.Objects.directive_names in
+  check "an export names its symbol" (names " /EXPORT:foo" = [ "foo" ]);
+  check "an export's data flag and quotes are not part of the name" (names "-export:\"bar\",DATA" = [ "bar" ]);
+  check "an export under another name names both" (names "/EXPORT:out=inner" = [ "out"; "inner" ]);
+  check "an include and an alternate name are read" (names "/include:a -ALTERNATENAME:b=c" = [ "a"; "b"; "c" ]);
+  check "a directive naming no symbol is skipped" (names "/DEFAULTLIB:msvcrt -merge:.a=.b" = [])
+
+(* A Mach-O indirect symbol, the alias `_alias = _foo` defines, renamed
+   with its target: the target is named by a string-table offset in the
+   symbol's value, which the rewriter renames as it does a symbol's name. *)
+let indirect_alias () =
+  let ctx = Llvm.create_context () in
+  let ir =
+    "target triple = \"arm64-apple-macosx\"\n\
+     module asm \".globl _alias\"\n\
+     module asm \"_alias = _foo\"\n"
+  in
+  let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string ir) in
+  let bitcode = Llvm.MemoryBuffer.as_string (Llvm_bitwriter.write_bitcode_to_memory_buffer m) in
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx;
+  match Foreign.Objects.emit ~triple:"arm64-apple-macosx" ~cpu:"generic" ~key:"indirect" bitcode with
+  | Error why -> check ("a Mach-O alias is assembled: " ^ why) false
+  | Ok object_ -> (
+      let renamed = function "_foo" -> Some "_p$foo" | "_alias" -> Some "_p$alias" | _ -> None in
+      match Rewrite.rename ~rename:renamed object_ with
+      | Error why -> check ("a Mach-O alias is renamed: " ^ why) false
+      | Ok (bytes, count) ->
+          let seen = ref [] in
+          ignore
+            (Rewrite.rename
+               ~rename:(fun n ->
+                 seen := n :: !seen;
+                 None)
+               bytes);
+          let times n = List.length (List.filter (( = ) n) !seen) in
+          check "both symbols of an alias are renamed" (count = 2);
+          check "an alias's target is renamed with the symbol it names" (times "_p$foo" = 2 && times "_foo" = 0))
 
 let run () =
   patterns ();
@@ -436,4 +542,8 @@ let run () =
   interface_header ();
   glue_refusals ();
   glue_paths ();
-  glue_prototypes ()
+  glue_prototypes ();
+  asm_labels ();
+  apart_constructors ();
+  directives ();
+  indirect_alias ()

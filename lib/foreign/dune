@@ -1,13 +1,15 @@
 ; The C interface's front half (docs/design/ffi.md §1): a package's
 ; `c.coda`, the include directories its target's C compiler searches, and
 ; its C compiled to LLVM bitcode by clang's front end, linked in
-; (clang_stubs.cpp), with the modules kept in the cache. Codegen and
+; (clang_stubs.cpp), with the modules kept in the cache, and its archives
+; and the sources holding assembly read and made as objects
+; (object_stubs.cpp). Codegen and
 ; semantics read what it makes; it reads neither.
 (library
  (name foreign)
  (foreign_stubs
   (language cxx)
-  (names clang_stubs)
+  (names clang_stubs object_stubs)
   (flags
    (:standard
     (:include clang_cxx.sexp))))

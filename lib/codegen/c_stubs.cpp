@@ -6,7 +6,12 @@
    carry the package's. A name an `__asm__` label gave, which LLVM writes
    with a leading \1 and the target's global prefix spelled out, is read as
    the label and renamed by it, so the new name is mangled as any other. A COMDAT named after a renamed global
-   is renamed with it, so two versions of a package never share one. */
+   is renamed with it, so two versions of a package never share one. A
+   declaration is renamed when its name is one of the package's objects
+   defines, an archive's member or an object assembled from a source
+   holding assembly, so the module's uses reach the object's renamed
+   definition. What comes back is the C name of every global renamed, for
+   the objects to be renamed by. */
 
 #include "llvm/IR/Comdat.h"
 #include "llvm/IR/Constants.h"
@@ -36,33 +41,41 @@ extern "C" {
 /* The bindings carry an LLVM pointer with its low bit set (llvm_stubs.c). */
 static llvm::Module *module_of(value v) { return reinterpret_cast<llvm::Module *>(v & ~(value)1); }
 
-extern "C" value zane_rename_c_globals(value mod, value prefix, value global_prefix, value keep) {
-  CAMLparam4(mod, prefix, global_prefix, keep);
+/* The C name of the global [name]: an `__asm__` label, which LLVM writes
+   with a leading \1 and [target]'s global prefix spelled out, read as the
+   label. */
+static std::string label_of(const std::string &name, const std::string &target) {
+  if (name.empty() || name[0] != '\1') return name;
+  std::string label = name.substr(1);
+  if (!target.empty() && label.rfind(target, 0) == 0) label = label.substr(target.size());
+  return label;
+}
+
+extern "C" value zane_rename_c_globals(value mod, value prefix, value global_prefix, value keep, value declared) {
+  CAMLparam5(mod, prefix, global_prefix, keep, declared);
+  CAMLlocal3(names, cell, name);
   llvm::Module *m = module_of(mod);
-  std::set<std::string> kept;
+  std::set<std::string> kept, defined_apart;
   for (value l = keep; l != Val_emptylist; l = Field(l, 1)) kept.insert(String_val(Field(l, 0)));
+  for (value l = declared; l != Val_emptylist; l = Field(l, 1)) defined_apart.insert(String_val(Field(l, 0)));
   std::string p = String_val(prefix), target = String_val(global_prefix);
-  auto label_of = [&](const std::string &name) {
-    std::string label = name;
-    if (!label.empty() && label[0] == '\1') {
-      label = label.substr(1);
-      if (!target.empty() && label.rfind(target, 0) == 0) label = label.substr(target.size());
-    }
-    return label;
-  };
   std::vector<llvm::GlobalValue *> renamed;
   for (llvm::GlobalValue &g : m->global_values()) {
     std::string name = g.getName().str();
+    if (g.hasLocalLinkage() || g.hasAppendingLinkage()) continue;
     // An `available_externally` definition, such as a C library's inline
-    // copy of its own function, stands for a symbol another object defines.
-    if (g.isDeclarationForLinker() || g.hasLocalLinkage() || g.hasAppendingLinkage()) continue;
-    if (name.rfind("llvm.", 0) == 0 || kept.count(label_of(name))) continue;
+    // copy of its own function, stands for a symbol another object defines,
+    // renamed only where that object is one of the package's own.
+    if (g.isDeclarationForLinker() && !defined_apart.count(label_of(name, target))) continue;
+    if (name.rfind("llvm.", 0) == 0 || kept.count(label_of(name, target))) continue;
     renamed.push_back(&g);
   }
+  std::vector<std::string> labels;
   std::map<llvm::Comdat *, llvm::Comdat *> comdats;
   for (llvm::GlobalValue *g : renamed) {
     std::string old = g->getName().str();
-    g->setName(p + label_of(old));
+    labels.push_back(label_of(old, target));
+    g->setName(p + label_of(old, target));
     if (auto *o = llvm::dyn_cast<llvm::GlobalObject>(g))
       if (llvm::Comdat *c = o->getComdat())
         if (c->getName() == old) {
@@ -78,7 +91,15 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
       auto it = comdats.find(c);
       if (it != comdats.end()) o.setComdat(it->second);
     }
-  CAMLreturn(Val_unit);
+  names = Val_emptylist;
+  for (auto it = labels.rbegin(); it != labels.rend(); ++it) {
+    name = caml_copy_string(it->c_str());
+    cell = caml_alloc(2, 0);
+    Store_field(cell, 0, name);
+    Store_field(cell, 1, names);
+    names = cell;
+  }
+  CAMLreturn(names);
 }
 
 /* A name without the `.N` the linker adds to a local one it renames. */
@@ -191,6 +212,32 @@ static const char *const lists[] = {"llvm.global_ctors", "llvm.global_dtors"};
    own name. */
 static const char shared_prefix[] = "zane.shared.";
 
+/* The entries of [g]'s appending list [list] whose function [dropped]
+   holds left out of it, and the list gone when none is left. */
+template <typename Dropped> static void drop_entries(llvm::Module *g, const char *list, Dropped dropped) {
+  llvm::GlobalVariable *v = g->getNamedGlobal(list);
+  if (!v || !v->hasInitializer()) return;
+  auto *a = llvm::dyn_cast<llvm::ConstantArray>(v->getInitializer());
+  if (!a) return;
+  std::vector<llvm::Constant *> kept;
+  for (llvm::Use &e : a->operands()) {
+    auto *entry = llvm::cast<llvm::Constant>(e.get());
+    auto *f = llvm::dyn_cast<llvm::Function>(entry->getOperand(1)->stripPointerCasts());
+    if (!f || !dropped(*f)) kept.push_back(entry);
+  }
+  if (kept.size() == a->getNumOperands()) return;
+  if (kept.empty()) {
+    v->eraseFromParent();
+    return;
+  }
+  llvm::ArrayType *t = llvm::ArrayType::get(a->getType()->getElementType(), kept.size());
+  auto *fresh = new llvm::GlobalVariable(*g, t, v->isConstant(), v->getLinkage(), llvm::ConstantArray::get(t, kept), "", v,
+                                         v->getThreadLocalMode(), v->getAddressSpace());
+  fresh->setSection(v->getSection());
+  fresh->takeName(v);
+  v->eraseFromParent();
+}
+
 /* The entries of the glue's appending list [list], `llvm.global_ctors` or
    `llvm.global_dtors`, that run a local function [run] holds, as
    [run_by] reads it: a constructor or destructor of the interface header
@@ -205,31 +252,12 @@ static const char shared_prefix[] = "zane.shared.";
    header defines and [zane_share_state] a private one, is a repeat when
    the modules [before] the glue list that function themselves. */
 static void drop_repeated(llvm::Module *g, llvm::Module *before, const std::set<std::string> &run, const char *list) {
-  llvm::GlobalVariable *v = g->getNamedGlobal(list);
-  if (!v || !v->hasInitializer()) return;
-  auto *a = llvm::dyn_cast<llvm::ConstantArray>(v->getInitializer());
-  if (!a) return;
   std::set<std::string> listed_before;
   for (llvm::Function *f : listed(before, list)) listed_before.insert(f->getName().str());
-  std::vector<llvm::Constant *> kept;
-  for (llvm::Use &e : a->operands()) {
-    auto *entry = llvm::cast<llvm::Constant>(e.get());
-    auto *f = llvm::dyn_cast<llvm::Function>(entry->getOperand(1)->stripPointerCasts());
-    bool again = f && (f->hasLocalLinkage() ? run.count(run_by(list, *f)) && !sets_up_private_state(*f)
-                                            : f->isDeclaration() && listed_before.count(f->getName().str()));
-    if (!again) kept.push_back(entry);
-  }
-  if (kept.size() == a->getNumOperands()) return;
-  if (kept.empty()) {
-    v->eraseFromParent();
-    return;
-  }
-  llvm::ArrayType *t = llvm::ArrayType::get(a->getType()->getElementType(), kept.size());
-  auto *fresh = new llvm::GlobalVariable(*g, t, v->isConstant(), v->getLinkage(), llvm::ConstantArray::get(t, kept), "", v,
-                                         v->getThreadLocalMode(), v->getAddressSpace());
-  fresh->setSection(v->getSection());
-  fresh->takeName(v);
-  v->eraseFromParent();
+  drop_entries(g, list, [&](llvm::Function &f) {
+    return f.hasLocalLinkage() ? run.count(run_by(list, f)) && !sets_up_private_state(f)
+                               : f.isDeclaration() && listed_before.count(f.getName().str());
+  });
 }
 
 /* The local constructors and destructors [mod], a source's module not yet
@@ -482,30 +510,24 @@ static void declare_instead(llvm::GlobalValue *v) {
    of a source that includes the header as a use, not a second definition;
    and the glue's copy of its header's constructors and destructors [run]
    names, which a source including the header runs, left out of its lists. */
-extern "C" value zane_drop_defined(value glue, value before, value run) {
-  CAMLparam3(glue, before, run);
-  llvm::Module *g = module_of(glue), *b = module_of(before);
-  std::set<std::string> repeated;
-  for (value l = run; l != Val_emptylist; l = Field(l, 1))
-    repeated.insert(std::string(String_val(Field(l, 0)), caml_string_length(Field(l, 0))));
-  auto defined_before = [b](llvm::GlobalValue &v) {
-    llvm::GlobalValue *there = b->getNamedValue(v.getName());
-    return there && !there->isDeclarationForLinker() && !there->hasLocalLinkage();
-  };
+/* Each definition of [g] visible to other modules that [defined]
+   already holds elsewhere made a declaration: an alias or an indirect
+   function by [declare_instead], a function or variable in place. */
+template <typename Defined> static void declare_defined(llvm::Module *g, Defined defined) {
   // An alias or an indirect function names a definition the glue may drop
   // below, so it goes first.
   std::vector<llvm::GlobalValue *> named;
   for (llvm::GlobalAlias &a : g->aliases())
-    if (!a.hasLocalLinkage() && defined_before(a)) named.push_back(&a);
+    if (!a.hasLocalLinkage() && defined(a)) named.push_back(&a);
   for (llvm::GlobalIFunc &i : g->ifuncs())
-    if (!i.hasLocalLinkage() && defined_before(i)) named.push_back(&i);
+    if (!i.hasLocalLinkage() && defined(i)) named.push_back(&i);
   for (llvm::GlobalValue *v : named) declare_instead(v);
   std::vector<llvm::GlobalObject *> dropped;
   for (llvm::GlobalObject &o : g->global_objects()) {
     // An appending list, such as `llvm.global_ctors`, is concatenated by the
     // link: each module's entries are its own.
     if (o.isDeclaration() || o.hasLocalLinkage() || o.hasAppendingLinkage()) continue;
-    if (defined_before(o)) dropped.push_back(&o);
+    if (defined(o)) dropped.push_back(&o);
   }
   for (llvm::GlobalObject *o : dropped) {
     if (auto *f = llvm::dyn_cast<llvm::Function>(o))
@@ -516,8 +538,43 @@ extern "C" value zane_drop_defined(value glue, value before, value run) {
     }
     o->setComdat(nullptr);
   }
+}
+
+extern "C" value zane_drop_defined(value glue, value before, value run) {
+  CAMLparam3(glue, before, run);
+  llvm::Module *g = module_of(glue), *b = module_of(before);
+  std::set<std::string> repeated;
+  for (value l = run; l != Val_emptylist; l = Field(l, 1))
+    repeated.insert(std::string(String_val(Field(l, 0)), caml_string_length(Field(l, 0))));
+  declare_defined(g, [b](llvm::GlobalValue &v) {
+    llvm::GlobalValue *there = b->getNamedValue(v.getName());
+    return there && !there->isDeclarationForLinker() && !there->hasLocalLinkage();
+  });
   // After the copies above are declarations, which no longer read any
   // state of the glue's.
   for (const char *list : lists) drop_repeated(g, b, repeated, list);
+  CAMLreturn(Val_unit);
+}
+
+/* Each definition of the glue module [glue] of a C name the package's
+   objects define, an archive's member or an object assembled from a
+   source holding assembly, made a declaration, as [zane_drop_defined]
+   makes one the modules before it hold: an interface header's own
+   definition, compiled into the glue too, meets the object's copy as a
+   use. A global an `__asm__` label names is matched by the label, after
+   the target's [global_prefix], as the object's reader names it. A
+   constructor or destructor with external linkage made a declaration so
+   is left out of the glue's lists: the object runs its own copy. (Foreign
+   refuses a header whose constructors an archive defines, so that object
+   is a source assembled apart.) */
+extern "C" value zane_drop_defined_apart(value glue, value global_prefix, value names) {
+  CAMLparam3(glue, global_prefix, names);
+  std::set<std::string> apart;
+  for (value l = names; l != Val_emptylist; l = Field(l, 1)) apart.insert(String_val(Field(l, 0)));
+  std::string target = String_val(global_prefix);
+  auto held = [&](llvm::GlobalValue &v) { return apart.count(label_of(v.getName().str(), target)) > 0; };
+  llvm::Module *g = module_of(glue);
+  declare_defined(g, held);
+  for (const char *list : lists) drop_entries(g, list, [&](llvm::Function &f) { return f.isDeclaration() && held(f); });
   CAMLreturn(Val_unit);
 }

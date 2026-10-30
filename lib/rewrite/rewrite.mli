@@ -16,3 +16,8 @@ val rewrite : stamp:string -> string -> (string * int, string) result
 (** The object with every reference to the version stamped [from] moved to
     the one stamped [to_], and how many symbols were renamed. *)
 val remap : from:string -> to_:string -> string -> (string * int, string) result
+
+(** The object with each symbol [rename] gives a new name renamed, and how
+    many were: a package's C objects renamed with the names its module's
+    globals take (docs/design/ffi.md F9). *)
+val rename : rename:(string -> string option) -> string -> (string * int, string) result

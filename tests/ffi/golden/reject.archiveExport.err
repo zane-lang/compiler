@@ -1,0 +1,2 @@
+File "fixtures/reject/archiveExport/exported.a":
+Error: the member `exported.o` names `exported` in a linker directive, such as the export `__declspec(dllexport)` writes, which renaming the package's symbols cannot reach, so the link would ask for the old name (docs/design/ffi.md F9)

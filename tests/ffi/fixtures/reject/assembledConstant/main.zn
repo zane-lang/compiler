@@ -1,0 +1,15 @@
+/// An interface header defining a private constant whose address the
+/// program can see, which a source holding assembly, assembled apart,
+/// defines too: the glue's copy would be told apart from the source's,
+/// and is refused.
+package assembledConstant;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 tokenSame() foreign "token_same";
+
+Unit main() {
+	tokenSame();
+	return Unit();
+}

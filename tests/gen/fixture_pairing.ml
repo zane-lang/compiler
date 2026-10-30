@@ -25,6 +25,7 @@ let fixture ?(hand_written = []) suite golden =
   | (Codegen | Ffi | Parser), [ "reject"; name; "err" ] ->
       Ok (Some ("fixtures/reject/" ^ name ^ if suite = Parser then ".zn" else ""))
   | Ffi, [ "reject"; name; "ll"; "err" ] -> Ok (Some ("fixtures/reject/" ^ name))
+  | Ffi, [ name; "released"; "out" ] -> Ok (Some ("fixtures/" ^ name))
   | Parser, [ name; _stage; ("spans" | "tree") ] -> Ok (Some ("fixtures/" ^ name ^ ".zn"))
   | Runtime, [ name; "out" ] -> Ok (Some (name ^ ".c"))
   | Semantics, ([ "typing"; name; ("decls" | "tst" | "err") ] | [ "typing"; name; "tst"; "spans" ])

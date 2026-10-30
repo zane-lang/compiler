@@ -44,12 +44,15 @@ let sixty_four_bit triple layout =
     | Some (name, t) -> Error (refused (Printf.sprintf "aligns `%s` to %d bytes" name (align t)))
     | None -> Ok ()
 
+external use_init_array : Llvm_target.TargetMachine.t -> unit = "zane_use_init_array"
+
 (* The machine for *target*, an LLVM triple, or for the host when it is
-   absent. The triple is taken in LLVM's normal form, which reads a short
-   spelling such as `x86_64-windows-gnu` as the Windows triple it is, where
-   LLVM would otherwise take `windows` for the vendor and build for no
-   operating system. An unknown triple, or one that is not 64-bit, is an
-   error, not an exception. *)
+   absent, putting an ELF object's constructors where the C library runs
+   them (init_array_stubs.cpp). The triple is taken in LLVM's normal form,
+   which reads a short spelling such as `x86_64-windows-gnu` as the
+   Windows triple it is, where LLVM would otherwise take `windows` for the
+   vendor and build for no operating system. An unknown triple, or one
+   that is not 64-bit, is an error, not an exception. *)
 let target_machine ?target ~optimize () =
   Llvm_all_backends.initialize ();
   let triple =
@@ -64,6 +67,7 @@ let target_machine ?target ~optimize () =
         Llvm_target.TargetMachine.create ~triple ~cpu:(cpu triple) ~level
           ~reloc_mode:Llvm_target.RelocMode.PIC target
       in
+      use_init_array tm;
       Result.map (fun () -> (triple, tm)) (sixty_four_bit triple (Llvm_target.TargetMachine.data_layout tm))
   | exception Llvm_target.Error message ->
       Error (Printf.sprintf "cannot compile for the target `%s`: %s" triple message)
@@ -504,6 +508,35 @@ let lld_run command =
 (* Whether to say how a build links: `ZANE_VERBOSE` is set. *)
 let verbose () = match Sys.getenv_opt "ZANE_VERBOSE" with Some "" | None -> false | Some _ -> true
 
+(* Whether [text], a linker's errors, says it cannot find the library
+   [name], as `ld.lld` and `lld-link` say it, `ld64` does and GNU `ld`
+   does. The name must end where the linker's word does, so `-lz` is not
+   found in `-lzstd`. *)
+let unfound_library text name =
+  let in_word = function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '.' | '+' | '-' -> true | _ -> false in
+  let ends i = i >= String.length text || not (in_word text.[i]) in
+  List.exists
+    (fun before ->
+      let word = before ^ name in
+      let n = String.length word in
+      let rec at i j = j >= n || (text.[i + j] = word.[j] && at i (j + 1)) in
+      let rec from i = i <= String.length text - n && ((at i 0 && ends (i + n)) || from (i + 1)) in
+      from 0)
+    [ "unable to find library -l"; "library not found for -l"; "cannot find -l" ]
+
+(* A failed link of [libraries] as the error that names the row of the
+   library the linker could not find, when its [text] says so. *)
+let library_error libraries text =
+  List.find_map
+    (fun (l : Foreign_c.library) ->
+      if unfound_library text l.name then
+        Some
+          (Printf.sprintf
+             "%s names the system library `%s`, which the linker cannot find for the build's target (ffi.md §2.4)"
+             l.row l.name)
+      else None)
+    libraries
+
 (* [args] linked by the LLD in the compiler with the command [bundled]
    holds, when a released toolchain bundles one, with [deps], the program's
    other objects, after [obj]; else with the command *cc* gives, when LLD
@@ -511,14 +544,29 @@ let verbose () = match Sys.getenv_opt "ZANE_VERBOSE" with Some "" | None -> fals
    command LLD fails on where *cc* links is warned of: one kept by an
    earlier build may have gone stale, and is asked for again next build;
    one just asked for is not, so *cc* links from then on. When *cc* fails
-   too, the program does not link, and nothing is forgotten. [lld] runs the
-   LLD. *)
-let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ~cc ~triple ~args ~deps ~obj ~runtime
-    ~output dir =
+   too, the program does not link, and nothing is forgotten; when *cc*
+   says it cannot find one of the `system` [libraries], the error names
+   the row that asks for it, and what *cc* wrote is not repeated. [lld]
+   runs the LLD. *)
+let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(libraries = []) ~cc ~triple
+    ~args ~deps ~obj ~runtime ~output dir =
   let through_cc why =
     if verbose () then say (Printf.sprintf "zanec: `%s` links: %s\n" cc why);
-    let command = Filename.quote_command cc args in
-    match Sys.command command with 0 -> Ok () | n -> Error (Printf.sprintf "`%s` exited with %d" command n)
+    let errors = Filename.concat dir "cc-errors" in
+    let command = Filename.quote_command ~stderr:errors cc args in
+    let code = Sys.command command in
+    let written = Option.value ~default:"" (Cache.read errors) in
+    (try Sys.remove errors with Sys_error _ -> ());
+    (* Only *cc*'s own words name the row: what LLD said before it may be
+       why LLD failed and not why *cc* did. *)
+    match (code, library_error libraries written) with
+    | 0, _ ->
+        prerr_string written;
+        Ok ()
+    | _, Some error -> Error error
+    | n, None ->
+        prerr_string written;
+        Error (Printf.sprintf "`%s` exited with %d" (Filename.quote_command cc args) n)
   in
   let from_bundle file =
     match In_channel.with_open_bin file In_channel.input_all with
@@ -628,17 +676,17 @@ let runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir =
               (compile ~cc ~triple flags dir fresh))
 
 (* A directory of its own for a build's temporary files, given to [f] and
-   removed with them however [f] ends, a raise included. *)
+   removed with them however [f] ends, a raise included: every file in it
+   is the build's own, whatever its name, among them the C's objects and
+   archives, one per package that has them. *)
 let in_work_dir f =
   let dir = Filename.temp_dir "zane" "" in
   Fun.protect
     ~finally:(fun () ->
-      List.iter
-        (fun f -> try Sys.remove (Filename.concat dir f) with Sys_error _ -> ())
-        ([ "program.o"; "program"; "program.exe"; "program.pdb"; "program.lib"; "runtime.o"; "runtime.bc"; "c.o" ]
-        @ [ "library.o"; "library.so"; "library.dylib"; "library.dll"; "library.pdb"; "library.lib" ]
-        @ [ "cc-version"; "cc-link"; "cc-link-words" ]
-        @ List.map fst runtime_files);
+      (match Sys.readdir dir with
+      | names ->
+          Array.iter (fun f -> try Sys.remove (Filename.concat dir f) with Sys_error _ -> ()) names
+      | exception Sys_error _ -> ());
       try Sys.rmdir dir with Sys_error _ -> ())
     (fun () -> f dir)
 
@@ -700,28 +748,35 @@ let detach m = attached := List.filter (fun (m', _) -> m' != m) !attached
 let attached_c m = List.assq_opt m !attached
 
 (* The C attached to [m] as one module in [m]'s context, optimized on its
-   own as clang's `-O2` would when [alone], or [None] when it has none. *)
+   own as clang's `-O2` would when [alone], or [None] when it has none,
+   and what reaches the link apart from it (Foreign_c.apart). *)
 let c_module ?(alone = true) tm m packages =
   let ctx = Llvm.module_context m in
   match Foreign_c.program_module ctx ~triple:(Llvm.target_triple m) ~data_layout:(Llvm.data_layout m) packages with
-  | None -> Ok None
-  | Some c when not alone -> Ok (Some c)
-  | Some c -> (
+  | Error _ as error -> error
+  | Ok ((None, _) as c) -> Ok c
+  | Ok ((Some _, _) as c) when not alone -> Ok c
+  | Ok ((Some c, _) as both) -> (
       match Llvm_passbuilder.run_passes c "default<O2>" tm (Llvm_passbuilder.create_passbuilder_options ()) with
-      | Ok () -> Ok (Some c)
+      | Ok () -> Ok both
       | Error why ->
           Llvm.dispose_module c;
           Error (Printf.sprintf "cannot optimize the C code: %s" why))
 
 (* The C attached to [m] linked into it (docs/design/ffi.md F13): as it
    was compiled for an optimized build, whose passes then run over both
-   languages at once, and optimized on its own first otherwise. *)
+   languages at once, and optimized on its own first otherwise. What
+   reaches the link apart from the module comes back. *)
 let link_c ~optimize tm m =
   match attached_c m with
-  | None -> Ok ()
+  | None -> Ok Foreign_c.nothing_apart
   | Some packages ->
       detach m;
-      Result.map (Option.iter (Llvm_linker.link_modules m)) (c_module ~alone:(not optimize) tm m packages)
+      Result.map
+        (fun (c, apart) ->
+          Option.iter (Llvm_linker.link_modules m) c;
+          apart)
+        (c_module ~alone:(not optimize) tm m packages)
 
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and its passes run, the optimized
@@ -747,11 +802,14 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
          state, as it has one of the runtime's (docs/design/tiers.md T5).
          Every other build links it into the module. *)
       let linked =
-        if tier = Tiers.Tier1 then Ok (detach m)
-        else if separate_c && not optimize then Ok ()
+        if tier = Tiers.Tier1 then begin
+          detach m;
+          Ok Foreign_c.nothing_apart
+        end
+        else if separate_c && not optimize then Ok Foreign_c.nothing_apart
         else link_c ~optimize:(optimize && tier = Tiers.Plain) tm m
       in
-      Result.bind linked @@ fun () ->
+      Result.bind linked @@ fun apart ->
       let whole =
         match whole with
         | Some exported when optimize && tier = Tiers.Plain ->
@@ -782,10 +840,12 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
                      | None -> Ok ()
                      | Some why -> Error (Printf.sprintf "tier 1 is not a valid module: %s" why))
              | None, None -> Ok ())
-      |> Result.map (fun () -> (triple, tm, whole)))
+      |> Result.map (fun () -> (triple, tm, whole, apart)))
 
 let prepare ?target ?optimize ?tier ?fingerprint ?bundled ?cache m =
-  Result.map (fun (triple, tm, _) -> (triple, tm)) (prepare_whole ?target ?optimize ?tier ?fingerprint ?bundled ?cache m)
+  Result.map
+    (fun (triple, tm, _, _) -> (triple, tm))
+    (prepare_whole ?target ?optimize ?tier ?fingerprint ?bundled ?cache m)
 
 (* The linker command *cc* gives for a program for [target], [triple] in
    LLVM's normal form, linking with [level] and the [runtime] bundled for
@@ -923,14 +983,47 @@ let bundle_runtime ~target ~optimize dir =
           if optimize then bundle_bitcode ~cc:(bitcode_cc ()) ~triple ~target dir work;
           bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime)
 
+(* The path of the [i]th object [object_file] writes beside [output] for
+   the package's C sources holding assembly: `STEM.c.I.o`, [output]'s name
+   without its extension. *)
+let assembled_beside output i = Printf.sprintf "%s.c.%d.o" (Filename.remove_extension output) i
+
+(* Whether [name] is one [assembled_beside] gives for [output]. *)
+let is_assembled_beside output name =
+  let stem = Filename.basename (Filename.remove_extension output) ^ ".c." in
+  let digits = String.length name - String.length stem - 2 in
+  String.starts_with ~prefix:stem name
+  && Filename.check_suffix name ".o"
+  && digits > 0
+  && String.for_all (fun c -> c >= '0' && c <= '9') (String.sub name (String.length stem) digits)
+
+(* [objects] written beside [output], after those an earlier build wrote
+   there are removed, so a release built into the directory carries only
+   this build's (docs/design/ffi.md F15). *)
+let write_beside output objects =
+  let dir = Filename.dirname output in
+  match
+    Array.iter
+      (fun n -> if is_assembled_beside output n then Sys.remove (Filename.concat dir n))
+      (try Sys.readdir dir with Sys_error _ -> [||]);
+    List.iteri
+      (fun i bytes -> Out_channel.with_open_bin (assembled_beside output i) (fun oc -> output_string oc bytes))
+      objects
+  with
+  | () -> Ok ()
+  | exception Sys_error message -> Error (Printf.sprintf "cannot write the C code's objects: %s" message)
+
 (* The module's object file alone, for a package other objects link with
-   (docs/design/separate-compilation.md C3): no runtime, and no link. *)
+   (docs/design/separate-compilation.md C3): no runtime, and no link. The
+   objects its C sources holding assembly were assembled into, renamed,
+   are written beside it, and its archives are left to the consumer's
+   link, which renames them from the package's source (docs/design/ffi.md
+   F15). *)
 let object_file ?target ?(optimize = false) ?tier m output =
-  Result.bind (prepare ?target ~optimize ?tier m) (fun (_, tm) ->
+  Result.bind (prepare_whole ?target ~optimize ?tier m) (fun (_, tm, _, (apart : Foreign_c.apart)) ->
       match Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile output tm with
-      | () -> Ok ()
-      | exception Llvm_target.Error message ->
-          Error (Printf.sprintf "cannot write the object file: %s" message))
+      | () -> write_beside output apart.objects
+      | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot write the object file: %s" message))
 
 (* An object of nothing, linked where the runtime would be when the
    program's module holds the whole runtime ([Runtime_bodies.whole]). *)
@@ -947,9 +1040,8 @@ let empty_object ~triple tm path =
   Llvm.dispose_context ctx;
   result
 
-(* [c] emitted with [tm] to [dir]'s `c.o`, then kept at [kept] when there
-   is a cache; the path the linker reads. *)
-let emit_c tm c dir kept =
+(* [c] emitted with [tm] to [dir]'s `c.o`; the path the linker reads. *)
+let emit_c tm c dir =
   let fresh = Filename.concat dir "c.o" in
   match
     Fun.protect
@@ -957,12 +1049,29 @@ let emit_c tm c dir kept =
       (fun () -> Llvm_target.TargetMachine.emit_to_file c Llvm_target.CodeGenFileType.ObjectFile fresh tm)
   with
   | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot write the C code's object: %s" message)
-  | () -> (
-      match kept with
-      | None -> Ok (Some fresh)
-      | Some kept ->
-          (try Cache.keep ~random:(Random.State.make_self_init ()) ~object_:fresh ~kept with Sys_error _ -> ());
-          Ok (Some (if Sys.file_exists kept then kept else fresh)))
+  | () -> Ok fresh
+
+(* The files a program links for its C besides its own object
+   (docs/design/ffi.md F4, F14): objects, the C module's when it is
+   emitted apart and those assembled from sources holding assembly, and
+   the packages' archives, renamed. *)
+type c_files = { objects : string list; archives : string list }
+
+let no_c_files = { objects = []; archives = [] }
+let joined a b = { objects = a.objects @ b.objects; archives = a.archives @ b.archives }
+
+(* [apart]'s objects and archives written into [dir], each a file of its
+   own. *)
+let write_apart dir (apart : Foreign_c.apart) =
+  let write extension i bytes =
+    let path = Filename.concat dir (Printf.sprintf "c.%d%s" i extension) in
+    Out_channel.with_open_bin path (fun oc -> output_string oc bytes);
+    path
+  in
+  match (List.mapi (write ".o") apart.objects, List.mapi (write ".a") apart.archives) with
+  | objects, archives -> Ok { objects; archives }
+  | exception Sys_error message ->
+      Error (Printf.sprintf "cannot write the C code's objects: %s" message)
 
 (* The compiler itself, as the cache tells one build of it from another:
    the file that runs, its size and when it last changed. *)
@@ -972,41 +1081,92 @@ let compiler_identity () =
   | stat -> String.concat "\000" [ path; string_of_int stat.Unix.st_size; Printf.sprintf "%h" stat.Unix.st_mtime ]
   | exception Unix.Unix_error _ -> path
 
-(* The object an unoptimized executable links the C attached to [m] from
+(* [files] as the cache keeps them under [stem]: each copied to
+   `STEM.NAME`, and then the list of their names, `STEM.files`, which a
+   later build reads, so it never takes a set of files half kept. The
+   files as they were when one cannot be kept. *)
+let keep_c_files stem files =
+  let random = Random.State.make_self_init () in
+  let kept path = stem ^ "." ^ Filename.basename path in
+  let all = files.objects @ files.archives in
+  match
+    List.iter (fun path -> Cache.keep ~random ~object_:path ~kept:(kept path)) all;
+    List.for_all (fun path -> Sys.file_exists (kept path)) all
+  with
+  | exception Sys_error _ -> files
+  | false -> files
+  | true ->
+      let line kind path = kind ^ " " ^ Filename.basename path in
+      let lines = List.map (line "o") files.objects @ List.map (line "a") files.archives in
+      Cache.keep_string ~dir:(Filename.dirname stem) ~kept:(stem ^ ".files") (String.concat "\n" lines);
+      { objects = List.map kept files.objects; archives = List.map kept files.archives }
+
+(* The files [stem]'s list names, when the cache holds the list and each
+   of them. *)
+let kept_c_files stem =
+  match Cache.read (stem ^ ".files") with
+  | None -> None
+  | Some text ->
+      let named = String.split_on_char '\n' text |> List.filter (( <> ) "") in
+      let path line = stem ^ "." ^ String.sub line 2 (String.length line - 2) in
+      let of_kind kind =
+        List.filter_map (fun l -> if String.starts_with ~prefix:kind l then Some (path l) else None) named
+      in
+      let files = { objects = of_kind "o "; archives = of_kind "a " } in
+      if List.for_all Sys.file_exists (files.objects @ files.archives) then Some files else None
+
+(* The files an unoptimized executable links the C attached to [m] from
    (docs/design/ffi.md F14): the C optimized on its own and emitted with
-   the optimized code generator, kept in [cache]'s `foreign/object/` under
-   [Foreign_c.key], or written to [dir] when there is no cache. [None]
-   when [m] has no C apart. *)
+   the optimized code generator, beside the objects and archives that
+   reach the link apart from it, kept in [cache]'s `foreign/object/` under
+   [Foreign_c.key], or written to [dir] when there is no cache. None when
+   [m] has no C apart. *)
 let c_object ?target ?cache m dir =
   match attached_c m with
-  | None -> Ok None
+  | None -> Ok no_c_files
   | Some packages -> (
       detach m;
       let triple = Llvm.target_triple m in
       let key = Foreign_c.key ~triple ~compiler:(compiler_identity ()) packages in
-      let kept = Option.map (fun c -> List.fold_left Filename.concat c [ "foreign"; "object"; key ^ ".o" ]) cache in
-      match kept with
-      | Some kept when Sys.file_exists kept -> Ok (Some kept)
-      | _ -> (
+      let stem =
+        Option.map (fun c -> List.fold_left Filename.concat c [ "foreign"; "object"; key ]) cache
+      in
+      match Option.bind stem kept_c_files with
+      | Some files -> Ok files
+      | None ->
           let ( let* ) = Result.bind in
           let* _, tm = target_machine ?target ~optimize:true () in
-          let* c = c_module tm m packages in
-          match c with None -> Ok None | Some c -> emit_c tm c dir kept))
+          let* c, apart = c_module tm m packages in
+          let* c =
+            match c with None -> Ok [] | Some c -> Result.map (fun o -> [ o ]) (emit_c tm c dir)
+          in
+          let* apart = write_apart dir apart in
+          let files = joined { no_c_files with objects = c } apart in
+          Ok (match stem with Some stem -> keep_c_files stem files | None -> files))
 
 (* [link] is the objects of the program's stamped dependencies, which the C
    compiler links with it (docs/design/separate-compilation.md C7). [cache]
    is where the compiled runtime is kept, [Cache.dir ()] unless given, and
    [bundled] where the toolchain keeps its own, [bundled_dir ()] unless
-   given. *)
+   given. The program's C links as the objects and archives it reaches the
+   link as, the archives after every object, so each member a dependency's
+   object or the program's own uses is taken, and then its `system`
+   libraries, before the runtime and the libraries it links with
+   (docs/design/ffi.md F4). *)
 let executable ?target ?(optimize = false) ?tier ?(link = []) ?(bundled = bundled_dir ()) ?(cache = Cache.dir ())
     m output =
+  let libraries =
+    match attached_c m with Some packages -> Foreign_c.libraries packages | None -> []
+  in
   match prepare_whole ?target ~optimize ?tier ~whole:(link <> []) ~separate_c:true m with
   | Error _ as error -> error
-  | Ok (triple, tm, whole) -> (
+  | Ok (triple, tm, whole, apart) -> (
       let cc = cc () in
       let level = level ~optimize and system = system_libraries target in
       let flags = target_flag target @ level in
-      let args ?(c = []) obj runtime = flags @ [ "-o"; output; obj ] @ c @ link @ [ runtime ] @ system in
+      let rows = List.map (fun (l : Foreign_c.library) -> "-l" ^ l.name) libraries in
+      let deps (c : c_files) = c.objects @ link @ c.archives @ rows in
+      let args c obj runtime = flags @ [ "-o"; output; obj ] @ deps c @ [ runtime ] @ system in
       let bundled_link =
         Option.map
           (fun dir -> List.fold_left Filename.concat dir [ "link"; bundled_link_name ~triple level system ])
@@ -1030,12 +1190,17 @@ let executable ?target ?(optimize = false) ?tier ?(link = []) ?(bundled = bundle
             if whole then empty_object ~triple tm (Filename.concat dir "runtime.o")
             else runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir
           in
-          match (runtime, c_object ?target ?cache m dir) with
+          (* The C linked into the module left its objects and archives to
+             write; the C emitted apart wrote them with its own object. *)
+          let c =
+            Result.bind (c_object ?target ?cache m dir) (fun files ->
+                Result.map (joined files) (write_apart dir apart))
+          in
+          match (runtime, c) with
           | (Error _ as error), _ | _, (Error _ as error) -> error
-          | Ok runtime, Ok c -> (
-              let c = Option.to_list c in
-              link_program ?cache ?bundled:bundled_link ~cc ~triple ~args:(args ~c obj runtime) ~deps:(c @ link)
-                ~obj ~runtime ~output dir)))
+          | Ok runtime, Ok c ->
+              link_program ?cache ?bundled:bundled_link ~libraries ~cc ~triple
+                ~args:(args c obj runtime) ~deps:(deps c) ~obj ~runtime ~output dir))
 
 (* How many tier-1 libraries the cache keeps: the newest, so an edit loop
    does not fill the disk with every version it built. *)

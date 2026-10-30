@@ -8,9 +8,11 @@
 > lists, C-compatible value types and handles, through the glue (F8), with
 > each package's C renamed (F9), linked into an optimized build (F13, the
 > program's own packages) and compiled apart in an unoptimized or tiered
-> one (F14); handles and foreign variables at run time (F12); and
-> function values as C functions (F11). A package's C holding assembly is
-> refused until F9's object route for it lands. The rest is
+> one (F14); handles and foreign variables at run time (F12); function
+> values as C functions (F11); and `c.coda`'s `archive` and `system`
+> rows, with an archive's members and each source holding assembly
+> renamed as objects (F4, F9), both reaching a program built against a
+> release (F15). The rest is
 > designed and not yet built. This page says how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
@@ -153,11 +155,27 @@ relies on, and a path elsewhere, such as a system header's, still changes
 it.
 
 **F4. Archives and system libraries go to the link.** An `archive` row's
-static library is read member by member at the link, after its symbols are
-renamed (F9). A `system` row becomes a `-l` on the link command, in the
-order the rows are written, after the program's objects and before the
-runtime's libraries. A system library the target's C compiler cannot find is
-an error naming the package and the row.
+static library is read member by member with LLVM's archive reader
+(`lib/foreign/object_stubs.cpp`) when the package's C is compiled, so a
+check reports what a build would: a member for another architecture than
+the build's target is refused there, naming the member, rather than at
+the link. Each member is renamed (F9) and
+written back as a static library by LLVM's archive writer
+(`lib/codegen/archive_stubs.cpp`), in the kind the target's linker reads:
+GNU's for ELF, Darwin's for Apple's targets and COFF's for Windows, with
+a symbol table. The renamed libraries are passed to the link after every
+object, the program's and its dependencies', so each member an object
+uses is taken. A stamped dependency's archives reach the link of a
+program built against its release this way too: they are read from its
+source checkout and renamed with its stamped prefix (F15), so the members
+match the C names its rewritten object defines and uses. A `system` row becomes a `-l` on the link command, in the
+order the rows are written, after the program's objects and archives and
+before the runtime and its libraries. A system library the target's C compiler cannot find is
+an error naming the package and the row: the linker's own words for it,
+`unable to find library -lX` from LLD, `library not found for -lX` from
+`ld64` and `cannot find -lX` from GNU `ld`, are read from what the link
+writes, and the error names the row of the `c.coda` that asks for the
+library in their place.
 
 **F5. `zanec` reads a package's `c.coda` itself.** The settings live in the
 package's directory (`ffi.md` §2.3), beside the `.c` and `.h` files the
@@ -353,7 +371,10 @@ sources' functions are. A source that includes that header compiles the
 same definition, so each glue module is linked after the sources with
 every definition the modules before it already hold, a function's, a
 variable's, an alias's or an indirect function's, made a declaration
-(`zane_drop_defined`), and the package keeps one copy. A constructor or
+(`zane_drop_defined`), and the package keeps one copy. Every object a
+build emits, its C's included, places an ELF target's constructors and
+destructors in `.init_array` and `.fini_array`, as clang does, since the
+C library runs no `.ctors` (`zane_use_init_array`). A constructor or
 destructor with external linkage is one of those definitions, and the
 glue's list leaves it out when a module before the glue lists it itself,
 so it runs once. A constructor or
@@ -396,13 +417,50 @@ none of these. A header whose writable private state the glue defines and
 that two or more of the sources including it define too is refused, naming
 them: C gives each of them a copy of its own, so none is the header's. A
 constant several sources define has one value, so the glue keeps a copy of
-its own, as C gives each source one.
+its own, as C gives each source one. A header whose writable private
+state a source assembled apart (below) defines is refused too, since that
+copy is in an object of its own, which the glue's cannot share, and so is
+one an archive's member holds a variable of its own of the same name as,
+read from the member's local symbols: that member includes the header.
+Each is compared by its C name, so a variable an `__asm__` label names is
+compared by its label, as the header's external definitions are. A
+local symbol named after it with a `.` suffix counts too, since an
+optimized member's copy may be split or specialized into such pieces, as
+`state.0` and `state.1` for the fields of a struct `state`. And a member
+defining the header's external definitions, whose copies the glue drops
+for its, compiled the header, so it is refused whatever its local symbols
+say, as when an archive is stripped of the names no relocation needs.
+Each holds for a private constant or function whose address the program
+can see, a copy of which is told apart from it, as it does for writable
+state; a function only called, or run from the constructor list, is not
+one.
 A constructor that sets up private state the glue keeps a copy of, which
 a function the glue keeps reads, stays, itself, through a function of the
 glue it calls or through a private variable's initializer, such as a
 pointer to the state, since the source's copy sets up only the source's
 state; so does one that calls through a pointer, or calls a function
 something else calls too.
+A source assembled apart, or an archive built from sources, that includes
+the header defines the same copies outside the module: the glue's
+definitions of every name the package's objects define are made
+declarations too (`zane_drop_defined_apart`), a labelled one's matched by
+its label, as an object names it, and an assembled source's
+constructors are read from its module, as a linked source's are, so the
+glue leaves out the ones its object runs; one with external linkage the
+glue's copy of is a declaration so is left out of the glue's list too.
+An archive says neither which of a header's constructors its members run
+nor whether a member is linked, nor which headers a member includes. So
+a header whose glue runs a constructor or destructor, local or external,
+is refused when an archive could have compiled it too: when the archive
+defines what the glue defines or uses, a labelled definition again read
+by its label, or when a member runs constructors or destructors of its
+own, from `.init_array`, `.ctors`, `__mod_init_func` or `.CRT$XC` and
+their destructor sections. A header of declarations, inline functions and
+a static constructor shares no definition with a member including it, and
+the member's copy of the constructor may be folded into the initial
+value of a variable it sets, which the glue's copy uses. With no source in the module,
+the glue is linked into an empty module, so each glue module is still
+linked after one.
 
 An `archive` row's members are renamed through the object rewriter that
 stamps placeholders (C9). The set of symbols the package's archives define
@@ -420,12 +478,31 @@ function's `__asm__` statement as an inline-assembly string, and either
 can define or name a symbol (`.globl foo`, `jmp foo`) that no global
 value in the module stands for, so renaming the module's globals would
 leave the assembly on the old name. Such a module is never linked into
-the package's module. It is optimized and emitted as an object of its own,
-as F14 emits C, and once assembled, its definitions and references are
+the package's module. It is optimized with `-O2` and emitted as an object of its own
+for the build's target and processor, as F14 emits C, when the package's
+C is compiled, so a check holds its sections to the test below, and the
+object is kept in the cache under how it is emitted, the module's key
+(F3), the target and the processor. Once assembled, its definitions and references are
 symbols like any object's: the symbols it defines join the map with the
 archives' before the package's module is renamed, and the object is
 rewritten with the map. Its functions are then called and never inlined
 or folded, since no module that F13 or F16 reads holds their bodies.
+Assembly that reaches the glue through an interface header has no such
+route, since the glue is linked into the package's module, and is
+refused with an error saying to move it into a C source.
+
+The map holds every C name the package defines with external linkage:
+those its module renames, which `zane_rename_c_globals` hands back, and
+those its archives' members and assembled objects define, which renamed
+the module's declarations of them first. Each maps from the name the
+object spells, after the target's global prefix, to the one the module's
+global takes, the prefix and the package's symbol and `%c$` before the C
+name, so an object's definitions and references both move, and the
+module's calls into an object and an object's into the module meet. The
+rewriter renames each object's symbols in place
+([`separate-compilation.md`](separate-compilation.md) C9), so the
+objects' sections, relocations and code are the ones the archive or the
+assembler made.
 
 Section names are not renamed, so a linker set is refused (`ffi.md` §2.5).
 Two versions that both place entries in a section named `plugins` would
@@ -433,10 +510,21 @@ share one `__start_plugins`/`__stop_plugins` range, and the boundary
 symbols are undefined references, which keep their names. After F3 compiles
 a module, any global it places in an explicit section whose name is a C
 identifier, the only kind the linker makes `__start_`/`__stop_` symbols
-for, is an error naming the package, the section and the global. The object
-rewriter applies the same test to the sections of an archive's members and
-of an object assembled from a module holding assembly. A section whose name
+for, is an error naming the package, the section and the global. The same
+test is applied to the sections of an archive's members and of an object
+assembled from a module holding assembly, as LLVM's object reader names
+them, a Mach-O one as `SEGMENT,section`: an error naming the archive and
+its member, or the source, and the section. A section whose name
 is not a C identifier, such as `.text.hot` or `__DATA,__const`, is allowed.
+A COFF object's linker directives, its `.drectve` section, are not
+renamed either: one naming a symbol the package renames, whichever of
+its sources, glue, archive members or assembled objects defines it, such
+as the `/EXPORT:` that `__declspec(dllexport)` writes, or an `/INCLUDE:`
+or `/ALTERNATENAME:`, would ask the link for the old name, so it is an
+error naming the archive and its member, or the source, and the symbol.
+So is a Mach-O global symbol without the `_` every C name takes there,
+which an `__asm__` label or assembly can define: it has no C name to
+rename it by, so two versions of the package would both define it.
 
 **F10. A foreign call is one CGT node, with its arguments laid out for C.**
 Lowering gives each foreign verb a Zane function whose body is one
@@ -636,18 +724,34 @@ unoptimized and answers to the time from the command to the result
 optimization is many times slower without it, and its module is cached
 (F3), so an unoptimized build optimizes the package's C module on its own
 with `-O2` and emits it as an object of its own, kept in the cache beside
-the module; the Zane module stays unoptimized and calls its thunks. A
+the module, with the package's renamed archives and assembled objects
+(F9) and a list naming them all, written last, so a later build takes
+the whole set or compiles it again; the Zane module stays unoptimized and calls its thunks. A
 tiered build's tier 0 links the C the same way, and tier 1 takes none of
 it: tier 1 calls tier 0's thunks through its imports
 ([`tiers.md`](tiers.md) T5), so the program has one copy of its C's
 state, as it has one of the runtime's, whichever tier is running.
 
-**F15. A release archive holds one object per package build, C included.**
-`--object` writes the package's object with its C linked in (F13 or F14),
-and beside it a small file listing, for each of the package's C sources
-and for its glue, the hash F3 keys its module by, which F13's first condition reads. The
-archive's layout is otherwise unchanged (`dependencies.md` §3.1); an `archive` row's library is part of the source
-checkout and is renamed at the consumer's link (F9).
+**F15. A release archive holds a package build's object, C included, and
+the objects of its sources holding assembly.** `--object OUT` writes the
+package's object with its C linked in (F13 or F14), and beside it a small
+file listing, for each of the package's C sources and for its glue, the
+hash F3 keys its module by, which F13's first condition reads. Each
+source holding assembly is an object of its own (F9), renamed with the
+`!` placeholder as the package's object is, and `--object` writes these
+beside `OUT` too, as `STEM.c.0.o`, `STEM.c.1.o` and so on, `STEM` being
+`OUT` without its extension; one an earlier build wrote there under that
+name is removed first. LLVM's linkers cannot join objects into one for
+Apple's targets or Windows, so they stay apart: the release archive's
+`build/` directory holds them all (`dependencies.md` §3.1), fetching
+rewrites each (C9 of [`separate-compilation.md`](separate-compilation.md)),
+and the consumer's link takes each with `--link`. An `archive` row's
+library is part of the source checkout and is renamed at the consumer's
+link (F4, F9). There they are renamed after the C names the
+dependency's objects, the `--link` files, define with its stamped prefix:
+exactly the names its own build renamed, its glue's among them, which its
+archive's members use to reach the package's own C. Only the archives and
+its `system` libraries reach the link.
 
 ---
 
@@ -810,8 +914,13 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   an array lent to C, a C sort calling a Zane comparison, and a C library
   vendored by two versions of one package in one program, which defines
   a function, an alias of it and, on ELF targets, an indirect function,
-  and a function in file-scope assembly that C calls and that jumps to a
-  C function of another of its sources.
+  as an `archive` row's library built by the test rules for the target,
+  beside a `system` row and a function in file-scope assembly that C calls
+  and that jumps to a C function of another of its sources. The same
+  program is linked against releases of its two packages too (F15): each
+  built by `--object`, its objects rewritten with a stamp as fetching
+  rewrites them, and the program built against them, its archives renamed
+  from the checkout at its link.
 - `golden/NAME.optimized.cgt` shows what folded: the literal checksum as a
   constant, the handle's whole life gone, the capability calls in place, the
   call reaching `sin` left as a call.
@@ -835,8 +944,13 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   overwrite of a settled handle without a setter, an outside handle passed
   to a verb that is no method on a capability, a foreign variable
   outside the root package, naming a missing global, or naming a
-  `_Thread_local` one, and a package whose C places a global in a section
-  named `plugins`.
+  `_Thread_local` one, a package whose C places a global in a section
+  named `plugins`, one whose archive member or file-scope assembly places
+  data in a linker set, an archive member exporting a function it defines
+  through a linker directive, one naming in a directive a function another
+  member defines, one defining a Mach-O symbol no C name
+  renames, and a `system` row naming a library the
+  linker cannot find.
 
 ---
 

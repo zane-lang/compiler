@@ -1,0 +1,15 @@
+/// An interface header running a constructor of its own whose
+/// definitions an `archive` row's member compiles too: the glue cannot
+/// tell which of the header's constructors the archive runs, and is
+/// refused.
+package archivedConstructor;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 starts() foreign "starts";
+
+Unit main() {
+	starts();
+	return Unit();
+}

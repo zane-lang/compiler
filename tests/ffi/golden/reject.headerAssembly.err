@@ -1,0 +1,2 @@
+File "fixtures/reject/headerAssembly/fence.h":
+Error: this interface header holds assembly, which the glue that includes it cannot rename, since the glue is linked into the package's C module; move the assembly into a C source, which is assembled as an object of its own (docs/design/ffi.md F9)

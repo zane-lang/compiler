@@ -1,0 +1,43 @@
+#!/bin/sh
+# The static library OUTPUT built from the C sources directly in DIR, for
+# TARGET when one is given and the host otherwise: what an `archive` row
+# of a fixture names (README.md). Each source is compiled by `ZANE_CC`,
+# position-independent where the target has such code, and the objects
+# archived by `AR`, LLVM's `llvm-ar` unless set, which writes the kind of
+# library the objects' format takes. A directory holding a file `strip` has
+# each object stripped of the symbols no relocation needs first, by
+# `STRIP`, LLVM's `llvm-strip` unless set, as a vendor's release may be.
+set -eu
+output=$1
+dir=$2
+target=${3:-}
+# A directory holding a file `target` is a library for the triple the
+# file names, or, when it is empty, for an architecture other than the
+# host's, which a build for the host refuses.
+if [ -z "$target" ] && [ -f "$dir/target" ]; then
+	target=$(cat "$dir/target")
+	[ -n "$target" ] || case $(uname -m) in
+	x86_64 | amd64) target=aarch64-unknown-linux-gnu ;;
+	*) target=x86_64-unknown-linux-gnu ;;
+	esac
+fi
+cc=${ZANE_CC:-cc}
+ar=${AR:-llvm-ar}
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+set -- -std=c17 -O2 -c
+case "$target" in
+*windows*) ;;
+*) set -- "$@" -fPIC ;;
+esac
+[ -z "$target" ] || set -- "$@" "--target=$target"
+for source in "$dir"/*.c; do
+	"$cc" "$@" -o "$work/$(basename "$source" .c).o" "$source"
+done
+if [ -f "$dir/strip" ]; then
+	for object in "$work"/*.o; do
+		"${STRIP:-llvm-strip}" --strip-unneeded "$object"
+	done
+fi
+rm -f "$output"
+"$ar" rcs "$output" "$work"/*.o

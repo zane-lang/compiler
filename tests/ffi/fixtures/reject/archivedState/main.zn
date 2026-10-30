@@ -1,0 +1,15 @@
+/// An interface header defining private state that an `archive` row's
+/// member holds a copy of, since it includes the header, which a `static
+/// inline` function the glue calls reads: the glue cannot share the
+/// archive's copy, and is refused.
+package archivedState;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 sharedValue() foreign "shared_value";
+
+Unit main() {
+	sharedValue();
+	return Unit();
+}
