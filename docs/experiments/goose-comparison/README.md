@@ -1414,6 +1414,45 @@ body, with an up-count, a compare and a jump instead of a down-count, 12
 instructions an iteration instead of 9. Timed (11 interleaved runs at
 400000) the two builds are level: 0.382 / 0.430 s and 0.400 / 0.437 s.
 
+## gameloop with the list holding references
+
+Goose's gameloop keeps its entities in a pool and its list holds an
+`Entity&<u32 in pool>` for each: a 4-byte index into the pool, whose slots
+are reused as entities die. Zane's list cannot hold an `&` (generics.md
+§8.3), and a reference names a settled owner (memory.md §2.8), so the
+nearest Zane program is Goose's own representation written out: a pool
+`ListRef<Entity>`, a list of the spare slots, and the entity list holding
+indices in spawn order. Expiry and culling move indices, not entities.
+
+- `gamepool/main.zn` holds each index as an `Int`, 8 bytes.
+- `gamepool32/main.zn` holds it as a `Slot`, a struct wrapping
+  `@primitives$I32`, since `core` has no 32-bit integer. Its constructor
+  passes the `Int` straight to `I32.wrap`, because a call argument is a
+  coercion site and a declaration or a `return` is not.
+
+Both print `500 1871 34449268` at 500 frames, as gameloop and Goose do.
+Interleaved, 7 runs at 50000 frames (least / median):
+
+| program | time |
+| --- | --- |
+| gameloop (inline 32-byte entities) | 1.554 / 1.710 s |
+| gamepool (8-byte indices) | 0.501 / 0.575 s |
+| gamepool32 (4-byte indices) | 0.353 / 0.381 s |
+| Goose | 0.343 / 0.392 s |
+| C | 7.166 / 7.665 s |
+
+With 4-byte indices Zane is level with Goose. Callgrind at 5000 frames says
+why the index width was the gap: the bytes the removals shift.
+
+| program | program code | `memmove` |
+| --- | --- | --- |
+| gamepool | 322M | 232M |
+| gamepool32 | 306M | 117M |
+| Goose | 288M | 73M |
+
+Goose's `memmove` count is lower still, which this run does not explain;
+the wall time does not show it. The program code is within 6%.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
@@ -1423,6 +1462,7 @@ instructions an iteration instead of 9. Timed (11 interleaved runs at
 | treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~1.0× | Closed. |
 | listgrowth | ~0.9×; ~1.07× slower under `ZANE_REF32=1` than without it | Two loads a push, since x86 cannot zero-extend a 32-bit memory operand inside `cmp` or `add`. |
+| gameloop | ~4.4× inline; with the list holding 4-byte pool indices as Goose's does, ~1.0× | Inline, each removal shifts 32-byte entities where Goose shifts 4-byte references. |
 
 Without pooling, what is left is mostly representation: link width, handle
 size, and whether a tree's nodes sit in one pool or in separate blocks.

@@ -1,0 +1,82 @@
+/// gamepool with each index in 4 bytes, as Goose's `Entity&<u32 in pool>`
+/// is: `core` has no 32-bit integer, so `Slot` wraps `@primitives$I32`.
+/// F is the program's first argument.
+package gamepool32;
+
+import core$;
+import bench$;
+
+type Entity = #struct {
+	id Int;
+	x Float;
+	y Float;
+	hp Int;
+}
+
+Entity(id Int, x Float, y Float, hp Int) => init{ id; x; y; hp; }
+
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+
+type Slot = struct {
+	_value I32;
+}
+
+Slot(index Int) => init{ _value = I32.wrap(index); }
+
+Int index(this Slot) => Int(I64(this._value));
+
+Unit main() {
+	console Console(@program$console);
+	runtime Runtime(@program$runtime);
+	frames Int = size(runtime, Int(500));
+	rng Rng = Rng(Int(42));
+	pool ListRef<Entity> = ListRef(Entity);
+	spare List<Slot> = List(Slot);
+	entities List<Slot> = List(Slot);
+	total Int = Int(0);
+	frame Int = Int(1);
+	frame!to(frames) {
+		s Int = Int(1);
+		s!to(Int(30)) {
+			x Float = Float(rng!below(Int(1000)));
+			y Float = Float(rng!below(Int(1000)));
+			id Int = rng!below(Int(100));
+			hp Int = Int(50) + rng!below(Int(50));
+			reuse Bool = if(spare:size() > Int(0)) {
+				slot Slot = spare!remove(spare:size());
+				pool[slot:index()] = Entity(id, x, y, hp);
+				entities!push(slot);
+			}
+			reuse:else() {
+				pool!push(Entity(id, x, y, hp));
+				entities!push(Slot(pool:size()));
+			}
+		}
+		kills Int = Int(20);
+		if(entities:size() < kills) {
+			kills = entities:size();
+		}
+		d Int = Int(1);
+		d!to(kills) {
+			spare!push(entities!remove(Int(1)));
+		}
+		k Int = Int(1);
+		u Int = Int(1);
+		u!to(entities:size()) {
+			e Int = entities[k]:index();
+			pool[e].x = pool[e].x + Float(pool[e].id) * Float(0.1);
+			pool[e].y = pool[e].y + Float(pool[e].hp) * Float(0.05);
+			pool[e].hp = pool[e].hp - Int(1);
+			expired Bool = if(pool[e].hp < 1) {
+				spare!push(entities!remove(k));
+			}
+			expired:else() {
+				total = total + pool[e].hp;
+				k = k + 1;
+			}
+		}
+	}
+	console!print(String(frames) + " " + String(entities:size()) + " " + String(total));
+	return Unit();
+}
