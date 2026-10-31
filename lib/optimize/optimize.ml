@@ -52,4 +52,5 @@ let run (p : Program.t) =
     end
   in
   List.iter visit p.Program.funcs;
-  { p with Program.funcs = List.map (fun (f : Func.t) -> Hashtbl.find folded f.Func.symbol) p.Program.funcs }
+  Loop_pushes.program
+    { p with Program.funcs = List.map (fun (f : Func.t) -> Hashtbl.find folded f.Func.symbol) p.Program.funcs }

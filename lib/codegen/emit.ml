@@ -804,7 +804,20 @@ let slot env fr id t =
    tags it, and the blocks it owns that the place's region outlives move
    into it (memory.md §3.5). *)
 let place env b t p v l =
-  ignore (access env t (Llvm.build_store v p b));
+  (match t with
+  (* Experimental (ZANE_LOOP_PUSHES=1): a struct of scalars is stored member
+     by member, each tagged as a scalar, so that LLVM knows the stores never
+     touch a list's handle and can keep its count in a register through a
+     loop of pushes. *)
+  | Ty.Struct ts
+    when Sys.getenv_opt "ZANE_LOOP_PUSHES" = Some "1"
+         && List.for_all (function Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true | _ -> false) ts ->
+      List.iteri
+        (fun i m ->
+          let at = Llvm.build_struct_gep (lltype env t) p i "" b in
+          ignore (access env m (Llvm.build_store (Llvm.build_extractvalue v i "" b) at b)))
+        ts
+  | _ -> ignore (access env t (Llvm.build_store v p b)));
   if listed env l then ignore (call_runtime env b Cgt.Runtime.Arrive [| p; layout env l |])
 
 (* A value stored where its address can be passed. *)
@@ -1123,6 +1136,44 @@ let runs body =
     | [] -> acc
   in
   scan [] body
+
+(* Experimental (Loop_pushes, ZANE_LOOP_PUSHES=1): the lists a loop's
+   [body] pushes onto once each time round, each with its stride: a push
+   among [body]'s statements, unconditional, onto a list no other
+   statement of [body] names. Room for every time round is made before the
+   loop, and each push is then a plain store. *)
+let looped_pushes body =
+  if Sys.getenv_opt "ZANE_LOOP_PUSHES" <> Some "1" then []
+  else
+    let lists =
+      List.sort_uniq compare
+        (List.filter_map
+           (function
+             | Stat.Eval { Expr.node = Expr.Expand { body; _ }; _ } ->
+                 List.find_map
+                   (function
+                     | Stat.Let
+                         {
+                           value =
+                             {
+                               Expr.node =
+                                 Expr.Runtime { fn = Cgt.Runtime.List_push; args = { Expr.node = Expr.Address l; _ } :: _ };
+                               _;
+                             };
+                           _;
+                         } ->
+                         Some l
+                     | _ -> None)
+                   body
+             | _ -> None)
+           body)
+    in
+    List.filter_map
+      (fun id ->
+        match List.partition (fun s -> Option.is_some (push_of id s)) body with
+        | [ s ], rest when not (List.exists (names id) rest) -> Option.map (fun stride -> (id, stride)) (push_of id s)
+        | _ -> None)
+      lists
 
 let remove env fr b fn list index stride =
   let i8 = Llvm.i8_type env.ctx and one = Llvm.const_int env.i64 1 in
@@ -1762,6 +1813,15 @@ and stat env fr b (s : Stat.t) =
   | Stat.Repeat { count; body } ->
       (* The count is read once; a count below one runs the body no times. *)
       let n = value_of env fr b count in
+      let looped = looped_pushes body in
+      List.iter
+        (fun (id, stride) ->
+          let list = value_of env fr b { Expr.node = Expr.Address id; ty = Ty.Ptr } in
+          let f, fty = runtime env Cgt.Runtime.List_room in
+          ignore (Llvm.build_call fty f [| list; Llvm.const_int env.i64 (Int64.to_int stride); n |] "" b);
+          Hashtbl.replace fr.runs id (Room max_int))
+        looped;
+      Fun.protect ~finally:(fun () -> List.iter (fun (id, _) -> Hashtbl.remove fr.runs id) looped) @@ fun () ->
       let counted trips =
         let i = alloca env fr env.i64 in
         ignore (Llvm.build_store (Llvm.const_int env.i64 0) i b);

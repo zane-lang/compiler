@@ -1673,6 +1673,61 @@ So the gap is not the cage or the allocator but the loop: the handle is not
 kept in registers through it, and a loop of a known count of pushes checks
 the room at each one where it could reserve once.
 
+### Two fixes (behind `ZANE_LOOP_PUSHES=1`)
+
+**Room made before the loop.** `core`'s `push` is a verb with a block body,
+so the optimized CGT keeps it as a call, and the emitter, which sees one
+function at a time, cannot tell the loop pushes. A pass after folding
+(`lib/optimize/loop_pushes.ml`) finds every function whose whole body is
+one push of its second parameter onto the list its first names, and writes
+each call to one among a loop's statements out as that push: the value
+bound first, as a statement of its own, then the push. (Bound inside the
+push's expansion, the constructor it inlines carries a `leave` of its own,
+and the run planner's `push_of` takes any `leave` before a push as a way
+out.) The emitter (`looped_pushes`, at `Stat.Repeat`) then takes a loop
+whose body pushes once, unconditionally, onto a list no other statement of
+the body names: it calls `zane_list_room(list, stride, n)` with the loop's
+count before the loop, which grows the block once to hold every push, and
+emits the push as a plain store (the run planner's `Room`).
+
+**The count in a register.** With the check and its runtime call gone, the
+handle's items and count were still loaded from the frame and the count
+stored back each time round: the element's store, an aggregate with no
+type tag, may alias anything to LLVM, the handle's fields included. `place`
+now stores a struct of scalars member by member, each tagged `zane scalar`,
+which LLVM knows never overlaps a `zane handle` access, so it keeps the
+count and the element address in registers through the loop.
+
+At 500000 (Callgrind), instructions a push and the loop:
+
+| build | instructions | loop |
+| --- | --- | --- |
+| plain | 25 (24 + `memcpy`) | count, room and items loaded, compared, count stored, every push |
+| room made before the loop | 20 | no check or `memcpy`; items and count loaded and count stored |
+| with the scalar tags | 16 | the entity's four stores and the pointer advanced: Goose's loop |
+| Goose | 12.5 | the same, unrolled twice |
+
+Interleaved at 2000000 (11 runs, least / median), peak RSS 63 MB for all:
+
+| build | listgrowth |
+| --- | --- |
+| plain | 0.191 / 0.216 s |
+| room before the loop | 0.195 / 0.208 s |
+| with the scalar tags | 0.163 / 0.174 s |
+| with the tags and the best build's switches | 0.159 / 0.180 s |
+| Goose | 0.160 / 0.169 s |
+
+Making room ahead alone gains little; what it buys is a loop with no call,
+in which the tags can then keep the count out of memory. Together listgrowth
+is level with Goose. Every fixture gives the same output with the switch
+(`ALL=1 fixtures.sh ZANE_LOOP_PUSHES=1`), and `just test-compiler` passes
+with it on and off.
+
+Caveat: the loop's push is made unchecked on the strength of no other
+statement of the body naming the list. A reference to the list taken
+before the loop, pushed through inside it, would use the room made for the
+loop's own pushes; the prototype does not look for one.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
@@ -1681,7 +1736,7 @@ the room at each one where it could reserve once.
 | ntree | ~1.6×; with `ZANE_REF32=1`, ~1.1–1.2× in the suite and level at depth 10 | The list handle was the gap: 24 bytes against Goose's 17-byte node. Under the switch it is 12 bytes, and Zane's tree takes less memory than Goose's. |
 | treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~1.0× | Closed. |
-| listgrowth | ~0.9×; ~1.07× slower under `ZANE_REF32=1` than without it | Two loads a push, since x86 cannot zero-extend a 32-bit memory operand inside `cmp` or `add`. |
+| listgrowth | level with `ZANE_LOOP_PUSHES=1` | Closed: room made before a loop of pushes, and the count kept in a register through it. |
 | gameloop | ~4.4× inline; with the list holding 4-byte pool indices as Goose's does, ~1.0× | Inline, each removal shifts 32-byte entities where Goose shifts 4-byte references. |
 
 Without pooling, what is left is mostly representation: link width, handle

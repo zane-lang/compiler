@@ -206,6 +206,13 @@ void *zane_list_reserve(zane_list *list, int64_t stride, int64_t n) {
 	return ZL_ITEMS(list) + list->count++ * stride;
 }
 
+/* Experimental (docs/experiments/goose-comparison): room made for `n` more
+   elements, which a loop that pushes once each time round then pushes as
+   plain stores with no check of their own. */
+void zane_list_room(zane_list *list, int64_t stride, int64_t n) {
+	if (n > 0 && (ZL_COUNT(list) + n) * stride > ZL_ROOM(list)) zane_list_grow(list, (ZL_COUNT(list) + n) * stride, stride);
+}
+
 /* The element at `index`, counted from 1 (control-flow.md §3.4). */
 void *zane_list_at(zane_list *list, int64_t index, int64_t stride) {
 	if (index < 1 || index > ZL_COUNT(list)) zane_out_of_range();

@@ -25,7 +25,7 @@ let classify : Cgt.Runtime.fn -> t = function
      them: a scope, a held slot, a copy, a box, a spawn, a run of pushes, and
      the walks it emits for each type. The evaluator gives each node its
      meaning directly. *)
-  | List_reserve | Scope_enter | Scope_drain | Hold | Too_deep | Promote | Arrive | Copy
+  | List_reserve | List_room | Scope_enter | Scope_drain | Hold | Too_deep | Promote | Arrive | Copy
   | Overwrite | Box | Spawn | Join | Snapshot | Out_of_range
   | Region_at | Alloc | Alloc_held | Free | Leaves | Defer | Defer_return ->
       Computed
