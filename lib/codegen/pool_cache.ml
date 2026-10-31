@@ -12,12 +12,14 @@
    every pool such a function can be given is made where a value needs one
    (Lower.pool_value), and that is made in a block that never needs to grow
    (runtime/arena.c, `zane_alloc_unbounded`), as Goose reserves a data
-   stack whose growth it never checks (its specification, §1.3). *)
+   stack whose growth it never checks (its specification, §1.3). Not with
+   ZANE_REF32=1: each such block takes 2 GiB of the cage's 28 GiB, which a
+   few threads' pools use up. *)
 
 open Cgt.Nodes
 
-let unchecked () = Sys.getenv_opt "ZANE_POOL_UNCHECKED" = Some "1"
-let on () = Sys.getenv_opt "ZANE_POOL_REGISTERS" = Some "1" || unchecked ()
+let unchecked () = Sys.getenv_opt "ZANE_POOL_UNCHECKED" = Some "1" && not (Cgt.Ref32.on ())
+let on () = Sys.getenv_opt "ZANE_POOL_REGISTERS" = Some "1" || Sys.getenv_opt "ZANE_POOL_UNCHECKED" = Some "1"
 
 (* The locals that hold [f]'s pool's address, its parameter first: a
    pointer parameter that some push builds into, and every local bound to
@@ -76,20 +78,16 @@ let held x = match !current with Some c -> List.mem x c.ids | None -> false
 (* Whether a call or a runtime function is handed the pool. *)
 let handed (args : Expr.t list) = List.exists (fun (a : Expr.t) -> match a.Expr.node with Expr.Local x -> held x | _ -> false) args
 
-let handle_type ctx = Llvm.struct_type ctx [| Llvm.pointer_type ctx; Llvm.i64_type ctx; Llvm.i64_type ctx |]
-
-let field ctx b c i = Llvm.build_struct_gep (handle_type ctx) c.handle i "" b
-
 (* The slots read from the pool, as the function starts and after anything
    else was handed it. *)
 let reload ctx b c =
-  let load i slot t = ignore (Llvm.build_store (Llvm.build_load t (field ctx b c i) "" b) slot b) in
-  load 0 c.items (Llvm.pointer_type ctx);
-  load 1 c.count (Llvm.i64_type ctx);
-  load 2 c.room (Llvm.i64_type ctx)
+  let load slot v = ignore (Llvm.build_store v slot b) in
+  load c.items (List_handle.items ctx b c.handle);
+  load c.count (List_handle.count ctx b c.handle);
+  load c.room (List_handle.room ctx b c.handle)
 
 (* The count written back, before anything else is handed the pool. *)
-let flush ctx b c = ignore (Llvm.build_store (Llvm.build_load (Llvm.i64_type ctx) c.count "" b) (field ctx b c 1) b)
+let flush ctx b c = List_handle.set_count ctx b (Llvm.build_load (Llvm.i64_type ctx) c.count "" b) c.handle
 
 let start ctx b ~alloca ids handle =
   let c =

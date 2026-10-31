@@ -235,7 +235,6 @@ void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride) {
 	return array + (index - 1) * stride;
 }
 
-#ifndef ZANE_REF32
 /* ---------------------------------------------------------------------- */
 /* Pooled variants (docs/experiments/goose-comparison)                    */
 /* ---------------------------------------------------------------------- */
@@ -248,7 +247,7 @@ void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride) {
    to build it in, and builds every node there (lower.ml, `into`). */
 
 /* The root's node. */
-char *zane_pool_root(zane_list *pool, int64_t size) { return pool->items + pool->count - size; }
+char *zane_pool_root(zane_list *pool, int64_t size) { return ZL_ITEMS(pool) + pool->count - size; }
 
 /* The node a link names. A link may be at any byte of a packed node. */
 char *zane_link(char *link) {
@@ -311,11 +310,11 @@ static zane_mark *zane_pool_home(zane_list *out) {
 __attribute__((noinline)) void zane_pool_reserve(zane_list *pool, int64_t total) {
 	if (total <= pool->room) return;
 	if (total > ZANE_POOL_MOST) zane_broken("a pooled variant past 2 GiB");
-	if (!pool->items) {
+	if (!ZL_ITEMS(pool)) {
 		zane_mark *r = zane_pool_home(pool);
 		zane_lock(r->context);
 		total = (total + 7) & ~(int64_t)7;
-		*pool = (zane_list){ zane_pool_frontier(r, total), pool->count, total };
+		*pool = ZL_MAKE(zane_pool_frontier(r, total), pool->count, total);
 		zane_unlock(r->context);
 		return;
 	}
@@ -323,14 +322,14 @@ __attribute__((noinline)) void zane_pool_reserve(zane_list *pool, int64_t total)
 	if (total > ZANE_POOL_MOST) total = ZANE_POOL_MOST;
 	total = (total + 7) & ~(int64_t)7;
 	if (total <= ZANE_CHUNK - ZANE_LINE && total > zane_pool_hint) zane_pool_hint = total;
-	zane_mark *r = zane_pool_region(pool->items);
+	zane_mark *r = zane_pool_region(ZL_ITEMS(pool));
 	zane_heap *h = &r->heap;
 	zane_lock(r->context);
-	if (pool->items + pool->room == h->bump &&
-	    (pool->items + total <= h->end ||
+	if (ZL_ITEMS(pool) + pool->room == h->bump &&
+	    (ZL_ITEMS(pool) + total <= h->end ||
 	     (h->end == r->context->frontier && total <= ZANE_CHUNK - ZANE_LINE &&
-	      zane_stretch(r, pool->items + total, ZANE_CHUNK)))) {
-		h->bump = pool->items + total;
+	      zane_stretch(r, ZL_ITEMS(pool) + total, ZANE_CHUNK)))) {
+		h->bump = ZL_ITEMS(pool) + total;
 		zane_unlock(r->context);
 		pool->room = total;
 		return;
@@ -342,9 +341,9 @@ __attribute__((noinline)) void zane_pool_reserve(zane_list *pool, int64_t total)
 	}
 	char *block = zane_pool_frontier(r, total);
 	zane_unlock(r->context);
-	memcpy(block, pool->items, (size_t)pool->count);
-	zane_free(pool->items, pool->room, ZANE_LIST_ALIGN);
-	pool->items = block;
+	memcpy(block, ZL_ITEMS(pool), (size_t)pool->count);
+	zane_free(ZL_ITEMS(pool), pool->room, ZANE_LIST_ALIGN);
+	ZL_SET_ITEMS(pool, block);
 	pool->room = total;
 }
 
@@ -363,7 +362,7 @@ void zane_pool_new(zane_list *out) {
 	zane_mark *r = zane_pool_home(out);
 	int64_t room = zane_pool_hint > ZANE_LIST_FIRST && zane_pool_reuse() ? zane_pool_hint : ZANE_LIST_FIRST;
 	zane_lock(r->context);
-	*out = (zane_list){ zane_pool_frontier(r, room), 0, room };
+	*out = ZL_MAKE(zane_pool_frontier(r, room), 0, room);
 	zane_unlock(r->context);
 }
 
@@ -373,7 +372,7 @@ void zane_pool_new(zane_list *out) {
 void zane_pool_new_unbounded(zane_list *out) {
 	zane_mark *r = zane_pool_home(out);
 	zane_lock(r->context);
-	*out = (zane_list){ zane_alloc_unbounded(r), 0, ZANE_POOL_MOST - ZANE_LINE };
+	*out = ZL_MAKE(zane_alloc_unbounded(r), 0, ZANE_POOL_MOST - ZANE_LINE);
 	zane_unlock(r->context);
 }
 
@@ -385,7 +384,7 @@ int64_t zane_pool_push(zane_list *pool, const char *node, int64_t size, int64_t 
                        int64_t o1, int64_t l1, int64_t o2, int64_t l2, int64_t o3, int64_t l3) {
 	int64_t at = pool->count;
 	if (__builtin_expect(at + size > pool->room, 0)) zane_pool_reserve(pool, at + size);
-	char *made = pool->items + at;
+	char *made = ZL_ITEMS(pool) + at;
 	memcpy(made, node, (size_t)size);
 	int64_t to[4] = { o0, o1, o2, o3 }, links[4] = { l0, l1, l2, l3 };
 	for (int i = 0; i < n; i++) {
@@ -404,10 +403,10 @@ int64_t zane_pool_append(zane_list *pool, zane_list *from, int64_t size) {
 	if (from->count < size) zane_broken("an empty pooled variant");
 	int64_t at = pool->count;
 	if (at + from->count > pool->room) zane_pool_reserve(pool, at + from->count);
-	memcpy(pool->items + at, from->items, (size_t)from->count);
+	memcpy(ZL_ITEMS(pool) + at, ZL_ITEMS(from), (size_t)from->count);
 	pool->count = at + from->count;
-	if (from->room) zane_pool_abandon(from->items);
-	*from = (zane_list){ NULL, 0, 0 };
+	if (from->room) zane_pool_abandon(ZL_ITEMS(from));
+	*from = ZL_MAKE(NULL, 0, 0);
 	return pool->count - size;
 }
 
@@ -431,7 +430,7 @@ static int64_t zane_pool_place(zane_list *pool, const char *node, int64_t size, 
 	for (int w = 0; mask >> w; w++)
 		if ((mask >> w) & 1) children[w] = zane_pool_place(pool, zane_link((char *)node + w), size, masks);
 	int64_t at = pool->count;
-	char *made = pool->items + at;
+	char *made = ZL_ITEMS(pool) + at;
 	memcpy(made, node, (size_t)size);
 	for (int w = 0; mask >> w; w++)
 		if ((mask >> w) & 1) {
@@ -449,14 +448,14 @@ void zane_pool_copy(zane_list *out, const char *node, int64_t size, int64_t m0, 
 	int64_t masks[4] = { m0, m1, m2, m3 };
 	int64_t bytes = zane_pool_count(node, masks) * size;
 	if (bytes > ZANE_CHUNK - ZANE_LINE) {
-		*out = (zane_list){ NULL, 0, 0 };
+		*out = ZL_MAKE(NULL, 0, 0);
 		zane_list_grow(out, bytes, 1);
 	} else {
 		zane_mark *r = zane_pool_home(out);
 		zane_lock(r->context);
-		*out = (zane_list){ zane_pool_frontier(r, bytes), 0, (bytes + 7) & ~(int64_t)7 };
+		*out = ZL_MAKE(zane_pool_frontier(r, bytes), 0, (bytes + 7) & ~(int64_t)7);
 		zane_unlock(r->context);
 	}
 	zane_pool_place(out, node, size, masks);
 }
-#endif
+

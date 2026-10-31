@@ -1121,6 +1121,40 @@ operand is a load micro-op anyway, so the work is nearly the same.
 Every fixture still gives the same output with the switch, and the test
 suite passes without it.
 
+### Pooled variants under the switch
+
+Pooled variants were off under the switch. A pool's root is a list of
+bytes, so under the switch its handle is the 12-byte list handle too:
+`Type_layout` lays a pooled member out as `list_handle ()`,
+`Pool_cache` reads and writes the handle through `List_handle`, and the
+pool runtime in `list.c` goes through the `ZL_*` macros like the rest of
+it. Pool blocks are aligned to 8 bytes and carved from the cage, so their
+address encodes as any list's does.
+
+`ZANE_POOL_UNCHECKED=1` is ignored under the switch, so pushes check their
+room (with the count kept in registers, as `ZANE_POOL_REGISTERS=1`). An
+unchecked pool lives in a block that never grows, which reserves 2 GiB, and
+the cage's 28 GiB held too few of them: the `spawns` fixture stopped with
+"out of addresses for a pool". With that, every fixture gives the same
+output under the switch and all four pooling switches, except `arrays`,
+`boxes` and `walks`, which pooling refuses either way.
+
+All switches on, with and without `ZANE_REF32=1` (21 interleaved runs,
+least and median wall time, peak RSS; the checked column is the pooling
+switches with `ZANE_POOL_REGISTERS=1` in place of `ZANE_POOL_UNCHECKED=1`):
+
+| test | switches | switches, checked | switches and Ref32 |
+| --- | --- | --- | --- |
+| treecopy 18 | 0.048 / 0.078 s, 19.1 MB | 0.048 / 0.076 s | 0.055 / 0.075 s, 19.6 MB |
+| binarytrees 16 | 0.055 / 0.062 s, 11.0 MB | 0.054 / 0.064 s | 0.055 / 0.067 s, 11.0 MB |
+| ntree 10 (11 runs) | 0.172 / 0.191 s, 34.2 MB | | 0.143 / 0.156 s, 18.1 MB |
+
+Callgrind on treecopy at depth 14: 24.1 million instructions unchecked,
+22.4 million checked, 22.4 million checked under the switch. Together they
+add nothing for the trees: a pool's nodes already link to each other by
+32-bit offsets, so the switch changes only the root's handle. ntree takes
+what the switch alone gave it, since pooling does not touch its lists.
+
 ### The suite with the switch
 
 `run.py` over every test with `ZANE_REF32=1` alone (RUNS=7, median wall
@@ -1184,8 +1218,8 @@ references, above): list handles and boxed members are 32-bit, and sums
 whose payloads align to 4 bytes or less are compact. Not yet under the
 switch: `&T` fields stay 64-bit, since no test here uses them; text handles
 stay 24 bytes, since text bytes are unaligned and may sit in the binary;
-and pooled variants are off, so the switch and the pool cannot yet be
-measured together.
+and `ZANE_POOL_UNCHECKED=1` is ignored, since an unchecked pool's 2 GiB
+block does not fit the cage more than a few times over.
 
 After that, for binarytrees: a calling convention for functions that build
 into a pool, items and count passed in registers and the new count
