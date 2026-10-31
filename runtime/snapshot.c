@@ -116,7 +116,9 @@ static void zane_check(zane_mark *m) {
 		zane_end((char *)(r + 1), r->type);
 		zane_free((char *)r, (int64_t)sizeof *r + r->size, 8);
 	}
+#ifndef ZANE_BUMP_REGIONS
 	if (m->heap.live != 0) zane_broken("a dynamic block outlived its owner");
+#endif
 }
 
 /* A context whose call is over, back in the pool: the result took its

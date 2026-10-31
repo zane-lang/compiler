@@ -1514,6 +1514,53 @@ under the switch (`boxes`, `keeping`, `walks`); each gives the same output
 as without it under `ZANE_CHECK=1` (`fixtures.sh ZANE_ONE_BOX=1`), and
 `just test-compiler` passes with it on and off.
 
+## Bump-only regions (behind `ZANE_BUMP_REGIONS=1`): no gain
+
+A box's block came from the innermost region by popping its size class's
+stack of returned blocks, or else bumping the frontier, and every block
+taken added one to the region's `live` count, which only a checked drain
+reads (`snapshot.c`). Strict scopes mean a block returned before its scope
+drains is the exception, so with the switch emitted code takes a box's
+block at the frontier alone (`Walks.take ~bump_only`): load the frontier and
+its end, compare, store. No `live` count is kept, and the runtime skips the
+checked drain's count (`-DZANE_BUMP_REGIONS`). A returned block waits for
+its scope to drain.
+
+| build | binarytrees 14 instructions | binarytrees 18 (least / median, 11 interleaved) |
+| --- | --- | --- |
+| `ZANE_ONE_BOX=1` | 123.3 M | 0.245 / 0.332 s |
+| with `ZANE_BUMP_REGIONS=1` | 112.2 M | 0.280 / 0.317 s |
+| Goose | 141.9 M | 0.233 / 0.271 s |
+
+9% fewer instructions and no change in time (at depth 16 too, 21 runs:
+0.049 / 0.060 s against 0.053 / 0.065 s). The size class's pop and the
+count were not on the chain that bounds `make`; the frontier's load and
+store are, and they stay. Peak RSS is unchanged (binarytrees 16 10 MB,
+treecopy 18 22 MB), and `just test-compiler` passes with the switch,
+including its memory-bounded tests. The switch stays in for the record but
+is not part of the best build.
+
+## Nodes in the scope region instead of pools
+
+Pooled variants exist to put a recursive variant's nodes in one block with
+4-byte links. One box per cycle under `ZANE_REF32=1` does that with no
+pool: each node is one block bumped from the innermost scope's region,
+reached through the thread-local `zane_open` (a constant address, as
+Goose's global top is), and its links are 4-byte `Ref`s. binarytrees'
+`Tree` is a compact sum of 8 bytes, so a node is a 16-byte `Pair`.
+
+| build (binarytrees 18) | least / median |
+| --- | --- |
+| `ZANE_ONE_BOX=1` | 0.239 / 0.268 s |
+| `ZANE_ONE_BOX=1 ZANE_REF32=1` | 0.225 / 0.246 s |
+| with `ZANE_BUMP_REGIONS=1` too | 0.262 / 0.274 s |
+| pooled, peeled, packed, unchecked (the switches) | 0.256 / 0.275 s |
+| Goose | 0.221 / 0.250 s |
+
+The region beats the pools: level with Goose, where the pooled build is
+1.1–1.15× behind, with no pool to make and unmap per tree and no count
+reached through a pointer. Goose's node is still half the size, 8 bytes.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |

@@ -159,10 +159,29 @@ let visit c walk at with_ extra =
    with, whose lock the copy holds: the top of its size class's stack, or
    the next bytes at its frontier, or what the runtime finds when neither
    has one. *)
-let take c region size =
+let take ?(bump_only = false) c region size =
   let env = c.env in
   let words = max 1 ((size + 7) / 8) in
   if words > classes then runtime c Cgt.Runtime.Alloc_held [| region; int env size; int env 8 |]
+  else if bump_only then begin
+    let at = load c env.ptr (offset c region frontier) in
+    let ends = load c env.ptr (offset c region frontier_end) in
+    let next = offset c at (8 * words) in
+    let fits = block c and slow = block c and done_ = block c in
+    ignore
+      (Llvm.build_cond_br
+         (Llvm.build_icmp Llvm.Icmp.Ule (Llvm.build_ptrtoint next env.i64 "" c.b) (Llvm.build_ptrtoint ends env.i64 "" c.b) "" c.b)
+         fits slow c.b);
+    Llvm.position_at_end fits c.b;
+    store c next (offset c region frontier);
+    ignore (Llvm.build_br done_ c.b);
+    Llvm.position_at_end slow c.b;
+    let found = runtime c Cgt.Runtime.Alloc_held [| region; int env size; int env 8 |] in
+    let slow_end = Llvm.insertion_block c.b in
+    ignore (Llvm.build_br done_ c.b);
+    Llvm.position_at_end done_ c.b;
+    Llvm.build_phi [ (at, fits); (found, slow_end) ] "" c.b
+  end
   else begin
     let counted () =
       let count = offset c region live in
@@ -238,7 +257,7 @@ let box env f b size align =
     let inline = block c and shared = block c and done_ = block c in
     ignore (Llvm.build_cond_br (nonzero c region) inline shared b);
     Llvm.position_at_end inline b;
-    let taken = take c region size in
+    let taken = take ~bump_only:(Cgt.Ref32.bump ()) c region size in
     let inline_end = Llvm.insertion_block b in
     ignore (Llvm.build_br done_ b);
     Llvm.position_at_end shared b;
