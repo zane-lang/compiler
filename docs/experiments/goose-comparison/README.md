@@ -2226,6 +2226,10 @@ independent and with no fixed range. What the cage still has is ntree's
 window. Reaching it means carving spans from the window as well, which
 caps the lists all of a program's chunks share at the window's 14 GiB.
 
+Decided: list items stay 8-byte pointers, and ntree stays at 23 MB. A
+growing list reserves 64 times its size in addresses (`ZANE_HEADROOM`), so
+the window would cap large lists or force them to copy.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
