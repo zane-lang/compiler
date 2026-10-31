@@ -1591,11 +1591,32 @@ does not move the time. Every fixture gives the same output with
 `ZANE_REF32=1 ZANE_ONE_BOX=1 ZANE_NICHE_SUMS=1` as without
 (`ALL=1 fixtures.sh`), and `just test-compiler` passes without them.
 
+### The suite with the best build
+
+`run.py` over every test with `ZANE_ONE_BOX=1 ZANE_REF32=1
+ZANE_NICHE_SUMS=1` (RUNS=7, median wall time, the patched sources as
+above). No pooling switch is set.
+
+| test | Zane | Goose | Zane ÷ Goose |
+| --- | --- | --- | --- |
+| binarytrees | 0.060 s / 10.0 MB | 0.054 s / 10.0 MB | 1.1× (level interleaved, ahead at depth 20) |
+| treecopy | 0.100 s / 22.3 MB | 0.221 s / 18.3 MB | 0.45× |
+| ntree | 0.173 s / 18.3 MB | 0.117 s / 24.9 MB | 1.5× |
+| listgrowth | 0.238 s | 0.201 s | 1.2× |
+| allocfree | 0.703 s / 33.3 MB | 0.710 s / 44.2 MB | 1.0× |
+| entities | 1.173 s | 1.124 s | 1.04× |
+| particles | 0.149 s | 0.168 s | 0.9× |
+| concscan | 0.479 s | 4.92 s | 0.1× |
+| gameloop | 1.767 s | 0.392 s | 4.5× (inline entities; gamepool32 is level) |
+
+The compute-bound tests, startup and primes are level, as before (nbody's
+0.41 s against 0.34 s here was 0.34 s against 0.34 s in the plain run).
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
 | --- | --- | --- |
-| binarytrees | ~2.2× (pooled, peeled, packed and with Goose's push shape: ~1.2–1.3×) | The rest is the pool's address: Zane reads its count through a pointer restored from the stack in every frame, which puts a second store-to-load forward on the count's chain. With `make`'s pool in a global, Zane matches Goose. |
+| binarytrees | level with `ZANE_ONE_BOX=1` alone; ahead at depth 20 with `ZANE_REF32=1`, at two thirds of Goose's memory with `ZANE_NICHE_SUMS=1` | Closed: one box per cycle, nodes bumped from the scope region, and an 8-byte node. |
 | ntree | ~1.6×; with `ZANE_REF32=1`, ~1.1–1.2× in the suite and level at depth 10 | The list handle was the gap: 24 bytes against Goose's 17-byte node. Under the switch it is 12 bytes, and Zane's tree takes less memory than Goose's. |
 | treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~1.0× | Closed. |
