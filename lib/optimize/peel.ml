@@ -111,6 +111,9 @@ let template (f : Func.t) bail : Stat.t list option =
     | Stat.Store _ | Stat.Overwrite _ | Stat.Place _ | Stat.Repeat _ | Stat.Spawn _ | Stat.Join _
     | Stat.Scope _ | Stat.Hold _ | Stat.Reserve _ ->
         raise Unfit
+    (* A write through a pointer reaches the caller's place, which the call
+       made after a bail would write again. *)
+    | Stat.Assign { place; _ } when place.Expr.deref -> raise Unfit
     | s ->
         let es, bodies = Cgt.Traverse.stat_parts s in
         List.iter (check_expr ~returned) es;

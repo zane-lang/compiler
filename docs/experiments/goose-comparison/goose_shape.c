@@ -42,9 +42,17 @@ static int64_t check(const char *n) {
 }
 static int64_t tree(int64_t d) { top = base; int64_t at = make(d); return check(base + at); }
 int main(int argc, char **argv) {
+	if (argc < 2) {
+		fprintf(stderr, "usage: %s depth\n", argv[0]);
+		return 1;
+	}
 	int n = atoi(argv[1]);
 	base = mmap(NULL, (size_t)1 << 31, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 	char *lbase = mmap(NULL, (size_t)1 << 31, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+	if (base == MAP_FAILED || lbase == MAP_FAILED) {
+		perror("mmap");
+		return 1;
+	}
 	printf("stretch %ld\n", (long)tree(n + 1));
 	char *sb = base; base = lbase; top = lbase; int64_t la = make(n); base = sb;
 	for (int d = 4; d <= n; d += 2) {

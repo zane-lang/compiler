@@ -91,40 +91,13 @@
     │       ├── body[12] > let:
     │       │   ├── local: #8
     │       │   └── value: 0x0p+0 : f64
-    │       ├── body[13] > eval > expand:
+    │       ├── body[13] > assign:
+    │       │   ├── place: #8
+    │       │   └── value: -0x0p+0 : f64
+    │       ├── body[14] > eval > runtime:
     │       │   ├── type: void
-    │       │   ├── label: @97
-    │       │   ├── body[0] > let:
-    │       │   │   ├── local: #99
-    │       │   │   └── value: address of #8 : ptr
-    │       │   ├── body[1] > eval > expand:
-    │       │   │   ├── type: void
-    │       │   │   ├── label: @98
-    │       │   │   ├── body[0] > assign:
-    │       │   │   │   ├── place: *#99
-    │       │   │   │   └── value > flip:
-    │       │   │   │       ├── type: f64
-    │       │   │   │       └── value > deref:
-    │       │   │   │           ├── type: f64
-    │       │   │   │           └── ptr: local #99 : ptr
-    │       │   │   └── body[1]: leave @97
-    │       │   ├── body[2] > eval > call:
-    │       │   │   ├── type: void
-    │       │   │   ├── fn: folding$negate(this %primitives$F64)
-    │       │   │   └── args[0]: local #99 : ptr
-    │       │   └── body[3]: leave @97
-    │       ├── body[14] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: folding$check(%primitives$Bool)
-    │       │   └── args[0] > binary:
-    │       │       ├── type: i1
-    │       │       ├── op: <
-    │       │       ├── left > binary:
-    │       │       │   ├── type: f64
-    │       │       │   ├── op: /
-    │       │       │   ├── left: 0x1p+0 : f64
-    │       │       │   └── right: local #8 : f64
-    │       │       └── right: 0x0p+0 : f64
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
     │       ├── body[15] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -143,67 +116,16 @@
     │       │       ├── type: {i64, i64}
     │       │       ├── members[0] > member 0: 2 : i64
     │       │       └── members[1] > member 1: 3 : i64
-    │       ├── body[19] > eval > expand:
+    │       ├── body[19] > assign:
+    │       │   ├── place: #35
+    │       │   └── value > record:
+    │       │       ├── type: {i64, i64}
+    │       │       ├── members[0] > member 0: 20 : i64
+    │       │       └── members[1] > member 1: 30 : i64
+    │       ├── body[20] > eval > runtime:
     │       │   ├── type: void
-    │       │   ├── label: @100
-    │       │   ├── body[0] > let:
-    │       │   │   ├── local: #102
-    │       │   │   └── value: address of #35 : ptr
-    │       │   ├── body[1] > let:
-    │       │   │   ├── local: #103
-    │       │   │   └── value: 10 : i64
-    │       │   ├── body[2] > eval > expand:
-    │       │   │   ├── type: void
-    │       │   │   ├── label: @101
-    │       │   │   ├── body[0] > assign:
-    │       │   │   │   ├── place: *#102.0
-    │       │   │   │   └── value > binary:
-    │       │   │   │       ├── type: i64
-    │       │   │   │       ├── op: *
-    │       │   │   │       ├── left > member:
-    │       │   │   │       │   ├── type: i64
-    │       │   │   │       │   ├── index: 0
-    │       │   │   │       │   └── value > deref:
-    │       │   │   │       │       ├── type: {i64, i64}
-    │       │   │   │       │       └── ptr: local #102 : ptr
-    │       │   │   │       └── right: 10 : i64
-    │       │   │   ├── body[1] > assign:
-    │       │   │   │   ├── place: *#102.1
-    │       │   │   │   └── value > binary:
-    │       │   │   │       ├── type: i64
-    │       │   │   │       ├── op: *
-    │       │   │   │       ├── left > member:
-    │       │   │   │       │   ├── type: i64
-    │       │   │   │       │   ├── index: 1
-    │       │   │   │       │   └── value > deref:
-    │       │   │   │       │       ├── type: {i64, i64}
-    │       │   │   │       │       └── ptr: local #102 : ptr
-    │       │   │   │       └── right: 10 : i64
-    │       │   │   └── body[2]: leave @100
-    │       │   ├── body[3] > eval > call:
-    │       │   │   ├── type: void
-    │       │   │   ├── fn: folding$scale(this folding$Vec, %primitives$I64)
-    │       │   │   ├── args[0]: local #102 : ptr
-    │       │   │   └── args[1]: 10 : i64
-    │       │   └── body[4]: leave @100
-    │       ├── body[20] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: folding$check(%primitives$Bool)
-    │       │   └── args[0] > binary:
-    │       │       ├── type: i1
-    │       │       ├── op: ==
-    │       │       ├── left > binary:
-    │       │       │   ├── type: i64
-    │       │       │   ├── op: +
-    │       │       │   ├── left > member:
-    │       │       │   │   ├── type: i64
-    │       │       │   │   ├── index: 0
-    │       │       │   │   └── value: local #35 : {i64, i64}
-    │       │       │   └── right > member:
-    │       │       │       ├── type: i64
-    │       │       │       ├── index: 1
-    │       │       │       └── value: local #35 : {i64, i64}
-    │       │       └── right: 50 : i64
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
     │       ├── body[21] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -316,48 +238,48 @@
     │       │       │       │       ├── left: 1 : i64
     │       │       │       │       └── right > expand:
     │       │       │       │           ├── type: i64
-    │       │       │       │           ├── label: @125
-    │       │       │       │           ├── result: #128
+    │       │       │       │           ├── label: @118
+    │       │       │       │           ├── result: #121
     │       │       │       │           ├── body[0] > let:
-    │       │       │       │           │   ├── local: #127
+    │       │       │       │           │   ├── local: #120
     │       │       │       │           │   └── value > deref:
     │       │       │       │           │       ├── type: <void | box32>
     │       │       │       │           │       └── ptr: local #85 : ptr
     │       │       │       │           ├── body[1] > eval > expand:
     │       │       │       │           │   ├── type: void
-    │       │       │       │           │   ├── label: @126
+    │       │       │       │           │   ├── label: @119
     │       │       │       │           │   ├── body[0] > assign:
-    │       │       │       │           │   │   ├── place: #128
+    │       │       │       │           │   │   ├── place: #121
     │       │       │       │           │   │   └── value > expand:
     │       │       │       │           │   │       ├── type: i64
-    │       │       │       │           │   │       ├── label: @132
-    │       │       │       │           │   │       ├── result: #129
+    │       │       │       │           │   │       ├── label: @125
+    │       │       │       │           │   │       ├── result: #122
     │       │       │       │           │   │       ├── body[0] > let:
-    │       │       │       │           │   │       │   ├── local: #130
-    │       │       │       │           │   │       │   └── value: address of #127 : ptr
+    │       │       │       │           │   │       │   ├── local: #123
+    │       │       │       │           │   │       │   └── value: address of #120 : ptr
     │       │       │       │           │   │       └── body[1] > switch:
     │       │       │       │           │   │           ├── value > deref:
     │       │       │       │           │   │           │   ├── type: <void | box32>
-    │       │       │       │           │   │           │   └── ptr: local #130 : ptr
+    │       │       │       │           │   │           │   └── ptr: local #123 : ptr
     │       │       │       │           │   │           ├── cases[0] > case 0[0] > let:
-    │       │       │       │           │   │           │   ├── local: #131
+    │       │       │       │           │   │           │   ├── local: #124
     │       │       │       │           │   │           │   └── value > offset:
     │       │       │       │           │   │           │       ├── within: <void | box32>
     │       │       │       │           │   │           │       ├── path: 0
-    │       │       │       │           │   │           │       └── base: local #130 : ptr
+    │       │       │       │           │   │           │       └── base: local #123 : ptr
     │       │       │       │           │   │           ├── cases[0] > case 0[1] > assign:
-    │       │       │       │           │   │           │   ├── place: #129
+    │       │       │       │           │   │           │   ├── place: #122
     │       │       │       │           │   │           │   └── value: 0 : i64
-    │       │       │       │           │   │           ├── cases[0] > case 0[2]: leave @132
-    │       │       │       │           │   │           └── cases[1] > case 1[0]: leave @126
-    │       │       │       │           │   └── body[1]: leave @125
+    │       │       │       │           │   │           ├── cases[0] > case 0[2]: leave @125
+    │       │       │       │           │   │           └── cases[1] > case 1[0]: leave @119
+    │       │       │       │           │   └── body[1]: leave @118
     │       │       │       │           ├── body[2] > assign:
-    │       │       │       │           │   ├── place: #128
+    │       │       │       │           │   ├── place: #121
     │       │       │       │           │   └── value > call:
     │       │       │       │           │       ├── type: i64
     │       │       │       │           │       ├── fn: folding$depth(folding$Countdown)
-    │       │       │       │           │       └── args[0]: local #127 : <void | box32>
-    │       │       │       │           └── body[3]: leave @125
+    │       │       │       │           │       └── args[0]: local #120 : <void | box32>
+    │       │       │       │           └── body[3]: leave @118
     │       │       │       └── cases[1] > case 1[2]: leave @81
     │       │       └── right: 3 : i64
     │       ├── body[36] > overwrite:
@@ -419,48 +341,48 @@
     │       │       │       │       ├── left: 1 : i64
     │       │       │       │       └── right > expand:
     │       │       │       │           ├── type: i64
-    │       │       │       │           ├── label: @133
-    │       │       │       │           ├── result: #136
+    │       │       │       │           ├── label: @126
+    │       │       │       │           ├── result: #129
     │       │       │       │           ├── body[0] > let:
-    │       │       │       │           │   ├── local: #135
+    │       │       │       │           │   ├── local: #128
     │       │       │       │           │   └── value > deref:
     │       │       │       │           │       ├── type: <void | box32>
     │       │       │       │           │       └── ptr: local #92 : ptr
     │       │       │       │           ├── body[1] > eval > expand:
     │       │       │       │           │   ├── type: void
-    │       │       │       │           │   ├── label: @134
+    │       │       │       │           │   ├── label: @127
     │       │       │       │           │   ├── body[0] > assign:
-    │       │       │       │           │   │   ├── place: #136
+    │       │       │       │           │   │   ├── place: #129
     │       │       │       │           │   │   └── value > expand:
     │       │       │       │           │   │       ├── type: i64
-    │       │       │       │           │   │       ├── label: @140
-    │       │       │       │           │   │       ├── result: #137
+    │       │       │       │           │   │       ├── label: @133
+    │       │       │       │           │   │       ├── result: #130
     │       │       │       │           │   │       ├── body[0] > let:
-    │       │       │       │           │   │       │   ├── local: #138
-    │       │       │       │           │   │       │   └── value: address of #135 : ptr
+    │       │       │       │           │   │       │   ├── local: #131
+    │       │       │       │           │   │       │   └── value: address of #128 : ptr
     │       │       │       │           │   │       └── body[1] > switch:
     │       │       │       │           │   │           ├── value > deref:
     │       │       │       │           │   │           │   ├── type: <void | box32>
-    │       │       │       │           │   │           │   └── ptr: local #138 : ptr
+    │       │       │       │           │   │           │   └── ptr: local #131 : ptr
     │       │       │       │           │   │           ├── cases[0] > case 0[0] > let:
-    │       │       │       │           │   │           │   ├── local: #139
+    │       │       │       │           │   │           │   ├── local: #132
     │       │       │       │           │   │           │   └── value > offset:
     │       │       │       │           │   │           │       ├── within: <void | box32>
     │       │       │       │           │   │           │       ├── path: 0
-    │       │       │       │           │   │           │       └── base: local #138 : ptr
+    │       │       │       │           │   │           │       └── base: local #131 : ptr
     │       │       │       │           │   │           ├── cases[0] > case 0[1] > assign:
-    │       │       │       │           │   │           │   ├── place: #137
+    │       │       │       │           │   │           │   ├── place: #130
     │       │       │       │           │   │           │   └── value: 0 : i64
-    │       │       │       │           │   │           ├── cases[0] > case 0[2]: leave @140
-    │       │       │       │           │   │           └── cases[1] > case 1[0]: leave @134
-    │       │       │       │           │   └── body[1]: leave @133
+    │       │       │       │           │   │           ├── cases[0] > case 0[2]: leave @133
+    │       │       │       │           │   │           └── cases[1] > case 1[0]: leave @127
+    │       │       │       │           │   └── body[1]: leave @126
     │       │       │       │           ├── body[2] > assign:
-    │       │       │       │           │   ├── place: #136
+    │       │       │       │           │   ├── place: #129
     │       │       │       │           │   └── value > call:
     │       │       │       │           │       ├── type: i64
     │       │       │       │           │       ├── fn: folding$depth(folding$Countdown)
-    │       │       │       │           │       └── args[0]: local #135 : <void | box32>
-    │       │       │       │           └── body[3]: leave @133
+    │       │       │       │           │       └── args[0]: local #128 : <void | box32>
+    │       │       │       │           └── body[3]: leave @126
     │       │       │       └── cases[1] > case 1[2]: leave @88
     │       │       └── right: 4 : i64
     │       ├── body[38] > eval > runtime:

@@ -2238,6 +2238,22 @@ half. A list crossing into C is now copied into a `zane_span` first
 `ZANE_FRAME_REFS=0`, and their CGT goldens differ only in the handle's
 layout.
 
+## Review fixes
+
+Review of the PR found two defaults that could change a program's result:
+
+- A light scope (`Loop_shapes.light`) kept its owners on the machine stack
+  even when a call was given one's address. With frame references the
+  callee may store that address as a 32-bit offset from the image, which
+  the machine stack is out of reach of. A scope that gives a call an
+  address now opens its frame in the thread's frames
+  (`tests/codegen/fixtures/lightReferences`).
+- Partial inlining (`Peel`) kept a write through a pointer in the copied
+  way out, so a `mut` method that wrote its subject and then bailed to the
+  call wrote it twice. Such a write now makes the function unfit for a copy
+  (`tests/codegen/fixtures/peeledEffects`); two optimized goldens lost the
+  copies they had of such writes.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |

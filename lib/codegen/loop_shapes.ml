@@ -37,8 +37,9 @@ let fresh_list (e : Expr.t) =
    ZANE_LIGHT_SCOPES=0, a scope nothing can put a block in -- every slot it
    places holds scalars, and nothing in its body boxes, copies, makes a list
    or a string, spawns, or calls a function or the runtime in a way that
-   could leave a block in the innermost region -- opens no region: its frame,
-   when it is no larger than 4 KiB, is a slot on the machine stack. *)
+   could leave a block in the innermost region, or, with frame references,
+   gives a call an address -- opens no region: its frame, when it is no
+   larger than 4 KiB, is a slot on the machine stack. *)
 let light id body =
   Sys.getenv_opt "ZANE_LIGHT_SCOPES" <> Some "0"
   &&
@@ -55,13 +56,19 @@ let light id body =
         true
     | _ -> false
   in
+  (* With frame references, an address a call is given may be stored as a
+     32-bit offset from the image (Build.stored_ref), which a slot on the
+     machine stack is out of reach of. *)
+  let addressed (a : Expr.t) = match a.Expr.ty with Ty.Ptr | Ty.Ref -> true | _ -> false in
   not
     (Cgt.Traverse.exists_in body
        ~expr:(fun e ->
          match e.Expr.node with
          | Expr.Box _ | Expr.Text _ -> true
          | Expr.Runtime { fn; _ } -> not (quiet fn)
-         | Expr.Call _ | Expr.Call_value _ | Expr.Copy _ | Expr.Take _ | Expr.Escape _ -> not (scalar e.Expr.ty)
+         | Expr.Call { args; _ } | Expr.Call_value { args; _ } ->
+             (not (scalar e.Expr.ty)) || (Cgt.Ref32.frames () && List.exists addressed args)
+         | Expr.Copy _ | Expr.Take _ | Expr.Escape _ -> not (scalar e.Expr.ty)
          | _ -> false)
        ~stat:(function
          | Stat.Spawn _ | Stat.Join _ -> true

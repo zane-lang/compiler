@@ -4,6 +4,8 @@
 # and median), median system time and page faults. Usage:
 #
 #   N=21 python3 reuse_ab.py /tmp/zane-goose-variants/binarytrees.zane-pooled-peel-packed 18
+import os, statistics, subprocess, sys
+
 exe, args = sys.argv[1], sys.argv[2:]
 def run(env):
     pid = os.fork()

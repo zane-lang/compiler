@@ -8,8 +8,16 @@ extern S G; void *gmake(int64_t); void *g1(int64_t, S *);
 R5 g5(int64_t, S *); R6 z6(int64_t, char *, int64_t);
 typedef struct { char *items; int64_t count, room; } pool; int64_t zmake(int64_t, pool *);
 int main(int argc, char **argv) {
+  if (argc < 4) {
+    fprintf(stderr, "usage: %s which depth iters\n", argv[0]);
+    return 1;
+  }
   int which = atoi(argv[1]), depth = atoi(argv[2]); long iters = atol(argv[3]);
   char *mem = mmap(0, 1<<30, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  if (mem == MAP_FAILED) {
+    perror("mmap");
+    return 1;
+  }
   static S s; static pool p; long sum = 0;
   uint64_t t0 = __builtin_readcyclecounter();
   for (long i = 0; i < iters; i++) {

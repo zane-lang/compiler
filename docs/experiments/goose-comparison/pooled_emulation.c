@@ -116,6 +116,10 @@ static int64_t tree(int64_t d, pool *s) {
 #endif
 }
 int main(int argc, char **argv) {
+	if (argc < 2) {
+		fprintf(stderr, "usage: %s depth\n", argv[0]);
+		return 1;
+	}
 	int n = atoi(argv[1]);
 	int64_t big = (NO_CHECK | MAP) ? ((int64_t)2 << (n + 2)) * NODE : 128;
 	pool s = { MAP ? mapped(big) : malloc(big), 0, big };

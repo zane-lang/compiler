@@ -87,9 +87,17 @@ static long gcount(gnode *n) {
 }
 
 int main(int argc, char **argv) {
+  if (argc < 2) {
+    fprintf(stderr, "usage: %s form [depth] [runs]\n", argv[0]);
+    return 1;
+  }
   int form = atoi(argv[1]), depth = argc > 2 ? atoi(argv[2]) : 10, runs = argc > 3 ? atoi(argv[3]) : 7;
   gsize = form == 4 ? 24 : 17;
   char *mem = mmap(0, 1L << 30, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (mem == MAP_FAILED) {
+    perror("mmap");
+    return 1;
+  }
   uint64_t best_grow = ~0ull, best_count = ~0ull; long total = 0;
   for (int run = 0; run < runs; run++) {
     uint64_t grow = 0, count = 0;

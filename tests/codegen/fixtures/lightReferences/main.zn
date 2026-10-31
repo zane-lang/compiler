@@ -1,0 +1,49 @@
+/// A scope whose owners hold only scalars, and which hands one of them to a
+/// function that stores a reference to it in a field before returning a
+/// scalar (memory.md §4.1). With frame references the owner stays in its
+/// thread's frames, where a stored reference reaches it. Each check prints
+/// `yes` when it holds and `no` when it does not.
+package lightReferences;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+type Person = #struct {
+	age Int;
+}
+
+Person(age Int) => init{ age; }
+
+type Pin = #struct {
+	at &Person;
+}
+
+Pin(at &Person) => init{ at; }
+
+/// Stores the reference in a field, then reads the owner through it.
+Int pinned(p &Person) {
+	pin Pin(p);
+	return pin.at.age;
+}
+
+/// Its owner holds a scalar, and the only call returns one.
+Int helper(n Int) {
+	p Person(n);
+	return pinned(p);
+}
+
+Unit main() {
+	check(@operators$equal(helper(Int(41)), Int(41)));
+	check(@operators$equal(helper(Int(7)), Int(7)));
+	return Unit();
+}

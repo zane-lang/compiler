@@ -93,11 +93,26 @@ static int given_back(char *at, size_t bytes) {
 	size_t page = (size_t)sysconf(_SC_PAGESIZE), pages = bytes / page;
 	unsigned char *resident = malloc(pages);
 	if (!resident || mincore(at, pages * page, resident) != 0) return 0;
-	int none = 1;
+	size_t kept = 0, first = pages;
 	for (size_t i = 0; i < pages; i++)
-		if (resident[i] & 1) none = 0;
+		if (resident[i] & 1) {
+			if (!kept) first = i;
+			kept++;
+		}
 	free(resident);
-	return none;
+	/* On stderr, outside the golden output: what stayed, to tell a page
+	   the runtime missed from one the system brought back. */
+	if (kept) {
+		char thp[64] = "unknown";
+		FILE *f = fopen("/sys/kernel/mm/transparent_hugepage/enabled", "r");
+		if (f) {
+			if (!fgets(thp, sizeof thp, f)) thp[0] = 0;
+			fclose(f);
+		}
+		fprintf(stderr, "given_back: %zu of %zu pages resident, the first at page %zu; huge pages: %s", kept, pages,
+		        first, thp);
+	}
+	return kept == 0;
 }
 
 /* A list that outgrows its block's reservation moves into a new one, and
