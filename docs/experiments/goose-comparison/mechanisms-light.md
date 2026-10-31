@@ -9,7 +9,6 @@ Flagged: Zane over 1.10× the better of Goose and C in a function that takes at 
 - entities: main
 - listgrowth: main
 - ntree: grow
-- gameloop: memcpyavxunalignederms
 
 ### startup (no argument)
 
@@ -183,14 +182,6 @@ Flagged: Zane over 1.10× the better of Goose and C in a function that takes at 
 | unlinkchunk.isra.0 | — | 0 K | 46.5 M | — |
 | malloc | 0 K | 0 K | 44.0 M | — |
 | intfreechunk | — | — | 20.0 M | — |
-
-### gameloop (5000)
-
-| function | zane | goose | c | Zane ÷ best |
-| --- | --- | --- | --- | --- |
-| total | 1196.4 M | 361.5 M | 2336.0 M | 3.31 |
-| **memcpyavxunalignederms** | 920.5 M | 72.6 M | 2118.1 M | 12.69 |
-| main | 275.5 M | 288.5 M | 194.9 M | 0.95 |
 
 ### particles (5000)
 

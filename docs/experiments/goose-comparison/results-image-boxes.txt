@@ -34,10 +34,6 @@ s-ib/bin/particles.zane                  0.138 / 0.147 s  8 MB
 s6/bin/fannkuch.zane                     0.239 / 0.253 s  8 MB
 s-all/bin/fannkuch.zane                  0.233 / 0.249 s  8 MB
 s-ib/bin/fannkuch.zane                   0.242 / 0.246 s  8 MB
-## gameloop
-s6/bin/gameloop.zane                     1.593 / 1.642 s  8 MB
-s-all/bin/gameloop.zane                  1.517 / 1.607 s  8 MB
-s-ib/bin/gameloop.zane                   1.564 / 1.605 s  8 MB
 ## concscan
 s6/bin/concscan.zane                     1.169 / 1.196 s  94 MB
 s-all/bin/concscan.zane                  1.158 / 1.268 s  94 MB

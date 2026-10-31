@@ -10,18 +10,6 @@ diff -ru /home/user/spec/langbench/bin/allocfree/main.zn lb/bin/allocfree/main.z
  		i Int = Int(1);
  		i!to(n) {
  			items!push(Item(i, Float(0.5) * Float(i), Float(0.25) * Float(i), i / 3));
-diff -ru /home/user/spec/langbench/bin/gameloop/main.zn lb/bin/gameloop/main.zn
---- a/langbench/bin/gameloop/main.zn	2026-10-26 20:37:45.157782867 +0000
-+++ b/langbench/bin/gameloop/main.zn	2026-10-29 21:35:32.314391097 +0000
-@@ -21,7 +21,7 @@
- 	runtime Runtime(@program$runtime);
- 	frames Int = size(runtime, Int(500));
- 	rng Rng = Rng(Int(42));
--	entities List<Entity> = List(Entity);
-+	entities ListRef<Entity> = ListRef(Entity);
- 	total Int = Int(0);
- 	frame Int = Int(1);
- 	frame!to(frames) {
 diff -ru /home/user/spec/langbench/bin/ntree/main.zn lb/bin/ntree/main.zn
 --- a/langbench/bin/ntree/main.zn	2026-10-26 20:37:45.157782867 +0000
 +++ b/langbench/bin/ntree/main.zn	2026-10-29 21:35:32.316009569 +0000

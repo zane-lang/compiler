@@ -29,7 +29,7 @@ SIZES = {
     "startup": [], "primes": [], "trialdiv": ["1000000"], "binarytrees": ["14"],
     "mandelbrot": ["400"], "fannkuch": ["9"], "entities": ["300000"],
     "listgrowth": ["500000"], "ntree": ["8"], "treecopy": ["14"], "nbody": ["200000"],
-    "spectralnorm": ["300"], "allocfree": ["200000"], "gameloop": ["5000"],
+    "spectralnorm": ["300"], "allocfree": ["200000"],
     "particles": ["5000"], "concscan": ["300000"],
 }
 LANGS = ["zane", "goose", "c"]

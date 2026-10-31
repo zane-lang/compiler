@@ -41,9 +41,6 @@ spectralnorm  c               build   0.16s  median   0.2352s [0.2054-0.2559]  r
 allocfree     zane            build   0.51s  median   0.2957s [0.2644-0.3200]  rss     32.6 MB
 allocfree     goose           build   0.25s  median   0.7081s [0.6222-0.7379]  rss     43.9 MB
 allocfree     c               build   0.13s  median   2.9163s [2.7722-2.9483]  rss     55.2 MB
-gameloop      zane            build   0.56s  median   1.5671s [1.5344-1.6002]  rss      9.6 MB
-gameloop      goose           build   0.28s  median   0.3366s [0.3292-0.3773]  rss      9.6 MB
-gameloop      c               build   0.13s  median   7.2115s [7.1606-7.4976]  rss      9.6 MB
 particles     zane            build   0.58s  median   0.1549s [0.1370-0.1599]  rss      9.6 MB
 particles     goose           build   0.25s  median   0.1527s [0.1519-0.1585]  rss      9.6 MB
 particles     c               build   0.11s  median   0.1903s [0.1849-0.2044]  rss      9.6 MB

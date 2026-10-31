@@ -26,8 +26,9 @@ This file is the record: what changed, why, and what each step measured.
 - **Machine**: a cloud container. Wall clock there moves by about ±15% from
   run to run. Treat instruction counts (callgrind) and page faults
   (`ru_minflt`) as the firm signal, and wall time as a rough one.
-- **gameloop** is left out: its Zane program is wrong as it stands, and the
-  fix is tracked in zane-lang/spec#245.
+- **gameloop** is left out: its result depends on how the port stores its
+  entities, not on any mechanism the two languages differ in, so it misleads
+  rather than compares. `run.py` and `mechanisms.py` skip it.
 
 ## Steps
 
@@ -930,7 +931,6 @@ copy up to the current language (a growable list of a reference type is a
 `=>` takes a `;`), changing no algorithm. "switches" is
 `ZANE_POOLED_VARIANTS=1 ZANE_PARTIAL_INLINE=1 ZANE_PACKED_NODES=1
 ZANE_POOL_UNCHECKED=1`; Goose is the mean of the two runs' medians.
-gameloop stays out (Setup).
 
 | test | Zane v0.20 | Zane now | Zane now, switches | Goose | best Zane ÷ Goose |
 | --- | --- | --- | --- | --- | --- |
@@ -1324,30 +1324,17 @@ loaded, so the absolute times are high; the columns compare within a row):
   shrinks them, and it works with this switch as without it.
 
 `run.py` with the switch passes every test's output check, and the
-compiler's tests pass without it. gameloop took 30.7 s there, but a build
-without the switch from the same compiler takes as long (56.6 s against
-56.5 s at 100000): the slowness is the current compiler's or `core`'s on a
-program this log already leaves out (Setup), not the switch's.
+compiler's tests pass without it.
 
-## gameloop's 30 seconds: `rep movsb` over a short distance
+## Ordered removals and `rep movsb` over a short distance
 
-The frame-references suite run had gameloop at 30.7 s, against 1.79 s for
-the plain build on Oct 29. It is not the compiler: the Oct 29 binary,
-unchanged, now takes 30.4 s too, and C's gameloop went from 0.33 s to
-7.6 s. The container now runs on an "Intel Xeon Processor @ 2.80GHz"; the
-Oct 29 run's processor was not recorded.
-
-### Where the time goes
-
-Callgrind puts 97% of gameloop's instructions in glibc's
-`__memcpy_avx_unaligned_erms`, which it counts a byte at a time when it
-copies with `rep movsb` (Valgrind notes). Every frame removes the 20 oldest
-entities and those whose points run out, each by an ordered removal that
-moves every later entity down one place: about 25 moves of the whole
-60 KB list, 1.5 MB, a frame. 75 GB over 50000 frames in 30 s is 2.5 GB/s,
-about a byte a cycle.
-
-`memmove/shift.c` moves 60 KB down by a given distance, 25000 times:
+On the container's "Intel Xeon Processor @ 2.80GHz", glibc's `memmove`
+runs at about a byte a cycle when it moves 4 KiB or more by less than 64
+bytes: from 4 KiB on it copies with `rep movsb` (AVX2), and this processor
+runs `rep movsb` slowly when its source is less than 64 bytes past its
+destination. An ordered removal from a list of small elements is exactly
+that move: every later element down by one. `memmove/shift.c` moves 60 KB
+down by a given distance, 25000 times:
 
 | distance | glibc `memmove` | `rep movsb` | AVX2 loop |
 | --- | --- | --- | --- |
@@ -1355,17 +1342,8 @@ about a byte a cycle.
 | 64 bytes | 59.82 GB/s | 59.10 GB/s | 52.88 GB/s |
 | 4096 bytes | 59.04 GB/s | 58.62 GB/s | 59.42 GB/s |
 
-On this processor `rep movsb` runs at a byte a cycle when its source is
-less than 64 bytes past its destination, and glibc takes `rep movsb` for a
-move from 4 KiB on (AVX2). A removal's distance is one element: gameloop's
-entities are 32 bytes, and C's list holds 8-byte pointers. Goose's list
-holds 4-byte references, so its moves stay under 4 KiB and take glibc's
-vector loop.
-
-### The fix
-
-A removal whose element is under 64 bytes and whose move is over 4 KiB
-moves in 2 KiB pieces, lowest first (`emit.ml`, `remove`; `list.c`,
+The fix: a removal whose element is under 64 bytes and whose move is over
+4 KiB moves in 2 KiB pieces, lowest first (`emit.ml`, `remove`; `list.c`,
 `zane_shift_down` for the runtime's own removal). Each piece is a memmove
 under the threshold, so glibc copies it with its vector loop, and each
 writes below what the next reads. The pieces keep the scalar tag the one
@@ -1385,19 +1363,6 @@ its function to keep LLVM from making it a memmove again, and LLVM will not
 inline across that attribute, so `culls$main` stayed out of `zane_main`.
 Pieces of memmove need neither.
 
-gameloop at 50000, 7 interleaved runs, least and median:
-
-| build | wall |
-| --- | --- |
-| Zane before | 29.12 / 31.58 s |
-| Zane, pieces | 1.61 / 1.66 s |
-| Goose | 0.35 / 0.40 s |
-| C | 7.46 / 8.01 s |
-
-Zane is now faster than C here. What is left against Goose is the bytes
-moved: Zane's list holds each 32-byte entity inline and Goose's a 4-byte
-reference, and the program is still the one zane-lang/spec#245 tracks.
-
 The `culls` fact test asserted four memmoves in its program; with the
 pieces LLVM unrolls the string list's two-pass removal loop once fewer, so
 it now checks that the scalar moves are tagged and the string moves are
@@ -1414,46 +1379,7 @@ body, with an up-count, a compare and a jump instead of a down-count, 12
 instructions an iteration instead of 9. Timed (11 interleaved runs at
 400000) the two builds are level: 0.382 / 0.430 s and 0.400 / 0.437 s.
 
-## gameloop with the list holding references
-
-Goose's gameloop keeps its entities in a pool and its list holds an
-`Entity&<u32 in pool>` for each: a 4-byte index into the pool, whose slots
-are reused as entities die. Zane's list cannot hold an `&` (generics.md
-§8.3), and a reference names a settled owner (memory.md §2.8), so the
-nearest Zane program is Goose's own representation written out: a pool
-`ListRef<Entity>`, a list of the spare slots, and the entity list holding
-indices in spawn order. Expiry and culling move indices, not entities.
-
-- `gamepool/main.zn` holds each index as an `Int`, 8 bytes.
-- `gamepool32/main.zn` holds it as a `Slot`, a struct wrapping
-  `@primitives$I32`, since `core` has no 32-bit integer. Its constructor
-  passes the `Int` straight to `I32.wrap`, because a call argument is a
-  coercion site and a declaration or a `return` is not.
-
-Both print `500 1871 34449268` at 500 frames, as gameloop and Goose do.
-Interleaved, 7 runs at 50000 frames (least / median):
-
-| program | time |
-| --- | --- |
-| gameloop (inline 32-byte entities) | 1.554 / 1.710 s |
-| gamepool (8-byte indices) | 0.501 / 0.575 s |
-| gamepool32 (4-byte indices) | 0.353 / 0.381 s |
-| Goose | 0.343 / 0.392 s |
-| C | 7.166 / 7.665 s |
-
-With 4-byte indices Zane is level with Goose. Callgrind at 5000 frames says
-why the index width was the gap: the bytes the removals shift.
-
-| program | program code | `memmove` |
-| --- | --- | --- |
-| gamepool | 322M | 232M |
-| gamepool32 | 306M | 117M |
-| Goose | 288M | 73M |
-
-Goose's `memmove` count is lower still, which this run does not explain;
-the wall time does not show it. The program code is within 6%.
-
-## The whole suite, after the gameloop fix
+## The whole suite, again
 
 `run.py` over every test in three builds (RUNS=7; the patched sources as
 above): plain, the switches ("switches" as in the earlier whole-suite
@@ -1467,7 +1393,6 @@ time):
 
 | test | plain | switches | `ZANE_REF32=1` | Goose | best Zane ÷ Goose |
 | --- | --- | --- | --- | --- | --- |
-| gameloop (suite run, median) | 1.67 s | 1.94 s | 1.86 s | 0.38–0.53 s | ~4.4×; gamepool32 ~1.0× |
 | ntree | 0.191 / 0.268 s | 0.192 / 0.215 s | 0.148 / 0.177 s | 0.102 / 0.118 s | 1.45–1.5× |
 | listgrowth | 0.202 / 0.234 s | 0.216 / 0.230 s | 0.207 / 0.234 s | 0.173 / 0.190 s | 1.2× |
 | binarytrees | 0.097 / 0.124 s | 0.056 / 0.062 s | 0.083 / 0.088 s | 0.045 / 0.054 s | 1.15–1.25× |
@@ -1483,8 +1408,8 @@ instructions for it (355 M plain) against Goose's 193 M. Goose's 193 M are
 `zane_list_first` and `zane_list_push` 36 M and 31 M more. Goose's node
 holds its children in an inline list with room for four links
 (`(Node&<u32>)[..4]`) in a pool per round, while Zane's node owns a
-growable list on the heap, grown push by push and freed node by node. Zane is behind on four tests: gameloop with entities held
-inline, ntree, listgrowth, and binarytrees without pooling.
+growable list on the heap, grown push by push and freed node by node. Zane is behind on three tests: ntree, listgrowth, and
+binarytrees without pooling.
 
 ## One box per cycle (behind `ZANE_ONE_BOX=1`)
 
@@ -1607,7 +1532,6 @@ above). No pooling switch is set.
 | entities | 1.173 s | 1.124 s | 1.04× |
 | particles | 0.149 s | 0.168 s | 0.9× |
 | concscan | 0.479 s | 4.92 s | 0.1× |
-| gameloop | 1.767 s | 0.392 s | 4.5× (inline entities; gamepool32 is level) |
 
 The compute-bound tests, startup and primes are level, as before (nbody's
 0.41 s against 0.34 s here was 0.34 s against 0.34 s in the plain run).
@@ -1815,7 +1739,7 @@ and level with C (0.226 / 0.239 s, Goose 0.241 / 0.263 s, C 0.223 / 0.242 s,
 the list port 0.247 / 0.252 s, at 10). The swap's second check remains.
 
 **Goose's optimizations.** Its report on every port: index checks elided
-(all of them on most tests; 13/21 on fannkuch, 7/13 on gameloop),
+(all of them on most tests; 13/21 on fannkuch),
 reassociation nowhere, tail loops on binarytrees and treecopy (`check`'s
 second call made a loop), and base cases on binarytrees, ntree and treecopy.
 Zane's `check` needs no tail loop to beat Goose's (25 M instructions to
@@ -1871,7 +1795,6 @@ environment change the first two.
 | listgrowth: `main` | 1.28 (Goose) | Goose unrolls the push loop twice; Zane keeps a second counter |
 | ntree: `grow` | 2.52 (Goose) | the suite port's `ListRef` children; `ntreearray/` is ahead |
 | allocfree: `main` | 1.64 (Goose) | a region per pass of a loop, and the push's room check; fixed below |
-| gameloop: `memcpy` | 12.7 (Goose) | the port's inline entities; `gamepool/` is level |
 
 **allocfree.** Each pass of the release loop opens a scope region and
 leaves it: a 256-byte region record taken from the region stack, zeroed
@@ -1906,11 +1829,11 @@ machine stack cannot take.
 | with both fixes | 108.4 M | 0.255 / 0.308 s |
 | Goose | 152.4 M | 0.603 / 0.654 s |
 
-Across the suite the switch changes three tests' instructions by more than
-1%: allocfree, particles (144.6 M to 136.0 M, Goose 142.9 M; level in time)
-and gameloop (1215 M to 1196 M). Every test's output is the same with it.
+Across the suite the switch changes two tests' instructions by more than
+1%: allocfree and particles (144.6 M to 136.0 M, Goose 142.9 M; level in
+time). Every test's output is the same with it.
 `mechanisms-light.md` is the table over that build: allocfree is no longer
-flagged, and the other six flags stand. All fixtures give the same output
+flagged, and the other five flags stand. All fixtures give the same output
 with `ZANE_LIGHT_SCOPES=1` and with `ZANE_LOOP_PUSHES=1` (`ALL=1`), and
 `just test-compiler` passes with both on and with both off.
 
@@ -1986,7 +1909,6 @@ first five switches alone (`mechanisms-hoist.md`).
 | nbody | 0.346 s | 0.358 s | 0.341 s | 120.8 M | 120.6 M | 125.4 M | 116.6 M |
 | spectralnorm | 0.305 s | 0.261 s | 0.289 s | 65.5 M | 65.4 M | 65.4 M | 70.7 M |
 | allocfree | 0.690 s | 0.297 s | 0.673 s | 255.7 M | 108.4 M | 110.4 M | 152.4 M |
-| gameloop | 1.636 s | 1.738 s | 0.466 s | 1215.1 M | 1196.4 M | 1201.8 M | 361.5 M |
 | particles | 0.200 s | 0.197 s | 0.184 s | 144.6 M | 136.0 M | 154.5 M | 142.9 M |
 | concscan | 0.486 s | 0.462 s | 4.748 s | — | — | — | 264.9 M |
 
@@ -2034,7 +1956,6 @@ list of at most 4 GiB, since a handle's room is a 32-bit count of bytes.
 | entities | 80.2 M | 80.8 M | 80.2 M |
 | nbody | 120.6 M | 125.6 M | 125.4 M |
 | allocfree | 108.4 M | 110.4 M | 110.4 M |
-| gameloop | 1196.4 M | 1205.6 M | 1201.8 M |
 | particles | 136.0 M | 150.9 M | 154.5 M |
 
 The other tests are within 0.5%. Time and peak memory, 11 runs, least /
@@ -2133,7 +2054,6 @@ The suite, rebuilt from this compiler (`mechanisms-six.md` is the six):
 | treecopy | 47.2 M | 23.3 M | 23.3 M | 53.2 M |
 | nbody | 120.8 M | 120.6 M | 121.6 M | 116.6 M |
 | allocfree | 255.7 M | 108.4 M | 108.4 M | 152.4 M |
-| gameloop | 1215.1 M | 1196.4 M | 1201.9 M | 361.5 M |
 | particles | 144.6 M | 136.0 M | 142.5 M | 142.9 M |
 
 The rest are within 0.2%. Every test prints the same in both; every fixture
@@ -2192,7 +2112,7 @@ member: a box stayed an 8-byte pointer. `ZANE_IMAGE_BOXES=1`, on top of
   to link; the image's address passes through an empty `asm` first.
 
 Validated with the five switches, frame references, image boxes and the
-niche: all 16 suite outputs match, the 63 fixtures (`ALL=1`, with
+niche: all 15 suite outputs match, the 63 fixtures (`ALL=1`, with
 `ZANE_FRAME_REFS_CHECK=1`) give the same output, and `test-compiler` fails
 only the three `facts_test` layout assertions every frame-reference build
 fails.
@@ -2208,7 +2128,6 @@ and the niche, `ib` the six plus image boxes and the niche:
 | treecopy 18 | 0.065 / 0.081 s, 22 MB | 0.066 / 0.092 s, 22 MB | 0.069 / 0.092 s, 22 MB |
 | allocfree | 0.289 / 0.308 s | 0.266 / 0.305 s | 0.285 / 0.299 s |
 | particles | 0.137 / 0.143 s | 0.142 / 0.147 s | 0.138 / 0.147 s |
-| gameloop | 1.593 / 1.642 s | 1.517 / 1.607 s | 1.564 / 1.605 s |
 
 The other seven tests are level within noise across the three.
 
@@ -2247,7 +2166,7 @@ box (`Nodes.Ty.Box32`) and niche as image boxes:
   pages the program's MiBs index are touched.
 - Chunks come from `zane_reserve_aligned`, anywhere, as without boxes.
 
-Validated like image boxes: all 16 suite outputs match, 63 of 63 fixtures
+Validated like image boxes: all 15 suite outputs match, 63 of 63 fixtures
 give the same output, and `test-compiler` fails only the three layout
 assertions.
 
@@ -2302,7 +2221,7 @@ Tests: the codegen goldens are promoted to the new layout (`handle16`,
 assertions now expect a 16-byte handle and a room of 4 elements on Linux,
 and the old values elsewhere. Validated: `test-compiler` passes; the 63
 fixtures (`ALL=1`) give the same output with the defaults (with
-`ZANE_FRAME_REFS_CHECK=1`) and with all eight set to `0`; all 16 suite
+`ZANE_FRAME_REFS_CHECK=1`) and with all eight set to `0`; all 15 suite
 outputs match (`results-defaults.txt`, 3 runs each); the perf programs print their golden output; a
 `--target x86_64-windows-gnu` or `aarch64-apple-darwin` build emits the
 24-byte handle and no `__ehdr_start`.
@@ -2317,7 +2236,6 @@ outputs match (`results-defaults.txt`, 3 runs each); the perf programs print the
 | allocfree | ~0.4× with `ZANE_LIGHT_SCOPES=1` | Closed: no region opened for a pass of a loop that boxes nothing, and the `ListRef` push loop's room made once. |
 | fannkuch | level; 1.4× Goose's instructions with `ZANE_HOIST_HANDLES=1` | The copy runs unchecked; each swap of the short flips still checks both indices. `fannkucharray/` matches Goose's layout. |
 | listgrowth | level with `ZANE_LOOP_PUSHES=1` | Closed: room made before a loop of pushes, and the count kept in a register through it. |
-| gameloop | ~4.4× inline; with the list holding 4-byte pool indices as Goose's does (`gamepool/`, `gamepool32/`), ~1.0× | Inline, each removal shifts 32-byte entities where Goose shifts 4-byte references. |
 
 The default build (above) is the best so far: the five, frame references,
 image boxes and the niche. `mechanisms-hoist.md` is the per-function table

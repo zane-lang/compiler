@@ -69,9 +69,12 @@ langs = ["zane-base"] if os.path.isdir(os.path.join(WORK, "bin-base")) else []
 langs += ["zane", "goose", "goose-enum-ref", "goose-enum-pool", "c"]
 # ONLY=a,b runs just those tests.
 only = os.environ.get("ONLY")
+# gameloop measures how the port stores its entities, not a mechanism the
+# languages differ in (README, Setup).
+SKIPPED = {"gameloop"}
 for test in tests.TESTS:
     tid = test["id"]
-    if only and tid not in only.split(","):
+    if tid in SKIPPED or (only and tid not in only.split(",")):
         continue
     args = test["check_args"] if QUICK else test["args"]
     expected = test["check_expected"] if QUICK else test["expected"]
