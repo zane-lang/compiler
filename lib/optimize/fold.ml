@@ -127,7 +127,7 @@ let rec addresses (t : Ty.t) =
   | Ty.Ptr | Ty.Ref -> true
   | Ty.Struct ts | Ty.Sum ts -> List.exists addresses ts
   | Ty.Array (t, _) | Ty.Packed t -> addresses t
-  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle | Ty.Handle32 -> false
+  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle | Ty.Handle32 | Ty.Handle16 -> false
 
 let reach (f : Func.t) =
   let values = Hashtbl.create 16 in
@@ -480,7 +480,7 @@ let last_named stats =
    lives in part somewhere a constant written as a [Let] does not say. *)
 let rec holds_ref (t : Ty.t) =
   match t with
-  | Ty.Handle | Ty.Handle32 | Ty.Ptr | Ty.Ref -> true
+  | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Ptr | Ty.Ref -> true
   | Ty.Struct ts | Ty.Sum ts -> List.exists holds_ref ts
   | Ty.Array (t, _) | Ty.Packed t -> holds_ref t
   | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false

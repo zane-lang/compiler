@@ -87,7 +87,8 @@ let boxed_value (block : Expr.t) =
 let loaded_ref ~slot (read : Expr.t) =
   if slot then ptr (Expr.Convert { read with Expr.ty = Nodes.Ty.Ref }) else read
 
-let stored_ref ~slot (value : Expr.t) = if slot then boxed_value value else value
+let stored_ref ~slot (value : Expr.t) =
+  if slot then { Expr.node = Expr.Convert value; ty = Nodes.Ty.Ref } else value
 
 (* `@primitives$Array<T, n>`, and whether an expression is an array
    literal. *)

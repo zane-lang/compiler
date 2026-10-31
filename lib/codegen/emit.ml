@@ -113,7 +113,7 @@ let rec lltype env (t : Ty.t) =
   | Ty.F32 -> Llvm.float_type env.ctx
   | Ty.F64 -> Llvm.double_type env.ctx
   | Ty.Handle -> Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |]
-  | Ty.Handle32 -> List_handle.header env.ctx
+  | Ty.Handle32 | Ty.Handle16 -> List_handle.header env.ctx
   | Ty.Ptr -> env.ptr
   | Ty.Ref -> Llvm.i32_type env.ctx
   | Ty.Struct ts -> Llvm.struct_type env.ctx (Array.of_list (List.map (stored env) ts))
@@ -150,7 +150,7 @@ let rec pieces (t : Ty.t) =
   match t with
   | Ty.Void -> 0
   | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref -> 1
-  | Ty.Handle | Ty.Handle32 -> 3
+  | Ty.Handle | Ty.Handle32 | Ty.Handle16 -> 3
   | Ty.Struct ts -> List.fold_left (fun n t -> n + pieces t) 0 ts
   | Ty.Sum ts when Ty.compact ts -> 1 + Ty.quads ts
   | Ty.Sum ts -> 1 + words ts
@@ -189,7 +189,7 @@ let results triple =
       (n, n)
 
 let aggregate = function
-  | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Handle | Ty.Handle32 | Ty.Packed _ -> true
+  | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Packed _ -> true
   | _ -> false
 
 (* How a value of type [t] crosses a call: as itself when it takes no more
@@ -407,7 +407,7 @@ let tags ctx =
 let access env (t : Ty.t) instr =
   let tag =
     match t with
-    | Ty.Handle | Ty.Handle32 -> Some env.handle_tag
+    | Ty.Handle | Ty.Handle32 | Ty.Handle16 -> Some env.handle_tag
     | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref -> Some env.value_tag
     | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Packed _ -> None
   in
@@ -829,7 +829,7 @@ let has_terminator b =
    which retries a torn read and fences the same way. *)
 let snapshot_read t =
   let rec names_block = function
-    | Ty.Ptr | Ty.Ref | Ty.Handle | Ty.Handle32 -> true
+    | Ty.Ptr | Ty.Ref | Ty.Handle | Ty.Handle32 | Ty.Handle16 -> true
     | Ty.Struct ts | Ty.Sum ts -> List.exists names_block ts
     | Ty.Array (t, _) | Ty.Packed t -> names_block t
     | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
@@ -1448,7 +1448,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
         List.filter_map
           (fun (a : Expr.t) ->
             match (a.Expr.ty, expr env fr b a) with
-            | (Ty.Handle | Ty.Handle32), Some v -> Some (spill env fr b v)
+            | (Ty.Handle | Ty.Handle32 | Ty.Handle16), Some v -> Some (spill env fr b v)
             | _, v -> v)
           args
       in
@@ -1457,7 +1457,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           | Ty.Void ->
               ignore (Llvm.build_call fty f (Array.of_list args) "" b);
               None
-          | (Ty.Handle | Ty.Handle32) as h ->
+          | (Ty.Handle | Ty.Handle32 | Ty.Handle16) as h ->
               let t = lltype env h in
               let out = alloca env fr t in
               ignore (Llvm.build_call fty f (Array.of_list (out :: args)) "" b);

@@ -207,7 +207,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       match args with
       | [ T.Arg.Value list ] ->
           let value = w.borrow st ctx span list in
-          if value.Expr.ty = Nodes.Ty.Handle32 then
+          if value.Expr.ty = Nodes.Ty.Handle32 || value.Expr.ty = Nodes.Ty.Handle16 then
             let count = { Expr.node = Expr.Member { value; index = 1 }; ty = Nodes.Ty.I32 } in
             { Expr.node = Expr.Convert count; ty = Nodes.Ty.I64 }
           else { Expr.node = Expr.Member { value; index = 1 }; ty = Nodes.Ty.I64 }

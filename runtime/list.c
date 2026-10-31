@@ -81,6 +81,9 @@ static inline int zane_list_returned(zane_mark *region, int64_t room) {
 static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 	int64_t room = ZL_ROOM(list) ? ZL_ROOM(list) * 2 : zane_list_first_room(stride, stride);
 	while (room < needed) room *= 2;
+#if defined(ZANE_REF32) || defined(ZANE_FRAME_REFS)
+	if (room > (int64_t)UINT32_MAX) zane_broken("a list past 4 GiB");
+#endif
 	zane_mark *region = zane_region_at(ZL_ROOM(list) ? (void *)ZL_ITEMS(list) : (void *)list);
 	zane_lock(region->context);
 	char *items;

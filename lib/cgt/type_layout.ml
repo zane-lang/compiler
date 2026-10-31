@@ -174,7 +174,7 @@ let box_type () = if Ref32.on () then Nodes.Ty.Ref else Nodes.Ty.Ptr
 (* Experimental (Ref32): a reference stored as a member, an element or a
    payload, rather than in a local, takes the 32-bit form a boxed member's
    address does (Build.stored_ref, Build.loaded_ref). *)
-let ref_slot (t : Tty.t) = Ref32.on () && Tty.is_ref t
+let ref_slot (t : Tty.t) = (Ref32.on () || Ref32.frames ()) && Tty.is_ref t
 
 let rec shape st span (t : Tty.t) : Nodes.Ty.t =
   match t with

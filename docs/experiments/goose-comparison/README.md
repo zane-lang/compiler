@@ -1236,6 +1236,93 @@ The instruction counts are at smaller N than the timings (trialdiv
 listgrowth does nothing but push, so its two loads a push show as about
 7%. allocfree pushes too, but spends most of its time elsewhere.
 
+## Frame references (prototype, behind `ZANE_FRAME_REFS=1`)
+
+The cage caps the program's memory at 28 GiB and, for references to
+globals, gives up a position-independent program. This switch shrinks only
+what needs no cap.
+
+A reference names a settled owner (memory.md §2.8): a local, a package
+constant, or a path from one through struct fields and `ArrayRef`
+elements. A store never puts it in anything that outlives what it names
+(lifetimes.md §1.1). So a reference points into a frame or at a global, and
+never at a list's block or a box. The idea came as "a scope level and an
+offset": every scope's size is known at compile time. Levels are not
+static across calls, since a function may recurse or be handed a
+reference from its caller, so decoding a level would need a table of frame
+starts per thread, one load per dereference. But a context's frames are
+already back to back in one range, so a slot's distance from where that
+range starts is the level and the offset in one number.
+
+### Design
+
+- Every context's frames come from one area within 2 GiB of the program's
+  image (`region.c`, `zane_frames_take`): the whole MiBs in the 2 GiB right
+  below it, or, where a program is loaded too low for that, the first free
+  512 MiB above it within reach. Valgrind loads a program at 1 MiB and
+  keeps its own code near `0x58000000`, which is why the second form looks
+  for a window rather than taking a fixed one. Contexts keep their ranges,
+  so the area is taken in order and never given back.
+- A stored reference (`Type_layout.ref_slot`, the same sites as under the
+  cage) is its signed 32-bit distance from `__ehdr_start`, the image's
+  first byte, which the linker defines (`List_handle.encode`, `decode`).
+  Declared hidden, the symbol's address is computed relative to the code,
+  so decoding is a `lea` and an add, with no load and no shift. Frames sit
+  at negative distances and globals at positive ones, so the program stays
+  position-independent and its image and frames move together under ASLR.
+- A list's handle is 16 bytes: its items a pointer, its count and its room
+  32 bits each (`Ty.Handle16`, `zane.h`). A list's block can be anywhere,
+  and a list holds at most 4 GiB; `zane_list_grow` stops the program past
+  that. `room` is still in bytes; counting it in elements would lift the
+  4 GiB to 4 billion elements, and is not done.
+- Boxes, text handles and pools are as without the switch, so
+  `ZANE_POOL_UNCHECKED=1` works with it.
+
+`ZANE_FRAME_REFS_CHECK=1` at compile time makes every encode check that the
+distance fits, and trap if not. With it, every fixture gives the same
+output under the switch, and under the switch with all four pooling
+switches except the three pooling refuses. It caught the first cut's
+area: 2 GiB below the image's start rounded down to a MiB, whose lowest
+MiB was out of reach.
+
+### Measured
+
+Plain, the cage (`ZANE_REF32=1`) and this switch, each built from the same
+compiler. Peak RSS at the suite's size, and Callgrind at a smaller one
+(ntree 8, listgrowth 500000, allocfree and edges 200000, binarytrees and
+treecopy 14, entities 300000):
+
+| test | plain | cage | frame references |
+| --- | --- | --- | --- |
+| ntree | 34.1 MB, 89.9 M | 18.1 MB, 98.0 M | 23.4 MB, 95.8 M |
+| edges | 94.3 MB, 167.4 M | 63.6 MB, 167.5 M | 63.6 MB, 167.1 M |
+| binarytrees | 14.1 MB, 186.7 M | 11.0 MB, 195.6 M | 14.1 MB, 186.7 M |
+| treecopy | 30.1 MB, 47.2 M | 26.1 MB, 51.1 M | 30.1 MB, 47.2 M |
+| listgrowth | 63.6 MB, 251.0 M | 63.6 MB, 271.0 M | 63.6 MB, 261.0 M |
+| allocfree | 33.1 MB, 255.7 M | 33.1 MB, 259.7 M | 33.1 MB, 255.7 M |
+| entities | 94.1 MB, 83.1 M | 94.1 MB, 83.7 M | 94.1 MB, 83.4 M |
+
+Wall time, 15 interleaved runs, least and median (the container was
+loaded, so the absolute times are high; the columns compare within a row):
+
+| test | plain | cage | frame references |
+| --- | --- | --- | --- |
+| ntree 10 | 0.188 / 0.224 s | 0.142 / 0.164 s | 0.160 / 0.192 s |
+| edges 2000000 | 0.708 / 0.759 s | 0.500 / 0.557 s | 0.526 / 0.571 s |
+| listgrowth 2000000 | 0.214 / 0.230 s | 0.205 / 0.237 s | 0.202 / 0.227 s |
+| allocfree 1000000 | 0.651 / 0.765 s | 0.716 / 0.806 s | 0.688 / 0.833 s |
+
+- edges takes all of the cage's gain: its references are the same 4 bytes.
+- ntree takes most of it. Its node holds a 16-byte handle instead of the
+  cage's 12, so it peaks at 23.4 MB against 18.1 MB, still below Goose's
+  24.9 MB.
+- listgrowth's push costs one instruction more than plain, against the
+  cage's two: `items` is read straight from memory again, and only the
+  32-bit room needs a load of its own.
+- binarytrees and treecopy are plain's: their nodes hold boxes, which point
+  into the heap, so this switch leaves them at 8 bytes. Pooling is what
+  shrinks them, and it works with this switch as without it.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
@@ -1259,6 +1346,11 @@ stored in a member, element or payload is 32-bit. Not under the switch:
 text handles stay 24 bytes, since text bytes are unaligned and may sit in
 the binary, and `ZANE_POOL_UNCHECKED=1` is ignored, since an unchecked
 pool's 2 GiB block does not fit the cage more than a few times over.
+
+**Frame references** (behind `ZANE_FRAME_REFS=1`, above) shrink references
+to 4 bytes and list handles to 16 without the cage: no cap on the program's
+memory, and the program stays position-independent. They take the cage's
+gain on edges and most of it on ntree, and none on the trees of boxes.
 
 After that, for binarytrees: a calling convention for functions that build
 into a pool, items and count passed in registers and the new count

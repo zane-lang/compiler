@@ -31,7 +31,7 @@ let rec expr ?fresh (t : Ty.t) (c : V.const) : Expr.t option =
   (* A list, made where it is used as a list is made anywhere: empty, then
      each element pushed in order, in the region of the scope the code is
      in, as a call's result would be. *)
-  | (Ty.Handle | Ty.Handle32), V.List { stride; element; layout; items } -> (
+  | (Ty.Handle | Ty.Handle32 | Ty.Handle16), V.List { stride; element; layout; items } -> (
       match fresh with
       | None -> None
       | Some fresh ->

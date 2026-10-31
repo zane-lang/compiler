@@ -28,6 +28,17 @@ typedef struct {
 #define ZL_ITEMS(l) ((char *)((uintptr_t)(l)->items << 3))
 #define ZL_SET_ITEMS(l, p) ((l)->items = (uint32_t)((uintptr_t)(p) >> 3))
 #define ZL_MAKE(p, c, r) ((zane_list){ (uint32_t)((uintptr_t)(p) >> 3), (uint32_t)(c), (uint32_t)(r) })
+#elif defined(ZANE_FRAME_REFS)
+/* Experimental (docs/experiments/goose-comparison): the items a pointer,
+   and the count and the room in 32 bits each, so a list holds at most
+   4 GiB. */
+typedef struct {
+	char *items;
+	uint32_t count, room;
+} zane_list;
+#define ZL_ITEMS(l) ((l)->items)
+#define ZL_SET_ITEMS(l, p) ((l)->items = (p))
+#define ZL_MAKE(p, c, r) ((zane_list){ (p), (uint32_t)(c), (uint32_t)(r) })
 #else
 typedef struct {
 	char *items;

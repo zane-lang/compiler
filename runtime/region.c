@@ -191,12 +191,71 @@ size_t zane_page_bytes(void) {
 	return page;
 }
 
+#if defined(ZANE_FRAME_REFS) && !defined(_WIN32)
+/* Experimental (docs/experiments/goose-comparison): every context's frames
+   are in one area, the whole MiBs in the 2 GiB right below the program's
+   image, reserved
+   once and taken in order, since a context keeps its range. A reference
+   names a frame's slot or one of the program's globals, so each is a
+   signed 32-bit distance from the image's start (List_handle). */
+#include <pthread.h>
+
+extern const char __ehdr_start;
+
+static pthread_mutex_t zane_frames_lock = PTHREAD_MUTEX_INITIALIZER;
+static char *zane_frames_next, *zane_frames_end;
+
+static char *zane_frames_take(size_t bytes) {
+	bytes = (bytes + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK;
+	pthread_mutex_lock(&zane_frames_lock);
+	if (!zane_frames_end) {
+		uintptr_t image = (uintptr_t)&__ehdr_start, reach = (uintptr_t)1 << 31;
+		/* The whole MiBs in the 2 GiB below the image; or, where a program
+		   is loaded too low for that (Valgrind loads one at 1 MiB), the
+		   first free 512 MiB above it within reach, looked for from the top
+		   down, which leaves the addresses right after it to the C heap. */
+		char *low = (char *)(image > reach ? (image - reach + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK : 0);
+		char *end = (char *)(image / ZANE_CHUNK * ZANE_CHUNK);
+		size_t step = (size_t)64 << 20, part = (size_t)512 << 20;
+		uintptr_t top = (image + reach) / ZANE_CHUNK * ZANE_CHUNK - part;
+		for (int i = -1; !zane_frames_end && top - (uintptr_t)i * step > image + step; i++) {
+			if (i >= 0) {
+				low = (char *)(top - (uintptr_t)i * step);
+				end = low + part;
+			} else if (!low) {
+				continue;
+			}
+			void *at = mmap(low, (size_t)(end - low), PROT_NONE,
+			                MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
+			if (at == (void *)low) {
+				zane_frames_next = low;
+				zane_frames_end = end;
+			} else if (at != MAP_FAILED) {
+				munmap(at, (size_t)(end - low));
+			}
+		}
+		if (!zane_frames_end) zane_broken("the addresses next to the program are taken");
+	}
+	char *base = NULL;
+	if ((size_t)(zane_frames_end - zane_frames_next) >= bytes) {
+		base = zane_frames_next;
+		zane_frames_next += bytes;
+	}
+	pthread_mutex_unlock(&zane_frames_lock);
+	return base;
+}
+#endif
+
 /* `size` bytes of the range, and its guard, so each MiB of it is the
    context's alone in the chunk map. */
 void zane_reserve(zane_context *c, int64_t size) {
 	size_t total = (size_t)size + ZANE_GUARD;
+#if defined(ZANE_FRAME_REFS) && !defined(_WIN32)
+	char *base = zane_frames_take(total);
+#else
 	char *raw;
 	char *base = zane_reserve_aligned(total, &raw);
+#endif
 	if (!base) zane_broken("out of addresses for a context's frames");
 	c->base = c->frontier = c->committed = base;
 	c->limit = base + size;

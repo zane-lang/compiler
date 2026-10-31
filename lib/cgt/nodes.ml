@@ -37,6 +37,9 @@ module Ty = struct
        address shifted right by 3, its count and its room, each in 32
        bits. *)
     | Handle32
+    (* Experimental (frame references): a list's handle with its items a
+       pointer, and its count and its room in 32 bits each. *)
+    | Handle16
     | Ptr
     (* Experimental (Ref32): a boxed member's block, stored as its address
        shifted right by 3 in 32 bits, which a [Convert] turns into a [Ptr]
@@ -74,6 +77,7 @@ module Ty = struct
     | I64 | F64 | Ptr -> (8, 8)
     | Handle -> (24, 8)
     | Handle32 -> (12, 4)
+    | Handle16 -> (16, 8)
     | Ref -> (4, 4)
     | Struct ts ->
         let size, align =
@@ -137,7 +141,7 @@ module Ty = struct
   let payload_offset = 8
 
   (* A list's handle: [Handle32] with Ref32, else [Handle]. *)
-  let list_handle () = if Ref32.on () then Handle32 else Handle
+  let list_handle () = if Ref32.on () then Handle32 else if Ref32.frames () then Handle16 else Handle
 
   (* Where the sum [t]'s payload starts, packed or not. *)
   let payload_at = function Packed _ -> 1 | Sum ts when compact ts -> 4 | _ -> payload_offset
@@ -147,7 +151,7 @@ module Ty = struct
      payload and a reference's owner are in storage of their own, which a
      [Ptr] names. *)
   let rec holds_handle = function
-    | Handle | Handle32 -> true
+    | Handle | Handle32 | Handle16 -> true
     | Struct ts | Sum ts -> List.exists holds_handle ts
     | Array (t, _) | Packed t -> holds_handle t
     | Void | I1 | I32 | I64 | F32 | F64 | Ptr | Ref -> false
@@ -161,6 +165,7 @@ module Ty = struct
     | F64 -> "f64"
     | Handle -> "handle"
     | Handle32 -> "handle32"
+    | Handle16 -> "handle16"
     | Ptr -> "ptr"
     | Ref -> "ref"
     | Struct ts -> "{" ^ String.concat ", " (List.map to_string ts) ^ "}"

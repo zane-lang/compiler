@@ -278,6 +278,8 @@ _Static_assert(offsetof(zane_text, room) == ZANE_HANDLE_ROOM, "then its room");
 _Static_assert(sizeof(zane_text) == ZANE_HANDLE_SIZE, "a string is a handle");
 #ifdef ZANE_REF32
 _Static_assert(sizeof(zane_list) == 12, "a list is a 32-bit handle (List_handle)");
+#elif defined(ZANE_FRAME_REFS)
+_Static_assert(sizeof(zane_list) == 16, "a list is a 16-byte handle (List_handle)");
 #else
 _Static_assert(offsetof(zane_list, count) == ZANE_HANDLE_LENGTH, "a list's count follows its elements");
 _Static_assert(offsetof(zane_list, room) == ZANE_HANDLE_ROOM, "then its room");
