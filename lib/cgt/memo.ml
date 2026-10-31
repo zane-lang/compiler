@@ -28,7 +28,7 @@ type t = {
    it, whose value is more than its bytes. *)
 let rec fixed (t : Ty.t) =
   match t with
-  | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Packed _ -> false
+  | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 | Ty.Packed _ -> false
   | Ty.Struct ts | Ty.Sum ts -> List.for_all fixed ts
   | Ty.Array (t, _) -> fixed t
   | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true

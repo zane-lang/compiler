@@ -192,7 +192,7 @@ let member_index _st _t slot = slot
    (L14). *)
 (* A boxed member's type: the address of its block, in 32 bits with Ref32
    (experimental). *)
-let box_type () = if Ref32.on () then Nodes.Ty.Ref else Nodes.Ty.Ptr
+let box_type () = if Ref32.on () then Nodes.Ty.Ref else if Ref32.image_boxes () then Nodes.Ty.Box32 else Nodes.Ty.Ptr
 
 (* Experimental (Ref32): a reference stored as a member, an element or a
    payload, rather than in a local, takes the 32-bit form a boxed member's

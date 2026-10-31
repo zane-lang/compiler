@@ -115,7 +115,7 @@ let rec lltype env (t : Ty.t) =
   | Ty.Handle -> Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |]
   | Ty.Handle32 | Ty.Handle16 -> List_handle.header env.ctx
   | Ty.Ptr -> env.ptr
-  | Ty.Ref -> Llvm.i32_type env.ctx
+  | Ty.Ref | Ty.Box32 -> Llvm.i32_type env.ctx
   | Ty.Struct ts -> Llvm.struct_type env.ctx (Array.of_list (List.map (stored env) ts))
   | Ty.Sum ts when Ty.niche ts -> Llvm.struct_type env.ctx [| Llvm.i32_type env.ctx |]
   | Ty.Sum ts when Ty.compact ts ->
@@ -150,7 +150,7 @@ and stored env t = if t = Ty.Void then Llvm.struct_type env.ctx [||] else lltype
 let rec pieces (t : Ty.t) =
   match t with
   | Ty.Void -> 0
-  | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref -> 1
+  | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> 1
   | Ty.Handle | Ty.Handle32 | Ty.Handle16 -> 3
   | Ty.Struct ts -> List.fold_left (fun n t -> n + pieces t) 0 ts
   | Ty.Sum ts when Ty.niche ts -> 1
@@ -410,7 +410,7 @@ let access env (t : Ty.t) instr =
   let tag =
     match t with
     | Ty.Handle | Ty.Handle32 | Ty.Handle16 -> Some env.handle_tag
-    | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref -> Some env.value_tag
+    | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> Some env.value_tag
     | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Packed _ -> None
   in
   Option.iter (Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "tbaa")) tag;
@@ -788,7 +788,7 @@ let light id body =
     | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
     | Ty.Struct ts | Ty.Sum ts -> List.for_all scalar ts
     | Ty.Array (t, _) | Ty.Packed t -> scalar t
-    | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Ptr | Ty.Ref -> false
+    | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> false
   in
   let quiet = function
     | Cgt.Runtime.List_push | List_room | List_reserve | List_at | Array_at | Out_of_range | Text_equal
@@ -827,7 +827,7 @@ let invariant_lists body =
       | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
       | Ty.Struct ts | Ty.Sum ts -> List.for_all scalar ts
       | Ty.Array (t, _) | Ty.Packed t -> scalar t
-      | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Ptr | Ty.Ref -> false
+      | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> false
     in
     let bound = Hashtbl.create 16 in
     Cgt.Traverse.walk_stats ignore
@@ -1061,7 +1061,7 @@ let has_terminator b =
    which retries a torn read and fences the same way. *)
 let snapshot_read t =
   let rec names_block = function
-    | Ty.Ptr | Ty.Ref | Ty.Handle | Ty.Handle32 | Ty.Handle16 -> true
+    | Ty.Ptr | Ty.Ref | Ty.Box32 | Ty.Handle | Ty.Handle32 | Ty.Handle16 -> true
     | Ty.Struct ts | Ty.Sum ts -> List.exists names_block ts
     | Ty.Array (t, _) | Ty.Packed t -> names_block t
     | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
@@ -1520,6 +1520,8 @@ let convert env b (from : Ty.t) (into : Ty.t) v =
   (* Experimental (Ref32): a box's block stored in 32 bits, and back. *)
   | Ty.Ptr, Ty.Ref -> List_handle.encode env.ctx b v
   | Ty.Ref, Ty.Ptr -> List_handle.decode env.ctx b v
+  | Ty.Ptr, Ty.Box32 -> List_handle.encode_box env.ctx b v
+  | Ty.Box32, Ty.Ptr -> List_handle.decode_box env.ctx b v
   | _ -> (
   match (is_float from, is_float into) with
   | false, false ->

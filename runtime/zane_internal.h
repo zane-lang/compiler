@@ -390,6 +390,11 @@ void zane_thread_stop(void);
 char *zane_reserve_aligned(size_t bytes, char **raw);
 int zane_commit_range(char *at, size_t bytes);
 void zane_release_addresses(char *raw, char *base, size_t bytes);
+#if defined(ZANE_IMAGE_BOXES) && defined(ZANE_FRAME_REFS) && !defined(_WIN32)
+/* Experimental: chunks within reach of the image (region.c). */
+char *zane_window_take(size_t bytes);
+void zane_window_give(char *base, size_t bytes);
+#endif
 int zane_decommit_range(char *at, size_t bytes);
 size_t zane_page_bytes(void);
 void zane_reserve(zane_context *c, int64_t size);

@@ -254,6 +254,8 @@ static zane_mapping *zane_chunks_new(size_t size) {
 	s->carved += size;
 	s->held += (int64_t)(size / ZANE_CHUNK);
 	pthread_mutex_unlock(&zane_memory);
+#elif defined(ZANE_IMAGE_BOXES) && defined(ZANE_FRAME_REFS)
+	if (!(base = zane_window_take(size))) zane_broken("out of addresses for a dynamic chunk");
 #else
 	char *raw;
 	if (!(base = zane_reserve_aligned(size, &raw))) zane_broken("out of addresses for a dynamic chunk");
@@ -277,6 +279,8 @@ static void zane_chunks_drop(zane_mapping *m, size_t size) {
 	pthread_mutex_lock(&zane_memory);
 	zane_slab_drop(slab, size / ZANE_CHUNK);
 	pthread_mutex_unlock(&zane_memory);
+#elif defined(ZANE_IMAGE_BOXES) && defined(ZANE_FRAME_REFS)
+	zane_window_give((char *)m, size);
 #else
 	zane_release_addresses(NULL, (char *)m, size);
 #endif

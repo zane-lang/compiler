@@ -45,6 +45,10 @@ module Ty = struct
        shifted right by 3 in 32 bits, which a [Convert] turns into a [Ptr]
        and back. *)
     | Ref
+    (* Experimental (Ref32.image_boxes): a boxed member's block, stored as its
+       signed distance from the program's image in 8-byte units, in 32 bits,
+       0 for none; a [Convert] turns it into a [Ptr] and back. *)
+    | Box32
     | Struct of t list
     | Sum of t list
     | Array of t * int
@@ -78,7 +82,7 @@ module Ty = struct
     | Handle -> (24, 8)
     | Handle32 -> (12, 4)
     | Handle16 -> (16, 8)
-    | Ref -> (4, 4)
+    | Ref | Box32 -> (4, 4)
     | Struct ts ->
         let size, align =
           List.fold_left
@@ -113,7 +117,7 @@ module Ty = struct
 
   (* Experimental (Ref32.niche): a sum of nothing or a reference is the
      reference, 0 for nothing. *)
-  and niche ts = Ref32.niche () && ts = [ Void; Ref ]
+  and niche ts = Ref32.niche () && (ts = [ Void; Ref ] || ts = [ Void; Box32 ])
 
   (* A compact sum's payload room, in 4-byte words. *)
   and quads ts = List.fold_left (fun n t -> max n ((fst (size_align t) + 3) / 4)) 0 ts
@@ -164,7 +168,7 @@ module Ty = struct
     | Handle | Handle32 | Handle16 -> true
     | Struct ts | Sum ts -> List.exists holds_handle ts
     | Array (t, _) | Packed t -> holds_handle t
-    | Void | I1 | I32 | I64 | F32 | F64 | Ptr | Ref -> false
+    | Void | I1 | I32 | I64 | F32 | F64 | Ptr | Ref | Box32 -> false
 
   let rec to_string = function
     | Void -> "void"
@@ -178,6 +182,7 @@ module Ty = struct
     | Handle16 -> "handle16"
     | Ptr -> "ptr"
     | Ref -> "ref"
+    | Box32 -> "box32"
     | Struct ts -> "{" ^ String.concat ", " (List.map to_string ts) ^ "}"
     | Sum ts -> "<" ^ String.concat " | " (List.map to_string ts) ^ ">"
     | Array (t, n) -> Printf.sprintf "[%d x %s]" n (to_string t)

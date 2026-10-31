@@ -110,3 +110,45 @@ let room_bytes ?tag ctx b h stride =
       (Llvm.const_int i64 (-8)) "" b
   else r
 let set_room ?tag ctx b v h = set_integer ?tag ctx b v h 2
+
+(* A boxed member's block in 32 bits with image boxes ([Nodes.Ty.Box32]):
+   its signed distance from the image in 8-byte units, which the window the
+   runtime takes its chunks from keeps within 16 GiB (runtime/region.c). 0
+   is null, since no block starts at the image. [decode_box] reads a box
+   known to be set; [nullable] decodes 0 to null, for the walks. *)
+let decode_box ?(nullable = false) ctx b v =
+  let i64 = Llvm.i64_type ctx in
+  let p =
+    Llvm.build_gep (Llvm.i8_type ctx) (image b)
+      [| Llvm.build_shl (Llvm.build_sext v i64 "" b) (Llvm.const_int i64 3) "" b |] "" b
+  in
+  if nullable then
+    Llvm.build_select
+      (Llvm.build_icmp Llvm.Icmp.Eq v (Llvm.const_int (Llvm.i32_type ctx) 0) "" b)
+      (Llvm.const_null (Llvm.pointer_type ctx)) p "" b
+  else p
+
+let encode_box ctx b p =
+  let i64 = Llvm.i64_type ctx in
+  if Llvm.is_null p then Llvm.const_int (Llvm.i32_type ctx) 0
+  else
+    let distance =
+      Llvm.build_ashr
+        (Llvm.build_sub (Llvm.build_ptrtoint p i64 "" b) (Llvm.build_ptrtoint (image b) i64 "" b) "" b)
+        (Llvm.const_int i64 3) "" b
+    in
+    let v = narrow ctx b distance in
+    if checked () then begin
+      let fn = Llvm.block_parent (Llvm.insertion_block b) in
+      let bad = Llvm.append_block ctx "" fn and good = Llvm.append_block ctx "" fn in
+      let fits = Llvm.build_icmp Llvm.Icmp.Eq (Llvm.build_sext v i64 "" b) distance "" b in
+      ignore (Llvm.build_cond_br fits good bad b);
+      Llvm.position_at_end bad b;
+      let m = Llvm.global_parent fn in
+      let t = Llvm.function_type (Llvm.void_type ctx) [||] in
+      let trap = match Llvm.lookup_function "llvm.trap" m with Some f -> f | None -> Llvm.declare_function "llvm.trap" t m in
+      ignore (Llvm.build_call t trap [||] "" b);
+      ignore (Llvm.build_unreachable b);
+      Llvm.position_at_end good b
+    end;
+    v

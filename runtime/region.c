@@ -246,6 +246,88 @@ static char *zane_frames_take(size_t bytes) {
 }
 #endif
 
+#if defined(ZANE_IMAGE_BOXES) && defined(ZANE_FRAME_REFS) && !defined(_WIN32)
+/* Experimental (docs/experiments/goose-comparison): every dynamic chunk is
+   carved from the window, one range of addresses within 16 GiB of the
+   program's image reserved once, so that a boxed member's block, in a
+   chunk or in a context's frames, is its signed distance from the image in
+   8-byte units and fits 32 bits (List_handle.encode_box). The window is the
+   whole MiBs from 16 GiB to 2 GiB below the image, under the frames; or,
+   where a program is loaded too low for that, the largest of 12, 8, 4 or 2
+   GiB found free from 4 GiB above it. A range given back is listed and
+   carved again, first fit; the rest of the window is taken in order. */
+typedef struct zane_window_range {
+	char *base;
+	size_t bytes;
+	struct zane_window_range *next;
+} zane_window_range;
+
+static pthread_mutex_t zane_window_lock = PTHREAD_MUTEX_INITIALIZER;
+static char *zane_window_next, *zane_window_end;
+static zane_window_range *zane_window_free;
+
+static int zane_window_try(uintptr_t low, uintptr_t end) {
+	void *at = mmap((void *)low, (size_t)(end - low), PROT_NONE,
+	                MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
+	if (at == (void *)low) {
+		zane_window_next = (char *)low;
+		zane_window_end = (char *)end;
+		return 1;
+	}
+	if (at != MAP_FAILED) munmap(at, (size_t)(end - low));
+	return 0;
+}
+
+char *zane_window_take(size_t bytes) {
+	bytes = (bytes + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK;
+	pthread_mutex_lock(&zane_window_lock);
+	if (!zane_window_end) {
+		uintptr_t image = (uintptr_t)&__ehdr_start, gib = (uintptr_t)1 << 30;
+		/* Opaque, so the compiler folds no offset past 2 GiB into the
+		   symbol's relocation. */
+		__asm__("" : "+r"(image));
+		uintptr_t reach = 16 * gib;
+		if (image > reach + ZANE_CHUNK)
+			zane_window_try((image - reach + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK,
+			                (image - 2 * gib) / ZANE_CHUNK * ZANE_CHUNK);
+		uintptr_t above = (image + 4 * gib + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK;
+		for (uintptr_t size = 12 * gib; !zane_window_end && size >= 2 * gib; size -= 2 * gib)
+			if (above + size <= image + reach) zane_window_try(above, above + size);
+		if (!zane_window_end) zane_broken("the addresses near the program are taken");
+	}
+	char *base = NULL;
+	for (zane_window_range **at = &zane_window_free; *at; at = &(*at)->next) {
+		zane_window_range *r = *at;
+		if (r->bytes < bytes) continue;
+		base = r->base;
+		r->base += bytes;
+		r->bytes -= bytes;
+		if (!r->bytes) {
+			*at = r->next;
+			free(r);
+		}
+		break;
+	}
+	if (!base && (size_t)(zane_window_end - zane_window_next) >= bytes) {
+		base = zane_window_next;
+		zane_window_next += bytes;
+	}
+	pthread_mutex_unlock(&zane_window_lock);
+	return base;
+}
+
+void zane_window_give(char *base, size_t bytes) {
+	bytes = (bytes + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK;
+	mmap(base, bytes, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED, -1, 0);
+	zane_window_range *r = malloc(sizeof *r);
+	if (!r) return;
+	pthread_mutex_lock(&zane_window_lock);
+	*r = (zane_window_range){ base, bytes, zane_window_free };
+	zane_window_free = r;
+	pthread_mutex_unlock(&zane_window_lock);
+}
+#endif
+
 /* `size` bytes of the range, and its guard, so each MiB of it is the
    context's alone in the chunk map. */
 void zane_reserve(zane_context *c, int64_t size) {

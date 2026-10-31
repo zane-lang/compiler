@@ -75,11 +75,14 @@ let ptr node = { Expr.node; ty = Nodes.Ty.Ptr }
    on its way into such a slot: stored as a [Ref] with Ref32
    (experimental). *)
 let box_block at =
-  if Ref32.on () then ptr (Expr.Convert { Expr.node = Expr.Deref at; ty = Nodes.Ty.Ref })
-  else ptr (Expr.Deref at)
+  match Type_layout.box_type () with
+  | Nodes.Ty.Ptr -> ptr (Expr.Deref at)
+  | t -> ptr (Expr.Convert { Expr.node = Expr.Deref at; ty = t })
 
 let boxed_value (block : Expr.t) =
-  if Ref32.on () then { Expr.node = Expr.Convert block; ty = Nodes.Ty.Ref } else block
+  match Type_layout.box_type () with
+  | Nodes.Ty.Ptr -> block
+  | t -> { Expr.node = Expr.Convert block; ty = t }
 
 (* A reference read from a member, element or payload slot, and one on its
    way into such a slot (Type_layout.ref_slot): [read] is the slot's read,

@@ -284,9 +284,16 @@ let zero_list c h =
 (* A boxed member's block (Layout.Box), stored in 32 bits with Ref32. *)
 let load_box c h =
   if List_handle.shifted () then List_handle.decode c.env.ctx c.b (load c (Llvm.i32_type c.env.ctx) h)
+  else if Cgt.Ref32.image_boxes () then
+    List_handle.decode_box ~nullable:true c.env.ctx c.b (load c (Llvm.i32_type c.env.ctx) h)
   else load c c.env.ptr h
 
-let store_box c v h = store c (if List_handle.shifted () then List_handle.encode c.env.ctx c.b v else v) h
+let store_box c v h =
+  store c
+    (if List_handle.shifted () then List_handle.encode c.env.ctx c.b v
+     else if Cgt.Ref32.image_boxes () then List_handle.encode_box c.env.ctx c.b v
+     else v)
+    h
 
 let zero_handle c h =
   store c (Llvm.const_null c.env.ptr) h;
