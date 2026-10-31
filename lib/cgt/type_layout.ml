@@ -171,6 +171,11 @@ let member_index _st _t slot = slot
    (experimental). *)
 let box_type () = if Ref32.on () then Nodes.Ty.Ref else Nodes.Ty.Ptr
 
+(* Experimental (Ref32): a reference stored as a member, an element or a
+   payload, rather than in a local, takes the 32-bit form a boxed member's
+   address does (Build.stored_ref, Build.loaded_ref). *)
+let ref_slot (t : Tty.t) = Ref32.on () && Tty.is_ref t
+
 let rec shape st span (t : Tty.t) : Nodes.Ty.t =
   match t with
   | Tty.Roaming t -> shape st span t
@@ -190,11 +195,13 @@ let rec shape st span (t : Tty.t) : Nodes.Ty.t =
   | Tty.Verb _ -> Nodes.Ty.Ptr
   | Tty.Intrinsic _ when Option.is_some (array_of t) -> (
       match array_of t with
-      | Some (e, n) -> Nodes.Ty.Array (shape st span e, n)
+      | Some (e, n) -> Nodes.Ty.Array ((if ref_slot e then Nodes.Ty.Ref else shape st span e), n)
       | None -> unhandled span t)
   | Tty.Named _ -> (
       let member m =
-        if boxed st t m then if pooled st m then Nodes.Ty.list_handle () else box_type () else shape st span m
+        if boxed st t m then if pooled st m then Nodes.Ty.list_handle () else box_type ()
+        else if ref_slot m then Nodes.Ty.Ref
+        else shape st span m
       in
       let sum ts = Nodes.Ty.Sum ts in
       match definition st t with
@@ -245,7 +252,7 @@ let ty st span (t : Tty.t) : Nodes.Ty.t =
 
 (* A list's elements lie this many bytes apart. *)
 let stride st span t =
-  let size, align = Nodes.Ty.size_align (ty st span t) in
+  let size, align = Nodes.Ty.size_align (if ref_slot t then Nodes.Ty.Ref else ty st span t) in
   max 1 (Nodes.Ty.round_up size align)
 
 (* Where a type's owned blocks are (memory.md §3.6): each handle and each

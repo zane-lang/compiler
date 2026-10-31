@@ -1155,6 +1155,45 @@ add nothing for the trees: a pool's nodes already link to each other by
 32-bit offsets, so the switch changes only the root's handle. ntree takes
 what the switch alone gave it, since pooling does not touch its lists.
 
+### `&T` members in 4 bytes
+
+A reference held in a local or passed as a parameter stays a pointer. One
+stored in a member, an element or a payload is a `Ref`, as a boxed member
+is (`Type_layout.ref_slot`): `shape` lays such a member out as `Ref`, an
+array of references has `Ref` elements, and a list's stride for them is 4.
+Lowering decodes where it reads one (`Build.loaded_ref`: a field read, a
+subscript, a case read, a `match` binder, which then holds the decoded
+reference as a local) and encodes where it writes one (`Build.stored_ref`:
+a member or payload being built, an array literal's element, `fill`,
+`push`, and an assignment to a field or an element). A reference local is
+assigned without encoding. Nothing else can hold the slot's address and
+write a pointer there: only a method's subject is ever written through a
+parameter (memory.md §2.9), and a subject is never a reference.
+
+A reference can name a global: `@program$console` is one, and every
+program here passes it. A program is position-independent by default and
+loads at `0x55…`, out of reach of 35 bits, so under the switch it links
+with `-no-pie` (`Build.pinned`), which puts its globals below 4 GiB, and
+each global is aligned to 8 bytes (`codegen.ml`). Every other place a
+reference can name is in a frame or a block, both inside the cage.
+
+Every fixture gives the same output under the switch; ten of them store
+references in members or elements (`references`, `arrayrefs`, `replayed`,
+`longChain` among them). No suite test does, so `edges/main.zn` is one that
+does: a `ListRef` of 2N edges, each `{from &Person; to &Person; weight
+Int}` naming one of four owners, scanned 50 times through both
+references. An edge is 24 bytes without the switch and 16 with it. At
+N = 2000000 (11 interleaved runs, least and median wall time, peak RSS;
+Callgrind at N = 200000):
+
+| | wall | peak RSS | instructions |
+| --- | --- | --- | --- |
+| plain | 0.676 / 0.726 s | 94.3 MB | 167.4 million |
+| `ZANE_REF32=1` | 0.510 / 0.541 s | 63.6 MB | 167.5 million |
+
+The same instructions over two thirds of the bytes: the scan is bound by
+memory, and is 25% faster.
+
 ### The suite with the switch
 
 `run.py` over every test with `ZANE_REF32=1` alone (RUNS=7, median wall
@@ -1215,11 +1254,11 @@ the node's size, and Goose's push shape the push itself.
 
 **Every reference a 32-bit offset** is built, behind `ZANE_REF32=1` (32-bit
 references, above): list handles and boxed members are 32-bit, and sums
-whose payloads align to 4 bytes or less are compact. Not yet under the
-switch: `&T` fields stay 64-bit, since no test here uses them; text handles
-stay 24 bytes, since text bytes are unaligned and may sit in the binary;
-and `ZANE_POOL_UNCHECKED=1` is ignored, since an unchecked pool's 2 GiB
-block does not fit the cage more than a few times over.
+whose payloads align to 4 bytes or less are compact, and a reference
+stored in a member, element or payload is 32-bit. Not under the switch:
+text handles stay 24 bytes, since text bytes are unaligned and may sit in
+the binary, and `ZANE_POOL_UNCHECKED=1` is ignored, since an unchecked
+pool's 2 GiB block does not fit the cage more than a few times over.
 
 After that, for binarytrees: a calling convention for functions that build
 into a pool, items and count passed in registers and the new count

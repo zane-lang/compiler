@@ -74,7 +74,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
          reference, so this reads it rather than asking [addr] for the
          reference, which would ask back here. *)
       match storage st ctx span e with
-      | Some p -> { Expr.node = Expr.Deref p; ty = ty st span e.T.Expr.ty }
+      | Some p -> loaded_ref ~slot:(ref_slot e.T.Expr.ty) { Expr.node = Expr.Deref p; ty = ty st span e.T.Expr.ty }
       | None -> Diagnostic.bug ~span "lowering: a subscript with no address")
   | T.Expr.Op { op; impl = { owner; instance; _ }; left; right; swapped; handler } -> (
       let t = ty st span e.T.Expr.ty in
@@ -118,11 +118,12 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | T.Expr.Field _ when Option.is_some (node_place st ctx span e) ->
       if pooled st e.T.Expr.ty then refuse span "pooled variants: a subtree read as a value";
       { Expr.node = Expr.Deref (Option.get (node_place st ctx span e)); ty = ty st span e.T.Expr.ty }
-  | T.Expr.Field { target; slot; _ } ->
+  | T.Expr.Field { target; slot = member; _ } ->
       let t = ty st span e.T.Expr.ty in
       let owner = Tty.strip_mode target.T.Expr.ty in
-      let index = member_index st owner slot in
-      if boxed st owner (field_type st span owner slot) then
+      let index = member_index st owner member in
+      let slot = ref_slot (field_type st span owner member) in
+      if boxed st owner (field_type st span owner member) then
         (* A boxed member's payload is in its block. A fresh value is held
            in this scope first (storage), so its block is returned at the
            drain. *)
@@ -134,9 +135,10 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
            (memory.md §4.1). *)
         let base = expr st ctx target in
         let within = ty st span owner in
-        { Expr.node = Expr.Deref (ptr (Expr.Offset { base; within; path = [ index ] })); ty = t }
-      else if collapsed st owner then { (borrow st ctx span target) with ty = t }
-      else { Expr.node = Expr.Member { value = borrow st ctx span target; index }; ty = t }
+        loaded_ref ~slot
+          { Expr.node = Expr.Deref (ptr (Expr.Offset { base; within; path = [ index ] })); ty = t }
+      else if collapsed st owner then loaded_ref ~slot { (borrow st ctx span target) with ty = t }
+      else loaded_ref ~slot { Expr.node = Expr.Member { value = borrow st ctx span target; index }; ty = t }
   | T.Expr.Init fields -> Lower_data.record walk st ctx span e.T.Expr.ty fields
   | T.Expr.Construct_fields { ctor = { owner = S.Declared id; instance; _ }; fields; handler } ->
       Lower_data.construct_fields walk st ctx span (verb_of st id instance) fields handler
@@ -671,7 +673,7 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       let pins, target = Lower_calls.pinned walk st ctx span target in
       let t = target.T.Expr.ty in
       let id = fresh st in
-      let v = moved st ctx span t value in
+      let v = stored_ref ~slot:(ref_slot t) (moved st ctx span t value) in
       let read = { Expr.node = Expr.Local id; ty = v.Expr.ty } in
       let address =
         match storage st ctx span target with
@@ -698,11 +700,15 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
         let value = moved st ctx span t value in
         [ Stat.Overwrite { address; value; layout = layout st span t } ]
       else
+        (* A reference stored in a member is in its 32-bit form (Ref32). *)
+        let stored v =
+          match target.T.Expr.node with T.Expr.Var _ -> v | _ -> stored_ref ~slot:(ref_slot t) v
+        in
         match place st ctx span target with
-        | Some place -> [ Stat.Assign { place; value = moved st ctx span t value } ]
+        | Some place -> [ Stat.Assign { place; value = stored (moved st ctx span t value) } ]
         | None ->
             let address = address () in
-            [ Stat.Store { address; value = moved st ctx span t value } ])
+            [ Stat.Store { address; value = stored (moved st ctx span t value) } ])
   | T.Stat.Expr
       {
         T.Expr.node =

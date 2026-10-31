@@ -574,6 +574,11 @@ let shared_extension triple =
   let has part = List.exists (fun p -> String.starts_with ~prefix:part p) parts in
   if has "windows" then ".dll" else if has "darwin" || has "macos" || has "apple" then ".dylib" else ".so"
 
+(* Experimental (Ref32): a program's own globals below 4 GiB, so that a
+   reference to one is stored in 32 bits as other references are (lib/cgt
+   Type_layout.ref_slot). *)
+let pinned () = if Cgt.Ref32.on () then [ "-no-pie" ] else []
+
 (* The libraries every program for [target] links with besides libc. The
    approximate math functions are the C math library's (math.md §2.6):
    Windows' C runtime and macOS's libSystem hold it, and on Linux it is a
@@ -587,7 +592,7 @@ let shared_extension triple =
    nothing a program takes, and the loader would still open it on every
    run. *)
 let system_libraries target =
-  if windows target then [ "-lshell32"; "-Wl,--stack,8388608" ] else if darwin target then [ "-lm" ] else [ "-lm"; "-Wl,--as-needed"; "-ldl"; "-Wl,--no-as-needed" ]
+  if windows target then [ "-lshell32"; "-Wl,--stack,8388608" ] else if darwin target then [ "-lm" ] else [ "-lm"; "-Wl,--as-needed"; "-ldl"; "-Wl,--no-as-needed" ] @ pinned ()
 
 (* [command] run by the LLD in the compiler; what it wrote when it fails. *)
 let lld_run command =

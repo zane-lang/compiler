@@ -18,7 +18,7 @@ open Build
 let member w st ctx span holder t (e : T.Expr.t) =
   let value = w.moved st ctx span t e in
   if boxed st holder t && not (pooled st t) then boxed_value (ptr (Expr.Box { value; layout = layout st span t }))
-  else value
+  else stored_ref ~slot:(ref_slot t) value
 
 (* `ArrayRef.fill(n, make)` (generics.md §8.4): a slot this scope holds,
    each element made by calling `make` with its position, counted from 1, in
@@ -55,11 +55,11 @@ let fill w st ctx span (make : T.Expr.t) (t : Tty.t) : Expr.t =
               count = int n;
               body =
                 [
-                  Stat.Let { id = made; value = call };
+                  Stat.Let { id = made; value = stored_ref ~slot:(ref_slot e) call };
                   Stat.Place
                     {
                       address = at;
-                      value = { Expr.node = Expr.Local made; ty = call.Expr.ty };
+                      value = { Expr.node = Expr.Local made; ty = (if ref_slot e then Nodes.Ty.Ref else call.Expr.ty) };
                       layout = layout st span e;
                     };
                   Stat.assign i next;
@@ -124,7 +124,7 @@ let primitive w st ctx span spelling args (t : Tty.t) : Expr.t =
   | ("Array" | "ArrayRef" | "ArrayRef.refs" | "ArrayRef.roaming"), [ T.Arg.Value v ] -> (
       match ((literal_of ctx v).T.Expr.node, array_of (Tty.strip_mode t)) with
       | T.Expr.Array_lit values, Some (e, n) when List.length values = n ->
-          let element i v = (i, w.moved st ctx span e v) in
+          let element i v = (i, stored_ref ~slot:(ref_slot e) (w.moved st ctx span e v)) in
           { Expr.node = Expr.Record (List.mapi element values); ty = ty st span t }
       (* A spawned call's literal, made into its array where it was spawned
          (specialized). *)

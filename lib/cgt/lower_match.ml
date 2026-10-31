@@ -105,6 +105,14 @@ let match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
                      let at = ptr (Expr.Offset { base = local_ptr pointer; within; path }) in
                      (* A boxed payload is in its block. *)
                      let boxed = boxed st tsty c in
+                     if ref_slot c then begin
+                       (* A reference payload is in its 32-bit form (Ref32):
+                          its binder holds it decoded. *)
+                       let value = loaded_ref ~slot:true { Expr.node = Expr.Deref at; ty = Nodes.Ty.Ptr } in
+                       Hashtbl.replace ctx.env l.T.Local.id (Slot bound);
+                       [ Stat.Let { id = bound; value } ]
+                     end
+                     else
                      let value = if boxed then box_block at else at in
                      Hashtbl.replace ctx.env l.T.Local.id (Pointer bound);
                      [ Stat.Let { id = bound; value } ])
@@ -224,7 +232,7 @@ let case_read w st ctx span (target : T.Expr.t) case handler ret =
     let live = case_index st span target.T.Expr.ty case in
     let tsty = Tty.strip_mode target.T.Expr.ty in
     let source = sum_of st span tsty { Expr.node = Expr.Local id; ty = value.Expr.ty } in
-    let payload i = { Expr.node = Expr.Payload { value = source; index = i }; ty = t } in
+    let payload i = loaded_ref ~slot:(ref_slot ret) { Expr.node = Expr.Payload { value = source; index = i }; ty = t } in
     let cases =
       List.mapi
         (fun i _ -> if i = live then (i, leave label result (payload i)) else (i, []))

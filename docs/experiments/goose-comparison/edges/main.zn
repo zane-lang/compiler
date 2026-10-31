@@ -1,0 +1,47 @@
+/// A list of N edges, each two references to one of four owners and a
+/// weight, scanned 50 times, reading both ends through their references.
+/// Under ZANE_REF32=1 an edge takes 16 bytes instead of 24.
+package edges;
+
+import core$;
+import bench$;
+
+type Person = #struct {
+	age Int;
+}
+
+Person(age Int) => init{ age; }
+
+type Edge = #struct {
+	from &Person;
+	to &Person;
+	weight Int;
+}
+
+Edge(from &Person, to &Person, weight Int) => init{ from; to; weight; }
+
+Unit main() {
+	console Console(@program$console);
+	runtime Runtime(@program$runtime);
+	n Int = size(runtime, Int(100000));
+	a Person(Int(1));
+	b Person(Int(2));
+	c Person(Int(3));
+	d Person(Int(4));
+	edges ListRef<Edge> = ListRef(Edge);
+	i Int = Int(1);
+	i!to(n) {
+		edges!push(Edge(a, b, i));
+		edges!push(Edge(c, d, Int(1)));
+	}
+	total Int = Int(0);
+	round Int = Int(1);
+	round!to(Int(50)) {
+		k Int = Int(1);
+		k!to(edges:size()) {
+			total = total + edges[k].from.age + edges[k].to.age + edges[k].weight;
+		}
+	}
+	console!print(String(n) + " " + String(total));
+	return Unit();
+}

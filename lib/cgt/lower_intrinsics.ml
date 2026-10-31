@@ -178,7 +178,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
             | Some t -> t
             | None -> Diagnostic.bug ~span "lowering: `push` onto something not a list"
           in
-          let taken = w.moved st ctx span t value in
+          let taken = stored_ref ~slot:(ref_slot t) (w.moved st ctx span t value) in
           let v = fresh st in
           let at = fresh st in
           let label = fresh st in

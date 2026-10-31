@@ -81,6 +81,14 @@ let box_block at =
 let boxed_value (block : Expr.t) =
   if Ref32.on () then { Expr.node = Expr.Convert block; ty = Nodes.Ty.Ref } else block
 
+(* A reference read from a member, element or payload slot, and one on its
+   way into such a slot (Type_layout.ref_slot): [read] is the slot's read,
+   typed as the reference it holds, and [value] the reference. *)
+let loaded_ref ~slot (read : Expr.t) =
+  if slot then ptr (Expr.Convert { read with Expr.ty = Nodes.Ty.Ref }) else read
+
+let stored_ref ~slot (value : Expr.t) = if slot then boxed_value value else value
+
 (* `@primitives$Array<T, n>`, and whether an expression is an array
    literal. *)
 let array_type t n =
