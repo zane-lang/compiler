@@ -172,3 +172,12 @@ let encode_box ctx b p =
         (Llvm.const_int i64 3) "" b
     in
     fitting ctx b (narrow ctx b distance) distance
+
+(* The bytes of a list's first block when its first push asks for [bytes]
+   of elements [stride] wide, as runtime/list.c sizes it. *)
+let first_room ~bytes ~stride =
+  let room = min Abi.list_first (max Abi.list_least (4 * stride)) in
+  let room = (max room bytes + 7) / 8 * 8 in
+  (* Counted in elements, the block is the bytes of the whole elements that
+     fit, which runtime/list.c takes too. *)
+  block_bytes ~room:(units ~bytes:room ~stride) ~stride

@@ -77,7 +77,7 @@ Two changes:
   128 bytes. It now holds four elements, rounded to a word, clamped to
   32–128 bytes (`ZANE_LIST_LEAST`, `ZANE_LIST_FIRST`), or more when the first
   push reserves more. The runtime (`zane_list_first_room`) and the inline
-  push (`Emit.first_room`) compute the same size.
+  push (`List_handle.first_room`) compute the same size.
 - **Blocks aligned to a word.** Every list block below oversized is now
   word-aligned (`ZANE_LIST_ALIGN` = 8) instead of 64-byte-aligned (no Zane
   type is aligned past 8). So a block of up to 128 bytes comes from the

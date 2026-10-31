@@ -175,7 +175,7 @@ class FactsTests(unittest.TestCase):
         # A new list pushed to four times in a row makes room for all four
         # at its first push, so the room is compared once, and the other
         # three pushes are stores with no look at it; past a first block,
-        # the runtime makes the room for all four (Emit.runs).
+        # the runtime makes the room for all four (Loop_shapes.runs).
         ir = run(ZANEC, "--ll", *packages("pushes"))
         gather = re.search(r"(?ms)^define [^\n]*@\"pushes\$gather\(.*?^}", ir).group(0)
         self.assertEqual(gather.count("icmp sgt"), 1, gather)

@@ -44,10 +44,10 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       funcs = Hashtbl.create 32;
       abis = Hashtbl.create 32;
       entries = Hashtbl.create 8;
-      registers = registers triple;
+      registers = Call_pieces.registers triple;
       pack;
       passings = Hashtbl.create 32;
-      results = results triple;
+      results = Call_pieces.results triple;
       returnings = Hashtbl.create 32;
       globals = Hashtbl.create 8;
       walks = None;

@@ -1065,10 +1065,10 @@ let emit_env ?(pack = false) ?(triple = "x86_64-unknown-linux-gnu") () =
     funcs = Hashtbl.create 1;
     abis = Hashtbl.create 1;
     entries = Hashtbl.create 1;
-    registers = Codegen__Emit.registers triple;
+    registers = Codegen__Call_pieces.registers triple;
     pack;
     passings = Hashtbl.create 1;
-    results = Codegen__Emit.results triple;
+    results = Codegen__Call_pieces.results triple;
     returnings = Hashtbl.create 1;
     globals = Hashtbl.create 1;
     walks = None;
@@ -1098,7 +1098,7 @@ let long_arrays () =
    CGT type (docs/design/lowering.md §9). *)
 let counted_pieces () =
   let module T = Cgt.Nodes.Ty in
-  let count = Codegen__Emit.pieces in
+  let count = Codegen__Call_pieces.pieces in
   check "Unit takes none" (count T.Void = 0);
   check "a scalar takes one" (List.for_all (fun t -> count t = 1) [ T.I1; T.I32; T.I64; T.F32; T.F64; T.Ptr ]);
   check "a handle takes three" (count T.Handle = 3);
@@ -1112,7 +1112,7 @@ let counted_pieces () =
   check "an array takes its element's times its length" (count (T.Array (T.Struct [ T.I64; T.I32 ], 5)) = 10);
   check "an array of Unit takes none" (count (T.Array (T.Void, 7)) = 0);
   check "65,536 I64s take 65,536" (count (T.Array (T.I64, 65536)) = 65536);
-  let floats = Codegen__Emit.floats in
+  let floats = Codegen__Call_pieces.floats in
   check "a handle has no floating-point piece" (floats T.Handle = 0);
   check "a struct has its members' floating-point pieces" (floats (T.Struct [ T.F64; T.I64; T.F32 ]) = 2);
   check "an array has its element's times its length" (floats (T.Array (T.Struct [ T.F64; T.I32 ], 3)) = 3);
@@ -1122,10 +1122,10 @@ let counted_pieces () =
 let passings () =
   let module T = Cgt.Nodes.Ty in
   let module E = Codegen__Emit in
-  check "x86-64 Linux gives two registers" (E.registers "x86_64-unknown-linux-gnu" = 2);
-  check "AArch64 macOS gives two" (E.registers "aarch64-apple-darwin" = 2);
-  check "x86-64 Windows gives one" (E.registers "x86_64-unknown-windows-gnu" = 1);
-  check "AArch64 Windows gives two" (E.registers "aarch64-unknown-windows-msvc" = 2);
+  check "x86-64 Linux gives two registers" (Codegen__Call_pieces.registers "x86_64-unknown-linux-gnu" = 2);
+  check "AArch64 macOS gives two" (Codegen__Call_pieces.registers "aarch64-apple-darwin" = 2);
+  check "x86-64 Windows gives one" (Codegen__Call_pieces.registers "x86_64-unknown-windows-gnu" = 1);
+  check "AArch64 Windows gives two" (Codegen__Call_pieces.registers "aarch64-unknown-windows-msvc" = 2);
   let pair = T.Struct [ T.I64; T.I64 ] and small = T.Struct [ T.I32; T.I32; T.I32 ] in
   let linux = emit_env () and windows = emit_env ~triple:"x86_64-unknown-windows-gnu" () in
   let packed = emit_env ~pack:true () and packed_windows = emit_env ~pack:true ~triple:"x86_64-pc-windows-msvc" () in
@@ -1149,12 +1149,12 @@ let passings () =
 let returnings () =
   let module T = Cgt.Nodes.Ty in
   let module E = Codegen__Emit in
-  check "x86-64 Linux returns three pieces, two floating" (E.results "x86_64-unknown-linux-gnu" = (3, 2));
-  check "x86-64 Windows returns as many" (E.results "x86_64-unknown-windows-gnu" = (3, 2));
-  check "AArch64 macOS returns as many" (E.results "arm64-apple-macosx" = (3, 2));
-  check "Haswell x86-64 returns as many" (E.results "x86_64h-apple-darwin" = (3, 2));
-  check "arm64e returns as many" (E.results "arm64e-apple-macosx" = (3, 2));
-  check "RISC-V returns what it passes" (E.results "riscv64-unknown-linux-gnu" = (2, 2));
+  check "x86-64 Linux returns three pieces, two floating" (Codegen__Call_pieces.results "x86_64-unknown-linux-gnu" = (3, 2));
+  check "x86-64 Windows returns as many" (Codegen__Call_pieces.results "x86_64-unknown-windows-gnu" = (3, 2));
+  check "AArch64 macOS returns as many" (Codegen__Call_pieces.results "arm64-apple-macosx" = (3, 2));
+  check "Haswell x86-64 returns as many" (Codegen__Call_pieces.results "x86_64h-apple-darwin" = (3, 2));
+  check "arm64e returns as many" (Codegen__Call_pieces.results "arm64e-apple-macosx" = (3, 2));
+  check "RISC-V returns what it passes" (Codegen__Call_pieces.results "riscv64-unknown-linux-gnu" = (2, 2));
   let linux = emit_env () and windows = emit_env ~triple:"x86_64-unknown-windows-gnu" () in
   let packed = emit_env ~pack:true () in
   check "a handle comes back as itself" (E.returning linux T.Handle = E.Itself);
