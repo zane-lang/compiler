@@ -1971,9 +1971,19 @@ instruction count.
 | binarytrees | level with `ZANE_ONE_BOX=1` alone; ahead at depth 20 with `ZANE_REF32=1`, at two thirds of Goose's memory with `ZANE_NICHE_SUMS=1` | Closed: one box per cycle, nodes bumped from the scope region, and an 8-byte node. |
 | ntree | ~1.6×; with `ZANE_REF32=1`, ~1.1–1.2× in the suite and level at depth 10 | The list handle was the gap: 24 bytes against Goose's 17-byte node. Under the switch it is 12 bytes, and Zane's tree takes less memory than Goose's. |
 | treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
-| allocfree | ~0.4× with `ZANE_LIGHT_SCOPES=1` | Closed. |
+| allocfree | ~0.4× with `ZANE_LIGHT_SCOPES=1` | Closed: no region opened for a pass of a loop that boxes nothing, and the `ListRef` push loop's room made once. |
+| fannkuch | level; 1.4× Goose's instructions with `ZANE_HOIST_HANDLES=1` | The copy runs unchecked; each swap of the short flips still checks both indices. `fannkucharray/` matches Goose's layout. |
 | listgrowth | level with `ZANE_LOOP_PUSHES=1` | Closed: room made before a loop of pushes, and the count kept in a register through it. |
-| gameloop | ~4.4× inline; with the list holding 4-byte pool indices as Goose's does, ~1.0× | Inline, each removal shifts 32-byte entities where Goose shifts 4-byte references. |
+| gameloop | ~4.4× inline; with the list holding 4-byte pool indices as Goose's does (`gamepool/`, `gamepool32/`), ~1.0× | Inline, each removal shifts 32-byte entities where Goose shifts 4-byte references. |
+
+The best build so far is
+`ZANE_ONE_BOX=1 ZANE_PARTIAL_INLINE=1 ZANE_LOOP_PUSHES=1 ZANE_LIGHT_SCOPES=1 ZANE_HOIST_HANDLES=1`,
+plus `ZANE_REF32=1 ZANE_NICHE_SUMS=1` for the trees. `mechanisms-hoist.md`
+is the per-function table over it without the last two: six flags, each
+with its cause in "Per-function instructions" above. Two helpers were used
+for the latest timings and listings: `time_runs.py` and `hotdis.sh`
+(Callgrind with `--dump-instr=yes`, then the hottest instructions
+disassembled).
 
 Without pooling, what is left is mostly representation: link width, handle
 size, and whether a tree's nodes sit in one pool or in separate blocks.
