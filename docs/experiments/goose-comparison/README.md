@@ -1926,7 +1926,7 @@ past its room would write over a neighbour, not fault.
 | binarytrees | level with `ZANE_ONE_BOX=1` alone; ahead at depth 20 with `ZANE_REF32=1`, at two thirds of Goose's memory with `ZANE_NICHE_SUMS=1` | Closed: one box per cycle, nodes bumped from the scope region, and an 8-byte node. |
 | ntree | ~1.6×; with `ZANE_REF32=1`, ~1.1–1.2× in the suite and level at depth 10 | The list handle was the gap: 24 bytes against Goose's 17-byte node. Under the switch it is 12 bytes, and Zane's tree takes less memory than Goose's. |
 | treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
-| allocfree | ~1.0× | Closed. |
+| allocfree | ~0.4× with `ZANE_LIGHT_SCOPES=1` | Closed. |
 | listgrowth | level with `ZANE_LOOP_PUSHES=1` | Closed: room made before a loop of pushes, and the count kept in a register through it. |
 | gameloop | ~4.4× inline; with the list holding 4-byte pool indices as Goose's does, ~1.0× | Inline, each removal shifts 32-byte entities where Goose shifts 4-byte references. |
 
