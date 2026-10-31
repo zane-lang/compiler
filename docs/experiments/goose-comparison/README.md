@@ -1652,6 +1652,27 @@ gap was the port's container, not the language: what Goose's `[..4]` does,
 Zane's `ArrayRef` under a variant case does, given a constructor in `core`
 that moves owners in.
 
+## listgrowth: where the push's instructions go
+
+At 500000 items (Callgrind, 10 M pushes) Zane's plain build runs 24
+instructions a push in `zane_main` and 1 more in `memcpy`, where Goose runs
+12.5 and never copies. Interleaved at 2000000 (11 runs): Zane plain 0.182 /
+0.210 s, best build 0.182 / 0.195 s, Goose 0.149 / 0.163 s.
+
+Both build the entity the same way (a convert, a multiply, a shift, four
+stores). The difference is the push around it:
+
+- Goose's loop has no capacity check at all: it is the stores, the pointer
+  advanced by 32 bytes and the loop bound, unrolled twice.
+- Zane's loads the list's count, room and items from the handle in the
+  frame (`0xe8(%rdi)`, `0xf0(%rdi)`, `0xe0(%rdi)`), compares, and stores the
+  count back, every push. The count goes through memory each iteration, so
+  each push's load waits on the store before it.
+
+So the gap is not the cage or the allocator but the loop: the handle is not
+kept in registers through it, and a loop of a known count of pushes checks
+the room at each one where it could reserve once.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
