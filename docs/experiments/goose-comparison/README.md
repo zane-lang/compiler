@@ -1728,6 +1728,43 @@ statement of the body naming the list. A reference to the list taken
 before the loop, pushed through inside it, would use the room made for the
 loop's own pushes; the prototype does not look for one.
 
+## A loop of one load and one add (`sumloop/`)
+
+Whether Zane's loop shape costs anything shows best in a loop that does
+almost nothing else: `sumloop/` sums a list of N `Int`s 200000 times, writing
+the total into the first element after each round so that no round repeats
+the one before (the same program in Zane, Goose and C).
+
+**With N a constant (2000) the gap is 2×** (0.061 / 0.066 s against 0.030 /
+0.034 s, 11 interleaved runs): clang, for C and for Goose's C, proves the
+list holds 2000 elements and vectorizes 20 a pass, comparing with a
+constant, where Zane's loop reads the size from the list and takes 4 a pass.
+C compiled with the size read from its arguments makes exactly Zane's loop
+and takes Zane's time (0.064 / 0.067 s). `ZANE_LOOP_PUSHES=1` does not give
+LLVM the count either: it reaches the sum through memory, past calls.
+
+**With N the program's argument, as langbench's sizes are,** all three run
+the same seven instructions, four elements a pass (705 M instructions
+against Goose's 704 M and C's 704 M at 2000), and Zane was still about 12%
+slower (0.062 / 0.066 s against 0.054 / 0.059 s). That is where the loop
+lies: C's runs from 0x1220 to 0x123b, inside one 32-byte line, and Zane's
+from 0x3a30 to 0x3a4d, across the line at 0x3a40, so the decoded-instruction
+cache delivers it in two lookups a pass. C's own loop shifted by padding
+before it shows the same:
+
+| C loop | crosses a 32-byte line | sumloop 2000 (least / median) |
+| --- | --- | --- |
+| 0x1220–0x123b | no | 0.053 / 0.058 s |
+| 0x1230–0x124b | yes | 0.057–0.064 / 0.066–0.068 s |
+| Zane, 0x3a30–0x3a4d | yes | 0.061 / 0.063 s |
+
+So Zane's loop control costs nothing here; what remains is placement.
+LLVM aligns loop heads to 16 bytes on x86. Raising that to 32 through
+zanec's own LLVM options (`-align-loops=32`, or
+`-x86-experimental-pref-loop-alignment=5`) left the loop where it was, most
+likely because the options are parsed after the target is made; the
+attempt was not kept.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
