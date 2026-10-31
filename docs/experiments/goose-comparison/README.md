@@ -1919,6 +1919,51 @@ pages do not cover them: the guard follows a context's range of frames, and
 a list's items sit in a block among the region's other blocks, so a push
 past its room would write over a neighbour, not fault.
 
+## fannkuch: list handles read once a loop (`ZANE_HOIST_HANDLES=1`)
+
+The copy `state.perm[i] = state.perm1[i]` checked both indices and reloaded
+both lists' items and one's count every element. IRCE can take a check out
+of a loop only when the count it compares with does not change in the loop,
+and LLVM could not show that: the count is loaded after the first check,
+which may leave the loop, from a frame slot it cannot read ahead of time.
+
+With the switch (Emit, `invariant_lists`), a counted loop whose body cannot
+change a list's handle reads each indexed list's items and count once,
+before the loop. Such a body calls no function, calls the runtime only to
+index, spawns nothing, and writes through memory only values with no
+handle in them. The list's address is made of addresses and offsets of
+slots made before the loop. The copy then runs no checks at all and is
+vectorised, and `advance`'s shift becomes a `memmove`.
+
+| fannkuch (9) | instructions | `main` | 10 (least / median, 21) |
+| --- | --- | --- | --- |
+| build with light scopes | 169.3 M | 168.9 M | 0.235 / 0.271 s |
+| with `ZANE_HOIST_HANDLES=1` | 151.5 M | 151.1 M | 0.240 / 0.270 s |
+| Goose | 105.6 M | 105.2 M | 0.241 / 0.267 s |
+| C | 103.7 M | 90.3 M | 0.230 / 0.258 s |
+
+All four are level in time: the program is bound by its short flips, and
+the extra instructions run beside them. No other test changes by more than
+0.5% (`mechanisms-hoist.md`), and every test prints the same.
+
+Each swap of the flip still checks both indices: 12 instructions a swap to
+C's 9. Goose checks only `j`, because its fixed arrays of 32 let it prove
+`i < j <= 31`. The flips run 1 to 4 times round, far below IRCE's 64.
+Lowering IRCE's floor to 1 or 4 made `main` 160 M instructions.
+
+A second switch, `ZANE_LOOP_RANGES=1` (Emit, `ranged`), tried the check
+outside the loop for any length. An index that moves by -1, 0 or 1 each
+time round is in range on every pass when it is at the first and the last,
+so the loop checks both ends before it starts and runs an unchecked copy
+when they pass. The swap then runs unchecked and unrolled twice, but the
+test before each flip costs about 15 instructions where the checks it
+removes cost about 10: 159 M in `main` and 0.267 / 0.296 s. It stays off.
+
+Every fixture gives the same output with `ZANE_HOIST_HANDLES=1`, and with
+both switches (`ALL=1`), and `just test-compiler` passes with both on.
+`fannkucharray/`, the port at Goose's layout, remains the way to Goose's
+instruction count.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |

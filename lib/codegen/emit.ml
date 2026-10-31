@@ -558,6 +558,13 @@ type frame = {
   (* Each fresh list a run of pushes follows ([runs]), with where its run
      stands. *)
   runs : (int, run) Hashtbl.t;
+  (* Experimental (ZANE_HOIST_HANDLES): the lists whose items and count the
+     loop being emitted read once before it ([invariant_lists]), each by the
+     expression of its address, and how a local of the loop's body names one. *)
+  mutable hoisted : (Expr.t * (Llvm.llvalue * Llvm.llvalue)) list;
+  names : (int, Expr.t) Hashtbl.t;
+  (* The element addresses the loop being emitted checks before it ([ranged]). *)
+  mutable unchecked : Expr.t list;
 }
 
 let call_runtime env b name args =
@@ -803,6 +810,180 @@ let light id body =
          | Stat.Reserve { scope; ty; _ } -> scope = id && not (scalar ty)
          | _ -> false))
 
+(* Experimental (docs/experiments/goose-comparison): with
+   ZANE_HOIST_HANDLES=1, the lists a loop's [body] indexes when nothing in
+   it can change a list's handle -- it calls no function, calls the runtime
+   only to index, spawns nothing, and writes only scalars -- each by the
+   expression of its address, with the locals the body binds to such an
+   expression. Each address is made of addresses and offsets of slots made
+   before the loop, so it can be computed, and the list's items and count
+   read, before the loop: its checks then compare with a count the loop does
+   not change, which IRCE needs. *)
+let invariant_lists body =
+  if Sys.getenv_opt "ZANE_HOIST_HANDLES" <> Some "1" then ([], Hashtbl.create 1)
+  else
+    let rec scalar (t : Ty.t) =
+      match t with
+      | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
+      | Ty.Struct ts | Ty.Sum ts -> List.for_all scalar ts
+      | Ty.Array (t, _) | Ty.Packed t -> scalar t
+      | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Ptr | Ty.Ref -> false
+    in
+    let bound = Hashtbl.create 16 in
+    Cgt.Traverse.walk_stats ignore
+      (function
+        | Stat.Let { id; _ } | Stat.Hold { id; _ } | Stat.Reserve { id; _ } -> Hashtbl.replace bound id ()
+        | Stat.Assign { place; _ } -> Hashtbl.replace bound place.Expr.local ()
+        | _ -> ())
+      body;
+    let names = Hashtbl.create 8 in
+    let rec address (e : Expr.t) =
+      match e.Expr.node with
+      | Expr.Address x -> if Hashtbl.mem bound x then None else Some e
+      | Expr.Local x -> (
+          match Hashtbl.find_opt names x with
+          | Some a -> Some a
+          | None -> if Hashtbl.mem bound x then None else Some e)
+      | Expr.Offset ({ base; _ } as o) ->
+          Option.map (fun base -> { e with Expr.node = Expr.Offset { o with base } }) (address base)
+      | _ -> None
+    in
+    let assigned = Hashtbl.create 8 in
+    Cgt.Traverse.walk_stats ignore
+      (function Stat.Assign { place; _ } -> Hashtbl.replace assigned place.Expr.local () | _ -> ())
+      body;
+    Cgt.Traverse.walk_stats ignore
+      (function
+        | Stat.Let { id; value } when not (Hashtbl.mem assigned id) ->
+            Option.iter (Hashtbl.replace names id) (address value)
+        | _ -> ())
+      body;
+    let changes =
+      Cgt.Traverse.exists_in body
+        ~expr:(fun e ->
+          match e.Expr.node with
+          | Expr.Call _ | Expr.Call_value _ | Expr.Box _ | Expr.Escape _ | Expr.Take _ | Expr.Copy _ -> true
+          | Expr.Runtime { fn; _ } -> (
+              match fn with Cgt.Runtime.List_at | Array_at | Out_of_range -> false | _ -> true)
+          | _ -> false)
+        ~stat:(function
+          | Stat.Spawn _ | Stat.Join _ -> true
+          (* A local assigned is never part of a hoisted address ([bound]). *)
+          | Stat.Assign { place; value } -> place.Expr.deref && not (scalar value.Expr.ty)
+          | Stat.Store { value; _ } | Stat.Place { value; _ } | Stat.Overwrite { value; _ } -> not (scalar value.Expr.ty)
+          | Stat.Hold { value; _ } -> not (scalar value.Expr.ty)
+          | Stat.Reserve { ty; _ } -> not (scalar ty)
+          | _ -> false)
+    in
+    if changes then ([], names)
+    else begin
+      let lists = ref [] in
+      Cgt.Traverse.walk_stats
+        (fun e ->
+          match e.Expr.node with
+          | Expr.Runtime { fn = Cgt.Runtime.List_at; args = l :: _ } -> (
+              match address l with Some a when not (List.mem a !lists) -> lists := a :: !lists | _ -> ())
+          | _ -> ())
+        ignore body;
+      (List.rev !lists, names)
+    end
+
+(* Experimental (docs/experiments/goose-comparison): with
+   ZANE_LOOP_RANGES=1 as well, the element reads and writes of a loop's
+   [body] whose list [invariant_lists] found and whose index moves by a
+   constant -1, 0 or 1 each time round: each with that step and its index's
+   value on the first time round, as an expression of what is known before
+   the loop. The index's last value is then its first plus the step times
+   one less than the count, and between them it passes through every value
+   once, so the loop checks the two ends before it starts and, when both are
+   in range, runs a copy of itself that checks none of these.
+
+   The step is found from the body's last statement, which assigns the
+   loop's counter its value plus a constant ([Repeat] of `to`): a local
+   assigned nowhere else in the body. A local the body binds once is its
+   value, and an expansion's result, assigned once among the first
+   statements of its body, is that value. *)
+let ranged body lists names =
+  if Sys.getenv_opt "ZANE_LOOP_RANGES" <> Some "1" || lists = [] then []
+  else
+    let lets = Hashtbl.create 16 and assigns = Hashtbl.create 16 and defined = Hashtbl.create 16 in
+    Cgt.Traverse.walk_stats ignore
+      (function
+        | Stat.Let { id; value } ->
+            Hashtbl.replace lets id value;
+            Hashtbl.replace defined id ()
+        | Stat.Hold { id; _ } | Stat.Reserve { id; _ } -> Hashtbl.replace defined id ()
+        | Stat.Assign { place; value } -> Hashtbl.add assigns place.Expr.local (place, value)
+        | _ -> ())
+      body;
+    let results = Hashtbl.create 16 in
+    Cgt.Traverse.walk_stats
+      (fun e ->
+        match e.Expr.node with
+        | Expr.Expand { body = eb; result = Some r; _ } ->
+            let rec first = function
+              | Stat.Let _ :: rest -> first rest
+              | Stat.Assign { place = { Expr.local; path = []; deref = false; _ }; value } :: _ when local = r ->
+                  Hashtbl.replace results r value
+              | _ -> ()
+            in
+            first eb
+        | _ -> ())
+      ignore body;
+    let i64 node = { Expr.node; ty = Ty.I64 } in
+    let rec affine counter (e : Expr.t) =
+      match e.Expr.node with
+      | Expr.Int k -> Some (0, e)
+      | Expr.Local y -> (
+          match counter with
+          | Some (x, step) when x = y -> Some (step, e)
+          | _ -> (
+              match (Hashtbl.find_all assigns y, Hashtbl.find_opt lets y) with
+              | [], None -> if Hashtbl.mem defined y then None else Some (0, e)
+              | [], Some v -> affine counter v
+              | [ _ ], None when Hashtbl.mem results y -> affine counter (Hashtbl.find results y)
+              | _ -> None))
+      | Expr.Expand { result = Some r; _ } -> affine counter (i64 (Expr.Local r))
+      | Expr.Binary { op = Expr.Add; left; right } -> (
+          match (affine counter left, affine counter right) with
+          | Some (a, l), Some (c, r) -> Some (a + c, i64 (Expr.Binary { op = Expr.Add; left = l; right = r }))
+          | _ -> None)
+      | Expr.Binary { op = Expr.Mul; left; right } -> (
+          match (affine counter left, affine counter right) with
+          | Some (a, l), Some (0, ({ Expr.node = Expr.Int k; _ } as r))
+          | Some (0, ({ Expr.node = Expr.Int k; _ } as r)), Some (a, l) ->
+              Some (a * Int64.to_int k, i64 (Expr.Binary { op = Expr.Mul; left = l; right = r }))
+          | _ -> None)
+      | Expr.Flip v -> Option.map (fun (a, base) -> (-a, i64 (Expr.Flip base))) (affine counter v)
+      | _ -> None
+    in
+    let counter =
+      match List.rev body with
+      | Stat.Assign { place = { Expr.local = x; path = []; deref = false; _ }; value } :: _
+        when List.length (Hashtbl.find_all assigns x) = 1 && not (Hashtbl.mem defined x) -> (
+          match affine (Some (x, 0)) value with
+          | Some (0, { Expr.node = Expr.Binary { op = Expr.Add; left = { Expr.node = Expr.Local y; _ }; right = { Expr.node = Expr.Int c; _ } }; _ })
+            when y = x ->
+              Some (x, Int64.to_int c)
+          | _ -> None)
+      | _ -> None
+    in
+    match counter with
+    | Some (_, step) when abs step <= 1 ->
+        let found = ref [] in
+        Cgt.Traverse.walk_stats
+          (fun e ->
+            match e.Expr.node with
+            | Expr.Runtime { fn = Cgt.Runtime.List_at; args = [ l; index; _ ] } -> (
+                let key = match l.Expr.node with Expr.Local x -> Option.value ~default:l (Hashtbl.find_opt names x) | _ -> l in
+                match affine counter index with
+                | Some (a, first) when abs a <= 1 && List.mem key lists -> found := (e, key, a, first) :: !found
+                | _ -> ())
+            | _ -> ())
+          ignore body;
+        !found
+    | _ -> []
+
 (* A slot in its scope's frame, where Frames put it. *)
 let frame_slot env fr b scope id =
   byte_at env b (Hashtbl.find fr.arenas scope) (Hashtbl.find fr.offsets id)
@@ -894,16 +1075,19 @@ let snapshot_read t =
    the index and the address the way it sees any arithmetic. Only an index
    outside calls the runtime, which stops the program (§9). One unsigned
    compare of the index less one covers both ends. *)
-let element env fr b fn args =
+let element ?cached ?(unchecked = false) env fr b fn args =
   let base, index, count, stride =
-    match (fn, args) with
-    | Cgt.Runtime.List_at, [ list; index; stride ] ->
+    match (fn, args, cached) with
+    | Cgt.Runtime.List_at, [ _; index; stride ], Some (items, count) -> (items, index, count, stride)
+    | Cgt.Runtime.List_at, [ list; index; stride ], None ->
         let tag = handle_field env and count_tag = if List_handle.on () then handle_field env else count_field env in
         (List_handle.items ~tag env.ctx b list, index, List_handle.count ~tag:count_tag env.ctx b list, stride)
-    | Cgt.Runtime.Array_at, [ array; index; count; stride ] -> (array, index, count, stride)
+    | Cgt.Runtime.Array_at, [ array; index; count; stride ], _ -> (array, index, count, stride)
     | _ -> Diagnostic.bug "codegen: an element address with the wrong arguments"
   in
   let offset = Llvm.build_sub index (Llvm.const_int env.i64 1) "" b in
+  if unchecked then Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| Llvm.build_nsw_mul offset stride "" b |] "" b
+  else
   let outside = Llvm.build_icmp Llvm.Icmp.Uge offset count "" b in
   let stop = block env fr and inside = block env fr in
   ignore (Llvm.build_cond_br outside stop inside b);
@@ -1517,7 +1701,15 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       | `Stored p -> Some (Llvm.build_load (lltype env e.Expr.ty) p "" b)
       | `Nothing -> None)
   | Expr.Runtime { fn = (Cgt.Runtime.List_at | Cgt.Runtime.Array_at) as fn; args } ->
-      Some (element env fr b fn (List.filter_map (expr env fr b) args))
+      let cached =
+        match (fn, args) with
+        | Cgt.Runtime.List_at, l :: _ when fr.hoisted <> [] ->
+            let key = match l.Expr.node with Expr.Local x -> Option.value ~default:l (Hashtbl.find_opt fr.names x) | _ -> l in
+            List.assoc_opt key fr.hoisted
+        | _ -> None
+      in
+      let unchecked = cached <> None && List.memq e fr.unchecked in
+      Some (element ?cached ~unchecked env fr b fn (List.filter_map (expr env fr b) args))
   | Expr.Runtime { fn = (Cgt.Runtime.List_remove _ | Cgt.Runtime.List_swap_remove _) as fn; args } -> (
       match List.filter_map (expr env fr b) args with
       | [ list; index; stride ] ->
@@ -1865,7 +2057,21 @@ and stat env fr b (s : Stat.t) =
           Hashtbl.replace fr.runs id (Room max_int))
         looped;
       Fun.protect ~finally:(fun () -> List.iter (fun (id, _) -> Hashtbl.remove fr.runs id) looped) @@ fun () ->
+      let lists, names = invariant_lists body in
+      let ranges = ranged body lists names in
       let counted trips =
+        let saved = fr.hoisted in
+        let hoisted =
+          List.map
+            (fun a ->
+              let list = value_of env fr b a in
+              let tag = handle_field env and count_tag = if List_handle.on () then handle_field env else count_field env in
+              (a, (List_handle.items ~tag env.ctx b list, List_handle.count ~tag:count_tag env.ctx b list)))
+            lists
+        in
+        fr.hoisted <- hoisted @ saved;
+        Hashtbl.iter (Hashtbl.replace fr.names) names;
+        let loop () =
         let i = alloca env fr env.i64 in
         ignore (Llvm.build_store (Llvm.const_int env.i64 0) i b);
         let head = block env fr and step = block env fr and after = block env fr in
@@ -1886,6 +2092,38 @@ and stat env fr b (s : Stat.t) =
           ignore (Llvm.build_br head b)
         end;
         Llvm.position_at_end after b
+        in
+        (if ranges = [] then loop ()
+         else begin
+           (* Each index's first and last value, one less than each compared
+              unsigned with the list's count, as [element] checks one. *)
+           let one = Llvm.const_int env.i64 1 in
+           let last_pass = Llvm.build_sub n one "" b in
+           let fits =
+             List.fold_left
+               (fun ok (_, key, a, first) ->
+                 let count = snd (List.assoc key fr.hoisted) in
+                 let first = Option.get (expr env fr b first) in
+                 let last = Llvm.build_add first (Llvm.build_mul (Llvm.const_int env.i64 a) last_pass "" b) "" b in
+                 let inside v = Llvm.build_icmp Llvm.Icmp.Ult (Llvm.build_sub v one "" b) count "" b in
+                 Llvm.build_and ok (Llvm.build_and (inside first) (inside last) "" b) "" b)
+               (Llvm.const_int (Llvm.i1_type env.ctx) 1)
+               ranges
+           in
+           let fast = block env fr and slow = block env fr and joined = block env fr in
+           ignore (Llvm.build_cond_br fits fast slow b);
+           Llvm.position_at_end fast b;
+           let outer = fr.unchecked in
+           fr.unchecked <- List.map (fun (e, _, _, _) -> e) ranges @ outer;
+           loop ();
+           fr.unchecked <- outer;
+           ignore (Llvm.build_br joined b);
+           Llvm.position_at_end slow b;
+           loop ();
+           ignore (Llvm.build_br joined b);
+           Llvm.position_at_end joined b
+         end);
+        fr.hoisted <- saved
       in
       if (not env.version) || fr.loops > 0 || not (versioned ~symbol:fr.symbol body) then counted None
       else begin
@@ -1996,6 +2234,9 @@ let func env (f : Func.t) =
       sret;
       loops = 0;
       runs = Hashtbl.create 4;
+      hoisted = [];
+      names = Hashtbl.create 8;
+      unchecked = [];
     }
   in
   (* A parameter passed as itself is stored into a slot like any other
