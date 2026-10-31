@@ -1110,11 +1110,13 @@ plain build's faults and peak RSS. 64× of a 64 MB list is 4 GiB, so the
 28 GiB cage holds seven lists that large at once.
 
 listgrowth still looked slower by eye. At 500000 items, Callgrind counts
-26 instructions per push in `zane_main` against the plain build's 24: the
-two are the load and shift that decode `items`, which the inline push does
-on every call. Over 11 interleaved runs at 2000000 items the least wall
-time is 0.104 s against 0.087 s, but the medians (0.129 s, 0.116 s) and
-single runs overlap.
+26 instructions per push in `zane_main` against the plain build's 24. The
+decode itself is free: the shift by 3 folds into the address computation
+(`lea (%rax,%rsi,8)`). The two extra instructions are loads. The plain
+build compares against `room` and adds `items` straight from memory
+(`cmp 0xf0(%rdi)`, `add 0xe0(%rdi)`); a 32-bit field has to be
+zero-extended first, which x86 does only in a separate `mov`. A memory
+operand is a load micro-op anyway, so the work is nearly the same.
 
 Every fixture still gives the same output with the switch, and the test
 suite passes without it.
@@ -1141,9 +1143,25 @@ The compute-bound tests, startup and primes stay level with Goose. ntree
 gains the most: its peak RSS falls below Goose's, and its time is within
 the container's noise of Goose's. binarytrees' and treecopy's trees shrink,
 but at the suite's small depths that does not show in their times, which
-depend on pooling, and pooling is off under the switch. listgrowth's median
-here is one run's noise against the interleaved timing above, where the
-switch costs two instructions a push.
+depend on pooling, and pooling is off under the switch.
+
+The rows that look slower (allocfree, listgrowth, concscan) compare this
+run with the plain column of a run made days earlier, under different
+container load. Built from the same compiler and timed interleaved (11
+runs each, least and median wall time), only listgrowth is slower:
+
+| test | plain | `ZANE_REF32=1` | instructions, Ref32 ÷ plain |
+| --- | --- | --- | --- |
+| listgrowth | 0.170 / 0.184 s | 0.184 / 0.197 s | 1.08 (2 a push) |
+| allocfree | 0.521 / 0.581 s | 0.537 / 0.585 s | 1.016 (2 a push) |
+| concscan | 0.907 / 0.990 s | 0.882 / 0.969 s | 1.009 |
+| trialdiv | 0.569 / 0.607 s | 0.581 / 0.616 s | 0.997 |
+| entities | | | 1.007 |
+
+The instruction counts are at smaller N than the timings (trialdiv
+1000000, entities and concscan 300000, allocfree and listgrowth as timed).
+listgrowth does nothing but push, so its two loads a push show as about
+7%. allocfree pushes too, but spends most of its time elsewhere.
 
 ## What remains
 
@@ -1153,7 +1171,7 @@ switch costs two instructions a push.
 | ntree | ~1.6×; with `ZANE_REF32=1`, ~1.1–1.2× in the suite and level at depth 10 | The list handle was the gap: 24 bytes against Goose's 17-byte node. Under the switch it is 12 bytes, and Zane's tree takes less memory than Goose's. |
 | treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~1.0× | Closed. |
-| listgrowth | ~0.9× | Closed. |
+| listgrowth | ~0.9×; ~1.07× slower under `ZANE_REF32=1` than without it | Two loads a push, since x86 cannot zero-extend a 32-bit memory operand inside `cmp` or `add`. |
 
 Without pooling, what is left is mostly representation: link width, handle
 size, and whether a tree's nodes sit in one pool or in separate blocks.
