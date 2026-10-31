@@ -2056,6 +2056,41 @@ gives the same output with them and `ZANE_FRAME_REFS_CHECK=1` (`ALL=1`),
 and `just test-compiler` fails only the same three layout tests: two
 16-byte handles make the struct `dereferenceable(32)`.
 
+### Room counted in elements
+
+Under `ZANE_FRAME_REFS=1` a list's room now counts its elements, so a list
+holds up to 2^32 - 1 elements of any size instead of 4 GiB
+(`runtime/zane.h`, `ZL_ELEMENTS`). A block of `room` elements `stride`
+bytes wide is `room × stride` rounded up to a word, computed the same way
+wherever the block is taken or returned (`zl_block_bytes`,
+`List_handle.block_bytes`, `room_bytes`), since a returned block goes back
+to the size class of its bytes. A list's first block is the bytes of the
+whole elements that fit the size it had, so the runtime and the emitted
+first block agree. A pool is a list of bytes, stride 1, so it counts the
+same either way; the cage keeps counting bytes.
+
+`biglist/` pushes N `Int`s and sums them back. At 600000000, 4.6 GB, the
+switch's build before this change stops with "a list past 4 GiB"; after
+it, plain, frame references, and the five with frame references all print
+the right sum (8.7, 8.7 and 4.3 s).
+
+The push's check is now `count + 1 <= room`, with no multiply:
+
+| test | five | five + frame refs, bytes | five + frame refs, elements |
+| --- | --- | --- | --- |
+| fannkuch | 151.5 M | 151.5 M | 142.6 M |
+| ntree | 89.9 M | 91.2 M | 87.7 M |
+| entities | 80.2 M | 80.8 M | 80.2 M |
+| nbody | 120.6 M | 125.6 M | 125.4 M |
+| particles | 136.0 M | 150.9 M | 150.0 M |
+
+The other tests do not move. nbody's and particles' extra instructions
+under frame references are not the room's; they are not examined yet.
+Every test prints the same, every fixture gives the same output with
+`ZANE_FRAME_REFS=1 ZANE_FRAME_REFS_CHECK=1` (`ALL=1`), `just test-compiler`
+passes without the switch, and with it fails only the three layout tests,
+the first-block one now seeing a room of `i32 4`, four elements.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |

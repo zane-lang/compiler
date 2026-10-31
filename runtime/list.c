@@ -79,52 +79,57 @@ static inline int zane_list_returned(zane_mark *region, int64_t room) {
 }
 
 static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
-	int64_t room = ZL_ROOM(list) ? ZL_ROOM(list) * 2 : zane_list_first_room(stride, stride);
-	while (room < needed) room *= 2;
-#if defined(ZANE_REF32) || defined(ZANE_FRAME_REFS)
-	if (room > (int64_t)UINT32_MAX) zane_broken("a list past 4 GiB");
+	/* The room in the list's unit (ZL_ELEMENTS), and the block's bytes. */
+	int64_t unit = zl_unit(stride), old = ZL_ROOM_BYTES(list, stride);
+	int64_t units = ZL_ROOM(list) ? ZL_ROOM(list) * 2 : zane_list_first_room(stride, stride) / unit;
+	while (units * unit < needed) units *= 2;
+#if defined(ZANE_REF32)
+	if (units > (int64_t)UINT32_MAX) zane_broken("a list past 4 GiB");
+#elif defined(ZANE_FRAME_REFS)
+	if (units > (int64_t)UINT32_MAX) zane_broken("a list past 2^32 - 1 elements");
 #endif
+	int64_t room = zl_block_bytes(units, stride);
 	zane_mark *region = zane_region_at(ZL_ROOM(list) ? (void *)ZL_ITEMS(list) : (void *)list);
 	zane_lock(region->context);
 	char *items;
 	if (room > ZANE_CHUNK - ZANE_LINE) {
-		if (ZL_ROOM(list) > ZANE_CHUNK - ZANE_LINE && zane_extend(region, ZL_ITEMS(list), room)) {
+		if (old > ZANE_CHUNK - ZANE_LINE && zane_extend(region, ZL_ITEMS(list), room)) {
 			zane_unlock(region->context);
-			list->room = room;
+			list->room = units;
 			return;
 		}
 		items = zane_alloc_growable(region, room);
 		zane_unlock(region->context);
 	} else {
 		zane_heap *h = &region->heap;
-		int grows = ZL_ROOM(list) && ZL_ITEMS(list) + ZL_ROOM(list) == h->bump;
+		int grows = old && ZL_ITEMS(list) + old == h->bump;
 		if (grows) {
 			grows = !zane_list_returned(region, room) &&
-			        (room - ZL_ROOM(list) <= h->end - h->bump ||
+			        (room - old <= h->end - h->bump ||
 			         (h->end == region->context->frontier && zane_stretch(region, ZL_ITEMS(list) + room, ZANE_CHUNK)));
 		}
 		/* The block grows where it is, so nothing in it moves. */
 		if (grows) {
-			h->bump += room - ZL_ROOM(list);
+			h->bump += room - old;
 			zane_unlock(region->context);
-			list->room = room;
+			list->room = units;
 			return;
 		}
 		/* The old block's stack is made first: a stack's record comes from
 		   the frontier, and one made after the new block would stop that
 		   block growing in place. */
-		if (ZL_ROOM(list) > 8 * ZANE_CLASSES) zane_stack_of(region, ZL_ROOM(list), ZANE_LIST_ALIGN);
+		if (old > 8 * ZANE_CLASSES) zane_stack_of(region, old, ZANE_LIST_ALIGN);
 		items = zane_alloc_held(region, room, ZANE_LIST_ALIGN);
 		zane_unlock(region->context);
 	}
-	if (ZL_ROOM(list) > ZANE_CHUNK - ZANE_LINE) {
+	if (old > ZANE_CHUNK - ZANE_LINE) {
 		zane_list_move_out(region, items, ZL_ITEMS(list), ZL_COUNT(list) * stride);
 	} else {
 		if (ZL_COUNT(list)) memcpy(items, ZL_ITEMS(list), (size_t)(ZL_COUNT(list) * stride));
-		if (ZL_ROOM(list)) zane_free(ZL_ITEMS(list), ZL_ROOM(list), ZANE_LIST_ALIGN);
+		if (old) zane_free(ZL_ITEMS(list), old, ZANE_LIST_ALIGN);
 	}
 	ZL_SET_ITEMS(list, items);
-	list->room = room;
+	list->room = units;
 }
 
 /* An empty list's first block, `room` bytes, when its handle is in the
@@ -134,7 +139,7 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
    size class first (§3.2), else the next bytes at the scope's frontier, in its
    frame stretched to hold them when the heap has no room there. 0 when
    none of that holds, and the list grows as any other does. */
-static inline char *zane_list_first(zane_list *list, int64_t room) {
+static inline char *zane_list_first(zane_list *list, int64_t room, int64_t units) {
 	zane_mark *m = zane_open;
 	if (!m) return NULL;
 	if ((char *)list < (char *)m || (char *)list >= m->context->frontier) {
@@ -160,7 +165,7 @@ static inline char *zane_list_first(zane_list *list, int64_t room) {
 	}
 	h->live++;
 	ZL_SET_ITEMS(list, block);
-	list->room = room;
+	list->room = units;
 	return block;
 }
 
@@ -179,9 +184,10 @@ static void *zane_list_push_grown(zane_list *list, int64_t stride) {
    without a call, and anything else grows the list out of line, so this
    needs no frame of its own. */
 void *zane_list_push(zane_list *list, int64_t stride) {
-	if (__builtin_expect((ZL_COUNT(list) + 1) * stride <= ZL_ROOM(list), 1)) return ZL_ITEMS(list) + list->count++ * stride;
+	if (__builtin_expect(ZL_FITS(list, 1, stride), 1)) return ZL_ITEMS(list) + list->count++ * stride;
 	if (!ZL_ROOM(list) && stride <= ZANE_LIST_FIRST) {
-		char *block = zane_list_first(list, zane_list_first_room(stride, stride));
+		int64_t units = zane_list_first_room(stride, stride) / zl_unit(stride);
+		char *block = zane_list_first(list, zl_block_bytes(units, stride), units);
 		if (block) {
 			list->count = 1;
 			return block;
@@ -196,13 +202,14 @@ void *zane_list_push(zane_list *list, int64_t stride) {
    this only when the block lacks that room. */
 void *zane_list_reserve(zane_list *list, int64_t stride, int64_t n) {
 	if (!ZL_ROOM(list) && n * stride <= ZANE_LIST_FIRST) {
-		char *block = zane_list_first(list, zane_list_first_room(n * stride, stride));
+		int64_t units = zane_list_first_room(n * stride, stride) / zl_unit(stride);
+		char *block = zane_list_first(list, zl_block_bytes(units, stride), units);
 		if (block) {
 			list->count = 1;
 			return block;
 		}
 	}
-	if ((ZL_COUNT(list) + n) * stride > ZL_ROOM(list)) zane_list_grow(list, (ZL_COUNT(list) + n) * stride, stride);
+	if (!ZL_FITS(list, n, stride)) zane_list_grow(list, (ZL_COUNT(list) + n) * stride, stride);
 	return ZL_ITEMS(list) + list->count++ * stride;
 }
 
@@ -210,7 +217,7 @@ void *zane_list_reserve(zane_list *list, int64_t stride, int64_t n) {
    elements, which a loop that pushes once each time round then pushes as
    plain stores with no check of their own. */
 void zane_list_room(zane_list *list, int64_t stride, int64_t n) {
-	if (n > 0 && (ZL_COUNT(list) + n) * stride > ZL_ROOM(list)) zane_list_grow(list, (ZL_COUNT(list) + n) * stride, stride);
+	if (n > 0 && !ZL_FITS(list, n, stride)) zane_list_grow(list, (ZL_COUNT(list) + n) * stride, stride);
 }
 
 /* The element at `index`, counted from 1 (control-flow.md §3.4). */

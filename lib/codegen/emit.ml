@@ -1129,9 +1129,12 @@ let innermost fr p =
    of elements [stride] wide, as runtime/list.c sizes it. *)
 let first_room ~bytes ~stride =
   let room = min Abi.list_first (max Abi.list_least (4 * stride)) in
-  (max room bytes + 7) / 8 * 8
+  let room = (max room bytes + 7) / 8 * 8 in
+  (* Counted in elements, the block is the bytes of the whole elements that
+     fit, which runtime/list.c takes too. *)
+  List_handle.block_bytes ~room:(List_handle.units ~bytes:room ~stride) ~stride
 
-let first_block env fr b ~header ~list ~fail ~first =
+let first_block env fr b ~header ~list ~fail ~first ~stride =
   let ptr = env.ptr and i64 = env.i64 in
   let n x = Llvm.const_int i64 x in
   let check cond =
@@ -1201,7 +1204,7 @@ let first_block env fr b ~header ~list ~fail ~first =
   let tag = handle_field env in
   List_handle.set_items ~tag env.ctx b start list;
   List_handle.set_count ~tag env.ctx b (n 1) list;
-  List_handle.set_room ~tag env.ctx b (n first) list;
+  List_handle.set_room ~tag env.ctx b (n (List_handle.units ~bytes:first ~stride)) list;
   start
 
 (* Room for one more element at the end of a list, [stride] bytes wide: the
@@ -1234,7 +1237,10 @@ let push env fr b ?(ahead = 1) ?(unchecked = false) list stride =
     let wanted =
       if ahead = 1 then next else Llvm.build_nsw_add count (Llvm.const_int env.i64 ahead) "" b
     in
-    let full = Llvm.build_icmp Llvm.Icmp.Sgt (Llvm.build_nsw_mul wanted stride "" b) room "" b in
+    let full =
+      if List_handle.elements () then Llvm.build_icmp Llvm.Icmp.Sgt wanted room "" b
+      else Llvm.build_icmp Llvm.Icmp.Sgt (Llvm.build_nsw_mul wanted stride "" b) room "" b
+    in
     let grow = block env fr and fits = block env fr and pushed = block env fr in
     unlikely env (Llvm.build_cond_br full grow fits b);
     Llvm.position_at_end fits b;
@@ -1246,7 +1252,7 @@ let push env fr b ?(ahead = 1) ?(unchecked = false) list stride =
       match Llvm.int64_of_const stride with
       | Some s when s >= 1L && Int64.mul s (Int64.of_int ahead) <= Int64.of_int Abi.list_first && fr.open_ <> [] ->
           let first = first_room ~bytes:(Int64.to_int s * ahead) ~stride:(Int64.to_int s) in
-          let made = first_block env fr b ~header ~list ~fail:runtime_ ~first in
+          let made = first_block env fr b ~header ~list ~fail:runtime_ ~first ~stride:(Int64.to_int s) in
           let made_end = Llvm.insertion_block b in
           ignore (Llvm.build_br pushed b);
           [ (made, made_end) ]

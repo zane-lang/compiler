@@ -30,8 +30,8 @@ typedef struct {
 #define ZL_MAKE(p, c, r) ((zane_list){ (uint32_t)((uintptr_t)(p) >> 3), (uint32_t)(c), (uint32_t)(r) })
 #elif defined(ZANE_FRAME_REFS)
 /* Experimental (docs/experiments/goose-comparison): the items a pointer,
-   and the count and the room in 32 bits each, so a list holds at most
-   4 GiB. */
+   and the count and the room in 32 bits each, the room counted in elements
+   (ZL_ELEMENTS), so a list holds at most 2^32 - 1 elements. */
 typedef struct {
 	char *items;
 	uint32_t count, room;
@@ -50,6 +50,24 @@ typedef struct {
 #endif
 #define ZL_COUNT(l) ((int64_t)(l)->count)
 #define ZL_ROOM(l) ((int64_t)(l)->room)
+
+/* What a list's room counts: its elements with frame references, else its
+   bytes. A block of `room` elements `stride` bytes wide is that many bytes
+   rounded up to a word, the same for every allocation and return of it. A
+   pool, a list of bytes, is counted the same either way. */
+#ifdef ZANE_FRAME_REFS
+#define ZL_ELEMENTS 1
+#else
+#define ZL_ELEMENTS 0
+#endif
+static inline int64_t zl_unit(int64_t stride) { return ZL_ELEMENTS ? stride : 1; }
+static inline int64_t zl_block_bytes(int64_t room, int64_t stride) {
+	return ZL_ELEMENTS ? (room * stride + 7) / 8 * 8 : room;
+}
+#define ZL_ROOM_BYTES(l, stride) zl_block_bytes(ZL_ROOM(l), stride)
+/* Whether the list's block holds `n` more elements `stride` bytes wide. */
+#define ZL_FITS(l, n, stride) \
+	(ZL_ELEMENTS ? ZL_COUNT(l) + (n) <= ZL_ROOM(l) : (ZL_COUNT(l) + (n)) * (stride) <= ZL_ROOM(l))
 
 /* A scope's region, and the jobs of one walk over a value's blocks: what a
    walk is handed, kept opaque here. */

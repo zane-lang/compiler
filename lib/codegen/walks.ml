@@ -272,7 +272,8 @@ let box env f b size align =
    Ref32. *)
 let list_items c h = List_handle.items c.env.ctx c.b h
 let list_count c h = List_handle.count c.env.ctx c.b h
-let list_room c h = List_handle.room c.env.ctx c.b h
+(* The bytes of a list's block, whose room may count its elements. *)
+let list_room c h stride = List_handle.room_bytes c.env.ctx c.b h (int c.env stride)
 let set_list_items c v h = List_handle.set_items c.env.ctx c.b v h
 
 let zero_list c h =
@@ -378,7 +379,7 @@ let copy known c (p : Layout.position) =
           store c bytes h;
           store c n (offset c h room))
   | Layout.List { stride; elements } ->
-      let r = list_room c h in
+      let r = list_room c h stride in
       when_ c (nonzero c r) (fun () ->
           let count = list_count c h in
           let items = runtime c Cgt.Runtime.Alloc_held [| c.with_; r; int env list_align |] in
@@ -434,7 +435,7 @@ let end_at known c base (p : Layout.position) =
       when_ c (nonzero c r) (fun () -> return (load c env.ptr h) r 8);
       zero_handle c h
   | Layout.List { stride; elements } ->
-      let r = list_room c h in
+      let r = list_room c h stride in
       let items = list_items c h in
       (match inner known elements with
       | None -> when_ c (nonzero c r) (fun () -> return items r list_align)
@@ -504,7 +505,7 @@ let move known c (p : Layout.position) =
           when_ c (leaves old) (fun () ->
               ignore (relocate old r 8 (load c env.i64 (offset c h length)))))
   | Layout.List { stride; elements } ->
-      let r = list_room c h in
+      let r = list_room c h stride in
       when_ c (nonzero c r) (fun () ->
           let old = list_items c h in
           when_ c (leaves old) (fun () ->

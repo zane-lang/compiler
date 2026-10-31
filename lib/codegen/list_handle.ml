@@ -3,7 +3,8 @@
    docs/experiments/goose-comparison) each field takes 32 bits and the
    items are stored as their address shifted right by 3, which the cage
    keeps below 2^35 (runtime/region.c); with frame references the items are
-   a pointer and the count and the room take 32 bits each; otherwise the
+   a pointer and the count and the room take 32 bits each, the room counted
+   in elements ([elements]); otherwise the
    handle is a pointer and two 64-bit integers. The fields read as a
    pointer and two `i64`s either way. [tag] marks each load and store the
    way the caller marks a handle's accesses. *)
@@ -87,4 +88,25 @@ let set_integer ?(tag = Fun.id) ctx b v h i =
   ignore (tag (Llvm.build_store (if on () then narrow ctx b v else v) (field ctx b h i) b))
 
 let set_count ?tag ctx b v h = set_integer ?tag ctx b v h 1
+
+(* Whether a list's room counts its elements, as with frame references,
+   rather than its bytes (runtime/zane.h, ZL_ELEMENTS). *)
+let elements () = Cgt.Ref32.frames ()
+
+(* The room, in a list's unit, of a block of [bytes] bytes of elements
+   [stride] wide, and the bytes of a block of [room] units: the bytes the
+   block was taken with, to return it with. Constants both. *)
+let units ~bytes ~stride = if elements () then bytes / stride else bytes
+let block_bytes ~room ~stride = if elements () then (room * stride + 7) / 8 * 8 else room
+
+(* The bytes of the block of the list at [h], whose elements are [stride]
+   bytes wide, an [i64] constant. *)
+let room_bytes ?tag ctx b h stride =
+  let r = integer ?tag ctx b h 2 in
+  if elements () then
+    let i64 = Llvm.i64_type ctx in
+    Llvm.build_and
+      (Llvm.build_add (Llvm.build_mul r stride "" b) (Llvm.const_int i64 7) "" b)
+      (Llvm.const_int i64 (-8)) "" b
+  else r
 let set_room ?tag ctx b v h = set_integer ?tag ctx b v h 2
