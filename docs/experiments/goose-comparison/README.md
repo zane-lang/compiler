@@ -1177,9 +1177,9 @@ with `-no-pie` (`Build.pinned`), which puts its globals below 4 GiB, and
 each global is aligned to 8 bytes (`codegen.ml`). Every other place a
 reference can name is in a frame or a block, both inside the cage.
 
-Every fixture gives the same output under the switch; ten of them store
-references in members or elements (`references`, `arrayrefs`, `replayed`,
-`longChain` among them). No suite test does, so `edges/main.zn` is one that
+Every fixture gives the same output under the switch. Four of them store
+references in members (`references`, `replayed`, `longChain`, `settled`)
+and `probed` in elements. No suite test does, so `edges/main.zn` is one that
 does: a `ListRef` of 2N edges, each `{from &Person; to &Person; weight
 Int}` naming one of four owners, scanned 50 times through both
 references. An edge is 24 bytes without the switch and 16 with it. At
