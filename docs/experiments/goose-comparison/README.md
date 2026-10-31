@@ -1323,6 +1323,12 @@ loaded, so the absolute times are high; the columns compare within a row):
   into the heap, so this switch leaves them at 8 bytes. Pooling is what
   shrinks them, and it works with this switch as without it.
 
+`run.py` with the switch passes every test's output check, and the
+compiler's tests pass without it. gameloop took 30.7 s there, but a build
+without the switch from the same compiler takes as long (56.6 s against
+56.5 s at 100000): the slowness is the current compiler's or `core`'s on a
+program this log already leaves out (Setup), not the switch's.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
