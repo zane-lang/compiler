@@ -163,7 +163,7 @@ static inline void text_overwrite_walk(char *at, char *with, int64_t extra, zane
 	memcpy(at, with, (size_t)extra);
 }
 
-__attribute__((unused)) static const zane_type text_type = { text_copy_walk, text_end_walk, text_move_walk, text_overwrite_walk };
+__attribute__((unused)) static const zane_type text_type = { text_copy_walk, text_end_walk, text_move_walk, text_overwrite_walk, text_overwrite_walk };
 
 /* `List<String>`. */
 static inline void texts_copy_walk(char *at, char *with, int64_t extra, zane_work *w, int64_t depth) {
@@ -187,7 +187,7 @@ static inline void texts_overwrite_walk(char *at, char *with, int64_t extra, zan
 }
 
 __attribute__((unused)) static const zane_type texts_type = { texts_copy_walk, texts_end_walk, texts_move_walk,
-	                                  texts_overwrite_walk };
+	                                  texts_overwrite_walk, texts_overwrite_walk };
 
 /* `variant { done Unit; more Countdown; }`, which boxes itself. */
 typedef struct {
@@ -227,7 +227,7 @@ static inline void countdown_overwrite_walk(char *at, char *with, int64_t extra,
 }
 
 __attribute__((unused)) static const zane_type countdown_type = { countdown_copy_walk, countdown_end_walk, countdown_move_walk,
-	                                      countdown_overwrite_walk };
+	                                      countdown_overwrite_walk, countdown_overwrite_walk };
 
 /* `List<Int>` and a box of an `Int`: what they hold owns no blocks. */
 static inline void ints_copy_walk(char *at, char *with, int64_t extra, zane_work *w, int64_t depth) {
@@ -250,7 +250,7 @@ static inline void ints_overwrite_walk(char *at, char *with, int64_t extra, zane
 	memcpy(at, with, (size_t)extra);
 }
 
-__attribute__((unused)) static const zane_type ints_type = { ints_copy_walk, ints_end_walk, ints_move_walk, ints_overwrite_walk };
+__attribute__((unused)) static const zane_type ints_type = { ints_copy_walk, ints_end_walk, ints_move_walk, ints_overwrite_walk, ints_overwrite_walk };
 
 static inline void boxed_int_copy_walk(char *at, char *with, int64_t extra, zane_work *w, int64_t depth) {
 	(void)extra;
@@ -277,6 +277,6 @@ static inline void boxed_int_overwrite_walk(char *at, char *with, int64_t extra,
 }
 
 __attribute__((unused)) static const zane_type boxed_int_type = { boxed_int_copy_walk, boxed_int_end_walk, boxed_int_move_walk,
-	                                      boxed_int_overwrite_walk };
+	                                      boxed_int_overwrite_walk, boxed_int_overwrite_walk };
 
 #endif

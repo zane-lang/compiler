@@ -47,7 +47,7 @@ let parts (e : T.Expr.t) =
   | T.Expr.Lambda { body; _ } -> [ Lambda body ]
   | T.Expr.Text_lit pieces -> same (interpolations pieces)
   | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Bool_lit _
-  | T.Expr.Var _ | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Invalid ->
+  | T.Expr.Var _ | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Foreign_global _ | T.Expr.Invalid ->
       []
 
 let stat_exprs (s : T.Stat.t) =

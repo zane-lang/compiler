@@ -1,0 +1,15 @@
+/// An interface header of declarations, an inline function and a static
+/// constructor, which an `archive` row's member includes without sharing
+/// an external definition with the glue: the member runs constructors of
+/// its own, which may be the header's, so the glue is refused.
+package archivedHeaderConstructor;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 counted() foreign "counted";
+
+Unit main() {
+	counted();
+	return Unit();
+}

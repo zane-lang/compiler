@@ -42,6 +42,46 @@
 
 (rule
  (with-stdout-to
+  foreign.cst.spans.actual
+  (run %{exe:../../tools/inspect/span_dump.exe} --cst %{dep:fixtures/foreign.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/foreign.cst.spans foreign.cst.spans.actual)))
+
+(rule
+ (with-stdout-to
+  foreign.cst.tree.actual
+  (run %{exe:../../bin/zanec/zanec.exe} --cst %{dep:fixtures/foreign.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/foreign.cst.tree foreign.cst.tree.actual)))
+
+(rule
+ (with-stdout-to
+  foreign.sst.spans.actual
+  (run %{exe:../../tools/inspect/span_dump.exe} --sst %{dep:fixtures/foreign.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/foreign.sst.spans foreign.sst.spans.actual)))
+
+(rule
+ (with-stdout-to
+  foreign.sst.tree.actual
+  (run %{exe:../../bin/zanec/zanec.exe} --sst %{dep:fixtures/foreign.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/foreign.sst.tree foreign.sst.tree.actual)))
+
+(rule
+ (with-stdout-to
   main.cst.spans.actual
   (run %{exe:../../tools/inspect/span_dump.exe} --cst %{dep:fixtures/main.zn})))
 

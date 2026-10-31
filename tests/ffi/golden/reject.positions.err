@@ -1,0 +1,44 @@
+File "fixtures/reject/positions/app/main.zn", line 17, characters 23-28:
+17 | I64 capabilityParam(c io$Io) foreign "capability_param";
+   |                       ^^^^^
+Error: a foreign capability stands in a foreign verb only as the subject of a method (ffi.md §4.4)
+File "fixtures/reject/positions/app/main.zn", line 18, characters 23-27:
+18 | I64 dataWritable(this Data) foreign "data_writable";
+   |                       ^^^^
+Error: C receives a `const` pointer to `data_t` here, since a foreign verb writes the object only as the subject of a `mut` method (ffi.md §4.4), and C declares `struct data_t *`
+File "fixtures/reject/positions/app/main.zn", line 19, characters 20-24:
+19 | I64 dataConst(this Data) mut foreign "data_const";
+   |                    ^^^^
+Error: C receives a writable pointer to `data_t` here (ffi.md §4.2, §4.4), and C declares `const struct data_t *`
+File "fixtures/reject/positions/app/main.zn", line 20, characters 17-21:
+20 | I64 dataParam(d Data) foreign "data_param_writable";
+   |                 ^^^^
+Error: C receives a `const` pointer to `data_t` here, since a foreign verb writes the object only as the subject of a `mut` method (ffi.md §4.4), and C declares `struct data_t *`
+File "fixtures/reject/positions/app/main.zn", line 21, characters 1-6:
+21 | ^Data dataResult() foreign "data_const_result";
+   | ^^^^^
+Error: C receives a writable pointer to `data_t` here (ffi.md §4.2, §4.4), and C declares `const struct data_t *`
+File "fixtures/reject/positions/app/main.zn", line 22, characters 1-7:
+22 | ^io$Io capabilityResult() foreign "capability_result";
+   | ^^^^^^
+Error: no foreign verb returns a foreign capability: one is made only by a foreign variable (ffi.md §4.2)
+File "fixtures/reject/positions/io/io.zn", line 15, characters 1-63:
+15 | type Mixed = #handle{ cType = "port_t"; free = "port_close"; }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `Mixed` is made by `fromIo`, a method on a foreign capability, and by `plain`, which is not one: the handle would be outside state and program state at once (ffi.md §4.2)
+File "fixtures/reject/positions/io/io.zn", line 17, characters 1-40:
+17 | ^Port open(this Io) foreign "port_open";
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `Port` is an outside handle, which only a `mut` method on a foreign capability makes: opening one is a write to outside state (ffi.md §5.3)
+File "fixtures/reject/positions/io/io.zn", line 18, characters 18-22:
+18 | I64 subject(this Port) foreign "port_subject";
+   |                  ^^^^
+Error: an outside handle is no subject of a foreign verb; it is passed to a method on the foreign capability that reaches its state (ffi.md §4.4)
+File "fixtures/reject/positions/io/io.zn", line 19, characters 20-24:
+19 | I64 outsideParam(p Port) foreign "port_param";
+   |                    ^^^^
+Error: an outside handle is passed only to a method on a foreign capability, which reaches its state (ffi.md §4.4)
+File "fixtures/reject/positions/io/io.zn", line 23, characters 1-27:
+23 | Port(other ^Port) => other;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a foreign handle has no constructor: one is made only by a foreign verb that returns it, and a capability by a foreign variable (ffi.md §4.1, §4.2)

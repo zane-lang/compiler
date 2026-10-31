@@ -1,0 +1,20 @@
+/// The C interface's declaration forms (syntax.md §1.1, §2.16, §3.11): a
+/// foreign handle, foreign functions and methods with and without `mut` and
+/// an abort type, and a foreign variable in a body and at package scope.
+package ffi;
+
+type Fs = #handle{ cType = "zane_fs_t"; }
+type File = #handle{ cType = "zane_file_t"; free = "zane_fclose"; }
+type Deflater = #handle{ cType = "zane_deflater_t"; set = "zane_deflater_set"; free = "zane_deflater_free"; }
+
+@primitives$I64 crc32(crc @primitives$I64, data @primitives$String) foreign "zane_crc32";
+^Deflater?@primitives$Unit deflater(level @primitives$I32) foreign "zane_deflater_new";
+@primitives$String deflate(this Deflater, input @primitives$String) mut foreign "zane_deflate";
+@primitives$I64 totalIn(this Deflater) foreign "zane_deflater_total_in";
+
+files Fs foreign "zane_fs";
+
+@primitives$Unit main() {
+	local Fs foreign "zane_fs";
+	return @primitives$Unit();
+}

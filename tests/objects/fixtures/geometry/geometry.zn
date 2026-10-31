@@ -1,7 +1,8 @@
 /// A library built into an object of its own: a public verb, a private one
 /// it calls, a method, a constructor, a lambda-variable, a package constant
 /// a verb reads, a verb that takes and returns a struct, and a generic verb
-/// with an instance the library uses and a second generic it never uses.
+/// with an instance the library uses, whose body holds a lambda C can
+/// call, and a second generic it never uses.
 /// `shifted` and `same` are written as statements, so a caller calls them
 /// rather than writing them out (docs/design/lowering.md L11).
 package geometry;
@@ -23,8 +24,11 @@ Int _product(a Int, b Int) => @operators$multiply(a, b);
 
 T same(value T Type) {
 	kept T = value;
+	_through(Int(n Int) { return n; }, Int(1));
 	return kept;
 }
+
+Int _through(f Int[Int], x Int) => f(x);
 
 Int twice(x Int) => @operators$add(same(x), same(x));
 

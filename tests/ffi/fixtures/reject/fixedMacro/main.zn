@@ -1,0 +1,7 @@
+package fixedMacro;
+
+alias Unit = @primitives$Unit;
+
+Unit main() {
+	return Unit();
+}

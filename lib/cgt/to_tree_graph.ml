@@ -6,7 +6,8 @@ open Nodes
 
 (* A layout, one position per line: a string's handle as `text @8 when
    [0]=1`, a list's as `list @8 of T (16 bytes
-   apart)`, and a boxed member as `box @8 of T (24 bytes)`. *)
+   apart)`, a boxed member as `box @8 of T (24 bytes)`, and a foreign
+   handle as `handle @0 freed by T.free, set by T.set`. *)
 let positions (ps : Layout.position list) =
   map_seq
     (fun (p : Layout.position) ->
@@ -24,7 +25,12 @@ let positions (ps : Layout.position list) =
       | Layout.Array { count; stride; elements } ->
           Leaf (Printf.sprintf "array @%d of %d %s (%d bytes apart)%s" p.offset count elements stride tags)
       | Layout.Box { size; payload } ->
-          Leaf (Printf.sprintf "box @%d of %s (%d bytes)%s" p.offset payload size tags))
+          Leaf (Printf.sprintf "box @%d of %s (%d bytes)%s" p.offset payload size tags)
+      | Layout.Foreign { free; set } ->
+          Leaf
+            (Printf.sprintf "handle @%d freed by %s%s%s" p.offset free
+               (match set with Some s -> ", set by " ^ s | None -> "")
+               tags))
     ps
 
 let layout (l : Layout.t) = Leaf l
@@ -116,6 +122,7 @@ let rec expr (e : Expr.t) =
         (fields
            [ ("type", Leaf (Ty.to_string e.Expr.ty)); ("fn", expr fn); ("args", map_seq expr args) ])
   | Expr.Runtime { fn; args } -> call "runtime" (Runtime.name fn) args
+  | Expr.Foreign_call { thunk; args } -> call "foreign call" thunk args
   | Expr.Math { fn; args } ->
       group "math"
         (fields
@@ -163,9 +170,11 @@ and stat = function
            @ [ ("layout", layout l) ]))
   | Stat.Store { address; value } ->
       group "store" (fields [ ("address", expr address); ("value", expr value) ])
-  | Stat.Overwrite { address; value; layout = l } ->
+  | Stat.Overwrite { address; value; layout = l; setters } ->
       group "overwrite"
-        (fields [ ("address", expr address); ("value", expr value); ("layout", layout l) ])
+        (fields
+           ([ ("address", expr address); ("value", expr value); ("layout", layout l) ]
+           @ if setters then [ ("setters", Leaf "yes") ] else []))
   | Stat.Place { address; value; layout = l } ->
       group "place"
         (fields [ ("address", expr address); ("value", expr value); ("layout", layout l) ])
@@ -256,6 +265,41 @@ let func (f : Func.t) =
          ("body", map_seq stat f.Func.body);
        ]))
 
+let crossing = function
+  | Foreign.Scalar t -> Ty.to_string t
+  | Foreign.Bool -> "bool"
+  | Foreign.Unit -> "void"
+  | Foreign.View -> "view"
+  | Foreign.Address -> "address"
+  | Foreign.Value -> "value"
+  | Foreign.Handle -> "handle"
+  | Foreign.Function -> "function"
+
+let thunk (f : Foreign.t) =
+  group "thunk"
+    (fields
+       ([
+         ("symbol", Leaf f.Foreign.thunk);
+         ("package", Leaf f.Foreign.package);
+         ("calls", Leaf f.Foreign.c_function);
+         ("params", map_seq (fun c -> Leaf (crossing c)) f.Foreign.params);
+         ("result", Leaf (crossing f.Foreign.result));
+       ]
+       @ if f.Foreign.capability then [ ("reaches", Leaf "a capability") ] else []))
+
+let callback (c : Callback.t) =
+  group "callback"
+    (fields
+       ((if not c.Callback.here then [ ("defined", Leaf "elsewhere") ] else [])
+       @ [
+         ("symbol", Leaf c.Callback.symbol);
+         ]
+       @ (if c.Callback.entry <> Callback.entry c.Callback.symbol then [ ("entry", Leaf c.Callback.entry) ] else [])
+       @ [
+         ("takes", map_seq (fun t -> Leaf (Callback.spell t)) c.Callback.takes);
+         ("gives", Leaf (Callback.spell c.Callback.gives));
+         ]))
+
 let program (p : Program.t) =
   let named (name, ps) =
     group "layout" (fields [ ("type", Leaf name); ("positions", positions ps) ])
@@ -267,4 +311,6 @@ let program (p : Program.t) =
          ("layouts", map_seq named p.Program.layouts);
        ]
        @ (match p.Program.globals with [] -> [] | gs -> [ ("globals", map_seq global gs) ])
+       @ (match p.Program.foreign with [] -> [] | fs -> [ ("thunks", map_seq thunk fs) ])
+       @ (match p.Program.callbacks with [] -> [] | cs -> [ ("callbacks", map_seq callback cs) ])
        @ [ ("funcs", map_seq func p.Program.funcs) ]))

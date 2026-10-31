@@ -111,6 +111,7 @@ let rec definition env ?(depth = 0) (t : Ty.t) : (Ty.type_id * definition) optio
           | Struct fs -> Some (tid, Struct (apply fs))
           | Variant cs -> Some (tid, Variant (apply cs))
           | Enum ms -> Some (tid, Enum ms)
+          | Handle h -> Some (tid, Handle h)
           | Distinct rhs -> if depth > 16 then None else definition env ~depth:(depth + 1) (Ty.subst s rhs))
       | _ -> None)
   | _ -> None

@@ -1,0 +1,123 @@
+└── package:
+    ├── declarations[0] > package_decl: ffi
+    ├── declarations[1] > type_decl:
+    │   ├── name: Fs
+    │   ├── params:
+    │   └── value:
+    │       ├── mould > handle[0]:
+    │       │   ├── entry: cType
+    │       │   └── value: zane_fs_t
+    │       └── type_axis: reference
+    ├── declarations[2] > type_decl:
+    │   ├── name: File
+    │   ├── params:
+    │   └── value:
+    │       ├── mould > handle[0]:
+    │       │   ├── entry: cType
+    │       │   └── value: zane_file_t
+    │       ├── mould > handle[1]:
+    │       │   ├── entry: free
+    │       │   └── value: zane_fclose
+    │       └── type_axis: reference
+    ├── declarations[3] > type_decl:
+    │   ├── name: Deflater
+    │   ├── params:
+    │   └── value:
+    │       ├── mould > handle[0]:
+    │       │   ├── entry: cType
+    │       │   └── value: zane_deflater_t
+    │       ├── mould > handle[1]:
+    │       │   ├── entry: set
+    │       │   └── value: zane_deflater_set
+    │       ├── mould > handle[2]:
+    │       │   ├── entry: free
+    │       │   └── value: zane_deflater_free
+    │       └── type_axis: reference
+    ├── declarations[4] > func_decl:
+    │   ├── name: crc32
+    │   ├── param[0]:
+    │   │   ├── name: crc
+    │   │   └── type:
+    │   │       ├── qualifier: @primitives$I64
+    │   │       └── args:
+    │   ├── param[1]:
+    │   │   ├── name: data
+    │   │   └── type:
+    │   │       ├── qualifier: @primitives$String
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── qualifier: @primitives$I64
+    │   │   └── args:
+    │   ├── body > scope:
+    │   │   └── stat:
+    │   └── foreign: zane_crc32
+    ├── declarations[5] > func_decl:
+    │   ├── name: deflater
+    │   ├── param[0]:
+    │   │   ├── name: level
+    │   │   └── type:
+    │   │       ├── qualifier: @primitives$I32
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── safe_type > roaming:
+    │   │   │   ├── qualifier: Deflater
+    │   │   │   └── args:
+    │   │   └── abort_type:
+    │   │       ├── qualifier: @primitives$Unit
+    │   │       └── args:
+    │   ├── body > scope:
+    │   │   └── stat:
+    │   └── foreign: zane_deflater_new
+    ├── declarations[6] > meth_decl:
+    │   ├── name: deflate
+    │   ├── this_type:
+    │   │   ├── qualifier: Deflater
+    │   │   └── args:
+    │   ├── param[0]:
+    │   │   ├── name: input
+    │   │   └── type:
+    │   │       ├── qualifier: @primitives$String
+    │   │       └── args:
+    │   ├── ret_type:
+    │   │   ├── qualifier: @primitives$String
+    │   │   └── args:
+    │   ├── body > scope:
+    │   │   └── stat:
+    │   ├── is_mut: true
+    │   └── foreign: zane_deflate
+    ├── declarations[7] > meth_decl:
+    │   ├── name: totalIn
+    │   ├── this_type:
+    │   │   ├── qualifier: Deflater
+    │   │   └── args:
+    │   ├── param:
+    │   ├── ret_type:
+    │   │   ├── qualifier: @primitives$I64
+    │   │   └── args:
+    │   ├── body > scope:
+    │   │   └── stat:
+    │   ├── is_mut: false
+    │   └── foreign: zane_deflater_total_in
+    ├── declarations[8] > var_decl:
+    │   ├── name: files
+    │   ├── type:
+    │   │   ├── qualifier: Fs
+    │   │   └── args:
+    │   └── value > foreign_global: zane_fs
+    └── declarations[9] > func_decl:
+        ├── name: main
+        ├── param:
+        ├── ret_type:
+        │   ├── qualifier: @primitives$Unit
+        │   └── args:
+        └── body > scope:
+            ├── stat[0] > var_decl:
+            │   ├── name: local
+            │   ├── type:
+            │   │   ├── qualifier: Fs
+            │   │   └── args:
+            │   └── value > foreign_global: zane_fs
+            └── stat[1] > ret_stat > ctor_call:
+                ├── type: @primitives$Unit
+                ├── args:
+                └── abort: none

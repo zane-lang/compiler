@@ -1,0 +1,21 @@
+; Coda's OCaml binding (vendor/coda, pinned to the release the grammar
+; generator reads, coda-format 3.1.0), built from the submodule's own files:
+; the binding, its C stubs, and the C FFI they call, which includes the
+; header-only parser from src/.
+(library
+ (name coda)
+ (modules coda_ocaml coda)
+ (foreign_stubs
+  (language c)
+  (names coda_ocaml_safe)
+  (include_dirs ../../vendor/coda/ffi))
+ (foreign_stubs
+  (language cxx)
+  (names coda_ffi_safe)
+  (include_dirs ../../vendor/coda/ffi ../../vendor/coda/src)
+  (flags (:standard -std=c++17)))
+ (flags (:standard -w -a)))
+
+(copy_files# ../../vendor/coda/bindings/ocaml/{coda.ml,coda.mli,coda_ocaml.ml,coda_ocaml_safe.c})
+
+(copy_files# ../../vendor/coda/ffi/coda_ffi_safe.cpp)

@@ -55,9 +55,11 @@ let run_packages dirs =
       (fun directory -> { Tst.Assembly.manifest_name = None; directory; stamp = None })
       dirs
   in
-  match Result.bind (Driver.assemble requests) (fun packages ->
-            Result.map (fun program -> (packages, program)) (Driver.check packages))
-  with
+  let checked packages =
+    Result.bind (Driver.c_code packages) (fun c ->
+        Result.map (fun program -> (packages, program)) (Driver.check ~c packages))
+  in
+  match Result.bind (Driver.assemble requests) checked with
   | Ok (packages, program) -> print_string (Tst.to_span_text packages program)
   | Error failure ->
       List.iter prerr_string (Driver.render failure);

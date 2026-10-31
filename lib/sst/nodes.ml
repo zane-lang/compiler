@@ -130,6 +130,11 @@ module rec Expr : sig
     | VerbCall of Verb_call.t
     | FuncLambda of Func_lambda.t
     | MethLambda of Meth_lambda.t
+    (* A foreign variable's value (ffi.md §5.1), the C global [symbol]
+       names: a foreign variable `name T foreign "sym"` is the declaration
+       `name T = ...` with this as its value, and this is all it is ever the
+       value of. Its type is the declaration's. *)
+    | Foreign_global of Name.t
 end = Expr
 
 (* One shape, not two.
@@ -249,6 +254,9 @@ and Mould : sig
     | Struct of Body_field.t list
     | Variant of Body_field.t list
     | Enum of Name.t list
+    (* A foreign handle's entries, each a name and the string written for
+       it. *)
+    | Handle of (Name.t * Name.t) list
 end = Mould
 
 and Moulded : sig
@@ -473,11 +481,15 @@ and Verb_decl : sig
   }
 
   and node =
+    (* [foreign] is the C symbol of a foreign verb (ffi.md §3.1), whose
+       body is a C function: its [body] is then empty, spanning the
+       `foreign` clause. *)
     | Func of {
         name : Name.t;
         params : Param.t list;
         ret_type : Ret_type.t;
         body : Block.t;
+        foreign : Name.t option;
       }
     | Meth of {
         name : Name.t;
@@ -486,6 +498,7 @@ and Verb_decl : sig
         ret_type : Ret_type.t;
         is_mut : bool;
         body : Block.t;
+        foreign : Name.t option;
       }
     | Op of {
         op : Operator.t;

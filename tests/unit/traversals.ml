@@ -47,8 +47,9 @@ let tst_tag : T.Expr.node -> int = function
   | T.Expr.Coerce _ -> 23
   | T.Expr.Lambda _ -> 24
   | T.Expr.Invalid -> 25
+  | T.Expr.Foreign_global _ -> 26
 
-let tst_count = 26
+let tst_count = 27
 
 let tst_stat_tag : T.Stat.node -> int = function
   | T.Stat.Expr _ -> 0
@@ -134,6 +135,7 @@ let tst_samples () =
     (T.Expr.Coerce { ctor = verb; value = a }, [ pa ]);
     (T.Expr.Lambda { params = []; body = lam }, [ P.Lambda lam ]);
     none T.Expr.Invalid;
+    none (T.Expr.Foreign_global { symbol = "zane_fs"; package = "fs" });
   ]
 
 let tst_stat_samples () =
@@ -202,8 +204,9 @@ let cgt_tag : C.Expr.node -> int = function
   | C.Expr.Global _ -> 26
   | C.Expr.Snapshot _ -> 27
   | C.Expr.Escape _ -> 28
+  | C.Expr.Foreign_call _ -> 29
 
-let cgt_count = 29
+let cgt_count = 30
 
 let cgt_stat_tag : C.Stat.t -> int = function
   | C.Stat.Let _ -> 0
@@ -248,6 +251,7 @@ let cgt_samples () =
     (C.Expr.Call_value { fn = a; args = [ c; k ] }, ([ a; c; k ], []));
     (C.Expr.Runtime { fn = Cgt.Runtime.Print; args = [ a; c ] }, ([ a; c ], []));
     (C.Expr.Math { fn = Cgt.Math.Bit_and; args = [ a; c ] }, ([ a; c ], []));
+    (C.Expr.Foreign_call { thunk = "f.ffi"; args = [ a; c ] }, ([ a; c ], []));
     (C.Expr.Binary { op = C.Expr.Add; left = a; right = c }, ([ a; c ], []));
     (C.Expr.Flip a, ([ a ], []));
     (C.Expr.Convert a, ([ a ], []));
@@ -284,7 +288,7 @@ let cgt_stat_samples () =
     (C.Stat.Switch { value = a; cases = [ (0, b1); (1, b2) ] }, ([ a ], [ b1; b2 ]));
     none (C.Stat.Leave 1);
     (C.Stat.Store { address = a; value = c }, ([ a; c ], []));
-    (C.Stat.Overwrite { address = a; value = c; layout = "l" }, ([ a; c ], []));
+    (C.Stat.Overwrite { address = a; value = c; layout = "l"; setters = false }, ([ a; c ], []));
     (C.Stat.Place { address = a; value = c; layout = "l" }, ([ a; c ], []));
     none (C.Stat.Reserve { id = 1; scope = 2; ty = C.Ty.I64; layout = "l" });
     ( C.Stat.Spawn

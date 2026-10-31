@@ -266,6 +266,7 @@ let rec expr env ?(into = Ty.Error) w (e : T.Expr.t) =
       opt_handler env w into handler
   | T.Expr.Coerce { ctor; value } -> pass env w (read_by env ctor) [ T.Arg.Value value ]
   | T.Expr.Lambda l -> lambda env w e l
+  | T.Expr.Foreign_global _ -> ()
 
 (* An intrinsic constructor reads what it is given (docs/design/semantics.md §9). *)
 and read_by env (r : T.Verb_ref.t) =

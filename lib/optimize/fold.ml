@@ -217,7 +217,7 @@ let writes ~reach ?expr stats =
     | Expr.Address i -> Hashtbl.replace w i ()
     | Expr.Local p -> pointed p
     | Expr.Expand { result = Some r; _ } -> Hashtbl.replace w r ()
-    | Expr.Call _ | Expr.Call_value _ | Expr.Runtime _ | Expr.Take _ -> through := true
+    | Expr.Call _ | Expr.Call_value _ | Expr.Runtime _ | Expr.Foreign_call _ | Expr.Take _ -> through := true
     | _ -> ()
   in
   let on_stat = function
@@ -348,7 +348,7 @@ let store_back fn id ty c =
         Option.map
           (fun layout ->
             let address = { Expr.node = Expr.Address id; ty = Ty.Ptr } in
-            Stat.Overwrite { address; value; layout })
+            Stat.Overwrite { address; value; layout; setters = false })
           (Hashtbl.find_opt fn.held id))
 
 let storable fn id = Hashtbl.mem fn.plain id || Hashtbl.mem fn.held id
@@ -655,7 +655,7 @@ let settle fn (env : known) (e : Expr.t) =
   let acts = ref false in
   iter_expr e ~stat:nothing ~expr:(fun e ->
       match e.Expr.node with
-      | Expr.Call _ | Expr.Call_value _ | Expr.Runtime _ | Expr.Take _ -> acts := true
+      | Expr.Call _ | Expr.Call_value _ | Expr.Runtime _ | Expr.Foreign_call _ | Expr.Take _ -> acts := true
       | _ -> ());
   match e.Expr.node with
   | Expr.Expand _ -> ()

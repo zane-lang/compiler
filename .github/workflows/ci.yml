@@ -72,6 +72,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # vendor/coda, which lib/coda/ builds.
+          submodules: true
 
       - name: Set up toolchain
         uses: ./.github/actions/setup-ci
@@ -124,6 +127,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # vendor/coda, which lib/coda/ builds.
+          submodules: true
 
       - name: Set up toolchain
         uses: ./.github/actions/setup-ci

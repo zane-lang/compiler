@@ -152,11 +152,12 @@ and in_body (body : Nodes.Body.t) =
   match body.Nodes.Body.node with
   | Nodes.Body.Shorthand value -> in_expr value
   | Nodes.Body.Longhand statements -> first_in_statements statements
+  | Nodes.Body.Foreign _ -> None
 
 and in_decl (decl : Nodes.Decl.t) =
   match decl.Nodes.Decl.node with
   | Nodes.Decl.Package _ | Nodes.Decl.Import _ | Nodes.Decl.Type _
-  | Nodes.Decl.Alias _ ->
+  | Nodes.Decl.Alias _ | Nodes.Decl.ForeignVar _ ->
       None
   | Nodes.Decl.Var { value; _ } -> in_expr value
   | Nodes.Decl.VarShorthand { args; _ } -> in_constructor_args args

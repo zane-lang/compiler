@@ -1,0 +1,17 @@
+/// A declaration correct for one target and wrong for another fails in the
+/// build for the other (ffi.md §3.7): `myint` is 64 bits except on Windows.
+package windowsInt;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+I64 scaled(n I64) foreign "scaled";
+
+Unit main() {
+	return Unit();
+}

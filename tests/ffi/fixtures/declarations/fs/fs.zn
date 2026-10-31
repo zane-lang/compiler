@@ -1,0 +1,18 @@
+/// A package whose C reaches outside state through a capability (ffi.md
+/// §5.1).
+package fs;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+type Fs = #handle{ cType = "zane_fs_t"; }
+type File = #handle{ cType = "zane_file_t"; free = "zane_fclose"; }
+
+^File open(this Fs, path String) mut foreign "zane_fopen";
+Unit write(this Fs, file File, data String) mut foreign "zane_fwrite";
+I64 size(this Fs, file File) foreign "zane_fsize";

@@ -6,10 +6,11 @@
    A fixture is named by its path in the directory: `fixtures/NAME` for a
    codegen package, `fixtures/reject/NAME` for one lowering refuses,
    `fixtures/NAME.zn` and `fixtures/reject/NAME.zn` for a parser source,
+   `fixtures/NAME` and `fixtures/reject/NAME` for a C interface package,
    `fixtures/typing/NAME` for a semantics build, and `NAME.c` for a runtime
    test. *)
 
-type suite = Codegen | Parser | Runtime | Semantics
+type suite = Codegen | Ffi | Parser | Runtime | Semantics
 
 (* The fixture [golden] holds the expectation of: [Ok None] for a golden
    file a rule written by hand compares against, one of [hand_written], and
@@ -19,8 +20,12 @@ let fixture ?(hand_written = []) suite golden =
   | _ when List.mem golden hand_written -> Ok None
   | Codegen, ([ name; ("cgt" | "out") ] | [ name; "optimized"; "cgt" ]) ->
       Ok (Some ("fixtures/" ^ name))
-  | (Codegen | Parser), [ "reject"; name; "err" ] ->
+  | Ffi, ([ name; ("check" | "tst" | "cgt" | "out") ] | [ name; "optimized"; ("cgt" | "out") ]) ->
+      Ok (Some ("fixtures/" ^ name))
+  | (Codegen | Ffi | Parser), [ "reject"; name; "err" ] ->
       Ok (Some ("fixtures/reject/" ^ name ^ if suite = Parser then ".zn" else ""))
+  | Ffi, [ "reject"; name; "ll"; "err" ] -> Ok (Some ("fixtures/reject/" ^ name))
+  | Ffi, [ name; "released"; ("out" | "calls") ] -> Ok (Some ("fixtures/" ^ name))
   | Parser, [ name; _stage; ("spans" | "tree") ] -> Ok (Some ("fixtures/" ^ name ^ ".zn"))
   | Runtime, [ name; "out" ] -> Ok (Some (name ^ ".c"))
   | Semantics, ([ "typing"; name; ("decls" | "tst" | "err") ] | [ "typing"; name; "tst"; "spans" ])

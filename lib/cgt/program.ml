@@ -122,7 +122,11 @@ let func st (v : verb) : Func.t =
         scope = { arena = None; settles = []; wants = [] };
       }
     in
-    let body = block ~enter st ctx v.body in
+    let body =
+      match Hashtbl.find_opt st.foreign_verbs v.key with
+      | Some f -> Lower_foreign.body st ctx env span v f
+      | None -> block ~enter st ctx v.body
+    in
     { Func.symbol = symbol st v; linkage; params = given; places; ret = returned o; body; values = st.values }
   end
 
@@ -199,7 +203,9 @@ let name_lambdas st owner (b : T.Block.t) =
 (* The functions a library's object holds, besides what they call: every
    verb of each of its own packages that is not generic and has a function of its
    own (L11), and every lambda-variable, which other objects call by name
-   (docs/design/separate-compilation.md C5). *)
+   (docs/design/separate-compilation.md C5); and the free and set thunks of
+   each of its foreign handle types, which ends and overwrites in other
+   objects call (docs/design/ffi.md F8). *)
 let library_roots st (root : T.Package.t) =
   List.iter
     (fun (d : T.Decl.t) ->
@@ -210,12 +216,31 @@ let library_roots st (root : T.Package.t) =
           | _ -> ()
       in
       match d.T.Decl.node with
-      | T.Decl.Verb { signature; body = T.Decl.Checked _ } -> declared signature
+      | T.Decl.Verb { signature; body = T.Decl.Checked _ | T.Decl.Foreign _ } -> declared signature
       | T.Decl.Subscript { signature; value = Some _; _ } -> declared signature
       | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda l; ty; span }; _ } ->
           Hashtbl.replace st.exported ("lambda " ^ Lower_lambda.lambda st span ty l) ()
+      | T.Decl.Type { name; params = []; definition = T.Decl.Handle (h, kind); _ } ->
+          ignore (handle_thunks st (Tty.Named ({ Tty.package = root.T.Package.name; name }, [])) (h, kind))
       | _ -> ())
     root.T.Package.decls
+
+(* What a stamped dependency's glue holds, which a consumer writes again
+   to compare with the glue its release was built from
+   (docs/design/ffi.md F13): a thunk for every foreign verb of [pkg] and
+   the free and set thunks of each of its foreign handle types, as its own
+   library build lowers them ([library_roots]), whichever of them the
+   program's calls reach. *)
+let roots_of_glue st (pkg : T.Package.t) =
+  List.iter
+    (fun (d : T.Decl.t) ->
+      match d.T.Decl.node with
+      | T.Decl.Verb { signature; body = T.Decl.Foreign _ } when signature.S.generics = [] -> (
+          match verb_of st d.T.Decl.id [] with Some v -> ignore (symbol st v) | None -> ())
+      | T.Decl.Type { name; params = []; definition = T.Decl.Handle (h, kind); _ } ->
+          ignore (handle_thunks st (Tty.Named ({ Tty.package = pkg.T.Package.name; name }, [])) (h, kind))
+      | _ -> ())
+    pkg.T.Package.decls
 
 (* Every call the program spawns: a spawn anywhere in any package of the
    build, a stamped dependency's included, since its objects are built from
@@ -339,7 +364,7 @@ let start_function st main span entry makes (funcs : Func.t list) =
     values = [];
   }
 
-let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime.default_fixed_region)
+let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false) ?(fixed_region = Runtime.default_fixed_region)
     (p : T.Program.t) =
   let stamp_of id =
     match String.rindex_opt id '%' with Some i -> String.sub id 0 (i + 1) | None -> ""
@@ -355,6 +380,8 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
   let calls = spawned p in
   let exclusive = (not library) && calls = [] in
   let st = create ~region:fixed_region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
+  st.places <- Some (Tst.States.of_program p);
+  (match p.T.Program.packages with r :: _ -> st.package <- st.stamp r.T.Package.name ^ r.T.Package.name | [] -> ());
   let add decl instance signature params body =
     let key = key decl instance in
     Hashtbl.replace st.verbs key { decl; key; instance; signature; params; body; literals = [] };
@@ -388,6 +415,17 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
                   name_lambdas st owner { T.Block.stats = [ stat ]; span = value.T.Expr.span })
           | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
               add d.T.Decl.id [] signature params body
+          (* A foreign verb's function takes the parameters its signature
+             names, and calls into C (Lower_foreign). *)
+          | T.Decl.Verb { signature; body = T.Decl.Foreign f } ->
+              let span = d.T.Decl.span in
+              let params =
+                List.mapi
+                  (fun i (p : S.param) -> { T.Local.id = -(i + 1); name = p.S.name; ty = p.S.ty; span })
+                  signature.S.params
+              in
+              Hashtbl.replace st.foreign_verbs (key d.T.Decl.id []) f;
+              add d.T.Decl.id [] signature params { T.Block.stats = []; span }
           (* A subscript's body is the place it names (functions.md §2.9). *)
           | T.Decl.Subscript { signature; params; value = Some e } ->
               let return = { T.Stat.node = T.Stat.Return e; span = e.T.Expr.span } in
@@ -433,8 +471,23 @@ let program ?(library = false) ?(import_bodies = false) ?(fixed_region = Runtime
       let funcs = drain [] in
       let funcs = start funcs @ funcs @ List.rev st.spawned in
       let layouts = List.rev_map (fun n -> (n, Hashtbl.find st.layouts n)) st.named in
-      Ok (Regions.run ~wants:st.wants { Program.funcs; entry; layouts; globals = List.rev st.globals; exclusive = st.exclusive })
+      let funcs, context, callbacks = Callbacks.add st.package (List.rev st.callbacks) funcs in
+      Ok
+        (Regions.run ~wants:st.wants
+           {
+             Program.funcs;
+             entry;
+             layouts;
+             globals = List.rev st.globals @ context;
+             foreign = List.rev st.thunks;
+             callbacks;
+             exclusive = st.exclusive;
+           })
     in
+    if foreign_roots then
+      List.iter
+        (fun (pkg : T.Package.t) -> if stamped pkg.T.Package.name then roots_of_glue st pkg)
+        p.T.Program.packages;
     if library then begin
       List.iter
         (fun (pkg : T.Package.t) -> if own pkg.T.Package.name then library_roots st pkg)

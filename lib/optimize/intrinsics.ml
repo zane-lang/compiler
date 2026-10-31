@@ -16,6 +16,14 @@ let classify : Cgt.Runtime.fn -> t = function
   | Arguments -> Input
   (* Experimental pooled variants, which the evaluator does not model. *)
   | Pool_new | Pool_push | Pool_append | Pool_root | Pool_copy | Link | Pool_reserve | Pool_new_unbounded -> Input
+  (* A handle's stamp is the next of a counter the running program keeps:
+     a fold that makes one in a call into C keeps its own
+     (docs/design/ffi.md F18). A null handle stops the program. *)
+  | Handle_made -> Computed
+  | No_object -> Input
+  (* Whether the thread has a context is a fact of the running program,
+     and only a call from C, which no fold makes, runs either. *)
+  | Callback_attach | Callback_detach -> Input
   | Text_join | Text_equal | Text_i32 | Text_i64 | Text_f32 | Text_f64
   | List_new | List_push | List_at | List_remove _ | List_swap_remove _ | Array_at | Constant_begin
   | Constant_end | Writeback
@@ -27,7 +35,8 @@ let classify : Cgt.Runtime.fn -> t = function
      meaning directly. *)
   | List_reserve | List_room | Scope_enter | Scope_drain | Hold | Too_deep | Promote | Arrive | Copy
   | Overwrite | Box | Spawn | Join | Snapshot | Out_of_range
-  | Region_at | Alloc | Alloc_held | Free | Leaves | Defer | Defer_return ->
+  | Region_at | Alloc | Alloc_held | Free | Leaves | Defer | Defer_return
+  | Overwrite_handles | Overwrite_settled | Handle_end | Handle_set ->
       Computed
 
 (* What a math function of `@math$` on operands of type [t] is to a fold.

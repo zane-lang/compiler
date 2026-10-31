@@ -46,7 +46,7 @@ static void named_overwrite(char *at, char *with, int64_t extra, zane_work *w, i
 	memcpy(at, with, (size_t)extra);
 }
 
-static const zane_type named_type = { named_copy, named_end, named_move, named_overwrite };
+static const zane_type named_type = { named_copy, named_end, named_move, named_overwrite, named_overwrite };
 
 static void outer_copy(char *at, char *with, int64_t extra, zane_work *w, int64_t depth) {
 	(void)extra;
@@ -72,7 +72,7 @@ static void outer_overwrite(char *at, char *with, int64_t extra, zane_work *w, i
 	if (kept) box_keep(&o->inner, kept, sizeof(named), &named_type, w, depth);
 }
 
-static const zane_type outer_type = { outer_copy, outer_end, outer_move, outer_overwrite };
+static const zane_type outer_type = { outer_copy, outer_end, outer_move, outer_overwrite, outer_overwrite };
 
 static int depth(const countdown *c) { return c->tag == 1 ? 1 + depth((countdown *)c->more) : 0; }
 

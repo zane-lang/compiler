@@ -84,6 +84,9 @@ and mould_to_node (x : Nodes.Mould.t) =
   | Struct x -> group "struct" (map_seq body_field_to_node x)
   | Variant x -> group "variant" (map_seq body_field_to_node x)
   | Enum x -> group "enum" (map_seq (fun x -> Leaf (text x)) x)
+  | Handle x ->
+      group "handle"
+        (map_seq (fun (key, value) -> fields [ ("entry", Leaf (text key)); ("value", Leaf (text value)) ]) x)
 
 and generic_arg_to_node (x : Nodes.Generic_arg.t) =
   match x.Nodes.Generic_arg.node with
@@ -199,6 +202,7 @@ and expr_to_node (x : Nodes.Expr.t) =
   | IntLit x -> Leaf x
   | DecimalLit x -> Leaf x
   | StrLit x -> Leaf x
+  | Foreign_global x -> group "foreign_global" (Leaf (text x))
   | BoolLit x -> Leaf (string_of_bool x)
   | CollectionLit x -> group "collection" (map_seq expr_to_node x)
   | NameExpr x -> name_expr_to_node x
@@ -401,28 +405,33 @@ and decl_to_node (x : Nodes.Decl.t) =
            ])
   | Verb x -> verb_decl_to_node x
 
+(* A foreign verb's C symbol, which only a foreign verb shows. *)
+and foreign_field = function Some symbol -> [ ("foreign", Leaf (text symbol)) ] | None -> []
+
 and verb_decl_to_node (x : Nodes.Verb_decl.t) =
   match x.Nodes.Verb_decl.node with
   | Func x ->
       group "func_decl"
         (fields
-           [
-             ("name", Leaf (text x.name));
-             ("param", params_to_node x.params);
-             ("ret_type", ret_to_node x.ret_type);
-             ("body", block_to_node x.body);
-           ])
+           ([
+              ("name", Leaf (text x.name));
+              ("param", params_to_node x.params);
+              ("ret_type", ret_to_node x.ret_type);
+              ("body", block_to_node x.body);
+            ]
+           @ foreign_field x.foreign))
   | Meth x ->
       group "meth_decl"
         (fields
-           [
+           ([
              ("name", Leaf (text x.name));
              ("this_type", type_to_node x.this_type);
              ("param", params_to_node x.params);
              ("ret_type", ret_to_node x.ret_type);
              ("body", block_to_node x.body);
              ("is_mut", Leaf (string_of_bool x.is_mut));
-           ])
+           ]
+           @ foreign_field x.foreign))
   | Constructor x ->
       (* As in the CST: a declaration carries a full type expression because it
          may introduce generics, while a call names a plain [Name_type]. *)

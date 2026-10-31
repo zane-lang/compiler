@@ -41,7 +41,7 @@ static void holder_overwrite(char *at, char *with, int64_t extra, zane_work *w, 
 	memcpy(at, with, (size_t)extra);
 }
 
-static const zane_type holder_type = { holder_copy, holder_end, holder_move, holder_overwrite };
+static const zane_type holder_type = { holder_copy, holder_end, holder_move, holder_overwrite, holder_overwrite };
 
 void zane_main(void) {
 	zane_text ab = { "ab", 2, 0 }, cd = { "cd", 2, 0 }, empty = { "", 0, 0 };

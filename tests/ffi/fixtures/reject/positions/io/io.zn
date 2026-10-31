@@ -1,0 +1,23 @@
+/// A capability, an outside handle made by a method on it that is not `mut`,
+/// used where it may not stand, and a handle made both ways.
+package io;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+type Io = #handle{ cType = "io_t"; }
+type Port = #handle{ cType = "port_t"; free = "port_close"; }
+type Mixed = #handle{ cType = "port_t"; free = "port_close"; }
+
+^Port open(this Io) foreign "port_open";
+I64 subject(this Port) foreign "port_subject";
+I64 outsideParam(p Port) foreign "port_param";
+^Mixed fromIo(this Io) mut foreign "mixed_from_io";
+^Mixed plain() foreign "mixed_plain";
+
+Port(other ^Port) => other;

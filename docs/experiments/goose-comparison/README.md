@@ -2228,6 +2228,16 @@ outputs match (`results-defaults.txt`, 3 runs each); the perf programs print the
 `--target x86_64-windows-gnu` or `aarch64-apple-darwin` build emits the
 24-byte handle and no `__ehdr_start`.
 
+## Merging main's FFI
+
+`main` gained calls into C while the experiment ran. C reads a list as a
+`zane_span`, a pointer and a 64-bit count, and with the 16-byte handle the
+count and room are 32 bits each, so C read the room as the count's high
+half. A list crossing into C is now copied into a `zane_span` first
+(`Emit.foreign_call`). The FFI tests pass with the defaults and with
+`ZANE_FRAME_REFS=0`, and their CGT goldens differ only in the handle's
+layout.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |

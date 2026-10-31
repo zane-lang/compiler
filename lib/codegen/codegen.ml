@@ -25,6 +25,8 @@ let live_contexts () = Atomic.get live
    with the alignment [data_layout] gives its type. *)
 let packed = "~packed"
 
+external set_prefix_data : Llvm.llvalue -> Llvm.llvalue -> unit = "zane_set_prefix_data"
+
 let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
     ?(spawned_fixed_region = Cgt.Runtime.default_spawned_fixed_region) ?(pack = false) ?(memos = []) ?(version = false)
     ~triple ~data_layout m (p : Cgt.Nodes.Program.t) =
@@ -41,6 +43,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       i64 = Llvm.i64_type ctx;
       funcs = Hashtbl.create 32;
       abis = Hashtbl.create 32;
+      entries = Hashtbl.create 8;
       registers = registers triple;
       pack;
       passings = Hashtbl.create 32;
@@ -60,8 +63,16 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
          p.Program.layouts);
   List.iter
     (fun (g : Global.t) ->
-      let v = Llvm.define_global g.Global.symbol (Llvm.const_null (stored env g.Global.ty)) m in
+      let v =
+        match g.Global.linkage with
+        | Cgt.Nodes.Linkage.Imported -> Llvm.declare_global (stored env g.Global.ty) g.Global.symbol m
+        | _ -> Llvm.define_global g.Global.symbol (Llvm.const_null (stored env g.Global.ty)) m
+      in
       if g.Global.per_thread then Llvm.set_thread_local true v;
+      (* The runtime's, read at a fixed offset from the thread's pointer as
+         Walks.zane_open is. *)
+      if g.Global.per_thread && g.Global.linkage = Cgt.Nodes.Linkage.Imported then
+        Llvm.set_thread_local_mode Llvm.ThreadLocalMode.InitialExec v;
       (match g.Global.linkage with
       | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal v
       | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr v
@@ -70,11 +81,29 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       Hashtbl.replace env.globals g.Global.symbol v)
     p.Program.globals;
   List.iter
+    (fun (f : Foreign.t) ->
+      Hashtbl.replace env.entries f.Foreign.thunk (List.map (fun c -> c = Foreign.Function) f.Foreign.params))
+    p.Program.foreign;
+  (* A lambda's adapter is named as the glue's C entry declares it
+     (docs/design/ffi.md F11). Only that entry calls it, which an
+     unoptimized build emits as an object of its own, so a shared one is
+     kept where nothing in this module calls it. *)
+  let adapters =
+    List.filter_map
+      (fun (c : Callback.t) -> if c.Callback.here then Some (Callback.adapter c.Callback.symbol) else None)
+      p.Program.callbacks
+  in
+  List.iter
     (fun (f : Func.t) ->
       let a = abi env (List.map snd f.Func.params) f.Func.ret in
       let fty = abi_type env a in
       let entry = Some f.Func.symbol = p.Program.entry in
-      let name = if entry then "zane_main" else if pack then f.Func.symbol ^ packed else f.Func.symbol in
+      let name =
+        if entry then "zane_main"
+        else if List.mem f.Func.symbol adapters then Walks.foreign_name m f.Func.symbol
+        else if pack then f.Func.symbol ^ packed
+        else f.Func.symbol
+      in
       let fn =
         match f.Func.linkage with
         | Cgt.Nodes.Linkage.Imported -> Llvm.declare_function name fty m
@@ -85,12 +114,30 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal fn
       | Cgt.Nodes.Linkage.Exported | Cgt.Nodes.Linkage.Imported -> ()
       | Cgt.Nodes.Linkage.Available -> Llvm.set_linkage Llvm.Linkage.Available_externally fn
+      | Cgt.Nodes.Linkage.Shared when List.mem f.Func.symbol adapters -> Llvm.set_linkage Llvm.Linkage.Weak_odr fn
       | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr fn);
       declare_abi env fn a;
       declare_places env fn f a;
       Hashtbl.replace env.abis f.Func.symbol a;
       Hashtbl.replace env.funcs f.Func.symbol (fn, fty))
     (p.Program.funcs @ List.map (fun (m : Cgt.Memo.t) -> m.Cgt.Memo.func) memos);
+  (* A lambda C can call is its Zane function, whose value a Zane call
+     calls directly; the 32 bits before its code hold the offset from it of
+     a constant of this object holding its C entry's address, which a call
+     into C reads (docs/design/ffi.md F11). An offset needs no relocation of
+     the code where the program is position-independent, and one to a
+     variable this object defines can be written for every object format,
+     x86-64 Mach-O's included, where the entry is another object's. *)
+  List.iter
+    (fun (c : Callback.t) ->
+      if c.Callback.here then
+        let fn, _ = Hashtbl.find env.funcs c.Callback.symbol in
+        let held = Llvm.define_global (c.Callback.entry ^ ".address") (Walks.thunk ctx m c.Callback.entry) m in
+        Llvm.set_linkage Llvm.Linkage.Internal held;
+        Llvm.set_global_constant true held;
+        let at v = Llvm.const_ptrtoint v env.i64 in
+        set_prefix_data fn (Llvm.const_trunc (Llvm.const_sub (at held) (at fn)) (Llvm.i32_type ctx)))
+    p.Program.callbacks;
   List.iter
     (fun (f : Func.t) -> if f.Func.linkage <> Cgt.Nodes.Linkage.Imported then func env f)
     p.Program.funcs;
@@ -111,7 +158,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
 (* The program's module lives only while [f] runs: its context and the
    module are disposed however [f] or the emit ends, since LLVM's bindings
    free neither on their own. *)
-let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_region p f =
+let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_region ?(c = []) p f =
   Result.bind (Build.target_machine ?target ~optimize:false ()) (fun (triple, tm) ->
       let data_layout = Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm) in
       let ctx = Llvm.create_context () in
@@ -123,10 +170,14 @@ let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_regio
         (fun () ->
           let m = Llvm.create_module ctx "zane" in
           Fun.protect
-            ~finally:(fun () -> Llvm.dispose_module m)
+            ~finally:(fun () ->
+              Build.detach m;
+              Llvm.dispose_module m)
             (fun () ->
               match program ?fixed_region ?spawned_fixed_region ?pack ?memos ?version ~triple ~data_layout m p with
-              | () -> f m
+              | () ->
+                  Build.attach m c;
+                  f m
               | exception Cgt.Nodes.Ty.Too_large ->
                   Error "a scope's frame takes 2^48 bytes or more, past the limit on any value's size")))
 
@@ -138,9 +189,35 @@ let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_regio
    each loop over elements the optimized passes can split is emitted twice
    for them to tell apart (Emit.versioned); a tiered build's two tiers
    both take it. *)
-let with_program ?target ?pack ?(memoize = false) ?version ?fixed_region ?spawned_fixed_region p f =
+let with_program ?target ?pack ?(memoize = false) ?version ?fixed_region ?spawned_fixed_region ?c p f =
   let p, memos = if memoize then Cgt.Memo.plan p else (p, []) in
-  with_module ?target ?pack ~memos ?version ?fixed_region ?spawned_fixed_region p f
+  with_module ?target ?pack ~memos ?version ?fixed_region ?spawned_fixed_region ?c p f
+
+(* The packages' C as the program links it, for stage 5 to evaluate
+   (docs/design/ffi.md F16): each package's module renamed and linked, and
+   the retained ones of stamped dependencies beside them, in a context of
+   their own that lives only while [f] runs. A package's objects and
+   archives run their constructors in the program, and those may write the
+   C globals [f] would read from their initializers, so when any package
+   links code apart [f] is given no modules, and no call into C folds. *)
+let with_c_modules ?target c f =
+  Result.bind (Build.target_machine ?target ~optimize:false ()) (fun (triple, tm) ->
+      let data_layout = Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm) in
+      let ctx = Llvm.create_context () in
+      Atomic.incr live;
+      Fun.protect
+        ~finally:(fun () ->
+          Llvm.dispose_context ctx;
+          Atomic.decr live)
+        (fun () ->
+          match Foreign_c.program_module ctx ~triple ~data_layout c with
+          | Error _ as e -> e
+          | Ok (m, retained, apart) ->
+              let modules = Option.to_list m @ retained in
+              let whole = apart.Foreign_c.objects = [] && apart.Foreign_c.archives = [] in
+              Fun.protect
+                ~finally:(fun () -> List.iter Llvm.dispose_module modules)
+                (fun () -> Ok (f (if whole then modules else [])))))
 
 let ir m = Llvm.string_of_llmodule m
 
@@ -148,6 +225,29 @@ let target_cpu ?target () =
   Result.map
     (fun (_, tm) -> Llvm_target.TargetMachine.cpu tm)
     (Build.target_machine ?target ~optimize:true ())
+
+let c_compiler = Build.cc
+
+type c_module = Foreign_c.c_module = { key : string; bitcode : string; files : string list }
+type c_archive = Foreign_c.archive = { digest : string; members : (string * string) list }
+type c_library = Foreign_c.library = { name : string; row : string }
+
+type c_package = Foreign_c.package = {
+  prefix : string;
+  sources : c_module list;
+  glue : c_module list;
+  thunks : string list;
+  objects : (c_module * string) list;
+  archives : c_archive list;
+  defined : string list;
+  libraries : c_library list;
+  labels : string option;
+}
+
+let global_prefix ?target () =
+  Result.map
+    (fun (_, tm) -> Walks.global_prefix (Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm)))
+    (Build.target_machine ?target ~optimize:false ())
 
 let executable ?target ?optimize ?tier ?link m output =
   Build.executable ?target ?optimize ?tier ?link m output

@@ -1,0 +1,2 @@
+File "fixtures/reject/archivedLibraryConstructor/unbuffer.h":
+Error: this interface header runs constructors or destructors of its own, and a member of `fixtures/reject/archivedLibraryConstructor/unbuffered.a` runs some too, which may be the header's, since an archive does not say which headers its members include, so the glue, which calls the header's functions, cannot tell whether they would run twice (docs/design/ffi.md F9)

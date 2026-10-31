@@ -316,6 +316,7 @@ let abi c =
     let words = List.filter (fun w -> w <> "" && w <> "const") (String.split_on_char ' ' c) in
     match words with
     | [ "void" ] -> Some R.Void
+    | ("zane_thunk" :: _) -> Some R.Ptr
     | ("int64_t" :: _) -> Some R.I64
     | (("uint32_t" | "int32_t") :: _) -> Some R.I32
     | ("float" :: _) -> Some R.F32
@@ -389,7 +390,7 @@ let repeated_builds () =
       body = [ C.Stat.Return { C.Expr.node = C.Expr.Record []; ty = C.Ty.Struct [] } ];
       values = [] }
   in
-  let p = { C.Program.funcs = empty :: List.init 2000 f; entry = None; layouts = []; globals = []; exclusive = true } in
+  let p = { C.Program.funcs = empty :: List.init 2000 f; entry = None; layouts = []; globals = []; foreign = []; callbacks = []; exclusive = true } in
   let built = ref 0 in
   for _ = 1 to 60 do
     match Driver.ir ~optimize:false p with Ok _ -> incr built | Error _ -> ()
@@ -405,7 +406,7 @@ let disposed_modules () =
     { C.Func.symbol = "f"; linkage = C.Linkage.Exported; params = []; places = []; ret = C.Ty.I64;
       body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ]; values = [] }
   in
-  let p = { C.Program.funcs = [ f ]; entry = None; layouts = []; globals = []; exclusive = true } in
+  let p = { C.Program.funcs = [ f ]; entry = None; layouts = []; globals = []; foreign = []; callbacks = []; exclusive = true } in
   let dir = Filename.temp_dir "zane-unit" "" in
   let none () = Codegen.live_contexts () = 0 in
   check "a built object leaves no context"
@@ -477,7 +478,8 @@ let folded_arithmetic () =
 
 (* Every runtime function is in a class, and the outputs are the three
    docs/design/optimization.md O3 names. The program's arguments are the one
-   input. *)
+   input an intrinsic reads; the stop when C returns no handle, and the
+   context a thread C started is given, are the others. *)
 let intrinsic_classes () =
   let outputs =
     List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Output) Cgt.Runtime.all
@@ -485,9 +487,9 @@ let intrinsic_classes () =
   check "print and the thread count are the outputs"
     (List.sort compare outputs
     = List.sort compare Cgt.Runtime.[ Print; Set_threads; Set_threads_auto ]);
-  check "the program's arguments and the experimental pooled variants are the inputs"
+  check "the program's arguments, a null foreign handle, a callback's context and the experimental pooled variants are the inputs"
     (List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all
-    = Cgt.Runtime.[ Arguments; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded ])
+    = Cgt.Runtime.[ Arguments; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; No_object; Callback_attach; Callback_detach ])
 
 (* The math functions of `@math$` as the evaluator folds them (math.md §2),
    which the math codegen fixture holds both builds to as well, and which
@@ -582,6 +584,8 @@ let program funcs =
     constants = Hashtbl.create 1;
     memo = Value.Key.create 8;
     left = Eval.total;
+    c = Optimize__C_cross.program None [] [];
+    holding = Hashtbl.create 1;
   }
 
 let func ?(values = []) symbol params body =
@@ -1060,6 +1064,7 @@ let emit_env ?(pack = false) ?(triple = "x86_64-unknown-linux-gnu") () =
     i64 = Llvm.i64_type ctx;
     funcs = Hashtbl.create 1;
     abis = Hashtbl.create 1;
+    entries = Hashtbl.create 1;
     registers = Codegen__Emit.registers triple;
     pack;
     passings = Hashtbl.create 1;
@@ -1235,9 +1240,20 @@ let runtime_tuning () =
 (* The driver                                                             *)
 (* ---------------------------------------------------------------------- *)
 
+(* A release's thunk label names its package before the verb and in each
+   of the package's own types the verb names (docs/design/ffi.md F13). *)
+let respelled_labels () =
+  check "a package respelled throughout a symbol"
+    (Rewrite.respell ~from:"v1%00%lib$" ~into:"!lib$" "v1%00%lib$next(this v1%00%lib$State).ffi"
+    = "!lib$next(this !lib$State).ffi");
+  check "a symbol naming no package is as it was" (Rewrite.respell ~from:"v1%00%lib$" ~into:"!lib$" "app$main()" = "app$main()");
+  check "a package whose name ends another's is that other's"
+    (Rewrite.respell ~from:"lib$" ~into:"!lib$" "lib$f(mylib$T)" = "!lib$f(mylib$T)")
+
 (* Rewriting writes beside its output under a name it creates exclusively.
    A name that is already there is someone else's file: it is kept, and the
    object goes out under the next name drawn. *)
+
 let rewriting_keeps_others_files () =
   let seed = [| 17 |] in
   let names output count =
@@ -1367,6 +1383,13 @@ let fixture_pairing () =
       "golden/reject.syntax.err is for fixtures/reject/syntax.zn, which does not exist";
       "fixtures/reject/lost.zn has no golden file";
     ];
+  check_pairs "a C interface package codegen refuses pairs with its error" P.Ffi
+    ~fixtures:[ "fixtures/reject/sharedState" ]
+    ~goldens:[ "reject.sharedState.ll.err" ] [];
+  check_pairs "a C interface build linked against releases pairs with its fixture" P.Ffi
+    ~fixtures:[ "fixtures/archives" ]
+    ~goldens:[ "archives.out"; "archives.released.out"; "gone.released.out" ]
+    [ "golden/gone.released.out is for fixtures/gone, which does not exist" ];
   check_pairs "a runtime test pairs with its output" P.Runtime ~fixtures:[ "arenas.c"; "texts.c" ]
     ~goldens:[ "arenas.out" ] [ "texts.c has no golden file" ];
   check_pairs "hand-written semantics rules are left alone" P.Semantics
@@ -1428,6 +1451,10 @@ let () =
   Builds.bundled_runtime ();
   Builds.runtime_bodies ();
   Builds.fatal_link ();
+  Builds.assembled_beside ();
+  Foreign_c.run ();
+  C_eval.run ();
+  respelled_labels ();
   rewriting_keeps_others_files ();
   stamps_are_checked ();
   disposed_modules ();

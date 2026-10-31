@@ -139,3 +139,54 @@ let rec field_path (e : T.Expr.t) =
   | T.Expr.Field { target; field; _ } when not (Ty.is_ref target.T.Expr.ty) ->
       Option.map (fun (l, path) -> (l, path @ [ field ])) (field_path target)
   | _ -> None
+
+(* Every body's subjects, parameters and match binders at once, for a pass
+   after semantics that asks a place's state: lowering asks it of an
+   overwritten place holding a foreign handle (docs/design/ffi.md F12).
+   Each local is the program's own, so no two bodies' locals meet. *)
+let of_program (p : T.Program.t) =
+  let s = create (projections p) in
+  let params has_this ps =
+    List.iteri (fun i (l : T.Local.t) -> if i = 0 && has_this then subject s l else param s l) ps
+  in
+  let verb (sg : S.t) = params (S.is_method sg || sg.S.kind = S.Subscript) in
+  let rec block (b : T.Block.t) =
+    List.iter (fun st -> List.iter expr (Traverse.stat_exprs st)) b.T.Block.stats
+  and expr (e : T.Expr.t) =
+    (match e.T.Expr.node with
+    | T.Expr.Match m ->
+        List.iter
+          (fun (a : T.Arm.t) ->
+            List.iter (fun (p : T.Pattern.t) -> Option.iter (binder s) p.T.Pattern.binder) a.T.Arm.patterns)
+          m.T.Match.arms
+    | T.Expr.Lambda l ->
+        params (match e.T.Expr.ty with Ty.Verb v -> Option.is_some v.Ty.this_ | _ -> false) l.T.Lambda.params
+    | _ -> ());
+    List.iter
+      (function
+        | Traverse.Same x -> expr x
+        | Traverse.Arm b | Traverse.Handler b | Traverse.Block b | Traverse.Lambda b -> block b)
+      (Traverse.parts e)
+  in
+  List.iter
+    (fun (pkg : T.Package.t) ->
+      List.iter
+        (fun (d : T.Decl.t) ->
+          match d.T.Decl.node with
+          | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
+              verb signature params;
+              block body
+          | T.Decl.Subscript { signature; params; value = Some v } ->
+              verb signature params;
+              expr v
+          | T.Decl.Constant { value; _ } -> expr value
+          | T.Decl.Enum_map { entries; _ } -> List.iter (fun (_, v) -> expr v) entries
+          | _ -> ())
+        pkg.T.Package.decls)
+    p.T.Program.packages;
+  List.iter
+    (fun (i : T.Instance.t) ->
+      verb i.T.Instance.signature i.T.Instance.params;
+      block i.T.Instance.body)
+    p.T.Program.instances;
+  s

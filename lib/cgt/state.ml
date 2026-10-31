@@ -133,6 +133,11 @@ type state = {
      one thing that tells two lambdas apart: an instance's body has lambdas
      of its own. *)
   mutable lambdas : (T.Block.t * string) list;
+  (* The lambdas whose type C can call, with the C types they cross as
+     (docs/design/ffi.md F11), and [package], the root package's symbol
+     prefix, which names the C entries of lambdas other objects lift too. *)
+  mutable callbacks : Callback.t list;
+  mutable package : string;
   (* Symbols already lowered or on their way, by verb key, and the verbs
      still to lower. *)
   symbols : (string, string) Hashtbl.t;
@@ -193,6 +198,13 @@ type state = {
      key, or [None] for a verb not expanded where it is called (L11,
      Verbs.inlines). *)
   sizes : (string, int option) Hashtbl.t;
+  (* Each foreign verb's C function, by verb key, and each thunk the
+     functions lowered so far call, latest first (docs/design/ffi.md F8). *)
+  foreign_verbs : (string, T.Foreign.t) Hashtbl.t;
+  mutable thunks : Foreign.t list;
+  (* Each body's subjects, parameters and binders, which say whether a
+     place overwritten is settled (Tst.States.of_program). *)
+  mutable places : Tst.States.t option;
 }
 
 (* The walk over a verb's body, in [Lower], as the rest of lowering reaches
@@ -225,6 +237,8 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     globals = [];
     defaults = Hashtbl.create 8;
     lambdas = [];
+    callbacks = [];
+    package = "";
     layouts = Hashtbl.create 16;
     named = [];
     symbols = Hashtbl.create 64;
@@ -251,6 +265,9 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     sized = Hashtbl.create 64;
     boxes = Hashtbl.create 64;
     sizes = Hashtbl.create 64;
+    foreign_verbs = Hashtbl.create 8;
+    thunks = [];
+    places = None;
   }
 
 let fresh st =

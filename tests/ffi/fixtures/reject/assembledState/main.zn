@@ -1,0 +1,15 @@
+/// An interface header defining private state that a source holding
+/// assembly, assembled apart, defines too, which a `static inline`
+/// function the glue calls reads: the glue cannot share the copy in the
+/// source's object, and is refused.
+package assembledState;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 sharedValue() foreign "shared_value";
+
+Unit main() {
+	sharedValue();
+	return Unit();
+}

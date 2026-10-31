@@ -39,6 +39,30 @@ module Name_ref = struct
     | Intrinsic of string
 end
 
+(* What a foreign verb is (ffi.md §3): the C function its body is, as its
+   package's interface headers declare it, and what it reads and writes
+   outside the program, which its signature states (§5.2). *)
+module Foreign = struct
+  type access =
+    (* A function, or a method on a data handle: nothing outside the
+       program. *)
+    | Pure
+    (* A method without `mut` on a foreign capability. *)
+    | Reads
+    (* A `mut` method on a foreign capability. *)
+    | Writes
+
+  type t = {
+    symbol : string;
+    (* The package whose C code the symbol belongs to: the verb's own. *)
+    package : string;
+    access : access;
+    (* The C function's type, as the interface header declares it for the
+       build's target. *)
+    c_function : C_interface.ctype;
+  }
+end
+
 module rec Expr : sig
   type t = { node : node; ty : Ty.t; span : Span.t }
 
@@ -96,6 +120,10 @@ module rec Expr : sig
        around the argument it converted and with that argument's span. *)
     | Coerce of { ctor : Verb_ref.t; value : t }
     | Lambda of Lambda.t
+    (* A foreign variable's value (ffi.md §5.1): a handle to the C global
+       [symbol] of [package], the package that declares the capability's
+       type. Its [ty] is that type. *)
+    | Foreign_global of { symbol : string; package : string }
     (* What an expression that failed to type becomes. Its [ty] is
        [Ty.Error], and the diagnostic has already been reported (D4). *)
     | Invalid
@@ -164,6 +192,13 @@ and Lambda : sig
 end =
   Lambda
 
+(* A foreign handle's declaration (ffi.md §4.1): the C type of the objects
+   it refers to, by the name an interface header gives it, and its setter
+   and free function. *)
+module Handle = struct
+  type t = { c_type : string; set : string option; free : string option }
+end
+
 (* A declaration, with everything pass 3 and pass 4 resolved about it and the
    body pass 5 typed. *)
 module Decl = struct
@@ -172,12 +207,21 @@ module Decl = struct
     (* A generic verb's body is checked once per instantiation (D12), so the
        declaration itself carries none; its instances do. *)
     | Per_instance
+    (* A foreign verb's body is a C function (ffi.md §3.1): a call to it is
+       a call of the C function, made where the call is. *)
+    | Foreign of Foreign.t
+
+  (* What a foreign handle's values refer to (ffi.md §4.1, §4.2): a C
+     global, outside state reached through a capability, or state of the
+     program's own. *)
+  type handle_kind = Capability | Outside | Data
 
   type definition =
     | Struct of (string * Ty.t) list
     | Variant of (string * Ty.t) list
     | Enum of string list
     | Distinct of Ty.t
+    | Handle of Handle.t * handle_kind
 
   type node =
     | Type of {

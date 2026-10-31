@@ -1,0 +1,2 @@
+File "fixtures/reject/archivedExternalConstructor/start.h":
+Error: this interface header runs constructors or destructors of its own, and `fixtures/reject/archivedExternalConstructor/started.a` defines what it defines or uses, as a member including it would, so the glue, which calls the header's functions, cannot tell which of them the archive runs (docs/design/ffi.md F9)

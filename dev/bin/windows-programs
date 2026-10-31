@@ -17,6 +17,9 @@ set -euo pipefail
 # with besides; a program expected to fail is held to what it writes on both
 # streams, as tests/codegen/ holds it.
 #
+# Each C interface fixture NAME with an expected output is built the same
+# three ways, from its packages, as ffi.NAME.
+#
 # `abi` is the runtime's probe of its own structs, held to runtime/zane_abi.h.
 #
 # The programs link with `zig cc`, which carries Windows' C library and
@@ -59,8 +62,43 @@ for golden in tests/codegen/golden/*.out; do
 	done
 done
 
+# The C interface's run fixtures, as tests/ffi/ builds them: one with
+# subdirectories a build of them in name order, the first the root, and any
+# other the one package it is, exiting with its `expected-status` when it
+# has one. They are built from a copy, in which each `NAME.archive` has its
+# static library `NAME.a` built beside it for Windows, as tests/ffi/'s
+# rules build it for the host.
 objects="$(mktemp -d)"
 trap 'rm -rf "$objects"' EXIT
+cp -R tests/ffi/fixtures "$objects/ffi"
+find "$objects/ffi" -type d -name '*.archive' | while IFS= read -r sources; do
+	tests/ffi/archive "${sources%.archive}.a" "$sources" "$TARGET"
+done
+for golden in tests/ffi/golden/*.out; do
+	fixture="$(basename "$golden" .out)"
+	# `NAME.released.out` is linked against releases by tests/ffi/released,
+	# which runs on the host.
+	[[ $fixture == *.* ]] && continue
+	name="ffi.$fixture"
+	dir="$objects/ffi/$fixture"
+	status=0
+	[[ -f "$dir/expected-status" ]] && status="$(tr -d '[:space:]' <"$dir/expected-status")"
+	packages=()
+	for sub in "$dir"/*/; do [[ -d "$sub" ]] && packages+=(--package "${sub%/}"); done
+	((${#packages[@]})) || packages=(--package "$dir")
+	"$ZANEC" --target "$TARGET" --build "$OUT/$name.exe" "${packages[@]}"
+	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" "${packages[@]}"
+	"$ZANEC" --target "$TARGET" --build "$OUT/$name.tiered.exe" --tiered "${packages[@]}"
+	"$ZANEC" --target "$TARGET" --tier-up "$OUT/$name.tiered.tier1.dll" "${packages[@]}"
+	# An optimized build whose folded C prints otherwise is held to
+	# `NAME.optimized.out` (spec ffi.md §5.5), as tests/ffi/ holds it.
+	optimized="$golden"
+	[[ -f "${golden%.out}.optimized.out" ]] && optimized="${golden%.out}.optimized.out"
+	expect "$name" "$golden" "$status"
+	expect "$name.optimized" "$optimized" "$status"
+	expect "$name.tiered" "$golden" "$status"
+done
+
 geometry=tests/objects/fixtures/geometry
 survey=(--package tests/objects/fixtures/survey --package "$geometry")
 "$ZANEC" --no-root --target "$TARGET" --stamp "geometry=$STAMP" \

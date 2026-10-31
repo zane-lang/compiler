@@ -1,0 +1,28 @@
+File "fixtures/reject/handleC/main.zn", line 13, characters 1-47:
+13 | type Missing = #handle{ cType = "missing_t"; }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no interface header of `handleC` declares `missing_t` as a struct, or as a typedef of one, which a handle's `cType` names (ffi.md §4.1)
+File "fixtures/reject/handleC/main.zn", line 14, characters 1-39:
+14 | type Union = #handle{ cType = "u_t"; }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no interface header of `handleC` declares `u_t` as a struct, or as a typedef of one, which a handle's `cType` names (ffi.md §4.1)
+File "fixtures/reject/handleC/main.zn", line 15, characters 1-58:
+15 | type NoFree = #handle{ cType = "a_t"; free = "nowhere"; }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no interface header of `handleC` declares the free function `nowhere` as a function (ffi.md §4.1)
+File "fixtures/reject/handleC/main.zn", line 16, characters 1-63:
+16 | type ConstFree = #handle{ cType = "a_t"; free = "a_release"; }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: the free function `a_release` is `void (const struct a_t *)`; it takes one non-`const` pointer to the handle's C type and returns `void` (ffi.md §4.1)
+File "fixtures/reject/handleC/main.zn", line 17, characters 1-62:
+17 | type StatusFree = #handle{ cType = "a_t"; free = "a_close"; }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: the free function `a_close` is `int (struct a_t *)`; it takes one non-`const` pointer to the handle's C type and returns `void` (ffi.md §4.1)
+File "fixtures/reject/handleC/main.zn", line 18, characters 1-73:
+18 | type BadSet = #handle{ cType = "a_t"; set = "a_swap"; free = "a_free"; }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: the setter `a_swap` is `void (struct a_t *)`; it takes two non-`const` pointers to the handle's C type and returns `void` (ffi.md §4.1)
+File "fixtures/reject/handleC/main.zn", line 19, characters 1-46:
+19 | type Included = #handle{ cType = "inner_t"; }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no interface header of `handleC` declares `inner_t` as a struct, or as a typedef of one, which a handle's `cType` names (ffi.md §4.1)

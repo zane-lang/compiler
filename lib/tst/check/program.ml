@@ -18,6 +18,8 @@ let verb_body (d : decl) =
   match d.kind with
   | Verb v -> (
       match v.N.Verb_decl.node with
+      (* A foreign verb's body is C (ffi.md §3.1). *)
+      | N.Verb_decl.Func { foreign = Some _; _ } | N.Verb_decl.Meth { foreign = Some _; _ } -> None
       | N.Verb_decl.Func { body; _ }
       | N.Verb_decl.Meth { body; _ }
       | N.Verb_decl.Op { body; _ }
@@ -107,8 +109,17 @@ let coerce_to env ctx (v : T.Expr.t) dst =
              (String.concat ", " (List.map (fun ((s : S.t), _) -> quote (S.to_string s)) several)));
         v
 
-let type_definition (info : type_info) : T.Decl.definition =
+let type_definition env (info : type_info) : T.Decl.definition =
   match info.definition with
+  | Some (Handle h) ->
+      (* A handle no foreign verb makes is none's: a data handle when it
+         has a free function, and a capability otherwise. *)
+      let kind =
+        match Verbs.handle_kind env.verbs info.tid with
+        | Some k -> k
+        | None -> if h.T.Handle.free = None then T.Decl.Capability else T.Decl.Data
+      in
+      T.Decl.Handle (h, kind)
   | Some (Struct fs) -> T.Decl.Struct fs
   | Some (Variant cs) -> T.Decl.Variant cs
   | Some (Enum ms) -> T.Decl.Enum ms
@@ -129,7 +140,15 @@ let subscript_declaration env (d : decl) (s : S.t) =
     T.Decl.Subscript { signature = { s with ret = ty }; params; value }
 
 let verb_declaration env (d : decl) (s : S.t) =
-  if s.generics <> [] then Some (T.Decl.Verb { signature = s; body = T.Decl.Per_instance })
+  let foreign =
+    match d.kind with
+    | Verb { N.Verb_decl.node = N.Verb_decl.Func { foreign = Some _; _ } | N.Verb_decl.Meth { foreign = Some _; _ }; _ } -> true
+    | _ -> false
+  in
+  (* A foreign verb's body is C. One [Foreign_decls] refused has none, and
+     is left out, as a verb whose signature did not resolve is. *)
+  if foreign then Option.map (fun f -> T.Decl.Verb { signature = s; body = T.Decl.Foreign f }) (Verbs.foreign_verb env.verbs d.id)
+  else if s.generics <> [] then Some (T.Decl.Verb { signature = s; body = T.Decl.Per_instance })
   else
     match check_body env d s [] with
     | Some (params, body) ->
@@ -148,7 +167,7 @@ let declaration env (d : decl) : T.Decl.t option =
                    name = name.N.Name.text;
                    params = info.params;
                    reference = Type_decls.is_reference env (Ty.Named (info.tid, List.map Type_decls.param_arg info.params));
-                   definition = type_definition info;
+                   definition = type_definition env info;
                  })
         | None -> (
             match Types.alias_info env.types d.id with
@@ -157,7 +176,12 @@ let declaration env (d : decl) : T.Decl.t option =
             | None -> None))
     | Constant { name; value; _ } ->
         let ty = Option.value ~default:Ty.Error (Verbs.constant_type env.verbs d.id) in
-        let v = expr env (package_context env d) value in
+        let v =
+          match value.N.Expr.node with
+          | N.Expr.Foreign_global symbol ->
+              Foreign_decls.global env ~package:d.package ~span:value.N.Expr.span ~declared:ty symbol
+          | _ -> expr env (package_context env d) value
+        in
         if not (Ty.assignable ~dst:ty ~src:v.T.Expr.ty) then
           error env v.T.Expr.span
             (Printf.sprintf

@@ -41,6 +41,13 @@
         "x86_64-linux",
         "aarch64-linux"
       ]
+    },
+    "github:NixOS/nixpkgs/d3b13ad75cc492690728f9307e443dec9ef9a20e#llvmPackages_19.libclang": {
+      "outputs": [
+        "out",
+        "dev",
+        "lib"
+      ]
     }
   },
   "shell": {

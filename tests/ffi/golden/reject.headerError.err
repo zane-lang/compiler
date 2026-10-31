@@ -1,0 +1,4 @@
+File "fixtures/reject/headerError/api.h", line 3, characters 19-19:
+3 | int64_t zane_size(zane_bytes data);
+  |                   ^
+Error: unknown type name 'zane_bytes'

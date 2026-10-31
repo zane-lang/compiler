@@ -91,6 +91,9 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   | N.Expr.IntLit s -> mk (T.Expr.Integer_lit s) (Ty.Concept Ty.Integer_lit) span
   | N.Expr.DecimalLit s -> mk (T.Expr.Decimal_lit s) (Ty.Concept Ty.Decimal_lit) span
   | N.Expr.StrLit s -> text_literal env ctx span s
+  (* Desugaring makes one only as a declaration's value, which
+     [local_declaration] and a package constant type before they get here. *)
+  | N.Expr.Foreign_global _ -> Diagnostic.bug ~span "a foreign variable's value outside its declaration"
   | N.Expr.BoolLit b -> mk (T.Expr.Bool_lit b) Ty.bool_primitive span
   | N.Expr.CollectionLit items -> array_literal env ctx span items
   | N.Expr.MapLit entries -> map_literal env ctx span entries
@@ -1389,6 +1392,13 @@ and escapes env (v : T.Expr.t) =
    declared type already. *)
 and local_declaration env ctx (d : N.Decl.t) =
   match d.N.Decl.node with
+  (* A foreign variable: its value is the global, and its type the one it
+     declares (ffi.md §5.1). *)
+  | N.Decl.Var { name; type_; value = { N.Expr.node = N.Expr.Foreign_global symbol; span } } ->
+      let declared = Type_decls.resolve env (type_scope ctx) type_ in
+      let v = Foreign_decls.global env ~package:ctx.package ~span ~declared symbol in
+      let local = declare env ctx Symbol name declared in
+      T.Stat.Let { local; value = v }
   | N.Decl.Var { name; type_; value } ->
       let v = expr env ctx value in
       let declared = declared_type env ctx type_ v.T.Expr.ty in

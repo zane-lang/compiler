@@ -229,7 +229,7 @@ let summary_of w (r : T.Verb_ref.t) =
 let rec expr env w (e : T.Expr.t) : Taint.t =
   match e.T.Expr.node with
   | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Bool_lit _
-  | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Invalid ->
+  | T.Expr.Type_arg _ | T.Expr.Enum_member _ | T.Expr.Foreign_global _ | T.Expr.Invalid ->
       Taint.empty
   (* The literal holds copies of its interpolated values (types.md §2.8). *)
   | T.Expr.Text_lit pieces ->

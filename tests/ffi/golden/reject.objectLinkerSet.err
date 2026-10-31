@@ -1,0 +1,4 @@
+File "fixtures/reject/objectLinkerSet/assembled.c":
+Error: the object this C is assembled into places something in the section `zane_hooks`, a linker set, which the package would share with every other version of it, since a section is gathered by its name (ffi.md §2.5)
+File "fixtures/reject/objectLinkerSet/hooks.a":
+Error: the member `hooks.o` places something in the section `plugins`, a linker set, which the package would share with every other version of it, since a section is gathered by its name (ffi.md §2.5)

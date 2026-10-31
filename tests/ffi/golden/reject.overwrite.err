@@ -1,0 +1,16 @@
+File "fixtures/reject/overwrite/app/main.zn", line 28, characters 5-15:
+28 |     this._file = file;
+   |     ^^^^^^^^^^
+Error: this place is lent by the caller, whose owner may be settled, and holds a `File`, which has no setter: a settled foreign handle is replaced only in place, through its setter (ffi.md §4.3)
+File "fixtures/reject/overwrite/app/main.zn", line 41, characters 5-14:
+41 |     this._box = box;
+   |     ^^^^^^^^^
+Error: this place is lent by the caller, whose owner may be settled, and holds a `File`, which has no setter: a settled foreign handle is replaced only in place, through its setter (ffi.md §4.3)
+File "fixtures/reject/overwrite/app/main.zn", line 48, characters 5-8:
+48 |     log = files!fs$open(String("b.log"));
+   |     ^^^
+Error: this place is settled and holds a `File`, which has no setter: a settled foreign handle is replaced only in place, through its setter (ffi.md §4.3)
+File "fixtures/reject/overwrite/app/main.zn", line 50, characters 5-9:
+50 |     held = Holder(files!fs$open(String("b.log")));
+   |     ^^^^
+Error: this place is settled and holds a `File`, which has no setter: a settled foreign handle is replaced only in place, through its setter (ffi.md §4.3)

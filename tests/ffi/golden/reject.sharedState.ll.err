@@ -1,0 +1,2 @@
+File "fixtures/reject/sharedState/state.h":
+Error: this interface header defines private state that `fixtures/reject/sharedState/a.c` and `fixtures/reject/sharedState/b.c` each define, since each includes it, so the glue, which calls the header's functions, cannot share the state of any one of them (docs/design/ffi.md F9)

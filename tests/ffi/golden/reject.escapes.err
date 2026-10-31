@@ -1,0 +1,4 @@
+File "fixtures/reject/escapes/c.coda":
+Error: row 1: `../shared` leaves the package's directory
+File "fixtures/reject/escapes/c.coda":
+Error: row 2: `../shared/*.c` leaves the package's directory

@@ -53,6 +53,10 @@ type env = {
   funcs : (string, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
   (* How each of the program's functions is called, by symbol. *)
   abis : (string, abi) Hashtbl.t;
+  (* The thunks of calls into C, by symbol, with whether each argument is
+     a function value, which C takes as its lambda's C entry
+     (docs/design/ffi.md F11). *)
+  entries : (string, bool list) Hashtbl.t;
   (* How many registers a value may take and still pass as itself, from
      the target (see [registers]), whether small aggregates are packed into
      words, and how each type passes, worked out once per type. *)
@@ -546,6 +550,8 @@ type frame = {
   labels : (int, Llvm.llbasicblock * int) Hashtbl.t;
   arenas : (int, Llvm.llvalue) Hashtbl.t;
   mutable open_ : Llvm.llvalue list;
+  (* The open arenas that place a slot holding a foreign handle. *)
+  mutable handled : Llvm.llvalue list;
   offsets : (int, int) Hashtbl.t;
   (* The function's result type and how it comes back, and the slot it is
      written to when that is by address. *)
@@ -649,6 +655,7 @@ and record_outer = Abi.mark_outer
 and record_skip = Abi.mark_skip
 and record_tasks = Abi.mark_tasks
 and record_mappings = Abi.mark_mappings
+and record_held = Abi.mark_held
 and record_stacks = Abi.mark_stacks
 and context_frontier = Abi.context_frontier
 and context_top = Abi.context_top
@@ -730,10 +737,12 @@ let enter env fr b size =
     (Llvm.const_int i64 16);
   frame
 
-(* A scope drains (L8). One that spawned nothing and has no dynamic chunk,
-   while its context is this thread's alone and drains are not checked, has
-   nothing to wait for or give back but its frame, so the code moves the
-   frontier back to its record itself. Otherwise the runtime drains it. *)
+(* A scope drains (L8). One that spawned nothing, has no dynamic chunk and
+   holds no foreign handle, while its context is this thread's alone and
+   drains are not checked, has nothing to wait for, end or give back but its
+   frame, so the code moves the frontier back to its record itself.
+   Otherwise the runtime drains it. Only a scope that places a slot holding
+   a handle can hold one, so no other scope looks. *)
 let drain_scope env fr b m =
   let ptr = env.ptr in
   let null = Llvm.const_null ptr in
@@ -748,11 +757,11 @@ let drain_scope env fr b m =
       (Llvm.const_int (Llvm.i32_type env.ctx) 0)
       "" b
   in
-  let plain =
-    Llvm.build_and
-      (Llvm.build_and (empty (field env b ptr m record_tasks)) (empty (field env b ptr m record_mappings)) "" b)
-      unchecked "" b
+  let alone = Llvm.build_and (empty (field env b ptr m record_tasks)) (empty (field env b ptr m record_mappings)) "" b in
+  let alone =
+    if List.memq m fr.handled then Llvm.build_and alone (empty (field env b ptr m record_held)) "" b else alone
   in
+  let plain = Llvm.build_and alone unchecked "" b in
   ignore (Llvm.build_cond_br plain inline runtime_ b);
   Llvm.position_at_end inline b;
   let c = field env b ptr m record_context in
@@ -986,9 +995,13 @@ let frame_slot env fr b scope id =
   byte_at env b (Hashtbl.find fr.arenas scope) (Hashtbl.find fr.offsets id)
 
 (* With checked drains, a slot whose value may own blocks is listed as its
-   value arrives, so the drain can return them (runtime/slot.c). *)
+   value arrives, so the drain can return them (runtime/slot.c). One whose
+   value may hold a foreign handle is listed whether or not drains are
+   checked, so the drain ends the handle (docs/design/ffi.md F12). *)
 let hold env fr b slot l =
-  if listed env l then begin
+  if Walks.holds_handle (walks env) l then
+    ignore (call_runtime env b Cgt.Runtime.Hold [| slot; layout env l |])
+  else if listed env l then begin
     let on =
       Llvm.build_icmp Llvm.Icmp.Ne
         (Llvm.build_load (Llvm.i32_type env.ctx) (checking env) "" b)
@@ -1039,6 +1052,19 @@ let spill env fr b v =
   let p = alloca env fr (Llvm.type_of v) in
   ignore (Llvm.build_store v p b);
   p
+
+(* A struct value stored into the slot at [p] member by member, so the
+   bytes between its members keep what the slot held. *)
+let rec store_fields env b (t : Ty.t) v p =
+  match t with
+  | Ty.Struct ts ->
+      let st = lltype env t in
+      List.iteri
+        (fun i m ->
+          if m <> Ty.Void then
+            store_fields env b m (Llvm.build_extractvalue v i "" b) (Llvm.build_struct_gep st p i "" b))
+        ts
+  | _ -> ignore (Llvm.build_store v p b)
 
 let has_terminator b =
   match Llvm.block_terminator (Llvm.insertion_block b) with Some _ -> true | None -> false
@@ -1799,6 +1825,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
               ignore (Llvm.build_call fty f (Array.of_list (out :: args)) "" b);
               Some (Llvm.build_load t out "" b)
           | _ -> Some (Llvm.build_call fty f (Array.of_list args) "" b)))
+  | Expr.Foreign_call { thunk; args } -> foreign_call env fr b thunk args e.Expr.ty
   | Expr.Math { fn; args } ->
       (* The operands' instructions come in the order they are listed. *)
       let args = List.map (value_of env fr b) args in
@@ -1895,6 +1922,68 @@ and call ?into env fr b (e : Expr.t) =
       ignore (Llvm.build_store site slot b);
       `Stored slot
   | _ -> `Value site
+
+(* A call into C through a thunk of the glue (docs/design/ffi.md F8, F10):
+   the arguments run in order, each is stored in a slot of its own as C lays
+   out its type, a struct's padding zeroed and a `Bool` a byte, and the
+   thunk is handed an array of the slots' addresses and a zeroed slot for
+   the result, from which the result is read back. A function value is
+   handed over as its lambda's C entry, read from the constant whose offset
+   from the lambda's code the 32 bits before it hold (docs/design/ffi.md
+   F11). *)
+and foreign_call env fr b thunk (args : Expr.t list) (ret : Ty.t) =
+  let i8 = Llvm.i8_type env.ctx in
+  let functions = Option.value ~default:[] (Hashtbl.find_opt env.entries thunk) in
+  let entry v =
+    let i32 = Llvm.i32_type env.ctx in
+    let at = Llvm.build_gep i8 v [| Llvm.const_int env.i64 (-4) |] "" b in
+    let offset = Llvm.build_load i32 at "" b in
+    Llvm.set_alignment 4 offset;
+    Llvm.build_load env.ptr (Llvm.build_gep i8 v [| Llvm.build_sext offset env.i64 "" b |] "" b) "" b
+  in
+  let slot_of i (a : Expr.t) =
+    let v = value_of env fr b a in
+    let v = if List.nth_opt functions i = Some true then entry v else v in
+    match a.Expr.ty with
+    | Ty.I1 -> spill env fr b (Llvm.build_zext v i8 "" b)
+    (* A 16-byte list handle's count is 32 bits; the `zane_span` C reads
+       holds it in a `size_t`. *)
+    | Ty.Handle16 when List_handle.on () ->
+        let h = spill env fr b v in
+        let span = Llvm.struct_type env.ctx [| env.ptr; env.i64 |] in
+        let p = alloca env fr span in
+        ignore (Llvm.build_store (List_handle.items env.ctx b h) (Llvm.build_struct_gep span p 0 "" b) b);
+        ignore (Llvm.build_store (List_handle.count env.ctx b h) (Llvm.build_struct_gep span p 1 "" b) b);
+        p
+    | Ty.Struct _ as t ->
+        let p = alloca env fr (lltype env t) in
+        zero env b p (fst (size_align t));
+        store_fields env b t v p;
+        p
+    | _ -> spill env fr b v
+  in
+  let slots = List.mapi slot_of args in
+  let table_type = Llvm.array_type env.ptr (max 1 (List.length slots)) in
+  let table = alloca env fr table_type in
+  List.iteri
+    (fun i s ->
+      let at = Llvm.build_in_bounds_gep table_type table [| Llvm.const_int env.i64 0; Llvm.const_int env.i64 i |] "" b in
+      ignore (Llvm.build_store s at b))
+    slots;
+  let result_type = match ret with Ty.I1 -> i8 | t -> lltype env t in
+  let result =
+    match ret with
+    | Ty.Void -> Llvm.const_null env.ptr
+    | _ ->
+        let p = alloca env fr result_type in
+        zero env b p (match ret with Ty.I1 -> 1 | t -> fst (size_align t));
+        p
+  in
+  ignore (Llvm.build_call (Walks.thunk_type env.ctx) (Walks.thunk env.ctx env.m thunk) [| table; result |] "" b);
+  match ret with
+  | Ty.Void -> None
+  | Ty.I1 -> Some (Llvm.build_icmp Llvm.Icmp.Ne (Llvm.build_load i8 result "" b) (Llvm.const_int i8 0) "" b)
+  | _ -> Some (Llvm.build_load result_type result "" b)
 
 (* The address of a slot holding [e]'s value, for a parameter passed by
    address. A place is lent where it is: nothing else in the call writes it
@@ -2010,7 +2099,7 @@ and stat env fr b (s : Stat.t) =
       | Some v when ret <> Ty.Void -> ignore (Llvm.build_ret v b)
       | _ -> ignore (Llvm.build_ret_void b))
   | Stat.Scope { id; body } ->
-      let frame = Frames.layout fr.symbol id body in
+      let frame = Frames.layout ~handles:(Walks.holds_handle (walks env)) fr.symbol id body in
       Hashtbl.iter (Hashtbl.replace fr.offsets) frame.Frames.offsets;
       if frame.Frames.size <= 4096 && light id body then begin
         let space = alloca env fr (Llvm.array_type (Llvm.i8_type env.ctx) frame.Frames.size) in
@@ -2022,6 +2111,7 @@ and stat env fr b (s : Stat.t) =
       let arena = enter env fr b frame.Frames.size in
       Hashtbl.replace fr.arenas id arena;
       fr.open_ <- arena :: fr.open_;
+      if frame.Frames.handles then fr.handled <- arena :: fr.handled;
       stats env fr b body;
       if not (has_terminator b) then drain_scope env fr b arena;
       fr.open_ <- List.tl fr.open_
@@ -2063,7 +2153,7 @@ and stat env fr b (s : Stat.t) =
       match expr env fr b value with
       | Some v -> ignore (access env value.Expr.ty (Llvm.build_store v p b))
       | None -> ())
-  | Stat.Overwrite { address; value; layout = l } -> (
+  | Stat.Overwrite { address; value; layout = l; setters } -> (
       let p = value_of env fr b address in
       match expr env fr b value with
       | None -> ()
@@ -2071,7 +2161,12 @@ and stat env fr b (s : Stat.t) =
           let incoming = spill env fr b v in
           let n x = Llvm.const_int env.i64 x in
           let size = n (fst (size_align value.Expr.ty)) in
-          ignore (call_runtime env b Cgt.Runtime.Overwrite [| p; incoming; size; layout env l |]))
+          let fn =
+            if setters then Cgt.Runtime.Overwrite_settled
+            else if Walks.holds_handle (walks env) l then Cgt.Runtime.Overwrite_handles
+            else Cgt.Runtime.Overwrite
+          in
+          ignore (call_runtime env b fn [| p; incoming; size; layout env l |]))
   | Stat.If { cond; body } ->
       let c = value_of env fr b cond in
       let taken = block env fr and after = block env fr in
@@ -2264,6 +2359,7 @@ let func env (f : Func.t) =
       labels = Hashtbl.create 8;
       arenas = Hashtbl.create 4;
       open_ = [];
+      handled = [];
       offsets = Hashtbl.create 8;
       ret = a.ret;
       sret;

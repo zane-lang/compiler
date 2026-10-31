@@ -829,4 +829,5 @@ let run env (tables : verbs) =
   List.iter
     (fun pkg_name -> List.iter (Collect.check_import_overloads env) (package env pkg_name).files)
     (Names.package_order env.names);
+  Foreign_decls.run env tables;
   env.verbs

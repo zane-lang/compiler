@@ -135,6 +135,7 @@ let rec expr d (e : Expr.t) =
       at "Lambda";
       each d (local "param") l.Lambda.params;
       block d l.Lambda.body
+  | Expr.Foreign_global { symbol; package } -> at ("Foreign_global " ^ package ^ " " ^ symbol)
 
 and arg d = function Arg.Value e -> expr d e | Arg.Block b -> block d b
 
@@ -204,6 +205,7 @@ let decl d (x : Decl.t) =
       at "Verb" signature.Signature.name;
       match body with
       | Decl.Per_instance -> ()
+      | Decl.Foreign _ -> ()
       | Decl.Checked { params; body } ->
           each d (local "param") params;
           block d body)

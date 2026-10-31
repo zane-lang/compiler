@@ -1,0 +1,15 @@
+/// An `archive` row whose member, a Windows object, names in a linker
+/// directive a function another member defines, which the package renames
+/// and renaming cannot reach in the directive: the check refuses it, naming
+/// the member and the symbol.
+package archiveDirective;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 anchor() foreign "anchor";
+
+Unit main() {
+	anchor();
+	return Unit();
+}

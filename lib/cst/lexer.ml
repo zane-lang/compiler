@@ -48,6 +48,8 @@ let rec token buf =
   | "struct" -> STRUCT
   | "variant" -> VARIANT
   | "enum" -> ENUM
+  | "handle" -> HANDLE
+  | "foreign" -> FOREIGN
   | "package" -> PACKAGE
   | "import" -> IMPORT
   | "as" -> AS

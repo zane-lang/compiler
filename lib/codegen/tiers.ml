@@ -13,6 +13,9 @@ external set_ordering : Llvm.llvalue -> bool -> unit = "zane_set_ordering"
    false when one is a constant that no instruction holds, such as another
    variable's initial value (llvm_stubs.cpp). *)
 external import_uses : Llvm.llvalue -> Llvm.llvalue -> int -> bool = "zane_tier_import"
+external has_prefix_data : Llvm.llvalue -> bool = "zane_has_prefix_data"
+external move_prefix_data : Llvm.llvalue -> Llvm.llvalue -> unit = "zane_move_prefix_data"
+external drop_prefix_data : Llvm.llvalue -> unit = "zane_drop_prefix_data"
 
 type tier = Plain | Tier0 | Tier1
 
@@ -34,6 +37,14 @@ let functions m =
     (Llvm.fold_left_functions
        (fun acc f -> if own f && not (String.ends_with ~suffix:".tier.address" (Llvm.value_name f)) then f :: acc else acc)
        [] m)
+
+(* A lambda C can call, which carries its C entry's offset before its code
+   (docs/design/ffi.md F11): its value is tier 0's, under its name and
+   [value_suffix], since tier 1 links no C entry. *)
+let value_suffix = ".tier.value"
+
+let callable m =
+  Llvm.fold_left_functions (fun acc f -> if own f && has_prefix_data f then f :: acc else acc) [] m
 
 (* What tier 1 may take from tier 0, by name: each function and variable
    the module declares, each body it has only to inline, and each variable
@@ -105,7 +116,8 @@ let exports m =
        (fun v ->
          let thread = Llvm.classify_value v = Llvm.ValueKind.GlobalVariable && Llvm.is_thread_local v in
          (Llvm.value_name v, if thread then thread_address m v else v))
-       (shared m))
+       (shared m)
+    @ List.map (fun f -> (Llvm.value_name f ^ value_suffix, f)) (callable m))
 
 let copy_attrs ~from ~into ~site =
   let n = Array.length (Llvm.params from) in
@@ -123,8 +135,9 @@ let copy_attrs ~from ~into ~site =
 (* Tier 0, after its passes: a slot for each function it defines, every
    direct call to one made through its slot, and every other use, a
    function value, made a use of an entry that calls through it, so a
-   lambda moves to tier 1 too. The entry function then hands the runtime
-   the slots and the exports (runtime/tier.c). *)
+   lambda moves to tier 1 too; the entry is the value, so it carries the
+   function's prefix data. The entry function then hands the runtime the
+   slots and the exports (runtime/tier.c). *)
 let tier0 m ~hash ~exports:(count, table) =
   let ctx = Llvm.module_context m in
   let p = ptr m in
@@ -159,6 +172,7 @@ let tier0 m ~hash ~exports:(count, table) =
         Llvm.set_linkage Llvm.Linkage.Internal entry;
         Llvm.set_function_call_conv (Llvm.function_call_conv f) entry;
         Llvm.replace_all_uses_with f entry;
+        move_prefix_data f entry;
         let b = Llvm.builder_at_end ctx (Llvm.entry_block entry) in
         let call = Llvm.build_call fty (through slot b) (Llvm.params entry) "" b in
         Llvm.set_instruction_call_conv (Llvm.function_call_conv f) call;
@@ -234,6 +248,31 @@ let keep_large_frames m =
    after the pipeline. *)
 let tier1_definitions m =
   let names = List.map Llvm.value_name (shared m) in
+  (* A lambda C can call is tier 0's as a value, and tier 1's own where it
+     is called. *)
+  let values =
+    List.map
+      (fun f ->
+        let name = Llvm.value_name f ^ value_suffix in
+        let v = Llvm.declare_function name (value_type f) m in
+        Llvm.replace_all_uses_with f v;
+        drop_prefix_data f;
+        let calls =
+          Llvm.fold_left_uses
+            (fun acc u ->
+              let user = Llvm.user u in
+              match Llvm.classify_value user with
+              | Llvm.ValueKind.Instruction Llvm.Opcode.Call
+                when Llvm.operand user (Llvm.num_operands user - 1) == v ->
+                  user :: acc
+              | _ -> acc)
+            [] v
+        in
+        List.iter (fun call -> Llvm.set_operand call (Llvm.num_operands call - 1) f) calls;
+        name)
+      (callable m)
+  in
+  let names = names @ values in
   List.iter
     (fun g ->
       if (not (Llvm.is_declaration g)) && not (Llvm.is_global_constant g) then begin

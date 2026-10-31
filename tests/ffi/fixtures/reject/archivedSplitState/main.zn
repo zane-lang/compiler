@@ -1,0 +1,17 @@
+/// An interface header defining private state that an `archive` row's
+/// member holds a copy of, split by the optimizer into one variable per
+/// field and named after it with a suffix: the glue cannot share the
+/// archive's copy, and is refused.
+package archivedSplitState;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 bump() foreign "bump";
+I64 sum() foreign "sum";
+
+Unit main() {
+	bump();
+	sum();
+	return Unit();
+}

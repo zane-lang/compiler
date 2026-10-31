@@ -1,0 +1,17 @@
+/// An interface header defining private state that an `archive` row's
+/// member holds a copy of, its local symbols stripped, so no name shows
+/// the copy: the member defines the header's external function, so it
+/// compiled the header, and the glue is refused.
+package archivedStrippedState;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 bump() foreign "bump";
+I64 current() foreign "current";
+
+Unit main() {
+	bump();
+	current();
+	return Unit();
+}

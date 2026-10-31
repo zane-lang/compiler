@@ -1,0 +1,6 @@
+c [
+    setting  value    target
+    archive  tally.a  *
+    system   m        *-linux-*
+    system   m        *-apple-*
+]

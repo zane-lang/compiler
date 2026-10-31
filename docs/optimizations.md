@@ -236,6 +236,32 @@ constant, a record, a box, or a list made and pushed in one expansion.
 Exact math folds; approximate math and `F32` `fma` stay calls, since their
 result is the target's C library's.
 
+### Calls into C run at compile time
+
+- **Builds:** optimized only
+- **Where:** `lib/optimize/c_eval.ml`, `lib/optimize/c_cross.ml`,
+  `lib/optimize/c_ir_stubs.cpp`, `lib/optimize/handles.ml`
+- **Design:** [`design/ffi.md`](design/ffi.md) F16–F19
+- **Effect:** folds the checksum of a literal, a data handle's whole life,
+  a C sort with a Zane comparison and a string C returns in the
+  `folding` fixture of `tests/ffi/`
+
+A foreign call whose arguments are known, and which reaches no
+capability, runs at compile time: a second evaluator interprets the LLVM
+IR of the package's C, before LLVM has optimized it, with memory as bytes
+and the target's layout, and the values cross in the layout the glue
+gives them. A data handle made and released within the fold folds with
+it, its setter and free function run in the order the program runs them.
+Undefined behavior, a `volatile` or atomic access, a fast-math flag, an
+address's number, storage whose identity is unknown, and a C function
+the build has no body for, such as `sin`, stop the fold and leave the call
+to run. C evaluation spends the fold's budget.
+
+A call that reads C state the package keeps and that no capability names
+folds from that state's first value, so the optimized build can print
+what the plain one does not (spec `ffi.md` §5.5): the `hazard` fixture
+prints `1`, `1`, `1` optimized and `1`, `2`, `3` plain.
+
 ### Output replayed where it was made
 
 - **Builds:** optimized only
@@ -341,6 +367,47 @@ whose output buffer is its own. Tier 0, built unoptimized, keeps the calls.
 A runtime function that runs off the hot path, such as `zane_hold` under
 checked drains, is marked cold and stays a call, and so does a push's
 slow-path call, whose fast path emitted code already has.
+
+### A package's C inlined into the Zane that calls it
+
+- **Builds:** optimized only
+- **Where:** `lib/codegen/foreign_c.ml`, `lib/codegen/build.ml`,
+  `lib/codegen/retain_stubs.cpp`, `lib/foreign/glue.ml`
+- **Design:** [`design/ffi.md`](design/ffi.md) F8, F13
+- **Effect:** not measured
+
+A package's C modules and its glue are linked into the program's module
+before LLVM's passes run, so a foreign verb's function, the thunk it
+calls and the C function the thunk calls are one program to the inliner:
+a call into a small C function becomes its body at the call site, with
+no argument table or result slot left. Each package's C globals are
+renamed first (F9), so linking them in cannot bind one package's names
+to another's. A dependency linked as a release has its C and glue compiled
+from its checkout and linked in as bodies to inline only, where their
+hashes agree with the ones the release published and nothing can tell an
+inlined copy from the dependency's object (F13).
+
+The `retained` fixture of `tests/ffi/` shows it: its
+`golden/retained.released.calls` lists which parts of a release's C the
+optimized build still calls, the rest inlined or folded at compile time. What an `archive` row's
+library and an assembled object hold is the exception, called as the
+dependency's object defines it, and the `archives` fixture's
+`golden/archives.released.calls` shows that.
+
+### A package's C optimized apart in unoptimized builds
+
+- **Builds:** unoptimized only, and a tiered build's tier 0
+- **Where:** `lib/codegen/build.ml`
+- **Design:** [`design/ffi.md`](design/ffi.md) F14
+- **Effect:** not measured
+
+An unoptimized executable still runs its C optimized: the C modules and
+glue are linked into a module of their own, run through `-O2` and emitted
+as an object, which the cache keeps under a hash of the target, the
+compiler and each source's own key (F3), so a rebuild that changes only
+Zane emits none of it again. The Zane module stays unoptimized and calls the thunks. A
+tiered build's tier 0 links the same object, and tier 1 calls its thunks
+through tier 0.
 
 ### Functions started on a cache line
 

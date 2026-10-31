@@ -74,6 +74,7 @@ and body_ends_in_brace (value : Nodes.Body.t) =
   match value.Nodes.Body.node with
   | Nodes.Body.Longhand _ -> true
   | Nodes.Body.Shorthand value -> expr_ends_in_brace value
+  | Nodes.Body.Foreign _ -> false
 
 (* A mould's delimiter is decided by its contents: named typed members take
    `{ }`, a flat list of names takes `[ ]`. Only the first closes a statement,
@@ -81,7 +82,7 @@ and body_ends_in_brace (value : Nodes.Body.t) =
    moulded at all. *)
 let moulded_ends_in_brace (moulded : Nodes.Moulded.t) =
   match moulded.Nodes.Moulded.mould.Nodes.Mould.node with
-  | Nodes.Mould.Struct _ | Nodes.Mould.Variant _ -> true
+  | Nodes.Mould.Struct _ | Nodes.Mould.Variant _ | Nodes.Mould.Handle _ -> true
   | Nodes.Mould.Enum _ -> false
 
 let verb_decl_ends_in_brace (value : Nodes.Verb_decl.t) =
@@ -96,7 +97,7 @@ let verb_decl_ends_in_brace (value : Nodes.Verb_decl.t) =
 
 let decl_ends_in_brace (value : Nodes.Decl.t) =
   match value.Nodes.Decl.node with
-  | Nodes.Decl.Package _ | Nodes.Decl.Import _ -> false
+  | Nodes.Decl.Package _ | Nodes.Decl.Import _ | Nodes.Decl.ForeignVar _ -> false
   | Nodes.Decl.Var { value; _ } -> expr_ends_in_brace value
   | Nodes.Decl.VarShorthand
       { args = { Nodes.Constructor_args.node = Nodes.Constructor_args.Fields _; _ }; _ } ->
@@ -243,7 +244,7 @@ and handler_continues_past_trailing (handle : Nodes.Abort_handle.t option) =
    only a `=> expr` body is part of this statement's own expression. *)
 and body_continues_past_trailing (value : Nodes.Body.t) =
   match value.Nodes.Body.node with
-  | Nodes.Body.Longhand _ -> false
+  | Nodes.Body.Longhand _ | Nodes.Body.Foreign _ -> false
   | Nodes.Body.Shorthand value -> continues_past_trailing value
 
 let verb_decl_continues_past_trailing (value : Nodes.Verb_decl.t) =
@@ -268,7 +269,7 @@ let decl_continues_past_trailing (value : Nodes.Decl.t) =
       List.exists (fun (_, value) -> continues_past_trailing value) entries
   | Nodes.Decl.Verb verb -> verb_decl_continues_past_trailing verb
   | Nodes.Decl.Package _ | Nodes.Decl.Import _ | Nodes.Decl.Type _
-  | Nodes.Decl.Alias _ ->
+  | Nodes.Decl.Alias _ | Nodes.Decl.ForeignVar _ ->
       false
 
 (* How a construct the grammar closed disagrees with the rules about where it

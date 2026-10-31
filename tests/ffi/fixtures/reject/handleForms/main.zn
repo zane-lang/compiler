@@ -1,0 +1,24 @@
+/// A foreign handle declared where one may not be, or with entries it does
+/// not take (syntax.md §2.16).
+package handleForms;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+alias Aliased = #handle{ cType = "a_t"; free = "a_free"; }
+type Unmarked = handle{ cType = "a_t"; }
+type Generic<T Type> = #handle{ cType = "a_t"; }
+type Unknown = #handle{ cType = "a_t"; owner = "x"; }
+type Twice = #handle{ cType = "a_t"; cType = "a_t"; }
+type Nameless = #handle{ free = "a_free"; }
+type SetOnly = #handle{ cType = "a_t"; set = "a_set"; }
+type NotC = #handle{ cType = "struct a"; }
+
+Unit main() {
+	return Unit();
+}

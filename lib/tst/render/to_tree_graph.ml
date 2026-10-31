@@ -105,6 +105,7 @@ let rec expr (e : Expr.t) : node =
   | Expr.Coerce { ctor; value } -> node "coerce" [ ("ctor", Leaf (verb_ref ctor)); ("value", expr value) ]
   | Expr.Lambda l ->
       node "lambda" [ ("params", map_seq (fun p -> Leaf (local p)) l.params); ("body", block l.body) ]
+  | Expr.Foreign_global { symbol; package } -> node "foreign_global" [ ("package", Leaf package); ("symbol", Leaf symbol) ]
 
 and arg = function Arg.Value e -> expr e | Arg.Block b -> group "block" (block b)
 
@@ -152,6 +153,13 @@ let definition = function
   | Decl.Variant cs -> ("variant", map_seq (fun (n, t) -> Leaf (n ^ " : " ^ Ty.to_string t)) cs)
   | Decl.Enum ms -> ("enum", map_seq (fun m -> Leaf m) ms)
   | Decl.Distinct t -> ("distinct", ty t)
+  | Decl.Handle ({ Handle.c_type; set; free }, kind) ->
+      let kind = match kind with Decl.Capability -> "capability" | Decl.Outside -> "outside" | Decl.Data -> "data" in
+      ( "handle",
+        fields
+          ([ ("kind", Leaf kind); ("cType", Leaf c_type) ]
+          @ Option.fold ~none:[] ~some:(fun v -> [ ("set", Leaf v) ]) set
+          @ Option.fold ~none:[] ~some:(fun v -> [ ("free", Leaf v) ]) free) )
 
 let decl ~bodies (d : Decl.t) =
   let with_body xs = if bodies then xs else [] in
@@ -184,6 +192,19 @@ let decl ~bodies (d : Decl.t) =
            @ with_body
                (match body with
                | Decl.Per_instance -> [ ("body", Leaf "checked per instance") ]
+               | Decl.Foreign foreign ->
+                   let access =
+                     match foreign.Foreign.access with
+                     | Foreign.Pure -> "pure"
+                     | Foreign.Reads -> "reads"
+                     | Foreign.Writes -> "writes"
+                   in
+                   [
+                     ( "foreign",
+                       Leaf
+                         (Printf.sprintf "%s (%s, %s)" foreign.Foreign.symbol access
+                            (C_interface.to_string foreign.Foreign.c_function)) );
+                   ]
                | Decl.Checked { params = ps; body } ->
                    [ ("params", map_seq (fun p -> Leaf (local p)) ps); ("body", block body) ])))
   | Decl.Subscript { signature; params = ps; value } ->

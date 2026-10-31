@@ -1,0 +1,7 @@
+package notCoda;
+
+alias Unit = @primitives$Unit;
+
+Unit main() {
+	return Unit();
+}

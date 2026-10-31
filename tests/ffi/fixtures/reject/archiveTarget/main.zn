@@ -1,0 +1,13 @@
+/// An `archive` row naming a library built for another architecture than
+/// the build's target: the check refuses it, as the build's link would.
+package archiveTarget;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 other() foreign "other";
+
+Unit main() {
+	other();
+	return Unit();
+}

@@ -20,4 +20,4 @@
 
 (library
  (name tst)
- (libraries cst diagnostic sst source tree_graph))
+ (libraries c_interface cst diagnostic sst source tree_graph))

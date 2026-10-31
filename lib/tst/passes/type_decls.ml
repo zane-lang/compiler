@@ -816,9 +816,55 @@ let enum_members env names =
   in
   List.filter_map member names
 
+(* A C identifier, as a symbol or a type name an interface header declares
+   is spelled. *)
+let is_c_identifier s =
+  s <> ""
+  && (match s.[0] with 'a' .. 'z' | 'A' .. 'Z' | '_' -> true | _ -> false)
+  && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' -> true | _ -> false) s
+
+(* A foreign handle's entries (syntax.md §2.16): `cType`, and `set` and
+   `free` where it has them, each at most once and each a C name; a handle
+   with `set` has `free`. *)
+let handle_entries env span entries =
+  let seen = Hashtbl.create 4 in
+  List.iter
+    (fun ((key : N.Name.t), (value : N.Name.t)) ->
+      let k = key.N.Name.text in
+      if not (List.mem k [ "cType"; "set"; "free" ]) then
+        error env key.N.Name.span
+          (Printf.sprintf "a foreign handle takes the entries `cType`, `set` and `free`, and not %s" (quote k))
+      else if Hashtbl.mem seen k then error env key.N.Name.span (Printf.sprintf "the entry %s is written twice" (quote k))
+      else begin
+        Hashtbl.add seen k value.N.Name.text;
+        if not (is_c_identifier value.N.Name.text) then
+          error env value.N.Name.span
+            (Printf.sprintf "%s is not a C name: the entry %s names a C %s"
+               (quote value.N.Name.text) (quote k)
+               (if k = "cType" then "type" else "function"))
+      end)
+    entries;
+  let find k = Hashtbl.find_opt seen k in
+  (match (find "set", find "free") with
+  | Some _, None -> error env span "a foreign handle with a setter (`set`) has a free function (`free`) too"
+  | _ -> ());
+  match find "cType" with
+  | None ->
+      error env span "a foreign handle names the C type of its objects with `cType`";
+      Nodes.Handle.{ c_type = ""; set = find "set"; free = find "free" }
+  | Some c_type -> Nodes.Handle.{ c_type; set = find "set"; free = find "free" }
+
+(* A foreign handle declared where one may not be: by `alias`, without the
+   `#` a reference type carries, or with type parameters. *)
+let check_handle_form env (info : type_info) ~alias ~axis =
+  let span = info.decl.span in
+  if alias then error env span "a foreign handle is declared only by `type`, which gives it an identity of its own";
+  if axis <> N.Type_axis.Reference then error env span "a foreign handle is a reference type, written `#handle{ ... }`";
+  if info.params <> [] then error env span "a foreign handle takes no type parameters"
+
 let define env (info : type_info) =
   match info.decl.kind with
-  | Type_decl { value; _ } ->
+  | Type_decl { value; alias; _ } ->
       let params = List.map (fun (p : Ty.param) -> (p.name, param_arg p)) info.params in
       let sc = scope ~params info.decl.file in
       let field (f : N.Body_field.t) =
@@ -839,6 +885,9 @@ let define env (info : type_info) =
               | N.Mould.Struct fields -> Struct (members env "field" fields field)
               | N.Mould.Variant cases -> Variant (members env "case" cases field)
               | N.Mould.Enum names -> Enum (enum_members env names)
+              | N.Mould.Handle entries ->
+                  check_handle_form env info ~alias ~axis:axis.N.Type_axis.node;
+                  Handle (handle_entries env mould.N.Mould.span entries)
             in
             (definition, Some reference)
       in
@@ -920,7 +969,7 @@ let member_span (info : type_info) name =
       | N.Type_or_moulded.Moulded { N.Moulded.mould; _ } -> (
           match mould.N.Mould.node with
           | N.Mould.Struct fields | N.Mould.Variant fields -> field_span info name fields
-          | N.Mould.Enum _ -> info.decl.span))
+          | N.Mould.Enum _ | N.Mould.Handle _ -> info.decl.span))
   | _ -> info.decl.span
 
 let check_growing_arguments env () =

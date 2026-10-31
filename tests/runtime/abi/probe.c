@@ -29,6 +29,7 @@ int main(void) {
 	SHOW(ZANE_MARK_SKIP, offsetof(zane_mark, skip));
 	SHOW(ZANE_MARK_TASKS, offsetof(zane_mark, tasks));
 	SHOW(ZANE_MARK_MAPPINGS, offsetof(zane_mark, mappings));
+	SHOW(ZANE_MARK_HELD, offsetof(zane_mark, held));
 	SHOW(ZANE_MARK_STACKS, offsetof(zane_mark, stacks));
 	SHOW(ZANE_MARK_SIZE, sizeof(zane_mark));
 	SHOW(ZANE_CONTEXT_FRONTIER, offsetof(zane_context, frontier));

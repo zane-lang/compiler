@@ -22,8 +22,13 @@ val assemble :
   Tst.Assembly.request list ->
   (Tst.Assembly.package list, failure) result
 
+(** Each package's C compiled for [target], the host when it is absent:
+    its `c.coda` read, and its C sources compiled by the linked clang
+    (docs/design/ffi.md §1). *)
+val c_code : ?target:string -> Tst.Assembly.package list -> (Foreign.package list, failure) result
+
 (** Semantics, which gives no tree when it found a problem. *)
-val check : Tst.Assembly.package list -> (Tst.Nodes.Program.t, failure) result
+val check : ?c:Foreign.package list -> Tst.Assembly.package list -> (Tst.Nodes.Program.t, failure) result
 
 (** That the root declares a `main`: the one check for it, which lowering
     takes as given. *)
@@ -41,16 +46,46 @@ type regions = { fixed : int option; spawned : int option }
 (** Stage 4, with the bodies of stamped dependencies' functions taken in
     for LLVM to inline. Without [root], it lowers from every function the
     build declares rather than from the root's `main`. A type no main
-    context's range of [regions] could hold is refused where it is named. *)
+    context's range of [regions] could hold is refused where it is named.
+    With [compare_glue], every thunk of a stamped dependency's glue is
+    lowered too, for [c_modules] to write that glue again and compare it
+    with its release's (docs/design/ffi.md F13). *)
 val lower :
   ?regions:regions ->
+  ?compare_glue:bool ->
   root:bool ->
   Tst.Assembly.package list ->
   Tst.Nodes.Program.t ->
   (Cgt.Nodes.Program.t, failure) result
 
-(** Stage 5 when [optimize], and the tree as it is otherwise. *)
-val optimize : optimize:bool -> Cgt.Nodes.Program.t -> Cgt.Nodes.Program.t
+(** The C code each unstamped package of the build compiles into this
+    object, with the glue for the thunks the tree's foreign calls go through
+    (docs/design/ffi.md F8, F9), for [target], the host when it is absent:
+    [c] is [c_code]'s for the packages. A build without [root] is a
+    library's, whose C globals are renamed for fetching to stamp. A stamped
+    dependency's archives are renamed after the C names [link]'s objects
+    define with its prefix (docs/design/ffi.md F15), and the modules of
+    its C whose hashes agree with [hashes], the rows its release
+    published, are retained for an optimized build to inline (F13). *)
+val c_modules :
+  ?target:string ->
+  ?link:string list ->
+  ?hashes:Foreign.Hashes.row list ->
+  root:bool ->
+  Tst.Assembly.package list ->
+  Foreign.package list ->
+  Cgt.Nodes.Program.t ->
+  (Codegen.c_package list, failure) result
+
+(** Stage 5 when [optimize], and the tree as it is otherwise. A call into
+    C folds by running [c], the packages' C code for [target]
+    (docs/design/ffi.md F16). *)
+val optimize :
+  ?target:string ->
+  ?c:Codegen.c_package list ->
+  optimize:bool ->
+  Cgt.Nodes.Program.t ->
+  (Cgt.Nodes.Program.t, failure) result
 
 (** The LLVM module's text. Each of these builds for [target], the host when
     it is absent, and with [pack] passes small aggregates as packed words
@@ -59,6 +94,7 @@ val ir :
   ?target:string ->
   ?pack:bool ->
   ?memoize:bool ->
+  ?c:Codegen.c_package list ->
   ?regions:regions ->
   optimize:bool ->
   Cgt.Nodes.Program.t ->
@@ -70,6 +106,7 @@ val executable :
   ?target:string ->
   ?pack:bool ->
   ?memoize:bool ->
+  ?c:Codegen.c_package list ->
   ?regions:regions ->
   ?tiered:bool ->
   optimize:bool ->
@@ -84,15 +121,30 @@ val tier_up :
   ?target:string ->
   ?pack:bool ->
   ?memoize:bool ->
+  ?c:Codegen.c_package list ->
   ?regions:regions ->
   Cgt.Nodes.Program.t ->
   string ->
   (unit, failure) result
 
+(** The rows of the files of C module hashes [paths] name
+    (Foreign.Hashes), which `--c-hashes` gives. *)
+val read_hashes : string list -> (Foreign.Hashes.row list, failure) result
+
+(** The rows for the packages [c] (as [c_code] made them) that the object
+    holds, from [c_modules]' packages: what `--object` writes beside it
+    (docs/design/ffi.md F15). *)
+val hashes_of : Tst.Assembly.package list -> Foreign.package list -> Codegen.c_package list -> Foreign.Hashes.row list
+
+(** [rows] written beside the object [output] as `STEM.c.hashes`, after one
+    an earlier build wrote there is removed; none when [rows] is empty. *)
+val write_hashes : output:string -> Foreign.Hashes.row list -> (unit, failure) result
+
 val object_file :
   ?target:string ->
   ?pack:bool ->
   ?memoize:bool ->
+  ?c:Codegen.c_package list ->
   ?regions:regions ->
   optimize:bool ->
   Cgt.Nodes.Program.t ->

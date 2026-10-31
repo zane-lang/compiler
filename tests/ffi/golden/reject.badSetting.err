@@ -1,0 +1,2 @@
+File "fixtures/reject/badSetting/c.coda":
+Error: row 1: `library` is not a setting; the settings are `source`, `include`, `define`, `archive` and `system`

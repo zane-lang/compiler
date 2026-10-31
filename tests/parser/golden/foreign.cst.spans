@@ -1,0 +1,143 @@
+package | package ffi; type Fs = #ha … turn @primitives$Unit(); }
+  decl | package ffi
+    name ffi | ffi
+  decl | type Fs = #handle{ cType = "zane_fs_t"; }
+    name Fs | Fs
+    type_or_moulded | #handle{ cType = "zane_fs_t"; }
+      moulded | #handle{ cType = "zane_fs_t"; }
+        mould | handle{ cType = "zane_fs_t"; }
+          entry cType | cType
+          value zane_fs_t | "zane_fs_t"
+        type_axis | #
+  decl | type File = #handle{ cType … "; free = "zane_fclose"; }
+    name File | File
+    type_or_moulded | #handle{ cType = "zane_file_t"; free = "zane_fclose"; }
+      moulded | #handle{ cType = "zane_file_t"; free = "zane_fclose"; }
+        mould | handle{ cType = "zane_file_t"; free = "zane_fclose"; }
+          entry cType | cType
+          value zane_file_t | "zane_file_t"
+          entry free | free
+          value zane_fclose | "zane_fclose"
+        type_axis | #
+  decl | type Deflater = #handle{ c …  = "zane_deflater_free"; }
+    name Deflater | Deflater
+    type_or_moulded | #handle{ cType = "zane_def …  = "zane_deflater_free"; }
+      moulded | #handle{ cType = "zane_def …  = "zane_deflater_free"; }
+        mould | handle{ cType = "zane_defl …  = "zane_deflater_free"; }
+          entry cType | cType
+          value zane_deflater_t | "zane_deflater_t"
+          entry set | set
+          value zane_deflater_set | "zane_deflater_set"
+          entry free | free
+          value zane_deflater_free | "zane_deflater_free"
+        type_axis | #
+  decl | @primitives$I64 crc32(crc  … ring) foreign "zane_crc32"
+    verb_decl | @primitives$I64 crc32(crc  … ring) foreign "zane_crc32"
+      name crc32 | crc32
+      param | crc @primitives$I64
+        name crc | crc
+        param_type | @primitives$I64
+          type_expr | @primitives$I64
+            name_type | @primitives$I64
+              package primitives | primitives
+              ident I64 | I64
+      param | data @primitives$String
+        name data | data
+        param_type | @primitives$String
+          type_expr | @primitives$String
+            name_type | @primitives$String
+              package primitives | primitives
+              ident String | String
+      ret_type | @primitives$I64
+        type_expr | @primitives$I64
+          name_type | @primitives$I64
+            package primitives | primitives
+            ident I64 | I64
+      body | foreign "zane_crc32"
+        symbol zane_crc32 | "zane_crc32"
+  decl | ^Deflater?@primitives$Unit … oreign "zane_deflater_new"
+    verb_decl | ^Deflater?@primitives$Unit … oreign "zane_deflater_new"
+      name deflater | deflater
+      param | level @primitives$I32
+        name level | level
+        param_type | @primitives$I32
+          type_expr | @primitives$I32
+            name_type | @primitives$I32
+              package primitives | primitives
+              ident I32 | I32
+      ret_type | ^Deflater?@primitives$Unit
+        type_expr | ^Deflater
+          type_expr | Deflater
+            name_type | Deflater
+              ident Deflater | Deflater
+        type_expr | @primitives$Unit
+          name_type | @primitives$Unit
+            package primitives | primitives
+            ident Unit | Unit
+      body | foreign "zane_deflater_new"
+        symbol zane_deflater_new | "zane_deflater_new"
+  decl | @primitives$String deflate … mut foreign "zane_deflate"
+    verb_decl | @primitives$String deflate … mut foreign "zane_deflate"
+      name deflate | deflate
+      type_expr | Deflater
+        name_type | Deflater
+          ident Deflater | Deflater
+      param | input @primitives$String
+        name input | input
+        param_type | @primitives$String
+          type_expr | @primitives$String
+            name_type | @primitives$String
+              package primitives | primitives
+              ident String | String
+      ret_type | @primitives$String
+        type_expr | @primitives$String
+          name_type | @primitives$String
+            package primitives | primitives
+            ident String | String
+      body | foreign "zane_deflate"
+        symbol zane_deflate | "zane_deflate"
+  decl | @primitives$I64 totalIn(th … n "zane_deflater_total_in"
+    verb_decl | @primitives$I64 totalIn(th … n "zane_deflater_total_in"
+      name totalIn | totalIn
+      type_expr | Deflater
+        name_type | Deflater
+          ident Deflater | Deflater
+      ret_type | @primitives$I64
+        type_expr | @primitives$I64
+          name_type | @primitives$I64
+            package primitives | primitives
+            ident I64 | I64
+      body | foreign "zane_deflater_total_in"
+        symbol zane_deflater_total_in | "zane_deflater_total_in"
+  decl | files Fs foreign "zane_fs"
+    name files | files
+    type_expr | Fs
+      name_type | Fs
+        ident Fs | Fs
+    symbol zane_fs | "zane_fs"
+  decl | @primitives$Unit main() {  … turn @primitives$Unit(); }
+    verb_decl | @primitives$Unit main() {  … turn @primitives$Unit(); }
+      name main | main
+      ret_type | @primitives$Unit
+        type_expr | @primitives$Unit
+          name_type | @primitives$Unit
+            package primitives | primitives
+            ident Unit | Unit
+      body | { local Fs foreign "zane_f … turn @primitives$Unit(); }
+        statement | local Fs foreign "zane_fs";
+          stat | local Fs foreign "zane_fs";
+            decl | local Fs foreign "zane_fs"
+              name local | local
+              type_expr | Fs
+                name_type | Fs
+                  ident Fs | Fs
+              symbol zane_fs | "zane_fs"
+        statement | return @primitives$Unit();
+          stat | return @primitives$Unit();
+            expr | @primitives$Unit()
+              verb_call | @primitives$Unit()
+                constructor_name | @primitives$Unit
+                  name_type | @primitives$Unit
+                    package primitives | primitives
+                    ident Unit | Unit
+                constructor_args | ()

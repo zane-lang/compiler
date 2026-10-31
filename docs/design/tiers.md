@@ -53,7 +53,10 @@ function's address, and makes every direct call to one a load of its slot
 with acquire ordering and a call through it (`Tiers.tier0`). Every other use
 of a function, a function value such as a lambda or a spawned call's body,
 is made a use of an entry function that calls through the slot, so it moves
-to tier 1 too. Each slot is listed under its key, the function's symbol and
+to tier 1 too. A lambda C can call carries its C entry in its prefix data
+([`ffi.md`](ffi.md) F11), which moves to the entry function with the value;
+tier 1, which defines no C entry, takes such a lambda's value from tier 0
+(T5) and calls its own copy only directly. Each slot is listed under its key, the function's symbol and
 LLVM type, so a body fills only a slot of its own type. A call already
 running finishes in tier 0, since its code cannot change under it; the next
 call of the function runs tier 1. Work written inline in `main`, which is
@@ -69,6 +72,9 @@ from its import table (`Tiers.tier1_imports`, `tier_stubs.cpp`). A
 thread-local variable has an address only on a thread, so for one the table
 holds a function of tier 0's that gives the asking thread's. Tier 1 so has
 one copy of each of these, tier 0's, and each package constant is made once.
+A package's C is tier 0's alone in the same way: tier 1 defines none of
+it, and calls the glue's thunks through the table ([`ffi.md`](ffi.md)
+F14).
 It links against the C library alone, for what LLVM itself calls, such as
 `memcpy`, and needs nothing exported from the program: one mechanism serves
 ELF, Mach-O and COFF, where a DLL may not leave a symbol undefined.

@@ -1,0 +1,55 @@
+/// A settled handle without a setter is never overwritten (ffi.md §4.3):
+/// directly, through a struct holding it, through `this`, or through
+/// seventeen generic structs, each holding the next. A reference
+/// to one is rebound freely, since that overwrites no handle.
+package app;
+
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias F32 = @primitives$F32;
+alias F64 = @primitives$F64;
+alias String = @primitives$String;
+
+import fs;
+
+type Holder = #struct {
+	file fs$File;
+}
+
+Holder(file ^fs$File) => init{ file; }
+
+type Owner = #struct {
+	_file fs$File;
+}
+
+Unit reopen(this Owner, file ^fs$File) mut {
+	this._file = file;
+	return Unit();
+}
+
+type Box<T Type> = #struct {
+	v T;
+}
+
+type Deep = #struct {
+	_box Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<fs$File>>>>>>>>>>>>>>>>>;
+}
+
+Unit refill(this Deep, box ^Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<Box<fs$File>>>>>>>>>>>>>>>>>) mut {
+	this._box = box;
+	return Unit();
+}
+
+Unit main() {
+	files fs$Fs foreign "zane_fs";
+	log fs$File = files!fs$open(String("a.log"));
+	log = files!fs$open(String("b.log"));
+	held Holder = Holder(files!fs$open(String("a.log")));
+	held = Holder(files!fs$open(String("b.log")));
+	other fs$File = files!fs$open(String("c.log"));
+	r &fs$File = log;
+	r = other;
+	return Unit();
+}

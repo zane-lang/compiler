@@ -1,0 +1,32 @@
+File "fixtures/reject/handleForms/main.zn", line 13, characters 1-59:
+13 | alias Aliased = #handle{ cType = "a_t"; free = "a_free"; }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a foreign handle is declared only by `type`, which gives it an identity of its own
+File "fixtures/reject/handleForms/main.zn", line 14, characters 1-41:
+14 | type Unmarked = handle{ cType = "a_t"; }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a foreign handle is a reference type, written `#handle{ ... }`
+File "fixtures/reject/handleForms/main.zn", line 15, characters 1-49:
+15 | type Generic<T Type> = #handle{ cType = "a_t"; }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a foreign handle takes no type parameters
+File "fixtures/reject/handleForms/main.zn", line 16, characters 40-45:
+16 | type Unknown = #handle{ cType = "a_t"; owner = "x"; }
+   |                                        ^^^^^
+Error: a foreign handle takes the entries `cType`, `set` and `free`, and not `owner`
+File "fixtures/reject/handleForms/main.zn", line 17, characters 38-43:
+17 | type Twice = #handle{ cType = "a_t"; cType = "a_t"; }
+   |                                      ^^^^^
+Error: the entry `cType` is written twice
+File "fixtures/reject/handleForms/main.zn", line 18, characters 18-44:
+18 | type Nameless = #handle{ free = "a_free"; }
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a foreign handle names the C type of its objects with `cType`
+File "fixtures/reject/handleForms/main.zn", line 19, characters 17-56:
+19 | type SetOnly = #handle{ cType = "a_t"; set = "a_set"; }
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a foreign handle with a setter (`set`) has a free function (`free`) too
+File "fixtures/reject/handleForms/main.zn", line 20, characters 30-40:
+20 | type NotC = #handle{ cType = "struct a"; }
+   |                              ^^^^^^^^^^
+Error: `struct a` is not a C name: the entry `cType` names a C type

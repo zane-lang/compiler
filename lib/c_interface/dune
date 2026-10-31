@@ -1,0 +1,6 @@
+; What a package's interface headers declare (docs/design/ffi.md F6), as
+; plain data: written by lib/foreign/ from clang's AST, and read by
+; semantics to check foreign verbs (F7), with no clang linked into either
+; reader.
+(library
+ (name c_interface))

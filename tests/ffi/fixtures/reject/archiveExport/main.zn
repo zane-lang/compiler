@@ -1,0 +1,14 @@
+/// An `archive` row whose member, a Windows object, exports the function
+/// it defines through a linker directive, which renaming cannot reach: the
+/// check refuses it, naming the member and the symbol.
+package archiveExport;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+I64 exported() foreign "exported";
+
+Unit main() {
+	exported();
+	return Unit();
+}

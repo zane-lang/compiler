@@ -18,7 +18,10 @@ type stage = Cst | Sst
    (`--object OUT`, docs/design/separate-compilation.md C3). A package's
    stamp names its symbols with its version and identity (C6), `--import`
    says which package each of a package's import keys names (C10), and
-   `--link` adds a stamped dependency's object to the link (C7). A tiered
+   `--link` adds a stamped dependency's object to the link (C7), and
+   `--c-hashes` names the file of its C modules' hashes written beside it,
+   whose modules an optimized build retains where the hashes agree
+   (docs/design/ffi.md F13, F15). A tiered
    build (docs/design/tiers.md) is two: `--build OUT --tiered` makes tier
    0, and `--tier-up OUT` tier 1, the shared library tier 0 loads while it
    runs. `--check`
@@ -48,6 +51,7 @@ type build = {
      C7, C10). *)
   stamps : (string * string) list;
   link : string list;
+  c_hashes : string list;
   imports : (string * string * string) list;
   (* The size of each context's range of frames, which `zane` takes from the
      root manifest (memory.md §3.1, dependencies.md §2.1). *)
@@ -65,7 +69,8 @@ type build = {
 (* `--rewrite STAMP INPUT OUTPUT` is fetching's step, not a build's: a
    library's object, built under the `!` placeholder, written out with the
    placeholder turned into the stamp (docs/design/separate-compilation.md
-   C9). `--remap FROM TO INPUT OUTPUT` is remapping's: an object written out
+   C9), and the file of C module hashes beside it likewise
+   (docs/design/ffi.md F15). `--remap FROM TO INPUT OUTPUT` is remapping's: an object written out
    with its references to one version of a package moved to another (C11).
    `--bundle-runtime DIR --target TRIPLE [--optimize]` is a release's: the
    runtime compiled for a target into the toolchain's directory of them
@@ -93,7 +98,7 @@ let print_usage () =
     "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT [--tiered]|--object OUT|--tier-up OUT]";
   prerr_endline "             [--root|--no-root]";
   prerr_endline
-    "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...]";
+    "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...] [--c-hashes FILE ...]";
   prerr_endline "             [--fixed-region BYTES] [--spawned-fixed-region BYTES] [--pack-aggregates] [--no-memoize]";
   prerr_endline "             [--import PACKAGE:KEY=PACKAGE ...]";
   prerr_endline "             --package [[STAMP]PATH=]DIR [--package [[STAMP]PATH=]DIR ...]";
@@ -195,6 +200,8 @@ let arguments () =
         let view = Option.value view ~default:Assembled in
         if build.packages = [] then usage ()
         else if build.link <> [] && (match view with Build _ -> false | _ -> true) then usage ()
+        else if build.c_hashes <> [] && (match view with Build _ | Object _ | Ir | Tier_up _ -> false | _ -> true) then
+          usage ()
         (* Tier 0 is a build, and neither tier is the optimized build of
            `--optimize`: tier 1 makes its own (docs/design/tiers.md). *)
         else if build.tiered && ((match view with Build _ -> false | _ -> true) || build.optimize) then usage ()
@@ -207,6 +214,7 @@ let arguments () =
               packages = List.rev build.packages;
               stamps = List.rev build.stamps;
               link = List.rev build.link;
+              c_hashes = List.rev build.c_hashes;
               imports = List.rev build.imports;
             }
     | "--package" :: dir :: rest when is_value dir ->
@@ -237,6 +245,8 @@ let arguments () =
         | _ -> usage ())
     | "--link" :: file :: rest when is_value file ->
         packages view { build with link = file :: build.link } rest
+    | "--c-hashes" :: file :: rest when is_value file ->
+        packages view { build with c_hashes = file :: build.c_hashes } rest
     | "--fixed-region" :: bytes :: rest when build.regions.fixed = None ->
         packages view { build with regions = { build.regions with fixed = Some (region_size bytes) } } rest
     | "--spawned-fixed-region" :: bytes :: rest when build.regions.spawned = None ->
@@ -266,6 +276,7 @@ let arguments () =
       packages = [];
       stamps = [];
       link = [];
+      c_hashes = [];
       imports = [];
       regions = { Driver.fixed = None; spawned = None };
       pack = false;
@@ -284,7 +295,7 @@ let arguments () =
   | [ "--bundle-runtime"; dir; "--target"; target; "--optimize" ] when List.for_all is_value [ dir; target ] ->
       Bundle_runtime { dir; target; optimize = true }
   | ( "--package" | "--root" | "--no-root" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
-    | "--link" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--no-memoize" | "--check"
+    | "--link" | "--c-hashes" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--no-memoize" | "--check"
     | "--tiered" | "--tier-up"
     | "--decls" | "--tst" | "--cgt" | "--ll" )
     :: _ as rest ->
@@ -306,27 +317,44 @@ let run_file stage (filename, input) =
 let ( let* ) = Result.bind
 
 (* Lowering and codegen, once semantics has accepted the program. *)
-let generate packages build program =
-  let* cgt =
-    Driver.lower ~regions:build.regions
-      ~root:(Option.value build.root ~default:true)
-      packages program
-  in
+let generate packages c_code build program =
+  let root = Option.value build.root ~default:true in
   let target = build.target and optimize = build.optimize and pack = build.pack and memoize = build.memoize in
-  let cgt = Driver.optimize ~optimize cgt in
+  (* Only an optimized build retains a dependency's C (docs/design/ffi.md
+     F13), so only one given its hashes writes its glue again to compare. *)
+  let compare_glue = optimize && build.c_hashes <> [] in
+  let* cgt = Driver.lower ~regions:build.regions ~compare_glue ~root packages program in
+  (* The C is made from the lowered tree, whose thunks and function values
+     stage 5 keeps, and an optimized build makes it first, since stage 5
+     folds calls into it (docs/design/ffi.md F16). *)
+  let c_of cgt =
+    let* hashes = Driver.read_hashes build.c_hashes in
+    let hashes = if compare_glue then hashes else [] in
+    Driver.c_modules ?target ~link:build.link ~hashes ~root packages c_code cgt
+  in
+  let* made = if optimize then Result.map Option.some (c_of cgt) else Ok None in
+  let* cgt = Driver.optimize ?target ?c:made ~optimize cgt in
+  let c () = match made with Some c -> Ok c | None -> c_of cgt in
   match build.view with
   | Cgt ->
       print_string (Tree_graph.render (Cgt.to_node cgt));
       Ok ()
   | Ir ->
-      let* ir = Driver.ir ?target ~pack ~memoize ~regions:build.regions ~optimize cgt in
+      let* c = c () in
+      let* ir = Driver.ir ?target ~pack ~memoize ~c ~regions:build.regions ~optimize cgt in
       print_string ir;
       Ok ()
   | Build output ->
-      Driver.executable ?target ~pack ~memoize ~regions:build.regions ~tiered:build.tiered ~optimize ~link:build.link cgt
-        output
-  | Tier_up output -> Driver.tier_up ?target ~pack ~memoize ~regions:build.regions cgt output
-  | Object output -> Driver.object_file ?target ~pack ~memoize ~regions:build.regions ~optimize cgt output
+      let* c = c () in
+      Driver.executable ?target ~pack ~memoize ~c ~regions:build.regions ~tiered:build.tiered ~optimize
+        ~link:build.link cgt output
+  | Tier_up output ->
+      let* c = c () in
+      Driver.tier_up ?target ~pack ~memoize ~c ~regions:build.regions cgt output
+  | Object output ->
+      let* c = c () in
+      let* () = Driver.object_file ?target ~pack ~memoize ~c ~regions:build.regions ~optimize cgt output in
+      Driver.write_hashes ~output (Driver.hashes_of packages c_code c)
   | Assembled | Check | Declarations | Typed -> Ok ()
 
 (* Without `--root` or `--no-root`, the root needs its `main` once it is
@@ -352,14 +380,15 @@ let run_packages build =
       print_string (Tree_graph.render (Tst.Assembly.to_node packages));
       Ok ()
   | Check | Declarations | Typed | Cgt | Ir | Build _ | Object _ | Tier_up _ -> (
-      let* program = Driver.check packages in
+      let* c = Driver.c_code ?target:build.target packages in
+      let* program = Driver.check ~c packages in
       let* () = if needs_main build then Driver.require_main program else Ok () in
       match build.view with
       | Check -> Ok ()
       | Declarations | Typed ->
           print_string (Tree_graph.render (Tst.to_node ~bodies:(build.view = Typed) program));
           Ok ()
-      | _ -> generate packages build program)
+      | _ -> generate packages c build program)
 
 (* The one place the binary exits: 0 when the run did what it was asked,
    1 when the compiler refused the program, 2 for a command it cannot run,
@@ -378,7 +407,9 @@ let () =
         | Packages build -> run_packages build
         | Rewrite { stamp; input; output } ->
             Driver.rewrite_object ~random:(Random.State.make_self_init ()) ~stamps:[ stamp ]
-              ~rewrite:(Rewrite.rewrite ~stamp) ~input ~output
+              ~rewrite:(fun text ->
+                if Foreign.Hashes.is text then Foreign.Hashes.rewrite ~stamp text else Rewrite.rewrite ~stamp text)
+              ~input ~output
         | Remap { from; to_; input; output } ->
             Driver.rewrite_object ~random:(Random.State.make_self_init ()) ~stamps:[ from; to_ ]
               ~rewrite:(Rewrite.remap ~from ~to_) ~input ~output

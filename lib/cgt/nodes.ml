@@ -235,6 +235,10 @@ module Layout = struct
        position's offset: one position for them all, however many. *)
     | Array of { count : int; stride : int; elements : string }
     | Box of { size : int; payload : string }
+    (* A foreign handle that owns its C object (docs/design/ffi.md F12):
+       its pointer and its stamp, ended by the free thunk [free] and, in a
+       settled place, overwritten through the set thunk [set]. *)
+    | Foreign of { free : string; set : string option }
 
   type position = { kind : kind; offset : int; size : int; tags : (int * int) list }
   type t = string
@@ -244,6 +248,28 @@ module Layout = struct
      names either way. *)
   let niche_tag i = -i - 1
   let tag_case t = if t < 0 then -t - 1 else t
+  (* Whether a value of layout [l], whose positions [find] gives, holds a
+     foreign handle: anywhere, or with [settled] only where a settled
+     overwrite replaces it through its setter, in no variant's payload and
+     no list (spec ffi.md §4.3). *)
+  let holds_handle ?(settled = false) find l =
+    let seen = Hashtbl.create 8 in
+    let rec go l =
+      (not (Hashtbl.mem seen l))
+      &&
+      (Hashtbl.replace seen l ();
+       List.exists
+         (fun p ->
+           ((not settled) || p.tags = [])
+           &&
+           match p.kind with
+           | Foreign _ -> true
+           | Box { payload = l; _ } | Array { elements = l; _ } -> go l
+           | List { elements = l; _ } -> (not settled) && go l
+           | Text -> false)
+         (Option.value ~default:[] (find l)))
+    in
+    go l
 end
 
 module Expr = struct
@@ -268,6 +294,13 @@ module Expr = struct
     (* A call into the C runtime (L17), by the runtime's symbol. A string
        goes to it, and comes back from it, through the address of a copy. *)
     | Runtime of { fn : Runtime.fn; args : t list }
+    (* A call of a foreign verb's C function through the thunk the glue
+       gives it (docs/design/ffi.md F8, F10): each argument, run in the
+       order listed, is laid out as C lays out its type in a slot of its
+       own, its padding bytes zeroed, and the thunk is handed the slots'
+       addresses and the address of a zeroed slot for the result. A
+       [Bool] goes as a byte that is 0 or 1. *)
+    | Foreign_call of { thunk : string; args : t list }
     (* A math function of `@math$` (math.md §2) on operands of the node's
        type, run in the order listed. *)
     | Math of { fn : Math.fn; args : t list }
@@ -352,7 +385,12 @@ module Expr = struct
        member's block kept, the other blocks the old value owned returned,
        and the new one's arriving in the place's region. *)
     | Store of { address : t; value : t }
-    | Overwrite of { address : t; value : t; layout : Layout.t }
+    (* With [setters], the place is settled or lent (memory.md §2.2) and
+       the value holds a foreign handle that is no variant's payload nor a
+       list's element: each such handle is replaced through its setter,
+       keeping its object's address (spec ffi.md §4.3). Without, it ends
+       as everything else the old value owns does. *)
+    | Overwrite of { address : t; value : t; layout : Layout.t; setters : bool }
     (* A value moved into a fresh place at an address: stored, and the
        blocks it owns that the place's region outlives move into it, which is
        an escape (memory.md §3.5). *)
@@ -393,6 +431,7 @@ module Expr = struct
     | Call _ -> "Call"
     | Call_value _ -> "Call_value"
     | Runtime _ -> "Runtime"
+    | Foreign_call _ -> "Foreign_call"
     | Math _ -> "Math"
     | Binary _ -> "Binary"
     | Flip _ -> "Flip"
@@ -433,7 +472,7 @@ module Stat = struct
     | Switch of { value : Expr.t; cases : (int * t list) list }
     | Leave of int
     | Store of { address : Expr.t; value : Expr.t }
-    | Overwrite of { address : Expr.t; value : Expr.t; layout : Layout.t }
+    | Overwrite of { address : Expr.t; value : Expr.t; layout : Layout.t; setters : bool }
     | Place of { address : Expr.t; value : Expr.t; layout : Layout.t }
     | Reserve of { id : int; scope : int; ty : Ty.t; layout : Layout.t }
     | Spawn of {
@@ -490,11 +529,81 @@ module Func = struct
   }
 end
 
+(* A thunk for the glue to define (docs/design/ffi.md F8), a foreign
+   verb's or a handle type's free or set thunk: its symbol, the package
+   whose C code it calls, the C function, how each argument and the
+   result cross, as [Foreign_call] lays them out, and whether a call of it
+   reads or writes capability-backed state, as a method on a foreign
+   capability and an outside handle's free or set thunk do: stage 5 never
+   folds such a call (F17). *)
+module Foreign = struct
+  type crossing =
+    (* A scalar of the Zane type, which C converts to its own. *)
+    | Scalar of Ty.t
+    | Bool
+    | Unit
+    (* A string's or a list's handle, whose first two words are the
+       `zane_bytes` or `zane_span` C reads. *)
+    | View
+    (* An array's address. *)
+    | Address
+    (* A C-compatible value type, in C's layout. *)
+    | Value
+    (* A foreign handle's pointer, the first word of its value. *)
+    | Handle
+    (* A function value: C takes its lambda's C entry, whose offset the
+       word before the lambda's code holds (Callback). *)
+    | Function
+
+  type t = {
+    thunk : string;
+    package : string;
+    c_function : string;
+    params : crossing list;
+    result : crossing;
+    capability : bool;
+  }
+end
+
+(* A function value whose type C can call (docs/design/ffi.md F11; spec
+   ffi.md §3.6), and the C types it crosses as, read from its Zane type
+   when it is lowered: a scalar, a `Bool` as [Truth], `Unit` as [Nothing],
+   and a C-compatible value type as a [Record] of its fields, an array
+   field with its length. The Zane type, not the CGT one, gives them, since
+   a value type of one field has its field's CGT type and C passes the
+   two differently. Such a lambda's value is its Zane function's address,
+   as any lambda's is, and the function carries the offset of its C entry
+   in the word before its code: the entry, which the glue defines, calls
+   its adapter, a function of the program taking the addresses of slots
+   holding its arguments and of one for its result. [symbol] is the
+   lambda's, [here] whether this object defines the lambda, and so its
+   adapter and entry, and [entry] the symbol of the entry. A lambda other
+   objects define too, as each that makes a generic instance holding it
+   does, has an entry of each object's own, named by its package, and
+   their adapters merge into one. *)
+module Callback = struct
+  type shape = Scalar of Ty.t | Truth | Nothing | Record of (shape * int option) list
+  type t = { symbol : string; takes : shape list; gives : shape; here : bool; entry : string }
+
+  let entry symbol = symbol ^ ".c"
+  let shared_entry package symbol = Printf.sprintf "%s$entry %s" package symbol
+  let adapter symbol = symbol ^ ".adapter"
+
+  let rec spell = function
+    | Scalar t -> Ty.to_string t
+    | Truth -> "i1"
+    | Nothing -> "void"
+    | Record fs ->
+        let field (f, n) = match n with Some n -> Printf.sprintf "[%d x %s]" n (spell f) | None -> spell f in
+        "{" ^ String.concat ", " (List.map field fs) ^ "}"
+end
+
 (* One program is one module (L15). [entry] is the symbol of the function
    the runtime's C `main` calls (L16): always one that makes the package
    constants, if any, and then calls the root package's `main`. A library has
-   none. [layouts] is each layout the program names, and [globals] each of
-   its variables. [exclusive] is whether it runs on one thread: it is not a
+   none. [layouts] is each layout the program names, [globals] each of
+   its variables, and [foreign] each thunk of the glue it calls.
+   [exclusive] is whether it runs on one thread: it is not a
    library, and no package of the build spawns. *)
 module Program = struct
   type t = {
@@ -502,6 +611,8 @@ module Program = struct
     entry : string option;
     layouts : (Layout.t * Layout.position list) list;
     globals : Global.t list;
+    foreign : Foreign.t list;
+    callbacks : Callback.t list;
     exclusive : bool;
   }
 end
