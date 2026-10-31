@@ -1477,7 +1477,13 @@ time):
 
 ntree under the switch is further from Goose here than in "The suite with
 the switch" (1.16×), with its peak RSS still below Goose's (18.3 MB
-against 24.9 MB). Zane is behind on four tests: gameloop with entities held
+against 24.9 MB). That is not noise: at depth 9 Callgrind counts 383 M
+instructions for it (355 M plain) against Goose's 193 M. Goose's 193 M are
+`grow` and `count` alone; Zane's `grow` takes 214 M, `count` 99 M, and
+`zane_list_first` and `zane_list_push` 36 M and 31 M more. Goose's node
+holds its children in an inline list with room for four links
+(`(Node&<u32>)[..4]`) in a pool per round, while Zane's node owns a
+growable list on the heap, grown push by push and freed node by node. Zane is behind on four tests: gameloop with entities held
 inline, ntree, listgrowth, and binarytrees without pooling.
 
 ## What remains
