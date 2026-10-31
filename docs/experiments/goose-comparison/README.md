@@ -1841,6 +1841,46 @@ The 20 fixtures whose CGT the two switches change give the same output with
 them (`fixtures.sh ZANE_ONE_BOX=1 ZANE_PARTIAL_INLINE=1`), and
 `just test-compiler` passes without them.
 
+## Per-function instructions (`mechanisms.py`)
+
+So that a lead cannot hide a loss again, `mechanisms.py` lines up each
+function's own instructions across the three languages, under Callgrind,
+whose counts repeat run to run:
+
+```sh
+python3 mechanisms.py WORK/bin [TEST ...]
+```
+
+It writes `mechanisms.md` and `mechanisms.json` beside `bin` and flags a
+function when Zane runs more than 1.10× the better of Goose and C in it,
+the function takes at least 5% of Zane's program, the program runs at least
+10 M instructions (below that it is the C library starting, whose counts
+move with the environment), and the other language's whole program runs
+fewer instructions than Zane's (C's `main` is small in allocfree because
+its allocating is `malloc`'s rows). `THRESHOLD` and `SHARE` in the
+environment change the first two.
+
+`mechanisms-kept.md` is its run over the build kept so far
+(`ZANE_ONE_BOX=1 ZANE_PARTIAL_INLINE=1 ZANE_LOOP_PUSHES=1`). Its flags:
+
+| test: function | Zane ÷ best | cause |
+| --- | --- | --- |
+| trialdiv: `main` | 1.24 (C) | 21 instructions a division to C's 17: the check for a zero or −1 divisor (3), and the port's `k == k / p * p` where C tests the remainder (1). Goose runs the same as Zane. |
+| fannkuch: `main` | 1.87 (C) | index checks and handle reloads in the copy, above; `fannkucharray/` is level |
+| entities: `main` | 1.25 (C) | the 1-based loop's exit test, above; costs no time |
+| listgrowth: `main` | 1.28 (Goose) | Goose unrolls the push loop twice; Zane keeps a second counter |
+| ntree: `grow` | 2.52 (Goose) | the suite port's `ListRef` children; `ntreearray/` is ahead |
+| allocfree: `main` | 1.64 (Goose) | not examined before; below |
+| gameloop: `memcpy` | 12.7 (Goose) | the port's inline entities; `gamepool/` is level |
+
+**allocfree.** Each pass of the release loop opens a scope region and
+leaves it: a 256-byte region record taken from the region stack, zeroed
+with 15 stores, linked to its parent, and made the thread's innermost
+region, all for a body that boxes nothing (`item` is an `Item` held by
+value). Goose's loop has no scope work. The push loop also keeps its room
+check (`cmp; jg` on the list's room each push) under `ZANE_LOOP_PUSHES=1`,
+for a reason not yet traced. Neither is fixed yet.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
