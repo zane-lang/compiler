@@ -1870,7 +1870,7 @@ environment change the first two.
 | entities: `main` | 1.25 (C) | the 1-based loop's exit test, above; costs no time |
 | listgrowth: `main` | 1.28 (Goose) | Goose unrolls the push loop twice; Zane keeps a second counter |
 | ntree: `grow` | 2.52 (Goose) | the suite port's `ListRef` children; `ntreearray/` is ahead |
-| allocfree: `main` | 1.64 (Goose) | not examined before; below |
+| allocfree: `main` | 1.64 (Goose) | a region per pass of a loop, and the push's room check; fixed below |
 | gameloop: `memcpy` | 12.7 (Goose) | the port's inline entities; `gamepool/` is level |
 
 **allocfree.** Each pass of the release loop opens a scope region and
@@ -1879,7 +1879,45 @@ with 15 stores, linked to its parent, and made the thread's innermost
 region, all for a body that boxes nothing (`item` is an `Item` held by
 value). Goose's loop has no scope work. The push loop also keeps its room
 check (`cmp; jg` on the list's room each push) under `ZANE_LOOP_PUSHES=1`,
-for a reason not yet traced. Neither is fixed yet.
+for a reason not yet traced.
+
+### allocfree, fixed
+
+The room check stayed because `Loop_pushes` matched only `List`'s `push`.
+`ListRef`'s copies its value into a local first, and reaches the list
+through its record of one handle, at offset 0. The matcher now takes both
+shapes, and the call's list address stands for the offset. The push loop
+then runs 15 instructions an item with no room check, one `zane_list_room`
+before it.
+
+The scope is the larger part. A new switch, `ZANE_LIGHT_SCOPES=1` (Emit,
+`light`), opens no region for a scope that nothing can put a block in:
+every slot it places holds scalars, its body boxes, copies, makes a list or
+a string, spawns and joins nothing, calls the runtime only for list and
+array access, pushes and removals of scalars, and parsing, and calls
+functions only for scalar results. Such a scope's frame becomes a stack
+slot of the function. A frame over 4 KiB still opens a region: the
+`frames` and `spawnedFrames` fixtures place megabyte frames, which the
+machine stack cannot take.
+
+| allocfree | instructions (200000) | 1000000 (least / median, 15) |
+| --- | --- | --- |
+| kept build | 255.7 M | 0.669 / 0.729 s |
+| with both fixes | 108.4 M | 0.255 / 0.308 s |
+| Goose | 152.4 M | 0.603 / 0.654 s |
+
+Across the suite the switch changes three tests' instructions by more than
+1%: allocfree, particles (144.6 M to 136.0 M, Goose 142.9 M; level in time)
+and gameloop (1215 M to 1196 M). Every test's output is the same with it.
+`mechanisms-light.md` is the table over that build: allocfree is no longer
+flagged, and the other six flags stand. All fixtures give the same output
+with `ZANE_LIGHT_SCOPES=1` and with `ZANE_LOOP_PUSHES=1` (`ALL=1`), and
+`just test-compiler` passes with both on and with both off.
+
+Room checks stay in pushes that are not counted up front. Zane's guard
+pages do not cover them: the guard follows a context's range of frames, and
+a list's items sit in a block among the region's other blocks, so a push
+past its room would write over a neighbour, not fault.
 
 ## What remains
 

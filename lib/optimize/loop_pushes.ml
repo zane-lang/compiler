@@ -10,11 +10,18 @@ open Cgt.Nodes
 let on () = Sys.getenv_opt "ZANE_LOOP_PUSHES" = Some "1"
 
 (* The stride and layout of [f] when its body is a push of its second
-   parameter onto the list its first names, and nothing else. *)
+   parameter onto the list its first names, and nothing else: `List`'s
+   `push`, whose first parameter is the list, or `ListRef`'s, whose first
+   is a record of one handle, the list at its offset 0. *)
 let push_function (f : Func.t) =
-  match (f.Func.params, f.Func.body) with
-  | ( [ (list, _); (value, _) ],
-      [
+  let list_arg list (e : Expr.t) =
+    match e.Expr.node with
+    | Expr.Local l -> l = list
+    | Expr.Offset { base = { Expr.node = Expr.Local l; _ }; path = [ 0 ]; _ } -> l = list
+    | _ -> false
+  in
+  let push list value copy = function
+    | [
         Stat.Eval
           {
             Expr.node =
@@ -27,22 +34,9 @@ let push_function (f : Func.t) =
                         {
                           id = slot;
                           value =
-                            {
-                              Expr.node =
-                                Expr.Runtime
-                                  {
-                                    fn = Cgt.Runtime.List_push;
-                                    args = [ { Expr.node = Expr.Local l; _ }; { Expr.node = Expr.Int stride; _ } ];
-                                  };
-                              _;
-                            };
+                            { Expr.node = Expr.Runtime { fn = Cgt.Runtime.List_push; args = [ l; { Expr.node = Expr.Int stride; _ } ] }; _ };
                         };
-                      Stat.Place
-                        {
-                          address = { Expr.node = Expr.Local a; _ };
-                          value = { Expr.node = Expr.Local h; _ };
-                          layout;
-                        };
+                      Stat.Place { address = { Expr.node = Expr.Local a; _ }; value = { Expr.node = Expr.Local h; _ }; layout };
                     ];
                   result = None;
                   _;
@@ -50,9 +44,15 @@ let push_function (f : Func.t) =
             _;
           };
         Stat.Return { Expr.node = Expr.Unit; _ };
-      ] )
-    when v = value && l = list && a = slot && h = held ->
-      Some (stride, layout)
+      ]
+      when (v = value || Some v = copy) && list_arg list l && a = slot && h = held ->
+        Some (stride, layout)
+    | _ -> None
+  in
+  match (f.Func.params, f.Func.body) with
+  | [ (list, _); (value, _) ], Stat.Let { id; value = { Expr.node = Expr.Local v; _ } } :: rest when v = value ->
+      push list value (Some id) rest
+  | [ (list, _); (value, _) ], body -> push list value None body
   | _ -> None
 
 (* The largest local or label [body] uses. *)

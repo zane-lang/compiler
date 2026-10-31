@@ -767,6 +767,42 @@ let drain_scope env fr b m =
 let drain env fr b depth =
   List.iteri (fun i arena -> if i < List.length fr.open_ - depth then drain_scope env fr b arena) fr.open_
 
+(* Experimental (docs/experiments/goose-comparison): with
+   ZANE_LIGHT_SCOPES=1, a scope nothing can put a block in -- every slot it
+   places holds scalars, and nothing in its body boxes, copies, makes a list
+   or a string, spawns, or calls a function or the runtime in a way that
+   could leave a block in the innermost region -- opens no region: its frame,
+   when it is no larger than 4 KiB, is a slot on the machine stack. *)
+let light id body =
+  Sys.getenv_opt "ZANE_LIGHT_SCOPES" = Some "1"
+  &&
+  let rec scalar (t : Ty.t) =
+    match t with
+    | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
+    | Ty.Struct ts | Ty.Sum ts -> List.for_all scalar ts
+    | Ty.Array (t, _) | Ty.Packed t -> scalar t
+    | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Ptr | Ty.Ref -> false
+  in
+  let quiet = function
+    | Cgt.Runtime.List_push | List_room | List_reserve | List_at | Array_at | Out_of_range | Text_equal
+    | Parse_i64 | Parse_f64 | List_remove { scalars = true } | List_swap_remove { scalars = true } ->
+        true
+    | _ -> false
+  in
+  not
+    (Cgt.Traverse.exists_in body
+       ~expr:(fun e ->
+         match e.Expr.node with
+         | Expr.Box _ | Expr.Text _ -> true
+         | Expr.Runtime { fn; _ } -> not (quiet fn)
+         | Expr.Call _ | Expr.Call_value _ | Expr.Copy _ | Expr.Take _ | Expr.Escape _ -> not (scalar e.Expr.ty)
+         | _ -> false)
+       ~stat:(function
+         | Stat.Spawn _ | Stat.Join _ -> true
+         | Stat.Hold { scope; value; _ } -> scope = id && not (scalar value.Expr.ty)
+         | Stat.Reserve { scope; ty; _ } -> scope = id && not (scalar ty)
+         | _ -> false))
+
 (* A slot in its scope's frame, where Frames put it. *)
 let frame_slot env fr b scope id =
   byte_at env b (Hashtbl.find fr.arenas scope) (Hashtbl.find fr.offsets id)
@@ -1749,6 +1785,13 @@ and stat env fr b (s : Stat.t) =
   | Stat.Scope { id; body } ->
       let frame = Frames.layout fr.symbol id body in
       Hashtbl.iter (Hashtbl.replace fr.offsets) frame.Frames.offsets;
+      if frame.Frames.size <= 4096 && light id body then begin
+        let space = alloca env fr (Llvm.array_type (Llvm.i8_type env.ctx) frame.Frames.size) in
+        Llvm.set_alignment 16 space;
+        Hashtbl.replace fr.arenas id space;
+        stats env fr b body
+      end
+      else
       let arena = enter env fr b frame.Frames.size in
       Hashtbl.replace fr.arenas id arena;
       fr.open_ <- arena :: fr.open_;
