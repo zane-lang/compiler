@@ -1,0 +1,109 @@
+/// langbench's fannkuch with Goose's layout: the three lists are fixed
+/// arrays of 32 (`ArrayRef<Int, 32>`), as Goose's port holds them in
+/// `i64[32]`. N is the program's first argument, at most 32.
+package fannkucharray;
+
+import core$;
+import bench$;
+
+/// The permutation being enumerated, the copy being flipped, and the
+/// counters that step from one permutation to the next.
+type Fannkuch = #struct {
+	n Int;
+	perm1 ArrayRef<Int, 32>;
+	perm ArrayRef<Int, 32>;
+	count ArrayRef<Int, 32>;
+}
+
+Fannkuch(n Int) => init{
+	n;
+	perm1 = ArrayRef([Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0)]);
+	perm = ArrayRef([Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0)]);
+	count = ArrayRef([Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0), Int(0)]);
+}
+
+/// Fills the lists for the first permutation, 0 to n - 1 in order.
+Unit start(this Fannkuch) mut {
+	i Int = Int(1);
+	i!to(this.n) {
+		this.perm1[i] = i - Int(1);
+	}
+	return Unit();
+}
+
+/// Flips the copy until its first item is 0, and says how many flips that took.
+Int flip(this Fannkuch) mut {
+	k Int = this.perm[Int(1)];
+	if(k == 0) {
+		return Int(0);
+	}
+	i Int = Int(1);
+	i!to((k + 1) / 2) {
+		j Int = k + Int(2) - i;
+		t Int = this.perm[i];
+		this.perm[i] = this.perm[j];
+		this.perm[j] = t;
+	}
+	return Int(1) + this!flip();
+}
+
+/// Steps to the next permutation from rank `r`, and returns the new rank.
+Int advance(this Fannkuch, from Int) mut {
+	r Int = from;
+	step Int = Int(1);
+	step!to(this.n) {
+		if(r == this.n) {
+			return r;
+		}
+		first Int = this.perm1[Int(1)];
+		i Int = Int(1);
+		i!to(r) {
+			this.perm1[i] = this.perm1[i + 1];
+		}
+		this.perm1[r + 1] = first;
+		this.count[r + 1] = this.count[r + 1] - Int(1);
+		if(Int(0) < this.count[r + 1]) {
+			return r;
+		}
+		r = r + 1;
+	}
+	return r;
+}
+
+Unit main() {
+	console Console(@program$console);
+	runtime Runtime(@program$runtime);
+	n Int = size(runtime, Int(7));
+	state Fannkuch = Fannkuch(n);
+	state!start();
+	permutations Int = Int(1);
+	f Int = Int(1);
+	f!to(n) {
+		permutations = permutations * f;
+	}
+	checksum Int = Int(0);
+	maxFlips Int = Int(0);
+	sign Int = Int(1);
+	r Int = n;
+	p Int = Int(1);
+	p!to(permutations) {
+		v Int = Int(2);
+		v!to(r) {
+			state.count[v] = v;
+		}
+		r = Int(1);
+		i Int = Int(1);
+		i!to(n) {
+			state.perm[i] = state.perm1[i];
+		}
+		flips Int = state!flip();
+		if(maxFlips < flips) {
+			maxFlips = flips;
+		}
+		checksum = checksum + sign * flips;
+		sign = ~sign;
+		r = state!advance(r);
+	}
+	console!print(String(checksum) + " " + String(maxFlips));
+	return Unit();
+}

@@ -26,6 +26,18 @@ let reads = function Cgt.Runtime.Link | Cgt.Runtime.Pool_root -> true | _ -> fal
 
 exception Unfit
 
+(* A value that names no local: a constant, such as a case with nothing in
+   it. It owns no blocks, so its escape moves nothing, and a copy returns it
+   without one ([instantiate]). *)
+let constant (e : Expr.t) =
+  not
+    (Cgt.Traverse.exists_in [ Stat.Eval e ]
+       ~expr:(fun e ->
+         match e.Expr.node with
+         | Expr.Local _ | Expr.Address _ | Expr.Call _ | Expr.Call_value _ | Expr.Box _ | Expr.Runtime _ -> true
+         | _ -> false)
+       ~stat:(fun _ -> false))
+
 (* The kept part of [f]'s body, with each arm that calls or loops replaced
    by [bail], or [None] when it keeps no way out or breaks a rule above. *)
 let template (f : Func.t) bail : Stat.t list option =
@@ -81,6 +93,7 @@ let template (f : Func.t) bail : Stat.t list option =
   let rec check_expr ~returned (e : Expr.t) =
     incr size;
     (match e.Expr.node with
+    | Expr.Escape { value; _ } when returned && constant value -> ()
     | Expr.Call _ | Expr.Call_value _ | Expr.Escape _ | Expr.Box _ | Expr.Copy _ | Expr.Take _ | Expr.Snapshot _ ->
         raise Unfit
     | Expr.Runtime { fn; _ } when not (returned || reads fn) -> raise Unfit
@@ -158,6 +171,7 @@ let instantiate rename ~out ~result (kept : Stat.t list) =
     match e.Expr.node with
     | Expr.Local i -> { e with node = Expr.Local (rename i) }
     | Expr.Address i -> { e with node = Expr.Address (rename i) }
+    | Expr.Escape { value; _ } when constant value -> expr value
     | Expr.Expand { label; body; result } ->
         { e with node = Expr.Expand { label = rename label; body = stats body; result = Option.map rename result } }
     | _ -> Cgt.Traverse.map_expr_parts expr stats e

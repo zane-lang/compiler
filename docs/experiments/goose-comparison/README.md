@@ -1765,6 +1765,82 @@ zanec's own LLVM options (`-align-loops=32`, or
 likely because the options are parsed after the target is made; the
 attempt was not kept.
 
+## What a lead hides: per-mechanism checks
+
+With Zane level or ahead on every test, a whole program's time no longer
+shows what Goose or C still does better: a lead in one part of a program
+hides a loss in another. Two checks look below the totals: each test that
+is more than ~10% behind C, profiled against C (Callgrind, plain build),
+and Goose's own optimization report, printed on every build, read for the
+tests where each of its optimizations fires.
+
+**concscan** (1.1–1.3× C, 0.1× Goose, whose threads hid it). Its scan runs
+the same instructions as C's (60.02 M against 60.01 M at 300000), and a join
+does not spin: it runs a spawned call not yet started itself, and otherwise
+waits on a condition variable. The rest was `main`'s fill, 8.7 M against
+C's 5.4 M, which `ZANE_LOOP_PUSHES=1` takes to 6.3 M (67.3 M in all
+against 66.6 M). Nothing else is hidden there.
+
+**entities** (1.3× C's instructions, 1.04–1.07× the time). The scan loop,
+unrolled four times as C's is, spends 10 instructions on four elements to
+C's 8: its exit test is `lea; add; cmp $1` where C's is one `cmp`. C makes
+the same loop when written from 1 to n inclusive, which is the only loop
+Zane's `to` makes: LLVM's loop-strength reduction (LSR) turns the unroller's
+trip counter into that form when the index starts at 1, and keeps one
+`cmp` only when the 1-based index is computed from a 0-based counter. Its
+`-lsr-term-fold` does not change it. In C, at 1000 entities and 300000
+passes, the 1-based loop runs 754 M instructions to 604 M in the same time
+(0.090 / 0.095 s and 0.090 / 0.096 s): the loop is bound by its chain of
+adds, and the counter's two extra instructions run beside it. Noted, not
+pursued.
+
+**fannkuch** (Goose 106 M instructions, C 104 M, Zane 169 M, at the same
+time). Zane's port keeps three heap `List<Int>`s where Goose's and C's keep
+fixed arrays of 32 on the stack. Two things cost:
+
+- The copy `state.perm[i] = state.perm1[i]` takes 12 instructions an
+  element: two index checks, and both lists' item pointers and one's count
+  reloaded from memory every element. Their type tags already say an
+  element's store cannot touch a handle; the loads stay because they come
+  after the checks, whose failure leaves the loop, and IRCE, which would
+  take the checks out of the loop, does not fire here.
+- The flip's swap checks both indices, 12 instructions a swap to C's 8;
+  Goose proves `i < j <= 31` and checks only `j`. Zane has no while loop,
+  so its swap runs a counted loop with `j` computed from `i`, from which
+  LLVM does not derive `i`'s bound.
+
+`fannkucharray/` is the port at Goose's layout, `ArrayRef<Int, 32>`: 138 M
+instructions, the copy gone from the hot code, and in time ahead of Goose
+and level with C (0.226 / 0.239 s, Goose 0.241 / 0.263 s, C 0.223 / 0.242 s,
+the list port 0.247 / 0.252 s, at 10). The swap's second check remains.
+
+**Goose's optimizations.** Its report on every port: index checks elided
+(all of them on most tests; 13/21 on fannkuch, 7/13 on gameloop),
+reassociation nowhere, tail loops on binarytrees and treecopy (`check`'s
+second call made a loop), and base cases on binarytrees, ntree and treecopy.
+Zane's `check` needs no tail loop to beat Goose's (25 M instructions to
+55 M at 14), but that lead hid `make`: 92 M to Goose's 83 M under one box
+per cycle. Goose's `make` builds both leaves of a depth-1 node itself,
+half as many calls; Zane's calls itself for every leaf, and half its calls
+only return the empty case, 15 instructions of saved registers each.
+
+That is the base-case inlining `ZANE_PARTIAL_INLINE=1` makes, which did
+nothing to `make` under one box: the leaf is returned as `escape(case 0)`,
+and the copy refused any `Escape`. A constant, a value that names no local,
+owns no blocks, so its escape moves nothing: the copy now keeps one and
+drops it where it is written out (`Peel.constant`).
+
+| build (binarytrees) | `make` (14) | total (14) | binarytrees 18 (least / median, 11) |
+| --- | --- | --- | --- |
+| `ZANE_ONE_BOX=1` | 92.2 M | 123.3 M | 0.253 / 0.297 s |
+| with `ZANE_PARTIAL_INLINE=1` | 60.7 M | 90.6 M | 0.196 / 0.268 s |
+| Goose | 82.7 M | 141.9 M | 0.229 / 0.261 s |
+
+treecopy at 18: 0.077 / 0.085 s and 0.069 / 0.095 s, Goose 0.191 / 0.211 s.
+The 20 fixtures whose CGT the two switches change give the same output with
+them (`fixtures.sh ZANE_ONE_BOX=1 ZANE_PARTIAL_INLINE=1`), and
+`just test-compiler` passes without them.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
