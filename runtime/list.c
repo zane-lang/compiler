@@ -212,6 +212,23 @@ void *zane_list_at(zane_list *list, int64_t index, int64_t stride) {
 	return ZL_ITEMS(list) + (index - 1) * stride;
 }
 
+/* `n` bytes moved down from `from` to `to`, below it. A list's removal
+   moves its later elements down by one element's size, and for a large
+   move glibc's memmove uses `rep movsb`, which some Intel processors run at
+   about a byte a cycle when the source is less than 64 bytes past the
+   destination: on one, shifting a 60 KB list by 32 bytes ran at 3 GB/s
+   (docs/experiments/goose-comparison). glibc takes `rep movsb` from 4 KiB
+   on with AVX2. Past that, moved 2 KiB at a time, lowest first, each piece
+   takes glibc's vector loop instead, at 59 GB/s there; each writes below
+   what the next reads. */
+static void zane_shift_down(char *to, const char *from, int64_t n) {
+	if (from - to >= 64 || n <= 4096) {
+		memmove(to, from, (size_t)n);
+		return;
+	}
+	for (int64_t i = 0; i < n; i += 2048) memmove(to + i, from + i, (size_t)(n - i < 2048 ? n - i : 2048));
+}
+
 /* The list closes over the element at `index`, counted from 1, which the
    caller has already moved out: the later elements move down one place,
    keeping their order, and the list keeps its block. Nothing references an
@@ -219,7 +236,7 @@ void *zane_list_at(zane_list *list, int64_t index, int64_t stride) {
    removal itself, with the stride a constant (docs/design/lowering.md §9). */
 void zane_list_remove(zane_list *list, int64_t index, int64_t stride) {
 	char *at = ZL_ITEMS(list) + (index - 1) * stride;
-	memmove(at, at + stride, (size_t)((ZL_COUNT(list) - index) * stride));
+	zane_shift_down(at, at + stride, (ZL_COUNT(list) - index) * stride);
 	list->count--;
 }
 

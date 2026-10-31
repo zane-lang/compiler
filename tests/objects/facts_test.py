@@ -121,10 +121,11 @@ class FactsTests(unittest.TestCase):
         # cannot write a list's header, so the loop that removes foes from
         # its list in one way keeps the count it read in a register through
         # the other, and each bounds check compares against that register.
-        # A move of strings, each a handle, carries no tag.
+        # A move of strings, each a handle, carries no tag. How many copies
+        # of each move LLVM keeps is its own choice.
         ir = run(ZANEC, "--ll", "--optimize", *packages("culls"))
         moves = re.findall(r"call void @llvm\.memmove\.p0\.p0\.i64\([^\n]*", ir)
-        self.assertEqual(sorted("!tbaa" in move for move in moves), [False, False, True, True], moves)
+        self.assertEqual(sorted({"!tbaa" in move for move in moves}), [False, True], moves)
         start = re.search(r"(?ms)^define [^\n]*@zane_main\(.*?^}", ir).group(0)
         defined = dict(re.findall(r"(?m)^\s*(%[\w.]+) = (\w+)", start))
         counts = re.findall(r"icmp ult i64 %[\w.]+, (%[\w.]+)", start)

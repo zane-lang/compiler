@@ -1122,16 +1122,6 @@ let runs body =
   in
   scan [] body
 
-(* A list closes over the element at [index], which the caller has checked
-   and moved out of its place (runtime/list.c says the same of the
-   runtime's removal). An ordered removal moves the later elements down one
-   place; a swapping one moves the last element into the place, unless the
-   place is the last. Either is made here, with the element's stride a
-   constant, so LLVM sees which bytes move and that the count goes down by
-   one. When the elements are scalars only, the move is a scalar access
-   ([tags]), so LLVM sees it leave every list's header as it was: a loop
-   that removes from a list in one of its ways keeps the count it read in
-   a register through the others. *)
 let remove env fr b fn list index stride =
   let i8 = Llvm.i8_type env.ctx and one = Llvm.const_int env.i64 1 in
   let tag = handle_field env in
@@ -1154,9 +1144,35 @@ let remove env fr b fn list index stride =
     | _ -> ()
   in
   (match fn with
-  | Cgt.Runtime.List_remove _ ->
+  | Cgt.Runtime.List_remove _ -> (
       let later = Llvm.build_nsw_mul (Llvm.build_nsw_sub count index "" b) stride "" b in
-      move "llvm.memmove.p0.p0.i64" at (Llvm.build_in_bounds_gep i8 at [| stride |] "" b) later
+      let from = Llvm.build_in_bounds_gep i8 at [| stride |] "" b in
+      (* A move of more than 4 KiB by less than 64 bytes is made 2 KiB at a
+         time, lowest first, so that glibc copies each piece with its vector
+         loop rather than `rep movsb`, which it takes from 4 KiB on with
+         AVX2 and which some Intel processors run at a byte a cycle when the
+         source is that close past the destination (runtime/list.c,
+         `zane_shift_down`). Each piece writes below what the next reads. *)
+      match Llvm.int64_of_const stride with
+      | Some s when s < 64L ->
+          let piece = Llvm.const_int env.i64 2048 in
+          let large = Llvm.build_icmp Llvm.Icmp.Sgt later (Llvm.const_int env.i64 4096) "" b in
+          let entry = Llvm.insertion_block b in
+          let pieces = block env fr and small = block env fr and moved = block env fr in
+          ignore (Llvm.build_cond_br large pieces small b);
+          Llvm.position_at_end pieces b;
+          let i = Llvm.build_phi [ (Llvm.const_int env.i64 0, entry) ] "" b in
+          let rest = Llvm.build_sub later i "" b in
+          let size = Llvm.build_select (Llvm.build_icmp Llvm.Icmp.Slt rest piece "" b) rest piece "" b in
+          move "llvm.memmove.p0.p0.i64" (Llvm.build_gep i8 at [| i |] "" b) (Llvm.build_gep i8 from [| i |] "" b) size;
+          let next = Llvm.build_add i piece "" b in
+          Llvm.add_incoming (next, Llvm.insertion_block b) i;
+          ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Slt next later "" b) pieces moved b);
+          Llvm.position_at_end small b;
+          move "llvm.memmove.p0.p0.i64" at from later;
+          ignore (Llvm.build_br moved b);
+          Llvm.position_at_end moved b
+      | _ -> move "llvm.memmove.p0.p0.i64" at from later)
   | _ ->
       let before = Llvm.build_icmp Llvm.Icmp.Slt index count "" b in
       let moving = block env fr and moved = block env fr in

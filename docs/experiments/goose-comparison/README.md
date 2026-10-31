@@ -1329,6 +1329,91 @@ without the switch from the same compiler takes as long (56.6 s against
 56.5 s at 100000): the slowness is the current compiler's or `core`'s on a
 program this log already leaves out (Setup), not the switch's.
 
+## gameloop's 30 seconds: `rep movsb` over a short distance
+
+The frame-references suite run had gameloop at 30.7 s, against 1.79 s for
+the plain build on Oct 29. It is not the compiler: the Oct 29 binary,
+unchanged, now takes 30.4 s too, and C's gameloop went from 0.33 s to
+7.6 s. The container now runs on an "Intel Xeon Processor @ 2.80GHz"; the
+Oct 29 run's processor was not recorded.
+
+### Where the time goes
+
+Callgrind puts 97% of gameloop's instructions in glibc's
+`__memcpy_avx_unaligned_erms`, which it counts a byte at a time when it
+copies with `rep movsb` (Valgrind notes). Every frame removes the 20 oldest
+entities and those whose points run out, each by an ordered removal that
+moves every later entity down one place: about 25 moves of the whole
+60 KB list, 1.5 MB, a frame. 75 GB over 50000 frames in 30 s is 2.5 GB/s,
+about a byte a cycle.
+
+`memmove/shift.c` moves 60 KB down by a given distance, 25000 times:
+
+| distance | glibc `memmove` | `rep movsb` | AVX2 loop |
+| --- | --- | --- | --- |
+| 32 bytes | 2.77 GB/s | 3.19 GB/s | 49.29 GB/s |
+| 64 bytes | 59.82 GB/s | 59.10 GB/s | 52.88 GB/s |
+| 4096 bytes | 59.04 GB/s | 58.62 GB/s | 59.42 GB/s |
+
+On this processor `rep movsb` runs at a byte a cycle when its source is
+less than 64 bytes past its destination, and glibc takes `rep movsb` for a
+move from 4 KiB on (AVX2). A removal's distance is one element: gameloop's
+entities are 32 bytes, and C's list holds 8-byte pointers. Goose's list
+holds 4-byte references, so its moves stay under 4 KiB and take glibc's
+vector loop.
+
+### The fix
+
+A removal whose element is under 64 bytes and whose move is over 4 KiB
+moves in 2 KiB pieces, lowest first (`emit.ml`, `remove`; `list.c`,
+`zane_shift_down` for the runtime's own removal). Each piece is a memmove
+under the threshold, so glibc copies it with its vector loop, and each
+writes below what the next reads. The pieces keep the scalar tag the one
+memmove had, so LLVM still sees a removal of scalars leave the list's
+header alone. `memmove/loops.c`, 60 KB moved 25000 times:
+
+| distance | memmove whole | memmove, 2 KiB pieces | 4×16-byte loop |
+| --- | --- | --- | --- |
+| 8 bytes | 3.10 GB/s | 56.89 GB/s | 34.79 GB/s |
+| 32 bytes | 3.09 GB/s | 59.75 GB/s | 48.87 GB/s |
+| 64 bytes | 59.84 GB/s | 57.47 GB/s | 50.48 GB/s |
+
+Two shapes came first. A call to the C helper was as fast, but LLVM cannot
+see into a call, so a loop of removals reloaded its list's count (the
+`culls` fact test). A loop emitted inline needed `no-builtin-memmove` on
+its function to keep LLVM from making it a memmove again, and LLVM will not
+inline across that attribute, so `culls$main` stayed out of `zane_main`.
+Pieces of memmove need neither.
+
+gameloop at 50000, 7 interleaved runs, least and median:
+
+| build | wall |
+| --- | --- |
+| Zane before | 29.12 / 31.58 s |
+| Zane, pieces | 1.61 / 1.66 s |
+| Goose | 0.35 / 0.40 s |
+| C | 7.46 / 8.01 s |
+
+Zane is now faster than C here. What is left against Goose is the bytes
+moved: Zane's list holds each 32-byte entity inline and Goose's a 4-byte
+reference, and the program is still the one zane-lang/spec#245 tracks.
+
+The `culls` fact test asserted four memmoves in its program; with the
+pieces LLVM unrolls the string list's two-pass removal loop once fewer, so
+it now checks that the scalar moves are tagged and the string moves are
+not, however many copies LLVM keeps. The property it is for, the count
+kept in a register through the removals, holds.
+
+The perf gate (`just test-perf`) compares Callgrind's estimated cycles
+with main's, and Callgrind models no `rep movsb` slow path. `removal`
+there is 3.8% above the commit before (optimized; plain 0.2%), and
+`stress` level. Its memmove counts are identical, since none of its moves
+reaches 4 KiB; the difference is LLVM shaping the hot update loop's control
+differently in the slightly larger function (`memmove/hot.py`): the same
+body, with an up-count, a compare and a jump instead of a down-count, 12
+instructions an iteration instead of 9. Timed (11 interleaved runs at
+400000) the two builds are level: 0.382 / 0.430 s and 0.400 / 0.437 s.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
