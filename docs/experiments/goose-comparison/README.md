@@ -2141,6 +2141,33 @@ gives the same output with `ZANE_LOOP_PUSHES=1`, and with the six and
 `ZANE_FRAME_REFS_CHECK=1` (`ALL=1`); `just test-compiler` passes without
 switches, and with the six fails only the three layout tests.
 
+## Goose's memory model, from its own docs
+
+Asked while weighing a stack per dynamic value for Zane. From Goose's
+source (`docs/goose_spec.md` §1.2-1.3, §5.4;
+`docs/design/scope_exit_cleanup.md` §1; `docs/design/nested_growth.md`
+§4.5):
+
+- Goose has no heap. Dynamic data lives on **N data stacks**, N computed by
+  the compiler: large reservations made once, committed on use, each a bump
+  pointer. Growth never moves anything.
+- A scope's exit resets the watermarks of the stacks it used, known at
+  compile time: "No destructor runs. No list is walked. The cost of
+  'freeing' that buffer is one store." Nothing is walked.
+- That rests on an invariant the compiler proves: lifetimes on one stack
+  nest; at most one resizable value is live per stack, always on top; two
+  live resizables never share a stack, and locals with disjoint lifetimes
+  reuse stacks.
+- So stacks are per **growable slot in the program**, not per value at run
+  time. Goose rejected a stack per container: "A JSON document has
+  thousands of containers; a reservation each is absurd."
+- The price is in the language: an array element may not be resizable, a
+  type may not contain itself by value, and nested growth is limited to
+  the containers on the path being built. Trees are pools the program
+  declares (`reusable var pool: T[>..]`), linked by 32-bit relative
+  references (`T&<u32 in pool>`), with a free list of slots that stay valid
+  values forever.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
