@@ -172,7 +172,7 @@ let locate (t : Ty.t) (v : v) (p : Layout.position) =
         let at = Ty.payload_at t in
         match v with
         | VCase (tag, payload) ->
-            let wanted = List.assoc_opt base p.Layout.tags in
+            let wanted = Option.map Layout.tag_case (List.assoc_opt base p.Layout.tags) in
             if wanted <> None && wanted <> Some tag then None
             else go (List.nth ts tag) payload (off - at) (base + at) (Payload tag :: path)
         | _ -> stop "a sum that holds no case")

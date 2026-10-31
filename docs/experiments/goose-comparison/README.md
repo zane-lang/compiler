@@ -1561,6 +1561,36 @@ The region beats the pools: level with Goose, where the pooled build is
 1.1–1.15× behind, with no pool to make and unmap per tree and no count
 reached through a pointer. Goose's node is still half the size, 8 bytes.
 
+### A node as small as Goose's (behind `ZANE_NICHE_SUMS=1`)
+
+Under the cage a stored reference is never 0, so a sum whose first case
+carries nothing and whose second is a 4-byte `Ref` needs no tag: it is the
+reference, 0 for the first case (`Nodes.Ty.niche`, which needs
+`ZANE_REF32=1`). Zeroed memory is case 0, as for every other sum.
+binarytrees' `Tree` (`leaf Unit`, then the boxed `node`) is 4 bytes, a
+`Pair` 8, and a node one 8-byte block, Goose's size.
+
+Where it shows: `emit.ml` lays the sum out as `{i32}`, builds a `Case` as
+the word or 0, reads a `Payload` as the word, and switches on whether it is
+nonzero; `Offset` reaches the payload at index 0. A walk's position under
+such a case carries a negative tag (`Layout.niche_tag`), which `Walks.present`
+tests as a nonzero word, and the optimizer's `Value.locate` reads back as the
+case (`Layout.tag_case`).
+
+| build | binarytrees 14 instructions | peak RSS at 20 | binarytrees 20 (least / median, 7 interleaved) |
+| --- | --- | --- | --- |
+| `ZANE_ONE_BOX=1` | 123.3 M | | 1.168 / 1.348 s |
+| `ZANE_ONE_BOX=1 ZANE_REF32=1` | 121.1 M | 66 MB | 1.094 / 1.246 s |
+| with `ZANE_NICHE_SUMS=1` too | 116.7 M | 34 MB | 1.085 / 1.279 s |
+| Goose | 141.9 M | 50 MB | 1.198 / 1.358 s |
+
+At depth 20 both region builds are 8–10% ahead of Goose; at 16 and 18 all
+three are level (0.236 / 0.255 s for the niche against Goose's 0.228 /
+0.247 s at 18). The niche halves the memory, to two thirds of Goose's, and
+does not move the time. Every fixture gives the same output with
+`ZANE_REF32=1 ZANE_ONE_BOX=1 ZANE_NICHE_SUMS=1` as without
+(`ALL=1 fixtures.sh`), and `just test-compiler` passes without them.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |

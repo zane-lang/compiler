@@ -88,6 +88,7 @@ module Ty = struct
             (0, 1) ts
         in
         (below_limit (round_up size align), align)
+    | Sum ts when niche ts -> (4, 4)
     | Sum ts when compact ts -> (below_limit (add 4 (times 4 (quads ts))), 4)
     | Sum ts -> ( match words ts with 0 -> (4, 4) | n -> (below_limit (add 8 (times 8 n)), 8))
     | Array (t, n) ->
@@ -107,7 +108,12 @@ module Ty = struct
   (* Experimental (Ref32): a compact sum, whose cases' payloads all align
      to 4 bytes or less, keeps its payload in 4-byte words right after its
      4-byte tag. *)
-  and compact ts = Ref32.on () && words ts > 0 && List.for_all (fun t -> snd (size_align t) <= 4) ts
+  and compact ts =
+    Ref32.on () && (not (niche ts)) && words ts > 0 && List.for_all (fun t -> snd (size_align t) <= 4) ts
+
+  (* Experimental (Ref32.niche): a sum of nothing or a reference is the
+     reference, 0 for nothing. *)
+  and niche ts = Ref32.niche () && ts = [ Void; Ref ]
 
   (* A compact sum's payload room, in 4-byte words. *)
   and quads ts = List.fold_left (fun n t -> max n ((fst (size_align t) + 3) / 4)) 0 ts
@@ -144,7 +150,11 @@ module Ty = struct
   let list_handle () = if Ref32.on () then Handle32 else if Ref32.frames () then Handle16 else Handle
 
   (* Where the sum [t]'s payload starts, packed or not. *)
-  let payload_at = function Packed _ -> 1 | Sum ts when compact ts -> 4 | _ -> payload_offset
+  let payload_at = function
+    | Packed _ -> 1
+    | Sum ts when niche ts -> 0
+    | Sum ts when compact ts -> 4
+    | _ -> payload_offset
 
   (* Whether a value of the type has a handle among its bytes: is one, or
      has one as a member, a case's payload or an element. A boxed member's
@@ -240,6 +250,12 @@ module Layout = struct
 
   type position = { kind : kind; offset : int; size : int; tags : (int * int) list }
   type t = string
+
+  (* Experimental (Ty.niche): the tag a position under a niche sum's case
+     [i] names, which a walk tests as a nonzero word, and the case a tag
+     names either way. *)
+  let niche_tag i = -i - 1
+  let tag_case t = if t < 0 then -t - 1 else t
 end
 
 module Expr = struct

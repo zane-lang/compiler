@@ -137,7 +137,8 @@ let present c base (p : Layout.position) =
   List.fold_left
     (fun cond (o, tag) ->
       let live =
-        Llvm.build_icmp Llvm.Icmp.Eq (load c i32 (offset c base o)) (Llvm.const_int i32 tag) "" c.b
+        if tag < 0 then Llvm.build_icmp Llvm.Icmp.Ne (load c i32 (offset c base o)) (Llvm.const_int i32 0) "" c.b
+        else Llvm.build_icmp Llvm.Icmp.Eq (load c i32 (offset c base o)) (Llvm.const_int i32 tag) "" c.b
       in
       match cond with None -> Some live | Some cond -> Some (Llvm.build_and cond live "" c.b))
     None p.tags

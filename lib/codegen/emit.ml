@@ -117,6 +117,7 @@ let rec lltype env (t : Ty.t) =
   | Ty.Ptr -> env.ptr
   | Ty.Ref -> Llvm.i32_type env.ctx
   | Ty.Struct ts -> Llvm.struct_type env.ctx (Array.of_list (List.map (stored env) ts))
+  | Ty.Sum ts when Ty.niche ts -> Llvm.struct_type env.ctx [| Llvm.i32_type env.ctx |]
   | Ty.Sum ts when Ty.compact ts ->
       Llvm.struct_type env.ctx [| Llvm.i32_type env.ctx; array_type (Llvm.i32_type env.ctx) (Ty.quads ts) |]
   | Ty.Sum ts -> (
@@ -152,6 +153,7 @@ let rec pieces (t : Ty.t) =
   | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref -> 1
   | Ty.Handle | Ty.Handle32 | Ty.Handle16 -> 3
   | Ty.Struct ts -> List.fold_left (fun n t -> n + pieces t) 0 ts
+  | Ty.Sum ts when Ty.niche ts -> 1
   | Ty.Sum ts when Ty.compact ts -> 1 + Ty.quads ts
   | Ty.Sum ts -> 1 + words ts
   | Ty.Array (t, n) -> n * pieces t
@@ -1293,6 +1295,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
             | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> (gep t p i, List.nth ts i)
             (* A sum's payload room holds case [i]'s payload. *)
             | (Ty.Sum ts | Ty.Packed (Ty.Sum ts)) when List.nth ts i = Ty.Void -> (p, Ty.Void)
+            | Ty.Sum ts when Ty.niche ts -> (gep t p 0, List.nth ts i)
             | Ty.Sum ts | Ty.Packed (Ty.Sum ts) -> (gep t p 1, List.nth ts i)
             | _ -> Diagnostic.bug "codegen: an offset through something not a struct")
           (base, within) path
@@ -1387,6 +1390,14 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       match (e.Expr.ty, expr env fr b value) with
       | Ty.Void, _ | _, None -> None
       | _, Some v -> Some (Llvm.build_extractvalue v index "" b))
+  | Expr.Case { index; payload } when (match e.Expr.ty with Ty.Sum ts -> Ty.niche ts | _ -> false) ->
+      let t = lltype env e.Expr.ty in
+      let word =
+        match (index, expr env fr b payload) with
+        | 0, _ | _, None -> Llvm.const_int (Llvm.i32_type env.ctx) 0
+        | _, Some p -> p
+      in
+      Some (Llvm.build_insertvalue (Llvm.undef t) word 0 "" b)
   | Expr.Case { index; payload } ->
       let t = lltype env e.Expr.ty in
       let packed = match e.Expr.ty with Ty.Packed _ -> true | _ -> false in
@@ -1400,6 +1411,10 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           ignore (Llvm.build_store p at b)
       | None -> ());
       Some (Llvm.build_load t tmp "" b)
+  | Expr.Payload { value; _ } when (match value.Expr.ty with Ty.Sum ts -> Ty.niche ts | _ -> false) -> (
+      match (e.Expr.ty, expr env fr b value) with
+      | Ty.Void, _ | _, None -> None
+      | _, Some v -> Some (Llvm.build_extractvalue v 0 "" b))
   | Expr.Payload { value; _ } -> (
       match (e.Expr.ty, expr env fr b value) with
       | Ty.Void, _ | _, None -> None
@@ -1638,6 +1653,12 @@ and stat env fr b (s : Stat.t) =
   | Stat.Switch { value; cases } ->
       let v = value_of env fr b value in
       let tag = Llvm.build_extractvalue v 0 "" b in
+      let tag =
+        match value.Expr.ty with
+        | Ty.Sum ts when Ty.niche ts ->
+            Llvm.build_zext (Llvm.build_icmp Llvm.Icmp.Ne tag (Llvm.const_int (Llvm.i32_type env.ctx) 0) "" b) (Llvm.i32_type env.ctx) "" b
+        | _ -> tag
+      in
       let after = block env fr and otherwise = block env fr in
       let sw = Llvm.build_switch tag otherwise (List.length cases) b in
       List.iter

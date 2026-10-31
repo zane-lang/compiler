@@ -329,7 +329,9 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
           let variant cs sum =
             List.concat
               (List.mapi
-                 (fun i (_, c) -> member c (sum + Nodes.Ty.payload_at lowered) (tags @ [ (sum, i) ]))
+                 (fun i (_, c) ->
+                   let tag = match lowered with Nodes.Ty.Sum ts when Nodes.Ty.niche ts -> Layout.niche_tag i | _ -> i in
+                   member c (sum + Nodes.Ty.payload_at lowered) (tags @ [ (sum, tag) ]))
                  cs)
           in
           match (definition, lowered) with
