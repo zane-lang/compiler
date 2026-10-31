@@ -1612,6 +1612,46 @@ above). No pooling switch is set.
 The compute-bound tests, startup and primes are level, as before (nbody's
 0.41 s against 0.34 s here was 0.34 s against 0.34 s in the plain run).
 
+## ntree with an `ArrayRef` of children
+
+Goose's ntree holds a node's children in a list inside the node with room
+for four (`(Node&<u32>)[..4]`); Zane's holds them in a `ListRef` on the
+heap, grown push by push. `ntreearray/main.zn` holds them as Goose does, in
+an `ArrayRef<Node, 4>`. An `ArrayRef`'s elements are all present from
+construction (generics.md §8.4), so a leaf cannot be a node with an empty
+array; it is a case of its own:
+
+```zane
+type Node = #variant {
+	leaf Unit;
+	inner @primitives$ArrayRef<Node, 4>;
+}
+```
+
+`grow` builds an inner node from a literal of four recursive calls. `core`'s
+`ArrayRef` takes its elements borrowed, which a reference-type owner cannot
+be, so the port calls the primitive's `roaming` constructor, which moves
+them in. `inner` leads back to `Node`, so its payload is boxed: one block of
+four children per inner node, and a leaf allocates nothing. Under the niche
+a `Node` is a 4-byte reference, so that block is 16 bytes. It prints what
+the suite's ntree prints, and passes under `ZANE_CHECK=1`.
+
+| build | instructions (9) | peak RSS (10) | ntree 10 (least / median, 11 interleaved) |
+| --- | --- | --- | --- |
+| suite's ntree, best build | 383.1 M | 18 MB | 0.131 / 0.140 s |
+| `ArrayRef`, plain | 160.5 M | 23 MB | 0.100 / 0.108 s |
+| `ArrayRef`, `ZANE_ONE_BOX=1` | 160.5 M | 23 MB | 0.088 / 0.104 s |
+| `ArrayRef`, best build | 140.7 M | 10 MB | 0.060 / 0.069 s |
+| Goose | 193.1 M | 24 MB | 0.090 / 0.102 s |
+
+(The best build is `ZANE_ONE_BOX=1 ZANE_REF32=1 ZANE_NICHE_SUMS=1`.) Plain,
+the `ArrayRef` port is level with Goose; with the best build it is 1.5×
+faster and takes 40% of Goose's memory. One box per cycle changes nothing
+here, since `inner`'s payload is the only member on the cycle. So the ntree
+gap was the port's container, not the language: what Goose's `[..4]` does,
+Zane's `ArrayRef` under a variant case does, given a constructor in `core`
+that moves owners in.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
