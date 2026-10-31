@@ -1453,6 +1453,33 @@ why the index width was the gap: the bytes the removals shift.
 Goose's `memmove` count is lower still, which this run does not explain;
 the wall time does not show it. The program code is within 6%.
 
+## The whole suite, after the gameloop fix
+
+`run.py` over every test in three builds (RUNS=7; the patched sources as
+above): plain, the switches ("switches" as in the earlier whole-suite
+table), and `ZANE_REF32=1`. The container ran slower than for the earlier
+tables (trialdiv 0.70 s against 0.56 s), so only ratios within one run
+compare. The compute-bound tests, startup, primes, particles and concscan
+are level with Goose or ahead, as before (concscan 0.11× Goose).
+
+The remaining rows, timed again interleaved (11 runs, least / median wall
+time):
+
+| test | plain | switches | `ZANE_REF32=1` | Goose | best Zane ÷ Goose |
+| --- | --- | --- | --- | --- | --- |
+| gameloop (suite run, median) | 1.67 s | 1.94 s | 1.86 s | 0.38–0.53 s | ~4.4×; gamepool32 ~1.0× |
+| ntree | 0.191 / 0.268 s | 0.192 / 0.215 s | 0.148 / 0.177 s | 0.102 / 0.118 s | 1.45–1.5× |
+| listgrowth | 0.202 / 0.234 s | 0.216 / 0.230 s | 0.207 / 0.234 s | 0.173 / 0.190 s | 1.2× |
+| binarytrees | 0.097 / 0.124 s | 0.056 / 0.062 s | 0.083 / 0.088 s | 0.045 / 0.054 s | 1.15–1.25× |
+| treecopy | 0.239 / 0.257 s | 0.064 / 0.099 s | 0.210 / 0.233 s | 0.209 / 0.233 s | 0.3–0.4× |
+| entities | 1.059 / 1.135 s | 1.053 / 1.105 s | 1.076 / 1.123 s | 1.062 / 1.095 s | 1.0× |
+| allocfree | 0.706 / 0.856 s | 0.731 / 0.861 s | 0.690 / 0.867 s | 0.713 / 0.832 s | 1.0× |
+
+ntree under the switch is further from Goose here than in "The suite with
+the switch" (1.16×), with its peak RSS still below Goose's (18.3 MB
+against 24.9 MB). Zane is behind on four tests: gameloop with entities held
+inline, ntree, listgrowth, and binarytrees without pooling.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
