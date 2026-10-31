@@ -3,6 +3,8 @@
 Status: **experimental**. The runtime and codegen changes here are made outside
 the spec's rules where that helps, and the spec repo is not updated to match.
 This file is the record: what changed, why, and what each step measured.
+The experiment is finished; `FINDINGS.md` summarizes what it found, the
+memory model it ended with, and how that differs from v0.20.
 
 ## Setup
 
