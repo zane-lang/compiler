@@ -2,9 +2,8 @@
 
 Status: **finished**. This is the summary of the experiment. `README.md` is
 the full log, with every step's measurements and the dead ends in the order
-they happened. Like the log, this describes experimental work: the spec repo
-was not updated, and where the new model departs from the spec, the last
-section says so.
+they happened. The spec was updated to the model afterwards; the section
+"The spec" says what changed there.
 
 ## The question
 
@@ -213,19 +212,24 @@ scope's own region, the common case.
 | a recursive base case | a call | inlined into its callers |
 | codegen tests | 64-bit layout | Linux golden files carry the compact layout; layout facts follow the target |
 
-## Where it departs from the spec
+## The spec
 
-The spec was not updated, as this was an experiment. Adopting the model
-would need these spec changes:
+`zane-lang/spec` was updated to the model on its branch of the same name
+(`claude/wizardly-brown-3jgfes`):
 
-- **One box per cycle** contradicts adt.md §4, which boxes every member
+- **One box per cycle** replaces adt.md §4's rule that boxed every member
   whose type leads back to its holder.
-- **The 2^32 − 1 element cap** on a list is new.
-- **The 32-bit layouts** of references, boxes, the niche sum and the list
-  handle are implementation choices. They matter wherever the spec states a
-  size or a layout.
-- **The platform split** (compact on Linux, 64-bit elsewhere) means a
-  value's size depends on the target.
+- **memory.md** describes the compact layout as the model: references and
+  boxes as 32-bit offsets from the program image, the niche sum, the
+  16-byte list handle with its 2^32 − 1 element cap, and the first block of
+  four elements. Other targets' layouts are left to the compiler, so the
+  64-bit layout on Windows and macOS is the compiler's choice, not a
+  departure.
+- The memory story gained the chapters that tell how the model came about,
+  and links this experiment.
+
+The spec's `memorybench/` harness and its langbench programs and pins were
+not updated; they are a separate change.
 
 ## What is still open
 
