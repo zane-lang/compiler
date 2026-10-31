@@ -100,20 +100,43 @@ let down ?span path t =
    holds it along owning edges, since no finite inline layout exists for it.
    A boxed member is a pointer to its payload's block. Each answer is kept,
    so a long chain of types is walked once per member, not once per use. *)
+let leads_back st ?(through = fun _ -> inline st) holder member =
+  let seen = Hashtbl.create 16 in
+  let rec reaches path t =
+    (not (Tty.is_ref t))
+    && (Tty.equal t holder
+       || (not (Hashtbl.mem seen t))
+          &&
+          (Hashtbl.replace seen t ();
+           List.exists (reaches (down path t)) (through path t)))
+  in
+  reaches Tty.Growth.start member
+
+(* Experimental (docs/experiments/goose-comparison): with ZANE_ONE_BOX=1 in
+   the environment, a cycle is broken by one box, not one per member on it.
+   A variant's payload that leads back to it is boxed as before; a struct's
+   member is boxed only when it leads back without passing through such a
+   payload, since that payload's box already breaks the cycle. *)
+let one_box () = Sys.getenv_opt "ZANE_ONE_BOX" = Some "1" && Sys.getenv_opt "ZANE_POOLED_VARIANTS" <> Some "1"
+
 let boxed st holder member =
   match Hashtbl.find_opt st.boxes (holder, member) with
   | Some boxed -> boxed
   | None ->
-      let seen = Hashtbl.create 16 in
-      let rec reaches path t =
-        (not (Tty.is_ref t))
-        && (Tty.equal t holder
-           || (not (Hashtbl.mem seen t))
-              &&
-              (Hashtbl.replace seen t ();
-               List.exists (reaches (down path t)) (inline st t)))
+      let boxed =
+        match definition st holder with
+        | Some (T.Decl.Struct _, _) when one_box () ->
+            let through _ t =
+              match definition st t with
+              | Some (T.Decl.Variant cs, _) ->
+                  List.filter_map
+                    (fun (_, c) -> if Tty.is_ref c || leads_back st t c then None else Some c)
+                    cs
+              | _ -> inline st t
+            in
+            leads_back st ~through holder member
+        | _ -> leads_back st holder member
       in
-      let boxed = reaches Tty.Growth.start member in
       Hashtbl.replace st.boxes (holder, member) boxed;
       boxed
 

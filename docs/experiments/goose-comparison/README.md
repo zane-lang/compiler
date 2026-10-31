@@ -1486,6 +1486,34 @@ holds its children in an inline list with room for four links
 growable list on the heap, grown push by push and freed node by node. Zane is behind on four tests: gameloop with entities held
 inline, ntree, listgrowth, and binarytrees without pooling.
 
+## One box per cycle (behind `ZANE_ONE_BOX=1`)
+
+Plain binarytrees allocated three blocks a node, 48 bytes, where Goose
+allocates one of 8. `make` boxed the `Pair` under `Tree.node`, and then
+each `Tree` member of the `Pair` again, because adt.md §4 boxes every member
+whose type leads back to its holder, and both do.
+
+One box per cycle is enough. With the switch, a variant's payload that
+leads back to it is boxed as before, and a struct's member is boxed only
+when it leads back without passing through such a payload
+(`Type_layout.boxed`). binarytrees' `Pair` then holds its two `Tree`s
+inline, 16 bytes each, and a node is one 32-byte block; a leaf allocates
+nothing. Pooled variants keep their own layout, so the switch is off when
+`ZANE_POOLED_VARIANTS=1` is set.
+
+| build | binarytrees 16 | treecopy 18 | instructions, binarytrees 14 |
+| --- | --- | --- | --- |
+| plain | 0.090 / 0.104 s | 0.216 / 0.245 s | 186.9 M |
+| `ZANE_ONE_BOX=1` | 0.050 / 0.056 s | 0.061 / 0.073 s | 123.3 M |
+| Goose | 0.052 / 0.053 s | 0.168 / 0.196 s | 141.9 M |
+
+(Least / median wall time of 11 interleaved runs.) Plain binarytrees is
+level with Goose with no pooling, and treecopy, whose whole-tree copy now
+copies a third of the blocks, is 2.7× ahead. Three codegen fixtures change
+under the switch (`boxes`, `keeping`, `walks`); each gives the same output
+as without it under `ZANE_CHECK=1` (`fixtures.sh ZANE_ONE_BOX=1`), and
+`just test-compiler` passes with it on and off.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
