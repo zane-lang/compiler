@@ -2091,6 +2091,56 @@ Every test prints the same, every fixture gives the same output with
 passes without the switch, and with it fails only the three layout tests,
 the first-block one now seeing a room of `i32 4`, four elements.
 
+### nbody's and particles' instructions under frame references
+
+**nbody** (125.4 M against 120.6 M): the inner loop of `advance` kept an
+index check that the plain build drops. `size` lowers a 32-bit count to
+`Convert (Member 1)`, which widens with its sign, while every other read
+of the count (`List_handle.count`) widens with zeros. LLVM saw two values,
+`sext c` as the loop's bound and `zext c` as the check's, and could not
+prove one from the other. A count or room is never negative, so a
+`Convert` of a 32-bit handle's member 1 or 2 now widens with zeros (Emit,
+`Expr.Convert`): 121.6 M, and allocfree's 2 M with it.
+
+**particles** (150.0 M against 136.0 M) was two things:
+
+- 1.2 M was not frame references at all: the five-switch build it was
+  compared with predates the loop-push guard (All switches together), which
+  refused any loop holding a call, and the burst loop calls `rng!below`
+  sixty times a frame. The guard now refuses only a call of a function that
+  may change a list's count: Loop_pushes computes, over the whole program,
+  the functions that push to, make room in and remove from no list, spawn
+  nothing, call nothing through a value, and call only such functions
+  (`Cgt.List_pure`), and codegen's `may_grow` lets those pass. With it the
+  five are back at 136.0 M; a build that does not optimize computes none,
+  and keeps every call out.
+- The rest, 6.5 M, two instructions a pass of the update loop, is real.
+  That loop changes the list's length (`swapRemove`), which stores the count
+  back in 32 bits, so LLVM carries the count round the loop as an `i32` and
+  widens it each pass; the extra live value makes the register allocator
+  spill the items pointer, reloaded each pass. The IR is otherwise the
+  plain build's. Left as is: it costs no time.
+
+The suite, rebuilt from this compiler (`mechanisms-six.md` is the six):
+
+| test | none | five | five + frame refs | Goose |
+| --- | --- | --- | --- | --- |
+| binarytrees | 186.9 M | 90.6 M | 90.6 M | 141.9 M |
+| fannkuch | 169.3 M | 151.5 M | 151.5 M | 105.6 M |
+| entities | 83.1 M | 80.2 M | 80.8 M | 64.2 M |
+| listgrowth | 250.9 M | 160.4 M | 160.4 M | 125.4 M |
+| ntree | 89.9 M | 89.9 M | 87.7 M | 48.6 M |
+| treecopy | 47.2 M | 23.3 M | 23.3 M | 53.2 M |
+| nbody | 120.8 M | 120.6 M | 121.6 M | 116.6 M |
+| allocfree | 255.7 M | 108.4 M | 108.4 M | 152.4 M |
+| gameloop | 1215.1 M | 1196.4 M | 1201.9 M | 361.5 M |
+| particles | 144.6 M | 136.0 M | 142.5 M | 142.9 M |
+
+The rest are within 0.2%. Every test prints the same in both; every fixture
+gives the same output with `ZANE_LOOP_PUSHES=1`, and with the six and
+`ZANE_FRAME_REFS_CHECK=1` (`ALL=1`); `just test-compiler` passes without
+switches, and with the six fails only the three layout tests.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |

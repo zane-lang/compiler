@@ -1369,15 +1369,16 @@ let runs body =
    statement of [body] names. Room for every time round is made before the
    loop, and each push is then a plain store. *)
 (* Whether [s] may change some list's count other than through its own
-   local: a call, which may be handed a reference to it, a spawned call, or
-   the runtime pushing, making room in or removing from a list, which may be
-   the same list reached through a reference. Room made for a loop's pushes
-   would be taken by any of them. *)
+   local: a call of a function that may (Cgt.List_pure), which may be handed
+   a reference to it, a spawned call, or the runtime pushing, making room in
+   or removing from a list, which may be the same list reached through a
+   reference. Room made for a loop's pushes would be taken by any of them. *)
 let may_grow s =
   Cgt.Traverse.exists_in [ s ]
     ~expr:(fun e ->
       match e.Expr.node with
-      | Expr.Call _ | Expr.Call_value _ -> true
+      | Expr.Call { fn; _ } -> not (Hashtbl.mem Cgt.List_pure.functions fn)
+      | Expr.Call_value _ -> true
       | Expr.Runtime { fn; _ } -> (
           match fn with
           | Cgt.Runtime.List_push | List_room | List_reserve | List_remove _ | List_swap_remove _ | Overwrite | Copy
@@ -1815,6 +1816,15 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       | (Ty.F64 | Ty.F32), Some v -> Some (Llvm.build_fneg v "" b)
       | Ty.I1, Some v -> Some (Llvm.build_not v "" b)
       | _ -> Diagnostic.bug "codegen: `~` on a value it does not flip")
+  (* A 32-bit handle's count or room is never negative, so it widens with
+     zeros, as List_handle reads it everywhere else: the same widening of the
+     same load, so LLVM sees a loop's bound and an index's check compare
+     with one value. *)
+  | Expr.Convert ({ Expr.node = Expr.Member { value = { Expr.ty = Ty.Handle32 | Ty.Handle16; _ }; index = 1 | 2 }; _ } as value)
+    when e.Expr.ty = Ty.I64 -> (
+      match expr env fr b value with
+      | Some v -> Some (Llvm.build_zext v env.i64 "" b)
+      | None -> Diagnostic.bug "codegen: a conversion of no value")
   | Expr.Convert value -> (
       match expr env fr b value with
       | Some v -> Some (convert env b value.Expr.ty e.Expr.ty v)

@@ -18,6 +18,7 @@ module Memo = Memo
 
 (** Experimental: whether references are stored in 32 bits. *)
 module Ref32 = Ref32
+module List_pure = List_pure
 
 (** The program, from the root package's `main`, or from every function of
     the root when it is a [library]. A construct lowering does not handle

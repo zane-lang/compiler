@@ -132,9 +132,49 @@ let func pushes (f : Func.t) =
   in
   { f with Func.body = stats f.Func.body }
 
+(* Whether [e] or [s] changes a list's count itself, or calls a function
+   through a value. *)
+let grows_expr (e : Expr.t) =
+  match e.Expr.node with
+  | Expr.Call_value _ -> true
+  | Expr.Runtime { fn; _ } -> (
+      match fn with
+      | Cgt.Runtime.List_push | List_room | List_reserve | List_remove _ | List_swap_remove _ | Overwrite | Copy
+      | Promote | Arrive ->
+          true
+      | _ -> false)
+  | _ -> false
+
+let grows_stat = function Stat.Spawn _ | Stat.Join _ | Stat.Overwrite _ -> true | _ -> false
+
+(* The functions that cannot change a list's count (Cgt.List_pure): every
+   function is taken to be one, then each that changes a count itself or
+   calls one that is not is dropped, until none changes. *)
+let pure (p : Program.t) =
+  let table = Cgt.List_pure.functions in
+  Hashtbl.reset table;
+  List.iter (fun (f : Func.t) -> Hashtbl.replace table f.Func.symbol ()) p.Program.funcs;
+  let impure (f : Func.t) =
+    Cgt.Traverse.exists_in f.Func.body
+      ~expr:(fun e ->
+        grows_expr e || match e.Expr.node with Expr.Call { fn; _ } -> not (Hashtbl.mem table fn) | _ -> false)
+      ~stat:grows_stat
+  in
+  let rec settle () =
+    let dropped =
+      List.filter (fun (f : Func.t) -> Hashtbl.mem table f.Func.symbol && impure f) p.Program.funcs
+    in
+    if dropped <> [] then begin
+      List.iter (fun (f : Func.t) -> Hashtbl.remove table f.Func.symbol) dropped;
+      settle ()
+    end
+  in
+  settle ()
+
 let program (p : Program.t) =
   if not (on ()) then p
   else
+    let () = pure p in
     let pushes = Hashtbl.create 8 in
     List.iter
       (fun (f : Func.t) -> Option.iter (Hashtbl.replace pushes f.Func.symbol) (push_function f))
