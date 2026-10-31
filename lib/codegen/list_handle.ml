@@ -116,11 +116,52 @@ let set_room ?tag ctx b v h = set_integer ?tag ctx b v h 2
    runtime takes its chunks from keeps within 16 GiB (runtime/region.c). 0
    is null, since no block starts at the image. [decode_box] reads a box
    known to be set; [nullable] decodes 0 to null, for the walks. *)
+(* A runtime table the emitted code reads, declared hidden so that its
+   address is computed relative to the code. *)
+let table b name =
+  let m = Llvm.global_parent (Llvm.block_parent (Llvm.insertion_block b)) in
+  match Llvm.lookup_global name m with
+  | Some g -> g
+  | None ->
+      let g = Llvm.declare_global (Llvm.i8_type (Llvm.module_context m)) name m in
+      Llvm.set_visibility Llvm.Visibility.Hidden g;
+      g
+
+(* With chunk boxes, a box is its MiB's number, above 17 bits of offset in
+   8-byte units: the number picks the MiB's start from `zane_mib_bases`,
+   and `zane_mib_ids` gives the number of the MiB at an address's bits from
+   20 up (runtime/arena.c). *)
+let decode_chunk ctx b v =
+  let i64 = Llvm.i64_type ctx and i32 = Llvm.i32_type ctx in
+  let id = Llvm.build_zext (Llvm.build_lshr v (Llvm.const_int i32 17) "" b) i64 "" b in
+  let base =
+    Llvm.build_load (Llvm.pointer_type ctx)
+      (Llvm.build_gep (Llvm.pointer_type ctx) (table b "zane_mib_bases") [| id |] "" b) "" b
+  in
+  let offset =
+    Llvm.build_shl (Llvm.build_zext (Llvm.build_and v (Llvm.const_int i32 0x1FFFF) "" b) i64 "" b)
+      (Llvm.const_int i64 3) "" b
+  in
+  Llvm.build_gep (Llvm.i8_type ctx) base [| offset |] "" b
+
+let encode_chunk ctx b p =
+  let i64 = Llvm.i64_type ctx and i32 = Llvm.i32_type ctx in
+  let a = Llvm.build_ptrtoint p i64 "" b in
+  let mib = Llvm.build_lshr a (Llvm.const_int i64 20) "" b in
+  let id =
+    Llvm.build_load (Llvm.i16_type ctx)
+      (Llvm.build_gep (Llvm.i16_type ctx) (table b "zane_mib_ids") [| mib |] "" b) "" b
+  in
+  let offset = Llvm.build_lshr (Llvm.build_and a (Llvm.const_int i64 0xFFFFF) "" b) (Llvm.const_int i64 3) "" b in
+  Llvm.build_or (Llvm.build_shl (Llvm.build_zext id i32 "" b) (Llvm.const_int i32 17) "" b) (narrow ctx b offset) "" b
+
 let decode_box ?(nullable = false) ctx b v =
   let i64 = Llvm.i64_type ctx in
   let p =
-    Llvm.build_gep (Llvm.i8_type ctx) (image b)
-      [| Llvm.build_shl (Llvm.build_sext v i64 "" b) (Llvm.const_int i64 3) "" b |] "" b
+    if Cgt.Ref32.chunk_boxes () then decode_chunk ctx b v
+    else
+      Llvm.build_gep (Llvm.i8_type ctx) (image b)
+        [| Llvm.build_shl (Llvm.build_sext v i64 "" b) (Llvm.const_int i64 3) "" b |] "" b
   in
   if nullable then
     Llvm.build_select
@@ -131,6 +172,7 @@ let decode_box ?(nullable = false) ctx b v =
 let encode_box ctx b p =
   let i64 = Llvm.i64_type ctx in
   if Llvm.is_null p then Llvm.const_int (Llvm.i32_type ctx) 0
+  else if Cgt.Ref32.chunk_boxes () then encode_chunk ctx b p
   else
     let distance =
       Llvm.build_ashr

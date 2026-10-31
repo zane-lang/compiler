@@ -1,0 +1,65 @@
+## binarytrees
+s6/bin/binarytrees.zane                  0.047 / 0.048 s  10 MB
+s-ib/bin/binarytrees.zane                0.040 / 0.043 s  8 MB
+s-cb/bin/binarytrees.zane                0.042 / 0.045 s  8 MB
+## ntree
+s6/bin/ntree.zane                        0.147 / 0.159 s  23 MB
+s-ib/bin/ntree.zane                      0.151 / 0.157 s  23 MB
+s-cb/bin/ntree.zane                      0.148 / 0.154 s  23 MB
+## treecopy
+s6/bin/treecopy.zane                     0.076 / 0.085 s  22 MB
+s-ib/bin/treecopy.zane                   0.074 / 0.088 s  22 MB
+s-cb/bin/treecopy.zane                   0.084 / 0.092 s  22 MB
+## allocfree
+s6/bin/allocfree.zane                    0.277 / 0.321 s  33 MB
+s-ib/bin/allocfree.zane                  0.263 / 0.305 s  33 MB
+s-cb/bin/allocfree.zane                  0.277 / 0.310 s  33 MB
+## entities
+s6/bin/entities.zane                     1.078 / 1.163 s  94 MB
+s-ib/bin/entities.zane                   1.052 / 1.121 s  94 MB
+s-cb/bin/entities.zane                   1.075 / 1.142 s  94 MB
+## listgrowth
+s6/bin/listgrowth.zane                   0.197 / 0.230 s  63 MB
+s-ib/bin/listgrowth.zane                 0.205 / 0.224 s  63 MB
+s-cb/bin/listgrowth.zane                 0.206 / 0.220 s  63 MB
+## nbody
+s6/bin/nbody.zane                        0.313 / 0.347 s  8 MB
+s-ib/bin/nbody.zane                      0.303 / 0.326 s  8 MB
+s-cb/bin/nbody.zane                      0.303 / 0.318 s  8 MB
+## particles
+s6/bin/particles.zane                    0.136 / 0.140 s  8 MB
+s-ib/bin/particles.zane                  0.135 / 0.140 s  8 MB
+s-cb/bin/particles.zane                  0.136 / 0.138 s  8 MB
+## fannkuch
+s6/bin/fannkuch.zane                     0.239 / 0.248 s  8 MB
+s-ib/bin/fannkuch.zane                   0.238 / 0.252 s  8 MB
+s-cb/bin/fannkuch.zane                   0.241 / 0.245 s  8 MB
+## gameloop
+s6/bin/gameloop.zane                     1.513 / 1.578 s  8 MB
+s-ib/bin/gameloop.zane                   1.518 / 1.597 s  8 MB
+s-cb/bin/gameloop.zane                   1.516 / 1.582 s  8 MB
+## concscan
+s6/bin/concscan.zane                     1.125 / 1.181 s  94 MB
+s-ib/bin/concscan.zane                   1.122 / 1.177 s  94 MB
+s-cb/bin/concscan.zane                   1.137 / 1.176 s  94 MB
+## spectralnorm
+s6/bin/spectralnorm.zane                 0.244 / 0.265 s  8 MB
+s-ib/bin/spectralnorm.zane               0.242 / 0.263 s  8 MB
+s-cb/bin/spectralnorm.zane               0.244 / 0.255 s  8 MB
+## mandelbrot
+s6/bin/mandelbrot.zane                   0.848 / 0.861 s  8 MB
+s-ib/bin/mandelbrot.zane                 0.843 / 0.861 s  8 MB
+s-cb/bin/mandelbrot.zane                 0.846 / 0.860 s  8 MB
+DONE
+## binarytrees 18
+s6/bin/binarytrees.zane                  0.208 / 0.223 s  34 MB
+s-ib/bin/binarytrees.zane                0.174 / 0.189 s  10 MB
+s-cb/bin/binarytrees.zane                0.183 / 0.199 s  10 MB
+## treecopy 18
+s6/bin/treecopy.zane                     0.078 / 0.093 s  22 MB
+s-ib/bin/treecopy.zane                   0.082 / 0.101 s  22 MB
+s-cb/bin/treecopy.zane                   0.082 / 0.097 s  22 MB
+## binarytrees 16
+s6/bin/binarytrees.zane                  0.046 / 0.052 s  10 MB
+s-ib/bin/binarytrees.zane                0.040 / 0.042 s  8 MB
+s-cb/bin/binarytrees.zane                0.042 / 0.047 s  8 MB

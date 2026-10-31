@@ -167,7 +167,9 @@ let sources = List.concat_map (fun (name, text) -> [ name; text ]) runtime_files
 let level ~optimize =
   [ (if optimize then "-O2" else "-O0"); "-pthread" ] @ (if Cgt.Ref32.on () then [ "-DZANE_REF32" ] else [])
   @ (if Cgt.Ref32.frames () then [ "-DZANE_FRAME_REFS" ] else [])
-  @ (if Cgt.Ref32.image_boxes () then [ "-DZANE_IMAGE_BOXES" ] else [])
+  @ (if Cgt.Ref32.chunk_boxes () then [ "-DZANE_CHUNK_BOXES" ]
+     else if Cgt.Ref32.image_boxes () then [ "-DZANE_IMAGE_BOXES" ]
+     else [])
   @ if Cgt.Ref32.bump () then [ "-DZANE_BUMP_REGIONS" ] else []
 
 (* The C compiler links for the target as it was written: `zig cc` reads

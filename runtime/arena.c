@@ -54,6 +54,48 @@ static void zane_set_page(const void *at, uintptr_t entry) {
 	__atomic_store_n(zane_page(at, 1), entry, __ATOMIC_RELEASE);
 }
 
+#if defined(ZANE_CHUNK_BOXES) && defined(ZANE_FRAME_REFS) && !defined(_WIN32)
+/* Experimental (docs/experiments/goose-comparison): each MiB of a
+   context's frames and of a chunk has a number from 1, so that a boxed
+   member's block is stored as its MiB's number and its offset in 8-byte
+   units, in 32 bits (List_handle.encode_box). `zane_mib_bases` gives a
+   number's MiB, and `zane_mib_ids` the number of the MiB at an address's
+   bits from 20 up: a table of 256 MiB of addresses, of which only the
+   pages a program's MiBs index are ever touched. Numbers given back are
+   used again. */
+#define ZANE_MIB_IDS ((size_t)1 << 15)
+__attribute__((visibility("hidden"))) char *zane_mib_bases[ZANE_MIB_IDS];
+__attribute__((visibility("hidden"))) uint16_t zane_mib_ids[(size_t)1 << 27];
+static pthread_mutex_t zane_ids_lock = PTHREAD_MUTEX_INITIALIZER;
+static uint16_t zane_ids_free[ZANE_MIB_IDS];
+static size_t zane_ids_freed, zane_ids_next = 1;
+
+static void zane_ids_add(char *at, size_t bytes) {
+	pthread_mutex_lock(&zane_ids_lock);
+	for (size_t off = 0; off < bytes; off += ZANE_CHUNK) {
+		size_t id = zane_ids_freed ? zane_ids_free[--zane_ids_freed] : zane_ids_next++;
+		if (id >= ZANE_MIB_IDS) zane_broken("out of numbers for MiBs");
+		zane_mib_bases[id] = at + off;
+		zane_mib_ids[(uintptr_t)(at + off) >> 20] = (uint16_t)id;
+	}
+	pthread_mutex_unlock(&zane_ids_lock);
+}
+
+static void zane_ids_drop(char *at, size_t bytes) {
+	pthread_mutex_lock(&zane_ids_lock);
+	for (size_t off = 0; off < bytes; off += ZANE_CHUNK) {
+		uint16_t *id = &zane_mib_ids[(uintptr_t)(at + off) >> 20];
+		zane_ids_free[zane_ids_freed++] = *id;
+		zane_mib_bases[*id] = NULL;
+		*id = 0;
+	}
+	pthread_mutex_unlock(&zane_ids_lock);
+}
+#else
+#define zane_ids_add(at, bytes) ((void)0)
+#define zane_ids_drop(at, bytes) ((void)0)
+#endif
+
 /* Every context made, by its id, and those free for the next spawned call.
    A context takes its id under the lock, and is listed once its range is
    reserved. */
@@ -102,6 +144,7 @@ zane_context *zane_context_new(void) {
 	c->id = zane_context_count++;
 	pthread_mutex_unlock(&zane_memory);
 	zane_reserve(c, c->id == 0 ? zane_fixed_region : zane_spawned_fixed_region);
+	zane_ids_add(c->base, (size_t)(c->limit - c->base));
 	for (char *at = c->base; at < c->limit + ZANE_GUARD; at += ZANE_CHUNK)
 		zane_set_page(at, (uintptr_t)c | 1);
 	__atomic_store_n(&zane_contexts[c->id], c, __ATOMIC_RELEASE);
@@ -259,6 +302,7 @@ static zane_mapping *zane_chunks_new(size_t size) {
 #else
 	char *raw;
 	if (!(base = zane_reserve_aligned(size, &raw))) zane_broken("out of addresses for a dynamic chunk");
+	zane_ids_add(base, size);
 #endif
 	if (!zane_commit_range(base, size)) zane_broken("out of memory for a dynamic chunk");
 	zane_mapping *m = (zane_mapping *)base;
@@ -282,6 +326,7 @@ static void zane_chunks_drop(zane_mapping *m, size_t size) {
 #elif defined(ZANE_IMAGE_BOXES) && defined(ZANE_FRAME_REFS)
 	zane_window_give((char *)m, size);
 #else
+	zane_ids_drop((char *)m, size);
 	zane_release_addresses(NULL, (char *)m, size);
 #endif
 }

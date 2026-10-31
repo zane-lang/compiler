@@ -2230,6 +2230,50 @@ Decided: list items stay 8-byte pointers, and ntree stays at 23 MB. A
 growing list reserves 64 times its size in addresses (`ZANE_HEADROOM`), so
 the window would cap large lists or force them to copy.
 
+## Chunk-numbered boxes (`ZANE_CHUNK_BOXES=1`)
+
+The alternative to the window: a box is its block's MiB's number and its
+offset in that MiB, so chunks may be anywhere. Built behind
+`ZANE_CHUNK_BOXES=1`, on top of `ZANE_FRAME_REFS=1`, with the same 32-bit
+box (`Nodes.Ty.Box32`) and niche as image boxes:
+
+- Each MiB of a context's frames and of a chunk gets a number from 1 when
+  it is reserved, and gives it back when it is released
+  (`zane_ids_add`/`zane_ids_drop` in `runtime/arena.c`). 15 bits of number
+  and 17 of offset in 8-byte units: 32,768 MiBs, 32 GiB.
+- Decoding loads the MiB's start from `zane_mib_bases` (256 KiB) and adds
+  the offset. Encoding loads the number from `zane_mib_ids`, indexed by the
+  address's bits from 20 up: 256 MiB of `.bss` addresses, of which only the
+  pages the program's MiBs index are touched.
+- Chunks come from `zane_reserve_aligned`, anywhere, as without boxes.
+
+Validated like image boxes: all 16 suite outputs match, 63 of 63 fixtures
+give the same output, and `test-compiler` fails only the three layout
+assertions.
+
+Interleaved against the six and image boxes, min / median and peak RSS;
+the first two rows 31 runs each, the rest 11:
+
+| test | six | image boxes | chunk boxes |
+| --- | --- | --- | --- |
+| binarytrees 18 | 0.208 / 0.223 s, 34 MB | 0.174 / 0.189 s, 10 MB | 0.183 / 0.199 s, 10 MB |
+| binarytrees 16 | 0.046 / 0.052 s, 10 MB | 0.040 / 0.042 s, 8 MB | 0.042 / 0.047 s, 8 MB |
+| treecopy 18 | 0.078 / 0.093 s | 0.082 / 0.101 s | 0.082 / 0.097 s |
+| ntree 10 | 0.147 / 0.159 s | 0.151 / 0.157 s | 0.148 / 0.154 s |
+
+The other tests are level within noise.
+
+Callgrind totals differ from the six's in the same two tests only:
+binarytrees 90.6 M six, 97.8 M image, 113.3 M chunk; treecopy 23.3, 27.6,
+31.3 M. `check` is 25.4, 33.6 and 41.0 M: the decode is a shift, the table
+load, a mask and an add, where image boxes need one `lea`, and the table
+load sits between loading the box and loading the node.
+
+So chunk numbers cost about 5% on binarytrees against image boxes, in
+time, and nothing measurable elsewhere; both keep the same memory, which at
+binarytrees 18 is 10 MB against the six's 34. What chunk numbers buy is
+independence from where the system puts memory, which no run has needed.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
