@@ -1362,6 +1362,25 @@ let runs body =
    among [body]'s statements, unconditional, onto a list no other
    statement of [body] names. Room for every time round is made before the
    loop, and each push is then a plain store. *)
+(* Whether [s] may change some list's count other than through its own
+   local: a call, which may be handed a reference to it, a spawned call, or
+   the runtime pushing, making room in or removing from a list, which may be
+   the same list reached through a reference. Room made for a loop's pushes
+   would be taken by any of them. *)
+let may_grow s =
+  Cgt.Traverse.exists_in [ s ]
+    ~expr:(fun e ->
+      match e.Expr.node with
+      | Expr.Call _ | Expr.Call_value _ -> true
+      | Expr.Runtime { fn; _ } -> (
+          match fn with
+          | Cgt.Runtime.List_push | List_room | List_reserve | List_remove _ | List_swap_remove _ | Overwrite | Copy
+          | Promote | Arrive ->
+              true
+          | _ -> false)
+      | _ -> false)
+    ~stat:(function Stat.Spawn _ | Stat.Join _ | Stat.Overwrite _ -> true | _ -> false)
+
 let looped_pushes body =
   if Sys.getenv_opt "ZANE_LOOP_PUSHES" <> Some "1" then []
   else
@@ -1391,7 +1410,8 @@ let looped_pushes body =
     List.filter_map
       (fun id ->
         match List.partition (fun s -> Option.is_some (push_of id s)) body with
-        | [ s ], rest when not (List.exists (names id) rest) -> Option.map (fun stride -> (id, stride)) (push_of id s)
+        | [ s ], rest when not (List.exists (names id) rest || List.exists may_grow rest) ->
+            Option.map (fun stride -> (id, stride)) (push_of id s)
         | _ -> None)
       lists
 

@@ -1964,6 +1964,61 @@ both switches (`ALL=1`), and `just test-compiler` passes with both on.
 `fannkucharray/`, the port at Goose's layout, remains the way to Goose's
 instruction count.
 
+## All switches together
+
+The suite built twice from the same compiler, run in one pass
+(`results-all-switches.txt`, 7 runs, medians): with no switch, and with
+`ZANE_ONE_BOX=1 ZANE_PARTIAL_INLINE=1 ZANE_LOOP_PUSHES=1
+ZANE_LIGHT_SCOPES=1 ZANE_HOIST_HANDLES=1 ZANE_REF32=1 ZANE_NICHE_SUMS=1`.
+Instructions are Callgrind's at `mechanisms.py`'s sizes; "five" is the
+first five switches alone (`mechanisms-hoist.md`).
+
+| test | wall: none | wall: all | Goose | instructions: none | five | all | Goose |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| trialdiv | 0.611 s | 0.697 s | 0.635 s | 300.6 M | 300.6 M | 299.7 M | 301.5 M |
+| binarytrees | 0.113 s | 0.054 s | 0.055 s | 186.9 M | 90.6 M | 90.5 M | 141.9 M |
+| mandelbrot | 0.873 s | 0.902 s | 0.883 s | 66.1 M | 66.2 M | 66.1 M | 66.1 M |
+| fannkuch | 0.268 s | 0.255 s | 0.248 s | 169.3 M | 151.5 M | 143.2 M | 105.6 M |
+| entities | 1.096 s | 1.087 s | 1.056 s | 83.1 M | 80.2 M | 80.2 M | 64.2 M |
+| listgrowth | 0.230 s | 0.200 s | 0.196 s | 250.9 M | 160.4 M | 160.4 M | 125.4 M |
+| ntree | 0.195 s | 0.207 s | 0.110 s | 89.9 M | 89.9 M | 93.4 M | 48.6 M |
+| treecopy | 0.237 s | 0.095 s | 0.216 s | 47.2 M | 23.3 M | 25.8 M | 53.2 M |
+| nbody | 0.346 s | 0.358 s | 0.341 s | 120.8 M | 120.6 M | 125.4 M | 116.6 M |
+| spectralnorm | 0.305 s | 0.261 s | 0.289 s | 65.5 M | 65.4 M | 65.4 M | 70.7 M |
+| allocfree | 0.690 s | 0.297 s | 0.673 s | 255.7 M | 108.4 M | 110.4 M | 152.4 M |
+| gameloop | 1.636 s | 1.738 s | 0.466 s | 1215.1 M | 1196.4 M | 1201.8 M | 361.5 M |
+| particles | 0.200 s | 0.197 s | 0.184 s | 144.6 M | 136.0 M | 154.5 M | 142.9 M |
+| concscan | 0.486 s | 0.462 s | 4.748 s | — | — | — | 264.9 M |
+
+startup and primes are level throughout. Callgrind does not finish
+concscan's Zane binary either way. trialdiv's slower wall time is noise:
+it runs the same instructions both ways. Peak memory falls on the trees
+(binarytrees 14 to 10 MB, ntree 34 to 18 MB, treecopy 30 to 22 MB) and
+moves nowhere else.
+
+**The first five never cost instructions** on any test, and every test's
+output is the same. All fixtures give the same output with all seven
+switches (`ALL=1`). `just test-compiler` passes with the five, and with the
+seven fails only three IR-shape tests (`tests/objects/facts_test.py`) that
+state the 64-bit layout: a two-handle struct `dereferenceable(48)` is 24
+bytes aligned to 4 under `ZANE_REF32`, and a first block's room is stored
+as `i32 32`. What those tests check still happens.
+
+**`ZANE_REF32` with `ZANE_NICHE_SUMS`** trades instructions for memory:
+ntree, nbody and particles run 4–14% more instructions than with the five (each reference
+read is a shift), and the trees take a quarter to a half less memory. It
+also caps the program at the cage's 28 GiB and gives up position
+independence for references to globals, so it is a choice for a program,
+not a default.
+
+Running them together found one hole, in `ZANE_LOOP_PUSHES`: room made
+before a loop was guarded only against the loop naming the list's own
+local again, not against a push through a reference to the same list, or a
+call that may make one. Either would take the room the unchecked pushes
+count on. The loop now makes room only when nothing else in it calls a
+function, spawns, or pushes to, makes room in, or removes from any list
+(Emit, `may_grow`). The suite's binaries are byte-identical with the guard.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
