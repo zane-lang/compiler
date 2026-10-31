@@ -2019,6 +2019,43 @@ count on. The loop now makes room only when nothing else in it calls a
 function, spawns, or pushes to, makes room in, or removes from any list
 (Emit, `may_grow`). The suite's binaries are byte-identical with the guard.
 
+### With frame references instead of the cage
+
+`ZANE_FRAME_REFS=1` (Frame references, above) has neither of the cage's
+costs: no cap on the program's memory, and position independence kept. It
+shrinks what a reference can name, frames and globals, and list handles to
+16 bytes, but not boxes, which point into the heap. `ZANE_NICHE_SUMS` packs
+a sum into a box's 32-bit form, so it needs the cage. Its own limit is a
+list of at most 4 GiB, since a handle's room is a 32-bit count of bytes.
+
+| test | instructions: five | five + frame refs | five + cage + niche |
+| --- | --- | --- | --- |
+| ntree | 89.9 M | 91.2 M | 93.4 M |
+| entities | 80.2 M | 80.8 M | 80.2 M |
+| nbody | 120.6 M | 125.6 M | 125.4 M |
+| allocfree | 108.4 M | 110.4 M | 110.4 M |
+| gameloop | 1196.4 M | 1205.6 M | 1201.8 M |
+| particles | 136.0 M | 150.9 M | 154.5 M |
+
+The other tests are within 0.5%. Time and peak memory, 11 runs, least /
+median:
+
+| test | none | five | five + frame refs | five + cage + niche | Goose |
+| --- | --- | --- | --- | --- | --- |
+| ntree 10 | 0.187 / 0.200 s, 34 MB | 0.192 / 0.221 s, 34 MB | 0.161 / 0.169 s, 23 MB | 0.146 / 0.190 s, 18 MB | 0.115 / 0.120 s, 25 MB |
+| binarytrees 16 | 0.097 / 0.134 s, 14 MB | 0.047 / 0.050 s, 10 MB | 0.047 / 0.054 s, 10 MB | 0.040 / 0.057 s, 8 MB | 0.051 / 0.083 s, 8 MB |
+| treecopy 18 | 0.223 / 0.253 s, 30 MB | 0.072 / 0.087 s, 22 MB | 0.068 / 0.087 s, 22 MB | 0.071 / 0.086 s, 22 MB | 0.176 / 0.205 s, 18 MB |
+| particles 50000 | 0.135 / 0.161 s | 0.139 / 0.141 s | 0.141 / 0.150 s | 0.139 / 0.144 s | 0.150 / 0.162 s |
+| nbody 5000000 | 0.316 / 0.333 s | 0.319 / 0.338 s | 0.314 / 0.331 s | 0.310 / 0.324 s | 0.316 / 0.330 s |
+
+Frame references take ntree most of the way (23 MB against the cage's 18
+and Goose's 25), and the instructions they add on particles and nbody cost
+no time. Only the niche brings binarytrees from 10 MB to Goose's 8. Every
+test prints the same with the five and frame references, every fixture
+gives the same output with them and `ZANE_FRAME_REFS_CHECK=1` (`ALL=1`),
+and `just test-compiler` fails only the same three layout tests: two
+16-byte handles make the struct `dereferenceable(32)`.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
