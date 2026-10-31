@@ -60,7 +60,7 @@ def profile(binary, args):
     with tempfile.TemporaryDirectory() as tmp:
         out = os.path.join(tmp, "cg")
         subprocess.run(["valgrind", "--tool=callgrind", "--callgrind-out-file=" + out, binary] + args,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         text = subprocess.run(["callgrind_annotate", "--threshold=100", "--inclusive=no", out],
                               capture_output=True, text=True).stdout
     total, funcs = 0, {}

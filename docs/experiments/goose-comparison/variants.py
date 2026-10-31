@@ -94,8 +94,9 @@ for test in tests.TESTS:
     for name in [*ZANE, *GOOSE_FORMS]:
         exe = build(name, tid)
         for args, expected in [(test["check_args"], test["check_expected"]), (test["args"], test["expected"])]:
-            out = subprocess.run([exe, *args], capture_output=True, text=True).stdout
-            if out != expected:
+            p = subprocess.run([exe, *args], capture_output=True, text=True)
+            out = p.stdout
+            if p.returncode != 0 or out != expected:
                 sys.exit(f"MISMATCH {name} {tid} {args}: {out!r} != {expected!r}")
         args = [str(depth)]
         run(exe, args)

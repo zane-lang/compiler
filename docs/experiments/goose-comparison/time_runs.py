@@ -9,7 +9,9 @@ def run(exe):
     pid = os.fork()
     if pid == 0:
         fd = os.open(os.devnull, os.O_WRONLY); os.dup2(fd, 1); os.execv(exe, [exe, *args])
-    _, _, ru = os.wait4(pid, 0); return ru.ru_utime + ru.ru_stime, ru.ru_maxrss
+    _, status, ru = os.wait4(pid, 0)
+    if status != 0: sys.exit(f"{exe} failed: wait status {status}")
+    return ru.ru_utime + ru.ru_stime, ru.ru_maxrss
 res = {e: [] for e in exes}
 for _ in range(int(os.environ.get("N", "11"))):
     for e in exes: res[e].append(run(e))

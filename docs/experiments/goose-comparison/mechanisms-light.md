@@ -200,7 +200,7 @@ Flagged: Zane over 1.10× the better of Goose and C in a function that takes at 
 
 | function | zane | goose | c | Zane ÷ best |
 | --- | --- | --- | --- | --- |
-| total | 0.0 M | 275.0 M | 66.6 M | — |
+| total | — (not finished) | 275.0 M | 66.6 M | — |
 | memcpyavxunalignederms | — | 205.3 M | 10 K | — |
 | gstmainshardsum | — | 60.0 M | — | — |
 | shardsum | — | — | 60.0 M | — |

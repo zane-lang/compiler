@@ -182,11 +182,16 @@ scope's own region, the common case.
 - The compact layout is Linux-only. It needs the ELF linker's
   `__ehdr_start` and Linux's `MAP_FIXED_NOREPLACE`. On other targets
   (`--target`, or a host that is not Linux) references, boxes and handles
-  keep their 64-bit layout. `ZANE_CHUNK_BOXES=1` is the drop-in for a
-  platform that cannot place the window, at about 5% on box-heavy code.
+  keep their 64-bit layout. `ZANE_CHUNK_BOXES=1` needs no window, so it is
+  the drop-in for a Linux system that cannot place one, at about 5% on
+  box-heavy code; it needs frame references, so it is Linux-only too.
 - A program's chunks share 14 GiB of addresses. Large lists are not in
   them; their reservations are anywhere.
 - All contexts' frames share the 2 GiB below the image.
+- Where the image is loaded too low for those (Valgrind loads one at
+  1 MiB), the frames are the first free 512 MiB above the image within
+  2 GiB of it, and the window the largest of 12, 8, 4 or 2 GiB free from
+  4 GiB above it.
 - If the window or the frames area cannot be reserved, the program stops
   with an error rather than falling back, since the encoding is chosen when
   the program is compiled.

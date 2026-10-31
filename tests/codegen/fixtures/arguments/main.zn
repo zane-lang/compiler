@@ -101,5 +101,15 @@ Unit main() {
 	check(@operators$equal(args[Int(4)]:parseF64() ?? Float(1.0), Float(1.0)));
 	check(@operators$equal(args[Int(5)]:parseF64() ?? Float(1.0), Float(1.0)));
 	check(@operators$equal(args[Int(9)]:parseF64() ?? Float(1.0), Float(1.0)));
+
+	// The list grows past the block the arguments came in, and they stay.
+	n Int(1);
+	n!to(Int(20)) {
+		args!push(String("more"));
+	}
+	check(@operators$equal(args:size(), Int(30)));
+	check(@operators$equal(args[Int(1)], String("42")));
+	check(@operators$equal(args[Int(10)], String(" 5")));
+	check(@operators$equal(args[Int(30)], String("more")));
 	return Unit();
 }

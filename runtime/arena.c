@@ -75,6 +75,9 @@ static void zane_ids_add(char *at, size_t bytes) {
 	for (size_t off = 0; off < bytes; off += ZANE_CHUNK) {
 		size_t id = zane_ids_freed ? zane_ids_free[--zane_ids_freed] : zane_ids_next++;
 		if (id >= ZANE_MIB_IDS) zane_broken("out of numbers for MiBs");
+		/* The table covers 128 TiB, all a mapping made without a hint
+		   above it is given. */
+		if (((uintptr_t)(at + off) >> 20) >= ((size_t)1 << 27)) zane_broken("a chunk past 128 TiB");
 		zane_mib_bases[id] = at + off;
 		zane_mib_ids[(uintptr_t)(at + off) >> 20] = (uint16_t)id;
 	}

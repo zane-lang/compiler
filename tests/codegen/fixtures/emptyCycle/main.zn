@@ -1,0 +1,54 @@
+/// A cycle through an `ArrayRef` of no elements (adt.md §4): it holds
+/// nothing, so it breaks no cycle and needs no box, and `A`'s field `b`
+/// stays inline beside its owner, where a reference stored in a field
+/// reaches it (memory.md §4.1). Each check prints `yes` when it holds and
+/// `no` when it does not.
+package emptyCycle;
+
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias Bool = @primitives$Bool;
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+type A = #struct {
+	b B;
+}
+
+A(b ^B) => init{ b; }
+
+type B = #struct {
+	end @primitives$ArrayRef<A, 0>;
+	value Int;
+}
+
+B(value Int) {
+	end ^@primitives$ArrayRef<A, 0> = @primitives$ArrayRef.fill(0, ^A(i Int) => A(B(i)));
+	return init{ end; value; }
+}
+
+type Pin = #struct {
+	at &B;
+}
+
+Pin(at &B) => init{ at; }
+
+Int read(b &B) {
+	pin Pin(b);
+	return pin.at.value;
+}
+
+Unit main() {
+	a A(B(Int(41)));
+	check(@operators$equal(read(a.b), Int(41)));
+	a.b.value = Int(7);
+	check(@operators$equal(read(a.b), Int(7)));
+	return Unit();
+}

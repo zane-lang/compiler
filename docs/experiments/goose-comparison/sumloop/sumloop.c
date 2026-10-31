@@ -13,7 +13,9 @@ int main(int argc, char **argv) {
 	}
 	int64_t total = 0;
 	for (int64_t r = 0; r < rounds; r++) {
-		for (int64_t k = 0; k < n; k++) total += list[k];
+		/* Wrapping, as Zane's and Goose's sums do, without C's undefined
+		   signed overflow. */
+		for (int64_t k = 0; k < n; k++) total = (int64_t)((uint64_t)total + (uint64_t)list[k]);
 		list[0] = total;
 	}
 	printf("%lld %lld\n", (long long)size, (long long)total);

@@ -2109,6 +2109,128 @@
   (diff golden/doubling.out doubling.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/emptyCycle))
+ (targets emptyCycle.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build emptyCycle.exe --package fixtures/emptyCycle)))
+
+(rule
+ (deps (source_tree fixtures/emptyCycle))
+ (targets emptyCycle.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build emptyCycle.optimized.exe --optimize --package fixtures/emptyCycle)))
+
+(rule
+ (deps (source_tree fixtures/emptyCycle))
+ (targets emptyCycle.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build emptyCycle.tiered.exe --tiered --package fixtures/emptyCycle)))
+
+(rule
+ (deps (source_tree fixtures/emptyCycle))
+ (targets emptyCycle.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up emptyCycle.tier1 --package fixtures/emptyCycle)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    emptyCycle.checked.out.actual
+    (run ./emptyCycle.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/emptyCycle.out emptyCycle.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    emptyCycle.unchecked.out.actual
+    (run ./emptyCycle.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/emptyCycle.out emptyCycle.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    emptyCycle.optimized.checked.out.actual
+    (run ./emptyCycle.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/emptyCycle.out emptyCycle.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    emptyCycle.optimized.unchecked.out.actual
+    (run ./emptyCycle.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/emptyCycle.out emptyCycle.optimized.unchecked.out.actual)))
+
+(rule
+ (deps emptyCycle.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./emptyCycle.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    emptyCycle.tiered.checked.out.actual
+    (run ./emptyCycle.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/emptyCycle.out emptyCycle.tiered.checked.out.actual)))
+
+(rule
+ (deps emptyCycle.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./emptyCycle.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    emptyCycle.tiered.unchecked.out.actual
+    (run ./emptyCycle.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/emptyCycle.out emptyCycle.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/entryArray))
  (targets entryArray.exe)
  (action

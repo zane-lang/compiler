@@ -11,13 +11,14 @@
 # changes the runtime too (ZANE_FRAME_REFS=0, say).
 W=${WORK:-/tmp/zane-goose-fixtures}; mkdir -p "$W"; Z=$PWD/_build/default/bin/zanec/zanec.exe
 for d in tests/codegen/fixtures/*/; do
-  n=$(basename "$d"); args=(); [ -f "$d/$n" ] && mapfile -t args < "$d/$n"
+  n=$(basename "$d"); args=()
+  if [ -f "$d/$n" ]; then while IFS= read -r line; do args+=("$line"); done < "$d/$n"; fi
   a=$($Z --cgt --optimize --package "$d" 2>&1 | md5sum); b=$(env "$@" "$Z" --cgt --optimize --package "$d" 2>&1 | md5sum)
   [ "$a" = "$b" ] && [ -z "$ALL" ] && continue
   if ! env "$@" "$Z" --build "$W/$n.new" --package "$d" >/dev/null 2>"$W/$n.err"; then
     echo "$n: refused: $(grep -o 'pooled variants[^"]*' "$W/$n.err" | head -1)"; continue
   fi
-  "$Z" --build "$W/$n.old" --package "$d" >/dev/null 2>&1
+  if ! "$Z" --build "$W/$n.old" --package "$d" >/dev/null 2>&1; then echo "$n: baseline refused"; continue; fi
   o=$(ZANE_CHECK=1 "$W/$n.old" "${args[@]}" 2>&1; echo "exit $?"); p=$(ZANE_CHECK=1 "$W/$n.new" "${args[@]}" 2>&1; echo "exit $?")
   [ "$o" = "$p" ] && echo "$n: same output" || echo "$n: DIFFERENT"
 done

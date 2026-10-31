@@ -49,7 +49,8 @@ def run_once(exe, args):
     p = subprocess.Popen([exe, *args], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
     dt = time.perf_counter() - t
-    _, status, ru = os.wait4(p.pid, 0) if False else (None, p.returncode, None)
+    if p.returncode != 0:
+        raise RuntimeError(f"{exe} exited with {p.returncode}: {err.decode()}")
     return out.decode(), dt
 
 def run_measured(exe, args):

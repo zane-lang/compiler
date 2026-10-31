@@ -329,7 +329,10 @@ void zane_arguments(zane_list *out) {
 	int64_t stride = (int64_t)sizeof(zane_text);
 	int64_t room = 128;
 	while (room < zane_argc * stride) room *= 2;
-	zane_text *items = (zane_text *)zane_alloc(zane_here(), room, ZANE_LIST_ALIGN);
+	/* The handle's room is in its unit (ZL_ELEMENTS), and the block is the
+	   bytes of that many whole units. */
+	int64_t units = room / zl_unit(stride);
+	zane_text *items = (zane_text *)zane_alloc(zane_here(), zl_block_bytes(units, stride), ZANE_LIST_ALIGN);
 	for (int i = 0; i < zane_argc; i++) {
 		int64_t length = (int64_t)strlen(zane_argv[i]);
 		if (length == 0) {
@@ -340,5 +343,5 @@ void zane_arguments(zane_list *out) {
 		memcpy(bytes, zane_argv[i], (size_t)length);
 		items[i] = (zane_text){ bytes, length, length };
 	}
-	*out = ZL_MAKE((char *)items, zane_argc, room);
+	*out = ZL_MAKE((char *)items, zane_argc, units);
 }

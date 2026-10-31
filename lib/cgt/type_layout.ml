@@ -75,14 +75,15 @@ let reference st t =
   is_list_ref t || is_array_ref t || match definition st t with Some (_, true) -> true | _ -> false
 
 (* The types a type holds inline: its members and payloads, what it is
-   distinct from, and an array's elements. A reference holds an address, and
-   a list's elements are in its block. *)
+   distinct from, and an array's elements. A reference holds an address, a
+   list's elements are in its block, and an array of none holds nothing, so
+   no cycle passes through it. *)
 let inline st t =
   match (definition st t, array_of t) with
   | Some ((T.Decl.Struct ms | T.Decl.Variant ms), _), _ ->
       List.filter (fun m -> not (Tty.is_ref m)) (List.map snd ms)
   | Some (T.Decl.Distinct u, _), _ -> [ u ]
-  | None, Some (e, _) when not (Tty.is_ref e) -> [ e ]
+  | None, Some (e, n) when n > 0 && not (Tty.is_ref e) -> [ e ]
   | _ -> []
 
 (* A walk down a type's members, gone down to [t] (Tty.Growth). Semantics
@@ -220,6 +221,9 @@ let rec shape st span (t : Tty.t) : Nodes.Ty.t =
   | Tty.Verb _ -> Nodes.Ty.Ptr
   | Tty.Intrinsic _ when Option.is_some (array_of t) -> (
       match array_of t with
+      (* An array of none holds nothing of its element, which may be the
+         type that holds the array ([inline]). *)
+      | Some (_, 0) -> Nodes.Ty.Array (Nodes.Ty.Void, 0)
       | Some (e, n) -> Nodes.Ty.Array ((if ref_slot e then Nodes.Ty.Ref else shape st span e), n)
       | None -> unhandled span t)
   | Tty.Named _ -> (
@@ -333,7 +337,7 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
   | _ when pooled st t -> [ at (Layout.List { stride = 1; elements = pool_bytes st }) list_handle ]
   | Tty.Intrinsic _, _ when Option.is_some (array_of t) -> (
       let e, n = Option.get (array_of t) in
-      match positions st span e 0 [] with
+      match if n = 0 then [] else positions st span e 0 [] with
       | [] -> []
       | ps ->
           (* The element's positions are its layout's, so they are kept as
