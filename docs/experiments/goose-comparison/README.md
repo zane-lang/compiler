@@ -2168,6 +2168,64 @@ source (`docs/goose_spec.md` §1.2-1.3, §5.4;
   references (`T&<u32 in pool>`), with a free list of slots that stay valid
   values forever.
 
+## Image-relative boxes (`ZANE_IMAGE_BOXES=1`)
+
+The cage's one memory win frame references did not keep was the boxed
+member: a box stayed an 8-byte pointer. `ZANE_IMAGE_BOXES=1`, on top of
+`ZANE_FRAME_REFS=1`, stores it in 32 bits without a fixed address range:
+
+- A box (`Nodes.Ty.Box32`) is its block's signed distance from the image
+  (`__ehdr_start`) in 8-byte units, so it reaches ±16 GiB. Decoding is
+  `image + sext(v) << 3`; encoding traps under `ZANE_FRAME_REFS_CHECK=1`
+  when the distance does not fit. 0 is null: no block starts at the image.
+  The walks decode 0 to null; the emitter's decode skips that test, since
+  a box is set while its case is live.
+- The runtime carves every dynamic chunk from a window reserved once near
+  the image (`zane_window_take` in `runtime/region.c`): the whole MiBs from
+  16 GiB to 2 GiB below it, under the frames, or where the program loads
+  too low (Valgrind), 12, 8, 4 or 2 GiB from 4 GiB above it. Frames are
+  within 2 GiB already, so a box in a scope's frame encodes too. Lists'
+  growable spans and pools stay outside: their handles hold 8-byte items.
+- `ZANE_NICHE_SUMS=1` now packs `[Void; box]` into the bare word too.
+- Build note: clang folded `image - 16 GiB` into one `R_X86_64_PC32`
+  relocation against `__ehdr_start`, which cannot hold the offset and fails
+  to link; the image's address passes through an empty `asm` first.
+
+Validated with the five switches, frame references, image boxes and the
+niche: all 16 suite outputs match, the 63 fixtures (`ALL=1`, with
+`ZANE_FRAME_REFS_CHECK=1`) give the same output, and `test-compiler` fails
+only the three `facts_test` layout assertions every frame-reference build
+fails.
+
+Interleaved, 7 runs each, min / median and peak RSS, at langbench's sizes;
+`six` is the five plus frame references, `cage` the five plus `ZANE_REF32`
+and the niche, `ib` the six plus image boxes and the niche:
+
+| test | six | cage | ib |
+| --- | --- | --- | --- |
+| binarytrees 16 | 0.046 / 0.046 s, 10 MB | 0.040 / 0.043 s, 8 MB | 0.040 / 0.042 s, 8 MB |
+| ntree 10 | 0.160 / 0.166 s, 23 MB | 0.147 / 0.149 s, 18 MB | 0.155 / 0.165 s, 23 MB |
+| treecopy 18 | 0.065 / 0.081 s, 22 MB | 0.066 / 0.092 s, 22 MB | 0.069 / 0.092 s, 22 MB |
+| allocfree | 0.289 / 0.308 s | 0.266 / 0.305 s | 0.285 / 0.299 s |
+| particles | 0.137 / 0.143 s | 0.142 / 0.147 s | 0.138 / 0.147 s |
+| gameloop | 1.593 / 1.642 s | 1.517 / 1.607 s | 1.564 / 1.605 s |
+
+The other seven tests are level within noise across the three.
+
+Callgrind totals (`mechanisms.py`) are identical to the six's in every test
+but two: binarytrees 90.6 → 97.8 M (+8%) and treecopy 23.3 → 27.6 M
+(+19%). The cost is the decode: `check` keeps the image's address in a
+callee-saved register and forms each child with a `lea (image, v, 8)`,
+where the six loads a pointer; the cage pays the same kind of cost (`check`
+25.4 M six, 29.4 M cage, 33.6 M ib). Neither shows in time.
+
+So image boxes give binarytrees the cage's 8 MB and speed, position
+independent and with no fixed range. What the cage still has is ntree's
+18 MB against 23: that saving is the list handle's items in 32 bits (a
+12-byte handle), not boxes, and items live in growable spans outside the
+window. Reaching it means carving spans from the window as well, which
+caps the lists all of a program's chunks share at the window's 14 GiB.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
