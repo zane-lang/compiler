@@ -2,17 +2,17 @@
     ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: keeping$Pair
-    │   ├── positions[0]: box @0 of keeping$Tree (16 bytes)
-    │   └── positions[1]: box @8 of keeping$Tree (16 bytes)
+    │   ├── positions[0]: box @0 of keeping$Pair (8 bytes) when [0]=-2
+    │   └── positions[1]: box @4 of keeping$Pair (8 bytes) when [4]=-2
     ├── layouts[1] > layout:
     │   ├── type: keeping$Tree
-    │   └── positions[0]: box @8 of keeping$Pair (16 bytes) when [0]=1
+    │   └── positions[0]: box @0 of keeping$Pair (8 bytes) when [0]=-2
     ├── layouts[2] > layout:
     │   ├── type: ^keeping$Tree
-    │   └── positions[0]: box @8 of keeping$Pair (16 bytes) when [0]=1
+    │   └── positions[0]: box @0 of keeping$Pair (8 bytes) when [0]=-2
     ├── layouts[3] > layout:
     │   ├── type: keeping$Node
-    │   └── positions[0]: list @0 of keeping$Node (24 bytes apart)
+    │   └── positions[0]: list @0 of keeping$Node (16 bytes apart)
     ├── layouts[4] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
@@ -32,13 +32,13 @@
     │   └── positions[0]: text @0
     ├── layouts[9] > layout:
     │   ├── type: ^keeping$Node
-    │   └── positions[0]: list @0 of keeping$Node (24 bytes apart)
+    │   └── positions[0]: list @0 of keeping$Node (16 bytes apart)
     ├── layouts[10] > layout:
     │   ├── type: keeping$Shelf
-    │   └── positions[0]: list @0 of keeping$Item (48 bytes apart)
+    │   └── positions[0]: list @0 of keeping$Item (40 bytes apart)
     ├── layouts[11] > layout:
     │   ├── type: ^keeping$Shelf
-    │   └── positions[0]: list @0 of keeping$Item (48 bytes apart)
+    │   └── positions[0]: list @0 of keeping$Item (40 bytes apart)
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -73,7 +73,7 @@
     │       │       │   │       │   ├── local: #1
     │       │       │   │       │   ├── scope: %4
     │       │       │   │       │   ├── value > call:
-    │       │       │   │       │   │   ├── type: <void | ptr>
+    │       │       │   │       │   │   ├── type: <void | box32>
     │       │       │   │       │   │   ├── fn: keeping$make(%primitives$I64)
     │       │       │   │       │   │   └── args[0]: 4 : i64
     │       │       │   │       │   └── layout: keeping$Tree
@@ -91,12 +91,12 @@
     │       │       │   │       │   └── value: local #5 : ptr
     │       │       │   │       └── body[1] > switch:
     │       │       │   │           ├── value > deref:
-    │       │       │   │           │   ├── type: <void | ptr>
+    │       │       │   │           │   ├── type: <void | box32>
     │       │       │   │           │   └── ptr: local #10 : ptr
     │       │       │   │           ├── cases[0] > case 0[0] > let:
     │       │       │   │           │   ├── local: #11
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <void | ptr>
+    │       │       │   │           │       ├── within: <void | box32>
     │       │       │   │           │       ├── path: 0
     │       │       │   │           │       └── base: local #10 : ptr
     │       │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -105,12 +105,14 @@
     │       │       │   │           ├── cases[0] > case 0[2]: leave @8
     │       │       │   │           ├── cases[1] > case 1[0] > let:
     │       │       │   │           │   ├── local: #12
-    │       │       │   │           │   └── value > deref:
+    │       │       │   │           │   └── value > convert:
     │       │       │   │           │       ├── type: ptr
-    │       │       │   │           │       └── ptr > offset:
-    │       │       │   │           │           ├── within: <void | ptr>
-    │       │       │   │           │           ├── path: 1
-    │       │       │   │           │           └── base: local #10 : ptr
+    │       │       │   │           │       └── value > deref:
+    │       │       │   │           │           ├── type: box32
+    │       │       │   │           │           └── ptr > offset:
+    │       │       │   │           │               ├── within: <void | box32>
+    │       │       │   │           │               ├── path: 1
+    │       │       │   │           │               └── base: local #10 : ptr
     │       │       │   │           ├── cases[1] > case 1[1] > assign:
     │       │       │   │           │   ├── place: #9
     │       │       │   │           │   └── value > binary:
@@ -123,21 +125,17 @@
     │       │       │   │           │           ├── left > call:
     │       │       │   │           │           │   ├── type: i64
     │       │       │   │           │           │   ├── fn: keeping$nodes(keeping$Tree)
-    │       │       │   │           │           │   └── args[0] > deref:
-    │       │       │   │           │           │       ├── type: ptr
-    │       │       │   │           │           │       └── ptr > offset:
-    │       │       │   │           │           │           ├── within: {ptr, ptr}
-    │       │       │   │           │           │           ├── path: 0
-    │       │       │   │           │           │           └── base: local #12 : ptr
+    │       │       │   │           │           │   └── args[0] > offset:
+    │       │       │   │           │           │       ├── within: {<void | box32>, <void | box32>}
+    │       │       │   │           │           │       ├── path: 0
+    │       │       │   │           │           │       └── base: local #12 : ptr
     │       │       │   │           │           └── right > call:
     │       │       │   │           │               ├── type: i64
     │       │       │   │           │               ├── fn: keeping$nodes(keeping$Tree)
-    │       │       │   │           │               └── args[0] > deref:
-    │       │       │   │           │                   ├── type: ptr
-    │       │       │   │           │                   └── ptr > offset:
-    │       │       │   │           │                       ├── within: {ptr, ptr}
-    │       │       │   │           │                       ├── path: 1
-    │       │       │   │           │                       └── base: local #12 : ptr
+    │       │       │   │           │               └── args[0] > offset:
+    │       │       │   │           │                   ├── within: {<void | box32>, <void | box32>}
+    │       │       │   │           │                   ├── path: 1
+    │       │       │   │           │                   └── base: local #12 : ptr
     │       │       │   │           └── cases[1] > case 1[2]: leave @8
     │       │       │   └── body[2]: leave @6
     │       │       └── right: 31 : i64
@@ -189,7 +187,7 @@
     │       │   │   │                   │       │   ├── local: #19
     │       │   │   │                   │       │   ├── scope: %22
     │       │   │   │                   │       │   ├── value > call:
-    │       │   │   │                   │       │   │   ├── type: <void | ptr>
+    │       │   │   │                   │       │   │   ├── type: <void | box32>
     │       │   │   │                   │       │   │   ├── fn: keeping$make(%primitives$I64)
     │       │   │   │                   │       │   │   └── args[0]: 3 : i64
     │       │   │   │                   │       │   └── layout: keeping$Tree
@@ -207,12 +205,12 @@
     │       │   │   │                   │       │   └── value: local #23 : ptr
     │       │   │   │                   │       └── body[1] > switch:
     │       │   │   │                   │           ├── value > deref:
-    │       │   │   │                   │           │   ├── type: <void | ptr>
+    │       │   │   │                   │           │   ├── type: <void | box32>
     │       │   │   │                   │           │   └── ptr: local #28 : ptr
     │       │   │   │                   │           ├── cases[0] > case 0[0] > let:
     │       │   │   │                   │           │   ├── local: #29
     │       │   │   │                   │           │   └── value > offset:
-    │       │   │   │                   │           │       ├── within: <void | ptr>
+    │       │   │   │                   │           │       ├── within: <void | box32>
     │       │   │   │                   │           │       ├── path: 0
     │       │   │   │                   │           │       └── base: local #28 : ptr
     │       │   │   │                   │           ├── cases[0] > case 0[1] > assign:
@@ -221,12 +219,14 @@
     │       │   │   │                   │           ├── cases[0] > case 0[2]: leave @26
     │       │   │   │                   │           ├── cases[1] > case 1[0] > let:
     │       │   │   │                   │           │   ├── local: #30
-    │       │   │   │                   │           │   └── value > deref:
+    │       │   │   │                   │           │   └── value > convert:
     │       │   │   │                   │           │       ├── type: ptr
-    │       │   │   │                   │           │       └── ptr > offset:
-    │       │   │   │                   │           │           ├── within: <void | ptr>
-    │       │   │   │                   │           │           ├── path: 1
-    │       │   │   │                   │           │           └── base: local #28 : ptr
+    │       │   │   │                   │           │       └── value > deref:
+    │       │   │   │                   │           │           ├── type: box32
+    │       │   │   │                   │           │           └── ptr > offset:
+    │       │   │   │                   │           │               ├── within: <void | box32>
+    │       │   │   │                   │           │               ├── path: 1
+    │       │   │   │                   │           │               └── base: local #28 : ptr
     │       │   │   │                   │           ├── cases[1] > case 1[1] > assign:
     │       │   │   │                   │           │   ├── place: #27
     │       │   │   │                   │           │   └── value > binary:
@@ -239,21 +239,17 @@
     │       │   │   │                   │           │           ├── left > call:
     │       │   │   │                   │           │           │   ├── type: i64
     │       │   │   │                   │           │           │   ├── fn: keeping$nodes(keeping$Tree)
-    │       │   │   │                   │           │           │   └── args[0] > deref:
-    │       │   │   │                   │           │           │       ├── type: ptr
-    │       │   │   │                   │           │           │       └── ptr > offset:
-    │       │   │   │                   │           │           │           ├── within: {ptr, ptr}
-    │       │   │   │                   │           │           │           ├── path: 0
-    │       │   │   │                   │           │           │           └── base: local #30 : ptr
+    │       │   │   │                   │           │           │   └── args[0] > offset:
+    │       │   │   │                   │           │           │       ├── within: {<void | box32>, <void | box32>}
+    │       │   │   │                   │           │           │       ├── path: 0
+    │       │   │   │                   │           │           │       └── base: local #30 : ptr
     │       │   │   │                   │           │           └── right > call:
     │       │   │   │                   │           │               ├── type: i64
     │       │   │   │                   │           │               ├── fn: keeping$nodes(keeping$Tree)
-    │       │   │   │                   │           │               └── args[0] > deref:
-    │       │   │   │                   │           │                   ├── type: ptr
-    │       │   │   │                   │           │                   └── ptr > offset:
-    │       │   │   │                   │           │                       ├── within: {ptr, ptr}
-    │       │   │   │                   │           │                       ├── path: 1
-    │       │   │   │                   │           │                       └── base: local #30 : ptr
+    │       │   │   │                   │           │               └── args[0] > offset:
+    │       │   │   │                   │           │                   ├── within: {<void | box32>, <void | box32>}
+    │       │   │   │                   │           │                   ├── path: 1
+    │       │   │   │                   │           │                   └── base: local #30 : ptr
     │       │   │   │                   │           └── cases[1] > case 1[2]: leave @26
     │       │   │   │                   └── body[2]: leave @24
     │       │   │   └── body[1] > assign:
@@ -277,7 +273,7 @@
     │       │   ├── local: #31
     │       │   ├── scope: %4
     │       │   ├── value > call:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── fn: keeping$make(%primitives$I64)
     │       │   │   └── args[0]: 5 : i64
     │       │   └── layout: keeping$Tree
@@ -296,12 +292,12 @@
     │       │       │   │   └── value: address of #31 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <void | ptr>
+    │       │       │       │   ├── type: <void | box32>
     │       │       │       │   └── ptr: local #36 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #37
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <void | ptr>
+    │       │       │       │       ├── within: <void | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #36 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -310,12 +306,14 @@
     │       │       │       ├── cases[0] > case 0[2]: leave @34
     │       │       │       ├── cases[1] > case 1[0] > let:
     │       │       │       │   ├── local: #38
-    │       │       │       │   └── value > deref:
+    │       │       │       │   └── value > convert:
     │       │       │       │       ├── type: ptr
-    │       │       │       │       └── ptr > offset:
-    │       │       │       │           ├── within: <void | ptr>
-    │       │       │       │           ├── path: 1
-    │       │       │       │           └── base: local #36 : ptr
+    │       │       │       │       └── value > deref:
+    │       │       │       │           ├── type: box32
+    │       │       │       │           └── ptr > offset:
+    │       │       │       │               ├── within: <void | box32>
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #36 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
     │       │       │       │   ├── place: #35
     │       │       │       │   └── value > binary:
@@ -328,34 +326,30 @@
     │       │       │       │           ├── left > call:
     │       │       │       │           │   ├── type: i64
     │       │       │       │           │   ├── fn: keeping$nodes(keeping$Tree)
-    │       │       │       │           │   └── args[0] > deref:
-    │       │       │       │           │       ├── type: ptr
-    │       │       │       │           │       └── ptr > offset:
-    │       │       │       │           │           ├── within: {ptr, ptr}
-    │       │       │       │           │           ├── path: 0
-    │       │       │       │           │           └── base: local #38 : ptr
+    │       │       │       │           │   └── args[0] > offset:
+    │       │       │       │           │       ├── within: {<void | box32>, <void | box32>}
+    │       │       │       │           │       ├── path: 0
+    │       │       │       │           │       └── base: local #38 : ptr
     │       │       │       │           └── right > call:
     │       │       │       │               ├── type: i64
     │       │       │       │               ├── fn: keeping$nodes(keeping$Tree)
-    │       │       │       │               └── args[0] > deref:
-    │       │       │       │                   ├── type: ptr
-    │       │       │       │                   └── ptr > offset:
-    │       │       │       │                       ├── within: {ptr, ptr}
-    │       │       │       │                       ├── path: 1
-    │       │       │       │                       └── base: local #38 : ptr
+    │       │       │       │               └── args[0] > offset:
+    │       │       │       │                   ├── within: {<void | box32>, <void | box32>}
+    │       │       │       │                   ├── path: 1
+    │       │       │       │                   └── base: local #38 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @34
     │       │       └── right: 63 : i64
     │       ├── body[7] > spawn:
     │       │   ├── task: #40
     │       │   ├── scope: %4
     │       │   ├── thunk: zane.spawn.1
-    │       │   ├── frame: {<void | ptr>, <void | ptr>, <void | ptr>}
+    │       │   ├── frame: {<void | box32>, <void | box32>, <void | box32>}
     │       │   ├── args[0] > call:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── fn: keeping$make(%primitives$I64)
     │       │   │   └── args[0]: 2 : i64
     │       │   ├── args[1] > call:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── fn: keeping$make(%primitives$I64)
     │       │   │   └── args[0]: 3 : i64
     │       │   ├── dest: #41
@@ -385,12 +379,12 @@
     │       │       │   │       │   └── value: local #42 : ptr
     │       │       │   │       └── body[1] > switch:
     │       │       │   │           ├── value > deref:
-    │       │       │   │           │   ├── type: <void | ptr>
+    │       │       │   │           │   ├── type: <void | box32>
     │       │       │   │           │   └── ptr: local #47 : ptr
     │       │       │   │           ├── cases[0] > case 0[0] > let:
     │       │       │   │           │   ├── local: #48
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <void | ptr>
+    │       │       │   │           │       ├── within: <void | box32>
     │       │       │   │           │       ├── path: 0
     │       │       │   │           │       └── base: local #47 : ptr
     │       │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -399,12 +393,14 @@
     │       │       │   │           ├── cases[0] > case 0[2]: leave @45
     │       │       │   │           ├── cases[1] > case 1[0] > let:
     │       │       │   │           │   ├── local: #49
-    │       │       │   │           │   └── value > deref:
+    │       │       │   │           │   └── value > convert:
     │       │       │   │           │       ├── type: ptr
-    │       │       │   │           │       └── ptr > offset:
-    │       │       │   │           │           ├── within: <void | ptr>
-    │       │       │   │           │           ├── path: 1
-    │       │       │   │           │           └── base: local #47 : ptr
+    │       │       │   │           │       └── value > deref:
+    │       │       │   │           │           ├── type: box32
+    │       │       │   │           │           └── ptr > offset:
+    │       │       │   │           │               ├── within: <void | box32>
+    │       │       │   │           │               ├── path: 1
+    │       │       │   │           │               └── base: local #47 : ptr
     │       │       │   │           ├── cases[1] > case 1[1] > assign:
     │       │       │   │           │   ├── place: #46
     │       │       │   │           │   └── value > binary:
@@ -417,21 +413,17 @@
     │       │       │   │           │           ├── left > call:
     │       │       │   │           │           │   ├── type: i64
     │       │       │   │           │           │   ├── fn: keeping$nodes(keeping$Tree)
-    │       │       │   │           │           │   └── args[0] > deref:
-    │       │       │   │           │           │       ├── type: ptr
-    │       │       │   │           │           │       └── ptr > offset:
-    │       │       │   │           │           │           ├── within: {ptr, ptr}
-    │       │       │   │           │           │           ├── path: 0
-    │       │       │   │           │           │           └── base: local #49 : ptr
+    │       │       │   │           │           │   └── args[0] > offset:
+    │       │       │   │           │           │       ├── within: {<void | box32>, <void | box32>}
+    │       │       │   │           │           │       ├── path: 0
+    │       │       │   │           │           │       └── base: local #49 : ptr
     │       │       │   │           │           └── right > call:
     │       │       │   │           │               ├── type: i64
     │       │       │   │           │               ├── fn: keeping$nodes(keeping$Tree)
-    │       │       │   │           │               └── args[0] > deref:
-    │       │       │   │           │                   ├── type: ptr
-    │       │       │   │           │                   └── ptr > offset:
-    │       │       │   │           │                       ├── within: {ptr, ptr}
-    │       │       │   │           │                       ├── path: 1
-    │       │       │   │           │                       └── base: local #49 : ptr
+    │       │       │   │           │               └── args[0] > offset:
+    │       │       │   │           │                   ├── within: {<void | box32>, <void | box32>}
+    │       │       │   │           │                   ├── path: 1
+    │       │       │   │           │                   └── base: local #49 : ptr
     │       │       │   │           └── cases[1] > case 1[2]: leave @45
     │       │       │   └── body[3]: leave @43
     │       │       └── right: 23 : i64
@@ -439,7 +431,7 @@
     │       │   ├── local: #50
     │       │   ├── scope: %4
     │       │   ├── value > call:
-    │       │   │   ├── type: {handle}
+    │       │   │   ├── type: {handle16}
     │       │   │   ├── fn: keeping$grow(%primitives$I64)
     │       │   │   └── args[0]: 3 : i64
     │       │   └── layout: keeping$Node
@@ -496,19 +488,21 @@
     │       │   │   │                   │   ├── local: #61
     │       │   │   │                   │   ├── scope: %60
     │       │   │   │                   │   ├── value > call:
-    │       │   │   │                   │   │   ├── type: {handle, handle}
+    │       │   │   │                   │   │   ├── type: {handle, handle16}
     │       │   │   │                   │   │   ├── fn: keeping$Item(%primitives$String)
     │       │   │   │                   │   │   └── args[0]: "x" : handle
     │       │   │   │                   │   └── layout: ^keeping$Item
     │       │   │   │                   ├── body[1] > assign:
     │       │   │   │                   │   ├── place: #63
-    │       │   │   │                   │   └── value > member:
+    │       │   │   │                   │   └── value > convert:
     │       │   │   │                   │       ├── type: i64
-    │       │   │   │                   │       ├── index: 1
     │       │   │   │                   │       └── value > member:
-    │       │   │   │                   │           ├── type: handle
+    │       │   │   │                   │           ├── type: i32
     │       │   │   │                   │           ├── index: 1
-    │       │   │   │                   │           └── value: local #61 : {handle, handle}
+    │       │   │   │                   │           └── value > member:
+    │       │   │   │                   │               ├── type: handle16
+    │       │   │   │                   │               ├── index: 1
+    │       │   │   │                   │               └── value: local #61 : {handle, handle16}
     │       │   │   │                   └── body[2]: leave @62
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #52
@@ -565,7 +559,7 @@
     │       │   │   │                   ├── type: i64
     │       │   │   │                   ├── fn: keeping$stash(^keeping$Item)
     │       │   │   │                   └── args[0] > call:
-    │       │   │   │                       ├── type: {handle, handle}
+    │       │   │   │                       ├── type: {handle, handle16}
     │       │   │   │                       ├── fn: keeping$Item(%primitives$String)
     │       │   │   │                       └── args[0]: "y" : handle
     │       │   │   └── body[1] > assign:
@@ -628,7 +622,7 @@
     │       │   │   │                   ├── type: i64
     │       │   │   │                   ├── fn: function keeping$weighing
     │       │   │   │                   └── args[0] > expand:
-    │       │   │   │                       ├── type: {handle, handle}
+    │       │   │   │                       ├── type: {handle, handle16}
     │       │   │   │                       ├── label: @81
     │       │   │   │                       ├── result: #82
     │       │   │   │                       ├── body[0] > assign:
@@ -636,13 +630,13 @@
     │       │   │   │                       │   └── value > escape:
     │       │   │   │                       │       ├── exit: @81
     │       │   │   │                       │       ├── value > record:
-    │       │   │   │                       │       │   ├── type: {handle, handle}
+    │       │   │   │                       │       │   ├── type: {handle, handle16}
     │       │   │   │                       │       │   ├── members[0] > member 0 > copy:
     │       │   │   │                       │       │   │   ├── type: handle
     │       │   │   │                       │       │   │   ├── value: local #74 : handle
     │       │   │   │                       │       │   │   └── layout: %primitives$String
     │       │   │   │                       │       │   └── members[1] > member 1 > runtime:
-    │       │   │   │                       │       │       ├── type: handle
+    │       │   │   │                       │       │       ├── type: handle16
     │       │   │   │                       │       │       ├── fn: zane_list_new
     │       │   │   │                       │       │       └── args:
     │       │   │   │                       │       └── layout: keeping$Item
@@ -668,10 +662,10 @@
     │       │   ├── task: #87
     │       │   ├── scope: %4
     │       │   ├── thunk: zane.spawn.2
-    │       │   ├── frame: {i64, ptr, {handle, handle}}
+    │       │   ├── frame: {i64, ptr, {handle, handle16}}
     │       │   ├── args[0]: function keeping$weighing
     │       │   ├── args[1] > expand:
-    │       │   │   ├── type: {handle, handle}
+    │       │   │   ├── type: {handle, handle16}
     │       │   │   ├── label: @84
     │       │   │   ├── result: #85
     │       │   │   ├── body[0] > assign:
@@ -679,13 +673,13 @@
     │       │   │   │   └── value > escape:
     │       │   │   │       ├── exit: @84
     │       │   │   │       ├── value > record:
-    │       │   │   │       │   ├── type: {handle, handle}
+    │       │   │   │       │   ├── type: {handle, handle16}
     │       │   │   │       │   ├── members[0] > member 0 > copy:
     │       │   │   │       │   │   ├── type: handle
     │       │   │   │       │   │   ├── value: local #74 : handle
     │       │   │   │       │   │   └── layout: %primitives$String
     │       │   │   │       │   └── members[1] > member 1 > runtime:
-    │       │   │   │       │       ├── type: handle
+    │       │   │   │       │       ├── type: handle16
     │       │   │   │       │       ├── fn: zane_list_new
     │       │   │   │       │       └── args:
     │       │   │   │       └── layout: keeping$Item
@@ -741,7 +735,7 @@
     │       │   │   │       │   ├── local: #97
     │       │   │   │       │   ├── scope: %98
     │       │   │   │       │   ├── value > call:
-    │       │   │   │       │   │   ├── type: {handle, handle}
+    │       │   │   │       │   │   ├── type: {handle, handle16}
     │       │   │   │       │   │   ├── fn: keeping$swap()
     │       │   │   │       │   │   └── args:
     │       │   │   │       │   └── layout: keeping$Item
@@ -751,13 +745,15 @@
     │       │   │   │               ├── type: i64
     │       │   │   │               ├── op: +
     │       │   │   │               ├── left: local #91 : i64
-    │       │   │   │               └── right > member:
+    │       │   │   │               └── right > convert:
     │       │   │   │                   ├── type: i64
-    │       │   │   │                   ├── index: 1
     │       │   │   │                   └── value > member:
-    │       │   │   │                       ├── type: handle
+    │       │   │   │                       ├── type: i32
     │       │   │   │                       ├── index: 1
-    │       │   │   │                       └── value: local #97 : {handle, handle}
+    │       │   │   │                       └── value > member:
+    │       │   │   │                           ├── type: handle16
+    │       │   │   │                           ├── index: 1
+    │       │   │   │                           └── value: local #97 : {handle, handle16}
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #92
     │       │   │       └── value > binary:
@@ -779,14 +775,14 @@
     │       │   ├── local: #109
     │       │   ├── scope: %4
     │       │   ├── value > expand:
-    │       │   │   ├── type: {handle, handle}
+    │       │   │   ├── type: {handle, handle16}
     │       │   │   ├── label: @107
     │       │   │   ├── result: #108
     │       │   │   ├── body[0] > hold:
     │       │   │   │   ├── local: #102
     │       │   │   │   ├── scope: %4
     │       │   │   │   ├── value > call:
-    │       │   │   │   │   ├── type: {handle, handle}
+    │       │   │   │   │   ├── type: {handle, handle16}
     │       │   │   │   │   ├── fn: keeping$Item(%primitives$String)
     │       │   │   │   │   └── args[0]: "ada" : handle
     │       │   │   │   └── layout: ^keeping$Item
@@ -794,7 +790,7 @@
     │       │   │   │   ├── local: #106
     │       │   │   │   ├── scope: %4
     │       │   │   │   ├── value > call:
-    │       │   │   │   │   ├── type: {handle, handle}
+    │       │   │   │   │   ├── type: {handle, handle16}
     │       │   │   │   │   ├── fn: keeping$Item(%primitives$String)
     │       │   │   │   │   └── args[0]: "grace" : handle
     │       │   │   │   └── layout: ^keeping$Item
@@ -803,7 +799,7 @@
     │       │   │   │   └── value > escape:
     │       │   │   │       ├── exit: @107
     │       │   │   │       ├── value > take:
-    │       │   │   │       │   ├── type: {handle, handle}
+    │       │   │   │       │   ├── type: {handle, handle16}
     │       │   │   │       │   ├── address: address of #106 : ptr
     │       │   │   │       │   └── layout: keeping$Item
     │       │   │   │       └── layout: keeping$Item
@@ -821,7 +817,7 @@
     │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > offset:
-    │       │       │   │       ├── within: {handle, handle}
+    │       │       │   │       ├── within: {handle, handle16}
     │       │       │   │       ├── path: 0
     │       │       │   │       └── base: address of #109 : ptr
     │       │       │   └── args[1] > expand:
@@ -997,7 +993,7 @@
     │       │   ├── local: #142
     │       │   ├── scope: %4
     │       │   ├── value > call:
-    │       │   │   ├── type: {handle}
+    │       │   │   ├── type: {handle16}
     │       │   │   ├── fn: keeping$lent()
     │       │   │   └── args:
     │       │   └── layout: keeping$Node
@@ -1007,19 +1003,21 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > member:
+    │       │       ├── left > convert:
     │       │       │   ├── type: i64
-    │       │       │   ├── index: 1
     │       │       │   └── value > member:
-    │       │       │       ├── type: handle
-    │       │       │       ├── index: 0
-    │       │       │       └── value: local #142 : {handle}
+    │       │       │       ├── type: i32
+    │       │       │       ├── index: 1
+    │       │       │       └── value > member:
+    │       │       │           ├── type: handle16
+    │       │       │           ├── index: 0
+    │       │       │           └── value: local #142 : {handle16}
     │       │       └── right: 2 : i64
     │       └── body[41] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: keeping$make(%primitives$I64)
     │   ├── params[0]: local #1 : i64
-    │   ├── ret: <void | ptr>
+    │   ├── ret: <void | box32>
     │   ├── body[0] > if:
     │   │   ├── cond > binary:
     │   │   │   ├── type: i1
@@ -1029,59 +1027,57 @@
     │   │   └── body[0] > return > escape:
     │   │       ├── exit: function
     │   │       ├── value > case:
-    │   │       │   ├── type: <void | ptr>
+    │   │       │   ├── type: <void | box32>
     │   │       │   ├── index: 0
     │   │       │   └── payload: unit : void
     │   │       └── layout: ^keeping$Tree
     │   └── body[1] > return > escape:
     │       ├── exit: function
     │       ├── value > case:
-    │       │   ├── type: <void | ptr>
+    │       │   ├── type: <void | box32>
     │       │   ├── index: 1
-    │       │   └── payload > box:
-    │       │       ├── value > expand:
-    │       │       │   ├── type: {ptr, ptr}
-    │       │       │   ├── label: @6
-    │       │       │   ├── result: #7
-    │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #3
-    │       │       │   │   └── value > call:
-    │       │       │   │       ├── type: <void | ptr>
-    │       │       │   │       ├── fn: keeping$make(%primitives$I64)
-    │       │       │   │       └── args[0] > binary:
-    │       │       │   │           ├── type: i64
-    │       │       │   │           ├── op: +
-    │       │       │   │           ├── left: local #1 : i64
-    │       │       │   │           └── right > flip:
-    │       │       │   │               ├── type: i64
-    │       │       │   │               └── value: 1 : i64
-    │       │       │   ├── body[1] > let:
-    │       │       │   │   ├── local: #5
-    │       │       │   │   └── value > call:
-    │       │       │   │       ├── type: <void | ptr>
-    │       │       │   │       ├── fn: keeping$make(%primitives$I64)
-    │       │       │   │       └── args[0] > binary:
-    │       │       │   │           ├── type: i64
-    │       │       │   │           ├── op: +
-    │       │       │   │           ├── left: local #1 : i64
-    │       │       │   │           └── right > flip:
-    │       │       │   │               ├── type: i64
-    │       │       │   │               └── value: 1 : i64
-    │       │       │   ├── body[2] > assign:
-    │       │       │   │   ├── place: #7
-    │       │       │   │   └── value > escape:
-    │       │       │   │       ├── exit: @6
-    │       │       │   │       ├── value > record:
-    │       │       │   │       │   ├── type: {ptr, ptr}
-    │       │       │   │       │   ├── members[0] > member 0 > box:
-    │       │       │   │       │   │   ├── value: local #3 : <void | ptr>
-    │       │       │   │       │   │   └── layout: keeping$Tree
-    │       │       │   │       │   └── members[1] > member 1 > box:
-    │       │       │   │       │       ├── value: local #5 : <void | ptr>
-    │       │       │   │       │       └── layout: keeping$Tree
-    │       │       │   │       └── layout: keeping$Pair
-    │       │       │   └── body[3]: leave @6
-    │       │       └── layout: keeping$Pair
+    │       │   └── payload > convert:
+    │       │       ├── type: box32
+    │       │       └── value > box:
+    │       │           ├── value > expand:
+    │       │           │   ├── type: {<void | box32>, <void | box32>}
+    │       │           │   ├── label: @6
+    │       │           │   ├── result: #7
+    │       │           │   ├── body[0] > let:
+    │       │           │   │   ├── local: #3
+    │       │           │   │   └── value > call:
+    │       │           │   │       ├── type: <void | box32>
+    │       │           │   │       ├── fn: keeping$make(%primitives$I64)
+    │       │           │   │       └── args[0] > binary:
+    │       │           │   │           ├── type: i64
+    │       │           │   │           ├── op: +
+    │       │           │   │           ├── left: local #1 : i64
+    │       │           │   │           └── right > flip:
+    │       │           │   │               ├── type: i64
+    │       │           │   │               └── value: 1 : i64
+    │       │           │   ├── body[1] > let:
+    │       │           │   │   ├── local: #5
+    │       │           │   │   └── value > call:
+    │       │           │   │       ├── type: <void | box32>
+    │       │           │   │       ├── fn: keeping$make(%primitives$I64)
+    │       │           │   │       └── args[0] > binary:
+    │       │           │   │           ├── type: i64
+    │       │           │   │           ├── op: +
+    │       │           │   │           ├── left: local #1 : i64
+    │       │           │   │           └── right > flip:
+    │       │           │   │               ├── type: i64
+    │       │           │   │               └── value: 1 : i64
+    │       │           │   ├── body[2] > assign:
+    │       │           │   │   ├── place: #7
+    │       │           │   │   └── value > escape:
+    │       │           │   │       ├── exit: @6
+    │       │           │   │       ├── value > record:
+    │       │           │   │       │   ├── type: {<void | box32>, <void | box32>}
+    │       │           │   │       │   ├── members[0] > member 0: local #3 : <void | box32>
+    │       │           │   │       │   └── members[1] > member 1: local #5 : <void | box32>
+    │       │           │   │       └── layout: keeping$Pair
+    │       │           │   └── body[3]: leave @6
+    │       │           └── layout: keeping$Pair
     │       └── layout: ^keeping$Tree
     ├── funcs[3] > func:
     │   ├── symbol: keeping$nodes(keeping$Tree)
@@ -1096,12 +1092,12 @@
     │       │   └── value: local #1 : ptr
     │       └── body[1] > switch:
     │           ├── value > deref:
-    │           │   ├── type: <void | ptr>
+    │           │   ├── type: <void | box32>
     │           │   └── ptr: local #4 : ptr
     │           ├── cases[0] > case 0[0] > let:
     │           │   ├── local: #5
     │           │   └── value > offset:
-    │           │       ├── within: <void | ptr>
+    │           │       ├── within: <void | box32>
     │           │       ├── path: 0
     │           │       └── base: local #4 : ptr
     │           ├── cases[0] > case 0[1] > assign:
@@ -1110,12 +1106,14 @@
     │           ├── cases[0] > case 0[2]: leave @2
     │           ├── cases[1] > case 1[0] > let:
     │           │   ├── local: #6
-    │           │   └── value > deref:
+    │           │   └── value > convert:
     │           │       ├── type: ptr
-    │           │       └── ptr > offset:
-    │           │           ├── within: <void | ptr>
-    │           │           ├── path: 1
-    │           │           └── base: local #4 : ptr
+    │           │       └── value > deref:
+    │           │           ├── type: box32
+    │           │           └── ptr > offset:
+    │           │               ├── within: <void | box32>
+    │           │               ├── path: 1
+    │           │               └── base: local #4 : ptr
     │           ├── cases[1] > case 1[1] > assign:
     │           │   ├── place: #3
     │           │   └── value > binary:
@@ -1131,12 +1129,10 @@
     │           │           │   ├── result: #9
     │           │           │   ├── body[0] > let:
     │           │           │   │   ├── local: #7
-    │           │           │   │   └── value > deref:
-    │           │           │   │       ├── type: ptr
-    │           │           │   │       └── ptr > offset:
-    │           │           │   │           ├── within: {ptr, ptr}
-    │           │           │   │           ├── path: 0
-    │           │           │   │           └── base: local #6 : ptr
+    │           │           │   │   └── value > offset:
+    │           │           │   │       ├── within: {<void | box32>, <void | box32>}
+    │           │           │   │       ├── path: 0
+    │           │           │   │       └── base: local #6 : ptr
     │           │           │   ├── body[1] > assign:
     │           │           │   │   ├── place: #9
     │           │           │   │   └── value > expand:
@@ -1148,12 +1144,12 @@
     │           │           │   │       │   └── value: local #7 : ptr
     │           │           │   │       └── body[1] > switch:
     │           │           │   │           ├── value > deref:
-    │           │           │   │           │   ├── type: <void | ptr>
+    │           │           │   │           │   ├── type: <void | box32>
     │           │           │   │           │   └── ptr: local #12 : ptr
     │           │           │   │           ├── cases[0] > case 0[0] > let:
     │           │           │   │           │   ├── local: #13
     │           │           │   │           │   └── value > offset:
-    │           │           │   │           │       ├── within: <void | ptr>
+    │           │           │   │           │       ├── within: <void | box32>
     │           │           │   │           │       ├── path: 0
     │           │           │   │           │       └── base: local #12 : ptr
     │           │           │   │           ├── cases[0] > case 0[1] > assign:
@@ -1162,12 +1158,14 @@
     │           │           │   │           ├── cases[0] > case 0[2]: leave @10
     │           │           │   │           ├── cases[1] > case 1[0] > let:
     │           │           │   │           │   ├── local: #14
-    │           │           │   │           │   └── value > deref:
+    │           │           │   │           │   └── value > convert:
     │           │           │   │           │       ├── type: ptr
-    │           │           │   │           │       └── ptr > offset:
-    │           │           │   │           │           ├── within: <void | ptr>
-    │           │           │   │           │           ├── path: 1
-    │           │           │   │           │           └── base: local #12 : ptr
+    │           │           │   │           │       └── value > deref:
+    │           │           │   │           │           ├── type: box32
+    │           │           │   │           │           └── ptr > offset:
+    │           │           │   │           │               ├── within: <void | box32>
+    │           │           │   │           │               ├── path: 1
+    │           │           │   │           │               └── base: local #12 : ptr
     │           │           │   │           ├── cases[1] > case 1[1] > assign:
     │           │           │   │           │   ├── place: #11
     │           │           │   │           │   └── value > binary:
@@ -1180,21 +1178,17 @@
     │           │           │   │           │           ├── left > call:
     │           │           │   │           │           │   ├── type: i64
     │           │           │   │           │           │   ├── fn: keeping$nodes(keeping$Tree)
-    │           │           │   │           │           │   └── args[0] > deref:
-    │           │           │   │           │           │       ├── type: ptr
-    │           │           │   │           │           │       └── ptr > offset:
-    │           │           │   │           │           │           ├── within: {ptr, ptr}
-    │           │           │   │           │           │           ├── path: 0
-    │           │           │   │           │           │           └── base: local #14 : ptr
+    │           │           │   │           │           │   └── args[0] > offset:
+    │           │           │   │           │           │       ├── within: {<void | box32>, <void | box32>}
+    │           │           │   │           │           │       ├── path: 0
+    │           │           │   │           │           │       └── base: local #14 : ptr
     │           │           │   │           │           └── right > call:
     │           │           │   │           │               ├── type: i64
     │           │           │   │           │               ├── fn: keeping$nodes(keeping$Tree)
-    │           │           │   │           │               └── args[0] > deref:
-    │           │           │   │           │                   ├── type: ptr
-    │           │           │   │           │                   └── ptr > offset:
-    │           │           │   │           │                       ├── within: {ptr, ptr}
-    │           │           │   │           │                       ├── path: 1
-    │           │           │   │           │                       └── base: local #14 : ptr
+    │           │           │   │           │               └── args[0] > offset:
+    │           │           │   │           │                   ├── within: {<void | box32>, <void | box32>}
+    │           │           │   │           │                   ├── path: 1
+    │           │           │   │           │                   └── base: local #14 : ptr
     │           │           │   │           └── cases[1] > case 1[2]: leave @10
     │           │           │   └── body[2]: leave @8
     │           │           └── right > expand:
@@ -1203,12 +1197,10 @@
     │           │               ├── result: #17
     │           │               ├── body[0] > let:
     │           │               │   ├── local: #15
-    │           │               │   └── value > deref:
-    │           │               │       ├── type: ptr
-    │           │               │       └── ptr > offset:
-    │           │               │           ├── within: {ptr, ptr}
-    │           │               │           ├── path: 1
-    │           │               │           └── base: local #6 : ptr
+    │           │               │   └── value > offset:
+    │           │               │       ├── within: {<void | box32>, <void | box32>}
+    │           │               │       ├── path: 1
+    │           │               │       └── base: local #6 : ptr
     │           │               ├── body[1] > assign:
     │           │               │   ├── place: #17
     │           │               │   └── value > expand:
@@ -1220,12 +1212,12 @@
     │           │               │       │   └── value: local #15 : ptr
     │           │               │       └── body[1] > switch:
     │           │               │           ├── value > deref:
-    │           │               │           │   ├── type: <void | ptr>
+    │           │               │           │   ├── type: <void | box32>
     │           │               │           │   └── ptr: local #20 : ptr
     │           │               │           ├── cases[0] > case 0[0] > let:
     │           │               │           │   ├── local: #21
     │           │               │           │   └── value > offset:
-    │           │               │           │       ├── within: <void | ptr>
+    │           │               │           │       ├── within: <void | box32>
     │           │               │           │       ├── path: 0
     │           │               │           │       └── base: local #20 : ptr
     │           │               │           ├── cases[0] > case 0[1] > assign:
@@ -1234,12 +1226,14 @@
     │           │               │           ├── cases[0] > case 0[2]: leave @18
     │           │               │           ├── cases[1] > case 1[0] > let:
     │           │               │           │   ├── local: #22
-    │           │               │           │   └── value > deref:
+    │           │               │           │   └── value > convert:
     │           │               │           │       ├── type: ptr
-    │           │               │           │       └── ptr > offset:
-    │           │               │           │           ├── within: <void | ptr>
-    │           │               │           │           ├── path: 1
-    │           │               │           │           └── base: local #20 : ptr
+    │           │               │           │       └── value > deref:
+    │           │               │           │           ├── type: box32
+    │           │               │           │           └── ptr > offset:
+    │           │               │           │               ├── within: <void | box32>
+    │           │               │           │               ├── path: 1
+    │           │               │           │               └── base: local #20 : ptr
     │           │               │           ├── cases[1] > case 1[1] > assign:
     │           │               │           │   ├── place: #19
     │           │               │           │   └── value > binary:
@@ -1252,21 +1246,17 @@
     │           │               │           │           ├── left > call:
     │           │               │           │           │   ├── type: i64
     │           │               │           │           │   ├── fn: keeping$nodes(keeping$Tree)
-    │           │               │           │           │   └── args[0] > deref:
-    │           │               │           │           │       ├── type: ptr
-    │           │               │           │           │       └── ptr > offset:
-    │           │               │           │           │           ├── within: {ptr, ptr}
-    │           │               │           │           │           ├── path: 0
-    │           │               │           │           │           └── base: local #22 : ptr
+    │           │               │           │           │   └── args[0] > offset:
+    │           │               │           │           │       ├── within: {<void | box32>, <void | box32>}
+    │           │               │           │           │       ├── path: 0
+    │           │               │           │           │       └── base: local #22 : ptr
     │           │               │           │           └── right > call:
     │           │               │           │               ├── type: i64
     │           │               │           │               ├── fn: keeping$nodes(keeping$Tree)
-    │           │               │           │               └── args[0] > deref:
-    │           │               │           │                   ├── type: ptr
-    │           │               │           │                   └── ptr > offset:
-    │           │               │           │                       ├── within: {ptr, ptr}
-    │           │               │           │                       ├── path: 1
-    │           │               │           │                       └── base: local #22 : ptr
+    │           │               │           │               └── args[0] > offset:
+    │           │               │           │                   ├── within: {<void | box32>, <void | box32>}
+    │           │               │           │                   ├── path: 1
+    │           │               │           │                   └── base: local #22 : ptr
     │           │               │           └── cases[1] > case 1[2]: leave @18
     │           │               └── body[2]: leave @16
     │           └── cases[1] > case 1[2]: leave @2
@@ -1303,55 +1293,53 @@
     │       └── body[4] > return: unit : void
     ├── funcs[5] > func:
     │   ├── symbol: keeping$joined(^keeping$Tree, ^keeping$Tree)
-    │   ├── params[0]: local #1 : <void | ptr>
-    │   ├── params[1]: local #2 : <void | ptr>
-    │   ├── ret: <void | ptr>
+    │   ├── params[0]: local #1 : <void | box32>
+    │   ├── params[1]: local #2 : <void | box32>
+    │   ├── ret: <void | box32>
     │   ├── body[0] > let:
     │   │   ├── local: #3
-    │   │   └── value: local #1 : <void | ptr>
+    │   │   └── value: local #1 : <void | box32>
     │   ├── body[1] > let:
     │   │   ├── local: #5
-    │   │   └── value: local #2 : <void | ptr>
+    │   │   └── value: local #2 : <void | box32>
     │   └── body[2] > return > escape:
     │       ├── exit: function
     │       ├── value > case:
-    │       │   ├── type: <void | ptr>
+    │       │   ├── type: <void | box32>
     │       │   ├── index: 1
-    │       │   └── payload > box:
-    │       │       ├── value > expand:
-    │       │       │   ├── type: {ptr, ptr}
-    │       │       │   ├── label: @8
-    │       │       │   ├── result: #9
-    │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #6
-    │       │       │   │   └── value: local #3 : <void | ptr>
-    │       │       │   ├── body[1] > let:
-    │       │       │   │   ├── local: #7
-    │       │       │   │   └── value: local #5 : <void | ptr>
-    │       │       │   ├── body[2] > assign:
-    │       │       │   │   ├── place: #9
-    │       │       │   │   └── value > escape:
-    │       │       │   │       ├── exit: @8
-    │       │       │   │       ├── value > record:
-    │       │       │   │       │   ├── type: {ptr, ptr}
-    │       │       │   │       │   ├── members[0] > member 0 > box:
-    │       │       │   │       │   │   ├── value: local #6 : <void | ptr>
-    │       │       │   │       │   │   └── layout: keeping$Tree
-    │       │       │   │       │   └── members[1] > member 1 > box:
-    │       │       │   │       │       ├── value: local #7 : <void | ptr>
-    │       │       │   │       │       └── layout: keeping$Tree
-    │       │       │   │       └── layout: keeping$Pair
-    │       │       │   └── body[3]: leave @8
-    │       │       └── layout: keeping$Pair
+    │       │   └── payload > convert:
+    │       │       ├── type: box32
+    │       │       └── value > box:
+    │       │           ├── value > expand:
+    │       │           │   ├── type: {<void | box32>, <void | box32>}
+    │       │           │   ├── label: @8
+    │       │           │   ├── result: #9
+    │       │           │   ├── body[0] > let:
+    │       │           │   │   ├── local: #6
+    │       │           │   │   └── value: local #3 : <void | box32>
+    │       │           │   ├── body[1] > let:
+    │       │           │   │   ├── local: #7
+    │       │           │   │   └── value: local #5 : <void | box32>
+    │       │           │   ├── body[2] > assign:
+    │       │           │   │   ├── place: #9
+    │       │           │   │   └── value > escape:
+    │       │           │   │       ├── exit: @8
+    │       │           │   │       ├── value > record:
+    │       │           │   │       │   ├── type: {<void | box32>, <void | box32>}
+    │       │           │   │       │   ├── members[0] > member 0: local #6 : <void | box32>
+    │       │           │   │       │   └── members[1] > member 1: local #7 : <void | box32>
+    │       │           │   │       └── layout: keeping$Pair
+    │       │           │   └── body[3]: leave @8
+    │       │           └── layout: keeping$Pair
     │       └── layout: ^keeping$Tree
     ├── funcs[6] > func:
     │   ├── symbol: keeping$grow(%primitives$I64)
     │   ├── params[0]: local #1 : i64
-    │   ├── ret: {handle}
+    │   ├── ret: {handle16}
     │   ├── body[0] > let:
     │   │   ├── local: #4
     │   │   └── value > expand:
-    │   │       ├── type: {handle}
+    │   │       ├── type: {handle16}
     │   │       ├── label: @2
     │   │       ├── result: #3
     │   │       ├── body[0] > assign:
@@ -1359,9 +1347,9 @@
     │   │       │   └── value > escape:
     │   │       │       ├── exit: @2
     │   │       │       ├── value > record:
-    │   │       │       │   ├── type: {handle}
+    │   │       │       │   ├── type: {handle16}
     │   │       │       │   └── members[0] > member 0 > runtime:
-    │   │       │       │       ├── type: handle
+    │   │       │       │       ├── type: handle16
     │   │       │       │       ├── fn: zane_list_new
     │   │       │       │       └── args:
     │   │       │       └── layout: keeping$Node
@@ -1400,7 +1388,7 @@
     │   │       │   │       ├── fn: keeping$adopt(this keeping$Node, ^keeping$Node)
     │   │       │   │       ├── args[0]: address of #4 : ptr
     │   │       │   │       └── args[1] > call:
-    │   │       │   │           ├── type: {handle}
+    │   │       │   │           ├── type: {handle16}
     │   │       │   │           ├── fn: keeping$grow(%primitives$I64)
     │   │       │   │           └── args[0] > binary:
     │   │       │   │               ├── type: i64
@@ -1420,7 +1408,7 @@
     │   │       └── body[3]: leave @9
     │   └── body[3] > return > escape:
     │       ├── exit: function
-    │       ├── value: local #4 : {handle}
+    │       ├── value: local #4 : {handle16}
     │       └── layout: ^keeping$Node
     ├── funcs[7] > func:
     │   ├── symbol: keeping$members(keeping$Node)
@@ -1437,15 +1425,17 @@
     │   │   ├── label: @5
     │   │   ├── body[0] > let:
     │   │   │   ├── local: #4
-    │   │   │   └── value > member:
+    │   │   │   └── value > convert:
     │   │   │       ├── type: i64
-    │   │   │       ├── index: 1
     │   │   │       └── value > member:
-    │   │   │           ├── type: handle
-    │   │   │           ├── index: 0
-    │   │   │           └── value > deref:
-    │   │   │               ├── type: {handle}
-    │   │   │               └── ptr: local #1 : ptr
+    │   │   │           ├── type: i32
+    │   │   │           ├── index: 1
+    │   │   │           └── value > member:
+    │   │   │               ├── type: handle16
+    │   │   │               ├── index: 0
+    │   │   │               └── value > deref:
+    │   │   │                   ├── type: {handle16}
+    │   │   │                   └── ptr: local #1 : ptr
     │   │   ├── body[1] > repeat:
     │   │   │   ├── count > binary:
     │   │   │   │   ├── type: i64
@@ -1473,11 +1463,11 @@
     │   │   │   │                   ├── type: ptr
     │   │   │   │                   ├── fn: zane_list_at
     │   │   │   │                   ├── args[0] > offset:
-    │   │   │   │                   │   ├── within: {handle}
+    │   │   │   │                   │   ├── within: {handle16}
     │   │   │   │                   │   ├── path: 0
     │   │   │   │                   │   └── base: local #1 : ptr
     │   │   │   │                   ├── args[1]: local #3 : i64
-    │   │   │   │                   └── args[2]: 24 : i64
+    │   │   │   │                   └── args[2]: 16 : i64
     │   │   │   └── body[1] > assign:
     │   │   │       ├── place: #3
     │   │   │       └── value > binary:
@@ -1491,33 +1481,33 @@
     ├── funcs[8] > func:
     │   ├── symbol: keeping$Item(%primitives$String)
     │   ├── params[0]: local #1 : handle
-    │   ├── ret: {handle, handle}
+    │   ├── ret: {handle, handle16}
     │   └── body[0] > return > escape:
     │       ├── exit: function
     │       ├── value > record:
-    │       │   ├── type: {handle, handle}
+    │       │   ├── type: {handle, handle16}
     │       │   ├── members[0] > member 0: local #1 : handle
     │       │   └── members[1] > member 1 > runtime:
-    │       │       ├── type: handle
+    │       │       ├── type: handle16
     │       │       ├── fn: zane_list_new
     │       │       └── args:
     │       └── layout: keeping$Item
     ├── funcs[9] > func:
     │   ├── symbol: keeping$stash(^keeping$Item)
-    │   ├── params[0]: local #1 : {handle, handle}
+    │   ├── params[0]: local #1 : {handle, handle16}
     │   ├── ret: i64
     │   └── body[0] > scope:
     │       ├── id: %3
     │       ├── body[0] > hold:
     │       │   ├── local: #2
     │       │   ├── scope: %3
-    │       │   ├── value: local #1 : {handle, handle}
+    │       │   ├── value: local #1 : {handle, handle16}
     │       │   └── layout: ^keeping$Item
     │       ├── body[1] > hold:
     │       │   ├── local: #6
     │       │   ├── scope: %3
     │       │   ├── value > expand:
-    │       │   │   ├── type: {handle}
+    │       │   │   ├── type: {handle16}
     │       │   │   ├── label: @4
     │       │   │   ├── result: #5
     │       │   │   ├── body[0] > assign:
@@ -1525,9 +1515,9 @@
     │       │   │   │   └── value > escape:
     │       │   │   │       ├── exit: @4
     │       │   │   │       ├── value > record:
-    │       │   │   │       │   ├── type: {handle}
+    │       │   │   │       │   ├── type: {handle16}
     │       │   │   │       │   └── members[0] > member 0 > runtime:
-    │       │   │   │       │       ├── type: handle
+    │       │   │   │       │       ├── type: handle16
     │       │   │   │       │       ├── fn: zane_list_new
     │       │   │   │       │       └── args:
     │       │   │   │       └── layout: keeping$Shelf
@@ -1538,45 +1528,49 @@
     │       │   ├── fn: keeping$put(this keeping$Shelf, ^keeping$Item)
     │       │   ├── args[0]: address of #6 : ptr
     │       │   └── args[1] > take:
-    │       │       ├── type: {handle, handle}
+    │       │       ├── type: {handle, handle16}
     │       │       ├── address: address of #2 : ptr
     │       │       └── layout: ^keeping$Item
-    │       └── body[3] > return > member:
+    │       └── body[3] > return > convert:
     │           ├── type: i64
-    │           ├── index: 1
     │           └── value > member:
-    │               ├── type: handle
-    │               ├── index: 0
-    │               └── value: local #6 : {handle}
+    │               ├── type: i32
+    │               ├── index: 1
+    │               └── value > member:
+    │                   ├── type: handle16
+    │                   ├── index: 0
+    │                   └── value: local #6 : {handle16}
     ├── funcs[10] > func:
     │   ├── symbol: keeping$weighing
-    │   ├── params[0]: local #1 : {handle, handle}
+    │   ├── params[0]: local #1 : {handle, handle16}
     │   ├── ret: i64
     │   └── body[0] > scope:
     │       ├── id: %3
     │       ├── body[0] > hold:
     │       │   ├── local: #2
     │       │   ├── scope: %3
-    │       │   ├── value: local #1 : {handle, handle}
+    │       │   ├── value: local #1 : {handle, handle16}
     │       │   └── layout: ^keeping$Item
-    │       └── body[1] > return > member:
+    │       └── body[1] > return > convert:
     │           ├── type: i64
-    │           ├── index: 1
     │           └── value > member:
-    │               ├── type: handle
+    │               ├── type: i32
     │               ├── index: 1
-    │               └── value: local #2 : {handle, handle}
+    │               └── value > member:
+    │                   ├── type: handle16
+    │                   ├── index: 1
+    │                   └── value: local #2 : {handle, handle16}
     ├── funcs[11] > func:
     │   ├── symbol: keeping$swap()
     │   ├── params:
-    │   ├── ret: {handle, handle}
+    │   ├── ret: {handle, handle16}
     │   └── body[0] > scope:
     │       ├── id: %4
     │       ├── body[0] > hold:
     │       │   ├── local: #5
     │       │   ├── scope: %4
     │       │   ├── value > call:
-    │       │   │   ├── type: {handle, handle}
+    │       │   │   ├── type: {handle, handle16}
     │       │   │   ├── fn: keeping$Item(%primitives$String)
     │       │   │   └── args[0]: "a" : handle
     │       │   └── layout: ^keeping$Item
@@ -1584,21 +1578,21 @@
     │       │   ├── local: #6
     │       │   ├── scope: %4
     │       │   ├── value > take:
-    │       │   │   ├── type: {handle, handle}
+    │       │   │   ├── type: {handle, handle16}
     │       │   │   ├── address: address of #5 : ptr
     │       │   │   └── layout: ^keeping$Item
     │       │   └── layout: ^keeping$Item
     │       ├── body[2] > overwrite:
     │       │   ├── address: address of #5 : ptr
     │       │   ├── value > call:
-    │       │   │   ├── type: {handle, handle}
+    │       │   │   ├── type: {handle, handle16}
     │       │   │   ├── fn: keeping$Item(%primitives$String)
     │       │   │   └── args[0]: "c" : handle
     │       │   └── layout: keeping$Item
     │       └── body[3] > return > escape:
     │           ├── exit: function
     │           ├── value > take:
-    │           │   ├── type: {handle, handle}
+    │           │   ├── type: {handle, handle16}
     │           │   ├── address: address of #6 : ptr
     │           │   └── layout: ^keeping$Item
     │           └── layout: ^keeping$Item
@@ -1613,14 +1607,14 @@
     ├── funcs[13] > func:
     │   ├── symbol: keeping$lent()
     │   ├── params:
-    │   ├── ret: {handle}
+    │   ├── ret: {handle16}
     │   └── body[0] > scope:
     │       ├── id: %4
     │       ├── body[0] > hold:
     │       │   ├── local: #3
     │       │   ├── scope: %4
     │       │   ├── value > expand:
-    │       │   │   ├── type: {handle}
+    │       │   │   ├── type: {handle16}
     │       │   │   ├── label: @1
     │       │   │   ├── result: #2
     │       │   │   ├── body[0] > assign:
@@ -1628,9 +1622,9 @@
     │       │   │   │   └── value > escape:
     │       │   │   │       ├── exit: @1
     │       │   │   │       ├── value > record:
-    │       │   │   │       │   ├── type: {handle}
+    │       │   │   │       │   ├── type: {handle16}
     │       │   │   │       │   └── members[0] > member 0 > runtime:
-    │       │   │   │       │       ├── type: handle
+    │       │   │   │       │       ├── type: handle16
     │       │   │   │       │       ├── fn: zane_list_new
     │       │   │   │       │       └── args:
     │       │   │   │       └── layout: keeping$Node
@@ -1643,66 +1637,66 @@
     │       └── body[2] > return > escape:
     │           ├── exit: function
     │           ├── value > take:
-    │           │   ├── type: {handle}
+    │           │   ├── type: {handle16}
     │           │   ├── address: address of #3 : ptr
     │           │   └── layout: ^keeping$Node
     │           └── layout: ^keeping$Node
     ├── funcs[14] > func:
     │   ├── symbol: keeping$adopt(this keeping$Node, ^keeping$Node)
     │   ├── params[0]: local #1 : ptr
-    │   ├── params[1]: local #2 : {handle}
+    │   ├── params[1]: local #2 : {handle16}
     │   ├── ret: void
     │   ├── body[0] > let:
     │   │   ├── local: #3
-    │   │   └── value: local #2 : {handle}
+    │   │   └── value: local #2 : {handle16}
     │   ├── body[1] > eval > expand:
     │   │   ├── type: void
     │   │   ├── label: @7
     │   │   ├── body[0] > let:
     │   │   │   ├── local: #5
-    │   │   │   └── value: local #3 : {handle}
+    │   │   │   └── value: local #3 : {handle16}
     │   │   ├── body[1] > let:
     │   │   │   ├── local: #6
     │   │   │   └── value > runtime:
     │   │   │       ├── type: ptr
     │   │   │       ├── fn: zane_list_push
     │   │   │       ├── args[0] > offset:
-    │   │   │       │   ├── within: {handle}
+    │   │   │       │   ├── within: {handle16}
     │   │   │       │   ├── path: 0
     │   │   │       │   └── base: local #1 : ptr
-    │   │   │       └── args[1]: 24 : i64
+    │   │   │       └── args[1]: 16 : i64
     │   │   └── body[2] > place:
     │   │       ├── address: local #6 : ptr
-    │   │       ├── value: local #5 : {handle}
+    │   │       ├── value: local #5 : {handle16}
     │   │       └── layout: keeping$Node
     │   └── body[2] > return: unit : void
     ├── funcs[15] > func:
     │   ├── symbol: keeping$put(this keeping$Shelf, ^keeping$Item)
     │   ├── params[0]: local #1 : ptr
-    │   ├── params[1]: local #2 : {handle, handle}
+    │   ├── params[1]: local #2 : {handle, handle16}
     │   ├── ret: void
     │   ├── body[0] > let:
     │   │   ├── local: #3
-    │   │   └── value: local #2 : {handle, handle}
+    │   │   └── value: local #2 : {handle, handle16}
     │   ├── body[1] > eval > expand:
     │   │   ├── type: void
     │   │   ├── label: @7
     │   │   ├── body[0] > let:
     │   │   │   ├── local: #5
-    │   │   │   └── value: local #3 : {handle, handle}
+    │   │   │   └── value: local #3 : {handle, handle16}
     │   │   ├── body[1] > let:
     │   │   │   ├── local: #6
     │   │   │   └── value > runtime:
     │   │   │       ├── type: ptr
     │   │   │       ├── fn: zane_list_push
     │   │   │       ├── args[0] > offset:
-    │   │   │       │   ├── within: {handle}
+    │   │   │       │   ├── within: {handle16}
     │   │   │       │   ├── path: 0
     │   │   │       │   └── base: local #1 : ptr
-    │   │   │       └── args[1]: 48 : i64
+    │   │   │       └── args[1]: 40 : i64
     │   │   └── body[2] > place:
     │   │       ├── address: local #6 : ptr
-    │   │       ├── value: local #5 : {handle, handle}
+    │   │       ├── value: local #5 : {handle, handle16}
     │   │       └── layout: keeping$Item
     │   └── body[2] > return: unit : void
     ├── funcs[16] > func:
@@ -1715,7 +1709,7 @@
     │       │   ├── local: #6
     │       │   ├── scope: %5
     │       │   ├── value > call:
-    │       │   │   ├── type: {handle, handle}
+    │       │   │   ├── type: {handle, handle16}
     │       │   │   ├── fn: keeping$Item(%primitives$String)
     │       │   │   └── args[0]: "scratch" : handle
     │       │   └── layout: keeping$Item
@@ -1725,7 +1719,7 @@
     │       │   ├── body[0] > let:
     │       │   │   ├── local: #9
     │       │   │   └── value > expand:
-    │       │   │       ├── type: {handle}
+    │       │   │       ├── type: {handle16}
     │       │   │       ├── label: @7
     │       │   │       ├── result: #8
     │       │   │       ├── body[0] > assign:
@@ -1733,9 +1727,9 @@
     │       │   │       │   └── value > escape:
     │       │   │       │       ├── exit: @7
     │       │   │       │       ├── value > record:
-    │       │   │       │       │   ├── type: {handle}
+    │       │   │       │       │   ├── type: {handle16}
     │       │   │       │       │   └── members[0] > member 0 > runtime:
-    │       │   │       │       │       ├── type: handle
+    │       │   │       │       │       ├── type: handle16
     │       │   │       │       │       ├── fn: zane_list_new
     │       │   │       │       │       └── args:
     │       │   │       │       └── layout: keeping$Node
@@ -1746,13 +1740,13 @@
     │       │   │       ├── type: ptr
     │       │   │       ├── fn: zane_list_push
     │       │   │       ├── args[0] > offset:
-    │       │   │       │   ├── within: {handle}
+    │       │   │       │   ├── within: {handle16}
     │       │   │       │   ├── path: 0
     │       │   │       │   └── base: local #1 : ptr
-    │       │   │       └── args[1]: 24 : i64
+    │       │   │       └── args[1]: 16 : i64
     │       │   └── body[2] > place:
     │       │       ├── address: local #10 : ptr
-    │       │       ├── value: local #9 : {handle}
+    │       │       ├── value: local #9 : {handle16}
     │       │       └── layout: keeping$Node
     │       ├── body[2] > eval > expand:
     │       │   ├── type: void
@@ -1760,7 +1754,7 @@
     │       │   ├── body[0] > let:
     │       │   │   ├── local: #14
     │       │   │   └── value > expand:
-    │       │   │       ├── type: {handle}
+    │       │   │       ├── type: {handle16}
     │       │   │       ├── label: @12
     │       │   │       ├── result: #13
     │       │   │       ├── body[0] > assign:
@@ -1768,9 +1762,9 @@
     │       │   │       │   └── value > escape:
     │       │   │       │       ├── exit: @12
     │       │   │       │       ├── value > record:
-    │       │   │       │       │   ├── type: {handle}
+    │       │   │       │       │   ├── type: {handle16}
     │       │   │       │       │   └── members[0] > member 0 > runtime:
-    │       │   │       │       │       ├── type: handle
+    │       │   │       │       │       ├── type: handle16
     │       │   │       │       │       ├── fn: zane_list_new
     │       │   │       │       │       └── args:
     │       │   │       │       └── layout: keeping$Node
@@ -1781,13 +1775,13 @@
     │       │   │       ├── type: ptr
     │       │   │       ├── fn: zane_list_push
     │       │   │       ├── args[0] > offset:
-    │       │   │       │   ├── within: {handle}
+    │       │   │       │   ├── within: {handle16}
     │       │   │       │   ├── path: 0
     │       │   │       │   └── base: local #1 : ptr
-    │       │   │       └── args[1]: 24 : i64
+    │       │   │       └── args[1]: 16 : i64
     │       │   └── body[2] > place:
     │       │       ├── address: local #15 : ptr
-    │       │       ├── value: local #14 : {handle}
+    │       │       ├── value: local #14 : {handle16}
     │       │       └── layout: keeping$Node
     │       ├── body[3] > eval > call:
     │       │   ├── type: void
@@ -1795,13 +1789,15 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > member:
+    │       │       ├── left > convert:
     │       │       │   ├── type: i64
-    │       │       │   ├── index: 1
     │       │       │   └── value > member:
-    │       │       │       ├── type: handle
+    │       │       │       ├── type: i32
     │       │       │       ├── index: 1
-    │       │       │       └── value: local #6 : {handle, handle}
+    │       │       │       └── value > member:
+    │       │       │           ├── type: handle16
+    │       │       │           ├── index: 1
+    │       │       │           └── value: local #6 : {handle, handle16}
     │       │       └── right: 0 : i64
     │       └── body[4] > return: unit : void
     ├── funcs[17] > func:
@@ -1810,22 +1806,22 @@
     │   ├── ret: void
     │   └── body[0] > store:
     │       ├── address > offset:
-    │       │   ├── within: {<void | ptr>, <void | ptr>, <void | ptr>}
+    │       │   ├── within: {<void | box32>, <void | box32>, <void | box32>}
     │       │   ├── path: 0
     │       │   └── base: local #39 : ptr
     │       └── value > call:
-    │           ├── type: <void | ptr>
+    │           ├── type: <void | box32>
     │           ├── fn: keeping$joined(^keeping$Tree, ^keeping$Tree)
     │           ├── args[0] > deref:
-    │           │   ├── type: <void | ptr>
+    │           │   ├── type: <void | box32>
     │           │   └── ptr > offset:
-    │           │       ├── within: {<void | ptr>, <void | ptr>, <void | ptr>}
+    │           │       ├── within: {<void | box32>, <void | box32>, <void | box32>}
     │           │       ├── path: 1
     │           │       └── base: local #39 : ptr
     │           └── args[1] > deref:
-    │               ├── type: <void | ptr>
+    │               ├── type: <void | box32>
     │               └── ptr > offset:
-    │                   ├── within: {<void | ptr>, <void | ptr>, <void | ptr>}
+    │                   ├── within: {<void | box32>, <void | box32>, <void | box32>}
     │                   ├── path: 2
     │                   └── base: local #39 : ptr
     └── funcs[18] > func:
@@ -1834,7 +1830,7 @@
         ├── ret: void
         └── body[0] > store:
             ├── address > offset:
-            │   ├── within: {i64, ptr, {handle, handle}}
+            │   ├── within: {i64, ptr, {handle, handle16}}
             │   ├── path: 0
             │   └── base: local #86 : ptr
             └── value > call value:
@@ -1842,12 +1838,12 @@
                 ├── fn > deref:
                 │   ├── type: ptr
                 │   └── ptr > offset:
-                │       ├── within: {i64, ptr, {handle, handle}}
+                │       ├── within: {i64, ptr, {handle, handle16}}
                 │       ├── path: 1
                 │       └── base: local #86 : ptr
                 └── args[0] > deref:
-                    ├── type: {handle, handle}
+                    ├── type: {handle, handle16}
                     └── ptr > offset:
-                        ├── within: {i64, ptr, {handle, handle}}
+                        ├── within: {i64, ptr, {handle, handle16}}
                         ├── path: 2
                         └── base: local #86 : ptr

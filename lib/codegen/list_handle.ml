@@ -1,23 +1,18 @@
 (* A list's handle, read and written field by field: its items, its count
-   of elements and its room in bytes. With Ref32 (experimental,
-   docs/experiments/goose-comparison) each field takes 32 bits and the
-   items are stored as their address shifted right by 3, which the cage
-   keeps below 2^35 (runtime/region.c); with frame references the items are
-   a pointer and the count and the room take 32 bits each, the room counted
-   in elements ([elements]); otherwise the
-   handle is a pointer and two 64-bit integers. The fields read as a
-   pointer and two `i64`s either way. [tag] marks each load and store the
-   way the caller marks a handle's accesses. *)
+   of elements and its room. With frame references (experimental,
+   docs/experiments/goose-comparison) the items are a pointer and the count
+   and the room take 32 bits each, the room counted in elements
+   ([elements]); otherwise the handle is a pointer and two 64-bit integers,
+   the room in bytes. The fields read as a pointer and two `i64`s either
+   way. [tag] marks each load and store the way the caller marks a handle's
+   accesses. *)
 
-(* Whether the count and the room take 32 bits, and whether the items are
-   shifted too. *)
-let on () = Cgt.Ref32.on () || Cgt.Ref32.frames ()
-let shifted () = Cgt.Ref32.on ()
+(* Whether the count and the room take 32 bits. *)
+let on () = Cgt.Ref32.frames ()
 
 let header ctx =
   let i64 = Llvm.i64_type ctx and i32 = Llvm.i32_type ctx in
-  if shifted () then Llvm.struct_type ctx [| i32; i32; i32 |]
-  else if on () then Llvm.struct_type ctx [| Llvm.pointer_type ctx; i32; i32 |]
+  if on () then Llvm.struct_type ctx [| Llvm.pointer_type ctx; i32; i32 |]
   else Llvm.struct_type ctx [| Llvm.pointer_type ctx; i64; i64 |]
 
 let field ctx b h i = Llvm.build_struct_gep (header ctx) h i "" b
@@ -41,38 +36,35 @@ let image b =
    reference is checked to fit 32 bits, and the program traps if not. *)
 let checked () = Sys.getenv_opt "ZANE_FRAME_REFS_CHECK" = Some "1"
 
-(* A pointer from its 32-bit form, and the 32-bit form of a pointer: its
-   address shifted by 3 with Ref32, else its distance from the image. *)
-let decode ctx b v =
-  if shifted () then
-    Llvm.build_inttoptr (Llvm.build_shl (widen ctx b v) (Llvm.const_int (Llvm.i64_type ctx) 3) "" b)
-      (Llvm.pointer_type ctx) "" b
-  else Llvm.build_gep (Llvm.i8_type ctx) (image b) [| Llvm.build_sext v (Llvm.i64_type ctx) "" b |] "" b
+(* A reference from its 32-bit form, and the 32-bit form of a reference:
+   its distance from the image. *)
+let decode ctx b v = Llvm.build_gep (Llvm.i8_type ctx) (image b) [| Llvm.build_sext v (Llvm.i64_type ctx) "" b |] "" b
+
+(* [v], the 32-bit form of [distance], once checked to hold all of it
+   when [checked]: the program traps if not. *)
+let fitting ctx b v distance =
+  let i64 = Llvm.i64_type ctx in
+  if checked () then begin
+    let fn = Llvm.block_parent (Llvm.insertion_block b) in
+    let bad = Llvm.append_block ctx "" fn and good = Llvm.append_block ctx "" fn in
+    let fits = Llvm.build_icmp Llvm.Icmp.Eq (Llvm.build_sext v i64 "" b) distance "" b in
+    ignore (Llvm.build_cond_br fits good bad b);
+    Llvm.position_at_end bad b;
+    let m = Llvm.global_parent fn in
+    let t = Llvm.function_type (Llvm.void_type ctx) [||] in
+    let trap = match Llvm.lookup_function "llvm.trap" m with Some f -> f | None -> Llvm.declare_function "llvm.trap" t m in
+    ignore (Llvm.build_call t trap [||] "" b);
+    ignore (Llvm.build_unreachable b);
+    Llvm.position_at_end good b
+  end;
+  v
 
 let encode ctx b p =
   let i64 = Llvm.i64_type ctx in
-  if shifted () then narrow ctx b (Llvm.build_lshr (Llvm.build_ptrtoint p i64 "" b) (Llvm.const_int i64 3) "" b)
-  else
-    let distance = Llvm.build_sub (Llvm.build_ptrtoint p i64 "" b) (Llvm.build_ptrtoint (image b) i64 "" b) "" b in
-    let v = narrow ctx b distance in
-    if checked () then begin
-      let fn = Llvm.block_parent (Llvm.insertion_block b) in
-      let bad = Llvm.append_block ctx "" fn and good = Llvm.append_block ctx "" fn in
-      let fits = Llvm.build_icmp Llvm.Icmp.Eq (Llvm.build_sext v i64 "" b) distance "" b in
-      ignore (Llvm.build_cond_br fits good bad b);
-      Llvm.position_at_end bad b;
-      let m = Llvm.global_parent fn in
-      let t = Llvm.function_type (Llvm.void_type ctx) [||] in
-      let trap = match Llvm.lookup_function "llvm.trap" m with Some f -> f | None -> Llvm.declare_function "llvm.trap" t m in
-      ignore (Llvm.build_call t trap [||] "" b);
-      ignore (Llvm.build_unreachable b);
-      Llvm.position_at_end good b
-    end;
-    v
+  let distance = Llvm.build_sub (Llvm.build_ptrtoint p i64 "" b) (Llvm.build_ptrtoint (image b) i64 "" b) "" b in
+  fitting ctx b (narrow ctx b distance) distance
 
-let items ?(tag = Fun.id) ctx b h =
-  if shifted () then decode ctx b (tag (Llvm.build_load (Llvm.i32_type ctx) (field ctx b h 0) "" b))
-  else tag (Llvm.build_load (Llvm.pointer_type ctx) (field ctx b h 0) "" b)
+let items ?(tag = Fun.id) ctx b h = tag (Llvm.build_load (Llvm.pointer_type ctx) (field ctx b h 0) "" b)
 
 let integer ?(tag = Fun.id) ctx b h i =
   if on () then widen ctx b (tag (Llvm.build_load (Llvm.i32_type ctx) (field ctx b h i) "" b))
@@ -82,7 +74,7 @@ let count ?tag ctx b h = integer ?tag ctx b h 1
 let room ?tag ctx b h = integer ?tag ctx b h 2
 
 let set_items ?(tag = Fun.id) ctx b p h =
-  ignore (tag (Llvm.build_store (if shifted () then encode ctx b p else p) (field ctx b h 0) b))
+  ignore (tag (Llvm.build_store p (field ctx b h 0) b))
 
 let set_integer ?(tag = Fun.id) ctx b v h i =
   ignore (tag (Llvm.build_store (if on () then narrow ctx b v else v) (field ctx b h i) b))
@@ -179,18 +171,4 @@ let encode_box ctx b p =
         (Llvm.build_sub (Llvm.build_ptrtoint p i64 "" b) (Llvm.build_ptrtoint (image b) i64 "" b) "" b)
         (Llvm.const_int i64 3) "" b
     in
-    let v = narrow ctx b distance in
-    if checked () then begin
-      let fn = Llvm.block_parent (Llvm.insertion_block b) in
-      let bad = Llvm.append_block ctx "" fn and good = Llvm.append_block ctx "" fn in
-      let fits = Llvm.build_icmp Llvm.Icmp.Eq (Llvm.build_sext v i64 "" b) distance "" b in
-      ignore (Llvm.build_cond_br fits good bad b);
-      Llvm.position_at_end bad b;
-      let m = Llvm.global_parent fn in
-      let t = Llvm.function_type (Llvm.void_type ctx) [||] in
-      let trap = match Llvm.lookup_function "llvm.trap" m with Some f -> f | None -> Llvm.declare_function "llvm.trap" t m in
-      ignore (Llvm.build_call t trap [||] "" b);
-      ignore (Llvm.build_unreachable b);
-      Llvm.position_at_end good b
-    end;
-    v
+    fitting ctx b (narrow ctx b distance) distance

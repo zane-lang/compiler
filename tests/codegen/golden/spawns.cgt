@@ -20,10 +20,10 @@
     │   └── positions:
     ├── layouts[6] > layout:
     │   ├── type: spawns$Countdown
-    │   └── positions[0]: box @8 of spawns$Countdown (16 bytes) when [0]=1
+    │   └── positions[0]: box @0 of spawns$Countdown (4 bytes) when [0]=-2
     ├── layouts[7] > layout:
     │   ├── type: spawns$Holder
-    │   └── positions[0]: box @8 of spawns$Countdown (16 bytes) when [0]=1
+    │   └── positions[0]: box @0 of spawns$Countdown (4 bytes) when [0]=-2
     ├── layouts[8] > layout:
     │   ├── type: spawns$Tally
     │   └── positions:
@@ -345,7 +345,7 @@
     │       │   ├── task: #60
     │       │   ├── scope: %11
     │       │   ├── thunk: zane.spawn.6
-    │       │   ├── frame: {handle, i64}
+    │       │   ├── frame: {handle16, i64}
     │       │   ├── args[0]: 50 : i64
     │       │   ├── dest: #61
     │       │   └── layout: ^%primitives$ListRef<%primitives$String>
@@ -355,19 +355,21 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > member:
+    │       │       ├── left > convert:
     │       │       │   ├── type: i64
-    │       │       │   ├── index: 1
-    │       │       │   └── value > expand:
-    │       │       │       ├── type: handle
-    │       │       │       ├── label: @62
-    │       │       │       ├── result: #63
-    │       │       │       ├── body[0]: join #60
-    │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #63
-    │       │       │           └── value > deref:
-    │       │       │               ├── type: handle
-    │       │       │               └── ptr: address of #61 : ptr
+    │       │       │   └── value > member:
+    │       │       │       ├── type: i32
+    │       │       │       ├── index: 1
+    │       │       │       └── value > expand:
+    │       │       │           ├── type: handle16
+    │       │       │           ├── label: @62
+    │       │       │           ├── result: #63
+    │       │       │           ├── body[0]: join #60
+    │       │       │           └── body[1] > assign:
+    │       │       │               ├── place: #63
+    │       │       │               └── value > deref:
+    │       │       │                   ├── type: handle16
+    │       │       │                   └── ptr: address of #61 : ptr
     │       │       └── right: 50 : i64
     │       ├── body[23] > let:
     │       │   ├── local: #67
@@ -395,7 +397,7 @@
     │       │   ├── local: #72
     │       │   ├── scope: %11
     │       │   ├── value > case:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── index: 0
     │       │   │   └── payload: unit : void
     │       │   └── layout: spawns$Countdown
@@ -403,7 +405,7 @@
     │       │   ├── local: #73
     │       │   ├── scope: %11
     │       │   ├── value > case:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── index: 0
     │       │   │   └── payload: unit : void
     │       │   └── layout: spawns$Countdown
@@ -411,7 +413,7 @@
     │       │   ├── local: #74
     │       │   ├── scope: %11
     │       │   ├── value > case:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── index: 0
     │       │   │   └── payload: unit : void
     │       │   └── layout: spawns$Countdown
@@ -461,12 +463,12 @@
     │       │       │   │   │   │   └── value: address of #72 : ptr
     │       │       │   │   │   └── body[1] > switch:
     │       │       │   │   │       ├── value > deref:
-    │       │       │   │   │       │   ├── type: <void | ptr>
+    │       │       │   │   │       │   ├── type: <void | box32>
     │       │       │   │   │       │   └── ptr: local #87 : ptr
     │       │       │   │   │       ├── cases[0] > case 0[0] > let:
     │       │       │   │   │       │   ├── local: #88
     │       │       │   │   │       │   └── value > offset:
-    │       │       │   │   │       │       ├── within: <void | ptr>
+    │       │       │   │   │       │       ├── within: <void | box32>
     │       │       │   │   │       │       ├── path: 0
     │       │       │   │   │       │       └── base: local #87 : ptr
     │       │       │   │   │       ├── cases[0] > case 0[1] > assign:
@@ -475,12 +477,14 @@
     │       │       │   │   │       ├── cases[0] > case 0[2]: leave @85
     │       │       │   │   │       ├── cases[1] > case 1[0] > let:
     │       │       │   │   │       │   ├── local: #89
-    │       │       │   │   │       │   └── value > deref:
+    │       │       │   │   │       │   └── value > convert:
     │       │       │   │   │       │       ├── type: ptr
-    │       │       │   │   │       │       └── ptr > offset:
-    │       │       │   │   │       │           ├── within: <void | ptr>
-    │       │       │   │   │       │           ├── path: 1
-    │       │       │   │   │       │           └── base: local #87 : ptr
+    │       │       │   │   │       │       └── value > deref:
+    │       │       │   │   │       │           ├── type: box32
+    │       │       │   │   │       │           └── ptr > offset:
+    │       │       │   │   │       │               ├── within: <void | box32>
+    │       │       │   │   │       │               ├── path: 1
+    │       │       │   │   │       │               └── base: local #87 : ptr
     │       │       │   │   │       ├── cases[1] > case 1[1] > assign:
     │       │       │   │   │       │   ├── place: #86
     │       │       │   │   │       │   └── value > binary:
@@ -491,7 +495,7 @@
     │       │       │   │   │       │           ├── type: i64
     │       │       │   │   │       │           ├── fn: spawns$depth(spawns$Countdown)
     │       │       │   │   │       │           └── args[0] > deref:
-    │       │       │   │   │       │               ├── type: <void | ptr>
+    │       │       │   │   │       │               ├── type: <void | box32>
     │       │       │   │   │       │               └── ptr: local #89 : ptr
     │       │       │   │   │       └── cases[1] > case 1[2]: leave @85
     │       │       │   │   └── right > expand:
@@ -503,12 +507,12 @@
     │       │       │   │       │   └── value: address of #73 : ptr
     │       │       │   │       └── body[1] > switch:
     │       │       │   │           ├── value > deref:
-    │       │       │   │           │   ├── type: <void | ptr>
+    │       │       │   │           │   ├── type: <void | box32>
     │       │       │   │           │   └── ptr: local #94 : ptr
     │       │       │   │           ├── cases[0] > case 0[0] > let:
     │       │       │   │           │   ├── local: #95
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <void | ptr>
+    │       │       │   │           │       ├── within: <void | box32>
     │       │       │   │           │       ├── path: 0
     │       │       │   │           │       └── base: local #94 : ptr
     │       │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -517,12 +521,14 @@
     │       │       │   │           ├── cases[0] > case 0[2]: leave @92
     │       │       │   │           ├── cases[1] > case 1[0] > let:
     │       │       │   │           │   ├── local: #96
-    │       │       │   │           │   └── value > deref:
+    │       │       │   │           │   └── value > convert:
     │       │       │   │           │       ├── type: ptr
-    │       │       │   │           │       └── ptr > offset:
-    │       │       │   │           │           ├── within: <void | ptr>
-    │       │       │   │           │           ├── path: 1
-    │       │       │   │           │           └── base: local #94 : ptr
+    │       │       │   │           │       └── value > deref:
+    │       │       │   │           │           ├── type: box32
+    │       │       │   │           │           └── ptr > offset:
+    │       │       │   │           │               ├── within: <void | box32>
+    │       │       │   │           │               ├── path: 1
+    │       │       │   │           │               └── base: local #94 : ptr
     │       │       │   │           ├── cases[1] > case 1[1] > assign:
     │       │       │   │           │   ├── place: #93
     │       │       │   │           │   └── value > binary:
@@ -533,7 +539,7 @@
     │       │       │   │           │           ├── type: i64
     │       │       │   │           │           ├── fn: spawns$depth(spawns$Countdown)
     │       │       │   │           │           └── args[0] > deref:
-    │       │       │   │           │               ├── type: <void | ptr>
+    │       │       │   │           │               ├── type: <void | box32>
     │       │       │   │           │               └── ptr: local #96 : ptr
     │       │       │   │           └── cases[1] > case 1[2]: leave @92
     │       │       │   └── right > expand:
@@ -545,12 +551,12 @@
     │       │       │       │   └── value: address of #74 : ptr
     │       │       │       └── body[1] > switch:
     │       │       │           ├── value > deref:
-    │       │       │           │   ├── type: <void | ptr>
+    │       │       │           │   ├── type: <void | box32>
     │       │       │           │   └── ptr: local #101 : ptr
     │       │       │           ├── cases[0] > case 0[0] > let:
     │       │       │           │   ├── local: #102
     │       │       │           │   └── value > offset:
-    │       │       │           │       ├── within: <void | ptr>
+    │       │       │           │       ├── within: <void | box32>
     │       │       │           │       ├── path: 0
     │       │       │           │       └── base: local #101 : ptr
     │       │       │           ├── cases[0] > case 0[1] > assign:
@@ -559,12 +565,14 @@
     │       │       │           ├── cases[0] > case 0[2]: leave @99
     │       │       │           ├── cases[1] > case 1[0] > let:
     │       │       │           │   ├── local: #103
-    │       │       │           │   └── value > deref:
+    │       │       │           │   └── value > convert:
     │       │       │           │       ├── type: ptr
-    │       │       │           │       └── ptr > offset:
-    │       │       │           │           ├── within: <void | ptr>
-    │       │       │           │           ├── path: 1
-    │       │       │           │           └── base: local #101 : ptr
+    │       │       │           │       └── value > deref:
+    │       │       │           │           ├── type: box32
+    │       │       │           │           └── ptr > offset:
+    │       │       │           │               ├── within: <void | box32>
+    │       │       │           │               ├── path: 1
+    │       │       │           │               └── base: local #101 : ptr
     │       │       │           ├── cases[1] > case 1[1] > assign:
     │       │       │           │   ├── place: #100
     │       │       │           │   └── value > binary:
@@ -575,7 +583,7 @@
     │       │       │           │           ├── type: i64
     │       │       │           │           ├── fn: spawns$depth(spawns$Countdown)
     │       │       │           │           └── args[0] > deref:
-    │       │       │           │               ├── type: <void | ptr>
+    │       │       │           │               ├── type: <void | box32>
     │       │       │           │               └── ptr: local #103 : ptr
     │       │       │           └── cases[1] > case 1[2]: leave @99
     │       │       └── right: 900 : i64
@@ -583,10 +591,10 @@
     │       │   ├── local: #107
     │       │   ├── scope: %11
     │       │   ├── value > call:
-    │       │   │   ├── type: {<void | ptr>, i64}
+    │       │   │   ├── type: {<void | box32>, i64}
     │       │   │   ├── fn: spawns$Holder(spawns$Countdown)
     │       │   │   └── args[0] > case:
-    │       │   │       ├── type: <void | ptr>
+    │       │   │       ├── type: <void | box32>
     │       │   │       ├── index: 0
     │       │   │       └── payload: unit : void
     │       │   └── layout: spawns$Holder
@@ -610,26 +618,26 @@
     │       │       ├── body[1] > let:
     │       │       │   ├── local: #114
     │       │       │   └── value > offset:
-    │       │       │       ├── within: {<void | ptr>, i64}
+    │       │       │       ├── within: {<void | box32>, i64}
     │       │       │       ├── path: 0
     │       │       │       └── base: address of #107 : ptr
     │       │       ├── body[2] > spawn:
     │       │       │   ├── task: #116
     │       │       │   ├── scope: %113
     │       │       │   ├── thunk: zane.spawn.12
-    │       │       │   ├── frame: {void, ptr, i64, <void | ptr>}
+    │       │       │   ├── frame: {void, ptr, i64, <void | box32>}
     │       │       │   ├── args[0]: local #114 : ptr
     │       │       │   ├── args[1]: 250 : i64
     │       │       │   └── args[2] > copy:
-    │       │       │       ├── type: <void | ptr>
+    │       │       │       ├── type: <void | box32>
     │       │       │       ├── value > snapshot:
-    │       │       │       │   ├── type: <void | ptr>
+    │       │       │       │   ├── type: <void | box32>
     │       │       │       │   └── ptr: local #114 : ptr
     │       │       │       └── layout: spawns$Countdown
     │       │       ├── body[3] > let:
     │       │       │   ├── local: #117
     │       │       │   └── value > offset:
-    │       │       │       ├── within: {<void | ptr>, i64}
+    │       │       │       ├── within: {<void | box32>, i64}
     │       │       │       ├── path: 1
     │       │       │       └── base: address of #107 : ptr
     │       │       ├── body[4] > spawn:
@@ -672,9 +680,9 @@
     │       │       │   ├── body[0] > let:
     │       │       │   │   ├── local: #122
     │       │       │   │   └── value > snapshot:
-    │       │       │   │       ├── type: <void | ptr>
+    │       │       │   │       ├── type: <void | box32>
     │       │       │   │       └── ptr > offset:
-    │       │       │   │           ├── within: {<void | ptr>, i64}
+    │       │       │   │           ├── within: {<void | box32>, i64}
     │       │       │   │           ├── path: 0
     │       │       │   │           └── base: address of #107 : ptr
     │       │       │   ├── body[1] > assign:
@@ -688,12 +696,12 @@
     │       │       │   │       │   └── value: address of #122 : ptr
     │       │       │   │       └── body[1] > switch:
     │       │       │   │           ├── value > deref:
-    │       │       │   │           │   ├── type: <void | ptr>
+    │       │       │   │           │   ├── type: <void | box32>
     │       │       │   │           │   └── ptr: local #127 : ptr
     │       │       │   │           ├── cases[0] > case 0[0] > let:
     │       │       │   │           │   ├── local: #128
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <void | ptr>
+    │       │       │   │           │       ├── within: <void | box32>
     │       │       │   │           │       ├── path: 0
     │       │       │   │           │       └── base: local #127 : ptr
     │       │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -702,12 +710,14 @@
     │       │       │   │           ├── cases[0] > case 0[2]: leave @125
     │       │       │   │           ├── cases[1] > case 1[0] > let:
     │       │       │   │           │   ├── local: #129
-    │       │       │   │           │   └── value > deref:
+    │       │       │   │           │   └── value > convert:
     │       │       │   │           │       ├── type: ptr
-    │       │       │   │           │       └── ptr > offset:
-    │       │       │   │           │           ├── within: <void | ptr>
-    │       │       │   │           │           ├── path: 1
-    │       │       │   │           │           └── base: local #127 : ptr
+    │       │       │   │           │       └── value > deref:
+    │       │       │   │           │           ├── type: box32
+    │       │       │   │           │           └── ptr > offset:
+    │       │       │   │           │               ├── within: <void | box32>
+    │       │       │   │           │               ├── path: 1
+    │       │       │   │           │               └── base: local #127 : ptr
     │       │       │   │           ├── cases[1] > case 1[1] > assign:
     │       │       │   │           │   ├── place: #126
     │       │       │   │           │   └── value > binary:
@@ -718,7 +728,7 @@
     │       │       │   │           │           ├── type: i64
     │       │       │   │           │           ├── fn: spawns$depth(spawns$Countdown)
     │       │       │   │           │           └── args[0] > deref:
-    │       │       │   │           │               ├── type: <void | ptr>
+    │       │       │   │           │               ├── type: <void | box32>
     │       │       │   │           │               └── ptr: local #129 : ptr
     │       │       │   │           └── cases[1] > case 1[2]: leave @125
     │       │       │   └── body[2]: leave @123
@@ -732,7 +742,7 @@
     │       │       ├── left > snapshot:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
-    │       │       │       ├── within: {<void | ptr>, i64}
+    │       │       │       ├── within: {<void | box32>, i64}
     │       │       │       ├── path: 1
     │       │       │       └── base: address of #107 : ptr
     │       │       └── right: 3 : i64
@@ -914,7 +924,7 @@
     │       │       │   ├── task: #172
     │       │       │   ├── scope: %161
     │       │       │   ├── thunk: zane.spawn.20
-    │       │       │   ├── frame: {handle, i64}
+    │       │       │   ├── frame: {handle16, i64}
     │       │       │   ├── args[0]: 5 : i64
     │       │       │   ├── dest: #173
     │       │       │   └── layout: ^%primitives$ListRef<%primitives$String>
@@ -952,7 +962,7 @@
     │       │       │   ├── task: #181
     │       │       │   ├── scope: %183
     │       │       │   ├── thunk: zane.spawn.22
-    │       │       │   ├── frame: {handle, i64}
+    │       │       │   ├── frame: {handle16, i64}
     │       │       │   ├── args[0]: 20 : i64
     │       │       │   ├── dest: #182
     │       │       │   └── layout: ^%primitives$ListRef<%primitives$String>
@@ -980,7 +990,7 @@
     │       │           ├── task: #188
     │       │           ├── scope: %183
     │       │           ├── thunk: zane.spawn.23
-    │       │           ├── frame: {handle, i64}
+    │       │           ├── frame: {handle16, i64}
     │       │           ├── args[0]: 20 : i64
     │       │           ├── dest: #189
     │       │           └── layout: ^%primitives$ListRef<%primitives$String>
@@ -2132,14 +2142,14 @@
     ├── funcs[9] > func:
     │   ├── symbol: spawns$words(%primitives$I64)
     │   ├── params[0]: local #1 : i64
-    │   ├── ret: handle
+    │   ├── ret: handle16
     │   └── body[0] > scope:
     │       ├── id: %3
     │       ├── body[0] > hold:
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
     │       │   └── layout: ^%primitives$ListRef<%primitives$String>
@@ -2223,7 +2233,7 @@
     │       └── body[3] > return > escape:
     │           ├── exit: function
     │           ├── value > take:
-    │           │   ├── type: handle
+    │           │   ├── type: handle16
     │           │   ├── address: address of #2 : ptr
     │           │   └── layout: ^%primitives$ListRef<%primitives$String>
     │           └── layout: ^%primitives$ListRef<%primitives$String>
@@ -2273,16 +2283,18 @@
     │   │   │   │   └── body[0] > overwrite:
     │   │   │   │       ├── address: local #1 : ptr
     │   │   │   │       ├── value > case:
-    │   │   │   │       │   ├── type: <void | ptr>
+    │   │   │   │       │   ├── type: <void | box32>
     │   │   │   │       │   ├── index: 1
-    │   │   │   │       │   └── payload > box:
-    │   │   │   │       │       ├── value > copy:
-    │   │   │   │       │       │   ├── type: <void | ptr>
-    │   │   │   │       │       │   ├── value > deref:
-    │   │   │   │       │       │   │   ├── type: <void | ptr>
-    │   │   │   │       │       │   │   └── ptr: local #1 : ptr
-    │   │   │   │       │       │   └── layout: spawns$Countdown
-    │   │   │   │       │       └── layout: spawns$Countdown
+    │   │   │   │       │   └── payload > convert:
+    │   │   │   │       │       ├── type: box32
+    │   │   │   │       │       └── value > box:
+    │   │   │   │       │           ├── value > copy:
+    │   │   │   │       │           │   ├── type: <void | box32>
+    │   │   │   │       │           │   ├── value > deref:
+    │   │   │   │       │           │   │   ├── type: <void | box32>
+    │   │   │   │       │           │   │   └── ptr: local #1 : ptr
+    │   │   │   │       │           │   └── layout: spawns$Countdown
+    │   │   │   │       │           └── layout: spawns$Countdown
     │   │   │   │       └── layout: spawns$Countdown
     │   │   │   └── body[1] > assign:
     │   │   │       ├── place: #3
@@ -2296,7 +2308,7 @@
     │   └── body[2] > return: unit : void
     ├── funcs[12] > func:
     │   ├── symbol: spawns$depth(spawns$Countdown)
-    │   ├── params[0]: local #1 : <void | ptr>
+    │   ├── params[0]: local #1 : <void | box32>
     │   ├── ret: i64
     │   └── body[0] > return > expand:
     │       ├── type: i64
@@ -2307,12 +2319,12 @@
     │       │   └── value: address of #1 : ptr
     │       └── body[1] > switch:
     │           ├── value > deref:
-    │           │   ├── type: <void | ptr>
+    │           │   ├── type: <void | box32>
     │           │   └── ptr: local #4 : ptr
     │           ├── cases[0] > case 0[0] > let:
     │           │   ├── local: #5
     │           │   └── value > offset:
-    │           │       ├── within: <void | ptr>
+    │           │       ├── within: <void | box32>
     │           │       ├── path: 0
     │           │       └── base: local #4 : ptr
     │           ├── cases[0] > case 0[1] > assign:
@@ -2321,12 +2333,14 @@
     │           ├── cases[0] > case 0[2]: leave @2
     │           ├── cases[1] > case 1[0] > let:
     │           │   ├── local: #6
-    │           │   └── value > deref:
+    │           │   └── value > convert:
     │           │       ├── type: ptr
-    │           │       └── ptr > offset:
-    │           │           ├── within: <void | ptr>
-    │           │           ├── path: 1
-    │           │           └── base: local #4 : ptr
+    │           │       └── value > deref:
+    │           │           ├── type: box32
+    │           │           └── ptr > offset:
+    │           │               ├── within: <void | box32>
+    │           │               ├── path: 1
+    │           │               └── base: local #4 : ptr
     │           ├── cases[1] > case 1[1] > assign:
     │           │   ├── place: #3
     │           │   └── value > binary:
@@ -2342,12 +2356,12 @@
     │           │           │   └── value: local #6 : ptr
     │           │           └── body[1] > switch:
     │           │               ├── value > deref:
-    │           │               │   ├── type: <void | ptr>
+    │           │               │   ├── type: <void | box32>
     │           │               │   └── ptr: local #11 : ptr
     │           │               ├── cases[0] > case 0[0] > let:
     │           │               │   ├── local: #12
     │           │               │   └── value > offset:
-    │           │               │       ├── within: <void | ptr>
+    │           │               │       ├── within: <void | box32>
     │           │               │       ├── path: 0
     │           │               │       └── base: local #11 : ptr
     │           │               ├── cases[0] > case 0[1] > assign:
@@ -2356,12 +2370,14 @@
     │           │               ├── cases[0] > case 0[2]: leave @9
     │           │               ├── cases[1] > case 1[0] > let:
     │           │               │   ├── local: #13
-    │           │               │   └── value > deref:
+    │           │               │   └── value > convert:
     │           │               │       ├── type: ptr
-    │           │               │       └── ptr > offset:
-    │           │               │           ├── within: <void | ptr>
-    │           │               │           ├── path: 1
-    │           │               │           └── base: local #11 : ptr
+    │           │               │       └── value > deref:
+    │           │               │           ├── type: box32
+    │           │               │           └── ptr > offset:
+    │           │               │               ├── within: <void | box32>
+    │           │               │               ├── path: 1
+    │           │               │               └── base: local #11 : ptr
     │           │               ├── cases[1] > case 1[1] > assign:
     │           │               │   ├── place: #10
     │           │               │   └── value > binary:
@@ -2372,19 +2388,19 @@
     │           │               │           ├── type: i64
     │           │               │           ├── fn: spawns$depth(spawns$Countdown)
     │           │               │           └── args[0] > deref:
-    │           │               │               ├── type: <void | ptr>
+    │           │               │               ├── type: <void | box32>
     │           │               │               └── ptr: local #13 : ptr
     │           │               └── cases[1] > case 1[2]: leave @9
     │           └── cases[1] > case 1[2]: leave @2
     ├── funcs[13] > func:
     │   ├── symbol: spawns$Holder(spawns$Countdown)
-    │   ├── params[0]: local #1 : <void | ptr>
-    │   ├── ret: {<void | ptr>, i64}
+    │   ├── params[0]: local #1 : <void | box32>
+    │   ├── ret: {<void | box32>, i64}
     │   └── body[0] > return > escape:
     │       ├── exit: function
     │       ├── value > record:
-    │       │   ├── type: {<void | ptr>, i64}
-    │       │   ├── members[0] > member 0: local #1 : <void | ptr>
+    │       │   ├── type: {<void | box32>, i64}
+    │       │   ├── members[0] > member 0: local #1 : <void | box32>
     │       │   └── members[1] > member 1: 0 : i64
     │       └── layout: spawns$Holder
     ├── funcs[14] > func:
@@ -2425,11 +2441,11 @@
     │   │   │   │       │   ├── local: #10
     │   │   │   │       │   ├── scope: %11
     │   │   │   │       │   ├── value > copy:
-    │   │   │   │       │   │   ├── type: <void | ptr>
+    │   │   │   │       │   │   ├── type: <void | box32>
     │   │   │   │       │   │   ├── value > snapshot:
-    │   │   │   │       │   │   │   ├── type: <void | ptr>
+    │   │   │   │       │   │   │   ├── type: <void | box32>
     │   │   │   │       │   │   │   └── ptr > offset:
-    │   │   │   │       │   │   │       ├── within: {<void | ptr>, i64}
+    │   │   │   │       │   │   │       ├── within: {<void | box32>, i64}
     │   │   │   │       │   │   │       ├── path: 0
     │   │   │   │       │   │   │       └── base: local #1 : ptr
     │   │   │   │       │   │   └── layout: spawns$Countdown
@@ -2445,12 +2461,12 @@
     │   │   │   │       │       │   └── value: address of #10 : ptr
     │   │   │   │       │       └── body[1] > switch:
     │   │   │   │       │           ├── value > deref:
-    │   │   │   │       │           │   ├── type: <void | ptr>
+    │   │   │   │       │           │   ├── type: <void | box32>
     │   │   │   │       │           │   └── ptr: local #16 : ptr
     │   │   │   │       │           ├── cases[0] > case 0[0] > let:
     │   │   │   │       │           │   ├── local: #17
     │   │   │   │       │           │   └── value > offset:
-    │   │   │   │       │           │       ├── within: <void | ptr>
+    │   │   │   │       │           │       ├── within: <void | box32>
     │   │   │   │       │           │       ├── path: 0
     │   │   │   │       │           │       └── base: local #16 : ptr
     │   │   │   │       │           ├── cases[0] > case 0[1] > assign:
@@ -2459,12 +2475,14 @@
     │   │   │   │       │           ├── cases[0] > case 0[2]: leave @14
     │   │   │   │       │           ├── cases[1] > case 1[0] > let:
     │   │   │   │       │           │   ├── local: #18
-    │   │   │   │       │           │   └── value > deref:
+    │   │   │   │       │           │   └── value > convert:
     │   │   │   │       │           │       ├── type: ptr
-    │   │   │   │       │           │       └── ptr > offset:
-    │   │   │   │       │           │           ├── within: <void | ptr>
-    │   │   │   │       │           │           ├── path: 1
-    │   │   │   │       │           │           └── base: local #16 : ptr
+    │   │   │   │       │           │       └── value > deref:
+    │   │   │   │       │           │           ├── type: box32
+    │   │   │   │       │           │           └── ptr > offset:
+    │   │   │   │       │           │               ├── within: <void | box32>
+    │   │   │   │       │           │               ├── path: 1
+    │   │   │   │       │           │               └── base: local #16 : ptr
     │   │   │   │       │           ├── cases[1] > case 1[1] > assign:
     │   │   │   │       │           │   ├── place: #15
     │   │   │   │       │           │   └── value > binary:
@@ -2475,7 +2493,7 @@
     │   │   │   │       │           │           ├── type: i64
     │   │   │   │       │           │           ├── fn: spawns$depth(spawns$Countdown)
     │   │   │   │       │           │           └── args[0] > deref:
-    │   │   │   │       │           │               ├── type: <void | ptr>
+    │   │   │   │       │           │               ├── type: <void | box32>
     │   │   │   │       │           │               └── ptr: local #18 : ptr
     │   │   │   │       │           └── cases[1] > case 1[2]: leave @14
     │   │   │   │       ├── body[2] > if:
@@ -2893,16 +2911,16 @@
     │   ├── ret: void
     │   └── body[0] > store:
     │       ├── address > offset:
-    │       │   ├── within: {handle, i64}
+    │       │   ├── within: {handle16, i64}
     │       │   ├── path: 0
     │       │   └── base: local #59 : ptr
     │       └── value > call:
-    │           ├── type: handle
+    │           ├── type: handle16
     │           ├── fn: spawns$words(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
-    │                   ├── within: {handle, i64}
+    │                   ├── within: {handle16, i64}
     │                   ├── path: 1
     │                   └── base: local #59 : ptr
     ├── funcs[26] > func:
@@ -3019,13 +3037,13 @@
     │   │   ├── type: void
     │   │   ├── fn: spawns$deepen(this spawns$Countdown, %primitives$I64)
     │   │   ├── args[0] > offset:
-    │   │   │   ├── within: {void, ptr, i64, <void | ptr>}
+    │   │   │   ├── within: {void, ptr, i64, <void | box32>}
     │   │   │   ├── path: 3
     │   │   │   └── base: local #115 : ptr
     │   │   └── args[1] > deref:
     │   │       ├── type: i64
     │   │       └── ptr > offset:
-    │   │           ├── within: {void, ptr, i64, <void | ptr>}
+    │   │           ├── within: {void, ptr, i64, <void | box32>}
     │   │           ├── path: 2
     │   │           └── base: local #115 : ptr
     │   └── body[1] > eval > runtime:
@@ -3034,14 +3052,14 @@
     │       ├── args[0] > deref:
     │       │   ├── type: ptr
     │       │   └── ptr > offset:
-    │       │       ├── within: {void, ptr, i64, <void | ptr>}
+    │       │       ├── within: {void, ptr, i64, <void | box32>}
     │       │       ├── path: 1
     │       │       └── base: local #115 : ptr
     │       ├── args[1] > offset:
-    │       │   ├── within: {void, ptr, i64, <void | ptr>}
+    │       │   ├── within: {void, ptr, i64, <void | box32>}
     │       │   ├── path: 3
     │       │   └── base: local #115 : ptr
-    │       ├── args[2]: 16 : i64
+    │       ├── args[2]: 4 : i64
     │       └── args[3]: layout spawns$Countdown
     ├── funcs[32] > func:
     │   ├── symbol: zane.spawn.13
@@ -3189,16 +3207,16 @@
     │   ├── ret: void
     │   └── body[0] > store:
     │       ├── address > offset:
-    │       │   ├── within: {handle, i64}
+    │       │   ├── within: {handle16, i64}
     │       │   ├── path: 0
     │       │   └── base: local #171 : ptr
     │       └── value > call:
-    │           ├── type: handle
+    │           ├── type: handle16
     │           ├── fn: spawns$words(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
-    │                   ├── within: {handle, i64}
+    │                   ├── within: {handle16, i64}
     │                   ├── path: 1
     │                   └── base: local #171 : ptr
     ├── funcs[40] > func:
@@ -3215,16 +3233,16 @@
     │   ├── ret: void
     │   └── body[0] > store:
     │       ├── address > offset:
-    │       │   ├── within: {handle, i64}
+    │       │   ├── within: {handle16, i64}
     │       │   ├── path: 0
     │       │   └── base: local #180 : ptr
     │       └── value > call:
-    │           ├── type: handle
+    │           ├── type: handle16
     │           ├── fn: spawns$words(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
-    │                   ├── within: {handle, i64}
+    │                   ├── within: {handle16, i64}
     │                   ├── path: 1
     │                   └── base: local #180 : ptr
     ├── funcs[42] > func:
@@ -3233,16 +3251,16 @@
     │   ├── ret: void
     │   └── body[0] > store:
     │       ├── address > offset:
-    │       │   ├── within: {handle, i64}
+    │       │   ├── within: {handle16, i64}
     │       │   ├── path: 0
     │       │   └── base: local #187 : ptr
     │       └── value > call:
-    │           ├── type: handle
+    │           ├── type: handle16
     │           ├── fn: spawns$words(%primitives$I64)
     │           └── args[0] > deref:
     │               ├── type: i64
     │               └── ptr > offset:
-    │                   ├── within: {handle, i64}
+    │                   ├── within: {handle16, i64}
     │                   ├── path: 1
     │                   └── base: local #187 : ptr
     ├── funcs[43] > func:

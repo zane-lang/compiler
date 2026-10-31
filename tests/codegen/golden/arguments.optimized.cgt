@@ -36,7 +36,7 @@
     │       │   ├── local: #16
     │       │   ├── scope: %4
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_arguments
     │       │   │   └── args:
     │       │   └── layout: %primitives$List<%primitives$String>
@@ -46,10 +46,12 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > member:
+    │       │       ├── left > convert:
     │       │       │   ├── type: i64
-    │       │       │   ├── index: 1
-    │       │       │   └── value: local #16 : handle
+    │       │       │   └── value > member:
+    │       │       │       ├── type: i32
+    │       │       │       ├── index: 1
+    │       │       │       └── value: local #16 : handle16
     │       │       └── right: 10 : i64
     │       ├── body[5] > let:
     │       │   ├── local: #17
@@ -59,10 +61,12 @@
     │       │   ├── label: @19
     │       │   ├── body[0] > let:
     │       │   │   ├── local: #18
-    │       │   │   └── value > member:
+    │       │   │   └── value > convert:
     │       │   │       ├── type: i64
-    │       │   │       ├── index: 1
-    │       │   │       └── value: local #16 : handle
+    │       │   │       └── value > member:
+    │       │   │           ├── type: i32
+    │       │   │           ├── index: 1
+    │       │   │           └── value: local #16 : handle16
     │       │   ├── body[1] > repeat:
     │       │   │   ├── count > binary:
     │       │   │   │   ├── type: i64

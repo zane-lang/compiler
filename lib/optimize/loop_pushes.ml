@@ -1,4 +1,4 @@
-(* Experimental (docs/experiments/goose-comparison): with ZANE_LOOP_PUSHES=1
+(* Experimental (docs/experiments/goose-comparison): unless ZANE_LOOP_PUSHES=0
    in the environment, a call in a loop's body to a function whose whole
    body is one push onto the list its first argument names -- `core`'s
    `push` -- is written out there as that push, so that codegen sees the
@@ -7,7 +7,7 @@
 
 open Cgt.Nodes
 
-let on () = Sys.getenv_opt "ZANE_LOOP_PUSHES" = Some "1"
+let on () = Sys.getenv_opt "ZANE_LOOP_PUSHES" <> Some "0"
 
 (* The stride and layout of [f] when its body is a push of its second
    parameter onto the list its first names, and nothing else: `List`'s

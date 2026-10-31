@@ -268,8 +268,8 @@ let box env f b size align =
     Llvm.build_phi [ (taken, inline_end); (found, shared) ] "" b
   end
 
-(* A list's handle's fields (List_handle), which take 32 bits each with
-   Ref32. *)
+(* A list's handle's fields (List_handle), whose count and room take 32 bits
+   with frame references. *)
 let list_items c h = List_handle.items c.env.ctx c.b h
 let list_count c h = List_handle.count c.env.ctx c.b h
 (* The bytes of a list's block, whose room may count its elements. *)
@@ -281,18 +281,15 @@ let zero_list c h =
   List_handle.set_count c.env.ctx c.b (int c.env 0) h;
   List_handle.set_room c.env.ctx c.b (int c.env 0) h
 
-(* A boxed member's block (Layout.Box), stored in 32 bits with Ref32. *)
+(* A boxed member's block (Layout.Box), stored in 32 bits with image boxes. *)
 let load_box c h =
-  if List_handle.shifted () then List_handle.decode c.env.ctx c.b (load c (Llvm.i32_type c.env.ctx) h)
-  else if Cgt.Ref32.image_boxes () then
+  if Cgt.Ref32.image_boxes () then
     List_handle.decode_box ~nullable:true c.env.ctx c.b (load c (Llvm.i32_type c.env.ctx) h)
   else load c c.env.ptr h
 
 let store_box c v h =
   store c
-    (if List_handle.shifted () then List_handle.encode c.env.ctx c.b v
-     else if Cgt.Ref32.image_boxes () then List_handle.encode_box c.env.ctx c.b v
-     else v)
+    (if Cgt.Ref32.image_boxes () then List_handle.encode_box c.env.ctx c.b v else v)
     h
 
 let zero_handle c h =

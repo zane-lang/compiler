@@ -121,58 +121,58 @@
     │       │   ├── local: #10
     │       │   └── value > expand:
     │       │       ├── type: i1
-    │       │       ├── label: @50
-    │       │       ├── result: #51
+    │       │       ├── label: @73
+    │       │       ├── result: #74
     │       │       ├── body[0] > eval > runtime:
     │       │       │   ├── type: void
     │       │       │   ├── fn: zane_print
     │       │       │   └── args[0]: "yes\n" : handle
     │       │       └── body[1] > assign:
-    │       │           ├── place: #51
+    │       │           ├── place: #74
     │       │           └── value: true : i1
     │       ├── body[5] > eval > expand:
     │       │   ├── type: i1
-    │       │   ├── label: @52
-    │       │   ├── result: #53
+    │       │   ├── label: @75
+    │       │   ├── result: #76
     │       │   ├── body[0] > eval > runtime:
     │       │   │   ├── type: void
     │       │   │   ├── fn: zane_print
     │       │   │   └── args[0]: "yes\n" : handle
     │       │   └── body[1] > assign:
-    │       │       ├── place: #53
+    │       │       ├── place: #76
     │       │       └── value: true : i1
     │       ├── body[6] > eval > expand:
     │       │   ├── type: i1
-    │       │   ├── label: @54
-    │       │   ├── result: #55
+    │       │   ├── label: @77
+    │       │   ├── result: #78
     │       │   ├── body[0] > eval > runtime:
     │       │   │   ├── type: void
     │       │   │   ├── fn: zane_print
     │       │   │   └── args[0]: "yes\n" : handle
     │       │   └── body[1] > assign:
-    │       │       ├── place: #55
+    │       │       ├── place: #78
     │       │       └── value: true : i1
     │       ├── body[7] > eval > expand:
     │       │   ├── type: i1
-    │       │   ├── label: @56
-    │       │   ├── result: #57
+    │       │   ├── label: @79
+    │       │   ├── result: #80
     │       │   ├── body[0] > eval > runtime:
     │       │   │   ├── type: void
     │       │   │   ├── fn: zane_print
     │       │   │   └── args[0]: "yes\n" : handle
     │       │   └── body[1] > assign:
-    │       │       ├── place: #57
+    │       │       ├── place: #80
     │       │       └── value: true : i1
     │       ├── body[8] > eval > expand:
     │       │   ├── type: i1
-    │       │   ├── label: @58
-    │       │   ├── result: #59
+    │       │   ├── label: @81
+    │       │   ├── result: #82
     │       │   ├── body[0] > eval > runtime:
     │       │   │   ├── type: void
     │       │   │   ├── fn: zane_print
     │       │   │   └── args[0]: "yes\n" : handle
     │       │   └── body[1] > assign:
-    │       │       ├── place: #59
+    │       │       ├── place: #82
     │       │       └── value: true : i1
     │       ├── body[9] > let:
     │       │   ├── local: #33
@@ -319,14 +319,49 @@
     │       ├── type: i64
     │       ├── op: *
     │       ├── left: local #1 : i64
-    │       └── right > call:
+    │       └── right > expand:
     │           ├── type: i64
-    │           ├── fn: counting$factorial(%primitives$I64)
-    │           └── args[0] > binary:
-    │               ├── type: i64
-    │               ├── op: +
-    │               ├── left: local #1 : i64
-    │               └── right: -1 : i64
+    │           ├── label: @5
+    │           ├── result: #8
+    │           ├── body[0] > let:
+    │           │   ├── local: #7
+    │           │   └── value > binary:
+    │           │       ├── type: i64
+    │           │       ├── op: +
+    │           │       ├── left: local #1 : i64
+    │           │       └── right: -1 : i64
+    │           ├── body[1] > eval > expand:
+    │           │   ├── type: void
+    │           │   ├── label: @6
+    │           │   ├── body[0] > eval > expand:
+    │           │   │   ├── type: i1
+    │           │   │   ├── label: @11
+    │           │   │   ├── result: #9
+    │           │   │   ├── body[0] > let:
+    │           │   │   │   ├── local: #10
+    │           │   │   │   └── value > binary:
+    │           │   │   │       ├── type: i1
+    │           │   │   │       ├── op: <
+    │           │   │   │       ├── left: local #7 : i64
+    │           │   │   │       └── right: 2 : i64
+    │           │   │   ├── body[1] > if:
+    │           │   │   │   ├── cond: local #10 : i1
+    │           │   │   │   ├── body[0] > assign:
+    │           │   │   │   │   ├── place: #8
+    │           │   │   │   │   └── value: 1 : i64
+    │           │   │   │   └── body[1]: leave @5
+    │           │   │   ├── body[2] > assign:
+    │           │   │   │   ├── place: #9
+    │           │   │   │   └── value: local #10 : i1
+    │           │   │   └── body[3]: leave @11
+    │           │   └── body[1]: leave @6
+    │           ├── body[2] > assign:
+    │           │   ├── place: #8
+    │           │   └── value > call:
+    │           │       ├── type: i64
+    │           │       ├── fn: counting$factorial(%primitives$I64)
+    │           │       └── args[0]: local #7 : i64
+    │           └── body[3]: leave @5
     └── funcs[4] > func:
         ├── symbol: counting$smallest(%primitives$I64, %primitives$I64)
         ├── params[0]: local #1 : i64

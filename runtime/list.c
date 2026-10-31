@@ -83,9 +83,7 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 	int64_t unit = zl_unit(stride), old = ZL_ROOM_BYTES(list, stride);
 	int64_t units = ZL_ROOM(list) ? ZL_ROOM(list) * 2 : zane_list_first_room(stride, stride) / unit;
 	while (units * unit < needed) units *= 2;
-#if defined(ZANE_REF32)
-	if (units > (int64_t)UINT32_MAX) zane_broken("a list past 4 GiB");
-#elif defined(ZANE_FRAME_REFS)
+#if defined(ZANE_FRAME_REFS)
 	if (units > (int64_t)UINT32_MAX) zane_broken("a list past 2^32 - 1 elements");
 #endif
 	int64_t room = zl_block_bytes(units, stride);

@@ -112,12 +112,12 @@ let leads_back st ?(through = fun _ -> inline st) holder member =
   in
   reaches Tty.Growth.start member
 
-(* Experimental (docs/experiments/goose-comparison): with ZANE_ONE_BOX=1 in
-   the environment, a cycle is broken by one box, not one per member on it.
+(* Experimental (docs/experiments/goose-comparison): unless ZANE_ONE_BOX=0
+   in the environment, a cycle is broken by one box, not one per member on it.
    A variant's payload that leads back to it is boxed as before; a struct's
    member is boxed only when it leads back without passing through such a
    payload, since that payload's box already breaks the cycle. *)
-let one_box () = Sys.getenv_opt "ZANE_ONE_BOX" = Some "1" && Sys.getenv_opt "ZANE_POOLED_VARIANTS" <> Some "1"
+let one_box () = Sys.getenv_opt "ZANE_ONE_BOX" <> Some "0" && Sys.getenv_opt "ZANE_POOLED_VARIANTS" <> Some "1"
 
 let boxed st holder member =
   match Hashtbl.find_opt st.boxes (holder, member) with
@@ -190,14 +190,14 @@ let member_index _st _t slot = slot
    of the owner it names (§4.1), and a boxed member a pointer (adt.md §4).
    A function value is the address of the function a lambda was lifted to
    (L14). *)
-(* A boxed member's type: the address of its block, in 32 bits with Ref32
-   (experimental). *)
-let box_type () = if Ref32.on () then Nodes.Ty.Ref else if Ref32.image_boxes () then Nodes.Ty.Box32 else Nodes.Ty.Ptr
+(* A boxed member's type: the address of its block, in 32 bits with image
+   boxes (experimental). *)
+let box_type () = if Ref32.image_boxes () then Nodes.Ty.Box32 else Nodes.Ty.Ptr
 
-(* Experimental (Ref32): a reference stored as a member, an element or a
-   payload, rather than in a local, takes the 32-bit form a boxed member's
-   address does (Build.stored_ref, Build.loaded_ref). *)
-let ref_slot (t : Tty.t) = (Ref32.on () || Ref32.frames ()) && Tty.is_ref t
+(* Experimental (Ref32.frames): a reference stored as a member, an element
+   or a payload, rather than in a local, takes its 32-bit form
+   (Build.stored_ref, Build.loaded_ref). *)
+let ref_slot (t : Tty.t) = Ref32.frames () && Tty.is_ref t
 
 let rec shape st span (t : Tty.t) : Nodes.Ty.t =
   match t with

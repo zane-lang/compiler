@@ -38,13 +38,13 @@
             │   ├── local: #1
             │   ├── scope: %2
             │   ├── value > expand:
-            │   │   ├── type: handle
+            │   │   ├── type: handle16
             │   │   ├── label: @22
             │   │   ├── result: #23
             │   │   └── body[0] > assign:
             │   │       ├── place: #23
             │   │       └── value > runtime:
-            │   │           ├── type: handle
+            │   │           ├── type: handle16
             │   │           ├── fn: zane_list_new
             │   │           └── args:
             │   └── layout: %primitives$ListRef<%primitives$I64>

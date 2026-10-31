@@ -8,7 +8,7 @@
 #     ZANE_POOLED_VARIANTS=1 ZANE_PACKED_NODES=1
 #
 # With ALL=1 every fixture is built and run both ways, for a switch that
-# changes the runtime too (ZANE_REF32).
+# changes the runtime too (ZANE_FRAME_REFS=0, say).
 W=${WORK:-/tmp/zane-goose-fixtures}; mkdir -p "$W"; Z=$PWD/_build/default/bin/zanec/zanec.exe
 for d in tests/codegen/fixtures/*/; do
   n=$(basename "$d"); args=(); [ -f "$d/$n" ] && mapfile -t args < "$d/$n"

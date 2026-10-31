@@ -14,7 +14,7 @@
     │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
     ├── layouts[4] > layout:
     │   ├── type: folding$Countdown
-    │   └── positions[0]: box @8 of folding$Countdown (16 bytes) when [0]=1
+    │   └── positions[0]: box @0 of folding$Countdown (4 bytes) when [0]=-2
     ├── layouts[5] > layout:
     │   ├── type: ^%primitives$ListRef<%primitives$I64>
     │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
@@ -685,7 +685,7 @@
     │       │   ├── local: #62
     │       │   ├── scope: %12
     │       │   ├── value > call:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: folding$upTo(%primitives$I64)
     │       │   │   └── args[0]: 4 : i64
     │       │   └── layout: %primitives$ListRef<%primitives$I64>
@@ -746,7 +746,7 @@
     │       │   ├── local: #68
     │       │   ├── scope: %12
     │       │   ├── value > call:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: folding$words()
     │       │   │   └── args:
     │       │   └── layout: %primitives$ListRef<%primitives$String>
@@ -825,16 +825,18 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > member:
+    │       │       ├── left > convert:
     │       │       │   ├── type: i64
-    │       │       │   ├── index: 1
-    │       │       │   └── value: local #68 : handle
+    │       │       │   └── value > member:
+    │       │       │       ├── type: i32
+    │       │       │       ├── index: 1
+    │       │       │       └── value: local #68 : handle16
     │       │       └── right: 3 : i64
     │       ├── body[41] > hold:
     │       │   ├── local: #78
     │       │   ├── scope: %12
     │       │   ├── value > call:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── fn: folding$countdown(%primitives$I64)
     │       │   │   └── args[0]: 3 : i64
     │       │   └── layout: folding$Countdown
@@ -853,12 +855,12 @@
     │       │       │   │   └── value: address of #78 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <void | ptr>
+    │       │       │       │   ├── type: <void | box32>
     │       │       │       │   └── ptr: local #83 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #84
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <void | ptr>
+    │       │       │       │       ├── within: <void | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #83 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -867,12 +869,14 @@
     │       │       │       ├── cases[0] > case 0[2]: leave @81
     │       │       │       ├── cases[1] > case 1[0] > let:
     │       │       │       │   ├── local: #85
-    │       │       │       │   └── value > deref:
+    │       │       │       │   └── value > convert:
     │       │       │       │       ├── type: ptr
-    │       │       │       │       └── ptr > offset:
-    │       │       │       │           ├── within: <void | ptr>
-    │       │       │       │           ├── path: 1
-    │       │       │       │           └── base: local #83 : ptr
+    │       │       │       │       └── value > deref:
+    │       │       │       │           ├── type: box32
+    │       │       │       │           └── ptr > offset:
+    │       │       │       │               ├── within: <void | box32>
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #83 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
     │       │       │       │   ├── place: #82
     │       │       │       │   └── value > binary:
@@ -883,21 +887,23 @@
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: folding$depth(folding$Countdown)
     │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: <void | ptr>
+    │       │       │       │               ├── type: <void | box32>
     │       │       │       │               └── ptr: local #85 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @81
     │       │       └── right: 3 : i64
     │       ├── body[43] > overwrite:
     │       │   ├── address: address of #78 : ptr
     │       │   ├── value > case:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── index: 1
-    │       │   │   └── payload > box:
-    │       │   │       ├── value > copy:
-    │       │   │       │   ├── type: <void | ptr>
-    │       │   │       │   ├── value: local #78 : <void | ptr>
-    │       │   │       │   └── layout: folding$Countdown
-    │       │   │       └── layout: folding$Countdown
+    │       │   │   └── payload > convert:
+    │       │   │       ├── type: box32
+    │       │   │       └── value > box:
+    │       │   │           ├── value > copy:
+    │       │   │           │   ├── type: <void | box32>
+    │       │   │           │   ├── value: local #78 : <void | box32>
+    │       │   │           │   └── layout: folding$Countdown
+    │       │   │           └── layout: folding$Countdown
     │       │   └── layout: folding$Countdown
     │       ├── body[44] > eval > call:
     │       │   ├── type: void
@@ -914,12 +920,12 @@
     │       │       │   │   └── value: address of #78 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <void | ptr>
+    │       │       │       │   ├── type: <void | box32>
     │       │       │       │   └── ptr: local #90 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #91
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <void | ptr>
+    │       │       │       │       ├── within: <void | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #90 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -928,12 +934,14 @@
     │       │       │       ├── cases[0] > case 0[2]: leave @88
     │       │       │       ├── cases[1] > case 1[0] > let:
     │       │       │       │   ├── local: #92
-    │       │       │       │   └── value > deref:
+    │       │       │       │   └── value > convert:
     │       │       │       │       ├── type: ptr
-    │       │       │       │       └── ptr > offset:
-    │       │       │       │           ├── within: <void | ptr>
-    │       │       │       │           ├── path: 1
-    │       │       │       │           └── base: local #90 : ptr
+    │       │       │       │       └── value > deref:
+    │       │       │       │           ├── type: box32
+    │       │       │       │           └── ptr > offset:
+    │       │       │       │               ├── within: <void | box32>
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #90 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
     │       │       │       │   ├── place: #89
     │       │       │       │   └── value > binary:
@@ -944,7 +952,7 @@
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: folding$depth(folding$Countdown)
     │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: <void | ptr>
+    │       │       │       │               ├── type: <void | box32>
     │       │       │       │               └── ptr: local #92 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @88
     │       │       └── right: 4 : i64
@@ -1260,7 +1268,7 @@
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
     │       │   └── layout: %primitives$ListRef<%primitives$I64>
@@ -1328,10 +1336,12 @@
     │       │   ├── label: @15
     │       │   ├── body[0] > let:
     │       │   │   ├── local: #14
-    │       │   │   └── value > member:
+    │       │   │   └── value > convert:
     │       │   │       ├── type: i64
-    │       │   │       ├── index: 1
-    │       │   │       └── value: local #2 : handle
+    │       │   │       └── value > member:
+    │       │   │           ├── type: i32
+    │       │   │           ├── index: 1
+    │       │   │           └── value: local #2 : handle16
     │       │   ├── body[1] > repeat:
     │       │   │   ├── count > binary:
     │       │   │   │   ├── type: i64
@@ -1380,7 +1390,7 @@
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value > case:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── index: 0
     │       │   │   └── payload: unit : void
     │       │   └── layout: folding$Countdown
@@ -1410,14 +1420,16 @@
     │       │   │   │   └── body[0] > overwrite:
     │       │   │   │       ├── address: address of #2 : ptr
     │       │   │   │       ├── value > case:
-    │       │   │   │       │   ├── type: <void | ptr>
+    │       │   │   │       │   ├── type: <void | box32>
     │       │   │   │       │   ├── index: 1
-    │       │   │   │       │   └── payload > box:
-    │       │   │   │       │       ├── value > copy:
-    │       │   │   │       │       │   ├── type: <void | ptr>
-    │       │   │   │       │       │   ├── value: local #2 : <void | ptr>
-    │       │   │   │       │       │   └── layout: folding$Countdown
-    │       │   │   │       │       └── layout: folding$Countdown
+    │       │   │   │       │   └── payload > convert:
+    │       │   │   │       │       ├── type: box32
+    │       │   │   │       │       └── value > box:
+    │       │   │   │       │           ├── value > copy:
+    │       │   │   │       │           │   ├── type: <void | box32>
+    │       │   │   │       │           │   ├── value: local #2 : <void | box32>
+    │       │   │   │       │           │   └── layout: folding$Countdown
+    │       │   │   │       │           └── layout: folding$Countdown
     │       │   │   │       └── layout: folding$Countdown
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #4
@@ -1437,12 +1449,12 @@
     │           │   └── value: address of #2 : ptr
     │           └── body[1] > switch:
     │               ├── value > deref:
-    │               │   ├── type: <void | ptr>
+    │               │   ├── type: <void | box32>
     │               │   └── ptr: local #13 : ptr
     │               ├── cases[0] > case 0[0] > let:
     │               │   ├── local: #14
     │               │   └── value > offset:
-    │               │       ├── within: <void | ptr>
+    │               │       ├── within: <void | box32>
     │               │       ├── path: 0
     │               │       └── base: local #13 : ptr
     │               ├── cases[0] > case 0[1] > assign:
@@ -1451,12 +1463,14 @@
     │               ├── cases[0] > case 0[2]: leave @11
     │               ├── cases[1] > case 1[0] > let:
     │               │   ├── local: #15
-    │               │   └── value > deref:
+    │               │   └── value > convert:
     │               │       ├── type: ptr
-    │               │       └── ptr > offset:
-    │               │           ├── within: <void | ptr>
-    │               │           ├── path: 1
-    │               │           └── base: local #13 : ptr
+    │               │       └── value > deref:
+    │               │           ├── type: box32
+    │               │           └── ptr > offset:
+    │               │               ├── within: <void | box32>
+    │               │               ├── path: 1
+    │               │               └── base: local #13 : ptr
     │               ├── cases[1] > case 1[1] > assign:
     │               │   ├── place: #12
     │               │   └── value > binary:
@@ -1467,17 +1481,17 @@
     │               │           ├── type: i64
     │               │           ├── fn: folding$depth(folding$Countdown)
     │               │           └── args[0] > deref:
-    │               │               ├── type: <void | ptr>
+    │               │               ├── type: <void | box32>
     │               │               └── ptr: local #15 : ptr
     │               └── cases[1] > case 1[2]: leave @11
     ├── funcs[12] > func:
     │   ├── symbol: folding$upTo(%primitives$I64)
     │   ├── params[0]: local #1 : i64
-    │   ├── ret: handle
+    │   ├── ret: handle16
     │   ├── body[0] > let:
     │   │   ├── local: #2
     │   │   └── value > runtime:
-    │   │       ├── type: handle
+    │   │       ├── type: handle16
     │   │       ├── fn: zane_list_new
     │   │       └── args:
     │   ├── body[1] > let:
@@ -1531,7 +1545,7 @@
     │   │   └── body[3]: leave @6
     │   └── body[3] > return > escape:
     │       ├── exit: function
-    │       ├── value: local #2 : handle
+    │       ├── value: local #2 : handle16
     │       └── layout: ^%primitives$ListRef<%primitives$I64>
     ├── funcs[13] > func:
     │   ├── symbol: folding$sum(&%primitives$ListRef<%primitives$I64>)
@@ -1548,12 +1562,14 @@
     │   │   ├── label: @5
     │   │   ├── body[0] > let:
     │   │   │   ├── local: #4
-    │   │   │   └── value > member:
+    │   │   │   └── value > convert:
     │   │   │       ├── type: i64
-    │   │   │       ├── index: 1
-    │   │   │       └── value > deref:
-    │   │   │           ├── type: handle
-    │   │   │           └── ptr: local #1 : ptr
+    │   │   │       └── value > member:
+    │   │   │           ├── type: i32
+    │   │   │           ├── index: 1
+    │   │   │           └── value > deref:
+    │   │   │               ├── type: handle16
+    │   │   │               └── ptr: local #1 : ptr
     │   │   ├── body[1] > repeat:
     │   │   │   ├── count > binary:
     │   │   │   │   ├── type: i64
@@ -1595,11 +1611,11 @@
     ├── funcs[14] > func:
     │   ├── symbol: folding$words()
     │   ├── params:
-    │   ├── ret: handle
+    │   ├── ret: handle16
     │   ├── body[0] > let:
     │   │   ├── local: #1
     │   │   └── value > runtime:
-    │   │       ├── type: handle
+    │   │       ├── type: handle16
     │   │       ├── fn: zane_list_new
     │   │       └── args:
     │   ├── body[1] > eval > expand:
@@ -1638,19 +1654,19 @@
     │   │       └── layout: %primitives$String
     │   └── body[3] > return > escape:
     │       ├── exit: function
-    │       ├── value: local #1 : handle
+    │       ├── value: local #1 : handle16
     │       └── layout: ^%primitives$ListRef<%primitives$String>
     ├── funcs[15] > func:
     │   ├── symbol: folding$countdown(%primitives$I64)
     │   ├── params[0]: local #1 : i64
-    │   ├── ret: <void | ptr>
+    │   ├── ret: <void | box32>
     │   └── body[0] > scope:
     │       ├── id: %3
     │       ├── body[0] > hold:
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value > case:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── index: 0
     │       │   │   └── payload: unit : void
     │       │   └── layout: folding$Countdown
@@ -1680,14 +1696,16 @@
     │       │   │   │   └── body[0] > overwrite:
     │       │   │   │       ├── address: address of #2 : ptr
     │       │   │   │       ├── value > case:
-    │       │   │   │       │   ├── type: <void | ptr>
+    │       │   │   │       │   ├── type: <void | box32>
     │       │   │   │       │   ├── index: 1
-    │       │   │   │       │   └── payload > box:
-    │       │   │   │       │       ├── value > copy:
-    │       │   │   │       │       │   ├── type: <void | ptr>
-    │       │   │   │       │       │   ├── value: local #2 : <void | ptr>
-    │       │   │   │       │       │   └── layout: folding$Countdown
-    │       │   │   │       │       └── layout: folding$Countdown
+    │       │   │   │       │   └── payload > convert:
+    │       │   │   │       │       ├── type: box32
+    │       │   │   │       │       └── value > box:
+    │       │   │   │       │           ├── value > copy:
+    │       │   │   │       │           │   ├── type: <void | box32>
+    │       │   │   │       │           │   ├── value: local #2 : <void | box32>
+    │       │   │   │       │           │   └── layout: folding$Countdown
+    │       │   │   │       │           └── layout: folding$Countdown
     │       │   │   │       └── layout: folding$Countdown
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #4
@@ -1701,13 +1719,13 @@
     │       └── body[3] > return > escape:
     │           ├── exit: function
     │           ├── value > copy:
-    │           │   ├── type: <void | ptr>
-    │           │   ├── value: local #2 : <void | ptr>
+    │           │   ├── type: <void | box32>
+    │           │   ├── value: local #2 : <void | box32>
     │           │   └── layout: folding$Countdown
     │           └── layout: folding$Countdown
     ├── funcs[16] > func:
     │   ├── symbol: folding$depth(folding$Countdown)
-    │   ├── params[0]: local #1 : <void | ptr>
+    │   ├── params[0]: local #1 : <void | box32>
     │   ├── ret: i64
     │   └── body[0] > return > expand:
     │       ├── type: i64
@@ -1718,12 +1736,12 @@
     │       │   └── value: address of #1 : ptr
     │       └── body[1] > switch:
     │           ├── value > deref:
-    │           │   ├── type: <void | ptr>
+    │           │   ├── type: <void | box32>
     │           │   └── ptr: local #4 : ptr
     │           ├── cases[0] > case 0[0] > let:
     │           │   ├── local: #5
     │           │   └── value > offset:
-    │           │       ├── within: <void | ptr>
+    │           │       ├── within: <void | box32>
     │           │       ├── path: 0
     │           │       └── base: local #4 : ptr
     │           ├── cases[0] > case 0[1] > assign:
@@ -1732,12 +1750,14 @@
     │           ├── cases[0] > case 0[2]: leave @2
     │           ├── cases[1] > case 1[0] > let:
     │           │   ├── local: #6
-    │           │   └── value > deref:
+    │           │   └── value > convert:
     │           │       ├── type: ptr
-    │           │       └── ptr > offset:
-    │           │           ├── within: <void | ptr>
-    │           │           ├── path: 1
-    │           │           └── base: local #4 : ptr
+    │           │       └── value > deref:
+    │           │           ├── type: box32
+    │           │           └── ptr > offset:
+    │           │               ├── within: <void | box32>
+    │           │               ├── path: 1
+    │           │               └── base: local #4 : ptr
     │           ├── cases[1] > case 1[1] > assign:
     │           │   ├── place: #3
     │           │   └── value > binary:
@@ -1753,12 +1773,12 @@
     │           │           │   └── value: local #6 : ptr
     │           │           └── body[1] > switch:
     │           │               ├── value > deref:
-    │           │               │   ├── type: <void | ptr>
+    │           │               │   ├── type: <void | box32>
     │           │               │   └── ptr: local #11 : ptr
     │           │               ├── cases[0] > case 0[0] > let:
     │           │               │   ├── local: #12
     │           │               │   └── value > offset:
-    │           │               │       ├── within: <void | ptr>
+    │           │               │       ├── within: <void | box32>
     │           │               │       ├── path: 0
     │           │               │       └── base: local #11 : ptr
     │           │               ├── cases[0] > case 0[1] > assign:
@@ -1767,12 +1787,14 @@
     │           │               ├── cases[0] > case 0[2]: leave @9
     │           │               ├── cases[1] > case 1[0] > let:
     │           │               │   ├── local: #13
-    │           │               │   └── value > deref:
+    │           │               │   └── value > convert:
     │           │               │       ├── type: ptr
-    │           │               │       └── ptr > offset:
-    │           │               │           ├── within: <void | ptr>
-    │           │               │           ├── path: 1
-    │           │               │           └── base: local #11 : ptr
+    │           │               │       └── value > deref:
+    │           │               │           ├── type: box32
+    │           │               │           └── ptr > offset:
+    │           │               │               ├── within: <void | box32>
+    │           │               │               ├── path: 1
+    │           │               │               └── base: local #11 : ptr
     │           │               ├── cases[1] > case 1[1] > assign:
     │           │               │   ├── place: #10
     │           │               │   └── value > binary:
@@ -1783,7 +1805,7 @@
     │           │               │           ├── type: i64
     │           │               │           ├── fn: folding$depth(folding$Countdown)
     │           │               │           └── args[0] > deref:
-    │           │               │               ├── type: <void | ptr>
+    │           │               │               ├── type: <void | box32>
     │           │               │               └── ptr: local #13 : ptr
     │           │               └── cases[1] > case 1[2]: leave @9
     │           └── cases[1] > case 1[2]: leave @2

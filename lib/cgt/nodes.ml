@@ -33,17 +33,13 @@ module Ty = struct
     | F32
     | F64
     | Handle
-    (* Experimental (Ref32): a list's handle with its items stored as their
-       address shifted right by 3, its count and its room, each in 32
-       bits. *)
-    | Handle32
     (* Experimental (frame references): a list's handle with its items a
        pointer, and its count and its room in 32 bits each. *)
     | Handle16
     | Ptr
-    (* Experimental (Ref32): a boxed member's block, stored as its address
-       shifted right by 3 in 32 bits, which a [Convert] turns into a [Ptr]
-       and back. *)
+    (* Experimental (Ref32.frames): a reference, stored as its signed
+       distance from the program's image in 32 bits, which a [Convert]
+       turns into a [Ptr] and back. *)
     | Ref
     (* Experimental (Ref32.image_boxes): a boxed member's block, stored as its
        signed distance from the program's image in 8-byte units, in 32 bits,
@@ -80,7 +76,6 @@ module Ty = struct
     | I32 | F32 -> (4, 4)
     | I64 | F64 | Ptr -> (8, 8)
     | Handle -> (24, 8)
-    | Handle32 -> (12, 4)
     | Handle16 -> (16, 8)
     | Ref | Box32 -> (4, 4)
     | Struct ts ->
@@ -93,7 +88,6 @@ module Ty = struct
         in
         (below_limit (round_up size align), align)
     | Sum ts when niche ts -> (4, 4)
-    | Sum ts when compact ts -> (below_limit (add 4 (times 4 (quads ts))), 4)
     | Sum ts -> ( match words ts with 0 -> (4, 4) | n -> (below_limit (add 8 (times 8 n)), 8))
     | Array (t, n) ->
         let size, align = size_align t in
@@ -109,18 +103,9 @@ module Ty = struct
      aligned for every one, since no layout here needs more than 8. *)
   and words ts = List.fold_left (fun n t -> max n ((fst (size_align t) + 7) / 8)) 0 ts
 
-  (* Experimental (Ref32): a compact sum, whose cases' payloads all align
-     to 4 bytes or less, keeps its payload in 4-byte words right after its
-     4-byte tag. *)
-  and compact ts =
-    Ref32.on () && (not (niche ts)) && words ts > 0 && List.for_all (fun t -> snd (size_align t) <= 4) ts
-
-  (* Experimental (Ref32.niche): a sum of nothing or a reference is the
-     reference, 0 for nothing. *)
+  (* Experimental (Ref32.niche): a sum of nothing or a box or reference is
+     that word, 0 for nothing. *)
   and niche ts = Ref32.niche () && (ts = [ Void; Ref ] || ts = [ Void; Box32 ])
-
-  (* A compact sum's payload room, in 4-byte words. *)
-  and quads ts = List.fold_left (fun n t -> max n ((fst (size_align t) + 3) / 4)) 0 ts
 
   (* Where each member of a struct of [ts] starts. *)
   let offsets ts =
@@ -150,14 +135,13 @@ module Ty = struct
   (* A sum's payload starts after its tag. *)
   let payload_offset = 8
 
-  (* A list's handle: [Handle32] with Ref32, else [Handle]. *)
-  let list_handle () = if Ref32.on () then Handle32 else if Ref32.frames () then Handle16 else Handle
+  (* A list's handle: [Handle16] with frame references, else [Handle]. *)
+  let list_handle () = if Ref32.frames () then Handle16 else Handle
 
   (* Where the sum [t]'s payload starts, packed or not. *)
   let payload_at = function
     | Packed _ -> 1
     | Sum ts when niche ts -> 0
-    | Sum ts when compact ts -> 4
     | _ -> payload_offset
 
   (* Whether a value of the type has a handle among its bytes: is one, or
@@ -165,7 +149,7 @@ module Ty = struct
      payload and a reference's owner are in storage of their own, which a
      [Ptr] names. *)
   let rec holds_handle = function
-    | Handle | Handle32 | Handle16 -> true
+    | Handle | Handle16 -> true
     | Struct ts | Sum ts -> List.exists holds_handle ts
     | Array (t, _) | Packed t -> holds_handle t
     | Void | I1 | I32 | I64 | F32 | F64 | Ptr | Ref | Box32 -> false
@@ -178,7 +162,6 @@ module Ty = struct
     | F32 -> "f32"
     | F64 -> "f64"
     | Handle -> "handle"
-    | Handle32 -> "handle32"
     | Handle16 -> "handle16"
     | Ptr -> "ptr"
     | Ref -> "ref"

@@ -53,76 +53,6 @@ int zane_commit_range(char *at, size_t bytes) {
 #endif
 }
 
-#if defined(ZANE_REF32) && !defined(_WIN32)
-/* Experimental (docs/experiments/goose-comparison): every reservation is
-   carved from the cage, one range of addresses from ZANE_CAGE_LOW to
-   ZANE_CAGE_HIGH reserved once, so that a stored reference is its address
-   shifted right by 3 and fits 32 bits. A range given back is listed and
-   carved again, first fit; the rest of the cage is taken in order. */
-#include <pthread.h>
-
-typedef struct zane_cage_range {
-	char *base;
-	size_t bytes;
-	struct zane_cage_range *next;
-} zane_cage_range;
-
-static pthread_mutex_t zane_cage_lock = PTHREAD_MUTEX_INITIALIZER;
-static char *zane_cage_next;
-static zane_cage_range *zane_cage_free;
-
-static char *zane_cage_take(size_t bytes) {
-	bytes = (bytes + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK;
-	pthread_mutex_lock(&zane_cage_lock);
-	if (!zane_cage_next) {
-		void *at = mmap((void *)ZANE_CAGE_LOW, ZANE_CAGE_HIGH - ZANE_CAGE_LOW, PROT_NONE,
-		                MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
-		if (at != (void *)ZANE_CAGE_LOW) zane_broken("the cage's addresses are taken");
-		zane_cage_next = (char *)ZANE_CAGE_LOW;
-	}
-	char *base = NULL;
-	for (zane_cage_range **at = &zane_cage_free; *at; at = &(*at)->next) {
-		zane_cage_range *r = *at;
-		if (r->bytes < bytes) continue;
-		base = r->base;
-		r->base += bytes;
-		r->bytes -= bytes;
-		if (!r->bytes) {
-			*at = r->next;
-			free(r);
-		}
-		break;
-	}
-	if (!base && (size_t)((char *)ZANE_CAGE_HIGH - zane_cage_next) >= bytes) {
-		base = zane_cage_next;
-		zane_cage_next += bytes;
-	}
-	pthread_mutex_unlock(&zane_cage_lock);
-	return base;
-}
-
-static void zane_cage_give(char *base, size_t bytes) {
-	bytes = (bytes + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK;
-	mmap(base, bytes, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED, -1, 0);
-	zane_cage_range *r = malloc(sizeof *r);
-	if (!r) return;
-	pthread_mutex_lock(&zane_cage_lock);
-	*r = (zane_cage_range){ base, bytes, zane_cage_free };
-	zane_cage_free = r;
-	pthread_mutex_unlock(&zane_cage_lock);
-}
-
-char *zane_reserve_aligned(size_t bytes, char **raw) {
-	char *base = zane_cage_take(bytes);
-	*raw = base;
-	return base;
-}
-
-void zane_release_addresses(char *raw, char *base, size_t bytes) {
-	(void)raw;
-	zane_cage_give(base, bytes);
-}
-#else
 /* `bytes` of addresses with no access at a 1 MiB boundary, so each MiB of
    them can be listed alone in the chunk map, or null. The reservation is
    1 MiB larger to find one. A POSIX system gives back what is left over at
@@ -154,7 +84,6 @@ void zane_release_addresses(char *raw, char *base, size_t bytes) {
 	munmap(base, bytes);
 #endif
 }
-#endif
 
 /* `bytes` of usable memory from `at` given back to the system, its
    addresses kept: touched again, they read as zero, after a commit on

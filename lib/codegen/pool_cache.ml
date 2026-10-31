@@ -12,13 +12,11 @@
    every pool such a function can be given is made where a value needs one
    (Lower.pool_value), and that is made in a block that never needs to grow
    (runtime/arena.c, `zane_alloc_unbounded`), as Goose reserves a data
-   stack whose growth it never checks (its specification, §1.3). Not with
-   ZANE_REF32=1: each such block takes 2 GiB of the cage's 28 GiB, which a
-   few threads' pools use up. *)
+   stack whose growth it never checks (its specification, §1.3). *)
 
 open Cgt.Nodes
 
-let unchecked () = Sys.getenv_opt "ZANE_POOL_UNCHECKED" = Some "1" && not (Cgt.Ref32.on ())
+let unchecked () = Sys.getenv_opt "ZANE_POOL_UNCHECKED" = Some "1"
 let on () = Sys.getenv_opt "ZANE_POOL_REGISTERS" = Some "1" || Sys.getenv_opt "ZANE_POOL_UNCHECKED" = Some "1"
 
 (* The locals that hold [f]'s pool's address, its parameter first: a

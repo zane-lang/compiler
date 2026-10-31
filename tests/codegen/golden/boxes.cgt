@@ -2,45 +2,45 @@
     ├── entry: zane.start
     ├── layouts[0] > layout:
     │   ├── type: boxes$Countdown
-    │   └── positions[0]: box @8 of boxes$Countdown (16 bytes) when [0]=1
+    │   └── positions[0]: box @0 of boxes$Countdown (4 bytes) when [0]=-2
     ├── layouts[1] > layout:
-    │   ├── type: boxes$Tree
-    │   └── positions[0]: box @8 of boxes$Pair (16 bytes) when [0]=1
-    ├── layouts[2] > layout:
     │   ├── type: boxes$Pair
-    │   ├── positions[0]: box @0 of boxes$Tree (16 bytes)
-    │   └── positions[1]: box @8 of boxes$Tree (16 bytes)
+    │   ├── positions[0]: box @8 of boxes$Pair (32 bytes) when [0]=1
+    │   └── positions[1]: box @24 of boxes$Pair (32 bytes) when [16]=1
+    ├── layouts[2] > layout:
+    │   ├── type: boxes$Tree
+    │   └── positions[0]: box @8 of boxes$Pair (32 bytes) when [0]=1
     ├── layouts[3] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
     ├── layouts[4] > layout:
-    │   ├── type: boxes$Chain
-    │   └── positions[0]: box @8 of boxes$Link (32 bytes) when [0]=1
-    ├── layouts[5] > layout:
     │   ├── type: boxes$Link
     │   ├── positions[0]: text @0
-    │   └── positions[1]: box @24 of boxes$Chain (16 bytes)
-    ├── layouts[6] > layout:
+    │   └── positions[1]: box @24 of boxes$Link (32 bytes) when [24]=-2
+    ├── layouts[5] > layout:
     │   ├── type: ^boxes$Chain
-    │   └── positions[0]: box @8 of boxes$Link (32 bytes) when [0]=1
+    │   └── positions[0]: box @0 of boxes$Link (32 bytes) when [0]=-2
+    ├── layouts[6] > layout:
+    │   ├── type: boxes$Chain
+    │   └── positions[0]: box @0 of boxes$Link (32 bytes) when [0]=-2
     ├── layouts[7] > layout:
-    │   ├── type: boxes$Storey
-    │   └── positions[0]: box @8 of boxes$Tower (16 bytes) when [0]=1
-    ├── layouts[8] > layout:
     │   ├── type: boxes$Tower
-    │   └── positions[0]: box @8 of boxes$Storey (16 bytes)
-    ├── layouts[9] > layout:
+    │   └── positions[0]: box @8 of boxes$Tower (16 bytes) when [8]=-2
+    ├── layouts[8] > layout:
     │   ├── type: ^boxes$Storey
-    │   └── positions[0]: box @8 of boxes$Tower (16 bytes) when [0]=1
+    │   └── positions[0]: box @0 of boxes$Tower (16 bytes) when [0]=-2
+    ├── layouts[9] > layout:
+    │   ├── type: boxes$Storey
+    │   └── positions[0]: box @0 of boxes$Tower (16 bytes) when [0]=-2
     ├── layouts[10] > layout:
-    │   ├── type: boxes$Knot
-    │   └── positions[0]: box @8 of boxes$Solo (8 bytes) when [0]=1
-    ├── layouts[11] > layout:
     │   ├── type: boxes$Solo
-    │   └── positions[0]: box @0 of boxes$Knot (16 bytes)
-    ├── layouts[12] > layout:
+    │   └── positions[0]: box @0 of boxes$Solo (4 bytes) when [0]=-2
+    ├── layouts[11] > layout:
     │   ├── type: %primitives$ListRef<boxes$Solo>
-    │   └── positions[0]: list @0 of boxes$Solo (8 bytes apart)
+    │   └── positions[0]: list @0 of boxes$Solo (4 bytes apart)
+    ├── layouts[12] > layout:
+    │   ├── type: boxes$Knot
+    │   └── positions[0]: box @0 of boxes$Solo (4 bytes) when [0]=-2
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -59,19 +59,23 @@
     │       │   ├── local: #1
     │       │   ├── scope: %2
     │       │   ├── value > case:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── index: 1
-    │       │   │   └── payload > box:
-    │       │   │       ├── value > case:
-    │       │   │       │   ├── type: <void | ptr>
-    │       │   │       │   ├── index: 1
-    │       │   │       │   └── payload > box:
-    │       │   │       │       ├── value > case:
-    │       │   │       │       │   ├── type: <void | ptr>
-    │       │   │       │       │   ├── index: 0
-    │       │   │       │       │   └── payload: unit : void
-    │       │   │       │       └── layout: boxes$Countdown
-    │       │   │       └── layout: boxes$Countdown
+    │       │   │   └── payload > convert:
+    │       │   │       ├── type: box32
+    │       │   │       └── value > box:
+    │       │   │           ├── value > case:
+    │       │   │           │   ├── type: <void | box32>
+    │       │   │           │   ├── index: 1
+    │       │   │           │   └── payload > convert:
+    │       │   │           │       ├── type: box32
+    │       │   │           │       └── value > box:
+    │       │   │           │           ├── value > case:
+    │       │   │           │           │   ├── type: <void | box32>
+    │       │   │           │           │   ├── index: 0
+    │       │   │           │           │   └── payload: unit : void
+    │       │   │           │           └── layout: boxes$Countdown
+    │       │   │           └── layout: boxes$Countdown
     │       │   └── layout: boxes$Countdown
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
@@ -88,12 +92,12 @@
     │       │       │   │   └── value: address of #1 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <void | ptr>
+    │       │       │       │   ├── type: <void | box32>
     │       │       │       │   └── ptr: local #7 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #8
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <void | ptr>
+    │       │       │       │       ├── within: <void | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #7 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -102,12 +106,14 @@
     │       │       │       ├── cases[0] > case 0[2]: leave @5
     │       │       │       ├── cases[1] > case 1[0] > let:
     │       │       │       │   ├── local: #9
-    │       │       │       │   └── value > deref:
+    │       │       │       │   └── value > convert:
     │       │       │       │       ├── type: ptr
-    │       │       │       │       └── ptr > offset:
-    │       │       │       │           ├── within: <void | ptr>
-    │       │       │       │           ├── path: 1
-    │       │       │       │           └── base: local #7 : ptr
+    │       │       │       │       └── value > deref:
+    │       │       │       │           ├── type: box32
+    │       │       │       │           └── ptr > offset:
+    │       │       │       │               ├── within: <void | box32>
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #7 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
     │       │       │       │   ├── place: #6
     │       │       │       │   └── value > binary:
@@ -118,7 +124,7 @@
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: boxes$depth(boxes$Countdown)
     │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: <void | ptr>
+    │       │       │       │               ├── type: <void | box32>
     │       │       │       │               └── ptr: local #9 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @5
     │       │       └── right: 2 : i64
@@ -126,14 +132,14 @@
     │       │   ├── local: #10
     │       │   ├── scope: %2
     │       │   ├── value > copy:
-    │       │   │   ├── type: <void | ptr>
-    │       │   │   ├── value: local #1 : <void | ptr>
+    │       │   │   ├── type: <void | box32>
+    │       │   │   ├── value: local #1 : <void | box32>
     │       │   │   └── layout: boxes$Countdown
     │       │   └── layout: boxes$Countdown
     │       ├── body[3] > overwrite:
     │       │   ├── address: address of #1 : ptr
     │       │   ├── value > case:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── index: 0
     │       │   │   └── payload: unit : void
     │       │   └── layout: boxes$Countdown
@@ -152,12 +158,12 @@
     │       │       │   │   └── value: address of #10 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <void | ptr>
+    │       │       │       │   ├── type: <void | box32>
     │       │       │       │   └── ptr: local #15 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #16
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <void | ptr>
+    │       │       │       │       ├── within: <void | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #15 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -166,12 +172,14 @@
     │       │       │       ├── cases[0] > case 0[2]: leave @13
     │       │       │       ├── cases[1] > case 1[0] > let:
     │       │       │       │   ├── local: #17
-    │       │       │       │   └── value > deref:
+    │       │       │       │   └── value > convert:
     │       │       │       │       ├── type: ptr
-    │       │       │       │       └── ptr > offset:
-    │       │       │       │           ├── within: <void | ptr>
-    │       │       │       │           ├── path: 1
-    │       │       │       │           └── base: local #15 : ptr
+    │       │       │       │       └── value > deref:
+    │       │       │       │           ├── type: box32
+    │       │       │       │           └── ptr > offset:
+    │       │       │       │               ├── within: <void | box32>
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #15 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
     │       │       │       │   ├── place: #14
     │       │       │       │   └── value > binary:
@@ -182,7 +190,7 @@
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: boxes$depth(boxes$Countdown)
     │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: <void | ptr>
+    │       │       │       │               ├── type: <void | box32>
     │       │       │       │               └── ptr: local #17 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @13
     │       │       └── right: 2 : i64
@@ -201,12 +209,12 @@
     │       │       │   │   └── value: address of #1 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <void | ptr>
+    │       │       │       │   ├── type: <void | box32>
     │       │       │       │   └── ptr: local #22 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #23
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <void | ptr>
+    │       │       │       │       ├── within: <void | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #22 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -215,12 +223,14 @@
     │       │       │       ├── cases[0] > case 0[2]: leave @20
     │       │       │       ├── cases[1] > case 1[0] > let:
     │       │       │       │   ├── local: #24
-    │       │       │       │   └── value > deref:
+    │       │       │       │   └── value > convert:
     │       │       │       │       ├── type: ptr
-    │       │       │       │       └── ptr > offset:
-    │       │       │       │           ├── within: <void | ptr>
-    │       │       │       │           ├── path: 1
-    │       │       │       │           └── base: local #22 : ptr
+    │       │       │       │       └── value > deref:
+    │       │       │       │           ├── type: box32
+    │       │       │       │           └── ptr > offset:
+    │       │       │       │               ├── within: <void | box32>
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #22 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
     │       │       │       │   ├── place: #21
     │       │       │       │   └── value > binary:
@@ -231,7 +241,7 @@
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: boxes$depth(boxes$Countdown)
     │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: <void | ptr>
+    │       │       │       │               ├── type: <void | box32>
     │       │       │       │               └── ptr: local #24 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @20
     │       │       └── right: 0 : i64
@@ -239,9 +249,9 @@
     │       │   ├── local: #29
     │       │   ├── scope: %2
     │       │   ├── value > copy:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── value > deref:
-    │       │   │   │   ├── type: <void | ptr>
+    │       │   │   │   ├── type: <void | box32>
     │       │   │   │   └── ptr > expand:
     │       │   │   │       ├── type: ptr
     │       │   │   │       ├── label: @25
@@ -249,30 +259,32 @@
     │       │   │   │       ├── body[0] > reserve:
     │       │   │   │       │   ├── local: #28
     │       │   │   │       │   ├── scope: %2
-    │       │   │   │       │   ├── type: <void | ptr>
+    │       │   │   │       │   ├── type: <void | box32>
     │       │   │   │       │   └── layout: boxes$Countdown
     │       │   │   │       ├── body[1] > let:
     │       │   │   │       │   ├── local: #27
     │       │   │   │       │   └── value: address of #10 : ptr
     │       │   │   │       ├── body[2] > switch:
     │       │   │   │       │   ├── value > deref:
-    │       │   │   │       │   │   ├── type: <void | ptr>
+    │       │   │   │       │   │   ├── type: <void | box32>
     │       │   │   │       │   │   └── ptr: local #27 : ptr
     │       │   │   │       │   ├── cases[0] > case 0:
     │       │   │   │       │   ├── cases[1] > case 1[0] > assign:
     │       │   │   │       │   │   ├── place: #26
-    │       │   │   │       │   │   └── value > deref:
+    │       │   │   │       │   │   └── value > convert:
     │       │   │   │       │   │       ├── type: ptr
-    │       │   │   │       │   │       └── ptr > offset:
-    │       │   │   │       │   │           ├── within: <void | ptr>
-    │       │   │   │       │   │           ├── path: 1
-    │       │   │   │       │   │           └── base: local #27 : ptr
+    │       │   │   │       │   │       └── value > deref:
+    │       │   │   │       │   │           ├── type: box32
+    │       │   │   │       │   │           └── ptr > offset:
+    │       │   │   │       │   │               ├── within: <void | box32>
+    │       │   │   │       │   │               ├── path: 1
+    │       │   │   │       │   │               └── base: local #27 : ptr
     │       │   │   │       │   └── cases[1] > case 1[1]: leave @25
     │       │   │   │       ├── body[3] > eval: unit : void
     │       │   │   │       ├── body[4] > place:
     │       │   │   │       │   ├── address: address of #28 : ptr
     │       │   │   │       │   ├── value > case:
-    │       │   │   │       │   │   ├── type: <void | ptr>
+    │       │   │   │       │   │   ├── type: <void | box32>
     │       │   │   │       │   │   ├── index: 0
     │       │   │   │       │   │   └── payload: unit : void
     │       │   │   │       │   └── layout: boxes$Countdown
@@ -297,12 +309,12 @@
     │       │       │   │   └── value: address of #29 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <void | ptr>
+    │       │       │       │   ├── type: <void | box32>
     │       │       │       │   └── ptr: local #34 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #35
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <void | ptr>
+    │       │       │       │       ├── within: <void | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #34 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -311,12 +323,14 @@
     │       │       │       ├── cases[0] > case 0[2]: leave @32
     │       │       │       ├── cases[1] > case 1[0] > let:
     │       │       │       │   ├── local: #36
-    │       │       │       │   └── value > deref:
+    │       │       │       │   └── value > convert:
     │       │       │       │       ├── type: ptr
-    │       │       │       │       └── ptr > offset:
-    │       │       │       │           ├── within: <void | ptr>
-    │       │       │       │           ├── path: 1
-    │       │       │       │           └── base: local #34 : ptr
+    │       │       │       │       └── value > deref:
+    │       │       │       │           ├── type: box32
+    │       │       │       │           └── ptr > offset:
+    │       │       │       │               ├── within: <void | box32>
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #34 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
     │       │       │       │   ├── place: #33
     │       │       │       │   └── value > binary:
@@ -327,7 +341,7 @@
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: boxes$depth(boxes$Countdown)
     │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: <void | ptr>
+    │       │       │       │               ├── type: <void | box32>
     │       │       │       │               └── ptr: local #36 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @32
     │       │       └── right: 1 : i64
@@ -344,7 +358,7 @@
     │       │       │   ├── body[0] > let:
     │       │       │   │   ├── local: #41
     │       │       │   │   └── value > deref:
-    │       │       │   │       ├── type: <void | ptr>
+    │       │       │   │       ├── type: <void | box32>
     │       │       │   │       └── ptr > expand:
     │       │       │   │           ├── type: ptr
     │       │       │   │           ├── label: @37
@@ -352,37 +366,41 @@
     │       │       │   │           ├── body[0] > reserve:
     │       │       │   │           │   ├── local: #40
     │       │       │   │           │   ├── scope: %2
-    │       │       │   │           │   ├── type: <void | ptr>
+    │       │       │   │           │   ├── type: <void | box32>
     │       │       │   │           │   └── layout: boxes$Countdown
     │       │       │   │           ├── body[1] > let:
     │       │       │   │           │   ├── local: #39
     │       │       │   │           │   └── value: address of #1 : ptr
     │       │       │   │           ├── body[2] > switch:
     │       │       │   │           │   ├── value > deref:
-    │       │       │   │           │   │   ├── type: <void | ptr>
+    │       │       │   │           │   │   ├── type: <void | box32>
     │       │       │   │           │   │   └── ptr: local #39 : ptr
     │       │       │   │           │   ├── cases[0] > case 0:
     │       │       │   │           │   ├── cases[1] > case 1[0] > assign:
     │       │       │   │           │   │   ├── place: #38
-    │       │       │   │           │   │   └── value > deref:
+    │       │       │   │           │   │   └── value > convert:
     │       │       │   │           │   │       ├── type: ptr
-    │       │       │   │           │   │       └── ptr > offset:
-    │       │       │   │           │   │           ├── within: <void | ptr>
-    │       │       │   │           │   │           ├── path: 1
-    │       │       │   │           │   │           └── base: local #39 : ptr
+    │       │       │   │           │   │       └── value > deref:
+    │       │       │   │           │   │           ├── type: box32
+    │       │       │   │           │   │           └── ptr > offset:
+    │       │       │   │           │   │               ├── within: <void | box32>
+    │       │       │   │           │   │               ├── path: 1
+    │       │       │   │           │   │               └── base: local #39 : ptr
     │       │       │   │           │   └── cases[1] > case 1[1]: leave @37
     │       │       │   │           ├── body[3] > eval: unit : void
     │       │       │   │           ├── body[4] > place:
     │       │       │   │           │   ├── address: address of #40 : ptr
     │       │       │   │           │   ├── value > case:
-    │       │       │   │           │   │   ├── type: <void | ptr>
+    │       │       │   │           │   │   ├── type: <void | box32>
     │       │       │   │           │   │   ├── index: 1
-    │       │       │   │           │   │   └── payload > box:
-    │       │       │   │           │   │       ├── value > case:
-    │       │       │   │           │   │       │   ├── type: <void | ptr>
-    │       │       │   │           │   │       │   ├── index: 0
-    │       │       │   │           │   │       │   └── payload: unit : void
-    │       │       │   │           │   │       └── layout: boxes$Countdown
+    │       │       │   │           │   │   └── payload > convert:
+    │       │       │   │           │   │       ├── type: box32
+    │       │       │   │           │   │       └── value > box:
+    │       │       │   │           │   │           ├── value > case:
+    │       │       │   │           │   │           │   ├── type: <void | box32>
+    │       │       │   │           │   │           │   ├── index: 0
+    │       │       │   │           │   │           │   └── payload: unit : void
+    │       │       │   │           │   │           └── layout: boxes$Countdown
     │       │       │   │           │   └── layout: boxes$Countdown
     │       │       │   │           ├── body[5] > assign:
     │       │       │   │           │   ├── place: #38
@@ -399,12 +417,12 @@
     │       │       │   │       │   └── value: address of #41 : ptr
     │       │       │   │       └── body[1] > switch:
     │       │       │   │           ├── value > deref:
-    │       │       │   │           │   ├── type: <void | ptr>
+    │       │       │   │           │   ├── type: <void | box32>
     │       │       │   │           │   └── ptr: local #46 : ptr
     │       │       │   │           ├── cases[0] > case 0[0] > let:
     │       │       │   │           │   ├── local: #47
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <void | ptr>
+    │       │       │   │           │       ├── within: <void | box32>
     │       │       │   │           │       ├── path: 0
     │       │       │   │           │       └── base: local #46 : ptr
     │       │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -413,12 +431,14 @@
     │       │       │   │           ├── cases[0] > case 0[2]: leave @44
     │       │       │   │           ├── cases[1] > case 1[0] > let:
     │       │       │   │           │   ├── local: #48
-    │       │       │   │           │   └── value > deref:
+    │       │       │   │           │   └── value > convert:
     │       │       │   │           │       ├── type: ptr
-    │       │       │   │           │       └── ptr > offset:
-    │       │       │   │           │           ├── within: <void | ptr>
-    │       │       │   │           │           ├── path: 1
-    │       │       │   │           │           └── base: local #46 : ptr
+    │       │       │   │           │       └── value > deref:
+    │       │       │   │           │           ├── type: box32
+    │       │       │   │           │           └── ptr > offset:
+    │       │       │   │           │               ├── within: <void | box32>
+    │       │       │   │           │               ├── path: 1
+    │       │       │   │           │               └── base: local #46 : ptr
     │       │       │   │           ├── cases[1] > case 1[1] > assign:
     │       │       │   │           │   ├── place: #45
     │       │       │   │           │   └── value > binary:
@@ -429,7 +449,7 @@
     │       │       │   │           │           ├── type: i64
     │       │       │   │           │           ├── fn: boxes$depth(boxes$Countdown)
     │       │       │   │           │           └── args[0] > deref:
-    │       │       │   │           │               ├── type: <void | ptr>
+    │       │       │   │           │               ├── type: <void | box32>
     │       │       │   │           │               └── ptr: local #48 : ptr
     │       │       │   │           └── cases[1] > case 1[2]: leave @44
     │       │       │   └── body[2]: leave @42
@@ -438,46 +458,50 @@
     │       │   ├── local: #61
     │       │   ├── scope: %2
     │       │   ├── value > case:
-    │       │   │   ├── type: <i64 | ptr>
+    │       │   │   ├── type: <i64 | box32>
     │       │   │   ├── index: 1
-    │       │   │   └── payload > box:
-    │       │   │       ├── value > call:
-    │       │   │       │   ├── type: {ptr, ptr}
-    │       │   │       │   ├── fn: boxes$Pair(boxes$Tree, boxes$Tree)
-    │       │   │       │   ├── args[0] > case:
-    │       │   │       │   │   ├── type: <i64 | ptr>
-    │       │   │       │   │   ├── index: 0
-    │       │   │       │   │   └── payload: 1 : i64
-    │       │   │       │   └── args[1] > case:
-    │       │   │       │       ├── type: <i64 | ptr>
-    │       │   │       │       ├── index: 1
-    │       │   │       │       └── payload > box:
-    │       │   │       │           ├── value > call:
-    │       │   │       │           │   ├── type: {ptr, ptr}
-    │       │   │       │           │   ├── fn: boxes$Pair(boxes$Tree, boxes$Tree)
-    │       │   │       │           │   ├── args[0] > case:
-    │       │   │       │           │   │   ├── type: <i64 | ptr>
-    │       │   │       │           │   │   ├── index: 0
-    │       │   │       │           │   │   └── payload: 2 : i64
-    │       │   │       │           │   └── args[1] > case:
-    │       │   │       │           │       ├── type: <i64 | ptr>
-    │       │   │       │           │       ├── index: 0
-    │       │   │       │           │       └── payload: 3 : i64
-    │       │   │       │           └── layout: boxes$Pair
-    │       │   │       └── layout: boxes$Pair
+    │       │   │   └── payload > convert:
+    │       │   │       ├── type: box32
+    │       │   │       └── value > box:
+    │       │   │           ├── value > call:
+    │       │   │           │   ├── type: {<i64 | box32>, <i64 | box32>}
+    │       │   │           │   ├── fn: boxes$Pair(boxes$Tree, boxes$Tree)
+    │       │   │           │   ├── args[0] > case:
+    │       │   │           │   │   ├── type: <i64 | box32>
+    │       │   │           │   │   ├── index: 0
+    │       │   │           │   │   └── payload: 1 : i64
+    │       │   │           │   └── args[1] > case:
+    │       │   │           │       ├── type: <i64 | box32>
+    │       │   │           │       ├── index: 1
+    │       │   │           │       └── payload > convert:
+    │       │   │           │           ├── type: box32
+    │       │   │           │           └── value > box:
+    │       │   │           │               ├── value > call:
+    │       │   │           │               │   ├── type: {<i64 | box32>, <i64 | box32>}
+    │       │   │           │               │   ├── fn: boxes$Pair(boxes$Tree, boxes$Tree)
+    │       │   │           │               │   ├── args[0] > case:
+    │       │   │           │               │   │   ├── type: <i64 | box32>
+    │       │   │           │               │   │   ├── index: 0
+    │       │   │           │               │   │   └── payload: 2 : i64
+    │       │   │           │               │   └── args[1] > case:
+    │       │   │           │               │       ├── type: <i64 | box32>
+    │       │   │           │               │       ├── index: 0
+    │       │   │           │               │       └── payload: 3 : i64
+    │       │   │           │               └── layout: boxes$Pair
+    │       │   │           └── layout: boxes$Pair
     │       │   └── layout: boxes$Tree
     │       ├── body[10] > hold:
     │       │   ├── local: #62
     │       │   ├── scope: %2
     │       │   ├── value > copy:
-    │       │   │   ├── type: <i64 | ptr>
-    │       │   │   ├── value: local #61 : <i64 | ptr>
+    │       │   │   ├── type: <i64 | box32>
+    │       │   │   ├── value: local #61 : <i64 | box32>
     │       │   │   └── layout: boxes$Tree
     │       │   └── layout: boxes$Tree
     │       ├── body[11] > overwrite:
     │       │   ├── address: address of #61 : ptr
     │       │   ├── value > case:
-    │       │   │   ├── type: <i64 | ptr>
+    │       │   │   ├── type: <i64 | box32>
     │       │   │   ├── index: 0
     │       │   │   └── payload: 0 : i64
     │       │   └── layout: boxes$Tree
@@ -496,12 +520,12 @@
     │       │       │   │   └── value: address of #62 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <i64 | ptr>
+    │       │       │       │   ├── type: <i64 | box32>
     │       │       │       │   └── ptr: local #67 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #68
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <i64 | ptr>
+    │       │       │       │       ├── within: <i64 | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #67 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -512,12 +536,14 @@
     │       │       │       ├── cases[0] > case 0[2]: leave @65
     │       │       │       ├── cases[1] > case 1[0] > let:
     │       │       │       │   ├── local: #69
-    │       │       │       │   └── value > deref:
+    │       │       │       │   └── value > convert:
     │       │       │       │       ├── type: ptr
-    │       │       │       │       └── ptr > offset:
-    │       │       │       │           ├── within: <i64 | ptr>
-    │       │       │       │           ├── path: 1
-    │       │       │       │           └── base: local #67 : ptr
+    │       │       │       │       └── value > deref:
+    │       │       │       │           ├── type: box32
+    │       │       │       │           └── ptr > offset:
+    │       │       │       │               ├── within: <i64 | box32>
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #67 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
     │       │       │       │   ├── place: #66
     │       │       │       │   └── value > binary:
@@ -526,25 +552,21 @@
     │       │       │       │       ├── left > call:
     │       │       │       │       │   ├── type: i64
     │       │       │       │       │   ├── fn: boxes$total(boxes$Tree)
-    │       │       │       │       │   └── args[0] > deref:
-    │       │       │       │       │       ├── type: <i64 | ptr>
-    │       │       │       │       │       └── ptr > deref:
-    │       │       │       │       │           ├── type: ptr
-    │       │       │       │       │           └── ptr > offset:
-    │       │       │       │       │               ├── within: {ptr, ptr}
-    │       │       │       │       │               ├── path: 0
-    │       │       │       │       │               └── base: local #69 : ptr
+    │       │       │       │       │   └── args[0] > member:
+    │       │       │       │       │       ├── type: <i64 | box32>
+    │       │       │       │       │       ├── index: 0
+    │       │       │       │       │       └── value > deref:
+    │       │       │       │       │           ├── type: {<i64 | box32>, <i64 | box32>}
+    │       │       │       │       │           └── ptr: local #69 : ptr
     │       │       │       │       └── right > call:
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: boxes$total(boxes$Tree)
-    │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: <i64 | ptr>
-    │       │       │       │               └── ptr > deref:
-    │       │       │       │                   ├── type: ptr
-    │       │       │       │                   └── ptr > offset:
-    │       │       │       │                       ├── within: {ptr, ptr}
-    │       │       │       │                       ├── path: 1
-    │       │       │       │                       └── base: local #69 : ptr
+    │       │       │       │           └── args[0] > member:
+    │       │       │       │               ├── type: <i64 | box32>
+    │       │       │       │               ├── index: 1
+    │       │       │       │               └── value > deref:
+    │       │       │       │                   ├── type: {<i64 | box32>, <i64 | box32>}
+    │       │       │       │                   └── ptr: local #69 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @65
     │       │       └── right: 6 : i64
     │       ├── body[13] > eval > call:
@@ -562,12 +584,12 @@
     │       │       │   │   └── value: address of #61 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <i64 | ptr>
+    │       │       │       │   ├── type: <i64 | box32>
     │       │       │       │   └── ptr: local #74 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #75
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <i64 | ptr>
+    │       │       │       │       ├── within: <i64 | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #74 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -578,12 +600,14 @@
     │       │       │       ├── cases[0] > case 0[2]: leave @72
     │       │       │       ├── cases[1] > case 1[0] > let:
     │       │       │       │   ├── local: #76
-    │       │       │       │   └── value > deref:
+    │       │       │       │   └── value > convert:
     │       │       │       │       ├── type: ptr
-    │       │       │       │       └── ptr > offset:
-    │       │       │       │           ├── within: <i64 | ptr>
-    │       │       │       │           ├── path: 1
-    │       │       │       │           └── base: local #74 : ptr
+    │       │       │       │       └── value > deref:
+    │       │       │       │           ├── type: box32
+    │       │       │       │           └── ptr > offset:
+    │       │       │       │               ├── within: <i64 | box32>
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #74 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
     │       │       │       │   ├── place: #73
     │       │       │       │   └── value > binary:
@@ -592,52 +616,52 @@
     │       │       │       │       ├── left > call:
     │       │       │       │       │   ├── type: i64
     │       │       │       │       │   ├── fn: boxes$total(boxes$Tree)
-    │       │       │       │       │   └── args[0] > deref:
-    │       │       │       │       │       ├── type: <i64 | ptr>
-    │       │       │       │       │       └── ptr > deref:
-    │       │       │       │       │           ├── type: ptr
-    │       │       │       │       │           └── ptr > offset:
-    │       │       │       │       │               ├── within: {ptr, ptr}
-    │       │       │       │       │               ├── path: 0
-    │       │       │       │       │               └── base: local #76 : ptr
+    │       │       │       │       │   └── args[0] > member:
+    │       │       │       │       │       ├── type: <i64 | box32>
+    │       │       │       │       │       ├── index: 0
+    │       │       │       │       │       └── value > deref:
+    │       │       │       │       │           ├── type: {<i64 | box32>, <i64 | box32>}
+    │       │       │       │       │           └── ptr: local #76 : ptr
     │       │       │       │       └── right > call:
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: boxes$total(boxes$Tree)
-    │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: <i64 | ptr>
-    │       │       │       │               └── ptr > deref:
-    │       │       │       │                   ├── type: ptr
-    │       │       │       │                   └── ptr > offset:
-    │       │       │       │                       ├── within: {ptr, ptr}
-    │       │       │       │                       ├── path: 1
-    │       │       │       │                       └── base: local #76 : ptr
+    │       │       │       │           └── args[0] > member:
+    │       │       │       │               ├── type: <i64 | box32>
+    │       │       │       │               ├── index: 1
+    │       │       │       │               └── value > deref:
+    │       │       │       │                   ├── type: {<i64 | box32>, <i64 | box32>}
+    │       │       │       │                   └── ptr: local #76 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @72
     │       │       └── right: 0 : i64
     │       ├── body[14] > hold:
     │       │   ├── local: #83
     │       │   ├── scope: %2
     │       │   ├── value > case:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── index: 1
-    │       │   │   └── payload > box:
-    │       │   │       ├── value > call:
-    │       │   │       │   ├── type: {handle, ptr}
-    │       │   │       │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
-    │       │   │       │   ├── args[0]: "a" : handle
-    │       │   │       │   └── args[1] > case:
-    │       │   │       │       ├── type: <void | ptr>
-    │       │   │       │       ├── index: 1
-    │       │   │       │       └── payload > box:
-    │       │   │       │           ├── value > call:
-    │       │   │       │           │   ├── type: {handle, ptr}
-    │       │   │       │           │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
-    │       │   │       │           │   ├── args[0]: "b" : handle
-    │       │   │       │           │   └── args[1] > case:
-    │       │   │       │           │       ├── type: <void | ptr>
-    │       │   │       │           │       ├── index: 0
-    │       │   │       │           │       └── payload: unit : void
-    │       │   │       │           └── layout: boxes$Link
-    │       │   │       └── layout: boxes$Link
+    │       │   │   └── payload > convert:
+    │       │   │       ├── type: box32
+    │       │   │       └── value > box:
+    │       │   │           ├── value > call:
+    │       │   │           │   ├── type: {handle, <void | box32>}
+    │       │   │           │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
+    │       │   │           │   ├── args[0]: "a" : handle
+    │       │   │           │   └── args[1] > case:
+    │       │   │           │       ├── type: <void | box32>
+    │       │   │           │       ├── index: 1
+    │       │   │           │       └── payload > convert:
+    │       │   │           │           ├── type: box32
+    │       │   │           │           └── value > box:
+    │       │   │           │               ├── value > call:
+    │       │   │           │               │   ├── type: {handle, <void | box32>}
+    │       │   │           │               │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
+    │       │   │           │               │   ├── args[0]: "b" : handle
+    │       │   │           │               │   └── args[1] > case:
+    │       │   │           │               │       ├── type: <void | box32>
+    │       │   │           │               │       ├── index: 0
+    │       │   │           │               │       └── payload: unit : void
+    │       │   │           │               └── layout: boxes$Link
+    │       │   │           └── layout: boxes$Link
     │       │   └── layout: ^boxes$Chain
     │       ├── body[15] > eval > call:
     │       │   ├── type: void
@@ -654,12 +678,12 @@
     │       │       │   │   └── value: address of #83 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <void | ptr>
+    │       │       │       │   ├── type: <void | box32>
     │       │       │       │   └── ptr: local #88 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #89
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <void | ptr>
+    │       │       │       │       ├── within: <void | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #88 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -668,12 +692,14 @@
     │       │       │       ├── cases[0] > case 0[2]: leave @86
     │       │       │       ├── cases[1] > case 1[0] > let:
     │       │       │       │   ├── local: #90
-    │       │       │       │   └── value > deref:
+    │       │       │       │   └── value > convert:
     │       │       │       │       ├── type: ptr
-    │       │       │       │       └── ptr > offset:
-    │       │       │       │           ├── within: <void | ptr>
-    │       │       │       │           ├── path: 1
-    │       │       │       │           └── base: local #88 : ptr
+    │       │       │       │       └── value > deref:
+    │       │       │       │           ├── type: box32
+    │       │       │       │           └── ptr > offset:
+    │       │       │       │               ├── within: <void | box32>
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #88 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
     │       │       │       │   ├── place: #87
     │       │       │       │   └── value > binary:
@@ -683,19 +709,17 @@
     │       │       │       │       └── right > call:
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: boxes$length(this boxes$Chain)
-    │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: ptr
-    │       │       │       │               └── ptr > offset:
-    │       │       │       │                   ├── within: {handle, ptr}
-    │       │       │       │                   ├── path: 1
-    │       │       │       │                   └── base: local #90 : ptr
+    │       │       │       │           └── args[0] > offset:
+    │       │       │       │               ├── within: {handle, <void | box32>}
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #90 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @86
     │       │       └── right: 2 : i64
     │       ├── body[16] > hold:
     │       │   ├── local: #91
     │       │   ├── scope: %2
     │       │   ├── value > take:
-    │       │   │   ├── type: <void | ptr>
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── address: address of #83 : ptr
     │       │   │   └── layout: boxes$Chain
     │       │   └── layout: boxes$Chain
@@ -726,12 +750,12 @@
     │       │       │   │       │   └── value: local #93 : ptr
     │       │       │   │       └── body[1] > switch:
     │       │       │   │           ├── value > deref:
-    │       │       │   │           │   ├── type: <void | ptr>
+    │       │       │   │           │   ├── type: <void | box32>
     │       │       │   │           │   └── ptr: local #98 : ptr
     │       │       │   │           ├── cases[0] > case 0[0] > let:
     │       │       │   │           │   ├── local: #99
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <void | ptr>
+    │       │       │   │           │       ├── within: <void | box32>
     │       │       │   │           │       ├── path: 0
     │       │       │   │           │       └── base: local #98 : ptr
     │       │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -740,12 +764,14 @@
     │       │       │   │           ├── cases[0] > case 0[2]: leave @96
     │       │       │   │           ├── cases[1] > case 1[0] > let:
     │       │       │   │           │   ├── local: #100
-    │       │       │   │           │   └── value > deref:
+    │       │       │   │           │   └── value > convert:
     │       │       │   │           │       ├── type: ptr
-    │       │       │   │           │       └── ptr > offset:
-    │       │       │   │           │           ├── within: <void | ptr>
-    │       │       │   │           │           ├── path: 1
-    │       │       │   │           │           └── base: local #98 : ptr
+    │       │       │   │           │       └── value > deref:
+    │       │       │   │           │           ├── type: box32
+    │       │       │   │           │           └── ptr > offset:
+    │       │       │   │           │               ├── within: <void | box32>
+    │       │       │   │           │               ├── path: 1
+    │       │       │   │           │               └── base: local #98 : ptr
     │       │       │   │           ├── cases[1] > case 1[1] > assign:
     │       │       │   │           │   ├── place: #97
     │       │       │   │           │   └── value > binary:
@@ -755,12 +781,10 @@
     │       │       │   │           │       └── right > call:
     │       │       │   │           │           ├── type: i64
     │       │       │   │           │           ├── fn: boxes$length(this boxes$Chain)
-    │       │       │   │           │           └── args[0] > deref:
-    │       │       │   │           │               ├── type: ptr
-    │       │       │   │           │               └── ptr > offset:
-    │       │       │   │           │                   ├── within: {handle, ptr}
-    │       │       │   │           │                   ├── path: 1
-    │       │       │   │           │                   └── base: local #100 : ptr
+    │       │       │   │           │           └── args[0] > offset:
+    │       │       │   │           │               ├── within: {handle, <void | box32>}
+    │       │       │   │           │               ├── path: 1
+    │       │       │   │           │               └── base: local #100 : ptr
     │       │       │   │           └── cases[1] > case 1[2]: leave @96
     │       │       │   └── body[2]: leave @94
     │       │       └── right: 2 : i64
@@ -776,7 +800,7 @@
     │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > offset:
-    │       │       │   │       ├── within: {handle, ptr}
+    │       │       │   │       ├── within: {handle, <void | box32>}
     │       │       │   │       ├── path: 0
     │       │       │   │       └── base > expand:
     │       │       │   │           ├── type: ptr
@@ -785,24 +809,26 @@
     │       │       │   │           ├── body[0] > reserve:
     │       │       │   │           │   ├── local: #104
     │       │       │   │           │   ├── scope: %2
-    │       │       │   │           │   ├── type: {handle, ptr}
+    │       │       │   │           │   ├── type: {handle, <void | box32>}
     │       │       │   │           │   └── layout: boxes$Link
     │       │       │   │           ├── body[1] > let:
     │       │       │   │           │   ├── local: #103
     │       │       │   │           │   └── value: address of #91 : ptr
     │       │       │   │           ├── body[2] > switch:
     │       │       │   │           │   ├── value > deref:
-    │       │       │   │           │   │   ├── type: <void | ptr>
+    │       │       │   │           │   │   ├── type: <void | box32>
     │       │       │   │           │   │   └── ptr: local #103 : ptr
     │       │       │   │           │   ├── cases[0] > case 0:
     │       │       │   │           │   ├── cases[1] > case 1[0] > assign:
     │       │       │   │           │   │   ├── place: #102
-    │       │       │   │           │   │   └── value > deref:
+    │       │       │   │           │   │   └── value > convert:
     │       │       │   │           │   │       ├── type: ptr
-    │       │       │   │           │   │       └── ptr > offset:
-    │       │       │   │           │   │           ├── within: <void | ptr>
-    │       │       │   │           │   │           ├── path: 1
-    │       │       │   │           │   │           └── base: local #103 : ptr
+    │       │       │   │           │   │       └── value > deref:
+    │       │       │   │           │   │           ├── type: box32
+    │       │       │   │           │   │           └── ptr > offset:
+    │       │       │   │           │   │               ├── within: <void | box32>
+    │       │       │   │           │   │               ├── path: 1
+    │       │       │   │           │   │               └── base: local #103 : ptr
     │       │       │   │           │   └── cases[1] > case 1[1]: leave @101
     │       │       │   │           ├── body[3] > let:
     │       │       │   │           │   ├── local: #105
@@ -812,11 +838,11 @@
     │       │       │   │               ├── body[0] > place:
     │       │       │   │               │   ├── address: address of #104 : ptr
     │       │       │   │               │   ├── value > call:
-    │       │       │   │               │   │   ├── type: {handle, ptr}
+    │       │       │   │               │   │   ├── type: {handle, <void | box32>}
     │       │       │   │               │   │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
     │       │       │   │               │   │   ├── args[0]: "none" : handle
     │       │       │   │               │   │   └── args[1] > case:
-    │       │       │   │               │   │       ├── type: <void | ptr>
+    │       │       │   │               │   │       ├── type: <void | box32>
     │       │       │   │               │   │       ├── index: 0
     │       │       │   │               │   │       └── payload: unit : void
     │       │       │   │               │   └── layout: boxes$Link
@@ -849,7 +875,7 @@
     │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > offset:
-    │       │       │   │       ├── within: {handle, ptr}
+    │       │       │   │       ├── within: {handle, <void | box32>}
     │       │       │   │       ├── path: 0
     │       │       │   │       └── base > expand:
     │       │       │   │           ├── type: ptr
@@ -858,7 +884,7 @@
     │       │       │   │           ├── body[0] > reserve:
     │       │       │   │           │   ├── local: #116
     │       │       │   │           │   ├── scope: %2
-    │       │       │   │           │   ├── type: {handle, ptr}
+    │       │       │   │           │   ├── type: {handle, <void | box32>}
     │       │       │   │           │   └── layout: boxes$Link
     │       │       │   │           ├── body[1] > let:
     │       │       │   │           │   ├── local: #115
@@ -870,7 +896,7 @@
     │       │       │   │           │       │   ├── local: #122
     │       │       │   │           │       │   ├── scope: %2
     │       │       │   │           │       │   ├── value > case:
-    │       │       │   │           │       │   │   ├── type: <void | ptr>
+    │       │       │   │           │       │   │   ├── type: <void | box32>
     │       │       │   │           │       │   │   ├── index: 0
     │       │       │   │           │       │   │   └── payload: unit : void
     │       │       │   │           │       │   └── layout: boxes$Chain
@@ -879,17 +905,19 @@
     │       │       │   │           │           └── value: address of #122 : ptr
     │       │       │   │           ├── body[2] > switch:
     │       │       │   │           │   ├── value > deref:
-    │       │       │   │           │   │   ├── type: <void | ptr>
+    │       │       │   │           │   │   ├── type: <void | box32>
     │       │       │   │           │   │   └── ptr: local #115 : ptr
     │       │       │   │           │   ├── cases[0] > case 0:
     │       │       │   │           │   ├── cases[1] > case 1[0] > assign:
     │       │       │   │           │   │   ├── place: #114
-    │       │       │   │           │   │   └── value > deref:
+    │       │       │   │           │   │   └── value > convert:
     │       │       │   │           │   │       ├── type: ptr
-    │       │       │   │           │   │       └── ptr > offset:
-    │       │       │   │           │   │           ├── within: <void | ptr>
-    │       │       │   │           │   │           ├── path: 1
-    │       │       │   │           │   │           └── base: local #115 : ptr
+    │       │       │   │           │   │       └── value > deref:
+    │       │       │   │           │   │           ├── type: box32
+    │       │       │   │           │   │           └── ptr > offset:
+    │       │       │   │           │   │               ├── within: <void | box32>
+    │       │       │   │           │   │               ├── path: 1
+    │       │       │   │           │   │               └── base: local #115 : ptr
     │       │       │   │           │   └── cases[1] > case 1[1]: leave @113
     │       │       │   │           ├── body[3] > let:
     │       │       │   │           │   ├── local: #117
@@ -899,11 +927,11 @@
     │       │       │   │               ├── body[0] > place:
     │       │       │   │               │   ├── address: address of #116 : ptr
     │       │       │   │               │   ├── value > call:
-    │       │       │   │               │   │   ├── type: {handle, ptr}
+    │       │       │   │               │   │   ├── type: {handle, <void | box32>}
     │       │       │   │               │   │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
     │       │       │   │               │   │   ├── args[0]: "none" : handle
     │       │       │   │               │   │   └── args[1] > case:
-    │       │       │   │               │   │       ├── type: <void | ptr>
+    │       │       │   │               │   │       ├── type: <void | box32>
     │       │       │   │               │   │       ├── index: 0
     │       │       │   │               │   │       └── payload: unit : void
     │       │       │   │               │   └── layout: boxes$Link
@@ -928,7 +956,7 @@
     │       │   ├── local: #136
     │       │   ├── scope: %2
     │       │   ├── value > expand:
-    │       │   │   ├── type: {i64, ptr}
+    │       │   │   ├── type: {i64, <void | box32>}
     │       │   │   ├── label: @134
     │       │   │   ├── result: #135
     │       │   │   ├── body[0] > let:
@@ -938,65 +966,61 @@
     │       │   │   │   ├── local: #133
     │       │   │   │   ├── scope: %2
     │       │   │   │   ├── value > case:
-    │       │   │   │   │   ├── type: <void | ptr>
+    │       │   │   │   │   ├── type: <void | box32>
     │       │   │   │   │   ├── index: 1
-    │       │   │   │   │   └── payload > box:
-    │       │   │   │   │       ├── value > expand:
-    │       │   │   │   │       │   ├── type: {i64, ptr}
-    │       │   │   │   │       │   ├── label: @131
-    │       │   │   │   │       │   ├── result: #132
-    │       │   │   │   │       │   ├── body[0] > let:
-    │       │   │   │   │       │   │   ├── local: #129
-    │       │   │   │   │       │   │   └── value: 2 : i64
-    │       │   │   │   │       │   ├── body[1] > hold:
-    │       │   │   │   │       │   │   ├── local: #130
-    │       │   │   │   │       │   │   ├── scope: %2
-    │       │   │   │   │       │   │   ├── value > case:
-    │       │   │   │   │       │   │   │   ├── type: <void | ptr>
-    │       │   │   │   │       │   │   │   ├── index: 0
-    │       │   │   │   │       │   │   │   └── payload: unit : void
-    │       │   │   │   │       │   │   └── layout: ^boxes$Storey
-    │       │   │   │   │       │   ├── body[2] > assign:
-    │       │   │   │   │       │   │   ├── place: #132
-    │       │   │   │   │       │   │   └── value > escape:
-    │       │   │   │   │       │   │       ├── exit: @131
-    │       │   │   │   │       │   │       ├── value > record:
-    │       │   │   │   │       │   │       │   ├── type: {i64, ptr}
-    │       │   │   │   │       │   │       │   ├── members[0] > member 0: local #129 : i64
-    │       │   │   │   │       │   │       │   └── members[1] > member 1 > box:
-    │       │   │   │   │       │   │       │       ├── value > take:
-    │       │   │   │   │       │   │       │       │   ├── type: <void | ptr>
-    │       │   │   │   │       │   │       │       │   ├── address: address of #130 : ptr
-    │       │   │   │   │       │   │       │       │   └── layout: boxes$Storey
-    │       │   │   │   │       │   │       │       └── layout: boxes$Storey
-    │       │   │   │   │       │   │       └── layout: boxes$Tower
-    │       │   │   │   │       │   └── body[3]: leave @131
-    │       │   │   │   │       └── layout: boxes$Tower
+    │       │   │   │   │   └── payload > convert:
+    │       │   │   │   │       ├── type: box32
+    │       │   │   │   │       └── value > box:
+    │       │   │   │   │           ├── value > expand:
+    │       │   │   │   │           │   ├── type: {i64, <void | box32>}
+    │       │   │   │   │           │   ├── label: @131
+    │       │   │   │   │           │   ├── result: #132
+    │       │   │   │   │           │   ├── body[0] > let:
+    │       │   │   │   │           │   │   ├── local: #129
+    │       │   │   │   │           │   │   └── value: 2 : i64
+    │       │   │   │   │           │   ├── body[1] > hold:
+    │       │   │   │   │           │   │   ├── local: #130
+    │       │   │   │   │           │   │   ├── scope: %2
+    │       │   │   │   │           │   │   ├── value > case:
+    │       │   │   │   │           │   │   │   ├── type: <void | box32>
+    │       │   │   │   │           │   │   │   ├── index: 0
+    │       │   │   │   │           │   │   │   └── payload: unit : void
+    │       │   │   │   │           │   │   └── layout: ^boxes$Storey
+    │       │   │   │   │           │   ├── body[2] > assign:
+    │       │   │   │   │           │   │   ├── place: #132
+    │       │   │   │   │           │   │   └── value > escape:
+    │       │   │   │   │           │   │       ├── exit: @131
+    │       │   │   │   │           │   │       ├── value > record:
+    │       │   │   │   │           │   │       │   ├── type: {i64, <void | box32>}
+    │       │   │   │   │           │   │       │   ├── members[0] > member 0: local #129 : i64
+    │       │   │   │   │           │   │       │   └── members[1] > member 1 > take:
+    │       │   │   │   │           │   │       │       ├── type: <void | box32>
+    │       │   │   │   │           │   │       │       ├── address: address of #130 : ptr
+    │       │   │   │   │           │   │       │       └── layout: boxes$Storey
+    │       │   │   │   │           │   │       └── layout: boxes$Tower
+    │       │   │   │   │           │   └── body[3]: leave @131
+    │       │   │   │   │           └── layout: boxes$Tower
     │       │   │   │   └── layout: ^boxes$Storey
     │       │   │   ├── body[2] > assign:
     │       │   │   │   ├── place: #135
     │       │   │   │   └── value > escape:
     │       │   │   │       ├── exit: @134
     │       │   │   │       ├── value > record:
-    │       │   │   │       │   ├── type: {i64, ptr}
+    │       │   │   │       │   ├── type: {i64, <void | box32>}
     │       │   │   │       │   ├── members[0] > member 0: local #128 : i64
-    │       │   │   │       │   └── members[1] > member 1 > box:
-    │       │   │   │       │       ├── value > take:
-    │       │   │   │       │       │   ├── type: <void | ptr>
-    │       │   │   │       │       │   ├── address: address of #133 : ptr
-    │       │   │   │       │       │   └── layout: boxes$Storey
+    │       │   │   │       │   └── members[1] > member 1 > take:
+    │       │   │   │       │       ├── type: <void | box32>
+    │       │   │   │       │       ├── address: address of #133 : ptr
     │       │   │   │       │       └── layout: boxes$Storey
     │       │   │   │       └── layout: boxes$Tower
     │       │   │   └── body[3]: leave @134
     │       │   └── layout: boxes$Tower
     │       ├── body[22] > let:
     │       │   ├── local: #137
-    │       │   └── value > deref:
-    │       │       ├── type: ptr
-    │       │       └── ptr > offset:
-    │       │           ├── within: {i64, ptr}
-    │       │           ├── path: 1
-    │       │           └── base: address of #136 : ptr
+    │       │   └── value > offset:
+    │       │       ├── within: {i64, <void | box32>}
+    │       │       ├── path: 1
+    │       │       └── base: address of #136 : ptr
     │       ├── body[23] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: boxes$check(%primitives$Bool)
@@ -1021,12 +1045,12 @@
     │       │       │   │       │   └── value: local #138 : ptr
     │       │       │   │       └── body[1] > switch:
     │       │       │   │           ├── value > deref:
-    │       │       │   │           │   ├── type: <void | ptr>
+    │       │       │   │           │   ├── type: <void | box32>
     │       │       │   │           │   └── ptr: local #143 : ptr
     │       │       │   │           ├── cases[0] > case 0[0] > let:
     │       │       │   │           │   ├── local: #144
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <void | ptr>
+    │       │       │   │           │       ├── within: <void | box32>
     │       │       │   │           │       ├── path: 0
     │       │       │   │           │       └── base: local #143 : ptr
     │       │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -1035,12 +1059,14 @@
     │       │       │   │           ├── cases[0] > case 0[2]: leave @141
     │       │       │   │           ├── cases[1] > case 1[0] > let:
     │       │       │   │           │   ├── local: #145
-    │       │       │   │           │   └── value > deref:
+    │       │       │   │           │   └── value > convert:
     │       │       │   │           │       ├── type: ptr
-    │       │       │   │           │       └── ptr > offset:
-    │       │       │   │           │           ├── within: <void | ptr>
-    │       │       │   │           │           ├── path: 1
-    │       │       │   │           │           └── base: local #143 : ptr
+    │       │       │   │           │       └── value > deref:
+    │       │       │   │           │           ├── type: box32
+    │       │       │   │           │           └── ptr > offset:
+    │       │       │   │           │               ├── within: <void | box32>
+    │       │       │   │           │               ├── path: 1
+    │       │       │   │           │               └── base: local #143 : ptr
     │       │       │   │           ├── cases[1] > case 1[1] > assign:
     │       │       │   │           │   ├── place: #142
     │       │       │   │           │   └── value > binary:
@@ -1050,19 +1076,17 @@
     │       │       │   │           │       └── right > call:
     │       │       │   │           │           ├── type: i64
     │       │       │   │           │           ├── fn: boxes$levels(this boxes$Storey)
-    │       │       │   │           │           └── args[0] > deref:
-    │       │       │   │           │               ├── type: ptr
-    │       │       │   │           │               └── ptr > offset:
-    │       │       │   │           │                   ├── within: {i64, ptr}
-    │       │       │   │           │                   ├── path: 1
-    │       │       │   │           │                   └── base: local #145 : ptr
+    │       │       │   │           │           └── args[0] > offset:
+    │       │       │   │           │               ├── within: {i64, <void | box32>}
+    │       │       │   │           │               ├── path: 1
+    │       │       │   │           │               └── base: local #145 : ptr
     │       │       │   │           └── cases[1] > case 1[2]: leave @141
     │       │       │   └── body[2]: leave @139
     │       │       └── right: 1 : i64
     │       ├── body[24] > overwrite:
     │       │   ├── address: address of #136 : ptr
     │       │   ├── value > expand:
-    │       │   │   ├── type: {i64, ptr}
+    │       │   │   ├── type: {i64, <void | box32>}
     │       │   │   ├── label: @156
     │       │   │   ├── result: #157
     │       │   │   ├── body[0] > let:
@@ -1072,84 +1096,82 @@
     │       │   │   │   ├── local: #155
     │       │   │   │   ├── scope: %2
     │       │   │   │   ├── value > case:
-    │       │   │   │   │   ├── type: <void | ptr>
+    │       │   │   │   │   ├── type: <void | box32>
     │       │   │   │   │   ├── index: 1
-    │       │   │   │   │   └── payload > box:
-    │       │   │   │   │       ├── value > expand:
-    │       │   │   │   │       │   ├── type: {i64, ptr}
-    │       │   │   │   │       │   ├── label: @153
-    │       │   │   │   │       │   ├── result: #154
-    │       │   │   │   │       │   ├── body[0] > let:
-    │       │   │   │   │       │   │   ├── local: #147
-    │       │   │   │   │       │   │   └── value: 6 : i64
-    │       │   │   │   │       │   ├── body[1] > hold:
-    │       │   │   │   │       │   │   ├── local: #152
-    │       │   │   │   │       │   │   ├── scope: %2
-    │       │   │   │   │       │   │   ├── value > case:
-    │       │   │   │   │       │   │   │   ├── type: <void | ptr>
-    │       │   │   │   │       │   │   │   ├── index: 1
-    │       │   │   │   │       │   │   │   └── payload > box:
-    │       │   │   │   │       │   │   │       ├── value > expand:
-    │       │   │   │   │       │   │   │       │   ├── type: {i64, ptr}
-    │       │   │   │   │       │   │   │       │   ├── label: @150
-    │       │   │   │   │       │   │   │       │   ├── result: #151
-    │       │   │   │   │       │   │   │       │   ├── body[0] > let:
-    │       │   │   │   │       │   │   │       │   │   ├── local: #148
-    │       │   │   │   │       │   │   │       │   │   └── value: 7 : i64
-    │       │   │   │   │       │   │   │       │   ├── body[1] > hold:
-    │       │   │   │   │       │   │   │       │   │   ├── local: #149
-    │       │   │   │   │       │   │   │       │   │   ├── scope: %2
-    │       │   │   │   │       │   │   │       │   │   ├── value > case:
-    │       │   │   │   │       │   │   │       │   │   │   ├── type: <void | ptr>
-    │       │   │   │   │       │   │   │       │   │   │   ├── index: 0
-    │       │   │   │   │       │   │   │       │   │   │   └── payload: unit : void
-    │       │   │   │   │       │   │   │       │   │   └── layout: ^boxes$Storey
-    │       │   │   │   │       │   │   │       │   ├── body[2] > assign:
-    │       │   │   │   │       │   │   │       │   │   ├── place: #151
-    │       │   │   │   │       │   │   │       │   │   └── value > escape:
-    │       │   │   │   │       │   │   │       │   │       ├── exit: @150
-    │       │   │   │   │       │   │   │       │   │       ├── value > record:
-    │       │   │   │   │       │   │   │       │   │       │   ├── type: {i64, ptr}
-    │       │   │   │   │       │   │   │       │   │       │   ├── members[0] > member 0: local #148 : i64
-    │       │   │   │   │       │   │   │       │   │       │   └── members[1] > member 1 > box:
-    │       │   │   │   │       │   │   │       │   │       │       ├── value > take:
-    │       │   │   │   │       │   │   │       │   │       │       │   ├── type: <void | ptr>
-    │       │   │   │   │       │   │   │       │   │       │       │   ├── address: address of #149 : ptr
-    │       │   │   │   │       │   │   │       │   │       │       │   └── layout: boxes$Storey
-    │       │   │   │   │       │   │   │       │   │       │       └── layout: boxes$Storey
-    │       │   │   │   │       │   │   │       │   │       └── layout: boxes$Tower
-    │       │   │   │   │       │   │   │       │   └── body[3]: leave @150
-    │       │   │   │   │       │   │   │       └── layout: boxes$Tower
-    │       │   │   │   │       │   │   └── layout: ^boxes$Storey
-    │       │   │   │   │       │   ├── body[2] > assign:
-    │       │   │   │   │       │   │   ├── place: #154
-    │       │   │   │   │       │   │   └── value > escape:
-    │       │   │   │   │       │   │       ├── exit: @153
-    │       │   │   │   │       │   │       ├── value > record:
-    │       │   │   │   │       │   │       │   ├── type: {i64, ptr}
-    │       │   │   │   │       │   │       │   ├── members[0] > member 0: local #147 : i64
-    │       │   │   │   │       │   │       │   └── members[1] > member 1 > box:
-    │       │   │   │   │       │   │       │       ├── value > take:
-    │       │   │   │   │       │   │       │       │   ├── type: <void | ptr>
-    │       │   │   │   │       │   │       │       │   ├── address: address of #152 : ptr
-    │       │   │   │   │       │   │       │       │   └── layout: boxes$Storey
-    │       │   │   │   │       │   │       │       └── layout: boxes$Storey
-    │       │   │   │   │       │   │       └── layout: boxes$Tower
-    │       │   │   │   │       │   └── body[3]: leave @153
-    │       │   │   │   │       └── layout: boxes$Tower
+    │       │   │   │   │   └── payload > convert:
+    │       │   │   │   │       ├── type: box32
+    │       │   │   │   │       └── value > box:
+    │       │   │   │   │           ├── value > expand:
+    │       │   │   │   │           │   ├── type: {i64, <void | box32>}
+    │       │   │   │   │           │   ├── label: @153
+    │       │   │   │   │           │   ├── result: #154
+    │       │   │   │   │           │   ├── body[0] > let:
+    │       │   │   │   │           │   │   ├── local: #147
+    │       │   │   │   │           │   │   └── value: 6 : i64
+    │       │   │   │   │           │   ├── body[1] > hold:
+    │       │   │   │   │           │   │   ├── local: #152
+    │       │   │   │   │           │   │   ├── scope: %2
+    │       │   │   │   │           │   │   ├── value > case:
+    │       │   │   │   │           │   │   │   ├── type: <void | box32>
+    │       │   │   │   │           │   │   │   ├── index: 1
+    │       │   │   │   │           │   │   │   └── payload > convert:
+    │       │   │   │   │           │   │   │       ├── type: box32
+    │       │   │   │   │           │   │   │       └── value > box:
+    │       │   │   │   │           │   │   │           ├── value > expand:
+    │       │   │   │   │           │   │   │           │   ├── type: {i64, <void | box32>}
+    │       │   │   │   │           │   │   │           │   ├── label: @150
+    │       │   │   │   │           │   │   │           │   ├── result: #151
+    │       │   │   │   │           │   │   │           │   ├── body[0] > let:
+    │       │   │   │   │           │   │   │           │   │   ├── local: #148
+    │       │   │   │   │           │   │   │           │   │   └── value: 7 : i64
+    │       │   │   │   │           │   │   │           │   ├── body[1] > hold:
+    │       │   │   │   │           │   │   │           │   │   ├── local: #149
+    │       │   │   │   │           │   │   │           │   │   ├── scope: %2
+    │       │   │   │   │           │   │   │           │   │   ├── value > case:
+    │       │   │   │   │           │   │   │           │   │   │   ├── type: <void | box32>
+    │       │   │   │   │           │   │   │           │   │   │   ├── index: 0
+    │       │   │   │   │           │   │   │           │   │   │   └── payload: unit : void
+    │       │   │   │   │           │   │   │           │   │   └── layout: ^boxes$Storey
+    │       │   │   │   │           │   │   │           │   ├── body[2] > assign:
+    │       │   │   │   │           │   │   │           │   │   ├── place: #151
+    │       │   │   │   │           │   │   │           │   │   └── value > escape:
+    │       │   │   │   │           │   │   │           │   │       ├── exit: @150
+    │       │   │   │   │           │   │   │           │   │       ├── value > record:
+    │       │   │   │   │           │   │   │           │   │       │   ├── type: {i64, <void | box32>}
+    │       │   │   │   │           │   │   │           │   │       │   ├── members[0] > member 0: local #148 : i64
+    │       │   │   │   │           │   │   │           │   │       │   └── members[1] > member 1 > take:
+    │       │   │   │   │           │   │   │           │   │       │       ├── type: <void | box32>
+    │       │   │   │   │           │   │   │           │   │       │       ├── address: address of #149 : ptr
+    │       │   │   │   │           │   │   │           │   │       │       └── layout: boxes$Storey
+    │       │   │   │   │           │   │   │           │   │       └── layout: boxes$Tower
+    │       │   │   │   │           │   │   │           │   └── body[3]: leave @150
+    │       │   │   │   │           │   │   │           └── layout: boxes$Tower
+    │       │   │   │   │           │   │   └── layout: ^boxes$Storey
+    │       │   │   │   │           │   ├── body[2] > assign:
+    │       │   │   │   │           │   │   ├── place: #154
+    │       │   │   │   │           │   │   └── value > escape:
+    │       │   │   │   │           │   │       ├── exit: @153
+    │       │   │   │   │           │   │       ├── value > record:
+    │       │   │   │   │           │   │       │   ├── type: {i64, <void | box32>}
+    │       │   │   │   │           │   │       │   ├── members[0] > member 0: local #147 : i64
+    │       │   │   │   │           │   │       │   └── members[1] > member 1 > take:
+    │       │   │   │   │           │   │       │       ├── type: <void | box32>
+    │       │   │   │   │           │   │       │       ├── address: address of #152 : ptr
+    │       │   │   │   │           │   │       │       └── layout: boxes$Storey
+    │       │   │   │   │           │   │       └── layout: boxes$Tower
+    │       │   │   │   │           │   └── body[3]: leave @153
+    │       │   │   │   │           └── layout: boxes$Tower
     │       │   │   │   └── layout: ^boxes$Storey
     │       │   │   ├── body[2] > assign:
     │       │   │   │   ├── place: #157
     │       │   │   │   └── value > escape:
     │       │   │   │       ├── exit: @156
     │       │   │   │       ├── value > record:
-    │       │   │   │       │   ├── type: {i64, ptr}
+    │       │   │   │       │   ├── type: {i64, <void | box32>}
     │       │   │   │       │   ├── members[0] > member 0: local #146 : i64
-    │       │   │   │       │   └── members[1] > member 1 > box:
-    │       │   │   │       │       ├── value > take:
-    │       │   │   │       │       │   ├── type: <void | ptr>
-    │       │   │   │       │       │   ├── address: address of #155 : ptr
-    │       │   │   │       │       │   └── layout: boxes$Storey
+    │       │   │   │       │   └── members[1] > member 1 > take:
+    │       │   │   │       │       ├── type: <void | box32>
+    │       │   │   │       │       ├── address: address of #155 : ptr
     │       │   │   │       │       └── layout: boxes$Storey
     │       │   │   │       └── layout: boxes$Tower
     │       │   │   └── body[3]: leave @156
@@ -1178,12 +1200,12 @@
     │       │       │   │       │   └── value: local #158 : ptr
     │       │       │   │       └── body[1] > switch:
     │       │       │   │           ├── value > deref:
-    │       │       │   │           │   ├── type: <void | ptr>
+    │       │       │   │           │   ├── type: <void | box32>
     │       │       │   │           │   └── ptr: local #163 : ptr
     │       │       │   │           ├── cases[0] > case 0[0] > let:
     │       │       │   │           │   ├── local: #164
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <void | ptr>
+    │       │       │   │           │       ├── within: <void | box32>
     │       │       │   │           │       ├── path: 0
     │       │       │   │           │       └── base: local #163 : ptr
     │       │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -1192,12 +1214,14 @@
     │       │       │   │           ├── cases[0] > case 0[2]: leave @161
     │       │       │   │           ├── cases[1] > case 1[0] > let:
     │       │       │   │           │   ├── local: #165
-    │       │       │   │           │   └── value > deref:
+    │       │       │   │           │   └── value > convert:
     │       │       │   │           │       ├── type: ptr
-    │       │       │   │           │       └── ptr > offset:
-    │       │       │   │           │           ├── within: <void | ptr>
-    │       │       │   │           │           ├── path: 1
-    │       │       │   │           │           └── base: local #163 : ptr
+    │       │       │   │           │       └── value > deref:
+    │       │       │   │           │           ├── type: box32
+    │       │       │   │           │           └── ptr > offset:
+    │       │       │   │           │               ├── within: <void | box32>
+    │       │       │   │           │               ├── path: 1
+    │       │       │   │           │               └── base: local #163 : ptr
     │       │       │   │           ├── cases[1] > case 1[1] > assign:
     │       │       │   │           │   ├── place: #162
     │       │       │   │           │   └── value > binary:
@@ -1207,12 +1231,10 @@
     │       │       │   │           │       └── right > call:
     │       │       │   │           │           ├── type: i64
     │       │       │   │           │           ├── fn: boxes$levels(this boxes$Storey)
-    │       │       │   │           │           └── args[0] > deref:
-    │       │       │   │           │               ├── type: ptr
-    │       │       │   │           │               └── ptr > offset:
-    │       │       │   │           │                   ├── within: {i64, ptr}
-    │       │       │   │           │                   ├── path: 1
-    │       │       │   │           │                   └── base: local #165 : ptr
+    │       │       │   │           │           └── args[0] > offset:
+    │       │       │   │           │               ├── within: {i64, <void | box32>}
+    │       │       │   │           │               ├── path: 1
+    │       │       │   │           │               └── base: local #165 : ptr
     │       │       │   │           └── cases[1] > case 1[2]: leave @161
     │       │       │   └── body[2]: leave @159
     │       │       └── right: 2 : i64
@@ -1225,7 +1247,7 @@
     │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
-    │       │       │       ├── within: {i64, ptr}
+    │       │       │       ├── within: {i64, <void | box32>}
     │       │       │       ├── path: 0
     │       │       │       └── base: address of #136 : ptr
     │       │       └── right: 5 : i64
@@ -1233,7 +1255,7 @@
     │       │   ├── local: #166
     │       │   ├── scope: %2
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
     │       │   └── layout: %primitives$ListRef<boxes$Solo>
@@ -1243,52 +1265,56 @@
     │       │   ├── body[0] > let:
     │       │   │   ├── local: #176
     │       │   │   └── value > call:
-    │       │   │       ├── type: {ptr}
+    │       │   │       ├── type: <void | box32>
     │       │   │       ├── fn: boxes$Solo(boxes$Knot)
     │       │   │       └── args[0] > case:
-    │       │   │           ├── type: <void | ptr>
+    │       │   │           ├── type: <void | box32>
     │       │   │           ├── index: 1
-    │       │   │           └── payload > box:
-    │       │   │               ├── value > call:
-    │       │   │               │   ├── type: {ptr}
-    │       │   │               │   ├── fn: boxes$Solo(boxes$Knot)
-    │       │   │               │   └── args[0] > case:
-    │       │   │               │       ├── type: <void | ptr>
-    │       │   │               │       ├── index: 1
-    │       │   │               │       └── payload > box:
-    │       │   │               │           ├── value > call:
-    │       │   │               │           │   ├── type: {ptr}
-    │       │   │               │           │   ├── fn: boxes$Solo(boxes$Knot)
-    │       │   │               │           │   └── args[0] > case:
-    │       │   │               │           │       ├── type: <void | ptr>
-    │       │   │               │           │       ├── index: 0
-    │       │   │               │           │       └── payload: unit : void
-    │       │   │               │           └── layout: boxes$Solo
-    │       │   │               └── layout: boxes$Solo
+    │       │   │           └── payload > convert:
+    │       │   │               ├── type: box32
+    │       │   │               └── value > box:
+    │       │   │                   ├── value > call:
+    │       │   │                   │   ├── type: <void | box32>
+    │       │   │                   │   ├── fn: boxes$Solo(boxes$Knot)
+    │       │   │                   │   └── args[0] > case:
+    │       │   │                   │       ├── type: <void | box32>
+    │       │   │                   │       ├── index: 1
+    │       │   │                   │       └── payload > convert:
+    │       │   │                   │           ├── type: box32
+    │       │   │                   │           └── value > box:
+    │       │   │                   │               ├── value > call:
+    │       │   │                   │               │   ├── type: <void | box32>
+    │       │   │                   │               │   ├── fn: boxes$Solo(boxes$Knot)
+    │       │   │                   │               │   └── args[0] > case:
+    │       │   │                   │               │       ├── type: <void | box32>
+    │       │   │                   │               │       ├── index: 0
+    │       │   │                   │               │       └── payload: unit : void
+    │       │   │                   │               └── layout: boxes$Solo
+    │       │   │                   └── layout: boxes$Solo
     │       │   ├── body[1] > let:
     │       │   │   ├── local: #177
     │       │   │   └── value > runtime:
     │       │   │       ├── type: ptr
     │       │   │       ├── fn: zane_list_push
     │       │   │       ├── args[0]: address of #166 : ptr
-    │       │   │       └── args[1]: 8 : i64
+    │       │   │       └── args[1]: 4 : i64
     │       │   └── body[2] > place:
     │       │       ├── address: local #177 : ptr
-    │       │       ├── value: local #176 : {ptr}
+    │       │       ├── value: local #176 : <void | box32>
     │       │       └── layout: boxes$Solo
     │       ├── body[29] > hold:
     │       │   ├── local: #179
     │       │   ├── scope: %2
     │       │   ├── value > copy:
-    │       │   │   ├── type: {ptr}
+    │       │   │   ├── type: <void | box32>
     │       │   │   ├── value > deref:
-    │       │   │   │   ├── type: {ptr}
+    │       │   │   │   ├── type: <void | box32>
     │       │   │   │   └── ptr > runtime:
     │       │   │   │       ├── type: ptr
     │       │   │   │       ├── fn: zane_list_at
     │       │   │   │       ├── args[0]: address of #166 : ptr
     │       │   │   │       ├── args[1]: 1 : i64
-    │       │   │   │       └── args[2]: 8 : i64
+    │       │   │   │       └── args[2]: 4 : i64
     │       │   │   └── layout: boxes$Solo
     │       │   └── layout: boxes$Solo
     │       ├── body[30] > eval > call:
@@ -1303,14 +1329,7 @@
     │       │       │   ├── result: #182
     │       │       │   ├── body[0] > let:
     │       │       │   │   ├── local: #180
-    │       │       │   │   └── value > deref:
-    │       │       │   │       ├── type: <void | ptr>
-    │       │       │   │       └── ptr > deref:
-    │       │       │   │           ├── type: ptr
-    │       │       │   │           └── ptr > offset:
-    │       │       │   │               ├── within: {ptr}
-    │       │       │   │               ├── path: 0
-    │       │       │   │               └── base: address of #179 : ptr
+    │       │       │   │   └── value: local #179 : <void | box32>
     │       │       │   ├── body[1] > assign:
     │       │       │   │   ├── place: #182
     │       │       │   │   └── value > expand:
@@ -1322,12 +1341,12 @@
     │       │       │   │       │   └── value: address of #180 : ptr
     │       │       │   │       └── body[1] > switch:
     │       │       │   │           ├── value > deref:
-    │       │       │   │           │   ├── type: <void | ptr>
+    │       │       │   │           │   ├── type: <void | box32>
     │       │       │   │           │   └── ptr: local #185 : ptr
     │       │       │   │           ├── cases[0] > case 0[0] > let:
     │       │       │   │           │   ├── local: #186
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <void | ptr>
+    │       │       │   │           │       ├── within: <void | box32>
     │       │       │   │           │       ├── path: 0
     │       │       │   │           │       └── base: local #185 : ptr
     │       │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -1336,12 +1355,14 @@
     │       │       │   │           ├── cases[0] > case 0[2]: leave @183
     │       │       │   │           ├── cases[1] > case 1[0] > let:
     │       │       │   │           │   ├── local: #187
-    │       │       │   │           │   └── value > deref:
+    │       │       │   │           │   └── value > convert:
     │       │       │   │           │       ├── type: ptr
-    │       │       │   │           │       └── ptr > offset:
-    │       │       │   │           │           ├── within: <void | ptr>
-    │       │       │   │           │           ├── path: 1
-    │       │       │   │           │           └── base: local #185 : ptr
+    │       │       │   │           │       └── value > deref:
+    │       │       │   │           │           ├── type: box32
+    │       │       │   │           │           └── ptr > offset:
+    │       │       │   │           │               ├── within: <void | box32>
+    │       │       │   │           │               ├── path: 1
+    │       │       │   │           │               └── base: local #185 : ptr
     │       │       │   │           ├── cases[1] > case 1[1] > assign:
     │       │       │   │           │   ├── place: #184
     │       │       │   │           │   └── value > binary:
@@ -1352,13 +1373,8 @@
     │       │       │   │           │           ├── type: i64
     │       │       │   │           │           ├── fn: boxes$knots(boxes$Knot)
     │       │       │   │           │           └── args[0] > deref:
-    │       │       │   │           │               ├── type: <void | ptr>
-    │       │       │   │           │               └── ptr > deref:
-    │       │       │   │           │                   ├── type: ptr
-    │       │       │   │           │                   └── ptr > offset:
-    │       │       │   │           │                       ├── within: {ptr}
-    │       │       │   │           │                       ├── path: 0
-    │       │       │   │           │                       └── base: local #187 : ptr
+    │       │       │   │           │               ├── type: <void | box32>
+    │       │       │   │           │               └── ptr: local #187 : ptr
     │       │       │   │           └── cases[1] > case 1[2]: leave @183
     │       │       │   └── body[2]: leave @181
     │       │       └── right: 2 : i64
@@ -1368,10 +1384,10 @@
     │       ├── body[32] > let:
     │       │   ├── local: #189
     │       │   └── value > call:
-    │       │       ├── type: {ptr}
+    │       │       ├── type: <void | box32>
     │       │       ├── fn: boxes$Solo(boxes$Knot)
     │       │       └── args[0] > case:
-    │       │           ├── type: <void | ptr>
+    │       │           ├── type: <void | box32>
     │       │           ├── index: 0
     │       │           └── payload: unit : void
     │       ├── body[33] > overwrite:
@@ -1380,8 +1396,8 @@
     │       │   │   ├── fn: zane_list_at
     │       │   │   ├── args[0]: address of #166 : ptr
     │       │   │   ├── args[1]: local #188 : i64
-    │       │   │   └── args[2]: 8 : i64
-    │       │   ├── value: local #189 : {ptr}
+    │       │   │   └── args[2]: 4 : i64
+    │       │   ├── value: local #189 : <void | box32>
     │       │   └── layout: boxes$Solo
     │       ├── body[34] > eval > call:
     │       │   ├── type: void
@@ -1395,14 +1411,7 @@
     │       │       │   ├── result: #195
     │       │       │   ├── body[0] > let:
     │       │       │   │   ├── local: #193
-    │       │       │   │   └── value > deref:
-    │       │       │   │       ├── type: <void | ptr>
-    │       │       │   │       └── ptr > deref:
-    │       │       │   │           ├── type: ptr
-    │       │       │   │           └── ptr > offset:
-    │       │       │   │               ├── within: {ptr}
-    │       │       │   │               ├── path: 0
-    │       │       │   │               └── base: address of #179 : ptr
+    │       │       │   │   └── value: local #179 : <void | box32>
     │       │       │   ├── body[1] > assign:
     │       │       │   │   ├── place: #195
     │       │       │   │   └── value > expand:
@@ -1414,12 +1423,12 @@
     │       │       │   │       │   └── value: address of #193 : ptr
     │       │       │   │       └── body[1] > switch:
     │       │       │   │           ├── value > deref:
-    │       │       │   │           │   ├── type: <void | ptr>
+    │       │       │   │           │   ├── type: <void | box32>
     │       │       │   │           │   └── ptr: local #198 : ptr
     │       │       │   │           ├── cases[0] > case 0[0] > let:
     │       │       │   │           │   ├── local: #199
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <void | ptr>
+    │       │       │   │           │       ├── within: <void | box32>
     │       │       │   │           │       ├── path: 0
     │       │       │   │           │       └── base: local #198 : ptr
     │       │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -1428,12 +1437,14 @@
     │       │       │   │           ├── cases[0] > case 0[2]: leave @196
     │       │       │   │           ├── cases[1] > case 1[0] > let:
     │       │       │   │           │   ├── local: #200
-    │       │       │   │           │   └── value > deref:
+    │       │       │   │           │   └── value > convert:
     │       │       │   │           │       ├── type: ptr
-    │       │       │   │           │       └── ptr > offset:
-    │       │       │   │           │           ├── within: <void | ptr>
-    │       │       │   │           │           ├── path: 1
-    │       │       │   │           │           └── base: local #198 : ptr
+    │       │       │   │           │       └── value > deref:
+    │       │       │   │           │           ├── type: box32
+    │       │       │   │           │           └── ptr > offset:
+    │       │       │   │           │               ├── within: <void | box32>
+    │       │       │   │           │               ├── path: 1
+    │       │       │   │           │               └── base: local #198 : ptr
     │       │       │   │           ├── cases[1] > case 1[1] > assign:
     │       │       │   │           │   ├── place: #197
     │       │       │   │           │   └── value > binary:
@@ -1444,13 +1455,8 @@
     │       │       │   │           │           ├── type: i64
     │       │       │   │           │           ├── fn: boxes$knots(boxes$Knot)
     │       │       │   │           │           └── args[0] > deref:
-    │       │       │   │           │               ├── type: <void | ptr>
-    │       │       │   │           │               └── ptr > deref:
-    │       │       │   │           │                   ├── type: ptr
-    │       │       │   │           │                   └── ptr > offset:
-    │       │       │   │           │                       ├── within: {ptr}
-    │       │       │   │           │                       ├── path: 0
-    │       │       │   │           │                       └── base: local #200 : ptr
+    │       │       │   │           │               ├── type: <void | box32>
+    │       │       │   │           │               └── ptr: local #200 : ptr
     │       │       │   │           └── cases[1] > case 1[2]: leave @196
     │       │       │   └── body[2]: leave @194
     │       │       └── right: 2 : i64
@@ -1483,33 +1489,37 @@
     │       │   │   │       │   ├── local: #206
     │       │   │   │       │   ├── scope: %207
     │       │   │   │       │   ├── value > case:
-    │       │   │   │       │   │   ├── type: <void | ptr>
+    │       │   │   │       │   │   ├── type: <void | box32>
     │       │   │   │       │   │   ├── index: 1
-    │       │   │   │       │   │   └── payload > box:
-    │       │   │   │       │   │       ├── value > case:
-    │       │   │   │       │   │       │   ├── type: <void | ptr>
-    │       │   │   │       │   │       │   ├── index: 1
-    │       │   │   │       │   │       │   └── payload > box:
-    │       │   │   │       │   │       │       ├── value > case:
-    │       │   │   │       │   │       │       │   ├── type: <void | ptr>
-    │       │   │   │       │   │       │       │   ├── index: 0
-    │       │   │   │       │   │       │       │   └── payload: unit : void
-    │       │   │   │       │   │       │       └── layout: boxes$Countdown
-    │       │   │   │       │   │       └── layout: boxes$Countdown
+    │       │   │   │       │   │   └── payload > convert:
+    │       │   │   │       │   │       ├── type: box32
+    │       │   │   │       │   │       └── value > box:
+    │       │   │   │       │   │           ├── value > case:
+    │       │   │   │       │   │           │   ├── type: <void | box32>
+    │       │   │   │       │   │           │   ├── index: 1
+    │       │   │   │       │   │           │   └── payload > convert:
+    │       │   │   │       │   │           │       ├── type: box32
+    │       │   │   │       │   │           │       └── value > box:
+    │       │   │   │       │   │           │           ├── value > case:
+    │       │   │   │       │   │           │           │   ├── type: <void | box32>
+    │       │   │   │       │   │           │           │   ├── index: 0
+    │       │   │   │       │   │           │           │   └── payload: unit : void
+    │       │   │   │       │   │           │           └── layout: boxes$Countdown
+    │       │   │   │       │   │           └── layout: boxes$Countdown
     │       │   │   │       │   └── layout: boxes$Countdown
     │       │   │   │       ├── body[1] > hold:
     │       │   │   │       │   ├── local: #208
     │       │   │   │       │   ├── scope: %207
     │       │   │   │       │   ├── value > copy:
-    │       │   │   │       │   │   ├── type: <void | ptr>
-    │       │   │   │       │   │   ├── value: local #206 : <void | ptr>
+    │       │   │   │       │   │   ├── type: <void | box32>
+    │       │   │   │       │   │   ├── value: local #206 : <void | box32>
     │       │   │   │       │   │   └── layout: boxes$Countdown
     │       │   │   │       │   └── layout: boxes$Countdown
     │       │   │   │       └── body[2] > overwrite:
     │       │   │   │           ├── address: address of #206 : ptr
     │       │   │   │           ├── value > copy:
-    │       │   │   │           │   ├── type: <void | ptr>
-    │       │   │   │           │   ├── value: local #208 : <void | ptr>
+    │       │   │   │           │   ├── type: <void | box32>
+    │       │   │   │           │   ├── value: local #208 : <void | box32>
     │       │   │   │           │   └── layout: boxes$Countdown
     │       │   │   │           └── layout: boxes$Countdown
     │       │   │   └── body[1] > assign:
@@ -1524,7 +1534,7 @@
     │       └── body[37] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: boxes$depth(boxes$Countdown)
-    │   ├── params[0]: local #1 : <void | ptr>
+    │   ├── params[0]: local #1 : <void | box32>
     │   ├── ret: i64
     │   └── body[0] > return > expand:
     │       ├── type: i64
@@ -1535,12 +1545,12 @@
     │       │   └── value: address of #1 : ptr
     │       └── body[1] > switch:
     │           ├── value > deref:
-    │           │   ├── type: <void | ptr>
+    │           │   ├── type: <void | box32>
     │           │   └── ptr: local #4 : ptr
     │           ├── cases[0] > case 0[0] > let:
     │           │   ├── local: #5
     │           │   └── value > offset:
-    │           │       ├── within: <void | ptr>
+    │           │       ├── within: <void | box32>
     │           │       ├── path: 0
     │           │       └── base: local #4 : ptr
     │           ├── cases[0] > case 0[1] > assign:
@@ -1549,12 +1559,14 @@
     │           ├── cases[0] > case 0[2]: leave @2
     │           ├── cases[1] > case 1[0] > let:
     │           │   ├── local: #6
-    │           │   └── value > deref:
+    │           │   └── value > convert:
     │           │       ├── type: ptr
-    │           │       └── ptr > offset:
-    │           │           ├── within: <void | ptr>
-    │           │           ├── path: 1
-    │           │           └── base: local #4 : ptr
+    │           │       └── value > deref:
+    │           │           ├── type: box32
+    │           │           └── ptr > offset:
+    │           │               ├── within: <void | box32>
+    │           │               ├── path: 1
+    │           │               └── base: local #4 : ptr
     │           ├── cases[1] > case 1[1] > assign:
     │           │   ├── place: #3
     │           │   └── value > binary:
@@ -1570,12 +1582,12 @@
     │           │           │   └── value: local #6 : ptr
     │           │           └── body[1] > switch:
     │           │               ├── value > deref:
-    │           │               │   ├── type: <void | ptr>
+    │           │               │   ├── type: <void | box32>
     │           │               │   └── ptr: local #11 : ptr
     │           │               ├── cases[0] > case 0[0] > let:
     │           │               │   ├── local: #12
     │           │               │   └── value > offset:
-    │           │               │       ├── within: <void | ptr>
+    │           │               │       ├── within: <void | box32>
     │           │               │       ├── path: 0
     │           │               │       └── base: local #11 : ptr
     │           │               ├── cases[0] > case 0[1] > assign:
@@ -1584,12 +1596,14 @@
     │           │               ├── cases[0] > case 0[2]: leave @9
     │           │               ├── cases[1] > case 1[0] > let:
     │           │               │   ├── local: #13
-    │           │               │   └── value > deref:
+    │           │               │   └── value > convert:
     │           │               │       ├── type: ptr
-    │           │               │       └── ptr > offset:
-    │           │               │           ├── within: <void | ptr>
-    │           │               │           ├── path: 1
-    │           │               │           └── base: local #11 : ptr
+    │           │               │       └── value > deref:
+    │           │               │           ├── type: box32
+    │           │               │           └── ptr > offset:
+    │           │               │               ├── within: <void | box32>
+    │           │               │               ├── path: 1
+    │           │               │               └── base: local #11 : ptr
     │           │               ├── cases[1] > case 1[1] > assign:
     │           │               │   ├── place: #10
     │           │               │   └── value > binary:
@@ -1600,7 +1614,7 @@
     │           │               │           ├── type: i64
     │           │               │           ├── fn: boxes$depth(boxes$Countdown)
     │           │               │           └── args[0] > deref:
-    │           │               │               ├── type: <void | ptr>
+    │           │               │               ├── type: <void | box32>
     │           │               │               └── ptr: local #13 : ptr
     │           │               └── cases[1] > case 1[2]: leave @9
     │           └── cases[1] > case 1[2]: leave @2
@@ -1637,23 +1651,19 @@
     │       └── body[4] > return: unit : void
     ├── funcs[4] > func:
     │   ├── symbol: boxes$Pair(boxes$Tree, boxes$Tree)
-    │   ├── params[0]: local #1 : <i64 | ptr>
-    │   ├── params[1]: local #2 : <i64 | ptr>
-    │   ├── ret: {ptr, ptr}
+    │   ├── params[0]: local #1 : <i64 | box32>
+    │   ├── params[1]: local #2 : <i64 | box32>
+    │   ├── ret: {<i64 | box32>, <i64 | box32>}
     │   └── body[0] > return > escape:
     │       ├── exit: function
     │       ├── value > record:
-    │       │   ├── type: {ptr, ptr}
-    │       │   ├── members[0] > member 0 > box:
-    │       │   │   ├── value: local #1 : <i64 | ptr>
-    │       │   │   └── layout: boxes$Tree
-    │       │   └── members[1] > member 1 > box:
-    │       │       ├── value: local #2 : <i64 | ptr>
-    │       │       └── layout: boxes$Tree
+    │       │   ├── type: {<i64 | box32>, <i64 | box32>}
+    │       │   ├── members[0] > member 0: local #1 : <i64 | box32>
+    │       │   └── members[1] > member 1: local #2 : <i64 | box32>
     │       └── layout: boxes$Pair
     ├── funcs[5] > func:
     │   ├── symbol: boxes$total(boxes$Tree)
-    │   ├── params[0]: local #1 : <i64 | ptr>
+    │   ├── params[0]: local #1 : <i64 | box32>
     │   ├── ret: i64
     │   └── body[0] > return > expand:
     │       ├── type: i64
@@ -1664,12 +1674,12 @@
     │       │   └── value: address of #1 : ptr
     │       └── body[1] > switch:
     │           ├── value > deref:
-    │           │   ├── type: <i64 | ptr>
+    │           │   ├── type: <i64 | box32>
     │           │   └── ptr: local #4 : ptr
     │           ├── cases[0] > case 0[0] > let:
     │           │   ├── local: #5
     │           │   └── value > offset:
-    │           │       ├── within: <i64 | ptr>
+    │           │       ├── within: <i64 | box32>
     │           │       ├── path: 0
     │           │       └── base: local #4 : ptr
     │           ├── cases[0] > case 0[1] > assign:
@@ -1680,12 +1690,14 @@
     │           ├── cases[0] > case 0[2]: leave @2
     │           ├── cases[1] > case 1[0] > let:
     │           │   ├── local: #6
-    │           │   └── value > deref:
+    │           │   └── value > convert:
     │           │       ├── type: ptr
-    │           │       └── ptr > offset:
-    │           │           ├── within: <i64 | ptr>
-    │           │           ├── path: 1
-    │           │           └── base: local #4 : ptr
+    │           │       └── value > deref:
+    │           │           ├── type: box32
+    │           │           └── ptr > offset:
+    │           │               ├── within: <i64 | box32>
+    │           │               ├── path: 1
+    │           │               └── base: local #4 : ptr
     │           ├── cases[1] > case 1[1] > assign:
     │           │   ├── place: #3
     │           │   └── value > binary:
@@ -1697,14 +1709,12 @@
     │           │       │   ├── result: #9
     │           │       │   ├── body[0] > let:
     │           │       │   │   ├── local: #7
-    │           │       │   │   └── value > deref:
-    │           │       │   │       ├── type: <i64 | ptr>
-    │           │       │   │       └── ptr > deref:
-    │           │       │   │           ├── type: ptr
-    │           │       │   │           └── ptr > offset:
-    │           │       │   │               ├── within: {ptr, ptr}
-    │           │       │   │               ├── path: 0
-    │           │       │   │               └── base: local #6 : ptr
+    │           │       │   │   └── value > member:
+    │           │       │   │       ├── type: <i64 | box32>
+    │           │       │   │       ├── index: 0
+    │           │       │   │       └── value > deref:
+    │           │       │   │           ├── type: {<i64 | box32>, <i64 | box32>}
+    │           │       │   │           └── ptr: local #6 : ptr
     │           │       │   ├── body[1] > assign:
     │           │       │   │   ├── place: #9
     │           │       │   │   └── value > expand:
@@ -1716,12 +1726,12 @@
     │           │       │   │       │   └── value: address of #7 : ptr
     │           │       │   │       └── body[1] > switch:
     │           │       │   │           ├── value > deref:
-    │           │       │   │           │   ├── type: <i64 | ptr>
+    │           │       │   │           │   ├── type: <i64 | box32>
     │           │       │   │           │   └── ptr: local #12 : ptr
     │           │       │   │           ├── cases[0] > case 0[0] > let:
     │           │       │   │           │   ├── local: #13
     │           │       │   │           │   └── value > offset:
-    │           │       │   │           │       ├── within: <i64 | ptr>
+    │           │       │   │           │       ├── within: <i64 | box32>
     │           │       │   │           │       ├── path: 0
     │           │       │   │           │       └── base: local #12 : ptr
     │           │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -1732,12 +1742,14 @@
     │           │       │   │           ├── cases[0] > case 0[2]: leave @10
     │           │       │   │           ├── cases[1] > case 1[0] > let:
     │           │       │   │           │   ├── local: #14
-    │           │       │   │           │   └── value > deref:
+    │           │       │   │           │   └── value > convert:
     │           │       │   │           │       ├── type: ptr
-    │           │       │   │           │       └── ptr > offset:
-    │           │       │   │           │           ├── within: <i64 | ptr>
-    │           │       │   │           │           ├── path: 1
-    │           │       │   │           │           └── base: local #12 : ptr
+    │           │       │   │           │       └── value > deref:
+    │           │       │   │           │           ├── type: box32
+    │           │       │   │           │           └── ptr > offset:
+    │           │       │   │           │               ├── within: <i64 | box32>
+    │           │       │   │           │               ├── path: 1
+    │           │       │   │           │               └── base: local #12 : ptr
     │           │       │   │           ├── cases[1] > case 1[1] > assign:
     │           │       │   │           │   ├── place: #11
     │           │       │   │           │   └── value > binary:
@@ -1746,25 +1758,21 @@
     │           │       │   │           │       ├── left > call:
     │           │       │   │           │       │   ├── type: i64
     │           │       │   │           │       │   ├── fn: boxes$total(boxes$Tree)
-    │           │       │   │           │       │   └── args[0] > deref:
-    │           │       │   │           │       │       ├── type: <i64 | ptr>
-    │           │       │   │           │       │       └── ptr > deref:
-    │           │       │   │           │       │           ├── type: ptr
-    │           │       │   │           │       │           └── ptr > offset:
-    │           │       │   │           │       │               ├── within: {ptr, ptr}
-    │           │       │   │           │       │               ├── path: 0
-    │           │       │   │           │       │               └── base: local #14 : ptr
+    │           │       │   │           │       │   └── args[0] > member:
+    │           │       │   │           │       │       ├── type: <i64 | box32>
+    │           │       │   │           │       │       ├── index: 0
+    │           │       │   │           │       │       └── value > deref:
+    │           │       │   │           │       │           ├── type: {<i64 | box32>, <i64 | box32>}
+    │           │       │   │           │       │           └── ptr: local #14 : ptr
     │           │       │   │           │       └── right > call:
     │           │       │   │           │           ├── type: i64
     │           │       │   │           │           ├── fn: boxes$total(boxes$Tree)
-    │           │       │   │           │           └── args[0] > deref:
-    │           │       │   │           │               ├── type: <i64 | ptr>
-    │           │       │   │           │               └── ptr > deref:
-    │           │       │   │           │                   ├── type: ptr
-    │           │       │   │           │                   └── ptr > offset:
-    │           │       │   │           │                       ├── within: {ptr, ptr}
-    │           │       │   │           │                       ├── path: 1
-    │           │       │   │           │                       └── base: local #14 : ptr
+    │           │       │   │           │           └── args[0] > member:
+    │           │       │   │           │               ├── type: <i64 | box32>
+    │           │       │   │           │               ├── index: 1
+    │           │       │   │           │               └── value > deref:
+    │           │       │   │           │                   ├── type: {<i64 | box32>, <i64 | box32>}
+    │           │       │   │           │                   └── ptr: local #14 : ptr
     │           │       │   │           └── cases[1] > case 1[2]: leave @10
     │           │       │   └── body[2]: leave @8
     │           │       └── right > expand:
@@ -1773,14 +1781,12 @@
     │           │           ├── result: #17
     │           │           ├── body[0] > let:
     │           │           │   ├── local: #15
-    │           │           │   └── value > deref:
-    │           │           │       ├── type: <i64 | ptr>
-    │           │           │       └── ptr > deref:
-    │           │           │           ├── type: ptr
-    │           │           │           └── ptr > offset:
-    │           │           │               ├── within: {ptr, ptr}
-    │           │           │               ├── path: 1
-    │           │           │               └── base: local #6 : ptr
+    │           │           │   └── value > member:
+    │           │           │       ├── type: <i64 | box32>
+    │           │           │       ├── index: 1
+    │           │           │       └── value > deref:
+    │           │           │           ├── type: {<i64 | box32>, <i64 | box32>}
+    │           │           │           └── ptr: local #6 : ptr
     │           │           ├── body[1] > assign:
     │           │           │   ├── place: #17
     │           │           │   └── value > expand:
@@ -1792,12 +1798,12 @@
     │           │           │       │   └── value: address of #15 : ptr
     │           │           │       └── body[1] > switch:
     │           │           │           ├── value > deref:
-    │           │           │           │   ├── type: <i64 | ptr>
+    │           │           │           │   ├── type: <i64 | box32>
     │           │           │           │   └── ptr: local #20 : ptr
     │           │           │           ├── cases[0] > case 0[0] > let:
     │           │           │           │   ├── local: #21
     │           │           │           │   └── value > offset:
-    │           │           │           │       ├── within: <i64 | ptr>
+    │           │           │           │       ├── within: <i64 | box32>
     │           │           │           │       ├── path: 0
     │           │           │           │       └── base: local #20 : ptr
     │           │           │           ├── cases[0] > case 0[1] > assign:
@@ -1808,12 +1814,14 @@
     │           │           │           ├── cases[0] > case 0[2]: leave @18
     │           │           │           ├── cases[1] > case 1[0] > let:
     │           │           │           │   ├── local: #22
-    │           │           │           │   └── value > deref:
+    │           │           │           │   └── value > convert:
     │           │           │           │       ├── type: ptr
-    │           │           │           │       └── ptr > offset:
-    │           │           │           │           ├── within: <i64 | ptr>
-    │           │           │           │           ├── path: 1
-    │           │           │           │           └── base: local #20 : ptr
+    │           │           │           │       └── value > deref:
+    │           │           │           │           ├── type: box32
+    │           │           │           │           └── ptr > offset:
+    │           │           │           │               ├── within: <i64 | box32>
+    │           │           │           │               ├── path: 1
+    │           │           │           │               └── base: local #20 : ptr
     │           │           │           ├── cases[1] > case 1[1] > assign:
     │           │           │           │   ├── place: #19
     │           │           │           │   └── value > binary:
@@ -1822,44 +1830,38 @@
     │           │           │           │       ├── left > call:
     │           │           │           │       │   ├── type: i64
     │           │           │           │       │   ├── fn: boxes$total(boxes$Tree)
-    │           │           │           │       │   └── args[0] > deref:
-    │           │           │           │       │       ├── type: <i64 | ptr>
-    │           │           │           │       │       └── ptr > deref:
-    │           │           │           │       │           ├── type: ptr
-    │           │           │           │       │           └── ptr > offset:
-    │           │           │           │       │               ├── within: {ptr, ptr}
-    │           │           │           │       │               ├── path: 0
-    │           │           │           │       │               └── base: local #22 : ptr
+    │           │           │           │       │   └── args[0] > member:
+    │           │           │           │       │       ├── type: <i64 | box32>
+    │           │           │           │       │       ├── index: 0
+    │           │           │           │       │       └── value > deref:
+    │           │           │           │       │           ├── type: {<i64 | box32>, <i64 | box32>}
+    │           │           │           │       │           └── ptr: local #22 : ptr
     │           │           │           │       └── right > call:
     │           │           │           │           ├── type: i64
     │           │           │           │           ├── fn: boxes$total(boxes$Tree)
-    │           │           │           │           └── args[0] > deref:
-    │           │           │           │               ├── type: <i64 | ptr>
-    │           │           │           │               └── ptr > deref:
-    │           │           │           │                   ├── type: ptr
-    │           │           │           │                   └── ptr > offset:
-    │           │           │           │                       ├── within: {ptr, ptr}
-    │           │           │           │                       ├── path: 1
-    │           │           │           │                       └── base: local #22 : ptr
+    │           │           │           │           └── args[0] > member:
+    │           │           │           │               ├── type: <i64 | box32>
+    │           │           │           │               ├── index: 1
+    │           │           │           │               └── value > deref:
+    │           │           │           │                   ├── type: {<i64 | box32>, <i64 | box32>}
+    │           │           │           │                   └── ptr: local #22 : ptr
     │           │           │           └── cases[1] > case 1[2]: leave @18
     │           │           └── body[2]: leave @16
     │           └── cases[1] > case 1[2]: leave @2
     ├── funcs[6] > func:
     │   ├── symbol: boxes$Link(%primitives$String, ^boxes$Chain)
     │   ├── params[0]: local #1 : handle
-    │   ├── params[1]: local #2 : <void | ptr>
-    │   ├── ret: {handle, ptr}
+    │   ├── params[1]: local #2 : <void | box32>
+    │   ├── ret: {handle, <void | box32>}
     │   ├── body[0] > let:
     │   │   ├── local: #3
-    │   │   └── value: local #2 : <void | ptr>
+    │   │   └── value: local #2 : <void | box32>
     │   └── body[1] > return > escape:
     │       ├── exit: function
     │       ├── value > record:
-    │       │   ├── type: {handle, ptr}
+    │       │   ├── type: {handle, <void | box32>}
     │       │   ├── members[0] > member 0: local #1 : handle
-    │       │   └── members[1] > member 1 > box:
-    │       │       ├── value: local #3 : <void | ptr>
-    │       │       └── layout: boxes$Chain
+    │       │   └── members[1] > member 1: local #3 : <void | box32>
     │       └── layout: boxes$Link
     ├── funcs[7] > func:
     │   ├── symbol: boxes$length(this boxes$Chain)
@@ -1874,12 +1876,12 @@
     │       │   └── value: local #1 : ptr
     │       └── body[1] > switch:
     │           ├── value > deref:
-    │           │   ├── type: <void | ptr>
+    │           │   ├── type: <void | box32>
     │           │   └── ptr: local #4 : ptr
     │           ├── cases[0] > case 0[0] > let:
     │           │   ├── local: #5
     │           │   └── value > offset:
-    │           │       ├── within: <void | ptr>
+    │           │       ├── within: <void | box32>
     │           │       ├── path: 0
     │           │       └── base: local #4 : ptr
     │           ├── cases[0] > case 0[1] > assign:
@@ -1888,12 +1890,14 @@
     │           ├── cases[0] > case 0[2]: leave @2
     │           ├── cases[1] > case 1[0] > let:
     │           │   ├── local: #6
-    │           │   └── value > deref:
+    │           │   └── value > convert:
     │           │       ├── type: ptr
-    │           │       └── ptr > offset:
-    │           │           ├── within: <void | ptr>
-    │           │           ├── path: 1
-    │           │           └── base: local #4 : ptr
+    │           │       └── value > deref:
+    │           │           ├── type: box32
+    │           │           └── ptr > offset:
+    │           │               ├── within: <void | box32>
+    │           │               ├── path: 1
+    │           │               └── base: local #4 : ptr
     │           ├── cases[1] > case 1[1] > assign:
     │           │   ├── place: #3
     │           │   └── value > binary:
@@ -1906,12 +1910,10 @@
     │           │           ├── result: #9
     │           │           ├── body[0] > let:
     │           │           │   ├── local: #7
-    │           │           │   └── value > deref:
-    │           │           │       ├── type: ptr
-    │           │           │       └── ptr > offset:
-    │           │           │           ├── within: {handle, ptr}
-    │           │           │           ├── path: 1
-    │           │           │           └── base: local #6 : ptr
+    │           │           │   └── value > offset:
+    │           │           │       ├── within: {handle, <void | box32>}
+    │           │           │       ├── path: 1
+    │           │           │       └── base: local #6 : ptr
     │           │           ├── body[1] > assign:
     │           │           │   ├── place: #9
     │           │           │   └── value > expand:
@@ -1923,12 +1925,12 @@
     │           │           │       │   └── value: local #7 : ptr
     │           │           │       └── body[1] > switch:
     │           │           │           ├── value > deref:
-    │           │           │           │   ├── type: <void | ptr>
+    │           │           │           │   ├── type: <void | box32>
     │           │           │           │   └── ptr: local #12 : ptr
     │           │           │           ├── cases[0] > case 0[0] > let:
     │           │           │           │   ├── local: #13
     │           │           │           │   └── value > offset:
-    │           │           │           │       ├── within: <void | ptr>
+    │           │           │           │       ├── within: <void | box32>
     │           │           │           │       ├── path: 0
     │           │           │           │       └── base: local #12 : ptr
     │           │           │           ├── cases[0] > case 0[1] > assign:
@@ -1937,12 +1939,14 @@
     │           │           │           ├── cases[0] > case 0[2]: leave @10
     │           │           │           ├── cases[1] > case 1[0] > let:
     │           │           │           │   ├── local: #14
-    │           │           │           │   └── value > deref:
+    │           │           │           │   └── value > convert:
     │           │           │           │       ├── type: ptr
-    │           │           │           │       └── ptr > offset:
-    │           │           │           │           ├── within: <void | ptr>
-    │           │           │           │           ├── path: 1
-    │           │           │           │           └── base: local #12 : ptr
+    │           │           │           │       └── value > deref:
+    │           │           │           │           ├── type: box32
+    │           │           │           │           └── ptr > offset:
+    │           │           │           │               ├── within: <void | box32>
+    │           │           │           │               ├── path: 1
+    │           │           │           │               └── base: local #12 : ptr
     │           │           │           ├── cases[1] > case 1[1] > assign:
     │           │           │           │   ├── place: #11
     │           │           │           │   └── value > binary:
@@ -1952,12 +1956,10 @@
     │           │           │           │       └── right > call:
     │           │           │           │           ├── type: i64
     │           │           │           │           ├── fn: boxes$length(this boxes$Chain)
-    │           │           │           │           └── args[0] > deref:
-    │           │           │           │               ├── type: ptr
-    │           │           │           │               └── ptr > offset:
-    │           │           │           │                   ├── within: {handle, ptr}
-    │           │           │           │                   ├── path: 1
-    │           │           │           │                   └── base: local #14 : ptr
+    │           │           │           │           └── args[0] > offset:
+    │           │           │           │               ├── within: {handle, <void | box32>}
+    │           │           │           │               ├── path: 1
+    │           │           │           │               └── base: local #14 : ptr
     │           │           │           └── cases[1] > case 1[2]: leave @10
     │           │           └── body[2]: leave @8
     │           └── cases[1] > case 1[2]: leave @2
@@ -1974,12 +1976,12 @@
     │       │   └── value: local #1 : ptr
     │       └── body[1] > switch:
     │           ├── value > deref:
-    │           │   ├── type: <void | ptr>
+    │           │   ├── type: <void | box32>
     │           │   └── ptr: local #4 : ptr
     │           ├── cases[0] > case 0[0] > let:
     │           │   ├── local: #5
     │           │   └── value > offset:
-    │           │       ├── within: <void | ptr>
+    │           │       ├── within: <void | box32>
     │           │       ├── path: 0
     │           │       └── base: local #4 : ptr
     │           ├── cases[0] > case 0[1] > assign:
@@ -1988,12 +1990,14 @@
     │           ├── cases[0] > case 0[2]: leave @2
     │           ├── cases[1] > case 1[0] > let:
     │           │   ├── local: #6
-    │           │   └── value > deref:
+    │           │   └── value > convert:
     │           │       ├── type: ptr
-    │           │       └── ptr > offset:
-    │           │           ├── within: <void | ptr>
-    │           │           ├── path: 1
-    │           │           └── base: local #4 : ptr
+    │           │       └── value > deref:
+    │           │           ├── type: box32
+    │           │           └── ptr > offset:
+    │           │               ├── within: <void | box32>
+    │           │               ├── path: 1
+    │           │               └── base: local #4 : ptr
     │           ├── cases[1] > case 1[1] > assign:
     │           │   ├── place: #3
     │           │   └── value > binary:
@@ -2006,12 +2010,10 @@
     │           │           ├── result: #9
     │           │           ├── body[0] > let:
     │           │           │   ├── local: #7
-    │           │           │   └── value > deref:
-    │           │           │       ├── type: ptr
-    │           │           │       └── ptr > offset:
-    │           │           │           ├── within: {i64, ptr}
-    │           │           │           ├── path: 1
-    │           │           │           └── base: local #6 : ptr
+    │           │           │   └── value > offset:
+    │           │           │       ├── within: {i64, <void | box32>}
+    │           │           │       ├── path: 1
+    │           │           │       └── base: local #6 : ptr
     │           │           ├── body[1] > assign:
     │           │           │   ├── place: #9
     │           │           │   └── value > expand:
@@ -2023,12 +2025,12 @@
     │           │           │       │   └── value: local #7 : ptr
     │           │           │       └── body[1] > switch:
     │           │           │           ├── value > deref:
-    │           │           │           │   ├── type: <void | ptr>
+    │           │           │           │   ├── type: <void | box32>
     │           │           │           │   └── ptr: local #12 : ptr
     │           │           │           ├── cases[0] > case 0[0] > let:
     │           │           │           │   ├── local: #13
     │           │           │           │   └── value > offset:
-    │           │           │           │       ├── within: <void | ptr>
+    │           │           │           │       ├── within: <void | box32>
     │           │           │           │       ├── path: 0
     │           │           │           │       └── base: local #12 : ptr
     │           │           │           ├── cases[0] > case 0[1] > assign:
@@ -2037,12 +2039,14 @@
     │           │           │           ├── cases[0] > case 0[2]: leave @10
     │           │           │           ├── cases[1] > case 1[0] > let:
     │           │           │           │   ├── local: #14
-    │           │           │           │   └── value > deref:
+    │           │           │           │   └── value > convert:
     │           │           │           │       ├── type: ptr
-    │           │           │           │       └── ptr > offset:
-    │           │           │           │           ├── within: <void | ptr>
-    │           │           │           │           ├── path: 1
-    │           │           │           │           └── base: local #12 : ptr
+    │           │           │           │       └── value > deref:
+    │           │           │           │           ├── type: box32
+    │           │           │           │           └── ptr > offset:
+    │           │           │           │               ├── within: <void | box32>
+    │           │           │           │               ├── path: 1
+    │           │           │           │               └── base: local #12 : ptr
     │           │           │           ├── cases[1] > case 1[1] > assign:
     │           │           │           │   ├── place: #11
     │           │           │           │   └── value > binary:
@@ -2052,30 +2056,24 @@
     │           │           │           │       └── right > call:
     │           │           │           │           ├── type: i64
     │           │           │           │           ├── fn: boxes$levels(this boxes$Storey)
-    │           │           │           │           └── args[0] > deref:
-    │           │           │           │               ├── type: ptr
-    │           │           │           │               └── ptr > offset:
-    │           │           │           │                   ├── within: {i64, ptr}
-    │           │           │           │                   ├── path: 1
-    │           │           │           │                   └── base: local #14 : ptr
+    │           │           │           │           └── args[0] > offset:
+    │           │           │           │               ├── within: {i64, <void | box32>}
+    │           │           │           │               ├── path: 1
+    │           │           │           │               └── base: local #14 : ptr
     │           │           │           └── cases[1] > case 1[2]: leave @10
     │           │           └── body[2]: leave @8
     │           └── cases[1] > case 1[2]: leave @2
     ├── funcs[9] > func:
     │   ├── symbol: boxes$Solo(boxes$Knot)
-    │   ├── params[0]: local #1 : <void | ptr>
-    │   ├── ret: {ptr}
+    │   ├── params[0]: local #1 : <void | box32>
+    │   ├── ret: <void | box32>
     │   └── body[0] > return > escape:
     │       ├── exit: function
-    │       ├── value > record:
-    │       │   ├── type: {ptr}
-    │       │   └── members[0] > member 0 > box:
-    │       │       ├── value: local #1 : <void | ptr>
-    │       │       └── layout: boxes$Knot
+    │       ├── value: local #1 : <void | box32>
     │       └── layout: boxes$Solo
     └── funcs[10] > func:
         ├── symbol: boxes$knots(boxes$Knot)
-        ├── params[0]: local #1 : <void | ptr>
+        ├── params[0]: local #1 : <void | box32>
         ├── ret: i64
         └── body[0] > return > expand:
             ├── type: i64
@@ -2086,12 +2084,12 @@
             │   └── value: address of #1 : ptr
             └── body[1] > switch:
                 ├── value > deref:
-                │   ├── type: <void | ptr>
+                │   ├── type: <void | box32>
                 │   └── ptr: local #4 : ptr
                 ├── cases[0] > case 0[0] > let:
                 │   ├── local: #5
                 │   └── value > offset:
-                │       ├── within: <void | ptr>
+                │       ├── within: <void | box32>
                 │       ├── path: 0
                 │       └── base: local #4 : ptr
                 ├── cases[0] > case 0[1] > assign:
@@ -2100,12 +2098,14 @@
                 ├── cases[0] > case 0[2]: leave @2
                 ├── cases[1] > case 1[0] > let:
                 │   ├── local: #6
-                │   └── value > deref:
+                │   └── value > convert:
                 │       ├── type: ptr
-                │       └── ptr > offset:
-                │           ├── within: <void | ptr>
-                │           ├── path: 1
-                │           └── base: local #4 : ptr
+                │       └── value > deref:
+                │           ├── type: box32
+                │           └── ptr > offset:
+                │               ├── within: <void | box32>
+                │               ├── path: 1
+                │               └── base: local #4 : ptr
                 ├── cases[1] > case 1[1] > assign:
                 │   ├── place: #3
                 │   └── value > binary:
@@ -2119,13 +2119,8 @@
                 │           ├── body[0] > let:
                 │           │   ├── local: #7
                 │           │   └── value > deref:
-                │           │       ├── type: <void | ptr>
-                │           │       └── ptr > deref:
-                │           │           ├── type: ptr
-                │           │           └── ptr > offset:
-                │           │               ├── within: {ptr}
-                │           │               ├── path: 0
-                │           │               └── base: local #6 : ptr
+                │           │       ├── type: <void | box32>
+                │           │       └── ptr: local #6 : ptr
                 │           ├── body[1] > assign:
                 │           │   ├── place: #9
                 │           │   └── value > expand:
@@ -2137,12 +2132,12 @@
                 │           │       │   └── value: address of #7 : ptr
                 │           │       └── body[1] > switch:
                 │           │           ├── value > deref:
-                │           │           │   ├── type: <void | ptr>
+                │           │           │   ├── type: <void | box32>
                 │           │           │   └── ptr: local #12 : ptr
                 │           │           ├── cases[0] > case 0[0] > let:
                 │           │           │   ├── local: #13
                 │           │           │   └── value > offset:
-                │           │           │       ├── within: <void | ptr>
+                │           │           │       ├── within: <void | box32>
                 │           │           │       ├── path: 0
                 │           │           │       └── base: local #12 : ptr
                 │           │           ├── cases[0] > case 0[1] > assign:
@@ -2151,12 +2146,14 @@
                 │           │           ├── cases[0] > case 0[2]: leave @10
                 │           │           ├── cases[1] > case 1[0] > let:
                 │           │           │   ├── local: #14
-                │           │           │   └── value > deref:
+                │           │           │   └── value > convert:
                 │           │           │       ├── type: ptr
-                │           │           │       └── ptr > offset:
-                │           │           │           ├── within: <void | ptr>
-                │           │           │           ├── path: 1
-                │           │           │           └── base: local #12 : ptr
+                │           │           │       └── value > deref:
+                │           │           │           ├── type: box32
+                │           │           │           └── ptr > offset:
+                │           │           │               ├── within: <void | box32>
+                │           │           │               ├── path: 1
+                │           │           │               └── base: local #12 : ptr
                 │           │           ├── cases[1] > case 1[1] > assign:
                 │           │           │   ├── place: #11
                 │           │           │   └── value > binary:
@@ -2167,13 +2164,8 @@
                 │           │           │           ├── type: i64
                 │           │           │           ├── fn: boxes$knots(boxes$Knot)
                 │           │           │           └── args[0] > deref:
-                │           │           │               ├── type: <void | ptr>
-                │           │           │               └── ptr > deref:
-                │           │           │                   ├── type: ptr
-                │           │           │                   └── ptr > offset:
-                │           │           │                       ├── within: {ptr}
-                │           │           │                       ├── path: 0
-                │           │           │                       └── base: local #14 : ptr
+                │           │           │               ├── type: <void | box32>
+                │           │           │               └── ptr: local #14 : ptr
                 │           │           └── cases[1] > case 1[2]: leave @10
                 │           └── body[2]: leave @8
                 └── cases[1] > case 1[2]: leave @2

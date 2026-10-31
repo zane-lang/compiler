@@ -54,7 +54,7 @@ let functions fs =
 let size_steps (t : Ty.t) =
   match t with
   (* Scalars are smaller than a step's worth of bytes. *)
-  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> 0
+  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> 0
   | Ty.Struct _ | Ty.Array _ | Ty.Sum _ | Ty.Packed _ -> fst (Ty.size_align t) / 64
 
 (* The weight a body may have and still be run again rather than

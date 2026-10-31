@@ -339,6 +339,9 @@ let needs_main build =
 (* Semantics prints no tree when it found a problem, since a tree with holes
    in it is not what either view promises. *)
 let run_packages build =
+  (* The memory layout depends on the target (Cgt.Ref32), which is known
+     before anything is lowered. *)
+  Cgt.Ref32.target := build.target;
   let* () = match build.view with Build _ | Tier_up _ -> Driver.buildable build.root | _ -> Ok () in
   let root = Option.value build.root ~default:true in
   let* packages =
@@ -379,7 +382,9 @@ let () =
         | Remap { from; to_; input; output } ->
             Driver.rewrite_object ~random:(Random.State.make_self_init ()) ~stamps:[ from; to_ ]
               ~rewrite:(Rewrite.remap ~from ~to_) ~input ~output
-        | Bundle_runtime { dir; target; optimize } -> Driver.bundle_runtime ~target ~optimize dir
+        | Bundle_runtime { dir; target; optimize } ->
+            Cgt.Ref32.target := Some target;
+            Driver.bundle_runtime ~target ~optimize dir
       in
       match result with
       | Ok () -> 0

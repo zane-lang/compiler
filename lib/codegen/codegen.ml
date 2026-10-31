@@ -61,11 +61,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
   List.iter
     (fun (g : Global.t) ->
       let v = Llvm.define_global g.Global.symbol (Llvm.const_null (stored env g.Global.ty)) m in
-      if g.Global.per_thread then Llvm.set_thread_local true v
-        (* A reference to a global is stored in 32 bits as its address
-           shifted right by 3, so the global starts on 8 bytes (Ref32,
-           experimental). *)
-      else if Cgt.Ref32.on () && Llvm.alignment v < 8 then Llvm.set_alignment 8 v;
+      if g.Global.per_thread then Llvm.set_thread_local true v;
       (match g.Global.linkage with
       | Cgt.Nodes.Linkage.Local -> Llvm.set_linkage Llvm.Linkage.Internal v
       | Cgt.Nodes.Linkage.Shared -> Llvm.set_linkage Llvm.Linkage.Link_once_odr v

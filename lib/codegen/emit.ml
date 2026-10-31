@@ -113,13 +113,11 @@ let rec lltype env (t : Ty.t) =
   | Ty.F32 -> Llvm.float_type env.ctx
   | Ty.F64 -> Llvm.double_type env.ctx
   | Ty.Handle -> Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |]
-  | Ty.Handle32 | Ty.Handle16 -> List_handle.header env.ctx
+  | Ty.Handle16 -> List_handle.header env.ctx
   | Ty.Ptr -> env.ptr
   | Ty.Ref | Ty.Box32 -> Llvm.i32_type env.ctx
   | Ty.Struct ts -> Llvm.struct_type env.ctx (Array.of_list (List.map (stored env) ts))
   | Ty.Sum ts when Ty.niche ts -> Llvm.struct_type env.ctx [| Llvm.i32_type env.ctx |]
-  | Ty.Sum ts when Ty.compact ts ->
-      Llvm.struct_type env.ctx [| Llvm.i32_type env.ctx; array_type (Llvm.i32_type env.ctx) (Ty.quads ts) |]
   | Ty.Sum ts -> (
       let tag = Llvm.i32_type env.ctx in
       match words ts with
@@ -151,10 +149,9 @@ let rec pieces (t : Ty.t) =
   match t with
   | Ty.Void -> 0
   | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> 1
-  | Ty.Handle | Ty.Handle32 | Ty.Handle16 -> 3
+  | Ty.Handle | Ty.Handle16 -> 3
   | Ty.Struct ts -> List.fold_left (fun n t -> n + pieces t) 0 ts
   | Ty.Sum ts when Ty.niche ts -> 1
-  | Ty.Sum ts when Ty.compact ts -> 1 + Ty.quads ts
   | Ty.Sum ts -> 1 + words ts
   | Ty.Array (t, n) -> n * pieces t
   | Ty.Packed t -> (fst (Ty.size_align (Ty.Packed t)) + 7) / 8
@@ -191,7 +188,7 @@ let results triple =
       (n, n)
 
 let aggregate = function
-  | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Packed _ -> true
+  | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Handle | Ty.Handle16 | Ty.Packed _ -> true
   | _ -> false
 
 (* How a value of type [t] crosses a call: as itself when it takes no more
@@ -409,7 +406,7 @@ let tags ctx =
 let access env (t : Ty.t) instr =
   let tag =
     match t with
-    | Ty.Handle | Ty.Handle32 | Ty.Handle16 -> Some env.handle_tag
+    | Ty.Handle | Ty.Handle16 -> Some env.handle_tag
     | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> Some env.value_tag
     | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Packed _ -> None
   in
@@ -774,21 +771,21 @@ let drain_scope env fr b m =
 let drain env fr b depth =
   List.iteri (fun i arena -> if i < List.length fr.open_ - depth then drain_scope env fr b arena) fr.open_
 
-(* Experimental (docs/experiments/goose-comparison): with
-   ZANE_LIGHT_SCOPES=1, a scope nothing can put a block in -- every slot it
+(* Experimental (docs/experiments/goose-comparison): unless
+   ZANE_LIGHT_SCOPES=0, a scope nothing can put a block in -- every slot it
    places holds scalars, and nothing in its body boxes, copies, makes a list
    or a string, spawns, or calls a function or the runtime in a way that
    could leave a block in the innermost region -- opens no region: its frame,
    when it is no larger than 4 KiB, is a slot on the machine stack. *)
 let light id body =
-  Sys.getenv_opt "ZANE_LIGHT_SCOPES" = Some "1"
+  Sys.getenv_opt "ZANE_LIGHT_SCOPES" <> Some "0"
   &&
   let rec scalar (t : Ty.t) =
     match t with
     | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
     | Ty.Struct ts | Ty.Sum ts -> List.for_all scalar ts
     | Ty.Array (t, _) | Ty.Packed t -> scalar t
-    | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> false
+    | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> false
   in
   let quiet = function
     | Cgt.Runtime.List_push | List_room | List_reserve | List_at | Array_at | Out_of_range | Text_equal
@@ -810,8 +807,8 @@ let light id body =
          | Stat.Reserve { scope; ty; _ } -> scope = id && not (scalar ty)
          | _ -> false))
 
-(* Experimental (docs/experiments/goose-comparison): with
-   ZANE_HOIST_HANDLES=1, the lists a loop's [body] indexes when nothing in
+(* Experimental (docs/experiments/goose-comparison): unless
+   ZANE_HOIST_HANDLES=0, the lists a loop's [body] indexes when nothing in
    it can change a list's handle -- it calls no function, calls the runtime
    only to index, spawns nothing, and writes only scalars -- each by the
    expression of its address, with the locals the body binds to such an
@@ -820,14 +817,14 @@ let light id body =
    read, before the loop: its checks then compare with a count the loop does
    not change, which IRCE needs. *)
 let invariant_lists body =
-  if Sys.getenv_opt "ZANE_HOIST_HANDLES" <> Some "1" then ([], Hashtbl.create 1)
+  if Sys.getenv_opt "ZANE_HOIST_HANDLES" = Some "0" then ([], Hashtbl.create 1)
   else
     let rec scalar (t : Ty.t) =
       match t with
       | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
       | Ty.Struct ts | Ty.Sum ts -> List.for_all scalar ts
       | Ty.Array (t, _) | Ty.Packed t -> scalar t
-      | Ty.Handle | Ty.Handle32 | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> false
+      | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> false
     in
     let bound = Hashtbl.create 16 in
     Cgt.Traverse.walk_stats ignore
@@ -1022,12 +1019,12 @@ let slot env fr id t =
    into it (memory.md §3.5). *)
 let place env b t p v l =
   (match t with
-  (* Experimental (ZANE_LOOP_PUSHES=1): a struct of scalars is stored member
+  (* Experimental (Loop_pushes, unless ZANE_LOOP_PUSHES=0): a struct of scalars is stored member
      by member, each tagged as a scalar, so that LLVM knows the stores never
      touch a list's handle and can keep its count in a register through a
      loop of pushes. *)
   | Ty.Struct ts
-    when Sys.getenv_opt "ZANE_LOOP_PUSHES" = Some "1"
+    when Sys.getenv_opt "ZANE_LOOP_PUSHES" <> Some "0"
          && List.for_all (function Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true | _ -> false) ts ->
       List.iteri
         (fun i m ->
@@ -1061,7 +1058,7 @@ let has_terminator b =
    which retries a torn read and fences the same way. *)
 let snapshot_read t =
   let rec names_block = function
-    | Ty.Ptr | Ty.Ref | Ty.Box32 | Ty.Handle | Ty.Handle32 | Ty.Handle16 -> true
+    | Ty.Ptr | Ty.Ref | Ty.Box32 | Ty.Handle | Ty.Handle16 -> true
     | Ty.Struct ts | Ty.Sum ts -> List.exists names_block ts
     | Ty.Array (t, _) | Ty.Packed t -> names_block t
     | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
@@ -1363,7 +1360,7 @@ let runs body =
   in
   scan [] body
 
-(* Experimental (Loop_pushes, ZANE_LOOP_PUSHES=1): the lists a loop's
+(* Experimental (Loop_pushes, unless ZANE_LOOP_PUSHES=0): the lists a loop's
    [body] pushes onto once each time round, each with its stride: a push
    among [body]'s statements, unconditional, onto a list no other
    statement of [body] names. Room for every time round is made before the
@@ -1389,7 +1386,7 @@ let may_grow s =
     ~stat:(function Stat.Spawn _ | Stat.Join _ | Stat.Overwrite _ -> true | _ -> false)
 
 let looped_pushes body =
-  if Sys.getenv_opt "ZANE_LOOP_PUSHES" <> Some "1" then []
+  if Sys.getenv_opt "ZANE_LOOP_PUSHES" = Some "0" then []
   else
     let lists =
       List.sort_uniq compare
@@ -1787,7 +1784,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
         List.filter_map
           (fun (a : Expr.t) ->
             match (a.Expr.ty, expr env fr b a) with
-            | (Ty.Handle | Ty.Handle32 | Ty.Handle16), Some v -> Some (spill env fr b v)
+            | (Ty.Handle | Ty.Handle16), Some v -> Some (spill env fr b v)
             | _, v -> v)
           args
       in
@@ -1796,7 +1793,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           | Ty.Void ->
               ignore (Llvm.build_call fty f (Array.of_list args) "" b);
               None
-          | (Ty.Handle | Ty.Handle32 | Ty.Handle16) as h ->
+          | (Ty.Handle | Ty.Handle16) as h ->
               let t = lltype env h in
               let out = alloca env fr t in
               ignore (Llvm.build_call fty f (Array.of_list (out :: args)) "" b);
@@ -1822,7 +1819,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
      zeros, as List_handle reads it everywhere else: the same widening of the
      same load, so LLVM sees a loop's bound and an index's check compare
      with one value. *)
-  | Expr.Convert ({ Expr.node = Expr.Member { value = { Expr.ty = Ty.Handle32 | Ty.Handle16; _ }; index = 1 | 2 }; _ } as value)
+  | Expr.Convert ({ Expr.node = Expr.Member { value = { Expr.ty = Ty.Handle16; _ }; index = 1 | 2 }; _ } as value)
     when e.Expr.ty = Ty.I64 -> (
       match expr env fr b value with
       | Some v -> Some (Llvm.build_zext v env.i64 "" b)

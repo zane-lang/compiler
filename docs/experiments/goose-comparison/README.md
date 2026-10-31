@@ -2274,26 +2274,57 @@ time, and nothing measurable elsewhere; both keep the same memory, which at
 binarytrees 18 is 10 MB against the six's 34. What chunk numbers buy is
 independence from where the system puts memory, which no run has needed.
 
+## The switches on by default, the cage removed
+
+Eight switches are now on by default on a Linux target, and each turns
+off when set to `0` in the environment when compiling:
+
+- the five: `ZANE_ONE_BOX`, `ZANE_PARTIAL_INLINE`, `ZANE_LOOP_PUSHES`,
+  `ZANE_LIGHT_SCOPES`, `ZANE_HOIST_HANDLES`;
+- `ZANE_FRAME_REFS`, `ZANE_IMAGE_BOXES` and `ZANE_NICHE_SUMS`.
+
+`ZANE_CHUNK_BOXES=1`, `ZANE_FRAME_REFS_CHECK=1`, `ZANE_LOOP_RANGES=1`,
+`ZANE_BUMP_REGIONS=1`, `ZANE_POOLED_VARIANTS=1`, `ZANE_PACKED_NODES=1` and
+the pool switches stay opt-in.
+
+The layout depends on the target: frame references need the ELF linker's
+`__ehdr_start` and Linux's `MAP_FIXED_NOREPLACE`, so on any other target
+(`--target`, or a host that is not Linux) the last three are off and the
+layout is the 64-bit one. `zanec` sets `Cgt.Ref32.target` from `--target`
+before lowering, and from `--bundle-runtime`'s target.
+
+The cage is gone: `ZANE_REF32`, the 12-byte `Handle32`, compact sums, the
+cage allocator in `runtime/region.c`, `ZANE_HEADROOM_CAGED`, and the
+`-no-pie` link. `Ty.Ref` stays, as frame references' 32-bit reference.
+
+Tests: the codegen goldens are promoted to the new layout (`handle16`,
+`box32`, the 32-bit count's `convert`); the three `facts_test` layout
+assertions now expect a 16-byte handle and a room of 4 elements on Linux,
+and the old values elsewhere. Validated: `test-compiler` passes; the 63
+fixtures (`ALL=1`) give the same output with the defaults (with
+`ZANE_FRAME_REFS_CHECK=1`) and with all eight set to `0`; all 16 suite
+outputs match (`results-defaults.txt`, 3 runs each); the perf programs print their golden output; a
+`--target x86_64-windows-gnu` or `aarch64-apple-darwin` build emits the
+24-byte handle and no `__ehdr_start`.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |
 | --- | --- | --- |
-| binarytrees | level with `ZANE_ONE_BOX=1` alone; ahead at depth 20 with `ZANE_REF32=1`, at two thirds of Goose's memory with `ZANE_NICHE_SUMS=1` | Closed: one box per cycle, nodes bumped from the scope region, and an 8-byte node. |
-| ntree | ~1.6×; with `ZANE_REF32=1`, ~1.1–1.2× in the suite and level at depth 10 | The list handle was the gap: 24 bytes against Goose's 17-byte node. Under the switch it is 12 bytes, and Zane's tree takes less memory than Goose's. |
-| treecopy | ~1.2× (pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
+| binarytrees | level with one box per cycle alone; ahead at depth 20 with 32-bit boxes, at two thirds of Goose's memory with the niche (all now default) | Closed: one box per cycle, nodes bumped from the scope region, and an 8-byte node. |
+| ntree | ~1.6× with 24-byte handles; ~1.3× with the default 16-byte one, in less memory than Goose (23.5 MB against 24.7) | The list handle was the gap: 24 bytes against Goose's 17-byte node. The removed cage's 12-byte handle reached 18 MB. |
+| treecopy | ~0.5× with the defaults (it was ~1.2×; pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~0.4× with `ZANE_LIGHT_SCOPES=1` | Closed: no region opened for a pass of a loop that boxes nothing, and the `ListRef` push loop's room made once. |
 | fannkuch | level; 1.4× Goose's instructions with `ZANE_HOIST_HANDLES=1` | The copy runs unchecked; each swap of the short flips still checks both indices. `fannkucharray/` matches Goose's layout. |
 | listgrowth | level with `ZANE_LOOP_PUSHES=1` | Closed: room made before a loop of pushes, and the count kept in a register through it. |
 | gameloop | ~4.4× inline; with the list holding 4-byte pool indices as Goose's does (`gamepool/`, `gamepool32/`), ~1.0× | Inline, each removal shifts 32-byte entities where Goose shifts 4-byte references. |
 
-The best build so far is
-`ZANE_ONE_BOX=1 ZANE_PARTIAL_INLINE=1 ZANE_LOOP_PUSHES=1 ZANE_LIGHT_SCOPES=1 ZANE_HOIST_HANDLES=1`,
-plus `ZANE_REF32=1 ZANE_NICHE_SUMS=1` for the trees. `mechanisms-hoist.md`
-is the per-function table over it without the last two: six flags, each
-with its cause in "Per-function instructions" above. Two helpers were used
-for the latest timings and listings: `time_runs.py` and `hotdis.sh`
-(Callgrind with `--dump-instr=yes`, then the hottest instructions
-disassembled).
+The default build (above) is the best so far: the five, frame references,
+image boxes and the niche. `mechanisms-hoist.md` is the per-function table
+over the five; `mechanisms-six.md` over the five and frame references. Two
+helpers were used for the latest timings and listings: `time_runs.py` and
+`hotdis.sh` (Callgrind with `--dump-instr=yes`, then the hottest
+instructions disassembled).
 
 Without pooling, what is left is mostly representation: link width, handle
 size, and whether a tree's nodes sit in one pool or in separate blocks.
@@ -2301,18 +2332,12 @@ The allocator's own paths account for little of it. Pooled variants address
 the representation, partial inlining a recursion's base case, and packing
 the node's size, and Goose's push shape the push itself.
 
-**Every reference a 32-bit offset** is built, behind `ZANE_REF32=1` (32-bit
-references, above): list handles and boxed members are 32-bit, and sums
-whose payloads align to 4 bytes or less are compact, and a reference
-stored in a member, element or payload is 32-bit. Not under the switch:
-text handles stay 24 bytes, since text bytes are unaligned and may sit in
-the binary, and `ZANE_POOL_UNCHECKED=1` is ignored, since an unchecked
-pool's 2 GiB block does not fit the cage more than a few times over.
-
-**Frame references** (behind `ZANE_FRAME_REFS=1`, above) shrink references
-to 4 bytes and list handles to 16 without the cage: no cap on the program's
-memory, and the program stays position-independent. They take the cage's
-gain on edges and most of it on ntree, and none on the trees of boxes.
+**Every reference and box in 32 bits**, by default: references are
+image-relative (frame references), boxes too, through the window, and list
+handles are 16 bytes, their items still an 8-byte pointer, since a growing
+list's reservation does not fit the window. The cage that put every
+reservation below 2^35 is removed; its one remaining lead, ntree's 18 MB
+against 23 from a 12-byte handle, was declined.
 
 After that, for binarytrees: a calling convention for functions that build
 into a pool, items and count passed in registers and the new count

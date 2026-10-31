@@ -13,6 +13,12 @@ ZANEC = str(Path(sys.argv.pop(1)).resolve())
 FACTS = Path(__file__).resolve().parent / "fixtures/facts"
 STAMP = "v1.0%0123456789abcdef%"
 SNAPSHOT = re.compile(r"load atomic|@zane_snapshot\(")
+# A list handle's room and size: on a Linux target, with frame references
+# (experimental, lib/cgt/ref32.ml), the room counts elements in 32 bits and
+# the handle is 16 bytes; elsewhere the room counts bytes and it is 24.
+FRAME_REFS = sys.platform.startswith("linux") and os.environ.get("ZANE_FRAME_REFS") != "0"
+FIRST_ROOM = r"store i32 4, " if FRAME_REFS else r"store i64 32, "
+TWO_HANDLES = 32 if FRAME_REFS else 48
 
 
 def run(*args):
@@ -161,8 +167,8 @@ class FactsTests(unittest.TestCase):
         # small (Emit.push).
         ir = run(ZANEC, "--ll", *packages("pushes"))
         body = lambda name: re.search(r"(?ms)^define [^\n]*@\"pushes\$" + name + r"\(.*?^}", ir).group(0)
-        self.assertRegex(body("gather"), r"store i64 32, ")
-        self.assertNotRegex(body("fill"), r"store i64 32, ")
+        self.assertRegex(body("gather"), FIRST_ROOM)
+        self.assertNotRegex(body("fill"), FIRST_ROOM)
         self.assertIn("@zane_list_push", body("fill"))
 
     def test_runs_of_pushes_make_room_once(self):
@@ -204,7 +210,7 @@ class FactsTests(unittest.TestCase):
         # handles, and `main`'s frame is all there once its scope is open,
         # so the loops in both read each list's count and block once.
         ir = run(ZANEC, "--ll", *packages("bounce"))
-        self.assertRegex(ir, r'@"bounce\$step\([^"]*\)"\(ptr nonnull align 8 dereferenceable\(48\) %0')
+        self.assertRegex(ir, rf'@"bounce\$step\([^"]*\)"\(ptr nonnull align 8 dereferenceable\({TWO_HANDLES}\) %0')
         self.assertRegex(ir, r'call void @llvm\.assume\(i1 true\) \[ "dereferenceable"\(ptr %[^,]+, i64 [0-9]+\), "align"')
 
     def test_references_may_be_read_ahead(self):
@@ -213,7 +219,7 @@ class FactsTests(unittest.TestCase):
         # of its slot, two list handles, is there for the call.
         ir = run(ZANEC, "--ll", *packages("borrowed"))
         self.assertRegex(
-            ir, r'(?m)^define [^@\n]*@"borrowed\$total\(&borrowed\$Field, [^"]*\)"\(ptr nonnull align 8 dereferenceable\(48\) %0')
+            ir, rf'(?m)^define [^@\n]*@"borrowed\$total\(&borrowed\$Field, [^"]*\)"\(ptr nonnull align 8 dereferenceable\({TWO_HANDLES}\) %0')
 
     def test_long_loops_lose_their_index_checks(self):
         # An optimized build emits a loop over elements twice, weighted to

@@ -224,9 +224,9 @@ let rewrite copies (f : Func.t) : Func.t =
   { f with body; values = f.Func.values @ !added }
 
 (* Every function's calls to the functions whose copies fit tried first.
-   Off unless `ZANE_PARTIAL_INLINE` is 1. *)
+   On unless `ZANE_PARTIAL_INLINE` is 0. *)
 let program (p : Program.t) : Program.t =
-  if Sys.getenv_opt "ZANE_PARTIAL_INLINE" <> Some "1" then p
+  if Sys.getenv_opt "ZANE_PARTIAL_INLINE" = Some "0" then p
   else begin
     let copies = Hashtbl.create 16 in
     List.iter
