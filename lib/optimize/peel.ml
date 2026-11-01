@@ -1,7 +1,7 @@
 (* Experimental partial inlining (docs/experiments/goose-comparison): each
-   call to a function whose body has a cheap way out is preceded by a copy
-   of that way out, so the call is made only when the cheap way is not
-   taken. A recursion's base case is the common one: `make(depth - 1)`
+   call a function whose body has a cheap way out makes to itself is
+   preceded by a copy of that way out, so the call is made only when the
+   cheap way is not taken. A recursion's base case is the common one: `make(depth - 1)`
    builds a leaf in its caller when `depth - 1` is 0, and `check(p.left)`
    counts one when `p.left` is a leaf, where each was a call before. LLVM
    never inlines a function into itself, and runs no partial inliner at
@@ -229,7 +229,7 @@ let rewrite copies (f : Func.t) : Func.t =
   let body = Cgt.Traverse.map_stats fe (fun _ -> None) f.Func.body in
   { f with body; values = f.Func.values @ !added }
 
-(* Every function's calls to the functions whose copies fit tried first.
+(* Every function's calls to itself, when its copy fits, tried first.
    On unless `ZANE_PARTIAL_INLINE` is 0. *)
 let program (p : Program.t) : Program.t =
   if Sys.getenv_opt "ZANE_PARTIAL_INLINE" = Some "0" then p
