@@ -26,6 +26,8 @@
 #endif
 
 #ifdef __linux__
+#include <fcntl.h>
+#include <stdint.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
@@ -104,13 +106,27 @@ static void smaps_around(uintptr_t lo, uintptr_t hi) {
 	fclose(f);
 }
 
-/* Whether none of the pages from `at`, `bytes` long, is in memory. */
+/* Whether none of the pages from `at`, `bytes` long, is in memory: a
+   page's entry in /proc/self/pagemap has its top bit set while a page
+   table maps it, as smaps' Rss counts. mincore is not asked, since some
+   kernels report a page whose mapping was dropped as resident. */
 static int given_back(char *at, size_t bytes) {
 	size_t page = (size_t)sysconf(_SC_PAGESIZE), pages = bytes / page;
+	uint64_t *entries = malloc(pages * sizeof *entries);
 	unsigned char *resident = malloc(pages);
-	if (!resident || mincore(at, pages * page, resident) != 0) return 0;
+	int map = open("/proc/self/pagemap", O_RDONLY);
+	ssize_t want = (ssize_t)(pages * sizeof *entries);
+	int read_all = entries && resident && map >= 0 &&
+	               pread(map, entries, (size_t)want, (off_t)((uintptr_t)at / page * sizeof *entries)) == want;
+	if (map >= 0) close(map);
+	if (!read_all) {
+		free(entries);
+		free(resident);
+		return 0;
+	}
 	size_t kept = 0;
-	for (size_t i = 0; i < pages; i++) kept += resident[i] & 1;
+	for (size_t i = 0; i < pages; i++) kept += resident[i] = (unsigned char)(entries[i] >> 63);
+	free(entries);
 	/* On stderr, outside the golden output: what stayed, and the mappings
 	   it is in, to tell a page the runtime missed from one the system
 	   brought back. */
