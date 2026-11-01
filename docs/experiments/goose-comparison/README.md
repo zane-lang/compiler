@@ -2254,8 +2254,8 @@ Review of the PR found defaults that could change a program's result:
   (`tests/codegen/fixtures/peeledEffects`); two optimized goldens lost the
   copies they had of such writes.
 - The program's arguments list (`zane_arguments`) recorded its room in
-  bytes where the 16-byte handle counts elements, so a push past its
-  fifth string wrote past its block. Its room is now in elements, and its
+  bytes where the 16-byte handle counts elements, so a push once the
+  block was full wrote past it. Its room is now in elements, and its
   block that many elements' bytes (`tests/codegen/fixtures/arguments`).
 - A field on a cycle closed only by an `ArrayRef` of no elements was boxed,
   so a reference to it named a block in the window and decoded wrong. An
