@@ -1402,6 +1402,29 @@ let fixture_pairing () =
     ~fixtures:[] ~goldens:[ "project.app.check"; "project.app.chek" ]
     [ "no rule makes golden/project.app.chek" ]
 
+(* A loop's lone push onto a list has its room made before the loop
+   (Loop_shapes.looped_pushes), unless something else in the loop may grow
+   the list through a reference, the pushed value's own call included. *)
+let looped_pushes () =
+  let module C = Cgt.Nodes in
+  let e node ty = { C.Expr.node; ty } in
+  let push =
+    C.Stat.Let
+      {
+        id = 11;
+        value =
+          e
+            (C.Expr.Runtime
+               { fn = Cgt.Runtime.List_push; args = [ e (C.Expr.Address 1) C.Ty.Ptr; e (C.Expr.Int 8L) C.Ty.I64 ] })
+            C.Ty.Ptr;
+      }
+  in
+  let grow = C.Stat.Let { id = 10; value = e (C.Expr.Call { fn = "app$grow"; args = [ e (C.Expr.Local 2) C.Ty.Ptr ] }) C.Ty.I64 } in
+  let expand body = C.Stat.Eval (e (C.Expr.Expand { label = 20; body; result = None }) C.Ty.Void) in
+  check "a loop's lone push has its room made ahead" (Codegen__Loop_shapes.looped_pushes [ expand [ push ] ] = [ (1, 8L) ]);
+  check "not when the pushed value's call may grow a list"
+    (Codegen__Loop_shapes.looped_pushes [ expand [ grow; push ] ] = [])
+
 let () =
   ty ();
   Traversals.run check;
@@ -1459,6 +1482,7 @@ let () =
   stamps_are_checked ();
   disposed_modules ();
   repeated_builds ();
+  looped_pushes ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1

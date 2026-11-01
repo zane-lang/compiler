@@ -341,6 +341,20 @@ let may_grow s =
       | _ -> false)
     ~stat:(function Stat.Spawn _ | Stat.Join _ | Stat.Overwrite _ -> true | _ -> false)
 
+(* The statements of [s]'s expansion other than its push onto [id]: where
+   the pushed value is made and moved in, which may grow the list through a
+   reference as any other statement may. *)
+let around id (s : Stat.t) =
+  match s with
+  | Stat.Eval { Expr.node = Expr.Expand { body; _ }; _ } ->
+      List.filter
+        (function
+          | Stat.Let { value = { Expr.node = Expr.Runtime { fn = Cgt.Runtime.List_push; args = { Expr.node = Expr.Address l; _ } :: _ }; _ }; _ } ->
+              l <> id
+          | _ -> true)
+        body
+  | _ -> []
+
 let looped_pushes body =
   if Sys.getenv_opt "ZANE_LOOP_PUSHES" = Some "0" then []
   else
@@ -372,7 +386,8 @@ let looped_pushes body =
         match List.partition (fun s -> Option.is_some (push_of id s)) body with
         (* A loop that may leave early may push far fewer times than it
            could run, so room is made only for one that runs to the end. *)
-        | [ s ], rest when not (List.exists (names id) rest || List.exists may_grow rest || leaving body) ->
+        | [ s ], rest
+          when not (List.exists (names id) rest || List.exists may_grow (rest @ around id s) || leaving body) ->
             Option.map (fun stride -> (id, stride)) (push_of id s)
         | _ -> None)
       lists
