@@ -92,8 +92,13 @@ type is its underlying type. A concept literal (`Integer_lit`, `Text_lit`) is
 already gone, because the TST put an implicit constructor around every one
 ([`semantics.md`](semantics.md) D9); lowering turns `@primitives$I64(3)` into the constant `i64 3`.
 
-Which members are boxed is lowering's decision too: every member on a cycle
-of owning edges, and none other to start with ([`adt.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/adt.md) §4).
+Which members are boxed is lowering's decision too, and only members on a
+cycle of owning edges are
+([`adt.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/adt.md) §4).
+One box per cycle is enough: a variant's payload that leads back to the
+variant is boxed, and a struct's member only when it leads back without
+passing through such a payload, whose box already breaks the cycle
+([`optimizations.md`](../optimizations.md), "One box per cycle").
 
 **L6. Calls name one function and pass places.** A CGT call names the
 function it calls, so overload resolution, method lookup and the operator and
