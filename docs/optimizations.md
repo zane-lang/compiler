@@ -202,6 +202,84 @@ entries' versions a lookup reads before and after it reads them, and keep
 their own state and count of work. A table holds at most 256 KiB, in
 memory the system backs only where an entry has been written.
 
+### One box per cycle
+
+- **Builds:** every build; `ZANE_ONE_BOX=0` turns it off, and so does
+  `ZANE_POOLED_VARIANTS=1`
+- **Where:** `lib/cgt/type_layout.ml` (`boxed`)
+- **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),
+  "One box per cycle"
+- **Effect:** binarytrees at depth 14 runs 123.3 M instructions instead of
+  186.9 M, and a node is one 32-byte block instead of three of 48 bytes in
+  all; treecopy at 18 takes 0.073 s instead of 0.245 s (medians)
+
+A variant's payload that leads back to the variant is boxed, and a struct
+member is boxed only when it leads back without passing through such a
+payload, whose box already breaks the cycle. So a node's members sit inline
+in it, and a leaf allocates nothing.
+
+### References and list handles in 32 bits
+
+- **Builds:** every build for a Linux target; `ZANE_FRAME_REFS=0` turns it
+  off, and with it the two entries below
+- **Where:** `lib/cgt/ref32.ml`, `lib/codegen/list_handle.ml`,
+  `lib/cgt/build.ml` (`stored_ref`), `runtime/region.c`, `runtime/zane.h`
+- **Design:** [`experiments/goose-comparison/FINDINGS.md`](experiments/goose-comparison/FINDINGS.md),
+  "The new model"; [`README.md`](experiments/goose-comparison/README.md),
+  "Frame references" and "Room counted in elements"
+- **Effect:** ntree at 10 peaks at 23.4 MB instead of 34.1 MB, and the
+  edges test at 63.6 MB instead of 94.3 MB, both faster; listgrowth's push
+  takes one instruction more
+
+A stored `&T` is its owner's signed 32-bit distance in bytes from the
+program's image (`__ehdr_start`): every context's frames come from the
+2 GiB below the image, or from 512 MiB above it within 2 GiB when the
+program is loaded too low for that (as under Valgrind), and globals are in
+it, so every reference fits, and reading one is one address computation. A list's handle is 16 bytes: its
+items pointer, then a 32-bit count and a 32-bit room counted in elements,
+so a list holds up to 2^32 − 1 elements. A push adds to the count at 32
+bits, so LLVM folds the element's address into its store. Other targets
+keep 8-byte references and 24-byte handles, since the layout needs the ELF
+linker's `__ehdr_start` and Linux's `MAP_FIXED_NOREPLACE`.
+
+### Boxes in 32 bits
+
+- **Builds:** every build for a Linux target; `ZANE_IMAGE_BOXES=0` turns
+  it off, and `ZANE_CHUNK_BOXES=1` numbers boxes by chunk instead
+- **Where:** `lib/cgt/ref32.ml`, `lib/codegen/list_handle.ml`
+  (`encode_box`), `runtime/region.c` (`zane_window_take`)
+- **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),
+  "Image-relative boxes"
+- **Effect:** binarytrees at 16 peaks at 8 MB instead of 10 MB, 0.042 s
+  against 0.046 s (medians); binarytrees runs 8% more instructions and
+  treecopy 19%, which do not show in time. Numbering boxes by chunk is
+  about 5% slower on binarytrees
+
+A boxed member is its block's signed distance from the image in 8-byte
+units, which reaches 16 GiB either way, and 0 is null. The runtime takes
+every 1 MiB chunk from a window it reserves once, from 16 GiB to 2 GiB
+below the image, or the largest of 12, 8, 4 or 2 GiB free from 4 GiB above
+it when the program is loaded too low for that, so every box fits. A
+list's growing span and a pool lie outside the window, since their handles
+hold 8-byte pointers.
+
+### A sum of nothing or one box is one word
+
+- **Builds:** every build for a Linux target with boxes in 32 bits (above,
+  so `ZANE_FRAME_REFS=0` or `ZANE_IMAGE_BOXES=0` without
+  `ZANE_CHUNK_BOXES=1` turns it off too); `ZANE_NICHE_SUMS=0` turns it off
+- **Where:** `lib/cgt/nodes.ml` (`Ty.niche`), `lib/codegen/emit.ml`,
+  `lib/codegen/walks.ml`
+- **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),
+  "A node as small as Goose's"
+- **Effect:** binarytrees at 20 peaks at 34 MB instead of 66 MB, with the
+  same time
+
+A two-case sum whose first case carries nothing and whose second is a box
+or a reference needs no tag: it is the 4-byte word, 0 for the first case,
+since no stored box or reference is 0. A binarytrees node is then one
+8-byte block.
+
 ---
 
 ## Compile-time evaluation (stage 5, `lib/optimize/`)
@@ -323,6 +401,22 @@ disappear from the binary.
 A constant whose maker finishes with no output has a known value, and
 every read of it folds like a known local. The maker and its first-read
 check stay, but only store the folded value.
+
+### Base cases copied before a function's calls to itself
+
+- **Builds:** optimized only; `ZANE_PARTIAL_INLINE=0` turns it off
+- **Where:** `lib/optimize/peel.ml`
+- **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),
+  "Partial inlining" and "What a lead hides"
+- **Effect:** binarytrees' `make` at depth 14 runs 60.7 M instructions
+  instead of 92.2 M, and the program 90.6 M instead of 123.3 M
+
+In a function whose cheap way out fits the rules below, each call it
+makes to itself is preceded by a copy of that way out, so building a
+leaf, or counting one, is not a call. The copy keeps only the branches that call nothing and do a few
+steps of work, and only effects that are part of the value it returns, so
+the call does nothing again that the copy did. LLVM never inlines a
+function into itself, and runs no partial inliner at `-O2`.
 
 ---
 
@@ -637,7 +731,8 @@ A new list is the constant empty handle. A push with room left takes the
 element's address and bumps the count inline, calling `zane_list_push`
 only when the block is full (on a branch marked unlikely), and an empty
 list's first block is often made inline too (below). `remove` and
-`swapRemove` are an inline `memmove`/`memcpy` and a decrement.
+`swapRemove` are an inline `memmove`/`memcpy` and a decrement; a long
+removal of small elements moves in pieces (below).
 
 ### An empty list's first block made inline
 
@@ -649,9 +744,10 @@ list's first block is often made inline too (below). `remove` and
   13% plain
 
 A push of an element of at most 128 bytes onto an empty list in the
-innermost scope's region makes its first 128-byte block itself, from the
-heap's room or a fresh stretch of the frame, in a function with a scope of
-its own open, when the scope has no returned block and its frame or heap
+innermost scope's region makes its first block itself: four elements'
+bytes, rounded to a word and kept between 32 and 128, from the region's
+free stack for that size, the heap's room or a fresh stretch of the frame,
+in a function with a scope of its own open, when the scope has no returned block and its frame or heap
 has the room. Elsewhere
 `zane_list_push` makes it without a call of its own. A function with no
 scope keeps the call, so a short loop of pushes there stays small enough to
@@ -692,6 +788,82 @@ or return moves the frontier back, with no runtime call. The open scope
 tells LLVM with `llvm.assume` that any slot of its frame may be read and
 that the frame is 16-byte aligned, so a loop reads a list kept in the
 frame once.
+
+### Scopes with no blocks on the machine stack
+
+- **Builds:** every build; `ZANE_LIGHT_SCOPES=0` turns it off
+- **Where:** `lib/codegen/loop_shapes.ml` (`light`), `lib/codegen/emit.ml`
+- **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),
+  "allocfree, fixed"
+- **Effect:** with a loop's pushes given their room before it (below),
+  allocfree runs 108.4 M instructions instead of 255.7 M and takes 0.308 s
+  instead of 0.729 s (medians); particles 136.0 M instead of 144.6 M
+
+A scope nothing can put a block in opens no region, and its frame, when it
+is 4 KiB or less, is a slot of the function on the machine stack. Every
+slot it places holds scalars, and its body makes no box, list or string,
+copies only scalars, and neither spawns nor joins; it calls the runtime
+only to index, push, make room in a list, remove scalars, compare strings
+or parse, and calls functions only for scalar results. With references
+in 32 bits, a scope that gives a call an address, or makes a reference
+itself, keeps its frame among the context's frames, which a reference
+reaches.
+
+### A loop's pushes given their room before it
+
+- **Builds:** every build; `ZANE_LOOP_PUSHES=0` turns it off. An optimized
+  build also writes `core`'s `push` out in a loop
+  (`lib/optimize/loop_pushes.ml`), so the emitter sees it
+- **Where:** `lib/codegen/loop_shapes.ml` (`looped_pushes`),
+  `lib/codegen/emit.ml`, `lib/optimize/loop_pushes.ml`
+- **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),
+  "listgrowth: where the push's instructions go"
+- **Effect:** listgrowth's push runs 16 instructions instead of 25, and the
+  program takes 0.174 s instead of 0.216 s (medians), level with Goose
+
+A counted loop that cannot leave early and pushes once each time round onto
+a list nothing else in the loop can change gets room for every push from
+one `zane_list_room` before it, and each push is a store with no check of
+the room. Nothing in such a loop pushes to, makes room in or removes from
+another list, spawns, or calls a function that could, which a
+whole-program analysis tells. A struct of scalars is stored member by
+member with the scalar alias tag, so LLVM keeps the count and the
+element's address in registers through the loop.
+
+### List handles read once before a loop
+
+- **Builds:** every build; `ZANE_HOIST_HANDLES=0` turns it off
+- **Where:** `lib/codegen/loop_shapes.ml` (`invariant_lists`),
+  `lib/codegen/emit.ml`
+- **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),
+  "fannkuch: list handles read once a loop"
+- **Effect:** fannkuch at 9 runs 151.5 M instructions instead of 169.3 M,
+  in the same time
+
+A counted loop whose body cannot change a list's handle reads each list it
+indexes, its items and count, once before the loop. Such a body calls no
+function, calls the runtime only to index, spawns nothing, and writes only
+scalars. The checks then compare with a count the loop does not change, so
+in an optimized build and tier 1, LLVM's IRCE takes them out of the loop
+and the loop can vectorize.
+
+### Ordered removals moved in 2 KiB pieces
+
+- **Builds:** every build
+- **Where:** `lib/codegen/emit.ml` (`remove`), `runtime/list.c`
+  (`zane_shift_down`)
+- **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),
+  "Ordered removals and `rep movsb` over a short distance"
+- **Effect:** moving 60 KB down by 8 to 32 bytes runs at 57–60 GB/s
+  instead of 3.1 GB/s on an Intel Xeon whose `rep movsb` is slow over a
+  short distance; not visible to Callgrind, which models no `rep movsb`
+
+A removal from a list of elements under 64 bytes that moves more than
+4 KiB moves in 2 KiB pieces, lowest first. glibc's `memmove` copies 4 KiB
+or more with `rep movsb`, which some processors run at about a byte a cycle
+when the source is less than 64 bytes past the destination; each piece is
+below that size, so it takes the vector loop. The pieces keep the scalar
+alias tag, so a loop of removals still keeps the count in a register.
 
 ### Emitted walks per type, shared between alike types
 
@@ -802,7 +974,9 @@ inlines `main` into it, so an optimized program pays no call between them.
 A region allocates by bumping a frontier and reuses returned blocks from a
 stack per size class, kept at fixed offsets so emitted code reads them
 directly. A drain releases the whole region at once and walks none of its
-values.
+values. The runtime's own allocators inline only the frontier's bump; taking
+a new stretch, and allocating a block past a chunk's size, stay out of
+line, so the common path is short.
 
 ### A scope's first blocks in its own frame
 
@@ -842,10 +1016,11 @@ executable, whatever the C compiler adds by default.
 - **Effect:** `listgrowth` in under half its former time, within a few
   percent of C's `realloc`
 
-A list's block doubles from 128 bytes, in place when it is last at the
-frontier, stretching its scope's frame for it up to 1 MiB. Past 1 MiB it
-moves once into a reservation 64 times its size, and each later doubling
-commits more of it instead of moving the elements.
+A list's block doubles from its first block (four elements' bytes, kept
+between 32 and 128), in place when it is last at the frontier, stretching
+its scope's frame for it up to 1 MiB. Past 1 MiB it moves once into a
+reservation 64 times its size, and each later doubling commits more of it
+instead of moving the elements.
 
 ### Every overwrite in place
 
@@ -857,6 +1032,50 @@ commits more of it instead of moving the elements.
 
 An overwrite writes the replacement into the occupant's existing blocks,
 recursively, instead of freeing them and allocating new ones.
+
+### An outgrown span's pages given back as it moves
+
+- **Builds:** every build
+- **Where:** `runtime/list.c` (`zane_list_move_out`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Each scope's
+  dynamic region"
+- **Effect:** entities' and concscan's peak memory 94 MB instead of 158 MB,
+  level with C
+
+A list that outgrows its reservation copies its elements to the new span a
+chunk at a time and gives each copied chunk's pages back to the system,
+all but the first page, which holds the mapping's header. So a list never
+holds both copies of its elements for long.
+
+### Large lists' reservations kept warm
+
+- **Builds:** every build
+- **Where:** `runtime/arena.c`
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Lists'
+  reservations"
+- **Effect:** listgrowth takes 0.241 s instead of 0.655 s, with 16 k page
+  faults instead of 313 k; allocfree's faults 8 k instead of 78 k
+
+A drained list's oversized span keeps its reservation and pages: a context
+keeps up to `ZANE_WARM_SPANS` (2), each until it has sat unused through
+`ZANE_COOLING` of its later drains, and gives them back when its call is
+over. The next list to grow past 1 MiB takes one that holds what it would
+reserve, so a list built again each round grows into resident pages.
+
+### Arrivals in the innermost region return at once
+
+- **Builds:** every build; the check is inline in optimized builds, and
+  in tier 1 when LLVM can read the runtime's bitcode
+- **Where:** `runtime/value.c` (`zane_arrive`), `lib/codegen/emit.ml`
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Each scope's
+  dynamic region"
+- **Effect:** not measured on its own
+
+A value arriving in the innermost region moves nothing, so `zane_arrive`
+returns at once there, the common case, and only another region's place
+goes out of line. For a place in one of that region's chunks, such as a
+list's element, the check is the place's chunk-map entry against the open
+region, which an optimized build inlines.
 
 ### Warm and cold spare chunks
 
