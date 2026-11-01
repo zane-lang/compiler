@@ -821,7 +821,7 @@
     │       │   ├── local: #1
     │       │   ├── scope: %2
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
     │       │   └── layout: %primitives$ListRef<handles$Conn>
@@ -939,7 +939,7 @@
     │       │   ├── local: #17
     │       │   ├── scope: %2
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
     │       │   └── layout: ^%primitives$ListRef<handles$Conn>
@@ -966,7 +966,7 @@
     │       ├── body[10] > overwrite:
     │       │   ├── address: address of #1 : ptr
     │       │   ├── value > take:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── address: address of #17 : ptr
     │       │   │   └── layout: %primitives$ListRef<handles$Conn>
     │       │   └── layout: %primitives$ListRef<handles$Conn>

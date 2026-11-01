@@ -88,11 +88,12 @@ let rec zero (t : Ty.t) =
   | Ty.I1 -> VBool false
   | Ty.I32 | Ty.I64 -> VInt 0L
   | Ty.F32 | Ty.F64 -> VFloat 0.
-  | Ty.Handle | Ty.Ptr -> VNull
+  | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> VNull
   | Ty.Struct ts -> VRecord (Array.of_list (List.map zero ts))
   | Ty.Array (t, n) -> VRecord (Array.init n (fun _ -> zero t))
   | Ty.Sum [] -> VCase (0, VUnit)
   | Ty.Sum (t :: _) -> VCase (0, zero t)
+  | Ty.Packed t -> zero t
 
 (* An integer as a type holds it: an [I32] wraps at 32 bits, sign
    extended. *)
@@ -117,6 +118,7 @@ let rec ty_at (t : Ty.t) path =
   | Member i :: rest, Ty.Struct ts when i < List.length ts -> ty_at (List.nth ts i) rest
   | Member _ :: rest, Ty.Array (e, _) -> ty_at e rest
   | Payload i :: rest, Ty.Sum ts when i < List.length ts -> ty_at (List.nth ts i) rest
+  | path, Ty.Packed t -> ty_at t path
   | _ -> stop "a path through a type that has no such part"
 
 (* A value's own structs, arrays and cases, so that what holds it can be
@@ -156,7 +158,7 @@ let store (p : ptr) ty x =
 let locate (t : Ty.t) (v : v) (p : Layout.position) =
   let rec go t v off base path =
     match t with
-    | (Ty.Handle | Ty.Ptr) when off = 0 -> Some (List.rev path)
+    | (Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Box32) when off = 0 -> Some (List.rev path)
     | Ty.Struct ts ->
         let offsets = Ty.offsets ts in
         let rec find i ts offsets =
@@ -174,14 +176,13 @@ let locate (t : Ty.t) (v : v) (p : Layout.position) =
     (* An array whose elements own blocks is one position (Layout.Array),
        and what its elements hold is found by their own layout. *)
     | Ty.Array _ when off = 0 -> Some (List.rev path)
-    | Ty.Sum ts when off >= Ty.payload_offset -> (
+    | Ty.Sum ts when off >= Ty.payload_at t -> (
+        let at = Ty.payload_at t in
         match v with
         | VCase (tag, payload) ->
-            let wanted = List.assoc_opt base p.Layout.tags in
+            let wanted = Option.map Layout.tag_case (List.assoc_opt base p.Layout.tags) in
             if wanted <> None && wanted <> Some tag then None
-            else
-              go (List.nth ts tag) payload (off - Ty.payload_offset) (base + Ty.payload_offset)
-                (Payload tag :: path)
+            else go (List.nth ts tag) payload (off - at) (base + at) (Payload tag :: path)
         | _ -> stop "a sum that holds no case")
     | _ -> stop "a layout position at no handle or box"
   in

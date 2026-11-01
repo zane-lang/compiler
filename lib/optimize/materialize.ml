@@ -28,15 +28,17 @@ let rec expr ?fresh (t : Ty.t) (c : V.const) : Expr.t option =
   (* A boxed member's payload in a block of its own, as lowering builds one. *)
   | Ty.Ptr, V.Box { ty; layout = Some layout; payload } ->
       Option.map (fun value -> ptr (Expr.Box { value; layout })) (expr ?fresh ty payload)
+  (* The same box as a compact offset, as lowering converts one. *)
+  | Ty.Box32, V.Box _ -> Option.bind (expr ?fresh Ty.Ptr c) (fun box -> made (Expr.Convert box))
   (* A list, made where it is used as a list is made anywhere: empty, then
      each element pushed in order, in the region of the scope the code is
      in, as a call's result would be. *)
-  | Ty.Handle, V.List { stride; element; layout; items } -> (
+  | (Ty.Handle | Ty.Handle16), V.List { stride; element; layout; items } -> (
       match fresh with
       | None -> None
       | Some fresh ->
           let label = fresh () and r = fresh () in
-          let make = Stat.assign r { Expr.node = Expr.Runtime { fn = Cgt.Runtime.List_new; args = [] }; ty = Ty.Handle } in
+          let make = Stat.assign r { Expr.node = Expr.Runtime { fn = Cgt.Runtime.List_new; args = [] }; ty = Ty.list_handle () } in
           let push c =
             Option.map
               (fun value ->
@@ -92,6 +94,7 @@ let rec const (e : Expr.t) : V.const option =
         Some (V.Record a))
   | Expr.Box { value; layout } ->
       Option.map (fun payload -> V.Box { ty = value.Expr.ty; layout = Some layout; payload }) (const value)
+  | Expr.Convert ({ Expr.node = Expr.Box _; _ } as box) when e.Expr.ty = Ty.Box32 -> const box
   | Expr.Expand
       {
         body = Stat.Assign { place = { local; path = []; deref = false; _ }; value = { Expr.node = Expr.Runtime { fn = Cgt.Runtime.List_new; args = [] }; _ } } :: pushes;

@@ -30,6 +30,7 @@ type fn =
   | List_new
   | List_push
   | List_reserve
+  | List_room
   | List_at
   | List_remove of { scalars : bool }
   | List_swap_remove of { scalars : bool }
@@ -54,6 +55,15 @@ type fn =
   | Leaves
   | Defer
   | Defer_return
+  (* Experimental pooled variants (runtime/list.c). *)
+  | Pool_new
+  | Pool_push
+  | Pool_append
+  | Pool_root
+  | Pool_copy
+  | Link
+  | Pool_reserve
+  | Pool_new_unbounded
   | Overwrite_handles
   | Overwrite_settled
   | Handle_made
@@ -63,7 +73,7 @@ type fn =
   | Callback_attach
   | Callback_detach
 
-let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach ]
+let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach ]
 
 let name = function
   | Print -> "zane_print"
@@ -84,6 +94,7 @@ let name = function
   | List_new -> "zane_list_new"
   | List_push -> "zane_list_push"
   | List_reserve -> "zane_list_reserve"
+  | List_room -> "zane_list_room"
   | List_at -> "zane_list_at"
   | List_remove _ -> "zane_list_remove"
   | List_swap_remove _ -> "zane_list_swap_remove"
@@ -108,6 +119,14 @@ let name = function
   | Leaves -> "zane_leaves"
   | Defer -> "zane_defer"
   | Defer_return -> "zane_defer_return"
+  | Pool_new -> "zane_pool_new"
+  | Pool_push -> "zane_pool_push"
+  | Pool_append -> "zane_pool_append"
+  | Pool_root -> "zane_pool_root"
+  | Pool_copy -> "zane_pool_copy"
+  | Link -> "zane_link"
+  | Pool_reserve -> "zane_pool_reserve"
+  | Pool_new_unbounded -> "zane_pool_new_unbounded"
   | Overwrite_handles -> "zane_overwrite_handles"
   | Overwrite_settled -> "zane_overwrite_settled"
   | Handle_made -> "zane_handle_made"
@@ -141,6 +160,7 @@ let signature = function
   | List_new -> (Void, [ Ptr ])
   | List_push -> (Ptr, [ Ptr; I64 ])
   | List_reserve -> (Ptr, [ Ptr; I64; I64 ])
+  | List_room -> (Void, [ Ptr; I64; I64 ])
   | List_at -> (Ptr, [ Ptr; I64; I64 ])
   | List_remove _ -> (Void, [ Ptr; I64; I64 ])
   | List_swap_remove _ -> (Void, [ Ptr; I64; I64 ])
@@ -165,6 +185,14 @@ let signature = function
   | Leaves -> (I64, [ Ptr; Ptr; I64 ])
   | Defer -> (Void, [ Ptr; Ptr; Ptr; Ptr; I64 ])
   | Defer_return -> (Void, [ Ptr; Ptr; I64; I64 ])
+  | Pool_new -> (Void, [ Ptr ])
+  | Pool_push -> (I64, [ Ptr; Ptr; I64; I64; I64; I64; I64; I64; I64; I64; I64; I64 ])
+  | Pool_append -> (I64, [ Ptr; Ptr; I64 ])
+  | Pool_root -> (Ptr, [ Ptr; I64 ])
+  | Pool_copy -> (Void, [ Ptr; Ptr; I64; I64; I64; I64; I64 ])
+  | Link -> (Ptr, [ Ptr ])
+  | Pool_reserve -> (Void, [ Ptr; I64 ])
+  | Pool_new_unbounded -> (Void, [ Ptr ])
   | Overwrite_handles | Overwrite_settled -> (Void, [ Ptr; Ptr; I64; Ptr ])
   | Handle_made -> (I64, [ Ptr ])
   | No_object -> (Void, [  ])

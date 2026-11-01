@@ -19,7 +19,11 @@
    and what a reference holds: the address of the settled owner it names
    (memory.md §4.1). [I32] is `@primitives$I32`, [I64] `I64`, [F32] `F32`
    and [F64] `F64`. A boxed member is a [Ptr]
-   to its payload's block (adt.md §4). *)
+   to its payload's block (adt.md §4). [Packed] is a [Struct] or a [Sum]
+   with no padding and alignment 1, a sum's tag one byte and its payload
+   right after it: the experimental packed node of a pooled variant
+   (docs/experiments/goose-comparison). Its members keep their own
+   layouts. *)
 module Ty = struct
   type t =
     | Void
@@ -29,10 +33,22 @@ module Ty = struct
     | F32
     | F64
     | Handle
+    (* Experimental (frame references): a list's handle with its items a
+       pointer, and its count and its room in 32 bits each. *)
+    | Handle16
     | Ptr
+    (* Experimental (Ref32.frames): a reference, stored as its signed
+       distance from the program's image in 32 bits, which a [Convert]
+       turns into a [Ptr] and back. *)
+    | Ref
+    (* Experimental (Ref32.image_boxes): a boxed member's block, stored as its
+       signed distance from the program's image in 8-byte units, in 32 bits,
+       0 for none; a [Convert] turns it into a [Ptr] and back. *)
+    | Box32
     | Struct of t list
     | Sum of t list
     | Array of t * int
+    | Packed of t
 
   (* No type takes [limit] bytes or more: no such value can be placed, since
      the runtime's chunk map covers 48-bit addresses
@@ -60,6 +76,8 @@ module Ty = struct
     | I32 | F32 -> (4, 4)
     | I64 | F64 | Ptr -> (8, 8)
     | Handle -> (24, 8)
+    | Handle16 -> (16, 8)
+    | Ref | Box32 -> (4, 4)
     | Struct ts ->
         let size, align =
           List.fold_left
@@ -69,14 +87,25 @@ module Ty = struct
             (0, 1) ts
         in
         (below_limit (round_up size align), align)
+    | Sum ts when niche ts -> (4, 4)
     | Sum ts -> ( match words ts with 0 -> (4, 4) | n -> (below_limit (add 8 (times 8 n)), 8))
     | Array (t, n) ->
         let size, align = size_align t in
         (below_limit (times (round_up size align) n), align)
+    | Packed (Struct ts) -> (List.fold_left (fun size t -> below_limit (add size (fst (size_align t)))) 0 ts, 1)
+    | Packed (Sum ts) -> (below_limit (add 1 (room ts)), 1)
+    | Packed t -> size_align t
+
+  (* A packed sum's payload room in bytes: its widest case's. *)
+  and room ts = List.fold_left (fun n t -> max n (fst (size_align t))) 0 ts
 
   (* A sum's payload room, in 8-byte words: enough for its widest case, and
      aligned for every one, since no layout here needs more than 8. *)
   and words ts = List.fold_left (fun n t -> max n ((fst (size_align t) + 7) / 8)) 0 ts
+
+  (* Experimental (Ref32.niche): a sum of nothing or a box or reference is
+     that word, 0 for nothing. *)
+  and niche ts = Ref32.niche () && (ts = [ Void; Ref ] || ts = [ Void; Box32 ])
 
   (* Where each member of a struct of [ts] starts. *)
   let offsets ts =
@@ -90,18 +119,40 @@ module Ty = struct
     in
     List.rev offsets
 
+  (* Where each member of a packed struct of [ts] starts. *)
+  let packed_offsets ts =
+    List.rev (snd (List.fold_left (fun (at, acc) t -> (at + fst (size_align t), at :: acc)) (0, []) ts))
+
+  (* Where each member of the struct [t], packed or not, starts. *)
+  let member_offsets = function
+    | Struct ts -> offsets ts
+    | Packed (Struct ts) -> packed_offsets ts
+    | _ -> []
+
+  (* A struct's members, packed or not. *)
+  let members = function Struct ts | Packed (Struct ts) -> ts | _ -> []
+
   (* A sum's payload starts after its tag. *)
   let payload_offset = 8
+
+  (* A list's handle: [Handle16] with frame references, else [Handle]. *)
+  let list_handle () = if Ref32.frames () then Handle16 else Handle
+
+  (* Where the sum [t]'s payload starts, packed or not. *)
+  let payload_at = function
+    | Packed _ -> 1
+    | Sum ts when niche ts -> 0
+    | _ -> payload_offset
 
   (* Whether a value of the type has a handle among its bytes: is one, or
      has one as a member, a case's payload or an element. A boxed member's
      payload and a reference's owner are in storage of their own, which a
      [Ptr] names. *)
   let rec holds_handle = function
-    | Handle -> true
+    | Handle | Handle16 -> true
     | Struct ts | Sum ts -> List.exists holds_handle ts
-    | Array (t, _) -> holds_handle t
-    | Void | I1 | I32 | I64 | F32 | F64 | Ptr -> false
+    | Array (t, _) | Packed t -> holds_handle t
+    | Void | I1 | I32 | I64 | F32 | F64 | Ptr | Ref | Box32 -> false
 
   let rec to_string = function
     | Void -> "void"
@@ -111,10 +162,14 @@ module Ty = struct
     | F32 -> "f32"
     | F64 -> "f64"
     | Handle -> "handle"
+    | Handle16 -> "handle16"
     | Ptr -> "ptr"
+    | Ref -> "ref"
+    | Box32 -> "box32"
     | Struct ts -> "{" ^ String.concat ", " (List.map to_string ts) ^ "}"
     | Sum ts -> "<" ^ String.concat " | " (List.map to_string ts) ^ ">"
     | Array (t, n) -> Printf.sprintf "[%d x %s]" n (to_string t)
+    | Packed t -> "packed " ^ to_string t
 end
 
 (* What a scalar conversion means (types.md §2.9), which the optimizer
@@ -188,6 +243,11 @@ module Layout = struct
   type position = { kind : kind; offset : int; size : int; tags : (int * int) list }
   type t = string
 
+  (* Experimental (Ty.niche): the tag a position under a niche sum's case
+     [i] names, which a walk tests as a nonzero word, and the case a tag
+     names either way. *)
+  let niche_tag i = -i - 1
+  let tag_case t = if t < 0 then -t - 1 else t
   (* Whether a value of layout [l], whose positions [find] gives, holds a
      foreign handle: anywhere, or with [settled] only where a settled
      overwrite replaces it through its setter, in no variant's payload and

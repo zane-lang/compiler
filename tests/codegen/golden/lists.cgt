@@ -23,7 +23,7 @@
     │   └── positions[0]: text @0
     ├── layouts[7] > layout:
     │   ├── type: %primitives$ListRef<%primitives$ListRef<%primitives$I64>>
-    │   └── positions[0]: list @0 of %primitives$ListRef<%primitives$I64> (24 bytes apart)
+    │   └── positions[0]: list @0 of %primitives$ListRef<%primitives$I64> (16 bytes apart)
     ├── layouts[8] > layout:
     │   ├── type: ^%primitives$ListRef<%primitives$I64>
     │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
@@ -48,7 +48,7 @@
     │       │   ├── local: #1
     │       │   ├── scope: %2
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
     │       │   └── layout: %primitives$ListRef<%primitives$I64>
@@ -58,10 +58,12 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > member:
+    │       │       ├── left > convert:
     │       │       │   ├── type: i64
-    │       │       │   ├── index: 1
-    │       │       │   └── value: local #1 : handle
+    │       │       │   └── value > member:
+    │       │       │       ├── type: i32
+    │       │       │       ├── index: 1
+    │       │       │       └── value: local #1 : handle16
     │       │       └── right: 0 : i64
     │       ├── body[2] > let:
     │       │   ├── local: #3
@@ -127,12 +129,14 @@
     │       │       │   │   └── value: address of #1 : ptr
     │       │       │   ├── body[1] > assign:
     │       │       │   │   ├── place: #13
-    │       │       │   │   └── value > member:
+    │       │       │   │   └── value > convert:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── index: 1
-    │       │       │   │       └── value > deref:
-    │       │       │   │           ├── type: handle
-    │       │       │   │           └── ptr: local #11 : ptr
+    │       │       │   │       └── value > member:
+    │       │       │   │           ├── type: i32
+    │       │       │   │           ├── index: 1
+    │       │       │   │           └── value > deref:
+    │       │       │   │               ├── type: handle16
+    │       │       │   │               └── ptr: local #11 : ptr
     │       │       │   └── body[2]: leave @12
     │       │       └── right: 100 : i64
     │       ├── body[5] > eval > call:
@@ -190,7 +194,7 @@
     │       │   ├── local: #16
     │       │   ├── scope: %2
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
     │       │   └── layout: %primitives$ListRef<%primitives$String>
@@ -337,7 +341,7 @@
     │       │   ├── local: #35
     │       │   ├── scope: %2
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
     │       │   └── layout: %primitives$ListRef<lists$Person>
@@ -532,16 +536,18 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > member:
+    │       │       ├── left > convert:
     │       │       │   ├── type: i64
-    │       │       │   ├── index: 1
-    │       │       │   └── value: local #35 : handle
+    │       │       │   └── value > member:
+    │       │       │       ├── type: i32
+    │       │       │       ├── index: 1
+    │       │       │       └── value: local #35 : handle16
     │       │       └── right: 1001 : i64
     │       ├── body[31] > hold:
     │       │   ├── local: #66
     │       │   ├── scope: %2
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
     │       │   └── layout: %primitives$ListRef<%primitives$ListRef<%primitives$I64>>
@@ -574,7 +580,7 @@
     │       │   │   │       │   ├── local: #72
     │       │   │   │       │   ├── scope: %73
     │       │   │   │       │   ├── value > runtime:
-    │       │   │   │       │   │   ├── type: handle
+    │       │   │   │       │   │   ├── type: handle16
     │       │   │   │       │   │   ├── fn: zane_list_new
     │       │   │   │       │   │   └── args:
     │       │   │   │       │   └── layout: ^%primitives$ListRef<%primitives$I64>
@@ -622,7 +628,7 @@
     │       │   │   │           ├── body[0] > let:
     │       │   │   │           │   ├── local: #80
     │       │   │   │           │   └── value > take:
-    │       │   │   │           │       ├── type: handle
+    │       │   │   │           │       ├── type: handle16
     │       │   │   │           │       ├── address: address of #72 : ptr
     │       │   │   │           │       └── layout: %primitives$ListRef<%primitives$I64>
     │       │   │   │           ├── body[1] > let:
@@ -631,10 +637,10 @@
     │       │   │   │           │       ├── type: ptr
     │       │   │   │           │       ├── fn: zane_list_push
     │       │   │   │           │       ├── args[0]: address of #66 : ptr
-    │       │   │   │           │       └── args[1]: 24 : i64
+    │       │   │   │           │       └── args[1]: 16 : i64
     │       │   │   │           └── body[2] > place:
     │       │   │   │               ├── address: local #81 : ptr
-    │       │   │   │               ├── value: local #80 : handle
+    │       │   │   │               ├── value: local #80 : handle16
     │       │   │   │               └── layout: %primitives$ListRef<%primitives$I64>
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #67
@@ -661,7 +667,7 @@
     │       │       │       │   ├── fn: zane_list_at
     │       │       │       │   ├── args[0]: address of #66 : ptr
     │       │       │       │   ├── args[1]: 3 : i64
-    │       │       │       │   └── args[2]: 24 : i64
+    │       │       │       │   └── args[2]: 16 : i64
     │       │       │       ├── args[1]: 2 : i64
     │       │       │       └── args[2]: 8 : i64
     │       │       └── right: 30 : i64
@@ -669,7 +675,7 @@
     │       │   ├── local: #85
     │       │   ├── scope: %2
     │       │   ├── value > expand:
-    │       │   │   ├── type: {handle}
+    │       │   │   ├── type: {handle16}
     │       │   │   ├── label: @83
     │       │   │   ├── result: #84
     │       │   │   ├── body[0] > assign:
@@ -677,9 +683,9 @@
     │       │   │   │   └── value > escape:
     │       │   │   │       ├── exit: @83
     │       │   │   │       ├── value > record:
-    │       │   │   │       │   ├── type: {handle}
+    │       │   │   │       │   ├── type: {handle16}
     │       │   │   │       │   └── members[0] > member 0 > runtime:
-    │       │   │   │       │       ├── type: handle
+    │       │   │   │       │       ├── type: handle16
     │       │   │   │       │       ├── fn: zane_list_new
     │       │   │   │       │       └── args:
     │       │   │   │       └── layout: lists$Stack<%primitives$String>
@@ -722,7 +728,7 @@
     │       │       │   │               ├── type: ptr
     │       │       │   │               ├── fn: zane_list_at
     │       │       │   │               ├── args[0] > offset:
-    │       │       │   │               │   ├── within: {handle}
+    │       │       │   │               │   ├── within: {handle16}
     │       │       │   │               │   ├── path: 0
     │       │       │   │               │   └── base: local #92 : ptr
     │       │       │   │               ├── args[1]: local #93 : i64
@@ -753,17 +759,19 @@
     │       │       │   ├── body[0] > let:
     │       │       │   │   ├── local: #99
     │       │       │   │   └── value > offset:
-    │       │       │   │       ├── within: {handle}
+    │       │       │   │       ├── within: {handle16}
     │       │       │   │       ├── path: 0
     │       │       │   │       └── base: address of #85 : ptr
     │       │       │   ├── body[1] > assign:
     │       │       │   │   ├── place: #101
-    │       │       │   │   └── value > member:
+    │       │       │   │   └── value > convert:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── index: 1
-    │       │       │   │       └── value > deref:
-    │       │       │   │           ├── type: handle
-    │       │       │   │           └── ptr: local #99 : ptr
+    │       │       │   │       └── value > member:
+    │       │       │   │           ├── type: i32
+    │       │       │   │           ├── index: 1
+    │       │       │   │           └── value > deref:
+    │       │       │   │               ├── type: handle16
+    │       │       │   │               └── ptr: local #99 : ptr
     │       │       │   └── body[2]: leave @100
     │       │       └── right: 2 : i64
     │       └── body[40] > return: unit : void
@@ -813,12 +821,14 @@
     │   │   ├── label: @5
     │   │   ├── body[0] > let:
     │   │   │   ├── local: #4
-    │   │   │   └── value > member:
+    │   │   │   └── value > convert:
     │   │   │       ├── type: i64
-    │   │   │       ├── index: 1
-    │   │   │       └── value > deref:
-    │   │   │           ├── type: handle
-    │   │   │           └── ptr: local #1 : ptr
+    │   │   │       └── value > member:
+    │   │   │           ├── type: i32
+    │   │   │           ├── index: 1
+    │   │   │           └── value > deref:
+    │   │   │               ├── type: handle16
+    │   │   │               └── ptr: local #1 : ptr
     │   │   ├── body[1] > repeat:
     │   │   │   ├── count > binary:
     │   │   │   │   ├── type: i64
@@ -886,7 +896,7 @@
         │   │       ├── type: ptr
         │   │       ├── fn: zane_list_push
         │   │       ├── args[0] > offset:
-        │   │       │   ├── within: {handle}
+        │   │       │   ├── within: {handle16}
         │   │       │   ├── path: 0
         │   │       │   └── base: local #1 : ptr
         │   │       └── args[1]: 24 : i64

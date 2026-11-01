@@ -7,6 +7,7 @@
 open Cgt.Nodes
 
 let run ?(c = []) (p : Program.t) =
+  let p = Peel.program p in
   let table f xs =
     let t = Hashtbl.create 64 in
     List.iter (fun x -> let k, v = f x in Hashtbl.replace t k v) xs;
@@ -54,4 +55,5 @@ let run ?(c = []) (p : Program.t) =
     end
   in
   List.iter visit p.Program.funcs;
-  { p with Program.funcs = List.map (fun (f : Func.t) -> Hashtbl.find folded f.Func.symbol) p.Program.funcs }
+  Loop_pushes.program
+    { p with Program.funcs = List.map (fun (f : Func.t) -> Hashtbl.find folded f.Func.symbol) p.Program.funcs }

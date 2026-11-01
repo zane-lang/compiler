@@ -73,6 +73,18 @@ let subscript w st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
       | _ -> Diagnostic.bug ~span "lowering: a declared subscript with no single place to name")
   | _ -> Diagnostic.bug ~span "lowering: a subscript of no owner it knows"
 
+(* Experimental pooled variants: whether [v]'s function builds its pooled
+   result in a pool its caller gives it, as one more parameter after its
+   own, and returns where the result's top node is in that pool
+   (Lower.into). A verb written out where it is called, or one that can
+   abort or exit, returns its result as before. *)
+let pours st span (v : verb) =
+  v.decl >= 0
+  && pooled st (Tty.strip_mode v.signature.S.ret)
+  && (not (expands v))
+  && Option.is_none (size st v)
+  && plain (outcome st span v)
+
 let rec call w st ctx span verb args handler ret : Expr.t =
   match verb with
   | None -> Diagnostic.bug ~span "lowering: a call to a verb it has no body for"
@@ -177,7 +189,7 @@ and held_argument w ?direct st ctx span v (p : T.Local.t) a =
       let id = fresh st in
       let l = { p with T.Local.id = -id } in
       Hashtbl.replace ctx.env l.T.Local.id
-        (if by_address st v p then Pointer id else slot st p.T.Local.ty id);
+        (if by_address st v p then pointer_binding st v p id else slot st p.T.Local.ty id);
       let read = { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) } in
       ([ Stat.Let { id; value } ], T.Arg.Value read)
   | (T.Arg.Block _ as b), _ -> ([], b)
@@ -291,7 +303,8 @@ and arguments w ?direct st ctx span v args =
    the owner, which Regions decides; a call through a function value, and a
    verb expanded here, which has no function of its own, can always. *)
 and argument w ?(direct = true) st ctx span v (p : T.Local.t) a =
-  if by_address st v p then w.lend st ctx span a
+  if viewed st v p then w.view st ctx span a
+  else if by_address st v p then w.lend st ctx span a
   else if Tty.is_ref p.T.Local.ty then w.reference_to st ctx span a
   else if roaming st p.T.Local.ty then begin
     (if held st span p.T.Local.ty && not (w.is_place a) then
@@ -311,6 +324,29 @@ and argument w ?(direct = true) st ctx span v (p : T.Local.t) a =
    `match` it flows out of, and an exit ends this invocation too. The call
    is to [v]'s function, or through [fn], a function value's address. *)
 and invoke w ?fn st ctx span v args handler =
+  if pours st span v then begin
+    if Option.is_some fn then refuse span "pooled variants: a function value that returns one";
+    poured st span v args
+  end
+  else invoked w ?fn st ctx span v args handler
+
+(* A call to a function that [pours] its result, given a new pool of its
+   own to build it in. *)
+and poured st span v args =
+  let handle = ty st span (Tty.strip_mode v.signature.S.ret) in
+  let h = fresh st and label = fresh st and result = fresh st in
+  let address = ptr (Expr.Address h) in
+  let body =
+    [
+      Stat.Let { id = h; value = { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = handle } };
+      Stat.Eval { Expr.node = Expr.Runtime { fn = Runtime.Pool_new; args = [ address ] }; ty = Nodes.Ty.Void };
+      Stat.Eval { Expr.node = Expr.Call { fn = symbol st v; args = args @ [ address ] }; ty = Nodes.Ty.I64 };
+      Stat.assign result { Expr.node = Expr.Local h; ty = handle };
+    ]
+  in
+  { Expr.node = Expr.Expand { label; body; result = Some result }; ty = handle }
+
+and invoked w ?fn st ctx span v args handler =
   let o = outcome st span v in
   let call =
     match fn with
@@ -406,6 +442,7 @@ and expand w st ctx span v args handler ret =
            | ( T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); T.Expr.ty = at; _ },
                _ )
              when (p.T.Local.name = "this" || (owned st p.T.Local.ty && not (roaming st p.T.Local.ty)))
+                  && (not (viewed st v p))
                   && not (Tty.is_ref at) -> (
                match lookup ctx span l with
                | (Slot _ | Pointer _) as b ->
@@ -426,9 +463,16 @@ and expand w st ctx span v args handler ret =
                   && (not (Tty.is_ref at))
                   && (not (Tty.is_ref p.T.Local.ty))
                   && (not (roaming st p.T.Local.ty))
+                  && (not (viewed st v p))
                   && match lookup ctx span l with Slot _ | Pointer _ -> true | _ -> false ->
                bind p (lookup ctx span l);
                []
+           (* A pooled variant is lent as its node (Type_layout.pooled). *)
+           | T.Arg.Value a, _ when viewed st v p ->
+               let value = w.view st ctx span a in
+               let id = fresh st in
+               bind p (Node id);
+               [ Stat.Let { id; value } ]
            (* Any other place the body may write, or that it borrows, is lent
               by its address. *)
            | T.Arg.Value a, _

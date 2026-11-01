@@ -71,6 +71,28 @@ let bind_local st scope (l : T.Local.t) id value =
 
 let ptr node = { Expr.node; ty = Nodes.Ty.Ptr }
 
+(* The block of the boxed member whose slot [at] is (adt.md §4), and a block
+   on its way into such a slot: stored as a [Box32] with image boxes
+   (experimental; Type_layout.box_type). *)
+let box_block at =
+  match Type_layout.box_type () with
+  | Nodes.Ty.Ptr -> ptr (Expr.Deref at)
+  | t -> ptr (Expr.Convert { Expr.node = Expr.Deref at; ty = t })
+
+let boxed_value (block : Expr.t) =
+  match Type_layout.box_type () with
+  | Nodes.Ty.Ptr -> block
+  | t -> { Expr.node = Expr.Convert block; ty = t }
+
+(* A reference read from a member, element or payload slot, and one on its
+   way into such a slot (Type_layout.ref_slot): [read] is the slot's read,
+   typed as the reference it holds, and [value] the reference. *)
+let loaded_ref ~slot (read : Expr.t) =
+  if slot then ptr (Expr.Convert { read with Expr.ty = Nodes.Ty.Ref }) else read
+
+let stored_ref ~slot (value : Expr.t) =
+  if slot then { Expr.node = Expr.Convert value; ty = Nodes.Ty.Ref } else value
+
 (* `@primitives$Array<T, n>`, and whether an expression is an array
    literal. *)
 let array_type t n =

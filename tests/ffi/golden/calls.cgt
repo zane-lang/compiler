@@ -440,7 +440,7 @@
     │       │   ├── local: #18
     │       │   ├── scope: %4
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
     │       │   └── layout: %primitives$List<%primitives$I64>
@@ -495,7 +495,7 @@
     │       │       │   │       ├── type: f64
     │       │       │   │       ├── fn: app$sum(%primitives$Array<%primitives$F64, 4>, %primitives$List<%primitives$I64>)
     │       │       │   │       ├── args[0]: address of #17 : ptr
-    │       │       │   │       └── args[1]: local #18 : handle
+    │       │       │   │       └── args[1]: local #18 : handle16
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #27
@@ -1655,13 +1655,13 @@
     ├── funcs[8] > func:
     │   ├── symbol: app$sum(%primitives$Array<%primitives$F64, 4>, %primitives$List<%primitives$I64>)
     │   ├── params[0]: local #1 : ptr
-    │   ├── params[1]: local #2 : handle
+    │   ├── params[1]: local #2 : handle16
     │   ├── ret: f64
     │   └── body[0] > return > foreign call:
     │       ├── type: f64
     │       ├── fn: app$sum(%primitives$Array<%primitives$F64, 4>, %primitives$List<%primitives$I64>).ffi
     │       ├── args[0]: local #1 : ptr
-    │       └── args[1]: local #2 : handle
+    │       └── args[1]: local #2 : handle16
     ├── funcs[9] > func:
     │   ├── symbol: app$same(%primitives$Array<%primitives$F64, 4>, %primitives$Array<%primitives$F64, 4>)
     │   ├── params[0]: local #1 : ptr

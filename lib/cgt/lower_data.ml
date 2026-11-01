@@ -17,7 +17,8 @@ open Build
    there, and placed in a block of its own when the member is boxed. *)
 let member w st ctx span holder t (e : T.Expr.t) =
   let value = w.moved st ctx span t e in
-  if boxed st holder t then ptr (Expr.Box { value; layout = layout st span t }) else value
+  if boxed st holder t && not (pooled st t) then boxed_value (ptr (Expr.Box { value; layout = layout st span t }))
+  else stored_ref ~slot:(ref_slot t) value
 
 (* `ArrayRef.fill(n, make)` (generics.md §8.4): a slot this scope holds,
    each element made by calling `make` with its position, counted from 1, in
@@ -54,11 +55,11 @@ let fill w st ctx span (make : T.Expr.t) (t : Tty.t) : Expr.t =
               count = int n;
               body =
                 [
-                  Stat.Let { id = made; value = call };
+                  Stat.Let { id = made; value = stored_ref ~slot:(ref_slot e) call };
                   Stat.Place
                     {
                       address = at;
-                      value = { Expr.node = Expr.Local made; ty = call.Expr.ty };
+                      value = { Expr.node = Expr.Local made; ty = (if ref_slot e then Nodes.Ty.Ref else call.Expr.ty) };
                       layout = layout st span e;
                     };
                   Stat.assign i next;
@@ -118,12 +119,12 @@ let primitive w st ctx span spelling args (t : Tty.t) : Expr.t =
   | "Unit", [] -> { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
   (* A new list is empty, and owns no block until its first `push`. *)
   | ("List" | "ListRef"), [ _ ] ->
-      { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = Nodes.Ty.Handle }
+      { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = Nodes.Ty.list_handle () }
   | "ArrayRef.fill", [ _; T.Arg.Value make ] -> fill w st ctx span make t
   | ("Array" | "ArrayRef" | "ArrayRef.refs" | "ArrayRef.roaming"), [ T.Arg.Value v ] -> (
       match ((literal_of ctx v).T.Expr.node, array_of (Tty.strip_mode t)) with
       | T.Expr.Array_lit values, Some (e, n) when List.length values = n ->
-          let element i v = (i, w.moved st ctx span e v) in
+          let element i v = (i, stored_ref ~slot:(ref_slot e) (w.moved st ctx span e v)) in
           { Expr.node = Expr.Record (List.mapi element values); ty = ty st span t }
       (* A spawned call's literal, made into its array where it was spawned
          (specialized). *)
@@ -189,7 +190,7 @@ let record w st ctx span t (fields : T.Field_value.t list) =
 let named_store st ctx v (p : T.Local.t) (e : T.Expr.t) id =
   let l = { p with T.Local.id = -id } in
   Hashtbl.replace ctx.env l.T.Local.id
-    (if by_address st v p then Pointer id else Type_layout.slot st p.T.Local.ty id);
+    (if by_address st v p then pointer_binding st v p id else Type_layout.slot st p.T.Local.ty id);
   `Arg (T.Arg.Value { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l); ty = l.T.Local.ty })
 
 (* One entry of a field constructor called out of slot order: the lets that

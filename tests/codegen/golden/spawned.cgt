@@ -39,7 +39,7 @@
     │       │   ├── local: #1
     │       │   ├── scope: %2
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
     │       │   └── layout: %primitives$ListRef<%primitives$String>
@@ -485,12 +485,14 @@
     │   ├── symbol: zane.intrinsic.1
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
-    │   └── body[0] > return > member:
+    │   └── body[0] > return > convert:
     │       ├── type: i64
-    │       ├── index: 1
-    │       └── value > deref:
-    │           ├── type: handle
-    │           └── ptr: local #1 : ptr
+    │       └── value > member:
+    │           ├── type: i32
+    │           ├── index: 1
+    │           └── value > deref:
+    │               ├── type: handle16
+    │               └── ptr: local #1 : ptr
     ├── funcs[3] > func:
     │   ├── symbol: spawned$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1

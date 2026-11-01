@@ -127,7 +127,7 @@
     │       │   ├── local: #17
     │       │   ├── scope: %5
     │       │   ├── value > expand:
-    │       │   │   ├── type: {ptr}
+    │       │   │   ├── type: {ref}
     │       │   │   ├── label: @15
     │       │   │   ├── result: #16
     │       │   │   ├── body[0] > let:
@@ -138,8 +138,10 @@
     │       │   │   │   └── value > escape:
     │       │   │   │       ├── exit: @15
     │       │   │   │       ├── value > record:
-    │       │   │   │       │   ├── type: {ptr}
-    │       │   │   │       │   └── members[0] > member 0: local #14 : ptr
+    │       │   │   │       │   ├── type: {ref}
+    │       │   │   │       │   └── members[0] > member 0 > convert:
+    │       │   │   │       │       ├── type: ref
+    │       │   │   │       │       └── value: local #14 : ptr
     │       │   │   │       └── layout: references$Pin<references$Person>
     │       │   │   └── body[2]: leave @15
     │       │   └── layout: references$Pin<references$Person>
@@ -173,10 +175,12 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
     │       │       │       ├── path: 0
-    │       │       │       └── base > member:
+    │       │       │       └── base > convert:
     │       │       │           ├── type: ptr
-    │       │       │           ├── index: 0
-    │       │       │           └── value: local #17 : {ptr}
+    │       │       │           └── value > member:
+    │       │       │               ├── type: ref
+    │       │       │               ├── index: 0
+    │       │       │               └── value: local #17 : {ref}
     │       │       └── right: 5 : i64
     │       ├── body[9] > eval > call:
     │       │   ├── type: void
@@ -289,7 +293,7 @@
     │       │   ├── local: #43
     │       │   ├── scope: %5
     │       │   ├── value > expand:
-    │       │   │   ├── type: {i64, ptr}
+    │       │   │   ├── type: {i64, ref}
     │       │   │   ├── label: @41
     │       │   │   ├── result: #42
     │       │   │   ├── body[0] > let:
@@ -301,7 +305,7 @@
     │       │   │   └── body[2] > assign:
     │       │   │       ├── place: #42
     │       │   │       └── value > expand:
-    │       │   │           ├── type: {i64, ptr}
+    │       │   │           ├── type: {i64, ref}
     │       │   │           ├── label: @39
     │       │   │           ├── result: #40
     │       │   │           ├── body[0] > let:
@@ -312,9 +316,11 @@
     │       │   │           │   └── value > escape:
     │       │   │           │       ├── exit: @39
     │       │   │           │       ├── value > record:
-    │       │   │           │       │   ├── type: {i64, ptr}
+    │       │   │           │       │   ├── type: {i64, ref}
     │       │   │           │       │   ├── members[0] > member 0: local #37 : i64
-    │       │   │           │       │   └── members[1] > member 1: local #38 : ptr
+    │       │   │           │       │   └── members[1] > member 1 > convert:
+    │       │   │           │       │       ├── type: ref
+    │       │   │           │       │       └── value: local #38 : ptr
     │       │   │           │       └── layout: references$Link
     │       │   │           └── body[2]: leave @39
     │       │   └── layout: references$Link
@@ -348,10 +354,12 @@
     │       │       │   └── ptr > offset:
     │       │       │       ├── within: {i64}
     │       │       │       ├── path: 0
-    │       │       │       └── base > member:
+    │       │       │       └── base > convert:
     │       │       │           ├── type: ptr
-    │       │       │           ├── index: 1
-    │       │       │           └── value: local #43 : {i64, ptr}
+    │       │       │           └── value > member:
+    │       │       │               ├── type: ref
+    │       │       │               ├── index: 1
+    │       │       │               └── value: local #43 : {i64, ref}
     │       │       └── right: 6 : i64
     │       ├── body[16] > eval > expand:
     │       │   ├── type: void

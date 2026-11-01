@@ -75,14 +75,15 @@ let reference st t =
   is_list_ref t || is_array_ref t || match definition st t with Some (_, true) -> true | _ -> false
 
 (* The types a type holds inline: its members and payloads, what it is
-   distinct from, and an array's elements. A reference holds an address, and
-   a list's elements are in its block. *)
+   distinct from, and an array's elements. A reference holds an address, a
+   list's elements are in its block, and an array of none holds nothing, so
+   no cycle passes through it. *)
 let inline st t =
   match (definition st t, array_of t) with
   | Some ((T.Decl.Struct ms | T.Decl.Variant ms), _), _ ->
       List.filter (fun m -> not (Tty.is_ref m)) (List.map snd ms)
   | Some (T.Decl.Distinct u, _), _ -> [ u ]
-  | None, Some (e, _) when not (Tty.is_ref e) -> [ e ]
+  | None, Some (e, n) when n > 0 && not (Tty.is_ref e) -> [ e ]
   | _ -> []
 
 (* A walk down a type's members, gone down to [t] (Tty.Growth). Semantics
@@ -101,22 +102,74 @@ let down ?span path t =
    holds it along owning edges, since no finite inline layout exists for it.
    A boxed member is a pointer to its payload's block. Each answer is kept,
    so a long chain of types is walked once per member, not once per use. *)
+let leads_back st ?(through = fun _ -> inline st) holder member =
+  let seen = Hashtbl.create 16 in
+  let rec reaches path t =
+    (not (Tty.is_ref t))
+    && (Tty.equal t holder
+       || (not (Hashtbl.mem seen t))
+          &&
+          (Hashtbl.replace seen t ();
+           List.exists (reaches (down path t)) (through path t)))
+  in
+  reaches Tty.Growth.start member
+
+(* Experimental (docs/experiments/goose-comparison): unless ZANE_ONE_BOX=0
+   in the environment, a cycle is broken by one box, not one per member on it.
+   A variant's payload that leads back to it is boxed as before; a struct's
+   member is boxed only when it leads back without passing through such a
+   payload, since that payload's box already breaks the cycle. *)
+let one_box () = Sys.getenv_opt "ZANE_ONE_BOX" <> Some "0" && Sys.getenv_opt "ZANE_POOLED_VARIANTS" <> Some "1"
+
 let boxed st holder member =
   match Hashtbl.find_opt st.boxes (holder, member) with
   | Some boxed -> boxed
   | None ->
-      let seen = Hashtbl.create 16 in
-      let rec reaches path t =
-        (not (Tty.is_ref t))
-        && (Tty.equal t holder
-           || (not (Hashtbl.mem seen t))
-              &&
-              (Hashtbl.replace seen t ();
-               List.exists (reaches (down path t)) (inline st t)))
+      let boxed =
+        match definition st holder with
+        | Some (T.Decl.Struct _, _) when one_box () ->
+            let through _ t =
+              match definition st t with
+              | Some (T.Decl.Variant cs, _) ->
+                  List.filter_map
+                    (fun (_, c) -> if Tty.is_ref c || leads_back st t c then None else Some c)
+                    cs
+              | _ -> inline st t
+            in
+            leads_back st ~through holder member
+        | _ -> leads_back st holder member
       in
-      let boxed = reaches Tty.Growth.start member in
       Hashtbl.replace st.boxes (holder, member) boxed;
       boxed
+
+(* Experimental (docs/experiments/goose-comparison): with
+   ZANE_POOLED_VARIANTS=1 in the environment, a variant whose payload leads
+   back to it is pooled. Where it is owned it is a root, a list of bytes
+   whose block holds the root node's offset and then every node of the
+   value; inside its pool each node is the variant's sum with its payload
+   inline, and each member of the variant's own type in it is a 32-bit link,
+   the offset from the link to the node it names. *)
+let pooling = Sys.getenv_opt "ZANE_POOLED_VARIANTS" = Some "1"
+
+let unroamed = function Tty.Roaming t -> t | t -> t
+
+let pooled st t =
+  pooling
+  &&
+  let t = unroamed t in
+  match definition st t with
+  | Some (T.Decl.Variant cs, _) -> List.exists (fun (_, c) -> boxed st t c) cs
+  | _ -> false
+
+(* A struct a pooled variant's payload is, inline in its node: one with a
+   member of a pooled variant that leads back to it. *)
+let cycle_struct st t =
+  pooling
+  &&
+  let t = unroamed t in
+  match definition st t with
+  | Some (T.Decl.Struct ms, _) -> List.exists (fun (_, m) -> pooled st m && boxed st t m) ms
+  | _ -> false
 
 (* A value struct of one member is that member (L5), so reading or storing
    the member is reading or storing the struct. *)
@@ -140,10 +193,21 @@ let member_index _st _t slot = slot
    A function value is the address of the function a lambda was lifted to
    (L14). A foreign handle is its C object's pointer and its stamp
    (docs/design/ffi.md F12). *)
+(* A boxed member's type: the address of its block, in 32 bits with image
+   boxes (experimental). *)
+let box_type () = if Ref32.image_boxes () then Nodes.Ty.Box32 else Nodes.Ty.Ptr
+
+(* Experimental (Ref32.frames): a reference stored as a member, an element
+   or a payload, rather than in a local, takes its 32-bit form
+   (Build.stored_ref, Build.loaded_ref). *)
+let ref_slot (t : Tty.t) = Ref32.frames () && Tty.is_ref t
+
 let rec shape st span (t : Tty.t) : Nodes.Ty.t =
   match t with
   | Tty.Roaming t -> shape st span t
-  | _ when is_text t || is_list t -> Nodes.Ty.Handle
+  | _ when is_text t -> Nodes.Ty.Handle
+  | _ when is_list t -> Nodes.Ty.list_handle ()
+  | Tty.Named _ when pooled st t -> Nodes.Ty.list_handle ()
   | Tty.Intrinsic { namespace = "primitives"; name; args = [] } -> (
       match name with
       | "Unit" -> Nodes.Ty.Void
@@ -157,10 +221,17 @@ let rec shape st span (t : Tty.t) : Nodes.Ty.t =
   | Tty.Verb _ -> Nodes.Ty.Ptr
   | Tty.Intrinsic _ when Option.is_some (array_of t) -> (
       match array_of t with
-      | Some (e, n) -> Nodes.Ty.Array (shape st span e, n)
+      (* An array of none holds nothing of its element, which may be the
+         type that holds the array ([inline]). *)
+      | Some (_, 0) -> Nodes.Ty.Array (Nodes.Ty.Void, 0)
+      | Some (e, n) -> Nodes.Ty.Array ((if ref_slot e then Nodes.Ty.Ref else shape st span e), n)
       | None -> unhandled span t)
   | Tty.Named _ -> (
-      let member m = if boxed st t m then Nodes.Ty.Ptr else shape st span m in
+      let member m =
+        if boxed st t m then if pooled st m then Nodes.Ty.list_handle () else box_type ()
+        else if ref_slot m then Nodes.Ty.Ref
+        else shape st span m
+      in
       let sum ts = Nodes.Ty.Sum ts in
       match definition st t with
       | Some (T.Decl.Struct [], false) -> Nodes.Ty.Void
@@ -211,7 +282,7 @@ let ty st span (t : Tty.t) : Nodes.Ty.t =
 
 (* A list's elements lie this many bytes apart. *)
 let stride st span t =
-  let size, align = Nodes.Ty.size_align (ty st span t) in
+  let size, align = Nodes.Ty.size_align (if ref_slot t then Nodes.Ty.Ref else ty st span t) in
   max 1 (Nodes.Ty.round_up size align)
 
 (* A foreign handle type's free and set thunks (docs/design/ffi.md F8),
@@ -255,16 +326,18 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
   let positions = positions ~path and layout = layout ~path in
   let at kind size = { Layout.kind; offset = base; size; tags } in
   let handle = fst (Nodes.Ty.size_align Nodes.Ty.Handle) in
+  let list_handle = fst (Nodes.Ty.size_align (Nodes.Ty.list_handle ())) in
   match (t, element t) with
   | Tty.Reference _, _ -> []
   | Tty.Roaming t, _ -> positions st span t base tags
   | _, Some e ->
       let elements = layout st span e in
-      [ at (Layout.List { stride = stride st span e; elements }) handle ]
+      [ at (Layout.List { stride = stride st span e; elements }) list_handle ]
   | _ when is_text t -> [ at Layout.Text handle ]
+  | _ when pooled st t -> [ at (Layout.List { stride = 1; elements = pool_bytes st }) list_handle ]
   | Tty.Intrinsic _, _ when Option.is_some (array_of t) -> (
       let e, n = Option.get (array_of t) in
-      match positions st span e 0 [] with
+      match if n = 0 then [] else positions st span e 0 [] with
       | [] -> []
       | ps ->
           (* The element's positions are its layout's, so they are kept as
@@ -288,16 +361,19 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
       | Some (definition, _) -> (
           let lowered = ty st span t in
           let member m base tags =
-            if boxed st t m then
+            if boxed st t m && pooled st m then positions st span m base tags
+            else if boxed st t m then
               let size = fst (Nodes.Ty.size_align (ty st span m)) in
               let payload = layout st span m in
-              [ { Layout.kind = Layout.Box { size; payload }; offset = base; size = 8; tags } ]
+              [ { Layout.kind = Layout.Box { size; payload }; offset = base; size = fst (Nodes.Ty.size_align (box_type ())); tags } ]
             else positions st span m base tags
           in
           let variant cs sum =
             List.concat
               (List.mapi
-                 (fun i (_, c) -> member c (sum + Nodes.Ty.payload_offset) (tags @ [ (sum, i) ]))
+                 (fun i (_, c) ->
+                   let tag = match lowered with Nodes.Ty.Sum ts when Nodes.Ty.niche ts -> Layout.niche_tag i | _ -> i in
+                   member c (sum + Nodes.Ty.payload_at lowered) (tags @ [ (sum, tag) ]))
                  cs)
           in
           match (definition, lowered) with
@@ -307,6 +383,15 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
           | T.Decl.Variant cs, Nodes.Ty.Sum _ -> variant cs base
           | _ -> [])
       | None -> [])
+
+(* The layout of a pool's bytes, which own nothing a walk follows. *)
+and pool_bytes st =
+  let name = "zane.pool" in
+  if not (Hashtbl.mem st.layouts name) then begin
+    Hashtbl.replace st.layouts name [];
+    st.named <- name :: st.named
+  end;
+  name
 
 (* A type's layout, by the type's symbol (Symbol.ty), which is also the name
    of its table in the IR. A layout that names itself, through a box, finds
@@ -319,6 +404,80 @@ and layout ?path st span (t : Tty.t) : Layout.t =
     st.named <- name :: st.named
   end;
   name
+
+(* Experimental packed nodes (`ZANE_PACKED_NODES=1`): a node's sum and the
+   payload struct inside it with no padding, the tag one byte. *)
+let packed_nodes () = Sys.getenv_opt "ZANE_PACKED_NODES" = Some "1"
+
+let packing t = if packed_nodes () then Nodes.Ty.Packed t else t
+
+(* A pooled variant [p]'s node: its sum, each payload inline, a member of
+   [p]'s type a link. The prototype pools only a variant whose payloads are
+   [p] itself, a struct whose members of a pooled type are [p], or a type
+   that owns no block, so a node owns nothing outside its pool. *)
+let node_shape st span p =
+  let p = unroamed p in
+  let plain m =
+    if positions st span m 0 [] <> [] then
+      refuse span
+        (Printf.sprintf "pooled variants: `%s` holds `%s`, which owns a block" (Tty.to_string p) (Tty.to_string m));
+    shape st span m
+  in
+  let link m =
+    if not (Tty.equal (unroamed m) p) then
+      refuse span (Printf.sprintf "pooled variants: `%s` links to another pooled type" (Tty.to_string p));
+    Nodes.Ty.I32
+  in
+  let payload c =
+    if pooled st c then link c
+    else if cycle_struct st c then
+      match definition st (unroamed c) with
+      | Some (T.Decl.Struct ms, _) ->
+          packing (Nodes.Ty.Struct (List.map (fun (_, m) -> if pooled st m then link m else plain m) ms))
+      | _ -> unhandled span c
+    else plain c
+  in
+  match definition st p with
+  | Some (T.Decl.Variant cs, _) -> packing (Nodes.Ty.Sum (List.map (fun (_, c) -> payload c) cs))
+  | _ -> unhandled span p
+
+(* The node form of a payload or member type: a pooled variant's own node,
+   a cycle struct's members with its links, or the type's own shape. *)
+let node_ty st span t =
+  if pooled st t then node_shape st span t
+  else if cycle_struct st t then
+    match definition st (unroamed t) with
+    | Some (T.Decl.Struct ms, _) ->
+        packing (Nodes.Ty.Struct (List.map (fun (_, m) -> if pooled st m then Nodes.Ty.I32 else shape st span m) ms))
+    | _ -> unhandled span t
+  else ty st span t
+
+(* Where a pooled variant's nodes keep their links, for the runtime's
+   copy of a subtree: for each of the first four cases, a mask with a bit
+   set for each byte of the node a link starts at. *)
+let node_masks st span p =
+  let p = unroamed p in
+  let node = node_shape st span p in
+  let size = fst (Nodes.Ty.size_align node) in
+  if size > 64 then refuse span "pooled variants: a node past 64 bytes";
+  let word off = Int64.shift_left 1L (Nodes.Ty.payload_at node + off) in
+  let mask c =
+    if pooled st c then word 0
+    else if cycle_struct st c then
+      match (definition st (unroamed c), node_ty st span c) with
+      | Some (T.Decl.Struct ms, _), inner ->
+          List.fold_left2
+            (fun acc (_, m) off -> if pooled st m then Int64.logor acc (word off) else acc)
+            0L ms (Nodes.Ty.member_offsets inner)
+      | _ -> 0L
+    else 0L
+  in
+  match definition st p with
+  | Some (T.Decl.Variant cs, _) ->
+      let masks = List.map (fun (_, c) -> mask c) cs in
+      List.iteri (fun i m -> if i >= 4 && m <> 0L then refuse span "pooled variants: links past the fourth case") masks;
+      List.init 4 (fun i -> match List.nth_opt masks i with Some m -> m | None -> 0L)
+  | _ -> unhandled span p
 
 (* Whether a local of this type is an owner: a reference type's instance
    lives in its scope's arena (memory.md §3.3). A reference is an address,

@@ -3,7 +3,10 @@
    doubling makes more of it usable rather than moving the elements. An
    oversized block made without one, by a copy, moves into one at its next
    doubling. Where the reservation cannot be made, the block is reserved
-   alone and each doubling moves it, as a smaller block's does. */
+   alone and each doubling moves it, as a smaller block's does. A block
+   moved out of gives its memory back, so a list never holds its old
+   elements' bytes beside its new ones, and a drained list's reservation
+   stays mapped for the next list to grow into. */
 
 #include "walks.h"
 
@@ -22,10 +25,18 @@
 #include <sys/wait.h>
 #endif
 
+#ifdef __linux__
+#include <fcntl.h>
+#include <stdint.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
+
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
-/* The elements that fill 1 MiB, the first oversized size, and 32 MiB. */
-enum { SMALL = 1 << 17, LARGE = 1 << 22 };
+/* The elements that fill 1 MiB, the first oversized size, 32 MiB, and
+   64 MiB, the most the first oversized block's reservation holds. */
+enum { SMALL = 1 << 17, LARGE = 1 << 22, FULL = 1 << 23 };
 
 static void fill(zane_list *list, int64_t to) {
 	for (int64_t i = list->count + 1; i <= to; i++) *(int64_t *)zane_list_push(list, sizeof(int64_t)) = i;
@@ -60,8 +71,8 @@ static void exercise_in_place(void) {
 	check(zane_blocks() == 0 && *zane_page(block, 0) == 0 && *zane_page(last, 0) == 0);
 }
 
-/* A copy's oversized block is the copy's size alone, so its first doubling
-   moves it into a reservation, where the next grows in place. */
+/* A copy's oversized block takes a reservation as a growing list's does
+   (zane_alloc_held), so it grows in place from its first doubling. */
 static void exercise_copy(void) {
 	zane_mark *scope = zane_scope_enter(0);
 	zane_list *list = new_list(scope);
@@ -73,7 +84,106 @@ static void exercise_copy(void) {
 	fill(copy, SMALL + 1);
 	char *moved = copy->items;
 	fill(copy, 4 * SMALL);
-	check(moved != copied && copy->items == moved && intact(copy, 4 * SMALL) && intact(list, SMALL));
+	check(moved == copied && copy->items == moved && intact(copy, 4 * SMALL) && intact(list, SMALL));
+	zane_scope_drain(scope);
+	check(zane_blocks() == 0);
+}
+
+#ifdef __linux__
+/* The lines of /proc/self/smaps for the mappings that meet [lo, hi), on
+   stderr. */
+static void smaps_around(uintptr_t lo, uintptr_t hi) {
+	FILE *f = fopen("/proc/self/smaps", "r");
+	if (!f) return;
+	char line[512];
+	int in = 0;
+	while (fgets(line, sizeof line, f)) {
+		unsigned long start, end;
+		if (sscanf(line, "%lx-%lx ", &start, &end) == 2)
+			in = start < hi && end > lo;
+		if (in) fputs(line, stderr);
+	}
+	fclose(f);
+}
+
+/* Whether none of the pages from `at`, `bytes` long, holds memory of its
+   own: in /proc/self/pagemap, a page a table maps has bit 63 set, and one
+   mapped to this process alone bit 56. A given-back page that is read
+   again maps the system's shared zero page, present but not exclusive, and
+   smaps' Rss does not count it; the runners' kernels show such pages, so
+   presence alone is not asked. */
+static int given_back(char *at, size_t bytes) {
+	size_t page = (size_t)sysconf(_SC_PAGESIZE), pages = bytes / page;
+	uint64_t *entries = malloc(pages * sizeof *entries);
+	unsigned char *resident = malloc(pages);
+	int map = open("/proc/self/pagemap", O_RDONLY);
+	ssize_t want = (ssize_t)(pages * sizeof *entries);
+	int read_all = entries && resident && map >= 0 &&
+	               pread(map, entries, (size_t)want, (off_t)((uintptr_t)at / page * sizeof *entries)) == want;
+	if (map >= 0) close(map);
+	if (!read_all) {
+		free(entries);
+		free(resident);
+		return 0;
+	}
+	size_t kept = 0;
+	for (size_t i = 0; i < pages; i++) kept += resident[i] = (unsigned char)((entries[i] >> 63) & (entries[i] >> 56) & 1);
+	free(entries);
+	/* On stderr, outside the golden output: what stayed, and the mappings
+	   it is in, to tell a page the runtime missed from one the system
+	   brought back. */
+	if (kept) {
+		fprintf(stderr, "given_back: %zu of %zu pages resident from %p:", kept, pages, (void *)at);
+		for (size_t i = 0, runs = 0; i < pages && runs < 8;) {
+			if (!(resident[i] & 1)) {
+				i++;
+				continue;
+			}
+			size_t j = i;
+			while (j < pages && (resident[j] & 1)) j++;
+			fprintf(stderr, " [%zu, %zu)", i, j);
+			i = j;
+			runs++;
+		}
+		fputc('\n', stderr);
+		smaps_around((uintptr_t)at, (uintptr_t)at + pages * page);
+	}
+	free(resident);
+	return kept == 0;
+}
+
+/* A list that outgrows its block's reservation moves into a new one, and
+   the pages of the block it left, all but the first, which holds the
+   block's header, are given back at once rather than when its scope
+   drains. */
+static void exercise_move_out(void) {
+	zane_mark *scope = zane_scope_enter(0);
+	zane_list *list = new_list(scope);
+	fill(list, FULL);
+	char *block = list->items;
+	size_t page = (size_t)sysconf(_SC_PAGESIZE);
+	char *header = block - ZANE_LINE;
+	fill(list, FULL + 1);
+	check(list->items != block && intact(list, FULL + 1));
+	/* The whole mapping past its header's page, its rounded tail too. */
+	check(given_back(header + page, ((zane_mapping *)header)->size - page));
+	zane_scope_drain(scope);
+	check(zane_blocks() == 0);
+}
+#endif
+
+/* A drained list's reservation stays mapped, and the next list to grow
+   past 1 MiB, in a later scope, grows into it. */
+static void exercise_warm(void) {
+	zane_mark *scope = zane_scope_enter(0);
+	zane_list *list = new_list(scope);
+	fill(list, 2 * SMALL);
+	char *block = list->items;
+	zane_scope_drain(scope);
+	scope = zane_scope_enter(0);
+	list = new_list(scope);
+	fill(list, 2 * SMALL);
+	check(list->items == block && intact(list, 2 * SMALL));
 	zane_scope_drain(scope);
 	check(zane_blocks() == 0);
 }
@@ -86,6 +196,7 @@ static int without_reservation(void) {
 	fflush(stdout);
 	pid_t child = fork();
 	if (child == 0) {
+		zane_give_spares(zane_self);
 		struct rlimit limit;
 		if (getrlimit(RLIMIT_AS, &limit) != 0) _exit(2);
 		rlim_t budget = (rlim_t)96 * 1024 * 1024 + (rlim_t)(zane_self->limit + ZANE_GUARD - zane_self->base);
@@ -108,6 +219,14 @@ static int without_reservation(void) {
 void zane_main(void) {
 	exercise_in_place();
 	exercise_copy();
+#ifdef __linux__
+	exercise_move_out();
+#else
+	check(1);
+	check(1);
+	check(1);
+#endif
+	exercise_warm();
 #if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 	check(without_reservation());
 #else

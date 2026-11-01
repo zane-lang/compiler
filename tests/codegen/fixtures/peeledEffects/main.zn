@@ -1,0 +1,47 @@
+/// A `mut` method that writes its subject's field before choosing between a
+/// cheap return and a call. An optimized build copies a function's cheap way
+/// out into its callers; a write through the subject is not part of that
+/// copy, so the call that follows makes it once, not twice. Each check
+/// prints `yes` when it holds and `no` when it does not.
+package peeledEffects;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+type Steps = variant {
+	done Unit;
+	more Steps;
+}
+
+type Counter = struct {
+	n Int;
+}
+
+Counter(n Int) => init{ n; }
+
+/// Counts one for itself and one for each step after it.
+Int step(this Counter, s Steps) mut {
+	this.n = @operators$add(this.n, Int(1));
+	return match (s) {
+		d done => this.n;
+		m more => this!step(m);
+	}
+}
+
+Unit main() {
+	c Counter(Int(0));
+	check(@operators$equal(c!step(Steps.done(Unit())), Int(1)));
+	check(@operators$equal(c!step(Steps.more(Steps.more(Steps.done(Unit())))), Int(4)));
+	check(@operators$equal(c.n, Int(4)));
+	return Unit();
+}

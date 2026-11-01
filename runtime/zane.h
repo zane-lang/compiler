@@ -19,10 +19,46 @@ typedef struct {
 	int64_t length, room;
 } zane_text;
 
+#if defined(ZANE_FRAME_REFS)
+/* Experimental (docs/experiments/goose-comparison): the items a pointer,
+   and the count and the room in 32 bits each, the room counted in elements
+   (ZL_ELEMENTS), so a list holds at most 2^32 - 1 elements. */
+typedef struct {
+	char *items;
+	uint32_t count, room;
+} zane_list;
+#define ZL_ITEMS(l) ((l)->items)
+#define ZL_SET_ITEMS(l, p) ((l)->items = (p))
+#define ZL_MAKE(p, c, r) ((zane_list){ (p), (uint32_t)(c), (uint32_t)(r) })
+#else
 typedef struct {
 	char *items;
 	int64_t count, room;
 } zane_list;
+#define ZL_ITEMS(l) ((l)->items)
+#define ZL_SET_ITEMS(l, p) ((l)->items = (p))
+#define ZL_MAKE(p, c, r) ((zane_list){ (p), (c), (r) })
+#endif
+#define ZL_COUNT(l) ((int64_t)(l)->count)
+#define ZL_ROOM(l) ((int64_t)(l)->room)
+
+/* What a list's room counts: its elements with frame references, else its
+   bytes. A block of `room` elements `stride` bytes wide is that many bytes
+   rounded up to a word, the same for every allocation and return of it. A
+   pool, a list of bytes, is counted the same either way. */
+#ifdef ZANE_FRAME_REFS
+#define ZL_ELEMENTS 1
+#else
+#define ZL_ELEMENTS 0
+#endif
+static inline int64_t zl_unit(int64_t stride) { return ZL_ELEMENTS ? stride : 1; }
+static inline int64_t zl_block_bytes(int64_t room, int64_t stride) {
+	return ZL_ELEMENTS ? (room * stride + 7) / 8 * 8 : room;
+}
+#define ZL_ROOM_BYTES(l, stride) zl_block_bytes(ZL_ROOM(l), stride)
+/* Whether the list's block holds `n` more elements `stride` bytes wide. */
+#define ZL_FITS(l, n, stride) \
+	(ZL_ELEMENTS ? ZL_COUNT(l) + (n) <= ZL_ROOM(l) : (ZL_COUNT(l) + (n)) * (stride) <= ZL_ROOM(l))
 
 /* A scope's region, and the jobs of one walk over a value's blocks: what a
    walk is handed, kept opaque here. */
@@ -100,9 +136,21 @@ void zane_overwrite_settled(char *slot, char *incoming, int64_t size, const zane
 void zane_list_new(zane_list *out);
 void *zane_list_push(zane_list *list, int64_t stride);
 void *zane_list_reserve(zane_list *list, int64_t stride, int64_t n);
+void zane_list_room(zane_list *list, int64_t stride, int64_t n);
 void *zane_list_at(zane_list *list, int64_t index, int64_t stride);
 void zane_list_remove(zane_list *list, int64_t index, int64_t stride);
 void zane_list_swap_remove(zane_list *list, int64_t index, int64_t stride);
+/* Experimental pooled variants (runtime/list.c). */
+char *zane_pool_root(zane_list *pool, int64_t size);
+char *zane_link(char *link);
+void zane_pool_copy(zane_list *out, const char *node, int64_t size, int64_t m0, int64_t m1, int64_t m2,
+                    int64_t m3);
+void zane_pool_new(zane_list *out);
+void zane_pool_reserve(zane_list *pool, int64_t total);
+void zane_pool_new_unbounded(zane_list *out);
+int64_t zane_pool_push(zane_list *pool, const char *node, int64_t size, int64_t n, int64_t o0, int64_t l0,
+                       int64_t o1, int64_t l1, int64_t o2, int64_t l2, int64_t o3, int64_t l3);
+int64_t zane_pool_append(zane_list *pool, zane_list *from, int64_t size);
 void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride);
 void zane_out_of_range(void);
 

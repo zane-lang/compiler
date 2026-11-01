@@ -128,7 +128,9 @@ static void zane_check(zane_mark *m) {
 		zane_free((char *)r, (int64_t)sizeof *r + r->size, 8);
 	}
 	zane_handle_jobs_drop(&replaced);
+#ifndef ZANE_BUMP_REGIONS
 	if (m->heap.live != 0) zane_broken("a dynamic block outlived its owner");
+#endif
 }
 
 /* What a drain ends: everything a checked drain returns, and otherwise
@@ -197,7 +199,7 @@ static void zane_join_task(zane_task *t) {
 	if (waits) zane_waited();
 	if (t->size) {
 		memcpy(t->dest, t->frame, (size_t)t->size);
-		zane_arrive(t->dest, t->type);
+		zane_move(t->dest, t->type, zane_region_at(t->dest), 0);
 	}
 	zane_release(t->context);
 	t->owner->shared--;

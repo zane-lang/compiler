@@ -205,23 +205,119 @@
     │       │       └── body[1] > assign:
     │       │           ├── place: #23
     │       │           └── value: local #21 : handle
-    │       ├── body[8] > eval > runtime:
+    │       ├── body[8] > hold:
+    │       │   ├── local: #24
+    │       │   ├── scope: %2
+    │       │   ├── value > expand:
+    │       │   │   ├── type: handle16
+    │       │   │   ├── label: @48
+    │       │   │   ├── result: #49
+    │       │   │   └── body[0] > assign:
+    │       │   │       ├── place: #49
+    │       │   │       └── value > runtime:
+    │       │   │           ├── type: handle16
+    │       │   │           ├── fn: zane_list_new
+    │       │   │           └── args:
+    │       │   └── layout: %primitives$List<%primitives$I64>
+    │       ├── body[9] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── fn: zane_print
-    │       │   └── args[0]: "4321" : handle
-    │       ├── body[9] > eval > runtime:
+    │       │   ├── label: @27
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #25
+    │       │   │   └── value: 3 : i64
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #26
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #24 : ptr
+    │       │   │       └── args[1]: 8 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #26 : ptr
+    │       │       ├── value: 3 : i64
+    │       │       └── layout: %primitives$I64
+    │       ├── body[10] > eval > expand:
     │       │   ├── type: void
-    │       │   ├── fn: zane_print
-    │       │   └── args[0]: "\n" : handle
-    │       ├── body[10] > eval > runtime:
+    │       │   ├── label: @30
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #28
+    │       │   │   └── value: 1 : i64
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #29
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #24 : ptr
+    │       │   │       └── args[1]: 8 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #29 : ptr
+    │       │       ├── value: 1 : i64
+    │       │       └── layout: %primitives$I64
+    │       ├── body[11] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @33
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #31
+    │       │   │   └── value: 4 : i64
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #32
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #24 : ptr
+    │       │   │       └── args[1]: 8 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #32 : ptr
+    │       │       ├── value: 4 : i64
+    │       │       └── layout: %primitives$I64
+    │       ├── body[12] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @36
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #34
+    │       │   │   └── value: 2 : i64
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #35
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #24 : ptr
+    │       │   │       └── args[1]: 8 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #35 : ptr
+    │       │       ├── value: 2 : i64
+    │       │       └── layout: %primitives$I64
+    │       ├── body[13] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: folding$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @38
+    │       │       ├── result: #39
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #37
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: folding$sorted(%primitives$Bool[%primitives$I64, %primitives$I64], %primitives$List<%primitives$I64>)
+    │       │       │   │       ├── args[0]: function folding$main()$lambda1
+    │       │       │   │       └── args[1]: local #24 : handle16
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #39
+    │       │           └── value: local #37 : handle
+    │       ├── body[14] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "FOLDED" : handle
-    │       ├── body[11] > eval > runtime:
+    │       ├── body[15] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "\n" : handle
-    │       └── body[12] > return: unit : void
+    │       └── body[16] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: folding$checksum(%primitives$String)
     │   ├── params[0]: local #1 : handle
@@ -317,13 +413,13 @@
     ├── funcs[8] > func:
     │   ├── symbol: folding$sorted(%primitives$Bool[%primitives$I64, %primitives$I64], %primitives$List<%primitives$I64>)
     │   ├── params[0]: local #1 : ptr
-    │   ├── params[1]: local #2 : handle
+    │   ├── params[1]: local #2 : handle16
     │   ├── ret: i64
     │   └── body[0] > return > foreign call:
     │       ├── type: i64
     │       ├── fn: folding$sorted(%primitives$Bool[%primitives$I64, %primitives$I64], %primitives$List<%primitives$I64>).ffi
     │       ├── args[0]: local #1 : ptr
-    │       └── args[1]: local #2 : handle
+    │       └── args[1]: local #2 : handle16
     ├── funcs[9] > func:
     │   ├── symbol: folding$shout(%primitives$String)
     │   ├── params[0]: local #1 : handle

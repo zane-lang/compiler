@@ -54,8 +54,8 @@ let functions fs =
 let size_steps (t : Ty.t) =
   match t with
   (* Scalars are smaller than a step's worth of bytes. *)
-  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle | Ty.Ptr -> 0
-  | Ty.Struct _ | Ty.Array _ | Ty.Sum _ -> fst (Ty.size_align t) / 64
+  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> 0
+  | Ty.Struct _ | Ty.Array _ | Ty.Sum _ | Ty.Packed _ -> fst (Ty.size_align t) / 64
 
 (* The weight a body may have and still be run again rather than
    remembered: a node each, and the steps of each aggregate it makes or
@@ -341,9 +341,9 @@ let offset (p : ptr) within path =
     List.fold_left
       (fun (steps, t) i ->
         match t with
-        | Ty.Struct ts -> (Member i :: steps, List.nth ts i)
-        | Ty.Sum ts when List.nth ts i = Ty.Void -> (steps, Ty.Void)
-        | Ty.Sum ts -> (Payload i :: steps, List.nth ts i)
+        | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> (Member i :: steps, List.nth ts i)
+        | (Ty.Sum ts | Ty.Packed (Ty.Sum ts)) when List.nth ts i = Ty.Void -> (steps, Ty.Void)
+        | Ty.Sum ts | Ty.Packed (Ty.Sum ts) -> (Payload i :: steps, List.nth ts i)
         | _ -> stop "an offset through something not a struct")
       ([], within) path
   in
@@ -548,6 +548,7 @@ let convert (from : Ty.t) (into : Ty.t) v =
       if Float.is_nan a then VInt 0L
       else if Scalar.truncates_into ~from into a then VInt (Int64.of_float (Float.trunc a))
       else VInt (if a < 0. then least else most)
+  | (Ty.Ptr | Ty.Ref | Ty.Box32), (Ty.Ptr | Ty.Ref | Ty.Box32), ((VPtr _ | VNull) as v) -> v
   | _ -> stop "a conversion of a value it does not convert"
 
 (* ---------------------------------------------------------------------- *)

@@ -970,7 +970,7 @@
     │       │   ├── local: #2
     │       │   ├── scope: %3
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_list_new
     │       │   │   └── args:
     │       │   └── layout: %primitives$List<%primitives$I64>
@@ -996,10 +996,12 @@
     │       └── body[2] > return > binary:
     │           ├── type: i64
     │           ├── op: *
-    │           ├── left > member:
+    │           ├── left > convert:
     │           │   ├── type: i64
-    │           │   ├── index: 1
-    │           │   └── value: local #2 : handle
+    │           │   └── value > member:
+    │           │       ├── type: i32
+    │           │       ├── index: 1
+    │           │       └── value: local #2 : handle16
     │           └── right: local #1 : i64
     ├── funcs[14] > func:
     │   ├── symbol: functions$onThreads(%primitives$I64[%primitives$I64], %primitives$I64)
@@ -1288,12 +1290,12 @@
     │       └── right: 1 : i64
     ├── funcs[32] > func:
     │   ├── symbol: functions$main()$lambda17
-    │   ├── params[0]: local #1 : {i64, ptr}
+    │   ├── params[0]: local #1 : {i64, box32}
     │   ├── ret: i64
     │   └── body[0] > return > member:
     │       ├── type: i64
     │       ├── index: 0
-    │       └── value: local #1 : {i64, ptr}
+    │       └── value: local #1 : {i64, box32}
     ├── funcs[33] > func:
     │   ├── symbol: functions$main()$lambda7
     │   ├── params[0]: local #1 : i64

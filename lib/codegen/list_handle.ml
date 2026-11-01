@@ -1,0 +1,198 @@
+(* A list's handle, read and written field by field: its items, its count
+   of elements and its room. With frame references (experimental,
+   docs/experiments/goose-comparison) the items are a pointer and the count
+   and the room take 32 bits each, the room counted in elements
+   ([elements]); otherwise the handle is a pointer and two 64-bit integers,
+   the room in bytes. The fields read as a pointer and two `i64`s either
+   way. [tag] marks each load and store the way the caller marks a handle's
+   accesses. *)
+
+(* Whether the count and the room take 32 bits. *)
+let on () = Cgt.Ref32.frames ()
+
+let header ctx =
+  let i64 = Llvm.i64_type ctx and i32 = Llvm.i32_type ctx in
+  if on () then Llvm.struct_type ctx [| Llvm.pointer_type ctx; i32; i32 |]
+  else Llvm.struct_type ctx [| Llvm.pointer_type ctx; i64; i64 |]
+
+let field ctx b h i = Llvm.build_struct_gep (header ctx) h i "" b
+
+let narrow ctx b v = Llvm.build_trunc v (Llvm.i32_type ctx) "" b
+let widen ctx b v = Llvm.build_zext v (Llvm.i64_type ctx) "" b
+
+(* The program image's start, which a frame reference counts from
+   (runtime/region.c): a symbol the linker defines, hidden so that its
+   address is computed relative to the code, without a load. *)
+let image b =
+  let m = Llvm.global_parent (Llvm.block_parent (Llvm.insertion_block b)) in
+  match Llvm.lookup_global "__ehdr_start" m with
+  | Some g -> g
+  | None ->
+      let g = Llvm.declare_global (Llvm.i8_type (Llvm.module_context m)) "__ehdr_start" m in
+      Llvm.set_visibility Llvm.Visibility.Hidden g;
+      g
+
+(* With `ZANE_FRAME_REFS_CHECK=1` when compiling, an encoded frame
+   reference is checked to fit 32 bits, and the program traps if not. *)
+let checked () = Sys.getenv_opt "ZANE_FRAME_REFS_CHECK" = Some "1"
+
+(* A reference from its 32-bit form, and the 32-bit form of a reference:
+   its distance from the image. *)
+let decode ctx b v = Llvm.build_gep (Llvm.i8_type ctx) (image b) [| Llvm.build_sext v (Llvm.i64_type ctx) "" b |] "" b
+
+(* [v], the 32-bit form of [distance], once checked to hold all of it
+   when [checked]: the program traps if not. *)
+let fitting ctx b v distance =
+  let i64 = Llvm.i64_type ctx in
+  if checked () then begin
+    let fn = Llvm.block_parent (Llvm.insertion_block b) in
+    let bad = Llvm.append_block ctx "" fn and good = Llvm.append_block ctx "" fn in
+    let fits = Llvm.build_icmp Llvm.Icmp.Eq (Llvm.build_sext v i64 "" b) distance "" b in
+    ignore (Llvm.build_cond_br fits good bad b);
+    Llvm.position_at_end bad b;
+    let m = Llvm.global_parent fn in
+    let t = Llvm.function_type (Llvm.void_type ctx) [||] in
+    let trap = match Llvm.lookup_function "llvm.trap" m with Some f -> f | None -> Llvm.declare_function "llvm.trap" t m in
+    ignore (Llvm.build_call t trap [||] "" b);
+    ignore (Llvm.build_unreachable b);
+    Llvm.position_at_end good b
+  end;
+  v
+
+let encode ctx b p =
+  let i64 = Llvm.i64_type ctx in
+  let distance = Llvm.build_sub (Llvm.build_ptrtoint p i64 "" b) (Llvm.build_ptrtoint (image b) i64 "" b) "" b in
+  fitting ctx b (narrow ctx b distance) distance
+
+let items ?(tag = Fun.id) ctx b h = tag (Llvm.build_load (Llvm.pointer_type ctx) (field ctx b h 0) "" b)
+
+let integer ?(tag = Fun.id) ctx b h i =
+  if on () then widen ctx b (tag (Llvm.build_load (Llvm.i32_type ctx) (field ctx b h i) "" b))
+  else tag (Llvm.build_load (Llvm.i64_type ctx) (field ctx b h i) "" b)
+
+let count ?tag ctx b h = integer ?tag ctx b h 1
+
+(* The count as stored, 32 bits with frame references, and the count one
+   past it stored, for a push into a block with room for it, so the sum
+   fits the stored width. The push adds at that width with no unsigned
+   wrap, which LLVM widens back to 64 bits for the next push's address;
+   added at 64 bits and cut to 32, the next push would see a value of 33
+   bits cut short, whose address LLVM cannot fold. *)
+let count_stored ?(tag = Fun.id) ctx b h =
+  let t = if on () then Llvm.i32_type ctx else Llvm.i64_type ctx in
+  tag (Llvm.build_load t (field ctx b h 1) "" b)
+
+let widen_count ctx b v = if on () then widen ctx b v else v
+let room ?tag ctx b h = integer ?tag ctx b h 2
+
+let set_items ?(tag = Fun.id) ctx b p h =
+  ignore (tag (Llvm.build_store p (field ctx b h 0) b))
+
+let set_integer ?(tag = Fun.id) ctx b v h i =
+  ignore (tag (Llvm.build_store (if on () then narrow ctx b v else v) (field ctx b h i) b))
+
+let set_count ?tag ctx b v h = set_integer ?tag ctx b v h 1
+let set_count_after ?(tag = Fun.id) ctx b stored h =
+  let next = Llvm.build_nuw_add stored (Llvm.const_int (Llvm.type_of stored) 1) "" b in
+  ignore (tag (Llvm.build_store next (field ctx b h 1) b))
+
+(* Whether a list's room counts its elements, as with frame references,
+   rather than its bytes (runtime/zane.h, ZL_ELEMENTS). *)
+let elements () = Cgt.Ref32.frames ()
+
+(* The room, in a list's unit, of a block of [bytes] bytes of elements
+   [stride] wide, and the bytes of a block of [room] units: the bytes the
+   block was taken with, to return it with. Constants both. *)
+let units ~bytes ~stride = if elements () then bytes / stride else bytes
+let block_bytes ~room ~stride = if elements () then (room * stride + 7) / 8 * 8 else room
+
+(* The bytes of the block of the list at [h], whose elements are [stride]
+   bytes wide, an [i64] constant. *)
+let room_bytes ?tag ctx b h stride =
+  let r = integer ?tag ctx b h 2 in
+  if elements () then
+    let i64 = Llvm.i64_type ctx in
+    Llvm.build_and
+      (Llvm.build_add (Llvm.build_mul r stride "" b) (Llvm.const_int i64 7) "" b)
+      (Llvm.const_int i64 (-8)) "" b
+  else r
+let set_room ?tag ctx b v h = set_integer ?tag ctx b v h 2
+
+(* A boxed member's block in 32 bits with image boxes ([Nodes.Ty.Box32]):
+   its signed distance from the image in 8-byte units, which the window the
+   runtime takes its chunks from keeps within 16 GiB (runtime/region.c). 0
+   is null, since no block starts at the image. [decode_box] reads a box
+   known to be set; [nullable] decodes 0 to null, for the walks. *)
+(* A runtime table the emitted code reads, declared hidden so that its
+   address is computed relative to the code. *)
+let table b name =
+  let m = Llvm.global_parent (Llvm.block_parent (Llvm.insertion_block b)) in
+  match Llvm.lookup_global name m with
+  | Some g -> g
+  | None ->
+      let g = Llvm.declare_global (Llvm.i8_type (Llvm.module_context m)) name m in
+      Llvm.set_visibility Llvm.Visibility.Hidden g;
+      g
+
+(* With chunk boxes, a box is its MiB's number, above 17 bits of offset in
+   8-byte units: the number picks the MiB's start from `zane_mib_bases`,
+   and `zane_mib_ids` gives the number of the MiB at an address's bits from
+   20 up (runtime/arena.c). *)
+let decode_chunk ctx b v =
+  let i64 = Llvm.i64_type ctx and i32 = Llvm.i32_type ctx in
+  let id = Llvm.build_zext (Llvm.build_lshr v (Llvm.const_int i32 17) "" b) i64 "" b in
+  let base =
+    Llvm.build_load (Llvm.pointer_type ctx)
+      (Llvm.build_gep (Llvm.pointer_type ctx) (table b "zane_mib_bases") [| id |] "" b) "" b
+  in
+  let offset =
+    Llvm.build_shl (Llvm.build_zext (Llvm.build_and v (Llvm.const_int i32 0x1FFFF) "" b) i64 "" b)
+      (Llvm.const_int i64 3) "" b
+  in
+  Llvm.build_gep (Llvm.i8_type ctx) base [| offset |] "" b
+
+let encode_chunk ctx b p =
+  let i64 = Llvm.i64_type ctx and i32 = Llvm.i32_type ctx in
+  let a = Llvm.build_ptrtoint p i64 "" b in
+  let mib = Llvm.build_lshr a (Llvm.const_int i64 20) "" b in
+  let id =
+    Llvm.build_load (Llvm.i16_type ctx)
+      (Llvm.build_gep (Llvm.i16_type ctx) (table b "zane_mib_ids") [| mib |] "" b) "" b
+  in
+  let offset = Llvm.build_lshr (Llvm.build_and a (Llvm.const_int i64 0xFFFFF) "" b) (Llvm.const_int i64 3) "" b in
+  Llvm.build_or (Llvm.build_shl (Llvm.build_zext id i32 "" b) (Llvm.const_int i32 17) "" b) (narrow ctx b offset) "" b
+
+let decode_box ?(nullable = false) ctx b v =
+  let i64 = Llvm.i64_type ctx in
+  let p =
+    if Cgt.Ref32.chunk_boxes () then decode_chunk ctx b v
+    else
+      Llvm.build_gep (Llvm.i8_type ctx) (image b)
+        [| Llvm.build_shl (Llvm.build_sext v i64 "" b) (Llvm.const_int i64 3) "" b |] "" b
+  in
+  if nullable then
+    Llvm.build_select
+      (Llvm.build_icmp Llvm.Icmp.Eq v (Llvm.const_int (Llvm.i32_type ctx) 0) "" b)
+      (Llvm.const_null (Llvm.pointer_type ctx)) p "" b
+  else p
+
+let encode_box ctx b p =
+  let i64 = Llvm.i64_type ctx in
+  if Llvm.is_null p then Llvm.const_int (Llvm.i32_type ctx) 0
+  else if Cgt.Ref32.chunk_boxes () then encode_chunk ctx b p
+  else
+    let distance =
+      Llvm.build_ashr
+        (Llvm.build_sub (Llvm.build_ptrtoint p i64 "" b) (Llvm.build_ptrtoint (image b) i64 "" b) "" b)
+        (Llvm.const_int i64 3) "" b
+    in
+    fitting ctx b (narrow ctx b distance) distance
+
+(* The bytes of a list's first block when its first push asks for [bytes]
+   of elements [stride] wide, as runtime/list.c sizes it. *)
+let first_room ~bytes ~stride =
+  let room = min Abi.list_first (max Abi.list_least (4 * stride)) in
+  let room = (max room bytes + 7) / 8 * 8 in
+  (* Counted in elements, the block is the bytes of the whole elements that
+     fit, which runtime/list.c takes too. *)
+  block_bytes ~room:(units ~bytes:room ~stride) ~stride

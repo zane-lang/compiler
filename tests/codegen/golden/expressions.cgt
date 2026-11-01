@@ -182,7 +182,7 @@
     │       │   ├── local: #39
     │       │   ├── scope: %15
     │       │   ├── value > expand:
-    │       │   │   ├── type: {handle}
+    │       │   │   ├── type: {handle16}
     │       │   │   ├── label: @37
     │       │   │   ├── result: #38
     │       │   │   ├── body[0] > assign:
@@ -190,9 +190,9 @@
     │       │   │   │   └── value > escape:
     │       │   │   │       ├── exit: @37
     │       │   │   │       ├── value > record:
-    │       │   │   │       │   ├── type: {handle}
+    │       │   │   │       │   ├── type: {handle16}
     │       │   │   │       │   └── members[0] > member 0 > runtime:
-    │       │   │   │       │       ├── type: handle
+    │       │   │   │       │       ├── type: handle16
     │       │   │   │       │       ├── fn: zane_list_new
     │       │   │   │       │       └── args:
     │       │   │   │       └── layout: expressions$Row
@@ -210,7 +210,7 @@
     │       │   │       ├── type: ptr
     │       │   │       ├── fn: zane_list_push
     │       │   │       ├── args[0] > offset:
-    │       │   │       │   ├── within: {handle}
+    │       │   │       │   ├── within: {handle16}
     │       │   │       │   ├── path: 0
     │       │   │       │   └── base: address of #39 : ptr
     │       │   │       └── args[1]: 8 : i64
@@ -449,7 +449,7 @@
     │                   ├── type: ptr
     │                   ├── fn: zane_list_at
     │                   ├── args[0] > offset:
-    │                   │   ├── within: {handle}
+    │                   │   ├── within: {handle16}
     │                   │   ├── path: 0
     │                   │   └── base: local #2 : ptr
     │                   ├── args[1] > binary:

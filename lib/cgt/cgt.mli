@@ -16,6 +16,11 @@ module Traverse = Traverse
 (** The functions remembered while the program runs, with `--memoize`. *)
 module Memo = Memo
 
+(** Experimental: whether the compact layout is on: 32-bit references and
+    boxes, 16-byte list handles, niche sums and bump regions. *)
+module Ref32 = Ref32
+module List_pure = List_pure
+
 (** The program, from the root package's `main`, or from every function of
     the root when it is a [library]. A construct lowering does not handle
     yet is refused with a diagnostic at it, and so is a type no main

@@ -14,6 +14,8 @@ type t = Computed | Output | Input
 let classify : Cgt.Runtime.fn -> t = function
   | Print | Set_threads | Set_threads_auto -> Output
   | Arguments -> Input
+  (* Experimental pooled variants, which the evaluator does not model. *)
+  | Pool_new | Pool_push | Pool_append | Pool_root | Pool_copy | Link | Pool_reserve | Pool_new_unbounded -> Input
   (* A handle's stamp is the next of a counter the running program keeps:
      a fold that makes one in a call into C keeps its own
      (docs/design/ffi.md F18). A null handle stops the program. *)
@@ -31,7 +33,7 @@ let classify : Cgt.Runtime.fn -> t = function
      them: a scope, a held slot, a copy, a box, a spawn, a run of pushes, and
      the walks it emits for each type. The evaluator gives each node its
      meaning directly. *)
-  | List_reserve | Scope_enter | Scope_drain | Hold | Too_deep | Promote | Arrive | Copy
+  | List_reserve | List_room | Scope_enter | Scope_drain | Hold | Too_deep | Promote | Arrive | Copy
   | Overwrite | Box | Spawn | Join | Snapshot | Out_of_range
   | Region_at | Alloc | Alloc_held | Free | Leaves | Defer | Defer_return
   | Overwrite_handles | Overwrite_settled | Handle_end | Handle_set ->

@@ -36,7 +36,7 @@
     │       │   ├── local: #16
     │       │   ├── scope: %4
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_arguments
     │       │   │   └── args:
     │       │   └── layout: %primitives$List<%primitives$String>
@@ -46,10 +46,12 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > member:
+    │       │       ├── left > convert:
     │       │       │   ├── type: i64
-    │       │       │   ├── index: 1
-    │       │       │   └── value: local #16 : handle
+    │       │       │   └── value > member:
+    │       │       │       ├── type: i32
+    │       │       │       ├── index: 1
+    │       │       │       └── value: local #16 : handle16
     │       │       └── right: 10 : i64
     │       ├── body[5] > let:
     │       │   ├── local: #17
@@ -59,10 +61,12 @@
     │       │   ├── label: @19
     │       │   ├── body[0] > let:
     │       │   │   ├── local: #18
-    │       │   │   └── value > member:
+    │       │   │   └── value > convert:
     │       │   │       ├── type: i64
-    │       │   │       ├── index: 1
-    │       │   │       └── value: local #16 : handle
+    │       │   │       └── value > member:
+    │       │   │           ├── type: i32
+    │       │   │           ├── index: 1
+    │       │   │           └── value: local #16 : handle16
     │       │   ├── body[1] > repeat:
     │       │   │   ├── count > binary:
     │       │   │   │   ├── type: i64
@@ -1155,7 +1159,113 @@
     │       │       │       ├── place: #174
     │       │       │       └── value: local #172 : f64
     │       │       └── right: 0x1p+0 : f64
-    │       └── body[33] > return: unit : void
+    │       ├── body[33] > let:
+    │       │   ├── local: #175
+    │       │   └── value: 1 : i64
+    │       ├── body[34] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @177
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #176
+    │       │   │   └── value: 20 : i64
+    │       │   ├── body[1] > repeat:
+    │       │   │   ├── count: 20 : i64
+    │       │   │   ├── body[0] > eval > expand:
+    │       │   │   │   ├── type: void
+    │       │   │   │   ├── label: @182
+    │       │   │   │   ├── body[0] > let:
+    │       │   │   │   │   ├── local: #180
+    │       │   │   │   │   └── value: "more" : handle
+    │       │   │   │   ├── body[1] > let:
+    │       │   │   │   │   ├── local: #181
+    │       │   │   │   │   └── value > runtime:
+    │       │   │   │   │       ├── type: ptr
+    │       │   │   │   │       ├── fn: zane_list_push
+    │       │   │   │   │       ├── args[0]: address of #16 : ptr
+    │       │   │   │   │       └── args[1]: 24 : i64
+    │       │   │   │   └── body[2] > place:
+    │       │   │   │       ├── address: local #181 : ptr
+    │       │   │   │       ├── value: "more" : handle
+    │       │   │   │       └── layout: %primitives$String
+    │       │   │   └── body[1] > assign:
+    │       │   │       ├── place: #175
+    │       │   │       └── value > binary:
+    │       │   │           ├── type: i64
+    │       │   │           ├── op: +
+    │       │   │           ├── left: local #175 : i64
+    │       │   │           └── right: 1 : i64
+    │       │   └── body[2]: leave @177
+    │       ├── body[35] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: arguments$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > convert:
+    │       │       │   ├── type: i64
+    │       │       │   └── value > member:
+    │       │       │       ├── type: i32
+    │       │       │       ├── index: 1
+    │       │       │       └── value: local #16 : handle16
+    │       │       └── right: 30 : i64
+    │       ├── body[36] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: arguments$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0] > deref:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   └── ptr > runtime:
+    │       │       │   │       ├── type: ptr
+    │       │       │   │       ├── fn: zane_list_at
+    │       │       │   │       ├── args[0]: address of #16 : ptr
+    │       │       │   │       ├── args[1]: 1 : i64
+    │       │       │   │       └── args[2]: 24 : i64
+    │       │       │   └── args[1]: "42" : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[37] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: arguments$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0] > deref:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   └── ptr > runtime:
+    │       │       │   │       ├── type: ptr
+    │       │       │   │       ├── fn: zane_list_at
+    │       │       │   │       ├── args[0]: address of #16 : ptr
+    │       │       │   │       ├── args[1]: 10 : i64
+    │       │       │   │       └── args[2]: 24 : i64
+    │       │       │   └── args[1]: " 5" : handle
+    │       │       └── right: 1 : i64
+    │       ├── body[38] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: arguments$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0] > deref:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   └── ptr > runtime:
+    │       │       │   │       ├── type: ptr
+    │       │       │   │       ├── fn: zane_list_at
+    │       │       │   │       ├── args[0]: address of #16 : ptr
+    │       │       │   │       ├── args[1]: 30 : i64
+    │       │       │   │       └── args[2]: 24 : i64
+    │       │       │   └── args[1]: "more" : handle
+    │       │       └── right: 1 : i64
+    │       └── body[39] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: arguments$squares()
     │   ├── params:

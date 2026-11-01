@@ -45,7 +45,7 @@ let live = Abi.heap_live
    elements. *)
 let length = Abi.handle_length
 let room = Abi.handle_room
-let line = Abi.line
+let list_align = Abi.list_align
 
 (* A walk takes the place, what it works with, a number, the work it hands
    walks on to, and its depth (runtime/zane.h). *)
@@ -159,7 +159,8 @@ let present c base (p : Layout.position) =
   List.fold_left
     (fun cond (o, tag) ->
       let live =
-        Llvm.build_icmp Llvm.Icmp.Eq (load c i32 (offset c base o)) (Llvm.const_int i32 tag) "" c.b
+        if tag < 0 then Llvm.build_icmp Llvm.Icmp.Ne (load c i32 (offset c base o)) (Llvm.const_int i32 0) "" c.b
+        else Llvm.build_icmp Llvm.Icmp.Eq (load c i32 (offset c base o)) (Llvm.const_int i32 tag) "" c.b
       in
       match cond with None -> Some live | Some cond -> Some (Llvm.build_and cond live "" c.b))
     None p.tags
@@ -181,10 +182,29 @@ let visit c walk at with_ extra =
    with, whose lock the copy holds: the top of its size class's stack, or
    the next bytes at its frontier, or what the runtime finds when neither
    has one. *)
-let take c region size =
+let take ?(bump_only = false) c region size =
   let env = c.env in
   let words = max 1 ((size + 7) / 8) in
   if words > classes then runtime c Cgt.Runtime.Alloc_held [| region; int env size; int env 8 |]
+  else if bump_only then begin
+    let at = load c env.ptr (offset c region frontier) in
+    let ends = load c env.ptr (offset c region frontier_end) in
+    let next = offset c at (8 * words) in
+    let fits = block c and slow = block c and done_ = block c in
+    ignore
+      (Llvm.build_cond_br
+         (Llvm.build_icmp Llvm.Icmp.Ule (Llvm.build_ptrtoint next env.i64 "" c.b) (Llvm.build_ptrtoint ends env.i64 "" c.b) "" c.b)
+         fits slow c.b);
+    Llvm.position_at_end fits c.b;
+    store c next (offset c region frontier);
+    ignore (Llvm.build_br done_ c.b);
+    Llvm.position_at_end slow c.b;
+    let found = runtime c Cgt.Runtime.Alloc_held [| region; int env size; int env 8 |] in
+    let slow_end = Llvm.insertion_block c.b in
+    ignore (Llvm.build_br done_ c.b);
+    Llvm.position_at_end done_ c.b;
+    Llvm.build_phi [ (at, fits); (found, slow_end) ] "" c.b
+  end
   else begin
     let counted () =
       let count = offset c region live in
@@ -260,7 +280,7 @@ let box env f b size align =
     let inline = block c and shared = block c and done_ = block c in
     ignore (Llvm.build_cond_br (nonzero c region) inline shared b);
     Llvm.position_at_end inline b;
-    let taken = take c region size in
+    let taken = take ~bump_only:(Cgt.Ref32.bump ()) c region size in
     let inline_end = Llvm.insertion_block b in
     ignore (Llvm.build_br done_ b);
     Llvm.position_at_end shared b;
@@ -269,6 +289,30 @@ let box env f b size align =
     Llvm.position_at_end done_ b;
     Llvm.build_phi [ (taken, inline_end); (found, shared) ] "" b
   end
+
+(* A list's handle's fields (List_handle), whose count and room take 32 bits
+   with frame references. *)
+let list_items c h = List_handle.items c.env.ctx c.b h
+let list_count c h = List_handle.count c.env.ctx c.b h
+(* The bytes of a list's block, whose room may count its elements. *)
+let list_room c h stride = List_handle.room_bytes c.env.ctx c.b h (int c.env stride)
+let set_list_items c v h = List_handle.set_items c.env.ctx c.b v h
+
+let zero_list c h =
+  set_list_items c (Llvm.const_null c.env.ptr) h;
+  List_handle.set_count c.env.ctx c.b (int c.env 0) h;
+  List_handle.set_room c.env.ctx c.b (int c.env 0) h
+
+(* A boxed member's block (Layout.Box), stored in 32 bits with image boxes. *)
+let load_box c h =
+  if Cgt.Ref32.image_boxes () then
+    List_handle.decode_box ~nullable:true c.env.ctx c.b (load c (Llvm.i32_type c.env.ctx) h)
+  else load c c.env.ptr h
+
+let store_box c v h =
+  store c
+    (if Cgt.Ref32.image_boxes () then List_handle.encode_box c.env.ctx c.b v else v)
+    h
 
 let zero_handle c h =
   store c (Llvm.const_null c.env.ptr) h;
@@ -370,12 +414,12 @@ let copy known c (p : Layout.position) =
           store c bytes h;
           store c n (offset c h room))
   | Layout.List { stride; elements } ->
-      let r = load c env.i64 (offset c h room) in
+      let r = list_room c h stride in
       when_ c (nonzero c r) (fun () ->
-          let count = load c env.i64 (offset c h length) in
-          let items = runtime c Cgt.Runtime.Alloc_held [| c.with_; r; int env line |] in
-          memcpy c items (load c env.ptr h) (Llvm.build_mul count (int env stride) "" c.b);
-          store c items h;
+          let count = list_count c h in
+          let items = runtime c Cgt.Runtime.Alloc_held [| c.with_; r; int env list_align |] in
+          memcpy c items (list_items c h) (Llvm.build_mul count (int env stride) "" c.b);
+          set_list_items c items h;
           Option.iter
             (fun w ->
               each c count (fun i ->
@@ -387,11 +431,11 @@ let copy known c (p : Layout.position) =
                   visit c w.copy e c.with_ (int env 0)))
             (inner known elements))
   | Layout.Box { size; payload } ->
-      let old = load c env.ptr h in
+      let old = load_box c h in
       when_ c (nonzero c old) (fun () ->
           let fresh = take c c.with_ size in
           memcpy c fresh old (int env size);
-          store c fresh h;
+          store_box c fresh h;
           Option.iter (fun w -> visit c w.copy fresh c.with_ (int env 0)) (inner known payload))
   | Layout.Array { count; stride; elements } ->
       each_element c h ~count ~stride (walks known elements).copy c.with_ (int env 0)
@@ -428,12 +472,12 @@ let end_at known c base (p : Layout.position) =
       when_ c (nonzero c r) (fun () -> return (load c env.ptr h) r 8);
       zero_handle c h
   | Layout.List { stride; elements } ->
-      let r = load c env.i64 (offset c h room) in
-      let items = load c env.ptr h in
+      let r = list_room c h stride in
+      let items = list_items c h in
       (match inner known elements with
-      | None -> when_ c (nonzero c r) (fun () -> return items r line)
+      | None -> when_ c (nonzero c r) (fun () -> return items r list_align)
       | Some w ->
-          let count = load c env.i64 (offset c h length) in
+          let count = list_count c h in
           let element i =
             Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) items
               [| Llvm.build_mul i (int env stride) "" c.b |]
@@ -442,13 +486,13 @@ let end_at known c base (p : Layout.position) =
           either c shallow
             (fun () ->
               each c count (fun i -> call w (element i));
-              when_ c (nonzero c r) (fun () -> return items r line))
+              when_ c (nonzero c r) (fun () -> return items r list_align))
             (fun () ->
-              when_ c (nonzero c r) (fun () -> defer_return items r line);
+              when_ c (nonzero c r) (fun () -> defer_return items r list_align);
               each c count (fun i -> defer w (element i))));
-      zero_handle c h
+      zero_list c h
   | Layout.Box { size; payload } ->
-      let old = load c env.ptr h in
+      let old = load_box c h in
       when_ c (nonzero c old) (fun () ->
           match inner known payload with
           | None -> return old (int env size) 8
@@ -460,7 +504,7 @@ let end_at known c base (p : Layout.position) =
                 (fun () ->
                   defer_return old (int env size) 8;
                   defer w old));
-      store c (Llvm.const_null env.ptr) h
+      store_box c (Llvm.const_null env.ptr) h
   | Layout.Array { count; stride; elements } ->
       each_element c h ~count ~stride (walks known elements).end_ (Llvm.const_null env.ptr) (int env 0)
   (* The runtime calls the free thunk, or collects it to call in the
@@ -476,11 +520,11 @@ let move known c (p : Layout.position) =
   let env = c.env in
   let h = offset c c.at p.offset in
   let leaves block = nonzero c (runtime c Cgt.Runtime.Leaves [| block; c.with_; c.extra |]) in
-  let relocate old size align copied =
+  let relocate ?(set = fun v -> store c v h) old size align copied =
     let fresh = runtime c Cgt.Runtime.Alloc [| c.with_; size; int env align |] in
     memcpy c fresh old copied;
     ignore (runtime c Cgt.Runtime.Free [| old; size; int env align |]);
-    store c fresh h;
+    set fresh;
     fresh
   in
   (* Each of the [count] elements [stride] bytes apart at [items], moved by
@@ -502,18 +546,21 @@ let move known c (p : Layout.position) =
           when_ c (leaves old) (fun () ->
               ignore (relocate old r 8 (load c env.i64 (offset c h length)))))
   | Layout.List { stride; elements } ->
-      let r = load c env.i64 (offset c h room) in
+      let r = list_room c h stride in
       when_ c (nonzero c r) (fun () ->
-          let old = load c env.ptr h in
+          let old = list_items c h in
           when_ c (leaves old) (fun () ->
-              let count = load c env.i64 (offset c h length) in
-              let items = relocate old r line (Llvm.build_mul count (int env stride) "" c.b) in
+              let count = list_count c h in
+              let items =
+                relocate ~set:(fun v -> set_list_items c v h) old r list_align
+                  (Llvm.build_mul count (int env stride) "" c.b)
+              in
               Option.iter (move_elements ~stride items count) (inner known elements)))
   | Layout.Box { size; payload } ->
-      let old = load c env.ptr h in
+      let old = load_box c h in
       when_ c (nonzero c old) (fun () ->
           when_ c (leaves old) (fun () ->
-              let fresh = relocate old (int env size) 8 (int env size) in
+              let fresh = relocate ~set:(fun v -> store_box c v h) old (int env size) 8 (int env size) in
               Option.iter (fun w -> visit c w.move fresh c.with_ c.extra) (inner known payload)))
   | Layout.Array { count; stride; elements } ->
       each_element c h ~count ~stride (walks known elements).move c.with_ c.extra
@@ -578,17 +625,17 @@ let overwrite known self ~settled c (ps : Layout.position list) =
               ignore (runtime c Cgt.Runtime.Handle_set [| at; with_; thunk env.ctx env.m set |])
           | _, None -> end_at known c c.at p
           | _, Some k ->
-              let old = load c env.ptr (offset c c.at p.offset) in
+              let old = load_box c (offset c c.at p.offset) in
               let both =
                 match present c c.with_ p with
-                | None -> nonzero c (load c env.ptr (offset c c.with_ p.offset))
+                | None -> nonzero c (load_box c (offset c c.with_ p.offset))
                 | Some there ->
                     (* The replacement's box is read only where it is there. *)
                     let check = block c and after = block c in
                     let from = Llvm.insertion_block c.b in
                     ignore (Llvm.build_cond_br there check after c.b);
                     Llvm.position_at_end check c.b;
-                    let named = nonzero c (load c env.ptr (offset c c.with_ p.offset)) in
+                    let named = nonzero c (load_box c (offset c c.with_ p.offset)) in
                     let checked = Llvm.insertion_block c.b in
                     ignore (Llvm.build_br after c.b);
                     Llvm.position_at_end after c.b;
@@ -609,8 +656,8 @@ let overwrite known self ~settled c (ps : Layout.position list) =
           let old = load c env.ptr k in
           when_ c (nonzero c old) (fun () ->
               let h = offset c c.at p.offset in
-              let incoming = load c env.ptr h in
-              store c old h;
+              let incoming = load_box c h in
+              store_box c old h;
               let n = int env size in
               let return () = ignore (runtime c Cgt.Runtime.Free [| incoming; n; int env 8 |]) in
               match inner known payload with
@@ -641,8 +688,10 @@ let overwrite known self ~settled c (ps : Layout.position list) =
 let vacate element c (p : Layout.position) =
   let h = offset c c.at p.offset in
   match p.kind with
-  | Layout.Text | Layout.List _ -> zero_handle c h
-  | Layout.Box _ | Layout.Foreign _ -> store c (Llvm.const_null c.env.ptr) h
+  | Layout.Text -> zero_handle c h
+  | Layout.List _ -> zero_list c h
+  | Layout.Box _ -> store_box c (Llvm.const_null c.env.ptr) h
+  | Layout.Foreign _ -> store c (Llvm.const_null c.env.ptr) h
   | Layout.Array { count; stride; elements } ->
       let f = element elements in
       each c (int c.env count) (fun i ->

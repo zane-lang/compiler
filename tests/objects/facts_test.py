@@ -13,6 +13,12 @@ ZANEC = str(Path(sys.argv.pop(1)).resolve())
 FACTS = Path(__file__).resolve().parent / "fixtures/facts"
 STAMP = "v1.0%0123456789abcdef%"
 SNAPSHOT = re.compile(r"load atomic|@zane_snapshot\(")
+# A list handle's room and size: on a Linux target, with frame references
+# (experimental, lib/cgt/ref32.ml), the room counts elements in 32 bits and
+# the handle is 16 bytes; elsewhere the room counts bytes and it is 24.
+FRAME_REFS = sys.platform.startswith("linux") and os.environ.get("ZANE_FRAME_REFS") != "0"
+FIRST_ROOM = r"store i32 4, " if FRAME_REFS else r"store i64 32, "
+TWO_HANDLES = 32 if FRAME_REFS else 48
 
 
 def run(*args):
@@ -121,10 +127,11 @@ class FactsTests(unittest.TestCase):
         # cannot write a list's header, so the loop that removes foes from
         # its list in one way keeps the count it read in a register through
         # the other, and each bounds check compares against that register.
-        # A move of strings, each a handle, carries no tag.
+        # A move of strings, each a handle, carries no tag. How many copies
+        # of each move LLVM keeps is its own choice.
         ir = run(ZANEC, "--ll", "--optimize", *packages("culls"))
         moves = re.findall(r"call void @llvm\.memmove\.p0\.p0\.i64\([^\n]*", ir)
-        self.assertEqual(sorted("!tbaa" in move for move in moves), [False, False, True, True], moves)
+        self.assertEqual(sorted({"!tbaa" in move for move in moves}), [False, True], moves)
         start = re.search(r"(?ms)^define [^\n]*@zane_main\(.*?^}", ir).group(0)
         defined = dict(re.findall(r"(?m)^\s*(%[\w.]+) = (\w+)", start))
         counts = re.findall(r"icmp ult i64 %[\w.]+, (%[\w.]+)", start)
@@ -154,21 +161,23 @@ class FactsTests(unittest.TestCase):
                 self.assertEqual(run_program(exe, 1), "11\n", optimize)
 
     def test_first_blocks_are_made_inline_in_a_scope(self):
-        # An empty list's first block is made by the push itself, which
-        # stores its 128 bytes of room, in a function with a scope of its
-        # own open; one with none calls the runtime for it, so its code stays
-        # small (Emit.push).
+        # An empty list's first block, of at most ZANE_LIST_FIRST bytes, is
+        # made by the push itself, which stores its room for four of its
+        # 8-byte elements, in a function with a scope of its own open, when
+        # the region has no returned block of that size and room at its
+        # frontier or in the frame; otherwise, and in a function with no
+        # scope, the push calls the runtime for it (Emit.push).
         ir = run(ZANEC, "--ll", *packages("pushes"))
         body = lambda name: re.search(r"(?ms)^define [^\n]*@\"pushes\$" + name + r"\(.*?^}", ir).group(0)
-        self.assertRegex(body("gather"), r"store i64 128, ")
-        self.assertNotRegex(body("fill"), r"store i64 128, ")
+        self.assertRegex(body("gather"), FIRST_ROOM)
+        self.assertNotRegex(body("fill"), FIRST_ROOM)
         self.assertIn("@zane_list_push", body("fill"))
 
     def test_runs_of_pushes_make_room_once(self):
         # A new list pushed to four times in a row makes room for all four
         # at its first push, so the room is compared once, and the other
         # three pushes are stores with no look at it; past a first block,
-        # the runtime makes the room for all four (Emit.runs).
+        # the runtime makes the room for all four (Loop_shapes.runs).
         ir = run(ZANEC, "--ll", *packages("pushes"))
         gather = re.search(r"(?ms)^define [^\n]*@\"pushes\$gather\(.*?^}", ir).group(0)
         self.assertEqual(gather.count("icmp sgt"), 1, gather)
@@ -203,7 +212,7 @@ class FactsTests(unittest.TestCase):
         # handles, and `main`'s frame is all there once its scope is open,
         # so the loops in both read each list's count and block once.
         ir = run(ZANEC, "--ll", *packages("bounce"))
-        self.assertRegex(ir, r'@"bounce\$step\([^"]*\)"\(ptr nonnull align 8 dereferenceable\(48\) %0')
+        self.assertRegex(ir, rf'@"bounce\$step\([^"]*\)"\(ptr nonnull align 8 dereferenceable\({TWO_HANDLES}\) %0')
         self.assertRegex(ir, r'call void @llvm\.assume\(i1 true\) \[ "dereferenceable"\(ptr %[^,]+, i64 [0-9]+\), "align"')
 
     def test_references_may_be_read_ahead(self):
@@ -212,7 +221,7 @@ class FactsTests(unittest.TestCase):
         # of its slot, two list handles, is there for the call.
         ir = run(ZANEC, "--ll", *packages("borrowed"))
         self.assertRegex(
-            ir, r'(?m)^define [^@\n]*@"borrowed\$total\(&borrowed\$Field, [^"]*\)"\(ptr nonnull align 8 dereferenceable\(48\) %0')
+            ir, rf'(?m)^define [^@\n]*@"borrowed\$total\(&borrowed\$Field, [^"]*\)"\(ptr nonnull align 8 dereferenceable\({TWO_HANDLES}\) %0')
 
     def test_long_loops_lose_their_index_checks(self):
         # An optimized build emits a loop over elements twice, weighted to

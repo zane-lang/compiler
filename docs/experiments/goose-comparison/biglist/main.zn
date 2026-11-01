@@ -1,0 +1,25 @@
+/// A list of N `Int`s, pushed one at a time, then summed with every
+/// element read back. N is the program's first argument; at 600000000 the
+/// list's block passes 4 GiB.
+package biglist;
+
+import core$;
+import bench$;
+
+Unit main() {
+	console Console(@program$console);
+	runtime Runtime(@program$runtime);
+	n Int = size(runtime, Int(1000));
+	list List<Int> = List(Int);
+	i Int = Int(1);
+	i!to(n) {
+		list!push(i);
+	}
+	total Int = Int(0);
+	k Int = Int(1);
+	k!to(list:size()) {
+		total = total + list[k];
+	}
+	console!print(String(list:size()) + " " + String(total));
+	return Unit();
+}

@@ -44,13 +44,13 @@
     │       │   ├── local: #29
     │       │   ├── scope: %3
     │       │   ├── value > expand:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── label: @37
     │       │   │   ├── result: #38
     │       │   │   └── body[0] > assign:
     │       │   │       ├── place: #38
     │       │   │       └── value > runtime:
-    │       │   │           ├── type: handle
+    │       │   │           ├── type: handle16
     │       │   │           ├── fn: zane_list_new
     │       │   │           └── args:
     │       │   └── layout: %primitives$ListRef<%primitives$I64>
@@ -75,7 +75,7 @@
     │       │   ├── local: #33
     │       │   ├── scope: %3
     │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
+    │       │   │   ├── type: handle16
     │       │   │   ├── fn: zane_arguments
     │       │   │   └── args:
     │       │   └── layout: %primitives$List<%primitives$String>
@@ -84,10 +84,12 @@
     │       │   ├── label: @36
     │       │   ├── body[0] > let:
     │       │   │   ├── local: #34
-    │       │   │   └── value > member:
+    │       │   │   └── value > convert:
     │       │   │       ├── type: i64
-    │       │   │       ├── index: 1
-    │       │   │       └── value: local #33 : handle
+    │       │   │       └── value > member:
+    │       │   │           ├── type: i32
+    │       │   │           ├── index: 1
+    │       │   │           └── value: local #33 : handle16
     │       │   ├── body[1] > let:
     │       │   │   ├── local: #35
     │       │   │   └── value > runtime:
@@ -105,10 +107,12 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > member:
+    │       │       ├── left > convert:
     │       │       │   ├── type: i64
-    │       │       │   ├── index: 1
-    │       │       │   └── value: local #29 : handle
+    │       │       │   └── value > member:
+    │       │       │       ├── type: i32
+    │       │       │       ├── index: 1
+    │       │       │       └── value: local #29 : handle16
     │       │       └── right: 2 : i64
     │       └── body[7] > return: unit : void
     └── funcs[2] > func:

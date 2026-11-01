@@ -1,0 +1,43 @@
+/// langbench's ntree with each inner node's children in an `ArrayRef` of
+/// four, as Goose's port holds them in an inline list of at most four: a
+/// leaf is a case of its own, since an `ArrayRef`'s elements are all
+/// present from construction (generics.md §8.4). `core`'s `ArrayRef` takes
+/// its elements borrowed, so the primitive's `roaming` moves the subtrees
+/// in. N is the program's first argument.
+package ntreearray;
+
+import core$;
+import bench$;
+
+type Node = #variant {
+	leaf Unit;
+	inner @primitives$ArrayRef<Node, 4>;
+}
+
+/// A complete four-way tree `depth` levels below its root.
+^Node grow(depth Int) {
+	if(depth == 0) {
+		return Node.leaf(Unit());
+	}
+	return Node.inner(@primitives$ArrayRef.roaming([grow(depth - Int(1)), grow(depth - Int(1)), grow(depth - Int(1)), grow(depth - Int(1))]));
+}
+
+/// How many nodes the tree has.
+Int count(node Node) => match (node) {
+	l leaf => Int(1);
+	c inner => Int(1) + count(c[Int(1)]) + count(c[Int(2)]) + count(c[Int(3)]) + count(c[Int(4)]);
+}
+
+Unit main() {
+	console Console(@program$console);
+	runtime Runtime(@program$runtime);
+	depth Int = size(runtime, Int(6));
+	total Int = Int(0);
+	round Int = Int(1);
+	round!to(Int(10)) {
+		tree Node = grow(depth);
+		total = total + count(tree);
+	}
+	console!print(String(depth) + " " + String(total));
+	return Unit();
+}

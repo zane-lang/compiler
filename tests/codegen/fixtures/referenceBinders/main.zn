@@ -1,0 +1,52 @@
+/// A match binds a `#variant`'s `&` payload to the payload's own slot: a
+/// binder repointed in its arm leaves the variant naming the new owner,
+/// as a binder of any other payload writes its payload. Each check prints
+/// `yes` when it holds and `no` when it does not.
+package referenceBinders;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+type Node = #struct {
+	value Int;
+}
+
+Node(value Int) => init{ value; }
+
+type Pick = #variant {
+	one &Node;
+	none Unit;
+}
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Unit main() {
+	a Node(Int(1));
+	b Node(Int(2));
+	// Repointed in its arm, the binder repoints the payload.
+	p Pick = Pick.one(a);
+	check(match (p) {
+		k one {
+			k = b;
+			return @operators$equal(k.value, Int(2));
+		}
+		z none => false;
+	});
+	check(match (p) {
+		k one => @operators$equal(k.value, Int(2));
+		z none => false;
+	});
+	return Unit();
+}

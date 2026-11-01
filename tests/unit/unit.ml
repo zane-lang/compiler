@@ -368,10 +368,10 @@ let probed_abi () =
         (Printf.sprintf "%s is %d in the runtime and in Abi" name value)
         (List.assoc_opt name Abi.values = Some value))
     probed;
-  check "every number in Abi is measured but ZANE_LINE, ZANE_STRETCH, ZANE_STRETCHED and ZANE_GUARD"
+  check "every number in Abi is measured but ZANE_LINE, the list block sizes, ZANE_STRETCH, ZANE_STRETCHED and ZANE_GUARD"
     (List.sort compare
        (List.filter (fun (name, _) -> not (List.mem_assoc name probed)) Abi.values |> List.map fst)
-    = [ "ZANE_GUARD"; "ZANE_LINE"; "ZANE_STRETCH"; "ZANE_STRETCHED" ]);
+    = [ "ZANE_GUARD"; "ZANE_LINE"; "ZANE_LIST_ALIGN"; "ZANE_LIST_FIRST"; "ZANE_LIST_LEAST"; "ZANE_STRETCH"; "ZANE_STRETCHED" ]);
   check "lowering lays a handle out as the runtime does"
     (Cgt.Nodes.Ty.size_align Cgt.Nodes.Ty.Handle = (Abi.handle_size, 8))
 
@@ -487,9 +487,9 @@ let intrinsic_classes () =
   check "print and the thread count are the outputs"
     (List.sort compare outputs
     = List.sort compare Cgt.Runtime.[ Print; Set_threads; Set_threads_auto ]);
-  check "the program's arguments, a null foreign handle and a callback's context are the inputs"
+  check "the program's arguments, a null foreign handle, a callback's context and the experimental pooled variants are the inputs"
     (List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all
-    = Cgt.Runtime.[ Arguments; No_object; Callback_attach; Callback_detach ])
+    = Cgt.Runtime.[ Arguments; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; No_object; Callback_attach; Callback_detach ])
 
 (* The math functions of `@math$` as the evaluator folds them (math.md §2),
    which the math codegen fixture holds both builds to as well, and which
@@ -1065,10 +1065,10 @@ let emit_env ?(pack = false) ?(triple = "x86_64-unknown-linux-gnu") () =
     funcs = Hashtbl.create 1;
     abis = Hashtbl.create 1;
     entries = Hashtbl.create 1;
-    registers = Codegen__Emit.registers triple;
+    registers = Codegen__Call_pieces.registers triple;
     pack;
     passings = Hashtbl.create 1;
-    results = Codegen__Emit.results triple;
+    results = Codegen__Call_pieces.results triple;
     returnings = Hashtbl.create 1;
     globals = Hashtbl.create 1;
     walks = None;
@@ -1098,7 +1098,7 @@ let long_arrays () =
    CGT type (docs/design/lowering.md §9). *)
 let counted_pieces () =
   let module T = Cgt.Nodes.Ty in
-  let count = Codegen__Emit.pieces in
+  let count = Codegen__Call_pieces.pieces in
   check "Unit takes none" (count T.Void = 0);
   check "a scalar takes one" (List.for_all (fun t -> count t = 1) [ T.I1; T.I32; T.I64; T.F32; T.F64; T.Ptr ]);
   check "a handle takes three" (count T.Handle = 3);
@@ -1112,7 +1112,7 @@ let counted_pieces () =
   check "an array takes its element's times its length" (count (T.Array (T.Struct [ T.I64; T.I32 ], 5)) = 10);
   check "an array of Unit takes none" (count (T.Array (T.Void, 7)) = 0);
   check "65,536 I64s take 65,536" (count (T.Array (T.I64, 65536)) = 65536);
-  let floats = Codegen__Emit.floats in
+  let floats = Codegen__Call_pieces.floats in
   check "a handle has no floating-point piece" (floats T.Handle = 0);
   check "a struct has its members' floating-point pieces" (floats (T.Struct [ T.F64; T.I64; T.F32 ]) = 2);
   check "an array has its element's times its length" (floats (T.Array (T.Struct [ T.F64; T.I32 ], 3)) = 3);
@@ -1122,10 +1122,10 @@ let counted_pieces () =
 let passings () =
   let module T = Cgt.Nodes.Ty in
   let module E = Codegen__Emit in
-  check "x86-64 Linux gives two registers" (E.registers "x86_64-unknown-linux-gnu" = 2);
-  check "AArch64 macOS gives two" (E.registers "aarch64-apple-darwin" = 2);
-  check "x86-64 Windows gives one" (E.registers "x86_64-unknown-windows-gnu" = 1);
-  check "AArch64 Windows gives two" (E.registers "aarch64-unknown-windows-msvc" = 2);
+  check "x86-64 Linux gives two registers" (Codegen__Call_pieces.registers "x86_64-unknown-linux-gnu" = 2);
+  check "AArch64 macOS gives two" (Codegen__Call_pieces.registers "aarch64-apple-darwin" = 2);
+  check "x86-64 Windows gives one" (Codegen__Call_pieces.registers "x86_64-unknown-windows-gnu" = 1);
+  check "AArch64 Windows gives two" (Codegen__Call_pieces.registers "aarch64-unknown-windows-msvc" = 2);
   let pair = T.Struct [ T.I64; T.I64 ] and small = T.Struct [ T.I32; T.I32; T.I32 ] in
   let linux = emit_env () and windows = emit_env ~triple:"x86_64-unknown-windows-gnu" () in
   let packed = emit_env ~pack:true () and packed_windows = emit_env ~pack:true ~triple:"x86_64-pc-windows-msvc" () in
@@ -1149,12 +1149,12 @@ let passings () =
 let returnings () =
   let module T = Cgt.Nodes.Ty in
   let module E = Codegen__Emit in
-  check "x86-64 Linux returns three pieces, two floating" (E.results "x86_64-unknown-linux-gnu" = (3, 2));
-  check "x86-64 Windows returns as many" (E.results "x86_64-unknown-windows-gnu" = (3, 2));
-  check "AArch64 macOS returns as many" (E.results "arm64-apple-macosx" = (3, 2));
-  check "Haswell x86-64 returns as many" (E.results "x86_64h-apple-darwin" = (3, 2));
-  check "arm64e returns as many" (E.results "arm64e-apple-macosx" = (3, 2));
-  check "RISC-V returns what it passes" (E.results "riscv64-unknown-linux-gnu" = (2, 2));
+  check "x86-64 Linux returns three pieces, two floating" (Codegen__Call_pieces.results "x86_64-unknown-linux-gnu" = (3, 2));
+  check "x86-64 Windows returns as many" (Codegen__Call_pieces.results "x86_64-unknown-windows-gnu" = (3, 2));
+  check "AArch64 macOS returns as many" (Codegen__Call_pieces.results "arm64-apple-macosx" = (3, 2));
+  check "Haswell x86-64 returns as many" (Codegen__Call_pieces.results "x86_64h-apple-darwin" = (3, 2));
+  check "arm64e returns as many" (Codegen__Call_pieces.results "arm64e-apple-macosx" = (3, 2));
+  check "RISC-V returns what it passes" (Codegen__Call_pieces.results "riscv64-unknown-linux-gnu" = (2, 2));
   let linux = emit_env () and windows = emit_env ~triple:"x86_64-unknown-windows-gnu" () in
   let packed = emit_env ~pack:true () in
   check "a handle comes back as itself" (E.returning linux T.Handle = E.Itself);
@@ -1402,6 +1402,43 @@ let fixture_pairing () =
     ~fixtures:[] ~goldens:[ "project.app.check"; "project.app.chek" ]
     [ "no rule makes golden/project.app.chek" ]
 
+(* A loop's lone push onto a list has its room made before the loop
+   (Loop_shapes.looped_pushes), unless something else in the loop may grow
+   the list through a reference, the pushed value's own call included. *)
+let looped_pushes () =
+  let module C = Cgt.Nodes in
+  let e node ty = { C.Expr.node; ty } in
+  let push =
+    C.Stat.Let
+      {
+        id = 11;
+        value =
+          e
+            (C.Expr.Runtime
+               { fn = Cgt.Runtime.List_push; args = [ e (C.Expr.Address 1) C.Ty.Ptr; e (C.Expr.Int 8L) C.Ty.I64 ] })
+            C.Ty.Ptr;
+      }
+  in
+  let grow = C.Stat.Let { id = 10; value = e (C.Expr.Call { fn = "app$grow"; args = [ e (C.Expr.Local 2) C.Ty.Ptr ] }) C.Ty.I64 } in
+  let expand body = C.Stat.Eval (e (C.Expr.Expand { label = 20; body; result = None }) C.Ty.Void) in
+  let on = Sys.getenv_opt "ZANE_LOOP_PUSHES" <> Some "0" in
+  check "a loop's lone push has its room made ahead, unless switched off"
+    (Codegen__Loop_shapes.looped_pushes [ expand [ push ] ] = if on then [ (1, 8L) ] else []);
+  check "not when the pushed value's call may grow a list"
+    (Codegen__Loop_shapes.looped_pushes [ expand [ grow; push ] ] = [])
+
+(* A scope whose body stores an address as a 32-bit reference is not light:
+   with frame references, a slot on the machine stack is out of the
+   reference's reach. *)
+let light_references () =
+  let module C = Cgt.Nodes in
+  let e node ty = { C.Expr.node; ty } in
+  let stored = C.Stat.Let { id = 3; value = e (C.Expr.Convert (e (C.Expr.Address 2) C.Ty.Ptr)) C.Ty.Ref } in
+  let scalar = C.Stat.Let { id = 3; value = e (C.Expr.Int 1L) C.Ty.I64 } in
+  let on = Sys.getenv_opt "ZANE_LIGHT_SCOPES" <> Some "0" in
+  check "a scope of scalars is light, unless switched off" (Codegen__Loop_shapes.light 1 [ scalar ] = on);
+  check "not when it stores a reference" (Codegen__Loop_shapes.light 1 [ stored ] = (on && not (Cgt.Ref32.frames ())))
+
 let () =
   ty ();
   Traversals.run check;
@@ -1459,6 +1496,8 @@ let () =
   stamps_are_checked ();
   disposed_modules ();
   repeated_builds ();
+  looped_pushes ();
+  light_references ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1

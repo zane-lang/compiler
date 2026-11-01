@@ -57,6 +57,9 @@ let lookup ctx span (l : T.Local.t) =
   | Some b -> b
   | None -> Diagnostic.bug ~span (Printf.sprintf "lowering found no slot for `%s`" l.T.Local.name)
 
+(* Whether a local is bound to a reference in its 32-bit form. *)
+let encoded ctx span l = match lookup ctx span l with Ref_slot _ -> true | _ -> false
+
 (* A literal, read through the concept parameters it was passed on by. A
    number parameter read in a body is the number its instance was given
    (generics.md §3.5), which is an integer literal. *)

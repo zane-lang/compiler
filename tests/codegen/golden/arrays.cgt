@@ -313,31 +313,35 @@
     │       │   ├── local: #34
     │       │   ├── scope: %27
     │       │   ├── value > case:
-    │       │   │   ├── type: <i64 | ptr>
+    │       │   │   ├── type: <i64 | box32>
     │       │   │   ├── index: 1
-    │       │   │   └── payload > box:
-    │       │   │       ├── value > record:
-    │       │   │       │   ├── type: [2 x <i64 | ptr>]
-    │       │   │       │   ├── members[0] > member 0 > case:
-    │       │   │       │   │   ├── type: <i64 | ptr>
-    │       │   │       │   │   ├── index: 0
-    │       │   │       │   │   └── payload: 1 : i64
-    │       │   │       │   └── members[1] > member 1 > case:
-    │       │   │       │       ├── type: <i64 | ptr>
-    │       │   │       │       ├── index: 1
-    │       │   │       │       └── payload > box:
-    │       │   │       │           ├── value > record:
-    │       │   │       │           │   ├── type: [2 x <i64 | ptr>]
-    │       │   │       │           │   ├── members[0] > member 0 > case:
-    │       │   │       │           │   │   ├── type: <i64 | ptr>
-    │       │   │       │           │   │   ├── index: 0
-    │       │   │       │           │   │   └── payload: 2 : i64
-    │       │   │       │           │   └── members[1] > member 1 > case:
-    │       │   │       │           │       ├── type: <i64 | ptr>
-    │       │   │       │           │       ├── index: 0
-    │       │   │       │           │       └── payload: 3 : i64
-    │       │   │       │           └── layout: %primitives$Array<arrays$Tree, 2>
-    │       │   │       └── layout: %primitives$Array<arrays$Tree, 2>
+    │       │   │   └── payload > convert:
+    │       │   │       ├── type: box32
+    │       │   │       └── value > box:
+    │       │   │           ├── value > record:
+    │       │   │           │   ├── type: [2 x <i64 | box32>]
+    │       │   │           │   ├── members[0] > member 0 > case:
+    │       │   │           │   │   ├── type: <i64 | box32>
+    │       │   │           │   │   ├── index: 0
+    │       │   │           │   │   └── payload: 1 : i64
+    │       │   │           │   └── members[1] > member 1 > case:
+    │       │   │           │       ├── type: <i64 | box32>
+    │       │   │           │       ├── index: 1
+    │       │   │           │       └── payload > convert:
+    │       │   │           │           ├── type: box32
+    │       │   │           │           └── value > box:
+    │       │   │           │               ├── value > record:
+    │       │   │           │               │   ├── type: [2 x <i64 | box32>]
+    │       │   │           │               │   ├── members[0] > member 0 > case:
+    │       │   │           │               │   │   ├── type: <i64 | box32>
+    │       │   │           │               │   │   ├── index: 0
+    │       │   │           │               │   │   └── payload: 2 : i64
+    │       │   │           │               │   └── members[1] > member 1 > case:
+    │       │   │           │               │       ├── type: <i64 | box32>
+    │       │   │           │               │       ├── index: 0
+    │       │   │           │               │       └── payload: 3 : i64
+    │       │   │           │               └── layout: %primitives$Array<arrays$Tree, 2>
+    │       │   │           └── layout: %primitives$Array<arrays$Tree, 2>
     │       │   └── layout: arrays$Tree
     │       ├── body[23] > eval > call:
     │       │   ├── type: void
@@ -354,12 +358,12 @@
     │       │       │   │   └── value: address of #34 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <i64 | ptr>
+    │       │       │       │   ├── type: <i64 | box32>
     │       │       │       │   └── ptr: local #39 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #40
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <i64 | ptr>
+    │       │       │       │       ├── within: <i64 | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #39 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -370,12 +374,14 @@
     │       │       │       ├── cases[0] > case 0[2]: leave @37
     │       │       │       ├── cases[1] > case 1[0] > let:
     │       │       │       │   ├── local: #41
-    │       │       │       │   └── value > deref:
+    │       │       │       │   └── value > convert:
     │       │       │       │       ├── type: ptr
-    │       │       │       │       └── ptr > offset:
-    │       │       │       │           ├── within: <i64 | ptr>
-    │       │       │       │           ├── path: 1
-    │       │       │       │           └── base: local #39 : ptr
+    │       │       │       │       └── value > deref:
+    │       │       │       │           ├── type: box32
+    │       │       │       │           └── ptr > offset:
+    │       │       │       │               ├── within: <i64 | box32>
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #39 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
     │       │       │       │   ├── place: #38
     │       │       │       │   └── value > binary:
@@ -385,7 +391,7 @@
     │       │       │       │       │   ├── type: i64
     │       │       │       │       │   ├── fn: arrays$total(arrays$Tree)
     │       │       │       │       │   └── args[0] > deref:
-    │       │       │       │       │       ├── type: <i64 | ptr>
+    │       │       │       │       │       ├── type: <i64 | box32>
     │       │       │       │       │       └── ptr > runtime:
     │       │       │       │       │           ├── type: ptr
     │       │       │       │       │           ├── fn: zane_array_at
@@ -397,7 +403,7 @@
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: arrays$total(arrays$Tree)
     │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: <i64 | ptr>
+    │       │       │       │               ├── type: <i64 | box32>
     │       │       │       │               └── ptr > runtime:
     │       │       │       │                   ├── type: ptr
     │       │       │       │                   ├── fn: zane_array_at
@@ -411,8 +417,8 @@
     │       │   ├── local: #42
     │       │   ├── scope: %27
     │       │   ├── value > copy:
-    │       │   │   ├── type: <i64 | ptr>
-    │       │   │   ├── value: local #34 : <i64 | ptr>
+    │       │   │   ├── type: <i64 | box32>
+    │       │   │   ├── value: local #34 : <i64 | box32>
     │       │   │   └── layout: arrays$Tree
     │       │   └── layout: arrays$Tree
     │       ├── body[25] > eval > call:
@@ -430,12 +436,12 @@
     │       │       │   │   └── value: address of #42 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <i64 | ptr>
+    │       │       │       │   ├── type: <i64 | box32>
     │       │       │       │   └── ptr: local #47 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #48
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <i64 | ptr>
+    │       │       │       │       ├── within: <i64 | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #47 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -446,12 +452,14 @@
     │       │       │       ├── cases[0] > case 0[2]: leave @45
     │       │       │       ├── cases[1] > case 1[0] > let:
     │       │       │       │   ├── local: #49
-    │       │       │       │   └── value > deref:
+    │       │       │       │   └── value > convert:
     │       │       │       │       ├── type: ptr
-    │       │       │       │       └── ptr > offset:
-    │       │       │       │           ├── within: <i64 | ptr>
-    │       │       │       │           ├── path: 1
-    │       │       │       │           └── base: local #47 : ptr
+    │       │       │       │       └── value > deref:
+    │       │       │       │           ├── type: box32
+    │       │       │       │           └── ptr > offset:
+    │       │       │       │               ├── within: <i64 | box32>
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #47 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
     │       │       │       │   ├── place: #46
     │       │       │       │   └── value > binary:
@@ -461,7 +469,7 @@
     │       │       │       │       │   ├── type: i64
     │       │       │       │       │   ├── fn: arrays$total(arrays$Tree)
     │       │       │       │       │   └── args[0] > deref:
-    │       │       │       │       │       ├── type: <i64 | ptr>
+    │       │       │       │       │       ├── type: <i64 | box32>
     │       │       │       │       │       └── ptr > runtime:
     │       │       │       │       │           ├── type: ptr
     │       │       │       │       │           ├── fn: zane_array_at
@@ -473,7 +481,7 @@
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: arrays$total(arrays$Tree)
     │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: <i64 | ptr>
+    │       │       │       │               ├── type: <i64 | box32>
     │       │       │       │               └── ptr > runtime:
     │       │       │       │                   ├── type: ptr
     │       │       │       │                   ├── fn: zane_array_at
@@ -598,7 +606,7 @@
     │   └── body[3] > return: unit : void
     └── funcs[4] > func:
         ├── symbol: arrays$total(arrays$Tree)
-        ├── params[0]: local #1 : <i64 | ptr>
+        ├── params[0]: local #1 : <i64 | box32>
         ├── ret: i64
         └── body[0] > return > expand:
             ├── type: i64
@@ -609,12 +617,12 @@
             │   └── value: address of #1 : ptr
             └── body[1] > switch:
                 ├── value > deref:
-                │   ├── type: <i64 | ptr>
+                │   ├── type: <i64 | box32>
                 │   └── ptr: local #4 : ptr
                 ├── cases[0] > case 0[0] > let:
                 │   ├── local: #5
                 │   └── value > offset:
-                │       ├── within: <i64 | ptr>
+                │       ├── within: <i64 | box32>
                 │       ├── path: 0
                 │       └── base: local #4 : ptr
                 ├── cases[0] > case 0[1] > assign:
@@ -625,12 +633,14 @@
                 ├── cases[0] > case 0[2]: leave @2
                 ├── cases[1] > case 1[0] > let:
                 │   ├── local: #6
-                │   └── value > deref:
+                │   └── value > convert:
                 │       ├── type: ptr
-                │       └── ptr > offset:
-                │           ├── within: <i64 | ptr>
-                │           ├── path: 1
-                │           └── base: local #4 : ptr
+                │       └── value > deref:
+                │           ├── type: box32
+                │           └── ptr > offset:
+                │               ├── within: <i64 | box32>
+                │               ├── path: 1
+                │               └── base: local #4 : ptr
                 ├── cases[1] > case 1[1] > assign:
                 │   ├── place: #3
                 │   └── value > binary:
@@ -643,7 +653,7 @@
                 │       │   ├── body[0] > let:
                 │       │   │   ├── local: #7
                 │       │   │   └── value > deref:
-                │       │   │       ├── type: <i64 | ptr>
+                │       │   │       ├── type: <i64 | box32>
                 │       │   │       └── ptr > runtime:
                 │       │   │           ├── type: ptr
                 │       │   │           ├── fn: zane_array_at
@@ -662,12 +672,12 @@
                 │       │   │       │   └── value: address of #7 : ptr
                 │       │   │       └── body[1] > switch:
                 │       │   │           ├── value > deref:
-                │       │   │           │   ├── type: <i64 | ptr>
+                │       │   │           │   ├── type: <i64 | box32>
                 │       │   │           │   └── ptr: local #12 : ptr
                 │       │   │           ├── cases[0] > case 0[0] > let:
                 │       │   │           │   ├── local: #13
                 │       │   │           │   └── value > offset:
-                │       │   │           │       ├── within: <i64 | ptr>
+                │       │   │           │       ├── within: <i64 | box32>
                 │       │   │           │       ├── path: 0
                 │       │   │           │       └── base: local #12 : ptr
                 │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -678,12 +688,14 @@
                 │       │   │           ├── cases[0] > case 0[2]: leave @10
                 │       │   │           ├── cases[1] > case 1[0] > let:
                 │       │   │           │   ├── local: #14
-                │       │   │           │   └── value > deref:
+                │       │   │           │   └── value > convert:
                 │       │   │           │       ├── type: ptr
-                │       │   │           │       └── ptr > offset:
-                │       │   │           │           ├── within: <i64 | ptr>
-                │       │   │           │           ├── path: 1
-                │       │   │           │           └── base: local #12 : ptr
+                │       │   │           │       └── value > deref:
+                │       │   │           │           ├── type: box32
+                │       │   │           │           └── ptr > offset:
+                │       │   │           │               ├── within: <i64 | box32>
+                │       │   │           │               ├── path: 1
+                │       │   │           │               └── base: local #12 : ptr
                 │       │   │           ├── cases[1] > case 1[1] > assign:
                 │       │   │           │   ├── place: #11
                 │       │   │           │   └── value > binary:
@@ -693,7 +705,7 @@
                 │       │   │           │       │   ├── type: i64
                 │       │   │           │       │   ├── fn: arrays$total(arrays$Tree)
                 │       │   │           │       │   └── args[0] > deref:
-                │       │   │           │       │       ├── type: <i64 | ptr>
+                │       │   │           │       │       ├── type: <i64 | box32>
                 │       │   │           │       │       └── ptr > runtime:
                 │       │   │           │       │           ├── type: ptr
                 │       │   │           │       │           ├── fn: zane_array_at
@@ -705,7 +717,7 @@
                 │       │   │           │           ├── type: i64
                 │       │   │           │           ├── fn: arrays$total(arrays$Tree)
                 │       │   │           │           └── args[0] > deref:
-                │       │   │           │               ├── type: <i64 | ptr>
+                │       │   │           │               ├── type: <i64 | box32>
                 │       │   │           │               └── ptr > runtime:
                 │       │   │           │                   ├── type: ptr
                 │       │   │           │                   ├── fn: zane_array_at
@@ -722,7 +734,7 @@
                 │           ├── body[0] > let:
                 │           │   ├── local: #15
                 │           │   └── value > deref:
-                │           │       ├── type: <i64 | ptr>
+                │           │       ├── type: <i64 | box32>
                 │           │       └── ptr > runtime:
                 │           │           ├── type: ptr
                 │           │           ├── fn: zane_array_at
@@ -741,12 +753,12 @@
                 │           │       │   └── value: address of #15 : ptr
                 │           │       └── body[1] > switch:
                 │           │           ├── value > deref:
-                │           │           │   ├── type: <i64 | ptr>
+                │           │           │   ├── type: <i64 | box32>
                 │           │           │   └── ptr: local #20 : ptr
                 │           │           ├── cases[0] > case 0[0] > let:
                 │           │           │   ├── local: #21
                 │           │           │   └── value > offset:
-                │           │           │       ├── within: <i64 | ptr>
+                │           │           │       ├── within: <i64 | box32>
                 │           │           │       ├── path: 0
                 │           │           │       └── base: local #20 : ptr
                 │           │           ├── cases[0] > case 0[1] > assign:
@@ -757,12 +769,14 @@
                 │           │           ├── cases[0] > case 0[2]: leave @18
                 │           │           ├── cases[1] > case 1[0] > let:
                 │           │           │   ├── local: #22
-                │           │           │   └── value > deref:
+                │           │           │   └── value > convert:
                 │           │           │       ├── type: ptr
-                │           │           │       └── ptr > offset:
-                │           │           │           ├── within: <i64 | ptr>
-                │           │           │           ├── path: 1
-                │           │           │           └── base: local #20 : ptr
+                │           │           │       └── value > deref:
+                │           │           │           ├── type: box32
+                │           │           │           └── ptr > offset:
+                │           │           │               ├── within: <i64 | box32>
+                │           │           │               ├── path: 1
+                │           │           │               └── base: local #20 : ptr
                 │           │           ├── cases[1] > case 1[1] > assign:
                 │           │           │   ├── place: #19
                 │           │           │   └── value > binary:
@@ -772,7 +786,7 @@
                 │           │           │       │   ├── type: i64
                 │           │           │       │   ├── fn: arrays$total(arrays$Tree)
                 │           │           │       │   └── args[0] > deref:
-                │           │           │       │       ├── type: <i64 | ptr>
+                │           │           │       │       ├── type: <i64 | box32>
                 │           │           │       │       └── ptr > runtime:
                 │           │           │       │           ├── type: ptr
                 │           │           │       │           ├── fn: zane_array_at
@@ -784,7 +798,7 @@
                 │           │           │           ├── type: i64
                 │           │           │           ├── fn: arrays$total(arrays$Tree)
                 │           │           │           └── args[0] > deref:
-                │           │           │               ├── type: <i64 | ptr>
+                │           │           │               ├── type: <i64 | box32>
                 │           │           │               └── ptr > runtime:
                 │           │           │                   ├── type: ptr
                 │           │           │                   ├── fn: zane_array_at

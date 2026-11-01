@@ -825,17 +825,20 @@ test passing.
   more of it usable instead of moving the elements. Where the system will
   not reserve that much, as under a cap on the address space, the
   reservation is the span alone, and a list that outgrows its reservation
-  moves into a fresh one. A push is inline: while the block has room, the
+  moves into a fresh one. The span it leaves gives its pages back to the
+  system a chunk at a time as the elements are copied out, all but its
+  first page, which holds its mapping's header, and goes to no stack; its
+  addresses stay with the region until it drains. A push is inline: while the block has room, the
   emitted code takes the element's address and counts it itself, and only a
   full block calls `zane_list_push`, which grows it. An empty list's first
-  block, of 128 bytes, is made inline too, in a function with a scope of its
+  block, four elements' bytes kept between 32 and 128, is made inline too, in a function with a scope of its
   own open (below). Together these make
   `listgrowth` in the spec's `langbench/`, which appends two million
   entities to a list twenty times, take less than half the time it did, and
   as much as C's `realloc` does within a few percent. A new list followed
   by a run of pushes, with nothing else naming it or able to leave until
   the last, has room
-  for the whole run made at its first push (`Emit.runs`), in that first
+  for the whole run made at its first push (`Loop_shapes.runs`), in that first
   block when the run fits in it and by `zane_list_reserve` otherwise, and
   the run's other pushes are stores with no check of the room. A list never
   shrinks: a removal moves the element out of its place and closes the list over it,
@@ -853,7 +856,15 @@ test passing.
     as shorter-lived, so a result coming home always moves its blocks. A
     list's growth goes to the region that holds the list. A box and a hold
     are made in the innermost region, which every block of what they take
-    already outlives, so nothing arrives at either.
+    already outlives, so nothing arrives at either. For the same reason a
+    value arriving in the innermost region moves nothing, and its blocks are
+    not walked: `zane_arrive` returns at once there, and for a place in one
+    of that region's chunks, as a list's element is, the check is the
+    place's chunk-map entry against `zane_open`, which an optimized build
+    inlines (tier 1 too, when LLVM can read the runtime's bitcode); an
+    unoptimized build and tier 0 call `zane_arrive`.
+    A result coming home from another context is the one arrival that walks
+    its blocks wherever it lands.
   - A value leaving scopes that drain -- a `return`, a `resolve`, an
     `abort`, a `return` from a block argument or an arm -- moves every block
     it owns in them into the scope the exit returns to, before the drain
@@ -918,6 +929,13 @@ test passing.
     - **Reuse.** A region takes its context's latest warm spare, then one
       from the pool, then a cold one, then a new chunk. Counts beside each
       list keep every limit O(1).
+    - **Lists' reservations.** A drained list's oversized span keeps its
+      reservation and its pages: a context keeps up to `ZANE_WARM_SPANS`
+      (2) of them, each until it has sat unused through `ZANE_COOLING` of
+      its later drains, and gives them all back when its call is over. The
+      next list to grow past 1 MiB takes one whose reservation holds what
+      it would reserve, so a list built again each round grows into pages
+      already resident rather than faulting fresh ones in.
     - **Windows.** A 1 MiB-aligned reservation costs an extra MiB of
       addresses there, and `VirtualFree(MEM_RELEASE)` frees only a whole
       reservation, so chunks are carved from slabs of 64 MiB, or one of
@@ -1182,7 +1200,7 @@ test passing.
   by pointer. A `mut` subject, a reference-type subject and a borrowed
   reference-type argument are addresses already.
   - **The count.** A type takes as many registers as the scalar pieces LLVM
-    splits it into (`Emit.pieces`): a struct's and a sum's are its members',
+    splits it into (`Call_pieces.pieces`): a struct's and a sum's are its members',
     a sum's tag and each word of its payload room one apiece, an array's its
     element's times its length, and `Unit` none. It is counted on the CGT
     type, not LLVM's, so it cannot depend on the data layout, and worked out
@@ -1191,9 +1209,9 @@ test passing.
   - **The limit.** An argument of no more pieces than the target's C
     calling convention gives one aggregate passes as itself: 2 on x86-64
     Linux and macOS and on AArch64, and 1 on x86-64 Windows
-    (`Emit.registers`). A larger one passes by address.
+    (`Call_pieces.registers`). A larger one passes by address.
   - **A result's limit.** A result comes back as itself while it takes no
-    more pieces than LLVM returns in registers (`Emit.results`,
+    more pieces than LLVM returns in registers (`Call_pieces.results`,
     `Emit.returning`): 3 on x86-64 and AArch64, on every system, at most 2
     of them floating-point, and the argument limit on any other target. On
     x86-64 that is `rax`, `rdx` and `rcx`, and `xmm0` and `xmm1`; a third

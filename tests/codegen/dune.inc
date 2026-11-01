@@ -2109,6 +2109,128 @@
   (diff golden/doubling.out doubling.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/emptyCycle))
+ (targets emptyCycle.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build emptyCycle.exe --package fixtures/emptyCycle)))
+
+(rule
+ (deps (source_tree fixtures/emptyCycle))
+ (targets emptyCycle.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build emptyCycle.optimized.exe --optimize --package fixtures/emptyCycle)))
+
+(rule
+ (deps (source_tree fixtures/emptyCycle))
+ (targets emptyCycle.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build emptyCycle.tiered.exe --tiered --package fixtures/emptyCycle)))
+
+(rule
+ (deps (source_tree fixtures/emptyCycle))
+ (targets emptyCycle.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up emptyCycle.tier1 --package fixtures/emptyCycle)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    emptyCycle.checked.out.actual
+    (run ./emptyCycle.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/emptyCycle.out emptyCycle.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    emptyCycle.unchecked.out.actual
+    (run ./emptyCycle.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/emptyCycle.out emptyCycle.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    emptyCycle.optimized.checked.out.actual
+    (run ./emptyCycle.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/emptyCycle.out emptyCycle.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    emptyCycle.optimized.unchecked.out.actual
+    (run ./emptyCycle.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/emptyCycle.out emptyCycle.optimized.unchecked.out.actual)))
+
+(rule
+ (deps emptyCycle.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./emptyCycle.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    emptyCycle.tiered.checked.out.actual
+    (run ./emptyCycle.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/emptyCycle.out emptyCycle.tiered.checked.out.actual)))
+
+(rule
+ (deps emptyCycle.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./emptyCycle.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    emptyCycle.tiered.unchecked.out.actual
+    (run ./emptyCycle.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/emptyCycle.out emptyCycle.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/entryArray))
  (targets entryArray.exe)
  (action
@@ -4267,6 +4389,128 @@
   (diff golden/lambdas.out lambdas.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/lightReferences))
+ (targets lightReferences.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build lightReferences.exe --package fixtures/lightReferences)))
+
+(rule
+ (deps (source_tree fixtures/lightReferences))
+ (targets lightReferences.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build lightReferences.optimized.exe --optimize --package fixtures/lightReferences)))
+
+(rule
+ (deps (source_tree fixtures/lightReferences))
+ (targets lightReferences.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build lightReferences.tiered.exe --tiered --package fixtures/lightReferences)))
+
+(rule
+ (deps (source_tree fixtures/lightReferences))
+ (targets lightReferences.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up lightReferences.tier1 --package fixtures/lightReferences)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    lightReferences.checked.out.actual
+    (run ./lightReferences.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lightReferences.out lightReferences.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    lightReferences.unchecked.out.actual
+    (run ./lightReferences.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lightReferences.out lightReferences.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    lightReferences.optimized.checked.out.actual
+    (run ./lightReferences.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lightReferences.out lightReferences.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    lightReferences.optimized.unchecked.out.actual
+    (run ./lightReferences.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lightReferences.out lightReferences.optimized.unchecked.out.actual)))
+
+(rule
+ (deps lightReferences.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./lightReferences.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    lightReferences.tiered.checked.out.actual
+    (run ./lightReferences.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lightReferences.out lightReferences.tiered.checked.out.actual)))
+
+(rule
+ (deps lightReferences.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./lightReferences.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    lightReferences.tiered.unchecked.out.actual
+    (run ./lightReferences.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lightReferences.out lightReferences.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/lists))
  (action
   (with-stdout-to
@@ -5047,6 +5291,128 @@
   (diff golden/owners.out owners.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/peeledEffects))
+ (targets peeledEffects.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build peeledEffects.exe --package fixtures/peeledEffects)))
+
+(rule
+ (deps (source_tree fixtures/peeledEffects))
+ (targets peeledEffects.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build peeledEffects.optimized.exe --optimize --package fixtures/peeledEffects)))
+
+(rule
+ (deps (source_tree fixtures/peeledEffects))
+ (targets peeledEffects.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build peeledEffects.tiered.exe --tiered --package fixtures/peeledEffects)))
+
+(rule
+ (deps (source_tree fixtures/peeledEffects))
+ (targets peeledEffects.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up peeledEffects.tier1 --package fixtures/peeledEffects)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    peeledEffects.checked.out.actual
+    (run ./peeledEffects.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/peeledEffects.out peeledEffects.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    peeledEffects.unchecked.out.actual
+    (run ./peeledEffects.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/peeledEffects.out peeledEffects.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    peeledEffects.optimized.checked.out.actual
+    (run ./peeledEffects.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/peeledEffects.out peeledEffects.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    peeledEffects.optimized.unchecked.out.actual
+    (run ./peeledEffects.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/peeledEffects.out peeledEffects.optimized.unchecked.out.actual)))
+
+(rule
+ (deps peeledEffects.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./peeledEffects.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    peeledEffects.tiered.checked.out.actual
+    (run ./peeledEffects.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/peeledEffects.out peeledEffects.tiered.checked.out.actual)))
+
+(rule
+ (deps peeledEffects.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./peeledEffects.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    peeledEffects.tiered.unchecked.out.actual
+    (run ./peeledEffects.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/peeledEffects.out peeledEffects.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/probed))
  (targets probed.exe)
  (action
@@ -5691,6 +6057,128 @@
  (alias runtest)
  (action
   (diff golden/recursion.out recursion.tiered.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/referenceBinders))
+ (targets referenceBinders.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build referenceBinders.exe --package fixtures/referenceBinders)))
+
+(rule
+ (deps (source_tree fixtures/referenceBinders))
+ (targets referenceBinders.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build referenceBinders.optimized.exe --optimize --package fixtures/referenceBinders)))
+
+(rule
+ (deps (source_tree fixtures/referenceBinders))
+ (targets referenceBinders.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build referenceBinders.tiered.exe --tiered --package fixtures/referenceBinders)))
+
+(rule
+ (deps (source_tree fixtures/referenceBinders))
+ (targets referenceBinders.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up referenceBinders.tier1 --package fixtures/referenceBinders)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    referenceBinders.checked.out.actual
+    (run ./referenceBinders.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/referenceBinders.out referenceBinders.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    referenceBinders.unchecked.out.actual
+    (run ./referenceBinders.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/referenceBinders.out referenceBinders.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    referenceBinders.optimized.checked.out.actual
+    (run ./referenceBinders.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/referenceBinders.out referenceBinders.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    referenceBinders.optimized.unchecked.out.actual
+    (run ./referenceBinders.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/referenceBinders.out referenceBinders.optimized.unchecked.out.actual)))
+
+(rule
+ (deps referenceBinders.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./referenceBinders.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    referenceBinders.tiered.checked.out.actual
+    (run ./referenceBinders.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/referenceBinders.out referenceBinders.tiered.checked.out.actual)))
+
+(rule
+ (deps referenceBinders.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./referenceBinders.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    referenceBinders.tiered.unchecked.out.actual
+    (run ./referenceBinders.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/referenceBinders.out referenceBinders.tiered.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/references))

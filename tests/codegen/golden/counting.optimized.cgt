@@ -319,14 +319,49 @@
     │       ├── type: i64
     │       ├── op: *
     │       ├── left: local #1 : i64
-    │       └── right > call:
+    │       └── right > expand:
     │           ├── type: i64
-    │           ├── fn: counting$factorial(%primitives$I64)
-    │           └── args[0] > binary:
-    │               ├── type: i64
-    │               ├── op: +
-    │               ├── left: local #1 : i64
-    │               └── right: -1 : i64
+    │           ├── label: @5
+    │           ├── result: #8
+    │           ├── body[0] > let:
+    │           │   ├── local: #7
+    │           │   └── value > binary:
+    │           │       ├── type: i64
+    │           │       ├── op: +
+    │           │       ├── left: local #1 : i64
+    │           │       └── right: -1 : i64
+    │           ├── body[1] > eval > expand:
+    │           │   ├── type: void
+    │           │   ├── label: @6
+    │           │   ├── body[0] > eval > expand:
+    │           │   │   ├── type: i1
+    │           │   │   ├── label: @11
+    │           │   │   ├── result: #9
+    │           │   │   ├── body[0] > let:
+    │           │   │   │   ├── local: #10
+    │           │   │   │   └── value > binary:
+    │           │   │   │       ├── type: i1
+    │           │   │   │       ├── op: <
+    │           │   │   │       ├── left: local #7 : i64
+    │           │   │   │       └── right: 2 : i64
+    │           │   │   ├── body[1] > if:
+    │           │   │   │   ├── cond: local #10 : i1
+    │           │   │   │   ├── body[0] > assign:
+    │           │   │   │   │   ├── place: #8
+    │           │   │   │   │   └── value: 1 : i64
+    │           │   │   │   └── body[1]: leave @5
+    │           │   │   ├── body[2] > assign:
+    │           │   │   │   ├── place: #9
+    │           │   │   │   └── value: local #10 : i1
+    │           │   │   └── body[3]: leave @11
+    │           │   └── body[1]: leave @6
+    │           ├── body[2] > assign:
+    │           │   ├── place: #8
+    │           │   └── value > call:
+    │           │       ├── type: i64
+    │           │       ├── fn: counting$factorial(%primitives$I64)
+    │           │       └── args[0]: local #7 : i64
+    │           └── body[3]: leave @5
     └── funcs[4] > func:
         ├── symbol: counting$smallest(%primitives$I64, %primitives$I64)
         ├── params[0]: local #1 : i64

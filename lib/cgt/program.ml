@@ -35,8 +35,9 @@ let func st (v : verb) : Func.t =
       (fun (p : T.Local.t) ->
         let id = fresh st in
         if by_address st v p then begin
-          Hashtbl.replace env p.T.Local.id (Pointer id);
-          if laid_out p.T.Local.ty then places := (id, ty st p.T.Local.span p.T.Local.ty) :: !places;
+          Hashtbl.replace env p.T.Local.id (pointer_binding st v p id);
+          if laid_out p.T.Local.ty then
+            places := (id, if viewed st v p then node_ty st p.T.Local.span p.T.Local.ty else ty st p.T.Local.span p.T.Local.ty) :: !places;
           (id, Nodes.Ty.Ptr)
         end
         else begin
@@ -52,6 +53,19 @@ let func st (v : verb) : Func.t =
       v.params
   in
   let places = List.rev !places in
+  (* Experimental: a function that pours its pooled result is given the
+     pool to build it in (Lower.into). *)
+  let pours = Lower_calls.pours st span v in
+  st.dest <- None;
+  let given =
+    if pours then begin
+      let d = fresh st in
+      st.dest <- Some d;
+      params @ [ (d, Nodes.Ty.Ptr) ]
+    end
+    else params
+  in
+  let returned o = if pours then Nodes.Ty.I64 else returned o in
   (* A `^T` parameter is an owner of the body (lifetimes.md §1.5): it is held
      in the body's own arena, so the body's drain ends it unless the body
      moved it on. *)
@@ -84,7 +98,7 @@ let func st (v : verb) : Func.t =
     if linkage = Linkage.Imported && st.import_bodies then Linkage.Available else linkage
   in
   if linkage = Linkage.Imported then
-    { Func.symbol = symbol st v; linkage; params; places; ret = returned o; body = []; values = [] }
+    { Func.symbol = symbol st v; linkage; params = given; places; ret = returned o; body = []; values = [] }
   else begin
     st.returns <- (if plain o then Fun.id else outcome_case o done_);
     st.ret <- v.signature.S.ret;
@@ -113,7 +127,7 @@ let func st (v : verb) : Func.t =
       | Some f -> Lower_foreign.body st ctx env span v f
       | None -> block ~enter st ctx v.body
     in
-    { Func.symbol = symbol st v; linkage; params; places; ret = returned o; body; values = st.values }
+    { Func.symbol = symbol st v; linkage; params = given; places; ret = returned o; body; values = st.values }
   end
 
 (* L16. The function that makes a package constant: the first call makes
@@ -364,6 +378,9 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
      writes back while it reads (lowering.md §9). A library's code may run
      in a program that spawns. *)
   let calls = spawned p in
+  (* A table filled for a program built earlier in this process says
+     nothing about this one; only the optimizer refills it. *)
+  Hashtbl.reset List_pure.functions;
   let exclusive = (not library) && calls = [] in
   let st = create ~region:fixed_region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
   st.places <- Some (Tst.States.of_program p);

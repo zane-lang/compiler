@@ -76,10 +76,12 @@ enum { ZANE_CHUNK = 1 << 20, ZANE_CONTEXTS = (1 << 16) - 1 };
 _Static_assert(ZANE_GUARD == ZANE_CHUNK, "the guard is one chunk");
 enum { ZANE_STEP = ZANE_CHUNK };
 
-/* A stretch that starts at a frame's end holds a list's first block past
-   the next line, so a first stretch always moves the frontier by exactly
-   ZANE_STRETCH (zane_abi.h), as emitted code takes it to. */
-_Static_assert(ZANE_STRETCH % 16 == 0 && ZANE_STRETCH >= 128 + ZANE_LINE, "a first stretch holds a first block");
+/* A stretch that starts at a frame's end holds a list's first block,
+   aligned to ZANE_LIST_ALIGN from there, so a first stretch always moves
+   the frontier by exactly ZANE_STRETCH (zane_abi.h), as emitted code takes
+   it to. */
+_Static_assert(ZANE_STRETCH % 16 == 0 && ZANE_STRETCH >= ZANE_LIST_FIRST + ZANE_LIST_ALIGN, "a first stretch holds a first block");
+_Static_assert(ZANE_LIST_FIRST <= 8 * ZANE_CLASSES, "a first block comes from a size class");
 
 enum { ZANE_PAGES = 1 << 14 };
 
@@ -106,8 +108,9 @@ typedef struct zane_stack {
 /* A dynamic chunk, or the chunks of one oversized block, begins with this,
    and its blocks start a cache line in. `size` bytes of it are usable. A
    list's oversized block lies at the start of `reserved` bytes of addresses
-   that `raw` begins, so it can grow in place (list.c); any other mapping
-   reserves none. */
+   that `raw` begins, so it can grow in place (list.c), and an unbounded
+   pool's block (experimental, `zane_alloc_unbounded`) at the start of its
+   own; any other mapping reserves none. */
 typedef struct zane_mapping {
 	struct zane_mapping *next;
 	size_t size, reserved;
@@ -121,12 +124,23 @@ typedef struct zane_mapping {
 
 _Static_assert(sizeof(zane_mapping) <= ZANE_LINE, "a mapping's header fits before its blocks");
 
+/* An unbounded pool's bytes (arena.c, `zane_alloc_unbounded`): as many as a
+   pool's 32-bit links reach. */
+#define ZANE_UNBOUNDED ((int64_t)1 << 31)
+char *zane_alloc_unbounded(zane_mark *region);
+
 /* How many spare chunks stay warm, their pages resident: on each context
    for good, and in the pool idle contexts give theirs to. A context keeps
    any others warm until they sit unused through ZANE_COOLING of its later
    drains. How many more stay cold, their pages after the first given back.
    Every other drained chunk goes back to the system (arena.c). */
 enum { ZANE_WARM_KEPT = 4, ZANE_POOL_WARM = 16, ZANE_COOLING = 8, ZANE_COLD_KEPT = 256 };
+
+/* How many drained lists' reservations a context keeps mapped, their pages
+   resident, for its next lists to grow into. One it has not reused through
+   ZANE_COOLING of its later drains goes back, and so do all of them when
+   it goes idle. */
+enum { ZANE_WARM_SPANS = 2 };
 
 typedef struct zane_task zane_task;
 typedef struct zane_context zane_context;
@@ -217,6 +231,12 @@ struct zane_context {
 	   many, and how many times its regions gave chunks back. */
 	zane_mapping *spare, *spare_last;
 	int64_t warm, drains;
+	/* The reservations of lists' oversized spans its drained regions gave
+	   back, kept mapped for the next list that grows past 1 MiB, and how
+	   many (arena.c). An unbounded pool's reservation (experimental) is
+	   kept here too, under the same ZANE_WARM_SPANS cap. */
+	zane_mapping *spans;
+	int64_t span_count;
 	zane_context *next;
 	/* What it waits for, as an edge of the graph of waits (value.c): the
 	   state of a package constant another context is making, or a call it
@@ -253,9 +273,13 @@ _Static_assert(sizeof(zane_task) == ZANE_TASK_SIZE, "lowering places a header of
 _Static_assert(offsetof(zane_text, length) == ZANE_HANDLE_LENGTH, "a string's length follows its bytes");
 _Static_assert(offsetof(zane_text, room) == ZANE_HANDLE_ROOM, "then its room");
 _Static_assert(sizeof(zane_text) == ZANE_HANDLE_SIZE, "a string is a handle");
+#if defined(ZANE_FRAME_REFS)
+_Static_assert(sizeof(zane_list) == 16, "a list is a 16-byte handle (List_handle)");
+#else
 _Static_assert(offsetof(zane_list, count) == ZANE_HANDLE_LENGTH, "a list's count follows its elements");
 _Static_assert(offsetof(zane_list, room) == ZANE_HANDLE_ROOM, "then its room");
 _Static_assert(sizeof(zane_list) == ZANE_HANDLE_SIZE, "a list is a handle");
+#endif
 
 enum { ZANE_QUEUED, ZANE_RUNNING, ZANE_DONE, ZANE_JOINED };
 
@@ -276,6 +300,7 @@ enum { ZANE_DEQUES = 1 << 12 };
 
 /* main.c */
 void zane_broken(const char *what);
+char *zane_pool_frontier(zane_mark *m, int64_t size);
 void zane_output(const char *bytes, size_t n);
 int zane_flush_output(void);
 void zane_flush_output_in_fault(void);
@@ -379,6 +404,11 @@ void zane_thread_stop(void);
 char *zane_reserve_aligned(size_t bytes, char **raw);
 int zane_commit_range(char *at, size_t bytes);
 void zane_release_addresses(char *raw, char *base, size_t bytes);
+#if defined(ZANE_IMAGE_BOXES) && defined(ZANE_FRAME_REFS) && !defined(_WIN32)
+/* Experimental: chunks within reach of the image (region.c). */
+char *zane_window_take(size_t bytes);
+void zane_window_give(char *base, size_t bytes);
+#endif
 int zane_decommit_range(char *at, size_t bytes);
 size_t zane_page_bytes(void);
 void zane_reserve(zane_context *c, int64_t size);
@@ -386,6 +416,8 @@ _Noreturn void zane_too_deep_in(zane_context *c);
 
 /* value.c */
 void zane_move(char *value, const zane_type *type, zane_mark *region, int64_t from);
+/* `zane_arrive` for a slot outside the innermost scope's dynamic chunks. */
+void zane_arrive_at(char *slot, const zane_type *type) __attribute__((noinline));
 void zane_wait_for(int64_t *constant, zane_task *call);
 void zane_waited(void);
 

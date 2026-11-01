@@ -54,6 +54,51 @@ static void zane_set_page(const void *at, uintptr_t entry) {
 	__atomic_store_n(zane_page(at, 1), entry, __ATOMIC_RELEASE);
 }
 
+#if defined(ZANE_CHUNK_BOXES) && defined(ZANE_FRAME_REFS) && !defined(_WIN32)
+/* Experimental (docs/experiments/goose-comparison): each MiB of a
+   context's frames and of a chunk has a number from 1, so that a boxed
+   member's block is stored as its MiB's number and its offset in 8-byte
+   units, in 32 bits (List_handle.encode_box). `zane_mib_bases` gives a
+   number's MiB, and `zane_mib_ids` the number of the MiB at an address's
+   bits from 20 up: a table of 256 MiB of addresses, of which only the
+   pages a program's MiBs index are ever touched. Numbers given back are
+   used again. */
+#define ZANE_MIB_IDS ((size_t)1 << 15)
+__attribute__((visibility("hidden"))) char *zane_mib_bases[ZANE_MIB_IDS];
+__attribute__((visibility("hidden"))) uint16_t zane_mib_ids[(size_t)1 << 27];
+static pthread_mutex_t zane_ids_lock = PTHREAD_MUTEX_INITIALIZER;
+static uint16_t zane_ids_free[ZANE_MIB_IDS];
+static size_t zane_ids_freed, zane_ids_next = 1;
+
+static void zane_ids_add(char *at, size_t bytes) {
+	pthread_mutex_lock(&zane_ids_lock);
+	for (size_t off = 0; off < bytes; off += ZANE_CHUNK) {
+		size_t id = zane_ids_freed ? zane_ids_free[--zane_ids_freed] : zane_ids_next++;
+		if (id >= ZANE_MIB_IDS) zane_broken("out of numbers for MiBs");
+		/* The table covers 128 TiB, all a mapping made without a hint
+		   above it is given. */
+		if (((uintptr_t)(at + off) >> 20) >= ((size_t)1 << 27)) zane_broken("a chunk past 128 TiB");
+		zane_mib_bases[id] = at + off;
+		zane_mib_ids[(uintptr_t)(at + off) >> 20] = (uint16_t)id;
+	}
+	pthread_mutex_unlock(&zane_ids_lock);
+}
+
+static void zane_ids_drop(char *at, size_t bytes) {
+	pthread_mutex_lock(&zane_ids_lock);
+	for (size_t off = 0; off < bytes; off += ZANE_CHUNK) {
+		uint16_t *id = &zane_mib_ids[(uintptr_t)(at + off) >> 20];
+		zane_ids_free[zane_ids_freed++] = *id;
+		zane_mib_bases[*id] = NULL;
+		*id = 0;
+	}
+	pthread_mutex_unlock(&zane_ids_lock);
+}
+#else
+#define zane_ids_add(at, bytes) ((void)0)
+#define zane_ids_drop(at, bytes) ((void)0)
+#endif
+
 /* Every context made, by its id, and those free for the next spawned call.
    A context takes its id under the lock, and is listed once its range is
    reserved. */
@@ -102,6 +147,7 @@ zane_context *zane_context_new(void) {
 	c->id = zane_context_count++;
 	pthread_mutex_unlock(&zane_memory);
 	zane_reserve(c, c->id == 0 ? zane_fixed_region : zane_spawned_fixed_region);
+	zane_ids_add(c->base, (size_t)(c->limit - c->base));
 	for (char *at = c->base; at < c->limit + ZANE_GUARD; at += ZANE_CHUNK)
 		zane_set_page(at, (uintptr_t)c | 1);
 	__atomic_store_n(&zane_contexts[c->id], c, __ATOMIC_RELEASE);
@@ -254,9 +300,12 @@ static zane_mapping *zane_chunks_new(size_t size) {
 	s->carved += size;
 	s->held += (int64_t)(size / ZANE_CHUNK);
 	pthread_mutex_unlock(&zane_memory);
+#elif defined(ZANE_IMAGE_BOXES) && defined(ZANE_FRAME_REFS)
+	if (!(base = zane_window_take(size))) zane_broken("out of addresses for a dynamic chunk");
 #else
 	char *raw;
 	if (!(base = zane_reserve_aligned(size, &raw))) zane_broken("out of addresses for a dynamic chunk");
+	zane_ids_add(base, size);
 #endif
 	if (!zane_commit_range(base, size)) zane_broken("out of memory for a dynamic chunk");
 	zane_mapping *m = (zane_mapping *)base;
@@ -277,7 +326,10 @@ static void zane_chunks_drop(zane_mapping *m, size_t size) {
 	pthread_mutex_lock(&zane_memory);
 	zane_slab_drop(slab, size / ZANE_CHUNK);
 	pthread_mutex_unlock(&zane_memory);
+#elif defined(ZANE_IMAGE_BOXES) && defined(ZANE_FRAME_REFS)
+	zane_window_give((char *)m, size);
 #else
+	zane_ids_drop((char *)m, size);
 	zane_release_addresses(NULL, (char *)m, size);
 #endif
 }
@@ -330,6 +382,12 @@ static zane_mapping *zane_take_warm(zane_context *c) {
    never keeps the peak its last call reached; past what the pool keeps
    warm, they turn cold. */
 void zane_give_spares(zane_context *c) {
+	while (c->spans) {
+		zane_mapping *m = c->spans;
+		c->spans = m->next;
+		zane_release_addresses(m->raw, (char *)m, m->reserved);
+	}
+	c->span_count = 0;
 	if (!c->spare) return;
 	pthread_mutex_lock(&zane_memory);
 	while (c->spare && zane_warm_spares < ZANE_POOL_WARM) {
@@ -383,11 +441,27 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 	return m;
 }
 
+/* A drained list's reservation kept mapped, its pages resident, for the
+   context's next list that grows past 1 MiB (zane_alloc_growable), while
+   the context keeps fewer than ZANE_WARM_SPANS; otherwise it goes back to
+   the system whole. */
+static void zane_keep_span(zane_context *c, zane_mapping *m) {
+	if (c->span_count >= ZANE_WARM_SPANS) {
+		zane_release_addresses(m->raw, (char *)m, m->reserved);
+		return;
+	}
+	m->stamp = c->drains;
+	m->next = c->spans;
+	c->spans = m;
+	c->span_count++;
+}
+
 /* A region's chunks given back, whatever is still in them (memory.md
    §3.2): each leaves the chunk map, and a whole chunk stays warm for the
    next region of the same context, until it has sat unused through
    ZANE_COOLING of the context's drains past the ZANE_WARM_KEPT it keeps
-   for good. A list's growable span gives back its whole reservation, and an
+   for good. A list's growable span is kept for the context's next list
+   (zane_keep_span) or gives back its whole reservation, and an
    oversized block its chunks. Its context's lock is held. */
 void zane_unmap(zane_mark *region) {
 	zane_context *c = region->context;
@@ -396,7 +470,7 @@ void zane_unmap(zane_mark *region) {
 		zane_mapping *m = region->mappings;
 		region->mappings = m->next;
 		for (size_t at = 0; at < m->size; at += ZANE_CHUNK) zane_set_page((char *)m + at, 0);
-		if (m->reserved) zane_release_addresses(m->raw, (char *)m, m->reserved);
+		if (m->reserved) zane_keep_span(c, m);
 		else if (m->size != ZANE_CHUNK) zane_chunks_drop(m, m->size);
 		else zane_keep_warm(c, m);
 	}
@@ -406,6 +480,16 @@ void zane_unmap(zane_mark *region) {
 		c->spare_last->next = NULL;
 		c->warm--;
 		zane_chill(m);
+	}
+	for (zane_mapping **at = &c->spans; *at;) {
+		zane_mapping *m = *at;
+		if (c->drains - m->stamp < ZANE_COOLING) {
+			at = &m->next;
+			continue;
+		}
+		*at = m->next;
+		c->span_count--;
+		zane_release_addresses(m->raw, (char *)m, m->reserved);
 	}
 	region->heap = (zane_heap){ 0 };
 	region->stacks = NULL;
@@ -434,17 +518,13 @@ int zane_stretch(zane_mark *m, char *end, int64_t most) {
    own slots or by a list that stretched it (list.c), may stretch by
    ZANE_STRETCH more, up to a chunk's size, so a small block after such a
    list, such as the record of the stack its old block goes to, takes no
-   chunk of its own. */
-static char *zane_frontier_of(zane_mark *m, int64_t size, int64_t align) {
+   chunk of its own. The heap's own room is looked at inline in each
+   caller, and the rest is out of line (zane_frontier_past), so that each
+   caller's common path is the few instructions of a bump. */
+static __attribute__((noinline)) char *zane_frontier_past(zane_mark *m, int64_t size, uintptr_t mask) {
 	zane_heap *h = &m->heap;
-	uintptr_t mask = (uintptr_t)align - 1;
-	uintptr_t start = ((uintptr_t)h->bump + mask) & ~mask;
-	if (h->bump && start + (uintptr_t)size <= (uintptr_t)h->end) {
-		h->bump = (char *)(start + (uintptr_t)size);
-		return (char *)start;
-	}
 	char *frontier = m->context->frontier;
-	start = (((uintptr_t)(h->bump && h->end == frontier ? h->bump : frontier)) + mask) & ~mask;
+	uintptr_t start = (((uintptr_t)(h->bump && h->end == frontier ? h->bump : frontier)) + mask) & ~mask;
 	int64_t most = frontier - (char *)m;
 	most = most > ZANE_STRETCHED && most <= ZANE_CHUNK - ZANE_STRETCH ? most + ZANE_STRETCH : ZANE_STRETCHED;
 	if (zane_stretch(m, (char *)(start + (uintptr_t)size), most)) {
@@ -462,6 +542,25 @@ static char *zane_frontier_of(zane_mark *m, int64_t size, int64_t align) {
 	return (char *)start;
 }
 
+static inline __attribute__((always_inline)) char *zane_frontier_of(zane_mark *m, int64_t size, int64_t align) {
+	zane_heap *h = &m->heap;
+	uintptr_t mask = (uintptr_t)align - 1;
+	uintptr_t start = ((uintptr_t)h->bump + mask) & ~mask;
+	if (h->bump && start + (uintptr_t)size <= (uintptr_t)h->end) {
+		h->bump = (char *)(start + (uintptr_t)size);
+		return (char *)start;
+	}
+	return zane_frontier_past(m, size, mask);
+}
+
+/* Experimental pooled variants (list.c): exactly `size` bytes, aligned to
+   a word, at a region's frontier, counted as a block out. The caller holds
+   the region's context's lock, or needs none. */
+char *zane_pool_frontier(zane_mark *m, int64_t size) {
+	m->heap.live++;
+	return zane_frontier_of(m, (size + 7) & ~(int64_t)7, 8);
+}
+
 /* The whole chunks an oversized block of `size` bytes takes, its mapping's
    header included. */
 static size_t zane_span_bytes(int64_t size) {
@@ -477,11 +576,26 @@ enum { ZANE_HEADROOM = 64 };
    in place as the list doubles (memory.md §3.6). Reserving costs addresses,
    not memory: only what is usable is charged, and only what is touched
    takes RAM. Where a process may not reserve that many addresses, the
-   reservation is the span alone. Its context's lock is held. */
-char *zane_alloc_growable(zane_mark *region, int64_t size) {
+   reservation is the span alone. Its context's lock is held. Kept out of
+   zane_alloc_held, whose every call would otherwise save the registers
+   this rare path uses. */
+__attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t size) {
 	size_t bytes = zane_span_bytes(size), reserved = bytes * ZANE_HEADROOM;
-	char *raw;
-	char *base = reserved / ZANE_HEADROOM == bytes ? zane_reserve_aligned(reserved, &raw) : NULL;
+	int fits = reserved / ZANE_HEADROOM == bytes;
+	zane_context *c = region->context;
+	char *raw = NULL, *base = NULL;
+	for (zane_mapping **at = &c->spans; *at; at = &(*at)->next) {
+		zane_mapping *kept = *at;
+		if (kept->reserved >= (fits ? reserved : bytes)) {
+			*at = kept->next;
+			c->span_count--;
+			base = (char *)kept;
+			raw = kept->raw;
+			reserved = kept->reserved;
+			break;
+		}
+	}
+	if (!base && fits) base = zane_reserve_aligned(reserved, &raw);
 	if (!base) base = zane_reserve_aligned(reserved = bytes, &raw);
 	if (!base) zane_broken("out of addresses for a list's elements");
 	if (!zane_commit_range(base, bytes)) zane_broken("out of memory for a list's elements");
@@ -489,6 +603,42 @@ char *zane_alloc_growable(zane_mark *region, int64_t size) {
 	for (size_t at = 0; at < bytes; at += ZANE_CHUNK) zane_set_page(base + at, (uintptr_t)region);
 	m->size = bytes;
 	m->reserved = reserved;
+	m->raw = raw;
+	m->next = region->mappings;
+	region->mappings = m;
+	region->heap.live++;
+	return base + ZANE_LINE;
+}
+
+/* Experimental pooled variants (docs/experiments/goose-comparison): a
+   block of `ZANE_UNBOUNDED` bytes in a region, writable from the start and
+   backed only where it is touched, as Goose reserves a data stack, so a
+   pool in it never needs its room checked. Only its first chunk is in the
+   chunk map: nothing asks which region holds an address past it. It is
+   kept warm for the context's next one, as a list's span is. Its context's
+   lock is held. */
+char *zane_alloc_unbounded(zane_mark *region) {
+	size_t total = (size_t)ZANE_UNBOUNDED + ZANE_CHUNK;
+	zane_context *c = region->context;
+	char *raw = NULL, *base = NULL;
+	for (zane_mapping **at = &c->spans; *at; at = &(*at)->next) {
+		zane_mapping *kept = *at;
+		if (kept->reserved >= total) {
+			*at = kept->next;
+			c->span_count--;
+			base = (char *)kept;
+			raw = kept->raw;
+			total = kept->reserved;
+			break;
+		}
+	}
+	if (!base && !(base = zane_reserve_aligned(total, &raw))) zane_broken("out of addresses for a pool");
+	/* A kept span was made usable only as far as its list grew. */
+	if (!zane_commit_range(base, total)) zane_broken("out of memory for a pool");
+	zane_mapping *m = (zane_mapping *)base;
+	zane_set_page(base, (uintptr_t)region);
+	m->size = ZANE_CHUNK;
+	m->reserved = total;
 	m->raw = raw;
 	m->next = region->mappings;
 	region->mappings = m;
@@ -555,7 +705,10 @@ char *zane_alloc_held(zane_mark *region, int64_t size, int64_t align) {
 		block = s ? s->top : NULL;
 		if (block) s->top = *(char **)block;
 	}
-	if (!block) block = zane_frontier_of(region, size, align);
+	if (!block) {
+		if (size > ZANE_CHUNK - ZANE_LINE && align <= ZANE_LINE) return zane_alloc_growable(region, size);
+		block = zane_frontier_of(region, size, align);
+	}
 	h->live++;
 	return block;
 }

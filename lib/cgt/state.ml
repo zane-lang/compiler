@@ -36,6 +36,13 @@ type verb = {
 type binding =
   | Slot of int
   | Pointer of int
+  (* A pointer to a reference in its 32-bit form (Type_layout.ref_slot):
+     a match binds an `&` payload to its slot, so a read decodes it and a
+     write encodes it there. *)
+  | Ref_slot of int
+  (* Experimental: a pointer to a pooled variant's node, or to a payload
+     inside one, laid out as Type_layout.node_ty says. *)
+  | Node of int
   | Literal of T.Expr.t
   | Code of closure
   | Future of { settle : unit -> Stat.t list; at : Expr.t option }
@@ -148,6 +155,9 @@ type state = {
      type. *)
   mutable returns : Expr.t -> Expr.t;
   mutable ret : Tty.t;
+  (* Experimental: the local holding the address of the pool a function
+     that returns a pooled variant builds its result in (Lower.into). *)
+  mutable dest : int option;
   (* The verb's abort type, which an `abort` hands its value on as. *)
   mutable aborts : Tty.t;
   (* The function each spawned call runs through, latest first. *)
@@ -212,6 +222,7 @@ type walk = {
   lend : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
   reference_to : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
   moved : state -> ctx -> Source.Span.t -> Tty.t -> T.Expr.t -> Expr.t;
+  view : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
   is_place : T.Expr.t -> bool;
   block : ?enter:(scope -> Stat.t list) -> state -> ctx -> T.Block.t -> Stat.t list;
   primitive : state -> ctx -> Source.Span.t -> string -> T.Arg.t list -> Tty.t -> Expr.t;
@@ -240,6 +251,7 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     values = [];
     returns = Fun.id;
     ret = Tty.Error;
+    dest = None;
     aborts = Tty.Error;
     spawned = [];
     current = "";
