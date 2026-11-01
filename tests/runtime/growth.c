@@ -147,7 +147,8 @@ static void exercise_move_out(void) {
 	char *header = block - ZANE_LINE;
 	fill(list, FULL + 1);
 	check(list->items != block && intact(list, FULL + 1));
-	check(given_back(header + page, (size_t)FULL * 8 + ZANE_LINE - page));
+	/* The whole mapping past its header's page, its rounded tail too. */
+	check(given_back(header + page, ((zane_mapping *)header)->size - page));
 	zane_scope_drain(scope);
 	check(zane_blocks() == 0);
 }

@@ -54,7 +54,9 @@ def build(name, tid):
         cmd = [ZANEC, "--build", exe, "--optimize", "--package", f"{tid}={LB}/bin/{tid}",
                "--package", f"bench={LB}/lib/bench", "--package", f"core={CORE}/core",
                "--package", f"math={CORE}/math"]
-        env = {**os.environ, **ZANE[name]}
+        # Only this variant's switches: none inherited from the caller.
+        env = {k: v for k, v in os.environ.items() if not k.startswith("ZANE_")}
+        env.update(ZANE[name])
     else:
         cmd = [GOOSE, "build", os.path.join(HERE, f"{tid}{GOOSE_FORMS[name]}.goose"), "-o", exe,
                "-O2", "--cc", clang]
@@ -69,20 +71,26 @@ def run(exe, args):
     t = time.perf_counter()
     pid = os.fork()
     if pid == 0:
-        fd = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(fd, 1)
-        os.execv(exe, [exe, *args])
-    _, _, ru = os.wait4(pid, 0)
+        try:
+            fd = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(fd, 1)
+            os.execv(exe, [exe, *args])
+        finally:
+            os._exit(127)
+    _, status, ru = os.wait4(pid, 0)
+    if status != 0:
+        sys.exit(f"{exe} failed: wait status {status}")
     return time.perf_counter() - t, ru
 
 
 def instructions(exe, args):
     r = subprocess.run(["valgrind", "--tool=callgrind", "--callgrind-out-file=/dev/null", exe, *args],
                        capture_output=True, text=True)
+    # Callgrind's summary line, `I   refs:      N`.
     for line in r.stderr.splitlines():
         if "refs:" in line:
             return int(line.split()[-1].replace(",", ""))
-    return 0
+    sys.exit(f"no instruction count for {exe}:\n{r.stderr}")
 
 
 for test in tests.TESTS:

@@ -161,10 +161,12 @@ class FactsTests(unittest.TestCase):
                 self.assertEqual(run_program(exe, 1), "11\n", optimize)
 
     def test_first_blocks_are_made_inline_in_a_scope(self):
-        # An empty list's first block is made by the push itself, which
-        # stores its room for four of its 8-byte elements, in a function with a scope of its
-        # own open; one with none calls the runtime for it, so its code stays
-        # small (Emit.push).
+        # An empty list's first block, of at most ZANE_LIST_FIRST bytes, is
+        # made by the push itself, which stores its room for four of its
+        # 8-byte elements, in a function with a scope of its own open, when
+        # the region has no returned block of that size and room at its
+        # frontier or in the frame; otherwise, and in a function with no
+        # scope, the push calls the runtime for it (Emit.push).
         ir = run(ZANEC, "--ll", *packages("pushes"))
         body = lambda name: re.search(r"(?ms)^define [^\n]*@\"pushes\$" + name + r"\(.*?^}", ir).group(0)
         self.assertRegex(body("gather"), FIRST_ROOM)

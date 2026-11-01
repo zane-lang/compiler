@@ -1,6 +1,7 @@
-/// A list of N edges, each two references to one of four owners and a
+/// A list of 2N edges, each two references to one of four owners and a
 /// weight, scanned 50 times, reading both ends through their references.
-/// Under ZANE_REF32=1 an edge takes 16 bytes instead of 24.
+/// With frame references (the Linux default) an edge takes 16 bytes, and
+/// 24 elsewhere.
 package edges;
 
 import core$;

@@ -62,8 +62,8 @@ def profile(binary, args):
         subprocess.run(["valgrind", "--tool=callgrind", "--callgrind-out-file=" + out, binary] + args,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         text = subprocess.run(["callgrind_annotate", "--threshold=100", "--inclusive=no", out],
-                              capture_output=True, text=True).stdout
-    total, funcs = 0, {}
+                              capture_output=True, text=True, check=True).stdout
+    total, funcs, names = 0, {}, {}
     for line in text.splitlines():
         if "PROGRAM TOTALS" in line:
             total = int(line.split()[0].replace(",", ""))
@@ -75,6 +75,13 @@ def profile(binary, args):
         if fn.startswith("0x"):
             continue
         key = name(fn)
+        if not key:
+            continue
+        # Functions of one name in different packages share a row; say so,
+        # so a flag on that row is checked against each.
+        names.setdefault(key, set()).add(fn)
+        if len(names[key]) == 2:
+            print(f"{binary}: `{key}` sums {sorted(names[key])}", file=sys.stderr)
         funcs[key] = funcs.get(key, 0) + count
     return total, funcs
 
@@ -140,7 +147,9 @@ def main():
                       f"Flagged: Zane over {THRESHOLD:.2f}× the better of Goose and C in a function "
                       f"that takes at least {SHARE:.0%} of Zane's total, against a language only "
                       f"where its whole program runs fewer instructions than Zane's, in programs of "
-                      f"{SMALLEST // 1_000_000} M instructions or more.", ""] + summary + out)
+                      f"{SMALLEST // 1_000_000} M instructions or more. A function under 1% of "
+                      f"Zane's total in every language is left out; `—` is a function a language "
+                      f"does not have, or has inlined.", ""] + summary + out)
     where = os.path.dirname(os.path.abspath(bin_dir.rstrip("/")))
     with open(os.path.join(where, "mechanisms.md"), "w") as f:
         f.write(text)

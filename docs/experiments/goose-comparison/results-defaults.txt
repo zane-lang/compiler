@@ -1,3 +1,4 @@
+# run.py output with the defaults, RUNS=3: build time; median wall time [least-most]; peak RSS of the run (see run.py).
 startup       zane            build   0.86s  median   0.0033s [0.0027-0.0036]  rss      9.5 MB
 startup       goose           build   0.22s  median   0.0046s [0.0039-0.0058]  rss      9.5 MB
 startup       c               build   0.12s  median   0.0032s [0.0027-0.0035]  rss      9.5 MB

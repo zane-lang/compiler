@@ -72,8 +72,8 @@ let bind_local st scope (l : T.Local.t) id value =
 let ptr node = { Expr.node; ty = Nodes.Ty.Ptr }
 
 (* The block of the boxed member whose slot [at] is (adt.md §4), and a block
-   on its way into such a slot: stored as a [Ref] with Ref32
-   (experimental). *)
+   on its way into such a slot: stored as a [Box32] with image boxes
+   (experimental; Type_layout.box_type). *)
 let box_block at =
   match Type_layout.box_type () with
   | Nodes.Ty.Ptr -> ptr (Expr.Deref at)

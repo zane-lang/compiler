@@ -1,3 +1,8 @@
+# time_runs.py output: least / median CPU time (user + system) over its runs, and peak RSS.
+# Builds, each with ZANE_ONE_BOX, ZANE_PARTIAL_INLINE, ZANE_LOOP_PUSHES, ZANE_LIGHT_SCOPES and ZANE_HOIST_HANDLES:
+#   s6    and ZANE_FRAME_REFS (the six)
+#   s-all and ZANE_REF32 (the cage, since removed) and ZANE_NICHE_SUMS, in place of frame references
+#   s-ib  the six with ZANE_IMAGE_BOXES and ZANE_NICHE_SUMS
 ## binarytrees
 s6/bin/binarytrees.zane                  0.046 / 0.046 s  10 MB
 s-all/bin/binarytrees.zane               0.040 / 0.043 s  8 MB

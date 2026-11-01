@@ -108,6 +108,9 @@ static int64_t check(const char *n) {
 #ifndef FRESH
 #define FRESH 0
 #endif
+#if FRESH && NO_CHECK
+#error "FRESH needs the room check: its pool is FRESH bytes and grows"
+#endif
 static int64_t tree(int64_t d, pool *s) {
 #if FRESH
 	pool f = { malloc(FRESH), 0, FRESH }; int64_t at = make(d, &f), n = check(f.items + at); free(f.items); (void)s; return n;

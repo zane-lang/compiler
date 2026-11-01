@@ -19,7 +19,10 @@ rest = re.sub(r'ptr (nonnull )?%1\b', r'ptr \1@zp', rest)
 g = s[:i] + head + '\n' + rest + s[j:]
 call = r'^(\s+)%[\w.]+ = call fastcc i64 @"binarytrees\$make\(core\$Int\)"\(i64 [%\w.]+, ptr nonnull (%[\w.]+)\)$'
 copy = '{0}call void @llvm.memcpy.p0.p0.i64(ptr {1}, ptr {2}, i64 24, i1 false)'
-g = re.sub(call, lambda m: '\n'.join([copy.format(m[1], '@zp', m[2]), m[0], copy.format(m[1], m[2], '@zp')]), g, flags=re.M)
+g, sites = re.subn(call, lambda m: '\n'.join([copy.format(m[1], '@zp', m[2]), m[0], copy.format(m[1], m[2], '@zp')]), g, flags=re.M)
+# Without a call site rewritten, global.ll would time the unchanged code.
+if sites == 0:
+    sys.exit('rewrite.py: no call to make found in the IR')
 g += '\n@zp = internal global [3 x i64] zeroinitializer, align 16\n'
 if 'declare void @llvm.memcpy.p0.p0.i64' not in g:
     g += 'declare void @llvm.memcpy.p0.p0.i64(ptr, ptr, i64, i1)\n'

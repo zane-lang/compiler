@@ -32,16 +32,22 @@ wall clock moves by about ±15%). A ratio below 1 means Zane is faster.
 | entities | 1.1×, 158 MB | 1.111 s, 93.7 MB | 1.063 s, 93.6 MB | 1.067 s | 1.05× |
 | concscan | 0.1×, 158 MB | 0.400 s, 93.6 MB | 3.649 s, 162.5 MB | 0.385 s | 0.11× |
 
+concscan's Goose time is mostly its port copying each shard per pass:
+`memcpy` is 183 M of its 253 M instructions (`mechanisms-six.md`), so its
+0.11× measures that port, not the scan.
+
 The compute-bound tests (trialdiv, mandelbrot, fannkuch, nbody,
 spectralnorm, particles), startup and primes were level with Goose and C
 before, and still are.
 
-Zane now matches or beats Goose everywhere except ntree. ntree's remaining
-gap is the 16-byte list handle each node is, against Goose's 4-byte links.
-Even so, Zane's ntree takes less memory than Goose's. A port that holds a
-node's children in an `ArrayRef` the way Goose's does (`ntreearray/`) is
-1.5× faster than Goose in 40% of its memory, so the gap is the program's
-container, not the language. gameloop is left out of the comparison: it
+Zane now matches or beats Goose everywhere except ntree, and listgrowth by
+6%. ntree's remaining gap is the 16-byte list handle each node is, against
+Goose's 4-byte links. Even so, Zane's ntree takes less memory than Goose's.
+A port that holds a node's children in an `ArrayRef` the way Goose's does
+(`ntreearray/`) is level with Goose in a plain build, and was 1.5× faster
+in 40% of its memory with the cage build (`ZANE_REF32`, since removed;
+README, "ntree with an `ArrayRef` of children"), so the gap is the
+program's container, not the language. gameloop is left out of the comparison: it
 measures how the port stores its entities, not a mechanism the languages
 differ in.
 
@@ -146,8 +152,9 @@ node is 8 bytes, as Goose's is.
 
 **A list's handle is 16 bytes**: an 8-byte items pointer, a 32-bit count
 and a 32-bit room counted in elements, so a list holds up to 2^32 − 1
-elements. A list's first block holds four elements, rounded to a word and
-clamped to 32–128 bytes, and comes from the region's size classes like a
+elements. A list's first block is four elements' bytes, rounded to a word
+and clamped to 32–128 bytes, so it holds four whenever an element is at
+most 32 bytes, and comes from the region's size classes like a
 box's. A list that grows past a chunk gets a reservation 64 times its size
 so it can keep doubling in place, and a drained region keeps two such
 reservations warm for the next large list. A list that moves out of its
@@ -239,8 +246,8 @@ not updated; they are a separate change.
 ## What is still open
 
 - **ntree**: closing the last 1.3× needs the node's children inline, as the
-  `ArrayRef` port shows, or a smaller handle; the 12-byte handle was
-  declined above.
+  `ArrayRef` port shows, or a smaller handle; the cage's 12-byte handle
+  went with the cage (the dead ends above; README, "The switches on by default, the cage removed").
 - **listgrowth** (1.06×): Goose unrolls the push loop twice; Zane keeps a
   second counter.
 - **A pool's count through calls**: a calling convention that passes a

@@ -378,6 +378,9 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
      writes back while it reads (lowering.md §9). A library's code may run
      in a program that spawns. *)
   let calls = spawned p in
+  (* A table filled for a program built earlier in this process says
+     nothing about this one; only the optimizer refills it. *)
+  Hashtbl.reset List_pure.functions;
   let exclusive = (not library) && calls = [] in
   let st = create ~region:fixed_region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
   st.places <- Some (Tst.States.of_program p);

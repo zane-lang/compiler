@@ -136,7 +136,8 @@ let func pushes (f : Func.t) =
    through a value. *)
 let grows_expr (e : Expr.t) =
   match e.Expr.node with
-  | Expr.Call_value _ -> true
+  (* C may call back into Zane, through a lambda it was given. *)
+  | Expr.Call_value _ | Expr.Foreign_call _ -> true
   | Expr.Runtime { fn; _ } -> (
       match fn with
       | Cgt.Runtime.List_push | List_room | List_reserve | List_remove _ | List_swap_remove _ | Overwrite | Copy

@@ -826,12 +826,12 @@ test passing.
   not reserve that much, as under a cap on the address space, the
   reservation is the span alone, and a list that outgrows its reservation
   moves into a fresh one. The span it leaves gives its pages back to the
-  system a chunk at a time as the elements are copied out, all but the
-  first, which holds its mapping's header, and goes to no stack; its
+  system a chunk at a time as the elements are copied out, all but its
+  first page, which holds its mapping's header, and goes to no stack; its
   addresses stay with the region until it drains. A push is inline: while the block has room, the
   emitted code takes the element's address and counts it itself, and only a
   full block calls `zane_list_push`, which grows it. An empty list's first
-  block, of 128 bytes, is made inline too, in a function with a scope of its
+  block, four elements' bytes kept between 32 and 128, is made inline too, in a function with a scope of its
   own open (below). Together these make
   `listgrowth` in the spec's `langbench/`, which appends two million
   entities to a list twenty times, take less than half the time it did, and
@@ -860,7 +860,9 @@ test passing.
     value arriving in the innermost region moves nothing, and its blocks are
     not walked: `zane_arrive` returns at once there, and for a place in one
     of that region's chunks, as a list's element is, the check is the
-    place's chunk-map entry against `zane_open`, which the program inlines.
+    place's chunk-map entry against `zane_open`, which an optimized build
+    inlines (tier 1 too, when LLVM can read the runtime's bitcode); an
+    unoptimized build and tier 0 call `zane_arrive`.
     A result coming home from another context is the one arrival that walks
     its blocks wherever it lands.
   - A value leaving scopes that drain -- a `return`, a `resolve`, an

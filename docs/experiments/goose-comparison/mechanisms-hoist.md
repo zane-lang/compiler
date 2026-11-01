@@ -1,6 +1,6 @@
 # Instructions per function (the kept build with light scopes and hoisted handles)
 
-Flagged: Zane over 1.10× the better of Goose and C in a function that takes at least 5% of Zane's total, against a language only where its whole program runs fewer instructions than Zane's, in programs of 10 M instructions or more.
+Flagged: Zane over 1.10× the better of Goose and C in a function that takes at least 5% of Zane's total, against a language only where its whole program runs fewer instructions than Zane's, in programs of 10 M instructions or more. A function under 1% of Zane's total in every language is left out; `—` is a function a language does not have, or has inlined.
 
 ## Flagged
 
@@ -200,7 +200,7 @@ Flagged: Zane over 1.10× the better of Goose and C in a function that takes at 
 
 | function | zane | goose | c | Zane ÷ best |
 | --- | --- | --- | --- | --- |
-| total | 0.0 M | 265.5 M | 66.6 M | — |
+| total | — (not finished) | 265.5 M | 66.6 M | — |
 | memcpyavxunalignederms | — | 195.9 M | 10 K | — |
 | gstmainshardsum | — | 60.0 M | — | — |
 | shardsum | — | — | 60.0 M | — |
@@ -471,7 +471,6 @@ Flagged: Zane over 1.10× the better of Goose and C in a function that takes at 
 | dltlsinitialmodidlimitsetup | — | 0 K | 0 K | — |
 | dldebugpostrelocate | — | 0 K | 0 K | — |
 | pthreadmutexinit | — | 0 K | — | — |
-|  | — | 0 K | 0 K | — |
 | sigaction | — | 0 K | — | — |
 | newexitfn | — | 0 K | 0 K | — |
 | dopreload | — | 0 K | 0 K | — |

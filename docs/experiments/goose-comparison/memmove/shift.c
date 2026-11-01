@@ -22,7 +22,8 @@ int main(int argc, char **argv) {
 	size_t n = argc > 1 ? strtoul(argv[1], 0, 10) : 60000;
 	int reps = 25000;
 	size_t shifts[] = { 32, 64, 128, 4096 };
-	char *buf = aligned_alloc(64, n + 8192);
+	/* aligned_alloc takes a size that is a multiple of the alignment. */
+	char *buf = aligned_alloc(64, (n + 8192 + 63) / 64 * 64);
 	memset(buf, 1, n + 8192);
 	const char *names[] = { "glibc memmove", "rep movsb", "avx2 loop" };
 	for (int k = 0; k < 4; k++)

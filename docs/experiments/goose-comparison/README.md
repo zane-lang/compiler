@@ -882,14 +882,14 @@ from the IR by `rewrite.py`:
 ```sh
 python3 rewrite.py zane.ll
 clang -O2 rh.c rvar.c gvar.c gmake.c make.ll -o rh
-./rh 0 8 200000   # 0 goose, 1 goose by pointer, 5 pointer handed back, 6 count in registers, 7 zane
+./rh 0 8 200000   # 0 goose, 1 goose by pointer, 2-4 gvar.c's, 5 pointer handed back, 6 count in registers, 7 zane
 ```
 
 | variant | depth 4 | depth 8 | depth 16 |
 | --- | --- | --- | --- |
 | Goose (global top) | 2.87 | 2.85–2.95 | 2.89 |
 | Goose, its stack passed by pointer | 4.59 | 4.19–4.23 | 3.28 |
-| by pointer, handed back in a register with the result | 2.82 | 2.42–3.32 | 2.33 |
+| by pointer, handed back in a register with the result, no count kept | 2.82 | 2.42–3.32 | 2.33 |
 | Zane's shape, items and count in registers, the count returned | 2.64 | 2.70–3.10 | 2.46 |
 | Zane's compiled `make` | 4.88 | 4.78–5.13 | 5.20 |
 
@@ -2265,6 +2265,12 @@ Review of the PR found defaults that could change a program's result:
   copy, so repointing the binder left the variant naming the old owner.
   The binder is now the payload's slot (`State.Ref_slot`), read decoded and
   written encoded (`tests/codegen/fixtures/referenceBinders`).
+- Room for a loop's pushes (`Loop_shapes.looped_pushes`) was made for
+  every time round even when the loop could leave early, so a loop over a
+  huge range that left after a few pushes reserved for all of them. Such a
+  loop now grows push by push. A call into C counts as one that may grow a
+  list, since C may call back, and the table of functions that cannot
+  (`Cgt.List_pure`) is emptied for each program lowered.
 
 ## What remains
 

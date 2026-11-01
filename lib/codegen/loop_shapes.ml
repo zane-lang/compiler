@@ -331,7 +331,7 @@ let may_grow s =
     ~expr:(fun e ->
       match e.Expr.node with
       | Expr.Call { fn; _ } -> not (Hashtbl.mem Cgt.List_pure.functions fn)
-      | Expr.Call_value _ -> true
+      | Expr.Call_value _ | Expr.Foreign_call _ -> true
       | Expr.Runtime { fn; _ } -> (
           match fn with
           | Cgt.Runtime.List_push | List_room | List_reserve | List_remove _ | List_swap_remove _ | Overwrite | Copy
@@ -370,7 +370,9 @@ let looped_pushes body =
     List.filter_map
       (fun id ->
         match List.partition (fun s -> Option.is_some (push_of id s)) body with
-        | [ s ], rest when not (List.exists (names id) rest || List.exists may_grow rest) ->
+        (* A loop that may leave early may push far fewer times than it
+           could run, so room is made only for one that runs to the end. *)
+        | [ s ], rest when not (List.exists (names id) rest || List.exists may_grow rest || leaving body) ->
             Option.map (fun stride -> (id, stride)) (push_of id s)
         | _ -> None)
       lists

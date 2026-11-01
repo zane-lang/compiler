@@ -15,7 +15,14 @@
      self-relative links inside the node;
    4 Goose's, each node padded to 24 bytes. */
 static char *bump;
-static void *take(size_t n) { void *p = bump; bump += n; return p; }
+static char *bump_end;
+static void *take(size_t n) {
+  if ((size_t)(bump_end - bump) < n) {
+    fputs("replay: the tree outgrew its 1 GiB; use a smaller depth\n", stderr);
+    exit(1);
+  }
+  void *p = bump; bump += n; return p;
+}
 
 typedef struct { char *items; int64_t count, room; } handle;
 static handle zgrow(int d, int early) {
@@ -92,12 +99,17 @@ int main(int argc, char **argv) {
     return 1;
   }
   int form = atoi(argv[1]), depth = argc > 2 ? atoi(argv[2]) : 10, runs = argc > 3 ? atoi(argv[3]) : 7;
+  if (form < 0 || form > 5) {
+    fprintf(stderr, "form is 0 to 5\n");
+    return 1;
+  }
   gsize = form == 4 ? 24 : 17;
   char *mem = mmap(0, 1L << 30, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mem == MAP_FAILED) {
     perror("mmap");
     return 1;
   }
+  bump_end = mem + (1L << 30);
   uint64_t best_grow = ~0ull, best_count = ~0ull; long total = 0;
   for (int run = 0; run < runs; run++) {
     uint64_t grow = 0, count = 0;

@@ -1,5 +1,6 @@
 """Least and median CPU time (user + system) and peak memory of each binary,
-run in turn N times (default 11) with the same arguments:
+run in turn N times (default 11) with the same arguments. Linux only: the
+memory is ru_maxrss, which Linux counts in KiB.
 
     N=21 python3 time_runs.py "ARGS" BINARY ...
 """
@@ -8,7 +9,10 @@ args = sys.argv[1].split(); exes = sys.argv[2:]
 def run(exe):
     pid = os.fork()
     if pid == 0:
-        fd = os.open(os.devnull, os.O_WRONLY); os.dup2(fd, 1); os.execv(exe, [exe, *args])
+        try:
+            fd = os.open(os.devnull, os.O_WRONLY); os.dup2(fd, 1); os.execv(exe, [exe, *args])
+        finally:
+            os._exit(127)
     _, status, ru = os.wait4(pid, 0)
     if status != 0: sys.exit(f"{exe} failed: wait status {status}")
     return ru.ru_utime + ru.ru_stime, ru.ru_maxrss

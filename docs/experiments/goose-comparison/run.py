@@ -58,11 +58,16 @@ def run_measured(exe, args):
     t = time.perf_counter()
     pid = os.fork()
     if pid == 0:
-        fd = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(fd, 1)
-        os.execv(exe, [exe, *args])
+        try:
+            fd = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(fd, 1)
+            os.execv(exe, [exe, *args])
+        finally:
+            os._exit(127)
     _, status, ru = os.wait4(pid, 0)
     dt = time.perf_counter() - t
+    if status != 0:
+        raise RuntimeError(f"{exe} failed: wait status {status}")
     return dt, ru.ru_maxrss
 
 results = {}
@@ -105,5 +110,7 @@ for test in tests.TESTS:
         print(f"{tid:13} {lang:15} build {bt:6.2f}s  median {row[lang]['median']:8.4f}s "
               f"[{min(times):.4f}-{max(times):.4f}]  rss {rss/1024:8.1f} MB", flush=True)
     results[tid] = row
-with open(os.path.join(WORK, "quick.json" if QUICK else "results.json"), "w") as f:
+# A subset is written beside the full results rather than over them.
+name = ("quick" if QUICK else "results") + (f"-{only.replace(',', '-')}" if only else "") + ".json"
+with open(os.path.join(WORK, name), "w") as f:
     json.dump(results, f, indent=1)

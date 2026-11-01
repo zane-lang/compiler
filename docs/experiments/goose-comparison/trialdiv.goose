@@ -1,5 +1,7 @@
 // The primes up to N, counted by trial division against a table of small
-// primes built with a sieve. N is the program's first argument.
+// primes built with a sieve. N is the program's first argument. The table
+// holds the primes below 4000, so the count is right for N below 4000²
+// (16 million), which covers every size the suite runs.
 
 import std;
 import os;

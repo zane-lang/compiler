@@ -16,7 +16,7 @@ for d in tests/codegen/fixtures/*/; do
   a=$($Z --cgt --optimize --package "$d" 2>&1 | md5sum); b=$(env "$@" "$Z" --cgt --optimize --package "$d" 2>&1 | md5sum)
   [ "$a" = "$b" ] && [ -z "$ALL" ] && continue
   if ! env "$@" "$Z" --build "$W/$n.new" --package "$d" >/dev/null 2>"$W/$n.err"; then
-    echo "$n: refused: $(grep -o 'pooled variants[^"]*' "$W/$n.err" | head -1)"; continue
+    echo "$n: refused: $(grep -m1 . "$W/$n.err")"; continue
   fi
   if ! "$Z" --build "$W/$n.old" --package "$d" >/dev/null 2>&1; then echo "$n: baseline refused"; continue; fi
   o=$(ZANE_CHECK=1 "$W/$n.old" "${args[@]}" 2>&1; echo "exit $?"); p=$(ZANE_CHECK=1 "$W/$n.new" "${args[@]}" 2>&1; echo "exit $?")

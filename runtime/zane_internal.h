@@ -76,9 +76,10 @@ enum { ZANE_CHUNK = 1 << 20, ZANE_CONTEXTS = (1 << 16) - 1 };
 _Static_assert(ZANE_GUARD == ZANE_CHUNK, "the guard is one chunk");
 enum { ZANE_STEP = ZANE_CHUNK };
 
-/* A stretch that starts at a frame's end holds a list's first block past
-   the next line, so a first stretch always moves the frontier by exactly
-   ZANE_STRETCH (zane_abi.h), as emitted code takes it to. */
+/* A stretch that starts at a frame's end holds a list's first block,
+   aligned to ZANE_LIST_ALIGN from there, so a first stretch always moves
+   the frontier by exactly ZANE_STRETCH (zane_abi.h), as emitted code takes
+   it to. */
 _Static_assert(ZANE_STRETCH % 16 == 0 && ZANE_STRETCH >= ZANE_LIST_FIRST + ZANE_LIST_ALIGN, "a first stretch holds a first block");
 _Static_assert(ZANE_LIST_FIRST <= 8 * ZANE_CLASSES, "a first block comes from a size class");
 
@@ -107,8 +108,9 @@ typedef struct zane_stack {
 /* A dynamic chunk, or the chunks of one oversized block, begins with this,
    and its blocks start a cache line in. `size` bytes of it are usable. A
    list's oversized block lies at the start of `reserved` bytes of addresses
-   that `raw` begins, so it can grow in place (list.c); any other mapping
-   reserves none. */
+   that `raw` begins, so it can grow in place (list.c), and an unbounded
+   pool's block (experimental, `zane_alloc_unbounded`) at the start of its
+   own; any other mapping reserves none. */
 typedef struct zane_mapping {
 	struct zane_mapping *next;
 	size_t size, reserved;
@@ -231,7 +233,8 @@ struct zane_context {
 	int64_t warm, drains;
 	/* The reservations of lists' oversized spans its drained regions gave
 	   back, kept mapped for the next list that grows past 1 MiB, and how
-	   many (arena.c). */
+	   many (arena.c). An unbounded pool's reservation (experimental) is
+	   kept here too, under the same ZANE_WARM_SPANS cap. */
 	zane_mapping *spans;
 	int64_t span_count;
 	zane_context *next;
