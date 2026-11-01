@@ -1425,6 +1425,17 @@ let looped_pushes () =
   check "not when the pushed value's call may grow a list"
     (Codegen__Loop_shapes.looped_pushes [ expand [ grow; push ] ] = [])
 
+(* A scope whose body stores an address as a 32-bit reference is not light:
+   with frame references, a slot on the machine stack is out of the
+   reference's reach. *)
+let light_references () =
+  let module C = Cgt.Nodes in
+  let e node ty = { C.Expr.node; ty } in
+  let stored = C.Stat.Let { id = 3; value = e (C.Expr.Convert (e (C.Expr.Address 2) C.Ty.Ptr)) C.Ty.Ref } in
+  let scalar = C.Stat.Let { id = 3; value = e (C.Expr.Int 1L) C.Ty.I64 } in
+  check "a scope of scalars is light" (Codegen__Loop_shapes.light 1 [ scalar ]);
+  check "not when it stores a reference" (Cgt.Ref32.frames () = not (Codegen__Loop_shapes.light 1 [ stored ]))
+
 let () =
   ty ();
   Traversals.run check;
@@ -1483,6 +1494,7 @@ let () =
   disposed_modules ();
   repeated_builds ();
   looped_pushes ();
+  light_references ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1

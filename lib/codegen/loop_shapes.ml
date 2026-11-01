@@ -59,7 +59,8 @@ let light id body =
   (* With frame references, an address a call is given may be stored as a
      32-bit offset from the image (Build.stored_ref), which a slot on the
      machine stack is out of reach of, whether the call is given it alone
-     or inside a value. *)
+     or inside a value; so may one the body stores itself, which is a
+     conversion to a reference. *)
   let rec holds_address (t : Ty.t) =
     match t with
     | Ty.Ptr | Ty.Ref -> true
@@ -77,6 +78,7 @@ let light id body =
          | Expr.Call { args; _ } | Expr.Call_value { args; _ } ->
              (not (scalar e.Expr.ty)) || (Cgt.Ref32.frames () && List.exists addressed args)
          | Expr.Copy _ | Expr.Take _ | Expr.Escape _ -> not (scalar e.Expr.ty)
+         | Expr.Convert _ -> Cgt.Ref32.frames () && e.Expr.ty = Ty.Ref
          | _ -> false)
        ~stat:(function
          | Stat.Spawn _ | Stat.Join _ -> true
