@@ -1421,7 +1421,9 @@ let looped_pushes () =
   in
   let grow = C.Stat.Let { id = 10; value = e (C.Expr.Call { fn = "app$grow"; args = [ e (C.Expr.Local 2) C.Ty.Ptr ] }) C.Ty.I64 } in
   let expand body = C.Stat.Eval (e (C.Expr.Expand { label = 20; body; result = None }) C.Ty.Void) in
-  check "a loop's lone push has its room made ahead" (Codegen__Loop_shapes.looped_pushes [ expand [ push ] ] = [ (1, 8L) ]);
+  let on = Sys.getenv_opt "ZANE_LOOP_PUSHES" <> Some "0" in
+  check "a loop's lone push has its room made ahead, unless switched off"
+    (Codegen__Loop_shapes.looped_pushes [ expand [ push ] ] = if on then [ (1, 8L) ] else []);
   check "not when the pushed value's call may grow a list"
     (Codegen__Loop_shapes.looped_pushes [ expand [ grow; push ] ] = [])
 
@@ -1433,8 +1435,9 @@ let light_references () =
   let e node ty = { C.Expr.node; ty } in
   let stored = C.Stat.Let { id = 3; value = e (C.Expr.Convert (e (C.Expr.Address 2) C.Ty.Ptr)) C.Ty.Ref } in
   let scalar = C.Stat.Let { id = 3; value = e (C.Expr.Int 1L) C.Ty.I64 } in
-  check "a scope of scalars is light" (Codegen__Loop_shapes.light 1 [ scalar ]);
-  check "not when it stores a reference" (Cgt.Ref32.frames () = not (Codegen__Loop_shapes.light 1 [ stored ]))
+  let on = Sys.getenv_opt "ZANE_LIGHT_SCOPES" <> Some "0" in
+  check "a scope of scalars is light, unless switched off" (Codegen__Loop_shapes.light 1 [ scalar ] = on);
+  check "not when it stores a reference" (Codegen__Loop_shapes.light 1 [ stored ] = (on && not (Cgt.Ref32.frames ())))
 
 let () =
   ty ();
