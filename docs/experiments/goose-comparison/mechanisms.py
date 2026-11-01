@@ -38,6 +38,9 @@ SHARE = float(os.environ.get("SHARE", "0.05"))
 # A program below this many instructions is mostly the C library starting,
 # whose counts move with the environment (valgrind-instruction-counts).
 SMALLEST = 10_000_000
+# How long one binary may run under Callgrind, in seconds; one that runs
+# longer is reported as not finished.
+TIMEOUT = float(os.environ.get("TIMEOUT", "1800"))
 
 LINE = re.compile(r"^\s*([\d,]+) \([^)]*\)\s+(.*?):(.*?) \[(.*)\]\s*$")
 
@@ -56,11 +59,15 @@ def name(fn):
 
 
 def profile(binary, args):
-    """Self instructions per function, and the total."""
+    """Self instructions per function, and the total, or None when the
+    binary does not finish within TIMEOUT."""
     with tempfile.TemporaryDirectory() as tmp:
         out = os.path.join(tmp, "cg")
-        subprocess.run(["valgrind", "--tool=callgrind", "--callgrind-out-file=" + out, binary] + args,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        try:
+            subprocess.run(["valgrind", "--tool=callgrind", "--callgrind-out-file=" + out, binary] + args,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=TIMEOUT)
+        except subprocess.TimeoutExpired:
+            return None
         text = subprocess.run(["callgrind_annotate", "--threshold=100", "--inclusive=no", out],
                               capture_output=True, text=True, check=True).stdout
     total, funcs, names = 0, {}, {}
@@ -100,6 +107,8 @@ def amount(n):
 
 
 def table(t, runs):
+    unfinished = {l for l, r in runs.items() if r is None}
+    runs = {l: r or (0, {}) for l, r in runs.items()}
     zane_total = runs.get("zane", (0, {}))[0]
     keys = set()
     for _, funcs in runs.values():
@@ -120,8 +129,10 @@ def table(t, runs):
         ratio = f"{z / best:.2f}" if z and best and z >= 0.01 * zane_total else "—"
         rows.append(f"| {'**' + k + '**' if flag else k} | " + " | ".join(cells) + f" | {ratio} |")
     head = "| function | " + " | ".join(l for l in LANGS if l in runs) + " | Zane ÷ best |"
-    total = "| total | " + " | ".join(f"{runs[l][0] / 1e6:.1f} M" for l in LANGS if l in runs) + " | " + (
-        f"{zane_total / min(runs[l][0] for l in runs if l != 'zane'):.2f}" if len(runs) > 1 and zane_total else "—") + " |"
+    finished = [runs[l][0] for l in runs if l != "zane" and l not in unfinished]
+    total = "| total | " + " | ".join(
+        "— (not finished)" if l in unfinished else f"{runs[l][0] / 1e6:.1f} M" for l in LANGS if l in runs) + " | " + (
+        f"{zane_total / min(finished):.2f}" if finished and zane_total else "—") + " |"
     args = " ".join(SIZES.get(t, [])) or "no argument"
     md = [f"### {t} ({args})", "", head, "|" + " --- |" * (len(runs) + 2), total] + rows + [""]
     return "\n".join(md), flags
@@ -140,7 +151,7 @@ def main():
         out.append(md)
         if flags:
             flagged[t] = flags
-        data[t] = {l: {"total": tot, "functions": f} for l, (tot, f) in results[t].items()}
+        data[t] = {l: r and {"total": r[0], "functions": r[1]} for l, r in results[t].items()}
     summary = ["## Flagged", ""] + (
         [f"- {t}: " + ", ".join(fs) for t, fs in flagged.items()] or ["- none"]) + [""]
     text = "\n".join([f"# Instructions per function ({bin_dir})", "",
@@ -151,7 +162,9 @@ def main():
                       f"Zane's total in every language is left out, except where Zane's run did not "
                       f"finish. In a language's column, `—` is a function it does not have or has "
                       f"inlined, or a run that did not finish; in Zane ÷ best, it is a function no "
-                      f"language qualifies as a reference for, or one under 1% of Zane's total.", ""] + summary + out)
+                      f"language qualifies as a reference for, or one under 1% of Zane's total. The "
+                      f"total row's Zane ÷ best is Zane's total over the smaller of the others' "
+                      f"finished totals.", ""] + summary + out)
     where = os.path.dirname(os.path.abspath(bin_dir.rstrip("/")))
     with open(os.path.join(where, "mechanisms.md"), "w") as f:
         f.write(text)

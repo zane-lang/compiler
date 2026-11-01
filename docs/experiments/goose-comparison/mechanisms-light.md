@@ -1,6 +1,6 @@
 # Instructions per function (the kept build with light scopes)
 
-Flagged: Zane over 1.10× the better of Goose and C in a function that takes at least 5% of Zane's total, against a language only where its whole program runs fewer instructions than Zane's, in programs of 10 M instructions or more. A function under 1% of Zane's total in every language is left out, except where Zane's run did not finish. In a language's column, `—` is a function it does not have or has inlined, or a run that did not finish; in Zane ÷ best, it is a function no language qualifies as a reference for, or one under 1% of Zane's total.
+Flagged: Zane over 1.10× the better of Goose and C in a function that takes at least 5% of Zane's total, against a language only where its whole program runs fewer instructions than Zane's, in programs of 10 M instructions or more. A function under 1% of Zane's total in every language is left out, except where Zane's run did not finish. In a language's column, `—` is a function it does not have or has inlined, or a run that did not finish; in Zane ÷ best, it is a function no language qualifies as a reference for, or one under 1% of Zane's total. The total row's Zane ÷ best is Zane's total over the smaller of the others' finished totals.
 
 ## Flagged
 
