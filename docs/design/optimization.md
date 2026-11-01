@@ -269,7 +269,11 @@ work is done once, not again for the entry point that calls it.
   a list made, changed in place and read by the statements after it. The
   replacement is the run's outputs, each known local it wrote stored back,
   and each local it bound that a later statement names bound to the value it
-  holds there, which must be a constant holding no handle or address. The
+  holds there, which must be a constant holding no handle or address. With
+  frame references (`docs/experiments/goose-comparison/`) a local the
+  program held in its scope's frame is held there again: a reference to it
+  is an offset from the program's image, which a slot on the machine stack
+  is out of reach of. The
   longest run that can end is taken. A run stops before a statement that
   returns or leaves an expansion it is not inside, and is not started again
   at a statement an earlier run went through, which would stop in the same

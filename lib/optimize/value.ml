@@ -158,7 +158,7 @@ let store (p : ptr) ty x =
 let locate (t : Ty.t) (v : v) (p : Layout.position) =
   let rec go t v off base path =
     match t with
-    | (Ty.Handle | Ty.Ptr) when off = 0 -> Some (List.rev path)
+    | (Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Box32) when off = 0 -> Some (List.rev path)
     | Ty.Struct ts ->
         let offsets = Ty.offsets ts in
         let rec find i ts offsets =

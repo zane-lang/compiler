@@ -267,6 +267,11 @@ type fn = {
   held : (int, Layout.t) Hashtbl.t;
   wide : (int, unit) Hashtbl.t;
   reach : reach;
+  (* Every local a [Hold] binds, with its scope and layout. With frame
+     references a reference to it is an offset from the image, which a slot
+     on the machine stack is out of reach of, so a run that binds one binds
+     it in its scope's frame again. *)
+  holds : (int, int * Layout.t) Hashtbl.t;
 }
 
 let fresh fn =
@@ -617,7 +622,12 @@ let replace_run fn (env : known) m =
     List.map
       (fun (id, c, ty) -> Option.map (fun s -> (id, c, ty, s)) (store_back fn id ty c))
       m.stores
-  and lets = List.map (written (fun id value -> Stat.Let { id; value })) m.lets in
+  and bind id value =
+    match Hashtbl.find_opt fn.holds id with
+    | Some (scope, layout) when Cgt.Ref32.frames () -> Stat.Hold { id; scope; value; layout }
+    | _ -> Stat.Let { id; value }
+  in
+  let lets = List.map (written bind) m.lets in
   if List.exists Option.is_none (stores @ lets) then None
   else
     let outputs = List.rev_map Materialize.output m.outputs in
@@ -897,5 +907,9 @@ let func prog failed (f : Func.t) =
         when List.mem id f.Func.values && not (Hashtbl.mem reach.escaped id) ->
           Hashtbl.replace held id layout
       | _ -> ());
-    let fn = { prog; failed; next = largest f; plain; held; wide = wide f; reach } in
+    let holds = Hashtbl.create 16 in
+    iter_stats f.Func.body ~expr:nothing ~stat:(function
+      | Stat.Hold { id; scope; layout; _ } -> Hashtbl.replace holds id (scope, layout)
+      | _ -> ());
+    let fn = { prog; failed; next = largest f; plain; held; wide = wide f; reach; holds } in
     { f with Func.body = block fn (Hashtbl.create 16) f.Func.body }

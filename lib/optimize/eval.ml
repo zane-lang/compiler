@@ -548,6 +548,7 @@ let convert (from : Ty.t) (into : Ty.t) v =
       if Float.is_nan a then VInt 0L
       else if Scalar.truncates_into ~from into a then VInt (Int64.of_float (Float.trunc a))
       else VInt (if a < 0. then least else most)
+  | (Ty.Ptr | Ty.Ref | Ty.Box32), (Ty.Ptr | Ty.Ref | Ty.Box32), ((VPtr _ | VNull) as v) -> v
   | _ -> stop "a conversion of a value it does not convert"
 
 (* ---------------------------------------------------------------------- *)

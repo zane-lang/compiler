@@ -31,10 +31,138 @@
     │   ├── symbol: zane.start
     │   ├── params:
     │   ├── ret: void
-    │   └── body[0] > eval > call:
+    │   ├── body[0] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[1] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[2] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[3] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[4] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[5] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[6] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[7] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[8] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[9] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[10] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[11] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[12] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[13] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[14] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[15] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[16] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[17] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[18] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[19] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[20] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[21] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[22] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[23] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[24] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[25] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[26] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[27] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[28] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[29] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[30] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   ├── body[31] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_print
+    │   │   └── args[0]: "yes\n" : handle
+    │   └── body[32] > eval > runtime:
     │       ├── type: void
-    │       ├── fn: folding$main()
-    │       └── args:
+    │       ├── fn: zane_print
+    │       └── args[0]: "yes\n" : handle
     ├── funcs[1] > func:
     │   ├── symbol: folding$main()
     │   ├── params:
@@ -61,9 +189,10 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[5] > let:
-    │       │   ├── local: #1
-    │       │   └── value: nan : f64
+    │       ├── body[5] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
     │       ├── body[6] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -88,12 +217,14 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[12] > let:
-    │       │   ├── local: #8
-    │       │   └── value: 0x0p+0 : f64
-    │       ├── body[13] > assign:
-    │       │   ├── place: #8
-    │       │   └── value: -0x0p+0 : f64
+    │       ├── body[12] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[13] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
     │       ├── body[14] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -110,18 +241,14 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[18] > let:
-    │       │   ├── local: #35
-    │       │   └── value > record:
-    │       │       ├── type: {i64, i64}
-    │       │       ├── members[0] > member 0: 2 : i64
-    │       │       └── members[1] > member 1: 3 : i64
-    │       ├── body[19] > assign:
-    │       │   ├── place: #35
-    │       │   └── value > record:
-    │       │       ├── type: {i64, i64}
-    │       │       ├── members[0] > member 0: 20 : i64
-    │       │       └── members[1] > member 1: 30 : i64
+    │       ├── body[18] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
+    │       ├── body[19] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
     │       ├── body[20] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -158,17 +285,10 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[29] > eval > call:
+    │       ├── body[29] > eval > runtime:
     │       │   ├── type: void
-    │       │   ├── fn: folding$check(%primitives$Bool)
-    │       │   └── args[0] > binary:
-    │       │       ├── type: i1
-    │       │       ├── op: ==
-    │       │       ├── left > call:
-    │       │       │   ├── type: i64
-    │       │       │   ├── fn: folding$boxed(%primitives$I64)
-    │       │       │   └── args[0]: 5 : i64
-    │       │       └── right: 5 : i64
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
     │       ├── body[30] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -181,143 +301,7 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[33] > eval > runtime:
-    │       │   ├── type: void
-    │       │   ├── fn: zane_print
-    │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[34] > hold:
-    │       │   ├── local: #78
-    │       │   ├── scope: %12
-    │       │   ├── value > call:
-    │       │   │   ├── type: <void | box32>
-    │       │   │   ├── fn: folding$countdown(%primitives$I64)
-    │       │   │   └── args[0]: 3 : i64
-    │       │   └── layout: folding$Countdown
-    │       ├── body[35] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: folding$check(%primitives$Bool)
-    │       │   └── args[0] > binary:
-    │       │       ├── type: i1
-    │       │       ├── op: ==
-    │       │       ├── left > expand:
-    │       │       │   ├── type: i64
-    │       │       │   ├── label: @81
-    │       │       │   ├── result: #82
-    │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #83
-    │       │       │   │   └── value: address of #78 : ptr
-    │       │       │   └── body[1] > switch:
-    │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <void | box32>
-    │       │       │       │   └── ptr: local #83 : ptr
-    │       │       │       ├── cases[0] > case 0[0] > let:
-    │       │       │       │   ├── local: #84
-    │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <void | box32>
-    │       │       │       │       ├── path: 0
-    │       │       │       │       └── base: local #83 : ptr
-    │       │       │       ├── cases[0] > case 0[1] > assign:
-    │       │       │       │   ├── place: #82
-    │       │       │       │   └── value: 0 : i64
-    │       │       │       ├── cases[0] > case 0[2]: leave @81
-    │       │       │       ├── cases[1] > case 1[0] > let:
-    │       │       │       │   ├── local: #85
-    │       │       │       │   └── value > convert:
-    │       │       │       │       ├── type: ptr
-    │       │       │       │       └── value > deref:
-    │       │       │       │           ├── type: box32
-    │       │       │       │           └── ptr > offset:
-    │       │       │       │               ├── within: <void | box32>
-    │       │       │       │               ├── path: 1
-    │       │       │       │               └── base: local #83 : ptr
-    │       │       │       ├── cases[1] > case 1[1] > assign:
-    │       │       │       │   ├── place: #82
-    │       │       │       │   └── value > binary:
-    │       │       │       │       ├── type: i64
-    │       │       │       │       ├── op: +
-    │       │       │       │       ├── left: 1 : i64
-    │       │       │       │       └── right > call:
-    │       │       │       │           ├── type: i64
-    │       │       │       │           ├── fn: folding$depth(folding$Countdown)
-    │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: <void | box32>
-    │       │       │       │               └── ptr: local #85 : ptr
-    │       │       │       └── cases[1] > case 1[2]: leave @81
-    │       │       └── right: 3 : i64
-    │       ├── body[36] > overwrite:
-    │       │   ├── address: address of #78 : ptr
-    │       │   ├── value > case:
-    │       │   │   ├── type: <void | box32>
-    │       │   │   ├── index: 1
-    │       │   │   └── payload > convert:
-    │       │   │       ├── type: box32
-    │       │   │       └── value > box:
-    │       │   │           ├── value > copy:
-    │       │   │           │   ├── type: <void | box32>
-    │       │   │           │   ├── value: local #78 : <void | box32>
-    │       │   │           │   └── layout: folding$Countdown
-    │       │   │           └── layout: folding$Countdown
-    │       │   └── layout: folding$Countdown
-    │       ├── body[37] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: folding$check(%primitives$Bool)
-    │       │   └── args[0] > binary:
-    │       │       ├── type: i1
-    │       │       ├── op: ==
-    │       │       ├── left > expand:
-    │       │       │   ├── type: i64
-    │       │       │   ├── label: @88
-    │       │       │   ├── result: #89
-    │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #90
-    │       │       │   │   └── value: address of #78 : ptr
-    │       │       │   └── body[1] > switch:
-    │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <void | box32>
-    │       │       │       │   └── ptr: local #90 : ptr
-    │       │       │       ├── cases[0] > case 0[0] > let:
-    │       │       │       │   ├── local: #91
-    │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <void | box32>
-    │       │       │       │       ├── path: 0
-    │       │       │       │       └── base: local #90 : ptr
-    │       │       │       ├── cases[0] > case 0[1] > assign:
-    │       │       │       │   ├── place: #89
-    │       │       │       │   └── value: 0 : i64
-    │       │       │       ├── cases[0] > case 0[2]: leave @88
-    │       │       │       ├── cases[1] > case 1[0] > let:
-    │       │       │       │   ├── local: #92
-    │       │       │       │   └── value > convert:
-    │       │       │       │       ├── type: ptr
-    │       │       │       │       └── value > deref:
-    │       │       │       │           ├── type: box32
-    │       │       │       │           └── ptr > offset:
-    │       │       │       │               ├── within: <void | box32>
-    │       │       │       │               ├── path: 1
-    │       │       │       │               └── base: local #90 : ptr
-    │       │       │       ├── cases[1] > case 1[1] > assign:
-    │       │       │       │   ├── place: #89
-    │       │       │       │   └── value > binary:
-    │       │       │       │       ├── type: i64
-    │       │       │       │       ├── op: +
-    │       │       │       │       ├── left: 1 : i64
-    │       │       │       │       └── right > call:
-    │       │       │       │           ├── type: i64
-    │       │       │       │           ├── fn: folding$depth(folding$Countdown)
-    │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: <void | box32>
-    │       │       │       │               └── ptr: local #92 : ptr
-    │       │       │       └── cases[1] > case 1[2]: leave @88
-    │       │       └── right: 4 : i64
-    │       ├── body[38] > eval > runtime:
-    │       │   ├── type: void
-    │       │   ├── fn: zane_print
-    │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[39] > eval > runtime:
-    │       │   ├── type: void
-    │       │   ├── fn: zane_print
-    │       │   └── args[0]: "yes\n" : handle
-    │       └── body[40] > return: unit : void
+    │       └── body[33] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: folding$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1

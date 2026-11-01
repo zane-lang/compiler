@@ -258,66 +258,36 @@
     │       │   │           │   └── payload: unit : void
     │       │   │           └── layout: replayed$Countdown
     │       │   └── layout: replayed$Countdown
-    │       ├── body[32] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: replayed$deepen(this replayed$Countdown)
-    │       │   └── args[0]: address of #35 : ptr
+    │       ├── body[32] > overwrite:
+    │       │   ├── address: address of #35 : ptr
+    │       │   ├── value > case:
+    │       │   │   ├── type: <void | box32>
+    │       │   │   ├── index: 1
+    │       │   │   └── payload > convert:
+    │       │   │       ├── type: box32
+    │       │   │       └── value > box:
+    │       │   │           ├── value > case:
+    │       │   │           │   ├── type: <void | box32>
+    │       │   │           │   ├── index: 1
+    │       │   │           │   └── payload > convert:
+    │       │   │           │       ├── type: box32
+    │       │   │           │       └── value > box:
+    │       │   │           │           ├── value > case:
+    │       │   │           │           │   ├── type: <void | box32>
+    │       │   │           │           │   ├── index: 0
+    │       │   │           │           │   └── payload: unit : void
+    │       │   │           │           └── layout: replayed$Countdown
+    │       │   │           └── layout: replayed$Countdown
+    │       │   └── layout: replayed$Countdown
     │       ├── body[33] > eval > call:
     │       │   ├── type: i64
     │       │   ├── fn: replayed$bumped(this %primitives$I64, %primitives$I64)
     │       │   ├── args[0]: address of #22 : ptr
     │       │   └── args[1]: local #15 : i64
-    │       ├── body[34] > eval > call:
+    │       ├── body[34] > eval > runtime:
     │       │   ├── type: void
-    │       │   ├── fn: replayed$check(%primitives$Bool)
-    │       │   └── args[0] > binary:
-    │       │       ├── type: i1
-    │       │       ├── op: ==
-    │       │       ├── left > expand:
-    │       │       │   ├── type: i64
-    │       │       │   ├── label: @38
-    │       │       │   ├── result: #39
-    │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #40
-    │       │       │   │   └── value: address of #35 : ptr
-    │       │       │   └── body[1] > switch:
-    │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <void | box32>
-    │       │       │       │   └── ptr: local #40 : ptr
-    │       │       │       ├── cases[0] > case 0[0] > let:
-    │       │       │       │   ├── local: #41
-    │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <void | box32>
-    │       │       │       │       ├── path: 0
-    │       │       │       │       └── base: local #40 : ptr
-    │       │       │       ├── cases[0] > case 0[1] > assign:
-    │       │       │       │   ├── place: #39
-    │       │       │       │   └── value: 0 : i64
-    │       │       │       ├── cases[0] > case 0[2]: leave @38
-    │       │       │       ├── cases[1] > case 1[0] > let:
-    │       │       │       │   ├── local: #42
-    │       │       │       │   └── value > convert:
-    │       │       │       │       ├── type: ptr
-    │       │       │       │       └── value > deref:
-    │       │       │       │           ├── type: box32
-    │       │       │       │           └── ptr > offset:
-    │       │       │       │               ├── within: <void | box32>
-    │       │       │       │               ├── path: 1
-    │       │       │       │               └── base: local #40 : ptr
-    │       │       │       ├── cases[1] > case 1[1] > assign:
-    │       │       │       │   ├── place: #39
-    │       │       │       │   └── value > binary:
-    │       │       │       │       ├── type: i64
-    │       │       │       │       ├── op: +
-    │       │       │       │       ├── left: 1 : i64
-    │       │       │       │       └── right > call:
-    │       │       │       │           ├── type: i64
-    │       │       │       │           ├── fn: replayed$depth(replayed$Countdown)
-    │       │       │       │           └── args[0] > deref:
-    │       │       │       │               ├── type: <void | box32>
-    │       │       │       │               └── ptr: local #42 : ptr
-    │       │       │       └── cases[1] > case 1[2]: leave @38
-    │       │       └── right: 2 : i64
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
     │       ├── body[35] > hold:
     │       │   ├── local: #46
     │       │   ├── scope: %4
