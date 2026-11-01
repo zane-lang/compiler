@@ -233,8 +233,9 @@ in it, and a leaf allocates nothing.
 
 A stored `&T` is its owner's signed 32-bit distance in bytes from the
 program's image (`__ehdr_start`): every context's frames come from the
-2 GiB below the image, and globals are in it, so every reference fits, and
-reading one is one address computation. A list's handle is 16 bytes: its
+2 GiB below the image, or from 512 MiB above it within 2 GiB when the
+program is loaded too low for that (as under Valgrind), and globals are in
+it, so every reference fits, and reading one is one address computation. A list's handle is 16 bytes: its
 items pointer, then a 32-bit count and a 32-bit room counted in elements,
 so a list holds up to 2^32 − 1 elements. A push adds to the count at 32
 bits, so LLVM folds the element's address into its store. Other targets
@@ -257,7 +258,8 @@ linker's `__ehdr_start` and Linux's `MAP_FIXED_NOREPLACE`.
 A boxed member is its block's signed distance from the image in 8-byte
 units, which reaches 16 GiB either way, and 0 is null. The runtime takes
 every 1 MiB chunk from a window it reserves once, from 16 GiB to 2 GiB
-below the image, so every box fits. A list's growing span and a pool lie
+below the image, or the largest of 12, 8, 4 or 2 GiB free from 4 GiB above
+it when the program is loaded too low for that, so every box fits. A list's growing span and a pool lie
 outside the window, since their handles hold 8-byte pointers.
 
 ### A sum of nothing or one box is one word
@@ -798,9 +800,9 @@ frame once.
 A scope nothing can put a block in opens no region, and its frame, when it
 is 4 KiB or less, is a slot of the function on the machine stack. Every
 slot it places holds scalars, and its body boxes, copies, makes a list or a
-string, spawns and joins nothing, calls the runtime only to index, push or
-remove scalars, compare strings or parse, and calls functions only for
-scalar results. With
+string, spawns and joins nothing, calls the runtime only to index, push,
+make room in a list, remove scalars, compare strings or parse, and calls
+functions only for scalar results. With
 references in 32 bits, a scope that gives a call an address, or makes a
 reference itself, keeps its frame among the context's frames, which a
 reference reaches.
@@ -840,7 +842,8 @@ A counted loop whose body cannot change a list's handle reads each list it
 indexes, its items and count, once before the loop. Such a body calls no
 function, calls the runtime only to index, spawns nothing, and writes only
 scalars. The checks then compare with a count the loop does not change, so
-LLVM's IRCE takes them out of the loop and the loop can vectorize.
+in an optimized build and tier 1, LLVM's IRCE takes them out of the loop
+and the loop can vectorize.
 
 ### Ordered removals moved in 2 KiB pieces
 
@@ -1059,8 +1062,8 @@ reserve, so a list built again each round grows into resident pages.
 
 ### Arrivals in the innermost region return at once
 
-- **Builds:** every build; the check is inline in optimized builds and
-  tier 1
+- **Builds:** every build; the check is inline in optimized builds, and
+  in tier 1 when LLVM can read the runtime's bitcode
 - **Where:** `runtime/value.c` (`zane_arrive`), `lib/codegen/emit.ml`
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "Each scope's
   dynamic region"
