@@ -58,8 +58,16 @@ let light id body =
   in
   (* With frame references, an address a call is given may be stored as a
      32-bit offset from the image (Build.stored_ref), which a slot on the
-     machine stack is out of reach of. *)
-  let addressed (a : Expr.t) = match a.Expr.ty with Ty.Ptr | Ty.Ref -> true | _ -> false in
+     machine stack is out of reach of, whether the call is given it alone
+     or inside a value. *)
+  let rec holds_address (t : Ty.t) =
+    match t with
+    | Ty.Ptr | Ty.Ref -> true
+    | Ty.Struct ts | Ty.Sum ts -> List.exists holds_address ts
+    | Ty.Array (t, _) | Ty.Packed t -> holds_address t
+    | _ -> false
+  in
+  let addressed (a : Expr.t) = holds_address a.Expr.ty in
   not
     (Cgt.Traverse.exists_in body
        ~expr:(fun e ->

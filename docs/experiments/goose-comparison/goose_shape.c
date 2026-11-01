@@ -47,6 +47,10 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 	int n = atoi(argv[1]);
+	if (n < 0) {
+		fprintf(stderr, "depth must be at least 0\n");
+		return 1;
+	}
 	base = mmap(NULL, (size_t)1 << 31, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 	char *lbase = mmap(NULL, (size_t)1 << 31, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 	if (base == MAP_FAILED || lbase == MAP_FAILED) {

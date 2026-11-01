@@ -838,7 +838,7 @@ test passing.
   as much as C's `realloc` does within a few percent. A new list followed
   by a run of pushes, with nothing else naming it or able to leave until
   the last, has room
-  for the whole run made at its first push (`Emit.runs`), in that first
+  for the whole run made at its first push (`Loop_shapes.runs`), in that first
   block when the run fits in it and by `zane_list_reserve` otherwise, and
   the run's other pushes are stores with no check of the room. A list never
   shrinks: a removal moves the element out of its place and closes the list over it,
@@ -1198,7 +1198,7 @@ test passing.
   by pointer. A `mut` subject, a reference-type subject and a borrowed
   reference-type argument are addresses already.
   - **The count.** A type takes as many registers as the scalar pieces LLVM
-    splits it into (`Emit.pieces`): a struct's and a sum's are its members',
+    splits it into (`Call_pieces.pieces`): a struct's and a sum's are its members',
     a sum's tag and each word of its payload room one apiece, an array's its
     element's times its length, and `Unit` none. It is counted on the CGT
     type, not LLVM's, so it cannot depend on the data layout, and worked out
@@ -1207,9 +1207,9 @@ test passing.
   - **The limit.** An argument of no more pieces than the target's C
     calling convention gives one aggregate passes as itself: 2 on x86-64
     Linux and macOS and on AArch64, and 1 on x86-64 Windows
-    (`Emit.registers`). A larger one passes by address.
+    (`Call_pieces.registers`). A larger one passes by address.
   - **A result's limit.** A result comes back as itself while it takes no
-    more pieces than LLVM returns in registers (`Emit.results`,
+    more pieces than LLVM returns in registers (`Call_pieces.results`,
     `Emit.returning`): 3 on x86-64 and AArch64, on every system, at most 2
     of them floating-point, and the argument limit on any other target. On
     x86-64 that is `rax`, `rdx` and `rcx`, and `xmm0` and `xmm1`; a third

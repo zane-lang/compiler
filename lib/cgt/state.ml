@@ -36,6 +36,10 @@ type verb = {
 type binding =
   | Slot of int
   | Pointer of int
+  (* A pointer to a reference in its 32-bit form (Type_layout.ref_slot):
+     a match binds an `&` payload to its slot, so a read decodes it and a
+     write encodes it there. *)
+  | Ref_slot of int
   (* Experimental: a pointer to a pooled variant's node, or to a payload
      inside one, laid out as Type_layout.node_ty says. *)
   | Node of int

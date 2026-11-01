@@ -4,6 +4,6 @@
    through a value, and call only such functions -- by symbol. Filled by the
    optimizer's Loop_pushes when it runs, so empty in a build that does not
    optimize; read by codegen, which makes room before a loop of pushes only
-   when nothing else in the loop could take it (Emit.may_grow). *)
+   when nothing else in the loop could take it (Loop_shapes.may_grow). *)
 
 let functions : (string, unit) Hashtbl.t = Hashtbl.create 64

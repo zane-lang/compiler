@@ -88,30 +88,49 @@ static void exercise_copy(void) {
 }
 
 #ifdef __linux__
+/* The lines of /proc/self/smaps for the mappings that meet [lo, hi), on
+   stderr. */
+static void smaps_around(uintptr_t lo, uintptr_t hi) {
+	FILE *f = fopen("/proc/self/smaps", "r");
+	if (!f) return;
+	char line[512];
+	int in = 0;
+	while (fgets(line, sizeof line, f)) {
+		unsigned long start, end;
+		if (sscanf(line, "%lx-%lx ", &start, &end) == 2)
+			in = start < hi && end > lo;
+		if (in) fputs(line, stderr);
+	}
+	fclose(f);
+}
+
 /* Whether none of the pages from `at`, `bytes` long, is in memory. */
 static int given_back(char *at, size_t bytes) {
 	size_t page = (size_t)sysconf(_SC_PAGESIZE), pages = bytes / page;
 	unsigned char *resident = malloc(pages);
 	if (!resident || mincore(at, pages * page, resident) != 0) return 0;
-	size_t kept = 0, first = pages;
-	for (size_t i = 0; i < pages; i++)
-		if (resident[i] & 1) {
-			if (!kept) first = i;
-			kept++;
-		}
-	free(resident);
-	/* On stderr, outside the golden output: what stayed, to tell a page
-	   the runtime missed from one the system brought back. */
+	size_t kept = 0;
+	for (size_t i = 0; i < pages; i++) kept += resident[i] & 1;
+	/* On stderr, outside the golden output: what stayed, and the mappings
+	   it is in, to tell a page the runtime missed from one the system
+	   brought back. */
 	if (kept) {
-		char thp[64] = "unknown";
-		FILE *f = fopen("/sys/kernel/mm/transparent_hugepage/enabled", "r");
-		if (f) {
-			if (!fgets(thp, sizeof thp, f)) thp[0] = 0;
-			fclose(f);
+		fprintf(stderr, "given_back: %zu of %zu pages resident from %p:", kept, pages, (void *)at);
+		for (size_t i = 0, runs = 0; i < pages && runs < 8;) {
+			if (!(resident[i] & 1)) {
+				i++;
+				continue;
+			}
+			size_t j = i;
+			while (j < pages && (resident[j] & 1)) j++;
+			fprintf(stderr, " [%zu, %zu)", i, j);
+			i = j;
+			runs++;
 		}
-		fprintf(stderr, "given_back: %zu of %zu pages resident, the first at page %zu; huge pages: %s", kept, pages,
-		        first, thp);
+		fputc('\n', stderr);
+		smaps_around((uintptr_t)at, (uintptr_t)at + pages * page);
 	}
+	free(resident);
 	return kept == 0;
 }
 

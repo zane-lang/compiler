@@ -42,6 +42,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       | Slot id -> { Expr.node = Expr.Local id; ty = ty st span l.T.Local.ty }
       | Pointer id -> deref id (ty st span l.T.Local.ty)
       | Node id -> deref id (node_ty st span l.T.Local.ty)
+      | Ref_slot id -> loaded_ref ~slot:true (deref id Nodes.Ty.Ptr)
       | Future { settle; at } ->
           let t = ty st span l.T.Local.ty in
           let value =
@@ -259,7 +260,7 @@ and storage st ctx span (e : T.Expr.t) : Expr.t option =
   | T.Expr.Var (T.Name_ref.Local l) -> (
       match lookup ctx span l with
       | Slot id -> Some (ptr (Expr.Address id))
-      | Pointer id | Node id -> Some (ptr (Expr.Local id))
+      | Pointer id | Node id | Ref_slot id -> Some (ptr (Expr.Local id))
       | Future { settle; at = Some p } -> Some (joined st (settle ()) p)
       | _ -> None)
   | T.Expr.Field _ when Option.is_some (node_place st ctx span e) -> node_place st ctx span e
@@ -724,9 +725,13 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
         let value = moved st ctx span t value in
         [ Stat.Overwrite { address; value; layout = layout st span t; setters = setters st span target } ]
       else
-        (* A reference stored in a member is in its 32-bit form (Ref32). *)
+        (* A reference stored in a member, or in the payload a binder is,
+           is in its 32-bit form (Ref32). *)
         let stored v =
-          match target.T.Expr.node with T.Expr.Var _ -> v | _ -> stored_ref ~slot:(ref_slot t) v
+          match target.T.Expr.node with
+          | T.Expr.Var (T.Name_ref.Local l) -> stored_ref ~slot:(encoded ctx span l) v
+          | T.Expr.Var _ -> v
+          | _ -> stored_ref ~slot:(ref_slot t) v
         in
         match place st ctx span target with
         | Some place -> [ Stat.Assign { place; value = stored (moved st ctx span t value) } ]
@@ -784,6 +789,8 @@ and place st ctx span (target : T.Expr.t) : Expr.place option =
       | Slot local -> Some { Expr.local; deref = false; ty = t; path = [] }
       | Pointer local -> Some { local; deref = true; ty = t; path = [] }
       | Node _ -> refuse span "pooled variants: a store into a node"
+      (* A reference in its 32-bit form is stored through its address. *)
+      | Ref_slot _ -> None
       (* A spawned call's result is stored through its address, once the
          call has returned. *)
       | Future _ -> None

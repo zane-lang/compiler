@@ -2240,7 +2240,7 @@ layout.
 
 ## Review fixes
 
-Review of the PR found two defaults that could change a program's result:
+Review of the PR found defaults that could change a program's result:
 
 - A light scope (`Loop_shapes.light`) kept its owners on the machine stack
   even when a call was given one's address. With frame references the
@@ -2253,6 +2253,18 @@ Review of the PR found two defaults that could change a program's result:
   call wrote it twice. Such a write now makes the function unfit for a copy
   (`tests/codegen/fixtures/peeledEffects`); two optimized goldens lost the
   copies they had of such writes.
+- The program's arguments list (`zane_arguments`) recorded its room in
+  bytes where the 16-byte handle counts elements, so a push past its
+  fifth string wrote past its block. Its room is now in elements, and its
+  block that many elements' bytes (`tests/codegen/fixtures/arguments`).
+- A field on a cycle closed only by an `ArrayRef` of no elements was boxed,
+  so a reference to it named a block in the window and decoded wrong. An
+  array of no elements holds no element, so it closes no cycle
+  (`Type_layout.inline`; `tests/codegen/fixtures/emptyCycle`).
+- A match bound an `&` payload, which is in its 32-bit form, to a decoded
+  copy, so repointing the binder left the variant naming the old owner.
+  The binder is now the payload's slot (`State.Ref_slot`), read decoded and
+  written encoded (`tests/codegen/fixtures/referenceBinders`).
 
 ## What remains
 

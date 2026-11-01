@@ -6059,6 +6059,128 @@
   (diff golden/recursion.out recursion.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/referenceBinders))
+ (targets referenceBinders.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build referenceBinders.exe --package fixtures/referenceBinders)))
+
+(rule
+ (deps (source_tree fixtures/referenceBinders))
+ (targets referenceBinders.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build referenceBinders.optimized.exe --optimize --package fixtures/referenceBinders)))
+
+(rule
+ (deps (source_tree fixtures/referenceBinders))
+ (targets referenceBinders.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build referenceBinders.tiered.exe --tiered --package fixtures/referenceBinders)))
+
+(rule
+ (deps (source_tree fixtures/referenceBinders))
+ (targets referenceBinders.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up referenceBinders.tier1 --package fixtures/referenceBinders)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    referenceBinders.checked.out.actual
+    (run ./referenceBinders.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/referenceBinders.out referenceBinders.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    referenceBinders.unchecked.out.actual
+    (run ./referenceBinders.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/referenceBinders.out referenceBinders.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    referenceBinders.optimized.checked.out.actual
+    (run ./referenceBinders.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/referenceBinders.out referenceBinders.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    referenceBinders.optimized.unchecked.out.actual
+    (run ./referenceBinders.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/referenceBinders.out referenceBinders.optimized.unchecked.out.actual)))
+
+(rule
+ (deps referenceBinders.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./referenceBinders.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    referenceBinders.tiered.checked.out.actual
+    (run ./referenceBinders.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/referenceBinders.out referenceBinders.tiered.checked.out.actual)))
+
+(rule
+ (deps referenceBinders.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./referenceBinders.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    referenceBinders.tiered.unchecked.out.actual
+    (run ./referenceBinders.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/referenceBinders.out referenceBinders.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/references))
  (action
   (with-stdout-to

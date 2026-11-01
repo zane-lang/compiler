@@ -623,10 +623,9 @@ char *zane_alloc_unbounded(zane_mark *region) {
 			break;
 		}
 	}
-	if (!base) {
-		if (!(base = zane_reserve_aligned(total, &raw))) zane_broken("out of addresses for a pool");
-		if (!zane_commit_range(base, total)) zane_broken("out of memory for a pool");
-	}
+	if (!base && !(base = zane_reserve_aligned(total, &raw))) zane_broken("out of addresses for a pool");
+	/* A kept span was made usable only as far as its list grew. */
+	if (!zane_commit_range(base, total)) zane_broken("out of memory for a pool");
 	zane_mapping *m = (zane_mapping *)base;
 	zane_set_page(base, (uintptr_t)region);
 	m->size = ZANE_CHUNK;

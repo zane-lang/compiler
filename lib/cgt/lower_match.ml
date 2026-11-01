@@ -107,10 +107,10 @@ let match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
                      let boxed = boxed st tsty c in
                      if ref_slot c then begin
                        (* A reference payload is in its 32-bit form (Ref32):
-                          its binder holds it decoded. *)
-                       let value = loaded_ref ~slot:true { Expr.node = Expr.Deref at; ty = Nodes.Ty.Ptr } in
-                       Hashtbl.replace ctx.env l.T.Local.id (Slot bound);
-                       [ Stat.Let { id = bound; value } ]
+                          its binder is the payload's slot, read decoded and
+                          written encoded. *)
+                       Hashtbl.replace ctx.env l.T.Local.id (Ref_slot bound);
+                       [ Stat.Let { id = bound; value = at } ]
                      end
                      else
                      let value = if boxed then box_block at else at in
