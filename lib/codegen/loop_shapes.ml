@@ -59,7 +59,7 @@ let light id body =
   (* With frame references, an address a call is given may be stored as a
      32-bit offset from the image (Build.stored_ref), which a slot on the
      machine stack is out of reach of, whether the call is given it alone
-     or inside a value; so may one the body stores itself, which is a
+     or inside a value; the body may itself store one, which is a
      conversion to a reference. *)
   let rec holds_address (t : Ty.t) =
     match t with
