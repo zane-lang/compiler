@@ -223,7 +223,7 @@ in it, and a leaf allocates nothing.
 - **Builds:** every build for a Linux target; `ZANE_FRAME_REFS=0` turns it
   off, and with it the two entries below
 - **Where:** `lib/cgt/ref32.ml`, `lib/codegen/list_handle.ml`,
-  `lib/codegen/build.ml` (`stored_ref`), `runtime/region.c`, `runtime/zane.h`
+  `lib/cgt/build.ml` (`stored_ref`), `runtime/region.c`, `runtime/zane.h`
 - **Design:** [`experiments/goose-comparison/FINDINGS.md`](experiments/goose-comparison/FINDINGS.md),
   "The new model"; [`README.md`](experiments/goose-comparison/README.md),
   "Frame references" and "Room counted in elements"
@@ -409,9 +409,9 @@ check stay, but only store the folded value.
 - **Effect:** binarytrees' `make` at depth 14 runs 60.7 M instructions
   instead of 92.2 M, and the program 90.6 M instead of 123.3 M
 
-Each call a function makes to itself is preceded by a copy of the
-function's cheap way out, so building a leaf, or counting one, is not a
-call. The copy keeps only the branches that call nothing and do a few
+In a function whose cheap way out fits the rules below, each call it
+makes to itself is preceded by a copy of that way out, so building a
+leaf, or counting one, is not a call. The copy keeps only the branches that call nothing and do a few
 steps of work, and only effects that are part of the value it returns, so
 the call does nothing again that the copy did. LLVM never inlines a
 function into itself, and runs no partial inliner at `-O2`.
@@ -799,13 +799,13 @@ frame once.
 
 A scope nothing can put a block in opens no region, and its frame, when it
 is 4 KiB or less, is a slot of the function on the machine stack. Every
-slot it places holds scalars, and its body boxes, copies, makes a list or a
-string, spawns and joins nothing, calls the runtime only to index, push,
-make room in a list, remove scalars, compare strings or parse, and calls
-functions only for scalar results. With
-references in 32 bits, a scope that gives a call an address, or makes a
-reference itself, keeps its frame among the context's frames, which a
-reference reaches.
+slot it places holds scalars, and its body makes no box, list or string,
+copies only scalars, and neither spawns nor joins; it calls the runtime
+only to index, push, make room in a list, remove scalars, compare strings
+or parse, and calls functions only for scalar results. With references
+in 32 bits, a scope that gives a call an address, or makes a reference
+itself, keeps its frame among the context's frames, which a reference
+reaches.
 
 ### A loop's pushes given their room before it
 
