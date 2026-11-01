@@ -259,13 +259,15 @@ A boxed member is its block's signed distance from the image in 8-byte
 units, which reaches 16 GiB either way, and 0 is null. The runtime takes
 every 1 MiB chunk from a window it reserves once, from 16 GiB to 2 GiB
 below the image, or the largest of 12, 8, 4 or 2 GiB free from 4 GiB above
-it when the program is loaded too low for that, so every box fits. A list's growing span and a pool lie
-outside the window, since their handles hold 8-byte pointers.
+it when the program is loaded too low for that, so every box fits. A
+list's growing span and a pool lie outside the window, since their handles
+hold 8-byte pointers.
 
 ### A sum of nothing or one box is one word
 
-- **Builds:** every build for a Linux target; `ZANE_NICHE_SUMS=0` turns it
-  off
+- **Builds:** every build for a Linux target with boxes in 32 bits (above,
+  so `ZANE_FRAME_REFS=0` or `ZANE_IMAGE_BOXES=0` without
+  `ZANE_CHUNK_BOXES=1` turns it off too); `ZANE_NICHE_SUMS=0` turns it off
 - **Where:** `lib/cgt/nodes.ml` (`Ty.niche`), `lib/codegen/emit.ml`,
   `lib/codegen/walks.ml`
 - **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),
