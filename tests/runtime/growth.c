@@ -106,10 +106,12 @@ static void smaps_around(uintptr_t lo, uintptr_t hi) {
 	fclose(f);
 }
 
-/* Whether none of the pages from `at`, `bytes` long, is in memory: a
-   page's entry in /proc/self/pagemap has its top bit set while a page
-   table maps it, as smaps' Rss counts. mincore is not asked, since some
-   kernels report a page whose mapping was dropped as resident. */
+/* Whether none of the pages from `at`, `bytes` long, holds memory of its
+   own: in /proc/self/pagemap, a page a table maps has bit 63 set, and one
+   mapped to this process alone bit 56. A given-back page that is read
+   again maps the system's shared zero page, present but not exclusive, and
+   smaps' Rss does not count it; the runners' kernels show such pages, so
+   presence alone is not asked. */
 static int given_back(char *at, size_t bytes) {
 	size_t page = (size_t)sysconf(_SC_PAGESIZE), pages = bytes / page;
 	uint64_t *entries = malloc(pages * sizeof *entries);
@@ -125,7 +127,7 @@ static int given_back(char *at, size_t bytes) {
 		return 0;
 	}
 	size_t kept = 0;
-	for (size_t i = 0; i < pages; i++) kept += resident[i] = (unsigned char)(entries[i] >> 63);
+	for (size_t i = 0; i < pages; i++) kept += resident[i] = (unsigned char)((entries[i] >> 63) & (entries[i] >> 56) & 1);
 	free(entries);
 	/* On stderr, outside the golden output: what stayed, and the mappings
 	   it is in, to tell a page the runtime missed from one the system
