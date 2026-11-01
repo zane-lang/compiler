@@ -94,11 +94,11 @@ already gone, because the TST put an implicit constructor around every one
 
 Which members are boxed is lowering's decision too, and only members on a
 cycle of owning edges are
-([`adt.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/adt.md) §4).
+([`adt.md`](https://github.com/zane-lang/spec/blob/4e80082/spec/adt.md) §4).
 One box per cycle is enough: a variant's payload that leads back to the
 variant is boxed, and a struct's member only when it leads back without
 passing through such a payload, whose box already breaks the cycle
-([`optimizations.md`](../optimizations.md), "One box per cycle").
+([`optimizations.md`](../optimizations.md#one-box-per-cycle), "One box per cycle").
 
 **L6. Calls name one function and pass places.** A CGT call names the
 function it calls, so overload resolution, method lookup and the operator and
