@@ -62,20 +62,10 @@
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
-    │       │       ├── left > expand:
+    │       │       ├── left > call:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @70
-    │       │       │   ├── result: #73
-    │       │       │   ├── body[0] > let:
-    │       │       │   │   ├── local: #72
-    │       │       │   │   └── value: 5000 : i64
-    │       │       │   ├── body[1] > assign:
-    │       │       │   │   ├── place: #73
-    │       │       │   │   └── value > call:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: replayed$down(%primitives$I64)
-    │       │       │   │       └── args[0]: 5000 : i64
-    │       │       │   └── body[2]: leave @70
+    │       │       │   ├── fn: replayed$down(%primitives$I64)
+    │       │       │   └── args[0]: 5000 : i64
     │       │       └── right: 5000 : i64
     │       ├── body[6] > eval > runtime:
     │       │   ├── type: void
@@ -92,13 +82,13 @@
     │       │       ├── op: ==
     │       │       ├── left > expand:
     │       │       │   ├── type: i64
-    │       │       │   ├── label: @95
-    │       │       │   ├── result: #96
+    │       │       │   ├── label: @80
+    │       │       │   ├── result: #81
     │       │       │   ├── body[0] > assign:
     │       │       │   │   ├── place: #11
     │       │       │   │   └── value: 6 : i64
     │       │       │   └── body[1] > assign:
-    │       │       │       ├── place: #96
+    │       │       │       ├── place: #81
     │       │       │       └── value: 12 : i64
     │       │       └── right: 12 : i64
     │       ├── body[9] > eval > call:
@@ -191,13 +181,13 @@
     │       │   └── args[0]: "yes\n" : handle
     │       ├── body[20] > eval > expand:
     │       │   ├── type: i64
-    │       │   ├── label: @98
-    │       │   ├── result: #99
+    │       │   ├── label: @83
+    │       │   ├── result: #84
     │       │   ├── body[0] > assign:
     │       │   │   ├── place: #23
     │       │   │   └── value: 8 : i64
     │       │   └── body[1] > assign:
-    │       │       ├── place: #99
+    │       │       ├── place: #84
     │       │       └── value: 8 : i64
     │       ├── body[21] > eval > runtime:
     │       │   ├── type: void
@@ -320,50 +310,12 @@
     │       │       │       │       ├── type: i64
     │       │       │       │       ├── op: +
     │       │       │       │       ├── left: 1 : i64
-    │       │       │       │       └── right > expand:
+    │       │       │       │       └── right > call:
     │       │       │       │           ├── type: i64
-    │       │       │       │           ├── label: @77
-    │       │       │       │           ├── result: #80
-    │       │       │       │           ├── body[0] > let:
-    │       │       │       │           │   ├── local: #79
-    │       │       │       │           │   └── value > deref:
-    │       │       │       │           │       ├── type: <void | box32>
-    │       │       │       │           │       └── ptr: local #42 : ptr
-    │       │       │       │           ├── body[1] > eval > expand:
-    │       │       │       │           │   ├── type: void
-    │       │       │       │           │   ├── label: @78
-    │       │       │       │           │   ├── body[0] > assign:
-    │       │       │       │           │   │   ├── place: #80
-    │       │       │       │           │   │   └── value > expand:
-    │       │       │       │           │   │       ├── type: i64
-    │       │       │       │           │   │       ├── label: @84
-    │       │       │       │           │   │       ├── result: #81
-    │       │       │       │           │   │       ├── body[0] > let:
-    │       │       │       │           │   │       │   ├── local: #82
-    │       │       │       │           │   │       │   └── value: address of #79 : ptr
-    │       │       │       │           │   │       └── body[1] > switch:
-    │       │       │       │           │   │           ├── value > deref:
-    │       │       │       │           │   │           │   ├── type: <void | box32>
-    │       │       │       │           │   │           │   └── ptr: local #82 : ptr
-    │       │       │       │           │   │           ├── cases[0] > case 0[0] > let:
-    │       │       │       │           │   │           │   ├── local: #83
-    │       │       │       │           │   │           │   └── value > offset:
-    │       │       │       │           │   │           │       ├── within: <void | box32>
-    │       │       │       │           │   │           │       ├── path: 0
-    │       │       │       │           │   │           │       └── base: local #82 : ptr
-    │       │       │       │           │   │           ├── cases[0] > case 0[1] > assign:
-    │       │       │       │           │   │           │   ├── place: #81
-    │       │       │       │           │   │           │   └── value: 0 : i64
-    │       │       │       │           │   │           ├── cases[0] > case 0[2]: leave @84
-    │       │       │       │           │   │           └── cases[1] > case 1[0]: leave @78
-    │       │       │       │           │   └── body[1]: leave @77
-    │       │       │       │           ├── body[2] > assign:
-    │       │       │       │           │   ├── place: #80
-    │       │       │       │           │   └── value > call:
-    │       │       │       │           │       ├── type: i64
-    │       │       │       │           │       ├── fn: replayed$depth(replayed$Countdown)
-    │       │       │       │           │       └── args[0]: local #79 : <void | box32>
-    │       │       │       │           └── body[3]: leave @77
+    │       │       │       │           ├── fn: replayed$depth(replayed$Countdown)
+    │       │       │       │           └── args[0] > deref:
+    │       │       │       │               ├── type: <void | box32>
+    │       │       │       │               └── ptr: local #42 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @38
     │       │       └── right: 2 : i64
     │       ├── body[35] > hold:

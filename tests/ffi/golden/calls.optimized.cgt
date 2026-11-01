@@ -329,30 +329,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @185
-    │       │       │   │       ├── result: #188
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #187
-    │       │       │   │       │   └── value: 21 : i64
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @186
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #188
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: app$twice(%primitives$I64).ffi
-    │       │       │   │       │   │       └── args[0]: 21 : i64
-    │       │       │   │       │   └── body[1]: leave @185
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #188
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: app$twice(%primitives$I64)
-    │       │       │   │       │       └── args[0]: 21 : i64
-    │       │       │   │       └── body[3]: leave @185
+    │       │       │   │       ├── fn: app$twice(%primitives$I64)
+    │       │       │   │       └── args[0]: 21 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #3
@@ -370,35 +350,11 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i32
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i32
-    │       │       │   │       ├── label: @189
-    │       │       │   │       ├── result: #193
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #191
-    │       │       │   │       │   └── value: 200 : i32
-    │       │       │   │       ├── body[1] > let:
-    │       │       │   │       │   ├── local: #192
-    │       │       │   │       │   └── value: 5 : i32
-    │       │       │   │       ├── body[2] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @190
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #193
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i32
-    │       │       │   │       │   │       ├── fn: app$narrow(%primitives$I32, %primitives$I32).ffi
-    │       │       │   │       │   │       ├── args[0]: 200 : i32
-    │       │       │   │       │   │       └── args[1]: 5 : i32
-    │       │       │   │       │   └── body[1]: leave @189
-    │       │       │   │       ├── body[3] > assign:
-    │       │       │   │       │   ├── place: #193
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i32
-    │       │       │   │       │       ├── fn: app$narrow(%primitives$I32, %primitives$I32)
-    │       │       │   │       │       ├── args[0]: 200 : i32
-    │       │       │   │       │       └── args[1]: 5 : i32
-    │       │       │   │       └── body[4]: leave @189
+    │       │       │   │       ├── fn: app$narrow(%primitives$I32, %primitives$I32)
+    │       │       │   │       ├── args[0]: 200 : i32
+    │       │       │   │       └── args[1]: 5 : i32
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #7
@@ -416,30 +372,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_f32
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: f32
-    │       │       │   │       ├── label: @194
-    │       │       │   │       ├── result: #197
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #196
-    │       │       │   │       │   └── value: 0x1.4p+2 : f32
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @195
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #197
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: f32
-    │       │       │   │       │   │       ├── fn: app$halve(%primitives$F32).ffi
-    │       │       │   │       │   │       └── args[0]: 0x1.4p+2 : f32
-    │       │       │   │       │   └── body[1]: leave @194
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #197
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: f32
-    │       │       │   │       │       ├── fn: app$halve(%primitives$F32)
-    │       │       │   │       │       └── args[0]: 0x1.4p+2 : f32
-    │       │       │   │       └── body[3]: leave @194
+    │       │       │   │       ├── fn: app$halve(%primitives$F32)
+    │       │       │   │       └── args[0]: 0x1.4p+2 : f32
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #10
@@ -457,33 +393,13 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i32
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i32
-    │       │       │   │       ├── label: @198
-    │       │       │   │       ├── result: #201
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #200
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i1
-    │       │       │   │       │       ├── fn: app$odd(%primitives$I32)
-    │       │       │   │       │       └── args[0]: 7 : i32
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @199
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #201
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i32
-    │       │       │   │       │   │       ├── fn: app$fromBool(%primitives$Bool).ffi
-    │       │       │   │       │   │       └── args[0]: local #200 : i1
-    │       │       │   │       │   └── body[1]: leave @198
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #201
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i32
-    │       │       │   │       │       ├── fn: app$fromBool(%primitives$Bool)
-    │       │       │   │       │       └── args[0]: local #200 : i1
-    │       │       │   │       └── body[3]: leave @198
+    │       │       │   │       ├── fn: app$fromBool(%primitives$Bool)
+    │       │       │   │       └── args[0] > call:
+    │       │       │   │           ├── type: i1
+    │       │       │   │           ├── fn: app$odd(%primitives$I32)
+    │       │       │   │           └── args[0]: 7 : i32
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #13
@@ -501,33 +417,13 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i32
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i32
-    │       │       │   │       ├── label: @202
-    │       │       │   │       ├── result: #205
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #204
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i1
-    │       │       │   │       │       ├── fn: app$odd(%primitives$I32)
-    │       │       │   │       │       └── args[0]: 8 : i32
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @203
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #205
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i32
-    │       │       │   │       │   │       ├── fn: app$fromBool(%primitives$Bool).ffi
-    │       │       │   │       │   │       └── args[0]: local #204 : i1
-    │       │       │   │       │   └── body[1]: leave @202
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #205
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i32
-    │       │       │   │       │       ├── fn: app$fromBool(%primitives$Bool)
-    │       │       │   │       │       └── args[0]: local #204 : i1
-    │       │       │   │       └── body[3]: leave @202
+    │       │       │   │       ├── fn: app$fromBool(%primitives$Bool)
+    │       │       │   │       └── args[0] > call:
+    │       │       │   │           ├── type: i1
+    │       │       │   │           ├── fn: app$odd(%primitives$I32)
+    │       │       │   │           └── args[0]: 8 : i32
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #16
@@ -545,10 +441,10 @@
     │       │   ├── scope: %4
     │       │   ├── value > expand:
     │       │   │   ├── type: handle16
-    │       │   │   ├── label: @344
-    │       │   │   ├── result: #345
+    │       │   │   ├── label: @185
+    │       │   │   ├── result: #186
     │       │   │   └── body[0] > assign:
-    │       │   │       ├── place: #345
+    │       │   │       ├── place: #186
     │       │   │       └── value > runtime:
     │       │   │           ├── type: handle16
     │       │   │           ├── fn: zane_list_new
@@ -601,35 +497,11 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_f64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: f64
-    │       │       │   │       ├── label: @206
-    │       │       │   │       ├── result: #210
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #208
-    │       │       │   │       │   └── value: address of #17 : ptr
-    │       │       │   │       ├── body[1] > let:
-    │       │       │   │       │   ├── local: #209
-    │       │       │   │       │   └── value: local #18 : handle16
-    │       │       │   │       ├── body[2] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @207
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #210
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: f64
-    │       │       │   │       │   │       ├── fn: app$sum(%primitives$Array<%primitives$F64, 4>, %primitives$List<%primitives$I64>).ffi
-    │       │       │   │       │   │       ├── args[0]: local #208 : ptr
-    │       │       │   │       │   │       └── args[1]: local #209 : handle16
-    │       │       │   │       │   └── body[1]: leave @206
-    │       │       │   │       ├── body[3] > assign:
-    │       │       │   │       │   ├── place: #210
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: f64
-    │       │       │   │       │       ├── fn: app$sum(%primitives$Array<%primitives$F64, 4>, %primitives$List<%primitives$I64>)
-    │       │       │   │       │       ├── args[0]: local #208 : ptr
-    │       │       │   │       │       └── args[1]: local #209 : handle16
-    │       │       │   │       └── body[4]: leave @206
+    │       │       │   │       ├── fn: app$sum(%primitives$Array<%primitives$F64, 4>, %primitives$List<%primitives$I64>)
+    │       │       │   │       ├── args[0]: address of #17 : ptr
+    │       │       │   │       └── args[1]: local #18 : handle16
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #27
@@ -647,34 +519,14 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i32
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i32
-    │       │       │   │       ├── label: @211
-    │       │       │   │       ├── result: #214
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #213
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i1
-    │       │       │   │       │       ├── fn: app$same(%primitives$Array<%primitives$F64, 4>, %primitives$Array<%primitives$F64, 4>)
-    │       │       │   │       │       ├── args[0]: address of #17 : ptr
-    │       │       │   │       │       └── args[1]: address of #17 : ptr
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @212
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #214
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i32
-    │       │       │   │       │   │       ├── fn: app$fromBool(%primitives$Bool).ffi
-    │       │       │   │       │   │       └── args[0]: local #213 : i1
-    │       │       │   │       │   └── body[1]: leave @211
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #214
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i32
-    │       │       │   │       │       ├── fn: app$fromBool(%primitives$Bool)
-    │       │       │   │       │       └── args[0]: local #213 : i1
-    │       │       │   │       └── body[3]: leave @211
+    │       │       │   │       ├── fn: app$fromBool(%primitives$Bool)
+    │       │       │   │       └── args[0] > call:
+    │       │       │   │           ├── type: i1
+    │       │       │   │           ├── fn: app$same(%primitives$Array<%primitives$F64, 4>, %primitives$Array<%primitives$F64, 4>)
+    │       │       │   │           ├── args[0]: address of #17 : ptr
+    │       │       │   │           └── args[1]: address of #17 : ptr
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #30
@@ -682,34 +534,10 @@
     │       ├── body[11] > hold:
     │       │   ├── local: #34
     │       │   ├── scope: %4
-    │       │   ├── value > expand:
+    │       │   ├── value > call:
     │       │   │   ├── type: handle
-    │       │   │   ├── label: @215
-    │       │   │   ├── result: #218
-    │       │   │   ├── body[0] > let:
-    │       │   │   │   ├── local: #217
-    │       │   │   │   └── value: "zane" : handle
-    │       │   │   ├── body[1] > eval > expand:
-    │       │   │   │   ├── type: void
-    │       │   │   │   ├── label: @216
-    │       │   │   │   ├── body[0] > assign:
-    │       │   │   │   │   ├── place: #218
-    │       │   │   │   │   └── value > runtime:
-    │       │   │   │   │       ├── type: handle
-    │       │   │   │   │       ├── fn: zane_text_join
-    │       │   │   │   │       ├── args[0] > foreign call:
-    │       │   │   │   │       │   ├── type: handle
-    │       │   │   │   │       │   ├── fn: app$greet(%primitives$String).ffi
-    │       │   │   │   │       │   └── args[0]: "zane" : handle
-    │       │   │   │   │       └── args[1]: "" : handle
-    │       │   │   │   └── body[1]: leave @215
-    │       │   │   ├── body[2] > assign:
-    │       │   │   │   ├── place: #218
-    │       │   │   │   └── value > call:
-    │       │   │   │       ├── type: handle
-    │       │   │   │       ├── fn: app$greet(%primitives$String)
-    │       │   │   │       └── args[0]: "zane" : handle
-    │       │   │   └── body[3]: leave @215
+    │       │   │   ├── fn: app$greet(%primitives$String)
+    │       │   │   └── args[0]: "zane" : handle
     │       │   └── layout: %primitives$String
     │       ├── body[12] > eval > call:
     │       │   ├── type: void
@@ -728,89 +556,29 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @219
-    │       │       │   │       ├── result: #222
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #221
-    │       │       │   │       │   └── value: local #34 : handle
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @220
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #222
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: app$length(%primitives$String).ffi
-    │       │       │   │       │   │       └── args[0]: local #221 : handle
-    │       │       │   │       │   └── body[1]: leave @219
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #222
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: app$length(%primitives$String)
-    │       │       │   │       │       └── args[0]: local #221 : handle
-    │       │       │   │       └── body[3]: leave @219
+    │       │       │   │       ├── fn: app$length(%primitives$String)
+    │       │       │   │       └── args[0]: local #34 : handle
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #37
     │       │           └── value: local #35 : handle
     │       ├── body[14] > let:
     │       │   ├── local: #48
-    │       │   └── value > expand:
+    │       │   └── value > call:
     │       │       ├── type: {f64, f64, f64}
-    │       │       ├── label: @223
-    │       │       ├── result: #227
-    │       │       ├── body[0] > let:
-    │       │       │   ├── local: #225
-    │       │       │   └── value > record:
-    │       │       │       ├── type: {f64, f64, f64}
-    │       │       │       ├── members[0] > member 0: 0x1p+0 : f64
-    │       │       │       ├── members[1] > member 1: 0x1p+1 : f64
-    │       │       │       └── members[2] > member 2: 0x1.8p+1 : f64
-    │       │       ├── body[1] > let:
-    │       │       │   ├── local: #226
-    │       │       │   └── value > record:
-    │       │       │       ├── type: {f64, f64, f64}
-    │       │       │       ├── members[0] > member 0: 0x1p-1 : f64
-    │       │       │       ├── members[1] > member 1: 0x1p-1 : f64
-    │       │       │       └── members[2] > member 2: 0x1p-1 : f64
-    │       │       ├── body[2] > eval > expand:
-    │       │       │   ├── type: void
-    │       │       │   ├── label: @224
-    │       │       │   ├── body[0] > assign:
-    │       │       │   │   ├── place: #227
-    │       │       │   │   └── value > foreign call:
-    │       │       │   │       ├── type: {f64, f64, f64}
-    │       │       │   │       ├── fn: app$add(app$Vec3, app$Vec3).ffi
-    │       │       │   │       ├── args[0] > record:
-    │       │       │   │       │   ├── type: {f64, f64, f64}
-    │       │       │   │       │   ├── members[0] > member 0: 0x1p+0 : f64
-    │       │       │   │       │   ├── members[1] > member 1: 0x1p+1 : f64
-    │       │       │   │       │   └── members[2] > member 2: 0x1.8p+1 : f64
-    │       │       │   │       └── args[1] > record:
-    │       │       │   │           ├── type: {f64, f64, f64}
-    │       │       │   │           ├── members[0] > member 0: 0x1p-1 : f64
-    │       │       │   │           ├── members[1] > member 1: 0x1p-1 : f64
-    │       │       │   │           └── members[2] > member 2: 0x1p-1 : f64
-    │       │       │   └── body[1]: leave @223
-    │       │       ├── body[3] > assign:
-    │       │       │   ├── place: #227
-    │       │       │   └── value > call:
-    │       │       │       ├── type: {f64, f64, f64}
-    │       │       │       ├── fn: app$add(app$Vec3, app$Vec3)
-    │       │       │       ├── args[0] > record:
-    │       │       │       │   ├── type: {f64, f64, f64}
-    │       │       │       │   ├── members[0] > member 0: 0x1p+0 : f64
-    │       │       │       │   ├── members[1] > member 1: 0x1p+1 : f64
-    │       │       │       │   └── members[2] > member 2: 0x1.8p+1 : f64
-    │       │       │       └── args[1] > record:
-    │       │       │           ├── type: {f64, f64, f64}
-    │       │       │           ├── members[0] > member 0: 0x1p-1 : f64
-    │       │       │           ├── members[1] > member 1: 0x1p-1 : f64
-    │       │       │           └── members[2] > member 2: 0x1p-1 : f64
-    │       │       └── body[4]: leave @223
+    │       │       ├── fn: app$add(app$Vec3, app$Vec3)
+    │       │       ├── args[0] > record:
+    │       │       │   ├── type: {f64, f64, f64}
+    │       │       │   ├── members[0] > member 0: 0x1p+0 : f64
+    │       │       │   ├── members[1] > member 1: 0x1p+1 : f64
+    │       │       │   └── members[2] > member 2: 0x1.8p+1 : f64
+    │       │       └── args[1] > record:
+    │       │           ├── type: {f64, f64, f64}
+    │       │           ├── members[0] > member 0: 0x1p-1 : f64
+    │       │           ├── members[1] > member 1: 0x1p-1 : f64
+    │       │           └── members[2] > member 2: 0x1p-1 : f64
     │       ├── body[15] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
@@ -855,55 +623,35 @@
     │       │           └── value: local #52 : handle
     │       ├── body[17] > let:
     │       │   ├── local: #59
-    │       │   └── value > expand:
+    │       │   └── value > call:
     │       │       ├── type: {i32, [3 x f32], {f64, f64, f64}}
-    │       │       ├── label: @228
-    │       │       ├── result: #231
-    │       │       ├── body[0] > let:
-    │       │       │   ├── local: #230
-    │       │       │   └── value > expand:
-    │       │       │       ├── type: {i32, [3 x f32], {f64, f64, f64}}
-    │       │       │       ├── label: @57
-    │       │       │       ├── result: #58
-    │       │       │       ├── body[0] > let:
-    │       │       │       │   ├── local: #55
-    │       │       │       │   └── value: 7 : i32
-    │       │       │       ├── body[1] > let:
-    │       │       │       │   ├── local: #56
-    │       │       │       │   └── value > record:
-    │       │       │       │       ├── type: [3 x f32]
-    │       │       │       │       ├── members[0] > member 0: 0x1p+0 : f32
-    │       │       │       │       ├── members[1] > member 1: 0x1p+1 : f32
-    │       │       │       │       └── members[2] > member 2: 0x1.8p+1 : f32
-    │       │       │       ├── body[2] > assign:
-    │       │       │       │   ├── place: #58
-    │       │       │       │   └── value > record:
-    │       │       │       │       ├── type: {i32, [3 x f32], {f64, f64, f64}}
-    │       │       │       │       ├── members[0] > member 0: 7 : i32
-    │       │       │       │       ├── members[1] > member 1 > record:
-    │       │       │       │       │   ├── type: [3 x f32]
-    │       │       │       │       │   ├── members[0] > member 0: 0x1p+0 : f32
-    │       │       │       │       │   ├── members[1] > member 1: 0x1p+1 : f32
-    │       │       │       │       │   └── members[2] > member 2: 0x1.8p+1 : f32
-    │       │       │       │       └── members[2] > member 2: local #48 : {f64, f64, f64}
-    │       │       │       └── body[3]: leave @57
-    │       │       ├── body[1] > eval > expand:
-    │       │       │   ├── type: void
-    │       │       │   ├── label: @229
-    │       │       │   ├── body[0] > assign:
-    │       │       │   │   ├── place: #231
-    │       │       │   │   └── value > foreign call:
-    │       │       │   │       ├── type: {i32, [3 x f32], {f64, f64, f64}}
-    │       │       │   │       ├── fn: app$mirror(app$Pair).ffi
-    │       │       │   │       └── args[0]: local #230 : {i32, [3 x f32], {f64, f64, f64}}
-    │       │       │   └── body[1]: leave @228
-    │       │       ├── body[2] > assign:
-    │       │       │   ├── place: #231
-    │       │       │   └── value > call:
-    │       │       │       ├── type: {i32, [3 x f32], {f64, f64, f64}}
-    │       │       │       ├── fn: app$mirror(app$Pair)
-    │       │       │       └── args[0]: local #230 : {i32, [3 x f32], {f64, f64, f64}}
-    │       │       └── body[3]: leave @228
+    │       │       ├── fn: app$mirror(app$Pair)
+    │       │       └── args[0] > expand:
+    │       │           ├── type: {i32, [3 x f32], {f64, f64, f64}}
+    │       │           ├── label: @57
+    │       │           ├── result: #58
+    │       │           ├── body[0] > let:
+    │       │           │   ├── local: #55
+    │       │           │   └── value: 7 : i32
+    │       │           ├── body[1] > let:
+    │       │           │   ├── local: #56
+    │       │           │   └── value > record:
+    │       │           │       ├── type: [3 x f32]
+    │       │           │       ├── members[0] > member 0: 0x1p+0 : f32
+    │       │           │       ├── members[1] > member 1: 0x1p+1 : f32
+    │       │           │       └── members[2] > member 2: 0x1.8p+1 : f32
+    │       │           ├── body[2] > assign:
+    │       │           │   ├── place: #58
+    │       │           │   └── value > record:
+    │       │           │       ├── type: {i32, [3 x f32], {f64, f64, f64}}
+    │       │           │       ├── members[0] > member 0: 7 : i32
+    │       │           │       ├── members[1] > member 1 > record:
+    │       │           │       │   ├── type: [3 x f32]
+    │       │           │       │   ├── members[0] > member 0: 0x1p+0 : f32
+    │       │           │       │   ├── members[1] > member 1: 0x1p+1 : f32
+    │       │           │       │   └── members[2] > member 2: 0x1.8p+1 : f32
+    │       │           │       └── members[2] > member 2: local #48 : {f64, f64, f64}
+    │       │           └── body[3]: leave @57
     │       ├── body[18] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
@@ -980,39 +728,13 @@
     │       │           └── value: local #66 : handle
     │       ├── body[21] > let:
     │       │   ├── local: #73
-    │       │   └── value > expand:
+    │       │   └── value > call:
     │       │       ├── type: {i32, i64}
-    │       │       ├── label: @232
-    │       │       ├── result: #235
-    │       │       ├── body[0] > let:
-    │       │       │   ├── local: #234
-    │       │       │   └── value > record:
-    │       │       │       ├── type: {i32, i64}
-    │       │       │       ├── members[0] > member 0: 3 : i32
-    │       │       │       └── members[1] > member 1: 41 : i64
-    │       │       ├── body[1] > eval > expand:
-    │       │       │   ├── type: void
-    │       │       │   ├── label: @233
-    │       │       │   ├── body[0] > assign:
-    │       │       │   │   ├── place: #235
-    │       │       │   │   └── value > foreign call:
-    │       │       │   │       ├── type: {i32, i64}
-    │       │       │   │       ├── fn: app$flip(app$Tagged).ffi
-    │       │       │   │       └── args[0] > record:
-    │       │       │   │           ├── type: {i32, i64}
-    │       │       │   │           ├── members[0] > member 0: 3 : i32
-    │       │       │   │           └── members[1] > member 1: 41 : i64
-    │       │       │   └── body[1]: leave @232
-    │       │       ├── body[2] > assign:
-    │       │       │   ├── place: #235
-    │       │       │   └── value > call:
-    │       │       │       ├── type: {i32, i64}
-    │       │       │       ├── fn: app$flip(app$Tagged)
-    │       │       │       └── args[0] > record:
-    │       │       │           ├── type: {i32, i64}
-    │       │       │           ├── members[0] > member 0: 3 : i32
-    │       │       │           └── members[1] > member 1: 41 : i64
-    │       │       └── body[3]: leave @232
+    │       │       ├── fn: app$flip(app$Tagged)
+    │       │       └── args[0] > record:
+    │       │           ├── type: {i32, i64}
+    │       │           ├── members[0] > member 0: 3 : i32
+    │       │           └── members[1] > member 1: 41 : i64
     │       ├── body[22] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
@@ -1072,27 +794,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @236
-    │       │       │   │       ├── result: #238
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @237
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #238
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: app$counter().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @236
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #238
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: app$counter()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @236
+    │       │       │   │       ├── fn: app$counter()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #82
@@ -1114,27 +819,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @239
-    │       │       │   │       ├── result: #241
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @240
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #241
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: app$counter().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @239
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #241
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: app$counter()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @239
+    │       │       │   │       ├── fn: app$counter()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #85
@@ -1202,27 +890,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @242
-    │       │       │   │       ├── result: #244
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @243
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #244
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: app$helper().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @242
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #244
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: app$helper()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @242
+    │       │       │   │       ├── fn: app$helper()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #94
@@ -1240,27 +911,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @245
-    │       │       │   │       ├── result: #247
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @246
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #247
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$helper().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @245
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #247
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$helper()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @245
+    │       │       │   │       ├── fn: lib$helper()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #97
@@ -1278,27 +932,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @248
-    │       │       │   │       ├── result: #250
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @249
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #250
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: app$named().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @248
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #250
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: app$named()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @248
+    │       │       │   │       ├── fn: app$named()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #100
@@ -1316,27 +953,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @251
-    │       │       │   │       ├── result: #253
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @252
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #253
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$named().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @251
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #253
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$named()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @251
+    │       │       │   │       ├── fn: lib$named()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #103
@@ -1354,35 +974,11 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i32
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i32
-    │       │       │   │       ├── label: @254
-    │       │       │   │       ├── result: #258
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #256
-    │       │       │   │       │   └── value: 40 : i32
-    │       │       │   │       ├── body[1] > let:
-    │       │       │   │       │   ├── local: #257
-    │       │       │   │       │   └── value: 2 : i32
-    │       │       │   │       ├── body[2] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @255
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #258
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i32
-    │       │       │   │       │   │       ├── fn: lib$plus(%primitives$I32, %primitives$I32).ffi
-    │       │       │   │       │   │       ├── args[0]: 40 : i32
-    │       │       │   │       │   │       └── args[1]: 2 : i32
-    │       │       │   │       │   └── body[1]: leave @254
-    │       │       │   │       ├── body[3] > assign:
-    │       │       │   │       │   ├── place: #258
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i32
-    │       │       │   │       │       ├── fn: lib$plus(%primitives$I32, %primitives$I32)
-    │       │       │   │       │       ├── args[0]: 40 : i32
-    │       │       │   │       │       └── args[1]: 2 : i32
-    │       │       │   │       └── body[4]: leave @254
+    │       │       │   │       ├── fn: lib$plus(%primitives$I32, %primitives$I32)
+    │       │       │   │       ├── args[0]: 40 : i32
+    │       │       │   │       └── args[1]: 2 : i32
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #106
@@ -1400,30 +996,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @259
-    │       │       │   │       ├── result: #262
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #261
-    │       │       │   │       │   └── value: 3 : i64
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @260
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #262
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$widen(%primitives$I64).ffi
-    │       │       │   │       │   │       └── args[0]: 3 : i64
-    │       │       │   │       │   └── body[1]: leave @259
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #262
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$widen(%primitives$I64)
-    │       │       │   │       │       └── args[0]: 3 : i64
-    │       │       │   │       └── body[3]: leave @259
+    │       │       │   │       ├── fn: lib$widen(%primitives$I64)
+    │       │       │   │       └── args[0]: 3 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #109
@@ -1441,30 +1017,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @263
-    │       │       │   │       ├── result: #266
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #265
-    │       │       │   │       │   └── value: 1 : i64
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @264
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #266
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: app$definedHere(%primitives$I64).ffi
-    │       │       │   │       │   │       └── args[0]: 1 : i64
-    │       │       │   │       │   └── body[1]: leave @263
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #266
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: app$definedHere(%primitives$I64)
-    │       │       │   │       │       └── args[0]: 1 : i64
-    │       │       │   │       └── body[3]: leave @263
+    │       │       │   │       ├── fn: app$definedHere(%primitives$I64)
+    │       │       │   │       └── args[0]: 1 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #112
@@ -1482,30 +1038,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @267
-    │       │       │   │       ├── result: #270
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #269
-    │       │       │   │       │   └── value: 1 : i64
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @268
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #270
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$definedHere(%primitives$I64).ffi
-    │       │       │   │       │   │       └── args[0]: 1 : i64
-    │       │       │   │       │   └── body[1]: leave @267
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #270
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$definedHere(%primitives$I64)
-    │       │       │   │       │       └── args[0]: 1 : i64
-    │       │       │   │       └── body[3]: leave @267
+    │       │       │   │       ├── fn: lib$definedHere(%primitives$I64)
+    │       │       │   │       └── args[0]: 1 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #115
@@ -1523,30 +1059,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @271
-    │       │       │   │       ├── result: #274
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #273
-    │       │       │   │       │   └── value: 2 : i64
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @272
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #274
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$once(%primitives$I64).ffi
-    │       │       │   │       │   │       └── args[0]: 2 : i64
-    │       │       │   │       │   └── body[1]: leave @271
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #274
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$once(%primitives$I64)
-    │       │       │   │       │       └── args[0]: 2 : i64
-    │       │       │   │       └── body[3]: leave @271
+    │       │       │   │       ├── fn: lib$once(%primitives$I64)
+    │       │       │   │       └── args[0]: 2 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #118
@@ -1564,27 +1080,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @275
-    │       │       │   │       ├── result: #277
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @276
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #277
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$useOnce().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @275
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #277
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$useOnce()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @275
+    │       │       │   │       ├── fn: lib$useOnce()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #121
@@ -1602,30 +1101,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @278
-    │       │       │   │       ├── result: #281
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #280
-    │       │       │   │       │   └── value: 3 : i64
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @279
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #281
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$onceAlias(%primitives$I64).ffi
-    │       │       │   │       │   │       └── args[0]: 3 : i64
-    │       │       │   │       │   └── body[1]: leave @278
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #281
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$onceAlias(%primitives$I64)
-    │       │       │   │       │       └── args[0]: 3 : i64
-    │       │       │   │       └── body[3]: leave @278
+    │       │       │   │       ├── fn: lib$onceAlias(%primitives$I64)
+    │       │       │   │       └── args[0]: 3 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #124
@@ -1643,30 +1122,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @282
-    │       │       │   │       ├── result: #285
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #284
-    │       │       │   │       │   └── value: 4 : i64
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @283
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #285
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$onceIndirect(%primitives$I64).ffi
-    │       │       │   │       │   │       └── args[0]: 4 : i64
-    │       │       │   │       │   └── body[1]: leave @282
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #285
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$onceIndirect(%primitives$I64)
-    │       │       │   │       │       └── args[0]: 4 : i64
-    │       │       │   │       └── body[3]: leave @282
+    │       │       │   │       ├── fn: lib$onceIndirect(%primitives$I64)
+    │       │       │   │       └── args[0]: 4 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #127
@@ -1684,27 +1143,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @286
-    │       │       │   │       ├── result: #288
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @287
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #288
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$onceStarted().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @286
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #288
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$onceStarted()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @286
+    │       │       │   │       ├── fn: lib$onceStarted()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #130
@@ -1722,27 +1164,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @289
-    │       │       │   │       ├── result: #291
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @290
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #291
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$onceValue().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @289
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #291
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$onceValue()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @289
+    │       │       │   │       ├── fn: lib$onceValue()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #133
@@ -1760,27 +1185,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @292
-    │       │       │   │       ├── result: #294
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @293
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #294
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$onceHelped().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @292
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #294
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$onceHelped()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @292
+    │       │       │   │       ├── fn: lib$onceHelped()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #136
@@ -1798,27 +1206,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @295
-    │       │       │   │       ├── result: #297
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @296
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #297
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$oncePointed().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @295
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #297
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$oncePointed()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @295
+    │       │       │   │       ├── fn: lib$oncePointed()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #139
@@ -1840,27 +1231,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @298
-    │       │       │   │       ├── result: #300
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @299
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #300
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$onceShared().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @298
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #300
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$onceShared()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @298
+    │       │       │   │       ├── fn: lib$onceShared()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #142
@@ -1878,27 +1252,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @301
-    │       │       │   │       ├── result: #303
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @302
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #303
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$onceTokenSame().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @301
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #303
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$onceTokenSame()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @301
+    │       │       │   │       ├── fn: lib$onceTokenSame()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #145
@@ -1916,27 +1273,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @304
-    │       │       │   │       ├── result: #306
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @305
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #306
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$oncePointersSame().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @304
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #306
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$oncePointersSame()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @304
+    │       │       │   │       ├── fn: lib$oncePointersSame()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #148
@@ -1958,27 +1298,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @307
-    │       │       │   │       ├── result: #309
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @308
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #309
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$onceKept().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @307
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #309
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$onceKept()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @307
+    │       │       │   │       ├── fn: lib$onceKept()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #151
@@ -1996,27 +1319,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @310
-    │       │       │   │       ├── result: #312
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @311
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #312
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$onceCallSame().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @310
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #312
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$onceCallSame()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @310
+    │       │       │   │       ├── fn: lib$onceCallSame()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #154
@@ -2034,27 +1340,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @313
-    │       │       │   │       ├── result: #315
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @314
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #315
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$onceSetupRuns().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @313
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #315
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$onceSetupRuns()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @313
+    │       │       │   │       ├── fn: lib$onceSetupRuns()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #157
@@ -2072,27 +1361,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @316
-    │       │       │   │       ├── result: #318
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @317
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #318
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$onceSetupSame().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @316
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #318
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$onceSetupSame()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @316
+    │       │       │   │       ├── fn: lib$onceSetupSame()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #160
@@ -2110,27 +1382,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @319
-    │       │       │   │       ├── result: #321
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @320
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #321
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$onceExternalRuns().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @319
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #321
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$onceExternalRuns()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @319
+    │       │       │   │       ├── fn: lib$onceExternalRuns()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #163
@@ -2148,27 +1403,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @322
-    │       │       │   │       ├── result: #324
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @323
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #324
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$primed().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @322
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #324
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$primed()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @322
+    │       │       │   │       ├── fn: lib$primed()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #166
@@ -2186,27 +1424,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @325
-    │       │       │   │       ├── result: #327
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @326
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #327
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$primedRuns().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @325
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #327
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$primedRuns()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @325
+    │       │       │   │       ├── fn: lib$primedRuns()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #169
@@ -2224,27 +1445,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @328
-    │       │       │   │       ├── result: #330
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @329
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #330
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$wasWarmed().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @328
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #330
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$wasWarmed()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @328
+    │       │       │   │       ├── fn: lib$wasWarmed()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #172
@@ -2262,27 +1466,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @331
-    │       │       │   │       ├── result: #333
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @332
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #333
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$parsed().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @331
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #333
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$parsed()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @331
+    │       │       │   │       ├── fn: lib$parsed()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #175
@@ -2300,27 +1487,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @334
-    │       │       │   │       ├── result: #336
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @335
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #336
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: lib$gnuFound().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @334
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #336
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: lib$gnuFound()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @334
+    │       │       │   │       ├── fn: lib$gnuFound()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #178
@@ -2338,27 +1508,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @337
-    │       │       │   │       ├── result: #339
-    │       │       │   │       ├── body[0] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @338
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #339
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: app$result().ffi
-    │       │       │   │       │   │       └── args:
-    │       │       │   │       │   └── body[1]: leave @337
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #339
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: app$result()
-    │       │       │   │       │       └── args:
-    │       │       │   │       └── body[2]: leave @337
+    │       │       │   │       ├── fn: app$result()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #181
@@ -2376,30 +1529,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @340
-    │       │       │   │       ├── result: #343
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #342
-    │       │       │   │       │   └── value: 21 : i64
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @341
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #343
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: app$args(%primitives$I64).ffi
-    │       │       │   │       │   │       └── args[0]: 21 : i64
-    │       │       │   │       │   └── body[1]: leave @340
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #343
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: app$args(%primitives$I64)
-    │       │       │   │       │       └── args[0]: 21 : i64
-    │       │       │   │       └── body[3]: leave @340
+    │       │       │   │       ├── fn: app$args(%primitives$I64)
+    │       │       │   │       └── args[0]: 21 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #184
@@ -2569,27 +1702,10 @@
     │   │   │       └── right: 2 : i64
     │   │   ├── body[1] > if:
     │   │   │   ├── cond: local #2 : i1
-    │   │   │   └── body[0] > return > expand:
+    │   │   │   └── body[0] > return > call:
     │   │   │       ├── type: i64
-    │   │   │       ├── label: @5
-    │   │   │       ├── result: #7
-    │   │   │       ├── body[0] > eval > expand:
-    │   │   │       │   ├── type: void
-    │   │   │       │   ├── label: @6
-    │   │   │       │   ├── body[0] > assign:
-    │   │   │       │   │   ├── place: #7
-    │   │   │       │   │   └── value > foreign call:
-    │   │   │       │   │       ├── type: i64
-    │   │   │       │   │       ├── fn: app$counter().ffi
-    │   │   │       │   │       └── args:
-    │   │   │       │   └── body[1]: leave @5
-    │   │   │       ├── body[1] > assign:
-    │   │   │       │   ├── place: #7
-    │   │   │       │   └── value > call:
-    │   │   │       │       ├── type: i64
-    │   │   │       │       ├── fn: app$counter()
-    │   │   │       │       └── args:
-    │   │   │       └── body[2]: leave @5
+    │   │   │       ├── fn: app$counter()
+    │   │   │       └── args:
     │   │   ├── body[2] > assign:
     │   │   │   ├── place: #4
     │   │   │   └── value: local #2 : i1

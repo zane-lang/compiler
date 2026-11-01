@@ -71,6 +71,18 @@ let integer ?(tag = Fun.id) ctx b h i =
   else tag (Llvm.build_load (Llvm.i64_type ctx) (field ctx b h i) "" b)
 
 let count ?tag ctx b h = integer ?tag ctx b h 1
+
+(* The count as stored, 32 bits with frame references, and the count one
+   past it stored, for a push into a block with room for it, so the sum
+   fits the stored width. The push adds at that width with no unsigned
+   wrap, which LLVM widens back to 64 bits for the next push's address;
+   added at 64 bits and cut to 32, the next push would see a value of 33
+   bits cut short, whose address LLVM cannot fold. *)
+let count_stored ?(tag = Fun.id) ctx b h =
+  let t = if on () then Llvm.i32_type ctx else Llvm.i64_type ctx in
+  tag (Llvm.build_load t (field ctx b h 1) "" b)
+
+let widen_count ctx b v = if on () then widen ctx b v else v
 let room ?tag ctx b h = integer ?tag ctx b h 2
 
 let set_items ?(tag = Fun.id) ctx b p h =
@@ -80,6 +92,9 @@ let set_integer ?(tag = Fun.id) ctx b v h i =
   ignore (tag (Llvm.build_store (if on () then narrow ctx b v else v) (field ctx b h i) b))
 
 let set_count ?tag ctx b v h = set_integer ?tag ctx b v h 1
+let set_count_after ?(tag = Fun.id) ctx b stored h =
+  let next = Llvm.build_nuw_add stored (Llvm.const_int (Llvm.type_of stored) 1) "" b in
+  ignore (tag (Llvm.build_store next (field ctx b h 1) b))
 
 (* Whether a list's room counts its elements, as with frame references,
    rather than its bytes (runtime/zane.h, ZL_ELEMENTS). *)

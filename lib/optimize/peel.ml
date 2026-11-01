@@ -181,14 +181,17 @@ let instantiate rename ~out ~result (kept : Stat.t list) =
   in
   stats kept
 
-(* Every call in [f] to a function with a copy made to try the copy first. *)
+(* Every call in [f] to itself, when it has a copy, made to try the copy
+   first. A call from outside the recursion is left as it is: it enters the
+   recursion once, at a depth where the cheap way is rarely the one taken,
+   so a copy there costs its test on every call and saves few. *)
 let rewrite copies (f : Func.t) : Func.t =
   let next = ref (largest f) in
   let fresh () = incr next; !next in
   let added = ref [] in
   let fe (e : Expr.t) =
     match e.Expr.node with
-    | Expr.Call { fn; args } -> (
+    | Expr.Call { fn; args } when fn = f.Func.symbol -> (
         match Hashtbl.find_opt copies fn with
         | None -> None
         | Some c ->

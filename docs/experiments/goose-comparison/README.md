@@ -358,8 +358,12 @@ before folding.
   returns, which ends it. It may not allocate a box, copy, take or escape
   a value, or open a scope. It must have at most 48 nodes, and some arm
   must get out without jumping to the call.
-- **The rewrite.** Every call to a function with a copy, from any function,
-  that function itself included, becomes:
+- **The rewrite.** Every call a function with a copy makes to itself
+  becomes the steps below. A call from another function is left as it
+  is: it enters the recursion once, where the cheap way out is rarely
+  taken, so its copy would cost a test on every call and save few. The
+  perf program `depths` ran 1.7% more instructions when calls from `main`
+  were rewritten too.
   1. bind the arguments, once;
   2. run the copy, in which each `return v` stores `v` and leaves;
   3. if the copy jumped out, make the original call with the same

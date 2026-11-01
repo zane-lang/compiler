@@ -130,47 +130,27 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @50
-    │       │       │   │       ├── result: #53
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #52
-    │       │       │   │       │   └── value > expand:
-    │       │       │   │       │       ├── type: handle
-    │       │       │   │       │       ├── label: @10
-    │       │       │   │       │       ├── result: #11
-    │       │       │   │       │       ├── body[0] > hold:
-    │       │       │   │       │       │   ├── local: #9
-    │       │       │   │       │       │   ├── scope: %2
-    │       │       │   │       │       │   ├── value > runtime:
-    │       │       │   │       │       │   │   ├── type: handle
-    │       │       │   │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │       │       │   │   └── args[0] > call:
-    │       │       │   │       │       │   │       ├── type: i64
-    │       │       │   │       │       │   │       ├── fn: folding$next(this folding$Ticker)
-    │       │       │   │       │       │   │       └── args[0]: address of #1 : ptr
-    │       │       │   │       │       │   └── layout: %primitives$String
-    │       │       │   │       │       └── body[1] > assign:
-    │       │       │   │       │           ├── place: #11
-    │       │       │   │       │           └── value: local #9 : handle
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @51
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #53
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: folding$checksum(%primitives$String).ffi
-    │       │       │   │       │   │       └── args[0]: local #52 : handle
-    │       │       │   │       │   └── body[1]: leave @50
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #53
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: folding$checksum(%primitives$String)
-    │       │       │   │       │       └── args[0]: local #52 : handle
-    │       │       │   │       └── body[3]: leave @50
+    │       │       │   │       ├── fn: folding$checksum(%primitives$String)
+    │       │       │   │       └── args[0] > expand:
+    │       │       │   │           ├── type: handle
+    │       │       │   │           ├── label: @10
+    │       │       │   │           ├── result: #11
+    │       │       │   │           ├── body[0] > hold:
+    │       │       │   │           │   ├── local: #9
+    │       │       │   │           │   ├── scope: %2
+    │       │       │   │           │   ├── value > runtime:
+    │       │       │   │           │   │   ├── type: handle
+    │       │       │   │           │   │   ├── fn: zane_text_i64
+    │       │       │   │           │   │   └── args[0] > call:
+    │       │       │   │           │   │       ├── type: i64
+    │       │       │   │           │   │       ├── fn: folding$next(this folding$Ticker)
+    │       │       │   │           │   │       └── args[0]: address of #1 : ptr
+    │       │       │   │           │   └── layout: %primitives$String
+    │       │       │   │           └── body[1] > assign:
+    │       │       │   │               ├── place: #11
+    │       │       │   │               └── value: local #9 : handle
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #14
@@ -196,32 +176,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @54
-    │       │       │   │       ├── result: #57
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #56
-    │       │       │   │       │   └── value: address of #1 : ptr
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @55
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #57
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: folding$next(this folding$Ticker).ffi
-    │       │       │   │       │   │       └── args[0] > deref:
-    │       │       │   │       │   │           ├── type: {ptr, i64}
-    │       │       │   │       │   │           └── ptr: local #56 : ptr
-    │       │       │   │       │   └── body[1]: leave @54
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #57
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: folding$next(this folding$Ticker)
-    │       │       │   │       │       └── args[0]: local #56 : ptr
-    │       │       │   │       └── body[3]: leave @54
+    │       │       │   │       ├── fn: folding$next(this folding$Ticker)
+    │       │       │   │       └── args[0]: address of #1 : ptr
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #20
@@ -239,30 +197,10 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_f64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: f64
-    │       │       │   │       ├── label: @58
-    │       │       │   │       ├── result: #61
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #60
-    │       │       │   │       │   └── value: 0x0p+0 : f64
-    │       │       │   │       ├── body[1] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @59
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #61
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: f64
-    │       │       │   │       │   │       ├── fn: folding$sine(%primitives$F64).ffi
-    │       │       │   │       │   │       └── args[0]: 0x0p+0 : f64
-    │       │       │   │       │   └── body[1]: leave @58
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #61
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: f64
-    │       │       │   │       │       ├── fn: folding$sine(%primitives$F64)
-    │       │       │   │       │       └── args[0]: 0x0p+0 : f64
-    │       │       │   │       └── body[3]: leave @58
+    │       │       │   │       ├── fn: folding$sine(%primitives$F64)
+    │       │       │   │       └── args[0]: 0x0p+0 : f64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #23
@@ -272,10 +210,10 @@
     │       │   ├── scope: %2
     │       │   ├── value > expand:
     │       │   │   ├── type: handle16
-    │       │   │   ├── label: @73
-    │       │   │   ├── result: #74
+    │       │   │   ├── label: @48
+    │       │   │   ├── result: #49
     │       │   │   └── body[0] > assign:
-    │       │   │       ├── place: #74
+    │       │   │       ├── place: #49
     │       │   │       └── value > runtime:
     │       │   │           ├── type: handle16
     │       │   │           ├── fn: zane_list_new
@@ -362,35 +300,11 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
+    │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @62
-    │       │       │   │       ├── result: #66
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #64
-    │       │       │   │       │   └── value: function folding$main()$lambda1
-    │       │       │   │       ├── body[1] > let:
-    │       │       │   │       │   ├── local: #65
-    │       │       │   │       │   └── value: local #24 : handle16
-    │       │       │   │       ├── body[2] > eval > expand:
-    │       │       │   │       │   ├── type: void
-    │       │       │   │       │   ├── label: @63
-    │       │       │   │       │   ├── body[0] > assign:
-    │       │       │   │       │   │   ├── place: #66
-    │       │       │   │       │   │   └── value > foreign call:
-    │       │       │   │       │   │       ├── type: i64
-    │       │       │   │       │   │       ├── fn: folding$sorted(%primitives$Bool[%primitives$I64, %primitives$I64], %primitives$List<%primitives$I64>).ffi
-    │       │       │   │       │   │       ├── args[0]: local #64 : ptr
-    │       │       │   │       │   │       └── args[1]: local #65 : handle16
-    │       │       │   │       │   └── body[1]: leave @62
-    │       │       │   │       ├── body[3] > assign:
-    │       │       │   │       │   ├── place: #66
-    │       │       │   │       │   └── value > call:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: folding$sorted(%primitives$Bool[%primitives$I64, %primitives$I64], %primitives$List<%primitives$I64>)
-    │       │       │   │       │       ├── args[0]: local #64 : ptr
-    │       │       │   │       │       └── args[1]: local #65 : handle16
-    │       │       │   │       └── body[4]: leave @62
+    │       │       │   │       ├── fn: folding$sorted(%primitives$Bool[%primitives$I64, %primitives$I64], %primitives$List<%primitives$I64>)
+    │       │       │   │       ├── args[0]: function folding$main()$lambda1
+    │       │       │   │       └── args[1]: local #24 : handle16
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #39
@@ -474,32 +388,10 @@
     │       │   ├── fn: folding$push(this folding$Buffer, %primitives$I64)
     │       │   ├── args[0]: address of #1 : ptr
     │       │   └── args[1]: 20 : i64
-    │       └── body[5] > return > expand:
+    │       └── body[5] > return > call:
     │           ├── type: i64
-    │           ├── label: @3
-    │           ├── result: #6
-    │           ├── body[0] > let:
-    │           │   ├── local: #5
-    │           │   └── value: address of #1 : ptr
-    │           ├── body[1] > eval > expand:
-    │           │   ├── type: void
-    │           │   ├── label: @4
-    │           │   ├── body[0] > assign:
-    │           │   │   ├── place: #6
-    │           │   │   └── value > foreign call:
-    │           │   │       ├── type: i64
-    │           │   │       ├── fn: folding$sum(this folding$Buffer).ffi
-    │           │   │       └── args[0] > deref:
-    │           │   │           ├── type: {ptr, i64}
-    │           │   │           └── ptr: local #5 : ptr
-    │           │   └── body[1]: leave @3
-    │           ├── body[2] > assign:
-    │           │   ├── place: #6
-    │           │   └── value > call:
-    │           │       ├── type: i64
-    │           │       ├── fn: folding$sum(this folding$Buffer)
-    │           │       └── args[0]: local #5 : ptr
-    │           └── body[3]: leave @3
+    │           ├── fn: folding$sum(this folding$Buffer)
+    │           └── args[0]: address of #1 : ptr
     ├── funcs[6] > func:
     │   ├── symbol: folding$sine(%primitives$F64)
     │   ├── params[0]: local #1 : f64
@@ -615,49 +507,25 @@
         │       └── args:
         ├── body[2] > store:
         │   ├── address: local #1 : ptr
-        │   └── value > expand:
+        │   └── value > call:
         │       ├── type: i1
-        │       ├── label: @3
-        │       ├── result: #7
-        │       ├── body[0] > let:
-        │       │   ├── local: #5
-        │       │   └── value > deref:
-        │       │       ├── type: i64
-        │       │       └── ptr > deref:
-        │       │           ├── type: ptr
-        │       │           └── ptr > offset:
-        │       │               ├── within: {ptr, ptr}
-        │       │               ├── path: 0
-        │       │               └── base: local #0 : ptr
-        │       ├── body[1] > let:
-        │       │   ├── local: #6
-        │       │   └── value > deref:
-        │       │       ├── type: i64
-        │       │       └── ptr > deref:
-        │       │           ├── type: ptr
-        │       │           └── ptr > offset:
-        │       │               ├── within: {ptr, ptr}
-        │       │               ├── path: 1
-        │       │               └── base: local #0 : ptr
-        │       ├── body[2] > eval > expand:
-        │       │   ├── type: void
-        │       │   ├── label: @4
-        │       │   ├── body[0] > assign:
-        │       │   │   ├── place: #7
-        │       │   │   └── value > binary:
-        │       │   │       ├── type: i1
-        │       │   │       ├── op: <
-        │       │   │       ├── left: local #6 : i64
-        │       │   │       └── right: local #5 : i64
-        │       │   └── body[1]: leave @3
-        │       ├── body[3] > assign:
-        │       │   ├── place: #7
-        │       │   └── value > call:
-        │       │       ├── type: i1
-        │       │       ├── fn: folding$main()$lambda1
-        │       │       ├── args[0]: local #5 : i64
-        │       │       └── args[1]: local #6 : i64
-        │       └── body[4]: leave @3
+        │       ├── fn: folding$main()$lambda1
+        │       ├── args[0] > deref:
+        │       │   ├── type: i64
+        │       │   └── ptr > deref:
+        │       │       ├── type: ptr
+        │       │       └── ptr > offset:
+        │       │           ├── within: {ptr, ptr}
+        │       │           ├── path: 0
+        │       │           └── base: local #0 : ptr
+        │       └── args[1] > deref:
+        │           ├── type: i64
+        │           └── ptr > deref:
+        │               ├── type: ptr
+        │               └── ptr > offset:
+        │                   ├── within: {ptr, ptr}
+        │                   ├── path: 1
+        │                   └── base: local #0 : ptr
         └── body[3] > if:
             ├── cond: local #2 : i1
             └── body[0] > eval > runtime:

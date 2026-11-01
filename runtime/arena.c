@@ -518,17 +518,13 @@ int zane_stretch(zane_mark *m, char *end, int64_t most) {
    own slots or by a list that stretched it (list.c), may stretch by
    ZANE_STRETCH more, up to a chunk's size, so a small block after such a
    list, such as the record of the stack its old block goes to, takes no
-   chunk of its own. */
-static char *zane_frontier_of(zane_mark *m, int64_t size, int64_t align) {
+   chunk of its own. The heap's own room is looked at inline in each
+   caller, and the rest is out of line (zane_frontier_past), so that each
+   caller's common path is the few instructions of a bump. */
+static __attribute__((noinline)) char *zane_frontier_past(zane_mark *m, int64_t size, uintptr_t mask) {
 	zane_heap *h = &m->heap;
-	uintptr_t mask = (uintptr_t)align - 1;
-	uintptr_t start = ((uintptr_t)h->bump + mask) & ~mask;
-	if (h->bump && start + (uintptr_t)size <= (uintptr_t)h->end) {
-		h->bump = (char *)(start + (uintptr_t)size);
-		return (char *)start;
-	}
 	char *frontier = m->context->frontier;
-	start = (((uintptr_t)(h->bump && h->end == frontier ? h->bump : frontier)) + mask) & ~mask;
+	uintptr_t start = (((uintptr_t)(h->bump && h->end == frontier ? h->bump : frontier)) + mask) & ~mask;
 	int64_t most = frontier - (char *)m;
 	most = most > ZANE_STRETCHED && most <= ZANE_CHUNK - ZANE_STRETCH ? most + ZANE_STRETCH : ZANE_STRETCHED;
 	if (zane_stretch(m, (char *)(start + (uintptr_t)size), most)) {
@@ -544,6 +540,17 @@ static char *zane_frontier_of(zane_mark *m, int64_t size, int64_t align) {
 	h->end = chunk + ZANE_CHUNK;
 	h->bump = (char *)(start + (uintptr_t)size);
 	return (char *)start;
+}
+
+static inline __attribute__((always_inline)) char *zane_frontier_of(zane_mark *m, int64_t size, int64_t align) {
+	zane_heap *h = &m->heap;
+	uintptr_t mask = (uintptr_t)align - 1;
+	uintptr_t start = ((uintptr_t)h->bump + mask) & ~mask;
+	if (h->bump && start + (uintptr_t)size <= (uintptr_t)h->end) {
+		h->bump = (char *)(start + (uintptr_t)size);
+		return (char *)start;
+	}
+	return zane_frontier_past(m, size, mask);
 }
 
 /* Experimental pooled variants (list.c): exactly `size` bytes, aligned to
@@ -569,8 +576,10 @@ enum { ZANE_HEADROOM = 64 };
    in place as the list doubles (memory.md §3.6). Reserving costs addresses,
    not memory: only what is usable is charged, and only what is touched
    takes RAM. Where a process may not reserve that many addresses, the
-   reservation is the span alone. Its context's lock is held. */
-char *zane_alloc_growable(zane_mark *region, int64_t size) {
+   reservation is the span alone. Its context's lock is held. Kept out of
+   zane_alloc_held, whose every call would otherwise save the registers
+   this rare path uses. */
+__attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t size) {
 	size_t bytes = zane_span_bytes(size), reserved = bytes * ZANE_HEADROOM;
 	int fits = reserved / ZANE_HEADROOM == bytes;
 	zane_context *c = region->context;
@@ -696,9 +705,10 @@ char *zane_alloc_held(zane_mark *region, int64_t size, int64_t align) {
 		block = s ? s->top : NULL;
 		if (block) s->top = *(char **)block;
 	}
-	if (!block && size > ZANE_CHUNK - ZANE_LINE && align <= ZANE_LINE)
-		return zane_alloc_growable(region, size);
-	if (!block) block = zane_frontier_of(region, size, align);
+	if (!block) {
+		if (size > ZANE_CHUNK - ZANE_LINE && align <= ZANE_LINE) return zane_alloc_growable(region, size);
+		block = zane_frontier_of(region, size, align);
+	}
 	h->live++;
 	return block;
 }

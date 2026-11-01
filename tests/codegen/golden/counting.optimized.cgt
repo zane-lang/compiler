@@ -121,58 +121,58 @@
     │       │   ├── local: #10
     │       │   └── value > expand:
     │       │       ├── type: i1
-    │       │       ├── label: @73
-    │       │       ├── result: #74
+    │       │       ├── label: @50
+    │       │       ├── result: #51
     │       │       ├── body[0] > eval > runtime:
     │       │       │   ├── type: void
     │       │       │   ├── fn: zane_print
     │       │       │   └── args[0]: "yes\n" : handle
     │       │       └── body[1] > assign:
-    │       │           ├── place: #74
+    │       │           ├── place: #51
     │       │           └── value: true : i1
     │       ├── body[5] > eval > expand:
     │       │   ├── type: i1
-    │       │   ├── label: @75
-    │       │   ├── result: #76
+    │       │   ├── label: @52
+    │       │   ├── result: #53
     │       │   ├── body[0] > eval > runtime:
     │       │   │   ├── type: void
     │       │   │   ├── fn: zane_print
     │       │   │   └── args[0]: "yes\n" : handle
     │       │   └── body[1] > assign:
-    │       │       ├── place: #76
+    │       │       ├── place: #53
     │       │       └── value: true : i1
     │       ├── body[6] > eval > expand:
     │       │   ├── type: i1
-    │       │   ├── label: @77
-    │       │   ├── result: #78
+    │       │   ├── label: @54
+    │       │   ├── result: #55
     │       │   ├── body[0] > eval > runtime:
     │       │   │   ├── type: void
     │       │   │   ├── fn: zane_print
     │       │   │   └── args[0]: "yes\n" : handle
     │       │   └── body[1] > assign:
-    │       │       ├── place: #78
+    │       │       ├── place: #55
     │       │       └── value: true : i1
     │       ├── body[7] > eval > expand:
     │       │   ├── type: i1
-    │       │   ├── label: @79
-    │       │   ├── result: #80
+    │       │   ├── label: @56
+    │       │   ├── result: #57
     │       │   ├── body[0] > eval > runtime:
     │       │   │   ├── type: void
     │       │   │   ├── fn: zane_print
     │       │   │   └── args[0]: "yes\n" : handle
     │       │   └── body[1] > assign:
-    │       │       ├── place: #80
+    │       │       ├── place: #57
     │       │       └── value: true : i1
     │       ├── body[8] > eval > expand:
     │       │   ├── type: i1
-    │       │   ├── label: @81
-    │       │   ├── result: #82
+    │       │   ├── label: @58
+    │       │   ├── result: #59
     │       │   ├── body[0] > eval > runtime:
     │       │   │   ├── type: void
     │       │   │   ├── fn: zane_print
     │       │   │   └── args[0]: "yes\n" : handle
     │       │   └── body[1] > assign:
-    │       │       ├── place: #82
+    │       │       ├── place: #59
     │       │       └── value: true : i1
     │       ├── body[9] > let:
     │       │   ├── local: #33

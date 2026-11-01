@@ -976,14 +976,15 @@ let first_block env fr b ~header ~list ~fail ~first ~stride =
 let push env fr b ?(ahead = 1) ?(unchecked = false) list stride =
   let header = List_handle.header env.ctx in
   let tag = handle_field env in
-  let count = List_handle.count ~tag env.ctx b list in
+  let stored = List_handle.count_stored ~tag env.ctx b list in
+  let count = List_handle.widen_count env.ctx b stored in
   let room = List_handle.room ~tag env.ctx b list in
   let next = Llvm.build_nsw_add count (Llvm.const_int env.i64 1) "" b in
   let in_room () =
     let items = List_handle.items ~tag env.ctx b list in
     let offset = Llvm.build_nsw_mul count stride "" b in
     let at = Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) items [| offset |] "" b in
-    List_handle.set_count ~tag env.ctx b next list;
+    List_handle.set_count_after ~tag env.ctx b stored list;
     at
   in
   if unchecked then in_room ()
