@@ -7,8 +7,9 @@
 "$@" > /dev/null & pid=$!
 sleep 0.3
 for i in $(seq 150); do
-  # A sample's function, as `<name>` whether or not it has an offset.
-  gdb -q -batch -p "$pid" -ex "x/i \$pc" | grep "=>" | sed "s/:.*//; s/.*<//; s/[+>].*//; s/.*/<&>/"
+  # A sample's function, as `<name>` whether or not it has an offset; a
+  # sample outside every symbol is dropped.
+  gdb -q -batch -p "$pid" -ex "x/i \$pc" | sed -n "s/^=> [^ ]* <\([^+>]*\)[+>].*/<\1>/p"
   sleep 0.02
 done | sort | uniq -c | sort -rn | head -12
 kill $pid 2>/dev/null; wait $pid 2>/dev/null

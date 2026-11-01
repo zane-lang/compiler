@@ -44,6 +44,9 @@ if os.environ.get("ONLY"):
 # peak, which bytes per node divides by.
 DEPTH = {"binarytrees": (16, 1), "treecopy": (18, 2)}
 
+# The caller's environment without Zane's switches, for the builds and runs
+# that take none of their own.
+CLEAN = {k: v for k, v in os.environ.items() if not k.startswith("ZANE_")}
 clang = subprocess.run(["which", "clang"], capture_output=True, text=True).stdout.strip()
 os.makedirs(OUT, exist_ok=True)
 
@@ -55,12 +58,11 @@ def build(name, tid):
                "--package", f"bench={LB}/lib/bench", "--package", f"core={CORE}/core",
                "--package", f"math={CORE}/math"]
         # Only this variant's switches: none inherited from the caller.
-        env = {k: v for k, v in os.environ.items() if not k.startswith("ZANE_")}
-        env.update(ZANE[name])
+        env = {**CLEAN, **ZANE[name]}
     else:
         cmd = [GOOSE, "build", os.path.join(HERE, f"{tid}{GOOSE_FORMS[name]}.goose"), "-o", exe,
                "-O2", "--cc", clang]
-        env = os.environ
+        env = CLEAN
     r = subprocess.run(cmd, capture_output=True, text=True, env=env)
     if r.returncode != 0:
         sys.exit(f"build {name} {tid} failed:\n{r.stdout}{r.stderr}")
@@ -74,7 +76,7 @@ def run(exe, args):
         try:
             fd = os.open(os.devnull, os.O_WRONLY)
             os.dup2(fd, 1)
-            os.execv(exe, [exe, *args])
+            os.execve(exe, [exe, *args], CLEAN)
         finally:
             os._exit(127)
     _, status, ru = os.wait4(pid, 0)
@@ -85,7 +87,7 @@ def run(exe, args):
 
 def instructions(exe, args):
     r = subprocess.run(["valgrind", "--tool=callgrind", "--callgrind-out-file=/dev/null", exe, *args],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, env=CLEAN)
     # Callgrind's summary line, `I   refs:      N`.
     for line in r.stderr.splitlines():
         if "refs:" in line:
@@ -102,7 +104,7 @@ for test in tests.TESTS:
     for name in [*ZANE, *GOOSE_FORMS]:
         exe = build(name, tid)
         for args, expected in [(test["check_args"], test["check_expected"]), (test["args"], test["expected"])]:
-            p = subprocess.run([exe, *args], capture_output=True, text=True)
+            p = subprocess.run([exe, *args], capture_output=True, text=True, env=CLEAN)
             out = p.stdout
             if p.returncode != 0 or out != expected:
                 sys.exit(f"MISMATCH {name} {tid} {args}: {out!r} != {expected!r}")

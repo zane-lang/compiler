@@ -148,8 +148,10 @@ def main():
                       f"that takes at least {SHARE:.0%} of Zane's total, against a language only "
                       f"where its whole program runs fewer instructions than Zane's, in programs of "
                       f"{SMALLEST // 1_000_000} M instructions or more. A function under 1% of "
-                      f"Zane's total in every language is left out; `—` is a function a language "
-                      f"does not have, or has inlined.", ""] + summary + out)
+                      f"Zane's total in every language is left out, except where Zane's run did not "
+                      f"finish. In a language's column, `—` is a function it does not have or has "
+                      f"inlined, or a run that did not finish; in Zane ÷ best, it is a function no "
+                      f"language qualifies as a reference for, or one under 1% of Zane's total.", ""] + summary + out)
     where = os.path.dirname(os.path.abspath(bin_dir.rstrip("/")))
     with open(os.path.join(where, "mechanisms.md"), "w") as f:
         f.write(text)
