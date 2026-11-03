@@ -3,23 +3,23 @@ name: Compiler distribution
 on:
   pull_request:
     paths:
-      - '.github/workflows/compiler-dist.yml'
-      - '.github/workflows/release.yml'
-      - '.github/scripts/release-tag'
-      - '.github/scripts/install-zig'
-      - '.github/actions/setup-ci/**'
-      - 'dev/release/**'
-      - 'dev/toolchains/**'
-      - 'tests/release/**'
-      - 'tests/codegen/fixtures/hello/**'
-      - 'tests/codegen/golden/hello.out'
-      - 'dev/bin/check-programs'
-      - 'dev/setup/bootstrap-toolchain'
-      - 'devbox.*'
-      - 'bin/**'
-      - 'lib/**'
-      - 'runtime/**'
-      - 'dune-project'
+      - ".github/workflows/compiler-dist.yml"
+      - ".github/workflows/release.yml"
+      - ".github/scripts/release-tag"
+      - ".github/scripts/install-zig"
+      - ".github/actions/setup-ci/**"
+      - "dev/release/**"
+      - "dev/toolchains/**"
+      - "tests/release/**"
+      - "tests/codegen/fixtures/hello/**"
+      - "tests/codegen/golden/hello.out"
+      - "dev/bin/check-programs"
+      - "dev/setup/bootstrap-toolchain"
+      - "devbox.*"
+      - "bin/**"
+      - "lib/**"
+      - "runtime/**"
+      - "dune-project"
   workflow_call:
     inputs:
       version:
