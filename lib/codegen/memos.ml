@@ -34,6 +34,12 @@ let memo_most_entries = 16384
 (* An entry's meta word: the work in its low 41 bits, whose bound, 2^40,
    they hold, and in a table threads share a version above them, odd while
    a miss writes the entry. *)
+(* LLVM's calling convention number for preserve_most. *)
+let preserve_most = 14
+
+(* The suffix of a remembered function's route (Cgt.Ref32.memo_route). *)
+let route_suffix = ".memo.route"
+
 let work_mask = Int64.sub (Int64.shift_left 1L 41) 1L
 let writing = Int64.shift_left 1L 41
 
@@ -62,6 +68,19 @@ let memo env (m : Cgt.Memo.t) =
   let lookup = Llvm.define_function (f.Func.symbol ^ ".lookup") fty env.m in
   Llvm.set_linkage Llvm.Linkage.Internal lookup;
   declare_abi env lookup a;
+  (* Experimental (Cgt.Ref32.memo_preserve): LLVM's preserve_most. *)
+  let preserve = Cgt.Ref32.memo_preserve () in
+  if preserve then Llvm.set_function_call_conv preserve_most lookup;
+  (* Experimental (Cgt.Ref32.memo_route): where tier 0's gate calls. *)
+  let route =
+    if not (Cgt.Ref32.memo_route ()) then None
+    else begin
+      let g = Llvm.define_global (f.Func.symbol ^ route_suffix) lookup env.m in
+      Llvm.set_linkage Llvm.Linkage.Internal g;
+      Llvm.set_thread_local (Llvm.is_thread_local state) g;
+      Some g
+    end
+  in
   Llvm.add_function_attr lookup (Llvm.create_enum_attr ctx "noinline" 0L) Llvm.AttrIndex.Function;
   Llvm.add_function_attr fn (Llvm.create_enum_attr ctx "alwaysinline" 0L) Llvm.AttrIndex.Function;
   let st = Llvm.build_load i64 state "" b in
@@ -73,6 +92,7 @@ let memo env (m : Cgt.Memo.t) =
   finish site;
   Llvm.position_at_end look b;
   let site = calling fn lookup fty in
+  if preserve then Llvm.set_instruction_call_conv preserve_most site;
   Llvm.set_tail_call true site;
   finish site;
   let fn = lookup in
@@ -225,6 +245,20 @@ let memo env (m : Cgt.Memo.t) =
         Llvm.set_thread_local (Llvm.is_thread_local state) g;
         g
   in
+  (* With a route, the score reaching the limit points it at the plain
+     copy, so tier 0's gate stops calling the lookup without reading the
+     score (Tiers.route_gates). *)
+  let stop_route score =
+    Option.iter
+      (fun g ->
+        let stop = Llvm.append_block ctx "" fn and on = Llvm.append_block ctx "" fn in
+        ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Sge score (Llvm.const_int i64 memo_limit) "" b) stop on b);
+        Llvm.position_at_end stop b;
+        ignore (atomic monotonic (Llvm.build_store plain g b));
+        ignore (Llvm.build_br on b);
+        Llvm.position_at_end on b)
+      route
+  in
   let hit = Llvm.append_block ctx "" fn and miss = Llvm.append_block ctx "" fn in
   ignore (Llvm.build_cond_br found hit miss b);
   (* A hit: the work the result took added to the count of the miss it
@@ -240,6 +274,7 @@ let memo env (m : Cgt.Memo.t) =
   let down = Llvm.build_sub (Llvm.build_add st (Llvm.const_int i64 m.Cgt.Memo.charge) "" b) saved "" b in
   let floor = Llvm.build_select (Llvm.build_icmp Llvm.Icmp.Slt down (Llvm.const_int i64 0) "" b) (Llvm.const_int i64 0) down "" b in
   ignore (Llvm.build_store floor state b);
+  stop_route floor;
   (match ret_passing with
   | Words 1 -> ignore (Llvm.build_ret (List.hd kept) b)
   | Words n ->
@@ -261,7 +296,9 @@ let memo env (m : Cgt.Memo.t) =
   (* A miss: the body runs, counting the work of the remembered calls it
      makes, and its result is kept over whatever the entry held. *)
   Llvm.position_at_end miss b;
-  ignore (Llvm.build_store (Llvm.build_add st (Llvm.const_int i64 m.Cgt.Memo.charge) "" b) state b);
+  let charged = Llvm.build_add st (Llvm.const_int i64 m.Cgt.Memo.charge) "" b in
+  ignore (Llvm.build_store charged state b);
+  stop_route charged;
   let before = Llvm.build_load i64 calls "" b in
   ignore (Llvm.build_store (Llvm.build_add before (Llvm.const_int i64 m.Cgt.Memo.cheapest) "" b) calls b);
   let site = calling fn body bty in

@@ -61,3 +61,13 @@ let subject_regions () = Sys.getenv_opt "ZANE_SUBJECT_REGIONS" = Some "1"
    the runtime without locks, but no subject gets a region of its own, and
    the runtime does not stop when a thread reaches another's regions. *)
 let no_islands () = Sys.getenv_opt "ZANE_SUBJECT_REGIONS_NO_ISLANDS" = Some "1"
+
+(* Experimental (docs/experiments/memo-gates): `ZANE_MEMO_ROUTE=1` gives
+   each remembered function a route, the address its tier-0 gate calls,
+   which the lookup points at the plain copy once the function stops
+   looking; `ZANE_MEMO_PRESERVE=1` has the lookup save nearly every
+   register itself (LLVM's `preserve_most`), so its callers keep theirs.
+   The route's call cannot know which convention its target uses, so the
+   route turns the other off. *)
+let memo_route () = Sys.getenv_opt "ZANE_MEMO_ROUTE" = Some "1"
+let memo_preserve () = Sys.getenv_opt "ZANE_MEMO_PRESERVE" = Some "1" && not (memo_route ())
