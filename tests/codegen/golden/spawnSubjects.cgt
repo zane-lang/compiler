@@ -16,11 +16,17 @@
     │   ├── type: outcome of %primitives$I64 ? %primitives$I64
     │   └── positions:
     ├── layouts[5] > layout:
-    │   ├── type: %primitives$Bool
-    │   └── positions:
-    ├── layouts[6] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
+    ├── layouts[6] > layout:
+    │   ├── type: %primitives$List<%primitives$String>
+    │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
+    ├── layouts[7] > layout:
+    │   ├── type: %primitives$ListRef<%primitives$List<%primitives$String>>
+    │   └── positions[0]: list @0 of %primitives$List<%primitives$String> (16 bytes apart)
+    ├── layouts[8] > layout:
+    │   ├── type: %primitives$Bool
+    │   └── positions:
     ├── globals[0]: spawnSubjects$banner.value : handle
     ├── globals[1]: spawnSubjects$banner.state : i64
     ├── funcs[0] > func:
@@ -921,28 +927,224 @@
     │       │       │       │               └── ptr: local #132 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @128
     │       │       └── right: 95 : i64
-    │       ├── body[27] > spawn:
-    │       │   ├── task: #134
+    │       ├── body[27] > hold:
+    │       │   ├── local: #133
     │       │   ├── scope: %2
-    │       │   ├── thunk: zane.spawn.11
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle16
+    │       │   │   ├── fn: zane_list_new
+    │       │   │   └── args:
+    │       │   └── layout: %primitives$ListRef<%primitives$List<%primitives$String>>
+    │       ├── body[28] > hold:
+    │       │   ├── local: #134
+    │       │   ├── scope: %2
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle16
+    │       │   │   ├── fn: zane_list_new
+    │       │   │   └── args:
+    │       │   └── layout: %primitives$List<%primitives$String>
+    │       ├── body[29] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @143
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #141
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: handle
+    │       │   │       ├── fn: zane_text_join
+    │       │   │       ├── args[0] > expand:
+    │       │   │       │   ├── type: handle
+    │       │   │       │   ├── label: @136
+    │       │   │       │   ├── result: #137
+    │       │   │       │   ├── body[0] > hold:
+    │       │   │       │   │   ├── local: #135
+    │       │   │       │   │   ├── scope: %2
+    │       │   │       │   │   ├── value: "taken out " : handle
+    │       │   │       │   │   └── layout: %primitives$String
+    │       │   │       │   └── body[1] > assign:
+    │       │   │       │       ├── place: #137
+    │       │   │       │       └── value: local #135 : handle
+    │       │   │       └── args[1] > expand:
+    │       │   │           ├── type: handle
+    │       │   │           ├── label: @139
+    │       │   │           ├── result: #140
+    │       │   │           ├── body[0] > hold:
+    │       │   │           │   ├── local: #138
+    │       │   │           │   ├── scope: %2
+    │       │   │           │   ├── value: "of the subject" : handle
+    │       │   │           │   └── layout: %primitives$String
+    │       │   │           └── body[1] > assign:
+    │       │   │               ├── place: #140
+    │       │   │               └── value: local #138 : handle
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #142
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #134 : ptr
+    │       │   │       └── args[1]: 24 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #142 : ptr
+    │       │       ├── value: local #141 : handle
+    │       │       └── layout: %primitives$String
+    │       ├── body[30] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @146
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #144
+    │       │   │   └── value > copy:
+    │       │   │       ├── type: handle16
+    │       │   │       ├── value: local #134 : handle16
+    │       │   │       └── layout: %primitives$List<%primitives$String>
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #145
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #133 : ptr
+    │       │   │       └── args[1]: 16 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #145 : ptr
+    │       │       ├── value: local #144 : handle16
+    │       │       └── layout: %primitives$List<%primitives$String>
+    │       ├── body[31] > if:
+    │       │   ├── cond: true : i1
+    │       │   └── body[0] > scope:
+    │       │       ├── id: %153
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #148
+    │       │       │   └── value: 1 : i64
+    │       │       ├── body[1] > let:
+    │       │       │   ├── local: #149
+    │       │       │   └── value > runtime:
+    │       │       │       ├── type: ptr
+    │       │       │       ├── fn: zane_list_at
+    │       │       │       ├── args[0]: address of #133 : ptr
+    │       │       │       ├── args[1]: local #148 : i64
+    │       │       │       └── args[2]: 16 : i64
+    │       │       ├── body[2] > spawn:
+    │       │       │   ├── task: #151
+    │       │       │   ├── scope: %153
+    │       │       │   ├── thunk: zane.spawn.11
+    │       │       │   ├── frame: {handle, ptr, handle16, ptr}
+    │       │       │   ├── args[0]: local #149 : ptr
+    │       │       │   ├── args[1] > copy:
+    │       │       │   │   ├── type: handle16
+    │       │       │   │   ├── value > snapshot:
+    │       │       │   │   │   ├── type: handle16
+    │       │       │   │   │   └── ptr: local #149 : ptr
+    │       │       │   │   └── layout: %primitives$List<%primitives$String>
+    │       │       │   ├── dest: #152
+    │       │       │   ├── layout: %primitives$String
+    │       │       │   └── island:
+    │       │       │       ├── field: 3
+    │       │       │       ├── copy: 2
+    │       │       │       ├── size: 16
+    │       │       │       └── layout: %primitives$List<%primitives$String>
+    │       │       ├── body[3] > hold:
+    │       │       │   ├── local: #160
+    │       │       │   ├── scope: %153
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_join
+    │       │       │   │   ├── args[0] > expand:
+    │       │       │   │   │   ├── type: handle
+    │       │       │   │   │   ├── label: @155
+    │       │       │   │   │   ├── result: #156
+    │       │       │   │   │   ├── body[0] > hold:
+    │       │       │   │   │   │   ├── local: #154
+    │       │       │   │   │   │   ├── scope: %153
+    │       │       │   │   │   │   ├── value: "written over " : handle
+    │       │       │   │   │   │   └── layout: %primitives$String
+    │       │       │   │   │   └── body[1] > assign:
+    │       │       │   │   │       ├── place: #156
+    │       │       │   │   │       └── value: local #154 : handle
+    │       │       │   │   └── args[1] > expand:
+    │       │       │   │       ├── type: handle
+    │       │       │   │       ├── label: @158
+    │       │       │   │       ├── result: #159
+    │       │       │   │       ├── body[0] > hold:
+    │       │       │   │       │   ├── local: #157
+    │       │       │   │       │   ├── scope: %153
+    │       │       │   │       │   ├── value: "what was given back" : handle
+    │       │       │   │       │   └── layout: %primitives$String
+    │       │       │   │       └── body[1] > assign:
+    │       │       │   │           ├── place: #159
+    │       │       │   │           └── value: local #157 : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[4] > eval > call:
+    │       │           ├── type: void
+    │       │           ├── fn: spawnSubjects$check(%primitives$Bool)
+    │       │           └── args[0] > binary:
+    │       │               ├── type: i1
+    │       │               ├── op: ==
+    │       │               ├── left > runtime:
+    │       │               │   ├── type: i64
+    │       │               │   ├── fn: zane_text_equal
+    │       │               │   ├── args[0] > expand:
+    │       │               │   │   ├── type: handle
+    │       │               │   │   ├── label: @161
+    │       │               │   │   ├── result: #162
+    │       │               │   │   ├── body[0]: join #151
+    │       │               │   │   └── body[1] > assign:
+    │       │               │   │       ├── place: #162
+    │       │               │   │       └── value > deref:
+    │       │               │   │           ├── type: handle
+    │       │               │   │           └── ptr: address of #152 : ptr
+    │       │               │   └── args[1] > expand:
+    │       │               │       ├── type: handle
+    │       │               │       ├── label: @164
+    │       │               │       ├── result: #165
+    │       │               │       ├── body[0] > hold:
+    │       │               │       │   ├── local: #163
+    │       │               │       │   ├── scope: %153
+    │       │               │       │   ├── value: "taken out of the subject" : handle
+    │       │               │       │   └── layout: %primitives$String
+    │       │               │       └── body[1] > assign:
+    │       │               │           ├── place: #165
+    │       │               │           └── value: local #163 : handle
+    │       │               └── right: 1 : i64
+    │       ├── body[32] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: spawnSubjects$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > convert:
+    │       │       │   ├── type: i64
+    │       │       │   └── value > member:
+    │       │       │       ├── type: i32
+    │       │       │       ├── index: 1
+    │       │       │       └── value > snapshot:
+    │       │       │           ├── type: handle16
+    │       │       │           └── ptr > runtime:
+    │       │       │               ├── type: ptr
+    │       │       │               ├── fn: zane_list_at
+    │       │       │               ├── args[0]: address of #133 : ptr
+    │       │       │               ├── args[1]: 1 : i64
+    │       │       │               └── args[2]: 16 : i64
+    │       │       └── right: 0 : i64
+    │       ├── body[33] > spawn:
+    │       │   ├── task: #167
+    │       │   ├── scope: %2
+    │       │   ├── thunk: zane.spawn.12
     │       │   ├── frame: {i1}
     │       │   ├── args:
-    │       │   ├── dest: #135
+    │       │   ├── dest: #168
     │       │   └── layout: %primitives$Bool
-    │       ├── body[28] > eval > call:
+    │       ├── body[34] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawnSubjects$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
-    │       │       ├── label: @136
-    │       │       ├── result: #137
-    │       │       ├── body[0]: join #134
+    │       │       ├── label: @169
+    │       │       ├── result: #170
+    │       │       ├── body[0]: join #167
     │       │       └── body[1] > assign:
-    │       │           ├── place: #137
+    │       │           ├── place: #170
     │       │           └── value > deref:
     │       │               ├── type: i1
-    │       │               └── ptr: address of #135 : ptr
-    │       └── body[29] > return: unit : void
+    │       │               └── ptr: address of #168 : ptr
+    │       └── body[35] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: spawnSubjects$deepen(this spawnSubjects$Countdown, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
@@ -1190,7 +1392,7 @@
     │       │       ├── body[0] > spawn:
     │       │       │   ├── task: #7
     │       │       │   ├── scope: %8
-    │       │       │   ├── thunk: zane.spawn.12
+    │       │       │   ├── thunk: zane.spawn.13
     │       │       │   ├── frame: {void, ptr, i64}
     │       │       │   ├── args[0]: local #1 : ptr
     │       │       │   ├── args[1]: local #2 : i64
@@ -1201,7 +1403,7 @@
     │       │       └── body[1] > spawn:
     │       │           ├── task: #10
     │       │           ├── scope: %8
-    │       │           ├── thunk: zane.spawn.13
+    │       │           ├── thunk: zane.spawn.14
     │       │           ├── frame: {void, ptr, i64}
     │       │           ├── args[0]: address of #3 : ptr
     │       │           ├── args[1] > binary:
@@ -1465,7 +1667,7 @@
     │   │       └── body[0] > spawn:
     │   │           ├── task: #4
     │   │           ├── scope: %5
-    │   │           ├── thunk: zane.spawn.14
+    │   │           ├── thunk: zane.spawn.15
     │   │           ├── frame: {void, ptr, i64}
     │   │           ├── args[0]: local #1 : ptr
     │   │           ├── args[1]: 1 : i64
@@ -1547,6 +1749,40 @@
     │   │               └── right: 20 : i64
     │   └── body[2] > return: unit : void
     ├── funcs[10] > func:
+    │   ├── symbol: spawnSubjects$takeFirst(this %primitives$List<%primitives$String>)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: handle
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > expand:
+    │       │   ├── type: handle
+    │       │   ├── label: @5
+    │       │   ├── result: #4
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #2
+    │       │   │   └── value: local #1 : ptr
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #3
+    │       │   │   └── value: 1 : i64
+    │       │   ├── body[2] > let:
+    │       │   │   ├── local: #4
+    │       │   │   └── value > take:
+    │       │   │       ├── type: handle
+    │       │   │       ├── address > runtime:
+    │       │   │       │   ├── type: ptr
+    │       │   │       │   ├── fn: zane_list_at
+    │       │   │       │   ├── args[0]: local #2 : ptr
+    │       │   │       │   ├── args[1]: local #3 : i64
+    │       │   │       │   └── args[2]: 24 : i64
+    │       │   │       └── layout: %primitives$String
+    │       │   └── body[3] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_list_remove
+    │       │       ├── args[0]: local #2 : ptr
+    │       │       ├── args[1]: local #3 : i64
+    │       │       └── args[2]: 24 : i64
+    │       └── layout: %primitives$String
+    ├── funcs[11] > func:
     │   ├── symbol: spawnSubjects$bannerRight()
     │   ├── params:
     │   ├── ret: i1
@@ -1577,7 +1813,7 @@
     │           │           ├── place: #3
     │           │           └── value: local #1 : handle
     │           └── right: 1 : i64
-    ├── funcs[11] > func:
+    ├── funcs[12] > func:
     │   ├── symbol: spawnSubjects$banner
     │   ├── params:
     │   ├── ret: ptr
@@ -1628,7 +1864,7 @@
     │   │           ├── args[1]: global spawnSubjects$banner.value
     │   │           └── args[2]: layout %primitives$String
     │   └── body[1] > return: global spawnSubjects$banner.value
-    ├── funcs[12] > func:
+    ├── funcs[13] > func:
     │   ├── symbol: zane.spawn.1
     │   ├── params[0]: local #13 : ptr
     │   ├── ret: void
@@ -1664,7 +1900,7 @@
     │       │       └── base: local #13 : ptr
     │       ├── args[2]: 4 : i64
     │       └── args[3]: layout spawnSubjects$Countdown
-    ├── funcs[13] > func:
+    ├── funcs[14] > func:
     │   ├── symbol: zane.spawn.2
     │   ├── params[0]: local #20 : ptr
     │   ├── ret: void
@@ -1700,7 +1936,7 @@
     │       │       └── base: local #20 : ptr
     │       ├── args[2]: 4 : i64
     │       └── args[3]: layout spawnSubjects$Countdown
-    ├── funcs[14] > func:
+    ├── funcs[15] > func:
     │   ├── symbol: zane.spawn.3
     │   ├── params[0]: local #42 : ptr
     │   ├── ret: void
@@ -1724,7 +1960,7 @@
     │               ├── within: {void, ptr, ptr, i64}
     │               ├── path: 3
     │               └── base: local #42 : ptr
-    ├── funcs[15] > func:
+    ├── funcs[16] > func:
     │   ├── symbol: zane.spawn.4
     │   ├── params[0]: local #54 : ptr
     │   ├── ret: void
@@ -1748,7 +1984,7 @@
     │                   ├── within: {i64, ptr, i64}
     │                   ├── path: 2
     │                   └── base: local #54 : ptr
-    ├── funcs[16] > func:
+    ├── funcs[17] > func:
     │   ├── symbol: zane.spawn.5
     │   ├── params[0]: local #69 : ptr
     │   ├── ret: void
@@ -1778,7 +2014,7 @@
     │                   ├── within: {<i64 | i64 | void>, ptr, i64, i1}
     │                   ├── path: 3
     │                   └── base: local #69 : ptr
-    ├── funcs[17] > func:
+    ├── funcs[18] > func:
     │   ├── symbol: zane.spawn.6
     │   ├── params[0]: local #87 : ptr
     │   ├── ret: void
@@ -1796,7 +2032,7 @@
     │                   ├── within: {i64, <void | box32>}
     │                   ├── path: 1
     │                   └── base: local #87 : ptr
-    ├── funcs[18] > func:
+    ├── funcs[19] > func:
     │   ├── symbol: zane.spawn.7
     │   ├── params[0]: local #91 : ptr
     │   ├── ret: void
@@ -1815,7 +2051,7 @@
     │               ├── within: {void, ptr, i64}
     │               ├── path: 2
     │               └── base: local #91 : ptr
-    ├── funcs[19] > func:
+    ├── funcs[20] > func:
     │   ├── symbol: zane.spawn.8
     │   ├── params[0]: local #105 : ptr
     │   ├── ret: void
@@ -1834,7 +2070,7 @@
     │               ├── within: {void, ptr, i64}
     │               ├── path: 2
     │               └── base: local #105 : ptr
-    ├── funcs[20] > func:
+    ├── funcs[21] > func:
     │   ├── symbol: zane.spawn.9
     │   ├── params[0]: local #121 : ptr
     │   ├── ret: void
@@ -1853,7 +2089,7 @@
     │               ├── within: {void, <void | box32>, i64}
     │               ├── path: 2
     │               └── base: local #121 : ptr
-    ├── funcs[21] > func:
+    ├── funcs[22] > func:
     │   ├── symbol: zane.spawn.10
     │   ├── params[0]: local #124 : ptr
     │   ├── ret: void
@@ -1872,21 +2108,56 @@
     │               ├── within: {void, ptr, i64}
     │               ├── path: 2
     │               └── base: local #124 : ptr
-    ├── funcs[22] > func:
+    ├── funcs[23] > func:
     │   ├── symbol: zane.spawn.11
-    │   ├── params[0]: local #133 : ptr
+    │   ├── params[0]: local #150 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > store:
+    │   │   ├── address > offset:
+    │   │   │   ├── within: {handle, ptr, handle16, ptr}
+    │   │   │   ├── path: 0
+    │   │   │   └── base: local #150 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: handle
+    │   │       ├── fn: spawnSubjects$takeFirst(this %primitives$List<%primitives$String>)
+    │   │       └── args[0] > deref:
+    │   │           ├── type: ptr
+    │   │           └── ptr > offset:
+    │   │               ├── within: {handle, ptr, handle16, ptr}
+    │   │               ├── path: 3
+    │   │               └── base: local #150 : ptr
+    │   └── body[1] > eval > runtime:
+    │       ├── type: void
+    │       ├── fn: zane_writeback
+    │       ├── args[0] > deref:
+    │       │   ├── type: ptr
+    │       │   └── ptr > offset:
+    │       │       ├── within: {handle, ptr, handle16, ptr}
+    │       │       ├── path: 1
+    │       │       └── base: local #150 : ptr
+    │       ├── args[1] > deref:
+    │       │   ├── type: ptr
+    │       │   └── ptr > offset:
+    │       │       ├── within: {handle, ptr, handle16, ptr}
+    │       │       ├── path: 3
+    │       │       └── base: local #150 : ptr
+    │       ├── args[2]: 16 : i64
+    │       └── args[3]: layout %primitives$List<%primitives$String>
+    ├── funcs[24] > func:
+    │   ├── symbol: zane.spawn.12
+    │   ├── params[0]: local #166 : ptr
     │   ├── ret: void
     │   └── body[0] > store:
     │       ├── address > offset:
     │       │   ├── within: {i1}
     │       │   ├── path: 0
-    │       │   └── base: local #133 : ptr
+    │       │   └── base: local #166 : ptr
     │       └── value > call:
     │           ├── type: i1
     │           ├── fn: spawnSubjects$bannerRight()
     │           └── args:
-    ├── funcs[23] > func:
-    │   ├── symbol: zane.spawn.12
+    ├── funcs[25] > func:
+    │   ├── symbol: zane.spawn.13
     │   ├── params[0]: local #6 : ptr
     │   ├── ret: void
     │   └── body[0] > eval > call:
@@ -1904,8 +2175,8 @@
     │               ├── within: {void, ptr, i64}
     │               ├── path: 2
     │               └── base: local #6 : ptr
-    ├── funcs[24] > func:
-    │   ├── symbol: zane.spawn.13
+    ├── funcs[26] > func:
+    │   ├── symbol: zane.spawn.14
     │   ├── params[0]: local #9 : ptr
     │   ├── ret: void
     │   └── body[0] > eval > call:
@@ -1923,8 +2194,8 @@
     │               ├── within: {void, ptr, i64}
     │               ├── path: 2
     │               └── base: local #9 : ptr
-    └── funcs[25] > func:
-        ├── symbol: zane.spawn.14
+    └── funcs[27] > func:
+        ├── symbol: zane.spawn.15
         ├── params[0]: local #3 : ptr
         ├── ret: void
         └── body[0] > eval > call:

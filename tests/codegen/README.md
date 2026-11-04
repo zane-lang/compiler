@@ -207,9 +207,10 @@ then run it again, read the golden diff and promote that.
   shapes `spawns` does not reach: a list's element, a subject passed to a
   function value, a spawned call that spawns on its own subject and on a
   local of its own, one that aborts after writing its subject, a reader
-  spawned before the writer, the same local spawned on again, alone and
-  from a loop, and a package constant that owns a block read from a
-  spawned call. Written for subject regions
+  spawned before the writer and one still out when its scope drains, the
+  same local spawned on again, alone and from a loop, a result that owns a
+  block it took from its subject, and a package constant that owns a block
+  read from a spawned call. Written for subject regions
   (docs/experiments/subject-regions), which a checked drain of the nested
   case once stopped. Every check prints `yes` when it holds and `no` when it
   does not.

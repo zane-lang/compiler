@@ -3,8 +3,9 @@
 /// value, a spawned call that spawns on its own subject and on a local of
 /// its own, one that aborts after writing its subject, a reader spawned
 /// before the writer, one still out when its scope drains, the same local
-/// spawned on again, alone and from a loop, and a package constant that owns a block read from a spawned
-/// call. Each check prints `yes` when it holds and `no` when it
+/// spawned on again, alone and from a loop, a result that owns a block it
+/// took from its subject, and a package constant that owns a block read
+/// from a spawned call. Each check prints `yes` when it holds and `no` when it
 /// does not.
 package spawnSubjects;
 
@@ -13,6 +14,8 @@ alias Bool = @primitives$Bool;
 alias Unit = @primitives$Unit;
 alias String = @primitives$String;
 alias ListRef<T Type> = @primitives$ListRef<T>;
+alias List<T Type> = @primitives$List<T>;
+alias Words = List<String>;
 
 Unit to(this Int, end Int, body @concepts$Block) mut {
 	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
@@ -69,7 +72,6 @@ Int nested(this Countdown, n Int) mut {
 	return @operators$add(depth(this), depth(mine));
 }
 
-/// One spawned call on the subject, waited for before this returns.
 /// Whether `c` is as deep as it was before a writer spawned after this
 /// call deepened it by 20, or as deep as after.
 Unit sees(c Countdown, before Int) {
@@ -78,6 +80,10 @@ Unit sees(c Countdown, before Int) {
 	return Unit();
 }
 
+/// The first word, taken out of the list.
+String takeFirst(this Words) mut => this!remove(Int(1));
+
+/// One spawned call on the subject, waited for before this returns.
 Unit tick(this Countdown) mut {
 	@controlflow$branch(true, {
 		spawn this!deepen(Int(1));
@@ -160,6 +166,19 @@ Unit main() {
 		spawn k!deepen(Int(20));
 	});
 	check(@operators$equal(depth(k), Int(95)));
+
+	// A result that owns a block it took from its subject, reached through
+	// an owner, so the block was in the call's subject region.
+	ys ListRef<Words> = @primitives$ListRef(Words);
+	words Words = @primitives$List(String);
+	words!push(@operators$concat(String("taken out "), String("of the subject")));
+	ys!push(words);
+	@controlflow$branch(true, {
+		took String = spawn ys[Int(1)]!takeFirst();
+		filler String = @operators$concat(String("written over "), String("what was given back"));
+		check(@operators$equal(took, String("taken out of the subject")));
+	});
+	check(@operators$equal(ys[Int(1)]:size(), Int(0)));
 
 	// A constant that owns a block, read from a spawned call.
 	right Bool = spawn bannerRight();

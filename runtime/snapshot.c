@@ -203,13 +203,16 @@ static void zane_join_task(zane_task *t) {
 	zane_set_state(t, ZANE_JOINED);
 	pthread_mutex_unlock(&zane_pool);
 	if (waits) zane_waited();
-	zane_islands_home(t);
-	/* The call's context is this thread's until it is back in the pool. */
+	/* The call's context is this thread's until it is back in the pool. The
+	   result comes home first: what it owns may be in the call's subject
+	   region, such as an element it took from its subject, and moves out
+	   before that region's chunks can be given back. */
 	zane_joining = t->context;
 	if (t->size) {
 		memcpy(t->dest, t->frame, (size_t)t->size);
 		zane_move(t->dest, t->type, zane_region_at(t->dest), 0);
 	}
+	zane_islands_home(t);
 	zane_release(t->context);
 	zane_joining = NULL;
 	t->owner->shared--;

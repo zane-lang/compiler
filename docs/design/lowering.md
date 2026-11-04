@@ -1058,16 +1058,17 @@ test passing.
   spawner makes it and fills it before the call starts, the call alone
   allocates in it while it is out, and the joining thread takes it back.
   The subject's blocks move in when no other call is out that could be
-  reading them, and are copied in otherwise. At the join, a subject region
-  holding a copy of a subject reached through an owner has it written back
-  (below), and its chunks are given back. Any other has its chunks merged
-  into the scope that holds the subject, or, for a local, is kept for the
-  local's next spawned call until its scope drains, so a loop of such calls
-  reuses one region rather than making one each time. A package constant, which any thread may make, lives in one more
-  such region, changed under the constants' lock. A build with
-  `ZANE_TSAN=1`, and `docs/experiments/subject-regions/tsan-cc` as
-  `ZANE_CC`, runs under ThreadSanitizer. The spec leaves
-  all of this to the implementation.
+  reading them, and are copied in otherwise. At the join the call's result
+  comes home first, since what it owns may be in the subject region. Then
+  a subject region holding a copy of a subject reached through an owner
+  has it written back (below), and its chunks are given back. Any other has
+  its chunks merged into the scope that holds the subject, or, for a local,
+  is kept for the local's next spawned call until its scope drains, so a
+  loop of such calls reuses one region rather than making one each time. A
+  package constant, which any thread may make, lives in one more such
+  region, changed under the constants' lock. A build with `ZANE_TSAN=1`,
+  and `docs/experiments/subject-regions/tsan-cc` as `ZANE_CC`, runs under
+  ThreadSanitizer. The spec leaves all of this to the implementation.
 - **The pool steals work.** Each pool thread keeps a deque of the calls it
   spawned and runs its own newest first; a thread with none left steals
   another's oldest ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §2.4). Calls spawned from the program's
