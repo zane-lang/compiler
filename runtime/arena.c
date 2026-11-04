@@ -50,7 +50,7 @@ uintptr_t zane_page_entry(const void *at) {
 	return entries ? __atomic_load_n(&entries[page % ZANE_PAGES], __ATOMIC_ACQUIRE) : 0;
 }
 
-static void zane_set_page(const void *at, uintptr_t entry) {
+void zane_set_page(const void *at, uintptr_t entry) {
 	__atomic_store_n(zane_page(at, 1), entry, __ATOMIC_RELEASE);
 }
 
@@ -119,13 +119,35 @@ _Thread_local zane_mark *zane_open;
 
 void zane_reopen(void) {
 	zane_context *c = zane_self;
+#ifdef ZANE_SUBJECT_REGIONS
+	/* No other thread reaches a region of this context (zane_island). */
+	zane_open = c ? c->top : NULL;
+#else
 	zane_open = c && c->top && c->shared == 0 ? c->top : NULL;
+#endif
 }
 
 /* The context with id `id`, once it is listed. */
 zane_context *zane_context_at(int32_t id) { return __atomic_load_n(&zane_contexts[id], __ATOMIC_ACQUIRE); }
 
+#ifdef ZANE_SUBJECT_REGIONS
+/* Nothing is taken under a context's lock: only its own thread changes
+   its scopes and regions, and a spawned call's subject is in a region of
+   its own. A region another thread is asked for is a defect this
+   experiment means to find, so it stops the program. A context whose call
+   is over is given back by the thread that joined it, after it is done. */
+static int zane_guarded(zane_context *c) { (void)c; return 0; }
+zane_mark *zane_constants_region;
+
+_Thread_local zane_context *zane_joining;
+
+void zane_lock_region(zane_mark *r) {
+	if (r->context != zane_self && r->context != zane_joining && !zane_is_island(r))
+		zane_broken("experiment: a region taken from another thread");
+}
+#else
 static int zane_guarded(zane_context *c) { return c != zane_self || c->shared > 0; }
+#endif
 void zane_lock(zane_context *c) { if (zane_guarded(c)) pthread_mutex_lock(&c->lock); }
 void zane_unlock(zane_context *c) { if (zane_guarded(c)) pthread_mutex_unlock(&c->lock); }
 
@@ -207,6 +229,9 @@ zane_mark *zane_region_at(const void *at) {
 	if (entry == 0) return zane_self->top;
 	if (!(entry & 1)) return (zane_mark *)entry;
 	zane_context *c = (zane_context *)(entry & ~(uintptr_t)1);
+#ifdef ZANE_SUBJECT_REGIONS
+	if (c != zane_self && c != zane_joining) zane_broken("experiment: another thread's scopes searched");
+#endif
 	if (!zane_guarded(c)) {
 		zane_mark *top = c->top;
 		if (top && (const char *)at >= (const char *)top) return top;
@@ -408,7 +433,8 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 	zane_context *c = region->context;
 	zane_mapping *m = NULL;
 	if (size == ZANE_CHUNK) {
-		if (c->spare) {
+		/* A subject region's call takes no spare of its spawner's. */
+		if (c->spare && c == zane_self) {
 			m = zane_take_warm(c);
 		} else {
 			int cold = 0;
@@ -523,6 +549,22 @@ int zane_stretch(zane_mark *m, char *end, int64_t most) {
    caller's common path is the few instructions of a bump. */
 static __attribute__((noinline)) char *zane_frontier_past(zane_mark *m, int64_t size, uintptr_t mask) {
 	zane_heap *h = &m->heap;
+	if (zane_is_island(m)) {
+		/* A subject region has no frame to stretch. */
+		uintptr_t at = ((uintptr_t)h->bump + mask) & ~mask;
+		if (h->bump && at + (uintptr_t)size <= (uintptr_t)h->end) {
+			h->bump = (char *)(at + (uintptr_t)size);
+			return (char *)at;
+		}
+		if (size > ZANE_CHUNK - ZANE_LINE) {
+			size_t chunks = ((size_t)size + ZANE_LINE + ZANE_CHUNK - 1) / ZANE_CHUNK;
+			return (char *)zane_map(m, chunks * ZANE_CHUNK) + ZANE_LINE;
+		}
+		char *chunk = (char *)zane_map(m, ZANE_CHUNK);
+		h->end = chunk + ZANE_CHUNK;
+		h->bump = chunk + ZANE_LINE + size;
+		return chunk + ZANE_LINE;
+	}
 	char *frontier = m->context->frontier;
 	uintptr_t start = (((uintptr_t)(h->bump && h->end == frontier ? h->bump : frontier)) + mask) & ~mask;
 	int64_t most = frontier - (char *)m;
@@ -584,7 +626,7 @@ __attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t s
 	int fits = reserved / ZANE_HEADROOM == bytes;
 	zane_context *c = region->context;
 	char *raw = NULL, *base = NULL;
-	for (zane_mapping **at = &c->spans; *at; at = &(*at)->next) {
+	for (zane_mapping **at = &c->spans; c == zane_self && *at; at = &(*at)->next) {
 		zane_mapping *kept = *at;
 		if (kept->reserved >= (fits ? reserved : bytes)) {
 			*at = kept->next;
@@ -621,7 +663,7 @@ char *zane_alloc_unbounded(zane_mark *region) {
 	size_t total = (size_t)ZANE_UNBOUNDED + ZANE_CHUNK;
 	zane_context *c = region->context;
 	char *raw = NULL, *base = NULL;
-	for (zane_mapping **at = &c->spans; *at; at = &(*at)->next) {
+	for (zane_mapping **at = &c->spans; c == zane_self && *at; at = &(*at)->next) {
 		zane_mapping *kept = *at;
 		if (kept->reserved >= total) {
 			*at = kept->next;
@@ -714,9 +756,9 @@ char *zane_alloc_held(zane_mark *region, int64_t size, int64_t align) {
 }
 
 char *zane_alloc(zane_mark *region, int64_t size, int64_t align) {
-	zane_lock(region->context);
+	zane_lock_region(region);
 	char *block = zane_alloc_held(region, size, align);
-	zane_unlock(region->context);
+	zane_unlock_region(region);
 	return block;
 }
 
@@ -725,13 +767,13 @@ void zane_free(char *block, int64_t size, int64_t align) {
 	zane_mark *region = zane_region_at(block);
 	size = zane_word(size);
 	if (align < 8) align = 8;
-	zane_lock(region->context);
+	zane_lock_region(region);
 	int64_t class = zane_class(size, align);
 	char **top = class >= 0 ? &region->heap.classes[class] : &zane_stack_of(region, size, align)->top;
 	*(char **)block = *top;
 	*top = block;
 	region->heap.live--;
-	zane_unlock(region->context);
+	zane_unlock_region(region);
 }
 
 /* How many blocks are out in every open region, for the runtime's own

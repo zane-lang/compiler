@@ -55,9 +55,9 @@ static void zane_list_move_out(zane_mark *region, char *items, char *block, int6
 	}
 	char *end = (char *)m + m->size;
 	if (end > given) zane_decommit_range(given, (size_t)(end - given));
-	zane_lock(region->context);
+	zane_lock_region(region);
 	region->heap.live--;
-	zane_unlock(region->context);
+	zane_unlock_region(region);
 }
 
 /* The bytes of a list's first block when its first push asks for `bytes`
@@ -88,28 +88,28 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 #endif
 	int64_t room = zl_block_bytes(units, stride);
 	zane_mark *region = zane_region_at(ZL_ROOM(list) ? (void *)ZL_ITEMS(list) : (void *)list);
-	zane_lock(region->context);
+	zane_lock_region(region);
 	char *items;
 	if (room > ZANE_CHUNK - ZANE_LINE) {
 		if (old > ZANE_CHUNK - ZANE_LINE && zane_extend(region, ZL_ITEMS(list), room)) {
-			zane_unlock(region->context);
+			zane_unlock_region(region);
 			list->room = units;
 			return;
 		}
 		items = zane_alloc_growable(region, room);
-		zane_unlock(region->context);
+		zane_unlock_region(region);
 	} else {
 		zane_heap *h = &region->heap;
 		int grows = old && ZL_ITEMS(list) + old == h->bump;
 		if (grows) {
 			grows = !zane_list_returned(region, room) &&
 			        (room - old <= h->end - h->bump ||
-			         (h->end == region->context->frontier && zane_stretch(region, ZL_ITEMS(list) + room, ZANE_CHUNK)));
+			         (!zane_is_island(region) && h->end == region->context->frontier && zane_stretch(region, ZL_ITEMS(list) + room, ZANE_CHUNK)));
 		}
 		/* The block grows where it is, so nothing in it moves. */
 		if (grows) {
 			h->bump += room - old;
-			zane_unlock(region->context);
+			zane_unlock_region(region);
 			list->room = units;
 			return;
 		}
@@ -118,7 +118,7 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 		   block growing in place. */
 		if (old > 8 * ZANE_CLASSES) zane_stack_of(region, old, ZANE_LIST_ALIGN);
 		items = zane_alloc_held(region, room, ZANE_LIST_ALIGN);
-		zane_unlock(region->context);
+		zane_unlock_region(region);
 	}
 	if (old > ZANE_CHUNK - ZANE_LINE) {
 		zane_list_move_out(region, items, ZL_ITEMS(list), ZL_COUNT(list) * stride);
@@ -344,10 +344,10 @@ __attribute__((noinline)) void zane_pool_reserve(zane_list *pool, int64_t total)
 	if (total > ZANE_POOL_MOST) zane_broken("a pooled variant past 2 GiB");
 	if (!ZL_ITEMS(pool)) {
 		zane_mark *r = zane_pool_home(pool);
-		zane_lock(r->context);
+		zane_lock_region(r);
 		total = (total + 7) & ~(int64_t)7;
 		*pool = ZL_MAKE(zane_pool_frontier(r, total), pool->count, total);
-		zane_unlock(r->context);
+		zane_unlock_region(r);
 		return;
 	}
 	if (total < 2 * pool->room) total = 2 * pool->room;
@@ -356,23 +356,23 @@ __attribute__((noinline)) void zane_pool_reserve(zane_list *pool, int64_t total)
 	if (total <= ZANE_CHUNK - ZANE_LINE && total > zane_pool_hint) zane_pool_hint = total;
 	zane_mark *r = zane_pool_region(ZL_ITEMS(pool));
 	zane_heap *h = &r->heap;
-	zane_lock(r->context);
+	zane_lock_region(r);
 	if (ZL_ITEMS(pool) + pool->room == h->bump &&
 	    (ZL_ITEMS(pool) + total <= h->end ||
-	     (h->end == r->context->frontier && total <= ZANE_CHUNK - ZANE_LINE &&
+	     (!zane_is_island(r) && h->end == r->context->frontier && total <= ZANE_CHUNK - ZANE_LINE &&
 	      zane_stretch(r, ZL_ITEMS(pool) + total, ZANE_CHUNK)))) {
 		h->bump = ZL_ITEMS(pool) + total;
-		zane_unlock(r->context);
+		zane_unlock_region(r);
 		pool->room = total;
 		return;
 	}
 	if (total > ZANE_CHUNK - ZANE_LINE || pool->room > ZANE_CHUNK - ZANE_LINE) {
-		zane_unlock(r->context);
+		zane_unlock_region(r);
 		zane_list_grow(pool, total, 1);
 		return;
 	}
 	char *block = zane_pool_frontier(r, total);
-	zane_unlock(r->context);
+	zane_unlock_region(r);
 	memcpy(block, ZL_ITEMS(pool), (size_t)pool->count);
 	zane_free(ZL_ITEMS(pool), pool->room, ZANE_LIST_ALIGN);
 	ZL_SET_ITEMS(pool, block);
@@ -382,9 +382,9 @@ __attribute__((noinline)) void zane_pool_reserve(zane_list *pool, int64_t total)
 /* The block at `items` no longer counted as out in its region. */
 static void zane_pool_abandon(char *items) {
 	zane_mark *r = zane_region_at(items);
-	zane_lock(r->context);
+	zane_lock_region(r);
 	r->heap.live--;
-	zane_unlock(r->context);
+	zane_unlock_region(r);
 }
 
 /* A pool for the handle at `out`, empty, its first block made in the
@@ -393,9 +393,9 @@ static void zane_pool_abandon(char *items) {
 void zane_pool_new(zane_list *out) {
 	zane_mark *r = zane_pool_home(out);
 	int64_t room = zane_pool_hint > ZANE_LIST_FIRST && zane_pool_reuse() ? zane_pool_hint : ZANE_LIST_FIRST;
-	zane_lock(r->context);
+	zane_lock_region(r);
 	*out = ZL_MAKE(zane_pool_frontier(r, room), 0, room);
-	zane_unlock(r->context);
+	zane_unlock_region(r);
 }
 
 /* A pool for the handle at `out` as `zane_pool_new` makes one, in a block
@@ -403,9 +403,9 @@ void zane_pool_new(zane_list *out) {
    into it without checking its room (lib/codegen/pool_cache.ml). */
 void zane_pool_new_unbounded(zane_list *out) {
 	zane_mark *r = zane_pool_home(out);
-	zane_lock(r->context);
+	zane_lock_region(r);
 	*out = ZL_MAKE(zane_alloc_unbounded(r), 0, ZANE_POOL_MOST - ZANE_LINE);
-	zane_unlock(r->context);
+	zane_unlock_region(r);
 }
 
 /* A node of `size` bytes, copied from `node`, put at the end of `pool`,
@@ -484,9 +484,9 @@ void zane_pool_copy(zane_list *out, const char *node, int64_t size, int64_t m0, 
 		zane_list_grow(out, bytes, 1);
 	} else {
 		zane_mark *r = zane_pool_home(out);
-		zane_lock(r->context);
+		zane_lock_region(r);
 		*out = ZL_MAKE(zane_pool_frontier(r, bytes), 0, (bytes + 7) & ~(int64_t)7);
-		zane_unlock(r->context);
+		zane_unlock_region(r);
 	}
 	zane_pool_place(out, node, size, masks);
 }

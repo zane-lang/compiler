@@ -1867,7 +1867,7 @@ and stat env fr b (s : Stat.t) =
       let exit, depth = Hashtbl.find fr.labels label in
       drain env fr b depth;
       ignore (Llvm.build_br exit b)
-  | Stat.Spawn { task; scope; thunk; frame; args; dest; layout = l } ->
+  | Stat.Spawn { task; scope; thunk; frame; args; dest; layout = l; island } ->
       (* The arguments run first, in order; then the frame is made, filled,
          and handed to the pool with where its result goes. *)
       let values = List.map (expr env fr b) args in
@@ -1882,6 +1882,15 @@ and stat env fr b (s : Stat.t) =
             (fun v -> ignore (Llvm.build_store v (Llvm.build_struct_gep t at (i + 1) "" b) b))
             v)
         values;
+      Option.iter
+        (fun (i : Expr.island) ->
+          let field = Llvm.build_struct_gep t at i.Expr.field "" b in
+          Option.iter
+            (fun copy -> ignore (Llvm.build_store (Llvm.build_struct_gep t at copy "" b) field b))
+            i.Expr.copy;
+          ignore
+            (call_runtime env b Cgt.Runtime.Island [| field; n i.Expr.size; layout env i.Expr.value_layout |]))
+        island;
       ignore (Llvm.build_store at (slot env fr task env.ptr) b);
       let result = match frame with Ty.Struct (r :: _) -> r | _ -> Ty.Void in
       let home, bytes =

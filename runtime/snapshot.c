@@ -80,6 +80,16 @@ void zane_snapshot(char *out, const char *from, int64_t size) {
    where it is until its region drains, and is retired there when drains
    are checked. */
 void zane_writeback(char *at, char *copy, int64_t size, const zane_type *type) {
+#ifdef ZANE_SUBJECT_REGIONS
+	/* A spawned call's copy in a subject region is written back when the
+	   call is joined, on the joining thread (zane_islands_home). */
+	uintptr_t entry = zane_page_entry(copy);
+	zane_mark *own = entry && !(entry & 1) ? (zane_mark *)entry : NULL;
+	if (own && zane_is_island(own) && own->context != zane_self) {
+		((zane_island *)own)->target = at;
+		return;
+	}
+#endif
 	if (type) {
 		zane_mark *region = zane_region_at(at);
 		zane_move(copy, type, region, 0);
@@ -88,10 +98,10 @@ void zane_writeback(char *at, char *copy, int64_t size, const zane_type *type) {
 			memcpy(r + 1, at, (size_t)size);
 			r->type = type;
 			r->size = size;
-			zane_lock(region->context);
+			zane_lock_region(region);
 			r->next = region->retired;
 			region->retired = r;
-			zane_unlock(region->context);
+			zane_unlock_region(region);
 		}
 	}
 	__atomic_fetch_add(&zane_begun, 1, __ATOMIC_RELAXED);
@@ -197,9 +207,18 @@ static void zane_join_task(zane_task *t) {
 	zane_set_state(t, ZANE_JOINED);
 	pthread_mutex_unlock(&zane_pool);
 	if (waits) zane_waited();
+#ifdef ZANE_SUBJECT_REGIONS
+	zane_islands_home(t);
+#endif
 	if (t->size) {
 		memcpy(t->dest, t->frame, (size_t)t->size);
+#ifdef ZANE_SUBJECT_REGIONS
+		zane_joining = t->context;
+#endif
 		zane_move(t->dest, t->type, zane_region_at(t->dest), 0);
+#ifdef ZANE_SUBJECT_REGIONS
+		zane_joining = NULL;
+#endif
 	}
 	zane_release(t->context);
 	t->owner->shared--;

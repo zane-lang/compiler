@@ -277,6 +277,10 @@ let box env f b size align =
     in
     let open_ = zane_open env.m env.ptr in
     let region = load c env.ptr open_ in
+    (* Experimental: with subject regions the innermost region is always
+       this thread's alone, so there is nothing to check. *)
+    if Cgt.Ref32.subject_regions () then take ~bump_only:(Cgt.Ref32.bump ()) c region size
+    else
     let inline = block c and shared = block c and done_ = block c in
     ignore (Llvm.build_cond_br (nonzero c region) inline shared b);
     Llvm.position_at_end inline b;

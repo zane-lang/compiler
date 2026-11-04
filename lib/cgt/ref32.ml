@@ -50,3 +50,13 @@ let niche () = image_boxes () && switch "ZANE_NICHE_SUMS"
    of the blocks out, so a block's only cost is the frontier's load and
    store. A returned block waits for its scope to drain. *)
 let bump () = Sys.getenv_opt "ZANE_BUMP_REGIONS" = Some "1"
+
+(* Experimental (docs/experiments/subject-regions): with
+   `ZANE_SUBJECT_REGIONS=1`, a spawned `mut` call's subject that owns blocks
+   lives in a region of its own while the call is out, so no thread
+   allocates in another's regions and nothing takes a context's lock. *)
+let subject_regions () = Sys.getenv_opt "ZANE_SUBJECT_REGIONS" = Some "1"
+
+(* `ZANE_SUBJECT_REGIONS_NO_ISLANDS=1`, for the experiment's control run:
+   the runtime without locks, but no subject gets a region of its own. *)
+let no_islands () = Sys.getenv_opt "ZANE_SUBJECT_REGIONS_NO_ISLANDS" = Some "1"

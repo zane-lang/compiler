@@ -769,7 +769,7 @@ and stat run fr (s : Stat.t) =
       sized run ty;
       bind fr id ty (zero ty);
       hold run fr scope id layout
-  | Stat.Spawn { task; thunk; frame; args; dest; _ } ->
+  | Stat.Spawn { task; thunk; frame; args; dest; island; _ } ->
       (* Run where it is spawned (O8): its arguments first, in order, then
          the call, whose result is home at once. *)
       let values = List.map (expr run fr) args in
@@ -781,6 +781,13 @@ and stat run fr (s : Stat.t) =
         | _ -> stop "a spawned call's frame that is not a struct"
       in
       let frame_cell = cell frame (VRecord held) in
+      (* One thread runs the fold, so a subject's own region is only where
+         the call reads it: the copy itself. *)
+      (match island with
+      | Some { Expr.copy = Some c; field; _ } ->
+          let base = ptr_of (Value.at frame_cell) in
+          store (offset base frame [ field ]) Ty.Ptr (VPtr (offset base frame [ c ]))
+      | _ -> ());
       bind fr task Ty.Ptr (Value.at frame_cell);
       ignore (call run thunk [ Value.at frame_cell ]);
       Option.iter

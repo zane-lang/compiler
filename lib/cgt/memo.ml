@@ -64,7 +64,7 @@ let fits (f : Func.t) =
    that computes a result has made every constant the result depends on. *)
 let computes : Runtime.fn -> bool = function
   | Runtime.Print | Runtime.Set_threads | Runtime.Set_threads_auto | Runtime.Arguments
-  | Runtime.Writeback | Runtime.Spawn | Runtime.Join | Runtime.Defer | Runtime.Defer_return ->
+  | Runtime.Writeback | Runtime.Spawn | Runtime.Island | Runtime.Join | Runtime.Defer | Runtime.Defer_return ->
       false
   | _ -> true
 

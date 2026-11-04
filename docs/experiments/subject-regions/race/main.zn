@@ -1,0 +1,62 @@
+/// Spawned `mut` calls that allocate in their subjects while the block
+/// that spawned them allocates too: each `deepen` boxes one level per step.
+/// Without subject regions the subjects' blocks and the block's own are
+/// taken from one region by several threads at once.
+package race;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+type Countdown = variant {
+	done Unit;
+	more Countdown;
+}
+
+Int depth(c Countdown) => match (c) {
+	d done => Int(0);
+	m more => @operators$add(Int(1), depth(m));
+}
+
+Unit deepen(this Countdown, n Int) mut {
+	i Int(1);
+	i!to(n) {
+		this = Countdown.more(this);
+	}
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+Unit main() {
+	round Int(1);
+	round!to(Int(20)) {
+		a Countdown = Countdown.done(Unit());
+		b Countdown = Countdown.done(Unit());
+		c Countdown = Countdown.done(Unit());
+		mine Countdown = Countdown.done(Unit());
+		@controlflow$branch(true, {
+			spawn a!deepen(Int(3000));
+			spawn b!deepen(Int(3000));
+			spawn c!deepen(Int(3000));
+			mine!deepen(Int(3000));
+		});
+		check(@operators$equal(@operators$add(@operators$add(depth(a), depth(b)), @operators$add(depth(c), depth(mine))), Int(12000)));
+	}
+	return Unit();
+}

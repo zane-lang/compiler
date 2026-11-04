@@ -163,6 +163,75 @@ int64_t zane_set_threads(int64_t count) {
 
 void zane_set_threads_auto(void) { zane_set_threads(zane_processors()); }
 
+/* Experimental (zane_island): the subject region made for the call about
+   to be spawned on this thread, which zane_spawn hands it. */
+#ifdef ZANE_SUBJECT_REGIONS
+static _Thread_local zane_island *zane_pending_island;
+#endif
+
+/* The subject at `*field`, `size` bytes of `type`, moves into a region of
+   its own for the call about to be spawned, and `*field` names it there.
+   Without ZANE_SUBJECT_REGIONS lowering never calls this. */
+void zane_island_make(char **field, int64_t size, const zane_type *type) {
+#ifdef ZANE_SUBJECT_REGIONS
+	zane_island *i = calloc(1, sizeof *i);
+	if (!i) zane_broken("out of memory for a subject region");
+	i->mark.context = zane_self;
+	i->mark.depth = ZANE_ISLAND_DEPTH;
+	i->home = *field;
+	i->size = size;
+	i->type = type;
+	i->value = zane_alloc_held(&i->mark, size < 8 ? 8 : size, 16);
+	i->mark.heap.live--;
+	memcpy(i->value, i->home, (size_t)size);
+	zane_move(i->value, type, &i->mark, 0);
+	*field = i->value;
+	zane_pending_island = i;
+#else
+	(void)field;
+	(void)size;
+	(void)type;
+	zane_broken("a subject region without ZANE_SUBJECT_REGIONS");
+#endif
+}
+
+#ifdef ZANE_SUBJECT_REGIONS
+/* The joined call's subject regions: a subject written back where it was
+   copied from, and the region's chunks given back; or the subject home
+   again, with the region's chunks now its home's region's, which drains
+   with it. The joining thread is the context's own, and the call is done. */
+void zane_islands_home(zane_task *t) {
+	zane_context *c = zane_self;
+	for (zane_island **at = &c->islands; *at;) {
+		zane_island *i = *at;
+		if (i->task != t) {
+			at = &i->next;
+			continue;
+		}
+		*at = i->next;
+		zane_mark *r = &i->mark;
+		if (i->target) {
+			zane_writeback(i->target, i->value, i->size, i->type);
+			zane_unmap(r);
+		} else if (i->home != i->value) {
+			memcpy(i->home, i->value, (size_t)i->size);
+			zane_mark *home = zane_region_at(i->home);
+			while (r->mappings) {
+				zane_mapping *m = r->mappings;
+				r->mappings = m->next;
+				for (size_t off = 0; off < m->size; off += ZANE_CHUNK) zane_set_page((char *)m + off, (uintptr_t)home);
+				m->next = home->mappings;
+				home->mappings = m;
+			}
+			home->heap.live += r->heap.live;
+		} else {
+			zane_unmap(r);
+		}
+		free(i);
+	}
+}
+#endif
+
 /* The call whose frame is filled starts (§3.6): the innermost scope waits
    for it, and from now its context is shared. Its frame is in that scope's
    own, after a zeroed `zane_task` that lowering left room for. */
@@ -181,7 +250,16 @@ void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *t
 	t->next = m->tasks;
 	m->tasks = t;
 	c->shared++;
+#ifdef ZANE_SUBJECT_REGIONS
+	if (zane_pending_island) {
+		zane_pending_island->task = t;
+		zane_pending_island->next = c->islands;
+		c->islands = zane_pending_island;
+		zane_pending_island = NULL;
+	}
+#else
 	zane_open = NULL;
+#endif
 	pthread_mutex_lock(&zane_pool);
 	if (!zane_started) zane_start();
 	pthread_mutex_unlock(&zane_pool);

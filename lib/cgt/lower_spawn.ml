@@ -179,16 +179,39 @@ let spawn_call w st ctx span v fn ~writes passed handler =
   let fns = Option.to_list fn in
   let shift = List.length fns in
   let stored = fns @ args in
-  let frame = Nodes.Ty.Struct (whole :: List.map (fun (a : Expr.t) -> a.Expr.ty) stored) in
+  let copied = List.length stored in
+  (* Experimental: the subject's own region (Expr.island). A copy is read
+     through a pointer after it, which the region's maker repoints. *)
+  let island =
+    if not (Ref32.subject_regions () && writes && not (Ref32.no_islands ())) then None
+    else
+      let sized t =
+        { Expr.field = 0; copy = None; size = fst (Nodes.Ty.size_align (ty st span t)); value_layout = layout st span t }
+      in
+      match (subject, v.params, passed) with
+      | Some (t, _), _, _ when owns st span t -> Some { (sized t) with Expr.field = copied + 1; copy = Some copied }
+      | None, this :: _, T.Arg.Value _ :: _
+        when by_address st v this && this.T.Local.name = "this"
+             && (not (reference st this.T.Local.ty))
+             && owns st span this.T.Local.ty ->
+          Some { (sized this.T.Local.ty) with Expr.field = 1 + shift }
+      | _ -> None
+  in
+  let extra = match island with Some { Expr.copy = Some _; _ } -> [ Nodes.Ty.Ptr ] | _ -> [] in
+  let frame = Nodes.Ty.Struct ((whole :: List.map (fun (a : Expr.t) -> a.Expr.ty) stored) @ extra) in
   let at = fresh st in
   let member i = ptr (Expr.Offset { base = local_ptr at; within = frame; path = [ i ] }) in
-  let copied = List.length stored in
+  let subject_at =
+    match island with
+    | Some { Expr.copy = Some _; field; _ } -> { Expr.node = Expr.Deref (member field); ty = Nodes.Ty.Ptr }
+    | _ -> member copied
+  in
   let passes =
     if Option.is_some subject then List.filteri (fun i _ -> i < List.length args - 1) args
     else args
   in
   let read i (a : Expr.t) =
-    if i = 0 && Option.is_some subject then member copied
+    if i = 0 && Option.is_some subject then subject_at
     else { Expr.node = Expr.Deref (member (i + 1 + shift)); ty = a.Expr.ty }
   in
   let given = List.mapi read passes in
@@ -209,7 +232,7 @@ let spawn_call w st ctx span v fn ~writes passed handler =
           Expr.Runtime
             {
               fn = Runtime.Writeback;
-              args = [ target; member copied; int size; layout_table (layout st span t) ];
+              args = [ target; subject_at; int size; layout_table (layout st span t) ];
             }
         in
         [ Stat.Eval { Expr.node = back; ty = Nodes.Ty.Void } ]
@@ -238,7 +261,7 @@ let spawn_call w st ctx span v fn ~writes passed handler =
     if plain o then layout st span v.signature.S.ret else outcome_layout st span v
   in
   let scope = arena st ctx.scope in
-  let spawned = Stat.Spawn { task; scope; thunk; frame; args = stored; dest; layout = home } in
+  let spawned = Stat.Spawn { task; scope; thunk; frame; args = stored; dest; layout = home; island } in
   let slot = Option.map (fun id -> ptr (Expr.Address id)) dest in
   if plain o then
     (pre @ [ spawned ], Future { settle = (fun () -> [ Stat.Join task ]); at = slot })

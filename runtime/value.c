@@ -9,6 +9,13 @@
    region of another context is taken as shorter-lived, which only costs a
    relocation that was not needed (docs/design/lowering.md §9). */
 static int zane_outlives(const zane_mark *r, const zane_mark *s) {
+#ifdef ZANE_SUBJECT_REGIONS
+	/* What arrives in a subject region moves in, so that its call writes
+	   that region alone; a constant's region lives as long as the
+	   program's (zane_island). */
+	if (r == zane_constants_region) return 1;
+	if (zane_is_island(s)) return r == s;
+#endif
 	return r == s || r == zane_program || (r->context == s->context && r->depth <= s->depth);
 }
 
@@ -22,6 +29,9 @@ static int zane_outlives(const zane_mark *r, const zane_mark *s) {
    old one is returned. */
 int64_t zane_leaves(const char *block, zane_mark *region, int64_t from) {
 	zane_mark *r = zane_region_at(block);
+#ifdef ZANE_SUBJECT_REGIONS
+	if (r == zane_constants_region) return 0;
+#endif
 	if (from == 0) return !zane_outlives(r, region);
 	return r != region && r->context == zane_self && r->depth >= from;
 }
@@ -122,7 +132,7 @@ void zane_overwrite_settled(char *slot, char *incoming, int64_t size, const zane
    -1 once it is. Any other reader waits for it; its maker reading it again
    is a constant made of itself. A reader checks for -1 without the lock, so
    every access to the state is atomic. */
-static pthread_mutex_t zane_constants = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t zane_constants = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t zane_constant_made = PTHREAD_COND_INITIALIZER;
 
 /* The graph of waits. A context about to block names what it waits for: a
@@ -213,8 +223,23 @@ int64_t zane_constant_begin(int64_t *state) {
    program's own region, which it lives in until the program ends, and
    every reader may now read it. */
 void zane_constant_end(int64_t *state, char *value, const zane_type *type) {
+#ifdef ZANE_SUBJECT_REGIONS
+	/* Constants are made on any thread, so their region is changed under
+	   the constants' lock rather than the program's region under its
+	   context's. */
+	pthread_mutex_lock(&zane_constants);
+	if (!zane_constants_region) {
+		zane_island *i = calloc(1, sizeof *i);
+		if (!i) zane_broken("out of memory for the constants' region");
+		i->mark.context = zane_program->context;
+		i->mark.depth = ZANE_ISLAND_DEPTH;
+		zane_constants_region = &i->mark;
+	}
+	zane_move(value, type, zane_constants_region, 0);
+#else
 	zane_move(value, type, zane_program, 0);
 	pthread_mutex_lock(&zane_constants);
+#endif
 	__atomic_store_n(state, -1, __ATOMIC_RELEASE);
 	pthread_cond_broadcast(&zane_constant_made);
 	pthread_mutex_unlock(&zane_constants);

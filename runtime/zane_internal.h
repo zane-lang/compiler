@@ -243,6 +243,9 @@ struct zane_context {
 	   joins. Each is set and cleared under `zane_waits`. */
 	int64_t *awaits;
 	zane_task *joins;
+	/* Experimental (ZANE_SUBJECT_REGIONS): the subject regions of the calls
+	   it spawned that are still out (spawn.c). */
+	struct zane_island *islands;
 };
 
 _Static_assert(offsetof(zane_context, frontier) == ZANE_CONTEXT_FRONTIER, "a context starts with its frontier");
@@ -283,6 +286,48 @@ _Static_assert(sizeof(zane_list) == ZANE_HANDLE_SIZE, "a list is a handle");
 
 enum { ZANE_QUEUED, ZANE_RUNNING, ZANE_DONE, ZANE_JOINED };
 
+/* Experimental (docs/experiments/subject-regions): with
+   ZANE_SUBJECT_REGIONS, a spawned `mut` call's subject that owns blocks
+   lives in a region of its own while the call is out, its **subject
+   region**, which only that call writes. No other thread then allocates
+   or returns a block in a region of this context, so nothing takes the
+   context's lock. A subject region is no scope: its depth is
+   ZANE_ISLAND_DEPTH, so it outlives no scope, and a value arriving in it
+   moves its blocks in. Its record is the start of a `zane_island`. At the
+   join its chunks become the region's that holds the subject's home, and
+   the subject goes home; a subject copied from a place reached through an
+   owner is written back there instead, and the region's chunks are given
+   back. */
+#define ZANE_ISLAND_DEPTH INT64_MAX
+static inline int zane_is_island(const zane_mark *m) { return m->depth == ZANE_ISLAND_DEPTH; }
+
+typedef struct zane_island {
+	zane_mark mark;
+	zane_task *task;
+	/* Where the subject lived, where it lives while the call is out, and
+	   where a write-back goes, once the call asks for one. */
+	char *home, *value, *target;
+	int64_t size;
+	const zane_type *type;
+	struct zane_island *next;
+} zane_island;
+
+#ifdef ZANE_SUBJECT_REGIONS
+void zane_lock_region(zane_mark *r);
+/* The context of the call this thread joins, done, while its result comes
+   home: its regions are reached from here then, and from nowhere else. */
+extern _Thread_local zane_context *zane_joining;
+#define zane_unlock_region(r) ((void)(r))
+/* The region a package constant's blocks move into: never drained, and
+   changed only under `zane_constants` (value.c). */
+extern zane_mark *zane_constants_region;
+extern pthread_mutex_t zane_constants;
+void zane_islands_home(zane_task *t);
+#else
+#define zane_lock_region(r) zane_lock((r)->context)
+#define zane_unlock_region(r) zane_unlock((r)->context)
+#endif
+
 /* The pool steals work (§2.4). Each of its threads keeps a deque of the
    calls it spawned, and takes its own newest first; a thread with none
    left steals the oldest of another's. Calls spawned where no pool thread
@@ -320,6 +365,7 @@ void zane_unlock(zane_context *c);
 zane_context *zane_context_new(void);
 uintptr_t *zane_page(const void *at, int make);
 uintptr_t zane_page_entry(const void *at);
+void zane_set_page(const void *at, uintptr_t entry);
 
 /* The program's arguments after its own name, kept by `main`. */
 extern int zane_argc;

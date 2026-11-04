@@ -82,10 +82,10 @@ void zane_copy(char *value, const zane_type *type) {
 	zane_mark *region = zane_here();
 	zane_work w;
 	zane_work_start(&w);
-	zane_lock(region->context);
+	zane_lock_region(region);
 	type->copy(value, (char *)region, 0, &w, 0);
 	zane_work_run(&w);
-	zane_unlock(region->context);
+	zane_unlock_region(region);
 }
 
 /* A boxed member's block (memory.md §3.6): exactly one payload's size. */
