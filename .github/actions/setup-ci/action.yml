@@ -4,6 +4,9 @@ inputs:
   grammar-dependencies:
     description: Install Node and Python dependencies for grammar generation.
     default: 'false'
+  skip-nix-installation:
+    description: Skip Nix setup when the caller has already installed Nix.
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -28,6 +31,7 @@ runs:
       uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
       with:
         enable-cache: true
+        skip-nix-installation: ${{ inputs.skip-nix-installation }}
 
     - name: Sanity check
       shell: bash
