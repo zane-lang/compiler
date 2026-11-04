@@ -185,8 +185,8 @@ runtime; `tsan.sh` builds a package so and counts reports. Results in
 `spawns`, `walks`), for `race 3000` and for `reader 2000`.
 `constantCycle` and `spawnedFrames` fail on purpose, as their goldens say
 (`spawnedFrames` without its `--spawned-fixed-region` flag reports 8 MiB
-for 2). Without spawns' fixtures' FFI and object packages, `handles` and
-`memolibraryuser` were not run. That TSan sees these programs' races at
+for 2). `tests/ffi`'s `handles` and `tests/objects`' `memolibraryuser`,
+which need packages `tsan.sh` does not pass, were not run. That TSan sees these programs' races at
 all: the control (no locks, no subject regions) under TSan gives 28
 reports in `race 200`, the first a spawned call's `zane_frontier_of`
 reading and writing its spawner's region's frontier, and then hangs.
@@ -197,15 +197,58 @@ and TSan is the gate. The control, checked, stops with "another thread's
 scopes searched"; `ZANE_SUBJECT_REGIONS_UNCHECKED=1` builds it without
 the check, as the 30-of-30 crash run did.
 
+## Step 5: a local keeps its region
+
+**The defect.** `big/` deepens a subject 10,000 levels, then spawns one
+level onto it per round, from a function called in a loop (the checker
+rejects a spawned `mut` call in a loop body on storage declared outside
+it, concurrency.md §4.3, so a loop reaches one subject again only through
+a call). Each spawn copied the subject into a fresh region, whose chunks
+the join gave to the subject's scope, where nothing reused them until it
+drained: memory grew with every round.
+
+| `big 10000 N`, optimized | today | step 4 | step 5 |
+| --- | --- | --- | --- |
+| 100 rounds | 1.50 s, 3.1 MiB | 1.44 s, 10.8 MiB | 1.38 s, 3.2 MiB |
+| 400 rounds | 1.60 s, 3.1 MiB | 1.56 s, 29.3 MiB | 1.47 s, 3.1 MiB |
+| 1,600 rounds | 2.19 s, 3.2 MiB | 1.94 s, 136 MiB | 1.57 s, 3.2 MiB |
+
+(Peak resident memory from `/proc`, wall clock of one run each.)
+
+**Design** (`runtime/spawn.c`). A local subject's region stays with it
+while its scope lives: its chunks are listed on that scope, which gives
+them back when it drains (`zane_islands_drained`, from both drains), and
+the next call spawned on the local takes the same region. While no other
+call the context spawned is out, nothing can be reading the subject, so it
+moves in, and only what is not already there moves; in steady state
+nothing does, and what a call returns in the region is what the next one
+takes. Otherwise it is copied in, as step 3 has it, and at the join the
+old value is ended at once when no other call is still out, and kept as
+before when one is. A subject whose home is in no scope's frame (a list's
+element, or a subject's own subject in a nested call) keeps step 3's
+merge into its home region; the checker keeps such a subject out of a
+loop.
+
+**Results.** The fixtures, `reader`, `race` and `big`, plain and
+optimized, checked and unchecked, 20 runs each: all correct.
+`spawnSubjects` gains the same local spawned on again, alone and from a
+loop. ThreadSanitizer (`results/tsan-kept.txt`): 0 reports for `spawns`,
+`spawnSubjects`, `lambdas`, `keeping`, `race 500`, `reader 2000` and
+`big 2000 200`, 5 runs each, checked and unchecked.
+
+**No smaller first block.** A subject region still starts with a whole
+1 MiB chunk. The chunk map, which names the region an address is in, has
+one entry per MiB, so a region carved out of part of a chunk would read as
+the spawner's to every lookup, and the call would allocate in its parent's
+region again. A kept region pays for its chunk once per local and scope,
+not per spawn, and takes it from the warm spares.
+
 ## Open points
 
-- **Each subject region takes a 1 MiB chunk**, from the spawner's warm
-  spares; a call that touches little pays for a whole chunk's mapping.
-  A smaller first block would do.
-- **Copying a local subject in costs a deep copy** of what it owns at
-  each spawn, and its old blocks stay until its scope drains; today's
-  runtime works in place. `race` starts each subject empty, so it does not
-  measure this.
+- **A copy when another call is out.** A local spawned on while another
+  call the context spawned is out is copied in whole, and its old blocks
+  stay until no call is out at a join, or its scope drains. Not measured
+  beyond `reader`.
 - **Static frames are not needed**: a frame stretches only for its own
   context's blocks, so only one thread moves a frontier.
 - Why `returns` mispredicts more.

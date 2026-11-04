@@ -157,6 +157,9 @@ static void zane_release(zane_context *c) {
 	zane_mark *m = c->top;
 	if (!m || m->outer) zane_broken("a spawned call ended with a scope open");
 	zane_drain_values(m);
+#ifdef ZANE_SUBJECT_REGIONS
+	zane_islands_drained(c, m);
+#endif
 	zane_lock(c);
 	zane_unmap(m);
 	c->top = NULL;
@@ -244,6 +247,9 @@ void zane_scope_drain(zane_mark *m) {
 	if (m != c->top || !m->outer) zane_broken("a scope drained out of order");
 	for (zane_task *t = m->tasks; t; t = t->next) zane_join_task(t);
 	zane_drain_values(m);
+#ifdef ZANE_SUBJECT_REGIONS
+	zane_islands_drained(c, m);
+#endif
 	zane_lock(c);
 	zane_unmap(m);
 	c->top = m->outer;

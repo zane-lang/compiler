@@ -2,8 +2,9 @@
 /// fixture does not reach: a list's element, a subject passed to a function
 /// value, a spawned call that spawns on its own subject and on a local of
 /// its own, one that aborts after writing its subject, a reader spawned
-/// before the writer, and a package constant that owns a block read from a
-/// spawned call. Each check prints `yes` when it holds and `no` when it
+/// before the writer, the same local spawned on again, alone and from a
+/// loop, and a package constant that owns a block read from a spawned
+/// call. Each check prints `yes` when it holds and `no` when it
 /// does not.
 package spawnSubjects;
 
@@ -68,6 +69,14 @@ Int nested(this Countdown, n Int) mut {
 	return @operators$add(depth(this), depth(mine));
 }
 
+/// One spawned call on the subject, waited for before this returns.
+Unit tick(this Countdown) mut {
+	@controlflow$branch(true, {
+		spawn this!deepen(Int(1));
+	});
+	return Unit();
+}
+
 banner String = @operators$concat(String("sub"), String("ject"));
 
 Bool bannerRight() => @operators$equal(banner, String("subject"));
@@ -125,6 +134,16 @@ Unit main() {
 		check(@operators$conjoin(@operators$lessThan(Int(19), seen), @operators$lessThan(seen, Int(41))));
 	});
 	check(@operators$equal(depth(k), Int(40)));
+
+	// The same local spawned on again, alone and from a loop.
+	@controlflow$branch(true, {
+		spawn k!deepen(Int(5));
+	});
+	round Int(1);
+	round!to(Int(30)) {
+		k!tick();
+	}
+	check(@operators$equal(depth(k), Int(75)));
 
 	// A constant that owns a block, read from a spawned call.
 	right Bool = spawn bannerRight();

@@ -170,24 +170,43 @@ static _Thread_local zane_island *zane_pending_island;
 #endif
 
 /* The subject at `*field`, `size` bytes of `type`, goes into a region of
-   its own for the call about to be spawned, and `*field` names it there.
-   A local is copied there whole: a call spawned before may still read it
-   where it is, so its blocks stay as they are until the join. A copy made
-   for this call alone (`copied`) moves. Without ZANE_SUBJECT_REGIONS
-   lowering never calls this. */
+   its own for the call about to be spawned, and `*field` names it there. A
+   local takes the region it had for the last call spawned on it, if its
+   scope still holds one, so what is already there stays. While no other
+   call this context spawned is out, nothing else can be reading the
+   subject, so it moves in; otherwise it is copied there whole, since a
+   call spawned before may still read it where it is, so its blocks stay
+   as they are until the join. A copy made for this call alone (`copied`)
+   always moves. Without ZANE_SUBJECT_REGIONS lowering never calls this. */
 void zane_island_make(char **field, int64_t size, const zane_type *type, int64_t copied) {
 #ifdef ZANE_SUBJECT_REGIONS
-	zane_island *i = calloc(1, sizeof *i);
-	if (!i) zane_broken("out of memory for a subject region");
-	i->mark.context = zane_self;
-	i->mark.depth = ZANE_ISLAND_DEPTH;
-	i->home = *field;
-	i->size = size;
+	zane_context *c = zane_self;
+	char *home = *field;
+	zane_island *i = NULL;
+	if (!copied)
+		for (zane_island *k = c->islands; k && !i; k = k->next)
+			if (!k->task && k->scope && k->home == home) i = k;
+	if (!i) {
+		if (!(i = calloc(1, sizeof *i))) zane_broken("out of memory for a subject region");
+		i->mark.context = c;
+		i->mark.depth = ZANE_ISLAND_DEPTH;
+		if (!copied && (zane_page_entry(home) & 1)) {
+			i->scope = zane_region_at(home);
+			i->next = c->islands;
+			c->islands = i;
+		}
+	}
+	i->home = home;
 	i->type = type;
-	i->value = zane_alloc_held(&i->mark, size < 8 ? 8 : size, 16);
-	i->mark.heap.live--;
-	memcpy(i->value, i->home, (size_t)size);
-	if (copied) {
+	i->target = NULL;
+	if (!i->value || i->size < size) {
+		i->value = zane_alloc_held(&i->mark, size < 8 ? 8 : size, 16);
+		i->mark.heap.live--;
+	}
+	i->size = size;
+	memcpy(i->value, home, (size_t)size);
+	i->moved = copied || c->shared == 0;
+	if (i->moved) {
 		zane_move(i->value, type, &i->mark, 0);
 	} else if (type) {
 		zane_work w;
@@ -207,10 +226,16 @@ void zane_island_make(char **field, int64_t size, const zane_type *type, int64_t
 }
 
 #ifdef ZANE_SUBJECT_REGIONS
-/* The joined call's subject regions: a subject written back where it was
-   copied from, and the region's chunks given back; or the subject home
-   again, with the region's chunks now its home's region's, which drains
-   with it. The joining thread is the context's own, and the call is done. */
+/* The joined call's subject regions, on the joining thread, the context's
+   own, once the call is done. A subject copied from a place reached
+   through an owner is written back there, and its region's chunks are
+   given back. A subject copied in from a local leaves the local's old
+   value behind: ended now when no other call is out, so none can be
+   following it, and otherwise kept until its region drains, a checked
+   drain ending it there, as a write-back's replaced value. The subject
+   then goes home. A local's region stays for the next call on it, its
+   chunks listed on its scope; any other subject's chunks become its home
+   region's. */
 void zane_islands_home(zane_task *t) {
 	zane_context *c = zane_self;
 	for (zane_island **at = &c->islands; *at;) {
@@ -219,17 +244,26 @@ void zane_islands_home(zane_task *t) {
 			at = &i->next;
 			continue;
 		}
-		*at = i->next;
+		i->task = NULL;
 		zane_mark *r = &i->mark;
 		if (i->target) {
+			*at = i->next;
 			zane_writeback(i->target, i->value, i->size, i->type);
 			zane_unmap(r);
-		} else if (i->home != i->value) {
-			zane_mark *home = zane_region_at(i->home);
-			/* What the local held before stays where it is, for a reader
-			   that may still follow it, until its region drains; a checked
-			   drain ends it there, as a write-back's replaced value. */
-			if (zane_checking && i->type) {
+			free(i);
+			continue;
+		}
+		if (i->home == i->value) {
+			*at = i->next;
+			zane_unmap(r);
+			free(i);
+			continue;
+		}
+		zane_mark *home = i->scope ? i->scope : zane_region_at(i->home);
+		if (!i->moved && i->type) {
+			if (c->shared == 1) {
+				zane_end(i->home, i->type);
+			} else if (zane_checking) {
 				zane_retired *old = (zane_retired *)zane_alloc(home, (int64_t)sizeof *old + i->size, 8);
 				memcpy(old + 1, i->home, (size_t)i->size);
 				old->type = i->type;
@@ -237,26 +271,46 @@ void zane_islands_home(zane_task *t) {
 				old->next = home->retired;
 				home->retired = old;
 			}
-			memcpy(i->home, i->value, (size_t)i->size);
-			while (r->mappings) {
-				zane_mapping *m = r->mappings;
-				r->mappings = m->next;
-				for (size_t off = 0; off < m->size; off += ZANE_CHUNK) zane_set_page((char *)m + off, (uintptr_t)home);
-				m->next = home->mappings;
-				home->mappings = m;
-			}
-			home->heap.live += r->heap.live;
-			/* A call spawned on this subject in turn retired its old value
-			   here; it ends where the chunks now drain. */
-			while (r->retired) {
-				zane_retired *v = r->retired;
-				r->retired = v->next;
-				v->next = home->retired;
-				home->retired = v;
-			}
-		} else {
-			zane_unmap(r);
 		}
+		memcpy(i->home, i->value, (size_t)i->size);
+		/* A call spawned on this subject in turn retired its old value
+		   here; it ends where the chunks drain. */
+		while (r->retired) {
+			zane_retired *v = r->retired;
+			r->retired = v->next;
+			v->next = home->retired;
+			home->retired = v;
+		}
+		while (r->mappings) {
+			zane_mapping *m = r->mappings;
+			r->mappings = m->next;
+			if (!i->scope)
+				for (size_t off = 0; off < m->size; off += ZANE_CHUNK) zane_set_page((char *)m + off, (uintptr_t)home);
+			m->next = home->mappings;
+			home->mappings = m;
+		}
+		if (i->scope) {
+			at = &i->next;
+			continue;
+		}
+		home->heap.live += r->heap.live;
+		*at = i->next;
+		free(i);
+	}
+}
+
+/* Scope `m` of context `c` drains: the regions it kept for its locals'
+   calls go, their chunks with its own. A checked drain finds none of their
+   blocks out, since each local that owned one has ended. */
+void zane_islands_drained(zane_context *c, zane_mark *m) {
+	for (zane_island **at = &c->islands; *at;) {
+		zane_island *i = *at;
+		if (i->scope != m) {
+			at = &i->next;
+			continue;
+		}
+		if (zane_checking && i->mark.heap.live != 0) zane_broken("a dynamic block outlived its owner");
+		*at = i->next;
 		free(i);
 	}
 }
@@ -283,8 +337,11 @@ void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *t
 #ifdef ZANE_SUBJECT_REGIONS
 	if (zane_pending_island) {
 		zane_pending_island->task = t;
-		zane_pending_island->next = c->islands;
-		c->islands = zane_pending_island;
+		/* A local's region is listed from when it is made. */
+		if (!zane_pending_island->scope) {
+			zane_pending_island->next = c->islands;
+			c->islands = zane_pending_island;
+		}
 		zane_pending_island = NULL;
 	}
 #else

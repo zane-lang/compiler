@@ -1,0 +1,15 @@
+spawns subject-regions=1 check=0: 5 runs, 0 TSan reports, 0 failed
+spawns subject-regions=1 check=1: 5 runs, 0 TSan reports, 0 failed
+spawnSubjects subject-regions=1 check=0: 5 runs, 0 TSan reports, 0 failed
+spawnSubjects subject-regions=1 check=1: 5 runs, 0 TSan reports, 0 failed
+lambdas subject-regions=1 check=0: 5 runs, 0 TSan reports, 0 failed
+lambdas subject-regions=1 check=1: 5 runs, 0 TSan reports, 0 failed
+keeping subject-regions=1 check=0: 5 runs, 0 TSan reports, 0 failed
+keeping subject-regions=1 check=1: 5 runs, 0 TSan reports, 0 failed
+race subject-regions=1 check=0: 5 runs, 0 TSan reports, 0 failed
+race subject-regions=1 check=1: 5 runs, 0 TSan reports, 0 failed
+reader subject-regions=1 check=0: 5 runs, 0 TSan reports, 0 failed
+reader subject-regions=1 check=1: 5 runs, 0 TSan reports, 0 failed
+big subject-regions=1 check=0: 5 runs, 0 TSan reports, 0 failed
+big subject-regions=1 check=1: 5 runs, 0 TSan reports, 0 failed
+ALLDONE

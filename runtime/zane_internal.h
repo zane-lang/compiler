@@ -294,10 +294,12 @@ enum { ZANE_QUEUED, ZANE_RUNNING, ZANE_DONE, ZANE_JOINED };
    context's lock. A subject region is no scope: its depth is
    ZANE_ISLAND_DEPTH, so it outlives no scope, and a value arriving in it
    moves its blocks in. Its record is the start of a `zane_island`. At the
-   join its chunks become the region's that holds the subject's home, and
-   the subject goes home; a subject copied from a place reached through an
-   owner is written back there instead, and the region's chunks are given
-   back. */
+   join the subject goes home. A local's region stays with it for the next
+   call spawned on it, its chunks listed on the local's scope, which gives
+   them back when it drains; any other subject's chunks become those of the
+   region that holds its home. A subject copied from a place reached
+   through an owner is written back there instead, and the region's chunks
+   are given back. */
 #define ZANE_ISLAND_DEPTH INT64_MAX
 static inline int zane_is_island(const zane_mark *m) { return m->depth == ZANE_ISLAND_DEPTH; }
 
@@ -309,6 +311,11 @@ typedef struct zane_island {
 	char *home, *value, *target;
 	int64_t size;
 	const zane_type *type;
+	/* The scope whose frame holds a local subject, which keeps the region
+	   for the next call spawned on it until it drains; null for any other
+	   subject. Whether the subject moved in, rather than was copied. */
+	zane_mark *scope;
+	int moved;
 	struct zane_island *next;
 } zane_island;
 
@@ -323,6 +330,7 @@ extern _Thread_local zane_context *zane_joining;
 extern zane_mark *zane_constants_region;
 extern pthread_mutex_t zane_constants;
 void zane_islands_home(zane_task *t);
+void zane_islands_drained(zane_context *c, zane_mark *m);
 #else
 #define zane_lock_region(r) zane_lock((r)->context)
 #define zane_unlock_region(r) zane_unlock((r)->context)
