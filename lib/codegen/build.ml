@@ -789,6 +789,20 @@ let link_c ~optimize tm m =
           apart)
         (c_module ~alone:(not optimize) tm m packages)
 
+(* With `ZANE_TSAN=1`, every function [m] defines is built for
+   ThreadSanitizer, and [pipeline] gains its passes; the C compiler then
+   links its runtime when `ZANE_CC` passes it `-fsanitize=thread`
+   (docs/experiments/subject-regions/tsan-cc). Otherwise [pipeline] is as
+   given. *)
+let thread_sanitized m pipeline =
+  if Sys.getenv_opt "ZANE_TSAN" <> Some "1" then pipeline
+  else begin
+    let attr = Llvm.create_enum_attr (Llvm.module_context m) "sanitize_thread" 0L in
+    let mark f = if not (Llvm.is_declaration f) then Llvm.add_function_attr f attr Llvm.AttrIndex.Function in
+    Llvm.iter_functions mark m;
+    pipeline ^ ",tsan-module,function(tsan)"
+  end
+
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and its passes run, the optimized
    ones when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A program means the same either way
@@ -840,19 +854,7 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
       if not optimize then Wrappers.mark data_layout m;
       if optimize then llvm_options (Array.of_list ("zanec" :: Passes.llvm_options));
-      (* With `ZANE_TSAN=1`, every function the program defines is built
-         for ThreadSanitizer, whose runtime the C compiler then links when
-         `ZANE_CC` passes it `-fsanitize=thread`
-         (docs/experiments/subject-regions/tsan-cc). *)
-      let tsan = Sys.getenv_opt "ZANE_TSAN" = Some "1" in
-      if tsan then
-        Llvm.iter_functions
-          (fun f ->
-            if not (Llvm.is_declaration f) then
-              Llvm.add_function_attr f (Llvm.create_enum_attr (Llvm.module_context m) "sanitize_thread" 0L) Llvm.AttrIndex.Function)
-          m;
-      let pipeline = Passes.pipeline ~optimize ~tier1:(tier = Tiers.Tier1) in
-      let pipeline = if tsan then pipeline ^ ",tsan-module,function(tsan)" else pipeline in
+      let pipeline = thread_sanitized m (Passes.pipeline ~optimize ~tier1:(tier = Tiers.Tier1)) in
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
       |> Fun.flip Result.bind (fun () ->
