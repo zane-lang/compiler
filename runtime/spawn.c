@@ -169,10 +169,13 @@ void zane_set_threads_auto(void) { zane_set_threads(zane_processors()); }
 static _Thread_local zane_island *zane_pending_island;
 #endif
 
-/* The subject at `*field`, `size` bytes of `type`, moves into a region of
+/* The subject at `*field`, `size` bytes of `type`, goes into a region of
    its own for the call about to be spawned, and `*field` names it there.
-   Without ZANE_SUBJECT_REGIONS lowering never calls this. */
-void zane_island_make(char **field, int64_t size, const zane_type *type) {
+   A local is copied there whole: a call spawned before may still read it
+   where it is, so its blocks stay as they are until the join. A copy made
+   for this call alone (`copied`) moves. Without ZANE_SUBJECT_REGIONS
+   lowering never calls this. */
+void zane_island_make(char **field, int64_t size, const zane_type *type, int64_t copied) {
 #ifdef ZANE_SUBJECT_REGIONS
 	zane_island *i = calloc(1, sizeof *i);
 	if (!i) zane_broken("out of memory for a subject region");
@@ -184,13 +187,21 @@ void zane_island_make(char **field, int64_t size, const zane_type *type) {
 	i->value = zane_alloc_held(&i->mark, size < 8 ? 8 : size, 16);
 	i->mark.heap.live--;
 	memcpy(i->value, i->home, (size_t)size);
-	zane_move(i->value, type, &i->mark, 0);
+	if (copied) {
+		zane_move(i->value, type, &i->mark, 0);
+	} else if (type) {
+		zane_work w;
+		zane_work_start(&w);
+		type->copy(i->value, (char *)&i->mark, 0, &w, 0);
+		zane_work_run(&w);
+	}
 	*field = i->value;
 	zane_pending_island = i;
 #else
 	(void)field;
 	(void)size;
 	(void)type;
+	(void)copied;
 	zane_broken("a subject region without ZANE_SUBJECT_REGIONS");
 #endif
 }
@@ -214,8 +225,19 @@ void zane_islands_home(zane_task *t) {
 			zane_writeback(i->target, i->value, i->size, i->type);
 			zane_unmap(r);
 		} else if (i->home != i->value) {
-			memcpy(i->home, i->value, (size_t)i->size);
 			zane_mark *home = zane_region_at(i->home);
+			/* What the local held before stays where it is, for a reader
+			   that may still follow it, until its region drains; a checked
+			   drain ends it there, as a write-back's replaced value. */
+			if (zane_checking && i->type) {
+				zane_retired *old = (zane_retired *)zane_alloc(home, (int64_t)sizeof *old + i->size, 8);
+				memcpy(old + 1, i->home, (size_t)i->size);
+				old->type = i->type;
+				old->size = i->size;
+				old->next = home->retired;
+				home->retired = old;
+			}
+			memcpy(i->home, i->value, (size_t)i->size);
 			while (r->mappings) {
 				zane_mapping *m = r->mappings;
 				r->mappings = m->next;

@@ -124,20 +124,39 @@ step 1 gained, likely LLVM unrolling or inlining differently once the call
 is gone (lowering.md §9 keeps a call in some pushes for that reason), not
 yet looked at.
 
+## Step 3: a local subject is copied, not moved
+
+**The defect.** `reader/` spawns `depth(a)` and then `a!deepen(n)` in one
+block. The checker accepts it, and the reader's frame holds a shallow copy
+of `a`'s handle, so it walks the blocks `a` owns. Step 1 moved `a` into its
+subject region, which returned those blocks to `a`'s home region: each
+returned block's first word became a link in a free stack, which the
+reader then followed as a box. 10 of 10 runs segfaulted, checked and
+unchecked; today's runtime printed the right answer 10 of 10 times.
+
+**Design.** `zane_island_make` takes whether the subject is a copy made for
+this call alone. Such a copy still moves; a local is now copied into its
+region whole (`type->copy` into the region), so its old blocks stay as they
+are while the call is out, and a reader sees the value from before the
+spawn, a coherent snapshot (concurrency.md §4.4). At the join the old value
+is retired in its home region when drains are checked, as a write-back's
+replaced value is, so the checked drain ends it; unchecked, it goes with
+the region.
+
+**Results.** `reader 2000` and `race 2000`, plain and optimized, checked
+and unchecked, 10 runs each under the switch: all correct. The whole suite
+under the switch: the same two expected differences as step 2, nothing
+else; with the switch off it passes.
+
 ## Open points
 
-- **A spawned reader of a local subject.** The subject's old blocks are
-  returned to its home region when it moves into its own, and the home
-  region may hand them out again while the call is out. If a call spawned
-  earlier is still reading the local (a borrow), it may see recycled bytes.
-  Whether the checker lets that program through has not been checked;
-  today's runtime has the opposite problem (the reader sees the writer's
-  in-place edits).
 - **Each subject region takes a 1 MiB chunk**, from the spawner's warm
   spares; a call that touches little pays for a whole chunk's mapping.
   A smaller first block would do.
-- **Moving the subject in costs a walk** of what it owns at each spawn,
-  where today's runtime works in place.
+- **Copying a local subject in costs a deep copy** of what it owns at
+  each spawn, and its old blocks stay until its scope drains; today's
+  runtime works in place. `race` starts each subject empty, so it does not
+  measure this.
 - **Static frames are not needed**: a frame stretches only for its own
   context's blocks, so only one thread moves a frontier.
 - Why `returns` mispredicts more, and why `scopes` regresses in step 2.

@@ -202,7 +202,7 @@ let signature = function
   | Handle_end -> (Void, [ Ptr; Ptr ])
   | Handle_set -> (Void, [ Ptr; Ptr; Ptr ])
   | Callback_attach | Callback_detach -> (Void, [])
-  | Island -> (Void, [ Ptr; I64; Ptr ])
+  | Island -> (Void, [ Ptr; I64; Ptr; I64 ])
 
 (* The size of the range each context reserves for its frames, the main
    context's and each spawned call's, when the root manifest gives none

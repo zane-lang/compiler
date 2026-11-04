@@ -1895,7 +1895,8 @@ and stat env fr b (s : Stat.t) =
             (fun copy -> ignore (Llvm.build_store (Llvm.build_struct_gep t at copy "" b) field b))
             i.Expr.copy;
           ignore
-            (call_runtime env b Cgt.Runtime.Island [| field; n i.Expr.size; layout env i.Expr.value_layout |]))
+            (call_runtime env b Cgt.Runtime.Island
+               [| field; n i.Expr.size; layout env i.Expr.value_layout; n (if Option.is_some i.Expr.copy then 1 else 0) |]))
         island;
       ignore (Llvm.build_store at (slot env fr task env.ptr) b);
       let result = match frame with Ty.Struct (r :: _) -> r | _ -> Ty.Void in
