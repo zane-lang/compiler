@@ -35,6 +35,16 @@ Unit deepen(this Countdown, n Int) mut {
 	return Unit();
 }
 
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
 Unit check(ok Bool) {
 	yes String.escaped("yes\n");
 	no String.escaped("no\n");
@@ -44,6 +54,7 @@ Unit check(ok Bool) {
 }
 
 Unit main() {
+	n Int = size(Int(3000));
 	round Int(1);
 	round!to(Int(20)) {
 		a Countdown = Countdown.done(Unit());
@@ -51,12 +62,12 @@ Unit main() {
 		c Countdown = Countdown.done(Unit());
 		mine Countdown = Countdown.done(Unit());
 		@controlflow$branch(true, {
-			spawn a!deepen(Int(3000));
-			spawn b!deepen(Int(3000));
-			spawn c!deepen(Int(3000));
-			mine!deepen(Int(3000));
+			spawn a!deepen(n);
+			spawn b!deepen(n);
+			spawn c!deepen(n);
+			mine!deepen(n);
 		});
-		check(@operators$equal(@operators$add(@operators$add(depth(a), depth(b)), @operators$add(depth(c), depth(mine))), Int(12000)));
+		check(@operators$equal(@operators$add(@operators$add(depth(a), depth(b)), @operators$add(depth(c), depth(mine))), @operators$multiply(n, Int(4))));
 	}
 	return Unit();
 }

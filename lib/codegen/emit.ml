@@ -632,8 +632,14 @@ let enter env fr b size =
   let ptr = env.ptr and i64 = env.i64 in
   let outer = Llvm.build_load ptr (open_scope env) "" b in
   let inline = block env fr and shared = block env fr and opened = block env fr in
-  ignore
-    (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Ne outer (Llvm.const_null ptr) "" b) inline shared b);
+  (* Experimental: with subject regions the innermost scope is always this
+     thread's alone, so the frame is always placed here; the runtime's
+     path stays, unreached. *)
+  let alone =
+    if Cgt.Ref32.subject_regions () then Llvm.const_int (Llvm.i1_type env.ctx) 1
+    else Llvm.build_icmp Llvm.Icmp.Ne outer (Llvm.const_null ptr) "" b
+  in
+  ignore (Llvm.build_cond_br alone inline shared b);
   Llvm.position_at_end inline b;
   let c = field env b ptr outer record_context in
   let m = field env b ptr c context_frontier in

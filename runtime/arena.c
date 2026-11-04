@@ -142,8 +142,12 @@ zane_mark *zane_constants_region;
 _Thread_local zane_context *zane_joining;
 
 void zane_lock_region(zane_mark *r) {
+#ifndef ZANE_SUBJECT_REGIONS_UNCHECKED
 	if (r->context != zane_self && r->context != zane_joining && !zane_is_island(r))
 		zane_broken("experiment: a region taken from another thread");
+#else
+	(void)r;
+#endif
 }
 #else
 static int zane_guarded(zane_context *c) { return c != zane_self || c->shared > 0; }
@@ -230,7 +234,9 @@ zane_mark *zane_region_at(const void *at) {
 	if (!(entry & 1)) return (zane_mark *)entry;
 	zane_context *c = (zane_context *)(entry & ~(uintptr_t)1);
 #ifdef ZANE_SUBJECT_REGIONS
+#ifndef ZANE_SUBJECT_REGIONS_UNCHECKED
 	if (c != zane_self && c != zane_joining) zane_broken("experiment: another thread's scopes searched");
+#endif
 #endif
 	if (!zane_guarded(c)) {
 		zane_mark *top = c->top;

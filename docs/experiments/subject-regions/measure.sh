@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Instructions (Valgrind's `Ir`, whole process) of one package built three
-# ways, optimized: today's runtime, with ZANE_SUBJECT_REGIONS=1, and the
-# control (no locks, no subject regions). Valgrind runs the threads one at
-# a time, so a lock is never contended here: this counts the work each
-# build does, not what contention costs. Run inside `devbox run`.
+# Guest instructions (Valgrind's lackey, whole process) of one package
+# built two ways, optimized: today's runtime, and with
+# ZANE_SUBJECT_REGIONS=1. Callgrind stops on the runtime's commit-on-touch
+# fault in a spawned thread, so lackey counts instead. Valgrind runs one
+# thread at a time, so this counts the work each build does, not what
+# contention costs. Run inside `devbox run`.
 # Usage: measure.sh OUT_DIR PACKAGE_DIR [ARGS...]
 set -u
 root=$(cd "$(dirname "$0")/../../.." && pwd)
@@ -16,7 +17,7 @@ for tag in base subject; do
 		base) build ZANE_SUBJECT_REGIONS=0 ;;
 		subject) build ZANE_SUBJECT_REGIONS=1 ;;
 	esac || { echo "$tag: build failed"; cat "$out/$name.$tag.build"; exit 1; }
-	valgrind --tool=callgrind --callgrind-out-file="$out/$name.$tag.cg" "$out/$name.$tag.exe" "$@" > "$out/$name.$tag.out" 2> "$out/$name.$tag.vg"
-	ir=$(grep -a "Collected" "$out/$name.$tag.vg" | awk '{print $4}')
+	valgrind --tool=lackey --basic-counts=yes "$out/$name.$tag.exe" "$@" > "$out/$name.$tag.out" 2> "$out/$name.$tag.vg"
+	ir=$(grep -a "guest instrs:" "$out/$name.$tag.vg" | awk '{print $NF}')
 	echo "$tag: $ir instructions; output $(sort "$out/$name.$tag.out" | uniq -c | tr '\n' ' ')"
 done

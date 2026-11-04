@@ -154,7 +154,8 @@ let level ~optimize =
      else if Cgt.Ref32.image_boxes () then [ "-DZANE_IMAGE_BOXES" ]
      else [])
   @ (if Cgt.Ref32.bump () then [ "-DZANE_BUMP_REGIONS" ] else [])
-  @ if Cgt.Ref32.subject_regions () then [ "-DZANE_SUBJECT_REGIONS" ] else []
+  @ (if Cgt.Ref32.subject_regions () then [ "-DZANE_SUBJECT_REGIONS" ] else [])
+  @ if Cgt.Ref32.no_islands () then [ "-DZANE_SUBJECT_REGIONS_UNCHECKED" ] else []
 
 (* The C compiler links for the target as it was written: `zig cc` reads
    its own short triples, and not every normal form. *)
