@@ -1,0 +1,22 @@
+Info: Running script "tests/perf/run" on /home/user/compiler
+[WARNING] Running as root is not recommended
+[WARNING] Running as root is not recommended
+[WARNING] Running as root is not recommended
+program      build             cycles   change   instructions   change      l1_misses   change      ll_misses   change    mispredicts   change
+borrows      optimized       59531333      new       32832003      new        1374485      new          17270      new         561374      new
+copies       optimized       41189637      new       27713717      new         643174      new          24546      new         229479      new
+depths       optimized        2714429      new        1909019      new          19709      new           4543      new           7701      new
+division     optimized       72629542      new       65147762      new           5382      new           4355      new         349623      new
+flips        optimized      201900143      new      151425273      new           5041      new           4040      new        2501023      new
+floats       optimized       39199220      new       37402450      new           6051      new           4910      new          62263      new
+growth       optimized       78666858      new       58960688      new        1335223      new          62244      new           6477      new
+kept         optimized         980169      new         418769      new           4966      new           3978      new           5697      new
+leaves       optimized       48867658      new       42657758      new           5728      new           4620      new         284531      new
+removal      optimized      222295250      new      207921090      new           5084      new           4082      new         695756      new
+repeats      optimized        3611261      new        3013861      new           5056      new           4060      new           7042      new
+returns      optimized      137019737      new      107504687      new         443961      new          26423      new        1121657      new
+scopes       optimized       26882472      new       26317402      new           5011      new           4008      new           5708      new
+stress       optimized     1966050284      new     1232386104      new       16641718      new        3039799      new       13163355      new
+texts        optimized       56330323      new       50524623      new         112596      new           4815      new         209912      new
+trees        optimized       24426216      new       19557116      new          13300      new           6120      new         206205      new
+done

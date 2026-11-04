@@ -268,7 +268,7 @@ void zane_main(void) {
 	      *(int64_t *)zane_array_at((char *)numbers, 3, 3, 8) == 9);
 
 	/* A package constant is made once, by the first reader, and the block
-	   it owns moves into the program's own region, where it outlives the
+	   it owns moves into the constants' own region, where it outlives the
 	   scope it was made in. */
 	static int64_t state;
 	static zane_text constant;
@@ -277,6 +277,6 @@ void zane_main(void) {
 	zane_text_join(&constant, &(zane_text){ "ab", 2, 0 }, &(zane_text){ "cd", 2, 0 });
 	zane_constant_end(&state, (char *)&constant, &text_type);
 	zane_scope_drain(making);
-	check(zane_region_at(constant.bytes) == zane_program && memcmp(constant.bytes, "abcd", 4) == 0);
+	check(zane_region_at(constant.bytes) == zane_constants_region && memcmp(constant.bytes, "abcd", 4) == 0);
 	check(zane_constant_begin(&state) == 0);
 }

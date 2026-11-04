@@ -259,9 +259,9 @@ let zane_open m ptr =
       Llvm.set_thread_local_mode Llvm.ThreadLocalMode.InitialExec g;
       g
 
-(* A box's block (memory.md §3.6), in the innermost region. Emitted code
-   takes it itself, as [take] does, while that region is the runtime's
-   [zane_open], which no other thread can reach then; otherwise, and for a
+(* A box's block (memory.md §3.6), in the innermost region, the runtime's
+   [zane_open], which no other thread reaches (runtime/zane_internal.h,
+   [zane_island]). Emitted code takes it itself, as [take] does; for a
    payload no size class holds, the runtime finds it. *)
 let box env f b size align =
   let n = int env in
@@ -275,19 +275,8 @@ let box env f b size align =
       let none = Llvm.const_null env.ptr in
       { env; f; b; at = none; with_ = none; extra = n 0; work = none; depth = n 0 }
     in
-    let open_ = zane_open env.m env.ptr in
-    let region = load c env.ptr open_ in
-    let inline = block c and shared = block c and done_ = block c in
-    ignore (Llvm.build_cond_br (nonzero c region) inline shared b);
-    Llvm.position_at_end inline b;
-    let taken = take ~bump_only:(Cgt.Ref32.bump ()) c region size in
-    let inline_end = Llvm.insertion_block b in
-    ignore (Llvm.build_br done_ b);
-    Llvm.position_at_end shared b;
-    let found = slow () in
-    ignore (Llvm.build_br done_ b);
-    Llvm.position_at_end done_ b;
-    Llvm.build_phi [ (taken, inline_end); (found, shared) ] "" b
+    let region = load c env.ptr (zane_open env.m env.ptr) in
+    take ~bump_only:(Cgt.Ref32.bump ()) c region size
   end
 
 (* A list's handle's fields (List_handle), whose count and room take 32 bits

@@ -285,7 +285,7 @@ below, by the runtime's C `main` after it sets itself up.
 Each constant has a function of its own, named by the constant, and two
 variables: its value and how far its making has got. The first call makes
 the value in a scope of its own, stores it, and moves the blocks it owns into
-the program's region; every call returns the value's address, and a read of
+the constants' region, which lives as long as the program; every call returns the value's address, and a read of
 the constant is a read through it. A constant that reads another calls that
 one's function first, so dependency order holds whatever order they are
 declared in, and a constant that reads itself, through any chain, stops the
@@ -374,7 +374,7 @@ so that it stays outside the walk's recursion (`lower_intrinsics.ml`,
 and the walks and rewrites every pass over the tree uses, and
 `to_tree_graph.ml` to render it. Codegen
 lives in `lib/codegen/`: `emit.ml` builds the module through the bindings,
-and `build.ml` writes the object file and links it with the runtime. The
+`llvm_extra.ml` binds what they lack (`llvm_stubs.c`), and `build.ml` writes the object file and links it with the runtime. The
 runtime is written as nine parts in `runtime/` (`main.c`, `arena.c`,
 `region.c`, `block.c` and so on), with `zane.h` as the ABI that emitted code calls,
 `zane_abi.h` as the offsets and sizes emitted code relies on, which codegen
@@ -724,15 +724,15 @@ test passing.
   this places the frames back to back. The spec leaves arena granularity to
   the implementation and fixes only that a scope's memory is released
   together, which this does.
-  - **Entry and drain are inline.** While no call the context spawned is
-    out, nothing else reaches it, so emitted code opens a scope itself: it
+  - **Entry and drain are inline.** Only its own thread changes a
+    context's scopes (below), so emitted code opens a scope itself: it
     takes the frontier as the frame's start, moves it past the frame, zeroes
     the record and links it to the scope around it. A slot is the frame's
     start plus its offset. A drain that has no spawned call to wait for, no
     dynamic chunk to give back, no foreign handle to end and no check to
     run moves the frontier back to the record; only a scope that places a
-    slot that may hold a handle looks for one. Otherwise both call the runtime, which does the same
-    under the context's lock. A reserved slot and a spawned call's header
+    slot that may hold a handle looks for one. Otherwise both call the runtime, which does the same.
+    A reserved slot and a spawned call's header
     and result slot are zeroed where they are placed; a held slot is written
     at once.
   - **The range is reserved, and becomes usable as it is touched.**
@@ -853,12 +853,15 @@ test passing.
     scope. When the value arrives in a place -- a slot, an overwritten
     place, a list's element -- its blocks stay where they are if their
     region outlives the place's: the same scope, an enclosing one of the
-    same context, or the program's own region. Otherwise the arrival is an
+    same context, the program's own region, or the constants' region.
+    Otherwise the arrival is an
     escape (§3.5), and they move into the region that holds the place
     first. The spec builds a fresh value in its destination directly
     (§2.3); here a value built for an older scope's place is moved there
     once. A region of another context, such as a spawned call's, is taken
-    as shorter-lived, so a result coming home always moves its blocks. A
+    as shorter-lived, so a result coming home always moves its blocks, and
+    a subject region outlives only itself, so what arrives in one moves in.
+    A
     list's growth goes to the region that holds the list. A box and a hold
     are made in the innermost region, which every block of what they take
     already outlives, so nothing arrives at either. For the same reason a
@@ -1022,14 +1025,13 @@ test passing.
   an overwrite hands on its own arrival before it writes anything below it,
   so the deepest places arrive first. Codegen emits the vacating of a value
   of the type too, which the runtime never needs. A copy takes all its
-  blocks in the innermost region and holds that region's lock for the whole
-  walk, so it takes a boxed payload's block inline: the top of its size
+  blocks in the innermost region, which only its thread changes, so it
+  takes a boxed payload's block inline: the top of its size
   class's stack, or else the next bytes at the frontier, and calls the
   runtime only when neither has one. A box takes its block the same way,
   in the region the runtime names `zane_open`: the innermost one of the
-  context running on the thread, while no call it spawned is out, so that
-  no other thread can reach it, and otherwise null. A payload larger than
-  the largest size class, or a null `zane_open`, is left to the runtime.
+  context running on the thread. A payload larger than the largest size
+  class is left to the runtime.
   This makes binarytrees, which boxes every node, use a third of the
   instructions it did. A move, an end and an overwrite return
   blocks to other regions, so they call the runtime for each block. Walking
@@ -1048,12 +1050,25 @@ test passing.
   range for it. The chunk map names the context each MiB of a range belongs
   to, and the scope each dynamic chunk does.
 
-  A context is its own thread's alone until it spawns. While a call it
-  spawned is out, that call can reach its storage: a `mut` subject that owns
-  blocks is written where it lives, in the spawner's region. So while any is
-  out, the context's scopes and regions change under its lock, and another
-  thread always takes that lock for a context it reaches. The spec leaves
-  all of this to the implementation.
+  Only its own thread changes a context's scopes and their regions, even
+  while calls it spawned are out, so nothing about them is locked. A
+  spawned `mut` call whose subject owns blocks would otherwise grow them in
+  the spawner's region, so the subject goes into a region of its own
+  (`runtime/spawn.c`): a subject region, which belongs to no scope. The
+  spawner makes it and fills it before the call starts, the call alone
+  allocates in it while it is out, and the joining thread takes it back.
+  The subject's blocks move in when no other call is out that could be
+  reading them, and are copied in otherwise. At the join the call's result
+  comes home first, since what it owns may be in the subject region. Then
+  a subject region holding a copy of a subject reached through an owner
+  has it written back (below), and its chunks are given back. Any other has
+  its chunks merged into the scope that holds the subject, or, for a local,
+  is kept for the local's next spawned call until its scope drains, so a
+  loop of such calls reuses one region rather than making one each time. A
+  package constant, which any thread may make, lives in one more such
+  region, changed under the constants' lock. A build with `ZANE_TSAN=1`,
+  and `docs/experiments/subject-regions/tsan-cc` as `ZANE_CC`, runs under
+  ThreadSanitizer. The spec leaves all of this to the implementation.
 - **The pool steals work.** Each pool thread keeps a deque of the calls it
   spawned and runs its own newest first; a thread with none left steals
   another's oldest ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §2.4). Calls spawned from the program's
@@ -1069,8 +1084,10 @@ test passing.
   instance, of what a reference names, or an element of a list -- is the one
   way spawned work writes where another thread may read at the same time
   ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §4.2–§4.4). Such a call works on a copy of its subject in
-  its frame, deep for a value that owns blocks, and writes it back when it
-  returns: what the copy owns moves into the subject's region, what the
+  its frame, deep for a value that owns blocks, which is copied into the
+  call's subject region, and writes it back: when it returns, or, for a
+  copy in a subject region, at the join, on the joining thread. What the
+  copy owns moves into the subject's region, what the
   subject owned is retired there, whole, until that region drains, and the
   bytes are replaced while one global count of write-backs begun is ahead of
   the count done. Each piece is stored in one atomic access of the widest
@@ -1472,7 +1489,10 @@ test passing.
   capture the spawning frame, and the spec forbids spawning one
   ([`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
   §3.1). A call to an intrinsic runs through `zane.intrinsic.N`, which
-  takes its arguments and makes the call.
+  takes its arguments and makes the call. For a `mut` method, such as a
+  value list's `push`, that function is a `mut` method too, so its subject
+  is lent by its address and goes into a subject region (§9) as a declared
+  method's does.
 - **A field constructor is a call.** A field-constructor call calls the
   constructor, whose body runs as any verb's does, with each entry's value
   in its slot. An entry the call leaves out passes the default the TST typed

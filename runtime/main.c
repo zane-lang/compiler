@@ -235,6 +235,7 @@ int main(int argc, char **argv) {
 	zane_thread_start();
 	zane_self = zane_context_new();
 	zane_program = zane_scope_enter(0);
+	zane_constants_start();
 	zane_main();
 	if (zane_self->top != zane_program) zane_broken("a scope was left without draining");
 	return zane_flush_output() ? 0 : 1;

@@ -6,8 +6,7 @@
    which the runtime fills from tier 0's, so it links against nothing but
    the C library on every platform. *)
 
-external value_type : Llvm.llvalue -> Llvm.lltype = "zane_global_value_type"
-external set_ordering : Llvm.llvalue -> bool -> unit = "zane_set_ordering"
+open Llvm_extra
 
 (* [global]'s every use made a load of the [index]th pointer of [table];
    false when one is a constant that no instruction holds, such as another
@@ -121,7 +120,7 @@ let exports m =
 
 let copy_attrs ~from ~into ~site =
   let n = Array.length (Llvm.params from) in
-  let at i = Emit.function_attrs from i in
+  let at i = Llvm_extra.function_attrs from i in
   Array.iter (fun a -> Llvm.add_function_attr into a Llvm.AttrIndex.Function) (at Llvm.AttrIndex.Function);
   List.iter
     (fun i ->
@@ -206,8 +205,8 @@ let tier0 m ~hash ~exports:(count, table) =
    array and each member of a struct. *)
 let rec scalars t =
   match Llvm.classify_type t with
-  | Llvm.TypeKind.Array -> Emit.array_length t * scalars (Llvm.element_type t)
-  | Llvm.TypeKind.Struct -> Array.fold_left (fun n m -> n + scalars m) 0 (Emit.struct_element_types t)
+  | Llvm.TypeKind.Array -> Llvm_extra.array_length t * scalars (Llvm.element_type t)
+  | Llvm.TypeKind.Struct -> Array.fold_left (fun n m -> n + scalars m) 0 (Llvm_extra.struct_element_types t)
   | _ -> 1
 
 (* The most scalars a frame of tier 1 may hold for its function to be

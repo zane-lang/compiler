@@ -7619,6 +7619,140 @@
   (diff golden/shapes.out shapes.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/spawnSubjects))
+ (action
+  (with-stdout-to
+   spawnSubjects.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/spawnSubjects))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawnSubjects.cgt spawnSubjects.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/spawnSubjects))
+ (targets spawnSubjects.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build spawnSubjects.exe --package fixtures/spawnSubjects)))
+
+(rule
+ (deps (source_tree fixtures/spawnSubjects))
+ (targets spawnSubjects.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build spawnSubjects.optimized.exe --optimize --package fixtures/spawnSubjects)))
+
+(rule
+ (deps (source_tree fixtures/spawnSubjects))
+ (targets spawnSubjects.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build spawnSubjects.tiered.exe --tiered --package fixtures/spawnSubjects)))
+
+(rule
+ (deps (source_tree fixtures/spawnSubjects))
+ (targets spawnSubjects.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up spawnSubjects.tier1 --package fixtures/spawnSubjects)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    spawnSubjects.checked.out.actual
+    (run ./spawnSubjects.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawnSubjects.out spawnSubjects.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    spawnSubjects.unchecked.out.actual
+    (run ./spawnSubjects.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawnSubjects.out spawnSubjects.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    spawnSubjects.optimized.checked.out.actual
+    (run ./spawnSubjects.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawnSubjects.out spawnSubjects.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    spawnSubjects.optimized.unchecked.out.actual
+    (run ./spawnSubjects.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawnSubjects.out spawnSubjects.optimized.unchecked.out.actual)))
+
+(rule
+ (deps spawnSubjects.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./spawnSubjects.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    spawnSubjects.tiered.checked.out.actual
+    (run ./spawnSubjects.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawnSubjects.out spawnSubjects.tiered.checked.out.actual)))
+
+(rule
+ (deps spawnSubjects.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./spawnSubjects.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    spawnSubjects.tiered.unchecked.out.actual
+    (run ./spawnSubjects.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/spawnSubjects.out spawnSubjects.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/spawned))
  (action
   (with-stdout-to

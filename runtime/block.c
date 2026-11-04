@@ -75,17 +75,15 @@ static zane_mark *zane_here(void) { return zane_self->top; }
 
 /* The value at `value` was copied from another place: each block it names
    is still the original's, so it gets a copy of its own, down through the
-   blocks inside it (memory.md §2.3), all in the innermost region. Its lock
-   is held for the whole walk, so the walk takes each block without one. */
+   blocks inside it (memory.md §2.3), all in the innermost region. */
 void zane_copy(char *value, const zane_type *type) {
 	if (!type) return;
 	zane_mark *region = zane_here();
 	zane_work w;
 	zane_work_start(&w);
-	zane_lock(region->context);
+	zane_check_region(region);
 	type->copy(value, (char *)region, 0, &w, 0);
 	zane_work_run(&w);
-	zane_unlock(region->context);
 }
 
 /* A boxed member's block (memory.md §3.6): exactly one payload's size. */

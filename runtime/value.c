@@ -5,10 +5,16 @@
 /* ---------------------------------------------------------------------- */
 
 /* Whether region `r` lives as long as region `s`: it is `s`, or an
-   enclosing scope of the same context, or the program's own region. A
-   region of another context is taken as shorter-lived, which only costs a
-   relocation that was not needed (docs/design/lowering.md §9). */
+   enclosing scope of the same context, the program's own region, or the
+   constants'. A region of another context is taken as shorter-lived,
+   which only costs a relocation that was not needed
+   (docs/design/lowering.md §9). */
 static int zane_outlives(const zane_mark *r, const zane_mark *s) {
+	/* What arrives in a subject region moves in, so that its call writes
+	   that region alone; a constant's region lives as long as the
+	   program's (zane_island). */
+	if (r == zane_constants_region) return 1;
+	if (zane_is_island(s)) return r == s;
 	return r == s || r == zane_program || (r->context == s->context && r->depth <= s->depth);
 }
 
@@ -22,6 +28,7 @@ static int zane_outlives(const zane_mark *r, const zane_mark *s) {
    old one is returned. */
 int64_t zane_leaves(const char *block, zane_mark *region, int64_t from) {
 	zane_mark *r = zane_region_at(block);
+	if (r == zane_constants_region) return 0;
 	if (from == 0) return !zane_outlives(r, region);
 	return r != region && r->context == zane_self && r->depth >= from;
 }
@@ -122,7 +129,7 @@ void zane_overwrite_settled(char *slot, char *incoming, int64_t size, const zane
    -1 once it is. Any other reader waits for it; its maker reading it again
    is a constant made of itself. A reader checks for -1 without the lock, so
    every access to the state is atomic. */
-static pthread_mutex_t zane_constants = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t zane_constants = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t zane_constant_made = PTHREAD_COND_INITIALIZER;
 
 /* The graph of waits. A context about to block names what it waits for: a
@@ -209,12 +216,24 @@ int64_t zane_constant_begin(int64_t *state) {
 	return make;
 }
 
+/* The constants' region, made with the program's own before any other
+   thread starts, so every thread reads its address without a lock. */
+void zane_constants_start(void) {
+	zane_island *i = calloc(1, sizeof *i);
+	if (!i) zane_broken("out of memory for the constants' region");
+	i->mark.context = zane_program->context;
+	i->mark.depth = ZANE_ISLAND_DEPTH;
+	zane_constants_region = &i->mark;
+}
+
 /* The constant at `value` is made: the blocks it owns move into the
-   program's own region, which it lives in until the program ends, and
-   every reader may now read it. */
+   constants' region, which they live in until the program ends, and every
+   reader may now read it. */
 void zane_constant_end(int64_t *state, char *value, const zane_type *type) {
-	zane_move(value, type, zane_program, 0);
+	/* Constants are made on any thread, so they get a region of their own,
+	   changed only under the constants' lock. */
 	pthread_mutex_lock(&zane_constants);
+	zane_move(value, type, zane_constants_region, 0);
 	__atomic_store_n(state, -1, __ATOMIC_RELEASE);
 	pthread_cond_broadcast(&zane_constant_made);
 	pthread_mutex_unlock(&zane_constants);

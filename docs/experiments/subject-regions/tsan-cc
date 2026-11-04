@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# The C compiler `zanec` runs, as ZANE_CC, for a ThreadSanitizer build: the
+# runtime is compiled with it and the program linked against its runtime.
+exec clang -fsanitize=thread -g "$@"

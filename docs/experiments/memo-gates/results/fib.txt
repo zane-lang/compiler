@@ -1,0 +1,41 @@
+Info: Running script "docs/experiments/memo-gates/measure.py" on /home/user/compiler
+[WARNING] Running as root is not recommended
+[WARNING] Running as root is not recommended
+[WARNING] Running as root is not recommended
+program     build               base          memo    lever     lever cyc  memo/base lever/base lever/memo  same
+fib         plain         11,049,330     1,013,475 preserve     1,014,683    -90.83%    -90.82%     +0.12%  True
+fib         optimized      8,410,642       986,921 preserve       987,825    -88.27%    -88.26%     +0.09%  True
+fib         tier0         11,052,941     1,018,110    route     1,017,643    -90.79%    -90.79%     -0.05%  True
+fib         tiered         8,632,987     1,150,502 preserve     1,151,959    -86.67%    -86.66%     +0.13%  True
+fib         tiered         8,632,987     1,150,502    route     1,152,355    -86.67%    -86.65%     +0.16%  True
+binom       plain        142,702,984     1,055,930 preserve     1,059,760    -99.26%    -99.26%     +0.36%  True
+binom       optimized    101,711,166     1,015,119 preserve     1,019,218    -99.00%    -99.00%     +0.40%  True
+binom       tier0        142,706,041     1,060,061    route     1,058,965    -99.26%    -99.26%     -0.10%  True
+binom       tiered       103,487,713     1,183,374 preserve     1,187,474    -98.86%    -98.85%     +0.35%  True
+binom       tiered       103,487,713     1,183,374    route     1,184,038    -98.86%    -98.86%     +0.06%  True
+tri         plain          5,135,161     1,013,450 preserve     1,014,734    -80.26%    -80.24%     +0.13%  True
+tri         optimized      2,966,320       986,322 preserve       987,378    -66.75%    -66.71%     +0.11%  True
+tri         tier0          5,138,324     1,017,973    route     1,017,848    -80.19%    -80.19%     -0.01%  True
+tri         tiered         3,774,975     1,149,810 preserve     1,150,381    -69.54%    -69.53%     +0.05%  True
+tri         tiered         3,774,975     1,149,810    route     1,152,331    -69.54%    -69.47%     +0.22%  True
+linear      plain        166,886,605     3,806,515 preserve     4,117,550    -97.72%    -97.53%     +8.17%  True
+linear      optimized    121,385,697     2,574,495 preserve     2,887,536    -97.88%    -97.62%    +12.16%  True
+linear      tier0        166,890,382     3,807,958    route     3,790,344    -97.72%    -97.73%     -0.46%  True
+linear      tiered        76,928,854     2,742,277 preserve     2,989,590    -96.44%    -96.11%     +9.02%  True
+linear      tiered        76,928,854     2,742,277    route     2,777,691    -96.44%    -96.39%     +1.29%  True
+moves       plain        248,232,416     1,087,176 preserve     1,105,983    -99.56%    -99.55%     +1.73%  True
+moves       optimized     98,733,428     1,029,606 preserve     1,034,112    -98.96%    -98.95%     +0.44%  True
+moves       tier0        253,202,511     1,105,295    route     1,125,593    -99.56%    -99.56%     +1.84%  True
+moves       tiered       193,804,902     1,180,243 preserve     1,176,842    -99.39%    -99.39%     -0.29%  True
+moves       tiered       193,804,902     1,180,243    route     1,172,977    -99.39%    -99.39%     -0.62%  True
+overlap     plain         52,910,678     9,349,766 preserve    10,303,546    -82.33%    -80.53%    +10.20%  True
+overlap     optimized     28,246,178     5,952,141 preserve     6,645,017    -78.93%    -76.47%    +11.64%  True
+overlap     tier0         52,913,733     9,353,971    route     9,228,216    -82.32%    -82.56%     -1.34%  True
+overlap     tiered        40,044,535     6,903,243 preserve     7,751,013    -82.76%    -80.64%    +12.28%  True
+overlap     tiered        40,044,535     6,903,243    route     7,016,926    -82.76%    -82.48%     +1.65%  True
+phase       plain         15,573,457    10,793,565 preserve    10,796,676    -30.69%    -30.67%     +0.03%  True
+phase       optimized      6,561,462     6,548,279 preserve     6,551,985     -0.20%     -0.14%     +0.06%  True
+phase       tier0         15,576,614    10,800,318    route    11,197,863    -30.66%    -28.11%     +3.68%  True
+phase       tiered        10,827,698     7,589,440 preserve     7,587,985    -29.91%    -29.92%     -0.02%  True
+phase       tiered        10,827,698     7,589,440    route     7,587,120    -29.91%    -29.93%     -0.03%  True
+ALLDONE

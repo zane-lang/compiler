@@ -56,7 +56,7 @@ let marked f names =
       match Llvm.repr_of_attr a with
       | Llvm.AttrRepr.Enum (kind, _) -> List.exists (fun n -> kind = Llvm.enum_attr_kind n) names
       | Llvm.AttrRepr.String _ -> false)
-    (Emit.function_attrs f Llvm.AttrIndex.Function)
+    (Llvm_extra.function_attrs f Llvm.AttrIndex.Function)
 
 (* Whether [v] is a function from outside the runtime, such as the C
    library's; LLVM's own intrinsics are not. *)

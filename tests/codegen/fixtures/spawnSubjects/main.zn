@@ -1,0 +1,202 @@
+/// Spawned `mut` calls whose subjects own blocks, in the shapes the spawns
+/// fixture does not reach: a list's element, a subject passed to a function
+/// value, a spawned call that spawns on its own subject and on a local of
+/// its own, one that aborts after writing its subject, a reader spawned
+/// before the writer, one still out when its scope drains, the same local
+/// spawned on again, alone and from a loop, a result that owns a block it
+/// took from its subject, an intrinsic `mut` method, and a package constant that owns a block read
+/// from a spawned call. Each check prints `yes` when it holds and `no` when it
+/// does not.
+package spawnSubjects;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+alias List<T Type> = @primitives$List<T>;
+alias Words = List<String>;
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+/// A value that boxes itself, so it owns a block for each level.
+type Countdown = variant {
+	done Unit;
+	more Countdown;
+}
+
+Int depth(c Countdown) => match (c) {
+	d done => Int(0);
+	m more => @operators$add(Int(1), depth(m));
+}
+
+Unit deepen(this Countdown, n Int) mut {
+	i Int(1);
+	i!to(n) {
+		this = Countdown.more(this);
+	}
+	return Unit();
+}
+
+/// Deepens by `n`, then aborts with the depth it reached when `stop` holds.
+Int?Int deepenOrStop(this Countdown, n Int, stop Bool) mut {
+	i Int(1);
+	i!to(n) {
+		this = Countdown.more(this);
+	}
+	@controlflow$branch(stop, { abort depth(this); });
+	return depth(this);
+}
+
+/// Spawns a call on its own subject and one on a local of its own.
+Int nested(this Countdown, n Int) mut {
+	mine Countdown = Countdown.done(Unit());
+	@controlflow$branch(true, {
+		spawn this!deepen(n);
+		spawn mine!deepen(@operators$add(n, n));
+	});
+	return @operators$add(depth(this), depth(mine));
+}
+
+/// Whether `c` is as deep as it was before a writer spawned after this
+/// call deepened it by 20, or as deep as after.
+Unit sees(c Countdown, before Int) {
+	d Int = depth(c);
+	check(@operators$disjoin(@operators$equal(d, before), @operators$equal(d, @operators$add(before, Int(20)))));
+	return Unit();
+}
+
+/// The first word, taken out of the list.
+String takeFirst(this Words) mut => this!remove(Int(1));
+
+/// One spawned call on the subject, waited for before this returns.
+Unit tick(this Countdown) mut {
+	@controlflow$branch(true, {
+		spawn this!deepen(Int(1));
+	});
+	return Unit();
+}
+
+banner String = @operators$concat(String("sub"), String("ject"));
+
+Bool bannerRight() => @operators$equal(banner, String("subject"));
+
+Unit main() {
+	// Two elements of one list.
+	xs ListRef<Countdown> = @primitives$ListRef(Countdown);
+	xs!push(Countdown.done(Unit()));
+	xs!push(Countdown.done(Unit()));
+	@controlflow$branch(true, {
+		spawn xs[Int(1)]!deepen(Int(50));
+	});
+	@controlflow$branch(true, {
+		spawn xs[Int(2)]!deepen(Int(70));
+	});
+	check(@operators$equal(depth(xs[Int(1)]), Int(50)));
+	check(@operators$equal(depth(xs[Int(2)]), Int(70)));
+
+	// A subject passed to a function value.
+	grow Unit(this Countdown, n Int) mut {
+		i Int(1);
+		i!to(n) {
+			this = Countdown.more(this);
+		}
+		return Unit();
+	}
+	f Countdown = Countdown.done(Unit());
+	@controlflow$branch(true, {
+		spawn grow(f, Int(40));
+	});
+	check(@operators$equal(depth(f), Int(40)));
+
+	// A spawned call that spawns on its subject and on a local of its own.
+	g Countdown = Countdown.done(Unit());
+	@controlflow$branch(true, {
+		both Int = spawn g!nested(Int(30));
+		check(@operators$equal(both, Int(90)));
+	});
+	check(@operators$equal(depth(g), Int(30)));
+
+	// A spawned call that writes its subject, then aborts.
+	h Countdown = Countdown.done(Unit());
+	@controlflow$branch(true, {
+		reached Int = spawn h!deepenOrStop(Int(25), true) ?? Int(0);
+		check(@operators$equal(reached, Int(0)));
+	});
+	check(@operators$equal(depth(h), Int(25)));
+
+	// A reader spawned before the writer of what it reads.
+	k Countdown = Countdown.done(Unit());
+	k!deepen(Int(20));
+	@controlflow$branch(true, {
+		seen Int = spawn depth(k);
+		spawn k!deepen(Int(20));
+		check(@operators$disjoin(@operators$equal(seen, Int(20)), @operators$equal(seen, Int(40))));
+	});
+	check(@operators$equal(depth(k), Int(40)));
+
+	// The same local spawned on again, alone and from a loop.
+	@controlflow$branch(true, {
+		spawn k!deepen(Int(5));
+	});
+	round Int(1);
+	round!to(Int(30)) {
+		k!tick();
+	}
+	check(@operators$equal(depth(k), Int(75)));
+
+	// A reader still out when its scope drains, which joins the writer
+	// spawned after it first.
+	@controlflow$branch(true, {
+		spawn sees(k, Int(75));
+		spawn k!deepen(Int(20));
+	});
+	check(@operators$equal(depth(k), Int(95)));
+
+	// A result that owns a block it took from its subject, reached through
+	// an owner, so the block was in the call's subject region.
+	ys ListRef<Words> = @primitives$ListRef(Words);
+	words Words = @primitives$List(String);
+	words!push(@operators$concat(String("taken out "), String("of the subject")));
+	ys!push(words);
+	@controlflow$branch(true, {
+		took String = spawn ys[Int(1)]!takeFirst();
+		filler String = @operators$concat(String("written over "), String("what was given back"));
+		check(@operators$equal(took, String("taken out of the subject")));
+	});
+	check(@operators$equal(ys[Int(1)]:size(), Int(0)));
+
+	// An intrinsic `mut` method spawned on a local, while the spawner grows
+	// a list of its own, and on an element reached through an owner.
+	ns List<Int> = @primitives$List(Int);
+	@controlflow$repeat(Int(300), { ns!push(Int(2)); });
+	@controlflow$branch(true, {
+		spawn ns!push(Int(3));
+		mine List<Int> = @primitives$List(Int);
+		@controlflow$repeat(Int(300), { mine!push(Int(4)); });
+	});
+	check(@operators$conjoin(@operators$equal(ns:size(), Int(301)), @operators$equal(ns[Int(301)], Int(3))));
+	@controlflow$branch(true, {
+		spawn ys[Int(1)]!push(String("pushed through an owner"));
+	});
+	check(@operators$equal(ys[Int(1)][Int(1)], String("pushed through an owner")));
+
+	// A constant that owns a block, read from a spawned call.
+	right Bool = spawn bannerRight();
+	check(right);
+	return Unit();
+}

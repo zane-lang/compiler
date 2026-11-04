@@ -1084,12 +1084,12 @@ let dispose (env : Codegen__Emit.env) =
 let long_arrays () =
   let env = emit_env () in
   let t = Codegen__Emit.lltype env (Cgt.Nodes.Ty.Array (Cgt.Nodes.Ty.I1, 4294967297)) in
-  check "an array of 2^32 + 1 elements keeps its length" (Codegen__Emit.array_length t = 4294967297);
+  check "an array of 2^32 + 1 elements keeps its length" (Codegen__Llvm_extra.array_length t = 4294967297);
   check "its parts saturate past LLVM's limit"
     (Codegen__Big_moves.parts t = Codegen__Big_moves.most_parts + 1);
   check "a sum's payload room keeps its length"
-    (Codegen__Emit.array_length
-       (Codegen__Emit.struct_element_types
+    (Codegen__Llvm_extra.array_length
+       (Codegen__Llvm_extra.struct_element_types
           (Codegen__Emit.lltype env (Cgt.Nodes.Ty.Sum [ Cgt.Nodes.Ty.Array (Cgt.Nodes.Ty.I64, 1 lsl 33) ]))).(1)
     = 1 lsl 33);
   dispose env
@@ -1176,9 +1176,9 @@ let backstop () =
   let ctx = Llvm.create_context () in
   let m = Llvm.create_module ctx "backstop" in
   let i64 = Llvm.i64_type ctx in
-  let big = Codegen__Emit.array_type i64 65536 in
+  let big = Codegen__Llvm_extra.array_type i64 65536 in
   let layout = Llvm_target.DataLayout.of_string "e-m:e-i64:64-n8:16:32:64-S128" in
-  ignore (Llvm.declare_function "small" (Llvm.function_type i64 [| Codegen__Emit.array_type i64 3 |]) m);
+  ignore (Llvm.declare_function "small" (Llvm.function_type i64 [| Codegen__Llvm_extra.array_type i64 3 |]) m);
   check "a signature of small aggregates passes" (Codegen__Big_moves.rewrite layout m = Ok ());
   ignore (Llvm.declare_function "takes" (Llvm.function_type i64 [| big |]) m);
   raises_bug "a parameter of 65,536 parts is a bug" (fun () -> Codegen__Big_moves.rewrite layout m);

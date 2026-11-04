@@ -72,8 +72,10 @@ type fn =
   | Handle_set
   | Callback_attach
   | Callback_detach
+  (* A spawned call's subject into a region of its own (runtime/spawn.c). *)
+  | Island
 
-let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach ]
+let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island ]
 
 let name = function
   | Print -> "zane_print"
@@ -135,6 +137,7 @@ let name = function
   | Handle_set -> "zane_handle_set"
   | Callback_attach -> "zane_callback_attach"
   | Callback_detach -> "zane_callback_detach"
+  | Island -> "zane_island_make"
 
 (* A value as the C ABI passes it: [I32] a `uint32_t`, [I64] an `int64_t`,
    and [Ptr] any pointer, a function's included. *)
@@ -199,6 +202,7 @@ let signature = function
   | Handle_end -> (Void, [ Ptr; Ptr ])
   | Handle_set -> (Void, [ Ptr; Ptr; Ptr ])
   | Callback_attach | Callback_detach -> (Void, [])
+  | Island -> (Void, [ Ptr; I64; Ptr; I64 ])
 
 (* The size of the range each context reserves for its frames, the main
    context's and each spawned call's, when the root manifest gives none

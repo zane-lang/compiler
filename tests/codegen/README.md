@@ -203,6 +203,18 @@ then run it again, read the golden diff and promote that.
   intrinsic method, verbs expanded where they are called because they take
   literals, an array literal among them, one that aborts, and one with a
   `mut` subject; and a spawned call bound to a `mut` function type.
+- `spawnSubjects` is spawned `mut` calls whose subjects own blocks, in the
+  shapes `spawns` does not reach: a list's element, a subject passed to a
+  function value, a spawned call that spawns on its own subject and on a
+  local of its own, one that aborts after writing its subject, a reader
+  spawned before the writer and one still out when its scope drains, the
+  same local spawned on again, alone and from a loop, a result that owns a
+  block it took from its subject, an intrinsic `mut` method spawned on a
+  local and on an element reached through an owner, and a package constant
+  that owns a block read from a spawned call. Written for subject regions
+  (docs/experiments/subject-regions), which a checked drain of the nested
+  case once stopped. Every check prints `yes` when it holds and `no` when it
+  does not.
 - `references` is step 10's `&` written before a place, minting and copying
   guests, and `@program$console` passed where a guest is wanted.
 - `probed` keeps running what the memory-semantics probes

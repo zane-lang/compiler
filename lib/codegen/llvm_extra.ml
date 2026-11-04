@@ -1,0 +1,34 @@
+(* What codegen needs of LLVM that its OCaml bindings lack or get wrong,
+   bound in llvm_stubs.c. *)
+
+external set_ordering : Llvm.llvalue -> bool -> unit = "zane_set_ordering"
+
+(* An array type and its length with all 64 bits of the count, where the
+   bindings' own truncate it to 32 (llvm_stubs.c). *)
+external array_type : Llvm.lltype -> int -> Llvm.lltype = "zane_array_type"
+external array_length : Llvm.lltype -> int = "zane_array_length"
+
+(* A type attribute, such as `sret(T)`, which the bindings cannot make
+   (llvm_stubs.c). *)
+external type_attr : Llvm.llcontext -> string -> Llvm.lltype -> Llvm.llattribute = "zane_type_attr"
+
+(* A function's own type (llvm_stubs.c). *)
+external value_type : Llvm.llvalue -> Llvm.lltype = "zane_global_value_type"
+
+(* `llvm.assume` with `dereferenceable` and `align` bundles on an address,
+   at the end of a block, which the bindings cannot build (llvm_stubs.c):
+   the block, `llvm.assume` and its type, the address, its size and its
+   alignment. *)
+external assume_dereferenceable :
+  Llvm.llbasicblock -> Llvm.lltype -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue -> unit
+  = "zane_assume_dereferenceable_bytecode" "zane_assume_dereferenceable"
+
+(* The bindings' `param_types`, `struct_element_types` and `function_attrs`,
+   correct when they give nothing (llvm_stubs.c). Codegen uses these
+   instead. *)
+external param_types : Llvm.lltype -> Llvm.lltype array = "zane_param_types"
+external struct_element_types : Llvm.lltype -> Llvm.lltype array = "zane_struct_element_types"
+external function_attrs_at : Llvm.llvalue -> int -> Llvm.llattribute array = "zane_function_attrs"
+
+let function_attrs f (i : Llvm.AttrIndex.t) =
+  function_attrs_at f (match i with Llvm.AttrIndex.Function -> -1 | Return -> 0 | Param n -> n + 1)

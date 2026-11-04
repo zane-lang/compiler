@@ -5,38 +5,7 @@
 open Cgt.Nodes
 open Loop_shapes
 open Call_pieces
-
-external set_ordering : Llvm.llvalue -> bool -> unit = "zane_set_ordering"
-
-(* An array type and its length with all 64 bits of the count, where the
-   bindings' own truncate it to 32 (llvm_stubs.c). *)
-external array_type : Llvm.lltype -> int -> Llvm.lltype = "zane_array_type"
-external array_length : Llvm.lltype -> int = "zane_array_length"
-
-(* A type attribute, such as `sret(T)`, which the bindings cannot make
-   (llvm_stubs.c). *)
-external type_attr : Llvm.llcontext -> string -> Llvm.lltype -> Llvm.llattribute = "zane_type_attr"
-
-(* A function's own type (llvm_stubs.c). *)
-external value_type : Llvm.llvalue -> Llvm.lltype = "zane_global_value_type"
-
-(* `llvm.assume` with `dereferenceable` and `align` bundles on an address,
-   at the end of a block, which the bindings cannot build (llvm_stubs.c):
-   the block, `llvm.assume` and its type, the address, its size and its
-   alignment. *)
-external assume_dereferenceable :
-  Llvm.llbasicblock -> Llvm.lltype -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue -> unit
-  = "zane_assume_dereferenceable_bytecode" "zane_assume_dereferenceable"
-
-(* The bindings' `param_types`, `struct_element_types` and `function_attrs`,
-   correct when they give nothing (llvm_stubs.c). Codegen uses these
-   instead. *)
-external param_types : Llvm.lltype -> Llvm.lltype array = "zane_param_types"
-external struct_element_types : Llvm.lltype -> Llvm.lltype array = "zane_struct_element_types"
-external function_attrs_at : Llvm.llvalue -> int -> Llvm.llattribute array = "zane_function_attrs"
-
-let function_attrs f (i : Llvm.AttrIndex.t) =
-  function_attrs_at f (match i with Llvm.AttrIndex.Function -> -1 | Return -> 0 | Param n -> n + 1)
+open Llvm_extra
 
 (* How a value of a type crosses a call (docs/design/lowering.md §9): as
    itself, in as many registers as it has pieces; as the address of a slot
@@ -612,13 +581,13 @@ and context_top = Abi.context_top
 and context_limit = Abi.context_limit
 
 (* A scope opens with a frame of [size] bytes (Frames), and its record's
-   address names it. While no call this thread's context spawned is out,
-   nothing else can reach the context, so the code places the frame itself:
-   the record goes at the frontier, which moves past the frame, and links to
-   the scope around it and to the one it skips to (runtime/zane_internal.h).
-   A frame larger than the guard after the range is checked against the
-   range's end first; a smaller one that does not fit faults in the guard.
-   Otherwise the runtime places it under the context's lock.
+   address names it. Only this thread changes its context's scopes, so the
+   code places the frame itself: the record goes at the frontier, which
+   moves past the frame, and links to the scope around it and to the one it
+   skips to (runtime/zane_internal.h). A frame larger than the guard after
+   the range is checked against the range's end first; a smaller one that
+   does not fit faults in the guard. A thread that runs no context yet has
+   no open scope, and the runtime places the frame instead.
 
    Either way, reading any slot of the open scope's frame is safe: in the
    range the runtime makes the slot's memory usable, and in the guard it
@@ -1867,7 +1836,7 @@ and stat env fr b (s : Stat.t) =
       let exit, depth = Hashtbl.find fr.labels label in
       drain env fr b depth;
       ignore (Llvm.build_br exit b)
-  | Stat.Spawn { task; scope; thunk; frame; args; dest; layout = l } ->
+  | Stat.Spawn { task; scope; thunk; frame; args; dest; layout = l; island } ->
       (* The arguments run first, in order; then the frame is made, filled,
          and handed to the pool with where its result goes. *)
       let values = List.map (expr env fr b) args in
@@ -1882,6 +1851,16 @@ and stat env fr b (s : Stat.t) =
             (fun v -> ignore (Llvm.build_store v (Llvm.build_struct_gep t at (i + 1) "" b) b))
             v)
         values;
+      Option.iter
+        (fun (i : Expr.island) ->
+          let field = Llvm.build_struct_gep t at i.Expr.field "" b in
+          Option.iter
+            (fun copy -> ignore (Llvm.build_store (Llvm.build_struct_gep t at copy "" b) field b))
+            i.Expr.copy;
+          ignore
+            (call_runtime env b Cgt.Runtime.Island
+               [| field; n i.Expr.size; layout env i.Expr.value_layout; n (if Option.is_some i.Expr.copy then 1 else 0) |]))
+        island;
       ignore (Llvm.build_store at (slot env fr task env.ptr) b);
       let result = match frame with Ty.Struct (r :: _) -> r | _ -> Ty.Void in
       let home, bytes =

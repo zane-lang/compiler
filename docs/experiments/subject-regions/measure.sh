@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Guest instructions (Valgrind's lackey, whole process) of one package
+# built two ways, optimized: by BASE_ZANEC, a zanec built at a commit with
+# the locked design (such as this branch's base), and by this tree's, with
+# subject regions. Callgrind stops on the runtime's commit-on-touch
+# fault in a spawned thread, so lackey counts instead. Valgrind runs one
+# thread at a time, so this counts the work each build does, not what
+# contention costs. Run inside `devbox run`.
+# Usage: BASE_ZANEC=PATH measure.sh OUT_DIR PACKAGE_DIR [ARGS...]
+set -u
+root=$(cd "$(dirname "$0")/../../.." && pwd)
+out=$1; pkg=$2; shift 2
+zanec=$root/_build/default/bin/zanec/zanec.exe
+base=${BASE_ZANEC:?set BASE_ZANEC to a zanec with the locked design}
+name=$(basename "$pkg")
+build() { "$1" --build "$out/$name.$tag.exe" --optimize --package "$pkg" > "$out/$name.$tag.build" 2>&1; }
+for tag in base subject; do
+	case $tag in
+		base) build "$base" ;;
+		subject) build "$zanec" ;;
+	esac || { echo "$tag: build failed"; cat "$out/$name.$tag.build"; exit 1; }
+	if ! valgrind --tool=lackey --basic-counts=yes "$out/$name.$tag.exe" "$@" > "$out/$name.$tag.out" 2> "$out/$name.$tag.vg"; then
+		echo "$tag: run failed"; tail -20 "$out/$name.$tag.vg"; exit 1
+	fi
+	ir=$(grep -a "guest instrs:" "$out/$name.$tag.vg" | awk '{print $NF}')
+	echo "$tag: $ir instructions; output $(sort "$out/$name.$tag.out" | uniq -c | tr '\n' ' ')"
+done

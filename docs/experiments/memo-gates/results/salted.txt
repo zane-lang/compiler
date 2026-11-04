@@ -1,0 +1,45 @@
+Info: Running script "docs/experiments/memo-gates/measure.py" on /home/user/compiler
+[WARNING] Running as root is not recommended
+[WARNING] Running as root is not recommended
+[WARNING] Running as root is not recommended
+program     build               base          memo    lever     lever cyc  memo/base lever/base lever/memo  same
+salted      plain         13,909,894    13,937,097 preserve    13,940,060     +0.20%     +0.22%     +0.02%  True
+salted      optimized     12,421,493    12,459,239 preserve    12,462,481     +0.30%     +0.33%     +0.03%  True
+salted      tier0         13,912,877    13,941,044    route    13,941,314     +0.20%     +0.20%     +0.00%  True
+salted      tiered        11,577,273    11,601,333 preserve    11,604,219     +0.21%     +0.23%     +0.02%  True
+salted      tiered        11,577,273    11,601,333    route    11,601,047     +0.21%     +0.21%     -0.00%  True
+shallow     plain         24,405,680    24,436,006 preserve    24,438,429     +0.12%     +0.13%     +0.01%  True
+shallow     optimized        981,481     1,022,076 preserve     1,025,291     +4.14%     +4.46%     +0.31%  True
+shallow     tier0         24,409,079    24,440,811    route    24,440,494     +0.13%     +0.13%     -0.00%  True
+shallow     tiered        14,339,651    13,767,324 preserve    13,769,860     -3.99%     -3.97%     +0.02%  True
+shallow     tiered        14,339,651    13,767,324    route    13,767,258     -3.99%     -3.99%     -0.00%  True
+shallowin   plain         24,406,159    24,436,391 preserve    24,438,113     +0.12%     +0.13%     +0.01%  True
+shallowin   optimized      9,981,702     9,423,554 preserve     9,427,008     -5.59%     -5.56%     +0.04%  True
+shallowin   tier0         24,409,424    24,441,376    route    24,440,626     +0.13%     +0.13%     -0.00%  True
+shallowin   tiered        14,341,166    13,770,675 preserve    13,770,530     -3.98%     -3.98%     -0.00%  True
+shallowin   tiered        14,341,166    13,770,675    route    13,765,788     -3.98%     -4.01%     -0.04%  True
+split       plain         84,151,545    83,937,223 preserve    83,939,236     -0.25%     -0.25%     +0.00%  True
+split       optimized     59,787,590    59,845,765 preserve    59,849,612     +0.10%     +0.10%     +0.01%  True
+split       tier0         83,914,756    83,941,864    route    83,941,883     +0.03%     +0.03%     +0.00%  True
+split       tiered        57,638,925    55,741,820 preserve    55,745,661     -3.29%     -3.28%     +0.01%  True
+split       tiered        57,638,925    55,741,820    route    55,742,487     -3.29%     -3.29%     +0.00%  True
+tree        plain         71,471,290    71,980,577 preserve    71,744,593     +0.71%     +0.38%     -0.33%  True
+tree        optimized     32,962,353    33,000,467 preserve    33,003,881     +0.12%     +0.13%     +0.01%  True
+tree        tier0         71,474,565    71,506,458    route    71,745,194     +0.04%     +0.38%     +0.33%  True
+tree        tiered        51,614,548    51,636,836 preserve    51,638,414     +0.04%     +0.05%     +0.00%  True
+tree        tiered        51,614,548    51,636,836    route    51,874,410     +0.04%     +0.50%     +0.46%  True
+ttt         plain        438,567,921    17,157,660 preserve    17,554,851    -96.09%    -96.00%     +2.31%  True
+ttt         optimized    123,945,389     7,068,099 preserve     7,363,277    -94.30%    -94.06%     +4.18%  True
+ttt         tier0        438,570,505    17,092,554    route    17,142,772    -96.10%    -96.09%     +0.29%  True
+ttt         tiered       126,518,705     7,437,154 preserve     7,841,404    -94.12%    -93.80%     +5.44%  True
+ttt         tiered       126,518,705     7,437,154    route     7,483,824    -94.12%    -94.08%     +0.63%  True
+tttpath     plain        441,317,486   442,030,011 preserve   442,059,020     +0.16%     +0.17%     +0.01%  True
+tttpath     optimized    126,618,157   127,000,346 preserve   127,018,797     +0.30%     +0.32%     +0.01%  True
+tttpath     tier0        441,645,196   442,355,935    route   442,431,577     +0.16%     +0.18%     +0.02%  True
+tttpath     tiered       129,530,346   129,959,377 preserve   129,988,066     +0.33%     +0.35%     +0.02%  True
+tttpath     tiered       129,530,346   129,959,377    route   129,967,919     +0.33%     +0.34%     +0.01%  True
+corefib     plain      ERROR [' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n', ' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n', ' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n']
+corefib     optimized  ERROR [' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n', ' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n', ' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n']
+corefib     tier0      ERROR [' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n', ' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n', ' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n']
+corefib     tiered     ERROR [' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n', ' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n', ' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n']
+corefib     tiered     ERROR [' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n', ' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n', ' 19-25:\n18 |     console!print(String(fib(n)));\n   |                   ^^^^^^\nError: no type named `String` is in scope\nFile "/home/user/compiler/dev/bench/memo/programs/corefib/main.zn", line 19, characters 12-16:\n19 |     return Unit();\n   |            ^^^^\nError: no type named `Unit` is in scope\n']

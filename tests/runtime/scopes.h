@@ -17,11 +17,9 @@ const int64_t zane_fixed_region = (int64_t)256 << 20, zane_spawned_fixed_region 
 static inline void *test_slot(zane_mark *scope, int64_t size, int64_t align, const zane_type *type) {
 	zane_context *c = zane_self;
 	if (scope != c->top) zane_broken("a slot placed in a scope that is not innermost");
-	zane_lock(c);
 	char *at = (char *)(((uintptr_t)c->frontier + (uintptr_t)align - 1) / (uintptr_t)align * (uintptr_t)align);
 	if (size > c->limit - at) zane_too_deep_in(c);
 	c->frontier = (char *)(((uintptr_t)at + (uintptr_t)size + 15) / 16 * 16);
-	zane_unlock(c);
 	memset(at, 0, (size_t)size);
 	if (zane_checking && type) zane_hold(at, type);
 	return at;
