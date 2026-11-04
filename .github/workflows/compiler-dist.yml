@@ -3,28 +3,36 @@ name: Compiler distribution
 on:
   pull_request:
     paths:
-      - '.github/workflows/compiler-dist.yml'
-      - '.github/workflows/release.yml'
-      - '.github/scripts/release-tag'
-      - '.github/scripts/install-zig'
-      - '.github/actions/setup-ci/**'
-      - 'dev/release/**'
-      - 'dev/toolchains/**'
-      - 'tests/release/**'
-      - 'tests/codegen/fixtures/hello/**'
-      - 'tests/codegen/golden/hello.out'
-      - 'dev/bin/check-programs'
-      - 'dev/setup/bootstrap-toolchain'
-      - 'devbox.*'
-      - 'bin/**'
-      - 'lib/**'
-      - 'runtime/**'
-      - 'dune-project'
+      - ".github/workflows/compiler-dist.yml"
+      - ".github/workflows/release.yml"
+      - ".github/scripts/release-tag"
+      - ".github/scripts/install-zig"
+      - ".github/actions/setup-ci/**"
+      - "dev/release/**"
+      - "dev/toolchains/**"
+      - ".github/scripts/install-zig-macos"
+      - "tests/release/**"
+      - "tests/codegen/fixtures/hello/**"
+      - "tests/codegen/golden/hello.out"
+      - "dev/bin/check-programs"
+      - "dev/setup/bootstrap-toolchain"
+      - "devbox.*"
+      - "bin/**"
+      - "lib/**"
+      - "runtime/**"
+      - "dune-project"
   workflow_call:
     inputs:
       version:
         type: string
         required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version label for the test archives
+        type: string
+        required: false
+        default: v0.0
 
 permissions:
   contents: read
@@ -127,6 +135,56 @@ jobs:
         with:
           name: compiler-macos-smoke
           path: macos-smoke
+          if-no-files-found: error
+
+  macos-compiler:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            arch: aarch64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ inputs.version || 'v0.0' }}
+      ZIG_MANIFEST: dev/toolchains/zig-${{ matrix.arch }}-macos.json
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+      - name: Set up compiler toolchain
+        uses: ./.github/actions/setup-ci
+      - name: Install verified native Zig
+        run: .github/scripts/install-zig-macos "$ZIG_MANIFEST"
+      - name: Build compiler and package macOS toolchain
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          devbox run -- dune build bin/zanec/zanec.exe
+          devbox run -- python3 dev/release/package-macos.py \
+            --binary _build/default/bin/zanec/zanec.exe --zig "$ZIG" \
+            --zig-manifest "$ZIG_MANIFEST" --version "$VERSION" \
+            --commit "$SOURCE_SHA" --output dist
+      - name: Smoke-test extracted macOS toolchain
+        run: |
+          mkdir -p "$RUNNER_TEMP/macos-smoke"
+          tar -xzf "dist/zane-compiler-$VERSION-macos-${{ matrix.arch }}.tar.gz" \
+            -C "$RUNNER_TEMP/macos-smoke"
+          root="$RUNNER_TEMP/macos-smoke/zane-compiler-$VERSION-macos-${{ matrix.arch }}"
+          cp -R tests/codegen/fixtures/hello "$RUNNER_TEMP/hello"
+          "$root/bin/zanec" --build "$RUNNER_TEMP/hello-program" \
+            --package "$RUNNER_TEMP/hello"
+          "$RUNNER_TEMP/hello-program" > "$RUNNER_TEMP/hello.out"
+          cmp tests/codegen/golden/hello.out "$RUNNER_TEMP/hello.out"
+      - name: Keep macOS compiler archive
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: compiler-macos-${{ matrix.arch }}
+          path: dist/*.tar.gz
           if-no-files-found: error
 
   windows:

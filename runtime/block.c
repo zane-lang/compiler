@@ -1,9 +1,15 @@
+
 #include "zane_internal.h"
 
 #include <errno.h>
 #include <inttypes.h>
 #include <locale.h>
 #include <math.h>
+
+#ifdef __APPLE__
+#define _DARWIN_C_SOURCE
+#include <xlocale.h>
+#endif
 
 /* ---------------------------------------------------------------------- */
 /* Dynamic blocks (memory.md §3.6, docs/design/lowering.md §9)                   */

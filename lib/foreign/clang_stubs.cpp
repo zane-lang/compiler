@@ -344,9 +344,12 @@ public:
       const clang::ASTRecordLayout &layout = ctx.getASTRecordLayout(def);
       num(ctx.toBits(layout.getSize()));
       num(ctx.toBits(layout.getAlignment()));
-      std::vector<const clang::FieldDecl *> fields(def->field_begin(), def->field_end());
+      std::vector<const clang::FieldDecl *> fields;
+      for (auto it = def->field_begin(); it != def->field_end(); ++it)
+        fields.push_back(*it);
       num(fields.size());
       for (const clang::FieldDecl *f : fields) {
+        // const clang::FieldDecl *f = *it;
         str(f->getName().str());
         type(f->getType());
         num(layout.getFieldOffset(f->getFieldIndex()));
