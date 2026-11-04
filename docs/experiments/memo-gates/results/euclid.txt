@@ -1,0 +1,40 @@
+Info: Running script "docs/experiments/memo-gates/measure.py" on /home/user/compiler
+[WARNING] Running as root is not recommended
+[WARNING] Running as root is not recommended
+[WARNING] Running as root is not recommended
+program     build               base          memo    lever     lever cyc  memo/base lever/base lever/memo  same
+euclid      plain         12,270,829    12,286,676 preserve    12,287,840     +0.13%     +0.14%     +0.01%  True
+euclid      optimized      7,835,291     7,555,401 preserve     7,556,125     -3.57%     -3.56%     +0.01%  True
+euclid      tier0         12,274,244    12,291,787    route    12,290,650     +0.14%     +0.13%     -0.01%  True
+euclid      tiered         7,711,184     7,716,304 preserve     7,717,526     +0.07%     +0.08%     +0.02%  True
+euclid      tiered         7,711,184     7,716,304    route     7,713,547     +0.07%     +0.03%     -0.04%  True
+heavyleaf   plain        174,315,487   174,174,018 preserve   174,188,628     -0.08%     -0.07%     +0.01%  True
+heavyleaf   optimized     70,861,957    70,877,476 preserve    70,890,630     +0.02%     +0.04%     +0.02%  True
+heavyleaf   tier0        174,319,138   174,178,061    route   174,168,667     -0.08%     -0.09%     -0.01%  True
+heavyleaf   tiered        71,025,189    71,054,480 preserve    71,066,557     +0.04%     +0.06%     +0.02%  True
+heavyleaf   tiered        71,025,189    71,054,480    route    71,053,908     +0.04%     +0.04%     -0.00%  True
+leaves      plain         72,110,816    72,175,536 preserve    72,182,380     +0.09%     +0.10%     +0.01%  True
+leaves      optimized     48,756,626    48,869,607 preserve    48,877,877     +0.23%     +0.25%     +0.02%  True
+leaves      tier0         72,114,697    72,180,431    route    72,177,915     +0.09%     +0.09%     -0.00%  True
+leaves      tiered        48,914,987    48,974,161 preserve    48,980,163     +0.12%     +0.13%     +0.01%  True
+leaves      tiered        48,914,987    48,974,161    route    48,970,783     +0.12%     +0.11%     -0.01%  True
+loopcold    plain        106,085,026   106,234,453 preserve   106,243,985     +0.14%     +0.15%     +0.01%  True
+loopcold    optimized     49,541,239    49,631,028 preserve    49,639,381     +0.18%     +0.20%     +0.02%  True
+loopcold    tier0        106,088,483   106,238,394    route   106,240,263     +0.14%     +0.14%     +0.00%  True
+loopcold    tiered        49,700,145    49,795,290 preserve    49,803,416     +0.19%     +0.21%     +0.02%  True
+loopcold    tiered        49,700,145    49,795,290    route    49,798,848     +0.19%     +0.20%     +0.01%  True
+loopleaf    plain        106,265,044     6,955,837 preserve     7,236,017    -93.45%    -93.19%     +4.03%  True
+loopleaf    optimized     49,561,617     3,453,774 preserve     3,790,641    -93.03%    -92.35%     +9.75%  True
+loopleaf    tier0        106,268,811     6,960,608    route     6,960,644    -93.45%    -93.45%     +0.00%  True
+loopleaf    tiered        49,720,279     3,715,404 preserve     4,032,829    -92.53%    -91.89%     +8.54%  True
+loopleaf    tiered        49,720,279     3,715,404    route     3,757,852    -92.53%    -92.44%     +1.14%  True
+looplight   plain         14,004,984    14,004,984 preserve    14,004,758     +0.00%     -0.00%     -0.00%  True
+looplight   optimized      7,180,875     7,180,875 preserve     7,180,999     +0.00%     +0.00%     +0.00%  True
+looplight   tier0         14,008,393    14,008,393    route    14,008,569     +0.00%     +0.00%     +0.00%  True
+looplight   tiered         7,339,186     7,339,186 preserve     7,338,367     +0.00%     -0.01%     -0.01%  True
+looplight   tiered         7,339,186     7,339,186    route     7,339,300     +0.00%     +0.00%     +0.00%  True
+random      plain         51,890,399    51,918,880 preserve    51,920,640     +0.05%     +0.06%     +0.00%  True
+random      optimized     31,306,429    31,356,142 preserve    31,359,053     +0.16%     +0.17%     +0.01%  True
+random      tier0         51,894,104    51,923,015    route    51,922,331     +0.06%     +0.05%     -0.00%  True
+random      tiered        45,671,334    45,855,587 preserve    45,698,714     +0.40%     +0.06%     -0.34%  True
+random      tiered        45,671,334    45,855,587    route    45,863,312     +0.40%     +0.42%     +0.02%  True

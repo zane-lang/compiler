@@ -33,8 +33,57 @@ on `dev/bench/memo/programs`.
   its route. Tier 0's slot pass then makes the route's addresses uses of
   entries that call through the functions' slots, so tier 1 still takes
   them over.
-- With the route, a thread's stop now stops every thread when the score
-  is thread-local only if the route is too; it is, so each thread stops on
-  its own as before.
+- The route is thread-local exactly when the score is, so each thread
+  still stops on its own.
 
-**Results.** Pending.
+**Correctness.** The whole `just test-compiler` suite passes with each
+switch on (in a build directory of its own, with Dune's cache off); every
+measured program prints the same in every build and variant.
+
+**Results.** `measure.py` on the 21 programs (`corefib` needs `core`,
+which this run did not pass). Full tables: `results/fib.txt`,
+`results/euclid.txt`, `results/salted.txt`. `lever/memo` is the lever
+against the memo build without it:
+
+| program | build | memo vs no memo | preserve vs memo | route vs memo |
+| --- | --- | --- | --- | --- |
+| linear | optimized | −97.88% | +12.16% | |
+| overlap | optimized | −78.93% | +11.64% | |
+| loopleaf | optimized | −93.03% | +9.75% | |
+| ttt | tiered | −94.12% | +5.44% | +0.63% |
+| linear | tier0 | −97.72% | | −0.46% |
+| overlap | tier0 | −82.32% | | −1.34% |
+| phase | tier0 | −30.66% | | +3.68% |
+| moves | tier0 | −99.56% | | +1.84% |
+| shallow | optimized | +4.14% | +0.31% | |
+| salted | optimized | +0.30% | +0.03% | |
+| tttpath | optimized | +0.30% | +0.01% | |
+| leaves | optimized | +0.23% | +0.02% | |
+| salted, shallow, shallowin, tttpath, leaves, loopcold, random | tier0 | +0.04% to +0.20% | | −0.01% to +0.02% |
+
+- **Preserve costs where memo pays.** A program that hits often runs its
+  lookup on most calls, and a `preserve_most` lookup saves and restores
+  every register it touches, and every caller-saved one around its call of
+  the body: up to 12% more. On the programs memo loses on, it changes
+  nothing (±0.03%).
+- **Route moves tier 0 by −1.3% to +3.7%** where memo pays, from code
+  placement and the extra hop through a slot's entry, and by nothing
+  measurable where memo loses.
+
+**Why neither lever moves the losses.** On `salted` optimized, the memo
+build runs 10,401, 10,425 and 10,422 instructions more than the build
+without tables at sizes 22, 24 and 27, while the program's own work grows
+eightfold. The whole loss is a fixed cost: the lookups made before the
+function stops looking. After it stops, its gate costs nothing that
+Callgrind can see, so there was nothing left for the levers to remove.
+`shallow` optimized's +4.14% is the same fixed cost, about 40,000 cycles,
+against a program LLVM folds to under a million.
+
+## What remains
+
+- **The warm-up is the cost.** Carrying the verdict across builds (a
+  function that stopped looking gets no table in the next build `zane run`
+  caches) removes it, and lets LLVM fold `shallow` again; or a lookup on
+  every Nth call until the first hit shrinks it.
+- Neither switch is worth keeping as it is: preserve loses up to 12% where
+  memo pays, and route gains nothing.
