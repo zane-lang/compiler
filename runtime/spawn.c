@@ -246,6 +246,14 @@ void zane_islands_home(zane_task *t) {
 				home->mappings = m;
 			}
 			home->heap.live += r->heap.live;
+			/* A call spawned on this subject in turn retired its old value
+			   here; it ends where the chunks now drain. */
+			while (r->retired) {
+				zane_retired *v = r->retired;
+				r->retired = v->next;
+				v->next = home->retired;
+				home->retired = v;
+			}
 		} else {
 			zane_unmap(r);
 		}
