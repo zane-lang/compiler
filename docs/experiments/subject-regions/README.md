@@ -148,6 +148,55 @@ and unchecked, 10 runs each under the switch: all correct. The whole suite
 under the switch: the same two expected differences as step 2, nothing
 else; with the switch off it passes.
 
+## Step 4: hardening before a default
+
+**Scope entry.** Step 2's change is dropped: `enter` checks `zane_open` as
+it did, and only the box loses its check.
+
+**Spawn shapes.** `tests/codegen/fixtures/spawnSubjects` (a real fixture,
+run by the suite in both modes) covers a list's element, a subject passed
+to a function value, a spawned call that spawns on its own subject and on a
+local of its own, one that aborts after writing its subject, a reader
+spawned before the writer, and a package constant that owns a block read
+from a spawned call. Under the switch it makes 8 subject regions.
+
+- **A defect, fixed.** The nested case stopped a checked drain with "a
+  dynamic block outlived its owner": the inner join retired the subject's
+  old value on the outer call's subject region, whose merge into the scope
+  at the outer join dropped its retired list. The merge now carries it
+  (`runtime/spawn.c`, `zane_islands_home`). 20 of 20 runs then pass in each
+  of the four modes.
+- **Rejected by the checker**, so they need nothing: two spawned writers of
+  elements of one list in one block (`xs[]` overlaps `xs[]`), a push to a
+  list while a spawned call writes one of its elements (so a subject's home
+  never moves while its call is out), and two spawned writers of one local.
+- **Cannot occur**: a subject that holds a foreign handle. Every handle
+  type is a reference type (spec ffi.md §4.1), and a value type holds none
+  (memory.md §2.10).
+
+**ThreadSanitizer.** `ZANE_TSAN=1` (`lib/codegen/build.ml`) marks every
+function the program defines `sanitize_thread` and adds LLVM's TSan passes,
+and `tsan-cc` as `ZANE_CC` builds the runtime with it and links TSan's
+runtime; `tsan.sh` builds a package so and counts reports. Results in
+`results/tsan.txt`, under the switch, 5 runs each, checked and unchecked:
+0 reports for every codegen fixture that spawns (`bigCalls`,
+`constantCycle`, `constants`, `expressions`, `folding`, `interpolation`,
+`keeping`, `lambdas`, `spawnSubjects`, `spawned`, `spawnedFrames`,
+`spawns`, `walks`), for `race 3000` and for `reader 2000`.
+`constantCycle` and `spawnedFrames` fail on purpose, as their goldens say
+(`spawnedFrames` without its `--spawned-fixed-region` flag reports 8 MiB
+for 2). Without spawns' fixtures' FFI and object packages, `handles` and
+`memolibraryuser` were not run. That TSan sees these programs' races at
+all: the control (no locks, no subject regions) under TSan gives 28
+reports in `race 200`, the first a spawned call's `zane_frontier_of`
+reading and writing its spawner's region's frontier, and then hangs.
+
+**The cross-thread check** now runs only when drains are checked
+(`ZANE_CHECK`), as a debugging aid; an unchecked run pays nothing for it,
+and TSan is the gate. The control, checked, stops with "another thread's
+scopes searched"; `ZANE_SUBJECT_REGIONS_UNCHECKED=1` builds it without
+the check, as the 30-of-30 crash run did.
+
 ## Open points
 
 - **Each subject region takes a 1 MiB chunk**, from the spawner's warm
@@ -159,4 +208,4 @@ else; with the switch off it passes.
   measure this.
 - **Static frames are not needed**: a frame stretches only for its own
   context's blocks, so only one thread moves a frontier.
-- Why `returns` mispredicts more, and why `scopes` regresses in step 2.
+- Why `returns` mispredicts more.

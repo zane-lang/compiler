@@ -133,9 +133,10 @@ zane_context *zane_context_at(int32_t id) { return __atomic_load_n(&zane_context
 #ifdef ZANE_SUBJECT_REGIONS
 /* Nothing is taken under a context's lock: only its own thread changes
    its scopes and regions, and a spawned call's subject is in a region of
-   its own. A region another thread is asked for is a defect this
-   experiment means to find, so it stops the program. A context whose call
-   is over is given back by the thread that joined it, after it is done. */
+   its own. When drains are checked, a region another thread is asked for
+   stops the program, as a defect: a context whose call is over is given
+   back by the thread that joined it, after it is done, and is no such
+   defect. */
 static int zane_guarded(zane_context *c) { (void)c; return 0; }
 zane_mark *zane_constants_region;
 
@@ -143,8 +144,8 @@ _Thread_local zane_context *zane_joining;
 
 void zane_lock_region(zane_mark *r) {
 #ifndef ZANE_SUBJECT_REGIONS_UNCHECKED
-	if (r->context != zane_self && r->context != zane_joining && !zane_is_island(r))
-		zane_broken("experiment: a region taken from another thread");
+	if (zane_checking && r->context != zane_self && r->context != zane_joining && !zane_is_island(r))
+		zane_broken("a region taken from another thread");
 #else
 	(void)r;
 #endif
@@ -235,7 +236,7 @@ zane_mark *zane_region_at(const void *at) {
 	zane_context *c = (zane_context *)(entry & ~(uintptr_t)1);
 #ifdef ZANE_SUBJECT_REGIONS
 #ifndef ZANE_SUBJECT_REGIONS_UNCHECKED
-	if (c != zane_self && c != zane_joining) zane_broken("experiment: another thread's scopes searched");
+	if (zane_checking && c != zane_self && c != zane_joining) zane_broken("another thread's scopes searched");
 #endif
 #endif
 	if (!zane_guarded(c)) {

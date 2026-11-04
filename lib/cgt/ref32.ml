@@ -58,6 +58,7 @@ let bump () = Sys.getenv_opt "ZANE_BUMP_REGIONS" = Some "1"
 let subject_regions () = Sys.getenv_opt "ZANE_SUBJECT_REGIONS" = Some "1"
 
 (* `ZANE_SUBJECT_REGIONS_NO_ISLANDS=1`, for the experiment's control run:
-   the runtime without locks, but no subject gets a region of its own, and
-   the runtime does not stop when a thread reaches another's regions. *)
+   the runtime without locks, but no subject gets a region of its own.
+   `ZANE_SUBJECT_REGIONS_UNCHECKED=1` as well (lib/codegen/build.ml) keeps
+   a checked run from stopping when a thread reaches another's regions. *)
 let no_islands () = Sys.getenv_opt "ZANE_SUBJECT_REGIONS_NO_ISLANDS" = Some "1"
