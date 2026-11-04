@@ -292,7 +292,7 @@ let cgt_stat_samples () =
     (C.Stat.Place { address = a; value = c; layout = "l" }, ([ a; c ], []));
     none (C.Stat.Reserve { id = 1; scope = 2; ty = C.Ty.I64; layout = "l" });
     ( C.Stat.Spawn
-        { task = 1; scope = 2; thunk = "t"; frame = C.Ty.I64; args = [ a; c; k ]; dest = None; layout = "l" },
+        { task = 1; scope = 2; thunk = "t"; frame = C.Ty.I64; args = [ a; c; k ]; dest = None; layout = "l"; island = None },
       ([ a; c; k ], []) );
     none (C.Stat.Join 1);
   ]
