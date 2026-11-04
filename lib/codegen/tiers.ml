@@ -132,34 +132,6 @@ let copy_attrs ~from ~into ~site =
         (at i))
     (Llvm.AttrIndex.Return :: List.init n (fun i -> Llvm.AttrIndex.Param i))
 
-(* Experimental (Cgt.Ref32.memo_route), tier 0 before its passes: each
-   remembered function's gate, which reads its score, becomes a call to
-   where its route points, the lookup until the function stops looking and
-   the plain copy after (Memos.memo), so no call reads the score. The
-   route's addresses are uses of the functions, which [tier0] makes uses of
-   entries that call through their slots, so tier 1 still takes them over. *)
-let route_gates m =
-  let ctx = Llvm.module_context m in
-  let suffix = Memos.route_suffix in
-  Llvm.iter_globals
-    (fun g ->
-      let name = Llvm.value_name g in
-      if String.ends_with ~suffix name then
-        match Llvm.lookup_function (String.sub name 0 (String.length name - String.length suffix)) m with
-        | None -> ()
-        | Some f ->
-            let blocks = Llvm.fold_left_blocks (fun acc bb -> bb :: acc) [] f in
-            List.iter Llvm.delete_block blocks;
-            let b = Llvm.builder_at_end ctx (Llvm.append_block ctx "" f) in
-            let fty = value_type f in
-            let target = Llvm.build_load (ptr m) g "" b in
-            let call = Llvm.build_call fty target (Llvm.params f) "" b in
-            Llvm.set_tail_call true call;
-            copy_attrs ~from:f ~into:f ~site:(Some call);
-            if Llvm.classify_type (Llvm.return_type fty) = Llvm.TypeKind.Void then ignore (Llvm.build_ret_void b)
-            else ignore (Llvm.build_ret call b))
-    m
-
 (* Tier 0, after its passes: a slot for each function it defines, every
    direct call to one made through its slot, and every other use, a
    function value, made a use of an entry that calls through it, so a

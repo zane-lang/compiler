@@ -3,7 +3,7 @@
 A remembered function's gate (docs/design/memoization.md M2) reads the
 function's score on every call and calls the lookup or the plain copy. Two
 ways to make that cheaper once the function has stopped looking, each
-behind a switch read when compiling:
+behind a switch read when compiling (both since removed: see Outcome):
 
 - `ZANE_MEMO_PRESERVE=1`: the lookup uses LLVM's `preserve_most` calling
   convention, so a caller keeps its registers across it, and the inlined
@@ -85,5 +85,15 @@ against a program LLVM folds to under a million.
   function that stopped looking gets no table in the next build `zane run`
   caches) removes it, and lets LLVM fold `shallow` again; or a lookup on
   every Nth call until the first hit shrinks it.
-- Neither switch is worth keeping as it is: preserve loses up to 12% where
-  memo pays, and route gains nothing.
+- Neither switch is worth keeping: preserve loses up to 12% where memo
+  pays, and route gains nothing.
+
+## Outcome
+
+Both switches are removed from the compiler. The code they switched is in
+commit `808fb4f` (`lib/codegen/memos.ml`, `lib/codegen/tiers.ml`,
+`lib/codegen/build.ml`, `lib/cgt/ref32.ml`), and `measure.py` reproduces
+the tables against a compiler built from it. `docs/design/memoization.md`
+M3 records the finding: a gate that has stopped looking costs nothing
+measurable, and what a program whose arguments never repeat pays is the
+warm-up.

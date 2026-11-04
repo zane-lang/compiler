@@ -163,6 +163,15 @@ whose base case loops as often as an argument says: its rounds are not counted, 
 stop looking though its hits would have paid (`lv1h20`,
 `dev/bench/memo/`).
 
+Once a function has stopped looking, its gate costs nothing measurable,
+and what a program whose arguments never repeat pays is the lookups made
+before it stops, a fixed cost whatever the input's size: on `salted`
+optimized, 10,401 to 10,425 instructions at sizes 22 to 27, while the
+program's work grows eightfold. A lookup that saves every register itself
+and a tier-0 gate that calls through a route instead of reading the score
+were measured against it and removed
+([`docs/experiments/memo-gates`](../experiments/memo-gates/README.md)).
+
 ## M4. A loop decides once
 
 A loop that calls a function with a table from outside that function's cycle

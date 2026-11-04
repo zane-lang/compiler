@@ -834,7 +834,6 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       if (optimize || tier = Tiers.Tier0) && not whole then
         with_runtime_bitcode ?bundled ?cache ~cc:(bitcode_cc ()) ~triple ?target
           (Option.iter (fun path -> ignore (Runtime_bodies.add ~tiered:(tier <> Tiers.Plain) path m)));
-      if tier = Tiers.Tier0 && Cgt.Ref32.memo_route () then Tiers.route_gates m;
       let exports = if tier = Tiers.Tier0 then Some (Tiers.exports m) else None in
       let definitions = if tier = Tiers.Tier1 then Some (Tiers.tier1_definitions m) else None in
       shared_in_comdats triple m;
