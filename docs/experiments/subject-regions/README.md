@@ -243,6 +243,58 @@ the spawner's to every lookup, and the call would allocate in its parent's
 region again. A kept region pays for its chunk once per local and scope,
 not per spawn, and takes it from the warm spares.
 
+## Step 6: other platforms
+
+**Windows.** `dev/bin/windows-programs` and `dev/bin/check-programs`
+(`just test-windows`) under Wine 9 (`wine64` from apt, with no `wine32`),
+switch off and on, every codegen and FFI fixture plain, optimized and
+tiered, checked and unchecked: 396 pass and 66 fail in both, and the
+failures are the same 66. Each differs by Wine's own lines: its note that
+`wine32` is missing, and on the deep-recursion tests and `spawnedFrames`
+its stack-overflow report where the program's own was expected. `spawns`,
+`spawned` and `spawnSubjects` pass in all six builds with the switch on.
+
+**macOS.** Not runnable here. `spawnSubjects` builds for `aarch64-macos`
+and `x86_64-macos`, plain and optimized, with the switch on
+(`ZANE_CC=dev/bin/zig-cc`), so the runtime's subject regions compile
+there; running them is CI's.
+
+## Step 7: the check out of the way
+
+**The defect.** Measured again at step 6, `texts` gained 6.0% in step 1 and
+then only 0.7%: `zane_text_join`, which LLVM had inlined into `main`, was
+called instead (Callgrind, per function). Step 4 had put the cross-thread
+check's `zane_checking` test into the out-of-line `zane_lock_region` that
+every allocation through the runtime calls, which made what inlines it
+larger.
+
+**Design.** `zane_lock_region` is a macro testing `zane_checking`, unlikely,
+and the check itself is `zane_region_checked`, cold and never inlined
+(`runtime/zane_internal.h`, `runtime/arena.c`), the cold-path layout of
+memo-gates' lever 1 applied where it fits: a check that runs on every call
+and almost never fails.
+
+**Results.** `tests/perf/run --build optimized`, estimated cycles, switch
+off and on, at this step (`results/perf-off.txt`, `results/perf-on.txt`):
+
+| program | off | on | cycles | instructions |
+| --- | --- | --- | --- | --- |
+| trees | 26.44M | 24.43M | −7.62% | −9.31% |
+| texts | 59.91M | 56.33M | −5.97% | −6.07% |
+| scopes | 27.78M | 26.88M | −3.24% | −3.31% |
+| flips | 205.53M | 201.90M | −1.77% | 0.00% |
+| stress | 1,978.48M | 1,966.05M | −0.63% | −0.68% |
+| returns | 137.29M | 137.02M | −0.20% | −0.25% |
+| copies | 41.25M | 41.19M | −0.15% | −0.18% |
+
+The other nine are within +0.12% (`depths`, from first-level misses).
+`returns`, +2.2% since step 1, no longer loses. The whole suite with the
+switch off passes; with it on, the only differences are the lowering dumps
+`spawns.cgt` and `spawnSubjects.cgt`, the pointer member a copied subject
+is read through. ThreadSanitizer, 3 runs each, checked and unchecked:
+0 reports for `spawnSubjects`, `spawns` and `race 300`. The control,
+checked, still stops on the check.
+
 ## Open points
 
 - **A copy when another call is out.** A local spawned on while another
@@ -251,4 +303,4 @@ not per spawn, and takes it from the warm spares.
   beyond `reader`.
 - **Static frames are not needed**: a frame stretches only for its own
   context's blocks, so only one thread moves a frontier.
-- Why `returns` mispredicts more.
+- **Running on macOS**, which only CI can do; the runtime builds for it.

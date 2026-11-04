@@ -320,7 +320,11 @@ typedef struct zane_island {
 } zane_island;
 
 #ifdef ZANE_SUBJECT_REGIONS
-void zane_lock_region(zane_mark *r);
+/* No lock: when drains are checked, a region of another thread's is a
+   defect, which the cold check out of line stops the program on (arena.c),
+   so the common path is one test of `zane_checking`. */
+void zane_region_checked(zane_mark *r) __attribute__((cold, noinline));
+#define zane_lock_region(r) (__builtin_expect(zane_checking, 0) ? zane_region_checked(r) : (void)0)
 /* The context of the call this thread joins, done, while its result comes
    home: its regions are reached from here then, and from nowhere else. */
 extern _Thread_local zane_context *zane_joining;

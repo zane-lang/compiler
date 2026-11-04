@@ -142,9 +142,9 @@ zane_mark *zane_constants_region;
 
 _Thread_local zane_context *zane_joining;
 
-void zane_lock_region(zane_mark *r) {
+void zane_region_checked(zane_mark *r) {
 #ifndef ZANE_SUBJECT_REGIONS_UNCHECKED
-	if (zane_checking && r->context != zane_self && r->context != zane_joining && !zane_is_island(r))
+	if (r->context != zane_self && r->context != zane_joining && !zane_is_island(r))
 		zane_broken("a region taken from another thread");
 #else
 	(void)r;
