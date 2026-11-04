@@ -59,7 +59,7 @@ let never_inlined f =
   let noinline = Llvm.enum_attr_kind "noinline" in
   Array.exists
     (fun a -> match Llvm.repr_of_attr a with Llvm.AttrRepr.Enum (k, _) -> k = noinline | _ -> false)
-    (Emit.function_attrs f Llvm.AttrIndex.Function)
+    (Llvm_extra.function_attrs f Llvm.AttrIndex.Function)
 
 (* Every function [m] has that the rule above picks, marked
    `alwaysinline`. *)

@@ -374,7 +374,7 @@ so that it stays outside the walk's recursion (`lower_intrinsics.ml`,
 and the walks and rewrites every pass over the tree uses, and
 `to_tree_graph.ml` to render it. Codegen
 lives in `lib/codegen/`: `emit.ml` builds the module through the bindings,
-and `build.ml` writes the object file and links it with the runtime. The
+`llvm_extra.ml` binds what they lack (`llvm_stubs.c`), and `build.ml` writes the object file and links it with the runtime. The
 runtime is written as nine parts in `runtime/` (`main.c`, `arena.c`,
 `region.c`, `block.c` and so on), with `zane.h` as the ABI that emitted code calls,
 `zane_abi.h` as the offsets and sizes emitted code relies on, which codegen
