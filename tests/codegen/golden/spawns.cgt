@@ -427,21 +427,33 @@
     │       │       │   ├── thunk: zane.spawn.8
     │       │       │   ├── frame: {void, ptr, i64}
     │       │       │   ├── args[0]: address of #72 : ptr
-    │       │       │   └── args[1]: 200 : i64
+    │       │       │   ├── args[1]: 200 : i64
+    │       │       │   └── island:
+    │       │       │       ├── field: 1
+    │       │       │       ├── size: 4
+    │       │       │       └── layout: spawns$Countdown
     │       │       ├── body[1] > spawn:
     │       │       │   ├── task: #80
     │       │       │   ├── scope: %78
     │       │       │   ├── thunk: zane.spawn.9
     │       │       │   ├── frame: {void, ptr, i64}
     │       │       │   ├── args[0]: address of #73 : ptr
-    │       │       │   └── args[1]: 300 : i64
+    │       │       │   ├── args[1]: 300 : i64
+    │       │       │   └── island:
+    │       │       │       ├── field: 1
+    │       │       │       ├── size: 4
+    │       │       │       └── layout: spawns$Countdown
     │       │       └── body[2] > spawn:
     │       │           ├── task: #82
     │       │           ├── scope: %78
     │       │           ├── thunk: zane.spawn.10
     │       │           ├── frame: {void, ptr, i64}
     │       │           ├── args[0]: address of #74 : ptr
-    │       │           └── args[1]: 400 : i64
+    │       │           ├── args[1]: 400 : i64
+    │       │           └── island:
+    │       │               ├── field: 1
+    │       │               ├── size: 4
+    │       │               └── layout: spawns$Countdown
     │       ├── body[30] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawns$check(%primitives$Bool)
@@ -628,11 +640,16 @@
     │       │       │   ├── frame: {void, ptr, i64, <void | box32>, ptr}
     │       │       │   ├── args[0]: local #114 : ptr
     │       │       │   ├── args[1]: 250 : i64
-    │       │       │   └── args[2] > copy:
-    │       │       │       ├── type: <void | box32>
-    │       │       │       ├── value > snapshot:
-    │       │       │       │   ├── type: <void | box32>
-    │       │       │       │   └── ptr: local #114 : ptr
+    │       │       │   ├── args[2] > copy:
+    │       │       │   │   ├── type: <void | box32>
+    │       │       │   │   ├── value > snapshot:
+    │       │       │   │   │   ├── type: <void | box32>
+    │       │       │   │   │   └── ptr: local #114 : ptr
+    │       │       │   │   └── layout: spawns$Countdown
+    │       │       │   └── island:
+    │       │       │       ├── field: 4
+    │       │       │       ├── copy: 3
+    │       │       │       ├── size: 4
     │       │       │       └── layout: spawns$Countdown
     │       │       ├── body[3] > let:
     │       │       │   ├── local: #117

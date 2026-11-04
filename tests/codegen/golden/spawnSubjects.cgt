@@ -114,11 +114,16 @@
     │       │           ├── frame: {void, ptr, i64, <void | box32>, ptr}
     │       │           ├── args[0]: local #12 : ptr
     │       │           ├── args[1]: local #11 : i64
-    │       │           └── args[2] > copy:
-    │       │               ├── type: <void | box32>
-    │       │               ├── value > snapshot:
-    │       │               │   ├── type: <void | box32>
-    │       │               │   └── ptr: local #12 : ptr
+    │       │           ├── args[2] > copy:
+    │       │           │   ├── type: <void | box32>
+    │       │           │   ├── value > snapshot:
+    │       │           │   │   ├── type: <void | box32>
+    │       │           │   │   └── ptr: local #12 : ptr
+    │       │           │   └── layout: spawnSubjects$Countdown
+    │       │           └── island:
+    │       │               ├── field: 4
+    │       │               ├── copy: 3
+    │       │               ├── size: 4
     │       │               └── layout: spawnSubjects$Countdown
     │       ├── body[4] > if:
     │       │   ├── cond: true : i1
@@ -145,11 +150,16 @@
     │       │           ├── frame: {void, ptr, i64, <void | box32>, ptr}
     │       │           ├── args[0]: local #19 : ptr
     │       │           ├── args[1]: local #18 : i64
-    │       │           └── args[2] > copy:
-    │       │               ├── type: <void | box32>
-    │       │               ├── value > snapshot:
-    │       │               │   ├── type: <void | box32>
-    │       │               │   └── ptr: local #19 : ptr
+    │       │           ├── args[2] > copy:
+    │       │           │   ├── type: <void | box32>
+    │       │           │   ├── value > snapshot:
+    │       │           │   │   ├── type: <void | box32>
+    │       │           │   │   └── ptr: local #19 : ptr
+    │       │           │   └── layout: spawnSubjects$Countdown
+    │       │           └── island:
+    │       │               ├── field: 4
+    │       │               ├── copy: 3
+    │       │               ├── size: 4
     │       │               └── layout: spawnSubjects$Countdown
     │       ├── body[5] > eval > call:
     │       │   ├── type: void
@@ -309,7 +319,11 @@
     │       │           ├── frame: {void, ptr, ptr, i64}
     │       │           ├── args[0]: local #39 : ptr
     │       │           ├── args[1]: address of #40 : ptr
-    │       │           └── args[2]: 40 : i64
+    │       │           ├── args[2]: 40 : i64
+    │       │           └── island:
+    │       │               ├── field: 2
+    │       │               ├── size: 4
+    │       │               └── layout: spawnSubjects$Countdown
     │       ├── body[10] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawnSubjects$check(%primitives$Bool)
@@ -381,7 +395,11 @@
     │       │       │   ├── args[0]: address of #52 : ptr
     │       │       │   ├── args[1]: 30 : i64
     │       │       │   ├── dest: #56
-    │       │       │   └── layout: %primitives$I64
+    │       │       │   ├── layout: %primitives$I64
+    │       │       │   └── island:
+    │       │       │       ├── field: 1
+    │       │       │       ├── size: 4
+    │       │       │       └── layout: spawnSubjects$Countdown
     │       │       └── body[1] > eval > call:
     │       │           ├── type: void
     │       │           ├── fn: spawnSubjects$check(%primitives$Bool)
@@ -474,7 +492,11 @@
     │       │       │   ├── args[1]: 25 : i64
     │       │       │   ├── args[2]: true : i1
     │       │       │   ├── dest: #71
-    │       │       │   └── layout: outcome of %primitives$I64 ? %primitives$I64
+    │       │       │   ├── layout: outcome of %primitives$I64 ? %primitives$I64
+    │       │       │   └── island:
+    │       │       │       ├── field: 1
+    │       │       │       ├── size: 4
+    │       │       │       └── layout: spawnSubjects$Countdown
     │       │       ├── body[2] > eval > call:
     │       │       │   ├── type: void
     │       │       │   ├── fn: spawnSubjects$check(%primitives$Bool)
@@ -634,7 +656,11 @@
     │       │       │   ├── thunk: zane.spawn.7
     │       │       │   ├── frame: {void, ptr, i64}
     │       │       │   ├── args[0]: address of #85 : ptr
-    │       │       │   └── args[1]: 20 : i64
+    │       │       │   ├── args[1]: 20 : i64
+    │       │       │   └── island:
+    │       │       │       ├── field: 1
+    │       │       │       ├── size: 4
+    │       │       │       └── layout: spawnSubjects$Countdown
     │       │       └── body[2] > eval > call:
     │       │           ├── type: void
     │       │           ├── fn: spawnSubjects$check(%primitives$Bool)
@@ -730,7 +756,11 @@
     │       │           ├── thunk: zane.spawn.8
     │       │           ├── frame: {void, ptr, i64}
     │       │           ├── args[0]: address of #85 : ptr
-    │       │           └── args[1]: 5 : i64
+    │       │           ├── args[1]: 5 : i64
+    │       │           └── island:
+    │       │               ├── field: 1
+    │       │               ├── size: 4
+    │       │               └── layout: spawnSubjects$Countdown
     │       ├── body[22] > let:
     │       │   ├── local: #108
     │       │   └── value: 1 : i64
@@ -1090,18 +1120,26 @@
     │       │       │   ├── thunk: zane.spawn.10
     │       │       │   ├── frame: {void, ptr, i64}
     │       │       │   ├── args[0]: local #1 : ptr
-    │       │       │   └── args[1]: local #2 : i64
+    │       │       │   ├── args[1]: local #2 : i64
+    │       │       │   └── island:
+    │       │       │       ├── field: 1
+    │       │       │       ├── size: 4
+    │       │       │       └── layout: spawnSubjects$Countdown
     │       │       └── body[1] > spawn:
     │       │           ├── task: #10
     │       │           ├── scope: %8
     │       │           ├── thunk: zane.spawn.11
     │       │           ├── frame: {void, ptr, i64}
     │       │           ├── args[0]: address of #3 : ptr
-    │       │           └── args[1] > binary:
-    │       │               ├── type: i64
-    │       │               ├── op: +
-    │       │               ├── left: local #2 : i64
-    │       │               └── right: local #2 : i64
+    │       │           ├── args[1] > binary:
+    │       │           │   ├── type: i64
+    │       │           │   ├── op: +
+    │       │           │   ├── left: local #2 : i64
+    │       │           │   └── right: local #2 : i64
+    │       │           └── island:
+    │       │               ├── field: 1
+    │       │               ├── size: 4
+    │       │               └── layout: spawnSubjects$Countdown
     │       └── body[2] > return > binary:
     │           ├── type: i64
     │           ├── op: +
@@ -1357,7 +1395,11 @@
     │   │           ├── thunk: zane.spawn.12
     │   │           ├── frame: {void, ptr, i64}
     │   │           ├── args[0]: local #1 : ptr
-    │   │           └── args[1]: 1 : i64
+    │   │           ├── args[1]: 1 : i64
+    │   │           └── island:
+    │   │               ├── field: 1
+    │   │               ├── size: 4
+    │   │               └── layout: spawnSubjects$Countdown
     │   └── body[1] > return: unit : void
     ├── funcs[9] > func:
     │   ├── symbol: spawnSubjects$bannerRight()

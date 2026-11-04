@@ -216,6 +216,16 @@ int64_t zane_constant_begin(int64_t *state) {
 	return make;
 }
 
+/* The constants' region, made with the program's own before any other
+   thread starts, so every thread reads its address without a lock. */
+void zane_constants_start(void) {
+	zane_island *i = calloc(1, sizeof *i);
+	if (!i) zane_broken("out of memory for the constants' region");
+	i->mark.context = zane_program->context;
+	i->mark.depth = ZANE_ISLAND_DEPTH;
+	zane_constants_region = &i->mark;
+}
+
 /* The constant at `value` is made: the blocks it owns move into the
    constants' region, which they live in until the program ends, and every
    reader may now read it. */
@@ -223,13 +233,6 @@ void zane_constant_end(int64_t *state, char *value, const zane_type *type) {
 	/* Constants are made on any thread, so they get a region of their own,
 	   changed only under the constants' lock. */
 	pthread_mutex_lock(&zane_constants);
-	if (!zane_constants_region) {
-		zane_island *i = calloc(1, sizeof *i);
-		if (!i) zane_broken("out of memory for the constants' region");
-		i->mark.context = zane_program->context;
-		i->mark.depth = ZANE_ISLAND_DEPTH;
-		zane_constants_region = &i->mark;
-	}
 	zane_move(value, type, zane_constants_region, 0);
 	__atomic_store_n(state, -1, __ATOMIC_RELEASE);
 	pthread_cond_broadcast(&zane_constant_made);

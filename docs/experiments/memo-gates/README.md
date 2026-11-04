@@ -64,11 +64,13 @@ against the memo build without it:
 - **Preserve costs where memo pays.** A program that hits often runs its
   lookup on most calls, and a `preserve_most` lookup saves and restores
   every register it touches, and every caller-saved one around its call of
-  the body: up to 12% more. On the programs memo loses on, it changes
-  nothing (±0.03%).
+  the body: up to 12% more. On the programs memo loses on, it moves them
+  by −0.33% (`tree` plain) to +0.31% (`shallow` optimized), and most by
+  no more than ±0.04% (`results/salted.txt`).
 - **Route moves tier 0 by −1.3% to +3.7%** where memo pays, from code
-  placement and the extra hop through a slot's entry, and by nothing
-  measurable where memo loses.
+  placement and the extra hop through a slot's entry, and by −0.04% to
+  +0.46% where memo loses, the most on `tree` (+0.33% tier 0, +0.46%
+  tiered); the rest within ±0.04%.
 
 **Why neither lever moves the losses.** On `salted` optimized, the memo
 build runs 10,401, 10,425 and 10,422 instructions more than the build

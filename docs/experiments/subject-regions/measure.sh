@@ -17,7 +17,9 @@ for tag in base subject; do
 		base) build ZANE_SUBJECT_REGIONS=0 ;;
 		subject) build ZANE_SUBJECT_REGIONS=1 ;;
 	esac || { echo "$tag: build failed"; cat "$out/$name.$tag.build"; exit 1; }
-	valgrind --tool=lackey --basic-counts=yes "$out/$name.$tag.exe" "$@" > "$out/$name.$tag.out" 2> "$out/$name.$tag.vg"
+	if ! valgrind --tool=lackey --basic-counts=yes "$out/$name.$tag.exe" "$@" > "$out/$name.$tag.out" 2> "$out/$name.$tag.vg"; then
+		echo "$tag: run failed"; tail -20 "$out/$name.$tag.vg"; exit 1
+	fi
 	ir=$(grep -a "guest instrs:" "$out/$name.$tag.vg" | awk '{print $NF}')
 	echo "$tag: $ir instructions; output $(sort "$out/$name.$tag.out" | uniq -c | tr '\n' ' ')"
 done

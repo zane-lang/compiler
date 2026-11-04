@@ -1050,18 +1050,20 @@ test passing.
   range for it. The chunk map names the context each MiB of a range belongs
   to, and the scope each dynamic chunk does.
 
-  A context's scopes and regions are its own thread's alone, even while
-  calls it spawned are out, so nothing about them is locked. A spawned
-  `mut` call whose subject owns blocks would otherwise grow them in the
-  spawner's region, so the subject goes into a region of its own before the
-  call starts (`runtime/spawn.c`): a subject region, which belongs to no
-  scope and which only the call allocates in. The subject's blocks move in
-  when no other call is out that could be reading them, and are copied in
-  otherwise. At the join the region comes home on the joining thread: its
-  chunks merge into the scope that holds the subject, or, for a local, the
-  region is kept for the local's next spawned call until its scope drains,
-  so a loop of such calls reuses one region rather than making one each
-  time. A package constant, which any thread may make, lives in one more
+  Only its own thread changes a context's scopes and their regions, even
+  while calls it spawned are out, so nothing about them is locked. A
+  spawned `mut` call whose subject owns blocks would otherwise grow them in
+  the spawner's region, so the subject goes into a region of its own
+  (`runtime/spawn.c`): a subject region, which belongs to no scope. The
+  spawner makes it and fills it before the call starts, the call alone
+  allocates in it while it is out, and the joining thread takes it back.
+  The subject's blocks move in when no other call is out that could be
+  reading them, and are copied in otherwise. At the join, a subject region
+  holding a copy of a subject reached through an owner has it written back
+  (below), and its chunks are given back. Any other has its chunks merged
+  into the scope that holds the subject, or, for a local, is kept for the
+  local's next spawned call until its scope drains, so a loop of such calls
+  reuses one region rather than making one each time. A package constant, which any thread may make, lives in one more
   such region, changed under the constants' lock. A build with
   `ZANE_TSAN=1`, and `docs/experiments/subject-regions/tsan-cc` as
   `ZANE_CC`, runs under ThreadSanitizer. The spec leaves

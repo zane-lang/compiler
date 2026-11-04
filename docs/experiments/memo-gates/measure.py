@@ -9,7 +9,9 @@ with them, and with each lever:
     tiered     --tiered, tier 1 loaded before `main` (ZANE_TIER_WAIT=1)
 
 A variant is `base` (--no-memoize), `memo`, `preserve` (ZANE_MEMO_PRESERVE=1)
-or `route` (ZANE_MEMO_ROUTE=1). Run inside `devbox run`:
+or `route` (ZANE_MEMO_ROUTE=1). Every variant of every build must print
+what the plain build without tables prints, or the script exits 1. Run
+inside `devbox run`:
 
     measure.py ZANEC OUT PROGRAM_DIR...
 """
@@ -37,7 +39,8 @@ def one(job):
     d, build, variant = job
     stem = OUT / f"{d.name}.{build}.{variant}"
     flags = BUILDS[build] + (["--no-memoize"] if variant == "base" else [])
-    env = {**os.environ, "ZANE_MEMO_PRESERVE": "0", "ZANE_MEMO_ROUTE": "0", **VARIANTS[variant]}
+    env = {k: v for k, v in os.environ.items() if k not in ("ZANE_TIER_UP", "ZANE_TIER_WAIT")}
+    env.update({"ZANE_MEMO_PRESERVE": "0", "ZANE_MEMO_ROUTE": "0", **VARIANTS[variant]})
     b = subprocess.run([ZANEC, "--build", stem, *flags, "--package", d], capture_output=True, text=True, env=env)
     if b.returncode:
         return job, {"error": b.stderr[-300:]}
@@ -62,6 +65,7 @@ jobs = [(d, b, v) for d in DIRS for b in BUILDS for v in WHICH[b]]
 with ThreadPoolExecutor(int(os.environ.get("JOBS", "4"))) as ex:
     res = dict(ex.map(one, jobs))
 rows = []
+wrong = False
 print(f"{'program':<12}{'build':<10}{'base':>14}{'memo':>14}{'lever':>9}{'lever cyc':>14}{'memo/base':>11}{'lever/base':>11}{'lever/memo':>11}  same")
 for d in DIRS:
     for b in BUILDS:
@@ -70,10 +74,13 @@ for d in DIRS:
             if any("error" in r for r in (x, y, z)):
                 print(f"{d.name:<12}{b:<10} ERROR", [r.get("error", "") for r in (x, y, z)])
                 continue
-            same = x["output"] == y["output"] == z["output"]
+            same = x["output"] == y["output"] == z["output"] == res[(d, "plain", "base")].get("output")
+            wrong = wrong or not same
             print(f"{d.name:<12}{b:<10}{x['cycles']:>14,}{y['cycles']:>14,}{lever:>9}{z['cycles']:>14,}"
                   f"{(y['cycles']-x['cycles'])/x['cycles']:>+11.2%}{(z['cycles']-x['cycles'])/x['cycles']:>+11.2%}"
                   f"{(z['cycles']-y['cycles'])/y['cycles']:>+11.2%}  {same}")
             rows.append({"program": d.name, "build": b, "lever": lever, "base": x["cycles"], "memo": y["cycles"],
                          "lever_cycles": z["cycles"], "same": same})
 (OUT / "results.json").write_text(json.dumps(rows, indent=1))
+if wrong:
+    sys.exit("a variant printed differently from the plain build without tables")

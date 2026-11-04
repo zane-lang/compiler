@@ -35,6 +35,15 @@ let positions (ps : Layout.position list) =
 
 let layout (l : Layout.t) = Leaf l
 
+(* A spawned call's subject region (Expr.island): the frame member the
+   subject is read through, the member a copy of it is made in, if any, and
+   its size and layout. *)
+let subject_region (i : Expr.island) =
+  fields
+    ([ ("field", Leaf (string_of_int i.Expr.field)) ]
+    @ (match i.Expr.copy with Some c -> [ ("copy", Leaf (string_of_int c)) ] | None -> [])
+    @ [ ("size", Leaf (string_of_int i.Expr.size)); ("layout", layout i.Expr.value_layout) ])
+
 let rec expr (e : Expr.t) =
   let typed s = Leaf (s ^ " : " ^ Ty.to_string e.Expr.ty) in
   let call title fn args =
@@ -215,7 +224,7 @@ and stat = function
                  cases );
            ])
   | Stat.Leave label -> Leaf (Printf.sprintf "leave @%d" label)
-  | Stat.Spawn { task; scope; thunk; frame; args; dest; layout = l } ->
+  | Stat.Spawn { task; scope; thunk; frame; args; dest; layout = l; island } ->
       group "spawn"
         (fields
            ([
@@ -227,7 +236,8 @@ and stat = function
             ]
            @ (match dest with
              | Some id -> [ ("dest", Leaf (Printf.sprintf "#%d" id)); ("layout", layout l) ]
-             | None -> [])))
+             | None -> [])
+           @ match island with Some i -> [ ("island", subject_region i) ] | None -> []))
   | Stat.Join task -> Leaf (Printf.sprintf "join #%d" task)
 
 (* A function local to its object, as every function of a program is, says

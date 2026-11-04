@@ -10,9 +10,10 @@ mutex when it is null.
 
 The experiment gives each spawned subject that owns blocks a **subject
 region** of its own while its call is out, which only that call writes.
-Then no thread allocates or returns a block in a region it does not own,
-and the lock, the `zane_open` null check and the box's runtime fallback
-can go.
+While the call is out, no other thread allocates or returns a block in
+it, nor in the spawner's regions, and the lock, the `zane_open` null check
+and the box's runtime fallback can go; the joining thread takes the
+region back once the call is over.
 
 Switch: `ZANE_SUBJECT_REGIONS=1` when compiling (lowering, codegen, and the
 runtime as `-DZANE_SUBJECT_REGIONS`). `ZANE_SUBJECT_REGIONS_NO_ISLANDS=1`
@@ -297,9 +298,10 @@ checked, still stops on the check.
 
 ## Outcome
 
-Subject regions are the only design: the locked one is deleted, with the
-switch and both control knobs (`ZANE_SUBJECT_REGIONS`,
-`ZANE_SUBJECT_REGIONS_NO_ISLANDS`, `ZANE_SUBJECT_REGIONS_UNCHECKED`).
+Subject regions are the only design, and the locked one is deleted. So
+are the switch and both control knobs: nothing reads
+`ZANE_SUBJECT_REGIONS`, `ZANE_SUBJECT_REGIONS_NO_ISLANDS` or
+`ZANE_SUBJECT_REGIONS_UNCHECKED` any more.
 `zane_lock`, `zane_unlock` and `zane_guarded` are gone; the context has no
 lock; the box's runtime fallback is for large or over-aligned payloads
 alone; `zane_lock_region` is `zane_check_region`, still checked only when

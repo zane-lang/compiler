@@ -328,6 +328,7 @@ extern _Thread_local zane_context *zane_joining;
 /* The region a package constant's blocks move into: never drained, and
    changed only under `zane_constants` (value.c). */
 extern zane_mark *zane_constants_region;
+void zane_constants_start(void);
 extern pthread_mutex_t zane_constants;
 void zane_islands_home(zane_task *t);
 void zane_islands_drained(zane_context *c, zane_mark *m);

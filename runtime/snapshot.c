@@ -204,13 +204,14 @@ static void zane_join_task(zane_task *t) {
 	pthread_mutex_unlock(&zane_pool);
 	if (waits) zane_waited();
 	zane_islands_home(t);
+	/* The call's context is this thread's until it is back in the pool. */
+	zane_joining = t->context;
 	if (t->size) {
 		memcpy(t->dest, t->frame, (size_t)t->size);
-		zane_joining = t->context;
 		zane_move(t->dest, t->type, zane_region_at(t->dest), 0);
-		zane_joining = NULL;
 	}
 	zane_release(t->context);
+	zane_joining = NULL;
 	t->owner->shared--;
 	zane_reopen();
 }
