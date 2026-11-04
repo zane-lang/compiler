@@ -161,20 +161,43 @@ jobs:
         with:
           github_access_token: ${{ github.token }}
       - name: Set up compiler toolchain
+        if: matrix.arch == 'aarch64'
         uses: ./.github/actions/setup-ci
         with:
           skip-nix-installation: 'true'
+      - name: Install Intel Devbox toolchain
+        if: matrix.arch == 'x86_64'
+        uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
+        with:
+          project-path: .github/devbox-intel
+          enable-cache: true
+          skip-nix-installation: 'true'
+      - name: Set up Intel compiler toolchain
+        if: matrix.arch == 'x86_64'
+        shell: bash
+        run: |
+          devbox run --config=.github/devbox-intel -- \
+            env ZANE_CC="$GITHUB_WORKSPACE/dev/bin/clang-lld" \
+                LLVM_CONFIG=llvm-config \
+                "$GITHUB_WORKSPACE/dev/setup/bootstrap-toolchain"
       - name: Install verified native Zig
         run: .github/scripts/install-zig-macos "$ZIG_MANIFEST"
       - name: Build compiler and package macOS toolchain
         env:
           SOURCE_SHA: ${{ github.sha }}
         run: |
-          devbox run -- dune build bin/zanec/zanec.exe
-          devbox run -- python3 dev/release/package-macos.py \
-            --binary _build/default/bin/zanec/zanec.exe --zig "$ZIG" \
-            --zig-manifest "$ZIG_MANIFEST" --version "$VERSION" \
-            --commit "$SOURCE_SHA" --output dist
+          if [ "${{ matrix.arch }}" = x86_64 ]; then
+            devbox run --config=.github/devbox-intel -- \
+              env ZANE_CC="$GITHUB_WORKSPACE/dev/bin/clang-lld" \
+                  LLVM_CONFIG=llvm-config \
+                bash "$GITHUB_WORKSPACE/.github/scripts/build-macos-compiler"
+          else
+            devbox run -- dune build bin/zanec/zanec.exe
+            devbox run -- python3 dev/release/package-macos.py \
+              --binary _build/default/bin/zanec/zanec.exe --zig "$ZIG" \
+              --zig-manifest "$ZIG_MANIFEST" --version "$VERSION" \
+              --commit "$SOURCE_SHA" --output dist
+          fi
       - name: Smoke-test extracted macOS toolchain
         run: |
           mkdir -p "$RUNNER_TEMP/macos-smoke"

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "${GITHUB_WORKSPACE:?GITHUB_WORKSPACE is not set}"
+eval "$(opam env --switch="$PWD" --set-switch)"
+dune build bin/zanec/zanec.exe
+python3 dev/release/package-macos.py \
+	--binary _build/default/bin/zanec/zanec.exe --zig "$ZIG" \
+	--zig-manifest "$ZIG_MANIFEST" --version "$VERSION" \
+	--commit "$SOURCE_SHA" --output dist
