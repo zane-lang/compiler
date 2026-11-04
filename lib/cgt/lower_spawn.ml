@@ -180,10 +180,11 @@ let spawn_call w st ctx span v fn ~writes passed handler =
   let shift = List.length fns in
   let stored = fns @ args in
   let copied = List.length stored in
-  (* Experimental: the subject's own region (Expr.island). A copy is read
-     through a pointer after it, which the region's maker repoints. *)
+  (* A subject that owns blocks is written in a region of its own
+     (Expr.island). A copy is read through a pointer after it, which the
+     region's maker repoints. *)
   let island =
-    if not (Ref32.subject_regions () && writes && not (Ref32.no_islands ())) then None
+    if not writes then None
     else
       let sized t =
         { Expr.field = 0; copy = None; size = fst (Nodes.Ty.size_align (ty st span t)); value_layout = layout st span t }

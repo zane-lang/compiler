@@ -612,13 +612,13 @@ and context_top = Abi.context_top
 and context_limit = Abi.context_limit
 
 (* A scope opens with a frame of [size] bytes (Frames), and its record's
-   address names it. While no call this thread's context spawned is out,
-   nothing else can reach the context, so the code places the frame itself:
-   the record goes at the frontier, which moves past the frame, and links to
-   the scope around it and to the one it skips to (runtime/zane_internal.h).
-   A frame larger than the guard after the range is checked against the
-   range's end first; a smaller one that does not fit faults in the guard.
-   Otherwise the runtime places it under the context's lock.
+   address names it. Only this thread changes its context's scopes, so the
+   code places the frame itself: the record goes at the frontier, which
+   moves past the frame, and links to the scope around it and to the one it
+   skips to (runtime/zane_internal.h). A frame larger than the guard after
+   the range is checked against the range's end first; a smaller one that
+   does not fit faults in the guard. A thread that runs no context yet has
+   no open scope, and the runtime places the frame instead.
 
    Either way, reading any slot of the open scope's frame is safe: in the
    range the runtime makes the slot's memory usable, and in the guard it

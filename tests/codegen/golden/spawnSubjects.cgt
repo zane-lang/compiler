@@ -111,7 +111,7 @@
     │       │           ├── task: #14
     │       │           ├── scope: %15
     │       │           ├── thunk: zane.spawn.1
-    │       │           ├── frame: {void, ptr, i64, <void | box32>}
+    │       │           ├── frame: {void, ptr, i64, <void | box32>, ptr}
     │       │           ├── args[0]: local #12 : ptr
     │       │           ├── args[1]: local #11 : i64
     │       │           └── args[2] > copy:
@@ -142,7 +142,7 @@
     │       │           ├── task: #21
     │       │           ├── scope: %22
     │       │           ├── thunk: zane.spawn.2
-    │       │           ├── frame: {void, ptr, i64, <void | box32>}
+    │       │           ├── frame: {void, ptr, i64, <void | box32>, ptr}
     │       │           ├── args[0]: local #19 : ptr
     │       │           ├── args[1]: local #18 : i64
     │       │           └── args[2] > copy:
@@ -1448,14 +1448,16 @@
     │   ├── body[0] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: spawnSubjects$deepen(this spawnSubjects$Countdown, %primitives$I64)
-    │   │   ├── args[0] > offset:
-    │   │   │   ├── within: {void, ptr, i64, <void | box32>}
-    │   │   │   ├── path: 3
-    │   │   │   └── base: local #13 : ptr
+    │   │   ├── args[0] > deref:
+    │   │   │   ├── type: ptr
+    │   │   │   └── ptr > offset:
+    │   │   │       ├── within: {void, ptr, i64, <void | box32>, ptr}
+    │   │   │       ├── path: 4
+    │   │   │       └── base: local #13 : ptr
     │   │   └── args[1] > deref:
     │   │       ├── type: i64
     │   │       └── ptr > offset:
-    │   │           ├── within: {void, ptr, i64, <void | box32>}
+    │   │           ├── within: {void, ptr, i64, <void | box32>, ptr}
     │   │           ├── path: 2
     │   │           └── base: local #13 : ptr
     │   └── body[1] > eval > runtime:
@@ -1464,13 +1466,15 @@
     │       ├── args[0] > deref:
     │       │   ├── type: ptr
     │       │   └── ptr > offset:
-    │       │       ├── within: {void, ptr, i64, <void | box32>}
+    │       │       ├── within: {void, ptr, i64, <void | box32>, ptr}
     │       │       ├── path: 1
     │       │       └── base: local #13 : ptr
-    │       ├── args[1] > offset:
-    │       │   ├── within: {void, ptr, i64, <void | box32>}
-    │       │   ├── path: 3
-    │       │   └── base: local #13 : ptr
+    │       ├── args[1] > deref:
+    │       │   ├── type: ptr
+    │       │   └── ptr > offset:
+    │       │       ├── within: {void, ptr, i64, <void | box32>, ptr}
+    │       │       ├── path: 4
+    │       │       └── base: local #13 : ptr
     │       ├── args[2]: 4 : i64
     │       └── args[3]: layout spawnSubjects$Countdown
     ├── funcs[12] > func:
@@ -1480,14 +1484,16 @@
     │   ├── body[0] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: spawnSubjects$deepen(this spawnSubjects$Countdown, %primitives$I64)
-    │   │   ├── args[0] > offset:
-    │   │   │   ├── within: {void, ptr, i64, <void | box32>}
-    │   │   │   ├── path: 3
-    │   │   │   └── base: local #20 : ptr
+    │   │   ├── args[0] > deref:
+    │   │   │   ├── type: ptr
+    │   │   │   └── ptr > offset:
+    │   │   │       ├── within: {void, ptr, i64, <void | box32>, ptr}
+    │   │   │       ├── path: 4
+    │   │   │       └── base: local #20 : ptr
     │   │   └── args[1] > deref:
     │   │       ├── type: i64
     │   │       └── ptr > offset:
-    │   │           ├── within: {void, ptr, i64, <void | box32>}
+    │   │           ├── within: {void, ptr, i64, <void | box32>, ptr}
     │   │           ├── path: 2
     │   │           └── base: local #20 : ptr
     │   └── body[1] > eval > runtime:
@@ -1496,13 +1502,15 @@
     │       ├── args[0] > deref:
     │       │   ├── type: ptr
     │       │   └── ptr > offset:
-    │       │       ├── within: {void, ptr, i64, <void | box32>}
+    │       │       ├── within: {void, ptr, i64, <void | box32>, ptr}
     │       │       ├── path: 1
     │       │       └── base: local #20 : ptr
-    │       ├── args[1] > offset:
-    │       │   ├── within: {void, ptr, i64, <void | box32>}
-    │       │   ├── path: 3
-    │       │   └── base: local #20 : ptr
+    │       ├── args[1] > deref:
+    │       │   ├── type: ptr
+    │       │   └── ptr > offset:
+    │       │       ├── within: {void, ptr, i64, <void | box32>, ptr}
+    │       │       ├── path: 4
+    │       │       └── base: local #20 : ptr
     │       ├── args[2]: 4 : i64
     │       └── args[3]: layout spawnSubjects$Countdown
     ├── funcs[13] > func:

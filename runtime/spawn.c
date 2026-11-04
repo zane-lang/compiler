@@ -163,11 +163,9 @@ int64_t zane_set_threads(int64_t count) {
 
 void zane_set_threads_auto(void) { zane_set_threads(zane_processors()); }
 
-/* Experimental (zane_island): the subject region made for the call about
-   to be spawned on this thread, which zane_spawn hands it. */
-#ifdef ZANE_SUBJECT_REGIONS
+/* The subject region made for the call about to be spawned on this
+   thread, which zane_spawn hands it (zane_island). */
 static _Thread_local zane_island *zane_pending_island;
-#endif
 
 /* The subject at `*field`, `size` bytes of `type`, goes into a region of
    its own for the call about to be spawned, and `*field` names it there. A
@@ -177,9 +175,8 @@ static _Thread_local zane_island *zane_pending_island;
    subject, so it moves in; otherwise it is copied there whole, since a
    call spawned before may still read it where it is, so its blocks stay
    as they are until the join. A copy made for this call alone (`copied`)
-   always moves. Without ZANE_SUBJECT_REGIONS lowering never calls this. */
+   always moves. */
 void zane_island_make(char **field, int64_t size, const zane_type *type, int64_t copied) {
-#ifdef ZANE_SUBJECT_REGIONS
 	zane_context *c = zane_self;
 	char *home = *field;
 	zane_island *i = NULL;
@@ -216,16 +213,8 @@ void zane_island_make(char **field, int64_t size, const zane_type *type, int64_t
 	}
 	*field = i->value;
 	zane_pending_island = i;
-#else
-	(void)field;
-	(void)size;
-	(void)type;
-	(void)copied;
-	zane_broken("a subject region without ZANE_SUBJECT_REGIONS");
-#endif
 }
 
-#ifdef ZANE_SUBJECT_REGIONS
 /* The joined call's subject regions, on the joining thread, the context's
    own, once the call is done. A subject copied from a place reached
    through an owner is written back there, and its region's chunks are
@@ -314,11 +303,10 @@ void zane_islands_drained(zane_context *c, zane_mark *m) {
 		free(i);
 	}
 }
-#endif
 
 /* The call whose frame is filled starts (§3.6): the innermost scope waits
-   for it, and from now its context is shared. Its frame is in that scope's
-   own, after a zeroed `zane_task` that lowering left room for. */
+   for it, and its context counts it out. Its frame is in that scope's own,
+   after a zeroed `zane_task` that lowering left room for. */
 void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *type,
                 int64_t size) {
 	zane_task *t = (zane_task *)frame - 1;
@@ -334,7 +322,6 @@ void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *t
 	t->next = m->tasks;
 	m->tasks = t;
 	c->shared++;
-#ifdef ZANE_SUBJECT_REGIONS
 	if (zane_pending_island) {
 		zane_pending_island->task = t;
 		/* A local's region is listed from when it is made. */
@@ -344,9 +331,6 @@ void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *t
 		}
 		zane_pending_island = NULL;
 	}
-#else
-	zane_open = NULL;
-#endif
 	pthread_mutex_lock(&zane_pool);
 	if (!zane_started) zane_start();
 	pthread_mutex_unlock(&zane_pool);

@@ -54,7 +54,8 @@
    1 MiB chunks of its own, each made at a 1 MiB boundary, all given back
    at the drain with no walk of what its values own. A scope whose blocks
    all fit in its frame maps no chunk, so its drain stays inline, unless
-   it spawned a call, its context is shared, or drains are checked. A value
+   it spawned a call, keeps a local's subject region, or drains are
+   checked. A value
    may own blocks in an outer region, which a move into a deeper owner
    leaves where they are (§3.5); when the value dies with this scope they
    are dead space there, given back when that region drains in turn.
@@ -213,10 +214,9 @@ _Static_assert(sizeof(zane_mark) == ZANE_MARK_SIZE, "a frame's record is its own
    innermost scope's record, and `limit` the range's end, where the guard
    begins; emitted code reads the three at fixed offsets. `committed` is
    how much of the range is usable. `shared` counts the calls it spawned
-   that are still out. Until it spawns, a context is its own thread's alone;
-   while a call it spawned is out, that call may reach its storage, so its
-   scopes and regions change under its lock, which another thread always
-   takes for a context it reaches (docs/design/lowering.md §9). */
+   that are still out. Only its own thread changes its scopes and regions:
+   a call it spawned reads what it was lent, and writes its subject in a
+   region of its own (`zane_island`, docs/design/lowering.md §9). */
 struct zane_context {
 	char *frontier;
 	zane_mark *top;
@@ -225,7 +225,6 @@ struct zane_context {
 	char *committed;
 	int64_t size;
 	int32_t id;
-	pthread_mutex_t lock;
 	int64_t shared;
 	/* The warm chunks its drained regions gave back, the latest first, how
 	   many, and how many times its regions gave chunks back. */
@@ -243,8 +242,8 @@ struct zane_context {
 	   joins. Each is set and cleared under `zane_waits`. */
 	int64_t *awaits;
 	zane_task *joins;
-	/* Experimental (ZANE_SUBJECT_REGIONS): the subject regions of the calls
-	   it spawned that are still out (spawn.c). */
+	/* The subject regions of the calls it spawned that are still out, and
+	   those its scopes keep for their locals (spawn.c). */
 	struct zane_island *islands;
 };
 
@@ -286,12 +285,11 @@ _Static_assert(sizeof(zane_list) == ZANE_HANDLE_SIZE, "a list is a handle");
 
 enum { ZANE_QUEUED, ZANE_RUNNING, ZANE_DONE, ZANE_JOINED };
 
-/* Experimental (docs/experiments/subject-regions): with
-   ZANE_SUBJECT_REGIONS, a spawned `mut` call's subject that owns blocks
-   lives in a region of its own while the call is out, its **subject
-   region**, which only that call writes. No other thread then allocates
-   or returns a block in a region of this context, so nothing takes the
-   context's lock. A subject region is no scope: its depth is
+/* A spawned `mut` call's subject that owns blocks lives in a region of its
+   own while the call is out, its **subject region**, which only that call
+   writes (docs/design/lowering.md §9). No other thread then allocates or
+   returns a block in a region of this context, so a context has no lock.
+   A subject region is no scope: its depth is
    ZANE_ISLAND_DEPTH, so it outlives no scope, and a value arriving in it
    moves its blocks in. Its record is the start of a `zane_island`. At the
    join the subject goes home. A local's region stays with it for the next
@@ -319,26 +317,20 @@ typedef struct zane_island {
 	struct zane_island *next;
 } zane_island;
 
-#ifdef ZANE_SUBJECT_REGIONS
-/* No lock: when drains are checked, a region of another thread's is a
-   defect, which the cold check out of line stops the program on (arena.c),
-   so the common path is one test of `zane_checking`. */
+/* A region the runtime is about to change. When drains are checked,
+   another thread's is a defect, which the cold check out of line stops the
+   program on (arena.c), so the common path is one test of `zane_checking`. */
 void zane_region_checked(zane_mark *r) __attribute__((cold, noinline));
-#define zane_lock_region(r) (__builtin_expect(zane_checking, 0) ? zane_region_checked(r) : (void)0)
+#define zane_check_region(r) (__builtin_expect(zane_checking, 0) ? zane_region_checked(r) : (void)0)
 /* The context of the call this thread joins, done, while its result comes
    home: its regions are reached from here then, and from nowhere else. */
 extern _Thread_local zane_context *zane_joining;
-#define zane_unlock_region(r) ((void)(r))
 /* The region a package constant's blocks move into: never drained, and
    changed only under `zane_constants` (value.c). */
 extern zane_mark *zane_constants_region;
 extern pthread_mutex_t zane_constants;
 void zane_islands_home(zane_task *t);
 void zane_islands_drained(zane_context *c, zane_mark *m);
-#else
-#define zane_lock_region(r) zane_lock((r)->context)
-#define zane_unlock_region(r) zane_unlock((r)->context)
-#endif
 
 /* The pool steals work (§2.4). Each of its threads keeps a deque of the
    calls it spawned, and takes its own newest first; a thread with none
@@ -372,8 +364,6 @@ extern _Thread_local zane_context *zane_self;
 extern zane_mark *zane_program;
 void zane_reopen(void);
 zane_context *zane_context_at(int32_t id);
-void zane_lock(zane_context *c);
-void zane_unlock(zane_context *c);
 zane_context *zane_context_new(void);
 uintptr_t *zane_page(const void *at, int make);
 uintptr_t zane_page_entry(const void *at);

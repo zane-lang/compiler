@@ -295,6 +295,24 @@ is read through. ThreadSanitizer, 3 runs each, checked and unchecked:
 0 reports for `spawnSubjects`, `spawns` and `race 300`. The control,
 checked, still stops on the check.
 
+## Outcome
+
+Subject regions are the only design: the locked one is deleted, with the
+switch and both control knobs (`ZANE_SUBJECT_REGIONS`,
+`ZANE_SUBJECT_REGIONS_NO_ISLANDS`, `ZANE_SUBJECT_REGIONS_UNCHECKED`).
+`zane_lock`, `zane_unlock` and `zane_guarded` are gone; the context has no
+lock; the box's runtime fallback is for large or over-aligned payloads
+alone; `zane_lock_region` is `zane_check_region`, still checked only when
+drains are. Package constants live in a region of their own under the
+constants' lock (`runtime/value.c`), which `tests/runtime/blocks.c` now
+checks. `ZANE_TSAN=1` stays as a development build for ThreadSanitizer
+(`tsan-cc`). The design is in `docs/design/lowering.md` §9. No spec change:
+it is an implementation detail concurrency.md §4.4 already allows.
+
+`fixtures.sh`, `measure.sh` and `tsan.sh` still set the retired switch,
+which is now ignored, so they build the one design; to compare against the
+locked one, run them on commit 3e08f23.
+
 ## Open points
 
 - **A copy when another call is out.** A local spawned on while another

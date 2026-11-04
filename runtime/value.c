@@ -5,17 +5,16 @@
 /* ---------------------------------------------------------------------- */
 
 /* Whether region `r` lives as long as region `s`: it is `s`, or an
-   enclosing scope of the same context, or the program's own region. A
-   region of another context is taken as shorter-lived, which only costs a
-   relocation that was not needed (docs/design/lowering.md §9). */
+   enclosing scope of the same context, the program's own region, or the
+   constants'. A region of another context is taken as shorter-lived,
+   which only costs a relocation that was not needed
+   (docs/design/lowering.md §9). */
 static int zane_outlives(const zane_mark *r, const zane_mark *s) {
-#ifdef ZANE_SUBJECT_REGIONS
 	/* What arrives in a subject region moves in, so that its call writes
 	   that region alone; a constant's region lives as long as the
 	   program's (zane_island). */
 	if (r == zane_constants_region) return 1;
 	if (zane_is_island(s)) return r == s;
-#endif
 	return r == s || r == zane_program || (r->context == s->context && r->depth <= s->depth);
 }
 
@@ -29,9 +28,7 @@ static int zane_outlives(const zane_mark *r, const zane_mark *s) {
    old one is returned. */
 int64_t zane_leaves(const char *block, zane_mark *region, int64_t from) {
 	zane_mark *r = zane_region_at(block);
-#ifdef ZANE_SUBJECT_REGIONS
 	if (r == zane_constants_region) return 0;
-#endif
 	if (from == 0) return !zane_outlives(r, region);
 	return r != region && r->context == zane_self && r->depth >= from;
 }
@@ -220,13 +217,11 @@ int64_t zane_constant_begin(int64_t *state) {
 }
 
 /* The constant at `value` is made: the blocks it owns move into the
-   program's own region, which it lives in until the program ends, and
-   every reader may now read it. */
+   constants' region, which they live in until the program ends, and every
+   reader may now read it. */
 void zane_constant_end(int64_t *state, char *value, const zane_type *type) {
-#ifdef ZANE_SUBJECT_REGIONS
-	/* Constants are made on any thread, so their region is changed under
-	   the constants' lock rather than the program's region under its
-	   context's. */
+	/* Constants are made on any thread, so they get a region of their own,
+	   changed only under the constants' lock. */
 	pthread_mutex_lock(&zane_constants);
 	if (!zane_constants_region) {
 		zane_island *i = calloc(1, sizeof *i);
@@ -236,10 +231,6 @@ void zane_constant_end(int64_t *state, char *value, const zane_type *type) {
 		zane_constants_region = &i->mark;
 	}
 	zane_move(value, type, zane_constants_region, 0);
-#else
-	zane_move(value, type, zane_program, 0);
-	pthread_mutex_lock(&zane_constants);
-#endif
 	__atomic_store_n(state, -1, __ATOMIC_RELEASE);
 	pthread_cond_broadcast(&zane_constant_made);
 	pthread_mutex_unlock(&zane_constants);

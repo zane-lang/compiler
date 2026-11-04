@@ -625,7 +625,7 @@
     │       │       │   ├── task: #116
     │       │       │   ├── scope: %113
     │       │       │   ├── thunk: zane.spawn.12
-    │       │       │   ├── frame: {void, ptr, i64, <void | box32>}
+    │       │       │   ├── frame: {void, ptr, i64, <void | box32>, ptr}
     │       │       │   ├── args[0]: local #114 : ptr
     │       │       │   ├── args[1]: 250 : i64
     │       │       │   └── args[2] > copy:
@@ -3036,14 +3036,16 @@
     │   ├── body[0] > eval > call:
     │   │   ├── type: void
     │   │   ├── fn: spawns$deepen(this spawns$Countdown, %primitives$I64)
-    │   │   ├── args[0] > offset:
-    │   │   │   ├── within: {void, ptr, i64, <void | box32>}
-    │   │   │   ├── path: 3
-    │   │   │   └── base: local #115 : ptr
+    │   │   ├── args[0] > deref:
+    │   │   │   ├── type: ptr
+    │   │   │   └── ptr > offset:
+    │   │   │       ├── within: {void, ptr, i64, <void | box32>, ptr}
+    │   │   │       ├── path: 4
+    │   │   │       └── base: local #115 : ptr
     │   │   └── args[1] > deref:
     │   │       ├── type: i64
     │   │       └── ptr > offset:
-    │   │           ├── within: {void, ptr, i64, <void | box32>}
+    │   │           ├── within: {void, ptr, i64, <void | box32>, ptr}
     │   │           ├── path: 2
     │   │           └── base: local #115 : ptr
     │   └── body[1] > eval > runtime:
@@ -3052,13 +3054,15 @@
     │       ├── args[0] > deref:
     │       │   ├── type: ptr
     │       │   └── ptr > offset:
-    │       │       ├── within: {void, ptr, i64, <void | box32>}
+    │       │       ├── within: {void, ptr, i64, <void | box32>, ptr}
     │       │       ├── path: 1
     │       │       └── base: local #115 : ptr
-    │       ├── args[1] > offset:
-    │       │   ├── within: {void, ptr, i64, <void | box32>}
-    │       │   ├── path: 3
-    │       │   └── base: local #115 : ptr
+    │       ├── args[1] > deref:
+    │       │   ├── type: ptr
+    │       │   └── ptr > offset:
+    │       │       ├── within: {void, ptr, i64, <void | box32>, ptr}
+    │       │       ├── path: 4
+    │       │       └── base: local #115 : ptr
     │       ├── args[2]: 4 : i64
     │       └── args[3]: layout spawns$Countdown
     ├── funcs[32] > func:

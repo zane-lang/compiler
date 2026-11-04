@@ -153,9 +153,7 @@ let level ~optimize =
   @ (if Cgt.Ref32.chunk_boxes () then [ "-DZANE_CHUNK_BOXES" ]
      else if Cgt.Ref32.image_boxes () then [ "-DZANE_IMAGE_BOXES" ]
      else [])
-  @ (if Cgt.Ref32.bump () then [ "-DZANE_BUMP_REGIONS" ] else [])
-  @ (if Cgt.Ref32.subject_regions () then [ "-DZANE_SUBJECT_REGIONS" ] else [])
-  @ if Sys.getenv_opt "ZANE_SUBJECT_REGIONS_UNCHECKED" = Some "1" then [ "-DZANE_SUBJECT_REGIONS_UNCHECKED" ] else []
+  @ if Cgt.Ref32.bump () then [ "-DZANE_BUMP_REGIONS" ] else []
 
 (* The C compiler links for the target as it was written: `zig cc` reads
    its own short triples, and not every normal form. *)
@@ -842,10 +840,10 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
       if not optimize then Wrappers.mark data_layout m;
       if optimize then llvm_options (Array.of_list ("zanec" :: Passes.llvm_options));
-      (* Experimental (docs/experiments/subject-regions): with
-         `ZANE_TSAN=1`, every function the program defines is built for
-         ThreadSanitizer, whose runtime the C compiler then links when
-         `ZANE_CC` passes it `-fsanitize=thread`. *)
+      (* With `ZANE_TSAN=1`, every function the program defines is built
+         for ThreadSanitizer, whose runtime the C compiler then links when
+         `ZANE_CC` passes it `-fsanitize=thread`
+         (docs/experiments/subject-regions/tsan-cc). *)
       let tsan = Sys.getenv_opt "ZANE_TSAN" = Some "1" in
       if tsan then
         Llvm.iter_functions

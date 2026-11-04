@@ -273,12 +273,11 @@ module Layout = struct
 end
 
 module Expr = struct
-  (* Experimental (ZANE_SUBJECT_REGIONS, docs/experiments/subject-regions):
-     a spawned call's subject, which owns blocks, moves into a region of its
-     own before the call starts (runtime/spawn.c). The frame's member
-     [field] holds the subject's address, which the call reads it through;
-     when the subject is copied into the frame, the copy is member [copy],
-     and [field] is set to it first. *)
+  (* A spawned call's subject that owns blocks goes into a region of its
+     own before the call starts (runtime/spawn.c, docs/design/lowering.md
+     §9). The frame's member [field] holds the subject's address, which the
+     call reads it through; when the subject is copied into the frame, the
+     copy is member [copy], and [field] is set to it first. *)
   type island = { field : int; copy : int option; size : int; value_layout : Layout.t }
 
   type t = { node : node; ty : Ty.t }

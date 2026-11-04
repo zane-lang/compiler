@@ -132,10 +132,10 @@ let func st (v : verb) : Func.t =
 
 (* L16. The function that makes a package constant: the first call makes
    its value, in a scope of its own, and stores it in the constant's
-   variable, whose blocks then move into the program's own region; every
+   variable, whose blocks then move into the constants' region; every
    call gives the variable's address. A context that finds another making
-   it waits for it. A program's constants live as long as it does, as its
-   own region does, so nothing ends them. The constant is local to a
+   it waits for it. A program's constants live as long as it does, as
+   that region does, so nothing ends them. The constant is local to a
    program's object, and shared by every object of a library or a stamped
    dependency that reads it, as a generic instance is. *)
 let made st decl : Func.t =

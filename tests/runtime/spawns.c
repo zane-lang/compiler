@@ -106,10 +106,11 @@ void zane_main(void) {
 	zane_spawn((char *)f, join_texts, (char *)home, &text_type, sizeof(zane_text));
 	check(zane_self->shared == 1);
 
-	/* While a call is out it can reach this context, so emitted code takes
-	   no block here itself; once it is home the innermost region is open
-	   again, and a drain opens the one around it. */
-	check(zane_open == NULL);
+	/* A call out reaches no region of this context (its subject, if it
+	   writes one, has a region of its own), so emitted code still takes
+	   blocks in the innermost region itself, and a drain opens the one
+	   around it. */
+	check(zane_open == scope);
 	zane_join((char *)f);
 	check(holds(home, "abcd") && zane_region_at(home->bytes) == scope);
 	check(zane_self->shared == 0 && zane_blocks() == 1);

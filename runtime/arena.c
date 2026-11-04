@@ -110,51 +110,36 @@ zane_context *zane_idle;
 _Thread_local zane_context *zane_self;
 zane_mark *zane_program;
 
-/* The innermost region of the context running on this thread while no call
-   it spawned is out, so that nothing else can reach it, and otherwise null.
-   Emitted code takes a box's block there itself, and opens and drains a
-   scope there itself (docs/design/lowering.md §9). Whatever changes the
-   context, its innermost scope or whether it is shared sets it again. */
+/* The innermost region of the context running on this thread, or null
+   while the thread runs none. Only this thread reaches its context's
+   regions: a spawned call's subject is in a region of its own
+   (`zane_island`). Emitted code takes a box's block there itself, and opens
+   and drains a scope there itself (docs/design/lowering.md §9). Whatever
+   changes the context or its innermost scope sets it again. */
 _Thread_local zane_mark *zane_open;
 
 void zane_reopen(void) {
 	zane_context *c = zane_self;
-#ifdef ZANE_SUBJECT_REGIONS
-	/* No other thread reaches a region of this context (zane_island). */
 	zane_open = c ? c->top : NULL;
-#else
-	zane_open = c && c->top && c->shared == 0 ? c->top : NULL;
-#endif
 }
 
 /* The context with id `id`, once it is listed. */
 zane_context *zane_context_at(int32_t id) { return __atomic_load_n(&zane_contexts[id], __ATOMIC_ACQUIRE); }
 
-#ifdef ZANE_SUBJECT_REGIONS
-/* Nothing is taken under a context's lock: only its own thread changes
-   its scopes and regions, and a spawned call's subject is in a region of
-   its own. When drains are checked, a region another thread is asked for
-   stops the program, as a defect: a context whose call is over is given
-   back by the thread that joined it, after it is done, and is no such
-   defect. */
-static int zane_guarded(zane_context *c) { (void)c; return 0; }
+/* No context has a lock: only its own thread changes its scopes and
+   regions, and a spawned call's subject is in a region of its own. When
+   drains are checked, a region another thread is asked for stops the
+   program, as a defect (`zane_check_region`); a context whose call is over
+   is given back by the thread that joined it, after it is done, and is no
+   such defect. */
 zane_mark *zane_constants_region;
 
 _Thread_local zane_context *zane_joining;
 
 void zane_region_checked(zane_mark *r) {
-#ifndef ZANE_SUBJECT_REGIONS_UNCHECKED
 	if (r->context != zane_self && r->context != zane_joining && !zane_is_island(r))
 		zane_broken("a region taken from another thread");
-#else
-	(void)r;
-#endif
 }
-#else
-static int zane_guarded(zane_context *c) { return c != zane_self || c->shared > 0; }
-#endif
-void zane_lock(zane_context *c) { if (zane_guarded(c)) pthread_mutex_lock(&c->lock); }
-void zane_unlock(zane_context *c) { if (zane_guarded(c)) pthread_mutex_unlock(&c->lock); }
 
 /* A context for the program's `main`, the first one made, or for a
    spawned call, with the range its frames go in. A context a call is over
@@ -170,7 +155,6 @@ zane_context *zane_context_new(void) {
 	if (zane_context_count == ZANE_CONTEXTS) zane_broken("too many spawned calls out at once");
 	c = calloc(1, sizeof *c);
 	if (!c) zane_broken("out of memory for a context");
-	pthread_mutex_init(&c->lock, NULL);
 	c->id = zane_context_count++;
 	pthread_mutex_unlock(&zane_memory);
 	zane_reserve(c, c->id == 0 ? zane_fixed_region : zane_spawned_fixed_region);
@@ -189,26 +173,20 @@ static zane_mark *zane_skip_of(zane_mark *outer) {
 }
 
 /* A scope opens with a frame of `size` bytes, its record first, and the
-   record's address names it from now. Emitted code does the same inline
-   while the context is its thread's alone, and calls this otherwise. A
-   frame past the range's end stops the program here, as one past its guard
-   would. */
+   record's address names it from now. Emitted code does the same inline,
+   and calls this where the thread runs no context yet. A frame past the
+   range's end stops the program here, as one past its guard would. */
 zane_mark *zane_scope_enter(int64_t size) {
 	zane_context *c = zane_self;
 	if (size < (int64_t)sizeof(zane_mark)) size = (int64_t)sizeof(zane_mark);
 	size = (size + 15) / 16 * 16;
-	zane_lock(c);
 	zane_mark *m = (zane_mark *)c->frontier;
-	if (size > c->limit - c->frontier) {
-		zane_unlock(c);
-		zane_too_deep_in(c);
-	}
+	if (size > c->limit - c->frontier) zane_too_deep_in(c);
 	c->frontier += size;
 	zane_mark *outer = c->top;
 	*m = (zane_mark){ .context = c, .depth = outer ? outer->depth + 1 : 0, .outer = outer };
 	m->skip = outer ? zane_skip_of(outer) : m;
 	c->top = m;
-	zane_unlock(c);
 	zane_reopen();
 	return m;
 }
@@ -227,25 +205,17 @@ static zane_mark *zane_scope_holding(zane_context *c, const char *at) {
    scope of the context whose range it is in whose frame holds it. Anything
    else, such as a value on the machine stack, is the innermost scope's
    here. Most slots asked about are the innermost scope's own, so the
-   search tries that one first, and without the lock while the context is
-   this thread's alone. */
+   search tries that one first. Only this thread searches its context's
+   scopes, which a checked drain's run stops the program on otherwise. */
 zane_mark *zane_region_at(const void *at) {
 	uintptr_t entry = zane_page_entry(at);
 	if (entry == 0) return zane_self->top;
 	if (!(entry & 1)) return (zane_mark *)entry;
 	zane_context *c = (zane_context *)(entry & ~(uintptr_t)1);
-#ifdef ZANE_SUBJECT_REGIONS
-#ifndef ZANE_SUBJECT_REGIONS_UNCHECKED
 	if (zane_checking && c != zane_self && c != zane_joining) zane_broken("another thread's scopes searched");
-#endif
-#endif
-	if (!zane_guarded(c)) {
-		zane_mark *top = c->top;
-		if (top && (const char *)at >= (const char *)top) return top;
-	}
-	zane_lock(c);
+	zane_mark *top = c->top;
+	if (top && (const char *)at >= (const char *)top) return top;
 	zane_mark *m = zane_scope_holding(c, at);
-	zane_unlock(c);
 	if (!m) zane_broken("an address in a context's range below its first scope");
 	return m;
 }
@@ -265,7 +235,7 @@ static int64_t zane_word(int64_t n) { return n < 8 ? 8 : (n + 7) / 8 * 8; }
    always do. A region takes its context's latest warm spare first, then
    the pool's, then a cold one, whose pages come back zeroed when touched,
    then a new chunk. The pool's lists and every count change under
-   `zane_memory`; a context's own warm list, under its lock. */
+   `zane_memory`; a context's own warm list, only on its own thread. */
 static zane_mapping *zane_spare, *zane_cold;
 int64_t zane_warm_spares, zane_cold_spares, zane_cold_reuses;
 
@@ -435,7 +405,8 @@ void zane_give_spares(zane_context *c) {
 /* Chunks of its own for one region: `size` bytes in all, a whole number of
    chunks, listed in the chunk map as the region's. A whole chunk is a warm
    spare of its context's or the pool's when there is one, else a cold one,
-   made usable again, else a new one. Its context's lock is held. */
+   made usable again, else a new one. A subject region on its call's
+   thread takes no spare of its spawner's. */
 static zane_mapping *zane_map(zane_mark *region, size_t size) {
 	zane_context *c = region->context;
 	zane_mapping *m = NULL;
@@ -495,7 +466,7 @@ static void zane_keep_span(zane_context *c, zane_mapping *m) {
    ZANE_COOLING of the context's drains past the ZANE_WARM_KEPT it keeps
    for good. A list's growable span is kept for the context's next list
    (zane_keep_span) or gives back its whole reservation, and an
-   oversized block its chunks. Its context's lock is held. */
+   oversized block its chunks. */
 void zane_unmap(zane_mark *region) {
 	zane_context *c = region->context;
 	if (region->mappings) c->drains++;
@@ -532,7 +503,7 @@ void zane_unmap(zane_mark *region) {
    its context's innermost, by at least ZANE_STRETCH bytes and to a 16-byte
    boundary, as long as the frame stays within `most` bytes and the range
    (zane_internal.h). The frontier moves to its new end, and so does
-   the end of the scope's heap. Its context's lock is held. */
+   the end of the scope's heap. */
 int zane_stretch(zane_mark *m, char *end, int64_t most) {
 	zane_context *c = m->context;
 	if (c->top != m) return 0;
@@ -603,8 +574,7 @@ static inline __attribute__((always_inline)) char *zane_frontier_of(zane_mark *m
 }
 
 /* Experimental pooled variants (list.c): exactly `size` bytes, aligned to
-   a word, at a region's frontier, counted as a block out. The caller holds
-   the region's context's lock, or needs none. */
+   a word, at a region's frontier, counted as a block out. */
 char *zane_pool_frontier(zane_mark *m, int64_t size) {
 	m->heap.live++;
 	return zane_frontier_of(m, (size + 7) & ~(int64_t)7, 8);
@@ -625,7 +595,7 @@ enum { ZANE_HEADROOM = 64 };
    in place as the list doubles (memory.md §3.6). Reserving costs addresses,
    not memory: only what is usable is charged, and only what is touched
    takes RAM. Where a process may not reserve that many addresses, the
-   reservation is the span alone. Its context's lock is held. Kept out of
+   reservation is the span alone. Kept out of
    zane_alloc_held, whose every call would otherwise save the registers
    this rare path uses. */
 __attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t size) {
@@ -664,8 +634,7 @@ __attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t s
    backed only where it is touched, as Goose reserves a data stack, so a
    pool in it never needs its room checked. Only its first chunk is in the
    chunk map: nothing asks which region holds an address past it. It is
-   kept warm for the context's next one, as a list's span is. Its context's
-   lock is held. */
+   kept warm for the context's next one, as a list's span is. */
 char *zane_alloc_unbounded(zane_mark *region) {
 	size_t total = (size_t)ZANE_UNBOUNDED + ZANE_CHUNK;
 	zane_context *c = region->context;
@@ -697,8 +666,7 @@ char *zane_alloc_unbounded(zane_mark *region) {
 
 /* The oversized block at `block`, in `region`, grown in place to `size`
    bytes, or 0 when its reservation cannot hold them: what follows its
-   usable bytes is made usable and listed as the region's. Its context's
-   lock is held. */
+   usable bytes is made usable and listed as the region's. */
 int zane_extend(zane_mark *region, char *block, int64_t size) {
 	zane_mapping *m = (zane_mapping *)(block - ZANE_LINE);
 	size_t bytes = zane_span_bytes(size);
@@ -737,9 +705,8 @@ zane_stack *zane_stack_of(zane_mark *m, int64_t size, int64_t align) {
 }
 
 /* A block in a region: one returned there of the same size and alignment,
-   or else new bytes from its frontier (§3.2). The caller holds the region's
-   context's lock, or needs none: emitted code calls this when its own
-   inline path finds neither (docs/design/lowering.md §9). */
+   or else new bytes from its frontier (§3.2). Emitted code calls this when
+   its own inline path finds neither (docs/design/lowering.md §9). */
 char *zane_alloc_held(zane_mark *region, int64_t size, int64_t align) {
 	size = zane_word(size);
 	if (align < 8) align = 8;
@@ -763,9 +730,8 @@ char *zane_alloc_held(zane_mark *region, int64_t size, int64_t align) {
 }
 
 char *zane_alloc(zane_mark *region, int64_t size, int64_t align) {
-	zane_lock_region(region);
+	zane_check_region(region);
 	char *block = zane_alloc_held(region, size, align);
-	zane_unlock_region(region);
 	return block;
 }
 
@@ -774,13 +740,12 @@ void zane_free(char *block, int64_t size, int64_t align) {
 	zane_mark *region = zane_region_at(block);
 	size = zane_word(size);
 	if (align < 8) align = 8;
-	zane_lock_region(region);
+	zane_check_region(region);
 	int64_t class = zane_class(size, align);
 	char **top = class >= 0 ? &region->heap.classes[class] : &zane_stack_of(region, size, align)->top;
 	*(char **)block = *top;
 	*top = block;
 	region->heap.live--;
-	zane_unlock_region(region);
 }
 
 /* How many blocks are out in every open region, for the runtime's own
