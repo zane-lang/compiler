@@ -1489,7 +1489,10 @@ test passing.
   capture the spawning frame, and the spec forbids spawning one
   ([`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
   §3.1). A call to an intrinsic runs through `zane.intrinsic.N`, which
-  takes its arguments and makes the call.
+  takes its arguments and makes the call. For a `mut` method, such as a
+  value list's `push`, that function is a `mut` method too, so its subject
+  is lent by its address and goes into a subject region (§9) as a declared
+  method's does.
 - **A field constructor is a call.** A field-constructor call calls the
   constructor, whose body runs as any verb's does, with each entry's value
   in its slot. An entry the call leaves out passes the default the TST typed

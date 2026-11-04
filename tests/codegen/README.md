@@ -209,8 +209,9 @@ then run it again, read the golden diff and promote that.
   local of its own, one that aborts after writing its subject, a reader
   spawned before the writer and one still out when its scope drains, the
   same local spawned on again, alone and from a loop, a result that owns a
-  block it took from its subject, and a package constant that owns a block
-  read from a spawned call. Written for subject regions
+  block it took from its subject, an intrinsic `mut` method spawned on a
+  local and on an element reached through an owner, and a package constant
+  that owns a block read from a spawned call. Written for subject regions
   (docs/experiments/subject-regions), which a checked drain of the nested
   case once stopped. Every check prints `yes` when it holds and `no` when it
   does not.

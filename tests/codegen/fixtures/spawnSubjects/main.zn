@@ -4,7 +4,7 @@
 /// its own, one that aborts after writing its subject, a reader spawned
 /// before the writer, one still out when its scope drains, the same local
 /// spawned on again, alone and from a loop, a result that owns a block it
-/// took from its subject, and a package constant that owns a block read
+/// took from its subject, an intrinsic `mut` method, and a package constant that owns a block read
 /// from a spawned call. Each check prints `yes` when it holds and `no` when it
 /// does not.
 package spawnSubjects;
@@ -179,6 +179,21 @@ Unit main() {
 		check(@operators$equal(took, String("taken out of the subject")));
 	});
 	check(@operators$equal(ys[Int(1)]:size(), Int(0)));
+
+	// An intrinsic `mut` method spawned on a local, while the spawner grows
+	// a list of its own, and on an element reached through an owner.
+	ns List<Int> = @primitives$List(Int);
+	@controlflow$repeat(Int(300), { ns!push(Int(2)); });
+	@controlflow$branch(true, {
+		spawn ns!push(Int(3));
+		mine List<Int> = @primitives$List(Int);
+		@controlflow$repeat(Int(300), { mine!push(Int(4)); });
+	});
+	check(@operators$conjoin(@operators$equal(ns:size(), Int(301)), @operators$equal(ns[Int(301)], Int(3))));
+	@controlflow$branch(true, {
+		spawn ys[Int(1)]!push(String("pushed through an owner"));
+	});
+	check(@operators$equal(ys[Int(1)][Int(1)], String("pushed through an owner")));
 
 	// A constant that owns a block, read from a spawned call.
 	right Bool = spawn bannerRight();

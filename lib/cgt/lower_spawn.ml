@@ -92,14 +92,22 @@ let specialized st ctx span (v : verb) args =
 (* A spawned call to an intrinsic, which has no function of its own, runs
    through one named `zane.intrinsic.N` that takes the call's arguments
    and makes the call. One the program has, such as `@program$console`,
-   stays where the call reads it. *)
+   stays where the call reads it. A `mut` method's subject that is a place
+   of the program's is the function's own `mut` subject, `this`, lent by its
+   address as a declared method's is (L6), so the call writes the caller's
+   place. *)
 let wrapped st span (callee : T.Verb_ref.t) args ret =
   let spelling = match callee.owner with S.Intrinsic s -> s | S.Declared _ -> "" in
+  let found = List.find_opt (fun (_, (s : S.t)) -> s.S.owner = callee.owner) Tst.Intrinsics.methods in
   let abort =
-    List.find_map
-      (fun (_, (s : S.t)) -> if s.S.owner = callee.owner then s.S.abort else None)
-      Tst.Intrinsics.methods
+    Option.bind found (fun (_, (s : S.t)) -> s.S.abort)
     |> Option.map (Tty.subst (List.map (fun ((p : Tty.param), a) -> (p.Tty.id, a)) callee.instance))
+  in
+  let is_mut =
+    match (found, args) with
+    | _, T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Intrinsic _); _ } :: _ -> false
+    | Some (_, (s : S.t)), _ :: _ -> s.S.is_mut
+    | _ -> false
   in
   let parts =
     List.mapi
@@ -108,7 +116,8 @@ let wrapped st span (callee : T.Verb_ref.t) args ret =
         | T.Arg.Value ({ T.Expr.node = T.Expr.Var (T.Name_ref.Intrinsic _); _ } as a) -> (None, a)
         | T.Arg.Value a ->
             let id = -1 - i and ty = a.T.Expr.ty and span = a.T.Expr.span in
-            let l = { T.Local.id; name = string_of_int i; ty; span } in
+            let name = if i = 0 && is_mut then "this" else string_of_int i in
+            let l = { T.Local.id; name; ty; span } in
             (Some (l, arg), { a with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) })
         | T.Arg.Block _ -> Diagnostic.bug ~span "lowering: a block argument cannot be spawned")
       args
@@ -128,7 +137,7 @@ let wrapped st span (callee : T.Verb_ref.t) args ret =
       params = [];
       ret;
       abort;
-      is_mut = false;
+      is_mut;
     }
   in
   let n = numbered st.intrinsics in
@@ -344,9 +353,14 @@ let rec spawn w st ctx span (e : T.Expr.t) =
               let stats, future = spawn_call w st ctx span v None ~writes:true args handler in
               (lets @ stats, future)
           | args -> spawn_call w st ctx span v None ~writes:v.signature.S.is_mut args handler))
-  | T.Expr.Call { callee = { owner = S.Intrinsic _; _ } as callee; args; handler } ->
+  | T.Expr.Call { callee = { owner = S.Intrinsic _; _ } as callee; args; handler } -> (
       let v, args = wrapped st span callee args e.T.Expr.ty in
-      spawn_call w st ctx span v None ~writes:false args handler
+      match args with
+      | T.Arg.Value subject :: rest when v.signature.S.is_mut && Lower_calls.subscripted subject ->
+          let lets, args = Lower_calls.held_last w st ctx span v subject rest in
+          let stats, future = spawn_call w st ctx span v None ~writes:true args handler in
+          (lets @ stats, future)
+      | args -> spawn_call w st ctx span v None ~writes:v.signature.S.is_mut args handler)
   | T.Expr.Call_value { callee; args; handler } -> (
       match Tty.strip_mode callee.T.Expr.ty with
       | Tty.Verb fv -> (
