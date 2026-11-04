@@ -168,7 +168,10 @@ def package(binary, zig, zig_manifest, output, version, commit):
         shutil.copy2(zig.parent / "LICENSE", root / "zig/LICENSE")
         shutil.copytree(zig.parent / "lib", root / "zig/lib")
 
-        images = [compiler, zig_binary]
+        # macOS exposes temporary directories through aliases such as /var ->
+        # /private/var. Keep the image paths in the same canonical form that
+        # collect_closure uses for its edge and context keys.
+        images = [compiler.resolve(strict=True), zig_binary.resolve(strict=True)]
         libraries, edges, contexts = collect_closure(images)
         for source, name in libraries.items():
             shutil.copy2(source, root / "lib" / name)
