@@ -179,6 +179,7 @@ jobs:
           devbox run --config=.github/devbox-intel -- \
             env ZANE_CC="$GITHUB_WORKSPACE/dev/bin/clang-lld" \
                 LLVM_CONFIG=llvm-config \
+                OCAMLPARAM="_,cc=$(xcrun --find clang)" \
                 "$GITHUB_WORKSPACE/dev/setup/bootstrap-toolchain"
       - name: Install verified native Zig
         run: .github/scripts/install-zig-macos "$ZIG_MANIFEST"
