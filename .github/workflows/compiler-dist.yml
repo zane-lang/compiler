@@ -26,6 +26,13 @@ on:
       version:
         type: string
         required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version label for the test archives
+        type: string
+        required: false
+        default: v0.0
 
 permissions:
   contents: read
