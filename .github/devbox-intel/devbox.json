@@ -1,38 +1,38 @@
 {
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.18.4/.schema/devbox.schema.json",
   "packages": {
-    "github:NixOS/nixpkgs/682ba80136e2c8dacd6b8900f578a72329458901#clang_19": {
+    "github:NixOS/nixpkgs/329c3d2af6d1b618705150ea39f72c15eb4e613e#clang_19": {
       "outputs": ["out"]
     },
-    "github:NixOS/nixpkgs/682ba80136e2c8dacd6b8900f578a72329458901#lld_19": {
+    "github:NixOS/nixpkgs/329c3d2af6d1b618705150ea39f72c15eb4e613e#lld_19": {
       "outputs": ["out", "dev", "lib"]
     },
-    "github:NixOS/nixpkgs/682ba80136e2c8dacd6b8900f578a72329458901#llvm_19": {
+    "github:NixOS/nixpkgs/329c3d2af6d1b618705150ea39f72c15eb4e613e#llvm_19": {
       "outputs": ["out", "dev", "lib"]
     },
-    "github:NixOS/nixpkgs/682ba80136e2c8dacd6b8900f578a72329458901#llvmPackages_19.libclang": {
+    "github:NixOS/nixpkgs/329c3d2af6d1b618705150ea39f72c15eb4e613e#llvmPackages_19.libclang": {
       "outputs": ["out", "dev", "lib"]
     },
-    "github:NixOS/nixpkgs/682ba80136e2c8dacd6b8900f578a72329458901#m4": {
+    "github:NixOS/nixpkgs/329c3d2af6d1b618705150ea39f72c15eb4e613e#m4": {
       "outputs": ["out"]
     },
-    "github:NixOS/nixpkgs/682ba80136e2c8dacd6b8900f578a72329458901#ocaml": {
+    "github:NixOS/nixpkgs/329c3d2af6d1b618705150ea39f72c15eb4e613e#ocaml": {
       "outputs": ["out"]
     },
-    "github:NixOS/nixpkgs/682ba80136e2c8dacd6b8900f578a72329458901#opam": {
+    "github:NixOS/nixpkgs/329c3d2af6d1b618705150ea39f72c15eb4e613e#opam": {
       "outputs": ["out"]
     },
-    "github:NixOS/nixpkgs/682ba80136e2c8dacd6b8900f578a72329458901#pkg-config": {
+    "github:NixOS/nixpkgs/329c3d2af6d1b618705150ea39f72c15eb4e613e#pkg-config": {
       "outputs": ["out"]
     },
-    "github:NixOS/nixpkgs/682ba80136e2c8dacd6b8900f578a72329458901#python3": {
+    "github:NixOS/nixpkgs/329c3d2af6d1b618705150ea39f72c15eb4e613e#python3": {
       "outputs": ["out"]
     },
-    "github:NixOS/nixpkgs/682ba80136e2c8dacd6b8900f578a72329458901#zstd": {
+    "github:NixOS/nixpkgs/329c3d2af6d1b618705150ea39f72c15eb4e613e#zstd": {
       "outputs": ["out"]
     }
   },
   "nixpkgs": {
-    "commit": "682ba80136e2c8dacd6b8900f578a72329458901"
+    "commit": "329c3d2af6d1b618705150ea39f72c15eb4e613e"
   }
 }
