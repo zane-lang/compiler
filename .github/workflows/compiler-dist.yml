@@ -176,10 +176,13 @@ jobs:
         if: matrix.arch == 'x86_64'
         shell: bash
         run: |
+          apple_clang="$(xcrun --find clang)"
+          apple_clang_headers="$("$apple_clang" -print-resource-dir)/include"
+          export NIX_CFLAGS_COMPILE="-isystem $apple_clang_headers${NIX_CFLAGS_COMPILE:+ $NIX_CFLAGS_COMPILE}"
           devbox run --config=.github/devbox-intel -- \
             env ZANE_CC="$GITHUB_WORKSPACE/dev/bin/clang-lld" \
                 LLVM_CONFIG=llvm-config \
-                OCAMLPARAM="_,cc=$(xcrun --find clang)" \
+                NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE" \
                 "$GITHUB_WORKSPACE/dev/setup/bootstrap-toolchain"
       - name: Install verified native Zig
         run: .github/scripts/install-zig-macos "$ZIG_MANIFEST"

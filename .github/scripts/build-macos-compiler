@@ -2,7 +2,9 @@
 set -euo pipefail
 
 cd "${GITHUB_WORKSPACE:?GITHUB_WORKSPACE is not set}"
-export OCAMLPARAM="_,cc=$(xcrun --find clang)"
+apple_clang="$(xcrun --find clang)"
+apple_clang_headers="$("$apple_clang" -print-resource-dir)/include"
+export NIX_CFLAGS_COMPILE="-isystem $apple_clang_headers${NIX_CFLAGS_COMPILE:+ $NIX_CFLAGS_COMPILE}"
 eval "$(opam env --switch="$PWD" --set-switch)"
 dune build bin/zanec/zanec.exe
 python3 dev/release/package-macos.py \
