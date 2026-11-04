@@ -794,8 +794,10 @@ let link_c ~optimize tm m =
    links its runtime when `ZANE_CC` passes it `-fsanitize=thread`
    (docs/experiments/subject-regions/tsan-cc). Otherwise [pipeline] is as
    given. *)
+let thread_sanitizing () = Sys.getenv_opt "ZANE_TSAN" = Some "1"
+
 let thread_sanitized m pipeline =
-  if Sys.getenv_opt "ZANE_TSAN" <> Some "1" then pipeline
+  if not (thread_sanitizing ()) then pipeline
   else begin
     let attr = Llvm.create_enum_attr (Llvm.module_context m) "sanitize_thread" 0L in
     let mark f = if not (Llvm.is_declaration f) then Llvm.add_function_attr f attr Llvm.AttrIndex.Function in
@@ -1315,6 +1317,7 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
                 let key =
                   String.concat "\000"
                     ([ fingerprint; triple; cc; identity; compiler_identity (); Passes.tier1 ]
+                    @ (if thread_sanitizing () then [ "tsan" ] else [])
                     @ Passes.llvm_options)
                 in
                 Filename.concat (Filename.concat cache "tier")

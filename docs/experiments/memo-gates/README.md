@@ -59,7 +59,7 @@ against the memo build without it:
 | salted | optimized | +0.30% | +0.03% | |
 | tttpath | optimized | +0.30% | +0.01% | |
 | leaves | optimized | +0.23% | +0.02% | |
-| salted, shallow, shallowin, tttpath, leaves, loopcold, random | tier0 | +0.04% to +0.20% | | −0.01% to +0.02% |
+| salted, shallow, shallowin, tttpath, leaves, loopcold, random | tier0 | +0.06% to +0.20% | | 0.00% to +0.02% |
 
 - **Preserve costs where memo pays.** A program that hits often runs its
   lookup on most calls, and a `preserve_most` lookup saves and restores

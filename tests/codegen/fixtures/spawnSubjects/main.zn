@@ -2,8 +2,8 @@
 /// fixture does not reach: a list's element, a subject passed to a function
 /// value, a spawned call that spawns on its own subject and on a local of
 /// its own, one that aborts after writing its subject, a reader spawned
-/// before the writer, the same local spawned on again, alone and from a
-/// loop, and a package constant that owns a block read from a spawned
+/// before the writer, one still out when its scope drains, the same local
+/// spawned on again, alone and from a loop, and a package constant that owns a block read from a spawned
 /// call. Each check prints `yes` when it holds and `no` when it
 /// does not.
 package spawnSubjects;
@@ -70,6 +70,14 @@ Int nested(this Countdown, n Int) mut {
 }
 
 /// One spawned call on the subject, waited for before this returns.
+/// Whether `c` is as deep as it was before a writer spawned after this
+/// call deepened it by 20, or as deep as after.
+Unit sees(c Countdown, before Int) {
+	d Int = depth(c);
+	check(@operators$disjoin(@operators$equal(d, before), @operators$equal(d, @operators$add(before, Int(20)))));
+	return Unit();
+}
+
 Unit tick(this Countdown) mut {
 	@controlflow$branch(true, {
 		spawn this!deepen(Int(1));
@@ -131,7 +139,7 @@ Unit main() {
 	@controlflow$branch(true, {
 		seen Int = spawn depth(k);
 		spawn k!deepen(Int(20));
-		check(@operators$conjoin(@operators$lessThan(Int(19), seen), @operators$lessThan(seen, Int(41))));
+		check(@operators$disjoin(@operators$equal(seen, Int(20)), @operators$equal(seen, Int(40))));
 	});
 	check(@operators$equal(depth(k), Int(40)));
 
@@ -144,6 +152,14 @@ Unit main() {
 		k!tick();
 	}
 	check(@operators$equal(depth(k), Int(75)));
+
+	// A reader still out when its scope drains, which joins the writer
+	// spawned after it first.
+	@controlflow$branch(true, {
+		spawn sees(k, Int(75));
+		spawn k!deepen(Int(20));
+	});
+	check(@operators$equal(depth(k), Int(95)));
 
 	// A constant that owns a block, read from a spawned call.
 	right Bool = spawn bannerRight();

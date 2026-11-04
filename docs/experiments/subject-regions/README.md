@@ -311,9 +311,10 @@ checks. `ZANE_TSAN=1` stays as a development build for ThreadSanitizer
 (`tsan-cc`). The design is in `docs/design/lowering.md` §9. No spec change:
 it is an implementation detail concurrency.md §4.4 already allows.
 
-`fixtures.sh`, `measure.sh` and `tsan.sh` still set the retired switch,
-which is now ignored, so they build the one design; to compare against the
-locked one, run them on commit 3e08f23.
+`fixtures.sh` and `tsan.sh` build the one design. `measure.sh` compares
+it with the locked one built by `BASE_ZANEC`, a zanec built at a commit
+that has it, such as this branch's base. The commands the steps above give
+with the switch are as they were run, on commit 3e08f23 or before.
 
 ## Open points
 

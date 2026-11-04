@@ -412,7 +412,7 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 	zane_mapping *m = NULL;
 	if (size == ZANE_CHUNK) {
 		/* A subject region's call takes no spare of its spawner's. */
-		if (c->spare && c == zane_self) {
+		if (c == zane_self && c->spare) {
 			m = zane_take_warm(c);
 		} else {
 			int cold = 0;

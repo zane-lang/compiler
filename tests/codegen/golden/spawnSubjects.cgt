@@ -666,24 +666,24 @@
     │       │           ├── fn: spawnSubjects$check(%primitives$Bool)
     │       │           └── args[0] > binary:
     │       │               ├── type: i1
-    │       │               ├── op: *
+    │       │               ├── op: +
     │       │               ├── left > binary:
     │       │               │   ├── type: i1
-    │       │               │   ├── op: <
-    │       │               │   ├── left: 19 : i64
-    │       │               │   └── right > expand:
-    │       │               │       ├── type: i64
-    │       │               │       ├── label: @93
-    │       │               │       ├── result: #94
-    │       │               │       ├── body[0]: join #88
-    │       │               │       └── body[1] > assign:
-    │       │               │           ├── place: #94
-    │       │               │           └── value > deref:
-    │       │               │               ├── type: i64
-    │       │               │               └── ptr: address of #89 : ptr
+    │       │               │   ├── op: ==
+    │       │               │   ├── left > expand:
+    │       │               │   │   ├── type: i64
+    │       │               │   │   ├── label: @93
+    │       │               │   │   ├── result: #94
+    │       │               │   │   ├── body[0]: join #88
+    │       │               │   │   └── body[1] > assign:
+    │       │               │   │       ├── place: #94
+    │       │               │   │       └── value > deref:
+    │       │               │   │           ├── type: i64
+    │       │               │   │           └── ptr: address of #89 : ptr
+    │       │               │   └── right: 20 : i64
     │       │               └── right > binary:
     │       │                   ├── type: i1
-    │       │                   ├── op: <
+    │       │                   ├── op: ==
     │       │                   ├── left > expand:
     │       │                   │   ├── type: i64
     │       │                   │   ├── label: @95
@@ -694,7 +694,7 @@
     │       │                   │       └── value > deref:
     │       │                   │           ├── type: i64
     │       │                   │           └── ptr: address of #89 : ptr
-    │       │                   └── right: 41 : i64
+    │       │                   └── right: 40 : i64
     │       ├── body[20] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawnSubjects$check(%primitives$Bool)
@@ -848,28 +848,101 @@
     │       │       │       │               └── ptr: local #119 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @115
     │       │       └── right: 75 : i64
-    │       ├── body[25] > spawn:
-    │       │   ├── task: #121
+    │       ├── body[25] > if:
+    │       │   ├── cond: true : i1
+    │       │   └── body[0] > scope:
+    │       │       ├── id: %123
+    │       │       ├── body[0] > spawn:
+    │       │       │   ├── task: #122
+    │       │       │   ├── scope: %123
+    │       │       │   ├── thunk: zane.spawn.9
+    │       │       │   ├── frame: {void, <void | box32>, i64}
+    │       │       │   ├── args[0]: local #85 : <void | box32>
+    │       │       │   └── args[1]: 75 : i64
+    │       │       └── body[1] > spawn:
+    │       │           ├── task: #125
+    │       │           ├── scope: %123
+    │       │           ├── thunk: zane.spawn.10
+    │       │           ├── frame: {void, ptr, i64}
+    │       │           ├── args[0]: address of #85 : ptr
+    │       │           ├── args[1]: 20 : i64
+    │       │           └── island:
+    │       │               ├── field: 1
+    │       │               ├── size: 4
+    │       │               └── layout: spawnSubjects$Countdown
+    │       ├── body[26] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: spawnSubjects$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > expand:
+    │       │       │   ├── type: i64
+    │       │       │   ├── label: @128
+    │       │       │   ├── result: #129
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #130
+    │       │       │   │   └── value: address of #85 : ptr
+    │       │       │   └── body[1] > switch:
+    │       │       │       ├── value > deref:
+    │       │       │       │   ├── type: <void | box32>
+    │       │       │       │   └── ptr: local #130 : ptr
+    │       │       │       ├── cases[0] > case 0[0] > let:
+    │       │       │       │   ├── local: #131
+    │       │       │       │   └── value > offset:
+    │       │       │       │       ├── within: <void | box32>
+    │       │       │       │       ├── path: 0
+    │       │       │       │       └── base: local #130 : ptr
+    │       │       │       ├── cases[0] > case 0[1] > assign:
+    │       │       │       │   ├── place: #129
+    │       │       │       │   └── value: 0 : i64
+    │       │       │       ├── cases[0] > case 0[2]: leave @128
+    │       │       │       ├── cases[1] > case 1[0] > let:
+    │       │       │       │   ├── local: #132
+    │       │       │       │   └── value > convert:
+    │       │       │       │       ├── type: ptr
+    │       │       │       │       └── value > deref:
+    │       │       │       │           ├── type: box32
+    │       │       │       │           └── ptr > offset:
+    │       │       │       │               ├── within: <void | box32>
+    │       │       │       │               ├── path: 1
+    │       │       │       │               └── base: local #130 : ptr
+    │       │       │       ├── cases[1] > case 1[1] > assign:
+    │       │       │       │   ├── place: #129
+    │       │       │       │   └── value > binary:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── op: +
+    │       │       │       │       ├── left: 1 : i64
+    │       │       │       │       └── right > call:
+    │       │       │       │           ├── type: i64
+    │       │       │       │           ├── fn: spawnSubjects$depth(spawnSubjects$Countdown)
+    │       │       │       │           └── args[0] > deref:
+    │       │       │       │               ├── type: <void | box32>
+    │       │       │       │               └── ptr: local #132 : ptr
+    │       │       │       └── cases[1] > case 1[2]: leave @128
+    │       │       └── right: 95 : i64
+    │       ├── body[27] > spawn:
+    │       │   ├── task: #134
     │       │   ├── scope: %2
-    │       │   ├── thunk: zane.spawn.9
+    │       │   ├── thunk: zane.spawn.11
     │       │   ├── frame: {i1}
     │       │   ├── args:
-    │       │   ├── dest: #122
+    │       │   ├── dest: #135
     │       │   └── layout: %primitives$Bool
-    │       ├── body[26] > eval > call:
+    │       ├── body[28] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: spawnSubjects$check(%primitives$Bool)
     │       │   └── args[0] > expand:
     │       │       ├── type: i1
-    │       │       ├── label: @123
-    │       │       ├── result: #124
-    │       │       ├── body[0]: join #121
+    │       │       ├── label: @136
+    │       │       ├── result: #137
+    │       │       ├── body[0]: join #134
     │       │       └── body[1] > assign:
-    │       │           ├── place: #124
+    │       │           ├── place: #137
     │       │           └── value > deref:
     │       │               ├── type: i1
-    │       │               └── ptr: address of #122 : ptr
-    │       └── body[27] > return: unit : void
+    │       │               └── ptr: address of #135 : ptr
+    │       └── body[29] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: spawnSubjects$deepen(this spawnSubjects$Countdown, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
@@ -1117,7 +1190,7 @@
     │       │       ├── body[0] > spawn:
     │       │       │   ├── task: #7
     │       │       │   ├── scope: %8
-    │       │       │   ├── thunk: zane.spawn.10
+    │       │       │   ├── thunk: zane.spawn.12
     │       │       │   ├── frame: {void, ptr, i64}
     │       │       │   ├── args[0]: local #1 : ptr
     │       │       │   ├── args[1]: local #2 : i64
@@ -1128,7 +1201,7 @@
     │       │       └── body[1] > spawn:
     │       │           ├── task: #10
     │       │           ├── scope: %8
-    │       │           ├── thunk: zane.spawn.11
+    │       │           ├── thunk: zane.spawn.13
     │       │           ├── frame: {void, ptr, i64}
     │       │           ├── args[0]: address of #3 : ptr
     │       │           ├── args[1] > binary:
@@ -1392,7 +1465,7 @@
     │   │       └── body[0] > spawn:
     │   │           ├── task: #4
     │   │           ├── scope: %5
-    │   │           ├── thunk: zane.spawn.12
+    │   │           ├── thunk: zane.spawn.14
     │   │           ├── frame: {void, ptr, i64}
     │   │           ├── args[0]: local #1 : ptr
     │   │           ├── args[1]: 1 : i64
@@ -1402,6 +1475,78 @@
     │   │               └── layout: spawnSubjects$Countdown
     │   └── body[1] > return: unit : void
     ├── funcs[9] > func:
+    │   ├── symbol: spawnSubjects$sees(spawnSubjects$Countdown, %primitives$I64)
+    │   ├── params[0]: local #1 : <void | box32>
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #10
+    │   │   └── value > expand:
+    │   │       ├── type: i64
+    │   │       ├── label: @5
+    │   │       ├── result: #6
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #7
+    │   │       │   └── value: address of #1 : ptr
+    │   │       └── body[1] > switch:
+    │   │           ├── value > deref:
+    │   │           │   ├── type: <void | box32>
+    │   │           │   └── ptr: local #7 : ptr
+    │   │           ├── cases[0] > case 0[0] > let:
+    │   │           │   ├── local: #8
+    │   │           │   └── value > offset:
+    │   │           │       ├── within: <void | box32>
+    │   │           │       ├── path: 0
+    │   │           │       └── base: local #7 : ptr
+    │   │           ├── cases[0] > case 0[1] > assign:
+    │   │           │   ├── place: #6
+    │   │           │   └── value: 0 : i64
+    │   │           ├── cases[0] > case 0[2]: leave @5
+    │   │           ├── cases[1] > case 1[0] > let:
+    │   │           │   ├── local: #9
+    │   │           │   └── value > convert:
+    │   │           │       ├── type: ptr
+    │   │           │       └── value > deref:
+    │   │           │           ├── type: box32
+    │   │           │           └── ptr > offset:
+    │   │           │               ├── within: <void | box32>
+    │   │           │               ├── path: 1
+    │   │           │               └── base: local #7 : ptr
+    │   │           ├── cases[1] > case 1[1] > assign:
+    │   │           │   ├── place: #6
+    │   │           │   └── value > binary:
+    │   │           │       ├── type: i64
+    │   │           │       ├── op: +
+    │   │           │       ├── left: 1 : i64
+    │   │           │       └── right > call:
+    │   │           │           ├── type: i64
+    │   │           │           ├── fn: spawnSubjects$depth(spawnSubjects$Countdown)
+    │   │           │           └── args[0] > deref:
+    │   │           │               ├── type: <void | box32>
+    │   │           │               └── ptr: local #9 : ptr
+    │   │           └── cases[1] > case 1[2]: leave @5
+    │   ├── body[1] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: spawnSubjects$check(%primitives$Bool)
+    │   │   └── args[0] > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: +
+    │   │       ├── left > binary:
+    │   │       │   ├── type: i1
+    │   │       │   ├── op: ==
+    │   │       │   ├── left: local #10 : i64
+    │   │       │   └── right: local #2 : i64
+    │   │       └── right > binary:
+    │   │           ├── type: i1
+    │   │           ├── op: ==
+    │   │           ├── left: local #10 : i64
+    │   │           └── right > binary:
+    │   │               ├── type: i64
+    │   │               ├── op: +
+    │   │               ├── left: local #2 : i64
+    │   │               └── right: 20 : i64
+    │   └── body[2] > return: unit : void
+    ├── funcs[10] > func:
     │   ├── symbol: spawnSubjects$bannerRight()
     │   ├── params:
     │   ├── ret: i1
@@ -1432,7 +1577,7 @@
     │           │           ├── place: #3
     │           │           └── value: local #1 : handle
     │           └── right: 1 : i64
-    ├── funcs[10] > func:
+    ├── funcs[11] > func:
     │   ├── symbol: spawnSubjects$banner
     │   ├── params:
     │   ├── ret: ptr
@@ -1483,7 +1628,7 @@
     │   │           ├── args[1]: global spawnSubjects$banner.value
     │   │           └── args[2]: layout %primitives$String
     │   └── body[1] > return: global spawnSubjects$banner.value
-    ├── funcs[11] > func:
+    ├── funcs[12] > func:
     │   ├── symbol: zane.spawn.1
     │   ├── params[0]: local #13 : ptr
     │   ├── ret: void
@@ -1519,7 +1664,7 @@
     │       │       └── base: local #13 : ptr
     │       ├── args[2]: 4 : i64
     │       └── args[3]: layout spawnSubjects$Countdown
-    ├── funcs[12] > func:
+    ├── funcs[13] > func:
     │   ├── symbol: zane.spawn.2
     │   ├── params[0]: local #20 : ptr
     │   ├── ret: void
@@ -1555,7 +1700,7 @@
     │       │       └── base: local #20 : ptr
     │       ├── args[2]: 4 : i64
     │       └── args[3]: layout spawnSubjects$Countdown
-    ├── funcs[13] > func:
+    ├── funcs[14] > func:
     │   ├── symbol: zane.spawn.3
     │   ├── params[0]: local #42 : ptr
     │   ├── ret: void
@@ -1579,7 +1724,7 @@
     │               ├── within: {void, ptr, ptr, i64}
     │               ├── path: 3
     │               └── base: local #42 : ptr
-    ├── funcs[14] > func:
+    ├── funcs[15] > func:
     │   ├── symbol: zane.spawn.4
     │   ├── params[0]: local #54 : ptr
     │   ├── ret: void
@@ -1603,7 +1748,7 @@
     │                   ├── within: {i64, ptr, i64}
     │                   ├── path: 2
     │                   └── base: local #54 : ptr
-    ├── funcs[15] > func:
+    ├── funcs[16] > func:
     │   ├── symbol: zane.spawn.5
     │   ├── params[0]: local #69 : ptr
     │   ├── ret: void
@@ -1633,7 +1778,7 @@
     │                   ├── within: {<i64 | i64 | void>, ptr, i64, i1}
     │                   ├── path: 3
     │                   └── base: local #69 : ptr
-    ├── funcs[16] > func:
+    ├── funcs[17] > func:
     │   ├── symbol: zane.spawn.6
     │   ├── params[0]: local #87 : ptr
     │   ├── ret: void
@@ -1651,7 +1796,7 @@
     │                   ├── within: {i64, <void | box32>}
     │                   ├── path: 1
     │                   └── base: local #87 : ptr
-    ├── funcs[17] > func:
+    ├── funcs[18] > func:
     │   ├── symbol: zane.spawn.7
     │   ├── params[0]: local #91 : ptr
     │   ├── ret: void
@@ -1670,7 +1815,7 @@
     │               ├── within: {void, ptr, i64}
     │               ├── path: 2
     │               └── base: local #91 : ptr
-    ├── funcs[18] > func:
+    ├── funcs[19] > func:
     │   ├── symbol: zane.spawn.8
     │   ├── params[0]: local #105 : ptr
     │   ├── ret: void
@@ -1689,21 +1834,59 @@
     │               ├── within: {void, ptr, i64}
     │               ├── path: 2
     │               └── base: local #105 : ptr
-    ├── funcs[19] > func:
+    ├── funcs[20] > func:
     │   ├── symbol: zane.spawn.9
-    │   ├── params[0]: local #120 : ptr
+    │   ├── params[0]: local #121 : ptr
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: spawnSubjects$sees(spawnSubjects$Countdown, %primitives$I64)
+    │       ├── args[0] > deref:
+    │       │   ├── type: <void | box32>
+    │       │   └── ptr > offset:
+    │       │       ├── within: {void, <void | box32>, i64}
+    │       │       ├── path: 1
+    │       │       └── base: local #121 : ptr
+    │       └── args[1] > deref:
+    │           ├── type: i64
+    │           └── ptr > offset:
+    │               ├── within: {void, <void | box32>, i64}
+    │               ├── path: 2
+    │               └── base: local #121 : ptr
+    ├── funcs[21] > func:
+    │   ├── symbol: zane.spawn.10
+    │   ├── params[0]: local #124 : ptr
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: spawnSubjects$deepen(this spawnSubjects$Countdown, %primitives$I64)
+    │       ├── args[0] > deref:
+    │       │   ├── type: ptr
+    │       │   └── ptr > offset:
+    │       │       ├── within: {void, ptr, i64}
+    │       │       ├── path: 1
+    │       │       └── base: local #124 : ptr
+    │       └── args[1] > deref:
+    │           ├── type: i64
+    │           └── ptr > offset:
+    │               ├── within: {void, ptr, i64}
+    │               ├── path: 2
+    │               └── base: local #124 : ptr
+    ├── funcs[22] > func:
+    │   ├── symbol: zane.spawn.11
+    │   ├── params[0]: local #133 : ptr
     │   ├── ret: void
     │   └── body[0] > store:
     │       ├── address > offset:
     │       │   ├── within: {i1}
     │       │   ├── path: 0
-    │       │   └── base: local #120 : ptr
+    │       │   └── base: local #133 : ptr
     │       └── value > call:
     │           ├── type: i1
     │           ├── fn: spawnSubjects$bannerRight()
     │           └── args:
-    ├── funcs[20] > func:
-    │   ├── symbol: zane.spawn.10
+    ├── funcs[23] > func:
+    │   ├── symbol: zane.spawn.12
     │   ├── params[0]: local #6 : ptr
     │   ├── ret: void
     │   └── body[0] > eval > call:
@@ -1721,8 +1904,8 @@
     │               ├── within: {void, ptr, i64}
     │               ├── path: 2
     │               └── base: local #6 : ptr
-    ├── funcs[21] > func:
-    │   ├── symbol: zane.spawn.11
+    ├── funcs[24] > func:
+    │   ├── symbol: zane.spawn.13
     │   ├── params[0]: local #9 : ptr
     │   ├── ret: void
     │   └── body[0] > eval > call:
@@ -1740,8 +1923,8 @@
     │               ├── within: {void, ptr, i64}
     │               ├── path: 2
     │               └── base: local #9 : ptr
-    └── funcs[22] > func:
-        ├── symbol: zane.spawn.12
+    └── funcs[25] > func:
+        ├── symbol: zane.spawn.14
         ├── params[0]: local #3 : ptr
         ├── ret: void
         └── body[0] > eval > call:

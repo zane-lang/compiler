@@ -6,8 +6,7 @@
    which the runtime fills from tier 0's, so it links against nothing but
    the C library on every platform. *)
 
-external value_type : Llvm.llvalue -> Llvm.lltype = "zane_global_value_type"
-external set_ordering : Llvm.llvalue -> bool -> unit = "zane_set_ordering"
+open Llvm_extra
 
 (* [global]'s every use made a load of the [index]th pointer of [table];
    false when one is a constant that no instruction holds, such as another

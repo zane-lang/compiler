@@ -130,8 +130,9 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
    machine stack, so the block is that scope's (zane_region_at): a returned
    block of the size class first (§3.2), else the next bytes at the scope's
    frontier, in its frame stretched to hold them when the heap has no room
-   there. 0 when
-   none of that holds, and the list grows as any other does. */
+   there. Its callers take this path only when the elements it must hold
+   fit in ZANE_LIST_FIRST bytes. 0 when none of that holds, and the list
+   grows as any other does. */
 static inline char *zane_list_first(zane_list *list, int64_t room, int64_t units) {
 	zane_mark *m = zane_open;
 	if (!m) return NULL;

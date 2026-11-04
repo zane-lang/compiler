@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Builds each named codegen fixture with ZANE_SUBJECT_REGIONS=1, plain and
-# optimized, runs it checked and unchecked, and compares with its golden,
+# Builds each named codegen fixture, plain and optimized, runs it checked and unchecked, and compares with its golden,
 # with the fixture's `flags`, `arguments` and `expected-status` as
 # tests/codegen/README.md gives them.
 # Usage (from inside `devbox run`): fixtures.sh OUT_DIR fixture...
@@ -18,7 +17,7 @@ for f in "$@"; do
 	[ -f "$dir/expected-status" ] && want=$(cat "$dir/expected-status")
 	for o in "" "--optimize"; do
 		exe=$out/$f$o.exe
-		if ! ZANE_SUBJECT_REGIONS=1 "$zanec" --build "$exe" $o "${flags[@]}" --package "$dir" > "$out/$f$o.build" 2>&1; then
+		if ! "$zanec" --build "$exe" $o "${flags[@]}" --package "$dir" > "$out/$f$o.build" 2>&1; then
 			echo "$f $o: BUILD FAILED"; tail -3 "$out/$f$o.build"; status=1; continue
 		fi
 		for chk in 0 1; do

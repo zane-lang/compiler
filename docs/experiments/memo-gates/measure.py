@@ -14,12 +14,18 @@ what the plain build without tables prints, or the script exits 1. Run
 inside `devbox run`:
 
     measure.py ZANEC OUT PROGRAM_DIR...
+
+A run Callgrind has not finished after TIMEOUT seconds (1800 by default)
+is reported as an error.
 """
 import json, os, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ZANEC, OUT, DIRS = sys.argv[1], Path(sys.argv[2]), [Path(d) for d in sys.argv[3:]]
+if len({d.name for d in DIRS}) != len(DIRS):
+    sys.exit("each PROGRAM_DIR needs a name of its own: outputs are named by it")
+TIMEOUT = float(os.environ.get("TIMEOUT", "1800"))
 CACHES = ["--I1=32768,8,64", "--D1=32768,8,64", "--LL=8388608,16,64"]
 OUT.mkdir(parents=True, exist_ok=True)
 BUILDS = {"plain": [], "optimized": ["--optimize"], "tier0": ["--tiered"], "tiered": ["--tiered"]}
@@ -53,8 +59,12 @@ def one(job):
         run_env.update({"ZANE_TIER_UP": str(lib), "ZANE_TIER_WAIT": "1"})
     args = (d / "arguments").read_text().split()
     prof = Path(f"{stem}.cg")
-    r = subprocess.run(["valgrind", "-q", "--tool=callgrind", "--cache-sim=yes", "--branch-sim=yes", *CACHES,
-                        f"--callgrind-out-file={prof}", stem, *args], capture_output=True, text=True, env=run_env)
+    try:
+        r = subprocess.run(["valgrind", "-q", "--tool=callgrind", "--cache-sim=yes", "--branch-sim=yes", *CACHES,
+                            f"--callgrind-out-file={prof}", stem, *args], capture_output=True, text=True, env=run_env,
+                           timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return job, {"error": f"Callgrind ran past {TIMEOUT:g} s"}
     if r.returncode:
         return job, {"error": r.stderr[-300:]}
     e = totals(prof)

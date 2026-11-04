@@ -67,7 +67,9 @@ Unit main() {
 			spawn c!deepen(n);
 			mine!deepen(n);
 		});
-		check(@operators$equal(@operators$add(@operators$add(depth(a), depth(b)), @operators$add(depth(c), depth(mine))), @operators$multiply(n, Int(4))));
+		check(@operators$conjoin(
+			@operators$conjoin(@operators$equal(depth(a), n), @operators$equal(depth(b), n)),
+			@operators$conjoin(@operators$equal(depth(c), n), @operators$equal(depth(mine), n))));
 	}
 	return Unit();
 }

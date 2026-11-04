@@ -175,12 +175,12 @@ int64_t zane_set_threads(int64_t count);
 void zane_set_threads_auto(void);
 void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *type,
                 int64_t size);
+/* A spawned call's subject goes into a region of its own (docs/design/lowering.md §9). */
+void zane_island_make(char **field, int64_t size, const zane_type *type, int64_t copied);
 
 /* snapshot.c */
 void zane_snapshot(char *out, const char *from, int64_t size);
 void zane_writeback(char *at, char *copy, int64_t size, const zane_type *type);
-/* A spawned call's subject goes into a region of its own (docs/design/lowering.md §9). */
-void zane_island_make(char **field, int64_t size, const zane_type *type, int64_t copied);
 void zane_join(char *frame);
 void zane_scope_drain(zane_mark *scope);
 
