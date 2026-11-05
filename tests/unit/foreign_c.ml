@@ -200,6 +200,39 @@ let compiled () =
       | Ok [ { Foreign.sources = [ _ ]; _ } ] -> ()
       | _ -> check "a dangling symlink and an unwritable cache leave the build alone" false);
       Sys.remove (Filename.concat linked ".#a.c");
+      (* A warning refuses nothing, and a module taken from the cache warns
+         as the compile that made it did. *)
+      let warning_source = "int f(void) {\n  int x;\n  return x;\n}\n" in
+      let warned = package "warned" warning_source in
+      let warnings ?(dir = warned) () =
+        match Foreign.compile_packages ~cache:(Some cache) ~cc ~cpu:"" ~target:None [ dir ] with
+        | Ok [ f ] ->
+            List.map
+              (fun (d : Diagnostic.t) ->
+                match d.Diagnostic.location with
+                | Diagnostic.Location.Span s -> (s.Source.Span.start_.Lexing.pos_lnum, d.Diagnostic.message)
+                | _ -> (0, d.Diagnostic.message))
+              (fst (Foreign.warnings f))
+        | _ -> []
+      in
+      let first = warnings () in
+      check "a C warning is at its line" (List.map fst first = [ 3 ]);
+      check "a cached module warns again" (warnings () = first);
+      (* What the cache keeps beside the module is what a hit shows: its
+         message changed there is the message shown, at the same line. *)
+      (match Foreign.compile_packages ~cache:(Some cache) ~cc ~cpu:"" ~target:None [ warned ] with
+      | Ok [ { Foreign.sources = [ s ]; _ } ] ->
+          let sidecar = Filename.concat (Filename.concat (Filename.concat cache "foreign") "module") (s.Compile.key ^ ".warnings") in
+          let stored = Compile.warnings_of_text (In_channel.with_open_bin sidecar In_channel.input_all) in
+          write_all sidecar
+            (Compile.warnings_text (List.map (fun (p : Clang.problem) -> { p with Clang.message = "from the cache" }) stored));
+          check "a cached module replays the warnings kept beside it" (warnings () = [ (3, "from the cache") ]);
+          write_all sidecar (Compile.warnings_text stored)
+      | _ -> check "a cached module is found" false);
+      check "a module cached from another directory warns in this one"
+        (warnings ~dir:(package "moved" warning_source) () = first);
+      let tricky = [ { Clang.file = "a\tb\\c.c"; line = 4; column = 2; message = "two\nlines\tand a \\" } ] in
+      check "a warning's text reads back" (Compile.warnings_of_text (Compile.warnings_text tricky) = tricky);
       let broken = package "broken" "int f(void) {\n  return missing;\n}\n" in
       match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ broken ] with
       | Error { Foreign.diagnostics = [ d ]; _ } ->
@@ -208,6 +241,57 @@ let compiled () =
             | Diagnostic.Location.Span s -> s.Source.Span.start_.Lexing.pos_lnum = 2
             | _ -> false)
       | _ -> check "a C error is reported once" false)
+
+(* A compilation database names each source by its real path, with the
+   package's `include` and `define` rows and the headers a build uses, and
+   none of the flags that only shape the module or map paths. *)
+let compile_commands () =
+  let base = Filename.temp_dir "zane-commands-" "" in
+  Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
+      let dir = Filename.concat base "pkg" in
+      Sys.mkdir dir 0o755;
+      Sys.mkdir (Filename.concat dir "inc") 0o755;
+      write_all (Filename.concat dir "a.c") "int f(void) { return 1; }\n";
+      write_all (Filename.concat dir "c.coda")
+        "c [\n    setting  value   target\n    include  inc     *\n    define   X=1     *\n]\n";
+      let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+      match Foreign.compile_commands ~cache:(Some (Filename.concat base "cache")) ~cc ~target:None [ dir ] with
+      | Error _ -> check "a compilation database is made" false
+      | Ok text ->
+          let has part =
+            let n = String.length part in
+            let rec go i = i + n <= String.length text && (String.sub text i n = part || go (i + 1)) in
+            go 0
+          in
+          check "the database names the source by its path" (has (Printf.sprintf "\"file\": \"%s/a.c\"" dir));
+          check "the database holds the package's include row" (has (Printf.sprintf "\"-I\", \"%s/inc\"" dir));
+          check "the database holds the package's define row" (has "\"-D\", \"X=1\"");
+          check "the database names where zane_ffi.h is" (has "/foreign/ffi-");
+          check "the database leaves out the module's flags" (not (has "-disable-llvm-passes" || has "\"-O2\""));
+          check "the database maps no path" (not (has "/zane/pkg" || has "ivfsoverlay"));
+          (* A database names headers only a cache keeps, so none is made
+             without one; one of packages with no C asks no C compiler. *)
+          check "no database is made without a cache to keep its headers"
+            (match Foreign.compile_commands ~cache:None ~cc ~target:None [ dir ] with Error _ -> true | Ok _ -> false);
+          (* A relative cache is read against the directory zanec runs
+             in, not the package's, which each entry names. *)
+          let here = Sys.getcwd () in
+          Sys.chdir base;
+          let relative =
+            Fun.protect ~finally:(fun () -> Sys.chdir here) (fun () ->
+                let at = Filename.concat (Sys.getcwd ()) "relative/foreign/ffi-" in
+                match Foreign.compile_commands ~cache:(Some "relative") ~cc ~target:None [ dir ] with
+                | Ok text ->
+                    let n = String.length at in
+                    let rec go i = i + n <= String.length text && (String.sub text i n = at || go (i + 1)) in
+                    go 0
+                | Error _ -> false)
+          in
+          check "a relative cache is named by its absolute path" relative;
+          let plain = Filename.concat base "plain" in
+          Sys.mkdir plain 0o755;
+          check "packages with no C give an empty database, whatever the C compiler"
+            (Foreign.compile_commands ~cache:None ~cc:"no-such-cc" ~target:None [ plain ] = Ok "[]\n"))
 
 (* The table's text read back: names with spaces, nested types, a
    variable's flags, and a struct's layout. *)
@@ -660,6 +744,7 @@ let own_hashes () =
         assembled = [];
         archives = [];
         tables = [];
+        header_warnings = [];
         flags = [];
         maps = [];
         cache = None;
@@ -718,6 +803,7 @@ let run () =
   triples ();
   mapping ();
   compiled ();
+  compile_commands ();
   interface_text ();
   interface_header ();
   glue_refusals ();

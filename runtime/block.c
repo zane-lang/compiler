@@ -247,6 +247,74 @@ void zane_text_join(zane_text *out, const zane_text *left, const zane_text *righ
 	*out = (zane_text){ bytes, length, length };
 }
 
+/* The blocks `zane_bytes_alloc` gave C on this thread for strings it
+   returns (spec ffi.md §3.5, docs/design/ffi.md F10), oldest first. Each
+   foreign call that returns a string holds the count it began at, its
+   mark, so a call reached from a function value C called, inside another,
+   keeps its own blocks. When a call returns, its last block is taken when
+   the view starts there and fits in it, and every other block it was
+   given goes back to its region, since C keeps none of them. */
+typedef struct {
+	char *block;
+	int64_t size;
+} zane_given_block;
+
+static _Thread_local struct {
+	zane_given_block *blocks;
+	int64_t count, room;
+} zane_given;
+
+/* [*items], of [room] items of [size] bytes, with room for one more. */
+static void *zane_given_grow(void *items, int64_t *room, int64_t count, size_t size) {
+	if (count < *room) return items;
+	int64_t more = *room ? *room * 2 : 8;
+	void *grown = realloc(items, (size_t)more * size);
+	if (!grown) zane_broken("out of memory for the strings C allocates");
+	*room = more;
+	return grown;
+}
+
+/* `<zane_ffi.h>`'s allocator: `size` bytes in the region the foreign
+   call's string result is made in, for C to write and return. */
+uint8_t *zane_bytes_alloc(size_t size) {
+	static uint8_t none[1];
+	if (!zane_self) zane_broken("zane_bytes_alloc called on a thread no foreign call runs on");
+	if (size > (size_t)INT64_MAX / 2) zane_broken("out of memory for a string C allocates");
+	if (size == 0) return none;
+	char *block = zane_alloc(zane_here(), (int64_t)size, 8);
+	zane_given.blocks = zane_given_grow(zane_given.blocks, &zane_given.room, zane_given.count, sizeof *zane_given.blocks);
+	zane_given.blocks[zane_given.count++] = (zane_given_block){ block, (int64_t)size };
+	return (uint8_t *)block;
+}
+
+/* Before a foreign call that returns a string: the mark its blocks begin
+   at. It changes nothing, so a call whose result a fold made a constant
+   leaves no state behind. */
+int64_t zane_text_expect(void) { return zane_given.count; }
+
+/* A string C returned, as the view it gave: the call's last block taken
+   as it is when the view starts there and fits in it, and otherwise its
+   bytes copied into a block of the string's own; the call's other blocks
+   returned: those from [mark], what `zane_text_expect` gave before it. */
+void zane_text_taken(zane_text *out, const zane_text *view, int64_t mark) {
+	if (mark < 0 || mark > zane_given.count) mark = zane_given.count;
+	int64_t taken = -1;
+	if (zane_given.count > mark) {
+		zane_given_block last = zane_given.blocks[zane_given.count - 1];
+		if (view->length > 0 && view->bytes == last.block && view->length <= last.size) {
+			*out = (zane_text){ last.block, view->length, last.size };
+			taken = zane_given.count - 1;
+		}
+	}
+	if (taken < 0) {
+		static const zane_text empty = { "", 0, 0 };
+		zane_text_join(out, view, &empty);
+	}
+	for (int64_t i = mark; i < zane_given.count; i++)
+		if (i != taken) zane_free(zane_given.blocks[i].block, zane_given.blocks[i].size, 8);
+	zane_given.count = mark;
+}
+
 /* `==` on `@primitives$String`: the same bytes. */
 int64_t zane_text_equal(const zane_text *left, const zane_text *right) {
 	return left->length == right->length &&

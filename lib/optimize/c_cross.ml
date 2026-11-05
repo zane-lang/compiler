@@ -179,6 +179,13 @@ let rec shape_ty (s : Callback.shape) =
   | Callback.Record [ (f, None) ] -> shape_ty f
   | Callback.Record [ (f, Some n) ] -> Ty.Array (shape_ty f, n)
   | Callback.Record fs -> Ty.Struct (List.map (fun (f, n) -> match n with Some n -> Ty.Array (shape_ty f, n) | None -> shape_ty f) fs)
+  (* A string's view, which [read] copies out of C memory. *)
+  | Callback.View { text = true; _ } -> Ty.Handle
+  | Callback.Elements (s, n) -> Ty.Array (shape_ty s, n)
+  (* A fold reads no list C lends, and makes no handle of a C object C
+     passes: the program does both. *)
+  | Callback.View { text = false; _ } -> stop "a list C passes a function value"
+  | Callback.Object _ -> stop "a C object C passes a function value"
 
 (* A value of the shape [s], its members moved between C's order and the
    order Zane lays them out in (Callback.to_c, Callback.of_c): from C's
@@ -217,6 +224,11 @@ let adapter prog c name args zane =
       | Some cb, [ M.Ptr table; result ] ->
           let arg i s =
             match M.load table.M.alloc (table.M.off + (8 * i)) C_ir.Ptr with
+            (* An array's slot holds the pointer C passed. *)
+            | M.Ptr q when (match s with Callback.Elements _ -> true | _ -> false) -> (
+                match M.load q.M.alloc q.M.off C_ir.Ptr with
+                | M.Ptr e -> read c e (shape_ty s)
+                | _ -> stop "an array C passes from nowhere")
             | M.Ptr q -> reorder ~to_c:false s (read c q (shape_ty s))
             | _ -> stop "an argument slot that is nowhere"
           in

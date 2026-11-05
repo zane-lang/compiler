@@ -27,6 +27,11 @@ val assemble :
     (docs/design/ffi.md §1). *)
 val c_code : ?target:string -> Tst.Assembly.package list -> (Foreign.package list, failure) result
 
+(** The compilation database of the C sources of the packages without a
+    stamp, as `compile_commands.json` holds one, written to the file given
+    (docs/design/ffi.md F2). *)
+val compile_commands : ?target:string -> Tst.Assembly.package list -> string -> (unit, failure) result
+
 (** Semantics, which gives no tree when it found a problem. *)
 val check : ?c:Foreign.package list -> Tst.Assembly.package list -> (Tst.Nodes.Program.t, failure) result
 

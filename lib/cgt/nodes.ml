@@ -590,6 +590,9 @@ module Foreign = struct
     (* A string's or a list's handle, whose first two words are the
        `zane_bytes` or `zane_span` C reads. *)
     | View
+    (* A string's handle, which C takes as a `const char *` to a copy of
+       its bytes followed by a NUL, which the thunk makes. *)
+    | Terminated
     (* An array's address. *)
     | Address
     (* A C-compatible value type, in C's layout. *)
@@ -627,7 +630,21 @@ end
    does, has an entry of each object's own, named by its package, and
    their adapters merge into one. *)
 module Callback = struct
-  type shape = Scalar of Ty.t | Truth | Nothing | Record of (shape * int option) list
+  type shape =
+    | Scalar of Ty.t
+    | Truth
+    | Nothing
+    | Record of (shape * int option) list
+    (* A string or a list C passes as a `zane_bytes` or a `zane_span`,
+       which the adapter copies with the layout into a value of the
+       program's own before the lambda runs. *)
+    | View of { layout : Layout.t; text : bool; stride : int }
+    (* An array C passes as a pointer to its elements, which the adapter
+       reads through it, [n] elements of the shape. *)
+    | Elements of shape * int
+    (* A data handle's C object C passes as a pointer: a borrow, or, when
+       [owned], a roaming owner the lambda's parameter takes. *)
+    | Object of { owned : bool }
   type t = { symbol : string; takes : shape list; gives : shape; here : bool; entry : string }
 
   let entry symbol = symbol ^ ".c"
@@ -641,6 +658,9 @@ module Callback = struct
     | Record fs ->
         let field (f, n) = match n with Some n -> Printf.sprintf "[%d x %s]" n (spell f) | None -> spell f in
         "{" ^ String.concat ", " (List.map field fs) ^ "}"
+    | View _ -> "view"
+    | Elements (s, n) -> Printf.sprintf "*[%d x %s]" n (spell s)
+    | Object { owned } -> if owned then "^object" else "object"
 
   (* A value of a C-compatible type crosses into C, and back, in C's
      layout: its fields in declaration order (docs/design/ffi.md F10). In
@@ -658,6 +678,10 @@ module Callback = struct
         | [] -> Ty.Void
         | [ t ] -> t
         | ts -> Ty.Struct (if c then ts else Ty.placed ts ts))
+    (* A view, an array's pointer and a C object hold no struct either
+       language reorders, so both layouts are the same. *)
+    | View _ | Object _ -> Ty.Ptr
+    | Elements (s, n) -> Ty.Array (layout ~c s, n)
 
   (* Zane lays out an array of none as holding nothing (Type_layout.shape),
      so with alignment 1, where C keeps its element's. *)

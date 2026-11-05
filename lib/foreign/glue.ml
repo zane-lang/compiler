@@ -17,8 +17,10 @@
 
 (* How a value crosses, as the slot holding it is read: a scalar of the
    Zane type whose C type is given, which C converts to its own, a `Bool`
-   as a byte, `Unit` as no value, and any other as the C type itself. *)
-type kind = Scalar of string | Bool | Unit | Same
+   as a byte, `Unit` as no value, a string's handle as a `const char *` to
+   its bytes and a NUL, a string C returns as a `zane_bytes`, and any other
+   as the C type itself. *)
+type kind = Scalar of string | Bool | Unit | Terminated | Text | Same
 
 (* A thunk: its label, which is its symbol after the target's global
    prefix, the C function it calls, and how each argument and the result
@@ -37,6 +39,10 @@ let escaped s =
     s;
   Buffer.contents b
 
+(* The length below which a terminated string's copy is in the thunk's
+   frame: a path or a name, as most C strings are. *)
+let short_string = 256
+
 (* One thunk, the [n]th of its file, calling [f] whose parameters and
    result the header spells as [spelled] and [spelled_result]. *)
 let thunk n (e : entry) (f : C_interface.func) =
@@ -46,10 +52,28 @@ let thunk n (e : entry) (f : C_interface.func) =
   line "void %s(void *const *__zane_args, void *__zane_result) __asm__(\"%s\");" name (escaped e.label);
   line "void %s(void *const *__zane_args, void *__zane_result) {" name;
   List.iteri (fun i s -> line "  typedef __typeof__(%s) __zane_p%d;" s i) f.C_interface.spelled;
+  (* A terminated string (spec ffi.md §3.4): its handle's bytes and
+     length copied with a NUL after them, into the thunk's frame when they
+     are short, and the copy freed after the call. A string's block is as
+     long as its bytes, so there is never room for the NUL in place. *)
+  List.iteri
+    (fun i k ->
+      if k = Terminated then begin
+        line "  const struct { const char *__zane_b; int64_t __zane_n; } *__zane_t%d = __zane_args[%d];" i i;
+        line "  int64_t __zane_n%d = __zane_t%d->__zane_n;" i i;
+        line "  char __zane_s%d[%d];" i short_string;
+        line "  char *__zane_c%d = __zane_n%d < %d ? __zane_s%d : (char *)__builtin_malloc((__SIZE_TYPE__)__zane_n%d + 1);" i i
+          short_string i i;
+        line "  if (!__zane_c%d) __builtin_trap();" i;
+        line "  if (__zane_n%d) __builtin_memcpy(__zane_c%d, __zane_t%d->__zane_b, (__SIZE_TYPE__)__zane_n%d);" i i i i;
+        line "  __zane_c%d[__zane_n%d] = 0;" i i
+      end)
+    e.params;
   let arg i = function
+    | Terminated -> Printf.sprintf "(__zane_p%d)__zane_c%d" i i
     | Scalar c -> Printf.sprintf "(__zane_p%d)*(const %s *)__zane_args[%d]" i c i
     | Bool -> Printf.sprintf "(__zane_p%d)(*(const unsigned char *)__zane_args[%d] & 1)" i i
-    | Same | Unit -> Printf.sprintf "*(const __zane_p%d *)__zane_args[%d]" i i
+    | Same | Unit | Text -> Printf.sprintf "*(const __zane_p%d *)__zane_args[%d]" i i
   in
   let call = Printf.sprintf "%s(%s)" e.c_function (String.concat ", " (List.mapi arg e.params)) in
   (match e.result with
@@ -60,10 +84,36 @@ let thunk n (e : entry) (f : C_interface.func) =
   | Unit -> line "  %s;" call
   | Scalar c -> line "  *(%s *)__zane_result = (%s)%s;" c c call
   | Bool -> line "  *(unsigned char *)__zane_result = (unsigned char)(%s != 0);" call
-  | Same ->
+  | Same | Terminated | Text ->
       line "  typedef __typeof__(%s) __zane_r;" f.C_interface.spelled_result;
       line "  __zane_r __zane_value = %s;" call;
+      (* A string C returns from inside a terminated argument's copy,
+         which is freed or whose frame ends as the thunk returns, is moved
+         into a block the runtime takes as it is (F10). The view is read
+         through a struct of the glue's own, since a header's `zane_bytes`
+         is checked by its layout and may name its fields otherwise. *)
+      if e.result = Text && List.mem Terminated e.params then begin
+        line "  struct { const uint8_t *__zane_d; __SIZE_TYPE__ __zane_n; } __zane_v;";
+        line "  __builtin_memcpy(&__zane_v, &__zane_value, sizeof __zane_v);";
+        List.iteri
+          (fun i k ->
+            if k = Terminated then begin
+              line "  if (__zane_v.__zane_d && (__UINTPTR_TYPE__)__zane_v.__zane_d >= (__UINTPTR_TYPE__)__zane_c%d" i;
+              line "      && (__UINTPTR_TYPE__)__zane_v.__zane_d <= (__UINTPTR_TYPE__)(__zane_c%d + __zane_n%d)) {" i i;
+              line "    uint8_t *__zane_k = zane_bytes_alloc(__zane_v.__zane_n);";
+              line "    if (__zane_v.__zane_n) __builtin_memcpy(__zane_k, __zane_v.__zane_d, __zane_v.__zane_n);";
+              line "    __zane_v.__zane_d = __zane_k;";
+              line "  }"
+            end)
+          e.params;
+        line "  __builtin_memcpy(&__zane_value, &__zane_v, sizeof __zane_v);"
+      end;
       line "  __builtin_memcpy(__zane_result, &__zane_value, sizeof __zane_value);");
+  List.iteri
+    (fun i k ->
+      if k = Terminated then
+        line "  if (__zane_c%d != __zane_s%d) __builtin_free(__zane_c%d);" i i i)
+    e.params;
   line "}";
   Buffer.contents b
 
@@ -73,13 +123,16 @@ let thunk n (e : entry) (f : C_interface.func) =
    selects what the system headers it includes declare, as it does when
    one of its package's sources includes it first. `<stdint.h>` follows,
    since a scalar slot is read as a fixed-width type, which a header
-   declaring only `int` or `long long` need not include. A quoted
+   declaring only `int` or `long long` need not include. `zane_bytes_alloc`
+   is declared as `<zane_ffi.h>` declares it, for a header that spells its
+   own `zane_bytes` and includes no toolchain header. A quoted
    header name is read as it is written, escapes and all, so the path goes
    in unescaped; Foreign refuses one holding a double quote or a line break. *)
 let file ~header (entries : (entry * C_interface.func) list) =
   let b = Buffer.create 1024 in
   Buffer.add_string b (Printf.sprintf "#include \"%s\"\n" header);
   Buffer.add_string b "#include <stdint.h>\n";
+  Buffer.add_string b "uint8_t *zane_bytes_alloc(__SIZE_TYPE__ __zane_size);\n";
   let called = List.sort_uniq compare (List.map (fun ((e : entry), _) -> e.c_function) entries) in
   List.iter (fun c -> Buffer.add_string b (Printf.sprintf "#undef %s\n" c)) called;
   List.iteri (fun n (e, f) -> Buffer.add_string b (thunk n e f)) entries;
@@ -115,10 +168,19 @@ let files tables entries =
     tables
 
 (* What a function value's C entry passes (docs/design/ffi.md
-   F11): a scalar of the C type given, a `Bool` as `_Bool`, no value, or a
+   F11): a scalar of the C type given, a `Bool` as `_Bool`, no value, a
    struct of scalars, arrays of them and such structs, laid out as the
-   Zane value type is. *)
-type shape = Value of string | Truth | Nothing | Record of (shape * int option) list
+   Zane value type is, a `zane_bytes` or `zane_span` C lends, which the
+   slot holds as a handle whose room is [unit] per element, its count and
+   room 32 bits wide when [narrow], or a pointer, an array's or a C
+   object's. *)
+type shape =
+  | Value of string
+  | Truth
+  | Nothing
+  | Record of (shape * int option) list
+  | View of { unit : int; narrow : bool }
+  | Pointer
 
 (* A lambda's C entry, under [label], calling its adapter [adapter]. *)
 type callback = { label : string; adapter : string; params : shape list; result : shape }
@@ -129,11 +191,19 @@ let callbacks_file (callbacks : callback list) =
   let b = Buffer.create 1024 in
   let structs = Buffer.create 256 in
   let named = Hashtbl.create 8 in
+  let view = ref false in
   let line fmt = Printf.ksprintf (fun s -> Buffer.add_string b s; Buffer.add_char b '\n') fmt in
   let rec c_type = function
     | Value c -> c
     | Truth -> "_Bool"
     | Nothing -> "void"
+    | View _ ->
+        if not !view then begin
+          view := true;
+          Buffer.add_string structs "struct __zane_view { const void *__zane_d; __SIZE_TYPE__ __zane_n; };\n"
+        end;
+        "struct __zane_view"
+    | Pointer -> "const void *"
     | Record members as r -> (
         match Hashtbl.find_opt named r with
         | Some n -> n
@@ -161,8 +231,21 @@ let callbacks_file (callbacks : callback list) =
       line "void %s(void *const *__zane_args, void *__zane_result) __asm__(\"%s\");" adapter (escaped c.adapter);
       line "%s %s(%s) __asm__(\"%s\");" result name params (escaped c.label);
       line "__attribute__((no_stack_protector)) %s %s(%s) {" result name params;
-      List.iteri (fun i p -> if p = Truth then line "  unsigned char __zane_b%d = __zane_a%d;" i i) c.params;
-      let slot i p = if p = Truth then Printf.sprintf "&__zane_b%d" i else Printf.sprintf "&__zane_a%d" i in
+      List.iteri
+        (fun i p ->
+          match p with
+          | Truth -> line "  unsigned char __zane_b%d = __zane_a%d;" i i
+          (* A string's or a list's handle: its bytes, its length, and
+             the room of a block that long, so that the adapter's copy,
+             which copies only a handle with room, gives the function value
+             a block of its own. The handle is never released. *)
+          | View { unit; narrow } ->
+              let w = if narrow then "int" else "long long" in
+              line "  struct { const void *__zane_d; %s __zane_n, __zane_r; } __zane_b%d = { __zane_a%d.__zane_d, (%s)__zane_a%d.__zane_n, (%s)(__zane_a%d.__zane_n * %d) };"
+                w i i w i w i unit
+          | _ -> ())
+        c.params;
+      let slot i p = if p = Truth || (match p with View _ -> true | _ -> false) then Printf.sprintf "&__zane_b%d" i else Printf.sprintf "&__zane_a%d" i in
       (match c.params with
       | [] -> line "  void *__zane_args[1] = { 0 };"
       | ps -> line "  void *__zane_args[] = { %s };" (String.concat ", " (List.mapi slot ps)));

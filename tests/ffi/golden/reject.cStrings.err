@@ -1,0 +1,12 @@
+File "fixtures/reject/cStrings/main.zn", line 10, characters 1-7:
+10 | String nameOf(id I64) foreign "name_of";
+   | ^^^^^^
+Error: C declares `const char *` here, and a returned `@primitives$String` crosses as a `zane_bytes`, since a `const char *` gives no length; only a parameter crosses as one (ffi.md §3.5)
+File "fixtures/reject/cStrings/main.zn", line 11, characters 16-22:
+11 | I64 store(text String) foreign "store";
+   |                ^^^^^^
+Error: C declares `char *` here, and `@primitives$String` crosses as a `zane_bytes`, or as a `const char *` to its bytes and a terminating NUL (ffi.md §3.4)
+File "fixtures/reject/cStrings/main.zn", line 12, characters 18-24:
+12 | I64 bytesOf(text String) foreign "bytes_of";
+   |                  ^^^^^^
+Error: C declares `const unsigned char *` here, and `@primitives$String` crosses as a `zane_bytes`, or as a `const char *` to its bytes and a terminating NUL (ffi.md §3.4)

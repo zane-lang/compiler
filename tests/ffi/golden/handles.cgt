@@ -492,16 +492,22 @@
     │   ├── symbol: handles$drain(this handles$Fs)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: handle
-    │   └── body[0] > return > runtime:
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_text_expect
+    │   │       └── args:
+    │   └── body[1] > return > runtime:
     │       ├── type: handle
-    │       ├── fn: zane_text_join
+    │       ├── fn: zane_text_taken
     │       ├── args[0] > foreign call:
     │       │   ├── type: handle
     │       │   ├── fn: handles$drain(this handles$Fs).ffi
     │       │   └── args[0] > deref:
     │       │       ├── type: {ptr, i64}
     │       │       └── ptr: local #1 : ptr
-    │       └── args[1]: "" : handle
+    │       └── args[1]: local #2 : i64
     ├── funcs[4] > func:
     │   ├── symbol: handles$show(%primitives$String)
     │   ├── params[0]: local #1 : handle

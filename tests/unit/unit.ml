@@ -1355,6 +1355,102 @@ let escaped_locations () =
       ("an internal error", true, Diagnostic.render_internal ~span:at message);
     ]
 
+(* A link that fails on a foreign verb's C function, which nothing linked
+   defines, names the verb and the function, read from what GNU `ld`,
+   `ld.lld` and `ld64` each write. *)
+let undefined_foreign () =
+  let module Build = Codegen__Build in
+  let thunk = "fs$_exists(this fs$Fs, %primitives$String).ffi" in
+  let expected = Some [ ("fs$_exists", "zfs_exists") ] in
+  let read text =
+    Option.map
+      (List.filter_map (fun (s, f) ->
+           if String.ends_with ~suffix:".ffi" f then Some (String.sub f 0 (String.index f '('), s) else None))
+      (Some (Build.undefined_symbols text))
+  in
+  check "GNU ld's undefined reference names the verb"
+    (read
+       (Printf.sprintf
+          "/usr/bin/ld: /cache/x.c.o: in function `%s':\nfs.c:(.text+0x3f6): undefined reference to `zfs_exists'\nclang: error: linker command failed with exit code 1"
+          thunk)
+    = expected);
+  check "ld.lld's undefined symbol names the verb"
+    (read
+       (Printf.sprintf "ld.lld: error: undefined symbol: zfs_exists\n>>> referenced by fs.c\n>>>               /cache/x.c.o:(%s)\n" thunk)
+    = expected);
+  check "ld64's undefined symbol names the verb, without Mach-O's `_`"
+    (match
+       Build.undefined_error ~underscored:true
+         (Printf.sprintf "Undefined symbols for architecture arm64:\n  \"_zfs_exists\", referenced from:\n      _%s in x.c.o\nld: symbol(s) not found for architecture arm64\n" thunk)
+     with
+    | Some (e, every) -> contains e "`fs$_exists` calls the C function `zfs_exists`" && every
+    | None -> false);
+  check "a symbol only Zane's own code references is not a foreign verb's"
+    (Build.undefined_error "ld.lld: error: undefined symbol: zane_gone\n>>> referenced by program.o:(main)\n" = None);
+  check "the error names the verb and its C function, which are all the link misses"
+    (match Build.undefined_error (Printf.sprintf "ld.lld: error: undefined symbol: zfs_exists\n>>> referenced by x.o:(%s)\n" thunk) with
+    | Some (e, every) -> contains e "`fs$_exists` calls the C function `zfs_exists`" && every
+    | None -> false);
+  check "a link that misses another symbol too says the verb is not all"
+    (match
+       Build.undefined_error
+         (Printf.sprintf
+            "ld.lld: error: undefined symbol: zfs_exists\n>>> referenced by x.o:(%s)\nld.lld: error: undefined symbol: other\n>>> referenced by y.o:(helper)\n"
+            thunk)
+     with
+    | Some (_, every) -> not every
+    | None -> false);
+  check "ld64.lld's Mach-O names lose their `_`"
+    (match
+       Build.undefined_error ~underscored:true
+         (Printf.sprintf "ld64.lld: error: undefined symbol: _zfs_exists\n>>> referenced by x.o:(symbol _%s+0x10)\n" thunk)
+     with
+    | Some (e, _) -> contains e "`fs$_exists` calls the C function `zfs_exists`"
+    | None -> false);
+  check "an ELF name keeps its `_`"
+    (match Build.undefined_error "ld.lld: error: undefined symbol: _api\n>>> referenced by x.o:(_pkg$call.ffi)\n" with
+    | Some (e, _) -> contains e "`_pkg$call` calls the C function `_api`"
+    | None -> false);
+  check "a parenthesis in the object's path is not the function's"
+    (read
+       (Printf.sprintf "ld.lld: error: undefined symbol: zfs_exists\n>>> referenced by fs.c\n>>>               /work/build(debug)/lib.a(x.c.o):(%s)\n" thunk)
+    = expected);
+  check "GNU ld's reference from data is not the last function's"
+    (match
+       Build.undefined_error
+         (Printf.sprintf
+            "/usr/bin/ld: x.c.o: in function `%s':\nfs.c:(.text+0x3f6): undefined reference to `zfs_exists'\n/usr/bin/ld: x.c.o:(.data.rel+0x0): undefined reference to `table'\n"
+            thunk)
+     with
+    | Some (e, every) -> contains e "`zfs_exists`" && (not (contains e "`table`")) && not every
+    | None -> false);
+  check "GNU ld's reference from a function's own section is the function's"
+    (read
+       (Printf.sprintf "/usr/bin/ld: x.c.o: in function `%s':\nfs.c:(.text.thunk+0x3): undefined reference to `zfs_exists'\n" thunk)
+    = expected);
+  check "a symbol defined twice is another error"
+    (Build.other_link_errors "ld.lld: error: duplicate symbol: f\n>>> defined at a.o\n");
+  check "an undefined symbol and the driver's summary are no other error"
+    (not
+       (Build.other_link_errors
+          "ld.lld: error: undefined symbol: zfs_exists\n>>> referenced by x.o:(f)\nclang: error: linker command failed with exit code 1\n"))
+
+(* A message names a dependency's types without the stamp that tells its
+   versions apart, unless it names two versions of one package. *)
+let unstamped_messages () =
+  let shown message = Diagnostic.render ~source:"" (Diagnostic.about_invocation message) in
+  check "a stamp is left out"
+    (contains (shown "`v0.8%f35c10ff8d86c042%core$String` crosses into C as no C type")
+       "Error: `core$String` crosses into C");
+  check "every stamp of one version is left out"
+    (shown "no `f` accepts (v1.2-rc.1%0123456789abcdef%core$Int, v1.2-rc.1%0123456789abcdef%core$Float)"
+    = "Error: no `f` accepts (core$Int, core$Float)\n");
+  check "two versions of one package keep their stamps"
+    (contains (shown "v1%0123456789abcdef%core$Int is not v2%fedcba9876543210%core$Int")
+       "v1%0123456789abcdef%core$Int is not v2%fedcba9876543210%core$Int");
+  check "text that only looks like a stamp is kept"
+    (contains (shown "50%0123456789abcdef% done; %primitives$String") "50%0123456789abcdef% done; %primitives$String")
+
 (* tests/gen/gen_rules.ml stops at a fixture with no golden file and at a
    golden file whose fixture is gone, naming each, so neither leaves a
    program silently untested. *)
@@ -1484,6 +1580,8 @@ let () =
   backstop ();
   fixture_pairing ();
   escaped_locations ();
+  unstamped_messages ();
+  undefined_foreign ();
   Builds.cached_runtime ();
   Builds.linked_in_process ();
   Builds.bundled_runtime ();

@@ -1,0 +1,16 @@
+/// A string crosses as a `const char *` only as a parameter, and only to
+/// `char` C reads (ffi.md §3.3, §3.4): not as a result, not to `char` C may
+/// write, and not to `unsigned char`.
+package cStrings;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+String nameOf(id I64) foreign "name_of";
+I64 store(text String) foreign "store";
+I64 bytesOf(text String) foreign "bytes_of";
+
+Unit main() {
+	return Unit();
+}

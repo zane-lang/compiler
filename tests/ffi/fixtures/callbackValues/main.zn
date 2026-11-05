@@ -1,0 +1,62 @@
+/// Function values C calls with strings, lists, arrays and data handles
+/// (ffi.md §3.6):
+/// each word of a string, as a `zane_bytes` the lambda gets a copy of; a
+/// list and an array C holds in its own frame; a data handle C lends; and
+/// a data handle C makes and gives, which the lambda's roaming owner
+/// releases when it ends. The string is the lambda's own, so C writing
+/// the bytes it lent while the lambda runs leaves it as it was.
+package callbackValues;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+type Obj = #handle{ cType = "obj_t"; free = "obj_free"; }
+type Log = #handle{ cType = "log_t"; }
+
+^Obj make(value I64) foreign "obj_new";
+I64 value(this Obj) foreign "obj_value";
+
+I64 eachWord(f I64[String], text String) foreign "each_word";
+I64 withList(f I64[@primitives$List<I64>]) foreign "with_list";
+I64 withArray(f I64[@primitives$Array<I64, 3>]) foreign "with_array";
+I64 withObject(f I64[Obj], o Obj) foreign "with_object";
+Unit give(this Log, f Unit[^Obj], value I64) mut foreign "log_give";
+I64 freed(this Log) foreign "log_freed";
+I64 withScratch(f I64[String]) foreign "with_scratch";
+I64 scribble() foreign "scribble";
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+Unit main() {
+	log Log foreign "zane_log";
+	show(String(eachWord(I64(word String) {
+		show(word);
+		return I64(1);
+	}, String("one three five"))));
+	show(String(withList(I64(xs @primitives$List<I64>) {
+		return @operators$add(xs:size(), xs[I64(3)]);
+	})));
+	show(String(withArray(I64(xs @primitives$Array<I64, 3>) {
+		return @operators$add(xs[I64(1)], xs[I64(3)]);
+	})));
+	o ^Obj = make(I64(42));
+	show(String(withObject(I64(b Obj) {
+		return b:value();
+	}, o)));
+	log!give(Unit(owned ^Obj) {
+		show(String(owned:value()));
+		return Unit();
+	}, I64(7));
+	show(String(log:freed()));
+	show(String(withScratch(I64(text String) {
+		n I64 = scribble();
+		show(text);
+		return n;
+	})));
+	return Unit();
+}

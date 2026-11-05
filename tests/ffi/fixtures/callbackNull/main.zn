@@ -1,0 +1,22 @@
+/// C that calls a function value with a null pointer for a data handle
+/// stops the program before the lambda runs (ffi.md §3.6), as a foreign
+/// verb's null handle result does, once what it printed before is out.
+package callbackNull;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+type Obj = #handle{ cType = "obj_t"; free = "obj_free"; }
+
+I64 withNull(f I64[Obj]) foreign "with_null";
+
+Unit main() {
+	@program$console!print(String.escaped("before\n"));
+	n I64 = withNull(I64(o Obj) {
+		@program$console!print(String.escaped("ran\n"));
+		return I64(1);
+	});
+	@program$console!print(String.escaped("after\n"));
+	return Unit();
+}

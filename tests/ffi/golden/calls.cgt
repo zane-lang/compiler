@@ -1947,14 +1947,20 @@
     │   ├── symbol: app$greet(%primitives$String)
     │   ├── params[0]: local #1 : handle
     │   ├── ret: handle
-    │   └── body[0] > return > runtime:
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_text_expect
+    │   │       └── args:
+    │   └── body[1] > return > runtime:
     │       ├── type: handle
-    │       ├── fn: zane_text_join
+    │       ├── fn: zane_text_taken
     │       ├── args[0] > foreign call:
     │       │   ├── type: handle
     │       │   ├── fn: app$greet(%primitives$String).ffi
     │       │   └── args[0]: local #1 : handle
-    │       └── args[1]: "" : handle
+    │       └── args[1]: local #2 : i64
     ├── funcs[11] > func:
     │   ├── symbol: app$length(%primitives$String)
     │   ├── params[0]: local #1 : handle

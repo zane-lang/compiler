@@ -25,9 +25,22 @@ type stage = Cst | Sst
    build (docs/design/tiers.md) is two: `--build OUT --tiered` makes tier
    0, and `--tier-up OUT` tier 1, the shared library tier 0 loads while it
    runs. `--check`
-   runs semantics and prints nothing, so its exit status and diagnostics are
-   the whole answer. *)
-type view = Assembled | Check | Declarations | Typed | Cgt | Ir | Build of string | Object of string | Tier_up of string
+   runs semantics and prints only diagnostics, the C compiler's warnings
+   among them (docs/design/ffi.md F3), so its exit status and diagnostics
+   are the whole answer. `--compile-commands OUT` writes the compilation
+   database of the C sources of the packages without a stamp, for an
+   editor's C language server, and checks nothing (docs/design/ffi.md F2). *)
+type view =
+  | Assembled
+  | Check
+  | Declarations
+  | Typed
+  | Cgt
+  | Ir
+  | Build of string
+  | Object of string
+  | Tier_up of string
+  | Compile_commands of string
 
 (* Whether the build has a root package (packages.md §6.1): `--root` makes
    the first package the root, which has a `main` to start from (§6.2), and
@@ -95,7 +108,7 @@ let usage () = raise (Usage None)
 let print_usage () =
   prerr_endline "usage: zanec [--cst|--sst] (SOURCE|-)";
   prerr_endline
-    "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT [--tiered]|--object OUT|--tier-up OUT]";
+    "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT [--tiered]|--object OUT|--tier-up OUT|--compile-commands OUT]";
   prerr_endline "             [--root|--no-root]";
   prerr_endline
     "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...] [--c-hashes FILE ...]";
@@ -234,6 +247,8 @@ let arguments () =
         packages (Some (Build output)) build rest
     | "--object" :: output :: rest when view = None && is_value output ->
         packages (Some (Object output)) build rest
+    | "--compile-commands" :: output :: rest when view = None && is_value output ->
+        packages (Some (Compile_commands output)) build rest
     | "--stamp" :: stamp :: rest when is_value stamp -> (
         match String.index_opt stamp '=' with
         | Some i when i + 1 < String.length stamp ->
@@ -296,6 +311,7 @@ let arguments () =
       Bundle_runtime { dir; target; optimize = true }
   | ( "--package" | "--root" | "--no-root" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
     | "--link" | "--c-hashes" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--no-memoize" | "--check"
+    | "--compile-commands"
     | "--tiered" | "--tier-up"
     | "--decls" | "--tst" | "--cgt" | "--ll" )
     :: _ as rest ->
@@ -355,14 +371,14 @@ let generate packages c_code build program =
       let* c = c () in
       let* () = Driver.object_file ?target ~pack ~memoize ~c ~regions:build.regions ~optimize cgt output in
       Driver.write_hashes ~output (Driver.hashes_of packages c_code c)
-  | Assembled | Check | Declarations | Typed -> Ok ()
+  | Assembled | Check | Declarations | Typed | Compile_commands _ -> Ok ()
 
 (* Without `--root` or `--no-root`, the root needs its `main` once it is
    lowered, since lowering starts from it. *)
 let needs_main build =
   match (build.root, build.view) with
   | Some true, _ | None, (Cgt | Ir | Build _ | Object _ | Tier_up _) -> true
-  | Some false, _ | None, (Assembled | Check | Declarations | Typed) -> false
+  | Some false, _ | None, (Assembled | Check | Declarations | Typed | Compile_commands _) -> false
 
 (* Semantics prints no tree when it found a problem, since a tree with holes
    in it is not what either view promises. *)
@@ -379,6 +395,7 @@ let run_packages build =
   | Assembled ->
       print_string (Tree_graph.render (Tst.Assembly.to_node packages));
       Ok ()
+  | Compile_commands output -> Driver.compile_commands ?target:build.target packages output
   | Check | Declarations | Typed | Cgt | Ir | Build _ | Object _ | Tier_up _ -> (
       let* c = Driver.c_code ?target:build.target packages in
       let* program = Driver.check ~c packages in

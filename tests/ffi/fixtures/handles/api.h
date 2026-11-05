@@ -10,7 +10,7 @@ extern fs_t zane_fs;
 conn_t *conn_open(int32_t id);
 conn_t *conn_maybe(int32_t id);
 void conn_set(conn_t *dst, conn_t *src);
-void conn_free(conn_t *conn);
+int conn_free(conn_t *conn);
 int32_t conn_id(const conn_t *conn);
 void conn_bump(conn_t *conn);
 

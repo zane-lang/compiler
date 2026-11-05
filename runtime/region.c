@@ -139,6 +139,10 @@ static char *zane_frames_take(size_t bytes) {
 	pthread_mutex_lock(&zane_frames_lock);
 	if (!zane_frames_end) {
 		uintptr_t image = (uintptr_t)&__ehdr_start, reach = (uintptr_t)1 << 31;
+		/* Opaque, so the compiler folds no offset of 2 GiB into the
+		   symbol's relocation, which overflows once this code lies more
+		   than a chunk into the image. */
+		__asm__("" : "+r"(image));
 		/* The whole MiBs in the 2 GiB below the image; or, where a program
 		   is loaded too low for that (Valgrind loads one at 1 MiB), the
 		   first free 512 MiB above it within reach, looked for from the top

@@ -24,7 +24,7 @@ let classify : Cgt.Runtime.fn -> t = function
   (* Whether the thread has a context is a fact of the running program,
      and only a call from C, which no fold makes, runs either. *)
   | Callback_attach | Callback_detach -> Input
-  | Text_join | Text_equal | Text_i32 | Text_i64 | Text_f32 | Text_f64
+  | Text_join | Text_expect | Text_taken | Text_equal | Text_i32 | Text_i64 | Text_f32 | Text_f64
   | List_new | List_push | List_at | List_remove _ | List_swap_remove _ | Array_at | Constant_begin
   | Constant_end | Writeback
   | Parse_i64 | Parse_f64 ->
