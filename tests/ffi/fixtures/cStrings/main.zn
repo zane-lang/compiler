@@ -1,7 +1,8 @@
 /// A string crossing as a `const char *` (ffi.md §3.4): C reads its bytes
 /// up to a terminating NUL, for a literal, an empty string, a joined one,
-/// one longer than a thunk copies into its frame, and one holding a NUL,
-/// which C reads up to it; beside a `zane_bytes` parameter of the same call.
+/// the longest a thunk copies into its frame and one byte more, one much
+/// longer, and one holding a NUL, which C reads up to it; beside a
+/// `zane_bytes` parameter of the same call.
 package cStrings;
 
 alias Unit = @primitives$Unit;
@@ -32,6 +33,9 @@ Unit main() {
 	long String = join(join(eighty, eighty), join(eighty, eighty));
 	show(String(length(long)));
 	show(String(length(join(long, String("!")))));
+	under String = join(join(join(eighty, eighty), eighty), String("abcdefghijklmno"));
+	show(String(length(under)));
+	show(String(length(join(under, String("!")))));
 	show(String(length(String.escaped("ab\0cd"))));
 	show(String(sum(String("abc"), String("de"), ten)));
 	show(echo(join(twenty, String("!"))));

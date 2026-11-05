@@ -38,3 +38,20 @@ zane_bytes texts_pure(zane_bytes s) {
     out[s.size] = '!';
     return (zane_bytes){ out, s.size + 1 };
 }
+
+zane_bytes texts_inside(texts_t *t, zane_bytes s) {
+    uint8_t *out = zane_bytes_alloc(s.size + 1);
+    out[0] = '>';
+    for (size_t i = 0; i < s.size; i++) out[i + 1] = s.data[i];
+    t->given = out + 1;
+    return (zane_bytes){ out + 1, s.size };
+}
+
+zane_bytes texts_twice(texts_t *t, zane_bytes s) {
+    uint8_t *scratch = zane_bytes_alloc(s.size);
+    for (size_t i = 0; i < s.size; i++) scratch[i] = upper(s.data[i]);
+    uint8_t *out = zane_bytes_alloc(s.size);
+    for (size_t i = 0; i < s.size; i++) out[i] = scratch[s.size - 1 - i];
+    t->given = out;
+    return (zane_bytes){ out, s.size };
+}

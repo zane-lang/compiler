@@ -1,6 +1,8 @@
 /// Strings C returns in bytes `zane_bytes_alloc` gave it (ffi.md §3.5),
 /// which become the string's without a copy: all of them, a prefix of
-/// them, and none of them; beside bytes of C's own, which are copied; and a
+/// them, and none of them; beside bytes of C's own, and a view starting
+/// inside the block rather than at it, which are copied; the last of two
+/// blocks one call asks for, the other returned; and a
 /// capability-free call, which an optimized build folds.
 package allocated;
 
@@ -16,6 +18,8 @@ String fixed(this Texts) mut foreign "texts_fixed";
 String empty(this Texts) mut foreign "texts_empty";
 I64 kept(this Texts, s String) mut foreign "texts_kept";
 String pure(s String) foreign "texts_pure";
+String inside(this Texts, s String) mut foreign "texts_inside";
+String twice(this Texts, s String) mut foreign "texts_twice";
 
 Unit show(text String) {
 	@program$console!print(text);
@@ -36,5 +40,11 @@ Unit main() {
 	show(String(texts!kept(mine)));
 	show(@operators$concat(@operators$concat(String("["), texts!empty()), String("]")));
 	show(pure(String("zane")));
+	within String = texts!inside(String("inner"));
+	show(within);
+	show(String(texts!kept(within)));
+	backwards String = texts!twice(String("abc"));
+	show(backwards);
+	show(String(texts!kept(backwards)));
 	return Unit();
 }

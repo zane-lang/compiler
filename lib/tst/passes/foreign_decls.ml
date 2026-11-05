@@ -491,9 +491,10 @@ and handle_corresponds env iface v position tid (h : Nodes.Handle.t) c =
                (quote tid.Ty.name) (quote h.Nodes.Handle.c_type) (quote (C.to_string c))))
 
 (* A function value crosses as a C function pointer (§3.6) when it has no
-   subject and no abort type, its parameters are what a foreign verb takes,
-   a handle among them a data handle, borrowed or a roaming owner, and its
-   result a scalar, `Bool`, a C-compatible value type or `Unit`. *)
+   subject and no abort type, its parameters are scalars, `Bool`s,
+   C-compatible value types, strings, lists and arrays of scalars, and data
+   handles, borrowed or roaming owners, and its result a scalar, `Bool`, a
+   C-compatible value type or `Unit`. *)
 and function_corresponds env iface v (f : Ty.verb) c =
   let data_handle tid = Verbs.handle_kind env.verbs tid = Some Nodes.Decl.Data in
   let param (t : Ty.t) =
@@ -509,7 +510,7 @@ and function_corresponds env iface v (f : Ty.verb) c =
   let result t = plain t || crossing env t = Some Unit in
   if f.Ty.this_ <> None || f.Ty.abort <> None || not (List.for_all param f.Ty.params && result f.Ty.ret) then
     Error
-      "a function value crosses into C when it has no subject and no abort type, takes what a foreign verb takes, a handle among them a data handle, borrowed or as a roaming owner `^`, and gives a scalar, `@primitives$Bool`, a C-compatible value type or `@primitives$Unit` (ffi.md §3.6)"
+      "a function value crosses into C when it has no subject and no abort type, takes scalars, `@primitives$Bool`, C-compatible value types, strings, lists and arrays of scalars, and data handles, borrowed or as a roaming owner `^`, and gives a scalar, `@primitives$Bool`, a C-compatible value type or `@primitives$Unit` (ffi.md §3.6)"
   else
     match c with
     | C.Pointer { pointee = C.Function { params; result = r; variadic = false }; _ }

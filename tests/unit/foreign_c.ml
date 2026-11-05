@@ -218,6 +218,17 @@ let compiled () =
       let first = warnings () in
       check "a C warning is at its line" (List.map fst first = [ 3 ]);
       check "a cached module warns again" (warnings () = first);
+      (* What the cache keeps beside the module is what a hit shows: its
+         message changed there is the message shown, at the same line. *)
+      (match Foreign.compile_packages ~cache:(Some cache) ~cc ~cpu:"" ~target:None [ warned ] with
+      | Ok [ { Foreign.sources = [ s ]; _ } ] ->
+          let sidecar = Filename.concat (Filename.concat (Filename.concat cache "foreign") "module") (s.Compile.key ^ ".warnings") in
+          let stored = Compile.warnings_of_text (In_channel.with_open_bin sidecar In_channel.input_all) in
+          write_all sidecar
+            (Compile.warnings_text (List.map (fun (p : Clang.problem) -> { p with Clang.message = "from the cache" }) stored));
+          check "a cached module replays the warnings kept beside it" (warnings () = [ (3, "from the cache") ]);
+          write_all sidecar (Compile.warnings_text stored)
+      | _ -> check "a cached module is found" false);
       check "a module cached from another directory warns in this one"
         (warnings ~dir:(package "moved" warning_source) () = first);
       let tricky = [ { Clang.file = "a\tb\\c.c"; line = 4; column = 2; message = "two\nlines\tand a \\" } ] in

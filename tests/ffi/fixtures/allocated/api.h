@@ -11,3 +11,5 @@ zane_bytes texts_fixed(texts_t *t);
 zane_bytes texts_empty(texts_t *t);
 int64_t texts_kept(texts_t *t, zane_bytes s);
 zane_bytes texts_pure(zane_bytes s);
+zane_bytes texts_inside(texts_t *t, zane_bytes s);
+zane_bytes texts_twice(texts_t *t, zane_bytes s);

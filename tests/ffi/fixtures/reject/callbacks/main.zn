@@ -1,5 +1,5 @@
-/// What C passes a function value is what a foreign verb takes (ffi.md
-/// §3.6): a string only as a `zane_bytes`, a handle as a pointer to its
+/// What C passes a function value is what C has a type for (ffi.md §3.6):
+/// a string only as a `zane_bytes`, a handle as a pointer to its
 /// own C type, and a data handle, never a capability; and a parameter is
 /// never `&`.
 package callbacks;

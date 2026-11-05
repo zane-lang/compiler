@@ -52,6 +52,22 @@
     │   ├── calls: texts_pure
     │   ├── params[0]: view
     │   └── result: view
+    ├── thunks[6] > thunk:
+    │   ├── symbol: allocated$inside(this allocated$Texts, %primitives$String).ffi
+    │   ├── package: allocated
+    │   ├── calls: texts_inside
+    │   ├── params[0]: handle
+    │   ├── params[1]: view
+    │   ├── result: view
+    │   └── reaches: a capability
+    ├── thunks[7] > thunk:
+    │   ├── symbol: allocated$twice(this allocated$Texts, %primitives$String).ffi
+    │   ├── package: allocated
+    │   ├── calls: texts_twice
+    │   ├── params[0]: handle
+    │   ├── params[1]: view
+    │   ├── result: view
+    │   └── reaches: a capability
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -235,7 +251,77 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "\n" : handle
-    │       └── body[13] > return: unit : void
+    │       ├── body[13] > hold:
+    │       │   ├── local: #45
+    │       │   ├── scope: %2
+    │       │   ├── value > call:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: allocated$inside(this allocated$Texts, %primitives$String)
+    │       │   │   ├── args[0]: address of #1 : ptr
+    │       │   │   └── args[1]: "inner" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[14] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: allocated$show(%primitives$String)
+    │       │   └── args[0]: local #45 : handle
+    │       ├── body[15] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: allocated$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @47
+    │       │       ├── result: #48
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #46
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: allocated$kept(this allocated$Texts, %primitives$String)
+    │       │       │   │       ├── args[0]: address of #1 : ptr
+    │       │       │   │       └── args[1]: local #45 : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #48
+    │       │           └── value: local #46 : handle
+    │       ├── body[16] > hold:
+    │       │   ├── local: #52
+    │       │   ├── scope: %2
+    │       │   ├── value > call:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: allocated$twice(this allocated$Texts, %primitives$String)
+    │       │   │   ├── args[0]: address of #1 : ptr
+    │       │   │   └── args[1]: "abc" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[17] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: allocated$show(%primitives$String)
+    │       │   └── args[0]: local #52 : handle
+    │       ├── body[18] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: allocated$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @54
+    │       │       ├── result: #55
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #53
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: allocated$kept(this allocated$Texts, %primitives$String)
+    │       │       │   │       ├── args[0]: address of #1 : ptr
+    │       │       │   │       └── args[1]: local #52 : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #55
+    │       │           └── value: local #53 : handle
+    │       └── body[19] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: allocated$upper(this allocated$Texts, %primitives$String)
     │   ├── params[0]: local #1 : ptr
@@ -337,9 +423,44 @@
     │           └── args[0] > deref:
     │               ├── type: {ptr, i64}
     │               └── ptr: local #1 : ptr
-    └── funcs[8] > func:
-        ├── symbol: allocated$pure(%primitives$String)
-        ├── params[0]: local #1 : handle
+    ├── funcs[8] > func:
+    │   ├── symbol: allocated$pure(%primitives$String)
+    │   ├── params[0]: local #1 : handle
+    │   ├── ret: handle
+    │   ├── body[0] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_text_expect
+    │   │   └── args:
+    │   └── body[1] > return > runtime:
+    │       ├── type: handle
+    │       ├── fn: zane_text_taken
+    │       └── args[0] > foreign call:
+    │           ├── type: handle
+    │           ├── fn: allocated$pure(%primitives$String).ffi
+    │           └── args[0]: local #1 : handle
+    ├── funcs[9] > func:
+    │   ├── symbol: allocated$inside(this allocated$Texts, %primitives$String)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : handle
+    │   ├── ret: handle
+    │   ├── body[0] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_text_expect
+    │   │   └── args:
+    │   └── body[1] > return > runtime:
+    │       ├── type: handle
+    │       ├── fn: zane_text_taken
+    │       └── args[0] > foreign call:
+    │           ├── type: handle
+    │           ├── fn: allocated$inside(this allocated$Texts, %primitives$String).ffi
+    │           ├── args[0] > deref:
+    │           │   ├── type: {ptr, i64}
+    │           │   └── ptr: local #1 : ptr
+    │           └── args[1]: local #2 : handle
+    └── funcs[10] > func:
+        ├── symbol: allocated$twice(this allocated$Texts, %primitives$String)
+        ├── params[0]: local #1 : ptr
+        ├── params[1]: local #2 : handle
         ├── ret: handle
         ├── body[0] > eval > runtime:
         │   ├── type: void
@@ -350,5 +471,8 @@
             ├── fn: zane_text_taken
             └── args[0] > foreign call:
                 ├── type: handle
-                ├── fn: allocated$pure(%primitives$String).ffi
-                └── args[0]: local #1 : handle
+                ├── fn: allocated$twice(this allocated$Texts, %primitives$String).ffi
+                ├── args[0] > deref:
+                │   ├── type: {ptr, i64}
+                │   └── ptr: local #1 : ptr
+                └── args[1]: local #2 : handle

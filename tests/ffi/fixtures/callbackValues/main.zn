@@ -1,4 +1,5 @@
-/// Function values C calls with what a foreign verb takes (ffi.md §3.6):
+/// Function values C calls with strings, lists, arrays and data handles
+/// (ffi.md §3.6):
 /// each word of a string, as a `zane_bytes` the lambda gets a copy of; a
 /// list and an array C holds in its own frame; a data handle C lends; and
 /// a data handle C makes and gives, which the lambda's roaming owner

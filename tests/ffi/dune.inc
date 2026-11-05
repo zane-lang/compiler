@@ -629,6 +629,152 @@
   (diff golden/cStrings.out cStrings.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/callbackNull))
+ (targets callbackNull.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build callbackNull.exe --package fixtures/callbackNull)))
+
+(rule
+ (deps (source_tree fixtures/callbackNull))
+ (targets callbackNull.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build callbackNull.optimized.exe --optimize --package fixtures/callbackNull)))
+
+(rule
+ (deps (source_tree fixtures/callbackNull))
+ (targets callbackNull.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build callbackNull.tiered.exe --tiered --package fixtures/callbackNull)))
+
+(rule
+ (deps (source_tree fixtures/callbackNull))
+ (targets callbackNull.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up callbackNull.tier1 --package fixtures/callbackNull)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    callbackNull.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./callbackNull.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/callbackNull.out callbackNull.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    callbackNull.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./callbackNull.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/callbackNull.out callbackNull.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    callbackNull.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./callbackNull.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/callbackNull.out callbackNull.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    callbackNull.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./callbackNull.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/callbackNull.out callbackNull.optimized.unchecked.out.actual)))
+
+(rule
+ (deps callbackNull.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./callbackNull.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    callbackNull.tiered.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./callbackNull.tiered.exe))))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/callbackNull.out callbackNull.tiered.checked.out.actual)))
+
+(rule
+ (deps callbackNull.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./callbackNull.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    callbackNull.tiered.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./callbackNull.tiered.exe))))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/callbackNull.out callbackNull.tiered.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/callbackValues))
+ (action
+  (with-stdout-to
+   callbackValues.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/callbackValues))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/callbackValues.cgt callbackValues.cgt.actual)))
+
+(rule
  (deps (source_tree fixtures/callbackValues))
  (targets callbackValues.exe)
  (action
