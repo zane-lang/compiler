@@ -7,7 +7,8 @@
 /// place; a C function reaching `sin`, which the C library alone has,
 /// left as a call; a C sort calling a Zane comparison, folded; a string C
 /// returns, folded; and a struct whose fields Zane lays out in another
-/// order than C, passed and returned, folded.
+/// order than C, passed and returned, folded, directly and through
+/// function values C calls.
 package folding;
 
 alias Unit = @primitives$Unit;
@@ -37,6 +38,8 @@ F64 sine(x F64) foreign "fold_sine";
 I64 sorted(before Bool[I64, I64], xs @primitives$List<I64>) foreign "fold_sorted";
 String shout(text String) foreign "fold_shout";
 Trio trio(t Trio) foreign "fold_trio";
+I64 pick(f I64[Trio], t Trio) foreign "fold_pick";
+Trio remap(f Trio[Trio], t Trio) foreign "fold_remap";
 
 Unit show(text String) {
 	@program$console!print(text);
@@ -73,5 +76,10 @@ Unit main() {
 	show(String(t.tag));
 	show(String(t.n));
 	show(String(t.k));
+	show(String(pick(I64(t Trio) { return @operators$add(I64(t.tag), @operators$multiply(t.n, I64(10))); }, Trio(I32(7), I64(5), I32(9)))));
+	r Trio = remap(Trio(t Trio) { return Trio(t.k, t.n, t.tag); }, Trio(I32(2), I64(6), I32(4)));
+	show(String(r.tag));
+	show(String(r.n));
+	show(String(r.k));
 	return Unit();
 }

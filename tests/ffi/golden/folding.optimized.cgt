@@ -69,19 +69,33 @@
     │   ├── params[0]: value
     │   └── result: value
     ├── thunks[8] > thunk:
+    │   ├── symbol: folding$pick(%primitives$I64[folding$Trio], folding$Trio).ffi
+    │   ├── package: folding
+    │   ├── calls: fold_pick
+    │   ├── params[0]: function
+    │   ├── params[1]: value
+    │   └── result: i64
+    ├── thunks[9] > thunk:
+    │   ├── symbol: folding$remap(folding$Trio[folding$Trio], folding$Trio).ffi
+    │   ├── package: folding
+    │   ├── calls: fold_remap
+    │   ├── params[0]: function
+    │   ├── params[1]: value
+    │   └── result: value
+    ├── thunks[10] > thunk:
     │   ├── symbol: folding$buffer(%primitives$I64).ffi
     │   ├── package: folding
     │   ├── calls: buffer_new
     │   ├── params[0]: i64
     │   └── result: handle
-    ├── thunks[9] > thunk:
+    ├── thunks[11] > thunk:
     │   ├── symbol: folding$push(this folding$Buffer, %primitives$I64).ffi
     │   ├── package: folding
     │   ├── calls: buffer_push
     │   ├── params[0]: handle
     │   ├── params[1]: i64
     │   └── result: void
-    ├── thunks[10] > thunk:
+    ├── thunks[12] > thunk:
     │   ├── symbol: folding$sum(this folding$Buffer).ffi
     │   ├── package: folding
     │   ├── calls: buffer_sum
@@ -93,6 +107,16 @@
     │   ├── takes[0]: i64
     │   ├── takes[1]: i64
     │   └── gives: i1
+    ├── callbacks[1] > callback:
+    │   ├── symbol: folding$main()$lambda2
+    │   ├── entry: folding$entry folding$main()$lambda2
+    │   ├── takes[0]: {i32, i64, i32}
+    │   └── gives: i64
+    ├── callbacks[2] > callback:
+    │   ├── symbol: folding$main()$lambda3
+    │   ├── entry: folding$entry folding$main()$lambda3
+    │   ├── takes[0]: {i32, i64, i32}
+    │   └── gives: {i32, i64, i32}
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -216,10 +240,10 @@
     │       │   ├── scope: %2
     │       │   ├── value > expand:
     │       │   │   ├── type: handle16
-    │       │   │   ├── label: @63
-    │       │   │   ├── result: #64
+    │       │   │   ├── label: @86
+    │       │   │   ├── result: #87
     │       │   │   └── body[0] > assign:
-    │       │   │       ├── place: #64
+    │       │   │       ├── place: #87
     │       │   │       └── value > runtime:
     │       │   │           ├── type: handle16
     │       │   │           ├── fn: zane_list_new
@@ -354,7 +378,46 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "\n" : handle
-    │       └── body[23] > return: unit : void
+    │       ├── body[23] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "57" : handle
+    │       ├── body[24] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[25] > let:
+    │       │   ├── local: #74
+    │       │   └── value > record:
+    │       │       ├── type: {i64, i32, i32}
+    │       │       ├── members[0] > member 0: 6 : i64
+    │       │       ├── members[1] > member 1: 4 : i32
+    │       │       └── members[2] > member 2: 102 : i32
+    │       ├── body[26] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "4" : handle
+    │       ├── body[27] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[28] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "6" : handle
+    │       ├── body[29] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[30] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "102" : handle
+    │       ├── body[31] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       └── body[32] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: folding$checksum(%primitives$String)
     │   ├── params[0]: local #1 : handle
@@ -507,6 +570,123 @@
     │           ├── index: 2
     │           └── value: local #2 : {i32, i64, i32}
     ├── funcs[11] > func:
+    │   ├── symbol: folding$main()$lambda2
+    │   ├── params[0]: local #1 : {i64, i32, i32}
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left > convert:
+    │       │   ├── type: i64
+    │       │   └── value > member:
+    │       │       ├── type: i32
+    │       │       ├── index: 1
+    │       │       └── value: local #1 : {i64, i32, i32}
+    │       └── right > binary:
+    │           ├── type: i64
+    │           ├── op: *
+    │           ├── left > member:
+    │           │   ├── type: i64
+    │           │   ├── index: 0
+    │           │   └── value: local #1 : {i64, i32, i32}
+    │           └── right: 10 : i64
+    ├── funcs[12] > func:
+    │   ├── symbol: folding$pick(%primitives$I64[folding$Trio], folding$Trio)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : {i64, i32, i32}
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: folding$pick(%primitives$I64[folding$Trio], folding$Trio).ffi
+    │       ├── args[0]: local #1 : ptr
+    │       └── args[1] > record:
+    │           ├── type: {i32, i64, i32}
+    │           ├── members[0] > member 0 > member:
+    │           │   ├── type: i32
+    │           │   ├── index: 1
+    │           │   └── value: local #2 : {i64, i32, i32}
+    │           ├── members[1] > member 1 > member:
+    │           │   ├── type: i64
+    │           │   ├── index: 0
+    │           │   └── value: local #2 : {i64, i32, i32}
+    │           └── members[2] > member 2 > member:
+    │               ├── type: i32
+    │               ├── index: 2
+    │               └── value: local #2 : {i64, i32, i32}
+    ├── funcs[13] > func:
+    │   ├── symbol: folding$main()$lambda3
+    │   ├── params[0]: local #1 : {i64, i32, i32}
+    │   ├── ret: {i64, i32, i32}
+    │   └── body[0] > return > expand:
+    │       ├── type: {i64, i32, i32}
+    │       ├── label: @5
+    │       ├── result: #6
+    │       ├── body[0] > let:
+    │       │   ├── local: #2
+    │       │   └── value > member:
+    │       │       ├── type: i32
+    │       │       ├── index: 2
+    │       │       └── value: local #1 : {i64, i32, i32}
+    │       ├── body[1] > let:
+    │       │   ├── local: #3
+    │       │   └── value > member:
+    │       │       ├── type: i64
+    │       │       ├── index: 0
+    │       │       └── value: local #1 : {i64, i32, i32}
+    │       ├── body[2] > let:
+    │       │   ├── local: #4
+    │       │   └── value > member:
+    │       │       ├── type: i32
+    │       │       ├── index: 1
+    │       │       └── value: local #1 : {i64, i32, i32}
+    │       ├── body[3] > assign:
+    │       │   ├── place: #6
+    │       │   └── value > record:
+    │       │       ├── type: {i64, i32, i32}
+    │       │       ├── members[0] > member 1: local #2 : i32
+    │       │       ├── members[1] > member 0: local #3 : i64
+    │       │       └── members[2] > member 2: local #4 : i32
+    │       └── body[4]: leave @5
+    ├── funcs[14] > func:
+    │   ├── symbol: folding$remap(folding$Trio[folding$Trio], folding$Trio)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : {i64, i32, i32}
+    │   ├── ret: {i64, i32, i32}
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > foreign call:
+    │   │       ├── type: {i32, i64, i32}
+    │   │       ├── fn: folding$remap(folding$Trio[folding$Trio], folding$Trio).ffi
+    │   │       ├── args[0]: local #1 : ptr
+    │   │       └── args[1] > record:
+    │   │           ├── type: {i32, i64, i32}
+    │   │           ├── members[0] > member 0 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 1
+    │   │           │   └── value: local #2 : {i64, i32, i32}
+    │   │           ├── members[1] > member 1 > member:
+    │   │           │   ├── type: i64
+    │   │           │   ├── index: 0
+    │   │           │   └── value: local #2 : {i64, i32, i32}
+    │   │           └── members[2] > member 2 > member:
+    │   │               ├── type: i32
+    │   │               ├── index: 2
+    │   │               └── value: local #2 : {i64, i32, i32}
+    │   └── body[1] > return > record:
+    │       ├── type: {i64, i32, i32}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 0
+    │       │   └── value: local #3 : {i32, i64, i32}
+    │       ├── members[1] > member 0 > member:
+    │       │   ├── type: i64
+    │       │   ├── index: 1
+    │       │   └── value: local #3 : {i32, i64, i32}
+    │       └── members[2] > member 2 > member:
+    │           ├── type: i32
+    │           ├── index: 2
+    │           └── value: local #3 : {i32, i64, i32}
+    ├── funcs[15] > func:
     │   ├── symbol: folding$buffer(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {ptr, i64}
@@ -536,7 +716,7 @@
     │       ├── type: {ptr, i64}
     │       ├── members[0] > member 0: local #2 : ptr
     │       └── members[1] > member 1: local #3 : i64
-    ├── funcs[12] > func:
+    ├── funcs[16] > func:
     │   ├── symbol: folding$push(this folding$Buffer, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -548,7 +728,7 @@
     │       │   ├── type: {ptr, i64}
     │       │   └── ptr: local #1 : ptr
     │       └── args[1]: local #2 : i64
-    ├── funcs[13] > func:
+    ├── funcs[17] > func:
     │   ├── symbol: folding$sum(this folding$Buffer)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -558,8 +738,123 @@
     │       └── args[0] > deref:
     │           ├── type: {ptr, i64}
     │           └── ptr: local #1 : ptr
-    └── funcs[14] > func:
-        ├── symbol: folding$main()$lambda1.adapter
+    ├── funcs[18] > func:
+    │   ├── symbol: folding$main()$lambda1.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i1
+    │   │       ├── fn: folding$main()$lambda1
+    │   │       ├── args[0] > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr > deref:
+    │   │       │       ├── type: ptr
+    │   │       │       └── ptr > offset:
+    │   │       │           ├── within: {ptr, ptr}
+    │   │       │           ├── path: 0
+    │   │       │           └── base: local #0 : ptr
+    │   │       └── args[1] > deref:
+    │   │           ├── type: i64
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > offset:
+    │   │                   ├── within: {ptr, ptr}
+    │   │                   ├── path: 1
+    │   │                   └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    ├── funcs[19] > func:
+    │   ├── symbol: folding$main()$lambda2.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: folding$main()$lambda2
+    │   │       └── args[0] > record:
+    │   │           ├── type: {i64, i32, i32}
+    │   │           ├── members[0] > member 1 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 0
+    │   │           │   └── value > deref:
+    │   │           │       ├── type: {i32, i64, i32}
+    │   │           │       └── ptr > deref:
+    │   │           │           ├── type: ptr
+    │   │           │           └── ptr > offset:
+    │   │           │               ├── within: {ptr}
+    │   │           │               ├── path: 0
+    │   │           │               └── base: local #0 : ptr
+    │   │           ├── members[1] > member 0 > member:
+    │   │           │   ├── type: i64
+    │   │           │   ├── index: 1
+    │   │           │   └── value > deref:
+    │   │           │       ├── type: {i32, i64, i32}
+    │   │           │       └── ptr > deref:
+    │   │           │           ├── type: ptr
+    │   │           │           └── ptr > offset:
+    │   │           │               ├── within: {ptr}
+    │   │           │               ├── path: 0
+    │   │           │               └── base: local #0 : ptr
+    │   │           └── members[2] > member 2 > member:
+    │   │               ├── type: i32
+    │   │               ├── index: 2
+    │   │               └── value > deref:
+    │   │                   ├── type: {i32, i64, i32}
+    │   │                   └── ptr > deref:
+    │   │                       ├── type: ptr
+    │   │                       └── ptr > offset:
+    │   │                           ├── within: {ptr}
+    │   │                           ├── path: 0
+    │   │                           └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    └── funcs[20] > func:
+        ├── symbol: folding$main()$lambda3.adapter
         ├── linkage: shared
         ├── params[0]: local #0 : ptr
         ├── params[1]: local #1 : ptr
@@ -579,28 +874,63 @@
         │       ├── type: void
         │       ├── fn: zane_callback_attach
         │       └── args:
-        ├── body[2] > store:
-        │   ├── address: local #1 : ptr
+        ├── body[2] > let:
+        │   ├── local: #3
         │   └── value > call:
-        │       ├── type: i1
-        │       ├── fn: folding$main()$lambda1
-        │       ├── args[0] > deref:
+        │       ├── type: {i64, i32, i32}
+        │       ├── fn: folding$main()$lambda3
+        │       └── args[0] > record:
+        │           ├── type: {i64, i32, i32}
+        │           ├── members[0] > member 1 > member:
+        │           │   ├── type: i32
+        │           │   ├── index: 0
+        │           │   └── value > deref:
+        │           │       ├── type: {i32, i64, i32}
+        │           │       └── ptr > deref:
+        │           │           ├── type: ptr
+        │           │           └── ptr > offset:
+        │           │               ├── within: {ptr}
+        │           │               ├── path: 0
+        │           │               └── base: local #0 : ptr
+        │           ├── members[1] > member 0 > member:
+        │           │   ├── type: i64
+        │           │   ├── index: 1
+        │           │   └── value > deref:
+        │           │       ├── type: {i32, i64, i32}
+        │           │       └── ptr > deref:
+        │           │           ├── type: ptr
+        │           │           └── ptr > offset:
+        │           │               ├── within: {ptr}
+        │           │               ├── path: 0
+        │           │               └── base: local #0 : ptr
+        │           └── members[2] > member 2 > member:
+        │               ├── type: i32
+        │               ├── index: 2
+        │               └── value > deref:
+        │                   ├── type: {i32, i64, i32}
+        │                   └── ptr > deref:
+        │                       ├── type: ptr
+        │                       └── ptr > offset:
+        │                           ├── within: {ptr}
+        │                           ├── path: 0
+        │                           └── base: local #0 : ptr
+        ├── body[3] > store:
+        │   ├── address: local #1 : ptr
+        │   └── value > record:
+        │       ├── type: {i32, i64, i32}
+        │       ├── members[0] > member 0 > member:
+        │       │   ├── type: i32
+        │       │   ├── index: 1
+        │       │   └── value: local #3 : {i64, i32, i32}
+        │       ├── members[1] > member 1 > member:
         │       │   ├── type: i64
-        │       │   └── ptr > deref:
-        │       │       ├── type: ptr
-        │       │       └── ptr > offset:
-        │       │           ├── within: {ptr, ptr}
-        │       │           ├── path: 0
-        │       │           └── base: local #0 : ptr
-        │       └── args[1] > deref:
-        │           ├── type: i64
-        │           └── ptr > deref:
-        │               ├── type: ptr
-        │               └── ptr > offset:
-        │                   ├── within: {ptr, ptr}
-        │                   ├── path: 1
-        │                   └── base: local #0 : ptr
-        └── body[3] > if:
+        │       │   ├── index: 0
+        │       │   └── value: local #3 : {i64, i32, i32}
+        │       └── members[2] > member 2 > member:
+        │           ├── type: i32
+        │           ├── index: 2
+        │           └── value: local #3 : {i64, i32, i32}
+        └── body[4] > if:
             ├── cond: local #2 : i1
             └── body[0] > eval > runtime:
                 ├── type: void

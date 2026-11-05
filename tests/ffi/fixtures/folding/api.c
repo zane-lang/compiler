@@ -78,3 +78,5 @@ zane_bytes fold_shout(zane_bytes text) {
 }
 
 trio fold_trio(trio t) { return (trio){ t.k, t.n * 2, t.tag }; }
+int64_t fold_pick(int64_t (*f)(trio), trio t) { return f(t); }
+trio fold_remap(trio (*f)(trio), trio t) { trio r = f(t); r.k += 100; return r; }

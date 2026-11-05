@@ -940,7 +940,9 @@ reaches a function the module only declares, which stops it as F16 says.
 a Zane fold reaches a `Foreign_call`, its arguments are known values of
 `eval.ml`; `c_eval.ml` writes each into an allocation of its own laid out as
 F10's slots are, padding bytes zero as there, runs the thunk, and reads the result back into an `eval.ml`
-value. A view into a string, array or list is a read-only allocation
+value. A function value C calls while it runs is run by `eval.ml` through
+`C_cross.adapter`, which rebuilds each struct argument from C's order in
+Zane's and the result back in C's, as the adapter does at run time (F11). A view into a string, array or list is a read-only allocation
 holding a copy of its bytes, and a store into it stops the fold. `eval.ml`
 knows a value and not where it is stored (O5), so whether two views share
 storage at run time is unknown: two arguments from one variable do, two
