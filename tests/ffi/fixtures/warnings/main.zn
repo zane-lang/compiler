@@ -1,0 +1,13 @@
+/// C the compiler warns of: in a file of the package's own directory, which
+/// is shown, and in a vendored file below it, which is not.
+package warnings;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+
+I64 own(x I64) foreign "own";
+I64 vendored(x I64) foreign "vendored";
+
+Unit main() {
+	return Unit();
+}

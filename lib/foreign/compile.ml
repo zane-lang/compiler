@@ -195,7 +195,49 @@ let mapped maps text =
 
 (* One C source compiled, or what the front end said was wrong with it,
    and the files its code came from, each by its real path. *)
-type source = { path : string; bitcode : string; key : string; includes : string list }
+type source = { path : string; bitcode : string; key : string; includes : string list; warnings : Clang.problem list }
+
+(* Warnings as text kept beside a cached module, one a line, its file,
+   line, column and message apart by tabs, each escaped, so a module loaded
+   from the cache warns as the compile that made it did. *)
+let warnings_text (ws : Clang.problem list) =
+  let escape s =
+    let b = Buffer.create (String.length s) in
+    String.iter
+      (function '\\' -> Buffer.add_string b "\\\\" | '\t' -> Buffer.add_string b "\\t" | '\n' -> Buffer.add_string b "\\n" | c -> Buffer.add_char b c)
+      s;
+    Buffer.contents b
+  in
+  String.concat ""
+    (List.map (fun (w : Clang.problem) -> Printf.sprintf "%s\t%d\t%d\t%s\n" (escape w.file) w.line w.column (escape w.message)) ws)
+
+let warnings_of_text text =
+  let unescape s =
+    let b = Buffer.create (String.length s) in
+    let n = String.length s in
+    let rec go i =
+      if i < n then
+        if s.[i] = '\\' && i + 1 < n then begin
+          Buffer.add_char b (match s.[i + 1] with 't' -> '\t' | 'n' -> '\n' | c -> c);
+          go (i + 2)
+        end
+        else begin
+          Buffer.add_char b s.[i];
+          go (i + 1)
+        end
+    in
+    go 0;
+    Buffer.contents b
+  in
+  List.filter_map
+    (fun line ->
+      match String.split_on_char '\t' line with
+      | [ file; l; c; message ] -> (
+          match (int_of_string_opt l, int_of_string_opt c) with
+          | Some line, Some column -> Some { Clang.file = unescape file; line; column; message = unescape message }
+          | _ -> None)
+      | _ -> None)
+    (String.split_on_char '\n' text)
 
 (* [path] with every link and `.` or `..` resolved, or as it is when it
    names nothing. *)
@@ -281,19 +323,27 @@ let compile_source ?cache ~maps flags path =
     let cache = if placed then None else cache in
     let kept = Option.map (fun c -> Filename.concat (Filename.concat c "foreign/module") (key ^ ".bc")) cache in
     let includes = included preprocessed.output in
+    let warned = Option.map (fun k -> Filename.remove_extension k ^ ".warnings") kept in
     match Option.bind kept Cache.read with
-    | Some bitcode -> Ok { path; bitcode; key; includes }
+    | Some bitcode ->
+        let warnings = Option.fold ~none:[] ~some:warnings_of_text (Option.bind warned Cache.read) in
+        Ok { path; bitcode; key; includes; warnings }
     | None ->
         let compiled = Clang.compile args in
         if not compiled.ok then
           let diagnostics, sources = diagnostics compiled.problems in
           Error { diagnostics; sources }
         else begin
+          (* The warnings are kept before the module, so a module in the
+             cache always has its warnings beside it. *)
+          Option.iter
+            (fun kept -> Cache.keep_string ~dir:(Filename.dirname kept) ~kept (warnings_text compiled.warnings))
+            warned;
           Option.iter
             (fun kept -> Cache.keep_string ~dir:(Filename.dirname kept) ~kept compiled.output)
             kept;
           (* A module compiled every time is keyed by what it compiled
              to, so nothing kept under its key outlives a change. *)
           let key = if placed then Digest.to_hex (Digest.string compiled.output) else key in
-          Ok { path; bitcode = compiled.output; key; includes }
+          Ok { path; bitcode = compiled.output; key; includes; warnings = compiled.warnings }
         end

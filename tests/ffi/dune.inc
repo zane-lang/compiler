@@ -2052,3 +2052,15 @@
  (action
   (diff golden/vendored.check vendored.check.actual)))
 
+(rule
+ (deps (source_tree fixtures/warnings))
+ (action
+  (with-outputs-to
+   warnings.check.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/warnings))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/warnings.check warnings.check.actual)))
+

@@ -1,0 +1,4 @@
+File "fixtures/warnings/api.c", line 5, characters 16-16:
+5 |     return x + unset;
+  |                ^
+Warning: variable 'unset' is uninitialized when used here

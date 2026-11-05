@@ -124,7 +124,8 @@ build names none), `-isystem` for the directory holding `zane_ffi.h`, and
 `-O2 -Xclang -disable-llvm-passes`, so the
 module comes out of the front end unoptimized but optimizable: `-O0` would
 mark every function `noinline`, which no later pipeline undoes, and F13's
-inlining across the two languages would never happen. The package's
+inlining across the two languages would never happen. `-Wall` follows them;
+its warnings refuse nothing (F3 says which are shown). The package's
 `include` and `define` rows come after, in the order its `c.coda` writes them
 (`ffi.md` §2.3). A setting that names one of the fixed flags is an error
 naming the row: a `define` of a macro those flags set, `__FAST_MATH__`,
@@ -165,6 +166,15 @@ own, named by a hash of its text, in the cache's `foreign/` directory
 beside the headers, or in the build's work directory for the glue, and the
 hash leaves it out of the front-end command, since the maps it follows
 from are in it already.
+
+The front end's warnings are kept apart from its errors. A module's are
+written to the cache beside it, before it, as text: a line each, file,
+line, column and message apart by tabs, each escaped. So a module taken
+from the cache warns again, as the compile that made it did. The driver
+shows, after a check or a build that goes on, the warnings of files
+directly in a package's own directory, for the packages that carry no
+stamp: a vendored tree's, below it, and a dependency's are their authors'
+(`tests/ffi/fixtures/warnings`).
 
 **F4. Archives and system libraries go to the link.** An `archive` row's
 static library is read member by member with LLVM's archive reader

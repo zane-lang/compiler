@@ -66,6 +66,14 @@ let assemble ?(root = true) ?(imports = []) ?(stamps = []) requests =
       | Ok packages -> Ok packages
       | Error { Assembly.diagnostics; sources } -> fail ~sources diagnostics)
 
+(* What the C compiler warned of in a package's own files, which refuses
+   nothing, for a package being worked on: a dependency's, whose id carries
+   its stamp, are its author's. *)
+let show_warnings (p : Assembly.package) f =
+  if not (String.contains p.Assembly.id '%') then
+    let warnings, sources = Foreign.warnings f in
+    List.iter (fun d -> prerr_string (Diagnostic.render_in sources d)) warnings
+
 (* Each package's C (spec ffi.md §2), compiled for [target] by the linked
    clang, with its `c.coda` read and checked (docs/design/ffi.md §1). *)
 let c_code ?target packages =
@@ -74,7 +82,9 @@ let c_code ?target packages =
   | Error message -> fail [ Diagnostic.about_invocation message ]
   | Ok cpu -> (
       match Foreign.compile_packages ~cc:(Codegen.c_compiler ()) ~cpu ~target dirs with
-      | Ok c -> Ok c
+      | Ok c ->
+          List.iter2 show_warnings packages c;
+          Ok c
       | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
 
 (* Semantics, which reports every problem it finds (docs/design/semantics.md

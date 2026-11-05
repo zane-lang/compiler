@@ -200,6 +200,25 @@ let compiled () =
       | Ok [ { Foreign.sources = [ _ ]; _ } ] -> ()
       | _ -> check "a dangling symlink and an unwritable cache leave the build alone" false);
       Sys.remove (Filename.concat linked ".#a.c");
+      (* A warning refuses nothing, and a module taken from the cache warns
+         as the compile that made it did. *)
+      let warned = package "warned" "int f(void) {\n  int x;\n  return x;\n}\n" in
+      let warnings () =
+        match Foreign.compile_packages ~cache:(Some cache) ~cc ~cpu:"" ~target:None [ warned ] with
+        | Ok [ f ] ->
+            List.map
+              (fun (d : Diagnostic.t) ->
+                match d.Diagnostic.location with
+                | Diagnostic.Location.Span s -> (s.Source.Span.start_.Lexing.pos_lnum, d.Diagnostic.message)
+                | _ -> (0, d.Diagnostic.message))
+              (fst (Foreign.warnings f))
+        | _ -> []
+      in
+      let first = warnings () in
+      check "a C warning is at its line" (List.map fst first = [ 3 ]);
+      check "a cached module warns again" (warnings () = first);
+      let tricky = [ { Clang.file = "a\tb\\c.c"; line = 4; column = 2; message = "two\nlines\tand a \\" } ] in
+      check "a warning's text reads back" (Compile.warnings_of_text (Compile.warnings_text tricky) = tricky);
       let broken = package "broken" "int f(void) {\n  return missing;\n}\n" in
       match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ broken ] with
       | Error { Foreign.diagnostics = [ d ]; _ } ->

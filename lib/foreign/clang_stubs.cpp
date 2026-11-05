@@ -62,10 +62,14 @@ struct Problem {
 class Collector : public clang::DiagnosticConsumer {
 public:
   std::vector<Problem> problems;
+  /* Warnings, kept apart: they refuse nothing, and the caller chooses
+     which to show. */
+  std::vector<Problem> warnings;
 
   void HandleDiagnostic(clang::DiagnosticsEngine::Level level, const clang::Diagnostic &info) override {
     clang::DiagnosticConsumer::HandleDiagnostic(level, info);
-    if (level < clang::DiagnosticsEngine::Error) return;
+    if (level < clang::DiagnosticsEngine::Warning) return;
+    std::vector<Problem> &into = level == clang::DiagnosticsEngine::Warning ? warnings : problems;
     llvm::SmallString<256> text;
     info.FormatDiagnostic(text);
     Problem p;
@@ -79,7 +83,7 @@ public:
         p.column = loc.getColumn();
       }
     }
-    problems.push_back(std::move(p));
+    into.push_back(std::move(p));
   }
 };
 
@@ -89,6 +93,7 @@ struct Run {
   bool ok = false;
   std::string output;
   std::vector<Problem> problems;
+  std::vector<Problem> warnings;
 };
 
 std::vector<std::string> strings_of(value args) {
@@ -149,15 +154,16 @@ template <typename Act> Run run(const std::vector<std::string> &args, Act act) {
     problems->problems.push_back(p);
   }
   result.problems = problems->problems;
+  result.warnings = problems->warnings;
   return result;
 }
 
-/* [(ok, output, problems)], each problem [(file, line, column, message)]. */
-value to_value(const Run &r) {
+/* [problems] as an OCaml list, each [(file, line, column, message)]. */
+value problem_list(const std::vector<Problem> &problems) {
   CAMLparam0();
-  CAMLlocal4(result, list, item, cell);
+  CAMLlocal3(list, item, cell);
   list = Val_emptylist;
-  for (auto it = r.problems.rbegin(); it != r.problems.rend(); ++it) {
+  for (auto it = problems.rbegin(); it != problems.rend(); ++it) {
     item = caml_alloc_tuple(4);
     Store_field(item, 0, caml_copy_string(it->file.c_str()));
     Store_field(item, 1, Val_int(it->line));
@@ -168,10 +174,20 @@ value to_value(const Run &r) {
     Store_field(cell, 1, list);
     list = cell;
   }
-  result = caml_alloc_tuple(3);
+  CAMLreturn(list);
+}
+
+/* [(ok, output, problems, warnings)]. */
+value to_value(const Run &r) {
+  CAMLparam0();
+  CAMLlocal3(result, problems, warnings);
+  problems = problem_list(r.problems);
+  warnings = problem_list(r.warnings);
+  result = caml_alloc_tuple(4);
   Store_field(result, 0, Val_bool(r.ok));
   Store_field(result, 1, caml_alloc_initialized_string(r.output.size(), r.output.data()));
-  Store_field(result, 2, list);
+  Store_field(result, 2, problems);
+  Store_field(result, 3, warnings);
   CAMLreturn(result);
 }
 

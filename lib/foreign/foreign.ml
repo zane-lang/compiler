@@ -294,7 +294,9 @@ let archive ~triple dir (row : Settings.row) =
    for [triple] and [cpu], and its archives read. *)
 let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
   let maps = Compile.prefix_maps ~dir ~headers in
-  let flags = fixed @ Compile.map_flags ~dir:headers.Compile.root maps @ Compile.package_flags dir rows in
+  (* `-Wall` before the package's own settings: [warnings] shows what it
+     finds in the package's own files alone. *)
+  let flags = fixed @ Compile.map_flags ~dir:headers.Compile.root maps @ [ "-Wall" ] @ Compile.package_flags dir rows in
   let interface_headers = Settings.interface_headers dir in
   let tables =
     combine
@@ -345,6 +347,18 @@ let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
            maps;
            cache;
          })
+
+(* What the C compiler warned of in [p]'s own files: the `.c` and `.h`
+   files directly in its directory, which its author wrote, and not a
+   vendored tree's (ffi.md §2.1), each once, however many of its sources
+   include it, as diagnostics against those files. *)
+let warnings p =
+  let dir = Compile.real p.dir in
+  let own (w : Clang.problem) = w.file <> "" && Filename.dirname (Compile.real w.file) = dir in
+  let all = List.concat_map (fun (s : Compile.source) -> s.warnings) (p.sources @ List.map (fun a -> a.source) p.assembled) in
+  let kept = List.sort_uniq compare (List.filter own all) in
+  let diagnostics, sources = Compile.diagnostics kept in
+  (List.map Diagnostic.as_warning diagnostics, sources)
 
 (* The `system` rows of [p]'s `c.coda` that apply to the build, in the
    order they are written: each row's number and the library it names. *)
