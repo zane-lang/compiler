@@ -144,8 +144,9 @@ dune build
 just test
 ```
 
-`just -l` lists the recipes: `test` runs the compiler, grammar and
-ambiguity-tool and grammar-generator suites, each of which also has its own recipe.
+`just` lists the recipes by group: `test` runs the compiler, grammar,
+ambiguity-tool and grammar-generator suites, each of which also has its own
+recipe. [`tests/README.md`](tests/README.md) says what each suite covers.
 
 CI holds every hand-written source file to 2,000 lines, and warns about one
 past 1,500. The warning is a prompt to split a file along a natural seam, not

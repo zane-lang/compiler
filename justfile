@@ -1,117 +1,64 @@
-grammar_python := env_var_or_default("GRAMMAR_PYTHON", "python3")
+# Project actions. `just` lists them by group; tests/README.md says what each
+# suite covers. Run inside the devbox shell, which provides the toolchain.
 
+set shell := ["bash", "-euo", "pipefail", "-c"]
+set script-interpreter := ["bash", "-euo", "pipefail"]
+
+# The Python that runs every Python suite and tool. CI and grammar/README.md
+# point GRAMMAR_PYTHON at a virtualenv holding the grammar requirements.
+python := env("GRAMMAR_PYTHON", "python3")
+
+[private]
 default:
-	just -l
+	@just --list --unsorted
 
-rebuild: check-grammar-generation
-	dune clean
+# --- Building ---------------------------------------------------------------
+
+[group('build')]
+[doc('Build everything')]
+build:
 	dune build
 
+[group('build')]
+[doc('Delete the build directory')]
+clean:
+	dune clean
+
+[group('build')]
+[doc('Build everything from clean, and check the generated grammar files are current')]
+rebuild: clean build check-grammar-generation
+
+[group('build')]
+[doc('Rebuild on every change')]
 watch:
 	dune build --watch
 
-# Every compiler, grammar and generator suite. CI runs the slower ones separately, so that a change which
-# cannot affect the grammar or the ambiguity tools does not wait on them.
-test: test-compiler test-grammar test-ambiguity-tools test-grammar-generation
+[group('build')]
+[doc('Accept the golden files the last test run moved; read the diff first')]
+promote:
+	dune promote
 
-# grammar/ owns the concrete syntax and lexicon. Generated compiler files are
-# committed so direct dune builds and the proof tools keep their existing paths.
+# --- Grammar ----------------------------------------------------------------
+
+[group('grammar')]
+[doc('Regenerate the compiler and editor files grammar/ is the source of')]
 generate-grammar: _require-menhir
-	{{grammar_python}} -m tools.grammar
+	{{python}} -m tools.grammar
 
+[group('grammar')]
+[doc('Fail if a generated grammar file differs from what grammar/ generates')]
 check-grammar-generation: _require-menhir
-	{{grammar_python}} -m tools.grammar --check
+	{{python}} -m tools.grammar --check
 
-test-grammar-generation: check-grammar-generation
-	{{grammar_python}} -m unittest tests.highlighting.generator_test tests.highlighting.conflicts_test -v
+[group('grammar')]
+[doc('Dump the expanded LR automaton: --state N, --conflicts, --search NAME')]
+explain *ARGS: _require-menhir
+	{{python}} -m tools.ambiguity.explain_automaton {{ARGS}}
 
-# Install tests/highlighting/requirements.txt and the pinned Tree-sitter CLI
-# (npm ci --prefix editors/tree-sitter-zane) first; Typst and Neovim consumer
-# tests run when those executables are present.
-test-highlighting: test-grammar-generation
-	#!/usr/bin/env bash
-	set -euo pipefail
-	# The CLI npm installs locally comes first, so the pinned version is the one used.
-	export PATH="{{justfile_directory()}}/editors/tree-sitter-zane/node_modules/.bin:$PATH"
-	command -v tree-sitter >/dev/null || { echo "tree-sitter not found; npm ci --prefix editors/tree-sitter-zane" >&2; exit 1; }
-	{{grammar_python}} -c 'import tree_sitter'
-	dune build tests/highlighting/parser_check.exe tools/inspect/span_dump.exe
-	{{grammar_python}} -m unittest tests.highlighting.backend_test -v
-
-# The compiler itself: the golden expectations under tests/ and parser
-# acceptance.
-#
-# `dune runtest` carries the expectations in tests/parser/golden/ and
-# tests/semantics/golden/, which the Python suites cannot cover: those ask
-# whether a file parses and what shape it parsed to, and neither question reads
-# a position or looks at the desugared or typed tree. A moved span is a diff
-# there and nothing anywhere else, and so is a rewrite that stopped happening.
-# Promote an intended move with `just promote`. tests/unit/ tests the shared
-# helpers directly, so a broken one is named rather than found in a diff.
-# tests/nesting/ holds `just check-nesting`'s count to small fixtures.
-# tests/ffi/ holds packages with C code (docs/design/ffi.md).
-#
-# The memory-semantics probes (tests/memory-probes/) are held to their
-# committed NAME.out files: `run --check` fails on any difference, and on a
-# probe that failed to build or whose optimized build differs unless the
-# probe's EXPECTED file permits it. To accept an intended change, rerun
-# `tests/memory-probes/run` without `--check` and read the `git diff`.
-# `reclaim.py --check` holds each allocating loop to the same peak RSS at
-# 10,000 and 1,000,000 iterations, and its leaking control to clear growth.
-# tests/tiers/ runs tiered builds (docs/design/tiers.md) as `zane run` does:
-# a program moving to tier 1 while it runs, the libraries the runtime
-# refuses, and the cache.
-test-compiler: _require-menhir
-	dune build bin/zanec/zanec.exe
-	dune runtest tests/parser tests/semantics tests/codegen tests/ffi tests/runtime tests/objects tests/unit tests/nesting
-	python3 -m unittest tests.parser.syntax_test -v
-	python3 -m unittest tests.tiers.tiers_test -v
-	tests/memory-probes/run --check
-	python3 tests/memory-probes/reclaim.py --check
-
-# Each perf program's estimated cycles under Valgrind, optimized and plain,
-# compared with main's on the `perf-log` branch (tests/perf/README.md). Linux
-# only.
-test-perf:
-	dune build bin/zanec/zanec.exe
-	EVENT_NAME=local .github/scripts/perf
-
-# Write tests/perf/golden/ from this build's output, for a new perf program or
-# one whose output a change moved on purpose.
-promote-perf:
-	dune build bin/zanec/zanec.exe
-	tests/perf/run --promote
-
-# The test programs built for Windows and run under Wine, as CI runs them on
-# Windows itself (docs/design/platforms.md). Needs `zig` and `wine64`; set
-# RUNNER to run them some other way.
-test-windows:
-	dev/bin/windows-programs _build/windows-programs
-	RUNNER="${RUNNER:-wine64}" dev/bin/check-programs _build/windows-programs
-
-# The grammar's ambiguity regressions: token sequences with a fixed number of
-# derivations, and the tree each unambiguous one groups to. A few seconds per
-# case, since every check expands the grammar afresh, so this is the slow suite.
-# Also the conflict census, the ledger docs/ambiguity/proof-obligations.md keeps.
-test-grammar: _require-menhir
-	dune build tools/ambiguity/engine/ambiguity_search.exe tools/inspect/parser_shape.exe
-	dune runtest tests/grammar
-	python3 -m unittest tests.grammar.ambiguity_test tests.grammar.type_arguments_test -v
-
-# The ambiguity tools' own tests: the search engine on small grammars, the
-# search CLI and its profiles, and the visible-stack proof's checker. They say
-# whether the tools are right, not whether the grammar is.
-test-ambiguity-tools: _require-menhir
-	dune build tools/ambiguity/engine/ambiguity_search.exe
-	python3 -m unittest discover -s tests/ambiguity -p '*_test.py' -t . -v
-
-# The machine-checked unambiguity theorems (docs/ambiguity/verification-roadmap.md):
-# the Lean checker in formal/ proves the parse relation parser.mly defines
-# unambiguous, then proves the GLR parser's relation unambiguous and maps it
-# onto the source grammar. Needs Lean (elan) besides Menhir; about ten minutes.
+[group('grammar')]
+[doc('Prove the grammar unambiguous with the Lean checker in formal/ (needs elan, ~10 min)')]
+[script]
 verify-grammar: _require-menhir
-	#!/usr/bin/env bash
-	set -euo pipefail
 	command -v lake >/dev/null || { echo "lake not found on PATH; install Lean with elan" >&2; exit 1; }
 	(cd formal && lake build zane-ambiguity-check)
 	dir=$(mktemp -d)
@@ -121,49 +68,92 @@ verify-grammar: _require-menhir
 	formal/.lake/build/bin/zane-ambiguity-check prove-source lib/cst/parser.mly
 	formal/.lake/build/bin/zane-ambiguity-check prove-glr lib/cst/parser.mly "$dir/parser.automaton"
 
-# The engine-backed tests skip themselves unless the executables and Menhir are
-# present, so fail loudly on a missing Menhir rather than reporting a green run
-# that silently skipped them. The leading underscore keeps it out of `just -l`.
-_require-menhir:
-	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
+# --- Tests ------------------------------------------------------------------
 
-# How aggregates cross calls, measured (docs/design/lowering.md §9): langbench
-# and dev/bench/calls built by the compiler before the register rule, with it,
-# and with it and --pack-aggregates, optimized and unoptimized, and timed.
-# Clones the spec and core into _build/abi-bench unless --spec and --core
-# name checkouts. Container timings are not comparable; run it on the machine
-# whose numbers are recorded. `just bench-abi --quick` only checks it works.
-bench-abi *ARGS:
-	dev/bin/abi-bench {{ARGS}}
+[group('test')]
+[doc('Every compiler, grammar and generator suite')]
+test: test-compiler test-grammar test-ambiguity-tools test-grammar-generation
 
-# Every hand-written source file under 2,000 lines, as CI checks it.
+[group('test')]
+[doc('The compiler: golden files, parser acceptance, tiers and memory probes')]
+test-compiler: _require-menhir _zanec
+	dune runtest tests/parser tests/semantics tests/codegen tests/ffi tests/runtime tests/objects tests/unit tests/nesting
+	{{python}} -m unittest tests.parser.syntax_test -v
+	{{python}} -m unittest tests.tiers.tiers_test -v
+	tests/memory-probes/run --check
+	{{python}} tests/memory-probes/reclaim.py --check
+
+[group('test')]
+[doc('The grammar: ambiguity regressions and the conflict census (slow)')]
+test-grammar: _require-menhir
+	dune build tools/ambiguity/engine/ambiguity_search.exe tools/inspect/parser_shape.exe
+	dune runtest tests/grammar
+	{{python}} -m unittest tests.grammar.ambiguity_test tests.grammar.type_arguments_test -v
+
+[group('test')]
+[doc("The ambiguity tools' own tests: engine, CLI and proof checker")]
+test-ambiguity-tools: _require-menhir
+	dune build tools/ambiguity/engine/ambiguity_search.exe
+	{{python}} -m unittest discover -s tests/ambiguity -p '*_test.py' -t . -v
+
+[group('test')]
+[doc('The grammar generator: generated files current, and its unit tests')]
+test-grammar-generation: check-grammar-generation
+	{{python}} -m unittest tests.highlighting.generator_test tests.highlighting.conflicts_test -v
+
+[group('test')]
+[doc('The editor grammars against the compiler parser (needs the pinned tree-sitter)')]
+[script]
+test-highlighting: test-grammar-generation
+	# The CLI npm installs locally comes first, so the pinned version is the one used.
+	export PATH="{{justfile_directory()}}/editors/tree-sitter-zane/node_modules/.bin:$PATH"
+	command -v tree-sitter >/dev/null || { echo "tree-sitter not found; npm ci --prefix editors/tree-sitter-zane" >&2; exit 1; }
+	{{python}} -c 'import tree_sitter'
+	dune build tests/highlighting/parser_check.exe tools/inspect/span_dump.exe
+	{{python}} -m unittest tests.highlighting.backend_test -v
+
+[group('test')]
+[doc('The test programs built for Windows and run under Wine (set RUNNER to change)')]
+test-windows:
+	dev/bin/windows-programs _build/windows-programs
+	RUNNER="${RUNNER:-wine64}" dev/bin/check-programs _build/windows-programs
+
+[group('test')]
+[doc("Each perf program's cycles under Valgrind, against main's (Linux only)")]
+test-perf: _zanec
+	EVENT_NAME=local .github/scripts/perf
+
+[group('test')]
+[doc("Write tests/perf/golden/ from this build's output")]
+promote-perf: _zanec
+	tests/perf/run --promote
+
+# --- Checks -----------------------------------------------------------------
+
+[group('check')]
+[doc('Every hand-written source file under 2,000 lines')]
 check-file-sizes:
 	.github/scripts/file-sizes
 
-# Every hand-written OCaml file under lib/, bin/ and tools/ nested at most five
-# levels deep, counted on the parsed tree (CONTRIBUTING.md, "Keep nesting
-# shallow"), as CI checks it: past five fails, five warns. The tool skips
-# generated files by their first line.
+[group('check')]
+[doc('Hand-written OCaml under lib/, bin/ and tools/ nested at most five deep')]
 check-nesting:
-	#!/usr/bin/env bash
-	set -euo pipefail
 	dune build tools/nesting/nesting.exe
-	git ls-files -z -- 'lib/*.ml' 'bin/*.ml' 'tools/*.ml' | xargs -0 _build/default/tools/nesting/nesting.exe || exit 1
+	git ls-files -z -- 'lib/*.ml' 'bin/*.ml' 'tools/*.ml' | xargs -0 _build/default/tools/nesting/nesting.exe
 
-# Accept the span expectation as it currently stands, after reading the diff
-# `just test-compiler` printed and satisfying yourself that each moved span
-# still covers what its node stands for.
-promote:
-	dune promote
+# --- Benchmarks -------------------------------------------------------------
 
-# Dump Menhir's LR automaton or its conflict explanations -- the obligation
-# ledger docs/ambiguity/README.md refers to. Expanded exactly as the ambiguity tools
-# expand it, so a state number cited by a search report selects the state that
-# produced it; running menhir on the unexpanded grammar renumbers everything.
-#
-#   just explain --state 27
-#   just explain --conflicts
-#   just explain --search list_verb_type_suffix_
-explain *ARGS:
+[group('bench')]
+[doc('How aggregates cross calls, measured; --quick only checks it works')]
+bench-abi *ARGS:
+	dev/bin/abi-bench {{ARGS}}
+
+# --- Helpers ----------------------------------------------------------------
+
+_zanec:
+	dune build bin/zanec/zanec.exe
+
+# The engine-backed tests skip themselves without Menhir, so a missing one
+# fails here instead of reporting a green run that skipped them.
+_require-menhir:
 	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
-	python3 -m tools.ambiguity.explain_automaton {{ARGS}}
