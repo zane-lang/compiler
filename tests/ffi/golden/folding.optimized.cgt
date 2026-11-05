@@ -63,39 +63,45 @@
     │   ├── params[0]: view
     │   └── result: view
     ├── thunks[7] > thunk:
+    │   ├── symbol: folding$version().ffi
+    │   ├── package: folding
+    │   ├── calls: fold_version
+    │   ├── params:
+    │   └── result: view
+    ├── thunks[8] > thunk:
     │   ├── symbol: folding$trio(folding$Trio).ffi
     │   ├── package: folding
     │   ├── calls: fold_trio
     │   ├── params[0]: value
     │   └── result: value
-    ├── thunks[8] > thunk:
+    ├── thunks[9] > thunk:
     │   ├── symbol: folding$pick(%primitives$I64[folding$Trio], folding$Trio).ffi
     │   ├── package: folding
     │   ├── calls: fold_pick
     │   ├── params[0]: function
     │   ├── params[1]: value
     │   └── result: i64
-    ├── thunks[9] > thunk:
+    ├── thunks[10] > thunk:
     │   ├── symbol: folding$remap(folding$Trio[folding$Trio], folding$Trio).ffi
     │   ├── package: folding
     │   ├── calls: fold_remap
     │   ├── params[0]: function
     │   ├── params[1]: value
     │   └── result: value
-    ├── thunks[10] > thunk:
+    ├── thunks[11] > thunk:
     │   ├── symbol: folding$buffer(%primitives$I64).ffi
     │   ├── package: folding
     │   ├── calls: buffer_new
     │   ├── params[0]: i64
     │   └── result: handle
-    ├── thunks[11] > thunk:
+    ├── thunks[12] > thunk:
     │   ├── symbol: folding$push(this folding$Buffer, %primitives$I64).ffi
     │   ├── package: folding
     │   ├── calls: buffer_push
     │   ├── params[0]: handle
     │   ├── params[1]: i64
     │   └── result: void
-    ├── thunks[12] > thunk:
+    ├── thunks[13] > thunk:
     │   ├── symbol: folding$sum(this folding$Buffer).ffi
     │   ├── package: folding
     │   ├── calls: buffer_sum
@@ -240,10 +246,10 @@
     │       │   ├── scope: %2
     │       │   ├── value > expand:
     │       │   │   ├── type: handle16
-    │       │   │   ├── label: @86
-    │       │   │   ├── result: #87
+    │       │   │   ├── label: @89
+    │       │   │   ├── result: #90
     │       │   │   └── body[0] > assign:
-    │       │   │       ├── place: #87
+    │       │   │       ├── place: #90
     │       │   │       └── value > runtime:
     │       │   │           ├── type: handle16
     │       │   │           ├── fn: zane_list_new
@@ -347,25 +353,25 @@
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "\n" : handle
-    │       ├── body[16] > let:
-    │       │   ├── local: #51
+    │       ├── body[16] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "v1" : handle
+    │       ├── body[17] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[18] > let:
+    │       │   ├── local: #54
     │       │   └── value > record:
     │       │       ├── type: {i64, i32, i32}
     │       │       ├── members[0] > member 0: 40 : i64
     │       │       ├── members[1] > member 1: 3 : i32
     │       │       └── members[2] > member 2: 1 : i32
-    │       ├── body[17] > eval > runtime:
-    │       │   ├── type: void
-    │       │   ├── fn: zane_print
-    │       │   └── args[0]: "3" : handle
-    │       ├── body[18] > eval > runtime:
-    │       │   ├── type: void
-    │       │   ├── fn: zane_print
-    │       │   └── args[0]: "\n" : handle
     │       ├── body[19] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
-    │       │   └── args[0]: "40" : handle
+    │       │   └── args[0]: "3" : handle
     │       ├── body[20] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -373,7 +379,7 @@
     │       ├── body[21] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
-    │       │   └── args[0]: "1" : handle
+    │       │   └── args[0]: "40" : handle
     │       ├── body[22] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -381,30 +387,30 @@
     │       ├── body[23] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
-    │       │   └── args[0]: "57" : handle
+    │       │   └── args[0]: "1" : handle
     │       ├── body[24] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "\n" : handle
-    │       ├── body[25] > let:
-    │       │   ├── local: #74
+    │       ├── body[25] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "57" : handle
+    │       ├── body[26] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[27] > let:
+    │       │   ├── local: #77
     │       │   └── value > record:
     │       │       ├── type: {i64, i32, i32}
     │       │       ├── members[0] > member 0: 6 : i64
     │       │       ├── members[1] > member 1: 4 : i32
     │       │       └── members[2] > member 2: 102 : i32
-    │       ├── body[26] > eval > runtime:
-    │       │   ├── type: void
-    │       │   ├── fn: zane_print
-    │       │   └── args[0]: "4" : handle
-    │       ├── body[27] > eval > runtime:
-    │       │   ├── type: void
-    │       │   ├── fn: zane_print
-    │       │   └── args[0]: "\n" : handle
     │       ├── body[28] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
-    │       │   └── args[0]: "6" : handle
+    │       │   └── args[0]: "4" : handle
     │       ├── body[29] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
@@ -412,12 +418,20 @@
     │       ├── body[30] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
-    │       │   └── args[0]: "102" : handle
+    │       │   └── args[0]: "6" : handle
     │       ├── body[31] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "\n" : handle
-    │       └── body[32] > return: unit : void
+    │       ├── body[32] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "102" : handle
+    │       ├── body[33] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       └── body[34] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: folding$checksum(%primitives$String)
     │   ├── params[0]: local #1 : handle
@@ -524,18 +538,36 @@
     │   ├── symbol: folding$shout(%primitives$String)
     │   ├── params[0]: local #1 : handle
     │   ├── ret: handle
-    │   ├── body[0] > eval > runtime:
-    │   │   ├── type: void
-    │   │   ├── fn: zane_text_expect
-    │   │   └── args:
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_text_expect
+    │   │       └── args:
     │   └── body[1] > return > runtime:
     │       ├── type: handle
     │       ├── fn: zane_text_taken
-    │       └── args[0] > foreign call:
-    │           ├── type: handle
-    │           ├── fn: folding$shout(%primitives$String).ffi
-    │           └── args[0]: local #1 : handle
+    │       ├── args[0] > foreign call:
+    │       │   ├── type: handle
+    │       │   ├── fn: folding$shout(%primitives$String).ffi
+    │       │   └── args[0]: local #1 : handle
+    │       └── args[1]: local #2 : i64
     ├── funcs[10] > func:
+    │   ├── symbol: folding$version()
+    │   ├── params:
+    │   ├── ret: handle
+    │   ├── body[0] > let:
+    │   │   ├── local: #1
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_text_expect
+    │   │       └── args:
+    │   └── body[1] > return > runtime:
+    │       ├── type: handle
+    │       ├── fn: zane_text_taken
+    │       ├── args[0]: "v1" : handle
+    │       └── args[1]: local #1 : i64
+    ├── funcs[11] > func:
     │   ├── symbol: folding$trio(folding$Trio)
     │   ├── params[0]: local #1 : {i64, i32, i32}
     │   ├── ret: {i64, i32, i32}
@@ -572,7 +604,7 @@
     │           ├── type: i32
     │           ├── index: 2
     │           └── value: local #2 : {i32, i64, i32}
-    ├── funcs[11] > func:
+    ├── funcs[12] > func:
     │   ├── symbol: folding$main()$lambda2
     │   ├── params[0]: local #1 : {i64, i32, i32}
     │   ├── ret: i64
@@ -593,7 +625,7 @@
     │           │   ├── index: 0
     │           │   └── value: local #1 : {i64, i32, i32}
     │           └── right: 10 : i64
-    ├── funcs[12] > func:
+    ├── funcs[13] > func:
     │   ├── symbol: folding$pick(%primitives$I64[folding$Trio], folding$Trio)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : {i64, i32, i32}
@@ -616,7 +648,7 @@
     │               ├── type: i32
     │               ├── index: 2
     │               └── value: local #2 : {i64, i32, i32}
-    ├── funcs[13] > func:
+    ├── funcs[14] > func:
     │   ├── symbol: folding$main()$lambda3
     │   ├── params[0]: local #1 : {i64, i32, i32}
     │   ├── ret: {i64, i32, i32}
@@ -650,7 +682,7 @@
     │       │       ├── members[1] > member 0: local #3 : i64
     │       │       └── members[2] > member 2: local #4 : i32
     │       └── body[4]: leave @5
-    ├── funcs[14] > func:
+    ├── funcs[15] > func:
     │   ├── symbol: folding$remap(folding$Trio[folding$Trio], folding$Trio)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : {i64, i32, i32}
@@ -689,7 +721,7 @@
     │           ├── type: i32
     │           ├── index: 2
     │           └── value: local #3 : {i32, i64, i32}
-    ├── funcs[15] > func:
+    ├── funcs[16] > func:
     │   ├── symbol: folding$buffer(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: {ptr, i64}
@@ -719,7 +751,7 @@
     │       ├── type: {ptr, i64}
     │       ├── members[0] > member 0: local #2 : ptr
     │       └── members[1] > member 1: local #3 : i64
-    ├── funcs[16] > func:
+    ├── funcs[17] > func:
     │   ├── symbol: folding$push(this folding$Buffer, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : i64
@@ -731,7 +763,7 @@
     │       │   ├── type: {ptr, i64}
     │       │   └── ptr: local #1 : ptr
     │       └── args[1]: local #2 : i64
-    ├── funcs[17] > func:
+    ├── funcs[18] > func:
     │   ├── symbol: folding$sum(this folding$Buffer)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: i64
@@ -741,7 +773,7 @@
     │       └── args[0] > deref:
     │           ├── type: {ptr, i64}
     │           └── ptr: local #1 : ptr
-    ├── funcs[18] > func:
+    ├── funcs[19] > func:
     │   ├── symbol: folding$main()$lambda1.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -789,7 +821,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[19] > func:
+    ├── funcs[20] > func:
     │   ├── symbol: folding$main()$lambda2.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -856,7 +888,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    └── funcs[20] > func:
+    └── funcs[21] > func:
         ├── symbol: folding$main()$lambda3.adapter
         ├── linkage: shared
         ├── params[0]: local #0 : ptr

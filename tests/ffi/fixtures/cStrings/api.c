@@ -16,3 +16,8 @@ zane_bytes c_echo(const char *text) {
     memcpy(echoed, text, n);
     return (zane_bytes){ (const uint8_t *)echoed, n };
 }
+
+zane_bytes c_rest(const char *text) {
+    size_t n = strlen(text);
+    return n ? (zane_bytes){ (const uint8_t *)text + 1, n - 1 } : (zane_bytes){ (const uint8_t *)text, 0 };
+}

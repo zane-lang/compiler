@@ -621,16 +621,19 @@ value from it. A `zane_bytes` result is taken by the runtime before any
 other foreign call can run on this thread. `<zane_ffi.h>`'s
 `zane_bytes_alloc` gives C a block in the call's destination region, the
 region the string is made in, and the runtime keeps every block it gives
-on each thread, with a mark where each call that returns a string began
-among them (`zane_text_expect`), so that a call reached from a function
-value C calls inside another keeps its own. When the call returns, a view
+on each thread. Each call that returns a string holds the count it began
+at, its mark, as a value: `zane_text_expect` returns it and
+`zane_text_taken` reads it back, so that a call reached from a function
+value C calls inside another keeps its own blocks, and an expect whose
+take a fold made a constant leaves nothing behind. When the call returns, a view
 that starts at its last block and fits in it becomes the string as it is,
 its room the block's size; any other view, of C's own memory or inside the
 block, is copied into a new string in that region. The call's blocks the
 string does not take go back to their region then, since C keeps none of
 them, and a block of an earlier call, or memory since given to C at the
-same address, is never taken. The clear before the call is never folded
-away, though a fold has no use for it (F18). A fold copies C's bytes either way (F18), and the stage-5
+same address, is never taken. The expect before the call is never
+folded: a fold would make its mark 0, and the running program's take
+would then free an outer call's blocks too (F18). A fold copies C's bytes either way (F18), and the stage-5
 evaluator's C library gives `zane_bytes_alloc` as `malloc`
 (`tests/ffi/fixtures/allocated`). A handle result is checked for
 null (`ffi.md` §3.5): the abort lowers as any `Unit` abort does

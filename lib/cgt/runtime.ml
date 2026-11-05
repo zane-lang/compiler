@@ -151,8 +151,8 @@ type ty = Void | I32 | I64 | F32 | F64 | Ptr
 let signature = function
   | Print -> (Void, [ Ptr ])
   | Text_join -> (Void, [ Ptr; Ptr; Ptr ])
-  | Text_expect -> (Void, [])
-  | Text_taken -> (Void, [ Ptr; Ptr ])
+  | Text_expect -> (I64, [])
+  | Text_taken -> (Void, [ Ptr; Ptr; I64 ])
   | Text_equal -> (I64, [ Ptr; Ptr ])
   | Text_i32 -> (Void, [ Ptr; I32 ])
   | Text_i64 -> (Void, [ Ptr; I64 ])

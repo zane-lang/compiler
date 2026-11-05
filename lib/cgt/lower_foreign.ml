@@ -184,10 +184,15 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
      block `zane_bytes_alloc` gave C during the call as it is, and any
      other bytes, C's own, copied into a block of the string's own. *)
   | Foreign.View ->
+      (* The mark is a value the take reads, not state the expect sets,
+         so a fold that makes the whole take a constant leaves an expect
+         that changes nothing. *)
       let runtime fn args ty = { Expr.node = Expr.Runtime { fn; args }; ty } in
+      let mark = fresh st in
       [
-        Stat.Eval (runtime Runtime.Text_expect [] Nodes.Ty.Void);
-        Stat.Return (st.returns (runtime Runtime.Text_taken [ call ] Nodes.Ty.Handle));
+        Stat.Let { id = mark; value = runtime Runtime.Text_expect [] Nodes.Ty.I64 };
+        Stat.Return
+          (st.returns (runtime Runtime.Text_taken [ call; { Expr.node = Expr.Local mark; ty = Nodes.Ty.I64 } ] Nodes.Ty.Handle));
       ]
   | Foreign.Handle -> made st ctx span v call
   (* A struct comes back in C's layout and is rebuilt in its own. *)

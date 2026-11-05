@@ -18,8 +18,9 @@
 (* How a value crosses, as the slot holding it is read: a scalar of the
    Zane type whose C type is given, which C converts to its own, a `Bool`
    as a byte, `Unit` as no value, a string's handle as a `const char *` to
-   its bytes and a NUL, and any other as the C type itself. *)
-type kind = Scalar of string | Bool | Unit | Terminated | Same
+   its bytes and a NUL, a string C returns as a `zane_bytes`, and any other
+   as the C type itself. *)
+type kind = Scalar of string | Bool | Unit | Terminated | Text | Same
 
 (* A thunk: its label, which is its symbol after the target's global
    prefix, the C function it calls, and how each argument and the result
@@ -72,7 +73,7 @@ let thunk n (e : entry) (f : C_interface.func) =
     | Terminated -> Printf.sprintf "(__zane_p%d)__zane_c%d" i i
     | Scalar c -> Printf.sprintf "(__zane_p%d)*(const %s *)__zane_args[%d]" i c i
     | Bool -> Printf.sprintf "(__zane_p%d)(*(const unsigned char *)__zane_args[%d] & 1)" i i
-    | Same | Unit -> Printf.sprintf "*(const __zane_p%d *)__zane_args[%d]" i i
+    | Same | Unit | Text -> Printf.sprintf "*(const __zane_p%d *)__zane_args[%d]" i i
   in
   let call = Printf.sprintf "%s(%s)" e.c_function (String.concat ", " (List.mapi arg e.params)) in
   (match e.result with
@@ -83,9 +84,24 @@ let thunk n (e : entry) (f : C_interface.func) =
   | Unit -> line "  %s;" call
   | Scalar c -> line "  *(%s *)__zane_result = (%s)%s;" c c call
   | Bool -> line "  *(unsigned char *)__zane_result = (unsigned char)(%s != 0);" call
-  | Same | Terminated ->
+  | Same | Terminated | Text ->
       line "  typedef __typeof__(%s) __zane_r;" f.C_interface.spelled_result;
       line "  __zane_r __zane_value = %s;" call;
+      (* A string C returns from inside a terminated argument's copy,
+         which is freed or whose frame ends as the thunk returns, is moved
+         into a block the runtime takes as it is (F10). *)
+      if e.result = Text then
+        List.iteri
+          (fun i k ->
+            if k = Terminated then begin
+              line "  if (__zane_value.data && (__UINTPTR_TYPE__)__zane_value.data >= (__UINTPTR_TYPE__)__zane_c%d" i;
+              line "      && (__UINTPTR_TYPE__)__zane_value.data <= (__UINTPTR_TYPE__)(__zane_c%d + __zane_n%d)) {" i i;
+              line "    uint8_t *__zane_k = zane_bytes_alloc(__zane_value.size);";
+              line "    if (__zane_value.size) __builtin_memcpy(__zane_k, __zane_value.data, __zane_value.size);";
+              line "    __zane_value.data = __zane_k;";
+              line "  }"
+            end)
+          e.params;
       line "  __builtin_memcpy(__zane_result, &__zane_value, sizeof __zane_value);");
   List.iteri
     (fun i k ->

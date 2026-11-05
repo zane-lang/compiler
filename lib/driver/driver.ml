@@ -342,7 +342,8 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
           Foreign.Glue.label = global_prefix ^ label t;
           c_function = t.F.c_function;
           params = List.map kind t.F.params;
-          result = kind t.F.result;
+          (* Only a string comes back as a view. *)
+          result = (match t.F.result with F.View -> Foreign.Glue.Text | r -> kind r);
         }
       in
       (* A package's C apart from its module: the objects its sources

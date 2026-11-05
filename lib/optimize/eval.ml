@@ -911,10 +911,10 @@ and runtime run (fn : Cgt.Runtime.fn) args =
   | _, Cgt.Runtime.Set_threads_auto, [] ->
       output run Set_threads_auto;
       VUnit
-  | _, Cgt.Runtime.Text_expect, [] -> VUnit
+  | _, Cgt.Runtime.Text_expect, [] -> VInt 0L
   (* A fold reads C's bytes out of C's memory (F18), so it copies them
      whichever allocator gave them. *)
-  | _, Cgt.Runtime.Text_taken, [ v ] ->
+  | _, Cgt.Runtime.Text_taken, [ v; _ ] ->
       let v = text_of v in
       bytes run (String.length v);
       VText v

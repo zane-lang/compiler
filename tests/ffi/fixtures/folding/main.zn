@@ -6,7 +6,8 @@
 /// released, whose whole life folds away; a capability's calls left in
 /// place; a C function reaching `sin`, which the C library alone has,
 /// left as a call; a C sort calling a Zane comparison, folded; a string C
-/// returns, folded; and a struct whose fields Zane lays out in another
+/// returns, folded, from an argument and from none, whose verb keeps only
+/// the mark its take no longer reads; and a struct whose fields Zane lays out in another
 /// order than C, passed and returned, folded, directly and through
 /// function values C calls.
 package folding;
@@ -37,6 +38,7 @@ I64 next(this Ticker) mut foreign "ticker_next";
 F64 sine(x F64) foreign "fold_sine";
 I64 sorted(before Bool[I64, I64], xs @primitives$List<I64>) foreign "fold_sorted";
 String shout(text String) foreign "fold_shout";
+String version() foreign "fold_version";
 Trio trio(t Trio) foreign "fold_trio";
 I64 pick(f I64[Trio], t Trio) foreign "fold_pick";
 Trio remap(f Trio[Trio], t Trio) foreign "fold_remap";
@@ -72,6 +74,7 @@ Unit main() {
 	digits!push(I64(2));
 	show(String(sorted(Bool(a I64, b I64) { return @operators$lessThan(b, a); }, digits)));
 	show(shout(String("folded")));
+	show(version());
 	t Trio = trio(Trio(I32(1), I64(20), I32(3)));
 	show(String(t.tag));
 	show(String(t.n));

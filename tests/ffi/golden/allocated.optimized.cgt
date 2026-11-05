@@ -327,20 +327,23 @@
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : handle
     │   ├── ret: handle
-    │   ├── body[0] > eval > runtime:
-    │   │   ├── type: void
-    │   │   ├── fn: zane_text_expect
-    │   │   └── args:
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_text_expect
+    │   │       └── args:
     │   └── body[1] > return > runtime:
     │       ├── type: handle
     │       ├── fn: zane_text_taken
-    │       └── args[0] > foreign call:
-    │           ├── type: handle
-    │           ├── fn: allocated$upper(this allocated$Texts, %primitives$String).ffi
-    │           ├── args[0] > deref:
-    │           │   ├── type: {ptr, i64}
-    │           │   └── ptr: local #1 : ptr
-    │           └── args[1]: local #2 : handle
+    │       ├── args[0] > foreign call:
+    │       │   ├── type: handle
+    │       │   ├── fn: allocated$upper(this allocated$Texts, %primitives$String).ffi
+    │       │   ├── args[0] > deref:
+    │       │   │   ├── type: {ptr, i64}
+    │       │   │   └── ptr: local #1 : ptr
+    │       │   └── args[1]: local #2 : handle
+    │       └── args[1]: local #3 : i64
     ├── funcs[3] > func:
     │   ├── symbol: allocated$show(%primitives$String)
     │   ├── params[0]: local #1 : handle
@@ -374,105 +377,123 @@
     │   ├── params[1]: local #2 : handle
     │   ├── params[2]: local #3 : i64
     │   ├── ret: handle
-    │   ├── body[0] > eval > runtime:
-    │   │   ├── type: void
-    │   │   ├── fn: zane_text_expect
-    │   │   └── args:
+    │   ├── body[0] > let:
+    │   │   ├── local: #4
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_text_expect
+    │   │       └── args:
     │   └── body[1] > return > runtime:
     │       ├── type: handle
     │       ├── fn: zane_text_taken
-    │       └── args[0] > foreign call:
-    │           ├── type: handle
-    │           ├── fn: allocated$prefix(this allocated$Texts, %primitives$String, %primitives$I64).ffi
-    │           ├── args[0] > deref:
-    │           │   ├── type: {ptr, i64}
-    │           │   └── ptr: local #1 : ptr
-    │           ├── args[1]: local #2 : handle
-    │           └── args[2]: local #3 : i64
+    │       ├── args[0] > foreign call:
+    │       │   ├── type: handle
+    │       │   ├── fn: allocated$prefix(this allocated$Texts, %primitives$String, %primitives$I64).ffi
+    │       │   ├── args[0] > deref:
+    │       │   │   ├── type: {ptr, i64}
+    │       │   │   └── ptr: local #1 : ptr
+    │       │   ├── args[1]: local #2 : handle
+    │       │   └── args[2]: local #3 : i64
+    │       └── args[1]: local #4 : i64
     ├── funcs[6] > func:
     │   ├── symbol: allocated$fixed(this allocated$Texts)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: handle
-    │   ├── body[0] > eval > runtime:
-    │   │   ├── type: void
-    │   │   ├── fn: zane_text_expect
-    │   │   └── args:
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_text_expect
+    │   │       └── args:
     │   └── body[1] > return > runtime:
     │       ├── type: handle
     │       ├── fn: zane_text_taken
-    │       └── args[0] > foreign call:
-    │           ├── type: handle
-    │           ├── fn: allocated$fixed(this allocated$Texts).ffi
-    │           └── args[0] > deref:
-    │               ├── type: {ptr, i64}
-    │               └── ptr: local #1 : ptr
+    │       ├── args[0] > foreign call:
+    │       │   ├── type: handle
+    │       │   ├── fn: allocated$fixed(this allocated$Texts).ffi
+    │       │   └── args[0] > deref:
+    │       │       ├── type: {ptr, i64}
+    │       │       └── ptr: local #1 : ptr
+    │       └── args[1]: local #2 : i64
     ├── funcs[7] > func:
     │   ├── symbol: allocated$empty(this allocated$Texts)
     │   ├── params[0]: local #1 : ptr
     │   ├── ret: handle
-    │   ├── body[0] > eval > runtime:
-    │   │   ├── type: void
-    │   │   ├── fn: zane_text_expect
-    │   │   └── args:
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_text_expect
+    │   │       └── args:
     │   └── body[1] > return > runtime:
     │       ├── type: handle
     │       ├── fn: zane_text_taken
-    │       └── args[0] > foreign call:
-    │           ├── type: handle
-    │           ├── fn: allocated$empty(this allocated$Texts).ffi
-    │           └── args[0] > deref:
-    │               ├── type: {ptr, i64}
-    │               └── ptr: local #1 : ptr
+    │       ├── args[0] > foreign call:
+    │       │   ├── type: handle
+    │       │   ├── fn: allocated$empty(this allocated$Texts).ffi
+    │       │   └── args[0] > deref:
+    │       │       ├── type: {ptr, i64}
+    │       │       └── ptr: local #1 : ptr
+    │       └── args[1]: local #2 : i64
     ├── funcs[8] > func:
     │   ├── symbol: allocated$pure(%primitives$String)
     │   ├── params[0]: local #1 : handle
     │   ├── ret: handle
-    │   ├── body[0] > eval > runtime:
-    │   │   ├── type: void
-    │   │   ├── fn: zane_text_expect
-    │   │   └── args:
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_text_expect
+    │   │       └── args:
     │   └── body[1] > return > runtime:
     │       ├── type: handle
     │       ├── fn: zane_text_taken
-    │       └── args[0] > foreign call:
-    │           ├── type: handle
-    │           ├── fn: allocated$pure(%primitives$String).ffi
-    │           └── args[0]: local #1 : handle
+    │       ├── args[0] > foreign call:
+    │       │   ├── type: handle
+    │       │   ├── fn: allocated$pure(%primitives$String).ffi
+    │       │   └── args[0]: local #1 : handle
+    │       └── args[1]: local #2 : i64
     ├── funcs[9] > func:
     │   ├── symbol: allocated$inside(this allocated$Texts, %primitives$String)
     │   ├── params[0]: local #1 : ptr
     │   ├── params[1]: local #2 : handle
     │   ├── ret: handle
-    │   ├── body[0] > eval > runtime:
-    │   │   ├── type: void
-    │   │   ├── fn: zane_text_expect
-    │   │   └── args:
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_text_expect
+    │   │       └── args:
     │   └── body[1] > return > runtime:
     │       ├── type: handle
     │       ├── fn: zane_text_taken
-    │       └── args[0] > foreign call:
-    │           ├── type: handle
-    │           ├── fn: allocated$inside(this allocated$Texts, %primitives$String).ffi
-    │           ├── args[0] > deref:
-    │           │   ├── type: {ptr, i64}
-    │           │   └── ptr: local #1 : ptr
-    │           └── args[1]: local #2 : handle
+    │       ├── args[0] > foreign call:
+    │       │   ├── type: handle
+    │       │   ├── fn: allocated$inside(this allocated$Texts, %primitives$String).ffi
+    │       │   ├── args[0] > deref:
+    │       │   │   ├── type: {ptr, i64}
+    │       │   │   └── ptr: local #1 : ptr
+    │       │   └── args[1]: local #2 : handle
+    │       └── args[1]: local #3 : i64
     └── funcs[10] > func:
         ├── symbol: allocated$twice(this allocated$Texts, %primitives$String)
         ├── params[0]: local #1 : ptr
         ├── params[1]: local #2 : handle
         ├── ret: handle
-        ├── body[0] > eval > runtime:
-        │   ├── type: void
-        │   ├── fn: zane_text_expect
-        │   └── args:
+        ├── body[0] > let:
+        │   ├── local: #3
+        │   └── value > runtime:
+        │       ├── type: i64
+        │       ├── fn: zane_text_expect
+        │       └── args:
         └── body[1] > return > runtime:
             ├── type: handle
             ├── fn: zane_text_taken
-            └── args[0] > foreign call:
-                ├── type: handle
-                ├── fn: allocated$twice(this allocated$Texts, %primitives$String).ffi
-                ├── args[0] > deref:
-                │   ├── type: {ptr, i64}
-                │   └── ptr: local #1 : ptr
-                └── args[1]: local #2 : handle
+            ├── args[0] > foreign call:
+            │   ├── type: handle
+            │   ├── fn: allocated$twice(this allocated$Texts, %primitives$String).ffi
+            │   ├── args[0] > deref:
+            │   │   ├── type: {ptr, i64}
+            │   │   └── ptr: local #1 : ptr
+            │   └── args[1]: local #2 : handle
+            └── args[1]: local #3 : i64

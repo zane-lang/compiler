@@ -248,12 +248,12 @@ void zane_text_join(zane_text *out, const zane_text *left, const zane_text *righ
 }
 
 /* The blocks `zane_bytes_alloc` gave C on this thread for strings it
-   returns (spec ffi.md §3.5, docs/design/ffi.md F10), oldest first, and
-   where each foreign call that returns a string began among them: a call
-   reached from a function value C called, inside another, keeps its own.
-   When a call returns, its last block is taken when the view starts there
-   and fits in it, and every other block it was given goes back to its
-   region, since C keeps none of them. */
+   returns (spec ffi.md §3.5, docs/design/ffi.md F10), oldest first. Each
+   foreign call that returns a string holds the count it began at, its
+   mark, so a call reached from a function value C called, inside another,
+   keeps its own blocks. When a call returns, its last block is taken when
+   the view starts there and fits in it, and every other block it was
+   given goes back to its region, since C keeps none of them. */
 typedef struct {
 	char *block;
 	int64_t size;
@@ -262,8 +262,6 @@ typedef struct {
 static _Thread_local struct {
 	zane_given_block *blocks;
 	int64_t count, room;
-	int64_t *marks;
-	int64_t depth, mark_room;
 } zane_given;
 
 /* [*items], of [room] items of [size] bytes, with room for one more. */
@@ -289,19 +287,17 @@ uint8_t *zane_bytes_alloc(size_t size) {
 	return (uint8_t *)block;
 }
 
-/* Before a foreign call that returns a string: its blocks begin here. */
-void zane_text_expect(void) {
-	zane_given.marks = zane_given_grow(zane_given.marks, &zane_given.mark_room, zane_given.depth, sizeof *zane_given.marks);
-	zane_given.marks[zane_given.depth++] = zane_given.count;
-}
+/* Before a foreign call that returns a string: the mark its blocks begin
+   at. It changes nothing, so a call whose result a fold made a constant
+   leaves no state behind. */
+int64_t zane_text_expect(void) { return zane_given.count; }
 
 /* A string C returned, as the view it gave: the call's last block taken
    as it is when the view starts there and fits in it, and otherwise its
    bytes copied into a block of the string's own; the call's other blocks
-   returned. */
-void zane_text_taken(zane_text *out, const zane_text *view) {
-	int64_t mark = zane_given.depth > 0 ? zane_given.marks[--zane_given.depth] : 0;
-	if (mark > zane_given.count) mark = zane_given.count;
+   returned: those from [mark], what `zane_text_expect` gave before it. */
+void zane_text_taken(zane_text *out, const zane_text *view, int64_t mark) {
+	if (mark < 0 || mark > zane_given.count) mark = zane_given.count;
 	int64_t taken = -1;
 	if (zane_given.count > mark) {
 		zane_given_block last = zane_given.blocks[zane_given.count - 1];
