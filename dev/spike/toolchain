@@ -123,7 +123,18 @@ build)
 hello)
 	switch_env
 	out="$root/_build/spike-hello"
-	_build/default/bin/zanec/zanec.exe --build "$out" --package tests/codegen/fixtures/hello
+	target=()
+	if [[ $windows == 1 ]]; then
+		# Windows programs are MinGW's, linked with zig cc, as CI builds
+		# them (dev/bin/windows-programs); the host's own triple is MSVC's.
+		target=(--target x86_64-windows-gnu)
+		out="$out.exe"
+		ZIG="$(cygpath -w "$(command -v zig || command -v x86_64-w64-mingw32-zig)")"
+		ZANE_CC="$(cygpath -w "$root/dev/bin/zig-cc.cmd")"
+		export ZIG ZANE_CC
+		echo "ZIG=$ZIG ZANE_CC=$ZANE_CC"
+	fi
+	_build/default/bin/zanec/zanec.exe "${target[@]}" --build "$out" --package tests/codegen/fixtures/hello
 	"$out" | tee "$root/_build/spike-hello.out"
 	diff -u tests/codegen/golden/hello.out "$root/_build/spike-hello.out"
 	;;
