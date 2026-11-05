@@ -177,11 +177,14 @@ jobs:
         shell: bash
         run: |
           apple_clang="$(xcrun --find clang)"
+          apple_clangxx="$(xcrun --find clang++)"
           apple_clang_headers="$("$apple_clang" -print-resource-dir)/include"
           export CPATH="$apple_clang_headers${CPATH:+:$CPATH}"
           devbox run --config=.github/devbox-intel -- \
             env ZANE_CC="$GITHUB_WORKSPACE/dev/bin/clang-lld" \
                 LLVM_CONFIG=llvm-config \
+                CC="$apple_clang" \
+                CXX="$apple_clangxx" \
                 CPATH="$CPATH" \
                 "$GITHUB_WORKSPACE/dev/setup/bootstrap-toolchain"
       - name: Install verified native Zig
