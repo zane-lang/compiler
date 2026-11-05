@@ -25,8 +25,9 @@ type stage = Cst | Sst
    build (docs/design/tiers.md) is two: `--build OUT --tiered` makes tier
    0, and `--tier-up OUT` tier 1, the shared library tier 0 loads while it
    runs. `--check`
-   runs semantics and prints nothing, so its exit status and diagnostics are
-   the whole answer. `--compile-commands OUT` writes the compilation
+   runs semantics and prints only diagnostics, the C compiler's warnings
+   among them (docs/design/ffi.md F3), so its exit status and diagnostics
+   are the whole answer. `--compile-commands OUT` writes the compilation
    database of the C sources of the packages without a stamp, for an
    editor's C language server, and checks nothing (docs/design/ffi.md F2). *)
 type view =

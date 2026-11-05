@@ -116,7 +116,8 @@ fixtures name theirs. Each file must begin with a `package` line naming it
 stamp is known by its stamped name, and no two packages may share that
 identity; a package's imports name packages through the keys the driver
 gives it, or by name when the build is given no keys at all
-([`separate-compilation.md`](separate-compilation.md) C10). `--check` runs semantics and prints nothing, and
+([`separate-compilation.md`](separate-compilation.md) C10). `--check` runs semantics and prints only diagnostics, the C compiler's
+warnings of the packages being worked on among them ([`ffi.md`](ffi.md) F3), and
 `--root` makes a root without `main` an error (§6.2).
 
 **D3. The compiler never names `core`.** `core` is an ordinary package
