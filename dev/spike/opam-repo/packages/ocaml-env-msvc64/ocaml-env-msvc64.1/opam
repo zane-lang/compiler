@@ -1,0 +1,15 @@
+opam-version: "2.0"
+synopsis: "MSVC from the environment (toolchain spike)"
+description: """
+opam's ocaml-env-msvc64 adds the directories conf-msvc64 found to PATH,
+INCLUDE and LIB. The pixi environment sets them already, so this one
+adds nothing."""
+maintainer: "zane-lang"
+authors: "zane-lang"
+license: "CC0-1.0"
+homepage: "https://github.com/zane-lang/compiler"
+bug-reports: "https://github.com/zane-lang/compiler/issues"
+depends: ["host-system-msvc" "host-arch-x86_64" "conf-msvc64"]
+conflict-class: "ocaml-env-msvc"
+flags: [conf avoid-version]
+available: os = "win32"

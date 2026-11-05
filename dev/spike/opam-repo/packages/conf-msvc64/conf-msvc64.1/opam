@@ -4,8 +4,7 @@ description: """
 opam's conf-msvc64 searches for a Visual Studio installation with
 msvs-detect, which finds none on GitHub's Windows runners. The pixi
 environment already provides MSVC through its activation, so this one
-takes it as it is: its msvs-bin, msvs-inc and msvs-lib,
-which ocaml-env-msvc64 adds to PATH, INCLUDE and LIB, are empty."""
+takes it as it is, as the spike's ocaml-env-msvc64 does."""
 maintainer: "zane-lang"
 authors: "zane-lang"
 license: "CC0-1.0"
