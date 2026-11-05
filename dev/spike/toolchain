@@ -38,6 +38,13 @@ fi
 
 switch_env() { eval "$(opam env --switch="$root" --set-switch)"; }
 
+# What devbox's shell sets, and LLVM's archive tools in place of the
+# platform ones conda's compiler activation names in AR and STRIP.
+devbox_env() {
+	export PATH="$root/dev/bin:$PATH" ZANE_CC="$root/dev/bin/clang-lld"
+	export AR=llvm-ar STRIP=llvm-strip
+}
+
 case "${1:?stage}" in
 versions)
 	uname -a
@@ -52,7 +59,7 @@ versions)
 	zig version || echo 'zig: not on PATH'
 	if [[ $windows == 1 ]]; then
 		ls "$prefix"/conda-meta/ | grep -i zig || echo 'no zig package in conda-meta'
-		grep -oi '"[^"]*zig[^"]*\.exe"' "$prefix"/conda-meta/zig-*.json | head -5 || true
+		grep -ohi '"[^"]*\.exe"' "$prefix"/conda-meta/zig*.json | head -10 || true
 	fi
 	just --version
 	python --version
@@ -67,11 +74,18 @@ opam)
 		echo "cl: $(command -v cl || echo none); INCLUDE ${INCLUDE:+set}; LIB ${LIB:+set}"
 		detect="$root/_build/msvs-detect"
 		mkdir -p "$root/_build"
-		curl -fsSL https://raw.githubusercontent.com/metastack/msvs-tools/0.8.0/msvs-detect -o "$detect"
-		bash "$detect" --installed || true
-		bash "$detect" --debug=2 --arch=x86_64 --with-assembler --with-mt --output=data || true
+		for version in 0.8.0 master; do
+			echo "== msvs-detect $version"
+			curl -fsSL "https://raw.githubusercontent.com/metastack/msvs-tools/$version/msvs-detect" -o "$detect"
+			bash "$detect" --installed || true
+			bash "$detect" --debug=3 --arch=x86_64 --with-assembler --with-mt --output=data 2>&1 | tail -40 || true
+		done
 	fi
-	opam switch list --short | grep -Fxq "$root" || opam switch create "$root" ocaml-system --no-install -y
+	# The spike's repository comes first: on Windows its conf-msvc64 takes
+	# the developer environment as it is.
+	opam repository add spike "$root/dev/spike/opam-repo" --dont-select || true
+	opam switch list --short | grep -Fxq "$root" ||
+		opam switch create "$root" ocaml-system --repos=spike,default --no-install -y
 	switch_env
 	ocamlfind=$(command -v ocamlfind || true); echo "ocamlfind: ${ocamlfind:-none}"
 	opam list --installed
@@ -106,6 +120,7 @@ hello)
 	;;
 test)
 	switch_env
+	devbox_env
 	export LLVM_CONFIG="${LLVM_CONFIG:-$(command -v llvm-config)}"
 	just test-compiler
 	;;

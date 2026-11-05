@@ -7,6 +7,11 @@ license: "Apache-2.0 WITH LLVM-exception"
 homepage: "https://llvm.org"
 bug-reports: "https://github.com/llvm/llvm-project/issues"
 build: [
+  # The documentation dumps need ocamldoc, which conda-forge's Intel macOS
+  # OCaml lacks, and nothing installs them.
+  ["sed" "-i.orig"
+   "s|ALL DEPENDS ${ocaml_outputs} \"${bin}/${name}.odoc\")|ALL DEPENDS ${ocaml_outputs})|"
+   "llvm/cmake/modules/AddOCaml.cmake"]
   ["bash" "-ex" "install.sh" "build" "--llvm-config" "llvm-config" "--libdir" lib
    "--cmake" "cmake" "--make" make "--link-mode" "static"]
 ]

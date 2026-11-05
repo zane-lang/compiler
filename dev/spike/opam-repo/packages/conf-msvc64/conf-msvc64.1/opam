@@ -1,0 +1,14 @@
+opam-version: "2.0"
+synopsis: "MSVC from the environment (toolchain spike)"
+description: """
+opam's conf-msvc64 searches for a Visual Studio installation with
+msvs-detect, which finds none on GitHub's Windows runners. The pixi
+environment already provides MSVC through its activation, so this one
+takes it as it is."""
+maintainer: "zane-lang"
+authors: "zane-lang"
+license: "CC0-1.0"
+homepage: "https://github.com/zane-lang/compiler"
+bug-reports: "https://github.com/zane-lang/compiler/issues"
+flags: conf
+available: os = "win32"

@@ -29,6 +29,10 @@ nodejs = "*"
 [target.unix.dependencies]
 m4 = "*"
 
+# glibc 2.34 has dlopen in libc itself, as the runtime's tests assume.
+[target.linux-64.dependencies]
+sysroot_linux-64 = "2.34.*"
+
 # The MSVC build of OCaml, which matches how conda-forge builds LLVM on
 # Windows; the gcc (MinGW) build would not link LLVM's C++ libraries.
 [target.win-64.dependencies]
