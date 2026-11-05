@@ -89,19 +89,25 @@ let thunk n (e : entry) (f : C_interface.func) =
       line "  __zane_r __zane_value = %s;" call;
       (* A string C returns from inside a terminated argument's copy,
          which is freed or whose frame ends as the thunk returns, is moved
-         into a block the runtime takes as it is (F10). *)
-      if e.result = Text then
+         into a block the runtime takes as it is (F10). The view is read
+         through a struct of the glue's own, since a header's `zane_bytes`
+         is checked by its layout and may name its fields otherwise. *)
+      if e.result = Text && List.mem Terminated e.params then begin
+        line "  struct { const uint8_t *__zane_d; __SIZE_TYPE__ __zane_n; } __zane_v;";
+        line "  __builtin_memcpy(&__zane_v, &__zane_value, sizeof __zane_v);";
         List.iteri
           (fun i k ->
             if k = Terminated then begin
-              line "  if (__zane_value.data && (__UINTPTR_TYPE__)__zane_value.data >= (__UINTPTR_TYPE__)__zane_c%d" i;
-              line "      && (__UINTPTR_TYPE__)__zane_value.data <= (__UINTPTR_TYPE__)(__zane_c%d + __zane_n%d)) {" i i;
-              line "    uint8_t *__zane_k = zane_bytes_alloc(__zane_value.size);";
-              line "    if (__zane_value.size) __builtin_memcpy(__zane_k, __zane_value.data, __zane_value.size);";
-              line "    __zane_value.data = __zane_k;";
+              line "  if (__zane_v.__zane_d && (__UINTPTR_TYPE__)__zane_v.__zane_d >= (__UINTPTR_TYPE__)__zane_c%d" i;
+              line "      && (__UINTPTR_TYPE__)__zane_v.__zane_d <= (__UINTPTR_TYPE__)(__zane_c%d + __zane_n%d)) {" i i;
+              line "    uint8_t *__zane_k = zane_bytes_alloc(__zane_v.__zane_n);";
+              line "    if (__zane_v.__zane_n) __builtin_memcpy(__zane_k, __zane_v.__zane_d, __zane_v.__zane_n);";
+              line "    __zane_v.__zane_d = __zane_k;";
               line "  }"
             end)
           e.params;
+        line "  __builtin_memcpy(&__zane_value, &__zane_v, sizeof __zane_v);"
+      end;
       line "  __builtin_memcpy(__zane_result, &__zane_value, sizeof __zane_value);");
   List.iteri
     (fun i k ->

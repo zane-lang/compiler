@@ -1,6 +1,7 @@
-/// A header that declares its own `zane_bytes` rather than include
-/// `<zane_ffi.h>`, for a string C returns from inside its `const char *`
-/// argument: the glue declares the allocator it moves the bytes with.
+/// A header that declares its own `zane_bytes`, its fields named
+/// otherwise, rather than include `<zane_ffi.h>`, for a string C returns
+/// from inside its `const char *` argument: the glue declares the
+/// allocator it moves the bytes with, and reads the view by its layout.
 package ownBytes;
 
 alias Unit = @primitives$Unit;
