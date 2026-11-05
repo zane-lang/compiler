@@ -75,7 +75,7 @@ one of:
   only the tail is rounded up. The order is a function of the members'
   layouts alone, so every object that lays a type out agrees on it, and
   lowering reaches a member by its place in it (`Type_layout.member_index`).
-  Placement is the compiler's ([`memory.md`](https://github.com/zane-lang/spec/blob/354d1364adc38033a9a767b1b1db80487c02ee11/spec/memory.md) §3.3). A
+  Placement is the compiler's ([`memory.md`](https://github.com/zane-lang/spec/blob/b8c2b0b7463372e7682cfb4474ce2cc715292108/spec/memory.md) §3.3). A
   reference type's instance carries nothing else. A pooled variant's node
   (experimental) places a struct it holds in the same order, so one index
   names a member in both. C sees a struct only as a copy in its own
