@@ -1355,6 +1355,22 @@ let escaped_locations () =
       ("an internal error", true, Diagnostic.render_internal ~span:at message);
     ]
 
+(* A message names a dependency's types without the stamp that tells its
+   versions apart, unless it names two versions of one package. *)
+let unstamped_messages () =
+  let shown message = Diagnostic.render ~source:"" (Diagnostic.about_invocation message) in
+  check "a stamp is left out"
+    (contains (shown "`v0.8%f35c10ff8d86c042%core$String` crosses into C as no C type")
+       "Error: `core$String` crosses into C");
+  check "every stamp of one version is left out"
+    (shown "no `f` accepts (v1.2-rc.1%0123456789abcdef%core$Int, v1.2-rc.1%0123456789abcdef%core$Float)"
+    = "Error: no `f` accepts (core$Int, core$Float)\n");
+  check "two versions of one package keep their stamps"
+    (contains (shown "v1%0123456789abcdef%core$Int is not v2%fedcba9876543210%core$Int")
+       "v1%0123456789abcdef%core$Int is not v2%fedcba9876543210%core$Int");
+  check "text that only looks like a stamp is kept"
+    (contains (shown "50%0123456789abcdef% done; %primitives$String") "50%0123456789abcdef% done; %primitives$String")
+
 (* tests/gen/gen_rules.ml stops at a fixture with no golden file and at a
    golden file whose fixture is gone, naming each, so neither leaves a
    program silently untested. *)
@@ -1483,6 +1499,7 @@ let () =
   backstop ();
   fixture_pairing ();
   escaped_locations ();
+  unstamped_messages ();
   Builds.cached_runtime ();
   Builds.linked_in_process ();
   Builds.bundled_runtime ();

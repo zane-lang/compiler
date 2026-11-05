@@ -268,11 +268,57 @@ let at_span ~source severity span message =
     (Printf.sprintf "%s: %s\n" (Report.Severity.label severity) message);
   Buffer.contents buf
 
+(* [s] with the stamp each package name carries in a symbol left out, so
+   `v0.8%f35c10ff8d86c042%core$String` reads `core$String`: a stamp, a
+   version tag of letters, digits, `.`, `_`, `+` and `-`, then `%`, 16
+   lowercase hexadecimal digits and `%`, is the compiler's way of telling
+   two versions apart. A package the text names under two stamps keeps
+   them, so the versions still read apart. *)
+let unstamped s =
+  let n = String.length s in
+  let is_tag c = match c with 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '.' | '_' | '+' | '-' -> true | _ -> false in
+  let is_hex c = match c with '0' .. '9' | 'a' .. 'f' -> true | _ -> false in
+  let is_name c = match c with 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' -> true | _ -> false in
+  (* Each stamp as (first byte, byte after it, package it stamps, stamp). *)
+  let rec stamps i acc =
+    if i + 17 >= n then List.rev acc
+    else if
+      s.[i] = '%'
+      && s.[i + 17] = '%'
+      && (let rec hex k = k > 16 || (is_hex s.[i + k] && hex (k + 1)) in
+          hex 1)
+    then begin
+      let first = ref i in
+      while !first > 0 && is_tag s.[!first - 1] do decr first done;
+      let after = i + 18 in
+      let last = ref after in
+      while !last < n && is_name s.[!last] do incr last done;
+      if !first = i || !last = after then stamps (i + 1) acc
+      else
+        stamps after ((!first, after, String.sub s after (!last - after), String.sub s !first (after - !first)) :: acc)
+    end
+    else stamps (i + 1) acc
+  in
+  let found = stamps 0 [] in
+  let versions package =
+    List.sort_uniq compare (List.filter_map (fun (_, _, p, stamp) -> if p = package then Some stamp else None) found)
+  in
+  let buf = Buffer.create n in
+  let rec copy at = function
+    | [] -> Buffer.add_substring buf s at (n - at)
+    | (first, after, package, _) :: rest ->
+        Buffer.add_substring buf s at (first - at);
+        if List.length (versions package) > 1 then Buffer.add_substring buf s first (after - first);
+        copy after rest
+  in
+  copy 0 found;
+  Buffer.contents buf
+
 (* A report about a file or a directory has no source excerpt: the same two
    lines a report about text starts with, minus the excerpt. *)
 let render ~source ({ Report.severity; location; message } : Report.t) =
   let label = Report.Severity.label severity in
-  let message = escaped message in
+  let message = escaped (unstamped message) in
   match location with
   | Report.Location.Span span -> at_span ~source severity span message
   | Report.Location.File path ->
