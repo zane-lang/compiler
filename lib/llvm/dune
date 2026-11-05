@@ -123,7 +123,7 @@
 
 (rule
  (targets llvm_libs.sexp llvm_libs.rsp)
- (deps (env_var LLVM_CONFIG) (env_var PATH))
+ (deps (env_var LLVM_CONFIG) (env_var PATH) (env_var VSINSTALLDIR))
  (action
   (with-stdout-to
    llvm_libs.sexp

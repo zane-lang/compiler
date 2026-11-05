@@ -73,6 +73,16 @@ let library libdir word =
     in
     match List.find_opt Sys.file_exists (List.map (Filename.concat libdir) names) with Some path -> path | None -> word
 
+(* Microsoft's DIA SDK, which an MSVC LLVM built with PDB support calls
+   (LLVMDebugInfoPDB) and llvm-config does not name. It comes with Visual
+   Studio, whose developer environment sets VSINSTALLDIR. *)
+let dia_sdk () =
+  match Sys.getenv_opt "VSINSTALLDIR" with
+  | Some vs ->
+      let lib = List.fold_left Filename.concat vs [ "DIA SDK"; "lib"; "amd64"; "diaguids.lib" ] in
+      if Sys.file_exists lib then [ lib ] else []
+  | None -> []
+
 let libs () =
   let libdir = ask [ "--libdir" ] in
   if shared () then
@@ -80,6 +90,7 @@ let libs () =
   else
     List.map (library libdir) (words (ask [ "--link-static"; "--libs" ]))
     @ List.map (library libdir) (words (ask [ "--link-static"; "--system-libs" ]))
+    @ if Sys.win32 then dia_sdk () else []
 
 let cflags () = [ "-I" ^ ask [ "--includedir" ] ]
 let msvc = function "msvc" -> true | "cc" -> false | c -> failwith ("unknown C compiler type " ^ c)
@@ -195,7 +206,10 @@ let sexp flags = print_string ("(" ^ String.concat " " (List.map (Printf.sprintf
 let link ccomp rsp flags =
   if msvc ccomp then begin
     let lib = ask [ "--libdir" ] in
-    Out_channel.with_open_bin rsp (fun oc -> List.iter (fun f -> output_string oc (f ^ "\n")) (("-L" ^ lib) :: flags));
+    (* One argument a line, quoted where it holds a space, as flexlink
+       reads it. *)
+    let line f = if String.contains f ' ' then "\"" ^ f ^ "\"" else f in
+    Out_channel.with_open_bin rsp (fun oc -> List.iter (fun f -> output_string oc (line f ^ "\n")) (("-L" ^ lib) :: flags));
     let rsp = if Filename.is_relative rsp then Filename.concat (Sys.getcwd ()) rsp else rsp in
     sexp [ "@" ^ rsp ]
   end
