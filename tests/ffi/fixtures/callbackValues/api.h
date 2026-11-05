@@ -15,3 +15,5 @@ int64_t with_array(int64_t (*f)(const int64_t *xs));
 int64_t with_object(int64_t (*f)(const obj_t *o), const obj_t *o);
 void log_give(log_t *log, void (*f)(obj_t *o), int64_t value);
 int64_t log_freed(const log_t *log);
+int64_t with_scratch(int64_t (*f)(zane_bytes text));
+int64_t scribble(void);

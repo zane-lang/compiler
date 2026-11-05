@@ -146,9 +146,16 @@ let files tables entries =
    F11): a scalar of the C type given, a `Bool` as `_Bool`, no value, a
    struct of scalars, arrays of them and such structs, laid out as the
    Zane value type is, a `zane_bytes` or `zane_span` C lends, which the
-   slot holds as a handle owning no block, or a pointer, an array's or a
-   C object's. *)
-type shape = Value of string | Truth | Nothing | Record of (shape * int option) list | View | Pointer
+   slot holds as a handle whose room is [unit] per element, its count and
+   room 32 bits wide when [narrow], or a pointer, an array's or a C
+   object's. *)
+type shape =
+  | Value of string
+  | Truth
+  | Nothing
+  | Record of (shape * int option) list
+  | View of { unit : int; narrow : bool }
+  | Pointer
 
 (* A lambda's C entry, under [label], calling its adapter [adapter]. *)
 type callback = { label : string; adapter : string; params : shape list; result : shape }
@@ -159,14 +166,15 @@ let callbacks_file (callbacks : callback list) =
   let b = Buffer.create 1024 in
   let structs = Buffer.create 256 in
   let named = Hashtbl.create 8 in
+  let view = ref false in
   let line fmt = Printf.ksprintf (fun s -> Buffer.add_string b s; Buffer.add_char b '\n') fmt in
   let rec c_type = function
     | Value c -> c
     | Truth -> "_Bool"
     | Nothing -> "void"
-    | View ->
-        if not (Hashtbl.mem named View) then begin
-          Hashtbl.replace named View "struct __zane_view";
+    | View _ ->
+        if not !view then begin
+          view := true;
           Buffer.add_string structs "struct __zane_view { const void *__zane_d; __SIZE_TYPE__ __zane_n; };\n"
         end;
         "struct __zane_view"
@@ -202,13 +210,17 @@ let callbacks_file (callbacks : callback list) =
         (fun i p ->
           match p with
           | Truth -> line "  unsigned char __zane_b%d = __zane_a%d;" i i
-          (* A string's or a list's handle: its bytes, its length, and no
-             block of its own, which the adapter copies. *)
-          | View ->
-              line "  struct { const void *__zane_d; long long __zane_n, __zane_r; } __zane_b%d = { __zane_a%d.__zane_d, (long long)__zane_a%d.__zane_n, 0 };" i i i
+          (* A string's or a list's handle: its bytes, its length, and
+             the room of a block that long, so that the adapter's copy,
+             which copies only a handle with room, gives the function value
+             a block of its own. The handle is never released. *)
+          | View { unit; narrow } ->
+              let w = if narrow then "int" else "long long" in
+              line "  struct { const void *__zane_d; %s __zane_n, __zane_r; } __zane_b%d = { __zane_a%d.__zane_d, (%s)__zane_a%d.__zane_n, (%s)(__zane_a%d.__zane_n * %d) };"
+                w i i w i w i unit
           | _ -> ())
         c.params;
-      let slot i p = if p = Truth || p = View then Printf.sprintf "&__zane_b%d" i else Printf.sprintf "&__zane_a%d" i in
+      let slot i p = if p = Truth || (match p with View _ -> true | _ -> false) then Printf.sprintf "&__zane_b%d" i else Printf.sprintf "&__zane_a%d" i in
       (match c.params with
       | [] -> line "  void *__zane_args[1] = { 0 };"
       | ps -> line "  void *__zane_args[] = { %s };" (String.concat ", " (List.mapi slot ps)));

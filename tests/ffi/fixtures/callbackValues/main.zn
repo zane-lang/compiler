@@ -2,7 +2,8 @@
 /// each word of a string, as a `zane_bytes` the lambda gets a copy of; a
 /// list and an array C holds in its own frame; a data handle C lends; and
 /// a data handle C makes and gives, which the lambda's roaming owner
-/// releases when it ends.
+/// releases when it ends. The string is the lambda's own, so C writing
+/// the bytes it lent while the lambda runs leaves it as it was.
 package callbackValues;
 
 alias Unit = @primitives$Unit;
@@ -21,6 +22,8 @@ I64 withArray(f I64[@primitives$Array<I64, 3>]) foreign "with_array";
 I64 withObject(f I64[Obj], o Obj) foreign "with_object";
 Unit give(this Log, f Unit[^Obj], value I64) mut foreign "log_give";
 I64 freed(this Log) foreign "log_freed";
+I64 withScratch(f I64[String]) foreign "with_scratch";
+I64 scribble() foreign "scribble";
 
 Unit show(text String) {
 	@program$console!print(text);
@@ -49,5 +52,10 @@ Unit main() {
 		return Unit();
 	}, I64(7));
 	show(String(log:freed()));
+	show(String(withScratch(I64(text String) {
+		n I64 = scribble();
+		show(text);
+		return n;
+	})));
 	return Unit();
 }

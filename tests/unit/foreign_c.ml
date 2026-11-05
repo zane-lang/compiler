@@ -202,9 +202,10 @@ let compiled () =
       Sys.remove (Filename.concat linked ".#a.c");
       (* A warning refuses nothing, and a module taken from the cache warns
          as the compile that made it did. *)
-      let warned = package "warned" "int f(void) {\n  int x;\n  return x;\n}\n" in
-      let warnings () =
-        match Foreign.compile_packages ~cache:(Some cache) ~cc ~cpu:"" ~target:None [ warned ] with
+      let warning_source = "int f(void) {\n  int x;\n  return x;\n}\n" in
+      let warned = package "warned" warning_source in
+      let warnings ?(dir = warned) () =
+        match Foreign.compile_packages ~cache:(Some cache) ~cc ~cpu:"" ~target:None [ dir ] with
         | Ok [ f ] ->
             List.map
               (fun (d : Diagnostic.t) ->
@@ -217,6 +218,8 @@ let compiled () =
       let first = warnings () in
       check "a C warning is at its line" (List.map fst first = [ 3 ]);
       check "a cached module warns again" (warnings () = first);
+      check "a module cached from another directory warns in this one"
+        (warnings ~dir:(package "moved" warning_source) () = first);
       let tricky = [ { Clang.file = "a\tb\\c.c"; line = 4; column = 2; message = "two\nlines\tand a \\" } ] in
       check "a warning's text reads back" (Compile.warnings_of_text (Compile.warnings_text tricky) = tricky);
       let broken = package "broken" "int f(void) {\n  return missing;\n}\n" in

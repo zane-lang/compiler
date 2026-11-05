@@ -602,7 +602,7 @@ module Callback = struct
     (* A string or a list C passes as a `zane_bytes` or a `zane_span`,
        which the adapter copies with the layout into a value of the
        program's own before the lambda runs. *)
-    | View of { layout : Layout.t; text : bool }
+    | View of { layout : Layout.t; text : bool; stride : int }
     (* An array C passes as a pointer to its elements, which the adapter
        reads through it, [n] elements of the shape. *)
     | Elements of shape * int

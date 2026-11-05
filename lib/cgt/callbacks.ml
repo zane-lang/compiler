@@ -31,9 +31,16 @@ let adapter (c : Callback.t) (f : Func.t) : Func.t =
   let fresh () = let id = !next in incr next; id in
   let runtime fn args ty = { Expr.node = Expr.Runtime { fn; args }; ty } in
   let made = ref [] in
+  let scope = fresh () in
   let arg i (_, t) (shape : Callback.shape) =
     match shape with
-    | Callback.View { layout; _ } -> { Expr.node = Expr.Copy { value = { Expr.node = Expr.Deref (slot i); ty = t }; layout }; ty = t }
+    (* A copy of the view, held in the call's arena, which ends it once
+       the lambda has run. *)
+    | Callback.View { layout; _ } ->
+        let id = fresh () in
+        let value = { Expr.node = Expr.Copy { value = { Expr.node = Expr.Deref (slot i); ty = t }; layout }; ty = t } in
+        made := !made @ [ Stat.Hold { id; scope; value; layout } ];
+        { Expr.node = Expr.Local id; ty = t }
     | Callback.Elements _ -> { Expr.node = Expr.Deref (ptr (Expr.Deref (slot i))); ty = t }
     | Callback.Object _ ->
         let pointer = fresh () and stamp = fresh () in
@@ -73,12 +80,14 @@ let adapter (c : Callback.t) (f : Func.t) : Func.t =
         Stat.Let
           { id = 2; value = { Expr.node = Expr.Binary { op = Expr.Eq; left = self; right = { Expr.node = Expr.Int 0L; ty = Ty.I64 } }; ty = Ty.I1 } };
         around Runtime.Callback_attach;
-      ]
-      @ !made
-      @ [
-          (if f.Func.ret = Ty.Void then Stat.Eval call else Stat.Store { address = ptr (Expr.Local 1); value = call });
-          around Runtime.Callback_detach;
-        ];
+        Stat.Scope
+          {
+            id = scope;
+            body =
+              !made @ [ (if f.Func.ret = Ty.Void then Stat.Eval call else Stat.Store { address = ptr (Expr.Local 1); value = call }) ];
+          };
+        around Runtime.Callback_detach;
+      ];
     values = [];
   }
 

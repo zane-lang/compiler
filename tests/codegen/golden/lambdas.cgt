@@ -1572,20 +1572,27 @@
     │   │       ├── type: void
     │   │       ├── fn: zane_callback_attach
     │   │       └── args:
-    │   ├── body[2] > eval > call:
-    │   │   ├── type: void
-    │   │   ├── fn: lambdas$main()$lambda12
-    │   │   └── args[0] > copy:
-    │   │       ├── type: handle
-    │   │       ├── value > deref:
-    │   │       │   ├── type: handle
-    │   │       │   └── ptr > deref:
-    │   │       │       ├── type: ptr
-    │   │       │       └── ptr > offset:
-    │   │       │           ├── within: {ptr}
-    │   │       │           ├── path: 0
-    │   │       │           └── base: local #0 : ptr
-    │   │       └── layout: %primitives$String
+    │   ├── body[2] > scope:
+    │   │   ├── id: %3
+    │   │   ├── body[0] > hold:
+    │   │   │   ├── local: #4
+    │   │   │   ├── scope: %3
+    │   │   │   ├── value > copy:
+    │   │   │   │   ├── type: handle
+    │   │   │   │   ├── value > deref:
+    │   │   │   │   │   ├── type: handle
+    │   │   │   │   │   └── ptr > deref:
+    │   │   │   │   │       ├── type: ptr
+    │   │   │   │   │       └── ptr > offset:
+    │   │   │   │   │           ├── within: {ptr}
+    │   │   │   │   │           ├── path: 0
+    │   │   │   │   │           └── base: local #0 : ptr
+    │   │   │   │   └── layout: %primitives$String
+    │   │   │   └── layout: %primitives$String
+    │   │   └── body[1] > eval > call:
+    │   │       ├── type: void
+    │   │       ├── fn: lambdas$main()$lambda12
+    │   │       └── args[0]: local #4 : handle
     │   └── body[3] > if:
     │       ├── cond: local #2 : i1
     │       └── body[0] > eval > runtime:

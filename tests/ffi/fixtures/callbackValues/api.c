@@ -49,3 +49,15 @@ void log_give(log_t *log, void (*f)(obj_t *o), int64_t value) {
 }
 
 int64_t log_freed(const log_t *log) { return log->freed; }
+
+static uint8_t scratch[4];
+
+int64_t with_scratch(int64_t (*f)(zane_bytes text)) {
+    scratch[0] = 'a'; scratch[1] = 'b'; scratch[2] = 'c';
+    return f((zane_bytes){ scratch, 3 });
+}
+
+int64_t scribble(void) {
+    scratch[0] = 'x'; scratch[1] = 'y'; scratch[2] = 'z';
+    return 3;
+}

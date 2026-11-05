@@ -155,6 +155,10 @@ let mapped_path maps path =
       to_ ^ String.sub path n (String.length path - n)
   | None -> path
 
+(* [path], as [mapped_path] spells it, with the fixed name it starts with
+   replaced by the directory it stands for in [maps]. *)
+let unmapped_path maps path = mapped_path (List.map (fun (from, to_) -> (to_, from)) maps) path
+
 (* A command-line argument with the directory it names mapped: a path, a
    path joined to `-I`, or the directory a `-ffile-prefix-map` maps. Any
    other text, such as a `-D` value, is kept as written. *)
@@ -326,7 +330,10 @@ let compile_source ?cache ~maps flags path =
     let warned = Option.map (fun k -> Filename.remove_extension k ^ ".warnings") kept in
     match Option.bind kept Cache.read with
     | Some bitcode ->
+        (* The warnings are kept with their files mapped, as the key is,
+           so a module compiled in another directory names this one's. *)
         let warnings = Option.fold ~none:[] ~some:warnings_of_text (Option.bind warned Cache.read) in
+        let warnings = List.map (fun (w : Clang.problem) -> { w with file = unmapped_path maps w.file }) warnings in
         Ok { path; bitcode; key; includes; warnings }
     | None ->
         let compiled = Clang.compile args in
@@ -337,7 +344,9 @@ let compile_source ?cache ~maps flags path =
           (* The warnings are kept before the module, so a module in the
              cache always has its warnings beside it. *)
           Option.iter
-            (fun kept -> Cache.keep_string ~dir:(Filename.dirname kept) ~kept (warnings_text compiled.warnings))
+            (fun kept ->
+              let ws = List.map (fun (w : Clang.problem) -> { w with file = mapped_path maps w.file }) compiled.warnings in
+              Cache.keep_string ~dir:(Filename.dirname kept) ~kept (warnings_text ws))
             warned;
           Option.iter
             (fun kept -> Cache.keep_string ~dir:(Filename.dirname kept) ~kept compiled.output)

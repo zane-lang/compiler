@@ -51,7 +51,9 @@ let c_param st span (t : Tty.t) : Callback.shape option =
   | _ -> (
       match c_shape st span t with
       | Some s -> Some s
-      | None when (is_text t || is_list t) && not (is_list_ref t) -> Some (Callback.View { layout = layout st span t; text = is_text t })
+      | None when (is_text t || is_list t) && not (is_list_ref t) ->
+          let stride = match element t with Some e -> stride st span e | None -> 1 in
+          Some (Callback.View { layout = layout st span t; text = is_text t; stride })
       | None -> (
           match array_of t with
           | Some (e, n) when scalar e && not (is_array_ref t) -> Some (Callback.Elements (Callback.Scalar (ty st span e), n))

@@ -405,7 +405,12 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
         | C.Scalar Cgt.Nodes.Ty.F32 -> Foreign.Glue.Value "float"
         | C.Scalar Cgt.Nodes.Ty.F64 -> Foreign.Glue.Value "double"
         | C.Record fs -> Foreign.Glue.Record (List.map (fun (f, n) -> (shape f, n)) fs)
-        | C.View _ -> Foreign.Glue.View
+        (* A list's room counts its elements with frame references, which
+           also narrow its count and room to 32 bits (Codegen.List_handle). *)
+        | C.View { text = true; _ } -> Foreign.Glue.View { unit = 1; narrow = false }
+        | C.View { stride; _ } ->
+            if Cgt.Ref32.frames () then Foreign.Glue.View { unit = 1; narrow = true }
+            else Foreign.Glue.View { unit = stride; narrow = false }
         | C.Elements _ | C.Object _ -> Foreign.Glue.Pointer
         | C.Scalar _ -> Diagnostic.bug "codegen: a function value C calls with a type it does not take"
       in

@@ -636,10 +636,12 @@ differently.
 What C passes as an argument the adapter turns into the Zane value before
 it calls the Zane function, once the thread has a context. A string or a
 list arrives as the `zane_bytes` or `zane_span` C lends; the entry puts it
-in a slot laid out as the value's handle, with no room, a block it does not
-own, and the adapter copies it, as any copy of a value is made, into a
-block of the thread's innermost region, so the lambda keeps nothing of
-C's. An array arrives as a pointer to its elements, which the adapter
+in a slot laid out as the value's handle, whose room is its length, so
+that the copy the adapter makes of it, as any copy of a value is made,
+takes a block of its own rather than sharing C's, which a handle with no
+room would. The adapter holds that copy in an arena of the call's, which
+ends it once the lambda returns, so the lambda reads nothing of C's while
+it runs, even bytes C writes during it. An array arrives as a pointer to its elements, which the adapter
 reads through. A data handle arrives as its C object's pointer, which the
 adapter stamps as a handle is made (F12), stopping the program on a null
 one as a foreign verb's handle result does: a borrowed handle is passed
@@ -684,8 +686,8 @@ C may call a function value on a thread it started itself, which has no
 context of the runtime's. The adapter reads the runtime's context of the
 thread, `zane_self`, and when there is none has the runtime make one with
 one scope for the call (`zane_callback_attach`) and give it back once the
-call returns (`zane_callback_detach`): the arguments the adapter copies
-live in that scope, and the result C takes is a C-compatible value and
+call returns (`zane_callback_detach`): the arena of the arguments the
+adapter copies is drained before that, and the result C takes is a C-compatible value and
 holds no block. The runtime's alternate signal
 stack, which its fault handler runs on, stands in for the thread's own for
 the call, and the thread has its own back after. Both are cold, so an optimized C
