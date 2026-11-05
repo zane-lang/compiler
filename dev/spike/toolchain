@@ -41,12 +41,17 @@ if [[ $windows == 1 ]]; then
 fi
 
 # On Windows, opam env writes PATH in Windows' form, which Git Bash does
-# not read; there the switch's bin directory goes on PATH directly.
+# not read; there the switch's bin directory goes on PATH directly, and
+# the rest of what opam env sets (OCAMLPATH, OPAM_SWITCH_PREFIX, ...)
+# is taken as it is.
 switch_env() {
 	if [[ $windows == 1 ]]; then
 		export OPAMSWITCH="$root"
+		eval "$(opam env --switch="$root" --shell=sh | grep -v '^PATH=')"
 		PATH="$(cygpath -u "$(opam var bin)"):$PATH"
 		export PATH
+		echo "OCAMLPATH=${OCAMLPATH:-} OPAM_SWITCH_PREFIX=${OPAM_SWITCH_PREFIX:-}"
+		ocamlfind list 2>/dev/null | grep -E '^(uucp|uuseg|sedlex|menhirLib) ' || echo 'ocamlfind lists none of them'
 	else
 		eval "$(opam env --switch="$root" --set-switch)"
 	fi
