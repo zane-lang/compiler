@@ -19,6 +19,23 @@ MINGW* | MSYS* | CYGWIN*) windows=1 ;;
 *) windows=0 ;;
 esac
 
+# conda's opam package points OPAMROOT at a root of its own through its
+# activation script; the spike keeps one it initialises itself.
+echo "conda's OPAM settings: $(env | grep '^OPAM' | tr '\n' ' ')"
+export OPAMROOT="$HOME/.opam-zane-spike"
+
+# On Windows, conda-forge installs native tools under Library/; put the
+# directories holding ocamlopt and opam first on PATH.
+if [[ $windows == 1 ]]; then
+	prefix=$(cygpath -u "${CONDA_PREFIX:?}")
+	for tool in ocamlopt opam; do
+		found=$(find "$prefix" -maxdepth 4 -iname "$tool.exe" -o -maxdepth 4 -iname "$tool.opt.exe" 2>/dev/null | head -1)
+		echo "$tool: ${found:-not under $prefix}"
+		[[ -n "$found" ]] && PATH="$(dirname "$found"):$PATH"
+	done
+	export PATH
+fi
+
 switch_env() { eval "$(opam env --switch="$root" --set-switch)"; }
 
 case "${1:?stage}" in
@@ -40,6 +57,7 @@ opam)
 	init=(--bare --disable-sandboxing -y)
 	if [[ $windows == 1 ]]; then init+=(--cygwin-internal-install); fi
 	[[ -d "${OPAMROOT:-$HOME/.opam}" ]] || opam init "${init[@]}"
+	echo "OPAMROOT=$OPAMROOT"
 	opam switch list --short | grep -Fxq "$root" || opam switch create "$root" ocaml-system --no-install -y
 	switch_env
 	ocamlfind=$(command -v ocamlfind || true); echo "ocamlfind: ${ocamlfind:-none}"
