@@ -15,8 +15,7 @@
   (language cxx)
   (names c_ir_stubs)
   (flags
-   (:standard
-    (:include llvm_cxx.sexp))))
+   (:include llvm_cxx.sexp)))
  (libraries cgt diagnostic llvm))
 
 (rule
@@ -25,4 +24,4 @@
  (action
   (with-stdout-to
    %{target}
-   (run %{exe:../llvm/config/discover.exe} cxx %{ocaml-config:ccomp_type}))))
+   (run %{exe:../llvm/config/discover.exe} cxx %{ocaml-config:ccomp_type} %{ocaml-config:ocamlc_cflags}))))

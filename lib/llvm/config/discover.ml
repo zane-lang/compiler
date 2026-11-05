@@ -1,20 +1,25 @@
 (* What the compiler's C and C++ stubs are built and linked with, and the
    files written from the LLVM it links, read from the LLVM that
    `LLVM_CONFIG` names, or `llvm-config` on PATH. Each mode prints one
-   thing on standard output:
+   thing on standard output. CCOMP is the C compiler's type
+   (`%{ocaml-config:ccomp_type}`: `cc` or `msvc`), whose form the flags
+   take.
 
-   - `cflags`: the flags LLVM's OCaml bindings (lib/llvm) compile with, and
-     `libs` the ones they link with, as a dune S-expression. LLVM is linked
-     the way it was built: its shared library where it has one, found again
-     at run time through an rpath, and its static libraries otherwise, as on
-     Windows, with the system libraries they need.
-   - `cxx CCOMP` and `cxx-no-rtti CCOMP`: the flags C++ that includes
-     LLVM's, clang's or LLD's headers compiles with, in the form the C
-     compiler of type CCOMP (`%{ocaml-config:ccomp_type}`: `cc` or `msvc`)
-     reads, and `std CCOMP` the C++ standard alone, for C++ that includes
+   - `cflags`: the flags LLVM's OCaml bindings (lib/llvm) compile with, as
+     a dune S-expression, and `libs CCOMP TARGETS...` the ones they link with.
+     LLVM is linked the way it was built: its shared library where it has
+     one, found again at run time through an rpath, and its static
+     libraries otherwise, as on Windows, with the system libraries they
+     need.
+   - `cxx CCOMP CFLAGS...` and `cxx-no-rtti CCOMP CFLAGS...`: the flags C++
+     that includes LLVM's, clang's or LLD's headers compiles with, from
+     OCaml's C flags (`%{ocaml-config:ocamlc_cflags}`), and `std CCOMP
+     CFLAGS...` those with the C++ standard alone, for C++ that includes
      none of them (lib/coda).
-   - `clang-libs CCOMP` and `lld-libs CCOMP`: what links clang's front end
-     (lib/foreign) or LLD (lib/codegen) into the compiler.
+   - `clang-libs CCOMP TARGETS...` and `lld-libs CCOMP TARGETS...`: what
+     links clang's front end (lib/foreign) or LLD (lib/codegen) into the
+     compiler. Each link mode also writes the response file among its
+     rule's TARGETS, the one ending in `.rsp` (see [link]).
    - `o2-pipeline`: LLVM's own `default<O2>` pipeline as OCaml, with two
      passes added (lib/codegen/passes.ml).
    - `builtin-headers`: clang's builtin headers as OCaml (lib/foreign).
@@ -74,11 +79,19 @@ let libs () =
 
 let cflags () = [ "-I" ^ ask [ "--includedir" ] ]
 let msvc = function "msvc" -> true | "cc" -> false | c -> failwith ("unknown C compiler type " ^ c)
-let std ccomp = if msvc ccomp then [ "/std:c++17" ] else [ "-std=c++17" ]
 
-let cxx ~rtti ccomp =
+(* OCaml's C flags, which dune's `:standard` gives C++ too, without the C
+   standard MSVC's OCaml names (`-std:c11`, with its C11 atomics), which
+   `cl` refuses beside a C++ one. *)
+let base cflags =
+  List.concat_map words cflags
+  |> List.filter (fun f -> not (String.starts_with ~prefix:"-std" f || String.starts_with ~prefix:"/std" f || f = "-experimental:c11atomics"))
+
+let std ccomp cflags = base cflags @ if msvc ccomp then [ "/std:c++17" ] else [ "-std=c++17" ]
+
+let cxx ~rtti ccomp cflags =
   let no_exceptions, no_rtti = if msvc ccomp then ([ "/EHs-c-"; "-D_HAS_EXCEPTIONS=0" ], [ "/GR-" ]) else ([ "-fno-exceptions" ], [ "-fno-rtti" ]) in
-  std ccomp @ no_exceptions @ (if rtti then [] else no_rtti) @ [ "-I" ^ Filename.concat (prefix ()) "include"; "-I" ^ ask [ "--includedir" ] ]
+  std ccomp cflags @ no_exceptions @ (if rtti then [] else no_rtti) @ [ "-I" ^ Filename.concat (prefix ()) "include"; "-I" ^ ask [ "--includedir" ] ]
 
 (* The C++ runtime libLLVM and these libraries were built against. MSVC's
    is the one its linker takes by default. *)
@@ -171,16 +184,38 @@ let builtin_headers () =
 
 let sexp flags = print_string ("(" ^ String.concat " " (List.map (Printf.sprintf "%S") flags) ^ ")\n")
 
+(* Link flags, written to the response file [rsp] for MSVC, where flexlink
+   reads them, and given on the command line otherwise. LLVM's static
+   libraries are more than cmd.exe takes on one line. [rsp] is written
+   either way, as the rule that makes it promises. *)
+let link ccomp rsp flags =
+  if msvc ccomp then begin
+    let lib = ask [ "--libdir" ] in
+    Out_channel.with_open_bin rsp (fun oc -> List.iter (fun f -> output_string oc (f ^ "\n")) (("-L" ^ lib) :: flags));
+    let rsp = if Filename.is_relative rsp then Filename.concat (Sys.getcwd ()) rsp else rsp in
+    sexp [ "@" ^ rsp ]
+  end
+  else begin
+    Out_channel.with_open_bin rsp (fun _ -> ());
+    sexp flags
+  end
+
+(* The response file among a rule's targets. *)
+let rsp targets =
+  match List.filter (fun t -> Filename.check_suffix t ".rsp") targets with
+  | [ t ] -> t
+  | _ -> failwith "expected one .rsp among the targets"
+
 let () =
   set_binary_mode_out stdout true;
-  match Sys.argv with
-  | [| _; "cflags" |] -> sexp (cflags ())
-  | [| _; "libs" |] -> sexp (libs ())
-  | [| _; "std"; c |] -> sexp (std c)
-  | [| _; "cxx"; c |] -> sexp (cxx ~rtti:true c)
-  | [| _; "cxx-no-rtti"; c |] -> sexp (cxx ~rtti:false c)
-  | [| _; "clang-libs"; c |] -> sexp (clang_libs c)
-  | [| _; "lld-libs"; c |] -> sexp (lld_libs c)
-  | [| _; "o2-pipeline" |] -> o2_pipeline ()
-  | [| _; "builtin-headers" |] -> builtin_headers ()
-  | _ -> failwith "usage: discover cflags|libs|o2-pipeline|builtin-headers|(std|cxx|cxx-no-rtti|clang-libs|lld-libs) CCOMP"
+  match Array.to_list Sys.argv with
+  | [ _; "cflags" ] -> sexp (cflags ())
+  | _ :: "libs" :: c :: targets -> link c (rsp targets) (libs ())
+  | _ :: "clang-libs" :: c :: targets -> link c (rsp targets) (clang_libs c)
+  | _ :: "lld-libs" :: c :: targets -> link c (rsp targets) (lld_libs c)
+  | _ :: "std" :: c :: cflags -> sexp (std c cflags)
+  | _ :: "cxx" :: c :: cflags -> sexp (cxx ~rtti:true c cflags)
+  | _ :: "cxx-no-rtti" :: c :: cflags -> sexp (cxx ~rtti:false c cflags)
+  | [ _; "o2-pipeline" ] -> o2_pipeline ()
+  | [ _; "builtin-headers" ] -> builtin_headers ()
+  | _ -> failwith "usage: discover cflags|o2-pipeline|builtin-headers|(libs|clang-libs|lld-libs) CCOMP TARGETS...|(std|cxx|cxx-no-rtti) CCOMP CFLAGS..."

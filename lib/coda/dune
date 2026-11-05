@@ -13,7 +13,7 @@
   (language cxx)
   (names coda_ffi_safe)
   (include_dirs ../../vendor/coda/ffi ../../vendor/coda/src)
-  (flags (:standard (:include cxx_std.sexp))))
+  (flags (:include cxx_std.sexp)))
  (flags (:standard -w -a)))
 
 (rule
@@ -21,7 +21,7 @@
  (action
   (with-stdout-to
    %{target}
-   (run %{exe:../llvm/config/discover.exe} std %{ocaml-config:ccomp_type}))))
+   (run %{exe:../llvm/config/discover.exe} std %{ocaml-config:ccomp_type} %{ocaml-config:ocamlc_cflags}))))
 
 (copy_files# ../../vendor/coda/bindings/ocaml/{coda.ml,coda.mli,coda_ocaml.ml,coda_ocaml_safe.c})
 

@@ -122,6 +122,9 @@
  (action (with-stdout-to %{target} (run config/discover.exe cflags))))
 
 (rule
- (target llvm_libs.sexp)
+ (targets llvm_libs.sexp llvm_libs.rsp)
  (deps (env_var LLVM_CONFIG) (env_var PATH))
- (action (with-stdout-to %{target} (run config/discover.exe libs))))
+ (action
+  (with-stdout-to
+   llvm_libs.sexp
+   (run config/discover.exe libs %{ocaml-config:ccomp_type} %{targets}))))

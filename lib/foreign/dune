@@ -11,8 +11,7 @@
   (language cxx)
   (names clang_stubs object_stubs)
   (flags
-   (:standard
-    (:include clang_cxx.sexp))))
+   (:include clang_cxx.sexp)))
  (c_library_flags
   (:include clang_libs.sexp))
  (libraries c_interface cache coda diagnostic source unix))
@@ -23,15 +22,15 @@
  (action
   (with-stdout-to
    %{target}
-   (run %{exe:../llvm/config/discover.exe} cxx-no-rtti %{ocaml-config:ccomp_type}))))
+   (run %{exe:../llvm/config/discover.exe} cxx-no-rtti %{ocaml-config:ccomp_type} %{ocaml-config:ocamlc_cflags}))))
 
 (rule
- (target clang_libs.sexp)
+ (targets clang_libs.sexp clang_libs.rsp)
  (deps (env_var LLVM_CONFIG) (env_var PATH))
  (action
   (with-stdout-to
-   %{target}
-   (run %{exe:../llvm/config/discover.exe} clang-libs %{ocaml-config:ccomp_type}))))
+   clang_libs.sexp
+   (run %{exe:../llvm/config/discover.exe} clang-libs %{ocaml-config:ccomp_type} %{targets}))))
 
 (rule
  (target builtin_headers.ml)

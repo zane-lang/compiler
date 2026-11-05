@@ -17,8 +17,7 @@
   (language cxx)
   (names lld_stubs tier_stubs body_stubs c_stubs retain_stubs prefix_stubs archive_stubs init_array_stubs)
   (flags
-   (:standard
-    (:include lld_cxx.sexp))))
+   (:include lld_cxx.sexp)))
  (c_library_flags
   (:include lld_libs.sexp))
  (libraries cache cgt diagnostic rewrite runtime_source unix llvm llvm_analysis llvm_irreader llvm_bitreader llvm_linker llvm_target llvm_passbuilder llvm_all_backends))
@@ -45,12 +44,12 @@
  (action
   (with-stdout-to
    %{target}
-   (run %{exe:../llvm/config/discover.exe} cxx %{ocaml-config:ccomp_type}))))
+   (run %{exe:../llvm/config/discover.exe} cxx %{ocaml-config:ccomp_type} %{ocaml-config:ocamlc_cflags}))))
 
 (rule
- (target lld_libs.sexp)
+ (targets lld_libs.sexp lld_libs.rsp)
  (deps (env_var LLVM_CONFIG) (env_var PATH))
  (action
   (with-stdout-to
-   %{target}
-   (run %{exe:../llvm/config/discover.exe} lld-libs %{ocaml-config:ccomp_type}))))
+   lld_libs.sexp
+   (run %{exe:../llvm/config/discover.exe} lld-libs %{ocaml-config:ccomp_type} %{targets}))))
