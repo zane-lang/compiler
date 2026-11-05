@@ -12,6 +12,9 @@ build: [
   ["sed" "-i.orig"
    "s|ALL DEPENDS ${ocaml_outputs} \"${bin}/${name}.odoc\")|ALL DEPENDS ${ocaml_outputs})|"
    "llvm/cmake/modules/AddOCaml.cmake"]
+  # The execution engine's bindings are the only ones that need ctypes,
+  # which opam has no MSVC build of; zanec does not use them.
+  ["sed" "-i.orig" "/add_subdirectory(executionengine)/d" "llvm/bindings/ocaml/CMakeLists.txt"]
   ["bash" "-ex" "install.sh" "build" "--llvm-config" "llvm-config" "--libdir" lib
    "--cmake" "cmake" "--make" make "--link-mode" "shared"]
 ]
@@ -21,7 +24,6 @@ install: [
 ]
 depends: [
   "ocaml" {>= "4.00.0"}
-  "ctypes" {>= "0.4"}
   "ocamlfind" {build}
 ]
 patches: ["AddOCaml.cmake.patch"]
