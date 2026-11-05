@@ -42,9 +42,14 @@ def rpaths(image):
     result = []
     for index, line in enumerate(lines):
         if line.strip() == "cmd LC_RPATH":
-            match = re.match(r"\s*path (.*?) \(offset ", lines[index + 2])
-            if match:
-                result.append(match.group(1))
+            # An LC_RPATH load command prints as `cmd`, `cmdsize`, then
+            # `path`. Skipping one we cannot read would leave its old rpath
+            # in the archive, so a different layout is an error.
+            path_line = lines[index + 2] if index + 2 < len(lines) else ""
+            match = re.match(r"\s*path (.*?) \(offset ", path_line)
+            if not match:
+                raise ValueError(f"cannot read an LC_RPATH path from otool -l output for {image}")
+            result.append(match.group(1))
     return result
 
 

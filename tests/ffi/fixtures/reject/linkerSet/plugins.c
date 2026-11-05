@@ -9,4 +9,4 @@
 
 TEST_SECTION("plugins") static const int64_t first = 1;
 RODATA_SECTION static const int64_t second = 2;
-TEST_SECTION("zane_hooks") static const int64_t third = 3;
+TEST_SECTION("zane_hooks") const int64_t third = 3;

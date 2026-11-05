@@ -349,7 +349,6 @@ public:
         fields.push_back(*it);
       num(fields.size());
       for (const clang::FieldDecl *f : fields) {
-        // const clang::FieldDecl *f = *it;
         str(f->getName().str());
         type(f->getType());
         num(layout.getFieldOffset(f->getFieldIndex()));

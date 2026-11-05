@@ -1,4 +1,3 @@
-
 #include "zane_internal.h"
 
 #include <errno.h>
@@ -7,7 +6,6 @@
 #include <math.h>
 
 #ifdef __APPLE__
-#define _DARWIN_C_SOURCE
 #include <xlocale.h>
 #endif
 
