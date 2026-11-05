@@ -275,6 +275,7 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
         | F.Scalar _ -> Foreign.Glue.Scalar "double"
         | F.Bool -> Foreign.Glue.Bool
         | F.Unit -> Foreign.Glue.Unit
+        | F.Terminated -> Foreign.Glue.Terminated
         | F.View | F.Address | F.Value | F.Handle | F.Function -> Foreign.Glue.Same
       in
       let entry ?(label = fun (t : F.t) -> t.F.thunk) (t : F.t) =

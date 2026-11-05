@@ -373,6 +373,128 @@
   (diff golden/assembly.out assembly.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/cStrings))
+ (targets cStrings.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build cStrings.exe --package fixtures/cStrings)))
+
+(rule
+ (deps (source_tree fixtures/cStrings))
+ (targets cStrings.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build cStrings.optimized.exe --optimize --package fixtures/cStrings)))
+
+(rule
+ (deps (source_tree fixtures/cStrings))
+ (targets cStrings.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build cStrings.tiered.exe --tiered --package fixtures/cStrings)))
+
+(rule
+ (deps (source_tree fixtures/cStrings))
+ (targets cStrings.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up cStrings.tier1 --package fixtures/cStrings)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    cStrings.checked.out.actual
+    (run ./cStrings.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/cStrings.out cStrings.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    cStrings.unchecked.out.actual
+    (run ./cStrings.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/cStrings.out cStrings.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    cStrings.optimized.checked.out.actual
+    (run ./cStrings.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/cStrings.out cStrings.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    cStrings.optimized.unchecked.out.actual
+    (run ./cStrings.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/cStrings.out cStrings.optimized.unchecked.out.actual)))
+
+(rule
+ (deps cStrings.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./cStrings.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    cStrings.tiered.checked.out.actual
+    (run ./cStrings.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/cStrings.out cStrings.tiered.checked.out.actual)))
+
+(rule
+ (deps cStrings.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./cStrings.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    cStrings.tiered.unchecked.out.actual
+    (run ./cStrings.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/cStrings.out cStrings.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/calls))
  (action
   (with-stdout-to
@@ -1735,6 +1857,20 @@
  (alias runtest)
  (action
   (diff golden/reject.cError.err reject.cError.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/cStrings))
+ (action
+  (with-stderr-to
+   reject.cStrings.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/cStrings)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.cStrings.err reject.cStrings.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/escapes))

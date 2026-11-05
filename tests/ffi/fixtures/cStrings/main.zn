@@ -1,0 +1,39 @@
+/// A string crossing as a `const char *` (ffi.md §3.4): C reads its bytes
+/// up to a terminating NUL, for a literal, an empty string, a joined one,
+/// one longer than a thunk copies into its frame, and one holding a NUL,
+/// which C reads up to it; beside a `zane_bytes` parameter of the same call.
+package cStrings;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+I64 length(text String) foreign "c_length";
+I64 sum(left String, middle String, right String) foreign "c_sum";
+String echo(text String) foreign "c_echo";
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+String join(left String, right String) {
+	return @operators$concat(left, right);
+}
+
+Unit main() {
+	show(String(length(String("hello"))));
+	show(String(length(String(""))));
+	ten String = String("abcdefghij");
+	twenty String = join(ten, ten);
+	forty String = join(twenty, twenty);
+	eighty String = join(forty, forty);
+	long String = join(join(eighty, eighty), join(eighty, eighty));
+	show(String(length(long)));
+	show(String(length(join(long, String("!")))));
+	show(String(length(String.escaped("ab\0cd"))));
+	show(String(sum(String("abc"), String("de"), ten)));
+	show(echo(join(twenty, String("!"))));
+	return Unit();
+}

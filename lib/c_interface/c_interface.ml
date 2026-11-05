@@ -38,6 +38,12 @@ type ctype =
   (* Any other, by its spelling: an enum, a vector, a complex type. *)
   | Other of string
 
+(* Whether [c] is `const char *`, which a string parameter may cross as,
+   terminated (spec ffi.md §3.4). *)
+let is_c_string = function
+  | Pointer { const = true; pointee = Int { size = 8; name = "char"; _ } } -> true
+  | _ -> false
+
 type field = { field : string; ty : ctype; offset : int; bit_width : int option }
 
 type record = {

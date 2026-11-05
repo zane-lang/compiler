@@ -554,6 +554,9 @@ module Foreign = struct
     (* A string's or a list's handle, whose first two words are the
        `zane_bytes` or `zane_span` C reads. *)
     | View
+    (* A string's handle, which C takes as a `const char *` to a copy of
+       its bytes followed by a NUL, which the thunk makes. *)
+    | Terminated
     (* An array's address. *)
     | Address
     (* A C-compatible value type, in C's layout. *)

@@ -17,8 +17,9 @@
 
 (* How a value crosses, as the slot holding it is read: a scalar of the
    Zane type whose C type is given, which C converts to its own, a `Bool`
-   as a byte, `Unit` as no value, and any other as the C type itself. *)
-type kind = Scalar of string | Bool | Unit | Same
+   as a byte, `Unit` as no value, a string's handle as a `const char *` to
+   its bytes and a NUL, and any other as the C type itself. *)
+type kind = Scalar of string | Bool | Unit | Terminated | Same
 
 (* A thunk: its label, which is its symbol after the target's global
    prefix, the C function it calls, and how each argument and the result
@@ -37,6 +38,10 @@ let escaped s =
     s;
   Buffer.contents b
 
+(* The length below which a terminated string's copy is in the thunk's
+   frame: a path or a name, as most C strings are. *)
+let short_string = 256
+
 (* One thunk, the [n]th of its file, calling [f] whose parameters and
    result the header spells as [spelled] and [spelled_result]. *)
 let thunk n (e : entry) (f : C_interface.func) =
@@ -46,7 +51,25 @@ let thunk n (e : entry) (f : C_interface.func) =
   line "void %s(void *const *__zane_args, void *__zane_result) __asm__(\"%s\");" name (escaped e.label);
   line "void %s(void *const *__zane_args, void *__zane_result) {" name;
   List.iteri (fun i s -> line "  typedef __typeof__(%s) __zane_p%d;" s i) f.C_interface.spelled;
+  (* A terminated string (spec ffi.md §3.4): its handle's bytes and
+     length copied with a NUL after them, into the thunk's frame when they
+     are short, and the copy freed after the call. A string's block is as
+     long as its bytes, so there is never room for the NUL in place. *)
+  List.iteri
+    (fun i k ->
+      if k = Terminated then begin
+        line "  const struct { const char *__zane_b; int64_t __zane_n; } *__zane_t%d = __zane_args[%d];" i i;
+        line "  int64_t __zane_n%d = __zane_t%d->__zane_n;" i i;
+        line "  char __zane_s%d[%d];" i short_string;
+        line "  char *__zane_c%d = __zane_n%d < %d ? __zane_s%d : (char *)__builtin_malloc((unsigned long)__zane_n%d + 1);" i i
+          short_string i i;
+        line "  if (!__zane_c%d) __builtin_trap();" i;
+        line "  if (__zane_n%d) __builtin_memcpy(__zane_c%d, __zane_t%d->__zane_b, (unsigned long)__zane_n%d);" i i i i;
+        line "  __zane_c%d[__zane_n%d] = 0;" i i
+      end)
+    e.params;
   let arg i = function
+    | Terminated -> Printf.sprintf "(__zane_p%d)__zane_c%d" i i
     | Scalar c -> Printf.sprintf "(__zane_p%d)*(const %s *)__zane_args[%d]" i c i
     | Bool -> Printf.sprintf "(__zane_p%d)(*(const unsigned char *)__zane_args[%d] & 1)" i i
     | Same | Unit -> Printf.sprintf "*(const __zane_p%d *)__zane_args[%d]" i i
@@ -60,10 +83,15 @@ let thunk n (e : entry) (f : C_interface.func) =
   | Unit -> line "  %s;" call
   | Scalar c -> line "  *(%s *)__zane_result = (%s)%s;" c c call
   | Bool -> line "  *(unsigned char *)__zane_result = (unsigned char)(%s != 0);" call
-  | Same ->
+  | Same | Terminated ->
       line "  typedef __typeof__(%s) __zane_r;" f.C_interface.spelled_result;
       line "  __zane_r __zane_value = %s;" call;
       line "  __builtin_memcpy(__zane_result, &__zane_value, sizeof __zane_value);");
+  List.iteri
+    (fun i k ->
+      if k = Terminated then
+        line "  if (__zane_c%d != __zane_s%d) __builtin_free(__zane_c%d);" i i i)
+    e.params;
   line "}";
   Buffer.contents b
 

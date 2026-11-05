@@ -432,6 +432,11 @@ let rec corresponds env iface (v : verb) position (t : Ty.t) (c : C.ctype) =
       match c with
       | C.Record { union = false; name = "struct zane_bytes" as r } when is_view iface r bytes -> Ok ()
       | C.Record { union = false; name = "struct zane_bytes" } -> not_view "zane_bytes" "const uint8_t *data; size_t size;"
+      | _ when position = Param && C.is_c_string c -> Ok ()
+      | _ when position = Param ->
+          differ "`@primitives$String` crosses as a `zane_bytes`, or as a `const char *` to its bytes and a terminating NUL (ffi.md §3.4)"
+      | _ when C.is_c_string c ->
+          differ "a returned `@primitives$String` crosses as a `zane_bytes`, since a `const char *` gives no length; only a parameter crosses as one (ffi.md §3.5)"
       | _ -> differ "`@primitives$String` crosses as a `zane_bytes`")
   | Some (Array (s, n)) when position = Param -> (
       match c with

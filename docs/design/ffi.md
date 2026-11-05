@@ -352,7 +352,13 @@ that declares its C function. The glue holds:
   `__zane_args[i]` points to an argument already laid out as C lays out its
   type. The thunk does the conversions of `ffi.md` §3.3 as C casts: an
   `@primitives$I32` passed to a `uint8_t` keeps its low bits, a returned
-  `int16_t` widens by its sign.
+  `int16_t` widens by its sign. A string passed to a `const char *`
+  (`ffi.md` §3.4) is copied with a NUL after it, into a 256-byte buffer in
+  the thunk's frame when it is shorter, else into `malloc`'s memory, freed
+  after the call. A string's block is exactly as long as its bytes, so the
+  NUL has no room in place; the copy is the thunk's, so a verb whose C
+  takes a `zane_bytes` pays nothing for it, and the stage-5 evaluator
+  runs it as it runs any C (`tests/ffi/fixtures/cStrings`).
 - one **free thunk** per foreign handle type with a free function, and one
   **set thunk** per type with a setter: thunks of the same pointer ABI,
   whose arguments are the objects' pointers, which call the free function
@@ -562,8 +568,9 @@ rename it by, so two versions of the package would both define it.
 **F10. A foreign call is one CGT node, with its arguments laid out for C.**
 Lowering gives each foreign verb a Zane function whose body is one
 `Foreign_call { thunk; args }`, and the program's list of thunks records
-how each argument and the result cross: as a scalar, a `Bool`, a view, an
-address, or a value. A call of the verb is a call of that function, which
+how each argument and the result cross: as a scalar, a `Bool`, a view, a
+terminated string, an address, or a value. Which a string is follows from
+its C parameter's type in the interface header. A call of the verb is a call of that function, which
 an optimized build inlines. Codegen lowers each argument to a slot holding
 its C layout, and the node passes the slots' addresses:
 
@@ -571,7 +578,7 @@ its C layout, and the node passes the slots' addresses:
 |---|---|
 | scalar primitive | the scalar |
 | `@primitives$Bool` | an `i8`, 0 or 1 |
-| `@primitives$String` | a `zane_bytes`: the string's byte address and length, from its handle |
+| `@primitives$String` | a `zane_bytes`: the string's byte address and length, from its handle; for a `const char *` parameter the same, which the thunk terminates (F8) |
 | `@primitives$Array<T, n>` | the address of the array, which already lays out as `T[n]` |
 | `@primitives$List<T>` | a `zane_span`: the list's block address and count |
 | C-compatible value type | the value, already in C's layout, with its padding bytes zeroed |

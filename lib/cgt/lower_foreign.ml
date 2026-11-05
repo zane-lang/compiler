@@ -118,7 +118,14 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
     | Foreign.Address, Expr.Deref p -> (Foreign.Address, p)
     | c, _ -> (c, value)
   in
-  let args = List.map arg v.params in
+  (* A string whose C parameter is a `const char *` crosses terminated. *)
+  let c_params = match f.T.Foreign.c_function with C_interface.Function { params; _ } -> params | _ -> [] in
+  let terminated i (c, value) =
+    match (c, List.nth_opt c_params i) with
+    | Foreign.View, Some p when C_interface.is_c_string p -> (Foreign.Terminated, value)
+    | _ -> (c, value)
+  in
+  let args = List.mapi terminated (List.map arg v.params) in
   let ret = v.signature.S.ret in
   let result = crossing st span ret in
   let call_ty =
