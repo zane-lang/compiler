@@ -105,217 +105,230 @@
     │   ├── params[0]: value
     │   └── result: value
     ├── thunks[15] > thunk:
+    │   ├── symbol: app$wrapped(%primitives$I32, %primitives$I64).ffi
+    │   ├── package: app
+    │   ├── calls: make_wrapped
+    │   ├── params[0]: i32
+    │   ├── params[1]: i64
+    │   └── result: value
+    ├── thunks[16] > thunk:
+    │   ├── symbol: app$bump(app$Wrapped).ffi
+    │   ├── package: app
+    │   ├── calls: bump
+    │   ├── params[0]: value
+    │   └── result: value
+    ├── thunks[17] > thunk:
     │   ├── symbol: app$addTo(%primitives$I64).ffi
     │   ├── package: app
     │   ├── calls: add_to
     │   ├── params[0]: i64
     │   └── result: void
-    ├── thunks[16] > thunk:
+    ├── thunks[18] > thunk:
     │   ├── symbol: app$counter().ffi
     │   ├── package: app
     │   ├── calls: counter
     │   ├── params:
     │   └── result: i64
-    ├── thunks[17] > thunk:
+    ├── thunks[19] > thunk:
     │   ├── symbol: app$reset().ffi
     │   ├── package: app
     │   ├── calls: reset
     │   ├── params:
     │   └── result: void
-    ├── thunks[18] > thunk:
+    ├── thunks[20] > thunk:
     │   ├── symbol: app$helper().ffi
     │   ├── package: app
     │   ├── calls: helper
     │   ├── params:
     │   └── result: i64
-    ├── thunks[19] > thunk:
+    ├── thunks[21] > thunk:
     │   ├── symbol: lib$helper().ffi
     │   ├── package: lib
     │   ├── calls: helper
     │   ├── params:
     │   └── result: i64
-    ├── thunks[20] > thunk:
+    ├── thunks[22] > thunk:
     │   ├── symbol: app$named().ffi
     │   ├── package: app
     │   ├── calls: named
     │   ├── params:
     │   └── result: i64
-    ├── thunks[21] > thunk:
+    ├── thunks[23] > thunk:
     │   ├── symbol: lib$named().ffi
     │   ├── package: lib
     │   ├── calls: named
     │   ├── params:
     │   └── result: i64
-    ├── thunks[22] > thunk:
+    ├── thunks[24] > thunk:
     │   ├── symbol: lib$plus(%primitives$I32, %primitives$I32).ffi
     │   ├── package: lib
     │   ├── calls: plus
     │   ├── params[0]: i32
     │   ├── params[1]: i32
     │   └── result: i32
-    ├── thunks[23] > thunk:
+    ├── thunks[25] > thunk:
     │   ├── symbol: lib$widen(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: widen
     │   ├── params[0]: i64
     │   └── result: i64
-    ├── thunks[24] > thunk:
+    ├── thunks[26] > thunk:
     │   ├── symbol: app$definedHere(%primitives$I64).ffi
     │   ├── package: app
     │   ├── calls: defined_here
     │   ├── params[0]: i64
     │   └── result: i64
-    ├── thunks[25] > thunk:
+    ├── thunks[27] > thunk:
     │   ├── symbol: lib$definedHere(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: defined_here
     │   ├── params[0]: i64
     │   └── result: i64
-    ├── thunks[26] > thunk:
+    ├── thunks[28] > thunk:
     │   ├── symbol: lib$once(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: once
     │   ├── params[0]: i64
     │   └── result: i64
-    ├── thunks[27] > thunk:
+    ├── thunks[29] > thunk:
     │   ├── symbol: lib$useOnce().ffi
     │   ├── package: lib
     │   ├── calls: use_once
     │   ├── params:
     │   └── result: i64
-    ├── thunks[28] > thunk:
+    ├── thunks[30] > thunk:
     │   ├── symbol: lib$onceAlias(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: once_alias
     │   ├── params[0]: i64
     │   └── result: i64
-    ├── thunks[29] > thunk:
+    ├── thunks[31] > thunk:
     │   ├── symbol: lib$onceIndirect(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: once_indirect
     │   ├── params[0]: i64
     │   └── result: i64
-    ├── thunks[30] > thunk:
+    ├── thunks[32] > thunk:
     │   ├── symbol: lib$onceStarted().ffi
     │   ├── package: lib
     │   ├── calls: once_started
     │   ├── params:
     │   └── result: i64
-    ├── thunks[31] > thunk:
+    ├── thunks[33] > thunk:
     │   ├── symbol: lib$onceValue().ffi
     │   ├── package: lib
     │   ├── calls: once_value
     │   ├── params:
     │   └── result: i64
-    ├── thunks[32] > thunk:
+    ├── thunks[34] > thunk:
     │   ├── symbol: lib$onceHelped().ffi
     │   ├── package: lib
     │   ├── calls: once_helped_value
     │   ├── params:
     │   └── result: i64
-    ├── thunks[33] > thunk:
+    ├── thunks[35] > thunk:
     │   ├── symbol: lib$oncePointed().ffi
     │   ├── package: lib
     │   ├── calls: once_pointed_value
     │   ├── params:
     │   └── result: i64
-    ├── thunks[34] > thunk:
+    ├── thunks[36] > thunk:
     │   ├── symbol: lib$onceShare(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: once_share
     │   ├── params[0]: i64
     │   └── result: void
-    ├── thunks[35] > thunk:
+    ├── thunks[37] > thunk:
     │   ├── symbol: lib$onceShared().ffi
     │   ├── package: lib
     │   ├── calls: once_shared_value
     │   ├── params:
     │   └── result: i64
-    ├── thunks[36] > thunk:
+    ├── thunks[38] > thunk:
     │   ├── symbol: lib$onceTokenSame().ffi
     │   ├── package: lib
     │   ├── calls: once_token_same
     │   ├── params:
     │   └── result: i64
-    ├── thunks[37] > thunk:
+    ├── thunks[39] > thunk:
     │   ├── symbol: lib$oncePointersSame().ffi
     │   ├── package: lib
     │   ├── calls: once_pointers_same
     │   ├── params:
     │   └── result: i64
-    ├── thunks[38] > thunk:
+    ├── thunks[40] > thunk:
     │   ├── symbol: lib$onceKeep(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: once_keep
     │   ├── params[0]: i64
     │   └── result: void
-    ├── thunks[39] > thunk:
+    ├── thunks[41] > thunk:
     │   ├── symbol: lib$onceKept().ffi
     │   ├── package: lib
     │   ├── calls: once_kept_value
     │   ├── params:
     │   └── result: i64
-    ├── thunks[40] > thunk:
+    ├── thunks[42] > thunk:
     │   ├── symbol: lib$onceCallSame().ffi
     │   ├── package: lib
     │   ├── calls: once_call_same
     │   ├── params:
     │   └── result: i64
-    ├── thunks[41] > thunk:
+    ├── thunks[43] > thunk:
     │   ├── symbol: lib$onceSetupRuns().ffi
     │   ├── package: lib
     │   ├── calls: once_setup_runs
     │   ├── params:
     │   └── result: i64
-    ├── thunks[42] > thunk:
+    ├── thunks[44] > thunk:
     │   ├── symbol: lib$onceSetupSame().ffi
     │   ├── package: lib
     │   ├── calls: once_setup_same
     │   ├── params:
     │   └── result: i64
-    ├── thunks[43] > thunk:
+    ├── thunks[45] > thunk:
     │   ├── symbol: lib$onceExternalRuns().ffi
     │   ├── package: lib
     │   ├── calls: once_external_runs
     │   ├── params:
     │   └── result: i64
-    ├── thunks[44] > thunk:
+    ├── thunks[46] > thunk:
     │   ├── symbol: lib$primed().ffi
     │   ├── package: lib
     │   ├── calls: primed
     │   ├── params:
     │   └── result: i64
-    ├── thunks[45] > thunk:
+    ├── thunks[47] > thunk:
     │   ├── symbol: lib$primedRuns().ffi
     │   ├── package: lib
     │   ├── calls: primed_runs_seen
     │   ├── params:
     │   └── result: i64
-    ├── thunks[46] > thunk:
+    ├── thunks[48] > thunk:
     │   ├── symbol: lib$wasWarmed().ffi
     │   ├── package: lib
     │   ├── calls: was_warmed
     │   ├── params:
     │   └── result: i64
-    ├── thunks[47] > thunk:
+    ├── thunks[49] > thunk:
     │   ├── symbol: lib$parsed().ffi
     │   ├── package: lib
     │   ├── calls: parsed
     │   ├── params:
     │   └── result: i64
-    ├── thunks[48] > thunk:
+    ├── thunks[50] > thunk:
     │   ├── symbol: lib$gnuFound().ffi
     │   ├── package: lib
     │   ├── calls: gnu_found
     │   ├── params:
     │   └── result: i64
-    ├── thunks[49] > thunk:
+    ├── thunks[51] > thunk:
     │   ├── symbol: app$result().ffi
     │   ├── package: app
     │   ├── calls: result
     │   ├── params:
     │   └── result: i64
-    ├── thunks[50] > thunk:
+    ├── thunks[52] > thunk:
     │   ├── symbol: app$args(%primitives$I64).ffi
     │   ├── package: app
     │   ├── calls: args
@@ -1026,90 +1039,120 @@
     │       │       └── body[1] > assign:
     │       │           ├── place: #108
     │       │           └── value: local #106 : handle
-    │       ├── body[32] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: app$addTo(%primitives$I64)
-    │       │   └── args[0]: 1000 : i64
+    │       ├── body[32] > let:
+    │       │   ├── local: #109
+    │       │   └── value > call:
+    │       │       ├── type: {{i64, [0 x void]}, i32}
+    │       │       ├── fn: app$bump(app$Wrapped)
+    │       │       └── args[0] > call:
+    │       │           ├── type: {{i64, [0 x void]}, i32}
+    │       │           ├── fn: app$wrapped(%primitives$I32, %primitives$I64)
+    │       │           ├── args[0]: 5 : i32
+    │       │           └── args[1]: 11 : i64
     │       ├── body[33] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @110
-    │       │       ├── result: #111
+    │       │       ├── label: @111
+    │       │       ├── result: #112
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #109
+    │       │       │   ├── local: #110
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$counter()
-    │       │       │   │       └── args:
+    │       │       │   │   ├── fn: zane_text_i32
+    │       │       │   │   └── args[0] > member:
+    │       │       │   │       ├── type: i32
+    │       │       │   │       ├── index: 1
+    │       │       │   │       └── value: local #109 : {{i64, [0 x void]}, i32}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #111
-    │       │           └── value: local #109 : handle
+    │       │           ├── place: #112
+    │       │           └── value: local #110 : handle
     │       ├── body[34] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: app$reset()
-    │       │   └── args:
-    │       ├── body[35] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @113
-    │       │       ├── result: #114
+    │       │       ├── label: @114
+    │       │       ├── result: #115
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #112
+    │       │       │   ├── local: #113
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
+    │       │       │   │   └── args[0] > member:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$counter()
-    │       │       │   │       └── args:
+    │       │       │   │       ├── index: 0
+    │       │       │   │       └── value > member:
+    │       │       │   │           ├── type: {i64, [0 x void]}
+    │       │       │   │           ├── index: 0
+    │       │       │   │           └── value: local #109 : {{i64, [0 x void]}, i32}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #114
-    │       │           └── value: local #112 : handle
+    │       │           ├── place: #115
+    │       │           └── value: local #113 : handle
+    │       ├── body[35] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$addTo(%primitives$I64)
+    │       │   └── args[0]: 1000 : i64
     │       ├── body[36] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @116
-    │       │       ├── result: #117
+    │       │       ├── label: @117
+    │       │       ├── result: #118
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #115
+    │       │       │   ├── local: #116
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$counted(%primitives$I64)
-    │       │       │   │       └── args[0]: 10 : i64
+    │       │       │   │       ├── fn: app$counter()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #117
-    │       │           └── value: local #115 : handle
+    │       │           ├── place: #118
+    │       │           └── value: local #116 : handle
     │       ├── body[37] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: app$addTo(%primitives$I64)
-    │       │   └── args[0]: 1 : i64
+    │       │   ├── fn: app$reset()
+    │       │   └── args:
     │       ├── body[38] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @119
-    │       │       ├── result: #120
+    │       │       ├── label: @120
+    │       │       ├── result: #121
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #118
+    │       │       │   ├── local: #119
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: app$counter()
+    │       │       │   │       └── args:
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #121
+    │       │           └── value: local #119 : handle
+    │       ├── body[39] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @123
+    │       │       ├── result: #124
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #122
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1120,21 +1163,46 @@
     │       │       │   │       └── args[0]: 10 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #120
-    │       │           └── value: local #118 : handle
-    │       ├── body[39] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: app$reset()
-    │       │   └── args:
+    │       │           ├── place: #124
+    │       │           └── value: local #122 : handle
     │       ├── body[40] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$addTo(%primitives$I64)
+    │       │   └── args[0]: 1 : i64
+    │       ├── body[41] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @122
-    │       │       ├── result: #123
+    │       │       ├── label: @126
+    │       │       ├── result: #127
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #121
+    │       │       │   ├── local: #125
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: app$counted(%primitives$I64)
+    │       │       │   │       └── args[0]: 10 : i64
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #127
+    │       │           └── value: local #125 : handle
+    │       ├── body[42] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$reset()
+    │       │   └── args:
+    │       ├── body[43] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @129
+    │       │       ├── result: #130
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #128
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1145,17 +1213,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #123
-    │       │           └── value: local #121 : handle
-    │       ├── body[41] > eval > call:
+    │       │           ├── place: #130
+    │       │           └── value: local #128 : handle
+    │       ├── body[44] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @125
-    │       │       ├── result: #126
+    │       │       ├── label: @132
+    │       │       ├── result: #133
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #124
+    │       │       │   ├── local: #131
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1166,17 +1234,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #126
-    │       │           └── value: local #124 : handle
-    │       ├── body[42] > eval > call:
+    │       │           ├── place: #133
+    │       │           └── value: local #131 : handle
+    │       ├── body[45] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @128
-    │       │       ├── result: #129
+    │       │       ├── label: @135
+    │       │       ├── result: #136
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #127
+    │       │       │   ├── local: #134
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1187,17 +1255,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #129
-    │       │           └── value: local #127 : handle
-    │       ├── body[43] > eval > call:
+    │       │           ├── place: #136
+    │       │           └── value: local #134 : handle
+    │       ├── body[46] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @131
-    │       │       ├── result: #132
+    │       │       ├── label: @138
+    │       │       ├── result: #139
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #130
+    │       │       │   ├── local: #137
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1208,17 +1276,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #132
-    │       │           └── value: local #130 : handle
-    │       ├── body[44] > eval > call:
+    │       │           ├── place: #139
+    │       │           └── value: local #137 : handle
+    │       ├── body[47] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @134
-    │       │       ├── result: #135
+    │       │       ├── label: @141
+    │       │       ├── result: #142
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #133
+    │       │       │   ├── local: #140
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1230,17 +1298,17 @@
     │       │       │   │       └── args[1]: 2 : i32
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #135
-    │       │           └── value: local #133 : handle
-    │       ├── body[45] > eval > call:
+    │       │           ├── place: #142
+    │       │           └── value: local #140 : handle
+    │       ├── body[48] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @137
-    │       │       ├── result: #138
+    │       │       ├── label: @144
+    │       │       ├── result: #145
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #136
+    │       │       │   ├── local: #143
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1251,17 +1319,17 @@
     │       │       │   │       └── args[0]: 3 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #138
-    │       │           └── value: local #136 : handle
-    │       ├── body[46] > eval > call:
+    │       │           ├── place: #145
+    │       │           └── value: local #143 : handle
+    │       ├── body[49] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @140
-    │       │       ├── result: #141
+    │       │       ├── label: @147
+    │       │       ├── result: #148
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #139
+    │       │       │   ├── local: #146
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1272,17 +1340,17 @@
     │       │       │   │       └── args[0]: 1 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #141
-    │       │           └── value: local #139 : handle
-    │       ├── body[47] > eval > call:
+    │       │           ├── place: #148
+    │       │           └── value: local #146 : handle
+    │       ├── body[50] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @143
-    │       │       ├── result: #144
+    │       │       ├── label: @150
+    │       │       ├── result: #151
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #142
+    │       │       │   ├── local: #149
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1293,17 +1361,17 @@
     │       │       │   │       └── args[0]: 1 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #144
-    │       │           └── value: local #142 : handle
-    │       ├── body[48] > eval > call:
+    │       │           ├── place: #151
+    │       │           └── value: local #149 : handle
+    │       ├── body[51] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @146
-    │       │       ├── result: #147
+    │       │       ├── label: @153
+    │       │       ├── result: #154
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #145
+    │       │       │   ├── local: #152
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1314,17 +1382,17 @@
     │       │       │   │       └── args[0]: 2 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #147
-    │       │           └── value: local #145 : handle
-    │       ├── body[49] > eval > call:
+    │       │           ├── place: #154
+    │       │           └── value: local #152 : handle
+    │       ├── body[52] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @149
-    │       │       ├── result: #150
+    │       │       ├── label: @156
+    │       │       ├── result: #157
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #148
+    │       │       │   ├── local: #155
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1335,17 +1403,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #150
-    │       │           └── value: local #148 : handle
-    │       ├── body[50] > eval > call:
+    │       │           ├── place: #157
+    │       │           └── value: local #155 : handle
+    │       ├── body[53] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @152
-    │       │       ├── result: #153
+    │       │       ├── label: @159
+    │       │       ├── result: #160
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #151
+    │       │       │   ├── local: #158
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1356,17 +1424,17 @@
     │       │       │   │       └── args[0]: 3 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #153
-    │       │           └── value: local #151 : handle
-    │       ├── body[51] > eval > call:
+    │       │           ├── place: #160
+    │       │           └── value: local #158 : handle
+    │       ├── body[54] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @155
-    │       │       ├── result: #156
+    │       │       ├── label: @162
+    │       │       ├── result: #163
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #154
+    │       │       │   ├── local: #161
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1377,17 +1445,17 @@
     │       │       │   │       └── args[0]: 4 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #156
-    │       │           └── value: local #154 : handle
-    │       ├── body[52] > eval > call:
+    │       │           ├── place: #163
+    │       │           └── value: local #161 : handle
+    │       ├── body[55] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @158
-    │       │       ├── result: #159
+    │       │       ├── label: @165
+    │       │       ├── result: #166
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #157
+    │       │       │   ├── local: #164
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1398,17 +1466,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #159
-    │       │           └── value: local #157 : handle
-    │       ├── body[53] > eval > call:
+    │       │           ├── place: #166
+    │       │           └── value: local #164 : handle
+    │       ├── body[56] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @161
-    │       │       ├── result: #162
+    │       │       ├── label: @168
+    │       │       ├── result: #169
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #160
+    │       │       │   ├── local: #167
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1419,17 +1487,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #162
-    │       │           └── value: local #160 : handle
-    │       ├── body[54] > eval > call:
+    │       │           ├── place: #169
+    │       │           └── value: local #167 : handle
+    │       ├── body[57] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @164
-    │       │       ├── result: #165
+    │       │       ├── label: @171
+    │       │       ├── result: #172
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #163
+    │       │       │   ├── local: #170
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1440,17 +1508,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #165
-    │       │           └── value: local #163 : handle
-    │       ├── body[55] > eval > call:
+    │       │           ├── place: #172
+    │       │           └── value: local #170 : handle
+    │       ├── body[58] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @167
-    │       │       ├── result: #168
+    │       │       ├── label: @174
+    │       │       ├── result: #175
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #166
+    │       │       │   ├── local: #173
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1461,21 +1529,21 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #168
-    │       │           └── value: local #166 : handle
-    │       ├── body[56] > eval > call:
+    │       │           ├── place: #175
+    │       │           └── value: local #173 : handle
+    │       ├── body[59] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lib$onceShare(%primitives$I64)
     │       │   └── args[0]: 7 : i64
-    │       ├── body[57] > eval > call:
+    │       ├── body[60] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @170
-    │       │       ├── result: #171
+    │       │       ├── label: @177
+    │       │       ├── result: #178
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #169
+    │       │       │   ├── local: #176
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1486,17 +1554,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #171
-    │       │           └── value: local #169 : handle
-    │       ├── body[58] > eval > call:
+    │       │           ├── place: #178
+    │       │           └── value: local #176 : handle
+    │       ├── body[61] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @173
-    │       │       ├── result: #174
+    │       │       ├── label: @180
+    │       │       ├── result: #181
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #172
+    │       │       │   ├── local: #179
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1507,17 +1575,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #174
-    │       │           └── value: local #172 : handle
-    │       ├── body[59] > eval > call:
+    │       │           ├── place: #181
+    │       │           └── value: local #179 : handle
+    │       ├── body[62] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @176
-    │       │       ├── result: #177
+    │       │       ├── label: @183
+    │       │       ├── result: #184
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #175
+    │       │       │   ├── local: #182
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1528,21 +1596,21 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #177
-    │       │           └── value: local #175 : handle
-    │       ├── body[60] > eval > call:
+    │       │           ├── place: #184
+    │       │           └── value: local #182 : handle
+    │       ├── body[63] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: lib$onceKeep(%primitives$I64)
     │       │   └── args[0]: 8 : i64
-    │       ├── body[61] > eval > call:
+    │       ├── body[64] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @179
-    │       │       ├── result: #180
+    │       │       ├── label: @186
+    │       │       ├── result: #187
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #178
+    │       │       │   ├── local: #185
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1553,17 +1621,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #180
-    │       │           └── value: local #178 : handle
-    │       ├── body[62] > eval > call:
+    │       │           ├── place: #187
+    │       │           └── value: local #185 : handle
+    │       ├── body[65] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @182
-    │       │       ├── result: #183
+    │       │       ├── label: @189
+    │       │       ├── result: #190
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #181
+    │       │       │   ├── local: #188
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1574,17 +1642,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #183
-    │       │           └── value: local #181 : handle
-    │       ├── body[63] > eval > call:
+    │       │           ├── place: #190
+    │       │           └── value: local #188 : handle
+    │       ├── body[66] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @185
-    │       │       ├── result: #186
+    │       │       ├── label: @192
+    │       │       ├── result: #193
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #184
+    │       │       │   ├── local: #191
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1595,17 +1663,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #186
-    │       │           └── value: local #184 : handle
-    │       ├── body[64] > eval > call:
+    │       │           ├── place: #193
+    │       │           └── value: local #191 : handle
+    │       ├── body[67] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @188
-    │       │       ├── result: #189
+    │       │       ├── label: @195
+    │       │       ├── result: #196
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #187
+    │       │       │   ├── local: #194
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1616,17 +1684,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #189
-    │       │           └── value: local #187 : handle
-    │       ├── body[65] > eval > call:
+    │       │           ├── place: #196
+    │       │           └── value: local #194 : handle
+    │       ├── body[68] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @191
-    │       │       ├── result: #192
+    │       │       ├── label: @198
+    │       │       ├── result: #199
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #190
+    │       │       │   ├── local: #197
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1637,17 +1705,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #192
-    │       │           └── value: local #190 : handle
-    │       ├── body[66] > eval > call:
+    │       │           ├── place: #199
+    │       │           └── value: local #197 : handle
+    │       ├── body[69] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @194
-    │       │       ├── result: #195
+    │       │       ├── label: @201
+    │       │       ├── result: #202
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #193
+    │       │       │   ├── local: #200
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1658,17 +1726,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #195
-    │       │           └── value: local #193 : handle
-    │       ├── body[67] > eval > call:
+    │       │           ├── place: #202
+    │       │           └── value: local #200 : handle
+    │       ├── body[70] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @197
-    │       │       ├── result: #198
+    │       │       ├── label: @204
+    │       │       ├── result: #205
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #196
+    │       │       │   ├── local: #203
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1679,17 +1747,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #198
-    │       │           └── value: local #196 : handle
-    │       ├── body[68] > eval > call:
+    │       │           ├── place: #205
+    │       │           └── value: local #203 : handle
+    │       ├── body[71] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @200
-    │       │       ├── result: #201
+    │       │       ├── label: @207
+    │       │       ├── result: #208
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #199
+    │       │       │   ├── local: #206
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1700,17 +1768,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #201
-    │       │           └── value: local #199 : handle
-    │       ├── body[69] > eval > call:
+    │       │           ├── place: #208
+    │       │           └── value: local #206 : handle
+    │       ├── body[72] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @203
-    │       │       ├── result: #204
+    │       │       ├── label: @210
+    │       │       ├── result: #211
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #202
+    │       │       │   ├── local: #209
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1721,17 +1789,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #204
-    │       │           └── value: local #202 : handle
-    │       ├── body[70] > eval > call:
+    │       │           ├── place: #211
+    │       │           └── value: local #209 : handle
+    │       ├── body[73] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @206
-    │       │       ├── result: #207
+    │       │       ├── label: @213
+    │       │       ├── result: #214
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #205
+    │       │       │   ├── local: #212
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1742,17 +1810,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #207
-    │       │           └── value: local #205 : handle
-    │       ├── body[71] > eval > call:
+    │       │           ├── place: #214
+    │       │           └── value: local #212 : handle
+    │       ├── body[74] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @209
-    │       │       ├── result: #210
+    │       │       ├── label: @216
+    │       │       ├── result: #217
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #208
+    │       │       │   ├── local: #215
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1763,17 +1831,17 @@
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #210
-    │       │           └── value: local #208 : handle
-    │       ├── body[72] > eval > call:
+    │       │           ├── place: #217
+    │       │           └── value: local #215 : handle
+    │       ├── body[75] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @212
-    │       │       ├── result: #213
+    │       │       ├── label: @219
+    │       │       ├── result: #220
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #211
+    │       │       │   ├── local: #218
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
@@ -1784,9 +1852,9 @@
     │       │       │   │       └── args[0]: 21 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #213
-    │       │           └── value: local #211 : handle
-    │       └── body[73] > return: unit : void
+    │       │           ├── place: #220
+    │       │           └── value: local #218 : handle
+    │       └── body[76] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: app$twice(%primitives$I64)
     │   ├── params[0]: local #1 : i64
@@ -2093,6 +2161,81 @@
     │           ├── index: 2
     │           └── value: local #2 : {i32, [0 x i64], i64}
     ├── funcs[18] > func:
+    │   ├── symbol: app$wrapped(%primitives$I32, %primitives$I64)
+    │   ├── params[0]: local #1 : i32
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: {{i64, [0 x void]}, i32}
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > foreign call:
+    │   │       ├── type: {i32, {i64, [0 x i64]}}
+    │   │       ├── fn: app$wrapped(%primitives$I32, %primitives$I64).ffi
+    │   │       ├── args[0]: local #1 : i32
+    │   │       └── args[1]: local #2 : i64
+    │   └── body[1] > return > record:
+    │       ├── type: {{i64, [0 x void]}, i32}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 0
+    │       │   └── value: local #3 : {i32, {i64, [0 x i64]}}
+    │       └── members[1] > member 0 > record:
+    │           ├── type: {i64, [0 x void]}
+    │           ├── members[0] > member 0 > member:
+    │           │   ├── type: i64
+    │           │   ├── index: 0
+    │           │   └── value > member:
+    │           │       ├── type: {i64, [0 x i64]}
+    │           │       ├── index: 1
+    │           │       └── value: local #3 : {i32, {i64, [0 x i64]}}
+    │           └── members[1] > member 1 > record:
+    │               ├── type: [0 x void]
+    │               └── members:
+    ├── funcs[19] > func:
+    │   ├── symbol: app$bump(app$Wrapped)
+    │   ├── params[0]: local #1 : {{i64, [0 x void]}, i32}
+    │   ├── ret: {{i64, [0 x void]}, i32}
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > foreign call:
+    │   │       ├── type: {i32, {i64, [0 x i64]}}
+    │   │       ├── fn: app$bump(app$Wrapped).ffi
+    │   │       └── args[0] > record:
+    │   │           ├── type: {i32, {i64, [0 x i64]}}
+    │   │           ├── members[0] > member 0 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 1
+    │   │           │   └── value: local #1 : {{i64, [0 x void]}, i32}
+    │   │           └── members[1] > member 1 > record:
+    │   │               ├── type: {i64, [0 x i64]}
+    │   │               ├── members[0] > member 0 > member:
+    │   │               │   ├── type: i64
+    │   │               │   ├── index: 0
+    │   │               │   └── value > member:
+    │   │               │       ├── type: {i64, [0 x void]}
+    │   │               │       ├── index: 0
+    │   │               │       └── value: local #1 : {{i64, [0 x void]}, i32}
+    │   │               └── members[1] > member 1 > record:
+    │   │                   ├── type: [0 x i64]
+    │   │                   └── members:
+    │   └── body[1] > return > record:
+    │       ├── type: {{i64, [0 x void]}, i32}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 0
+    │       │   └── value: local #2 : {i32, {i64, [0 x i64]}}
+    │       └── members[1] > member 0 > record:
+    │           ├── type: {i64, [0 x void]}
+    │           ├── members[0] > member 0 > member:
+    │           │   ├── type: i64
+    │           │   ├── index: 0
+    │           │   └── value > member:
+    │           │       ├── type: {i64, [0 x i64]}
+    │           │       ├── index: 1
+    │           │       └── value: local #2 : {i32, {i64, [0 x i64]}}
+    │           └── members[1] > member 1 > record:
+    │               ├── type: [0 x void]
+    │               └── members:
+    ├── funcs[20] > func:
     │   ├── symbol: app$addTo(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: void
@@ -2100,7 +2243,7 @@
     │       ├── type: void
     │       ├── fn: app$addTo(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[19] > func:
+    ├── funcs[21] > func:
     │   ├── symbol: app$counter()
     │   ├── params:
     │   ├── ret: i64
@@ -2108,7 +2251,7 @@
     │       ├── type: i64
     │       ├── fn: app$counter().ffi
     │       └── args:
-    ├── funcs[20] > func:
+    ├── funcs[22] > func:
     │   ├── symbol: app$reset()
     │   ├── params:
     │   ├── ret: void
@@ -2116,7 +2259,7 @@
     │       ├── type: void
     │       ├── fn: app$reset().ffi
     │       └── args:
-    ├── funcs[21] > func:
+    ├── funcs[23] > func:
     │   ├── symbol: app$counted(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -2164,7 +2307,7 @@
     │               └── right > flip:
     │                   ├── type: i64
     │                   └── value: 2 : i64
-    ├── funcs[22] > func:
+    ├── funcs[24] > func:
     │   ├── symbol: app$helper()
     │   ├── params:
     │   ├── ret: i64
@@ -2172,7 +2315,7 @@
     │       ├── type: i64
     │       ├── fn: app$helper().ffi
     │       └── args:
-    ├── funcs[23] > func:
+    ├── funcs[25] > func:
     │   ├── symbol: lib$helper()
     │   ├── params:
     │   ├── ret: i64
@@ -2180,7 +2323,7 @@
     │       ├── type: i64
     │       ├── fn: lib$helper().ffi
     │       └── args:
-    ├── funcs[24] > func:
+    ├── funcs[26] > func:
     │   ├── symbol: app$named()
     │   ├── params:
     │   ├── ret: i64
@@ -2188,7 +2331,7 @@
     │       ├── type: i64
     │       ├── fn: app$named().ffi
     │       └── args:
-    ├── funcs[25] > func:
+    ├── funcs[27] > func:
     │   ├── symbol: lib$named()
     │   ├── params:
     │   ├── ret: i64
@@ -2196,7 +2339,7 @@
     │       ├── type: i64
     │       ├── fn: lib$named().ffi
     │       └── args:
-    ├── funcs[26] > func:
+    ├── funcs[28] > func:
     │   ├── symbol: lib$plus(%primitives$I32, %primitives$I32)
     │   ├── params[0]: local #1 : i32
     │   ├── params[1]: local #2 : i32
@@ -2206,7 +2349,7 @@
     │       ├── fn: lib$plus(%primitives$I32, %primitives$I32).ffi
     │       ├── args[0]: local #1 : i32
     │       └── args[1]: local #2 : i32
-    ├── funcs[27] > func:
+    ├── funcs[29] > func:
     │   ├── symbol: lib$widen(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -2214,7 +2357,7 @@
     │       ├── type: i64
     │       ├── fn: lib$widen(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[28] > func:
+    ├── funcs[30] > func:
     │   ├── symbol: app$definedHere(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -2222,7 +2365,7 @@
     │       ├── type: i64
     │       ├── fn: app$definedHere(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[29] > func:
+    ├── funcs[31] > func:
     │   ├── symbol: lib$definedHere(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -2230,7 +2373,7 @@
     │       ├── type: i64
     │       ├── fn: lib$definedHere(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[30] > func:
+    ├── funcs[32] > func:
     │   ├── symbol: lib$once(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -2238,7 +2381,7 @@
     │       ├── type: i64
     │       ├── fn: lib$once(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[31] > func:
+    ├── funcs[33] > func:
     │   ├── symbol: lib$useOnce()
     │   ├── params:
     │   ├── ret: i64
@@ -2246,7 +2389,7 @@
     │       ├── type: i64
     │       ├── fn: lib$useOnce().ffi
     │       └── args:
-    ├── funcs[32] > func:
+    ├── funcs[34] > func:
     │   ├── symbol: lib$onceAlias(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -2254,7 +2397,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceAlias(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[33] > func:
+    ├── funcs[35] > func:
     │   ├── symbol: lib$onceIndirect(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -2262,7 +2405,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceIndirect(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[34] > func:
+    ├── funcs[36] > func:
     │   ├── symbol: lib$onceStarted()
     │   ├── params:
     │   ├── ret: i64
@@ -2270,7 +2413,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceStarted().ffi
     │       └── args:
-    ├── funcs[35] > func:
+    ├── funcs[37] > func:
     │   ├── symbol: lib$onceValue()
     │   ├── params:
     │   ├── ret: i64
@@ -2278,7 +2421,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceValue().ffi
     │       └── args:
-    ├── funcs[36] > func:
+    ├── funcs[38] > func:
     │   ├── symbol: lib$onceHelped()
     │   ├── params:
     │   ├── ret: i64
@@ -2286,7 +2429,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceHelped().ffi
     │       └── args:
-    ├── funcs[37] > func:
+    ├── funcs[39] > func:
     │   ├── symbol: lib$oncePointed()
     │   ├── params:
     │   ├── ret: i64
@@ -2294,7 +2437,7 @@
     │       ├── type: i64
     │       ├── fn: lib$oncePointed().ffi
     │       └── args:
-    ├── funcs[38] > func:
+    ├── funcs[40] > func:
     │   ├── symbol: lib$onceShare(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: void
@@ -2302,7 +2445,7 @@
     │       ├── type: void
     │       ├── fn: lib$onceShare(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[39] > func:
+    ├── funcs[41] > func:
     │   ├── symbol: lib$onceShared()
     │   ├── params:
     │   ├── ret: i64
@@ -2310,7 +2453,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceShared().ffi
     │       └── args:
-    ├── funcs[40] > func:
+    ├── funcs[42] > func:
     │   ├── symbol: lib$onceTokenSame()
     │   ├── params:
     │   ├── ret: i64
@@ -2318,7 +2461,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceTokenSame().ffi
     │       └── args:
-    ├── funcs[41] > func:
+    ├── funcs[43] > func:
     │   ├── symbol: lib$oncePointersSame()
     │   ├── params:
     │   ├── ret: i64
@@ -2326,7 +2469,7 @@
     │       ├── type: i64
     │       ├── fn: lib$oncePointersSame().ffi
     │       └── args:
-    ├── funcs[42] > func:
+    ├── funcs[44] > func:
     │   ├── symbol: lib$onceKeep(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: void
@@ -2334,7 +2477,7 @@
     │       ├── type: void
     │       ├── fn: lib$onceKeep(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[43] > func:
+    ├── funcs[45] > func:
     │   ├── symbol: lib$onceKept()
     │   ├── params:
     │   ├── ret: i64
@@ -2342,7 +2485,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceKept().ffi
     │       └── args:
-    ├── funcs[44] > func:
+    ├── funcs[46] > func:
     │   ├── symbol: lib$onceCallSame()
     │   ├── params:
     │   ├── ret: i64
@@ -2350,7 +2493,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceCallSame().ffi
     │       └── args:
-    ├── funcs[45] > func:
+    ├── funcs[47] > func:
     │   ├── symbol: lib$onceSetupRuns()
     │   ├── params:
     │   ├── ret: i64
@@ -2358,7 +2501,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceSetupRuns().ffi
     │       └── args:
-    ├── funcs[46] > func:
+    ├── funcs[48] > func:
     │   ├── symbol: lib$onceSetupSame()
     │   ├── params:
     │   ├── ret: i64
@@ -2366,7 +2509,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceSetupSame().ffi
     │       └── args:
-    ├── funcs[47] > func:
+    ├── funcs[49] > func:
     │   ├── symbol: lib$onceExternalRuns()
     │   ├── params:
     │   ├── ret: i64
@@ -2374,7 +2517,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceExternalRuns().ffi
     │       └── args:
-    ├── funcs[48] > func:
+    ├── funcs[50] > func:
     │   ├── symbol: lib$primed()
     │   ├── params:
     │   ├── ret: i64
@@ -2382,7 +2525,7 @@
     │       ├── type: i64
     │       ├── fn: lib$primed().ffi
     │       └── args:
-    ├── funcs[49] > func:
+    ├── funcs[51] > func:
     │   ├── symbol: lib$primedRuns()
     │   ├── params:
     │   ├── ret: i64
@@ -2390,7 +2533,7 @@
     │       ├── type: i64
     │       ├── fn: lib$primedRuns().ffi
     │       └── args:
-    ├── funcs[50] > func:
+    ├── funcs[52] > func:
     │   ├── symbol: lib$wasWarmed()
     │   ├── params:
     │   ├── ret: i64
@@ -2398,7 +2541,7 @@
     │       ├── type: i64
     │       ├── fn: lib$wasWarmed().ffi
     │       └── args:
-    ├── funcs[51] > func:
+    ├── funcs[53] > func:
     │   ├── symbol: lib$parsed()
     │   ├── params:
     │   ├── ret: i64
@@ -2406,7 +2549,7 @@
     │       ├── type: i64
     │       ├── fn: lib$parsed().ffi
     │       └── args:
-    ├── funcs[52] > func:
+    ├── funcs[54] > func:
     │   ├── symbol: lib$gnuFound()
     │   ├── params:
     │   ├── ret: i64
@@ -2414,7 +2557,7 @@
     │       ├── type: i64
     │       ├── fn: lib$gnuFound().ffi
     │       └── args:
-    ├── funcs[53] > func:
+    ├── funcs[55] > func:
     │   ├── symbol: app$result()
     │   ├── params:
     │   ├── ret: i64
@@ -2422,7 +2565,7 @@
     │       ├── type: i64
     │       ├── fn: app$result().ffi
     │       └── args:
-    └── funcs[54] > func:
+    └── funcs[56] > func:
         ├── symbol: app$args(%primitives$I64)
         ├── params[0]: local #1 : i64
         ├── ret: i64

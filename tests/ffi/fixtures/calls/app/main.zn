@@ -55,6 +55,18 @@ type Gap = struct {
 	b I64;
 }
 
+/// A struct Zane lays out in declaration order whose array of none still
+/// differs from C's, inside one Zane reorders.
+type Tail = struct {
+	n I64;
+	none @primitives$Array<I64, 0>;
+}
+
+type Wrapped = struct {
+	tag I32;
+	tail Tail;
+}
+
 I64 twice(x I64) foreign "twice";
 I32 narrow(byte I32, half I32) foreign "narrow";
 F32 halve(x F32) foreign "halve";
@@ -70,6 +82,8 @@ Tagged flip(t Tagged) foreign "flip";
 Nested nest(n Nested) foreign "nest";
 Gap gap(a I32, b I64) foreign "make_gap";
 Gap widen(g Gap) foreign "widen";
+Wrapped wrapped(tag I32, n I64) foreign "make_wrapped";
+Wrapped bump(w Wrapped) foreign "bump";
 Unit addTo(n I64) foreign "add_to";
 Unit reset() foreign "reset";
 I64 counter() foreign "counter";
@@ -131,6 +145,9 @@ Unit main() {
 	g Gap = widen(gap(I32(4), I64(9)));
 	show(String(g.a));
 	show(String(g.b));
+	w Wrapped = bump(wrapped(I32(5), I64(11)));
+	show(String(w.tag));
+	show(String(w.tail.n));
 	addTo(I64(1000));
 	show(String(counter()));
 	reset();

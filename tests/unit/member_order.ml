@@ -82,6 +82,11 @@ let crossings () =
   check "a reordered struct moves; one in C's order does not"
     (Cb.moved tagged && Cb.moved nest
     && not (Cb.moved (Cb.Record [ (Cb.Scalar N.Ty.I64, None); (Cb.Scalar N.Ty.I32, None) ])));
+  check "a struct in C's order still moves when it holds an array of none"
+    (let tail = Cb.Record [ (Cb.Scalar N.Ty.I64, None); (Cb.Scalar N.Ty.I64, Some 0) ] in
+     Cb.moved tail && Cb.moved (Cb.Record [ (tail, None) ])
+     && Cb.moved (Cb.Record [ (Cb.Scalar N.Ty.I32, None); (tail, None) ])
+     && not (Cb.moved (Cb.Record [ (Cb.Scalar N.Ty.I64, None); (Cb.Scalar N.Ty.I64, Some 2) ])));
   check "into C, each field is read from its place in the Zane layout"
     (match Cb.to_c tagged (local (Cb.zane tagged)) with
     | { N.Expr.node = N.Expr.Record [ (0, { node = N.Expr.Member { index = 1; _ }; ty = N.Ty.I32 }); (1, { node = N.Expr.Member { index = 0; _ }; ty = N.Ty.I64 }) ]; ty }

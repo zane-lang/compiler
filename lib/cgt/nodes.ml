@@ -671,13 +671,9 @@ module Callback = struct
   let c = layout ~c:true
 
   (* Whether the two layouts of a shape differ: some struct in it, however
-     deep, has its fields out of declaration order. An array field holds
-     scalars, which lie alike in both. *)
-  let rec moved = function
-    | Record [ (s, None) ] -> moved s
-    | Record fs when List.length fs > 1 ->
-        Ty.reordered (List.map (field ~c:false) fs) || List.exists (fun (s, n) -> n = None && moved s) fs
-    | _ -> false
+     deep, has its fields out of declaration order or holds an array of
+     none. *)
+  let moved shape = zane shape <> c shape
 
   (* The value [v] rebuilt member by member: from its Zane layout into its
      C one when [to_c], else back. [v] is read once for each member, so it
@@ -686,6 +682,7 @@ module Callback = struct
     match shape with
     | _ when not (moved shape) -> v
     | Record [ (s, None) ] -> rebuild ~to_c s v
+    | Record [ (_, Some _) ] -> { Expr.node = Expr.Record []; ty = layout ~c:to_c shape }
     | Record fs ->
         let zs = List.map (field ~c:false) fs and cs = List.map (field ~c:true) fs in
         let positions = Ty.order zs and zs' = Array.of_list zs and cs' = Array.of_list cs in

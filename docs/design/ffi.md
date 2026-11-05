@@ -558,9 +558,10 @@ Zane places a struct's fields by alignment
 ([`lowering.md`](lowering.md) L5), and C in declaration order. So the
 foreign verb's function rebuilds the argument field by field in C's order,
 recursively for a struct field, before the call, and the result from C's
-order after it (`Callback.to_c`, `Callback.of_c` in `lib/cgt/nodes.ml`). A
-struct whose fields both orders place alike, however deep, crosses as it
-is. Only arrays and lists of scalars are lent, whose elements lie alike in
+order after it (`Callback.to_c`, `Callback.of_c` in `lib/cgt/nodes.ml`).
+An array of none is made afresh on the other side, since Zane lays it out
+as holding nothing and C as holding its element type. A struct whose two
+layouts are alike, however deep, crosses as it is. Only arrays and lists of scalars are lent, whose elements lie alike in
 both, so no struct lies in memory that Zane and C both read, and nothing
 else needs C's order.
 

@@ -42,6 +42,8 @@ pair pair_mirror(pair p) {
 tagged flip(tagged t) { return (tagged){ -t.tag, t.n + 1 }; }
 gap make_gap(int32_t a, int64_t b) { return (gap){ .a = a, .b = b }; }
 gap widen(gap g) { return (gap){ .a = (int32_t)g.b, .b = g.a * 3 }; }
+wrapped make_wrapped(int32_t tag, int64_t n) { return (wrapped){ .tag = tag, .tail = { .n = n } }; }
+wrapped bump(wrapped w) { return (wrapped){ .tag = w.tag + 1, .tail = { .n = w.tail.n * 2 } }; }
 nested nest(nested n) { return (nested){ n.inner.tag, { n.first, n.inner.n * 2 }, n.last / 2 }; }
 void add_to(int64_t n) { total += n; count++; }
 void reset(void) { count = 0; total = 0; }
