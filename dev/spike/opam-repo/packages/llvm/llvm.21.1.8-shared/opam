@@ -1,0 +1,34 @@
+opam-version: "2.0"
+synopsis: "The OCaml bindings distributed with LLVM (toolchain spike)"
+description: "opam's llvm.19-shared recipe, pointed at LLVM 21.1.8 from the environment."
+maintainer: "zane-lang"
+authors: ["The LLVM team"]
+license: "Apache-2.0 WITH LLVM-exception"
+homepage: "https://llvm.org"
+bug-reports: "https://github.com/llvm/llvm-project/issues"
+build: [
+  ["bash" "-ex" "install.sh" "build" "--llvm-config" "llvm-config" "--libdir" lib
+   "--cmake" "cmake" "--make" make "--link-mode" "shared"]
+]
+install: [
+  ["bash" "-ex" "install.sh" "install" "--llvm-config" "llvm-config" "--libdir" lib
+   "--cmake" "cmake" "--make" make "--link-mode" "shared"]
+]
+depends: [
+  "ocaml" {>= "4.00.0"}
+  "ctypes" {>= "0.4"}
+  "ocamlfind" {build}
+]
+patches: ["AddOCaml.cmake.patch"]
+url {
+  src: "https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/llvm-project-21.1.8.src.tar.xz"
+  checksum: "sha256=4633a23617fa31a3ea51242586ea7fb1da7140e426bd62fc164261fe036aa142"
+}
+extra-source "install.sh" {
+  src: "https://raw.githubusercontent.com/ocaml/opam-source-archives/main/patches/llvm/install.sh.18"
+  checksum: "sha256=c1f95d0c7ae539fcbe97327c4ed64e7a86009143c34f7e721319407975965bae"
+}
+extra-source "AddOCaml.cmake.patch" {
+  src: "https://raw.githubusercontent.com/ocaml/opam-source-archives/main/patches/llvm/AddOCaml.cmake.patch.19"
+  checksum: "sha256=e7f8c13b60eeac6dc81ebd6ab9ddd8b6f6272d3351ae608881101b2aef949c8d"
+}

@@ -8,7 +8,7 @@ MENHIR_VERSION="20260209"
 SEDLEX_VERSION="3.8.1"
 UUCP_VERSION="18.0.0"
 UUSEG_VERSION="18.0.0"
-LLVM_VERSION="19"
+LLVM_VERSION="21.1.8"
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$root"
@@ -53,6 +53,10 @@ pins)
 llvm)
 	switch_env
 	mode=$(llvm-config --shared-mode)
+	echo "llvm-config --shared-mode: $mode"
+	opam repository list --short | grep -Fxq spike ||
+		opam repository add spike "$root/dev/spike/opam-repo" --this-switch
+	opam update spike
 	opam install -y --no-depexts "llvm.$LLVM_VERSION-$mode"
 	ocamlfind query llvm
 	;;

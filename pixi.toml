@@ -1,5 +1,6 @@
 # Toolchain spike: one conda-forge environment for Linux, macOS and Windows.
-# Exploratory; see .github/workflows/toolchain-spike.yml.
+# Exploratory; see .github/workflows/toolchain-spike.yml. LLVM is 21 because
+# conda-forge's macOS OCaml requires clang, lld and llvm-tools >= 21.
 
 [workspace]
 name = "zane-compiler"
@@ -11,9 +12,9 @@ ocaml = "5.5.1.*"
 opam = "*"
 c-compiler = "*"
 cxx-compiler = "*"
-llvmdev = "19.1.*"
-clangdev = "19.1.*"
-lld = "19.1.*"
+llvmdev = "21.1.8.*"
+clangdev = "21.1.8.*"
+lld = "21.1.8.*"
 cmake = "*"
 ninja = "*"
 make = "*"
@@ -26,3 +27,8 @@ nodejs = "*"
 
 [target.unix.dependencies]
 m4 = "*"
+
+# The MSVC build of OCaml, which matches how conda-forge builds LLVM on
+# Windows; the gcc (MinGW) build would not link LLVM's C++ libraries.
+[target.win-64.dependencies]
+ocaml = { version = "5.5.1.*", build = "vs2022*" }
