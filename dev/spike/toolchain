@@ -25,10 +25,10 @@ echo "conda's OPAM settings: $(env | grep '^OPAM' | tr '\n' ' ')"
 export OPAMROOT="$HOME/.opam-zane-spike"
 
 # On Windows, conda-forge installs native tools under Library/; put the
-# directories holding ocamlopt and opam first on PATH.
+# directories holding ocamlopt, opam and zig first on PATH.
 if [[ $windows == 1 ]]; then
 	prefix=$(cygpath -u "${CONDA_PREFIX:?}")
-	for tool in ocamlopt opam; do
+	for tool in ocamlopt opam zig; do
 		found=$(find "$prefix" -maxdepth 4 -iname "$tool.exe" -o -maxdepth 4 -iname "$tool.opt.exe" 2>/dev/null | head -1)
 		echo "$tool: ${found:-not under $prefix}"
 		[[ -n "$found" ]] && PATH="$(dirname "$found"):$PATH"

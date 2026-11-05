@@ -5,6 +5,7 @@
    gives back is plain data: bytes, names, and why it failed. */
 
 #include "llvm/Bitcode/BitcodeReader.h"
+#include "llvm/Config/llvm-config.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
@@ -118,9 +119,14 @@ extern "C" value zane_object_emit(value bitcode, value triple, value cpu) {
       // them: the C library runs no `.ctors`.
       llvm::TargetOptions options;
       options.UseInitArray = true;
+#if LLVM_VERSION_MAJOR >= 21
+      llvm::Triple triple(name);
+#else
+      const std::string &triple = name;
+#endif
       std::unique_ptr<llvm::TargetMachine> tm(target->createTargetMachine(
-          name, String_val(cpu), "", options, llvm::Reloc::PIC_, std::nullopt, llvm::CodeGenOptLevel::Default));
-      m->setTargetTriple(name);
+          triple, String_val(cpu), "", options, llvm::Reloc::PIC_, std::nullopt, llvm::CodeGenOptLevel::Default));
+      m->setTargetTriple(triple);
       m->setDataLayout(tm->createDataLayout());
       llvm::LoopAnalysisManager lam;
       llvm::FunctionAnalysisManager fam;

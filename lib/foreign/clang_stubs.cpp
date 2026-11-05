@@ -35,6 +35,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Config/llvm-config.h"
+#include "llvm/Support/VirtualFileSystem.h"
 
 #include <map>
 #include <memory>
@@ -46,6 +48,16 @@ extern "C" {
 #include <caml/alloc.h>
 #include <caml/memory.h>
 #include <caml/mlvalues.h>
+}
+
+/* A bit-field's width in bits. LLVM 21 reads it off the declaration alone. */
+static unsigned bit_width(const clang::FieldDecl *f, const clang::ASTContext &ctx) {
+#if LLVM_VERSION_MAJOR >= 21
+  (void)ctx;
+  return f->getBitWidthValue();
+#else
+  return f->getBitWidthValue(ctx);
+#endif
 }
 
 namespace {
@@ -129,7 +141,15 @@ template <typename Act> Run run(const std::vector<std::string> &args, Act act) {
   for (const std::string &a : args) argv.push_back(a.c_str());
   llvm::CrashRecoveryContext crc;
   bool finished = crc.RunSafely([&] {
+#if LLVM_VERSION_MAJOR >= 21
+    /* The engine holds the options by reference, so they live as long as
+       this run does. */
+    clang::DiagnosticOptions diagnostic_options;
+    auto diagnostics =
+        clang::CompilerInstance::createDiagnostics(*llvm::vfs::getRealFileSystem(), diagnostic_options, problems, false);
+#else
     auto diagnostics = clang::CompilerInstance::createDiagnostics(new clang::DiagnosticOptions(), problems, false);
+#endif
     clang::CreateInvocationOptions options;
     options.Diags = diagnostics;
     std::shared_ptr<clang::CompilerInvocation> invocation = clang::createInvocation(argv, options);
@@ -137,9 +157,14 @@ template <typename Act> Run run(const std::vector<std::string> &args, Act act) {
     /* Without carets the instance prints no "N errors generated" of its
        own: every problem reaches OCaml through [problems] alone. */
     invocation->getDiagnosticOpts().ShowCarets = false;
+#if LLVM_VERSION_MAJOR >= 21
+    clang::CompilerInstance ci(invocation);
+    ci.createDiagnostics(*llvm::vfs::getRealFileSystem(), problems, false);
+#else
     clang::CompilerInstance ci;
     ci.setInvocation(invocation);
     ci.createDiagnostics(problems, false);
+#endif
     result.ok = act(ci) && !ci.getDiagnostics().hasErrorOccurred();
   });
   if (!finished) {
@@ -352,7 +377,7 @@ public:
         str(f->getName().str());
         type(f->getType());
         num(layout.getFieldOffset(f->getFieldIndex()));
-        word(f->isBitField() ? std::to_string(f->getBitWidthValue(ctx)) : "-1");
+        word(f->isBitField() ? std::to_string(bit_width(f, ctx)) : "-1");
       }
     }
   }
