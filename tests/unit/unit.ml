@@ -1542,6 +1542,7 @@ let () =
   overloads ();
   string_constructors ();
   type_layout ();
+  Member_order.run ();
   growing_types ();
   fixpoint_chain ();
   runtime_abi ();

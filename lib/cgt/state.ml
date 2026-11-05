@@ -198,6 +198,9 @@ type state = {
   (* Whether a member is boxed in the type that holds it, by holder and
      member (Type_layout.boxed). *)
   boxes : (Tty.t * Tty.t, bool) Hashtbl.t;
+  (* Where each declared member of a struct goes in its layout, by the
+     struct's type (Type_layout.member_index). *)
+  orders : (Tty.t, int array) Hashtbl.t;
   (* Each expression verb's size with what it expands written out, by verb
      key, or [None] for a verb not expanded where it is called (L11,
      Verbs.inlines). *)
@@ -268,6 +271,7 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     region;
     sized = Hashtbl.create 64;
     boxes = Hashtbl.create 64;
+    orders = Hashtbl.create 64;
     sizes = Hashtbl.create 64;
     foreign_verbs = Hashtbl.create 8;
     thunks = [];

@@ -1,0 +1,4 @@
+File "fixtures/reject/beyondLimitField/main.zn", line 19, characters 5-25:
+19 |     big Holder = make();
+   |     ^^^^^^^^^^^^^^^^^^^^
+Error: `beyondLimitField$Holder` takes 2^48 bytes or more, past the limit on any value's size

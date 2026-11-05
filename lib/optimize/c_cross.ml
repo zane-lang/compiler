@@ -187,9 +187,28 @@ let rec shape_ty (s : Callback.shape) =
   | Callback.View { text = false; _ } -> stop "a list C passes a function value"
   | Callback.Object _ -> stop "a C object C passes a function value"
 
+(* A value of the shape [s], its members moved between C's order and the
+   order Zane lays them out in (Callback.to_c, Callback.of_c): from C's
+   when [to_c] is false, into it when true. *)
+let rec reorder ~to_c (s : Callback.shape) (v : v) =
+  match (s, v) with
+  | Callback.Record [ (f, None) ], v -> reorder ~to_c f v
+  | Callback.Record fs, VRecord a when List.length fs > 1 && Array.length a = List.length fs ->
+      let positions = Ty.order (List.map (Callback.field ~c:false) fs) in
+      let out = Array.copy a in
+      List.iteri
+        (fun j (f, n) ->
+          let move x = if n = None then reorder ~to_c f x else x in
+          if to_c then out.(j) <- move a.(positions.(j)) else out.(positions.(j)) <- move a.(j))
+        fs;
+      VRecord out
+  | _ -> v
+
 (* A call C makes of a function value's adapter, when [name] is one: its
-   arguments read from the slots whose addresses the table holds, the
-   lambda run by [zane], and its result written into the result slot. *)
+   arguments read from the slots whose addresses the table holds, each
+   struct rebuilt in Zane's order, the lambda run by [zane], and its result
+   written into the result slot in C's order, as the adapter does at run
+   time (docs/design/ffi.md F11). *)
 let adapter prog c name args zane =
   match prog.ir with
   | None -> None
@@ -210,7 +229,7 @@ let adapter prog c name args zane =
                 match M.load q.M.alloc q.M.off C_ir.Ptr with
                 | M.Ptr e -> read c e (shape_ty s)
                 | _ -> stop "an array C passes from nowhere")
-            | M.Ptr q -> read c q (shape_ty s)
+            | M.Ptr q -> reorder ~to_c:false s (read c q (shape_ty s))
             | _ -> stop "an argument slot that is nowhere"
           in
           let values = List.mapi arg cb.Callback.takes in
@@ -222,7 +241,7 @@ let adapter prog c name args zane =
                  with its padding bytes zeroed. *)
               let t = shape_ty s in
               M.zero_fill q.M.alloc q.M.off (fst (Ty.size_align t));
-              write prog c q t r
+              write prog c q t (reorder ~to_c:true s r)
           | _ -> stop "a result slot that is nowhere");
           Some M.Poison
       | _ -> None)

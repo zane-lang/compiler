@@ -86,3 +86,4 @@ ratio scale_ratio(ratio (*f)(ratio), ratio r) { return f(f(r)); }
 
 quad rotate_quad(quad (*f)(quad), quad q) { return f(q); }
 boxed open_box(boxed (*f)(boxed), boxed b) { return f(b); }
+wrap through_wrap(wrap (*f)(wrap), wrap w) { return f(w); }

@@ -23,7 +23,7 @@
     │   └── positions[0]: box @0 of spawns$Countdown (4 bytes) when [0]=-2
     ├── layouts[7] > layout:
     │   ├── type: spawns$Holder
-    │   └── positions[0]: box @0 of spawns$Countdown (4 bytes) when [0]=-2
+    │   └── positions[0]: box @8 of spawns$Countdown (4 bytes) when [8]=-2
     ├── layouts[8] > layout:
     │   ├── type: spawns$Tally
     │   └── positions:
@@ -603,7 +603,7 @@
     │       │   ├── local: #107
     │       │   ├── scope: %11
     │       │   ├── value > call:
-    │       │   │   ├── type: {<void | box32>, i64}
+    │       │   │   ├── type: {i64, <void | box32>}
     │       │   │   ├── fn: spawns$Holder(spawns$Countdown)
     │       │   │   └── args[0] > case:
     │       │   │       ├── type: <void | box32>
@@ -630,8 +630,8 @@
     │       │       ├── body[1] > let:
     │       │       │   ├── local: #114
     │       │       │   └── value > offset:
-    │       │       │       ├── within: {<void | box32>, i64}
-    │       │       │       ├── path: 0
+    │       │       │       ├── within: {i64, <void | box32>}
+    │       │       │       ├── path: 1
     │       │       │       └── base: address of #107 : ptr
     │       │       ├── body[2] > spawn:
     │       │       │   ├── task: #116
@@ -654,8 +654,8 @@
     │       │       ├── body[3] > let:
     │       │       │   ├── local: #117
     │       │       │   └── value > offset:
-    │       │       │       ├── within: {<void | box32>, i64}
-    │       │       │       ├── path: 1
+    │       │       │       ├── within: {i64, <void | box32>}
+    │       │       │       ├── path: 0
     │       │       │       └── base: address of #107 : ptr
     │       │       ├── body[4] > spawn:
     │       │       │   ├── task: #119
@@ -699,8 +699,8 @@
     │       │       │   │   └── value > snapshot:
     │       │       │   │       ├── type: <void | box32>
     │       │       │   │       └── ptr > offset:
-    │       │       │   │           ├── within: {<void | box32>, i64}
-    │       │       │   │           ├── path: 0
+    │       │       │   │           ├── within: {i64, <void | box32>}
+    │       │       │   │           ├── path: 1
     │       │       │   │           └── base: address of #107 : ptr
     │       │       │   ├── body[1] > assign:
     │       │       │   │   ├── place: #124
@@ -759,8 +759,8 @@
     │       │       ├── left > snapshot:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
-    │       │       │       ├── within: {<void | box32>, i64}
-    │       │       │       ├── path: 1
+    │       │       │       ├── within: {i64, <void | box32>}
+    │       │       │       ├── path: 0
     │       │       │       └── base: address of #107 : ptr
     │       │       └── right: 3 : i64
     │       ├── body[36] > spawn:
@@ -2412,13 +2412,13 @@
     ├── funcs[13] > func:
     │   ├── symbol: spawns$Holder(spawns$Countdown)
     │   ├── params[0]: local #1 : <void | box32>
-    │   ├── ret: {<void | box32>, i64}
+    │   ├── ret: {i64, <void | box32>}
     │   └── body[0] > return > escape:
     │       ├── exit: function
     │       ├── value > record:
-    │       │   ├── type: {<void | box32>, i64}
-    │       │   ├── members[0] > member 0: local #1 : <void | box32>
-    │       │   └── members[1] > member 1: 0 : i64
+    │       │   ├── type: {i64, <void | box32>}
+    │       │   ├── members[0] > member 1: local #1 : <void | box32>
+    │       │   └── members[1] > member 0: 0 : i64
     │       └── layout: spawns$Holder
     ├── funcs[14] > func:
     │   ├── symbol: spawns$watch(&spawns$Holder, %primitives$I64, %primitives$I64)
@@ -2462,8 +2462,8 @@
     │   │   │   │       │   │   ├── value > snapshot:
     │   │   │   │       │   │   │   ├── type: <void | box32>
     │   │   │   │       │   │   │   └── ptr > offset:
-    │   │   │   │       │   │   │       ├── within: {<void | box32>, i64}
-    │   │   │   │       │   │   │       ├── path: 0
+    │   │   │   │       │   │   │       ├── within: {i64, <void | box32>}
+    │   │   │   │       │   │   │       ├── path: 1
     │   │   │   │       │   │   │       └── base: local #1 : ptr
     │   │   │   │       │   │   └── layout: spawns$Countdown
     │   │   │   │       │   └── layout: spawns$Countdown

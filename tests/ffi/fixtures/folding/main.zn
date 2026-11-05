@@ -5,15 +5,26 @@
 /// to, replaced through its setter where it is settled, summed and
 /// released, whose whole life folds away; a capability's calls left in
 /// place; a C function reaching `sin`, which the C library alone has,
-/// left as a call; a C sort calling a Zane comparison, folded; and a
-/// string C returns, folded.
+/// left as a call; a C sort calling a Zane comparison, folded; a string C
+/// returns, folded; and a struct whose fields Zane lays out in another
+/// order than C, passed and returned, folded, directly and through
+/// function values C calls.
 package folding;
 
 alias Unit = @primitives$Unit;
+alias I32 = @primitives$I32;
 alias I64 = @primitives$I64;
 alias F64 = @primitives$F64;
 alias Bool = @primitives$Bool;
 alias String = @primitives$String;
+
+type Trio = struct {
+	tag I32;
+	n I64;
+	k I32;
+}
+
+Trio(tag I32, n I64, k I32) => init{ tag; n; k; }
 
 type Buffer = #handle{ cType = "buffer_t"; set = "buffer_set"; free = "buffer_free"; }
 type Ticker = #handle{ cType = "ticker_t"; }
@@ -26,6 +37,9 @@ I64 next(this Ticker) mut foreign "ticker_next";
 F64 sine(x F64) foreign "fold_sine";
 I64 sorted(before Bool[I64, I64], xs @primitives$List<I64>) foreign "fold_sorted";
 String shout(text String) foreign "fold_shout";
+Trio trio(t Trio) foreign "fold_trio";
+I64 pick(f I64[Trio], t Trio) foreign "fold_pick";
+Trio remap(f Trio[Trio], t Trio) foreign "fold_remap";
 
 Unit show(text String) {
 	@program$console!print(text);
@@ -58,5 +72,14 @@ Unit main() {
 	digits!push(I64(2));
 	show(String(sorted(Bool(a I64, b I64) { return @operators$lessThan(b, a); }, digits)));
 	show(shout(String("folded")));
+	t Trio = trio(Trio(I32(1), I64(20), I32(3)));
+	show(String(t.tag));
+	show(String(t.n));
+	show(String(t.k));
+	show(String(pick(I64(t Trio) { return @operators$add(I64(t.tag), @operators$multiply(t.n, I64(10))); }, Trio(I32(7), I64(5), I32(9)))));
+	r Trio = remap(Trio(t Trio) { return Trio(t.k, t.n, t.tag); }, Trio(I32(2), I64(6), I32(4)));
+	show(String(r.tag));
+	show(String(r.n));
+	show(String(r.k));
 	return Unit();
 }
