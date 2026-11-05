@@ -1,5 +1,5 @@
 /// A handle's C type and C functions checked against the interface headers
-/// (ffi.md §4.1).
+/// (ffi.md §4.1), each refused C type reported once, at its declaration.
 package handleC;
 
 alias Unit = @primitives$Unit;
@@ -17,6 +17,10 @@ type ConstFree = #handle{ cType = "a_t"; free = "a_release"; }
 type StatusFree = #handle{ cType = "a_t"; free = "a_close"; }
 type BadSet = #handle{ cType = "a_t"; set = "a_swap"; free = "a_free"; }
 type Included = #handle{ cType = "inner_t"; }
+
+/// Passes a handle whose C type was refused above, which is reported
+/// there alone.
+I32 innerSize(this Included) foreign "inner_size";
 
 Unit main() {
 	return Unit();

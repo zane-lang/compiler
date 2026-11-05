@@ -50,7 +50,7 @@ relocation needs, by `llvm-strip` (`STRIP` when set).
 | `noObject` | A null result from a foreign verb that declares no abort, which stops the program |
 | `vendored` | A `c.coda` whose rows apply in order: a `source` pattern over a vendored tree (skipping a file that is not C), an `include` directory, a `define`, and a `define` for another target that does not apply |
 | `reject/handleForms` | A handle declared by `alias`, without `#`, with type parameters, or with entries it does not take |
-| `reject/handleC` | A handle's `cType`, free function and setter checked against the interface headers, including a type only an included header declares |
+| `reject/handleC` | A handle's `cType`, free function and setter checked against the interface headers, including a type only an included header declares, each refused `cType` reported once, at its declaration, and not again at a verb that passes the handle |
 | `reject/verbForms` | A generic foreign verb, a concept or block parameter, a marked parameter, a `&` result, and abort types where they are not allowed |
 | `reject/interface` | Foreign verbs checked against their C declarations: missing, the wrong count, variadic, unprototyped, other C types, `long`, structs laid out differently, aligned more strictly by `_Alignas` or with a bit-field, a list returned, and a function value whose C parameter or result is a narrow integer type |
 | `reject/windowsInt` | A typedef that is 64 bits on Linux and 32 on Windows, refused in the Windows build only |

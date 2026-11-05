@@ -458,6 +458,9 @@ and handle_corresponds env iface v position tid (h : Nodes.Handle.t) c =
       let names_it pointee = match (pointee, record) with C.Record { union = false; name }, Some r -> name = r | _ -> false in
       ignore iface;
       match c with
+      (* A `cType` no interface header declares is reported once, at the
+         handle's declaration, and not again at each verb that passes it. *)
+      | _ when record = None -> Ok ()
       | C.Pointer { const = c_const; pointee } when names_it pointee ->
           if c_const = const then Ok ()
           else if const then
