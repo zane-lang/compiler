@@ -185,7 +185,14 @@ an error naming the package and the row: the linker's own words for it,
 `unable to find library -lX` from LLD, `library not found for -lX` from
 `ld64` and `cannot find -lX` from GNU `ld`, are read from what the link
 writes, and the error names the row of the `c.coda` that asks for the
-library in their place.
+library in their place. A C function a foreign verb names that nothing
+linked defines, declared by an interface header and given by no source,
+archive or system library, is read from the link's words the same way:
+`undefined reference to` from GNU `ld`, `undefined symbol:` from LLD and
+`referenced from:` from `ld64`, each with the function referencing it, which
+for a foreign verb's thunk is the verb's symbol and `.ffi`. The error names
+the verb and the C function in their place
+(`tests/ffi/fixtures/reject/undefinedC`).
 
 **F5. `zanec` reads a package's `c.coda` itself.** The settings live in the
 package's directory (`ffi.md` §2.3), beside the `.c` and `.h` files the

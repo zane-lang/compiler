@@ -1,0 +1,17 @@
+/// A foreign verb whose C function an interface header declares and no C
+/// source defines, refused when the program links, naming the verb and the
+/// function, beside one whose C function a source does define.
+package undefinedC;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+I64 here(x I64) foreign "defined_here";
+I64 nowhere(x I64) foreign "defined_nowhere";
+
+Unit main() {
+	@program$console!print(String(here(I64(1))));
+	@program$console!print(String(nowhere(I64(1))));
+	return Unit();
+}

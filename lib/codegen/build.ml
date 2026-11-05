@@ -543,6 +543,88 @@ let library_error libraries text =
       else None)
     libraries
 
+(* Each C symbol [text], a linker's errors, says is undefined, beside the
+   function referencing it, as GNU `ld` says it (`in function `F':` and
+   then `undefined reference to `S'`), as `ld.lld` and `lld-link` do
+   (`undefined symbol: S`, then `>>> referenced by …:(F)`) and as `ld64`
+   does (`"_S", referenced from:`, then `F in …`). *)
+let undefined_symbols text =
+  (* What follows the first [prefix] in [line]. *)
+  let after prefix line =
+    let n = String.length prefix and m = String.length line in
+    let rec find i = if i + n > m then None else if String.sub line i n = prefix then Some (i + n) else find (i + 1) in
+    Option.map (fun i -> String.sub line i (m - i)) (find 0)
+  in
+  let before stop s = match String.index_opt s stop with Some i -> String.sub s 0 i | None -> s in
+  (* [s] up to its last [word]. *)
+  let before_last word s =
+    let n = String.length word in
+    let rec find i = if i < 0 then s else if String.sub s i n = word then String.sub s 0 i else find (i - 1) in
+    find (String.length s - n)
+  in
+  (* The text between the first `(` and the last `)`: lld writes the
+     referencing function there, and it may hold parentheses itself. *)
+  let parenthesized s =
+    match (String.index_opt s '(', String.rindex_opt s ')') with
+    | Some i, Some j when j > i -> Some (String.sub s (i + 1) (j - i - 1))
+    | _ -> None
+  in
+  let found = ref [] in
+  let func = ref None and symbol = ref None in
+  List.iter
+    (fun line ->
+      match
+        ( after "in function `" line,
+          after "undefined reference to `" line,
+          after "undefined symbol: " line,
+          after ">>> " line,
+          after "\", referenced from:" line )
+      with
+      | Some f, _, _, _, _ -> func := Some (before '\'' f)
+      | _, Some s, _, _, _ -> Option.iter (fun f -> found := (before '\'' s, f) :: !found) !func
+      | _, _, Some s, _, _ -> symbol := Some (String.trim s)
+      | _, _, _, Some r, _ -> (
+          match (!symbol, parenthesized r) with Some s, Some f -> found := (s, f) :: !found | _ -> ())
+      | _, _, _, _, Some _ -> (
+          match after "\"_" line with Some s -> symbol := Some (before '"' s) | None -> symbol := None)
+      | None, None, None, None, None -> (
+          match !symbol with
+          | Some s when String.starts_with ~prefix:" " line && after " in " line <> None ->
+              (* ld64 spells a function with the target's `_` before it. *)
+              let f = before_last " in " (String.trim line) in
+              let f = if String.starts_with ~prefix:"_" f then String.sub f 1 (String.length f - 1) else f in
+              found := (s, f) :: !found
+          | _ -> ()))
+    (String.split_on_char '\n' text);
+  List.sort_uniq compare !found
+
+(* A failed link as the error that names each foreign verb whose C
+   function nothing linked defines, when its [text] says so: the glue's
+   thunk for a foreign verb is the verb's symbol and `.ffi`, so the
+   function referencing the undefined symbol names the verb. *)
+let undefined_error text =
+  let verb f =
+    if String.ends_with ~suffix:".ffi" f then
+      let f = String.sub f 0 (String.length f - 4) in
+      Some (match String.index_opt f '(' with Some i -> String.sub f 0 i | None -> f)
+    else None
+  in
+  match
+    List.sort_uniq compare
+      (List.filter_map (fun (s, f) -> Option.map (fun v -> (v, s)) (verb f)) (undefined_symbols text))
+  with
+  | [] -> None
+  | missing ->
+      Some
+        (String.concat "\n"
+           (List.map
+              (fun (v, s) ->
+                Printf.sprintf
+                  "the foreign verb `%s` calls the C function `%s`, which an interface header declares and nothing \
+                   linked defines: no C source, `archive` row or `system` row of its package gives it (ffi.md §2.4)"
+                  v s)
+              missing))
+
 (* [args] linked by the LLD in the compiler with the command [bundled]
    holds, when a released toolchain bundles one, with [deps], the program's
    other objects, after [obj]; else with the command *cc* gives, when LLD
@@ -570,9 +652,12 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
         prerr_string written;
         Ok ()
     | _, Some error -> Error error
-    | n, None ->
-        prerr_string written;
-        Error (Printf.sprintf "`%s` exited with %d" (Filename.quote_command cc args) n)
+    | n, None -> (
+        match undefined_error written with
+        | Some error -> Error error
+        | None ->
+            prerr_string written;
+            Error (Printf.sprintf "`%s` exited with %d" (Filename.quote_command cc args) n))
   in
   let from_bundle file =
     match In_channel.with_open_bin file In_channel.input_all with

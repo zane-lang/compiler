@@ -86,5 +86,6 @@ relocation needs, by `llvm-strip` (`STRIP` when set).
 | `reject/linkerSet` | C placing globals in sections named as C identifiers, linker sets, each refused, beside one in a section that is not |
 | `reject/objectLinkerSet` | Linker sets placed through objects: an archive's member placing data in `plugins` and file-scope assembly placing data in `zane_hooks`, each refused, beside a section of each that is not one |
 | `reject/headerAssembly` | An interface header holding assembly, which reaches the glue and is refused |
+| `reject/undefinedC` | A foreign verb whose C function an interface header declares and no C source defines, refused at the link by the verb and the function |
 | `reject/systemMissing` | A `system` row naming a library the linker cannot find, refused at the link by its row |
 | `reject/notCoda` | A `c.coda` that is not Coda, reported where the parser stopped |

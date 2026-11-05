@@ -1355,6 +1355,40 @@ let escaped_locations () =
       ("an internal error", true, Diagnostic.render_internal ~span:at message);
     ]
 
+(* A link that fails on a foreign verb's C function, which nothing linked
+   defines, names the verb and the function, read from what GNU `ld`,
+   `ld.lld` and `ld64` each write. *)
+let undefined_foreign () =
+  let module Build = Codegen__Build in
+  let thunk = "fs$_exists(this fs$Fs, %primitives$String).ffi" in
+  let expected = Some [ ("fs$_exists", "zfs_exists") ] in
+  let read text =
+    Option.map
+      (List.filter_map (fun (s, f) ->
+           if String.ends_with ~suffix:".ffi" f then Some (String.sub f 0 (String.index f '('), s) else None))
+      (Some (Build.undefined_symbols text))
+  in
+  check "GNU ld's undefined reference names the verb"
+    (read
+       (Printf.sprintf
+          "/usr/bin/ld: /cache/x.c.o: in function `%s':\nfs.c:(.text+0x3f6): undefined reference to `zfs_exists'\nclang: error: linker command failed with exit code 1"
+          thunk)
+    = expected);
+  check "ld.lld's undefined symbol names the verb"
+    (read
+       (Printf.sprintf "ld.lld: error: undefined symbol: zfs_exists\n>>> referenced by fs.c\n>>>               /cache/x.c.o:(%s)\n" thunk)
+    = expected);
+  check "ld64's undefined symbol names the verb"
+    (read
+       (Printf.sprintf "Undefined symbols for architecture arm64:\n  \"_zfs_exists\", referenced from:\n      _%s in x.c.o\nld: symbol(s) not found for architecture arm64\n" thunk)
+    = expected);
+  check "a symbol only Zane's own code references is not a foreign verb's"
+    (Build.undefined_error "ld.lld: error: undefined symbol: zane_gone\n>>> referenced by program.o:(main)\n" = None);
+  check "the error names the verb and its C function"
+    (match Build.undefined_error (Printf.sprintf "ld.lld: error: undefined symbol: zfs_exists\n>>> referenced by x.o:(%s)\n" thunk) with
+    | Some e -> contains e "`fs$_exists` calls the C function `zfs_exists`"
+    | None -> false)
+
 (* A message names a dependency's types without the stamp that tells its
    versions apart, unless it names two versions of one package. *)
 let unstamped_messages () =
@@ -1500,6 +1534,7 @@ let () =
   fixture_pairing ();
   escaped_locations ();
   unstamped_messages ();
+  undefined_foreign ();
   Builds.cached_runtime ();
   Builds.linked_in_process ();
   Builds.bundled_runtime ();

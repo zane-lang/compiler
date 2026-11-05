@@ -1947,6 +1947,20 @@
   (diff golden/reject.systemMissing.err reject.systemMissing.err.actual)))
 
 (rule
+ (deps (source_tree fixtures/reject/undefinedC))
+ (action
+  (with-stderr-to
+   reject.undefinedC.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --build reject.undefinedC.exe --package fixtures/reject/undefinedC)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.undefinedC.err reject.undefinedC.err.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/variables))
  (action
   (with-stderr-to
