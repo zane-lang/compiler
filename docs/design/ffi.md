@@ -172,7 +172,10 @@ relies on, and a path elsewhere, such as a system header's, still changes
 it. A fixed name is also a directory the front end can read: a clang VFS
 overlay remaps each to the directory it stands for, so a source that
 includes itself through `__FILE__` finds itself
-(`tests/ffi/fixtures/selfInclude`). The glue's directory, a build's own,
+(`tests/ffi/fixtures/selfInclude`). `-fno-file-reproducible` keeps the
+host's `/` in `__FILE__` for every target: for a Windows target clang
+would spell it `\zane\pkg\…`, a name a Unix host reads as one file
+in no directory, which no overlay root can name. The glue's directory, a build's own,
 is spelled `/zane/glue` the same way (F8). The overlay is a file of its
 own, named by a hash of its text, in the cache's `foreign/` directory
 beside the headers, or in the build's work directory for the glue, and the

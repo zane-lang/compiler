@@ -127,9 +127,12 @@ let overlay ~dir maps =
 (* The flags that spell each directory of [maps] by its fixed name, in
    `__FILE__` and debug information, and resolve that name back to it
    through an overlay written into [dir]: the cache's `foreign/` directory
-   or a build's own work directory, as for the headers. *)
+   or a build's own work directory, as for the headers. `__FILE__` keeps
+   the host's separator on every target, since the overlay is read with
+   the host's: a Windows target's `\zane\pkg\...` names no directory on a
+   Unix host. *)
 let map_flags ~dir maps =
-  List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ "=" ^ to_) maps @ [ "-ivfsoverlay"; overlay ~dir maps ]
+  List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ "=" ^ to_) maps @ [ "-fno-file-reproducible"; "-ivfsoverlay"; overlay ~dir maps ]
 
 (* [args] without the overlays [map_flags] adds: an overlay's path is a
    temporary file's, and what it holds follows from the maps, which the
