@@ -36,7 +36,17 @@ if [[ $windows == 1 ]]; then
 	export PATH
 fi
 
-switch_env() { eval "$(opam env --switch="$root" --set-switch)"; }
+# On Windows, opam env writes PATH in Windows' form, which Git Bash does
+# not read; there the switch's bin directory goes on PATH directly.
+switch_env() {
+	if [[ $windows == 1 ]]; then
+		export OPAMSWITCH="$root"
+		PATH="$(cygpath -u "$(opam var bin)"):$PATH"
+		export PATH
+	else
+		eval "$(opam env --switch="$root" --set-switch)"
+	fi
+}
 
 # What devbox's shell sets, and LLVM's archive tools in place of the
 # platform ones conda's compiler activation names in AR and STRIP.
