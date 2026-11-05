@@ -1,0 +1,5 @@
+; The flags the bindings in lib/llvm are compiled and linked with, read from
+; the LLVM that llvm-config describes.
+(executable
+ (name discover)
+ (libraries unix))

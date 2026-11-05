@@ -31,8 +31,6 @@
   ; The diagnostic renderer splits a source line into grapheme clusters and
   ; measures each one's width (lib/diagnostic/render.ml).
   uucp
-  uuseg
-  ; Codegen builds its LLVM module through the bindings (docs/design/lowering.md L2).
-  llvm)
+  uuseg)
  (tags
   ("compiler" "zane" "parser" "menhir" "ocaml")))

@@ -1,3 +1,4 @@
-; vendor/ holds git submodules whose own dune files build them as projects of
-; their own; the compiler builds what it needs of them from lib/.
+; vendor/ holds third-party sources: git submodules whose own dune files
+; build them as projects of their own, and LLVM's OCaml bindings. The
+; compiler builds what it needs of them from lib/.
 (data_only_dirs vendor)

@@ -109,16 +109,6 @@ pins)
 	opam install -y --no-depexts "dune.$DUNE_VERSION" "menhir.$MENHIR_VERSION" "sedlex.$SEDLEX_VERSION" \
 		"uucp.$UUCP_VERSION" "uuseg.$UUSEG_VERSION"
 	;;
-llvm)
-	switch_env
-	mode=$(llvm-config --shared-mode)
-	echo "llvm-config --shared-mode: $mode"
-	opam repository list --short | grep -Fxq spike ||
-		opam repository add spike "$root/dev/spike/opam-repo" --this-switch
-	opam update spike
-	opam install -y --no-depexts "llvm.$LLVM_VERSION-$mode"
-	ocamlfind query llvm
-	;;
 build)
 	switch_env
 	export LLVM_CONFIG="${LLVM_CONFIG:-$(command -v llvm-config)}"

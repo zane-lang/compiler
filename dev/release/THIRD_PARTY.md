@@ -15,6 +15,9 @@ The archive also includes:
   headers embedded in it (Apache-2.0 with LLVM exceptions):
   https://github.com/llvm/llvm-project/tree/llvmorg-19.1.7
   https://github.com/llvm/llvm-project/tree/llvmorg-21.1.8
+- LLVM's OCaml bindings (Apache-2.0 with LLVM exceptions), built into the
+  compiler from the copy of LLVM 21.1.8's `llvm/bindings/ocaml` at
+  `vendor/llvm-ocaml`
 - Coda's parser and OCaml binding (MIT), built into the compiler from the
   submodule at `vendor/coda`: https://github.com/zane-lang/coda
 - OCaml's native runtime (LGPL-2.1 with the OCaml linking exception):

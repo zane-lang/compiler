@@ -19,13 +19,9 @@
   (flags
    (:standard
     (:include lld_cxx.sexp))))
- ; The bindings' own C stubs are also named by path: their archive is
- ; libllvm.a, which `-lllvm` would find as libLLVM.dylib instead where the
- ; file system ignores case (macOS) and both sit in one directory.
  (c_library_flags
-  (:include lld_libs.sexp)
-  %{lib:llvm:libllvm.a})
- (libraries cache cgt diagnostic rewrite runtime_source unix llvm llvm.analysis llvm.irreader llvm.bitreader llvm.linker llvm.target llvm.passbuilder llvm.all_backends))
+  (:include lld_libs.sexp))
+ (libraries cache cgt diagnostic rewrite runtime_source unix llvm llvm_analysis llvm_irreader llvm_bitreader llvm_linker llvm_target llvm_passbuilder llvm_all_backends))
 
 (rule
  (target abi.ml)

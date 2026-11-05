@@ -53,8 +53,6 @@ jobs:
         run: pixi run bash dev/spike/toolchain opam
       - name: opam pins (dune, menhir, sedlex, uucp, uuseg)
         run: pixi run bash dev/spike/toolchain pins
-      - name: LLVM OCaml bindings
-        run: pixi run bash dev/spike/toolchain llvm
       - name: Build zanec
         run: pixi run bash dev/spike/toolchain build
       - name: Build and run hello
