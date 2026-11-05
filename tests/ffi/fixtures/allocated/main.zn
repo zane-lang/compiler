@@ -1,0 +1,40 @@
+/// Strings C returns in bytes `zane_bytes_alloc` gave it (ffi.md §3.5),
+/// which become the string's without a copy: all of them, a prefix of
+/// them, and none of them; beside bytes of C's own, which are copied; and a
+/// capability-free call, which an optimized build folds.
+package allocated;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+type Texts = #handle{ cType = "texts_t"; }
+
+String upper(this Texts, s String) mut foreign "texts_upper";
+String prefix(this Texts, s String, n I64) mut foreign "texts_prefix";
+String fixed(this Texts) mut foreign "texts_fixed";
+String empty(this Texts) mut foreign "texts_empty";
+I64 kept(this Texts, s String) mut foreign "texts_kept";
+String pure(s String) foreign "texts_pure";
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+Unit main() {
+	texts Texts foreign "zane_texts";
+	loud String = texts!upper(String("hello"));
+	show(loud);
+	show(String(texts!kept(loud)));
+	short String = texts!prefix(String("abcdef"), I64(3));
+	show(short);
+	show(String(texts!kept(short)));
+	mine String = texts!fixed();
+	show(mine);
+	show(String(texts!kept(mine)));
+	show(@operators$concat(@operators$concat(String("["), texts!empty()), String("]")));
+	show(pure(String("zane")));
+	return Unit();
+}

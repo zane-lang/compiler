@@ -14,6 +14,8 @@
 type fn =
   | Print
   | Text_join
+  | Text_expect
+  | Text_taken
   | Text_equal
   | Text_i32
   | Text_i64
@@ -75,11 +77,13 @@ type fn =
   (* A spawned call's subject into a region of its own (runtime/spawn.c). *)
   | Island
 
-let all = [ Print; Text_join; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island ]
+let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island ]
 
 let name = function
   | Print -> "zane_print"
   | Text_join -> "zane_text_join"
+  | Text_expect -> "zane_text_expect"
+  | Text_taken -> "zane_text_taken"
   | Text_equal -> "zane_text_equal"
   | Text_i32 -> "zane_text_i32"
   | Text_i64 -> "zane_text_i64"
@@ -147,6 +151,8 @@ type ty = Void | I32 | I64 | F32 | F64 | Ptr
 let signature = function
   | Print -> (Void, [ Ptr ])
   | Text_join -> (Void, [ Ptr; Ptr; Ptr ])
+  | Text_expect -> (Void, [])
+  | Text_taken -> (Void, [ Ptr; Ptr ])
   | Text_equal -> (I64, [ Ptr; Ptr ])
   | Text_i32 -> (Void, [ Ptr; I32 ])
   | Text_i64 -> (Void, [ Ptr; I64 ])

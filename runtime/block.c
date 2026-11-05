@@ -247,6 +247,46 @@ void zane_text_join(zane_text *out, const zane_text *left, const zane_text *righ
 	*out = (zane_text){ bytes, length, length };
 }
 
+/* The block `zane_bytes_alloc` last gave C on this thread for a string
+   it returns (spec ffi.md §3.5, docs/design/ffi.md F10), and its size, or
+   none: a call that returns a string forgets it first, so a block of an
+   earlier call, its region long gone, is never taken. */
+static _Thread_local struct {
+	char *block;
+	int64_t size;
+} zane_given;
+
+/* `<zane_ffi.h>`'s allocator: `size` bytes in the region the foreign
+   call's string result is made in, for C to write and return. */
+uint8_t *zane_bytes_alloc(size_t size) {
+	static uint8_t none[1];
+	if (!zane_self) zane_broken("zane_bytes_alloc called on a thread no foreign call runs on");
+	if (size > (size_t)INT64_MAX / 2) zane_broken("out of memory for a string C allocates");
+	if (size == 0) return none;
+	char *block = zane_alloc(zane_here(), (int64_t)size, 8);
+	zane_given.block = block;
+	zane_given.size = (int64_t)size;
+	return (uint8_t *)block;
+}
+
+/* Before a foreign call that returns a string: no block given yet. */
+void zane_text_expect(void) { zane_given.block = NULL; }
+
+/* A string C returned, as the view it gave: the block `zane_bytes_alloc`
+   gave it, taken as it is when the view starts there and fits in it, and
+   otherwise its bytes copied into a block of the string's own. */
+void zane_text_taken(zane_text *out, const zane_text *view) {
+	char *block = zane_given.block;
+	int64_t size = zane_given.size;
+	zane_given.block = NULL;
+	if (view->length > 0 && view->bytes == block && view->length <= size) {
+		*out = (zane_text){ block, view->length, size };
+		return;
+	}
+	static const zane_text empty = { "", 0, 0 };
+	zane_text_join(out, view, &empty);
+}
+
 /* `==` on `@primitives$String`: the same bytes. */
 int64_t zane_text_equal(const zane_text *left, const zane_text *right) {
 	return left->length == right->length &&

@@ -129,6 +129,128 @@
    (run sh %{dep:../../../archive} hooks.a hooks.archive))))
 
 (rule
+ (deps (source_tree fixtures/allocated))
+ (targets allocated.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build allocated.exe --package fixtures/allocated)))
+
+(rule
+ (deps (source_tree fixtures/allocated))
+ (targets allocated.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build allocated.optimized.exe --optimize --package fixtures/allocated)))
+
+(rule
+ (deps (source_tree fixtures/allocated))
+ (targets allocated.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build allocated.tiered.exe --tiered --package fixtures/allocated)))
+
+(rule
+ (deps (source_tree fixtures/allocated))
+ (targets allocated.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up allocated.tier1 --package fixtures/allocated)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    allocated.checked.out.actual
+    (run ./allocated.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/allocated.out allocated.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    allocated.unchecked.out.actual
+    (run ./allocated.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/allocated.out allocated.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    allocated.optimized.checked.out.actual
+    (run ./allocated.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/allocated.out allocated.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    allocated.optimized.unchecked.out.actual
+    (run ./allocated.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/allocated.out allocated.optimized.unchecked.out.actual)))
+
+(rule
+ (deps allocated.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./allocated.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    allocated.tiered.checked.out.actual
+    (run ./allocated.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/allocated.out allocated.tiered.checked.out.actual)))
+
+(rule
+ (deps allocated.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./allocated.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    allocated.tiered.unchecked.out.actual
+    (run ./allocated.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/allocated.out allocated.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/archives) fixtures/archives/one/tally.a fixtures/archives/two/tally.a)
  (targets archives.exe)
  (action

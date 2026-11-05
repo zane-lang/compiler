@@ -147,11 +147,14 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
     :: st.thunks;
   match result with
   | Foreign.Unit -> [ Stat.Eval call ]
-  (* C's bytes are C's: the string is copied into a block of its own
-     before anything else runs (F10), by joining the view C returned, which
-     owns nothing, to an empty one. *)
+  (* A string C returns is taken before anything else runs (F10): the
+     block `zane_bytes_alloc` gave C during the call as it is, and any
+     other bytes, C's own, copied into a block of the string's own. *)
   | Foreign.View ->
-      let empty = { Expr.node = Expr.Text ""; ty = Nodes.Ty.Handle } in
-      [ Stat.Return (st.returns { Expr.node = Expr.Runtime { fn = Runtime.Text_join; args = [ call; empty ] }; ty = Nodes.Ty.Handle }) ]
+      let runtime fn args ty = { Expr.node = Expr.Runtime { fn; args }; ty } in
+      [
+        Stat.Eval (runtime Runtime.Text_expect [] Nodes.Ty.Void);
+        Stat.Return (st.returns (runtime Runtime.Text_taken [ call ] Nodes.Ty.Handle));
+      ]
   | Foreign.Handle -> made st ctx span v call
   | _ -> [ Stat.Return (st.returns call) ]

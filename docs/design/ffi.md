@@ -589,9 +589,18 @@ A string, array or list is passed where it is, never copied going in:
 the call.
 
 The result arrives in a slot of its C layout, and lowering makes the Zane
-value from it. A `zane_bytes` result is copied into a new string in the
-call's destination region through the runtime's string constructor, before
-any other foreign call can run on this thread. A handle result is checked for
+value from it. A `zane_bytes` result is taken by the runtime before any
+other foreign call can run on this thread. `<zane_ffi.h>`'s
+`zane_bytes_alloc` gives C a block in the call's destination region, the
+region the string is made in, and the runtime keeps the last block it gave
+on each thread. A view that starts at that block and fits in it becomes
+the string as it is, its room the block's size; any other view, of C's own
+memory, is copied into a new string in that region. Before the call, the
+runtime forgets any block an earlier call was given, so a block whose
+region has ended, or memory since given to C at the same address, is never
+taken. A fold copies C's bytes either way (F18), and the stage-5
+evaluator's C library gives `zane_bytes_alloc` as `malloc`
+(`tests/ffi/fixtures/allocated`). A handle result is checked for
 null (`ffi.md` §3.5): the abort lowers as any `Unit` abort does
 ([`lowering.md`](lowering.md) L12), and the stop prints "a foreign function
 returned no object".

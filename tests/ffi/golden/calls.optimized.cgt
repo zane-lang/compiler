@@ -1621,12 +1621,11 @@
     │   ├── ret: handle
     │   └── body[0] > return > runtime:
     │       ├── type: handle
-    │       ├── fn: zane_text_join
-    │       ├── args[0] > foreign call:
-    │       │   ├── type: handle
-    │       │   ├── fn: app$greet(%primitives$String).ffi
-    │       │   └── args[0]: local #1 : handle
-    │       └── args[1]: "" : handle
+    │       ├── fn: zane_text_taken
+    │       └── args[0] > foreign call:
+    │           ├── type: handle
+    │           ├── fn: app$greet(%primitives$String).ffi
+    │           └── args[0]: local #1 : handle
     ├── funcs[11] > func:
     │   ├── symbol: app$length(%primitives$String)
     │   ├── params[0]: local #1 : handle

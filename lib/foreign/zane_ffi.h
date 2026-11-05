@@ -9,4 +9,10 @@
 typedef struct zane_bytes { const uint8_t *data; size_t size; } zane_bytes;
 typedef struct zane_span  { const void    *data; size_t count; } zane_span;
 
+/* `size` bytes for a string a foreign call returns (spec ffi.md §3.5),
+   from the region the string is made in: returned as a `zane_bytes` that
+   starts at them, they become the string's without a copy. Called only on
+   the thread of the call, and never freed by C. */
+uint8_t *zane_bytes_alloc(size_t size);
+
 #endif

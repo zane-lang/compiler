@@ -426,12 +426,11 @@
     │   ├── ret: handle
     │   └── body[0] > return > runtime:
     │       ├── type: handle
-    │       ├── fn: zane_text_join
-    │       ├── args[0] > foreign call:
-    │       │   ├── type: handle
-    │       │   ├── fn: folding$shout(%primitives$String).ffi
-    │       │   └── args[0]: local #1 : handle
-    │       └── args[1]: "" : handle
+    │       ├── fn: zane_text_taken
+    │       └── args[0] > foreign call:
+    │           ├── type: handle
+    │           ├── fn: folding$shout(%primitives$String).ffi
+    │           └── args[0]: local #1 : handle
     ├── funcs[10] > func:
     │   ├── symbol: folding$buffer(%primitives$I64)
     │   ├── params[0]: local #1 : i64
