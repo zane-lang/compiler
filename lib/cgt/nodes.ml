@@ -677,9 +677,9 @@ module Callback = struct
     | Record [ (s, None) ] -> rebuild ~to_c s v
     | Record fs ->
         let zs = List.map (field ~c:false) fs and cs = List.map (field ~c:true) fs in
-        let positions = Ty.order zs in
+        let positions = Ty.order zs and zs' = Array.of_list zs and cs' = Array.of_list cs in
         let member j (s, n) =
-          let from, into, ty = if to_c then (positions.(j), j, List.nth zs j) else (j, positions.(j), List.nth cs j) in
+          let from, into, ty = if to_c then (positions.(j), j, zs'.(j)) else (j, positions.(j), cs'.(j)) in
           let read = { Expr.node = Expr.Member { value = v; index = from }; ty } in
           (into, if n = None then rebuild ~to_c s read else read)
         in

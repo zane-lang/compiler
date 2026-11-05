@@ -161,8 +161,10 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
       [ Stat.Return (st.returns { Expr.node = Expr.Runtime { fn = Runtime.Text_join; args = [ call; empty ] }; ty = Nodes.Ty.Handle }) ]
   | Foreign.Handle -> made st ctx span v call
   (* A struct comes back in C's layout and is rebuilt in its own. *)
-  | Foreign.Value when Option.fold ~none:false ~some:Callback.moved shape ->
-      let id = fresh st in
-      let back = Callback.of_c (Option.get shape) { Expr.node = Expr.Local id; ty = call_ty } in
-      [ Stat.Let { id; value = call }; Stat.Return (st.returns back) ]
-  | _ -> [ Stat.Return (st.returns call) ]
+  | _ -> (
+      match shape with
+      | Some s when Callback.moved s ->
+          let id = fresh st in
+          let back = Callback.of_c s { Expr.node = Expr.Local id; ty = call_ty } in
+          [ Stat.Let { id; value = call }; Stat.Return (st.returns back) ]
+      | _ -> [ Stat.Return (st.returns call) ])
