@@ -76,3 +76,5 @@ zane_bytes fold_shout(zane_bytes text) {
 	for (size_t i = 0; i < n; i++) out[i] = text.data[i] >= 'a' && text.data[i] <= 'z' ? text.data[i] - 32 : text.data[i];
 	return (zane_bytes){ out, n };
 }
+
+trio fold_trio(trio t) { return (trio){ t.k, t.n * 2, t.tag }; }

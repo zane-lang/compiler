@@ -7,7 +7,8 @@
 /// own; and the same values called from Zane, passed, stored in a struct,
 /// and called through, with a `Bool`, a value type and no result among
 /// them; value types of one field and of an array alone, and one holding a
-/// value type with no fields, passed and returned through C; and ones taking a `Unit` or a value type that
+/// value type with no fields, and ones C lays out in another order than
+/// Zane, one inside the other, passed and returned through C; and ones taking a `Unit` or a value type that
 /// holds itself, types C cannot call, which stay functions of the
 /// program's alone.
 package functions;
@@ -56,6 +57,22 @@ type Boxed = struct {
 
 Boxed(e Nothing, x I32) => init{ e; x; }
 
+/// Value types whose fields Zane lays out in another order than C, one
+/// inside the other.
+type Duo = struct {
+	a I32;
+	b I64;
+}
+
+Duo(a I32, b I64) => init{ a; b; }
+
+type Wrap = struct {
+	w F32;
+	d Duo;
+}
+
+Wrap(w F32, d Duo) => init{ w; d; }
+
 F64 apply(f F64[F64], x F64) foreign "apply";
 I64 sumEach(f I64[I64], n I64) foreign "sum_each";
 I32 countIf(p Bool[I32], n I32) foreign "count_if";
@@ -64,6 +81,7 @@ Unit each(f Unit[I64], n I64) foreign "each";
 Ratio scaleRatio(f Ratio[Ratio], r Ratio) foreign "scale_ratio";
 Quad rotateQuad(f Quad[Quad], q Quad) foreign "rotate_quad";
 Boxed openBox(f Boxed[Boxed], b Boxed) foreign "open_box";
+Wrap throughWrap(f Wrap[Wrap], w Wrap) foreign "through_wrap";
 I64 onThreads(f I64[I64], x I64) foreign "on_threads";
 I64 sorted(before Bool[I64, I64], xs @primitives$Array<I64, 4>) foreign "sorted";
 
@@ -156,6 +174,12 @@ Unit main() {
 	show(String(qd.xs[I64(4)]));
 	bx Boxed = openBox(Boxed(b Boxed) { return Boxed(b.e, @operators$add(b.x, I32(40))); }, Boxed(Nothing(), I32(2)));
 	show(String(bx.x));
+	wr Wrap = throughWrap(Wrap(w Wrap) {
+		return Wrap(@operators$multiply(w.w, F32(2.0)), Duo(@operators$add(w.d.a, I32(1)), @operators$multiply(w.d.b, I64(3))));
+	}, Wrap(F32(1.25), Duo(I32(6), I64(7))));
+	show(String(wr.w));
+	show(String(wr.d.a));
+	show(String(wr.d.b));
 	show(String(given(I64(u Unit, x I64) { return @operators$add(x, I64(1)); }, I64(4))));
 	show(String(unused(I64(c Chain) { return c.value; })));
 	return Unit();

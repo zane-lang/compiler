@@ -13,7 +13,7 @@
    [Void] is `Unit`, which has no storage. [Array] is
    `@primitives$Array<T, n>`: [n] elements inline, each at the element's
    stride, its size rounded up to its alignment (L5).
-   [Struct] is a struct's members in declaration order, [Sum] a variant's or
+   [Struct] is a struct's members in the order [order] places them, [Sum] a variant's or
    enum's cases: a tag and room for the widest payload. [Ptr] is the address
    of a place, which is how a `mut` subject and a borrow are passed (L6),
    and what a reference holds: the address of the settled owner it names
@@ -106,6 +106,37 @@ module Ty = struct
   (* Experimental (Ref32.niche): a sum of nothing or a box or reference is
      that word, 0 for nothing. *)
   and niche ts = Ref32.niche () && (ts = [ Void; Ref ] || ts = [ Void; Box32 ])
+
+  (* Where a struct's members go, given their types in declaration order:
+     the [i]th declared member is the [(order ts).(i)]th member of the
+     struct's layout. Members are placed in decreasing order of alignment,
+     those of one alignment in declaration order. Every layout's size is a
+     multiple of its alignment, so no padding falls between members: only
+     the tail is rounded up (docs/design/lowering.md L5). The order is a
+     function of the member types alone, so every object that lays out a
+     type lays it out alike, and the identity when the members are already
+     in that order. *)
+  let order ts =
+    let indexed = List.mapi (fun i t -> (i, snd (size_align t))) ts in
+    let sorted = List.stable_sort (fun (_, a) (_, b) -> compare b a) indexed in
+    let positions = Array.make (List.length ts) 0 in
+    List.iteri (fun at (i, _) -> positions.(i) <- at) sorted;
+    positions
+
+  (* [xs], one for each of the members [ts] in declaration order, in their
+     layout's order. *)
+  let placed ts xs =
+    let positions = order ts in
+    let out = Array.make (List.length xs) None in
+    List.iteri (fun i x -> out.(positions.(i)) <- Some x) xs;
+    List.map Option.get (Array.to_list out)
+
+  (* Whether [order ts] moves any member. *)
+  let reordered ts =
+    let positions = order ts in
+    let moved = ref false in
+    Array.iteri (fun i at -> if i <> at then moved := true) positions;
+    !moved
 
   (* Where each member of a struct of [ts] starts. *)
   let offsets ts =
@@ -605,6 +636,58 @@ module Callback = struct
     | Record fs ->
         let field (f, n) = match n with Some n -> Printf.sprintf "[%d x %s]" n (spell f) | None -> spell f in
         "{" ^ String.concat ", " (List.map field fs) ^ "}"
+
+  (* A value of a C-compatible type crosses into C, and back, in C's
+     layout: its fields in declaration order (docs/design/ffi.md F10). In
+     Zane they are where Ty.order places them, and a struct of one field is
+     that field and one of none is nothing (docs/design/lowering.md L5). A
+     struct crosses as a copy, so its fields are moved between the two
+     orders as it is copied, and no struct lies in memory both languages
+     read. [zane] and [c] are the two layouts of a shape. *)
+  let rec layout ~c = function
+    | Scalar t -> t
+    | Truth -> Ty.I1
+    | Nothing -> Ty.Void
+    | Record fs -> (
+        match List.map (field ~c) fs with
+        | [] -> Ty.Void
+        | [ t ] -> t
+        | ts -> Ty.Struct (if c then ts else Ty.placed ts ts))
+
+  and field ~c (s, n) = match n with Some n -> Ty.Array (layout ~c s, n) | None -> layout ~c s
+
+  let zane = layout ~c:false
+  let c = layout ~c:true
+
+  (* Whether the two layouts of a shape differ: some struct in it, however
+     deep, has its fields out of declaration order. An array field holds
+     scalars, which lie alike in both. *)
+  let rec moved = function
+    | Record [ (s, None) ] -> moved s
+    | Record fs when List.length fs > 1 ->
+        Ty.reordered (List.map (field ~c:false) fs) || List.exists (fun (s, n) -> n = None && moved s) fs
+    | _ -> false
+
+  (* The value [v] rebuilt member by member: from its Zane layout into its
+     C one when [to_c], else back. [v] is read once for each member, so it
+     is a local or a load. *)
+  let rec rebuild ~to_c shape (v : Expr.t) : Expr.t =
+    match shape with
+    | _ when not (moved shape) -> v
+    | Record [ (s, None) ] -> rebuild ~to_c s v
+    | Record fs ->
+        let zs = List.map (field ~c:false) fs and cs = List.map (field ~c:true) fs in
+        let positions = Ty.order zs in
+        let member j (s, n) =
+          let from, into, ty = if to_c then (positions.(j), j, List.nth zs j) else (j, positions.(j), List.nth cs j) in
+          let read = { Expr.node = Expr.Member { value = v; index = from }; ty } in
+          (into, if n = None then rebuild ~to_c s read else read)
+        in
+        { Expr.node = Expr.Record (List.mapi member fs); ty = (if to_c then Ty.Struct cs else Ty.Struct (Ty.placed zs zs)) }
+    | _ -> v
+
+  let to_c = rebuild ~to_c:true
+  let of_c = rebuild ~to_c:false
 end
 
 (* One program is one module (L15). [entry] is the symbol of the function

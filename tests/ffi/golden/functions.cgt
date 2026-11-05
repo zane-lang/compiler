@@ -83,6 +83,13 @@
     │   ├── params[0]: function
     │   ├── params[1]: value
     │   └── result: value
+    ├── thunks[10] > thunk:
+    │   ├── symbol: functions$throughWrap(functions$Wrap[functions$Wrap], functions$Wrap).ffi
+    │   ├── package: functions
+    │   ├── calls: through_wrap
+    │   ├── params[0]: function
+    │   ├── params[1]: value
+    │   └── result: value
     ├── callbacks[0] > callback:
     │   ├── symbol: functions$half
     │   ├── entry: functions$entry functions$half
@@ -165,6 +172,11 @@
     │   ├── takes[0]: {{}, i32}
     │   └── gives: {{}, i32}
     ├── callbacks[16] > callback:
+    │   ├── symbol: functions$main()$lambda16
+    │   ├── entry: functions$entry functions$main()$lambda16
+    │   ├── takes[0]: {f32, {i32, i64}}
+    │   └── gives: {f32, {i32, i64}}
+    ├── callbacks[17] > callback:
     │   ├── symbol: functions$main()$lambda7
     │   ├── entry: functions$entry functions$main()$lambda7
     │   ├── takes[0]: i64
@@ -252,11 +264,11 @@
     │       ├── body[3] > let:
     │       │   ├── local: #16
     │       │   └── value > call:
-    │       │       ├── type: {i32, i32, [2 x f64]}
+    │       │       ├── type: {[2 x f64], i32, i32}
     │       │       ├── fn: functions$mapPoint(functions$Point[functions$Point], functions$Point)
     │       │       ├── args[0]: function functions$main()$lambda3
     │       │       └── args[1] > expand:
-    │       │           ├── type: {i32, i32, [2 x f64]}
+    │       │           ├── type: {[2 x f64], i32, i32}
     │       │           ├── label: @14
     │       │           ├── result: #15
     │       │           ├── body[0] > let:
@@ -274,10 +286,10 @@
     │       │           ├── body[3] > assign:
     │       │           │   ├── place: #15
     │       │           │   └── value > record:
-    │       │           │       ├── type: {i32, i32, [2 x f64]}
-    │       │           │       ├── members[0] > member 0: local #11 : i32
-    │       │           │       ├── members[1] > member 1: local #12 : i32
-    │       │           │       └── members[2] > member 2: local #13 : [2 x f64]
+    │       │           │       ├── type: {[2 x f64], i32, i32}
+    │       │           │       ├── members[0] > member 1: local #11 : i32
+    │       │           │       ├── members[1] > member 2: local #12 : i32
+    │       │           │       └── members[2] > member 0: local #13 : [2 x f64]
     │       │           └── body[4]: leave @14
     │       ├── body[4] > eval > call:
     │       │   ├── type: void
@@ -294,8 +306,8 @@
     │       │       │   │   ├── fn: zane_text_i32
     │       │       │   │   └── args[0] > member:
     │       │       │   │       ├── type: i32
-    │       │       │   │       ├── index: 0
-    │       │       │   │       └── value: local #16 : {i32, i32, [2 x f64]}
+    │       │       │   │       ├── index: 1
+    │       │       │   │       └── value: local #16 : {[2 x f64], i32, i32}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #19
@@ -315,8 +327,8 @@
     │       │       │   │   ├── fn: zane_text_i32
     │       │       │   │   └── args[0] > member:
     │       │       │   │       ├── type: i32
-    │       │       │   │       ├── index: 1
-    │       │       │   │       └── value: local #16 : {i32, i32, [2 x f64]}
+    │       │       │   │       ├── index: 2
+    │       │       │   │       └── value: local #16 : {[2 x f64], i32, i32}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #22
@@ -340,8 +352,8 @@
     │       │       │   │           ├── type: ptr
     │       │       │   │           ├── fn: zane_array_at
     │       │       │   │           ├── args[0] > offset:
-    │       │       │   │           │   ├── within: {i32, i32, [2 x f64]}
-    │       │       │   │           │   ├── path: 2
+    │       │       │   │           │   ├── within: {[2 x f64], i32, i32}
+    │       │       │   │           │   ├── path: 0
     │       │       │   │           │   └── base: address of #16 : ptr
     │       │       │   │           ├── args[1]: 2 : i64
     │       │       │   │           ├── args[2]: 2 : i64
@@ -515,7 +527,7 @@
     │       ├── body[16] > let:
     │       │   ├── local: #56
     │       │   └── value > expand:
-    │       │       ├── type: {i32, i32, [2 x f64]}
+    │       │       ├── type: {[2 x f64], i32, i32}
     │       │       ├── label: @54
     │       │       ├── result: #55
     │       │       ├── body[0] > let:
@@ -524,9 +536,9 @@
     │       │       ├── body[1] > assign:
     │       │       │   ├── place: #55
     │       │       │   └── value > call value:
-    │       │       │       ├── type: {i32, i32, [2 x f64]}
+    │       │       │       ├── type: {[2 x f64], i32, i32}
     │       │       │       ├── fn: local #53 : ptr
-    │       │       │       └── args[0]: local #16 : {i32, i32, [2 x f64]}
+    │       │       │       └── args[0]: local #16 : {[2 x f64], i32, i32}
     │       │       └── body[2]: leave @54
     │       ├── body[17] > eval > call:
     │       │   ├── type: void
@@ -543,8 +555,8 @@
     │       │       │   │   ├── fn: zane_text_i32
     │       │       │   │   └── args[0] > member:
     │       │       │   │       ├── type: i32
-    │       │       │   │       ├── index: 0
-    │       │       │   │       └── value: local #56 : {i32, i32, [2 x f64]}
+    │       │       │   │       ├── index: 1
+    │       │       │   │       └── value: local #56 : {[2 x f64], i32, i32}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #59
@@ -568,8 +580,8 @@
     │       │       │   │           ├── type: ptr
     │       │       │   │           ├── fn: zane_array_at
     │       │       │   │           ├── args[0] > offset:
-    │       │       │   │           │   ├── within: {i32, i32, [2 x f64]}
-    │       │       │   │           │   ├── path: 2
+    │       │       │   │           │   ├── within: {[2 x f64], i32, i32}
+    │       │       │   │           │   ├── path: 0
     │       │       │   │           │   └── base: address of #56 : ptr
     │       │       │   │           ├── args[1]: 1 : i64
     │       │       │   │           ├── args[2]: 2 : i64
@@ -685,11 +697,11 @@
     │       ├── body[27] > let:
     │       │   ├── local: #85
     │       │   └── value > call:
-    │       │       ├── type: {void, i32}
+    │       │       ├── type: {i32, void}
     │       │       ├── fn: functions$openBox(functions$Boxed[functions$Boxed], functions$Boxed)
     │       │       ├── args[0]: function functions$main()$lambda15
     │       │       └── args[1] > expand:
-    │       │           ├── type: {void, i32}
+    │       │           ├── type: {i32, void}
     │       │           ├── label: @83
     │       │           ├── result: #84
     │       │           ├── body[0] > let:
@@ -701,9 +713,9 @@
     │       │           ├── body[2] > assign:
     │       │           │   ├── place: #84
     │       │           │   └── value > record:
-    │       │           │       ├── type: {void, i32}
-    │       │           │       ├── members[0] > member 0: local #81 : void
-    │       │           │       └── members[1] > member 1: local #82 : i32
+    │       │           │       ├── type: {i32, void}
+    │       │           │       ├── members[0] > member 1: local #81 : void
+    │       │           │       └── members[1] > member 0: local #82 : i32
     │       │           └── body[3]: leave @83
     │       ├── body[28] > eval > call:
     │       │   ├── type: void
@@ -720,76 +732,184 @@
     │       │       │   │   ├── fn: zane_text_i32
     │       │       │   │   └── args[0] > member:
     │       │       │   │       ├── type: i32
-    │       │       │   │       ├── index: 1
-    │       │       │   │       └── value: local #85 : {void, i32}
+    │       │       │   │       ├── index: 0
+    │       │       │   │       └── value: local #85 : {i32, void}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #88
     │       │           └── value: local #86 : handle
-    │       ├── body[29] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: functions$show(%primitives$String)
-    │       │   └── args[0] > expand:
-    │       │       ├── type: handle
-    │       │       ├── label: @94
-    │       │       ├── result: #95
-    │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #93
-    │       │       │   ├── scope: %4
-    │       │       │   ├── value > runtime:
-    │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > expand:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @91
-    │       │       │   │       ├── result: #92
-    │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #89
-    │       │       │   │       │   └── value: function functions$main()$lambda16
-    │       │       │   │       ├── body[1] > let:
-    │       │       │   │       │   ├── local: #90
-    │       │       │   │       │   └── value: 4 : i64
-    │       │       │   │       ├── body[2] > assign:
-    │       │       │   │       │   ├── place: #92
-    │       │       │   │       │   └── value > call value:
-    │       │       │   │       │       ├── type: i64
-    │       │       │   │       │       ├── fn: local #89 : ptr
-    │       │       │   │       │       ├── args[0]: unit : void
-    │       │       │   │       │       └── args[1]: local #90 : i64
-    │       │       │   │       └── body[3]: leave @91
-    │       │       │   └── layout: %primitives$String
-    │       │       └── body[1] > assign:
-    │       │           ├── place: #95
-    │       │           └── value: local #93 : handle
+    │       ├── body[29] > let:
+    │       │   ├── local: #97
+    │       │   └── value > call:
+    │       │       ├── type: {{i64, i32}, f32}
+    │       │       ├── fn: functions$throughWrap(functions$Wrap[functions$Wrap], functions$Wrap)
+    │       │       ├── args[0]: function functions$main()$lambda16
+    │       │       └── args[1] > expand:
+    │       │           ├── type: {{i64, i32}, f32}
+    │       │           ├── label: @95
+    │       │           ├── result: #96
+    │       │           ├── body[0] > let:
+    │       │           │   ├── local: #89
+    │       │           │   └── value: 0x1.4p+0 : f32
+    │       │           ├── body[1] > let:
+    │       │           │   ├── local: #94
+    │       │           │   └── value > expand:
+    │       │           │       ├── type: {i64, i32}
+    │       │           │       ├── label: @92
+    │       │           │       ├── result: #93
+    │       │           │       ├── body[0] > let:
+    │       │           │       │   ├── local: #90
+    │       │           │       │   └── value: 6 : i32
+    │       │           │       ├── body[1] > let:
+    │       │           │       │   ├── local: #91
+    │       │           │       │   └── value: 7 : i64
+    │       │           │       ├── body[2] > assign:
+    │       │           │       │   ├── place: #93
+    │       │           │       │   └── value > record:
+    │       │           │       │       ├── type: {i64, i32}
+    │       │           │       │       ├── members[0] > member 1: local #90 : i32
+    │       │           │       │       └── members[1] > member 0: local #91 : i64
+    │       │           │       └── body[3]: leave @92
+    │       │           ├── body[2] > assign:
+    │       │           │   ├── place: #96
+    │       │           │   └── value > record:
+    │       │           │       ├── type: {{i64, i32}, f32}
+    │       │           │       ├── members[0] > member 1: local #89 : f32
+    │       │           │       └── members[1] > member 0: local #94 : {i64, i32}
+    │       │           └── body[3]: leave @95
     │       ├── body[30] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: functions$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @100
-    │       │       ├── result: #101
+    │       │       ├── label: @99
+    │       │       ├── result: #100
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #99
+    │       │       │   ├── local: #98
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_f32
+    │       │       │   │   └── args[0] > member:
+    │       │       │   │       ├── type: f32
+    │       │       │   │       ├── index: 1
+    │       │       │   │       └── value: local #97 : {{i64, i32}, f32}
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #100
+    │       │           └── value: local #98 : handle
+    │       ├── body[31] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: functions$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @102
+    │       │       ├── result: #103
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #101
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i32
+    │       │       │   │   └── args[0] > member:
+    │       │       │   │       ├── type: i32
+    │       │       │   │       ├── index: 1
+    │       │       │   │       └── value > member:
+    │       │       │   │           ├── type: {i64, i32}
+    │       │       │   │           ├── index: 0
+    │       │       │   │           └── value: local #97 : {{i64, i32}, f32}
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #103
+    │       │           └── value: local #101 : handle
+    │       ├── body[32] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: functions$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @105
+    │       │       ├── result: #106
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #104
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > member:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── index: 0
+    │       │       │   │       └── value > member:
+    │       │       │   │           ├── type: {i64, i32}
+    │       │       │   │           ├── index: 0
+    │       │       │   │           └── value: local #97 : {{i64, i32}, f32}
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #106
+    │       │           └── value: local #104 : handle
+    │       ├── body[33] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: functions$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @112
+    │       │       ├── result: #113
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #111
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > expand:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── label: @97
-    │       │       │   │       ├── result: #98
+    │       │       │   │       ├── label: @109
+    │       │       │   │       ├── result: #110
     │       │       │   │       ├── body[0] > let:
-    │       │       │   │       │   ├── local: #96
+    │       │       │   │       │   ├── local: #107
     │       │       │   │       │   └── value: function functions$main()$lambda17
-    │       │       │   │       ├── body[1] > assign:
-    │       │       │   │       │   ├── place: #98
-    │       │       │   │       │   └── value: 0 : i64
-    │       │       │   │       └── body[2]: leave @97
+    │       │       │   │       ├── body[1] > let:
+    │       │       │   │       │   ├── local: #108
+    │       │       │   │       │   └── value: 4 : i64
+    │       │       │   │       ├── body[2] > assign:
+    │       │       │   │       │   ├── place: #110
+    │       │       │   │       │   └── value > call value:
+    │       │       │   │       │       ├── type: i64
+    │       │       │   │       │       ├── fn: local #107 : ptr
+    │       │       │   │       │       ├── args[0]: unit : void
+    │       │       │   │       │       └── args[1]: local #108 : i64
+    │       │       │   │       └── body[3]: leave @109
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #101
-    │       │           └── value: local #99 : handle
-    │       └── body[31] > return: unit : void
+    │       │           ├── place: #113
+    │       │           └── value: local #111 : handle
+    │       ├── body[34] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: functions$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @118
+    │       │       ├── result: #119
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #117
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > expand:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── label: @115
+    │       │       │   │       ├── result: #116
+    │       │       │   │       ├── body[0] > let:
+    │       │       │   │       │   ├── local: #114
+    │       │       │   │       │   └── value: function functions$main()$lambda18
+    │       │       │   │       ├── body[1] > assign:
+    │       │       │   │       │   ├── place: #116
+    │       │       │   │       │   └── value: 0 : i64
+    │       │       │   │       └── body[2]: leave @115
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #119
+    │       │           └── value: local #117 : handle
+    │       └── body[35] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: functions$half
     │   ├── params[0]: local #1 : f64
@@ -875,10 +995,10 @@
     │       └── args[1]: local #2 : i32
     ├── funcs[9] > func:
     │   ├── symbol: functions$main()$lambda3
-    │   ├── params[0]: local #1 : {i32, i32, [2 x f64]}
-    │   ├── ret: {i32, i32, [2 x f64]}
+    │   ├── params[0]: local #1 : {[2 x f64], i32, i32}
+    │   ├── ret: {[2 x f64], i32, i32}
     │   └── body[0] > return > expand:
-    │       ├── type: {i32, i32, [2 x f64]}
+    │       ├── type: {[2 x f64], i32, i32}
     │       ├── label: @5
     │       ├── result: #6
     │       ├── body[0] > let:
@@ -888,8 +1008,8 @@
     │       │       ├── op: +
     │       │       ├── left > member:
     │       │       │   ├── type: i32
-    │       │       │   ├── index: 0
-    │       │       │   └── value: local #1 : {i32, i32, [2 x f64]}
+    │       │       │   ├── index: 1
+    │       │       │   └── value: local #1 : {[2 x f64], i32, i32}
     │       │       └── right: 1 : i32
     │       ├── body[1] > let:
     │       │   ├── local: #3
@@ -898,33 +1018,62 @@
     │       │       ├── op: *
     │       │       ├── left > member:
     │       │       │   ├── type: i32
-    │       │       │   ├── index: 1
-    │       │       │   └── value: local #1 : {i32, i32, [2 x f64]}
+    │       │       │   ├── index: 2
+    │       │       │   └── value: local #1 : {[2 x f64], i32, i32}
     │       │       └── right: 2 : i32
     │       ├── body[2] > let:
     │       │   ├── local: #4
     │       │   └── value > member:
     │       │       ├── type: [2 x f64]
-    │       │       ├── index: 2
-    │       │       └── value: local #1 : {i32, i32, [2 x f64]}
+    │       │       ├── index: 0
+    │       │       └── value: local #1 : {[2 x f64], i32, i32}
     │       ├── body[3] > assign:
     │       │   ├── place: #6
     │       │   └── value > record:
-    │       │       ├── type: {i32, i32, [2 x f64]}
-    │       │       ├── members[0] > member 0: local #2 : i32
-    │       │       ├── members[1] > member 1: local #3 : i32
-    │       │       └── members[2] > member 2: local #4 : [2 x f64]
+    │       │       ├── type: {[2 x f64], i32, i32}
+    │       │       ├── members[0] > member 1: local #2 : i32
+    │       │       ├── members[1] > member 2: local #3 : i32
+    │       │       └── members[2] > member 0: local #4 : [2 x f64]
     │       └── body[4]: leave @5
     ├── funcs[10] > func:
     │   ├── symbol: functions$mapPoint(functions$Point[functions$Point], functions$Point)
     │   ├── params[0]: local #1 : ptr
-    │   ├── params[1]: local #2 : {i32, i32, [2 x f64]}
-    │   ├── ret: {i32, i32, [2 x f64]}
-    │   └── body[0] > return > foreign call:
-    │       ├── type: {i32, i32, [2 x f64]}
-    │       ├── fn: functions$mapPoint(functions$Point[functions$Point], functions$Point).ffi
-    │       ├── args[0]: local #1 : ptr
-    │       └── args[1]: local #2 : {i32, i32, [2 x f64]}
+    │   ├── params[1]: local #2 : {[2 x f64], i32, i32}
+    │   ├── ret: {[2 x f64], i32, i32}
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > foreign call:
+    │   │       ├── type: {i32, i32, [2 x f64]}
+    │   │       ├── fn: functions$mapPoint(functions$Point[functions$Point], functions$Point).ffi
+    │   │       ├── args[0]: local #1 : ptr
+    │   │       └── args[1] > record:
+    │   │           ├── type: {i32, i32, [2 x f64]}
+    │   │           ├── members[0] > member 0 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 1
+    │   │           │   └── value: local #2 : {[2 x f64], i32, i32}
+    │   │           ├── members[1] > member 1 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 2
+    │   │           │   └── value: local #2 : {[2 x f64], i32, i32}
+    │   │           └── members[2] > member 2 > member:
+    │   │               ├── type: [2 x f64]
+    │   │               ├── index: 0
+    │   │               └── value: local #2 : {[2 x f64], i32, i32}
+    │   └── body[1] > return > record:
+    │       ├── type: {[2 x f64], i32, i32}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 0
+    │       │   └── value: local #3 : {i32, i32, [2 x f64]}
+    │       ├── members[1] > member 2 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 1
+    │       │   └── value: local #3 : {i32, i32, [2 x f64]}
+    │       └── members[2] > member 0 > member:
+    │           ├── type: [2 x f64]
+    │           ├── index: 2
+    │           └── value: local #3 : {i32, i32, [2 x f64]}
     ├── funcs[11] > func:
     │   ├── symbol: functions$main()$lambda4
     │   ├── params[0]: local #1 : i64
@@ -1053,37 +1202,37 @@
     │       └── right: 10 : i64
     ├── funcs[19] > func:
     │   ├── symbol: functions$main()$lambda9
-    │   ├── params[0]: local #1 : {i32, i32, [2 x f64]}
-    │   ├── ret: {i32, i32, [2 x f64]}
+    │   ├── params[0]: local #1 : {[2 x f64], i32, i32}
+    │   ├── ret: {[2 x f64], i32, i32}
     │   └── body[0] > return > expand:
-    │       ├── type: {i32, i32, [2 x f64]}
+    │       ├── type: {[2 x f64], i32, i32}
     │       ├── label: @5
     │       ├── result: #6
     │       ├── body[0] > let:
     │       │   ├── local: #2
     │       │   └── value > member:
     │       │       ├── type: i32
-    │       │       ├── index: 1
-    │       │       └── value: local #1 : {i32, i32, [2 x f64]}
+    │       │       ├── index: 2
+    │       │       └── value: local #1 : {[2 x f64], i32, i32}
     │       ├── body[1] > let:
     │       │   ├── local: #3
     │       │   └── value > member:
     │       │       ├── type: i32
-    │       │       ├── index: 0
-    │       │       └── value: local #1 : {i32, i32, [2 x f64]}
+    │       │       ├── index: 1
+    │       │       └── value: local #1 : {[2 x f64], i32, i32}
     │       ├── body[2] > let:
     │       │   ├── local: #4
     │       │   └── value > member:
     │       │       ├── type: [2 x f64]
-    │       │       ├── index: 2
-    │       │       └── value: local #1 : {i32, i32, [2 x f64]}
+    │       │       ├── index: 0
+    │       │       └── value: local #1 : {[2 x f64], i32, i32}
     │       ├── body[3] > assign:
     │       │   ├── place: #6
     │       │   └── value > record:
-    │       │       ├── type: {i32, i32, [2 x f64]}
-    │       │       ├── members[0] > member 0: local #2 : i32
-    │       │       ├── members[1] > member 1: local #3 : i32
-    │       │       └── members[2] > member 2: local #4 : [2 x f64]
+    │       │       ├── type: {[2 x f64], i32, i32}
+    │       │       ├── members[0] > member 1: local #2 : i32
+    │       │       ├── members[1] > member 2: local #3 : i32
+    │       │       └── members[2] > member 0: local #4 : [2 x f64]
     │       └── body[4]: leave @5
     ├── funcs[20] > func:
     │   ├── symbol: functions$main()$lambda10
@@ -1239,18 +1388,18 @@
     │       └── args[1]: local #2 : [4 x i64]
     ├── funcs[29] > func:
     │   ├── symbol: functions$main()$lambda15
-    │   ├── params[0]: local #1 : {void, i32}
-    │   ├── ret: {void, i32}
+    │   ├── params[0]: local #1 : {i32, void}
+    │   ├── ret: {i32, void}
     │   └── body[0] > return > expand:
-    │       ├── type: {void, i32}
+    │       ├── type: {i32, void}
     │       ├── label: @4
     │       ├── result: #5
     │       ├── body[0] > let:
     │       │   ├── local: #2
     │       │   └── value > member:
     │       │       ├── type: void
-    │       │       ├── index: 0
-    │       │       └── value: local #1 : {void, i32}
+    │       │       ├── index: 1
+    │       │       └── value: local #1 : {i32, void}
     │       ├── body[1] > let:
     │       │   ├── local: #3
     │       │   └── value > binary:
@@ -1258,28 +1407,168 @@
     │       │       ├── op: +
     │       │       ├── left > member:
     │       │       │   ├── type: i32
-    │       │       │   ├── index: 1
-    │       │       │   └── value: local #1 : {void, i32}
+    │       │       │   ├── index: 0
+    │       │       │   └── value: local #1 : {i32, void}
     │       │       └── right: 40 : i32
     │       ├── body[2] > assign:
     │       │   ├── place: #5
     │       │   └── value > record:
-    │       │       ├── type: {void, i32}
-    │       │       ├── members[0] > member 0: local #2 : void
-    │       │       └── members[1] > member 1: local #3 : i32
+    │       │       ├── type: {i32, void}
+    │       │       ├── members[0] > member 1: local #2 : void
+    │       │       └── members[1] > member 0: local #3 : i32
     │       └── body[3]: leave @4
     ├── funcs[30] > func:
     │   ├── symbol: functions$openBox(functions$Boxed[functions$Boxed], functions$Boxed)
     │   ├── params[0]: local #1 : ptr
-    │   ├── params[1]: local #2 : {void, i32}
-    │   ├── ret: {void, i32}
-    │   └── body[0] > return > foreign call:
-    │       ├── type: {void, i32}
-    │       ├── fn: functions$openBox(functions$Boxed[functions$Boxed], functions$Boxed).ffi
-    │       ├── args[0]: local #1 : ptr
-    │       └── args[1]: local #2 : {void, i32}
+    │   ├── params[1]: local #2 : {i32, void}
+    │   ├── ret: {i32, void}
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > foreign call:
+    │   │       ├── type: {void, i32}
+    │   │       ├── fn: functions$openBox(functions$Boxed[functions$Boxed], functions$Boxed).ffi
+    │   │       ├── args[0]: local #1 : ptr
+    │   │       └── args[1] > record:
+    │   │           ├── type: {void, i32}
+    │   │           ├── members[0] > member 0 > member:
+    │   │           │   ├── type: void
+    │   │           │   ├── index: 1
+    │   │           │   └── value: local #2 : {i32, void}
+    │   │           └── members[1] > member 1 > member:
+    │   │               ├── type: i32
+    │   │               ├── index: 0
+    │   │               └── value: local #2 : {i32, void}
+    │   └── body[1] > return > record:
+    │       ├── type: {i32, void}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: void
+    │       │   ├── index: 0
+    │       │   └── value: local #3 : {void, i32}
+    │       └── members[1] > member 0 > member:
+    │           ├── type: i32
+    │           ├── index: 1
+    │           └── value: local #3 : {void, i32}
     ├── funcs[31] > func:
     │   ├── symbol: functions$main()$lambda16
+    │   ├── params[0]: local #1 : {{i64, i32}, f32}
+    │   ├── ret: {{i64, i32}, f32}
+    │   └── body[0] > return > expand:
+    │       ├── type: {{i64, i32}, f32}
+    │       ├── label: @8
+    │       ├── result: #9
+    │       ├── body[0] > let:
+    │       │   ├── local: #2
+    │       │   └── value > binary:
+    │       │       ├── type: f32
+    │       │       ├── op: *
+    │       │       ├── left > member:
+    │       │       │   ├── type: f32
+    │       │       │   ├── index: 1
+    │       │       │   └── value: local #1 : {{i64, i32}, f32}
+    │       │       └── right: 0x1p+1 : f32
+    │       ├── body[1] > let:
+    │       │   ├── local: #7
+    │       │   └── value > expand:
+    │       │       ├── type: {i64, i32}
+    │       │       ├── label: @5
+    │       │       ├── result: #6
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #3
+    │       │       │   └── value > binary:
+    │       │       │       ├── type: i32
+    │       │       │       ├── op: +
+    │       │       │       ├── left > member:
+    │       │       │       │   ├── type: i32
+    │       │       │       │   ├── index: 1
+    │       │       │       │   └── value > member:
+    │       │       │       │       ├── type: {i64, i32}
+    │       │       │       │       ├── index: 0
+    │       │       │       │       └── value: local #1 : {{i64, i32}, f32}
+    │       │       │       └── right: 1 : i32
+    │       │       ├── body[1] > let:
+    │       │       │   ├── local: #4
+    │       │       │   └── value > binary:
+    │       │       │       ├── type: i64
+    │       │       │       ├── op: *
+    │       │       │       ├── left > member:
+    │       │       │       │   ├── type: i64
+    │       │       │       │   ├── index: 0
+    │       │       │       │   └── value > member:
+    │       │       │       │       ├── type: {i64, i32}
+    │       │       │       │       ├── index: 0
+    │       │       │       │       └── value: local #1 : {{i64, i32}, f32}
+    │       │       │       └── right: 3 : i64
+    │       │       ├── body[2] > assign:
+    │       │       │   ├── place: #6
+    │       │       │   └── value > record:
+    │       │       │       ├── type: {i64, i32}
+    │       │       │       ├── members[0] > member 1: local #3 : i32
+    │       │       │       └── members[1] > member 0: local #4 : i64
+    │       │       └── body[3]: leave @5
+    │       ├── body[2] > assign:
+    │       │   ├── place: #9
+    │       │   └── value > record:
+    │       │       ├── type: {{i64, i32}, f32}
+    │       │       ├── members[0] > member 1: local #2 : f32
+    │       │       └── members[1] > member 0: local #7 : {i64, i32}
+    │       └── body[3]: leave @8
+    ├── funcs[32] > func:
+    │   ├── symbol: functions$throughWrap(functions$Wrap[functions$Wrap], functions$Wrap)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : {{i64, i32}, f32}
+    │   ├── ret: {{i64, i32}, f32}
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > foreign call:
+    │   │       ├── type: {f32, {i32, i64}}
+    │   │       ├── fn: functions$throughWrap(functions$Wrap[functions$Wrap], functions$Wrap).ffi
+    │   │       ├── args[0]: local #1 : ptr
+    │   │       └── args[1] > record:
+    │   │           ├── type: {f32, {i32, i64}}
+    │   │           ├── members[0] > member 0 > member:
+    │   │           │   ├── type: f32
+    │   │           │   ├── index: 1
+    │   │           │   └── value: local #2 : {{i64, i32}, f32}
+    │   │           └── members[1] > member 1 > record:
+    │   │               ├── type: {i32, i64}
+    │   │               ├── members[0] > member 0 > member:
+    │   │               │   ├── type: i32
+    │   │               │   ├── index: 1
+    │   │               │   └── value > member:
+    │   │               │       ├── type: {i64, i32}
+    │   │               │       ├── index: 0
+    │   │               │       └── value: local #2 : {{i64, i32}, f32}
+    │   │               └── members[1] > member 1 > member:
+    │   │                   ├── type: i64
+    │   │                   ├── index: 0
+    │   │                   └── value > member:
+    │   │                       ├── type: {i64, i32}
+    │   │                       ├── index: 0
+    │   │                       └── value: local #2 : {{i64, i32}, f32}
+    │   └── body[1] > return > record:
+    │       ├── type: {{i64, i32}, f32}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: f32
+    │       │   ├── index: 0
+    │       │   └── value: local #3 : {f32, {i32, i64}}
+    │       └── members[1] > member 0 > record:
+    │           ├── type: {i64, i32}
+    │           ├── members[0] > member 1 > member:
+    │           │   ├── type: i32
+    │           │   ├── index: 0
+    │           │   └── value > member:
+    │           │       ├── type: {i32, i64}
+    │           │       ├── index: 1
+    │           │       └── value: local #3 : {f32, {i32, i64}}
+    │           └── members[1] > member 0 > member:
+    │               ├── type: i64
+    │               ├── index: 1
+    │               └── value > member:
+    │                   ├── type: {i32, i64}
+    │                   ├── index: 1
+    │                   └── value: local #3 : {f32, {i32, i64}}
+    ├── funcs[33] > func:
+    │   ├── symbol: functions$main()$lambda17
     │   ├── params[0]: local #1 : void
     │   ├── params[1]: local #2 : i64
     │   ├── ret: i64
@@ -1288,20 +1577,20 @@
     │       ├── op: +
     │       ├── left: local #2 : i64
     │       └── right: 1 : i64
-    ├── funcs[32] > func:
-    │   ├── symbol: functions$main()$lambda17
+    ├── funcs[34] > func:
+    │   ├── symbol: functions$main()$lambda18
     │   ├── params[0]: local #1 : {i64, box32}
     │   ├── ret: i64
     │   └── body[0] > return > member:
     │       ├── type: i64
     │       ├── index: 0
     │       └── value: local #1 : {i64, box32}
-    ├── funcs[33] > func:
+    ├── funcs[35] > func:
     │   ├── symbol: functions$main()$lambda7
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > return: local #1 : i64
-    ├── funcs[34] > func:
+    ├── funcs[36] > func:
     │   ├── symbol: functions$half.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1341,7 +1630,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[35] > func:
+    ├── funcs[37] > func:
     │   ├── symbol: functions$main()$lambda1.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1381,7 +1670,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[36] > func:
+    ├── funcs[38] > func:
     │   ├── symbol: functions$main()$lambda2.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1421,7 +1710,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[37] > func:
+    ├── funcs[39] > func:
     │   ├── symbol: functions$main()$lambda3.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1442,26 +1731,69 @@
     │   │       ├── type: void
     │   │       ├── fn: zane_callback_attach
     │   │       └── args:
-    │   ├── body[2] > store:
-    │   │   ├── address: local #1 : ptr
+    │   ├── body[2] > let:
+    │   │   ├── local: #3
     │   │   └── value > call:
-    │   │       ├── type: {i32, i32, [2 x f64]}
+    │   │       ├── type: {[2 x f64], i32, i32}
     │   │       ├── fn: functions$main()$lambda3
-    │   │       └── args[0] > deref:
-    │   │           ├── type: {i32, i32, [2 x f64]}
-    │   │           └── ptr > deref:
-    │   │               ├── type: ptr
-    │   │               └── ptr > offset:
-    │   │                   ├── within: {ptr}
-    │   │                   ├── path: 0
-    │   │                   └── base: local #0 : ptr
-    │   └── body[3] > if:
+    │   │       └── args[0] > record:
+    │   │           ├── type: {[2 x f64], i32, i32}
+    │   │           ├── members[0] > member 1 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 0
+    │   │           │   └── value > deref:
+    │   │           │       ├── type: {i32, i32, [2 x f64]}
+    │   │           │       └── ptr > deref:
+    │   │           │           ├── type: ptr
+    │   │           │           └── ptr > offset:
+    │   │           │               ├── within: {ptr}
+    │   │           │               ├── path: 0
+    │   │           │               └── base: local #0 : ptr
+    │   │           ├── members[1] > member 2 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 1
+    │   │           │   └── value > deref:
+    │   │           │       ├── type: {i32, i32, [2 x f64]}
+    │   │           │       └── ptr > deref:
+    │   │           │           ├── type: ptr
+    │   │           │           └── ptr > offset:
+    │   │           │               ├── within: {ptr}
+    │   │           │               ├── path: 0
+    │   │           │               └── base: local #0 : ptr
+    │   │           └── members[2] > member 0 > member:
+    │   │               ├── type: [2 x f64]
+    │   │               ├── index: 2
+    │   │               └── value > deref:
+    │   │                   ├── type: {i32, i32, [2 x f64]}
+    │   │                   └── ptr > deref:
+    │   │                       ├── type: ptr
+    │   │                       └── ptr > offset:
+    │   │                           ├── within: {ptr}
+    │   │                           ├── path: 0
+    │   │                           └── base: local #0 : ptr
+    │   ├── body[3] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > record:
+    │   │       ├── type: {i32, i32, [2 x f64]}
+    │   │       ├── members[0] > member 0 > member:
+    │   │       │   ├── type: i32
+    │   │       │   ├── index: 1
+    │   │       │   └── value: local #3 : {[2 x f64], i32, i32}
+    │   │       ├── members[1] > member 1 > member:
+    │   │       │   ├── type: i32
+    │   │       │   ├── index: 2
+    │   │       │   └── value: local #3 : {[2 x f64], i32, i32}
+    │   │       └── members[2] > member 2 > member:
+    │   │           ├── type: [2 x f64]
+    │   │           ├── index: 0
+    │   │           └── value: local #3 : {[2 x f64], i32, i32}
+    │   └── body[4] > if:
     │       ├── cond: local #2 : i1
     │       └── body[0] > eval > runtime:
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[38] > func:
+    ├── funcs[40] > func:
     │   ├── symbol: functions$main()$lambda4.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1499,7 +1831,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[39] > func:
+    ├── funcs[41] > func:
     │   ├── symbol: functions$built.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1539,7 +1871,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[40] > func:
+    ├── funcs[42] > func:
     │   ├── symbol: functions$main()$lambda5.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1587,7 +1919,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[41] > func:
+    ├── funcs[43] > func:
     │   ├── symbol: functions$main()$lambda6.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1627,7 +1959,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[42] > func:
+    ├── funcs[44] > func:
     │   ├── symbol: functions$main()$lambda8.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1667,7 +1999,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[43] > func:
+    ├── funcs[45] > func:
     │   ├── symbol: functions$main()$lambda9.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1688,26 +2020,69 @@
     │   │       ├── type: void
     │   │       ├── fn: zane_callback_attach
     │   │       └── args:
-    │   ├── body[2] > store:
-    │   │   ├── address: local #1 : ptr
+    │   ├── body[2] > let:
+    │   │   ├── local: #3
     │   │   └── value > call:
-    │   │       ├── type: {i32, i32, [2 x f64]}
+    │   │       ├── type: {[2 x f64], i32, i32}
     │   │       ├── fn: functions$main()$lambda9
-    │   │       └── args[0] > deref:
-    │   │           ├── type: {i32, i32, [2 x f64]}
-    │   │           └── ptr > deref:
-    │   │               ├── type: ptr
-    │   │               └── ptr > offset:
-    │   │                   ├── within: {ptr}
-    │   │                   ├── path: 0
-    │   │                   └── base: local #0 : ptr
-    │   └── body[3] > if:
+    │   │       └── args[0] > record:
+    │   │           ├── type: {[2 x f64], i32, i32}
+    │   │           ├── members[0] > member 1 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 0
+    │   │           │   └── value > deref:
+    │   │           │       ├── type: {i32, i32, [2 x f64]}
+    │   │           │       └── ptr > deref:
+    │   │           │           ├── type: ptr
+    │   │           │           └── ptr > offset:
+    │   │           │               ├── within: {ptr}
+    │   │           │               ├── path: 0
+    │   │           │               └── base: local #0 : ptr
+    │   │           ├── members[1] > member 2 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 1
+    │   │           │   └── value > deref:
+    │   │           │       ├── type: {i32, i32, [2 x f64]}
+    │   │           │       └── ptr > deref:
+    │   │           │           ├── type: ptr
+    │   │           │           └── ptr > offset:
+    │   │           │               ├── within: {ptr}
+    │   │           │               ├── path: 0
+    │   │           │               └── base: local #0 : ptr
+    │   │           └── members[2] > member 0 > member:
+    │   │               ├── type: [2 x f64]
+    │   │               ├── index: 2
+    │   │               └── value > deref:
+    │   │                   ├── type: {i32, i32, [2 x f64]}
+    │   │                   └── ptr > deref:
+    │   │                       ├── type: ptr
+    │   │                       └── ptr > offset:
+    │   │                           ├── within: {ptr}
+    │   │                           ├── path: 0
+    │   │                           └── base: local #0 : ptr
+    │   ├── body[3] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > record:
+    │   │       ├── type: {i32, i32, [2 x f64]}
+    │   │       ├── members[0] > member 0 > member:
+    │   │       │   ├── type: i32
+    │   │       │   ├── index: 1
+    │   │       │   └── value: local #3 : {[2 x f64], i32, i32}
+    │   │       ├── members[1] > member 1 > member:
+    │   │       │   ├── type: i32
+    │   │       │   ├── index: 2
+    │   │       │   └── value: local #3 : {[2 x f64], i32, i32}
+    │   │       └── members[2] > member 2 > member:
+    │   │           ├── type: [2 x f64]
+    │   │           ├── index: 0
+    │   │           └── value: local #3 : {[2 x f64], i32, i32}
+    │   └── body[4] > if:
     │       ├── cond: local #2 : i1
     │       └── body[0] > eval > runtime:
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[44] > func:
+    ├── funcs[46] > func:
     │   ├── symbol: functions$main()$lambda10.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1747,7 +2122,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[45] > func:
+    ├── funcs[47] > func:
     │   ├── symbol: functions$main()$lambda11.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1787,7 +2162,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[46] > func:
+    ├── funcs[48] > func:
     │   ├── symbol: functions$main()$lambda12.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1825,7 +2200,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[47] > func:
+    ├── funcs[49] > func:
     │   ├── symbol: functions$main()$lambda13.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1865,7 +2240,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[48] > func:
+    ├── funcs[50] > func:
     │   ├── symbol: functions$main()$lambda14.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1905,7 +2280,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    ├── funcs[49] > func:
+    ├── funcs[51] > func:
     │   ├── symbol: functions$main()$lambda15.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1926,26 +2301,153 @@
     │   │       ├── type: void
     │   │       ├── fn: zane_callback_attach
     │   │       └── args:
-    │   ├── body[2] > store:
-    │   │   ├── address: local #1 : ptr
+    │   ├── body[2] > let:
+    │   │   ├── local: #3
     │   │   └── value > call:
-    │   │       ├── type: {void, i32}
+    │   │       ├── type: {i32, void}
     │   │       ├── fn: functions$main()$lambda15
-    │   │       └── args[0] > deref:
-    │   │           ├── type: {void, i32}
-    │   │           └── ptr > deref:
-    │   │               ├── type: ptr
-    │   │               └── ptr > offset:
-    │   │                   ├── within: {ptr}
-    │   │                   ├── path: 0
-    │   │                   └── base: local #0 : ptr
-    │   └── body[3] > if:
+    │   │       └── args[0] > record:
+    │   │           ├── type: {i32, void}
+    │   │           ├── members[0] > member 1 > member:
+    │   │           │   ├── type: void
+    │   │           │   ├── index: 0
+    │   │           │   └── value > deref:
+    │   │           │       ├── type: {void, i32}
+    │   │           │       └── ptr > deref:
+    │   │           │           ├── type: ptr
+    │   │           │           └── ptr > offset:
+    │   │           │               ├── within: {ptr}
+    │   │           │               ├── path: 0
+    │   │           │               └── base: local #0 : ptr
+    │   │           └── members[1] > member 0 > member:
+    │   │               ├── type: i32
+    │   │               ├── index: 1
+    │   │               └── value > deref:
+    │   │                   ├── type: {void, i32}
+    │   │                   └── ptr > deref:
+    │   │                       ├── type: ptr
+    │   │                       └── ptr > offset:
+    │   │                           ├── within: {ptr}
+    │   │                           ├── path: 0
+    │   │                           └── base: local #0 : ptr
+    │   ├── body[3] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > record:
+    │   │       ├── type: {void, i32}
+    │   │       ├── members[0] > member 0 > member:
+    │   │       │   ├── type: void
+    │   │       │   ├── index: 1
+    │   │       │   └── value: local #3 : {i32, void}
+    │   │       └── members[1] > member 1 > member:
+    │   │           ├── type: i32
+    │   │           ├── index: 0
+    │   │           └── value: local #3 : {i32, void}
+    │   └── body[4] > if:
     │       ├── cond: local #2 : i1
     │       └── body[0] > eval > runtime:
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    └── funcs[50] > func:
+    ├── funcs[52] > func:
+    │   ├── symbol: functions$main()$lambda16.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > let:
+    │   │   ├── local: #3
+    │   │   └── value > call:
+    │   │       ├── type: {{i64, i32}, f32}
+    │   │       ├── fn: functions$main()$lambda16
+    │   │       └── args[0] > record:
+    │   │           ├── type: {{i64, i32}, f32}
+    │   │           ├── members[0] > member 1 > member:
+    │   │           │   ├── type: f32
+    │   │           │   ├── index: 0
+    │   │           │   └── value > deref:
+    │   │           │       ├── type: {f32, {i32, i64}}
+    │   │           │       └── ptr > deref:
+    │   │           │           ├── type: ptr
+    │   │           │           └── ptr > offset:
+    │   │           │               ├── within: {ptr}
+    │   │           │               ├── path: 0
+    │   │           │               └── base: local #0 : ptr
+    │   │           └── members[1] > member 0 > record:
+    │   │               ├── type: {i64, i32}
+    │   │               ├── members[0] > member 1 > member:
+    │   │               │   ├── type: i32
+    │   │               │   ├── index: 0
+    │   │               │   └── value > member:
+    │   │               │       ├── type: {i32, i64}
+    │   │               │       ├── index: 1
+    │   │               │       └── value > deref:
+    │   │               │           ├── type: {f32, {i32, i64}}
+    │   │               │           └── ptr > deref:
+    │   │               │               ├── type: ptr
+    │   │               │               └── ptr > offset:
+    │   │               │                   ├── within: {ptr}
+    │   │               │                   ├── path: 0
+    │   │               │                   └── base: local #0 : ptr
+    │   │               └── members[1] > member 0 > member:
+    │   │                   ├── type: i64
+    │   │                   ├── index: 1
+    │   │                   └── value > member:
+    │   │                       ├── type: {i32, i64}
+    │   │                       ├── index: 1
+    │   │                       └── value > deref:
+    │   │                           ├── type: {f32, {i32, i64}}
+    │   │                           └── ptr > deref:
+    │   │                               ├── type: ptr
+    │   │                               └── ptr > offset:
+    │   │                                   ├── within: {ptr}
+    │   │                                   ├── path: 0
+    │   │                                   └── base: local #0 : ptr
+    │   ├── body[3] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > record:
+    │   │       ├── type: {f32, {i32, i64}}
+    │   │       ├── members[0] > member 0 > member:
+    │   │       │   ├── type: f32
+    │   │       │   ├── index: 1
+    │   │       │   └── value: local #3 : {{i64, i32}, f32}
+    │   │       └── members[1] > member 1 > record:
+    │   │           ├── type: {i32, i64}
+    │   │           ├── members[0] > member 0 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 1
+    │   │           │   └── value > member:
+    │   │           │       ├── type: {i64, i32}
+    │   │           │       ├── index: 0
+    │   │           │       └── value: local #3 : {{i64, i32}, f32}
+    │   │           └── members[1] > member 1 > member:
+    │   │               ├── type: i64
+    │   │               ├── index: 0
+    │   │               └── value > member:
+    │   │                   ├── type: {i64, i32}
+    │   │                   ├── index: 0
+    │   │                   └── value: local #3 : {{i64, i32}, f32}
+    │   └── body[4] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    └── funcs[53] > func:
         ├── symbol: functions$main()$lambda7.adapter
         ├── linkage: shared
         ├── params[0]: local #0 : ptr

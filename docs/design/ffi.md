@@ -233,8 +233,9 @@ width is less than its size, matches no primitive, full-width or narrow
 (`ffi.md` §3.3).
 A type §3.3 refuses is reported with what it is on the target and a pointer
 to the converting C function §3.3 asks for. A C-compatible value type is compared field by field against the
-`struct`'s offsets and sizes, laid out as lowering lays the Zane type out
-([`platforms.md`](platforms.md), "64-bit targets only"), and the two must
+`struct`'s offsets and sizes, its fields laid out in declaration order as C
+lays a `struct` out ([`platforms.md`](platforms.md), "64-bit targets only"),
+which is the layout it crosses in (F10), and the two must
 have the same size and alignment: a `struct` aligned more strictly than its
 fields, as `_Alignas` makes one, is passed differently by C and would sit
 in an under-aligned slot. Two forms are
@@ -545,12 +546,23 @@ its C layout, and the node passes the slots' addresses:
 | `@primitives$String` | a `zane_bytes`: the string's byte address and length, from its handle |
 | `@primitives$Array<T, n>` | the address of the array, which already lays out as `T[n]` |
 | `@primitives$List<T>` | a `zane_span`: the list's block address and count |
-| C-compatible value type | the value, already in C's layout, with its padding bytes zeroed |
+| C-compatible value type | the value in C's layout, its fields in declaration order, with its padding bytes zeroed |
 | a handle | its pointer |
 
 A string, array or list is passed where it is, never copied going in:
 `ffi.md` §3.4 and `memory.md` §2.9.1 together mean nothing writes it during
 the call.
+
+A C-compatible value type crosses as a copy, and its two layouts differ:
+Zane places a struct's fields by alignment
+([`lowering.md`](lowering.md) L5), and C in declaration order. So the
+foreign verb's function rebuilds the argument field by field in C's order,
+recursively for a struct field, before the call, and the result from C's
+order after it (`Callback.to_c`, `Callback.of_c` in `lib/cgt/nodes.ml`). A
+struct whose fields both orders place alike, however deep, crosses as it
+is. Only arrays and lists of scalars are lent, whose elements lie alike in
+both, so no struct lies in memory that Zane and C both read, and nothing
+else needs C's order.
 
 The result arrives in a slot of its C layout, and lowering makes the Zane
 value from it. A `zane_bytes` result is copied into a new string in the
@@ -566,7 +578,8 @@ pointer carries no context, so a value that only Zane can call cannot be
 handed to C. So every lambda whose type is C-compatible (`ffi.md` §3.6) is
 lifted with three functions: its Zane function (L14); an **adapter**, a
 Zane function of a thunk's pointer ABI that reads the arguments from their
-slots, calls the Zane function and stores its result, named by the
+slots, calls the Zane function and stores its result, a struct rebuilt
+between C's order and its own as F10's are, named by the
 lambda's symbol with `.adapter` after it; and a **C entry** in the glue,
 named with `.c`, which takes the arguments with the C convention, hands
 the adapter their addresses, a `Bool` as a byte, and returns what it

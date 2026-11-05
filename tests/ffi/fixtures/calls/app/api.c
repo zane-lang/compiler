@@ -40,6 +40,7 @@ pair pair_mirror(pair p) {
 }
 
 tagged flip(tagged t) { return (tagged){ -t.tag, t.n + 1 }; }
+nested nest(nested n) { return (nested){ n.inner.tag, { n.first, n.inner.n * 2 }, n.last / 2 }; }
 void add_to(int64_t n) { total += n; count++; }
 void reset(void) { count = 0; total = 0; }
 int64_t counter(void) { return count + total; }

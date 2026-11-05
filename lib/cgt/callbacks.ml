@@ -13,19 +13,25 @@ let context = { Global.symbol = "zane_self"; linkage = Linkage.Imported; ty = Ty
 
 (* The adapter of the lambda [f]: it takes the address of a table of the
    addresses of slots holding [f]'s arguments, and the address of a slot
-   for its result, calls [f] with the arguments and stores what it gives.
-   On a thread without a context, it has the runtime make one for the call
+   for its result, calls [f] with the arguments and stores what it gives,
+   each struct in C's layout there (Callback.of_c, Callback.to_c). On a
+   thread without a context, it has the runtime make one for the call
    and give it back after. C's entry calls it, so it is exported from this
    object, and C names it by its symbol; it is shared when [f] is not
    exported, since each object that lifts [f] defines it. *)
-let adapter (f : Func.t) : Func.t =
+let adapter (c : Callback.t) (f : Func.t) : Func.t =
   let ptr node = { Expr.node; ty = Ty.Ptr } in
   let table = Ty.Struct (List.map (fun _ -> Ty.Ptr) f.Func.params) in
+  let shape i = List.nth_opt c.Callback.takes i in
   let arg i (_, t) =
     let at = ptr (Expr.Offset { base = ptr (Expr.Local 0); within = table; path = [ i ] }) in
-    { Expr.node = Expr.Deref (ptr (Expr.Deref at)); ty = t }
+    match shape i with
+    | Some s when Callback.moved s -> Callback.of_c s { Expr.node = Expr.Deref (ptr (Expr.Deref at)); ty = Callback.c s }
+    | _ -> { Expr.node = Expr.Deref (ptr (Expr.Deref at)); ty = t }
   in
   let call = { Expr.node = Expr.Call { fn = f.Func.symbol; args = List.mapi arg f.Func.params }; ty = f.Func.ret } in
+  let gives = Callback.moved c.Callback.gives in
+  let result = { Expr.node = Expr.Local 3; ty = f.Func.ret } in
   let self = { Expr.node = Expr.Deref (ptr (Expr.Global context.Global.symbol)); ty = Ty.I64 } in
   let fresh = { Expr.node = Expr.Local 2; ty = Ty.I1 } in
   let runtime fn = Stat.If { cond = fresh; body = [ Stat.Eval { Expr.node = Expr.Runtime { fn; args = [] }; ty = Ty.Void } ] } in
@@ -40,9 +46,12 @@ let adapter (f : Func.t) : Func.t =
         Stat.Let
           { id = 2; value = { Expr.node = Expr.Binary { op = Expr.Eq; left = self; right = { Expr.node = Expr.Int 0L; ty = Ty.I64 } }; ty = Ty.I1 } };
         runtime Runtime.Callback_attach;
-        (if f.Func.ret = Ty.Void then Stat.Eval call else Stat.Store { address = ptr (Expr.Local 1); value = call });
-        runtime Runtime.Callback_detach;
-      ];
+        (if f.Func.ret = Ty.Void then Stat.Eval call
+         else if gives then Stat.Let { id = 3; value = call }
+         else Stat.Store { address = ptr (Expr.Local 1); value = call });
+      ]
+      @ (if gives then [ Stat.Store { address = ptr (Expr.Local 1); value = Callback.to_c c.Callback.gives result } ] else [])
+      @ [ runtime Runtime.Callback_detach ];
     values = [];
   }
 
@@ -65,6 +74,9 @@ let add package (callbacks : Callback.t list) funcs =
   in
   let callbacks = List.map marked callbacks in
   let lifted =
-    List.filter_map (fun (c : Callback.t) -> if c.Callback.here then Hashtbl.find_opt here c.Callback.symbol else None) callbacks
+    List.filter_map
+      (fun (c : Callback.t) ->
+        if c.Callback.here then Option.map (adapter c) (Hashtbl.find_opt here c.Callback.symbol) else None)
+      callbacks
   in
-  (funcs @ List.map adapter lifted, (if lifted = [] then [] else [ context ]), callbacks)
+  (funcs @ lifted, (if lifted = [] then [] else [ context ]), callbacks)

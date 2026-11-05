@@ -24,3 +24,7 @@ double fold_sine(double x);
 int64_t fold_sorted(bool (*before)(int64_t, int64_t), zane_span xs);
 
 zane_bytes fold_shout(zane_bytes text);
+
+/* Three fields, which Zane lays out in another order than C. */
+typedef struct { int32_t tag; int64_t n; int32_t k; } trio;
+trio fold_trio(trio t);

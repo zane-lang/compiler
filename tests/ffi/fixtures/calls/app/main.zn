@@ -39,6 +39,14 @@ type Tagged = struct {
 
 Tagged(tag I32, n I64) => init{ tag; n; }
 
+type Nested = struct {
+	first I32;
+	inner Tagged;
+	last F32;
+}
+
+Nested(first I32, inner Tagged, last F32) => init{ first; inner; last; }
+
 I64 twice(x I64) foreign "twice";
 I32 narrow(byte I32, half I32) foreign "narrow";
 F32 halve(x F32) foreign "halve";
@@ -51,6 +59,7 @@ I64 length(text String) foreign "length";
 Vec3 add(a Vec3, b Vec3) foreign "vec_add";
 Pair mirror(p Pair) foreign "pair_mirror";
 Tagged flip(t Tagged) foreign "flip";
+Nested nest(n Nested) foreign "nest";
 Unit addTo(n I64) foreign "add_to";
 Unit reset() foreign "reset";
 I64 counter() foreign "counter";
@@ -104,6 +113,11 @@ Unit main() {
 	t Tagged = flip(Tagged(I32(3), I64(41)));
 	show(String(t.tag));
 	show(String(t.n));
+	n Nested = nest(Nested(I32(5), Tagged(I32(8), I64(21)), F32(3.0)));
+	show(String(n.first));
+	show(String(n.inner.tag));
+	show(String(n.inner.n));
+	show(String(n.last));
 	addTo(I64(1000));
 	show(String(counter()));
 	reset();

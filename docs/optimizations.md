@@ -202,6 +202,25 @@ entries' versions a lookup reads before and after it reads them, and keep
 their own state and count of work. A table holds at most 256 KiB, in
 memory the system backs only where an entry has been written.
 
+### Struct members ordered by alignment
+
+- **Builds:** every build
+- **Where:** `lib/cgt/nodes.ml` (`Ty.order`, `Callback.to_c`,
+  `Callback.of_c`), `lib/cgt/type_layout.ml` (`shape`, `member_index`),
+  `lib/cgt/lower_foreign.ml`, `lib/cgt/callbacks.ml`
+- **Design:** [`design/lowering.md`](design/lowering.md) L5;
+  [`design/ffi.md`](design/ffi.md) F10
+- **Effect:** a list of 2,000,000 `{Bool, Int, I32}` values peaks at
+  34.1 MB instead of 49.8 MB, each element 16 bytes instead of 24
+
+A struct's members are placed in decreasing order of alignment, those of
+one alignment in declaration order. Every layout's size is a multiple of
+its alignment, so no padding falls between members, and a struct is as
+small as its members allow. Every list element, array element, owner slot
+and box of the type shrinks with it. Placement is not visible to a Zane
+program (spec `memory.md` §3.3, §3.5). C sees a struct only as a copy,
+rebuilt in its declaration order as it crosses.
+
 ### One box per cycle
 
 - **Builds:** every build; `ZANE_ONE_BOX=0` turns it off, and so does
