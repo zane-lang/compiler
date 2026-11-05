@@ -29,7 +29,7 @@ export OPAMROOT="$HOME/.opam-zane-spike"
 if [[ $windows == 1 ]]; then
 	prefix=$(cygpath -u "${CONDA_PREFIX:?}")
 	for tool in ocamlopt opam zig; do
-		found=$(find "$prefix" \( -iname "$tool.exe" -o -iname "$tool.opt.exe" \) 2>/dev/null | head -1)
+		found=$(find "$prefix" \( -iname "$tool.exe" -o -iname "$tool.opt.exe" -o -iname "*-$tool.exe" \) 2>/dev/null | head -1)
 		echo "$tool: ${found:-not under $prefix}"
 		[[ -n "$found" ]] && PATH="$(dirname "$found"):$PATH"
 	done
@@ -56,7 +56,7 @@ versions)
 	clang --version | head -1 || true
 	ld.lld --version || true
 	command -v ld.lld clang llvm-config cc c++ cl link 2>/dev/null || true
-	zig version || echo 'zig: not on PATH'
+	zig version || x86_64-w64-mingw32-zig version || echo 'zig: not on PATH'
 	if [[ $windows == 1 ]]; then
 		ls "$prefix"/conda-meta/ | grep -i zig || echo 'no zig package in conda-meta'
 		grep -ohi '"[^"]*\.exe"' "$prefix"/conda-meta/zig*.json | head -10 || true
