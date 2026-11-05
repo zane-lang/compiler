@@ -67,10 +67,11 @@ type t = {
   variables : (string * var) list;
   typedefs : (string * ctype) list;
   records : (string * record) list;
+  reached : (string * string) list;
   defined : string list;
 }
 
-let empty = { functions = []; variables = []; typedefs = []; records = []; defined = [] }
+let empty = { functions = []; variables = []; typedefs = []; records = []; reached = []; defined = [] }
 
 exception Malformed of string
 
@@ -178,6 +179,9 @@ let read text =
         | "rec" ->
             let name = next () in
             entries { t with records = (name, record ()) :: t.records }
+        | "reach" ->
+            let name = next () in
+            entries { t with reached = (name, next ()) :: t.reached }
         | w -> raise (Malformed ("no entry is written " ^ w)))
   in
   let t = entries empty in
@@ -186,6 +190,7 @@ let read text =
     variables = List.rev t.variables;
     typedefs = List.rev t.typedefs;
     records = List.rev t.records;
+    reached = List.rev t.reached;
     defined = [];
   }
 
@@ -218,6 +223,7 @@ let merge a b =
     variables = union_by_name a.variables b.variables;
     typedefs = union_by_name a.typedefs b.typedefs;
     records = union_by_name records b.records;
+    reached = union_by_name a.reached b.reached;
     defined = a.defined @ List.filter (fun n -> not (List.mem n a.defined)) b.defined;
   }
 

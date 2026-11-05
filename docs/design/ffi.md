@@ -228,7 +228,11 @@ has a prototype at all; each `struct`'s fields with their canonical types,
 offsets, and bit widths where a field is a bit-field, and the record's size
 and alignment from clang's `ASTRecordLayout`. A declaration that only an
 included header makes is not in the table, which is how `ffi.md` §2.1's
-"seen by the C compiler and by nothing else" holds.
+"seen by the C compiler and by nothing else" holds, with one exception: each
+struct an included header declares, by its tag or by a typedef naming it,
+is listed apart as **reached**, by name and identity alone, since a handle's
+`cType` may name it (`ffi.md` §4.1), as SQLite's `sqlite3` is named from
+the library's own header. Nothing else reads the reached list.
 
 The table travels from C++ as text, words with names written as their
 length and bytes (`lib/foreign/interface.ml` reads it), so the stubs build

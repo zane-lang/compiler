@@ -36,8 +36,8 @@ let handle_of env (t : Ty.t) =
 let is_capability (h : Nodes.Handle.t) = h.Nodes.Handle.free = None
 
 (* The struct a handle's `cType` names in [iface], by its identity: a
-   typedef of a struct, or the tag of a struct an interface header
-   declares, completely or not (§4.1). *)
+   typedef of a struct, or the tag of a struct, that an interface header
+   declares, completely or not, or that a header it includes does (§4.1). *)
 let record_of iface c_type =
   match List.assoc_opt c_type iface.C.typedefs with
   | Some (C.Record { union = false; name }) -> Some name
@@ -46,7 +46,10 @@ let record_of iface c_type =
       let tagged = "struct " ^ c_type in
       match List.assoc_opt tagged iface.C.records with
       | Some { C.union = false; declared = true; _ } -> Some tagged
-      | _ -> None)
+      | _ -> (
+          match List.assoc_opt c_type iface.C.reached with
+          | Some name -> Some name
+          | None -> List.assoc_opt tagged iface.C.reached))
 
 (* A pointer to [record], `const` or not. *)
 let pointer_to ~const record = C.Pointer { const; pointee = C.Record { union = false; name = record } }
@@ -154,22 +157,28 @@ let check_handle env (info : type_info) (h : Nodes.Handle.t) =
       if Type_decls.is_c_identifier h.Nodes.Handle.c_type then
         error env at
           (Printf.sprintf
-             "no interface header of %s declares %s as a struct, or as a typedef of one, which a handle's \
+             "no interface header of %s, nor a header one includes, declares %s as a struct, or as a typedef of one, which a handle's \
               `cType` names (ffi.md §4.1)"
              (quote info.decl.package) (quote h.Nodes.Handle.c_type))
   | Some record ->
+      (* The result is `void` or an integer, such as a status, which Zane
+         ignores. *)
       let check role name arity =
         let writable = pointer_to ~const:false record in
-        let expected = C.Function { params = List.init arity (fun _ -> writable); result = C.Void; variadic = false } in
+        let fits = function
+          | C.Function { params; result = C.Void | C.Int _; variadic = false } ->
+              params = List.init arity (fun _ -> writable)
+          | _ -> false
+        in
         match List.assoc_opt name iface.C.functions with
         | None ->
             error env at
               (Printf.sprintf "no interface header of %s declares the %s %s as a function (ffi.md §4.1)"
                  (quote info.decl.package) role (quote name))
-        | Some f when f.C.ty <> expected ->
+        | Some f when not (fits f.C.ty) ->
             error env at
-              (Printf.sprintf "the %s %s is %s; it takes %s and returns `void` (ffi.md §4.1)" role (quote name)
-                 (quote (C.to_string f.C.ty))
+              (Printf.sprintf "the %s %s is %s; it takes %s and returns `void` or an integer, which is ignored (ffi.md §4.1)"
+                 role (quote name) (quote (C.to_string f.C.ty))
                  (if arity = 1 then "one non-`const` pointer to the handle's C type"
                   else "two non-`const` pointers to the handle's C type"))
         | Some _ -> ()

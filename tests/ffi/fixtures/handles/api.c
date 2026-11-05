@@ -51,9 +51,12 @@ void conn_set(conn_t *dst, conn_t *src) {
 	free(src);
 }
 
-void conn_free(conn_t *conn) {
+/* Returns a status, as many libraries' cleanup functions do, which Zane
+   ignores. */
+int conn_free(conn_t *conn) {
 	note("free conn %d\n", conn->id);
 	free(conn);
+	return 0;
 }
 
 int32_t conn_id(const conn_t *conn) { return conn->id; }

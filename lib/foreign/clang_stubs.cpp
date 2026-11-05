@@ -374,7 +374,26 @@ public:
        prototype. */
     std::set<const clang::Decl *> written;
     for (clang::Decl *d : ctx.getTranslationUnitDecl()->decls()) {
-      if (!sm.isInMainFile(sm.getExpansionLoc(d->getLocation()))) continue;
+      if (!sm.isInMainFile(sm.getExpansionLoc(d->getLocation()))) {
+        /* A struct an included header declares, by its tag or by a typedef
+           that names it, is written as reached: a handle's `cType` may name
+           it (ffi.md §4.1), and nothing else of the header's is read. */
+        const clang::RecordDecl *r = nullptr;
+        std::string name;
+        if (auto *t = llvm::dyn_cast<clang::TypedefNameDecl>(d)) {
+          r = t->getUnderlyingType().getCanonicalType()->getAsRecordDecl();
+          name = t->getName().str();
+        } else if (auto *tag = llvm::dyn_cast<clang::RecordDecl>(d)) {
+          r = tag;
+          name = Writer::record_name(tag);
+        }
+        if (r && !r->isUnion() && !name.empty() && !Writer::record_name(r).empty()) {
+          w.word("reach");
+          w.str(name);
+          w.str(Writer::record_name(r));
+        }
+        continue;
+      }
       if (llvm::isa<clang::FunctionDecl, clang::VarDecl>(d)) {
         if (!written.insert(d->getCanonicalDecl()).second) continue;
         d = d->getMostRecentDecl();
