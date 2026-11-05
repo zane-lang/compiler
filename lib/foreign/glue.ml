@@ -117,13 +117,16 @@ let thunk n (e : entry) (f : C_interface.func) =
    selects what the system headers it includes declare, as it does when
    one of its package's sources includes it first. `<stdint.h>` follows,
    since a scalar slot is read as a fixed-width type, which a header
-   declaring only `int` or `long long` need not include. A quoted
+   declaring only `int` or `long long` need not include. `zane_bytes_alloc`
+   is declared as `<zane_ffi.h>` declares it, for a header that spells its
+   own `zane_bytes` and includes no toolchain header. A quoted
    header name is read as it is written, escapes and all, so the path goes
    in unescaped; Foreign refuses one holding a double quote or a line break. *)
 let file ~header (entries : (entry * C_interface.func) list) =
   let b = Buffer.create 1024 in
   Buffer.add_string b (Printf.sprintf "#include \"%s\"\n" header);
   Buffer.add_string b "#include <stdint.h>\n";
+  Buffer.add_string b "uint8_t *zane_bytes_alloc(__SIZE_TYPE__ __zane_size);\n";
   let called = List.sort_uniq compare (List.map (fun ((e : entry), _) -> e.c_function) entries) in
   List.iter (fun c -> Buffer.add_string b (Printf.sprintf "#undef %s\n" c)) called;
   List.iteri (fun n (e, f) -> Buffer.add_string b (thunk n e f)) entries;

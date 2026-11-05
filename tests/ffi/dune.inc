@@ -1701,6 +1701,128 @@
   (diff golden/noObject.out noObject.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/ownBytes))
+ (targets ownBytes.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build ownBytes.exe --package fixtures/ownBytes)))
+
+(rule
+ (deps (source_tree fixtures/ownBytes))
+ (targets ownBytes.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build ownBytes.optimized.exe --optimize --package fixtures/ownBytes)))
+
+(rule
+ (deps (source_tree fixtures/ownBytes))
+ (targets ownBytes.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build ownBytes.tiered.exe --tiered --package fixtures/ownBytes)))
+
+(rule
+ (deps (source_tree fixtures/ownBytes))
+ (targets ownBytes.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up ownBytes.tier1 --package fixtures/ownBytes)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    ownBytes.checked.out.actual
+    (run ./ownBytes.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/ownBytes.out ownBytes.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    ownBytes.unchecked.out.actual
+    (run ./ownBytes.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/ownBytes.out ownBytes.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    ownBytes.optimized.checked.out.actual
+    (run ./ownBytes.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/ownBytes.out ownBytes.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    ownBytes.optimized.unchecked.out.actual
+    (run ./ownBytes.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/ownBytes.out ownBytes.optimized.unchecked.out.actual)))
+
+(rule
+ (deps ownBytes.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./ownBytes.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    ownBytes.tiered.checked.out.actual
+    (run ./ownBytes.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/ownBytes.out ownBytes.tiered.checked.out.actual)))
+
+(rule
+ (deps ownBytes.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./ownBytes.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    ownBytes.tiered.unchecked.out.actual
+    (run ./ownBytes.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/ownBytes.out ownBytes.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/retained))
  (targets retained.exe)
  (action
