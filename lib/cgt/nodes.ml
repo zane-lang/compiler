@@ -692,7 +692,13 @@ module Callback = struct
         let member j (s, n) =
           let from, into, ty = if to_c then (positions.(j), j, zs'.(j)) else (j, positions.(j), cs'.(j)) in
           let read = { Expr.node = Expr.Member { value = v; index = from }; ty } in
-          (into, if n = None then rebuild ~to_c s read else read)
+          (* An array of none holds nothing, and its two layouts are of
+             different types, so the other side's is made empty. *)
+          let into_ty = if to_c then cs'.(j) else zs'.(j) in
+          match n with
+          | None -> (into, rebuild ~to_c s read)
+          | Some 0 -> (into, { Expr.node = Expr.Record []; ty = into_ty })
+          | Some _ -> (into, read)
         in
         { Expr.node = Expr.Record (List.mapi member fs); ty = (if to_c then Ty.Struct cs else Ty.Struct (Ty.placed zs zs)) }
     | _ -> v

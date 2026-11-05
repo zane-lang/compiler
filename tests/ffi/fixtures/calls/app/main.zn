@@ -47,6 +47,14 @@ type Nested = struct {
 
 Nested(first I32, inner Tagged, last F32) => init{ first; inner; last; }
 
+/// An array of none between two fields, which Zane lays out last and C in
+/// its place. C makes one, and it crosses back into C.
+type Gap = struct {
+	a I32;
+	none @primitives$Array<I64, 0>;
+	b I64;
+}
+
 I64 twice(x I64) foreign "twice";
 I32 narrow(byte I32, half I32) foreign "narrow";
 F32 halve(x F32) foreign "halve";
@@ -60,6 +68,8 @@ Vec3 add(a Vec3, b Vec3) foreign "vec_add";
 Pair mirror(p Pair) foreign "pair_mirror";
 Tagged flip(t Tagged) foreign "flip";
 Nested nest(n Nested) foreign "nest";
+Gap gap(a I32, b I64) foreign "make_gap";
+Gap widen(g Gap) foreign "widen";
 Unit addTo(n I64) foreign "add_to";
 Unit reset() foreign "reset";
 I64 counter() foreign "counter";
@@ -118,6 +128,9 @@ Unit main() {
 	show(String(n.inner.tag));
 	show(String(n.inner.n));
 	show(String(n.last));
+	g Gap = widen(gap(I32(4), I64(9)));
+	show(String(g.a));
+	show(String(g.b));
 	addTo(I64(1000));
 	show(String(counter()));
 	reset();
