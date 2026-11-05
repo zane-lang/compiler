@@ -463,7 +463,11 @@ everything through tier 0's table ([`tiers.md`](tiers.md)), and each C
 library function in it would cost a symbol lookup as every run starts. A
 body taken loses any stack protection the C compiler gave it: it becomes
 the program's code, which has none, and inlined it would give its caller
-the protection too. Bitcode is read only by the LLVM that wrote it or a
+the protection too. It also loses the processor the C compiler compiled it
+for, which LLVM inlines only into a caller whose processor has every
+feature it has: clang's default on macOS, `penryn` for x86-64 and
+`apple-m1` for AArch64, is newer than the baseline the program is
+compiled for, so no body would be inlined there. Bitcode is read only by the LLVM that wrote it or a
 later one, so the C compiler that compiles it, `ZANE_BITCODE_CC` or else
 the runtime's own, must be a clang of the compiler's LLVM version or older,
 as devbox's is; a release bundles bitcode a matching clang made (below).
