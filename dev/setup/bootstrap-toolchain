@@ -21,11 +21,10 @@ SEDLEX_VERSION="3.8.1"
 UUCP_VERSION="18.0.0"
 UUSEG_VERSION="18.0.0"
 # The LLVM bindings codegen builds its module through (docs/design/lowering.md L2):
-# LLVM's own, from llvm/bindings/ocaml, which opam packages as `llvm`. They
-# wrap one LLVM release, and 19 is the newest opam has. They find it as
-# `llvm-config-19` (apt's `llvm-19-dev`) or as the `llvm-config` devbox's
-# `llvm_19` provides, so this moves only with that release.
-LLVM_VERSION="19"
+# LLVM's own, from llvm/bindings/ocaml, which opam packages as `llvm`. Linux
+# and ARM macOS use LLVM 19 from opam; Intel macOS sets this to LLVM 21 and
+# uses the matching Nixpkgs OCaml bindings instead.
+LLVM_VERSION="${ZANE_LLVM_VERSION:-19}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -57,6 +56,13 @@ fi
 
 eval "$(opam env --switch="$ROOT" --set-switch)"
 
+# The Intel macOS build uses Nixpkgs' OCaml LLVM package instead of building
+# LLVM's bindings through opam. Make its findlib directory visible after opam
+# has set up the switch environment.
+if [[ -n "${ZANE_OCAML_EXTRA_PATH:-}" ]]; then
+	export OCAMLPATH="$ZANE_OCAML_EXTRA_PATH${OCAMLPATH:+:$OCAMLPATH}"
+fi
+
 # Only reinstall when a pinned package is missing or at the wrong version, so
 # entering the shell stays fast once the switch is warm.
 needed=()
@@ -79,7 +85,18 @@ fi
 # package as unavailable even though devbox's LLVM is right there.
 # Without that LLVM the bindings are skipped rather than failed: the grammar
 # and ambiguity tools build without them, and only codegen needs them.
-if [[ "$(opam show --field=installed-version llvm 2>/dev/null)" != "$LLVM_VERSION-shared" ]]; then
+if [[ "${ZANE_NIX_OCAML_LLVM:-0}" == 1 ]]; then
+	llvm_version="$(llvm-config --version 2>/dev/null || true)"
+	if [[ "$llvm_version" != "$LLVM_VERSION".* ]]; then
+		echo "bootstrap-toolchain: expected LLVM $LLVM_VERSION, found ${llvm_version:-none}" >&2
+		exit 1
+	fi
+	if ! ocamlfind query llvm >/dev/null 2>&1; then
+		echo "bootstrap-toolchain: Nix OCaml LLVM bindings are not visible through OCAMLPATH" >&2
+		exit 1
+	fi
+	echo "bootstrap-toolchain: using Nix OCaml LLVM bindings for LLVM $LLVM_VERSION"
+elif [[ "$(opam show --field=installed-version llvm 2>/dev/null)" != "$LLVM_VERSION-shared" ]]; then
 	if command -v "llvm-config-$LLVM_VERSION" >/dev/null 2>&1 ||
 		[[ "$(llvm-config --version 2>/dev/null)" == "$LLVM_VERSION".* ]]; then
 		opam install -y --no-depexts "llvm.$LLVM_VERSION-shared"

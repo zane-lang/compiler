@@ -3,28 +3,39 @@ name: Compiler distribution
 on:
   pull_request:
     paths:
-      - '.github/workflows/compiler-dist.yml'
-      - '.github/workflows/release.yml'
-      - '.github/scripts/release-tag'
-      - '.github/scripts/install-zig'
-      - '.github/actions/setup-ci/**'
-      - 'dev/release/**'
-      - 'dev/toolchains/**'
-      - 'tests/release/**'
-      - 'tests/codegen/fixtures/hello/**'
-      - 'tests/codegen/golden/hello.out'
-      - 'dev/bin/check-programs'
-      - 'dev/setup/bootstrap-toolchain'
-      - 'devbox.*'
-      - 'bin/**'
-      - 'lib/**'
-      - 'runtime/**'
-      - 'dune-project'
+      - ".github/workflows/compiler-dist.yml"
+      - ".github/workflows/release.yml"
+      - ".github/scripts/release-tag"
+      - ".github/scripts/install-zig"
+      - ".github/actions/setup-ci/**"
+      - ".github/devbox-intel/**"
+      - ".github/scripts/build-macos-compiler"
+      - "dev/release/**"
+      - "dev/toolchains/**"
+      - ".github/scripts/install-zig-macos"
+      - "tests/release/**"
+      - "tests/codegen/fixtures/hello/**"
+      - "tests/codegen/golden/hello.out"
+      - "dev/bin/check-programs"
+      - "dev/setup/bootstrap-toolchain"
+      - "dev/release/package-macos.py"
+      - "devbox.*"
+      - "bin/**"
+      - "lib/**"
+      - "runtime/**"
+      - "dune-project"
   workflow_call:
     inputs:
       version:
         type: string
         required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version label for the test archives
+        type: string
+        required: false
+        default: v0.0
 
 permissions:
   contents: read
@@ -127,6 +138,110 @@ jobs:
         with:
           name: compiler-macos-smoke
           path: macos-smoke
+          if-no-files-found: error
+
+  macos-compiler:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            arch: aarch64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ inputs.version || 'v0.0' }}
+      ZIG_MANIFEST: dev/toolchains/zig-${{ matrix.arch }}-macos.json
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+      - name: Install Nix for macOS
+        uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+        with:
+          github_access_token: ${{ github.token }}
+      - name: Set up compiler toolchain
+        if: matrix.arch == 'aarch64'
+        uses: ./.github/actions/setup-ci
+        with:
+          skip-nix-installation: 'true'
+      - name: Install Intel Devbox toolchain
+        if: matrix.arch == 'x86_64'
+        uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
+        with:
+          project-path: .github/devbox-intel
+          enable-cache: true
+          skip-nix-installation: 'true'
+      - name: Set up Intel compiler toolchain
+        if: matrix.arch == 'x86_64'
+        shell: bash
+        run: |
+          nix_profile="$GITHUB_WORKSPACE/.github/devbox-intel/.devbox/nix/profile/default"
+          ocaml_lib="$nix_profile/lib/ocaml"
+          llvm_meta=""
+          if [ -d "$ocaml_lib" ]; then
+            llvm_meta="$(find -L "$ocaml_lib" -path '*/llvm/META' -print -quit)"
+          fi
+          if [ -z "$llvm_meta" ]; then
+            echo "Nix OCaml LLVM bindings were not installed in the Intel Devbox profile" >&2
+            exit 1
+          fi
+          ocaml_site_lib="${llvm_meta%/llvm/META}"
+          echo "ZANE_OCAML_EXTRA_PATH=$ocaml_site_lib" >> "$GITHUB_ENV"
+          apple_clang="$(xcrun --find clang)"
+          apple_clangxx="$(xcrun --find clang++)"
+          apple_clang_headers="$("$apple_clang" -print-resource-dir)/include"
+          export CPATH="$apple_clang_headers${CPATH:+:$CPATH}"
+          devbox run --config=.github/devbox-intel -- \
+            env ZANE_CC="$GITHUB_WORKSPACE/dev/bin/clang-lld" \
+                LLVM_CONFIG=llvm-config \
+                ZANE_NIX_OCAML_LLVM=1 \
+                ZANE_LLVM_VERSION=21 \
+                ZANE_OCAML_EXTRA_PATH="$ocaml_site_lib" \
+                CC="$apple_clang" \
+                CXX="$apple_clangxx" \
+                CPATH="$CPATH" \
+                "$GITHUB_WORKSPACE/dev/setup/bootstrap-toolchain"
+      - name: Install verified native Zig
+        run: .github/scripts/install-zig-macos "$ZIG_MANIFEST"
+      - name: Build compiler and package macOS toolchain
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          if [ "${{ matrix.arch }}" = x86_64 ]; then
+            devbox run --config=.github/devbox-intel -- \
+              env ZANE_CC="$GITHUB_WORKSPACE/dev/bin/clang-lld" \
+                  LLVM_CONFIG=llvm-config \
+                  ZANE_NIX_OCAML_LLVM=1 \
+                  ZANE_LLVM_VERSION=21 \
+                  ZANE_OCAML_EXTRA_PATH="$ZANE_OCAML_EXTRA_PATH" \
+                  bash "$GITHUB_WORKSPACE/.github/scripts/build-macos-compiler"
+          else
+            devbox run -- dune build bin/zanec/zanec.exe
+            devbox run -- python3 dev/release/package-macos.py \
+              --binary _build/default/bin/zanec/zanec.exe --zig "$ZIG" \
+              --zig-manifest "$ZIG_MANIFEST" --version "$VERSION" \
+              --commit "$SOURCE_SHA" --output dist
+          fi
+      - name: Smoke-test extracted macOS toolchain
+        run: |
+          mkdir -p "$RUNNER_TEMP/macos-smoke"
+          tar -xzf "dist/zane-compiler-$VERSION-macos-${{ matrix.arch }}.tar.gz" \
+            -C "$RUNNER_TEMP/macos-smoke"
+          root="$RUNNER_TEMP/macos-smoke/zane-compiler-$VERSION-macos-${{ matrix.arch }}"
+          cp -R tests/codegen/fixtures/hello "$RUNNER_TEMP/hello"
+          "$root/bin/zanec" --build "$RUNNER_TEMP/hello-program" \
+            --package "$RUNNER_TEMP/hello"
+          "$RUNNER_TEMP/hello-program" > "$RUNNER_TEMP/hello.out"
+          cmp tests/codegen/golden/hello.out "$RUNNER_TEMP/hello.out"
+      - name: Keep macOS compiler archive
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: compiler-macos-${{ matrix.arch }}
+          path: dist/*.tar.gz
           if-no-files-found: error
 
   windows:
