@@ -195,6 +195,7 @@ let arguments () =
      next flag: `--build --package d` is a usage error, not an executable
      named `--package`. *)
   let is_value v = not (String.starts_with ~prefix:"-" v) in
+  let windows_host_target = "x86_64-windows-gnu" in
   let rec packages view build = function
     | [] ->
         let view = Option.value view ~default:Assembled in
@@ -211,6 +212,10 @@ let arguments () =
             {
               build with
               view;
+              (* A Windows host builds for MinGW, the only Windows the
+                 runtime supports (docs/design/platforms.md), where its own
+                 triple is MSVC's. *)
+              target = (match build.target with None when Sys.win32 -> Some windows_host_target | t -> t);
               packages = List.rev build.packages;
               stamps = List.rev build.stamps;
               link = List.rev build.link;
