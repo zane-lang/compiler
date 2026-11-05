@@ -46,6 +46,24 @@ let layouts () =
     && Type_layout.member_index st box 0 = 0);
   check "members already in order stay where they are"
     (N.order [ N.I64; N.I32; N.I32; N.I1 ] = [| 0; 1; 2; 3 |] && not (N.reordered [ N.I64; N.I32; N.I1 ]));
+  (* The C conversion lays a C-compatible type out from its shape alone,
+     so it must agree with lowering, an array of none included. *)
+  Hashtbl.replace st.State.types ("app", "Gap")
+    ( [],
+      T.Decl.Struct
+        [
+          ("a", prim "I32");
+          ("empty", Ty.Intrinsic { namespace = "primitives"; name = "Array"; args = [ Ty.Type int; Ty.Number (Ty.Known 0) ] });
+          ("b", int);
+        ],
+      false );
+  let module Cb = Cgt.Nodes.Callback in
+  let gap = Cb.Record [ (Cb.Scalar N.I32, None); (Cb.Scalar N.I64, Some 0); (Cb.Scalar N.I64, None) ] in
+  check "the C conversion's Zane layout is lowering's, an empty array included"
+    (Cb.zane gap = Type_layout.ty st span (named "Gap") && Cb.zane gap = N.Struct [ N.I64; N.I32; N.Array (N.Void, 0) ]);
+  check "a member past the size limit is ordered, and its struct still refused"
+    (N.order [ N.I32; N.Array (N.I64, 1 lsl 60) ] = [| 1; 0 |]
+    && match N.size_align (N.Struct [ N.Array (N.I64, 1 lsl 60); N.I32 ]) with _ -> false | exception N.Too_large -> true);
   check "members of one alignment keep their declaration order"
     (N.order [ N.I32; N.F64; N.F32; N.Ptr; N.I32 ] = [| 2; 0; 3; 1; 4 |])
 

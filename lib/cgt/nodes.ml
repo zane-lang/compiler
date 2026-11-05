@@ -117,7 +117,12 @@ module Ty = struct
      type lays it out alike, and the identity when the members are already
      in that order. *)
   let order ts =
-    let indexed = List.mapi (fun i t -> (i, snd (size_align t))) ts in
+    (* A member past the limit makes its struct one no value can be of,
+       which is refused where it is named (Type_layout.ty), so the order
+       it is given until then matters to nothing; 8 is the most any
+       layout here needs. *)
+    let alignment t = match size_align t with _, a -> a | exception Too_large -> 8 in
+    let indexed = List.mapi (fun i t -> (i, alignment t)) ts in
     let sorted = List.stable_sort (fun (_, a) (_, b) -> compare b a) indexed in
     let positions = Array.make (List.length ts) 0 in
     List.iteri (fun at (i, _) -> positions.(i) <- at) sorted;
@@ -654,7 +659,13 @@ module Callback = struct
         | [ t ] -> t
         | ts -> Ty.Struct (if c then ts else Ty.placed ts ts))
 
-  and field ~c (s, n) = match n with Some n -> Ty.Array (layout ~c s, n) | None -> layout ~c s
+  (* Zane lays out an array of none as holding nothing (Type_layout.shape),
+     so with alignment 1, where C keeps its element's. *)
+  and field ~c (s, n) =
+    match n with
+    | Some 0 when not c -> Ty.Array (Ty.Void, 0)
+    | Some n -> Ty.Array (layout ~c s, n)
+    | None -> layout ~c s
 
   let zane = layout ~c:false
   let c = layout ~c:true
