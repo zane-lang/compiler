@@ -93,7 +93,48 @@ let package_flags dir (rows : Settings.row list) =
    names they are spelled as. *)
 let prefix_maps ~dir ~headers = [ (dir, "/zane/pkg"); (headers.root, "/zane/cache") ]
 
-let map_flags maps = List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ "=" ^ to_) maps
+(* A JSON string holding [s]. *)
+let json_string s =
+  let b = Buffer.create (String.length s + 2) in
+  Buffer.add_char b '"';
+  String.iter
+    (fun c ->
+      match c with
+      | '"' -> Buffer.add_string b "\\\""
+      | '\\' -> Buffer.add_string b "\\\\"
+      | c when Char.code c < 0x20 -> Buffer.add_string b (Printf.sprintf "\\u%04x" (Char.code c))
+      | c -> Buffer.add_char b c)
+    s;
+  Buffer.add_char b '"';
+  Buffer.contents b
+
+(* A clang VFS overlay that makes each fixed name a directory holding what
+   the directory it stands for holds, so a path C spells through
+   `__FILE__`, such as a source's `#include __FILE__`, names a file that
+   exists. It is written once under the temporary directory, named by a
+   hash of its text, which the maps decide whole. *)
+let overlay maps =
+  let root (from, to_) =
+    Printf.sprintf {|{"name":%s,"type":"directory-remap","external-contents":%s}|} (json_string to_) (json_string from)
+  in
+  let text = Printf.sprintf {|{"version":0,"roots":[%s]}|} (String.concat "," (List.map root maps)) in
+  let dir = Filename.concat (Filename.get_temp_dir_name ()) "zane-vfs" in
+  let name = Digest.to_hex (Digest.string text) ^ ".yaml" in
+  write_files dir [ (name, text) ];
+  Filename.concat dir name
+
+(* The flags that spell each directory of [maps] by its fixed name, in
+   `__FILE__` and debug information, and resolve that name back to it. *)
+let map_flags maps =
+  List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ "=" ^ to_) maps @ [ "-ivfsoverlay"; overlay maps ]
+
+(* [args] without the overlays [map_flags] adds: an overlay's path is a
+   temporary file's, and what it holds follows from the maps, which the
+   arguments spell already. *)
+let rec without_overlays = function
+  | "-ivfsoverlay" :: _ :: rest -> without_overlays rest
+  | a :: rest -> a :: without_overlays rest
+  | [] -> []
 
 (* [path] with the longest mapped directory it starts with replaced by its
    fixed name. A directory is a prefix only up to a separator, so `inc`
@@ -231,7 +272,7 @@ let compile_source ?cache ~maps flags path =
       Digest.to_hex
         (Digest.string
            (String.concat "\000"
-              [ "c-module"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
+              [ "c-module"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) (without_overlays args)); mapped maps preprocessed.output ]))
     in
     let placed = List.exists (fun w -> mentions w preprocessed.output) [ "__builtin_COLUMN"; "__builtin_LINE" ] in
     let cache = if placed then None else cache in

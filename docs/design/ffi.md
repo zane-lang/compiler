@@ -156,7 +156,13 @@ fixed name, `/zane/pkg` and `/zane/cache`: `-ffile-prefix-map` makes
 same mapping to the line markers and the front-end command. So the hash is the same for the same code wherever it
 is built, which F13's comparison of a publisher's hash with a consumer's
 relies on, and a path elsewhere, such as a system header's, still changes
-it.
+it. A fixed name is also a directory the front end can read: a clang VFS
+overlay remaps each to the directory it stands for, so a source that
+includes itself through `__FILE__` finds itself
+(`tests/ffi/fixtures/selfInclude`). The overlay is a file of its own under
+the temporary directory, named by a hash of its text, and the hash leaves
+it out of the front-end command, since the maps it follows from are in it
+already.
 
 **F4. Archives and system libraries go to the link.** An `archive` row's
 static library is read member by member with LLVM's archive reader

@@ -1299,6 +1299,128 @@
   (diff golden/retained.out retained.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/selfInclude))
+ (targets selfInclude.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build selfInclude.exe --package fixtures/selfInclude)))
+
+(rule
+ (deps (source_tree fixtures/selfInclude))
+ (targets selfInclude.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build selfInclude.optimized.exe --optimize --package fixtures/selfInclude)))
+
+(rule
+ (deps (source_tree fixtures/selfInclude))
+ (targets selfInclude.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build selfInclude.tiered.exe --tiered --package fixtures/selfInclude)))
+
+(rule
+ (deps (source_tree fixtures/selfInclude))
+ (targets selfInclude.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up selfInclude.tier1 --package fixtures/selfInclude)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    selfInclude.checked.out.actual
+    (run ./selfInclude.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/selfInclude.out selfInclude.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    selfInclude.unchecked.out.actual
+    (run ./selfInclude.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/selfInclude.out selfInclude.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    selfInclude.optimized.checked.out.actual
+    (run ./selfInclude.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/selfInclude.out selfInclude.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    selfInclude.optimized.unchecked.out.actual
+    (run ./selfInclude.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/selfInclude.out selfInclude.optimized.unchecked.out.actual)))
+
+(rule
+ (deps selfInclude.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./selfInclude.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    selfInclude.tiered.checked.out.actual
+    (run ./selfInclude.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/selfInclude.out selfInclude.tiered.checked.out.actual)))
+
+(rule
+ (deps selfInclude.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./selfInclude.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    selfInclude.tiered.unchecked.out.actual
+    (run ./selfInclude.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/selfInclude.out selfInclude.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/archives) fixtures/archives/one/tally.a fixtures/archives/two/tally.a)
  (action
   (with-stdout-to
