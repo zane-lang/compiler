@@ -1,5 +1,5 @@
-; The flags the bindings in lib/llvm are compiled and linked with, read from
-; the LLVM that llvm-config describes.
+; What the stubs that use LLVM, clang and LLD are compiled and linked with,
+; and the files written from that LLVM (discover.ml).
 (executable
  (name discover)
  (libraries unix))

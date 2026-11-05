@@ -9,6 +9,8 @@ on:
     paths:
       - pixi.toml
       - dev/spike/**
+      - lib/**
+      - vendor/llvm-ocaml/**
       - .github/workflows/toolchain-spike.yml
   workflow_dispatch:
 

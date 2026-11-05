@@ -19,18 +19,27 @@
 
 (rule
  (target clang_cxx.sexp)
- (deps gen/clang_flags.sh (env_var LLVM_CONFIG) (env_var PATH))
- (action (with-stdout-to %{target} (run sh gen/clang_flags.sh cxx))))
+ (deps (env_var LLVM_CONFIG) (env_var PATH))
+ (action
+  (with-stdout-to
+   %{target}
+   (run %{exe:../llvm/config/discover.exe} cxx-no-rtti %{ocaml-config:ccomp_type}))))
 
 (rule
  (target clang_libs.sexp)
- (deps gen/clang_flags.sh (env_var LLVM_CONFIG) (env_var PATH))
- (action (with-stdout-to %{target} (run sh gen/clang_flags.sh libs))))
+ (deps (env_var LLVM_CONFIG) (env_var PATH))
+ (action
+  (with-stdout-to
+   %{target}
+   (run %{exe:../llvm/config/discover.exe} clang-libs %{ocaml-config:ccomp_type}))))
 
 (rule
  (target builtin_headers.ml)
- (deps gen/builtin_headers.sh (env_var PATH))
- (action (with-stdout-to %{target} (run sh gen/builtin_headers.sh))))
+ (deps (env_var LLVM_CONFIG) (env_var PATH))
+ (action
+  (with-stdout-to
+   %{target}
+   (run %{exe:../llvm/config/discover.exe} builtin-headers))))
 
 (rule
  (target zane_ffi_header.ml)

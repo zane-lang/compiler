@@ -2,9 +2,9 @@
 ; (docs/design/lowering.md L2), and the module to a binary, linked with the C
 ; runtime that [Runtime_source] embeds (runtime/dune). [Abi] is written from
 ; runtime/zane_abi.h, so the offsets and sizes emitted code relies on are the
-; runtime's own, and [O2_pipeline] by gen/o2_pipeline.sh from the LLVM it
-; links. LLD is linked in as a library (lld_stubs.cpp), its flags found by
-; gen/lld_flags.sh. A package's C objects are renamed by [Rewrite] and its
+; runtime's own, and [O2_pipeline] by lib/llvm/config/discover.ml from the
+; LLVM it links. LLD is linked in as a library (lld_stubs.cpp), its flags
+; found by the same program. A package's C objects are renamed by [Rewrite] and its
 ; archives written back by LLVM's archive writer (archive_stubs.cpp); a
 ; dependency's C is made a retained copy by retain_stubs.cpp. The
 ; target machine puts constructors in `.init_array` (init_array_stubs.cpp).
@@ -33,15 +33,24 @@
 
 (rule
  (target o2_pipeline.ml)
- (deps gen/o2_pipeline.sh (env_var LLVM_CONFIG) (env_var PATH))
- (action (with-stdout-to %{target} (run sh gen/o2_pipeline.sh))))
+ (deps (env_var LLVM_CONFIG) (env_var PATH))
+ (action
+  (with-stdout-to
+   %{target}
+   (run %{exe:../llvm/config/discover.exe} o2-pipeline))))
 
 (rule
  (target lld_cxx.sexp)
- (deps gen/lld_flags.sh (env_var LLVM_CONFIG) (env_var PATH))
- (action (with-stdout-to %{target} (run sh gen/lld_flags.sh cxx))))
+ (deps (env_var LLVM_CONFIG) (env_var PATH))
+ (action
+  (with-stdout-to
+   %{target}
+   (run %{exe:../llvm/config/discover.exe} cxx %{ocaml-config:ccomp_type}))))
 
 (rule
  (target lld_libs.sexp)
- (deps gen/lld_flags.sh (env_var LLVM_CONFIG) (env_var PATH))
- (action (with-stdout-to %{target} (run sh gen/lld_flags.sh libs))))
+ (deps (env_var LLVM_CONFIG) (env_var PATH))
+ (action
+  (with-stdout-to
+   %{target}
+   (run %{exe:../llvm/config/discover.exe} lld-libs %{ocaml-config:ccomp_type}))))

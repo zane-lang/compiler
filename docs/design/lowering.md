@@ -1456,7 +1456,7 @@ test passing.
   where `-O2` has just rotated each loop and
   hoisted what it reads, ahead of the passes that would turn an index check
   into an exit test IRCE no longer recognizes.
-  `lib/codegen/gen/o2_pipeline.sh` writes the pipeline out at build time
+  `lib/llvm/config/discover.ml` writes the pipeline out at build time
   from the `opt` beside the LLVM the compiler is built against, so it
   tracks that LLVM's `-O2`. IRCE splits a loop whose element reads and
   writes are checked into the iterations its checks may fail on and a main
