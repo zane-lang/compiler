@@ -1,8 +1,8 @@
 opam-version: "2.0"
-synopsis: "MSVC from the environment (toolchain spike)"
+synopsis: "MSVC from the environment"
 description: """
 opam's ocaml-env-msvc64 adds the directories conf-msvc64 found to PATH,
-INCLUDE and LIB. The pixi environment sets them already, so this one
+INCLUDE and LIB. The pixi environment sets them already (dev/setup/activate.bat), so this one
 adds nothing."""
 maintainer: "zane-lang"
 authors: "zane-lang"

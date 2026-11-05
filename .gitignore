@@ -30,5 +30,5 @@ dev/machine-config.txt
 /.highlighting-venv/
 /.grammar-venv/
 
-# pixi environments (toolchain spike)
+# The pixi environment, with the project's opam root inside it (pixi.toml).
 .pixi/

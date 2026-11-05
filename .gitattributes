@@ -1,0 +1,5 @@
+# cmd.exe reads a batch file's lines by CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+# pixi's lock file is written by pixi, not merged by hand.
+pixi.lock merge=binary linguist-generated=true -diff

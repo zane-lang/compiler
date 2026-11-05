@@ -1,146 +1,40 @@
 #!/usr/bin/env bash
-# Toolchain spike: one stage of building zanec inside the pixi environment.
-# Usage: dev/spike/toolchain STAGE. Run through `pixi run`.
+# Toolchain spike: one stage of building and testing zanec in the pixi
+# environment, as its activation sets it up (dev/setup/activate.*), after
+# `pixi run setup`. Usage: dev/spike/toolchain STAGE, through `pixi run`.
 set -euo pipefail
-
-DUNE_VERSION="3.24.2"
-MENHIR_VERSION="20260209"
-SEDLEX_VERSION="3.8.1"
-UUCP_VERSION="18.0.0"
-UUSEG_VERSION="18.0.0"
-LLVM_VERSION="21.1.8"
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$root"
-export OPAMYES=1 OPAMCOLOR=never
 
 case "$(uname -s)" in
 MINGW* | MSYS* | CYGWIN*) windows=1 ;;
 *) windows=0 ;;
 esac
 
-# conda's opam package points OPAMROOT at a root of its own through its
-# activation script; the spike keeps one it initialises itself.
-echo "conda's OPAM settings: $(env | grep '^OPAM' | tr '\n' ' ')"
-export OPAMROOT="$HOME/.opam-zane-spike"
-
-# On Windows, conda-forge installs native tools under Library/; put the
-# directories holding ocamlopt, opam and zig first on PATH.
-if [[ $windows == 1 ]]; then
-	prefix=$(cygpath -u "${CONDA_PREFIX:?}")
-	for tool in ocamlopt opam zig; do
-		found=$(find "$prefix" \( -iname "$tool.exe" -o -iname "$tool.opt.exe" -o -iname "*-$tool.exe" \) 2>/dev/null | head -1)
-		echo "$tool: ${found:-not under $prefix}"
-		[[ -n "$found" ]] && PATH="$(dirname "$found"):$PATH"
-	done
-	# MSVC's link.exe ahead of coreutils' link, which Git Bash's /usr/bin
-	# and opam's Cygwin both carry.
-	cl=$(command -v cl) && PATH="$(dirname "$cl"):$PATH"
-	echo "link: $(PATH=$PATH command -v link)"
-	export PATH
-fi
-
-# On Windows, opam env writes PATH in Windows' form, which Git Bash does
-# not read; there the switch's bin directory goes on PATH directly, and
-# the rest of what opam env sets (OCAMLPATH, OPAM_SWITCH_PREFIX, ...)
-# is taken as it is.
-switch_env() {
-	if [[ $windows == 1 ]]; then
-		export OPAMSWITCH="$root"
-		eval "$(opam env --switch="$root" --shell=sh | grep -v '^PATH=')"
-		PATH="$(cygpath -u "$(opam var bin)"):$PATH"
-		export PATH
-		echo "OCAMLPATH=${OCAMLPATH:-} OPAM_SWITCH_PREFIX=${OPAM_SWITCH_PREFIX:-}"
-		ocamlfind list 2>/dev/null | grep -E '^(uucp|uuseg|sedlex|menhirLib) ' || echo 'ocamlfind lists none of them'
-	else
-		eval "$(opam env --switch="$root" --set-switch)"
-	fi
-}
-
-# What devbox's shell sets, and LLVM's archive tools in place of the
-# platform ones conda's compiler activation names in AR and STRIP.
-devbox_env() {
-	export PATH="$root/dev/bin:$PATH" ZANE_CC="$root/dev/bin/clang-lld"
-	export AR=llvm-ar STRIP=llvm-strip
-}
-
 case "${1:?stage}" in
 versions)
 	uname -a
-	echo "CONDA_PREFIX=${CONDA_PREFIX:-}"
-	ocamlfind=$(command -v ocamlfind || true); echo "ocamlfind: ${ocamlfind:-none}"
-	ocamlopt -config | grep -E '^(version|architecture|system|ccomp_type|c_compiler|native_c_compiler|ocamlopt_cflags|native_c_libraries|flexdll|target|host):' || true
+	env | grep -E '^(OPAM|ZANE_|ZIG=|LLVM_CONFIG|AR=|STRIP=|VSINSTALLDIR)' | sort
+	ocamlopt -config | grep -E '^(version|architecture|system|ccomp_type|c_compiler|native_c_compiler):' || true
 	opam --version
-	llvm-config --version --libdir --includedir --shared-mode --system-libs || true
-	clang --version | head -1 || true
-	ld.lld --version || true
-	command -v ld.lld clang llvm-config cc c++ cl link 2>/dev/null || true
+	llvm-config --version --shared-mode
+	command -v ocamlfind dune menhir ld.lld clang llvm-config cl link 2>/dev/null || true
 	zig version || x86_64-w64-mingw32-zig version || echo 'zig: not on PATH'
-	if [[ $windows == 1 ]]; then
-		ls "$prefix"/conda-meta/ | grep -i zig || echo 'no zig package in conda-meta'
-		grep -ohi '"[^"]*\.exe"' "$prefix"/conda-meta/zig*.json | head -10 || true
-	fi
 	just --version
-	python --version
-	;;
-opam)
-	init=(--bare --disable-sandboxing -y)
-	if [[ $windows == 1 ]]; then init+=(--cygwin-internal-install); fi
-	[[ -d "${OPAMROOT:-$HOME/.opam}" ]] || opam init "${init[@]}"
-	echo "OPAMROOT=$OPAMROOT"
-	if [[ $windows == 1 ]]; then
-		# What opam's conf-msvc64 sees: the environment compiler and msvs-detect.
-		echo "cl: $(command -v cl || echo none); INCLUDE ${INCLUDE:+set}; LIB ${LIB:+set}"
-		detect="$root/_build/msvs-detect"
-		mkdir -p "$root/_build"
-		for version in 0.8.0 master; do
-			echo "== msvs-detect $version"
-			curl -fsSL "https://raw.githubusercontent.com/metastack/msvs-tools/$version/msvs-detect" -o "$detect"
-			bash "$detect" --installed || true
-			bash "$detect" --debug=3 --arch=x86_64 --with-assembler --with-mt --output=data 2>&1 | tail -40 || true
-		done
-	fi
-	# The spike's repository comes first: on Windows its conf-msvc64 takes
-	# the developer environment as it is.
-	opam repository add spike "$root/dev/spike/opam-repo" --dont-select || true
-	opam switch list --short | grep -Fxq "$root" ||
-		opam switch create "$root" ocaml-system --repos=spike,default --no-install -y
-	switch_env
-	ocamlfind=$(command -v ocamlfind || true); echo "ocamlfind: ${ocamlfind:-none}"
-	opam list --installed
-	;;
-pins)
-	switch_env
-	opam install -y --no-depexts "dune.$DUNE_VERSION" "menhir.$MENHIR_VERSION" "sedlex.$SEDLEX_VERSION" \
-		"uucp.$UUCP_VERSION" "uuseg.$UUSEG_VERSION"
 	;;
 build)
-	switch_env
-	export LLVM_CONFIG="${LLVM_CONFIG:-$(command -v llvm-config)}"
 	dune build bin/zanec/zanec.exe
 	ls -la _build/default/bin/zanec/zanec.exe
 	;;
 hello)
-	switch_env
 	out="$root/_build/spike-hello"
-	if [[ $windows == 1 ]]; then
-		# Windows programs are MinGW's, which zanec builds for on a Windows
-		# host, linked with zig cc, as CI builds them
-		# (dev/bin/windows-programs).
-		out="$out.exe"
-		ZIG="$(cygpath -w "$(command -v zig || command -v x86_64-w64-mingw32-zig)")"
-		ZANE_CC="$(cygpath -w "$root/dev/bin/zig-cc.cmd")"
-		export ZIG ZANE_CC
-		echo "ZIG=$ZIG ZANE_CC=$ZANE_CC"
-	fi
+	if [[ $windows == 1 ]]; then out="$out.exe"; fi
 	_build/default/bin/zanec/zanec.exe --build "$out" --package tests/codegen/fixtures/hello
 	"$out" | tee "$root/_build/spike-hello.out"
-	diff -u tests/codegen/golden/hello.out "$root/_build/spike-hello.out"
+	diff -u --strip-trailing-cr tests/codegen/golden/hello.out "$root/_build/spike-hello.out"
 	;;
 test)
-	switch_env
-	devbox_env
-	export LLVM_CONFIG="${LLVM_CONFIG:-$(command -v llvm-config)}"
 	just test-compiler
 	;;
 *)

@@ -1,5 +1,8 @@
-# Toolchain spike: one conda-forge environment for Linux, macOS and Windows.
-# Exploratory; see .github/workflows/toolchain-spike.yml. LLVM is 21 because
+# The toolchain that builds and tests zanec on Linux, macOS and Windows: one
+# conda-forge environment, entered with `pixi shell` or used through
+# `pixi run` (README.md, "Setup"). `pixi run setup` provisions the OCaml packages
+# into a local opam switch once; activation (dev/setup/activate.*) then puts
+# the switch and the variables the build reads in place. LLVM is 21 because
 # conda-forge's macOS OCaml requires clang, lld and llvm-tools >= 21.
 
 [workspace]
@@ -25,6 +28,8 @@ zig = "0.17.0.*"
 just = "*"
 python = "3.13.*"
 nodejs = "*"
+typst = "*"
+nvim = "*"
 
 [target.unix.dependencies]
 m4 = "*"
@@ -32,6 +37,7 @@ m4 = "*"
 # glibc 2.34 has dlopen in libc itself, as the runtime's tests assume.
 [target.linux-64.dependencies]
 sysroot_linux-64 = "2.34.*"
+valgrind = "*"
 
 # The MSVC build of OCaml, which matches how conda-forge builds LLVM on
 # Windows; the gcc (MinGW) build would not link LLVM's C++ libraries.
@@ -39,3 +45,15 @@ sysroot_linux-64 = "2.34.*"
 ocaml = { version = "5.5.1.*", build = "vs2022*" }
 # xml2.lib, which conda's static LLVM links, is in the -devel package.
 libxml2-devel = "*"
+
+[target.unix.activation]
+scripts = ["dev/setup/activate.sh"]
+
+[target.win-64.activation]
+scripts = ["dev/setup/activate.bat"]
+
+[tasks]
+# The opam switch's packages, at the versions the bootstrap pins; run once,
+# and again when a pin changes.
+setup = "bash dev/setup/bootstrap-toolchain"
+test = "just test"

@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Idempotently provision the OCaml toolchain the project builds with.
+# Idempotently provision the OCaml packages the project builds with.
 #
-# Devbox supplies opam and the system OCaml compiler; dune, menhir, sedlex,
-# uucp and uuseg are opam packages, so a fresh Devbox shell has none of them on PATH until
-# this script has run once. The devbox init hook and the CI workflow both call
-# it so they provision the exact same toolchain.
+# The environment (pixi's, through `pixi run setup`, or devbox's shell)
+# supplies opam and the system OCaml compiler; dune, menhir, sedlex, uucp
+# and uuseg are opam packages, installed here into a switch in the
+# repository's directory, so a fresh environment has none of them on PATH
+# until this script has run once. LLVM's OCaml bindings are built from
+# vendor/llvm-ocaml with the compiler (lib/llvm), so they are not among
+# them.
 #
 # Versions are pinned here rather than resolved freshly on every run: an
 # unpinned `opam install` lets a repository update silently change parser
@@ -20,13 +23,9 @@ SEDLEX_VERSION="3.8.1"
 # together.
 UUCP_VERSION="18.0.0"
 UUSEG_VERSION="18.0.0"
-# The LLVM bindings codegen builds its module through (docs/design/lowering.md L2):
-# LLVM's own, from llvm/bindings/ocaml, which opam packages as `llvm`. Linux
-# and ARM macOS use LLVM 19 from opam; Intel macOS sets this to LLVM 21 and
-# uses the matching Nixpkgs OCaml bindings instead.
-LLVM_VERSION="${ZANE_LLVM_VERSION:-19}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+export OPAMYES=1
 
 # menhirGLR ships inside the menhir package, so it needs no separate pin.
 packages=(
@@ -37,13 +36,43 @@ packages=(
 	"uuseg.$UUSEG_VERSION"
 )
 
+case "$(uname -s)" in
+MINGW* | MSYS* | CYGWIN*) windows=1 ;;
+*) windows=0 ;;
+esac
+
 if ! command -v opam >/dev/null 2>&1; then
-	echo "bootstrap-toolchain: opam is not on PATH; enter the devbox shell first" >&2
+	echo "bootstrap-toolchain: opam is not on PATH; run this through \`pixi run setup\`" >&2
 	exit 1
 fi
 
+if [[ $windows == 1 ]]; then
+	# OCaml's MSVC build links through MSVC's link.exe, which coreutils'
+	# `link` (Git Bash's /usr/bin, opam's Cygwin) shadows.
+	if ! cl=$(command -v cl); then
+		echo "bootstrap-toolchain: MSVC's cl is not on PATH; install Visual Studio's C++ tools" >&2
+		exit 1
+	fi
+	PATH="$(dirname "$cl"):$PATH"
+fi
+
 if [[ ! -d "${OPAMROOT:-$HOME/.opam}" ]]; then
-	opam init --bare --disable-sandboxing -y
+	init=(--bare --disable-sandboxing -y)
+	# On Windows opam runs its packages' build commands in a Cygwin of its
+	# own.
+	if [[ $windows == 1 ]]; then init+=(--cygwin-internal-install); fi
+	opam init "${init[@]}"
+fi
+
+# On Windows, opam's conf-msvc64 searches for Visual Studio with
+# msvs-detect, which may find none even where MSVC is set up; the
+# repository's own conf-msvc64 and ocaml-env-msvc64 (dev/setup/opam-repo)
+# take the environment's MSVC as it is, and its repository comes first.
+repos=(default)
+if [[ $windows == 1 ]]; then
+	opam repository add zane "$ROOT/dev/setup/opam-repo" --dont-select ||
+		opam repository set-url zane "$ROOT/dev/setup/opam-repo"
+	repos=(zane default)
 fi
 
 # `--no-install` keeps a local switch from installing the repository's own opam
@@ -51,20 +80,25 @@ fi
 # build the compiler as an opam package, only for the pins to be installed over
 # it -- the whole toolchain built twice on a cold switch.
 if ! opam switch list --short | grep -Fxq "$ROOT"; then
-	opam switch create "$ROOT" ocaml-system --no-install -y
+	opam switch create "$ROOT" ocaml-system --repos="$(IFS=,; echo "${repos[*]}")" --no-install -y
 fi
 
-eval "$(opam env --switch="$ROOT" --set-switch)"
-
-# The Intel macOS build uses Nixpkgs' OCaml LLVM package instead of building
-# LLVM's bindings through opam. Make its findlib directory visible after opam
-# has set up the switch environment.
-if [[ -n "${ZANE_OCAML_EXTRA_PATH:-}" ]]; then
-	export OCAMLPATH="$ZANE_OCAML_EXTRA_PATH${OCAMLPATH:+:$OCAMLPATH}"
+# On Windows opam env writes PATH in Windows' form, which Git Bash does not
+# read: the switch's bin directory goes on PATH directly, and the rest of
+# what opam env sets is taken as it is.
+if [[ $windows == 1 ]]; then
+	export OPAMSWITCH="$ROOT"
+	eval "$(opam env --switch="$ROOT" --shell=sh | grep -v '^PATH=')"
+	PATH="$(cygpath -u "$(opam var bin)"):$PATH"
+	export PATH
+else
+	eval "$(opam env --switch="$ROOT" --set-switch)"
 fi
 
 # Only reinstall when a pinned package is missing or at the wrong version, so
-# entering the shell stays fast once the switch is warm.
+# entering the shell stays fast once the switch is warm. `--no-depexts`
+# because the environment, not the system's package manager, supplies what
+# the packages build with.
 needed=()
 for package in "${packages[@]}"; do
 	name="${package%%.*}"
@@ -75,33 +109,5 @@ for package in "${packages[@]}"; do
 done
 
 if ((${#needed[@]} > 0)); then
-	opam install -y "${needed[@]}"
-fi
-
-# `--no-depexts` because the LLVM the bindings link against is installed
-# outside opam, and the `llvm-config` check below is what confirms it. With
-# depexts on, opam asks the system package manager whether apt's `llvm-19-dev`
-# exists, and on a machine whose apt index is empty or stale it refuses the
-# package as unavailable even though devbox's LLVM is right there.
-# Without that LLVM the bindings are skipped rather than failed: the grammar
-# and ambiguity tools build without them, and only codegen needs them.
-if [[ "${ZANE_NIX_OCAML_LLVM:-0}" == 1 ]]; then
-	llvm_version="$(llvm-config --version 2>/dev/null || true)"
-	if [[ "$llvm_version" != "$LLVM_VERSION".* ]]; then
-		echo "bootstrap-toolchain: expected LLVM $LLVM_VERSION, found ${llvm_version:-none}" >&2
-		exit 1
-	fi
-	if ! ocamlfind query llvm >/dev/null 2>&1; then
-		echo "bootstrap-toolchain: Nix OCaml LLVM bindings are not visible through OCAMLPATH" >&2
-		exit 1
-	fi
-	echo "bootstrap-toolchain: using Nix OCaml LLVM bindings for LLVM $LLVM_VERSION"
-elif [[ "$(opam show --field=installed-version llvm 2>/dev/null)" != "$LLVM_VERSION-shared" ]]; then
-	if command -v "llvm-config-$LLVM_VERSION" >/dev/null 2>&1 ||
-		[[ "$(llvm-config --version 2>/dev/null)" == "$LLVM_VERSION".* ]]; then
-		opam install -y --no-depexts "llvm.$LLVM_VERSION-shared"
-	else
-		echo "bootstrap-toolchain: llvm-config-$LLVM_VERSION not found, so the LLVM bindings are not installed;" >&2
-		echo "  codegen needs them (apt install llvm-$LLVM_VERSION-dev libzstd-dev)" >&2
-	fi
+	opam install -y --no-depexts "${needed[@]}"
 fi

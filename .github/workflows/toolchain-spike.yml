@@ -9,6 +9,7 @@ on:
     paths:
       - pixi.toml
       - dev/spike/**
+      - dev/setup/**
       - lib/**
       - vendor/llvm-ocaml/**
       - .github/workflows/toolchain-spike.yml
@@ -38,23 +39,25 @@ jobs:
         with:
           submodules: true
           persist-credentials: false
-      # opam's conf-msvc64 must find Visual Studio; give it the developer
-      # environment it falls back on.
-      - if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
-        with:
-          arch: x64
+      # Windows takes MSVC from the newest Visual Studio through the
+      # environment's activation (dev/setup/activate.bat).
       - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
           run-install: true
           locked: false
           cache: false
+      # The lock file pixi resolved for every platform, to commit.
+      - if: runner.os == 'Linux'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pixi.lock
+          path: pixi.lock
       - name: Toolchain versions
         run: pixi run bash dev/spike/toolchain versions
-      - name: opam on the conda OCaml
-        run: pixi run bash dev/spike/toolchain opam
-      - name: opam pins (dune, menhir, sedlex, uucp, uuseg)
-        run: pixi run bash dev/spike/toolchain pins
+      - name: pixi run setup
+        run: pixi run setup
+      - name: Toolchain versions, with the switch
+        run: pixi run bash dev/spike/toolchain versions
       - name: Build zanec
         run: pixi run bash dev/spike/toolchain build
       - name: Build and run hello
