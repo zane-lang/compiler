@@ -391,6 +391,8 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
         | C.Scalar Cgt.Nodes.Ty.F32 -> Foreign.Glue.Value "float"
         | C.Scalar Cgt.Nodes.Ty.F64 -> Foreign.Glue.Value "double"
         | C.Record fs -> Foreign.Glue.Record (List.map (fun (f, n) -> (shape f, n)) fs)
+        | C.View _ -> Foreign.Glue.View
+        | C.Elements _ | C.Object _ -> Foreign.Glue.Pointer
         | C.Scalar _ -> Diagnostic.bug "codegen: a function value C calls with a type it does not take"
       in
       let callbacks () =

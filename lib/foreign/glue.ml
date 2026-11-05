@@ -143,10 +143,12 @@ let files tables entries =
     tables
 
 (* What a function value's C entry passes (docs/design/ffi.md
-   F11): a scalar of the C type given, a `Bool` as `_Bool`, no value, or a
+   F11): a scalar of the C type given, a `Bool` as `_Bool`, no value, a
    struct of scalars, arrays of them and such structs, laid out as the
-   Zane value type is. *)
-type shape = Value of string | Truth | Nothing | Record of (shape * int option) list
+   Zane value type is, a `zane_bytes` or `zane_span` C lends, which the
+   slot holds as a handle owning no block, or a pointer, an array's or a
+   C object's. *)
+type shape = Value of string | Truth | Nothing | Record of (shape * int option) list | View | Pointer
 
 (* A lambda's C entry, under [label], calling its adapter [adapter]. *)
 type callback = { label : string; adapter : string; params : shape list; result : shape }
@@ -162,6 +164,13 @@ let callbacks_file (callbacks : callback list) =
     | Value c -> c
     | Truth -> "_Bool"
     | Nothing -> "void"
+    | View ->
+        if not (Hashtbl.mem named View) then begin
+          Hashtbl.replace named View "struct __zane_view";
+          Buffer.add_string structs "struct __zane_view { const void *__zane_d; __SIZE_TYPE__ __zane_n; };\n"
+        end;
+        "struct __zane_view"
+    | Pointer -> "const void *"
     | Record members as r -> (
         match Hashtbl.find_opt named r with
         | Some n -> n
@@ -189,8 +198,17 @@ let callbacks_file (callbacks : callback list) =
       line "void %s(void *const *__zane_args, void *__zane_result) __asm__(\"%s\");" adapter (escaped c.adapter);
       line "%s %s(%s) __asm__(\"%s\");" result name params (escaped c.label);
       line "__attribute__((no_stack_protector)) %s %s(%s) {" result name params;
-      List.iteri (fun i p -> if p = Truth then line "  unsigned char __zane_b%d = __zane_a%d;" i i) c.params;
-      let slot i p = if p = Truth then Printf.sprintf "&__zane_b%d" i else Printf.sprintf "&__zane_a%d" i in
+      List.iteri
+        (fun i p ->
+          match p with
+          | Truth -> line "  unsigned char __zane_b%d = __zane_a%d;" i i
+          (* A string's or a list's handle: its bytes, its length, and no
+             block of its own, which the adapter copies. *)
+          | View ->
+              line "  struct { const void *__zane_d; long long __zane_n, __zane_r; } __zane_b%d = { __zane_a%d.__zane_d, (long long)__zane_a%d.__zane_n, 0 };" i i i
+          | _ -> ())
+        c.params;
+      let slot i p = if p = Truth || p = View then Printf.sprintf "&__zane_b%d" i else Printf.sprintf "&__zane_a%d" i in
       (match c.params with
       | [] -> line "  void *__zane_args[1] = { 0 };"
       | ps -> line "  void *__zane_args[] = { %s };" (String.concat ", " (List.mapi slot ps)));

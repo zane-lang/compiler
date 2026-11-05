@@ -594,7 +594,21 @@ end
    does, has an entry of each object's own, named by its package, and
    their adapters merge into one. *)
 module Callback = struct
-  type shape = Scalar of Ty.t | Truth | Nothing | Record of (shape * int option) list
+  type shape =
+    | Scalar of Ty.t
+    | Truth
+    | Nothing
+    | Record of (shape * int option) list
+    (* A string or a list C passes as a `zane_bytes` or a `zane_span`,
+       which the adapter copies with the layout into a value of the
+       program's own before the lambda runs. *)
+    | View of { layout : Layout.t; text : bool }
+    (* An array C passes as a pointer to its elements, which the adapter
+       reads through it, [n] elements of the shape. *)
+    | Elements of shape * int
+    (* A data handle's C object C passes as a pointer: a borrow, or, when
+       [owned], a roaming owner the lambda's parameter takes. *)
+    | Object of { owned : bool }
   type t = { symbol : string; takes : shape list; gives : shape; here : bool; entry : string }
 
   let entry symbol = symbol ^ ".c"
@@ -608,6 +622,9 @@ module Callback = struct
     | Record fs ->
         let field (f, n) = match n with Some n -> Printf.sprintf "[%d x %s]" n (spell f) | None -> spell f in
         "{" ^ String.concat ", " (List.map field fs) ^ "}"
+    | View _ -> "view"
+    | Elements (s, n) -> Printf.sprintf "*[%d x %s]" n (spell s)
+    | Object { owned } -> if owned then "^object" else "object"
 end
 
 (* One program is one module (L15). [entry] is the symbol of the function

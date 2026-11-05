@@ -619,7 +619,27 @@ stores in a result slot whose padding bytes are zeroed, as F10's are. The
 C types the entry takes and gives are read from the lambda's Zane type when
 it is lowered, not from its CGT type: a value type of one field has its
 field's CGT type, and C passes a struct of one `float` and a `float`
-differently. The object that defines the lambda defines all three, after
+differently.
+
+What C passes as an argument the adapter turns into the Zane value before
+it calls the Zane function, once the thread has a context. A string or a
+list arrives as the `zane_bytes` or `zane_span` C lends; the entry puts it
+in a slot laid out as the value's handle, with no room, a block it does not
+own, and the adapter copies it, as any copy of a value is made, into a
+block of the thread's innermost region, so the lambda keeps nothing of
+C's. An array arrives as a pointer to its elements, which the adapter
+reads through. A data handle arrives as its C object's pointer, which the
+adapter stamps as a handle is made (F12), stopping the program on a null
+one as a foreign verb's handle result does: a borrowed handle is passed
+as the address of a place holding it, and a roaming owner as the handle,
+whose end, the lambda's, calls its free thunk
+(`tests/ffi/fixtures/callbackValues`). A fold reads a string and an array
+out of C memory as it reads a result (F18), and stops at a list or a C
+object C passes, which the running program alone makes values of. Every
+lambda of such a type gets the three functions, so one taking a string
+does whether or not C is ever handed it.
+
+The object that defines the lambda defines all three, after
 lowering (`lib/cgt/callbacks.ml`), and the object's C entries
 are a glue module of their own, compiled and linked as a package's glue is
 (F9, F13, F14). A lambda several objects lift, as each that makes a
@@ -652,8 +672,9 @@ C may call a function value on a thread it started itself, which has no
 context of the runtime's. The adapter reads the runtime's context of the
 thread, `zane_self`, and when there is none has the runtime make one with
 one scope for the call (`zane_callback_attach`) and give it back once the
-call returns (`zane_callback_detach`): the result C takes is a
-C-compatible value and holds no block. The runtime's alternate signal
+call returns (`zane_callback_detach`): the arguments the adapter copies
+live in that scope, and the result C takes is a C-compatible value and
+holds no block. The runtime's alternate signal
 stack, which its fault handler runs on, stands in for the thread's own for
 the call, and the thread has its own back after. Both are cold, so an optimized C
 entry is its lambda's body behind one load and one branch. A call on a

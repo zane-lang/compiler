@@ -1,0 +1,22 @@
+/// What C passes a function value is what a foreign verb takes (ffi.md
+/// §3.6): a string only as a `zane_bytes`, a handle as a pointer to its
+/// own C type, and a data handle, never a capability; and a parameter is
+/// never `&`.
+package callbacks;
+
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+alias Unit = @primitives$Unit;
+
+type Obj = #handle{ cType = "obj_t"; free = "obj_free"; }
+type Cap = #handle{ cType = "cap_t"; }
+
+^Obj make() foreign "obj_new";
+I64 named(f I64[String]) foreign "named";
+I64 wrongObject(f I64[Obj]) foreign "wrong_object";
+I64 withCap(f I64[Cap]) foreign "with_cap";
+I64 withView(f I64[&String]) foreign "with_view";
+
+Unit main() {
+	return Unit();
+}

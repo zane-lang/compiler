@@ -39,13 +39,31 @@ let rec c_shape ?(seen = []) st span (t : Tty.t) : Callback.shape option =
       | _ -> None)
   | _ -> None
 
+(* What C passes a function value as a parameter of the Zane type [t]
+   (spec ffi.md §3.6): what [c_shape] gives, a string or a list as its
+   view, an array as a pointer to its elements, and a data handle as its
+   C object's pointer, a roaming owner's taken by the lambda. *)
+let c_param st span (t : Tty.t) : Callback.shape option =
+  let handle t = match definition st t with Some (T.Decl.Handle _, _) -> true | _ -> false in
+  match t with
+  | Tty.Roaming inner when handle inner -> Some (Callback.Object { owned = true })
+  | Tty.Roaming _ | Tty.Reference _ -> None
+  | _ -> (
+      match c_shape st span t with
+      | Some s -> Some s
+      | None when (is_text t || is_list t) && not (is_list_ref t) -> Some (Callback.View { layout = layout st span t; text = is_text t })
+      | None -> (
+          match array_of t with
+          | Some (e, n) when scalar e && not (is_array_ref t) -> Some (Callback.Elements (Callback.Scalar (ty st span e), n))
+          | _ -> if handle t then Some (Callback.Object { owned = false }) else None))
+
 (* The C signature of the function type [fv], when C can call a value of
    it: no subject, no abort, and C types for its parameters and result, a
    `Unit` result returning nothing. *)
 let c_signature st span (fv : Tty.verb) =
   if Option.is_some fv.Tty.this_ || Option.is_some fv.Tty.abort then None
   else
-    let takes = List.map (c_shape st span) fv.Tty.params in
+    let takes = List.map (c_param st span) fv.Tty.params in
     let gives =
       match Tty.strip_mode fv.Tty.ret with
       | Tty.Intrinsic { namespace = "primitives"; name = "Unit"; args = [] } -> Some Callback.Nothing

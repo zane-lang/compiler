@@ -1,0 +1,20 @@
+File "fixtures/reject/callbacks/main.zn", line 15, characters 13-24:
+15 | I64 named(f I64[String]) foreign "named";
+   |             ^^^^^^^^^^^
+Error: C passes a function value a string as a `zane_bytes`, which it is copied from, not as a `const char *` (ffi.md §3.6)
+File "fixtures/reject/callbacks/main.zn", line 16, characters 19-27:
+16 | I64 wrongObject(f I64[Obj]) foreign "wrong_object";
+   |                   ^^^^^^^^
+Error: C passes a function value `Obj` as a pointer to its C type `obj_t`, and C declares `const struct cap_t *` (ffi.md §3.6)
+File "fixtures/reject/callbacks/main.zn", line 17, characters 15-23:
+17 | I64 withCap(f I64[Cap]) foreign "with_cap";
+   |               ^^^^^^^^
+Error: a function value crosses into C when it has no subject and no abort type, takes what a foreign verb takes, a handle among them a data handle, borrowed or as a roaming owner `^`, and gives a scalar, `@primitives$Bool`, a C-compatible value type or `@primitives$Unit` (ffi.md §3.6)
+File "fixtures/reject/callbacks/main.zn", line 18, characters 16-28:
+18 | I64 withView(f I64[&String]) foreign "with_view";
+   |                ^^^^^^^^^^^^
+Error: a function value crosses into C when it has no subject and no abort type, takes what a foreign verb takes, a handle among them a data handle, borrowed or as a roaming owner `^`, and gives a scalar, `@primitives$Bool`, a C-compatible value type or `@primitives$Unit` (ffi.md §3.6)
+File "fixtures/reject/callbacks/main.zn", line 18, characters 20-27:
+18 | I64 withView(f I64[&String]) foreign "with_view";
+   |                    ^^^^^^^
+Error: `@primitives$String` is a value type, and `&` marks only a reference type (a `#` mould or a reference primitive)

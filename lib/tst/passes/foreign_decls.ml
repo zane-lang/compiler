@@ -491,14 +491,25 @@ and handle_corresponds env iface v position tid (h : Nodes.Handle.t) c =
                (quote tid.Ty.name) (quote h.Nodes.Handle.c_type) (quote (C.to_string c))))
 
 (* A function value crosses as a C function pointer (§3.6) when it has no
-   subject and no abort type, and its parameters are scalars, `Bool` or
-   C-compatible value types, and its result one of those or `Unit`. *)
+   subject and no abort type, its parameters are what a foreign verb takes,
+   a handle among them a data handle, borrowed or a roaming owner, and its
+   result a scalar, `Bool`, a C-compatible value type or `Unit`. *)
 and function_corresponds env iface v (f : Ty.verb) c =
+  let data_handle tid = Verbs.handle_kind env.verbs tid = Some Nodes.Decl.Data in
+  let param (t : Ty.t) =
+    match (t, crossing env t) with
+    | Ty.Reference _, _ -> false
+    | Ty.Roaming _, Some (Handle (tid, _)) -> data_handle tid
+    | Ty.Roaming _, _ -> false
+    | _, Some (Scalar _ | Bool | Value _ | Bytes | Array _ | Span _) -> true
+    | _, Some (Handle (tid, _)) -> data_handle tid
+    | _ -> false
+  in
   let plain t = match crossing env t with Some (Scalar _ | Bool | Value _) -> true | _ -> false in
   let result t = plain t || crossing env t = Some Unit in
-  if f.Ty.this_ <> None || f.Ty.abort <> None || not (List.for_all plain f.Ty.params && result f.Ty.ret) then
+  if f.Ty.this_ <> None || f.Ty.abort <> None || not (List.for_all param f.Ty.params && result f.Ty.ret) then
     Error
-      "a function value crosses into C when it has no subject and no abort type, and takes scalars, `@primitives$Bool` or C-compatible value types, and gives one of those or `@primitives$Unit` (ffi.md §3.6)"
+      "a function value crosses into C when it has no subject and no abort type, takes what a foreign verb takes, a handle among them a data handle, borrowed or as a roaming owner `^`, and gives a scalar, `@primitives$Bool`, a C-compatible value type or `@primitives$Unit` (ffi.md §3.6)"
   else
     match c with
     | C.Pointer { pointee = C.Function { params; result = r; variadic = false }; _ }
@@ -512,7 +523,18 @@ and function_corresponds env iface v (f : Ty.verb) c =
                 (Printf.sprintf
                    "C declares %s here, and a function value takes and gives a full-width C type of each scalar, never a narrower one (ffi.md §3.6)"
                    (quote (C.to_string p)))
-          | _ -> corresponds env iface v position t p
+          | Some Bytes when position = Param && C.is_c_string p ->
+              Error "C passes a function value a string as a `zane_bytes`, which it is copied from, not as a `const char *` (ffi.md §3.6)"
+          | Some (Handle (tid, h)) when position = Param -> (
+              let record = record_of (interface env tid.Ty.package) h.Nodes.Handle.c_type in
+              match (p, record) with
+              | _, None -> Ok ()
+              | C.Pointer { pointee = C.Record { union = false; name }; _ }, Some r when name = r -> Ok ()
+              | _ ->
+                  Error
+                    (Printf.sprintf "C passes a function value %s as a pointer to its C type %s, and C declares %s (ffi.md §3.6)"
+                       (quote tid.Ty.name) (quote h.Nodes.Handle.c_type) (quote (C.to_string p))))
+          | _ -> corresponds env iface v position (Ty.strip_mode t) p
         in
         let checks = List.map2 (check Param) f.Ty.params params @ [ check Result f.Ty.ret r ] in
         match List.find_opt Result.is_error checks with Some e -> e | None -> Ok ())
