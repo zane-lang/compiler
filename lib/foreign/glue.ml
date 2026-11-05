@@ -61,10 +61,10 @@ let thunk n (e : entry) (f : C_interface.func) =
         line "  const struct { const char *__zane_b; int64_t __zane_n; } *__zane_t%d = __zane_args[%d];" i i;
         line "  int64_t __zane_n%d = __zane_t%d->__zane_n;" i i;
         line "  char __zane_s%d[%d];" i short_string;
-        line "  char *__zane_c%d = __zane_n%d < %d ? __zane_s%d : (char *)__builtin_malloc((unsigned long)__zane_n%d + 1);" i i
+        line "  char *__zane_c%d = __zane_n%d < %d ? __zane_s%d : (char *)__builtin_malloc((__SIZE_TYPE__)__zane_n%d + 1);" i i
           short_string i i;
         line "  if (!__zane_c%d) __builtin_trap();" i;
-        line "  if (__zane_n%d) __builtin_memcpy(__zane_c%d, __zane_t%d->__zane_b, (unsigned long)__zane_n%d);" i i i i;
+        line "  if (__zane_n%d) __builtin_memcpy(__zane_c%d, __zane_t%d->__zane_b, (__SIZE_TYPE__)__zane_n%d);" i i i i;
         line "  __zane_c%d[__zane_n%d] = 0;" i i
       end)
     e.params;

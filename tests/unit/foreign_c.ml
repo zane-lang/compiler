@@ -273,6 +273,21 @@ let compile_commands () =
              without one; one of packages with no C asks no C compiler. *)
           check "no database is made without a cache to keep its headers"
             (match Foreign.compile_commands ~cache:None ~cc ~target:None [ dir ] with Error _ -> true | Ok _ -> false);
+          (* A relative cache is read against the directory zanec runs
+             in, not the package's, which each entry names. *)
+          let here = Sys.getcwd () in
+          Sys.chdir base;
+          let relative =
+            Fun.protect ~finally:(fun () -> Sys.chdir here) (fun () ->
+                let at = Filename.concat (Sys.getcwd ()) "relative/foreign/ffi-" in
+                match Foreign.compile_commands ~cache:(Some "relative") ~cc ~target:None [ dir ] with
+                | Ok text ->
+                    let n = String.length at in
+                    let rec go i = i + n <= String.length text && (String.sub text i n = at || go (i + 1)) in
+                    go 0
+                | Error _ -> false)
+          in
+          check "a relative cache is named by its absolute path" relative;
           let plain = Filename.concat base "plain" in
           Sys.mkdir plain 0o755;
           check "packages with no C give an empty database, whatever the C compiler"

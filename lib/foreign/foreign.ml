@@ -441,6 +441,9 @@ let compile_packages ?(cache = Cache.dir ()) ~cc ~cpu ~target dirs =
    are the cache's, where a build writes them. *)
 let compile_commands ?(cache = Cache.dir ()) ~cc ~target dirs =
   let triple = triple target in
+  (* The database's paths are read against each entry's directory, the
+     package's, so a relative cache is made absolute against this one. *)
+  let cache = Option.map (fun c -> if Filename.is_relative c then Filename.concat (Sys.getcwd ()) c else c) cache in
   let ( let* ) = Result.bind in
   let* packages = combine (List.map (read_settings ~triple) dirs) in
   let* packages = combine (List.map with_sources packages) in
