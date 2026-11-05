@@ -36,6 +36,12 @@ jobs:
         with:
           submodules: true
           persist-credentials: false
+      # opam's conf-msvc64 must find Visual Studio; give it the developer
+      # environment it falls back on.
+      - if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
       - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
           run-install: true

@@ -50,6 +50,10 @@ versions)
 	ld.lld --version || true
 	command -v ld.lld clang llvm-config cc c++ cl link 2>/dev/null || true
 	zig version || echo 'zig: not on PATH'
+	if [[ $windows == 1 ]]; then
+		ls "$prefix"/conda-meta/ | grep -i zig || echo 'no zig package in conda-meta'
+		grep -oi '"[^"]*zig[^"]*\.exe"' "$prefix"/conda-meta/zig-*.json | head -5 || true
+	fi
 	just --version
 	python --version
 	;;
@@ -58,6 +62,15 @@ opam)
 	if [[ $windows == 1 ]]; then init+=(--cygwin-internal-install); fi
 	[[ -d "${OPAMROOT:-$HOME/.opam}" ]] || opam init "${init[@]}"
 	echo "OPAMROOT=$OPAMROOT"
+	if [[ $windows == 1 ]]; then
+		# What opam's conf-msvc64 sees: the environment compiler and msvs-detect.
+		echo "cl: $(command -v cl || echo none); INCLUDE ${INCLUDE:+set}; LIB ${LIB:+set}"
+		detect="$root/_build/msvs-detect"
+		mkdir -p "$root/_build"
+		curl -fsSL https://raw.githubusercontent.com/metastack/msvs-tools/0.8.0/msvs-detect -o "$detect"
+		bash "$detect" --installed || true
+		bash "$detect" --debug=2 --arch=x86_64 --with-assembler --with-mt --output=data || true
+	fi
 	opam switch list --short | grep -Fxq "$root" || opam switch create "$root" ocaml-system --no-install -y
 	switch_env
 	ocamlfind=$(command -v ocamlfind || true); echo "ocamlfind: ${ocamlfind:-none}"
