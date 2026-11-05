@@ -37,3 +37,5 @@ sysroot_linux-64 = "2.34.*"
 # Windows; the gcc (MinGW) build would not link LLVM's C++ libraries.
 [target.win-64.dependencies]
 ocaml = { version = "5.5.1.*", build = "vs2022*" }
+# xml2.lib, which conda's static LLVM links, is in the -devel package.
+libxml2-devel = "*"

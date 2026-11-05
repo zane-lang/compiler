@@ -62,12 +62,16 @@ let prefix () =
 
 (* A library llvm-config names as a file (`LLVMCore.lib`, as MSVC's builds
    do) is given by its path in the library directory, where it is LLVM's
-   own, and as written otherwise, a system library the linker finds. *)
+   own or a dependency's in the same environment, and as written
+   otherwise, a system library the linker finds. An import library LLVM's
+   build named `x.dll.lib` (zstd's) is `x.lib` in a conda environment. *)
 let library libdir word =
   if String.length word > 0 && word.[0] = '-' then word
   else
-    let path = Filename.concat libdir word in
-    if Sys.file_exists path then path else word
+    let names =
+      if Filename.check_suffix word ".dll.lib" then [ word; Filename.chop_suffix word ".dll.lib" ^ ".lib" ] else [ word ]
+    in
+    match List.find_opt Sys.file_exists (List.map (Filename.concat libdir) names) with Some path -> path | None -> word
 
 let libs () =
   let libdir = ask [ "--libdir" ] in
