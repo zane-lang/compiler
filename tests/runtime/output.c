@@ -10,6 +10,9 @@
 #include <poll.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
@@ -156,7 +159,14 @@ static int arrives(const char *mode, int out, int reader, size_t expected) {
 	if (pid == 0) {
 		alarm(10);
 		if (dup2(out, STDOUT_FILENO) < 0 || dup2(release[0], 3) < 0) _exit(2);
+		/* This program, run again: macOS has no /proc. */
+#ifdef __APPLE__
+		char self[4096];
+		uint32_t room = sizeof self;
+		if (_NSGetExecutablePath(self, &room) != 0) _exit(2);
+#else
 		char self[] = "/proc/self/exe";
+#endif
 		char *argv[] = { self, (char *)mode, NULL };
 		execv(self, argv);
 		_exit(2);
