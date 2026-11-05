@@ -13,7 +13,8 @@
    gives every compilation differ between machines without changing the
    code, so both are mapped to fixed names, `/zane/pkg` and `/zane/cache`,
    in `__FILE__` and debug information by `-ffile-prefix-map`, and in the
-   hash by the same substitution. *)
+   hash by the same substitution, and a VFS overlay makes each fixed name
+   resolve to its directory. *)
 
 (* The headers every compilation reads from the compiler: the linked
    clang's builtin headers, under `include/` of the resource directory
@@ -111,22 +112,24 @@ let json_string s =
 (* A clang VFS overlay that makes each fixed name a directory holding what
    the directory it stands for holds, so a path C spells through
    `__FILE__`, such as a source's `#include __FILE__`, names a file that
-   exists. It is written once under the temporary directory, named by a
-   hash of its text, which the maps decide whole. *)
-let overlay maps =
+   exists. It is written once into [dir], named by a hash of its text,
+   which the maps decide whole. *)
+let overlay ~dir maps =
   let root (from, to_) =
     Printf.sprintf {|{"name":%s,"type":"directory-remap","external-contents":%s}|} (json_string to_) (json_string from)
   in
   let text = Printf.sprintf {|{"version":0,"roots":[%s]}|} (String.concat "," (List.map root maps)) in
-  let dir = Filename.concat (Filename.get_temp_dir_name ()) "zane-vfs" in
+  let dir = Filename.concat dir "vfs" in
   let name = Digest.to_hex (Digest.string text) ^ ".yaml" in
   write_files dir [ (name, text) ];
   Filename.concat dir name
 
 (* The flags that spell each directory of [maps] by its fixed name, in
-   `__FILE__` and debug information, and resolve that name back to it. *)
-let map_flags maps =
-  List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ "=" ^ to_) maps @ [ "-ivfsoverlay"; overlay maps ]
+   `__FILE__` and debug information, and resolve that name back to it
+   through an overlay written into [dir]: the cache's `foreign/` directory
+   or a build's own work directory, as for the headers. *)
+let map_flags ~dir maps =
+  List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ "=" ^ to_) maps @ [ "-ivfsoverlay"; overlay ~dir maps ]
 
 (* [args] without the overlays [map_flags] adds: an overlay's path is a
    temporary file's, and what it holds follows from the maps, which the

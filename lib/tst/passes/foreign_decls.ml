@@ -691,6 +691,10 @@ let global env ~package ~span ~declared (symbol : N.Name.t) : Nodes.Expr.t =
             fail
               (Printf.sprintf "%s is a `const` %s, and %s's objects are %s, which a `mut` method writes (ffi.md §5.1)"
                  (quote name) (quote (C.to_string ty)) (quote tid.Ty.name) (quote h.Nodes.Handle.c_type))
+        (* A `cType` no interface header declares is reported once, at the
+           handle's declaration, and not again at each variable of it. *)
+        | Some _ when record = None ->
+            { Nodes.Expr.node = Nodes.Expr.Foreign_global { symbol = name; package = owner }; ty = declared; span }
         | Some { C.ty = C.Record { union = false; name = r }; _ } when Some r = record ->
             { Nodes.Expr.node = Nodes.Expr.Foreign_global { symbol = name; package = owner }; ty = declared; span }
         | Some { C.ty; _ } ->

@@ -569,6 +569,14 @@ let undefined_symbols text =
     | Some i, Some j when j > i -> Some (String.sub s (i + 1) (j - i - 1))
     | _ -> None
   in
+  (* The function in lld's parenthesized location, which its Mach-O
+     flavour writes `symbol F+0xN`. *)
+  let located f =
+    let f = if String.starts_with ~prefix:"symbol " f then String.sub f 7 (String.length f - 7) else f in
+    match String.rindex_opt f '+' with
+    | Some i when String.length f > i + 2 && String.sub f (i + 1) 2 = "0x" -> String.sub f 0 i
+    | _ -> f
+  in
   let found = ref [] in
   let func = ref None and symbol = ref None in
   List.iter
@@ -584,46 +592,53 @@ let undefined_symbols text =
       | _, Some s, _, _, _ -> Option.iter (fun f -> found := (before '\'' s, f) :: !found) !func
       | _, _, Some s, _, _ -> symbol := Some (String.trim s)
       | _, _, _, Some r, _ -> (
-          match (!symbol, parenthesized r) with Some s, Some f -> found := (s, f) :: !found | _ -> ())
+          match (!symbol, parenthesized r) with Some s, Some f -> found := (s, located f) :: !found | _ -> ())
       | _, _, _, _, Some _ -> (
-          match after "\"_" line with Some s -> symbol := Some (before '"' s) | None -> symbol := None)
+          match after "\"" line with Some s -> symbol := Some (before '"' s) | None -> symbol := None)
       | None, None, None, None, None -> (
           match !symbol with
           | Some s when String.starts_with ~prefix:" " line && after " in " line <> None ->
-              (* ld64 spells a function with the target's `_` before it. *)
-              let f = before_last " in " (String.trim line) in
-              let f = if String.starts_with ~prefix:"_" f then String.sub f 1 (String.length f - 1) else f in
-              found := (s, f) :: !found
+              found := (s, before_last " in " (String.trim line)) :: !found
           | _ -> ()))
     (String.split_on_char '\n' text);
   List.sort_uniq compare !found
 
 (* A failed link as the error that names each foreign verb whose C
-   function nothing linked defines, when its [text] says so: the glue's
-   thunk for a foreign verb is the verb's symbol and `.ffi`, so the
-   function referencing the undefined symbol names the verb. *)
+   function nothing linked defines, when its [text] says so, and whether
+   that is every undefined symbol [text] names: the glue's thunk for a
+   foreign verb is the verb's symbol and `.ffi`, so the function
+   referencing the undefined symbol names the verb. Where the target puts
+   `_` before every C name, as Mach-O does, both names lose it. *)
 let undefined_error text =
-  let verb f =
+  let unprefixed f s =
+    if String.starts_with ~prefix:"_" f then
+      let drop x = if String.starts_with ~prefix:"_" x then String.sub x 1 (String.length x - 1) else x in
+      (drop f, drop s)
+    else (f, s)
+  in
+  let verb (s, f) =
+    let f, s = unprefixed f s in
     if String.ends_with ~suffix:".ffi" f then
       let f = String.sub f 0 (String.length f - 4) in
-      Some (match String.index_opt f '(' with Some i -> String.sub f 0 i | None -> f)
+      Some ((match String.index_opt f '(' with Some i -> String.sub f 0 i | None -> f), s)
     else None
   in
-  match
-    List.sort_uniq compare
-      (List.filter_map (fun (s, f) -> Option.map (fun v -> (v, s)) (verb f)) (undefined_symbols text))
-  with
+  let undefined = undefined_symbols text in
+  match List.sort_uniq compare (List.filter_map verb undefined) with
   | [] -> None
   | missing ->
-      Some
-        (String.concat "\n"
-           (List.map
-              (fun (v, s) ->
-                Printf.sprintf
-                  "the foreign verb `%s` calls the C function `%s`, which an interface header declares and nothing \
-                   linked defines: no C source, `archive` row or `system` row of its package gives it (ffi.md §2.4)"
-                  v s)
-              missing))
+      let named = List.length (List.filter (fun u -> verb u <> None) undefined) in
+      let message =
+        String.concat "\n"
+          (List.map
+             (fun (v, s) ->
+               Printf.sprintf
+                 "the foreign verb `%s` calls the C function `%s`, which an interface header declares and nothing \
+                  linked defines: no C source, `archive` row or `system` row of its package gives it (ffi.md §2.4)"
+                 v s)
+             missing)
+      in
+      Some (message, named = List.length undefined)
 
 (* [args] linked by the LLD in the compiler with the command [bundled]
    holds, when a released toolchain bundles one, with [deps], the program's
@@ -654,7 +669,10 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
     | _, Some error -> Error error
     | n, None -> (
         match undefined_error written with
-        | Some error -> Error error
+        | Some (error, every) ->
+            (* What the linker said of any other symbol is still shown. *)
+            if not every then prerr_string written;
+            Error error
         | None ->
             prerr_string written;
             Error (Printf.sprintf "`%s` exited with %d" (Filename.quote_command cc args) n))

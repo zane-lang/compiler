@@ -19,9 +19,10 @@ type BadSet = #handle{ cType = "a_t"; set = "a_swap"; free = "a_free"; }
 type Included = #handle{ cType = "inner_t"; }
 
 /// Passes a handle whose C type was refused above, which is reported
-/// there alone.
+/// there alone, as is the foreign variable `main` declares of it.
 I32 innerSize(this Included) foreign "inner_size";
 
 Unit main() {
+	inner Included foreign "inner_global";
 	return Unit();
 }

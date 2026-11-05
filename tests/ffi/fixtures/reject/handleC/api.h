@@ -6,3 +6,4 @@ int a_close(a_t *a);
 void a_free(a_t *a);
 void a_swap(a_t *dst);
 int inner_size(const inner_t *inner);
+extern inner_t inner_global;

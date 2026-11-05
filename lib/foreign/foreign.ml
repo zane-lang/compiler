@@ -294,7 +294,7 @@ let archive ~triple dir (row : Settings.row) =
    for [triple] and [cpu], and its archives read. *)
 let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
   let maps = Compile.prefix_maps ~dir ~headers in
-  let flags = fixed @ Compile.map_flags maps @ Compile.package_flags dir rows in
+  let flags = fixed @ Compile.map_flags ~dir:headers.Compile.root maps @ Compile.package_flags dir rows in
   let interface_headers = Settings.interface_headers dir in
   let tables =
     combine
@@ -441,7 +441,7 @@ let glue_files p ~dir files =
         ~finally:(fun () -> try remove work with Sys_error _ -> ())
         (fun () ->
           let added = [ (dir, "/zane/pkg"); (work, "/zane/glue") ] in
-          let maps = p.maps @ added and flags = p.flags @ Compile.map_flags added in
+          let maps = p.maps @ added and flags = p.flags @ Compile.map_flags ~dir:work added in
           combine (List.map (glue_file p ~dir ~work ~maps ~flags) files))
 
 (* The glue [compiled], each module beside the real path of its header,
@@ -612,7 +612,7 @@ let callbacks ?(cache = Cache.dir ()) ~target (entries : Glue.callback list) =
             | None -> (Compile.headers work, None)
           in
           let maps = [ (work, "/zane/glue") ] in
-          let flags = Compile.fixed_flags ~triple ~headers ~include_dirs:[] @ Compile.map_flags maps in
+          let flags = Compile.fixed_flags ~triple ~headers ~include_dirs:[] @ Compile.map_flags ~dir:work maps in
           let path = Filename.concat work "callbacks.c" in
           match Out_channel.with_open_bin path (fun oc -> output_string oc (Glue.callbacks_file entries)) with
           | exception Sys_error message -> glue_unwritten message

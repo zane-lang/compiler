@@ -1378,15 +1378,34 @@ let undefined_foreign () =
     (read
        (Printf.sprintf "ld.lld: error: undefined symbol: zfs_exists\n>>> referenced by fs.c\n>>>               /cache/x.c.o:(%s)\n" thunk)
     = expected);
-  check "ld64's undefined symbol names the verb"
-    (read
-       (Printf.sprintf "Undefined symbols for architecture arm64:\n  \"_zfs_exists\", referenced from:\n      _%s in x.c.o\nld: symbol(s) not found for architecture arm64\n" thunk)
-    = expected);
+  check "ld64's undefined symbol names the verb, without Mach-O's `_`"
+    (match
+       Build.undefined_error
+         (Printf.sprintf "Undefined symbols for architecture arm64:\n  \"_zfs_exists\", referenced from:\n      _%s in x.c.o\nld: symbol(s) not found for architecture arm64\n" thunk)
+     with
+    | Some (e, every) -> contains e "`fs$_exists` calls the C function `zfs_exists`" && every
+    | None -> false);
   check "a symbol only Zane's own code references is not a foreign verb's"
     (Build.undefined_error "ld.lld: error: undefined symbol: zane_gone\n>>> referenced by program.o:(main)\n" = None);
-  check "the error names the verb and its C function"
+  check "the error names the verb and its C function, which are all the link misses"
     (match Build.undefined_error (Printf.sprintf "ld.lld: error: undefined symbol: zfs_exists\n>>> referenced by x.o:(%s)\n" thunk) with
-    | Some e -> contains e "`fs$_exists` calls the C function `zfs_exists`"
+    | Some (e, every) -> contains e "`fs$_exists` calls the C function `zfs_exists`" && every
+    | None -> false);
+  check "a link that misses another symbol too says the verb is not all"
+    (match
+       Build.undefined_error
+         (Printf.sprintf
+            "ld.lld: error: undefined symbol: zfs_exists\n>>> referenced by x.o:(%s)\nld.lld: error: undefined symbol: other\n>>> referenced by y.o:(helper)\n"
+            thunk)
+     with
+    | Some (_, every) -> not every
+    | None -> false);
+  check "ld64.lld's Mach-O names lose their `_`"
+    (match
+       Build.undefined_error
+         (Printf.sprintf "ld64.lld: error: undefined symbol: _zfs_exists\n>>> referenced by x.o:(symbol _%s+0x10)\n" thunk)
+     with
+    | Some (e, _) -> contains e "`fs$_exists` calls the C function `zfs_exists`"
     | None -> false)
 
 (* A message names a dependency's types without the stamp that tells its
