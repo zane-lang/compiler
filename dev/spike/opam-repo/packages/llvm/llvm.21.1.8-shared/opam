@@ -14,7 +14,9 @@ build: [
    "llvm/cmake/modules/AddOCaml.cmake"]
   # The execution engine's bindings are the only ones that need ctypes,
   # which opam has no MSVC build of; zanec does not use them.
+  # LLVM enables its OCaml bindings only when ctypes is found.
   ["sed" "-i.orig" "/add_subdirectory(executionengine)/d" "llvm/bindings/ocaml/CMakeLists.txt"]
+  ["sed" "-i.orig" "s/if( HAVE_OCAML_CTYPES )/if( TRUE )/" "llvm/cmake/config-ix.cmake"]
   ["bash" "-ex" "install.sh" "build" "--llvm-config" "llvm-config" "--libdir" lib
    "--cmake" "cmake" "--make" make "--link-mode" "shared"]
 ]
