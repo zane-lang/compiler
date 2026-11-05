@@ -287,15 +287,19 @@ let diagnostics (problems : Clang.problem list) =
 type failure = { diagnostics : Diagnostic.t list; sources : Source.Files.t }
 
 (* What [path], an interface header, declares, compiled alone with
-   [flags] (docs/design/ffi.md F6). *)
+   [flags] (docs/design/ffi.md F6), and the warnings it gave. A header
+   compiled as the main file has every `static` helper it defines unused
+   and its `#pragma once` outside a header, which no source that includes
+   it sees, so those warnings are not asked for. *)
 let interface flags path =
-  let read = Clang.interface (flags @ [ "-fsyntax-only"; "-x"; "c"; path ]) in
+  let quiet = [ "-Wno-unused"; "-Wno-pragma-once-outside-header" ] in
+  let read = Clang.interface (flags @ quiet @ [ "-fsyntax-only"; "-x"; "c"; path ]) in
   if not read.ok then
     let diagnostics, sources = diagnostics read.problems in
     Error { diagnostics; sources }
   else
     match C_interface.read read.output with
-    | table -> Ok table
+    | table -> Ok (table, read.warnings)
     | exception C_interface.Malformed why -> Diagnostic.bug ("the interface table of " ^ path ^ " is malformed: " ^ why)
 
 (* Whether [text] holds [word] anywhere. *)

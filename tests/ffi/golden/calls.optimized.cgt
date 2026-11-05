@@ -1619,7 +1619,11 @@
     │   ├── symbol: app$greet(%primitives$String)
     │   ├── params[0]: local #1 : handle
     │   ├── ret: handle
-    │   └── body[0] > return > runtime:
+    │   ├── body[0] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_text_expect
+    │   │   └── args:
+    │   └── body[1] > return > runtime:
     │       ├── type: handle
     │       ├── fn: zane_text_taken
     │       └── args[0] > foreign call:

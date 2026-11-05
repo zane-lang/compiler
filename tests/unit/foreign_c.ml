@@ -257,7 +257,15 @@ let compile_commands () =
           check "the database holds the package's define row" (has "\"-D\", \"X=1\"");
           check "the database names where zane_ffi.h is" (has "/foreign/ffi-");
           check "the database leaves out the module's flags" (not (has "-disable-llvm-passes" || has "\"-O2\""));
-          check "the database maps no path" (not (has "/zane/pkg" || has "ivfsoverlay")))
+          check "the database maps no path" (not (has "/zane/pkg" || has "ivfsoverlay"));
+          (* A database names headers only a cache keeps, so none is made
+             without one; one of packages with no C asks no C compiler. *)
+          check "no database is made without a cache to keep its headers"
+            (match Foreign.compile_commands ~cache:None ~cc ~target:None [ dir ] with Error _ -> true | Ok _ -> false);
+          let plain = Filename.concat base "plain" in
+          Sys.mkdir plain 0o755;
+          check "packages with no C give an empty database, whatever the C compiler"
+            (Foreign.compile_commands ~cache:None ~cc:"no-such-cc" ~target:None [ plain ] = Ok "[]\n"))
 
 (* The table's text read back: names with spaces, nested types, a
    variable's flags, and a struct's layout. *)
@@ -710,6 +718,7 @@ let own_hashes () =
         assembled = [];
         archives = [];
         tables = [];
+        header_warnings = [];
         flags = [];
         maps = [];
         cache = None;

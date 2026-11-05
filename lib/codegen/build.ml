@@ -562,12 +562,28 @@ let undefined_symbols text =
     let rec find i = if i < 0 then s else if String.sub s i n = word then String.sub s 0 i else find (i - 1) in
     find (String.length s - n)
   in
-  (* The text between the first `(` and the last `)`: lld writes the
-     referencing function there, and it may hold parentheses itself. *)
+  (* The text between the `:(` after the object's path and the last `)`:
+     lld writes the referencing function there, and it may hold
+     parentheses itself, as the path may, an archive member's
+     `lib.a(m.o)` among them. *)
   let parenthesized s =
-    match (String.index_opt s '(', String.rindex_opt s ')') with
+    let opening =
+      match after ":(" s with Some rest -> Some (String.length s - String.length rest - 1) | None -> String.index_opt s '('
+    in
+    match (opening, String.rindex_opt s ')') with
     | Some i, Some j when j > i -> Some (String.sub s (i + 1) (j - i - 1))
     | _ -> None
+  in
+  (* Whether a GNU `ld` line locates its reference in code: its section,
+     in `:(SECTION+0xN):`, is `.text` or one of `.text.`, or it gives a
+     source line instead. `ld` writes no `in function` header for a
+     reference from data, which the last header does not own. *)
+  let in_code line =
+    match after ":(" line with
+    | Some rest ->
+        let section = before '+' (before ')' rest) in
+        section = ".text" || String.starts_with ~prefix:".text." section
+    | None -> true
   in
   (* The function in lld's parenthesized location, which its Mach-O
      flavour writes `symbol F+0xN`. *)
@@ -589,7 +605,11 @@ let undefined_symbols text =
           after "\", referenced from:" line )
       with
       | Some f, _, _, _, _ -> func := Some (before '\'' f)
-      | _, Some s, _, _, _ -> Option.iter (fun f -> found := (before '\'' s, f) :: !found) !func
+      | _, Some s, _, _, _ ->
+          (* A reference no function owns is kept too, so that it counts
+             among the symbols no foreign verb explains. *)
+          let f = if in_code line then !func else None in
+          found := (before '\'' s, Option.value ~default:"" f) :: !found
       | _, _, Some s, _, _ -> symbol := Some (String.trim s)
       | _, _, _, Some r, _ -> (
           match (!symbol, parenthesized r) with Some s, Some f -> found := (s, located f) :: !found | _ -> ())
@@ -608,10 +628,11 @@ let undefined_symbols text =
    that is every undefined symbol [text] names: the glue's thunk for a
    foreign verb is the verb's symbol and `.ffi`, so the function
    referencing the undefined symbol names the verb. Where the target puts
-   `_` before every C name, as Mach-O does, both names lose it. *)
-let undefined_error text =
+   `_` before every C name, as Mach-O does ([underscored]), both names
+   lose it. *)
+let undefined_error ?(underscored = false) text =
   let unprefixed f s =
-    if String.starts_with ~prefix:"_" f then
+    if underscored && String.starts_with ~prefix:"_" f then
       let drop x = if String.starts_with ~prefix:"_" x then String.sub x 1 (String.length x - 1) else x in
       (drop f, drop s)
     else (f, s)
@@ -639,6 +660,30 @@ let undefined_error text =
              missing)
       in
       Some (message, named = List.length undefined)
+
+(* Whether a C name on [triple] has `_` before it: Mach-O's, and 32-bit
+   x86 Windows's. *)
+let underscored triple =
+  macho triple
+  || (List.exists (fun p -> String.starts_with ~prefix:p triple) [ "i386-"; "i486-"; "i586-"; "i686-" ]
+     && List.mem "windows" (String.split_on_char '-' triple))
+
+(* Whether a linker's [text] says anything is wrong but undefined symbols:
+   a symbol defined twice, or any other error it names. *)
+let other_link_errors text =
+  let has part line =
+    let n = String.length part in
+    let rec at i = i <= String.length line - n && (String.sub line i n = part || at (i + 1)) in
+    at 0
+  in
+  List.exists
+    (fun line ->
+      has "duplicate symbol" line || has "multiple definition" line
+      || has "error:" line
+         && not
+              (List.exists (fun p -> has p line)
+                 [ "undefined"; "linker command failed"; "ld returned"; "too many errors" ]))
+    (String.split_on_char '\n' text)
 
 (* [args] linked by the LLD in the compiler with the command [bundled]
    holds, when a released toolchain bundles one, with [deps], the program's
@@ -668,10 +713,11 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
         Ok ()
     | _, Some error -> Error error
     | n, None -> (
-        match undefined_error written with
+        match undefined_error ~underscored:(underscored triple) written with
         | Some (error, every) ->
-            (* What the linker said of any other symbol is still shown. *)
-            if not every then prerr_string written;
+            (* What the linker said of any other symbol, or of anything
+               else, is still shown. *)
+            if (not every) || other_link_errors written then prerr_string written;
             Error error
         | None ->
             prerr_string written;

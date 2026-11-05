@@ -1,0 +1,354 @@
+└── program:
+    ├── entry: zane.start
+    ├── layouts[0] > layout:
+    │   ├── type: allocated$Texts
+    │   └── positions:
+    ├── layouts[1] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── globals[0]: allocated$%c$zane_texts : i64, imported
+    ├── thunks[0] > thunk:
+    │   ├── symbol: allocated$upper(this allocated$Texts, %primitives$String).ffi
+    │   ├── package: allocated
+    │   ├── calls: texts_upper
+    │   ├── params[0]: handle
+    │   ├── params[1]: view
+    │   ├── result: view
+    │   └── reaches: a capability
+    ├── thunks[1] > thunk:
+    │   ├── symbol: allocated$kept(this allocated$Texts, %primitives$String).ffi
+    │   ├── package: allocated
+    │   ├── calls: texts_kept
+    │   ├── params[0]: handle
+    │   ├── params[1]: view
+    │   ├── result: i64
+    │   └── reaches: a capability
+    ├── thunks[2] > thunk:
+    │   ├── symbol: allocated$prefix(this allocated$Texts, %primitives$String, %primitives$I64).ffi
+    │   ├── package: allocated
+    │   ├── calls: texts_prefix
+    │   ├── params[0]: handle
+    │   ├── params[1]: view
+    │   ├── params[2]: i64
+    │   ├── result: view
+    │   └── reaches: a capability
+    ├── thunks[3] > thunk:
+    │   ├── symbol: allocated$fixed(this allocated$Texts).ffi
+    │   ├── package: allocated
+    │   ├── calls: texts_fixed
+    │   ├── params[0]: handle
+    │   ├── result: view
+    │   └── reaches: a capability
+    ├── thunks[4] > thunk:
+    │   ├── symbol: allocated$empty(this allocated$Texts).ffi
+    │   ├── package: allocated
+    │   ├── calls: texts_empty
+    │   ├── params[0]: handle
+    │   ├── result: view
+    │   └── reaches: a capability
+    ├── thunks[5] > thunk:
+    │   ├── symbol: allocated$pure(%primitives$String).ffi
+    │   ├── package: allocated
+    │   ├── calls: texts_pure
+    │   ├── params[0]: view
+    │   └── result: view
+    ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: allocated$main()
+    │       └── args:
+    ├── funcs[1] > func:
+    │   ├── symbol: allocated$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %2
+    │       ├── body[0] > hold:
+    │       │   ├── local: #1
+    │       │   ├── scope: %2
+    │       │   ├── value > record:
+    │       │   │   ├── type: {ptr, i64}
+    │       │   │   ├── members[0] > member 0: global allocated$%c$zane_texts
+    │       │   │   └── members[1] > member 1: 0 : i64
+    │       │   └── layout: allocated$Texts
+    │       ├── body[1] > hold:
+    │       │   ├── local: #6
+    │       │   ├── scope: %2
+    │       │   ├── value > call:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: allocated$upper(this allocated$Texts, %primitives$String)
+    │       │   │   ├── args[0]: address of #1 : ptr
+    │       │   │   └── args[1]: "hello" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[2] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: allocated$show(%primitives$String)
+    │       │   └── args[0]: local #6 : handle
+    │       ├── body[3] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: allocated$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @8
+    │       │       ├── result: #9
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #7
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: allocated$kept(this allocated$Texts, %primitives$String)
+    │       │       │   │       ├── args[0]: address of #1 : ptr
+    │       │       │   │       └── args[1]: local #6 : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #9
+    │       │           └── value: local #7 : handle
+    │       ├── body[4] > hold:
+    │       │   ├── local: #13
+    │       │   ├── scope: %2
+    │       │   ├── value > call:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: allocated$prefix(this allocated$Texts, %primitives$String, %primitives$I64)
+    │       │   │   ├── args[0]: address of #1 : ptr
+    │       │   │   ├── args[1]: "abcdef" : handle
+    │       │   │   └── args[2]: 3 : i64
+    │       │   └── layout: %primitives$String
+    │       ├── body[5] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: allocated$show(%primitives$String)
+    │       │   └── args[0]: local #13 : handle
+    │       ├── body[6] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: allocated$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @15
+    │       │       ├── result: #16
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #14
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: allocated$kept(this allocated$Texts, %primitives$String)
+    │       │       │   │       ├── args[0]: address of #1 : ptr
+    │       │       │   │       └── args[1]: local #13 : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #16
+    │       │           └── value: local #14 : handle
+    │       ├── body[7] > hold:
+    │       │   ├── local: #17
+    │       │   ├── scope: %2
+    │       │   ├── value > call:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: allocated$fixed(this allocated$Texts)
+    │       │   │   └── args[0]: address of #1 : ptr
+    │       │   └── layout: %primitives$String
+    │       ├── body[8] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: allocated$show(%primitives$String)
+    │       │   └── args[0]: local #17 : handle
+    │       ├── body[9] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: allocated$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @19
+    │       │       ├── result: #20
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #18
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: allocated$kept(this allocated$Texts, %primitives$String)
+    │       │       │   │       ├── args[0]: address of #1 : ptr
+    │       │       │   │       └── args[1]: local #17 : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #20
+    │       │           └── value: local #18 : handle
+    │       ├── body[10] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: allocated$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @34
+    │       │       ├── result: #35
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #33
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_join
+    │       │       │   │   ├── args[0] > expand:
+    │       │       │   │   │   ├── type: handle
+    │       │       │   │   │   ├── label: @28
+    │       │       │   │   │   ├── result: #29
+    │       │       │   │   │   ├── body[0] > hold:
+    │       │       │   │   │   │   ├── local: #27
+    │       │       │   │   │   │   ├── scope: %2
+    │       │       │   │   │   │   ├── value > runtime:
+    │       │       │   │   │   │   │   ├── type: handle
+    │       │       │   │   │   │   │   ├── fn: zane_text_join
+    │       │       │   │   │   │   │   ├── args[0]: "[" : handle
+    │       │       │   │   │   │   │   └── args[1] > expand:
+    │       │       │   │   │   │   │       ├── type: handle
+    │       │       │   │   │   │   │       ├── label: @25
+    │       │       │   │   │   │   │       ├── result: #26
+    │       │       │   │   │   │   │       ├── body[0] > hold:
+    │       │       │   │   │   │   │       │   ├── local: #24
+    │       │       │   │   │   │   │       │   ├── scope: %2
+    │       │       │   │   │   │   │       │   ├── value > call:
+    │       │       │   │   │   │   │       │   │   ├── type: handle
+    │       │       │   │   │   │   │       │   │   ├── fn: allocated$empty(this allocated$Texts)
+    │       │       │   │   │   │   │       │   │   └── args[0]: address of #1 : ptr
+    │       │       │   │   │   │   │       │   └── layout: %primitives$String
+    │       │       │   │   │   │   │       └── body[1] > assign:
+    │       │       │   │   │   │   │           ├── place: #26
+    │       │       │   │   │   │   │           └── value: local #24 : handle
+    │       │       │   │   │   │   └── layout: %primitives$String
+    │       │       │   │   │   └── body[1] > assign:
+    │       │       │   │   │       ├── place: #29
+    │       │       │   │   │       └── value: local #27 : handle
+    │       │       │   │   └── args[1]: "]" : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #35
+    │       │           └── value: local #33 : handle
+    │       ├── body[11] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "ZANE!" : handle
+    │       ├── body[12] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       └── body[13] > return: unit : void
+    ├── funcs[2] > func:
+    │   ├── symbol: allocated$upper(this allocated$Texts, %primitives$String)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : handle
+    │   ├── ret: handle
+    │   ├── body[0] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_text_expect
+    │   │   └── args:
+    │   └── body[1] > return > runtime:
+    │       ├── type: handle
+    │       ├── fn: zane_text_taken
+    │       └── args[0] > foreign call:
+    │           ├── type: handle
+    │           ├── fn: allocated$upper(this allocated$Texts, %primitives$String).ffi
+    │           ├── args[0] > deref:
+    │           │   ├── type: {ptr, i64}
+    │           │   └── ptr: local #1 : ptr
+    │           └── args[1]: local #2 : handle
+    ├── funcs[3] > func:
+    │   ├── symbol: allocated$show(%primitives$String)
+    │   ├── params[0]: local #1 : handle
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       ├── body[0] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: local #1 : handle
+    │       ├── body[1] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       └── body[2] > return: unit : void
+    ├── funcs[4] > func:
+    │   ├── symbol: allocated$kept(this allocated$Texts, %primitives$String)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : handle
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: allocated$kept(this allocated$Texts, %primitives$String).ffi
+    │       ├── args[0] > deref:
+    │       │   ├── type: {ptr, i64}
+    │       │   └── ptr: local #1 : ptr
+    │       └── args[1]: local #2 : handle
+    ├── funcs[5] > func:
+    │   ├── symbol: allocated$prefix(this allocated$Texts, %primitives$String, %primitives$I64)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : handle
+    │   ├── params[2]: local #3 : i64
+    │   ├── ret: handle
+    │   ├── body[0] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_text_expect
+    │   │   └── args:
+    │   └── body[1] > return > runtime:
+    │       ├── type: handle
+    │       ├── fn: zane_text_taken
+    │       └── args[0] > foreign call:
+    │           ├── type: handle
+    │           ├── fn: allocated$prefix(this allocated$Texts, %primitives$String, %primitives$I64).ffi
+    │           ├── args[0] > deref:
+    │           │   ├── type: {ptr, i64}
+    │           │   └── ptr: local #1 : ptr
+    │           ├── args[1]: local #2 : handle
+    │           └── args[2]: local #3 : i64
+    ├── funcs[6] > func:
+    │   ├── symbol: allocated$fixed(this allocated$Texts)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: handle
+    │   ├── body[0] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_text_expect
+    │   │   └── args:
+    │   └── body[1] > return > runtime:
+    │       ├── type: handle
+    │       ├── fn: zane_text_taken
+    │       └── args[0] > foreign call:
+    │           ├── type: handle
+    │           ├── fn: allocated$fixed(this allocated$Texts).ffi
+    │           └── args[0] > deref:
+    │               ├── type: {ptr, i64}
+    │               └── ptr: local #1 : ptr
+    ├── funcs[7] > func:
+    │   ├── symbol: allocated$empty(this allocated$Texts)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: handle
+    │   ├── body[0] > eval > runtime:
+    │   │   ├── type: void
+    │   │   ├── fn: zane_text_expect
+    │   │   └── args:
+    │   └── body[1] > return > runtime:
+    │       ├── type: handle
+    │       ├── fn: zane_text_taken
+    │       └── args[0] > foreign call:
+    │           ├── type: handle
+    │           ├── fn: allocated$empty(this allocated$Texts).ffi
+    │           └── args[0] > deref:
+    │               ├── type: {ptr, i64}
+    │               └── ptr: local #1 : ptr
+    └── funcs[8] > func:
+        ├── symbol: allocated$pure(%primitives$String)
+        ├── params[0]: local #1 : handle
+        ├── ret: handle
+        ├── body[0] > eval > runtime:
+        │   ├── type: void
+        │   ├── fn: zane_text_expect
+        │   └── args:
+        └── body[1] > return > runtime:
+            ├── type: handle
+            ├── fn: zane_text_taken
+            └── args[0] > foreign call:
+                ├── type: handle
+                ├── fn: allocated$pure(%primitives$String).ffi
+                └── args[0]: local #1 : handle

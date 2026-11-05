@@ -87,6 +87,48 @@ let c_code ?target packages =
           Ok c
       | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
 
+(* The name of a file beside [output] to write it under before it is renamed
+   into place, drawn from [random]. *)
+let temporary_name random output =
+  Filename.concat (Filename.dirname output)
+    (Printf.sprintf ".%s.%08x" (Filename.basename output) (Random.State.bits random))
+
+(* How many names [write_replacing] draws before it gives up: each one
+   already taken is a file someone else made. *)
+let temporary_attempts = 8
+
+(* [contents] written beside [output] and renamed into place, so a failed
+   write leaves an existing [output], or the input it may be, as it was. The
+   temporary is created exclusively, so a name that already exists is
+   another's file: it is left alone and a new name drawn. Any failure to
+   create one draws again, since [Sys_error] does not say whether the name
+   was taken, and a lookup after the fact misses a dangling symlink or a file
+   removed in between. Only a temporary this call created is removed when a
+   later step fails. *)
+let write_replacing ~random ~output contents =
+  let rec attempt drawn =
+    let temporary = temporary_name random output in
+    let created = ref false in
+    match
+      Out_channel.with_open_gen
+        [ Open_wronly; Open_creat; Open_excl; Open_binary ]
+        0o666 temporary
+        (fun oc ->
+          created := true;
+          output_string oc contents);
+      Sys.rename temporary output
+    with
+    | () -> Ok ()
+    | exception Sys_error message ->
+        if !created then begin
+          (try Sys.remove temporary with Sys_error _ -> ());
+          Error message
+        end
+        else if drawn < temporary_attempts then attempt (drawn + 1)
+        else Error message
+  in
+  attempt 1
+
 (* The compilation database of the C sources of [packages] being worked
    on, those with no stamp, written to [output] (docs/design/ffi.md F2). *)
 let compile_commands ?target packages output =
@@ -98,8 +140,11 @@ let compile_commands ?target packages output =
   match Foreign.compile_commands ~cc:(Codegen.c_compiler ()) ~target dirs with
   | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics
   | Ok text -> (
-      try Ok (Out_channel.with_open_bin output (fun oc -> output_string oc text))
-      with Sys_error message -> fail [ Diagnostic.about_invocation ("the compilation database could not be written: " ^ message) ])
+      (* Renamed into place, so an editor never reads half of one and a
+         failed write keeps the one before. *)
+      match write_replacing ~random:(Random.State.make_self_init ()) ~output text with
+      | Ok () -> Ok ()
+      | Error message -> fail [ Diagnostic.about_invocation ("the compilation database could not be written: " ^ message) ])
 
 (* Semantics, which reports every problem it finds (docs/design/semantics.md
    D4) and gives no tree when there is one. *)
@@ -497,48 +542,6 @@ let buildable = function
   | Some false ->
       fail [ Diagnostic.about_invocation "a build without a root is not built into an executable; check it with `--check`" ]
   | _ -> Ok ()
-
-(* The name of a file beside [output] to write it under before it is renamed
-   into place, drawn from [random]. *)
-let temporary_name random output =
-  Filename.concat (Filename.dirname output)
-    (Printf.sprintf ".%s.%08x" (Filename.basename output) (Random.State.bits random))
-
-(* How many names [write_replacing] draws before it gives up: each one
-   already taken is a file someone else made. *)
-let temporary_attempts = 8
-
-(* [contents] written beside [output] and renamed into place, so a failed
-   write leaves an existing [output], or the input it may be, as it was. The
-   temporary is created exclusively, so a name that already exists is
-   another's file: it is left alone and a new name drawn. Any failure to
-   create one draws again, since [Sys_error] does not say whether the name
-   was taken, and a lookup after the fact misses a dangling symlink or a file
-   removed in between. Only a temporary this call created is removed when a
-   later step fails. *)
-let write_replacing ~random ~output contents =
-  let rec attempt drawn =
-    let temporary = temporary_name random output in
-    let created = ref false in
-    match
-      Out_channel.with_open_gen
-        [ Open_wronly; Open_creat; Open_excl; Open_binary ]
-        0o666 temporary
-        (fun oc ->
-          created := true;
-          output_string oc contents);
-      Sys.rename temporary output
-    with
-    | () -> Ok ()
-    | exception Sys_error message ->
-        if !created then begin
-          (try Sys.remove temporary with Sys_error _ -> ());
-          Error message
-        end
-        else if drawn < temporary_attempts then attempt (drawn + 1)
-        else Error message
-  in
-  attempt 1
 
 (* The output is written only once the whole object has been rewritten, so a
    malformed input leaves nothing behind. *)

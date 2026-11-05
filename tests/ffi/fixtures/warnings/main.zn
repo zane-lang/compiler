@@ -1,5 +1,7 @@
 /// C the compiler warns of: in a file of the package's own directory, which
-/// is shown, and in a vendored file below it, which is not.
+/// is shown, in an interface header no source includes, shown too, though
+/// not for the helpers it leaves unused or its `#pragma once`, and in a
+/// vendored file below it, which is not.
 package warnings;
 
 alias Unit = @primitives$Unit;

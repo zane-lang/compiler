@@ -130,6 +130,18 @@
 
 (rule
  (deps (source_tree fixtures/allocated))
+ (action
+  (with-stdout-to
+   allocated.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/allocated))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/allocated.optimized.cgt allocated.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/allocated))
  (targets allocated.exe)
  (action
   (run %{exe:../../bin/zanec/zanec.exe} --build allocated.exe --package fixtures/allocated)))

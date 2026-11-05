@@ -42,6 +42,9 @@ type package = {
      what compiling the package's glue needs: the flags its sources were
      compiled with, the directories they map, and the cache. *)
   tables : (string * C_interface.t) list;
+  (* The warnings compiling the interface headers alone gave, which a
+     header no source includes gives nowhere else. *)
+  header_warnings : Clang.problem list;
   flags : string list;
   maps : (string * string) list;
   cache : string option;
@@ -301,7 +304,7 @@ let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
   let tables =
     combine
       (List.map
-         (fun h -> Result.map (fun t -> (h, t)) (Compile.interface flags (Filename.concat dir h)))
+         (fun h -> Result.map (fun (t, w) -> ((h, t), w)) (Compile.interface flags (Filename.concat dir h)))
          interface_headers)
   in
   (* A source holding assembly is never linked into the package's module:
@@ -333,6 +336,8 @@ let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
   in
   both tables (Result.bind (both compiled archives) directed)
   |> Result.map (fun (tables, ((sources, assembled), archives)) ->
+         let header_warnings = List.concat_map snd tables in
+         let tables = List.map fst tables in
          let interface = List.fold_left C_interface.merge C_interface.empty (List.map snd tables) in
          {
            dir;
@@ -343,6 +348,7 @@ let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
            assembled;
            archives;
            tables;
+           header_warnings;
            flags;
            maps;
            cache;
@@ -355,7 +361,10 @@ let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
 let warnings p =
   let dir = Compile.real p.dir in
   let own (w : Clang.problem) = w.file <> "" && Filename.dirname (Compile.real w.file) = dir in
-  let all = List.concat_map (fun (s : Compile.source) -> s.warnings) (p.sources @ List.map (fun a -> a.source) p.assembled) in
+  let all =
+    p.header_warnings
+    @ List.concat_map (fun (s : Compile.source) -> s.warnings) (p.sources @ List.map (fun a -> a.source) p.assembled)
+  in
   let kept = List.sort_uniq compare (List.filter own all) in
   let diagnostics, sources = Compile.diagnostics kept in
   (List.map Diagnostic.as_warning diagnostics, sources)
@@ -400,6 +409,7 @@ let no_c (dir, rows, _) =
     assembled = [];
     archives = [];
     tables = [];
+    header_warnings = [];
     flags = [];
     maps = [];
     cache = None;
@@ -434,14 +444,27 @@ let compile_commands ?(cache = Cache.dir ()) ~cc ~target dirs =
   let ( let* ) = Result.bind in
   let* packages = combine (List.map (read_settings ~triple) dirs) in
   let* packages = combine (List.map with_sources packages) in
+  let refused message = Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] } in
+  (* With no C, the database is empty, and no C compiler is asked. *)
+  if List.for_all (fun (_, _, sources) -> sources = []) packages then Ok "[]\n"
+  else
   let work = work_dir () in
-  let headers =
+  (* The database names the headers zanec writes, so they are kept where
+     an editor finds them later: in the cache, and nowhere else. *)
+  let* headers =
+    let unkept why =
+      refused
+        (Printf.sprintf
+           "the compilation database names the headers zanec writes, such as `zane_ffi.h`, and %s; set \
+            `ZANE_CACHE_DIR` to a directory zanec can write"
+           why)
+    in
     match cache with
-    | Some c -> ( try Compile.headers (Filename.concat c "foreign") with Sys_error _ -> Compile.headers work)
-    | None -> Compile.headers work
+    | Some c -> ( try Ok (Compile.headers (Filename.concat c "foreign")) with Sys_error m -> unkept ("the cache cannot keep them: " ^ m))
+    | None -> unkept "there is no cache directory to keep them in"
   in
   match Probe.include_dirs ?cache ~dir:work ~cc ~triple target with
-  | Error message -> Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] }
+  | Error message -> refused message
   | Ok include_dirs ->
       let rec editable = function
         | "-O2" :: rest -> editable rest

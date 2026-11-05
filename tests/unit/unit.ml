@@ -1380,7 +1380,7 @@ let undefined_foreign () =
     = expected);
   check "ld64's undefined symbol names the verb, without Mach-O's `_`"
     (match
-       Build.undefined_error
+       Build.undefined_error ~underscored:true
          (Printf.sprintf "Undefined symbols for architecture arm64:\n  \"_zfs_exists\", referenced from:\n      _%s in x.c.o\nld: symbol(s) not found for architecture arm64\n" thunk)
      with
     | Some (e, every) -> contains e "`fs$_exists` calls the C function `zfs_exists`" && every
@@ -1402,11 +1402,38 @@ let undefined_foreign () =
     | None -> false);
   check "ld64.lld's Mach-O names lose their `_`"
     (match
-       Build.undefined_error
+       Build.undefined_error ~underscored:true
          (Printf.sprintf "ld64.lld: error: undefined symbol: _zfs_exists\n>>> referenced by x.o:(symbol _%s+0x10)\n" thunk)
      with
     | Some (e, _) -> contains e "`fs$_exists` calls the C function `zfs_exists`"
-    | None -> false)
+    | None -> false);
+  check "an ELF name keeps its `_`"
+    (match Build.undefined_error "ld.lld: error: undefined symbol: _api\n>>> referenced by x.o:(_pkg$call.ffi)\n" with
+    | Some (e, _) -> contains e "`_pkg$call` calls the C function `_api`"
+    | None -> false);
+  check "a parenthesis in the object's path is not the function's"
+    (read
+       (Printf.sprintf "ld.lld: error: undefined symbol: zfs_exists\n>>> referenced by fs.c\n>>>               /work/build(debug)/lib.a(x.c.o):(%s)\n" thunk)
+    = expected);
+  check "GNU ld's reference from data is not the last function's"
+    (match
+       Build.undefined_error
+         (Printf.sprintf
+            "/usr/bin/ld: x.c.o: in function `%s':\nfs.c:(.text+0x3f6): undefined reference to `zfs_exists'\n/usr/bin/ld: x.c.o:(.data.rel+0x0): undefined reference to `table'\n"
+            thunk)
+     with
+    | Some (e, every) -> contains e "`zfs_exists`" && (not (contains e "`table`")) && not every
+    | None -> false);
+  check "GNU ld's reference from a function's own section is the function's"
+    (read
+       (Printf.sprintf "/usr/bin/ld: x.c.o: in function `%s':\nfs.c:(.text.thunk+0x3): undefined reference to `zfs_exists'\n" thunk)
+    = expected);
+  check "a symbol defined twice is another error"
+    (Build.other_link_errors "ld.lld: error: duplicate symbol: f\n>>> defined at a.o\n");
+  check "an undefined symbol and the driver's summary are no other error"
+    (not
+       (Build.other_link_errors
+          "ld.lld: error: undefined symbol: zfs_exists\n>>> referenced by x.o:(f)\nclang: error: linker command failed with exit code 1\n"))
 
 (* A message names a dependency's types without the stamp that tells its
    versions apart, unless it names two versions of one package. *)
