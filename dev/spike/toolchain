@@ -33,6 +33,10 @@ if [[ $windows == 1 ]]; then
 		echo "$tool: ${found:-not under $prefix}"
 		[[ -n "$found" ]] && PATH="$(dirname "$found"):$PATH"
 	done
+	# MSVC's link.exe ahead of coreutils' link, which Git Bash's /usr/bin
+	# and opam's Cygwin both carry.
+	cl=$(command -v cl) && PATH="$(dirname "$cl"):$PATH"
+	echo "link: $(PATH=$PATH command -v link)"
 	export PATH
 fi
 
