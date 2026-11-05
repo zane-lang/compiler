@@ -135,6 +135,18 @@ naming the row: a `define` of a macro those flags set, `__FAST_MATH__`,
 `zane_ffi.h` is embedded in the compiler like the runtime's headers
 ([`lowering.md`](lowering.md) §7) and written once into the cache directory.
 
+An editor's C language server compiles a package's sources with none of
+these flags, so `zane_ffi.h` and the `include` and `define` rows are
+missing to it. `zanec --compile-commands OUT` writes the compilation
+database it reads, `compile_commands.json`: for each C source of each
+package without a stamp, the package's directory, the source's path, and
+the flags above with the package's rows and `-Wall`, its directories
+spelled as they are, with neither F3's maps nor the two flags that only
+shape the module, `-O2 -Xclang -disable-llvm-passes`. It reads the
+`c.coda` files and checks nothing else, and the headers it names are the
+cache's, which it writes as a build does. `zane check` writes one at the
+project's root.
+
 **F3. One package's C is one module, cached by what it was made from.** Each
 C source compiles to a module of its own, and the package's modules, with its
 glue (F8), are linked into one with LLVM's linker. A source's module is kept

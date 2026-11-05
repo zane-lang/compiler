@@ -87,6 +87,20 @@ let c_code ?target packages =
           Ok c
       | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
 
+(* The compilation database of the C sources of [packages] being worked
+   on, those with no stamp, written to [output] (docs/design/ffi.md F2). *)
+let compile_commands ?target packages output =
+  let dirs =
+    List.filter_map
+      (fun (p : Assembly.package) -> if String.contains p.Assembly.id '%' then None else Some p.Assembly.dir)
+      packages
+  in
+  match Foreign.compile_commands ~cc:(Codegen.c_compiler ()) ~target dirs with
+  | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics
+  | Ok text -> (
+      try Ok (Out_channel.with_open_bin output (fun oc -> output_string oc text))
+      with Sys_error message -> fail [ Diagnostic.about_invocation ("the compilation database could not be written: " ^ message) ])
+
 (* Semantics, which reports every problem it finds (docs/design/semantics.md
    D4) and gives no tree when there is one. *)
 let check ?(c = []) packages =

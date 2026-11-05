@@ -423,6 +423,46 @@ let compile_packages ?(cache = Cache.dir ()) ~cc ~cpu ~target dirs =
     compile_all ?cache ~work:(work_dir ()) ~cc ~cpu ~triple ~target packages
   else Ok (List.map no_c packages)
 
+(* A compilation database (docs/design/ffi.md F2) for each C source of
+   [dirs], as `compile_commands.json` holds one, for an editor's C
+   language server: the flags a build compiles the source with, the
+   package's directory spelled as it is rather than mapped, and none of
+   the flags that only shape the module made of it. The headers it names
+   are the cache's, where a build writes them. *)
+let compile_commands ?(cache = Cache.dir ()) ~cc ~target dirs =
+  let triple = triple target in
+  let ( let* ) = Result.bind in
+  let* packages = combine (List.map (read_settings ~triple) dirs) in
+  let* packages = combine (List.map with_sources packages) in
+  let work = work_dir () in
+  let headers =
+    match cache with
+    | Some c -> ( try Compile.headers (Filename.concat c "foreign") with Sys_error _ -> Compile.headers work)
+    | None -> Compile.headers work
+  in
+  match Probe.include_dirs ?cache ~dir:work ~cc ~triple target with
+  | Error message -> Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] }
+  | Ok include_dirs ->
+      let rec editable = function
+        | "-O2" :: rest -> editable rest
+        | "-Xclang" :: "-disable-llvm-passes" :: rest -> editable rest
+        | flag :: rest -> flag :: editable rest
+        | [] -> []
+      in
+      let fixed = editable (Compile.fixed_flags ~triple ~headers ~include_dirs) in
+      let absolute d = if Filename.is_relative d then Filename.concat (Sys.getcwd ()) d else d in
+      let entry dir rows source =
+        let path = Filename.concat dir source in
+        let arguments = ("clang" :: fixed) @ [ "-Wall" ] @ Compile.package_flags dir rows @ [ "-c"; path ] in
+        Printf.sprintf "  {\"directory\": %s, \"file\": %s, \"arguments\": [%s]}" (Compile.json_string dir)
+          (Compile.json_string path)
+          (String.concat ", " (List.map Compile.json_string arguments))
+      in
+      let entries =
+        List.concat_map (fun (dir, rows, sources) -> List.map (entry (absolute dir) rows) sources) packages
+      in
+      Ok (if entries = [] then "[]\n" else "[\n" ^ String.concat ",\n" entries ^ "\n]\n")
+
 (* The glue refused, or not written, as a diagnostic. *)
 let glue_refused message = Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] }
 let glue_unwritten message = glue_refused (Printf.sprintf "the glue could not be written: %s" message)

@@ -228,6 +228,34 @@ let compiled () =
             | _ -> false)
       | _ -> check "a C error is reported once" false)
 
+(* A compilation database names each source by its real path, with the
+   package's `include` and `define` rows and the headers a build uses, and
+   none of the flags that only shape the module or map paths. *)
+let compile_commands () =
+  let base = Filename.temp_dir "zane-commands-" "" in
+  Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
+      let dir = Filename.concat base "pkg" in
+      Sys.mkdir dir 0o755;
+      Sys.mkdir (Filename.concat dir "inc") 0o755;
+      write_all (Filename.concat dir "a.c") "int f(void) { return 1; }\n";
+      write_all (Filename.concat dir "c.coda")
+        "c [\n    setting  value   target\n    include  inc     *\n    define   X=1     *\n]\n";
+      let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+      match Foreign.compile_commands ~cache:(Some (Filename.concat base "cache")) ~cc ~target:None [ dir ] with
+      | Error _ -> check "a compilation database is made" false
+      | Ok text ->
+          let has part =
+            let n = String.length part in
+            let rec go i = i + n <= String.length text && (String.sub text i n = part || go (i + 1)) in
+            go 0
+          in
+          check "the database names the source by its path" (has (Printf.sprintf "\"file\": \"%s/a.c\"" dir));
+          check "the database holds the package's include row" (has (Printf.sprintf "\"-I\", \"%s/inc\"" dir));
+          check "the database holds the package's define row" (has "\"-D\", \"X=1\"");
+          check "the database names where zane_ffi.h is" (has "/foreign/ffi-");
+          check "the database leaves out the module's flags" (not (has "-disable-llvm-passes" || has "\"-O2\""));
+          check "the database maps no path" (not (has "/zane/pkg" || has "ivfsoverlay")))
+
 (* The table's text read back: names with spaces, nested types, a
    variable's flags, and a struct's layout. *)
 let interface_text () =
@@ -737,6 +765,7 @@ let run () =
   triples ();
   mapping ();
   compiled ();
+  compile_commands ();
   interface_text ();
   interface_header ();
   glue_refusals ();
