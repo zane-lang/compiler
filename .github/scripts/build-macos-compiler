@@ -6,6 +6,9 @@ apple_clang="$(xcrun --find clang)"
 apple_clang_headers="$("$apple_clang" -print-resource-dir)/include"
 export CPATH="$apple_clang_headers${CPATH:+:$CPATH}"
 eval "$(opam env --switch="$PWD" --set-switch)"
+if [[ -n "${ZANE_OCAML_EXTRA_PATH:-}" ]]; then
+	export OCAMLPATH="$ZANE_OCAML_EXTRA_PATH${OCAMLPATH:+:$OCAMLPATH}"
+fi
 dune build bin/zanec/zanec.exe
 python3 dev/release/package-macos.py \
 	--binary _build/default/bin/zanec/zanec.exe --zig "$ZIG" \

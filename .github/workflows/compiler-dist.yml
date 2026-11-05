@@ -8,6 +8,8 @@ on:
       - ".github/scripts/release-tag"
       - ".github/scripts/install-zig"
       - ".github/actions/setup-ci/**"
+      - ".github/devbox-intel/**"
+      - ".github/scripts/build-macos-compiler"
       - "dev/release/**"
       - "dev/toolchains/**"
       - ".github/scripts/install-zig-macos"
@@ -16,6 +18,7 @@ on:
       - "tests/codegen/golden/hello.out"
       - "dev/bin/check-programs"
       - "dev/setup/bootstrap-toolchain"
+      - "dev/release/package-macos.py"
       - "devbox.*"
       - "bin/**"
       - "lib/**"
@@ -176,6 +179,18 @@ jobs:
         if: matrix.arch == 'x86_64'
         shell: bash
         run: |
+          nix_profile="$GITHUB_WORKSPACE/.github/devbox-intel/.devbox/nix/profile/default"
+          ocaml_lib="$nix_profile/lib/ocaml"
+          llvm_meta=""
+          if [ -d "$ocaml_lib" ]; then
+            llvm_meta="$(find -L "$ocaml_lib" -path '*/llvm/META' -print -quit)"
+          fi
+          if [ -z "$llvm_meta" ]; then
+            echo "Nix OCaml LLVM bindings were not installed in the Intel Devbox profile" >&2
+            exit 1
+          fi
+          ocaml_site_lib="${llvm_meta%/llvm/META}"
+          echo "ZANE_OCAML_EXTRA_PATH=$ocaml_site_lib" >> "$GITHUB_ENV"
           apple_clang="$(xcrun --find clang)"
           apple_clangxx="$(xcrun --find clang++)"
           apple_clang_headers="$("$apple_clang" -print-resource-dir)/include"
@@ -183,6 +198,9 @@ jobs:
           devbox run --config=.github/devbox-intel -- \
             env ZANE_CC="$GITHUB_WORKSPACE/dev/bin/clang-lld" \
                 LLVM_CONFIG=llvm-config \
+                ZANE_NIX_OCAML_LLVM=1 \
+                ZANE_LLVM_VERSION=21 \
+                ZANE_OCAML_EXTRA_PATH="$ocaml_site_lib" \
                 CC="$apple_clang" \
                 CXX="$apple_clangxx" \
                 CPATH="$CPATH" \
@@ -197,7 +215,10 @@ jobs:
             devbox run --config=.github/devbox-intel -- \
               env ZANE_CC="$GITHUB_WORKSPACE/dev/bin/clang-lld" \
                   LLVM_CONFIG=llvm-config \
-                bash "$GITHUB_WORKSPACE/.github/scripts/build-macos-compiler"
+                  ZANE_NIX_OCAML_LLVM=1 \
+                  ZANE_LLVM_VERSION=21 \
+                  ZANE_OCAML_EXTRA_PATH="$ZANE_OCAML_EXTRA_PATH" \
+                  bash "$GITHUB_WORKSPACE/.github/scripts/build-macos-compiler"
           else
             devbox run -- dune build bin/zanec/zanec.exe
             devbox run -- python3 dev/release/package-macos.py \

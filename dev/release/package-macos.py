@@ -201,6 +201,11 @@ def package(binary, zig, zig_manifest, output, version, commit):
         shutil.copy2(project / "dev/release/THIRD_PARTY.md", root / "share/THIRD_PARTY.md")
         shutil.copytree(project / "dev/release/licenses", root / "share/licenses")
         shutil.copy2(project / "devbox.lock", root / "share/devbox.lock")
+        if arch == "x86_64":
+            shutil.copy2(
+                project / ".github/devbox-intel/devbox.json",
+                root / "share/devbox-intel.json",
+            )
         shutil.copy2(zig_manifest, root / "share/zig.json")
         (root / "VERSION").write_text(version + "\n")
         (root / "toolchain.coda").write_text(
