@@ -69,8 +69,17 @@ no concept survives lowering.
 one of:
 
 - a scalar: `i1`, `i8`, `i32`, `i64`, `f64`;
-- a struct of CGT types, in declaration order ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §3.3); a
-  reference type's instance carries nothing else;
+- a struct of CGT types, in decreasing order of alignment, members of one
+  alignment in declaration order (`Nodes.Ty.order`). Every layout's size
+  is a multiple of its alignment, so no padding falls between members, and
+  only the tail is rounded up. The order is a function of the members'
+  layouts alone, so every object that lays a type out agrees on it, and
+  lowering reaches a member by its place in it (`Type_layout.member_index`).
+  Placement is the compiler's ([`memory.md`](https://github.com/zane-lang/spec/blob/b8c2b0b7463372e7682cfb4474ce2cc715292108/spec/memory.md) §3.3). A
+  reference type's instance carries nothing else. A pooled variant's node
+  (experimental) places a struct it holds in the same order, so one index
+  names a member in both. C sees a struct only as a copy in its own
+  declaration order ([`ffi.md`](ffi.md) F10);
 - a sum: a tag and the widest case's bytes, aligned for every case;
 - a pointer: a reference, the address of the settled owner it names
   ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §4.1, and §9 below for the representation);

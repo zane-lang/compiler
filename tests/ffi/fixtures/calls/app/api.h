@@ -4,6 +4,10 @@
 typedef struct { double x, y, z; } vec3;
 typedef struct { int32_t id; float weights[3]; vec3 at; } pair;
 typedef struct { int32_t tag; int64_t n; } tagged;
+typedef struct { int32_t first; tagged inner; float last; } nested;
+typedef struct { int32_t a; int64_t none[0]; int64_t b; } gap;
+typedef struct { int64_t n; int64_t none[0]; } tail;
+typedef struct { int32_t tag; tail tail; } wrapped;
 
 int64_t twice(int64_t x);
 int16_t narrow(uint8_t byte, short half);
@@ -17,6 +21,11 @@ int64_t length(zane_bytes text);
 vec3 vec_add(vec3 a, vec3 b);
 pair pair_mirror(pair p);
 tagged flip(tagged t);
+nested nest(nested n);
+gap make_gap(int32_t a, int64_t b);
+gap widen(gap g);
+wrapped make_wrapped(int32_t tag, int64_t n);
+wrapped bump(wrapped w);
 void add_to(int64_t n);
 void reset(void);
 int64_t counter(void);

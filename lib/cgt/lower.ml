@@ -540,9 +540,10 @@ and pool_into st ctx span dest t case payload =
       let outer = ty st span c and inner = node_ty st span c in
       let ms = Nodes.Ty.members inner in
       let offsets = Nodes.Ty.member_offsets inner in
+      (* In its layout's order, which [member_index] gives a member's place in. *)
       let members =
         match definition st (Tty.strip_mode c) with
-        | Some (T.Decl.Struct ms, _) -> List.map snd ms
+        | Some (T.Decl.Struct ms, _) -> List.map snd (placed_members st c ms)
         | _ -> []
       in
       match payload_pieces st payload with

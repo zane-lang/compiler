@@ -1,0 +1,21 @@
+/// A struct holding an array past the 2^48 bytes any value is limited to,
+/// beside a field of another alignment, so lowering orders its fields
+/// before it measures it, and still refuses the struct where it is named.
+package beyondLimitField;
+
+alias Int = @primitives$I64;
+alias I32 = @primitives$I32;
+alias Unit = @primitives$Unit;
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>;
+
+type Holder = struct {
+	small I32;
+	xs Array<Int, 1152921504606846976>;
+}
+
+Holder make() => make();
+
+Unit main() {
+	big Holder = make();
+	return Unit();
+}

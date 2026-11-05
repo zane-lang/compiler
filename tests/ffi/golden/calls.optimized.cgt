@@ -86,217 +86,249 @@
     │   ├── params[0]: value
     │   └── result: value
     ├── thunks[12] > thunk:
+    │   ├── symbol: app$nest(app$Nested).ffi
+    │   ├── package: app
+    │   ├── calls: nest
+    │   ├── params[0]: value
+    │   └── result: value
+    ├── thunks[13] > thunk:
+    │   ├── symbol: app$gap(%primitives$I32, %primitives$I64).ffi
+    │   ├── package: app
+    │   ├── calls: make_gap
+    │   ├── params[0]: i32
+    │   ├── params[1]: i64
+    │   └── result: value
+    ├── thunks[14] > thunk:
+    │   ├── symbol: app$widen(app$Gap).ffi
+    │   ├── package: app
+    │   ├── calls: widen
+    │   ├── params[0]: value
+    │   └── result: value
+    ├── thunks[15] > thunk:
+    │   ├── symbol: app$wrapped(%primitives$I32, %primitives$I64).ffi
+    │   ├── package: app
+    │   ├── calls: make_wrapped
+    │   ├── params[0]: i32
+    │   ├── params[1]: i64
+    │   └── result: value
+    ├── thunks[16] > thunk:
+    │   ├── symbol: app$bump(app$Wrapped).ffi
+    │   ├── package: app
+    │   ├── calls: bump
+    │   ├── params[0]: value
+    │   └── result: value
+    ├── thunks[17] > thunk:
     │   ├── symbol: app$addTo(%primitives$I64).ffi
     │   ├── package: app
     │   ├── calls: add_to
     │   ├── params[0]: i64
     │   └── result: void
-    ├── thunks[13] > thunk:
+    ├── thunks[18] > thunk:
     │   ├── symbol: app$counter().ffi
     │   ├── package: app
     │   ├── calls: counter
     │   ├── params:
     │   └── result: i64
-    ├── thunks[14] > thunk:
+    ├── thunks[19] > thunk:
     │   ├── symbol: app$reset().ffi
     │   ├── package: app
     │   ├── calls: reset
     │   ├── params:
     │   └── result: void
-    ├── thunks[15] > thunk:
+    ├── thunks[20] > thunk:
     │   ├── symbol: app$helper().ffi
     │   ├── package: app
     │   ├── calls: helper
     │   ├── params:
     │   └── result: i64
-    ├── thunks[16] > thunk:
+    ├── thunks[21] > thunk:
     │   ├── symbol: lib$helper().ffi
     │   ├── package: lib
     │   ├── calls: helper
     │   ├── params:
     │   └── result: i64
-    ├── thunks[17] > thunk:
+    ├── thunks[22] > thunk:
     │   ├── symbol: app$named().ffi
     │   ├── package: app
     │   ├── calls: named
     │   ├── params:
     │   └── result: i64
-    ├── thunks[18] > thunk:
+    ├── thunks[23] > thunk:
     │   ├── symbol: lib$named().ffi
     │   ├── package: lib
     │   ├── calls: named
     │   ├── params:
     │   └── result: i64
-    ├── thunks[19] > thunk:
+    ├── thunks[24] > thunk:
     │   ├── symbol: lib$plus(%primitives$I32, %primitives$I32).ffi
     │   ├── package: lib
     │   ├── calls: plus
     │   ├── params[0]: i32
     │   ├── params[1]: i32
     │   └── result: i32
-    ├── thunks[20] > thunk:
+    ├── thunks[25] > thunk:
     │   ├── symbol: lib$widen(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: widen
     │   ├── params[0]: i64
     │   └── result: i64
-    ├── thunks[21] > thunk:
+    ├── thunks[26] > thunk:
     │   ├── symbol: app$definedHere(%primitives$I64).ffi
     │   ├── package: app
     │   ├── calls: defined_here
     │   ├── params[0]: i64
     │   └── result: i64
-    ├── thunks[22] > thunk:
+    ├── thunks[27] > thunk:
     │   ├── symbol: lib$definedHere(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: defined_here
     │   ├── params[0]: i64
     │   └── result: i64
-    ├── thunks[23] > thunk:
+    ├── thunks[28] > thunk:
     │   ├── symbol: lib$once(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: once
     │   ├── params[0]: i64
     │   └── result: i64
-    ├── thunks[24] > thunk:
+    ├── thunks[29] > thunk:
     │   ├── symbol: lib$useOnce().ffi
     │   ├── package: lib
     │   ├── calls: use_once
     │   ├── params:
     │   └── result: i64
-    ├── thunks[25] > thunk:
+    ├── thunks[30] > thunk:
     │   ├── symbol: lib$onceAlias(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: once_alias
     │   ├── params[0]: i64
     │   └── result: i64
-    ├── thunks[26] > thunk:
+    ├── thunks[31] > thunk:
     │   ├── symbol: lib$onceIndirect(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: once_indirect
     │   ├── params[0]: i64
     │   └── result: i64
-    ├── thunks[27] > thunk:
+    ├── thunks[32] > thunk:
     │   ├── symbol: lib$onceStarted().ffi
     │   ├── package: lib
     │   ├── calls: once_started
     │   ├── params:
     │   └── result: i64
-    ├── thunks[28] > thunk:
+    ├── thunks[33] > thunk:
     │   ├── symbol: lib$onceValue().ffi
     │   ├── package: lib
     │   ├── calls: once_value
     │   ├── params:
     │   └── result: i64
-    ├── thunks[29] > thunk:
+    ├── thunks[34] > thunk:
     │   ├── symbol: lib$onceHelped().ffi
     │   ├── package: lib
     │   ├── calls: once_helped_value
     │   ├── params:
     │   └── result: i64
-    ├── thunks[30] > thunk:
+    ├── thunks[35] > thunk:
     │   ├── symbol: lib$oncePointed().ffi
     │   ├── package: lib
     │   ├── calls: once_pointed_value
     │   ├── params:
     │   └── result: i64
-    ├── thunks[31] > thunk:
+    ├── thunks[36] > thunk:
     │   ├── symbol: lib$onceShare(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: once_share
     │   ├── params[0]: i64
     │   └── result: void
-    ├── thunks[32] > thunk:
+    ├── thunks[37] > thunk:
     │   ├── symbol: lib$onceShared().ffi
     │   ├── package: lib
     │   ├── calls: once_shared_value
     │   ├── params:
     │   └── result: i64
-    ├── thunks[33] > thunk:
+    ├── thunks[38] > thunk:
     │   ├── symbol: lib$onceTokenSame().ffi
     │   ├── package: lib
     │   ├── calls: once_token_same
     │   ├── params:
     │   └── result: i64
-    ├── thunks[34] > thunk:
+    ├── thunks[39] > thunk:
     │   ├── symbol: lib$oncePointersSame().ffi
     │   ├── package: lib
     │   ├── calls: once_pointers_same
     │   ├── params:
     │   └── result: i64
-    ├── thunks[35] > thunk:
+    ├── thunks[40] > thunk:
     │   ├── symbol: lib$onceKeep(%primitives$I64).ffi
     │   ├── package: lib
     │   ├── calls: once_keep
     │   ├── params[0]: i64
     │   └── result: void
-    ├── thunks[36] > thunk:
+    ├── thunks[41] > thunk:
     │   ├── symbol: lib$onceKept().ffi
     │   ├── package: lib
     │   ├── calls: once_kept_value
     │   ├── params:
     │   └── result: i64
-    ├── thunks[37] > thunk:
+    ├── thunks[42] > thunk:
     │   ├── symbol: lib$onceCallSame().ffi
     │   ├── package: lib
     │   ├── calls: once_call_same
     │   ├── params:
     │   └── result: i64
-    ├── thunks[38] > thunk:
+    ├── thunks[43] > thunk:
     │   ├── symbol: lib$onceSetupRuns().ffi
     │   ├── package: lib
     │   ├── calls: once_setup_runs
     │   ├── params:
     │   └── result: i64
-    ├── thunks[39] > thunk:
+    ├── thunks[44] > thunk:
     │   ├── symbol: lib$onceSetupSame().ffi
     │   ├── package: lib
     │   ├── calls: once_setup_same
     │   ├── params:
     │   └── result: i64
-    ├── thunks[40] > thunk:
+    ├── thunks[45] > thunk:
     │   ├── symbol: lib$onceExternalRuns().ffi
     │   ├── package: lib
     │   ├── calls: once_external_runs
     │   ├── params:
     │   └── result: i64
-    ├── thunks[41] > thunk:
+    ├── thunks[46] > thunk:
     │   ├── symbol: lib$primed().ffi
     │   ├── package: lib
     │   ├── calls: primed
     │   ├── params:
     │   └── result: i64
-    ├── thunks[42] > thunk:
+    ├── thunks[47] > thunk:
     │   ├── symbol: lib$primedRuns().ffi
     │   ├── package: lib
     │   ├── calls: primed_runs_seen
     │   ├── params:
     │   └── result: i64
-    ├── thunks[43] > thunk:
+    ├── thunks[48] > thunk:
     │   ├── symbol: lib$wasWarmed().ffi
     │   ├── package: lib
     │   ├── calls: was_warmed
     │   ├── params:
     │   └── result: i64
-    ├── thunks[44] > thunk:
+    ├── thunks[49] > thunk:
     │   ├── symbol: lib$parsed().ffi
     │   ├── package: lib
     │   ├── calls: parsed
     │   ├── params:
     │   └── result: i64
-    ├── thunks[45] > thunk:
+    ├── thunks[50] > thunk:
     │   ├── symbol: lib$gnuFound().ffi
     │   ├── package: lib
     │   ├── calls: gnu_found
     │   ├── params:
     │   └── result: i64
-    ├── thunks[46] > thunk:
+    ├── thunks[51] > thunk:
     │   ├── symbol: app$result().ffi
     │   ├── package: app
     │   ├── calls: result
     │   ├── params:
     │   └── result: i64
-    ├── thunks[47] > thunk:
+    ├── thunks[52] > thunk:
     │   ├── symbol: app$args(%primitives$I64).ffi
     │   ├── package: app
     │   ├── calls: args
@@ -441,10 +473,10 @@
     │       │   ├── scope: %4
     │       │   ├── value > expand:
     │       │   │   ├── type: handle16
-    │       │   │   ├── label: @185
-    │       │   │   ├── result: #186
+    │       │   │   ├── label: @221
+    │       │   │   ├── result: #222
     │       │   │   └── body[0] > assign:
-    │       │   │       ├── place: #186
+    │       │   │       ├── place: #222
     │       │   │       └── value > runtime:
     │       │   │           ├── type: handle16
     │       │   │           ├── fn: zane_list_new
@@ -624,10 +656,10 @@
     │       ├── body[17] > let:
     │       │   ├── local: #59
     │       │   └── value > call:
-    │       │       ├── type: {i32, [3 x f32], {f64, f64, f64}}
+    │       │       ├── type: {{f64, f64, f64}, i32, [3 x f32]}
     │       │       ├── fn: app$mirror(app$Pair)
     │       │       └── args[0] > expand:
-    │       │           ├── type: {i32, [3 x f32], {f64, f64, f64}}
+    │       │           ├── type: {{f64, f64, f64}, i32, [3 x f32]}
     │       │           ├── label: @57
     │       │           ├── result: #58
     │       │           ├── body[0] > let:
@@ -643,14 +675,14 @@
     │       │           ├── body[2] > assign:
     │       │           │   ├── place: #58
     │       │           │   └── value > record:
-    │       │           │       ├── type: {i32, [3 x f32], {f64, f64, f64}}
-    │       │           │       ├── members[0] > member 0: 7 : i32
-    │       │           │       ├── members[1] > member 1 > record:
+    │       │           │       ├── type: {{f64, f64, f64}, i32, [3 x f32]}
+    │       │           │       ├── members[0] > member 1: 7 : i32
+    │       │           │       ├── members[1] > member 2 > record:
     │       │           │       │   ├── type: [3 x f32]
     │       │           │       │   ├── members[0] > member 0: 0x1p+0 : f32
     │       │           │       │   ├── members[1] > member 1: 0x1p+1 : f32
     │       │           │       │   └── members[2] > member 2: 0x1.8p+1 : f32
-    │       │           │       └── members[2] > member 2: local #48 : {f64, f64, f64}
+    │       │           │       └── members[2] > member 0: local #48 : {f64, f64, f64}
     │       │           └── body[3]: leave @57
     │       ├── body[18] > eval > call:
     │       │   ├── type: void
@@ -667,8 +699,8 @@
     │       │       │   │   ├── fn: zane_text_i32
     │       │       │   │   └── args[0] > member:
     │       │       │   │       ├── type: i32
-    │       │       │   │       ├── index: 0
-    │       │       │   │       └── value: local #59 : {i32, [3 x f32], {f64, f64, f64}}
+    │       │       │   │       ├── index: 1
+    │       │       │   │       └── value: local #59 : {{f64, f64, f64}, i32, [3 x f32]}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #62
@@ -692,8 +724,8 @@
     │       │       │   │           ├── type: ptr
     │       │       │   │           ├── fn: zane_array_at
     │       │       │   │           ├── args[0] > offset:
-    │       │       │   │           │   ├── within: {i32, [3 x f32], {f64, f64, f64}}
-    │       │       │   │           │   ├── path: 1
+    │       │       │   │           │   ├── within: {{f64, f64, f64}, i32, [3 x f32]}
+    │       │       │   │           │   ├── path: 2
     │       │       │   │           │   └── base: address of #59 : ptr
     │       │       │   │           ├── args[1]: 1 : i64
     │       │       │   │           ├── args[2]: 3 : i64
@@ -720,8 +752,8 @@
     │       │       │   │       ├── index: 1
     │       │       │   │       └── value > member:
     │       │       │   │           ├── type: {f64, f64, f64}
-    │       │       │   │           ├── index: 2
-    │       │       │   │           └── value: local #59 : {i32, [3 x f32], {f64, f64, f64}}
+    │       │       │   │           ├── index: 0
+    │       │       │   │           └── value: local #59 : {{f64, f64, f64}, i32, [3 x f32]}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #68
@@ -729,12 +761,12 @@
     │       ├── body[21] > let:
     │       │   ├── local: #73
     │       │   └── value > call:
-    │       │       ├── type: {i32, i64}
+    │       │       ├── type: {i64, i32}
     │       │       ├── fn: app$flip(app$Tagged)
     │       │       └── args[0] > record:
-    │       │           ├── type: {i32, i64}
-    │       │           ├── members[0] > member 0: 3 : i32
-    │       │           └── members[1] > member 1: 41 : i64
+    │       │           ├── type: {i64, i32}
+    │       │           ├── members[0] > member 0: 41 : i64
+    │       │           └── members[1] > member 1: 3 : i32
     │       ├── body[22] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
@@ -750,8 +782,8 @@
     │       │       │   │   ├── fn: zane_text_i32
     │       │       │   │   └── args[0] > member:
     │       │       │   │       ├── type: i32
-    │       │       │   │       ├── index: 0
-    │       │       │   │       └── value: local #73 : {i32, i64}
+    │       │       │   │       ├── index: 1
+    │       │       │   │       └── value: local #73 : {i64, i32}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #76
@@ -771,240 +803,178 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > member:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── index: 1
-    │       │       │   │       └── value: local #73 : {i32, i64}
+    │       │       │   │       ├── index: 0
+    │       │       │   │       └── value: local #73 : {i64, i32}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #79
     │       │           └── value: local #77 : handle
-    │       ├── body[24] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: app$addTo(%primitives$I64)
-    │       │   └── args[0]: 1000 : i64
+    │       ├── body[24] > let:
+    │       │   ├── local: #89
+    │       │   └── value > call:
+    │       │       ├── type: {{i64, i32}, i32, f32}
+    │       │       ├── fn: app$nest(app$Nested)
+    │       │       └── args[0] > record:
+    │       │           ├── type: {{i64, i32}, i32, f32}
+    │       │           ├── members[0] > member 0 > record:
+    │       │           │   ├── type: {i64, i32}
+    │       │           │   ├── members[0] > member 0: 21 : i64
+    │       │           │   └── members[1] > member 1: 8 : i32
+    │       │           ├── members[1] > member 1: 5 : i32
+    │       │           └── members[2] > member 2: 0x1.8p+1 : f32
     │       ├── body[25] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @81
-    │       │       ├── result: #82
+    │       │       ├── label: @91
+    │       │       ├── result: #92
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #80
+    │       │       │   ├── local: #90
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$counter()
-    │       │       │   │       └── args:
+    │       │       │   │   ├── fn: zane_text_i32
+    │       │       │   │   └── args[0] > member:
+    │       │       │   │       ├── type: i32
+    │       │       │   │       ├── index: 1
+    │       │       │   │       └── value: local #89 : {{i64, i32}, i32, f32}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #82
-    │       │           └── value: local #80 : handle
+    │       │           ├── place: #92
+    │       │           └── value: local #90 : handle
     │       ├── body[26] > eval > call:
     │       │   ├── type: void
-    │       │   ├── fn: app$reset()
-    │       │   └── args:
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @94
+    │       │       ├── result: #95
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #93
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i32
+    │       │       │   │   └── args[0] > member:
+    │       │       │   │       ├── type: i32
+    │       │       │   │       ├── index: 1
+    │       │       │   │       └── value > member:
+    │       │       │   │           ├── type: {i64, i32}
+    │       │       │   │           ├── index: 0
+    │       │       │   │           └── value: local #89 : {{i64, i32}, i32, f32}
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #95
+    │       │           └── value: local #93 : handle
     │       ├── body[27] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @84
-    │       │       ├── result: #85
+    │       │       ├── label: @97
+    │       │       ├── result: #98
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #83
+    │       │       │   ├── local: #96
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
+    │       │       │   │   └── args[0] > member:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$counter()
-    │       │       │   │       └── args:
+    │       │       │   │       ├── index: 0
+    │       │       │   │       └── value > member:
+    │       │       │   │           ├── type: {i64, i32}
+    │       │       │   │           ├── index: 0
+    │       │       │   │           └── value: local #89 : {{i64, i32}, i32, f32}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #85
-    │       │           └── value: local #83 : handle
+    │       │           ├── place: #98
+    │       │           └── value: local #96 : handle
     │       ├── body[28] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @87
-    │       │       ├── result: #88
+    │       │       ├── label: @100
+    │       │       ├── result: #101
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #86
+    │       │       │   ├── local: #99
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$counted(%primitives$I64)
-    │       │       │   │       └── args[0]: 10 : i64
+    │       │       │   │   ├── fn: zane_text_f32
+    │       │       │   │   └── args[0] > member:
+    │       │       │   │       ├── type: f32
+    │       │       │   │       ├── index: 2
+    │       │       │   │       └── value: local #89 : {{i64, i32}, i32, f32}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #88
-    │       │           └── value: local #86 : handle
-    │       ├── body[29] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: app$addTo(%primitives$I64)
-    │       │   └── args[0]: 1 : i64
+    │       │           ├── place: #101
+    │       │           └── value: local #99 : handle
+    │       ├── body[29] > let:
+    │       │   ├── local: #102
+    │       │   └── value > call:
+    │       │       ├── type: {i64, i32, [0 x void]}
+    │       │       ├── fn: app$widen(app$Gap)
+    │       │       └── args[0] > call:
+    │       │           ├── type: {i64, i32, [0 x void]}
+    │       │           ├── fn: app$gap(%primitives$I32, %primitives$I64)
+    │       │           ├── args[0]: 4 : i32
+    │       │           └── args[1]: 9 : i64
     │       ├── body[30] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @90
-    │       │       ├── result: #91
+    │       │       ├── label: @104
+    │       │       ├── result: #105
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #89
-    │       │       │   ├── scope: %4
-    │       │       │   ├── value > runtime:
-    │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$counted(%primitives$I64)
-    │       │       │   │       └── args[0]: 10 : i64
-    │       │       │   └── layout: %primitives$String
-    │       │       └── body[1] > assign:
-    │       │           ├── place: #91
-    │       │           └── value: local #89 : handle
-    │       ├── body[31] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: app$reset()
-    │       │   └── args:
-    │       ├── body[32] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: app$show(%primitives$String)
-    │       │   └── args[0] > expand:
-    │       │       ├── type: handle
-    │       │       ├── label: @93
-    │       │       ├── result: #94
-    │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #92
-    │       │       │   ├── scope: %4
-    │       │       │   ├── value > runtime:
-    │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$helper()
-    │       │       │   │       └── args:
-    │       │       │   └── layout: %primitives$String
-    │       │       └── body[1] > assign:
-    │       │           ├── place: #94
-    │       │           └── value: local #92 : handle
-    │       ├── body[33] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: app$show(%primitives$String)
-    │       │   └── args[0] > expand:
-    │       │       ├── type: handle
-    │       │       ├── label: @96
-    │       │       ├── result: #97
-    │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #95
-    │       │       │   ├── scope: %4
-    │       │       │   ├── value > runtime:
-    │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$helper()
-    │       │       │   │       └── args:
-    │       │       │   └── layout: %primitives$String
-    │       │       └── body[1] > assign:
-    │       │           ├── place: #97
-    │       │           └── value: local #95 : handle
-    │       ├── body[34] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: app$show(%primitives$String)
-    │       │   └── args[0] > expand:
-    │       │       ├── type: handle
-    │       │       ├── label: @99
-    │       │       ├── result: #100
-    │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #98
-    │       │       │   ├── scope: %4
-    │       │       │   ├── value > runtime:
-    │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$named()
-    │       │       │   │       └── args:
-    │       │       │   └── layout: %primitives$String
-    │       │       └── body[1] > assign:
-    │       │           ├── place: #100
-    │       │           └── value: local #98 : handle
-    │       ├── body[35] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: app$show(%primitives$String)
-    │       │   └── args[0] > expand:
-    │       │       ├── type: handle
-    │       │       ├── label: @102
-    │       │       ├── result: #103
-    │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #101
-    │       │       │   ├── scope: %4
-    │       │       │   ├── value > runtime:
-    │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$named()
-    │       │       │   │       └── args:
-    │       │       │   └── layout: %primitives$String
-    │       │       └── body[1] > assign:
-    │       │           ├── place: #103
-    │       │           └── value: local #101 : handle
-    │       ├── body[36] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: app$show(%primitives$String)
-    │       │   └── args[0] > expand:
-    │       │       ├── type: handle
-    │       │       ├── label: @105
-    │       │       ├── result: #106
-    │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #104
+    │       │       │   ├── local: #103
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i32
-    │       │       │   │   └── args[0] > call:
+    │       │       │   │   └── args[0] > member:
     │       │       │   │       ├── type: i32
-    │       │       │   │       ├── fn: lib$plus(%primitives$I32, %primitives$I32)
-    │       │       │   │       ├── args[0]: 40 : i32
-    │       │       │   │       └── args[1]: 2 : i32
+    │       │       │   │       ├── index: 1
+    │       │       │   │       └── value: local #102 : {i64, i32, [0 x void]}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #106
-    │       │           └── value: local #104 : handle
-    │       ├── body[37] > eval > call:
+    │       │           ├── place: #105
+    │       │           └── value: local #103 : handle
+    │       ├── body[31] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
     │       │       ├── type: handle
-    │       │       ├── label: @108
-    │       │       ├── result: #109
+    │       │       ├── label: @107
+    │       │       ├── result: #108
     │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #107
+    │       │       │   ├── local: #106
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
+    │       │       │   │   └── args[0] > member:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$widen(%primitives$I64)
-    │       │       │   │       └── args[0]: 3 : i64
+    │       │       │   │       ├── index: 0
+    │       │       │   │       └── value: local #102 : {i64, i32, [0 x void]}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
-    │       │           ├── place: #109
-    │       │           └── value: local #107 : handle
-    │       ├── body[38] > eval > call:
+    │       │           ├── place: #108
+    │       │           └── value: local #106 : handle
+    │       ├── body[32] > let:
+    │       │   ├── local: #109
+    │       │   └── value > call:
+    │       │       ├── type: {{i64, [0 x void]}, i32}
+    │       │       ├── fn: app$bump(app$Wrapped)
+    │       │       └── args[0] > call:
+    │       │           ├── type: {{i64, [0 x void]}, i32}
+    │       │           ├── fn: app$wrapped(%primitives$I32, %primitives$I64)
+    │       │           ├── args[0]: 5 : i32
+    │       │           └── args[1]: 11 : i64
+    │       ├── body[33] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1016,16 +986,16 @@
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$definedHere(%primitives$I64)
-    │       │       │   │       └── args[0]: 1 : i64
+    │       │       │   │   ├── fn: zane_text_i32
+    │       │       │   │   └── args[0] > member:
+    │       │       │   │       ├── type: i32
+    │       │       │   │       ├── index: 1
+    │       │       │   │       └── value: local #109 : {{i64, [0 x void]}, i32}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #112
     │       │           └── value: local #110 : handle
-    │       ├── body[39] > eval > call:
+    │       ├── body[34] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1038,15 +1008,22 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
+    │       │       │   │   └── args[0] > member:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$definedHere(%primitives$I64)
-    │       │       │   │       └── args[0]: 1 : i64
+    │       │       │   │       ├── index: 0
+    │       │       │   │       └── value > member:
+    │       │       │   │           ├── type: {i64, [0 x void]}
+    │       │       │   │           ├── index: 0
+    │       │       │   │           └── value: local #109 : {{i64, [0 x void]}, i32}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #115
     │       │           └── value: local #113 : handle
-    │       ├── body[40] > eval > call:
+    │       ├── body[35] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$addTo(%primitives$I64)
+    │       │   └── args[0]: 1000 : i64
+    │       ├── body[36] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1061,13 +1038,17 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$once(%primitives$I64)
-    │       │       │   │       └── args[0]: 2 : i64
+    │       │       │   │       ├── fn: app$counter()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #118
     │       │           └── value: local #116 : handle
-    │       ├── body[41] > eval > call:
+    │       ├── body[37] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$reset()
+    │       │   └── args:
+    │       ├── body[38] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1082,13 +1063,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$useOnce()
+    │       │       │   │       ├── fn: app$counter()
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #121
     │       │           └── value: local #119 : handle
-    │       ├── body[42] > eval > call:
+    │       ├── body[39] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1103,13 +1084,17 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$onceAlias(%primitives$I64)
-    │       │       │   │       └── args[0]: 3 : i64
+    │       │       │   │       ├── fn: app$counted(%primitives$I64)
+    │       │       │   │       └── args[0]: 10 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #124
     │       │           └── value: local #122 : handle
-    │       ├── body[43] > eval > call:
+    │       ├── body[40] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$addTo(%primitives$I64)
+    │       │   └── args[0]: 1 : i64
+    │       ├── body[41] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1124,13 +1109,17 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$onceIndirect(%primitives$I64)
-    │       │       │   │       └── args[0]: 4 : i64
+    │       │       │   │       ├── fn: app$counted(%primitives$I64)
+    │       │       │   │       └── args[0]: 10 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #127
     │       │           └── value: local #125 : handle
-    │       ├── body[44] > eval > call:
+    │       ├── body[42] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$reset()
+    │       │   └── args:
+    │       ├── body[43] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1145,13 +1134,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$onceStarted()
+    │       │       │   │       ├── fn: app$helper()
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #130
     │       │           └── value: local #128 : handle
-    │       ├── body[45] > eval > call:
+    │       ├── body[44] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1166,13 +1155,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$onceValue()
+    │       │       │   │       ├── fn: lib$helper()
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #133
     │       │           └── value: local #131 : handle
-    │       ├── body[46] > eval > call:
+    │       ├── body[45] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1187,13 +1176,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$onceHelped()
+    │       │       │   │       ├── fn: app$named()
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #136
     │       │           └── value: local #134 : handle
-    │       ├── body[47] > eval > call:
+    │       ├── body[46] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1208,17 +1197,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$oncePointed()
+    │       │       │   │       ├── fn: lib$named()
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #139
     │       │           └── value: local #137 : handle
-    │       ├── body[48] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: lib$onceShare(%primitives$I64)
-    │       │   └── args[0]: 7 : i64
-    │       ├── body[49] > eval > call:
+    │       ├── body[47] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1230,16 +1215,17 @@
     │       │       │   ├── scope: %4
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
-    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   ├── fn: zane_text_i32
     │       │       │   │   └── args[0] > call:
-    │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$onceShared()
-    │       │       │   │       └── args:
+    │       │       │   │       ├── type: i32
+    │       │       │   │       ├── fn: lib$plus(%primitives$I32, %primitives$I32)
+    │       │       │   │       ├── args[0]: 40 : i32
+    │       │       │   │       └── args[1]: 2 : i32
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #142
     │       │           └── value: local #140 : handle
-    │       ├── body[50] > eval > call:
+    │       ├── body[48] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1254,13 +1240,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$onceTokenSame()
-    │       │       │   │       └── args:
+    │       │       │   │       ├── fn: lib$widen(%primitives$I64)
+    │       │       │   │       └── args[0]: 3 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #145
     │       │           └── value: local #143 : handle
-    │       ├── body[51] > eval > call:
+    │       ├── body[49] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1275,17 +1261,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$oncePointersSame()
-    │       │       │   │       └── args:
+    │       │       │   │       ├── fn: app$definedHere(%primitives$I64)
+    │       │       │   │       └── args[0]: 1 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #148
     │       │           └── value: local #146 : handle
-    │       ├── body[52] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: lib$onceKeep(%primitives$I64)
-    │       │   └── args[0]: 8 : i64
-    │       ├── body[53] > eval > call:
+    │       ├── body[50] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1300,13 +1282,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$onceKept()
-    │       │       │   │       └── args:
+    │       │       │   │       ├── fn: lib$definedHere(%primitives$I64)
+    │       │       │   │       └── args[0]: 1 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #151
     │       │           └── value: local #149 : handle
-    │       ├── body[54] > eval > call:
+    │       ├── body[51] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1321,13 +1303,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$onceCallSame()
-    │       │       │   │       └── args:
+    │       │       │   │       ├── fn: lib$once(%primitives$I64)
+    │       │       │   │       └── args[0]: 2 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #154
     │       │           └── value: local #152 : handle
-    │       ├── body[55] > eval > call:
+    │       ├── body[52] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1342,13 +1324,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$onceSetupRuns()
+    │       │       │   │       ├── fn: lib$useOnce()
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #157
     │       │           └── value: local #155 : handle
-    │       ├── body[56] > eval > call:
+    │       ├── body[53] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1363,13 +1345,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$onceSetupSame()
-    │       │       │   │       └── args:
+    │       │       │   │       ├── fn: lib$onceAlias(%primitives$I64)
+    │       │       │   │       └── args[0]: 3 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #160
     │       │           └── value: local #158 : handle
-    │       ├── body[57] > eval > call:
+    │       ├── body[54] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1384,13 +1366,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$onceExternalRuns()
-    │       │       │   │       └── args:
+    │       │       │   │       ├── fn: lib$onceIndirect(%primitives$I64)
+    │       │       │   │       └── args[0]: 4 : i64
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #163
     │       │           └── value: local #161 : handle
-    │       ├── body[58] > eval > call:
+    │       ├── body[55] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1405,13 +1387,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$primed()
+    │       │       │   │       ├── fn: lib$onceStarted()
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #166
     │       │           └── value: local #164 : handle
-    │       ├── body[59] > eval > call:
+    │       ├── body[56] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1426,13 +1408,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$primedRuns()
+    │       │       │   │       ├── fn: lib$onceValue()
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #169
     │       │           └── value: local #167 : handle
-    │       ├── body[60] > eval > call:
+    │       ├── body[57] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1447,13 +1429,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$wasWarmed()
+    │       │       │   │       ├── fn: lib$onceHelped()
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #172
     │       │           └── value: local #170 : handle
-    │       ├── body[61] > eval > call:
+    │       ├── body[58] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1468,13 +1450,17 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$parsed()
+    │       │       │   │       ├── fn: lib$oncePointed()
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #175
     │       │           └── value: local #173 : handle
-    │       ├── body[62] > eval > call:
+    │       ├── body[59] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lib$onceShare(%primitives$I64)
+    │       │   └── args[0]: 7 : i64
+    │       ├── body[60] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1489,13 +1475,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: lib$gnuFound()
+    │       │       │   │       ├── fn: lib$onceShared()
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #178
     │       │           └── value: local #176 : handle
-    │       ├── body[63] > eval > call:
+    │       ├── body[61] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1510,13 +1496,13 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$result()
+    │       │       │   │       ├── fn: lib$onceTokenSame()
     │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #181
     │       │           └── value: local #179 : handle
-    │       ├── body[64] > eval > call:
+    │       ├── body[62] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: app$show(%primitives$String)
     │       │   └── args[0] > expand:
@@ -1531,13 +1517,269 @@
     │       │       │   │   ├── fn: zane_text_i64
     │       │       │   │   └── args[0] > call:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: app$args(%primitives$I64)
-    │       │       │   │       └── args[0]: 21 : i64
+    │       │       │   │       ├── fn: lib$oncePointersSame()
+    │       │       │   │       └── args:
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #184
     │       │           └── value: local #182 : handle
-    │       └── body[65] > return: unit : void
+    │       ├── body[63] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: lib$onceKeep(%primitives$I64)
+    │       │   └── args[0]: 8 : i64
+    │       ├── body[64] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @186
+    │       │       ├── result: #187
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #185
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: lib$onceKept()
+    │       │       │   │       └── args:
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #187
+    │       │           └── value: local #185 : handle
+    │       ├── body[65] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @189
+    │       │       ├── result: #190
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #188
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: lib$onceCallSame()
+    │       │       │   │       └── args:
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #190
+    │       │           └── value: local #188 : handle
+    │       ├── body[66] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @192
+    │       │       ├── result: #193
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #191
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: lib$onceSetupRuns()
+    │       │       │   │       └── args:
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #193
+    │       │           └── value: local #191 : handle
+    │       ├── body[67] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @195
+    │       │       ├── result: #196
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #194
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: lib$onceSetupSame()
+    │       │       │   │       └── args:
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #196
+    │       │           └── value: local #194 : handle
+    │       ├── body[68] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @198
+    │       │       ├── result: #199
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #197
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: lib$onceExternalRuns()
+    │       │       │   │       └── args:
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #199
+    │       │           └── value: local #197 : handle
+    │       ├── body[69] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @201
+    │       │       ├── result: #202
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #200
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: lib$primed()
+    │       │       │   │       └── args:
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #202
+    │       │           └── value: local #200 : handle
+    │       ├── body[70] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @204
+    │       │       ├── result: #205
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #203
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: lib$primedRuns()
+    │       │       │   │       └── args:
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #205
+    │       │           └── value: local #203 : handle
+    │       ├── body[71] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @207
+    │       │       ├── result: #208
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #206
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: lib$wasWarmed()
+    │       │       │   │       └── args:
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #208
+    │       │           └── value: local #206 : handle
+    │       ├── body[72] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @210
+    │       │       ├── result: #211
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #209
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: lib$parsed()
+    │       │       │   │       └── args:
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #211
+    │       │           └── value: local #209 : handle
+    │       ├── body[73] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @213
+    │       │       ├── result: #214
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #212
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: lib$gnuFound()
+    │       │       │   │       └── args:
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #214
+    │       │           └── value: local #212 : handle
+    │       ├── body[74] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @216
+    │       │       ├── result: #217
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #215
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: app$result()
+    │       │       │   │       └── args:
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #217
+    │       │           └── value: local #215 : handle
+    │       ├── body[75] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: app$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @219
+    │       │       ├── result: #220
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #218
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: app$args(%primitives$I64)
+    │       │       │   │       └── args[0]: 21 : i64
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #220
+    │       │           └── value: local #218 : handle
+    │       └── body[76] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: app$twice(%primitives$I64)
     │   ├── params[0]: local #1 : i64
@@ -1647,21 +1889,267 @@
     │       └── args[1]: local #2 : {f64, f64, f64}
     ├── funcs[13] > func:
     │   ├── symbol: app$mirror(app$Pair)
-    │   ├── params[0]: local #1 : {i32, [3 x f32], {f64, f64, f64}}
-    │   ├── ret: {i32, [3 x f32], {f64, f64, f64}}
-    │   └── body[0] > return > foreign call:
-    │       ├── type: {i32, [3 x f32], {f64, f64, f64}}
-    │       ├── fn: app$mirror(app$Pair).ffi
-    │       └── args[0]: local #1 : {i32, [3 x f32], {f64, f64, f64}}
+    │   ├── params[0]: local #1 : {{f64, f64, f64}, i32, [3 x f32]}
+    │   ├── ret: {{f64, f64, f64}, i32, [3 x f32]}
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > foreign call:
+    │   │       ├── type: {i32, [3 x f32], {f64, f64, f64}}
+    │   │       ├── fn: app$mirror(app$Pair).ffi
+    │   │       └── args[0] > record:
+    │   │           ├── type: {i32, [3 x f32], {f64, f64, f64}}
+    │   │           ├── members[0] > member 0 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 1
+    │   │           │   └── value: local #1 : {{f64, f64, f64}, i32, [3 x f32]}
+    │   │           ├── members[1] > member 1 > member:
+    │   │           │   ├── type: [3 x f32]
+    │   │           │   ├── index: 2
+    │   │           │   └── value: local #1 : {{f64, f64, f64}, i32, [3 x f32]}
+    │   │           └── members[2] > member 2 > member:
+    │   │               ├── type: {f64, f64, f64}
+    │   │               ├── index: 0
+    │   │               └── value: local #1 : {{f64, f64, f64}, i32, [3 x f32]}
+    │   └── body[1] > return > record:
+    │       ├── type: {{f64, f64, f64}, i32, [3 x f32]}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 0
+    │       │   └── value: local #2 : {i32, [3 x f32], {f64, f64, f64}}
+    │       ├── members[1] > member 2 > member:
+    │       │   ├── type: [3 x f32]
+    │       │   ├── index: 1
+    │       │   └── value: local #2 : {i32, [3 x f32], {f64, f64, f64}}
+    │       └── members[2] > member 0 > member:
+    │           ├── type: {f64, f64, f64}
+    │           ├── index: 2
+    │           └── value: local #2 : {i32, [3 x f32], {f64, f64, f64}}
     ├── funcs[14] > func:
     │   ├── symbol: app$flip(app$Tagged)
-    │   ├── params[0]: local #1 : {i32, i64}
-    │   ├── ret: {i32, i64}
-    │   └── body[0] > return > foreign call:
-    │       ├── type: {i32, i64}
-    │       ├── fn: app$flip(app$Tagged).ffi
-    │       └── args[0]: local #1 : {i32, i64}
+    │   ├── params[0]: local #1 : {i64, i32}
+    │   ├── ret: {i64, i32}
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > foreign call:
+    │   │       ├── type: {i32, i64}
+    │   │       ├── fn: app$flip(app$Tagged).ffi
+    │   │       └── args[0] > record:
+    │   │           ├── type: {i32, i64}
+    │   │           ├── members[0] > member 0 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 1
+    │   │           │   └── value: local #1 : {i64, i32}
+    │   │           └── members[1] > member 1 > member:
+    │   │               ├── type: i64
+    │   │               ├── index: 0
+    │   │               └── value: local #1 : {i64, i32}
+    │   └── body[1] > return > record:
+    │       ├── type: {i64, i32}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 0
+    │       │   └── value: local #2 : {i32, i64}
+    │       └── members[1] > member 0 > member:
+    │           ├── type: i64
+    │           ├── index: 1
+    │           └── value: local #2 : {i32, i64}
     ├── funcs[15] > func:
+    │   ├── symbol: app$nest(app$Nested)
+    │   ├── params[0]: local #1 : {{i64, i32}, i32, f32}
+    │   ├── ret: {{i64, i32}, i32, f32}
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > foreign call:
+    │   │       ├── type: {i32, {i32, i64}, f32}
+    │   │       ├── fn: app$nest(app$Nested).ffi
+    │   │       └── args[0] > record:
+    │   │           ├── type: {i32, {i32, i64}, f32}
+    │   │           ├── members[0] > member 0 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 1
+    │   │           │   └── value: local #1 : {{i64, i32}, i32, f32}
+    │   │           ├── members[1] > member 1 > record:
+    │   │           │   ├── type: {i32, i64}
+    │   │           │   ├── members[0] > member 0 > member:
+    │   │           │   │   ├── type: i32
+    │   │           │   │   ├── index: 1
+    │   │           │   │   └── value > member:
+    │   │           │   │       ├── type: {i64, i32}
+    │   │           │   │       ├── index: 0
+    │   │           │   │       └── value: local #1 : {{i64, i32}, i32, f32}
+    │   │           │   └── members[1] > member 1 > member:
+    │   │           │       ├── type: i64
+    │   │           │       ├── index: 0
+    │   │           │       └── value > member:
+    │   │           │           ├── type: {i64, i32}
+    │   │           │           ├── index: 0
+    │   │           │           └── value: local #1 : {{i64, i32}, i32, f32}
+    │   │           └── members[2] > member 2 > member:
+    │   │               ├── type: f32
+    │   │               ├── index: 2
+    │   │               └── value: local #1 : {{i64, i32}, i32, f32}
+    │   └── body[1] > return > record:
+    │       ├── type: {{i64, i32}, i32, f32}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 0
+    │       │   └── value: local #2 : {i32, {i32, i64}, f32}
+    │       ├── members[1] > member 0 > record:
+    │       │   ├── type: {i64, i32}
+    │       │   ├── members[0] > member 1 > member:
+    │       │   │   ├── type: i32
+    │       │   │   ├── index: 0
+    │       │   │   └── value > member:
+    │       │   │       ├── type: {i32, i64}
+    │       │   │       ├── index: 1
+    │       │   │       └── value: local #2 : {i32, {i32, i64}, f32}
+    │       │   └── members[1] > member 0 > member:
+    │       │       ├── type: i64
+    │       │       ├── index: 1
+    │       │       └── value > member:
+    │       │           ├── type: {i32, i64}
+    │       │           ├── index: 1
+    │       │           └── value: local #2 : {i32, {i32, i64}, f32}
+    │       └── members[2] > member 2 > member:
+    │           ├── type: f32
+    │           ├── index: 2
+    │           └── value: local #2 : {i32, {i32, i64}, f32}
+    ├── funcs[16] > func:
+    │   ├── symbol: app$gap(%primitives$I32, %primitives$I64)
+    │   ├── params[0]: local #1 : i32
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: {i64, i32, [0 x void]}
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > foreign call:
+    │   │       ├── type: {i32, [0 x i64], i64}
+    │   │       ├── fn: app$gap(%primitives$I32, %primitives$I64).ffi
+    │   │       ├── args[0]: local #1 : i32
+    │   │       └── args[1]: local #2 : i64
+    │   └── body[1] > return > record:
+    │       ├── type: {i64, i32, [0 x void]}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 0
+    │       │   └── value: local #3 : {i32, [0 x i64], i64}
+    │       ├── members[1] > member 2 > record:
+    │       │   ├── type: [0 x void]
+    │       │   └── members:
+    │       └── members[2] > member 0 > member:
+    │           ├── type: i64
+    │           ├── index: 2
+    │           └── value: local #3 : {i32, [0 x i64], i64}
+    ├── funcs[17] > func:
+    │   ├── symbol: app$widen(app$Gap)
+    │   ├── params[0]: local #1 : {i64, i32, [0 x void]}
+    │   ├── ret: {i64, i32, [0 x void]}
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > foreign call:
+    │   │       ├── type: {i32, [0 x i64], i64}
+    │   │       ├── fn: app$widen(app$Gap).ffi
+    │   │       └── args[0] > record:
+    │   │           ├── type: {i32, [0 x i64], i64}
+    │   │           ├── members[0] > member 0 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 1
+    │   │           │   └── value: local #1 : {i64, i32, [0 x void]}
+    │   │           ├── members[1] > member 1 > record:
+    │   │           │   ├── type: [0 x i64]
+    │   │           │   └── members:
+    │   │           └── members[2] > member 2 > member:
+    │   │               ├── type: i64
+    │   │               ├── index: 0
+    │   │               └── value: local #1 : {i64, i32, [0 x void]}
+    │   └── body[1] > return > record:
+    │       ├── type: {i64, i32, [0 x void]}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 0
+    │       │   └── value: local #2 : {i32, [0 x i64], i64}
+    │       ├── members[1] > member 2 > record:
+    │       │   ├── type: [0 x void]
+    │       │   └── members:
+    │       └── members[2] > member 0 > member:
+    │           ├── type: i64
+    │           ├── index: 2
+    │           └── value: local #2 : {i32, [0 x i64], i64}
+    ├── funcs[18] > func:
+    │   ├── symbol: app$wrapped(%primitives$I32, %primitives$I64)
+    │   ├── params[0]: local #1 : i32
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: {{i64, [0 x void]}, i32}
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > foreign call:
+    │   │       ├── type: {i32, {i64, [0 x i64]}}
+    │   │       ├── fn: app$wrapped(%primitives$I32, %primitives$I64).ffi
+    │   │       ├── args[0]: local #1 : i32
+    │   │       └── args[1]: local #2 : i64
+    │   └── body[1] > return > record:
+    │       ├── type: {{i64, [0 x void]}, i32}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 0
+    │       │   └── value: local #3 : {i32, {i64, [0 x i64]}}
+    │       └── members[1] > member 0 > record:
+    │           ├── type: {i64, [0 x void]}
+    │           ├── members[0] > member 0 > member:
+    │           │   ├── type: i64
+    │           │   ├── index: 0
+    │           │   └── value > member:
+    │           │       ├── type: {i64, [0 x i64]}
+    │           │       ├── index: 1
+    │           │       └── value: local #3 : {i32, {i64, [0 x i64]}}
+    │           └── members[1] > member 1 > record:
+    │               ├── type: [0 x void]
+    │               └── members:
+    ├── funcs[19] > func:
+    │   ├── symbol: app$bump(app$Wrapped)
+    │   ├── params[0]: local #1 : {{i64, [0 x void]}, i32}
+    │   ├── ret: {{i64, [0 x void]}, i32}
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > foreign call:
+    │   │       ├── type: {i32, {i64, [0 x i64]}}
+    │   │       ├── fn: app$bump(app$Wrapped).ffi
+    │   │       └── args[0] > record:
+    │   │           ├── type: {i32, {i64, [0 x i64]}}
+    │   │           ├── members[0] > member 0 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 1
+    │   │           │   └── value: local #1 : {{i64, [0 x void]}, i32}
+    │   │           └── members[1] > member 1 > record:
+    │   │               ├── type: {i64, [0 x i64]}
+    │   │               ├── members[0] > member 0 > member:
+    │   │               │   ├── type: i64
+    │   │               │   ├── index: 0
+    │   │               │   └── value > member:
+    │   │               │       ├── type: {i64, [0 x void]}
+    │   │               │       ├── index: 0
+    │   │               │       └── value: local #1 : {{i64, [0 x void]}, i32}
+    │   │               └── members[1] > member 1 > record:
+    │   │                   ├── type: [0 x i64]
+    │   │                   └── members:
+    │   └── body[1] > return > record:
+    │       ├── type: {{i64, [0 x void]}, i32}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 0
+    │       │   └── value: local #2 : {i32, {i64, [0 x i64]}}
+    │       └── members[1] > member 0 > record:
+    │           ├── type: {i64, [0 x void]}
+    │           ├── members[0] > member 0 > member:
+    │           │   ├── type: i64
+    │           │   ├── index: 0
+    │           │   └── value > member:
+    │           │       ├── type: {i64, [0 x i64]}
+    │           │       ├── index: 1
+    │           │       └── value: local #2 : {i32, {i64, [0 x i64]}}
+    │           └── members[1] > member 1 > record:
+    │               ├── type: [0 x void]
+    │               └── members:
+    ├── funcs[20] > func:
     │   ├── symbol: app$addTo(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: void
@@ -1669,7 +2157,7 @@
     │       ├── type: void
     │       ├── fn: app$addTo(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[16] > func:
+    ├── funcs[21] > func:
     │   ├── symbol: app$counter()
     │   ├── params:
     │   ├── ret: i64
@@ -1677,7 +2165,7 @@
     │       ├── type: i64
     │       ├── fn: app$counter().ffi
     │       └── args:
-    ├── funcs[17] > func:
+    ├── funcs[22] > func:
     │   ├── symbol: app$reset()
     │   ├── params:
     │   ├── ret: void
@@ -1685,7 +2173,7 @@
     │       ├── type: void
     │       ├── fn: app$reset().ffi
     │       └── args:
-    ├── funcs[18] > func:
+    ├── funcs[23] > func:
     │   ├── symbol: app$counted(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1729,7 +2217,7 @@
     │               ├── op: +
     │               ├── left: local #1 : i64
     │               └── right: -2 : i64
-    ├── funcs[19] > func:
+    ├── funcs[24] > func:
     │   ├── symbol: app$helper()
     │   ├── params:
     │   ├── ret: i64
@@ -1737,7 +2225,7 @@
     │       ├── type: i64
     │       ├── fn: app$helper().ffi
     │       └── args:
-    ├── funcs[20] > func:
+    ├── funcs[25] > func:
     │   ├── symbol: lib$helper()
     │   ├── params:
     │   ├── ret: i64
@@ -1745,7 +2233,7 @@
     │       ├── type: i64
     │       ├── fn: lib$helper().ffi
     │       └── args:
-    ├── funcs[21] > func:
+    ├── funcs[26] > func:
     │   ├── symbol: app$named()
     │   ├── params:
     │   ├── ret: i64
@@ -1753,7 +2241,7 @@
     │       ├── type: i64
     │       ├── fn: app$named().ffi
     │       └── args:
-    ├── funcs[22] > func:
+    ├── funcs[27] > func:
     │   ├── symbol: lib$named()
     │   ├── params:
     │   ├── ret: i64
@@ -1761,7 +2249,7 @@
     │       ├── type: i64
     │       ├── fn: lib$named().ffi
     │       └── args:
-    ├── funcs[23] > func:
+    ├── funcs[28] > func:
     │   ├── symbol: lib$plus(%primitives$I32, %primitives$I32)
     │   ├── params[0]: local #1 : i32
     │   ├── params[1]: local #2 : i32
@@ -1771,7 +2259,7 @@
     │       ├── fn: lib$plus(%primitives$I32, %primitives$I32).ffi
     │       ├── args[0]: local #1 : i32
     │       └── args[1]: local #2 : i32
-    ├── funcs[24] > func:
+    ├── funcs[29] > func:
     │   ├── symbol: lib$widen(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1779,7 +2267,7 @@
     │       ├── type: i64
     │       ├── fn: lib$widen(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[25] > func:
+    ├── funcs[30] > func:
     │   ├── symbol: app$definedHere(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1787,7 +2275,7 @@
     │       ├── type: i64
     │       ├── fn: app$definedHere(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[26] > func:
+    ├── funcs[31] > func:
     │   ├── symbol: lib$definedHere(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1795,7 +2283,7 @@
     │       ├── type: i64
     │       ├── fn: lib$definedHere(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[27] > func:
+    ├── funcs[32] > func:
     │   ├── symbol: lib$once(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1803,7 +2291,7 @@
     │       ├── type: i64
     │       ├── fn: lib$once(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[28] > func:
+    ├── funcs[33] > func:
     │   ├── symbol: lib$useOnce()
     │   ├── params:
     │   ├── ret: i64
@@ -1811,7 +2299,7 @@
     │       ├── type: i64
     │       ├── fn: lib$useOnce().ffi
     │       └── args:
-    ├── funcs[29] > func:
+    ├── funcs[34] > func:
     │   ├── symbol: lib$onceAlias(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1819,7 +2307,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceAlias(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[30] > func:
+    ├── funcs[35] > func:
     │   ├── symbol: lib$onceIndirect(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1827,7 +2315,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceIndirect(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[31] > func:
+    ├── funcs[36] > func:
     │   ├── symbol: lib$onceStarted()
     │   ├── params:
     │   ├── ret: i64
@@ -1835,7 +2323,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceStarted().ffi
     │       └── args:
-    ├── funcs[32] > func:
+    ├── funcs[37] > func:
     │   ├── symbol: lib$onceValue()
     │   ├── params:
     │   ├── ret: i64
@@ -1843,7 +2331,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceValue().ffi
     │       └── args:
-    ├── funcs[33] > func:
+    ├── funcs[38] > func:
     │   ├── symbol: lib$onceHelped()
     │   ├── params:
     │   ├── ret: i64
@@ -1851,7 +2339,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceHelped().ffi
     │       └── args:
-    ├── funcs[34] > func:
+    ├── funcs[39] > func:
     │   ├── symbol: lib$oncePointed()
     │   ├── params:
     │   ├── ret: i64
@@ -1859,7 +2347,7 @@
     │       ├── type: i64
     │       ├── fn: lib$oncePointed().ffi
     │       └── args:
-    ├── funcs[35] > func:
+    ├── funcs[40] > func:
     │   ├── symbol: lib$onceShare(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: void
@@ -1867,7 +2355,7 @@
     │       ├── type: void
     │       ├── fn: lib$onceShare(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[36] > func:
+    ├── funcs[41] > func:
     │   ├── symbol: lib$onceShared()
     │   ├── params:
     │   ├── ret: i64
@@ -1875,7 +2363,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceShared().ffi
     │       └── args:
-    ├── funcs[37] > func:
+    ├── funcs[42] > func:
     │   ├── symbol: lib$onceTokenSame()
     │   ├── params:
     │   ├── ret: i64
@@ -1883,7 +2371,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceTokenSame().ffi
     │       └── args:
-    ├── funcs[38] > func:
+    ├── funcs[43] > func:
     │   ├── symbol: lib$oncePointersSame()
     │   ├── params:
     │   ├── ret: i64
@@ -1891,7 +2379,7 @@
     │       ├── type: i64
     │       ├── fn: lib$oncePointersSame().ffi
     │       └── args:
-    ├── funcs[39] > func:
+    ├── funcs[44] > func:
     │   ├── symbol: lib$onceKeep(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: void
@@ -1899,7 +2387,7 @@
     │       ├── type: void
     │       ├── fn: lib$onceKeep(%primitives$I64).ffi
     │       └── args[0]: local #1 : i64
-    ├── funcs[40] > func:
+    ├── funcs[45] > func:
     │   ├── symbol: lib$onceKept()
     │   ├── params:
     │   ├── ret: i64
@@ -1907,7 +2395,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceKept().ffi
     │       └── args:
-    ├── funcs[41] > func:
+    ├── funcs[46] > func:
     │   ├── symbol: lib$onceCallSame()
     │   ├── params:
     │   ├── ret: i64
@@ -1915,7 +2403,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceCallSame().ffi
     │       └── args:
-    ├── funcs[42] > func:
+    ├── funcs[47] > func:
     │   ├── symbol: lib$onceSetupRuns()
     │   ├── params:
     │   ├── ret: i64
@@ -1923,7 +2411,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceSetupRuns().ffi
     │       └── args:
-    ├── funcs[43] > func:
+    ├── funcs[48] > func:
     │   ├── symbol: lib$onceSetupSame()
     │   ├── params:
     │   ├── ret: i64
@@ -1931,7 +2419,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceSetupSame().ffi
     │       └── args:
-    ├── funcs[44] > func:
+    ├── funcs[49] > func:
     │   ├── symbol: lib$onceExternalRuns()
     │   ├── params:
     │   ├── ret: i64
@@ -1939,7 +2427,7 @@
     │       ├── type: i64
     │       ├── fn: lib$onceExternalRuns().ffi
     │       └── args:
-    ├── funcs[45] > func:
+    ├── funcs[50] > func:
     │   ├── symbol: lib$primed()
     │   ├── params:
     │   ├── ret: i64
@@ -1947,7 +2435,7 @@
     │       ├── type: i64
     │       ├── fn: lib$primed().ffi
     │       └── args:
-    ├── funcs[46] > func:
+    ├── funcs[51] > func:
     │   ├── symbol: lib$primedRuns()
     │   ├── params:
     │   ├── ret: i64
@@ -1955,7 +2443,7 @@
     │       ├── type: i64
     │       ├── fn: lib$primedRuns().ffi
     │       └── args:
-    ├── funcs[47] > func:
+    ├── funcs[52] > func:
     │   ├── symbol: lib$wasWarmed()
     │   ├── params:
     │   ├── ret: i64
@@ -1963,7 +2451,7 @@
     │       ├── type: i64
     │       ├── fn: lib$wasWarmed().ffi
     │       └── args:
-    ├── funcs[48] > func:
+    ├── funcs[53] > func:
     │   ├── symbol: lib$parsed()
     │   ├── params:
     │   ├── ret: i64
@@ -1971,7 +2459,7 @@
     │       ├── type: i64
     │       ├── fn: lib$parsed().ffi
     │       └── args:
-    ├── funcs[49] > func:
+    ├── funcs[54] > func:
     │   ├── symbol: lib$gnuFound()
     │   ├── params:
     │   ├── ret: i64
@@ -1979,7 +2467,7 @@
     │       ├── type: i64
     │       ├── fn: lib$gnuFound().ffi
     │       └── args:
-    ├── funcs[50] > func:
+    ├── funcs[55] > func:
     │   ├── symbol: app$result()
     │   ├── params:
     │   ├── ret: i64
@@ -1987,7 +2475,7 @@
     │       ├── type: i64
     │       ├── fn: app$result().ffi
     │       └── args:
-    └── funcs[51] > func:
+    └── funcs[56] > func:
         ├── symbol: app$args(%primitives$I64)
         ├── params[0]: local #1 : i64
         ├── ret: i64

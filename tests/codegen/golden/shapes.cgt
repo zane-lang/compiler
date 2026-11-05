@@ -304,7 +304,7 @@
     │   ├── body[8] > let:
     │   │   ├── local: #50
     │   │   └── value > expand:
-    │   │       ├── type: {{i64, i64}, void, f64}
+    │   │       ├── type: {{i64, i64}, f64, void}
     │   │       ├── label: @48
     │   │       ├── result: #49
     │   │       ├── body[0] > let:
@@ -332,10 +332,10 @@
     │   │       ├── body[2] > assign:
     │   │       │   ├── place: #49
     │   │       │   └── value > record:
-    │   │       │       ├── type: {{i64, i64}, void, f64}
+    │   │       │       ├── type: {{i64, i64}, f64, void}
     │   │       │       ├── members[0] > member 0: local #46 : {i64, i64}
-    │   │       │       ├── members[1] > member 1: unit : void
-    │   │       │       └── members[2] > member 2: local #47 : f64
+    │   │       │       ├── members[1] > member 2: unit : void
+    │   │       │       └── members[2] > member 1: local #47 : f64
     │   │       └── body[3]: leave @48
     │   ├── body[9] > assign:
     │   │   ├── place: #50.0.1
@@ -352,7 +352,7 @@
     │   │       │   └── value > member:
     │   │       │       ├── type: {i64, i64}
     │   │       │       ├── index: 0
-    │   │       │       └── value: local #50 : {{i64, i64}, void, f64}
+    │   │       │       └── value: local #50 : {{i64, i64}, f64, void}
     │   │       ├── body[1] > let:
     │   │       │   ├── local: #56
     │   │       │   └── value > expand:
@@ -408,8 +408,8 @@
     │   │       ├── op: ==
     │   │       ├── left > member:
     │   │       │   ├── type: f64
-    │   │       │   ├── index: 2
-    │   │       │   └── value: local #50 : {{i64, i64}, void, f64}
+    │   │       │   ├── index: 1
+    │   │       │   └── value: local #50 : {{i64, i64}, f64, void}
     │   │       └── right: 0x1.4p+1 : f64
     │   ├── body[12] > eval > call:
     │   │   ├── type: void
@@ -424,7 +424,7 @@
     │   │       │   ├── body[0] > let:
     │   │       │   │   ├── local: #59
     │   │       │   │   └── value > case:
-    │   │       │   │       ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │       ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │       ├── index: 0
     │   │       │   │       └── payload: local #5 : {i64, i64}
     │   │       │   ├── body[1] > assign:
@@ -438,12 +438,12 @@
     │   │       │   │       │   └── value: address of #59 : ptr
     │   │       │   │       └── body[1] > switch:
     │   │       │   │           ├── value > deref:
-    │   │       │   │           │   ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │   ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │   └── ptr: local #64 : ptr
     │   │       │   │           ├── cases[0] > case 0[0] > let:
     │   │       │   │           │   ├── local: #65
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 0
     │   │       │   │           │       └── base: local #64 : ptr
     │   │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -453,7 +453,7 @@
     │   │       │   │           ├── cases[1] > case 1[0] > let:
     │   │       │   │           │   ├── local: #66
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 1
     │   │       │   │           │       └── base: local #64 : ptr
     │   │       │   │           ├── cases[1] > case 1[1] > assign:
@@ -463,7 +463,7 @@
     │   │       │   │           ├── cases[2] > case 2[0] > let:
     │   │       │   │           │   ├── local: #67
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 2
     │   │       │   │           │       └── base: local #64 : ptr
     │   │       │   │           ├── cases[2] > case 2[1] > if:
@@ -472,9 +472,9 @@
     │   │       │   │           │   │   ├── op: <
     │   │       │   │           │   │   ├── left > member:
     │   │       │   │           │   │   │   ├── type: f64
-    │   │       │   │           │   │   │   ├── index: 2
+    │   │       │   │           │   │   │   ├── index: 1
     │   │       │   │           │   │   │   └── value > deref:
-    │   │       │   │           │   │   │       ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │   │   │       ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │   │   │       └── ptr: local #67 : ptr
     │   │       │   │           │   │   └── right: 0x1p+0 : f64
     │   │       │   │           │   ├── body[0] > assign:
@@ -493,7 +493,7 @@
     │   │       │   │           │       │       ├── type: {i64, i64}
     │   │       │   │           │       │       ├── index: 0
     │   │       │   │           │       │       └── value > deref:
-    │   │       │   │           │       │           ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │       │           ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │       │           └── ptr: local #67 : ptr
     │   │       │   │           │       └── right > member:
     │   │       │   │           │           ├── type: i64
@@ -502,7 +502,7 @@
     │   │       │   │           │               ├── type: {i64, i64}
     │   │       │   │           │               ├── index: 0
     │   │       │   │           │               └── value > deref:
-    │   │       │   │           │                   ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │                   ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │                   └── ptr: local #67 : ptr
     │   │       │   │           ├── cases[2] > case 2[3]: leave @62
     │   │       │   │           ├── cases[3] > case 3[0] > assign:
@@ -524,7 +524,7 @@
     │   │       │   ├── body[0] > let:
     │   │       │   │   ├── local: #69
     │   │       │   │   └── value > case:
-    │   │       │   │       ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │       ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │       ├── index: 1
     │   │       │   │       └── payload: 0x1p+1 : f64
     │   │       │   ├── body[1] > assign:
@@ -538,12 +538,12 @@
     │   │       │   │       │   └── value: address of #69 : ptr
     │   │       │   │       └── body[1] > switch:
     │   │       │   │           ├── value > deref:
-    │   │       │   │           │   ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │   ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │   └── ptr: local #74 : ptr
     │   │       │   │           ├── cases[0] > case 0[0] > let:
     │   │       │   │           │   ├── local: #75
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 0
     │   │       │   │           │       └── base: local #74 : ptr
     │   │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -553,7 +553,7 @@
     │   │       │   │           ├── cases[1] > case 1[0] > let:
     │   │       │   │           │   ├── local: #76
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 1
     │   │       │   │           │       └── base: local #74 : ptr
     │   │       │   │           ├── cases[1] > case 1[1] > assign:
@@ -563,7 +563,7 @@
     │   │       │   │           ├── cases[2] > case 2[0] > let:
     │   │       │   │           │   ├── local: #77
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 2
     │   │       │   │           │       └── base: local #74 : ptr
     │   │       │   │           ├── cases[2] > case 2[1] > if:
@@ -572,9 +572,9 @@
     │   │       │   │           │   │   ├── op: <
     │   │       │   │           │   │   ├── left > member:
     │   │       │   │           │   │   │   ├── type: f64
-    │   │       │   │           │   │   │   ├── index: 2
+    │   │       │   │           │   │   │   ├── index: 1
     │   │       │   │           │   │   │   └── value > deref:
-    │   │       │   │           │   │   │       ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │   │   │       ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │   │   │       └── ptr: local #77 : ptr
     │   │       │   │           │   │   └── right: 0x1p+0 : f64
     │   │       │   │           │   ├── body[0] > assign:
@@ -593,7 +593,7 @@
     │   │       │   │           │       │       ├── type: {i64, i64}
     │   │       │   │           │       │       ├── index: 0
     │   │       │   │           │       │       └── value > deref:
-    │   │       │   │           │       │           ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │       │           ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │       │           └── ptr: local #77 : ptr
     │   │       │   │           │       └── right > member:
     │   │       │   │           │           ├── type: i64
@@ -602,7 +602,7 @@
     │   │       │   │           │               ├── type: {i64, i64}
     │   │       │   │           │               ├── index: 0
     │   │       │   │           │               └── value > deref:
-    │   │       │   │           │                   ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │                   ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │                   └── ptr: local #77 : ptr
     │   │       │   │           ├── cases[2] > case 2[3]: leave @72
     │   │       │   │           ├── cases[3] > case 3[0] > assign:
@@ -624,9 +624,9 @@
     │   │       │   ├── body[0] > let:
     │   │       │   │   ├── local: #79
     │   │       │   │   └── value > case:
-    │   │       │   │       ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │       ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │       ├── index: 2
-    │   │       │   │       └── payload: local #50 : {{i64, i64}, void, f64}
+    │   │       │   │       └── payload: local #50 : {{i64, i64}, f64, void}
     │   │       │   ├── body[1] > assign:
     │   │       │   │   ├── place: #81
     │   │       │   │   └── value > expand:
@@ -638,12 +638,12 @@
     │   │       │   │       │   └── value: address of #79 : ptr
     │   │       │   │       └── body[1] > switch:
     │   │       │   │           ├── value > deref:
-    │   │       │   │           │   ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │   ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │   └── ptr: local #84 : ptr
     │   │       │   │           ├── cases[0] > case 0[0] > let:
     │   │       │   │           │   ├── local: #85
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 0
     │   │       │   │           │       └── base: local #84 : ptr
     │   │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -653,7 +653,7 @@
     │   │       │   │           ├── cases[1] > case 1[0] > let:
     │   │       │   │           │   ├── local: #86
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 1
     │   │       │   │           │       └── base: local #84 : ptr
     │   │       │   │           ├── cases[1] > case 1[1] > assign:
@@ -663,7 +663,7 @@
     │   │       │   │           ├── cases[2] > case 2[0] > let:
     │   │       │   │           │   ├── local: #87
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 2
     │   │       │   │           │       └── base: local #84 : ptr
     │   │       │   │           ├── cases[2] > case 2[1] > if:
@@ -672,9 +672,9 @@
     │   │       │   │           │   │   ├── op: <
     │   │       │   │           │   │   ├── left > member:
     │   │       │   │           │   │   │   ├── type: f64
-    │   │       │   │           │   │   │   ├── index: 2
+    │   │       │   │           │   │   │   ├── index: 1
     │   │       │   │           │   │   │   └── value > deref:
-    │   │       │   │           │   │   │       ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │   │   │       ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │   │   │       └── ptr: local #87 : ptr
     │   │       │   │           │   │   └── right: 0x1p+0 : f64
     │   │       │   │           │   ├── body[0] > assign:
@@ -693,7 +693,7 @@
     │   │       │   │           │       │       ├── type: {i64, i64}
     │   │       │   │           │       │       ├── index: 0
     │   │       │   │           │       │       └── value > deref:
-    │   │       │   │           │       │           ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │       │           ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │       │           └── ptr: local #87 : ptr
     │   │       │   │           │       └── right > member:
     │   │       │   │           │           ├── type: i64
@@ -702,7 +702,7 @@
     │   │       │   │           │               ├── type: {i64, i64}
     │   │       │   │           │               ├── index: 0
     │   │       │   │           │               └── value > deref:
-    │   │       │   │           │                   ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │                   ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │                   └── ptr: local #87 : ptr
     │   │       │   │           ├── cases[2] > case 2[3]: leave @82
     │   │       │   │           ├── cases[3] > case 3[0] > assign:
@@ -724,10 +724,10 @@
     │   │       │   ├── body[0] > let:
     │   │       │   │   ├── local: #92
     │   │       │   │   └── value > case:
-    │   │       │   │       ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │       ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │       ├── index: 2
     │   │       │   │       └── payload > expand:
-    │   │       │   │           ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           ├── type: {{i64, i64}, f64, void}
     │   │       │   │           ├── label: @90
     │   │       │   │           ├── result: #91
     │   │       │   │           ├── body[0] > let:
@@ -736,10 +736,10 @@
     │   │       │   │           ├── body[1] > assign:
     │   │       │   │           │   ├── place: #91
     │   │       │   │           │   └── value > record:
-    │   │       │   │           │       ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │       ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │       ├── members[0] > member 0: local #5 : {i64, i64}
-    │   │       │   │           │       ├── members[1] > member 1: unit : void
-    │   │       │   │           │       └── members[2] > member 2: local #89 : f64
+    │   │       │   │           │       ├── members[1] > member 2: unit : void
+    │   │       │   │           │       └── members[2] > member 1: local #89 : f64
     │   │       │   │           └── body[2]: leave @90
     │   │       │   ├── body[1] > assign:
     │   │       │   │   ├── place: #94
@@ -752,12 +752,12 @@
     │   │       │   │       │   └── value: address of #92 : ptr
     │   │       │   │       └── body[1] > switch:
     │   │       │   │           ├── value > deref:
-    │   │       │   │           │   ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │   ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │   └── ptr: local #97 : ptr
     │   │       │   │           ├── cases[0] > case 0[0] > let:
     │   │       │   │           │   ├── local: #98
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 0
     │   │       │   │           │       └── base: local #97 : ptr
     │   │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -767,7 +767,7 @@
     │   │       │   │           ├── cases[1] > case 1[0] > let:
     │   │       │   │           │   ├── local: #99
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 1
     │   │       │   │           │       └── base: local #97 : ptr
     │   │       │   │           ├── cases[1] > case 1[1] > assign:
@@ -777,7 +777,7 @@
     │   │       │   │           ├── cases[2] > case 2[0] > let:
     │   │       │   │           │   ├── local: #100
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 2
     │   │       │   │           │       └── base: local #97 : ptr
     │   │       │   │           ├── cases[2] > case 2[1] > if:
@@ -786,9 +786,9 @@
     │   │       │   │           │   │   ├── op: <
     │   │       │   │           │   │   ├── left > member:
     │   │       │   │           │   │   │   ├── type: f64
-    │   │       │   │           │   │   │   ├── index: 2
+    │   │       │   │           │   │   │   ├── index: 1
     │   │       │   │           │   │   │   └── value > deref:
-    │   │       │   │           │   │   │       ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │   │   │       ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │   │   │       └── ptr: local #100 : ptr
     │   │       │   │           │   │   └── right: 0x1p+0 : f64
     │   │       │   │           │   ├── body[0] > assign:
@@ -807,7 +807,7 @@
     │   │       │   │           │       │       ├── type: {i64, i64}
     │   │       │   │           │       │       ├── index: 0
     │   │       │   │           │       │       └── value > deref:
-    │   │       │   │           │       │           ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │       │           ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │       │           └── ptr: local #100 : ptr
     │   │       │   │           │       └── right > member:
     │   │       │   │           │           ├── type: i64
@@ -816,7 +816,7 @@
     │   │       │   │           │               ├── type: {i64, i64}
     │   │       │   │           │               ├── index: 0
     │   │       │   │           │               └── value > deref:
-    │   │       │   │           │                   ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │                   ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │                   └── ptr: local #100 : ptr
     │   │       │   │           ├── cases[2] > case 2[3]: leave @95
     │   │       │   │           ├── cases[3] > case 3[0] > assign:
@@ -838,7 +838,7 @@
     │   │       │   ├── body[0] > let:
     │   │       │   │   ├── local: #102
     │   │       │   │   └── value > case:
-    │   │       │   │       ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │       ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │       ├── index: 3
     │   │       │   │       └── payload: unit : void
     │   │       │   ├── body[1] > assign:
@@ -852,12 +852,12 @@
     │   │       │   │       │   └── value: address of #102 : ptr
     │   │       │   │       └── body[1] > switch:
     │   │       │   │           ├── value > deref:
-    │   │       │   │           │   ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │   ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │   └── ptr: local #107 : ptr
     │   │       │   │           ├── cases[0] > case 0[0] > let:
     │   │       │   │           │   ├── local: #108
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 0
     │   │       │   │           │       └── base: local #107 : ptr
     │   │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -867,7 +867,7 @@
     │   │       │   │           ├── cases[1] > case 1[0] > let:
     │   │       │   │           │   ├── local: #109
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 1
     │   │       │   │           │       └── base: local #107 : ptr
     │   │       │   │           ├── cases[1] > case 1[1] > assign:
@@ -877,7 +877,7 @@
     │   │       │   │           ├── cases[2] > case 2[0] > let:
     │   │       │   │           │   ├── local: #110
     │   │       │   │           │   └── value > offset:
-    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       │   │           │       ├── within: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       │   │           │       ├── path: 2
     │   │       │   │           │       └── base: local #107 : ptr
     │   │       │   │           ├── cases[2] > case 2[1] > if:
@@ -886,9 +886,9 @@
     │   │       │   │           │   │   ├── op: <
     │   │       │   │           │   │   ├── left > member:
     │   │       │   │           │   │   │   ├── type: f64
-    │   │       │   │           │   │   │   ├── index: 2
+    │   │       │   │           │   │   │   ├── index: 1
     │   │       │   │           │   │   │   └── value > deref:
-    │   │       │   │           │   │   │       ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │   │   │       ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │   │   │       └── ptr: local #110 : ptr
     │   │       │   │           │   │   └── right: 0x1p+0 : f64
     │   │       │   │           │   ├── body[0] > assign:
@@ -907,7 +907,7 @@
     │   │       │   │           │       │       ├── type: {i64, i64}
     │   │       │   │           │       │       ├── index: 0
     │   │       │   │           │       │       └── value > deref:
-    │   │       │   │           │       │           ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │       │           ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │       │           └── ptr: local #110 : ptr
     │   │       │   │           │       └── right > member:
     │   │       │   │           │           ├── type: i64
@@ -916,7 +916,7 @@
     │   │       │   │           │               ├── type: {i64, i64}
     │   │       │   │           │               ├── index: 0
     │   │       │   │           │               └── value > deref:
-    │   │       │   │           │                   ├── type: {{i64, i64}, void, f64}
+    │   │       │   │           │                   ├── type: {{i64, i64}, f64, void}
     │   │       │   │           │                   └── ptr: local #110 : ptr
     │   │       │   │           ├── cases[2] > case 2[3]: leave @105
     │   │       │   │           ├── cases[3] > case 3[0] > assign:
@@ -934,7 +934,7 @@
     │   ├── body[18] > let:
     │   │   ├── local: #113
     │   │   └── value > case:
-    │   │       ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │       ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │       ├── index: 1
     │   │       └── payload: 0x1p+0 : f64
     │   ├── body[19] > eval > call:
@@ -956,7 +956,7 @@
     │   │           │   └── ptr: local #116 : ptr
     │   │           ├── cases[0] > case 0[0] > switch:
     │   │           │   ├── value > deref:
-    │   │           │   │   ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │           │   │   ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │           │   │   └── ptr: local #117 : ptr
     │   │           │   ├── cases[0] > case 0[0] > assign:
     │   │           │   │   ├── place: #115
@@ -976,7 +976,7 @@
     │   │           │   └── cases[3] > case 3[1]: leave @114
     │   │           ├── cases[1] > case 1[0] > switch:
     │   │           │   ├── value > deref:
-    │   │           │   │   ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │           │   │   ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │           │   │   └── ptr: local #117 : ptr
     │   │           │   ├── cases[0] > case 0[0] > assign:
     │   │           │   │   ├── place: #115
@@ -996,7 +996,7 @@
     │   │           │   └── cases[3] > case 3[1]: leave @114
     │   │           └── cases[2] > case 2[0] > switch:
     │   │               ├── value > deref:
-    │   │               │   ├── type: <{i64, i64} | f64 | {{i64, i64}, void, f64} | void>
+    │   │               │   ├── type: <{i64, i64} | f64 | {{i64, i64}, f64, void} | void>
     │   │               │   └── ptr: local #117 : ptr
     │   │               ├── cases[0] > case 0[0] > assign:
     │   │               │   ├── place: #115

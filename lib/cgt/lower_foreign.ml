@@ -73,6 +73,12 @@ let crossing st span (t : Tty.t) : Foreign.crossing =
       match definition st t with Some (T.Decl.Handle _, _) -> Foreign.Handle | _ -> Foreign.Value)
   | _ -> Diagnostic.bug ~span ("lowering: `" ^ Tty.to_string t ^ "` crosses into C as nothing it lays out")
 
+(* The value [v] of the Zane type [t], in the layout C gives [t]: a
+   C-compatible value type with its fields in declaration order
+   (Callback.to_c). *)
+let in_c st span t (v : Expr.t) =
+  match c_shape st span t with Some s when Callback.moved s -> Callback.to_c s v | _ -> v
+
 (* The thunk of the verb whose function is [symbol]. *)
 let thunk symbol = symbol ^ ".ffi"
 
@@ -116,13 +122,20 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
     (* An array is lent where it is (F10): C reads it through its address. *)
     | Foreign.Address, Expr.Local id -> (Foreign.Address, { Expr.node = Expr.Address id; ty = Nodes.Ty.Ptr })
     | Foreign.Address, Expr.Deref p -> (Foreign.Address, p)
+    (* A struct goes in C's layout, its fields in declaration order. *)
+    | Foreign.Value, _ -> (Foreign.Value, in_c st span p.T.Local.ty value)
     | c, _ -> (c, value)
   in
   let args = List.map arg v.params in
   let ret = v.signature.S.ret in
   let result = crossing st span ret in
+  let shape = match result with Foreign.Value -> c_shape st span ret | _ -> None in
   let call_ty =
-    match result with Foreign.Unit -> Nodes.Ty.Void | Foreign.Handle -> Nodes.Ty.Ptr | _ -> ty st span ret
+    match (result, shape) with
+    | Foreign.Unit, _ -> Nodes.Ty.Void
+    | Foreign.Handle, _ -> Nodes.Ty.Ptr
+    | _, Some s -> Callback.c s
+    | _ -> ty st span ret
   in
   let call =
     { Expr.node = Expr.Foreign_call { thunk = thunk symbol; args = List.map snd args }; ty = call_ty }
@@ -147,4 +160,11 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
       let empty = { Expr.node = Expr.Text ""; ty = Nodes.Ty.Handle } in
       [ Stat.Return (st.returns { Expr.node = Expr.Runtime { fn = Runtime.Text_join; args = [ call; empty ] }; ty = Nodes.Ty.Handle }) ]
   | Foreign.Handle -> made st ctx span v call
-  | _ -> [ Stat.Return (st.returns call) ]
+  (* A struct comes back in C's layout and is rebuilt in its own. *)
+  | _ -> (
+      match shape with
+      | Some s when Callback.moved s ->
+          let id = fresh st in
+          let back = Callback.of_c s { Expr.node = Expr.Local id; ty = call_ty } in
+          [ Stat.Let { id; value = call }; Stat.Return (st.returns back) ]
+      | _ -> [ Stat.Return (st.returns call) ])

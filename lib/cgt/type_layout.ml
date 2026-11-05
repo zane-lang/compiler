@@ -178,14 +178,11 @@ let collapsed st t =
   | Some (T.Decl.Struct [ (_, m) ], false) -> not (boxed st t m)
   | _ -> false
 
-(* A member's index in its struct's layout: its place in declaration order
-   (memory.md §3.3). *)
-let member_index _st _t slot = slot
-
 (* L5: a storage primitive has a machine layout, a string or a list is a
    handle, and an array is its elements inline. A value struct has its
-   members' in declaration order, except that one of a single member has
-   that member's (concepts-vs-primitives.md) and an empty one has none. A
+   members', in the order Nodes.Ty.order places them, except that one of a
+   single member has that member's (concepts-vs-primitives.md) and an empty
+   one has none. A
    value variant is a sum of its payloads, and
    an enum a sum of cases with none. A reference type's instance has the
    same shape and nothing more (memory.md §3.3), a reference is the address
@@ -227,25 +224,64 @@ let rec shape st span (t : Tty.t) : Nodes.Ty.t =
       | Some (e, n) -> Nodes.Ty.Array ((if ref_slot e then Nodes.Ty.Ref else shape st span e), n)
       | None -> unhandled span t)
   | Tty.Named _ -> (
-      let member m =
-        if boxed st t m then if pooled st m then Nodes.Ty.list_handle () else box_type ()
-        else if ref_slot m then Nodes.Ty.Ref
-        else shape st span m
-      in
+      let member = member_shape st span t in
       let sum ts = Nodes.Ty.Sum ts in
+      let fields ms =
+        let ts = List.map (fun (_, m) -> member m) ms in
+        Nodes.Ty.Struct (Nodes.Ty.placed ts ts)
+      in
       match definition st t with
       | Some (T.Decl.Struct [], false) -> Nodes.Ty.Void
       | Some (T.Decl.Struct [ (_, m) ], false) when collapsed st t -> member m
-      | Some (T.Decl.Struct ms, false) -> Nodes.Ty.Struct (List.map (fun (_, m) -> member m) ms)
+      | Some (T.Decl.Struct ms, false) -> fields ms
       | Some (T.Decl.Variant cs, false) -> sum (List.map (fun (_, c) -> member c) cs)
       | Some (T.Decl.Enum cs, false) -> sum (List.map (fun _ -> Nodes.Ty.Void) cs)
-      | Some (T.Decl.Struct ms, true) -> Nodes.Ty.Struct (List.map (fun (_, m) -> member m) ms)
+      | Some (T.Decl.Struct ms, true) -> fields ms
       | Some (T.Decl.Variant cs, true) -> sum (List.map (fun (_, c) -> member c) cs)
       | Some (T.Decl.Enum cs, true) -> sum (List.map (fun _ -> Nodes.Ty.Void) cs)
       | Some (T.Decl.Distinct u, _) -> member u
       | Some (T.Decl.Handle _, _) -> Nodes.Ty.Struct [ Nodes.Ty.Ptr; Nodes.Ty.I64 ]
       | _ -> unhandled span t)
   | _ -> unhandled span t
+
+(* The layout of the member [m] of [holder]: a pointer when it is boxed, a
+   reference's 32-bit form in a member (experimental), else its type's. *)
+and member_shape st span holder m =
+  if boxed st holder m then if pooled st m then Nodes.Ty.list_handle () else box_type ()
+  else if ref_slot m then Nodes.Ty.Ref
+  else shape st span m
+
+(* Where each declared member of the struct [t] goes in its layout
+   (Nodes.Ty.order), by the layouts of its members, once for each type. A
+   pooled variant's node lays out a struct it holds in the same order, so
+   one index names a member in both. *)
+let member_order st t =
+  let t = unroamed (Tty.strip_mode t) in
+  match Hashtbl.find_opt st.orders t with
+  | Some o -> o
+  | None ->
+      let o =
+        match definition st t with
+        | Some (T.Decl.Struct ms, _) -> Nodes.Ty.order (List.map (fun (_, m) -> member_shape st Source.Span.none t m) ms)
+        | _ -> [||]
+      in
+      Hashtbl.replace st.orders t o;
+      o
+
+(* A member's index in its struct's layout (memory.md §3.3): where
+   [member_order] places the [slot]th declared member. *)
+let member_index st t slot =
+  let o = member_order st t in
+  if slot < Array.length o then o.(slot) else slot
+
+(* The declared members [ms] of the struct [t], in its layout's order. *)
+let placed_members st t ms =
+  let o = member_order st t in
+  if Array.length o <> List.length ms then ms
+  else
+    let out = Array.make (List.length ms) None in
+    List.iteri (fun i m -> out.(o.(i)) <- Some m) ms;
+    List.map Option.get (Array.to_list out)
 
 (* A size in the unit that reads best: whole bytes, or KiB, MiB or GiB to a
    tenth. *)
@@ -379,7 +415,7 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
           match (definition, lowered) with
           | T.Decl.Struct ms, Nodes.Ty.Struct ts ->
               List.concat
-                (List.map2 (fun (_, m) at -> member m (base + at) tags) ms (Nodes.Ty.offsets ts))
+                (List.map2 (fun (_, m) at -> member m (base + at) tags) (placed_members st t ms) (Nodes.Ty.offsets ts))
           | T.Decl.Variant cs, Nodes.Ty.Sum _ -> variant cs base
           | _ -> [])
       | None -> [])
@@ -433,7 +469,7 @@ let node_shape st span p =
     else if cycle_struct st c then
       match definition st (unroamed c) with
       | Some (T.Decl.Struct ms, _) ->
-          packing (Nodes.Ty.Struct (List.map (fun (_, m) -> if pooled st m then link m else plain m) ms))
+          packing (Nodes.Ty.Struct (List.map (fun (_, m) -> if pooled st m then link m else plain m) (placed_members st c ms)))
       | _ -> unhandled span c
     else plain c
   in
@@ -448,7 +484,9 @@ let node_ty st span t =
   else if cycle_struct st t then
     match definition st (unroamed t) with
     | Some (T.Decl.Struct ms, _) ->
-        packing (Nodes.Ty.Struct (List.map (fun (_, m) -> if pooled st m then Nodes.Ty.I32 else shape st span m) ms))
+        packing
+          (Nodes.Ty.Struct
+             (List.map (fun (_, m) -> if pooled st m then Nodes.Ty.I32 else shape st span m) (placed_members st t ms)))
     | _ -> unhandled span t
   else ty st span t
 
@@ -468,7 +506,7 @@ let node_masks st span p =
       | Some (T.Decl.Struct ms, _), inner ->
           List.fold_left2
             (fun acc (_, m) off -> if pooled st m then Int64.logor acc (word off) else acc)
-            0L ms (Nodes.Ty.member_offsets inner)
+            0L (placed_members st c ms) (Nodes.Ty.member_offsets inner)
       | _ -> 0L
     else 0L
   in
