@@ -29,3 +29,6 @@ dev/machine-config.txt
 /editors/tree-sitter-zane/*.so
 /.highlighting-venv/
 /.grammar-venv/
+
+# pixi environments (toolchain spike)
+.pixi/

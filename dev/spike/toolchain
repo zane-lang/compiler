@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Toolchain spike: one stage of building zanec inside the pixi environment.
+# Usage: dev/spike/toolchain STAGE. Run through `pixi run`.
+set -euo pipefail
+
+DUNE_VERSION="3.24.2"
+MENHIR_VERSION="20260209"
+SEDLEX_VERSION="3.8.1"
+UUCP_VERSION="18.0.0"
+UUSEG_VERSION="18.0.0"
+LLVM_VERSION="19"
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$root"
+export OPAMYES=1 OPAMCOLOR=never
+
+case "$(uname -s)" in
+MINGW* | MSYS* | CYGWIN*) windows=1 ;;
+*) windows=0 ;;
+esac
+
+switch_env() { eval "$(opam env --switch="$root" --set-switch)"; }
+
+case "${1:?stage}" in
+versions)
+	uname -a
+	echo "CONDA_PREFIX=${CONDA_PREFIX:-}"
+	ocamlfind=$(command -v ocamlfind || true); echo "ocamlfind: ${ocamlfind:-none}"
+	ocamlopt -config | grep -E '^(version|architecture|system|ccomp_type|c_compiler|native_c_compiler|ocamlopt_cflags|native_c_libraries|flexdll|target|host):' || true
+	opam --version
+	llvm-config --version --libdir --includedir --shared-mode --system-libs || true
+	clang --version | head -1 || true
+	ld.lld --version || true
+	command -v ld.lld clang llvm-config cc c++ cl link 2>/dev/null || true
+	zig version
+	just --version
+	python --version
+	;;
+opam)
+	init=(--bare --disable-sandboxing -y)
+	if [[ $windows == 1 ]]; then init+=(--cygwin-internal-install); fi
+	[[ -d "${OPAMROOT:-$HOME/.opam}" ]] || opam init "${init[@]}"
+	opam switch list --short | grep -Fxq "$root" || opam switch create "$root" ocaml-system --no-install -y
+	switch_env
+	ocamlfind=$(command -v ocamlfind || true); echo "ocamlfind: ${ocamlfind:-none}"
+	opam list --installed
+	;;
+pins)
+	switch_env
+	opam install -y --no-depexts "dune.$DUNE_VERSION" "menhir.$MENHIR_VERSION" "sedlex.$SEDLEX_VERSION" \
+		"uucp.$UUCP_VERSION" "uuseg.$UUSEG_VERSION"
+	;;
+llvm)
+	switch_env
+	mode=$(llvm-config --shared-mode)
+	opam install -y --no-depexts "llvm.$LLVM_VERSION-$mode"
+	ocamlfind query llvm
+	;;
+build)
+	switch_env
+	export LLVM_CONFIG="${LLVM_CONFIG:-$(command -v llvm-config)}"
+	dune build bin/zanec/zanec.exe
+	ls -la _build/default/bin/zanec/zanec.exe
+	;;
+hello)
+	switch_env
+	out="$root/_build/spike-hello"
+	_build/default/bin/zanec/zanec.exe --build "$out" --package tests/codegen/fixtures/hello
+	"$out" | tee "$root/_build/spike-hello.out"
+	diff -u tests/codegen/golden/hello.out "$root/_build/spike-hello.out"
+	;;
+test)
+	switch_env
+	export LLVM_CONFIG="${LLVM_CONFIG:-$(command -v llvm-config)}"
+	just test-compiler
+	;;
+*)
+	echo "unknown stage $1" >&2
+	exit 2
+	;;
+esac

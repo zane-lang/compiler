@@ -1,0 +1,28 @@
+# Toolchain spike: one conda-forge environment for Linux, macOS and Windows.
+# Exploratory; see .github/workflows/toolchain-spike.yml.
+
+[workspace]
+name = "zane-compiler"
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
+
+[dependencies]
+ocaml = "5.5.1.*"
+opam = "*"
+c-compiler = "*"
+cxx-compiler = "*"
+llvmdev = "19.1.*"
+clangdev = "19.1.*"
+lld = "19.1.*"
+cmake = "*"
+ninja = "*"
+make = "*"
+pkg-config = "*"
+zstd = "*"
+zig = "0.17.0.*"
+just = "*"
+python = "3.13.*"
+nodejs = "*"
+
+[target.unix.dependencies]
+m4 = "*"
