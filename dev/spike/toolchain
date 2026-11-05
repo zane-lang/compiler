@@ -29,7 +29,7 @@ export OPAMROOT="$HOME/.opam-zane-spike"
 if [[ $windows == 1 ]]; then
 	prefix=$(cygpath -u "${CONDA_PREFIX:?}")
 	for tool in ocamlopt opam zig; do
-		found=$(find "$prefix" -maxdepth 4 -iname "$tool.exe" -o -maxdepth 4 -iname "$tool.opt.exe" 2>/dev/null | head -1)
+		found=$(find "$prefix" \( -iname "$tool.exe" -o -iname "$tool.opt.exe" \) 2>/dev/null | head -1)
 		echo "$tool: ${found:-not under $prefix}"
 		[[ -n "$found" ]] && PATH="$(dirname "$found"):$PATH"
 	done
@@ -49,7 +49,7 @@ versions)
 	clang --version | head -1 || true
 	ld.lld --version || true
 	command -v ld.lld clang llvm-config cc c++ cl link 2>/dev/null || true
-	zig version
+	zig version || echo 'zig: not on PATH'
 	just --version
 	python --version
 	;;
