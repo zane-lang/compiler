@@ -98,15 +98,15 @@ let with_sources (dir, rows) =
   |> Result.map_error (fun diagnostics -> { diagnostics; sources = [] })
   |> Result.map (fun sources -> (dir, rows, sources))
 
-(* A section the linker gathers into a range that C reaches through the
-   `__start_` and `__stop_` symbols named after it: one whose name is a C
-   identifier (spec ffi.md §2.5). Its name is not renamed, so two versions
+(* A section the linker gathers by its name into a range that C reaches,
+   a linker set in its object format's form (Settings.is_linker_set, spec
+   ffi.md §2.5). Its name is not renamed, so two versions
    of a package would share it, and a module that places a global in one
    is refused (docs/design/ffi.md F9). [file] is what the diagnostic
    names: the source, or the interface header a glue file includes. *)
 let linker_sets ~file (source : Compile.source) =
   match
-    List.filter (fun (_, section) -> Settings.is_identifier section) (Clang.sections source.Compile.bitcode)
+    List.filter (fun (_, section) -> Settings.is_linker_set section) (Clang.sections source.Compile.bitcode)
   with
   | [] -> Ok source
   | placed ->
@@ -147,7 +147,7 @@ let assembly ~header (source : Compile.source) =
    a module's are ([linker_sets]): [what] says what places something in
    it, and [file] is the file the diagnostic names. *)
 let object_linker_sets ~file ~what (contents : Objects.contents) =
-  match List.sort_uniq compare (List.filter Settings.is_identifier contents.Objects.sections) with
+  match List.sort_uniq compare (List.filter Settings.is_linker_set contents.Objects.sections) with
   | [] -> Ok contents
   | placed ->
       Error

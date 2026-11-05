@@ -356,15 +356,15 @@ let interface_header () =
    one holding assembly, or a global the header places in a linker set, is
    refused there, naming the header. *)
 let glue_refusals () =
-  let refused name text =
+  let refused ?cc ?target name text =
     let base = Filename.temp_dir "zane-glue-" "" in
     Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
         let dir = Filename.concat base "pkg" in
         Sys.mkdir dir 0o755;
         let header = Filename.concat dir "api.h" in
         write_all header text;
-        let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
-        match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ dir ] with
+        let cc = match cc with Some cc -> cc | None -> Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+        match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target [ dir ] with
         | Ok [ p ] -> (
             let entry =
               { Foreign.Glue.label = "pkg.fenced.ffi"; c_function = "fenced"; params = []; result = Foreign.Glue.Scalar "int32_t" }
@@ -377,10 +377,40 @@ let glue_refusals () =
   in
   refused "a header's function holding assembly is refused in its glue, naming the header"
     "int fenced(void) { __asm__ volatile(\"\" ::: \"memory\"); return 1; }\n";
-  refused "a header's global in a linker set is refused in its glue, naming the header"
+  (* A linker set in each object format's form, each built for a target of
+     that format, so every host checks all three. *)
+  refused ~target:"x86_64-linux-gnu" "a header's global in an ELF linker set is refused in its glue, naming the header"
     "__attribute__((used, section(\"plugins\"))) static const int entry = 1;\n\
      extern const int __start_plugins, __stop_plugins;\n\
-     int fenced(void) { return &__stop_plugins - &__start_plugins; }\n"
+     int fenced(void) { return &__stop_plugins - &__start_plugins; }\n";
+  (* Mach-O's C headers come from `zig cc`, which carries them, as a C
+     compiler with no macOS SDK beside it has none. *)
+  let zig = Filename.concat (Filename.get_temp_dir_name ()) (Printf.sprintf "zane-zig-cc-%d" (Unix.getpid ())) in
+  Out_channel.with_open_bin zig (fun oc -> output_string oc "#!/bin/sh\nexec \"${ZIG:-zig}\" cc \"$@\"\n");
+  Unix.chmod zig 0o755;
+  Fun.protect ~finally:(fun () -> Sys.remove zig) @@ fun () ->
+  refused ~cc:zig ~target:"aarch64-macos" "a header's global in a Mach-O linker set is refused in its glue, naming the header"
+    "__attribute__((used, section(\"__DATA,plugins\"))) static const int entry = 1;\n\
+     extern const int start __asm(\"section$start$__DATA$plugins\");\n\
+     int fenced(void) { return &start != 0; }\n";
+  refused ~target:"x86_64-windows-gnu" "a header's global in a COFF linker set is refused in its glue, naming the header"
+    "__attribute__((used, section(\"plugins$b\"))) static const int entry = 1;\n\
+     int fenced(void) { return entry; }\n"
+
+(* Which sections are linker sets, in each object format's form (spec
+   ffi.md §2.5). *)
+let linker_sets () =
+  let set = Settings.is_linker_set in
+  check "an ELF section named as a C identifier is a linker set" (set "plugins");
+  check "an ELF section not named as one is not" (not (set ".text.hot"));
+  check "a Mach-O section named without Apple's __ is a linker set" (set "__DATA,plugins");
+  check "a Mach-O segment named without it is one too" (set "PLUG,__entries");
+  check "a Mach-O section of Apple's own is not" (not (set "__DATA,__const"));
+  check "a Mach-O section's type is not its name" (not (set "__DATA,__mod_init_func,mod_init_funcs"));
+  check "a COFF grouped section is a linker set" (set "plugins$b");
+  check "a COFF function's own section is not" (not (set ".text$fenced"));
+  check "a COFF constructor's is not" (not (set ".CRT$XCU"));
+  check "an import library's is not" (not (set ".idata$5"))
 
 (* A package whose directory's name holds a byte past ASCII still compiles
    its glue: the glue includes the header by its path as it is spelled,
@@ -721,6 +751,7 @@ let run () =
   interface_text ();
   interface_header ();
   glue_refusals ();
+  linker_sets ();
   glue_paths ();
   glue_prototypes ();
   asm_labels ();

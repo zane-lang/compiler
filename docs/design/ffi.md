@@ -513,14 +513,27 @@ Section names are not renamed, so a linker set is refused (`ffi.md` §2.5).
 Two versions that both place entries in a section named `plugins` would
 share one `__start_plugins`/`__stop_plugins` range, and the boundary
 symbols are undefined references, which keep their names. After F3 compiles
-a module, any global it places in an explicit section whose name is a C
-identifier, the only kind the linker makes `__start_`/`__stop_` symbols
-for, is an error naming the package, the section and the global. The same
-test is applied to the sections of an archive's members and of an object
-assembled from a module holding assembly, as LLVM's object reader names
-them, a Mach-O one as `SEGMENT,section`: an error naming the archive and
-its member, or the source, and the section. A section whose name
-is not a C identifier, such as `.text.hot` or `__DATA,__const`, is allowed.
+a module, any global it places in an explicit section that is a linker set
+in its object format's form (`Settings.is_linker_set`) is an error naming
+the package, the section and the global:
+
+- a name that is a C identifier, the only kind ELF's linker makes
+  `__start_`/`__stop_` symbols for;
+- a Mach-O `SEGMENT,section` either of whose names lacks the `__` Apple's
+  own take, since `ld64` gathers any section by name and names its range
+  `section$start$SEGMENT$section`;
+- a COFF grouped section `name$suffix`, which the linker gathers under
+  `name`, unless `name` is one the compiler, linker or C library groups
+  itself: `.text` (LLVM's MinGW output places a COMDAT function in
+  `.text$name`), `.data`, `.rdata`, `.bss`, `.xdata`, `.pdata`, `.tls`,
+  `.CRT` (constructors), `.idata` (import libraries), `.debug` (CodeView)
+  and the control-flow guard's tables.
+
+The same test is applied to the sections of an archive's members and of
+an object assembled from a module holding assembly, as LLVM's object
+reader names them, a Mach-O one as `SEGMENT,section`: an error naming the
+archive and its member, or the source, and the section. Any other section,
+such as `.text.hot`, `__DATA,__const` or `.rdata$zzz`, is allowed.
 A COFF object's linker directives, its `.drectve` section, are not
 renamed either: one naming a symbol the package renames, whichever of
 its sources, glue, archive members or assembled objects defines it, such

@@ -43,6 +43,36 @@ let is_identifier name =
   && (match name.[0] with 'a' .. 'z' | 'A' .. 'Z' | '_' -> true | _ -> false)
   && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' -> true | _ -> false) name
 
+(* The sections a COFF compiler, linker and C library group themselves:
+   `.text$name` for a function of its own, `.CRT$XCU` for a constructor,
+   `.idata$N` for an import library's tables, `.debug$S` for CodeView, and
+   the control-flow guard's tables. *)
+let coff_standard =
+  [ ".text"; ".data"; ".rdata"; ".bss"; ".xdata"; ".pdata"; ".tls"; ".CRT"; ".idata"; ".debug"; ".gfids"; ".giats"; ".gljmp"; ".gehcont" ]
+
+(* Whether the section [name], as C's `section` attribute names it, is a
+   linker set, which the linker gathers by its name from every object
+   into one range C can reach (spec ffi.md §2.5), in each object format's
+   form:
+   - a Mach-O section, `SEGMENT,section`, either of whose names lacks the
+     `__` Apple's own segments and sections take, since the linker gathers
+     any section by name and names its range
+     `section$start$SEGMENT$section`;
+   - a COFF grouped section, `name$suffix`, which the linker gathers under
+     `name`, ordered by suffix, unless `name` is a section the compiler or
+     the C library groups itself ([coff_standard]);
+   - otherwise a section named as a C identifier, whose range ELF's
+     linker names `__start_` and `__stop_` it. *)
+let is_linker_set name =
+  match String.index_opt name ',' with
+  | Some i ->
+      let segment = String.sub name 0 i and section = String.sub name (i + 1) (String.length name - i - 1) in
+      not (String.starts_with ~prefix:"__" segment && String.starts_with ~prefix:"__" section)
+  | None -> (
+      match String.index_opt name '$' with
+      | Some i -> not (List.mem (String.sub name 0 i) coff_standard)
+      | None -> is_identifier name)
+
 (* A `define` row's value: `NAME` or `NAME=VALUE`. *)
 let define_problem value =
   let name = match String.index_opt value '=' with Some i -> String.sub value 0 i | None -> value in
