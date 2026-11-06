@@ -130,7 +130,10 @@ placed ([`lowering.md`](lowering.md) §9). The limit is `Ty.limit` in
 
 A Windows program links with MinGW's C library and its POSIX threads,
 winpthreads, both of which `zig cc` carries; `ZANE_CC=dev/bin/zig-cc` links
-with it ([`lowering.md`](lowering.md) §7). The runtime differs there in five
+with it ([`lowering.md`](lowering.md) §7). It also compiles the runtime's
+bitcode, whose bodies an optimized build inlines, so the `zig` is the release
+whose clang has the compiler's own LLVM version (`pixi.toml`): bitcode from a
+newer LLVM is bitcode the compiler cannot read. The runtime differs there in five
 places, each marked `_WIN32`: a dynamic chunk is carved from a 64 MiB
 reservation, decommitted with `VirtualFree(MEM_DECOMMIT)` when it turns
 cold, and released with its whole reservation

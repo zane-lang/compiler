@@ -3,7 +3,9 @@
 # `pixi run` (README.md, "Setup"). `pixi run setup` provisions the OCaml packages
 # into a local opam switch once; activation (dev/setup/activate.*) then puts
 # the switch and the variables the build reads in place. LLVM is 21 because
-# conda-forge's macOS OCaml requires clang, lld and llvm-tools >= 21.
+# conda-forge's macOS OCaml requires clang, lld and llvm-tools >= 21, and zig
+# is the release whose clang is LLVM 21's too, so the runtime's bitcode it
+# compiles on Windows is bitcode the compiler's LLVM reads.
 
 [workspace]
 name = "zane-compiler"
@@ -24,7 +26,7 @@ make = "*"
 pkg-config = "*"
 zstd = "*"
 zlib = "*"
-zig = "0.17.0.*"
+zig = "0.16.0.*"
 just = "*"
 python = "3.13.*"
 nodejs = "*"
