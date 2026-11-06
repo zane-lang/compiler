@@ -356,6 +356,92 @@ let interface_header () =
           check "long is 32 bits on Windows"
             (match table (Some "x86_64-windows-gnu") with Some w -> long_size w = 32 | None -> false))
 
+(* [f] given a `zig cc` command: Mach-O's C headers come from it, which
+   carries them, as a C compiler with no macOS SDK beside it has none. On
+   Windows the compiler runs it through cmd.exe, so it is a batch file. *)
+let with_zig_cc f =
+  let zig =
+    Filename.concat (Filename.get_temp_dir_name ())
+      (Printf.sprintf "zane-zig-cc-%d%s" (Unix.getpid ()) (if Sys.win32 then ".cmd" else ""))
+  in
+  Out_channel.with_open_bin zig (fun oc ->
+      output_string oc
+        (if Sys.win32 then "@echo off\r\nif defined ZIG (\"%ZIG%\" cc %*) else (zig cc %*)\r\n"
+         else "#!/bin/sh\nexec \"${ZIG:-zig}\" cc \"$@\"\n"));
+  Unix.chmod zig 0o755;
+  Fun.protect ~finally:(fun () -> Sys.remove zig) (fun () -> f zig)
+
+(* `ZANE_ALIAS` (zane_ffi.h) makes the declaration it marks an alias of its
+   target, the same on an ELF target and on Mach-O, whose C has no `alias`
+   attribute, and the declaration's uses become the alias's. A mark is
+   refused where it is written unless it is on a declaration of a function
+   or variable the source does not define, naming one of the same kind it
+   defines with external linkage. *)
+let zane_aliases () =
+  let base = Filename.temp_dir "zane-alias-" "" in
+  Fun.protect ~finally:(fun () -> remove_tree base) @@ fun () ->
+  let count = ref 0 in
+  let compiled ~cc ~target text =
+    incr count;
+    let dir = Filename.concat base (Printf.sprintf "p%d" !count) in
+    Sys.mkdir dir 0o755;
+    write_all (Filename.concat dir "a.c") ("#include <zane_ffi.h>\n" ^ text);
+    Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:(Some target) [ dir ]
+  in
+  let ir bitcode =
+    let ctx = Llvm.create_context () in
+    Fun.protect ~finally:(fun () -> Llvm.dispose_context ctx) @@ fun () ->
+    let m = Llvm_bitreader.parse_bitcode ctx (Llvm.MemoryBuffer.of_string bitcode) in
+    let text = Llvm.string_of_llmodule m in
+    Llvm.dispose_module m;
+    text
+  in
+  let has text part =
+    let n = String.length part in
+    let rec at i = i + n <= String.length text && (String.sub text i n = part || at (i + 1)) in
+    at 0
+  in
+  let source =
+    "int64_t helper(void) { return 2; }\n\
+     int64_t named(void) ZANE_ALIAS(\"helper\");\n\
+     int64_t through(void) { return named(); }\n\
+     int64_t value = 1;\n\
+     extern int64_t other ZANE_ALIAS(\"value\");\n\
+     int64_t *other_address(void) { return &other; }\n"
+  in
+  let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+  let aliased ~cc target =
+    match compiled ~cc ~target source with
+    | Ok [ { Foreign.sources = [ s ]; _ } ] ->
+        let text = ir s.Compile.bitcode in
+        check (target ^ ": a marked function is an alias of its target") (has text "@named = alias i64 (), ptr @helper");
+        check (target ^ ": a marked variable is an alias of its target") (has text "@other = alias i64, ptr @value");
+        check (target ^ ": a call through the name is the alias's")
+          (has text "call i64 @named()" && not (has text "declare i64 @named"))
+    | _ -> check (target ^ ": a source with ZANE_ALIAS compiles") false
+  in
+  aliased ~cc "x86_64-unknown-linux-gnu";
+  with_zig_cc (fun zig -> aliased ~cc:zig "aarch64-macos");
+  let refused name text why =
+    match compiled ~cc ~target:"x86_64-unknown-linux-gnu" text with
+    | Error { Foreign.diagnostics = [ d ]; _ } ->
+        check name
+          (has d.Diagnostic.message why
+          && match d.Diagnostic.location with
+             | Diagnostic.Location.Span sp -> sp.Source.Span.start_.Lexing.pos_lnum = 3
+             | _ -> false)
+    | _ -> check name false
+  in
+  refused "a mark naming nothing the source defines is refused at the mark"
+    "int64_t helper(void);\nint64_t named(void) ZANE_ALIAS(\"helper\");\n" "does not define";
+  refused "a mark naming a local function is refused"
+    "static int64_t helper(void) { return 2; }\nint64_t named(void) ZANE_ALIAS(\"helper\");\n" "internal linkage";
+  refused "a mark naming a variable for a function is refused"
+    "int64_t helper = 2;\nint64_t named(void) ZANE_ALIAS(\"helper\");\n" "does not define";
+  refused "a mark on a definition is refused"
+    "int64_t helper(void) { return 2; }\nint64_t named(void) ZANE_ALIAS(\"helper\");\nint64_t named(void) { return 1; }\n"
+    "defined here too"
+
 (* A function an interface header defines is compiled in the glue, and
    one holding assembly, or a global the header places in a linker set, is
    refused there, naming the header. *)
@@ -387,19 +473,7 @@ let glue_refusals () =
     "__attribute__((used, section(\"plugins\"))) static const int entry = 1;\n\
      extern const int __start_plugins, __stop_plugins;\n\
      int fenced(void) { return &__stop_plugins - &__start_plugins; }\n";
-  (* Mach-O's C headers come from `zig cc`, which carries them, as a C
-     compiler with no macOS SDK beside it has none. *)
-  (* On Windows the compiler runs it through cmd.exe, so it is a batch file. *)
-  let zig =
-    Filename.concat (Filename.get_temp_dir_name ())
-      (Printf.sprintf "zane-zig-cc-%d%s" (Unix.getpid ()) (if Sys.win32 then ".cmd" else ""))
-  in
-  Out_channel.with_open_bin zig (fun oc ->
-      output_string oc
-        (if Sys.win32 then "@echo off\r\nif defined ZIG (\"%ZIG%\" cc %*) else (zig cc %*)\r\n"
-         else "#!/bin/sh\nexec \"${ZIG:-zig}\" cc \"$@\"\n"));
-  Unix.chmod zig 0o755;
-  Fun.protect ~finally:(fun () -> Sys.remove zig) @@ fun () ->
+  with_zig_cc @@ fun zig ->
   refused ~cc:zig ~target:"aarch64-macos" "a header's global in a Mach-O linker set is refused in its glue, naming the header"
     "__attribute__((used, section(\"__DATA,plugins\"))) static const int entry = 1;\n\
      extern const int start __asm(\"section$start$__DATA$plugins\");\n\
@@ -762,6 +836,7 @@ let run () =
   interface_text ();
   interface_header ();
   glue_refusals ();
+  zane_aliases ();
   linker_sets ();
   glue_paths ();
   glue_prototypes ();

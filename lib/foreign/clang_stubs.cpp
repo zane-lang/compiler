@@ -10,6 +10,7 @@
    each with the file, line and column it points at. */
 
 #include "clang/AST/ASTConsumer.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/RecordLayout.h"
@@ -21,11 +22,13 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendActions.h"
+#include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/Frontend/Utils.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/LLVMContext.h"
@@ -428,19 +431,138 @@ private:
   std::string &out;
 };
 
+/* A declaration `ZANE_ALIAS` marks (zane_ffi.h): its name, and the name of
+   the function or variable it is another name for. */
+struct Marked_alias {
+  std::string name, target;
+};
+
+/* What the source's `ZANE_ALIAS` marks name, each refused with an error
+   where it is written unless it is a declaration of a function or variable,
+   not its definition, whose target is defined in the source with external
+   linkage and is of the same kind. Each declaration of a name counts once,
+   since a redeclaration inherits the mark. */
+class Alias_marks : public clang::ASTConsumer {
+public:
+  explicit Alias_marks(std::vector<Marked_alias> &marks) : marks(marks) {}
+
+  bool HandleTopLevelDecl(clang::DeclGroupRef group) override {
+    for (clang::Decl *d : group) {
+      auto *named = llvm::dyn_cast<clang::DeclaratorDecl>(d);
+      if (!named) continue;
+      for (const auto *a : named->specific_attrs<clang::AnnotateAttr>()) {
+        llvm::StringRef text = a->getAnnotation();
+        if (text.consume_front("zane.alias=") && seen.insert(named->getName().str()).second)
+          found.push_back({ named, text.str(), a->getLocation() });
+      }
+    }
+    return true;
+  }
+
+  void HandleTranslationUnit(clang::ASTContext &context) override {
+    clang::DiagnosticsEngine &diagnostics = context.getDiagnostics();
+    unsigned error = diagnostics.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0");
+    for (const Found &f : found) {
+      auto refuse = [&](const std::string &why) { diagnostics.Report(f.at, error) << why; };
+      bool function = llvm::isa<clang::FunctionDecl>(f.decl);
+      if (!function && !llvm::isa<clang::VarDecl>(f.decl)) {
+        refuse("ZANE_ALIAS marks a declaration of a function or a variable");
+        continue;
+      }
+      bool defined = function ? llvm::cast<clang::FunctionDecl>(f.decl)->isDefined()
+                              : llvm::cast<clang::VarDecl>(f.decl)->hasDefinition() != clang::VarDecl::DeclarationOnly;
+      if (defined) {
+        refuse("`" + f.decl->getName().str() + "`, which ZANE_ALIAS makes another name, is defined here too");
+        continue;
+      }
+      const clang::NamedDecl *target = nullptr;
+      for (const clang::NamedDecl *t :
+           context.getTranslationUnitDecl()->lookup(&context.Idents.get(f.target)))
+        if (function ? llvm::isa<clang::FunctionDecl>(t) : llvm::isa<clang::VarDecl>(t)) target = t;
+      bool target_defined =
+          target && (function ? llvm::cast<clang::FunctionDecl>(target)->isDefined()
+                              : llvm::cast<clang::VarDecl>(target)->hasDefinition() != clang::VarDecl::DeclarationOnly);
+      if (!target_defined) {
+        refuse("ZANE_ALIAS names `" + f.target + "`, which this source does not define as a " +
+               (function ? "function" : "variable"));
+        continue;
+      }
+      if (!target->isExternallyVisible()) {
+        refuse("ZANE_ALIAS names `" + f.target + "`, which has internal linkage");
+        continue;
+      }
+      marks.push_back({ f.decl->getName().str(), f.target });
+    }
+  }
+
+private:
+  struct Found {
+    const clang::DeclaratorDecl *decl;
+    std::string target;
+    clang::SourceLocation at;
+  };
+  std::vector<Marked_alias> &marks;
+  std::vector<Found> found;
+  std::set<std::string> seen;
+};
+
+/* The module a source compiles to, as `EmitLLVMOnlyAction` makes it, with
+   the source's `ZANE_ALIAS` marks read beside it. */
+class Compile_with_aliases : public clang::EmitLLVMOnlyAction {
+public:
+  Compile_with_aliases(llvm::LLVMContext *context, std::vector<Marked_alias> &marks)
+      : clang::EmitLLVMOnlyAction(context), marks(marks) {}
+
+protected:
+  std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &ci, llvm::StringRef file) override {
+    std::vector<std::unique_ptr<clang::ASTConsumer>> both;
+    both.push_back(clang::EmitLLVMOnlyAction::CreateASTConsumer(ci, file));
+    both.push_back(std::make_unique<Alias_marks>(marks));
+    return std::make_unique<clang::MultiplexConsumer>(std::move(both));
+  }
+
+private:
+  std::vector<Marked_alias> &marks;
+};
+
+/* Each mark made an alias in [module], as the `alias` attribute makes one
+   on the targets that have it: the name's declaration, where the source
+   uses it, gives its uses to the alias. Mach-O's C has no `alias`, and an
+   alias in LLVM is one on every target. */
+void make_aliases(llvm::Module &module, const std::vector<Marked_alias> &marks) {
+  for (const Marked_alias &m : marks) {
+    /* A target the source defines but clang emits no body for, as C99's
+       `inline` alone, is left out, and the link names what is missing. */
+    llvm::GlobalValue *target = module.getNamedValue(m.target);
+    if (!target || target->isDeclaration()) continue;
+    auto *alias = llvm::GlobalAlias::create(target->getValueType(), target->getAddressSpace(),
+                                            llvm::GlobalValue::ExternalLinkage, "", target, &module);
+    if (llvm::GlobalValue *declared = module.getNamedValue(m.name)) {
+      declared->replaceAllUsesWith(alias);
+      alias->takeName(declared);
+      declared->eraseFromParent();
+    } else {
+      alias->setName(m.name);
+    }
+  }
+}
+
 } // namespace
 
-/* The module the command line's one source compiles to, as bitcode. */
+/* The module the command line's one source compiles to, as bitcode, with
+   an alias for each declaration `ZANE_ALIAS` marks. */
 extern "C" value zane_clang_compile(value args) {
   CAMLparam1(args);
   std::vector<std::string> owned = strings_of(args);
   std::string bitcode;
   Run r = run(owned, [&](clang::CompilerInstance &ci) {
     llvm::LLVMContext context;
-    clang::EmitLLVMOnlyAction action(&context);
-    if (!ci.ExecuteAction(action)) return false;
+    std::vector<Marked_alias> marks;
+    Compile_with_aliases action(&context, marks);
+    if (!ci.ExecuteAction(action) || ci.getDiagnostics().hasErrorOccurred()) return false;
     std::unique_ptr<llvm::Module> module = action.takeModule();
     if (!module) return false;
+    make_aliases(*module, marks);
     llvm::raw_string_ostream os(bitcode);
     llvm::WriteBitcodeToFile(*module, os);
     os.flush();

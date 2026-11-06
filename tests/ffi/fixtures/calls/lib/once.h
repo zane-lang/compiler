@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <zane_ffi.h>
 
 long long once_count = 4;
 long long once(long long x) { return x + once_count; }
@@ -64,11 +65,7 @@ __attribute__((constructor)) void once_external_setup(void) { once_external_setu
 __attribute__((destructor)) void once_external_teardown(void) {}
 long long once_external_runs(void) { return once_external_setups; }
 
-#ifdef __APPLE__
-long long once_alias(long long x) { return once(x); }
-#else
-long long once_alias(long long x) __attribute__((alias("once")));
-#endif
+long long once_alias(long long x) ZANE_ALIAS("once");
 
 #if defined(__GLIBC__) && defined(__x86_64__)
 static long long (*once_resolve(void))(long long) { return once; }

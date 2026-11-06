@@ -355,9 +355,21 @@ symbol with `%c$` and its C name after it: `!zlib$%c$deflate` in a
 library, `viewer$%c$deflate` in a program. Renaming a global in its module
 renames its uses with it. The global values are the functions and
 variables, and also the aliases and indirect functions that
-`__attribute__((alias))` and `__attribute__((ifunc))` define, which
-LLVM keeps as global values of their own: an alias exported under its
-C name would meet the same alias from another version of the package.
+`__attribute__((alias))`, `ZANE_ALIAS` and `__attribute__((ifunc))`
+define, which LLVM keeps as global values of their own: an alias exported
+under its C name would meet the same alias from another version of the
+package.
+
+`<zane_ffi.h>`'s `ZANE_ALIAS("target")` after a declaration is an alias
+on every target, Mach-O's among them, whose C has no `alias` attribute. It
+marks the declaration with an annotation, and the compile that turns a
+source into its module (`lib/foreign/clang_stubs.cpp`) makes each marked
+name an LLVM alias of its target once clang has emitted the module,
+giving it the declaration's uses. The front end refuses a mark, where it is
+written, unless it is on a declaration of a function or variable that the
+source does not define, and the source defines its target, of the same
+kind, with external linkage.
+
 An `available_externally` definition, such as the inline copy of `atoi`
 glibc's `<stdlib.h>` can give, is not one the package defines: it stands
 for the C library's symbol, keeps its name, and is never a definition that
