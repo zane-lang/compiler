@@ -26,8 +26,8 @@
 
    Clang's and LLD's headers and libraries are taken from beside the
    `ld.lld` in LLVM's own bin directory where it has one, as in one conda
-   environment, and from beside the `ld.lld` on PATH otherwise, as in the
-   devbox profile, which keeps them apart from LLVM's. *)
+   environment, and from beside the `ld.lld` on PATH otherwise, where an
+   installation keeps them apart from LLVM's. *)
 
 let llvm_config = match Sys.getenv_opt "LLVM_CONFIG" with Some p when p <> "" -> p | _ -> "llvm-config"
 

@@ -39,8 +39,8 @@ def menhir_binary() -> str:
     found = os.environ.get("AMBIGUITY_MENHIR") or shutil.which("menhir")
     if found is None:
         sys.exit(
-            "menhir not found on PATH; enter the devbox shell first "
-            "(devbox shell, or devbox run -- ...)"
+            "menhir not found on PATH; enter the pixi environment first "
+            "(pixi shell, or pixi run ...)"
         )
     return found
 

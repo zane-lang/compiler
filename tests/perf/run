@@ -236,7 +236,7 @@ def main():
     if not Path(zanec).exists():
         sys.exit(f"no compiler at {zanec}: dune build bin/zanec/zanec.exe")
     if shutil.which("valgrind") is None:
-        sys.exit("valgrind is not on PATH; run this inside the devbox (Linux only)")
+        sys.exit("valgrind is not on PATH; run this in the pixi environment (Linux only)")
     names = options.names or programs()
     unknown = [n for n in names if n not in programs()]
     if unknown:

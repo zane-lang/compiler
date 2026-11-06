@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Idempotently provision the OCaml packages the project builds with.
 #
-# The environment (pixi's, through `pixi run setup`, or devbox's shell)
+# The pixi environment, through `pixi run setup`,
 # supplies opam and the system OCaml compiler; dune, menhir, sedlex, uucp
 # and uuseg are opam packages, installed here into a switch in the
 # repository's directory, so a fresh environment has none of them on PATH
