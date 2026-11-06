@@ -1,6 +1,5 @@
 _build/
 __pycache__/
-.devbox/
 _opam/
 .claude/settings.local.json
 dev/machine-config.txt

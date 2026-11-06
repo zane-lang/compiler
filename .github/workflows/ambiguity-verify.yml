@@ -57,9 +57,8 @@ jobs:
         if: steps.suites.outputs.formal == 'true'
         uses: ./.github/actions/setup-ci
 
-      # elan's own toolchains, which run on the bare runner. The devbox ones
-      # were patched to load the glibc of a Nix store, so their caches, under
-      # `lean-<os>-`, are kept out of these keys.
+      # elan's own toolchains, which run on the bare runner, outside the pixi
+      # environment.
       - name: Restore the Lean build
         if: steps.suites.outputs.formal == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
