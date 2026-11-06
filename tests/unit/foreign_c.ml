@@ -348,7 +348,8 @@ let interface_header () =
             | Some { I.ty = I.Function { result = I.Int { size; _ }; _ }; _ } -> size
             | _ -> 0
           in
-          check "long is 64 bits on Linux" (long_size t = 64);
+          check "long is 64 bits on Linux"
+            (match table (Some "x86_64-linux-gnu") with Some l -> long_size l = 64 | None -> false);
           check "long is 32 bits on Windows"
             (match table (Some "x86_64-windows-gnu") with Some w -> long_size w = 32 | None -> false))
 
