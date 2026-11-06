@@ -832,8 +832,13 @@ writes out each function and global the evaluator reaches, once, as text
 `c_ir.ml` reads, with every offset already computed from the data layout:
 a `getelementptr` as a base, a constant offset and a scale for each
 variable index, a struct field at its offset, and a `byval` argument's
-size. A function that is only declared, or that the linker may replace,
-has no body there.
+size. A `dead_on_return` argument, a large aggregate an ABI such as
+AArch64's passes by the address of a copy the caller makes, is copied for
+the call as a `byval` one is, so on every target the callee's parameter
+ends when it returns. A math function a target compiles to an intrinsic,
+as macOS's `llvm.sin` for `sin`, is the call it stands for. A function
+that is only declared, or that the linker may replace, has no body
+there.
 
 Each fold's C starts from the state a run of the program starts its Zane
 code in: the module's globals made from their initializers as the fold

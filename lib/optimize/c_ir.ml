@@ -49,7 +49,7 @@ type op =
   (* [base] plus [offset] plus each index, of its width, times its scale. *)
   | Gep of { base : operand; offset : int64; terms : (operand * int * int64) list }
   | Phi of (int * operand) list
-  | Call of { callee : callee; args : (int * operand) list (* a `byval` argument's size, else -1 *) }
+  | Call of { callee : callee; args : (int * operand) list (* a `byval` argument's size, -2 for a `dead_on_return` one, else -1 *) }
   | Extract of { indices : int list; agg : operand }
   | Insert of { indices : int list; agg : operand; value : operand }
   | Shuffle of { a : operand; b : operand; mask : int array }

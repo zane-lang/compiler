@@ -151,7 +151,10 @@ let compiled () =
       in
       (match (keys one, keys two) with
       | Some (k1, b1), Some (k2, _) ->
-          check "a C source compiles to bitcode" (String.length b1 > 4 && String.sub b1 0 2 = "BC");
+          (* Bitcode starts `BC`, or, for a Darwin target, inside LLVM's
+             wrapper, which starts 0x0B17C0DE, little-endian. *)
+          check "a C source compiles to bitcode"
+            (String.length b1 > 4 && (String.sub b1 0 2 = "BC" || String.sub b1 0 4 = "\xde\xc0\x17\x0b"));
           check "a source's key does not depend on its directory" (k1 = k2)
       | _ -> check "a C source compiles" false);
       (* The key is made from the preprocessed text, so it holds the body:
