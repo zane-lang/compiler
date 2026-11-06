@@ -373,7 +373,8 @@ on every target, Mach-O's among them, whose C has no `alias` attribute. It
 marks the declaration with an annotation, and the compile that turns a
 source into its module (`lib/foreign/clang_stubs.cpp`) makes each marked
 name an LLVM alias of its target once clang has emitted the module,
-giving it the declaration's uses. The front end refuses a mark, where it is
+giving it the declaration's uses and its linkage: a `static` declaration's
+alias is internal, as the `alias` attribute makes it. The front end refuses a mark, where it is
 written, unless it is on a declaration of a function or variable that the
 source does not define, and the source defines its target, of the same
 kind, with external linkage.

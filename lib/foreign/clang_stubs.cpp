@@ -434,10 +434,12 @@ private:
   std::string &out;
 };
 
-/* A declaration `ZANE_ALIAS` marks (zane_ffi.h): its name, and the name of
-   the function or variable it is another name for. */
+/* A declaration `ZANE_ALIAS` marks (zane_ffi.h): its name, the name of
+   the function or variable it is another name for, and whether the name has
+   external linkage, which a `static` declaration's has not. */
 struct Marked_alias {
   std::string name, target;
+  bool external;
 };
 
 /* What the source's `ZANE_ALIAS` marks name, each refused with an error
@@ -494,7 +496,7 @@ public:
         refuse("ZANE_ALIAS names `" + f.target + "`, which has internal linkage");
         continue;
       }
-      marks.push_back({ f.decl->getName().str(), f.target });
+      marks.push_back({ f.decl->getName().str(), f.target, f.decl->isExternallyVisible() });
     }
   }
 
@@ -533,7 +535,9 @@ private:
 
 /* Each mark made an alias in [module], as the `alias` attribute makes one
    on the targets that have it: the name's declaration, where the source
-   uses it, gives its uses to the alias. Mach-O's C has no `alias`, and an
+   uses it, gives its uses to the alias, and the alias has the declaration's
+   linkage, internal for a `static` one, so two sources can each have one
+   of the same name. Mach-O's C has no `alias`, and an
    alias in LLVM is one on every target. */
 void make_aliases(llvm::Module &module, const std::vector<Marked_alias> &marks) {
   for (const Marked_alias &m : marks) {
@@ -542,7 +546,9 @@ void make_aliases(llvm::Module &module, const std::vector<Marked_alias> &marks) 
     llvm::GlobalValue *target = module.getNamedValue(m.target);
     if (!target || target->isDeclaration()) continue;
     auto *alias = llvm::GlobalAlias::create(target->getValueType(), target->getAddressSpace(),
-                                            llvm::GlobalValue::ExternalLinkage, "", target, &module);
+                                            m.external ? llvm::GlobalValue::ExternalLinkage
+                                                       : llvm::GlobalValue::InternalLinkage,
+                                            "", target, &module);
     if (llvm::GlobalValue *declared = module.getNamedValue(m.name)) {
       declared->replaceAllUsesWith(alias);
       alias->takeName(declared);

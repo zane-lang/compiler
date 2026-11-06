@@ -358,7 +358,8 @@ let interface_header () =
 
 (* `ZANE_ALIAS` (zane_ffi.h) makes the declaration it marks an alias of its
    target, the same on an ELF target and on Mach-O, whose C has no `alias`
-   attribute, and the declaration's uses become the alias's. A mark is
+   attribute, and the declaration's uses become the alias's. The alias has
+   the declaration's linkage, internal for a `static` one. A mark is
    refused where it is written unless it is on a declaration of a function
    or variable the source does not define, naming one of the same kind it
    defines with external linkage. *)
@@ -392,7 +393,9 @@ let zane_aliases () =
      int64_t through(void) { return named(); }\n\
      int64_t value = 1;\n\
      extern int64_t other ZANE_ALIAS(\"value\");\n\
-     int64_t *other_address(void) { return &other; }\n"
+     int64_t *other_address(void) { return &other; }\n\
+     static int64_t local(void) ZANE_ALIAS(\"helper\");\n\
+     int64_t through_local(void) { return local(); }\n"
   in
   let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
   let aliased ~cc target =
@@ -401,6 +404,7 @@ let zane_aliases () =
         let text = ir s.Compile.bitcode in
         check (target ^ ": a marked function is an alias of its target") (has text "@named = alias i64 (), ptr @helper");
         check (target ^ ": a marked variable is an alias of its target") (has text "@other = alias i64, ptr @value");
+        check (target ^ ": a static marked name is an internal alias") (has text "@local = internal alias i64 (), ptr @helper");
         check (target ^ ": a call through the name is the alias's")
           (has text "call i64 @named()" && not (has text "declare i64 @named"))
     | _ -> check (target ^ ": a source with ZANE_ALIAS compiles") false
