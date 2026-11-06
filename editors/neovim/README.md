@@ -73,5 +73,5 @@ then restart Neovim: a loaded parser cannot be replaced).
 | `tree-sitter-zane/` | In `zane-nvim` only: the generated grammar and the shared query, from `editors/tree-sitter-zane` |
 
 The generated files come from `python3 -m tools.grammar`; see
-[`grammar/README.md`](../../grammar/README.md). Without nvim-treesitter, build
+[`grammar/README.md`](https://github.com/zane-lang/compiler/blob/main/grammar/README.md). Without nvim-treesitter, build
 the parser by hand as that guide describes.
