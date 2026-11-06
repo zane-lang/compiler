@@ -46,7 +46,7 @@
  (action
   (with-stdout-to
    geometry.symbols.actual
-   (system "nm --defined-only %{dep:geometry.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "nm --defined-only %{dep:geometry.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -57,7 +57,7 @@
  (action
   (with-stdout-to
    atlas.symbols.actual
-   (system "nm --defined-only %{dep:atlas.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "nm --defined-only %{dep:atlas.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -102,7 +102,7 @@
  (action
   (with-stdout-to
    survey.symbols.actual
-   (system "nm %{dep:survey.o} | sed 's/^ *[0-9a-f]* //' | grep -v ' [.]L' | LC_ALL=C sort"))))
+   (run sh -c "nm %{dep:survey.o} | sed 's/^ *[0-9a-f]* //' | grep -v ' [.]L' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -173,13 +173,13 @@
  (action
   (with-stdout-to
    geometry.rewritten.symbols
-   (system "nm --defined-only %{dep:geometry.rewritten.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "nm --defined-only %{dep:geometry.rewritten.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (action
   (with-stdout-to
    geometry.stamped.symbols
-   (system "nm --defined-only %{dep:geometry.stamped.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "nm --defined-only %{dep:geometry.stamped.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -255,12 +255,12 @@
 (rule
  (action
   (with-stdout-to geometry.macos-x86_64.rewritten.symbols
-   (system "llvm-nm -m %{dep:geometry.macos-x86_64.rewritten.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm -m %{dep:geometry.macos-x86_64.rewritten.o} | LC_ALL=C sort"))))
 
 (rule
  (action
   (with-stdout-to geometry.macos-x86_64.stamped.symbols
-   (system "llvm-nm -m %{dep:geometry.macos-x86_64.stamped.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm -m %{dep:geometry.macos-x86_64.stamped.o} | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -286,12 +286,12 @@
 (rule
  (action
   (with-stdout-to geometry.macos-arm64.rewritten.symbols
-   (system "llvm-nm -m %{dep:geometry.macos-arm64.rewritten.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm -m %{dep:geometry.macos-arm64.rewritten.o} | LC_ALL=C sort"))))
 
 (rule
  (action
   (with-stdout-to geometry.macos-arm64.stamped.symbols
-   (system "llvm-nm -m %{dep:geometry.macos-arm64.stamped.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm -m %{dep:geometry.macos-arm64.stamped.o} | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -313,12 +313,12 @@
 (rule
  (action
   (with-stdout-to geometry.windows-x86_64.rewritten.symbols
-   (system "llvm-nm %{dep:geometry.windows-x86_64.rewritten.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm %{dep:geometry.windows-x86_64.rewritten.o} | LC_ALL=C sort"))))
 
 (rule
  (action
   (with-stdout-to geometry.windows-x86_64.stamped.symbols
-   (system "llvm-nm %{dep:geometry.windows-x86_64.stamped.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm %{dep:geometry.windows-x86_64.stamped.o} | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -344,12 +344,12 @@
 (rule
  (action
   (with-stdout-to geometry.windows-arm64.rewritten.symbols
-   (system "llvm-nm %{dep:geometry.windows-arm64.rewritten.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm %{dep:geometry.windows-arm64.rewritten.o} | LC_ALL=C sort"))))
 
 (rule
  (action
   (with-stdout-to geometry.windows-arm64.stamped.symbols
-   (system "llvm-nm %{dep:geometry.windows-arm64.stamped.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm %{dep:geometry.windows-arm64.stamped.o} | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -462,7 +462,7 @@
  (action
   (with-stdout-to
    versions.atlas.remapped.left
-   (system "nm %{dep:versions.atlas.remapped.o} > versions.atlas.remapped.nm && { grep -c 'v1[.]0%0123456789abcdef%' versions.atlas.remapped.nm; test $? -le 1; }"))))
+   (run sh -c "nm %{dep:versions.atlas.remapped.o} > versions.atlas.remapped.nm && { grep -c 'v1[.]0%0123456789abcdef%' versions.atlas.remapped.nm; test $? -le 1; }"))))
 
 (rule
  (alias runtest)
@@ -538,7 +538,7 @@
  (action
   (with-stdout-to
    layout.symbols.actual
-   (system "nm --defined-only %{dep:layout.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "nm --defined-only %{dep:layout.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -555,7 +555,7 @@
  (action
   (with-stdout-to
    layout.stamped.symbols.actual
-   (system "nm --defined-only %{dep:layout.stamped.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "nm --defined-only %{dep:layout.stamped.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -679,7 +679,7 @@
  (action
   (with-stdout-to
    atlas.stamped-root.symbols.actual
-   (system "nm --defined-only %{dep:atlas.stamped-root.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "nm --defined-only %{dep:atlas.stamped-root.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -735,7 +735,7 @@
  (action
   (with-stdout-to
    largeparam.symbols.actual
-   (system "nm --defined-only %{dep:largeparam.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "nm --defined-only %{dep:largeparam.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
