@@ -1017,7 +1017,7 @@ maps no chunk and drains inline.
 - **Where:** `lib/codegen/build.ml`, `runtime/zane_internal.h`
 - **Design:** [`design/lowering.md`](design/lowering.md) §7
 - **Effect:** `tests/perf` `returns` 10% fewer estimated cycles optimized,
-  `texts` 6%, under the devbox's hardened clang; with the runtime inlined,
+  `texts` 6%, under a hardened clang; with the runtime inlined,
   `texts` 3% more
 
 The runtime is compiled without clearing the registers a function used

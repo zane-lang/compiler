@@ -657,8 +657,8 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
 (* What the runtime is compiled with besides [flags], whatever the C
    compiler would add by itself: no clearing of the registers a function
    used before it returns, and, but on Apple's targets, whose ABI keeps
-   them, no frame pointers. Some toolchains add both by default, Nix's
-   hardened clang among them, and they cost the runtime's small, hot
+   them, no frame pointers. Some toolchains add both by default, hardened
+   distribution clangs among them, and they cost the runtime's small, hot
    functions more than anything else in them (docs/optimizations.md). *)
 let tuning ~triple =
   let coff = List.mem "windows" (String.split_on_char '-' triple) in

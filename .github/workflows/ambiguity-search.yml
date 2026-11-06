@@ -22,7 +22,7 @@ on:
         required: false
         type: string
       timeout:
-        # The job is hard-stopped after 45 minutes, and checkout, Devbox, the
+        # The job is hard-stopped after 45 minutes, and checkout, the pixi environment, the
         # opam bootstrap, the build and the report upload all come out of that
         # budget. The offered values leave room for a cold setup, so a search
         # is never killed before it can emit its report.

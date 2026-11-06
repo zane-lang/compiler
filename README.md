@@ -78,29 +78,11 @@ Typst. See that guide for generation, installation and validation commands.
 
 ## Setup
 
-To setup this project in a new environment or sandbox, install
-[Devbox](https://www.jetify.com/devbox). Prefer a package manager, for example:
-
-```sh
-nix profile install nixpkgs#devbox
-```
-
-If you install from a release instead, download the archive and verify its
-checksum before running anything from it, rather than piping the installer
-straight into a shell:
-
-```sh
-version=0.17.2
-base="https://releases.jetify.com/devbox/stable/$version"
-archive="devbox_${version}_linux_amd64.tar.gz"
-curl -fsSLO "$base/$archive"
-curl -fsSLO "$base/checksums.txt"
-checksum="$(grep -F -- "$archive" checksums.txt)" ||
-  { echo "no checksum listed for $archive" >&2; exit 1; }
-printf '%s\n' "$checksum" | sha256sum --check --status
-tar -xzf "$archive" devbox
-install -m 0755 devbox /usr/local/bin/devbox
-```
+One [pixi](https://pixi.sh) environment, from `pixi.toml` and `pixi.lock`,
+holds the whole toolchain on Linux (x86-64), macOS (Apple Silicon and Intel)
+and Windows (x86-64): OCaml, opam, LLVM and clang 21, LLD, zig, `just`,
+Python, Node and the rest. The lock file pins every package, so each machine
+builds with the same versions.
 
 The compiler reads Coda files with Coda's own binding, which `vendor/coda`
 holds as a Git submodule. Clone with `--recurse-submodules`, or fetch it in
@@ -110,19 +92,76 @@ an existing clone:
 git submodule update --init
 ```
 
-Then enter the project development shell:
+### Install pixi
+
+On Linux and macOS, install pixi with its
+[installer or a package manager](https://pixi.sh/latest/installation/), for
+example `brew install pixi`, or download the release archive for your
+platform from [pixi's releases](https://github.com/prefix-dev/pixi/releases)
+and check it against the `.sha256` file beside it before unpacking it into a
+directory on `PATH`.
+
+On Windows, install it with `winget install prefix-dev.pixi`, or from the
+same releases page.
+
+### Windows: the C++ tools
+
+On Windows, OCaml is the MSVC build, and its C and linking steps use MSVC's
+`cl` and `link`. Install [Visual Studio or the Build
+Tools](https://visualstudio.microsoft.com/downloads/) with the **Desktop
+development with C++** workload (the `Microsoft.VisualStudio.Component.VC.Tools.x86.x64`
+component). Activation (`dev/setup/activate.bat`) finds the newest
+installation with `vswhere`, which the installer provides, and loads its
+`vcvars64.bat`, so nothing more is configured by hand; in a developer
+prompt, where `cl` is already on `PATH`, it leaves the prompt as it is.
+Everything else comes from the pixi environment. `git` is needed to clone
+the repository and its submodule.
+
+### Provision the environment
 
 ```sh
-devbox shell
+pixi run setup
 ```
 
-The shell provides the compiler toolchain and adds `dev/bin` to `PATH`. It
-sets `ZANE_CC` to `dev/bin/clang-lld`, whose linker is LLVM's `lld`, unless
-`ZANE_CC` is already set, so `zanec` links with the `lld` built into it. Set
-`ZANE_VERBOSE` to have a build say why it links through the C compiler
-instead.
-For regeneration and `just test`, also install Node/npm and the pinned grammar
-generator dependencies as described in [`grammar/README.md`](grammar/README.md).
+This installs the environment and then builds the project's opam switch (the
+OCaml packages `dev/setup/bootstrap-toolchain` pins: dune, menhir, sedlex and
+the rest) in `_opam/`. Run it once, and again when a pin or `pixi.lock`
+changes. The first run builds several packages from source and takes a while.
+
+### Build and test
+
+Run a command in the environment with `pixi run`, or enter it once with
+`pixi shell`:
+
+```sh
+pixi run just build
+pixi run just test-compiler
+```
+
+```sh
+pixi shell
+just test-compiler
+```
+
+The environment adds `dev/bin` to `PATH` and sets `ZANE_CC` to
+`dev/bin/clang-lld` on Linux and macOS, whose linker is LLVM's `lld`, so
+`zanec` links with the `lld` built into it, and to `dev/bin/zig-cc.cmd` on
+Windows, which links through `zig cc` for MinGW. `ZANE_CC` is left alone if
+it is already set. Set `ZANE_VERBOSE` to have a build say why it links
+through the C compiler instead.
+
+### What each OS runs
+
+`just test-compiler`, the compiler suite, passes on all three. The grammar,
+ambiguity and highlighting suites (`just test-grammar`,
+`just test-ambiguity-tools`, `just test-highlighting`) and `just test-perf`
+run on Linux only, as does `just test-windows`, which runs the Windows
+programs under Wine. How the platforms differ, and what each is held to, is
+in [`docs/design/platforms.md`](docs/design/platforms.md).
+
+For grammar regeneration and the highlighting suite, install the pinned
+generator dependencies with `pixi run .github/scripts/setup-grammar-dependencies`,
+as [`grammar/README.md`](grammar/README.md) describes.
 
 ## Where things are
 
@@ -134,14 +173,14 @@ generator dependencies as described in [`grammar/README.md`](grammar/README.md).
 | `tests/` | One directory per thing tested: `parser`, `grammar`, `semantics`, `codegen`, `ffi`, `runtime`, `objects`, `unit`, `highlighting`, `ambiguity`, `nesting` |
 | `vendor/` | Git submodules: `coda` |
 | `tools/` | Developer tools: the ambiguity engine and its front end, `inspect`, and `nesting` |
-| `dev/` | Commands for the development shell (`dev/bin/`), their shared scripts (`dev/lib/`), and the toolchain bootstrap CI and the shell run (`dev/setup/`) |
+| `dev/` | Commands for the pixi environment (`dev/bin/`), their shared scripts (`dev/lib/`), and the toolchain bootstrap and the pixi activation scripts (`dev/setup/`) |
 | `docs/` | Design and process documents; [`docs/README.md`](docs/README.md) is the index |
 
 ## Building and testing
 
 ```sh
-dune build
-just test
+pixi run dune build
+pixi run just test
 ```
 
 `just` lists the recipes by group: `test` runs the compiler, grammar,
@@ -161,7 +200,7 @@ says what counts, why three is the aim, and how to flatten deep code.
 
 ## Usage
 
-Common tools are available directly inside the development shell:
+Common tools are available directly inside `pixi shell`, or through `pixi run`:
 
 ```sh
 zanec path/to/source.zn      # print the CST for a file, `-` for standard input
