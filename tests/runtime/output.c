@@ -53,14 +53,22 @@ static size_t drain(int fd, char *text, size_t room) {
 	return used;
 }
 
-/* A child's status, and whether its stderr was `expected`. */
+/* A child's status, and whether its stderr was `expected`. When it was
+   not, how the child ended goes to the test's own stderr, beside the `no`. */
 static int ended(pid_t child, int err, int status, const char *expected) {
 	char text[256];
 	drain(err, text, sizeof text);
 	close(err);
-	int got;
-	return child > 0 && waitpid(child, &got, 0) == child && WIFEXITED(got) &&
-	       WEXITSTATUS(got) == status && strcmp(text, expected) == 0;
+	int got = 0;
+	int waited = child > 0 && waitpid(child, &got, 0) == child;
+	int ok = waited && WIFEXITED(got) && WEXITSTATUS(got) == status && strcmp(text, expected) == 0;
+	if (!ok) {
+		if (!waited) fprintf(stderr, "output: the child was not waited for\n");
+		else if (WIFSIGNALED(got)) fprintf(stderr, "output: the child stopped on signal %d\n", WTERMSIG(got));
+		else fprintf(stderr, "output: the child exited with %d\n", WEXITSTATUS(got));
+		fprintf(stderr, "output: its stderr was \"%s\"\n", text);
+	}
+	return ok;
 }
 
 static const char *const full = "recursion too deep: the machine stack is full\n";
