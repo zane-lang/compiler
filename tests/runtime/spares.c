@@ -101,8 +101,14 @@ void zane_main(void) {
 	spawn_fill(8, 7, 0);
 	check(zane_warm_spares == ZANE_POOL_WARM);
 
-	/* Past ZANE_COLD_KEPT cold chunks, a drained chunk is given back whole. */
+	/* Past ZANE_COLD_KEPT cold chunks, a drained chunk is given back whole.
+	   On Windows a slab whose chunks are all cold or given back goes back to
+	   the system with its cold chunks (arena.c), so fewer may stay. */
 	spawn_fill(ZANE_COLD_KEPT + 64, 0, 0);
+#ifdef _WIN32
+	check(zane_cold_spares <= ZANE_COLD_KEPT);
+#else
 	check(zane_cold_spares == ZANE_COLD_KEPT);
+#endif
 	check(test_resident() - before <= slack);
 }

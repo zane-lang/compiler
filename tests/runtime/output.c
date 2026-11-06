@@ -206,7 +206,10 @@ static int on_terminal(void) {
 	if (!CreatePipe(&in_read, &in_write, NULL, 0)) return 0;
 	if (!CreatePipe(&out_read, &out_write, NULL, 0)) return 0;
 	HPCON console;
-	if (CreatePseudoConsole((COORD){ 80, 25 }, in_read, out_write, 0, &console) != S_OK) return 0;
+	if (CreatePseudoConsole((COORD){ 80, 25 }, in_read, out_write, 0, &console) != S_OK) {
+		fprintf(stderr, "on_terminal: no pseudo-console\n");
+		return 0;
+	}
 	CloseHandle(in_read);
 	CloseHandle(out_write);
 	SIZE_T room = 0;
@@ -234,10 +237,18 @@ static int on_terminal(void) {
 			got += (size_t)n;
 			text[got] = 0;
 		}
-		ok = strstr(text, "a line") != NULL;
-		ok &= test_write(in_write, "g\r", 2) == 2;
+		int seen = strstr(text, "a line") != NULL;
+		int released = test_write(in_write, "g\r", 2) == 2;
 		DWORD code = 1;
-		ok &= WaitForSingleObject(c.process, 10000) == WAIT_OBJECT_0 && GetExitCodeProcess(c.process, &code) && code == 0;
+		int ended = WaitForSingleObject(c.process, 10000) == WAIT_OBJECT_0 && GetExitCodeProcess(c.process, &code);
+		ok = seen && released && ended && code == 0;
+		if (!ok) {
+			fprintf(stderr, "on_terminal: line %s, released %d, ended %d with %lu; the console wrote %zu bytes:", seen ? "seen" : "not seen",
+			        released, ended, (unsigned long)code, got);
+			for (size_t i = 0; i < got && i < 200; i++)
+				fprintf(stderr, text[i] >= 32 && text[i] < 127 ? "%c" : "\\x%02x", (unsigned char)text[i]);
+			fputc('\n', stderr);
+		}
 		CloseHandle(c.process);
 	}
 	CloseHandle(out_read);
