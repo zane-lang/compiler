@@ -213,11 +213,11 @@ let o2_pipeline () =
    C++). *)
 let builtin_headers () =
   let clang = Filename.concat (Filename.concat (prefix ()) "lib") "clang" in
-  let dir =
-    match Sys.readdir clang |> Array.to_list |> List.sort compare |> List.map (fun v -> Filename.concat (Filename.concat clang v) "include") |> List.filter Sys.file_exists with
-    | d :: _ -> d
-    | [] -> failwith ("no clang resource directory in " ^ clang)
-  in
+  (* An environment may hold other clangs' resource directories beside it,
+     as conda's on Windows does: the one for the linked clang is named for
+     LLVM's major version. *)
+  let dir = List.fold_left Filename.concat clang [ llvm_major; "include" ] in
+  if not (Sys.file_exists dir) then failwith ("no clang " ^ llvm_major ^ " resource directory in " ^ clang);
   print_string "let files = [\n";
   let headers = Sys.readdir dir |> Array.to_list |> List.filter (fun f -> Filename.check_suffix f ".h") |> List.sort compare in
   headers @ [ "module.modulemap" ]
