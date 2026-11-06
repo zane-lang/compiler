@@ -449,7 +449,7 @@ public:
   bool HandleTopLevelDecl(clang::DeclGroupRef group) override {
     for (clang::Decl *d : group) {
       auto *named = llvm::dyn_cast<clang::DeclaratorDecl>(d);
-      if (!named) continue;
+      if (!named || !named->getIdentifier()) continue;
       for (const auto *a : named->specific_attrs<clang::AnnotateAttr>()) {
         llvm::StringRef text = a->getAnnotation();
         if (text.consume_front("zane.alias=") && seen.insert(named->getName().str()).second)
@@ -507,7 +507,7 @@ private:
 };
 
 /* The module a source compiles to, as `EmitLLVMOnlyAction` makes it, with
-   the source's `ZANE_ALIAS` marks read beside it. */
+   the source's `ZANE_ALIAS` marks read before it. */
 class Compile_with_aliases : public clang::EmitLLVMOnlyAction {
 public:
   Compile_with_aliases(llvm::LLVMContext *context, std::vector<Marked_alias> &marks)
@@ -515,9 +515,12 @@ public:
 
 protected:
   std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &ci, llvm::StringRef file) override {
+    /* The marks are read first: code generation frees the AST once it has
+       emitted the module (`-clear-ast-before-backend`, which the driver
+       sets), so a consumer after it would read freed declarations. */
     std::vector<std::unique_ptr<clang::ASTConsumer>> both;
-    both.push_back(clang::EmitLLVMOnlyAction::CreateASTConsumer(ci, file));
     both.push_back(std::make_unique<Alias_marks>(marks));
+    both.push_back(clang::EmitLLVMOnlyAction::CreateASTConsumer(ci, file));
     return std::make_unique<clang::MultiplexConsumer>(std::move(both));
   }
 
