@@ -319,7 +319,9 @@ let bundled_runtime () =
     List.filter (String.starts_with ~prefix:(Filename.concat bundled "link/files/")) !linked
   in
   check "and a build runs it with its own files, its dependencies' after its object"
-    (List.mem output !linked && List.mem runtime !linked && after_obj !linked);
+    (let named file = List.exists (fun w -> w = file || snd (Build.option_split w) = file) !linked in
+     (* A COFF link names its output after an option's `:`, `-out:`. *)
+     named output && named runtime && after_obj !linked);
   check "and the files the link takes from the bundle"
     (bundled_files <> [] && List.for_all Sys.file_exists bundled_files);
   let refused = Build.bundle_runtime ~target:"i386-unknown-linux-gnu" ~optimize:false bundled in
