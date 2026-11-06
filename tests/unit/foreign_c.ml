@@ -356,21 +356,6 @@ let interface_header () =
           check "long is 32 bits on Windows"
             (match table (Some "x86_64-windows-gnu") with Some w -> long_size w = 32 | None -> false))
 
-(* [f] given a `zig cc` command: Mach-O's C headers come from it, which
-   carries them, as a C compiler with no macOS SDK beside it has none. On
-   Windows the compiler runs it through cmd.exe, so it is a batch file. *)
-let with_zig_cc f =
-  let zig =
-    Filename.concat (Filename.get_temp_dir_name ())
-      (Printf.sprintf "zane-zig-cc-%d%s" (Unix.getpid ()) (if Sys.win32 then ".cmd" else ""))
-  in
-  Out_channel.with_open_bin zig (fun oc ->
-      output_string oc
-        (if Sys.win32 then "@echo off\r\nif defined ZIG (\"%ZIG%\" cc %*) else (zig cc %*)\r\n"
-         else "#!/bin/sh\nexec \"${ZIG:-zig}\" cc \"$@\"\n"));
-  Unix.chmod zig 0o755;
-  Fun.protect ~finally:(fun () -> Sys.remove zig) (fun () -> f zig)
-
 (* `ZANE_ALIAS` (zane_ffi.h) makes the declaration it marks an alias of its
    target, the same on an ELF target and on Mach-O, whose C has no `alias`
    attribute, and the declaration's uses become the alias's. A mark is

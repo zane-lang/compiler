@@ -283,12 +283,12 @@ let stopping =
     ("s_outside_null", (1L, 1L), "a comparison with null of an address outside its allocation");
   ]
 
-let compile base name source =
+let compile ?cc ?target base name source =
   let dir = Filename.concat base name in
   Sys.mkdir dir 0o755;
   write_all (Filename.concat dir "a.c") source;
-  let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
-  match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ dir ] with
+  let cc = match cc with Some cc -> cc | None -> Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+  match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target [ dir ] with
   | Ok [ { Foreign.sources = [ s ]; _ } ] -> Some s.Foreign.Compile.bitcode
   | _ -> None
 
@@ -374,8 +374,14 @@ let agree base =
                     args)
                 cases))
 
+(* The stopping cases are compiled for x86-64 Linux on every machine: what
+   the IR says of a case's undefined behaviour is the target's ABI's, and
+   AArch64's passes a large aggregate by the address of the caller's copy
+   with nothing in the IR to say the copy ends with the call. `zig cc`
+   gives them glibc's headers on any machine. *)
 let stop base =
-  match compile base "stop" stopping_source with
+  with_zig_cc @@ fun zig ->
+  match compile ~cc:zig ~target:"x86_64-unknown-linux-gnu" base "stop" stopping_source with
   | None -> check "the C evaluator's stopping cases compile" false
   | Some bitcode ->
       with_module bitcode (fun m ->

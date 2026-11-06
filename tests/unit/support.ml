@@ -23,3 +23,19 @@ let rec remove_tree path =
     Sys.rmdir path
   end
   else Sys.remove path
+
+(* [f] given a `zig cc` command, which carries the C library's headers for
+   every target, as a C compiler with no SDK or sysroot for one beside it
+   has none: Mach-O's on any machine, glibc's on a Mac. On Windows the
+   compiler runs it through cmd.exe, so it is a batch file. *)
+let with_zig_cc f =
+  let zig =
+    Filename.concat (Filename.get_temp_dir_name ())
+      (Printf.sprintf "zane-zig-cc-%d%s" (Unix.getpid ()) (if Sys.win32 then ".cmd" else ""))
+  in
+  Out_channel.with_open_bin zig (fun oc ->
+      output_string oc
+        (if Sys.win32 then "@echo off\r\nif defined ZIG (\"%ZIG%\" cc %*) else (zig cc %*)\r\n"
+         else "#!/bin/sh\nexec \"${ZIG:-zig}\" cc \"$@\"\n"));
+  Unix.chmod zig 0o755;
+  Fun.protect ~finally:(fun () -> Sys.remove zig) (fun () -> f zig)

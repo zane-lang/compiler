@@ -443,7 +443,7 @@ let glue_files p ~dir files =
       Fun.protect
         ~finally:(fun () -> try remove work with Sys_error _ -> ())
         (fun () ->
-          let added = [ (dir, "/zane/pkg"); (work, "/zane/glue") ] in
+          let added = Compile.with_real_paths [ (dir, "/zane/pkg"); (work, "/zane/glue") ] in
           let maps = p.maps @ added and flags = p.flags @ Compile.map_flags added in
           combine (List.map (glue_file p ~dir ~work ~maps ~flags) files))
 
@@ -614,7 +614,7 @@ let callbacks ?(cache = Cache.dir ()) ~target (entries : Glue.callback list) =
             | Some c -> ( try (Compile.headers (Filename.concat c "foreign"), Some c) with Sys_error _ -> (Compile.headers work, None))
             | None -> (Compile.headers work, None)
           in
-          let maps = [ (work, "/zane/glue") ] in
+          let maps = Compile.with_real_paths [ (work, "/zane/glue") ] in
           let flags = Compile.fixed_flags ~triple ~headers ~include_dirs:[] @ Compile.map_flags maps in
           let path = Filename.concat work "callbacks.c" in
           match Out_channel.with_open_bin path (fun oc -> output_string oc (Glue.callbacks_file entries)) with

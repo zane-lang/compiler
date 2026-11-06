@@ -539,9 +539,10 @@ and exec t frame regs (i : C_ir.instr) =
          for as `mem*`-style work and freed when the call returns. A
          `dead_on_return` argument is the same copy, which the caller made
          itself, as an ABI that passes a large aggregate by address does
-         (AArch64's): what it names, to its allocation's end, is copied, so
-         the callee's parameter ends with the call and the caller's
-         temporary stays its own. *)
+         (AArch64's), where the front end marks it so (clang 21 does not):
+         what it names, to its allocation's end, is copied, so the callee's
+         parameter ends with the call and the caller's temporary stays its
+         own. *)
       let copies = ref [] in
       let pass (byval, o) =
         let v = value o in

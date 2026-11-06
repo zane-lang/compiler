@@ -89,9 +89,19 @@ let package_flags dir (rows : Settings.row list) =
       | Settings.Source | Settings.Archive | Settings.System -> [])
     rows
 
+(* [maps] with each directory mapped by its real path too, where that
+   differs: clang names a file by the path that reached it, and macOS's
+   temporary directory, under `/var`, is a link to `/private/var`. *)
+let with_real_paths maps =
+  List.concat_map
+    (fun (from, to_) ->
+      let real = try Unix.realpath from with Unix.Unix_error _ -> from in
+      if real = from then [ (from, to_) ] else [ (from, to_); (real, to_) ])
+    maps
+
 (* The two directories that differ between machines, mapped to the fixed
    names they are spelled as. *)
-let prefix_maps ~dir ~headers = [ (dir, "/zane/pkg"); (headers.root, "/zane/cache") ]
+let prefix_maps ~dir ~headers = with_real_paths [ (dir, "/zane/pkg"); (headers.root, "/zane/cache") ]
 
 let map_flags maps = List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ "=" ^ to_) maps
 
