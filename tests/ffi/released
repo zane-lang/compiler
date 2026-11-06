@@ -60,9 +60,11 @@ if [ -n "$calls" ]; then
 	called "$@"
 	exit 0
 fi
+# Each rewritten object keeps `.o` last, which `zig cc` reads an object by.
 for object in "$work"/*.o; do
-	"$zanec" --rewrite "$stamp" "$object" "$object.stamped"
-	set -- "$@" --link "$object.stamped"
+	stamped="${object%.o}.stamped.o"
+	"$zanec" --rewrite "$stamp" "$object" "$stamped"
+	set -- "$@" --link "$stamped"
 done
 first=
 for optimize in "" --optimize; do

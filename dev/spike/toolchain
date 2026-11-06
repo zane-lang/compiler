@@ -43,6 +43,21 @@ hello)
 	"$out" | tee "$root/_build/spike-hello.out"
 	diff -u --strip-trailing-cr tests/codegen/golden/hello.out "$root/_build/spike-hello.out"
 	;;
+cheaders)
+	# Where the compiler's own clang finds its builtin headers: the build
+	# writes them into the cache's foreign/resource-*/include.
+	cache="$root/_build/spike-cache"
+	rm -rf "$cache"
+	ZANE_CACHE_DIR="$cache" _build/default/bin/zanec/zanec.exe --cgt --package tests/ffi/fixtures/folding >/dev/null || true
+	find "$cache" -maxdepth 3 -type d | sed "s#^$cache#cache#"
+	for d in "$cache"/foreign/resource-*/include; do
+		echo "$d: $(ls "$d" | wc -l) files; stdbool.h: $(test -f "$d/stdbool.h" && echo yes || echo no)"
+	done
+	echo "clang's resource directories beside LLVM:"
+	ls -d "$(dirname "$(dirname "$(command -v ld.lld)")")"/lib/clang/*/include 2>&1 | head
+	echo "zig cc's search list:"
+	"$ZANE_CC" --target=x86_64-windows-gnu -E -v -x c - </dev/null 2>&1 | sed -n '/search starts here/,/End of search/p'
+	;;
 test)
 	just test-compiler
 	;;

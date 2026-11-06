@@ -143,7 +143,10 @@ A target is spelled as `zig cc` reads it, such as `x86_64-windows-gnu`. The
 compiler hands LLVM that triple's normal form, `x86_64-unknown-windows-gnu`,
 and the C compiler the triple as written. A build on a Windows host without
 `--target` is for `x86_64-windows-gnu`, since the host's own triple is
-MSVC's, whose C library has no POSIX threads.
+MSVC's, whose C library has no POSIX threads. On a Windows host the
+compiler reads `\` in a path as it reads `/`, so a package directory's name
+is its last component either way, and its reports write every path with `/`,
+so they read as they do on any other system.
 
 ## Tiered builds
 

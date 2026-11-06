@@ -190,7 +190,8 @@ let load_file ~name ~given path =
    Not the path's last component as written: `.` and `..` name a directory
    without spelling its name, so `--package .` run inside `app` is the package
    `app`. The path is made absolute and those components are resolved first.
-   A trailing separator is not part of the name either: `app/` is `app`.
+   A trailing separator is not part of the name either: `app/` is `app`. On
+   Windows `\` separates components as `/` does.
    Symbolic links are not followed; a link to `app` named `lib` is `lib`, the
    same as the directory the link appears to be. *)
 let package_name dir =
@@ -206,7 +207,8 @@ let package_name dir =
         | ".." -> ( match resolved with [] -> [] | _ :: parent -> parent)
         | name -> name :: resolved)
       []
-      (String.split_on_char '/' absolute)
+      (String.split_on_char '/' absolute
+      |> List.concat_map (if Sys.win32 then String.split_on_char '\\' else fun c -> [ c ]))
   in
   match components with [] -> "" | last :: _ -> last
 
