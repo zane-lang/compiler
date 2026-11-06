@@ -13,6 +13,10 @@ on:
       - dev/spike/**
       - dev/setup/**
       - lib/**
+      - bin/**
+      - runtime/**
+      - tests/**
+      - justfile
       - vendor/llvm-ocaml/**
       - .github/workflows/toolchain-spike.yml
   workflow_dispatch:
