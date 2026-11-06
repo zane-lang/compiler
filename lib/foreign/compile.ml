@@ -25,8 +25,10 @@ type headers = { root : string; resource : string; ffi : string }
    name of the directory is a hash of their contents, so one that exists
    holds them. Each is written to a temporary of its own, created
    exclusively, and renamed into place, so builds writing one directory at
-   once never see half a file. Raises [Sys_error] when [dir] cannot be
-   written. *)
+   once never see half a file. A rename that fails once the file is in
+   place lost to another build's, which wrote the same: Windows refuses to
+   replace a file another process has open. Raises [Sys_error] when [dir]
+   cannot be written. *)
 let write_files dir files =
   let random = Random.State.make_self_init () in
   List.iter
@@ -40,7 +42,7 @@ let write_files dir files =
           (fun () ->
             Out_channel.with_open_gen [ Open_wronly; Open_creat; Open_excl; Open_binary ] 0o644 temporary
               (fun oc -> output_string oc text);
-            Sys.rename temporary path)
+            try Sys.rename temporary path with Sys_error _ when Sys.file_exists path -> ())
       end)
     files
 

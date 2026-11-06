@@ -43,6 +43,17 @@ hello)
 	"$out" | tee "$root/_build/spike-hello.out"
 	diff -u --strip-trailing-cr tests/codegen/golden/hello.out "$root/_build/spike-hello.out"
 	;;
+retained)
+	# The retained C's calls with no cache to write the headers into, and
+	# with a cache of its own that starts empty, one build at a time.
+	cd tests/ffi
+	z="$root/_build/default/bin/zanec/zanec.exe"
+	echo "-- no cache:"
+	ZANE_CACHE_DIR=//nonexistent/zane sh released --calls "$z" fixtures/retained || true
+	echo "-- an empty cache:"
+	rm -rf "$root/_build/spike-cache"
+	ZANE_CACHE_DIR="$root/_build/spike-cache" sh released --calls "$z" fixtures/retained || true
+	;;
 cheaders)
 	# Where the compiler's own clang finds its builtin headers: the build
 	# writes them into the cache's foreign/resource-*/include.
