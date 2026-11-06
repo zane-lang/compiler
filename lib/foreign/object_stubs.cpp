@@ -119,11 +119,7 @@ extern "C" value zane_object_emit(value bitcode, value triple, value cpu) {
       // them: the C library runs no `.ctors`.
       llvm::TargetOptions options;
       options.UseInitArray = true;
-#if LLVM_VERSION_MAJOR >= 21
       llvm::Triple triple(name);
-#else
-      const std::string &triple = name;
-#endif
       std::unique_ptr<llvm::TargetMachine> tm(target->createTargetMachine(
           triple, String_val(cpu), "", options, llvm::Reloc::PIC_, std::nullopt, llvm::CodeGenOptLevel::Default));
       m->setTargetTriple(triple);

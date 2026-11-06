@@ -108,7 +108,20 @@ let libs () =
     @ List.map (library libdir) (words (ask [ "--link-static"; "--system-libs" ]))
     @ if Sys.win32 then dia_sdk () else []
 
-let cflags () = [ "-I" ^ ask [ "--includedir" ] ]
+(* The one LLVM the compiler builds with, the environment's (pixi.toml): its
+   bindings (vendor/llvm-ocaml) and its stubs are written against LLVM 21's
+   interfaces. Any other is refused here, before a stub fails to compile. *)
+let llvm_major = "21"
+
+let check_version () =
+  let version = ask [ "--version" ] in
+  match String.split_on_char '.' version with
+  | major :: _ when major = llvm_major -> ()
+  | _ -> failwith (Printf.sprintf "%s names LLVM %s; the compiler builds with LLVM %s (pixi.toml)" llvm_config version llvm_major)
+
+let cflags () =
+  check_version ();
+  [ "-I" ^ ask [ "--includedir" ] ]
 let msvc = function "msvc" -> true | "cc" -> false | c -> failwith ("unknown C compiler type " ^ c)
 
 (* OCaml's C flags, which dune's `:standard` gives C++ too, without the C

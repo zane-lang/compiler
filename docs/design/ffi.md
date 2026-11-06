@@ -61,13 +61,13 @@ for the target into a `clang::CompilerInvocation`, an `EmitLLVMOnlyAction`
 runs it, and the `llvm::Module` it makes is written as bitcode, the form
 the cache keeps it in (F3), which codegen reads into its own context.
 Every front-end option is therefore one the linked clang made itself, so
-all of them are ones it knows. The clang is `llvmPackages_19.libclang`, from
-the nixpkgs revision `llvm_19` resolves to, so it links the same
-`libLLVM`.
+all of them are ones it knows. The clang is the environment's, of the same
+LLVM 21 release (`pixi.toml`), so it links the same LLVM libraries.
 
 The clang has to be the compiler's own because LLVM IR crosses no LLVM
-release. The released toolchain's `zig cc` is built on a newer LLVM than the
-compiler's (19, `lowering.md` L2), and its bitcode would not load. So
+release. The released toolchain's `zig cc` is built on its own LLVM, which
+need not be the compiler's (21, `lowering.md` L2), and its bitcode might
+not load. So
 the C compiler is asked only for what it knows that the linked clang does
 not: where the target's C library headers are. The first build for a C
 compiler and a target runs it once on an empty source with `-E -v` for the

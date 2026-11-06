@@ -10,11 +10,9 @@ included here.
 
 The archive also includes:
 
-- LLVM 19 on Linux and ARM macOS, or LLVM 21 on Intel macOS, with its linker
-  LLD and clang's C front end built into the compiler, and clang's builtin
-  headers embedded in it (Apache-2.0 with LLVM exceptions):
-  https://github.com/llvm/llvm-project/tree/llvmorg-19.1.7
-  https://github.com/llvm/llvm-project/tree/llvmorg-21.1.8
+- LLVM 21, with its linker LLD and clang's C front end built into the
+  compiler, and clang's builtin headers embedded in it (Apache-2.0 with LLVM
+  exceptions): https://github.com/llvm/llvm-project/tree/llvmorg-21.1.8
 - LLVM's OCaml bindings (Apache-2.0 with LLVM exceptions), built into the
   compiler from the copy of LLVM 21.1.8's `llvm/bindings/ocaml` at
   `vendor/llvm-ocaml`

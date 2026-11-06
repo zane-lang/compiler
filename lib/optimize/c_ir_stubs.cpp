@@ -256,11 +256,7 @@ struct Function_out : Out {
       operand(s->getValueOperand());
       operand(s->getPointerOperand());
     } else if (auto *g = dyn_cast<GetElementPtrInst>(&i)) {
-#if LLVM_VERSION_MAJOR >= 21
       SmallMapVector<Value *, APInt, 4> variable;
-#else
-      MapVector<Value *, APInt> variable;
-#endif
       unsigned width = dl.getIndexTypeSizeInBits(g->getType());
       APInt offset(width, 0);
       if (g->getType()->isVectorTy() || offset_wraps(cast<GEPOperator>(g), dl, width) ||

@@ -38,11 +38,11 @@ allows only the instructions every processor of the architecture has. Linking th
 linked into the compiler as a library, with the arguments the C compiler
 would give it (§7).
 
-The bindings are LLVM's own, from `llvm/bindings/ocaml` in llvm-project.
-Linux and ARM macOS use the opam `llvm` package pinned to LLVM 19.
-Intel macOS uses Nixpkgs' OCaml 5.4 bindings, built with LLVM 21, because
-building the bindings through opam fails with the Intel runner's mixed C++
-toolchain. The Intel Devbox pins both packages to the same Nixpkgs revision.
+The bindings are LLVM's own, a copy of LLVM 21.1.8's `llvm/bindings/ocaml`
+at `vendor/llvm-ocaml`, built with the compiler (`lib/llvm`) against the
+environment's LLVM 21 on every platform (`pixi.toml`). The build refuses any
+other LLVM (`lib/llvm/config/discover.ml`), since the bindings and the
+compiler's C++ stubs are written against LLVM 21's interfaces.
 
 The module's text is LLVM's to print and changes between releases, so the
 tests read the CGT and what a built program writes instead (§7).
