@@ -143,7 +143,8 @@ It does not configure the Typst web editor or your text editor.
 
 ## Neovim
 
-[`editors/neovim`](../editors/neovim/README.md) is a Neovim plugin: install it
+[`editors/neovim`](../editors/neovim/README.md) is a Neovim plugin, published as
+[`TheLazyCat00/zane-nvim`](https://github.com/TheLazyCat00/zane-nvim): install it
 with a plugin manager, and nvim-treesitter builds the parser with
 `:TSInstall zane`. The plugin's README covers installation.
 

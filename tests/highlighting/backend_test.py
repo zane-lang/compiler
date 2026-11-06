@@ -220,6 +220,12 @@ class BackendTests(unittest.TestCase):
     def test_neovim_loads_parser_and_queries(self):
         check(['nvim', '--headless', '-u', 'NONE', '-l', str(ROOT / 'tests/highlighting/neovim.lua')], env={**os.environ, 'ZANE_TEST_ROOT': str(ROOT), 'ZANE_TEST_RUNTIME': str(self.runtime)})
 
+    @needs(shutil.which('nvim') and shutil.which('bash') and shutil.which('git'), 'requires Neovim, Bash and Git')
+    def test_standalone_neovim_plugin_registers_its_own_grammar(self):
+        plugin = self.runtime / 'zane-nvim'
+        check(['bash', str(ROOT / '.github/scripts/assemble-neovim-plugin'), str(plugin)])
+        check(['nvim', '--headless', '-u', 'NONE', '-l', str(ROOT / 'tests/highlighting/neovim_standalone.lua')], env={**os.environ, 'ZANE_TEST_PLUGIN': str(plugin)})
+
 
 @needs(shutil.which('typst'), 'requires Typst')
 class TypstTests(unittest.TestCase):

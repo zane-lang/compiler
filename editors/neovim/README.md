@@ -13,47 +13,43 @@ the CLI's built-in JavaScript runtime.
 
 ## Install
 
-The plugin is the `editors/neovim` directory of the `zane-lang/compiler`
-repository, so it is added to `'runtimepath'` by hand after the repository is
-cloned.
-
+Install [`TheLazyCat00/zane-nvim`](https://github.com/TheLazyCat00/zane-nvim).
 With [lazy.nvim](https://github.com/folke/lazy.nvim), next to nvim-treesitter:
 
 ```lua
 {
-  "zane-lang/compiler",
-  name = "zane.nvim",
+  "TheLazyCat00/zane-nvim",
   lazy = false,
-  -- `init` runs before nvim-treesitter's `config`, so the parser is
-  -- registered before nvim-treesitter installs anything.
-  init = function(plugin)
-    vim.opt.rtp:append(plugin.dir .. "/editors/neovim")
-    require("zane").setup()
-  end,
+  -- Loads before nvim-treesitter's `config`, so the parser is registered
+  -- before nvim-treesitter installs anything.
+  priority = 1000,
   -- Rebuilds the parser when an update changed the grammar.
   build = ":TSUpdate zane",
 },
 ```
 
-With Neovim 0.12's built-in `vim.pack`:
+With Neovim 0.12's built-in `vim.pack`, before nvim-treesitter is set up:
 
 ```lua
-vim.pack.add({ { src = "https://github.com/zane-lang/compiler", name = "zane" } })
-vim.opt.rtp:append(vim.pack.get({ "zane" })[1].path .. "/editors/neovim")
-require("zane").setup()
+vim.pack.add({ "https://github.com/TheLazyCat00/zane-nvim" })
 ```
 
 Then install the parser like any other, with `:TSInstall zane` or by adding
 `"zane"` to the list given to `require("nvim-treesitter").install()`.
+`plugin/zane.lua` calls `require("zane").setup()` when the plugin loads.
 
-A plugin manager that puts `editors/neovim` on `'runtimepath'` at startup, such
-as vim-plug with `{ 'rtp': 'editors/neovim' }`, needs no `setup()` call:
-`plugin/zane.lua` makes it.
+`zane-nvim` is published from
+[`editors/neovim`](https://github.com/zane-lang/compiler/tree/main/editors/neovim)
+in `zane-lang/compiler`, together with the generated grammar under
+`tree-sitter-zane/`, by the `Neovim plugin` workflow there; change it there.
+To use a compiler checkout instead, add its `editors/neovim` to
+`'runtimepath'` and call `require("zane").setup()`; the plugin then builds the
+parser from `editors/tree-sitter-zane` beside it.
 
 ## How the parser is built
 
 The plugin registers `zane` with nvim-treesitter from its own checkout
-(`editors/tree-sitter-zane`), not from a download. The parser is generated
+(`tree-sitter-zane`), not from a download. The parser is generated
 from the same `grammar.js` as the queries the plugin ships, and nvim-treesitter
 links those queries rather than copying them. The registered revision is a
 hash of `grammar.js`, so `:TSUpdate zane` rebuilds the parser only when the
@@ -74,6 +70,7 @@ then restart Neovim: a loaded parser cannot be replaced).
 | `lua/zane/health.lua` | `:checkhealth zane` |
 | `lua/zane/grammar.lua` | Generated: the file extensions and the binder nodes `zane-bound?` scans |
 | `queries/zane/highlights.scm` | Generated: Neovim-only captures, appended to the shared query with `; extends` |
+| `tree-sitter-zane/` | In `zane-nvim` only: the generated grammar and the shared query, from `editors/tree-sitter-zane` |
 
 The generated files come from `python3 -m tools.grammar`; see
 [`grammar/README.md`](../../grammar/README.md). Without nvim-treesitter, build

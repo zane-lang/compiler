@@ -7,8 +7,12 @@ local M = {}
 
 -- editors/neovim, from this file's path (editors/neovim/lua/zane/init.lua).
 local plugin_dir = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h:h")
--- The generated Tree-sitter grammar beside the plugin, in the same checkout.
-M.grammar_dir = vim.fs.joinpath(vim.fs.dirname(plugin_dir), "tree-sitter-zane")
+-- The generated Tree-sitter grammar: inside the plugin in the standalone
+-- repository (.github/scripts/assemble-neovim-plugin), beside it in the compiler's.
+M.grammar_dir = vim.fs.joinpath(plugin_dir, "tree-sitter-zane")
+if not vim.uv.fs_stat(M.grammar_dir) then
+  M.grammar_dir = vim.fs.joinpath(vim.fs.dirname(plugin_dir), "tree-sitter-zane")
+end
 
 local configured = false
 local notified = {}
