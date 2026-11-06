@@ -21,9 +21,9 @@ archive="zane-compiler-$version-linux-x86_64.tar.gz"
 base="https://github.com/zane-lang/compiler/releases/download/$version"
 curl -fSLO "$base/$archive"
 curl -fSLO "$base/SHA256SUMS"
-sha256sum --check --strict --ignore-missing SHA256SUMS
-mkdir -p "$HOME/.zane/toolchains/$version"
-tar -xzf "$archive" --strip-components=1 -C "$HOME/.zane/toolchains/$version"
+grep " $archive\$" SHA256SUMS | sha256sum --check --strict &&
+  mkdir -p "$HOME/.zane/toolchains/$version" &&
+  tar -xzf "$archive" --strip-components=1 -C "$HOME/.zane/toolchains/$version"
 export PATH="$HOME/.zane/toolchains/$version/bin:$PATH"
 ```
 
