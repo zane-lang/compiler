@@ -45,11 +45,13 @@ for n in "${names[@]}"; do
 			if "$zanec" --build "$tmp/$n.exe" "${pkgs[@]}" 2>&1 &&
 				"$zanec" --build "$tmp/$n.opt.exe" --optimize "${pkgs[@]}" 2>&1; then
 				"$tmp/$n.exe" > "$tmp/$n.plain" 2>&1; plain=$?
-				"$tmp/$n.opt.exe" > "$tmp/$n.opt" 2>&1; opt=$?
+				# Not `$n.opt`: Git's bash on Windows runs a file named as an
+				# executable is less its `.exe`, as an empty one would be.
+				"$tmp/$n.opt.exe" > "$tmp/$n.optimized" 2>&1; opt=$?
 				cat "$tmp/$n.plain"
-				if ! cmp -s "$tmp/$n.plain" "$tmp/$n.opt" || [ $plain != $opt ]; then
+				if ! cmp -s "$tmp/$n.plain" "$tmp/$n.optimized" || [ $plain != $opt ]; then
 					echo "== the optimized build differs (exit $opt):"
-					cat "$tmp/$n.opt"
+					cat "$tmp/$n.optimized"
 				fi
 				echo "== exit $plain"
 			else

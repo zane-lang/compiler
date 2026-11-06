@@ -160,7 +160,8 @@ and the C compiler the triple as written. A build on a Windows host without
 MSVC's, whose C library has no POSIX threads. On a Windows host the
 compiler reads `\` in a path as it reads `/`, so a package directory's name
 is its last component either way, and its reports write every path with `/`,
-so they read as they do on any other system.
+so they read as they do on any other system. It ends each line it writes with
+`\n`, as the programs it builds do.
 
 ## Tiered builds
 
