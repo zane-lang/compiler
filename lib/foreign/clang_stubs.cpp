@@ -549,7 +549,11 @@ void make_aliases(llvm::Module &module, const std::vector<Marked_alias> &marks) 
                                             m.external ? llvm::GlobalValue::ExternalLinkage
                                                        : llvm::GlobalValue::InternalLinkage,
                                             "", target, &module);
-    if (llvm::GlobalValue *declared = module.getNamedValue(m.name)) {
+    /* A thread-local variable's alias is thread-local too, as its uses,
+       through `llvm.threadlocal.address`, require. */
+    llvm::GlobalValue *declared = module.getNamedValue(m.name);
+    alias->setThreadLocalMode(declared ? declared->getThreadLocalMode() : target->getThreadLocalMode());
+    if (declared) {
       declared->replaceAllUsesWith(alias);
       alias->takeName(declared);
       declared->eraseFromParent();
