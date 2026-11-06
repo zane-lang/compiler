@@ -21,7 +21,7 @@ archive="zane-compiler-$version-linux-x86_64.tar.gz"
 base="https://github.com/zane-lang/compiler/releases/download/$version"
 curl -fSLO "$base/$archive"
 curl -fSLO "$base/SHA256SUMS"
-sha256sum --check --strict SHA256SUMS
+sha256sum --check --strict --ignore-missing SHA256SUMS
 mkdir -p "$HOME/.zane/toolchains/$version"
 tar -xzf "$archive" --strip-components=1 -C "$HOME/.zane/toolchains/$version"
 export PATH="$HOME/.zane/toolchains/$version/bin:$PATH"
@@ -48,8 +48,8 @@ another C compiler wrapper, or `ZIG` to use another Zig executable; either
 way the bundled runtime is not used, and the runtime that compiler compiles
 and the linker command it gives are cached under `~/.cache/zane` (or
 `$XDG_CACHE_HOME/zane`); set `ZANE_CACHE_DIR` to keep them elsewhere. The
-compiler itself runs natively on Linux; Zig cross-compiles the runtime for
-any other target.
+compiler itself runs natively on Linux and macOS, where its archives are
+built; Zig cross-compiles the runtime for any other target.
 
 ## Publishing a compiler release
 

@@ -29,7 +29,8 @@ and a problem there may wait.
 
 On every one of them `zanec` itself is built natively from the same pixi
 environment, and its suite, `just test-compiler`, runs there in CI, held to
-the host's triple, image format and C library: on Linux and Windows for every
+the triple a build without `--target` is for, and its image format and C
+library: on Linux and Windows for every
 change, on Apple Silicon macOS for every pull request, and on Intel macOS on
 `main`, in the merge queue and when CI is started by hand, since its runners
 are the slowest. The grammar, ambiguity and highlighting suites and
