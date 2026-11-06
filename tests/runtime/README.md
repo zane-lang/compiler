@@ -26,11 +26,13 @@ frame around it ended, several MiB of slots become usable as they are
 touched, and an address is found in the scope whose frame holds it at any
 depth, 100,000 scopes deep among them.
 
-On Linux it also forces `mprotect` to fail in child processes for both a
-main context and a spawned context. Each must exit with status 1 and the
+It also makes the system refuse to commit memory in child processes, for
+both a main context and a spawned context: through an `mprotect` of the
+test's own on Linux and macOS, and on Windows through a job whose commit
+limit leaves no room for a step. Each must exit with status 1 and the
 commit-failure diagnostic, rather than passing its fault on as a raw
-segmentation fault. This check needs no particular memory budget or
-overcommit setting; other platforms run the placement checks alone.
+segmentation fault or access violation. This check needs no particular
+memory budget or overcommit setting.
 
 `scalar_lists.c` covers issue [#191](https://github.com/zane-lang/compiler/issues/191):
 a list whose elements own no blocks, and a box whose payload owns none,
@@ -46,8 +48,12 @@ recursively boxed values.
 (docs/design/lowering.md §9): pushed from empty to 32 MiB, the list keeps
 the address it took at 1 MiB, every chunk it grew into is listed as its
 scope's, and none is once the scope drains. A copy's oversized block has
-no reservation, so its first doubling moves it and the next does not. On
-Linux a child process capped below what a reservation needs checks that
+no reservation, so its first doubling moves it and the next does not. A
+list that outgrows its reservation moves into a new one, and every page of
+the block it left but the header's is given back at once, as the system
+reports it: `/proc/self/pagemap` on Linux, `mincore` on macOS, and
+`VirtualQuery` on Windows. On Linux, the one system that caps a process's
+addresses (`RLIMIT_AS`), a child process capped below what a reservation needs checks that
 the list still grows, by moving, and returns every block; AddressSanitizer
 builds skip that child, as they skip `scalar_lists.c`'s budget.
 
