@@ -1,6 +1,7 @@
 """Generator contracts: source changes propagate and invalid inputs fail closed."""
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -85,6 +86,18 @@ class LexicalTests(unittest.TestCase):
         self.assertEqual(treesitter.binder_containers('main', rules, overlay, ['param']), ['decl'])
         with self.assertRaises(ValueError):
             treesitter.binder_containers('main', rules, overlay, ['helper'])
+
+    def test_neovim_query_passes_binders_and_containers_to_zane_bound(self):
+        # The zane-nvim plugin's predicate reads both lists from its arguments.
+        query = (ROOT / 'editors/neovim/queries/highlights.scm').read_text()
+        self.assertTrue(query.startswith((ROOT / 'editors/tree-sitter-zane/queries/highlights.scm').read_text()))
+        calls = re.findall(r'\(#zane-bound\? @[\w.]+ "([^"]*)" "([^"]*)"\)', query)
+        self.assertEqual(len(calls), query.count('#zane-bound?'))
+        self.assertGreater(len(calls), 0)
+        binders = self.overlay['binders']
+        for found_binders, found_containers in calls:
+            self.assertEqual(found_binders.split(), sorted(binders))
+            self.assertIn('expr', found_containers.split())
 
     def test_unknown_conflicts_are_rejected(self):
         with self.assertRaises(ValueError):

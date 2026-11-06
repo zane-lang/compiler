@@ -99,7 +99,12 @@ def outputs(directory: Path, executable: str, tree_sitter=None):
     binders = overlay.get('binders', [])
     containers = treesitter.binder_containers(start, rules, overlay, binders)
     arguments = ' ' + lexical.quoted(' '.join(sorted(binders))) + ' ' + lexical.quoted(' '.join(containers))
-    neovim_highlights = [re.sub(r'\(#zane-bound\? (@[\w.]+)\)', lambda m: '(#zane-bound? ' + m.group(1) + arguments + ')', line) for line in overlay.get('neovim_highlights', [])]
+    def with_arguments(line):
+        line, count = re.subn(r'\(#zane-bound\? (@[\w.]+)\)', lambda m: '(#zane-bound? ' + m.group(1) + arguments + ')', line)
+        if line.count('#zane-bound?') != count:
+            raise ValueError('neovim_highlights: write zane-bound? as (#zane-bound? @capture): ' + line)
+        return line
+    neovim_highlights = [with_arguments(line) for line in overlay.get('neovim_highlights', [])]
     neovim_queries = queries + '\n'.join(['', "; Neovim's own captures (grammar/tree-sitter.coda neovim_highlights).", *neovim_highlights, ''])
     package = {'name': 'tree-sitter-zane', 'version': '0.1.0', 'private': True, 'license': 'GPL-3.0-only', 'scripts': {'generate': 'tree-sitter generate', 'build': 'tree-sitter build --output zane.so'}, 'devDependencies': {'tree-sitter-cli': conflicts.VERSION}}
     return {'lib/cst/parser.mly': parser, 'lib/cst/lexer.ml': lexical.lexer(spec), 'editors/tree-sitter-zane/grammar.js': grammar, 'editors/tree-sitter-zane/conflicts.json': json.dumps(report, indent=2) + '\n', 'editors/tree-sitter-zane/tree-sitter.json': json.dumps(config, indent=2) + '\n', 'editors/tree-sitter-zane/package.json': json.dumps(package, indent=2) + '\n', 'editors/tree-sitter-zane/queries/highlights.scm': queries, 'editors/typst/Zane.sublime-syntax': lexical.sublime(spec), 'editors/neovim/queries/highlights.scm': neovim_queries}

@@ -111,3 +111,12 @@ for _, case in ipairs(role_cases) do
     assert(found, ('missing %s for %s'):format(role[2], role[1]))
   end
 end
+
+-- A query left over from a manual install calls zane-bound? without the
+-- binder and container arguments; it must match nothing rather than fail.
+vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'Int f(x Int) => x;' })
+local old = vim.treesitter.query.parse('zane', '((name_expr . (identifier) @p .) (#zane-bound? @p))')
+local otree = assert(vim.treesitter.get_parser(buf, 'zane'):parse()[1])
+for _ in old:iter_captures(otree:root(), buf) do
+  error('zane-bound? without arguments matched')
+end
