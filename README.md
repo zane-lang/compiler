@@ -4,13 +4,12 @@ This repository contains the Zane language compiler and CLI.
 
 ## Released toolchain
 
-The **Release compiler** workflow publishes a Linux x86_64 toolchain archive
-with `zanec`, its LLVM/shared-library dependencies, and Zig (the version in the
+The **Release compiler** workflow publishes toolchain archives for Linux
+x86_64 and for macOS on both Apple Silicon and Intel, each with `zanec`, its LLVM/shared-library dependencies, and Zig (the version in the
 archive's `share/zig.json`, pinned by `dev/toolchains/zig.json`). It builds Zane
 programs for Linux, Windows and macOS without installing OCaml, LLVM or a C
-compiler. Windows-native and macOS-native compiler archives are not yet
-provided; Windows and macOS program targets are tested on Windows and macOS
-in CI.
+compiler. A Windows-native compiler archive is not yet provided; Windows
+programs are built by the others and tested on Windows in CI.
 
 Download the `.tar.gz` and `SHA256SUMS` from a
 [compiler release](https://github.com/zane-lang/compiler/releases), then verify
@@ -146,15 +145,19 @@ just test-compiler
 ```
 
 The environment adds `dev/bin` to `PATH`. On Linux and macOS it sets
-`ZANE_CC` to `dev/bin/clang-lld`, whose linker is LLVM's `lld`, so `zanec`
-links with the `lld` built into it. On Windows it sets `ZANE_CC` to
+`ZANE_CC` to `dev/bin/clang-lld`, which is clang with LLVM's `lld` as its
+linker on Linux and plain clang on macOS. `zanec` reads the link line from
+it, asking clang for `lld`'s on macOS, and links with the `lld` built into
+it. On Windows it sets `ZANE_CC` to
 `dev/bin/zig-cc.cmd`, which links through `zig cc` for MinGW. `ZANE_CC` is
 left alone if it is already set. Set `ZANE_VERBOSE` to have a build say why
 it links through the C compiler instead.
 
 ### What each OS runs
 
-`just test-compiler`, the compiler suite, passes on all three. The grammar,
+`just test-compiler`, the compiler suite, passes on all three, and CI runs
+it natively on each, Intel macOS only on `main`, in the merge queue and on
+manual runs. The grammar,
 ambiguity and highlighting suites (`just test-grammar`,
 `just test-ambiguity-tools`, `just test-highlighting`) and `just test-perf`
 run on Linux only, as does `just test-windows`, which runs the Windows

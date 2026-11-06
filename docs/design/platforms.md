@@ -46,8 +46,9 @@ offset and size of the runtime's records that emitted code relies on is
 written once, in `runtime/zane_abi.h`: `runtime/zane_internal.h` asserts
 each against the structs, and codegen reads them from it as `Abi`
 (`lib/codegen/dune`). `tests/runtime/abi/probe.c` prints what the structs
-measure; the unit tests hold it to `Abi` on Linux, and
-`dev/bin/windows-programs` holds it to the header on Windows. On a target with 4-byte pointers, such as
+measure; the unit tests hold it to `Abi` on every host the compiler suite
+runs on, and `dev/bin/windows-programs` holds the Windows build it makes on
+Linux to the header. On a target with 4-byte pointers, such as
 `i386-unknown-linux-gnu` or `armv7-unknown-linux-gnueabihf`, those offsets
 would disagree with what LLVM and the C compiler lay out.
 
