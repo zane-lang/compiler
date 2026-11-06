@@ -21,6 +21,18 @@ let cpu triple =
   | "x86_64h" :: _ -> "core-avx2"
   | _ -> ""
 
+(* The features the target machine for [triple] adds to [cpu]'s: on AArch64
+   the base architecture, `+v8a`, which clang names on every function it
+   compiles for the architecture and LLVM's `generic` processor lacks. A
+   package's C, compiled by clang for the program's processor, then asks for
+   nothing the program's functions do not have, so it is inlined into them
+   (docs/design/ffi.md; clang_stubs.cpp's drop_default_processor checks
+   against the same). *)
+let features triple =
+  match String.split_on_char '-' triple with
+  | ("aarch64" | "arm64") :: _ -> "+v8a"
+  | _ -> ""
+
 (* Whether [triple], whose data layout is [layout], is a target this
    compiler builds for (docs/design/platforms.md, "64-bit targets only").
    Lowering lays out every type, and the runtime its records, for 8-byte
@@ -73,13 +85,13 @@ let target_machine ?target ~optimize () =
   let triple =
     match target with
     | Some target -> normalize_triple target
-    | None -> Llvm_target.Target.default_triple ()
+    | None -> normalize_triple (host_triple ())
   in
   let level = Llvm_target.CodeGenOptLevel.(if optimize then Default else None) in
   match Llvm_target.Target.by_triple triple with
   | target ->
       let tm =
-        Llvm_target.TargetMachine.create ~triple ~cpu:(cpu triple) ~level
+        Llvm_target.TargetMachine.create ~triple ~cpu:(cpu triple) ~features:(features triple) ~level
           ~reloc_mode:Llvm_target.RelocMode.PIC target
       in
       use_init_array tm;

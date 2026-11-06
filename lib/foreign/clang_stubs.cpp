@@ -585,9 +585,10 @@ void make_aliases(llvm::Module &module, const std::vector<Marked_alias> &marks) 
    runtime's bodies do (lib/codegen/runtime_bodies.ml), and are compiled
    for the program's target. LLVM inlines a body only into a caller whose
    processor has every feature the body's has, and the program's functions
-   name none, so the target machine's defaults stand for theirs; clang's
-   list for AArch64 names features those defaults do not (`+v8a`), which
-   would keep every C body out of the program. The compile is for the
+   name none, so the target machine's processor and features stand for
+   theirs: on AArch64 the base architecture, `+v8a`, besides the processor,
+   as clang names it on every function and LLVM's `generic` lacks
+   (Build.features), and the check below takes the same. The compile is for the
    program's own processor (Compile.processor_flag), so a body that loses
    it is emitted for the processor it was compiled for; one whose features
    that processor lacks, as a package's `-mavx2` adds, keeps them, and so
@@ -603,7 +604,8 @@ static void drop_default_processor(llvm::Module &module, const clang::TargetOpti
   const llvm::Target *machine = llvm::TargetRegistry::lookupTarget(module.getTargetTriple(), lookup);
   if (!machine) return;
   std::unique_ptr<llvm::MCSubtargetInfo> processor(
-      machine->createMCSubtargetInfo(module.getTargetTriple().str(), target.CPU, ""));
+      machine->createMCSubtargetInfo(module.getTargetTriple().str(), target.CPU,
+                                     module.getTargetTriple().isAArch64() ? "+v8a" : ""));
   if (!processor || !processor->checkFeatures(joined)) return;
   for (llvm::Function &f : module) {
     llvm::Attribute cpu = f.getFnAttribute("target-cpu");

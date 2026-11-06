@@ -276,7 +276,7 @@ let compile_source ?cache ~maps flags path =
       Digest.to_hex
         (Digest.string
            (String.concat "\000"
-              [ "c-module 4"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
+              [ "c-module 5"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
     in
     let placed = List.exists (fun w -> mentions w preprocessed.output) [ "__builtin_COLUMN"; "__builtin_LINE" ] in
     let cache = if placed then None else cache in

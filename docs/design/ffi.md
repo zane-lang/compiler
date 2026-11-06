@@ -131,10 +131,12 @@ inlining across the two languages would never happen. A function the front
 end stamps with the compile's own processor, its `target-cpu`,
 `target-features` and `tune-cpu`, loses them, as the runtime's bodies do,
 and is compiled for the program's target: LLVM inlines a body only into a
-caller whose processor has every feature the body's has, the program's
-functions name none, and clang's list for AArch64 names features the target
-machine's defaults do not (`+v8a`), which would keep every C body out of the
-program. Since the compile is for the program's processor, a body that loses
+caller whose processor has every feature the body's has, and the program's
+functions name none, so the target machine's stand for theirs. On AArch64
+that machine adds the base architecture, `+v8a`, to its processor: clang
+names it on every function it compiles for the architecture and LLVM's
+`generic` processor lacks it, so without it every C body would be kept out
+of the program. Since the compile is for the program's processor, a body that loses
 the stamp is emitted for the processor it was compiled for; one whose
 features that processor lacks keeps them, and so does a function given a
 processor of its own by `__attribute__((target))`. The package's

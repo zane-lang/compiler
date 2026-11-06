@@ -403,7 +403,11 @@ let c_processor () =
     = None);
   with_zig_cc (fun zig ->
       match ir ~cc:zig ~cpu:"" "aarch64-macos" "long plain(long x) { return x + 1; }\n" with
-      | Some text -> check "C for AArch64 macOS is not compiled for clang's apple-m1" (not (has text "apple-m1"))
+      | Some text ->
+          check "C for AArch64 macOS is not compiled for clang's apple-m1" (not (has text "apple-m1"));
+          (* `generic`'s, with the base architecture the target machine
+             adds (Build.features), so it is inlined into the program's. *)
+          check "C for AArch64 macOS loses the processor it was compiled for" (not (has text "target-cpu"))
       | None -> check "C compiles for AArch64 macOS" false)
 
 (* `ZANE_ALIAS` (zane_ffi.h) makes the declaration it marks an alias of its
