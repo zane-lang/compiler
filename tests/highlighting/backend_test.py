@@ -87,8 +87,6 @@ class BackendTests(unittest.TestCase):
         cls.parser = Parser(cls.language)
         cls.query = Query(cls.language, (source / 'queries/highlights.scm').read_text())
         shutil.copytree(source / 'queries', cls.runtime / 'queries/zane')
-        # Neovim's own captures extend the shared query from an `after` directory.
-        shutil.copytree(ROOT / 'editors/neovim/queries', cls.runtime / 'after/queries')
 
     def test_existing_accepted_syntax_examples(self):
         # Reuse all accepted examples from the compiler's syntax suite. The

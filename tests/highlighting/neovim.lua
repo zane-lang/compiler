@@ -1,8 +1,18 @@
 local root = assert(vim.env.ZANE_TEST_ROOT)
+-- The parser and shared query, as nvim-treesitter would install them, and the
+-- plugin, loaded the way plugin managers load it.
 vim.opt.runtimepath:prepend(assert(vim.env.ZANE_TEST_RUNTIME))
-vim.opt.runtimepath:append(vim.env.ZANE_TEST_RUNTIME .. '/after')
-dofile(root .. '/editors/neovim/zane.lua')
+vim.opt.runtimepath:append(root .. '/editors/neovim')
+vim.cmd.runtime('plugin/zane.lua')
 vim.cmd('filetype on')
+
+-- The plugin registers the parser with nvim-treesitter, built from this checkout.
+package.loaded['nvim-treesitter.parsers'] = {}
+vim.api.nvim_exec_autocmds('User', { pattern = 'TSUpdate' })
+local info = assert(package.loaded['nvim-treesitter.parsers'].zane, 'parser not registered').install_info
+assert(vim.fs.normalize(info.path) == vim.fs.normalize(root .. '/editors/tree-sitter-zane'), info.path)
+assert(info.generate and info.queries == 'queries' and info.revision == require('zane').revision())
+package.loaded['nvim-treesitter.parsers'] = nil
 vim.cmd.edit(root .. '/tests/parser/fixtures/utf8.zn')
 assert(vim.bo.filetype == 'zane', 'filetype detection failed')
 local parser = vim.treesitter.get_parser(0, 'zane')
