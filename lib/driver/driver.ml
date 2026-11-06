@@ -482,12 +482,18 @@ let temporary_attempts = 8
    another's file: it is left alone and a new name drawn. Any failure to
    create one draws again, since [Sys_error] does not say whether the name
    was taken, and a lookup after the fact misses a dangling symlink or a file
-   removed in between. Only a temporary this call created is removed when a
-   later step fails. *)
+   removed in between. Windows creates a dangling symlink's target where the
+   exclusive create meets one, so there a name that is any entry, a link
+   among them, is drawn again first. Only a temporary this call created is
+   removed when a later step fails. *)
 let write_replacing ~random ~output contents =
+  let taken name = Sys.win32 && match Unix.lstat name with _ -> true | exception Unix.Unix_error _ -> false in
   let rec attempt drawn =
     let temporary = temporary_name random output in
     let created = ref false in
+    if taken temporary then
+      if drawn < temporary_attempts then attempt (drawn + 1) else Error (temporary ^ ": the name is taken")
+    else
     match
       Out_channel.with_open_gen
         [ Open_wronly; Open_creat; Open_excl; Open_binary ]
