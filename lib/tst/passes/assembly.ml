@@ -81,6 +81,13 @@ let file_start path =
    Sorted because the order the file system lists them in is not something a
    golden file should depend on -- and file order is "semantically irrelevant"
    anyway, so no order is more correct than another. *)
+(* A file's path in [dir], joined with `/`, which Windows reads as it reads
+   `\`, so a source's path is spelled the same on every system: in reports,
+   spans and every view of the program. *)
+let in_directory_path dir entry =
+  let n = String.length dir in
+  if n > 0 && (dir.[n - 1] = '/' || dir.[n - 1] = '\\') then dir ^ entry else dir ^ "/" ^ entry
+
 let source_files dir =
   (* An entry that cannot be examined, such as a dangling link, is kept as a
      file: reading it is what fails, and that failure is reported against its
@@ -91,7 +98,7 @@ let source_files dir =
          Filename.check_suffix entry source_extension
          && not (is_directory (Filename.concat dir entry)))
   |> List.sort String.compare
-  |> List.map (Filename.concat dir)
+  |> List.map (in_directory_path dir)
 
 (* Whatever succeeded, if everything did; otherwise every problem, from every
    part that failed. One pass over the results, splitting as it goes. *)
