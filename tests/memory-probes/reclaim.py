@@ -27,7 +27,7 @@ def run_measured(exe):
     peak is the program's alone; on Windows the process's own counters are
     read through the handle Popen keeps once it has exited."""
     if sys.platform != "win32":
-        m=subprocess.run([sys.executable,"-c","import resource,subprocess,sys;r=subprocess.run([sys.argv[1]],capture_output=True);print(r.returncode,resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss,r.stderr.decode()[:200])",exe],capture_output=True,text=True)
+        m=subprocess.run([sys.executable,"-c","import resource,subprocess,sys;r=subprocess.run([sys.argv[1]],capture_output=True);print(r.returncode,resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss,r.stderr.decode(errors='replace')[:200])",exe],capture_output=True,text=True)
         return m.stdout.strip()
     import ctypes
     from ctypes import wintypes

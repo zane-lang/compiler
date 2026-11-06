@@ -137,7 +137,9 @@ def run(args, env, first_line=None):
     start.StartupInfo.dwFlags = STARTF_USESTDHANDLES
     start.StartupInfo.hStdError = err_write
     start.lpAttributeList = ctypes.cast(attributes, wintypes.LPVOID)
-    block = ctypes.create_unicode_buffer("".join(f"{k}={v}\0" for k, v in env.items()) + "\0")
+    # An environment block is sorted by name, without regard to case.
+    entries = sorted(env.items(), key=lambda item: item[0].upper())
+    block = ctypes.create_unicode_buffer("".join(f"{k}={v}\0" for k, v in entries) + "\0")
     command = ctypes.create_unicode_buffer(" ".join(f'"{a}"' for a in args))
     info = PROCESS_INFORMATION()
     try:
