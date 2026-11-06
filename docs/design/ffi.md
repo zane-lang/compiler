@@ -120,7 +120,10 @@ since it carries its own headers for every target.
 settings.** The fixed flags are `-std=c17`, `-ffp-contract=off`,
 `-fno-fast-math`, `-fno-finite-math-only`, `-fno-associative-math` and
 `-fno-rounding-math` (`ffi.md` §2.2), the target triple (the host's when the
-build names none), `-isystem` for the directory holding `zane_ffi.h`, and
+build names none), the processor the program's own code is emitted for
+(`-march` on x86-64, `-mcpu` elsewhere: the baseline `x86-64`, or LLVM's
+`generic`, never the `penryn` or `apple-m1` clang defaults to on macOS),
+`-isystem` for the directory holding `zane_ffi.h`, and
 `-O2 -Xclang -disable-llvm-passes`, so the
 module comes out of the front end unoptimized but optimizable: `-O0` would
 mark every function `noinline`, which no later pipeline undoes, and F13's
@@ -131,8 +134,10 @@ and is compiled for the program's target: LLVM inlines a body only into a
 caller whose processor has every feature the body's has, the program's
 functions name none, and clang's list for AArch64 names features the target
 machine's defaults do not (`+v8a`), which would keep every C body out of the
-program. A function given a processor of its own, by
-`__attribute__((target))`, keeps it. The package's
+program. Since the compile is for the program's processor, a body that loses
+the stamp is emitted for the processor it was compiled for; one whose
+features that processor lacks keeps them, and so does a function given a
+processor of its own by `__attribute__((target))`. The package's
 `include` and `define` rows come after, in the order its `c.coda` writes them
 (`ffi.md` §2.3). A setting that names one of the fixed flags is an error
 naming the row: a `define` of a macro those flags set, `__FAST_MATH__`,
@@ -377,7 +382,9 @@ giving it the declaration's uses and its linkage: a `static` declaration's
 alias is internal, as the `alias` attribute makes it. The front end refuses a mark, where it is
 written, unless it is on a declaration of a function or variable that the
 source does not define, and the source defines its target, of the same
-kind, with external linkage.
+kind, with external linkage, and neither has an `__asm__` label, which
+would name a symbol other than the C name the alias is made under. A
+thread-local variable's alias is thread-local.
 
 An `available_externally` definition, such as the inline copy of `atoi`
 glibc's `<stdlib.h>` can give, is not one the package defines: it stands

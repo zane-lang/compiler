@@ -57,10 +57,22 @@ let headers root =
   write_files ffi ffi_files;
   { root; resource; ffi }
 
+(* The flag that compiles C for [cpu], the processor the program's own code
+   is emitted for (Build.cpu): `-march` on x86-64, whose `-mcpu` only tunes,
+   and `-mcpu` elsewhere. LLVM's default, [cpu] empty, is the baseline
+   `x86-64` on x86-64, which has no `generic` to name, and `generic`
+   elsewhere. C then uses what the program's processor has and no more,
+   whatever processor clang defaults to for the target. *)
+let processor_flag ~triple cpu =
+  match String.split_on_char '-' triple with
+  | ("x86_64" | "x86_64h" | "amd64") :: _ -> "-march=" ^ if cpu = "" then "x86-64" else cpu
+  | _ -> "-mcpu=" ^ if cpu = "" then "generic" else cpu
+
 (* The flags every C source is compiled with, whatever its package's
    settings: C17, floating-point expressions evaluated as written, the
-   build's target, the headers above, and the target's C library headers. *)
-let fixed_flags ~triple ~headers ~include_dirs =
+   build's target and processor, the headers above, and the target's C
+   library headers. *)
+let fixed_flags ~triple ~cpu ~headers ~include_dirs =
   [
     "-std=c17";
     "-ffp-contract=off";
@@ -69,6 +81,7 @@ let fixed_flags ~triple ~headers ~include_dirs =
     "-fno-associative-math";
     "-fno-rounding-math";
     "--target=" ^ triple;
+    processor_flag ~triple cpu;
     "-O2";
     "-Xclang";
     "-disable-llvm-passes";
@@ -263,7 +276,7 @@ let compile_source ?cache ~maps flags path =
       Digest.to_hex
         (Digest.string
            (String.concat "\000"
-              [ "c-module 3"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
+              [ "c-module 4"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
     in
     let placed = List.exists (fun w -> mentions w preprocessed.output) [ "__builtin_COLUMN"; "__builtin_LINE" ] in
     let cache = if placed then None else cache in

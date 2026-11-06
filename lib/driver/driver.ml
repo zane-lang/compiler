@@ -409,7 +409,11 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
                   libraries = [];
                   labels = None;
                 })
-            (Foreign.callbacks ~target (List.map entry p))
+            (Result.bind
+               (Result.map_error
+                  (fun message -> { Foreign.diagnostics = [ Diagnostic.about_invocation message ]; sources = [] })
+                  (Codegen.target_cpu ?target ()))
+               (fun cpu -> Foreign.callbacks ~cpu ~target (List.map entry p)))
       in
       match Foreign.combine ((if c = [] then [] else List.map2 one packages c) @ [ callbacks () ]) with
       | Ok cs -> Ok (List.filter_map Fun.id cs)

@@ -356,6 +356,56 @@ let interface_header () =
           check "long is 32 bits on Windows"
             (match table (Some "x86_64-windows-gnu") with Some w -> long_size w = 32 | None -> false))
 
+(* A package's C is compiled for the program's processor, not the one clang
+   defaults to for the target (`penryn` on x86-64 macOS, `apple-m1` on
+   AArch64 macOS), so its functions lose the processor stamp, and so may be
+   inlined into the program's, without being emitted for a processor that
+   lacks what they were compiled to use. A function given a processor of
+   its own keeps it. *)
+let c_processor () =
+  let base = Filename.temp_dir "zane-processor-" "" in
+  Fun.protect ~finally:(fun () -> remove_tree base) @@ fun () ->
+  let count = ref 0 in
+  let ir ~cc ~cpu target text =
+    incr count;
+    let dir = Filename.concat base (Printf.sprintf "p%d" !count) in
+    Sys.mkdir dir 0o755;
+    write_all (Filename.concat dir "a.c") text;
+    match Foreign.compile_packages ~cache:None ~cc ~cpu ~target:(Some target) [ dir ] with
+    | Ok [ { Foreign.sources = [ s ]; _ } ] ->
+        let ctx = Llvm.create_context () in
+        Fun.protect ~finally:(fun () -> Llvm.dispose_context ctx) @@ fun () ->
+        let m = Llvm_bitreader.parse_bitcode ctx (Llvm.MemoryBuffer.of_string s.Compile.bitcode) in
+        let text = Llvm.string_of_llmodule m in
+        Llvm.dispose_module m;
+        Some text
+    | _ -> None
+  in
+  let has text part =
+    let n = String.length part in
+    let rec at i = i + n <= String.length text && (String.sub text i n = part || at (i + 1)) in
+    at 0
+  in
+  let source =
+    "long plain(long x) { return x + 1; }\n\
+     __attribute__((target(\"avx2\"))) long own(long x) { return x + 2; }\n"
+  in
+  let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+  (match ir ~cc ~cpu:"x86-64" "x86_64-apple-macos" source with
+  | Some text ->
+      check "a C function given a processor keeps it" (has text "+avx2")
+  | None -> check "C compiles for x86-64 macOS" false);
+  (* SSSE3, which clang's penryn has and the baseline x86-64 lacks. *)
+  check "C for x86-64 macOS is compiled for the program's x86-64, not clang's penryn"
+    (ir ~cc ~cpu:"x86-64" "x86_64-apple-macos"
+       "typedef char v16 __attribute__((vector_size(16)));\n\
+        v16 shuffled(v16 a, v16 b) { return __builtin_ia32_pshufb128(a, b); }\n"
+    = None);
+  with_zig_cc (fun zig ->
+      match ir ~cc:zig ~cpu:"" "aarch64-macos" "long plain(long x) { return x + 1; }\n" with
+      | Some text -> check "C for AArch64 macOS is not compiled for clang's apple-m1" (not (has text "apple-m1"))
+      | None -> check "C compiles for AArch64 macOS" false)
+
 (* `ZANE_ALIAS` (zane_ffi.h) makes the declaration it marks an alias of its
    target, the same on an ELF target and on Mach-O, whose C has no `alias`
    attribute, and the declaration's uses become the alias's. The alias has
@@ -363,7 +413,7 @@ let interface_header () =
    thread-local variable's is thread-local. A mark is
    refused where it is written unless it is on a declaration of a function
    or variable the source does not define, naming one of the same kind it
-   defines with external linkage. *)
+   defines with external linkage, and neither has an `__asm__` label. *)
 let zane_aliases () =
   let base = Filename.temp_dir "zane-alias-" "" in
   Fun.protect ~finally:(fun () -> remove_tree base) @@ fun () ->
@@ -438,6 +488,12 @@ let zane_aliases () =
     "static int64_t helper(void) { return 2; }\nint64_t named(void) ZANE_ALIAS(\"helper\");\n" "internal linkage";
   refused "a mark naming a variable for a function is refused"
     "int64_t helper = 2;\nint64_t named(void) ZANE_ALIAS(\"helper\");\n" "does not define";
+  refused "a mark on a declaration with an asm label is refused"
+    "int64_t helper(void) { return 2; }\nint64_t named(void) __asm__(\"actual_named\") ZANE_ALIAS(\"helper\");\n"
+    "has an `__asm__` label";
+  refused "a mark naming a target with an asm label is refused"
+    "int64_t helper(void) __asm__(\"actual_helper\"); int64_t helper(void) { return 2; }\nint64_t named(void) ZANE_ALIAS(\"helper\");\n"
+    "has an `__asm__` label";
   refused "a mark on a definition is refused"
     "int64_t helper(void) { return 2; }\nint64_t named(void) ZANE_ALIAS(\"helper\");\nint64_t named(void) { return 1; }\n"
     "defined here too"
@@ -837,6 +893,7 @@ let run () =
   interface_header ();
   glue_refusals ();
   zane_aliases ();
+  c_processor ();
   linker_sets ();
   glue_paths ();
   glue_prototypes ();

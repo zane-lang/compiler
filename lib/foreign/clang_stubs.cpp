@@ -34,6 +34,9 @@
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CrashRecoveryContext.h"
@@ -445,7 +448,7 @@ struct Marked_alias {
 /* What the source's `ZANE_ALIAS` marks name, each refused with an error
    where it is written unless it is a declaration of a function or variable,
    not its definition, whose target is defined in the source with external
-   linkage and is of the same kind. Each declaration of a name counts once,
+   linkage and is of the same kind, and neither has an `__asm__` label. Each declaration of a name counts once,
    since a redeclaration inherits the mark. */
 class Alias_marks : public clang::ASTConsumer {
 public:
@@ -494,6 +497,16 @@ public:
       }
       if (!target->isExternallyVisible()) {
         refuse("ZANE_ALIAS names `" + f.target + "`, which has internal linkage");
+        continue;
+      }
+      /* An `__asm__` label names a symbol other than the C name, which is
+         the name the alias is made under and its target found by. */
+      if (f.decl->hasAttr<clang::AsmLabelAttr>()) {
+        refuse("`" + f.decl->getName().str() + "`, which ZANE_ALIAS makes another name, has an `__asm__` label");
+        continue;
+      }
+      if (target->hasAttr<clang::AsmLabelAttr>()) {
+        refuse("ZANE_ALIAS names `" + f.target + "`, which has an `__asm__` label");
         continue;
       }
       marks.push_back({ f.decl->getName().str(), f.target, f.decl->isExternallyVisible() });
@@ -567,20 +580,31 @@ void make_aliases(llvm::Module &module, const std::vector<Marked_alias> &marks) 
 
 /* The module the command line's one source compiles to, as bitcode, with
    an alias for each declaration `ZANE_ALIAS` marks. */
-/* [module]'s functions stamped with the processor the compile defaults
-   to, [target]'s, made the program's code: they lose that processor, as
-   the runtime's bodies do (lib/codegen/runtime_bodies.ml), and are
-   compiled for the program's target. LLVM inlines a body only into a
-   caller whose processor has every feature the body's has, and the
-   program's functions name none, so the target machine's defaults stand
-   for theirs; clang's list for AArch64 names features those defaults do
-   not (`+v8a`), which would keep every C body out of the program. A
-   function given a processor of its own (`__attribute__((target))`)
-   keeps it. */
+/* [module]'s functions stamped with the processor the compile is for,
+   [target]'s, made the program's code: they lose that processor, as the
+   runtime's bodies do (lib/codegen/runtime_bodies.ml), and are compiled
+   for the program's target. LLVM inlines a body only into a caller whose
+   processor has every feature the body's has, and the program's functions
+   name none, so the target machine's defaults stand for theirs; clang's
+   list for AArch64 names features those defaults do not (`+v8a`), which
+   would keep every C body out of the program. The compile is for the
+   program's own processor (Compile.processor_flag), so a body that loses
+   it is emitted for the processor it was compiled for; one whose features
+   that processor lacks, as a package's `-mavx2` adds, keeps them, and so
+   does a function given a processor of its own
+   (`__attribute__((target))`). */
 static void drop_default_processor(llvm::Module &module, const clang::TargetOptions &target) {
   std::vector<std::string> features = target.Features;
   llvm::sort(features);
   std::string joined = llvm::join(features, ",");
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargetMCs();
+  std::string lookup;
+  const llvm::Target *machine = llvm::TargetRegistry::lookupTarget(module.getTargetTriple(), lookup);
+  if (!machine) return;
+  std::unique_ptr<llvm::MCSubtargetInfo> processor(
+      machine->createMCSubtargetInfo(module.getTargetTriple().str(), target.CPU, ""));
+  if (!processor || !processor->checkFeatures(joined)) return;
   for (llvm::Function &f : module) {
     llvm::Attribute cpu = f.getFnAttribute("target-cpu");
     llvm::Attribute has = f.getFnAttribute("target-features");

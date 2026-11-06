@@ -376,7 +376,7 @@ let compile_all ?cache ~work ~cc ~cpu ~triple ~target packages =
   match Probe.include_dirs ?cache ~dir:work ~cc ~triple target with
   | Error message -> Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] }
   | Ok include_dirs ->
-      let fixed = Compile.fixed_flags ~triple ~headers ~include_dirs in
+      let fixed = Compile.fixed_flags ~triple ~cpu ~headers ~include_dirs in
       combine (List.map (compile_package ?cache ~fixed ~headers ~triple ~cpu) packages)
 
 let no_c (dir, rows, _) =
@@ -598,10 +598,10 @@ let glue p (entries : Glue.entry list) =
         (directed_glue p)
 
 (* The C entries of the function values C can call
-   (docs/design/ffi.md F11, Glue.callbacks_file), compiled for [target] by
-   the linked clang, from the cache when it holds them. The file includes
+   (docs/design/ffi.md F11, Glue.callbacks_file), compiled for [target] and
+   [cpu] by the linked clang, from the cache when it holds them. The file includes
    nothing, so it needs no C library's headers. *)
-let callbacks ?(cache = Cache.dir ()) ~target (entries : Glue.callback list) =
+let callbacks ?(cache = Cache.dir ()) ~cpu ~target (entries : Glue.callback list) =
   let triple = triple target in
   match Filename.temp_dir "zane-callbacks-" "" with
   | exception Sys_error message -> glue_unwritten message
@@ -615,7 +615,7 @@ let callbacks ?(cache = Cache.dir ()) ~target (entries : Glue.callback list) =
             | None -> (Compile.headers work, None)
           in
           let maps = Compile.with_real_paths [ (work, "/zane/glue") ] in
-          let flags = Compile.fixed_flags ~triple ~headers ~include_dirs:[] @ Compile.map_flags maps in
+          let flags = Compile.fixed_flags ~triple ~cpu ~headers ~include_dirs:[] @ Compile.map_flags maps in
           let path = Filename.concat work "callbacks.c" in
           match Out_channel.with_open_bin path (fun oc -> output_string oc (Glue.callbacks_file entries)) with
           | exception Sys_error message -> glue_unwritten message
