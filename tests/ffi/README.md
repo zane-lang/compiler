@@ -31,7 +31,9 @@ holds the C sources of the static library `NAME.a` beside it, which an
 from `ZANE_CC` and `llvm-ar` (`AR` when set), and
 `dev/bin/windows-programs` builds it for Windows in a copy of the
 fixtures. One holding a file `target` is built for the triple the file
-names, or, when it is empty, for an architecture other than the host's.
+names. A refused fixture whose refusal depends on the object format, or on
+the target's architecture, names `x86_64-unknown-linux-gnu` as its target in
+its `flags`, so every host refuses it the same way.
 One holding a file `strip` has its objects stripped of the symbols no
 relocation needs, by `llvm-strip` (`STRIP` when set).
 

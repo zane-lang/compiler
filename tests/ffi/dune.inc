@@ -1355,7 +1355,7 @@
    reject.archiveDirective.err.actual
    (with-accepted-exit-codes
     1
-    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/archiveDirective)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --check "--target" "x86_64-unknown-linux-gnu" --package fixtures/reject/archiveDirective)))))
 
 (rule
  (alias runtest)
@@ -1369,7 +1369,7 @@
    reject.archiveExport.err.actual
    (with-accepted-exit-codes
     1
-    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/archiveExport)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --check "--target" "x86_64-unknown-linux-gnu" --package fixtures/reject/archiveExport)))))
 
 (rule
  (alias runtest)
@@ -1383,7 +1383,7 @@
    reject.archiveLabel.err.actual
    (with-accepted-exit-codes
     1
-    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/archiveLabel)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --check "--target" "x86_64-unknown-linux-gnu" --package fixtures/reject/archiveLabel)))))
 
 (rule
  (alias runtest)
@@ -1397,7 +1397,7 @@
    reject.archiveTarget.err.actual
    (with-accepted-exit-codes
     1
-    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/archiveTarget)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --check "--target" "x86_64-unknown-linux-gnu" --package fixtures/reject/archiveTarget)))))
 
 (rule
  (alias runtest)
@@ -1537,7 +1537,7 @@
    reject.assembledConstant.ll.err.actual
    (with-accepted-exit-codes
     1
-    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/assembledConstant)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --ll "--target" "x86_64-unknown-linux-gnu" --package fixtures/reject/assembledConstant)))))
 
 (rule
  (alias runtest)
@@ -1551,7 +1551,7 @@
    reject.assembledFunction.ll.err.actual
    (with-accepted-exit-codes
     1
-    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/assembledFunction)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --ll "--target" "x86_64-unknown-linux-gnu" --package fixtures/reject/assembledFunction)))))
 
 (rule
  (alias runtest)
@@ -1565,7 +1565,7 @@
    reject.assembledState.ll.err.actual
    (with-accepted-exit-codes
     1
-    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/assembledState)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --ll "--target" "x86_64-unknown-linux-gnu" --package fixtures/reject/assembledState)))))
 
 (rule
  (alias runtest)
@@ -1719,7 +1719,7 @@
    reject.linkerSet.err.actual
    (with-accepted-exit-codes
     1
-    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/linkerSet)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --check "--target" "x86_64-unknown-linux-gnu" --package fixtures/reject/linkerSet)))))
 
 (rule
  (alias runtest)
@@ -1761,7 +1761,7 @@
    reject.objectLinkerSet.err.actual
    (with-accepted-exit-codes
     1
-    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/reject/objectLinkerSet)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --check "--target" "x86_64-unknown-linux-gnu" --package fixtures/reject/objectLinkerSet)))))
 
 (rule
  (alias runtest)
