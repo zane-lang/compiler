@@ -17,6 +17,7 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Basic/TargetOptions.h"
 #include "clang/Basic/Version.h"
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -33,6 +34,8 @@
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
@@ -554,6 +557,33 @@ void make_aliases(llvm::Module &module, const std::vector<Marked_alias> &marks) 
 
 /* The module the command line's one source compiles to, as bitcode, with
    an alias for each declaration `ZANE_ALIAS` marks. */
+/* [module]'s functions stamped with the processor the compile defaults
+   to, [target]'s, made the program's code: they lose that processor, as
+   the runtime's bodies do (lib/codegen/runtime_bodies.ml), and are
+   compiled for the program's target. LLVM inlines a body only into a
+   caller whose processor has every feature the body's has, and the
+   program's functions name none, so the target machine's defaults stand
+   for theirs; clang's list for AArch64 names features those defaults do
+   not (`+v8a`), which would keep every C body out of the program. A
+   function given a processor of its own (`__attribute__((target))`)
+   keeps it. */
+static void drop_default_processor(llvm::Module &module, const clang::TargetOptions &target) {
+  std::vector<std::string> features = target.Features;
+  llvm::sort(features);
+  std::string joined = llvm::join(features, ",");
+  for (llvm::Function &f : module) {
+    llvm::Attribute cpu = f.getFnAttribute("target-cpu");
+    llvm::Attribute has = f.getFnAttribute("target-features");
+    std::string own_cpu = cpu.isValid() ? cpu.getValueAsString().str() : "";
+    std::string own_features = has.isValid() ? has.getValueAsString().str() : "";
+    if (own_cpu != target.CPU || own_features != joined) continue;
+    f.removeFnAttr("target-cpu");
+    f.removeFnAttr("target-features");
+    llvm::Attribute tune = f.getFnAttribute("tune-cpu");
+    if (tune.isValid() && tune.getValueAsString() == target.TuneCPU) f.removeFnAttr("tune-cpu");
+  }
+}
+
 extern "C" value zane_clang_compile(value args) {
   CAMLparam1(args);
   std::vector<std::string> owned = strings_of(args);
@@ -566,6 +596,7 @@ extern "C" value zane_clang_compile(value args) {
     std::unique_ptr<llvm::Module> module = action.takeModule();
     if (!module) return false;
     make_aliases(*module, marks);
+    drop_default_processor(*module, ci.getTargetOpts());
     llvm::raw_string_ostream os(bitcode);
     llvm::WriteBitcodeToFile(*module, os);
     os.flush();

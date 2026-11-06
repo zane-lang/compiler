@@ -247,7 +247,9 @@ let mentions word text =
    preprocessed text, which keeps neither a token's column nor the line of
    one inside a macro argument that spans lines, so a module that asks for
    either (`__builtin_COLUMN`, `__builtin_LINE`) is compiled every time
-   instead. *)
+   instead. The key's tag names the form zanec makes of clang's module
+   (its aliases, the processor its functions lose), so a module kept in
+   another form is compiled again. *)
 let compile_source ?cache ~maps flags path =
   let args = flags @ [ "-c"; path ] in
   let preprocessed = Clang.preprocess args in
@@ -259,7 +261,7 @@ let compile_source ?cache ~maps flags path =
       Digest.to_hex
         (Digest.string
            (String.concat "\000"
-              [ "c-module"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
+              [ "c-module 2"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
     in
     let placed = List.exists (fun w -> mentions w preprocessed.output) [ "__builtin_COLUMN"; "__builtin_LINE" ] in
     let cache = if placed then None else cache in

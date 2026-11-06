@@ -124,7 +124,15 @@ build names none), `-isystem` for the directory holding `zane_ffi.h`, and
 `-O2 -Xclang -disable-llvm-passes`, so the
 module comes out of the front end unoptimized but optimizable: `-O0` would
 mark every function `noinline`, which no later pipeline undoes, and F13's
-inlining across the two languages would never happen. The package's
+inlining across the two languages would never happen. A function the front
+end stamps with the compile's own processor, its `target-cpu`,
+`target-features` and `tune-cpu`, loses them, as the runtime's bodies do,
+and is compiled for the program's target: LLVM inlines a body only into a
+caller whose processor has every feature the body's has, the program's
+functions name none, and clang's list for AArch64 names features the target
+machine's defaults do not (`+v8a`), which would keep every C body out of the
+program. A function given a processor of its own, by
+`__attribute__((target))`, keeps it. The package's
 `include` and `define` rows come after, in the order its `c.coda` writes them
 (`ffi.md` §2.3). A setting that names one of the fixed flags is an error
 naming the row: a `define` of a macro those flags set, `__FAST_MATH__`,
