@@ -43,28 +43,6 @@ hello)
 	"$out" | tee "$root/_build/spike-hello.out"
 	diff -u --strip-trailing-cr tests/codegen/golden/hello.out "$root/_build/spike-hello.out"
 	;;
-ckeys)
-	# What each C module's key is made of, in an object's build and in a
-	# consumer's of the same package, and where the two differ.
-	keys="$root/_build/spike-keys"
-	rm -rf "$keys"; mkdir -p "$keys/object" "$keys/consumer"
-	z="$root/_build/default/bin/zanec/zanec.exe"
-	cd tests/ffi
-	stamp='v1.0%0123456789abcdef%'
-	ZANE_DEBUG_C_KEYS="$keys/object" "$z" --no-root --object "$keys/lib.o" --package lib=fixtures/retained/lib/
-	"$z" --rewrite "$stamp" "$keys/lib.c.hashes" "$keys/lib.c.hashes.stamped"
-	cat "$keys/lib.c.hashes"
-	ZANE_DEBUG_C_KEYS="$keys/consumer" "$z" --ll --optimize --package app=fixtures/retained/app \
-		--package "${stamp}lib=fixtures/retained/lib/" --import "app:lib=${stamp}lib" \
-		--c-hashes "$keys/lib.c.hashes.stamped" >/dev/null
-	ls "$keys/object" "$keys/consumer"
-	for f in "$keys"/object/*; do
-		name=$(basename "$f"); name=${name%%.*}
-		other=$(ls "$keys"/consumer/"$name".* 2>/dev/null | head -1 || true)
-		[ -n "$other" ] || { echo "$name: not compiled by the consumer"; continue; }
-		echo "== $name"; diff "$f" "$other" | head -40 || true
-	done
-	;;
 cheaders)
 	# Where the compiler's own clang finds its builtin headers: the build
 	# writes them into the cache's foreign/resource-*/include.

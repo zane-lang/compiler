@@ -263,15 +263,6 @@ let compile_source ?cache ~maps flags path =
            (String.concat "\000"
               [ "c-module 2"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
     in
-    (match Sys.getenv_opt "ZANE_DEBUG_C_KEYS" with
-    | Some d ->
-        Out_channel.with_open_bin
-          (Filename.concat d (Printf.sprintf "%s.%d.%s" (Filename.basename path) (Unix.getpid ()) key))
-          (fun oc ->
-            output_string oc (String.concat "\n" (List.map (mapped_arg maps) args));
-            output_string oc "\n=====\n";
-            output_string oc (mapped maps preprocessed.output))
-    | None -> ());
     let placed = List.exists (fun w -> mentions w preprocessed.output) [ "__builtin_COLUMN"; "__builtin_LINE" ] in
     let cache = if placed then None else cache in
     let kept = Option.map (fun c -> Filename.concat (Filename.concat c "foreign/module") (key ^ ".bc")) cache in
