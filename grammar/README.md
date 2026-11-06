@@ -49,8 +49,7 @@ identical to the previous grammar.
 | `editors/tree-sitter-zane/queries/highlights.scm` | Neovim and Tree-sitter highlighting |
 | `editors/tree-sitter-zane/tree-sitter.json`, `package.json` | Tree-sitter build metadata and pinned CLI |
 | `editors/typst/Zane.sublime-syntax` | Typst `raw(syntaxes: ...)` |
-| `editors/neovim/lua/zane/grammar.lua` | The Neovim plugin's file extensions and the binder nodes its `zane-bound?` predicate scans |
-| `editors/neovim/queries/zane/highlights.scm` | Neovim-only captures, appended to the shared query |
+| `editors/neovim/queries/highlights.scm` | Neovim's query, which nvim-treesitter installs: the shared one plus Neovim-only captures |
 
 ```sh
 .grammar-venv/bin/python -m tools.grammar
@@ -143,10 +142,10 @@ It does not configure the Typst web editor or your text editor.
 
 ## Neovim
 
-[`editors/neovim`](../editors/neovim/README.md) is a Neovim plugin, published as
-[`TheLazyCat00/zane-nvim`](https://github.com/TheLazyCat00/zane-nvim): install it
-with a plugin manager, and nvim-treesitter builds the parser with
-`:TSInstall zane`. The plugin's README covers installation.
+Install the [`zane-nvim`](https://github.com/TheLazyCat00/zane-nvim) plugin. It
+registers the parser with nvim-treesitter, which downloads
+`editors/tree-sitter-zane` and `editors/neovim/queries` from this repository,
+builds the parser and installs both ([`editors/neovim`](../editors/neovim/README.md)).
 
 To build the parser without nvim-treesitter, use Neovim **0.11 or newer**,
 Node/npm and a C compiler. Generate the grammar text first, then build with
@@ -163,21 +162,20 @@ keyword spellings from the shared lexicon; the generator emits regexes without
 lookahead using a finite prefix trie. This preserves the compiler's keyword
 priority even in positions where Tree-sitter expects an identifier.
 
-Then put the parser and the shared query on Neovim's runtime path beside the
+Then put the parser and Neovim's query on Neovim's runtime path, beside the
 plugin, for example on Linux:
 
 ```sh
 mkdir -p ~/.local/share/nvim/site/parser ~/.local/share/nvim/site/queries/zane
 cp editors/tree-sitter-zane/zane.so ~/.local/share/nvim/site/parser/zane.so
-cp editors/tree-sitter-zane/queries/highlights.scm ~/.local/share/nvim/site/queries/zane/
+cp editors/neovim/queries/highlights.scm ~/.local/share/nvim/site/queries/zane/
 ```
 
-The plugin's own query begins with `; extends`, so Neovim appends it to the
-shared one; it uses the `zane-bound?` predicate the plugin defines to colour a
-parameter where it is used. Use `:Inspect` and `:InspectTree` to inspect
-captures and tree structure. When updating the grammar or highlight queries,
-rebuild the parser and copy the shared query again, then restart Neovim.
-Queries can name new editor nodes that an older `zane.so` does not provide.
+Neovim's query uses the plugin's `zane-bound?` predicate to colour a parameter
+where it is used. Use `:Inspect` and `:InspectTree` to inspect captures and
+tree structure. When updating the grammar or highlight queries, rebuild the
+parser and copy the query again, then restart Neovim. Queries can name new
+editor nodes that an older `zane.so` does not provide.
 
 ## Validation
 
@@ -199,7 +197,9 @@ The backend suite builds the C parser, parses every accepted example from the
 existing compiler syntax suite, checks the larger parser fixtures, loads
 highlight queries, checks reserved words and incomplete edits, and reruns the
 compiler's acceptance/rejection suite through a parser-only driver. The
-Neovim and Typst tests run if their executables are present. To reproduce the
+Neovim and Typst tests run if their executables are present; Neovim's also
+needs a [`zane-nvim`](https://github.com/TheLazyCat00/zane-nvim) checkout in
+`.zane-nvim` (or `ZANE_NVIM_PLUGIN`), which CI clones. To reproduce the
 full consumer check, install both and set `ZANE_REQUIRE_HIGHLIGHTING_TOOLS=1`,
 as CI does, so that a missing tool fails the run instead of skipping its tests.
 
@@ -251,13 +251,14 @@ exactly the parameters the compiler's CST records. Qualified names, imported
 members, struct fields and initializer fields also retain editor nodes so the
 queries can distinguish namespaces, callees and members. Highlighting includes
 lexical roles plus contextual namespace, function, member and parameter captures. The
-shared query marks a parameter where it is declared. Neovim's extension query
+shared query marks a parameter where it is declared. Neovim's query
 also marks each use, through `zane-bound?`, which looks for a parameter of that
 name in an enclosing verb or lambda. That needs no further name resolution
 because a local may not shadow a parameter (`docs/design/semantics.md` D14).
-The overlay's `binders` names the rules that bind a name; the generator writes
-them into the Neovim plugin's `lua/zane/grammar.lua`, with the node types the grammar lets hold one as a
-direct child, so the predicate scans only those. Other Tree-sitter consumers
+The overlay's `binders` names the rules that bind a name; the generator passes
+them to each `zane-bound?` call, with the node types the grammar lets hold one
+as a direct child, so the predicate scans only those and the plugin holds
+nothing grammar-specific. Other Tree-sitter consumers
 read only the shared query.
 
 Grammar edits can produce new Tree-sitter conflicts. Regenerate, review the

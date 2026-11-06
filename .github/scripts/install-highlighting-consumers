@@ -3,3 +3,6 @@
 set -euo pipefail
 devbox run -- nvim --version
 devbox run -- typst --version
+# The Neovim plugin whose zane-bound? predicate editors/neovim/queries uses.
+rm -rf .zane-nvim
+git clone --depth 1 https://github.com/TheLazyCat00/zane-nvim .zane-nvim

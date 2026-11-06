@@ -27,7 +27,8 @@ test-grammar-generation: check-grammar-generation
 
 # Install tests/highlighting/requirements.txt and the pinned Tree-sitter CLI
 # (npm ci --prefix editors/tree-sitter-zane) first; Typst and Neovim consumer
-# tests run when those executables are present.
+# tests run when those executables are present, Neovim's with the zane-nvim
+# plugin cloned into .zane-nvim (or ZANE_NVIM_PLUGIN).
 test-highlighting: test-grammar-generation
 	#!/usr/bin/env bash
 	set -euo pipefail

@@ -1,17 +1,20 @@
 local root = assert(vim.env.ZANE_TEST_ROOT)
--- The parser and shared query, as nvim-treesitter would install them, and the
--- plugin, loaded the way plugin managers load it.
+-- The parser and editors/neovim/queries, where nvim-treesitter installs them,
+-- and the zane-nvim plugin, loaded the way plugin managers load it.
 vim.opt.runtimepath:prepend(assert(vim.env.ZANE_TEST_RUNTIME))
-vim.opt.runtimepath:append(root .. '/editors/neovim')
+vim.opt.runtimepath:append(assert(vim.env.ZANE_NVIM_PLUGIN))
 vim.cmd.runtime('plugin/zane.lua')
 vim.cmd('filetype on')
 
--- The plugin registers the parser with nvim-treesitter, built from this checkout.
+-- The plugin registers the parser with nvim-treesitter, from paths in this
+-- repository.
 package.loaded['nvim-treesitter.parsers'] = {}
 vim.api.nvim_exec_autocmds('User', { pattern = 'TSUpdate' })
 local info = assert(package.loaded['nvim-treesitter.parsers'].zane, 'parser not registered').install_info
-assert(vim.fs.normalize(info.path) == vim.fs.normalize(root .. '/editors/tree-sitter-zane'), info.path)
-assert(info.generate and info.queries == 'queries' and info.revision == require('zane').revision())
+assert(info.url == 'https://github.com/zane-lang/compiler', info.url)
+assert(info.generate and not info.generate_from_json, 'the parser must be generated from grammar.js')
+assert(vim.uv.fs_stat(root .. '/' .. info.location .. '/grammar.js'), 'no grammar.js at ' .. info.location)
+assert(vim.uv.fs_stat(root .. '/' .. info.queries .. '/highlights.scm'), 'no highlights.scm at ' .. info.queries)
 package.loaded['nvim-treesitter.parsers'] = nil
 vim.cmd.edit(root .. '/tests/parser/fixtures/utf8.zn')
 assert(vim.bo.filetype == 'zane', 'filetype detection failed')
@@ -26,7 +29,7 @@ end
 assert(found.type and found.keyword, 'highlight queries did not match')
 assert(vim.treesitter.highlighter.active[vim.api.nvim_get_current_buf()], 'highlighting did not start')
 
--- Parameter uses resolve through the zane-bound? predicate zane.lua defines.
+-- Parameter uses resolve through the plugin's zane-bound? predicate.
 -- Each `// params:` comment in the fixture lists, in order, the identifiers on
 -- its line that must be highlighted as parameters; no other one may be.
 vim.cmd.edit(root .. '/tests/highlighting/parameters.zn')

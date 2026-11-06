@@ -47,8 +47,9 @@ kept_inline_rules [
   constructor_field_arg
 ]
 # Rules whose first named child binds a name. The Neovim predicate zane-bound?
-# (tools/grammar/neovim.lua) marks a reference bound when one of its ancestors
-# has a binder of that name as a child.
+# (in the zane-nvim plugin) marks a reference bound when one of its ancestors
+# has a binder of that name as a child. The generator passes these, and the
+# node types that can hold one, to each zane-bound? call as arguments.
 binders [
   param
   constructor_field
@@ -75,10 +76,10 @@ highlights [
   "(param . (identifier) @variable.parameter)"
   "(constructor_field . (identifier) @variable.parameter)"
 ]
-# Neovim-only captures, generated into editors/neovim/queries/zane/highlights.scm
-# as an extension of the shared query. A parameter's uses need zane-bound?,
-# which only the generated zane.lua defines; a consumer that skipped the
-# predicate would take every reference for a parameter.
+# Neovim-only captures, appended to the shared query in
+# editors/neovim/queries/highlights.scm, which nvim-treesitter installs. A
+# parameter's uses need zane-bound?, which the zane-nvim plugin defines; a
+# consumer that skipped the predicate would take every reference for a parameter.
 neovim_highlights [
   "((name_expr . (identifier) @variable.parameter .) (#zane-bound? @variable.parameter))"
   "((field_arg . (identifier) @variable.parameter .) (#zane-bound? @variable.parameter))"

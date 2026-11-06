@@ -27,5 +27,6 @@ dev/machine-config.txt
 /editors/tree-sitter-zane/src/
 /editors/tree-sitter-zane/node_modules/
 /editors/tree-sitter-zane/*.so
+/.zane-nvim
 /.highlighting-venv/
 /.grammar-venv/
