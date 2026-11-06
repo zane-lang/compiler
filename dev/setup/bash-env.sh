@@ -13,6 +13,13 @@ if [[ -n ${CONDA_PREFIX:-} ]]; then
 		prefix="/${drive,,}${prefix#*:}"
 	fi
 	PATH="$prefix/Library/bin:$prefix/Library/lib/ocaml/stublibs:$PATH"
-	export PATH
 	unset prefix drive
 fi
+
+# OCaml's MSVC build links through MSVC's link.exe, which the MSYS's
+# coreutils `link` would shadow: MSVC's tools go first.
+if cl=$(command -v cl 2>/dev/null); then
+	PATH="${cl%/*}:$PATH"
+fi
+unset cl
+export PATH
