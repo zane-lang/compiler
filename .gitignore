@@ -29,3 +29,6 @@ dev/machine-config.txt
 /editors/tree-sitter-zane/*.so
 /.highlighting-venv/
 /.grammar-venv/
+
+# The pixi environment, with the project's opam root inside it (pixi.toml).
+.pixi/

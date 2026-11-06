@@ -211,6 +211,8 @@ let arguments () =
             {
               build with
               view;
+              (* A Windows host builds for MinGW (Build.host_triple). *)
+              target = (match build.target with None when Sys.win32 -> Some Codegen.windows_host_triple | t -> t);
               packages = List.rev build.packages;
               stamps = List.rev build.stamps;
               link = List.rev build.link;
@@ -393,8 +395,12 @@ let run_packages build =
 (* The one place the binary exits: 0 when the run did what it was asked,
    1 when the compiler refused the program, 2 for a command it cannot run,
    and 3 for a broken invariant, the compiler's own fault. Any other
-   exception that escapes a stage broke an invariant too. *)
+   exception that escapes a stage broke an invariant too. What it writes
+   ends each line with `\n` on every system, as the programs it builds do
+   (docs/design/platforms.md): Windows's text mode would end it `\r\n`. *)
 let () =
+  set_binary_mode_out stdout true;
+  set_binary_mode_out stderr true;
   let internal ?span message =
     prerr_string (Diagnostic.render_internal ?span message);
     3

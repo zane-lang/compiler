@@ -12,8 +12,8 @@ program's output is checked at its small size, then it runs once untimed and
 
 Prints a Markdown table of medians in seconds and writes every sample to
 `--out` as JSON. Timings from a container are not comparable with each
-other; run it on the machine whose numbers are recorded. Run it inside the
-devbox, from any directory:
+other; run it on the machine whose numbers are recorded. Run it in the pixi
+environment (`pixi shell`), from any directory:
 
     just bench-abi                                  # this machine's target
     ZANE_CC=dev/bin/zig-cc just bench-abi --target x86_64-windows-gnu

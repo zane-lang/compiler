@@ -2276,6 +2276,31 @@ Review of the PR found defaults that could change a program's result:
   list, since C may call back, and the table of functions that cannot
   (`Cgt.List_pure`) is emptied for each program lowered.
 
+## The layout on macOS and Windows
+
+The compact layout is now the default on every target, not Linux alone.
+Zane code is the same on every system; only the runtime and the image's
+symbol differ.
+
+- The image's start, which references and boxes count from, is the symbol
+  the target's linker defines there: `__ehdr_start` (ELF),
+  `__mh_execute_header` (Mach-O, `_mh_execute_header` to LLVM and C), and
+  `__ImageBase` (PE). `Cgt.Ref32.image_symbol` picks it from the target.
+- The frames area and the window are reserved at fixed addresses through
+  one helper, `zane_reserve_at`: `MAP_FIXED_NOREPLACE` on Linux, an `mmap`
+  hint checked and given back when it does not hold on macOS, and
+  `VirtualAlloc(MEM_RESERVE)` at the address on Windows. A range of the
+  window given back is decommitted on Windows, as POSIX maps it afresh.
+- macOS keeps the low 4 GiB unmapped (`__PAGEZERO`) and loads a program
+  just above it, so the frames go to the 512 MiB above the image, as under
+  Valgrind on Linux. The window is looked for at every GiB from 4 GiB above
+  the image, not only there, so on arm64, where the shared cache sits a few
+  GiB above the program, it starts past the cache.
+- On Windows the window replaces the 64 MiB slabs chunks were carved from,
+  since a chunk's range is then the window's; the slabs stay for
+  `ZANE_IMAGE_BOXES=0` and `ZANE_FRAME_REFS=0`. `ZANE_CHUNK_BOXES=1` now
+  numbers Windows chunks too, the slabs' included.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |

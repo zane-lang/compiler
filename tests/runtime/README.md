@@ -26,11 +26,13 @@ frame around it ended, several MiB of slots become usable as they are
 touched, and an address is found in the scope whose frame holds it at any
 depth, 100,000 scopes deep among them.
 
-On Linux it also forces `mprotect` to fail in child processes for both a
-main context and a spawned context. Each must exit with status 1 and the
+It also makes the system refuse to commit memory in child processes, for
+both a main context and a spawned context: through an `mprotect` of the
+test's own on Linux and macOS, and on Windows through a job whose commit
+limit leaves no room for a step. Each must exit with status 1 and the
 commit-failure diagnostic, rather than passing its fault on as a raw
-segmentation fault. This check needs no particular memory budget or
-overcommit setting; other platforms run the placement checks alone.
+segmentation fault or access violation. This check needs no particular
+memory budget or overcommit setting.
 
 `scalar_lists.c` covers issue [#191](https://github.com/zane-lang/compiler/issues/191):
 a list whose elements own no blocks, and a box whose payload owns none,
@@ -46,8 +48,12 @@ recursively boxed values.
 (docs/design/lowering.md §9): pushed from empty to 32 MiB, the list keeps
 the address it took at 1 MiB, every chunk it grew into is listed as its
 scope's, and none is once the scope drains. A copy's oversized block has
-no reservation, so its first doubling moves it and the next does not. On
-Linux a child process capped below what a reservation needs checks that
+no reservation, so its first doubling moves it and the next does not. A
+list that outgrows its reservation moves into a new one, and every page of
+the block it left but the header's is given back at once, as the system
+reports it: `/proc/self/pagemap` on Linux, `mincore` on macOS, and
+`VirtualQuery` on Windows. On Linux, the one system that caps a process's
+addresses (`RLIMIT_AS`), a child process capped below what a reservation needs checks that
 the list still grows, by moving, and returns every block; AddressSanitizer
 builds skip that child, as they skip `scalar_lists.c`'s budget.
 
@@ -63,13 +69,13 @@ are made" and status 1 instead of hanging: two contexts that each make
 their own constant and then read the other's, and a constant's maker
 joining a call that reads it, both when it runs the call itself and when
 it joins the moment a pool thread has taken the call, before the call has
-its context. Each case runs in a child that an alarm stops after ten
-seconds, and the last one fifty times. Before the runtime kept its graph of
+its context. Each case runs in a child, stopped if it has not ended after
+ten seconds, and the last one fifty times. Before the runtime kept its graph of
 waits, every case hung.
 
 `spares.c` holds the spare chunks drained regions leave
-(docs/design/lowering.md §9) to the counts in `zane_internal.h`, on Linux,
-where it reads resident memory from `/proc/self/statm`. A spawned call
+(docs/design/lowering.md §9) to the counts in `zane_internal.h`, and to
+resident memory as the system reports it (`system.h`). A spawned call
 fills 128 chunks and drains them: its context keeps them warm while it
 runs, and once it goes idle the pool keeps `ZANE_POOL_WARM` warm and the
 rest are cold, so resident memory falls back to within the warm chunks and
@@ -82,17 +88,22 @@ turned cold, resident memory stayed at the 128 chunks' peak.
 
 `output.c` holds the program's output buffer (docs/design/lowering.md §9)
 to flushing where stdio would and to a fault handler that neither
-deadlocks nor blocks, each case in a child that an alarm stops after ten
-seconds. The machine stack overflows twenty times while a spawned call
-prints in a loop and the overflowing thread prints at every call, and
-once while stdout is a pipe that is full and that nothing reads: each
-stops with "recursion too deep" and status 1, the second dropping the
-buffered output, where the old `fflush` in the handler blocked forever.
-A print to a closed stdout ends the program with status 1. The test
-re-runs itself as a child on a pseudo-terminal, which prints a line and
-waits on a pipe: the line arrives first. On a pipe, a short line does not
-arrive while the child waits, and output of exactly the pipe's `st_blksize`
-does.
+deadlocks nor blocks, each case in a child stopped if it has not ended
+after ten seconds. The machine stack overflows twenty times while a
+spawned call prints in a loop and the overflowing thread prints at every
+call, once while stdout is a pipe that is full and that nothing reads, and,
+on Linux and macOS, once in a child the test forks: each stops with
+"recursion too deep" and status 1, the second dropping the buffered output,
+where the old `fflush` in the handler blocked forever. A print to a closed
+stdout ends the program with status 1. A child on a terminal -- a
+pseudo-terminal, or a pseudo-console on Windows -- prints a line and waits
+on its stdin: the line arrives first. On a pipe, a short line does not
+arrive while the child waits, and output of exactly the buffer's size (the
+pipe's `st_blksize`, or stdio's `BUFSIZ` on Windows) does.
+
+`system.h` is what the tests ask of the system, the same on Linux, macOS and
+Windows: a case run in a child, which is the test's own program run again
+with `--child NAME ARG`, pipes to it, and the memory the process holds.
 
 `writeback.c` holds a write-back to the atomicity a snapshot load relies on:
 a second thread reads each naturally aligned word of a subject at an address

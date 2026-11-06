@@ -49,7 +49,7 @@ jobs:
         uses: ./.github/actions/setup-ci
 
       - name: Build
-        run: devbox run -- dune build bin/zanec/zanec.exe
+        run: pixi run dune build bin/zanec/zanec.exe
 
       # A merge group's event carries no labels; its head ref names the last
       # pull request queued in it, gh-readonly-queue/<base>/pr-<number>-<sha>.
@@ -70,7 +70,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           ACCEPTED: ${{ github.event_name == 'merge_group' && steps.queued.outputs.accepted || contains(github.event.pull_request.labels.*.name, 'perf-accepted') }}
-        run: devbox run -- .github/scripts/perf
+        run: pixi run .github/scripts/perf
 
   # A push to main: measure and write the `perf-log` branch, which needs a
   # token that can push. Only code already on main runs here.
@@ -93,9 +93,9 @@ jobs:
         uses: ./.github/actions/setup-ci
 
       - name: Build
-        run: devbox run -- dune build bin/zanec/zanec.exe
+        run: pixi run dune build bin/zanec/zanec.exe
 
       - name: Measure and record
         env:
           EVENT_NAME: push
-        run: devbox run -- .github/scripts/perf
+        run: pixi run .github/scripts/perf

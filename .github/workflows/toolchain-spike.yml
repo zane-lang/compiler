@@ -1,0 +1,115 @@
+name: Toolchain spike
+
+# Exploratory: can one pixi (conda-forge) environment build and test zanec
+# natively on Linux, both macOS architectures and Windows? Each stage is its
+# own step, so a run shows how far each platform gets. Intel macOS, whose
+# runners are the slowest, runs on main and when started by hand.
+on:
+  push:
+    branches: [main, claude/inspiring-euler-ztn4zi]
+    paths:
+      - pixi.toml
+      - pixi.lock
+      - dev/spike/**
+      - dev/setup/**
+      - lib/**
+      - bin/**
+      - runtime/**
+      - tests/**
+      - justfile
+      - vendor/llvm-ocaml/**
+      - .github/workflows/toolchain-spike.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push stops the run it replaces.
+concurrency:
+  group: toolchain-spike-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spike:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: >-
+          ${{ fromJSON(
+            (github.ref_name == 'main' || github.event_name == 'workflow_dispatch')
+            && '[{"name":"linux-x86_64","runner":"ubuntu-latest"},{"name":"macos-aarch64","runner":"macos-latest"},{"name":"macos-x86_64","runner":"macos-15-intel"},{"name":"windows-x86_64","runner":"windows-latest"}]'
+            || '[{"name":"linux-x86_64","runner":"ubuntu-latest"},{"name":"macos-aarch64","runner":"macos-latest"},{"name":"windows-x86_64","runner":"windows-latest"}]'
+          ) }}
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    # Dune's shared cache, kept between runs, so what a commit leaves
+    # unchanged is not built again. Rules with actions of their own, the
+    # tests among them, still run every time.
+    env:
+      DUNE_CACHE: enabled-except-user-rules
+      DUNE_CACHE_ROOT: ${{ github.workspace }}/.dune-cache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+      # Windows takes MSVC from the newest Visual Studio through the
+      # environment's activation (dev/setup/activate.bat).
+      - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+        with:
+          run-install: true
+          locked: true
+          cache: true
+      # The opam root and the switch `pixi run setup` makes, for one
+      # environment and one set of pins: once restored, setup finds every
+      # package at its version and installs nothing.
+      - name: Restore the opam switch
+        id: opam
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            _opam
+            .pixi/opam
+          key: opam-${{ matrix.name }}-${{ hashFiles('pixi.lock', 'dev/setup/bootstrap-toolchain', 'dev/setup/opam-repo/**') }}
+      - name: Restore dune's cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.DUNE_CACHE_ROOT }}
+          key: dune-${{ matrix.name }}-${{ hashFiles('pixi.lock', 'dev/setup/bootstrap-toolchain') }}-${{ github.sha }}
+          restore-keys: dune-${{ matrix.name }}-${{ hashFiles('pixi.lock', 'dev/setup/bootstrap-toolchain') }}-
+      - name: Toolchain versions
+        run: pixi run bash dev/spike/toolchain versions
+      - name: pixi run setup
+        run: pixi run setup
+      # Saved as soon as setup succeeds, since a later step may fail.
+      - name: Save the opam switch
+        if: steps.opam.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            _opam
+            .pixi/opam
+          key: ${{ steps.opam.outputs.cache-primary-key }}
+      - name: Toolchain versions, with the switch
+        run: pixi run bash dev/spike/toolchain versions
+      - name: Build zanec
+        run: pixi run bash dev/spike/toolchain build
+      - name: Build and run hello
+        run: pixi run bash dev/spike/toolchain hello
+      - name: A memory probe, plain and optimized
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        run: pixi run bash dev/spike/toolchain probe
+      - name: just test-compiler
+        run: pixi run bash dev/spike/toolchain test
+      # Kept whether or not the tests passed: what was built is the same.
+      - name: Save dune's cache
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.DUNE_CACHE_ROOT }}
+          key: dune-${{ matrix.name }}-${{ hashFiles('pixi.lock', 'dev/setup/bootstrap-toolchain') }}-${{ github.sha }}

@@ -4,3 +4,7 @@
 type t = (string * string) list
 
 let find (files : t) path = List.assoc_opt path files
+
+let in_directory dir entry =
+  let n = String.length dir in
+  if n > 0 && (dir.[n - 1] = '/' || dir.[n - 1] = '\\') then dir ^ entry else dir ^ "/" ^ entry

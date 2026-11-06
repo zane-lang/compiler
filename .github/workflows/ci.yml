@@ -84,22 +84,22 @@ jobs:
       # Preserve the full build and generated-file freshness check.
       - name: Build
         if: matrix.suite == 'compiler'
-        run: devbox run -- just rebuild
+        run: pixi run just rebuild
 
       # No hand-written OCaml nests past five levels, and code at five is
       # warned about (`just check-nesting`). It parses the sources, so it
       # needs the toolchain this suite has just built with.
       - name: Check nesting
         if: matrix.suite == 'compiler'
-        run: devbox run -- just check-nesting
+        run: pixi run just check-nesting
 
       - name: Compiler tests
         if: matrix.suite == 'compiler'
-        run: devbox run -- just test-compiler
+        run: pixi run just test-compiler
 
       - name: Grammar generator tests
         if: matrix.suite == 'highlighting' && needs.suites.outputs.highlighting != 'true'
-        run: devbox run -- just test-grammar-generation
+        run: pixi run just test-grammar-generation
 
       - name: Install Neovim and Typst
         if: matrix.suite == 'highlighting' && needs.suites.outputs.highlighting == 'true'
@@ -109,15 +109,15 @@ jobs:
         if: matrix.suite == 'highlighting' && needs.suites.outputs.highlighting == 'true'
         env:
           ZANE_REQUIRE_HIGHLIGHTING_TOOLS: '1'
-        run: devbox run -- just test-highlighting
+        run: pixi run just test-highlighting
 
       - name: Grammar ambiguity tests
         if: matrix.suite == 'grammar'
-        run: devbox run -- just test-grammar
+        run: pixi run just test-grammar
 
       - name: Ambiguity tool tests
         if: matrix.suite == 'ambiguity-tools'
-        run: devbox run -- just test-ambiguity-tools
+        run: pixi run just test-ambiguity-tools
 
   # Build the Windows artifacts independently: Windows execution need not
   # wait for Linux's grammar, highlighting or compiler tests.
@@ -134,11 +134,8 @@ jobs:
       - name: Set up toolchain
         uses: ./.github/actions/setup-ci
 
-      - name: Install Zig
-        run: .github/scripts/install-zig
-
       - name: Build the Windows programs
-        run: devbox run -- dev/bin/windows-programs windows-programs
+        run: pixi run dev/bin/windows-programs windows-programs
 
       - name: Keep the Windows programs
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

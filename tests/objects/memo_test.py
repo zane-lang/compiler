@@ -12,6 +12,7 @@ on a cache line."""
 
 from pathlib import Path
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -23,6 +24,11 @@ LIBRARY = Path(__file__).resolve().parent / "fixtures/memolibrary"
 USER = Path(__file__).resolve().parent / "fixtures/memolibraryuser"
 STAMP = "v1.0%0123456789abcdef%"
 BUILDS = {"plain": [], "optimized": ["--optimize"], "tiered": ["--tiered"]}
+# Whether a program's image holds its symbols: not a Windows one.
+IMAGE_SYMBOLS = sys.platform != "win32"
+# A global a module defines, by its name, and its alignment.
+DEFINED = re.compile(r'^@"?([^"\n]*?)"? = (?!external)', re.M)
+ALIGNED = re.compile(r'^@"?([^"\n]*?)"? = (?!external)[^\n]*, align (\d+)', re.M)
 
 
 def run_program(exe, *args):
@@ -42,6 +48,22 @@ def run_program(exe, *args):
     if outputs["1"] != outputs["0"]:
         raise AssertionError(f"{exe}: checked and unchecked runs differ")
     return outputs["1"]
+
+
+def symbols(exe):
+    """The program's symbols, as `llvm-nm` lists them: each one's address,
+    kind and name, the name without the `_` Mach-O puts before a C name, so
+    they read the same on every host."""
+    listed = subprocess.run(["llvm-nm", str(exe)], capture_output=True, text=True, check=True).stdout
+    found = []
+    for line in listed.splitlines():
+        m = re.match(r"^(\S*)\s+(\S) (.*)$", line)
+        if m:
+            name = m.group(3)
+            if sys.platform == "darwin" and name.startswith("_"):
+                name = name[1:]
+            found.append((m.group(1), m.group(2), name))
+    return found
 
 
 def memo_variables(ir):
@@ -67,7 +89,8 @@ class MemoTests(unittest.TestCase):
         cls.temp.cleanup()
 
     def build(self, name, build, memoize):
-        exe = self.out / f"{name}.{build}.{'memo' if memoize else 'base'}"
+        suffix = ".exe" if sys.platform == "win32" else ""
+        exe = self.out / f"{name}.{build}.{'memo' if memoize else 'base'}{suffix}"
         if not exe.exists():
             flags = [*BUILDS[build], *([] if memoize else ["--no-memoize"])]
             result = subprocess.run([ZANEC, "--build", exe, *flags, "--package", FIXTURES / name],
@@ -81,40 +104,62 @@ class MemoTests(unittest.TestCase):
                     raise AssertionError(f"{name} tier 1\n{result.stdout}{result.stderr}")
         return exe
 
+    def module(self, name, build, memoize):
+        """The module of a build of the fixture `name`, as `--ll` prints it:
+        a tiered build's tier 0 is built as a plain one is, which `--ll`
+        prints for it."""
+        flags = [*([] if build == "tiered" else BUILDS[build]), *([] if memoize else ["--no-memoize"])]
+        result = subprocess.run([ZANEC, "--ll", *flags, "--package", FIXTURES / name],
+                                capture_output=True, text=True, timeout=300)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout
+
     def tables(self, name, build, memoize=True):
         """The functions given a table: each one's state symbol, less its
-        suffix."""
-        symbols = subprocess.run(["nm", self.build(name, build, memoize)], capture_output=True, text=True,
-                                 check=True).stdout
-        return sorted(line.split(" ", 2)[2][: -len(".memo.state")] for line in symbols.splitlines()
-                      if line.endswith(".memo.state"))
+        suffix. A Windows program's image holds no symbols, which `zig cc`
+        writes to a PDB of its own only when asked, so there they are the
+        module's."""
+        if IMAGE_SYMBOLS:
+            names = [n for _, _, n in symbols(self.build(name, build, memoize))]
+        else:
+            self.build(name, build, memoize)
+            names = DEFINED.findall(self.module(name, build, memoize))
+        return sorted(n[: -len(".memo.state")] for n in names if n.endswith(".memo.state"))
 
     def test_tables_start_on_a_cache_line(self):
         # So where a table lands in the binary does not decide which of its
-        # entries straddle two cache lines.
+        # entries straddle two cache lines: by its address in the image, or
+        # where the image holds no symbols, by the alignment the module
+        # gives it.
         found = 0
         for name in sorted(p.name for p in FIXTURES.iterdir()):
             for build in BUILDS:
-                symbols = subprocess.run(["nm", self.build(name, build, True)], capture_output=True,
-                                         text=True, check=True).stdout
-                for line in symbols.splitlines():
-                    if line.endswith(".memo.table"):
-                        found += 1
-                        self.assertEqual(int(line.split(" ", 1)[0], 16) % 64, 0, (name, build, line))
+                if IMAGE_SYMBOLS:
+                    placed = [(n, int(a, 16)) for a, _, n in symbols(self.build(name, build, True))
+                              if n.endswith(".memo.table")]
+                else:
+                    placed = [(n, int(a)) for n, a in ALIGNED.findall(self.module(name, build, True))
+                              if n.endswith(".memo.table")]
+                for n, address in placed:
+                    found += 1
+                    self.assertEqual(address % 64, 0, (name, build, n))
         self.assertTrue(found)
 
     def test_a_table_holds_at_most_256_kib(self):
         # Its entries are as many as fit, a power of two: ttt's, of six
         # argument words, a result and a meta word, are 64 bytes, so it
-        # holds 4096 of them.
+        # holds 4096 of them. A table is entries of 8-byte words, so its
+        # size is read from its type in the module, which Mach-O's and
+        # COFF's symbols, holding no sizes, would not give.
         sizes = {}
+        table = re.compile(r'^@"?[^\n]*\.memo\.table"? = [^\n]*global \[(\d+) x \[(\d+) x i64\]\]', re.M)
         for name in sorted(p.name for p in FIXTURES.iterdir()):
-            symbols = subprocess.run(["nm", "-S", self.build(name, "optimized", True)], capture_output=True,
-                                     text=True, check=True).stdout
-            for line in symbols.splitlines():
-                if line.endswith(".memo.table"):
-                    sizes[name] = int(line.split(" ", 2)[1], 16)
-                    self.assertLessEqual(sizes[name], 262144, (name, line))
+            result = subprocess.run([ZANEC, "--ll", *BUILDS["optimized"], "--package", FIXTURES / name],
+                                    capture_output=True, text=True, timeout=300)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            for entries, words in table.findall(result.stdout):
+                sizes[name] = int(entries) * int(words) * 8
+                self.assertLessEqual(sizes[name], 262144, name)
         self.assertEqual(sizes["ttt"], 262144)
 
     def test_every_build_prints_the_same(self):

@@ -1,8 +1,33 @@
 #!/usr/bin/env bash
-# Resolve the portable Zig distribution installed by Devbox.
+# Download the standalone Zig release a manifest pins, check it against the
+# manifest's hash and version, and name it in ZIG for the steps after. A
+# release bundles this one: its lib/ and LICENSE sit beside the executable,
+# where the environment's own zig has neither.
 set -euo pipefail
 : "${GITHUB_ENV:?must be set}"
-zig=$(devbox run -- which zig)
-zig=$(realpath "$zig")
-"$zig" version
-echo "ZIG=$zig" >> "$GITHUB_ENV"
+: "${RUNNER_TEMP:?must be set}"
+manifest=${1:?usage: install-zig MANIFEST}
+metadata=$(python3 - "$manifest" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    manifest = json.load(source)
+for key in ("version", "url", "sha256"):
+    if key not in manifest:
+        raise SystemExit(f"Zig manifest is missing {key!r}")
+    print(manifest[key])
+PY
+)
+version=$(printf '%s\n' "$metadata" | sed -n '1p')
+url=$(printf '%s\n' "$metadata" | sed -n '2p')
+sha256=$(printf '%s\n' "$metadata" | sed -n '3p')
+archive="$RUNNER_TEMP/zig.tar.xz"
+destination="$RUNNER_TEMP/zig"
+
+curl -fSL "$url" -o "$archive"
+printf '%s  %s\n' "$sha256" "$archive" | shasum -a 256 --check --status
+mkdir -p "$destination"
+tar -xJf "$archive" --strip-components=1 -C "$destination"
+test "$("$destination/zig" version)" = "$version"
+echo "ZIG=$destination/zig" >> "$GITHUB_ENV"

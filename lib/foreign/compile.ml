@@ -25,8 +25,10 @@ type headers = { root : string; resource : string; ffi : string }
    name of the directory is a hash of their contents, so one that exists
    holds them. Each is written to a temporary of its own, created
    exclusively, and renamed into place, so builds writing one directory at
-   once never see half a file. Raises [Sys_error] when [dir] cannot be
-   written. *)
+   once never see half a file. A rename that fails once the file is in
+   place lost to another build's, which wrote the same: Windows refuses to
+   replace a file another process has open. Raises [Sys_error] when [dir]
+   cannot be written. *)
 let write_files dir files =
   let random = Random.State.make_self_init () in
   List.iter
@@ -40,7 +42,7 @@ let write_files dir files =
           (fun () ->
             Out_channel.with_open_gen [ Open_wronly; Open_creat; Open_excl; Open_binary ] 0o644 temporary
               (fun oc -> output_string oc text);
-            Sys.rename temporary path)
+            try Sys.rename temporary path with Sys_error _ when Sys.file_exists path -> ())
       end)
     files
 
@@ -55,10 +57,27 @@ let headers root =
   write_files ffi ffi_files;
   { root; resource; ffi }
 
+(* The flags that compile C for [cpu], the processor the program's own code
+   is emitted for (Build.cpu): `-march` on x86-64, whose `-mcpu` only tunes,
+   and `-mcpu` elsewhere. LLVM's default, [cpu] empty, is named as clang
+   names it: the baseline `x86-64` on x86-64, `generic` on AArch64 and
+   `generic-rv64` on 64-bit RISC-V. Elsewhere clang's own default is that
+   baseline already, and some targets (SystemZ, LoongArch) take no `-mcpu`,
+   so none is given. C then uses what the program's processor has and no
+   more, whatever processor clang defaults to for the target. *)
+let processor_flags ~triple cpu =
+  let given baseline = if cpu = "" then baseline else cpu in
+  match String.split_on_char '-' triple with
+  | ("x86_64" | "x86_64h" | "amd64") :: _ -> [ "-march=" ^ given "x86-64" ]
+  | ("aarch64" | "arm64") :: _ -> [ "-mcpu=" ^ given "generic" ]
+  | "riscv64" :: _ -> [ "-mcpu=" ^ given "generic-rv64" ]
+  | _ -> if cpu = "" then [] else [ "-mcpu=" ^ cpu ]
+
 (* The flags every C source is compiled with, whatever its package's
    settings: C17, floating-point expressions evaluated as written, the
-   build's target, the headers above, and the target's C library headers. *)
-let fixed_flags ~triple ~headers ~include_dirs =
+   build's target and processor, the headers above, and the target's C
+   library headers. *)
+let fixed_flags ~triple ~cpu ~headers ~include_dirs =
   [
     "-std=c17";
     "-ffp-contract=off";
@@ -67,6 +86,9 @@ let fixed_flags ~triple ~headers ~include_dirs =
     "-fno-associative-math";
     "-fno-rounding-math";
     "--target=" ^ triple;
+  ]
+  @ processor_flags ~triple cpu
+  @ [
     "-O2";
     "-Xclang";
     "-disable-llvm-passes";
@@ -84,25 +106,35 @@ let package_flags dir (rows : Settings.row list) =
   List.concat_map
     (fun (row : Settings.row) ->
       match row.setting with
-      | Settings.Include -> [ "-I"; Filename.concat dir row.value ]
+      | Settings.Include -> [ "-I"; Source.Files.in_directory dir row.value ]
       | Settings.Define -> [ "-D"; row.value ]
       | Settings.Source | Settings.Archive | Settings.System -> [])
     rows
 
+(* [maps] with each directory mapped by its real path too, where that
+   differs: clang names a file by the path that reached it, and macOS's
+   temporary directory, under `/var`, is a link to `/private/var`. *)
+let with_real_paths maps =
+  List.concat_map
+    (fun (from, to_) ->
+      let real = try Unix.realpath from with Unix.Unix_error _ -> from in
+      if real = from then [ (from, to_) ] else [ (from, to_); (real, to_) ])
+    maps
+
 (* The two directories that differ between machines, mapped to the fixed
    names they are spelled as. *)
-let prefix_maps ~dir ~headers = [ (dir, "/zane/pkg"); (headers.root, "/zane/cache") ]
+let prefix_maps ~dir ~headers = with_real_paths [ (dir, "/zane/pkg"); (headers.root, "/zane/cache") ]
 
 let map_flags maps = List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ "=" ^ to_) maps
 
 (* [path] with the longest mapped directory it starts with replaced by its
    fixed name. A directory is a prefix only up to a separator, so `inc`
-   does not map `include`. *)
+   does not map `include`; on Windows `\` separates too. *)
 let mapped_path maps path =
   let starts (from, _) =
     let n = String.length from in
     from <> "" && String.starts_with ~prefix:from path
-    && (String.length path = n || path.[n] = '/' || path.[n] = '=')
+    && (String.length path = n || path.[n] = '/' || path.[n] = '=' || (Sys.win32 && path.[n] = '\\'))
   in
   let longest = List.sort (fun (a, _) (b, _) -> compare (String.length b) (String.length a)) maps in
   match List.find_opt starts longest with
@@ -129,6 +161,24 @@ let marker line =
   let n = String.length line in
   n > 2 && line.[0] = '#' && line.[1] = ' ' && line.[2] >= '0' && line.[2] <= '9'
 
+(* A line marker's file name as the path it is: clang escapes a backslash
+   in it, as Windows' paths hold, as a C string does. *)
+let unescaped name =
+  let b = Buffer.create (String.length name) in
+  let rec go i =
+    if i < String.length name then
+      if name.[i] = '\\' && i + 1 < String.length name then begin
+        Buffer.add_char b name.[i + 1];
+        go (i + 2)
+      end
+      else begin
+        Buffer.add_char b name.[i];
+        go (i + 1)
+      end
+  in
+  go 0;
+  Buffer.contents b
+
 (* [text], preprocessed C, with the file named by each line marker mapped,
    so the hash reads the paths as `__FILE__` does, which clang's own
    prefix map already spells mapped. Only a marker's file name is a path:
@@ -144,7 +194,7 @@ let mapped maps text =
           | None -> l
           | Some j ->
               String.sub l 0 (i + 1)
-              ^ mapped_path maps (String.sub l (i + 1) (j - i - 1))
+              ^ mapped_path maps (unescaped (String.sub l (i + 1) (j - i - 1)))
               ^ String.sub l j (String.length l - j))
   in
   String.concat "\n" (List.map line (String.split_on_char '\n' text))
@@ -219,7 +269,9 @@ let mentions word text =
    preprocessed text, which keeps neither a token's column nor the line of
    one inside a macro argument that spans lines, so a module that asks for
    either (`__builtin_COLUMN`, `__builtin_LINE`) is compiled every time
-   instead. *)
+   instead. The key's tag names the form zanec makes of clang's module
+   (its aliases and their linkage, the processor its functions lose), so a
+   module kept in another form is compiled again. *)
 let compile_source ?cache ~maps flags path =
   let args = flags @ [ "-c"; path ] in
   let preprocessed = Clang.preprocess args in
@@ -231,7 +283,7 @@ let compile_source ?cache ~maps flags path =
       Digest.to_hex
         (Digest.string
            (String.concat "\000"
-              [ "c-module"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
+              [ "c-module 6"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
     in
     let placed = List.exists (fun w -> mentions w preprocessed.output) [ "__builtin_COLUMN"; "__builtin_LINE" ] in
     let cache = if placed then None else cache in

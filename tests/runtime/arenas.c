@@ -4,53 +4,71 @@
    the runtime's own `main` then checks every scope drained. */
 
 #include "scopes.h"
+#include "system.h"
 
 #include <string.h>
 
-#ifdef __linux__
+/* The system's commit fails in a child only, without depending on the
+   machine's memory budget or overcommit policy: on Linux and macOS through
+   an `mprotect` of the test's own, which the runtime's calls reach, and on
+   Windows through a job whose commit limit leaves no room for a step. */
+#ifdef _WIN32
+static int fail_commits(void) {
+	PROCESS_MEMORY_COUNTERS counters = { .cb = sizeof counters };
+	HANDLE job = CreateJobObjectA(NULL, NULL);
+	if (!job || !K32GetProcessMemoryInfo(GetCurrentProcess(), &counters, sizeof counters)) return 0;
+	JOBOBJECT_EXTENDED_LIMIT_INFORMATION limit = { 0 };
+	limit.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_PROCESS_MEMORY;
+	limit.ProcessMemoryLimit = counters.PagefileUsage + ZANE_STEP / 2;
+	return SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limit, sizeof limit) &&
+	       AssignProcessToJobObject(job, GetCurrentProcess());
+}
+#else
 #include <errno.h>
 #include <sys/mman.h>
+#ifdef __APPLE__
+#include <dlfcn.h>
+#else
 #include <sys/syscall.h>
-#include <sys/wait.h>
+#endif
 
-/* Fail the system's commit in a child only, without depending on the
-   machine's memory budget or overcommit policy. */
 static int fail_commit;
 int mprotect(void *at, size_t size, int protection) {
-	if (fail_commit) { errno = ENOMEM; return -1; }
+	if (fail_commit) {
+		errno = ENOMEM;
+		return -1;
+	}
+#ifdef __APPLE__
+	static int (*real)(void *, size_t, int);
+	if (!real) real = (int (*)(void *, size_t, int))dlsym(RTLD_NEXT, "mprotect");
+	return real(at, size, protection);
+#else
 	return (int)syscall(SYS_mprotect, at, size, protection);
+#endif
 }
 
-static int commit_failure(int spawned) {
-	int output[2];
-	if (pipe(output) != 0) return 0;
-	fflush(stdout);
-	pid_t child = fork();
-	if (child == 0) {
-		close(output[0]);
-		if (dup2(output[1], STDERR_FILENO) < 0) _exit(2);
-		close(output[1]);
-		if (spawned) zane_self = zane_context_new();
-		char *touch = zane_self->committed;
-		fail_commit = 1;
-		(void)zane_scope_enter(touch - zane_self->frontier + ZANE_CHUNK);
-		*(volatile char *)touch = 42;
-		_exit(2);
-	}
-	close(output[1]);
-	char text[128];
-	size_t used = 0;
-	ssize_t n;
-	while (used < sizeof text - 1 && (n = read(output[0], text + used, sizeof text - 1 - used)) > 0)
-		used += (size_t)n;
-	text[used] = 0;
-	close(output[0]);
-	int status;
-	return child > 0 && waitpid(child, &status, 0) == child &&
-	       WIFEXITED(status) && WEXITSTATUS(status) == 1 &&
-	       strcmp(text, "out of memory: cannot commit a context's fixed-size region\n") == 0;
+static int fail_commits(void) {
+	fail_commit = 1;
+	return 1;
 }
 #endif
+
+/* In the child: the step past what is usable is touched while the system
+   refuses to commit it, in the program's context or, with `spawned`, in a
+   context of its own. */
+static void commit_child(int spawned) {
+	if (spawned) zane_self = zane_context_new();
+	char *touch = zane_self->committed;
+	if (!fail_commits()) exit(3);
+	(void)zane_scope_enter(touch - zane_self->frontier + ZANE_CHUNK);
+	*(volatile char *)touch = 42;
+	exit(2);
+}
+
+static int commit_failure(const char *spawned) {
+	return child_stops("commit", spawned, CHILD_NULL, TEST_NO_FD, 1,
+	                   "out of memory: cannot commit a context's fixed-size region\n");
+}
 
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
@@ -69,6 +87,7 @@ static void unnest(zane_mark **records, int depth) {
 }
 
 void zane_main(void) {
+	if (child_case("commit")) commit_child(strcmp(child_arg(), "1") == 0);
 	zane_context *self = zane_self;
 
 	/* The context's range starts at a 1 MiB boundary, and every MiB of it
@@ -133,9 +152,5 @@ void zane_main(void) {
 	check(found && self->top == outer);
 	zane_scope_drain(outer);
 
-#ifdef __linux__
-	check(commit_failure(0) && commit_failure(1));
-#else
-	check(1);
-#endif
+	check(commit_failure("0") && commit_failure("1"));
 }

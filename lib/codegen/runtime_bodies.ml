@@ -65,14 +65,25 @@ let foreign v =
 
 let protections = [ "ssp"; "sspstrong"; "sspreq" ]
 
+(* The processor a function is compiled for. The C compiler stamps the
+   runtime's with its own default, which on macOS is newer than the
+   baseline the program is compiled for (Build.cpu): `penryn` for x86-64,
+   `apple-m1` for AArch64. LLVM inlines a body only into a caller whose
+   processor has every feature the body's has, so a body kept with them
+   would never be inlined there. *)
+let processor = [ "target-cpu"; "target-features"; "tune-cpu" ]
+
 (* [rt] made ready to link into [m]: the bodies kept are those of the
    runtime's functions [m] calls, and what they call in turn, that are safe
    to copy. A tiered build also leaves out a body that calls outside the
    runtime, since tier 1 imports everything through tier 0's table
    (docs/design/tiers.md), and an entry for the C library's function is a
    symbol the loader looks up as every run starts. A body kept loses any
-   stack protection the runtime was compiled with: it becomes the program's
-   code, which has none, and inlined, it would protect its caller too. *)
+   stack protection the runtime was compiled with, and the processor it
+   was compiled for ([processor]): it becomes the program's code, which
+   has no protection and is compiled for the program's target, and
+   inlined, it would protect its caller too. A call left to the runtime
+   still runs its object as the C compiler made it. *)
 let prune ~tiered m rt =
   let defined = Llvm.fold_left_functions (fun acc f -> if Llvm.is_declaration f then acc else f :: acc) [] rt in
   let table = Hashtbl.create 128 in
@@ -149,7 +160,10 @@ let prune ~tiered m rt =
   Llvm.iter_functions
     (fun f ->
       if not (Llvm.is_declaration f) then
-        List.iter (fun n -> Llvm.remove_enum_function_attr f (Llvm.enum_attr_kind n) Llvm.AttrIndex.Function) protections)
+        begin
+          List.iter (fun n -> Llvm.remove_enum_function_attr f (Llvm.enum_attr_kind n) Llvm.AttrIndex.Function) protections;
+          List.iter (fun n -> Llvm.remove_string_function_attr f n Llvm.AttrIndex.Function) processor
+        end)
     rt
 
 (* The bodies in the bitcode at [path] linked into [m]; false, and [m]

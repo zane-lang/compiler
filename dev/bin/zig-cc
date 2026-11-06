@@ -4,4 +4,38 @@
 # operating system needs, so it links for any target from any machine
 # (docs/design/platforms.md). `ZIG` names the `zig` to use, when it is not
 # the one on the path.
+#
+# A target is taken in LLVM's form as well as Zig's, as the compiler and the
+# tests name one: `x86_64-pc-windows-msvc` reaches Zig as
+# `x86_64-windows-msvc`, `aarch64-unknown-linux-gnu` as `aarch64-linux-gnu`,
+# and `arm64-apple-macosx11.0.0` as `aarch64-macos.11.0.0`.
+
+# Zig's name for the target LLVM names `$1`.
+zig_target() {
+	arch=${1%%-*}
+	rest=${1#"$arch"}
+	rest=${rest#-}
+	case $arch in arm64) arch=aarch64 ;; esac
+	# The vendor goes; Zig names none.
+	case $rest in
+	pc-* | unknown-* | apple-* | none-*) rest=${rest#*-} ;;
+	w64-mingw32*) rest=windows-gnu ;;
+	esac
+	case $rest in
+	macosx* | darwin*)
+		version=${rest#macosx}
+		[ "$version" != "$rest" ] || version=
+		rest=macos${version:+.$version}
+		;;
+	esac
+	printf '%s\n' "$arch${rest:+-$rest}"
+}
+
+for arg do
+	shift
+	case $arg in
+	--target=*) arg=--target=$(zig_target "${arg#--target=}") ;;
+	esac
+	set -- "$@" "$arg"
+done
 exec "${ZIG:-zig}" cc "$@"

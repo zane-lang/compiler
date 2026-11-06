@@ -1,5 +1,6 @@
 # Project actions. `just` lists them by group; tests/README.md says what each
-# suite covers. Run inside the devbox shell, which provides the toolchain.
+# suite covers. Run in the pixi environment (`pixi shell`, or `pixi run just ...`),
+# which provides the toolchain (README.md, "Setup").
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 set script-interpreter := ["bash", "-euo", "pipefail"]
@@ -156,4 +157,4 @@ _zanec:
 # The engine-backed tests skip themselves without Menhir, so a missing one
 # fails here instead of reporting a green run that skipped them.
 _require-menhir:
-	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the devbox shell first" >&2; exit 1; }
+	@command -v menhir >/dev/null || { echo "menhir not found on PATH; enter the pixi environment first (pixi shell)" >&2; exit 1; }

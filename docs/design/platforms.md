@@ -76,6 +76,17 @@ the last digit, which the spec allows of an approximate function
 ([`math.md`](https://github.com/zane-lang/spec/blob/1457830/spec/math.md)
 §2.6); the `math` codegen fixture checks them within a tolerance.
 
+## Addresses near the program
+
+A program's frames, and the chunks its regions take, are reserved close to
+its image, so that a stored reference or box is a 32-bit distance from the
+image's start (experimental, `docs/experiments/goose-comparison`). The image's
+start is the symbol each linker defines: `__ehdr_start` for ELF,
+`__mh_execute_header` for Mach-O and `__ImageBase` for PE. The runtime
+reserves those addresses with `mmap` and `MAP_FIXED_NOREPLACE` on Linux, an
+`mmap` hint it checks on macOS, and `VirtualAlloc` at the address on
+Windows; a program that cannot place them stops with an error.
+
 ## Machine stack sizes
 
 A program's main thread uses the stack its launch environment provides on
@@ -89,7 +100,9 @@ the main thread and workers. A full stack stops the program with
 On POSIX systems the runtime's fault handler runs on a stack of its own,
 since one that overflowed leaves none, and finds the thread's stack with
 `pthread_getattr_np`, or `pthread_get_stackaddr_np` on macOS. A protection
-fault is SIGSEGV on Linux and SIGBUS on macOS, so both are handled.
+fault is SIGSEGV on Linux and SIGBUS on macOS, so both are handled. A
+child that C forks takes the forking thread's handler stack again, since
+macOS gives a forked child none.
 
 A stop from the handler first flushes what the program printed, which waits
 in the runtime's own buffer ([`lowering.md`](lowering.md) §9), unless
@@ -117,7 +130,10 @@ placed ([`lowering.md`](lowering.md) §9). The limit is `Ty.limit` in
 
 A Windows program links with MinGW's C library and its POSIX threads,
 winpthreads, both of which `zig cc` carries; `ZANE_CC=dev/bin/zig-cc` links
-with it ([`lowering.md`](lowering.md) §7). The runtime differs there in five
+with it ([`lowering.md`](lowering.md) §7). It also compiles the runtime's
+bitcode, whose bodies an optimized build inlines, so the `zig` is the release
+whose clang has the compiler's own LLVM version (`pixi.toml`): bitcode from a
+newer LLVM is bitcode the compiler cannot read. The runtime differs there in five
 places, each marked `_WIN32`: a dynamic chunk is carved from a 64 MiB
 reservation, decommitted with `VirtualFree(MEM_DECOMMIT)` when it turns
 cold, and released with its whole reservation
@@ -139,7 +155,13 @@ locale intact.
 
 A target is spelled as `zig cc` reads it, such as `x86_64-windows-gnu`. The
 compiler hands LLVM that triple's normal form, `x86_64-unknown-windows-gnu`,
-and the C compiler the triple as written.
+and the C compiler the triple as written. A build on a Windows host without
+`--target` is for `x86_64-windows-gnu`, since the host's own triple is
+MSVC's, whose C library has no POSIX threads. On a Windows host the
+compiler reads `\` in a path as it reads `/`, so a package directory's name
+is its last component either way, and its reports write every path with `/`,
+so they read as they do on any other system. It ends each line it writes with
+`\n`, as the programs it builds do.
 
 ## Tiered builds
 

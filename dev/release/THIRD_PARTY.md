@@ -2,27 +2,28 @@
 
 The compiler is GPL-3.0-only; `LICENSE` contains its license. Its source is
 the commit in `toolchain.coda`, available from
-https://github.com/zane-lang/compiler. The committed Devbox lock and OCaml
-bootstrap pins describe how it was built. Intel macOS archives also include
-`devbox-intel.json`, which records their pinned Nixpkgs toolchain. The LLVM,
+https://github.com/zane-lang/compiler. The included `pixi.lock`, which pins
+its conda-forge toolchain, and the OCaml bootstrap pins describe how it was
+built. The LLVM,
 OCaml and Coda license notices, LGPL-2.1, and the GCC runtime exception are
 included here.
 
 The archive also includes:
 
-- LLVM 19 on Linux and ARM macOS, or LLVM 21 on Intel macOS, with its linker
-  LLD and clang's C front end built into the compiler, and clang's builtin
-  headers embedded in it (Apache-2.0 with LLVM exceptions):
-  https://github.com/llvm/llvm-project/tree/llvmorg-19.1.7
-  https://github.com/llvm/llvm-project/tree/llvmorg-21.1.8
+- LLVM 21, with its linker LLD and clang's C front end built into the
+  compiler, and clang's builtin headers embedded in it (Apache-2.0 with LLVM
+  exceptions): https://github.com/llvm/llvm-project/tree/llvmorg-21.1.8
+- LLVM's OCaml bindings (Apache-2.0 with LLVM exceptions), built into the
+  compiler from the copy of LLVM 21.1.8's `llvm/bindings/ocaml` at
+  `vendor/llvm-ocaml`
 - Coda's parser and OCaml binding (MIT), built into the compiler from the
   submodule at `vendor/coda`: https://github.com/zane-lang/coda
 - OCaml's native runtime (LGPL-2.1 with the OCaml linking exception):
   https://github.com/ocaml/ocaml
 - The ELF loader and shared libraries resolved by the build. The accompanying
-  `runtime-libraries.txt` identifies their exact Nix store builds. Nixpkgs
-  recipes and source references are pinned by the compiler's `devbox.lock`:
-  https://github.com/NixOS/nixpkgs
+  `runtime-libraries.txt` identifies the files they were taken from, and the
+  conda-forge packages that hold them are pinned by the included `pixi.lock`:
+  https://conda-forge.org
   These include glibc (LGPL-2.1-or-later), GCC runtime libraries (GPL-3.0 with
   the GCC runtime library exception), and LLVM's library dependencies.
 - Zig (the version and source recorded in the included `zig.json`) and its C toolchain libraries,

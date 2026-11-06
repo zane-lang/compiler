@@ -21,14 +21,16 @@ let narrow ctx b v = Llvm.build_trunc v (Llvm.i32_type ctx) "" b
 let widen ctx b v = Llvm.build_zext v (Llvm.i64_type ctx) "" b
 
 (* The program image's start, which a frame reference counts from
-   (runtime/region.c): a symbol the linker defines, hidden so that its
+   (runtime/region.c): a symbol the target's linker defines
+   ([Cgt.Ref32.image_symbol]), hidden so that its
    address is computed relative to the code, without a load. *)
 let image b =
   let m = Llvm.global_parent (Llvm.block_parent (Llvm.insertion_block b)) in
-  match Llvm.lookup_global "__ehdr_start" m with
+  let name = Cgt.Ref32.image_symbol () in
+  match Llvm.lookup_global name m with
   | Some g -> g
   | None ->
-      let g = Llvm.declare_global (Llvm.i8_type (Llvm.module_context m)) "__ehdr_start" m in
+      let g = Llvm.declare_global (Llvm.i8_type (Llvm.module_context m)) name m in
       Llvm.set_visibility Llvm.Visibility.Hidden g;
       g
 

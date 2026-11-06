@@ -3,10 +3,10 @@ name: "Copilot Setup Steps"
 on:
   workflow_dispatch:
 
-# The same toolchain CI builds with (.github/workflows/ci.yml): devbox's
-# packages (including LLVM 19 for codegen's bindings), and the opam switch
-# with dune, menhir, sedlex, uucp and uuseg. Without the opam switch the
-# environment cannot build.
+# The same toolchain CI builds with (.github/workflows/ci.yml): the pixi
+# environment (pixi.toml), with LLVM 21 for codegen's bindings, and the opam
+# switch with dune, menhir, sedlex, uucp and uuseg. Without the opam switch
+# the environment cannot build.
 jobs:
   copilot-setup-steps:
     runs-on: ubuntu-latest
@@ -16,11 +16,5 @@ jobs:
           # vendor/coda, which lib/coda/ builds.
           submodules: true
 
-      - name: Install devbox + Nix + devbox.json packages
-        uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
-
-      - name: Sanity check
-        run: devbox list
-
-      - name: Install OCaml dependencies
-        run: devbox run -- dev/setup/bootstrap-toolchain
+      - name: Set up toolchain
+        uses: ./.github/actions/setup-ci

@@ -199,18 +199,18 @@ def package(binary, zig, zig_manifest, output, version, commit):
                 )
                 set_rpath(copied, "@loader_path")
         set_rpath(compiler, "@executable_path/../lib")
-        set_rpath(zig_binary, "@executable_path/../lib")
+        # Zig's standalone executable links only the system's libraries, so
+        # it is given the bundled directory only when it reaches one there:
+        # it has no room in its header for a load command added.
+        zig_image = images[1]
+        if any(dependency is not None for _, dependency in edges[(zig_image, contexts[zig_image])]):
+            set_rpath(zig_binary, "@executable_path/../lib")
 
         project = Path(__file__).resolve().parents[2]
         shutil.copy2(project / "LICENSE", root / "share/LICENSE")
         shutil.copy2(project / "dev/release/THIRD_PARTY.md", root / "share/THIRD_PARTY.md")
         shutil.copytree(project / "dev/release/licenses", root / "share/licenses")
-        shutil.copy2(project / "devbox.lock", root / "share/devbox.lock")
-        if arch == "x86_64":
-            shutil.copy2(
-                project / ".github/devbox-intel/devbox.json",
-                root / "share/devbox-intel.json",
-            )
+        shutil.copy2(project / "pixi.lock", root / "share/pixi.lock")
         shutil.copy2(zig_manifest, root / "share/zig.json")
         (root / "VERSION").write_text(version + "\n")
         (root / "toolchain.coda").write_text(
