@@ -8,6 +8,7 @@ on:
     branches: [claude/inspiring-euler-ztn4zi]
     paths:
       - pixi.toml
+      - pixi.lock
       - dev/spike/**
       - dev/setup/**
       - lib/**
@@ -44,14 +45,8 @@ jobs:
       - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
         with:
           run-install: true
-          locked: false
-          cache: false
-      # The lock file pixi resolved for every platform, to commit.
-      - if: runner.os == 'Linux'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: pixi.lock
-          path: pixi.lock
+          locked: true
+          cache: true
       - name: Toolchain versions
         run: pixi run bash dev/spike/toolchain versions
       - name: pixi run setup

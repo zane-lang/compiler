@@ -15,10 +15,15 @@ esac
 case "${1:?stage}" in
 versions)
 	uname -a
+	echo "PATH as bash reads it:"; echo "$PATH" | tr ':' '\n'
+	if [[ $windows == 1 ]]; then
+		echo "Path variables in the environment:"; env | grep -i '^path=' | cut -c1-300
+		cmd //c "echo %PATH%" | tr ';' '\n'
+	fi
 	env | grep -E '^(OPAM|ZANE_|ZIG=|LLVM_CONFIG|AR=|STRIP=|VSINSTALLDIR)' | sort
-	ocamlopt -config | grep -E '^(version|architecture|system|ccomp_type|c_compiler|native_c_compiler):' || true
-	opam --version
-	llvm-config --version --shared-mode
+	ocamlopt -config 2>/dev/null | grep -E '^(version|architecture|system|ccomp_type|c_compiler|native_c_compiler):' || true
+	opam --version || true
+	llvm-config --version --shared-mode || true
 	command -v ocamlfind dune menhir ld.lld clang llvm-config cl link 2>/dev/null || true
 	zig version || x86_64-w64-mingw32-zig version || echo 'zig: not on PATH'
 	just --version
