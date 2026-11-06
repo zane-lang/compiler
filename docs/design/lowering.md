@@ -411,8 +411,8 @@ on every target but Apple's, whose ABI keeps frame pointers,
 it also takes `-ftls-model=local-exec`: the runtime is only ever linked into
 an executable, so a thread's variable is read at a fixed offset from the
 thread's pointer, rather than through the descriptor a position-independent
-compile asks for. Some toolchains add the rest by default, Nix's hardened
-clang among them, and they cost the runtime's small, hot functions more than
+compile asks for. Some toolchains add the rest by default, hardened
+distribution clangs among them, and they cost the runtime's small, hot functions more than
 anything else in them; `-fwrapv`, signed arithmetic that wraps, keeps LLVM
 from simplifying the runtime's rounding of sizes. The C library's checked
 forms of its functions, which such a toolchain turns on with a
@@ -470,7 +470,7 @@ feature it has: clang's default on macOS, `penryn` for x86-64 and
 compiled for, so no body would be inlined there. Bitcode is read only by the LLVM that wrote it or a
 later one, so the C compiler that compiles it, `ZANE_BITCODE_CC` or else
 the runtime's own, must be a clang of the compiler's LLVM version or older,
-as devbox's is; a release bundles bitcode a matching clang made (below).
+as the pixi environment's is; a release bundles bitcode a matching clang made (below).
 With any other, or one that makes no bitcode, a
 build links the runtime's object and calls its functions, and the cache
 keeps an empty file so the C compiler is asked once.
@@ -525,7 +525,7 @@ contents, where the command names it relative to the bundle. With
 `--optimize` it also compiles the runtime's bitcode beside the object, with
 the C compiler `ZANE_BITCODE_CC` names when it is set. Zig's clang is newer
 than the compiler's LLVM, which cannot read its bitcode, so packaging names
-`dev/release/bitcode-cc`: the devbox's clang, of the compiler's LLVM
+`dev/release/bitcode-cc`: the pixi environment's clang, of the compiler's LLVM
 version, run with the C library headers and definitions Zig compiles the
 same target with, and an Apple target's oldest system. Bitcode this LLVM
 cannot read is not bundled, and an optimized build with that release links
