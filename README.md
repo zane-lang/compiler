@@ -143,12 +143,12 @@ pixi shell
 just test-compiler
 ```
 
-The environment adds `dev/bin` to `PATH` and sets `ZANE_CC` to
-`dev/bin/clang-lld` on Linux and macOS, whose linker is LLVM's `lld`, so
-`zanec` links with the `lld` built into it, and to `dev/bin/zig-cc.cmd` on
-Windows, which links through `zig cc` for MinGW. `ZANE_CC` is left alone if
-it is already set. Set `ZANE_VERBOSE` to have a build say why it links
-through the C compiler instead.
+The environment adds `dev/bin` to `PATH`. On Linux and macOS it sets
+`ZANE_CC` to `dev/bin/clang-lld`, whose linker is LLVM's `lld`, so `zanec`
+links with the `lld` built into it. On Windows it sets `ZANE_CC` to
+`dev/bin/zig-cc.cmd`, which links through `zig cc` for MinGW. `ZANE_CC` is
+left alone if it is already set. Set `ZANE_VERBOSE` to have a build say why
+it links through the C compiler instead.
 
 ### What each OS runs
 
