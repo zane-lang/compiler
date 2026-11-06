@@ -19,6 +19,10 @@ versions)
 	if [[ $windows == 1 ]]; then
 		echo "Path variables in the environment:"; env | grep -i '^path=' | cut -c1-300
 		cmd //c "echo %PATH%" | tr ';' '\n'
+		echo "LIB: ${LIB:-}" | tr ';' '\n'
+		vs=$(cygpath -u "${VSINSTALLDIR:-C:/nonexistent}")
+		ls -d "$vs"/VC/Tools/MSVC/*/ATLMFC/lib/x64/atls.lib 2>/dev/null || echo 'atls.lib: in no toolset'
+		echo "VCToolsInstallDir: ${VCToolsInstallDir:-}"
 	fi
 	env | grep -E '^(OPAM|ZANE_|ZIG=|LLVM_CONFIG|AR=|STRIP=|VSINSTALLDIR)' | sort
 	ocamlopt -config 2>/dev/null | grep -E '^(version|architecture|system|ccomp_type|c_compiler|native_c_compiler):' || true

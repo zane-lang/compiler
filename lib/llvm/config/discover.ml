@@ -75,12 +75,28 @@ let library libdir word =
 
 (* Microsoft's DIA SDK, which an MSVC LLVM built with PDB support calls
    (LLVMDebugInfoPDB) and llvm-config does not name. It comes with Visual
-   Studio, whose developer environment sets VSINSTALLDIR. *)
+   Studio, whose developer environment sets VSINSTALLDIR. Its library names
+   ATL's `atls.lib` as a default library, which flexlink looks for on the
+   library path: the developer environment's toolset's ATL directory, or
+   else any of the installation's toolsets' that has one. *)
+let atl vs =
+  let in_toolset dir = List.fold_left Filename.concat dir [ "ATLMFC"; "lib"; "x64" ] in
+  let has dir = Sys.file_exists (Filename.concat dir "atls.lib") in
+  let current = Option.map in_toolset (Sys.getenv_opt "VCToolsInstallDir") in
+  match current with
+  | Some dir when has dir -> [ "-L" ^ dir ]
+  | _ -> (
+      let tools = List.fold_left Filename.concat vs [ "VC"; "Tools"; "MSVC" ] in
+      let versions = try List.rev (List.sort compare (Array.to_list (Sys.readdir tools))) with Sys_error _ -> [] in
+      match List.find_opt has (List.map (fun v -> in_toolset (Filename.concat tools v)) versions) with
+      | Some dir -> [ "-L" ^ dir ]
+      | None -> [])
+
 let dia_sdk () =
   match Sys.getenv_opt "VSINSTALLDIR" with
   | Some vs ->
       let lib = List.fold_left Filename.concat vs [ "DIA SDK"; "lib"; "amd64"; "diaguids.lib" ] in
-      if Sys.file_exists lib then [ lib ] else []
+      if Sys.file_exists lib then atl vs @ [ lib ] else []
   | None -> []
 
 let libs () =
