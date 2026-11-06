@@ -90,7 +90,7 @@ let both a b =
 
 (* [dir]'s `c.coda`, the rows that apply to a build for [triple]. *)
 let read_settings ~triple dir =
-  let coda = Filename.concat dir Settings.file_name in
+  let coda = Source.Files.in_directory dir Settings.file_name in
   let sources () = match Cache.read coda with Some text -> [ (coda, text) ] | None -> [] in
   Settings.read ~triple dir
   |> Result.map_error (fun diagnostics -> { diagnostics; sources = sources () })
@@ -248,7 +248,7 @@ let assemble ?cache ~triple ~cpu (source : Compile.source) =
    so a check refuses what the build's link would. *)
 let archive ~triple dir (row : Settings.row) =
   let ( let* ) = Result.bind in
-  let coda = Filename.concat dir Settings.file_name and path = Filename.concat dir row.value in
+  let coda = Source.Files.in_directory dir Settings.file_name and path = Source.Files.in_directory dir row.value in
   let at_row message = Error { diagnostics = [ Settings.problem coda row.number message ]; sources = [] } in
   let* bytes =
     match Cache.read path with
@@ -302,13 +302,13 @@ let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
   let tables =
     combine
       (List.map
-         (fun h -> Result.map (fun t -> (h, t)) (Compile.interface flags (Filename.concat dir h)))
+         (fun h -> Result.map (fun t -> (h, t)) (Compile.interface flags (Source.Files.in_directory dir h)))
          interface_headers)
   in
   (* A source holding assembly is never linked into the package's module:
      it is an object of its own. *)
   let compiled_source s =
-    let path = Filename.concat dir s in
+    let path = Source.Files.in_directory dir s in
     let ( let* ) = Result.bind in
     let* source = Compile.compile_source ?cache ~maps flags path in
     let* source = linker_sets ~file:path source in
@@ -427,8 +427,8 @@ let glue_file p ~dir ~work ~maps ~flags (header, text) =
   | () ->
       let ( let* ) = Result.bind in
       let shown =
-        match List.find_opt (fun (h, _) -> Filename.concat dir h = header) p.tables with
-        | Some (h, _) -> Filename.concat p.dir h
+        match List.find_opt (fun (h, _) -> Source.Files.in_directory dir h = header) p.tables with
+        | Some (h, _) -> Source.Files.in_directory p.dir h
         | None -> header
       in
       let* source = Compile.compile_source ?cache:p.cache ~maps flags path in
@@ -481,8 +481,8 @@ let shared_state (p : package) compiled =
       || (List.mem header s.includes && List.exists (fun v -> List.mem v seen) (Clang.private_identities s.bitcode))
     in
     let file () =
-      List.find_opt (fun h -> Compile.real (Filename.concat p.dir h) = header) p.headers
-      |> Option.fold ~none:header ~some:(Filename.concat p.dir)
+      List.find_opt (fun h -> Compile.real (Source.Files.in_directory p.dir h) = header) p.headers
+      |> Option.fold ~none:header ~some:(Source.Files.in_directory p.dir)
     in
     let path (s : Compile.source) = s.path in
     match (List.filter defines p.sources, List.filter assembles (List.map (fun a -> a.source) p.assembled)) with
@@ -545,8 +545,8 @@ let archived_constructors (p : package) compiled =
         let shares a = List.exists (fun n -> List.mem n a.held.Objects.defined) reached in
         let runs a = List.exists Objects.runs_code a.held.Objects.sections in
         let file () =
-          List.find_opt (fun h -> Compile.real (Filename.concat p.dir h) = header) p.headers
-          |> Option.fold ~none:header ~some:(Filename.concat p.dir)
+          List.find_opt (fun h -> Compile.real (Source.Files.in_directory p.dir h) = header) p.headers
+          |> Option.fold ~none:header ~some:(Source.Files.in_directory p.dir)
         in
         match (List.find_opt shares p.archives, List.find_opt runs p.archives) with
         | Some a, _ ->
@@ -583,8 +583,8 @@ let directed_glue (p : package) compiled =
    holding a double quote or a line break cannot be a quoted header name, and is
    refused. *)
 let glue p (entries : Glue.entry list) =
-  let dir = if Filename.is_relative p.dir then Filename.concat (Sys.getcwd ()) p.dir else p.dir in
-  let files = Glue.files (List.map (fun (h, t) -> (Filename.concat dir h, t)) p.tables) entries in
+  let dir = if Filename.is_relative p.dir then Source.Files.in_directory (Sys.getcwd ()) p.dir else p.dir in
+  let files = Glue.files (List.map (fun (h, t) -> (Source.Files.in_directory dir h, t)) p.tables) entries in
   let quoted = String.exists (fun c -> c = '"' || c = '\n') in
   match List.find_opt (fun (header, _) -> quoted header) files with
   | _ when entries = [] -> Ok []

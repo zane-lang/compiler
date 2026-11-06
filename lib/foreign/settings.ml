@@ -171,7 +171,7 @@ let parse_problem path (e : Coda.error) =
 (* The rows of [dir]'s `c.coda` that apply to a build for [triple], in the
    order they are written: none when the package has no `c.coda`. *)
 let read ~triple dir =
-  let path = Filename.concat dir file_name in
+  let path = Source.Files.in_directory dir file_name in
   let applying rows =
     let results = List.map (checked path) rows in
     match List.filter_map (function Error p -> Some p | Ok _ -> None) results with
@@ -207,15 +207,15 @@ let expand dir parts =
   let rec go prefix = function
     | [] -> []
     | [ last ] ->
-        entries (Filename.concat dir prefix)
+        entries (Source.Files.in_directory dir prefix)
         |> List.filter (glob_matches last)
-        |> List.map (fun e -> if prefix = "" then e else Filename.concat prefix e)
-        |> List.filter (fun p -> is_file (Filename.concat dir p))
+        |> List.map (fun e -> if prefix = "" then e else Source.Files.in_directory prefix e)
+        |> List.filter (fun p -> is_file (Source.Files.in_directory dir p))
     | part :: rest ->
-        entries (Filename.concat dir prefix)
+        entries (Source.Files.in_directory dir prefix)
         |> List.filter (glob_matches part)
-        |> List.map (fun e -> if prefix = "" then e else Filename.concat prefix e)
-        |> List.filter (fun p -> is_dir (Filename.concat dir p))
+        |> List.map (fun e -> if prefix = "" then e else Source.Files.in_directory prefix e)
+        |> List.filter (fun p -> is_dir (Source.Files.in_directory dir p))
         |> List.concat_map (fun p -> go p rest)
   in
   go "" parts
@@ -226,10 +226,10 @@ let expand dir parts =
    `.c` file is not a C source, and is skipped. A pattern that matches
    nothing is an error. *)
 let sources dir rows =
-  let path = Filename.concat dir file_name in
+  let path = Source.Files.in_directory dir file_name in
   let direct =
     (try Array.to_list (Sys.readdir dir) with Sys_error _ -> [])
-    |> List.filter (fun f -> Filename.check_suffix f ".c" && is_file (Filename.concat dir f))
+    |> List.filter (fun f -> Filename.check_suffix f ".c" && is_file (Source.Files.in_directory dir f))
     |> List.sort compare
   in
   let listed row =
@@ -253,5 +253,5 @@ let sources dir rows =
    directly in [dir]. *)
 let interface_headers dir =
   (try Array.to_list (Sys.readdir dir) with Sys_error _ -> [])
-  |> List.filter (fun f -> Filename.check_suffix f ".h" && is_file (Filename.concat dir f))
+  |> List.filter (fun f -> Filename.check_suffix f ".h" && is_file (Source.Files.in_directory dir f))
   |> List.sort compare

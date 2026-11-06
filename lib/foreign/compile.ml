@@ -84,7 +84,7 @@ let package_flags dir (rows : Settings.row list) =
   List.concat_map
     (fun (row : Settings.row) ->
       match row.setting with
-      | Settings.Include -> [ "-I"; Filename.concat dir row.value ]
+      | Settings.Include -> [ "-I"; Source.Files.in_directory dir row.value ]
       | Settings.Define -> [ "-D"; row.value ]
       | Settings.Source | Settings.Archive | Settings.System -> [])
     rows

@@ -3,3 +3,8 @@
 type t = (string * string) list
 
 val find : t -> string -> string option
+
+(** [entry]'s path in [dir], joined with `/`, which Windows reads as it
+    reads `\`, so a file's path is spelled the same on every system: in
+    reports, spans and every view of the program. *)
+val in_directory : string -> string -> string
