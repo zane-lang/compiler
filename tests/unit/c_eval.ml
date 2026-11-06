@@ -381,7 +381,7 @@ let agree base =
    gives them glibc's headers on any machine. *)
 let stop base =
   with_zig_cc @@ fun zig ->
-  match compile ~cc:zig ~target:"x86_64-unknown-linux-gnu" base "stop" stopping_source with
+  match compile ~cc:zig ~target:"x86_64-linux-gnu" base "stop" stopping_source with
   | None -> check "the C evaluator's stopping cases compile" false
   | Some bitcode ->
       with_module bitcode (fun m ->
