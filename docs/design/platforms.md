@@ -76,6 +76,17 @@ the last digit, which the spec allows of an approximate function
 ([`math.md`](https://github.com/zane-lang/spec/blob/1457830/spec/math.md)
 §2.6); the `math` codegen fixture checks them within a tolerance.
 
+## Addresses near the program
+
+A program's frames, and the chunks its regions take, are reserved close to
+its image, so that a stored reference or box is a 32-bit distance from the
+image's start (experimental, `docs/experiments/goose-comparison`). The image's
+start is the symbol each linker defines: `__ehdr_start` for ELF,
+`__mh_execute_header` for Mach-O and `__ImageBase` for PE. The runtime
+reserves those addresses with `mmap` and `MAP_FIXED_NOREPLACE` on Linux, an
+`mmap` hint it checks on macOS, and `VirtualAlloc` at the address on
+Windows; a program that cannot place them stops with an error.
+
 ## Machine stack sizes
 
 A program's main thread uses the stack its launch environment provides on

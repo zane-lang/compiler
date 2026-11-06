@@ -106,6 +106,18 @@ typedef struct zane_stack {
 	char *top;
 } zane_stack;
 
+
+/* Experimental (docs/experiments/goose-comparison): with frame references
+   and 32-bit boxes, every dynamic chunk is carved from one window of
+   addresses near the program's image (region.c). */
+#if defined(ZANE_IMAGE_BOXES) && defined(ZANE_FRAME_REFS)
+#define ZANE_WINDOW 1
+#endif
+
+/* Otherwise Windows carves chunks from slabs (arena.c). */
+#if defined(_WIN32) && !defined(ZANE_WINDOW)
+#define ZANE_SLABS 1
+#endif
 /* A dynamic chunk, or the chunks of one oversized block, begins with this,
    and its blocks start a cache line in. `size` bytes of it are usable. A
    list's oversized block lies at the start of `reserved` bytes of addresses
@@ -116,7 +128,7 @@ typedef struct zane_mapping {
 	struct zane_mapping *next;
 	size_t size, reserved;
 	char *raw;
-	struct zane_slab *slab; /* on Windows, the reservation it was carved from */
+	struct zane_slab *slab; /* with slabs, the reservation it was carved from */
 	/* While a context keeps it warm: the one given back after it, and the
 	   context's drain it was given back at (arena.c). */
 	struct zane_mapping *prev;
@@ -453,7 +465,7 @@ void zane_thread_stop(void);
 char *zane_reserve_aligned(size_t bytes, char **raw);
 int zane_commit_range(char *at, size_t bytes);
 void zane_release_addresses(char *raw, char *base, size_t bytes);
-#if defined(ZANE_IMAGE_BOXES) && defined(ZANE_FRAME_REFS) && !defined(_WIN32)
+#ifdef ZANE_WINDOW
 /* Experimental: chunks within reach of the image (region.c). */
 char *zane_window_take(size_t bytes);
 void zane_window_give(char *base, size_t bytes);

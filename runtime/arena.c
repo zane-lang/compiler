@@ -54,7 +54,7 @@ void zane_set_page(const void *at, uintptr_t entry) {
 	__atomic_store_n(zane_page(at, 1), entry, __ATOMIC_RELEASE);
 }
 
-#if defined(ZANE_CHUNK_BOXES) && defined(ZANE_FRAME_REFS) && !defined(_WIN32)
+#if defined(ZANE_CHUNK_BOXES) && defined(ZANE_FRAME_REFS)
 /* Experimental (docs/experiments/goose-comparison): each MiB of a
    context's frames and of a chunk has a number from 1, so that a boxed
    member's block is stored as its MiB's number and its offset in 8-byte
@@ -239,7 +239,7 @@ static int64_t zane_word(int64_t n) { return n < 8 ? 8 : (n + 7) / 8 * 8; }
 static zane_mapping *zane_spare, *zane_cold;
 int64_t zane_warm_spares, zane_cold_spares, zane_cold_reuses;
 
-#ifdef _WIN32
+#ifdef ZANE_SLABS
 /* Windows gives back a reservation only whole, and a 1 MiB-aligned one costs
    an extra MiB of addresses, so chunks are carved from slabs of 64 MiB, or
    one of its own for a larger block. A slab counts its chunks that are live
@@ -269,6 +269,7 @@ static zane_slab *zane_slab_new(size_t bytes) {
 static void zane_slab_release(zane_slab *s) {
 	for (zane_mapping **at = &zane_cold; *at;)
 		if ((*at)->slab == s) {
+			zane_ids_drop((char *)*at, ZANE_CHUNK);
 			*at = (*at)->next;
 			zane_cold_spares--;
 		} else {
@@ -288,7 +289,7 @@ static void zane_slab_drop(zane_slab *s, size_t chunks) {
 /* `size` bytes of new chunks, usable. */
 static zane_mapping *zane_chunks_new(size_t size) {
 	char *base;
-#ifdef _WIN32
+#ifdef ZANE_SLABS
 	pthread_mutex_lock(&zane_memory);
 	zane_slab *s = zane_carving;
 	if (size >= ZANE_SLAB) {
@@ -302,7 +303,8 @@ static zane_mapping *zane_chunks_new(size_t size) {
 	s->carved += size;
 	s->held += (int64_t)(size / ZANE_CHUNK);
 	pthread_mutex_unlock(&zane_memory);
-#elif defined(ZANE_IMAGE_BOXES) && defined(ZANE_FRAME_REFS)
+	zane_ids_add(base, size);
+#elif defined(ZANE_WINDOW)
 	if (!(base = zane_window_take(size))) zane_broken("out of addresses for a dynamic chunk");
 #else
 	char *raw;
@@ -311,7 +313,7 @@ static zane_mapping *zane_chunks_new(size_t size) {
 #endif
 	if (!zane_commit_range(base, size)) zane_broken("out of memory for a dynamic chunk");
 	zane_mapping *m = (zane_mapping *)base;
-#ifdef _WIN32
+#ifdef ZANE_SLABS
 	m->slab = s;
 #else
 	m->slab = NULL;
@@ -321,14 +323,15 @@ static zane_mapping *zane_chunks_new(size_t size) {
 
 /* Chunks of `size` bytes from `m` given back to the system whole. */
 static void zane_chunks_drop(zane_mapping *m, size_t size) {
-#ifdef _WIN32
+#ifdef ZANE_SLABS
 	/* The header is in the range decommitted, so its slab is read first. */
 	zane_slab *slab = m->slab;
+	zane_ids_drop((char *)m, size);
 	zane_decommit_range((char *)m, size);
 	pthread_mutex_lock(&zane_memory);
 	zane_slab_drop(slab, size / ZANE_CHUNK);
 	pthread_mutex_unlock(&zane_memory);
-#elif defined(ZANE_IMAGE_BOXES) && defined(ZANE_FRAME_REFS)
+#elif defined(ZANE_WINDOW)
 	zane_window_give((char *)m, size);
 #else
 	zane_ids_drop((char *)m, size);
@@ -349,7 +352,7 @@ static void zane_chill(zane_mapping *m) {
 		m->next = zane_cold;
 		zane_cold = m;
 		zane_cold_spares++;
-#ifdef _WIN32
+#ifdef ZANE_SLABS
 		zane_slab_drop(m->slab, 1);
 #endif
 		pthread_mutex_unlock(&zane_memory);
@@ -425,7 +428,7 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 				zane_cold_spares--;
 				zane_cold_reuses++;
 				cold = 1;
-#ifdef _WIN32
+#ifdef ZANE_SLABS
 				m->slab->held++;
 #endif
 			}

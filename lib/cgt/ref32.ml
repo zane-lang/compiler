@@ -1,5 +1,5 @@
 (* Experimental (docs/experiments/goose-comparison): the compact memory
-   layout. Each part is on by default on a Linux target, and set to `0` in
+   layout. Each part is on by default, on every target, and set to `0` in
    the environment when compiling, turns off. *)
 
 (* A switch that is on unless set to `0`. *)
@@ -8,22 +8,37 @@ let switch name = Sys.getenv_opt name <> Some "0"
 (* The target's triple, when the build names one; the host's otherwise. *)
 let target : string option ref = ref None
 
-(* Whether the target is Linux: frame references need the ELF linker's
-   `__ehdr_start` and Linux's `MAP_FIXED_NOREPLACE` (runtime/region.c). *)
-let linux () =
+(* Whether [triple] names any of [words]. *)
+let names triple words =
+  let n = String.length triple in
+  let has w =
+    let k = String.length w in
+    let rec at i = i + k <= n && (String.sub triple i k = w || at (i + 1)) in
+    at 0
+  in
+  List.exists has words
+
+(* The symbol the target's linker defines at the program image's start,
+   which a frame reference counts from (runtime/region.c): the PE image's
+   base on Windows, the Mach-O header on macOS (LLVM adds its `_`), the ELF
+   header elsewhere. *)
+let image_symbol () =
+  let windows = [ "windows"; "mingw"; "win32"; "msvc" ] and apple = [ "apple"; "darwin"; "macos" ] in
   match !target with
-  | Some triple ->
-      let n = String.length triple in
-      let rec at i = i + 5 <= n && (String.sub triple i 5 = "linux" || at (i + 1)) in
-      at 0
-  | None -> Sys.file_exists "/proc/sys/kernel/ostype"
+  | Some triple when names triple windows -> "__ImageBase"
+  | Some triple when names triple apple -> "_mh_execute_header"
+  | Some _ -> "__ehdr_start"
+  | None ->
+      if Sys.win32 then "__ImageBase"
+      else if Sys.file_exists "/proc/sys/kernel/ostype" then "__ehdr_start"
+      else "_mh_execute_header"
 
 (* `ZANE_FRAME_REFS`: every context's frames are in the 2 GiB right below
    the program's image (runtime/region.c), so a stored reference, which
    names a frame's slot or a global, is its signed 32-bit distance from the
    image's start; and a list's handle is 16 bytes, its count and room 32
    bits each, the room counted in elements. *)
-let frames () = linux () && switch "ZANE_FRAME_REFS"
+let frames () = switch "ZANE_FRAME_REFS"
 
 (* `ZANE_CHUNK_BOXES=1`, off by default: a boxed member's block is stored
    in 32 bits as its MiB's number, which the runtime gives each MiB of a

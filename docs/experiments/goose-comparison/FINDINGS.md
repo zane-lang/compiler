@@ -128,10 +128,11 @@ in 2 KiB pieces.
 
 ## The new model
 
-On a Linux target, the default build is:
+On every target, the default build is:
 
 **References** are 32 bits: a stored `&T` is its signed distance from the
-program's image (`__ehdr_start`). Every context's frames come from one area
+program's image (`__ehdr_start` on Linux, `__mh_execute_header` on macOS,
+`__ImageBase` on Windows). Every context's frames come from one area
 in the 2 GiB right below the image, and globals sit in the image, so every
 reference fits. Decoding is one address computation, with no load.
 
@@ -186,19 +187,19 @@ scope's own region, the common case.
 
 ### Limits
 
-- The compact layout is Linux-only. It needs the ELF linker's
-  `__ehdr_start` and Linux's `MAP_FIXED_NOREPLACE`. On other targets
-  (`--target`, or a host that is not Linux) references, boxes and handles
-  keep their 64-bit layout. `ZANE_CHUNK_BOXES=1` needs no window, so it is
-  the drop-in for a Linux system that cannot place one, at about 5% on
-  box-heavy code; it needs frame references, so it is Linux-only too.
+- The runtime places the frames area and the window at fixed addresses:
+  with `MAP_FIXED_NOREPLACE` on Linux, an `mmap` hint it checks on macOS,
+  and `VirtualAlloc` at the address on Windows. `ZANE_CHUNK_BOXES=1` needs
+  no window, so it is the drop-in for a system that cannot place one, at
+  about 5% on box-heavy code.
 - A program's chunks share 14 GiB of addresses. Large lists are not in
   them; their reservations are anywhere.
 - All contexts' frames share the 2 GiB below the image.
 - Where the image is loaded too low for those (Valgrind loads one at
   1 MiB), the frames are the first free 512 MiB above the image within
   2 GiB of it, and the window the largest of 12, 8, 4 or 2 GiB free from
-  4 GiB above it.
+  4 GiB above it on, at any GiB within 16 GiB of the image. macOS always
+  loads a program there, above its unmapped low 4 GiB.
 - If the window or the frames area cannot be reserved, the program stops
   with an error rather than falling back, since the encoding is chosen when
   the program is compiled.
@@ -222,7 +223,7 @@ scope's own region, the common case.
 | a loop of pushes | checks room on every push | makes room once before the loop |
 | an indexed loop | reloads the handle and checks every index | reads the handle once; LLVM drops the checks |
 | a recursive base case | a call | inlined into its callers |
-| codegen tests | 64-bit layout | Linux golden files carry the compact layout; layout facts follow the target |
+| codegen tests | 64-bit layout | golden files carry the compact layout, the same on every target |
 
 ## The spec
 
