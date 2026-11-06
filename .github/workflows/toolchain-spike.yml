@@ -100,10 +100,10 @@ jobs:
         run: pixi run bash dev/spike/toolchain build
       - name: Build and run hello
         run: pixi run bash dev/spike/toolchain hello
-      - name: The C front end's headers
+      - name: The C modules' keys
         if: runner.os == 'Windows'
         continue-on-error: true
-        run: pixi run bash dev/spike/toolchain cheaders
+        run: pixi run bash dev/spike/toolchain ckeys
       - name: just test-compiler
         run: pixi run bash dev/spike/toolchain test
       # Kept whether or not the tests passed: what was built is the same.
