@@ -342,7 +342,11 @@ let natively base bitcode =
          (fun (n, args) -> List.map (fun (a, b) -> Printf.sprintf "  printf(\"%%lld\\n\", %s(%LdLL, %LdLL));\n" n a b) args)
          cases)
   in
-  write_all harness (Printf.sprintf "#include <stdio.h>\n%sint main(void) {\n%s  return 0;\n}\n" decls calls);
+  (* MinGW's C library has no C23 `roundeven`, which a case's builtin
+     calls: rounding to the nearest, ties to even, is `rint` in the default
+     rounding mode. *)
+  let mingw = "#ifdef __MINGW32__\ndouble roundeven(double x) { return __builtin_rint(x); }\nfloat roundevenf(float x) { return __builtin_rintf(x); }\n#endif\n" in
+  write_all harness (Printf.sprintf "#include <stdio.h>\n%s%sint main(void) {\n%s  return 0;\n}\n" mingw decls calls);
   let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
   let out = Filename.concat base "out.txt" in
   if Sys.command (Printf.sprintf "%s -w %s %s -o %s -lm && %s > %s" cc (Filename.quote harness) (Filename.quote bc) (Filename.quote exe) (Filename.quote exe) (Filename.quote out)) <> 0

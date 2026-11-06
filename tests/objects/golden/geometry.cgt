@@ -129,27 +129,45 @@
     │   │       │   ├── index: 0
     │   │       │   └── value: local #1 : {i64, i64}
     │   │       └── right: local #2 : i64
-    │   └── body[1] > return > expand:
+    │   ├── body[1] > let:
+    │   │   ├── local: #4
+    │   │   └── value > binary:
+    │   │       ├── type: i64
+    │   │       ├── op: +
+    │   │       ├── left > member:
+    │   │       │   ├── type: i64
+    │   │       │   ├── index: 1
+    │   │       │   └── value: local #1 : {i64, i64}
+    │   │       └── right: local #2 : i64
+    │   ├── body[2] > let:
+    │   │   ├── local: #7
+    │   │   └── value > record:
+    │   │       ├── type: {i64, i64}
+    │   │       ├── members[0] > member 0: local #3 : i64
+    │   │       └── members[1] > member 1: local #4 : i64
+    │   └── body[3] > return > expand:
     │       ├── type: {i64, i64}
-    │       ├── label: @5
-    │       ├── result: #6
+    │       ├── label: @10
+    │       ├── result: #11
     │       ├── body[0] > let:
-    │       │   ├── local: #4
-    │       │   └── value > binary:
+    │       │   ├── local: #8
+    │       │   └── value > member:
     │       │       ├── type: i64
-    │       │       ├── op: +
-    │       │       ├── left > member:
-    │       │       │   ├── type: i64
-    │       │       │   ├── index: 1
-    │       │       │   └── value: local #1 : {i64, i64}
-    │       │       └── right: local #2 : i64
-    │       ├── body[1] > assign:
-    │       │   ├── place: #6
+    │       │       ├── index: 0
+    │       │       └── value: local #7 : {i64, i64}
+    │       ├── body[1] > let:
+    │       │   ├── local: #9
+    │       │   └── value > member:
+    │       │       ├── type: i64
+    │       │       ├── index: 1
+    │       │       └── value: local #7 : {i64, i64}
+    │       ├── body[2] > assign:
+    │       │   ├── place: #11
     │       │   └── value > record:
     │       │       ├── type: {i64, i64}
-    │       │       ├── members[0] > member 0: local #3 : i64
-    │       │       └── members[1] > member 1: local #4 : i64
-    │       └── body[2]: leave @5
+    │       │       ├── members[0] > member 0: local #8 : i64
+    │       │       └── members[1] > member 1: local #9 : i64
+    │       └── body[3]: leave @10
     ├── funcs[9] > func:
     │   ├── symbol: !geometry$same<%primitives$I64>(%primitives$I64)
     │   ├── linkage: shared

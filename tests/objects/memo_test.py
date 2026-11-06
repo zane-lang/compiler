@@ -24,6 +24,11 @@ LIBRARY = Path(__file__).resolve().parent / "fixtures/memolibrary"
 USER = Path(__file__).resolve().parent / "fixtures/memolibraryuser"
 STAMP = "v1.0%0123456789abcdef%"
 BUILDS = {"plain": [], "optimized": ["--optimize"], "tiered": ["--tiered"]}
+# Whether a program's image holds its symbols: not a Windows one.
+IMAGE_SYMBOLS = sys.platform != "win32"
+# A global a module defines, by its name, and its alignment.
+DEFINED = re.compile(r'^@"?([^"\n]*?)"? = (?!external)', re.M)
+ALIGNED = re.compile(r'^@"?([^"\n]*?)"? = (?!external)[^\n]*, align (\d+)', re.M)
 
 
 def run_program(exe, *args):
@@ -99,22 +104,45 @@ class MemoTests(unittest.TestCase):
                     raise AssertionError(f"{name} tier 1\n{result.stdout}{result.stderr}")
         return exe
 
+    def module(self, name, build, memoize):
+        """The module of a build of the fixture `name`, as `--ll` prints it:
+        a tiered build's tier 0 is built as a plain one is, which `--ll`
+        prints for it."""
+        flags = [*([] if build == "tiered" else BUILDS[build]), *([] if memoize else ["--no-memoize"])]
+        result = subprocess.run([ZANEC, "--ll", *flags, "--package", FIXTURES / name],
+                                capture_output=True, text=True, timeout=300)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout
+
     def tables(self, name, build, memoize=True):
         """The functions given a table: each one's state symbol, less its
-        suffix."""
-        return sorted(n[: -len(".memo.state")] for _, _, n in symbols(self.build(name, build, memoize))
-                      if n.endswith(".memo.state"))
+        suffix. A Windows program's image holds no symbols, which `zig cc`
+        writes to a PDB of its own only when asked, so there they are the
+        module's."""
+        if IMAGE_SYMBOLS:
+            names = [n for _, _, n in symbols(self.build(name, build, memoize))]
+        else:
+            self.build(name, build, memoize)
+            names = DEFINED.findall(self.module(name, build, memoize))
+        return sorted(n[: -len(".memo.state")] for n in names if n.endswith(".memo.state"))
 
     def test_tables_start_on_a_cache_line(self):
         # So where a table lands in the binary does not decide which of its
-        # entries straddle two cache lines.
+        # entries straddle two cache lines: by its address in the image, or
+        # where the image holds no symbols, by the alignment the module
+        # gives it.
         found = 0
         for name in sorted(p.name for p in FIXTURES.iterdir()):
             for build in BUILDS:
-                for address, _, n in symbols(self.build(name, build, True)):
-                    if n.endswith(".memo.table"):
-                        found += 1
-                        self.assertEqual(int(address, 16) % 64, 0, (name, build, n))
+                if IMAGE_SYMBOLS:
+                    placed = [(n, int(a, 16)) for a, _, n in symbols(self.build(name, build, True))
+                              if n.endswith(".memo.table")]
+                else:
+                    placed = [(n, int(a)) for n, a in ALIGNED.findall(self.module(name, build, True))
+                              if n.endswith(".memo.table")]
+                for n, address in placed:
+                    found += 1
+                    self.assertEqual(address % 64, 0, (name, build, n))
         self.assertTrue(found)
 
     def test_a_table_holds_at_most_256_kib(self):

@@ -4,7 +4,9 @@
 /// with an instance the library uses, whose body holds a lambda C can
 /// call, and a second generic it never uses.
 /// `shifted` and `same` are written as statements, so a caller calls them
-/// rather than writing them out (docs/design/lowering.md L11).
+/// rather than writing them out (docs/design/lowering.md L11), and
+/// `shifted` is long enough that an unoptimized build does not inline it
+/// on any target either (docs/design/optimization.md O12).
 package geometry;
 
 alias Int = @primitives$I64;
@@ -44,5 +46,7 @@ Int scaled(x Int) => @operators$multiply(x, unit);
 
 Point shifted(p Point, by Int) {
 	x Int = @operators$add(p.x, by);
-	return Point(x, @operators$add(p.y, by));
+	y Int = @operators$add(p.y, by);
+	moved Point = Point(x, y);
+	return Point(moved.x, moved.y);
 }
