@@ -351,7 +351,10 @@ let natively base bitcode =
   let out = Filename.concat base "out.txt" in
   if Sys.command (Printf.sprintf "%s -w %s %s -o %s -lm && %s > %s" cc (Filename.quote harness) (Filename.quote bc) (Filename.quote exe) (Filename.quote exe) (Filename.quote out)) <> 0
   then None
-  else Option.map (String.split_on_char '\n') (read_all out)
+  else
+    (* MinGW's stdout is in text mode, so each line it printed ends `\r\n`. *)
+    let line l = if String.ends_with ~suffix:"\r" l then String.sub l 0 (String.length l - 1) else l in
+    Option.map (fun text -> List.map line (String.split_on_char '\n' text)) (read_all out)
 
 let agree base =
   match compile base "agree" agreeing with

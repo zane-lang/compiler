@@ -436,7 +436,7 @@ let glue_refusals () =
     Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
         let dir = Filename.concat base "pkg" in
         Sys.mkdir dir 0o755;
-        let header = Filename.concat dir "api.h" in
+        let header = Source.Files.in_directory dir "api.h" in
         write_all header text;
         let cc = match cc with Some cc -> cc | None -> Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
         match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target [ dir ] with

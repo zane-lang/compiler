@@ -275,12 +275,15 @@ let bundled_runtime () =
   Sys.mkdir work 0o755;
   Build.write_runtime work;
   let host = Build.host_triple () in
+  (* The triple as a build reads it, in LLVM's normal form: Windows's host
+     is spelled as `zig cc` spells it. *)
+  let normal = Build.normalize_triple host in
   let bundle optimize = Build.bundle_runtime ~target:host ~optimize bundled in
   check "a runtime is bundled" (Result.is_ok (bundle false));
   check "into a directory made for it"
     (List.sort compare (List.map Filename.extension (Array.to_list (Sys.readdir bundled))) = [ ""; ".o" ]);
   let cc = Build.cc () in
-  let found ?target ?(triple = host) ~optimize () =
+  let found ?target ?(triple = normal) ~optimize () =
     match Build.runtime_object ~bundled ~cache ~cc ~triple ?target ~optimize work with
     | Ok path -> String.starts_with ~prefix:bundled path
     | Error _ -> false
@@ -293,7 +296,7 @@ let bundled_runtime () =
   check "an optimized runtime is bundled beside the other" (Result.is_ok (bundle true));
   check "and is linked by an optimized build" (found ~optimize:true ());
   check "with its bitcode, which this LLVM reads"
-    (Build.with_runtime_bitcode ~bundled ~cc ~triple:host (function
+    (Build.with_runtime_bitcode ~bundled ~cc ~triple:normal (function
        | Some path -> String.starts_with ~prefix:bundled path && Codegen__Runtime_bodies.readable path
        | None -> false));
   (* Each runtime is bundled with the command that links a program with
@@ -304,11 +307,11 @@ let bundled_runtime () =
     Ok ()
   in
   let level = Build.level ~optimize:false and system = Build.system_libraries None in
-  let command = List.fold_left Filename.concat bundled [ "link"; Build.bundled_link_name ~triple:host level system ] in
+  let command = List.fold_left Filename.concat bundled [ "link"; Build.bundled_link_name ~triple:normal level system ] in
   let obj = Filename.concat work "program.o" and runtime = "/r/runtime.o" and output = Filename.concat work "out" in
   check "its link is bundled with it"
     (Result.is_ok
-       (Build.link_program ~bundled:command ~lld ~cc:"false" ~triple:host ~args:[] ~deps:[ "/d/dep.o" ] ~obj ~runtime
+       (Build.link_program ~bundled:command ~lld ~cc:"false" ~triple:normal ~args:[] ~deps:[ "/d/dep.o" ] ~obj ~runtime
           ~output work)
     && Sys.file_exists command);
   let rec after_obj = function o :: d :: _ when o = obj -> d = "/d/dep.o" | _ :: rest -> after_obj rest | [] -> false in
