@@ -57,16 +57,21 @@ let headers root =
   write_files ffi ffi_files;
   { root; resource; ffi }
 
-(* The flag that compiles C for [cpu], the processor the program's own code
+(* The flags that compile C for [cpu], the processor the program's own code
    is emitted for (Build.cpu): `-march` on x86-64, whose `-mcpu` only tunes,
-   and `-mcpu` elsewhere. LLVM's default, [cpu] empty, is the baseline
-   `x86-64` on x86-64, which has no `generic` to name, and `generic`
-   elsewhere. C then uses what the program's processor has and no more,
-   whatever processor clang defaults to for the target. *)
-let processor_flag ~triple cpu =
+   and `-mcpu` elsewhere. LLVM's default, [cpu] empty, is named as clang
+   names it: the baseline `x86-64` on x86-64, `generic` on AArch64 and
+   `generic-rv64` on 64-bit RISC-V. Elsewhere clang's own default is that
+   baseline already, and some targets (SystemZ, LoongArch) take no `-mcpu`,
+   so none is given. C then uses what the program's processor has and no
+   more, whatever processor clang defaults to for the target. *)
+let processor_flags ~triple cpu =
+  let given baseline = if cpu = "" then baseline else cpu in
   match String.split_on_char '-' triple with
-  | ("x86_64" | "x86_64h" | "amd64") :: _ -> "-march=" ^ if cpu = "" then "x86-64" else cpu
-  | _ -> "-mcpu=" ^ if cpu = "" then "generic" else cpu
+  | ("x86_64" | "x86_64h" | "amd64") :: _ -> [ "-march=" ^ given "x86-64" ]
+  | ("aarch64" | "arm64") :: _ -> [ "-mcpu=" ^ given "generic" ]
+  | "riscv64" :: _ -> [ "-mcpu=" ^ given "generic-rv64" ]
+  | _ -> if cpu = "" then [] else [ "-mcpu=" ^ cpu ]
 
 (* The flags every C source is compiled with, whatever its package's
    settings: C17, floating-point expressions evaluated as written, the
@@ -81,7 +86,9 @@ let fixed_flags ~triple ~cpu ~headers ~include_dirs =
     "-fno-associative-math";
     "-fno-rounding-math";
     "--target=" ^ triple;
-    processor_flag ~triple cpu;
+  ]
+  @ processor_flags ~triple cpu
+  @ [
     "-O2";
     "-Xclang";
     "-disable-llvm-passes";

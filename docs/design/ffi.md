@@ -121,8 +121,10 @@ settings.** The fixed flags are `-std=c17`, `-ffp-contract=off`,
 `-fno-fast-math`, `-fno-finite-math-only`, `-fno-associative-math` and
 `-fno-rounding-math` (`ffi.md` §2.2), the target triple (the host's when the
 build names none), the processor the program's own code is emitted for
-(`-march` on x86-64, `-mcpu` elsewhere: the baseline `x86-64`, or LLVM's
-`generic`, never the `penryn` or `apple-m1` clang defaults to on macOS),
+(`-march` on x86-64, `-mcpu` elsewhere: the baseline `x86-64`, `generic` on
+AArch64 or `generic-rv64` on 64-bit RISC-V, never the `penryn` or `apple-m1`
+clang defaults to on macOS; none on a target whose clang default is its
+baseline already),
 `-isystem` for the directory holding `zane_ffi.h`, and
 `-O2 -Xclang -disable-llvm-passes`, so the
 module comes out of the front end unoptimized but optimizable: `-O0` would

@@ -408,7 +408,11 @@ let c_processor () =
           (* `generic`'s, with the base architecture the target machine
              adds (Build.features), so it is inlined into the program's. *)
           check "C for AArch64 macOS loses the processor it was compiled for" (not (has text "target-cpu"))
-      | None -> check "C compiles for AArch64 macOS" false)
+      | None -> check "C compiles for AArch64 macOS" false);
+  (* RISC-V's clang has no `generic`; its baseline is `generic-rv64`. *)
+  with_zig_cc (fun zig ->
+      check "C compiles for 64-bit RISC-V"
+        (ir ~cc:zig ~cpu:"" "riscv64-linux-gnu" "long plain(long x) { return x + 1; }\n" <> None))
 
 (* `ZANE_ALIAS` (zane_ffi.h) makes the declaration it marks an alias of its
    target, the same on an ELF target and on Mach-O, whose C has no `alias`

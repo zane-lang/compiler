@@ -589,7 +589,7 @@ void make_aliases(llvm::Module &module, const std::vector<Marked_alias> &marks) 
    theirs: on AArch64 the base architecture, `+v8a`, besides the processor,
    as clang names it on every function and LLVM's `generic` lacks
    (Build.features), and the check below takes the same. The compile is for the
-   program's own processor (Compile.processor_flag), so a body that loses
+   program's own processor (Compile.processor_flags), so a body that loses
    it is emitted for the processor it was compiled for; one whose features
    that processor lacks, as a package's `-mavx2` adds, keeps them, and so
    does a function given a processor of its own
