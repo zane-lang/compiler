@@ -1,12 +1,11 @@
 /* Package constants that wait for each other across contexts, tested in C
    on their own (docs/design/lowering.md L16): a cycle of waits stops the
-   program with its message instead of hanging. Each case runs in a child,
-   which an alarm stops if it hangs, and prints `yes` when the child stopped
-   with the message and status 1. */
+   program with its message instead of hanging. Each case runs in a child
+   (system.h), which is stopped if it hangs, and prints `yes` when the child
+   stopped with the message and status 1. */
 
+#include "system.h"
 #include "walks.h"
-
-#include <sys/wait.h>
 
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
@@ -59,47 +58,20 @@ static void through_join(int taken) {
 	zane_join((char *)&s.result);
 }
 
-/* Whether `run` in a child stops it with the cycle's message within ten
-   seconds. */
-static int stops(void (*run)(int), int arg) {
-	int output[2];
-	if (pipe(output) != 0) return 0;
-	fflush(stdout);
-	pid_t child = fork();
-	if (child == 0) {
-		close(output[0]);
-		if (dup2(output[1], STDERR_FILENO) < 0) _exit(2);
-		close(output[1]);
-		alarm(10);
-		zane_set_threads(2);
-		run(arg);
-		_exit(2);
-	}
-	close(output[1]);
-	char text[128];
-	size_t used = 0;
-	ssize_t n;
-	while (used < sizeof text - 1 && (n = read(output[0], text + used, sizeof text - 1 - used)) > 0)
-		used += (size_t)n;
-	text[used] = 0;
-	close(output[0]);
-	int status;
-	return child > 0 && waitpid(child, &status, 0) == child && WIFEXITED(status) &&
-	       WEXITSTATUS(status) == 1 &&
-	       strcmp(text, "package constants read each other while they are made\n") == 0;
-}
-
-static void across_case(int arg) {
-	(void)arg;
-	across();
-}
+static const char *const cycle = "package constants read each other while they are made\n";
 
 void zane_main(void) {
-	check(stops(across_case, 0));
-	check(stops(through_join, 0));
+	if (child_case("across") || child_case("join")) {
+		zane_set_threads(2);
+		if (child_case("across")) across();
+		else through_join(strcmp(child_arg(), "1") == 0);
+		exit(2);
+	}
+	check(child_stops("across", "", CHILD_NULL, TEST_NO_FD, 1, cycle));
+	check(child_stops("join", "0", CHILD_NULL, TEST_NO_FD, 1, cycle));
 	/* The window between a pool thread taking the call and giving it its
 	   context is short, so it is tried many times. */
 	int all = 1;
-	for (int i = 0; i < 50; i++) all &= stops(through_join, 1);
+	for (int i = 0; i < 50; i++) all &= child_stops("join", "1", CHILD_NULL, TEST_NO_FD, 1, cycle);
 	check(all);
 }
