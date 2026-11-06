@@ -386,8 +386,15 @@ let glue_refusals () =
      int fenced(void) { return &__stop_plugins - &__start_plugins; }\n";
   (* Mach-O's C headers come from `zig cc`, which carries them, as a C
      compiler with no macOS SDK beside it has none. *)
-  let zig = Filename.concat (Filename.get_temp_dir_name ()) (Printf.sprintf "zane-zig-cc-%d" (Unix.getpid ())) in
-  Out_channel.with_open_bin zig (fun oc -> output_string oc "#!/bin/sh\nexec \"${ZIG:-zig}\" cc \"$@\"\n");
+  (* On Windows the compiler runs it through cmd.exe, so it is a batch file. *)
+  let zig =
+    Filename.concat (Filename.get_temp_dir_name ())
+      (Printf.sprintf "zane-zig-cc-%d%s" (Unix.getpid ()) (if Sys.win32 then ".cmd" else ""))
+  in
+  Out_channel.with_open_bin zig (fun oc ->
+      output_string oc
+        (if Sys.win32 then "@echo off\r\nif defined ZIG (\"%ZIG%\" cc %*) else (zig cc %*)\r\n"
+         else "#!/bin/sh\nexec \"${ZIG:-zig}\" cc \"$@\"\n"));
   Unix.chmod zig 0o755;
   Fun.protect ~finally:(fun () -> Sys.remove zig) @@ fun () ->
   refused ~cc:zig ~target:"aarch64-macos" "a header's global in a Mach-O linker set is refused in its glue, naming the header"
