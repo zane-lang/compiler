@@ -48,7 +48,10 @@ done
 if [ -n "$calls" ]; then
 	called() {
 		"$zanec" --ll --optimize --package "$root=$dir/$root" "$@" >"$work/$root.ll"
-		grep -o "call [^@]*@\"$stamp[^\"]*\"" "$work/$root.ll" | sed 's/.*@"//; s/"$//' | sed "s/$stamp//" | sort -u
+		# Where the target has a global prefix, Mach-O's `_`, LLVM names
+		# the global `\01_...`: an escape, then the prefix spelled out.
+		grep -oE "call [^@]*@\"(\\\\01_)?$stamp[^\"]*\"" "$work/$root.ll" | sed 's/.*@"//; s/"$//; s/^\\01_//' |
+			sed "s/$stamp//" | sort -u
 	}
 	called "$@"
 	echo disagreeing:
