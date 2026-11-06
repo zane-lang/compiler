@@ -4,7 +4,7 @@
  (deps arenas.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets arenas.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o arenas.exe arenas.c
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o arenas.exe arenas.c
    ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)))
 
 (rule
@@ -22,7 +22,7 @@
  (deps blocks.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets blocks.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o blocks.exe blocks.c
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o blocks.exe blocks.c
    ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)))
 
 (rule
@@ -40,7 +40,7 @@
  (deps cycles.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets cycles.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o cycles.exe cycles.c
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o cycles.exe cycles.c
    ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)))
 
 (rule
@@ -58,7 +58,7 @@
  (deps growth.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets growth.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o growth.exe growth.c
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o growth.exe growth.c
    ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)))
 
 (rule
@@ -76,7 +76,7 @@
  (deps numbers.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets numbers.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o numbers.exe numbers.c
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o numbers.exe numbers.c
    ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)))
 
 (rule
@@ -94,7 +94,7 @@
  (deps output.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets output.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o output.exe output.c
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o output.exe output.c
    ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)))
 
 (rule
@@ -112,7 +112,7 @@
  (deps scalar_lists.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets scalar_lists.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o scalar_lists.exe scalar_lists.c
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o scalar_lists.exe scalar_lists.c
    ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)))
 
 (rule
@@ -130,7 +130,7 @@
  (deps spares.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets spares.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o spares.exe spares.c
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o spares.exe spares.c
    ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)))
 
 (rule
@@ -148,7 +148,7 @@
  (deps spawns.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets spawns.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o spawns.exe spawns.c
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o spawns.exe spawns.c
    ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)))
 
 (rule
@@ -166,7 +166,7 @@
  (deps texts.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets texts.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o texts.exe texts.c
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o texts.exe texts.c
    ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)))
 
 (rule
@@ -184,7 +184,7 @@
  (deps work.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets work.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o work.exe work.c
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o work.exe work.c
    ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)))
 
 (rule
@@ -202,7 +202,7 @@
  (deps writeback.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets writeback.exe)
  (action
-  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o writeback.exe writeback.c
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o writeback.exe writeback.c
    ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)))
 
 (rule

@@ -50,7 +50,8 @@
      `golden/NAME.STAGE.tree` `zanec --STAGE`, over `fixtures/NAME.zn`;
      `golden/reject.NAME.err` is what `zanec` reports for
      `fixtures/reject/NAME.zn`.
-   - runtime: `NAME.c` is a C test, linked with the runtime's parts, and
+   - runtime: `NAME.c` is a C test, built by `host_cc` for the host and
+     linked with the runtime's parts, and
      `golden/NAME.out` is what it printed.
    - semantics: `golden/typing.NAME.VIEW` is a build of every package
      directory in `fixtures/typing/NAME`, in name order, so the first is the
@@ -348,7 +349,7 @@ let runtime () =
   List.iter
     (fun name ->
       Printf.printf
-        "(rule\n (deps %s.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h %s)\n (targets %s.exe)\n (action\n  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o %s.exe %s.c\n   %s)))\n\n"
+        "(rule\n (deps %s.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h %s)\n (targets %s.exe)\n (action\n  (run %%{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o %s.exe %s.c\n   %s)))\n\n"
         name sources name name name sources;
       Printf.printf "(rule\n (action\n  (with-stdout-to\n   %s.out.actual\n   (run ./%s.exe))))\n\n" name
         name;
