@@ -1,3 +1,7 @@
+# Every text file is checked out with LF endings on every system, so a golden
+# file reads the same on Windows as on Linux and macOS; git on Windows would
+# otherwise check them out with CRLF.
+* text=auto eol=lf
 # cmd.exe reads a batch file's lines by CRLF.
 *.bat text eol=crlf
 *.cmd text eol=crlf

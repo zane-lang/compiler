@@ -100,10 +100,10 @@ jobs:
         run: pixi run bash dev/spike/toolchain build
       - name: Build and run hello
         run: pixi run bash dev/spike/toolchain hello
-      - name: The retained C without a shared cache
+      - name: A memory probe, plain and optimized
         if: runner.os == 'Windows'
         continue-on-error: true
-        run: pixi run bash dev/spike/toolchain retained
+        run: pixi run bash dev/spike/toolchain probe
       - name: just test-compiler
         run: pixi run bash dev/spike/toolchain test
       # Kept whether or not the tests passed: what was built is the same.
