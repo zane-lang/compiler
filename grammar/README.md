@@ -1,8 +1,8 @@
 # One grammar directory for the compiler and editors
 
 Edit this directory, then run `python3 -m tools.grammar` from the repository
-root. Menhir **20260209** must be on `PATH` (the pixi environment provides it;
-see the root README's Setup). Regeneration also uses Python **3.11+**, the pinned **coda-format 3.1.0**
+root. Menhir **20260209** must be on `PATH`: run the commands below inside
+`pixi shell`, which provides it (the root README's Setup). Regeneration also uses Python **3.11+**, the pinned **coda-format 3.1.0**
 parser, Node/npm and **Tree-sitter CLI 0.27.1**:
 
 ```sh

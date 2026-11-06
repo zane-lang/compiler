@@ -81,8 +81,10 @@ Typst. See that guide for generation, installation and validation commands.
 One [pixi](https://pixi.sh) environment, from `pixi.toml` and `pixi.lock`,
 holds the whole toolchain on Linux (x86-64), macOS (Apple Silicon and Intel)
 and Windows (x86-64): OCaml, opam, LLVM and clang 21, LLD, zig, `just`,
-Python, Node and the rest. The lock file pins every package, so each machine
-builds with the same versions.
+Python, Node and the rest. `pixi.lock` pins the environment's packages. The
+OCaml libraries come from opam, which `pixi run setup` installs at the
+versions `dev/setup/bootstrap-toolchain` pins, and opam resolves what those
+depend on.
 
 The compiler reads Coda files with Coda's own binding, which `vendor/coda`
 holds as a Git submodule. Clone with `--recurse-submodules`, or fetch it in
@@ -180,8 +182,11 @@ as [`grammar/README.md`](grammar/README.md) describes.
 
 ```sh
 pixi run dune build
-pixi run just test
+pixi run just test-compiler
 ```
+
+`pixi run just test` runs every suite and is Linux only; on macOS and Windows
+run `test-compiler`.
 
 `just` lists the recipes by group: `test` runs the compiler, grammar,
 ambiguity-tool and grammar-generator suites, each of which also has its own
