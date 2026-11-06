@@ -35,6 +35,10 @@ set "LLVM_CONFIG=%CONDA_PREFIX%\Library\bin\llvm-config.exe"
 set AR=llvm-ar
 set STRIP=llvm-strip
 
+rem The environment's own tools on PATH as bash reads it too
+rem (dev/setup/bash-env.sh), with the path in the form bash opens.
+set "BASH_ENV=%PIXI_PROJECT_ROOT:\=/%/dev/setup/bash-env.sh"
+
 rem The switch's tools and libraries, once it has been made.
 if exist "%PIXI_PROJECT_ROOT%\_opam" (
 	for /f "usebackq delims=" %%i in (`opam env --switch^="%PIXI_PROJECT_ROOT%" --set-switch --shell^=cmd`) do %%i
