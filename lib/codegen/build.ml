@@ -46,6 +46,13 @@ let sixty_four_bit triple layout =
 
 external use_init_array : Llvm_target.TargetMachine.t -> unit = "zane_use_init_array"
 
+(* The triple a build for the host is for: on Windows MinGW's, the only
+   Windows the runtime supports (docs/design/platforms.md), where LLVM's own
+   default is MSVC's; LLVM's default elsewhere. *)
+let windows_host_triple = "x86_64-windows-gnu"
+
+let host_triple () = if Sys.win32 then windows_host_triple else Llvm_target.Target.default_triple ()
+
 (* The machine for *target*, an LLVM triple, or for the host when it is
    absent, putting an ELF object's constructors where the C library runs
    them (init_array_stubs.cpp). The triple is taken in LLVM's normal form,

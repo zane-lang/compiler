@@ -20,7 +20,7 @@ let cached_runtime () =
     | names -> List.filter (fun n -> Filename.check_suffix n ".o") (Array.to_list names)
     | exception Sys_error _ -> []
   in
-  let host = Llvm_target.Target.default_triple () in
+  let host = Build.host_triple () in
   let compiled ?(triple = host) ?(optimize = false) () = Build.runtime_object ~cache ~cc ~triple ~optimize work in
   let in_cache = function
     | Ok path -> String.starts_with ~prefix:cache path
@@ -267,7 +267,7 @@ let bundled_runtime () =
   and cache = Filename.concat directory "cache" in
   Sys.mkdir work 0o755;
   Build.write_runtime work;
-  let host = Llvm_target.Target.default_triple () in
+  let host = Build.host_triple () in
   let bundle optimize = Build.bundle_runtime ~target:host ~optimize bundled in
   check "a runtime is bundled" (Result.is_ok (bundle false));
   check "into a directory made for it"
@@ -325,7 +325,7 @@ let runtime_bodies () =
   let directory = Filename.temp_dir "zane-bodies" "" in
   Fun.protect ~finally:(fun () -> remove_tree directory) @@ fun () ->
   let cache = Filename.concat directory "cache" in
-  let triple = Llvm_target.Target.default_triple () in
+  let triple = Build.host_triple () in
   let bitcode ~cc = Build.with_runtime_bitcode ~cache ~cc ~triple Fun.id in
   match bitcode ~cc:(Build.cc ()) with
   | None -> check "the C compiler makes bitcode this LLVM reads" false
