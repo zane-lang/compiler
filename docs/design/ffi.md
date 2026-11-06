@@ -386,8 +386,10 @@ giving it the declaration's uses and its linkage: a `static` declaration's
 alias is internal, as the `alias` attribute makes it. The front end refuses a mark, where it is
 written, unless it is on a declaration of a function or variable that the
 source does not define, and the source defines its target, of the same
-kind, with external linkage, and neither has an `__asm__` label, which
-would name a symbol other than the C name the alias is made under. A
+kind, with external linkage, neither has an `__asm__` label, which
+would name a symbol other than the C name the alias is made under, and the
+declaration is not weak: Mach-O has no weak alias, and LLVM writes one
+there as a weak reference, which defines nothing. A
 thread-local variable's alias is thread-local.
 
 An `available_externally` definition, such as the inline copy of `atoi`

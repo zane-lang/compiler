@@ -448,7 +448,7 @@ struct Marked_alias {
 /* What the source's `ZANE_ALIAS` marks name, each refused with an error
    where it is written unless it is a declaration of a function or variable,
    not its definition, whose target is defined in the source with external
-   linkage and is of the same kind, and neither has an `__asm__` label. Each declaration of a name counts once,
+   linkage and is of the same kind, neither has an `__asm__` label, and the declaration is not weak. Each declaration of a name counts once,
    since a redeclaration inherits the mark. */
 class Alias_marks : public clang::ASTConsumer {
 public:
@@ -507,6 +507,12 @@ public:
       }
       if (target->hasAttr<clang::AsmLabelAttr>()) {
         refuse("ZANE_ALIAS names `" + f.target + "`, which has an `__asm__` label");
+        continue;
+      }
+      /* A weak alias, which ELF has, is on Mach-O only a weak reference:
+         LLVM writes it `.weak_reference`, which defines nothing there. */
+      if (f.decl->isWeak()) {
+        refuse("`" + f.decl->getName().str() + "`, which ZANE_ALIAS makes another name, is weak");
         continue;
       }
       marks.push_back({ f.decl->getName().str(), f.target, f.decl->isExternallyVisible() });

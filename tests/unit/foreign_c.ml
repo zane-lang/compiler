@@ -421,7 +421,8 @@ let c_processor () =
    thread-local variable's is thread-local. A mark is
    refused where it is written unless it is on a declaration of a function
    or variable the source does not define, naming one of the same kind it
-   defines with external linkage, and neither has an `__asm__` label. *)
+   defines with external linkage, neither has an `__asm__` label, and the
+   declaration is not weak. *)
 let zane_aliases () =
   let base = Filename.temp_dir "zane-alias-" "" in
   Fun.protect ~finally:(fun () -> remove_tree base) @@ fun () ->
@@ -502,6 +503,9 @@ let zane_aliases () =
   refused "a mark naming a target with an asm label is refused"
     "int64_t helper(void) __asm__(\"actual_helper\"); int64_t helper(void) { return 2; }\nint64_t named(void) ZANE_ALIAS(\"helper\");\n"
     "has an `__asm__` label";
+  refused "a mark on a weak declaration is refused"
+    "int64_t helper(void) { return 2; }\nint64_t named(void) __attribute__((weak)) ZANE_ALIAS(\"helper\");\n"
+    "is weak";
   refused "a mark on a definition is refused"
     "int64_t helper(void) { return 2; }\nint64_t named(void) ZANE_ALIAS(\"helper\");\nint64_t named(void) { return 1; }\n"
     "defined here too"
