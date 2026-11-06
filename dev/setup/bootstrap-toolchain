@@ -79,7 +79,11 @@ fi
 # package. That would resolve the newest dune rather than the pin below and
 # build the compiler as an opam package, only for the pins to be installed over
 # it -- the whole toolchain built twice on a cold switch.
-if ! opam switch list --short | grep -Fxq "$ROOT"; then
+# opam lists a local switch by its directory in the system's own form,
+# which on Windows is not the one bash spells.
+switch=$ROOT
+if [[ $windows == 1 ]]; then switch=$(cygpath -w "$ROOT"); fi
+if ! opam switch list --short | tr -d '\r' | grep -Fxq "$switch"; then
 	opam switch create "$ROOT" ocaml-system --repos="$(IFS=,; echo "${repos[*]}")" --no-install -y
 fi
 
