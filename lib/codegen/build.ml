@@ -522,8 +522,8 @@ let lld_run command =
 let verbose () = match Sys.getenv_opt "ZANE_VERBOSE" with Some "" | None -> false | Some _ -> true
 
 (* Whether [text], a linker's errors, says it cannot find the library
-   [name], as `ld.lld` and `lld-link` say it, `ld64` does and GNU `ld`
-   does. The name must end where the linker's word does, so `-lz` is not
+   [name], as `ld.lld` and `lld-link` say it, `ld64` does, GNU `ld` does
+   and `zig cc` does, which looks for a library itself before it links. The name must end where the linker's word does, so `-lz` is not
    found in `-lzstd`. *)
 let unfound_library text name =
   let in_word = function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '.' | '+' | '-' -> true | _ -> false in
@@ -535,7 +535,7 @@ let unfound_library text name =
       let rec at i j = j >= n || (text.[i + j] = word.[j] && at i (j + 1)) in
       let rec from i = i <= String.length text - n && ((at i 0 && ends (i + n)) || from (i + 1)) in
       from 0)
-    [ "unable to find library -l"; "library not found for -l"; "cannot find -l" ]
+    [ "unable to find library -l"; "library not found for -l"; "cannot find -l"; "system library '"; "system library \"" ]
 
 (* A failed link of [libraries] as the error that names the row of the
    library the linker could not find, when its [text] says so. *)

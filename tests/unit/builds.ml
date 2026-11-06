@@ -206,8 +206,15 @@ let linked_in_process () =
     check "and each linker's way of saying so is read"
       (List.for_all
          (fun text -> Build.unfound_library text "m")
-         [ "unable to find library -lm"; "ld: library not found for -lm"; "ld: cannot find -lm: No such file" ]
-      && not (Build.unfound_library "cannot find -lmx" "m"));
+         [
+           "unable to find library -lm";
+           "ld: library not found for -lm";
+           "ld: cannot find -lm: No such file";
+           "error: unable to find dynamic system library 'm' using strategy 'paths_first'";
+           "error: unable to find dynamic system library \"m\" using strategy paths_first";
+         ]
+      && not (Build.unfound_library "cannot find -lmx" "m")
+      && not (Build.unfound_library "unable to find dynamic system library \"mx\"" "m"));
     Unix.putenv "ZANE_VERBOSE" "1";
     let quiet = linked gnu ~output:"x" in
     Unix.putenv "ZANE_VERBOSE" "";
