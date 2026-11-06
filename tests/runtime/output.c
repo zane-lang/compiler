@@ -214,7 +214,9 @@ static int on_terminal(void) {
 	CloseHandle(out_write);
 	SIZE_T room = 0;
 	InitializeProcThreadAttributeList(NULL, 1, 0, &room);
-	STARTUPINFOEXA start = { .StartupInfo.cb = sizeof start };
+	/* Null standard handles, so the child opens the pseudo-console's
+	   rather than inheriting this test's, which dune redirects. */
+	STARTUPINFOEXA start = { .StartupInfo.cb = sizeof start, .StartupInfo.dwFlags = STARTF_USESTDHANDLES };
 	start.lpAttributeList = malloc(room);
 	int ok = start.lpAttributeList && InitializeProcThreadAttributeList(start.lpAttributeList, 1, 0, &room) &&
 	         UpdateProcThreadAttribute(start.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, console,
