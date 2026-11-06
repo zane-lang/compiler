@@ -133,9 +133,14 @@ let base cflags =
 
 let std ccomp cflags = base cflags @ if msvc ccomp then [ "/std:c++17" ] else [ "-std=c++17" ]
 
+(* With MSVC and clang's static libraries, `CLANG_BUILD_STATIC`: clang's
+   headers otherwise mark its classes `__declspec(dllimport)`, inline
+   methods included, which then name a DLL's symbols no static library
+   defines (an `Attr`'s `classof`, say). *)
 let cxx ~rtti ccomp cflags =
   let no_exceptions, no_rtti = if msvc ccomp then ([ "/EHs-c-"; "-D_HAS_EXCEPTIONS=0" ], [ "/GR-" ]) else ([ "-fno-exceptions" ], [ "-fno-rtti" ]) in
-  std ccomp cflags @ no_exceptions @ (if rtti then [] else no_rtti) @ [ "-I" ^ Filename.concat (prefix ()) "include"; "-I" ^ ask [ "--includedir" ] ]
+  let static = if msvc ccomp && not (shared ()) then [ "-DCLANG_BUILD_STATIC" ] else [] in
+  std ccomp cflags @ no_exceptions @ (if rtti then [] else no_rtti) @ static @ [ "-I" ^ Filename.concat (prefix ()) "include"; "-I" ^ ask [ "--includedir" ] ]
 
 (* The C++ runtime libLLVM and these libraries were built against. MSVC's
    is the one its linker takes by default. *)
