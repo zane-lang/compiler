@@ -57,6 +57,9 @@ jobs:
         if: steps.suites.outputs.formal == 'true'
         uses: ./.github/actions/setup-ci
 
+      # elan's own toolchains, which run on the bare runner. The devbox ones
+      # were patched to load the glibc of a Nix store, so their caches, under
+      # `lean-<os>-`, are kept out of these keys.
       - name: Restore the Lean build
         if: steps.suites.outputs.formal == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -64,8 +67,8 @@ jobs:
           path: |
             ~/.elan/toolchains
             formal/.lake
-          key: lean-${{ runner.os }}-${{ hashFiles('formal/lean-toolchain', 'formal/**/*.lean', 'formal/lakefile.toml') }}
-          restore-keys: lean-${{ runner.os }}-
+          key: lean-elan-${{ runner.os }}-${{ hashFiles('formal/lean-toolchain', 'formal/**/*.lean', 'formal/lakefile.toml') }}
+          restore-keys: lean-elan-${{ runner.os }}-
 
       # elan, Lean's own installer, which conda-forge does not package;
       # formal/lean-toolchain selects the proof checker, and a restored
