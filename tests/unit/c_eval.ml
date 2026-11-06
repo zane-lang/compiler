@@ -333,7 +333,7 @@ let evaluate m name a b = evaluate_on m name (fun _ -> [ C_memory.Int (64, a); C
    program calling each case. *)
 let natively base bitcode =
   let bc = Filename.concat base "cases.bc" and harness = Filename.concat base "main.c" in
-  let exe = Filename.concat base "cases" in
+  let exe = Filename.concat base (if Sys.win32 then "cases.exe" else "cases") in
   write_all bc bitcode;
   let decls = String.concat "" (List.map (fun (n, _) -> Printf.sprintf "long long %s(long long, long long);\n" n) cases) in
   let calls =
