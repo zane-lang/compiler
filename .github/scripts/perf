@@ -3,7 +3,7 @@
 # which holds latest.tsv, each program's rows for the newest commit pushed to
 # main, one per build, and stress.tsv and stress-plain.tsv, the stress
 # program's optimized and plain rows for every one of them. Run
-# inside the devbox, with the event in EVENT_NAME: by perf.yml, and by
+# inside the pixi environment, with the event in EVENT_NAME: by perf.yml, and by
 # `just test-perf`, which names none of the events below.
 #
 # - pull_request and merge_group: measure every program and fail when one

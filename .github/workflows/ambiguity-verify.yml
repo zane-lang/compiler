@@ -52,28 +52,11 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: .github/scripts/ci-suites
 
-      # The same switch `ci.yml` builds and caches; Menhir is the only part used.
-      - name: Restore the opam switch
+      # The same toolchain `ci.yml` builds with; Menhir is the only part used.
+      - name: Set up toolchain
         if: steps.suites.outputs.formal == 'true'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.opam
-            _opam
-          key: opam-devbox-llvm-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/setup/bootstrap-toolchain') }}
+        uses: ./.github/actions/setup-ci
 
-      - name: Install devbox + Nix + devbox.json packages
-        if: steps.suites.outputs.formal == 'true'
-        uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
-        with:
-          enable-cache: true
-
-      - name: Install OCaml dependencies
-        if: steps.suites.outputs.formal == 'true'
-        run: devbox run -- dev/setup/bootstrap-toolchain
-
-      # elan patches each toolchain it installs to load the glibc of its own
-      # Nix store, so a cache saved under another devbox.lock cannot run.
       - name: Restore the Lean build
         if: steps.suites.outputs.formal == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -81,14 +64,19 @@ jobs:
           path: |
             ~/.elan/toolchains
             formal/.lake
-          key: lean-${{ runner.os }}-${{ hashFiles('devbox.lock') }}-${{ hashFiles('formal/lean-toolchain', 'formal/**/*.lean', 'formal/lakefile.toml') }}
-          restore-keys: lean-${{ runner.os }}-${{ hashFiles('devbox.lock') }}-
+          key: lean-${{ runner.os }}-${{ hashFiles('formal/lean-toolchain', 'formal/**/*.lean', 'formal/lakefile.toml') }}
+          restore-keys: lean-${{ runner.os }}-
 
-      # Devbox supplies elan; formal/lean-toolchain selects the proof checker;
-      # a restored toolchain makes this a no-op.
+      # elan, Lean's own installer, which conda-forge does not package;
+      # formal/lean-toolchain selects the proof checker, and a restored
+      # toolchain makes installing it a no-op.
       - name: Install Lean
         if: steps.suites.outputs.formal == 'true'
-        run: devbox run -- elan toolchain install "$(cat formal/lean-toolchain)"
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh |
+            sh -s -- -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          "$HOME/.elan/bin/elan" toolchain install "$(cat formal/lean-toolchain)"
 
       # The report binds the verdict to the exact source and tool versions.
       - name: Verify the grammar
@@ -99,9 +87,9 @@ jobs:
             echo "parser.mly sha256: $(sha256sum lib/cst/parser.mly | cut -d' ' -f1)"
             echo "commit: $GITHUB_SHA"
             echo "lean: $(cat formal/lean-toolchain)"
-            echo "menhir: $(devbox run -- menhir --version)"
+            echo "menhir: $(pixi run menhir --version)"
           } > verify-grammar.txt
-          devbox run -- just verify-grammar 2>&1 | tee -a verify-grammar.txt
+          pixi run just verify-grammar 2>&1 | tee -a verify-grammar.txt
 
       - name: Keep the report
         if: always() && steps.suites.outputs.formal == 'true'

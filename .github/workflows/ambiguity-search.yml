@@ -72,28 +72,14 @@ jobs:
           ref: ${{ inputs.ref }}
           persist-credentials: false
 
-      - name: Install Devbox
-        uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
-        with:
-          enable-cache: true
-
-      # Every command below is handed to `devbox run` as a single word followed
-      # by plain arguments. Devbox quotes each argument and `eval`s the result,
-      # so a multi-line shell snippet passed this way is mangled into an escape
-      # sequence rather than run; the devbox init hook already provisions the
-      # opam switch and puts dev/bin and the switch on PATH, so no wrapper shell
-      # is needed in the first place.
-      - name: Install OCaml dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          devbox run -- dev/setup/bootstrap-toolchain
+      - name: Set up toolchain
+        uses: ./.github/actions/setup-ci
 
       - name: Build ambiguity finder
         shell: bash
         run: |
           set -euo pipefail
-          devbox run -- dune build tools/ambiguity/engine/ambiguity_search.exe
+          pixi run dune build tools/ambiguity/engine/ambiguity_search.exe
 
       - name: Run ambiguity search
         shell: bash
@@ -104,7 +90,7 @@ jobs:
           WITNESSES: ${{ inputs.witnesses }}
         run: |
           set -euo pipefail
-          devbox run -- .github/scripts/ambiguity-search
+          pixi run .github/scripts/ambiguity-search
 
       - name: Show report in job log
         if: always()

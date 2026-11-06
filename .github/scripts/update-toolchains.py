@@ -44,16 +44,23 @@ def main():
     if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", lean):
         raise ValueError("Unexpected Lean release tag")
     (root / "formal/lean-toolchain").write_text(f"leanprover/lean4:{lean}\n")
+    # Zig stays at the release pixi.toml pins, whose clang is the LLVM the
+    # compiler links; a newer one can write bitcode that LLVM cannot read.
+    # The standalone archives a release bundles are written for that version.
+    pinned = re.search(r'^zig = "([0-9]+\.[0-9]+\.[0-9]+)\.\*"$', (root / "pixi.toml").read_text(), re.MULTILINE)
+    if not pinned:
+        raise ValueError("pixi.toml pins no zig release")
+    version = pinned[1]
     index = fetch("https://ziglang.org/download/index.json")
-    version = stable_latest(index)
-    source = index[version]["x86_64-linux"]
-    if not re.fullmatch(r"[0-9a-f]{64}", source["shasum"]):
-        raise ValueError("Invalid Zig checksum")
-    if source["tarball"] != f"https://ziglang.org/download/{version}/zig-x86_64-linux-{version}.tar.xz":
-        raise ValueError("Unexpected Zig distribution URL")
-    data = {"version": version, "url": source["tarball"], "sha256": source["shasum"]}
-    (root / "dev/toolchains/zig.json").write_text(json.dumps(data, indent=2) + "\n")
-
+    for manifest, target in (("zig.json", "x86_64-linux"), ("zig-aarch64-macos.json", "aarch64-macos"),
+                             ("zig-x86_64-macos.json", "x86_64-macos")):
+        source = index[version][target]
+        if not re.fullmatch(r"[0-9a-f]{64}", source["shasum"]):
+            raise ValueError("Invalid Zig checksum")
+        if source["tarball"] != f"https://ziglang.org/download/{version}/zig-{target}-{version}.tar.xz":
+            raise ValueError("Unexpected Zig distribution URL")
+        data = {"version": version, "url": source["tarball"], "sha256": source["shasum"]}
+        (root / "dev/toolchains" / manifest).write_text(json.dumps(data, indent=2) + "\n")
 
 if __name__ == "__main__":
     main()
