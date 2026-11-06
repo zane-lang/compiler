@@ -188,9 +188,17 @@ let read ~triple dir =
   else match Coda.parse_file path with Error e -> Error [ parse_problem path e ] | Ok doc -> parsed doc
 
 (* Whether [path] is a directory, or a file, as far as it can be read: an
-   entry that cannot be, such as a dangling symlink, is neither. *)
+   entry that cannot be, such as a dangling symlink, is neither. A file is
+   one that opens, since Windows reads a dangling symlink as a file. *)
 let is_dir path = try Sys.is_directory path with Sys_error _ -> false
-let is_file path = try not (Sys.is_directory path) with Sys_error _ -> false
+
+let is_file path =
+  try
+    (not (Sys.is_directory path))
+    &&
+    (close_in (open_in_bin path);
+     true)
+  with Sys_error _ -> false
 
 (* Every file of [dir] matching [pattern], each part of which is a `*`
    pattern over one directory's entries, as paths relative to [dir]. *)

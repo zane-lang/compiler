@@ -97,12 +97,12 @@ let map_flags maps = List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ 
 
 (* [path] with the longest mapped directory it starts with replaced by its
    fixed name. A directory is a prefix only up to a separator, so `inc`
-   does not map `include`. *)
+   does not map `include`; on Windows `\` separates too. *)
 let mapped_path maps path =
   let starts (from, _) =
     let n = String.length from in
     from <> "" && String.starts_with ~prefix:from path
-    && (String.length path = n || path.[n] = '/' || path.[n] = '=')
+    && (String.length path = n || path.[n] = '/' || path.[n] = '=' || (Sys.win32 && path.[n] = '\\'))
   in
   let longest = List.sort (fun (a, _) (b, _) -> compare (String.length b) (String.length a)) maps in
   match List.find_opt starts longest with
@@ -129,6 +129,24 @@ let marker line =
   let n = String.length line in
   n > 2 && line.[0] = '#' && line.[1] = ' ' && line.[2] >= '0' && line.[2] <= '9'
 
+(* A line marker's file name as the path it is: clang escapes a backslash
+   in it, as Windows' paths hold, as a C string does. *)
+let unescaped name =
+  let b = Buffer.create (String.length name) in
+  let rec go i =
+    if i < String.length name then
+      if name.[i] = '\\' && i + 1 < String.length name then begin
+        Buffer.add_char b name.[i + 1];
+        go (i + 2)
+      end
+      else begin
+        Buffer.add_char b name.[i];
+        go (i + 1)
+      end
+  in
+  go 0;
+  Buffer.contents b
+
 (* [text], preprocessed C, with the file named by each line marker mapped,
    so the hash reads the paths as `__FILE__` does, which clang's own
    prefix map already spells mapped. Only a marker's file name is a path:
@@ -144,7 +162,7 @@ let mapped maps text =
           | None -> l
           | Some j ->
               String.sub l 0 (i + 1)
-              ^ mapped_path maps (String.sub l (i + 1) (j - i - 1))
+              ^ mapped_path maps (unescaped (String.sub l (i + 1) (j - i - 1)))
               ^ String.sub l j (String.length l - j))
   in
   String.concat "\n" (List.map line (String.split_on_char '\n' text))
