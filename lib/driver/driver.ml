@@ -279,7 +279,7 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
          holding assembly were assembled into, its archives, and its
          `system` libraries, each named by its row. *)
       let apart (f : Foreign.package) =
-        let coda = Filename.concat f.Foreign.dir Foreign.Settings.file_name in
+        let coda = Source.Files.in_directory f.Foreign.dir Foreign.Settings.file_name in
         ( List.map
             (fun (a : Foreign.assembled) ->
               ({ Codegen.key = a.source.key; bitcode = a.source.bitcode; files = a.source.includes }, a.object_))
