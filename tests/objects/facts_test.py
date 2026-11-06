@@ -14,10 +14,11 @@ ZANEC = str(Path(sys.argv.pop(1)).resolve())
 FACTS = Path(__file__).resolve().parent / "fixtures/facts"
 STAMP = "v1.0%0123456789abcdef%"
 SNAPSHOT = re.compile(r"load atomic|@zane_snapshot\(")
-# A list handle's room and size: on a Linux target, with frame references
-# (experimental, lib/cgt/ref32.ml), the room counts elements in 32 bits and
-# the handle is 16 bytes; elsewhere the room counts bytes and it is 24.
-FRAME_REFS = sys.platform.startswith("linux") and os.environ.get("ZANE_FRAME_REFS") != "0"
+# A list handle's room and size: with frame references (experimental,
+# lib/cgt/ref32.ml), on by default on every target, the room counts elements
+# in 32 bits and the handle is 16 bytes; without, the room counts bytes and
+# it is 24.
+FRAME_REFS = os.environ.get("ZANE_FRAME_REFS") != "0"
 FIRST_ROOM = r"store i32 4, " if FRAME_REFS else r"store i64 32, "
 TWO_HANDLES = 32 if FRAME_REFS else 48
 

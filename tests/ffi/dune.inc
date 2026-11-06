@@ -1523,7 +1523,7 @@
    reject.archivedStrippedState.ll.err.actual
    (with-accepted-exit-codes
     1
-    (run %{exe:../../bin/zanec/zanec.exe} --ll --package fixtures/reject/archivedStrippedState)))))
+    (run %{exe:../../bin/zanec/zanec.exe} --ll "--target" "x86_64-unknown-linux-gnu" --package fixtures/reject/archivedStrippedState)))))
 
 (rule
  (alias runtest)
