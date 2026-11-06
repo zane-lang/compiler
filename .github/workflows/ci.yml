@@ -203,9 +203,117 @@ jobs:
         shell: bash
         run: dev/bin/check-programs windows-programs
 
+  # The compiler's own suite on Windows itself: zanec built natively from the
+  # same pixi environment as Linux's, then `just test-compiler`, held to the
+  # host's triple, image format and C library as on every system
+  # (docs/design/platforms.md).
+  windows-native:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    # Dune's shared cache, kept between runs, so what a commit leaves
+    # unchanged is not built again. Rules with actions of their own, the
+    # tests among them, still run every time.
+    env:
+      DUNE_CACHE: enabled-except-user-rules
+      DUNE_CACHE_ROOT: ${{ github.workspace }}/.dune-cache
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # vendor/coda, which lib/coda/ builds.
+          submodules: true
+          persist-credentials: false
+
+      - name: Set up toolchain
+        uses: ./.github/actions/setup-ci
+
+      - name: Restore dune's cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.DUNE_CACHE_ROOT }}
+          key: dune-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pixi.lock', 'dev/setup/bootstrap-toolchain') }}-${{ github.sha }}
+          restore-keys: dune-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pixi.lock', 'dev/setup/bootstrap-toolchain') }}-
+
+      - name: Compiler tests
+        run: pixi run just test-compiler
+
+      # Kept whether or not the tests passed: what was built is the same.
+      - name: Save dune's cache
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.DUNE_CACHE_ROOT }}
+          key: dune-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pixi.lock', 'dev/setup/bootstrap-toolchain') }}-${{ github.sha }}
+
   # Aggregate the Windows checks with the same success rule as Linux.
   windows-checks:
-    needs: [windows-build, windows-tests]
+    needs: [windows-build, windows-tests, windows-native]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every platform job to pass
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success")' <<< "$RESULTS"
+
+  # macOS is the lower tier (docs/design/platforms.md), with its own gate,
+  # but its suite runs the same way: zanec built natively from the pixi
+  # environment, then `just test-compiler`. Apple Silicon runs for every
+  # pull request; Intel, whose runners are the slowest, joins on main, in
+  # the merge queue and when started by hand.
+  macos-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: >-
+          ${{ fromJSON(
+            github.event_name == 'pull_request'
+            && '[{"arch":"aarch64","runner":"macos-latest"}]'
+            || '[{"arch":"aarch64","runner":"macos-latest"},{"arch":"x86_64","runner":"macos-15-intel"}]'
+          ) }}
+    name: macos-native (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    # Dune's shared cache, as on Windows above.
+    env:
+      DUNE_CACHE: enabled-except-user-rules
+      DUNE_CACHE_ROOT: ${{ github.workspace }}/.dune-cache
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # vendor/coda, which lib/coda/ builds.
+          submodules: true
+          persist-credentials: false
+
+      - name: Set up toolchain
+        uses: ./.github/actions/setup-ci
+
+      - name: Restore dune's cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.DUNE_CACHE_ROOT }}
+          key: dune-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pixi.lock', 'dev/setup/bootstrap-toolchain') }}-${{ github.sha }}
+          restore-keys: dune-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pixi.lock', 'dev/setup/bootstrap-toolchain') }}-
+
+      - name: Compiler tests
+        run: pixi run just test-compiler
+
+      # Kept whether or not the tests passed: what was built is the same.
+      - name: Save dune's cache
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.DUNE_CACHE_ROOT }}
+          key: dune-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pixi.lock', 'dev/setup/bootstrap-toolchain') }}-${{ github.sha }}
+
+  # Aggregate the macOS checks with the same success rule as Linux.
+  macos-checks:
+    needs: [macos-native]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

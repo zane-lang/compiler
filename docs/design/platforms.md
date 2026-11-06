@@ -27,6 +27,14 @@ and a problem there may wait.
   as Windows ones are, and the released toolchain's programs for both its
   architectures are run on macOS in CI.
 
+On every one of them `zanec` itself is built natively from the same pixi
+environment, and its suite, `just test-compiler`, runs there in CI, held to
+the host's triple, image format and C library: on Linux and Windows for every
+change, on Apple Silicon macOS for every pull request, and on Intel macOS on
+`main`, in the merge queue and when CI is started by hand, since its runners
+are the slowest. The grammar, ambiguity and highlighting suites and
+`just test-perf` run on Linux alone.
+
 ## 64-bit targets only
 
 The compiler builds for 64-bit targets only. Lowering lays out every type
