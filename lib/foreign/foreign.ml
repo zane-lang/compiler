@@ -50,8 +50,11 @@ type package = {
 type failure = Compile.failure = { diagnostics : Diagnostic.t list; sources : Source.Files.t }
 
 (* The triple a build for [target] compiles C for, as LLVM normalizes it:
-   the host's when [None]. *)
-let triple target = Clang.normalize (match target with Some t -> t | None -> Clang.host_triple ())
+   the host's when [None], which on Windows is MinGW's, as a host build's is
+   (Codegen's Build.host_triple), not clang's default MSVC one. *)
+let triple target =
+  Clang.normalize
+    (match target with Some t -> t | None -> if Sys.win32 then "x86_64-windows-gnu" else Clang.host_triple ())
 
 let rec remove path =
   if Sys.is_directory path then begin
