@@ -458,7 +458,18 @@ static void zane_fault(int signal, siginfo_t *info, void *context) {
 	}
 }
 
+/* A child that C forks has the thread that forked, but macOS gives it no
+   alternate stack: the handler for a full machine stack would have nowhere
+   to run, and the system would stop the child with SIGILL. The child takes
+   the forking thread's again, which fork copied with the rest of memory. */
+static void zane_after_fork(void) {
+	if (!zane_signal_stack) return;
+	stack_t alternate = { .ss_sp = zane_signal_stack, .ss_size = ZANE_SIGNAL_STACK, .ss_flags = 0 };
+	sigaltstack(&alternate, NULL);
+}
+
 void zane_regions_start(void) {
+	if (pthread_atfork(NULL, NULL, zane_after_fork) != 0) zane_broken("no handler for a forked child");
 	struct sigaction handler = { 0 };
 	handler.sa_sigaction = zane_fault;
 	handler.sa_flags = SA_SIGINFO | SA_ONSTACK;

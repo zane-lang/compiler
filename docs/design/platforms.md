@@ -89,7 +89,9 @@ the main thread and workers. A full stack stops the program with
 On POSIX systems the runtime's fault handler runs on a stack of its own,
 since one that overflowed leaves none, and finds the thread's stack with
 `pthread_getattr_np`, or `pthread_get_stackaddr_np` on macOS. A protection
-fault is SIGSEGV on Linux and SIGBUS on macOS, so both are handled.
+fault is SIGSEGV on Linux and SIGBUS on macOS, so both are handled. A
+child that C forks takes the forking thread's handler stack again, since
+macOS gives a forked child none.
 
 A stop from the handler first flushes what the program printed, which waits
 in the runtime's own buffer ([`lowering.md`](lowering.md) §9), unless
