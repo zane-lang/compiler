@@ -146,9 +146,9 @@ just test-compiler
 
 The environment adds `dev/bin` to `PATH`. On Linux and macOS it sets
 `ZANE_CC` to `dev/bin/clang-lld`, which is clang with LLVM's `lld` as its
-linker on Linux and plain clang on macOS. `zanec` reads the link line from
-it, asking clang for `lld`'s on macOS, and links with the `lld` built into
-it. On Windows it sets `ZANE_CC` to
+linker on Linux and plain clang on macOS. `zanec` asks it for the line its linker
+would run, on macOS with `-fuse-ld=lld` so that the line is `lld`'s, and
+links with the `lld` built into it. On Windows it sets `ZANE_CC` to
 `dev/bin/zig-cc.cmd`, which links through `zig cc` for MinGW. `ZANE_CC` is
 left alone if it is already set. Set `ZANE_VERBOSE` to have a build say why
 it links through the C compiler instead.
