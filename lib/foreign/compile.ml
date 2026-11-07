@@ -146,11 +146,23 @@ let json_string s =
    `__FILE__`, such as a source's `#include __FILE__`, names a file that
    exists. It is written once into [dir], named by a hash of its text,
    which the maps decide whole. *)
+(* On a Windows host, the directory under which the overlay puts each
+   fixed name again, which the front end searches last: a Windows path
+   needs a drive to be absolute, so the front end takes `/zane/pkg/api.c`
+   for a relative name and looks for it under the directories it
+   searches, never at the overlay's root `/zane/pkg`. Under this one it
+   finds `C:\zane-fixed/zane/pkg/api.c`, which `-ffile-prefix-map` spells
+   as the fixed name again. The directory exists only in the overlay. *)
+let search_root = if Sys.win32 then Some {|C:\zane-fixed|} else None
+
 let overlay ~dir maps =
-  let root (from, to_) =
-    Printf.sprintf {|{"name":%s,"type":"directory-remap","external-contents":%s}|} (json_string to_) (json_string from)
+  let root name from =
+    Printf.sprintf {|{"name":%s,"type":"directory-remap","external-contents":%s}|} (json_string name) (json_string from)
   in
-  let text = Printf.sprintf {|{"version":0,"roots":[%s]}|} (String.concat "," (List.map root maps)) in
+  let roots (from, to_) =
+    root to_ from :: Option.fold ~none:[] ~some:(fun search -> [ root (search ^ to_) from ]) search_root
+  in
+  let text = Printf.sprintf {|{"version":0,"roots":[%s]}|} (String.concat "," (List.concat_map roots maps)) in
   let dir = Filename.concat dir "vfs" in
   let name = Digest.to_hex (Digest.string text) ^ ".yaml" in
   write_files dir [ (name, text) ];
@@ -162,33 +174,46 @@ let overlay ~dir maps =
    or a build's own work directory, as for the headers. `__FILE__` keeps
    the host's separator on every target, since the overlay is read with
    the host's: a Windows target's `\zane\pkg\...` names no directory on a
-   Unix host. *)
+   Unix host. On a Windows host the flags also search [search_root] and
+   spell it as nothing. *)
 let map_flags ~dir maps =
-  List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ "=" ^ to_) maps @ [ "-fno-file-reproducible"; "-ivfsoverlay"; overlay ~dir maps ]
+  let search = Option.fold ~none:[] ~some:(fun s -> [ "-ffile-prefix-map=" ^ s ^ "="; "-idirafter"; s ]) search_root in
+  List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ "=" ^ to_) maps
+  @ [ "-fno-file-reproducible"; "-ivfsoverlay"; overlay ~dir maps ]
+  @ search
 
 (* [args] without the overlays [map_flags] adds: an overlay's path is a
    temporary file's, and what it holds follows from the maps, which the
-   arguments spell already. *)
-let rec without_overlays = function
+   arguments spell already. Nor with the flags that search
+   [search_root], which only a Windows host adds, so the hash is the one
+   any host computes. *)
+let rec without_overlays args =
+  let search = Option.fold ~none:"" ~some:(fun s -> "-ffile-prefix-map=" ^ s ^ "=") search_root in
+  match args with
   | "-ivfsoverlay" :: _ :: rest -> without_overlays rest
+  | "-idirafter" :: s :: rest when Some s = search_root -> without_overlays rest
+  | a :: rest when a = search -> without_overlays rest
   | a :: rest -> a :: without_overlays rest
   | [] -> []
 
 (* [path] with the longest mapped directory it starts with replaced by its
    fixed name. A directory is a prefix only up to a separator, so `inc`
-   does not map `include`; on Windows `\` separates too. *)
+   does not map `include`; on Windows `\` separates too. A path under
+   [search_root] is the fixed name it ends with. *)
 let mapped_path maps path =
-  let starts (from, _) =
+  let starts from =
     let n = String.length from in
     from <> "" && String.starts_with ~prefix:from path
     && (String.length path = n || path.[n] = '/' || path.[n] = '=' || (Sys.win32 && path.[n] = '\\'))
   in
+  let after from = String.sub path (String.length from) (String.length path - String.length from) in
   let longest = List.sort (fun (a, _) (b, _) -> compare (String.length b) (String.length a)) maps in
-  match List.find_opt starts longest with
-  | Some (from, to_) ->
-      let n = String.length from in
-      to_ ^ String.sub path n (String.length path - n)
-  | None -> path
+  match search_root with
+  | Some s when starts s -> after s
+  | _ -> (
+      match List.find_opt (fun (from, _) -> starts from) longest with
+      | Some (from, to_) -> to_ ^ after from
+      | None -> path)
 
 (* [path], as [mapped_path] spells it, with the fixed name it starts with
    replaced by the directory it stands for in [maps]. *)

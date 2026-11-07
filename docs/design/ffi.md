@@ -189,7 +189,15 @@ relies on, and a path elsewhere, such as a system header's, still changes
 it. A fixed name is also a directory the front end can read: a clang VFS
 overlay remaps each to the directory it stands for, so a source that
 includes itself through `__FILE__` finds itself
-(`tests/ffi/fixtures/selfInclude`). `-fno-file-reproducible` keeps the
+(`tests/ffi/fixtures/selfInclude`). On a Windows host a path needs a
+drive to be absolute, so the front end takes `/zane/pkg/api.c` for a
+relative name and looks for it under the directories it searches: there
+the overlay puts each fixed name again under `C:\zane-fixed`, a directory
+that exists only in the overlay, searched last with `-idirafter`, and
+`-ffile-prefix-map` spells that directory as nothing, so `__FILE__` is
+the fixed name on every host. The hash leaves out those two flags and
+spells a line marker's file under that directory as the fixed name, so a
+Windows host's hash is any host's. `-fno-file-reproducible` keeps the
 host's `/` in `__FILE__` for every target: for a Windows target clang
 would spell it `\zane\pkg\…`, a name a Unix host reads as one file
 in no directory, which no overlay root can name. The glue's directory, a build's own,
