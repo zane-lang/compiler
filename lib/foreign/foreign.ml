@@ -55,15 +55,19 @@ type failure = Compile.failure = { diagnostics : Diagnostic.t list; sources : So
 (* The triple a build for [target] compiles C for, as LLVM normalizes it:
    the host's when [None], as a host build's is (Codegen's
    Build.host_triple): MinGW's on Windows, not clang's default MSVC one, and
-   elsewhere clang's default with a packaged LLVM's own vendor
-   (conda-forge's `conda`) read as `unknown`. *)
+   elsewhere clang's default as a build naming the target spells it, read
+   as Build.spelled_as_target reads it: conda-forge's `conda` vendor as
+   `unknown`, and its `arm64-apple-darwin20.0.0` as `aarch64-macos`. *)
 let triple target =
   let host () =
     if Sys.win32 then "x86_64-windows-gnu"
     else
-      match String.split_on_char '-' (Clang.host_triple ()) with
+      let default = Clang.host_triple () in
+      match String.split_on_char '-' default with
       | arch :: "conda" :: rest -> String.concat "-" (arch :: "unknown" :: rest)
-      | _ -> Clang.host_triple ()
+      | arch :: "apple" :: os :: _ when String.starts_with ~prefix:"darwin" os || String.starts_with ~prefix:"macos" os ->
+          (if arch = "arm64" then "aarch64" else arch) ^ "-macos"
+      | _ -> default
   in
   Clang.normalize (match target with Some t -> t | None -> host ())
 

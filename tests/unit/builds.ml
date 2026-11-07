@@ -327,6 +327,18 @@ let bundled_runtime () =
   let refused = Build.bundle_runtime ~target:"i386-unknown-linux-gnu" ~optimize:false bundled in
   check "a target the compiler does not build for is refused" (Result.is_error refused)
 
+(* A packaged LLVM's default triple is spelled as a build naming the same
+   machine spells it, so a host build finds the runtimes a release bundles. *)
+let host_spelling () =
+  let module Build = Codegen__Build in
+  let spelled = Build.spelled_as_target in
+  check "conda-forge's Linux vendor is read as unknown" (spelled "x86_64-conda-linux-gnu" = "x86_64-unknown-linux-gnu");
+  check "its Apple Silicon macOS as aarch64-macos" (spelled "arm64-apple-darwin20.0.0" = "aarch64-macos");
+  check "its Intel macOS as x86_64-macos" (spelled "x86_64-apple-darwin13.4.0" = "x86_64-macos");
+  check "and so as the bundle names it"
+    (Build.normalize_triple (spelled "arm64-apple-darwin20.0.0") = Build.normalize_triple "aarch64-macos");
+  check "another triple is kept" (spelled "aarch64-unknown-linux-gnu" = "aarch64-unknown-linux-gnu")
+
 (* A compiler in a released toolchain's layout links with the toolchain's
    own `zig cc` and its runtimes, unless the environment names another C
    compiler or `zig`; one outside it is told nothing. *)

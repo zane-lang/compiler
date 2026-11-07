@@ -60,18 +60,25 @@ external use_init_array : Llvm_target.TargetMachine.t -> unit = "zane_use_init_a
 
 (* The triple a build for the host is for: on Windows MinGW's, the only
    Windows the runtime supports (docs/design/platforms.md), where LLVM's own
-   default is MSVC's; LLVM's default elsewhere, with the vendor a packaged
-   LLVM names itself by (conda-forge's `x86_64-conda-linux-gnu`) read as
-   `unknown`, the same machine, so a host build is for the triple a build
-   naming the target is, and finds the runtimes a release bundles for it. *)
+   default is MSVC's; LLVM's default elsewhere, as the triple a build naming
+   the target spells it, so a host build finds the runtimes a release
+   bundles for it ([spelled_as_target]). *)
 let windows_host_triple = "x86_64-windows-gnu"
 
+(* [default], a packaged LLVM's default triple, as a build naming the same
+   machine spells it: conda-forge's vendor (`x86_64-conda-linux-gnu`) read
+   as `unknown`, and its macOS (`arm64-apple-darwin20.0.0`) as
+   `aarch64-macos`, whose objects name the oldest macOS that architecture
+   runs, not the one the LLVM was built for. *)
+let spelled_as_target default =
+  match String.split_on_char '-' default with
+  | arch :: "conda" :: rest -> String.concat "-" (arch :: "unknown" :: rest)
+  | arch :: "apple" :: os :: _ when String.starts_with ~prefix:"darwin" os || String.starts_with ~prefix:"macos" os ->
+      (if arch = "arm64" then "aarch64" else arch) ^ "-macos"
+  | _ -> default
+
 let host_triple () =
-  if Sys.win32 then windows_host_triple
-  else
-    match String.split_on_char '-' (Llvm_target.Target.default_triple ()) with
-    | arch :: "conda" :: rest -> String.concat "-" (arch :: "unknown" :: rest)
-    | _ -> Llvm_target.Target.default_triple ()
+  if Sys.win32 then windows_host_triple else spelled_as_target (Llvm_target.Target.default_triple ())
 
 (* The machine for *target*, an LLVM triple, or for the host when it is
    absent, putting an ELF object's constructors where the C library runs
