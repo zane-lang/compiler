@@ -25,7 +25,7 @@ def executable(explicit=None):
         candidate = local if local.exists() else shutil.which('tree-sitter') or local
     candidate = str(Path(candidate).resolve())
     try:
-        result = subprocess.run([candidate, '--version'], capture_output=True, text=True, timeout=10)
+        result = subprocess.run([candidate, '--version'], capture_output=True, text=True, encoding='utf-8', timeout=10)
     except OSError as error:
         raise ValueError('Tree-sitter CLI required; run npm ci --prefix editors/tree-sitter-zane') from error
     if result.returncode or not re.match(r'tree-sitter ' + re.escape(VERSION) + r'(?:\s|$)', result.stdout, re.IGNORECASE):
@@ -48,7 +48,7 @@ def discover(render, config, directory, cli, limit=128):
         grammar = render(groups)
         (directory / 'grammar.js').write_text(grammar)
         result = subprocess.run([cli, 'generate', '--json-summary', '--abi', str(ABI)], cwd=directory,
-                                capture_output=True, text=True, timeout=120)
+                                capture_output=True, text=True, encoding='utf-8', timeout=120)
         if not result.returncode:
             return grammar, {'generator': f'tree-sitter {VERSION}', 'abi': ABI, 'conflicts': evidence}
         try:

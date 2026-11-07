@@ -115,6 +115,7 @@ class TerminalClassEngineTests(unittest.TestCase):
             [str(ENGINE), *arguments, str(self.grammar)],
             env=self.environment,
             text=True,
+            encoding="utf-8",
             capture_output=True,
             timeout=120,
         )
@@ -169,6 +170,7 @@ class EngineTestCase(unittest.TestCase):
             [str(ENGINE), *arguments, str(self.grammar)],
             env=self.environment,
             text=True,
+            encoding="utf-8",
             capture_output=True,
             timeout=180,
         )
@@ -268,6 +270,7 @@ class MinTokenEngineTests(unittest.TestCase):
                     ],
                     env={**self.environment, "AMBIGUITY_JOBS": str(jobs)},
                     text=True,
+                    encoding="utf-8",
                     capture_output=True,
                     timeout=120,
                 )
@@ -333,6 +336,7 @@ e:
                 "AMBIGUITY_MAX_FRONTIER_RATIO": "0.001",
             },
             text=True,
+            encoding="utf-8",
             capture_output=True,
             timeout=120,
         )
