@@ -2,7 +2,7 @@
 
    The bounded side of the engine: one unified breadth- or depth-limited walk
    over concrete frontiers, the caches that keep it from re-exploring, and the
-   partitioning that spreads it over forked workers. *)
+   partitioning that spreads it over worker processes. *)
 
 type outcome = {
   witnesses : ((int * string) list * string list) list;
@@ -540,7 +540,7 @@ let initial_partitions engine jobs max_tokens min_tokens ~max_queue
       if !stopped = None then current := !next;
       incr depth
     done;
-    (* Never hand back an empty bucket: [parallel_unified_search] forks one
+    (* Never hand back an empty bucket: [parallel_unified_search] starts one
        worker per partition, and a worker with no frontiers is a wasted process
        that only reports "no witnesses". Hashing can leave buckets empty either
        because there are fewer items than jobs or because several items collide,
@@ -579,33 +579,74 @@ let partitioning_stop_reason = function
       None
   | stopped -> stopped
 
-(* One worker per partition, each searching it in a child process that
-   writes its outcome, and its progress, into [temporary]. *)
-let fork_workers ~temporary ~search partitions =
-  (* Do not make every child inherit avoidable garbage or an unnecessarily
-     sparse major heap: after fork those pages become copy-on-write overhead. *)
-  Gc.compact ();
-  (* Anything still buffered would be replayed by every child's exit. *)
+(* What one worker searches, and where it writes what it finds: everything a
+   worker needs, as data, so it travels to the worker's process in a file. *)
+type 'partition worker_job = {
+  job_engine : Recognizer.engine;
+  job_partition : 'partition;
+  job_max_tokens : int;
+  job_min_tokens : int;
+  job_nodes_per_depth : int option;
+  job_timeout : float;
+  job_max_frontiers : int;
+  job_max_queue : int;
+  job_max_witnesses : int;
+  job_soft_heap_bytes : float;
+  job_hard_heap_bytes : float;
+  job_conflict_distance : int array;
+  job_accept_distance : int array;
+  job_output : string;
+  job_progress : string;
+}
+
+(* The variable that makes the engine's executable a worker, naming the file
+   its job is in. *)
+let worker_variable = "ZANE_AMBIGUITY_WORKER"
+
+(* The worker [job_path] names: search its partition, report progress to its
+   progress file, and write the outcome to its output, which the parent reads
+   when the worker exits 0. *)
+let run_worker job_path =
+  let job =
+    In_channel.with_open_bin job_path (fun channel -> (Marshal.from_channel channel : _ worker_job))
+  in
+  let report progress =
+    if Output.progress_is_visible () then Output.write_progress job.job_progress progress
+  in
+  let result =
+    unified_search job.job_engine job.job_partition ~max_tokens:job.job_max_tokens
+      ~min_tokens:job.job_min_tokens ~nodes_per_depth:job.job_nodes_per_depth
+      ~timeout:job.job_timeout ~max_frontiers:job.job_max_frontiers ~max_queue:job.job_max_queue
+      ~max_witnesses:job.job_max_witnesses ~soft_heap_bytes:job.job_soft_heap_bytes
+      ~hard_heap_bytes:job.job_hard_heap_bytes ~show_progress:(Output.progress_is_visible ())
+      ~on_progress:report job.job_conflict_distance job.job_accept_distance
+  in
+  Out_channel.with_open_bin job.job_output (fun channel -> Marshal.to_channel channel result [])
+
+(* One worker per partition, each searching it in a process of its own: this
+   executable started again with [worker_variable] naming the job [job]
+   makes for it, written into [temporary]. A process is started the same
+   way on every system, which [Unix.fork] could not do on Windows, and each
+   keeps the memory share it is given. *)
+let start_workers ~temporary ~job partitions =
   flush stdout;
   flush stderr;
   let children = ref [] in
   Array.iteri
-    (fun index initial ->
+    (fun index partition ->
       let output = Filename.concat temporary (Printf.sprintf "worker-%d" index) in
       let progress_path = Filename.concat temporary (Printf.sprintf "progress-%d" index) in
-      match Unix.fork () with
-      | 0 ->
-          let report progress =
-            if Output.progress_is_visible () then Output.write_progress progress_path progress
-          in
-          let result =
-            search ~show_progress:(Output.progress_is_visible ()) ~on_progress:report initial
-          in
-          let channel = open_out_bin output in
-          Marshal.to_channel channel result [];
-          close_out channel;
-          exit 0
-      | pid -> children := (pid, output, progress_path) :: !children)
+      let job_path = Filename.concat temporary (Printf.sprintf "job-%d" index) in
+      Out_channel.with_open_bin job_path (fun channel ->
+          Marshal.to_channel channel (job ~partition ~output ~progress:progress_path) []);
+      let environment =
+        Array.append [| worker_variable ^ "=" ^ job_path |] (Unix.environment ())
+      in
+      let pid =
+        Unix.create_process_env Sys.executable_name [| Sys.executable_name |] environment
+          Unix.stdin Unix.stdout Unix.stderr
+      in
+      children := (pid, output, progress_path) :: !children)
     partitions;
   !children
 
@@ -627,7 +668,7 @@ let worker_result pid output status =
    failure aborts the whole search, and kills the workers still running so
    they do not go on burning the memory budget as orphans. *)
 let collect_workers ~started ~max_tokens ~memory_budget ~prefix_progress children =
-  (* Pids that have been forked but not yet reaped. *)
+  (* Pids that have been started but not yet reaped. *)
   let live = Hashtbl.create (List.length children) in
   List.iter (fun (pid, _, _) -> Hashtbl.replace live pid ()) children;
   let rec reap pid =
@@ -638,7 +679,7 @@ let collect_workers ~started ~max_tokens ~memory_budget ~prefix_progress childre
   in
   let terminate_live () =
     let pids = Hashtbl.fold (fun pid () acc -> pid :: acc) live [] in
-    List.iter (fun pid -> try Unix.kill pid Sys.sigterm with Unix.Unix_error _ -> ()) pids;
+    List.iter (fun pid -> try Unix.kill pid Sys.sigkill with Unix.Unix_error _ -> ()) pids;
     List.iter
       (fun pid ->
         reap pid;
@@ -773,7 +814,26 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
       prefix_seeds + seeds )
   end
   else begin
-    let children = fork_workers ~temporary ~search partitions in
+    let job ~partition ~output ~progress =
+      {
+        job_engine = engine;
+        job_partition = partition;
+        job_max_tokens = max_tokens;
+        job_min_tokens = min_tokens;
+        job_nodes_per_depth = nodes_per_depth;
+        job_timeout = remaining_timeout;
+        job_max_frontiers = max_frontiers;
+        job_max_queue = max_queue;
+        job_max_witnesses = max_witnesses;
+        job_soft_heap_bytes = soft_heap_bytes;
+        job_hard_heap_bytes = hard_heap_bytes;
+        job_conflict_distance = conflict_distance;
+        job_accept_distance = accept_distance;
+        job_output = output;
+        job_progress = progress;
+      }
+    in
+    let children = start_workers ~temporary ~job partitions in
     let outcomes = collect_workers ~started ~max_tokens ~memory_budget ~prefix_progress children in
     Output.clear_progress ();
     let outcome, seeds = combine_outcomes ~prefix_stopped outcomes in
