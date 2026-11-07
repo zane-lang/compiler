@@ -110,7 +110,7 @@ class MemoTests(unittest.TestCase):
         prints for it."""
         flags = [*([] if build == "tiered" else BUILDS[build]), *([] if memoize else ["--no-memoize"])]
         result = subprocess.run([ZANEC, "--ll", *flags, "--package", FIXTURES / name],
-                                capture_output=True, text=True, timeout=300)
+                                capture_output=True, text=True, encoding="utf-8", timeout=300)
         self.assertEqual(result.returncode, 0, result.stderr)
         return result.stdout
 
@@ -155,7 +155,7 @@ class MemoTests(unittest.TestCase):
         table = re.compile(r'^@"?[^\n]*\.memo\.table"? = [^\n]*global \[(\d+) x \[(\d+) x i64\]\]', re.M)
         for name in sorted(p.name for p in FIXTURES.iterdir()):
             result = subprocess.run([ZANEC, "--ll", *BUILDS["optimized"], "--package", FIXTURES / name],
-                                    capture_output=True, text=True, timeout=300)
+                                    capture_output=True, text=True, encoding="utf-8", timeout=300)
             self.assertEqual(result.returncode, 0, result.stderr)
             for entries, words in table.findall(result.stdout):
                 sizes[name] = int(entries) * int(words) * 8

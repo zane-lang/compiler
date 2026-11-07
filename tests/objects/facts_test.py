@@ -214,7 +214,8 @@ class FactsTests(unittest.TestCase):
             wrapper.write_text(f'#!/bin/sh\nexec "{cc}" {newer} "$@"\n')
             wrapper.chmod(0o755)
             result = subprocess.run([ZANEC, "--ll", "--optimize", *packages("pushes")], capture_output=True,
-                                    text=True, timeout=60, env={**os.environ, "ZANE_BITCODE_CC": str(wrapper)})
+                                    text=True, encoding="utf-8", timeout=60,
+                                    env={**os.environ, "ZANE_BITCODE_CC": str(wrapper)})
         self.assertEqual(result.returncode, 0, result.stderr)
         for name in ["zane_defer", "zane_leaves"]:
             self.assertNotRegex(result.stdout, r"call [^\n]*@" + name + r"\(")
