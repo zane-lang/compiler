@@ -52,8 +52,11 @@ done
 # Tiered: tier 0 and tier 1, tier 1 loaded before `main`.
 "$zanec" --build "$out/hello-tiered$exe" --tiered --package "$out/hello"
 "$zanec" --tier-up "$out/hello-tiered.tier1$library" --package "$out/hello"
-ZANE_TIER_UP="$out/hello-tiered.tier1$library" ZANE_TIER_WAIT=1 "$out/hello-tiered$exe" | tr -d '\r' > "$out/hello-tiered.out"
+ZANE_TIER_UP="$out/hello-tiered.tier1$library" ZANE_TIER_WAIT=1 ZANE_TIER_LOG=1 "$out/hello-tiered$exe" \
+	2> "$out/hello-tiered.log" | tr -d '\r' > "$out/hello-tiered.out"
 cmp "$golden" "$out/hello-tiered.out"
+# The output alone does not show tier 1 ran: tier 0 prints the same.
+grep -Eq 'zane: tier 1 runs ([0-9]+) of \1 functions' "$out/hello-tiered.log"
 test -z "$(find "$ZANE_CACHE_DIR" -mindepth 1 -maxdepth 1 ! -name tier)"
 test ! -e "$out/zig-cache"
 echo "Relocated compiler built and ran plain, optimized and tiered programs with its bundled runtimes and links, running no C compiler"
