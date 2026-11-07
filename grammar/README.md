@@ -49,7 +49,7 @@ identical to the previous grammar.
 | `lib/cst/lexer.ml` | Sedlex / Dune; its `is_lower_identifier` classifies the package names `zanec` options give |
 | `editors/tree-sitter-zane/grammar.js` | Tree-sitter CLI |
 | `editors/tree-sitter-zane/conflicts.json` | Generated discovery report with rule groups, example prefixes and lookahead tokens |
-| `editors/tree-sitter-zane/queries/highlights.scm` | Neovim and Tree-sitter highlighting |
+| `editors/tree-sitter-zane/queries/highlights.scm` | Tree-sitter highlighting, and the start of Neovim's query |
 | `editors/tree-sitter-zane/tree-sitter.json`, `package.json` | Tree-sitter build metadata and pinned CLI |
 | `editors/typst/Zane.sublime-syntax` | Typst `raw(syntaxes: ...)` |
 | `editors/neovim/queries/highlights.scm` | Neovim's query, which nvim-treesitter installs: the shared one plus Neovim-only captures |
@@ -116,7 +116,8 @@ integers. Compiler and Tree-sitter lexers select longest matches themselves.
 ## Previews
 
 [`renders/sample.zn`](renders/sample.zn) as each editor shows it. Neovim uses
-the Tree-sitter parser and `highlights.scm`; Typst uses `Zane.sublime-syntax`.
+the Tree-sitter parser and `editors/neovim/queries/highlights.scm`; Typst uses
+`Zane.sublime-syntax`.
 The light Neovim render has one colour per capture. The dark ones use each
 theme's own colours: Kanagawa (wave), Tokyo Night (night) and Catppuccin Mocha
 from their Neovim plugins, and the `.tmTheme` files those projects publish.
@@ -165,8 +166,8 @@ keyword spellings from the shared lexicon; the generator emits regexes without
 lookahead using a finite prefix trie. This preserves the compiler's keyword
 priority even in positions where Tree-sitter expects an identifier.
 
-Then put the parser and Neovim's query on Neovim's runtime path, beside the
-plugin, for example on Linux:
+Then, with the `zane-nvim` plugin still installed, put the parser and Neovim's
+query on Neovim's runtime path, for example on Linux:
 
 ```sh
 mkdir -p ~/.local/share/nvim/site/parser ~/.local/share/nvim/site/queries/zane
