@@ -10,6 +10,7 @@ count that charged them would show only as a warning that is not expected.
 import contextlib
 import io
 from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 
 from tools.nesting import lizard_check
@@ -26,7 +27,7 @@ def depths(path: Path) -> dict[str, int]:
 
 class LizardCheckTests(unittest.TestCase):
     def test_annotations_match_golden(self) -> None:
-        paths = sorted(path.as_posix() for path in FIXTURES.iterdir())
+        paths = sorted(path.as_posix() for path in FIXTURES.iterdir() if path.is_file())
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             status = lizard_check.main(paths)
@@ -39,6 +40,12 @@ class LizardCheckTests(unittest.TestCase):
             status = lizard_check.main([(FIXTURES / name).as_posix() for name in ("generated.py", "shell")])
         self.assertEqual(out.getvalue(), "")
         self.assertEqual(status, 0)
+
+    def test_binary_file_is_ignored(self) -> None:
+        with TemporaryDirectory() as directory:
+            binary = Path(directory) / "blob"
+            binary.write_bytes(b"\x89PNG\r\n\x1a\n\xff\xfe\x00")
+            self.assertEqual(lizard_check.check(binary.as_posix()), [])
 
     def test_python_elif_chain_is_one_level(self) -> None:
         self.assertEqual(depths(FIXTURES / "depth.py")["elif_chain"], 4)

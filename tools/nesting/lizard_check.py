@@ -70,11 +70,20 @@ def check_source(name: str, code: str) -> list[Site]:
     ]
 
 
+def first_line_of(path: str) -> str:
+    """The first line, read as bytes so a binary file is no error."""
+    with open(path, "rb") as f:
+        return f.readline().decode("utf-8", errors="replace").rstrip("\r\n")
+
+
 def check(path: str) -> list[Site]:
+    # Only a file this measures is read whole, so one that is not C or Python
+    # need not be text.
+    name = language_name(path, first_line_of(path))
+    if name is None:
+        return []
     code = Path(path).read_text(encoding="utf-8")
-    first_line = code.split("\n", 1)[0]
-    name = language_name(path, first_line)
-    if name is None or generated(first_line):
+    if generated(code.split("\n", 1)[0]):
         return []
     return sorted(check_source(name, code), key=lambda site: site.line)
 
