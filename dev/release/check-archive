@@ -11,12 +11,17 @@ trap 'echo "check-archive: line $LINENO failed: $BASH_COMMAND" >&2' ERR
 archive=${1:?usage: check-archive ARCHIVE OUTPUT SOURCE}
 out=${2:?usage: check-archive ARCHIVE OUTPUT SOURCE}
 source=${3:?usage: check-archive ARCHIVE OUTPUT SOURCE}
-golden="$source/tests/codegen/golden/hello.out"
 case "$(uname -s)" in
-MINGW* | MSYS* | CYGWIN*) exe=.exe library=.dll ;;
+MINGW* | MSYS* | CYGWIN*)
+	exe=.exe library=.dll
+	# Git Bash's tar reads `D:\a\_temp`, as a runner names its directories,
+	# as no path it can open, so each path is made one of Git Bash's own.
+	archive=$(cygpath -u "$archive") out=$(cygpath -u "$out") source=$(cygpath -u "$source")
+	;;
 Darwin) exe= library=.dylib ;;
 *) exe= library=.so ;;
 esac
+golden="$source/tests/codegen/golden/hello.out"
 mkdir -p "$out"
 tar -xzf "$archive" -C "$out"
 root=$(find "$out" -mindepth 1 -maxdepth 1 -type d -name 'zane-compiler-*')
