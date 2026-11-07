@@ -171,31 +171,31 @@ let parse_tokens grammar =
     (split_lines source);
   (!terminals, aliases)
 
-let quote = Filename.quote
-
-let run command =
-  match Sys.command command with
+(* Menhir run on [args], its streams sent to [stdout] and [stderr], through
+   the host's shell: [Filename.quote_command] quotes for `cmd.exe` on Windows
+   and for `sh` elsewhere. *)
+let run ~stdout ~stderr menhir args =
+  match Sys.command (Filename.quote_command menhir ~stdout ~stderr args) with
   | 0 -> true
   | _ -> false
 
 let prepare_automaton ~menhir ~grammar ~directory =
   let expanded = Filename.concat directory "expanded.mly" in
   let preprocess_error = Filename.concat directory "preprocess.err" in
-  let preprocess =
-    Printf.sprintf "%s --only-preprocess-uu %s > %s 2> %s"
-      (quote menhir) (quote grammar) (quote expanded) (quote preprocess_error)
-  in
-  if not (run preprocess) then begin
+  if
+    not
+      (run ~stdout:expanded ~stderr:preprocess_error menhir
+         [ "--only-preprocess-uu"; grammar ])
+  then begin
     List.iter prerr_endline (read_lines preprocess_error);
     failwith "Menhir failed to preprocess the grammar"
   end;
   let base = Filename.concat directory "automaton" in
   let build_error = Filename.concat directory "automaton.err" in
-  let build =
-    Printf.sprintf "%s --dump --base %s %s > /dev/null 2> %s"
-      (quote menhir) (quote base) (quote expanded) (quote build_error)
+  let build () =
+    run ~stdout:Filename.null ~stderr:build_error menhir [ "--dump"; "--base"; base; expanded ]
   in
-  ignore (run build);
+  ignore (build ());
   let automaton = base ^ ".automaton" in
   if not (Sys.file_exists automaton) then begin
     List.iter prerr_endline (read_lines build_error);

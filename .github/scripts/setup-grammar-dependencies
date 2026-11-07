@@ -3,4 +3,7 @@
 set -euo pipefail
 npm ci --prefix editors/tree-sitter-zane
 python3 -m venv .grammar-venv
-.grammar-venv/bin/python -m pip install -r tests/highlighting/requirements.txt
+# Windows' venv keeps its interpreter in Scripts/, every other system's in bin/.
+python=.grammar-venv/bin/python
+[[ -x .grammar-venv/Scripts/python.exe ]] && python=.grammar-venv/Scripts/python.exe
+"$python" -m pip install -r tests/highlighting/requirements.txt

@@ -58,4 +58,6 @@ runs:
       shell: bash
       run: |
         pixi run .github/scripts/setup-grammar-dependencies
-        echo "GRAMMAR_PYTHON=$PWD/.grammar-venv/bin/python" >> "$GITHUB_ENV"
+        python=$PWD/.grammar-venv/bin/python
+        [[ -x .grammar-venv/Scripts/python.exe ]] && python=$PWD/.grammar-venv/Scripts/python.exe
+        echo "GRAMMAR_PYTHON=$python" >> "$GITHUB_ENV"

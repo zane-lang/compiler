@@ -326,7 +326,7 @@ class OutputPatternTests(unittest.TestCase):
         path = profiles.expand_output_path(
             Path("reports/{profile}-{date}.txt"), "general"
         )
-        self.assertRegex(str(path), r"^reports/general-\d{4}-\d{2}-\d{2}\.txt$")
+        self.assertRegex(path.as_posix(), r"^reports/general-\d{4}-\d{2}-\d{2}\.txt$")
 
     def test_timestamp_placeholders_expand(self) -> None:
         path = profiles.expand_output_path(

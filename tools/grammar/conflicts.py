@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -13,15 +14,18 @@ ABI = 15
 
 def executable(explicit=None):
     # The pinned local install wins over whatever `tree-sitter` is on PATH, so
-    # an unrelated global CLI does not shadow it.
-    local = Path(__file__).resolve().parents[2] / 'editors/tree-sitter-zane/node_modules/.bin/tree-sitter'
+    # an unrelated global CLI does not shadow it. It is the binary the package
+    # downloads, not npm's `.bin` link to it, which on Windows is a shell
+    # script that only a shell can run.
+    name = 'tree-sitter.exe' if os.name == 'nt' else 'tree-sitter'
+    local = Path(__file__).resolve().parents[2] / 'editors/tree-sitter-zane/node_modules/tree-sitter-cli' / name
     if explicit:
         candidate = shutil.which(explicit) or explicit
     else:
         candidate = local if local.exists() else shutil.which('tree-sitter') or local
     candidate = str(Path(candidate).resolve())
     try:
-        result = subprocess.run([candidate, '--version'], capture_output=True, text=True, timeout=10)
+        result = subprocess.run([candidate, '--version'], capture_output=True, text=True, encoding='utf-8', timeout=10)
     except OSError as error:
         raise ValueError('Tree-sitter CLI required; run npm ci --prefix editors/tree-sitter-zane') from error
     if result.returncode or not re.match(r'tree-sitter ' + re.escape(VERSION) + r'(?:\s|$)', result.stdout, re.IGNORECASE):
@@ -44,7 +48,7 @@ def discover(render, config, directory, cli, limit=128):
         grammar = render(groups)
         (directory / 'grammar.js').write_text(grammar)
         result = subprocess.run([cli, 'generate', '--json-summary', '--abi', str(ABI)], cwd=directory,
-                                capture_output=True, text=True, timeout=120)
+                                capture_output=True, text=True, encoding='utf-8', timeout=120)
         if not result.returncode:
             return grammar, {'generator': f'tree-sitter {VERSION}', 'abi': ABI, 'conflicts': evidence}
         try:

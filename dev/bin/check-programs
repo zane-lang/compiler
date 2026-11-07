@@ -3,7 +3,7 @@ set -uo pipefail
 
 # Run every program in DIR, NAME.exe or NAME beside a NAME.status, with the
 # arguments NAME.args holds a line each when it is there, and hold it to
-# NAME.out and NAME.status, as `windows-programs` wrote them. A program expected to exit 0 is held to its
+# NAME.out and NAME.status, as `cross-programs` wrote them. A program expected to exit 0 is held to its
 # stdout; one expected to fail is held to everything it wrote, as
 # tests/codegen/ holds it. RUNNER, when set, runs each program, so the same
 # check runs Windows programs under Wine elsewhere: `RUNNER=wine64`.

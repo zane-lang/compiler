@@ -116,7 +116,7 @@ test-highlighting: test-grammar-generation
 [group('test')]
 [doc('The test programs built for Windows and run under Wine (set RUNNER to change)')]
 test-windows:
-	dev/bin/windows-programs _build/windows-programs
+	dev/bin/cross-programs x86_64-windows-gnu _build/windows-programs
 	RUNNER="${RUNNER:-wine64}" dev/bin/check-programs _build/windows-programs
 
 [group('test')]

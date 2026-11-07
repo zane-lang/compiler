@@ -1,5 +1,5 @@
 ; Coda's OCaml binding (vendor/coda, pinned to the release the grammar
-; generator reads, coda-format 3.1.0), built from the submodule's own files:
+; generator reads, coda-format 3.1.1), built from the submodule's own files:
 ; the binding, its C stubs, and the C FFI they call, which includes the
 ; header-only parser from src/.
 (library
