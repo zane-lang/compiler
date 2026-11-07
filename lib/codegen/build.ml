@@ -144,8 +144,39 @@ let probe_stack triple m =
       m
   end
 
-(* The C compiler that links: `ZANE_CC` if set, else `clang`. *)
-let cc () = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC")
+(* What a released toolchain brings its compiler (dev/release/): the C
+   compiler, its `zig cc`, and the directory of the runtimes and links that
+   `zig cc` made, which a build uses only with that `zig`. *)
+type released = { zig_cc : string option; runtimes : string option }
+
+(* The toolchain the compiler at [executable] was released in, read from
+   the environment [getenv]: one whose directory above the executable's
+   holds the release's `toolchain.coda`, as `bin/zanec`, `bin/zanec.exe`
+   and Linux's `lib/` loader that runs `libexec/zanec` all are. Its `zig
+   cc` links unless `ZANE_CC` names another C compiler, and its runtimes
+   are used only then and when `ZIG` names no other `zig`; a directory of
+   runtimes the environment names is never a released compiler's. *)
+let released ~executable ~getenv =
+  let root = Filename.dirname (Filename.dirname executable) in
+  if not (Sys.file_exists (Filename.concat root "toolchain.coda")) then None
+  else
+    let own = getenv "ZANE_CC" = None in
+    let zig_cc = Filename.concat (Filename.concat root "bin") (if Sys.win32 then "zig-cc.cmd" else "zig-cc") in
+    Some
+      {
+        zig_cc = (if own then Some zig_cc else None);
+        runtimes = (if own && getenv "ZIG" = None then Some (Filename.concat (Filename.concat root "share") "runtime") else None);
+      }
+
+let release = lazy (released ~executable:Sys.executable_name ~getenv:Sys.getenv_opt)
+
+(* The C compiler that links: `ZANE_CC` if set, else a released
+   toolchain's `zig cc`, else `clang`. *)
+let cc () =
+  match (Sys.getenv_opt "ZANE_CC", Lazy.force release) with
+  | Some cc, _ -> cc
+  | None, Some { zig_cc = Some cc; _ } -> cc
+  | None, _ -> "clang"
 
 (* The C compiler that compiles the runtime's bitcode, `ZANE_BITCODE_CC`
    when it is set and *cc* otherwise: a release's, whose own C compiler
@@ -193,10 +224,13 @@ let target_flag = function Some target -> [ "--target=" ^ target ] | None -> []
 let runtime_key ~cc ~identity ~triple flags =
   Digest.to_hex (Digest.string (String.concat "\000" ((cc :: identity :: triple :: flags) @ sources)))
 
-(* Where a released toolchain keeps the runtimes it was released with:
-   `ZANE_RUNTIME_OBJECTS`, which its `zanec` sets only when it also sets the
-   C compiler, to the `zig cc` beside it that compiled them. *)
-let bundled_dir () = match Sys.getenv_opt "ZANE_RUNTIME_OBJECTS" with Some "" | None -> None | Some dir -> Some dir
+(* Where the runtimes a build links come from, made beforehand: a released
+   toolchain's own ([released]), or, for a compiler that is not one, the
+   directory `ZANE_RUNTIME_OBJECTS` names, as tests do. *)
+let bundled_dir () =
+  match Lazy.force release with
+  | Some { runtimes; _ } -> runtimes
+  | None -> ( match Sys.getenv_opt "ZANE_RUNTIME_OBJECTS" with Some "" | None -> None | Some dir -> Some dir)
 
 (* The name a runtime compiled with [level] for [triple] is bundled under.
    It names no C compiler, since a bundle is used only with the one that

@@ -1585,6 +1585,7 @@ let () =
   Builds.cached_runtime ();
   Builds.linked_in_process ();
   Builds.bundled_runtime ();
+  Builds.released_toolchain ();
   Builds.runtime_bodies ();
   Builds.fatal_link ();
   Builds.assembled_beside ();

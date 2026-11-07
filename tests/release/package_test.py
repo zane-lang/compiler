@@ -3,12 +3,15 @@ import importlib.util
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
 
 
 PROJECT = Path(__file__).resolve().parents[2]
+# The packagers import the module they share from beside them.
+sys.path.insert(0, str(PROJECT / "dev/release"))
 spec = importlib.util.spec_from_file_location("package_linux", PROJECT / "dev/release/package-linux.py")
 packager = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(packager)
@@ -49,7 +52,8 @@ int main(int argc, char **argv) {
             (zig_dir / "lib/marker").write_text("Zig library")
             (zig_dir / "unrelated-binary").write_text("must not be packaged")
             commit = "a" * 40
-            archive = packager.package(binary, zig, scratch / "dist", "v0.1", commit)
+            manifest = PROJECT / "dev/toolchains/zig-x86_64-linux.json"
+            archive = packager.package(binary, zig, manifest, scratch / "dist", "v0.1", commit)
             extracted = scratch / "extract"
             with tarfile.open(archive) as tar:
                 # This is the archive we just created, never a downloaded one.
@@ -62,19 +66,14 @@ int main(int argc, char **argv) {
             environment = {**os.environ, "LD_LIBRARY_PATH": "/nonexistent"}
             environment.pop("ZANE_CC", None)
             environment.pop("ZIG", None)
+            # The wrapper only runs the compiler with the bundled loader and
+            # libraries, passing its arguments as given: the compiler finds
+            # the toolchain itself (lib/codegen/build.ml, `released`), so the
+            # wrapper sets no C compiler or runtimes.
             result = subprocess.check_output(
                 [str(relocated / "bin/zanec"), "argument with spaces"], env=environment, text=True
             )
-            self.assertEqual(result.splitlines(), [
-                str(relocated / "bin/zig-cc"), str(relocated / "share/runtime"), "clean", "argument with spaces",
-            ])
-            environment["ZIG"] = "/custom/zig"
-            environment["ZANE_RUNTIME_OBJECTS"] = "/inherited/runtimes"
-            result = subprocess.check_output(
-                [str(relocated / "bin/zanec"), "another Zig"], env=environment, text=True
-            )
-            self.assertEqual(result.splitlines()[:2], [str(relocated / "bin/zig-cc"), "(null)"])
-            del environment["ZIG"]
+            self.assertEqual(result.splitlines(), ["(null)", "(null)", "clean", "argument with spaces"])
             environment["ZANE_CC"] = "/custom/compiler with spaces"
             result = subprocess.check_output(
                 [str(relocated / "bin/zanec"), "override"], env=environment, text=True
@@ -85,7 +84,7 @@ int main(int argc, char **argv) {
             calls = [line.rsplit(" ", 2) for line in (relocated / "share/runtime/calls").read_text().splitlines()]
             self.assertTrue(all(cc.endswith(f"/{root.name}/bin/zig-cc") for cc, _, _ in calls))
             self.assertEqual([(target, optimize) for _, target, optimize in calls], [
-                (target, optimize) for target in packager.RUNTIME_TARGETS for optimize in ("-", "--optimize")
+                (target, optimize) for target in packager.common.RUNTIME_TARGETS for optimize in ("-", "--optimize")
             ])
             result = subprocess.check_output(
                 [str(relocated / "bin/zig-cc"), "--target=x86_64-windows-gnu", "file with spaces.c"],
@@ -100,7 +99,7 @@ int main(int argc, char **argv) {
                 f"url https://github.com/zane-lang/compiler\ncommit {commit}\n")
             self.assertTrue((relocated / "zig/LICENSE").is_file())
             self.assertEqual((relocated / "share/zig.json").read_bytes(),
-                             (PROJECT / "dev/toolchains/zig.json").read_bytes())
+                             manifest.read_bytes())
             self.assertTrue((relocated / "zig/lib/marker").is_file())
             self.assertFalse((relocated / "zig/unrelated-binary").exists())
 
@@ -112,11 +111,11 @@ int main(int argc, char **argv) {
             binary.touch()
             zig.touch()
             with self.assertRaisesRegex(ValueError, "standalone distribution"):
-                packager.package(binary, zig, root / "dist", "v0.1", "a" * 40)
+                packager.package(binary, zig, binary, root / "dist", "v0.1", "a" * 40)
 
     def test_invalid_version_or_commit_is_rejected_before_file_access(self):
         for version in ("../v0.1", "v01.0", "v0.1.0", "v0.1;echo bad", "v0.1\n"):
             with self.subTest(version=version), self.assertRaises(ValueError):
-                packager.package(Path("missing"), Path("missing"), Path("unused"), version, "a" * 40)
+                packager.package(Path("missing"), Path("missing"), Path("missing"), Path("unused"), version, "a" * 40)
         with self.assertRaises(ValueError):
-            packager.package(Path("missing"), Path("missing"), Path("unused"), "v0.1", "main")
+            packager.package(Path("missing"), Path("missing"), Path("missing"), Path("unused"), "v0.1", "main")

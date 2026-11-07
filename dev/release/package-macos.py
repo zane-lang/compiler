@@ -9,18 +9,9 @@ import platform
 import re
 import shutil
 import subprocess
-import tarfile
 import tempfile
 
-
-RUNTIME_TARGETS = (
-    "x86_64-linux-gnu",
-    "aarch64-linux-gnu",
-    "x86_64-windows-gnu",
-    "aarch64-windows-gnu",
-    "x86_64-macos",
-    "aarch64-macos",
-)
+import common
 
 
 def command(*args):
@@ -135,20 +126,15 @@ def collect_closure(images):
 
 
 def package(binary, zig, zig_manifest, output, version, commit):
-    if not re.fullmatch(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", version):
-        raise ValueError("version must be vMAJOR.MINOR, without leading zeroes")
-    if not re.fullmatch(r"[0-9a-f]{40}", commit):
-        raise ValueError("commit must be a full Git SHA")
+    common.check_label(version, commit)
     if platform.system() != "Darwin":
         raise ValueError("package-macos.py must run on macOS")
 
-    binary, zig = binary.resolve(strict=True), zig.resolve(strict=True)
+    binary, zig = binary.resolve(strict=True), common.check_zig(zig)
     zig_manifest = zig_manifest.resolve(strict=True)
     zig_description = json.loads(zig_manifest.read_text())
     if not all(key in zig_description for key in ("version", "url", "sha256")):
         raise ValueError("Zig manifest must contain version, url and sha256")
-    if not (zig.parent / "lib").is_dir() or not (zig.parent / "LICENSE").is_file():
-        raise ValueError("Zig must be from its standalone distribution, with lib/ and LICENSE beside it")
 
     arch = platform.machine()
     arch = {"arm64": "aarch64", "aarch64": "aarch64", "x86_64": "x86_64"}.get(arch)
@@ -163,15 +149,12 @@ def package(binary, zig, zig_manifest, output, version, commit):
         raise ValueError(f"Zig architecture {zig_arches} does not include {expected_arch}")
 
     with tempfile.TemporaryDirectory(prefix="zane-release-") as temporary:
-        root = Path(temporary) / f"zane-compiler-{version}-macos-{arch}"
-        for directory in ("bin", "lib", "libexec", "share", "zig"):
-            (root / directory).mkdir(parents=True)
-        compiler = root / "libexec/zanec"
+        root = common.make_root(temporary, version, f"macos-{arch}")
+        common.add_toolchain(root, zig, zig_manifest, version, commit)
+        (root / "lib").mkdir()
+        compiler = root / "bin/zanec"
         zig_binary = root / "zig/zig"
         shutil.copy2(binary, compiler)
-        shutil.copy2(zig, zig_binary)
-        shutil.copy2(zig.parent / "LICENSE", root / "zig/LICENSE")
-        shutil.copytree(zig.parent / "lib", root / "zig/lib")
 
         # macOS exposes temporary directories through aliases such as /var ->
         # /private/var. Keep the image paths in the same canonical form that
@@ -206,55 +189,8 @@ def package(binary, zig, zig_manifest, output, version, commit):
         if any(dependency is not None for _, dependency in edges[(zig_image, contexts[zig_image])]):
             set_rpath(zig_binary, "@executable_path/../lib")
 
-        project = Path(__file__).resolve().parents[2]
-        shutil.copy2(project / "LICENSE", root / "share/LICENSE")
-        shutil.copy2(project / "dev/release/THIRD_PARTY.md", root / "share/THIRD_PARTY.md")
-        shutil.copytree(project / "dev/release/licenses", root / "share/licenses")
-        shutil.copy2(project / "pixi.lock", root / "share/pixi.lock")
-        shutil.copy2(zig_manifest, root / "share/zig.json")
-        (root / "VERSION").write_text(version + "\n")
-        (root / "toolchain.coda").write_text(
-            f"url https://github.com/zane-lang/compiler\ncommit {commit}\n"
-        )
-        (root / "bin/zanec").write_text('''#!/bin/sh
-set -eu
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-unset DYLD_LIBRARY_PATH
-unset ZANE_RUNTIME_OBJECTS
-if [ "${ZANE_CC+x}" != x ]; then
-    ZANE_CC="$root/bin/zig-cc"
-    export ZANE_CC
-    if [ "${ZIG+x}" != x ]; then
-        ZANE_RUNTIME_OBJECTS="$root/share/runtime"
-        export ZANE_RUNTIME_OBJECTS
-    fi
-fi
-exec "$root/libexec/zanec" "$@"
-''')
-        (root / "bin/zig-cc").write_text('''#!/bin/sh
-set -eu
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-exec "${ZIG:-$root/zig/zig}" cc "$@"
-''')
-        for name in ("zanec", "zig-cc"):
-            (root / "bin" / name).chmod(0o755)
-
-        environment = {k: v for k, v in os.environ.items() if k not in ("ZANE_CC", "ZIG")}
-        environment["ZANE_BITCODE_CC"] = str(Path(__file__).resolve().parent / "bitcode-cc")
-        for target in RUNTIME_TARGETS:
-            for optimize in ([], ["--optimize"]):
-                subprocess.run(
-                    [str(root / "bin/zanec"), "--bundle-runtime", str(root / "share/runtime"),
-                     "--target", target, *optimize],
-                    env=environment,
-                    check=True,
-                )
-
-        output.mkdir(parents=True, exist_ok=True)
-        archive = output / (root.name + ".tar.gz")
-        with tarfile.open(archive, "w:gz") as tar:
-            tar.add(root, arcname=root.name)
-        return archive
+        common.bundle_runtimes(root, [str(compiler)])
+        return common.write_archive(root, output)
 
 
 if __name__ == "__main__":

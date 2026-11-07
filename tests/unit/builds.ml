@@ -327,6 +327,36 @@ let bundled_runtime () =
   let refused = Build.bundle_runtime ~target:"i386-unknown-linux-gnu" ~optimize:false bundled in
   check "a target the compiler does not build for is refused" (Result.is_error refused)
 
+(* A compiler in a released toolchain's layout links with the toolchain's
+   own `zig cc` and its runtimes, unless the environment names another C
+   compiler or `zig`; one outside it is told nothing. *)
+let released_toolchain () =
+  let module Build = Codegen__Build in
+  let directory = Filename.temp_dir "zane-release" "" in
+  Fun.protect ~finally:(fun () -> remove_tree directory) @@ fun () ->
+  let root = Filename.concat directory "toolchain with spaces" in
+  let bin = Filename.concat root "bin" in
+  Sys.mkdir root 0o755;
+  Sys.mkdir bin 0o755;
+  let executable = Filename.concat bin "zanec" in
+  let env vars name = List.assoc_opt name vars in
+  check "a compiler outside a release is told nothing" (Build.released ~executable ~getenv:(env []) = None);
+  Out_channel.with_open_bin (Filename.concat root "toolchain.coda") (fun oc -> output_string oc "commit x\n");
+  let zig_cc = Filename.concat bin (if Sys.win32 then "zig-cc.cmd" else "zig-cc")
+  and runtimes = Filename.concat (Filename.concat root "share") "runtime" in
+  check "a released compiler links with its toolchain's zig cc and runtimes"
+    (Build.released ~executable ~getenv:(env []) = Some { zig_cc = Some zig_cc; runtimes = Some runtimes });
+  check "as does Linux's loader, in lib/ beside bin/"
+    (Build.released ~executable:(Filename.concat (Filename.concat root "lib") "ld-linux-x86-64.so.2") ~getenv:(env [])
+    = Some { zig_cc = Some zig_cc; runtimes = Some runtimes });
+  check "another zig takes the runtimes, which only the toolchain's made"
+    (Build.released ~executable ~getenv:(env [ ("ZIG", "/other/zig") ]) = Some { zig_cc = Some zig_cc; runtimes = None });
+  check "another C compiler takes both"
+    (Build.released ~executable ~getenv:(env [ ("ZANE_CC", "cc") ]) = Some { zig_cc = None; runtimes = None });
+  check "and runtimes the environment names are not a release's"
+    (Build.released ~executable ~getenv:(env [ ("ZANE_RUNTIME_OBJECTS", "/inherited") ])
+    = Some { zig_cc = Some zig_cc; runtimes = Some runtimes })
+
 (* An optimized build takes the bodies of the runtime's functions it calls
    from the runtime's bitcode, compiled once for each C compiler and kept;
    a C compiler that makes none is asked once. A body is kept only where

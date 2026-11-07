@@ -20,12 +20,15 @@ The archive also includes:
   submodule at `vendor/coda`: https://github.com/zane-lang/coda
 - OCaml's native runtime (LGPL-2.1 with the OCaml linking exception):
   https://github.com/ocaml/ocaml
-- The ELF loader and shared libraries resolved by the build. The accompanying
-  `runtime-libraries.txt` identifies the files they were taken from, and the
-  conda-forge packages that hold them are pinned by the included `pixi.lock`:
-  https://conda-forge.org
+- The shared libraries the compiler loads that its system does not bring:
+  on Linux the ELF loader and libraries in `lib/`, on macOS the dylibs in
+  `lib/`, and on Windows the DLLs beside `bin/zanec.exe`. On Linux and
+  Windows the accompanying `runtime-libraries.txt` identifies the files they
+  were taken from, and the conda-forge packages that hold them are pinned by
+  the included `pixi.lock`: https://conda-forge.org
   These include glibc (LGPL-2.1-or-later), GCC runtime libraries (GPL-3.0 with
-  the GCC runtime library exception), and LLVM's library dependencies.
+  the GCC runtime library exception), and LLVM's library dependencies; on
+  Windows, the Microsoft Visual C++ runtime, under its redistribution terms.
 - Zig (the version and source recorded in the included `zig.json`) and its C toolchain libraries,
   with the start-up files, C library stubs and compiler runtimes it builds
   from them for each bundled target, which `share/runtime/link/files/`
@@ -33,6 +36,7 @@ The archive also includes:
   retained with the distribution:
   https://ziglang.org/download/
 
-The bundled loader and libraries can be replaced in `lib/`; the wrapper in
-`bin/zanec` uses that directory. `ZANE_CC` selects a replacement C compiler
-wrapper, and `ZIG` selects a replacement Zig executable.
+The bundled libraries can be replaced where they are; on Linux the wrapper in
+`bin/zanec` runs the compiler with the loader and libraries in `lib/`.
+`ZANE_CC` selects a replacement C compiler wrapper, and `ZIG` selects a
+replacement Zig executable.
