@@ -30,7 +30,7 @@ expand() {
 # word spellings of the lexicon's literal tokens, read from the file the lexer
 # is generated from.
 segment='_?[[:lower:]][[:alpha:][:digit:]]*'
-package_id="^([A-Za-z0-9._+-]*%[0-9a-f]{16}%)?${segment}(\\.${segment})*\$"
+package_id="^([A-Za-z0-9._+-]+%[0-9a-f]{16}%)?${segment}(\\.${segment})*\$"
 keywords=" $(awk '/^literal_tokens/ { inside = 1; next } inside && /^\]/ { exit } inside && ++row > 1 && $2 ~ /^[a-z]+$/ { printf "%s ", $2 }' "$ROOT/grammar/lexicon.coda") "
 is_package_id() {
 	local id="$1" part

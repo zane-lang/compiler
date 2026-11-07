@@ -89,7 +89,7 @@ class WrapperTest(unittest.TestCase):
         ])
 
     def test_a_prefix_that_is_not_a_package_id_is_part_of_the_directory(self):
-        for argument in ("my-project=copy", "odd/a=b", "Upper=dir", "a..b=dir", "v1%a%gui=dir"):
+        for argument in ("my-project=copy", "odd/a=b", "Upper=dir", "a..b=dir", "v1%a%gui=dir", "%0123456789abcdef%gui=dir"):
             caller, out = self.run_wrapper("--package", argument)
             self.assertEqual(out, ["--package", f"{caller}/{argument}"], argument)
 
