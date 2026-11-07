@@ -26,8 +26,8 @@ curl -fSLO "$base/$archive"
 curl -fSLO "$base/SHA256SUMS"
 grep " $archive\$" SHA256SUMS | sha256sum --check --strict &&
   mkdir -p "$HOME/.zane/toolchains/$version" &&
-  tar -xzf "$archive" --strip-components=1 -C "$HOME/.zane/toolchains/$version"
-export PATH="$HOME/.zane/toolchains/$version/bin:$PATH"
+  tar -xzf "$archive" --strip-components=1 -C "$HOME/.zane/toolchains/$version" &&
+  export PATH="$HOME/.zane/toolchains/$version/bin:$PATH"
 ```
 
 On Windows, take `zane-compiler-$version-windows-x86_64.tar.gz`, check it
@@ -45,9 +45,12 @@ different extraction directory also works
 by setting `ZANE_COMPILER` to its `bin/zanec`.
 
 ```sh
-zanec --target x86_64-linux-gnu --build hello --package path/to/hello
-zanec --target x86_64-windows-gnu --build hello.exe --package path/to/hello
+zanec --target x86_64-linux-gnu --build hello --root --package hello=path/to/hello --package core=path/to/core/lib/core
+zanec --target x86_64-windows-gnu --build hello.exe --root --package hello=path/to/hello --package core=path/to/core/lib/core
 ```
+
+Name every package the program imports with its own `--package`, as `core`
+is here.
 
 The archive bundles the C runtime compiled by its Zig for x86-64 and AArch64
 Linux, Windows and macOS, optimized and not, with the linker command and

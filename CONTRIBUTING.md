@@ -81,8 +81,9 @@ way unless the code is a straight line that a name would only interrupt.
 
 ### Keep files short
 
-CI holds every hand-written source file to 2,000 lines, and warns about one
-past 1,500. The warning is a prompt to split a file along a natural seam, not
+CI holds hand-written source files to 2,000 lines, and warns about one past
+1,500; [`.github/scripts/file-sizes`](.github/scripts/file-sizes) lists the
+file types it checks and what it skips. The warning is a prompt to split a file along a natural seam, not
 a rule to meet: a file that holds one thing and has no such seam stays past
 1,500 on purpose. `just check-file-sizes` runs the same check.
 

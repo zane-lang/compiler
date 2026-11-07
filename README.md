@@ -57,14 +57,20 @@ system runs, and the developer tools are in
 
 ## Using `zanec` directly
 
-`zane` normally runs `zanec` for you. To call it yourself, name each package
-with `--package`:
+`zane` normally runs `zanec` for you. To call it yourself, name the program
+and every package it imports with `--package`; `zanec` loads nothing else:
 
 ```sh
-zanec --check --root --package app=path/to/project/bin/app
+zanec --check --root --package app=path/to/project/bin/app --package core=path/to/core/lib/core
 zanec --build hello --root --package hello=path/to/hello --package core=path/to/core/lib/core
-zanec --target x86_64-windows-gnu --build hello.exe --root --package hello=path/to/hello
+zanec --target x86_64-windows-gnu --build hello.exe --root --package hello=path/to/hello --package core=path/to/core/lib/core
 ```
+
+These use a released compiler, which `zane toolchain install` puts in
+`~/.zane/toolchains/<version>/bin/zanec`. In a development checkout, run the
+built `_build/default/bin/zanec/zanec.exe` the same way: the `zanec` command
+that `pixi shell` provides reads every argument that is not an option as a
+path, which breaks `NAME=DIR` and `--target` values.
 
 `zanec` with no arguments prints its usage. Released compilers can build
 for Linux, Windows and macOS from any of those systems. To install a release

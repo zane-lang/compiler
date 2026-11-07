@@ -97,12 +97,16 @@ as [`grammar/README.md`](../grammar/README.md) describes.
 
 ## Developer tools
 
-Common tools are available directly inside `pixi shell`, or through `pixi run`:
+Common tools are available directly inside `pixi shell`, or through `pixi run`.
+The `zanec` command there reads every argument that is not an option as a path,
+so a `NAME=DIR` package or a `--target` value goes to the built
+`_build/default/bin/zanec/zanec.exe` directly, with every package the program
+imports named by its own `--package`:
 
 ```sh
 zanec path/to/source.zn      # print the CST for a file, `-` for standard input
 zanec --tst --package DIR    # type-check a package and print its typed tree
-zanec --check --root --package app=path/to/project/bin/app   # what `zane check` runs for a program
+_build/default/bin/zanec/zanec.exe --check --root --package app=$PWD/path/to/project/bin/app   # what `zane check` runs for a program
 ambiguity profiles
 ambiguity search
 ambiguity search deep-function-body --timeout 1h --output deep-search.txt
