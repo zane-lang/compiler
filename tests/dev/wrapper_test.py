@@ -40,7 +40,7 @@ def lexicon_keywords():
 
 @unittest.skipIf(os.name == "nt", "the wrapper is a bash script; Windows uses zanec.exe")
 class WrapperTest(unittest.TestCase):
-    def run_wrapper(self, *arguments):
+    def run_wrapper(self, *arguments, locale=None):
         with tempfile.TemporaryDirectory() as temporary:
             scratch = Path(temporary).resolve()
             bin_dir = scratch / "bin"
@@ -51,6 +51,8 @@ class WrapperTest(unittest.TestCase):
             caller = scratch / "caller"
             caller.mkdir()
             env = dict(os.environ, PATH=f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+            if locale is not None:
+                env["LC_ALL"] = locale
             result = subprocess.run(
                 [str(WRAPPER), *arguments], cwd=caller, env=env, capture_output=True, text=True, check=True
             )
@@ -111,6 +113,13 @@ class WrapperTest(unittest.TestCase):
             "--package", f"_private={caller}/lib/_private",
         ])
 
+    def test_unicode_package_names_are_package_ids_in_any_locale(self):
+        for locale in (None, "C"):
+            caller, out = self.run_wrapper("--package", "bücher.ära=lib/x", locale=locale)
+            self.assertEqual(out, ["--package", f"bücher.ära={caller}/lib/x"], locale)
+            caller, out = self.run_wrapper("--package", "Ärger=lib/x", locale=locale)
+            self.assertEqual(out, ["--package", f"{caller}/Ärger=lib/x"], locale)
+
     def test_option_values_that_are_not_paths_pass_unchanged(self):
         caller, out = self.run_wrapper(
             "--target", "x86_64-windows-gnu",
@@ -149,6 +158,12 @@ class WrapperTest(unittest.TestCase):
         self.assertEqual(out, ["--rewrite", "v1.0%3f9a1c02b7e4d6a8%", f"{caller}/in.o", f"{caller}/out.o"])
         caller, out = self.run_wrapper("--remap", "v1%a%", "v2%b%", "in.o", "/tmp/out.o")
         self.assertEqual(out, ["--remap", "v1%a%", "v2%b%", f"{caller}/in.o", "/tmp/out.o"])
+
+    def test_rewrite_and_remap_leave_options_for_zanec_to_report(self):
+        caller, out = self.run_wrapper("--rewrite", "v1%a%", "--build", "out.o")
+        self.assertEqual(out, ["--rewrite", "v1%a%", "--build", f"{caller}/out.o"])
+        caller, out = self.run_wrapper("--remap", "v1%a%", "v2%b%", "in.o", "-")
+        self.assertEqual(out, ["--remap", "v1%a%", "v2%b%", f"{caller}/in.o", "-"])
 
     def test_bundle_runtime_expands_its_directory_only(self):
         caller, out = self.run_wrapper("--bundle-runtime", "share/runtime", "--target", "aarch64-macos", "--optimize")

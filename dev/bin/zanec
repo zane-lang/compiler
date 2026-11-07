@@ -22,18 +22,36 @@ expand() {
 	esac
 }
 
+# An argument of `--rewrite` or `--remap`: one starting with `-` is not a
+# value, so it passes unchanged for zanec to report.
+expand_value() {
+	case "$1" in
+		-*) printf '%s' "$1" ;;
+		*) expand "$1" ;;
+	esac
+}
+
 # `--package [[STAMP]PATH=]DIR`: only DIR is a path. What comes before the
 # first `=` names the package only when zanec would read it as a package id
 # (`package_id` in bin/zanec/zanec.ml): an optional stamp, then lower-case
 # identifiers joined by `.`, none of them a keyword. Otherwise the `=` is part
 # of a directory name and the whole argument is a path. The keywords are the
 # word spellings of the lexicon's literal tokens, read from the file the lexer
-# is generated from.
+# is generated from. The lexer reads Unicode letters, so the match runs in a
+# UTF-8 locale whatever the caller's is.
+utf8_locale=''
+for candidate in C.UTF-8 C.utf8 en_US.UTF-8 UTF-8; do
+	if [[ "$(LC_ALL="$candidate" locale charmap 2>/dev/null)" == UTF-8 ]]; then
+		utf8_locale="$candidate"
+		break
+	fi
+done
 segment='_?[[:lower:]][[:alpha:][:digit:]]*'
 package_id="^([A-Za-z0-9._+-]+%[0-9a-f]{16}%)?${segment}(\\.${segment})*\$"
 keywords=" $(awk '/^literal_tokens/ { inside = 1; next } inside && /^\]/ { exit } inside && ++row > 1 && $2 ~ /^[a-z]+$/ { printf "%s ", $2 }' "$ROOT/grammar/lexicon.coda") "
 is_package_id() {
 	local id="$1" part
+	[[ -z "$utf8_locale" ]] || local LC_ALL="$utf8_locale"
 	[[ "$id" =~ $package_id ]] || return 1
 	local -a parts
 	IFS=. read -r -a parts <<<"${id##*%}"
@@ -59,11 +77,11 @@ case "${1-}" in
 	# The fetching and remapping steps: STAMP, FROM and TO are not paths.
 	--rewrite)
 		arguments=("${@:1:2}")
-		for argument in "${@:3}"; do arguments+=("$(expand "$argument")"); done
+		for argument in "${@:3}"; do arguments+=("$(expand_value "$argument")"); done
 		;;
 	--remap)
 		arguments=("${@:1:3}")
-		for argument in "${@:4}"; do arguments+=("$(expand "$argument")"); done
+		for argument in "${@:4}"; do arguments+=("$(expand_value "$argument")"); done
 		;;
 	*)
 		next=''
