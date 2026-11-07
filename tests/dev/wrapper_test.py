@@ -63,9 +63,17 @@ class WrapperTest(unittest.TestCase):
             "--package", "/abs/dir",
         ])
 
-    def test_a_slash_before_the_equals_sign_is_part_of_the_directory(self):
-        caller, out = self.run_wrapper("--package", "odd/a=b")
-        self.assertEqual(out, ["--package", f"{caller}/odd/a=b"])
+    def test_a_prefix_that_is_not_a_package_id_is_part_of_the_directory(self):
+        for argument in ("my-project=copy", "odd/a=b", "Upper=dir", "a..b=dir", "v1%a%gui=dir"):
+            caller, out = self.run_wrapper("--package", argument)
+            self.assertEqual(out, ["--package", f"{caller}/{argument}"], argument)
+
+    def test_subpackage_paths_and_underscore_names_are_package_ids(self):
+        caller, out = self.run_wrapper("--package", "gui.opengl=lib/gui/opengl", "--package", "_private=lib/_private")
+        self.assertEqual(out, [
+            "--package", f"gui.opengl={caller}/lib/gui/opengl",
+            "--package", f"_private={caller}/lib/_private",
+        ])
 
     def test_option_values_that_are_not_paths_pass_unchanged(self):
         caller, out = self.run_wrapper(

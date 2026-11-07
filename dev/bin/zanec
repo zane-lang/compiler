@@ -22,14 +22,18 @@ expand() {
 	esac
 }
 
-# `--package [[STAMP]PATH=]DIR`: only DIR is a path. A prefix before the first
-# `=` names the package when it holds no `/`; with one it is part of a
-# directory name, as zanec reads it.
+# `--package [[STAMP]PATH=]DIR`: only DIR is a path. What comes before the
+# first `=` names the package only when zanec would read it as a package id
+# (`package_id` in bin/zanec/zanec.ml): an optional stamp, then lower-case
+# identifiers joined by `.`. Otherwise the `=` is part of a directory name and
+# the whole argument is a path.
+segment='_?[[:lower:]][[:alpha:][:digit:]]*'
+package_id="^([A-Za-z0-9._+-]*%[0-9a-f]{16}%)?${segment}(\\.${segment})*\$"
 package() {
 	local argument="$1"
 	if [[ "$argument" == *=* ]]; then
 		local name="${argument%%=*}" dir="${argument#*=}"
-		if [[ "$name" != */* ]]; then
+		if [[ "$name" =~ $package_id ]]; then
 			printf '%s=%s' "$name" "$(expand "$dir")"
 			return
 		fi
