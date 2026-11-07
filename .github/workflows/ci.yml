@@ -32,8 +32,6 @@ jobs:
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
-      grammar: ${{ steps.suites.outputs.grammar }}
-      ambiguity-tools: ${{ steps.suites.outputs.ambiguity-tools }}
       highlighting: ${{ steps.suites.outputs.highlighting }}
     steps:
       - name: Checkout code
@@ -63,9 +61,9 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   # Each suite owns its checkout and Dune build directory. A failing suite
-  # does not cancel the others, so one run reports every failure. Windows
-  # and macOS run the same suites below, but for highlighting's Neovim and
-  # Typst consumers, in one job each.
+  # does not cancel the others, so one run reports every failure. The
+  # grammar and ambiguity suites pass on Windows and macOS too, but run only
+  # here: what they check does not depend on the host (docs/design/platforms.md).
   linux-native:
     needs: suites
     runs-on: ubuntu-latest
@@ -207,12 +205,11 @@ jobs:
         shell: bash
         run: dev/bin/check-programs windows-programs
 
-  # The compiler's own suites on Windows itself: zanec built natively from
-  # the same pixi environment as Linux's, then what `just test` runs, held to
+  # The compiler's own suite on Windows itself: zanec built natively from
+  # the same pixi environment as Linux's, then `just test-compiler`, held to
   # the triple a build without `--target` is for, and its image format and C
   # library, as on every system (docs/design/platforms.md).
   windows-native:
-    needs: suites
     runs-on: windows-latest
     timeout-minutes: 90
     defaults:
@@ -234,8 +231,6 @@ jobs:
 
       - name: Set up toolchain
         uses: ./.github/actions/setup-ci
-        with:
-          grammar-dependencies: true
 
       - name: Restore dune's cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -246,19 +241,6 @@ jobs:
 
       - name: Compiler tests
         run: pixi run just test-compiler
-
-      # The rest of `just test`, chosen as Linux's suites are.
-      - name: Grammar generator tests
-        if: ${{ !cancelled() }}
-        run: pixi run just test-grammar-generation
-
-      - name: Grammar ambiguity tests
-        if: ${{ !cancelled() && needs.suites.outputs.grammar == 'true' }}
-        run: pixi run just test-grammar
-
-      - name: Ambiguity tool tests
-        if: ${{ !cancelled() && needs.suites.outputs.ambiguity-tools == 'true' }}
-        run: pixi run just test-ambiguity-tools
 
       # Kept whether or not the tests passed: what was built is the same.
       - name: Save dune's cache
@@ -281,12 +263,11 @@ jobs:
         run: jq -e 'all(.[]; .result == "success")' <<< "$RESULTS"
 
   # macOS is the lower tier (docs/design/platforms.md), with its own gate,
-  # but its suites run the same way: zanec built natively from the pixi
-  # environment, then what `just test` runs. Apple Silicon runs for every
+  # but its suite runs the same way: zanec built natively from the pixi
+  # environment, then `just test-compiler`. Apple Silicon runs for every
   # pull request; Intel, whose runners are the slowest, joins on main, in
   # the merge queue and when started by hand.
   macos-native:
-    needs: suites
     strategy:
       fail-fast: false
       matrix:
@@ -313,8 +294,6 @@ jobs:
 
       - name: Set up toolchain
         uses: ./.github/actions/setup-ci
-        with:
-          grammar-dependencies: true
 
       - name: Restore dune's cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -325,19 +304,6 @@ jobs:
 
       - name: Compiler tests
         run: pixi run just test-compiler
-
-      # The rest of `just test`, chosen as Linux's suites are.
-      - name: Grammar generator tests
-        if: ${{ !cancelled() }}
-        run: pixi run just test-grammar-generation
-
-      - name: Grammar ambiguity tests
-        if: ${{ !cancelled() && needs.suites.outputs.grammar == 'true' }}
-        run: pixi run just test-grammar
-
-      - name: Ambiguity tool tests
-        if: ${{ !cancelled() && needs.suites.outputs.ambiguity-tools == 'true' }}
-        run: pixi run just test-ambiguity-tools
 
       # Kept whether or not the tests passed: what was built is the same.
       - name: Save dune's cache

@@ -30,9 +30,11 @@ and a problem there may wait.
   architectures are run there too.
 
 On every one of them `zanec` itself is built natively from the same pixi
-environment, and what `just test` runs, the compiler, grammar, ambiguity
-and grammar-generation suites, runs there in CI, held to the triple a build
-without `--target` is for, and its image format and C library. Linux and
+environment, and `just test-compiler` runs there in CI, held to the triple a
+build without `--target` is for, and its image format and C library. The rest
+of what `just test` runs, the grammar, ambiguity and grammar-generation
+suites, passes on all three, but CI runs it on Linux alone: what those suites
+check does not depend on the host. Linux and
 Windows run for every change, Apple Silicon macOS for every pull request,
 and Intel macOS, whose runners are the slowest, on `main`, in the merge
 queue and when CI is started by hand; the programs built for each macOS

@@ -155,9 +155,11 @@ it links through the C compiler instead.
 
 ### What each OS runs
 
-`just test` passes on all three, and CI runs it natively on each, Intel
-macOS only on `main`, in the merge queue and on manual runs. CI also runs
-the test programs built on Linux for Windows and macOS on those systems.
+`just test` passes on all three. CI runs `just test-compiler` natively on
+each, Intel macOS only on `main`, in the merge queue and on manual runs, and
+the rest of `just test` on Linux, since what those suites check does not
+depend on the host. CI also runs the test programs built on Linux for
+Windows and macOS on those systems.
 The highlighting consumers (`just test-highlighting`) and `just test-perf`
 run on Linux only, as does `just test-windows`, which runs the Windows
 programs under Wine. How the platforms differ, and what each is held to, is
@@ -187,8 +189,7 @@ pixi run dune build
 pixi run just test-compiler
 ```
 
-`pixi run just test` runs every suite and is Linux only; on macOS and Windows
-run `test-compiler`.
+`pixi run just test` runs every suite, on all three systems.
 
 `just` lists the recipes by group: `test` runs the compiler, grammar,
 ambiguity-tool and grammar-generator suites, each of which also has its own
