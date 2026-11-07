@@ -2,7 +2,7 @@
 
 Edit this directory, then run `python3 -m tools.grammar` from the repository
 root. Menhir **20260209** must be on `PATH`: run the commands below inside
-`pixi shell`, which provides it (the root README's Setup). Regeneration also uses Python **3.11+**, the pinned **coda-format 3.1.0**
+`pixi shell`, which provides it (the root README's Setup). Regeneration also uses Python **3.11+**, the pinned **coda-format 3.1.1**
 parser, Node/npm and **Tree-sitter CLI 0.27.1**:
 
 ```sh
@@ -31,7 +31,7 @@ Literal tokens use a table; lexical expressions and payload tokens use nested
 blocks. Coda leaves are strings: the loader explicitly interprets only version
 numbers, highlighting priorities, `eof` and `any`. A spelling such as `true`,
 or a range endpoint such as `0`, remains a string. The dependency is pinned to
-the published 3.1.0 release; no custom Coda parser is included.
+the published 3.1.1 release; no custom Coda parser is included.
 
 The productions retain Menhir notation rather than introducing a second grammar
 DSL. Token declarations are inserted at `(* @generated-tokens *)`; do not put
