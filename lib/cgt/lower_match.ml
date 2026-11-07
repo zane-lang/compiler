@@ -73,51 +73,49 @@ let match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
   let selects chosen (a : T.Arm.t) =
     List.map (fun (p : T.Pattern.t) -> p.T.Pattern.case) a.patterns = chosen
   in
+  (* A pattern's binder, bound to its case's payload in the scrutinee's storage. *)
+  let bind_payload (p : T.Pattern.t) (pointer, _, tsty, _) =
+    match p.T.Pattern.binder with
+    | None -> []
+    | Some l ->
+        let index = case_index st span tsty p.case in
+        let path = [ index ] in
+        let c = payload_type st span tsty p.case in
+        let bound = fresh st in
+        if pooled st tsty then begin
+          (* A pooled variant's payload is inline in its node,
+             and one of its own type is a link. *)
+          let within = node_shape st span tsty in
+          let at = ptr (Expr.Offset { base = local_ptr pointer; within; path }) in
+          let value =
+            if pooled st c then ptr (Expr.Runtime { fn = Runtime.Link; args = [ at ] }) else at
+          in
+          Hashtbl.replace ctx.env l.T.Local.id
+            (if pooled st c || cycle_struct st c then Node bound else Pointer bound);
+          [ Stat.Let { id = bound; value } ]
+        end
+        else
+        let within = ty st span tsty in
+        let at = ptr (Expr.Offset { base = local_ptr pointer; within; path }) in
+        (* A boxed payload is in its block. *)
+        let boxed = boxed st tsty c in
+        if ref_slot c then begin
+          (* A reference payload is in its 32-bit form (Ref32):
+             its binder is the payload's slot, read decoded and
+             written encoded. *)
+          Hashtbl.replace ctx.env l.T.Local.id (Ref_slot bound);
+          [ Stat.Let { id = bound; value = at } ]
+        end
+        else
+        let value = if boxed then box_block at else at in
+        Hashtbl.replace ctx.env l.T.Local.id (Pointer bound);
+        [ Stat.Let { id = bound; value } ]
+  in
   let arm chosen =
     match List.find_opt (selects chosen) arms with
     | None -> Diagnostic.bug ~span "lowering found no arm for a combination of cases"
     | Some a ->
-        let binds =
-          List.concat
-            (List.map2
-               (fun (p : T.Pattern.t) (pointer, _, tsty, _) ->
-                 match p.T.Pattern.binder with
-                 | None -> []
-                 | Some l ->
-                     let index = case_index st span tsty p.case in
-                     let path = [ index ] in
-                     let c = payload_type st span tsty p.case in
-                     let bound = fresh st in
-                     if pooled st tsty then begin
-                       (* A pooled variant's payload is inline in its node,
-                          and one of its own type is a link. *)
-                       let within = node_shape st span tsty in
-                       let at = ptr (Expr.Offset { base = local_ptr pointer; within; path }) in
-                       let value =
-                         if pooled st c then ptr (Expr.Runtime { fn = Runtime.Link; args = [ at ] }) else at
-                       in
-                       Hashtbl.replace ctx.env l.T.Local.id
-                         (if pooled st c || cycle_struct st c then Node bound else Pointer bound);
-                       [ Stat.Let { id = bound; value } ]
-                     end
-                     else
-                     let within = ty st span tsty in
-                     let at = ptr (Expr.Offset { base = local_ptr pointer; within; path }) in
-                     (* A boxed payload is in its block. *)
-                     let boxed = boxed st tsty c in
-                     if ref_slot c then begin
-                       (* A reference payload is in its 32-bit form (Ref32):
-                          its binder is the payload's slot, read decoded and
-                          written encoded. *)
-                       Hashtbl.replace ctx.env l.T.Local.id (Ref_slot bound);
-                       [ Stat.Let { id = bound; value = at } ]
-                     end
-                     else
-                     let value = if boxed then box_block at else at in
-                     Hashtbl.replace ctx.env l.T.Local.id (Pointer bound);
-                     [ Stat.Let { id = bound; value } ])
-               a.patterns stored)
-        in
+        let binds = List.concat (List.map2 bind_payload a.patterns stored) in
         binds @ w.block st inner a.body
   in
   let rec dispatch chosen = function

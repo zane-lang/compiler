@@ -1,0 +1,6 @@
+::warning file=tests/nesting/fixtures/lizard/depth.c,line=2::tests/nesting/fixtures/lizard/depth.c:2 `at_limit` nests 5 deep, at the limit; it is allowed for an outlier, but three levels is the aim, so name the inner steps as functions where that reads better
+::error file=tests/nesting/fixtures/lizard/depth.c,line=14::tests/nesting/fixtures/lizard/depth.c:14 `past_limit` nests 6 deep, past the limit of 5; name the inner steps as functions
+::warning file=tests/nesting/fixtures/lizard/depth.c,line=31::tests/nesting/fixtures/lizard/depth.c:31 `chain` nests 5 deep, at the limit; it is allowed for an outlier, but three levels is the aim, so name the inner steps as functions where that reads better
+::warning file=tests/nesting/fixtures/lizard/depth.py,line=4::tests/nesting/fixtures/lizard/depth.py:4 `at_limit` nests 5 deep, at the limit; it is allowed for an outlier, but three levels is the aim, so name the inner steps as functions where that reads better
+::error file=tests/nesting/fixtures/lizard/depth.py,line=15::tests/nesting/fixtures/lizard/depth.py:15 `past_limit` nests 6 deep, past the limit of 5; name the inner steps as functions
+::error file=tests/nesting/fixtures/lizard/script,line=5::tests/nesting/fixtures/lizard/script:5 `deep` nests 6 deep, past the limit of 5; name the inner steps as functions

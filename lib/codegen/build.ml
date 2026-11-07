@@ -379,19 +379,17 @@ let asked_link ~cc ~triple args dir =
   (* Zig's install directory, where its `libSystem` stubs are. The
      directories are listed as `PATH` lists them, by `;` on Windows, whose
      paths hold a drive's `:`. *)
+  let programs_stubs line =
+    match String.index_opt line '=' with
+    | Some i when String.starts_with ~prefix:"programs:" line ->
+        let dirs = String.sub line (i + 1) (String.length line - i - 1) in
+        List.find_map stubs_in (String.split_on_char (if Sys.win32 then ';' else ':') dirs)
+    | _ -> None
+  in
   let system () =
     match ask [ "-print-search-dirs" ] with
     | Error _ -> None
-    | Ok lines ->
-        List.find_map
-          (fun line ->
-            Option.bind (String.index_opt line '=') (fun i ->
-                if String.starts_with ~prefix:"programs:" line then
-                  List.find_map stubs_in
-                    (String.split_on_char (if Sys.win32 then ';' else ':')
-                       (String.sub line (i + 1) (String.length line - i - 1)))
-                else None))
-          lines
+    | Ok lines -> List.find_map programs_stubs lines
   in
   let found lines = List.find_map (linker_line ~triple ~system) lines in
   match ask (args @ [ "-###" ]) with
@@ -1026,6 +1024,18 @@ let thread_sanitized m pipeline =
     pipeline ^ ",tsan-module,function(tsan)"
   end
 
+(* A tiered module after its passes: tier 0 given its [exports], tier 1 its
+   imports of [definitions] and checked, and a plain module left as it is. *)
+let finish_tier m ~hash exports definitions =
+  match (exports, definitions) with
+  | Some exports, _ -> Ok (Tiers.tier0 m ~hash ~exports)
+  | _, Some definitions ->
+      Result.bind (Tiers.tier1_imports m ~hash definitions) (fun () ->
+          match Llvm_analysis.verify_module m with
+          | None -> Ok ()
+          | Some why -> Error (Printf.sprintf "tier 1 is not a valid module: %s" why))
+  | None, None -> Ok ()
+
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and its passes run, the optimized
    ones when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A program means the same either way
@@ -1080,15 +1090,7 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       let pipeline = thread_sanitized m (Passes.pipeline ~optimize ~tier1:(tier = Tiers.Tier1)) in
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
-      |> Fun.flip Result.bind (fun () ->
-             match (exports, definitions) with
-             | Some exports, _ -> Ok (Tiers.tier0 m ~hash ~exports)
-             | _, Some definitions ->
-                 Result.bind (Tiers.tier1_imports m ~hash definitions) (fun () ->
-                     match Llvm_analysis.verify_module m with
-                     | None -> Ok ()
-                     | Some why -> Error (Printf.sprintf "tier 1 is not a valid module: %s" why))
-             | None, None -> Ok ())
+      |> Fun.flip Result.bind (fun () -> finish_tier m ~hash exports definitions)
       |> Result.map (fun () -> (triple, tm, whole, apart)))
 
 let prepare ?target ?optimize ?tier ?fingerprint ?bundled ?cache m =
@@ -1531,20 +1533,18 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
               let* b = Cache.identity ~cache bitcode work in
               Some (String.concat "\000" [ id; bitcode; b ])
       in
-      let kept =
-        Option.bind cache (fun cache ->
-            Option.map
-              (fun identity ->
-                let key =
-                  String.concat "\000"
-                    ([ fingerprint; triple; cc; identity; compiler_identity (); Passes.tier1 ]
-                    @ (if thread_sanitizing () then [ "tsan" ] else [])
-                    @ Passes.llvm_options)
-                in
-                Filename.concat (Filename.concat cache "tier")
-                  (Digest.to_hex (Digest.string key) ^ shared_extension triple))
-              (cc_identity cache))
+      (* Where tier 1 is kept in [cache] for the compilers named by [identity]. *)
+      let kept_at cache identity =
+        let key =
+          String.concat "\000"
+            ([ fingerprint; triple; cc; identity; compiler_identity (); Passes.tier1 ]
+            @ (if thread_sanitizing () then [ "tsan" ] else [])
+            @ Passes.llvm_options)
+        in
+        Filename.concat (Filename.concat cache "tier")
+          (Digest.to_hex (Digest.string key) ^ shared_extension triple)
       in
+      let kept = Option.bind cache (fun cache -> Option.map (kept_at cache) (cc_identity cache)) in
       (* Tier 1 of [m], linked into a library in [work], kept in the cache,
          and installed. *)
       let build () =

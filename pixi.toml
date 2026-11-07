@@ -32,6 +32,9 @@ python = "3.13.*"
 nodejs = "*"
 typst = "*"
 nvim = "*"
+# Counts how deeply C and Python functions nest (`just check-nesting`).
+# 1.25.0 is the first release whose count resets between Python functions.
+lizard = "1.25.0.*"
 
 [target.unix.dependencies]
 m4 = "*"

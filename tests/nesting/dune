@@ -12,6 +12,10 @@
 ; `generated.ml` is skipped by its first line.
 ;
 ; The fixtures are only parsed, never compiled, so nothing here builds them.
+;
+; fixtures/lizard/ is the C and Python count's (tools/nesting/lizard_check.py),
+; held to golden/lizard.expected by lizard_check_test.py, which `just
+; test-compiler` runs.
 
 (rule
  (deps (glob_files fixtures/*.ml))

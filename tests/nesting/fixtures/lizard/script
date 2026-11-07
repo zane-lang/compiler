@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+"""A script without an extension, read as Python by its shebang."""
+
+
+def deep(xs):
+    for a in xs:
+        for b in a:
+            for c in b:
+                for d in c:
+                    for e in d:
+                        for f in e:
+                            print(f)

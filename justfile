@@ -9,6 +9,11 @@ set script-interpreter := ["bash", "-euo", "pipefail"]
 # point GRAMMAR_PYTHON at a virtualenv holding the grammar requirements.
 python := env("GRAMMAR_PYTHON", "python3")
 
+# The pixi environment's own Python, which has lizard (pixi.toml). conda's
+# Python on Windows is `python.exe` alone, so `python3` there is whatever
+# other Python is on PATH.
+pixi_python := if os_family() == "windows" { "python" } else { "python3" }
+
 [private]
 default:
 	@just --list --unsorted
@@ -79,6 +84,7 @@ test: test-compiler test-grammar test-ambiguity-tools test-grammar-generation
 [doc('The compiler: golden files, parser acceptance, tiers and memory probes')]
 test-compiler: _require-menhir _zanec
 	dune runtest tests/parser tests/semantics tests/codegen tests/ffi tests/runtime tests/objects tests/unit tests/nesting
+	{{pixi_python}} -m unittest tests.nesting.lizard_check_test -v
 	{{python}} -m unittest tests.parser.syntax_test -v
 	{{python}} -m unittest tests.tiers.tiers_test -v
 	tests/memory-probes/run --check
@@ -137,10 +143,24 @@ check-file-sizes:
 	.github/scripts/file-sizes
 
 [group('check')]
+[doc('Hand-written OCaml, C and Python nested at most five deep')]
+check-nesting: check-nesting-ocaml check-nesting-c-python
+
+[group('check')]
 [doc('Hand-written OCaml under lib/, bin/ and tools/ nested at most five deep')]
-check-nesting:
+check-nesting-ocaml:
 	dune build tools/nesting/nesting.exe
 	git ls-files -z -- 'lib/*.ml' 'bin/*.ml' 'tools/*.ml' | xargs -0 _build/default/tools/nesting/nesting.exe
+
+# The scripts under dev/ and .github/scripts/ are listed whole: the check reads
+# the ones with a Python shebang and ignores the rest. lizard is in the pixi
+# environment, so this is pixi's Python, not the grammar virtualenv's.
+[group('check')]
+[doc('Hand-written C and Python nested at most five deep, counted by lizard')]
+check-nesting-c-python:
+	git ls-files -z -- 'runtime/*.[ch]' 'lib/*.[ch]' 'tests/runtime/*.[ch]' '*.py' 'dev/*' '.github/scripts/*' \
+		':!:*/fixtures/*' ':!:docs/experiments/*' ':!:vendor/*' \
+		| xargs -0 {{pixi_python}} tools/nesting/lizard_check.py
 
 # --- Benchmarks -------------------------------------------------------------
 
