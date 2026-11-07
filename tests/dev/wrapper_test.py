@@ -47,6 +47,16 @@ class WrapperTest(unittest.TestCase):
         _, out = self.run_wrapper("-")
         self.assertEqual(out, ["-"])
 
+    def test_arguments_with_spaces_stay_whole(self):
+        caller, out = self.run_wrapper(
+            "--build", "out dir/hello.exe", "--package", "hello=path with spaces", "--package", "two words"
+        )
+        self.assertEqual(out, [
+            "--build", f"{caller}/out dir/hello.exe",
+            "--package", f"hello={caller}/path with spaces",
+            "--package", f"{caller}/two words",
+        ])
+
     def test_package_expands_only_its_directory(self):
         caller, out = self.run_wrapper(
             "--check", "--root",
