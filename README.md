@@ -211,7 +211,8 @@ a rule to meet: a file that holds one thing and has no such seam stays past
 
 CI also fails any hand-written OCaml under `lib/`, `bin/` and `tools/` that
 nests past five levels, and warns about any that reaches five, counted on the
-parsed tree rather than on indentation. [`CONTRIBUTING.md`](CONTRIBUTING.md)
+parsed tree rather than on indentation. C and Python functions are held to
+the same limit, counted by lizard. [`CONTRIBUTING.md`](CONTRIBUTING.md)
 says what counts, why three is the aim, and how to flatten deep code.
 `just check-nesting` runs the same check.
 

@@ -1,0 +1,3 @@
+#!/bin/sh
+# Not C or Python: ignored.
+if true; then if true; then if true; then if true; then if true; then if true; then :; fi; fi; fi; fi; fi; fi

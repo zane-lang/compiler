@@ -16,6 +16,36 @@ def require(condition, message):
         raise ValueError(message)
 
 
+def successors(v, fragments, edges):
+    """What configuration [v] accepts, and its counts after each internal
+    terminal and each call, keyed by the terminal (counts cap at two)."""
+    accepted = defaultdict(int)
+    internals = {}
+    calls = {}
+    for f, q, w in v:
+        if q == fragments[f][1]:
+            accepted[f] = min(2, accepted[f] + w)
+        for e in edges[q]:
+            if e[0] == "I":
+                counts = internals.setdefault(e[1], defaultdict(int))
+                counts[f, e[2]] = min(2, counts[f, e[2]] + w)
+            elif e[0] == "C":
+                counts = calls.setdefault(e[1], defaultdict(int))
+                key = f, e[2], e[3], e[4]
+                counts[key] = min(2, counts[key] + w)
+    return tuple(sorted(accepted.items())), internals, calls
+
+
+def returned(context, closer, weights):
+    """The caller's counts once a call returns through [closer] with the
+    callee's accepted [weights]."""
+    result = defaultdict(int)
+    for (pf, cf, ret, close), w in context.items():
+        require(close == closer, "wrong return delimiter")
+        result[pf, ret] = min(2, result[pf, ret] + w * weights.get(cf, 0))
+    return result
+
+
 def verify(certificate: Path, grammar: Path | None = None, *, seconds: int = 300) -> dict:
     data = json.loads(certificate.read_text())
     require(data.get("schema") == 1, "unknown certificate schema")
@@ -98,41 +128,29 @@ def verify(certificate: Path, grammar: Path | None = None, *, seconds: int = 300
     root = ((0,), None)
     require(root in frames, "missing root frame")
 
+    def check_vector(frame_key, v, nodes):
+        """Check one configuration's successors are in its frame; return what it accepts."""
+        require(all(f in frame_key[0] for f, q, w in v), "foreign fragment in frame")
+        accepted, internals, calls = successors(v, fragments, edges)
+        if accepted:
+            require(frame_key != root or dict(accepted).get(0, 0) < 2, "root accepts two parses")
+        for counts in internals.values():
+            require(normalize(counts) in nodes, "missing internal successor")
+        for opening, context in calls.items():
+            child_key = tuple(sorted({cf for pf, cf, ret, close in context})), BRACKETS[opening]
+            require(child_key in frames, "missing child frame")
+            for child_exit in frames[child_key][1]:
+                result = returned(context, child_key[1], dict(child_exit))
+                if any(result.values()):
+                    require(normalize(result) in nodes, "missing return successor")
+        return accepted
+
     for frame_key, (nodes, claimed_exits) in frames.items():
         actual_exits = set()
         for v in nodes:
-            require(all(f in frame_key[0] for f, q, w in v), "foreign fragment in frame")
-            accepted = defaultdict(int)
-            internals = {}
-            calls = {}
-            for f, q, w in v:
-                if q == fragments[f][1]:
-                    accepted[f] = min(2, accepted[f] + w)
-                for e in edges[q]:
-                    if e[0] == "I":
-                        counts = internals.setdefault(e[1], defaultdict(int))
-                        counts[f, e[2]] = min(2, counts[f, e[2]] + w)
-                    elif e[0] == "C":
-                        counts = calls.setdefault(e[1], defaultdict(int))
-                        key = f, e[2], e[3], e[4]
-                        counts[key] = min(2, counts[key] + w)
-            accepted = tuple(sorted(accepted.items()))
+            accepted = check_vector(frame_key, v, nodes)
             if accepted:
                 actual_exits.add(accepted)
-                require(frame_key != root or dict(accepted).get(0, 0) < 2, "root accepts two parses")
-            for counts in internals.values():
-                require(normalize(counts) in nodes, "missing internal successor")
-            for opening, context in calls.items():
-                child_key = tuple(sorted({cf for pf, cf, ret, close in context})), BRACKETS[opening]
-                require(child_key in frames, "missing child frame")
-                for accepted in frames[child_key][1]:
-                    weights = dict(accepted)
-                    result = defaultdict(int)
-                    for (pf, cf, ret, close), w in context.items():
-                        require(close == child_key[1], "wrong return delimiter")
-                        result[pf, ret] = min(2, result[pf, ret] + w * weights.get(cf, 0))
-                    if any(result.values()):
-                        require(normalize(result) in nodes, "missing return successor")
         require(actual_exits == claimed_exits, "incorrect frame exit summaries")
     return {"configurations": sum(len(nodes) for nodes, exits in frames.values()), "frames": len(frames), "model_states": size, "model_binding": "rebuilt" if grammar is not None else "unchecked"}
 

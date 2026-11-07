@@ -629,7 +629,8 @@ let check_against_c env (v : verb) =
           let spans =
             match (s.S.kind, v.this_span) with S.Method, Some this_span -> this_span :: v.param_spans | _ -> v.param_spans
           in
-          let positions = List.mapi (fun i _ -> if i = 0 && s.S.kind = S.Method then Subject else Param) s.S.params in
+          let position i _ = if i = 0 && s.S.kind = S.Method then Subject else Param in
+          let positions = List.mapi position s.S.params in
           let report span = function Ok () -> () | Error why -> error env span why in
           List.iteri
             (fun i ((p : S.param), c) ->

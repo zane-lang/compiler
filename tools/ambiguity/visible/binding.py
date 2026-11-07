@@ -9,6 +9,35 @@ import sys
 from tempfile import TemporaryDirectory
 
 
+def fragment_colors(model: dict, side: int, f: int, entry, end) -> dict:
+    """The first colors of the states fragment [f] reaches: final or not.
+
+    Local states carry the active fragment, so acceptance is an observable
+    label even when two global dead states look alike.
+    """
+    colors = {}
+    pending = [entry, end]
+    while pending:
+        q = pending.pop()
+        if (side, f, q) in colors:
+            continue
+        colors[side, f, q] = int(q == end)
+        for e in model['edges'][q]:
+            pending.append(e[1] if e[0] == 'E' else e[2] if e[0] == 'I' else e[3])
+    return colors
+
+
+def alternative(colors: dict, side: int, kind, e: tuple) -> tuple:
+    """Edge [e] as the colors it leads to, the shape refinement compares."""
+    if e[0] == 'E':
+        return ('E', e[2], colors[side, kind, e[1]])
+    if e[0] == 'I':
+        return ('I', e[1], colors[side, kind, e[2]])
+    if e[0] == 'C':
+        return ('C', e[1], colors[side, 'f', e[2]], colors[side, kind, e[3]], e[4])
+    raise ValueError('unknown model edge')
+
+
 def equivalent_models(left: dict, right: dict) -> bool:
     """Weighted strong bisimulation; repeated alternatives stay repeated.
 
@@ -23,17 +52,7 @@ def equivalent_models(left: dict, right: dict) -> bool:
     for side, model in enumerate(models):
         for f, (entry, end) in enumerate(model['fragments']):
             colors[side, 'f', f] = 2
-            # Local states carry the active fragment, so acceptance is an
-            # observable label even when two global dead states look alike.
-            pending, seen = [entry, end], set()
-            while pending:
-                q = pending.pop()
-                if q in seen:
-                    continue
-                seen.add(q)
-                colors[side, f, q] = int(q == end)
-                for e in model['edges'][q]:
-                    pending.append(e[1] if e[0] == 'E' else e[2] if e[0] == 'I' else e[3])
+            colors.update(fragment_colors(model, side, f, entry, end))
     while True:
         signatures = {}
         updated = {}
@@ -44,17 +63,7 @@ def equivalent_models(left: dict, right: dict) -> bool:
                 entry, end = model['fragments'][index]
                 shape = ('F', colors[side, index, entry], colors[side, index, end])
             else:
-                alternatives = []
-                for e in model['edges'][index]:
-                    if e[0] == 'E':
-                        alternatives.append(('E', e[2], colors[side, kind, e[1]]))
-                    elif e[0] == 'I':
-                        alternatives.append(('I', e[1], colors[side, kind, e[2]]))
-                    elif e[0] == 'C':
-                        alternatives.append(('C', e[1], colors[side, 'f', e[2]],
-                                             colors[side, kind, e[3]], e[4]))
-                    else:
-                        raise ValueError('unknown model edge')
+                alternatives = [alternative(colors, side, kind, e) for e in model['edges'][index]]
                 shape = ('Q', index == model['fragments'][kind][1], tuple(sorted(alternatives)))
             signature = old, shape
             if signature not in signatures:

@@ -24,6 +24,21 @@ def write_grammar(path, rules):
                               for n, rs in rules.items()) + "\n")
 
 
+def rhs_count(rules, word, counts, rhs, i, j):
+    """How many ways (cap at two) one right-hand side derives word[i:j]."""
+    partial = {i: 1}
+    for symbol in rhs:
+        following = defaultdict(int)
+        for begin, w in partial.items():
+            if symbol in rules:
+                for end in range(begin, j + 1):
+                    following[end] = min(2, following[end] + w * counts[symbol, begin, end])
+            elif begin < j and word[begin] == symbol:
+                following[begin + 1] = min(2, following[begin + 1] + w)
+        partial = following
+    return partial.get(j, 0)
+
+
 def grammar_count(rules, word):
     """Independent tree-height fixed point over all input spans (cap at two)."""
     length = len(word)
@@ -33,17 +48,7 @@ def grammar_count(rules, word):
         for (n, i, j) in counts:
             total = 0
             for rhs in rules[n]:
-                partial = {i: 1}
-                for symbol in rhs:
-                    following = defaultdict(int)
-                    for begin, w in partial.items():
-                        if symbol in rules:
-                            for end in range(begin, j + 1):
-                                following[end] = min(2, following[end] + w * counts[symbol, begin, end])
-                        elif begin < j and word[begin] == symbol:
-                            following[begin + 1] = min(2, following[begin + 1] + w)
-                    partial = following
-                total = min(2, total + partial.get(j, 0))
+                total = min(2, total + rhs_count(rules, word, counts, rhs, i, j))
             updated[n, i, j] = total
         if updated == counts:
             return counts['n0', 0, length]

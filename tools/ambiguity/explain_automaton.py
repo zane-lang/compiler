@@ -95,6 +95,23 @@ def state_block(automaton: Path, wanted: int) -> list[str]:
     return block
 
 
+def print_matching_states(text: str, search: str) -> None:
+    """Print every state block of [text] that mentions [search]."""
+
+    def print_if_matching(block: list[str]) -> None:
+        if any(search in one for one in block):
+            print("\n".join(block))
+            print(flush=True)
+
+    current: list[str] = []
+    for line in text.splitlines():
+        if STATE_RE.match(line):
+            print_if_matching(current)
+            current = []
+        current.append(line)
+    print_if_matching(current)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="explain_automaton.py", description=__doc__
@@ -140,18 +157,7 @@ def main() -> int:
             print(flush=True)
 
         if arguments.search:
-            text = automaton.read_text(encoding="utf-8")
-            current: list[str] = []
-            for line in text.splitlines():
-                if STATE_RE.match(line):
-                    if any(arguments.search in one for one in current):
-                        print("\n".join(current))
-                        print(flush=True)
-                    current = []
-                current.append(line)
-            if any(arguments.search in one for one in current):
-                print("\n".join(current))
-                print(flush=True)
+            print_matching_states(automaton.read_text(encoding="utf-8"), arguments.search)
 
         if arguments.conflicts:
             if conflicts.exists():
