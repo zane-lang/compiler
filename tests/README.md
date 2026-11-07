@@ -23,6 +23,9 @@ The compiler itself.
   - `nesting/` holds `just check-nesting`'s count to small fixtures.
   - `ffi/` holds packages with C code ([`docs/design/ffi.md`](../docs/design/ffi.md)).
 - `parser/syntax_test.py` checks parser acceptance.
+- `dev/wrapper_test.py` checks which arguments the `zanec` command of the pixi
+  environment (`dev/bin/zanec`) expands as paths and which it passes as written.
+  It runs on Linux and macOS, where that command exists.
 - `tiers/` runs tiered builds ([`docs/design/tiers.md`](../docs/design/tiers.md))
   as `zane run` does: a program moving to tier 1 while it runs, the libraries
   the runtime refuses, and the cache.
