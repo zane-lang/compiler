@@ -52,12 +52,15 @@ def main():
         raise ValueError("pixi.toml pins no zig release")
     version = pinned[1]
     index = fetch("https://ziglang.org/download/index.json")
-    for manifest, target in (("zig.json", "x86_64-linux"), ("zig-aarch64-macos.json", "aarch64-macos"),
-                             ("zig-x86_64-macos.json", "x86_64-macos")):
+    # One manifest for each platform a release is packaged on
+    # (compiler-dist.yml); Windows' archive is a zip.
+    for target in ("x86_64-linux", "aarch64-macos", "x86_64-macos", "x86_64-windows"):
+        manifest = f"zig-{target}.json"
+        extension = "zip" if target.endswith("-windows") else "tar.xz"
         source = index[version][target]
         if not re.fullmatch(r"[0-9a-f]{64}", source["shasum"]):
             raise ValueError("Invalid Zig checksum")
-        if source["tarball"] != f"https://ziglang.org/download/{version}/zig-{target}-{version}.tar.xz":
+        if source["tarball"] != f"https://ziglang.org/download/{version}/zig-{target}-{version}.{extension}":
             raise ValueError("Unexpected Zig distribution URL")
         data = {"version": version, "url": source["tarball"], "sha256": source["shasum"]}
         (root / "dev/toolchains" / manifest).write_text(json.dumps(data, indent=2) + "\n")

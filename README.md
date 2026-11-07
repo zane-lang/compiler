@@ -5,11 +5,11 @@ This repository contains the Zane language compiler and CLI.
 ## Released toolchain
 
 The **Release compiler** workflow publishes toolchain archives for Linux
-x86_64 and for macOS on both Apple Silicon and Intel, each with `zanec`, its LLVM/shared-library dependencies, and Zig (the version in the
-archive's `share/zig.json`, pinned by `dev/toolchains/zig.json`). It builds Zane
-programs for Linux, Windows and macOS without installing OCaml, LLVM or a C
-compiler. A Windows-native compiler archive is not yet provided; Windows
-programs are built by the others and tested on Windows in CI.
+x86_64, macOS on both Apple Silicon and Intel, and Windows x86_64, each with
+`zanec`, the libraries it loads, and Zig (the version in the archive's
+`share/zig.json`, pinned by the platform's `dev/toolchains/zig-*.json`). Each
+builds Zane programs for Linux, Windows and macOS without installing OCaml,
+LLVM or a C compiler.
 
 Download the `.tar.gz` and `SHA256SUMS` from a
 [compiler release](https://github.com/zane-lang/compiler/releases), then verify
@@ -27,9 +27,15 @@ grep " $archive\$" SHA256SUMS | sha256sum --check --strict &&
 export PATH="$HOME/.zane/toolchains/$version/bin:$PATH"
 ```
 
+On Windows, take `zane-compiler-$version-windows-x86_64.tar.gz`, check it
+against `SHA256SUMS` with `certutil -hashfile ARCHIVE SHA256` (or
+`Get-FileHash`), and extract it with `tar -xzf`, which Windows carries; its
+compiler is `bin\zanec.exe`.
+
 Keep the whole extracted directory together: `bin/zanec` loads its bundled
 libraries, links with its bundled runtimes and link files, and uses its
-bundled Zig for any other target.
+bundled Zig for any other target. It finds them itself, from the
+`toolchain.coda` one directory above it.
 The archive includes `toolchain.coda`, so the `zane` CLI recognizes it under
 `~/.zane/toolchains/<version>/`, where `zane toolchain install` puts it. A
 different extraction directory also works
@@ -47,9 +53,9 @@ compiler: `zanec` links it with the LLD built into it. Set `ZANE_CC` to use
 another C compiler wrapper, or `ZIG` to use another Zig executable; either
 way the bundled runtime is not used, and the runtime that compiler compiles
 and the linker command it gives are cached under `~/.cache/zane` (or
-`$XDG_CACHE_HOME/zane`); set `ZANE_CACHE_DIR` to keep them elsewhere. The
-compiler itself runs natively on Linux and macOS, where its archives are
-built; Zig cross-compiles the runtime for any other target.
+`$XDG_CACHE_HOME/zane`); set `ZANE_CACHE_DIR` to keep them elsewhere. Each
+archive is built on the platform it is for, and the compiler runs natively
+there; Zig cross-compiles the runtime for any other target.
 
 ## Publishing a compiler release
 
@@ -58,10 +64,12 @@ the default branch, and enter a new `vMAJOR.MINOR` tag, such as `v0.1`.
 `v0.0` already exists and will not be overwritten. The two-component tag
 format matches the `zane` CLI's compiler-version resolver.
 
-The workflow tests the compiler, packages it, checks the relocated archive
-in a clean Ubuntu 22.04 container, and runs the Windows programs it produces
-on a Windows runner. Only after those checks pass does it create a tag at
-the tested commit and publish the archive and SHA-256 checksums. Build jobs
+The workflow tests the compiler and, on each platform, builds, packages and
+checks it by the same steps: the archive is extracted, moved to a path with
+spaces, and builds and runs a program plain, optimized and tiered, outside
+the build environment (on Linux in a clean Ubuntu 22.04 container). Only
+after every platform's checks pass does it create a tag at the tested commit
+and publish the archives and SHA-256 checksums. Build jobs
 have read-only repository access; only the publication job can write.
 
 If publication fails after tagging, use **Re-run failed jobs** on the same

@@ -52,8 +52,6 @@ jobs:
             this PR, because token-created PRs do not start other workflows.
           add-paths: |
             pixi.lock
-            dev/toolchains/zig.json
-            dev/toolchains/zig-aarch64-macos.json
-            dev/toolchains/zig-x86_64-macos.json
+            dev/toolchains/zig-*.json
             dev/setup/bootstrap-toolchain
             formal/lean-toolchain

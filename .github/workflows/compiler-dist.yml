@@ -7,6 +7,7 @@ on:
       - ".github/workflows/release.yml"
       - ".github/scripts/release-tag"
       - ".github/scripts/install-zig"
+      - ".github/scripts/zig-archive.py"
       - "pixi.toml"
       - "pixi.lock"
       - ".github/actions/setup-ci/**"
@@ -15,9 +16,9 @@ on:
       - "tests/release/**"
       - "tests/codegen/fixtures/hello/**"
       - "tests/codegen/golden/hello.out"
-      - "dev/bin/check-programs"
-      - "dev/setup/bootstrap-toolchain"
-      - "dev/release/package-macos.py"
+      - "dev/setup/**"
+      - ".gitmodules"
+      - "vendor/**"
       - "bin/**"
       - "lib/**"
       - "runtime/**"
@@ -42,9 +43,9 @@ concurrency:
   group: compiler-dist-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Every job that needs nothing from another runs at once: the safeguards,
-# the compiler's tests and the package, whose programs then run on Windows
-# and macOS. A release publishes only when every job here has passed.
+# Every job runs at once: the safeguards, the compiler's tests, and each
+# platform's package, built, packaged and checked on that platform by the same
+# steps. A release publishes only when every job here has passed.
 jobs:
   safeguards:
     runs-on: ubuntu-latest
@@ -72,12 +73,41 @@ jobs:
       - name: Test compiler
         run: pixi run just test-compiler
 
-  linux:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
+  package:
+    name: package (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-latest
+            os: linux
+            zig: x86_64-linux
+          - platform: macos-aarch64
+            runner: macos-latest
+            os: macos
+            zig: aarch64-macos
+          - platform: macos-x86_64
+            runner: macos-15-intel
+            os: macos
+            zig: x86_64-macos
+          - platform: windows-x86_64
+            runner: windows-latest
+            os: windows
+            zig: x86_64-windows
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
     env:
       VERSION: ${{ inputs.version || 'v0.0' }}
+      ZIG_MANIFEST: dev/toolchains/zig-${{ matrix.zig }}.json
+      ARCHIVE: dist/zane-compiler-${{ inputs.version || 'v0.0' }}-${{ matrix.platform }}.tar.gz
     steps:
+      # The checkout keeps each file's own line endings: a batch file's CRLF,
+      # every other's LF (.gitattributes).
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # vendor/coda, which lib/coda/ builds.
@@ -86,145 +116,33 @@ jobs:
       - name: Set up compiler toolchain
         uses: ./.github/actions/setup-ci
       - name: Install verified Zig
-        run: .github/scripts/install-zig dev/toolchains/zig.json
-      - name: Package compiler and runtime libraries
-        env:
-          SOURCE_SHA: ${{ github.sha }}
-        run: |
-          pixi run dune build bin/zanec/zanec.exe
-          pixi run python3 dev/release/package-linux.py \
-            --binary _build/default/bin/zanec/zanec.exe --zig "$ZIG" \
-            --version "$VERSION" --commit "$SOURCE_SHA" --output dist
-      # Neither the pixi environment nor the opam switch is mounted. This catches accidental
-      # dependencies on the build machine's loader, LLVM and C toolchain.
-      - name: Test extracted archive without the development environment
-        run: |
-          mkdir -p "$RUNNER_TEMP/release-smoke"
-          docker run --rm --network none \
-            -v "$PWD:/source:ro" -v "$RUNNER_TEMP/release-smoke:/output" \
-            ubuntu:22.04 bash /source/dev/release/smoke-linux \
-            "/source/dist/zane-compiler-$VERSION-linux-x86_64.tar.gz" /output
-          mkdir -p windows-smoke
-          cp "$RUNNER_TEMP/release-smoke"/*.exe "$RUNNER_TEMP/release-smoke"/*.dll windows-smoke/
-          for name in plain optimized tiered; do
-            cp tests/codegen/golden/hello.out "windows-smoke/hello-$name.out"
-            echo 0 > "windows-smoke/hello-$name.status"
-          done
-          for arch in x86_64 aarch64; do
-            mkdir -p "macos-smoke/$arch"
-            for name in plain optimized tiered; do
-              cp "$RUNNER_TEMP/release-smoke/macos/hello-$arch-$name" "macos-smoke/$arch/hello-$name"
-              cp tests/codegen/golden/hello.out "macos-smoke/$arch/hello-$name.out"
-              echo 0 > "macos-smoke/$arch/hello-$name.status"
-            done
-            cp "$RUNNER_TEMP/release-smoke/macos/hello-$arch-tiered.tier1.dylib" "macos-smoke/$arch/hello-tiered.tier1.dylib"
-          done
-      - name: Keep distribution
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: compiler-linux-x86_64
-          path: dist/*.tar.gz
-          if-no-files-found: error
-      - name: Keep programs linked by the released toolchain
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: compiler-windows-smoke
-          path: windows-smoke
-          if-no-files-found: error
-      - name: Keep macOS programs linked by the released toolchain
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: compiler-macos-smoke
-          path: macos-smoke
-          if-no-files-found: error
-
-  macos-compiler:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-latest
-            arch: aarch64
-          - runner: macos-15-intel
-            arch: x86_64
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
-    env:
-      VERSION: ${{ inputs.version || 'v0.0' }}
-      ZIG_MANIFEST: dev/toolchains/zig-${{ matrix.arch }}-macos.json
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: true
-          persist-credentials: false
-      - name: Set up compiler toolchain
-        uses: ./.github/actions/setup-ci
-      - name: Install verified native Zig
         run: .github/scripts/install-zig "$ZIG_MANIFEST"
-      - name: Build compiler and package macOS toolchain
+      - name: Build compiler and package toolchain
         env:
           SOURCE_SHA: ${{ github.sha }}
         run: |
           pixi run dune build bin/zanec/zanec.exe
-          pixi run python3 dev/release/package-macos.py \
+          pixi run python dev/release/package-${{ matrix.os }}.py \
             --binary _build/default/bin/zanec/zanec.exe --zig "$ZIG" \
             --zig-manifest "$ZIG_MANIFEST" --version "$VERSION" \
             --commit "$SOURCE_SHA" --output dist
-      - name: Smoke-test extracted macOS toolchain
+      # Neither the pixi environment nor the opam switch is used, so an
+      # accidental dependency on the build machine fails here. On Linux the
+      # check runs in a bare container, which keeps the machine's loader,
+      # LLVM and C toolchain from it as well.
+      - name: Check the extracted archive
         run: |
-          mkdir -p "$RUNNER_TEMP/macos-smoke"
-          tar -xzf "dist/zane-compiler-$VERSION-macos-${{ matrix.arch }}.tar.gz" \
-            -C "$RUNNER_TEMP/macos-smoke"
-          root="$RUNNER_TEMP/macos-smoke/zane-compiler-$VERSION-macos-${{ matrix.arch }}"
-          cp -R tests/codegen/fixtures/hello "$RUNNER_TEMP/hello"
-          "$root/bin/zanec" --build "$RUNNER_TEMP/hello-program" \
-            --package "$RUNNER_TEMP/hello"
-          "$RUNNER_TEMP/hello-program" > "$RUNNER_TEMP/hello.out"
-          cmp tests/codegen/golden/hello.out "$RUNNER_TEMP/hello.out"
-      - name: Keep macOS compiler archive
+          mkdir -p "$RUNNER_TEMP/check"
+          if [ "$RUNNER_OS" = Linux ]; then
+            docker run --rm --network none \
+              -v "$PWD:/source:ro" -v "$RUNNER_TEMP/check:/output" \
+              ubuntu:22.04 bash /source/dev/release/check-archive "/source/$ARCHIVE" /output /source
+          else
+            dev/release/check-archive "$ARCHIVE" "$RUNNER_TEMP/check" "$PWD"
+          fi
+      - name: Keep the archive
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: compiler-macos-${{ matrix.arch }}
-          path: dist/*.tar.gz
+          name: compiler-${{ matrix.platform }}
+          path: ${{ env.ARCHIVE }}
           if-no-files-found: error
-
-  windows:
-    needs: linux
-    runs-on: windows-latest
-    timeout-minutes: 10
-    steps:
-      - run: git config --global core.autocrlf false
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: compiler-windows-smoke
-          path: windows-smoke
-      - name: Run cross-compiled programs on Windows
-        shell: bash
-        run: dev/bin/check-programs windows-smoke
-
-  macos:
-    needs: linux
-    strategy:
-      matrix:
-        include:
-          - runner: macos-latest
-            arch: aarch64
-          - runner: macos-15-intel
-            arch: x86_64
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: compiler-macos-smoke
-          path: macos-smoke
-      - name: Run cross-compiled programs on macOS
-        run: |
-          chmod +x macos-smoke/${{ matrix.arch }}/hello-plain macos-smoke/${{ matrix.arch }}/hello-optimized macos-smoke/${{ matrix.arch }}/hello-tiered
-          dev/bin/check-programs macos-smoke/${{ matrix.arch }}

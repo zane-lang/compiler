@@ -505,9 +505,13 @@ target and those flags until the kept answer is removed. A program neither
 can link is an error, and nothing is forgotten.
 
 A released toolchain runs no C compiler at all for the targets it bundles.
-Its `zanec` sets `ZANE_RUNTIME_OBJECTS` to the toolchain's `share/runtime/`
-when it also sets the C compiler to its own `zig cc`, and a build looks
-there before the cache, for an object named by a hash of the runtime's
+Its `zanec` finds the toolchain from the `toolchain.coda` one directory above
+its executable, and, unless `ZANE_CC` names another C compiler, links with
+the toolchain's own `zig cc`; then, unless `ZIG` names another `zig`, a build
+looks in the toolchain's `share/runtime/` before the cache
+(`Build.released`). A compiler that is not a release's looks in the
+directory `ZANE_RUNTIME_OBJECTS` names, as for one run apart from the
+toolchain whose runtimes it links. A build looks there for an object named by a hash of the runtime's
 sources, the target triple in LLVM's normal form and the flags besides the
 target's, and in its `link/` for the linker command named by a hash of the
 triple, those flags and the libraries every program for the target links
@@ -516,7 +520,7 @@ with. Spellings of a target with one normal form, such as
 that names no target, so find one object and one command; a spelling LLVM
 normalizes apart, such as one naming another vendor, compiles its own.
 Packaging fills the directory with `zanec --bundle-runtime DIR --target
-TRIPLE [--optimize]`, for each target `dev/release/package-linux.py` lists.
+TRIPLE [--optimize]`, for each target `dev/release/common.py` lists.
 It compiles the runtime as a build for that target would, then asks the C
 compiler for the command linking a program with it, through a program object
 defining only what the runtime takes from a program, and copies every file

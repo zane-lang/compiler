@@ -26,8 +26,11 @@ and a problem there may wait.
 - **macOS** is the lower tier. Its objects are built, rewritten and tested
   as Windows ones are, and the same programs are built for `aarch64-macos`
   and `x86_64-macos` on Linux and run on macOS itself in CI, held as
-  Windows' are. The released toolchain's programs for both its
-  architectures are run there too.
+  Windows' are.
+
+Each platform's released toolchain is built, packaged and checked on that
+platform by the same steps: a program built by the extracted archive runs
+there plain, optimized and tiered.
 
 On every one of them `zanec` itself is built natively from the same pixi
 environment, and `just test-compiler` runs there in CI, held to the triple a
@@ -195,4 +198,4 @@ Tier 1 links against the C library alone and takes everything else from tier
 0 through its import table (T5), so no platform needs the program to export
 a symbol, nor an import library on Windows. Every codegen fixture runs tiered
 on Linux and, as Windows programs do, on Windows; a tiered `hello`, linked by
-the released toolchain, runs on macOS on both architectures.
+each platform's released toolchain, runs on that platform.
