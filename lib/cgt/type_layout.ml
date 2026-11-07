@@ -121,6 +121,15 @@ let leads_back st ?(through = fun _ -> inline st) holder member =
    payload, since that payload's box already breaks the cycle. *)
 let one_box () = Sys.getenv_opt "ZANE_ONE_BOX" <> Some "0" && Sys.getenv_opt "ZANE_POOLED_VARIANTS" <> Some "1"
 
+(* What a struct's member leads through on its way back to the struct under
+   [one_box]: a variant only through the payloads that are not already boxed
+   for leading back to it. *)
+let unboxed_through st _ t =
+  match definition st t with
+  | Some (T.Decl.Variant cs, _) ->
+      List.filter_map (fun (_, c) -> if Tty.is_ref c || leads_back st t c then None else Some c) cs
+  | _ -> inline st t
+
 let boxed st holder member =
   match Hashtbl.find_opt st.boxes (holder, member) with
   | Some boxed -> boxed
@@ -128,15 +137,7 @@ let boxed st holder member =
       let boxed =
         match definition st holder with
         | Some (T.Decl.Struct _, _) when one_box () ->
-            let through _ t =
-              match definition st t with
-              | Some (T.Decl.Variant cs, _) ->
-                  List.filter_map
-                    (fun (_, c) -> if Tty.is_ref c || leads_back st t c then None else Some c)
-                    cs
-              | _ -> inline st t
-            in
-            leads_back st ~through holder member
+            leads_back st ~through:(unboxed_through st) holder member
         | _ -> leads_back st holder member
       in
       Hashtbl.replace st.boxes (holder, member) boxed;

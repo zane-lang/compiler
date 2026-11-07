@@ -128,19 +128,19 @@ def binder_containers(start, rules, overlay, binders):
     unknown = set(binders) - (visible & rules.keys())
     if unknown:
         raise ValueError(f"binders must be visible rules: {sorted(unknown)}")
+    # used[r]: the rules r's productions name directly.
+    used = {r: {s for p in productions for s in p.symbols if s in rules}
+            for r, productions in rules.items()}
     # children[r]: the visible rules that appear as r's direct children.
     children = {r: set() for r in rules}
     while True:
         changed = False
-        for r, productions in rules.items():
-            for p in productions:
-                for s in p.symbols:
-                    if s not in rules:
-                        continue
-                    found = {s} if s in visible else children[s]
-                    if not found <= children[r]:
-                        children[r] |= found
-                        changed = True
+        for r, symbols in used.items():
+            for s in symbols:
+                found = {s} if s in visible else children[s]
+                if not found <= children[r]:
+                    children[r] |= found
+                    changed = True
         if not changed:
             break
     return sorted(("source_file" if r == start else r) for r in visible & rules.keys() if children[r] & set(binders))

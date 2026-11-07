@@ -179,86 +179,87 @@ let invariant_lists body =
    assigned nowhere else in the body. A local the body binds once is its
    value, and an expansion's result, assigned once among the first
    statements of its body, is that value. *)
-let ranged body lists names =
-  if Sys.getenv_opt "ZANE_LOOP_RANGES" <> Some "1" || lists = [] then []
-  else
-    let lets = Hashtbl.create 16 and assigns = Hashtbl.create 16 and defined = Hashtbl.create 16 in
-    Cgt.Traverse.walk_stats ignore
-      (function
-        | Stat.Let { id; value } ->
-            Hashtbl.replace lets id value;
-            Hashtbl.replace defined id ()
-        | Stat.Hold { id; _ } | Stat.Reserve { id; _ } -> Hashtbl.replace defined id ()
-        | Stat.Assign { place; value } -> Hashtbl.add assigns place.Expr.local (place, value)
-        | _ -> ())
-      body;
-    let results = Hashtbl.create 16 in
-    Cgt.Traverse.walk_stats
-      (fun e ->
-        match e.Expr.node with
-        | Expr.Expand { body = eb; result = Some r; _ } ->
-            let rec first = function
-              | Stat.Let _ :: rest -> first rest
-              | Stat.Assign { place = { Expr.local; path = []; deref = false; _ }; value } :: _ when local = r ->
-                  Hashtbl.replace results r value
-              | _ -> ()
-            in
-            first eb
-        | _ -> ())
-      ignore body;
-    let i64 node = { Expr.node; ty = Ty.I64 } in
-    let rec affine counter (e : Expr.t) =
+let ranged_accesses body lists names =
+  let lets = Hashtbl.create 16 and assigns = Hashtbl.create 16 and defined = Hashtbl.create 16 in
+  Cgt.Traverse.walk_stats ignore
+    (function
+      | Stat.Let { id; value } ->
+          Hashtbl.replace lets id value;
+          Hashtbl.replace defined id ()
+      | Stat.Hold { id; _ } | Stat.Reserve { id; _ } -> Hashtbl.replace defined id ()
+      | Stat.Assign { place; value } -> Hashtbl.add assigns place.Expr.local (place, value)
+      | _ -> ())
+    body;
+  let results = Hashtbl.create 16 in
+  Cgt.Traverse.walk_stats
+    (fun e ->
       match e.Expr.node with
-      | Expr.Int k -> Some (0, e)
-      | Expr.Local y -> (
-          match counter with
-          | Some (x, step) when x = y -> Some (step, e)
-          | _ -> (
-              match (Hashtbl.find_all assigns y, Hashtbl.find_opt lets y) with
-              | [], None -> if Hashtbl.mem defined y then None else Some (0, e)
-              | [], Some v -> affine counter v
-              | [ _ ], None when Hashtbl.mem results y -> affine counter (Hashtbl.find results y)
-              | _ -> None))
-      | Expr.Expand { result = Some r; _ } -> affine counter (i64 (Expr.Local r))
-      | Expr.Binary { op = Expr.Add; left; right } -> (
-          match (affine counter left, affine counter right) with
-          | Some (a, l), Some (c, r) -> Some (a + c, i64 (Expr.Binary { op = Expr.Add; left = l; right = r }))
-          | _ -> None)
-      | Expr.Binary { op = Expr.Mul; left; right } -> (
-          match (affine counter left, affine counter right) with
-          | Some (a, l), Some (0, ({ Expr.node = Expr.Int k; _ } as r))
-          | Some (0, ({ Expr.node = Expr.Int k; _ } as r)), Some (a, l) ->
-              Some (a * Int64.to_int k, i64 (Expr.Binary { op = Expr.Mul; left = l; right = r }))
-          | _ -> None)
-      | Expr.Flip v -> Option.map (fun (a, base) -> (-a, i64 (Expr.Flip base))) (affine counter v)
-      | _ -> None
-    in
-    let counter =
-      match List.rev body with
-      | Stat.Assign { place = { Expr.local = x; path = []; deref = false; _ }; value } :: _
-        when List.length (Hashtbl.find_all assigns x) = 1 && not (Hashtbl.mem defined x) -> (
-          match affine (Some (x, 0)) value with
-          | Some (0, { Expr.node = Expr.Binary { op = Expr.Add; left = { Expr.node = Expr.Local y; _ }; right = { Expr.node = Expr.Int c; _ } }; _ })
-            when y = x ->
-              Some (x, Int64.to_int c)
-          | _ -> None)
-      | _ -> None
-    in
-    match counter with
-    | Some (_, step) when abs step <= 1 ->
-        let found = ref [] in
-        Cgt.Traverse.walk_stats
-          (fun e ->
-            match e.Expr.node with
-            | Expr.Runtime { fn = Cgt.Runtime.List_at; args = [ l; index; _ ] } -> (
-                let key = match l.Expr.node with Expr.Local x -> Option.value ~default:l (Hashtbl.find_opt names x) | _ -> l in
-                match affine counter index with
-                | Some (a, first) when abs a <= 1 && List.mem key lists -> found := (e, key, a, first) :: !found
-                | _ -> ())
-            | _ -> ())
-          ignore body;
-        !found
-    | _ -> []
+      | Expr.Expand { body = eb; result = Some r; _ } ->
+          let rec first = function
+            | Stat.Let _ :: rest -> first rest
+            | Stat.Assign { place = { Expr.local; path = []; deref = false; _ }; value } :: _ when local = r ->
+                Hashtbl.replace results r value
+            | _ -> ()
+          in
+          first eb
+      | _ -> ())
+    ignore body;
+  let i64 node = { Expr.node; ty = Ty.I64 } in
+  let rec affine counter (e : Expr.t) =
+    match e.Expr.node with
+    | Expr.Int k -> Some (0, e)
+    | Expr.Local y -> (
+        match counter with
+        | Some (x, step) when x = y -> Some (step, e)
+        | _ -> (
+            match (Hashtbl.find_all assigns y, Hashtbl.find_opt lets y) with
+            | [], None -> if Hashtbl.mem defined y then None else Some (0, e)
+            | [], Some v -> affine counter v
+            | [ _ ], None when Hashtbl.mem results y -> affine counter (Hashtbl.find results y)
+            | _ -> None))
+    | Expr.Expand { result = Some r; _ } -> affine counter (i64 (Expr.Local r))
+    | Expr.Binary { op = Expr.Add; left; right } -> (
+        match (affine counter left, affine counter right) with
+        | Some (a, l), Some (c, r) -> Some (a + c, i64 (Expr.Binary { op = Expr.Add; left = l; right = r }))
+        | _ -> None)
+    | Expr.Binary { op = Expr.Mul; left; right } -> (
+        match (affine counter left, affine counter right) with
+        | Some (a, l), Some (0, ({ Expr.node = Expr.Int k; _ } as r))
+        | Some (0, ({ Expr.node = Expr.Int k; _ } as r)), Some (a, l) ->
+            Some (a * Int64.to_int k, i64 (Expr.Binary { op = Expr.Mul; left = l; right = r }))
+        | _ -> None)
+    | Expr.Flip v -> Option.map (fun (a, base) -> (-a, i64 (Expr.Flip base))) (affine counter v)
+    | _ -> None
+  in
+  let counter =
+    match List.rev body with
+    | Stat.Assign { place = { Expr.local = x; path = []; deref = false; _ }; value } :: _
+      when List.length (Hashtbl.find_all assigns x) = 1 && not (Hashtbl.mem defined x) -> (
+        match affine (Some (x, 0)) value with
+        | Some (0, { Expr.node = Expr.Binary { op = Expr.Add; left = { Expr.node = Expr.Local y; _ }; right = { Expr.node = Expr.Int c; _ } }; _ })
+          when y = x ->
+            Some (x, Int64.to_int c)
+        | _ -> None)
+    | _ -> None
+  in
+  match counter with
+  | Some (_, step) when abs step <= 1 ->
+      let found = ref [] in
+      Cgt.Traverse.walk_stats
+        (fun e ->
+          match e.Expr.node with
+          | Expr.Runtime { fn = Cgt.Runtime.List_at; args = [ l; index; _ ] } -> (
+              let key = match l.Expr.node with Expr.Local x -> Option.value ~default:l (Hashtbl.find_opt names x) | _ -> l in
+              match affine counter index with
+              | Some (a, first) when abs a <= 1 && List.mem key lists -> found := (e, key, a, first) :: !found
+              | _ -> ())
+          | _ -> ())
+        ignore body;
+      !found
+  | _ -> []
+
+let ranged body lists names =
+  if Sys.getenv_opt "ZANE_LOOP_RANGES" <> Some "1" || lists = [] then [] else ranged_accesses body lists names
 
 (* The stride of [s] when it is one push onto the list in [id]: an
    expansion whose own body makes the push, after nothing that may leave
