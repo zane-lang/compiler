@@ -102,9 +102,9 @@ test-ambiguity-tools: _require-menhir
 test-grammar-generation: check-grammar-generation
 	{{python}} -m unittest tests.highlighting.generator_test tests.highlighting.conflicts_test -v
 
-[group('test')]
 # Neovim's consumer test also needs the zane-nvim plugin, cloned into .zane-nvim
 # (or named by ZANE_NVIM_PLUGIN); it is skipped without one.
+[group('test')]
 [doc('The editor grammars against the compiler parser (needs the pinned tree-sitter)')]
 [script]
 test-highlighting: test-grammar-generation
