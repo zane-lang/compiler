@@ -1,0 +1,25 @@
+/// A C source that includes itself through `__FILE__`, which names it by
+/// the fixed path its package's directory is spelled as, so that the path
+/// resolves as the C compiler reads it.
+package selfInclude;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+I64 twice(x I64) foreign "twice";
+I64 thrice(x I64) foreign "thrice";
+String sourceName() foreign "source_name";
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+Unit main() {
+	show(String(twice(I64(21))));
+	show(String(thrice(I64(14))));
+	show(sourceName());
+	return Unit();
+}

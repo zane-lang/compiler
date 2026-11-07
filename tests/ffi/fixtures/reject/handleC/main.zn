@@ -1,5 +1,5 @@
 /// A handle's C type and C functions checked against the interface headers
-/// (ffi.md §4.1).
+/// (ffi.md §4.1), each refused C type reported once, at its declaration.
 package handleC;
 
 alias Unit = @primitives$Unit;
@@ -14,10 +14,22 @@ type Missing = #handle{ cType = "missing_t"; }
 type Union = #handle{ cType = "u_t"; }
 type NoFree = #handle{ cType = "a_t"; free = "nowhere"; }
 type ConstFree = #handle{ cType = "a_t"; free = "a_release"; }
+/// Its free function returns a status, which is ignored.
 type StatusFree = #handle{ cType = "a_t"; free = "a_close"; }
+type FloatFree = #handle{ cType = "a_t"; free = "a_measure"; }
 type BadSet = #handle{ cType = "a_t"; set = "a_swap"; free = "a_free"; }
+/// Its C type only a header the interface header includes declares,
+/// which a handle may name.
 type Included = #handle{ cType = "inner_t"; }
 
+I32 innerSize(this Included) foreign "inner_size";
+
+/// Passes a handle whose C type was refused above, which is reported
+/// there alone, as is the foreign variable `main` declares of it.
+I32 missingSize(this Missing) foreign "missing_size";
+
 Unit main() {
+	inner Included foreign "inner_global";
+	missing Missing foreign "missing_global";
 	return Unit();
 }

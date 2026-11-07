@@ -280,6 +280,7 @@ let crossing = function
   | Foreign.Bool -> "bool"
   | Foreign.Unit -> "void"
   | Foreign.View -> "view"
+  | Foreign.Terminated -> "terminated"
   | Foreign.Address -> "address"
   | Foreign.Value -> "value"
   | Foreign.Handle -> "handle"

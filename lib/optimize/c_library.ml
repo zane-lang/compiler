@@ -136,6 +136,10 @@ let call ~spend name args =
   | "strcmp", [ a; b ] -> Some (compare_bytes spend ~strings:true ~limit:max_int a b)
   | "strncmp", [ a; b; n ] -> Some (compare_bytes spend ~strings:true ~limit:(small (size_of n)) a b)
   | "malloc", [ n ] -> Some (malloc spend n)
+  (* `<zane_ffi.h>`'s allocator: a fold copies a returned string out of C
+     memory whichever allocator gave it (C_cross), so it is C memory too,
+     never freed, as the running program's region frees it. *)
+  | "zane_bytes_alloc", [ n ] -> Some (malloc spend n)
   | "calloc", [ c; s ] -> Some (calloc spend c s)
   | "realloc", [ p; n ] -> Some (realloc spend p n)
   | "free", [ p ] ->

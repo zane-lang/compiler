@@ -42,6 +42,9 @@ type package = {
      what compiling the package's glue needs: the flags its sources were
      compiled with, the directories they map, and the cache. *)
   tables : (string * C_interface.t) list;
+  (* The warnings compiling the interface headers alone gave, which a
+     header no source includes gives nowhere else. *)
+  header_warnings : Clang.problem list;
   flags : string list;
   maps : (string * string) list;
   cache : string option;
@@ -305,12 +308,14 @@ let archive ~triple dir (row : Settings.row) =
    for [triple] and [cpu], and its archives read. *)
 let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
   let maps = Compile.prefix_maps ~dir ~headers in
-  let flags = fixed @ Compile.map_flags maps @ Compile.package_flags dir rows in
+  (* `-Wall` before the package's own settings: [warnings] shows what it
+     finds in the package's own files alone. *)
+  let flags = fixed @ Compile.map_flags ~dir:headers.Compile.root maps @ [ "-Wall" ] @ Compile.package_flags dir rows in
   let interface_headers = Settings.interface_headers dir in
   let tables =
     combine
       (List.map
-         (fun h -> Result.map (fun t -> (h, t)) (Compile.interface flags (Source.Files.in_directory dir h)))
+         (fun h -> Result.map (fun (t, w) -> ((h, t), w)) (Compile.interface flags (Source.Files.in_directory dir h)))
          interface_headers)
   in
   (* A source holding assembly is never linked into the package's module:
@@ -342,6 +347,8 @@ let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
   in
   both tables (Result.bind (both compiled archives) directed)
   |> Result.map (fun (tables, ((sources, assembled), archives)) ->
+         let header_warnings = List.concat_map snd tables in
+         let tables = List.map fst tables in
          let interface = List.fold_left C_interface.merge C_interface.empty (List.map snd tables) in
          {
            dir;
@@ -352,10 +359,26 @@ let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
            assembled;
            archives;
            tables;
+           header_warnings;
            flags;
            maps;
            cache;
          })
+
+(* What the C compiler warned of in [p]'s own files: the `.c` and `.h`
+   files directly in its directory, which its author wrote, and not a
+   vendored tree's (ffi.md §2.1), each once, however many of its sources
+   include it, as diagnostics against those files. *)
+let warnings p =
+  let dir = Compile.real p.dir in
+  let own (w : Clang.problem) = w.file <> "" && Filename.dirname (Compile.real w.file) = dir in
+  let all =
+    p.header_warnings
+    @ List.concat_map (fun (s : Compile.source) -> s.warnings) (p.sources @ List.map (fun a -> a.source) p.assembled)
+  in
+  let kept = List.sort_uniq compare (List.filter own all) in
+  let diagnostics, sources = Compile.diagnostics kept in
+  (List.map Diagnostic.as_warning diagnostics, sources)
 
 (* The `system` rows of [p]'s `c.coda` that apply to the build, in the
    order they are written: each row's number and the library it names. *)
@@ -397,6 +420,7 @@ let no_c (dir, rows, _) =
     assembled = [];
     archives = [];
     tables = [];
+    header_warnings = [];
     flags = [];
     maps = [];
     cache = None;
@@ -419,6 +443,62 @@ let compile_packages ?(cache = Cache.dir ()) ~cc ~cpu ~target dirs =
   if List.exists has_c packages then
     compile_all ?cache ~work:(work_dir ()) ~cc ~cpu ~triple ~target packages
   else Ok (List.map no_c packages)
+
+(* A compilation database (docs/design/ffi.md F2) for each C source of
+   [dirs], as `compile_commands.json` holds one, for an editor's C
+   language server: the flags a build compiles the source with, the
+   package's directory spelled as it is rather than mapped, and none of
+   the flags that only shape the module made of it. The headers it names
+   are the cache's, where a build writes them. *)
+let compile_commands ?(cache = Cache.dir ()) ~cc ~cpu ~target dirs =
+  let triple = triple target in
+  (* The database's paths are read against each entry's directory, the
+     package's, so a relative cache is made absolute against this one. *)
+  let cache = Option.map (fun c -> if Filename.is_relative c then Filename.concat (Sys.getcwd ()) c else c) cache in
+  let ( let* ) = Result.bind in
+  let* packages = combine (List.map (read_settings ~triple) dirs) in
+  let* packages = combine (List.map with_sources packages) in
+  let refused message = Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] } in
+  (* With no C, the database is empty, and no C compiler is asked. *)
+  if List.for_all (fun (_, _, sources) -> sources = []) packages then Ok "[]\n"
+  else
+  let work = work_dir () in
+  (* The database names the headers zanec writes, so they are kept where
+     an editor finds them later: in the cache, and nowhere else. *)
+  let* headers =
+    let unkept why =
+      refused
+        (Printf.sprintf
+           "the compilation database names the headers zanec writes, such as `zane_ffi.h`, and %s; set \
+            `ZANE_CACHE_DIR` to a directory zanec can write"
+           why)
+    in
+    match cache with
+    | Some c -> ( try Ok (Compile.headers (Filename.concat c "foreign")) with Sys_error m -> unkept ("the cache cannot keep them: " ^ m))
+    | None -> unkept "there is no cache directory to keep them in"
+  in
+  match Probe.include_dirs ?cache ~dir:work ~cc ~triple target with
+  | Error message -> refused message
+  | Ok include_dirs ->
+      let rec editable = function
+        | "-O2" :: rest -> editable rest
+        | "-Xclang" :: "-disable-llvm-passes" :: rest -> editable rest
+        | flag :: rest -> flag :: editable rest
+        | [] -> []
+      in
+      let fixed = editable (Compile.fixed_flags ~triple ~cpu ~headers ~include_dirs) in
+      let absolute d = if Filename.is_relative d then Filename.concat (Sys.getcwd ()) d else d in
+      let entry dir rows source =
+        let path = Source.Files.in_directory dir source in
+        let arguments = ("clang" :: fixed) @ [ "-Wall" ] @ Compile.package_flags dir rows @ [ "-c"; path ] in
+        Printf.sprintf "  {\"directory\": %s, \"file\": %s, \"arguments\": [%s]}" (Compile.json_string dir)
+          (Compile.json_string path)
+          (String.concat ", " (List.map Compile.json_string arguments))
+      in
+      let entries =
+        List.concat_map (fun (dir, rows, sources) -> List.map (entry (absolute dir) rows) sources) packages
+      in
+      Ok (if entries = [] then "[]\n" else "[\n" ^ String.concat ",\n" entries ^ "\n]\n")
 
 (* The glue refused, or not written, as a diagnostic. *)
 let glue_refused message = Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] }
@@ -452,7 +532,7 @@ let glue_files p ~dir files =
         ~finally:(fun () -> try remove work with Sys_error _ -> ())
         (fun () ->
           let added = Compile.with_real_paths [ (dir, "/zane/pkg"); (work, "/zane/glue") ] in
-          let maps = p.maps @ added and flags = p.flags @ Compile.map_flags added in
+          let maps = p.maps @ added and flags = p.flags @ Compile.map_flags ~dir:work added in
           combine (List.map (glue_file p ~dir ~work ~maps ~flags) files))
 
 (* The glue [compiled], each module beside the real path of its header,
@@ -623,7 +703,7 @@ let callbacks ?(cache = Cache.dir ()) ~cpu ~target (entries : Glue.callback list
             | None -> (Compile.headers work, None)
           in
           let maps = Compile.with_real_paths [ (work, "/zane/glue") ] in
-          let flags = Compile.fixed_flags ~triple ~cpu ~headers ~include_dirs:[] @ Compile.map_flags maps in
+          let flags = Compile.fixed_flags ~triple ~cpu ~headers ~include_dirs:[] @ Compile.map_flags ~dir:work maps in
           let path = Filename.concat work "callbacks.c" in
           match Out_channel.with_open_bin path (fun oc -> output_string oc (Glue.callbacks_file entries)) with
           | exception Sys_error message -> glue_unwritten message

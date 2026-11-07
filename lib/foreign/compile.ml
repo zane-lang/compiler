@@ -13,7 +13,8 @@
    gives every compilation differ between machines without changing the
    code, so both are mapped to fixed names, `/zane/pkg` and `/zane/cache`,
    in `__FILE__` and debug information by `-ffile-prefix-map`, and in the
-   hash by the same substitution. *)
+   hash by the same substitution, and a VFS overlay makes each fixed name
+   resolve to its directory. *)
 
 (* The headers every compilation reads from the compiler: the linked
    clang's builtin headers, under `include/` of the resource directory
@@ -125,7 +126,53 @@ let with_real_paths maps =
    names they are spelled as. *)
 let prefix_maps ~dir ~headers = with_real_paths [ (dir, "/zane/pkg"); (headers.root, "/zane/cache") ]
 
-let map_flags maps = List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ "=" ^ to_) maps
+(* A JSON string holding [s]. *)
+let json_string s =
+  let b = Buffer.create (String.length s + 2) in
+  Buffer.add_char b '"';
+  String.iter
+    (fun c ->
+      match c with
+      | '"' -> Buffer.add_string b "\\\""
+      | '\\' -> Buffer.add_string b "\\\\"
+      | c when Char.code c < 0x20 -> Buffer.add_string b (Printf.sprintf "\\u%04x" (Char.code c))
+      | c -> Buffer.add_char b c)
+    s;
+  Buffer.add_char b '"';
+  Buffer.contents b
+
+(* A clang VFS overlay that makes each fixed name a directory holding what
+   the directory it stands for holds, so a path C spells through
+   `__FILE__`, such as a source's `#include __FILE__`, names a file that
+   exists. It is written once into [dir], named by a hash of its text,
+   which the maps decide whole. *)
+let overlay ~dir maps =
+  let root (from, to_) =
+    Printf.sprintf {|{"name":%s,"type":"directory-remap","external-contents":%s}|} (json_string to_) (json_string from)
+  in
+  let text = Printf.sprintf {|{"version":0,"roots":[%s]}|} (String.concat "," (List.map root maps)) in
+  let dir = Filename.concat dir "vfs" in
+  let name = Digest.to_hex (Digest.string text) ^ ".yaml" in
+  write_files dir [ (name, text) ];
+  Filename.concat dir name
+
+(* The flags that spell each directory of [maps] by its fixed name, in
+   `__FILE__` and debug information, and resolve that name back to it
+   through an overlay written into [dir]: the cache's `foreign/` directory
+   or a build's own work directory, as for the headers. `__FILE__` keeps
+   the host's separator on every target, since the overlay is read with
+   the host's: a Windows target's `\zane\pkg\...` names no directory on a
+   Unix host. *)
+let map_flags ~dir maps =
+  List.map (fun (from, to_) -> "-ffile-prefix-map=" ^ from ^ "=" ^ to_) maps @ [ "-fno-file-reproducible"; "-ivfsoverlay"; overlay ~dir maps ]
+
+(* [args] without the overlays [map_flags] adds: an overlay's path is a
+   temporary file's, and what it holds follows from the maps, which the
+   arguments spell already. *)
+let rec without_overlays = function
+  | "-ivfsoverlay" :: _ :: rest -> without_overlays rest
+  | a :: rest -> a :: without_overlays rest
+  | [] -> []
 
 (* [path] with the longest mapped directory it starts with replaced by its
    fixed name. A directory is a prefix only up to a separator, so `inc`
@@ -142,6 +189,10 @@ let mapped_path maps path =
       let n = String.length from in
       to_ ^ String.sub path n (String.length path - n)
   | None -> path
+
+(* [path], as [mapped_path] spells it, with the fixed name it starts with
+   replaced by the directory it stands for in [maps]. *)
+let unmapped_path maps path = mapped_path (List.map (fun (from, to_) -> (to_, from)) maps) path
 
 (* A command-line argument with the directory it names mapped: a path, a
    path joined to `-I`, or the directory a `-ffile-prefix-map` maps. Any
@@ -201,7 +252,49 @@ let mapped maps text =
 
 (* One C source compiled, or what the front end said was wrong with it,
    and the files its code came from, each by its real path. *)
-type source = { path : string; bitcode : string; key : string; includes : string list }
+type source = { path : string; bitcode : string; key : string; includes : string list; warnings : Clang.problem list }
+
+(* Warnings as text kept beside a cached module, one a line, its file,
+   line, column and message apart by tabs, each escaped, so a module loaded
+   from the cache warns as the compile that made it did. *)
+let warnings_text (ws : Clang.problem list) =
+  let escape s =
+    let b = Buffer.create (String.length s) in
+    String.iter
+      (function '\\' -> Buffer.add_string b "\\\\" | '\t' -> Buffer.add_string b "\\t" | '\n' -> Buffer.add_string b "\\n" | c -> Buffer.add_char b c)
+      s;
+    Buffer.contents b
+  in
+  String.concat ""
+    (List.map (fun (w : Clang.problem) -> Printf.sprintf "%s\t%d\t%d\t%s\n" (escape w.file) w.line w.column (escape w.message)) ws)
+
+let warnings_of_text text =
+  let unescape s =
+    let b = Buffer.create (String.length s) in
+    let n = String.length s in
+    let rec go i =
+      if i < n then
+        if s.[i] = '\\' && i + 1 < n then begin
+          Buffer.add_char b (match s.[i + 1] with 't' -> '\t' | 'n' -> '\n' | c -> c);
+          go (i + 2)
+        end
+        else begin
+          Buffer.add_char b s.[i];
+          go (i + 1)
+        end
+    in
+    go 0;
+    Buffer.contents b
+  in
+  List.filter_map
+    (fun line ->
+      match String.split_on_char '\t' line with
+      | [ file; l; c; message ] -> (
+          match (int_of_string_opt l, int_of_string_opt c) with
+          | Some line, Some column -> Some { Clang.file = unescape file; line; column; message = unescape message }
+          | _ -> None)
+      | _ -> None)
+    (String.split_on_char '\n' text)
 
 (* [path] with every link and `.` or `..` resolved, or as it is when it
    names nothing. *)
@@ -247,15 +340,19 @@ let diagnostics (problems : Clang.problem list) =
 type failure = { diagnostics : Diagnostic.t list; sources : Source.Files.t }
 
 (* What [path], an interface header, declares, compiled alone with
-   [flags] (docs/design/ffi.md F6). *)
+   [flags] (docs/design/ffi.md F6), and the warnings it gave. A header
+   compiled as the main file has every `static` helper it defines unused
+   and its `#pragma once` outside a header, which no source that includes
+   it sees, so those warnings are not asked for. *)
 let interface flags path =
-  let read = Clang.interface (flags @ [ "-fsyntax-only"; "-x"; "c"; path ]) in
+  let quiet = [ "-Wno-unused"; "-Wno-pragma-once-outside-header" ] in
+  let read = Clang.interface (flags @ quiet @ [ "-fsyntax-only"; "-x"; "c"; path ]) in
   if not read.ok then
     let diagnostics, sources = diagnostics read.problems in
     Error { diagnostics; sources }
   else
     match C_interface.read read.output with
-    | table -> Ok table
+    | table -> Ok (table, read.warnings)
     | exception C_interface.Malformed why -> Diagnostic.bug ("the interface table of " ^ path ^ " is malformed: " ^ why)
 
 (* Whether [text] holds [word] anywhere. *)
@@ -283,25 +380,38 @@ let compile_source ?cache ~maps flags path =
       Digest.to_hex
         (Digest.string
            (String.concat "\000"
-              [ "c-module 6"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) args); mapped maps preprocessed.output ]))
+              [ "c-module 6"; Clang.version (); String.concat "\000" (List.map (mapped_arg maps) (without_overlays args)); mapped maps preprocessed.output ]))
     in
     let placed = List.exists (fun w -> mentions w preprocessed.output) [ "__builtin_COLUMN"; "__builtin_LINE" ] in
     let cache = if placed then None else cache in
     let kept = Option.map (fun c -> Filename.concat (Filename.concat c "foreign/module") (key ^ ".bc")) cache in
     let includes = included preprocessed.output in
+    let warned = Option.map (fun k -> Filename.remove_extension k ^ ".warnings") kept in
     match Option.bind kept Cache.read with
-    | Some bitcode -> Ok { path; bitcode; key; includes }
+    | Some bitcode ->
+        (* The warnings are kept with their files mapped, as the key is,
+           so a module compiled in another directory names this one's. *)
+        let warnings = Option.fold ~none:[] ~some:warnings_of_text (Option.bind warned Cache.read) in
+        let warnings = List.map (fun (w : Clang.problem) -> { w with file = unmapped_path maps w.file }) warnings in
+        Ok { path; bitcode; key; includes; warnings }
     | None ->
         let compiled = Clang.compile args in
         if not compiled.ok then
           let diagnostics, sources = diagnostics compiled.problems in
           Error { diagnostics; sources }
         else begin
+          (* The warnings are kept before the module, so a module in the
+             cache always has its warnings beside it. *)
+          Option.iter
+            (fun kept ->
+              let ws = List.map (fun (w : Clang.problem) -> { w with file = mapped_path maps w.file }) compiled.warnings in
+              Cache.keep_string ~dir:(Filename.dirname kept) ~kept (warnings_text ws))
+            warned;
           Option.iter
             (fun kept -> Cache.keep_string ~dir:(Filename.dirname kept) ~kept compiled.output)
             kept;
           (* A module compiled every time is keyed by what it compiled
              to, so nothing kept under its key outlives a change. *)
           let key = if placed then Digest.to_hex (Digest.string compiled.output) else key in
-          Ok { path; bitcode = compiled.output; key; includes }
+          Ok { path; bitcode = compiled.output; key; includes; warnings = compiled.warnings }
         end

@@ -36,8 +36,8 @@ let handle_of env (t : Ty.t) =
 let is_capability (h : Nodes.Handle.t) = h.Nodes.Handle.free = None
 
 (* The struct a handle's `cType` names in [iface], by its identity: a
-   typedef of a struct, or the tag of a struct an interface header
-   declares, completely or not (§4.1). *)
+   typedef of a struct, or the tag of a struct, that an interface header
+   declares, completely or not, or that a header it includes does (§4.1). *)
 let record_of iface c_type =
   match List.assoc_opt c_type iface.C.typedefs with
   | Some (C.Record { union = false; name }) -> Some name
@@ -46,7 +46,10 @@ let record_of iface c_type =
       let tagged = "struct " ^ c_type in
       match List.assoc_opt tagged iface.C.records with
       | Some { C.union = false; declared = true; _ } -> Some tagged
-      | _ -> None)
+      | _ -> (
+          match List.assoc_opt c_type iface.C.reached with
+          | Some name -> Some name
+          | None -> List.assoc_opt tagged iface.C.reached))
 
 (* A pointer to [record], `const` or not. *)
 let pointer_to ~const record = C.Pointer { const; pointee = C.Record { union = false; name = record } }
@@ -154,22 +157,28 @@ let check_handle env (info : type_info) (h : Nodes.Handle.t) =
       if Type_decls.is_c_identifier h.Nodes.Handle.c_type then
         error env at
           (Printf.sprintf
-             "no interface header of %s declares %s as a struct, or as a typedef of one, which a handle's \
+             "no interface header of %s, nor a header one includes, declares %s as a struct, or as a typedef of one, which a handle's \
               `cType` names (ffi.md §4.1)"
              (quote info.decl.package) (quote h.Nodes.Handle.c_type))
   | Some record ->
+      (* The result is `void` or an integer, such as a status, which Zane
+         ignores. *)
       let check role name arity =
         let writable = pointer_to ~const:false record in
-        let expected = C.Function { params = List.init arity (fun _ -> writable); result = C.Void; variadic = false } in
+        let fits = function
+          | C.Function { params; result = C.Void | C.Int _; variadic = false } ->
+              params = List.init arity (fun _ -> writable)
+          | _ -> false
+        in
         match List.assoc_opt name iface.C.functions with
         | None ->
             error env at
               (Printf.sprintf "no interface header of %s declares the %s %s as a function (ffi.md §4.1)"
                  (quote info.decl.package) role (quote name))
-        | Some f when f.C.ty <> expected ->
+        | Some f when not (fits f.C.ty) ->
             error env at
-              (Printf.sprintf "the %s %s is %s; it takes %s and returns `void` (ffi.md §4.1)" role (quote name)
-                 (quote (C.to_string f.C.ty))
+              (Printf.sprintf "the %s %s is %s; it takes %s and returns `void` or an integer, which is ignored (ffi.md §4.1)"
+                 role (quote name) (quote (C.to_string f.C.ty))
                  (if arity = 1 then "one non-`const` pointer to the handle's C type"
                   else "two non-`const` pointers to the handle's C type"))
         | Some _ -> ()
@@ -423,6 +432,11 @@ let rec corresponds env iface (v : verb) position (t : Ty.t) (c : C.ctype) =
       match c with
       | C.Record { union = false; name = "struct zane_bytes" as r } when is_view iface r bytes -> Ok ()
       | C.Record { union = false; name = "struct zane_bytes" } -> not_view "zane_bytes" "const uint8_t *data; size_t size;"
+      | _ when position = Param && C.is_c_string c -> Ok ()
+      | _ when position = Param ->
+          differ "`@primitives$String` crosses as a `zane_bytes`, or as a `const char *` to its bytes and a terminating NUL (ffi.md §3.4)"
+      | _ when C.is_c_string c ->
+          differ "a returned `@primitives$String` crosses as a `zane_bytes`, since a `const char *` gives no length; only a parameter crosses as one (ffi.md §3.5)"
       | _ -> differ "`@primitives$String` crosses as a `zane_bytes`")
   | Some (Array (s, n)) when position = Param -> (
       match c with
@@ -458,6 +472,9 @@ and handle_corresponds env iface v position tid (h : Nodes.Handle.t) c =
       let names_it pointee = match (pointee, record) with C.Record { union = false; name }, Some r -> name = r | _ -> false in
       ignore iface;
       match c with
+      (* A `cType` no interface header declares is reported once, at the
+         handle's declaration, and not again at each verb that passes it. *)
+      | _ when record = None -> Ok ()
       | C.Pointer { const = c_const; pointee } when names_it pointee ->
           if c_const = const then Ok ()
           else if const then
@@ -474,14 +491,26 @@ and handle_corresponds env iface v position tid (h : Nodes.Handle.t) c =
                (quote tid.Ty.name) (quote h.Nodes.Handle.c_type) (quote (C.to_string c))))
 
 (* A function value crosses as a C function pointer (§3.6) when it has no
-   subject and no abort type, and its parameters are scalars, `Bool` or
-   C-compatible value types, and its result one of those or `Unit`. *)
+   subject and no abort type, its parameters are scalars, `Bool`s,
+   C-compatible value types, strings, lists and arrays of scalars, and data
+   handles, borrowed or roaming owners, and its result a scalar, `Bool`, a
+   C-compatible value type or `Unit`. *)
 and function_corresponds env iface v (f : Ty.verb) c =
+  let data_handle tid = Verbs.handle_kind env.verbs tid = Some Nodes.Decl.Data in
+  let param (t : Ty.t) =
+    match (t, crossing env t) with
+    | Ty.Reference _, _ -> false
+    | Ty.Roaming _, Some (Handle (tid, _)) -> data_handle tid
+    | Ty.Roaming _, _ -> false
+    | _, Some (Scalar _ | Bool | Value _ | Bytes | Array _ | Span _) -> true
+    | _, Some (Handle (tid, _)) -> data_handle tid
+    | _ -> false
+  in
   let plain t = match crossing env t with Some (Scalar _ | Bool | Value _) -> true | _ -> false in
   let result t = plain t || crossing env t = Some Unit in
-  if f.Ty.this_ <> None || f.Ty.abort <> None || not (List.for_all plain f.Ty.params && result f.Ty.ret) then
+  if f.Ty.this_ <> None || f.Ty.abort <> None || not (List.for_all param f.Ty.params && result f.Ty.ret) then
     Error
-      "a function value crosses into C when it has no subject and no abort type, and takes scalars, `@primitives$Bool` or C-compatible value types, and gives one of those or `@primitives$Unit` (ffi.md §3.6)"
+      "a function value crosses into C when it has no subject and no abort type, takes scalars, `@primitives$Bool`, C-compatible value types, strings, lists and arrays of scalars, and data handles, borrowed or as a roaming owner `^`, and gives a scalar, `@primitives$Bool`, a C-compatible value type or `@primitives$Unit` (ffi.md §3.6)"
   else
     match c with
     | C.Pointer { pointee = C.Function { params; result = r; variadic = false }; _ }
@@ -495,7 +524,18 @@ and function_corresponds env iface v (f : Ty.verb) c =
                 (Printf.sprintf
                    "C declares %s here, and a function value takes and gives a full-width C type of each scalar, never a narrower one (ffi.md §3.6)"
                    (quote (C.to_string p)))
-          | _ -> corresponds env iface v position t p
+          | Some Bytes when position = Param && C.is_c_string p ->
+              Error "C passes a function value a string as a `zane_bytes`, which it is copied from, not as a `const char *` (ffi.md §3.6)"
+          | Some (Handle (tid, h)) when position = Param -> (
+              let record = record_of (interface env tid.Ty.package) h.Nodes.Handle.c_type in
+              match (p, record) with
+              | _, None -> Ok ()
+              | C.Pointer { pointee = C.Record { union = false; name }; _ }, Some r when name = r -> Ok ()
+              | _ ->
+                  Error
+                    (Printf.sprintf "C passes a function value %s as a pointer to its C type %s, and C declares %s (ffi.md §3.6)"
+                       (quote tid.Ty.name) (quote h.Nodes.Handle.c_type) (quote (C.to_string p))))
+          | _ -> corresponds env iface v position (Ty.strip_mode t) p
         in
         let checks = List.map2 (check Param) f.Ty.params params @ [ check Result f.Ty.ret r ] in
         match List.find_opt Result.is_error checks with Some e -> e | None -> Ok ())
@@ -688,6 +728,10 @@ let global env ~package ~span ~declared (symbol : N.Name.t) : Nodes.Expr.t =
             fail
               (Printf.sprintf "%s is a `const` %s, and %s's objects are %s, which a `mut` method writes (ffi.md §5.1)"
                  (quote name) (quote (C.to_string ty)) (quote tid.Ty.name) (quote h.Nodes.Handle.c_type))
+        (* A `cType` no interface header declares is reported once, at the
+           handle's declaration, and not again at each variable of it. *)
+        | Some _ when record = None ->
+            { Nodes.Expr.node = Nodes.Expr.Foreign_global { symbol = name; package = owner }; ty = declared; span }
         | Some { C.ty = C.Record { union = false; name = r }; _ } when Some r = record ->
             { Nodes.Expr.node = Nodes.Expr.Foreign_global { symbol = name; package = owner }; ty = declared; span }
         | Some { C.ty; _ } ->

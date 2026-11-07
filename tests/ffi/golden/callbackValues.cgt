@@ -1,0 +1,869 @@
+└── program:
+    ├── entry: zane.start
+    ├── layouts[0] > layout:
+    │   ├── type: callbackValues$Log
+    │   └── positions:
+    ├── layouts[1] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── layouts[2] > layout:
+    │   ├── type: %primitives$I64
+    │   └── positions:
+    ├── layouts[3] > layout:
+    │   ├── type: %primitives$List<%primitives$I64>
+    │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
+    ├── layouts[4] > layout:
+    │   ├── type: ^callbackValues$Obj
+    │   └── positions[0]: handle @0 freed by callbackValues$Obj.free
+    ├── globals[0]: callbackValues$%c$zane_log : i64, imported
+    ├── globals[1]: zane_self : i64, imported
+    ├── thunks[0] > thunk:
+    │   ├── symbol: callbackValues$Obj.free
+    │   ├── package: callbackValues
+    │   ├── calls: obj_free
+    │   ├── params[0]: handle
+    │   └── result: void
+    ├── thunks[1] > thunk:
+    │   ├── symbol: callbackValues$eachWord(%primitives$I64[%primitives$String], %primitives$String).ffi
+    │   ├── package: callbackValues
+    │   ├── calls: each_word
+    │   ├── params[0]: function
+    │   ├── params[1]: view
+    │   └── result: i64
+    ├── thunks[2] > thunk:
+    │   ├── symbol: callbackValues$withList(%primitives$I64[%primitives$List<%primitives$I64>]).ffi
+    │   ├── package: callbackValues
+    │   ├── calls: with_list
+    │   ├── params[0]: function
+    │   └── result: i64
+    ├── thunks[3] > thunk:
+    │   ├── symbol: callbackValues$withArray(%primitives$I64[%primitives$Array<%primitives$I64, 3>]).ffi
+    │   ├── package: callbackValues
+    │   ├── calls: with_array
+    │   ├── params[0]: function
+    │   └── result: i64
+    ├── thunks[4] > thunk:
+    │   ├── symbol: callbackValues$make(%primitives$I64).ffi
+    │   ├── package: callbackValues
+    │   ├── calls: obj_new
+    │   ├── params[0]: i64
+    │   └── result: handle
+    ├── thunks[5] > thunk:
+    │   ├── symbol: callbackValues$withObject(%primitives$I64[callbackValues$Obj], callbackValues$Obj).ffi
+    │   ├── package: callbackValues
+    │   ├── calls: with_object
+    │   ├── params[0]: function
+    │   ├── params[1]: handle
+    │   └── result: i64
+    ├── thunks[6] > thunk:
+    │   ├── symbol: callbackValues$give(this callbackValues$Log, %primitives$Unit[^callbackValues$Obj], %primitives$I64).ffi
+    │   ├── package: callbackValues
+    │   ├── calls: log_give
+    │   ├── params[0]: handle
+    │   ├── params[1]: function
+    │   ├── params[2]: i64
+    │   ├── result: void
+    │   └── reaches: a capability
+    ├── thunks[7] > thunk:
+    │   ├── symbol: callbackValues$freed(this callbackValues$Log).ffi
+    │   ├── package: callbackValues
+    │   ├── calls: log_freed
+    │   ├── params[0]: handle
+    │   ├── result: i64
+    │   └── reaches: a capability
+    ├── thunks[8] > thunk:
+    │   ├── symbol: callbackValues$withScratch(%primitives$I64[%primitives$String]).ffi
+    │   ├── package: callbackValues
+    │   ├── calls: with_scratch
+    │   ├── params[0]: function
+    │   └── result: i64
+    ├── thunks[9] > thunk:
+    │   ├── symbol: callbackValues$value(this callbackValues$Obj).ffi
+    │   ├── package: callbackValues
+    │   ├── calls: obj_value
+    │   ├── params[0]: handle
+    │   └── result: i64
+    ├── thunks[10] > thunk:
+    │   ├── symbol: callbackValues$scribble().ffi
+    │   ├── package: callbackValues
+    │   ├── calls: scribble
+    │   ├── params:
+    │   └── result: i64
+    ├── callbacks[0] > callback:
+    │   ├── symbol: callbackValues$main()$lambda1
+    │   ├── entry: callbackValues$entry callbackValues$main()$lambda1
+    │   ├── takes[0]: view
+    │   └── gives: i64
+    ├── callbacks[1] > callback:
+    │   ├── symbol: callbackValues$main()$lambda2
+    │   ├── entry: callbackValues$entry callbackValues$main()$lambda2
+    │   ├── takes[0]: view
+    │   └── gives: i64
+    ├── callbacks[2] > callback:
+    │   ├── symbol: callbackValues$main()$lambda3
+    │   ├── entry: callbackValues$entry callbackValues$main()$lambda3
+    │   ├── takes[0]: *[3 x i64]
+    │   └── gives: i64
+    ├── callbacks[3] > callback:
+    │   ├── symbol: callbackValues$main()$lambda4
+    │   ├── entry: callbackValues$entry callbackValues$main()$lambda4
+    │   ├── takes[0]: object
+    │   └── gives: i64
+    ├── callbacks[4] > callback:
+    │   ├── symbol: callbackValues$main()$lambda5
+    │   ├── entry: callbackValues$entry callbackValues$main()$lambda5
+    │   ├── takes[0]: ^object
+    │   └── gives: void
+    ├── callbacks[5] > callback:
+    │   ├── symbol: callbackValues$main()$lambda6
+    │   ├── entry: callbackValues$entry callbackValues$main()$lambda6
+    │   ├── takes[0]: view
+    │   └── gives: i64
+    ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: callbackValues$main()
+    │       └── args:
+    ├── funcs[1] > func:
+    │   ├── symbol: callbackValues$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %2
+    │       ├── body[0] > hold:
+    │       │   ├── local: #1
+    │       │   ├── scope: %2
+    │       │   ├── value > record:
+    │       │   │   ├── type: {ptr, i64}
+    │       │   │   ├── members[0] > member 0: global callbackValues$%c$zane_log
+    │       │   │   └── members[1] > member 1: 0 : i64
+    │       │   └── layout: callbackValues$Log
+    │       ├── body[1] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: callbackValues$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @7
+    │       │       ├── result: #8
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #6
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: callbackValues$eachWord(%primitives$I64[%primitives$String], %primitives$String)
+    │       │       │   │       ├── args[0]: function callbackValues$main()$lambda1
+    │       │       │   │       └── args[1] > expand:
+    │       │       │   │           ├── type: handle
+    │       │       │   │           ├── label: @4
+    │       │       │   │           ├── result: #5
+    │       │       │   │           ├── body[0] > hold:
+    │       │       │   │           │   ├── local: #3
+    │       │       │   │           │   ├── scope: %2
+    │       │       │   │           │   ├── value: "one three five" : handle
+    │       │       │   │           │   └── layout: %primitives$String
+    │       │       │   │           └── body[1] > assign:
+    │       │       │   │               ├── place: #5
+    │       │       │   │               └── value: local #3 : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #8
+    │       │           └── value: local #6 : handle
+    │       ├── body[2] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: callbackValues$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @10
+    │       │       ├── result: #11
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #9
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: callbackValues$withList(%primitives$I64[%primitives$List<%primitives$I64>])
+    │       │       │   │       └── args[0]: function callbackValues$main()$lambda2
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #11
+    │       │           └── value: local #9 : handle
+    │       ├── body[3] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: callbackValues$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @13
+    │       │       ├── result: #14
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #12
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: callbackValues$withArray(%primitives$I64[%primitives$Array<%primitives$I64, 3>])
+    │       │       │   │       └── args[0]: function callbackValues$main()$lambda3
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #14
+    │       │           └── value: local #12 : handle
+    │       ├── body[4] > hold:
+    │       │   ├── local: #15
+    │       │   ├── scope: %2
+    │       │   ├── value > call:
+    │       │   │   ├── type: {ptr, i64}
+    │       │   │   ├── fn: callbackValues$make(%primitives$I64)
+    │       │   │   └── args[0]: 42 : i64
+    │       │   └── layout: ^callbackValues$Obj
+    │       ├── body[5] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: callbackValues$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @17
+    │       │       ├── result: #18
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #16
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: callbackValues$withObject(%primitives$I64[callbackValues$Obj], callbackValues$Obj)
+    │       │       │   │       ├── args[0]: function callbackValues$main()$lambda4
+    │       │       │   │       └── args[1]: address of #15 : ptr
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #18
+    │       │           └── value: local #16 : handle
+    │       ├── body[6] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: callbackValues$give(this callbackValues$Log, %primitives$Unit[^callbackValues$Obj], %primitives$I64)
+    │       │   ├── args[0]: address of #1 : ptr
+    │       │   ├── args[1]: function callbackValues$main()$lambda5
+    │       │   └── args[2]: 7 : i64
+    │       ├── body[7] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: callbackValues$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @20
+    │       │       ├── result: #21
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #19
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: callbackValues$freed(this callbackValues$Log)
+    │       │       │   │       └── args[0]: address of #1 : ptr
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #21
+    │       │           └── value: local #19 : handle
+    │       ├── body[8] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: callbackValues$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @23
+    │       │       ├── result: #24
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #22
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: callbackValues$withScratch(%primitives$I64[%primitives$String])
+    │       │       │   │       └── args[0]: function callbackValues$main()$lambda6
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #24
+    │       │           └── value: local #22 : handle
+    │       └── body[9] > return: unit : void
+    ├── funcs[2] > func:
+    │   ├── symbol: callbackValues$main()$lambda1
+    │   ├── params[0]: local #1 : handle
+    │   ├── ret: i64
+    │   ├── body[0] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: callbackValues$show(%primitives$String)
+    │   │   └── args[0]: local #1 : handle
+    │   └── body[1] > return: 1 : i64
+    ├── funcs[3] > func:
+    │   ├── symbol: callbackValues$eachWord(%primitives$I64[%primitives$String], %primitives$String)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : handle
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: callbackValues$eachWord(%primitives$I64[%primitives$String], %primitives$String).ffi
+    │       ├── args[0]: local #1 : ptr
+    │       └── args[1]: local #2 : handle
+    ├── funcs[4] > func:
+    │   ├── symbol: callbackValues$show(%primitives$String)
+    │   ├── params[0]: local #1 : handle
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       ├── body[0] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: local #1 : handle
+    │       ├── body[1] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @3
+    │       │       ├── result: #4
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #2
+    │       │       │   ├── scope: %5
+    │       │       │   ├── value: "\n" : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #4
+    │       │           └── value: local #2 : handle
+    │       └── body[2] > return: unit : void
+    ├── funcs[5] > func:
+    │   ├── symbol: callbackValues$main()$lambda2
+    │   ├── params[0]: local #1 : handle16
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left > convert:
+    │       │   ├── type: i64
+    │       │   └── value > member:
+    │       │       ├── type: i32
+    │       │       ├── index: 1
+    │       │       └── value: local #1 : handle16
+    │       └── right > deref:
+    │           ├── type: i64
+    │           └── ptr > runtime:
+    │               ├── type: ptr
+    │               ├── fn: zane_list_at
+    │               ├── args[0]: address of #1 : ptr
+    │               ├── args[1]: 3 : i64
+    │               └── args[2]: 8 : i64
+    ├── funcs[6] > func:
+    │   ├── symbol: callbackValues$withList(%primitives$I64[%primitives$List<%primitives$I64>])
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: callbackValues$withList(%primitives$I64[%primitives$List<%primitives$I64>]).ffi
+    │       └── args[0]: local #1 : ptr
+    ├── funcs[7] > func:
+    │   ├── symbol: callbackValues$main()$lambda3
+    │   ├── params[0]: local #1 : [3 x i64]
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left > deref:
+    │       │   ├── type: i64
+    │       │   └── ptr > runtime:
+    │       │       ├── type: ptr
+    │       │       ├── fn: zane_array_at
+    │       │       ├── args[0]: address of #1 : ptr
+    │       │       ├── args[1]: 1 : i64
+    │       │       ├── args[2]: 3 : i64
+    │       │       └── args[3]: 8 : i64
+    │       └── right > deref:
+    │           ├── type: i64
+    │           └── ptr > runtime:
+    │               ├── type: ptr
+    │               ├── fn: zane_array_at
+    │               ├── args[0]: address of #1 : ptr
+    │               ├── args[1]: 3 : i64
+    │               ├── args[2]: 3 : i64
+    │               └── args[3]: 8 : i64
+    ├── funcs[8] > func:
+    │   ├── symbol: callbackValues$withArray(%primitives$I64[%primitives$Array<%primitives$I64, 3>])
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: callbackValues$withArray(%primitives$I64[%primitives$Array<%primitives$I64, 3>]).ffi
+    │       └── args[0]: local #1 : ptr
+    ├── funcs[9] > func:
+    │   ├── symbol: callbackValues$make(%primitives$I64)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: {ptr, i64}
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > foreign call:
+    │   │       ├── type: ptr
+    │   │       ├── fn: callbackValues$make(%primitives$I64).ffi
+    │   │       └── args[0]: local #1 : i64
+    │   ├── body[1] > let:
+    │   │   ├── local: #3
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_handle_made
+    │   │       └── args[0]: local #2 : ptr
+    │   ├── body[2] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: ==
+    │   │   │   ├── left: local #3 : i64
+    │   │   │   └── right: 0 : i64
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_no_object
+    │   │       └── args:
+    │   └── body[3] > return > record:
+    │       ├── type: {ptr, i64}
+    │       ├── members[0] > member 0: local #2 : ptr
+    │       └── members[1] > member 1: local #3 : i64
+    ├── funcs[10] > func:
+    │   ├── symbol: callbackValues$main()$lambda4
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > return > call:
+    │       ├── type: i64
+    │       ├── fn: callbackValues$value(this callbackValues$Obj)
+    │       └── args[0]: local #1 : ptr
+    ├── funcs[11] > func:
+    │   ├── symbol: callbackValues$withObject(%primitives$I64[callbackValues$Obj], callbackValues$Obj)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: callbackValues$withObject(%primitives$I64[callbackValues$Obj], callbackValues$Obj).ffi
+    │       ├── args[0]: local #1 : ptr
+    │       └── args[1] > deref:
+    │           ├── type: {ptr, i64}
+    │           └── ptr: local #2 : ptr
+    ├── funcs[12] > func:
+    │   ├── symbol: callbackValues$main()$lambda5
+    │   ├── params[0]: local #1 : {ptr, i64}
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: local #1 : {ptr, i64}
+    │       │   └── layout: ^callbackValues$Obj
+    │       ├── body[1] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: callbackValues$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @5
+    │       │       ├── result: #6
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #4
+    │       │       │   ├── scope: %3
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: callbackValues$value(this callbackValues$Obj)
+    │       │       │   │       └── args[0]: address of #2 : ptr
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #6
+    │       │           └── value: local #4 : handle
+    │       └── body[2] > return: unit : void
+    ├── funcs[13] > func:
+    │   ├── symbol: callbackValues$give(this callbackValues$Log, %primitives$Unit[^callbackValues$Obj], %primitives$I64)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : ptr
+    │   ├── params[2]: local #3 : i64
+    │   ├── ret: void
+    │   └── body[0] > eval > foreign call:
+    │       ├── type: void
+    │       ├── fn: callbackValues$give(this callbackValues$Log, %primitives$Unit[^callbackValues$Obj], %primitives$I64).ffi
+    │       ├── args[0] > deref:
+    │       │   ├── type: {ptr, i64}
+    │       │   └── ptr: local #1 : ptr
+    │       ├── args[1]: local #2 : ptr
+    │       └── args[2]: local #3 : i64
+    ├── funcs[14] > func:
+    │   ├── symbol: callbackValues$freed(this callbackValues$Log)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: callbackValues$freed(this callbackValues$Log).ffi
+    │       └── args[0] > deref:
+    │           ├── type: {ptr, i64}
+    │           └── ptr: local #1 : ptr
+    ├── funcs[15] > func:
+    │   ├── symbol: callbackValues$main()$lambda6
+    │   ├── params[0]: local #1 : handle
+    │   ├── ret: i64
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: callbackValues$scribble()
+    │   │       └── args:
+    │   ├── body[1] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: callbackValues$show(%primitives$String)
+    │   │   └── args[0]: local #1 : handle
+    │   └── body[2] > return: local #2 : i64
+    ├── funcs[16] > func:
+    │   ├── symbol: callbackValues$withScratch(%primitives$I64[%primitives$String])
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: callbackValues$withScratch(%primitives$I64[%primitives$String]).ffi
+    │       └── args[0]: local #1 : ptr
+    ├── funcs[17] > func:
+    │   ├── symbol: callbackValues$value(this callbackValues$Obj)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: callbackValues$value(this callbackValues$Obj).ffi
+    │       └── args[0] > deref:
+    │           ├── type: {ptr, i64}
+    │           └── ptr: local #1 : ptr
+    ├── funcs[18] > func:
+    │   ├── symbol: callbackValues$scribble()
+    │   ├── params:
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: callbackValues$scribble().ffi
+    │       └── args:
+    ├── funcs[19] > func:
+    │   ├── symbol: callbackValues$main()$lambda1.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > scope:
+    │   │   ├── id: %3
+    │   │   ├── body[0] > hold:
+    │   │   │   ├── local: #4
+    │   │   │   ├── scope: %3
+    │   │   │   ├── value > copy:
+    │   │   │   │   ├── type: handle
+    │   │   │   │   ├── value > deref:
+    │   │   │   │   │   ├── type: handle
+    │   │   │   │   │   └── ptr > deref:
+    │   │   │   │   │       ├── type: ptr
+    │   │   │   │   │       └── ptr > offset:
+    │   │   │   │   │           ├── within: {ptr}
+    │   │   │   │   │           ├── path: 0
+    │   │   │   │   │           └── base: local #0 : ptr
+    │   │   │   │   └── layout: %primitives$String
+    │   │   │   └── layout: %primitives$String
+    │   │   └── body[1] > store:
+    │   │       ├── address: local #1 : ptr
+    │   │       └── value > call:
+    │   │           ├── type: i64
+    │   │           ├── fn: callbackValues$main()$lambda1
+    │   │           └── args[0]: local #4 : handle
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    ├── funcs[20] > func:
+    │   ├── symbol: callbackValues$main()$lambda2.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > scope:
+    │   │   ├── id: %3
+    │   │   ├── body[0] > hold:
+    │   │   │   ├── local: #4
+    │   │   │   ├── scope: %3
+    │   │   │   ├── value > copy:
+    │   │   │   │   ├── type: handle16
+    │   │   │   │   ├── value > deref:
+    │   │   │   │   │   ├── type: handle16
+    │   │   │   │   │   └── ptr > deref:
+    │   │   │   │   │       ├── type: ptr
+    │   │   │   │   │       └── ptr > offset:
+    │   │   │   │   │           ├── within: {ptr}
+    │   │   │   │   │           ├── path: 0
+    │   │   │   │   │           └── base: local #0 : ptr
+    │   │   │   │   └── layout: %primitives$List<%primitives$I64>
+    │   │   │   └── layout: %primitives$List<%primitives$I64>
+    │   │   └── body[1] > store:
+    │   │       ├── address: local #1 : ptr
+    │   │       └── value > call:
+    │   │           ├── type: i64
+    │   │           ├── fn: callbackValues$main()$lambda2
+    │   │           └── args[0]: local #4 : handle16
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    ├── funcs[21] > func:
+    │   ├── symbol: callbackValues$main()$lambda3.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: callbackValues$main()$lambda3
+    │   │       └── args[0] > deref:
+    │   │           ├── type: [3 x i64]
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > deref:
+    │   │                   ├── type: ptr
+    │   │                   └── ptr > offset:
+    │   │                       ├── within: {ptr}
+    │   │                       ├── path: 0
+    │   │                       └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    ├── funcs[22] > func:
+    │   ├── symbol: callbackValues$main()$lambda4.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > let:
+    │   │   ├── local: #4
+    │   │   └── value > deref:
+    │   │       ├── type: ptr
+    │   │       └── ptr > deref:
+    │   │           ├── type: ptr
+    │   │           └── ptr > offset:
+    │   │               ├── within: {ptr}
+    │   │               ├── path: 0
+    │   │               └── base: local #0 : ptr
+    │   ├── body[3] > let:
+    │   │   ├── local: #5
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_handle_made
+    │   │       └── args[0]: local #4 : ptr
+    │   ├── body[4] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: ==
+    │   │   │   ├── left: local #5 : i64
+    │   │   │   └── right: 0 : i64
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_no_object
+    │   │       └── args:
+    │   ├── body[5] > let:
+    │   │   ├── local: #6
+    │   │   └── value > record:
+    │   │       ├── type: {ptr, i64}
+    │   │       ├── members[0] > member 0: local #4 : ptr
+    │   │       └── members[1] > member 1: local #5 : i64
+    │   ├── body[6] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: callbackValues$main()$lambda4
+    │   │       └── args[0]: address of #6 : ptr
+    │   └── body[7] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    ├── funcs[23] > func:
+    │   ├── symbol: callbackValues$main()$lambda5.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > let:
+    │   │   ├── local: #4
+    │   │   └── value > deref:
+    │   │       ├── type: ptr
+    │   │       └── ptr > deref:
+    │   │           ├── type: ptr
+    │   │           └── ptr > offset:
+    │   │               ├── within: {ptr}
+    │   │               ├── path: 0
+    │   │               └── base: local #0 : ptr
+    │   ├── body[3] > let:
+    │   │   ├── local: #5
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_handle_made
+    │   │       └── args[0]: local #4 : ptr
+    │   ├── body[4] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: ==
+    │   │   │   ├── left: local #5 : i64
+    │   │   │   └── right: 0 : i64
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_no_object
+    │   │       └── args:
+    │   ├── body[5] > eval > call:
+    │   │   ├── type: void
+    │   │   ├── fn: callbackValues$main()$lambda5
+    │   │   └── args[0] > record:
+    │   │       ├── type: {ptr, i64}
+    │   │       ├── members[0] > member 0: local #4 : ptr
+    │   │       └── members[1] > member 1: local #5 : i64
+    │   └── body[6] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    └── funcs[24] > func:
+        ├── symbol: callbackValues$main()$lambda6.adapter
+        ├── linkage: shared
+        ├── params[0]: local #0 : ptr
+        ├── params[1]: local #1 : ptr
+        ├── ret: void
+        ├── body[0] > let:
+        │   ├── local: #2
+        │   └── value > binary:
+        │       ├── type: i1
+        │       ├── op: ==
+        │       ├── left > deref:
+        │       │   ├── type: i64
+        │       │   └── ptr: global zane_self
+        │       └── right: 0 : i64
+        ├── body[1] > if:
+        │   ├── cond: local #2 : i1
+        │   └── body[0] > eval > runtime:
+        │       ├── type: void
+        │       ├── fn: zane_callback_attach
+        │       └── args:
+        ├── body[2] > scope:
+        │   ├── id: %3
+        │   ├── body[0] > hold:
+        │   │   ├── local: #4
+        │   │   ├── scope: %3
+        │   │   ├── value > copy:
+        │   │   │   ├── type: handle
+        │   │   │   ├── value > deref:
+        │   │   │   │   ├── type: handle
+        │   │   │   │   └── ptr > deref:
+        │   │   │   │       ├── type: ptr
+        │   │   │   │       └── ptr > offset:
+        │   │   │   │           ├── within: {ptr}
+        │   │   │   │           ├── path: 0
+        │   │   │   │           └── base: local #0 : ptr
+        │   │   │   └── layout: %primitives$String
+        │   │   └── layout: %primitives$String
+        │   └── body[1] > store:
+        │       ├── address: local #1 : ptr
+        │       └── value > call:
+        │           ├── type: i64
+        │           ├── fn: callbackValues$main()$lambda6
+        │           └── args[0]: local #4 : handle
+        └── body[3] > if:
+            ├── cond: local #2 : i1
+            └── body[0] > eval > runtime:
+                ├── type: void
+                ├── fn: zane_callback_detach
+                └── args:

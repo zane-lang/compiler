@@ -129,7 +129,8 @@ baseline already),
 `-O2 -Xclang -disable-llvm-passes`, so the
 module comes out of the front end unoptimized but optimizable: `-O0` would
 mark every function `noinline`, which no later pipeline undoes, and F13's
-inlining across the two languages would never happen. A function the front
+inlining across the two languages would never happen. `-Wall` follows them;
+its warnings refuse nothing (F3 says which are shown). A function the front
 end stamps with the compile's own processor, its `target-cpu`,
 `target-features` and `tune-cpu`, loses them, as the runtime's bodies do,
 and is compiled for the program's target: LLVM inlines a body only into a
@@ -150,6 +151,18 @@ naming the row: a `define` of a macro those flags set, `__FAST_MATH__`,
 
 `zane_ffi.h` is embedded in the compiler like the runtime's headers
 ([`lowering.md`](lowering.md) §7) and written once into the cache directory.
+
+An editor's C language server compiles a package's sources with none of
+these flags, so `zane_ffi.h` and the `include` and `define` rows are
+missing to it. `zanec --compile-commands OUT` writes the compilation
+database it reads, `compile_commands.json`: for each C source of each
+package without a stamp, the package's directory, the source's path, and
+the flags above with the package's rows and `-Wall`, its directories
+spelled as they are, with neither F3's maps nor the two flags that only
+shape the module, `-O2 -Xclang -disable-llvm-passes`. It reads the
+`c.coda` files and checks nothing else, and the headers it names are the
+cache's, which it writes as a build does. `zane check` writes one at the
+project's root.
 
 **F3. One package's C is one module, cached by what it was made from.** Each
 C source compiles to a module of its own, and the package's modules, with its
@@ -173,7 +186,27 @@ fixed name, `/zane/pkg` and `/zane/cache`: `-ffile-prefix-map` makes
 same mapping to the line markers and the front-end command. So the hash is the same for the same code wherever it
 is built, which F13's comparison of a publisher's hash with a consumer's
 relies on, and a path elsewhere, such as a system header's, still changes
-it.
+it. A fixed name is also a directory the front end can read: a clang VFS
+overlay remaps each to the directory it stands for, so a source that
+includes itself through `__FILE__` finds itself
+(`tests/ffi/fixtures/selfInclude`). `-fno-file-reproducible` keeps the
+host's `/` in `__FILE__` for every target: for a Windows target clang
+would spell it `\zane\pkg\…`, a name a Unix host reads as one file
+in no directory, which no overlay root can name. The glue's directory, a build's own,
+is spelled `/zane/glue` the same way (F8). The overlay is a file of its
+own, named by a hash of its text, in the cache's `foreign/` directory
+beside the headers, or in the build's work directory for the glue, and the
+hash leaves it out of the front-end command, since the maps it follows
+from are in it already.
+
+The front end's warnings are kept apart from its errors. A module's are
+written to the cache beside it, before it, as text: a line each, file,
+line, column and message apart by tabs, each escaped. So a module taken
+from the cache warns again, as the compile that made it did. The driver
+shows, after a check or a build that goes on, the warnings of files
+directly in a package's own directory, for the packages that carry no
+stamp: a vendored tree's, below it, and a dependency's are their authors'
+(`tests/ffi/fixtures/warnings`).
 
 **F4. Archives and system libraries go to the link.** An `archive` row's
 static library is read member by member with LLVM's archive reader
@@ -196,7 +229,14 @@ an error naming the package and the row: the linker's own words for it,
 `unable to find library -lX` from LLD, `library not found for -lX` from
 `ld64` and `cannot find -lX` from GNU `ld`, are read from what the link
 writes, and the error names the row of the `c.coda` that asks for the
-library in their place.
+library in their place. A C function a foreign verb names that nothing
+linked defines, declared by an interface header and given by no source,
+archive or system library, is read from the link's words the same way:
+`undefined reference to` from GNU `ld`, `undefined symbol:` from LLD and
+`referenced from:` from `ld64`, each with the function referencing it, which
+for a foreign verb's thunk is the verb's symbol and `.ffi`. The error names
+the verb and the C function in their place
+(`tests/ffi/fixtures/reject/undefinedC`).
 
 **F5. `zanec` reads a package's `c.coda` itself.** The settings live in the
 package's directory (`ffi.md` §2.3), beside the `.c` and `.h` files the
@@ -230,7 +270,11 @@ has a prototype at all; each `struct`'s fields with their canonical types,
 offsets, and bit widths where a field is a bit-field, and the record's size
 and alignment from clang's `ASTRecordLayout`. A declaration that only an
 included header makes is not in the table, which is how `ffi.md` §2.1's
-"seen by the C compiler and by nothing else" holds.
+"seen by the C compiler and by nothing else" holds, with one exception: each
+struct an included header declares, by its tag or by a typedef naming it,
+is listed apart as **reached**, by name and identity alone, since a handle's
+`cType` may name it (`ffi.md` §4.1), as SQLite's `sqlite3` is named from
+the library's own header. Nothing else reads the reached list.
 
 The table travels from C++ as text, words with names written as their
 length and bytes (`lib/foreign/interface.ml` reads it), so the stubs build
@@ -341,7 +385,13 @@ that declares its C function. The glue holds:
   `__zane_args[i]` points to an argument already laid out as C lays out its
   type. The thunk does the conversions of `ffi.md` §3.3 as C casts: an
   `@primitives$I32` passed to a `uint8_t` keeps its low bits, a returned
-  `int16_t` widens by its sign.
+  `int16_t` widens by its sign. A string passed to a `const char *`
+  (`ffi.md` §3.4) is copied with a NUL after it, into a 256-byte buffer in
+  the thunk's frame when it is shorter, else into `malloc`'s memory, freed
+  after the call. A string's block is exactly as long as its bytes, so the
+  NUL has no room in place; the copy is the thunk's, so a verb whose C
+  takes a `zane_bytes` pays nothing for it, and the stage-5 evaluator
+  runs it as it runs any C (`tests/ffi/fixtures/cStrings`).
 - one **free thunk** per foreign handle type with a free function, and one
   **set thunk** per type with a setter: thunks of the same pointer ABI,
   whose arguments are the objects' pointers, which call the free function
@@ -581,8 +631,9 @@ rename it by, so two versions of the package would both define it.
 **F10. A foreign call is one CGT node, with its arguments laid out for C.**
 Lowering gives each foreign verb a Zane function whose body is one
 `Foreign_call { thunk; args }`, and the program's list of thunks records
-how each argument and the result cross: as a scalar, a `Bool`, a view, an
-address, or a value. A call of the verb is a call of that function, which
+how each argument and the result cross: as a scalar, a `Bool`, a view, a
+terminated string, an address, or a value. Which a string is follows from
+its C parameter's type in the interface header. A call of the verb is a call of that function, which
 an optimized build inlines. Codegen lowers each argument to a slot holding
 its C layout, and the node passes the slots' addresses:
 
@@ -590,7 +641,7 @@ its C layout, and the node passes the slots' addresses:
 |---|---|
 | scalar primitive | the scalar |
 | `@primitives$Bool` | an `i8`, 0 or 1 |
-| `@primitives$String` | a `zane_bytes`: the string's byte address and length, from its handle |
+| `@primitives$String` | a `zane_bytes`: the string's byte address and length, from its handle; for a `const char *` parameter the same, which the thunk terminates (F8) |
 | `@primitives$Array<T, n>` | the address of the array, which already lays out as `T[n]` |
 | `@primitives$List<T>` | a `zane_span`: the list's block address and count |
 | C-compatible value type | the value in C's layout, its fields in declaration order, with its padding bytes zeroed |
@@ -613,9 +664,25 @@ both, so no struct lies in memory that Zane and C both read, and nothing
 else needs C's order.
 
 The result arrives in a slot of its C layout, and lowering makes the Zane
-value from it. A `zane_bytes` result is copied into a new string in the
-call's destination region through the runtime's string constructor, before
-any other foreign call can run on this thread. A handle result is checked for
+value from it. A `zane_bytes` result is taken by the runtime before any
+other foreign call can run on this thread. `<zane_ffi.h>`'s
+`zane_bytes_alloc` gives C a block in the call's destination region, the
+region the string is made in, and the runtime keeps every block it gives
+on each thread. Each call that returns a string holds the count it began
+at, its mark, as a value: `zane_text_expect` returns it and
+`zane_text_taken` reads it back, so that a call reached from a function
+value C calls inside another keeps its own blocks, and an expect whose
+take a fold made a constant leaves nothing behind. When the call returns, a view
+that starts at its last block and fits in it becomes the string as it is,
+its room the block's size; any other view, of C's own memory or inside the
+block, is copied into a new string in that region. The call's blocks the
+string does not take go back to their region then, since C keeps none of
+them, and a block of an earlier call, or memory since given to C at the
+same address, is never taken. The expect before the call is never
+folded: a fold would make its mark 0, and the running program's take
+would then free an outer call's blocks too (F18). A fold copies C's bytes either way (F18), and the stage-5
+evaluator's C library gives `zane_bytes_alloc` as `malloc`
+(`tests/ffi/fixtures/allocated`). A handle result is checked for
 null (`ffi.md` §3.5): the abort lowers as any `Unit` abort does
 ([`lowering.md`](lowering.md) L12), and the stop prints "a foreign function
 returned no object".
@@ -635,7 +702,29 @@ stores in a result slot whose padding bytes are zeroed, as F10's are. The
 C types the entry takes and gives are read from the lambda's Zane type when
 it is lowered, not from its CGT type: a value type of one field has its
 field's CGT type, and C passes a struct of one `float` and a `float`
-differently. The object that defines the lambda defines all three, after
+differently.
+
+What C passes as an argument the adapter turns into the Zane value before
+it calls the Zane function, once the thread has a context. A string or a
+list arrives as the `zane_bytes` or `zane_span` C lends; the entry puts it
+in a slot laid out as the value's handle, whose room is its length, so
+that the copy the adapter makes of it, as any copy of a value is made,
+takes a block of its own rather than sharing C's, which a handle with no
+room would. The adapter holds that copy in an arena of the call's, which
+ends it once the lambda returns, so the lambda reads nothing of C's while
+it runs, even bytes C writes during it. An array arrives as a pointer to its elements, which the adapter
+reads through. A data handle arrives as its C object's pointer, which the
+adapter stamps as a handle is made (F12), stopping the program on a null
+one as a foreign verb's handle result does: a borrowed handle is passed
+as the address of a place holding it, and a roaming owner as the handle,
+whose end, the lambda's, calls its free thunk
+(`tests/ffi/fixtures/callbackValues`). A fold reads a string and an array
+out of C memory as it reads a result (F18), and stops at a list or a C
+object C passes, which the running program alone makes values of. Every
+lambda of such a type gets the three functions, so one taking a string
+does whether or not C is ever handed it.
+
+The object that defines the lambda defines all three, after
 lowering (`lib/cgt/callbacks.ml`), and the object's C entries
 are a glue module of their own, compiled and linked as a package's glue is
 (F9, F13, F14). A lambda several objects lift, as each that makes a
@@ -668,8 +757,9 @@ C may call a function value on a thread it started itself, which has no
 context of the runtime's. The adapter reads the runtime's context of the
 thread, `zane_self`, and when there is none has the runtime make one with
 one scope for the call (`zane_callback_attach`) and give it back once the
-call returns (`zane_callback_detach`): the result C takes is a
-C-compatible value and holds no block. The runtime's alternate signal
+call returns (`zane_callback_detach`): the arena of the arguments the
+adapter copies is drained before that, and the result C takes is a C-compatible value and
+holds no block. The runtime's alternate signal
 stack, which its fault handler runs on, stands in for the thread's own for
 the call, and the thread has its own back after. Both are cold, so an optimized C
 entry is its lambda's body behind one load and one branch. A call on a

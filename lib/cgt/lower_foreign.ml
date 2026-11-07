@@ -39,13 +39,33 @@ let rec c_shape ?(seen = []) st span (t : Tty.t) : Callback.shape option =
       | _ -> None)
   | _ -> None
 
+(* What C passes a function value as a parameter of the Zane type [t]
+   (spec ffi.md §3.6): what [c_shape] gives, a string or a list as its
+   view, an array as a pointer to its elements, and a data handle as its
+   C object's pointer, a roaming owner's taken by the lambda. *)
+let c_param st span (t : Tty.t) : Callback.shape option =
+  let handle t = match definition st t with Some (T.Decl.Handle _, _) -> true | _ -> false in
+  match t with
+  | Tty.Roaming inner when handle inner -> Some (Callback.Object { owned = true })
+  | Tty.Roaming _ | Tty.Reference _ -> None
+  | _ -> (
+      match c_shape st span t with
+      | Some s -> Some s
+      | None when (is_text t || is_list t) && not (is_list_ref t) ->
+          let stride = match element t with Some e -> stride st span e | None -> 1 in
+          Some (Callback.View { layout = layout st span t; text = is_text t; stride })
+      | None -> (
+          match array_of t with
+          | Some (e, n) when scalar e && not (is_array_ref t) -> Some (Callback.Elements (Callback.Scalar (ty st span e), n))
+          | _ -> if handle t then Some (Callback.Object { owned = false }) else None))
+
 (* The C signature of the function type [fv], when C can call a value of
    it: no subject, no abort, and C types for its parameters and result, a
    `Unit` result returning nothing. *)
 let c_signature st span (fv : Tty.verb) =
   if Option.is_some fv.Tty.this_ || Option.is_some fv.Tty.abort then None
   else
-    let takes = List.map (c_shape st span) fv.Tty.params in
+    let takes = List.map (c_param st span) fv.Tty.params in
     let gives =
       match Tty.strip_mode fv.Tty.ret with
       | Tty.Intrinsic { namespace = "primitives"; name = "Unit"; args = [] } -> Some Callback.Nothing
@@ -126,7 +146,14 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
     | Foreign.Value, _ -> (Foreign.Value, in_c st span p.T.Local.ty value)
     | c, _ -> (c, value)
   in
-  let args = List.map arg v.params in
+  (* A string whose C parameter is a `const char *` crosses terminated. *)
+  let c_params = match f.T.Foreign.c_function with C_interface.Function { params; _ } -> params | _ -> [] in
+  let terminated i (c, value) =
+    match (c, List.nth_opt c_params i) with
+    | Foreign.View, Some p when C_interface.is_c_string p -> (Foreign.Terminated, value)
+    | _ -> (c, value)
+  in
+  let args = List.mapi terminated (List.map arg v.params) in
   let ret = v.signature.S.ret in
   let result = crossing st span ret in
   let shape = match result with Foreign.Value -> c_shape st span ret | _ -> None in
@@ -153,12 +180,20 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
     :: st.thunks;
   match result with
   | Foreign.Unit -> [ Stat.Eval call ]
-  (* C's bytes are C's: the string is copied into a block of its own
-     before anything else runs (F10), by joining the view C returned, which
-     owns nothing, to an empty one. *)
+  (* A string C returns is taken before anything else runs (F10): the
+     block `zane_bytes_alloc` gave C during the call as it is, and any
+     other bytes, C's own, copied into a block of the string's own. *)
   | Foreign.View ->
-      let empty = { Expr.node = Expr.Text ""; ty = Nodes.Ty.Handle } in
-      [ Stat.Return (st.returns { Expr.node = Expr.Runtime { fn = Runtime.Text_join; args = [ call; empty ] }; ty = Nodes.Ty.Handle }) ]
+      (* The mark is a value the take reads, not state the expect sets,
+         so a fold that makes the whole take a constant leaves an expect
+         that changes nothing. *)
+      let runtime fn args ty = { Expr.node = Expr.Runtime { fn; args }; ty } in
+      let mark = fresh st in
+      [
+        Stat.Let { id = mark; value = runtime Runtime.Text_expect [] Nodes.Ty.I64 };
+        Stat.Return
+          (st.returns (runtime Runtime.Text_taken [ call; { Expr.node = Expr.Local mark; ty = Nodes.Ty.I64 } ] Nodes.Ty.Handle));
+      ]
   | Foreign.Handle -> made st ctx span v call
   (* A struct comes back in C's layout and is rebuilt in its own. *)
   | _ -> (

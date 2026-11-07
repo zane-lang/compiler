@@ -2,16 +2,19 @@
    its first word the driver's name; a run gives what the front end made
    and the errors it reported. *)
 
-(* One error the front end reported, at a line and column of [file], both
+(* One error or warning the front end reported, at a line and column of [file], both
    counted from one; [file] is empty for one about the command itself. *)
 type problem = { file : string; line : int; column : int; message : string }
 
-(* What a run made, meaningful when [ok]. *)
-type run = { ok : bool; output : string; problems : problem list }
+(* What a run made, meaningful when [ok], and the warnings it gave, which
+   refuse nothing. *)
+type run = { ok : bool; output : string; problems : problem list; warnings : problem list }
 
-external compile_raw : string array -> bool * string * (string * int * int * string) list = "zane_clang_compile"
-external preprocess_raw : string array -> bool * string * (string * int * int * string) list = "zane_clang_preprocess"
-external interface_raw : string array -> bool * string * (string * int * int * string) list = "zane_clang_interface"
+type raw_problem = string * int * int * string
+
+external compile_raw : string array -> bool * string * raw_problem list * raw_problem list = "zane_clang_compile"
+external preprocess_raw : string array -> bool * string * raw_problem list * raw_problem list = "zane_clang_preprocess"
+external interface_raw : string array -> bool * string * raw_problem list * raw_problem list = "zane_clang_interface"
 external version : unit -> string = "zane_clang_version"
 external defined_variables : string -> string list = "zane_bitcode_defined_variables"
 external private_state : string -> string list = "zane_bitcode_private_state"
@@ -28,8 +31,9 @@ external declarations : string -> string list = "zane_bitcode_declarations"
 external host_triple : unit -> string = "zane_host_triple"
 external triple_parts : string -> string * string * string * string = "zane_triple_parts"
 
-let of_raw (ok, output, problems) =
-  { ok; output; problems = List.map (fun (file, line, column, message) -> { file; line; column; message }) problems }
+let of_raw (ok, output, problems, warnings) =
+  let problem (file, line, column, message) = { file; line; column; message } in
+  { ok; output; problems = List.map problem problems; warnings = List.map problem warnings }
 
 (* The driver's name. The linked driver finds nothing through it: every
    directory a compilation searches is given on the command line. *)

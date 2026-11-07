@@ -6,11 +6,11 @@
    should have ended, uses an empty span. *)
 
 module Severity = struct
-  (* Only refusal, today: nothing yet reports anything a program may go on
-     with. *)
-  type t = Error
+  (* A refusal, or a warning a build goes on after: what the C compiler
+     says of a package's own C code (docs/design/ffi.md F2). *)
+  type t = Error | Warning
 
-  let label = function Error -> "Error"
+  let label = function Error -> "Error" | Warning -> "Warning"
 end
 
 (* What a report is about. Most are about text, and have a span to put a
@@ -39,6 +39,9 @@ type t = {
 
 let error span message = { severity = Severity.Error; location = Location.Span span; message }
 let in_file path message = { severity = Severity.Error; location = Location.File path; message }
+
+(* [d] as a warning, which refuses nothing. *)
+let as_warning d = { d with severity = Severity.Warning }
 
 let in_directory dir message =
   { severity = Severity.Error; location = Location.Directory dir; message }

@@ -1,0 +1,1 @@
+Error: the foreign verb `undefinedC$nowhere` calls the C function `defined_nowhere`, which an interface header declares and nothing linked defines: no C source, `archive` row or `system` row of its package gives it (ffi.md §2.4)

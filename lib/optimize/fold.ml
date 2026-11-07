@@ -646,8 +646,11 @@ let candidate fn (env : known) (e : Expr.t) =
       List.for_all (known_input env) (children e)
       && match call_key e with Some k -> not (V.Key.mem fn.failed k) | None -> true)
   (* Where a constant is made, the check whether this is its first read
-     stays (Eval). *)
-  | Expr.Runtime { fn = Cgt.Runtime.(Constant_begin | Constant_end); _ } -> false
+     stays (Eval). The mark a foreign call that returns a string begins
+     at stays too: a fold, which copies what C returns, gives it 0, but
+     the running program's take frees the blocks from its mark on, and
+     an outer call's are among them from 0. *)
+  | Expr.Runtime { fn = Cgt.Runtime.(Constant_begin | Constant_end | Text_expect); _ } -> false
   | Expr.Runtime { fn = f; _ } ->
       Intrinsics.classify f = Intrinsics.Computed && List.for_all (known_input env) (children e)
   | Expr.Math { fn = f; _ } ->
