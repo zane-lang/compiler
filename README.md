@@ -4,13 +4,12 @@ This repository contains the Zane language compiler and CLI.
 
 ## Released toolchain
 
-The **Release compiler** workflow publishes a Linux x86_64 toolchain archive
-with `zanec`, its LLVM/shared-library dependencies, and Zig (the version in the
+The **Release compiler** workflow publishes toolchain archives for Linux
+x86_64 and for macOS on both Apple Silicon and Intel, each with `zanec`, its LLVM/shared-library dependencies, and Zig (the version in the
 archive's `share/zig.json`, pinned by `dev/toolchains/zig.json`). It builds Zane
 programs for Linux, Windows and macOS without installing OCaml, LLVM or a C
-compiler. Windows-native and macOS-native compiler archives are not yet
-provided; Windows and macOS program targets are tested on Windows and macOS
-in CI.
+compiler. A Windows-native compiler archive is not yet provided; Windows
+programs are built by the others and tested on Windows in CI.
 
 Download the `.tar.gz` and `SHA256SUMS` from a
 [compiler release](https://github.com/zane-lang/compiler/releases), then verify
@@ -22,9 +21,9 @@ archive="zane-compiler-$version-linux-x86_64.tar.gz"
 base="https://github.com/zane-lang/compiler/releases/download/$version"
 curl -fSLO "$base/$archive"
 curl -fSLO "$base/SHA256SUMS"
-sha256sum --check --strict SHA256SUMS
-mkdir -p "$HOME/.zane/toolchains/$version"
-tar -xzf "$archive" --strip-components=1 -C "$HOME/.zane/toolchains/$version"
+grep " $archive\$" SHA256SUMS | sha256sum --check --strict &&
+  mkdir -p "$HOME/.zane/toolchains/$version" &&
+  tar -xzf "$archive" --strip-components=1 -C "$HOME/.zane/toolchains/$version"
 export PATH="$HOME/.zane/toolchains/$version/bin:$PATH"
 ```
 
@@ -49,8 +48,8 @@ another C compiler wrapper, or `ZIG` to use another Zig executable; either
 way the bundled runtime is not used, and the runtime that compiler compiles
 and the linker command it gives are cached under `~/.cache/zane` (or
 `$XDG_CACHE_HOME/zane`); set `ZANE_CACHE_DIR` to keep them elsewhere. The
-compiler itself runs natively on Linux; Zig cross-compiles the runtime for
-any other target.
+compiler itself runs natively on Linux and macOS, where its archives are
+built; Zig cross-compiles the runtime for any other target.
 
 ## Publishing a compiler release
 
@@ -146,7 +145,9 @@ just test-compiler
 ```
 
 The environment adds `dev/bin` to `PATH`. On Linux and macOS it sets
-`ZANE_CC` to `dev/bin/clang-lld`, whose linker is LLVM's `lld`, so `zanec`
+`ZANE_CC` to `dev/bin/clang-lld`, which is clang with LLVM's `lld` as its
+linker on Linux and plain clang on macOS. `zanec` asks it for the line its linker
+would run, on macOS with `-fuse-ld=lld` so that the line is `lld`'s, and
 links with the `lld` built into it. On Windows it sets `ZANE_CC` to
 `dev/bin/zig-cc.cmd`, which links through `zig cc` for MinGW. `ZANE_CC` is
 left alone if it is already set. Set `ZANE_VERBOSE` to have a build say why
@@ -154,7 +155,9 @@ it links through the C compiler instead.
 
 ### What each OS runs
 
-`just test-compiler`, the compiler suite, passes on all three. The grammar,
+`just test-compiler`, the compiler suite, passes on all three, and CI runs
+it natively on each, Intel macOS only on `main`, in the merge queue and on
+manual runs. The grammar,
 ambiguity and highlighting suites (`just test-grammar`,
 `just test-ambiguity-tools`, `just test-highlighting`) and `just test-perf`
 run on Linux only, as does `just test-windows`, which runs the Windows
