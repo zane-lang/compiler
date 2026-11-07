@@ -25,15 +25,28 @@ expand() {
 # `--package [[STAMP]PATH=]DIR`: only DIR is a path. What comes before the
 # first `=` names the package only when zanec would read it as a package id
 # (`package_id` in bin/zanec/zanec.ml): an optional stamp, then lower-case
-# identifiers joined by `.`. Otherwise the `=` is part of a directory name and
-# the whole argument is a path.
+# identifiers joined by `.`, none of them a keyword. Otherwise the `=` is part
+# of a directory name and the whole argument is a path. The keywords are the
+# word spellings of the lexicon's literal tokens, read from the file the lexer
+# is generated from.
 segment='_?[[:lower:]][[:alpha:][:digit:]]*'
 package_id="^([A-Za-z0-9._+-]*%[0-9a-f]{16}%)?${segment}(\\.${segment})*\$"
+keywords=" $(awk '/^literal_tokens/ { inside = 1; next } inside && /^\]/ { exit } inside && ++row > 1 && $2 ~ /^[a-z]+$/ { printf "%s ", $2 }' "$ROOT/grammar/lexicon.coda") "
+is_package_id() {
+	local id="$1" part
+	[[ "$id" =~ $package_id ]] || return 1
+	local -a parts
+	IFS=. read -r -a parts <<<"${id##*%}"
+	for part in "${parts[@]}"; do
+		[[ "$keywords" == *" $part "* ]] && return 1
+	done
+	return 0
+}
 package() {
 	local argument="$1"
 	if [[ "$argument" == *=* ]]; then
 		local name="${argument%%=*}" dir="${argument#*=}"
-		if [[ "$name" =~ $package_id ]]; then
+		if is_package_id "$name"; then
 			printf '%s=%s' "$name" "$(expand "$dir")"
 			return
 		fi

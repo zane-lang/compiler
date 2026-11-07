@@ -23,6 +23,21 @@ for argument in "$@"; do printf '%s\\n' "$argument"; done
 """
 
 
+def lexicon_keywords():
+    """The word spellings among the lexicon's literal tokens: what the lexer
+    reads as a keyword rather than an identifier."""
+    lines = (PROJECT / "grammar/lexicon.coda").read_text().splitlines()
+    start = lines.index("literal_tokens [") + 2
+    words = set()
+    for line in lines[start:]:
+        if line.startswith("]"):
+            break
+        fields = line.split()
+        if len(fields) > 1 and fields[1].isalpha() and fields[1].islower():
+            words.add(fields[1])
+    return words
+
+
 @unittest.skipIf(os.name == "nt", "the wrapper is a bash script; Windows uses zanec.exe")
 class WrapperTest(unittest.TestCase):
     def run_wrapper(self, *arguments):
@@ -77,6 +92,17 @@ class WrapperTest(unittest.TestCase):
         for argument in ("my-project=copy", "odd/a=b", "Upper=dir", "a..b=dir", "v1%a%gui=dir"):
             caller, out = self.run_wrapper("--package", argument)
             self.assertEqual(out, ["--package", f"{caller}/{argument}"], argument)
+
+    def test_a_keyword_is_not_a_package_name(self):
+        keywords = lexicon_keywords()
+        self.assertIn("type", keywords)
+        self.assertNotIn("literal", keywords)
+        for keyword in sorted(keywords):
+            for argument in (f"{keyword}=copy", f"gui.{keyword}=copy"):
+                caller, out = self.run_wrapper("--package", argument)
+                self.assertEqual(out, ["--package", f"{caller}/{argument}"], argument)
+        caller, out = self.run_wrapper("--package", "types=copy")
+        self.assertEqual(out, ["--package", f"types={caller}/copy"])
 
     def test_subpackage_paths_and_underscore_names_are_package_ids(self):
         caller, out = self.run_wrapper("--package", "gui.opengl=lib/gui/opengl", "--package", "_private=lib/_private")
