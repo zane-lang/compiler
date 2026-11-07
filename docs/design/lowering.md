@@ -510,7 +510,8 @@ its executable, and, unless `ZANE_CC` names another C compiler, links with
 the toolchain's own `zig cc`; then, unless `ZIG` names another `zig`, a build
 looks in the toolchain's `share/runtime/` before the cache
 (`Build.released`). A compiler that is not a release's looks in the
-directory `ZANE_RUNTIME_OBJECTS` names, as tests do. A build looks there for an object named by a hash of the runtime's
+directory `ZANE_RUNTIME_OBJECTS` names, as for one run apart from the
+toolchain whose runtimes it links. A build looks there for an object named by a hash of the runtime's
 sources, the target triple in LLVM's normal form and the flags besides the
 target's, and in its `link/` for the linker command named by a hash of the
 triple, those flags and the libraries every program for the target links

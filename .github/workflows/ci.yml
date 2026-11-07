@@ -121,9 +121,9 @@ jobs:
         if: matrix.suite == 'ambiguity-tools'
         run: pixi run just test-ambiguity-tools
 
-  # Build the Windows programs on Linux, as the released Linux toolchain
-  # builds them, independently: Windows execution need not wait for Linux's
-  # grammar, highlighting or compiler tests.
+  # Build the Windows programs on Linux with the pixi environment's `zig cc`
+  # (dev/bin/cross-programs), independently: Windows execution need not wait
+  # for Linux's grammar, highlighting or compiler tests.
   windows-build:
     runs-on: ubuntu-latest
     timeout-minutes: 30

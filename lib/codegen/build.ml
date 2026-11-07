@@ -226,7 +226,8 @@ let runtime_key ~cc ~identity ~triple flags =
 
 (* Where the runtimes a build links come from, made beforehand: a released
    toolchain's own ([released]), or, for a compiler that is not one, the
-   directory `ZANE_RUNTIME_OBJECTS` names, as tests do. *)
+   directory `ZANE_RUNTIME_OBJECTS` names, as for one run apart from the
+   toolchain whose runtimes it links. *)
 let bundled_dir () =
   match Lazy.force release with
   | Some { runtimes; _ } -> runtimes
