@@ -87,6 +87,7 @@ test-compiler: _require-menhir _zanec
 	{{pixi_python}} -m unittest tests.nesting.lizard_check_test -v
 	{{python}} -m unittest tests.parser.syntax_test -v
 	{{python}} -m unittest tests.tiers.tiers_test -v
+	{{python}} -m unittest tests.dev.wrapper_test -v
 	tests/memory-probes/run --check
 	{{python}} tests/memory-probes/reclaim.py --check
 

@@ -66,11 +66,10 @@ zanec --build hello --root --package hello=path/to/hello --package core=path/to/
 zanec --target x86_64-windows-gnu --build hello.exe --root --package hello=path/to/hello --package core=path/to/core/lib/core
 ```
 
-These use a released compiler, which `zane toolchain install` puts in
-`~/.zane/toolchains/<version>/bin/zanec`. In a development checkout, run the
-built `_build/default/bin/zanec/zanec.exe` the same way: the `zanec` command
-that `pixi shell` provides reads every argument that is not an option as a
-path, which breaks `NAME=DIR` and `--target` values.
+A released compiler is in `~/.zane/toolchains/<version>/bin/zanec`, where
+`zane toolchain install` puts it. In a development checkout, `pixi shell`
+provides a `zanec` that takes the same arguments
+([`docs/development.md`](docs/development.md#developer-tools)).
 
 `zanec` with no arguments prints its usage. Released compilers can build
 for Linux, Windows and macOS from any of those systems. To install a release

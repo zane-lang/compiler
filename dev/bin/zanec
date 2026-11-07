@@ -4,21 +4,80 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CALLER="$PWD"
 
-# Dune runs from the project root, so a relative source path would otherwise be
-# resolved against the root rather than the directory the caller is in. Expand
-# every path argument against the caller's directory before changing to the
-# root, whether or not it names an existing file: a path that does not exist
-# has to reach the compiler as the caller wrote it, so the error names the file
-# they meant rather than one that happens to sit at the root.
-arguments=()
-for argument in "$@"; do
-	case "$argument" in
-		# `-` is standard input, and a leading `-` otherwise marks an option.
-		-*) arguments+=("$argument") ;;
-		/*) arguments+=("$argument") ;;
-		*)  arguments+=("$CALLER/$argument") ;;
+# Dune runs from the project root, so a relative path would otherwise be
+# resolved against the root rather than the directory the caller is in. Every
+# argument that names a file or directory is expanded against the caller's
+# directory before changing to the root, whether or not it exists: a path that
+# does not exist has to reach the compiler as the caller wrote it, so the error
+# names the file they meant rather than one that happens to sit at the root.
+# Everything else (option names, targets, sizes, stamps, package names) passes
+# through unchanged. Which argument is which follows zanec's own parser
+# (bin/zanec/zanec.ml, `arguments`).
+
+# One path, made absolute against the caller's directory.
+expand() {
+	case "$1" in
+		/* | '') printf '%s' "$1" ;;
+		*) printf '%s' "$CALLER/$1" ;;
 	esac
-done
+}
+
+# `--package [[STAMP]PATH=]DIR`: only DIR is a path. A prefix before the first
+# `=` names the package when it holds no `/`; with one it is part of a
+# directory name, as zanec reads it.
+package() {
+	local argument="$1"
+	if [[ "$argument" == *=* ]]; then
+		local name="${argument%%=*}" dir="${argument#*=}"
+		if [[ "$name" != */* ]]; then
+			printf '%s=%s' "$name" "$(expand "$dir")"
+			return
+		fi
+	fi
+	expand "$argument"
+}
+
+arguments=()
+case "${1-}" in
+	# The fetching and remapping steps: STAMP, FROM and TO are not paths.
+	--rewrite)
+		arguments=("${@:1:2}")
+		for argument in "${@:3}"; do arguments+=("$(expand "$argument")"); done
+		;;
+	--remap)
+		arguments=("${@:1:3}")
+		for argument in "${@:4}"; do arguments+=("$(expand "$argument")"); done
+		;;
+	*)
+		next=''
+		for argument in "$@"; do
+			# A value never starts with `-`; zanec reports the missing value.
+			if [[ -n "$next" && "$argument" != -* ]]; then
+				case "$next" in
+					path) arguments+=("$(expand "$argument")") ;;
+					package) arguments+=("$(package "$argument")") ;;
+					*) arguments+=("$argument") ;;
+				esac
+				next=''
+				continue
+			fi
+			next=''
+			case "$argument" in
+				--build | --object | --tier-up | --compile-commands | --link | --c-hashes | --bundle-runtime)
+					next=path ;;
+				--package)
+					next=package ;;
+				--target | --stamp | --import | --fixed-region | --spawned-fixed-region)
+					next=value ;;
+				# `-` is standard input, and a leading `-` otherwise marks an option.
+				-*) ;;
+				# A source file given alone.
+				*) argument="$(expand "$argument")" ;;
+			esac
+			arguments+=("$argument")
+		done
+		;;
+esac
 
 cd "$ROOT"
 exec dune exec bin/zanec/zanec.exe -- ${arguments[@]+"${arguments[@]}"}
