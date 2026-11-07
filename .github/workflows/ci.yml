@@ -32,6 +32,8 @@ jobs:
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      grammar: ${{ steps.suites.outputs.grammar }}
+      ambiguity-tools: ${{ steps.suites.outputs.ambiguity-tools }}
       highlighting: ${{ steps.suites.outputs.highlighting }}
     steps:
       - name: Checkout code
@@ -61,8 +63,10 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   # Each suite owns its checkout and Dune build directory. A failing suite
-  # does not cancel the others, so one run reports every failure.
-  linux-tests:
+  # does not cancel the others, so one run reports every failure. Windows
+  # and macOS run the same suites below, but for highlighting's Neovim and
+  # Typst consumers, in one job each.
+  linux-native:
     needs: suites
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -119,8 +123,9 @@ jobs:
         if: matrix.suite == 'ambiguity-tools'
         run: pixi run just test-ambiguity-tools
 
-  # Build the Windows artifacts independently: Windows execution need not
-  # wait for Linux's grammar, highlighting or compiler tests.
+  # Build the Windows programs on Linux, as the released Linux toolchain
+  # builds them, independently: Windows execution need not wait for Linux's
+  # grammar, highlighting or compiler tests.
   windows-build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -135,7 +140,7 @@ jobs:
         uses: ./.github/actions/setup-ci
 
       - name: Build the Windows programs
-        run: pixi run dev/bin/windows-programs windows-programs
+        run: pixi run dev/bin/cross-programs x86_64-windows-gnu windows-programs
 
       - name: Keep the Windows programs
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -147,7 +152,7 @@ jobs:
   # Aggregate the Linux checks. always() makes a failed or skipped
   # prerequisite fail this gate instead of silently skipping it.
   linux-checks:
-    needs: [suites, linux-tests]
+    needs: [suites, linux-native]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -173,9 +178,8 @@ jobs:
       - name: Check file sizes
         run: .github/scripts/file-sizes
 
-  # Linux and Windows are the first tier (docs/design/platforms.md): the
-  # programs the job above built for Windows run on Windows itself, each held
-  # to the output and status its fixture expects.
+  # The programs windows-build made run on Windows itself, each held to the
+  # output and status its fixture expects (docs/design/platforms.md).
   windows-tests:
     needs: windows-build
     runs-on: windows-latest
@@ -203,11 +207,12 @@ jobs:
         shell: bash
         run: dev/bin/check-programs windows-programs
 
-  # The compiler's own suite on Windows itself: zanec built natively from the
-  # same pixi environment as Linux's, then `just test-compiler`, held to the
-  # host's triple, image format and C library as on every system
-  # (docs/design/platforms.md).
+  # The compiler's own suites on Windows itself: zanec built natively from
+  # the same pixi environment as Linux's, then what `just test` runs, held to
+  # the triple a build without `--target` is for, and its image format and C
+  # library, as on every system (docs/design/platforms.md).
   windows-native:
+    needs: suites
     runs-on: windows-latest
     timeout-minutes: 90
     defaults:
@@ -229,6 +234,8 @@ jobs:
 
       - name: Set up toolchain
         uses: ./.github/actions/setup-ci
+        with:
+          grammar-dependencies: true
 
       - name: Restore dune's cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -239,6 +246,19 @@ jobs:
 
       - name: Compiler tests
         run: pixi run just test-compiler
+
+      # The rest of `just test`, chosen as Linux's suites are.
+      - name: Grammar generator tests
+        if: ${{ !cancelled() }}
+        run: pixi run just test-grammar-generation
+
+      - name: Grammar ambiguity tests
+        if: ${{ !cancelled() && needs.suites.outputs.grammar == 'true' }}
+        run: pixi run just test-grammar
+
+      - name: Ambiguity tool tests
+        if: ${{ !cancelled() && needs.suites.outputs.ambiguity-tools == 'true' }}
+        run: pixi run just test-ambiguity-tools
 
       # Kept whether or not the tests passed: what was built is the same.
       - name: Save dune's cache
@@ -261,11 +281,12 @@ jobs:
         run: jq -e 'all(.[]; .result == "success")' <<< "$RESULTS"
 
   # macOS is the lower tier (docs/design/platforms.md), with its own gate,
-  # but its suite runs the same way: zanec built natively from the pixi
-  # environment, then `just test-compiler`. Apple Silicon runs for every
+  # but its suites run the same way: zanec built natively from the pixi
+  # environment, then what `just test` runs. Apple Silicon runs for every
   # pull request; Intel, whose runners are the slowest, joins on main, in
   # the merge queue and when started by hand.
   macos-native:
+    needs: suites
     strategy:
       fail-fast: false
       matrix:
@@ -292,6 +313,8 @@ jobs:
 
       - name: Set up toolchain
         uses: ./.github/actions/setup-ci
+        with:
+          grammar-dependencies: true
 
       - name: Restore dune's cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -303,6 +326,19 @@ jobs:
       - name: Compiler tests
         run: pixi run just test-compiler
 
+      # The rest of `just test`, chosen as Linux's suites are.
+      - name: Grammar generator tests
+        if: ${{ !cancelled() }}
+        run: pixi run just test-grammar-generation
+
+      - name: Grammar ambiguity tests
+        if: ${{ !cancelled() && needs.suites.outputs.grammar == 'true' }}
+        run: pixi run just test-grammar
+
+      - name: Ambiguity tool tests
+        if: ${{ !cancelled() && needs.suites.outputs.ambiguity-tools == 'true' }}
+        run: pixi run just test-ambiguity-tools
+
       # Kept whether or not the tests passed: what was built is the same.
       - name: Save dune's cache
         if: always()
@@ -311,9 +347,81 @@ jobs:
           path: ${{ env.DUNE_CACHE_ROOT }}
           key: dune-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pixi.lock', 'dev/setup/bootstrap-toolchain') }}-${{ github.sha }}
 
+  # The programs for macOS, built on Linux as for Windows above, for each
+  # architecture macos-native runs on. Each set travels as a tarball, since
+  # an artifact keeps no file's mode and a macOS program runs only with its
+  # own.
+  macos-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: >-
+          ${{ fromJSON(
+            github.event_name == 'pull_request'
+            && '["aarch64"]'
+            || '["aarch64","x86_64"]'
+          ) }}
+    name: macos-build (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # vendor/coda, which lib/coda/ builds.
+          submodules: true
+
+      - name: Set up toolchain
+        uses: ./.github/actions/setup-ci
+
+      - name: Build the macOS programs
+        run: |
+          pixi run dev/bin/cross-programs "${{ matrix.arch }}-macos" macos-programs
+          tar -czf macos-programs.tar.gz macos-programs
+
+      - name: Keep the macOS programs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macos-programs-${{ matrix.arch }}
+          path: macos-programs.tar.gz
+          if-no-files-found: error
+
+  # The programs macos-build made run on macOS itself, as Windows' run on
+  # Windows.
+  macos-tests:
+    needs: macos-build
+    strategy:
+      fail-fast: false
+      matrix:
+        include: >-
+          ${{ fromJSON(
+            github.event_name == 'pull_request'
+            && '[{"arch":"aarch64","runner":"macos-latest"}]'
+            || '[{"arch":"aarch64","runner":"macos-latest"},{"arch":"x86_64","runner":"macos-15-intel"}]'
+          ) }}
+    name: macos-tests (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    steps:
+      # The job runs no git command, so the token is not left behind.
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Fetch the macOS programs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: macos-programs-${{ matrix.arch }}
+
+      - name: Run the macOS programs
+        run: |
+          tar -xzf macos-programs.tar.gz
+          dev/bin/check-programs macos-programs
+
   # Aggregate the macOS checks with the same success rule as Linux.
   macos-checks:
-    needs: [macos-native]
+    needs: [macos-build, macos-tests, macos-native]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

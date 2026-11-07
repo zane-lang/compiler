@@ -13,6 +13,9 @@ export GRAMMAR_PYTHON="$PWD/.grammar-venv/bin/python"
 just generate-grammar
 ```
 
+On Windows a venv keeps its interpreter in `Scripts/`, so the path there is
+`.grammar-venv/Scripts/python.exe`, here and below.
+
 The CLI is taken from the local npm installation, or from `PATH` when that is
 absent. `--tree-sitter PATH` (or `TREE_SITTER`) selects it explicitly. The generator checks its version
 because conflict discovery consumes that CLI's structured diagnostic schema.

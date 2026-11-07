@@ -68,8 +68,9 @@ with main's numbers on the `perf-log` branch. Linux only; see
 
 ## `just test-windows`
 
-The test programs built for Windows and run under Wine, as CI runs them on
-Windows itself ([`docs/design/platforms.md`](../docs/design/platforms.md)).
+The test programs built for Windows (`dev/bin/cross-programs`) and run
+under Wine, as CI runs them on Windows itself, and the ones it builds for
+macOS on macOS ([`docs/design/platforms.md`](../docs/design/platforms.md)).
 Needs `zig` and `wine64`; set `RUNNER` to run them some other way.
 
 ## `just verify-grammar`

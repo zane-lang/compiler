@@ -15,7 +15,7 @@ checked drains.
 `abi/probe.c` prints what the runtime's structs measure, each offset and
 size by the name `runtime/zane_abi.h` gives it. The unit tests compare its
 output with the compiler's `Abi`, which is read from that header, and
-`dev/bin/windows-programs` builds it for Windows, held to the header.
+`dev/bin/cross-programs` builds it for Windows and macOS, held to the header.
 
 `scopes.h` defines the sizes of each context's range of frames, which a
 program's own module defines, and places slots by growing the innermost

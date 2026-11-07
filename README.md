@@ -155,11 +155,10 @@ it links through the C compiler instead.
 
 ### What each OS runs
 
-`just test-compiler`, the compiler suite, passes on all three, and CI runs
-it natively on each, Intel macOS only on `main`, in the merge queue and on
-manual runs. The grammar,
-ambiguity and highlighting suites (`just test-grammar`,
-`just test-ambiguity-tools`, `just test-highlighting`) and `just test-perf`
+`just test` passes on all three, and CI runs it natively on each, Intel
+macOS only on `main`, in the merge queue and on manual runs. CI also runs
+the test programs built on Linux for Windows and macOS on those systems.
+The highlighting consumers (`just test-highlighting`) and `just test-perf`
 run on Linux only, as does `just test-windows`, which runs the Windows
 programs under Wine. How the platforms differ, and what each is held to, is
 in [`docs/design/platforms.md`](docs/design/platforms.md).

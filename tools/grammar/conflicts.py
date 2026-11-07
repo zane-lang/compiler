@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -13,8 +14,11 @@ ABI = 15
 
 def executable(explicit=None):
     # The pinned local install wins over whatever `tree-sitter` is on PATH, so
-    # an unrelated global CLI does not shadow it.
-    local = Path(__file__).resolve().parents[2] / 'editors/tree-sitter-zane/node_modules/.bin/tree-sitter'
+    # an unrelated global CLI does not shadow it. It is the binary the package
+    # downloads, not npm's `.bin` link to it, which on Windows is a shell
+    # script that only a shell can run.
+    name = 'tree-sitter.exe' if os.name == 'nt' else 'tree-sitter'
+    local = Path(__file__).resolve().parents[2] / 'editors/tree-sitter-zane/node_modules/tree-sitter-cli' / name
     if explicit:
         candidate = shutil.which(explicit) or explicit
     else:

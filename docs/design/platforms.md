@@ -24,17 +24,22 @@ and a problem there may wait.
     test expects, and run with the arguments its fixture lists.
     `just test-windows` runs the same programs under Wine.
 - **macOS** is the lower tier. Its objects are built, rewritten and tested
-  as Windows ones are, and the released toolchain's programs for both its
-  architectures are run on macOS in CI.
+  as Windows ones are, and the same programs are built for `aarch64-macos`
+  and `x86_64-macos` on Linux and run on macOS itself in CI, held as
+  Windows' are. The released toolchain's programs for both its
+  architectures are run there too.
 
 On every one of them `zanec` itself is built natively from the same pixi
-environment, and its suite, `just test-compiler`, runs there in CI, held to
-the triple a build without `--target` is for, and its image format and C
-library: on Linux and Windows for every
-change, on Apple Silicon macOS for every pull request, and on Intel macOS on
-`main`, in the merge queue and when CI is started by hand, since its runners
-are the slowest. The grammar, ambiguity and highlighting suites and
-`just test-perf` run on Linux alone.
+environment, and what `just test` runs, the compiler, grammar, ambiguity
+and grammar-generation suites, runs there in CI, held to the triple a build
+without `--target` is for, and its image format and C library. Linux and
+Windows run for every change, Apple Silicon macOS for every pull request,
+and Intel macOS, whose runners are the slowest, on `main`, in the merge
+queue and when CI is started by hand; the programs built for each macOS
+architecture follow the same rule. Two suites run on Linux alone: the
+highlighting consumers, whose Neovim and Typst read the same generated
+files on every system, and `just test-perf`, whose Callgrind counts exist
+on Linux only.
 
 ## 64-bit targets only
 
@@ -48,8 +53,8 @@ written once, in `runtime/zane_abi.h`: `runtime/zane_internal.h` asserts
 each against the structs, and codegen reads them from it as `Abi`
 (`lib/codegen/dune`). `tests/runtime/abi/probe.c` prints what the structs
 measure; the unit tests hold it to `Abi` on every host the compiler suite
-runs on, and `dev/bin/windows-programs` holds the Windows build it makes on
-Linux to the header. On a target with 4-byte pointers, such as
+runs on, and `dev/bin/cross-programs` holds the Windows and macOS builds it
+makes on Linux to the header. On a target with 4-byte pointers, such as
 `i386-unknown-linux-gnu` or `armv7-unknown-linux-gnueabihf`, those offsets
 would disagree with what LLVM and the C compiler lay out.
 
