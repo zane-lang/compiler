@@ -202,7 +202,9 @@ highlight queries, checks reserved words and incomplete edits, and reruns the
 compiler's acceptance/rejection suite through a parser-only driver. The
 Neovim and Typst tests run if their executables are present; Neovim's also
 needs a [`zane-nvim`](https://github.com/TheLazyCat00/zane-nvim) checkout in
-`.zane-nvim` (or `ZANE_NVIM_PLUGIN`), which CI clones. To reproduce the
+`.zane-nvim` (or `ZANE_NVIM_PLUGIN`). CI clones the plugin's branch named
+like the pull request's when there is one, else its `main`, and the plugin's
+own CI installs the parser from this repository the same way. To reproduce the
 full consumer check, install both and set `ZANE_REQUIRE_HIGHLIGHTING_TOOLS=1`,
 as CI does, so that a missing tool fails the run instead of skipping its tests.
 
