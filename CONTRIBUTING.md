@@ -63,6 +63,14 @@ reaches five and fails at every place past it; `just check-nesting` runs the
 same check locally, and [`tools/nesting/`](tools/nesting/) has the full
 count.
 
+C and Python are held to the same limit, counted per function by
+[lizard](https://github.com/terryyin/lizard): `if`, `for`, `while`, `do`,
+`switch`, `try`, `with` and `match` are each a level, an `elif` chain is one,
+and a function defined inside another is measured on its own. lizard charges
+each C `else if` as its own level, so write a long chain in C as a `switch` or
+as early returns. It names the function rather than the line where the depth
+is reached. Test fixtures and `docs/experiments/` are not checked.
+
 The fix for deep code is to name its inner steps as functions. A function
 bound by `let`, at top level or locally, costs no level of its own, by design:
 its body counts from where it is bound, so pulling an inline closure out into
