@@ -8,7 +8,7 @@ pixi run typst --version
 # A pull request tests against the plugin's branch of the same name when there
 # is one, so a change made in both repositories is tested as a whole; anything
 # else, and a merge, tests against the plugin's main.
-plugin=https://github.com/TheLazyCat00/zane-nvim
+plugin=https://github.com/zane-lang/zane-nvim
 branch=main
 if [ -n "${ZANE_NVIM_BRANCH:-}" ] && git ls-remote --exit-code --heads "$plugin" "$ZANE_NVIM_BRANCH" >/dev/null; then
   branch=$ZANE_NVIM_BRANCH

@@ -145,7 +145,7 @@ It does not configure the Typst web editor or your text editor.
 
 ## Neovim
 
-Install the [`zane-nvim`](https://github.com/TheLazyCat00/zane-nvim) plugin. It
+Install the [`zane-nvim`](https://github.com/zane-lang/zane-nvim) plugin. It
 registers the parser with nvim-treesitter, which downloads
 `editors/tree-sitter-zane` and `editors/neovim/queries` from this repository,
 builds the parser and installs both ([`editors/neovim`](../editors/neovim/README.md)).
@@ -201,7 +201,7 @@ existing compiler syntax suite, checks the larger parser fixtures, loads
 highlight queries, checks reserved words and incomplete edits, and reruns the
 compiler's acceptance/rejection suite through a parser-only driver. The
 Neovim and Typst tests run if their executables are present; Neovim's also
-needs a [`zane-nvim`](https://github.com/TheLazyCat00/zane-nvim) checkout in
+needs a [`zane-nvim`](https://github.com/zane-lang/zane-nvim) checkout in
 `.zane-nvim` (or `ZANE_NVIM_PLUGIN`). CI clones the plugin's branch named
 like the pull request's when there is one, else its `main`, and the plugin's
 own CI installs the parser from this repository the same way. To reproduce the

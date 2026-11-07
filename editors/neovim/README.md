@@ -1,6 +1,6 @@
 # Neovim
 
-Neovim support is the [`zane-nvim`](https://github.com/TheLazyCat00/zane-nvim)
+Neovim support is the [`zane-nvim`](https://github.com/zane-lang/zane-nvim)
 plugin. It registers the Zane parser with nvim-treesitter, which downloads this
 repository's `editors/tree-sitter-zane` grammar and this directory's
 `queries/highlights.scm`, builds the parser and installs both.
