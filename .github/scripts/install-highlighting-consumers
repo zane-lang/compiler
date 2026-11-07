@@ -10,8 +10,16 @@ pixi run typst --version
 # else, and a merge, tests against the plugin's main.
 plugin=https://github.com/zane-lang/zane-nvim
 branch=main
-if [ -n "${ZANE_NVIM_BRANCH:-}" ] && git ls-remote --exit-code --heads "$plugin" "$ZANE_NVIM_BRANCH" >/dev/null; then
-  branch=$ZANE_NVIM_BRANCH
+if [ -n "${ZANE_NVIM_BRANCH:-}" ]; then
+  # git ls-remote --exit-code exits with 2 when no branch matches; any other
+  # failure (the network, GitHub) stops here rather than testing main instead.
+  status=0
+  git ls-remote --exit-code --heads "$plugin" "refs/heads/$ZANE_NVIM_BRANCH" >/dev/null || status=$?
+  case $status in
+    0) branch=$ZANE_NVIM_BRANCH ;;
+    2) ;;
+    *) echo "zane-nvim: looking up branch $ZANE_NVIM_BRANCH failed" >&2; exit "$status" ;;
+  esac
 fi
 echo "zane-nvim: $branch"
 rm -rf .zane-nvim

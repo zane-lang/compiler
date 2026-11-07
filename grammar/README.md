@@ -167,7 +167,9 @@ lookahead using a finite prefix trie. This preserves the compiler's keyword
 priority even in positions where Tree-sitter expects an identifier.
 
 Then, with the `zane-nvim` plugin still installed, put the parser and Neovim's
-query on Neovim's runtime path, for example on Linux:
+query on Neovim's runtime path. Run `:TSUninstall zane` first if nvim-treesitter
+has installed the parser: its install directory comes earlier on the runtime
+path and would hide the copies. For example on Linux:
 
 ```sh
 mkdir -p ~/.local/share/nvim/site/parser ~/.local/share/nvim/site/queries/zane
