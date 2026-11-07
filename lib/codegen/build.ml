@@ -21,6 +21,18 @@ let cpu triple =
   | "x86_64h" :: _ -> "core-avx2"
   | _ -> ""
 
+(* The features the target machine for [triple] adds to [cpu]'s: on AArch64
+   the base architecture, `+v8a`, which clang names on every function it
+   compiles for the architecture and LLVM's `generic` processor lacks. A
+   package's C, compiled by clang for the program's processor, then asks for
+   nothing the program's functions do not have, so it is inlined into them
+   (docs/design/ffi.md; clang_stubs.cpp's drop_default_processor checks
+   against the same). *)
+let features triple =
+  match String.split_on_char '-' triple with
+  | ("aarch64" | "arm64") :: _ -> "+v8a"
+  | _ -> ""
+
 (* Whether [triple], whose data layout is [layout], is a target this
    compiler builds for (docs/design/platforms.md, "64-bit targets only").
    Lowering lays out every type, and the runtime its records, for 8-byte
@@ -46,6 +58,21 @@ let sixty_four_bit triple layout =
 
 external use_init_array : Llvm_target.TargetMachine.t -> unit = "zane_use_init_array"
 
+(* The triple a build for the host is for: on Windows MinGW's, the only
+   Windows the runtime supports (docs/design/platforms.md), where LLVM's own
+   default is MSVC's; LLVM's default elsewhere, with the vendor a packaged
+   LLVM names itself by (conda-forge's `x86_64-conda-linux-gnu`) read as
+   `unknown`, the same machine, so a host build is for the triple a build
+   naming the target is, and finds the runtimes a release bundles for it. *)
+let windows_host_triple = "x86_64-windows-gnu"
+
+let host_triple () =
+  if Sys.win32 then windows_host_triple
+  else
+    match String.split_on_char '-' (Llvm_target.Target.default_triple ()) with
+    | arch :: "conda" :: rest -> String.concat "-" (arch :: "unknown" :: rest)
+    | _ -> Llvm_target.Target.default_triple ()
+
 (* The machine for *target*, an LLVM triple, or for the host when it is
    absent, putting an ELF object's constructors where the C library runs
    them (init_array_stubs.cpp). The triple is taken in LLVM's normal form,
@@ -58,13 +85,13 @@ let target_machine ?target ~optimize () =
   let triple =
     match target with
     | Some target -> normalize_triple target
-    | None -> Llvm_target.Target.default_triple ()
+    | None -> normalize_triple (host_triple ())
   in
   let level = Llvm_target.CodeGenOptLevel.(if optimize then Default else None) in
   match Llvm_target.Target.by_triple triple with
   | target ->
       let tm =
-        Llvm_target.TargetMachine.create ~triple ~cpu:(cpu triple) ~level
+        Llvm_target.TargetMachine.create ~triple ~cpu:(cpu triple) ~features:(features triple) ~level
           ~reloc_mode:Llvm_target.RelocMode.PIC target
       in
       use_init_array tm;
@@ -515,8 +542,8 @@ let lld_run command =
 let verbose () = match Sys.getenv_opt "ZANE_VERBOSE" with Some "" | None -> false | Some _ -> true
 
 (* Whether [text], a linker's errors, says it cannot find the library
-   [name], as `ld.lld` and `lld-link` say it, `ld64` does and GNU `ld`
-   does. The name must end where the linker's word does, so `-lz` is not
+   [name], as `ld.lld` and `lld-link` say it, `ld64` does, GNU `ld` does
+   and `zig cc` does, which looks for a library itself before it links. The name must end where the linker's word does, so `-lz` is not
    found in `-lzstd`. *)
 let unfound_library text name =
   let in_word = function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '.' | '+' | '-' -> true | _ -> false in
@@ -528,7 +555,7 @@ let unfound_library text name =
       let rec at i j = j >= n || (text.[i + j] = word.[j] && at i (j + 1)) in
       let rec from i = i <= String.length text - n && ((at i 0 && ends (i + n)) || from (i + 1)) in
       from 0)
-    [ "unable to find library -l"; "library not found for -l"; "cannot find -l" ]
+    [ "unable to find library -l"; "library not found for -l"; "cannot find -l"; "system library '"; "system library \"" ]
 
 (* A failed link of [libraries] as the error that names the row of the
    library the linker could not find, when its [text] says so. *)
@@ -779,8 +806,8 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
 (* What the runtime is compiled with besides [flags], whatever the C
    compiler would add by itself: no clearing of the registers a function
    used before it returns, and, but on Apple's targets, whose ABI keeps
-   them, no frame pointers. Some toolchains add both by default, Nix's
-   hardened clang among them, and they cost the runtime's small, hot
+   them, no frame pointers. Some toolchains add both by default, hardened
+   distribution clangs among them, and they cost the runtime's small, hot
    functions more than anything else in them (docs/optimizations.md). *)
 let tuning ~triple =
   let coff = List.mem "windows" (String.split_on_char '-' triple) in

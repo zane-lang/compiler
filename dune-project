@@ -19,8 +19,8 @@
  (description
   "The Zane compiler, zanec: a sedlex lexer and a Menhir GLR grammar producing\na concrete syntax tree, desugaring into the SST, semantic analysis into the\ntyped TST, lowering into the CGT, LLVM code generation, and the C runtime\nlinked into every program. Also the developer tooling used to keep the grammar\nunambiguous.")
  (depends
-  ; The project targets OCaml 5: devbox provides ocaml@latest and CI builds on
-  ; the ocaml-system switch that gives. The floor is 5.2, whose parse tree
+  ; The project targets OCaml 5: pixi.toml provides OCaml 5.5 and CI builds on
+  ; the switch it provides. The floor is 5.2, whose parse tree
   ; gives functions the shape tools/nesting reads through compiler-libs.
   (ocaml (>= 5.2))
   ; lib/cst/dune builds the grammar with --GLR, which the 20260122 release line
@@ -31,8 +31,6 @@
   ; The diagnostic renderer splits a source line into grapheme clusters and
   ; measures each one's width (lib/diagnostic/render.ml).
   uucp
-  uuseg
-  ; Codegen builds its LLVM module through the bindings (docs/design/lowering.md L2).
-  llvm)
+  uuseg)
  (tags
   ("compiler" "zane" "parser" "menhir" "ocaml")))

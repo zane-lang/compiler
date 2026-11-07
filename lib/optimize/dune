@@ -15,11 +15,13 @@
   (language cxx)
   (names c_ir_stubs)
   (flags
-   (:standard
-    (:include llvm_cxx.sexp))))
+   (:include llvm_cxx.sexp)))
  (libraries cgt diagnostic llvm))
 
 (rule
  (target llvm_cxx.sexp)
- (deps ../codegen/gen/lld_flags.sh (env_var LLVM_CONFIG) (env_var PATH))
- (action (with-stdout-to %{target} (run sh ../codegen/gen/lld_flags.sh cxx))))
+ (deps (env_var LLVM_CONFIG) (env_var PATH))
+ (action
+  (with-stdout-to
+   %{target}
+   (run %{exe:../llvm/config/discover.exe} cxx %{ocaml-config:ccomp_type} %{ocaml-config:ocamlc_cflags}))))

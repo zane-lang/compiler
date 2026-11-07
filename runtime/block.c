@@ -5,6 +5,10 @@
 #include <locale.h>
 #include <math.h>
 
+#ifdef __APPLE__
+#include <xlocale.h>
+#endif
+
 /* ---------------------------------------------------------------------- */
 /* Dynamic blocks (memory.md §3.6, docs/design/lowering.md §9)                   */
 /* ---------------------------------------------------------------------- */

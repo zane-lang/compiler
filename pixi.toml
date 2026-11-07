@@ -1,0 +1,61 @@
+# The toolchain that builds and tests zanec on Linux, macOS and Windows: one
+# conda-forge environment, entered with `pixi shell` or used through
+# `pixi run` (README.md, "Setup"). `pixi run setup` provisions the OCaml packages
+# into a local opam switch once; activation (dev/setup/activate.*) then puts
+# the switch and the variables the build reads in place. LLVM is 21 because
+# conda-forge's macOS OCaml requires clang, lld and llvm-tools >= 21, and zig
+# is the release whose clang is LLVM 21's too, so the runtime's bitcode it
+# compiles on Windows is bitcode the compiler's LLVM reads.
+
+[workspace]
+name = "zane-compiler"
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
+
+[dependencies]
+ocaml = "5.5.1.*"
+opam = "*"
+c-compiler = "*"
+cxx-compiler = "*"
+llvmdev = "21.1.8.*"
+clangdev = "21.1.8.*"
+lld = "21.1.8.*"
+cmake = "*"
+ninja = "*"
+make = "*"
+pkg-config = "*"
+zstd = "*"
+zlib = "*"
+zig = "0.16.0.*"
+just = "*"
+python = "3.13.*"
+nodejs = "*"
+typst = "*"
+nvim = "*"
+
+[target.unix.dependencies]
+m4 = "*"
+
+# glibc 2.34 has dlopen in libc itself, as the runtime's tests assume.
+[target.linux-64.dependencies]
+sysroot_linux-64 = "2.34.*"
+valgrind = "*"
+
+# The MSVC build of OCaml, which matches how conda-forge builds LLVM on
+# Windows; the gcc (MinGW) build would not link LLVM's C++ libraries.
+[target.win-64.dependencies]
+ocaml = { version = "5.5.1.*", build = "vs2022*" }
+# xml2.lib, which conda's static LLVM links, is in the -devel package.
+libxml2-devel = "*"
+
+[target.unix.activation]
+scripts = ["dev/setup/activate.sh"]
+
+[target.win-64.activation]
+scripts = ["dev/setup/activate.bat"]
+
+[tasks]
+# The opam switch's packages, at the versions the bootstrap pins; run once,
+# and again when a pin changes.
+setup = "bash dev/setup/bootstrap-toolchain"
+test = "just test"

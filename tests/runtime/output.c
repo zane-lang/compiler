@@ -2,14 +2,21 @@
    (docs/design/lowering.md §9): what a print writes reaches stdout at the
    points stdio's buffer would send it, and a stop from the fault handler
    flushes it with nothing that can deadlock or block. Each case runs in a
-   child, which an alarm stops if it hangs, and prints `yes` when it held. */
+   child (system.h), which is stopped if it hangs, and prints `yes` when it
+   held. */
 
+#ifdef _WIN32
+/* The pseudo-console a terminal case runs on, from Windows 10 on. */
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0A00
+#endif
+
+#include "system.h"
 #include "walks.h"
 
-#include <fcntl.h>
-#include <poll.h>
+#ifndef _WIN32
 #include <sys/stat.h>
-#include <sys/wait.h>
+#endif
 
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
@@ -40,174 +47,243 @@ typedef struct {
 	int64_t result;
 } spawned;
 
-/* Everything readable from `fd` until its writers close it, up to `room`
-   bytes. */
-static size_t drain(int fd, char *text, size_t room) {
-	size_t used = 0;
-	ssize_t n;
-	while (used < room - 1 && (n = read(fd, text + used, room - 1 - used)) > 0) used += (size_t)n;
-	text[used] = 0;
-	return used;
-}
-
-/* A child's status, and whether its stderr was `expected`. */
-static int ended(pid_t child, int err, int status, const char *expected) {
-	char text[256];
-	drain(err, text, sizeof text);
-	close(err);
-	int got;
-	return child > 0 && waitpid(child, &got, 0) == child && WIFEXITED(got) &&
-	       WEXITSTATUS(got) == status && strcmp(text, expected) == 0;
-}
-
 static const char *const full = "recursion too deep: the machine stack is full\n";
 
-/* The stack overflows in one thread while another prints, and the
-   overflowing thread prints at every call. */
-static int overflow_while_printing(void) {
-	int err[2];
-	if (pipe(err) != 0) return 0;
-	fflush(stdout);
-	pid_t child = fork();
-	if (child == 0) {
-		close(err[0]);
-		int null = open("/dev/null", O_WRONLY);
-		if (null < 0 || dup2(null, STDOUT_FILENO) < 0 || dup2(err[1], STDERR_FILENO) < 0) _exit(2);
-		alarm(10);
+/* The size of the runtime's output buffer for stdout as `fd`: the
+   system's block size for it, or stdio's buffer on Windows (main.c). */
+static size_t out_size(test_fd fd) {
+#ifdef _WIN32
+	(void)fd;
+	return BUFSIZ;
+#else
+	struct stat s;
+	return fstat(fd, &s) == 0 && s.st_blksize > 0 ? (size_t)s.st_blksize : BUFSIZ;
+#endif
+}
+
+/* The cases a child runs. Each ends the program itself. */
+static void run_child(void) {
+	if (child_case("overflow-printing")) {
+		/* The stack overflows in one thread while another prints, and the
+		   overflowing thread prints at every call. */
 		zane_set_threads(1);
 		spawned s = { 0 };
 		zane_spawn((char *)&s.result, chatter, NULL, NULL, 0);
 		deep(0);
-		_exit(2);
+	} else if (child_case("overflow-full")) {
+		/* Stdout is a pipe that is full and that nothing reads. */
+		say("lost\n");
+		deep(0);
+	} else if (child_case("closed")) {
+		say("nowhere\n");
+		exit(zane_flush_output() ? 0 : 1);
+	} else {
+		/* What a print reaches stdout as, while the child waits on stdin. */
+#ifdef _WIN32
+		size_t size = out_size(GetStdHandle(STD_OUTPUT_HANDLE));
+#else
+		size_t size = out_size(STDOUT_FILENO);
+#endif
+		if (child_case("line")) {
+			say("a line\n");
+		} else {
+			char *text = malloc(size + 1);
+			memset(text, 'y', size);
+			text[size] = 0;
+			say(child_case("small") ? "small\n" : text);
+			free(text);
+		}
+		char go;
+		if (fread(&go, 1, 1, stdin) != 1) exit(2);
+		exit(0);
 	}
-	close(err[1]);
-	return ended(child, err[0], 1, full);
+	exit(2);
 }
 
 /* The stack overflows while stdout is a pipe that is full and that nothing
-   reads: the buffered output is dropped, and the program still stops. */
+   reads: the buffered output is dropped, and the program still stops. The
+   pipe is filled until a write would block, by a thread on Windows, whose
+   pipes cannot be asked not to. */
+#ifdef _WIN32
+static DWORD WINAPI filling(void *pipe) {
+	char block[4096];
+	memset(block, 'x', sizeof block);
+	DWORD written;
+	while (WriteFile((HANDLE)pipe, block, sizeof block, &written, NULL)) {}
+	return 0;
+}
+#endif
+
 static int overflow_into_full_pipe(void) {
-	int out[2], err[2];
-	if (pipe(out) != 0 || pipe(err) != 0) return 0;
+	test_fd out[2];
+	if (test_pipe(out) != 0) return 0;
+#ifdef _WIN32
+	HANDLE filler = CreateThread(NULL, 0, filling, out[1], 0, NULL);
+	if (!filler) return 0;
+	Sleep(500);
+#else
 	int flags = fcntl(out[1], F_GETFL);
 	fcntl(out[1], F_SETFL, flags | O_NONBLOCK);
 	char block[4096];
 	memset(block, 'x', sizeof block);
 	while (write(out[1], block, sizeof block) > 0) {}
 	fcntl(out[1], F_SETFL, flags);
+#endif
+	int ok = child_stops("overflow-full", "", CHILD_TO, out[1], 1, full);
+	test_close(out[0]);
+#ifdef _WIN32
+	/* With nothing left to read it, the filler's write fails. */
+	WaitForSingleObject(filler, 5000);
+	CloseHandle(filler);
+#endif
+	test_close(out[1]);
+	return ok;
+}
+
+/* A program that forks keeps the fault handler's stack in the child
+   (region.c), so a full stack there stops it as it stops the program. */
+static int overflow_after_fork(void) {
+#ifdef _WIN32
+	return 1;
+#else
+	test_fd err[2];
+	if (test_pipe(err) != 0) return 0;
 	fflush(stdout);
 	pid_t child = fork();
 	if (child == 0) {
-		close(out[0]);
-		close(err[0]);
-		if (dup2(out[1], STDOUT_FILENO) < 0 || dup2(err[1], STDERR_FILENO) < 0) _exit(2);
+		int null = open("/dev/null", O_WRONLY);
+		if (null < 0 || dup2(null, STDOUT_FILENO) < 0 || dup2(err[1], STDERR_FILENO) < 0) _exit(2);
 		alarm(10);
-		say("lost\n");
 		deep(0);
 		_exit(2);
 	}
-	close(out[1]);
 	close(err[1]);
-	int ok = ended(child, err[0], 1, full);
-	close(out[0]);
-	return ok;
-}
-
-/* A write error on stdout, closed, is the program's failure. */
-static int closed_stdout(void) {
-	fflush(stdout);
-	pid_t child = fork();
-	if (child == 0) {
-		close(STDOUT_FILENO);
-		say("nowhere\n");
-		_exit(zane_flush_output() ? 0 : 1);
-	}
+	char text[256];
+	test_drain(err[0], text, sizeof text);
+	close(err[0]);
 	int status;
-	return child > 0 && waitpid(child, &status, 0) == child && WIFEXITED(status) &&
-	       WEXITSTATUS(status) == 1;
+	return child > 0 && waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 1 &&
+	       strcmp(text, full) == 0;
+#endif
 }
 
-/* What a child run as `mode` prints and when, read from `out` while the
-   child waits for `release`. */
-static void child(const char *mode) {
-	struct stat s;
-	size_t size = fstat(STDOUT_FILENO, &s) == 0 && s.st_blksize > 0 ? (size_t)s.st_blksize : BUFSIZ;
-	if (strcmp(mode, "line") == 0) {
-		say("a line\n");
-	} else {
-		char *text = malloc(size + 1);
-		memset(text, 'y', size);
-		text[size] = 0;
-		say(strcmp(mode, "small") == 0 ? "small\n" : text);
-		free(text);
-	}
-	char go;
-	if (read(3, &go, 1) != 1) _exit(2);
-}
-
-/* Runs this program as a child in `mode`, its stdout `out`, and reports
-   whether `expected` bytes reached `reader` while the child waited: 0 for
-   none. */
-static int arrives(const char *mode, int out, int reader, size_t expected) {
-	int release[2];
-	if (pipe(release) != 0) return 0;
-	fflush(stdout);
-	pid_t pid = fork();
-	if (pid == 0) {
-		alarm(10);
-		if (dup2(out, STDOUT_FILENO) < 0 || dup2(release[0], 3) < 0) _exit(2);
-		char self[] = "/proc/self/exe";
-		char *argv[] = { self, (char *)mode, NULL };
-		execv(self, argv);
-		_exit(2);
-	}
-	close(out);
-	close(release[0]);
+/* Whether `expected` bytes reached `reader` while the child waited, 0 for
+   none, and the child then ended well. */
+static int arrived(test_child *c, test_fd reader, size_t expected, const char *within) {
 	size_t got = 0;
-	char text[1 << 16];
-	struct pollfd p = { .fd = reader, .events = POLLIN };
+	static char text[1 << 16];
 	while (got < expected || expected == 0) {
-		if (poll(&p, 1, expected ? 5000 : 300) <= 0) break;
-		ssize_t n = read(reader, text + got, sizeof text - got);
+		long n = test_read(reader, text + got, sizeof text - 1 - got, expected ? 5000 : 300);
 		if (n <= 0) break;
 		got += (size_t)n;
 	}
-	int ok = expected ? got >= expected : got == 0;
-	if (write(release[1], "g", 1) != 1) ok = 0;
-	close(release[1]);
-	int status;
-	ok &= waitpid(pid, &status, 0) == pid && WIFEXITED(status) && WEXITSTATUS(status) == 0;
-	close(reader);
+	text[got] = 0;
+	int ok = within ? strstr(text, within) != NULL : expected ? got >= expected : got == 0;
+	if (!child_release(c)) ok = 0;
+	char err[256];
+	ok &= child_ended(c, 0, err, sizeof err, 10);
 	return ok;
 }
 
+/* A case run with its stdout a pipe: a short line does not arrive while
+   the child waits, and output of the buffer's size does. */
+static int on_pipe(const char *mode, int full_buffer) {
+	test_fd out[2];
+	if (test_pipe(out) != 0) return 0;
+	test_child c;
+	size_t size = out_size(out[1]);
+	int started = child_start(&c, mode, "", CHILD_TO, out[1]);
+	test_close(out[1]);
+	int ok = started && arrived(&c, out[0], full_buffer ? size : 0, NULL);
+	test_close(out[0]);
+	return ok;
+}
+
+/* A case run on a terminal: a line arrives while the child waits. */
+#ifdef _WIN32
+static int on_terminal(void) {
+	HANDLE in_read, in_write, out_read, out_write;
+	if (!CreatePipe(&in_read, &in_write, NULL, 0)) return 0;
+	if (!CreatePipe(&out_read, &out_write, NULL, 0)) return 0;
+	HPCON console;
+	if (CreatePseudoConsole((COORD){ 80, 25 }, in_read, out_write, 0, &console) != S_OK) {
+		fprintf(stderr, "on_terminal: no pseudo-console\n");
+		return 0;
+	}
+	CloseHandle(in_read);
+	CloseHandle(out_write);
+	SIZE_T room = 0;
+	InitializeProcThreadAttributeList(NULL, 1, 0, &room);
+	/* Null standard handles, so the child opens the pseudo-console's
+	   rather than inheriting this test's, which dune redirects. */
+	STARTUPINFOEXA start = { .StartupInfo.cb = sizeof start, .StartupInfo.dwFlags = STARTF_USESTDHANDLES };
+	start.lpAttributeList = malloc(room);
+	int ok = start.lpAttributeList && InitializeProcThreadAttributeList(start.lpAttributeList, 1, 0, &room) &&
+	         UpdateProcThreadAttribute(start.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, console,
+	                                   sizeof console, NULL, NULL);
+	char line[8192];
+	snprintf(line, sizeof line, "\"%s\" --child line", test_self());
+	PROCESS_INFORMATION info;
+	ok = ok && CreateProcessA(test_self(), line, NULL, NULL, FALSE, EXTENDED_STARTUPINFO_PRESENT, NULL, NULL,
+	                          &start.StartupInfo, &info);
+	if (ok) {
+		CloseHandle(info.hThread);
+		/* The console draws its screen around the line, so the line is
+		   looked for in what arrives. A console's stdin gives a byte once
+		   its line ends. */
+		test_child c = { .process = info.hProcess, .release = in_write, .err = NULL };
+		size_t got = 0;
+		static char text[1 << 16];
+		long n;
+		while (!strstr(text, "a line") && (n = test_read(out_read, text + got, sizeof text - 1 - got, 5000)) > 0) {
+			got += (size_t)n;
+			text[got] = 0;
+		}
+		int seen = strstr(text, "a line") != NULL;
+		int released = test_write(in_write, "g\r", 2) == 2;
+		DWORD code = 1;
+		int ended = WaitForSingleObject(c.process, 10000) == WAIT_OBJECT_0 && GetExitCodeProcess(c.process, &code);
+		ok = seen && released && ended && code == 0;
+		if (!ok) {
+			fprintf(stderr, "on_terminal: line %s, released %d, ended %d with %lu; the console wrote %zu bytes:", seen ? "seen" : "not seen",
+			        released, ended, (unsigned long)code, got);
+			for (size_t i = 0; i < got && i < 200; i++)
+				fprintf(stderr, text[i] >= 32 && text[i] < 127 ? "%c" : "\\x%02x", (unsigned char)text[i]);
+			fputc('\n', stderr);
+		}
+		CloseHandle(c.process);
+	}
+	CloseHandle(out_read);
+	ClosePseudoConsole(console);
+	CloseHandle(in_write);
+	if (start.lpAttributeList) DeleteProcThreadAttributeList(start.lpAttributeList);
+	free(start.lpAttributeList);
+	return ok;
+}
+#else
 static int on_terminal(void) {
 	int master = posix_openpt(O_RDWR | O_NOCTTY);
 	if (master < 0 || grantpt(master) != 0 || unlockpt(master) != 0) return 0;
 	int slave = open(ptsname(master), O_RDWR | O_NOCTTY);
 	if (slave < 0) return 0;
+	test_child c;
+	int started = child_start(&c, "line", "", CHILD_TO, slave);
+	close(slave);
 	/* "a line\n", with the terminal's carriage return. */
-	return arrives("line", slave, master, 8);
+	int ok = started && arrived(&c, master, 8, NULL);
+	close(master);
+	return ok;
 }
-
-static int on_pipe(const char *mode, int full_buffer) {
-	int out[2];
-	if (pipe(out) != 0) return 0;
-	struct stat s;
-	size_t size = fstat(out[1], &s) == 0 && s.st_blksize > 0 ? (size_t)s.st_blksize : BUFSIZ;
-	return arrives(mode, out[1], out[0], full_buffer ? size : 0);
-}
+#endif
 
 void zane_main(void) {
-	if (zane_argc == 1) {
-		child(zane_argv[0]);
-		return;
-	}
+	if (zane_argc >= 2 && strcmp(zane_argv[0], "--child") == 0) run_child();
 	int all = 1;
-	for (int i = 0; i < 20; i++) all &= overflow_while_printing();
+	for (int i = 0; i < 20; i++) all &= child_stops("overflow-printing", "", CHILD_NULL, TEST_NO_FD, 1, full);
 	check(all);
 	check(overflow_into_full_pipe());
-	check(closed_stdout());
+	check(overflow_after_fork());
+	check(child_stops("closed", "", CHILD_CLOSED, TEST_NO_FD, 1, ""));
 	check(on_terminal());
 	check(on_pipe("small", 0));
 	check(on_pipe("full", 1));

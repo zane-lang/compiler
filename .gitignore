@@ -1,6 +1,5 @@
 _build/
 __pycache__/
-.devbox/
 _opam/
 .claude/settings.local.json
 dev/machine-config.txt
@@ -29,3 +28,6 @@ dev/machine-config.txt
 /editors/tree-sitter-zane/*.so
 /.highlighting-venv/
 /.grammar-venv/
+
+# The pixi environment, with the project's opam root inside it (pixi.toml).
+.pixi/

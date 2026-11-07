@@ -43,6 +43,36 @@ let is_identifier name =
   && (match name.[0] with 'a' .. 'z' | 'A' .. 'Z' | '_' -> true | _ -> false)
   && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' -> true | _ -> false) name
 
+(* The sections a COFF compiler, linker and C library group themselves:
+   `.text$name` for a function of its own, `.CRT$XCU` for a constructor,
+   `.idata$N` for an import library's tables, `.debug$S` for CodeView, and
+   the control-flow guard's tables. *)
+let coff_standard =
+  [ ".text"; ".data"; ".rdata"; ".bss"; ".xdata"; ".pdata"; ".tls"; ".CRT"; ".idata"; ".debug"; ".gfids"; ".giats"; ".gljmp"; ".gehcont" ]
+
+(* Whether the section [name], as C's `section` attribute names it, is a
+   linker set, which the linker gathers by its name from every object
+   into one range C can reach (spec ffi.md §2.5), in each object format's
+   form:
+   - a Mach-O section, `SEGMENT,section`, either of whose names lacks the
+     `__` Apple's own segments and sections take, since the linker gathers
+     any section by name and names its range
+     `section$start$SEGMENT$section`;
+   - a COFF grouped section, `name$suffix`, which the linker gathers under
+     `name`, ordered by suffix, unless `name` is a section the compiler or
+     the C library groups itself ([coff_standard]);
+   - otherwise a section named as a C identifier, whose range ELF's
+     linker names `__start_` and `__stop_` it. *)
+let is_linker_set name =
+  match String.index_opt name ',' with
+  | Some i ->
+      let segment = String.sub name 0 i and section = String.sub name (i + 1) (String.length name - i - 1) in
+      not (String.starts_with ~prefix:"__" segment && String.starts_with ~prefix:"__" section)
+  | None -> (
+      match String.index_opt name '$' with
+      | Some i -> not (List.mem (String.sub name 0 i) coff_standard)
+      | None -> is_identifier name)
+
 (* A `define` row's value: `NAME` or `NAME=VALUE`. *)
 let define_problem value =
   let name = match String.index_opt value '=' with Some i -> String.sub value 0 i | None -> value in
@@ -141,7 +171,7 @@ let parse_problem path (e : Coda.error) =
 (* The rows of [dir]'s `c.coda` that apply to a build for [triple], in the
    order they are written: none when the package has no `c.coda`. *)
 let read ~triple dir =
-  let path = Filename.concat dir file_name in
+  let path = Source.Files.in_directory dir file_name in
   let applying rows =
     let results = List.map (checked path) rows in
     match List.filter_map (function Error p -> Some p | Ok _ -> None) results with
@@ -158,9 +188,17 @@ let read ~triple dir =
   else match Coda.parse_file path with Error e -> Error [ parse_problem path e ] | Ok doc -> parsed doc
 
 (* Whether [path] is a directory, or a file, as far as it can be read: an
-   entry that cannot be, such as a dangling symlink, is neither. *)
+   entry that cannot be, such as a dangling symlink, is neither. A file is
+   one that opens, since Windows reads a dangling symlink as a file. *)
 let is_dir path = try Sys.is_directory path with Sys_error _ -> false
-let is_file path = try not (Sys.is_directory path) with Sys_error _ -> false
+
+let is_file path =
+  try
+    (not (Sys.is_directory path))
+    &&
+    (close_in (open_in_bin path);
+     true)
+  with Sys_error _ -> false
 
 (* Every file of [dir] matching [pattern], each part of which is a `*`
    pattern over one directory's entries, as paths relative to [dir]. *)
@@ -169,15 +207,15 @@ let expand dir parts =
   let rec go prefix = function
     | [] -> []
     | [ last ] ->
-        entries (Filename.concat dir prefix)
+        entries (Source.Files.in_directory dir prefix)
         |> List.filter (glob_matches last)
-        |> List.map (fun e -> if prefix = "" then e else Filename.concat prefix e)
-        |> List.filter (fun p -> is_file (Filename.concat dir p))
+        |> List.map (fun e -> if prefix = "" then e else Source.Files.in_directory prefix e)
+        |> List.filter (fun p -> is_file (Source.Files.in_directory dir p))
     | part :: rest ->
-        entries (Filename.concat dir prefix)
+        entries (Source.Files.in_directory dir prefix)
         |> List.filter (glob_matches part)
-        |> List.map (fun e -> if prefix = "" then e else Filename.concat prefix e)
-        |> List.filter (fun p -> is_dir (Filename.concat dir p))
+        |> List.map (fun e -> if prefix = "" then e else Source.Files.in_directory prefix e)
+        |> List.filter (fun p -> is_dir (Source.Files.in_directory dir p))
         |> List.concat_map (fun p -> go p rest)
   in
   go "" parts
@@ -188,10 +226,10 @@ let expand dir parts =
    `.c` file is not a C source, and is skipped. A pattern that matches
    nothing is an error. *)
 let sources dir rows =
-  let path = Filename.concat dir file_name in
+  let path = Source.Files.in_directory dir file_name in
   let direct =
     (try Array.to_list (Sys.readdir dir) with Sys_error _ -> [])
-    |> List.filter (fun f -> Filename.check_suffix f ".c" && is_file (Filename.concat dir f))
+    |> List.filter (fun f -> Filename.check_suffix f ".c" && is_file (Source.Files.in_directory dir f))
     |> List.sort compare
   in
   let listed row =
@@ -215,5 +253,5 @@ let sources dir rows =
    directly in [dir]. *)
 let interface_headers dir =
   (try Array.to_list (Sys.readdir dir) with Sys_error _ -> [])
-  |> List.filter (fun f -> Filename.check_suffix f ".h" && is_file (Filename.concat dir f))
+  |> List.filter (fun f -> Filename.check_suffix f ".h" && is_file (Source.Files.in_directory dir f))
   |> List.sort compare

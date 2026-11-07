@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Run once inside Devbox; the same command is usable locally and in CI.
+# Run once inside the pixi environment (`pixi run .github/scripts/setup-grammar-dependencies`); CI runs the same command.
 set -euo pipefail
 npm ci --prefix editors/tree-sitter-zane
 python3 -m venv .grammar-venv
-.grammar-venv/bin/python -m pip install -r tests/highlighting/requirements.txt
+# Windows' venv keeps its interpreter in Scripts/, every other system's in bin/.
+python=.grammar-venv/bin/python
+[[ -x .grammar-venv/Scripts/python.exe ]] && python=.grammar-venv/Scripts/python.exe
+"$python" -m pip install -r tests/highlighting/requirements.txt

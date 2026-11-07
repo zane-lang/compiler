@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # Run one profiled ambiguity search from the parameters in the environment.
 #
-# `devbox run` shell-quotes each argument it is given and then `eval`s the
-# reassembled command line, so every argument is re-parsed by a shell before
-# the command sees it. Workflow inputs therefore must not be passed as
-# arguments: this script reads them from the environment, and the workflow
-# invokes it with no arguments at all.
+# Workflow inputs are not passed as arguments, where a shell would parse
+# them: this script reads them from the environment, and the workflow invokes
+# it with no arguments at all.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

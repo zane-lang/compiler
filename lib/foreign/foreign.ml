@@ -53,8 +53,19 @@ type package = {
 type failure = Compile.failure = { diagnostics : Diagnostic.t list; sources : Source.Files.t }
 
 (* The triple a build for [target] compiles C for, as LLVM normalizes it:
-   the host's when [None]. *)
-let triple target = Clang.normalize (match target with Some t -> t | None -> Clang.host_triple ())
+   the host's when [None], as a host build's is (Codegen's
+   Build.host_triple): MinGW's on Windows, not clang's default MSVC one, and
+   elsewhere clang's default with a packaged LLVM's own vendor
+   (conda-forge's `conda`) read as `unknown`. *)
+let triple target =
+  let host () =
+    if Sys.win32 then "x86_64-windows-gnu"
+    else
+      match String.split_on_char '-' (Clang.host_triple ()) with
+      | arch :: "conda" :: rest -> String.concat "-" (arch :: "unknown" :: rest)
+      | _ -> Clang.host_triple ()
+  in
+  Clang.normalize (match target with Some t -> t | None -> host ())
 
 let rec remove path =
   if Sys.is_directory path then begin
@@ -90,7 +101,7 @@ let both a b =
 
 (* [dir]'s `c.coda`, the rows that apply to a build for [triple]. *)
 let read_settings ~triple dir =
-  let coda = Filename.concat dir Settings.file_name in
+  let coda = Source.Files.in_directory dir Settings.file_name in
   let sources () = match Cache.read coda with Some text -> [ (coda, text) ] | None -> [] in
   Settings.read ~triple dir
   |> Result.map_error (fun diagnostics -> { diagnostics; sources = sources () })
@@ -101,15 +112,15 @@ let with_sources (dir, rows) =
   |> Result.map_error (fun diagnostics -> { diagnostics; sources = [] })
   |> Result.map (fun sources -> (dir, rows, sources))
 
-(* A section the linker gathers into a range that C reaches through the
-   `__start_` and `__stop_` symbols named after it: one whose name is a C
-   identifier (spec ffi.md §2.5). Its name is not renamed, so two versions
+(* A section the linker gathers by its name into a range that C reaches,
+   a linker set in its object format's form (Settings.is_linker_set, spec
+   ffi.md §2.5). Its name is not renamed, so two versions
    of a package would share it, and a module that places a global in one
    is refused (docs/design/ffi.md F9). [file] is what the diagnostic
    names: the source, or the interface header a glue file includes. *)
 let linker_sets ~file (source : Compile.source) =
   match
-    List.filter (fun (_, section) -> Settings.is_identifier section) (Clang.sections source.Compile.bitcode)
+    List.filter (fun (_, section) -> Settings.is_linker_set section) (Clang.sections source.Compile.bitcode)
   with
   | [] -> Ok source
   | placed ->
@@ -150,7 +161,7 @@ let assembly ~header (source : Compile.source) =
    a module's are ([linker_sets]): [what] says what places something in
    it, and [file] is the file the diagnostic names. *)
 let object_linker_sets ~file ~what (contents : Objects.contents) =
-  match List.sort_uniq compare (List.filter Settings.is_identifier contents.Objects.sections) with
+  match List.sort_uniq compare (List.filter Settings.is_linker_set contents.Objects.sections) with
   | [] -> Ok contents
   | placed ->
       Error
@@ -248,7 +259,7 @@ let assemble ?cache ~triple ~cpu (source : Compile.source) =
    so a check refuses what the build's link would. *)
 let archive ~triple dir (row : Settings.row) =
   let ( let* ) = Result.bind in
-  let coda = Filename.concat dir Settings.file_name and path = Filename.concat dir row.value in
+  let coda = Source.Files.in_directory dir Settings.file_name and path = Source.Files.in_directory dir row.value in
   let at_row message = Error { diagnostics = [ Settings.problem coda row.number message ]; sources = [] } in
   let* bytes =
     match Cache.read path with
@@ -304,13 +315,13 @@ let compile_package ?cache ~fixed ~headers ~triple ~cpu (dir, rows, sources) =
   let tables =
     combine
       (List.map
-         (fun h -> Result.map (fun (t, w) -> ((h, t), w)) (Compile.interface flags (Filename.concat dir h)))
+         (fun h -> Result.map (fun (t, w) -> ((h, t), w)) (Compile.interface flags (Source.Files.in_directory dir h)))
          interface_headers)
   in
   (* A source holding assembly is never linked into the package's module:
      it is an object of its own. *)
   let compiled_source s =
-    let path = Filename.concat dir s in
+    let path = Source.Files.in_directory dir s in
     let ( let* ) = Result.bind in
     let* source = Compile.compile_source ?cache ~maps flags path in
     let* source = linker_sets ~file:path source in
@@ -396,7 +407,7 @@ let compile_all ?cache ~work ~cc ~cpu ~triple ~target packages =
   match Probe.include_dirs ?cache ~dir:work ~cc ~triple target with
   | Error message -> Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] }
   | Ok include_dirs ->
-      let fixed = Compile.fixed_flags ~triple ~headers ~include_dirs in
+      let fixed = Compile.fixed_flags ~triple ~cpu ~headers ~include_dirs in
       combine (List.map (compile_package ?cache ~fixed ~headers ~triple ~cpu) packages)
 
 let no_c (dir, rows, _) =
@@ -439,7 +450,7 @@ let compile_packages ?(cache = Cache.dir ()) ~cc ~cpu ~target dirs =
    package's directory spelled as it is rather than mapped, and none of
    the flags that only shape the module made of it. The headers it names
    are the cache's, where a build writes them. *)
-let compile_commands ?(cache = Cache.dir ()) ~cc ~target dirs =
+let compile_commands ?(cache = Cache.dir ()) ~cc ~cpu ~target dirs =
   let triple = triple target in
   (* The database's paths are read against each entry's directory, the
      package's, so a relative cache is made absolute against this one. *)
@@ -475,10 +486,10 @@ let compile_commands ?(cache = Cache.dir ()) ~cc ~target dirs =
         | flag :: rest -> flag :: editable rest
         | [] -> []
       in
-      let fixed = editable (Compile.fixed_flags ~triple ~headers ~include_dirs) in
+      let fixed = editable (Compile.fixed_flags ~triple ~cpu ~headers ~include_dirs) in
       let absolute d = if Filename.is_relative d then Filename.concat (Sys.getcwd ()) d else d in
       let entry dir rows source =
-        let path = Filename.concat dir source in
+        let path = Source.Files.in_directory dir source in
         let arguments = ("clang" :: fixed) @ [ "-Wall" ] @ Compile.package_flags dir rows @ [ "-c"; path ] in
         Printf.sprintf "  {\"directory\": %s, \"file\": %s, \"arguments\": [%s]}" (Compile.json_string dir)
           (Compile.json_string path)
@@ -504,8 +515,8 @@ let glue_file p ~dir ~work ~maps ~flags (header, text) =
   | () ->
       let ( let* ) = Result.bind in
       let shown =
-        match List.find_opt (fun (h, _) -> Filename.concat dir h = header) p.tables with
-        | Some (h, _) -> Filename.concat p.dir h
+        match List.find_opt (fun (h, _) -> Source.Files.in_directory dir h = header) p.tables with
+        | Some (h, _) -> Source.Files.in_directory p.dir h
         | None -> header
       in
       let* source = Compile.compile_source ?cache:p.cache ~maps flags path in
@@ -520,7 +531,7 @@ let glue_files p ~dir files =
       Fun.protect
         ~finally:(fun () -> try remove work with Sys_error _ -> ())
         (fun () ->
-          let added = [ (dir, "/zane/pkg"); (work, "/zane/glue") ] in
+          let added = Compile.with_real_paths [ (dir, "/zane/pkg"); (work, "/zane/glue") ] in
           let maps = p.maps @ added and flags = p.flags @ Compile.map_flags ~dir:work added in
           combine (List.map (glue_file p ~dir ~work ~maps ~flags) files))
 
@@ -558,8 +569,8 @@ let shared_state (p : package) compiled =
       || (List.mem header s.includes && List.exists (fun v -> List.mem v seen) (Clang.private_identities s.bitcode))
     in
     let file () =
-      List.find_opt (fun h -> Compile.real (Filename.concat p.dir h) = header) p.headers
-      |> Option.fold ~none:header ~some:(Filename.concat p.dir)
+      List.find_opt (fun h -> Compile.real (Source.Files.in_directory p.dir h) = header) p.headers
+      |> Option.fold ~none:header ~some:(Source.Files.in_directory p.dir)
     in
     let path (s : Compile.source) = s.path in
     match (List.filter defines p.sources, List.filter assembles (List.map (fun a -> a.source) p.assembled)) with
@@ -622,8 +633,8 @@ let archived_constructors (p : package) compiled =
         let shares a = List.exists (fun n -> List.mem n a.held.Objects.defined) reached in
         let runs a = List.exists Objects.runs_code a.held.Objects.sections in
         let file () =
-          List.find_opt (fun h -> Compile.real (Filename.concat p.dir h) = header) p.headers
-          |> Option.fold ~none:header ~some:(Filename.concat p.dir)
+          List.find_opt (fun h -> Compile.real (Source.Files.in_directory p.dir h) = header) p.headers
+          |> Option.fold ~none:header ~some:(Source.Files.in_directory p.dir)
         in
         match (List.find_opt shares p.archives, List.find_opt runs p.archives) with
         | Some a, _ ->
@@ -660,8 +671,8 @@ let directed_glue (p : package) compiled =
    holding a double quote or a line break cannot be a quoted header name, and is
    refused. *)
 let glue p (entries : Glue.entry list) =
-  let dir = if Filename.is_relative p.dir then Filename.concat (Sys.getcwd ()) p.dir else p.dir in
-  let files = Glue.files (List.map (fun (h, t) -> (Filename.concat dir h, t)) p.tables) entries in
+  let dir = if Filename.is_relative p.dir then Source.Files.in_directory (Sys.getcwd ()) p.dir else p.dir in
+  let files = Glue.files (List.map (fun (h, t) -> (Source.Files.in_directory dir h, t)) p.tables) entries in
   let quoted = String.exists (fun c -> c = '"' || c = '\n') in
   match List.find_opt (fun (header, _) -> quoted header) files with
   | _ when entries = [] -> Ok []
@@ -675,10 +686,10 @@ let glue p (entries : Glue.entry list) =
         (directed_glue p)
 
 (* The C entries of the function values C can call
-   (docs/design/ffi.md F11, Glue.callbacks_file), compiled for [target] by
-   the linked clang, from the cache when it holds them. The file includes
+   (docs/design/ffi.md F11, Glue.callbacks_file), compiled for [target] and
+   [cpu] by the linked clang, from the cache when it holds them. The file includes
    nothing, so it needs no C library's headers. *)
-let callbacks ?(cache = Cache.dir ()) ~target (entries : Glue.callback list) =
+let callbacks ?(cache = Cache.dir ()) ~cpu ~target (entries : Glue.callback list) =
   let triple = triple target in
   match Filename.temp_dir "zane-callbacks-" "" with
   | exception Sys_error message -> glue_unwritten message
@@ -691,8 +702,8 @@ let callbacks ?(cache = Cache.dir ()) ~target (entries : Glue.callback list) =
             | Some c -> ( try (Compile.headers (Filename.concat c "foreign"), Some c) with Sys_error _ -> (Compile.headers work, None))
             | None -> (Compile.headers work, None)
           in
-          let maps = [ (work, "/zane/glue") ] in
-          let flags = Compile.fixed_flags ~triple ~headers ~include_dirs:[] @ Compile.map_flags ~dir:work maps in
+          let maps = Compile.with_real_paths [ (work, "/zane/glue") ] in
+          let flags = Compile.fixed_flags ~triple ~cpu ~headers ~include_dirs:[] @ Compile.map_flags ~dir:work maps in
           let path = Filename.concat work "callbacks.c" in
           match Out_channel.with_open_bin path (fun oc -> output_string oc (Glue.callbacks_file entries)) with
           | exception Sys_error message -> glue_unwritten message

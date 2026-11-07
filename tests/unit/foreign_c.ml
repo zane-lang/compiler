@@ -127,7 +127,19 @@ let mapping () =
     = "# 1 \"/zane/pkg/a.c\"\nfoo f(void) { return \"foo\"; }\n# 3 \"food/b.h\"");
   check "a path argument is mapped and a definition is not"
     (List.map (Compile.mapped_arg maps) [ "-Ifoo/inc"; "-I"; "foo/inc"; "-Dfoo=1"; "foo/a.c"; "-ffile-prefix-map=foo=/zane/pkg" ]
-    = [ "-I/zane/pkg/inc"; "-I"; "/zane/pkg/inc"; "-Dfoo=1"; "/zane/pkg/a.c"; "-ffile-prefix-map=/zane/pkg=/zane/pkg" ])
+    = [ "-I/zane/pkg/inc"; "-I"; "/zane/pkg/inc"; "-Dfoo=1"; "/zane/pkg/a.c"; "-ffile-prefix-map=/zane/pkg=/zane/pkg" ]);
+  check "an empty argument is kept" (Compile.without_overlays [ "-D"; ""; "a.c" ] = [ "-D"; ""; "a.c" ]);
+  (* On a Windows host a fixed name is also found under the search root,
+     which the hash spells as the fixed name, without the flags that search
+     it. *)
+  match Compile.search_root with
+  | None -> ()
+  | Some root ->
+      check "a line marker under the search root is the fixed name"
+        (Compile.mapped maps (Printf.sprintf "# 1 \"%s/zane/pkg/a.c\"" (String.concat "\\\\" (String.split_on_char '\\' root)))
+        = "# 1 \"/zane/pkg/a.c\"");
+      check "the flags that search the root are not hashed"
+        (Compile.without_overlays [ "-ffile-prefix-map=" ^ root ^ "="; "-idirafter"; root; "a.c" ] = [ "a.c" ])
 
 (* A package with one C source compiled twice from two directories: the
    bitcode is the same, so the key is, a change to its body changes the key,
@@ -151,7 +163,10 @@ let compiled () =
       in
       (match (keys one, keys two) with
       | Some (k1, b1), Some (k2, _) ->
-          check "a C source compiles to bitcode" (String.length b1 > 4 && String.sub b1 0 2 = "BC");
+          (* Bitcode starts `BC`, or, for a Darwin target, inside LLVM's
+             wrapper, which starts 0x0B17C0DE, little-endian. *)
+          check "a C source compiles to bitcode"
+            (String.length b1 > 4 && (String.sub b1 0 2 = "BC" || String.sub b1 0 4 = "\xde\xc0\x17\x0b"));
           check "a source's key does not depend on its directory" (k1 = k2)
       | _ -> check "a C source compiles" false);
       (* The key is made from the preprocessed text, so it holds the body:
@@ -255,32 +270,38 @@ let compile_commands () =
       write_all (Filename.concat dir "c.coda")
         "c [\n    setting  value   target\n    include  inc     *\n    define   X=1     *\n]\n";
       let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
-      match Foreign.compile_commands ~cache:(Some (Filename.concat base "cache")) ~cc ~target:None [ dir ] with
+      match Foreign.compile_commands ~cache:(Some (Filename.concat base "cache")) ~cc ~cpu:"" ~target:None [ dir ] with
       | Error _ -> check "a compilation database is made" false
       | Ok text ->
+          (* A path as the database's JSON spells it, which doubles a
+             Windows path's backslashes. *)
+          let json path =
+            let quoted = Compile.json_string path in
+            String.sub quoted 1 (String.length quoted - 2)
+          in
           let has part =
             let n = String.length part in
             let rec go i = i + n <= String.length text && (String.sub text i n = part || go (i + 1)) in
             go 0
           in
-          check "the database names the source by its path" (has (Printf.sprintf "\"file\": \"%s/a.c\"" dir));
-          check "the database holds the package's include row" (has (Printf.sprintf "\"-I\", \"%s/inc\"" dir));
+          check "the database names the source by its path" (has (Printf.sprintf "\"file\": \"%s\"" (json (Source.Files.in_directory dir "a.c"))));
+          check "the database holds the package's include row" (has (Printf.sprintf "\"-I\", \"%s\"" (json (Source.Files.in_directory dir "inc"))));
           check "the database holds the package's define row" (has "\"-D\", \"X=1\"");
-          check "the database names where zane_ffi.h is" (has "/foreign/ffi-");
+          check "the database names where zane_ffi.h is" (has (json (Filename.concat (Filename.concat "cache" "foreign") "ffi-")));
           check "the database leaves out the module's flags" (not (has "-disable-llvm-passes" || has "\"-O2\""));
           check "the database maps no path" (not (has "/zane/pkg" || has "ivfsoverlay"));
           (* A database names headers only a cache keeps, so none is made
              without one; one of packages with no C asks no C compiler. *)
           check "no database is made without a cache to keep its headers"
-            (match Foreign.compile_commands ~cache:None ~cc ~target:None [ dir ] with Error _ -> true | Ok _ -> false);
+            (match Foreign.compile_commands ~cache:None ~cc ~cpu:"" ~target:None [ dir ] with Error _ -> true | Ok _ -> false);
           (* A relative cache is read against the directory zanec runs
              in, not the package's, which each entry names. *)
           let here = Sys.getcwd () in
           Sys.chdir base;
           let relative =
             Fun.protect ~finally:(fun () -> Sys.chdir here) (fun () ->
-                let at = Filename.concat (Sys.getcwd ()) "relative/foreign/ffi-" in
-                match Foreign.compile_commands ~cache:(Some "relative") ~cc ~target:None [ dir ] with
+                let at = json (Filename.concat (Filename.concat (Filename.concat (Sys.getcwd ()) "relative") "foreign") "ffi-") in
+                match Foreign.compile_commands ~cache:(Some "relative") ~cc ~cpu:"" ~target:None [ dir ] with
                 | Ok text ->
                     let n = String.length at in
                     let rec go i = i + n <= String.length text && (String.sub text i n = at || go (i + 1)) in
@@ -291,7 +312,7 @@ let compile_commands () =
           let plain = Filename.concat base "plain" in
           Sys.mkdir plain 0o755;
           check "packages with no C give an empty database, whatever the C compiler"
-            (Foreign.compile_commands ~cache:None ~cc:"no-such-cc" ~target:None [ plain ] = Ok "[]\n"))
+            (Foreign.compile_commands ~cache:None ~cc:"no-such-cc" ~cpu:"" ~target:None [ plain ] = Ok "[]\n"))
 
 (* The table's text read back: names with spaces, nested types, a
    variable's flags, and a struct's layout. *)
@@ -432,23 +453,178 @@ let interface_header () =
             | Some { I.ty = I.Function { result = I.Int { size; _ }; _ }; _ } -> size
             | _ -> 0
           in
-          check "long is 64 bits on Linux" (long_size t = 64);
+          check "long is 64 bits on Linux"
+            (match table (Some "x86_64-linux-gnu") with Some l -> long_size l = 64 | None -> false);
           check "long is 32 bits on Windows"
             (match table (Some "x86_64-windows-gnu") with Some w -> long_size w = 32 | None -> false))
+
+(* A package's C is compiled for the program's processor, not the one clang
+   defaults to for the target (`penryn` on x86-64 macOS, `apple-m1` on
+   AArch64 macOS), so its functions lose the processor stamp, and so may be
+   inlined into the program's, without being emitted for a processor that
+   lacks what they were compiled to use. A function given a processor of
+   its own keeps it. *)
+let c_processor () =
+  let base = Filename.temp_dir "zane-processor-" "" in
+  Fun.protect ~finally:(fun () -> remove_tree base) @@ fun () ->
+  let count = ref 0 in
+  let ir ~cc ~cpu target text =
+    incr count;
+    let dir = Filename.concat base (Printf.sprintf "p%d" !count) in
+    Sys.mkdir dir 0o755;
+    write_all (Filename.concat dir "a.c") text;
+    match Foreign.compile_packages ~cache:None ~cc ~cpu ~target:(Some target) [ dir ] with
+    | Ok [ { Foreign.sources = [ s ]; _ } ] ->
+        let ctx = Llvm.create_context () in
+        Fun.protect ~finally:(fun () -> Llvm.dispose_context ctx) @@ fun () ->
+        let m = Llvm_bitreader.parse_bitcode ctx (Llvm.MemoryBuffer.of_string s.Compile.bitcode) in
+        let text = Llvm.string_of_llmodule m in
+        Llvm.dispose_module m;
+        Some text
+    | _ -> None
+  in
+  let has text part =
+    let n = String.length part in
+    let rec at i = i + n <= String.length text && (String.sub text i n = part || at (i + 1)) in
+    at 0
+  in
+  let source =
+    "long plain(long x) { return x + 1; }\n\
+     __attribute__((target(\"avx2\"))) long own(long x) { return x + 2; }\n"
+  in
+  let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+  (match ir ~cc ~cpu:"x86-64" "x86_64-apple-macos" source with
+  | Some text ->
+      check "a C function given a processor keeps it" (has text "+avx2")
+  | None -> check "C compiles for x86-64 macOS" false);
+  (* SSSE3, which clang's penryn has and the baseline x86-64 lacks. *)
+  check "C for x86-64 macOS is compiled for the program's x86-64, not clang's penryn"
+    (ir ~cc ~cpu:"x86-64" "x86_64-apple-macos"
+       "typedef char v16 __attribute__((vector_size(16)));\n\
+        v16 shuffled(v16 a, v16 b) { return __builtin_ia32_pshufb128(a, b); }\n"
+    = None);
+  with_zig_cc (fun zig ->
+      match ir ~cc:zig ~cpu:"" "aarch64-macos" "long plain(long x) { return x + 1; }\n" with
+      | Some text ->
+          check "C for AArch64 macOS is not compiled for clang's apple-m1" (not (has text "apple-m1"));
+          (* `generic`'s, with the base architecture the target machine
+             adds (Build.features), so it is inlined into the program's. *)
+          check "C for AArch64 macOS loses the processor it was compiled for" (not (has text "target-cpu"))
+      | None -> check "C compiles for AArch64 macOS" false);
+  (* RISC-V's clang has no `generic`; its baseline is `generic-rv64`. *)
+  with_zig_cc (fun zig ->
+      check "C compiles for 64-bit RISC-V"
+        (ir ~cc:zig ~cpu:"" "riscv64-linux-gnu" "long plain(long x) { return x + 1; }\n" <> None))
+
+(* `ZANE_ALIAS` (zane_ffi.h) makes the declaration it marks an alias of its
+   target, the same on an ELF target and on Mach-O, whose C has no `alias`
+   attribute, and the declaration's uses become the alias's. The alias has
+   the declaration's linkage, internal for a `static` one, and a
+   thread-local variable's is thread-local. A mark is
+   refused where it is written unless it is on a declaration of a function
+   or variable the source does not define, naming one of the same kind it
+   defines with external linkage, neither has an `__asm__` label, and the
+   declaration is not weak. *)
+let zane_aliases () =
+  let base = Filename.temp_dir "zane-alias-" "" in
+  Fun.protect ~finally:(fun () -> remove_tree base) @@ fun () ->
+  let count = ref 0 in
+  let compiled ~cc ~target text =
+    incr count;
+    let dir = Filename.concat base (Printf.sprintf "p%d" !count) in
+    Sys.mkdir dir 0o755;
+    write_all (Filename.concat dir "a.c") ("#include <zane_ffi.h>\n" ^ text);
+    Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:(Some target) [ dir ]
+  in
+  let ir bitcode =
+    let ctx = Llvm.create_context () in
+    Fun.protect ~finally:(fun () -> Llvm.dispose_context ctx) @@ fun () ->
+    let m = Llvm_bitreader.parse_bitcode ctx (Llvm.MemoryBuffer.of_string bitcode) in
+    let text = Llvm.string_of_llmodule m in
+    Llvm.dispose_module m;
+    text
+  in
+  let has text part =
+    let n = String.length part in
+    let rec at i = i + n <= String.length text && (String.sub text i n = part || at (i + 1)) in
+    at 0
+  in
+  let source =
+    "int64_t helper(void) { return 2; }\n\
+     int64_t named(void) ZANE_ALIAS(\"helper\");\n\
+     int64_t through(void) { return named(); }\n\
+     int64_t value = 1;\n\
+     extern int64_t other ZANE_ALIAS(\"value\");\n\
+     int64_t *other_address(void) { return &other; }\n\
+     static int64_t local(void) ZANE_ALIAS(\"helper\");\n\
+     int64_t through_local(void) { return local(); }\n"
+  in
+  (* Thread-local storage, which a Mach-O target named without its OS
+     version does not have. *)
+  let thread_local =
+    "_Thread_local int64_t per_thread = 3;\n\
+     extern _Thread_local int64_t thread_named ZANE_ALIAS(\"per_thread\");\n\
+     int64_t read_thread_named(void) { return thread_named; }\n"
+  in
+  let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+  let aliased ?(tls = false) ~cc target =
+    match compiled ~cc ~target (if tls then source ^ thread_local else source) with
+    | Ok [ { Foreign.sources = [ s ]; _ } ] ->
+        let text = ir s.Compile.bitcode in
+        check (target ^ ": a marked function is an alias of its target") (has text "@named = alias i64 (), ptr @helper");
+        check (target ^ ": a marked variable is an alias of its target") (has text "@other = alias i64, ptr @value");
+        check (target ^ ": a static marked name is an internal alias") (has text "@local = internal alias i64 (), ptr @helper");
+        if tls then
+          check (target ^ ": a thread-local variable's alias is thread-local")
+            (has text "@thread_named = thread_local alias i64, ptr @per_thread");
+        check (target ^ ": a call through the name is the alias's")
+          (has text "call i64 @named()" && not (has text "declare i64 @named"))
+    | _ -> check (target ^ ": a source with ZANE_ALIAS compiles") false
+  in
+  aliased ~tls:true ~cc "x86_64-unknown-linux-gnu";
+  with_zig_cc (fun zig -> aliased ~cc:zig "aarch64-macos");
+  let refused name text why =
+    match compiled ~cc ~target:"x86_64-unknown-linux-gnu" text with
+    | Error { Foreign.diagnostics = [ d ]; _ } ->
+        check name
+          (has d.Diagnostic.message why
+          && match d.Diagnostic.location with
+             | Diagnostic.Location.Span sp -> sp.Source.Span.start_.Lexing.pos_lnum = 3
+             | _ -> false)
+    | _ -> check name false
+  in
+  refused "a mark naming nothing the source defines is refused at the mark"
+    "int64_t helper(void);\nint64_t named(void) ZANE_ALIAS(\"helper\");\n" "does not define";
+  refused "a mark naming a local function is refused"
+    "static int64_t helper(void) { return 2; }\nint64_t named(void) ZANE_ALIAS(\"helper\");\n" "internal linkage";
+  refused "a mark naming a variable for a function is refused"
+    "int64_t helper = 2;\nint64_t named(void) ZANE_ALIAS(\"helper\");\n" "does not define";
+  refused "a mark on a declaration with an asm label is refused"
+    "int64_t helper(void) { return 2; }\nint64_t named(void) __asm__(\"actual_named\") ZANE_ALIAS(\"helper\");\n"
+    "has an `__asm__` label";
+  refused "a mark naming a target with an asm label is refused"
+    "int64_t helper(void) __asm__(\"actual_helper\"); int64_t helper(void) { return 2; }\nint64_t named(void) ZANE_ALIAS(\"helper\");\n"
+    "has an `__asm__` label";
+  refused "a mark on a weak declaration is refused"
+    "int64_t helper(void) { return 2; }\nint64_t named(void) __attribute__((weak)) ZANE_ALIAS(\"helper\");\n"
+    "is weak";
+  refused "a mark on a definition is refused"
+    "int64_t helper(void) { return 2; }\nint64_t named(void) ZANE_ALIAS(\"helper\");\nint64_t named(void) { return 1; }\n"
+    "defined here too"
 
 (* A function an interface header defines is compiled in the glue, and
    one holding assembly, or a global the header places in a linker set, is
    refused there, naming the header. *)
 let glue_refusals () =
-  let refused name text =
+  let refused ?cc ?target name text =
     let base = Filename.temp_dir "zane-glue-" "" in
     Fun.protect ~finally:(fun () -> remove_tree base) (fun () ->
         let dir = Filename.concat base "pkg" in
         Sys.mkdir dir 0o755;
-        let header = Filename.concat dir "api.h" in
+        let header = Source.Files.in_directory dir "api.h" in
         write_all header text;
-        let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
-        match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ dir ] with
+        let cc = match cc with Some cc -> cc | None -> Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+        match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target [ dir ] with
         | Ok [ p ] -> (
             let entry =
               { Foreign.Glue.label = "pkg.fenced.ffi"; c_function = "fenced"; params = []; result = Foreign.Glue.Scalar "int32_t" }
@@ -461,10 +637,35 @@ let glue_refusals () =
   in
   refused "a header's function holding assembly is refused in its glue, naming the header"
     "int fenced(void) { __asm__ volatile(\"\" ::: \"memory\"); return 1; }\n";
-  refused "a header's global in a linker set is refused in its glue, naming the header"
+  (* A linker set in each object format's form, each built for a target of
+     that format, so every host checks all three. *)
+  refused ~target:"x86_64-linux-gnu" "a header's global in an ELF linker set is refused in its glue, naming the header"
     "__attribute__((used, section(\"plugins\"))) static const int entry = 1;\n\
      extern const int __start_plugins, __stop_plugins;\n\
-     int fenced(void) { return &__stop_plugins - &__start_plugins; }\n"
+     int fenced(void) { return &__stop_plugins - &__start_plugins; }\n";
+  with_zig_cc @@ fun zig ->
+  refused ~cc:zig ~target:"aarch64-macos" "a header's global in a Mach-O linker set is refused in its glue, naming the header"
+    "__attribute__((used, section(\"__DATA,plugins\"))) static const int entry = 1;\n\
+     extern const int start __asm(\"section$start$__DATA$plugins\");\n\
+     int fenced(void) { return &start != 0; }\n";
+  refused ~target:"x86_64-windows-gnu" "a header's global in a COFF linker set is refused in its glue, naming the header"
+    "__attribute__((used, section(\"plugins$b\"))) static const int entry = 1;\n\
+     int fenced(void) { return entry; }\n"
+
+(* Which sections are linker sets, in each object format's form (spec
+   ffi.md §2.5). *)
+let linker_sets () =
+  let set = Settings.is_linker_set in
+  check "an ELF section named as a C identifier is a linker set" (set "plugins");
+  check "an ELF section not named as one is not" (not (set ".text.hot"));
+  check "a Mach-O section named without Apple's __ is a linker set" (set "__DATA,plugins");
+  check "a Mach-O segment named without it is one too" (set "PLUG,__entries");
+  check "a Mach-O section of Apple's own is not" (not (set "__DATA,__const"));
+  check "a Mach-O section's type is not its name" (not (set "__DATA,__mod_init_func,mod_init_funcs"));
+  check "a COFF grouped section is a linker set" (set "plugins$b");
+  check "a COFF function's own section is not" (not (set ".text$fenced"));
+  check "a COFF constructor's is not" (not (set ".CRT$XCU"));
+  check "an import library's is not" (not (set ".idata$5"))
 
 (* A package whose directory's name holds a byte past ASCII still compiles
    its glue: the glue includes the header by its path as it is spelled,
@@ -807,6 +1008,9 @@ let run () =
   interface_text ();
   interface_header ();
   glue_refusals ();
+  zane_aliases ();
+  c_processor ();
+  linker_sets ();
   glue_paths ();
   glue_prototypes ();
   asm_labels ();

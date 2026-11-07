@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# These consumers come from the same Devbox environment used locally.
+# These consumers come from the same pixi environment used locally.
 set -euo pipefail
-devbox run -- nvim --version
-devbox run -- typst --version
+pixi run nvim --version
+pixi run typst --version

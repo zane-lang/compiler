@@ -1,7 +1,11 @@
 ; Libraries built into objects of their own
 ; (docs/design/separate-compilation.md). README.md says what each fixture is
 ; for. A library's code-generation tree shows each function's linkage, and
-; its object's defined symbols are listed by `nm`, without their addresses.
+; its object's defined symbols are listed by `llvm-nm`, without their
+; addresses. A listing held to a golden file is of an object built for
+; x86-64 Linux, so every host gives the same one; each object format's own
+; listing is the per-format goldens' below, and an object a program links is
+; built for the host.
 
 ; Every program here runs checked and unchecked, each held to the same
 ; golden file, as tests/codegen/ runs its programs. Checked (`ZANE_CHECK`
@@ -29,11 +33,17 @@
   (run %{exe:../../bin/zanec/zanec.exe} --no-root --object geometry.o --package fixtures/geometry)))
 
 (rule
+ (deps (source_tree fixtures/geometry))
+ (targets geometry.elf.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --target x86_64-unknown-linux-gnu --no-root --object geometry.elf.o --package fixtures/geometry)))
+
+(rule
  (deps (source_tree fixtures/atlas) (source_tree fixtures/geometry))
  (targets atlas.o)
  (action
   (run
-   %{exe:../../bin/zanec/zanec.exe}
+   %{exe:../../bin/zanec/zanec.exe} --target x86_64-unknown-linux-gnu
    --no-root
    --object
    atlas.o
@@ -46,7 +56,7 @@
  (action
   (with-stdout-to
    geometry.symbols.actual
-   (system "nm --defined-only %{dep:geometry.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm --defined-only %{dep:geometry.elf.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -57,7 +67,7 @@
  (action
   (with-stdout-to
    atlas.symbols.actual
-   (system "nm --defined-only %{dep:atlas.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm --defined-only %{dep:atlas.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -88,7 +98,7 @@
  (targets survey.o)
  (action
   (run
-   %{exe:../../bin/zanec/zanec.exe}
+   %{exe:../../bin/zanec/zanec.exe} --target x86_64-unknown-linux-gnu
    --stamp
    geometry=v1.0.1%3f9a1c02b7e4d6a8%
    --object
@@ -102,7 +112,7 @@
  (action
   (with-stdout-to
    survey.symbols.actual
-   (system "nm %{dep:survey.o} | sed 's/^ *[0-9a-f]* //' | grep -v ' [.]L' | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm %{dep:survey.o} | sed 's/^ *[0-9a-f]* //' | grep -v ' [.]L' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -173,13 +183,13 @@
  (action
   (with-stdout-to
    geometry.rewritten.symbols
-   (system "nm --defined-only %{dep:geometry.rewritten.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm --defined-only %{dep:geometry.rewritten.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (action
   (with-stdout-to
    geometry.stamped.symbols
-   (system "nm --defined-only %{dep:geometry.stamped.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm --defined-only %{dep:geometry.stamped.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -255,12 +265,12 @@
 (rule
  (action
   (with-stdout-to geometry.macos-x86_64.rewritten.symbols
-   (system "llvm-nm -m %{dep:geometry.macos-x86_64.rewritten.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm -m %{dep:geometry.macos-x86_64.rewritten.o} | LC_ALL=C sort"))))
 
 (rule
  (action
   (with-stdout-to geometry.macos-x86_64.stamped.symbols
-   (system "llvm-nm -m %{dep:geometry.macos-x86_64.stamped.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm -m %{dep:geometry.macos-x86_64.stamped.o} | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -286,12 +296,12 @@
 (rule
  (action
   (with-stdout-to geometry.macos-arm64.rewritten.symbols
-   (system "llvm-nm -m %{dep:geometry.macos-arm64.rewritten.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm -m %{dep:geometry.macos-arm64.rewritten.o} | LC_ALL=C sort"))))
 
 (rule
  (action
   (with-stdout-to geometry.macos-arm64.stamped.symbols
-   (system "llvm-nm -m %{dep:geometry.macos-arm64.stamped.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm -m %{dep:geometry.macos-arm64.stamped.o} | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -313,12 +323,12 @@
 (rule
  (action
   (with-stdout-to geometry.windows-x86_64.rewritten.symbols
-   (system "llvm-nm %{dep:geometry.windows-x86_64.rewritten.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm %{dep:geometry.windows-x86_64.rewritten.o} | LC_ALL=C sort"))))
 
 (rule
  (action
   (with-stdout-to geometry.windows-x86_64.stamped.symbols
-   (system "llvm-nm %{dep:geometry.windows-x86_64.stamped.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm %{dep:geometry.windows-x86_64.stamped.o} | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -344,12 +354,12 @@
 (rule
  (action
   (with-stdout-to geometry.windows-arm64.rewritten.symbols
-   (system "llvm-nm %{dep:geometry.windows-arm64.rewritten.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm %{dep:geometry.windows-arm64.rewritten.o} | LC_ALL=C sort"))))
 
 (rule
  (action
   (with-stdout-to geometry.windows-arm64.stamped.symbols
-   (system "llvm-nm %{dep:geometry.windows-arm64.stamped.o} | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm %{dep:geometry.windows-arm64.stamped.o} | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -462,7 +472,7 @@
  (action
   (with-stdout-to
    versions.atlas.remapped.left
-   (system "nm %{dep:versions.atlas.remapped.o} > versions.atlas.remapped.nm && { grep -c 'v1[.]0%0123456789abcdef%' versions.atlas.remapped.nm; test $? -le 1; }"))))
+   (run sh -c "llvm-nm %{dep:versions.atlas.remapped.o} > versions.atlas.remapped.nm && { grep -c 'v1[.]0%0123456789abcdef%' versions.atlas.remapped.nm; test $? -le 1; }"))))
 
 (rule
  (alias runtest)
@@ -532,13 +542,13 @@
  (deps (source_tree fixtures/layout))
  (targets layout.o)
  (action
-  (run %{exe:../../bin/zanec/zanec.exe} --no-root --object layout.o --package math=fixtures/layout/lib/math --package _shaders=fixtures/layout/lib/_shaders --package gui=fixtures/layout/lib/gui --package gui.opengl=fixtures/layout/lib/gui/opengl --import gui:opengl=gui.opengl --import gui:math=math --import gui.opengl:math=math --import gui.opengl:_shaders=_shaders)))
+  (run %{exe:../../bin/zanec/zanec.exe} --target x86_64-unknown-linux-gnu --no-root --object layout.o --package math=fixtures/layout/lib/math --package _shaders=fixtures/layout/lib/_shaders --package gui=fixtures/layout/lib/gui --package gui.opengl=fixtures/layout/lib/gui/opengl --import gui:opengl=gui.opengl --import gui:math=math --import gui.opengl:math=math --import gui.opengl:_shaders=_shaders)))
 
 (rule
  (action
   (with-stdout-to
    layout.symbols.actual
-   (system "nm --defined-only %{dep:layout.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm --defined-only %{dep:layout.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -552,10 +562,16 @@
   (run %{exe:../../bin/zanec/zanec.exe} --no-root --object layout.stamped.o --package v2.0%0123456789abcdef%math=fixtures/layout/lib/math --package v2.0%0123456789abcdef%_shaders=fixtures/layout/lib/_shaders --package v2.0%0123456789abcdef%gui=fixtures/layout/lib/gui --package v2.0%0123456789abcdef%gui.opengl=fixtures/layout/lib/gui/opengl --import v2.0%0123456789abcdef%gui:opengl=v2.0%0123456789abcdef%gui.opengl --import v2.0%0123456789abcdef%gui:math=v2.0%0123456789abcdef%math --import v2.0%0123456789abcdef%gui.opengl:math=v2.0%0123456789abcdef%math --import v2.0%0123456789abcdef%gui.opengl:_shaders=v2.0%0123456789abcdef%_shaders)))
 
 (rule
+ (deps (source_tree fixtures/layout))
+ (targets layout.stamped.elf.o)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --target x86_64-unknown-linux-gnu --no-root --object layout.stamped.elf.o --package v2.0%0123456789abcdef%math=fixtures/layout/lib/math --package v2.0%0123456789abcdef%_shaders=fixtures/layout/lib/_shaders --package v2.0%0123456789abcdef%gui=fixtures/layout/lib/gui --package v2.0%0123456789abcdef%gui.opengl=fixtures/layout/lib/gui/opengl --import v2.0%0123456789abcdef%gui:opengl=v2.0%0123456789abcdef%gui.opengl --import v2.0%0123456789abcdef%gui:math=v2.0%0123456789abcdef%math --import v2.0%0123456789abcdef%gui.opengl:math=v2.0%0123456789abcdef%math --import v2.0%0123456789abcdef%gui.opengl:_shaders=v2.0%0123456789abcdef%_shaders)))
+
+(rule
  (action
   (with-stdout-to
    layout.stamped.symbols.actual
-   (system "nm --defined-only %{dep:layout.stamped.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm --defined-only %{dep:layout.stamped.elf.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -673,13 +689,13 @@
  (deps (source_tree fixtures/atlas) (source_tree fixtures/geometry))
  (targets atlas.stamped-root.o)
  (action
-  (run %{exe:../../bin/zanec/zanec.exe} --no-root --stamp atlas=v1.0%fedcba9876543210% --object atlas.stamped-root.o --package fixtures/atlas --package fixtures/geometry)))
+  (run %{exe:../../bin/zanec/zanec.exe} --target x86_64-unknown-linux-gnu --no-root --stamp atlas=v1.0%fedcba9876543210% --object atlas.stamped-root.o --package fixtures/atlas --package fixtures/geometry)))
 
 (rule
  (action
   (with-stdout-to
    atlas.stamped-root.symbols.actual
-   (system "nm --defined-only %{dep:atlas.stamped-root.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm --defined-only %{dep:atlas.stamped-root.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)
@@ -729,13 +745,13 @@
  (deps (source_tree fixtures/largeparam))
  (targets largeparam.o)
  (action
-  (run %{exe:../../bin/zanec/zanec.exe} --no-root --object largeparam.o --package fixtures/largeparam)))
+  (run %{exe:../../bin/zanec/zanec.exe} --target x86_64-unknown-linux-gnu --no-root --object largeparam.o --package fixtures/largeparam)))
 
 (rule
  (action
   (with-stdout-to
    largeparam.symbols.actual
-   (system "nm --defined-only %{dep:largeparam.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
+   (run sh -c "llvm-nm --defined-only %{dep:largeparam.o} | sed 's/^[0-9a-f]* //' | LC_ALL=C sort"))))
 
 (rule
  (alias runtest)

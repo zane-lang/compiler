@@ -5,7 +5,7 @@
 int64_t total = 100;
 
 int64_t helper(void) { return total + 2; }
-int64_t named(void) __attribute__((alias("helper")));
+int64_t named(void) ZANE_ALIAS("helper");
 
 static int64_t warmed;
 __attribute__((constructor)) static void warm(void) { warmed = 1; }

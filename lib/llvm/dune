@@ -1,0 +1,130 @@
+; LLVM's OCaml bindings, built from the copy of LLVM 21.1.8's sources in
+; vendor/llvm-ocaml (Apache-2.0 with LLVM exceptions, its LICENSE.TXT) against
+; the LLVM that llvm-config describes. LLVM's own build of them is Unix-only;
+; built here they are the same on every platform. Each library keeps the
+; name of LLVM's findlib package, with `_` for its `.`: llvm.analysis is
+; llvm_analysis. The execution engine's bindings are left out: they need
+; ctypes, and the compiler does not use them. LLVM's code is built as it
+; is, without the compiler's warnings.
+
+(copy_files# ../../vendor/llvm-ocaml/llvm/*.{ml,mli,c,h})
+(copy_files# ../../vendor/llvm-ocaml/all_backends/*.{ml,mli,c,h})
+(copy_files# ../../vendor/llvm-ocaml/analysis/*.{ml,mli,c,h})
+(copy_files# ../../vendor/llvm-ocaml/bitreader/*.{ml,mli,c,h})
+(copy_files# ../../vendor/llvm-ocaml/bitwriter/*.{ml,mli,c,h})
+(copy_files# ../../vendor/llvm-ocaml/irreader/*.{ml,mli,c,h})
+(copy_files# ../../vendor/llvm-ocaml/linker/*.{ml,mli,c,h})
+(copy_files# ../../vendor/llvm-ocaml/target/*.{ml,mli,c,h})
+(copy_files# ../../vendor/llvm-ocaml/passbuilder/*.{ml,mli,c,h})
+
+(library
+ (name llvm)
+ (wrapped false)
+ (flags (:standard -w -a))
+ (modules llvm)
+ (foreign_stubs
+  (language c)
+  (names llvm_ocaml)
+  (flags (:standard (:include llvm_cflags.sexp))))
+ (c_library_flags (:include llvm_libs.sexp)))
+
+(library
+ (name llvm_all_backends)
+ (wrapped false)
+ (flags (:standard -w -a))
+ (modules llvm_all_backends)
+ (foreign_stubs
+  (language c)
+  (names all_backends_ocaml)
+  (flags (:standard (:include llvm_cflags.sexp))))
+ (libraries llvm))
+
+(library
+ (name llvm_analysis)
+ (wrapped false)
+ (flags (:standard -w -a))
+ (modules llvm_analysis)
+ (foreign_stubs
+  (language c)
+  (names analysis_ocaml)
+  (flags (:standard (:include llvm_cflags.sexp))))
+ (libraries llvm))
+
+(library
+ (name llvm_bitreader)
+ (wrapped false)
+ (flags (:standard -w -a))
+ (modules llvm_bitreader)
+ (foreign_stubs
+  (language c)
+  (names bitreader_ocaml)
+  (flags (:standard (:include llvm_cflags.sexp))))
+ (libraries llvm))
+
+(library
+ (name llvm_bitwriter)
+ (wrapped false)
+ (flags (:standard -w -a))
+ (modules llvm_bitwriter)
+ (foreign_stubs
+  (language c)
+  (names bitwriter_ocaml)
+  (flags (:standard (:include llvm_cflags.sexp))))
+ (libraries llvm unix))
+
+(library
+ (name llvm_irreader)
+ (wrapped false)
+ (flags (:standard -w -a))
+ (modules llvm_irreader)
+ (foreign_stubs
+  (language c)
+  (names irreader_ocaml)
+  (flags (:standard (:include llvm_cflags.sexp))))
+ (libraries llvm))
+
+(library
+ (name llvm_linker)
+ (wrapped false)
+ (flags (:standard -w -a))
+ (modules llvm_linker)
+ (foreign_stubs
+  (language c)
+  (names linker_ocaml)
+  (flags (:standard (:include llvm_cflags.sexp))))
+ (libraries llvm))
+
+(library
+ (name llvm_target)
+ (wrapped false)
+ (flags (:standard -w -a))
+ (modules llvm_target)
+ (foreign_stubs
+  (language c)
+  (names target_ocaml)
+  (flags (:standard (:include llvm_cflags.sexp))))
+ (libraries llvm))
+
+(library
+ (name llvm_passbuilder)
+ (wrapped false)
+ (flags (:standard -w -a))
+ (modules llvm_passbuilder)
+ (foreign_stubs
+  (language c)
+  (names passbuilder_ocaml)
+  (flags (:standard (:include llvm_cflags.sexp))))
+ (libraries llvm llvm_target))
+
+(rule
+ (target llvm_cflags.sexp)
+ (deps (env_var LLVM_CONFIG) (env_var PATH))
+ (action (with-stdout-to %{target} (run config/discover.exe cflags))))
+
+(rule
+ (targets llvm_libs.sexp llvm_libs.rsp)
+ (deps (env_var LLVM_CONFIG) (env_var PATH) (env_var VSINSTALLDIR) (env_var VCToolsInstallDir))
+ (action
+  (with-stdout-to
+   llvm_libs.sexp
+   (run config/discover.exe libs %{ocaml-config:ccomp_type} %{targets}))))

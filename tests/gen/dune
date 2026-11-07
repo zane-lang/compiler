@@ -9,3 +9,8 @@
  (name gen_rules)
  (modules gen_rules)
  (libraries fixture_pairing))
+
+; The C compiler the runtime's C tests are built with (host_cc.ml).
+(executable
+ (name host_cc)
+ (modules host_cc))

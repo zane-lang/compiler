@@ -2,6 +2,9 @@
 
 type tier = Tiers.tier = Plain | Tier0 | Tier1
 
+(* The triple a build for a Windows host is for (Build.host_triple). *)
+let windows_host_triple = Build.windows_host_triple
+
 (* Lowering refuses each type that reaches the size limit (Cgt.Nodes.Ty.limit)
    where it is named. A frame is laid out here, from slots each below it, and
    one whose slots together reach it is refused as the build's error. *)

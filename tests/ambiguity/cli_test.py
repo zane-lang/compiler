@@ -107,6 +107,7 @@ class StreamingOutputTests(unittest.TestCase):
             [str(ENGINE), *arguments, str(self.grammar)],
             env={**self.environment, **overrides},
             text=True,
+            encoding="utf-8",
             capture_output=True,
             timeout=120,
         )
@@ -145,6 +146,7 @@ class StreamingOutputTests(unittest.TestCase):
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
+            encoding="utf-8",
         )
 
         def stop() -> None:

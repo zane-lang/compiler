@@ -5,6 +5,7 @@
    check prints `yes` when it holds and `no` when it does not. */
 
 #include "scopes.h"
+#include "system.h"
 
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
@@ -25,7 +26,7 @@ static int64_t warm_drained, warm_cooled;
 static int64_t fill(int64_t chunks) {
 	zane_mark *scope = zane_scope_enter(0);
 	int64_t zeroed = 0;
-	long page = sysconf(_SC_PAGESIZE);
+	long page = (long)zane_page_bytes();
 	for (int64_t i = 0; i < chunks; i++) {
 		char *block = zane_alloc(scope, BLOCK, 8);
 		int zero = 1;
@@ -65,17 +66,6 @@ static int64_t spawn_fill(int64_t chunks, int64_t depth, int64_t cooling) {
 	return f.result;
 }
 
-/* What the process holds in memory, in bytes. */
-static int64_t resident(void) {
-	FILE *f = fopen("/proc/self/statm", "r");
-	long size = 0, pages = 0;
-	if (f) {
-		if (fscanf(f, "%ld %ld", &size, &pages) != 2) pages = 0;
-		fclose(f);
-	}
-	return (int64_t)pages * sysconf(_SC_PAGESIZE);
-}
-
 /* The most a process keeps resident past where it began: the warm spares
    the pool and a context keep, and a few MiB more. */
 static const int64_t slack = (int64_t)(ZANE_POOL_WARM + ZANE_WARM_KEPT + 4) * ZANE_CHUNK;
@@ -83,14 +73,14 @@ static const int64_t slack = (int64_t)(ZANE_POOL_WARM + ZANE_WARM_KEPT + 4) * ZA
 void zane_main(void) {
 	zane_set_threads(1);
 	spawn_fill(1, 0, 0);
-	int64_t before = resident();
+	int64_t before = test_resident();
 
 	/* 128 chunks filled and drained: the context keeps them warm while it
 	   runs, and gives them to the pool when it goes idle, which keeps a few
 	   warm; the rest are cold. */
 	spawn_fill(128, 0, 0);
 	check(warm_drained == 128);
-	check(resident() - before <= slack);
+	check(test_resident() - before <= slack);
 	check(zane_warm_spares == ZANE_POOL_WARM && zane_cold_spares == 128 - ZANE_POOL_WARM);
 
 	/* 128 again: the warm ones first, then the cold ones, each reused and
@@ -111,8 +101,14 @@ void zane_main(void) {
 	spawn_fill(8, 7, 0);
 	check(zane_warm_spares == ZANE_POOL_WARM);
 
-	/* Past ZANE_COLD_KEPT cold chunks, a drained chunk is given back whole. */
+	/* Past ZANE_COLD_KEPT cold chunks, a drained chunk is given back whole.
+	   On Windows a slab whose chunks are all cold or given back goes back to
+	   the system with its cold chunks (arena.c), so fewer may stay. */
 	spawn_fill(ZANE_COLD_KEPT + 64, 0, 0);
+#ifdef _WIN32
+	check(zane_cold_spares <= ZANE_COLD_KEPT);
+#else
 	check(zane_cold_spares == ZANE_COLD_KEPT);
-	check(resident() - before <= slack);
+#endif
+	check(test_resident() - before <= slack);
 }

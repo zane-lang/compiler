@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build the test programs for Windows into DIR, with what each must do beside
-# it, for `check-programs` to run on Windows (docs/design/platforms.md).
+# Build the test programs for TARGET, another system than this one, into
+# DIR, with what each must do beside it, for `check-programs` to run on that
+# system (docs/design/platforms.md). TARGET is `x86_64-windows-gnu`, or
+# `aarch64-macos` or `x86_64-macos`.
 #
 # Every codegen fixture with an expected output is built three times, as
-# tests/codegen/ builds it: plain, optimized, and tiered, tier 0 as NAME.tiered.exe with
-# tier 1 beside it as NAME.tiered.tier1.dll, which `check-programs` loads
-# before `main` runs (docs/design/tiers.md). `survey` is built against
+# tests/codegen/ builds it: plain, optimized, and tiered, tier 0 as
+# NAME.tiered with tier 1 beside it as NAME.tiered.tier1, each with the
+# target's extensions (`.exe` and `.dll` for Windows, none and `.dylib` for
+# macOS), which `check-programs` loads before `main` runs
+# (docs/design/tiers.md). `survey` is built against
 # geometry's objects, both the one built from source with geometry's stamp
 # and geometry's placeholder object rewritten with it
-# (docs/design/separate-compilation.md C7, C9). Each program NAME.exe has
+# (docs/design/separate-compilation.md C7, C9). Each program NAME has
 # NAME.out, the output it must write, NAME.status, the status it must
 # exit with, and NAME.args when the fixture is run with arguments, one per
 # line; a fixture's `flags` file, one per line, is what both builds are made
@@ -22,15 +26,30 @@ set -euo pipefail
 #
 # `abi` is the runtime's probe of its own structs, held to runtime/zane_abi.h.
 #
-# The programs link with `zig cc`, which carries Windows' C library and
-# threads. The compiler is built first.
+# The programs link with `zig cc`, which carries the target's C library:
+# MinGW's and its threads for Windows, `libSystem`'s stubs for macOS. The
+# compiler is built first.
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-OUT="$(mkdir -p "${1:?usage: windows-programs DIR}" && cd "$1" && pwd)"
+TARGET="${1:?usage: cross-programs TARGET DIR}"
+case "$TARGET" in
+*windows*) EXE=.exe LIB=.dll ;;
+*macos*) EXE='' LIB=.dylib ;;
+*)
+	echo "cross-programs: $TARGET is neither Windows nor macOS" >&2
+	exit 2
+	;;
+esac
+OUT="$(mkdir -p "${2:?usage: cross-programs TARGET DIR}" && cd "$2" && pwd)"
 # What an earlier build left here is not this build's, and would be checked
-# as if it were.
-rm -f "$OUT"/*.exe "$OUT"/*.dll "$OUT"/*.out "$OUT"/*.status "$OUT"/*.args
-TARGET=x86_64-windows-gnu
+# as if it were. Only a directory this script made is emptied.
+if [[ -f "$OUT/.cross-programs" ]]; then
+	find "$OUT" -mindepth 1 -delete
+elif [[ -n "$(ls -A "$OUT")" ]]; then
+	echo "cross-programs: $OUT holds files this script did not write" >&2
+	exit 2
+fi
+echo "$TARGET" >"$OUT/.cross-programs"
 STAMP='v1.0.1%3f9a1c02b7e4d6a8%'
 
 cd "$ROOT"
@@ -52,10 +71,10 @@ for golden in tests/codegen/golden/*.out; do
 	if [[ -f "$fixture/flags" ]]; then
 		while IFS= read -r flag || [[ -n "$flag" ]]; do flags+=("$flag"); done <"$fixture/flags"
 	fi
-	"$ZANEC" --target "$TARGET" --build "$OUT/$name.exe" ${flags[@]+"${flags[@]}"} --package "$fixture"
-	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" ${flags[@]+"${flags[@]}"} --package "$fixture"
-	"$ZANEC" --target "$TARGET" --build "$OUT/$name.tiered.exe" --tiered ${flags[@]+"${flags[@]}"} --package "$fixture"
-	"$ZANEC" --target "$TARGET" --tier-up "$OUT/$name.tiered.tier1.dll" ${flags[@]+"${flags[@]}"} --package "$fixture"
+	"$ZANEC" --target "$TARGET" --build "$OUT/$name$EXE" ${flags[@]+"${flags[@]}"} --package "$fixture"
+	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized$EXE" ${flags[@]+"${flags[@]}"} --package "$fixture"
+	"$ZANEC" --target "$TARGET" --build "$OUT/$name.tiered$EXE" --tiered ${flags[@]+"${flags[@]}"} --package "$fixture"
+	"$ZANEC" --target "$TARGET" --tier-up "$OUT/$name.tiered.tier1$LIB" ${flags[@]+"${flags[@]}"} --package "$fixture"
 	for build in "$name" "$name.optimized" "$name.tiered"; do
 		expect "$build" "$golden" "$status"
 		if [[ -f "$fixture/arguments" ]]; then cp "$fixture/arguments" "$OUT/$build.args"; fi
@@ -66,12 +85,15 @@ done
 # subdirectories a build of them in name order, the first the root, and any
 # other the one package it is, exiting with its `expected-status` when it
 # has one. They are built from a copy, in which each `NAME.archive` has its
-# static library `NAME.a` built beside it for Windows, as tests/ffi/'s
+# static library `NAME.a` built beside it for the target, as tests/ffi/'s
 # rules build it for the host.
 objects="$(mktemp -d)"
 trap 'rm -rf "$objects"' EXIT
 cp -R tests/ffi/fixtures "$objects/ffi"
+# An archive whose `target` file names a triple of its own is one a reject
+# fixture is refused for, and no program here links it.
 find "$objects/ffi" -type d -name '*.archive' | while IFS= read -r sources; do
+	[[ -f "$sources/target" ]] && continue
 	tests/ffi/archive "${sources%.archive}.a" "$sources" "$TARGET"
 done
 for golden in tests/ffi/golden/*.out; do
@@ -86,10 +108,10 @@ for golden in tests/ffi/golden/*.out; do
 	packages=()
 	for sub in "$dir"/*/; do [[ -d "$sub" ]] && packages+=(--package "${sub%/}"); done
 	((${#packages[@]})) || packages=(--package "$dir")
-	"$ZANEC" --target "$TARGET" --build "$OUT/$name.exe" "${packages[@]}"
-	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized.exe" "${packages[@]}"
-	"$ZANEC" --target "$TARGET" --build "$OUT/$name.tiered.exe" --tiered "${packages[@]}"
-	"$ZANEC" --target "$TARGET" --tier-up "$OUT/$name.tiered.tier1.dll" "${packages[@]}"
+	"$ZANEC" --target "$TARGET" --build "$OUT/$name$EXE" "${packages[@]}"
+	"$ZANEC" --target "$TARGET" --optimize --build "$OUT/$name.optimized$EXE" "${packages[@]}"
+	"$ZANEC" --target "$TARGET" --build "$OUT/$name.tiered$EXE" --tiered "${packages[@]}"
+	"$ZANEC" --target "$TARGET" --tier-up "$OUT/$name.tiered.tier1$LIB" "${packages[@]}"
 	# An optimized build whose folded C prints otherwise is held to
 	# `NAME.optimized.out` (spec ffi.md §5.5), as tests/ffi/ holds it.
 	optimized="$golden"
@@ -107,18 +129,18 @@ survey=(--package tests/objects/fixtures/survey --package "$geometry")
 "$ZANEC" --rewrite "$STAMP" "$objects/geometry.o" "$objects/geometry.rewritten.o"
 for object in stamped rewritten; do
 	"$ZANEC" --target "$TARGET" --stamp "geometry=$STAMP" --link "$objects/geometry.$object.o" \
-		--build "$OUT/survey.$object.exe" "${survey[@]}"
+		--build "$OUT/survey.$object$EXE" "${survey[@]}"
 	expect "survey.$object" tests/objects/golden/survey.out 0
 done
 
-# The runtime's structs as Windows lays them out (tests/runtime/abi/probe.c),
+# The runtime's structs as the target lays them out (tests/runtime/abi/probe.c),
 # held to runtime/zane_abi.h, the numbers emitted code is built with: each
 # one the header gives, in its order, but ZANE_LINE, the ZANE_LIST_ sizes,
 # ZANE_STRETCH, ZANE_STRETCHED and ZANE_GUARD, which nothing else defines.
 "$ZANE_CC" --target="$TARGET" -std=c11 -Wall -Wextra -Werror -O2 -I runtime \
-	-o "$OUT/abi.exe" tests/runtime/abi/probe.c
+	-o "$OUT/abi$EXE" tests/runtime/abi/probe.c
 sed -n 's/^#define \(ZANE_[A-Z0-9_]*\) \([0-9][0-9]*\)$/\1 \2/p' runtime/zane_abi.h |
 	grep -Ev '^ZANE_(LINE|LIST_ALIGN|LIST_LEAST|LIST_FIRST|STRETCH|STRETCHED|GUARD) ' >"$OUT/abi.out"
 echo 0 >"$OUT/abi.status"
 
-echo "windows-programs: $(ls "$OUT"/*.exe | wc -l) programs in $OUT"
+echo "cross-programs: $(ls "$OUT"/*.status | wc -l) programs for $TARGET in $OUT"

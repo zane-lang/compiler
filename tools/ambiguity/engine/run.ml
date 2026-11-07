@@ -16,14 +16,13 @@ let main () =
   let temporary = Search.temporary_directory () in
   (* Most exits below go through [Stdlib.exit], which runs [at_exit] handlers
      but never a [Fun.protect ~finally], so the directory has to be released
-     from an [at_exit] handler as well. Forked workers write their results into
-     this same directory and exit through it too, hence the owner check: only
-     the process that created the directory may remove it. Both entry points
-     share one idempotent [cleanup]. *)
-  let owner = Unix.getpid () in
+     from an [at_exit] handler as well. Workers write their results into this
+     same directory, but they run [Search.run_worker], never this function,
+     so only the process that made the directory removes it. Both entry
+     points share one idempotent [cleanup]. *)
   let cleaned = ref false in
   let cleanup () =
-    if Unix.getpid () = owner && not !cleaned then begin
+    if not !cleaned then begin
       cleaned := true;
       try Search.remove_tree temporary with Sys_error _ | Unix.Unix_error _ -> ()
     end
@@ -87,7 +86,10 @@ let main () =
         ~max_tokens ~timeout ~max_witnesses ~initial)
 
 let entry () =
-  try main ()
+  try
+    match Sys.getenv_opt Search.worker_variable with
+    | Some job -> Search.run_worker job
+    | None -> main ()
   with
   | Failure message | Invalid_argument message | Sys_error message
   | Unix.Unix_error (_, _, message) ->

@@ -20,7 +20,7 @@ let cached_runtime () =
     | names -> List.filter (fun n -> Filename.check_suffix n ".o") (Array.to_list names)
     | exception Sys_error _ -> []
   in
-  let host = Llvm_target.Target.default_triple () in
+  let host = Build.host_triple () in
   let compiled ?(triple = host) ?(optimize = false) () = Build.runtime_object ~cache ~cc ~triple ~optimize work in
   let in_cache = function
     | Ok path -> String.starts_with ~prefix:cache path
@@ -206,8 +206,15 @@ let linked_in_process () =
     check "and each linker's way of saying so is read"
       (List.for_all
          (fun text -> Build.unfound_library text "m")
-         [ "unable to find library -lm"; "ld: library not found for -lm"; "ld: cannot find -lm: No such file" ]
-      && not (Build.unfound_library "cannot find -lmx" "m"));
+         [
+           "unable to find library -lm";
+           "ld: library not found for -lm";
+           "ld: cannot find -lm: No such file";
+           "error: unable to find dynamic system library 'm' using strategy 'paths_first'";
+           "error: unable to find dynamic system library \"m\" using strategy paths_first";
+         ]
+      && not (Build.unfound_library "cannot find -lmx" "m")
+      && not (Build.unfound_library "unable to find dynamic system library \"mx\"" "m"));
     Unix.putenv "ZANE_VERBOSE" "1";
     let quiet = linked gnu ~output:"x" in
     Unix.putenv "ZANE_VERBOSE" "";
@@ -267,13 +274,16 @@ let bundled_runtime () =
   and cache = Filename.concat directory "cache" in
   Sys.mkdir work 0o755;
   Build.write_runtime work;
-  let host = Llvm_target.Target.default_triple () in
+  let host = Build.host_triple () in
+  (* The triple as a build reads it, in LLVM's normal form: Windows's host
+     is spelled as `zig cc` spells it. *)
+  let normal = Build.normalize_triple host in
   let bundle optimize = Build.bundle_runtime ~target:host ~optimize bundled in
   check "a runtime is bundled" (Result.is_ok (bundle false));
   check "into a directory made for it"
     (List.sort compare (List.map Filename.extension (Array.to_list (Sys.readdir bundled))) = [ ""; ".o" ]);
   let cc = Build.cc () in
-  let found ?target ?(triple = host) ~optimize () =
+  let found ?target ?(triple = normal) ~optimize () =
     match Build.runtime_object ~bundled ~cache ~cc ~triple ?target ~optimize work with
     | Ok path -> String.starts_with ~prefix:bundled path
     | Error _ -> false
@@ -286,7 +296,7 @@ let bundled_runtime () =
   check "an optimized runtime is bundled beside the other" (Result.is_ok (bundle true));
   check "and is linked by an optimized build" (found ~optimize:true ());
   check "with its bitcode, which this LLVM reads"
-    (Build.with_runtime_bitcode ~bundled ~cc ~triple:host (function
+    (Build.with_runtime_bitcode ~bundled ~cc ~triple:normal (function
        | Some path -> String.starts_with ~prefix:bundled path && Codegen__Runtime_bodies.readable path
        | None -> false));
   (* Each runtime is bundled with the command that links a program with
@@ -297,11 +307,11 @@ let bundled_runtime () =
     Ok ()
   in
   let level = Build.level ~optimize:false and system = Build.system_libraries None in
-  let command = List.fold_left Filename.concat bundled [ "link"; Build.bundled_link_name ~triple:host level system ] in
+  let command = List.fold_left Filename.concat bundled [ "link"; Build.bundled_link_name ~triple:normal level system ] in
   let obj = Filename.concat work "program.o" and runtime = "/r/runtime.o" and output = Filename.concat work "out" in
   check "its link is bundled with it"
     (Result.is_ok
-       (Build.link_program ~bundled:command ~lld ~cc:"false" ~triple:host ~args:[] ~deps:[ "/d/dep.o" ] ~obj ~runtime
+       (Build.link_program ~bundled:command ~lld ~cc:"false" ~triple:normal ~args:[] ~deps:[ "/d/dep.o" ] ~obj ~runtime
           ~output work)
     && Sys.file_exists command);
   let rec after_obj = function o :: d :: _ when o = obj -> d = "/d/dep.o" | _ :: rest -> after_obj rest | [] -> false in
@@ -309,7 +319,9 @@ let bundled_runtime () =
     List.filter (String.starts_with ~prefix:(Filename.concat bundled "link/files/")) !linked
   in
   check "and a build runs it with its own files, its dependencies' after its object"
-    (List.mem output !linked && List.mem runtime !linked && after_obj !linked);
+    (let named file = List.exists (fun w -> w = file || snd (Build.option_split w) = file) !linked in
+     (* A COFF link names its output after an option's `:`, `-out:`. *)
+     named output && named runtime && after_obj !linked);
   check "and the files the link takes from the bundle"
     (bundled_files <> [] && List.for_all Sys.file_exists bundled_files);
   let refused = Build.bundle_runtime ~target:"i386-unknown-linux-gnu" ~optimize:false bundled in
@@ -325,7 +337,7 @@ let runtime_bodies () =
   let directory = Filename.temp_dir "zane-bodies" "" in
   Fun.protect ~finally:(fun () -> remove_tree directory) @@ fun () ->
   let cache = Filename.concat directory "cache" in
-  let triple = Llvm_target.Target.default_triple () in
+  let triple = Build.host_triple () in
   let bitcode ~cc = Build.with_runtime_bitcode ~cache ~cc ~triple Fun.id in
   match bitcode ~cc:(Build.cc ()) with
   | None -> check "the C compiler makes bitcode this LLVM reads" false

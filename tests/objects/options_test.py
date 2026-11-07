@@ -36,7 +36,14 @@ NOT_NAMES = ["Buecher", "Übersicht", "1bücher", "", "type"]
 
 
 def zanec(*args):
-    return subprocess.run([ZANEC, *map(str, args)], capture_output=True, text=True, timeout=60)
+    return subprocess.run([ZANEC, *map(str, args)], capture_output=True, text=True, encoding="utf-8",
+                          timeout=60)
+
+
+def reported(path):
+    """`path` as a report spells it: with `/` between its parts on every
+    system (lib/diagnostic/render.ml)."""
+    return path.replace("\\", "/") if sys.platform == "win32" else path
 
 
 class OptionTests(unittest.TestCase):
@@ -73,7 +80,7 @@ class OptionTests(unittest.TestCase):
                 argument = f"{name}={self.root / 'bücher'}"
                 result = zanec("--check", "--package", argument)
                 self.assert_status(result, 1)
-                self.assertIn(argument, result.stderr)
+                self.assertIn(reported(argument), result.stderr)
                 self.assertIn("no such directory", result.stderr)
 
     def test_an_import_key_that_is_no_name_is_a_usage_error(self):

@@ -283,12 +283,12 @@ let stopping =
     ("s_outside_null", (1L, 1L), "a comparison with null of an address outside its allocation");
   ]
 
-let compile base name source =
+let compile ?cc ?target base name source =
   let dir = Filename.concat base name in
   Sys.mkdir dir 0o755;
   write_all (Filename.concat dir "a.c") source;
-  let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
-  match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target:None [ dir ] with
+  let cc = match cc with Some cc -> cc | None -> Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
+  match Foreign.compile_packages ~cache:None ~cc ~cpu:"" ~target [ dir ] with
   | Ok [ { Foreign.sources = [ s ]; _ } ] -> Some s.Foreign.Compile.bitcode
   | _ -> None
 
@@ -333,7 +333,7 @@ let evaluate m name a b = evaluate_on m name (fun _ -> [ C_memory.Int (64, a); C
    program calling each case. *)
 let natively base bitcode =
   let bc = Filename.concat base "cases.bc" and harness = Filename.concat base "main.c" in
-  let exe = Filename.concat base "cases" in
+  let exe = Filename.concat base (if Sys.win32 then "cases.exe" else "cases") in
   write_all bc bitcode;
   let decls = String.concat "" (List.map (fun (n, _) -> Printf.sprintf "long long %s(long long, long long);\n" n) cases) in
   let calls =
@@ -342,12 +342,19 @@ let natively base bitcode =
          (fun (n, args) -> List.map (fun (a, b) -> Printf.sprintf "  printf(\"%%lld\\n\", %s(%LdLL, %LdLL));\n" n a b) args)
          cases)
   in
-  write_all harness (Printf.sprintf "#include <stdio.h>\n%sint main(void) {\n%s  return 0;\n}\n" decls calls);
+  (* MinGW's C library has no C23 `roundeven`, which a case's builtin
+     calls: rounding to the nearest, ties to even, is `rint` in the default
+     rounding mode. *)
+  let mingw = "#ifdef __MINGW32__\ndouble roundeven(double x) { return __builtin_rint(x); }\nfloat roundevenf(float x) { return __builtin_rintf(x); }\n#endif\n" in
+  write_all harness (Printf.sprintf "#include <stdio.h>\n%s%sint main(void) {\n%s  return 0;\n}\n" mingw decls calls);
   let cc = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC") in
   let out = Filename.concat base "out.txt" in
   if Sys.command (Printf.sprintf "%s -w %s %s -o %s -lm && %s > %s" cc (Filename.quote harness) (Filename.quote bc) (Filename.quote exe) (Filename.quote exe) (Filename.quote out)) <> 0
   then None
-  else Option.map (String.split_on_char '\n') (read_all out)
+  else
+    (* MinGW's stdout is in text mode, so each line it printed ends `\r\n`. *)
+    let line l = if String.ends_with ~suffix:"\r" l then String.sub l 0 (String.length l - 1) else l in
+    Option.map (fun text -> List.map line (String.split_on_char '\n' text)) (read_all out)
 
 let agree base =
   match compile base "agree" agreeing with
@@ -374,8 +381,14 @@ let agree base =
                     args)
                 cases))
 
+(* The stopping cases are compiled for x86-64 Linux on every machine: what
+   the IR says of a case's undefined behaviour is the target's ABI's, and
+   AArch64's passes a large aggregate by the address of the caller's copy
+   with nothing in the IR to say the copy ends with the call. `zig cc`
+   gives them glibc's headers on any machine. *)
 let stop base =
-  match compile base "stop" stopping_source with
+  with_zig_cc @@ fun zig ->
+  match compile ~cc:zig ~target:"x86_64-linux-gnu" base "stop" stopping_source with
   | None -> check "the C evaluator's stopping cases compile" false
   | Some bitcode ->
       with_module bitcode (fun m ->

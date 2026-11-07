@@ -84,10 +84,10 @@ baseline never passes as a comparison. The rows are measured on x86-64, so
 on another machine `just test-perf` checks outputs and compares nothing.
 
 ```sh
-devbox run -- just test-perf              # every program against main's rows
-devbox run -- tests/perf/run flips trees  # these alone, compared with nothing
-devbox run -- tests/perf/run --build plain  # one build of each program
-devbox run -- just promote-perf           # write golden/ from this build's output
+pixi run just test-perf              # every program against main's rows
+pixi run tests/perf/run flips trees  # these alone, compared with nothing
+pixi run tests/perf/run --build plain  # one build of each program
+pixi run just promote-perf           # write golden/ from this build's output
 ```
 
 Valgrind runs on Linux only. To see where a change moved a number, compare

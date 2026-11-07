@@ -48,7 +48,7 @@ def run(grammar: Path, output: Path, menhir: str | None, stock: bool = False,
                 stream.write("NOT PROVEN: stage time limit\n")
                 return 3
 
-        version = subprocess.run([executable, "--version"], capture_output=True, text=True, check=True).stdout.strip()
+        version = subprocess.run([executable, "--version"], capture_output=True, text=True, encoding="utf-8", check=True).stdout.strip()
         # Both commands read the original grammar with the same backend.
         # The erased expansion supplies production identities; the dump keeps
         # the actual GLR numbering, nullable rewrite, and retained conflicts.

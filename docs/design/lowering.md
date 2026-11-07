@@ -38,11 +38,11 @@ allows only the instructions every processor of the architecture has. Linking th
 linked into the compiler as a library, with the arguments the C compiler
 would give it (§7).
 
-The bindings are LLVM's own, from `llvm/bindings/ocaml` in llvm-project,
-which opam builds from each LLVM release as its `llvm` package. They are
-tied to that release, and the compiler uses LLVM 19, the newest opam
-packages. `dev/setup/bootstrap-toolchain` pins it; devbox provides LLVM 19
-with its `llvm-config`, headers and shared library in development and CI.
+The bindings are LLVM's own, a copy of LLVM 21.1.8's `llvm/bindings/ocaml`
+at `vendor/llvm-ocaml`, built with the compiler (`lib/llvm`) against the
+environment's LLVM 21 on every platform (`pixi.toml`). The build refuses any
+other LLVM (`lib/llvm/config/discover.ml`), since the bindings and the
+compiler's C++ stubs are written against LLVM 21's interfaces.
 
 The module's text is LLVM's to print and changes between releases, so the
 tests read the CGT and what a built program writes instead (§7).
@@ -411,8 +411,8 @@ on every target but Apple's, whose ABI keeps frame pointers,
 it also takes `-ftls-model=local-exec`: the runtime is only ever linked into
 an executable, so a thread's variable is read at a fixed offset from the
 thread's pointer, rather than through the descriptor a position-independent
-compile asks for. Some toolchains add the rest by default, Nix's hardened
-clang among them, and they cost the runtime's small, hot functions more than
+compile asks for. Some toolchains add the rest by default, hardened
+distribution clangs among them, and they cost the runtime's small, hot functions more than
 anything else in them; `-fwrapv`, signed arithmetic that wraps, keeps LLVM
 from simplifying the runtime's rounding of sizes. The C library's checked
 forms of its functions, which such a toolchain turns on with a
@@ -463,10 +463,14 @@ everything through tier 0's table ([`tiers.md`](tiers.md)), and each C
 library function in it would cost a symbol lookup as every run starts. A
 body taken loses any stack protection the C compiler gave it: it becomes
 the program's code, which has none, and inlined it would give its caller
-the protection too. Bitcode is read only by the LLVM that wrote it or a
+the protection too. It also loses the processor the C compiler compiled it
+for, which LLVM inlines only into a caller whose processor has every
+feature it has: clang's default on macOS, `penryn` for x86-64 and
+`apple-m1` for AArch64, is newer than the baseline the program is
+compiled for, so no body would be inlined there. Bitcode is read only by the LLVM that wrote it or a
 later one, so the C compiler that compiles it, `ZANE_BITCODE_CC` or else
 the runtime's own, must be a clang of the compiler's LLVM version or older,
-as devbox's is; a release bundles bitcode a matching clang made (below).
+as the pixi environment's is; a release bundles bitcode a matching clang made (below).
 With any other, or one that makes no bitcode, a
 build links the runtime's object and calls its functions, and the cache
 keeps an empty file so the C compiler is asked once.
@@ -521,7 +525,7 @@ contents, where the command names it relative to the bundle. With
 `--optimize` it also compiles the runtime's bitcode beside the object, with
 the C compiler `ZANE_BITCODE_CC` names when it is set. Zig's clang is newer
 than the compiler's LLVM, which cannot read its bitcode, so packaging names
-`dev/release/bitcode-cc`: the devbox's clang, of the compiler's LLVM
+`dev/release/bitcode-cc`: the pixi environment's clang, of the compiler's LLVM
 version, run with the C library headers and definitions Zig compiles the
 same target with, and an Apple target's oldest system. Bitcode this LLVM
 cannot read is not bundled, and an optimized build with that release links
@@ -1456,7 +1460,7 @@ test passing.
   where `-O2` has just rotated each loop and
   hoisted what it reads, ahead of the passes that would turn an index check
   into an exit test IRCE no longer recognizes.
-  `lib/codegen/gen/o2_pipeline.sh` writes the pipeline out at build time
+  `lib/llvm/config/discover.ml` writes the pipeline out at build time
   from the `opt` beside the LLVM the compiler is built against, so it
   tracks that LLVM's `-O2`. IRCE splits a loop whose element reads and
   writes are checked into the iterations its checks may fail on and a main

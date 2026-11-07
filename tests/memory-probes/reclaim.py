@@ -10,14 +10,39 @@ large one, and the control grew by at least CONTROL_GROWTH_KIB. Peak RSS
 differs between machines, so the check compares a case's two runs with each
 other, never with the numbers in reclaim.out. `just test-compiler` runs this.
 Usage: python3 reclaim.py [--check] [CASE...]"""
-import subprocess, resource, sys, pathlib, tempfile
+import subprocess, sys, pathlib, tempfile
 CONTROL="control_push_grows"
 # A body that reclaims stays within page-granularity noise of its small run
 # (within about 120 KiB either way on the machines measured); the control grows by about 29 MiB.
 RECLAIMED_SLACK_KIB=1024
 CONTROL_GROWTH_KIB=16384
-# ru_maxrss is KiB on Linux and bytes on macOS.
-RSS_PER_KIB=1024 if sys.platform=="darwin" else 1
+# ru_maxrss is KiB on Linux and bytes on macOS; a peak working set, which
+# is Windows's peak RSS, is bytes.
+RSS_PER_KIB=1 if sys.platform=="linux" else 1024
+
+
+def run_measured(exe):
+    """`exe`'s exit status, its peak RSS in RSS_PER_KIB units, and the start
+    of its stderr. On POSIX a fresh interpreter runs it, so its children's
+    peak is the program's alone; on Windows the process's own counters are
+    read through the handle Popen keeps once it has exited."""
+    if sys.platform != "win32":
+        m=subprocess.run([sys.executable,"-c","import resource,subprocess,sys;r=subprocess.run([sys.argv[1]],capture_output=True);print(r.returncode,resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss,r.stderr.decode(errors='replace')[:200])",exe],capture_output=True,text=True)
+        return m.stdout.strip()
+    import ctypes
+    from ctypes import wintypes
+    class COUNTERS(ctypes.Structure):
+        _fields_=[("cb",wintypes.DWORD),("PageFaultCount",wintypes.DWORD)]+[(f,ctypes.c_size_t) for f in (
+            "PeakWorkingSetSize","WorkingSetSize","QuotaPeakPagedPoolUsage","QuotaPagedPoolUsage",
+            "QuotaPeakNonPagedPoolUsage","QuotaNonPagedPoolUsage","PagefileUsage","PeakPagefileUsage")]
+    p=subprocess.Popen([exe],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    _,err=p.communicate()
+    counters=COUNTERS(cb=ctypes.sizeof(COUNTERS))
+    kernel32=ctypes.WinDLL("kernel32",use_last_error=True)
+    kernel32.K32GetProcessMemoryInfo.argtypes=[wintypes.HANDLE,ctypes.POINTER(COUNTERS),wintypes.DWORD]
+    if not kernel32.K32GetProcessMemoryInfo(int(p._handle),ctypes.byref(counters),counters.cb):
+        raise OSError(ctypes.get_last_error(),"GetProcessMemoryInfo")
+    return f"{p.returncode} {counters.PeakWorkingSetSize} {err.decode(errors='replace')[:200]}".strip()
 here=pathlib.Path(__file__).resolve().parent
 Z=str(here.parent.parent/"_build/default/bin/zanec/zanec.exe")
 src=(here/"copies/main.zn").read_text()
@@ -65,9 +90,9 @@ for name in only:
         exe=str(work/(pkg+".exe"))
         r=subprocess.run([Z,"--build",exe,"--package",str(d)],capture_output=True,text=True)
         if r.returncode: res.append("build failed: "+(r.stdout+r.stderr).replace(str(work)+"/","")); break
-        m=subprocess.run([sys.executable,"-c","import resource,subprocess,sys;r=subprocess.run([sys.argv[1]],capture_output=True);print(r.returncode,resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss,r.stderr.decode()[:200])",exe],capture_output=True,text=True)
-        res.append(f"N={n}: {m.stdout.strip()}")
-        fields=m.stdout.split()
+        measured=run_measured(exe)
+        res.append(f"N={n}: {measured}")
+        fields=measured.split()
         if len(fields)>=2 and fields[0]=="0": peaks.append(int(fields[1])//RSS_PER_KIB)
     print(name, "|", " ; ".join(res))
     if not check: continue

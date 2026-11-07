@@ -3,6 +3,10 @@
     failures are about the build -- a target LLVM does not know, a link that
     failed -- and are messages, not diagnostics. *)
 
+(** The triple a build for a Windows host is for: MinGW's, the only Windows
+    the runtime supports, where LLVM's default is MSVC's. *)
+val windows_host_triple : string
+
 (** One C module: its bitcode, the hash the cache keys it by, and the
     files its code came from, by their real paths: a source's own and the
     headers it includes, or the interface header a glue module compiles. *)
