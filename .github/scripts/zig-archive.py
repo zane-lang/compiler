@@ -35,10 +35,13 @@ def unzip(archive, destination):
     destination = Path(destination)
     with zipfile.ZipFile(archive) as source:
         for member in source.infolist():
-            parts = PurePosixPath(member.filename).parts[1:]
+            # A name is read as Windows reads it, where `\\` separates too
+            # and a drive roots it, so no name leaves the directory there.
+            name = member.filename.replace("\\", "/")
+            parts = PurePosixPath(name).parts[1:]
             if not parts:
                 continue
-            if ".." in parts or PurePosixPath(member.filename).is_absolute():
+            if ".." in parts or PurePosixPath(name).is_absolute() or any(":" in part for part in parts):
                 raise SystemExit(f"Zig archive names {member.filename!r}, outside its directory")
             target = destination.joinpath(*parts)
             if member.is_dir():

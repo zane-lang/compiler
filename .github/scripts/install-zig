@@ -10,7 +10,8 @@ set -euo pipefail
 : "${RUNNER_TEMP:?must be set}"
 manifest=${1:?usage: install-zig MANIFEST}
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-metadata=$(python3 "$here/zig-archive.py" fields "$manifest")
+# A native Windows Python ends its lines with CRLF.
+metadata=$(python3 "$here/zig-archive.py" fields "$manifest" | tr -d '\r')
 version=$(printf '%s\n' "$metadata" | sed -n '1p')
 url=$(printf '%s\n' "$metadata" | sed -n '2p')
 sha256=$(printf '%s\n' "$metadata" | sed -n '3p')

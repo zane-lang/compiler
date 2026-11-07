@@ -369,7 +369,9 @@ let asked_link ~cc ~triple args dir =
     in
     if Sys.file_exists tbd then Some tbd else None
   in
-  (* Zig's install directory, where its `libSystem` stubs are. *)
+  (* Zig's install directory, where its `libSystem` stubs are. The
+     directories are listed as `PATH` lists them, by `;` on Windows, whose
+     paths hold a drive's `:`. *)
   let system () =
     match ask [ "-print-search-dirs" ] with
     | Error _ -> None
@@ -379,7 +381,8 @@ let asked_link ~cc ~triple args dir =
             Option.bind (String.index_opt line '=') (fun i ->
                 if String.starts_with ~prefix:"programs:" line then
                   List.find_map stubs_in
-                    (String.split_on_char ':' (String.sub line (i + 1) (String.length line - i - 1)))
+                    (String.split_on_char (if Sys.win32 then ';' else ':')
+                       (String.sub line (i + 1) (String.length line - i - 1)))
                 else None))
           lines
   in

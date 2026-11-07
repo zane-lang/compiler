@@ -66,6 +66,7 @@ int main(int argc, char **argv) {
             environment = {**os.environ, "LD_LIBRARY_PATH": "/nonexistent"}
             environment.pop("ZANE_CC", None)
             environment.pop("ZIG", None)
+            environment.pop("ZANE_RUNTIME_OBJECTS", None)
             # The wrapper only runs the compiler with the bundled loader and
             # libraries, passing its arguments as given: the compiler finds
             # the toolchain itself (lib/codegen/build.ml, `released`), so the

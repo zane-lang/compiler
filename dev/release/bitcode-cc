@@ -24,11 +24,17 @@ import sys
 def zig_flags(zig_cc, args):
     """The definitions and C library header directories of the compile
     `zig_cc` would run for `args`, as flags for another clang."""
-    # cmd.exe runs a `.cmd` zig cc, which Windows cannot start alone.
-    launcher = ["cmd", "/c"] if zig_cc.lower().endswith((".cmd", ".bat")) else []
-    listed = subprocess.run([*launcher, zig_cc, *args, "-###"], capture_output=True, text=True)
+    command = [zig_cc, *args, "-###"]
+    if zig_cc.lower().endswith((".cmd", ".bat")):
+        # cmd.exe runs a `.cmd` zig cc, which Windows cannot start alone;
+        # `/s` and the outer quotes keep each quoted word, a path with
+        # spaces among them, as it is.
+        command = f'cmd /d /s /c "{subprocess.list2cmdline(command)}"'
+    listed = subprocess.run(command, capture_output=True, text=True)
+    # The compile is all this needs: on Windows `zig cc -###` names it and
+    # then fails to open the source, which it never reads to name it.
     lines = [line for line in listed.stderr.splitlines() if '"-cc1"' in line]
-    if listed.returncode or len(lines) != 1:
+    if len(lines) != 1:
         sys.exit(f"bitcode-cc: `zig cc -###` named no single compile:\n{listed.stderr}")
     # The command quotes each word and escapes a backslash in it, as a
     # Windows path holds, which a POSIX split reads back.

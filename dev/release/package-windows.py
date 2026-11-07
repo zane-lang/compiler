@@ -15,7 +15,7 @@ import common
 # The C and C++ runtime the MSVC build links against. A machine without the
 # Visual C++ redistributable lacks them, so they are bundled wherever they
 # are found, as Microsoft allows for an application's own directory.
-REDISTRIBUTABLE = re.compile(r"(vcruntime|msvcp|concrt|vccorlib)[0-9_]*\.dll", re.IGNORECASE)
+REDISTRIBUTABLE = re.compile(r"(vcruntime|msvcp|concrt|vccorlib)[0-9a-z_]*\.dll", re.IGNORECASE)
 
 
 def imports(image):
@@ -46,8 +46,10 @@ def find(name, directories):
 def closure(binary):
     """The DLLs *binary* loads, directly or through another, that Windows
     does not bring, searched for as the loader does: beside the binary,
-    then on PATH."""
-    directories = [binary.parent, *filter(None, os.environ.get("PATH", "").split(os.pathsep))]
+    in Windows' directories, then on PATH."""
+    system = Path(os.environ.get("SystemRoot", r"C:\Windows"))
+    directories = [binary.parent, system / "System32", system,
+                   *filter(None, os.environ.get("PATH", "").split(os.pathsep))]
     found, pending, seen = {}, [binary], set()
     while pending:
         image = pending.pop()

@@ -41,9 +41,11 @@ test "$(find "$root/share/runtime" -maxdepth 1 -name '*.bc' -size +0 | wc -l)" -
 # library's for each target, tier 1's.
 test "$(find "$root/share/runtime/link" -maxdepth 1 -type f | wc -l)" -eq 18
 for optimization in plain optimized; do
-	flags=()
-	[[ "$optimization" == plain ]] || flags+=(--optimize)
-	"$zanec" "${flags[@]}" --build "$out/hello-$optimization$exe" --package "$out/hello"
+	# macOS's bash 3.2 takes an empty array for unset, so the flag goes in
+	# the positional parameters, which may be empty.
+	set --
+	[[ "$optimization" != optimized ]] || set -- --optimize
+	"$zanec" "$@" --build "$out/hello-$optimization$exe" --package "$out/hello"
 	"$out/hello-$optimization$exe" | tr -d '\r' > "$out/hello-$optimization.out"
 	cmp "$golden" "$out/hello-$optimization.out"
 done
