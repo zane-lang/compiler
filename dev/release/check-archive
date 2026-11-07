@@ -6,6 +6,8 @@
 # Linux's runs in a bare container, which also keeps the build machine's
 # loader, LLVM and C toolchain from it.
 set -euo pipefail
+# A failing check names itself; most of them print nothing on their own.
+trap 'echo "check-archive: line $LINENO failed: $BASH_COMMAND" >&2' ERR
 archive=${1:?usage: check-archive ARCHIVE OUTPUT SOURCE}
 out=${2:?usage: check-archive ARCHIVE OUTPUT SOURCE}
 source=${3:?usage: check-archive ARCHIVE OUTPUT SOURCE}
@@ -56,7 +58,11 @@ ZANE_TIER_UP="$out/hello-tiered.tier1$library" ZANE_TIER_WAIT=1 ZANE_TIER_LOG=1 
 	2> "$out/hello-tiered.log" | tr -d '\r' > "$out/hello-tiered.out"
 cmp "$golden" "$out/hello-tiered.out"
 # The output alone does not show tier 1 ran: tier 0 prints the same.
-grep -Eq 'zane: tier 1 runs ([0-9]+) of \1 functions' "$out/hello-tiered.log"
-test -z "$(find "$ZANE_CACHE_DIR" -mindepth 1 -maxdepth 1 ! -name tier)"
+# Every function is tier 1's: `runs N of N`. The numbers are compared in
+# the shell, since a backreference in an extended pattern is GNU's alone.
+said=$(sed -n 's/^zane: tier 1 runs \([0-9][0-9]*\) of \([0-9][0-9]*\) functions.*$/\1 \2/p' "$out/hello-tiered.log" | tr -d '\r')
+[[ -n "$said" && "${said% *}" == "${said#* }" ]] || { cat "$out/hello-tiered.log" >&2; false; }
+unexpected=$(find "$ZANE_CACHE_DIR" -mindepth 1 -maxdepth 1 ! -name tier)
+[[ -z "$unexpected" ]] || { printf 'check-archive: the cache holds %s\n' "$unexpected" >&2; false; }
 test ! -e "$out/zig-cache"
 echo "Relocated compiler built and ran plain, optimized and tiered programs with its bundled runtimes and links, running no C compiler"
