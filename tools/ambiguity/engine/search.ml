@@ -587,7 +587,7 @@ type 'partition worker_job = {
   job_max_tokens : int;
   job_min_tokens : int;
   job_nodes_per_depth : int option;
-  job_timeout : float;
+  job_deadline : float;
   job_max_frontiers : int;
   job_max_queue : int;
   job_max_witnesses : int;
@@ -616,7 +616,8 @@ let run_worker job_path =
   let result =
     unified_search job.job_engine job.job_partition ~max_tokens:job.job_max_tokens
       ~min_tokens:job.job_min_tokens ~nodes_per_depth:job.job_nodes_per_depth
-      ~timeout:job.job_timeout ~max_frontiers:job.job_max_frontiers ~max_queue:job.job_max_queue
+      ~timeout:(Float.max 0. (job.job_deadline -. Unix.gettimeofday ()))
+      ~max_frontiers:job.job_max_frontiers ~max_queue:job.job_max_queue
       ~max_witnesses:job.job_max_witnesses ~soft_heap_bytes:job.job_soft_heap_bytes
       ~hard_heap_bytes:job.job_hard_heap_bytes ~show_progress:(Output.progress_is_visible ())
       ~on_progress:report job.job_conflict_distance job.job_accept_distance
@@ -627,27 +628,39 @@ let run_worker job_path =
    executable started again with [worker_variable] naming the job [job]
    makes for it, written into [temporary]. A process is started the same
    way on every system, which [Unix.fork] could not do on Windows, and each
-   keeps the memory share it is given. *)
+   keeps the memory share it is given. If one cannot be started, those
+   already started are stopped before the failure is passed on. *)
 let start_workers ~temporary ~job partitions =
   flush stdout;
   flush stderr;
   let children = ref [] in
-  Array.iteri
-    (fun index partition ->
-      let output = Filename.concat temporary (Printf.sprintf "worker-%d" index) in
-      let progress_path = Filename.concat temporary (Printf.sprintf "progress-%d" index) in
-      let job_path = Filename.concat temporary (Printf.sprintf "job-%d" index) in
-      Out_channel.with_open_bin job_path (fun channel ->
-          Marshal.to_channel channel (job ~partition ~output ~progress:progress_path) []);
-      let environment =
-        Array.append [| worker_variable ^ "=" ^ job_path |] (Unix.environment ())
-      in
-      let pid =
-        Unix.create_process_env Sys.executable_name [| Sys.executable_name |] environment
-          Unix.stdin Unix.stdout Unix.stderr
-      in
-      children := (pid, output, progress_path) :: !children)
-    partitions;
+  let start () =
+    Array.iteri
+      (fun index partition ->
+        let output = Filename.concat temporary (Printf.sprintf "worker-%d" index) in
+        let progress_path = Filename.concat temporary (Printf.sprintf "progress-%d" index) in
+        let job_path = Filename.concat temporary (Printf.sprintf "job-%d" index) in
+        Out_channel.with_open_bin job_path (fun channel ->
+            Marshal.to_channel channel (job ~partition ~output ~progress:progress_path) []);
+        let environment =
+          Array.append [| worker_variable ^ "=" ^ job_path |] (Unix.environment ())
+        in
+        let pid =
+          Unix.create_process_env Sys.executable_name [| Sys.executable_name |] environment
+            Unix.stdin Unix.stdout Unix.stderr
+        in
+        children := (pid, output, progress_path) :: !children)
+      partitions
+  in
+  (try start ()
+   with failure ->
+     let backtrace = Printexc.get_raw_backtrace () in
+     List.iter
+       (fun (pid, _, _) ->
+         (try Unix.kill pid Sys.sigkill with Unix.Unix_error _ -> ());
+         try ignore (Unix.waitpid [] pid) with Unix.Unix_error _ -> ())
+       !children;
+     Printexc.raise_with_backtrace failure backtrace);
   !children
 
 (* What a worker that ended with [status] found. *)
@@ -821,7 +834,7 @@ let parallel_unified_search engine initial ~jobs ~max_tokens ~min_tokens
         job_max_tokens = max_tokens;
         job_min_tokens = min_tokens;
         job_nodes_per_depth = nodes_per_depth;
-        job_timeout = remaining_timeout;
+        job_deadline = deadline;
         job_max_frontiers = max_frontiers;
         job_max_queue = max_queue;
         job_max_witnesses = max_witnesses;

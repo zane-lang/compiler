@@ -55,6 +55,7 @@ def build(menhir: str, grammar: Path, directory: Path) -> tuple[Path, Path]:
             stderr=subprocess.PIPE,
             text=True,
             encoding="utf-8",
+            errors="replace",
             check=False,
         )
     if completed.returncode != 0:
@@ -70,6 +71,7 @@ def build(menhir: str, grammar: Path, directory: Path) -> tuple[Path, Path]:
         stderr=subprocess.PIPE,
         text=True,
         encoding="utf-8",
+        errors="replace",
         check=False,
     )
     automaton = base.with_suffix(".automaton")

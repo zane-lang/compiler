@@ -61,6 +61,10 @@ def run_engine(
             text=True,
             encoding="utf-8",
         )
+        # A terminal or file in a legacy code page cannot show every character
+        # the engine prints; one it cannot show must not stop the search.
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(errors="replace")
         try:
             assert process.stdout is not None
             for line in process.stdout:
