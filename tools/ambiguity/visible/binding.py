@@ -74,7 +74,7 @@ def verify_model_binding(model: dict, grammar: Path, seconds: int = 300) -> None
         result = subprocess.run(
             [sys.executable, here / 'dump.py', grammar.resolve(), output],
             capture_output=True, text=True, encoding='utf-8', timeout=seconds,
-            env={**os.environ, 'PYTHONHASHSEED': '0', 'PYTHONUTF8': '1'},
+            env={**os.environ, 'PYTHONHASHSEED': '0', 'PYTHONUTF8': '1', 'PYTHONIOENCODING': 'utf-8'},
         )
         if result.returncode:
             raise ValueError('model rebuild failed: ' + result.stderr[-2000:])
