@@ -1,8 +1,32 @@
 #!/usr/bin/env bash
-# Resolve the portable Zig distribution installed by Devbox.
+# Download the standalone Zig release a manifest pins, check it against the
+# manifest's hash and version, and name it in ZIG for the steps after. A
+# release bundles this one: its lib/ and LICENSE sit beside the executable,
+# where the environment's own zig has neither. Windows' release is a zip
+# whose executable is zig.exe, the others tar.xz; Python, which every runner
+# has, checks the hash and unpacks a zip.
 set -euo pipefail
 : "${GITHUB_ENV:?must be set}"
-zig=$(devbox run -- which zig)
-zig=$(realpath "$zig")
-"$zig" version
-echo "ZIG=$zig" >> "$GITHUB_ENV"
+: "${RUNNER_TEMP:?must be set}"
+manifest=${1:?usage: install-zig MANIFEST}
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# A native Windows Python ends its lines with CRLF.
+metadata=$(python3 "$here/zig-archive.py" fields "$manifest" | tr -d '\r')
+version=$(printf '%s\n' "$metadata" | sed -n '1p')
+url=$(printf '%s\n' "$metadata" | sed -n '2p')
+sha256=$(printf '%s\n' "$metadata" | sed -n '3p')
+destination="$RUNNER_TEMP/zig"
+case "$url" in
+*.zip) archive="$RUNNER_TEMP/zig.zip" executable=zig.exe ;;
+*) archive="$RUNNER_TEMP/zig.tar.xz" executable=zig ;;
+esac
+
+curl -fSL "$url" -o "$archive"
+python3 "$here/zig-archive.py" check "$archive" "$sha256"
+mkdir -p "$destination"
+case "$archive" in
+*.zip) python3 "$here/zig-archive.py" unzip "$archive" "$destination" ;;
+*) tar -xJf "$archive" --strip-components=1 -C "$destination" ;;
+esac
+test "$("$destination/$executable" version)" = "$version"
+echo "ZIG=$destination/$executable" >> "$GITHUB_ENV"

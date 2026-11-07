@@ -50,7 +50,8 @@
      `golden/NAME.STAGE.tree` `zanec --STAGE`, over `fixtures/NAME.zn`;
      `golden/reject.NAME.err` is what `zanec` reports for
      `fixtures/reject/NAME.zn`.
-   - runtime: `NAME.c` is a C test, linked with the runtime's parts, and
+   - runtime: `NAME.c` is a C test, built by `host_cc` for the host and
+     linked with the runtime's parts, and
      `golden/NAME.out` is what it printed.
    - semantics: `golden/typing.NAME.VIEW` is a build of every package
      directory in `fixtures/typing/NAME`, in name order, so the first is the
@@ -61,6 +62,10 @@
 
 let zanec = "%{exe:../../bin/zanec/zanec.exe}"
 let span_dump = "%{exe:../../tools/inspect/span_dump.exe}"
+
+(* A path within a test directory, spelled with `/` as dune and the
+   golden files spell it, on Windows too. *)
+let ( // ) dir name = dir ^ "/" ^ name
 
 let sorted dir =
   if Sys.file_exists dir then List.sort compare (Array.to_list (Sys.readdir dir)) else []
@@ -76,7 +81,7 @@ let diff golden actual =
 let rec archive_dirs dir =
   List.concat_map
     (fun e ->
-      let path = Filename.concat dir e in
+      let path = dir // e in
       if not (Sys.is_directory path) then []
       else if Filename.check_suffix e ".archive" then [ path ]
       else archive_dirs path)
@@ -92,7 +97,7 @@ let fixture_deps dir =
 (* codegen *)
 
 let status name =
-  let file = Filename.concat (Filename.concat "fixtures" name) "expected-status" in
+  let file = "fixtures" // name // "expected-status" in
   if Sys.file_exists file then
     int_of_string (String.trim (In_channel.with_open_text file In_channel.input_all))
   else 0
@@ -100,7 +105,7 @@ let status name =
 (* What a fixture's program is run with, its `arguments` file, or built
    with, its `flags` file: one per line, each quoted for dune. *)
 let lines file name =
-  let file = Filename.concat (Filename.concat "fixtures" name) file in
+  let file = "fixtures" // name // file in
   if Sys.file_exists file then
     In_channel.with_open_text file In_channel.input_lines
     |> List.map (fun a -> " " ^ Printf.sprintf "%S" a)
@@ -217,13 +222,13 @@ let codegen () =
 let packages dir =
   if List.exists (fun f -> Filename.check_suffix f ".zn") (sorted dir) then " --package " ^ dir
   else
-    List.filter (fun p -> Sys.is_directory (Filename.concat dir p)) (sorted dir)
+    List.filter (fun p -> Sys.is_directory (dir // p)) (sorted dir)
     |> List.map (fun p -> Printf.sprintf " --package %s/%s" dir p)
     |> String.concat ""
 
 (* A fixture's `flags` file, one per line, as arguments quoted for dune. *)
 let flags_of dir =
-  let file = Filename.concat dir "flags" in
+  let file = dir // "flags" in
   if Sys.file_exists file then
     In_channel.with_open_text file In_channel.input_lines |> List.map (Printf.sprintf " %S") |> String.concat ""
   else ""
@@ -266,7 +271,7 @@ let ffi () =
           let dir = "fixtures/reject/" ^ name in
           (* A fixture refused only when it is built is built, to a program
              its refusal never writes. *)
-          let view = if Sys.file_exists (Filename.concat dir "build") then Printf.sprintf "build reject.%s.exe" name else "check" in
+          let view = if Sys.file_exists (dir // "build") then Printf.sprintf "build reject.%s.exe" name else "check" in
           Printf.printf
             "(rule\n (deps %s)\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    %s))))\n\n"
             (fixture_deps dir) golden (build ~dir view);
@@ -316,7 +321,7 @@ let semantics () =
       let rule name tool view ~err =
         let dir = "fixtures/typing/" ^ name in
         let packages =
-          List.filter (fun p -> Sys.is_directory (Filename.concat dir p)) (sorted dir)
+          List.filter (fun p -> Sys.is_directory (dir // p)) (sorted dir)
           |> List.map (fun p -> Printf.sprintf " --package %s/%s" dir p)
           |> String.concat ""
         in
@@ -348,7 +353,7 @@ let runtime () =
   List.iter
     (fun name ->
       Printf.printf
-        "(rule\n (deps %s.c walks.h scopes.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h %s)\n (targets %s.exe)\n (action\n  (run clang -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o %s.exe %s.c\n   %s)))\n\n"
+        "(rule\n (deps %s.c walks.h scopes.h system.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h %s)\n (targets %s.exe)\n (action\n  (run %%{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o %s.exe %s.c\n   %s)))\n\n"
         name sources name name name sources;
       Printf.printf "(rule\n (action\n  (with-stdout-to\n   %s.out.actual\n   (run ./%s.exe))))\n\n" name
         name;
@@ -359,9 +364,9 @@ let runtime () =
    the semantics builds whose rules are written by hand are left out. *)
 let fixtures = function
   | Fixture_pairing.Runtime -> List.filter (fun f -> Filename.check_suffix f ".c") (sorted ".")
-  | Semantics -> List.map (Filename.concat "fixtures/typing") (sorted "fixtures/typing")
+  | Semantics -> List.map (( // ) "fixtures/typing") (sorted "fixtures/typing")
   | Codegen | Ffi | Parser ->
-      let entries dir = List.map (Filename.concat dir) (sorted dir) in
+      let entries dir = List.map (( // ) dir) (sorted dir) in
       List.filter (fun f -> f <> "fixtures/reject") (entries "fixtures") @ entries "fixtures/reject"
 
 (* The golden files the directory's own dune file compares against, which

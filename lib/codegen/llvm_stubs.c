@@ -166,7 +166,7 @@ value zane_array_type(value element, value count) {
 
 value zane_array_length(value array) {
   CAMLparam1(array);
-  CAMLreturn(Val_long((long)LLVMGetArrayLength2((LLVMTypeRef)from_val(array))));
+  CAMLreturn(Val_long((intnat)LLVMGetArrayLength2((LLVMTypeRef)from_val(array))));
 }
 
 /* An attribute of the kind [name] that carries [type], as `sret(T)` does. */

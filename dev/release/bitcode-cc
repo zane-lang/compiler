@@ -24,14 +24,24 @@ import sys
 def zig_flags(zig_cc, args):
     """The definitions and C library header directories of the compile
     `zig_cc` would run for `args`, as flags for another clang."""
-    listed = subprocess.run([zig_cc, *args, "-###"], capture_output=True, text=True)
+    command = [zig_cc, *args, "-###"]
+    if zig_cc.lower().endswith((".cmd", ".bat")):
+        # cmd.exe runs a `.cmd` zig cc, which Windows cannot start alone;
+        # `/s` and the outer quotes keep each quoted word, a path with
+        # spaces among them, as it is.
+        command = f'cmd /d /s /c "{subprocess.list2cmdline(command)}"'
+    listed = subprocess.run(command, capture_output=True, text=True)
+    # The compile is all this needs: on Windows `zig cc -###` names it and
+    # then fails to open the source, which it never reads to name it.
     lines = [line for line in listed.stderr.splitlines() if '"-cc1"' in line]
-    if listed.returncode or len(lines) != 1:
+    if len(lines) != 1:
         sys.exit(f"bitcode-cc: `zig cc -###` named no single compile:\n{listed.stderr}")
+    # The command quotes each word and escapes a backslash in it, as a
+    # Windows path holds, which a POSIX split reads back.
     words = shlex.split(lines[0])
     flags = []
     for flag, value in zip(words, words[1:]):
-        if flag == "-isystem" and "/libc/include/" in value:
+        if flag == "-isystem" and "/libc/include/" in value.replace("\\", "/"):
             flags += ["-isystem", value]
         elif flag == "-D":
             flags += ["-D", value]
@@ -50,7 +60,9 @@ def main(args):
     if not zig_cc:
         sys.exit("bitcode-cc: ZANE_CC names no `zig cc` to take the target's headers from")
     flags = zig_flags(zig_cc, args)
-    os.execvp(clang, [clang, *flags, *args])
+    # Run as a child, whose status is this one's: Windows has no exec, and
+    # its emulation returns before the child ends.
+    sys.exit(subprocess.run([clang, *flags, *args]).returncode)
 
 
 if __name__ == "__main__":

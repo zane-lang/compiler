@@ -104,7 +104,7 @@ CASES = {
 class VisibleProofTests(unittest.TestCase):
     def worker(self, name, *arguments):
         return subprocess.run([sys.executable, WORKERS / name, *map(str, arguments)],
-                              text=True, capture_output=True, timeout=20,
+                              text=True, encoding="utf-8", capture_output=True, timeout=20,
                               env={**os.environ, 'PYTHONHASHSEED': '0'})
 
     def test_verdicts_and_independent_parse_counts(self):

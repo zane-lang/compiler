@@ -61,13 +61,13 @@ for the target into a `clang::CompilerInvocation`, an `EmitLLVMOnlyAction`
 runs it, and the `llvm::Module` it makes is written as bitcode, the form
 the cache keeps it in (F3), which codegen reads into its own context.
 Every front-end option is therefore one the linked clang made itself, so
-all of them are ones it knows. The clang is `llvmPackages_19.libclang`, from
-the nixpkgs revision `llvm_19` resolves to, so it links the same
-`libLLVM`.
+all of them are ones it knows. The clang is the environment's, of the same
+LLVM 21 release (`pixi.toml`), so it links the same LLVM libraries.
 
 The clang has to be the compiler's own because LLVM IR crosses no LLVM
-release. The released toolchain's `zig cc` is built on a newer LLVM than the
-compiler's (19, `lowering.md` L2), and its bitcode would not load. So
+release. The released toolchain's `zig cc` is built on its own LLVM, which
+need not be the compiler's (21, `lowering.md` L2), and its bitcode might
+not load. So
 the C compiler is asked only for what it knows that the linked clang does
 not: where the target's C library headers are. The first build for a C
 compiler and a target runs it once on an empty source with `-E -v` for the
@@ -120,12 +120,29 @@ since it carries its own headers for every target.
 settings.** The fixed flags are `-std=c17`, `-ffp-contract=off`,
 `-fno-fast-math`, `-fno-finite-math-only`, `-fno-associative-math` and
 `-fno-rounding-math` (`ffi.md` §2.2), the target triple (the host's when the
-build names none), `-isystem` for the directory holding `zane_ffi.h`, and
+build names none), the processor the program's own code is emitted for
+(`-march` on x86-64, `-mcpu` elsewhere: the baseline `x86-64`, `generic` on
+AArch64 or `generic-rv64` on 64-bit RISC-V, never the `penryn` or `apple-m1`
+clang defaults to on macOS; none on a target whose clang default is its
+baseline already),
+`-isystem` for the directory holding `zane_ffi.h`, and
 `-O2 -Xclang -disable-llvm-passes`, so the
 module comes out of the front end unoptimized but optimizable: `-O0` would
 mark every function `noinline`, which no later pipeline undoes, and F13's
 inlining across the two languages would never happen. `-Wall` follows them;
-its warnings refuse nothing (F3 says which are shown). The package's
+its warnings refuse nothing (F3 says which are shown). A function the front
+end stamps with the compile's own processor, its `target-cpu`,
+`target-features` and `tune-cpu`, loses them, as the runtime's bodies do,
+and is compiled for the program's target: LLVM inlines a body only into a
+caller whose processor has every feature the body's has, and the program's
+functions name none, so the target machine's stand for theirs. On AArch64
+that machine adds the base architecture, `+v8a`, to its processor: clang
+names it on every function it compiles for the architecture and LLVM's
+`generic` processor lacks it, so without it every C body would be kept out
+of the program. Since the compile is for the program's processor, a body that loses
+the stamp is emitted for the processor it was compiled for; one whose
+features that processor lacks keeps them, and so does a function given a
+processor of its own by `__attribute__((target))`. The package's
 `include` and `define` rows come after, in the order its `c.coda` writes them
 (`ffi.md` §2.3). A setting that names one of the fixed flags is an error
 naming the row: a `define` of a macro those flags set, `__FAST_MATH__`,
@@ -172,7 +189,15 @@ relies on, and a path elsewhere, such as a system header's, still changes
 it. A fixed name is also a directory the front end can read: a clang VFS
 overlay remaps each to the directory it stands for, so a source that
 includes itself through `__FILE__` finds itself
-(`tests/ffi/fixtures/selfInclude`). `-fno-file-reproducible` keeps the
+(`tests/ffi/fixtures/selfInclude`). On a Windows host a path needs a
+drive to be absolute, so the front end takes `/zane/pkg/api.c` for a
+relative name and looks for it under the directories it searches: there
+the overlay puts each fixed name again under `C:\zane-fixed`, a directory
+that exists only in the overlay, searched last with `-idirafter`, and
+`-ffile-prefix-map` spells that directory as nothing, so `__FILE__` is
+the fixed name on every host. The hash leaves out those two flags and
+spells a line marker's file under that directory as the fixed name, so a
+Windows host's hash is any host's. `-fno-file-reproducible` keeps the
 host's `/` in `__FILE__` for every target: for a Windows target clang
 would spell it `\zane\pkg\…`, a name a Unix host reads as one file
 in no directory, which no overlay root can name. The glue's directory, a build's own,
@@ -405,9 +430,26 @@ symbol with `%c$` and its C name after it: `!zlib$%c$deflate` in a
 library, `viewer$%c$deflate` in a program. Renaming a global in its module
 renames its uses with it. The global values are the functions and
 variables, and also the aliases and indirect functions that
-`__attribute__((alias))` and `__attribute__((ifunc))` define, which
-LLVM keeps as global values of their own: an alias exported under its
-C name would meet the same alias from another version of the package.
+`__attribute__((alias))`, `ZANE_ALIAS` and `__attribute__((ifunc))`
+define, which LLVM keeps as global values of their own: an alias exported
+under its C name would meet the same alias from another version of the
+package.
+
+`<zane_ffi.h>`'s `ZANE_ALIAS("target")` after a declaration is an alias
+on every target, Mach-O's among them, whose C has no `alias` attribute. It
+marks the declaration with an annotation, and the compile that turns a
+source into its module (`lib/foreign/clang_stubs.cpp`) makes each marked
+name an LLVM alias of its target once clang has emitted the module,
+giving it the declaration's uses and its linkage: a `static` declaration's
+alias is internal, as the `alias` attribute makes it. The front end refuses a mark, where it is
+written, unless it is on a declaration of a function or variable that the
+source does not define, and the source defines its target, of the same
+kind, with external linkage, neither has an `__asm__` label, which
+would name a symbol other than the C name the alias is made under, and the
+declaration is not weak: Mach-O has no weak alias, and LLVM writes one
+there as a weak reference, which defines nothing. A
+thread-local variable's alias is thread-local.
+
 An `available_externally` definition, such as the inline copy of `atoi`
 glibc's `<stdlib.h>` can give, is not one the package defines: it stands
 for the C library's symbol, keeps its name, and is never a definition that
@@ -563,14 +605,27 @@ Section names are not renamed, so a linker set is refused (`ffi.md` §2.5).
 Two versions that both place entries in a section named `plugins` would
 share one `__start_plugins`/`__stop_plugins` range, and the boundary
 symbols are undefined references, which keep their names. After F3 compiles
-a module, any global it places in an explicit section whose name is a C
-identifier, the only kind the linker makes `__start_`/`__stop_` symbols
-for, is an error naming the package, the section and the global. The same
-test is applied to the sections of an archive's members and of an object
-assembled from a module holding assembly, as LLVM's object reader names
-them, a Mach-O one as `SEGMENT,section`: an error naming the archive and
-its member, or the source, and the section. A section whose name
-is not a C identifier, such as `.text.hot` or `__DATA,__const`, is allowed.
+a module, any global it places in an explicit section that is a linker set
+in its object format's form (`Settings.is_linker_set`) is an error naming
+the package, the section and the global:
+
+- a name that is a C identifier, the only kind ELF's linker makes
+  `__start_`/`__stop_` symbols for;
+- a Mach-O `SEGMENT,section` either of whose names lacks the `__` Apple's
+  own take, since `ld64` gathers any section by name and names its range
+  `section$start$SEGMENT$section`;
+- a COFF grouped section `name$suffix`, which the linker gathers under
+  `name`, unless `name` is one the compiler, linker or C library groups
+  itself: `.text` (LLVM's MinGW output places a COMDAT function in
+  `.text$name`), `.data`, `.rdata`, `.bss`, `.xdata`, `.pdata`, `.tls`,
+  `.CRT` (constructors), `.idata` (import libraries), `.debug` (CodeView)
+  and the control-flow guard's tables.
+
+The same test is applied to the sections of an archive's members and of
+an object assembled from a module holding assembly, as LLVM's object
+reader names them, a Mach-O one as `SEGMENT,section`: an error naming the
+archive and its member, or the source, and the section. Any other section,
+such as `.text.hot`, `__DATA,__const` or `.rdata$zzz`, is allowed.
 A COFF object's linker directives, its `.drectve` section, are not
 renamed either: one naming a symbol the package renames, whichever of
 its sources, glue, archive members or assembled objects defines it, such
@@ -909,8 +964,14 @@ writes out each function and global the evaluator reaches, once, as text
 `c_ir.ml` reads, with every offset already computed from the data layout:
 a `getelementptr` as a base, a constant offset and a scale for each
 variable index, a struct field at its offset, and a `byval` argument's
-size. A function that is only declared, or that the linker may replace,
-has no body there.
+size. A `dead_on_return` argument, which LLVM gives a large aggregate an
+ABI such as AArch64's passes by the address of a copy the caller makes,
+is copied for the call as a `byval` one is, so the callee's parameter ends
+when it returns. Clang 21 marks none, so on AArch64 the evaluator sees that
+copy as the caller's, which outlives the call. A math function a target compiles to an intrinsic,
+as macOS's `llvm.sin` for `sin`, is the call it stands for. A function
+that is only declared, or that the linker may replace, has no body
+there.
 
 Each fold's C starts from the state a run of the program starts its Zane
 code in: the module's globals made from their initializers as the fold

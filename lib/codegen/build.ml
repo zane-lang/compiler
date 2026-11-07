@@ -21,6 +21,18 @@ let cpu triple =
   | "x86_64h" :: _ -> "core-avx2"
   | _ -> ""
 
+(* The features the target machine for [triple] adds to [cpu]'s: on AArch64
+   the base architecture, `+v8a`, which clang names on every function it
+   compiles for the architecture and LLVM's `generic` processor lacks. A
+   package's C, compiled by clang for the program's processor, then asks for
+   nothing the program's functions do not have, so it is inlined into them
+   (docs/design/ffi.md; clang_stubs.cpp's drop_default_processor checks
+   against the same). *)
+let features triple =
+  match String.split_on_char '-' triple with
+  | ("aarch64" | "arm64") :: _ -> "+v8a"
+  | _ -> ""
+
 (* Whether [triple], whose data layout is [layout], is a target this
    compiler builds for (docs/design/platforms.md, "64-bit targets only").
    Lowering lays out every type, and the runtime its records, for 8-byte
@@ -46,6 +58,28 @@ let sixty_four_bit triple layout =
 
 external use_init_array : Llvm_target.TargetMachine.t -> unit = "zane_use_init_array"
 
+(* The triple a build for the host is for: on Windows MinGW's, the only
+   Windows the runtime supports (docs/design/platforms.md), where LLVM's own
+   default is MSVC's; LLVM's default elsewhere, as the triple a build naming
+   the target spells it, so a host build finds the runtimes a release
+   bundles for it ([spelled_as_target]). *)
+let windows_host_triple = "x86_64-windows-gnu"
+
+(* [default], a packaged LLVM's default triple, as a build naming the same
+   machine spells it: conda-forge's vendor (`x86_64-conda-linux-gnu`) read
+   as `unknown`, and its macOS (`arm64-apple-darwin20.0.0`) as
+   `aarch64-macos`, whose objects name the oldest macOS that architecture
+   runs, not the one the LLVM was built for. *)
+let spelled_as_target default =
+  match String.split_on_char '-' default with
+  | arch :: "conda" :: rest -> String.concat "-" (arch :: "unknown" :: rest)
+  | arch :: "apple" :: os :: _ when String.starts_with ~prefix:"darwin" os || String.starts_with ~prefix:"macos" os ->
+      (if arch = "arm64" then "aarch64" else arch) ^ "-macos"
+  | _ -> default
+
+let host_triple () =
+  if Sys.win32 then windows_host_triple else spelled_as_target (Llvm_target.Target.default_triple ())
+
 (* The machine for *target*, an LLVM triple, or for the host when it is
    absent, putting an ELF object's constructors where the C library runs
    them (init_array_stubs.cpp). The triple is taken in LLVM's normal form,
@@ -58,13 +92,13 @@ let target_machine ?target ~optimize () =
   let triple =
     match target with
     | Some target -> normalize_triple target
-    | None -> Llvm_target.Target.default_triple ()
+    | None -> normalize_triple (host_triple ())
   in
   let level = Llvm_target.CodeGenOptLevel.(if optimize then Default else None) in
   match Llvm_target.Target.by_triple triple with
   | target ->
       let tm =
-        Llvm_target.TargetMachine.create ~triple ~cpu:(cpu triple) ~level
+        Llvm_target.TargetMachine.create ~triple ~cpu:(cpu triple) ~features:(features triple) ~level
           ~reloc_mode:Llvm_target.RelocMode.PIC target
       in
       use_init_array tm;
@@ -117,8 +151,39 @@ let probe_stack triple m =
       m
   end
 
-(* The C compiler that links: `ZANE_CC` if set, else `clang`. *)
-let cc () = Option.value ~default:"clang" (Sys.getenv_opt "ZANE_CC")
+(* What a released toolchain brings its compiler (dev/release/): the C
+   compiler, its `zig cc`, and the directory of the runtimes and links that
+   `zig cc` made, which a build uses only with that `zig`. *)
+type released = { zig_cc : string option; runtimes : string option }
+
+(* The toolchain the compiler at [executable] was released in, read from
+   the environment [getenv]: one whose directory above the executable's
+   holds the release's `toolchain.coda`, as `bin/zanec`, `bin/zanec.exe`
+   and Linux's `lib/` loader that runs `libexec/zanec` all are. Its `zig
+   cc` links unless `ZANE_CC` names another C compiler, and its runtimes
+   are used only then and when `ZIG` names no other `zig`; a directory of
+   runtimes the environment names is never a released compiler's. *)
+let released ~executable ~getenv =
+  let root = Filename.dirname (Filename.dirname executable) in
+  if not (Sys.file_exists (Filename.concat root "toolchain.coda")) then None
+  else
+    let own = getenv "ZANE_CC" = None in
+    let zig_cc = Filename.concat (Filename.concat root "bin") (if Sys.win32 then "zig-cc.cmd" else "zig-cc") in
+    Some
+      {
+        zig_cc = (if own then Some zig_cc else None);
+        runtimes = (if own && getenv "ZIG" = None then Some (Filename.concat (Filename.concat root "share") "runtime") else None);
+      }
+
+let release = lazy (released ~executable:Sys.executable_name ~getenv:Sys.getenv_opt)
+
+(* The C compiler that links: `ZANE_CC` if set, else a released
+   toolchain's `zig cc`, else `clang`. *)
+let cc () =
+  match (Sys.getenv_opt "ZANE_CC", Lazy.force release) with
+  | Some cc, _ -> cc
+  | None, Some { zig_cc = Some cc; _ } -> cc
+  | None, _ -> "clang"
 
 (* The C compiler that compiles the runtime's bitcode, `ZANE_BITCODE_CC`
    when it is set and *cc* otherwise: a release's, whose own C compiler
@@ -166,10 +231,14 @@ let target_flag = function Some target -> [ "--target=" ^ target ] | None -> []
 let runtime_key ~cc ~identity ~triple flags =
   Digest.to_hex (Digest.string (String.concat "\000" ((cc :: identity :: triple :: flags) @ sources)))
 
-(* Where a released toolchain keeps the runtimes it was released with:
-   `ZANE_RUNTIME_OBJECTS`, which its `zanec` sets only when it also sets the
-   C compiler, to the `zig cc` beside it that compiled them. *)
-let bundled_dir () = match Sys.getenv_opt "ZANE_RUNTIME_OBJECTS" with Some "" | None -> None | Some dir -> Some dir
+(* Where the runtimes a build links come from, made beforehand: a released
+   toolchain's own ([released]), or, for a compiler that is not one, the
+   directory `ZANE_RUNTIME_OBJECTS` names, as for one run apart from the
+   toolchain whose runtimes it links. *)
+let bundled_dir () =
+  match Lazy.force release with
+  | Some { runtimes; _ } -> runtimes
+  | None -> ( match Sys.getenv_opt "ZANE_RUNTIME_OBJECTS" with Some "" | None -> None | Some dir -> Some dir)
 
 (* The name a runtime compiled with [level] for [triple] is bundled under.
    It names no C compiler, since a bundle is used only with the one that
@@ -307,7 +376,9 @@ let asked_link ~cc ~triple args dir =
     in
     if Sys.file_exists tbd then Some tbd else None
   in
-  (* Zig's install directory, where its `libSystem` stubs are. *)
+  (* Zig's install directory, where its `libSystem` stubs are. The
+     directories are listed as `PATH` lists them, by `;` on Windows, whose
+     paths hold a drive's `:`. *)
   let system () =
     match ask [ "-print-search-dirs" ] with
     | Error _ -> None
@@ -317,7 +388,8 @@ let asked_link ~cc ~triple args dir =
             Option.bind (String.index_opt line '=') (fun i ->
                 if String.starts_with ~prefix:"programs:" line then
                   List.find_map stubs_in
-                    (String.split_on_char ':' (String.sub line (i + 1) (String.length line - i - 1)))
+                    (String.split_on_char (if Sys.win32 then ';' else ':')
+                       (String.sub line (i + 1) (String.length line - i - 1)))
                 else None))
           lines
   in
@@ -515,8 +587,8 @@ let lld_run command =
 let verbose () = match Sys.getenv_opt "ZANE_VERBOSE" with Some "" | None -> false | Some _ -> true
 
 (* Whether [text], a linker's errors, says it cannot find the library
-   [name], as `ld.lld` and `lld-link` say it, `ld64` does and GNU `ld`
-   does. The name must end where the linker's word does, so `-lz` is not
+   [name], as `ld.lld` and `lld-link` say it, `ld64` does, GNU `ld` does
+   and `zig cc` does, which looks for a library itself before it links. The name must end where the linker's word does, so `-lz` is not
    found in `-lzstd`. *)
 let unfound_library text name =
   let in_word = function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '.' | '+' | '-' -> true | _ -> false in
@@ -528,7 +600,7 @@ let unfound_library text name =
       let rec at i j = j >= n || (text.[i + j] = word.[j] && at i (j + 1)) in
       let rec from i = i <= String.length text - n && ((at i 0 && ends (i + n)) || from (i + 1)) in
       from 0)
-    [ "unable to find library -l"; "library not found for -l"; "cannot find -l" ]
+    [ "unable to find library -l"; "library not found for -l"; "cannot find -l"; "system library '"; "system library \"" ]
 
 (* A failed link of [libraries] as the error that names the row of the
    library the linker could not find, when its [text] says so. *)
@@ -779,8 +851,8 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
 (* What the runtime is compiled with besides [flags], whatever the C
    compiler would add by itself: no clearing of the registers a function
    used before it returns, and, but on Apple's targets, whose ABI keeps
-   them, no frame pointers. Some toolchains add both by default, Nix's
-   hardened clang among them, and they cost the runtime's small, hot
+   them, no frame pointers. Some toolchains add both by default, hardened
+   distribution clangs among them, and they cost the runtime's small, hot
    functions more than anything else in them (docs/optimizations.md). *)
 let tuning ~triple =
   let coff = List.mem "windows" (String.split_on_char '-' triple) in

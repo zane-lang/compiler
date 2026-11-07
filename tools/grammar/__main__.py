@@ -81,7 +81,7 @@ def outputs(directory: Path, executable: str, tree_sitter=None):
     with tempfile.TemporaryDirectory(prefix='zane-grammar-', dir=os.getcwd()) as temp:
         source = Path(temp) / 'parser.mly'
         source.write_text(menhir.keep_inline_rules(parser, overlay.get('kept_inline_rules', [])))
-        proc = subprocess.run([executable, '--only-preprocess-uu', str(source)], capture_output=True, text=True, timeout=120)
+        proc = subprocess.run([executable, '--only-preprocess-uu', str(source)], capture_output=True, text=True, encoding='utf-8', timeout=120)
         if proc.returncode:
             raise ValueError('Menhir expansion failed:\n' + proc.stderr)
     start, rules, precedence = menhir.read_expanded(proc.stdout)

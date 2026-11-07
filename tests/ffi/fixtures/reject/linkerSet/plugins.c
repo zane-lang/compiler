@@ -1,5 +1,7 @@
 #include <stdint.h>
+#define TEST_SECTION(name) __attribute__((used, section(name)))
+#define RODATA_SECTION TEST_SECTION(".rodata.local")
 
-__attribute__((used, section("plugins"))) static const int64_t first = 1;
-__attribute__((used, section(".rodata.local"))) static const int64_t second = 2;
-__attribute__((used, section("zane_hooks"))) const int64_t third = 3;
+TEST_SECTION("plugins") static const int64_t first = 1;
+RODATA_SECTION static const int64_t second = 2;
+TEST_SECTION("zane_hooks") const int64_t third = 3;

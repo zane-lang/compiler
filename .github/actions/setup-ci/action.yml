@@ -1,5 +1,5 @@
 name: Set up CI toolchain
-description: Restore the cached Devbox and OCaml toolchain for an isolated CI job.
+description: The pixi environment and its opam switch, restored from cache, for an isolated CI job.
 inputs:
   grammar-dependencies:
     description: Install Node and Python dependencies for grammar generation.
@@ -7,43 +7,44 @@ inputs:
 runs:
   using: composite
   steps:
+    # The environment pixi.lock pins (pixi.toml): OCaml, LLVM, clang, LLD,
+    # zig, just, Python, Node and the rest. Windows takes MSVC from the
+    # newest Visual Studio through the activation (dev/setup/activate.bat).
+    - uses: prefix-dev/setup-pixi@9936258fee697aff89b3fed6ca1f80a382ef694e # v0.11.3
+      with:
+        run-install: true
+        locked: true
+        cache: true
+
     # The opam switch is most of a cold setup: dune, menhir, sedlex, uucp
-    # and uuseg are built from source. It is restored before devbox starts because the
-    # devbox init hook runs `bootstrap-toolchain`, which finds a warm switch
-    # already at its pins and installs nothing.
-    #
-    # The key covers everything the switch is built from: the system OCaml
-    # devbox provides, and the pins. The namespace excludes switches built
-    # against the former apt LLVM. Hash the committed files before devbox
-    # has had a chance to rewrite its lock.
+    # and uuseg are built from source. Once restored, `pixi run setup` finds
+    # every package at its pinned version and installs nothing. The key
+    # covers everything the switch is built from: the environment and the
+    # pins.
     - name: Restore the opam switch
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      id: opam
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
-          ~/.opam
           _opam
-        key: opam-devbox-llvm-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devbox.json', 'devbox.lock', 'dev/setup/bootstrap-toolchain') }}
+          .pixi/opam
+        key: opam-pixi-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pixi.lock', 'dev/setup/bootstrap-toolchain', 'dev/setup/opam-repo/**') }}
 
-    - name: Install devbox + Nix + devbox.json packages
-      uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
-      with:
-        enable-cache: true
-
-    - name: Sanity check
-      shell: bash
-      run: devbox list
-
-    # The init hook bootstraps the opam switch, but doing it as its own step
-    # keeps a toolchain failure from being reported as a build failure.
-    #
-    # Every command below is a single word followed by plain arguments:
-    # `devbox run` quotes each argument and `eval`s the result, so a shell
-    # snippet passed this way would be mangled rather than run.
+    # Its own step, so a toolchain failure is not reported as a build failure.
     - name: Install OCaml dependencies
       shell: bash
-      run: devbox run -- dev/setup/bootstrap-toolchain
+      run: pixi run setup
 
-    # Node is provided by devbox.json, alongside the rest of the toolchain.
+    # Saved as soon as setup succeeds, since a later step may fail.
+    - name: Save the opam switch
+      if: steps.opam.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          _opam
+          .pixi/opam
+        key: ${{ steps.opam.outputs.cache-primary-key }}
+
     - name: Cache grammar generator downloads
       if: inputs.grammar-dependencies == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -56,5 +57,7 @@ runs:
       if: inputs.grammar-dependencies == 'true'
       shell: bash
       run: |
-        devbox run -- .github/scripts/setup-grammar-dependencies
-        echo "GRAMMAR_PYTHON=$PWD/.grammar-venv/bin/python" >> "$GITHUB_ENV"
+        pixi run .github/scripts/setup-grammar-dependencies
+        python=$PWD/.grammar-venv/bin/python
+        [[ -x .grammar-venv/Scripts/python.exe ]] && python=$PWD/.grammar-venv/Scripts/python.exe
+        echo "GRAMMAR_PYTHON=$python" >> "$GITHUB_ENV"

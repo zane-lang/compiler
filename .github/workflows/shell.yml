@@ -2,8 +2,8 @@ name: Shell
 
 # A command prompt on a runner that already has the toolchain. Most of what
 # this repository's development needs — `dune build`, `just test`, `menhir
-# --explain`, the ambiguity tools — only works inside devbox, and provisioning
-# devbox is the slow, fiddly part of reproducing a failure. This runs one
+# --explain`, the ambiguity tools — only works inside the pixi environment,
+# and provisioning it is the slow part of reproducing a failure. This runs one
 # command in that environment and hands back the output, which is faster than
 # adding a throwaway workflow every time a question comes up.
 #
@@ -23,12 +23,10 @@ on:
         required: true
         default: main
         type: string
-      devbox:
-        # Off is worth having: `devbox run` quotes each argument and `eval`s
-        # the result, so a pipeline or a redirect passed through it is mangled
-        # rather than run, and a command that needs shell syntax and no
-        # toolchain is better off on the bare runner.
-        description: Run inside devbox (needed for the OCaml toolchain)
+      toolchain:
+        # Off is worth having: a command that needs no toolchain is done
+        # sooner on the bare runner.
+        description: Run inside the pixi environment (needed for the OCaml toolchain)
         required: true
         default: true
         type: boolean
@@ -100,30 +98,23 @@ jobs:
           submodules: true
           ref: ${{ inputs.ref }}
 
-      - name: Install devbox + Nix + devbox.json packages
-        if: ${{ inputs.devbox }}
-        uses: jetify-com/devbox-install-action@8c6a66ed6273138b1915457069de78cb52fe3bd7 # v0.15.0
-        with:
-          enable-cache: true
+      - name: Set up toolchain
+        if: ${{ inputs.toolchain }}
+        uses: ./.github/actions/setup-ci
 
-      # The init hook bootstraps the opam switch. Kept separate from the
-      # command itself so a toolchain failure is not reported as the command
-      # failing, which is the same reason CI splits them.
-      - name: Install OCaml dependencies
-        if: ${{ inputs.devbox }}
-        run: devbox run -- dev/setup/bootstrap-toolchain
-
-      # `bash -lc` rather than `devbox run --`, so the command keeps its shell
-      # syntax: pipelines, redirects, and quoting all survive. `devbox run`
-      # would quote each word and `eval` the result instead.
+      # The environment's activation is taken into this step's shell, so the
+      # command keeps its shell syntax: pipelines, redirects and quoting all
+      # survive.
       - name: Run
-        if: ${{ inputs.devbox }}
+        if: ${{ inputs.toolchain }}
         env:
           COMMAND: ${{ inputs.command }}
-        run: devbox run -- bash -lc "$COMMAND"
+        run: |
+          eval "$(pixi shell-hook)"
+          bash -c "$COMMAND"
 
-      - name: Run (no devbox)
-        if: ${{ !inputs.devbox }}
+      - name: Run (no toolchain)
+        if: ${{ !inputs.toolchain }}
         env:
           COMMAND: ${{ inputs.command }}
         run: bash -lc "$COMMAND"

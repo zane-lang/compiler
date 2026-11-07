@@ -578,7 +578,7 @@ which do not on a large value array, are left out.
 
 - **Builds:** every build
 - **Where:** `lib/codegen/passes.ml` (`optimized`, `unoptimized`),
-  `lib/codegen/gen/o2_pipeline.sh`
+  `lib/llvm/config/discover.ml`
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
 - **Effect:** the particle simulation of
   [zane-lang/compiler#292](https://github.com/zane-lang/compiler/issues/292)
@@ -598,7 +598,7 @@ a loop.
 
 - **Builds:** optimized only (and tier 1)
 - **Where:** `lib/codegen/passes.ml` (`optimized`, `llvm_options`),
-  `lib/codegen/gen/o2_pipeline.sh`, `lib/codegen/emit.ml` (`versioned`,
+  `lib/llvm/config/discover.ml`, `lib/codegen/emit.ml` (`versioned`,
   `count_field`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
 - **Effect:** the particle simulation of
@@ -1017,7 +1017,7 @@ maps no chunk and drains inline.
 - **Where:** `lib/codegen/build.ml`, `runtime/zane_internal.h`
 - **Design:** [`design/lowering.md`](design/lowering.md) §7
 - **Effect:** `tests/perf` `returns` 10% fewer estimated cycles optimized,
-  `texts` 6%, under the devbox's hardened clang; with the runtime inlined,
+  `texts` 6%, under a hardened clang; with the runtime inlined,
   `texts` 3% more
 
 The runtime is compiled without clearing the registers a function used

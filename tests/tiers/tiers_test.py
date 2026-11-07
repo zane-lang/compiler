@@ -10,11 +10,16 @@ works in calls of its own for as many rounds as its argument says;
 
 import os
 from pathlib import Path
-import pty
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
+
+if sys.platform == "win32":
+    from tests.tiers import conpty
+else:
+    import pty
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -56,8 +61,18 @@ class Tiers(unittest.TestCase):
         """Runs *exe* with tier 1 at *library*, which *put* puts in place
         once the program has printed its first line; its output and what
         the runtime said. Its output goes to a terminal, so the program
-        writes each line as it prints it."""
+        writes each line as it prints it: Windows's pseudo-console where
+        *put* waits for a line (conpty.py), and a pipe read once it ends
+        otherwise, since the lines are the same."""
         env = dict(self.env, ZANE_TIER_UP=str(library), ZANE_TIER_LOG="1")
+        if sys.platform == "win32":
+            if put:
+                code, output, said = conpty.run([str(exe), ROUNDS], env, first_line=put)
+            else:
+                p = subprocess.run([str(exe), ROUNDS], capture_output=True, text=True, env=env, timeout=60)
+                code, output, said = p.returncode, p.stdout, p.stderr
+            self.assertEqual(code, 0, said)
+            return output, said
         main, side = pty.openpty()
         p = subprocess.Popen([str(exe), ROUNDS], stdout=side, stderr=subprocess.PIPE, env=env)
         os.close(side)

@@ -103,12 +103,18 @@ let temporary_attempts = 8
    another's file: it is left alone and a new name drawn. Any failure to
    create one draws again, since [Sys_error] does not say whether the name
    was taken, and a lookup after the fact misses a dangling symlink or a file
-   removed in between. Only a temporary this call created is removed when a
-   later step fails. *)
+   removed in between. Windows creates a dangling symlink's target where the
+   exclusive create meets one, so there a name that is any entry, a link
+   among them, is drawn again first. Only a temporary this call created is
+   removed when a later step fails. *)
 let write_replacing ~random ~output contents =
+  let taken name = Sys.win32 && match Unix.lstat name with _ -> true | exception Unix.Unix_error _ -> false in
   let rec attempt drawn =
     let temporary = temporary_name random output in
     let created = ref false in
+    if taken temporary then
+      if drawn < temporary_attempts then attempt (drawn + 1) else Error (temporary ^ ": the name is taken")
+    else
     match
       Out_channel.with_open_gen
         [ Open_wronly; Open_creat; Open_excl; Open_binary ]
@@ -137,7 +143,12 @@ let compile_commands ?target packages output =
       (fun (p : Assembly.package) -> if String.contains p.Assembly.id '%' then None else Some p.Assembly.dir)
       packages
   in
-  match Foreign.compile_commands ~cc:(Codegen.c_compiler ()) ~target dirs with
+  match
+    Result.bind
+      (Result.map_error (fun message -> { Foreign.diagnostics = [ Diagnostic.about_invocation message ]; sources = [] })
+         (Codegen.target_cpu ?target ()))
+      (fun cpu -> Foreign.compile_commands ~cc:(Codegen.c_compiler ()) ~cpu ~target dirs)
+  with
   | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics
   | Ok text -> (
       (* Renamed into place, so an editor never reads half of one and a
@@ -350,7 +361,7 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
          holding assembly were assembled into, its archives, and its
          `system` libraries, each named by its row. *)
       let apart (f : Foreign.package) =
-        let coda = Filename.concat f.Foreign.dir Foreign.Settings.file_name in
+        let coda = Source.Files.in_directory f.Foreign.dir Foreign.Settings.file_name in
         ( List.map
             (fun (a : Foreign.assembled) ->
               ({ Codegen.key = a.source.key; bitcode = a.source.bitcode; files = a.source.includes }, a.object_))
@@ -487,7 +498,11 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
                   libraries = [];
                   labels = None;
                 })
-            (Foreign.callbacks ~target (List.map entry p))
+            (Result.bind
+               (Result.map_error
+                  (fun message -> { Foreign.diagnostics = [ Diagnostic.about_invocation message ]; sources = [] })
+                  (Codegen.target_cpu ?target ()))
+               (fun cpu -> Foreign.callbacks ~cpu ~target (List.map entry p)))
       in
       match Foreign.combine ((if c = [] then [] else List.map2 one packages c) @ [ callbacks () ]) with
       | Ok cs -> Ok (List.filter_map Fun.id cs)

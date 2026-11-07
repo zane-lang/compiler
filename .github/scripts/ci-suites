@@ -34,7 +34,7 @@ if [[ "${EVENT_NAME:-}" == "pull_request" ]]; then
 	while IFS= read -r file; do
 		case "$file" in
 			# SHARED
-			devbox.json | devbox.lock | dune-project | justfile | \
+			pixi.toml | pixi.lock | dune-project | justfile | \
 				dev/setup/bootstrap-toolchain | dev/toolchains/* | \
 				.github/workflows/ci.yml | .github/actions/setup-ci/* | \
 				.github/scripts/ci-suites)

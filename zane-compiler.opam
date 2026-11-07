@@ -21,7 +21,6 @@ depends: [
   "sedlex"
   "uucp"
   "uuseg"
-  "llvm"
   "odoc" {with-doc}
 ]
 build: [

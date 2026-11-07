@@ -24,8 +24,8 @@ let unoptimized =
   "always-inline,function(mem2reg,instsimplify,simplifycfg<no-speculate-blocks>,jump-threading,simplifycfg)"
 
 (* An optimized build's passes: LLVM's `-O2` with two added
-   (gen/o2_pipeline.sh). Jump threading runs at the end of the first
-   function simplification, once each function's locals are in registers
+   (lib/llvm/config/discover.ml). Jump threading runs at the end of the
+   first function simplification, once each function's locals are in registers
    and before the inliner's passes make a branch a select. Inductive range
    check elimination (IRCE) runs where `-O2` has just rotated each loop and
    hoisted what it reads: it splits a loop that checks a list index into a

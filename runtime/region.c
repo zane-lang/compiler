@@ -120,16 +120,54 @@ size_t zane_page_bytes(void) {
 	return page;
 }
 
-#if defined(ZANE_FRAME_REFS) && !defined(_WIN32)
+#if defined(ZANE_FRAME_REFS)
 /* Experimental (docs/experiments/goose-comparison): every context's frames
    are in one area, the whole MiBs in the 2 GiB right below the program's
-   image, reserved
-   once and taken in order, since a context keeps its range. A reference
-   names a frame's slot or one of the program's globals, so each is a
-   signed 32-bit distance from the image's start (List_handle). */
+   image, reserved once and taken in order, since a context keeps its
+   range. A reference names a frame's slot or one of the program's globals,
+   so each is a signed 32-bit distance from the image's start
+   (List_handle). The image's start is a symbol its linker defines: the ELF
+   header's on Linux, the Mach-O header's on macOS, the PE image's base on
+   Windows. */
 #include <pthread.h>
 
+#ifdef _WIN32
+extern const char __ImageBase;
+#define ZANE_IMAGE_START __ImageBase
+#elif defined(__APPLE__)
+extern const char _mh_execute_header;
+#define ZANE_IMAGE_START _mh_execute_header
+#else
 extern const char __ehdr_start;
+#define ZANE_IMAGE_START __ehdr_start
+#endif
+
+/* Where the image starts, opaque, so the compiler folds no offset past
+   2 GiB into the symbol's relocation. */
+static uintptr_t zane_image(void) {
+	uintptr_t image = (uintptr_t)&ZANE_IMAGE_START;
+	__asm__("" : "+r"(image));
+	return image;
+}
+
+/* `bytes` of addresses with no access reserved from `at` exactly, or 0
+   when any of them are taken. Linux refuses a taken range outright; macOS
+   takes the address as a hint, and one that does not hold is given back;
+   Windows reserves only at the address asked. */
+static int zane_reserve_at(uintptr_t at, size_t bytes) {
+#ifdef _WIN32
+	return VirtualAlloc((void *)at, bytes, MEM_RESERVE, PAGE_NOACCESS) == (void *)at;
+#else
+	int flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+#ifdef MAP_FIXED_NOREPLACE
+	flags |= MAP_FIXED_NOREPLACE;
+#endif
+	void *got = mmap((void *)at, bytes, PROT_NONE, flags, -1, 0);
+	if (got == (void *)at) return 1;
+	if (got != MAP_FAILED) munmap(got, bytes);
+	return 0;
+#endif
+}
 
 static pthread_mutex_t zane_frames_lock = PTHREAD_MUTEX_INITIALIZER;
 static char *zane_frames_next, *zane_frames_end;
@@ -138,33 +176,26 @@ static char *zane_frames_take(size_t bytes) {
 	bytes = (bytes + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK;
 	pthread_mutex_lock(&zane_frames_lock);
 	if (!zane_frames_end) {
-		uintptr_t image = (uintptr_t)&__ehdr_start, reach = (uintptr_t)1 << 31;
-		/* Opaque, so the compiler folds no offset of 2 GiB into the
-		   symbol's relocation, which overflows once this code lies more
-		   than a chunk into the image. */
-		__asm__("" : "+r"(image));
+		uintptr_t image = zane_image(), reach = (uintptr_t)1 << 31;
 		/* The whole MiBs in the 2 GiB below the image; or, where a program
-		   is loaded too low for that (Valgrind loads one at 1 MiB), the
-		   first free 512 MiB above it within reach, looked for from the top
-		   down, which leaves the addresses right after it to the C heap. */
-		char *low = (char *)(image > reach ? (image - reach + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK : 0);
-		char *end = (char *)(image / ZANE_CHUNK * ZANE_CHUNK);
+		   is loaded too low for that (Valgrind loads one at 1 MiB, and
+		   macOS keeps the low 4 GiB unmapped), the first free 512 MiB above
+		   it within reach, looked for from the top down, which leaves the
+		   addresses right after it to the C heap. */
+		uintptr_t low = image > reach ? (image - reach + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK : 0;
+		uintptr_t end = image / ZANE_CHUNK * ZANE_CHUNK;
 		size_t step = (size_t)64 << 20, part = (size_t)512 << 20;
 		uintptr_t top = (image + reach) / ZANE_CHUNK * ZANE_CHUNK - part;
 		for (int i = -1; !zane_frames_end && top - (uintptr_t)i * step > image + step; i++) {
 			if (i >= 0) {
-				low = (char *)(top - (uintptr_t)i * step);
+				low = top - (uintptr_t)i * step;
 				end = low + part;
 			} else if (!low) {
 				continue;
 			}
-			void *at = mmap(low, (size_t)(end - low), PROT_NONE,
-			                MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
-			if (at == (void *)low) {
-				zane_frames_next = low;
-				zane_frames_end = end;
-			} else if (at != MAP_FAILED) {
-				munmap(at, (size_t)(end - low));
+			if (zane_reserve_at(low, (size_t)(end - low))) {
+				zane_frames_next = (char *)low;
+				zane_frames_end = (char *)end;
 			}
 		}
 		if (!zane_frames_end) zane_broken("the addresses next to the program are taken");
@@ -179,7 +210,7 @@ static char *zane_frames_take(size_t bytes) {
 }
 #endif
 
-#if defined(ZANE_IMAGE_BOXES) && defined(ZANE_FRAME_REFS) && !defined(_WIN32)
+#ifdef ZANE_WINDOW
 /* Experimental (docs/experiments/goose-comparison): every dynamic chunk is
    carved from the window, one range of addresses within 16 GiB of the
    program's image reserved once, so that a boxed member's block, in a
@@ -187,8 +218,9 @@ static char *zane_frames_take(size_t bytes) {
    8-byte units and fits 32 bits (List_handle.encode_box). The window is the
    whole MiBs from 16 GiB to 2 GiB below the image, under the frames; or,
    where a program is loaded too low for that, the largest of 12, 8, 4 or 2
-   GiB found free from 4 GiB above it. A range given back is listed and
-   carved again, first fit; the rest of the window is taken in order. */
+   GiB found free from 4 GiB above it on, at each GiB up to the reach. A
+   range given back is listed and carved again, first fit; the rest of the
+   window is taken in order. */
 typedef struct zane_window_range {
 	char *base;
 	size_t bytes;
@@ -200,32 +232,25 @@ static char *zane_window_next, *zane_window_end;
 static zane_window_range *zane_window_free;
 
 static int zane_window_try(uintptr_t low, uintptr_t end) {
-	void *at = mmap((void *)low, (size_t)(end - low), PROT_NONE,
-	                MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
-	if (at == (void *)low) {
-		zane_window_next = (char *)low;
-		zane_window_end = (char *)end;
-		return 1;
-	}
-	if (at != MAP_FAILED) munmap(at, (size_t)(end - low));
-	return 0;
+	if (!zane_reserve_at(low, (size_t)(end - low))) return 0;
+	zane_window_next = (char *)low;
+	zane_window_end = (char *)end;
+	return 1;
 }
 
 char *zane_window_take(size_t bytes) {
 	bytes = (bytes + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK;
 	pthread_mutex_lock(&zane_window_lock);
 	if (!zane_window_end) {
-		uintptr_t image = (uintptr_t)&__ehdr_start, gib = (uintptr_t)1 << 30;
-		/* Opaque, so the compiler folds no offset past 2 GiB into the
-		   symbol's relocation. */
-		__asm__("" : "+r"(image));
+		uintptr_t image = zane_image(), gib = (uintptr_t)1 << 30;
 		uintptr_t reach = 16 * gib;
 		if (image > reach + ZANE_CHUNK)
 			zane_window_try((image - reach + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK,
 			                (image - 2 * gib) / ZANE_CHUNK * ZANE_CHUNK);
 		uintptr_t above = (image + 4 * gib + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK;
 		for (uintptr_t size = 12 * gib; !zane_window_end && size >= 2 * gib; size -= 2 * gib)
-			if (above + size <= image + reach) zane_window_try(above, above + size);
+			for (uintptr_t low = above; !zane_window_end && low + size <= image + reach; low += gib)
+				zane_window_try(low, low + size);
 		if (!zane_window_end) zane_broken("the addresses near the program are taken");
 	}
 	char *base = NULL;
@@ -249,9 +274,16 @@ char *zane_window_take(size_t bytes) {
 	return base;
 }
 
+/* A range's memory goes back to the system and its addresses stay the
+   window's, with no access: replaced by a fresh reservation on POSIX,
+   decommitted on Windows. */
 void zane_window_give(char *base, size_t bytes) {
 	bytes = (bytes + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK;
+#ifdef _WIN32
+	VirtualFree(base, bytes, MEM_DECOMMIT);
+#else
 	mmap(base, bytes, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED, -1, 0);
+#endif
 	zane_window_range *r = malloc(sizeof *r);
 	if (!r) return;
 	pthread_mutex_lock(&zane_window_lock);
@@ -265,7 +297,7 @@ void zane_window_give(char *base, size_t bytes) {
    context's alone in the chunk map. */
 void zane_reserve(zane_context *c, int64_t size) {
 	size_t total = (size_t)size + ZANE_GUARD;
-#if defined(ZANE_FRAME_REFS) && !defined(_WIN32)
+#if defined(ZANE_FRAME_REFS)
 	char *base = zane_frames_take(total);
 #else
 	char *raw;
@@ -462,7 +494,18 @@ static void zane_fault(int signal, siginfo_t *info, void *context) {
 	}
 }
 
+/* A child that C forks has the thread that forked, but macOS gives it no
+   alternate stack: the handler for a full machine stack would have nowhere
+   to run, and the system would stop the child with SIGILL. The child takes
+   the forking thread's again, which fork copied with the rest of memory. */
+static void zane_after_fork(void) {
+	if (!zane_signal_stack) return;
+	stack_t alternate = { .ss_sp = zane_signal_stack, .ss_size = ZANE_SIGNAL_STACK, .ss_flags = 0 };
+	sigaltstack(&alternate, NULL);
+}
+
 void zane_regions_start(void) {
+	if (pthread_atfork(NULL, NULL, zane_after_fork) != 0) zane_broken("no handler for a forked child");
 	struct sigaction handler = { 0 };
 	handler.sa_sigaction = zane_fault;
 	handler.sa_flags = SA_SIGINFO | SA_ONSTACK;

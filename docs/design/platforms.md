@@ -24,8 +24,27 @@ and a problem there may wait.
     test expects, and run with the arguments its fixture lists.
     `just test-windows` runs the same programs under Wine.
 - **macOS** is the lower tier. Its objects are built, rewritten and tested
-  as Windows ones are, and the released toolchain's programs for both its
-  architectures are run on macOS in CI.
+  as Windows ones are, and the same programs are built for `aarch64-macos`
+  and `x86_64-macos` on Linux and run on macOS itself in CI, held as
+  Windows' are.
+
+Each platform's released toolchain is built, packaged and checked on that
+platform by the same steps: a program built by the extracted archive runs
+there plain, optimized and tiered.
+
+On every one of them `zanec` itself is built natively from the same pixi
+environment, and `just test-compiler` runs there in CI, held to the triple a
+build without `--target` is for, and its image format and C library. The rest
+of what `just test` runs, the grammar, ambiguity and grammar-generation
+suites, passes on all three, but CI runs it on Linux alone: what those suites
+check does not depend on the host. Linux and
+Windows run for every change, Apple Silicon macOS for every pull request,
+and Intel macOS, whose runners are the slowest, on `main`, in the merge
+queue and when CI is started by hand; the programs built for each macOS
+architecture follow the same rule. Two suites run on Linux alone: the
+highlighting consumers, whose Neovim and Typst read the same generated
+files on every system, and `just test-perf`, whose Callgrind counts exist
+on Linux only.
 
 ## 64-bit targets only
 
@@ -38,8 +57,9 @@ offset and size of the runtime's records that emitted code relies on is
 written once, in `runtime/zane_abi.h`: `runtime/zane_internal.h` asserts
 each against the structs, and codegen reads them from it as `Abi`
 (`lib/codegen/dune`). `tests/runtime/abi/probe.c` prints what the structs
-measure; the unit tests hold it to `Abi` on Linux, and
-`dev/bin/windows-programs` holds it to the header on Windows. On a target with 4-byte pointers, such as
+measure; the unit tests hold it to `Abi` on every host the compiler suite
+runs on, and `dev/bin/cross-programs` holds the Windows and macOS builds it
+makes on Linux to the header. On a target with 4-byte pointers, such as
 `i386-unknown-linux-gnu` or `armv7-unknown-linux-gnueabihf`, those offsets
 would disagree with what LLVM and the C compiler lay out.
 
@@ -76,6 +96,17 @@ the last digit, which the spec allows of an approximate function
 ([`math.md`](https://github.com/zane-lang/spec/blob/1457830/spec/math.md)
 §2.6); the `math` codegen fixture checks them within a tolerance.
 
+## Addresses near the program
+
+A program's frames, and the chunks its regions take, are reserved close to
+its image, so that a stored reference or box is a 32-bit distance from the
+image's start (experimental, `docs/experiments/goose-comparison`). The image's
+start is the symbol each linker defines: `__ehdr_start` for ELF,
+`__mh_execute_header` for Mach-O and `__ImageBase` for PE. The runtime
+reserves those addresses with `mmap` and `MAP_FIXED_NOREPLACE` on Linux, an
+`mmap` hint it checks on macOS, and `VirtualAlloc` at the address on
+Windows; a program that cannot place them stops with an error.
+
 ## Machine stack sizes
 
 A program's main thread uses the stack its launch environment provides on
@@ -89,7 +120,9 @@ the main thread and workers. A full stack stops the program with
 On POSIX systems the runtime's fault handler runs on a stack of its own,
 since one that overflowed leaves none, and finds the thread's stack with
 `pthread_getattr_np`, or `pthread_get_stackaddr_np` on macOS. A protection
-fault is SIGSEGV on Linux and SIGBUS on macOS, so both are handled.
+fault is SIGSEGV on Linux and SIGBUS on macOS, so both are handled. A
+child that C forks takes the forking thread's handler stack again, since
+macOS gives a forked child none.
 
 A stop from the handler first flushes what the program printed, which waits
 in the runtime's own buffer ([`lowering.md`](lowering.md) §9), unless
@@ -117,7 +150,10 @@ placed ([`lowering.md`](lowering.md) §9). The limit is `Ty.limit` in
 
 A Windows program links with MinGW's C library and its POSIX threads,
 winpthreads, both of which `zig cc` carries; `ZANE_CC=dev/bin/zig-cc` links
-with it ([`lowering.md`](lowering.md) §7). The runtime differs there in five
+with it ([`lowering.md`](lowering.md) §7). It also compiles the runtime's
+bitcode, whose bodies an optimized build inlines, so the `zig` is the release
+whose clang has the compiler's own LLVM version (`pixi.toml`): bitcode from a
+newer LLVM is bitcode the compiler cannot read. The runtime differs there in five
 places, each marked `_WIN32`: a dynamic chunk is carved from a 64 MiB
 reservation, decommitted with `VirtualFree(MEM_DECOMMIT)` when it turns
 cold, and released with its whole reservation
@@ -139,7 +175,13 @@ locale intact.
 
 A target is spelled as `zig cc` reads it, such as `x86_64-windows-gnu`. The
 compiler hands LLVM that triple's normal form, `x86_64-unknown-windows-gnu`,
-and the C compiler the triple as written.
+and the C compiler the triple as written. A build on a Windows host without
+`--target` is for `x86_64-windows-gnu`, since the host's own triple is
+MSVC's, whose C library has no POSIX threads. On a Windows host the
+compiler reads `\` in a path as it reads `/`, so a package directory's name
+is its last component either way, and its reports write every path with `/`,
+so they read as they do on any other system. It ends each line it writes with
+`\n`, as the programs it builds do.
 
 ## Tiered builds
 
@@ -156,4 +198,4 @@ Tier 1 links against the C library alone and takes everything else from tier
 0 through its import table (T5), so no platform needs the program to export
 a symbol, nor an import library on Windows. Every codegen fixture runs tiered
 on Linux and, as Windows programs do, on Windows; a tiered `hello`, linked by
-the released toolchain, runs on macOS on both architectures.
+each platform's released toolchain, runs on that platform.

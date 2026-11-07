@@ -25,11 +25,11 @@
 #include <sys/wait.h>
 #endif
 
-#ifdef __linux__
-#include <fcntl.h>
+#include "system.h"
+
+#ifndef _WIN32
 #include <stdint.h>
 #include <sys/mman.h>
-#include <unistd.h>
 #endif
 
 static void check(int ok) { puts(ok ? "yes" : "no"); }
@@ -106,19 +106,43 @@ static void smaps_around(uintptr_t lo, uintptr_t hi) {
 	fclose(f);
 }
 
+#endif
+
 /* Whether none of the pages from `at`, `bytes` long, holds memory of its
-   own: in /proc/self/pagemap, a page a table maps has bit 63 set, and one
-   mapped to this process alone bit 56. A given-back page that is read
-   again maps the system's shared zero page, present but not exclusive, and
-   smaps' Rss does not count it; the runners' kernels show such pages, so
-   presence alone is not asked. */
+   own. On Linux, in /proc/self/pagemap, a page a table maps has bit 63 set,
+   and one mapped to this process alone bit 56: a given-back page that is
+   read again maps the system's shared zero page, present but not exclusive,
+   and smaps' Rss does not count it; the runners' kernels show such pages,
+   so presence alone is not asked. On macOS `mincore` says whether a page is
+   in memory, and on Windows `VirtualQuery` whether it is committed. */
 static int given_back(char *at, size_t bytes) {
-	size_t page = (size_t)sysconf(_SC_PAGESIZE), pages = bytes / page;
-	uint64_t *entries = malloc(pages * sizeof *entries);
+	size_t page = zane_page_bytes(), pages = bytes / page;
 	unsigned char *resident = malloc(pages);
+	if (!resident) return 0;
+#ifdef _WIN32
+	for (size_t i = 0; i < pages;) {
+		MEMORY_BASIC_INFORMATION info;
+		if (!VirtualQuery(at + i * page, &info, sizeof info)) {
+			free(resident);
+			return 0;
+		}
+		size_t run = ((char *)info.BaseAddress + info.RegionSize - (at + i * page)) / page;
+		for (size_t k = 0; k < run && i < pages; k++, i++) resident[i] = info.State == MEM_COMMIT;
+	}
+#elif defined(__APPLE__)
+	char *vector = malloc(pages);
+	int asked = vector && mincore(at, pages * page, vector) == 0;
+	for (size_t i = 0; asked && i < pages; i++) resident[i] = (unsigned char)(vector[i] & MINCORE_INCORE);
+	free(vector);
+	if (!asked) {
+		free(resident);
+		return 0;
+	}
+#else
+	uint64_t *entries = malloc(pages * sizeof *entries);
 	int map = open("/proc/self/pagemap", O_RDONLY);
 	ssize_t want = (ssize_t)(pages * sizeof *entries);
-	int read_all = entries && resident && map >= 0 &&
+	int read_all = entries && map >= 0 &&
 	               pread(map, entries, (size_t)want, (off_t)((uintptr_t)at / page * sizeof *entries)) == want;
 	if (map >= 0) close(map);
 	if (!read_all) {
@@ -126,12 +150,14 @@ static int given_back(char *at, size_t bytes) {
 		free(resident);
 		return 0;
 	}
-	size_t kept = 0;
-	for (size_t i = 0; i < pages; i++) kept += resident[i] = (unsigned char)((entries[i] >> 63) & (entries[i] >> 56) & 1);
+	for (size_t i = 0; i < pages; i++) resident[i] = (unsigned char)((entries[i] >> 63) & (entries[i] >> 56) & 1);
 	free(entries);
-	/* On stderr, outside the golden output: what stayed, and the mappings
-	   it is in, to tell a page the runtime missed from one the system
-	   brought back. */
+#endif
+	size_t kept = 0;
+	for (size_t i = 0; i < pages; i++) kept += resident[i] & 1;
+	/* On stderr, outside the golden output: what stayed, and on Linux the
+	   mappings it is in, to tell a page the runtime missed from one the
+	   system brought back. */
 	if (kept) {
 		fprintf(stderr, "given_back: %zu of %zu pages resident from %p:", kept, pages, (void *)at);
 		for (size_t i = 0, runs = 0; i < pages && runs < 8;) {
@@ -146,7 +172,9 @@ static int given_back(char *at, size_t bytes) {
 			runs++;
 		}
 		fputc('\n', stderr);
+#ifdef __linux__
 		smaps_around((uintptr_t)at, (uintptr_t)at + pages * page);
+#endif
 	}
 	free(resident);
 	return kept == 0;
@@ -161,7 +189,7 @@ static void exercise_move_out(void) {
 	zane_list *list = new_list(scope);
 	fill(list, FULL);
 	char *block = list->items;
-	size_t page = (size_t)sysconf(_SC_PAGESIZE);
+	size_t page = zane_page_bytes();
 	char *header = block - ZANE_LINE;
 	fill(list, FULL + 1);
 	check(list->items != block && intact(list, FULL + 1));
@@ -170,7 +198,6 @@ static void exercise_move_out(void) {
 	zane_scope_drain(scope);
 	check(zane_blocks() == 0);
 }
-#endif
 
 /* A drained list's reservation stays mapped, and the next list to grow
    past 1 MiB, in a later scope, grows into it. */
@@ -219,13 +246,7 @@ static int without_reservation(void) {
 void zane_main(void) {
 	exercise_in_place();
 	exercise_copy();
-#ifdef __linux__
 	exercise_move_out();
-#else
-	check(1);
-	check(1);
-	check(1);
-#endif
 	exercise_warm();
 #if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 	check(without_reservation());

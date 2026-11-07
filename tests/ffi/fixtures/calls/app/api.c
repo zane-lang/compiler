@@ -49,4 +49,4 @@ void add_to(int64_t n) { total += n; count++; }
 void reset(void) { count = 0; total = 0; }
 int64_t counter(void) { return count + total; }
 int64_t helper(void) { return 1; }
-int64_t named(void) __attribute__((alias("helper")));
+int64_t named(void) ZANE_ALIAS("helper");

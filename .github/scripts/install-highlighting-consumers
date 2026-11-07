@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
-# These consumers come from the same Devbox environment used locally.
+# These consumers come from the same pixi environment used locally.
 set -euo pipefail
-devbox run -- nvim --version
-devbox run -- typst --version
+pixi run nvim --version
+pixi run typst --version
+
 # The Neovim plugin whose zane-bound? predicate editors/neovim/queries uses.
+# A pull request tests against the plugin's branch of the same name when there
+# is one, so a change made in both repositories is tested as a whole; anything
+# else, and a merge, tests against the plugin's main.
+plugin=https://github.com/TheLazyCat00/zane-nvim
+branch=main
+if [ -n "${ZANE_NVIM_BRANCH:-}" ] && git ls-remote --exit-code --heads "$plugin" "$ZANE_NVIM_BRANCH" >/dev/null; then
+  branch=$ZANE_NVIM_BRANCH
+fi
+echo "zane-nvim: $branch"
 rm -rf .zane-nvim
-git clone --depth 1 https://github.com/TheLazyCat00/zane-nvim .zane-nvim
+git clone --quiet --depth 1 --branch "$branch" "$plugin" .zane-nvim

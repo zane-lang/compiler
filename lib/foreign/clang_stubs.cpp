@@ -10,31 +10,42 @@
    each with the file, line and column it points at. */
 
 #include "clang/AST/ASTConsumer.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Basic/TargetOptions.h"
 #include "clang/Basic/Version.h"
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendActions.h"
+#include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/Frontend/Utils.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Config/llvm-config.h"
+#include "llvm/Support/VirtualFileSystem.h"
 
 #include <map>
 #include <memory>
@@ -134,7 +145,11 @@ template <typename Act> Run run(const std::vector<std::string> &args, Act act) {
   for (const std::string &a : args) argv.push_back(a.c_str());
   llvm::CrashRecoveryContext crc;
   bool finished = crc.RunSafely([&] {
-    auto diagnostics = clang::CompilerInstance::createDiagnostics(new clang::DiagnosticOptions(), problems, false);
+    /* The engine holds the options by reference, so they live as long as
+       this run does. */
+    clang::DiagnosticOptions diagnostic_options;
+    auto diagnostics =
+        clang::CompilerInstance::createDiagnostics(*llvm::vfs::getRealFileSystem(), diagnostic_options, problems, false);
     clang::CreateInvocationOptions options;
     options.Diags = diagnostics;
     std::shared_ptr<clang::CompilerInvocation> invocation = clang::createInvocation(argv, options);
@@ -142,9 +157,8 @@ template <typename Act> Run run(const std::vector<std::string> &args, Act act) {
     /* Without carets the instance prints no "N errors generated" of its
        own: every problem reaches OCaml through [problems] alone. */
     invocation->getDiagnosticOpts().ShowCarets = false;
-    clang::CompilerInstance ci;
-    ci.setInvocation(invocation);
-    ci.createDiagnostics(problems, false);
+    clang::CompilerInstance ci(invocation);
+    ci.createDiagnostics(*llvm::vfs::getRealFileSystem(), problems, false);
     result.ok = act(ci) && !ci.getDiagnostics().hasErrorOccurred();
   });
   if (!finished) {
@@ -360,13 +374,15 @@ public:
       const clang::ASTRecordLayout &layout = ctx.getASTRecordLayout(def);
       num(ctx.toBits(layout.getSize()));
       num(ctx.toBits(layout.getAlignment()));
-      std::vector<const clang::FieldDecl *> fields(def->field_begin(), def->field_end());
+      std::vector<const clang::FieldDecl *> fields;
+      for (auto it = def->field_begin(); it != def->field_end(); ++it)
+        fields.push_back(*it);
       num(fields.size());
       for (const clang::FieldDecl *f : fields) {
         str(f->getName().str());
         type(f->getType());
         num(layout.getFieldOffset(f->getFieldIndex()));
-        word(f->isBitField() ? std::to_string(f->getBitWidthValue(ctx)) : "-1");
+        word(f->isBitField() ? std::to_string(f->getBitWidthValue()) : "-1");
       }
     }
   }
@@ -456,19 +472,208 @@ private:
   std::string &out;
 };
 
+/* A declaration `ZANE_ALIAS` marks (zane_ffi.h): its name, the name of
+   the function or variable it is another name for, and whether the name has
+   external linkage, which a `static` declaration's has not. */
+struct Marked_alias {
+  std::string name, target;
+  bool external;
+};
+
+/* What the source's `ZANE_ALIAS` marks name, each refused with an error
+   where it is written unless it is a declaration of a function or variable,
+   not its definition, whose target is defined in the source with external
+   linkage and is of the same kind, neither has an `__asm__` label, and the declaration is not weak. Each declaration of a name counts once,
+   since a redeclaration inherits the mark. */
+class Alias_marks : public clang::ASTConsumer {
+public:
+  explicit Alias_marks(std::vector<Marked_alias> &marks) : marks(marks) {}
+
+  bool HandleTopLevelDecl(clang::DeclGroupRef group) override {
+    for (clang::Decl *d : group) {
+      auto *named = llvm::dyn_cast<clang::DeclaratorDecl>(d);
+      if (!named || !named->getIdentifier()) continue;
+      for (const auto *a : named->specific_attrs<clang::AnnotateAttr>()) {
+        llvm::StringRef text = a->getAnnotation();
+        if (text.consume_front("zane.alias=") && seen.insert(named->getName().str()).second)
+          found.push_back({ named, text.str(), a->getLocation() });
+      }
+    }
+    return true;
+  }
+
+  void HandleTranslationUnit(clang::ASTContext &context) override {
+    clang::DiagnosticsEngine &diagnostics = context.getDiagnostics();
+    unsigned error = diagnostics.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0");
+    for (const Found &f : found) {
+      auto refuse = [&](const std::string &why) { diagnostics.Report(f.at, error) << why; };
+      bool function = llvm::isa<clang::FunctionDecl>(f.decl);
+      if (!function && !llvm::isa<clang::VarDecl>(f.decl)) {
+        refuse("ZANE_ALIAS marks a declaration of a function or a variable");
+        continue;
+      }
+      bool defined = function ? llvm::cast<clang::FunctionDecl>(f.decl)->isDefined()
+                              : llvm::cast<clang::VarDecl>(f.decl)->hasDefinition() != clang::VarDecl::DeclarationOnly;
+      if (defined) {
+        refuse("`" + f.decl->getName().str() + "`, which ZANE_ALIAS makes another name, is defined here too");
+        continue;
+      }
+      const clang::NamedDecl *target = nullptr;
+      for (const clang::NamedDecl *t :
+           context.getTranslationUnitDecl()->lookup(&context.Idents.get(f.target)))
+        if (function ? llvm::isa<clang::FunctionDecl>(t) : llvm::isa<clang::VarDecl>(t)) target = t;
+      bool target_defined =
+          target && (function ? llvm::cast<clang::FunctionDecl>(target)->isDefined()
+                              : llvm::cast<clang::VarDecl>(target)->hasDefinition() != clang::VarDecl::DeclarationOnly);
+      if (!target_defined) {
+        refuse("ZANE_ALIAS names `" + f.target + "`, which this source does not define as a " +
+               (function ? "function" : "variable"));
+        continue;
+      }
+      if (!target->isExternallyVisible()) {
+        refuse("ZANE_ALIAS names `" + f.target + "`, which has internal linkage");
+        continue;
+      }
+      /* An `__asm__` label names a symbol other than the C name, which is
+         the name the alias is made under and its target found by. */
+      if (f.decl->hasAttr<clang::AsmLabelAttr>()) {
+        refuse("`" + f.decl->getName().str() + "`, which ZANE_ALIAS makes another name, has an `__asm__` label");
+        continue;
+      }
+      if (target->hasAttr<clang::AsmLabelAttr>()) {
+        refuse("ZANE_ALIAS names `" + f.target + "`, which has an `__asm__` label");
+        continue;
+      }
+      /* A weak alias, which ELF has, is on Mach-O only a weak reference:
+         LLVM writes it `.weak_reference`, which defines nothing there. */
+      if (f.decl->isWeak()) {
+        refuse("`" + f.decl->getName().str() + "`, which ZANE_ALIAS makes another name, is weak");
+        continue;
+      }
+      marks.push_back({ f.decl->getName().str(), f.target, f.decl->isExternallyVisible() });
+    }
+  }
+
+private:
+  struct Found {
+    const clang::DeclaratorDecl *decl;
+    std::string target;
+    clang::SourceLocation at;
+  };
+  std::vector<Marked_alias> &marks;
+  std::vector<Found> found;
+  std::set<std::string> seen;
+};
+
+/* The module a source compiles to, as `EmitLLVMOnlyAction` makes it, with
+   the source's `ZANE_ALIAS` marks read before it. */
+class Compile_with_aliases : public clang::EmitLLVMOnlyAction {
+public:
+  Compile_with_aliases(llvm::LLVMContext *context, std::vector<Marked_alias> &marks)
+      : clang::EmitLLVMOnlyAction(context), marks(marks) {}
+
+protected:
+  std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &ci, llvm::StringRef file) override {
+    /* The marks are read first: code generation frees the AST once it has
+       emitted the module (`-clear-ast-before-backend`, which the driver
+       sets), so a consumer after it would read freed declarations. */
+    std::vector<std::unique_ptr<clang::ASTConsumer>> both;
+    both.push_back(std::make_unique<Alias_marks>(marks));
+    both.push_back(clang::EmitLLVMOnlyAction::CreateASTConsumer(ci, file));
+    return std::make_unique<clang::MultiplexConsumer>(std::move(both));
+  }
+
+private:
+  std::vector<Marked_alias> &marks;
+};
+
+/* Each mark made an alias in [module], as the `alias` attribute makes one
+   on the targets that have it: the name's declaration, where the source
+   uses it, gives its uses to the alias, and the alias has the declaration's
+   linkage, internal for a `static` one, so two sources can each have one
+   of the same name. Mach-O's C has no `alias`, and an
+   alias in LLVM is one on every target. */
+void make_aliases(llvm::Module &module, const std::vector<Marked_alias> &marks) {
+  for (const Marked_alias &m : marks) {
+    /* A target the source defines but clang emits no body for, as C99's
+       `inline` alone, is left out, and the link names what is missing. */
+    llvm::GlobalValue *target = module.getNamedValue(m.target);
+    if (!target || target->isDeclaration()) continue;
+    auto *alias = llvm::GlobalAlias::create(target->getValueType(), target->getAddressSpace(),
+                                            m.external ? llvm::GlobalValue::ExternalLinkage
+                                                       : llvm::GlobalValue::InternalLinkage,
+                                            "", target, &module);
+    /* A thread-local variable's alias is thread-local too, as its uses,
+       through `llvm.threadlocal.address`, require. */
+    llvm::GlobalValue *declared = module.getNamedValue(m.name);
+    alias->setThreadLocalMode(declared ? declared->getThreadLocalMode() : target->getThreadLocalMode());
+    if (declared) {
+      declared->replaceAllUsesWith(alias);
+      alias->takeName(declared);
+      declared->eraseFromParent();
+    } else {
+      alias->setName(m.name);
+    }
+  }
+}
+
 } // namespace
 
-/* The module the command line's one source compiles to, as bitcode. */
+/* The module the command line's one source compiles to, as bitcode, with
+   an alias for each declaration `ZANE_ALIAS` marks. */
+/* [module]'s functions stamped with the processor the compile is for,
+   [target]'s, made the program's code: they lose that processor, as the
+   runtime's bodies do (lib/codegen/runtime_bodies.ml), and are compiled
+   for the program's target. LLVM inlines a body only into a caller whose
+   processor has every feature the body's has, and the program's functions
+   name none, so the target machine's processor and features stand for
+   theirs: on AArch64 the base architecture, `+v8a`, besides the processor,
+   as clang names it on every function and LLVM's `generic` lacks
+   (Build.features), and the check below takes the same. The compile is for the
+   program's own processor (Compile.processor_flags), so a body that loses
+   it is emitted for the processor it was compiled for; one whose features
+   that processor lacks, as a package's `-mavx2` adds, keeps them, and so
+   does a function given a processor of its own
+   (`__attribute__((target))`). */
+static void drop_default_processor(llvm::Module &module, const clang::TargetOptions &target) {
+  std::vector<std::string> features = target.Features;
+  llvm::sort(features);
+  std::string joined = llvm::join(features, ",");
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargetMCs();
+  std::string lookup;
+  const llvm::Target *machine = llvm::TargetRegistry::lookupTarget(module.getTargetTriple(), lookup);
+  if (!machine) return;
+  std::unique_ptr<llvm::MCSubtargetInfo> processor(
+      machine->createMCSubtargetInfo(module.getTargetTriple().str(), target.CPU,
+                                     module.getTargetTriple().isAArch64() ? "+v8a" : ""));
+  if (!processor || !processor->checkFeatures(joined)) return;
+  for (llvm::Function &f : module) {
+    llvm::Attribute cpu = f.getFnAttribute("target-cpu");
+    llvm::Attribute has = f.getFnAttribute("target-features");
+    std::string own_cpu = cpu.isValid() ? cpu.getValueAsString().str() : "";
+    std::string own_features = has.isValid() ? has.getValueAsString().str() : "";
+    if (own_cpu != target.CPU || own_features != joined) continue;
+    f.removeFnAttr("target-cpu");
+    f.removeFnAttr("target-features");
+    llvm::Attribute tune = f.getFnAttribute("tune-cpu");
+    if (tune.isValid() && tune.getValueAsString() == target.TuneCPU) f.removeFnAttr("tune-cpu");
+  }
+}
+
 extern "C" value zane_clang_compile(value args) {
   CAMLparam1(args);
   std::vector<std::string> owned = strings_of(args);
   std::string bitcode;
   Run r = run(owned, [&](clang::CompilerInstance &ci) {
     llvm::LLVMContext context;
-    clang::EmitLLVMOnlyAction action(&context);
-    if (!ci.ExecuteAction(action)) return false;
+    std::vector<Marked_alias> marks;
+    Compile_with_aliases action(&context, marks);
+    if (!ci.ExecuteAction(action) || ci.getDiagnostics().hasErrorOccurred()) return false;
     std::unique_ptr<llvm::Module> module = action.takeModule();
     if (!module) return false;
+    make_aliases(*module, marks);
+    drop_default_processor(*module, ci.getTargetOpts());
     llvm::raw_string_ostream os(bitcode);
     llvm::WriteBitcodeToFile(*module, os);
     os.flush();

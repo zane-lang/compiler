@@ -6,11 +6,12 @@
    what the evaluator needs and LLVM's OCaml bindings do not give: an
    instruction's flags (`nsw`, `nuw`, `exact`, `disjoint`, `nneg`, any
    fast-math flag), whether a load or store is atomic, an `alloca`'s size,
-   a `byval` argument's, and every offset the target's data layout gives:
+   a `byval` argument's (or -2 for a `dead_on_return` one), and every offset the target's data layout gives:
    a struct's fields, an array's stride, and a `getelementptr` as a
    constant offset plus each variable index times its scale. */
 
 #include "llvm/ADT/MapVector.h"
+#include "llvm/Config/llvm-config.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -255,7 +256,7 @@ struct Function_out : Out {
       operand(s->getValueOperand());
       operand(s->getPointerOperand());
     } else if (auto *g = dyn_cast<GetElementPtrInst>(&i)) {
-      MapVector<Value *, APInt> variable;
+      SmallMapVector<Value *, APInt, 4> variable;
       unsigned width = dl.getIndexTypeSizeInBits(g->getType());
       APInt offset(width, 0);
       if (g->getType()->isVectorTy() || offset_wraps(cast<GEPOperator>(g), dl, width) ||
@@ -291,7 +292,7 @@ struct Function_out : Out {
       n(c->arg_size());
       for (unsigned k = 0; k < c->arg_size(); k++) {
         Type *byval = c->getParamByValType(k);
-        n(byval ? (int64_t)dl.getTypeAllocSize(byval) : -1);
+        n(byval ? (int64_t)dl.getTypeAllocSize(byval) : c->paramHasAttr(k, Attribute::DeadOnReturn) ? -2 : -1);
         operand(c->getArgOperand(k));
       }
     } else if (auto *e = dyn_cast<ExtractValueInst>(&i)) {

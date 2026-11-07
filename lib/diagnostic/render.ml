@@ -64,6 +64,11 @@ let escaped s =
   aux 0;
   Buffer.contents buf
 
+(* A file's or a directory's path as a report shows it: escaped, and with
+   `/` between its components on Windows too, so a report reads the same on
+   every system. *)
+let path s = escaped (if Sys.win32 then String.map (function '\\' -> '/' | c -> c) s else s)
+
 (* A grapheme cluster: the characters a terminal draws as one glyph, found by
    [Uuseg], and the source bytes [first, next) they came from. *)
 type cluster = { first : int; next : int; chars : Uchar.t list }
@@ -252,7 +257,7 @@ let at_span ~source severity span message =
   let buf = Buffer.create 256 in
   Buffer.add_string buf
     (Printf.sprintf "File \"%s\", line %d, characters %d-%d:\n"
-       (escaped filename) line
+       (path filename) line
        (character_column source_line char_start + 1)
        (character_column source_line char_end + 1));
   Buffer.add_string buf
@@ -321,8 +326,8 @@ let render ~source ({ Report.severity; location; message } : Report.t) =
   let message = escaped (unstamped message) in
   match location with
   | Report.Location.Span span -> at_span ~source severity span message
-  | Report.Location.File path ->
-      Printf.sprintf "File \"%s\":\n%s: %s\n" (escaped path) label message
+  | Report.Location.File file ->
+      Printf.sprintf "File \"%s\":\n%s: %s\n" (path file) label message
   | Report.Location.Directory dir ->
-      Printf.sprintf "Directory \"%s\":\n%s: %s\n" (escaped dir) label message
+      Printf.sprintf "Directory \"%s\":\n%s: %s\n" (path dir) label message
   | Report.Location.Invocation -> Printf.sprintf "%s: %s\n" label message

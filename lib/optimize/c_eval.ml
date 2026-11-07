@@ -242,6 +242,17 @@ let family name =
   in
   String.concat "." (base [] (List.tl parts))
 
+(* The C library function an intrinsic stands for, as a target whose
+   library sets no `errno` (macOS's) compiles a call to it, so that it
+   evaluates, or stops, as that call does on every target. *)
+let library_call name (args : value list) =
+  match (family name, args) with
+  | ( ( ( "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "atan2" | "sinh" | "cosh" | "tanh" | "exp" | "exp2"
+        | "exp10" | "log" | "log2" | "log10" | "pow" | "ldexp" ) as fam ),
+      Fl f :: _ ) ->
+      Some (if f.double then fam else fam ^ "f")
+  | _ -> None
+
 let truthy = function Int (1, 1L) -> true | Int (1, 0L) -> false | Poison -> stop "poison reaching a branch" | _ -> stop "a condition that is not an i1"
 
 let rec intrinsic t frame ret name (args : value list) =
@@ -525,14 +536,21 @@ and exec t frame regs (i : C_ir.instr) =
         | _ -> stop "an address computed from something not an address")
   | C_ir.Call { callee; args } ->
       (* A `byval` argument's copy lives as long as the call: it is paid
-         for as `mem*`-style work and freed when the call returns. *)
+         for as `mem*`-style work and freed when the call returns. A
+         `dead_on_return` argument is the same copy, which the caller made
+         itself, as an ABI that passes a large aggregate by address does
+         (AArch64's), where the front end marks it so (clang 21 does not):
+         what it names, to its allocation's end, is copied, so the callee's
+         parameter ends with the call and the caller's temporary stays its
+         own. *)
       let copies = ref [] in
       let pass (byval, o) =
         let v = value o in
         if v = Poison then stop "poison passed to a call";
-        if byval < 0 then v
+        if byval = -1 then v
         else
           let src = ptr_of v in
+          let byval = if byval >= 0 then byval else src.alloc.size - src.off in
           spend t (byval / 64);
           let a = alloc Stack ~size:byval ~align:16 in
           copies := a :: !copies;
@@ -542,7 +560,10 @@ and exec t frame regs (i : C_ir.instr) =
       let args = List.map pass args in
       let result =
         match callee with
-        | C_ir.Direct name when String.starts_with ~prefix:"llvm." name -> intrinsic t frame i.C_ir.ty name args
+        | C_ir.Direct name when String.starts_with ~prefix:"llvm." name -> (
+            match library_call name args with
+            | Some library -> call t library args
+            | None -> intrinsic t frame i.C_ir.ty name args)
         | C_ir.Direct name -> call t name args
         | C_ir.Indirect o -> call_value t (value o) args
         | C_ir.Inline_asm -> stop "inline assembly"

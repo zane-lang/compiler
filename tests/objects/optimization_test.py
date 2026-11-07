@@ -86,10 +86,11 @@ class OptimizationTests(unittest.TestCase):
         run(ZANEC, "--object", obj, "--optimize", *self.flags())
         definitions = run("llvm-nm", "--defined-only", obj)
         # LLVM can inline app$main into the externally visible entry point.
-        self.assertRegex(definitions, r'(?m) [TW] zane_main$')
-        self.assertNotRegex(definitions, r' [TW] .*math\$(?:add|_add|down|fib|bump|divide)\(')
+        # A host object's names may carry Mach-O's `_`.
+        self.assertRegex(definitions, r'(?m) [TW] _?zane_main$')
+        self.assertNotRegex(definitions, r' [TW] _?.*math\$(?:add|_add|down|fib|bump|divide)\(')
         self.assertRegex(run("llvm-nm", obj),
-                         rf' U .*{re.escape(STAMP)}math\$fib\(')
+                         rf' U _?.*{re.escape(STAMP)}math\$fib\(')
 
     def test_unoptimized_inlining_stays_bounded(self):
         # Each level calls the one below twice: writing out or inlining every

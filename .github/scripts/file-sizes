@@ -7,7 +7,8 @@
 #
 # Generated files are not held to it: a file whose first line says it was
 # generated or written by a tool is skipped, and so are test fixtures and
-# golden outputs, which are as long as what they test.
+# golden outputs, which are as long as what they test, and vendored code
+# under vendor/, which is kept as its upstream writes it.
 set -euo pipefail
 
 warn=1500
@@ -18,7 +19,7 @@ cd "$(git rev-parse --show-toplevel)"
 failed=0
 while IFS= read -r file; do
 	case "$file" in
-		fixtures/* | */fixtures/* | golden/* | */golden/*) continue ;;
+		fixtures/* | */fixtures/* | golden/* | */golden/* | vendor/*) continue ;;
 	esac
 	# A tracked file deleted in a working tree is not there to count.
 	[[ -f "$file" ]] || continue
