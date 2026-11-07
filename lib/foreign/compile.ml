@@ -427,9 +427,11 @@ let compile_source ?cache ~maps flags path =
         else begin
           (* The warnings are kept before the module, so a module in the
              cache always has its warnings beside it. *)
-          let ws = List.map (fun (w : Clang.problem) -> { w with file = mapped_path maps w.file }) compiled.warnings in
+          let mapped_warning (w : Clang.problem) = { w with file = mapped_path maps w.file } in
           Option.iter
-            (fun kept -> Cache.keep_string ~dir:(Filename.dirname kept) ~kept (warnings_text ws))
+            (fun kept ->
+              let ws = List.map mapped_warning compiled.warnings in
+              Cache.keep_string ~dir:(Filename.dirname kept) ~kept (warnings_text ws))
             warned;
           Option.iter
             (fun kept -> Cache.keep_string ~dir:(Filename.dirname kept) ~kept compiled.output)
