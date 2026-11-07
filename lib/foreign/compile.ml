@@ -141,11 +141,6 @@ let json_string s =
   Buffer.add_char b '"';
   Buffer.contents b
 
-(* A clang VFS overlay that makes each fixed name a directory holding what
-   the directory it stands for holds, so a path C spells through
-   `__FILE__`, such as a source's `#include __FILE__`, names a file that
-   exists. It is written once into [dir], named by a hash of its text,
-   which the maps decide whole. *)
 (* On a Windows host, the directory under which the overlay puts each
    fixed name again, which the front end searches last: a Windows path
    needs a drive to be absolute, so the front end takes `/zane/pkg/api.c`
@@ -155,6 +150,11 @@ let json_string s =
    as the fixed name again. The directory exists only in the overlay. *)
 let search_root = if Sys.win32 then Some {|C:\zane-fixed|} else None
 
+(* A clang VFS overlay that makes each fixed name a directory holding what
+   the directory it stands for holds, so a path C spells through
+   `__FILE__`, such as a source's `#include __FILE__`, names a file that
+   exists. It is written once into [dir], named by a hash of its text,
+   which the maps decide whole. *)
 let overlay ~dir maps =
   let root name from =
     Printf.sprintf {|{"name":%s,"type":"directory-remap","external-contents":%s}|} (json_string name) (json_string from)
@@ -188,11 +188,11 @@ let map_flags ~dir maps =
    [search_root], which only a Windows host adds, so the hash is the one
    any host computes. *)
 let rec without_overlays args =
-  let search = Option.fold ~none:"" ~some:(fun s -> "-ffile-prefix-map=" ^ s ^ "=") search_root in
+  let search = Option.map (fun s -> "-ffile-prefix-map=" ^ s ^ "=") search_root in
   match args with
   | "-ivfsoverlay" :: _ :: rest -> without_overlays rest
   | "-idirafter" :: s :: rest when Some s = search_root -> without_overlays rest
-  | a :: rest when a = search -> without_overlays rest
+  | a :: rest when Some a = search -> without_overlays rest
   | a :: rest -> a :: without_overlays rest
   | [] -> []
 

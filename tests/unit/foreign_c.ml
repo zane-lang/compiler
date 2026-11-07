@@ -127,7 +127,19 @@ let mapping () =
     = "# 1 \"/zane/pkg/a.c\"\nfoo f(void) { return \"foo\"; }\n# 3 \"food/b.h\"");
   check "a path argument is mapped and a definition is not"
     (List.map (Compile.mapped_arg maps) [ "-Ifoo/inc"; "-I"; "foo/inc"; "-Dfoo=1"; "foo/a.c"; "-ffile-prefix-map=foo=/zane/pkg" ]
-    = [ "-I/zane/pkg/inc"; "-I"; "/zane/pkg/inc"; "-Dfoo=1"; "/zane/pkg/a.c"; "-ffile-prefix-map=/zane/pkg=/zane/pkg" ])
+    = [ "-I/zane/pkg/inc"; "-I"; "/zane/pkg/inc"; "-Dfoo=1"; "/zane/pkg/a.c"; "-ffile-prefix-map=/zane/pkg=/zane/pkg" ]);
+  check "an empty argument is kept" (Compile.without_overlays [ "-D"; ""; "a.c" ] = [ "-D"; ""; "a.c" ]);
+  (* On a Windows host a fixed name is also found under the search root,
+     which the hash spells as the fixed name, without the flags that search
+     it. *)
+  match Compile.search_root with
+  | None -> ()
+  | Some root ->
+      check "a line marker under the search root is the fixed name"
+        (Compile.mapped maps (Printf.sprintf "# 1 \"%s/zane/pkg/a.c\"" (String.concat "\\\\" (String.split_on_char '\\' root)))
+        = "# 1 \"/zane/pkg/a.c\"");
+      check "the flags that search the root are not hashed"
+        (Compile.without_overlays [ "-ffile-prefix-map=" ^ root ^ "="; "-idirafter"; root; "a.c" ] = [ "a.c" ])
 
 (* A package with one C source compiled twice from two directories: the
    bitcode is the same, so the key is, a change to its body changes the key,
