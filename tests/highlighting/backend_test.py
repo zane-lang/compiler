@@ -18,6 +18,8 @@ except ImportError:
     Language = None
 
 SPAN_DUMP = ROOT / '_build/default/tools/inspect/span_dump.exe'
+# The zane-nvim plugin, whose zane-bound? predicate Neovim's query uses.
+NEOVIM_PLUGIN = Path(os.environ.get('ZANE_NVIM_PLUGIN') or ROOT / '.zane-nvim')
 
 try:
     # The pinned CLI, found on PATH or where npm ci installs it.
@@ -86,9 +88,8 @@ class BackendTests(unittest.TestCase):
         cls.language = Language(capsule(cls.lib.tree_sitter_zane(), b'tree_sitter.Language', None))
         cls.parser = Parser(cls.language)
         cls.query = Query(cls.language, (source / 'queries/highlights.scm').read_text())
-        shutil.copytree(source / 'queries', cls.runtime / 'queries/zane')
-        # Neovim's own captures extend the shared query from an `after` directory.
-        shutil.copytree(ROOT / 'editors/neovim/queries', cls.runtime / 'after/queries')
+        # Neovim reads the query nvim-treesitter installs from editors/neovim/queries.
+        shutil.copytree(ROOT / 'editors/neovim/queries', cls.runtime / 'queries/zane')
 
     def test_existing_accepted_syntax_examples(self):
         # Reuse all accepted examples from the compiler's syntax suite. The
@@ -218,9 +219,9 @@ class BackendTests(unittest.TestCase):
         captures = QueryCursor(self.query).captures(tree.root_node)
         self.assertIn(b'Int', [source[n.start_byte:n.end_byte] for n in captures['type']])
 
-    @needs(shutil.which('nvim'), 'requires Neovim')
+    @needs(shutil.which('nvim') and NEOVIM_PLUGIN.joinpath('lua/zane/init.lua').exists(), 'requires Neovim and a zane-nvim checkout in .zane-nvim or ZANE_NVIM_PLUGIN')
     def test_neovim_loads_parser_and_queries(self):
-        check(['nvim', '--headless', '-u', 'NONE', '-l', str(ROOT / 'tests/highlighting/neovim.lua')], env={**os.environ, 'ZANE_TEST_ROOT': str(ROOT), 'ZANE_TEST_RUNTIME': str(self.runtime)})
+        check(['nvim', '--headless', '-u', 'NONE', '-l', str(ROOT / 'tests/highlighting/neovim.lua')], env={**os.environ, 'ZANE_TEST_ROOT': str(ROOT), 'ZANE_TEST_RUNTIME': str(self.runtime), 'ZANE_NVIM_PLUGIN': str(NEOVIM_PLUGIN)})
 
 
 @needs(shutil.which('typst'), 'requires Typst')

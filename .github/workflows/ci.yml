@@ -104,8 +104,11 @@ jobs:
         if: matrix.suite == 'highlighting' && needs.suites.outputs.highlighting != 'true'
         run: pixi run just test-grammar-generation
 
-      - name: Install Neovim and Typst
+      - name: Install Neovim, Typst and the zane-nvim plugin
         if: matrix.suite == 'highlighting' && needs.suites.outputs.highlighting == 'true'
+        env:
+          # Empty except on a pull request; the script then clones main.
+          ZANE_NVIM_BRANCH: ${{ github.head_ref }}
         run: .github/scripts/install-highlighting-consumers
 
       - name: Grammar generator and highlighting tests

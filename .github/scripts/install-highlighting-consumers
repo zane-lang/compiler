@@ -3,3 +3,24 @@
 set -euo pipefail
 pixi run nvim --version
 pixi run typst --version
+
+# The Neovim plugin whose zane-bound? predicate editors/neovim/queries uses.
+# A pull request tests against the plugin's branch of the same name when there
+# is one, so a change made in both repositories is tested as a whole; anything
+# else, and a merge, tests against the plugin's main.
+plugin=https://github.com/zane-lang/zane-nvim
+branch=main
+if [ -n "${ZANE_NVIM_BRANCH:-}" ]; then
+  # git ls-remote --exit-code exits with 2 when no branch matches; any other
+  # failure (the network, GitHub) stops here rather than testing main instead.
+  status=0
+  git ls-remote --exit-code --heads "$plugin" "refs/heads/$ZANE_NVIM_BRANCH" >/dev/null || status=$?
+  case $status in
+    0) branch=$ZANE_NVIM_BRANCH ;;
+    2) ;;
+    *) echo "zane-nvim: looking up branch $ZANE_NVIM_BRANCH failed" >&2; exit "$status" ;;
+  esac
+fi
+echo "zane-nvim: $branch"
+rm -rf .zane-nvim
+git clone --quiet --depth 1 --branch "$branch" "$plugin" .zane-nvim

@@ -80,8 +80,9 @@ tags at another commit are always rejected.
 
 The concrete syntax and lexical rules live in [`grammar/`](grammar/README.md).
 `python3 -m tools.grammar` generates the compiler's Menhir grammar and Sedlex
-lexer, a Tree-sitter grammar for Neovim, and Sublime syntax highlighting for
-Typst. See that guide for generation, installation and validation commands.
+lexer, a Tree-sitter grammar, and Sublime syntax highlighting for Typst. See
+that guide for generation and validation commands. Neovim support is the
+[`zane-nvim`](https://github.com/zane-lang/zane-nvim) plugin.
 
 ## Setup
 
