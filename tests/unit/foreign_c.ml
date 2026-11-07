@@ -261,15 +261,21 @@ let compile_commands () =
       match Foreign.compile_commands ~cache:(Some (Filename.concat base "cache")) ~cc ~cpu:"" ~target:None [ dir ] with
       | Error _ -> check "a compilation database is made" false
       | Ok text ->
+          (* A path as the database's JSON spells it, which doubles a
+             Windows path's backslashes. *)
+          let json path =
+            let quoted = Compile.json_string path in
+            String.sub quoted 1 (String.length quoted - 2)
+          in
           let has part =
             let n = String.length part in
             let rec go i = i + n <= String.length text && (String.sub text i n = part || go (i + 1)) in
             go 0
           in
-          check "the database names the source by its path" (has (Printf.sprintf "\"file\": \"%s/a.c\"" dir));
-          check "the database holds the package's include row" (has (Printf.sprintf "\"-I\", \"%s/inc\"" dir));
+          check "the database names the source by its path" (has (Printf.sprintf "\"file\": \"%s\"" (json (Source.Files.in_directory dir "a.c"))));
+          check "the database holds the package's include row" (has (Printf.sprintf "\"-I\", \"%s\"" (json (Source.Files.in_directory dir "inc"))));
           check "the database holds the package's define row" (has "\"-D\", \"X=1\"");
-          check "the database names where zane_ffi.h is" (has "/foreign/ffi-");
+          check "the database names where zane_ffi.h is" (has (json (Filename.concat (Filename.concat "cache" "foreign") "ffi-")));
           check "the database leaves out the module's flags" (not (has "-disable-llvm-passes" || has "\"-O2\""));
           check "the database maps no path" (not (has "/zane/pkg" || has "ivfsoverlay"));
           (* A database names headers only a cache keeps, so none is made
@@ -282,7 +288,7 @@ let compile_commands () =
           Sys.chdir base;
           let relative =
             Fun.protect ~finally:(fun () -> Sys.chdir here) (fun () ->
-                let at = Filename.concat (Sys.getcwd ()) "relative/foreign/ffi-" in
+                let at = json (Filename.concat (Filename.concat (Filename.concat (Sys.getcwd ()) "relative") "foreign") "ffi-") in
                 match Foreign.compile_commands ~cache:(Some "relative") ~cc ~cpu:"" ~target:None [ dir ] with
                 | Ok text ->
                     let n = String.length at in
