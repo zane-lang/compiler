@@ -100,8 +100,15 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   | N.Expr.NameExpr n -> name_value env ctx n
   | N.Expr.TypeMember { type_; member } -> type_member env ctx span type_ member
   | N.Expr.TypeValue te -> (
+      (* Checked where it is written, as a declared type is. A type that
+         fails anywhere in it is not passed on, so neither the call nor an
+         instance reports it again: `&Missing` is not also a reference
+         filling a `ListRef`. *)
+      let before = !(env.diagnostics) in
+      let failed () = !(env.diagnostics) != before in
       match Type_decls.resolve env (type_scope ctx) te with
       | Ty.Error -> invalid span
+      | _ when failed () -> invalid span
       (* A passed type fills a type parameter, as a `< >` argument does, and
          is held to the same rule (syntax.md §2.3). *)
       | t when Ty.is_roaming t ->
@@ -112,11 +119,8 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
                (quote (Ty.to_string t)));
           invalid span
       | t ->
-          (* Checked where it is written, as a declared type is. A type that
-             fails is not passed on, so no instance reports it again. *)
-          let before = !(env.diagnostics) in
           Type_decls.check_function_types env span t;
-          if !(env.diagnostics) != before then invalid span
+          if failed () then invalid span
           else mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span)
   | N.Expr.DotAccess { target; field; abort_handle } -> member env ~flow ctx span target field abort_handle
   | N.Expr.Subscript { target; args } -> subscript env ctx span target args

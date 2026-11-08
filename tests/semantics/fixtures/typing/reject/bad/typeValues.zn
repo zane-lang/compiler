@@ -14,6 +14,7 @@ Unit typeValues() {
 	tooMany Hopper(Couple<Int, Int>);
 	number Hopper(Couple<3>);
 	unknown Hopper(Missing<Int>);
+	unknownRef @primitives$ListRef(&Missing);
 	bare @primitives$ListRef(Couple);
 	shared @primitives$ListRef(&Gong);
 	introduced Hopper(Couple<U Type>);
