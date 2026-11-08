@@ -7,9 +7,9 @@ certificate this document's tools produce is conditional on the correctness of
 the trusted components listed below. [formal-proof.md](formal-proof.md) proves
 the same result in Lean, from the text of `parser.mly`, and does not rely on
 those components.
-Standalone type values stay constructor arguments; since the follow-up in
-[experiments.md](experiments.md#applied-and-reference-type-values) they may be
-applied or reference types.
+Standalone type values stay positional constructor arguments; since the
+follow-up in [experiments.md](experiments.md#every-type-as-a-type-value) they
+may be any type.
 
 The proof counts syntactic derivations with semantic actions erased. Thus it
 also covers every assignment of token payloads and every subset of parses

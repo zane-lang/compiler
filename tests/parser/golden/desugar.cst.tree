@@ -675,15 +675,28 @@
     │       ├── stat[7] > var_decl_shorthand:
     │       │   ├── name: bound
     │       │   ├── roaming: false
-    │       │   ├── type: Slot
-    │       │   ├── args > fields[0]:
-    │       │   │   ├── name: kind
-    │       │   │   └── value > type_value:
-    │       │   │       └── type > reference:
-    │       │   │           ├── qualifier: Vec
-    │       │   │           └── args:
+    │       │   ├── type: Slots
+    │       │   ├── args[0] > type_value:
+    │       │   │   └── type > reference:
+    │       │   │       ├── qualifier: Vec
+    │       │   │       └── args:
+    │       │   ├── args[1]: 2
     │       │   └── trailing: false
-    │       ├── stat[8] > var_decl:
+    │       ├── stat[8] > var_decl_shorthand:
+    │       │   ├── name: calls
+    │       │   ├── roaming: false
+    │       │   ├── type: Slots
+    │       │   ├── args[0] > type_value:
+    │       │   │   └── type:
+    │       │   │       ├── param[0]:
+    │       │   │       │   ├── qualifier: Vec
+    │       │   │       │   └── args:
+    │       │   │       └── type:
+    │       │   │           ├── qualifier: Int
+    │       │   │           └── args:
+    │       │   ├── args[1]: 2
+    │       │   └── trailing: false
+    │       ├── stat[9] > var_decl:
     │       │   ├── name: grouped
     │       │   ├── type:
     │       │   │   ├── qualifier: Int
@@ -701,7 +714,7 @@
     │       │       │   ├── right: four
     │       │       │   └── abort: none
     │       │       └── abort: none
-    │       ├── stat[9] > var_decl:
+    │       ├── stat[10] > var_decl:
     │       │   ├── name: ran
     │       │   ├── type:
     │       │   │   ├── qualifier: Bool
@@ -721,7 +734,7 @@
     │       │       │       └── abort: none
     │       │       ├── trailing: true
     │       │       └── abort: none
-    │       ├── stat[10] > meth_call:
+    │       ├── stat[11] > meth_call:
     │       │   ├── callee: else
     │       │   ├── this: ran
     │       │   ├── args[0] > block:
@@ -733,7 +746,7 @@
     │       │   ├── is_mut: false
     │       │   ├── trailing: true
     │       │   └── abort: none
-    │       └── stat[11] > ret_stat > ctor_call:
+    │       └── stat[12] > ret_stat > ctor_call:
     │           ├── type: Unit
     │           ├── args:
     │           ├── trailing: false

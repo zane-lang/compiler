@@ -967,21 +967,44 @@ package | package desugar; import co … .early)); return Unit(); }
                             ident Int | Int
                 call_arg | 2
                   expr | 2
-        statement | bound Slot{kind = &Vec;}
-          stat | bound Slot{kind = &Vec;}
-            decl | bound Slot{kind = &Vec;}
+        statement | bound Slots(&Vec, 2);
+          stat | bound Slots(&Vec, 2);
+            decl | bound Slots(&Vec, 2)
               name bound | bound
-              constructor_name | Slot
-                name_type | Slot
-                  ident Slot | Slot
-              constructor_args | {kind = &Vec;}
-                field_arg | kind = &Vec
-                  name kind | kind
+              constructor_name | Slots
+                name_type | Slots
+                  ident Slots | Slots
+              constructor_args | (&Vec, 2)
+                call_arg | &Vec
                   expr | &Vec
                     type_expr | &Vec
                       type_expr | Vec
                         name_type | Vec
                           ident Vec | Vec
+                call_arg | 2
+                  expr | 2
+        statement | calls Slots(Int[Vec], 2);
+          stat | calls Slots(Int[Vec], 2);
+            decl | calls Slots(Int[Vec], 2)
+              name calls | calls
+              constructor_name | Slots
+                name_type | Slots
+                  ident Slots | Slots
+              constructor_args | (Int[Vec], 2)
+                call_arg | Int[Vec]
+                  expr | Int[Vec]
+                    type_expr | Int[Vec]
+                      verb_type | Int[Vec]
+                        param_type | Vec
+                          type_expr | Vec
+                            name_type | Vec
+                              ident Vec | Vec
+                        ret_type | Int
+                          type_expr | Int
+                            name_type | Int
+                              ident Int | Int
+                call_arg | 2
+                  expr | 2
         statement | grouped Int = (two + four) * (two - four);
           stat | grouped Int = (two + four) * (two - four);
             decl | grouped Int = (two + four) * (two - four)

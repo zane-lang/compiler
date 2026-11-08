@@ -59,8 +59,8 @@ numbers in a proof report refer to.
 
 | Automaton | Conflict states | with shift/reduce | with reduce/reduce |
 | --------- | --------------: | ----------------: | -----------------: |
-| `--GLR`, the parser that ships | 50 | 50 | 0 |
-| stock | 43 | 43 | 0 |
+| `--GLR`, the parser that ships | 44 | 44 | 0 |
+| stock | 37 | 37 | 0 |
 
 Menhir explains each conflict state once, so the explanations file holds one
 block per state; a state with both kinds of conflict counts in both of Menhir's
@@ -94,7 +94,7 @@ are not independent problems:
 
 | Lookahead | States | Reduction | Root |
 | --------- | -----: | --------- | ---- |
-| `(`             | 15 | `loption_generics_ ->` | before a call or a lambda, including standalone constructor type arguments |
+| `(`             | 9 | `loption_generics_ ->` | before a call or a lambda, including standalone constructor type arguments |
 | `<`             | 18 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
 | `(`             | 3 | `list_verb_type_suffix_ ->` | a type opening a statement, against a call |
@@ -122,12 +122,13 @@ Restricting standalone type values to whole constructor arguments removed the
 three stock `expr -> ... UIDENT` forks and the three mixed operator/type
 conflicts. The constructor-specific argument rules introduce nine additional
 states in the `(` / empty-generics family. Thus the total state count grows by
-three while the reduce/reduce count falls to one. LR conflict counts measure
+three while the reduce/reduce count falls to one. Taking type values out of
+named arguments later removed six of those nine. LR conflict counts measure
 local parser forks, not complete competing parses.
 
 The [visible-stack certificate](visible-proof.md) covers every retained fork
 in both current automata, conditional on its documented trusted components.
-The remaining `(` forks distinguish a constructor argument ending in a named
+The remaining `(` forks distinguish a constructor argument ending in a
 type from a constructor call or lambda continuing after that name. The
 constructor-type regression checks the permitted and rejected spellings;
 operator operands and ordinary function arguments no longer admit bare types.
@@ -382,8 +383,8 @@ collection calls alone did not close the family: `Foo<1>[][Int]() {}` could
 subscript the collection before calling it.
 
 The grammar now excludes bare type values from `expr` and admits them through
-`constructor_value`, beside ordinary expressions. Both positional and named
-constructor arguments use that rule; ordinary calls, collection elements,
+`constructor_value`, beside ordinary expressions. Positional constructor
+arguments use that rule; named ones, ordinary calls, collection elements,
 operator operands and nested expressions do not. The constructor exception
 applies to a whole argument, so `Ctor(Int)` is accepted and `Ctor(Int + 1)` is
 rejected. Type annotations, generic arguments, type members and constructed
@@ -394,15 +395,13 @@ constructor argument. `tests/grammar/type_arguments_test.py` checks that the
 exception does not leak into ordinary expressions. This closes the identified
 type-value/comparison family, not every remaining proof obligation.
 
-**A standalone constructor type argument is a named type, applied or not, or a
-reference to one.** The previous `expr` production was measured to add three
-reduce/reduce states when extended to applied types, against
-`list_verb_type_suffix_ ->`. Inside `constructor_value` the same extension adds
-none: the census is unchanged, and the visible-stack certificate proves the
-grammar unambiguous with it
-([experiments.md](experiments.md#applied-and-reference-type-values)). A verb
-type is not admitted there; [`spec-divergences.md`](../spec-divergences.md)
-records that gap.
+**A standalone constructor type argument is any type, passed positionally.**
+The previous `expr` production was measured to add three reduce/reduce states
+when extended to applied types, against `list_verb_type_suffix_ ->`. Inside
+`constructor_value` a whole `type_expr` adds none, and dropping type values
+from named arguments removes six `(` states from each automaton; the
+visible-stack certificate proves the grammar unambiguous with it
+([experiments.md](experiments.md#every-type-as-a-type-value)).
 
 The state counts below describe the earlier census and must be regenerated
 before being used as measurements of the constructor-only grammar.

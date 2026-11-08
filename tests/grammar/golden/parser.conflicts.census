@@ -1,4 +1,4 @@
-50 conflict states
+44 conflict states
 
   1  shift/reduce  [LESS]  abort_ret_type -> type_expr QSTNMARK AMPERSAND AT LIDENT DOLLAR UIDENT
   1  shift/reduce  [LESS]  abort_ret_type -> type_expr QSTNMARK AMPERSAND LIDENT DOLLAR UIDENT
@@ -18,14 +18,14 @@
   1  shift/reduce  [LESS]  type_expr -> CARET UIDENT
   1  shift/reduce  [LESS]  type_expr -> LIDENT DOLLAR UIDENT
   1  shift/reduce  [LESS]  type_expr -> UIDENT
-  4  shift/reduce  [LPAREN]  type_expr -> AT LIDENT DOLLAR UIDENT
+  2  shift/reduce  [LPAREN]  type_expr -> AT LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN]  type_expr -> AT LIDENT DOLLAR UIDENT nonempty_loption(generics)
   1  shift/reduce  [LPAREN]  type_expr -> CARET AT LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN]  type_expr -> CARET LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN]  type_expr -> CARET UIDENT
-  4  shift/reduce  [LPAREN]  type_expr -> LIDENT DOLLAR UIDENT
+  2  shift/reduce  [LPAREN]  type_expr -> LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN]  type_expr -> LIDENT DOLLAR UIDENT nonempty_loption(generics)
-  5  shift/reduce  [LPAREN]  type_expr -> UIDENT
+  3  shift/reduce  [LPAREN]  type_expr -> UIDENT
   1  shift/reduce  [LPAREN]  type_expr -> UIDENT nonempty_loption(generics)
   1  shift/reduce  [LPAREN LESS]  type_expr -> AT LIDENT DOLLAR UIDENT
   1  shift/reduce  [LPAREN LESS]  type_expr -> LIDENT DOLLAR UIDENT

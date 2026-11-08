@@ -1,8 +1,8 @@
-43 conflict states
+37 conflict states
 
  18  shift/reduce  [LESS]  loption(generics) ->
   3  shift/reduce  [LPAREN]  list(verb_type_suffix) ->
- 15  shift/reduce  [LPAREN]  loption(generics) ->
+  9  shift/reduce  [LPAREN]  loption(generics) ->
   3  shift/reduce  [LPAREN LESS LCURLY DOT]  loption(generics) ->
   1  shift/reduce  [QSTNQSTN QSTNMARK]  expr -> SPAWN braced_verb_call
   1  shift/reduce  [QSTNQSTN QSTNMARK]  expr -> SPAWN unbraced_verb_call

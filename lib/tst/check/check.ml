@@ -102,7 +102,22 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   | N.Expr.TypeValue te -> (
       match Type_decls.resolve env (type_scope ctx) te with
       | Ty.Error -> invalid span
-      | t -> mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span)
+      (* A passed type fills a type parameter, as a `< >` argument does, and
+         is held to the same rule (syntax.md §2.3). *)
+      | t when Ty.is_roaming t ->
+          error env span
+            (Printf.sprintf
+               "%s is a roaming owner, and `^` is written only on a local, a parameter or a \
+                return type, never on a type passed as an argument"
+               (quote (Ty.to_string t)));
+          invalid span
+      | t ->
+          (* Checked where it is written, as a declared type is. A type that
+             fails is not passed on, so no instance reports it again. *)
+          let before = List.length !(env.diagnostics) in
+          Type_decls.check_function_types env span t;
+          if List.length !(env.diagnostics) > before then invalid span
+          else mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span)
   | N.Expr.DotAccess { target; field; abort_handle } -> member env ~flow ctx span target field abort_handle
   | N.Expr.Subscript { target; args } -> subscript env ctx span target args
   | N.Expr.Init fields -> init env ctx span fields

@@ -127,8 +127,10 @@ then run it again, read the golden diff and promote that.
   `@primitives$ListRef(Pair<T>)` over its own parameter, pushed to and read
   back at `Int`; the same list over `Pair<Int>`; and a constructor at `&Port`
   and `Pair<&Port>`, and `Array<Int, n>` over a number parameter `n` that
-  only the passed type writes. `typeValues.cgt` shows the list built at
-  `Pair<I64>` inside the bag's instance.
+  only the passed type writes; and a verb type, a generic list of callbacks
+  `@primitives$ListRef(T[T])` run at `Int`, and `@primitives$ListRef(Int[Int])`.
+  `typeValues.cgt` shows the list built at `Pair<I64>` inside the bag's
+  instance.
 - `pushRuns` is runs of pushes onto a new list, each given its room at its
   first push (`Loop_shapes.runs`): one that fits the first block a scope makes
   itself, two that take the runtime's room, one pushed past its run, one a

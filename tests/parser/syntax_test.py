@@ -174,8 +174,8 @@ class DeclarationTests(ParserSyntaxTestCase):
             Unit use() { v Vector2.zeros(Int); }
             '''
         )
-        # So does an applied type, or a reference to a named type, positional
-        # or named, including one over a generic's own parameter.
+        # So does any other type: applied, a reference or a verb type,
+        # including one over a generic's own parameter.
         self.assert_parses(
             """
             Unit use() {
@@ -186,14 +186,18 @@ class DeclarationTests(ParserSyntaxTestCase):
                 deep Slots(math$Grid<@primitives$I64, 3>, 2);
                 row ArrayRef([p, q], &Port);
                 bound Slots(&Pair<Int>, 2);
-                item Slot{kind = Array<Int, 4>;}
-                held Slot{kind = &Port;}
+                calls Slots(Int[Int], 2);
+                methods Slots(Int[this Port, Int] mut, 2);
+                failing Slots(Int?Error[String], 2);
                 return Unit();
             }
             """
         )
         self.assert_parses(
             "Bag<T>(T Type) => init{ items = @primitives$ListRef(Pair<T>); }"
+        )
+        self.assert_parses(
+            "Hooks<T>(T Type) => init{ items = @primitives$ListRef(Unit[T]); }"
         )
         # The inferred half is unchanged and still the one a literal drives.
         self.assert_parses(
@@ -203,13 +207,15 @@ class DeclarationTests(ParserSyntaxTestCase):
     def test_a_type_value_is_a_whole_constructor_argument(self) -> None:
         # A type is never an operand, so `<` after a type name opens its `<>`
         # list and `&` before one makes it a reference. Only a constructor
-        # takes one, and only whole. A verb type is not a type value.
+        # takes one, only whole, and only positionally: a field constructor's
+        # entries are the type's fields, and a type is never stored.
         # See docs/spec-divergences.md.
         self.assert_rejects("Unit use() { register(Array<Int, 4>); }")
         self.assert_rejects("Unit use() { register(&Int); }")
         self.assert_rejects("Unit use() { register(Int[3]); }")
-        self.assert_rejects("Unit use() { room Slots(Int[Int], 2); }")
-        self.assert_rejects("Unit use() { room Slots(^Int, 2); }")
+        self.assert_rejects("Unit use() { item Slot{kind = Int;} }")
+        self.assert_rejects("Unit use() { item Slot{kind = Array<Int, 4>;} }")
+        self.assert_rejects("Unit use() { room Slots(Int[Int] + 1, 2); }")
         self.assert_rejects("Unit use() { room Slots(Array<Int, 4> + 1, 2); }")
         self.assert_rejects("Unit use() { room Slots(&Int + 1, 2); }")
         self.assert_rejects("Unit use() { held Pair<Int> = Pair<Int>; }")

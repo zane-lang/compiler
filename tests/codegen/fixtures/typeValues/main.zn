@@ -3,8 +3,10 @@
 /// over its own parameter, `@primitives$ListRef(Pair<T>)`, and is pushed to
 /// and read back at `Int`; the same list is made over a concrete applied
 /// type; and a constructor takes a reference type and an applied type over
-/// one, and one over a number parameter written nowhere else. Each check
-/// prints `yes` when it holds.
+/// one, and one over a number parameter written nowhere else. A verb type is
+/// passed the same way: a generic list of callbacks over its own parameter,
+/// `@primitives$ListRef(T[T])`, run in order. Each check prints `yes` when it
+/// holds.
 package typeValues;
 
 alias Int = @primitives$I64;
@@ -28,6 +30,20 @@ Bag<T>(T Type) => init{ items = @primitives$ListRef(Pair<T>); }
 Unit add(this Bag<T Type>, a T, b T) mut {
 	this.items!push(Pair(a, b));
 	return Unit();
+}
+
+/// Callbacks run in the order they were added, each on what the last returned.
+type Hooks<T Type> = #struct { items ListRef<T[T]>; }
+Hooks<T>(T Type) => init{ items = @primitives$ListRef(T[T]); }
+
+T run(this Hooks<T Type>, value T) {
+	out T = value;
+	i Int(1);
+	@controlflow$repeat(this.items:size(), {
+		out = this.items[i](out);
+		i = @operators$add(i, Int(1));
+	});
+	return out;
 }
 
 /// `n` is written only inside the type passed, which makes it a number
@@ -64,5 +80,16 @@ Unit main() {
 	check(@operators$equal(pairsOfPorts.count, Int(3)));
 	// A number parameter written only inside a passed type.
 	sized(4);
+	// A verb type: the callbacks made in generic code, at `Int`, and the same
+	// list over a concrete one.
+	twice Int(x Int) { return @operators$multiply(x, Int(2)); }
+	more Int(x Int) { return @operators$add(x, Int(1)); }
+	hooks Hooks(Int);
+	hooks.items!push(twice);
+	hooks.items!push(more);
+	check(@operators$equal(hooks:run(Int(5)), Int(11)));
+	plain ListRef<Int[Int]> = @primitives$ListRef(Int[Int]);
+	plain!push(more);
+	check(@operators$equal(plain[Int(1)](Int(1)), Int(2)));
 	return Unit();
 }

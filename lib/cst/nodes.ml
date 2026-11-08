@@ -220,10 +220,10 @@ module rec Expr : sig
     | NameExpr of Name_expr.t
     | TypeMember of { type_ : Name_type.t; member : Name.t }
     (* A standalone type argument of a constructor, as in Array(Int, 10000),
-       Slots(Array<Int, 4>, 2) or ArrayRef([p, q], &Port). The parser admits
-       this node only as an entire positional or named constructor argument,
-       and only as a named type, applied or not, or a reference to one. It is
-       not a general expression operand; see docs/spec-divergences.md. *)
+       Slots(Array<Int, 4>, 2), Slots(&Port, 2) or Slots(Int[Int], 2). The
+       parser admits this node only as an entire positional constructor
+       argument. It is not a general expression operand; see
+       docs/spec-divergences.md. *)
     | TypeValue of Type_expr.t
     (* [abort_handle] because a member read can fail: reading a member of a
        variant "is **partial**: the case may not be the live one", so it is

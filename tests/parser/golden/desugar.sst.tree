@@ -762,18 +762,34 @@
     │       ├── stat[7] > var_decl:
     │       │   ├── name: bound
     │       │   ├── type:
-    │       │   │   ├── qualifier: Slot
+    │       │   │   ├── qualifier: Slots
     │       │   │   └── args:
     │       │   └── value > ctor_call:
-    │       │       ├── type: Slot
-    │       │       ├── args > fields[0]:
-    │       │       │   ├── name: kind
-    │       │       │   └── value > type_value:
-    │       │       │       └── type > reference:
-    │       │       │           ├── qualifier: Vec
-    │       │       │           └── args:
+    │       │       ├── type: Slots
+    │       │       ├── args[0] > type_value:
+    │       │       │   └── type > reference:
+    │       │       │       ├── qualifier: Vec
+    │       │       │       └── args:
+    │       │       ├── args[1]: 2
     │       │       └── abort: none
     │       ├── stat[8] > var_decl:
+    │       │   ├── name: calls
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Slots
+    │       │   │   └── args:
+    │       │   └── value > ctor_call:
+    │       │       ├── type: Slots
+    │       │       ├── args[0] > type_value:
+    │       │       │   └── type:
+    │       │       │       ├── param[0]:
+    │       │       │       │   ├── qualifier: Vec
+    │       │       │       │   └── args:
+    │       │       │       └── type:
+    │       │       │           ├── qualifier: Int
+    │       │       │           └── args:
+    │       │       ├── args[1]: 2
+    │       │       └── abort: none
+    │       ├── stat[9] > var_decl:
     │       │   ├── name: grouped
     │       │   ├── type:
     │       │   │   ├── qualifier: Int
@@ -796,7 +812,7 @@
     │       │       │   └── abort: none
     │       │       ├── swapped: false
     │       │       └── abort: none
-    │       ├── stat[9] > var_decl:
+    │       ├── stat[10] > var_decl:
     │       │   ├── name: ran
     │       │   ├── type:
     │       │   │   ├── qualifier: Bool
@@ -817,7 +833,7 @@
     │       │       │       ├── args[0]: smaller
     │       │       │       └── abort: none
     │       │       └── abort: none
-    │       ├── stat[10] > call:
+    │       ├── stat[11] > call:
     │       │   ├── form: method:
     │       │   ├── callee: else
     │       │   ├── args[0]: ran
@@ -828,7 +844,7 @@
     │       │   │       ├── args[0]: not smaller
     │       │   │       └── abort: none
     │       │   └── abort: none
-    │       └── stat[11] > ret_stat > ctor_call:
+    │       └── stat[12] > ret_stat > ctor_call:
     │           ├── type: Unit
     │           ├── args:
     │           └── abort: none

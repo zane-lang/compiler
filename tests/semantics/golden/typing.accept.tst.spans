@@ -580,8 +580,8 @@ package app
   decl Verb Tally | Tally<T, n>(T Type, n @con … => init{ count = Int(0); }
   decl Type Grid | type Grid<T Type, n @conce … s Tally<Array<T, n>, n>; }
   decl Verb Grid | Grid<T, n>(T Type, n @conc … = Tally(Array<T, n>, n); }
-  decl Verb racks | Unit racks() { ints Rack(I … (Int, 4); return Unit(); }
-    block | { ints Rack(Int); duos @pr … (Int, 4); return Unit(); }
+  decl Verb racks | Unit racks() { ints Rack(I … nt>], 1); return Unit(); }
+    block | { ints Rack(Int); duos @pr … nt>], 1); return Unit(); }
       stat Let | ints Rack(Int);
         local ints | ints
         expr Construct Rack | Rack(Int)
@@ -605,6 +605,16 @@ package app
         expr Construct Grid | Grid(Int, 4)
           expr Type_arg @primitives$I64 | Int
           expr Integer_lit | 4
+      stat Let | calls Tally(Int[Float], 1);
+        local calls | calls
+        expr Construct Tally | Tally(Int[Float], 1)
+          expr Type_arg @primitives$I64[@primitives$F64] | Int[Float]
+          expr Integer_lit | 1
+      stat Let | failing Tally(Int?String[Duo<Int>], 1);
+        local failing | failing
+        expr Construct Tally | Tally(Int?String[Duo<Int>], 1)
+          expr Type_arg @primitives$I64?@primitives$String[app$Duo<@primitives$I64>] | Int?String[Duo<Int>]
+          expr Integer_lit | 1
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()
 package shapes
@@ -983,6 +993,20 @@ instances
             expr Construct @primitives$I64 | Int(0)
               expr Integer_lit | 0
   instance Tally with T = @primitives$Array<@primitives$I64, 4>, n = 4 | Tally<T, n>(T Type, n @con … => init{ count = Int(0); }
+    block | => init{ count = Int(0); }
+      stat Return | => init{ count = Int(0); }
+        expr Init | init{ count = Int(0); }
+          field count | count = Int(0)
+            expr Construct @primitives$I64 | Int(0)
+              expr Integer_lit | 0
+  instance Tally with T = @primitives$I64?@primitives$String[app$Duo<@primitives$I64>], n = 1 | Tally<T, n>(T Type, n @con … => init{ count = Int(0); }
+    block | => init{ count = Int(0); }
+      stat Return | => init{ count = Int(0); }
+        expr Init | init{ count = Int(0); }
+          field count | count = Int(0)
+            expr Construct @primitives$I64 | Int(0)
+              expr Integer_lit | 0
+  instance Tally with T = @primitives$I64[@primitives$F64], n = 1 | Tally<T, n>(T Type, n @con … => init{ count = Int(0); }
     block | => init{ count = Int(0); }
       stat Return | => init{ count = Int(0); }
         expr Init | init{ count = Int(0); }

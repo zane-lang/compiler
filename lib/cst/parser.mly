@@ -371,23 +371,21 @@ map_lit:
    enclosing brace. *)
 (* Type arguments are standalone constructor arguments, not expressions.
    In particular, admitting a type as an operator operand makes
-   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). A named type,
-   applied or not, and a reference to one end before the `[` or `(` that would
-   continue a lambda, so the token after them decides; a verb type does not,
-   and is left out (docs/spec-divergences.md §3). *)
+   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). As a whole
+   positional argument no type is an operand, and the token after it decides
+   between the argument and a lambda it begins. A named argument takes no
+   type: it fills a field, and a type is not stored (docs/spec-divergences.md
+   §3). *)
 %inline constructor_value:
   | value=expr { value }
-  | type_=named_type_expr { expr $loc (Nodes.Expr.TypeValue type_) }
-  | AMPERSAND type_=type_base {
-      expr $loc (Nodes.Expr.TypeValue (type_expr $loc (Nodes.Type_expr.Reference type_)))
-    }
+  | type_=type_expr { expr $loc (Nodes.Expr.TypeValue type_) }
 
 %inline constructor_call_arg:
   | value=constructor_value { call_arg $loc (Nodes.Call_arg.Value value) }
   | block=block_arg { block }
 
 %inline constructor_field_arg:
-  | name=lname value=ioption(preceded(EQUAL, constructor_value)) {
+  | name=lname value=ioption(preceded(EQUAL, expr)) {
       ({ Nodes.Field_arg.name; value; span = Span.of_loc $loc }
         : Nodes.Field_arg.t)
     }
