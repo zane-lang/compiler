@@ -165,14 +165,22 @@ class DeclarationTests(ParserSyntaxTestCase):
         self.assert_rejects("Unit use() { register(Float); }")
         self.assert_rejects("Unit use() { registry!add(math$Vector); }")
         self.assert_rejects("Unit use() { machine Slot = @primitives$I64; }")
-        # A named constructor takes one on the same terms.
-        self.assert_parses("Unit use() { v Vector2.zeros(Int); }")
+        # A named constructor takes one on the same terms, declared on a
+        # generic type as its positional constructor is.
+        self.assert_parses(
+            '''
+            Vector2<T>.zeros(T Type) => init{ x = T(0); y = T(0); }
+
+            Unit use() { v Vector2.zeros(Int); }
+            '''
+        )
         # So does an applied type, or a reference to a named type, positional
         # or named, including one over a generic's own parameter.
         self.assert_parses(
             """
             Unit use() {
                 v Vector2.zeros(Array<Int, 4>);
+                vec Vector(Array<Int, 4>);
                 room Slots(Array<Int, 4>, 2);
                 pairs @primitives$ListRef(Pair<Int>);
                 deep Slots(math$Grid<@primitives$I64, 3>, 2);
