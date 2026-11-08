@@ -174,6 +174,9 @@ class DeclarationTests(ParserSyntaxTestCase):
             Unit use() { v Vector2.zeros(Int); }
             '''
         )
+        # Inside a constructor call, too, only a bare name is a type value.
+        self.assert_rejects("Unit use() { v Vector2.zeros(Array<Int, 4>); }")
+        self.assert_rejects("Unit use() { vec Vector(Array<Int, 4>); }")
         # The inferred half is unchanged and still the one a literal drives.
         self.assert_parses(
             "Unit use() { vec Vector(Int(2), Int(3)); }"
