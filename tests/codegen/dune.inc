@@ -4901,6 +4901,140 @@
   (diff golden/math.out math.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/namedGeneric))
+ (action
+  (with-stdout-to
+   namedGeneric.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/namedGeneric))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/namedGeneric.cgt namedGeneric.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/namedGeneric))
+ (targets namedGeneric.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build namedGeneric.exe --package fixtures/namedGeneric)))
+
+(rule
+ (deps (source_tree fixtures/namedGeneric))
+ (targets namedGeneric.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build namedGeneric.optimized.exe --optimize --package fixtures/namedGeneric)))
+
+(rule
+ (deps (source_tree fixtures/namedGeneric))
+ (targets namedGeneric.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build namedGeneric.tiered.exe --tiered --package fixtures/namedGeneric)))
+
+(rule
+ (deps (source_tree fixtures/namedGeneric))
+ (targets namedGeneric.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up namedGeneric.tier1 --package fixtures/namedGeneric)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    namedGeneric.checked.out.actual
+    (run ./namedGeneric.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/namedGeneric.out namedGeneric.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    namedGeneric.unchecked.out.actual
+    (run ./namedGeneric.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/namedGeneric.out namedGeneric.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    namedGeneric.optimized.checked.out.actual
+    (run ./namedGeneric.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/namedGeneric.out namedGeneric.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    namedGeneric.optimized.unchecked.out.actual
+    (run ./namedGeneric.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/namedGeneric.out namedGeneric.optimized.unchecked.out.actual)))
+
+(rule
+ (deps namedGeneric.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./namedGeneric.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    namedGeneric.tiered.checked.out.actual
+    (run ./namedGeneric.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/namedGeneric.out namedGeneric.tiered.checked.out.actual)))
+
+(rule
+ (deps namedGeneric.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./namedGeneric.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    namedGeneric.tiered.unchecked.out.actual
+    (run ./namedGeneric.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/namedGeneric.out namedGeneric.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/operators))
  (targets operators.exe)
  (action

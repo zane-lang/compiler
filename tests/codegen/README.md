@@ -117,6 +117,11 @@ then run it again, read the golden diff and promote that.
 - `lists` is step 7's lists: pushed to, measured, indexed and written at an
   index, of scalars, strings, hosts and lists, under a generic type with a
   declared subscript. Guests follow hosts into a list and through its growth.
+- `namedGeneric` is named constructors on a generic type (types.md §3.4):
+  `Vector2<T>.zeros(T Type)`, given its type as an argument (generics.md
+  §5.3) and converting `T(0)`, built at `I64` and `I32`, and
+  `Vector2<T>.splat`, which infers `T` from its argument. `namedGeneric.cgt`
+  shows each call written out as a record of its own instance's width.
 - `pushRuns` is runs of pushes onto a new list, each given its room at its
   first push (`Loop_shapes.runs`): one that fits the first block a scope makes
   itself, two that take the runtime's room, one pushed past its run, one a
