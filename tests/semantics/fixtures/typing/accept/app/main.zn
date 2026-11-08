@@ -162,6 +162,8 @@ Unit main() {
 	total Int = sum(pair);
 	floats Pair(Float(1.0), Float(2.0));
 	both Float = sum(floats);
+	intZeros Pair.zeros(Int);
+	smallZeros Pair.zeros(@primitives$I32);
 
 	spare ^Shape = Shape.circle(Float(1.0));
 	spare = grown(spare);
@@ -231,3 +233,7 @@ T twice(value T Type) => value + value;
 Int lowByte(value Int) => @math$bitAnd(@math$shiftRightLogical(value, Int(8)), Int(255));
 Float hypotenuse(a Float, b Float) => @math$sqrt(@math$fma(a, a, @operators$multiply(b, b)));
 Float heading(y Float, x Float) => @math$atan2(y, x);
+
+/// A named constructor on a generic type (types.md §3.4), given its type as
+/// an argument (generics.md §5.3), converting a literal through it.
+Pair<T>.zeros(T Type) => init{ left = T(0); right = T(0); }

@@ -1,0 +1,56 @@
+/// Named constructors on a generic type (types.md §3.4): one given its type
+/// as an argument (generics.md §5.3), whose body converts literals through
+/// the type parameter, built at two types, and one that infers its type from
+/// the value it is given (generics.md §5.2). Each check prints `yes` when it
+/// holds and `no` when it does not.
+package namedGeneric;
+
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Small = @primitives$I32;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+type Vector2<T Type> = struct {
+	x T;
+	y T;
+}
+
+Vector2<T>.zeros(T Type) => init{ x = T(0); y = T(0); }
+
+Vector2<T>.splat(value T Type) => init{ x = value; y = value; }
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Unit main() {
+	// The type passed as an argument fills `T`, and `T(0)` is that type's zero.
+	ints Vector2.zeros(Int);
+	check(@operators$equal(@operators$add(ints.x, Int(7)), Int(7)));
+	check(@operators$equal(ints.y, Int(0)));
+
+	smalls Vector2.zeros(Small);
+	check(@operators$equal(@operators$add(smalls.x, Small(3)), Small(3)));
+	check(@operators$equal(smalls.y, Small(0)));
+
+	// The declared type of the binding names the same instance.
+	spelled Vector2<Int> = Vector2.zeros(Int);
+	check(@operators$equal(spelled.x, ints.x));
+
+	// A named constructor that infers `T` from its argument.
+	twos Vector2.splat(Int(2));
+	check(@operators$equal(@operators$add(twos.x, twos.y), Int(4)));
+	halves Vector2.splat(Float(0.5));
+	check(@operators$equal(@operators$add(halves.x, halves.y), Float(1.0)));
+	return Unit();
+}

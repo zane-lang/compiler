@@ -297,6 +297,14 @@ package app
         local both | both
         expr Call sum | sum(floats)
           expr Var floats | floats
+      stat Let | intZeros Pair.zeros(Int);
+        local intZeros | intZeros
+        expr Construct Pair.zeros | Pair.zeros(Int)
+          expr Type_arg @primitives$I64 | Int
+      stat Let | smallZeros Pair.zeros(@primitives$I32);
+        local smallZeros | smallZeros
+        expr Construct Pair.zeros | Pair.zeros(@primitives$I32)
+          expr Type_arg @primitives$I32 | @primitives$I32
       stat Let | spare ^Shape = Shape.circle(Float(1.0));
         local spare | spare
         expr Case circle | Shape.circle(Float(1.0))
@@ -564,6 +572,7 @@ package app
         expr Call @math$atan2 | @math$atan2(y, x)
           expr Var y | y
           expr Var x | x
+  decl Verb Pair.zeros | Pair<T>.zeros(T Type) => i … ft = T(0); right = T(0); }
 package shapes
   decl Alias Float | alias Float = @primitives$F64
   decl Alias Unit | alias Unit = @primitives$Unit
@@ -905,3 +914,23 @@ instances
           expr Integer_lit | 0
       stat Return | return made;
         expr Var made | made
+  instance Pair.zeros with T = @primitives$I32 | Pair<T>.zeros(T Type) => i … ft = T(0); right = T(0); }
+    block | => init{ left = T(0); right = T(0); }
+      stat Return | => init{ left = T(0); right = T(0); }
+        expr Init | init{ left = T(0); right = T(0); }
+          field left | left = T(0)
+            expr Construct @primitives$I32 | T(0)
+              expr Integer_lit | 0
+          field right | right = T(0)
+            expr Construct @primitives$I32 | T(0)
+              expr Integer_lit | 0
+  instance Pair.zeros with T = @primitives$I64 | Pair<T>.zeros(T Type) => i … ft = T(0); right = T(0); }
+    block | => init{ left = T(0); right = T(0); }
+      stat Return | => init{ left = T(0); right = T(0); }
+        expr Init | init{ left = T(0); right = T(0); }
+          field left | left = T(0)
+            expr Construct @primitives$I64 | T(0)
+              expr Integer_lit | 0
+          field right | right = T(0)
+            expr Construct @primitives$I64 | T(0)
+              expr Integer_lit | 0
