@@ -1897,8 +1897,9 @@ package | package main; /// Every im … ettled"); return Unit(); }
                   constructor_args Positional | (T, n)
                     call_arg Value | T
                       expr TypeValue | T
-                        name_type | T
-                          ident T | T
+                        type_expr Path | T
+                          name_type | T
+                            ident T | T
                     call_arg Value | n
                       expr NameExpr | n
                         name_expr | n
@@ -2926,10 +2927,58 @@ package | package main; /// Every im … ettled"); return Unit(); }
                 constructor_args Positional | (Int, 4)
                   call_arg Value | Int
                     expr TypeValue | Int
-                      name_type | Int
-                        ident Int | Int
+                      type_expr Path | Int
+                        name_type | Int
+                          ident Int | Int
                   call_arg Value | 4
                     expr IntLit | 4
+        stat Decl | shelf Slots(Pair<Int>, 2);
+          decl Var | shelf Slots(Pair<Int>, 2)
+            name shelf | shelf
+            type_expr Path | Slots
+              name_type | Slots
+                ident Slots | Slots
+            expr VerbCall | Slots(Pair<Int>, 2)
+              verb_call Constructor | Slots(Pair<Int>, 2)
+                constructor_name | Slots
+                  name_type | Slots
+                    ident Slots | Slots
+                constructor_args Positional | (Pair<Int>, 2)
+                  call_arg Value | Pair<Int>
+                    expr TypeValue | Pair<Int>
+                      type_expr Path | Pair<Int>
+                        name_type | Pair
+                          ident Pair | Pair
+                        generic_arg Type | Int
+                          type_expr Path | Int
+                            name_type | Int
+                              ident Int | Int
+                  call_arg Value | 2
+                    expr IntLit | 2
+        stat Decl | bound Slots(&Pair<Int>, 2);
+          decl Var | bound Slots(&Pair<Int>, 2)
+            name bound | bound
+            type_expr Path | Slots
+              name_type | Slots
+                ident Slots | Slots
+            expr VerbCall | Slots(&Pair<Int>, 2)
+              verb_call Constructor | Slots(&Pair<Int>, 2)
+                constructor_name | Slots
+                  name_type | Slots
+                    ident Slots | Slots
+                constructor_args Positional | (&Pair<Int>, 2)
+                  call_arg Value | &Pair<Int>
+                    expr TypeValue | &Pair<Int>
+                      type_expr Reference | &Pair<Int>
+                        type_expr Path | Pair<Int>
+                          name_type | Pair
+                            ident Pair | Pair
+                          generic_arg Type | Int
+                            type_expr Path | Int
+                              name_type | Int
+                                ident Int | Int
+                  call_arg Value | 2
+                    expr IntLit | 2
         stat Decl | spread Int = Operator.mul. … - Operator.add.precedence;
           decl Var | spread Int = Operator.mul. …  - Operator.add.precedence
             name spread | spread

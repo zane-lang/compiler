@@ -1,0 +1,24 @@
+/// A type passed to a constructor is checked as a type where it is written
+/// (generics.md §5.3): its arguments' count and kinds, the names it uses,
+/// what the type it fills holds, and a verb type's result. A roaming owner
+/// is never passed, as it is never a type argument.
+package bad;
+
+type Gong = #struct { tone Int; }
+type Couple<T Type> = #struct { left T; right T; }
+type Hopper<T Type> = #struct { items @primitives$ListRef<T>; }
+
+Hopper<T>(T Type) => init{ items = @primitives$ListRef(T); }
+
+Unit typeValues() {
+	tooMany Hopper(Couple<Int, Int>);
+	number Hopper(Couple<3>);
+	unknown Hopper(Missing<Int>);
+	unknownRef @primitives$ListRef(&Missing);
+	bare @primitives$ListRef(Couple);
+	shared @primitives$ListRef(&Gong);
+	introduced Hopper(Couple<U Type>);
+	roaming Hopper(^Gong);
+	bareResult Hopper(Gong[Int]);
+	return Unit();
+}

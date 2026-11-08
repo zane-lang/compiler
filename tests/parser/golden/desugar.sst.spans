@@ -1013,6 +1013,75 @@ package | package desugar; import co … .early)); return Unit(); }
                     expr NameExpr | four
                       name_expr | four
                         ident four | four
+        stat Decl | shelf Slots(Pair<Int>, 2);
+          decl Var | shelf Slots(Pair<Int>, 2)
+            name shelf | shelf
+            type_expr Path | Slots
+              name_type | Slots
+                ident Slots | Slots
+            expr VerbCall | Slots(Pair<Int>, 2)
+              verb_call Constructor | Slots(Pair<Int>, 2)
+                constructor_name | Slots
+                  name_type | Slots
+                    ident Slots | Slots
+                constructor_args Positional | (Pair<Int>, 2)
+                  call_arg Value | Pair<Int>
+                    expr TypeValue | Pair<Int>
+                      type_expr Path | Pair<Int>
+                        name_type | Pair
+                          ident Pair | Pair
+                        generic_arg Type | Int
+                          type_expr Path | Int
+                            name_type | Int
+                              ident Int | Int
+                  call_arg Value | 2
+                    expr IntLit | 2
+        stat Decl | bound Slots(&Vec, 2);
+          decl Var | bound Slots(&Vec, 2)
+            name bound | bound
+            type_expr Path | Slots
+              name_type | Slots
+                ident Slots | Slots
+            expr VerbCall | Slots(&Vec, 2)
+              verb_call Constructor | Slots(&Vec, 2)
+                constructor_name | Slots
+                  name_type | Slots
+                    ident Slots | Slots
+                constructor_args Positional | (&Vec, 2)
+                  call_arg Value | &Vec
+                    expr TypeValue | &Vec
+                      type_expr Reference | &Vec
+                        type_expr Path | Vec
+                          name_type | Vec
+                            ident Vec | Vec
+                  call_arg Value | 2
+                    expr IntLit | 2
+        stat Decl | calls Slots(Int[Vec], 2);
+          decl Var | calls Slots(Int[Vec], 2)
+            name calls | calls
+            type_expr Path | Slots
+              name_type | Slots
+                ident Slots | Slots
+            expr VerbCall | Slots(Int[Vec], 2)
+              verb_call Constructor | Slots(Int[Vec], 2)
+                constructor_name | Slots
+                  name_type | Slots
+                    ident Slots | Slots
+                constructor_args Positional | (Int[Vec], 2)
+                  call_arg Value | Int[Vec]
+                    expr TypeValue | Int[Vec]
+                      type_expr Verb | Int[Vec]
+                        verb_type Func | Int[Vec]
+                          param_type Concrete | Vec
+                            type_expr Path | Vec
+                              name_type | Vec
+                                ident Vec | Vec
+                          ret_type Safe | Int
+                            type_expr Path | Int
+                              name_type | Int
+                                ident Int | Int
+                  call_arg Value | 2
+                    expr IntLit | 2
         stat Decl | grouped Int = (two + four) * (two - four);
           decl Var | grouped Int = (two + four) * (two - four)
             name grouped | grouped

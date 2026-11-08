@@ -237,3 +237,26 @@ Float heading(y Float, x Float) => @math$atan2(y, x);
 /// A named constructor on a generic type (types.md §3.4), given its type as
 /// an argument (generics.md §5.3), converting a literal through it.
 Pair<T>.zeros(T Type) => init{ left = T(0); right = T(0); }
+
+/// A type passed to a constructor may be applied, a reference or a verb type
+/// (generics.md §5.3): over a concrete type, over the constructor's own
+/// parameter, and with a number the constructor's own parameter fixes.
+type Duo<T Type> = #struct { left T; right T; }
+type Rack<T Type> = #struct { duos @primitives$ListRef<Duo<T>>; }
+type Tally<T Type, n @concepts$Int> = #struct { count Int; }
+
+Rack<T>(T Type) => init{ duos = @primitives$ListRef(Duo<T>); }
+Tally<T, n>(T Type, n @concepts$Int) => init{ count = Int(0); }
+type Grid<T Type, n @concepts$Int> = #struct { rows Tally<Array<T, n>, n>; }
+Grid<T, n>(T Type, n @concepts$Int) => init{ rows = Tally(Array<T, n>, n); }
+
+Unit racks() {
+	ints Rack(Int);
+	duos @primitives$ListRef<Duo<Float>> = @primitives$ListRef(Duo<Float>);
+	pointed Tally(&Shape, 2);
+	paired Tally(Duo<&Shape>, 3);
+	grid Grid(Int, 4);
+	calls Tally(Int[Float], 1);
+	failing Tally(Int?String[Duo<Int>], 1);
+	return Unit();
+}

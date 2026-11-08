@@ -99,12 +99,29 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   | N.Expr.MapLit entries -> map_literal env ctx span entries
   | N.Expr.NameExpr n -> name_value env ctx n
   | N.Expr.TypeMember { type_; member } -> type_member env ctx span type_ member
-  | N.Expr.TypeValue name -> (
-      match Type_decls.resolve_head env (type_scope ctx) name with
-      | Type_decls.Unknown -> invalid span
-      | head ->
-          let t = Type_decls.apply env (type_scope ctx) span head name [] in
-          mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span)
+  | N.Expr.TypeValue te -> (
+      (* Checked where it is written, as a declared type is. A type that
+         fails anywhere in it is not passed on, so neither the call nor an
+         instance reports it again: `&Missing` is not also a reference
+         filling a `ListRef`. *)
+      let before = !(env.diagnostics) in
+      let failed () = !(env.diagnostics) != before in
+      match Type_decls.resolve env (type_scope ctx) te with
+      | Ty.Error -> invalid span
+      | _ when failed () -> invalid span
+      (* A passed type fills a type parameter, as a `< >` argument does, and
+         is held to the same rule (syntax.md §2.3). *)
+      | t when Ty.is_roaming t ->
+          error env span
+            (Printf.sprintf
+               "%s is a roaming owner, and `^` is written only on a local, a parameter or a \
+                return type, never on a type passed as an argument"
+               (quote (Ty.to_string t)));
+          invalid span
+      | t ->
+          Type_decls.check_function_types env span t;
+          if failed () then invalid span
+          else mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span)
   | N.Expr.DotAccess { target; field; abort_handle } -> member env ~flow ctx span target field abort_handle
   | N.Expr.Subscript { target; args } -> subscript env ctx span target args
   | N.Expr.Init fields -> init env ctx span fields

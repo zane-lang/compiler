@@ -8545,6 +8545,140 @@
   (diff golden/texts.out texts.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/typeValues))
+ (action
+  (with-stdout-to
+   typeValues.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/typeValues))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/typeValues.cgt typeValues.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/typeValues))
+ (targets typeValues.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build typeValues.exe --package fixtures/typeValues)))
+
+(rule
+ (deps (source_tree fixtures/typeValues))
+ (targets typeValues.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build typeValues.optimized.exe --optimize --package fixtures/typeValues)))
+
+(rule
+ (deps (source_tree fixtures/typeValues))
+ (targets typeValues.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build typeValues.tiered.exe --tiered --package fixtures/typeValues)))
+
+(rule
+ (deps (source_tree fixtures/typeValues))
+ (targets typeValues.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up typeValues.tier1 --package fixtures/typeValues)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    typeValues.checked.out.actual
+    (run ./typeValues.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/typeValues.out typeValues.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    typeValues.unchecked.out.actual
+    (run ./typeValues.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/typeValues.out typeValues.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    typeValues.optimized.checked.out.actual
+    (run ./typeValues.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/typeValues.out typeValues.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    typeValues.optimized.unchecked.out.actual
+    (run ./typeValues.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/typeValues.out typeValues.optimized.unchecked.out.actual)))
+
+(rule
+ (deps typeValues.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./typeValues.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    typeValues.tiered.checked.out.actual
+    (run ./typeValues.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/typeValues.out typeValues.tiered.checked.out.actual)))
+
+(rule
+ (deps typeValues.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./typeValues.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    typeValues.tiered.unchecked.out.actual
+    (run ./typeValues.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/typeValues.out typeValues.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/walks))
  (targets walks.exe)
  (action

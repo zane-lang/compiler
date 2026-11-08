@@ -174,24 +174,51 @@ class DeclarationTests(ParserSyntaxTestCase):
             Unit use() { v Vector2.zeros(Int); }
             '''
         )
-        # Inside a constructor call, too, only a bare name is a type value.
-        self.assert_rejects("Unit use() { v Vector2.zeros(Array<Int, 4>); }")
-        self.assert_rejects("Unit use() { vec Vector(Array<Int, 4>); }")
+        # So does any other type: applied, a reference or a verb type,
+        # including one over a generic's own parameter.
+        self.assert_parses(
+            """
+            Unit use() {
+                v Vector2.zeros(Array<Int, 4>);
+                vec Vector(Array<Int, 4>);
+                room Slots(Array<Int, 4>, 2);
+                pairs @primitives$ListRef(Pair<Int>);
+                deep Slots(math$Grid<@primitives$I64, 3>, 2);
+                row ArrayRef([p, q], &Port);
+                bound Slots(&Pair<Int>, 2);
+                calls Slots(Int[Int], 2);
+                methods Slots(Int[this Port, Int] mut, 2);
+                failing Slots(Int?Error[String], 2);
+                return Unit();
+            }
+            """
+        )
+        self.assert_parses(
+            "Bag<T>(T Type) => init{ items = @primitives$ListRef(Pair<T>); }"
+        )
+        self.assert_parses(
+            "Hooks<T>(T Type) => init{ items = @primitives$ListRef(Unit[T]); }"
+        )
         # The inferred half is unchanged and still the one a literal drives.
         self.assert_parses(
             "Unit use() { vec Vector(Int(2), Int(3)); }"
         )
 
-    def test_only_a_bare_name_is_a_type_value(self) -> None:
-        # A type name written as a value closes on the name. Every other type
-        # spelling continues into a bracket that means something else in an
-        # expression -- `<` a comparison, `[` a subscript, `&` a reference --
-        # so only the bare name may be written here.
+    def test_a_type_value_is_a_whole_constructor_argument(self) -> None:
+        # A type is never an operand, so `<` after a type name opens its `<>`
+        # list and `&` before one makes it a reference. Only a constructor
+        # takes one, only whole, and only positionally: a field constructor's
+        # entries are the type's fields, and a type is never stored.
         # See docs/spec-divergences.md.
         self.assert_rejects("Unit use() { register(Array<Int, 4>); }")
         self.assert_rejects("Unit use() { register(&Int); }")
-        self.assert_rejects("Unit use() { row ArrayRef([p, q], &Port); }")
         self.assert_rejects("Unit use() { register(Int[3]); }")
+        self.assert_rejects("Unit use() { item Slot{kind = Int;} }")
+        self.assert_rejects("Unit use() { item Slot{kind = Array<Int, 4>;} }")
+        self.assert_rejects("Unit use() { room Slots(Int[Int] + 1, 2); }")
+        self.assert_rejects("Unit use() { room Slots(Array<Int, 4> + 1, 2); }")
+        self.assert_rejects("Unit use() { room Slots(&Int + 1, 2); }")
+        self.assert_rejects("Unit use() { held Pair<Int> = Pair<Int>; }")
         # `Type` is a concept: legal in a parameter position, never as storage.
         self.assert_rejects("Unit use() { held Type = Int; }")
         self.assert_rejects("Type pick() { return Int; }")

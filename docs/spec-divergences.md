@@ -128,33 +128,36 @@ the grammar was refusing the trailing form everywhere on the strength of it.
 Narrowing it to the empty argument list keeps every spelling the declaration
 and the lambda literal can take, and gives the rest back to the call.
 
-## 3. A type is passed only to a constructor, and only by bare name
+## 3. A type is passed only to a constructor
 
 **Spec** — [`generics.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/generics.md)
 §5.3: "A type or number can instead be passed as an ordinary argument by
 declaring a value parameter of concept type `Type` or `Number`. The argument is
-then written positionally in `()`, like any other value." A type is whatever a
-type expression describes, so nothing in that sentence narrows it to a name.
+then written positionally in `()`, like any other value." Any verb may declare
+such a parameter.
 
-**Compiler** — a type is passed as a value only as a whole argument of a
-constructor call, positional or named, and only as a bare name. A type name
-anywhere else a value is expected is a syntax error: as an argument of an
-ordinary function or method, as an operand of an operator, or as the value of a
-declaration.
+**Compiler** — a type is passed as a value only as a whole positional argument
+of a constructor call. Any type may be written there: a name, an applied type,
+a reference or a verb type. A type anywhere else a value is expected is a
+syntax error: as an argument of an ordinary function or method, as an operand
+of an operator, as a named argument, or as the value of a declaration.
 
 ```zane
-arr Array(Int, 10000);        // accepted
-room Slots(math$Vector, 4);   // accepted: a qualified name is still a name
-held Slot(@primitives$I64);   // accepted: so is an intrinsic one
-item Slot{type = Int;}        // accepted: a named argument
+arr Array(Int, 10000);            // accepted
+room Slots(math$Vector, 4);       // accepted: a qualified name
+held Slot(@primitives$I64);       // accepted: an intrinsic one
+room Slots(Array<Int, 4>, 2);     // accepted: an applied type
+refs Slots(&Port, 2);             // accepted: a reference type
+calls Slots(Int[Int], 2);         // accepted: a verb type
 
-register(Int);                // rejected: an ordinary function argument
-held Slot = Int;              // rejected: the value of a declaration
-arr Array(Int + 1);           // rejected: an operand
-room Slots(Array<Int, 4>, 2); // rejected: an applied type
-room Slots(&Int, 2);          // rejected: a reference type
-room Slots(Int[3], 2);        // rejected: an array type
+register(Int);                    // rejected: an ordinary function argument
+held Slot = Int;                  // rejected: the value of a declaration
+arr Array(Int + 1);               // rejected: an operand
+item Slot{kind = Int;}            // rejected: a named argument
 ```
+
+A roaming owner (`Slots(^Port, 2)`) parses as a type and is rejected by the
+checker, as it is inside a `< >` list.
 
 **Why constructors.** What has to be excluded is a type as an operand. Where a
 type name may be an operand, the `<` after it reads both as a comparison and as
@@ -183,16 +186,19 @@ is a whole argument too, so allowing types there would not bring the ambiguity
 back; it is left out by choice. A generic function gets its type parameter by
 inference instead: `T same(value T Type)` fixes `T` from the argument.
 
-**Why bare names.** A bare name ends where it is written. Every other type
-spelling continues into a bracket that already means something else after an
-expression: `<` opens a comparison, `[` a subscript, and a leading `&` belongs
-to a lambda's return type
-([`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§3.8). While a type could stand anywhere a value could, admitting the applied
-form added three reduce/reduce states against the verb-type suffix list;
-[`ambiguity/proof-obligations.md`](ambiguity/proof-obligations.md) carries the
-measurement. The bare-name rule is kept from then; it has not been re-measured
-for the constructor-argument position alone.
+**Why positional only.** A named argument fills a field constructor's entry,
+and a field constructor's entries are the type's fields (types.md §3.3). A
+type passed by name would be a type stored in a value, and `Type` is a concept,
+never storage. A field constructor cannot declare a `Type` entry, so a named
+type argument would have nothing to fill. This matches the spec's own
+"positionally in `()`".
+
+**Why every type is unambiguous here.** A passed type is a prefix of a lambda:
+`Foo<1>[]() {}` begins with `Foo<1>`, `&Port() {}` with `&Port`, and
+`Int[Int]() {}` with the verb type `Int[Int]`. Since none is an operand, the
+token after the type decides: `,` or `)` ends the argument, and `(` or a
+further `[` continues the lambda
+([`ambiguity/experiments.md`](ambiguity/experiments.md#every-type-as-a-type-value)).
 
 ## 4. A `match` parenthesizes its scrutinee list
 
