@@ -948,6 +948,40 @@ package | package desugar; import co … .early)); return Unit(); }
                   expr | four
                     name_expr | four
                       ident four | four
+        statement | shelf Slots(Pair<Int>, 2);
+          stat | shelf Slots(Pair<Int>, 2);
+            decl | shelf Slots(Pair<Int>, 2)
+              name shelf | shelf
+              constructor_name | Slots
+                name_type | Slots
+                  ident Slots | Slots
+              constructor_args | (Pair<Int>, 2)
+                call_arg | Pair<Int>
+                  expr | Pair<Int>
+                    type_expr | Pair<Int>
+                      name_type | Pair
+                        ident Pair | Pair
+                      generic_arg | Int
+                        type_expr | Int
+                          name_type | Int
+                            ident Int | Int
+                call_arg | 2
+                  expr | 2
+        statement | bound Slot{kind = &Vec;}
+          stat | bound Slot{kind = &Vec;}
+            decl | bound Slot{kind = &Vec;}
+              name bound | bound
+              constructor_name | Slot
+                name_type | Slot
+                  ident Slot | Slot
+              constructor_args | {kind = &Vec;}
+                field_arg | kind = &Vec
+                  name kind | kind
+                  expr | &Vec
+                    type_expr | &Vec
+                      type_expr | Vec
+                        name_type | Vec
+                          ident Vec | Vec
         statement | grouped Int = (two + four) * (two - four);
           stat | grouped Int = (two + four) * (two - four);
             decl | grouped Int = (two + four) * (two - four)

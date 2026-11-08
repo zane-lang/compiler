@@ -38,7 +38,7 @@ let rec expr_ends_in_brace (value : Nodes.Expr.t) =
   | Nodes.Expr.MethLambda { body; _ } -> body_ends_in_brace body
   | Nodes.Expr.DotAccess { abort_handle = Some handle; _ } ->
       abort_handle_ends_in_brace handle
-  (* Closed by `)`, `]`, or the name itself. *)
+  (* Closed by `)`, `]`, `>`, or the name itself. *)
   | Nodes.Expr.IntLit _ | Nodes.Expr.DecimalLit _ | Nodes.Expr.StrLit _
   | Nodes.Expr.BoolLit _ | Nodes.Expr.CollectionLit _ | Nodes.Expr.NameExpr _
   | Nodes.Expr.TypeMember _ | Nodes.Expr.TypeValue _ | Nodes.Expr.DotAccess _

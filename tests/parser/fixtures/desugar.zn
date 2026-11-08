@@ -125,6 +125,10 @@ Unit shorthands() {
 	two Int = Int(2);
 	four Int = Int(4);
 	implied Vec{x = two; y = four;}
+	// A type passed to a constructor stays the type it spells: applied, or a
+	// reference, positional or named.
+	shelf Slots(Pair<Int>, 2);
+	bound Slot{kind = &Vec;}
 	grouped Int = (two + four) * (two - four);
 	ran Bool = if(two < four) {
 		print("smaller");

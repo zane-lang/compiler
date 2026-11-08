@@ -745,6 +745,35 @@
     │       │       │   └── value: four
     │       │       └── abort: none
     │       ├── stat[6] > var_decl:
+    │       │   ├── name: shelf
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Slots
+    │       │   │   └── args:
+    │       │   └── value > ctor_call:
+    │       │       ├── type: Slots
+    │       │       ├── args[0] > type_value:
+    │       │       │   └── type:
+    │       │       │       ├── qualifier: Pair
+    │       │       │       └── args[0]:
+    │       │       │           ├── qualifier: Int
+    │       │       │           └── args:
+    │       │       ├── args[1]: 2
+    │       │       └── abort: none
+    │       ├── stat[7] > var_decl:
+    │       │   ├── name: bound
+    │       │   ├── type:
+    │       │   │   ├── qualifier: Slot
+    │       │   │   └── args:
+    │       │   └── value > ctor_call:
+    │       │       ├── type: Slot
+    │       │       ├── args > fields[0]:
+    │       │       │   ├── name: kind
+    │       │       │   └── value > type_value:
+    │       │       │       └── type > reference:
+    │       │       │           ├── qualifier: Vec
+    │       │       │           └── args:
+    │       │       └── abort: none
+    │       ├── stat[8] > var_decl:
     │       │   ├── name: grouped
     │       │   ├── type:
     │       │   │   ├── qualifier: Int
@@ -767,7 +796,7 @@
     │       │       │   └── abort: none
     │       │       ├── swapped: false
     │       │       └── abort: none
-    │       ├── stat[7] > var_decl:
+    │       ├── stat[9] > var_decl:
     │       │   ├── name: ran
     │       │   ├── type:
     │       │   │   ├── qualifier: Bool
@@ -788,7 +817,7 @@
     │       │       │       ├── args[0]: smaller
     │       │       │       └── abort: none
     │       │       └── abort: none
-    │       ├── stat[8] > call:
+    │       ├── stat[10] > call:
     │       │   ├── form: method:
     │       │   ├── callee: else
     │       │   ├── args[0]: ran
@@ -799,7 +828,7 @@
     │       │   │       ├── args[0]: not smaller
     │       │   │       └── abort: none
     │       │   └── abort: none
-    │       └── stat[9] > ret_stat > ctor_call:
+    │       └── stat[11] > ret_stat > ctor_call:
     │           ├── type: Unit
     │           ├── args:
     │           └── abort: none
