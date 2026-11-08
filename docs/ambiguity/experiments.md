@@ -76,6 +76,28 @@ proven unambiguous at every sentence length: [formal-proof.md](formal-proof.md)
 states the Lean theorems, and [visible-proof.md](visible-proof.md) the
 construction they check.
 
+### Applied and reference type values
+
+The follow-up widens `constructor_value` from a bare name to a named type,
+applied or not (`Slots(Array<Int, 4>, 2)`), or a reference to one
+(`Slots(&Pair<Int>, 2)`). Each is a prefix of a lambda (`Foo<1>[]() {}`,
+`&Foo() {}`), and neither is an operand, so the token after it decides: `,`,
+`)` or `;` ends the argument, `[` or `(` continues the lambda.
+
+The Menhir automaton keeps its 50 shift/reduce states and gains no
+reduce/reduce state; both pinned conflict censuses are unchanged. The
+action-erased GLR engine finds one derivation for each new spelling,
+positional and named, one for `Ctor(Foo<1>[]() {})` and
+`Ctor(&Foo<1>[]() {})`, and none for an applied type as an operand, a verb
+type, a `^` type or a type in an ordinary call
+(`tests/grammar/type_arguments_test.py`). The visible-stack certificate proves
+the grammar unambiguous: 2,324 configurations in 30 frames over a 1,384-state
+GLR model, against 2,294 and 1,372 before the change, and the stock automaton
+likewise. `just verify-grammar` re-checks it in Lean.
+
+A verb type (`Int[Int]`) is not admitted: it is a lambda's return type up to
+its last `]`, and it has not been measured in this position.
+
 ## Restructurings that were measured and rejected
 
 `enum_map_tail` removed twelve conflicts by shifting every bracket group before

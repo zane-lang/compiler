@@ -111,7 +111,7 @@ module rec Expr : sig
     | CollectionLit of t list
     | NameExpr of Name_expr.t
     | TypeMember of { type_ : Name_type.t; member : Name.t }
-    | TypeValue of Name_type.t
+    | TypeValue of Type_expr.t
     | DotAccess of {
         target : t;
         field : Name.t;

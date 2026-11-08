@@ -156,7 +156,7 @@ and expression (x : C.Expr.t) : S.Expr.t =
         | C.Expr.TypeMember { type_; member } ->
             S.Expr.TypeMember
               { type_ = name_type type_; member = name member }
-        | C.Expr.TypeValue t -> S.Expr.TypeValue (name_type t)
+        | C.Expr.TypeValue t -> S.Expr.TypeValue (type_expr t)
         | C.Expr.DotAccess { target; field; abort_handle } ->
             S.Expr.DotAccess
               {

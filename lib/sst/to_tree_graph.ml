@@ -213,7 +213,7 @@ and expr_to_node (x : Nodes.Expr.t) =
              ("type", name_type_to_node type_); ("member", Leaf (text member));
            ])
   | TypeValue type_ ->
-      group "type_value" (fields [ ("type", name_type_to_node type_) ])
+      group "type_value" (fields [ ("type", type_to_node type_) ])
   | DotAccess { target; field; abort_handle } ->
       group "dot_access"
         (fields

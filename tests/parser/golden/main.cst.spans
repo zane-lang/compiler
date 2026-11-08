@@ -1798,8 +1798,9 @@ package | package main; /// Every im … ettled"); return Unit(); }
                 constructor_args | (T, n)
                   call_arg | T
                     expr | T
-                      name_type | T
-                        ident T | T
+                      type_expr | T
+                        name_type | T
+                          ident T | T
                   call_arg | n
                     expr | n
                       name_expr | n
@@ -2805,10 +2806,50 @@ package | package main; /// Every im … ettled"); return Unit(); }
               constructor_args | (Int, 4)
                 call_arg | Int
                   expr | Int
-                    name_type | Int
-                      ident Int | Int
+                    type_expr | Int
+                      name_type | Int
+                        ident Int | Int
                 call_arg | 4
                   expr | 4
+        statement | shelf Slots(Pair<Int>, 2);
+          stat | shelf Slots(Pair<Int>, 2);
+            decl | shelf Slots(Pair<Int>, 2)
+              name shelf | shelf
+              constructor_name | Slots
+                name_type | Slots
+                  ident Slots | Slots
+              constructor_args | (Pair<Int>, 2)
+                call_arg | Pair<Int>
+                  expr | Pair<Int>
+                    type_expr | Pair<Int>
+                      name_type | Pair
+                        ident Pair | Pair
+                      generic_arg | Int
+                        type_expr | Int
+                          name_type | Int
+                            ident Int | Int
+                call_arg | 2
+                  expr | 2
+        statement | bound Slots(&Pair<Int>, 2);
+          stat | bound Slots(&Pair<Int>, 2);
+            decl | bound Slots(&Pair<Int>, 2)
+              name bound | bound
+              constructor_name | Slots
+                name_type | Slots
+                  ident Slots | Slots
+              constructor_args | (&Pair<Int>, 2)
+                call_arg | &Pair<Int>
+                  expr | &Pair<Int>
+                    type_expr | &Pair<Int>
+                      type_expr | Pair<Int>
+                        name_type | Pair
+                          ident Pair | Pair
+                        generic_arg | Int
+                          type_expr | Int
+                            name_type | Int
+                              ident Int | Int
+                call_arg | 2
+                  expr | 2
         statement | spread Int = Operator.mul. … - Operator.add.precedence;
           stat | spread Int = Operator.mul. … - Operator.add.precedence;
             decl | spread Int = Operator.mul. …  - Operator.add.precedence

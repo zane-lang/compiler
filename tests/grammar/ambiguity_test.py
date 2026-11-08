@@ -674,16 +674,34 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "dot(type_member)",
         )
 
-    def test_only_a_bare_name_may_be_passed_as_a_type(self) -> None:
-        # An applied generic type, a guest type, and a verb type all have a
-        # spelling that a following bracket continues, so admitting them here
-        # would fork on the token after the name rather than on the name
-        # itself. See docs/spec-divergences.md.
+    def test_a_named_or_referenced_type_may_be_passed_to_a_constructor(self) -> None:
+        # A constructor takes a named type, applied or not, or a reference to
+        # one. Neither is an operand, so the `<` after the name can only open
+        # its `<>` list. An ordinary call takes none of them, and a verb type
+        # stays out. See docs/spec-divergences.md.
         self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT UIDENT LPAREN UIDENT "
             "COMMA INT RPAREN SEMICOLON RCURLY EOF",
             "Unit f() { arr Array(Int, 10000); }",
             1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT UIDENT LPAREN UIDENT LESS "
+            "UIDENT COMMA INT MORE COMMA INT RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { room Slots(Array<Int, 4>, 2); }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT UIDENT LPAREN AMPERSAND "
+            "UIDENT COMMA INT RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { room Slots(&Int, 2); }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT UIDENT LPAREN UIDENT "
+            "LBRACKET UIDENT RBRACKET COMMA INT RPAREN SEMICOLON RCURLY EOF",
+            "Unit f() { room Slots(Int[Int], 2); }",
+            0,
         )
         self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN UIDENT LESS "

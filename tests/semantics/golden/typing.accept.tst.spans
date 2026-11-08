@@ -564,6 +564,40 @@ package app
         expr Call @math$atan2 | @math$atan2(y, x)
           expr Var y | y
           expr Var x | x
+  decl Type Duo | type Duo<T Type> = #struct { left T; right T; }
+  decl Type Rack | type Rack<T Type> = #struc … mitives$ListRef<Duo<T>>; }
+  decl Type Tally | type Tally<T Type, n @conc … > = #struct { count Int; }
+  decl Verb Rack | Rack<T>(T Type) => init{ d … mitives$ListRef(Duo<T>); }
+  decl Verb Tally | Tally<T, n>(T Type, n @con … => init{ count = Int(0); }
+  decl Type Grid | type Grid<T Type, n @conce … s Tally<Array<T, n>, n>; }
+  decl Verb Grid | Grid<T, n>(T Type, n @conc … = Tally(Array<T, n>, n); }
+  decl Verb racks | Unit racks() { ints Rack(I … (Int, 4); return Unit(); }
+    block | { ints Rack(Int); duos @pr … (Int, 4); return Unit(); }
+      stat Let | ints Rack(Int);
+        local ints | ints
+        expr Construct Rack | Rack(Int)
+          expr Type_arg @primitives$I64 | Int
+      stat Let | duos @primitives$ListRef<D … tives$ListRef(Duo<Float>);
+        local duos | duos
+        expr Construct @primitives$ListRef | @primitives$ListRef(Duo<Float>)
+          expr Type_arg app$Duo<@primitives$F64> | Duo<Float>
+      stat Let | pointed Tally(&Shape, 2);
+        local pointed | pointed
+        expr Construct Tally | Tally(&Shape, 2)
+          expr Type_arg &shapes$Shape | &Shape
+          expr Integer_lit | 2
+      stat Let | paired Tally(Duo<&Shape>, 3);
+        local paired | paired
+        expr Construct Tally | Tally(Duo<&Shape>, 3)
+          expr Type_arg app$Duo<&shapes$Shape> | Duo<&Shape>
+          expr Integer_lit | 3
+      stat Let | grid Grid(Int, 4);
+        local grid | grid
+        expr Construct Grid | Grid(Int, 4)
+          expr Type_arg @primitives$I64 | Int
+          expr Integer_lit | 4
+      stat Return | return Unit();
+        expr Construct @primitives$Unit | Unit()
 package shapes
   decl Alias Float | alias Float = @primitives$F64
   decl Alias Unit | alias Unit = @primitives$Unit
@@ -905,3 +939,39 @@ instances
           expr Integer_lit | 0
       stat Return | return made;
         expr Var made | made
+  instance Rack with T = @primitives$I64 | Rack<T>(T Type) => init{ d … mitives$ListRef(Duo<T>); }
+    block | => init{ duos = @primitives$ListRef(Duo<T>); }
+      stat Return | => init{ duos = @primitives$ListRef(Duo<T>); }
+        expr Init | init{ duos = @primitives$ListRef(Duo<T>); }
+          field duos | duos = @primitives$ListRef(Duo<T>)
+            expr Construct @primitives$ListRef | @primitives$ListRef(Duo<T>)
+              expr Type_arg app$Duo<@primitives$I64> | Duo<T>
+  instance Tally with T = &shapes$Shape, n = 2 | Tally<T, n>(T Type, n @con … => init{ count = Int(0); }
+    block | => init{ count = Int(0); }
+      stat Return | => init{ count = Int(0); }
+        expr Init | init{ count = Int(0); }
+          field count | count = Int(0)
+            expr Construct @primitives$I64 | Int(0)
+              expr Integer_lit | 0
+  instance Tally with T = @primitives$Array<@primitives$I64, 4>, n = 4 | Tally<T, n>(T Type, n @con … => init{ count = Int(0); }
+    block | => init{ count = Int(0); }
+      stat Return | => init{ count = Int(0); }
+        expr Init | init{ count = Int(0); }
+          field count | count = Int(0)
+            expr Construct @primitives$I64 | Int(0)
+              expr Integer_lit | 0
+  instance Tally with T = app$Duo<&shapes$Shape>, n = 3 | Tally<T, n>(T Type, n @con … => init{ count = Int(0); }
+    block | => init{ count = Int(0); }
+      stat Return | => init{ count = Int(0); }
+        expr Init | init{ count = Int(0); }
+          field count | count = Int(0)
+            expr Construct @primitives$I64 | Int(0)
+              expr Integer_lit | 0
+  instance Grid with T = @primitives$I64, n = 4 | Grid<T, n>(T Type, n @conc … = Tally(Array<T, n>, n); }
+    block | => init{ rows = Tally(Array<T, n>, n); }
+      stat Return | => init{ rows = Tally(Array<T, n>, n); }
+        expr Init | init{ rows = Tally(Array<T, n>, n); }
+          field rows | rows = Tally(Array<T, n>, n)
+            expr Construct Tally | Tally(Array<T, n>, n)
+              expr Type_arg @primitives$Array<@primitives$I64, 4> | Array<T, n>
+              expr Var n | n

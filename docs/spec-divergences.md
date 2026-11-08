@@ -128,32 +128,33 @@ the grammar was refusing the trailing form everywhere on the strength of it.
 Narrowing it to the empty argument list keeps every spelling the declaration
 and the lambda literal can take, and gives the rest back to the call.
 
-## 3. A type is passed only to a constructor, and only by bare name
+## 3. A type is passed only to a constructor, and never as a verb type
 
 **Spec** — [`generics.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/generics.md)
 §5.3: "A type or number can instead be passed as an ordinary argument by
 declaring a value parameter of concept type `Type` or `Number`. The argument is
 then written positionally in `()`, like any other value." A type is whatever a
-type expression describes, so nothing in that sentence narrows it to a name.
+type expression describes, so nothing in that sentence narrows where it goes or
+how it is spelled.
 
 **Compiler** — a type is passed as a value only as a whole argument of a
-constructor call, positional or named, and only as a bare name. A type name
-anywhere else a value is expected is a syntax error: as an argument of an
-ordinary function or method, as an operand of an operator, or as the value of a
-declaration.
+constructor call, positional or named. It is written as a named type, applied
+or not, or as a reference to one. A type anywhere else a value is expected is a
+syntax error: as an argument of an ordinary function or method, as an operand
+of an operator, or as the value of a declaration. A verb type is not passed.
 
 ```zane
-arr Array(Int, 10000);        // accepted
-room Slots(math$Vector, 4);   // accepted: a qualified name is still a name
-held Slot(@primitives$I64);   // accepted: so is an intrinsic one
-item Slot{type = Int;}        // accepted: a named argument
+arr Array(Int, 10000);            // accepted
+room Slots(math$Vector, 4);       // accepted: a qualified name
+held Slot(@primitives$I64);       // accepted: an intrinsic one
+room Slots(Array<Int, 4>, 2);     // accepted: an applied type
+refs Slots(&Port, 2);             // accepted: a reference type
+item Slot{kind = Pair<Int>;}      // accepted: a named argument
 
-register(Int);                // rejected: an ordinary function argument
-held Slot = Int;              // rejected: the value of a declaration
-arr Array(Int + 1);           // rejected: an operand
-room Slots(Array<Int, 4>, 2); // rejected: an applied type
-room Slots(&Int, 2);          // rejected: a reference type
-room Slots(Int[3], 2);        // rejected: an array type
+register(Int);                    // rejected: an ordinary function argument
+held Slot = Int;                  // rejected: the value of a declaration
+arr Array(Int + 1);               // rejected: an operand
+room Slots(Int[Int], 2);          // rejected: a verb type
 ```
 
 **Why constructors.** What has to be excluded is a type as an operand. Where a
@@ -183,16 +184,14 @@ is a whole argument too, so allowing types there would not bring the ambiguity
 back; it is left out by choice. A generic function gets its type parameter by
 inference instead: `T same(value T Type)` fixes `T` from the argument.
 
-**Why bare names.** A bare name ends where it is written. Every other type
-spelling continues into a bracket that already means something else after an
-expression: `<` opens a comparison, `[` a subscript, and a leading `&` belongs
-to a lambda's return type
-([`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§3.8). While a type could stand anywhere a value could, admitting the applied
-form added three reduce/reduce states against the verb-type suffix list;
-[`ambiguity/proof-obligations.md`](ambiguity/proof-obligations.md) carries the
-measurement. The bare-name rule is kept from then; it has not been re-measured
-for the constructor-argument position alone.
+**Why not verb types.** A passed type is a prefix of a lambda: `Foo<1>[]() {}`
+begins with `Foo<1>`, and `&Port() {}` with `&Port`. A named type and a
+reference to one end before the `[` or `(` that continues a lambda, so the
+token after them decides, and the grammar stays unambiguous with both admitted
+([`ambiguity/experiments.md`](ambiguity/experiments.md#applied-and-reference-type-values)).
+A verb type such as `Int[Int]` is itself a lambda's return type up to its last
+`]`. It has not been measured in this position, and it is left out until it
+is.
 
 ## 4. A `match` parenthesizes its scrutinee list
 

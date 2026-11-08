@@ -38,8 +38,9 @@ and decl v acc (d : Decl.t) =
 and expr v acc (e : Expr.t) =
   match e.Expr.node with
   | Expr.IntLit _ | Expr.DecimalLit _ | Expr.StrLit _ | Expr.BoolLit _ | Expr.NameExpr _ | Expr.Foreign_global _
-  | Expr.TypeMember _ | Expr.TypeValue _ ->
+  | Expr.TypeMember _ ->
       acc
+  | Expr.TypeValue t -> v.type_expr acc t
   | Expr.CollectionLit items -> List.fold_left (expr v) acc items
   | Expr.DotAccess { target; abort_handle; _ } -> handle v (expr v acc target) abort_handle
   | Expr.Subscript { target; args } -> List.fold_left (expr v) (expr v acc target) args

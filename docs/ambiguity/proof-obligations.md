@@ -127,7 +127,7 @@ local parser forks, not complete competing parses.
 
 The [visible-stack certificate](visible-proof.md) covers every retained fork
 in both current automata, conditional on its documented trusted components.
-The remaining `(` forks distinguish a constructor argument ending in a bare
+The remaining `(` forks distinguish a constructor argument ending in a named
 type from a constructor call or lambda continuing after that name. The
 constructor-type regression checks the permitted and rejected spellings;
 operator operands and ordinary function arguments no longer admit bare types.
@@ -394,13 +394,15 @@ constructor argument. `tests/grammar/type_arguments_test.py` checks that the
 exception does not leak into ordinary expressions. This closes the identified
 type-value/comparison family, not every remaining proof obligation.
 
-**Only bare names are supported as standalone constructor type arguments.**
-That restriction predates the constructor-only rule. The previous `expr`
-production was measured to add three reduce/reduce states when extended to
-applied types, against `list_verb_type_suffix_ ->`. Those historical
-measurements do not establish a limitation of the new constructor argument
-rule. This change preserves the existing bare-name restriction;
-[`spec-divergences.md`](../spec-divergences.md) records the remaining gap.
+**A standalone constructor type argument is a named type, applied or not, or a
+reference to one.** The previous `expr` production was measured to add three
+reduce/reduce states when extended to applied types, against
+`list_verb_type_suffix_ ->`. Inside `constructor_value` the same extension adds
+none: the census is unchanged, and the visible-stack certificate proves the
+grammar unambiguous with it
+([experiments.md](experiments.md#applied-and-reference-type-values)). A verb
+type is not admitted there; [`spec-divergences.md`](../spec-divergences.md)
+records that gap.
 
 The state counts below describe the earlier census and must be regenerated
 before being used as measurements of the constructor-only grammar.

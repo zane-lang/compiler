@@ -80,5 +80,5 @@
 (constructor_field . (identifier) @variable.parameter)
 
 ; Neovim's own captures (grammar/tree-sitter.coda neovim_highlights).
-((name_expr . (identifier) @variable.parameter .) (#zane-bound? @variable.parameter "constructor_field param" "abort_ret_type block_decl enum_map_decl expr expr_braced simple_decl simple_decl_braced type_expr"))
-((field_arg . (identifier) @variable.parameter .) (#zane-bound? @variable.parameter "constructor_field param" "abort_ret_type block_decl enum_map_decl expr expr_braced simple_decl simple_decl_braced type_expr"))
+((name_expr . (identifier) @variable.parameter .) (#zane-bound? @variable.parameter "constructor_field param" "abort_ret_type block_call block_decl constructor_field constructor_field_arg enum_map_decl expr expr_braced simple_decl simple_decl_braced trailing_var_shorthand type_expr unbraced_verb_call"))
+((field_arg . (identifier) @variable.parameter .) (#zane-bound? @variable.parameter "constructor_field param" "abort_ret_type block_call block_decl constructor_field constructor_field_arg enum_map_decl expr expr_braced simple_decl simple_decl_braced trailing_var_shorthand type_expr unbraced_verb_call"))

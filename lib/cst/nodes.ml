@@ -219,11 +219,12 @@ module rec Expr : sig
     | CollectionLit of t list
     | NameExpr of Name_expr.t
     | TypeMember of { type_ : Name_type.t; member : Name.t }
-    (* A standalone type argument of a constructor, as in Array(Int, 10000).
-       The parser admits this node only as an entire positional or named
-       constructor argument. It is not a general expression operand.
-       Only bare names are currently supported; see docs/spec-divergences.md. *)
-    | TypeValue of Name_type.t
+    (* A standalone type argument of a constructor, as in Array(Int, 10000),
+       Slots(Array<Int, 4>, 2) or ArrayRef([p, q], &Port). The parser admits
+       this node only as an entire positional or named constructor argument,
+       and only as a named type, applied or not, or a reference to one. It is
+       not a general expression operand; see docs/spec-divergences.md. *)
+    | TypeValue of Type_expr.t
     (* [abort_handle] because a member read can fail: reading a member of a
        variant "is **partial**: the case may not be the live one", so it is
        "an **abortable** access (`?` / `??`)" (adt.md §3). Whether a read is of

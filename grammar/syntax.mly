@@ -309,11 +309,17 @@ map_lit:
    docs/ambiguity/README.md already carries for a call's trailing argument against an
    enclosing brace. *)
 (* Type arguments are standalone constructor arguments, not expressions.
-   In particular, admitting a bare type as an operator operand makes
-   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). *)
+   In particular, admitting a type as an operator operand makes
+   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). A named type,
+   applied or not, and a reference to one end before the `[` or `(` that would
+   continue a lambda, so the token after them decides; a verb type does not,
+   and is left out (docs/spec-divergences.md §3). *)
 %inline constructor_value:
   | value=expr { value }
-  | name=name_type { expr $loc (Nodes.Expr.TypeValue name) }
+  | type_=named_type_expr { expr $loc (Nodes.Expr.TypeValue type_) }
+  | AMPERSAND type_=type_base {
+      expr $loc (Nodes.Expr.TypeValue (type_expr $loc (Nodes.Type_expr.Reference type_)))
+    }
 
 %inline constructor_call_arg:
   | value=constructor_value { call_arg $loc (Nodes.Call_arg.Value value) }

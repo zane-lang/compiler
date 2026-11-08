@@ -117,6 +117,13 @@ then run it again, read the golden diff and promote that.
 - `lists` is step 7's lists: pushed to, measured, indexed and written at an
   index, of scalars, strings, hosts and lists, under a generic type with a
   declared subscript. Guests follow hosts into a list and through its growth.
+- `typeValues` is a type passed to a constructor as an applied type or a
+  reference (generics.md §5.3): a generic bag makes an empty
+  `@primitives$ListRef(Pair<T>)` over its own parameter, pushed to and read
+  back at `Int`; the same list over `Pair<Int>`; and a constructor at `&Port`
+  and `Pair<&Port>`, and `Array<Int, n>` over a number parameter `n` that
+  only the passed type writes. `typeValues.cgt` shows the list built at
+  `Pair<I64>` inside the bag's instance.
 - `pushRuns` is runs of pushes onto a new list, each given its room at its
   first push (`Loop_shapes.runs`): one that fits the first block a scope makes
   itself, two that take the runtime's room, one pushed past its run, one a

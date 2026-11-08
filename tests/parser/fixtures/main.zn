@@ -511,6 +511,10 @@ Unit main() {
 	// half of the generic parameters, passed rather than inferred.
 	room Slots(Int, 4);
 
+	// The type passed may be applied, or a reference to a named type.
+	shelf Slots(Pair<Int>, 2);
+	bound Slots(&Pair<Int>, 2);
+
 	// Both maps again, in a context that wants an `Int` rather than a String.
 	spread Int = Operator.mul.precedence - Operator.add.precedence;
 
