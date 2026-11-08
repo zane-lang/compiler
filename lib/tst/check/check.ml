@@ -114,9 +114,9 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
       | t ->
           (* Checked where it is written, as a declared type is. A type that
              fails is not passed on, so no instance reports it again. *)
-          let before = List.length !(env.diagnostics) in
+          let before = !(env.diagnostics) in
           Type_decls.check_function_types env span t;
-          if List.length !(env.diagnostics) > before then invalid span
+          if !(env.diagnostics) != before then invalid span
           else mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span)
   | N.Expr.DotAccess { target; field; abort_handle } -> member env ~flow ctx span target field abort_handle
   | N.Expr.Subscript { target; args } -> subscript env ctx span target args
