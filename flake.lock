@@ -1,0 +1,45 @@
+{
+  "nodes": {
+    "coda": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1794012781,
+        "narHash": "sha256-F4yHEQotnNxvlNj7xxObEwsaPkORRbW3Rp0jGWTM5so=",
+        "ref": "refs/heads/main",
+        "rev": "0cbeb71bc88b3c8161a8ef5dcff92de0fd294dc4",
+        "revCount": 175,
+        "type": "git",
+        "url": "https://github.com/zane-lang/coda"
+      },
+      "original": {
+        "rev": "0cbeb71bc88b3c8161a8ef5dcff92de0fd294dc4",
+        "type": "git",
+        "url": "https://github.com/zane-lang/coda"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1793977579,
+        "narHash": "sha256-WrSODdZFVIs/Hh2NzC0bY+ROByi0bATg8WfePX8dPj8=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "4fe25e12eb9f4c744966dd3de5a05246cf098601",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "coda": "coda",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
