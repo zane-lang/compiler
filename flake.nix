@@ -62,17 +62,21 @@
             # programs. On Linux, naming clang with LLD lets `zanec` link
             # in-process with the LLD it is built with (lib/codegen/build.ml);
             # elsewhere clang's own linker is kept, as dev/bin/clang-lld does.
-            clangLld = pkgs.writeShellScriptBin "clang-lld" ''
-              if [ "$(uname -s)" != Linux ]; then
-                exec ${llvm.clang}/bin/clang "$@"
-              fi
-              for argument in "$@"; do
-                if [ "$argument" = -c ]; then
+            clangLld = pkgs.writeShellScriptBin "clang-lld" (
+              if pkgs.stdenv.hostPlatform.isLinux then
+                ''
+                  for argument in "$@"; do
+                    if [ "$argument" = -c ]; then
+                      exec ${llvm.clang}/bin/clang "$@"
+                    fi
+                  done
+                  exec ${llvm.clang}/bin/clang -fuse-ld=lld "$@"
+                ''
+              else
+                ''
                   exec ${llvm.clang}/bin/clang "$@"
-                fi
-              done
-              exec ${llvm.clang}/bin/clang -fuse-ld=lld "$@"
-            '';
+                ''
+            );
 
             version = "unstable-${self.shortRev or "dirty"}";
 
@@ -94,6 +98,10 @@
                   uuseg
                 ]
                 ++ [
+                  # `zanec` links against LLVM, clang and LLD from this
+                  # prefix, so it belongs in buildInputs: the fixup phase
+                  # adds its library directory to the binaries' RPATH.
+                  llvmPrefix
                   pkgs.libxml2
                   pkgs.zlib
                   pkgs.zstd
@@ -105,6 +113,8 @@
                 pkgs.pkg-config
                 pkgs.makeWrapper
               ];
+
+              LLVM_CONFIG = "${llvmPrefix}/bin/llvm-config";
 
               # A flake does not fetch submodules. lib/coda builds from
               # vendor/coda, so put the pinned revision there.
@@ -124,7 +134,6 @@
                       llvm.lld
                     ]
                   } \
-                  --prefix LD_LIBRARY_PATH : ${llvmPrefix}/lib \
                   --set-default ZANE_CC ${clangLld}/bin/clang-lld
               '';
 
@@ -210,7 +219,6 @@
             ZANE_CC = "${clangLld}/bin/clang-lld";
             AR = "llvm-ar";
             STRIP = "llvm-strip";
-            LD_LIBRARY_PATH = "${llvmPrefix}/lib";
           };
         }
       );
