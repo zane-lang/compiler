@@ -1,0 +1,27 @@
+Shell workflow run 43106811978, macos-latest
+Apple M1 (Virtual)
+N=10000000 PASSES=10 RUNS=7
+| shape | default time | default peak | ZANE_PACK=niche,ZANE_UNSWITCH=0 time | ZANE_PACK=niche,ZANE_UNSWITCH=0 peak | ZANE_PACK=aligned,ZANE_UNSWITCH=0 time | ZANE_PACK=aligned,ZANE_UNSWITCH=0 peak |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 Pair | 0.127 s | 154 MiB | 0.078 s | 117 MiB | 0.084 s | 117 MiB |
+| 2 Flagged | 0.128 s | 154 MiB | 0.085 s | 88 MiB | 0.086 s | 88 MiB |
+| 3 Trio | 0.142 s | 155 MiB | 0.170 s | 126 MiB | 0.174 s | 126 MiB |
+| 4 Outer | 0.160 s | 231 MiB | 0.122 s | 155 MiB | 0.108 s | 155 MiB |
+| 5 Maybe | 0.158 s | 154 MiB | 0.124 s | 88 MiB | 0.166 s | 155 MiB |
+| 6 Wide | 0.158 s | 154 MiB | 0.177 s | 155 MiB | 0.192 s | 155 MiB |
+| 7 Trio scattered | 1.699 s | 154 MiB | 1.806 s | 126 MiB | 1.638 s | 126 MiB |
+| 8 Wide scattered | 1.285 s | 154 MiB | 1.249 s | 155 MiB | 1.282 s | 155 MiB |
+| 9 Chosen | 0.238 s | 230 MiB | 0.152 s | 87 MiB | 0.139 s | 87 MiB |
+| 10 Nested | 0.275 s | 307 MiB | 0.220 s | 88 MiB | 0.193 s | 88 MiB |
+| 11 Quads | 0.200 s | 154 MiB | 0.142 s | 126 MiB | 0.145 s | 126 MiB |
+| 12 Trio plain loop | 0.159 s | 154 MiB | 0.139 s | 126 MiB | 0.132 s | 126 MiB |
+program                        default            niche-unswitch          aligned-unswitch
+particles               0.276s   +0.0%            0.262s   -5.1%            0.260s   -5.7%
+tokens            0.123s   +0.0% WRONG      0.122s   -0.4% WRONG      0.121s   -1.2% WRONG
+entities                0.234s   +0.0%            0.212s   -9.6%            0.250s   +6.7%
+paths                   0.422s   +0.0%            0.381s   -9.6%            0.420s   -0.5%
+program                        default            niche-unswitch          aligned-unswitch
+particles               0.242s   +0.0%            0.236s   -2.3%            0.242s   -0.1%
+tokens            0.110s   +0.0% WRONG      0.113s   +2.7% WRONG      0.110s   -0.1% WRONG
+entities                0.205s   +0.0%            0.186s   -9.2%            0.211s   +3.0%
+paths                   0.393s   +0.0%            0.354s   -9.9%            0.382s   -2.7%
