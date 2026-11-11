@@ -154,6 +154,24 @@ repo's `langbench/` and print what it prints at the same size.
   ([`lowering.md`](../../docs/design/lowering.md) §9).
 - `removal` is a list of value structs that grows by pushes and shrinks by
   ordered and swapping removals.
+- `particles` is a particle simulation over a list of value structs that mix
+  four floats with an `alive` flag, so each struct has padding. Each step is
+  sequential passes over the list: integrate, bounce off the walls and the
+  floor, then kill the settled and respawn the dead from a generator.
+- `tokens` is a tokenizer: a text of character codes generated from a seeded
+  generator is scanned into a list of `{kind, start, length}` value structs
+  whose kind is a variant, then a second pass matches on each kind to count
+  them and sum their lengths.
+- `entities` is an entity table with optional components: a list of value
+  structs whose position, velocity and health are each a variant that is
+  empty or holds a value. Movement, damage and a sweep run over the list
+  every frame and act only on the entities that have the components they
+  need.
+- `paths` is an Option-heavy graph search: breadth-first search over a
+  square grid with a quarter of its cells blocked, from random cells, with
+  each cell's predecessor held in a variant that is empty until the cell is
+  reached. Each query walks the predecessors back from a target, and the
+  path lengths are summed.
 - `stress` is the logged one, a large program of sixteen sections:
   fannkuch-redux over small lists, binary-trees of reference nodes, trial
   division, the Mandelbrot set, bodies in a list pulled together, a list

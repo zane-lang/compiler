@@ -1,0 +1,201 @@
+/// An Option-heavy graph search: a square grid with a quarter of its cells
+/// blocked is generated from a seeded generator, then a breadth-first
+/// search from a cell finds each cell's predecessor, kept in a list of
+/// variants that are empty until the cell is reached. Each of several
+/// queries resets the table, searches, and walks the predecessors back from
+/// a target to count the path's length; the lengths are summed.
+package paths;
+
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+Int minus(a Int, b Int) => @operators$add(a, @operators$negate(b));
+Int times(a Int, b Int) => @operators$multiply(a, b);
+Int over(a Int, b Int) => @operators$divide(a, b);
+Int modulo(a Int, b Int) => minus(a, times(over(a, b), b));
+Bool below(a Int, b Int) => @operators$lessThan(a, b);
+Float real(v Int) => @primitives$F64.round(v);
+
+/// The linear congruential generator langbench uses.
+type Rng = #struct {
+	state Int;
+}
+
+Rng(seed Int) => init{ state = seed; }
+
+Int next(this Rng) mut {
+	this.state = @math$bitAnd(plus(times(this.state, Int(1103515245)), Int(12345)), Int(2147483647));
+	return this.state;
+}
+
+/// A number below `bound`, from the generator's high bits, whose low ones
+/// repeat with a short period.
+Int pick(this Rng, bound Int) mut => modulo(over(this!next(), Int(65536)), bound);
+
+/// A float in [0, 1) from the generator.
+Float unit(this Rng) mut => @operators$divide(real(modulo(this!next(), Int(10000))), Float(10000.0));
+
+/// An optional cell index: empty until a search reaches the cell.
+type Maybe = variant {
+	none Unit;
+	some Int;
+}
+
+type Grid = #struct {
+	width Int;
+	open ListRef<Bool>;
+	before ListRef<Maybe>;
+	queue ListRef<Int>;
+}
+
+Grid(width Int) => init{
+	width;
+	open = @primitives$ListRef(Bool);
+	before = @primitives$ListRef(Maybe);
+	queue = @primitives$ListRef(Int);
+}
+
+/// Runs a breadth-first search over the grid from `origin`, filling
+/// `before` with each reached cell's predecessor; the origin's is itself.
+Unit search(this Grid, from Int) mut {
+	origin Int = plus(from, Int(0));
+	cells Int = times(this.width, this.width);
+	head Int = plus(this.queue:size(), Int(1));
+	i Int(1);
+	i!to(cells) {
+		this.before[i] = Maybe.none(Unit());
+	}
+	this.before[origin] = Maybe.some(origin);
+	this.queue!push(origin);
+	step Int(1);
+	step!to(cells) {
+		@controlflow$branch(@operators$not(below(head, plus(this.queue:size(), Int(1)))), {
+			return Unit();
+		});
+		cell Int = this.queue[head];
+		head = plus(head, Int(1));
+		column Int = plus(modulo(minus(cell, Int(1)), this.width), Int(1));
+		d Int(1);
+		d!to(Int(4)) {
+			next Int = Int(0);
+			@controlflow$branch(@operators$equal(d, Int(1)), {
+				@controlflow$branch(below(Int(1), column), {
+					next = minus(cell, Int(1));
+				});
+			});
+			@controlflow$branch(@operators$equal(d, Int(2)), {
+				@controlflow$branch(below(column, this.width), {
+					next = plus(cell, Int(1));
+				});
+			});
+			@controlflow$branch(@operators$equal(d, Int(3)), {
+				@controlflow$branch(below(this.width, cell), {
+					next = minus(cell, this.width);
+				});
+			});
+			@controlflow$branch(@operators$equal(d, Int(4)), {
+				@controlflow$branch(below(cell, plus(minus(cells, this.width), Int(1))), {
+					next = plus(cell, this.width);
+				});
+			});
+			@controlflow$branch(below(Int(0), next), {
+				@controlflow$branch(this.open[next], {
+					@controlflow$branch(@operators$not(reached(this.before[next])), {
+						this.before[next] = Maybe.some(cell);
+						this.queue!push(next);
+					});
+				});
+			});
+		}
+	}
+	return Unit();
+}
+
+/// Whether a search has reached the cell.
+Bool reached(cell Maybe) => match (cell) {
+	some => true;
+	none => false;
+}
+
+/// The cell's predecessor, or the cell itself when it has none.
+Int parent(cell Maybe, fallback Int) => match (cell) {
+	p some => p;
+	none => fallback;
+}
+
+/// The number of steps from `target` back to `origin` along the
+/// predecessors, or zero when the search never reached the target.
+Int walk(this Grid, origin Int, target Int) {
+	@controlflow$branch(@operators$not(reached(this.before[target])), {
+		return Int(0);
+	});
+	at Int = target;
+	length Int(0);
+	steps Int(1);
+	steps!to(this.before:size()) {
+		@controlflow$branch(@operators$equal(at, origin), {
+			return length;
+		});
+		at = parent(this.before[at], at);
+		length = plus(length, Int(1));
+	}
+	return length;
+}
+
+Unit main() {
+	width Int = size(Int(60));
+	cells Int = times(width, width);
+	rng Rng(Int(13));
+	grid Grid(width);
+	i Int(1);
+	i!to(cells) {
+		grid.open!push(@operators$not(below(rng!pick(Int(4)), Int(1))));
+		grid.before!push(Maybe.none(Unit()));
+	}
+	total Int(0);
+	found Int(0);
+	q Int(1);
+	q!to(Int(20)) {
+		origin Int = plus(Int(1), rng!pick(cells));
+		target Int = plus(Int(1), rng!pick(cells));
+		grid.open[origin] = true;
+		grid!search(origin);
+		length Int = grid:walk(origin, target);
+		total = plus(total, length);
+		@controlflow$branch(below(Int(0), length), {
+			found = plus(found, Int(1));
+		});
+	}
+	say(@operators$concat(@operators$concat(@operators$concat(String(width), String(" ")), String(found)), @operators$concat(String(" "), String(total))));
+	return Unit();
+}
