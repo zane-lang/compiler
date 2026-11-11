@@ -1,0 +1,18 @@
+Shell workflow run 43071348356 (runner macos-latest, Apple silicon), commit d92a49a,
+command docs/experiments/tight-layouts/arm64.sh:
+
+niches: the same output in all eight builds (default, structs, all, niche; unoptimized and optimized), under ZANE_CHECK=1.
+
+N=10000000 PASSES=10 RUNS=5
+| shape | default time | default peak | ZANE_PACK=structs,ZANE_PACK_HINTS=0 time | ZANE_PACK=structs,ZANE_PACK_HINTS=0 peak | ZANE_PACK=structs time | ZANE_PACK=structs peak | ZANE_PACK=all time | ZANE_PACK=all peak | ZANE_PACK=niche time | ZANE_PACK=niche peak |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 Pair | 0.113 s | 155 MiB | 0.072 s | 117 MiB | 0.070 s | 117 MiB | 0.069 s | 117 MiB | 0.072 s | 117 MiB |
+| 2 Flagged | 0.124 s | 155 MiB | 0.083 s | 88 MiB | 0.081 s | 88 MiB | 0.086 s | 88 MiB | 0.087 s | 88 MiB |
+| 3 Trio | 0.133 s | 155 MiB | 0.167 s | 126 MiB | 0.166 s | 126 MiB | 0.162 s | 126 MiB | 0.168 s | 126 MiB |
+| 4 Outer | 0.141 s | 231 MiB | 0.101 s | 155 MiB | 0.105 s | 155 MiB | 0.108 s | 155 MiB | 0.102 s | 155 MiB |
+| 5 Maybe | 0.105 s | 155 MiB | 0.109 s | 155 MiB | 0.105 s | 155 MiB | 0.080 s | 88 MiB | 0.083 s | 88 MiB |
+| 6 Wide | 0.132 s | 155 MiB | 0.128 s | 155 MiB | 0.128 s | 155 MiB | 0.130 s | 155 MiB | 0.134 s | 155 MiB |
+| 7 Trio scattered | 0.926 s | 155 MiB | 0.879 s | 126 MiB | 0.894 s | 126 MiB | 0.891 s | 126 MiB | 0.888 s | 126 MiB |
+| 8 Wide scattered | 0.922 s | 155 MiB | 0.888 s | 155 MiB | 0.923 s | 155 MiB | 0.892 s | 155 MiB | 0.909 s | 155 MiB |
+| 9 Chosen | 0.124 s | 230 MiB | 0.132 s | 230 MiB | 0.127 s | 230 MiB | 0.081 s | 97 MiB | 0.081 s | 87 MiB |
+| 10 Nested | 0.168 s | 307 MiB | 0.152 s | 307 MiB | 0.179 s | 307 MiB | 0.144 s | 107 MiB | 0.145 s | 88 MiB |
