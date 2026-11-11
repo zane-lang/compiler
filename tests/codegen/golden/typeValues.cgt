@@ -25,9 +25,15 @@
     │   ├── type: %primitives$ListRef<%primitives$I64[%primitives$I64]>
     │   └── positions[0]: list @0 of %primitives$I64[%primitives$I64] (8 bytes apart)
     ├── layouts[8] > layout:
+    │   ├── type: typeValues$Port
+    │   └── positions:
+    ├── layouts[9] > layout:
+    │   ├── type: typeValues$Tally<typeValues$Pair<%primitives$I64>>
+    │   └── positions:
+    ├── layouts[10] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
-    ├── layouts[9] > layout:
+    ├── layouts[11] > layout:
     │   ├── type: typeValues$Tally<%primitives$Array<%primitives$I64, 4>>
     │   └── positions:
     ├── globals[0]: zane_self : i64, imported
@@ -377,7 +383,321 @@
     │       │       │   │       └── args[2]: 8 : i64
     │       │       │   └── args[0]: 1 : i64
     │       │       └── right: 2 : i64
-    │       └── body[22] > return: unit : void
+    │       ├── body[22] > hold:
+    │       │   ├── local: #38
+    │       │   ├── scope: %4
+    │       │   ├── value > expand:
+    │       │   │   ├── type: handle16
+    │       │   │   ├── label: @36
+    │       │   │   ├── result: #37
+    │       │   │   ├── body[0] > assign:
+    │       │   │   │   ├── place: #37
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @36
+    │       │   │   │       ├── value > runtime:
+    │       │   │   │       │   ├── type: handle16
+    │       │   │   │       │   ├── fn: zane_list_new
+    │       │   │   │       │   └── args:
+    │       │   │   │       └── layout: %primitives$ListRef<typeValues$Pair<%primitives$I64>>
+    │       │   │   └── body[1]: leave @36
+    │       │   └── layout: %primitives$ListRef<typeValues$Pair<%primitives$I64>>
+    │       ├── body[23] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @45
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #43
+    │       │   │   └── value > expand:
+    │       │   │       ├── type: {i64, i64}
+    │       │   │       ├── label: @41
+    │       │   │       ├── result: #42
+    │       │   │       ├── body[0] > let:
+    │       │   │       │   ├── local: #39
+    │       │   │       │   └── value: 7 : i64
+    │       │   │       ├── body[1] > let:
+    │       │   │       │   ├── local: #40
+    │       │   │       │   └── value: 8 : i64
+    │       │   │       ├── body[2] > assign:
+    │       │   │       │   ├── place: #42
+    │       │   │       │   └── value > escape:
+    │       │   │       │       ├── exit: @41
+    │       │   │       │       ├── value > record:
+    │       │   │       │       │   ├── type: {i64, i64}
+    │       │   │       │       │   ├── members[0] > member 0: local #39 : i64
+    │       │   │       │       │   └── members[1] > member 1: local #40 : i64
+    │       │   │       │       └── layout: typeValues$Pair<%primitives$I64>
+    │       │   │       └── body[3]: leave @41
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #44
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #38 : ptr
+    │       │   │       └── args[1]: 16 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #44 : ptr
+    │       │       ├── value: local #43 : {i64, i64}
+    │       │       └── layout: typeValues$Pair<%primitives$I64>
+    │       ├── body[24] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: typeValues$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > deref:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64, i64}
+    │       │       │       ├── path: 1
+    │       │       │       └── base > runtime:
+    │       │       │           ├── type: ptr
+    │       │       │           ├── fn: zane_list_at
+    │       │       │           ├── args[0]: address of #38 : ptr
+    │       │       │           ├── args[1]: 1 : i64
+    │       │       │           └── args[2]: 16 : i64
+    │       │       └── right: 8 : i64
+    │       ├── body[25] > hold:
+    │       │   ├── local: #50
+    │       │   ├── scope: %4
+    │       │   ├── value > expand:
+    │       │   │   ├── type: handle16
+    │       │   │   ├── label: @46
+    │       │   │   ├── result: #47
+    │       │   │   ├── body[0] > assign:
+    │       │   │   │   ├── place: #47
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @46
+    │       │   │   │       ├── value > expand:
+    │       │   │   │       │   ├── type: handle16
+    │       │   │   │       │   ├── label: @48
+    │       │   │   │       │   ├── result: #49
+    │       │   │   │       │   ├── body[0] > assign:
+    │       │   │   │       │   │   ├── place: #49
+    │       │   │   │       │   │   └── value > escape:
+    │       │   │   │       │   │       ├── exit: @48
+    │       │   │   │       │   │       ├── value > runtime:
+    │       │   │   │       │   │       │   ├── type: handle16
+    │       │   │   │       │   │       │   ├── fn: zane_list_new
+    │       │   │   │       │   │       │   └── args:
+    │       │   │   │       │   │       └── layout: %primitives$ListRef<typeValues$Pair<%primitives$I64>>
+    │       │   │   │       │   └── body[1]: leave @48
+    │       │   │   │       └── layout: %primitives$ListRef<typeValues$Pair<%primitives$I64>>
+    │       │   │   └── body[1]: leave @46
+    │       │   └── layout: %primitives$ListRef<typeValues$Pair<%primitives$I64>>
+    │       ├── body[26] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @57
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #55
+    │       │   │   └── value > expand:
+    │       │   │       ├── type: {i64, i64}
+    │       │   │       ├── label: @53
+    │       │   │       ├── result: #54
+    │       │   │       ├── body[0] > let:
+    │       │   │       │   ├── local: #51
+    │       │   │       │   └── value: 9 : i64
+    │       │   │       ├── body[1] > let:
+    │       │   │       │   ├── local: #52
+    │       │   │       │   └── value: 10 : i64
+    │       │   │       ├── body[2] > assign:
+    │       │   │       │   ├── place: #54
+    │       │   │       │   └── value > escape:
+    │       │   │       │       ├── exit: @53
+    │       │   │       │       ├── value > record:
+    │       │   │       │       │   ├── type: {i64, i64}
+    │       │   │       │       │   ├── members[0] > member 0: local #51 : i64
+    │       │   │       │       │   └── members[1] > member 1: local #52 : i64
+    │       │   │       │       └── layout: typeValues$Pair<%primitives$I64>
+    │       │   │       └── body[3]: leave @53
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #56
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #50 : ptr
+    │       │   │       └── args[1]: 16 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #56 : ptr
+    │       │       ├── value: local #55 : {i64, i64}
+    │       │       └── layout: typeValues$Pair<%primitives$I64>
+    │       ├── body[27] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: typeValues$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > deref:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64, i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base > runtime:
+    │       │       │           ├── type: ptr
+    │       │       │           ├── fn: zane_list_at
+    │       │       │           ├── args[0]: address of #50 : ptr
+    │       │       │           ├── args[1]: 1 : i64
+    │       │       │           └── args[2]: 16 : i64
+    │       │       └── right: 9 : i64
+    │       ├── body[28] > hold:
+    │       │   ├── local: #60
+    │       │   ├── scope: %4
+    │       │   ├── value > expand:
+    │       │   │   ├── type: handle16
+    │       │   │   ├── label: @58
+    │       │   │   ├── result: #59
+    │       │   │   ├── body[0] > assign:
+    │       │   │   │   ├── place: #59
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @58
+    │       │   │   │       ├── value > runtime:
+    │       │   │   │       │   ├── type: handle16
+    │       │   │   │       │   ├── fn: zane_list_new
+    │       │   │   │       │   └── args:
+    │       │   │   │       └── layout: %primitives$ListRef<%primitives$I64[%primitives$I64]>
+    │       │   │   └── body[1]: leave @58
+    │       │   └── layout: %primitives$ListRef<%primitives$I64[%primitives$I64]>
+    │       ├── body[29] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @63
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #61
+    │       │   │   └── value: local #21 : ptr
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #62
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #60 : ptr
+    │       │   │       └── args[1]: 8 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #62 : ptr
+    │       │       ├── value: local #61 : ptr
+    │       │       └── layout: %primitives$I64[%primitives$I64]
+    │       ├── body[30] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: typeValues$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call value:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn > deref:
+    │       │       │   │   ├── type: ptr
+    │       │       │   │   └── ptr > runtime:
+    │       │       │   │       ├── type: ptr
+    │       │       │   │       ├── fn: zane_list_at
+    │       │       │   │       ├── args[0]: address of #60 : ptr
+    │       │       │   │       ├── args[1]: 1 : i64
+    │       │       │   │       └── args[2]: 8 : i64
+    │       │       │   └── args[0]: 3 : i64
+    │       │       └── right: 6 : i64
+    │       ├── body[31] > let:
+    │       │   ├── local: #66
+    │       │   └── value: 0 : i64
+    │       ├── body[32] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: typeValues$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #66 : i64
+    │       │       └── right: 0 : i64
+    │       ├── body[33] > let:
+    │       │   ├── local: #69
+    │       │   └── value: 0 : i32
+    │       ├── body[34] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: typeValues$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #69 : i32
+    │       │       └── right: 0 : i32
+    │       ├── body[35] > hold:
+    │       │   ├── local: #73
+    │       │   ├── scope: %4
+    │       │   ├── value > expand:
+    │       │   │   ├── type: {i64}
+    │       │   │   ├── label: @71
+    │       │   │   ├── result: #72
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #70
+    │       │   │   │   └── value: 12 : i64
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #72
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @71
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {i64}
+    │       │   │   │       │   └── members[0] > member 0: local #70 : i64
+    │       │   │   │       └── layout: typeValues$Port
+    │       │   │   └── body[2]: leave @71
+    │       │   └── layout: typeValues$Port
+    │       ├── body[36] > hold:
+    │       │   ├── local: #79
+    │       │   ├── scope: %4
+    │       │   ├── value > expand:
+    │       │   │   ├── type: {i64}
+    │       │   │   ├── label: @74
+    │       │   │   ├── result: #75
+    │       │   │   ├── body[0] > assign:
+    │       │   │   │   ├── place: #75
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @74
+    │       │   │   │       ├── value > expand:
+    │       │   │   │       │   ├── type: {i64}
+    │       │   │   │       │   ├── label: @77
+    │       │   │   │       │   ├── result: #78
+    │       │   │   │       │   ├── body[0] > let:
+    │       │   │   │       │   │   ├── local: #76
+    │       │   │   │       │   │   └── value > deref:
+    │       │   │   │       │   │       ├── type: i64
+    │       │   │   │       │   │       └── ptr > offset:
+    │       │   │   │       │   │           ├── within: {i64}
+    │       │   │   │       │   │           ├── path: 0
+    │       │   │   │       │   │           └── base: address of #73 : ptr
+    │       │   │   │       │   ├── body[1] > assign:
+    │       │   │   │       │   │   ├── place: #78
+    │       │   │   │       │   │   └── value > escape:
+    │       │   │   │       │   │       ├── exit: @77
+    │       │   │   │       │   │       ├── value > record:
+    │       │   │   │       │   │       │   ├── type: {i64}
+    │       │   │   │       │   │       │   └── members[0] > member 0: local #76 : i64
+    │       │   │   │       │   │       └── layout: typeValues$Tally<typeValues$Pair<%primitives$I64>>
+    │       │   │   │       │   └── body[2]: leave @77
+    │       │   │   │       └── layout: typeValues$Tally<typeValues$Pair<%primitives$I64>>
+    │       │   │   └── body[1]: leave @74
+    │       │   └── layout: typeValues$Tally<typeValues$Pair<%primitives$I64>>
+    │       ├── body[37] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: typeValues$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > deref:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base: address of #79 : ptr
+    │       │       └── right: 12 : i64
+    │       ├── body[38] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: typeValues$grow<&typeValues$Port, typeValues$Pair<%primitives$I64>>(this typeValues$Tally<&typeValues$Port>, Type)
+    │       │   └── args[0]: address of #16 : ptr
+    │       ├── body[39] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: typeValues$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > deref:
+    │       │       │   ├── type: i64
+    │       │       │   └── ptr > offset:
+    │       │       │       ├── within: {i64}
+    │       │       │       ├── path: 0
+    │       │       │       └── base: address of #16 : ptr
+    │       │       └── right: 3 : i64
+    │       └── body[40] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: typeValues$add<%primitives$I64>(this typeValues$Bag<%primitives$I64>, %primitives$I64, %primitives$I64)
     │   ├── params[0]: local #1 : ptr
@@ -555,6 +875,23 @@
     │   │           └── right: 1 : i64
     │   └── body[3] > return: local #3 : i64
     ├── funcs[8] > func:
+    │   ├── symbol: typeValues$grow<&typeValues$Port, typeValues$Pair<%primitives$I64>>(this typeValues$Tally<&typeValues$Port>, Type)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > assign:
+    │   │   ├── place: *#1.0
+    │   │   └── value > binary:
+    │   │       ├── type: i64
+    │   │       ├── op: +
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr > offset:
+    │   │       │       ├── within: {i64}
+    │   │       │       ├── path: 0
+    │   │       │       └── base: local #1 : ptr
+    │   │       └── right: 1 : i64
+    │   └── body[1] > return: unit : void
+    ├── funcs[9] > func:
     │   ├── symbol: typeValues$main()$lambda1.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -594,7 +931,7 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    └── funcs[9] > func:
+    └── funcs[10] > func:
         ├── symbol: typeValues$main()$lambda2.adapter
         ├── linkage: shared
         ├── params[0]: local #0 : ptr

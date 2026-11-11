@@ -98,6 +98,29 @@ configurations in 29 frames over a 1,315-state GLR model, against 2,294
 configurations, 30 frames and 1,372 states before the change, and the stock
 automaton likewise. `just verify-grammar` re-checks it in Lean.
 
+### A type in every call
+
+The follow-up gives every call the argument rule constructors had: `call_arg`
+takes `argument_value`, a value or any `type_expr`, so a function call
+(`emptyOf(Pair<Int>)`), a method call (`registry!add(Int)`,
+`port:tallied(&Port)`) and a constructor call share one positional argument.
+A type in an ordinary call is a prefix of a lambda exactly as it is in a
+constructor's, and is no more an operand there, so the same token decides.
+
+The conflict censuses are unchanged: 44 shift/reduce states in the shipped
+automaton and 37 in the stock one. The action-erased GLR engine finds one
+derivation for each spelling in a function and a method call, one for the
+lambda witnesses `func(Foo<1>[]() {})`, `func(Int[Int]() {})`,
+`func(&Foo() {})` and `obj!add(Foo<1>[]() {})`, and none for a type as an
+operand in either (`tests/grammar/type_arguments_test.py`). `p (Int) =
+Int(1);` has one derivation, an assignment to the call `p(Int)`, which the
+checker rejects as it does `p(x) = Int(1)`; the declaration a parenthesised
+type would add stays absent. The visible-stack certificate proves the grammar
+unambiguous: 2,278 configurations in 29 frames over a 1,334-state GLR model,
+against 2,259 configurations, 29 frames and 1,315 states before the change,
+and the stock automaton in 2,271 configurations and 29 frames.
+`just verify-grammar` re-checks it in Lean.
+
 ## Restructurings that were measured and rejected
 
 `enum_map_tail` removed twelve conflicts by shifting every bracket group before

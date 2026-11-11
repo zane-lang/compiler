@@ -121,69 +121,81 @@
     │   │   └── struct[0]: rows : app$Tally<@primitives$Array<T, n>, n>
     │   ├── decls[44] > verb:
     │   │   └── signature: Grid(T Type, n @concepts$Int) #45
-    │   └── decls[45] > verb:
-    │       └── signature: @primitives$Unit racks() #46
+    │   ├── decls[45] > verb:
+    │   │   └── signature: @primitives$Unit racks() #46
+    │   ├── decls[46] > verb:
+    │   │   └── signature: ^@primitives$ListRef<T> emptyOf(T Type) #47
+    │   ├── decls[47] > verb:
+    │   │   └── signature: T zeroOf(T Type) #48
+    │   ├── decls[48] > verb:
+    │   │   └── signature: @primitives$I64 sized(this @primitives$I64, T Type) #49
+    │   ├── decls[49] > verb:
+    │   │   └── signature: @primitives$Unit bump(this @primitives$I64, T Type) mut #50
+    │   ├── decls[50] > verb:
+    │   │   └── signature: T unusedZero(T Type) #51
+    │   └── decls[51] > verb:
+    │       └── signature: @primitives$Unit takers() #52
     └── packages[1] > package:
         ├── name: shapes
         ├── decls[0] > alias:
-        │   ├── name: Float #47
+        │   ├── name: Float #53
         │   └── target: @primitives$F64
         ├── decls[1] > alias:
-        │   ├── name: Unit #48
+        │   ├── name: Unit #54
         │   └── target: @primitives$Unit
         ├── decls[2] > alias:
-        │   ├── name: String #49
+        │   ├── name: String #55
         │   └── target: @primitives$String
         ├── decls[3] > type:
-        │   ├── name: Vec2 #50
+        │   ├── name: Vec2 #56
         │   ├── kind: value
         │   ├── struct[0]: x : @primitives$F64
         │   └── struct[1]: y : @primitives$F64
         ├── decls[4] > verb:
-        │   └── signature: Vec2(@primitives$F64, @primitives$F64) #51
+        │   └── signature: Vec2(@primitives$F64, @primitives$F64) #57
         ├── decls[5] > verb:
-        │   └── signature: Vec2.zero() #52
+        │   └── signature: Vec2.zero() #58
         ├── decls[6] > verb:
-        │   └── signature: Vec2{x @primitives$F64; y @primitives$F64 = ...} #53
+        │   └── signature: Vec2{x @primitives$F64; y @primitives$F64 = ...} #59
         ├── decls[7] > verb:
-        │   └── signature: shapes$Vec2 +(shapes$Vec2, shapes$Vec2) #54
+        │   └── signature: shapes$Vec2 +(shapes$Vec2, shapes$Vec2) #60
         ├── decls[8] > verb:
-        │   └── signature: shapes$Vec2 ~(shapes$Vec2) #55
+        │   └── signature: shapes$Vec2 ~(shapes$Vec2) #61
         ├── decls[9] > verb:
-        │   └── signature: shapes$Vec2 +(shapes$Vec2, @concepts$Float) #56
+        │   └── signature: shapes$Vec2 +(shapes$Vec2, @concepts$Float) #62
         ├── decls[10] > verb:
-        │   └── signature: @primitives$F64 length(this shapes$Vec2) #57
+        │   └── signature: @primitives$F64 length(this shapes$Vec2) #63
         ├── decls[11] > verb:
-        │   └── signature: @primitives$Unit scale(this shapes$Vec2, @primitives$F64) mut #58
+        │   └── signature: @primitives$Unit scale(this shapes$Vec2, @primitives$F64) mut #64
         ├── decls[12] > verb:
-        │   └── signature: implicit Vec2(@concepts$Float) #59
+        │   └── signature: implicit Vec2(@concepts$Float) #65
         ├── decls[13] > type:
-        │   ├── name: Shape #60
+        │   ├── name: Shape #66
         │   ├── kind: reference
         │   ├── variant[0]: circle : @primitives$F64
         │   ├── variant[1]: square : @primitives$F64
         │   └── variant[2]: point : shapes$Vec2
         ├── decls[14] > type:
-        │   ├── name: Corner #61
+        │   ├── name: Corner #67
         │   ├── kind: value
         │   ├── enum[0]: topLeft
         │   ├── enum[1]: topRight
         │   ├── enum[2]: bottomLeft
         │   └── enum[3]: bottomRight
         ├── decls[15] > enum_map:
-        │   ├── map: shapes$Corner.label #62
+        │   ├── map: shapes$Corner.label #68
         │   └── type: @primitives$String
         ├── decls[16] > type:
-        │   ├── name: Meters #63
+        │   ├── name: Meters #69
         │   ├── kind: value
         │   └── struct[0]: _value : @primitives$F64
         ├── decls[17] > verb:
-        │   └── signature: Meters(@primitives$F64) #64
+        │   └── signature: Meters(@primitives$F64) #70
         ├── decls[18] > verb:
-        │   └── signature: shapes$Meters +(shapes$Meters, shapes$Meters) #65
+        │   └── signature: shapes$Meters +(shapes$Meters, shapes$Meters) #71
         ├── decls[19] > verb:
-        │   └── signature: @primitives$F64 inFeet(shapes$Meters) #66
+        │   └── signature: @primitives$F64 inFeet(shapes$Meters) #72
         ├── decls[20] > verb:
-        │   └── signature: @primitives$F64 _half(@primitives$F64) #67
+        │   └── signature: @primitives$F64 _half(@primitives$F64) #73
         └── decls[21] > verb:
-            └── signature: @primitives$F64 area(&shapes$Shape) #68
+            └── signature: @primitives$F64 area(&shapes$Shape) #74

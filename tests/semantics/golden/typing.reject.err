@@ -1058,42 +1058,62 @@ File "fixtures/typing/reject/bad/temporary.zn", line 12, characters 10-34:
 12 |     hear(Note(@primitives$I64(1)));
    |          ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: a new reference names a place, and this is a temporary value
-File "fixtures/typing/reject/bad/typeValues.zn", line 14, characters 20-36:
-14 |     tooMany Hopper(Couple<Int, Int>);
+File "fixtures/typing/reject/bad/typeValues.zn", line 19, characters 21-25:
+19 | T zeroOf(T Type) => T(0);
+   |                     ^^^^
+Error: `bad$Knell` has no constructor (in `zeroOf` with T = bad$Knell, required at fixtures/typing/reject/bad/typeValues.zn:35)
+File "fixtures/typing/reject/bad/typeValues.zn", line 22, characters 20-36:
+22 |     tooMany Hopper(Couple<Int, Int>);
    |                    ^^^^^^^^^^^^^^^^
 Error: `Couple` takes 1 type argument, and 2 were written
-File "fixtures/typing/reject/bad/typeValues.zn", line 15, characters 26-27:
-15 |     number Hopper(Couple<3>);
+File "fixtures/typing/reject/bad/typeValues.zn", line 23, characters 26-27:
+23 |     number Hopper(Couple<3>);
    |                          ^
 Error: `Couple` expects a type here, not a number
-File "fixtures/typing/reject/bad/typeValues.zn", line 16, characters 20-27:
-16 |     unknown Hopper(Missing<Int>);
+File "fixtures/typing/reject/bad/typeValues.zn", line 24, characters 20-27:
+24 |     unknown Hopper(Missing<Int>);
    |                    ^^^^^^^
 Error: no type named `Missing` is in scope
-File "fixtures/typing/reject/bad/typeValues.zn", line 17, characters 37-44:
-17 |     unknownRef @primitives$ListRef(&Missing);
+File "fixtures/typing/reject/bad/typeValues.zn", line 25, characters 37-44:
+25 |     unknownRef @primitives$ListRef(&Missing);
    |                                     ^^^^^^^
 Error: no type named `Missing` is in scope
-File "fixtures/typing/reject/bad/typeValues.zn", line 18, characters 30-36:
-18 |     bare @primitives$ListRef(Couple);
+File "fixtures/typing/reject/bad/typeValues.zn", line 26, characters 30-36:
+26 |     bare @primitives$ListRef(Couple);
    |                              ^^^^^^
 Error: `Couple` takes 1 type argument, and 0 were written
-File "fixtures/typing/reject/bad/typeValues.zn", line 19, characters 32-37:
-19 |     shared @primitives$ListRef(&Gong);
+File "fixtures/typing/reject/bad/typeValues.zn", line 27, characters 32-37:
+27 |     shared @primitives$ListRef(&Gong);
    |                                ^^^^^
 Error: `&bad$Gong` is a reference, and it fills the elements of `@primitives$ListRef<&bad$Gong>`; a `ListRef`'s elements are owners, never references
-File "fixtures/typing/reject/bad/typeValues.zn", line 20, characters 30-36:
-20 |     introduced Hopper(Couple<U Type>);
+File "fixtures/typing/reject/bad/typeValues.zn", line 28, characters 30-36:
+28 |     introduced Hopper(Couple<U Type>);
    |                              ^^^^^^
 Error: `U` introduces a parameter, which only a verb signature may do; a type lists its parameters in its `< >` header
-File "fixtures/typing/reject/bad/typeValues.zn", line 21, characters 20-25:
-21 |     roaming Hopper(^Gong);
+File "fixtures/typing/reject/bad/typeValues.zn", line 29, characters 20-25:
+29 |     roaming Hopper(^Gong);
    |                    ^^^^^
 Error: `^bad$Gong` is a roaming owner, and `^` is written only on a local, a parameter or a return type, never on a type passed as an argument
-File "fixtures/typing/reject/bad/typeValues.zn", line 22, characters 23-32:
-22 |     bareResult Hopper(Gong[Int]);
+File "fixtures/typing/reject/bad/typeValues.zn", line 30, characters 23-32:
+30 |     bareResult Hopper(Gong[Int]);
    |                       ^^^^^^^^^
 Error: this function type returns `bad$Gong`, a reference type, bare; a borrow is never returned, so write `^bad$Gong` to hand back an owner or `&bad$Gong` to hand back a reference
+File "fixtures/typing/reject/bad/typeValues.zn", line 31, characters 59-75:
+31 |     fnTooMany ^@primitives$ListRef<Couple<Int>> = emptyOf(Couple<Int, Int>);
+   |                                                           ^^^^^^^^^^^^^^^^
+Error: `Couple` takes 1 type argument, and 2 were written
+File "fixtures/typing/reject/bad/typeValues.zn", line 32, characters 34-39:
+32 |     fnRoaming Int = Int(1):sized(^Gong);
+   |                                  ^^^^^
+Error: `^bad$Gong` is a roaming owner, and `^` is written only on a local, a parameter or a return type, never on a type passed as an argument
+File "fixtures/typing/reject/bad/typeValues.zn", line 33, characters 24-36:
+33 |     typeForValue Int = counted(Int);
+   |                        ^^^^^^^^^^^^
+Error: no `counted` accepts (Type); the candidates are `@primitives$Unit counted(n @concepts$Int, @concepts$Block)`; `@primitives$I64 counted(@primitives$I64)`
+File "fixtures/typing/reject/bad/typeValues.zn", line 34, characters 46-61:
+34 |     valueForType ^@primitives$ListRef<Int> = emptyOf(Int(1));
+   |                                              ^^^^^^^^^^^^^^^
+Error: no `emptyOf` accepts (@primitives$I64); the candidate is `^@primitives$ListRef<T> emptyOf(T Type)`
 File "fixtures/typing/reject/bad/types.zn", line 5, characters 1-23:
 5 | type Holder = struct {
   | ^^^^^^^^^^^^^^^^^^^^^^

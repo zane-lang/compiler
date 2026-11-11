@@ -122,13 +122,19 @@ then run it again, read the golden diff and promote that.
   §5.3) and converting `T(0)`, built at `I64` and `I32`, and
   `Vector2<T>.splat`, which infers `T` from its argument. `namedGeneric.cgt`
   shows each call written out as a record of its own instance's width.
-- `typeValues` is a type passed to a constructor as an applied type or a
+- `typeValues` is a type passed to a call as an applied type or a
   reference (generics.md §5.3): a generic bag makes an empty
   `@primitives$ListRef(Pair<T>)` over its own parameter, pushed to and read
   back at `Int`; the same list over `Pair<Int>`; and a constructor at `&Port`
   and `Pair<&Port>`, and `Array<Int, n>` over a number parameter `n` that
   only the passed type writes; and a verb type, a generic list of callbacks
   `@primitives$ListRef(T[T])` run at `Int`, and `@primitives$ListRef(Int[Int])`.
+  A function takes a type the same way: `emptyOf(T Type)` makes a list of a
+  type the package does not own, at `Pair<Int>` and `Int[Int]`;
+  `pairsOf(T Type)` passes its own parameter on as `Pair<T>`; and
+  `zeroOf(T Type)` returns `T(0)` at `I64` and `I32`. A method,
+  `port:tallied(Pair<Int>)`, passes the type it is given to a constructor,
+  and a `mut` one, `ports!grow(Pair<Int>)`, takes a type beside its subject.
   `typeValues.cgt` shows the list built at `Pair<I64>` inside the bag's
   instance.
 - `pushRuns` is runs of pushes onto a new list, each given its room at its

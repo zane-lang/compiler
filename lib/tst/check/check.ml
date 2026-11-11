@@ -860,6 +860,11 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
     | Type_decls.Intrinsic_type info ->
         let params = List.map (fun k -> Env.fresh_param env ~name:"_" ~kind:k) info.params in
         `Type (Ty.Intrinsic { namespace = info.namespace; name = info.name; args = List.map Type_decls.param_arg params }, params)
+    (* A type parameter bound to a type holding the error type builds
+       something already reported, or, in a body nothing instantiates, which
+       Program checks with its type parameters bound to the error type,
+       something not yet known. Neither is reported again. *)
+    | Type_decls.Bound (Ty.Type t) when Ty.contains_error t -> `None
     | Type_decls.Bound (Ty.Type t) -> `Type (t, [])
     | Type_decls.Bound (Ty.Number _) ->
         error env span "a number parameter has no constructor";
