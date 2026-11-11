@@ -35,6 +35,13 @@ on:
         required: true
         default: "30"
         type: string
+      runner:
+        # macos-latest is AArch64 (Apple silicon), the one other system
+        # pixi.toml's environment solves for that hosted runners offer.
+        description: The runner to run it on (ubuntu-latest, macos-latest, windows-latest, ...)
+        required: true
+        default: ubuntu-latest
+        type: string
 
 # The token this job carries is read-only. A command that runs here can read
 # it, so there is nothing to be gained by granting it more: anything that has
@@ -50,7 +57,7 @@ concurrency:
 
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: ${{ fromJSON(inputs.timeout) }}
 
     steps:
@@ -109,6 +116,7 @@ jobs:
         if: ${{ inputs.toolchain }}
         env:
           COMMAND: ${{ inputs.command }}
+        shell: bash
         run: |
           eval "$(pixi shell-hook)"
           bash -c "$COMMAND"
@@ -117,4 +125,5 @@ jobs:
         if: ${{ !inputs.toolchain }}
         env:
           COMMAND: ${{ inputs.command }}
+        shell: bash
         run: bash -lc "$COMMAND"

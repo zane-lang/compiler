@@ -41,7 +41,9 @@ def run(exe, shape):
     wall = time.perf_counter() - start
     if status != 0:
         sys.exit(f"{exe} {shape}: exit status {status}")
-    return out.strip().decode(), wall, usage.ru_maxrss / 1024
+    # Linux gives the peak in KiB, macOS in bytes.
+    peak = usage.ru_maxrss / (1024 * 1024 if sys.platform == "darwin" else 1024)
+    return out.strip().decode(), wall, peak
 
 print(f"N={n} PASSES={passes} RUNS={runs}")
 print("| shape | " + " | ".join(f"{m} time | {m} peak" for m, _ in modes) + " |")
