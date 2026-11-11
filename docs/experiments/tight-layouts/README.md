@@ -14,7 +14,11 @@ at all and alignment 1. The switch `ZANE_PACK` turns it on:
 - `ZANE_PACK=niche`: as `all`, and a sum whose other cases a spare byte
   of its one payload can name has no tag at all (step 4).
 
-The switch is read where a layout is made, so a build with it and one
+Since step 13 the `niche` layout is the compiler's only one, and the
+switches are gone: the scripts here that set `ZANE_PACK` or `ZANE_UNSWITCH`
+now measure the same build in every mode, and reproduce the numbers below
+only on the commits that recorded them. Until then, the switch was read
+where a layout is made, so a build with it and one
 without are different programs. The default build and the test suite are
 unchanged with it unset. Measured on `main` at `7e7c3ca` plus this
 experiment, built with the pixi environment (LLVM 21).
@@ -730,6 +734,64 @@ What this shows:
   output on Linux and Windows. That points at the macOS runtime at that
   size (20 million tokens), not at layouts, and is left to its own
   investigation.
+
+## Step 13: the niche layout made the default
+
+Step 12 settled the shape: `niche`, with non-trivial unswitching only for
+AArch64. The change that makes it the compiler's only layout
+(`0b88f63` and its follow-ups) also replaced two pieces of this
+experiment that were good enough to measure with but not to ship:
+
+- **Per-access alignment.** The blanket pass set every non-atomic load and
+  store to alignment 1. `lib/codegen/alignment.ml` now gives each the
+  smaller of its type's alignment and what its address is known to be:
+  - a stack slot or a global at its own alignment;
+  - a getelementptr as far as its constant offset and each index's known
+    factor divide its base's;
+  - a pointer read back from a stack slot as the least of what is stored
+    there;
+  - an `!align` load, a parameter's `align`, and the runtime's frames,
+    blocks and pushed list slots as `runtime/` places them.
+
+  In the `facts` fixtures every `i64` access keeps `align 8` except in
+  the walk helpers, which are given an address that may be anywhere.
+- **Truthful parameter attributes.** A by-address borrow and a place
+  parameter claimed their type's alignment. Under packing either may be
+  a member at any byte of a packed value, so that claim could be false,
+  and LLVM is entitled to rely on it. They now claim none; the `sret`
+  slot, the caller's own, keeps its alignment.
+
+`just test-compiler` passes. Its layout goldens, unit tests and
+attribute tests were brought to the new layout, with new unit tests for
+packing, the one-byte tag and byte niches.
+
+**The perf gate.** Measuring every program's three builds with `main`'s
+compiler and this one in the same container gives one rise:
+
+| Program | Build | Change |
+| --- | --- | --- |
+| entities | tiered | +7.5% |
+| entities | optimized | −10.7% |
+| paths | tiered | −7.9% |
+| copies | plain | −6.7% |
+| particles | optimized | −5.1% |
+| tokens | optimized | −3.4% |
+
+Every other row is within ±1.2%. Against CI's own rows, a local run also
+shows `depths`, `kept` and `repeats` up 2–8%. Those programs are small
+enough that the dynamic loader's start-up is most of their count, and it
+differs between this container and CI. Built with `main`'s compiler here,
+`kept` counts 454,000 instructions and with this one 454,059.
+
+`entities` tiered runs 8% fewer instructions but mispredicts 2.4× as
+often in Callgrind's branch simulator. In its sweep loop, `dead(health)`
+compiles to a branch on the packed health's one-byte tag, around the
+payload compare, where the unpacked layout's build picks with a
+conditional move. The load is safe either way: the same loop loads the
+payload unconditionally a few instructions later. So this is LLVM's
+choice for the unaligned field, not a fault in the code. The optimized
+build has the same branch (+52% mispredicts) and still comes out 10.7%
+ahead through 29% fewer first-level misses.
 
 ## Findings
 

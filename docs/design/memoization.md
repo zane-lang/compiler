@@ -121,7 +121,7 @@ one missed the first-level cache 72% more often.
 
 A value of scalars only is taken apart into one word per scalar. Any other
 value is copied into a zeroed buffer of words. The bytes such a value leaves
-undefined, its padding and the room past a smaller case's payload, are
+undefined, the room past a smaller case's payload, are
 frozen first, so comparing them compares fixed bits: the worst they can
 cause is a miss, never a hit LLVM made up.
 
