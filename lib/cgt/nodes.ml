@@ -196,7 +196,7 @@ module Ty = struct
 
   let tight t =
     match t with
-    | Struct _ when pack_structs () -> Packed t
+    | Struct _ when pack_structs () && (try fst (size_align (Packed t)) < fst (size_align t) with Too_large -> false) -> Packed t
     | Sum ts when pack_sums () && not (niche ts) && Option.is_none (byte_niche ts) -> Packed t
     | t -> t
 
