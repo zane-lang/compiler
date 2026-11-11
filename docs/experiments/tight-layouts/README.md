@@ -336,11 +336,14 @@ Dispatched as runner `macos-latest`, command
   | 11 `Quads` | 0.192 s | 0.158 s |
   | 1 `Pair` | 0.156 s | 0.105 s |
 
-  `Quads` gains 18% and `Trio` loses 22% on the same stride, so the cost is
-  the 8-byte read at an odd offset, not the stride. `Pair`'s `Int` is
-  misaligned too, but always at a multiple of 4, and it gains a third. (The
-  runner of this run was slower than the first one's throughout; only rows
-  within one run compare.)
+  `Quads` gains 18% and `Trio` loses 22% on the same stride. That looked
+  like the cost of an 8-byte read at an odd offset, but it is not settled:
+  `Flagged` (9 bytes) reads its `Int` at every offset in turn too, and
+  gains 35%; and `Quads` differs from `Trio` in its loop as well, since
+  `trios` serves the scattered shape too, so its loop picks its index
+  between two computations, one a division, before multiplying it by the
+  stride. Step 6 separates the two. (The runner of this run was slower
+  than the first one's throughout; only rows within one run compare.)
 - **Scattered reads gain a little** (3-5%), where x86 gained nothing.
 - **The alignment facts make no difference here either**: `structs` with
   and without them is the same to within the noise.
@@ -373,12 +376,8 @@ Dispatched as runner `macos-latest`, command
   `all`, 2.5 times the default build).
 - **A packed sum's room must be words**, not bytes, or LLVM moves its
   payload a byte at a time: that cost `copies` 22% until step 2.
-- **On AArch64 (Apple silicon) packing pays more, except for an 8-byte
-  member at an odd offset**: sequential passes over padded values gain a
-  third or more, but a value whose `Int` lands at every byte offset in
-  turn (`Trio`, 13 bytes) is a fifth slower, where a 13-byte value without
-  one gains. A layout that packs should keep an 8-byte member at a 4-byte
-  multiple, or keep its tail padding when it cannot.
+- **On AArch64 (Apple silicon) packing pays more**: sequential passes over
+  padded values gain a third or more; `Trio`'s loss is step 6's.
 - **Losing alignment information costs nothing measurable, on x86 or on
   AArch64**:
   marking every access as at any byte (steps 1 and 2) and keeping the
@@ -389,9 +388,6 @@ Dispatched as runner `macos-latest`, command
 
 ## What remains
 
-- A packing rule that keeps an 8-byte member's offset a multiple of 4
-  (padding a 13-byte `Trio` to 16, or reordering so the `Int` follows a
-  4-byte-aligned prefix), measured on both machines.
 - The Shell workflow's `runner` input and its macOS step live on this
   branch only; `main`'s workflow runs on `ubuntu-latest` alone.
 - More spare values: a box's or a reference's pointer is never null and
