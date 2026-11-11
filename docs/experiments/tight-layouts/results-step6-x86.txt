@@ -1,0 +1,15 @@
+N=10000000 PASSES=10 RUNS=5
+| shape | default time | default peak | ZANE_UNSWITCH=1 time | ZANE_UNSWITCH=1 peak | ZANE_PACK=structs,ZANE_UNSWITCH=0 time | ZANE_PACK=structs,ZANE_UNSWITCH=0 peak | ZANE_PACK=structs time | ZANE_PACK=structs peak | ZANE_PACK=niche time | ZANE_PACK=niche peak |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 Pair | 0.341 s | 155 MiB | 0.340 s | 155 MiB | 0.295 s | 117 MiB | 0.290 s | 117 MiB | 0.284 s | 117 MiB |
+| 2 Flagged | 0.344 s | 155 MiB | 0.338 s | 155 MiB | 0.226 s | 89 MiB | 0.248 s | 88 MiB | 0.226 s | 88 MiB |
+| 3 Trio | 0.417 s | 155 MiB | 0.350 s | 155 MiB | 0.376 s | 127 MiB | 0.316 s | 127 MiB | 0.314 s | 127 MiB |
+| 4 Outer | 0.490 s | 232 MiB | 0.473 s | 232 MiB | 0.344 s | 155 MiB | 0.351 s | 155 MiB | 0.345 s | 155 MiB |
+| 5 Maybe | 0.340 s | 155 MiB | 0.359 s | 155 MiB | 0.361 s | 155 MiB | 0.344 s | 155 MiB | 0.243 s | 88 MiB |
+| 6 Wide | 0.382 s | 155 MiB | 0.317 s | 155 MiB | 0.397 s | 155 MiB | 0.310 s | 155 MiB | 0.309 s | 155 MiB |
+| 7 Trio scattered | 1.105 s | 155 MiB | 0.940 s | 155 MiB | 1.134 s | 127 MiB | 0.972 s | 127 MiB | 0.978 s | 127 MiB |
+| 8 Wide scattered | 1.461 s | 155 MiB | 1.206 s | 155 MiB | 1.560 s | 155 MiB | 1.257 s | 155 MiB | 1.290 s | 155 MiB |
+| 9 Chosen | 0.493 s | 231 MiB | 0.470 s | 231 MiB | 0.489 s | 231 MiB | 0.466 s | 231 MiB | 0.248 s | 88 MiB |
+| 10 Nested | 0.625 s | 308 MiB | 0.626 s | 308 MiB | 0.621 s | 308 MiB | 0.626 s | 308 MiB | 0.284 s | 89 MiB |
+| 11 Quads | 0.411 s | 155 MiB | 0.404 s | 155 MiB | 0.378 s | 127 MiB | 0.396 s | 127 MiB | 0.384 s | 127 MiB |
+| 12 Trio plain loop | 0.365 s | 155 MiB | 0.371 s | 155 MiB | 0.342 s | 127 MiB | 0.340 s | 127 MiB | 0.326 s | 127 MiB |
