@@ -662,6 +662,75 @@ each runner:
   +7.4%.
 - Zen 3: `treecopy` −6.2%.
 
+## Step 12: sums with no niche kept aligned
+
+`ZANE_PACK=aligned` is `niche` with one difference: a sum with no niche
+keeps its natural layout, so its payload stays at its own alignment.
+Padded structs are still packed, and byte niches still taken. The idea
+was to remove step 11's `entities` loss on x86, whose optional
+components have no niche.
+
+Under `aligned`:
+- all 140 fixture builds print the same;
+- the FFI fixtures match, apart from the three `ffi.sh` cannot run in
+  any mode;
+- `bench/niches` prints the same;
+- every perf program matches its golden.
+
+In Callgrind (`perf12-aligned.txt`, unswitching off), `entities`,
+`paths` and `copies` count exactly the default's cycles: their sums are
+laid out as the default lays them out. `particles` (−5.1%) and `tokens`
+(−2.1%) keep their gains.
+
+Each runner (`aligned.sh`) measured the shapes as medians of 7. It
+timed the realistic programs scaled up, as best of 15, twice. Default,
+niche and aligned all ran with unswitching off. The files are
+`results-step12-*.txt`.
+
+| Program, against default | EPYC 7763 niche | EPYC 7763 aligned | Windows niche | Windows aligned | M1 niche | M1 aligned |
+| --- | --- | --- | --- | --- | --- | --- |
+| particles | −7.9%, −8.7% | −7.0%, −8.1% | −11.6%, −10.9% | −11.0%, −10.4% | −5.1%, −2.3% | −5.7%, −0.1% |
+| tokens | −3.8%, −3.0% | −1.7%, −1.7% | −1.3%, −1.2% | −1.0%, −0.5% | see below | see below |
+| entities | −0.1%, −1.5% | +0.1%, −1.0% | +1.9%, +8.7% | −3.9%, +1.2% | −9.6%, −9.2% | +6.7%, +3.0% |
+| paths | −1.4%, −1.8% | +5.0%, +3.1% | −11.6%, −9.2% | −5.9%, −4.3% | −9.6%, −9.9% | −0.5%, −2.7% |
+
+The shapes match between the two modes except `Maybe`, a sum with no
+niche:
+
+| Machine | Niche | Aligned |
+| --- | --- | --- |
+| EPYC 7763 | −26% time, −43% memory | the default's |
+| Windows | −23% time, −41% memory | the default's |
+| M1 | −22% time, −43% memory | the default's |
+
+What this shows:
+
+- **`aligned` loses more than it saves.** `entities`' x86 loss does not
+  reproduce under niche once unswitching is off. On this EPYC it is
+  −0.1% and −1.5%; step 11's +4.7% was one runner instance. Windows is
+  the one x86 machine with a loss left: +1.9% and +8.7%, two runs 7
+  points apart. Against that, aligned gives up `Maybe`'s gains on every
+  machine, `entities`' −9% and `paths`' −10% on the M1, and `paths`' −9%
+  to −12% on Windows.
+- **The runners' noise floor is about ±5%.** `paths` under aligned,
+  whose Callgrind count is the default's to the cycle, measured +5.0%
+  and +3.1% on the EPYC.
+- **Unswitching is needed for `Trio` on ARM.** Without it, under both
+  packed modes:
+
+  | Shape | EPYC 7763 | Windows | M1 |
+  | --- | --- | --- | --- |
+  | Trio | +6% | +7% | +20% |
+  | Wide | −3% | +1% | +12% |
+
+  Step 11 showed what it costs: `entities` +7% to +11% on every x86
+  machine, while on the M1 it does not hurt `entities` at all.
+- **`tokens` at 50× on macOS printed different output across runs in
+  every mode, the default included.** The same command printed one
+  output on Linux and Windows. That points at the macOS runtime at that
+  size (20 million tokens), not at layouts, and is left to its own
+  investigation.
+
 ## Findings
 
 - **Dropping tail padding everywhere is packing everything**, once fields
