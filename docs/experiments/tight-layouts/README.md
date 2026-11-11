@@ -414,6 +414,49 @@ machines, packed or not; the others do not move. On the perf programs
 `division` takes 1.2% fewer cycles and `kept` 0.3% more; no other program
 moves by more than 0.11%.
 
+## Step 7: the whole suite under `niche`
+
+`just test-compiler`'s steps, run with `ZANE_PACK=niche`. The dune tests
+ran in their own build directory (`--build-dir _build_niche`, with
+`DUNE_CACHE=disabled`), so dune's cache could not replay a default run.
+The first run found two bugs, both fixed here:
+
+- **Memoization refused packed keys.** `Memo.fixed` treated every
+  `Ty.Packed` as holding an address, so `moves`, a recursion over a
+  variant, lost its table in all three builds. A packed type is now as
+  fixed as what it packs.
+- **A struct too large to measure crashed `tight`.** `beyondLimitField`
+  died with `Too_large` (exit 3) instead of the size error, because
+  `tight` measured the struct first. It now leaves such a struct
+  unpacked for the size check to refuse.
+
+`tight` also packs a struct only when packing makes it smaller. A struct
+with no padding keeps its natural type and alignment. That took 14
+golden layouts and two alignment tests off the list without changing
+any padded shape's layout.
+
+What still differs, and why each is expected:
+
+| Test | Count | Why |
+| --- | --- | --- |
+| codegen and ffi `.cgt` goldens | 15 | They print the layout: `packed <…>` types, `@1` instead of `@8` offsets. |
+| `tests/unit` layout tests | 7 | They assert the default order and padding. |
+| `abi_test` (3 targets) | 1 | It expects a fieldless variant as `{ i32 }`; packed, its tag is `<{ i8 }>`. |
+| `facts_test` alignment | 1 | It expects `align 8` on every `i64` access, which the blanket alignment-1 pass removes (step 3). |
+
+No program's output changed:
+- tests/runtime, tests/semantics, tests/parser and tests/nesting pass;
+- so do the tiers tests, the memory probes and reclaim.
+
+The default build (`ZANE_PACK` unset) passes `just test-compiler` after
+the fixes.
+
+What making it the default would take: regenerate the goldens and the
+unit tests' expectations. Also replace the blanket alignment-1 pass with
+each access's own alignment. Steps 3 and 6 measured no speed cost to
+the blanket pass, but it hides from LLVM every alignment the emitter
+knew.
+
 ## Findings
 
 - **Dropping tail padding everywhere is packing everything**, once fields
