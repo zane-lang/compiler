@@ -576,6 +576,92 @@ runs put `listgrowth`'s +16.6% at −2.8%). The Callgrind counts
 | concscan | +0.08% | +0.07% |
 | the other 6 | within 0.07% | within 0.08% |
 
+## Step 11: every supported platform
+
+`platform.sh` ran through the Shell workflow on each runner. It builds
+the compiler, then:
+- checks `bench/niches` in every mode;
+- runs `measure.py` (medians of 5) over default, `ZANE_UNSWITCH=1` and
+  niche;
+- times the perf programs by wall clock (`programs.py`, best of 7);
+- times langbench against `core` (`langbench.py`, best of 5).
+
+Two fixes to the workflow made Windows run, both on this branch only:
+- its permission check now runs in bash;
+- the command is started through `pixi run`, since on Windows `pixi
+  shell-hook` writes for cmd.
+
+The Intel Mac (`macos-15-intel`) is left out, at the maintainer's call,
+because that runner is very slow.
+
+Results, by machine:
+
+| Machine | File |
+| --- | --- |
+| Linux, AMD EPYC 7763 (Zen 3) | `results-step11-linux-x86.txt`, `results-step11-linux-unswitch-split.txt` |
+| Linux, AMD EPYC 9V45 (Zen 5) | `results-step11-linux-epyc-scaled.txt` |
+| Windows x86-64 | `results-step11-windows-x86.txt` |
+| macOS, Apple M1 | `results-step11-macos-arm64.txt` |
+
+On every machine, `bench/niches` prints the same in every mode,
+unoptimized and optimized.
+
+**Layouts (`measure.py`).** Packed values take 25–71% less peak memory
+everywhere. Niche time against default:
+
+| Shape | EPYC 7763 | Windows | M1 |
+| --- | --- | --- | --- |
+| Pair | −9% | +1% | −35% |
+| Flagged | −22% | −8% | −34% |
+| Trio | −11% | −18% | −32% |
+| Outer | −29% | −21% | −31% |
+| Chosen | −50% | −37% | −38% |
+| Nested | −52% | −37% | −4% |
+| Trio scattered | −13% | −13% | −8% |
+| the rest | −15% to 0% | +3% to −30% | −37% to −4% |
+
+ARM's `Trio`, 28% slower before step 6, is 32% faster. Nothing is
+slower by more than Windows' +3% on `Quads` and `Trio plain loop`.
+
+**The perf programs by wall clock.** At their gate sizes most of them
+run 1–30 ms, so best-of-7 differences of a few percent are noise. The
+realistic ones were rerun at 10–100× their size, best of 15, twice on
+each runner:
+
+| Program | Zen 3 niche | Zen 3 niche, no unswitch | Zen 3 default + unswitch | Zen 5 niche | Zen 5 default + unswitch | Xeon (container) niche | M1 niche |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| particles | −6.7%, −6.0% | −5.9%, −5.6% | +1.0%, +1.2% | −5.0%, −5.8% | +1.3%, +2.4% | −6.8% | −7.1% |
+| tokens | | | | −3.5%, −3.3% | +0.4%, −0.2% | −1.9% | +0.2% |
+| entities | +5.1%, +5.9% | +4.7%, +4.7% | +8.2%, +7.9% | +13.6%, +14.2% | +9.2%, +10.9% | +0.3%, −0.9%, +3.2% | −8.3% |
+| paths | +1.2%, +1.6% | +1.2%, +1.1% | +0.7%, −0.1% | −12.4%, −2.4% | −8.4%, +0.8% | −7.8% | −1.6% |
+
+(Windows, unscaled: `entities` +10.7%, `paths` −9.5%.)
+
+`entities` is the one loss, and it has two parts:
+
+- **Packing**, about +5% on Zen 3 with unswitching off. Its components
+  are optional values whose payload has no spare byte: `Position` is
+  two `Int`s. So each packs as a one-byte tag and 16 bytes, and every
+  `Int` in it sits at an odd address. Its working set fits in L2, so the
+  memory saved buys little, while the unaligned 8-byte accesses, and
+  stores the core cannot forward to the load after them, cost cycles.
+  Callgrind models neither, which is why it counted −10.6%. The M1,
+  which handles unaligned accesses more cheaply, gains 8%.
+- **Unswitching**, +7% to +11% on every x86 machine, on the default
+  layout too. In `zane_main` it unswitches the loops `irce` (LLVM's
+  pass that splits a loop to remove its range checks) had already split
+  into pre-, main and post-loops. The code is no larger (194 blocks
+  against 197), and Callgrind counts +1.3%. The cost is in something it
+  does not model: loop alignment, or what the predictor makes of the
+  new shape. Finding which one needs hardware counters, which none of
+  these machines exposes.
+
+**langbench by wall clock:**
+- Everywhere: within ±3%, except a few rows short enough to be noise.
+- M1: `entities` −7.5% and `concscan` −12.7% under niche, but `nbody`
+  +7.4%.
+- Zen 3: `treecopy` −6.2%.
+
 ## Findings
 
 - **Dropping tail padding everywhere is packing everything**, once fields

@@ -1,0 +1,10 @@
+Shell workflow run 43101984532, ubuntu-latest, scaled, best of 15, run twice
+model name	: AMD EPYC 7763 64-Core Processor
+program                        default          default+unswitch                     niche            niche-unswitch
+entities                0.233s   +0.0%            0.252s   +8.2%            0.245s   +5.1%            0.244s   +4.7%
+particles               0.403s   +0.0%            0.407s   +1.0%            0.376s   -6.7%            0.379s   -5.9%
+paths                   0.491s   +0.0%            0.494s   +0.7%            0.497s   +1.2%            0.497s   +1.2%
+program                        default          default+unswitch                     niche            niche-unswitch
+entities                0.232s   +0.0%            0.250s   +7.9%            0.246s   +5.9%            0.243s   +4.7%
+particles               0.400s   +0.0%            0.405s   +1.2%            0.376s   -6.0%            0.378s   -5.6%
+paths                   0.492s   +0.0%            0.491s   -0.1%            0.499s   +1.6%            0.497s   +1.1%
