@@ -227,7 +227,7 @@ static char *zane_frames_take(size_t bytes) {
    where a program is loaded too low for that, the largest of 12, 8, 4 or 2
    GiB found free from 4 GiB above it on, at each GiB up to the reach. It
    is reserved as the program's first context reserves its frames
-   (zane_reserve), before anything else is mapped: macOS places a mapping
+   (zane_reserve), before the program's code runs: macOS places a mapping
    made without an address right above the image, so a list's reservation
    (arena.c) would otherwise take the addresses the window needs. A range
    given back is listed and carved again, first fit; the rest of the window

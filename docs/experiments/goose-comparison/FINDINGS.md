@@ -138,8 +138,8 @@ reference fits. Decoding is one address computation, with no load.
 
 **Boxes** are 32 bits: a boxed member is its block's signed distance from
 the image in 8-byte units, which reaches ±16 GiB, and 0 is null. The
-runtime carves every 1 MiB chunk from a window it reserves once, from
-16 GiB to 2 GiB below the image, or above the image where the program is
+runtime carves every 1 MiB chunk from a window it reserves once, as the
+program starts, from 16 GiB to 2 GiB below the image, or above the image where the program is
 loaded too low for that (as under Valgrind). Chunks inside the window are
 reused in any order; only their distance from the image is bounded.
 
@@ -200,6 +200,9 @@ scope's own region, the common case.
   2 GiB of it, and the window the largest of 12, 8, 4 or 2 GiB free from
   4 GiB above it on, at any GiB within 16 GiB of the image. macOS always
   loads a program there, above its unmapped low 4 GiB.
+- Both are reserved as the program starts, before its code runs: macOS places a mapping made without an address right above the
+  image, so a large list's reservation made first could take the
+  addresses the window needs.
 - If the window or the frames area cannot be reserved, the program stops
   with an error rather than falling back, since the encoding is chosen when
   the program is compiled.

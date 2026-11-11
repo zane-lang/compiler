@@ -56,6 +56,7 @@ relocation needs, by `llvm-strip` (`STRIP` when set).
 | `warnings` | A C warning in a source of the package's own directory, which `--check` shows, and the same in a vendored source below it, which it does not |
 | `noObject` | A null result from a foreign verb that declares no abort, which stops the program |
 | `callbackNull` | A null pointer C passes a function value for a data handle, which stops the program before the lambda runs |
+| `crowded` | C that takes every free address within 17 GiB of the program's image once the program runs, as macOS may place its own mappings there, before the program needs a dynamic chunk: the chunk comes from the window the runtime reserved as the program started, near the image (`docs/design/platforms.md`) |
 | `vendored` | A `c.coda` whose rows apply in order: a `source` pattern over a vendored tree (skipping a file that is not C), an `include` directory, a `define`, and a `define` for another target that does not apply |
 | `reject/cStrings` | A string crossing as a `const char *` result, as a `char *` C may write, and as a `const unsigned char *`, each refused |
 | `reject/callbacks` | A function value C would pass a string as a `const char *`, a handle as another type's pointer, a capability, and a `&` parameter, each refused |
