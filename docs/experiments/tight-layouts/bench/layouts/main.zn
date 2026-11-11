@@ -13,6 +13,8 @@
 /// | 6 | Wide { a Int; b Int }, no padding | 16 | 16 |
 /// | 7 | Trio, scattered reads | 16 | 13 |
 /// | 8 | Wide, scattered reads | 16 | 16 |
+/// | 9 | Chosen variant { some Flagged; none Unit } | 24 | 10, 9 with a byte niche |
+/// | 10 | Nested variant { inner Chosen; outer Unit } | 32 | 11, 9 with a byte niche |
 package layouts;
 
 alias Int = @primitives$I64;
@@ -86,6 +88,16 @@ type Maybe = variant {
 	none Unit;
 }
 
+type Chosen = variant {
+	some Flagged;
+	none Unit;
+}
+
+type Nested = variant {
+	inner Chosen;
+	outer Unit;
+}
+
 type Wide = struct {
 	a Int;
 	b Int;
@@ -103,6 +115,62 @@ Int one(f Bool) {
 Int value(m Maybe) => match (m) {
 	x some => x;
 	none => Int(0);
+}
+
+Int chosen(c Chosen) => match (c) {
+	x some => @operators$add(x.a, one(x.f));
+	none => Int(0);
+}
+
+Int nested(t Nested) => match (t) {
+	c inner => chosen(c);
+	outer => Int(7);
+}
+
+/// A value of [i]: none for every third, else some.
+Chosen choice(i Int) {
+	@controlflow$branch(@operators$equal(modulo(i, Int(3)), Int(0)), {
+		return Chosen.none(Unit());
+	});
+	return Chosen.some(Flagged(i, odd(i)));
+}
+
+Int chosens(n Int, passes Int) {
+	list ListRef<Chosen> = @primitives$ListRef(Chosen);
+	i Int(1);
+	i!to(n) {
+		list!push(choice(i));
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			total = @operators$add(total, chosen(list[j]));
+		}
+	}
+	return total;
+}
+
+Int nesteds(n Int, passes Int) {
+	list ListRef<Nested> = @primitives$ListRef(Nested);
+	i Int(1);
+	i!to(n) {
+		t Nested = Nested.inner(choice(i));
+		@controlflow$branch(@operators$equal(modulo(i, Int(5)), Int(0)), {
+			t = Nested.outer(Unit());
+		});
+		list!push(t);
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			total = @operators$add(total, nested(list[j]));
+		}
+	}
+	return total;
 }
 
 Int pairs(n Int, passes Int) {
@@ -237,6 +305,8 @@ Unit main() {
 	@controlflow$branch(@operators$equal(shape, Int(6)), { total = wides(n, passes, false); });
 	@controlflow$branch(@operators$equal(shape, Int(7)), { total = trios(n, passes, true); });
 	@controlflow$branch(@operators$equal(shape, Int(8)), { total = wides(n, passes, true); });
+	@controlflow$branch(@operators$equal(shape, Int(9)), { total = chosens(n, passes); });
+	@controlflow$branch(@operators$equal(shape, Int(10)), { total = nesteds(n, passes); });
 	say(String(total));
 	return Unit();
 }

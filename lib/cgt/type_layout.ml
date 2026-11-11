@@ -409,7 +409,15 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
             List.concat
               (List.mapi
                  (fun i (_, c) ->
-                   let tag = match lowered with Nodes.Ty.Sum ts when Nodes.Ty.niche ts -> Layout.niche_tag i | _ -> i in
+                   let tag =
+                     match lowered with
+                     | Nodes.Ty.Sum ts when Nodes.Ty.niche ts -> Layout.niche_tag i
+                     | Nodes.Ty.Sum ts when Option.is_some (Nodes.Ty.byte_niche ts) -> (
+                         match Nodes.Ty.byte_niche ts with
+                         | Some n -> Layout.byte_niche_tag ~case:i ~at:n.at ~first:n.first ~count:n.count
+                         | None -> i)
+                     | _ -> i
+                   in
                    member c (sum + Nodes.Ty.payload_at lowered) (tags @ [ (sum, tag) ]))
                  cs)
           in

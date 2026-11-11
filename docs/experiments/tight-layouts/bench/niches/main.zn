@@ -1,0 +1,196 @@
+/// Sums a byte niche lays out as their payload alone (`ZANE_PACK=niche`):
+/// built, matched, copied, stored in lists and in structs, nested, with a
+/// payload that owns a block, and with more than one case without a
+/// payload. Prints a line per check; every mode prints the same.
+package niches;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+Int modulo(x Int, n Int) => @operators$add(x, @operators$negate(@operators$multiply(@operators$divide(x, n), n)));
+
+type Kind = enum [ red, green, blue ];
+
+type Flagged = struct {
+	a Int;
+	f Bool;
+}
+
+Flagged(a Int, f Bool) => init{ a; f; }
+
+/// A `Bool` in the payload: the niche.
+type Maybe = variant {
+	some Flagged;
+	none Unit;
+}
+
+/// Three cases without a payload, in two orders around the one with.
+type Several = variant {
+	first Unit;
+	value Flagged;
+	second Unit;
+	third Unit;
+}
+
+/// An enum's tag in the payload.
+type Tagged = struct {
+	n Int;
+	k Kind;
+}
+
+Tagged(n Int, k Kind) => init{ n; k; }
+
+type Shaded = variant {
+	shade Tagged;
+	plain Unit;
+}
+
+/// A niche sum inside a niche sum.
+type Twice = variant {
+	inner Maybe;
+	outer Unit;
+}
+
+/// A payload that owns a block, so that a walk looks past the tag.
+type Named = struct {
+	name String;
+	ok Bool;
+}
+
+Named(name String, ok Bool) => init{ name; ok; }
+
+type Entry = variant {
+	named Named;
+	blank Unit;
+}
+
+type Holder = struct {
+	before Bool;
+	entry Entry;
+	after Int;
+}
+
+Holder(before Bool, entry Entry, after Int) => init{ before; entry; after; }
+
+Int maybe(m Maybe) => match (m) {
+	x some {
+		@controlflow$branch(x.f, {
+			return @operators$add(x.a, Int(1000));
+		});
+		return x.a;
+	}
+	none => @operators$negate(Int(1));
+}
+
+Int several(s Several) => match (s) {
+	first => @operators$negate(Int(1));
+	x value => x.a;
+	second => @operators$negate(Int(2));
+	third => @operators$negate(Int(3));
+}
+
+String kind(k Kind) => match (k) {
+	red => String("red");
+	green => String("green");
+	blue => String("blue");
+}
+
+String shaded(s Shaded) => match (s) {
+	t shade => @operators$concat(@operators$concat(String(t.n), String(" ")), kind(t.k));
+	plain => String("plain");
+}
+
+Int twice(t Twice) => match (t) {
+	m inner => maybe(m);
+	outer => @operators$negate(Int(9));
+}
+
+String entry(e Entry) => match (e) {
+	x named {
+		@controlflow$branch(x.ok, {
+			return @operators$concat(x.name, String("!"));
+		});
+		return x.name;
+	}
+	blank => String("-");
+}
+
+Unit main() {
+	say(String(maybe(Maybe.some(Flagged(Int(5), true)))));
+	say(String(maybe(Maybe.some(Flagged(Int(6), false)))));
+	say(String(maybe(Maybe.none(Unit()))));
+
+	say(String(several(Several.first(Unit()))));
+	say(String(several(Several.value(Flagged(Int(7), true)))));
+	say(String(several(Several.second(Unit()))));
+	say(String(several(Several.third(Unit()))));
+
+	say(shaded(Shaded.shade(Tagged(Int(3), Kind.blue))));
+	say(shaded(Shaded.shade(Tagged(Int(4), Kind.red))));
+	say(shaded(Shaded.plain(Unit())));
+
+	say(String(twice(Twice.inner(Maybe.some(Flagged(Int(8), true))))));
+	say(String(twice(Twice.inner(Maybe.none(Unit())))));
+	say(String(twice(Twice.outer(Unit()))));
+
+	// A list of each, built, copied and read back.
+	ms ListRef<Maybe> = @primitives$ListRef(Maybe);
+	ss ListRef<Several> = @primitives$ListRef(Several);
+	ts ListRef<Twice> = @primitives$ListRef(Twice);
+	es ListRef<Entry> = @primitives$ListRef(Entry);
+	hs ListRef<Holder> = @primitives$ListRef(Holder);
+	i Int(1);
+	i!to(Int(40)) {
+		r Int = modulo(i, Int(4));
+		odd Bool = @operators$equal(modulo(i, Int(2)), Int(1));
+		m Maybe = Maybe.none(Unit());
+		@controlflow$branch(@operators$not(@operators$equal(r, Int(0))), { m = Maybe.some(Flagged(i, odd)); });
+		ms!push(m);
+		s Several = Several.value(Flagged(i, odd));
+		@controlflow$branch(@operators$equal(r, Int(1)), { s = Several.first(Unit()); });
+		@controlflow$branch(@operators$equal(r, Int(2)), { s = Several.third(Unit()); });
+		ss!push(s);
+		t Twice = Twice.inner(m);
+		@controlflow$branch(@operators$equal(r, Int(3)), { t = Twice.outer(Unit()); });
+		ts!push(t);
+		e Entry = Entry.named(Named(@operators$concat(String("n"), String(i)), odd));
+		@controlflow$branch(@operators$equal(r, Int(2)), { e = Entry.blank(Unit()); });
+		es!push(e);
+		hs!push(Holder(odd, e, i));
+	}
+	copied ListRef<Entry> = @primitives$ListRef(Entry);
+	c Int(1);
+	c!to(Int(40)) {
+		copied!push(es[c]);
+	}
+	es[Int(3)] = Entry.named(Named(String("replaced"), true));
+	es[Int(4)] = Entry.blank(Unit());
+	total Int(0);
+	text String("");
+	j Int(1);
+	j!to(Int(40)) {
+		total = @operators$add(total, @operators$add(maybe(ms[j]), @operators$add(several(ss[j]), twice(ts[j]))));
+		text = @operators$concat(text, @operators$concat(entry(es[j]), entry(copied[j])));
+		h Holder = hs[j];
+		text = @operators$concat(text, @operators$concat(entry(h.entry), String(h.after)));
+	}
+	say(String(total));
+	say(text);
+	return Unit();
+}

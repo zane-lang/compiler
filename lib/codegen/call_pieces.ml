@@ -19,6 +19,8 @@ let rec pieces (t : Ty.t) =
   | Ty.Handle | Ty.Handle16 -> 3
   | Ty.Struct ts -> List.fold_left (fun n t -> n + pieces t) 0 ts
   | Ty.Sum ts when Ty.niche ts -> 1
+  | Ty.Sum ts when Option.is_some (Ty.byte_niche ts) -> (
+      match Ty.byte_niche ts with Some n -> pieces (List.nth ts n.case) | None -> 0)
   | Ty.Sum ts -> 1 + words ts
   | Ty.Array (t, n) -> n * pieces t
   | Ty.Packed t -> (fst (Ty.size_align (Ty.Packed t)) + 7) / 8

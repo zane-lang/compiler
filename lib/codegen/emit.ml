@@ -92,6 +92,13 @@ let rec lltype env (t : Ty.t) =
   | Ty.Ptr -> env.ptr
   | Ty.Ref | Ty.Box32 -> Llvm.i32_type env.ctx
   | Ty.Struct ts -> Llvm.struct_type env.ctx (Array.of_list (List.map (stored env) ts))
+  | Ty.Sum ts when Option.is_some (Ty.byte_niche ts) -> (
+      (* Experimental (Ty.byte_niche): the payload's layout, its spare
+         [Bool] a byte, which holds the other cases' values. *)
+      match Ty.byte_niche ts with
+      | Some { case; path = Some path; _ } -> with_byte env (List.nth ts case) path
+      | Some { case; path = None; _ } -> lltype env (List.nth ts case)
+      | None -> Llvm.void_type env.ctx)
   | Ty.Sum ts when Ty.niche ts -> Llvm.struct_type env.ctx [| Llvm.i32_type env.ctx |]
   | Ty.Sum ts -> (
       let tag = Llvm.i32_type env.ctx in
@@ -116,6 +123,16 @@ let rec lltype env (t : Ty.t) =
           let room = match pieces with [ t ] -> t | ts -> Llvm.packed_struct_type env.ctx (Array.of_list ts) in
           Llvm.packed_struct_type env.ctx [| tag; room |])
   | Ty.Packed t -> lltype env t
+
+(* [t]'s layout with the [Bool] at [path] a byte. *)
+and with_byte env t path =
+  match (path, t) with
+  | [], Ty.I1 -> Llvm.i8_type env.ctx
+  | i :: rest, (Ty.Struct ts | Ty.Packed (Ty.Struct ts)) ->
+      let ms = Array.of_list (List.mapi (fun j m -> if j = i then with_byte env m rest else stored env m) ts) in
+      (match t with Ty.Packed _ -> Llvm.packed_struct_type env.ctx ms | _ -> Llvm.struct_type env.ctx ms)
+  | _ :: rest, Ty.Array (e, n) -> array_type (with_byte env e rest) n
+  | _ -> lltype env t
 
 (* A `Unit` member takes no room, but keeps its index. *)
 and stored env t = if t = Ty.Void then Llvm.struct_type env.ctx [||] else lltype env t
@@ -1192,6 +1209,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
             | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> (gep t p i, List.nth ts i)
             (* A sum's payload room holds case [i]'s payload. *)
             | (Ty.Sum ts | Ty.Packed (Ty.Sum ts)) when List.nth ts i = Ty.Void -> (p, Ty.Void)
+            | Ty.Sum ts when Option.is_some (Ty.byte_niche ts) -> (p, List.nth ts i)
             | Ty.Sum ts when Ty.niche ts -> (gep t p 0, List.nth ts i)
             | Ty.Sum ts | Ty.Packed (Ty.Sum ts) -> (gep t p 1, List.nth ts i)
             | _ -> Diagnostic.bug "codegen: an offset through something not a struct")
@@ -1289,6 +1307,27 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       match (e.Expr.ty, expr env fr b value) with
       | Ty.Void, _ | _, None -> None
       | _, Some v -> Some (Llvm.build_extractvalue v index "" b))
+  | Expr.Case { index; payload } when (match e.Expr.ty with Ty.Sum ts -> Option.is_some (Ty.byte_niche ts) | _ -> false) -> (
+      let ts = match e.Expr.ty with Ty.Sum ts -> ts | _ -> [] in
+      let n = Option.get (Ty.byte_niche ts) in
+      let t = lltype env e.Expr.ty in
+      let tmp = alloca env fr t in
+      if index = n.case then (
+        (* The payload's bytes are the sum's. *)
+        match expr env fr b payload with
+        | Some p ->
+            ignore (Llvm.build_store p tmp b);
+            Some (Llvm.build_load t tmp "" b)
+        | None -> None)
+      else begin
+        (* Another case is the value its rank among them names, at the
+           spare byte, the payload's other bytes zero. *)
+        let rank = if index < n.case then index else index - 1 in
+        ignore (Llvm.build_store (Llvm.const_null t) tmp b);
+        let i8 = Llvm.i8_type env.ctx in
+        ignore (Llvm.build_store (Llvm.const_int i8 (n.first + rank)) (byte_at env b tmp n.at) b);
+        Some (Llvm.build_load t tmp "" b)
+      end)
   | Expr.Case { index; payload } when (match e.Expr.ty with Ty.Sum ts -> Ty.niche ts | _ -> false) ->
       let t = lltype env e.Expr.ty in
       let word =
@@ -1310,6 +1349,13 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           ignore (Llvm.build_store p at b)
       | None -> ());
       Some (Llvm.build_load t tmp "" b)
+  | Expr.Payload { value; _ } when (match value.Expr.ty with Ty.Sum ts -> Option.is_some (Ty.byte_niche ts) | _ -> false) -> (
+      match (e.Expr.ty, expr env fr b value) with
+      | Ty.Void, _ | _, None -> None
+      | t, Some v ->
+          let tmp = alloca env fr (Llvm.type_of v) in
+          ignore (Llvm.build_store v tmp b);
+          Some (Llvm.build_load (lltype env t) tmp "" b))
   | Expr.Payload { value; _ } when (match value.Expr.ty with Ty.Sum ts -> Ty.niche ts | _ -> false) -> (
       match (e.Expr.ty, expr env fr b value) with
       | Ty.Void, _ | _, None -> None
@@ -1632,7 +1678,22 @@ and stat env fr b (s : Stat.t) =
       | _ -> ())
   | Stat.Switch { value; cases } ->
       let v = value_of env fr b value in
-      let tag = Llvm.build_extractvalue v 0 "" b in
+      let tag =
+        match value.Expr.ty with
+        | Ty.Sum ts when Option.is_some (Ty.byte_niche ts) ->
+            (* The case a byte-niche sum holds: another case's when its spare
+               byte holds one of their values, else the one with a payload. *)
+            let n = Option.get (Ty.byte_niche ts) in
+            let i32 = Llvm.i32_type env.ctx and i8 = Llvm.i8_type env.ctx in
+            let tmp = alloca env fr (Llvm.type_of v) in
+            ignore (Llvm.build_store v tmp b);
+            let byte = Llvm.build_load i8 (byte_at env b tmp n.at) "" b in
+            let rank = Llvm.build_zext (Llvm.build_sub byte (Llvm.const_int i8 n.first) "" b) i32 "" b in
+            let other = Llvm.build_icmp Llvm.Icmp.Ult rank (Llvm.const_int i32 n.count) "" b in
+            let past = Llvm.build_zext (Llvm.build_icmp Llvm.Icmp.Uge rank (Llvm.const_int i32 n.case) "" b) i32 "" b in
+            Llvm.build_select other (Llvm.build_add rank past "" b) (Llvm.const_int i32 n.case) "" b
+        | _ -> Llvm.build_extractvalue v 0 "" b
+      in
       let tag =
         match value.Expr.ty with
         | Ty.Sum ts when Ty.niche ts ->
