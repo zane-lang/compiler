@@ -32,6 +32,38 @@ let unoptimized =
    main loop whose checks it has proved pass and the checked iterations
    around it, and the passes after it would turn the checks into exit tests
    it no longer recognizes. *)
+(* Experimental tight layouts (docs/experiments/tight-layouts): a packed
+   value's stride is rarely a power of two, and a loop whose index a
+   loop-invariant condition picks multiplies it by the stride on every
+   element rather than stepping a pointer by it. Non-trivial unswitching,
+   which `-O3` runs and `-O2` does not, copies such a loop once for each
+   way the condition goes, each with an index LLVM steps. On under
+   `ZANE_PACK`, off with `ZANE_UNSWITCH=0`, and on in any build with
+   `ZANE_UNSWITCH=1`. *)
+let unswitch () =
+  match Sys.getenv_opt "ZANE_UNSWITCH" with
+  | Some "1" -> true
+  | Some "0" -> false
+  | _ -> Cgt.Nodes.Ty.pack_structs ()
+
+let nontrivial pipeline =
+  let off = "simple-loop-unswitch<no-nontrivial;trivial>" and on = "simple-loop-unswitch<nontrivial;trivial>" in
+  if not (unswitch ()) then pipeline
+  else
+    let n = String.length off in
+    let b = Buffer.create (String.length pipeline) in
+    let rec go i =
+      if i > String.length pipeline - n then Buffer.add_string b (String.sub pipeline i (String.length pipeline - i))
+      else if String.sub pipeline i n = off then (
+        Buffer.add_string b on;
+        go (i + n))
+      else (
+        Buffer.add_char b pipeline.[i];
+        go (i + 1))
+    in
+    go 0;
+    Buffer.contents b
+
 let optimized = O2_pipeline.optimized
 
 (* [optimized] with runtime loop unrolling off, for tier 1
@@ -52,4 +84,5 @@ let tier1 = O2_pipeline.tier1
 let llvm_options = [ "-irce-min-runtime-iterations=64"; "-align-all-functions=6" ]
 
 (* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*. *)
-let pipeline ~optimize ~tier1:is_tier1 = if is_tier1 then tier1 else if optimize then optimized else unoptimized
+let pipeline ~optimize ~tier1:is_tier1 =
+  if is_tier1 then nontrivial tier1 else if optimize then nontrivial optimized else unoptimized
