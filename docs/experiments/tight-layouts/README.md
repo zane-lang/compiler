@@ -525,6 +525,57 @@ makes optimized executables 2.8% smaller and unoptimized ones 0.1%
 larger. Most of an executable is the runtime and the C library, so the
 compiled code itself shrinks more than 2.8%.
 
+## Step 10: realistic programs, and langbench against `core`
+
+`main` gained four perf programs shaped like real code
+(zane-lang/compiler#351), and they were merged into this branch:
+- `particles`: a list of structs mixing `Float`s with a flag;
+- `tokens`: `{kind, start, length}` tokens;
+- `entities`: entities whose components are optional;
+- `paths`: a graph search with an optional predecessor per node.
+
+Every perf program was measured under Callgrind, as the perf gate
+counts it (`tests/perf/run --fresh --build optimized`), in four modes.
+The rows are in `perf10-*.txt`, and every output matched its golden:
+
+| Program | Default cycles | Default + unswitch | Niche | Niche, `ZANE_UNSWITCH=0` | Niche L1 misses |
+| --- | --- | --- | --- | --- | --- |
+| entities | 43,249,220 | +1.3% | −10.6% | −10.7% | −29.0% |
+| paths | 55,174,291 | 0.0% | −6.6% | −6.6% | −33.4% |
+| particles | 34,920,250 | 0.0% | −5.0% | −5.1% | −17.4% |
+| copies | 41,087,272 | 0.0% | −5.0% | −5.0% | −19.8% |
+| tokens | 50,814,073 | 0.0% | −3.4% | −3.4% | −12.2% |
+| division | 72,691,474 | −1.2% | −1.2% | 0.0% | −0.1% |
+| scopes | 27,044,228 | 0.0% | −1.1% | −1.1% | 0.0% |
+| removal | 222,360,210 | 0.0% | +0.3% | +0.3% | 0.0% |
+| kept | 1,040,071 | +0.3% | +0.3% | +0.1% | −0.2% |
+| the other 11 | | within 0.1% | within 0.1% | within 0.1% | within 1.5% |
+
+All four realistic programs get cheaper under niche, through fewer cache
+misses. The largest rise anywhere is +0.3%, well inside the gate's 1%.
+Unswitching alone is a wash on these programs: `division` −1.2%,
+`entities` +1.3%.
+
+**langbench**, built against `core`'s head with `--optimize`:
+- `langbench.py` times langbench's programs by wall clock.
+- `langbench_cycles.py` measures them under Callgrind at each test's
+  check size.
+
+Six of the 16 fail to compile in every mode: `trialdiv`, `ntree`,
+`spectralnorm`, `allocfree`, `gameloop` and `particles`. langbench has
+not been migrated to the compiler's current ownership rules and syntax,
+so these failures have nothing to do with packing. The wall clock here moved rows by up to
+±20% between runs (`results-step10-langbench-x86.txt`; a rerun at 21
+runs put `listgrowth`'s +16.6% at −2.8%). The Callgrind counts
+(`results-step10-langbench-cycles.txt`) are the reliable ones:
+
+| Test | Default + unswitch | Niche |
+| --- | --- | --- |
+| treecopy | 0.00% | −4.64% |
+| nbody | −0.36% | −0.37% |
+| concscan | +0.08% | +0.07% |
+| the other 6 | within 0.07% | within 0.08% |
+
 ## Findings
 
 - **Dropping tail padding everywhere is packing everything**, once fields

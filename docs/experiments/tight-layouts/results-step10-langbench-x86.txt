@@ -1,0 +1,110 @@
+test                             default          default+unswitch                     niche
+startup                   0.001s   +0.0%            0.001s  +19.2%            0.001s   +1.3%
+primes                    0.001s   +0.0%            0.001s   +5.0%            0.001s   -3.7%
+File "/home/user/spec/langbench/bin/trialdiv/main.zn", line 11, characters 1-11:
+11 | ^List<Int> primesBelow(bound Int) {
+   | ^^^^^^^^^^
+Error: `core$List<core$Int>` is a value type, and `^` marks only a roaming owner of a reference type; a value is never owned, only copied
+File "/home/user/spec/langbench/bin/trialdiv/main.zn", line 17, characters 12-22:
+17 |     primes ^List<Int> = List(Int);
+  
+File "/home/user/spec/langbench/bin/trialdiv/main.zn", line 11, characters 1-11:
+11 | ^List<Int> primesBelow(bound Int) {
+   | ^^^^^^^^^^
+Error: `core$List<core$Int>` is a value type, and `^` marks only a roaming owner of a reference type; a value is never owned, only copied
+File "/home/user/spec/langbench/bin/trialdiv/main.zn", line 17, characters 12-22:
+17 |     primes ^List<Int> = List(Int);
+  
+File "/home/user/spec/langbench/bin/trialdiv/main.zn", line 11, characters 1-11:
+11 | ^List<Int> primesBelow(bound Int) {
+   | ^^^^^^^^^^
+Error: `core$List<core$Int>` is a value type, and `^` marks only a roaming owner of a reference type; a value is never owned, only copied
+File "/home/user/spec/langbench/bin/trialdiv/main.zn", line 17, characters 12-22:
+17 |     primes ^List<Int> = List(Int);
+  
+trialdiv                         refused                   refused                   refused
+binarytrees               0.038s   +0.0%            0.035s   -6.3%            0.037s   -1.7%
+mandelbrot                0.644s   +0.0%            0.637s   -1.2%            0.649s   +0.8%
+fannkuch                  0.267s   +0.0%            0.262s   -1.7%            0.264s   -1.0%
+entities                  0.410s   +0.0%            0.409s   -0.2%            0.424s   +3.5%
+listgrowth                0.120s   +0.0%            0.117s   -2.7%            0.140s  +16.6%
+File "/home/user/spec/langbench/bin/ntree/main.zn", line 10, characters 19-23:
+10 |     children List<Node>;
+   |                   ^^^^
+Error: `ntree$Node` is a reference type, and it reaches `core$List<ntree$Node>`'s field `_value`, then the elements of `@primitives$List<ntree$Node>`, a value type's slot; a value type holds only values, all the way down
+File "/home/user/spec/langbench/bin/ntree/
+File "/home/user/spec/langbench/bin/ntree/main.zn", line 10, characters 19-23:
+10 |     children List<Node>;
+   |                   ^^^^
+Error: `ntree$Node` is a reference type, and it reaches `core$List<ntree$Node>`'s field `_value`, then the elements of `@primitives$List<ntree$Node>`, a value type's slot; a value type holds only values, all the way down
+File "/home/user/spec/langbench/bin/ntree/
+File "/home/user/spec/langbench/bin/ntree/main.zn", line 10, characters 19-23:
+10 |     children List<Node>;
+   |                   ^^^^
+Error: `ntree$Node` is a reference type, and it reaches `core$List<ntree$Node>`'s field `_value`, then the elements of `@primitives$List<ntree$Node>`, a value type's slot; a value type holds only values, all the way down
+File "/home/user/spec/langbench/bin/ntree/
+ntree                            refused                   refused                   refused
+treecopy                  0.057s   +0.0%            0.051s  -10.4%            0.045s  -20.5%
+nbody                     0.248s   +0.0%            0.246s   -1.0%            0.239s   -3.6%
+File "/home/user/spec/langbench/bin/spectralnorm/main.zn", line 15, characters 1-2:
+15 | ^List<Float> times(v List<Float>) {
+   | ^
+Error: Parse error
+
+File "/home/user/spec/langbench/bin/spectralnorm/main.zn", line 15, characters 1-2:
+15 | ^List<Float> times(v List<Float>) {
+   | ^
+Error: Parse error
+
+File "/home/user/spec/langbench/bin/spectralnorm/main.zn", line 15, characters 1-2:
+15 | ^List<Float> times(v List<Float>) {
+   | ^
+Error: Parse error
+
+spectralnorm                     refused                   refused                   refused
+File "/home/user/spec/langbench/bin/allocfree/main.zn", line 26, characters 20-24:
+26 |         items List<Item> = List(Item);
+   |                    ^^^^
+Error: `allocfree$Item` is a reference type, and it reaches `core$List<allocfree$Item>`'s field `_value`, then the elements of `@primitives$List<allocfree$Item>`, a value type's slot; a value type holds only values, all the way down
+File "/home
+File "/home/user/spec/langbench/bin/allocfree/main.zn", line 26, characters 20-24:
+26 |         items List<Item> = List(Item);
+   |                    ^^^^
+Error: `allocfree$Item` is a reference type, and it reaches `core$List<allocfree$Item>`'s field `_value`, then the elements of `@primitives$List<allocfree$Item>`, a value type's slot; a value type holds only values, all the way down
+File "/home
+File "/home/user/spec/langbench/bin/allocfree/main.zn", line 26, characters 20-24:
+26 |         items List<Item> = List(Item);
+   |                    ^^^^
+Error: `allocfree$Item` is a reference type, and it reaches `core$List<allocfree$Item>`'s field `_value`, then the elements of `@primitives$List<allocfree$Item>`, a value type's slot; a value type holds only values, all the way down
+File "/home
+allocfree                        refused                   refused                   refused
+File "/home/user/spec/langbench/bin/gameloop/main.zn", line 24, characters 19-25:
+24 |     entities List<Entity> = List(Entity);
+   |                   ^^^^^^
+Error: `gameloop$Entity` is a reference type, and it reaches `core$List<gameloop$Entity>`'s field `_value`, then the elements of `@primitives$List<gameloop$Entity>`, a value type's slot; a value type holds only values, all the way down
+File 
+File "/home/user/spec/langbench/bin/gameloop/main.zn", line 24, characters 19-25:
+24 |     entities List<Entity> = List(Entity);
+   |                   ^^^^^^
+Error: `gameloop$Entity` is a reference type, and it reaches `core$List<gameloop$Entity>`'s field `_value`, then the elements of `@primitives$List<gameloop$Entity>`, a value type's slot; a value type holds only values, all the way down
+File 
+File "/home/user/spec/langbench/bin/gameloop/main.zn", line 24, characters 19-25:
+24 |     entities List<Entity> = List(Entity);
+   |                   ^^^^^^
+Error: `gameloop$Entity` is a reference type, and it reaches `core$List<gameloop$Entity>`'s field `_value`, then the elements of `@primitives$List<gameloop$Entity>`, a value type's slot; a value type holds only values, all the way down
+File 
+gameloop                         refused                   refused                   refused
+File "/home/user/spec/langbench/bin/particles/main.zn", line 26, characters 20-28:
+26 |     particles List<Particle> = List(Particle);
+   |                    ^^^^^^^^
+Error: `particles$Particle` is a reference type, and it reaches `core$List<particles$Particle>`'s field `_value`, then the elements of `@primitives$List<particles$Particle>`, a value type's slot; a value type holds only values, all 
+File "/home/user/spec/langbench/bin/particles/main.zn", line 26, characters 20-28:
+26 |     particles List<Particle> = List(Particle);
+   |                    ^^^^^^^^
+Error: `particles$Particle` is a reference type, and it reaches `core$List<particles$Particle>`'s field `_value`, then the elements of `@primitives$List<particles$Particle>`, a value type's slot; a value type holds only values, all 
+File "/home/user/spec/langbench/bin/particles/main.zn", line 26, characters 20-28:
+26 |     particles List<Particle> = List(Particle);
+   |                    ^^^^^^^^
+Error: `particles$Particle` is a reference type, and it reaches `core$List<particles$Particle>`'s field `_value`, then the elements of `@primitives$List<particles$Particle>`, a value type's slot; a value type holds only values, all 
+particles                        refused                   refused                   refused
+concscan                  0.191s   +0.0%            0.191s   -0.4%            0.193s   +0.8%
