@@ -228,7 +228,8 @@ struct only as a copy, rebuilt in its declaration order as it crosses.
   `lib/codegen/alignment.ml`
 - **Design:** [`design/lowering.md`](design/lowering.md) L5;
   [`experiments/tight-layouts/README.md`](experiments/tight-layouts/README.md)
-- **Effect:** padded values take 25–71% less memory; `entities` runs
+- **Effect:** a list of padded values peaks at 25–71% less memory
+  (`experiments/tight-layouts` `bench/layouts`); `entities` runs
   10.5%, `paths` 6.5%, `copies` 4.8%, `particles` 4.9% and `tokens` 3.3%
   fewer estimated cycles optimized (`tests/perf`)
 
@@ -238,8 +239,9 @@ carrying data has a byte with values it never holds, a `Bool` or a packed
 sum's tag, keeps the other cases' tags in that byte and is no larger than
 its payload; any other sum is packed with a one-byte tag. A value of a
 packed type may begin at any byte, so each load and store is as aligned as
-its address is known to be, not as its type is. A Zane program cannot see
-a layout or take an address, so the compiler is free to choose it; C sees
+its address is known to be, not as its type is. Placement is not visible
+to a Zane program (spec `memory.md` §3.3, §3.5), so the compiler is free
+to choose it; C sees
 a C-compatible type in its own layout, converted as it crosses.
 
 ### One box per cycle

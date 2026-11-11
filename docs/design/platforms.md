@@ -50,8 +50,8 @@ on Linux only.
 
 The compiler builds for 64-bit targets only. Lowering lays out every type
 for a target whose pointers are 8 bytes and which aligns `i64` and `double`
-to 8 bytes, as C lays out a struct there before packing it
-([`lowering.md`](lowering.md) L5): a handle is 24 bytes, and a scope's
+to 8 bytes: a handle is 24 bytes, a struct C would pad is packed instead
+([`lowering.md`](lowering.md) L5), and a scope's
 record and a spawned call's header
 are 224 and 96 bytes (`lib/cgt/nodes.ml`, `runtime/zane_abi.h`). Every
 offset and size of the runtime's records that emitted code relies on is

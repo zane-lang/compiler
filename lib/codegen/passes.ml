@@ -32,6 +32,12 @@ let unoptimized =
    main loop whose checks it has proved pass and the checked iterations
    around it, and the passes after it would turn the checks into exit tests
    it no longer recognizes. *)
+let optimized = O2_pipeline.optimized
+
+(* [optimized] with runtime loop unrolling off, for tier 1
+   (docs/design/tiers.md T2). *)
+let tier1 = O2_pipeline.tier1
+
 (* A packed value's stride is rarely a power of two (lowering.md L5), and
    a loop whose index a loop-invariant condition picks multiplies it by
    the stride on every element rather than stepping a pointer by it.
@@ -41,7 +47,9 @@ let unoptimized =
    up to 28% slower, while on x86-64 it costs less than the copies do
    (docs/experiments/tight-layouts, steps 6, 11 and 12). *)
 let unswitch triple =
-  match String.split_on_char '-' triple with ("aarch64" | "arm64") :: _ -> true | _ -> false
+  match String.split_on_char '-' triple with
+  | arch :: _ -> String.starts_with ~prefix:"aarch64" arch || String.starts_with ~prefix:"arm64" arch
+  | [] -> false
 
 let nontrivial triple pipeline =
   let off = "simple-loop-unswitch<no-nontrivial;trivial>" and on = "simple-loop-unswitch<nontrivial;trivial>" in
@@ -60,12 +68,6 @@ let nontrivial triple pipeline =
     in
     go 0;
     Buffer.contents b
-
-let optimized = O2_pipeline.optimized
-
-(* [optimized] with runtime loop unrolling off, for tier 1
-   (docs/design/tiers.md T2). *)
-let tier1 = O2_pipeline.tier1
 
 (* The options LLVM is started with for [optimized] and [tier1], the same
    for both, since LLVM reads them once for the whole process. IRCE splits a

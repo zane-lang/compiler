@@ -70,12 +70,13 @@ module Ty = struct
 
   let below_limit size = if size >= limit then raise Too_large else size
 
-  (* Size and alignment in bytes on a 64-bit target. A [Struct] is laid out
-     as C lays it out and a [Sum] is its tag and then its payload room at
-     offset 8; lowering uses those two only where they have no padding to
-     drop, and wraps the others in [Packed] (see [tight];
-     docs/design/lowering.md L5). [Too_large] when the type takes [limit]
-     bytes or more. *)
+  (* Size and alignment in bytes on a 64-bit target. A bare [Struct] is laid
+     out as C lays it out, and a bare [Sum] is its tag and then its payload
+     room at offset 8, the form a runtime record such as an outcome keeps;
+     lowering gives a value's type through [tight], which keeps a [Struct]
+     only when it has no padding and a [Sum] only as a niche or byte niche,
+     and packs the rest (docs/design/lowering.md L5). [Too_large] when the
+     type takes [limit] bytes or more. *)
   let rec size_align = function
     | Void -> (0, 1)
     | I1 -> (1, 1)
@@ -236,7 +237,8 @@ module Ty = struct
   (* A struct's members, packed or not. *)
   let members = function Struct ts | Packed (Struct ts) -> ts | _ -> []
 
-  (* A sum's payload starts after its tag. *)
+  (* A bare [Sum]'s payload starts after its tag (see [size_align]); a
+     value's sum keeps its payload at [payload_at]. *)
   let payload_offset = 8
 
   (* A list's handle: [Handle16] with frame references, else [Handle]. *)

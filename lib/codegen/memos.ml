@@ -78,8 +78,8 @@ let memo env (m : Cgt.Memo.t) =
   let fn = lookup in
   Llvm.position_at_end (Llvm.entry_block fn) b;
   (* A value is remembered as the 8-byte words of its bytes, copied into a
-     zeroed buffer. The bytes a value leaves undefined, its padding and the
-     room past a smaller case's payload, are frozen, so a comparison of
+     zeroed buffer. The bytes a value leaves undefined, the room past a
+     smaller case's payload, are frozen, so a comparison of
      them is a comparison of some fixed bits: at worst a miss, never a hit
      LLVM made up. *)
   let buffer n =

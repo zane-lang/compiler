@@ -111,7 +111,7 @@ class FactsTests(unittest.TestCase):
                     helper = '@"%primitives$' in line
                 elif re.search(r"(?:load|store) i64", line):
                     seen[helper] += 1
-                    self.assertIn("align 1" if helper else "align 8", line, target)
+                    self.assertRegex(line, r"align 1(?!\d)" if helper else r"align 8(?!\d)", target)
             self.assertTrue(seen[True] and seen[False], target)
 
     def test_discarded_removal_holds_nothing(self):
