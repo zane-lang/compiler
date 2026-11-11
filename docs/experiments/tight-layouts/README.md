@@ -777,7 +777,9 @@ compiler and this one in the same container gives one rise:
 | particles | optimized | −5.1% |
 | tokens | optimized | −3.4% |
 
-Every other row is within ±1.2%. Against CI's own rows, a local run also
+No other row rises by 0.5% or more. Every row that falls by more than
+0.5% is a build of `copies`, `entities`, `particles`, `paths`, `tokens` or
+`scopes`. Against CI's own rows, a local run also
 shows `depths`, `kept` and `repeats` up 2–8%. Those programs are small
 enough that the dynamic loader's start-up is most of their count, and it
 differs between this container and CI. Built with `main`'s compiler here,
