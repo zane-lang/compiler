@@ -95,8 +95,84 @@ up to 3%):
 - **Dropping every alignment hint costs nothing measurable here**: `Wide`,
   whose layout packing leaves as it is, runs the same in every mode.
 
+## Step 2: the repository's perf programs, and a packed sum's room as words
+
+**Results, first run.** `tests/perf/run --build optimized` under each mode
+measures every program in `tests/perf` in Valgrind's estimated cycles,
+which are the same on every run of one build. With `structs` no program
+moved by more than 0.1%: none of them stores a struct with tail padding.
+With `all`, `copies` (a tree of value variants copied and summed) was
+21.7% slower and `stress` 5.1% slower, though `copies` missed the caches
+less (first-level misses down 20%, last-level 17%): its instructions grew
+by 38%, all of them in `sum`, the match over the tree.
+
+**Design.** The packed sum's payload room was `[n x i8]`, as the
+pooled-variant experiment's packed node had it. LLVM passes that by value
+as one argument per byte, and reads an 8-byte payload out of it as eight
+byte loads, shifted and joined. The room is now its 8-byte words, then a 4-,
+2- and 1-byte integer for what is left (`<{ i8, i64 }>` for `copies`'s
+`Tree`), a packed struct whose size is still exactly the room's. A payload
+is read through the room's address, so nothing else changed.
+`fixtures.sh ZANE_PACK=all` and `ffi.sh ZANE_PACK=all` give the same
+results as before it.
+
+**Results.** `tests/perf/run --build optimized`, cycles against the
+default build (`perf-default.txt`, `perf-structs.txt` and `perf-all.txt`
+hold the script's output; `perf-all-byte-room.txt` the first run's):
+
+| program | default cycles | `structs` | `all` | `all`: instructions, L1 misses, LL misses |
+| --- | --- | --- | --- | --- |
+| borrows | 53,593,566 | +0.0% | +0.0% | +0.0%, +0.0%, -0.0% |
+| copies | 41,087,214 | +0.0% | -5.0% | -1.5%, -19.8%, -16.9% |
+| depths | 2,775,856 | +0.1% | -0.1% | +0.0%, -1.5%, +0.0% |
+| division | 72,691,687 | +0.0% | +0.0% | +0.0%, -0.3%, -0.1% |
+| flips | 204,168,810 | +0.0% | +0.0% | +0.0%, -0.2%, +0.0% |
+| floats | 47,749,299 | +0.0% | +0.0% | +0.0%, -0.1%, +0.0% |
+| growth | 78,726,309 | +0.0% | +0.0% | +0.0%, +0.0%, -0.0% |
+| kept | 1,039,667 | +0.1% | +0.1% | +0.1%, -0.2%, +0.1% |
+| leaves | 48,929,487 | +0.0% | +0.0% | +0.0%, -0.3%, -0.1% |
+| removal | 222,360,213 | +0.0% | +0.0% | +0.0%, -0.4%, -0.1% |
+| repeats | 3,673,214 | +0.0% | +0.0% | +0.0%, -0.4%, -0.1% |
+| returns | 137,157,172 | +0.0% | +0.0% | +0.0%, +0.0%, -0.0% |
+| scopes | 27,044,190 | +0.0% | +0.0% | +0.0%, -0.3%, -0.1% |
+| stress | 1,944,429,585 | -0.0% | -0.0% | -0.0%, -0.3%, -0.0% |
+| texts | 55,596,650 | +0.0% | -0.0% | +0.0%, -0.4%, +0.0% |
+| trees | 24,473,022 | +0.0% | +0.0% | +0.0%, +0.1%, +0.0% |
+
+`measure.py 10000000 10 5` again (`results-step2.txt`) gives step 1's
+picture within the container's noise, which this run puts at about 5% on
+the scattered control: memory down by the bytes saved, sequential passes
+11% (`Pair`) to 32% (`Flagged`) faster, `Maybe` 30% faster under `all`,
+scattered reads and the unpadded control unchanged.
+
+## Findings
+
+- **Dropping tail padding everywhere is packing everything**, once fields
+  are ordered: no struct has padding between its members, so the tail is
+  all that is left to drop, and an element at any byte then needs
+  alignment 1.
+- **It pays where values with a padded tail are stored in bulk and read
+  in order**: memory falls by the bytes saved (a quarter to 43% in the
+  shapes measured) and a pass that streams them gets faster by most of
+  that. A struct inside a struct gains twice, since its tail goes in both
+  (`Outer`: a third less memory, 24-30% faster).
+- **Scattered reads gain nothing**: an element at any byte sometimes
+  straddles two cache lines, and the second miss eats what the smaller
+  footprint saves.
+- **Code with no padded value is unchanged**, the module-wide loss of
+  alignment hints included: no perf program moved under `structs`, and
+  only `copies` (5% faster) under `all`.
+- **A packed sum's room must be words**, not bytes, or LLVM moves its
+  payload a byte at a time: that cost `copies` 22% until step 2.
+
 ## What remains
 
-- The repository's perf programs (`tests/perf/run --build optimized`) under
-  each mode, in simulated cycles, for code that is not a list of padded
-  structs.
+- Alignment hints back where a place is known aligned (a local's slot, a
+  scalar list's element), to see whether a compiler that keeps them gains
+  anything over this upper bound; none of the measurements here shows a
+  cost to recover.
+- An ARM64 run: an element at any byte is free on current x86 cores, and
+  the measurements here say nothing about other targets.
+- A tighter sum than a one-byte tag: a payload whose own bytes leave values
+  unused could carry the tag (a niche), as `Ref32.niche` does for one
+  shape.

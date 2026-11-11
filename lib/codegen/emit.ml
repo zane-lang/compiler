@@ -104,7 +104,17 @@ let rec lltype env (t : Ty.t) =
       let tag = Llvm.i8_type env.ctx in
       match Ty.room ts with
       | 0 -> Llvm.packed_struct_type env.ctx [| tag |]
-      | n -> Llvm.packed_struct_type env.ctx [| tag; array_type (Llvm.i8_type env.ctx) n |])
+      | n ->
+          (* The room as words, then the 4, 2 and 1 bytes left, so a payload
+             crosses calls and moves in as few pieces as its bytes allow. *)
+          let pieces =
+            List.init (n / 8) (fun _ -> env.i64)
+            @ List.filter_map
+                (fun (bytes, t) -> if n land bytes <> 0 then Some t else None)
+                [ (4, Llvm.i32_type env.ctx); (2, Llvm.i16_type env.ctx); (1, Llvm.i8_type env.ctx) ]
+          in
+          let room = match pieces with [ t ] -> t | ts -> Llvm.packed_struct_type env.ctx (Array.of_list ts) in
+          Llvm.packed_struct_type env.ctx [| tag; room |])
   | Ty.Packed t -> lltype env t
 
 (* A `Unit` member takes no room, but keeps its index. *)
