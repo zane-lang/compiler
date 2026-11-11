@@ -457,6 +457,43 @@ each access's own alignment. Steps 3 and 6 measured no speed cost to
 the blanket pass, but it hides from LLVM every alignment the emitter
 knew.
 
+## Step 8: what packing costs at the C boundary
+
+`bench/ffi` passes structs to C by value, 100 million times in a loop.
+The C functions are `noinline` and hide one input behind an empty `asm`,
+so LLVM cannot fold the calls away. Four shapes:
+
+- **`Vec3`**: three `F64`. It has no padding, so every layout passes it
+  as it is.
+- **`Tagged`** and **`Nested`**: they have padding, and the default
+  layout already reorders their fields. The crossing converts them
+  member by member in both layouts; packing changes only what the
+  conversion reads from.
+- **`Ordered`** (`{I64, I32}`): already in C's order, with tail padding.
+  The default passes it as it is. Packing makes it 12 bytes against C's
+  16, so only the packed layout converts it.
+
+On x86 (`results-step8-ffi.txt`), best of 7, then best of 15
+interleaved for the two that moved:
+
+| Shape | Plain | Optimized |
+| --- | --- | --- |
+| `Vec3` | +1% | −1% |
+| `Tagged` | −4%, then 0% | +6%, then +12% |
+| `Nested` | −4% | −5% |
+| `Ordered` | +12%, then +14% | −2%, then −1% |
+
+`Ordered`'s plain build is the one steady cost, about 0.4 ns a
+crossing. Its optimized build folds the conversion into the call. The
+`Tagged` optimized numbers moved by ±10% between runs of the same pair
+of binaries, so they are noise. Both layouts emit the same member-wise
+conversion for it.
+
+The one cost packing adds at the boundary is a C-ordered struct with
+tail padding converted where it used to be passed as is. It shows only
+unoptimized. Code that crosses into C in a hot loop with such a struct
+loses about a third of a nanosecond a call in a `zane run` build.
+
 ## Findings
 
 - **Dropping tail padding everywhere is packing everything**, once fields
