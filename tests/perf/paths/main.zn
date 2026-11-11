@@ -99,43 +99,44 @@ Unit search(this Grid, from Int) mut {
 	this.queue!push(origin);
 	step Int(1);
 	step!to(cells) {
-		@controlflow$branch(below(head, plus(this.queue:size(), Int(1))), {
-			cell Int = this.queue[head];
-			head = plus(head, Int(1));
-			column Int = plus(modulo(minus(cell, Int(1)), this.width), Int(1));
-			d Int(1);
-			d!to(Int(4)) {
-				next Int = Int(0);
-				@controlflow$branch(@operators$equal(d, Int(1)), {
-					@controlflow$branch(below(Int(1), column), {
-						next = minus(cell, Int(1));
-					});
-				});
-				@controlflow$branch(@operators$equal(d, Int(2)), {
-					@controlflow$branch(below(column, this.width), {
-						next = plus(cell, Int(1));
-					});
-				});
-				@controlflow$branch(@operators$equal(d, Int(3)), {
-					@controlflow$branch(below(this.width, cell), {
-						next = minus(cell, this.width);
-					});
-				});
-				@controlflow$branch(@operators$equal(d, Int(4)), {
-					@controlflow$branch(below(cell, plus(minus(cells, this.width), Int(1))), {
-						next = plus(cell, this.width);
-					});
-				});
-				@controlflow$branch(below(Int(0), next), {
-					@controlflow$branch(this.open[next], {
-						@controlflow$branch(@operators$not(reached(this.before[next])), {
-							this.before[next] = Maybe.some(cell);
-							this.queue!push(next);
-						});
-					});
-				});
-			}
+		@controlflow$branch(@operators$not(below(head, plus(this.queue:size(), Int(1)))), {
+			return Unit();
 		});
+		cell Int = this.queue[head];
+		head = plus(head, Int(1));
+		column Int = plus(modulo(minus(cell, Int(1)), this.width), Int(1));
+		d Int(1);
+		d!to(Int(4)) {
+			next Int = Int(0);
+			@controlflow$branch(@operators$equal(d, Int(1)), {
+				@controlflow$branch(below(Int(1), column), {
+					next = minus(cell, Int(1));
+				});
+			});
+			@controlflow$branch(@operators$equal(d, Int(2)), {
+				@controlflow$branch(below(column, this.width), {
+					next = plus(cell, Int(1));
+				});
+			});
+			@controlflow$branch(@operators$equal(d, Int(3)), {
+				@controlflow$branch(below(this.width, cell), {
+					next = minus(cell, this.width);
+				});
+			});
+			@controlflow$branch(@operators$equal(d, Int(4)), {
+				@controlflow$branch(below(cell, plus(minus(cells, this.width), Int(1))), {
+					next = plus(cell, this.width);
+				});
+			});
+			@controlflow$branch(below(Int(0), next), {
+				@controlflow$branch(this.open[next], {
+					@controlflow$branch(@operators$not(reached(this.before[next])), {
+						this.before[next] = Maybe.some(cell);
+						this.queue!push(next);
+					});
+				});
+			});
+		}
 	}
 	return Unit();
 }
@@ -162,10 +163,11 @@ Int walk(this Grid, origin Int, target Int) {
 	length Int(0);
 	steps Int(1);
 	steps!to(this.before:size()) {
-		@controlflow$branch(@operators$not(@operators$equal(at, origin)), {
-			at = parent(this.before[at], at);
-			length = plus(length, Int(1));
+		@controlflow$branch(@operators$equal(at, origin), {
+			return length;
 		});
+		at = parent(this.before[at], at);
+		length = plus(length, Int(1));
 	}
 	return length;
 }

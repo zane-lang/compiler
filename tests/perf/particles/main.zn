@@ -124,7 +124,8 @@ Unit main() {
 			@controlflow$branch(@operators$not(particles[k].alive), {
 				particles[k] = rng!fresh();
 			});
-			@controlflow$branch(@operators$not(@operators$not(particles[k].alive)), {
+			live Bool = particles[k].alive;
+			@controlflow$branch(live, {
 				@controlflow$branch(slow, {
 					@controlflow$branch(low, {
 						particles[k].alive = false;
