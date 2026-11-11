@@ -16,3 +16,13 @@ N=10000000 PASSES=10 RUNS=5
 | 8 Wide scattered | 0.922 s | 155 MiB | 0.888 s | 155 MiB | 0.923 s | 155 MiB | 0.892 s | 155 MiB | 0.909 s | 155 MiB |
 | 9 Chosen | 0.124 s | 230 MiB | 0.132 s | 230 MiB | 0.127 s | 230 MiB | 0.081 s | 97 MiB | 0.081 s | 87 MiB |
 | 10 Nested | 0.168 s | 307 MiB | 0.152 s | 307 MiB | 0.179 s | 307 MiB | 0.144 s | 107 MiB | 0.145 s | 88 MiB |
+
+Shell workflow run 43073543508 (runner macos-latest), commit 7b8c476, the 13-byte control:
+command: just build && SHAPES=3,11,1 python3 docs/experiments/tight-layouts/measure.py 10000000 10 9 default ZANE_PACK=structs
+
+N=10000000 PASSES=10 RUNS=9
+| shape | default time | default peak | ZANE_PACK=structs time | ZANE_PACK=structs peak |
+| --- | --- | --- | --- | --- |
+| 3 Trio | 0.199 s | 155 MiB | 0.243 s | 126 MiB |
+| 11 Quads | 0.192 s | 155 MiB | 0.158 s | 126 MiB |
+| 1 Pair | 0.156 s | 155 MiB | 0.105 s | 117 MiB |

@@ -290,6 +290,65 @@ its smaller footprint. Without a tag at all, `niche` reads it as one
 same as `all` to within 0.04% in every program, none of which has a sum a
 byte niche fits (`copies`'s `Tree` has a payload in both cases).
 
+## Step 5: AArch64
+
+**How.** `pixi.toml` solves for `linux-64`, `osx-64`, `osx-arm64` and
+`win-64`, so the AArch64 machine at hand is GitHub's `macos-latest` runner
+(Apple silicon). The Shell workflow (`.github/workflows/shell.yml`) runs a
+command in the pixi environment; on this branch it takes a `runner` input,
+and on macOS runs the command through `pixi run`, since macOS's bash 3.2
+cannot read the bash completions the shell hook sources. `arm64.sh` builds
+the compiler, checks `bench/niches` in every mode and runs `measure.py`.
+Dispatched as runner `macos-latest`, command
+`docs/experiments/tight-layouts/arm64.sh`, against this branch.
+
+**Correctness.** `bench/niches` printed the same in all eight builds, under
+`ZANE_CHECK=1` (run 43071348356).
+
+**Results.** `measure.py 10000000 10 5` over five modes (run 43071348356,
+`results-arm64.txt`); time, then peak memory, which is the same as on x86:
+
+| shape | default | `structs`, no facts | `structs` | `all` | `niche` |
+| --- | --- | --- | --- | --- | --- |
+| 1 `Pair` | 0.113 s | 0.072 s | 0.070 s | 0.069 s | 0.072 s |
+| 2 `Flagged` | 0.124 s | 0.083 s | 0.081 s | 0.086 s | 0.087 s |
+| 3 `Trio` | 0.133 s | 0.167 s | 0.166 s | 0.162 s | 0.168 s |
+| 4 `Outer` | 0.141 s | 0.101 s | 0.105 s | 0.108 s | 0.102 s |
+| 5 `Maybe` | 0.105 s | 0.109 s | 0.105 s | 0.080 s | 0.083 s |
+| 6 `Wide` | 0.132 s | 0.128 s | 0.128 s | 0.130 s | 0.134 s |
+| 7 `Trio` scattered | 0.926 s | 0.879 s | 0.894 s | 0.891 s | 0.888 s |
+| 8 `Wide` scattered | 0.922 s | 0.888 s | 0.923 s | 0.892 s | 0.909 s |
+| 9 `Chosen` | 0.124 s | 0.132 s | 0.127 s | 0.081 s | 0.081 s |
+| 10 `Nested` | 0.168 s | 0.152 s | 0.179 s | 0.144 s | 0.145 s |
+
+- **Sequential passes gain more than on x86**: `Pair` 38%, `Flagged` 35%,
+  `Outer` 28%, `Maybe` and `Chosen` about a third under `all`.
+- **`Trio` loses 25%**, where x86 gained. Its loop differs from the
+  default build's in two ways: the element's address is a multiply-add by
+  13 rather than a shift by 4, and its `Int` is read at every byte offset
+  in turn. A control settles which (run 43073543508, 9 runs): shape 11,
+  `Quads { I32; I32; I32; Bool }`, has `Trio`'s 13-byte stride and no
+  8-byte member.
+
+  | shape | default | `structs` |
+  | --- | --- | --- |
+  | 3 `Trio` | 0.199 s | 0.243 s |
+  | 11 `Quads` | 0.192 s | 0.158 s |
+  | 1 `Pair` | 0.156 s | 0.105 s |
+
+  `Quads` gains 18% and `Trio` loses 22% on the same stride, so the cost is
+  the 8-byte read at an odd offset, not the stride. `Pair`'s `Int` is
+  misaligned too, but always at a multiple of 4, and it gains a third. (The
+  runner of this run was slower than the first one's throughout; only rows
+  within one run compare.)
+- **Scattered reads gain a little** (3-5%), where x86 gained nothing.
+- **The alignment facts make no difference here either**: `structs` with
+  and without them is the same to within the noise.
+- **The niche saves memory but no time over `all` here**: `Nested` runs
+  the same under `all` and `niche` (0.144 s, 0.145 s), so the piecewise
+  reads of a packed sum inside a packed sum that cost x86 2.2 times cost
+  this core nothing.
+
 ## Findings
 
 - **Dropping tail padding everywhere is packing everything**, once fields
@@ -314,7 +373,14 @@ byte niche fits (`copies`'s `Tree` has a payload in both cases).
   `all`, 2.5 times the default build).
 - **A packed sum's room must be words**, not bytes, or LLVM moves its
   payload a byte at a time: that cost `copies` 22% until step 2.
-- **Losing alignment information costs nothing measurable on x86**:
+- **On AArch64 (Apple silicon) packing pays more, except for an 8-byte
+  member at an odd offset**: sequential passes over padded values gain a
+  third or more, but a value whose `Int` lands at every byte offset in
+  turn (`Trio`, 13 bytes) is a fifth slower, where a 13-byte value without
+  one gains. A layout that packs should keep an 8-byte member at a 4-byte
+  multiple, or keep its tail padding when it cannot.
+- **Losing alignment information costs nothing measurable, on x86 or on
+  AArch64**:
   marking every access as at any byte (steps 1 and 2) and keeping the
   alignment wherever it is known (step 3) run the same, to within 1% in
   simulated cycles and within the noise in time. The facts are cheap to
@@ -323,9 +389,11 @@ byte niche fits (`copies`'s `Tree` has a payload in both cases).
 
 ## What remains
 
-- An ARM64 run: an element at any byte is free on current x86 cores, and
-  the measurements here say nothing about other targets, where losing
-  alignment information could matter more than it does here.
+- A packing rule that keeps an 8-byte member's offset a multiple of 4
+  (padding a 13-byte `Trio` to 16, or reordering so the `Int` follows a
+  4-byte-aligned prefix), measured on both machines.
+- The Shell workflow's `runner` input and its macOS step live on this
+  branch only; `main`'s workflow runs on `ubuntu-latest` alone.
 - More spare values: a box's or a reference's pointer is never null and
   aligned, so it leaves 0 and the low bits; a sum with two payloads could
   put its tag in a spare byte of the larger one when the smaller fits
