@@ -102,5 +102,7 @@ request, and CI checks nesting depth and file size.
 
 The compiler is free software under the GNU General Public License, version
 3. Its runtime library, which every program it builds contains, comes with
-the Zane Compiler Runtime Library Exception, so those programs can be
-distributed under any terms. [`LICENSE`](LICENSE) holds both.
+the Zane Compiler Runtime Library Exception: the runtime does not make those
+programs GPL, so their authors choose their terms, within what the licenses
+of the program's other code allow. [`LICENSE`](LICENSE) holds both, with the
+exception's exact conditions.
