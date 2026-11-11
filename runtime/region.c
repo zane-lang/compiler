@@ -225,9 +225,13 @@ static char *zane_frames_take(size_t bytes) {
    8-byte units and fits 32 bits (List_handle.encode_box). The window is the
    whole MiBs from 16 GiB to 2 GiB below the image, under the frames; or,
    where a program is loaded too low for that, the largest of 12, 8, 4 or 2
-   GiB found free from 4 GiB above it on, at each GiB up to the reach. A
-   range given back is listed and carved again, first fit; the rest of the
-   window is taken in order. */
+   GiB found free from 4 GiB above it on, at each GiB up to the reach. It
+   is reserved as the program's first context reserves its frames
+   (zane_reserve), before anything else is mapped: macOS places a mapping
+   made without an address right above the image, so a list's reservation
+   (arena.c) would otherwise take the addresses the window needs. A range
+   given back is listed and carved again, first fit; the rest of the window
+   is taken in order. */
 typedef struct zane_window_range {
 	char *base;
 	size_t bytes;
@@ -245,8 +249,8 @@ static int zane_window_try(uintptr_t low, uintptr_t end) {
 	return 1;
 }
 
-char *zane_window_take(size_t bytes) {
-	bytes = (bytes + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK;
+/* The window reserved, once. */
+static void zane_window_open(void) {
 	pthread_mutex_lock(&zane_window_lock);
 	if (!zane_window_end) {
 		uintptr_t image = zane_image(), gib = (uintptr_t)1 << 30;
@@ -260,6 +264,12 @@ char *zane_window_take(size_t bytes) {
 				zane_window_try(low, low + size);
 		if (!zane_window_end) zane_broken("the addresses near the program are taken");
 	}
+	pthread_mutex_unlock(&zane_window_lock);
+}
+
+char *zane_window_take(size_t bytes) {
+	bytes = (bytes + ZANE_CHUNK - 1) / ZANE_CHUNK * ZANE_CHUNK;
+	pthread_mutex_lock(&zane_window_lock);
 	char *base = NULL;
 	for (zane_window_range **at = &zane_window_free; *at; at = &(*at)->next) {
 		zane_window_range *r = *at;
@@ -301,11 +311,15 @@ void zane_window_give(char *base, size_t bytes) {
 #endif
 
 /* `size` bytes of the range, and its guard, so each MiB of it is the
-   context's alone in the chunk map. */
+   context's alone in the chunk map. With the window, the first context
+   reserves that too. */
 void zane_reserve(zane_context *c, int64_t size) {
 	size_t total = (size_t)size + ZANE_GUARD;
 #if defined(ZANE_FRAME_REFS)
 	char *base = zane_frames_take(total);
+#ifdef ZANE_WINDOW
+	zane_window_open();
+#endif
 #else
 	char *raw;
 	char *base = zane_reserve_aligned(total, &raw);

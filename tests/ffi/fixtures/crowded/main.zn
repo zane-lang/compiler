@@ -1,0 +1,50 @@
+/// A program whose C takes every free address near the program's image
+/// once it runs, as macOS may place other mappings there, and which then
+/// needs a dynamic chunk: the runtime reserved the window it carves chunks
+/// from (runtime/region.c) when the program started, so the chunk comes
+/// from there.
+package crowded;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+type Crowd = #handle{ cType = "crowd_t"; }
+
+I64 nearImage(this Crowd) mut foreign "crowd_near_image";
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+/// The sum of 1 to `n`, pushed in turn into two lists of 8-byte
+/// elements: together they outgrow what their scope's frame stretches to
+/// hold, so a block of theirs takes a dynamic chunk.
+I64 total(n I64) {
+	odds ^ListRef<I64> = @primitives$ListRef(I64);
+	evens ^ListRef<I64> = @primitives$ListRef(I64);
+	i I64(0);
+	@controlflow$repeat(n, {
+		i = @operators$add(i, I64(1));
+		odds!push(i);
+		i = @operators$add(i, I64(1));
+		evens!push(i);
+	});
+	sum I64(0);
+	k I64(0);
+	@controlflow$repeat(n, {
+		k = @operators$add(k, I64(1));
+		sum = @operators$add(sum, @operators$add(odds[k], evens[k]));
+	});
+	return sum;
+}
+
+Unit main() {
+	crowd Crowd foreign "zane_crowd";
+	show(String(crowd!nearImage()));
+	show(String(total(I64(100000))));
+	return Unit();
+}

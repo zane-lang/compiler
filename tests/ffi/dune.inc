@@ -1043,6 +1043,128 @@
   (diff golden/calls.out calls.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/crowded))
+ (targets crowded.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build crowded.exe --package fixtures/crowded)))
+
+(rule
+ (deps (source_tree fixtures/crowded))
+ (targets crowded.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build crowded.optimized.exe --optimize --package fixtures/crowded)))
+
+(rule
+ (deps (source_tree fixtures/crowded))
+ (targets crowded.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build crowded.tiered.exe --tiered --package fixtures/crowded)))
+
+(rule
+ (deps (source_tree fixtures/crowded))
+ (targets crowded.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up crowded.tier1 --package fixtures/crowded)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    crowded.checked.out.actual
+    (run ./crowded.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crowded.out crowded.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    crowded.unchecked.out.actual
+    (run ./crowded.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crowded.out crowded.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    crowded.optimized.checked.out.actual
+    (run ./crowded.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crowded.out crowded.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    crowded.optimized.unchecked.out.actual
+    (run ./crowded.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crowded.out crowded.optimized.unchecked.out.actual)))
+
+(rule
+ (deps crowded.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./crowded.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    crowded.tiered.checked.out.actual
+    (run ./crowded.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crowded.out crowded.tiered.checked.out.actual)))
+
+(rule
+ (deps crowded.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./crowded.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    crowded.tiered.unchecked.out.actual
+    (run ./crowded.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/crowded.out crowded.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/folding))
  (action
   (with-stdout-to
