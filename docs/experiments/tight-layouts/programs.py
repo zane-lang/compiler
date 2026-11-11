@@ -18,7 +18,9 @@ runs = int(sys.argv[1]) if len(sys.argv) > 1 else 5
 names = sys.argv[2:] or sorted(d for d in os.listdir("tests/perf") if os.path.isfile(f"tests/perf/{d}/main.zn"))
 suffix = ".exe" if sys.platform == "win32" else ""
 zanec = os.path.abspath("_build/default/bin/zanec/zanec.exe")
-MODES = [("default", {}), ("default+unswitch", {"ZANE_UNSWITCH": "1"}), ("niche", {"ZANE_PACK": "niche"}), ("niche-unswitch", {"ZANE_PACK": "niche", "ZANE_UNSWITCH": "0"})]
+MODES = [("default", {}), ("default+unswitch", {"ZANE_UNSWITCH": "1"}), ("niche", {"ZANE_PACK": "niche"}), ("niche-unswitch", {"ZANE_PACK": "niche", "ZANE_UNSWITCH": "0"}), ("aligned-unswitch", {"ZANE_PACK": "aligned", "ZANE_UNSWITCH": "0"})]
+if os.environ.get("MODES"):
+    MODES = [m for m in MODES if m[0] in os.environ["MODES"].split(",")]
 work = tempfile.mkdtemp()
 print(f"{'program':12}" + "".join(f"{m:>26}" for m, _ in MODES), flush=True)
 for p in names:

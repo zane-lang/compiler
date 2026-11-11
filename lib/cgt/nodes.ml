@@ -76,7 +76,7 @@ module Ty = struct
      offset 8 (docs/design/lowering.md §9). [Too_large] when the type takes
      [limit] bytes or more. *)
   (* Experimental tight layouts (`ZANE_PACK=niche`): see [byte_niche]. *)
-  let byte_niches () = Sys.getenv_opt "ZANE_PACK" = Some "niche"
+  let byte_niches () = match Sys.getenv_opt "ZANE_PACK" with Some ("niche" | "aligned") -> true | _ -> false
 
   let rec size_align = function
     | Void -> (0, 1)
@@ -191,8 +191,11 @@ module Ty = struct
      padding, its tail included, and alignment 1; with `all` every sum's
      is too, its tag one byte. *)
   let pack_mode () = Sys.getenv_opt "ZANE_PACK"
-  let pack_structs () = match pack_mode () with Some ("structs" | "all" | "niche") -> true | _ -> false
+  let pack_structs () = match pack_mode () with Some ("structs" | "all" | "niche" | "aligned") -> true | _ -> false
   let pack_sums () = match pack_mode () with Some ("all" | "niche") -> true | _ -> false
+
+  (* `aligned`: as `niche`, but a sum with no niche keeps its natural
+     layout, its payload at its own alignment, since [pack_sums] is off. *)
 
   let tight t =
     match t with
