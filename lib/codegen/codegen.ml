@@ -161,11 +161,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
       (Llvm.iter_blocks
          (Llvm.iter_instrs (fun i ->
               match Llvm.instr_opcode i with
-              | (Llvm.Opcode.Load | Llvm.Opcode.Store)
-                when not
-                       (let text = Llvm.string_of_llvalue i in
-                        let rec has k = k + 6 <= String.length text && (String.sub text k 6 = "atomic" || has (k + 1)) in
-                        has 0) ->
+              | (Llvm.Opcode.Load | Llvm.Opcode.Store) when not (Llvm_extra.is_atomic i) ->
                   Llvm.set_alignment 1 i
               | _ -> ())))
       m;

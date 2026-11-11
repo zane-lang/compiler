@@ -39,6 +39,7 @@ extern void LLVMSetComdat(LLVMValueRef V, LLVMComdatRef C);
 extern char *LLVMNormalizeTargetTriple(const char *triple);
 extern void LLVMDisposeMessage(char *message);
 extern void LLVMSetOrdering(LLVMValueRef access, int ordering);
+extern int LLVMGetOrdering(LLVMValueRef access);
 extern LLVMTypeRef LLVMArrayType2(LLVMTypeRef element, uint64_t count);
 extern uint64_t LLVMGetArrayLength2(LLVMTypeRef array);
 extern LLVMTypeRef LLVMGlobalGetValueType(LLVMValueRef global);
@@ -130,6 +131,13 @@ value zane_set_atomic(value access, value ordering) {
   CAMLparam2(access, ordering);
   LLVMSetOrdering((LLVMValueRef)from_val(access), Int_val(ordering));
   CAMLreturn(Val_unit);
+}
+
+/* Whether a load or store is atomic: its ordering is not
+   LLVMAtomicOrderingNotAtomic (0). */
+value zane_is_atomic(value access) {
+  CAMLparam1(access);
+  CAMLreturn(Val_bool(LLVMGetOrdering((LLVMValueRef)from_val(access)) != 0));
 }
 
 value zane_fence(value type, value block, value ordering) {
