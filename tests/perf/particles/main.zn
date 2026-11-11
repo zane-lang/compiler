@@ -119,11 +119,11 @@ Unit main() {
 		// Kill the settled, respawn the dead.
 		k = Int(1);
 		k!to(n) {
-			slow Bool = fbelow(@operators$multiply(particles[k].vy, particles[k].vy), Float(0.5));
-			low Bool = fbelow(particles[k].y, Float(1.0));
 			@controlflow$branch(@operators$not(particles[k].alive), {
 				particles[k] = rng!fresh();
 			});
+			slow Bool = fbelow(@operators$multiply(particles[k].vy, particles[k].vy), Float(0.5));
+			low Bool = fbelow(particles[k].y, Float(1.0));
 			live Bool = particles[k].alive;
 			@controlflow$branch(live, {
 				@controlflow$branch(slow, {

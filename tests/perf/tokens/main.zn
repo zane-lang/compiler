@@ -60,6 +60,10 @@ Int next(this Rng) mut {
 /// A float in [0, 1) from the generator.
 Float unit(this Rng) mut => @operators$divide(real(modulo(this!next(), Int(10000))), Float(10000.0));
 
+/// A number below `bound`, from the generator's high bits, whose low ones
+/// repeat with a short period.
+Int pick(this Rng, bound Int) mut => modulo(over(this!next(), Int(65536)), bound);
+
 /// The character class of a code: 0 for a space, 1 for a letter, 2 for a
 /// digit and 3 for punctuation.
 Int classOf(code Int) {
@@ -129,8 +133,8 @@ Int weight(kind Kind) => match (kind) {
 	at Int(1);
 	at!to(length) {
 		@controlflow$branch(below(run, Int(1)), {
-			picked Int = modulo(this!next(), Int(10));
-			run = plus(Int(1), modulo(this!next(), Int(6)));
+			picked Int = this!pick(Int(10));
+			run = plus(Int(1), this!pick(Int(6)));
 			base = Int(0);
 			spread = Int(1);
 			@controlflow$branch(below(Int(1), picked), {
@@ -147,7 +151,7 @@ Int weight(kind Kind) => match (kind) {
 				run = Int(1);
 			});
 		});
-		text!push(plus(base, modulo(this!next(), spread)));
+		text!push(plus(base, this!pick(spread)));
 		run = minus(run, Int(1));
 	}
 	return text;
