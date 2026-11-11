@@ -291,7 +291,7 @@
     │       │   ├── local: #32
     │       │   ├── scope: %2
     │       │   ├── value > case:
-    │       │   │   ├── type: <void | {i64, i64}>
+    │       │   │   ├── type: packed <void | {i64, i64}>
     │       │   │   ├── index: 1
     │       │   │   └── payload > expand:
     │       │   │       ├── type: {i64, i64}
@@ -323,12 +323,12 @@
     │       │       │   └── value: address of #32 : ptr
     │       │       └── body[1] > switch:
     │       │           ├── value > deref:
-    │       │           │   ├── type: <void | {i64, i64}>
+    │       │           │   ├── type: packed <void | {i64, i64}>
     │       │           │   └── ptr: local #35 : ptr
     │       │           ├── cases[0] > case 0[0] > let:
     │       │           │   ├── local: #36
     │       │           │   └── value > offset:
-    │       │           │       ├── within: <void | {i64, i64}>
+    │       │           │       ├── within: packed <void | {i64, i64}>
     │       │           │       ├── path: 0
     │       │           │       └── base: local #35 : ptr
     │       │           ├── cases[0] > case 0[1] > assign:
@@ -338,7 +338,7 @@
     │       │           ├── cases[1] > case 1[0] > let:
     │       │           │   ├── local: #37
     │       │           │   └── value > offset:
-    │       │           │       ├── within: <void | {i64, i64}>
+    │       │           │       ├── within: packed <void | {i64, i64}>
     │       │           │       ├── path: 1
     │       │           │       └── base: local #35 : ptr
     │       │           ├── cases[1] > case 1[1] > assign:
@@ -564,7 +564,7 @@
     │       │       │   ├── body[0] > let:
     │       │       │   │   ├── local: #55
     │       │       │   │   └── value > case:
-    │       │       │   │       ├── type: <i64 | void>
+    │       │       │   │       ├── type: packed <i64 | void>
     │       │       │   │       ├── index: 0
     │       │       │   │       └── payload: 5 : i64
     │       │       │   ├── body[1] > assign:
@@ -578,12 +578,12 @@
     │       │       │   │       │   └── value: address of #55 : ptr
     │       │       │   │       └── body[1] > switch:
     │       │       │   │           ├── value > deref:
-    │       │       │   │           │   ├── type: <i64 | void>
+    │       │       │   │           │   ├── type: packed <i64 | void>
     │       │       │   │           │   └── ptr: local #60 : ptr
     │       │       │   │           ├── cases[0] > case 0[0] > let:
     │       │       │   │           │   ├── local: #61
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <i64 | void>
+    │       │       │   │           │       ├── within: packed <i64 | void>
     │       │       │   │           │       ├── path: 0
     │       │       │   │           │       └── base: local #60 : ptr
     │       │       │   │           ├── cases[0] > case 0[1] > scope:
@@ -655,7 +655,7 @@
     │       │       │   │           ├── cases[1] > case 1[0] > let:
     │       │       │   │           │   ├── local: #70
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <i64 | void>
+    │       │       │   │           │       ├── within: packed <i64 | void>
     │       │       │   │           │       ├── path: 1
     │       │       │   │           │       └── base: local #60 : ptr
     │       │       │   │           └── cases[1] > case 1[1] > scope:
@@ -709,7 +709,7 @@
     │       │       │   ├── body[0] > let:
     │       │       │   │   ├── local: #76
     │       │       │   │   └── value > case:
-    │       │       │   │       ├── type: <i64 | void>
+    │       │       │   │       ├── type: packed <i64 | void>
     │       │       │   │       ├── index: 0
     │       │       │   │       └── payload: 0 : i64
     │       │       │   ├── body[1] > assign:
@@ -723,12 +723,12 @@
     │       │       │   │       │   └── value: address of #76 : ptr
     │       │       │   │       └── body[1] > switch:
     │       │       │   │           ├── value > deref:
-    │       │       │   │           │   ├── type: <i64 | void>
+    │       │       │   │           │   ├── type: packed <i64 | void>
     │       │       │   │           │   └── ptr: local #81 : ptr
     │       │       │   │           ├── cases[0] > case 0[0] > let:
     │       │       │   │           │   ├── local: #82
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <i64 | void>
+    │       │       │   │           │       ├── within: packed <i64 | void>
     │       │       │   │           │       ├── path: 0
     │       │       │   │           │       └── base: local #81 : ptr
     │       │       │   │           ├── cases[0] > case 0[1] > scope:
@@ -800,7 +800,7 @@
     │       │       │   │           ├── cases[1] > case 1[0] > let:
     │       │       │   │           │   ├── local: #91
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <i64 | void>
+    │       │       │   │           │       ├── within: packed <i64 | void>
     │       │       │   │           │       ├── path: 1
     │       │       │   │           │       └── base: local #81 : ptr
     │       │       │   │           └── cases[1] > case 1[1] > scope:
@@ -854,7 +854,7 @@
     │       │       │   ├── body[0] > let:
     │       │       │   │   ├── local: #97
     │       │       │   │   └── value > case:
-    │       │       │   │       ├── type: <i64 | void>
+    │       │       │   │       ├── type: packed <i64 | void>
     │       │       │   │       ├── index: 1
     │       │       │   │       └── payload: unit : void
     │       │       │   ├── body[1] > assign:
@@ -868,12 +868,12 @@
     │       │       │   │       │   └── value: address of #97 : ptr
     │       │       │   │       └── body[1] > switch:
     │       │       │   │           ├── value > deref:
-    │       │       │   │           │   ├── type: <i64 | void>
+    │       │       │   │           │   ├── type: packed <i64 | void>
     │       │       │   │           │   └── ptr: local #102 : ptr
     │       │       │   │           ├── cases[0] > case 0[0] > let:
     │       │       │   │           │   ├── local: #103
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <i64 | void>
+    │       │       │   │           │       ├── within: packed <i64 | void>
     │       │       │   │           │       ├── path: 0
     │       │       │   │           │       └── base: local #102 : ptr
     │       │       │   │           ├── cases[0] > case 0[1] > scope:
@@ -945,7 +945,7 @@
     │       │       │   │           ├── cases[1] > case 1[0] > let:
     │       │       │   │           │   ├── local: #112
     │       │       │   │           │   └── value > offset:
-    │       │       │   │           │       ├── within: <i64 | void>
+    │       │       │   │           │       ├── within: packed <i64 | void>
     │       │       │   │           │       ├── path: 1
     │       │       │   │           │       └── base: local #102 : ptr
     │       │       │   │           └── cases[1] > case 1[1] > scope:

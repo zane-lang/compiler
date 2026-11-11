@@ -18,6 +18,12 @@ external type_attr : Llvm.llcontext -> string -> Llvm.lltype -> Llvm.llattribute
 (* A function's own type (llvm_stubs.c). *)
 external value_type : Llvm.llvalue -> Llvm.lltype = "zane_global_value_type"
 
+(* The `align` attribute on a function's parameter, 1 for none (llvm_stubs.c). *)
+external param_align : Llvm.llvalue -> int -> int = "zane_param_align"
+
+(* The type a getelementptr steps through (llvm_stubs.c). *)
+external gep_source_type : Llvm.llvalue -> Llvm.lltype = "zane_gep_source_type"
+
 (* `llvm.assume` with `dereferenceable` and `align` bundles on an address,
    at the end of a block, which the bindings cannot build (llvm_stubs.c):
    the block, `llvm.assume` and its type, the address, its size and its

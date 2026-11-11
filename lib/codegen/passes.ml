@@ -32,23 +32,20 @@ let unoptimized =
    main loop whose checks it has proved pass and the checked iterations
    around it, and the passes after it would turn the checks into exit tests
    it no longer recognizes. *)
-(* Experimental tight layouts (docs/experiments/tight-layouts): a packed
-   value's stride is rarely a power of two, and a loop whose index a
-   loop-invariant condition picks multiplies it by the stride on every
-   element rather than stepping a pointer by it. Non-trivial unswitching,
-   which `-O3` runs and `-O2` does not, copies such a loop once for each
-   way the condition goes, each with an index LLVM steps. On under
-   `ZANE_PACK`, off with `ZANE_UNSWITCH=0`, and on in any build with
-   `ZANE_UNSWITCH=1`. *)
-let unswitch () =
-  match Sys.getenv_opt "ZANE_UNSWITCH" with
-  | Some "1" -> true
-  | Some "0" -> false
-  | _ -> Cgt.Nodes.Ty.pack_structs ()
+(* A packed value's stride is rarely a power of two (lowering.md L5), and
+   a loop whose index a loop-invariant condition picks multiplies it by
+   the stride on every element rather than stepping a pointer by it.
+   Non-trivial unswitching, which `-O3` runs and `-O2` does not, copies
+   such a loop once for each way the condition goes, each with an index
+   LLVM steps. It runs for AArch64 alone: there the multiplying loop is
+   up to 28% slower, while on x86-64 it costs less than the copies do
+   (docs/experiments/tight-layouts, steps 6, 11 and 12). *)
+let unswitch triple =
+  match String.split_on_char '-' triple with ("aarch64" | "arm64") :: _ -> true | _ -> false
 
-let nontrivial pipeline =
+let nontrivial triple pipeline =
   let off = "simple-loop-unswitch<no-nontrivial;trivial>" and on = "simple-loop-unswitch<nontrivial;trivial>" in
-  if not (unswitch ()) then pipeline
+  if not (unswitch triple) then pipeline
   else
     let n = String.length off in
     let b = Buffer.create (String.length pipeline) in
@@ -83,6 +80,7 @@ let tier1 = O2_pipeline.tier1
    more mispredicted branches (tests/perf). *)
 let llvm_options = [ "-irce-min-runtime-iterations=64"; "-align-all-functions=6" ]
 
-(* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*. *)
-let pipeline ~optimize ~tier1:is_tier1 =
-  if is_tier1 then nontrivial tier1 else if optimize then nontrivial optimized else unoptimized
+(* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*,
+   for [triple]. *)
+let pipeline ~triple ~optimize ~tier1:is_tier1 =
+  if is_tier1 then nontrivial triple tier1 else if optimize then nontrivial triple optimized else unoptimized

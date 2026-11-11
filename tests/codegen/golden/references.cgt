@@ -293,7 +293,7 @@
     │       │   ├── local: #43
     │       │   ├── scope: %5
     │       │   ├── value > expand:
-    │       │   │   ├── type: {i64, ref}
+    │       │   │   ├── type: packed {i64, ref}
     │       │   │   ├── label: @41
     │       │   │   ├── result: #42
     │       │   │   ├── body[0] > let:
@@ -305,7 +305,7 @@
     │       │   │   └── body[2] > assign:
     │       │   │       ├── place: #42
     │       │   │       └── value > expand:
-    │       │   │           ├── type: {i64, ref}
+    │       │   │           ├── type: packed {i64, ref}
     │       │   │           ├── label: @39
     │       │   │           ├── result: #40
     │       │   │           ├── body[0] > let:
@@ -316,7 +316,7 @@
     │       │   │           │   └── value > escape:
     │       │   │           │       ├── exit: @39
     │       │   │           │       ├── value > record:
-    │       │   │           │       │   ├── type: {i64, ref}
+    │       │   │           │       │   ├── type: packed {i64, ref}
     │       │   │           │       │   ├── members[0] > member 0: local #37 : i64
     │       │   │           │       │   └── members[1] > member 1 > convert:
     │       │   │           │       │       ├── type: ref
@@ -359,7 +359,7 @@
     │       │       │           └── value > member:
     │       │       │               ├── type: ref
     │       │       │               ├── index: 1
-    │       │       │               └── value: local #43 : {i64, ref}
+    │       │       │               └── value: local #43 : packed {i64, ref}
     │       │       └── right: 6 : i64
     │       ├── body[16] > eval > expand:
     │       │   ├── type: void

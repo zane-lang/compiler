@@ -154,17 +154,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
         Llvm.set_global_constant true g)
       [ ("zane_fixed_region", fixed_region); ("zane_spawned_fixed_region", spawned_fixed_region) ];
   Walks.finish (walks env);
-  (* Experimental tight layouts (Ty.pack_structs): a value may be at any
-     byte, so no plain read or write is assumed aligned. *)
-  if Cgt.Nodes.Ty.pack_structs () then
-    Llvm.iter_functions
-      (Llvm.iter_blocks
-         (Llvm.iter_instrs (fun i ->
-              match Llvm.instr_opcode i with
-              | (Llvm.Opcode.Load | Llvm.Opcode.Store) when not (Llvm_extra.is_atomic i) ->
-                  Llvm.set_alignment 1 i
-              | _ -> ())))
-      m;
+  Alignment.mark m;
   match Llvm_analysis.verify_module m with
   | Some problem -> Diagnostic.bug ("codegen built an invalid module: " ^ problem)
   | None -> ()

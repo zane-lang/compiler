@@ -97,13 +97,22 @@ class FactsTests(unittest.TestCase):
 
     def test_accesses_take_the_target_alignment(self):
         # The module has its target's data layout as it is emitted, so an
-        # Int is read and written at the 8 bytes it is aligned to there.
+        # Int is read and written at the 8 bytes it is aligned to there,
+        # wherever its address is known to be aligned: a local, a list's
+        # element of a whole number of words. A walk's helper is given the
+        # address of a value that may be a member of a packed one, at any
+        # byte, so it reads and writes at 1.
         for target in [[], ["--target", "aarch64-apple-macos"]]:
             ir = run(ZANEC, "--ll", *target, *packages("quiet", "cells"))
-            accesses = re.findall(r"(?:load|store) i64[^\n]*", ir)
-            self.assertTrue(accesses, target)
-            for access in accesses:
-                self.assertIn("align 8", access, target)
+            helper = None
+            seen = {True: 0, False: 0}
+            for line in ir.splitlines():
+                if line.startswith("define"):
+                    helper = '@"%primitives$' in line
+                elif re.search(r"(?:load|store) i64", line):
+                    seen[helper] += 1
+                    self.assertIn("align 1" if helper else "align 8", line, target)
+            self.assertTrue(seen[True] and seen[False], target)
 
     def test_discarded_removal_holds_nothing(self):
         # The cell `drop` takes out owns no block, so no scope holds it.
@@ -232,9 +241,11 @@ class FactsTests(unittest.TestCase):
     def test_places_and_frames_may_be_read_ahead(self):
         # The method's subject is the whole of the caller's slot, two list
         # handles, and `main`'s frame is all there once its scope is open,
-        # so the loops in both read each list's count and block once.
+        # so the loops in both read each list's count and block once. The
+        # slot may be a member at any byte of a packed value, so it claims
+        # no alignment (Emit.declare_places).
         ir = run(ZANEC, "--ll", *packages("bounce"))
-        self.assertRegex(ir, rf'@"bounce\$step\([^"]*\)"\(ptr nonnull align 8 dereferenceable\({TWO_HANDLES}\) %0')
+        self.assertRegex(ir, rf'@"bounce\$step\([^"]*\)"\(ptr nonnull dereferenceable\({TWO_HANDLES}\) %0')
         self.assertRegex(ir, r'call void @llvm\.assume\(i1 true\) \[ "dereferenceable"\(ptr %[^,]+, i64 [0-9]+\), "align"')
 
     def test_references_may_be_read_ahead(self):
@@ -243,7 +254,7 @@ class FactsTests(unittest.TestCase):
         # of its slot, two list handles, is there for the call.
         ir = run(ZANEC, "--ll", *packages("borrowed"))
         self.assertRegex(
-            ir, rf'(?m)^define [^@\n]*@"borrowed\$total\(&borrowed\$Field, [^"]*\)"\(ptr nonnull align 8 dereferenceable\({TWO_HANDLES}\) %0')
+            ir, rf'(?m)^define [^@\n]*@"borrowed\$total\(&borrowed\$Field, [^"]*\)"\(ptr nonnull dereferenceable\({TWO_HANDLES}\) %0')
 
     def test_long_loops_lose_their_index_checks(self):
         # An optimized build emits a loop over elements twice, weighted to

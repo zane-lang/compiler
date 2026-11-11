@@ -210,8 +210,10 @@ let fn_type env params ret = abi_type env (abi env params ret)
 (* What a signature tells LLVM, as attributes on each LLVM parameter, by
    index. A parameter passed by address is a borrow (memory.md §2.9), and
    nothing in the call writes what it borrows (§2.9.1), so it is `readonly`
-   and `noalias`, aligned and dereferenceable for its whole size: the
-   optimizer may take the value behind it for a private copy. It is not
+   and `noalias`, and dereferenceable for its whole size: the optimizer may
+   take the value behind it for a private copy. It claims no alignment,
+   since what it borrows may be a member at any byte of a packed value
+   (Ty.tight); the `sret` slot is the caller's own, at its alignment. It is not
    `nocapture`, since a call the callee spawns may hold the address for as
    long as it runs. A result passed by address is written through an
    `sret` pointer to a fresh slot of the caller's, which nothing else
@@ -234,7 +236,6 @@ let abi_attrs env a =
           [
             enum "readonly" 0L;
             enum "noalias" 0L;
-            aligned t;
             enum "dereferenceable" (Int64.of_int (fst (size_align t)));
           ];
         ]
@@ -247,8 +248,9 @@ let declare_abi env f a =
     (abi_attrs env a)
 
 (* What a function's [places] (Func) tell LLVM: each is the address of a
-   whole slot that outlives the call, so it is `nonnull`, aligned and
-   dereferenceable for the slot's size. That lets the optimizer read
+   whole slot that outlives the call, so it is `nonnull` and
+   dereferenceable for the slot's size. It claims no alignment: the slot
+   may be a member at any byte of a packed value (Ty.tight). That lets the optimizer read
    through it ahead of a branch, as it hoists a list's length and storage
    out of a loop that checks its indices. Nothing more is promised: the
    function may write the slot, and another parameter may name it too. *)
@@ -262,10 +264,10 @@ let declare_places env fn (f : Func.t) a =
        (fun i (id, _) (_, passing) ->
          (match List.assoc_opt id f.Func.places with
          | Some t when passing = Itself && fst (size_align t) > 0 ->
-             let size, align = size_align t in
+             let size = fst (size_align t) in
              List.iter
                (fun at -> Llvm.add_function_attr fn at (Llvm.AttrIndex.Param i))
-               [ enum "nonnull" 0L; enum "align" (Int64.of_int align); enum "dereferenceable" (Int64.of_int size) ]
+               [ enum "nonnull" 0L; enum "dereferenceable" (Int64.of_int size) ]
          | _ -> ());
          i + width passing)
        first kept a.params)

@@ -39,7 +39,9 @@ class AbiTests(unittest.TestCase):
     def test_a_parameter_by_address_is_a_borrow(self):
         ir = zanec("--no-root", "--ll", "--package", LARGEPARAM)
         consume = signature(ir, "largeparam$consume(")
-        self.assertIn("(ptr noalias readonly align 8 dereferenceable(524288) %0)", consume)
+        # What it borrows may be a member at any byte of a packed value, so
+        # it claims no alignment (Emit.abi_attrs).
+        self.assertIn("(ptr noalias readonly dereferenceable(524288) %0)", consume)
         self.assertNotIn("nocapture", consume)
         self.assertNotIn("[65536 x i64] %", ir)
 
@@ -51,7 +53,7 @@ class AbiTests(unittest.TestCase):
 
     def test_the_line_falls_where_the_target_puts_it(self):
         two = r'\{ i64, i64 \} @"[^"]*"\(\{ i64, i64 \} %0\)'
-        by_address = r'\{ i64, i64 \} @"[^"]*"\(ptr noalias readonly align 8 dereferenceable\(16\) %0\)'
+        by_address = r'\{ i64, i64 \} @"[^"]*"\(ptr noalias readonly dereferenceable\(16\) %0\)'
         for target, pair in [
             ("x86_64-linux-gnu", two),
             ("aarch64-apple-darwin", two),
@@ -60,13 +62,14 @@ class AbiTests(unittest.TestCase):
             with self.subTest(target=target):
                 ir = zanec("--no-root", "--ll", "--target", target, "--package", CROSSING)
                 self.assertRegex(signature(ir, "crossing$swapped("), pair)
-                # One piece passes as itself everywhere. Three pass by
-                # address and come back in registers, four come back
-                # through `sret`, and so do three floating-point ones.
-                self.assertRegex(signature(ir, "crossing$flipped("), r"\{ i32 \} %0\)")
+                # One piece passes as itself everywhere: an enum is a
+                # packed sum, its tag one byte. Three pass by address and
+                # come back in registers, four come back through `sret`,
+                # and so do three floating-point ones.
+                self.assertRegex(signature(ir, "crossing$flipped("), r"<\{ i8 \}> %0\)")
                 self.assertRegex(
                     signature(ir, "crossing$rotated("),
-                    r'^define \{ i64, i64, i64 \} @"[^"]*"\(ptr noalias readonly align 8 dereferenceable\(24\) %0\)')
+                    r'^define \{ i64, i64, i64 \} @"[^"]*"\(ptr noalias readonly dereferenceable\(24\) %0\)')
                 self.assertRegex(signature(ir, "crossing$turned("), r"^define void .*\(ptr noalias sret\(\{ i64, i64, i64, i64 \}\)")
                 self.assertRegex(signature(ir, "crossing$mirrored("), r"^define void .*\(ptr noalias sret\(\{ double, double, double \}\)")
 

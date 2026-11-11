@@ -156,8 +156,8 @@ let each c count body =
    it lies under is live. *)
 let present c base (p : Layout.position) =
   let i32 = Llvm.i32_type c.env.ctx in
-  (* Experimental tight layouts (Ty.pack_sums): a packed sum's tag is a byte. *)
-  let tag_type = if Cgt.Nodes.Ty.pack_sums () then Llvm.i8_type c.env.ctx else i32 in
+  (* A packed sum's tag is a byte (Ty.tight). *)
+  let tag_type = Llvm.i8_type c.env.ctx in
   List.fold_left
     (fun cond (o, tag) ->
       let live =

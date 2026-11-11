@@ -50,8 +50,7 @@ module Ty = struct
     | Array of t * int
     | Packed of t
 
-  (* Experimental tight layouts: a value's spare byte ([spare]) and a sum's
-     byte niche ([byte_niche]). *)
+  (* A value's spare byte ([spare]) and a sum's byte niche ([byte_niche]). *)
   type spare = { path : int list option; at : int; first : int; free : int }
   type byte_niche = { case : int; path : int list option; at : int; first : int; count : int }
 
@@ -71,13 +70,12 @@ module Ty = struct
 
   let below_limit size = if size >= limit then raise Too_large else size
 
-  (* Size and alignment in bytes on a 64-bit target, where a struct is laid
-     out as C lays it out, and a sum is its tag and then its payload room at
-     offset 8 (docs/design/lowering.md §9). [Too_large] when the type takes
-     [limit] bytes or more. *)
-  (* Experimental tight layouts (`ZANE_PACK=niche`): see [byte_niche]. *)
-  let byte_niches () = match Sys.getenv_opt "ZANE_PACK" with Some ("niche" | "aligned") -> true | _ -> false
-
+  (* Size and alignment in bytes on a 64-bit target. A [Struct] is laid out
+     as C lays it out and a [Sum] is its tag and then its payload room at
+     offset 8; lowering uses those two only where they have no padding to
+     drop, and wraps the others in [Packed] (see [tight];
+     docs/design/lowering.md L5). [Too_large] when the type takes [limit]
+     bytes or more. *)
   let rec size_align = function
     | Void -> (0, 1)
     | I1 -> (1, 1)
@@ -117,13 +115,12 @@ module Ty = struct
      that word, 0 for nothing. *)
   and niche ts = Ref32.niche () && (ts = [ Void; Ref ] || ts = [ Void; Box32 ])
 
-  (* Experimental tight layouts (`ZANE_PACK=niche`): a sum of one case with
-     a payload and others with none, whose payload has a byte with values
+  (* A sum of one case with a payload and others with none, whose payload has a byte with values
      it never holds (a [spare] byte) for each of the others, is its
      payload's bytes alone, each other case one of those values at that
      byte: the first of them for the first such case, and so on. *)
   and byte_niche ts =
-    if not (byte_niches ()) || List.length ts < 2 then None
+    if List.length ts < 2 then None
     else
       match List.filter (fun (_, t) -> t <> Void) (List.mapi (fun i t -> (i, t)) ts) with
       | [ (case, t) ] -> (
@@ -186,21 +183,17 @@ module Ty = struct
     List.iteri (fun at (i, _) -> positions.(i) <- at) sorted;
     positions
 
-  (* Experimental tight layouts (`ZANE_PACK`, docs/experiments/tight-layouts):
-     with `structs` every value struct's layout is packed, so with no
-     padding, its tail included, and alignment 1; with `all` every sum's
-     is too, its tag one byte. *)
-  let pack_mode () = Sys.getenv_opt "ZANE_PACK"
-  let pack_structs () = match pack_mode () with Some ("structs" | "all" | "niche" | "aligned") -> true | _ -> false
-  let pack_sums () = match pack_mode () with Some ("all" | "niche") -> true | _ -> false
-
-  (* `aligned`: as `niche`, but a sum with no niche keeps its natural
-     layout, its payload at its own alignment, since [pack_sums] is off. *)
-
+  (* The layout lowering gives a struct or sum of already-laid-out members
+     (docs/design/lowering.md L5). A struct that C's layout would pad is
+     packed: no padding, its tail included, and alignment 1; one with no
+     padding keeps its natural layout and alignment. A sum with a niche or
+     a byte niche is laid out as that; any other is packed, its tag one
+     byte and its payload room right after it. A struct too large to
+     measure is left for the size check to refuse. *)
   let tight t =
     match t with
-    | Struct _ when pack_structs () && (try fst (size_align (Packed t)) < fst (size_align t) with Too_large -> false) -> Packed t
-    | Sum ts when pack_sums () && not (niche ts) && Option.is_none (byte_niche ts) -> Packed t
+    | Struct _ when (try fst (size_align (Packed t)) < fst (size_align t) with Too_large -> false) -> Packed t
+    | Sum ts when not (niche ts) && Option.is_none (byte_niche ts) -> Packed t
     | t -> t
 
   (* [xs], one for each of the members [ts] in declaration order, in their

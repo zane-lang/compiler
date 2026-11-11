@@ -66,14 +66,13 @@ let encode ctx b p =
   let distance = Llvm.build_sub (Llvm.build_ptrtoint p i64 "" b) (Llvm.build_ptrtoint (image b) i64 "" b) "" b in
   fitting ctx b (narrow ctx b distance) distance
 
-(* Experimental tight layouts (Ty.pack_structs): every plain read and write
-   is marked as at any byte (Codegen), so a pointer that always names
-   something aligned, a block's start or a runtime record, says so, and
-   LLVM gives back the alignment of what is read through it;
-   `ZANE_PACK_HINTS=0` leaves it unsaid. *)
+(* A loaded pointer that always names something aligned, a block's start
+   or a runtime record, says so as `!align`: a packed value may be at any
+   byte, so a read or write is only as aligned as its address is known to
+   be (Alignment), and this is how that is known for an address read from
+   memory. *)
 let aligned ctx n v =
-  if Cgt.Nodes.Ty.pack_structs () && Sys.getenv_opt "ZANE_PACK_HINTS" <> Some "0" then
-    Llvm.set_metadata v (Llvm.mdkind_id ctx "align") (Llvm.mdnode ctx [| Llvm.const_int (Llvm.i64_type ctx) n |]);
+  Llvm.set_metadata v (Llvm.mdkind_id ctx "align") (Llvm.mdnode ctx [| Llvm.const_int (Llvm.i64_type ctx) n |]);
   v
 
 (* A list's block is aligned to a word (runtime/zane_abi.h, ZANE_LIST_ALIGN). *)
