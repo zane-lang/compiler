@@ -140,9 +140,9 @@ class DeclarationTests(ParserSyntaxTestCase):
             "Crew<T, n>(xs @concepts$Array<^&T Type, n @concepts$Int>) => init{ }"
         )
 
-    def test_a_type_is_passed_as_a_constructor_argument(self) -> None:
-        # Explicit type values are standalone constructor arguments. Ordinary
-        # function and method arguments use the type-free expression grammar.
+    def test_a_type_is_passed_as_a_call_argument(self) -> None:
+        # A type is a whole positional argument of any call: a constructor,
+        # a function or a method (generics.md §5.3).
         self.assert_parses(
             '''
             type Vector<T Type> = struct {
@@ -162,8 +162,9 @@ class DeclarationTests(ParserSyntaxTestCase):
             }
             '''
         )
-        self.assert_rejects("Unit use() { register(Float); }")
-        self.assert_rejects("Unit use() { registry!add(math$Vector); }")
+        self.assert_parses("Unit use() { register(Float); }")
+        self.assert_parses("Unit use() { registry!add(math$Vector); }")
+        self.assert_parses("Unit use() { n Int = registry:count(Int); }")
         self.assert_rejects("Unit use() { machine Slot = @primitives$I64; }")
         # A named constructor takes one on the same terms, declared on a
         # generic type as its positional constructor is.
@@ -199,20 +200,37 @@ class DeclarationTests(ParserSyntaxTestCase):
         self.assert_parses(
             "Hooks<T>(T Type) => init{ items = @primitives$ListRef(Unit[T]); }"
         )
+        # A function and a method take every spelling a constructor does.
+        self.assert_parses(
+            '''
+            ^ListRef<T> emptyOf(T Type) => ListRef(T);
+
+            Unit use() {
+                pairs ^ListRef<Pair<Int>> = emptyOf(Pair<Int>);
+                ports ^ListRef<&Port> = emptyOf(&Port);
+                calls ^ListRef<Int[Int]> = emptyOf(Int[Int]);
+                registry!add(Array<Int, 4>);
+                n Int = registry:count(Int?Error[String]);
+                return Unit();
+            }
+            '''
+        )
+        self.assert_parses(
+            "^ListRef<Pair<T>> pairsOf(T Type) => emptyOf(Pair<T>);"
+        )
         # The inferred half is unchanged and still the one a literal drives.
         self.assert_parses(
             "Unit use() { vec Vector(Int(2), Int(3)); }"
         )
 
-    def test_a_type_value_is_a_whole_constructor_argument(self) -> None:
+    def test_a_type_value_is_a_whole_call_argument(self) -> None:
         # A type is never an operand, so `<` after a type name opens its `<>`
-        # list and `&` before one makes it a reference. Only a constructor
-        # takes one, only whole, and only positionally: a field constructor's
-        # entries are the type's fields, and a type is never stored.
-        # See docs/spec-divergences.md.
-        self.assert_rejects("Unit use() { register(Array<Int, 4>); }")
-        self.assert_rejects("Unit use() { register(&Int); }")
+        # list and `&` before one makes it a reference. A call takes one only
+        # whole and only positionally: a field constructor's entries are the
+        # type's fields, and a type is never stored.
         self.assert_rejects("Unit use() { register(Int[3]); }")
+        self.assert_rejects("Unit use() { register(Array<Int, 4> + 1); }")
+        self.assert_rejects("Unit use() { registry!add(&Int + 1); }")
         self.assert_rejects("Unit use() { item Slot{kind = Int;} }")
         self.assert_rejects("Unit use() { item Slot{kind = Array<Int, 4>;} }")
         self.assert_rejects("Unit use() { room Slots(Int[Int] + 1, 2); }")

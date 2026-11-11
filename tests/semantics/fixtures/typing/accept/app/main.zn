@@ -260,3 +260,31 @@ Unit racks() {
 	failing Tally(Int?String[Duo<Int>], 1);
 	return Unit();
 }
+
+/// A function and a method take a type on the same terms (generics.md
+/// §5.3): one that builds a type it does not own, one whose result is the
+/// type it is given, a method that only reads one, and a `mut` one.
+^@primitives$ListRef<T> emptyOf(T Type) => @primitives$ListRef(T);
+T zeroOf(T Type) => T(0);
+Int sized(this Int, T Type) => this;
+Unit bump(this Int, T Type) mut {
+	this = @operators$add(this, Int(1));
+	return Unit();
+}
+
+/// Nothing calls this. Its body converts through `T`, which is unknown
+/// until an instance fixes it, so there is nothing to report.
+T unusedZero(T Type) => T(0);
+
+Unit takers() {
+	duos ^@primitives$ListRef<Duo<Int>> = emptyOf(Duo<Int>);
+	pointed ^@primitives$ListRef<Duo<&Shape>> = emptyOf(Duo<&Shape>);
+	shapes Int = Int(2):sized(&Shape);
+	bumped Int = Int(0);
+	bumped!bump(Duo<Int>);
+	calls ^@primitives$ListRef<Int[Float]> = emptyOf(Int[Float]);
+	zero Int = zeroOf(Int);
+	small @primitives$I32 = zeroOf(@primitives$I32);
+	read Int = Int(3):sized(Duo<Float>);
+	return Unit();
+}

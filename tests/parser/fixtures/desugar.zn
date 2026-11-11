@@ -125,7 +125,7 @@ Unit shorthands() {
 	two Int = Int(2);
 	four Int = Int(4);
 	implied Vec{x = two; y = four;}
-	// A type passed to a constructor stays the type it spells: applied, a
+	// A type passed to a call stays the type it spells: applied, a
 	// reference, or a verb type.
 	shelf Slots(Pair<Int>, 2);
 	bound Slots(&Vec, 2);

@@ -1,4 +1,4 @@
-"""Types are standalone constructor arguments, never ordinary operands."""
+"""Types are whole call arguments, never ordinary operands."""
 
 import subprocess
 import unittest
@@ -6,8 +6,8 @@ import unittest
 from tests.ambiguity.engine_support import ENGINE, ROOT, engine_environment
 
 
-class ConstructorTypeArgumentTests(unittest.TestCase):
-    def test_constructor_arguments_do_not_reintroduce_type_operands(self) -> None:
+class CallTypeArgumentTests(unittest.TestCase):
+    def test_call_arguments_do_not_reintroduce_type_operands(self) -> None:
         environment = engine_environment()
         if environment is None:
             self.skipTest("requires the ambiguity engine and Menhir")
@@ -25,13 +25,10 @@ class ConstructorTypeArgumentTests(unittest.TestCase):
             ("x Result = Ctor(Int) {}",
              "UIDENT LPAREN UIDENT RPAREN LCURLY RCURLY", 1),
             ("x Result = Ctor(Int + 1);", "UIDENT LPAREN UIDENT PLUS INT RPAREN SEMICOLON", 0),
-            ("x Result = func(Int);", "LIDENT LPAREN UIDENT RPAREN SEMICOLON", 0),
             ("x Result = Int;", "UIDENT SEMICOLON", 0),
             ("x Result = (Int);", "LPAREN UIDENT RPAREN SEMICOLON", 0),
             ("x Result = [Int];", "LBRACKET UIDENT RBRACKET SEMICOLON", 0),
             ("x Result = 1 + Int;", "INT PLUS UIDENT SEMICOLON", 0),
-            ("x Result = Ctor(func(Int));",
-             "UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN RPAREN SEMICOLON", 0),
             ("x Result = Ctor(Int(1) + 2);",
              "UIDENT LPAREN UIDENT LPAREN INT RPAREN PLUS INT RPAREN SEMICOLON", 1),
             ("x Result = [1](2) {}",
@@ -76,6 +73,32 @@ class ConstructorTypeArgumentTests(unittest.TestCase):
              "UIDENT LPAREN UIDENT QSTNMARK UIDENT LBRACKET UIDENT RBRACKET LPAREN RPAREN LCURLY RCURLY RPAREN SEMICOLON", 1),
             ("x Result = Ctor(&Int[Int]);",
              "UIDENT LPAREN AMPERSAND UIDENT LBRACKET UIDENT RBRACKET RPAREN SEMICOLON", 1),
+            # A function and a method take a type on the same terms, so a
+            # lambda that begins with one still has one reading there too.
+            ("x Result = func(Int);", "LIDENT LPAREN UIDENT RPAREN SEMICOLON", 1),
+            ("x Result = Ctor(func(Int));",
+             "UIDENT LPAREN LIDENT LPAREN UIDENT RPAREN RPAREN SEMICOLON", 1),
+            ("x Result = func(Int[Int]);",
+             "LIDENT LPAREN UIDENT LBRACKET UIDENT RBRACKET RPAREN SEMICOLON", 1),
+            ("x Result = func(Foo<Int>);",
+             "LIDENT LPAREN UIDENT LESS UIDENT MORE RPAREN SEMICOLON", 1),
+            ("x Result = func(&Foo);", "LIDENT LPAREN AMPERSAND UIDENT RPAREN SEMICOLON", 1),
+            ("x Result = func(Foo<1>, 2);",
+             "LIDENT LPAREN UIDENT LESS INT MORE COMMA INT RPAREN SEMICOLON", 1),
+            ("x Result = func(Int) {}",
+             "LIDENT LPAREN UIDENT RPAREN LCURLY RCURLY", 1),
+            ("x Result = func(Foo<1>[]() {});",
+             "LIDENT LPAREN UIDENT LESS INT MORE LBRACKET RBRACKET LPAREN RPAREN LCURLY RCURLY RPAREN SEMICOLON", 1),
+            ("x Result = func(Int[Int]() {});",
+             "LIDENT LPAREN UIDENT LBRACKET UIDENT RBRACKET LPAREN RPAREN LCURLY RCURLY RPAREN SEMICOLON", 1),
+            ("x Result = func(&Foo() {});",
+             "LIDENT LPAREN AMPERSAND UIDENT LPAREN RPAREN LCURLY RCURLY RPAREN SEMICOLON", 1),
+            ("x Result = obj!add(Foo<Int>);",
+             "LIDENT EXCL LIDENT LPAREN UIDENT LESS UIDENT MORE RPAREN SEMICOLON", 1),
+            ("x Result = obj:count(Int[Int]);",
+             "LIDENT COLON LIDENT LPAREN UIDENT LBRACKET UIDENT RBRACKET RPAREN SEMICOLON", 1),
+            ("x Result = obj!add(Foo<1>[]() {});",
+             "LIDENT EXCL LIDENT LPAREN UIDENT LESS INT MORE LBRACKET RBRACKET LPAREN RPAREN LCURLY RCURLY RPAREN SEMICOLON", 1),
             # A roaming owner parses as any type does; the checker rejects it.
             ("x Result = Ctor(^Foo);", "UIDENT LPAREN CARET UIDENT RPAREN SEMICOLON", 1),
             # Never by name: a field constructor's entries are the type's
@@ -86,18 +109,18 @@ class ConstructorTypeArgumentTests(unittest.TestCase):
              "UIDENT LCURLY LIDENT EQUAL AMPERSAND UIDENT SEMICOLON RCURLY", 0),
             ("x Result = Ctor{kind = Int[Int];}",
              "UIDENT LCURLY LIDENT EQUAL UIDENT LBRACKET UIDENT RBRACKET SEMICOLON RCURLY", 0),
-            # Still not operands, and still constructor-only.
+            # Still not operands, in any call.
             ("x Result = Ctor(Foo<1> + 2);",
              "UIDENT LPAREN UIDENT LESS INT MORE PLUS INT RPAREN SEMICOLON", 0),
             ("x Result = Ctor(Int[Int] + 1);",
              "UIDENT LPAREN UIDENT LBRACKET UIDENT RBRACKET PLUS INT RPAREN SEMICOLON", 0),
             ("x Result = Ctor(Int?Err);", "UIDENT LPAREN UIDENT QSTNMARK UIDENT RPAREN SEMICOLON", 0),
-            ("x Result = func(Int[Int]);",
-             "LIDENT LPAREN UIDENT LBRACKET UIDENT RBRACKET RPAREN SEMICOLON", 0),
+            ("x Result = func(Foo<1> + 2);",
+             "LIDENT LPAREN UIDENT LESS INT MORE PLUS INT RPAREN SEMICOLON", 0),
+            ("x Result = obj!add(Int[Int] + 1);",
+             "LIDENT EXCL LIDENT LPAREN UIDENT LBRACKET UIDENT RBRACKET PLUS INT RPAREN SEMICOLON", 0),
             ("x Result = Ctor(&&Foo);", "UIDENT LPAREN AMPERSAND AMPERSAND UIDENT RPAREN SEMICOLON", 0),
-            ("x Result = func(Foo<Int>);",
-             "LIDENT LPAREN UIDENT LESS UIDENT MORE RPAREN SEMICOLON", 0),
-            ("x Result = func(&Foo);", "LIDENT LPAREN AMPERSAND UIDENT RPAREN SEMICOLON", 0),
+            ("x Result = func(&Foo + 1);", "LIDENT LPAREN AMPERSAND UIDENT PLUS INT RPAREN SEMICOLON", 0),
             ("x Result = Foo<Int>;", "UIDENT LESS UIDENT MORE SEMICOLON", 0),
         )
         for source, value, expected in cases:

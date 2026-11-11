@@ -219,11 +219,11 @@ module rec Expr : sig
     | CollectionLit of t list
     | NameExpr of Name_expr.t
     | TypeMember of { type_ : Name_type.t; member : Name.t }
-    (* A standalone type argument of a constructor, as in Array(Int, 10000),
-       Slots(Array<Int, 4>, 2), Slots(&Port, 2) or Slots(Int[Int], 2). The
-       parser admits this node only as an entire positional constructor
-       argument. It is not a general expression operand; see
-       docs/spec-divergences.md. *)
+    (* A type passed to a call, as in Array(Int, 10000), Slots(&Port, 2),
+       emptyOf(Pair<Int>) or registry!add(Int[Int]) (generics.md §5.3). The
+       parser admits this node only as an entire positional argument of a
+       call. It is not a general expression operand; see
+       docs/ambiguity/proof-obligations.md. *)
     | TypeValue of Type_expr.t
     (* [abort_handle] because a member read can fail: reading a member of a
        variant "is **partial**: the case may not be the live one", so it is

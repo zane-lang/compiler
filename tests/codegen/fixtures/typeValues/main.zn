@@ -1,12 +1,16 @@
-/// A type passed to a constructor as an applied type or a reference
+/// A type passed to a call as an applied type or a reference
 /// (generics.md §5.3). A generic bag makes an empty list of a compound element
 /// over its own parameter, `@primitives$ListRef(Pair<T>)`, and is pushed to
 /// and read back at `Int`; the same list is made over a concrete applied
 /// type; and a constructor takes a reference type and an applied type over
 /// one, and one over a number parameter written nowhere else. A verb type is
 /// passed the same way: a generic list of callbacks over its own parameter,
-/// `@primitives$ListRef(T[T])`, run in order. Each check prints `yes` when it
-/// holds.
+/// `@primitives$ListRef(T[T])`, run in order. A function takes a type on the
+/// same terms: one makes a list of a type it does not own, a generic one
+/// passes its own parameter on applied, and one returns a value of the type
+/// it is given; a method passes the type it is given to a constructor, and a
+/// `mut` one takes a type beside its subject.
+/// Each check prints `yes` when it holds.
 package typeValues;
 
 alias Int = @primitives$I64;
@@ -19,6 +23,7 @@ type Pair<T Type> = #struct { a T; b T; }
 Pair<T>(a T Type, b T) => init{ a; b; }
 
 type Port = #struct { n Int; }
+Port(n Int) => init{ n; }
 
 /// Records only how many of its type it was built for.
 type Tally<T Type> = #struct { count Int; }
@@ -51,6 +56,24 @@ T run(this Hooks<T Type>, value T) {
 Unit sized(n @concepts$Int) {
 	made Tally(@primitives$Array<Int, n>, Int(7));
 	check(@operators$equal(made.count, Int(7)));
+	return Unit();
+}
+
+/// A list of a type the package does not own, made from the type alone.
+^ListRef<T> emptyOf(T Type) => @primitives$ListRef(T);
+
+/// The generic's own parameter, passed on applied.
+^ListRef<Pair<T>> pairsOf(T Type) => emptyOf(Pair<T>);
+
+/// A value of the type given, converted from a literal through it.
+T zeroOf(T Type) => T(0);
+
+/// A method that passes the type it is given to a constructor.
+^Tally<T> tallied(this Port, T Type) => Tally(T, this.n);
+
+/// A `mut` method given a type, which counts one more of it.
+Unit grow(this Tally<T Type>, U Type) mut {
+	this.count = @operators$add(this.count, Int(1));
 	return Unit();
 }
 
@@ -91,5 +114,27 @@ Unit main() {
 	plain ListRef<Int[Int]> = @primitives$ListRef(Int[Int]);
 	plain!push(more);
 	check(@operators$equal(plain[Int(1)](Int(1)), Int(2)));
+	// A function given a type: a list of a type it does not own, the same
+	// list made over a generic's own parameter, a list of a verb type, and a
+	// value of the type it is given.
+	made ListRef<Pair<Int>> = emptyOf(Pair<Int>);
+	made!push(Pair(Int(7), Int(8)));
+	check(@operators$equal(made[Int(1)].b, Int(8)));
+	generic ListRef<Pair<Int>> = pairsOf(Int);
+	generic!push(Pair(Int(9), Int(10)));
+	check(@operators$equal(generic[Int(1)].a, Int(9)));
+	steps ListRef<Int[Int]> = emptyOf(Int[Int]);
+	steps!push(twice);
+	check(@operators$equal(steps[Int(1)](Int(3)), Int(6)));
+	zero Int = zeroOf(Int);
+	check(@operators$equal(zero, Int(0)));
+	small @primitives$I32 = zeroOf(@primitives$I32);
+	check(@operators$equal(small, @primitives$I32(0)));
+	// A method given a type.
+	port Port(Int(12));
+	counted Tally<Pair<Int>> = port:tallied(Pair<Int>);
+	check(@operators$equal(counted.count, Int(12)));
+	ports!grow(Pair<Int>);
+	check(@operators$equal(ports.count, Int(3)));
 	return Unit();
 }
