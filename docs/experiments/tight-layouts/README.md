@@ -618,10 +618,10 @@ everywhere. Niche time against default:
 | Chosen | −50% | −37% | −38% |
 | Nested | −52% | −37% | −4% |
 | Trio scattered | −13% | −13% | −8% |
-| the rest | −15% to 0% | +3% to −30% | −37% to −4% |
+| the rest | −24% to 0% | +3% to −26% | −37% to −4% |
 
 ARM's `Trio`, 28% slower before step 6, is 32% faster. Nothing is
-slower by more than Windows' +3% on `Quads` and `Trio plain loop`.
+slower by more than Windows' +3% on `Trio plain loop`.
 
 **The perf programs by wall clock.** At their gate sizes most of them
 run 1–30 ms, so best-of-7 differences of a few percent are noise. The
