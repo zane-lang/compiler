@@ -78,6 +78,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           ACTOR: ${{ github.actor }}
+        # Windows runners default to PowerShell, which cannot read this.
+        shell: bash
         run: |
           set -uo pipefail
           permission=$(gh api \
