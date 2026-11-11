@@ -3,7 +3,11 @@
 mode prints the same checksum, and reports each shape's median wall time
 and peak resident memory over RUNS runs, the modes' runs interleaved.
 
-    pixi run -- python3 docs/experiments/tight-layouts/measure.py [N] [PASSES] [RUNS]
+    pixi run -- python3 docs/experiments/tight-layouts/measure.py [N] [PASSES] [RUNS] [MODE...]
+
+A mode is `default`, or switches joined by commas, e.g.
+`ZANE_PACK=structs,ZANE_PACK_HINTS=0`; the default modes are `default`,
+`ZANE_PACK=structs` and `ZANE_PACK=all`.
 
 Run from the repository root after `pixi run just build`."""
 import os, statistics, subprocess, sys, time
@@ -14,17 +18,16 @@ work = os.environ.get("WORK", "/tmp/zane-tight-measure")
 n = sys.argv[1] if len(sys.argv) > 1 else "10000000"
 passes = sys.argv[2] if len(sys.argv) > 2 else "10"
 runs = int(sys.argv[3]) if len(sys.argv) > 3 else 5
-modes = [("default", None), ("structs", "structs"), ("all", "all")]
+names = sys.argv[4:] or ["default", "ZANE_PACK=structs", "ZANE_PACK=all"]
+modes = [(m, [] if m == "default" else m.split(",")) for m in names]
 shapes = {1: "Pair", 2: "Flagged", 3: "Trio", 4: "Outer", 5: "Maybe", 6: "Wide", 7: "Trio scattered", 8: "Wide scattered"}
 
 os.makedirs(work, exist_ok=True)
 exes = {}
-for name, pack in modes:
-    env = dict(os.environ)
-    env.pop("ZANE_PACK", None)
-    if pack:
-        env["ZANE_PACK"] = pack
-    exe = os.path.join(work, f"layouts.{name}")
+for i, (name, switches) in enumerate(modes):
+    env = {k: v for k, v in os.environ.items() if not k.startswith("ZANE_PACK")}
+    env.update(s.split("=", 1) for s in switches)
+    exe = os.path.join(work, f"layouts.{i}")
     subprocess.run([zanec, "--build", exe, "--optimize", "--package", os.path.join(here, "bench/layouts")], env=env, check=True)
     exes[name] = exe
 

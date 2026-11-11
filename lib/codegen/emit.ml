@@ -517,7 +517,11 @@ let byte_at env b p offset =
   if offset = 0 then p
   else Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) p [| Llvm.const_int env.i64 offset |] "" b
 
-let field env b t p offset = Llvm.build_load t (byte_at env b p offset) "" b
+(* A runtime record's field. A pointer one names a record, a context or a
+   block, each aligned to a word at least. *)
+let field env b t p offset =
+  let v = Llvm.build_load t (byte_at env b p offset) "" b in
+  if t == env.ptr then List_handle.aligned env.ctx 8 v else v
 let set_field env b v p offset = ignore (Llvm.build_store v (byte_at env b p offset) b)
 
 let zero env b p size =
@@ -609,7 +613,7 @@ and context_limit = Abi.context_limit
    indices (docs/optimizations.md). *)
 let enter env fr b size =
   let ptr = env.ptr and i64 = env.i64 in
-  let outer = Llvm.build_load ptr (open_scope env) "" b in
+  let outer = List_handle.aligned env.ctx 8 (Llvm.build_load ptr (open_scope env) "" b) in
   let inline = block env fr and shared = block env fr and opened = block env fr in
   ignore
     (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Ne outer (Llvm.const_null ptr) "" b) inline shared b);
@@ -675,7 +679,9 @@ let enter env fr b size =
 let drain_scope env fr b m =
   let ptr = env.ptr in
   let null = Llvm.const_null ptr in
-  let innermost = Llvm.build_icmp Llvm.Icmp.Eq (Llvm.build_load ptr (open_scope env) "" b) m "" b in
+  let innermost =
+    Llvm.build_icmp Llvm.Icmp.Eq (List_handle.aligned env.ctx 8 (Llvm.build_load ptr (open_scope env) "" b)) m "" b
+  in
   let look = block env fr and inline = block env fr and runtime_ = block env fr and drained = block env fr in
   ignore (Llvm.build_cond_br innermost look runtime_ b);
   Llvm.position_at_end look b;
@@ -886,7 +892,7 @@ let first_block env fr b ~header ~list ~fail ~first ~stride =
   ignore header;
   let room = List_handle.room ~tag:(handle_field env) env.ctx b list in
   check (Llvm.build_icmp Llvm.Icmp.Eq room (n 0) "" b);
-  let m = Llvm.build_load ptr (open_scope env) "" b in
+  let m = List_handle.aligned env.ctx 8 (Llvm.build_load ptr (open_scope env) "" b) in
   check (Llvm.build_icmp Llvm.Icmp.Ne m (Llvm.const_null ptr) "" b);
   let c = field env b ptr m record_context in
   let record = address m in
@@ -900,12 +906,12 @@ let first_block env fr b ~header ~list ~fail ~first ~stride =
          "" b)
   end;
   let class_at = byte_at env b m (8 * ((first / 8) - 1)) in
-  let top = Llvm.build_load ptr class_at "" b in
+  let top = List_handle.aligned env.ctx 8 (Llvm.build_load ptr class_at "" b) in
   let pop = block env fr and look = block env fr in
   let fresh = block env fr and used = block env fr and taken = block env fr and bumped = block env fr in
   ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Ne top (Llvm.const_null ptr) "" b) pop look b);
   Llvm.position_at_end pop b;
-  ignore (Llvm.build_store (Llvm.build_load ptr top "" b) class_at b);
+  ignore (Llvm.build_store (List_handle.aligned env.ctx 8 (Llvm.build_load ptr top "" b)) class_at b);
   ignore (Llvm.build_br taken b);
   Llvm.position_at_end look b;
   let bump = field env b ptr m Walks.frontier in

@@ -24,7 +24,7 @@ Tools here, run from the repository root after `pixi run just build`:
   compared.
 - `ffi.sh SWITCHES…`: every FFI fixture built with the switches and
   compared with its golden output.
-- `measure.py [N] [PASSES] [RUNS]`: `bench/layouts` built once per mode,
+- `measure.py [N] [PASSES] [RUNS] [MODE…]`: `bench/layouts` built once per mode,
   timed and its peak memory read.
 
 ## Step 1: pack every value struct, then every sum
@@ -47,7 +47,8 @@ C's layout, rebuilt field by field. What had to follow:
 - every plain load and store in the module is marked as at any byte, since
   a value can now lie at any offset in a list, an array or another value,
   and a handle's or a box's fields are read through it. This is the cost of
-  a compiler that can prove no alignment at all: an upper bound.
+  a compiler that can prove no alignment at all: an upper bound, which
+  step 3 narrows.
 
 **Correctness.** `fixtures.sh ZANE_PACK=structs` and `fixtures.sh
 ZANE_PACK=all`: all 140 builds (70 fixtures, unoptimized and optimized)
@@ -145,6 +146,65 @@ the scattered control: memory down by the bytes saved, sequential passes
 11% (`Pair`) to 32% (`Flagged`) faster, `Maybe` 30% faster under `all`,
 scattered reads and the unpadded control unchanged.
 
+## Step 3: alignment kept where it is known
+
+**Design.** Step 1 marks every plain read and write in the module as at
+any byte. That stays the starting point, since a reference, a place lent
+to a callee and a member inside a packed value can each be at any byte,
+and nothing in the IR tells them from an aligned pointer. What changed is
+that each load of a pointer that always names something aligned now says
+so with LLVM's `!align` metadata (`List_handle.aligned`):
+
+- a runtime record's or context's pointer field (`Emit.field`) and the open
+  scope read from `zane_open`, which name records and frames;
+- a block taken from a size class's free list or a region's frontier, in
+  emit and in the walks (`Walks.take`): every block is at least a word and
+  aligned to one (`runtime/arena.c`);
+- a list's block (`List_handle.items`), aligned to a word
+  (`ZANE_LIST_ALIGN`), and a box's block (`Walks.load_box`).
+
+LLVM's `-O2` already gives back the alignment of a read or write whose
+address it can trace to a stack slot, a global or an `llvm.assume`d frame;
+with these facts it traces the rest of the runtime's bookkeeping and every
+element of a list whose stride keeps it aligned, while an element of a
+13-byte stride stays at any byte. The facts hold with or without packing,
+but are said only under `ZANE_PACK`, so the default build is unchanged;
+`ZANE_PACK_HINTS=0` leaves them unsaid, as step 2 did.
+
+In `bench/layouts`'s optimized IR under `structs`, reads and writes marked
+at any byte go from 362 (of 854) to 111. What is left is the members of
+packed values, which are at any byte, and reads through a pointer loaded
+from a place whose own alignment is unknown.
+
+**Correctness.** `fixtures.sh` and `ffi.sh` with `ZANE_PACK=structs` and
+with `ZANE_PACK=all`: the same results as in step 1. `pixi run just
+test-compiler` passes with the switches unset.
+
+**Results.** `measure.py 10000000 10 5` with five modes interleaved
+(`results-step3.txt`):
+
+| shape | default | `structs`, no facts | `structs` | `all`, no facts | `all` |
+| --- | --- | --- | --- | --- | --- |
+| 1 `Pair` | 0.354 s | 0.330 s | 0.315 s | 0.329 s | 0.318 s |
+| 2 `Flagged` | 0.353 s | 0.268 s | 0.273 s | 0.253 s | 0.247 s |
+| 3 `Trio` | 0.439 s | 0.403 s | 0.409 s | 0.391 s | 0.408 s |
+| 4 `Outer` | 0.515 s | 0.378 s | 0.384 s | 0.369 s | 0.385 s |
+| 5 `Maybe` | 0.373 s | 0.360 s | 0.381 s | 0.235 s | 0.241 s |
+| 6 `Wide` | 0.417 s | 0.404 s | 0.407 s | 0.386 s | 0.392 s |
+| 7 `Trio` scattered | 1.104 s | 1.135 s | 1.128 s | 1.187 s | 1.120 s |
+| 8 `Wide` scattered | 1.547 s | 1.538 s | 1.514 s | 1.522 s | 1.559 s |
+
+The facts move no shape by more than the noise, in either direction.
+Callgrind (1,000,000 values, 2 passes, `structs`) counts 3 instructions
+fewer with them in each shape: the facts change the runtime's bookkeeping
+code, not the loops.
+
+`tests/perf/run --build optimized` with the facts
+(`perf-structs-hints.txt`, `perf-all-hints.txt`) against step 2's runs
+without them: `scopes` 1.1% fewer cycles (all of it instructions), `removal`
+0.3% more (instructions too), every other program within 0.12%, and the
+same under `structs` and `all`.
+
 ## Findings
 
 - **Dropping tail padding everywhere is packing everything**, once fields
@@ -159,20 +219,22 @@ scattered reads and the unpadded control unchanged.
 - **Scattered reads gain nothing**: an element at any byte sometimes
   straddles two cache lines, and the second miss eats what the smaller
   footprint saves.
-- **Code with no padded value is unchanged**, the module-wide loss of
-  alignment hints included: no perf program moved under `structs`, and
-  only `copies` (5% faster) under `all`.
+- **Code with no padded value is unchanged**: no perf program moved under
+  `structs`, and only `copies` (5% faster) under `all`.
 - **A packed sum's room must be words**, not bytes, or LLVM moves its
   payload a byte at a time: that cost `copies` 22% until step 2.
+- **Losing alignment information costs nothing measurable on x86**:
+  marking every access as at any byte (steps 1 and 2) and keeping the
+  alignment wherever it is known (step 3) run the same, to within 1% in
+  simulated cycles and within the noise in time. The facts are cheap to
+  keep and sound, so a real implementation would keep them, but not for
+  speed here.
 
 ## What remains
 
-- Alignment hints back where a place is known aligned (a local's slot, a
-  scalar list's element), to see whether a compiler that keeps them gains
-  anything over this upper bound; none of the measurements here shows a
-  cost to recover.
 - An ARM64 run: an element at any byte is free on current x86 cores, and
-  the measurements here say nothing about other targets.
+  the measurements here say nothing about other targets, where losing
+  alignment information could matter more than it does here.
 - A tighter sum than a one-byte tag: a payload whose own bytes leave values
   unused could carry the tag (a niche), as `Ref32.niche` does for one
   shape.

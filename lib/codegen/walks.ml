@@ -189,7 +189,7 @@ let take ?(bump_only = false) c region size =
   let words = max 1 ((size + 7) / 8) in
   if words > classes then runtime c Cgt.Runtime.Alloc_held [| region; int env size; int env 8 |]
   else if bump_only then begin
-    let at = load c env.ptr (offset c region frontier) in
+    let at = List_handle.aligned env.ctx 8 (load c env.ptr (offset c region frontier)) in
     let ends = load c env.ptr (offset c region frontier_end) in
     let next = offset c at (8 * words) in
     let fits = block c and slow = block c and done_ = block c in
@@ -213,7 +213,7 @@ let take ?(bump_only = false) c region size =
       store c (Llvm.build_add (load c env.i64 count) (int env 1) "" c.b) count
     in
     let stack = offset c region (8 * (words - 1)) in
-    let top = load c env.ptr stack in
+    let top = List_handle.aligned env.ctx 8 (load c env.ptr stack) in
     let pop = block c
     and bump = block c
     and fits = block c
@@ -221,11 +221,11 @@ let take ?(bump_only = false) c region size =
     and done_ = block c in
     ignore (Llvm.build_cond_br (nonzero c top) pop bump c.b);
     Llvm.position_at_end pop c.b;
-    store c (load c env.ptr top) stack;
+    store c (List_handle.aligned env.ctx 8 (load c env.ptr top)) stack;
     counted ();
     ignore (Llvm.build_br done_ c.b);
     Llvm.position_at_end bump c.b;
-    let at = load c env.ptr (offset c region frontier) in
+    let at = List_handle.aligned env.ctx 8 (load c env.ptr (offset c region frontier)) in
     let ends = load c env.ptr (offset c region frontier_end) in
     let left =
       Llvm.build_sub
@@ -277,7 +277,7 @@ let box env f b size align =
       let none = Llvm.const_null env.ptr in
       { env; f; b; at = none; with_ = none; extra = n 0; work = none; depth = n 0 }
     in
-    let region = load c env.ptr (zane_open env.m env.ptr) in
+    let region = List_handle.aligned env.ctx 8 (load c env.ptr (zane_open env.m env.ptr)) in
     take ~bump_only:(Cgt.Ref32.bump ()) c region size
   end
 
@@ -298,7 +298,7 @@ let zero_list c h =
 let load_box c h =
   if Cgt.Ref32.image_boxes () then
     List_handle.decode_box ~nullable:true c.env.ctx c.b (load c (Llvm.i32_type c.env.ctx) h)
-  else load c c.env.ptr h
+  else List_handle.aligned c.env.ctx 8 (load c c.env.ptr h)
 
 let store_box c v h =
   store c
