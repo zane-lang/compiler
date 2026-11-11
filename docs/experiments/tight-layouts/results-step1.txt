@@ -1,0 +1,11 @@
+N=10000000 PASSES=10 RUNS=5
+| shape | default time | default peak | structs time | structs peak | all time | all peak |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 Pair | 0.330 s | 155 MiB | 0.285 s | 117 MiB | 0.293 s | 117 MiB |
+| 2 Flagged | 0.363 s | 155 MiB | 0.220 s | 88 MiB | 0.227 s | 89 MiB |
+| 3 Trio | 0.429 s | 155 MiB | 0.399 s | 127 MiB | 0.375 s | 127 MiB |
+| 4 Outer | 0.490 s | 232 MiB | 0.345 s | 155 MiB | 0.347 s | 155 MiB |
+| 5 Maybe | 0.335 s | 155 MiB | 0.336 s | 155 MiB | 0.212 s | 89 MiB |
+| 6 Wide | 0.373 s | 155 MiB | 0.368 s | 155 MiB | 0.378 s | 155 MiB |
+| 7 Trio scattered | 1.113 s | 155 MiB | 1.132 s | 127 MiB | 1.152 s | 127 MiB |
+| 8 Wide scattered | 1.605 s | 155 MiB | 1.660 s | 155 MiB | 1.682 s | 155 MiB |
