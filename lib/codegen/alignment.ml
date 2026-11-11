@@ -23,8 +23,15 @@
 
 let most = 4096
 
-(* The largest power of two dividing [n], or [most] for 0. *)
-let low_bit n = if n = 0L then most else Int64.to_int (Int64.logand n (Int64.neg n)) |> min most
+(* The largest power of two dividing [n], at most [most]; [most] for 0.
+   A product may have wrapped, so [n] may be negative: its lowest set bit
+   is still the true one's, and 2^63 is past [most]. *)
+let low_bit n =
+  let bit = Int64.logand n (Int64.neg n) in
+  if bit = 0L || bit < 0L || bit > Int64.of_int most then most else Int64.to_int bit
+
+(* The greatest common divisor, never negative. *)
+let rec gcd a b = if b = 0L then Int64.abs a else gcd b (Int64.rem a b)
 
 (* A number [index] is known to be a multiple of: a constant itself, a
    product or a shift by a constant, a sum or difference of two such. *)
@@ -32,7 +39,6 @@ let rec multiple depth index =
   if depth > 8 then 1L
   else
     let sub i = multiple (depth + 1) (Llvm.operand index i) in
-    let rec gcd a b = if b = 0L then a else gcd b (Int64.rem a b) in
     match Llvm.int64_of_const index with
     | Some c -> if c = 0L then 0L else Int64.abs c
     | None -> (
@@ -88,7 +94,7 @@ let rec known dl ctx depth v =
         | None ->
             let size = Int64.mul size (multiple 0 (Llvm.operand v (i - 1))) in
             walk e i offset (if stride = 0L then size else gcd stride size)
-      and gcd a b = if b = 0L then a else gcd b (Int64.rem a b) in
+      in
       let source = Llvm_extra.gep_source_type v in
       let offset, stride =
         if Llvm.num_operands v < 2 then (0L, 0L)

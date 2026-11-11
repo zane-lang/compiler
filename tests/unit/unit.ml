@@ -1271,6 +1271,10 @@ entry:
   check "a pointer read back from a slot is as aligned as what was stored" (at "readback" = 8);
   check "an atomic access keeps its alignment" (at "atomic" = 8);
   check "a store follows the same rules" (List.mem 1 !stores && List.mem 8 !stores);
+  let open Codegen__Alignment in
+  check "a negative number's low bit is its magnitude's" (low_bit (-24L) = 8);
+  check "a wrapped 2^63 is past the cap" (low_bit Int64.min_int = most);
+  check "a greatest common divisor is never negative" (gcd (-12L) 8L = 4L && gcd 12L (-8L) = 4L);
   Llvm.dispose_module m;
   Llvm.dispose_context ctx
 
