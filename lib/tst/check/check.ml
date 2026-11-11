@@ -1296,7 +1296,23 @@ and lambda env ctx span ~this_type ~params ~ret_type ~is_mut ~body =
   let ps =
     List.map
       (fun (p : N.Param.t) ->
-        let t = Type_decls.param_type env sc p.N.Param.type_ in
+        let t =
+          match Type_decls.param_type env sc p.N.Param.type_ with
+          (* A concept-typed parameter is fixed where a named verb is
+             instantiated, and a lambda is one value of one exact type
+             (functions.md §7.2): over a `Type` or a number it would be a
+             generic function value, which is not specified (generics.md
+             §9). *)
+          | Ty.Concept _ as c ->
+              error env p.N.Param.span
+                (Printf.sprintf
+                   "%s is a concept type, and only a named verb's parameter may have one: a lambda is \
+                    one value with one exact type, and a generic function value is not specified \
+                    (generics.md §9)"
+                   (quote (Ty.to_string c)));
+              Ty.Error
+          | t -> t
+        in
         let local = fresh_local env p.N.Param.name.N.Name.text t p.N.Param.span in
         Hashtbl.replace inner_scope local.T.Local.name { local; role = Parameter };
         (t, local))

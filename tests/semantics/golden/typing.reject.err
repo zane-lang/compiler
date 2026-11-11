@@ -1058,62 +1058,70 @@ File "fixtures/typing/reject/bad/temporary.zn", line 12, characters 10-34:
 12 |     hear(Note(@primitives$I64(1)));
    |          ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: a new reference names a place, and this is a temporary value
-File "fixtures/typing/reject/bad/typeValues.zn", line 19, characters 21-25:
-19 | T zeroOf(T Type) => T(0);
+File "fixtures/typing/reject/bad/typeValues.zn", line 20, characters 21-25:
+20 | T zeroOf(T Type) => T(0);
    |                     ^^^^
-Error: `bad$Knell` has no constructor (in `zeroOf` with T = bad$Knell, required at fixtures/typing/reject/bad/typeValues.zn:35)
-File "fixtures/typing/reject/bad/typeValues.zn", line 22, characters 20-36:
-22 |     tooMany Hopper(Couple<Int, Int>);
+Error: `bad$Knell` has no constructor (in `zeroOf` with T = bad$Knell, required at fixtures/typing/reject/bad/typeValues.zn:36)
+File "fixtures/typing/reject/bad/typeValues.zn", line 23, characters 20-36:
+23 |     tooMany Hopper(Couple<Int, Int>);
    |                    ^^^^^^^^^^^^^^^^
 Error: `Couple` takes 1 type argument, and 2 were written
-File "fixtures/typing/reject/bad/typeValues.zn", line 23, characters 26-27:
-23 |     number Hopper(Couple<3>);
+File "fixtures/typing/reject/bad/typeValues.zn", line 24, characters 26-27:
+24 |     number Hopper(Couple<3>);
    |                          ^
 Error: `Couple` expects a type here, not a number
-File "fixtures/typing/reject/bad/typeValues.zn", line 24, characters 20-27:
-24 |     unknown Hopper(Missing<Int>);
+File "fixtures/typing/reject/bad/typeValues.zn", line 25, characters 20-27:
+25 |     unknown Hopper(Missing<Int>);
    |                    ^^^^^^^
 Error: no type named `Missing` is in scope
-File "fixtures/typing/reject/bad/typeValues.zn", line 25, characters 37-44:
-25 |     unknownRef @primitives$ListRef(&Missing);
+File "fixtures/typing/reject/bad/typeValues.zn", line 26, characters 37-44:
+26 |     unknownRef @primitives$ListRef(&Missing);
    |                                     ^^^^^^^
 Error: no type named `Missing` is in scope
-File "fixtures/typing/reject/bad/typeValues.zn", line 26, characters 30-36:
-26 |     bare @primitives$ListRef(Couple);
+File "fixtures/typing/reject/bad/typeValues.zn", line 27, characters 30-36:
+27 |     bare @primitives$ListRef(Couple);
    |                              ^^^^^^
 Error: `Couple` takes 1 type argument, and 0 were written
-File "fixtures/typing/reject/bad/typeValues.zn", line 27, characters 32-37:
-27 |     shared @primitives$ListRef(&Gong);
+File "fixtures/typing/reject/bad/typeValues.zn", line 28, characters 32-37:
+28 |     shared @primitives$ListRef(&Gong);
    |                                ^^^^^
 Error: `&bad$Gong` is a reference, and it fills the elements of `@primitives$ListRef<&bad$Gong>`; a `ListRef`'s elements are owners, never references
-File "fixtures/typing/reject/bad/typeValues.zn", line 28, characters 30-36:
-28 |     introduced Hopper(Couple<U Type>);
+File "fixtures/typing/reject/bad/typeValues.zn", line 29, characters 30-36:
+29 |     introduced Hopper(Couple<U Type>);
    |                              ^^^^^^
 Error: `U` introduces a parameter, which only a verb signature may do; a type lists its parameters in its `< >` header
-File "fixtures/typing/reject/bad/typeValues.zn", line 29, characters 20-25:
-29 |     roaming Hopper(^Gong);
+File "fixtures/typing/reject/bad/typeValues.zn", line 30, characters 20-25:
+30 |     roaming Hopper(^Gong);
    |                    ^^^^^
 Error: `^bad$Gong` is a roaming owner, and `^` is written only on a local, a parameter or a return type, never on a type passed as an argument
-File "fixtures/typing/reject/bad/typeValues.zn", line 30, characters 23-32:
-30 |     bareResult Hopper(Gong[Int]);
+File "fixtures/typing/reject/bad/typeValues.zn", line 31, characters 23-32:
+31 |     bareResult Hopper(Gong[Int]);
    |                       ^^^^^^^^^
 Error: this function type returns `bad$Gong`, a reference type, bare; a borrow is never returned, so write `^bad$Gong` to hand back an owner or `&bad$Gong` to hand back a reference
-File "fixtures/typing/reject/bad/typeValues.zn", line 31, characters 59-75:
-31 |     fnTooMany ^@primitives$ListRef<Couple<Int>> = emptyOf(Couple<Int, Int>);
+File "fixtures/typing/reject/bad/typeValues.zn", line 32, characters 59-75:
+32 |     fnTooMany ^@primitives$ListRef<Couple<Int>> = emptyOf(Couple<Int, Int>);
    |                                                           ^^^^^^^^^^^^^^^^
 Error: `Couple` takes 1 type argument, and 2 were written
-File "fixtures/typing/reject/bad/typeValues.zn", line 32, characters 34-39:
-32 |     fnRoaming Int = Int(1):sized(^Gong);
+File "fixtures/typing/reject/bad/typeValues.zn", line 33, characters 34-39:
+33 |     fnRoaming Int = Int(1):sized(^Gong);
    |                                  ^^^^^
 Error: `^bad$Gong` is a roaming owner, and `^` is written only on a local, a parameter or a return type, never on a type passed as an argument
-File "fixtures/typing/reject/bad/typeValues.zn", line 33, characters 24-36:
-33 |     typeForValue Int = counted(Int);
+File "fixtures/typing/reject/bad/typeValues.zn", line 34, characters 24-36:
+34 |     typeForValue Int = counted(Int);
    |                        ^^^^^^^^^^^^
 Error: no `counted` accepts (Type); the candidates are `@primitives$Unit counted(n @concepts$Int, @concepts$Block)`; `@primitives$I64 counted(@primitives$I64)`
-File "fixtures/typing/reject/bad/typeValues.zn", line 34, characters 46-61:
-34 |     valueForType ^@primitives$ListRef<Int> = emptyOf(Int(1));
+File "fixtures/typing/reject/bad/typeValues.zn", line 35, characters 46-61:
+35 |     valueForType ^@primitives$ListRef<Int> = emptyOf(Int(1));
    |                                              ^^^^^^^^^^^^^^^
 Error: no `emptyOf` accepts (@primitives$I64); the candidate is `^@primitives$ListRef<T> emptyOf(T Type)`
+File "fixtures/typing/reject/bad/typeValues.zn", line 37, characters 20-26:
+37 |     takesType Unit(T Type) => Unit();
+   |                    ^^^^^^
+Error: `Type` is a concept type, and only a named verb's parameter may have one: a lambda is one value with one exact type, and a generic function value is not specified (generics.md §9)
+File "fixtures/typing/reject/bad/typeValues.zn", line 39, characters 17-32:
+39 |     literal Int(n @concepts$Int) => Int(n);
+   |                 ^^^^^^^^^^^^^^^
+Error: `@concepts$Int` is a concept type, and only a named verb's parameter may have one: a lambda is one value with one exact type, and a generic function value is not specified (generics.md §9)
 File "fixtures/typing/reject/bad/types.zn", line 5, characters 1-23:
 5 | type Holder = struct {
   | ^^^^^^^^^^^^^^^^^^^^^^
