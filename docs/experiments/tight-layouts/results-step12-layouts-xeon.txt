@@ -1,0 +1,15 @@
+N=10000000 PASSES=10 RUNS=5
+| shape | default time | default peak | ZANE_PACK=niche,ZANE_UNSWITCH=0 time | ZANE_PACK=niche,ZANE_UNSWITCH=0 peak | ZANE_PACK=aligned,ZANE_UNSWITCH=0 time | ZANE_PACK=aligned,ZANE_UNSWITCH=0 peak |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 Pair | 0.326 s | 155 MiB | 0.268 s | 117 MiB | 0.260 s | 117 MiB |
+| 2 Flagged | 0.333 s | 155 MiB | 0.195 s | 89 MiB | 0.184 s | 88 MiB |
+| 3 Trio | 0.391 s | 155 MiB | 0.348 s | 127 MiB | 0.358 s | 127 MiB |
+| 4 Outer | 0.462 s | 232 MiB | 0.340 s | 155 MiB | 0.345 s | 155 MiB |
+| 5 Maybe | 0.318 s | 155 MiB | 0.201 s | 89 MiB | 0.331 s | 155 MiB |
+| 6 Wide | 0.365 s | 155 MiB | 0.377 s | 155 MiB | 0.385 s | 155 MiB |
+| 7 Trio scattered | 1.044 s | 155 MiB | 1.109 s | 127 MiB | 1.064 s | 127 MiB |
+| 8 Wide scattered | 1.400 s | 155 MiB | 1.474 s | 155 MiB | 1.435 s | 155 MiB |
+| 9 Chosen | 0.469 s | 231 MiB | 0.215 s | 88 MiB | 0.190 s | 88 MiB |
+| 10 Nested | 0.606 s | 308 MiB | 0.227 s | 88 MiB | 0.204 s | 89 MiB |
+| 11 Quads | 0.373 s | 155 MiB | 0.336 s | 127 MiB | 0.320 s | 127 MiB |
+| 12 Trio plain loop | 0.370 s | 155 MiB | 0.310 s | 127 MiB | 0.305 s | 127 MiB |
