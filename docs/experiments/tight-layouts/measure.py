@@ -12,9 +12,30 @@ A mode is `default`, or switches joined by commas, e.g.
 Run from the repository root after `pixi run just build`."""
 import os, statistics, subprocess, sys, time
 
+windows = sys.platform == "win32"
+suffix = ".exe" if windows else ""
+
+
+def peak_mib(p):
+    """The finished process's peak memory in MiB: its peak working set on
+    Windows, which has no wait4, and its maximum resident set elsewhere."""
+    import ctypes
+    from ctypes import wintypes
+
+    class Counters(ctypes.Structure):
+        _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD)] + [
+            (f, ctypes.c_size_t) for f in ("PeakWorkingSetSize", "WorkingSetSize", "QuotaPeakPagedPoolUsage", "QuotaPagedPoolUsage", "QuotaPeakNonPagedPoolUsage", "QuotaNonPagedPoolUsage", "PagefileUsage", "PeakPagefileUsage")
+        ]
+
+    c = Counters()
+    c.cb = ctypes.sizeof(c)
+    ctypes.WinDLL("psapi").GetProcessMemoryInfo(wintypes.HANDLE(int(p._handle)), ctypes.byref(c), c.cb)
+    return c.PeakWorkingSetSize / (1024 * 1024)
+
 here = os.path.dirname(os.path.abspath(__file__))
 zanec = os.path.abspath("_build/default/bin/zanec/zanec.exe")
-work = os.environ.get("WORK", "/tmp/zane-tight-measure")
+import tempfile
+work = os.environ.get("WORK", os.path.join(tempfile.gettempdir(), "zane-tight-measure"))
 n = sys.argv[1] if len(sys.argv) > 1 else "10000000"
 passes = sys.argv[2] if len(sys.argv) > 2 else "10"
 runs = int(sys.argv[3]) if len(sys.argv) > 3 else 5
@@ -29,7 +50,7 @@ exes = {}
 for i, (name, switches) in enumerate(modes):
     env = {k: v for k, v in os.environ.items() if not k.startswith("ZANE_PACK")}
     env.update(s.split("=", 1) for s in switches)
-    exe = os.path.join(work, f"layouts.{i}")
+    exe = os.path.join(work, f"layouts{i}{suffix}")
     subprocess.run([zanec, "--build", exe, "--optimize", "--package", os.path.join(here, "bench/layouts")], env=env, check=True)
     exes[name] = exe
 
@@ -37,12 +58,17 @@ def run(exe, shape):
     start = time.perf_counter()
     p = subprocess.Popen([exe, str(shape), n, passes], stdout=subprocess.PIPE)
     out = p.stdout.read()
-    _, status, usage = os.wait4(p.pid, 0)
-    wall = time.perf_counter() - start
+    if windows:
+        status = p.wait()
+        wall = time.perf_counter() - start
+        peak = peak_mib(p)
+    else:
+        _, status, usage = os.wait4(p.pid, 0)
+        wall = time.perf_counter() - start
+        # Linux gives the peak in KiB, macOS in bytes.
+        peak = usage.ru_maxrss / (1024 * 1024 if sys.platform == "darwin" else 1024)
     if status != 0:
         sys.exit(f"{exe} {shape}: exit status {status}")
-    # Linux gives the peak in KiB, macOS in bytes.
-    peak = usage.ru_maxrss / (1024 * 1024 if sys.platform == "darwin" else 1024)
     return out.strip().decode(), wall, peak
 
 print(f"N={n} PASSES={passes} RUNS={runs}")
