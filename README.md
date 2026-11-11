@@ -97,3 +97,10 @@ archive by hand, and for how releases are published, see
 [`CONTRIBUTING.md`](CONTRIBUTING.md) describes how code here is written and
 what has to change with it: tests and design documents go in the same pull
 request, and CI checks nesting depth and file size.
+
+## License
+
+The compiler is free software under the GNU General Public License, version
+3. Its runtime library, which every program it builds contains, comes with
+the Zane Compiler Runtime Library Exception, so those programs can be
+distributed under any terms. [`LICENSE`](LICENSE) holds both.

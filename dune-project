@@ -7,9 +7,9 @@
 
 (license GPL-3.0-only)
 
-(authors "Manuel Stieger")
+(authors "The Zane Authors")
 
-(maintainers "Manuel Stieger")
+(maintainers "The Zane Authors")
 
 (using menhir 3.0)
 
