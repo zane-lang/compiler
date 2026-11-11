@@ -11,6 +11,8 @@ at all and alignment 1. The switch `ZANE_PACK` turns it on:
 - `ZANE_PACK=all`: every sum's is too, its tag one byte rather than a
   4-byte tag padded to the payload at offset 8 (a niche sum is left as it
   is).
+- `ZANE_PACK=niche`: as `all`, and a sum whose other cases a spare byte
+  of its one payload can name has no tag at all (step 4).
 
 The switch is read where a layout is made, so a build with it and one
 without are different programs. The default build and the test suite are
@@ -25,7 +27,11 @@ Tools here, run from the repository root after `pixi run just build`:
 - `ffi.sh SWITCHES…`: every FFI fixture built with the switches and
   compared with its golden output.
 - `measure.py [N] [PASSES] [RUNS] [MODE…]`: `bench/layouts` built once per mode,
-  timed and its peak memory read.
+  timed and its peak memory read (`SHAPES=1,2` picks shapes).
+- `bench/niches`: a program that builds, matches, copies and stores sums
+  of every niche kind; every mode must print the same.
+- `arm64.sh`: the check and the measurements on another machine, through
+  the Shell workflow (step 5).
 
 ## Step 1: pack every value struct, then every sum
 
@@ -205,6 +211,85 @@ without them: `scopes` 1.1% fewer cycles (all of it instructions), `removal`
 0.3% more (instructions too), every other program within 0.12%, and the
 same under `structs` and `all`.
 
+## Step 4: byte niches
+
+**Design.** Under `ZANE_PACK=niche`, a sum with one case that has a payload
+and others that have none is laid out as that payload alone, when the
+payload has a byte with enough values it never holds (`Ty.byte_niche`,
+`Ty.spare`, in `lib/cgt/nodes.ml`): another case is one of those values at
+that byte, the first of them for the first such case, and so on. A spare
+byte is
+
+- a `Bool`'s, which holds 0 or 1, so 254 values are left;
+- a packed sum's tag, which holds one value per case;
+- what a byte-niche sum leaves of its own spare byte, so a niche sum
+  inside a niche sum takes no byte either (`Twice` below);
+
+found through a struct's members (the first that has one) and an array's
+first element. This generalizes `Ref32.niche`, which does the same for a
+sum of nothing and a box or reference, with 0 for nothing.
+
+What had to follow:
+
+- the sum's LLVM type is its payload's with the spare `Bool` an `i8`
+  (`Emit.with_byte`): a `Bool` read as `i1` from a byte that holds 2 does
+  not keep the 2, so a value of the sum moves only as bytes, and only a
+  case's payload, which holds 0 or 1 there, is read as its own type;
+- a case is built as its payload's bytes, or as zero bytes with the case's
+  value at the spare byte; a match reads that byte and takes the case its
+  value names, or the one with the payload when it names none; the payload
+  is at the sum's own address;
+- an owned-block position under a byte-niche sum carries its tag as the
+  byte's offset and its range of values (`Layout.byte_niche_tag`), which a
+  walk tests (`Walks.present`) and the optimizer decodes (`Layout.tag_case`).
+
+**Correctness.** `bench/niches` prints the same in all eight builds
+(default, `structs`, `all`, `niche`, each unoptimized and optimized) under
+`ZANE_CHECK=1`; its lists' elements, as `--cgt` reports them:
+
+| type | default | `all` | `niche` |
+| --- | --- | --- | --- |
+| `Maybe { some Flagged; none }` | 24 bytes | 10 | 9 |
+| `Several { first; value Flagged; second; third }` | 24 | 10 | 9 |
+| `Twice { inner Maybe; outer }` | 32 | 11 | 9 |
+| `Entry { named Named; blank }`, `Named` holding a `String` | 40 | 26 | 25 |
+| `Holder { Bool; Entry; Int }` | 56 | 35 | 34 |
+
+`fixtures.sh ZANE_PACK=niche`: all 140 builds the same as without it.
+`ffi.sh ZANE_PACK=niche`: as in step 1.
+
+**Results.** Two shapes join `bench/layouts`: 9, `Chosen { some Flagged;
+none }`, a third of them none; and 10, `Nested { inner Chosen; outer }`, a
+fifth of them outer. `measure.py 10000000 10 5 default ZANE_PACK=all
+ZANE_PACK=niche` (`results-step4.txt`):
+
+| shape | default | `all` | `niche` |
+| --- | --- | --- | --- |
+| 9 `Chosen` | 0.474 s, 231 MiB | 0.239 s, 97 MiB | 0.193 s, 88 MiB |
+| 10 `Nested` | 0.610 s, 308 MiB | 0.539 s, 108 MiB | 0.246 s, 88 MiB |
+
+The other shapes have no niche and ran as in step 3. One reading is noise:
+shape 5, `Maybe { some Int; none }`, ran 23% slower under `niche` than under
+`all`, but its code is the same in both builds and Callgrind counts the same
+instructions to within 0.01%.
+
+Callgrind, 1,000,000 values and 2 passes:
+
+| shape | default | `all` | `niche` |
+| --- | --- | --- | --- |
+| 9 `Chosen` | 41.7 M | 40.1 M | 40.4 M |
+| 10 `Nested` | 63.5 M | 76.7 M | 59.5 M |
+
+A packed sum inside a packed sum (`Nested` under `all`) costs instructions:
+its inner tag and payload are at odd offsets in the outer one's room, read
+a piece at a time, so it runs barely faster than the default build for all
+its smaller footprint. Without a tag at all, `niche` reads it as one
+`Flagged` and runs 2.2 times as fast as `all`.
+
+`tests/perf/run --build optimized` under `niche` (`perf-niche.txt`): the
+same as `all` to within 0.04% in every program, none of which has a sum a
+byte niche fits (`copies`'s `Tree` has a payload in both cases).
+
 ## Findings
 
 - **Dropping tail padding everywhere is packing everything**, once fields
@@ -221,6 +306,12 @@ same under `structs` and `all`.
   footprint saves.
 - **Code with no padded value is unchanged**: no perf program moved under
   `structs`, and only `copies` (5% faster) under `all`.
+- **A byte niche removes a sum's tag where its payload has a spare
+  byte**: a `Bool`, an enum, or another such sum. It saves the last byte
+  `all` leaves (10 → 9 for an optional `Flagged`), and much more time when
+  sums nest, since a packed sum inside a packed sum is read a piece at a
+  time and a niche one is read whole (`Nested`: 2.2 times as fast as
+  `all`, 2.5 times the default build).
 - **A packed sum's room must be words**, not bytes, or LLVM moves its
   payload a byte at a time: that cost `copies` 22% until step 2.
 - **Losing alignment information costs nothing measurable on x86**:
@@ -235,6 +326,7 @@ same under `structs` and `all`.
 - An ARM64 run: an element at any byte is free on current x86 cores, and
   the measurements here say nothing about other targets, where losing
   alignment information could matter more than it does here.
-- A tighter sum than a one-byte tag: a payload whose own bytes leave values
-  unused could carry the tag (a niche), as `Ref32.niche` does for one
-  shape.
+- More spare values: a box's or a reference's pointer is never null and
+  aligned, so it leaves 0 and the low bits; a sum with two payloads could
+  put its tag in a spare byte of the larger one when the smaller fits
+  around it.
