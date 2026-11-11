@@ -15,6 +15,7 @@
 /// | 8 | Wide, scattered reads | 16 | 16 |
 /// | 9 | Chosen variant { some Flagged; none Unit } | 24 | 10, 9 with a byte niche |
 /// | 10 | Nested variant { inner Chosen; outer Unit } | 32 | 11, 9 with a byte niche |
+/// | 11 | Quads { I32; I32; I32; Bool }, Trio's stride without an Int | 16 | 13 |
 package layouts;
 
 alias Int = @primitives$I64;
@@ -98,6 +99,15 @@ type Nested = variant {
 	outer Unit;
 }
 
+type Quads = struct {
+	a I32;
+	b I32;
+	c I32;
+	f Bool;
+}
+
+Quads(a I32, b I32, c I32, f Bool) => init{ a; b; c; f; }
+
 type Wide = struct {
 	a Int;
 	b Int;
@@ -168,6 +178,25 @@ Int nesteds(n Int, passes Int) {
 		j Int(1);
 		j!to(n) {
 			total = @operators$add(total, nested(list[j]));
+		}
+	}
+	return total;
+}
+
+Int quads(n Int, passes Int) {
+	list ListRef<Quads> = @primitives$ListRef(Quads);
+	i Int(1);
+	i!to(n) {
+		w I32 = I32.wrap(i);
+		list!push(Quads(w, w, I32(3), odd(i)));
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			e Quads = list[j];
+			total = @operators$add(total, @operators$add(@operators$add(Int(e.a), Int(e.b)), @operators$add(Int(e.c), one(e.f))));
 		}
 	}
 	return total;
@@ -307,6 +336,7 @@ Unit main() {
 	@controlflow$branch(@operators$equal(shape, Int(8)), { total = wides(n, passes, true); });
 	@controlflow$branch(@operators$equal(shape, Int(9)), { total = chosens(n, passes); });
 	@controlflow$branch(@operators$equal(shape, Int(10)), { total = nesteds(n, passes); });
+	@controlflow$branch(@operators$equal(shape, Int(11)), { total = quads(n, passes); });
 	say(String(total));
 	return Unit();
 }

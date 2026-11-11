@@ -20,7 +20,7 @@ passes = sys.argv[2] if len(sys.argv) > 2 else "10"
 runs = int(sys.argv[3]) if len(sys.argv) > 3 else 5
 names = sys.argv[4:] or ["default", "ZANE_PACK=structs", "ZANE_PACK=all"]
 modes = [(m, [] if m == "default" else m.split(",")) for m in names]
-shapes = {1: "Pair", 2: "Flagged", 3: "Trio", 4: "Outer", 5: "Maybe", 6: "Wide", 7: "Trio scattered", 8: "Wide scattered", 9: "Chosen", 10: "Nested"}
+shapes = {1: "Pair", 2: "Flagged", 3: "Trio", 4: "Outer", 5: "Maybe", 6: "Wide", 7: "Trio scattered", 8: "Wide scattered", 9: "Chosen", 10: "Nested", 11: "Quads"}
 if os.environ.get("SHAPES"):
     shapes = {int(k): shapes[int(k)] for k in os.environ["SHAPES"].split(",")}
 
