@@ -1,3 +1,10 @@
+/* Copyright (C) 2026 The Zane Authors
+
+   This file is part of the Zane runtime library. It is governed by the GNU
+   General Public License, version 3, along with the Zane Compiler Runtime
+   Library Exception; the compiler's LICENSE, at the root of its source and
+   in share/ of its releases, holds both. */
+
 /* Every offset, size and count that emitted code relies on, written once.
    `zane_internal.h` includes this and asserts each against the structs it
    describes, and lib/codegen/dune reads it into the compiler's `Abi`

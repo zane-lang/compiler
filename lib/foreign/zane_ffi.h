@@ -1,3 +1,10 @@
+/* Copyright (C) 2026 The Zane Authors
+
+   This file is part of the Zane runtime library. It is governed by the GNU
+   General Public License, version 3, along with the Zane Compiler Runtime
+   Library Exception; the compiler's LICENSE, at the root of its source and
+   in share/ of its releases, holds both. */
+
 /* What the toolchain gives every package's C code (spec ffi.md §3.4,
    §3.5): the views a string, an array or a list crosses into C as, and
    the allocator for the bytes of a string C returns. */

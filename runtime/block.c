@@ -1,3 +1,10 @@
+/* Copyright (C) 2026 The Zane Authors
+
+   This file is part of the Zane runtime library. It is governed by the GNU
+   General Public License, version 3, along with the Zane Compiler Runtime
+   Library Exception; the compiler's LICENSE, at the root of its source and
+   in share/ of its releases, holds both. */
+
 #include "zane_internal.h"
 
 #include <errno.h>

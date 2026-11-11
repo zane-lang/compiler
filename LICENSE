@@ -1,5 +1,5 @@
 Zane Compiler
-Copyright (C) 2026 Manuel Stieger
+Copyright (C) 2026 The Zane Authors
 
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
@@ -682,12 +682,10 @@ Public License instead of this License.  But first, please read
 
 Zane Compiler RUNTIME LIBRARY EXCEPTION
 
-Version 3.1, 31 March 2009
+Copyright (C) 2026 The Zane Authors
 
-Copyright (C) 2009 Free Software Foundation, Inc. <http://fsf.org/>
-
-Everyone is permitted to copy and distribute verbatim copies of this
-license document, but changing it is not allowed.
+Derived from the GCC Runtime Library Exception, version 3.1, of 31 March
+2009, Copyright (C) 2009 Free Software Foundation, Inc.
 
 This Zane Compiler Runtime Library Exception ("Exception") is an additional
 permission under section 7 of the GNU General Public License, version
@@ -709,9 +707,8 @@ interface provided by the Runtime Library, but is not otherwise based
 on the Runtime Library.
 
 "Zane Compiler" means the Zane programming language compiler, with or
-without modifications, governed by version 3 (or a specified later
-version) of the GNU General Public License (GPL) with the option of
-using any subsequent versions published by the FSF.
+without modifications, governed by version 3 of the GNU General Public
+License (GPL).
 
 "GPL-compatible Software" is software whose conditions of propagation,
 modification and use would permit combination with Zane Compiler in accord with

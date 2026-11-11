@@ -7,8 +7,8 @@ a concrete syntax tree, desugaring into the SST, semantic analysis into the
 typed TST, lowering into the CGT, LLVM code generation, and the C runtime
 linked into every program. Also the developer tooling used to keep the grammar
 unambiguous."""
-maintainer: ["Manuel Stieger"]
-authors: ["Manuel Stieger"]
+maintainer: ["The Zane Authors"]
+authors: ["The Zane Authors"]
 license: "GPL-3.0-only"
 tags: ["compiler" "zane" "parser" "menhir" "ocaml"]
 homepage: "https://github.com/zane-lang/compiler"

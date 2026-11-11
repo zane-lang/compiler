@@ -1,6 +1,11 @@
 # Bundled components
 
-The compiler is GPL-3.0-only; `LICENSE` contains its license. Its source is
+The compiler is GPL-3.0-only, and its runtime library, which the programs it
+builds contain, is GPL-3.0-only with the Zane Compiler Runtime Library
+Exception: the runtime does not make those programs GPL, so their authors
+choose their terms, within what the licenses of the program's other code
+allow. `LICENSE` contains both, with the exception's exact conditions. Its
+source is
 the commit in `toolchain.coda`, available from
 https://github.com/zane-lang/compiler. The included `pixi.lock`, which pins
 its conda-forge toolchain, and the OCaml bootstrap pins describe how it was
