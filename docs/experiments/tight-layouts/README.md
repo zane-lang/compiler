@@ -352,6 +352,68 @@ Dispatched as runner `macos-latest`, command
   reads of a packed sum inside a packed sum that cost x86 2.2 times cost
   this core nothing.
 
+## Step 6: `Trio`'s loss is its loop, and unswitching fixes it
+
+**Isolating.** Shape 12 is `Trio` in a loop of its own, with no scattered
+branch (run 43074938173, AArch64, 9 runs, `results-arm64.txt`):
+
+| shape | default | `structs` |
+| --- | --- | --- |
+| 3 `Trio`, the loop it shares with shape 7 | 0.229 s | 0.252 s |
+| 12 `Trio`, a loop of its own | 0.142 s | 0.123 s |
+| 2 `Flagged` | 0.134 s | 0.094 s |
+| 11 `Quads` | 0.176 s | 0.146 s |
+
+In a loop of its own, packed `Trio` gains 13%: the layout is not the cost.
+`trios` picks each index between `j` and the scattered one with a
+loop-invariant flag, so LLVM cannot step a pointer through the list and
+computes the address from the index on every element: with a 16-byte
+stride a shift folded into the add, with 13 a multiply-add. Apple's cores
+pay for the multiply-add on every element; x86 hid it.
+
+**Design.** Non-trivial loop unswitching copies a loop once for each way a
+loop-invariant condition goes, so each copy has an index LLVM steps. `-O3`
+runs it and `-O2`, which the optimized build is, does not.
+`Passes.nontrivial` turns `simple-loop-unswitch<no-nontrivial;trivial>`
+into `simple-loop-unswitch<nontrivial;trivial>` in the optimized and tier 1
+pipelines: on under `ZANE_PACK`, off with `ZANE_UNSWITCH=0`, and on in any
+build, the default included, with `ZANE_UNSWITCH=1`. Compiled for
+`aarch64-apple-darwin`, `trios` gains a second copy of its loop whose
+sequential reads step a pointer by 13, two elements a turn.
+
+**Correctness.** `fixtures.sh` with `ZANE_PACK=structs` and with
+`ZANE_PACK=niche`, which now unswitch: all 140 builds the same.
+`bench/niches` the same under both.
+
+**Results, AArch64** (run 43076494289, 7 runs; this runner was noisy:
+`Pair`, whose loop unswitching does not touch, moves by 20% between two
+modes, so only differences larger than that count):
+
+| shape | default | default, unswitched | `structs`, not unswitched | `structs` | `niche` |
+| --- | --- | --- | --- | --- | --- |
+| 3 `Trio` | 0.193 s | 0.153 s | 0.248 s | 0.158 s | 0.156 s |
+| 6 `Wide` | 0.197 s | 0.125 s | 0.207 s | 0.136 s | 0.129 s |
+| 7 `Trio` scattered | 1.426 s | 1.293 s | 1.435 s | 1.247 s | 1.260 s |
+| 9 `Chosen` | 0.171 s | 0.181 s | 0.185 s | 0.187 s | 0.117 s |
+| 10 `Nested` | 0.250 s | 0.242 s | 0.251 s | 0.242 s | 0.186 s |
+
+Packed `Trio` goes from 28% slower than the default build to 18% faster.
+
+**Results, x86** (`results-step6-x86.txt`, 5 runs):
+
+| shape | default | default, unswitched | `structs`, not unswitched | `structs` |
+| --- | --- | --- | --- | --- |
+| 3 `Trio` | 0.417 s | 0.350 s | 0.376 s | 0.316 s |
+| 6 `Wide` | 0.382 s | 0.317 s | 0.397 s | 0.310 s |
+| 7 `Trio` scattered | 1.105 s | 0.940 s | 1.134 s | 0.972 s |
+| 8 `Wide` scattered | 1.461 s | 1.206 s | 1.560 s | 1.257 s |
+
+The shapes whose loop is shared gain 15-20% from unswitching on both
+machines, packed or not; the others do not move. On the perf programs
+(`perf-default-unswitch.txt`, the default build with `ZANE_UNSWITCH=1`),
+`division` takes 1.2% fewer cycles and `kept` 0.3% more; no other program
+moves by more than 0.11%.
+
 ## Findings
 
 - **Dropping tail padding everywhere is packing everything**, once fields
@@ -377,7 +439,14 @@ Dispatched as runner `macos-latest`, command
 - **A packed sum's room must be words**, not bytes, or LLVM moves its
   payload a byte at a time: that cost `copies` 22% until step 2.
 - **On AArch64 (Apple silicon) packing pays more**: sequential passes over
-  padded values gain a third or more; `Trio`'s loss is step 6's.
+  padded values gain a third or more. Its one loss, `Trio`, was a loop
+  whose index a loop-invariant flag picks, so its address was a
+  multiply by the odd stride on every element; with non-trivial loop
+  unswitching packed `Trio` is 18% faster than the default build there.
+- **Non-trivial unswitching pays without packing too**: 15-20% on the
+  benchmark's shared loops on both machines, and nothing measurable on the
+  perf programs. It could be tried in the default build as a change of its
+  own.
 - **Losing alignment information costs nothing measurable, on x86 or on
   AArch64**:
   marking every access as at any byte (steps 1 and 2) and keeping the

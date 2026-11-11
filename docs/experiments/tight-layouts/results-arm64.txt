@@ -26,3 +26,33 @@ N=10000000 PASSES=10 RUNS=9
 | 3 Trio | 0.199 s | 155 MiB | 0.243 s | 126 MiB |
 | 11 Quads | 0.192 s | 155 MiB | 0.158 s | 126 MiB |
 | 1 Pair | 0.156 s | 155 MiB | 0.105 s | 117 MiB |
+
+Shell workflow run 43074938173 (runner macos-latest), commit 5aeb418, Trio in a loop of its own:
+command: just build && SHAPES=3,12,2,11 python3 docs/experiments/tight-layouts/measure.py 10000000 10 9 default ZANE_PACK=structs
+
+N=10000000 PASSES=10 RUNS=9
+| shape | default time | default peak | ZANE_PACK=structs time | ZANE_PACK=structs peak |
+| --- | --- | --- | --- | --- |
+| 3 Trio | 0.229 s | 155 MiB | 0.252 s | 126 MiB |
+| 12 Trio plain loop | 0.142 s | 155 MiB | 0.123 s | 126 MiB |
+| 2 Flagged | 0.134 s | 155 MiB | 0.094 s | 88 MiB |
+| 11 Quads | 0.176 s | 155 MiB | 0.146 s | 126 MiB |
+
+Shell workflow run 43076494289 (runner macos-latest), commit c8980eb, non-trivial unswitching:
+command: just build && python3 docs/experiments/tight-layouts/measure.py 10000000 10 7 default ZANE_UNSWITCH=1 ZANE_PACK=structs,ZANE_UNSWITCH=0 ZANE_PACK=structs ZANE_PACK=niche
+
+N=10000000 PASSES=10 RUNS=7
+| shape | default time | default peak | ZANE_UNSWITCH=1 time | ZANE_UNSWITCH=1 peak | ZANE_PACK=structs,ZANE_UNSWITCH=0 time | ZANE_PACK=structs,ZANE_UNSWITCH=0 peak | ZANE_PACK=structs time | ZANE_PACK=structs peak | ZANE_PACK=niche time | ZANE_PACK=niche peak |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 Pair | 0.189 s | 155 MiB | 0.211 s | 155 MiB | 0.172 s | 117 MiB | 0.209 s | 117 MiB | 0.160 s | 117 MiB |
+| 2 Flagged | 0.167 s | 155 MiB | 0.173 s | 155 MiB | 0.121 s | 88 MiB | 0.117 s | 88 MiB | 0.130 s | 88 MiB |
+| 3 Trio | 0.193 s | 155 MiB | 0.153 s | 155 MiB | 0.248 s | 126 MiB | 0.158 s | 126 MiB | 0.156 s | 126 MiB |
+| 4 Outer | 0.181 s | 231 MiB | 0.189 s | 231 MiB | 0.124 s | 155 MiB | 0.122 s | 155 MiB | 0.136 s | 155 MiB |
+| 5 Maybe | 0.167 s | 155 MiB | 0.144 s | 155 MiB | 0.156 s | 155 MiB | 0.154 s | 155 MiB | 0.138 s | 88 MiB |
+| 6 Wide | 0.197 s | 155 MiB | 0.125 s | 155 MiB | 0.207 s | 155 MiB | 0.136 s | 155 MiB | 0.129 s | 155 MiB |
+| 7 Trio scattered | 1.426 s | 155 MiB | 1.293 s | 155 MiB | 1.435 s | 126 MiB | 1.247 s | 126 MiB | 1.260 s | 126 MiB |
+| 8 Wide scattered | 1.579 s | 155 MiB | 1.362 s | 155 MiB | 1.303 s | 155 MiB | 1.425 s | 155 MiB | 1.347 s | 155 MiB |
+| 9 Chosen | 0.171 s | 230 MiB | 0.181 s | 230 MiB | 0.185 s | 230 MiB | 0.187 s | 230 MiB | 0.117 s | 87 MiB |
+| 10 Nested | 0.250 s | 307 MiB | 0.242 s | 307 MiB | 0.251 s | 307 MiB | 0.242 s | 307 MiB | 0.186 s | 88 MiB |
+| 11 Quads | 0.214 s | 155 MiB | 0.231 s | 155 MiB | 0.179 s | 126 MiB | 0.172 s | 126 MiB | 0.172 s | 126 MiB |
+| 12 Trio plain loop | 0.183 s | 155 MiB | 0.178 s | 155 MiB | 0.168 s | 126 MiB | 0.148 s | 126 MiB | 0.168 s | 126 MiB |
