@@ -105,7 +105,10 @@ start is the symbol each linker defines: `__ehdr_start` for ELF,
 `__mh_execute_header` for Mach-O and `__ImageBase` for PE. The runtime
 reserves those addresses with `mmap` and `MAP_FIXED_NOREPLACE` on Linux, an
 `mmap` hint it checks on macOS, and `VirtualAlloc` at the address on
-Windows; a program that cannot place them stops with an error.
+Windows; a program that cannot place them stops with an error. It reserves
+both as the program starts, before its own code runs: macOS places a mapping
+made without an address right above the image, so a large list's reservation
+made first could take the addresses the window of chunks needs.
 
 ## Machine stack sizes
 
