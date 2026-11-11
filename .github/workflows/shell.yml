@@ -115,7 +115,7 @@ jobs:
       # command keeps its shell syntax: pipelines, redirects and quoting all
       # survive.
       - name: Run
-        if: ${{ inputs.toolchain && runner.os != 'macOS' }}
+        if: ${{ inputs.toolchain && runner.os == 'Linux' }}
         env:
           COMMAND: ${{ inputs.command }}
         shell: bash
@@ -124,10 +124,11 @@ jobs:
           bash -c "$COMMAND"
 
       # macOS's bash 3.2 cannot read the environment's bash completions,
-      # which the shell hook sources, so the activation comes from `pixi
-      # run` instead and the command still runs in bash.
-      - name: Run (macOS)
-        if: ${{ inputs.toolchain && runner.os == 'macOS' }}
+      # which the shell hook sources, and on Windows the hook is written
+      # for cmd, so there the activation comes from `pixi run` instead and
+      # the command still runs in bash.
+      - name: Run (macOS, Windows)
+        if: ${{ inputs.toolchain && runner.os != 'Linux' }}
         env:
           COMMAND: ${{ inputs.command }}
         shell: bash
