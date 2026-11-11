@@ -1,0 +1,204 @@
+/// A tokenizer: a text of character codes generated from a seeded generator,
+/// as runs of letters, digits, spaces and single punctuation marks, is
+/// scanned once into a list of `{kind, start, length}` value structs whose
+/// kind is a variant, and a second pass matches on each kind to count them
+/// and sum their lengths.
+package tokens;
+
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+Int minus(a Int, b Int) => @operators$add(a, @operators$negate(b));
+Int times(a Int, b Int) => @operators$multiply(a, b);
+Int over(a Int, b Int) => @operators$divide(a, b);
+Int modulo(a Int, b Int) => minus(a, times(over(a, b), b));
+Bool below(a Int, b Int) => @operators$lessThan(a, b);
+Float real(v Int) => @primitives$F64.round(v);
+
+/// The linear congruential generator langbench uses.
+type Rng = #struct {
+	state Int;
+}
+
+Rng(seed Int) => init{ state = seed; }
+
+Int next(this Rng) mut {
+	this.state = @math$bitAnd(plus(times(this.state, Int(1103515245)), Int(12345)), Int(2147483647));
+	return this.state;
+}
+
+/// A float in [0, 1) from the generator.
+Float unit(this Rng) mut => @operators$divide(real(modulo(this!next(), Int(10000))), Float(10000.0));
+
+/// The character class of a code: 0 for a space, 1 for a letter, 2 for a
+/// digit and 3 for punctuation.
+Int classOf(code Int) {
+	@controlflow$branch(@operators$equal(code, Int(0)), {
+		return Int(0);
+	});
+	@controlflow$branch(below(code, Int(27)), {
+		return Int(1);
+	});
+	@controlflow$branch(below(code, Int(37)), {
+		return Int(2);
+	});
+	return Int(3);
+}
+
+type Kind = variant {
+	word Unit;
+	number Unit;
+	punct Unit;
+}
+
+type Token = struct {
+	kind Kind;
+	start Int;
+	length Int;
+}
+
+Token(kind Kind, start Int, length Int) => init{ kind; start; length; }
+
+Kind kindOf(class Int) {
+	@controlflow$branch(@operators$equal(class, Int(1)), {
+		return Kind.word(Unit());
+	});
+	@controlflow$branch(@operators$equal(class, Int(2)), {
+		return Kind.number(Unit());
+	});
+	return Kind.punct(Unit());
+}
+
+Int isWord(kind Kind) => match (kind) {
+	word => Int(1);
+	[number, punct] => Int(0);
+}
+
+Int isNumber(kind Kind) => match (kind) {
+	number => Int(1);
+	[word, punct] => Int(0);
+}
+
+Int isPunct(kind Kind) => match (kind) {
+	punct => Int(1);
+	[word, number] => Int(0);
+}
+
+Int weight(kind Kind) => match (kind) {
+	w word => Int(1);
+	n number => Int(3);
+	p punct => Int(7);
+}
+
+/// The text: runs of one class, each class picked from the generator.
+^ListRef<Int> generate(this Rng, length Int) mut {
+	text ^ListRef<Int> = @primitives$ListRef(Int);
+	run Int(0);
+	base Int(0);
+	spread Int(1);
+	at Int(1);
+	at!to(length) {
+		@controlflow$branch(below(run, Int(1)), {
+			picked Int = modulo(this!next(), Int(10));
+			run = plus(Int(1), modulo(this!next(), Int(6)));
+			base = Int(0);
+			spread = Int(1);
+			@controlflow$branch(below(Int(1), picked), {
+				base = Int(1);
+				spread = Int(26);
+			});
+			@controlflow$branch(below(Int(5), picked), {
+				base = Int(27);
+				spread = Int(10);
+			});
+			@controlflow$branch(@operators$equal(picked, Int(9)), {
+				base = Int(37);
+				spread = Int(1);
+				run = Int(1);
+			});
+		});
+		text!push(plus(base, modulo(this!next(), spread)));
+		run = minus(run, Int(1));
+	}
+	return text;
+}
+
+/// Splits the text into tokens: letters and digits run together, each
+/// punctuation mark stands alone, spaces separate.
+^ListRef<Token> scan(text &ListRef<Int>) {
+	tokens ^ListRef<Token> = @primitives$ListRef(Token);
+	length Int = text:size();
+	current Int(0);
+	start Int(1);
+	i Int(1);
+	i!to(plus(length, Int(1))) {
+		cls Int(0);
+		@controlflow$branch(below(i, plus(length, Int(1))), {
+			cls = classOf(text[i]);
+		});
+		flush Bool = @operators$not(@operators$equal(cls, current));
+		@controlflow$branch(@operators$equal(current, Int(3)), {
+			flush = true;
+		});
+		@controlflow$branch(flush, {
+			@controlflow$branch(below(Int(0), current), {
+				tokens!push(Token(kindOf(current), start, minus(i, start)));
+			});
+			current = cls;
+			start = i;
+		});
+	}
+	return tokens;
+}
+
+Unit main() {
+	n Int = size(Int(200000));
+	rng Rng(Int(11));
+	text ListRef<Int> = rng!generate(n);
+	tokens ListRef<Token> = scan(text);
+	words Int(0);
+	numbers Int(0);
+	puncts Int(0);
+	lengths Int(0);
+	weighted Int(0);
+	k Int(1);
+	k!to(tokens:size()) {
+		lengths = plus(lengths, tokens[k].length);
+		weighted = plus(weighted, times(weight(tokens[k].kind), tokens[k].length));
+		words = plus(words, isWord(tokens[k].kind));
+		numbers = plus(numbers, isNumber(tokens[k].kind));
+		puncts = plus(puncts, isPunct(tokens[k].kind));
+	}
+	say(@operators$concat(@operators$concat(@operators$concat(String(tokens:size()), String(" ")), @operators$concat(String(words), String(" "))), @operators$concat(@operators$concat(String(numbers), String(" ")), @operators$concat(@operators$concat(String(puncts), String(" ")), @operators$concat(@operators$concat(String(lengths), String(" ")), String(weighted))))));
+	return Unit();
+}

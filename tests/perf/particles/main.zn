@@ -1,0 +1,148 @@
+/// A particle simulation in sequential passes over a list of value structs
+/// that mix four floats with a flag, so each struct has padding: every step
+/// integrates all particles, bounces them off the walls and floor, then
+/// kills the ones that have settled and respawns the dead from a generator.
+package particles;
+
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+Int minus(a Int, b Int) => @operators$add(a, @operators$negate(b));
+Int times(a Int, b Int) => @operators$multiply(a, b);
+Int over(a Int, b Int) => @operators$divide(a, b);
+Int modulo(a Int, b Int) => minus(a, times(over(a, b), b));
+Bool below(a Int, b Int) => @operators$lessThan(a, b);
+Float real(v Int) => @primitives$F64.round(v);
+
+/// The linear congruential generator langbench uses.
+type Rng = #struct {
+	state Int;
+}
+
+Rng(seed Int) => init{ state = seed; }
+
+Int next(this Rng) mut {
+	this.state = @math$bitAnd(plus(times(this.state, Int(1103515245)), Int(12345)), Int(2147483647));
+	return this.state;
+}
+
+/// A float in [0, 1) from the generator.
+Float unit(this Rng) mut => @operators$divide(real(modulo(this!next(), Int(10000))), Float(10000.0));
+
+Float fplus(a Float, b Float) => @operators$add(a, b);
+Float fminus(a Float, b Float) => @operators$add(a, @operators$negate(b));
+Float ftimes(a Float, b Float) => @operators$multiply(a, b);
+Bool fbelow(a Float, b Float) => @operators$lessThan(a, b);
+
+type Particle = struct {
+	x Float;
+	y Float;
+	vx Float;
+	vy Float;
+	alive Bool;
+}
+
+Particle(x Float, y Float, vx Float, vy Float) => init{ x; y; vx; vy; alive = true; }
+
+Particle fresh(this Rng) mut {
+	x Float = ftimes(Float(10.0), this!unit());
+	y Float = fplus(Float(5.0), ftimes(Float(5.0), this!unit()));
+	vx Float = fminus(ftimes(Float(4.0), this!unit()), Float(2.0));
+	vy Float = fminus(ftimes(Float(4.0), this!unit()), Float(2.0));
+	return Particle(x, y, vx, vy);
+}
+
+Unit main() {
+	n Int = size(Int(2000));
+	rng Rng(Int(7));
+	particles ListRef<Particle> = @primitives$ListRef(Particle);
+	i Int(1);
+	i!to(n) {
+		particles!push(rng!fresh());
+	}
+	kills Int(0);
+	step Int(1);
+	step!to(Int(50)) {
+		// Integrate.
+		k Int(1);
+		k!to(n) {
+			particles[k].vy = fminus(particles[k].vy, Float(0.5));
+			particles[k].x = fplus(particles[k].x, ftimes(particles[k].vx, Float(0.1)));
+			particles[k].y = fplus(particles[k].y, ftimes(particles[k].vy, Float(0.1)));
+		}
+		// Bounce off the walls and the floor.
+		k = Int(1);
+		k!to(n) {
+			@controlflow$branch(fbelow(particles[k].x, Float(0.0)), {
+				particles[k].x = @operators$negate(particles[k].x);
+				particles[k].vx = @operators$negate(particles[k].vx);
+			});
+			@controlflow$branch(fbelow(Float(10.0), particles[k].x), {
+				particles[k].x = fminus(Float(20.0), particles[k].x);
+				particles[k].vx = @operators$negate(particles[k].vx);
+			});
+			@controlflow$branch(fbelow(particles[k].y, Float(0.0)), {
+				particles[k].y = @operators$negate(particles[k].y);
+				particles[k].vy = @operators$negate(ftimes(Float(0.6), particles[k].vy));
+			});
+		}
+		// Kill the settled, respawn the dead.
+		k = Int(1);
+		k!to(n) {
+			slow Bool = fbelow(@operators$multiply(particles[k].vy, particles[k].vy), Float(0.5));
+			low Bool = fbelow(particles[k].y, Float(1.0));
+			@controlflow$branch(@operators$not(particles[k].alive), {
+				particles[k] = rng!fresh();
+			});
+			@controlflow$branch(@operators$not(@operators$not(particles[k].alive)), {
+				@controlflow$branch(slow, {
+					@controlflow$branch(low, {
+						particles[k].alive = false;
+						kills = plus(kills, Int(1));
+					});
+				});
+			});
+		}
+	}
+	sum Float(0.0);
+	alive Int(0);
+	k Int(1);
+	k!to(n) {
+		@controlflow$branch(particles[k].alive, {
+			alive = plus(alive, Int(1));
+			sum = fplus(sum, fplus(particles[k].x, particles[k].y));
+		});
+	}
+	say(@operators$concat(@operators$concat(@operators$concat(String(n), String(" ")), @operators$concat(String(alive), String(" "))), @operators$concat(@operators$concat(String(kills), String(" ")), String(@primitives$I64.truncate(ftimes(sum, Float(1000.0)))))));
+	return Unit();
+}
