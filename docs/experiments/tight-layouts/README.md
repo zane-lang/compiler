@@ -494,6 +494,37 @@ tail padding converted where it used to be passed as is. It shows only
 unoptimized. Code that crosses into C in a hot loop with such a struct
 loses about a third of a nanosecond a call in a `zane run` build.
 
+## Step 9: compile time and code size
+
+`compile.py` builds every `tests/perf` program three times in each mode,
+plain and with `--optimize`. It reports the best wall time and the
+stripped executable's size, summed over the programs.
+
+The first run found a bug in this experiment's own code. Optimized
+`niche` builds took 6.1× as long: `division` 6s → 48s, `stress` 11s →
+84s. Plain builds took 16% longer. The blanket alignment-1 pass (step
+3) printed every load and store to text to find the atomic ones. Each
+print renumbers the whole function, so the cost grew with the square of
+function size. The pass now reads the access's ordering through a
+stub, `Llvm_extra.is_atomic`. Atomic accesses still keep their
+alignment: `memo/spawning`'s eight atomic accesses stay `align 8`. The
+niche suite's failure list is unchanged.
+
+After the fix (`results-step9-compile.txt`, x86):
+
+| Mode | Plain time | Plain size | Optimized time | Optimized size |
+| --- | --- | --- | --- | --- |
+| default | 0.94 s | 1269.9 KiB | 22.28 s | 1085.9 KiB |
+| default + unswitch | +0.7% | 0.0% | +0.3% | +0.1% |
+| niche (unswitching on) | −0.8% | +0.1% | −0.8% | −2.8% |
+| niche, `ZANE_UNSWITCH=0` | −0.4% | +0.1% | −0.6% | −2.8% |
+
+Neither packing nor unswitching costs compile time; every difference
+is within 1%. Unswitching adds 0.1% of code in these programs. Packing
+makes optimized executables 2.8% smaller and unoptimized ones 0.1%
+larger. Most of an executable is the runtime and the C library, so the
+compiled code itself shrinks more than 2.8%.
+
 ## Findings
 
 - **Dropping tail padding everywhere is packing everything**, once fields
