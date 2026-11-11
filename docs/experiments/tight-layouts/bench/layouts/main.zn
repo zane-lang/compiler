@@ -16,6 +16,7 @@
 /// | 9 | Chosen variant { some Flagged; none Unit } | 24 | 10, 9 with a byte niche |
 /// | 10 | Nested variant { inner Chosen; outer Unit } | 32 | 11, 9 with a byte niche |
 /// | 11 | Quads { I32; I32; I32; Bool }, Trio's stride without an Int | 16 | 13 |
+/// | 12 | Trio, in a loop of its own with no scattered branch | 16 | 13 |
 package layouts;
 
 alias Int = @primitives$I64;
@@ -183,6 +184,24 @@ Int nesteds(n Int, passes Int) {
 	return total;
 }
 
+Int triosPlain(n Int, passes Int) {
+	list ListRef<Trio> = @primitives$ListRef(Trio);
+	i Int(1);
+	i!to(n) {
+		list!push(Trio(odd(i), i, I32.wrap(i)));
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			e Trio = list[j];
+			total = @operators$add(total, @operators$add(@operators$add(e.a, Int(e.b)), one(e.f)));
+		}
+	}
+	return total;
+}
+
 Int quads(n Int, passes Int) {
 	list ListRef<Quads> = @primitives$ListRef(Quads);
 	i Int(1);
@@ -337,6 +356,7 @@ Unit main() {
 	@controlflow$branch(@operators$equal(shape, Int(9)), { total = chosens(n, passes); });
 	@controlflow$branch(@operators$equal(shape, Int(10)), { total = nesteds(n, passes); });
 	@controlflow$branch(@operators$equal(shape, Int(11)), { total = quads(n, passes); });
+	@controlflow$branch(@operators$equal(shape, Int(12)), { total = triosPlain(n, passes); });
 	say(String(total));
 	return Unit();
 }
