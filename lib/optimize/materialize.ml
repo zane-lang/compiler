@@ -21,9 +21,9 @@ let rec expr ?fresh (t : Ty.t) (c : V.const) : Expr.t option =
   | Ty.Void, V.Unit -> made Expr.Unit
   | Ty.Handle, V.Text s -> made (Expr.Text s)
   | Ty.Ptr, V.Func s -> made (Expr.Function s)
-  | Ty.Struct ts, V.Record a when List.length ts = Array.length a -> members ?fresh t ts a
+  | (Ty.Struct ts | Ty.Packed (Ty.Struct ts)), V.Record a when List.length ts = Array.length a -> members ?fresh t ts a
   | Ty.Array (e, n), V.Record a when n = Array.length a -> members ?fresh t (List.init n (fun _ -> e)) a
-  | Ty.Sum ts, V.Case (i, p) when i < List.length ts ->
+  | (Ty.Sum ts | Ty.Packed (Ty.Sum ts)), V.Case (i, p) when i < List.length ts ->
       Option.bind (expr ?fresh (List.nth ts i) p) (fun payload -> made (Expr.Case { index = i; payload }))
   (* A boxed member's payload in a block of its own, as lowering builds one. *)
   | Ty.Ptr, V.Box { ty; layout = Some layout; payload } ->
@@ -82,7 +82,7 @@ let rec const (e : Expr.t) : V.const option =
   | Expr.Record ms -> (
       let n =
         match e.Expr.ty with
-        | Ty.Struct ts -> List.length ts
+        | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> List.length ts
         | Ty.Array (_, n) -> n
         | _ -> -1
       in

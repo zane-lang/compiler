@@ -103,7 +103,7 @@ let memo env (m : Cgt.Memo.t) =
   let rec scalars (t : Ty.t) =
     match t with
     | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
-    | Ty.Struct ts -> List.for_all scalars ts
+    | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> List.for_all scalars ts
     | _ -> false
   in
   let rec flatten (t : Ty.t) v =
@@ -113,10 +113,10 @@ let memo env (m : Cgt.Memo.t) =
     | Ty.I32 | Ty.I1 -> [ Llvm.build_zext (Llvm.build_freeze v "" b) i64 "" b ]
     | Ty.F64 -> [ Llvm.build_bitcast (Llvm.build_freeze v "" b) i64 "" b ]
     | Ty.F32 -> [ Llvm.build_zext (Llvm.build_bitcast (Llvm.build_freeze v "" b) (Llvm.i32_type ctx) "" b) i64 "" b ]
-    | Ty.Struct ts -> List.concat (List.mapi (fun i t -> flatten t (Llvm.build_extractvalue v i "" b)) ts)
+    | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> List.concat (List.mapi (fun i t -> flatten t (Llvm.build_extractvalue v i "" b)) ts)
     | _ -> Diagnostic.bug "codegen: a remembered value that is not scalars"
   in
-  let rec count (t : Ty.t) = match t with Ty.Void -> 0 | Ty.Struct ts -> List.fold_left (fun n t -> n + count t) 0 ts | _ -> 1 in
+  let rec count (t : Ty.t) = match t with Ty.Void -> 0 | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> List.fold_left (fun n t -> n + count t) 0 ts | _ -> 1 in
   let rec rebuild (t : Ty.t) ws =
     match (t, ws) with
     | Ty.Void, ws -> (Llvm.undef (stored env t), ws)
@@ -124,7 +124,7 @@ let memo env (m : Cgt.Memo.t) =
     | (Ty.I32 | Ty.I1), w :: ws -> (Llvm.build_trunc w (lltype env t) "" b, ws)
     | Ty.F64, w :: ws -> (Llvm.build_bitcast w (lltype env t) "" b, ws)
     | Ty.F32, w :: ws -> (Llvm.build_bitcast (Llvm.build_trunc w (Llvm.i32_type ctx) "" b) (lltype env t) "" b, ws)
-    | Ty.Struct ts, ws ->
+    | (Ty.Struct ts | Ty.Packed (Ty.Struct ts)), ws ->
         List.fold_left
           (fun (v, ws) (i, t) ->
             let x, ws = rebuild t ws in

@@ -154,6 +154,21 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
         Llvm.set_global_constant true g)
       [ ("zane_fixed_region", fixed_region); ("zane_spawned_fixed_region", spawned_fixed_region) ];
   Walks.finish (walks env);
+  (* Experimental tight layouts (Ty.pack_structs): a value may be at any
+     byte, so no plain read or write is assumed aligned. *)
+  if Cgt.Nodes.Ty.pack_structs () then
+    Llvm.iter_functions
+      (Llvm.iter_blocks
+         (Llvm.iter_instrs (fun i ->
+              match Llvm.instr_opcode i with
+              | (Llvm.Opcode.Load | Llvm.Opcode.Store)
+                when not
+                       (let text = Llvm.string_of_llvalue i in
+                        let rec has k = k + 6 <= String.length text && (String.sub text k 6 = "atomic" || has (k + 1)) in
+                        has 0) ->
+                  Llvm.set_alignment 1 i
+              | _ -> ())))
+      m;
   match Llvm_analysis.verify_module m with
   | Some problem -> Diagnostic.bug ("codegen built an invalid module: " ^ problem)
   | None -> ()

@@ -156,11 +156,13 @@ let each c count body =
    it lies under is live. *)
 let present c base (p : Layout.position) =
   let i32 = Llvm.i32_type c.env.ctx in
+  (* Experimental tight layouts (Ty.pack_sums): a packed sum's tag is a byte. *)
+  let tag_type = if Cgt.Nodes.Ty.pack_sums () then Llvm.i8_type c.env.ctx else i32 in
   List.fold_left
     (fun cond (o, tag) ->
       let live =
         if tag < 0 then Llvm.build_icmp Llvm.Icmp.Ne (load c i32 (offset c base o)) (Llvm.const_int i32 0) "" c.b
-        else Llvm.build_icmp Llvm.Icmp.Eq (load c i32 (offset c base o)) (Llvm.const_int i32 tag) "" c.b
+        else Llvm.build_icmp Llvm.Icmp.Eq (load c tag_type (offset c base o)) (Llvm.const_int tag_type tag) "" c.b
       in
       match cond with None -> Some live | Some cond -> Some (Llvm.build_and cond live "" c.b))
     None p.tags

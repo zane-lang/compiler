@@ -128,6 +128,20 @@ module Ty = struct
     List.iteri (fun at (i, _) -> positions.(i) <- at) sorted;
     positions
 
+  (* Experimental tight layouts (`ZANE_PACK`, docs/experiments/tight-layouts):
+     with `structs` every value struct's layout is packed, so with no
+     padding, its tail included, and alignment 1; with `all` every sum's
+     is too, its tag one byte. *)
+  let pack_mode () = Sys.getenv_opt "ZANE_PACK"
+  let pack_structs () = match pack_mode () with Some ("structs" | "all") -> true | _ -> false
+  let pack_sums () = pack_mode () = Some "all"
+
+  let tight t =
+    match t with
+    | Struct _ when pack_structs () -> Packed t
+    | Sum ts when pack_sums () && not (niche ts) -> Packed t
+    | t -> t
+
   (* [xs], one for each of the members [ts] in declaration order, in their
      layout's order. *)
   let placed ts xs =
@@ -677,7 +691,7 @@ module Callback = struct
         match List.map (field ~c) fs with
         | [] -> Ty.Void
         | [ t ] -> t
-        | ts -> Ty.Struct (if c then ts else Ty.placed ts ts))
+        | ts -> if c then Ty.Struct ts else Ty.tight (Ty.Struct (Ty.placed ts ts)))
     (* A view, an array's pointer and a C object hold no struct either
        language reorders, so both layouts are the same. *)
     | View _ | Object _ -> Ty.Ptr
@@ -721,7 +735,7 @@ module Callback = struct
           | Some 0 -> (into, { Expr.node = Expr.Record []; ty = into_ty })
           | Some _ -> (into, read)
         in
-        { Expr.node = Expr.Record (List.mapi member fs); ty = (if to_c then Ty.Struct cs else Ty.Struct (Ty.placed zs zs)) }
+        { Expr.node = Expr.Record (List.mapi member fs); ty = (if to_c then Ty.Struct cs else Ty.tight (Ty.Struct (Ty.placed zs zs))) }
     | _ -> v
 
   let to_c = rebuild ~to_c:true

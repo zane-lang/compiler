@@ -745,12 +745,13 @@ let place env b t p v l =
      by member, each tagged as a scalar, so that LLVM knows the stores never
      touch a list's handle and can keep its count in a register through a
      loop of pushes. *)
-  | Ty.Struct ts
+  | (Ty.Struct ts | Ty.Packed (Ty.Struct ts))
     when Sys.getenv_opt "ZANE_LOOP_PUSHES" <> Some "0"
          && List.for_all (function Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true | _ -> false) ts ->
+      let name = match t with Ty.Packed _ -> unaligned_name | _ -> "" in
       List.iteri
         (fun i m ->
-          let at = Llvm.build_struct_gep (lltype env t) p i "" b in
+          let at = Llvm.build_struct_gep (lltype env t) p i name b in
           ignore (access env m (Llvm.build_store (Llvm.build_extractvalue v i "" b) at b)))
         ts
   | _ -> ignore (access env t (Llvm.build_store v p b)));
@@ -1222,7 +1223,9 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           let lt = lltype env t in
           let out = alloca env fr lt in
           let size = fst (size_align t) in
-          (match snapshot_read t with
+          (* A place inside a packed type may be at any byte, where a load
+             is not atomic, so the runtime reads it. *)
+          (match if is_unaligned p then `Runtime else snapshot_read t with
           | (`Unordered | `Acquire) as order ->
               let word = Llvm.build_load (Llvm.integer_type env.ctx (8 * size)) p "" b in
               Llvm.set_alignment size word;
@@ -1602,7 +1605,8 @@ and stat env fr b (s : Stat.t) =
             List.fold_left
               (fun (p, t) i ->
                 match t with
-                | Ty.Struct ts -> (Llvm.build_struct_gep (lltype env t) p i "" b, List.nth ts i)
+                | Ty.Struct ts -> (Llvm.build_struct_gep (lltype env t) p i (if is_unaligned p then unaligned_name else "") b, List.nth ts i)
+                | Ty.Packed (Ty.Struct ts) -> (Llvm.build_struct_gep (lltype env t) p i unaligned_name b, List.nth ts i)
                 | _ -> Diagnostic.bug "codegen: a member path through something not a struct")
               (base, place.Expr.ty) place.Expr.path
           in

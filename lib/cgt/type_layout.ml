@@ -226,10 +226,10 @@ let rec shape st span (t : Tty.t) : Nodes.Ty.t =
       | None -> unhandled span t)
   | Tty.Named _ -> (
       let member = member_shape st span t in
-      let sum ts = Nodes.Ty.Sum ts in
+      let sum ts = Nodes.Ty.tight (Nodes.Ty.Sum ts) in
       let fields ms =
         let ts = List.map (fun (_, m) -> member m) ms in
-        Nodes.Ty.Struct (Nodes.Ty.placed ts ts)
+        Nodes.Ty.tight (Nodes.Ty.Struct (Nodes.Ty.placed ts ts))
       in
       match definition st t with
       | Some (T.Decl.Struct [], false) -> Nodes.Ty.Void
@@ -414,10 +414,10 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
                  cs)
           in
           match (definition, lowered) with
-          | T.Decl.Struct ms, Nodes.Ty.Struct ts ->
+          | T.Decl.Struct ms, ((Nodes.Ty.Struct _ | Nodes.Ty.Packed (Nodes.Ty.Struct _)) as l) ->
               List.concat
-                (List.map2 (fun (_, m) at -> member m (base + at) tags) (placed_members st t ms) (Nodes.Ty.offsets ts))
-          | T.Decl.Variant cs, Nodes.Ty.Sum _ -> variant cs base
+                (List.map2 (fun (_, m) at -> member m (base + at) tags) (placed_members st t ms) (Nodes.Ty.member_offsets l))
+          | T.Decl.Variant cs, (Nodes.Ty.Sum _ | Nodes.Ty.Packed (Nodes.Ty.Sum _)) -> variant cs base
           | _ -> [])
       | None -> [])
 
