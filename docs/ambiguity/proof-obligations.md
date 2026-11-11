@@ -94,7 +94,7 @@ are not independent problems:
 
 | Lookahead | States | Reduction | Root |
 | --------- | -----: | --------- | ---- |
-| `(`             | 9 | `loption_generics_ ->` | before a call or a lambda, including standalone constructor type arguments |
+| `(`             | 9 | `loption_generics_ ->` | before a call or a lambda, including a type passed as a whole call argument |
 | `<`             | 18 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
 | `(`             | 3 | `list_verb_type_suffix_ ->` | a type opening a statement, against a call |
@@ -128,10 +128,10 @@ local parser forks, not complete competing parses.
 
 The [visible-stack certificate](visible-proof.md) covers every retained fork
 in both current automata, conditional on its documented trusted components.
-The remaining `(` forks distinguish a constructor argument ending in a
-type from a constructor call or lambda continuing after that name. The
-constructor-type regression checks the permitted and rejected spellings;
-operator operands and ordinary function arguments no longer admit bare types.
+The remaining `(` forks distinguish a call argument ending in a type from a
+constructor call or lambda continuing after that name. The type-argument
+regression checks the permitted and rejected spellings; an operator operand
+admits no type.
 
 The `<` row is about the declaration form, not the comparison. Its eighteen states
 all reduce toward `ret_type "<" "(" params ")" body`, the declaration of the
@@ -376,35 +376,37 @@ something inside the `( )` gives every spelling one. What makes `do() { ... }`
 safe by comparison is the casing rule: a lower-case callee cannot be a return
 type, so no lambda reading exists to collide with.
 
-**Standalone type values are constructor arguments only.** Previously a bare
+**A type value is a whole call argument.** Previously a bare
 name also belonged to `expr`. That left `Foo<1>[]() {}` with two complete
 parses: a lambda returning `Foo<1>[]`, and `(Foo < 1) > ([]() {})`. Restricting
 collection calls alone did not close the family: `Foo<1>[][Int]() {}` could
 subscript the collection before calling it.
 
-The grammar now excludes bare type values from `expr` and admits them through
-`constructor_value`, beside ordinary expressions. Positional constructor
-arguments use that rule; named ones, ordinary calls, collection elements,
-operator operands and nested expressions do not. The constructor exception
-applies to a whole argument, so `Ctor(Int)` is accepted and `Ctor(Int + 1)` is
-rejected. Type annotations, generic arguments, type members and constructed
+The grammar excludes type values from `expr` and admits them through
+`argument_value`, beside ordinary expressions. The positional arguments of
+every call -- a constructor's, a function's and a method's -- use that rule;
+named arguments, collection elements, operator operands and nested
+expressions do not. The rule applies to a whole argument, so `Ctor(Int)` and
+`func(Int)` are accepted and `func(Int + 1)` is rejected. Type annotations, generic arguments, type members and constructed
 values retain their explicit grammar positions.
 
 Both witnesses now have one complete derivation, including when nested in a
-constructor argument. `tests/grammar/type_arguments_test.py` checks that the
-exception does not leak into ordinary expressions. This closes the identified
+call argument. `tests/grammar/type_arguments_test.py` checks that the
+rule does not leak into ordinary expressions. This closes the identified
 type-value/comparison family, not every remaining proof obligation.
 
-**A standalone constructor type argument is any type, passed positionally.**
+**A type argument is any type, passed positionally.**
 The previous `expr` production was measured to add three reduce/reduce states
 when extended to applied types, against `list_verb_type_suffix_ ->`. Inside
-`constructor_value` a whole `type_expr` adds none, and dropping type values
-from named arguments removes six `(` states from each automaton; the
-visible-stack certificate proves the grammar unambiguous with it
-([experiments.md](experiments.md#every-type-as-a-type-value)).
+`argument_value` a whole `type_expr` adds none, and dropping type values
+from named arguments removes six `(` states from each automaton
+([experiments.md](experiments.md#every-type-as-a-type-value)). Giving every
+call that rule adds no conflict state; the visible-stack certificate proves
+the grammar unambiguous with it
+([experiments.md](experiments.md#a-type-in-every-call)).
 
 The state counts below describe the earlier census and must be regenerated
-before being used as measurements of the constructor-only grammar.
+before being used as measurements of the current grammar.
 
 Thirty states reduce `loption_generics_ ->`: 21 predate the terminator change,
 and three came with the abort type's own position (below). The empty generics reduction is load-bearing rather

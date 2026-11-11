@@ -617,6 +617,55 @@ package app
           expr Integer_lit | 1
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()
+  decl Verb emptyOf | ^@primitives$ListRef<T> em …  => @primitives$ListRef(T)
+  decl Verb zeroOf | T zeroOf(T Type) => T(0)
+  decl Verb sized | Int sized(this Int, T Type) => this
+  decl Verb bump | Unit bump(this Int, T Type …  Int(1)); return Unit(); }
+  decl Verb unusedZero | T unusedZero(T Type) => T(0)
+  decl Verb takers | Unit takers() { duos ^@pri … <Float>); return Unit(); }
+    block | { duos ^@primitives$ListRe … <Float>); return Unit(); }
+      stat Let | duos ^@primitives$ListRef<Duo<Int>> = emptyOf(Duo<Int>);
+        local duos | duos
+        expr Call emptyOf | emptyOf(Duo<Int>)
+          expr Type_arg app$Duo<@primitives$I64> | Duo<Int>
+      stat Let | pointed ^@primitives$ListR … >> = emptyOf(Duo<&Shape>);
+        local pointed | pointed
+        expr Call emptyOf | emptyOf(Duo<&Shape>)
+          expr Type_arg app$Duo<&shapes$Shape> | Duo<&Shape>
+      stat Let | shapes Int = Int(2):sized(&Shape);
+        local shapes | shapes
+        expr Call sized | Int(2):sized(&Shape)
+          expr Construct @primitives$I64 | Int(2)
+            expr Integer_lit | 2
+          expr Type_arg &shapes$Shape | &Shape
+      stat Let | bumped Int = Int(0);
+        local bumped | bumped
+        expr Construct @primitives$I64 | Int(0)
+          expr Integer_lit | 0
+      stat Expr | bumped!bump(Duo<Int>);
+        expr Call bump | bumped!bump(Duo<Int>)
+          expr Var bumped | bumped
+          expr Type_arg app$Duo<@primitives$I64> | Duo<Int>
+      stat Let | calls ^@primitives$ListRef … t]> = emptyOf(Int[Float]);
+        local calls | calls
+        expr Call emptyOf | emptyOf(Int[Float])
+          expr Type_arg @primitives$I64[@primitives$F64] | Int[Float]
+      stat Let | zero Int = zeroOf(Int);
+        local zero | zero
+        expr Call zeroOf | zeroOf(Int)
+          expr Type_arg @primitives$I64 | Int
+      stat Let | small @primitives$I32 = zeroOf(@primitives$I32);
+        local small | small
+        expr Call zeroOf | zeroOf(@primitives$I32)
+          expr Type_arg @primitives$I32 | @primitives$I32
+      stat Let | read Int = Int(3):sized(Duo<Float>);
+        local read | read
+        expr Call sized | Int(3):sized(Duo<Float>)
+          expr Construct @primitives$I64 | Int(3)
+            expr Integer_lit | 3
+          expr Type_arg app$Duo<@primitives$F64> | Duo<Float>
+      stat Return | return Unit();
+        expr Construct @primitives$Unit | Unit()
 package shapes
   decl Alias Float | alias Float = @primitives$F64
   decl Alias Unit | alias Unit = @primitives$Unit
@@ -1028,3 +1077,49 @@ instances
             expr Construct Tally | Tally(Array<T, n>, n)
               expr Type_arg @primitives$Array<@primitives$I64, 4> | Array<T, n>
               expr Var n | n
+  instance emptyOf with T = @primitives$I64[@primitives$F64] | ^@primitives$ListRef<T> em …  => @primitives$ListRef(T)
+    block | => @primitives$ListRef(T)
+      stat Return | => @primitives$ListRef(T)
+        expr Construct @primitives$ListRef | @primitives$ListRef(T)
+          expr Type_arg @primitives$I64[@primitives$F64] | T
+  instance emptyOf with T = app$Duo<&shapes$Shape> | ^@primitives$ListRef<T> em …  => @primitives$ListRef(T)
+    block | => @primitives$ListRef(T)
+      stat Return | => @primitives$ListRef(T)
+        expr Construct @primitives$ListRef | @primitives$ListRef(T)
+          expr Type_arg app$Duo<&shapes$Shape> | T
+  instance emptyOf with T = app$Duo<@primitives$I64> | ^@primitives$ListRef<T> em …  => @primitives$ListRef(T)
+    block | => @primitives$ListRef(T)
+      stat Return | => @primitives$ListRef(T)
+        expr Construct @primitives$ListRef | @primitives$ListRef(T)
+          expr Type_arg app$Duo<@primitives$I64> | T
+  instance zeroOf with T = @primitives$I32 | T zeroOf(T Type) => T(0)
+    block | => T(0)
+      stat Return | => T(0)
+        expr Construct @primitives$I32 | T(0)
+          expr Integer_lit | 0
+  instance zeroOf with T = @primitives$I64 | T zeroOf(T Type) => T(0)
+    block | => T(0)
+      stat Return | => T(0)
+        expr Construct @primitives$I64 | T(0)
+          expr Integer_lit | 0
+  instance sized with T = &shapes$Shape | Int sized(this Int, T Type) => this
+    param this | Int
+    block | => this
+      stat Return | => this
+        expr Var this | this
+  instance sized with T = app$Duo<@primitives$F64> | Int sized(this Int, T Type) => this
+    param this | Int
+    block | => this
+      stat Return | => this
+        expr Var this | this
+  instance bump with T = app$Duo<@primitives$I64> | Unit bump(this Int, T Type …  Int(1)); return Unit(); }
+    param this | Int
+    block | { this = @operators$add(this, Int(1)); return Unit(); }
+      stat Assign | this = @operators$add(this, Int(1));
+        expr Var this | this
+        expr Call @operators$add | @operators$add(this, Int(1))
+          expr Var this | this
+          expr Construct @primitives$I64 | Int(1)
+            expr Integer_lit | 1
+      stat Return | return Unit();
+        expr Construct @primitives$Unit | Unit()

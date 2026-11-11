@@ -652,14 +652,14 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         )
 
     def test_a_type_passed_as_a_value_is_not_a_postfix_base(self) -> None:
-        # Standalone types are constructor arguments only. An ordinary call
-        # cannot take one, while constructors and type members retain their
-        # existing readings.
+        # A type is a whole call argument, never a postfix base. An ordinary
+        # call takes one as an argument, while constructors and type members
+        # retain their existing readings.
         self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
             "LIDENT LPAREN UIDENT RPAREN SEMICOLON RCURLY EOF",
             "Int length() { abort register(Int); }",
-            0,
+            1,
         )
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
@@ -674,10 +674,9 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "dot(type_member)",
         )
 
-    def test_any_type_may_be_passed_to_a_constructor(self) -> None:
-        # A constructor takes any type as a whole positional argument. None is
-        # an operand, so the `<` after a name can only open its `<>` list. An
-        # ordinary call takes none. See docs/spec-divergences.md.
+    def test_any_type_may_be_passed_to_any_call(self) -> None:
+        # Every call takes any type as a whole positional argument. None is
+        # an operand, so the `<` after a name can only open its `<>` list.
         self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT UIDENT LPAREN UIDENT "
             "COMMA INT RPAREN SEMICOLON RCURLY EOF",
@@ -706,13 +705,13 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN UIDENT LESS "
             "UIDENT COMMA INT MORE RPAREN SEMICOLON RCURLY EOF",
             "Unit f() { register(Array<Int, 4>); }",
-            0,
+            1,
         )
         self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN AMPERSAND "
             "UIDENT RPAREN SEMICOLON RCURLY EOF",
             "Unit f() { register(&Int); }",
-            0,
+            1,
         )
         self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN UIDENT "
@@ -765,12 +764,14 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
     def test_a_type_is_never_parenthesised(self) -> None:
         # syntax.md §2.4 has no parenthesised type. With one, `p (Int) = ...`
         # was both a declaration of `p` and an assignment to the call
-        # `p(Int)`, and the parser stopped on the ambiguity.
+        # `p(Int)`, and the parser stopped on the ambiguity. Without one, the
+        # call is the only reading -- a call takes a type as its argument --
+        # and the checker rejects assigning to it, as to `p(x)`.
         self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN UIDENT RPAREN "
             "EQUAL UIDENT LPAREN INT RPAREN SEMICOLON RCURLY EOF",
             "Unit f() { p (Int) = Int(1); }",
-            0,
+            1,
         )
         self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN UIDENT QSTNMARK "

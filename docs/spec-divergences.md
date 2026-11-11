@@ -128,78 +128,6 @@ the grammar was refusing the trailing form everywhere on the strength of it.
 Narrowing it to the empty argument list keeps every spelling the declaration
 and the lambda literal can take, and gives the rest back to the call.
 
-## 3. A type is passed only to a constructor
-
-**Spec** — [`generics.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/generics.md)
-§5.3: "A type or number can instead be passed as an ordinary argument by
-declaring a value parameter of concept type `Type` or `Number`. The argument is
-then written positionally in `()`, like any other value." Any verb may declare
-such a parameter.
-
-**Compiler** — a type is passed as a value only as a whole positional argument
-of a constructor call. Any type may be written there: a name, an applied type,
-a reference or a verb type. A type anywhere else a value is expected is a
-syntax error: as an argument of an ordinary function or method, as an operand
-of an operator, as a named argument, or as the value of a declaration.
-
-```zane
-arr Array(Int, 10000);            // accepted
-room Slots(math$Vector, 4);       // accepted: a qualified name
-held Slot(@primitives$I64);       // accepted: an intrinsic one
-room Slots(Array<Int, 4>, 2);     // accepted: an applied type
-refs Slots(&Port, 2);             // accepted: a reference type
-calls Slots(Int[Int], 2);         // accepted: a verb type
-
-register(Int);                    // rejected: an ordinary function argument
-held Slot = Int;                  // rejected: the value of a declaration
-arr Array(Int + 1);               // rejected: an operand
-item Slot{kind = Int;}            // rejected: a named argument
-```
-
-A roaming owner (`Slots(^Port, 2)`) parses as a type and is rejected by the
-checker, as it is inside a `< >` list.
-
-**Why constructors.** What has to be excluded is a type as an operand. Where a
-type name may be an operand, the `<` after it reads both as a comparison and as
-the opening of the type's `<>` list, and both readings can complete:
-
-```zane
-x Result = Foo<1>[]() {}
-```
-
-is a lambda whose return type is `Foo<1>[]`, and it is also
-`(Foo < 1) > ([]() {})` — `Foo` compared with `1`, and the result compared with
-an empty collection called with a block. Once a type cannot be an operand, the
-`<` after a type name can only open its `<>` list, and the second reading is
-gone. A whole argument is never an operand, since the `,`, `)` or `;` after it
-ends it, so a type passed there brings neither reading back.
-[`ambiguity/experiments.md`](ambiguity/experiments.md#constructor-only-type-arguments)
-records how the ambiguity was found and the proof that the grammar is
-unambiguous with this rule in place.
-
-Excluding operands alone would leave a type usable as a value everywhere except
-beside an operator, which is an odd rule to learn for the sake of a parser
-conflict. The line is drawn at a construct instead. Constructors already have
-semantics of their own, and they are where a passed type pays off: `Array(Int,
-10000)` builds storage for the type it is given. An ordinary function argument
-is a whole argument too, so allowing types there would not bring the ambiguity
-back; it is left out by choice. A generic function gets its type parameter by
-inference instead: `T same(value T Type)` fixes `T` from the argument.
-
-**Why positional only.** A named argument fills a field constructor's entry,
-and a field constructor's entries are the type's fields (types.md §3.3). A
-type passed by name would be a type stored in a value, and `Type` is a concept,
-never storage. A field constructor cannot declare a `Type` entry, so a named
-type argument would have nothing to fill. This matches the spec's own
-"positionally in `()`".
-
-**Why every type is unambiguous here.** A passed type is a prefix of a lambda:
-`Foo<1>[]() {}` begins with `Foo<1>`, `&Port() {}` with `&Port`, and
-`Int[Int]() {}` with the verb type `Int[Int]`. Since none is an operand, the
-token after the type decides: `,` or `)` ends the argument, and `(` or a
-further `[` continues the lambda
-([`ambiguity/experiments.md`](ambiguity/experiments.md#every-type-as-a-type-value)).
-
 ## 4. A `match` parenthesizes its scrutinee list
 
 **Spec** — [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
@@ -401,8 +329,9 @@ form, the next when the spec's memory model made the compiler's departure
 unnecessary, the next when the spec settled a question the compiler had
 answered differently, the next when the spec dropped a form the compiler
 never had, the next two when the spec gave a package-scope declaration the
-terminator a statement takes, and the last when the spec stated what may
-continue a value that closes on a brace.
+terminator a statement takes, the next when the spec stated what may
+continue a value that closes on a brace, and the last, which was §3, when
+the compiler widened a form it had limited to constructors to every call.
 
 - **Statements are terminated, not separated.** The spec separated statements
   by newline and called it "the one place a newline is structural"; the
@@ -555,3 +484,21 @@ continue a value that closes on a brace.
   would otherwise open with; a `(` or `[` can open one, so a call or subscript
   is written on the parenthesized value. The compiler follows, with no new
   conflict state ([`ambiguity/proof-obligations.md`](ambiguity/proof-obligations.md)).
+
+- **A type was passed only to a constructor.** The spec lets any verb declare
+  a `T Type` parameter and receive a type "positionally in `()`, like any other
+  value"
+  ([`generics.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/generics.md)
+  §5.3). The compiler took a type only as a whole positional argument of a
+  constructor call. What has to stay out is a type as an operand: there
+  `x Result = Foo<1>[]() {}` is both a lambda returning `Foo<1>[]` and
+  `(Foo < 1) > ([]() {})`. A whole argument is never an operand, since the
+  `,`, `)` or `;` after it ends it, so the line at constructors was a choice,
+  not a grammar requirement. The compiler now takes a type as a whole
+  positional argument of every call, a function's and a method's included:
+  `emptyOf(Pair<Int>)`, `registry!add(Int)`, `port:tallied(&Port)`. As there,
+  the token after the type decides between the argument and a lambda it
+  begins ([`ambiguity/experiments.md`](ambiguity/experiments.md#a-type-in-every-call)).
+  A named argument takes no type, as the spec's "positionally" says: it fills
+  a field constructor's entry, which is one of the type's fields, and `Type`
+  is a concept, never storage.

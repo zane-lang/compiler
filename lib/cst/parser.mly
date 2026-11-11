@@ -352,8 +352,20 @@ map_lit:
       expr $loc (Nodes.Expr.MapLit entries)
     }
 
+(* A positional argument of any call -- a constructor, a function, a method
+   or a verb-typed value -- is a value or a whole type, which a `T Type`
+   parameter receives (generics.md §5.3). A type is never an expression: as
+   an operator operand it would make Foo<1>[]() {} both a lambda and
+   (Foo < 1) > ([]() {}). As a whole positional argument no type is an
+   operand, and the token after it decides between the argument and a lambda
+   it begins. A named argument takes no type: it fills a field, and a type is
+   not stored. *)
+%inline argument_value:
+  | value=expr { value }
+  | type_=type_expr { expr $loc (Nodes.Expr.TypeValue type_) }
+
 %inline call_arg:
-  | value=expr { call_arg $loc (Nodes.Call_arg.Value value) }
+  | value=argument_value { call_arg $loc (Nodes.Call_arg.Value value) }
   | block=block_arg { block }
 
 %inline call_args:
@@ -369,21 +381,6 @@ map_lit:
    twelve; what changes is which fork they are, and this one is the fork
    docs/ambiguity/README.md already carries for a call's trailing argument against an
    enclosing brace. *)
-(* Type arguments are standalone constructor arguments, not expressions.
-   In particular, admitting a type as an operator operand makes
-   Foo<1>[]() {} both a lambda and (Foo < 1) > ([]() {}). As a whole
-   positional argument no type is an operand, and the token after it decides
-   between the argument and a lambda it begins. A named argument takes no
-   type: it fills a field, and a type is not stored (docs/spec-divergences.md
-   §3). *)
-%inline constructor_value:
-  | value=expr { value }
-  | type_=type_expr { expr $loc (Nodes.Expr.TypeValue type_) }
-
-%inline constructor_call_arg:
-  | value=constructor_value { call_arg $loc (Nodes.Call_arg.Value value) }
-  | block=block_arg { block }
-
 %inline constructor_field_arg:
   | name=lname value=ioption(preceded(EQUAL, expr)) {
       ({ Nodes.Field_arg.name; value; span = Span.of_loc $loc }
@@ -394,7 +391,7 @@ map_lit:
   | LPAREN RPAREN {
       constructor_args $loc (Nodes.Constructor_args.Positional [])
     }
-  | LPAREN args=separated_nonempty_list(COMMA, constructor_call_arg) RPAREN {
+  | LPAREN args=separated_nonempty_list(COMMA, call_arg) RPAREN {
       constructor_args $loc (Nodes.Constructor_args.Positional args)
     }
 
@@ -794,7 +791,7 @@ fields_var_shorthand:
    lambda-variable shorthand in [simple_decl]. *)
 trailing_var_shorthand:
   | name=lname roaming=roaming_mark constructor=constructor_name
-    open_=LPAREN args=separated_nonempty_list(COMMA, constructor_call_arg) RPAREN
+    open_=LPAREN args=separated_nonempty_list(COMMA, call_arg) RPAREN
     tail=trailing_arg {
       ignore open_;
       decl $loc
@@ -1051,7 +1048,7 @@ block_call:
      is not. A constructor call whose only argument is a block writes it
      inside the list. See docs/spec-divergences.md. *)
   | name=constructor_name
-    open_=LPAREN args=separated_nonempty_list(COMMA, constructor_call_arg) RPAREN
+    open_=LPAREN args=separated_nonempty_list(COMMA, call_arg) RPAREN
     tail=trailing_arg {
       ignore open_;
       let span = Span.of_loc $loc in

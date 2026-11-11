@@ -860,6 +860,11 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
     | Type_decls.Intrinsic_type info ->
         let params = List.map (fun k -> Env.fresh_param env ~name:"_" ~kind:k) info.params in
         `Type (Ty.Intrinsic { namespace = info.namespace; name = info.name; args = List.map Type_decls.param_arg params }, params)
+    (* A type parameter bound to a type holding the error type builds
+       something already reported, or, in a body nothing instantiates, which
+       Program checks with its type parameters bound to the error type,
+       something not yet known. Neither is reported again. *)
+    | Type_decls.Bound (Ty.Type t) when Ty.contains_error t -> `None
     | Type_decls.Bound (Ty.Type t) -> `Type (t, [])
     | Type_decls.Bound (Ty.Number _) ->
         error env span "a number parameter has no constructor";
@@ -1291,7 +1296,23 @@ and lambda env ctx span ~this_type ~params ~ret_type ~is_mut ~body =
   let ps =
     List.map
       (fun (p : N.Param.t) ->
-        let t = Type_decls.param_type env sc p.N.Param.type_ in
+        let t =
+          match Type_decls.param_type env sc p.N.Param.type_ with
+          (* A concept-typed parameter is fixed where a named verb is
+             instantiated, and a lambda is one value of one exact type
+             (functions.md §7.2): over a `Type` or a number it would be a
+             generic function value, which is not specified (generics.md
+             §9). *)
+          | Ty.Concept _ as c ->
+              error env p.N.Param.span
+                (Printf.sprintf
+                   "%s is a concept type, and only a named verb's parameter may have one: a lambda is \
+                    one value with one exact type, and a generic function value is not specified \
+                    (generics.md §9)"
+                   (quote (Ty.to_string c)));
+              Ty.Error
+          | t -> t
+        in
         let local = fresh_local env p.N.Param.name.N.Name.text t p.N.Param.span in
         Hashtbl.replace inner_scope local.T.Local.name { local; role = Parameter };
         (t, local))

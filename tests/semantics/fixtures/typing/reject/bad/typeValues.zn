@@ -1,7 +1,11 @@
-/// A type passed to a constructor is checked as a type where it is written
+/// A type passed to a call is checked as a type where it is written
 /// (generics.md §5.3): its arguments' count and kinds, the names it uses,
 /// what the type it fills holds, and a verb type's result. A roaming owner
-/// is never passed, as it is never a type argument.
+/// is never passed, as it is never a type argument. A type fills only a
+/// `Type` parameter, and a value never fills one. A body that builds
+/// through its type parameter is checked at each instance, which reports a
+/// type with no constructor. A lambda is one value with one exact type
+/// (functions.md §7.2), so none of its parameters has a concept type.
 package bad;
 
 type Gong = #struct { tone Int; }
@@ -9,6 +13,11 @@ type Couple<T Type> = #struct { left T; right T; }
 type Hopper<T Type> = #struct { items @primitives$ListRef<T>; }
 
 Hopper<T>(T Type) => init{ items = @primitives$ListRef(T); }
+^@primitives$ListRef<T> emptyOf(T Type) => @primitives$ListRef(T);
+Int counted(value Int) => value;
+Int sized(this Int, T Type) => this;
+type Knell = struct { tone Int; }
+T zeroOf(T Type) => T(0);
 
 Unit typeValues() {
 	tooMany Hopper(Couple<Int, Int>);
@@ -20,5 +29,13 @@ Unit typeValues() {
 	introduced Hopper(Couple<U Type>);
 	roaming Hopper(^Gong);
 	bareResult Hopper(Gong[Int]);
+	fnTooMany ^@primitives$ListRef<Couple<Int>> = emptyOf(Couple<Int, Int>);
+	fnRoaming Int = Int(1):sized(^Gong);
+	typeForValue Int = counted(Int);
+	valueForType ^@primitives$ListRef<Int> = emptyOf(Int(1));
+	unbuildable Knell = zeroOf(Knell);
+	takesType Unit(T Type) => Unit();
+	takesType(Int);
+	literal Int(n @concepts$Int) => Int(n);
 	return Unit();
 }
