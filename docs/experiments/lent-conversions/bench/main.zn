@@ -1,0 +1,41 @@
+/// A per-byte loop over a long string, read through a wrapper's implicit
+/// conversion into a foreign verb taking `@primitives$String`, as LangArena's
+/// `byte(text, i)` helper does. Prints the sum of the bytes of 2^N `a`s.
+package bench;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias Str = @primitives$String;
+
+type Text = struct { _value Str; }
+Text(value Str) => init{ _value = value; }
+implicit Str(text Text) => text._value;
+
+I64 _byte(text Str, index I64) foreign "text_byte";
+I64 _length(text Str) foreign "text_length";
+
+I64 byte(text Text, index I64) => _byte(text, index);
+I64 length(text Text) => _length(text);
+
+I64 sum(text Text) {
+	total I64 = I64(0);
+	i I64 = I64(0);
+	@controlflow$repeat(length(text), {
+		total = @operators$add(total, byte(text, i));
+		i = @operators$add(i, I64(1));
+	});
+	return total;
+}
+
+Unit main() {
+	args @primitives$List<Str> = @program$runtime:arguments();
+	n I64 = args[I64(1)]:parseI64() ?? I64(0);
+	raw Str = Str.escaped("a");
+	@controlflow$repeat(n, {
+		raw = @operators$concat(raw, raw);
+	});
+	text Text(raw);
+	@program$console!print(Str(sum(text)));
+	@program$console!print(Str.escaped("\n"));
+	return Unit();
+}

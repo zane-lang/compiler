@@ -1,0 +1,53 @@
+/// Conversions whose result is only lent to a borrow parameter
+/// (docs/design/lowering.md L11, "lent conversions"): each call to a
+/// foreign verb taking `@primitives$String` reads the source's own string,
+/// so lentStrings.cgt holds no `copy`. An implicit conversion, one of a
+/// member reached through another call, and a verb of two parameters
+/// returning a member of one.
+package lentStrings;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+type Text = struct { _value String; }
+
+Text(value String) => init{ _value = value; }
+implicit String(text Text) => text._value;
+
+/// A struct of two members, whose text is reached through a verb.
+type Line = struct { number I64; _text Text; }
+
+Line(number I64, text Text) => init{ number; _text = text; }
+Text textOf(line Line) => line._text;
+
+String left(first Text, second Text) => first._value;
+
+I64 _byte(text String, index I64) foreign "text_byte";
+I64 _length(text String) foreign "text_length";
+
+/// Every byte of the text, read one call at a time.
+I64 sum(text Text) {
+	total I64 = I64(0);
+	index I64 = I64(0);
+	@controlflow$repeat(_length(text), {
+		total = @operators$add(total, _byte(text, index));
+		index = @operators$add(index, I64(1));
+	});
+	return total;
+}
+
+Unit show(n I64) {
+	@program$console!print(String(n));
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+Unit main() {
+	text Text(String.escaped("abcdefghij"));
+	line Line(I64(7), Text(String.escaped("xyz")));
+	show(sum(text));
+	show(_byte(textOf(line), I64(2)));
+	show(_length(left(line._text, text)));
+	return Unit();
+}
