@@ -13,9 +13,11 @@ Unit main() {
 	fresh Text = Text(@operators$concat(kept, String.escaped("!")));
 	copied Text = Text(kept);
 	made Text = named(n);
+	held Held<String> = Held(@operators$concat(String.escaped("h"), kept));
 	@program$console!print(@operators$concat(fresh.value, String.escaped(" ")));
 	@program$console!print(@operators$concat(copied.value, String.escaped(" ")));
 	@program$console!print(@operators$concat(kept, String.escaped(" ")));
-	@program$console!print(@operators$concat(made.value, String.escaped("\n")));
+	@program$console!print(@operators$concat(made.value, String.escaped(" ")));
+	@program$console!print(@operators$concat(held.value, String.escaped("\n")));
 	return Unit();
 }

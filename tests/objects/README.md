@@ -119,7 +119,9 @@ calls, is not marked. `taking` is a library whose `Text` constructor copies
 the string it is given once into the value it makes, and `takes` a program
 over it, built against `taking`'s object: the fresh string it passes goes to
 a local copy of `Text` that takes it with no copy, the string it reads again
-is copied, `named` returns its local by moving it out, and the library's
+is copied, the instance of its generic `Held` constructor, which the program
+shares, takes a fresh string the same way, `named` returns its local by moving
+it out, and the library's
 object still defines `Text` as compiled and exports no copy.
 
 `options_test.py` checks what `zanec` accepts for the options that name and

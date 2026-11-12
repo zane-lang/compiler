@@ -380,6 +380,12 @@ class FactsTests(unittest.TestCase):
         self.assertNotIn("linkage:", funcs[text + ".taken"])
         self.assertNotIn("> copy:", funcs[text + ".taken"])
         self.assertEqual(funcs["takes$main()"].count("fn: " + text + ".taken"), 1)
+        # A generic constructor's instance is shared, not imported, and its
+        # calls keep their signature too.
+        held = STAMP + "taking$Held<%primitives$String>(%primitives$String)"
+        self.assertIn("linkage: shared", funcs[held])
+        self.assertNotIn("> copy:", funcs[held + ".taken"])
+        self.assertIn("fn: " + held + ".taken", funcs["takes$main()"])
         named = funcs[STAMP + "taking$named(%primitives$I64)"]
         self.assertIn("fn: " + text + ".taken", named)
         self.assertNotIn("> copy:", named)
@@ -394,7 +400,7 @@ class FactsTests(unittest.TestCase):
                 exe = Path(temp) / "takes"
                 run(ZANEC, "--build", exe, *optimize, "--link", library,
                     *packages("takes", "taking", stamped=["taking"]))
-                self.assertEqual(run_program(exe, 42), "42! 42 42 n42\n", optimize)
+                self.assertEqual(run_program(exe, 42), "42! 42 42 n42 h42\n", optimize)
             # A tiered build's tier 1 defines its own local copy and calls it.
             exe = Path(temp) / "takes.tiered"
             flags = packages("takes", "taking", stamped=["taking"])
@@ -402,7 +408,7 @@ class FactsTests(unittest.TestCase):
             run(ZANEC, "--tier-up", f"{exe}.tier1", *flags)
             result = subprocess.run([str(exe), "42"], capture_output=True, text=True, timeout=60,
                                     env={**os.environ, "ZANE_TIER_UP": f"{exe}.tier1", "ZANE_TIER_WAIT": "1"})
-            self.assertEqual((result.returncode, result.stdout), (0, "42! 42 42 n42\n"), result.stderr)
+            self.assertEqual((result.returncode, result.stdout), (0, "42! 42 42 n42 h42\n"), result.stderr)
 
     def test_programs_run(self):
         with tempfile.TemporaryDirectory() as temp:

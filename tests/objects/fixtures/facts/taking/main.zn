@@ -19,3 +19,12 @@ Text named(n Int) {
 	t Text = Text(@operators$concat(String.escaped("n"), String(n)));
 	return t;
 }
+
+/// A generic one, whose instance the program shares rather than imports.
+type Held<T Type> = struct {
+	value T;
+}
+
+Held<T>(v T Type) => init{
+	value = v;
+}
