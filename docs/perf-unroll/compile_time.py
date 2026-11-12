@@ -28,6 +28,6 @@ for n in progs:
                 res[lab].append(e)
             else: continue
             break
-        if res["main"] and len(res["main"])==5:
+        if len(res["main"])==5 and len(res["new"])==5:
             m,nw=statistics.median(res["main"]),statistics.median(res["new"])
             print(f"{n:24}{mode:12} main {m:6.2f}s  new {nw:6.2f}s  {100*(nw/m-1):+5.1f}%",flush=True)
