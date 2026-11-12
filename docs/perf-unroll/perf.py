@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""m2.py ZANEC LABEL [prog...]: perf programs, optimized+tiered(+plain); cycles, Ir, mispredicts, I1 misses, .text."""
+"""perf.py ZANEC LABEL [prog...]: perf programs, optimized+tiered(+plain); cycles, Ir, mispredicts, I1 misses, .text."""
 import importlib.machinery, importlib.util, os, shutil, subprocess, sys, tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-ROOT = Path("/home/user/compiler")
+ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_loader("perfrun", importlib.machinery.SourceFileLoader("perfrun", str(ROOT / "tests/perf/run")))
 run = importlib.util.module_from_spec(spec); spec.loader.exec_module(run)
 def text(p):
     out = subprocess.run(["size","-A",str(p)],capture_output=True,text=True).stdout
     return sum(int(l.split()[1]) for l in out.splitlines() if l.startswith(".text"))
 zanec, label, names = sys.argv[1], sys.argv[2], sys.argv[3:] or run.programs()
-valgrind = str(Path(shutil.which("valgrind")).resolve()).encode()
+found = shutil.which("valgrind")
+if not found: sys.exit("perf.py: valgrind is not on PATH")
+valgrind = str(Path(found).resolve()).encode()
 jobs = [(n,b) for n in names for b in ("optimized","tiered","plain")]
 rows=[]
 with tempfile.TemporaryDirectory() as work, ThreadPoolExecutor(3) as pool:

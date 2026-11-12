@@ -3,7 +3,8 @@
 cycles / instructions / mispredicts / I1 misses / .text, for rows that move."""
 import sys
 def rd(p):
-    L = open(p).read().splitlines(); h = L[0].split("\t")
+    with open(p) as f: L = f.read().splitlines()
+    h = L[0].split("\t")
     return {(r[0], r[1]): dict(zip(h[2:], r[2:])) for r in map(lambda l: l.split("\t"), L[1:])}
 a, b, th = rd(sys.argv[1]), rd(sys.argv[2]), float(next((v for v in sys.argv[3:] if v != '-all'), 0.3))
 pc = lambda x, y: 100 * (int(y) / int(x) - 1) if int(x) else 0

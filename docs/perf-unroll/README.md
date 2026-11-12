@@ -14,7 +14,7 @@ instruction-cache (I1) misses and `.text` bytes (the executable's, or tier 1's
 library for tiered). `langbench.py ZANEC LABEL LANGBENCH CORE` does the same
 for the spec repository's langbench programs, optimized and tiered, at 1/50
 of langbench's size (sizes under 1000 as they are). `compare.py BEFORE AFTER`
-prints the tables; `compile_time.py` times `--optimize` and `--tier-up`
+prints the tables; `compile_time.py MAIN NEW LANGBENCH CORE` times `--optimize` and `--tier-up`
 builds (median of five, the two compilers alternating). `before*.tsv` is
 `main` at 90ebb2b, `after*.tsv` this change. Counts measure work, not time:
 Callgrind does not model store forwarding or any out-of-order effect, and its
