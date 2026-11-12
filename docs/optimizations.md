@@ -658,6 +658,25 @@ is tested. Left beside the tag's load, the room is read either way, and a
 case's test and payload become a select instead of a branch on the tag
 that the predictor cannot learn.
 
+### Loops unrolled past `-O2`'s budgets
+
+- **Builds:** optimized only, and tier 1
+- **Where:** `lib/codegen/passes.ml` (`llvm_options`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
+- **Effect:** `tests/perf` estimated cycles: `paths` 42.8% fewer,
+  `borrows` 11.9%, `returns` 10.0%, `kept` tiered 5.2%, `particles` 3.6%,
+  `entities` 3.4%, `repeats` 3.1% fewer; `removal` 1.1% more; langbench
+  `entities` 8.6% fewer, `nbody` 3.0% more; `.text` up to 10.5% more, tier 1
+  of `repeats` 25% ([`perf-unroll`](perf-unroll/README.md))
+
+LLVM is given a full-unroll budget of 250, against `-O2`'s 150, and a
+partial-unroll budget of 100. A loop of a few constant iterations whose
+body tests the counter becomes straight-line code with each test decided,
+and a counted loop over a list shares its copies' index arithmetic and
+bounds checks. Unrolling never changes what a program means. A cold loop's
+copies can cost a hot loop in the same function a register, and a loop that
+runs only one to four times is unrolled four times for nothing.
+
 ### Index checks taken out of long loops
 
 - **Builds:** optimized only (and tier 1)

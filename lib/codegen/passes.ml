@@ -84,8 +84,30 @@ let nontrivial triple pipeline =
    tested, so the case stays a branch, one the predictor cannot learn when
    which case a value holds follows no pattern. Left beside the tag's load,
    the room is read either way and the case's work becomes a select
-   (docs/optimizations.md, "A sum's case picked without a branch"). *)
-let llvm_options = [ "-align-all-functions=6"; "-instcombine-code-sinking=false" ]
+   (docs/optimizations.md, "A sum's case picked without a branch").
+
+   Loops are unrolled further than LLVM's -O2 budgets allow. The full-unroll
+   budget (-unroll-threshold) is 250, not 150: a loop of a few constant
+   iterations whose body tests the counter, as in `d!to(Int(4))` over four
+   `branch(d == k, ...)`, becomes straight-line code with each test decided,
+   where at 150 it stays a loop around a `switch` the predictor cannot learn
+   (tests/perf: paths -43%, returns -10%). The partial-unroll budget
+   (-unroll-partial-threshold) is 100: a counted loop over a list, such as
+   the sum of `ys[j]` where `xs[j] < wall`, is unrolled by a factor that
+   shares its index arithmetic and bounds checks (borrows -12%, kept -5%,
+   entities, particles, repeats -3% to -4%). The price is code size, up to
+   11% more `.text` in a perf program and 25% more in tier 1 of `repeats`;
+   a cold loop's copies can cost a hot loop in the same function a register
+   (removal +1%); and a loop that runs one to four times is unrolled four
+   times for nothing (langbench nbody +3%, whose pair loop runs 1 to 4
+   times; a budget of 150 made it +6.8%). *)
+let llvm_options =
+  [
+    "-align-all-functions=6";
+    "-instcombine-code-sinking=false";
+    "-unroll-threshold=250";
+    "-unroll-partial-threshold=100";
+  ]
 
 (* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*,
    for [triple]. *)
