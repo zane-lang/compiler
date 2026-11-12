@@ -15,6 +15,11 @@ external array_length : Llvm.lltype -> int = "zane_array_length"
    (llvm_stubs.c). *)
 external type_attr : Llvm.llcontext -> string -> Llvm.lltype -> Llvm.llattribute = "zane_type_attr"
 
+(* A loop's `llvm.loop` node, naming itself and then holding [options],
+   each an option's node such as `!{!"llvm.loop.unroll.count", i32 2}`,
+   which the bindings cannot make (llvm_stubs.c). *)
+external loop_id : Llvm.llcontext -> Llvm.llvalue array -> Llvm.llvalue = "zane_loop_id"
+
 (* A function's own type (llvm_stubs.c). *)
 external value_type : Llvm.llvalue -> Llvm.lltype = "zane_global_value_type"
 

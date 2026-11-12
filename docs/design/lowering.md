@@ -1499,6 +1499,19 @@ test passing.
   list's count is loaded with the range `[0, 2^63)`, which IRCE's bounds
   need.
 
+  A `repeat` that can leave before its count runs out, through a `return`
+  or a block it is in, and that holds no loop, spawn or call, has its back
+  edge marked to be unrolled twice (`llvm.loop.unroll.count` 2,
+  `Emit.unrolled`), in every build; only the optimized passes and tier 1's
+  act on it. On x86-64 `-O2`'s cost model allows partial unrolling only of
+  loops smaller than a dozen arithmetic operations, and in a copy whose
+  exits lead to the same place it merges the two exit tests, after which the
+  trips cannot be counted at all, so such a loop otherwise stays rolled:
+  `tests/perf` `floats`' escape test runs 17% fewer instructions unrolled. A
+  loop that calls is left as it is, since its call costs far more than the
+  test unrolling saves: unrolled, the loop the memo pass checks made
+  `depths` 2.5% slower.
+
   The same options start every function on a 64-byte line
   (`-align-all-functions=6`), where LLVM would start it on 16 bytes. Which
   branches share a predictor's entries depends on where they lie, so with

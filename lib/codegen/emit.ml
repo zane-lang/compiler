@@ -314,27 +314,56 @@ let long_loop = 16
 let long_trips = 1000
 let short_trips = 4
 
+(* Whether a loop with [body] can leave before its count runs out: it
+   returns, or leaves a block that holds it. *)
+let leaves_early body =
+  let inside = Hashtbl.create 8 in
+  Cgt.Traverse.walk_stats
+    (fun e -> match e.Expr.node with Expr.Expand { label; _ } -> Hashtbl.replace inside label () | _ -> ())
+    ignore body;
+  Cgt.Traverse.exists_in body
+    ~expr:(fun _ -> false)
+    ~stat:(function Stat.Return _ -> true | Stat.Leave label -> not (Hashtbl.mem inside label) | _ -> false)
+
 (* Whether a loop with [body] in the function [symbol] is emitted twice
    (Stat.Repeat): it holds no loop, no spawned call and no call back into
    [symbol], whose cost would dwarf a check, nothing leaves it before its
    count runs out, and it reads or writes a list's element, whose check IRCE
    may take out of it. *)
 let versioned ~symbol body =
-  let inside = Hashtbl.create 8 in
-  Cgt.Traverse.walk_stats
-    (fun e -> match e.Expr.node with Expr.Expand { label; _ } -> Hashtbl.replace inside label () | _ -> ())
-    ignore body;
   let indexes = function Cgt.Runtime.List_at | Cgt.Runtime.Array_at -> true | _ -> false in
-  (not
-     (Cgt.Traverse.exists_in body
-        ~expr:(fun e -> match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol | _ -> false)
-        ~stat:(function
-          | Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ | Stat.Return _ -> true
-          | Stat.Leave label -> not (Hashtbl.mem inside label)
-          | _ -> false)))
+  (not (leaves_early body))
+  && (not
+        (Cgt.Traverse.exists_in body
+           ~expr:(fun e -> match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol | _ -> false)
+           ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ -> true | _ -> false)))
   && Cgt.Traverse.exists_in body
        ~expr:(fun e -> match e.Expr.node with Expr.Runtime { fn; _ } -> indexes fn | _ -> false)
        ~stat:(fun _ -> false)
+
+(* Whether a counted loop with [body] is asked to be unrolled twice
+   (Stat.Repeat): it can leave before its count runs out, holds no loop, and
+   calls no function and spawns none. LLVM 21's `-O2` leaves such a loop
+   rolled on x86-64 even when its body is a dozen arithmetic operations,
+   since the target's cost model allows partial unrolling only of smaller
+   loops, and in a copy whose two exits lead to the same place the passes
+   merge the exit tests, after which its trips cannot be counted at all.
+   Asked for two, it unrolls a short loop of arithmetic such as `floats`'
+   escape test. A loop that calls is left alone:
+   its call dwarfs the test unrolling saves, and the loop the memo pass
+   checks, which calls, is 2.5% slower in `depths` unrolled
+   (docs/design/lowering.md, "The passes"). *)
+let unrolled body =
+  leaves_early body
+  && not
+       (Cgt.Traverse.exists_in body
+          ~expr:(fun e -> match e.Expr.node with Expr.Call _ -> true | _ -> false)
+          ~stat:(function Stat.Repeat _ | Stat.Spawn _ -> true | _ -> false))
+
+(* The `llvm.loop` node that asks for a loop unrolled twice. *)
+let unroll_twice env =
+  let i32 = Llvm.i32_type env.ctx in
+  Llvm_extra.loop_id env.ctx [| Llvm.mdnode env.ctx [| Llvm.mdstring env.ctx "llvm.loop.unroll.count"; Llvm.const_int i32 2 |] |]
 
 (* Offsets into a scope's record and a context (runtime/zane_abi.h). *)
 let record_context = Abi.mark_context
@@ -1576,6 +1605,7 @@ and stat env fr b (s : Stat.t) =
       Fun.protect ~finally:(fun () -> List.iter (fun (id, _) -> Hashtbl.remove fr.runs id) looped) @@ fun () ->
       let lists, names = invariant_lists body in
       let ranges = ranged body lists names in
+      let twice = unrolled body in
       let counted trips =
         let saved = fr.hoisted in
         let hoisted =
@@ -1606,7 +1636,8 @@ and stat env fr b (s : Stat.t) =
           (* Below the count, so it cannot wrap. *)
           let next = Llvm.build_nsw_add current (Llvm.const_int env.i64 1) "" b in
           ignore (Llvm.build_store next i b);
-          ignore (Llvm.build_br head b)
+          let back = Llvm.build_br head b in
+          if twice then Llvm.set_metadata back (Llvm.mdkind_id env.ctx "llvm.loop") (unroll_twice env)
         end;
         Llvm.position_at_end after b
         in

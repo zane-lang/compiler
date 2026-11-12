@@ -31,6 +31,7 @@ typedef struct LLVMOpaqueAttributeRef *LLVMAttributeRef;
 typedef struct LLVMOpaqueBasicBlock *LLVMBasicBlockRef;
 typedef struct LLVMOpaqueBuilder *LLVMBuilderRef;
 typedef struct LLVMOpaqueOperandBundle *LLVMOperandBundleRef;
+typedef struct LLVMOpaqueMetadata *LLVMMetadataRef;
 
 extern void *from_val(value v);
 extern value to_val(void *ptr);
@@ -68,6 +69,11 @@ extern LLVMValueRef LLVMBuildAtomicCmpXchg(LLVMBuilderRef builder, LLVMValueRef 
                                            int success_ordering, int failure_ordering, int single_thread);
 extern LLVMOperandBundleRef LLVMCreateOperandBundle(const char *tag, size_t length, LLVMValueRef *args, unsigned count);
 extern void LLVMDisposeOperandBundle(LLVMOperandBundleRef bundle);
+extern LLVMMetadataRef LLVMValueAsMetadata(LLVMValueRef v);
+extern LLVMValueRef LLVMMetadataAsValue(LLVMContextRef context, LLVMMetadataRef md);
+extern LLVMMetadataRef LLVMTemporaryMDNode(LLVMContextRef context, LLVMMetadataRef *operands, size_t count);
+extern LLVMMetadataRef LLVMMDNodeInContext2(LLVMContextRef context, LLVMMetadataRef *operands, size_t count);
+extern void LLVMMetadataReplaceAllUsesWith(LLVMMetadataRef temporary, LLVMMetadataRef replacement);
 extern LLVMValueRef LLVMBuildCallWithOperandBundles(LLVMBuilderRef builder, LLVMTypeRef type, LLVMValueRef fn,
                                                     LLVMValueRef *args, unsigned count, LLVMOperandBundleRef *bundles,
                                                     unsigned bundle_count, const char *name);
@@ -187,6 +193,24 @@ value zane_type_attr(value context, value name, value type) {
   unsigned kind = LLVMGetEnumAttributeKindForName(String_val(name), caml_string_length(name));
   CAMLreturn(to_val(
       LLVMCreateTypeAttribute((LLVMContextRef)from_val(context), kind, (LLVMTypeRef)from_val(type))));
+}
+
+/* A loop's `llvm.loop` node: itself first, as LLVM finds a loop's
+   options only in a node that names itself, then [options], each a node
+   such as `!{!"llvm.loop.unroll.count", i32 2}`. A temporary node stands
+   in for the node until it exists. */
+value zane_loop_id(value context, value options) {
+  CAMLparam2(context, options);
+  LLVMContextRef c = (LLVMContextRef)from_val(context);
+  size_t n = Wosize_val(options);
+  LLVMMetadataRef *operands = malloc(sizeof *operands * (n + 1));
+  LLVMMetadataRef self = LLVMTemporaryMDNode(c, NULL, 0);
+  operands[0] = self;
+  for (size_t i = 0; i < n; i++) operands[i + 1] = LLVMValueAsMetadata((LLVMValueRef)from_val(Field(options, i)));
+  LLVMMetadataRef node = LLVMMDNodeInContext2(c, operands, n + 1);
+  LLVMMetadataReplaceAllUsesWith(self, node);
+  free(operands);
+  CAMLreturn(to_val(LLVMMetadataAsValue(c, node)));
 }
 
 /* The type of what a global names: a function's own type, which its
