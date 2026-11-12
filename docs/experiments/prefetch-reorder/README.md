@@ -1,0 +1,71 @@
+# Prefetching and reordered random access
+
+Whether the compiler can keep a program from waiting on memory when it reads
+or writes at addresses the hardware cannot predict, by computing addresses
+early and fetching them before they are used. This is a C model of the code
+shapes the compiler could emit, not a change to `zanec`: `model.c` holds each
+kernel written plainly and in every reordered form, with Zane's index checks
+and 32-bit handles, and `run.py` sweeps it.
+
+**Measuring.** `run.py LABEL` builds `model.c` with `clang -O2`, runs each
+kernel pinned to one CPU at three data sizes (256 KiB, 32 MiB, 2 GiB) with
+4 KiB pages and with transparent huge pages, and writes `results/LABEL.tsv`:
+nanoseconds per operation, best of three. `run.py --show LABEL` prints each
+variant's best parameter against the plain form. Every variant of a kernel
+must return the same checksum. Times are wall clock: Callgrind counts a
+prefetch as an instruction and models no overlap between misses, so it would
+report every one of these as a small loss.
+
+Each row is one run in a cloud container (Xeon at 2.1 GHz, 2 MiB of L2 per
+core, a 260 MiB L3 shared with other tenants, clang 18.1.3). Read ratios
+within a row; differences under about 15% between rows are not established.
+
+## Round 1
+
+| kernel | plain code | variants |
+| --- | --- | --- |
+| `gather` | `s += a[idx[i]]` | `naive`: prefetch, then access at once. `ahead`: prefetch the element `D` iterations on. `group`: prefetch `G` elements, then access them. `sorted`: visit indices bucketed by address |
+| `heavy` | 64-byte elements, a branch on the loaded value | the same, and `earlyload`: load the branch field of `G` elements, then do the work, with no prefetch instruction |
+| `scatter` | `a[idx[i]] += v` | `ahead`, `group`, prefetching for a write |
+| `hash` | open-addressing lookups, half of them hits | `ahead`, `group` |
+| `bsearch` | binary searches for a batch of keys | `bothways`: prefetch both next probes. `group`: `W` searches a step at a time. `eytzinger`: the array stored in breadth-first order |
+| `tree` | lookups in a balanced tree, nodes at random places | `group`: `W` lookups a step at a time. `amac`: the same, a finished lookup's place taken at once by the next key |
+
+Speed against the plain form, best parameter, at 2 GiB (`results/round1.tsv`
+has every size and parameter):
+
+| kernel | plain, 4 KiB pages | plain, huge pages | best variant, 4 KiB | best variant, huge |
+| --- | ---: | ---: | --- | --- |
+| `gather` | 22.3 ns | 8.3 ns | `sorted` ×1.62, `group` ×1.15 | `ahead` ×1.15 |
+| `heavy` | 37.5 ns | 28.4 ns | `ahead` ×1.56 | `ahead` ×2.22 |
+| `scatter` | 24.1 ns | 11.8 ns | `ahead` ×1.14 | `ahead` ×1.30 |
+| `hash` | 101.3 ns | 75.2 ns | `ahead` ×2.77 | `ahead` ×2.11 |
+| `bsearch` | 1769 ns | 2173 ns | `group` ×3.23 | `eytzinger` ×4.66, `group` ×3.56 |
+| `tree` | 2228 ns | 1362 ns | `group` ×6.34 | `group` ×9.72 |
+
+**What it shows.**
+
+- Prefetching immediately before the access does nothing (`naive`: ×0.85 to
+  ×1.19, mostly a small loss). The fetch has to be issued well ahead.
+- A light loop gains little (`gather`, `scatter`: ×1.1 to ×1.3). The
+  processor already has many of its misses in flight. Huge pages are worth
+  more there than any prefetch: ×2.7 for `gather`, ×2.0 for `scatter`.
+- A loop that branches on what it loaded, or does real work on it, gains
+  ×1.6 to ×2.8 (`heavy`, `hash`).
+- Chains gain most: ×3 for interleaved binary searches, ×6 to ×11 for
+  interleaved tree lookups. A single chain has nothing to issue early;
+  several independent ones do.
+- The sliding form (`ahead`) beat the batched form (`group`) wherever both
+  apply, by 10% to 45%. Loading early without a prefetch (`earlyload`) is
+  behind both.
+- Useful distances are 16 to 64 iterations and batches 16 to 128, larger
+  than the 8 to 16 the fill buffers alone suggest.
+- In cache (256 KiB) the cost is 3% to 12% on `gather` and nothing
+  measurable elsewhere; `tree` and `bsearch` are faster even there (×2.0,
+  ×1.3), since interleaving also overlaps their mispredicted branches.
+- Changing the layout (`eytzinger`) matches or beats interleaving for binary
+  search and is ×4 faster in cache too. Visiting in address order (`sorted`)
+  wins only for the light loop with 4 KiB pages, and costs ×10 in cache.
+
+**Not yet tried.** A second thread that prefetches; nested loops over many
+short chains; a run-time gate on the data's size; any of this in `zanec`.
