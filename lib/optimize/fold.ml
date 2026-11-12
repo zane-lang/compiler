@@ -564,17 +564,7 @@ let mark fn (env : known) (run : Eval.run) (fr : Eval.frame) ~named_after ~lengt
    returns, or leaves an expansion it is not inside. A run stops before
    such a statement rather than evaluating it, since it cannot end after
    it. *)
-let exits s =
-  let inside = Hashtbl.create 8 and out = ref false in
-  iter_stat s
-    ~expr:(fun e ->
-      match e.Expr.node with Expr.Expand { label; _ } -> Hashtbl.replace inside label () | _ -> ())
-    ~stat:nothing;
-  iter_stat s ~expr:nothing ~stat:(function
-    | Stat.Return _ -> out := true
-    | Stat.Leave l when not (Hashtbl.mem inside l) -> out := true
-    | _ -> ());
-  !out
+let exits s = Traverse.leaves [ s ]
 
 (* A run of a block's statements evaluated from the one at [from], as far as
    it goes, with a mark after each statement that finished. [last] is the

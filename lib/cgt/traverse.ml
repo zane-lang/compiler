@@ -60,6 +60,20 @@ let exists_in stats ~expr ~stat =
   walk_stats (fun e -> if expr e then found := true) (fun s -> if stat s then found := true) stats;
   !found
 
+(* Whether [stats] can end somewhere other than after their last: one
+   returns, or leaves an expansion that is not inside them. A [Leave] of an
+   expansion inside them, the `return` of a verb expanded there, ends only
+   that expansion. *)
+let leaves stats =
+  let inside = Hashtbl.create 8 in
+  walk_stats
+    (fun e -> match e.Expr.node with Expr.Expand { label; _ } -> Hashtbl.replace inside label () | _ -> ())
+    ignore stats;
+  exists_in stats ~expr:(fun _ -> false) ~stat:(function
+    | Stat.Return _ -> true
+    | Stat.Leave l -> not (Hashtbl.mem inside l)
+    | _ -> false)
+
 (* A node with [me] applied to each expression directly in it and [ms] to
    each statement list directly in it, in the order [expr_parts] and
    [stat_parts] list them, which is the order they run. *)

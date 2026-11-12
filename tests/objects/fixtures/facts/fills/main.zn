@@ -1,0 +1,46 @@
+/// A list filled by a counted loop that pushes once each time round
+/// through a verb whose body is that one push, as `core`'s `push` is, and
+/// one whose loop may return before its count runs out.
+package fills;
+
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias List<T Type> = @primitives$List<T>;
+
+/// Pushes `x` onto the list.
+Unit add(this List<Int>, x Int) mut {
+	this!push(x);
+	return Unit();
+}
+
+/// `n` sevens.
+List<Int> sevens(n Int) {
+	out List<Int> = @primitives$List(Int);
+	@controlflow$repeat(n, {
+		out!add(Int(7));
+	});
+	return out;
+}
+
+/// Up to `n` sevens, stopping at the first round past `stop`.
+List<Int> until(n Int, stop Int) {
+	out List<Int> = @primitives$List(Int);
+	@controlflow$repeat(n, {
+		@controlflow$branch(@operators$lessThan(stop, out:size()), {
+			return out;
+		});
+		out!add(Int(7));
+	});
+	return out;
+}
+
+Unit main() {
+	args @primitives$List<String> = @program$runtime:arguments();
+	n Int = args[Int(1)]:parseI64() ?? Int(0);
+	all List<Int> = sevens(n);
+	some List<Int> = until(n, Int(2));
+	@program$console!print(String(@operators$add(all:size(), some:size())));
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}

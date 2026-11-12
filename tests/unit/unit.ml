@@ -1707,7 +1707,25 @@ let looped_pushes () =
   check "a loop's lone push has its room made ahead, unless switched off"
     (Codegen__Loop_shapes.looped_pushes [ expand [ push ] ] = if on then [ (1, 8L) ] else []);
   check "not when the pushed value's call may grow a list"
-    (Codegen__Loop_shapes.looped_pushes [ expand [ grow; push ] ] = [])
+    (Codegen__Loop_shapes.looped_pushes [ expand [ grow; push ] ] = []);
+  (* A written-out push ends by leaving its own expansion (Loop_pushes),
+     which leaves nothing around the loop. *)
+  check "a push that leaves its own expansion has its room made ahead, unless switched off"
+    (Codegen__Loop_shapes.looped_pushes [ expand [ push; C.Stat.Leave 20 ] ] = if on then [ (1, 8L) ] else []);
+  check "not when the loop leaves an expansion around it"
+    (Codegen__Loop_shapes.looped_pushes [ expand [ push; C.Stat.Leave 20 ]; C.Stat.Leave 30 ] = []);
+  check "not when the loop may return"
+    (Codegen__Loop_shapes.looped_pushes [ expand [ push ]; C.Stat.Return (e C.Expr.Unit C.Ty.Void) ] = [])
+
+(* Statements leave when one returns or leaves an expansion they are not
+   inside (Cgt.Traverse.leaves). *)
+let traverse_leaves () =
+  let module C = Cgt.Nodes in
+  let e node ty = { C.Expr.node; ty } in
+  let expand label body = C.Stat.Eval (e (C.Expr.Expand { label; body; result = None }) C.Ty.Void) in
+  check "a leave of an expansion inside does not leave" (not (Cgt.Traverse.leaves [ expand 5 [ C.Stat.Leave 5 ] ]));
+  check "a leave of an expansion around them does" (Cgt.Traverse.leaves [ expand 5 [ C.Stat.Leave 6 ] ]);
+  check "a return does" (Cgt.Traverse.leaves [ expand 5 [ C.Stat.Return (e C.Expr.Unit C.Ty.Void) ] ])
 
 (* A scope whose body stores an address as a 32-bit reference is not light:
    with frame references, a slot on the machine stack is out of the
@@ -1788,6 +1806,7 @@ let () =
   disposed_modules ();
   repeated_builds ();
   looped_pushes ();
+  traverse_leaves ();
   light_references ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;

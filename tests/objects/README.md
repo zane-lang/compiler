@@ -109,7 +109,11 @@ strings: the scalar list's moves carry the scalar tag and, in the optimized
 build, its loop keeps the count in a register, and the string list's moves
 carry none. `pushes` is a program whose `gather` pushes four
 scalars in a row onto a list of its own: each element it moves in carries
-the scalar tag. `cases` is a program whose `deaths` tests each element of
+the scalar tag. `fills` is a program whose counted loop pushes once each
+time round through a verb whose body is that push, as `core`'s `push` is:
+its optimized build makes room for the whole loop with one
+`zane_list_room` before it, and the loop that may return keeps its pushes.
+`cases` is a program whose `deaths` tests each element of
 a list of packed optional `Int`s, one-byte tag and payload: in the
 optimized build that test is a `select`, with no branch on the tag around
 the payload's load. `escapes` is a program with two counted loops that
