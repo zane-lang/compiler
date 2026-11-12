@@ -277,13 +277,27 @@ static uint64_t NOINLINE combo_staged(int W) { uint64_t s = 0, next = 0; uint64_
     else { cur[k] = 0; live--; } }
   return s; }
 
+/* ---------- round 4: where an arena would put the nodes ---------- */
+static const char *place = "rand"; static int churn_pct = 100;
+/* a share of the nodes freed and allocated again in an unrelated order */
+static void churn(uint32_t *ids, uint64_t cnt, int pct) {
+  if (!pct) return; uint32_t *sel = alloc(cnt * 4); uint64_t ns = 0;
+  for (uint64_t i = 0; i < cnt; i++) if (rnd() % 100 < (uint64_t)pct) sel[ns++] = i;
+  for (uint64_t i = ns; i > 1; i--) { uint64_t j = rnd() % i; uint32_t a = sel[i - 1], b = sel[j], t = ids[a]; ids[a] = ids[b]; ids[b] = t; } }
+static uint32_t tctr;
+static void tassign(uint64_t lo, uint64_t hi, uint64_t k) {
+  if (lo >= hi) return; uint64_t mid = (lo + hi) / 2;
+  if (place[0] == 'b') tperm[mid] = k; else if (place[1] == 'r') tperm[mid] = ++tctr;
+  tassign(lo, mid, 2 * k); tassign(mid + 1, hi, 2 * k + 1);
+  if (place[1] == 'o') tperm[mid] = ++tctr; }
+
 typedef struct { const char *name; uint64_t (*fn)(int); int np; int p[10]; } Variant;
-static const char *kname; static int logbytes;
+static const char *kname, *fullname; static int logbytes;
 static void run(Variant *v, int nv) {
   for (int i = 0; i < nv; i++) for (int j = 0; j < (v[i].np ? v[i].np : 1); j++) {
     double best = 1e30; uint64_t sum = 0;
     for (int r = 0; r < 3; r++) { double t = now(); sum = v[i].fn(v[i].p[j]); t = now() - t; if (t < best) best = t; }
-    printf("%s\t%d\t%d\t%s\t%d\t%.2f\t%016llx\n", kname, logbytes, g_huge, v[i].name, v[i].p[j], best / m, (unsigned long long)sum);
+    printf("%s\t%d\t%d\t%s\t%d\t%.2f\t%016llx\n", fullname, logbytes, g_huge, v[i].name, v[i].p[j], best / m, (unsigned long long)sum);
     fflush(stdout); } }
 #define RUN(v) run(v, sizeof v / sizeof *v)
 #define DS 7, {1, 2, 4, 8, 16, 32, 64}
@@ -292,7 +306,10 @@ static void run(Variant *v, int nv) {
 
 int main(int argc, char **argv) {
   if (argc < 5) { fprintf(stderr, "model KERNEL LOG2BYTES LOG2OPS HUGE\n"); return 2; }
-  kname = argv[1]; hcpu = sched_getcpu() ? sched_getcpu() - 1 : 1; logbytes = atoi(argv[2]); m = 1ull << atoi(argv[3]); g_huge = atoi(argv[4]);
+  static char kbuf[64]; strncpy(kbuf, argv[1], 63); const char *full = argv[1];
+  char *dot = strchr(kbuf, '.');
+  if (dot) { *dot = 0; place = dot + 1; char *plus = strchr(dot + 1, '+'); churn_pct = plus ? atoi(plus + 1) : place[0] == 'r' ? 100 : 0; }
+  kname = kbuf; fullname = full; hcpu = sched_getcpu() ? sched_getcpu() - 1 : 1; logbytes = atoi(argv[2]); m = 1ull << atoi(argv[3]); g_huge = atoi(argv[4]);
   uint64_t bytes = 1ull << logbytes;
   if (!strcmp(kname, "gather") || !strcmp(kname, "scatter") || !strcmp(kname, "heavy")) {
     int heavy = !strcmp(kname, "heavy"); n = bytes / (heavy ? 64 : 8);
@@ -319,8 +336,8 @@ int main(int argc, char **argv) {
     Variant v[] = {{"base", bs_base}, {"bothways", bs_bothways}, {"group", bs_group, GS}, {"eytzinger", bs_eytz}}; RUN(v);
   } else if (!strcmp(kname, "tree")) {
     n = bytes / 16 - 1; tn = alloc(bytes); tperm = alloc(n * 4); hq = alloc(m * 8);
-    for (uint64_t i = 0; i < n; i++) tperm[i] = i + 1;
-    for (uint64_t i = n - 1; i > 0; i--) { uint64_t j = rnd() % (i + 1); uint32_t t = tperm[i]; tperm[i] = tperm[j]; tperm[j] = t; }
+    if (place[0] == 'r') for (uint64_t i = 0; i < n; i++) tperm[i] = i + 1; else tassign(0, n, 1);
+    churn(tperm, n, churn_pct);
     troot = tbuild(0, n);
     for (uint64_t i = 0; i < m; i++) hq[i] = rnd() % (2 * n);
     Variant v[] = {{"base", tree_base}, {"group", tree_group, GS}, {"amac", tree_amac, GS}}; RUN(v);
@@ -347,9 +364,12 @@ int main(int argc, char **argv) {
   } else if (!strcmp(kname, "chains")) {
     n = bytes / 16 - 1; ln = alloc(bytes); heads = alloc(m * 4); uint32_t *perm = alloc(n * 4), *hd = alloc(n * 4);
     for (uint64_t i = 0; i < n; i++) perm[i] = i + 1;
-    for (uint64_t i = n - 1; i > 0; i--) { uint64_t j = rnd() % (i + 1); uint32_t t = perm[i]; perm[i] = perm[j]; perm[j] = t; }
+    churn(perm, n, place[0] == 's' ? churn_pct : 100);
     uint64_t nl = 0;
-    for (uint64_t i = 0; i < n;) { uint64_t len = 1 + rnd() % 15; if (i + len > n) len = n - i; hd[nl++] = perm[i];
+    for (uint64_t i = 0; i < n;) { uint64_t len = 1 + rnd() % 15; if (i + len > n) len = n - i;
+      if (place[0] == 'a') for (uint64_t a = 1; a < len; a++) { uint32_t v = perm[i + a]; uint64_t b = a;
+        while (b && perm[i + b - 1] > v) { perm[i + b] = perm[i + b - 1]; b--; } perm[i + b] = v; }
+      hd[nl++] = perm[i];
       for (uint64_t k = 0; k < len; k++) { Link *l = &ln[perm[i + k]]; l->val = rnd(); l->next = k + 1 < len ? perm[i + k + 1] : 0; } i += len; }
     ln[0].val = 0; ln[0].next = 0;
     for (uint64_t i = 0; i < m; i++) heads[i] = hd[i % nl];

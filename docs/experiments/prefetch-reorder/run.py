@@ -23,9 +23,9 @@ def measure(label, kernels):
     out = os.path.join(HERE, "results", label + ".tsv")
     with open(out, "a") as f:
         for k in kernels:
-            for size in (SWEEP if k.endswith('x') else SIZES):
+            for size in (SWEEP if k.endswith('x') else [25, 31] if '.' in k else SIZES):
                 for huge in (0, 1):
-                    text = subprocess.check_output(["taskset", "-c", cpu, exe, k, str(size), str(KERNELS[k]), str(huge)], text=True)
+                    text = subprocess.check_output(["taskset", "-c", cpu, exe, k, str(size), str(KERNELS[k.split('.')[0]]), str(huge)], text=True)
                     sums = {l.split("\t")[6] for l in text.splitlines()}
                     if len(sums) != 1:
                         sys.exit(f"checksums differ: {k} {size} {huge}")
