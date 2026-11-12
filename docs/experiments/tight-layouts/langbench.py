@@ -21,8 +21,7 @@ layouts on current main, build two compilers and use wall14.py.
 import importlib.util, os, subprocess, sys, tempfile, time
 if os.environ.get("ZANE_TIGHT_LAYOUTS_HISTORICAL") != "1":
     sys.exit("error: ZANE_PACK/ZANE_UNSWITCH no longer exist; see the header of "
-             + sys.argv[0] + ".
-Set ZANE_TIGHT_LAYOUTS_HISTORICAL=1 on 506bb97 to run.")
+             + sys.argv[0] + ".\nSet ZANE_TIGHT_LAYOUTS_HISTORICAL=1 on 506bb97 to run.")
 
 bench, core = (os.path.abspath(a) for a in sys.argv[1:3])
 runs = int(sys.argv[3]) if len(sys.argv) > 3 else 5

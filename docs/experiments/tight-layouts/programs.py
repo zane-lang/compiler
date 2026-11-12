@@ -22,8 +22,7 @@ layouts on current main, build two compilers and use wall14.py.
 import os, subprocess, sys, tempfile, time
 if os.environ.get("ZANE_TIGHT_LAYOUTS_HISTORICAL") != "1":
     sys.exit("error: ZANE_PACK/ZANE_UNSWITCH no longer exist; see the header of "
-             + sys.argv[0] + ".
-Set ZANE_TIGHT_LAYOUTS_HISTORICAL=1 on 506bb97 to run.")
+             + sys.argv[0] + ".\nSet ZANE_TIGHT_LAYOUTS_HISTORICAL=1 on 506bb97 to run.")
 
 runs = int(sys.argv[1]) if len(sys.argv) > 1 else 5
 names = sys.argv[2:] or sorted(d for d in os.listdir("tests/perf") if os.path.isfile(f"tests/perf/{d}/main.zn"))
