@@ -387,7 +387,9 @@ let taken_params funcs ~keeps =
         List.iteri (take f held) f.Func.params;
         if
           (f.Func.linkage <> Linkage.Local || Hashtbl.mem addressed f.Func.symbol)
-          && List.exists (fun j -> Hashtbl.mem table (f.Func.symbol, j)) (List.mapi (fun j _ -> j) f.Func.params)
+          && List.exists
+               (fun j -> Hashtbl.mem table (f.Func.symbol, j))
+               (List.mapi (fun j _ -> j) f.Func.params)
         then Hashtbl.replace cloned f.Func.symbol ()
       end)
     funcs;
@@ -442,7 +444,9 @@ let take_params funcs (table, cloned) =
       | Expr.Call { fn; args } ->
           let args = List.map (map_expr (call_site ~own:false) (fun _ -> None)) args in
           let taken j = Hashtbl.find_opt table (fn, j) in
-          let fresh = List.mapi (fun j x -> Option.is_some (taken j) && Option.is_some (borrowed x)) args in
+          let fresh =
+            List.mapi (fun j x -> Option.is_some (taken j) && Option.is_some (borrowed x)) args
+          in
           let pass j (x : Expr.t) =
             match (taken j, borrowed x) with
             | None, _ -> x
@@ -458,7 +462,9 @@ let take_params funcs (table, cloned) =
           else Some { e with Expr.node = Expr.Call { fn; args } }
       | _ -> if own then fe e else None
     in
-    let rewrite ~own (f : Func.t) = { f with Func.body = map_stats (call_site ~own) (fun _ -> None) f.Func.body } in
+    let rewrite ~own (f : Func.t) =
+      { f with Func.body = map_stats (call_site ~own) (fun _ -> None) f.Func.body }
+    in
     (* A copy is made from the body as it was, whose taken copies are the
        ones the table names: a rewrite builds every node anew. *)
     let by_symbol = Hashtbl.create 64 in
@@ -633,9 +639,12 @@ let arenaless_of funcs =
    A function that spawns keeps its copies, since a spawned call may still
    read the slot until the drain joins it. *)
 let returned_moves (f : Func.t) =
-  let spawns = exists_in f.Func.body ~expr:(fun _ -> false) ~stat:(function Stat.Spawn _ -> true | _ -> false) in
+  let spawns =
+    exists_in f.Func.body ~expr:(fun _ -> false) ~stat:(function Stat.Spawn _ -> true | _ -> false)
+  in
   if spawns then f
   else
+    (* The slots held in an arena opened inside [body]. *)
     let holds_inside body =
       let scopes = ref [] and holds = ref [] in
       walk_stats
@@ -650,48 +659,53 @@ let returned_moves (f : Func.t) =
     let all = holds_in f.Func.body in
     (* [value], an escape of a copy out of one of [holds], as a move. *)
     let rec moved holds (value : Expr.t) =
+      let rebuilt node = { value with Expr.node } in
       match value.Expr.node with
-      | Expr.Escape ({ value = { Expr.node = Expr.Copy { value = { Expr.node = Expr.Local h; _ }; layout }; ty }; _ } as x)
+      | Expr.Escape
+          ({
+             value =
+               { Expr.node = Expr.Copy { value = { Expr.node = Expr.Local h; _ }; layout }; ty };
+             _;
+           } as x)
         when List.mem h holds ->
           let address = { Expr.node = Expr.Address h; ty = Ty.Ptr } in
-          Some { value with Expr.node = Expr.Escape { x with value = { Expr.node = Expr.Take { address; layout }; ty } } }
+          let take = { Expr.node = Expr.Take { address; layout }; ty } in
+          Some (rebuilt (Expr.Escape { x with value = take }))
       (* An abort's value escapes twice: once as the `abort` hands it on,
          once as the function's outcome. *)
       | Expr.Escape ({ value = { Expr.node = Expr.Escape _; _ } as inner; _ } as x) ->
-          Option.map (fun inner -> { value with Expr.node = Expr.Escape { x with value = inner } }) (moved holds inner)
+          moved holds inner
+          |> Option.map (fun inner -> rebuilt (Expr.Escape { x with value = inner }))
       | Expr.Case { index; payload } ->
-          Option.map (fun payload -> { value with Expr.node = Expr.Case { index; payload } }) (moved holds payload)
+          Option.map (fun payload -> rebuilt (Expr.Case { index; payload })) (moved holds payload)
       | _ -> None
     in
-    let rec fe (e : Expr.t) =
+    (* [exits] is each expansion the code is in: its label, the local its
+       result is stored in, and the slots held in arenas it opens. *)
+    let rec stats exits = function
+      | Stat.Assign ({ place = { Expr.local; deref = false; path = []; _ }; value } as a)
+        :: (Stat.Leave l :: _ as rest) ->
+          let value = expr exits value in
+          let value =
+            match List.assoc_opt l exits with
+            | Some (result, holds) when result = Some local ->
+                Option.value ~default:value (moved holds value)
+            | _ -> value
+          in
+          Stat.Assign { a with value } :: stats exits rest
+      | Stat.Return value :: rest ->
+          let value = expr exits value in
+          Stat.Return (Option.value ~default:value (moved all value)) :: stats exits rest
+      | s :: rest -> map_stat_parts (expr exits) (stats exits) s :: stats exits rest
+      | [] -> []
+    and expr exits (e : Expr.t) =
       match e.Expr.node with
       | Expr.Expand { label; body; result } ->
-          let inside = holds_inside body in
-          let rec leaving = function
-            | (Stat.Assign ({ place = { Expr.local; deref = false; path = []; _ }; value } as a) as s)
-              :: (Stat.Leave l :: _ as rest)
-              when l = label && Some local = result -> (
-                match moved inside value with
-                | Some value -> Stat.Assign { a with value } :: leaving rest
-                | None -> s :: leaving rest)
-            | s :: rest -> s :: leaving rest
-            | [] -> []
-          in
-          let body = map_stats fe fs body in
-          let body = map_stats (fun _ -> None) (fun s -> match s with
-            | Stat.Scope { id; body } -> Some [ Stat.Scope { id; body = leaving body } ]
-            | Stat.If { cond; body } -> Some [ Stat.If { cond; body = leaving body } ]
-            | _ -> None) (leaving body)
-          in
-          Some { e with Expr.node = Expr.Expand { label; body; result } }
-      | _ -> None
-    and fs (s : Stat.t) =
-      match s with
-      | Stat.Return value -> (
-          match moved all value with Some value -> Some [ Stat.Return value ] | None -> None)
-      | _ -> None
+          let exits = (label, (result, holds_inside body)) :: exits in
+          { e with Expr.node = Expr.Expand { label; body = stats exits body; result } }
+      | _ -> map_expr_parts (expr exits) (stats exits) e
     in
-    { f with Func.body = map_stats fe fs f.Func.body }
+    { f with Func.body = stats [] f.Func.body }
 
 (* Every hold, reservation and spawn is inside the arena it names, which
    the pass relies on when it takes an arena away. *)
