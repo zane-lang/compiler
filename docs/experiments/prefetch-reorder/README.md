@@ -67,5 +67,67 @@ has every size and parameter):
   search and is ×4 faster in cache too. Visiting in address order (`sorted`)
   wins only for the light loop with 4 KiB pages, and costs ×10 in cache.
 
-**Not yet tried.** A second thread that prefetches; nested loops over many
-short chains; a run-time gate on the data's size; any of this in `zanec`.
+## Round 2
+
+`run.py round2 twohop nested chains heavy gather gatherx heavyx`. `gather`
+and `heavy` were measured again with the new variants, so their rows repeat
+round 1's on another run.
+
+| kernel | plain code | variants |
+| --- | --- | --- |
+| `chains` | for each of many lists of 1 to 15 links at random places, walk it | `ahead`: prefetch the head of the list `D` on. `group`, `amac`: walk `W` lists a link at a time, as for `tree` |
+| `nested` | a list of lists of 1 to 8 elements, handles in order, payloads at random places | `ahead`: prefetch the payload of the row `D` on |
+| `twohop` | `s += a[b[idx[i]]]` | `ahead`: prefetch `b[idx[i+D]]`. `staged`: that at `2D`, and `a[b[idx[i+D]]]` |
+| `gather`, `heavy` | as round 1 | `helper`: a second thread on another core loads up to `K` iterations ahead. `nta` (`heavy`): the non-temporal prefetch hint |
+| `gatherx`, `heavyx` | as round 1 | plain against `ahead` at every power of two from 64 KiB to 256 MiB |
+
+At 2 GiB, best parameter:
+
+| kernel | plain, 4 KiB pages | plain, huge pages | best variant, 4 KiB | best variant, huge |
+| --- | ---: | ---: | --- | --- |
+| `chains` | 633 ns | 457 ns | `amac` ×4.00, `group` ×3.87, `ahead` ×1.00 | `amac` ×5.76, `group` ×5.18, `ahead` ×1.02 |
+| `nested` | 28.6 ns | 21.4 ns | `ahead` ×1.27 | `ahead` ×1.40 |
+| `twohop` | 43.8 ns | 20.0 ns | `ahead`, `staged` ×1.06 | `staged` ×1.57, `ahead` ×1.39 |
+| `heavy` | 35.3 ns | 25.7 ns | `ahead` ×1.79, `nta` ×1.56, `helper` ×1.20 | `ahead` ×2.05, `nta` ×2.04, `helper` ×1.18 |
+| `gather` | 20.7 ns | 9.5 ns | `sorted` ×1.34, `helper` ×1.03, `ahead` ×0.99 | `ahead` ×1.21, `helper` ×1.11 |
+
+**What it shows.**
+
+- Interleaving carries over to short chains: ×4 to ×7.5 from 32 MiB up.
+  Prefetching only each chain's head does nothing, since the other links
+  are the misses. Unlike `tree`, it costs in cache: ×0.74 to ×0.79 for
+  `amac` and ×0.45 for `group` at 256 KiB. This one needs a gate.
+- A second thread is not worth a core: at most ×1.2, against ×1.8 to ×2.05
+  for a prefetch in the loop itself, and ×0.64 to ×0.88 in cache.
+- The non-temporal hint is never ahead of the ordinary one and does nothing
+  at 32 MiB (×1.0 against ×2.0).
+- With 4 KiB pages the light loops (`gather`, `twohop`) gain nothing from
+  prefetching: round 1's ×1.12 for `gather` did not repeat (×0.99). With
+  huge pages they gain ×1.2 to ×1.6, and staging the second hop is worth
+  another 13% at 2 GiB. The two multiply: `gather` goes from 20.7 ns to
+  7.9 ns with both.
+- `heavy` with `ahead` is never slower than plain at any size from 64 KiB
+  up (×1.05 at the least), is ×1.4 or better from 2 MiB, the size of L2,
+  and ×2 from 32 MiB. It needs no gate. `gather` stays within the noise
+  below 64 MiB (×0.82 to ×1.29 on times under 5 ns) and gains ×1.1 to ×1.3
+  above it.
+
+## Where this points
+
+Worth building, in the order the measurements rank them:
+
+1. Interleaving a loop over independent chains (tree lookups, chains,
+   binary searches): ×3 to ×10, gated on the data's size where the chain is
+   short.
+2. A prefetch `D` = 32 iterations ahead in a loop whose body branches on or
+   works on what it loads (`heavy`, `hash`): ×1.6 to ×2.8, no gate.
+3. Huge pages for large backing stores: ×2 to ×2.7 on the light loops by
+   itself, and what lets a prefetch help them at all.
+
+Not worth building: prefetching right before the access, batching in place
+of a sliding distance, loading early without a prefetch, the non-temporal
+hint, a helper thread, and prefetching a chain's head alone.
+
+**Not yet tried.** Any of this in `zanec`; a body between `gather` and
+`heavy` in weight, to find where a prefetch starts to pay; a processor other
+than this one.
