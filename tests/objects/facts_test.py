@@ -238,6 +238,21 @@ class FactsTests(unittest.TestCase):
             ir = run(ZANEC, "--ll", *optimize, *packages("bounce"))
             self.assertNotRegex(ir, r"select i1 [^,]*, double", optimize)
 
+    def test_a_packed_sums_case_is_picked_without_a_branch(self):
+        # Each health is packed as a one-byte tag and eight bytes. Its
+        # payload is read beside its tag, so testing the case and the
+        # payload is a select, with no branch on the tag around a load of
+        # the payload (Passes.llvm_options). Tier 1 runs the optimized
+        # build's passes with the same options (tiers.md T2).
+        ir = run(ZANEC, "--ll", "--optimize", *packages("cases"))
+        self.assertRegex(ir, r"select i1 %[\w.]+, i1 %[\w.]+, i1 false")
+        self.assertNotRegex(ir, r"load i64, ptr [^\n]*\n  %[\w.]+ = icmp slt i64 %[\w.]+, 1\n"
+                                r"  %[\w.]+ = zext i1 %[\w.]+ to i64\n  br label")
+        with tempfile.TemporaryDirectory() as work:
+            exe = Path(work) / "cases"
+            run(ZANEC, "--build", exe, "--optimize", *packages("cases"))
+            self.assertEqual(run_program(exe, 1000), "234\n234\n")
+
     def test_places_and_frames_may_be_read_ahead(self):
         # The method's subject is the whole of the caller's slot, two list
         # handles, and `main`'s frame is all there once its scope is open,

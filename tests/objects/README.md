@@ -106,7 +106,10 @@ strings: the scalar list's moves carry the scalar tag and, in the optimized
 build, its loop keeps the count in a register, and the string list's moves
 carry none. `pushes` is a program whose `gather` pushes four
 scalars in a row onto a list of its own: each element it moves in carries
-the scalar tag.
+the scalar tag. `cases` is a program whose `deaths` tests each element of
+a list of packed optional `Int`s, one-byte tag and payload: in the
+optimized build that test is a `select`, with no branch on the tag around
+the payload's load.
 
 `options_test.py` checks what `zanec` accepts for the options that name and
 stamp packages. A package name in `--package NAME=DIR` or an `--import` key
