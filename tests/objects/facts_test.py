@@ -373,8 +373,9 @@ class FactsTests(unittest.TestCase):
         # returns its local by moving it out.
         text = STAMP + "taking$Text(%primitives$String)"
         cgt = run(ZANEC, "--cgt", *packages("takes", "taking", stamped=["taking"]))
-        funcs = {m.group(1): m.group(0) for m in
-                 re.finditer(r"(?ms)^    [├└]── funcs\[\d+\] > func:\n    [│ ]   ├── symbol: ([^\n]*)\n.*?(?=^    [├└]── |\Z)", cgt)}
+        # Split on the field names alone: the tree's box-drawing characters
+        # decode differently under Windows' code page.
+        funcs = {chunk.split("\n", 1)[0].strip(): chunk for chunk in cgt.split("symbol: ")[1:]}
         self.assertIn("linkage: available", funcs[text])
         self.assertIn("> copy:", funcs[text])
         self.assertNotIn("linkage:", funcs[text + ".taken"])
