@@ -17,13 +17,15 @@ time: Callgrind does not model store forwarding, unaligned-access penalties
 or any out-of-order effect.
 
 Run in a cloud container with the pixi environment (LLVM 21.1.8), from
-`main` at 90ebb2b.
+`main` at 90ebb2b. `just test-compiler` passes on the final branch with no
+switch set, and with each switch on as reported in its step.
 
 | switch | what it does |
 | --- | --- |
 | `ZANE_UNROLL_PARTIAL=n` | passes `-unroll-partial-threshold=n` to LLVM |
 | `ZANE_UNROLL_THRESHOLD=n` | passes `-unroll-threshold=n` |
-| `ZANE_UNROLL_RUNTIME_COUNT=n` | passes `-unroll-max-count=n` |
+| `ZANE_UNROLL_RUNTIME_COUNT=n` | passes `-unroll-max-count=n` (not measured) |
+| `ZANE_FN_ATTRS=1` | `nounwind` on every function in the module (step 4) |
 | `ZANE_TBAA_FINE=1` | struct-path TBAA tags on member accesses (step 2) |
 | `ZANE_TBAA_TYPED=1` | one alias class per scalar type (**unsound**: an upper bound) |
 | `ZANE_NSW=1` | `nsw` on the program's integer add/mul/negate (**unsound**: an upper bound) |
@@ -222,6 +224,77 @@ unless `end` is the type's maximum, so it is not `nsw` either; LLVM's
 IndVarSimplify already proves `nsw` on such counters when the trip count
 allows it.
 
+## Step 4: attributes on Zane's own functions
+
+**What LLVM infers today.** Nothing. In the optimized IR of `paths` (and the
+others looked at) every function zanec defines ends with only
+`"probe-stack"="inline-asm"`: no `nounwind`, `nofree`, `willreturn`,
+`norecurse` or memory effects, although `-O2` runs FunctionAttrs. The
+reason is the runtime's declarations: `zane_alloc_held`, `zane_free`,
+`zane_list_push`, `zane_hold`, `zane_scope_drain` are declared with no
+attributes at all (their bodies are not in the module), so any function that
+calls one may unwind, free and touch any memory, and so may its callers.
+
+**Design.** `ZANE_FN_ATTRS=1` (`lib/codegen/build.ml`, before the passes)
+marks every function in the module `nounwind`: the program's, the
+runtime's and foreign ones. Why it is true: zanec emits no `invoke` or
+landing pad, the runtime is C compiled without exceptions, and a foreign
+function is called through the C ABI, out of which nothing may unwind into
+Zane frames. `willreturn`/`mustprogress` were not added: a Zane loop may
+run forever, and nothing in the spec makes a side-effect-free infinite loop
+undefined, so they are not facts. Memory effects of the runtime functions
+were not added either (see What remains).
+
+**Results.** With `nounwind` everywhere FunctionAttrs still infers nothing
+else (`attributes #0 = { nounwind "probe-stack"="inline-asm" }`), and no
+build's instruction count moves by more than 0.1% (the startup noise).
+`texts` tiered shows +1.3% cycles from mispredicts (277 k → 317 k) at an
+identical instruction count: the tier-0 executable's code moved, and
+Callgrind's address-indexed predictor table aliases differently. That is
+layout, not work. `just test-compiler` passes with the switch on.
+
+**Reading.** `nounwind` alone buys nothing: with no exceptions there are no
+landing pads to remove, and the facts that would let LLVM move loads past a
+call or delete a call are memory effects, which only the runtime's
+declarations can carry.
+
+## Step 5: combination
+
+Only step 1 produced a win, so the combination is step 1's best setting:
+`ZANE_UNROLL_PARTIAL=150 ZANE_UNROLL_THRESHOLD=250` (`up150ut250` in the
+step-1 table): paths −42.8%, borrows −11.9%, returns −10.0%, kept (tiered)
+−6.1%, entities −4.0%, division −3.8%, particles −3.4%, repeats −3.3%;
+removal +1.1%, floats +0.5%; everything else within 0.4%. Adding the sound
+TBAA and `nounwind` switches changes none of these (each alone moved no
+program beyond noise).
+
 ## What remains
 
-- Steps 1–5 as planned.
+Ranked by expected value for a real (non-experimental) change:
+
+1. **Full unrolling of short constant-count loops, per loop.** Mark a
+   counted loop (`repeat`/`to`) whose trip count is a literal ≤ 8 (say)
+   with `llvm.loop.unroll.full`, as `Emit.unrolled` already marks short
+   early-exit loops (PR 356). That takes paths' −42% (−24% instructions;
+   less on hardware, see step 1) and returns' −10% without the global
+   `-unroll-threshold`, whose only other effect was 2% more runtime code in
+   every executable.
+2. **A larger partial-unroll budget**, `-unroll-partial-threshold=150` in
+   `Passes.llvm_options`: −3% to −12% on six programs, +1.1% on removal,
+   +0.5% on floats, `.text` +6–24% (tier 1 of repeats +56%). A size/speed
+   decision for the maintainer; 150 takes most of what 300 gives. The
+   removal loss is a register-pressure effect that any budget risks.
+3. **Memory effects on the runtime's declarations** (not measured here).
+   `zane_alloc_held` returning fresh memory (`noalias` return,
+   `allockind("alloc")`), `zane_free` as `allockind("free")`, and
+   `memory(argmem: readwrite, inaccessiblemem: readwrite)` where the C
+   bodies justify it would let FunctionAttrs give Zane's functions real
+   attributes and let LLVM keep values in registers across these calls —
+   the barrier step 2 found in the hot loops. Each needs a check of the
+   runtime's C (`runtime/*.c`) that it touches nothing else, e.g. the
+   region and scope bookkeeping it reaches through globals.
+4. **A test that an optimized build wraps** (step 3): the suite passes
+   with `nsw` on the program's arithmetic, so nothing but perf's golden
+   output guards Zane's wrapping rule against a future codegen change.
+5. Not worth pursuing: finer TBAA (step 2, sound or not), `nounwind`
+   alone (step 4), `nsw` (a miscompile; step 3).

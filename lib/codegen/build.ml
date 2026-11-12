@@ -1087,6 +1087,17 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
       if not optimize then Wrappers.mark data_layout m;
       if optimize then llvm_options (Array.of_list ("zanec" :: Passes.llvm_options));
+      (* Experiment (docs/experiments/llvm-facts, step 4): with
+         `ZANE_FN_ATTRS=1` every function in the module, the program's, the
+         runtime's and the foreign ones it calls, is marked `nounwind`. Zane
+         has no unwinding: nothing it emits is an `invoke` or a landing pad,
+         the runtime is C built without exceptions, and a foreign function
+         is called through the C ABI, out of which nothing may unwind into
+         Zane's frames. LLVM's FunctionAttrs works out the rest. *)
+      if Sys.getenv_opt "ZANE_FN_ATTRS" = Some "1" then
+        Llvm.iter_functions
+          (fun f -> Llvm.add_function_attr f (Llvm.create_enum_attr (Llvm.module_context m) "nounwind" 0L) Llvm.AttrIndex.Function)
+          m;
       let pipeline = thread_sanitized m (Passes.pipeline ~triple ~optimize ~tier1:(tier = Tiers.Tier1)) in
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
