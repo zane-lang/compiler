@@ -12,7 +12,7 @@ by SCALE (default 10), and each build is run RUNS times (default 15). A
 tiered build runs as tests/perf runs it, with tier 1 loaded before `main`.
 Run from the repository root.
 """
-import atexit, os, shutil, subprocess, sys, tempfile, time
+import atexit, os, random, shutil, subprocess, sys, tempfile, time
 
 before, after = sys.argv[1], sys.argv[2]
 name = sys.argv[3] if len(sys.argv) > 3 else "entities"
@@ -34,8 +34,15 @@ for label, zanec in (("before", before), ("after", after)):
     builds[label, "tiered"] = ([exe + "-t0", *args], {**os.environ, "ZANE_TIER_UP": lib, "ZANE_TIER_WAIT": "1"})
 times = {k: [] for k in builds}
 outputs = {}
-for _ in range(runs):
-    for k, (command, env) in builds.items():
+# Each sample runs the four builds in its own shuffled order (fixed seed), so
+# no build always runs first or last, and the order is recorded with it.
+shuffler = random.Random(14)
+for sample in range(runs):
+    order = list(builds)
+    shuffler.shuffle(order)
+    print(f"sample {sample + 1:2} order: " + ", ".join(f"{label}-{build}" for label, build in order))
+    for k in order:
+        command, env = builds[k]
         start = time.perf_counter()
         ran = subprocess.run(command, env=env, capture_output=True, check=True)
         times[k].append(time.perf_counter() - start)
