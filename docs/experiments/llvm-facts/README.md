@@ -22,9 +22,8 @@ switch set, and with each switch on as reported in its step.
 
 The switches are gone from `main`: the unroll budgets became defaults in PR
 359, and the rest measured too little, or are unsound. `4d7dc33` is the last
-commit that reads them. The PR that brought this log to `main` keeps it in
-its history: get it with `git fetch origin pull/PR/head` (the PR's number) and
-`git checkout 4d7dc33`. `measure.py` exits unless
+commit that reads them, kept in PR 360's history: get it with
+`git fetch origin pull/360/head` and `git checkout 4d7dc33`. `measure.py` exits unless
 `ZANE_LLVM_FACTS_HISTORICAL=1` is set, because on `main` every switch is
 ignored and every label measures the same build.
 
