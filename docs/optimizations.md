@@ -666,7 +666,7 @@ that the predictor cannot learn.
 - **Effect:** `tests/perf` estimated cycles: `paths` 42.8% fewer,
   `borrows` 11.9%, `returns` 10.0%, `kept` tiered 6.1%, `entities` 4.0%,
   `division` 3.8%, `particles` 3.5%, `repeats` 3.3% fewer; `removal` 1.1%
-  and `floats` 0.5% more; `.text` 3–15% more, tier 1 of `repeats` 56%
+  and `floats` 0.5% more; `.text` 1–15% more, tier 1 of `repeats` 56%
   ([`perf-unroll`](perf-unroll/README.md))
 
 LLVM is given a full-unroll budget of 250, against `-O2`'s 150, and a

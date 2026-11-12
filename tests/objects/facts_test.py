@@ -242,7 +242,7 @@ class FactsTests(unittest.TestCase):
         # Each health is packed as a one-byte tag and eight bytes. Its
         # payload is read beside its tag, so testing the case and the
         # payload is a select, with no branch on the tag around a load of
-        # the payload (Passes.llvm_options). Tier 1 runs the optimized
+        # the payload (`-instcombine-code-sinking=false` in Passes.llvm_options). Tier 1 runs the optimized
         # build's passes with the same options (tiers.md T2).
         ir = run(ZANEC, "--ll", "--optimize", *packages("cases"))
         # The counting loop is inlined into `zane_main`.
@@ -318,8 +318,13 @@ class FactsTests(unittest.TestCase):
             self.assertTrue(named and named <= loops, (name, named, loops))
         self.assertNotIn("!llvm.loop", bodies["first"])
         tests = lambda ir: len(re.findall(r"fcmp \w+ double [^\n]*4\.000000e\+00", ir))
+        # Counted in the one function that stays a call, the memo pass's
+        # lookup: where `escapes` is inlined into a loop of its own, that
+        # loop is itself partly unrolled (-unroll-partial-threshold,
+        # Passes.llvm_options), which repeats the tests again.
         optimized = run(ZANEC, "--ll", "--optimize", *packages("escapes"))
-        self.assertEqual(tests(optimized), 2 * tests(ir))
+        lookup = re.search(r'(?ms)^define [^\n]*@"escapes\$escapes\([^"]*\)\.lookup"[^\n]*\n(.*?)^\}', optimized).group(1)
+        self.assertEqual(tests(lookup), 2 * tests(bodies["escapes.memo"]))
 
     def test_escapes_runs(self):
         with tempfile.TemporaryDirectory() as temp:

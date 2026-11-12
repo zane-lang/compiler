@@ -96,7 +96,7 @@ let nontrivial triple pipeline =
    the sum of `ys[j]` where `xs[j] < wall`, is unrolled by a factor that
    shares its index arithmetic and bounds checks (borrows -12%, kept -6%,
    entities, particles, repeats, division -3% to -4%). The price is code
-   size, 6% to 24% more `.text` in a perf program and more in tier 1 of
+   size, 1% to 15% more `.text` in a perf program and 56% more in tier 1 of
    `repeats`, and a cold loop's copies can cost a hot loop in the same
    function a register (removal +1%, floats +0.5%). *)
 let llvm_options =

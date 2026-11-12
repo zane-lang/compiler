@@ -1622,7 +1622,7 @@ test passing.
   cold loop's copies leave the hot loop beside it a register and it reloads
   its items pointer on every iteration, and `floats` 0.5% more, whose
   unrolled loops mispredict 20% more. The price is code: a `tests/perf`
-  executable's `.text` grows 3–15%, tier 1 of `kept` 17% and of `repeats`
+  executable's `.text` grows 1–15%, tier 1 of `kept` 17% and of `repeats`
   56%. The langbench programs that build (`docs/perf-unroll`) grow 2–16% and
   run within 0.5% of before in all but `entities` (8.6% fewer) and `nbody`
   (6.8% more), and a compile takes as long
