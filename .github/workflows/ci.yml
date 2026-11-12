@@ -1,8 +1,12 @@
 name: CI
 
-# A pull request is where these checks are wanted, so they run there as well as
-# in the merge queue. `workflow_dispatch` allows a re-run against any branch
-# without opening a pull request.
+# The merge queue runs every check here, on the commit main will become. A pull
+# request runs only the Linux ones (suites, linux-native, linux-checks,
+# file-sizes), for quick feedback while it is worked on; the Windows and macOS
+# jobs skip themselves there, and a skipped job counts as passing for a
+# required check, so the pull request can still enter the queue.
+# `workflow_dispatch` runs everything against any branch without opening a pull
+# request.
 #
 # The push to main is what makes the caches below useful. GitHub lets a pull
 # request read caches saved on its own branch or on the default branch, and on
@@ -127,8 +131,10 @@ jobs:
 
   # Build the Windows programs on Linux with the pixi environment's `zig cc`
   # (dev/bin/cross-programs), independently: Windows execution need not wait
-  # for Linux's grammar, highlighting or compiler tests.
+  # for Linux's grammar, highlighting or compiler tests. Like every Windows
+  # and macOS job, it skips itself on a pull request.
   windows-build:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -184,6 +190,7 @@ jobs:
   # output and status its fixture expects (docs/design/platforms.md).
   windows-tests:
     needs: windows-build
+    if: github.event_name != 'pull_request'
     runs-on: windows-latest
     timeout-minutes: 10
 
@@ -214,6 +221,7 @@ jobs:
   # the triple a build without `--target` is for, and its image format and C
   # library, as on every system (docs/design/platforms.md).
   windows-native:
+    if: github.event_name != 'pull_request'
     runs-on: windows-latest
     timeout-minutes: 90
     defaults:
@@ -254,10 +262,11 @@ jobs:
           path: ${{ env.DUNE_CACHE_ROOT }}
           key: dune-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pixi.lock', 'dev/setup/bootstrap-toolchain') }}-${{ github.sha }}
 
-  # Aggregate the Windows checks with the same success rule as Linux.
+  # Aggregate the Windows checks with the same success rule as Linux. On a
+  # pull request it skips itself with the jobs it gathers.
   windows-checks:
     needs: [windows-build, windows-tests, windows-native]
-    if: always()
+    if: always() && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -268,19 +277,17 @@ jobs:
 
   # macOS is the lower tier (docs/design/platforms.md), with its own gate,
   # but its suite runs the same way: zanec built natively from the pixi
-  # environment, then `just test-compiler`. Apple Silicon runs for every
-  # pull request; Intel, whose runners are the slowest, joins on main, in
-  # the merge queue and when started by hand.
+  # environment, then `just test-compiler`, on Apple Silicon and Intel.
   macos-native:
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
-        include: >-
-          ${{ fromJSON(
-            github.event_name == 'pull_request'
-            && '[{"arch":"aarch64","runner":"macos-latest"}]'
-            || '[{"arch":"aarch64","runner":"macos-latest"},{"arch":"x86_64","runner":"macos-15-intel"}]'
-          ) }}
+        include:
+          - arch: aarch64
+            runner: macos-latest
+          - arch: x86_64
+            runner: macos-15-intel
     name: macos-native (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
@@ -322,15 +329,11 @@ jobs:
   # an artifact keeps no file's mode and a macOS program runs only with its
   # own.
   macos-build:
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
-        arch: >-
-          ${{ fromJSON(
-            github.event_name == 'pull_request'
-            && '["aarch64"]'
-            || '["aarch64","x86_64"]'
-          ) }}
+        arch: [aarch64, x86_64]
     name: macos-build (${{ matrix.arch }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -360,15 +363,15 @@ jobs:
   # Windows.
   macos-tests:
     needs: macos-build
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
-        include: >-
-          ${{ fromJSON(
-            github.event_name == 'pull_request'
-            && '[{"arch":"aarch64","runner":"macos-latest"}]'
-            || '[{"arch":"aarch64","runner":"macos-latest"},{"arch":"x86_64","runner":"macos-15-intel"}]'
-          ) }}
+        include:
+          - arch: aarch64
+            runner: macos-latest
+          - arch: x86_64
+            runner: macos-15-intel
     name: macos-tests (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
@@ -389,10 +392,11 @@ jobs:
           tar -xzf macos-programs.tar.gz
           dev/bin/check-programs macos-programs
 
-  # Aggregate the macOS checks with the same success rule as Linux.
+  # Aggregate the macOS checks with the same success rule as Linux, skipped
+  # on a pull request as the Windows gate is.
   macos-checks:
     needs: [macos-build, macos-tests, macos-native]
-    if: always()
+    if: always() && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

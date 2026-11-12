@@ -37,11 +37,11 @@ environment, and `just test-compiler` runs there in CI, held to the triple a
 build without `--target` is for, and its image format and C library. The rest
 of what `just test` runs, the grammar, ambiguity and grammar-generation
 suites, passes on all three, but CI runs it on Linux alone: what those suites
-check does not depend on the host. Linux and
-Windows run for every change, Apple Silicon macOS for every pull request,
-and Intel macOS, whose runners are the slowest, on `main`, in the merge
-queue and when CI is started by hand; the programs built for each macOS
-architecture follow the same rule. Two suites run on Linux alone: the
+check does not depend on the host. A pull request runs the Linux suites
+alone, for quick feedback; Windows, Apple Silicon macOS and Intel macOS run,
+with the programs built for each, on `main`, in the merge queue and when CI
+is started by hand, so every change is checked on all three before it
+merges. Two suites run on Linux alone: the
 highlighting consumers, whose Neovim and Typst read the same generated
 files on every system, and `just test-perf`, whose Callgrind counts exist
 on Linux only.
