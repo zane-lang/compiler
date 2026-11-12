@@ -944,6 +944,14 @@ let binary env fr b (op : Expr.binop) (t : Ty.t) l r =
 (* Expressions and statements                                             *)
 (* ---------------------------------------------------------------------- *)
 
+(* LLVM's `llvm.prefetch`: an address, whether for a write, how long to
+   keep the line (3, in every cache) and whether it holds data (1). *)
+let prefetch_intrinsic env =
+  let fty = Llvm.function_type (Llvm.void_type env.ctx) [| env.ptr; Llvm.i32_type env.ctx; Llvm.i32_type env.ctx; Llvm.i32_type env.ctx |] in
+  match Llvm.lookup_function "llvm.prefetch.p0" env.m with
+  | Some f -> (f, fty)
+  | None -> (Llvm.declare_function "llvm.prefetch.p0" fty env.m, fty)
+
 (* An expression that has a value: anything but a [Void] one, which lowering
    never puts where a value is used. *)
 let rec value_of env fr b (e : Expr.t) : Llvm.llvalue =
@@ -1424,6 +1432,65 @@ and stats env fr b body =
   List.iter (fun (id, n) -> Hashtbl.replace fr.runs id (Ahead n)) (runs body);
   List.iter (fun s -> if not (has_terminator b) then stat env fr b s) body
 
+(* Experimental (Lookahead): a prefetch of each of [targets] at the top of
+   a loop's body, for the iteration [Lookahead.distance] on. Each element
+   read in a target's address is made only when its index is inside its
+   list, compared unsigned as [element] compares one, and the prefetch of
+   an address outside its list is skipped; a skipped one goes on with the
+   body. Nothing here can stop the program. A list's items and count are
+   the loop's hoisted ones when it has them, else read here afresh. *)
+and prefetch env fr b (targets : Lookahead.target list) =
+  let one = Llvm.const_int env.i64 1 in
+  let handle key =
+    match List.assoc_opt key fr.hoisted with
+    | Some cached -> cached
+    | None ->
+        let list = value_of env fr b key in
+        let tag = handle_field env and count_tag = if List_handle.on () then handle_field env else count_field env in
+        (List_handle.items ~tag env.ctx b list, List_handle.count ~tag:count_tag env.ctx b list)
+  in
+  let skip = block env fr in
+  (* The address [offset] bytes into the element at [index] of the list at
+     [key], when the index is inside it; else on to [skip]. *)
+  let inside key index stride offset =
+    let items, count = handle key in
+    let at = Llvm.build_sub index one "" b in
+    let next = block env fr in
+    ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Ult at count "" b) next skip b);
+    Llvm.position_at_end next b;
+    let bytes = Llvm.build_add (Llvm.build_mul at (Llvm.const_int env.i64 stride) "" b) (Llvm.const_int env.i64 offset) "" b in
+    Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) items [| bytes |] "" b
+  in
+  let rec value (v : Lookahead.value) =
+    match v with
+    | Lookahead.Const (k, t) -> Llvm.const_of_int64 (lltype env t) k true
+    | Read (x, t) -> value_of env fr b { Expr.node = Expr.Local x; ty = t }
+    | Add (l, r) -> Llvm.build_add (value l) (value r) "" b
+    | Mul (l, r) -> Llvm.build_mul (value l) (value r) "" b
+    | Neg v -> Llvm.build_neg (value v) "" b
+    | Math (fn, t, args) -> math env b fn t (List.map value args)
+    | Convert (v, t) ->
+        let x = value v in
+        let to_ = lltype env t in
+        let width ty = Llvm.integer_bitwidth ty in
+        if width (Llvm.type_of x) < width to_ then Llvm.build_sext x to_ "" b
+        else if width (Llvm.type_of x) > width to_ then Llvm.build_trunc x to_ "" b
+        else x
+    | Load { list; index; stride; offset; ty } ->
+        let index = value index in
+        Llvm.build_load (lltype env ty) (inside list index stride offset) "" b
+  in
+  let fetch = prefetch_intrinsic env in
+  List.iter
+    (fun (t : Lookahead.target) ->
+      let index = value t.index in
+      let address = inside t.list index t.stride 0 in
+      let i32 = Llvm.const_int (Llvm.i32_type env.ctx) in
+      ignore (Llvm.build_call (snd fetch) (fst fetch) [| address; i32 0; i32 3; i32 1 |] "" b))
+    targets;
+  ignore (Llvm.build_br skip b);
+  Llvm.position_at_end skip b
+
 and stat env fr b (s : Stat.t) =
   match s with
   | Stat.Let { id; value = { Expr.node = Expr.Call _ | Expr.Call_value _; ty } as value }
@@ -1602,6 +1669,8 @@ and stat env fr b (s : Stat.t) =
       let lists, names = invariant_lists body in
       let ranges = ranged body lists names in
       let twice = unrolled ~listed:(listed env) body in
+      (* Experimental (Lookahead): what an optimized build fetches ahead. *)
+      let fetched = if env.version then Lookahead.targets body names else [] in
       let counted trips =
         let saved = fr.hoisted in
         let hoisted =
@@ -1624,6 +1693,7 @@ and stat env fr b (s : Stat.t) =
         let test = Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Slt current n "" b) step after b in
         Option.iter (weigh env test) trips;
         Llvm.position_at_end step b;
+        if fetched <> [] && trips <> Some short_trips then prefetch env fr b fetched;
         fr.loops <- fr.loops + 1;
         stats env fr b body;
         fr.loops <- fr.loops - 1;

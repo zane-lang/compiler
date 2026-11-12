@@ -164,22 +164,18 @@ let invariant_lists body =
       (List.rev !lists, names)
     end
 
-(* Experimental (docs/experiments/goose-comparison): with
-   ZANE_LOOP_RANGES=1 as well, the element reads and writes of a loop's
-   [body] whose list [invariant_lists] found and whose index moves by a
-   constant -1, 0 or 1 each time round: each with that step and its index's
-   value on the first time round, as an expression of what is known before
-   the loop. The index's last value is then its first plus the step times
-   one less than the count, and between them it passes through every value
-   once, so the loop checks the two ends before it starts and, when both are
-   in range, runs a copy of itself that checks none of these.
+(* What a loop's [body] binds, which an index is read through: each
+   local's [let] value, every assignment to each local, each local the body
+   defines, and an expansion's result assigned once among the first
+   statements of its body, with that value. *)
+type facts = {
+  lets : (int, Expr.t) Hashtbl.t;
+  assigns : (int, Expr.place * Expr.t) Hashtbl.t;
+  defined : (int, unit) Hashtbl.t;
+  results : (int, Expr.t) Hashtbl.t;
+}
 
-   The step is found from the body's last statement, which assigns the
-   loop's counter its value plus a constant ([Repeat] of `to`): a local
-   assigned nowhere else in the body. A local the body binds once is its
-   value, and an expansion's result, assigned once among the first
-   statements of its body, is that value. *)
-let ranged_accesses body lists names =
+let facts body =
   let lets = Hashtbl.create 16 and assigns = Hashtbl.create 16 and defined = Hashtbl.create 16 in
   Cgt.Traverse.walk_stats ignore
     (function
@@ -204,44 +200,65 @@ let ranged_accesses body lists names =
           first eb
       | _ -> ())
     ignore body;
+  { lets; assigns; defined; results }
+
+(* [e] as a constant times the counter's step count plus an expression of
+   what is known before the loop, when it is one: the constant, and the
+   expression, which names the counter [x] itself where [e] does. *)
+let rec affine f counter (e : Expr.t) =
   let i64 node = { Expr.node; ty = Ty.I64 } in
-  let rec affine counter (e : Expr.t) =
-    match e.Expr.node with
-    | Expr.Int k -> Some (0, e)
-    | Expr.Local y -> (
-        match counter with
-        | Some (x, step) when x = y -> Some (step, e)
-        | _ -> (
-            match (Hashtbl.find_all assigns y, Hashtbl.find_opt lets y) with
-            | [], None -> if Hashtbl.mem defined y then None else Some (0, e)
-            | [], Some v -> affine counter v
-            | [ _ ], None when Hashtbl.mem results y -> affine counter (Hashtbl.find results y)
-            | _ -> None))
-    | Expr.Expand { result = Some r; _ } -> affine counter (i64 (Expr.Local r))
-    | Expr.Binary { op = Expr.Add; left; right } -> (
-        match (affine counter left, affine counter right) with
-        | Some (a, l), Some (c, r) -> Some (a + c, i64 (Expr.Binary { op = Expr.Add; left = l; right = r }))
-        | _ -> None)
-    | Expr.Binary { op = Expr.Mul; left; right } -> (
-        match (affine counter left, affine counter right) with
-        | Some (a, l), Some (0, ({ Expr.node = Expr.Int k; _ } as r))
-        | Some (0, ({ Expr.node = Expr.Int k; _ } as r)), Some (a, l) ->
-            Some (a * Int64.to_int k, i64 (Expr.Binary { op = Expr.Mul; left = l; right = r }))
-        | _ -> None)
-    | Expr.Flip v -> Option.map (fun (a, base) -> (-a, i64 (Expr.Flip base))) (affine counter v)
-    | _ -> None
-  in
-  let counter =
-    match List.rev body with
-    | Stat.Assign { place = { Expr.local = x; path = []; deref = false; _ }; value } :: _
-      when List.length (Hashtbl.find_all assigns x) = 1 && not (Hashtbl.mem defined x) -> (
-        match affine (Some (x, 0)) value with
-        | Some (0, { Expr.node = Expr.Binary { op = Expr.Add; left = { Expr.node = Expr.Local y; _ }; right = { Expr.node = Expr.Int c; _ } }; _ })
-          when y = x ->
-            Some (x, Int64.to_int c)
-        | _ -> None)
-    | _ -> None
-  in
+  match e.Expr.node with
+  | Expr.Int _ -> Some (0, e)
+  | Expr.Local y -> (
+      match counter with
+      | Some (x, step) when x = y -> Some (step, e)
+      | _ -> (
+          match (Hashtbl.find_all f.assigns y, Hashtbl.find_opt f.lets y) with
+          | [], None -> if Hashtbl.mem f.defined y then None else Some (0, e)
+          | [], Some v -> affine f counter v
+          | [ _ ], None when Hashtbl.mem f.results y -> affine f counter (Hashtbl.find f.results y)
+          | _ -> None))
+  | Expr.Expand { result = Some r; _ } -> affine f counter (i64 (Expr.Local r))
+  | Expr.Binary { op = Expr.Add; left; right } -> (
+      match (affine f counter left, affine f counter right) with
+      | Some (a, l), Some (c, r) -> Some (a + c, i64 (Expr.Binary { op = Expr.Add; left = l; right = r }))
+      | _ -> None)
+  | Expr.Binary { op = Expr.Mul; left; right } -> (
+      match (affine f counter left, affine f counter right) with
+      | Some (a, l), Some (0, ({ Expr.node = Expr.Int k; _ } as r))
+      | Some (0, ({ Expr.node = Expr.Int k; _ } as r)), Some (a, l) ->
+          Some (a * Int64.to_int k, i64 (Expr.Binary { op = Expr.Mul; left = l; right = r }))
+      | _ -> None)
+  | Expr.Flip v -> Option.map (fun (a, base) -> (-a, i64 (Expr.Flip base))) (affine f counter v)
+  | _ -> None
+
+(* The loop's counter and how far it moves each time round: the local its
+   [body]'s last statement assigns its own value plus a constant ([Repeat]
+   of `to`), assigned nowhere else in the body. *)
+let counter f body =
+  match List.rev body with
+  | Stat.Assign { place = { Expr.local = x; path = []; deref = false; _ }; value } :: _
+    when List.length (Hashtbl.find_all f.assigns x) = 1 && not (Hashtbl.mem f.defined x) -> (
+      match affine f (Some (x, 0)) value with
+      | Some (0, { Expr.node = Expr.Binary { op = Expr.Add; left = { Expr.node = Expr.Local y; _ }; right = { Expr.node = Expr.Int c; _ } }; _ })
+        when y = x ->
+          Some (x, Int64.to_int c)
+      | _ -> None)
+  | _ -> None
+
+(* Experimental (docs/experiments/goose-comparison): with
+   ZANE_LOOP_RANGES=1 as well, the element reads and writes of a loop's
+   [body] whose list [invariant_lists] found and whose index moves by a
+   constant -1, 0 or 1 each time round: each with that step and its index's
+   value on the first time round, as an expression of what is known before
+   the loop. The index's last value is then its first plus the step times
+   one less than the count, and between them it passes through every value
+   once, so the loop checks the two ends before it starts and, when both are
+   in range, runs a copy of itself that checks none of these. The step is
+   found from the loop's [counter]. *)
+let ranged_accesses body lists names =
+  let f = facts body in
+  let counter = counter f body in
   match counter with
   | Some (_, step) when abs step <= 1 ->
       let found = ref [] in
@@ -250,7 +267,7 @@ let ranged_accesses body lists names =
           match e.Expr.node with
           | Expr.Runtime { fn = Cgt.Runtime.List_at; args = [ l; index; _ ] } -> (
               let key = match l.Expr.node with Expr.Local x -> Option.value ~default:l (Hashtbl.find_opt names x) | _ -> l in
-              match affine counter index with
+              match affine f counter index with
               | Some (a, first) when abs a <= 1 && List.mem key lists -> found := (e, key, a, first) :: !found
               | _ -> ())
           | _ -> ())

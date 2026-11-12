@@ -1,0 +1,61 @@
+/// The loop of `lookahead` with no branch in its body, which no build
+/// prefetches (lib/codegen/lookahead.ml, `heavy`). Spawns nothing.
+package gathers;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Int argument(args @primitives$List<String>, at Int) => args[at]:parseI64() ?? Int(0);
+
+type Rec = struct {
+	key Int;
+	weight Int;
+}
+
+Rec(key Int, weight Int) => init{ key; weight; }
+
+/// The weights of the records `idx` names, the first `reach` of them: a
+/// body too light for a prefetch to pay, which no build prefetches.
+Int scan(recs ListRef<Rec>, idx ListRef<Int>, reach Int) {
+	sum Int(0);
+	i Int(1);
+	i!to(reach) {
+		sum = @operators$add(sum, recs[idx[i]].weight);
+	}
+	return sum;
+}
+
+Unit main() {
+	args @primitives$List<String> = @program$runtime:arguments();
+	n Int = argument(args, Int(1));
+	m Int = argument(args, Int(2));
+	recs ListRef<Rec> = @primitives$ListRef(Rec);
+	k Int(1);
+	k!to(n) {
+		recs!push(Rec(k, @operators$multiply(k, Int(10))));
+	}
+	idx ListRef<Int> = @primitives$ListRef(Int);
+	q Int(1);
+	q!to(n) {
+		idx!push(@operators$add(@math$bitAnd(@operators$multiply(q, Int(7919)), @operators$add(n, @operators$negate(Int(1)))), Int(1)));
+	}
+	f Int(1);
+	f!to(Int(40)) {
+		idx!push(Int(1000000000000));
+	}
+	@program$console!print(@operators$concat(String(scan(recs, idx, m)), String.escaped("\n")));
+	return Unit();
+}

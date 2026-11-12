@@ -115,7 +115,13 @@ optimized build that test is a `select`, with no branch on the tag around
 the payload's load. `escapes` is a program with two counted loops that
 return early: every build marks its arithmetic escape test to be unrolled
 twice, and the optimized build unrolls it, while `first`'s loop, which
-calls, is not marked.
+calls, is not marked. `lookahead` is a program whose `scan` reads records
+at indices loaded from another list and branches on each: its optimized
+build prefetches 32 iterations ahead and its plain one does not, nor does
+an optimized build with `ZANE_PREFETCH=0`; the early reads reach the index
+list's 40 entries past the records' end, and its own end, without stopping
+the program, while the loop's own read of a bad index still stops it.
+`gathers` is the same loop with no branch, which no build prefetches.
 
 `options_test.py` checks what `zanec` accepts for the options that name and
 stamp packages. A package name in `--package NAME=DIR` or an `--import` key

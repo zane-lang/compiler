@@ -1,0 +1,73 @@
+/// A loop reading a record at an index loaded from another list and
+/// branching on it, which an optimized build prefetches 32 iterations ahead
+/// (lib/codegen/lookahead.ml). Its first argument is how many records there
+/// are and its second how many indices the loop reads. The index list holds
+/// 40 more entries, each far past the records' end, which the prefetch reads
+/// early and must skip; a second argument past the valid indices makes the
+/// loop read one itself, which stops the program. Spawns nothing.
+package lookahead;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Int argument(args @primitives$List<String>, at Int) => args[at]:parseI64() ?? Int(0);
+
+type Rec = struct {
+	key Int;
+	weight Int;
+}
+
+Rec(key Int, weight Int) => init{ key; weight; }
+
+/// The weights of the records `idx` names, the first `reach` of them, each
+/// odd key's weight tripled.
+Int scan(recs ListRef<Rec>, idx ListRef<Int>, reach Int) {
+	sum Int(0);
+	i Int(1);
+	i!to(reach) {
+		j Int = idx[i];
+		odd Bool = @operators$equal(@math$bitAnd(recs[j].key, Int(1)), Int(1));
+		@controlflow$branch(odd, {
+			sum = @operators$add(sum, @operators$multiply(recs[j].weight, Int(3)));
+		});
+		@controlflow$branch(@operators$not(odd), {
+			sum = @operators$add(sum, recs[j].weight);
+		});
+	}
+	return sum;
+}
+
+Unit main() {
+	args @primitives$List<String> = @program$runtime:arguments();
+	n Int = argument(args, Int(1));
+	m Int = argument(args, Int(2));
+	recs ListRef<Rec> = @primitives$ListRef(Rec);
+	k Int(1);
+	k!to(n) {
+		recs!push(Rec(k, @operators$multiply(k, Int(10))));
+	}
+	idx ListRef<Int> = @primitives$ListRef(Int);
+	q Int(1);
+	q!to(n) {
+		idx!push(@operators$add(@math$bitAnd(@operators$multiply(q, Int(7919)), @operators$add(n, @operators$negate(Int(1)))), Int(1)));
+	}
+	f Int(1);
+	f!to(Int(40)) {
+		idx!push(Int(1000000000000));
+	}
+	@program$console!print(@operators$concat(String(scan(recs, idx, m)), String.escaped("\n")));
+	return Unit();
+}

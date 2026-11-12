@@ -5,7 +5,9 @@ or writes at addresses the hardware cannot predict, by computing addresses
 early and fetching them before they are used. This is a C model of the code
 shapes the compiler could emit, not a change to `zanec`: `model.c` holds each
 kernel written plainly and in every reordered form, with Zane's index checks
-and 32-bit handles, and `run.py` sweeps it.
+and 32-bit handles, and `run.py` sweeps it. Round 5 moves to `zanec`:
+`programs/` holds the same kernels in Zane and the timing of what the
+compiler builds from them.
 
 **Measuring.** `run.py LABEL` builds `model.c` with `clang -O2`, runs each
 kernel pinned to one CPU at three data sizes (256 KiB, 32 MiB, 2 GiB) with
@@ -199,6 +201,109 @@ At 2 GiB, plain time and the better of `group` and `amac`:
 - `amac` was never slower than plain in any placement at these sizes;
   `group` was. Refilling a finished place at once is the form to build.
 
+## Round 5: the measured shapes in Zane, and a prefetch in `zanec`
+
+`programs/` holds the model's `heavy`, `hash`, `tree`, `chains` and
+`gather` written in Zane, and `programs/time.py`, which builds them with
+`zanec --optimize` and times them. Each program builds its data as
+`model.c` does and prints the same checksum for the same arguments, which
+was checked against `model.c` at 256 KiB for all five. Zane has no clock,
+so each program prints `ready` when its data is built, and `time.py` runs
+it on a pseudo-terminal, where output is flushed per line, and times the
+loop from that line to the checksum. Pages are 4 KiB: the runtime asks for
+no huge pages and the machine's transparent huge pages are `madvise` only.
+Same machine type as rounds 1 to 4 (Xeon at 2.1 GHz, 2 MiB of L2 per core,
+260 MiB L3 shared with other tenants), pinned to the last CPU, 15 GiB of
+memory.
+
+Two of the programs need a loop that stops early, which Zane writes as a
+`return` inside a counted loop. A function with one is called, and a call
+in a loop's body keeps the codegen's loop analyses off it, so `probe`,
+`find` and `walk` each take a block they never run: a verb that takes a
+block is written out where it is called, and its `return` then leaves only
+the walk. `@controlflow$exitFromCall` does not do this: in a block, it ends
+that block's run, not the loop.
+
+**Plain `zanec`** (`results/zane-baseline.tsv`, the compiler at `9536bf4`,
+best of 3, one run of the sweep), against the plain C of rounds 1 and 2 at
+2 GiB:
+
+| program | 256 KiB | 32 MiB | 2 GiB | plain C, 2 GiB |
+| --- | ---: | ---: | ---: | ---: |
+| `heavy` | 7.5 ns | 18.5 ns | 38.2 ns | 35 to 38 ns |
+| `hash` | 12.9 ns | 32.3 ns | 88.0 ns | 101 ns |
+| `gather` | 0.9 ns | 7.0 ns | 30.5 ns | 21 to 22 ns |
+| `tree` | 53 ns | 604 ns | 2049 ns | 1940 to 2228 ns |
+| `chains` | 12.2 ns | 211 ns | 766 ns | 633 to 664 ns |
+
+Zane's loops are where C's are: the index checks cost little next to the
+misses.
+
+**The prefetch.** `lib/codegen/lookahead.ml` (docs/optimizations.md,
+"Reads through a loaded index prefetched ahead") prefetches, 32 iterations
+ahead, a list element a loop reads at an index made from another list's
+element, when the loop's body branches or loops. It applies to `heavy`
+(`recs[idx[i]]`) and to `hash` (the probe's home slot, worked out from
+`queries[i]`), and leaves `gather` (no branch), `tree` (its first read is
+the root, the same each time) and the walk of `chains` alone. Its early
+reads are each made only when the index is inside the list, so nothing it
+reads early can stop a program.
+
+Measured with `time.py --pair prefetch ZANE_PREFETCH`: the same compiler
+builds each program with the prefetch and with `ZANE_PREFETCH=0`, and the
+two builds' runs alternate, five each, so a neighbour slows both alike.
+Best run, and the median run in brackets, of the prefetch over the build
+without it (`results/zane-prefetch.tsv`, `zane-prefetch-off.tsv`):
+
+| program | 256 KiB | 32 MiB | 2 GiB |
+| --- | --- | --- | --- |
+| `heavy` | ×0.86 (×1.03) | ×1.88 (×1.88) | ×1.72 (×1.76) |
+| `hash` | ×1.08 (×1.07) | ×1.89 (×1.60) | ×2.55 (×2.50) |
+| `gather`, the same binary twice | ×0.99 (×0.87) | ×0.99 (×1.00) | ×0.83 (×0.80) |
+| `chains`, the walk the same twice | ×0.98 (×0.73) | ×0.86 (×0.93) | ×1.00 (×1.01) |
+
+`gather`'s two builds are byte for byte the same program and `chains`'
+differ only in the loop that builds the data, so their rows are the noise
+of five runs here: as much as 20% at 2 GiB and 27% on the median at
+256 KiB. `heavy`'s ×0.86 in cache was within it, and did not repeat: with
+11 runs of each (`time.py --pair prefetch-small`, `TIME_SIZES=18,20,21,22,23`,
+`results/zane-prefetch-small*.tsv`):
+
+| program | 256 KiB | 1 MiB | 2 MiB | 4 MiB | 8 MiB |
+| --- | --- | --- | --- | --- | --- |
+| `heavy` | ×1.03 (×1.02) | ×1.17 (×1.12) | ×1.31 (×1.35) | ×1.36 (×1.37) | ×1.45 (×1.53) |
+| `hash` | ×1.06 (×1.09) | ×1.13 (×1.20) | ×1.38 (×1.31) | ×1.20 (×1.45) | ×1.53 (×1.63) |
+
+**What it shows.**
+
+- The prefetch gives in `zanec` what it gave in the model: ×1.7 to ×1.9
+  for `heavy` from 32 MiB (model ×1.56 to ×2.0 with 4 KiB pages) and
+  ×1.9 to ×2.5 for `hash` (model ×2.77 at 2 GiB). It is not slower at any
+  size measured, so it needs no gate, as the model said.
+- The first version also prefetched the head of each chain in `chains`,
+  through the walk's cursor's first value. Measured one build after the
+  other rather than in turn, it was ×1.07 at 2 GiB, but ×0.75 at 32 MiB and
+  ×0.66 at 256 KiB against the plain build's earlier run. Those runs were
+  not paired, and a later pair shows the plain loop alone moving that much,
+  so the loss is not established; the model had already found the head
+  worth nothing (round 2, ×1.00), and the pass now leaves a walk alone: a
+  local the body reassigns from an element it reads is a chain's cursor.
+  It first did so for the hash probe's cursor too, through that cursor's
+  own `let`, which lost `hash` its prefetch until the test skipped the
+  local's own binding.
+- The first version also prefetched `hist[h & 15]` in `heavy`, through the
+  `let` of `h` before the hash steps that reassign it: a wrong address, and
+  a list that is always in cache. A local is now taken at its `let`'s value
+  only when the body reassigns it in a loop inside it, as a probe's cursor
+  is, and nowhere else.
+- Runs of one build sweep after another were not good enough here. With
+  the data at 32 MiB in a 260 MiB L3 shared with other tenants, the same
+  binary measured 211 ns, 281 ns and 311 ns per walk on three runs.
+  Alternating the builds run by run, and reading the median beside the
+  best, is what the numbers above rest on.
+- No program in `tests/perf` gets a prefetch, so the Callgrind numbers CI
+  holds are unchanged by it.
+
 ## Where this points
 
 Worth building, in the order the measurements rank them:
@@ -216,7 +321,9 @@ Not worth building: prefetching right before the access, batching in place
 of a sliding distance, loading early without a prefetch, the non-temporal
 hint, a helper thread, and prefetching a chain's head alone.
 
-**Not yet tried.** Any of this in `zanec`; nodes with several children to a
+**Not yet tried.** Interleaving in `zanec` (designed in
+[`design/interleaving.md`](../../design/interleaving.md), not built); huge pages
+for `zanec`'s large blocks; nodes with several children to a
 cache line; interleaved batches on several cores; a body between `gather` and
 `heavy` in weight, to find where a prefetch starts to pay; a processor other
 than this one.
