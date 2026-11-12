@@ -71,11 +71,10 @@ let nontrivial triple pipeline =
 
 (* The options LLVM is started with for [optimized] and [tier1], the same
    for both, since LLVM reads them once for the whole process. Every
-   function starts on a 64-byte line, so where a
-   function lies within its line, and so which branches share a
-   predictor's entries, does not move when the code before it changes
-   size: a change elsewhere once cost an unchanged loop of `copies` 40%
-   more mispredicted branches (tests/perf). *)
+   function starts on a 64-byte line, so where a function lies within its
+   line, and so which branches share a predictor's entries, does not move
+   when the code before it changes size: a change elsewhere once cost an
+   unchanged loop of `copies` 40% more mispredicted branches (tests/perf). *)
 let llvm_options = [ "-align-all-functions=6" ]
 
 (* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*,

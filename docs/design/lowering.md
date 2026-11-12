@@ -1490,10 +1490,12 @@ test passing.
   entry to the loop a few dozen instructions, which a short loop does not
   earn back, so IRCE splits a loop only when it expects the split to remove
   enough checks for each entry, which it reckons from the loop's branch
-  weights (LLVM's `-irce-min-eliminated-checks`, left at its default of
-  10). Codegen says which loops are long: a `repeat` that no other loop holds, that holds no loop, spawn,
-  join, `return` or call back into its own function, that nothing leaves
-  early, and that reads or writes an element, is emitted twice (`Emit.versioned`) in an optimized build and in
+  weights, or from LLVM's guess where there are none
+  (`-irce-min-eliminated-checks`, left at its default of 10). Codegen says
+  which loops are long: a `repeat` that no other loop holds, that holds no
+  loop, spawn, join, `return` or call back into its own function, that
+  nothing leaves early, and that reads or writes an element, is emitted
+  twice (`Emit.versioned`) in an optimized build and in
   both tiers of a tiered one, which emit the same module
   ([`tiers.md`](tiers.md) T3); a plain build, whose passes have no use for the
   copies, emits it once. A count of at least 16 runs
