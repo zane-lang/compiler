@@ -618,6 +618,25 @@ both of its halves reach LLVM as code. Jump threading, run while each
 turns a cheap `if` body into selects, and both bodies run every time round
 a loop.
 
+### A sum's case picked without a branch
+
+- **Builds:** optimized only, and tier 1
+- **Where:** `lib/codegen/passes.ml` (`llvm_options`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
+- **Effect:** `tests/perf` estimated cycles: `entities` 23.9% fewer
+  tiered (67% fewer mispredicted branches) and 7.5% fewer optimized,
+  `floats` 4.7%, `scopes` 2.6–4.7%, `particles` 3.1–3.2% fewer; `growth`
+  2.5% more ([`experiments/tight-layouts`](experiments/tight-layouts/README.md)
+  step 14)
+
+LLVM's instruction combining is kept from sinking instructions into the
+block that uses them. It reads a packed sum as its tag and its room, and
+with sinking on it moves the room's load into the case that reads the
+payload, where nothing tells LLVM the load is safe to make before the tag
+is tested. Left beside the tag's load, the room is read either way, and a
+case's test and payload become a select instead of a branch on the tag
+that the predictor cannot learn.
+
 ### Index checks taken out of long loops
 
 - **Builds:** optimized only (and tier 1)

@@ -106,10 +106,13 @@ strings: the scalar list's moves carry the scalar tag and, in the optimized
 build, its loop keeps the count in a register, and the string list's moves
 carry none. `pushes` is a program whose `gather` pushes four
 scalars in a row onto a list of its own: each element it moves in carries
-the scalar tag. `escapes` is a program with two counted loops that return
-early: every build marks its arithmetic escape test to be unrolled twice,
-and the optimized build unrolls it, while `first`'s loop, which calls, is
-not marked.
+the scalar tag. `cases` is a program whose `deaths` tests each element of
+a list of packed optional `Int`s, one-byte tag and payload: in the
+optimized build that test is a `select`, with no branch on the tag around
+the payload's load. `escapes` is a program with two counted loops that
+return early: every build marks its arithmetic escape test to be unrolled
+twice, and the optimized build unrolls it, while `first`'s loop, which
+calls, is not marked.
 
 `options_test.py` checks what `zanec` accepts for the options that name and
 stamp packages. A package name in `--package NAME=DIR` or an `--import` key

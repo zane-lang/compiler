@@ -793,7 +793,83 @@ conditional move. The load is safe either way: the same loop loads the
 payload unconditionally a few instructions later. So this is LLVM's
 choice for the unaligned field, not a fault in the code. The optimized
 build has the same branch (+52% mispredicts) and still comes out 10.7%
-ahead through 29% fewer first-level misses.
+ahead through 29% fewer first-level misses. (Step 14 corrects both
+readings: the branch is instruction combining's, and the optimized sweep
+has none.)
+
+## Step 14: the branch is instruction combining's sinking
+
+[zane-lang/compiler#354](https://github.com/zane-lang/compiler/issues/354)
+asked why step 13's `entities` lost 7.5% tiered while it gained 10.7%
+optimized. Measured with Callgrind as `tests/perf` measures, each
+conditional branch's mispredicts read from `--dump-instr=yes`:
+
+- **The optimized sweep has no branch.** On `main` at `2baf718`, its loop
+  tests every component with `setcc` and `cmov`. Its extra mispredicts
+  are in the movement and damage loops. Tier 1's sweep branches three
+  times: on the health's tag (`dead`) and on the velocity's tag and the
+  position's `x` (`stranded`, `grounded`). Those three are 280,000 of its
+  751,000 mispredicts.
+- **The pass pipelines do not differ in it.** Tier 1's pipeline over the
+  optimized build's IR gives the optimized loop, and the optimized pipeline
+  over tier 1's IR gives tier 1's branches. The input differs: in the
+  optimized build `main` is inlined into `zane_main`, so its loops go
+  through the function passes a second time, and that second round
+  recovers the selects. Tier 1 runs `main` through them once.
+- **The branch is made by instruction combining.** After SROA, the case
+  that reads the health's payload holds only an `extractvalue` of the
+  whole-value load and a compare, which the CFG simplifier would make a
+  `select`. Instruction combining runs first. It splits the load of
+  `<{ i8, i64 }>`, a struct with no padding, into a load of the tag and a
+  load of the room, and sinks the room's load into that case, the one
+  block that uses it. The next CFG simplifier cannot show that load is
+  safe to make before the tag is tested, so the branch stays. The old
+  `{ i32, [2 x i64] }` has padding after its tag. Instruction combining
+  does not split a load with padding, so the room stayed an
+  `extractvalue`.
+
+What was tried, as estimated cycles against `main`, every program and
+build (`perf14-main.txt` against `perf14-no-sinking.txt`,
+`perf14-freeze.txt` and `perf14-early-simplifycfg.txt`):
+
+| Change | `entities` tiered | `entities` optimized | Other rows past 0.3% |
+| --- | --- | --- | --- |
+| `-instcombine-code-sinking=false` | −23.9% | −7.5% | `floats` −4.7%, `scopes` −2.6%/−4.7%, `particles` −3.2%/−3.1%, `stress` −0.7%, `division` −0.4%, `growth` +2.5%, `flips` optimized +0.4% |
+| `freeze` every multi-piece sum read through a pointer | −10.4% | +5.7% | none |
+| a speculating CFG simplifier before the first instruction combining | +2.5% | +24.3% | `particles` −1.7%, `division` +1.2%, `stress` +0.4% |
+
+- **`freeze`** keeps the room's load beside the tag's, since the frozen
+  value's members are used in both blocks. But a frozen value is no
+  longer known to equal memory, so `hurt`'s `none => health` stores the
+  tag and the room back on every pass, where it stored nothing before.
+- **The early simplifier** fixes `dead` alone. `stranded`'s test on the
+  position is still sunk, and the pipeline's order changes elsewhere.
+- **`!unpredictable` or branch weights** cannot help: the `select` is
+  held back by the load's safety, not by its cost.
+- **An `llvm.assume` that the address is dereferenceable** is used only
+  for a pointer that cannot be freed, and LLVM takes any pointer in a
+  function that may free as one that can.
+
+Turning sinking off is what shipped (`Passes.llvm_options`). Tier 1's
+sweep is then the optimized build's loop, instruction for instruction.
+`growth`'s +2.5% is one instruction per push in its fill loop, where
+LLVM picks another exit test for the induction variable (`lea; inc; cmp
+$1` for `cmp; je`). Code is 1.4% larger over the perf programs
+(`division` +3.0%, `stress` +2.4%, the rest within ±0.6%).
+
+**Wall clock, in the container** (Intel Xeon @ 2.10 GHz, best and
+median of 15, at 10× the gate size, three runs): `entities` −20% to −25%
+optimized and −35% to −41% tiered, against `main`, far past the
+container's noise. `growth` at 10× swung from −25% to +16% between runs,
+so it says nothing either way. These runs cannot show what step 11 found
+on real x86: whether packing's unaligned 8-byte accesses, and the stores
+the core cannot forward, cost more than Callgrind counts. `wall14.py`
+times one program's optimized and tiered builds by two compilers,
+interleaved; on a real x86 machine, with `main`'s compiler copied aside
+as `zanec-main`:
+
+    python3 docs/experiments/tight-layouts/wall14.py zanec-main _build/default/bin/zanec/zanec.exe entities 10 15
+    python3 docs/experiments/tight-layouts/wall14.py zanec-main _build/default/bin/zanec/zanec.exe growth 10 15
 
 ## Findings
 
@@ -835,6 +911,12 @@ ahead through 29% fewer first-level misses.
   simulated cycles and within the noise in time. The facts are cheap to
   keep and sound, so a real implementation would keep them, but not for
   speed here.
+
+- **A packed sum's case needs instruction combining's sinking off** to
+  stay a `select`. Its load has no padding to keep it whole, so the room's
+  load is split off and sunk into the case that reads it, where LLVM
+  cannot show it safe to make before the tag is tested. The cost shows
+  wherever a loop runs a function's passes once, as tier 1 does (step 14).
 
 ## What remains
 

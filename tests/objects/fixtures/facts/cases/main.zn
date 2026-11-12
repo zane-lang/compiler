@@ -1,0 +1,67 @@
+/// A list of optional values whose payload leaves no spare byte, so each
+/// is packed as a one-byte tag and eight bytes, and a loop that tests each
+/// one's case and its payload, as `tests/perf/entities`' sweep does. Which
+/// case an element holds follows no pattern a predictor learns.
+package cases;
+
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+type Health = variant {
+	none Unit;
+	some Int;
+}
+
+/// One for health that ran out.
+Int dead(health Health) => match (health) {
+	h some {
+		@controlflow$branch(@operators$lessThan(h, Int(1)), {
+			return Int(1);
+		});
+		return Int(0);
+	}
+	none => Int(0);
+}
+
+/// How many of the list's healths ran out.
+Int deaths(this ListRef<Health>) {
+	count Int(0);
+	k Int(1);
+	k!to(this:size()) {
+		count = @operators$add(count, dead(this[k]));
+	}
+	return count;
+}
+
+Unit main() {
+	args @primitives$List<String> = @program$runtime:arguments();
+	n Int = args[Int(1)]:parseI64() ?? Int(0);
+	healths ListRef<Health> = @primitives$ListRef(Health);
+	state Int(7);
+	i Int(1);
+	i!to(n) {
+		state = @math$bitAnd(@operators$add(@operators$multiply(state, Int(1103515245)), Int(12345)), Int(2147483647));
+		@controlflow$branch(@operators$lessThan(@math$bitAnd(state, Int(1024)), Int(1)), {
+			healths!push(Health.none(Unit()));
+		});
+		@controlflow$branch(@operators$not(@operators$lessThan(@math$bitAnd(state, Int(1024)), Int(1))), {
+			healths!push(Health.some(@operators$add(@math$bitAnd(state, Int(7)), @operators$negate(Int(3)))));
+		});
+	}
+	@program$console!print(@operators$concat(String(healths:deaths()), String.escaped("\n")));
+	@program$console!print(@operators$concat(String(healths:deaths()), String.escaped("\n")));
+	return Unit();
+}
