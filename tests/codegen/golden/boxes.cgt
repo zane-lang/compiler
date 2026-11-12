@@ -5,11 +5,11 @@
     │   └── positions[0]: box @0 of boxes$Countdown (4 bytes) when [0]=-2
     ├── layouts[1] > layout:
     │   ├── type: boxes$Pair
-    │   ├── positions[0]: box @1 of boxes$Pair (18 bytes) when [0]=1
-    │   └── positions[1]: box @10 of boxes$Pair (18 bytes) when [9]=1
+    │   ├── positions[0]: box @1 of boxes$Pair (18 bytes) when [0]=1 (a byte)
+    │   └── positions[1]: box @10 of boxes$Pair (18 bytes) when [9]=1 (a byte)
     ├── layouts[2] > layout:
     │   ├── type: boxes$Tree
-    │   └── positions[0]: box @1 of boxes$Pair (18 bytes) when [0]=1
+    │   └── positions[0]: box @1 of boxes$Pair (18 bytes) when [0]=1 (a byte)
     ├── layouts[3] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0

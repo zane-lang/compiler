@@ -14,6 +14,6 @@ grep -o -- '--build [A-Za-z]*\.exe --package.*)))' dune.inc | sed 's/)))$//' | w
       echo "$tag: refused: $(grep -m1 . "$W/$n.err")"; continue
     fi
     if [ -n "$opt" ] && [ -f "golden/$n.optimized.out" ]; then want="golden/$n.optimized.out"; else want="golden/$n.out"; fi
-    if ZANE_CHECK=1 timeout 60 "$W/$exe" 2>/dev/null | cmp -s - "$want"; then echo "$tag: same"; else echo "$tag: DIFFERENT"; fi
+    if ZANE_CHECK=1 timeout 60 "$W/$exe" >"$W/$n.out" 2>/dev/null && cmp -s "$W/$n.out" "$want"; then echo "$tag: same"; else echo "$tag: DIFFERENT"; fi
   done
 done

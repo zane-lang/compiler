@@ -42,7 +42,7 @@ for t in tests.TESTS:
             s = time.perf_counter()
             r = subprocess.run([out, *t["args"]], capture_output=True, text=True, timeout=600)
             best = min(best, time.perf_counter() - s)
-            ok = ok and r.stdout.replace("\r\n", "\n") == t["expected"]
+            ok = ok and r.returncode == 0 and r.stdout.replace("\r\n", "\n") == t["expected"]
         if base is None: base = best
         cells.append(f"{best:8.3f}s {100*(best/base-1):+6.1f}%{'' if ok else ' WRONG'}")
     print(f"{tid:14}" + "".join(f"{c:>26}" for c in cells), flush=True)

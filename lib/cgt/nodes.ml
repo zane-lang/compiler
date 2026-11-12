@@ -52,7 +52,7 @@ module Ty = struct
 
   (* A value's spare byte ([spare]) and a sum's byte niche ([byte_niche]). *)
   type spare = { path : int list option; at : int; first : int; free : int }
-  type byte_niche = { case : int; path : int list option; at : int; first : int; count : int }
+  type byte_niche = { case : int; path : int list option; at : int; first : int; count : int; free : int }
 
   (* No type takes [limit] bytes or more: no such value can be placed, since
      the runtime's chunk map covers 48-bit addresses
@@ -69,6 +69,14 @@ module Ty = struct
   let round_up size align = add size (align - 1) / align * align
 
   let below_limit size = if size >= limit then raise Too_large else size
+
+  (* The offset a byte niche's spare byte must be below, which a layout's
+     tag holds in 24 bits (Layout.byte_niche_tag). *)
+  let max_niche_at = 1 lsl 24
+
+  (* Each sum's byte niche, found once, by whether niches are on and its
+     cases. *)
+  let byte_niches : (bool * t list, byte_niche option) Hashtbl.t = Hashtbl.create 64
 
   (* Size and alignment in bytes on a 64-bit target. A bare [Struct] is laid
      out as C lays it out, and a bare [Sum] is its tag and then its payload
@@ -121,13 +129,26 @@ module Ty = struct
      payload's bytes alone, each other case one of those values at that
      byte: the first of them for the first such case, and so on. *)
   and byte_niche ts =
+    let key = (Ref32.niche (), ts) in
+    match Hashtbl.find_opt byte_niches key with
+    | Some n -> n
+    | None ->
+        let n = find_byte_niche ts in
+        Hashtbl.replace byte_niches key n;
+        n
+
+  (* Found once for each sum (byte_niches): a sum nested in a member
+     asks again for each layer above it, which would double the work at
+     each. A spare byte past [Layout.byte_niche_tag]'s reach is not used. *)
+  and find_byte_niche ts =
     if List.length ts < 2 then None
     else
       match List.filter (fun (_, t) -> t <> Void) (List.mapi (fun i t -> (i, t)) ts) with
       | [ (case, t) ] -> (
           let count = List.length ts - 1 in
           match spare t with
-          | Some s when s.free >= count -> Some { case; path = s.path; at = s.at; first = s.first; count }
+          | Some s when s.free >= count && s.at < max_niche_at ->
+              Some { case; path = s.path; at = s.at; first = s.first; count; free = s.free }
           | _ -> None)
       | _ -> None
 
@@ -137,7 +158,7 @@ module Ty = struct
      leaves the values its own cases do not take. [path] leads through
      members and elements to a [Bool] whose byte it is, which a niche sum's
      own layout holds as a byte (Emit.lltype); none for a tag. *)
-  and spare t =
+  and spare t : spare option =
     let inside base i (s : spare) : spare = { s with at = base + s.at; path = Option.map (fun p -> i :: p) s.path } in
     match t with
     | I1 -> Some { path = Some []; at = 0; first = 2; free = 254 }
@@ -156,10 +177,7 @@ module Ty = struct
         Some { path = None; at = 0; first = List.length ts; free = 256 - List.length ts }
     | Sum ts -> (
         match byte_niche ts with
-        | Some n when n.first + n.count < 256 -> (
-            match spare (List.nth ts n.case) with
-            | Some s -> Some { path = None; at = s.at; first = s.first + n.count; free = s.free - n.count }
-            | None -> None)
+        | Some n when n.first + n.count < 256 -> Some { path = None; at = n.at; first = n.first + n.count; free = n.free - n.count }
         | _ -> None)
     | _ -> None
 
@@ -188,13 +206,15 @@ module Ty = struct
      (docs/design/lowering.md L5). A struct that C's layout would pad is
      packed: no padding, its tail included, and alignment 1; one with no
      padding keeps its natural layout and alignment. A sum with a niche or
-     a byte niche is laid out as that; any other is packed, its tag one
-     byte and its payload room right after it. A struct too large to
+     a byte niche is laid out as that; any other of at most 256 cases is
+     packed, its tag one byte and its payload room right after it, and
+     one of more keeps the 4-byte tag of a bare [Sum]. A type too large to
      measure is left for the size check to refuse. *)
   let tight t =
     match t with
     | Struct _ when (try fst (size_align (Packed t)) < fst (size_align t) with Too_large -> false) -> Packed t
-    | Sum ts when not (niche ts) && Option.is_none (byte_niche ts) -> Packed t
+    | Sum ts when List.length ts <= 256 && not (niche ts) && (try Option.is_none (byte_niche ts) with Too_large -> false) ->
+        Packed t
     | t -> t
 
   (* [xs], one for each of the members [ts] in declaration order, in their
@@ -354,9 +374,17 @@ module Layout = struct
      names either way. *)
   let niche_tag i = -i - 1
 
-  (* Experimental (Ty.byte_niche): the tag a position under a byte-niche
-     sum's case [case] names, which a walk tests as the byte at [at] past
-     the sum holding none of the [count] values from [first] up. *)
+  (* The tag a position under a packed sum's case [i] names, which a walk
+     tests as the byte at the sum's start; a bare sum's case [i] is [i]
+     itself, tested as a 4-byte word. *)
+  let packed_base = 1 lsl 48
+
+  let packed_tag i = packed_base + i
+  let packed_case t = if t >= packed_base then Some (t - packed_base) else None
+
+  (* The tag a position under a byte-niche sum's case [case] names, which
+     a walk tests as the byte at [at] past the sum holding none of the
+     [count] values from [first] up. [at] is below Ty.max_niche_at. *)
   let byte_niche_base = 1 lsl 50
 
   let byte_niche_tag ~case ~at ~first ~count =
@@ -369,7 +397,10 @@ module Layout = struct
       Some (v lsr 40, (v lsr 16) land 0xffffff, (v lsr 8) land 0xff, v land 0xff)
 
   let tag_case t =
-    match byte_niche t with Some (case, _, _, _) -> case | None -> if t < 0 then -t - 1 else t
+    match (byte_niche t, packed_case t) with
+    | Some (case, _, _, _), _ -> case
+    | None, Some case -> case
+    | None, None -> if t < 0 then -t - 1 else t
   (* Whether a value of layout [l], whose positions [find] gives, holds a
      foreign handle: anywhere, or with [settled] only where a settled
      overwrite replaces it through its setter, in no variant's payload and

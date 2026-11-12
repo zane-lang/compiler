@@ -39,11 +39,12 @@ for p in names:
     for _ in range(runs):
         for m, _ in MODES:
             s = time.perf_counter()
-            out = subprocess.run([exes[m], *args], capture_output=True, timeout=600).stdout
+            r = subprocess.run([exes[m], *args], capture_output=True, timeout=600)
             best[m] = min(best[m], time.perf_counter() - s)
-            out = out.replace(b"\r\n", b"\n")
+            if r.returncode != 0: wrong.add(m)
+            out = r.stdout.replace(b"\r\n", b"\n")
             if scale == 1 and out != want: wrong.add(m)
             want = want if scale == 1 else outs.setdefault("first", out)
             if scale != 1 and out != want: wrong.add(m)
-    base = best["default"]
+    base = best[MODES[0][0]]
     print(f"{p:12}" + "".join(f"{f'{best[m]:8.3f}s {100*(best[m]/base-1):+6.1f}%' + (' WRONG' if m in wrong else ''):>26}" for m, _ in MODES), flush=True)

@@ -53,6 +53,18 @@ let layouts () =
   check "a sum's spare byte may be a packed sum's tag"
     (let inner = N.Packed (N.Sum [ N.Void; N.I64 ]) in
      match N.byte_niche [ N.Void; inner ] with Some { N.at = 0; first = 2; count = 1; _ } -> true | _ -> false);
+  check "a sum of more cases than a byte tells apart keeps its 4-byte tag"
+    (let cases n = List.init n (fun _ -> N.Void) in
+     N.tight (N.Sum (cases 300)) = N.Sum (cases 300) && N.tight (N.Sum (cases 256)) = N.Packed (N.Sum (cases 256)));
+  check "a sum too large to measure is left for the size check"
+    (let sum = N.Sum [ N.Void; N.Struct [ N.Array (N.I64, 1 lsl 46); N.I1 ] ] in
+     N.tight sum = sum);
+  check "a spare byte past what a layout's tag holds is not a byte niche"
+    (N.byte_niche [ N.Void; N.Struct [ N.Array (N.I64, 1 lsl 21); N.I1 ] ] = None
+     && N.byte_niche [ N.Void; N.Struct [ N.Array (N.I64, (1 lsl 21) - 1); N.I1 ] ] <> None);
+  check "optional Bools nested sixty deep, each in a struct, are laid out in time"
+    (let rec deep k t = if k = 0 then t else deep (k - 1) (N.Sum [ N.Void; N.Struct [ N.I32; t ] ]) in
+     match deep 60 N.I1 with N.Sum ts -> N.byte_niche ts <> None | _ -> false);
   check "a member's index is where its layout places it"
     (List.map (Type_layout.member_index st mixed) [ 0; 1; 2; 3; 4 ] = [ 4; 0; 2; 1; 3 ]);
   check "a member's index reads through a roaming owner"

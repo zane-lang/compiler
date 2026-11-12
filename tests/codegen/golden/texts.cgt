@@ -8,13 +8,13 @@
     │   └── positions[0]: text @0
     ├── layouts[2] > layout:
     │   ├── type: texts$Tagged
-    │   └── positions[0]: text @1 when [0]=0
+    │   └── positions[0]: text @1 when [0]=0 (a byte)
     ├── layouts[3] > layout:
     │   ├── type: ^texts$Person
     │   └── positions[0]: text @0
     ├── layouts[4] > layout:
     │   ├── type: texts$Holder
-    │   └── positions[0]: text @1 when [0]=0
+    │   └── positions[0]: text @1 when [0]=0 (a byte)
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:

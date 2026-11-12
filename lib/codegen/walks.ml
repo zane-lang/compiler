@@ -155,20 +155,17 @@ let each c count body =
 (* Whether a position is there in the value at [base]: every variant tag
    it lies under is live. *)
 let present c base (p : Layout.position) =
-  let i32 = Llvm.i32_type c.env.ctx in
-  (* A packed sum's tag is a byte (Ty.tight). *)
-  let tag_type = Llvm.i8_type c.env.ctx in
+  let i32 = Llvm.i32_type c.env.ctx and i8 = Llvm.i8_type c.env.ctx in
   List.fold_left
     (fun cond (o, tag) ->
       let live =
-        match Layout.byte_niche tag with
-        | Some (_, at, first, count) ->
-            let i8 = Llvm.i8_type c.env.ctx in
+        match (Layout.byte_niche tag, Layout.packed_case tag) with
+        | Some (_, at, first, count), _ ->
             let byte = load c i8 (offset c base (o + at)) in
             Llvm.build_icmp Llvm.Icmp.Uge (Llvm.build_sub byte (Llvm.const_int i8 first) "" c.b) (Llvm.const_int i8 count) "" c.b
-        | None ->
-        if tag < 0 then Llvm.build_icmp Llvm.Icmp.Ne (load c i32 (offset c base o)) (Llvm.const_int i32 0) "" c.b
-        else Llvm.build_icmp Llvm.Icmp.Eq (load c tag_type (offset c base o)) (Llvm.const_int tag_type tag) "" c.b
+        | None, Some case -> Llvm.build_icmp Llvm.Icmp.Eq (load c i8 (offset c base o)) (Llvm.const_int i8 case) "" c.b
+        | None, None when tag < 0 -> Llvm.build_icmp Llvm.Icmp.Ne (load c i32 (offset c base o)) (Llvm.const_int i32 0) "" c.b
+        | None, None -> Llvm.build_icmp Llvm.Icmp.Eq (load c i32 (offset c base o)) (Llvm.const_int i32 tag) "" c.b
       in
       match cond with None -> Some live | Some cond -> Some (Llvm.build_and cond live "" c.b))
     None p.tags

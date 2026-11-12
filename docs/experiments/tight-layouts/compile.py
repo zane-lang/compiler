@@ -8,6 +8,10 @@ Run from the repository root after `pixi run just build`:
 Each program is built RUNS times (default 3) with and without --optimize
 in each mode; the best wall time and the size of the stripped executable
 are reported, summed over the programs, against the default build.
+
+The modes set ZANE_PACK and ZANE_UNSWITCH, which the compiler read until
+step 13 made the niche layout its default and unswitching a choice of the
+target and removed both; run at that commit's parent to compare them again.
 """
 import os, subprocess, sys, tempfile, time
 

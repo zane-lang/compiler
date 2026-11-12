@@ -1245,12 +1245,12 @@ entry:
   let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string ir) in
   Codegen__Alignment.mark m;
   let f = Option.get (Llvm.lookup_function "f" m) in
-  let loads = Hashtbl.create 16 and stores = ref [] in
+  let loads = Hashtbl.create 16 and stores = Hashtbl.create 4 in
   Llvm.iter_blocks
     (Llvm.iter_instrs (fun i ->
          match Llvm.instr_opcode i with
          | Llvm.Opcode.Load -> Hashtbl.replace loads (Llvm.value_name i) (Llvm.alignment i)
-         | Llvm.Opcode.Store -> stores := Llvm.alignment i :: !stores
+         | Llvm.Opcode.Store -> Hashtbl.replace stores (Llvm.value_name (Llvm.operand i 1)) (Llvm.alignment i)
          | _ -> ()))
     f;
   let at name = Hashtbl.find loads name in
@@ -1270,7 +1270,7 @@ entry:
   check "a select is the least of its two" (at "inselect" = 1);
   check "a pointer read back from a slot is as aligned as what was stored" (at "readback" = 8);
   check "an atomic access keeps its alignment" (at "atomic" = 8);
-  check "a store follows the same rules" (List.mem 1 !stores && List.mem 8 !stores);
+  check "a store follows the same rules" (Hashtbl.find stores "slot" = 8 && Hashtbl.find stores "bare" = 1);
   let open Codegen__Alignment in
   check "a negative number's low bit is its magnitude's" (low_bit (-24L) = 8);
   check "a wrapped 2^63 is past the cap" (low_bit Int64.min_int = most);

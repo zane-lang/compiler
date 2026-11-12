@@ -68,10 +68,13 @@ let is_slot p =
          | _ -> false)
        true p
 
-let rec known dl ctx depth v =
+(* What [v] is known to be aligned to. Without [slots] a pointer read
+   back from a stack slot is at any byte: while a function is still being
+   emitted, its slots may yet take other stores. *)
+let rec known ?(slots = true) dl ctx depth v =
   if depth > 8 then 1
   else
-    let known' = known dl ctx (depth + 1) in
+    let known' = known ~slots dl ctx (depth + 1) in
     let gep () =
       let base = known' (Llvm.operand v 0) in
       let rec walk t i offset stride =
@@ -125,7 +128,7 @@ let rec known dl ctx depth v =
         | _ -> 1)
     | Llvm.ValueKind.Instruction Llvm.Opcode.GetElementPtr -> gep ()
     | Llvm.ValueKind.ConstantExpr when Llvm.constexpr_opcode v = Llvm.Opcode.GetElementPtr -> gep ()
-    | Llvm.ValueKind.Instruction Llvm.Opcode.Load when is_slot (Llvm.operand v 0) ->
+    | Llvm.ValueKind.Instruction Llvm.Opcode.Load when slots && is_slot (Llvm.operand v 0) ->
         (* Read back from a stack slot that is only stored to and loaded
            from, as codegen keeps a local before `mem2reg`: as aligned as
            the least of what is stored there. *)

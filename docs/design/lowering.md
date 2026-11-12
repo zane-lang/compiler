@@ -90,8 +90,10 @@ one of:
   or 1, a packed sum's tag one value per case, and a sum with a spare byte
   leaves the values its own cases do not take, so an optional optional
   `Bool` is one byte. A sum of nothing or one box or reference, under 32-bit
-  boxes, is that word, 0 for nothing (`Nodes.Ty.niche`). Any other sum is
-  **packed**: a one-byte tag and then the widest case's bytes, alignment 1;
+  boxes, is that word, 0 for nothing (`Nodes.Ty.niche`). Any other sum of
+  at most 256 cases is **packed**: a one-byte tag and then the widest
+  case's bytes, alignment 1. One of more cases than a byte tells apart
+  keeps a 4-byte tag and its payload room from offset 8;
 - a pointer: a reference, the address of the settled owner it names
   ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §4.1, and §9 below for the representation);
 - a fixed array: `@primitives$Array<T, n>`, and `@primitives$ArrayRef<T, n>`

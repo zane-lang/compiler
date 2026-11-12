@@ -824,10 +824,10 @@ ahead through 29% fewer first-level misses.
   whose index a loop-invariant flag picks, so its address was a
   multiply by the odd stride on every element; with non-trivial loop
   unswitching packed `Trio` is 18% faster than the default build there.
-- **Non-trivial unswitching pays without packing too**: 15-20% on the
-  benchmark's shared loops on both machines, and nothing measurable on the
-  perf programs. It could be tried in the default build as a change of its
-  own.
+- **Non-trivial unswitching pays on AArch64, and costs on x86**: 15-20%
+  on the benchmark's shared loops on both machines, but on every x86
+  machine of step 11 it made `entities` 7-11% slower, on the default
+  layout too. Step 13 turns it on for AArch64 targets alone.
 - **Losing alignment information costs nothing measurable, on x86 or on
   AArch64**:
   marking every access as at any byte (steps 1 and 2) and keeping the

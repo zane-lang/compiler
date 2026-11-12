@@ -237,7 +237,8 @@ A struct that C's layout would pad is packed: its members follow one
 another with no padding and its alignment is 1. A sum whose one case
 carrying data has a byte with values it never holds, a `Bool` or a packed
 sum's tag, keeps the other cases' tags in that byte and is no larger than
-its payload; any other sum is packed with a one-byte tag. A value of a
+its payload; any other sum is packed with a one-byte tag, unless it has
+more than 256 cases. A value of a
 packed type may begin at any byte, so each load and store is as aligned as
 its address is known to be, not as its type is. Placement is not visible
 to a Zane program (spec `memory.md` §3.3, §3.5), so the compiler is free

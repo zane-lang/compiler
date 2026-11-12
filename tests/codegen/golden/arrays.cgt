@@ -5,7 +5,7 @@
     │   └── positions:
     ├── layouts[1] > layout:
     │   ├── type: arrays$Tree
-    │   └── positions[0]: box @1 of %primitives$Array<arrays$Tree, 2> (18 bytes) when [0]=1
+    │   └── positions[0]: box @1 of %primitives$Array<arrays$Tree, 2> (18 bytes) when [0]=1 (a byte)
     ├── layouts[2] > layout:
     │   ├── type: %primitives$Array<arrays$Tree, 2>
     │   └── positions[0]: array @0 of 2 arrays$Tree (9 bytes apart)

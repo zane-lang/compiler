@@ -1,7 +1,9 @@
 /// Spawned calls that have no function of their own until one is made: an
 /// intrinsic method, verbs expanded where they are called because they take
 /// literals (one function per set of literals, an array literal made where
-/// the spawn is written), one that aborts, and one with a `mut` subject.
+/// the spawn is written), one that aborts, one whose outcome keeps its
+/// tag in its result's spare `Bool` byte, one with a `mut` subject, and one
+/// on a member at an odd byte of a list's packed element.
 /// A spawned call returning a function value is bound to a `mut` function
 /// type. Each check prints `yes` when it holds and `no` when it does not.
 package spawned;
@@ -41,6 +43,33 @@ Int?String careful(x Int, limit @concepts$Int) {
 	return x;
 }
 
+type Tagged = struct {
+	name String;
+	flag Bool;
+}
+
+Tagged(name String, flag Bool) => init{ name; flag; }
+
+/// Can abort with nothing, and its result has a `Bool` and a block, so its
+/// outcome keeps no tag of its own.
+Tagged?Unit tagged(x Int) {
+	@controlflow$branch(@operators$lessThan(Int(5), x), { abort Unit(); });
+	return Tagged(@operators$concat(String("ke"), String("pt")), true);
+}
+
+/// Nine bytes packed, so a list's second one starts at an odd byte.
+type Record = struct {
+	n Int;
+	on Bool;
+}
+
+Record(n Int, on Bool) => init{ n; on; }
+
+Unit bump(this Int) mut {
+	this = @operators$add(this, Int(1));
+	return Unit();
+}
+
 type Counter = struct {
 	count Int;
 }
@@ -76,6 +105,18 @@ Unit main() {
 	check(@operators$equal(total([Int(1), x, Int(3)]), Int(14)));
 	c Int = spawn careful(Int(7), 5) ?? Int(0);
 	check(@operators$equal(c, Int(0)));
+	kept Tagged = spawn tagged(Int(1)) ?? Tagged(String("none"), false);
+	check(kept.flag);
+	check(@operators$equal(kept.name, String("kept")));
+	none Tagged = spawn tagged(Int(9)) ?? Tagged(String("none"), false);
+	check(@operators$equal(none.name, String("none")));
+	records ListRef<Record> = @primitives$ListRef(Record);
+	records!push(Record(Int(1), true));
+	records!push(Record(Int(2), false));
+	@controlflow$branch(true, {
+		spawn records[Int(2)].n!bump();
+	});
+	check(@operators$equal(records[Int(2)].n, Int(3)));
 	counter Counter(Int(1));
 	@controlflow$branch(true, {
 		spawn counter!add(4);

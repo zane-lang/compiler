@@ -351,6 +351,19 @@ let handle_thunks st (t : Tty.t) ((h : T.Handle.t), kind) =
       Some (free, set)
   | _ -> None
 
+(* The tag a position under case [i] of the lowered sum [lowered] names:
+   as its 4-byte tag, its packed tag's byte, its niche or its byte niche
+   holds the case. *)
+let case_tag lowered i =
+  match lowered with
+  | Nodes.Ty.Sum ts when Nodes.Ty.niche ts -> Layout.niche_tag i
+  | Nodes.Ty.Sum ts -> (
+      match Nodes.Ty.byte_niche ts with
+      | Some n -> Layout.byte_niche_tag ~case:i ~at:n.at ~first:n.first ~count:n.count
+      | None -> i)
+  | Nodes.Ty.Packed (Nodes.Ty.Sum _) -> Layout.packed_tag i
+  | _ -> i
+
 (* Where a type's owned blocks are (memory.md §3.6): each handle and each
    boxed member, down through variant payloads under the tag that makes each
    live, and each foreign handle that owns its C object. An array whose
@@ -409,16 +422,7 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
             List.concat
               (List.mapi
                  (fun i (_, c) ->
-                   let tag =
-                     match lowered with
-                     | Nodes.Ty.Sum ts when Nodes.Ty.niche ts -> Layout.niche_tag i
-                     | Nodes.Ty.Sum ts when Option.is_some (Nodes.Ty.byte_niche ts) -> (
-                         match Nodes.Ty.byte_niche ts with
-                         | Some n -> Layout.byte_niche_tag ~case:i ~at:n.at ~first:n.first ~count:n.count
-                         | None -> i)
-                     | _ -> i
-                   in
-                   member c (sum + Nodes.Ty.payload_at lowered) (tags @ [ (sum, tag) ]))
+                   member c (sum + Nodes.Ty.payload_at lowered) (tags @ [ (sum, case_tag lowered i) ]))
                  cs)
           in
           match (definition, lowered) with
