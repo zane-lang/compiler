@@ -3999,6 +3999,128 @@
   (diff golden/hello.out hello.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/intWrapping))
+ (targets intWrapping.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build intWrapping.exe --package fixtures/intWrapping)))
+
+(rule
+ (deps (source_tree fixtures/intWrapping))
+ (targets intWrapping.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build intWrapping.optimized.exe --optimize --package fixtures/intWrapping)))
+
+(rule
+ (deps (source_tree fixtures/intWrapping))
+ (targets intWrapping.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build intWrapping.tiered.exe --tiered --package fixtures/intWrapping)))
+
+(rule
+ (deps (source_tree fixtures/intWrapping))
+ (targets intWrapping.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up intWrapping.tier1 --package fixtures/intWrapping)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    intWrapping.checked.out.actual
+    (run ./intWrapping.exe "9223372036854775807" "1" "2" "3037000500")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/intWrapping.out intWrapping.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    intWrapping.unchecked.out.actual
+    (run ./intWrapping.exe "9223372036854775807" "1" "2" "3037000500")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/intWrapping.out intWrapping.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    intWrapping.optimized.checked.out.actual
+    (run ./intWrapping.optimized.exe "9223372036854775807" "1" "2" "3037000500")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/intWrapping.out intWrapping.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    intWrapping.optimized.unchecked.out.actual
+    (run ./intWrapping.optimized.exe "9223372036854775807" "1" "2" "3037000500")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/intWrapping.out intWrapping.optimized.unchecked.out.actual)))
+
+(rule
+ (deps intWrapping.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./intWrapping.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    intWrapping.tiered.checked.out.actual
+    (run ./intWrapping.tiered.exe "9223372036854775807" "1" "2" "3037000500")))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/intWrapping.out intWrapping.tiered.checked.out.actual)))
+
+(rule
+ (deps intWrapping.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./intWrapping.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    intWrapping.tiered.unchecked.out.actual
+    (run ./intWrapping.tiered.exe "9223372036854775807" "1" "2" "3037000500")))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/intWrapping.out intWrapping.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/interpolation))
  (targets interpolation.exe)
  (action

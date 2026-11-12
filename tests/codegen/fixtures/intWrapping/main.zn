@@ -1,0 +1,91 @@
+/// `Int` wraps on overflow (operators.md §2.6): `max + 1` is `min`, with no
+/// trap and no undefined behavior. The operands are read from the `arguments`
+/// file beside this program, so no build knows them while it compiles, and each
+/// check is one an optimizer would settle the other way if the program's
+/// arithmetic promised not to overflow (LLVM's `nsw`): a sum that is larger
+/// than its operand, a doubling that halves back, a count of steps that did not
+/// wrap, a square that is never negative. Optimized, unoptimized and tiered
+/// builds print the same text.
+package intWrapping;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+Unit show(label String, value String) {
+	@program$console!print(@operators$concat(@operators$concat(label, value), String.escaped("\n")));
+	return Unit();
+}
+
+Unit check(label String, holds Bool) {
+	yes String("yes");
+	no String("no");
+	@controlflow$branch(holds, {
+		show(label, yes);
+	});
+	@controlflow$branch(@operators$not(holds), {
+		show(label, no);
+	});
+	return Unit();
+}
+
+/// The integer an argument spells.
+Int integer(text String) => text:parseI64() ? e {
+	resolve Int(0);
+}
+
+/// Prints every check. It is a function of its own rather than work inline in
+/// `main`, which runs in tier 0 to the end, so the tiered build runs it from
+/// tier 1 (tiers.md T4, T8).
+Unit report(args @primitives$List<String>) {
+	max Int = integer(args[Int(1)]);
+	one Int = integer(args[Int(2)]);
+	two Int = integer(args[Int(3)]);
+	root Int = integer(args[Int(4)]);
+	min Int = @operators$add(@operators$negate(max), @operators$negate(one));
+
+	// The largest value plus one is the smallest, so a sum is not always the
+	// larger operand.
+	show(String("max + 1 = "), String(@operators$add(max, one)));
+	check(String("max < max + 1: "), @operators$lessThan(max, @operators$add(max, one)));
+
+	// Doubling past the largest value and halving does not come back.
+	doubled Int = @operators$multiply(max, two);
+	show(String("max * 2 = "), String(doubled));
+	show(String("max * 2 / 2 = "), String(@operators$divide(doubled, two)));
+	check(String("max * 2 / 2 = max: "), @operators$equal(@operators$divide(doubled, two), max));
+
+	// A counter that starts two below the largest value passes it on the third
+	// step and wraps; the steps that did not wrap are the ones that grew.
+	grew Int(0);
+	i Int = @operators$add(max, @operators$negate(two));
+	@controlflow$repeat(Int(6), {
+		next Int = @operators$add(i, one);
+		@controlflow$branch(@operators$lessThan(i, next), {
+			grew = @operators$add(grew, one);
+		});
+		i = next;
+	});
+	show(String("steps that grew, of 6: "), String(grew));
+	show(String("counter after 6 steps: "), String(i));
+
+	// The smallest value is its own negation.
+	show(String("-min = "), String(@operators$negate(min)));
+	check(String("-min = min: "), @operators$equal(@operators$negate(min), min));
+
+	// A square past the largest value wraps to a negative one.
+	square Int = @operators$multiply(root, root);
+	show(String("root * root = "), String(square));
+	check(String("root * root < 0: "), @operators$lessThan(square, Int(0)));
+
+	// A sum that overflows midway and comes back to where it started.
+	back Int = @operators$add(@operators$add(max, two), @operators$negate(two));
+	check(String("max + 2 - 2 = max: "), @operators$equal(back, max));
+	return Unit();
+}
+
+Unit main() {
+	report(@program$runtime:arguments());
+	return Unit();
+}
