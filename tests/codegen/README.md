@@ -191,6 +191,11 @@ then run it again, read the golden diff and promote that.
   a slot to a callee with an arena keeps its own; and a spawned call builds
   its result over the spawning context's blocks. Every check prints `yes`
   when it holds, and a checked drain stops a program with a block still out.
+- `movedOut` moves a value that owns a block out of a local of the
+  function's own on a `return`, an `abort` and a return to an expansion,
+  where `movedOut.cgt` shows a take; a function that spawns keeps its copy.
+  Every check prints `yes` when it holds, and a checked drain stops a
+  program whose moved local's blocks are ended twice or left out.
 - `spawns` is step 8: calls started with `spawn` run on the pool's threads.
   Their results come home when read or when their block drains, which waits for
   every call spawned in it, and a checked drain stops a program that ends

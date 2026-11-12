@@ -744,7 +744,9 @@ test passing.
     `^T` arguments they are given. A function whose arena holds only owners
     that every way out moves on opens none, so what it makes is made where
     its result goes and nothing relocates it, and a value parameter copied
-    once into what the callee keeps takes a fresh argument as it is. A block
+    once into what the callee keeps takes a fresh argument as it is, through
+    a local copy of a callee whose calls keep their signature. A returned
+    local is moved out of its slot. A block
     that moves a fresh owner into a callee that can drop it keeps an arena,
     so the owner goes with the block. Issue
     [#210](https://github.com/zane-lang/compiler/issues/210).
@@ -778,9 +780,24 @@ test passing.
     takes a slot outside every arena to be in the innermost one's region.
   - A value parameter the body only reads to copy it once into what it
     keeps takes its argument: a fresh one is moved in rather than held by
-    the caller and copied, and a place is copied where the call is. Only a
-    function no other object calls, and none calls through its address,
-    is changed this way.
+    the caller and copied. A function no other object calls, and none
+    calls through its address, is changed in place, and a place is copied
+    where the call is. Any other function with a body here keeps the calls
+    it was compiled for: one another package's object defines, one this
+    object exports, one called through its address. It gets a local copy,
+    `<symbol>.taken`, that takes the parameter, and only a call that passes
+    a fresh argument there calls the copy; a call that passes a place calls
+    the function as it is, which copies. So core's `String(@primitives$String)`
+    takes a foreign call's fresh string with no copy, and the arena that
+    only held it goes, so the bytes are made where the result ends and its
+    escape moves nothing. The copy is kept and judged as its function is.
+  - A `return`, an `abort` or a return to an expansion of a value held in
+    a slot of the function's own moves it out of the slot instead of
+    copying it: the exit ends the slot, so nothing reads it again
+    ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.3).
+    A return to an expansion does so only for a slot in an arena the
+    expansion opens. A function that spawns keeps the copy, since a
+    spawned call may read the slot until the drain joins it.
   - A block that moves a fresh owner into a callee's `^T` parameter keeps
     an arena when the callee can drop it, so the owner's blocks go when the
     block drains (below); for one that keeps it, the block opens none for

@@ -1,0 +1,21 @@
+/// A library whose constructor keeps the string it is given, copied once
+/// into the value it makes, and a verb that returns a local.
+package taking;
+
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+type Text = struct {
+	value String;
+}
+
+Text(v String) => init{
+	value = v;
+}
+
+/// A fresh string kept in a local, which the return moves out.
+Text named(n Int) {
+	t Text = Text(@operators$concat(String.escaped("n"), String(n)));
+	return t;
+}

@@ -129,7 +129,13 @@ nothing observes ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/s
   and makes its values directly in the caller's innermost region, so
   nothing is relocated on return;
 - a value parameter only read to be copied once takes its argument instead:
-  a fresh argument is moved in rather than held and copied;
+  a fresh argument is moved in rather than held and copied. A function whose
+  calls must keep their signature, such as core's `String(@primitives$String)`
+  or anything another package defines, gets a local copy that takes it, which
+  only calls passing a fresh argument use;
+- a local returned, aborted with, or returned to an expansion is moved out of
+  its slot rather than copied, since the exit ends it, unless the function
+  spawns;
 - an arena left holding nothing is dropped.
 
 ### Value parameters are borrowed

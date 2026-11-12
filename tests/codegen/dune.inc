@@ -5023,6 +5023,140 @@
   (diff golden/math.out math.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/movedOut))
+ (action
+  (with-stdout-to
+   movedOut.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/movedOut))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/movedOut.cgt movedOut.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/movedOut))
+ (targets movedOut.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build movedOut.exe --package fixtures/movedOut)))
+
+(rule
+ (deps (source_tree fixtures/movedOut))
+ (targets movedOut.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build movedOut.optimized.exe --optimize --package fixtures/movedOut)))
+
+(rule
+ (deps (source_tree fixtures/movedOut))
+ (targets movedOut.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build movedOut.tiered.exe --tiered --package fixtures/movedOut)))
+
+(rule
+ (deps (source_tree fixtures/movedOut))
+ (targets movedOut.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up movedOut.tier1 --package fixtures/movedOut)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    movedOut.checked.out.actual
+    (run ./movedOut.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/movedOut.out movedOut.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    movedOut.unchecked.out.actual
+    (run ./movedOut.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/movedOut.out movedOut.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    movedOut.optimized.checked.out.actual
+    (run ./movedOut.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/movedOut.out movedOut.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    movedOut.optimized.unchecked.out.actual
+    (run ./movedOut.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/movedOut.out movedOut.optimized.unchecked.out.actual)))
+
+(rule
+ (deps movedOut.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./movedOut.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    movedOut.tiered.checked.out.actual
+    (run ./movedOut.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/movedOut.out movedOut.tiered.checked.out.actual)))
+
+(rule
+ (deps movedOut.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./movedOut.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    movedOut.tiered.unchecked.out.actual
+    (run ./movedOut.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/movedOut.out movedOut.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/namedGeneric))
  (action
   (with-stdout-to

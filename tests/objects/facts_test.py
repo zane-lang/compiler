@@ -363,6 +363,39 @@ class FactsTests(unittest.TestCase):
                 self.assertEqual((result.returncode, result.stdout, result.stderr),
                                  (1, "", "index out of range\n"), optimize)
 
+    def test_a_library_constructor_takes_a_fresh_argument(self):
+        # `taking$Text` copies its parameter once into the value it makes, so
+        # it takes its argument (lib/cgt/regions.ml, taken_params). Its body
+        # is another package's, so the program gives it a local copy that
+        # takes the parameter, and calls that where it passes a fresh
+        # string; a place it reads again is copied. The library object keeps
+        # `Text` as it was compiled for every other caller, and `named`
+        # returns its local by moving it out.
+        text = STAMP + "taking$Text(%primitives$String)"
+        cgt = run(ZANEC, "--cgt", *packages("takes", "taking", stamped=["taking"]))
+        funcs = {m.group(1): m.group(0) for m in
+                 re.finditer(r"(?ms)^    [├└]── funcs\[\d+\] > func:\n    [│ ]   ├── symbol: ([^\n]*)\n.*?(?=^    [├└]── |\Z)", cgt)}
+        self.assertIn("linkage: available", funcs[text])
+        self.assertIn("> copy:", funcs[text])
+        self.assertNotIn("linkage:", funcs[text + ".taken"])
+        self.assertNotIn("> copy:", funcs[text + ".taken"])
+        self.assertEqual(funcs["takes$main()"].count("fn: " + text + ".taken"), 1)
+        named = funcs[STAMP + "taking$named(%primitives$I64)"]
+        self.assertIn("fn: " + text + ".taken", named)
+        self.assertNotIn("> copy:", named)
+        self.assertIn("> take:", named)
+        with tempfile.TemporaryDirectory() as temp:
+            library = Path(temp) / "taking.o"
+            run(ZANEC, "--no-root", "--object", library, *packages("taking", stamped=["taking"]))
+            defined = run("llvm-nm", "--defined-only", library)
+            self.assertRegex(defined, r"(?m) T " + re.escape(text) + "$")
+            self.assertNotRegex(defined, r"(?m) [A-Z] .*\.taken$")
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "takes"
+                run(ZANEC, "--build", exe, *optimize, "--link", library,
+                    *packages("takes", "taking", stamped=["taking"]))
+                self.assertEqual(run_program(exe, 42), "42! 42 42 n42\n", optimize)
+
     def test_programs_run(self):
         with tempfile.TemporaryDirectory() as temp:
             pool = Path(temp) / "pool.o"

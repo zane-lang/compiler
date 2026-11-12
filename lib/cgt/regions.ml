@@ -331,9 +331,15 @@ let keeping funcs =
 
 (* A value parameter the body only copies, once, into what it keeps: the
    copy is the body's only read of it. Such a parameter takes its argument,
-   so a fresh one is moved in rather than held by the caller and copied. A
-   function other objects call, or that is called through its address,
-   keeps the calls it was compiled for. *)
+   so a fresh one is moved in rather than held by the caller and copied.
+
+   A local function nothing takes the address of is rewritten in place, and
+   every call copies a place it passes there instead. Any other function
+   with a body keeps the calls it was compiled for: one other objects call,
+   one whose body is only available here, or one called through its
+   address. Such a function gets a local copy that takes the parameter
+   ([taking]), and a call that passes a fresh argument there calls the copy
+   instead. *)
 let taken_params funcs ~keeps =
   let addressed = Hashtbl.create 16 in
   List.iter
@@ -373,13 +379,23 @@ let taken_params funcs ~keeps =
           then Hashtbl.replace table (f.Func.symbol, j) (copy, layout)
       | _ -> ()
   in
+  let cloned = Hashtbl.create 16 in
   List.iter
     (fun (f : Func.t) ->
-      if f.Func.linkage = Linkage.Local && not (Hashtbl.mem addressed f.Func.symbol) then
+      if has_body f then begin
         let held = List.map fst (held_params f) in
-        List.iteri (take f held) f.Func.params)
+        List.iteri (take f held) f.Func.params;
+        if
+          (f.Func.linkage <> Linkage.Local || Hashtbl.mem addressed f.Func.symbol)
+          && List.exists (fun j -> Hashtbl.mem table (f.Func.symbol, j)) (List.mapi (fun j _ -> j) f.Func.params)
+        then Hashtbl.replace cloned f.Func.symbol ()
+      end)
     funcs;
-  table
+  (table, cloned)
+
+(* The symbol of the local copy of [symbol] that takes its taken
+   parameters. *)
+let taking symbol = symbol ^ ".taken"
 
 (* The argument a borrowed fresh value was held in by its caller, before
    the call read it (Lower.borrow): the value itself. *)
@@ -403,32 +419,79 @@ let borrowed (e : Expr.t) =
       Some value
   | _ -> None
 
-let take_params funcs table =
-  if Hashtbl.length table = 0 then funcs
+let take_params funcs (table, cloned) =
+  if Hashtbl.length table = 0 then (funcs, fun s -> s)
   else
     let copies = Hashtbl.fold (fun _ (copy, _) acc -> copy :: acc) table [] in
+    (* In a function that takes its parameters, each taken parameter's copy
+       is the parameter itself. *)
     let fe (e : Expr.t) =
       if List.exists (fun c -> c == e) copies then
         match e.Expr.node with Expr.Copy { value; _ } -> Some value | _ -> None
       else None
     in
-    (* Argument [j] of a call to [fn], passed as the parameter takes it: a
-       borrowed fresh value as itself, anything else copied in. *)
-    let rec argument fn j (x : Expr.t) =
-      let x = map_expr call_site (fun _ -> None) x in
-      match (Hashtbl.find_opt table (fn, j), borrowed x) with
-      | None, _ -> x
-      | Some _, Some v -> v
-      | Some (_, layout), None -> { x with Expr.node = Expr.Copy { value = x; layout } }
-    and call_site (e : Expr.t) =
+    let used = Hashtbl.create 16 in
+    (* A call to [fn], each argument passed as the parameter takes it. A
+       function rewritten in place takes a borrowed fresh value as itself
+       and copies anything else in. A cloned one is called as it is unless
+       a fresh value is passed to a taken parameter; then its copy is
+       called, and takes the arguments as a function rewritten in place
+       does. *)
+    let rec call_site ~own (e : Expr.t) =
       match e.Expr.node with
       | Expr.Call { fn; args } ->
-          Some { e with Expr.node = Expr.Call { fn; args = List.mapi (argument fn) args } }
-      | _ -> fe e
+          let args = List.map (map_expr (call_site ~own:false) (fun _ -> None)) args in
+          let taken j = Hashtbl.find_opt table (fn, j) in
+          let fresh = List.mapi (fun j x -> Option.is_some (taken j) && Option.is_some (borrowed x)) args in
+          let pass j (x : Expr.t) =
+            match (taken j, borrowed x) with
+            | None, _ -> x
+            | Some _, Some v -> v
+            | Some (_, layout), None -> { x with Expr.node = Expr.Copy { value = x; layout } }
+          in
+          if not (Hashtbl.mem cloned fn) then
+            Some { e with Expr.node = Expr.Call { fn; args = List.mapi pass args } }
+          else if List.mem true fresh then begin
+            Hashtbl.replace used fn ();
+            Some { e with Expr.node = Expr.Call { fn = taking fn; args = List.mapi pass args } }
+          end
+          else Some { e with Expr.node = Expr.Call { fn; args } }
+      | _ -> if own then fe e else None
     in
-    List.map
-      (fun (f : Func.t) -> { f with Func.body = map_stats call_site (fun _ -> None) f.Func.body })
-      funcs
+    let rewrite ~own (f : Func.t) = { f with Func.body = map_stats (call_site ~own) (fun _ -> None) f.Func.body } in
+    (* A copy is made from the body as it was, whose taken copies are the
+       ones the table names: a rewrite builds every node anew. *)
+    let by_symbol = Hashtbl.create 64 in
+    List.iter (fun (f : Func.t) -> Hashtbl.replace by_symbol f.Func.symbol f) funcs;
+    let funcs =
+      List.map (fun (f : Func.t) -> rewrite ~own:(not (Hashtbl.mem cloned f.Func.symbol)) f) funcs
+    in
+    (* Each copy a call reaches, itself rewritten, which may reach more. *)
+    let made = Hashtbl.create 16 in
+    let rec copies_of acc =
+      let next =
+        Hashtbl.fold (fun s () acc -> if Hashtbl.mem made s then acc else s :: acc) used []
+        |> List.sort compare
+      in
+      match next with
+      | [] -> List.rev acc
+      | _ ->
+          let fresh =
+            List.map
+              (fun s ->
+                Hashtbl.replace made s ();
+                let f = Hashtbl.find by_symbol s in
+                rewrite ~own:true { f with Func.symbol = taking s; linkage = Linkage.Local })
+              next
+          in
+          copies_of (List.rev_append fresh acc)
+    in
+    let funcs = funcs @ copies_of [] in
+    (* Each copy answers for what its function's arenas keep as the
+       function does. *)
+    let origin = Hashtbl.create 16 in
+    Hashtbl.iter (fun s () -> Hashtbl.replace origin (taking s) s) made;
+    (funcs, fun s -> Option.value ~default:s (Hashtbl.find_opt origin s))
 
 (* An arena is needed while something is held, reserved or spawned in it,
    or while a fresh owner moved into a callee that can drop it would
@@ -563,6 +626,73 @@ let arenaless_of funcs =
   done;
   get
 
+(* A value a `return` copies out of a slot of the function's own is moved
+   out instead, since the return ends the slot and nothing reads it again
+   (memory.md §2.3): out of any held slot for a return from the function,
+   and out of one held in an arena the expansion opens for a return to it.
+   A function that spawns keeps its copies, since a spawned call may still
+   read the slot until the drain joins it. *)
+let returned_moves (f : Func.t) =
+  let spawns = exists_in f.Func.body ~expr:(fun _ -> false) ~stat:(function Stat.Spawn _ -> true | _ -> false) in
+  if spawns then f
+  else
+    let holds_inside body =
+      let scopes = ref [] and holds = ref [] in
+      walk_stats
+        (fun _ -> ())
+        (function
+          | Stat.Scope { id; _ } -> scopes := id :: !scopes
+          | Stat.Hold { id; scope; _ } -> holds := (id, scope) :: !holds
+          | _ -> ())
+        body;
+      List.filter_map (fun (h, scope) -> if List.mem scope !scopes then Some h else None) !holds
+    in
+    let all = holds_in f.Func.body in
+    (* [value], an escape of a copy out of one of [holds], as a move. *)
+    let rec moved holds (value : Expr.t) =
+      match value.Expr.node with
+      | Expr.Escape ({ value = { Expr.node = Expr.Copy { value = { Expr.node = Expr.Local h; _ }; layout }; ty }; _ } as x)
+        when List.mem h holds ->
+          let address = { Expr.node = Expr.Address h; ty = Ty.Ptr } in
+          Some { value with Expr.node = Expr.Escape { x with value = { Expr.node = Expr.Take { address; layout }; ty } } }
+      (* An abort's value escapes twice: once as the `abort` hands it on,
+         once as the function's outcome. *)
+      | Expr.Escape ({ value = { Expr.node = Expr.Escape _; _ } as inner; _ } as x) ->
+          Option.map (fun inner -> { value with Expr.node = Expr.Escape { x with value = inner } }) (moved holds inner)
+      | Expr.Case { index; payload } ->
+          Option.map (fun payload -> { value with Expr.node = Expr.Case { index; payload } }) (moved holds payload)
+      | _ -> None
+    in
+    let rec fe (e : Expr.t) =
+      match e.Expr.node with
+      | Expr.Expand { label; body; result } ->
+          let inside = holds_inside body in
+          let rec leaving = function
+            | (Stat.Assign ({ place = { Expr.local; deref = false; path = []; _ }; value } as a) as s)
+              :: (Stat.Leave l :: _ as rest)
+              when l = label && Some local = result -> (
+                match moved inside value with
+                | Some value -> Stat.Assign { a with value } :: leaving rest
+                | None -> s :: leaving rest)
+            | s :: rest -> s :: leaving rest
+            | [] -> []
+          in
+          let body = map_stats fe fs body in
+          let body = map_stats (fun _ -> None) (fun s -> match s with
+            | Stat.Scope { id; body } -> Some [ Stat.Scope { id; body = leaving body } ]
+            | Stat.If { cond; body } -> Some [ Stat.If { cond; body = leaving body } ]
+            | _ -> None) (leaving body)
+          in
+          Some { e with Expr.node = Expr.Expand { label; body; result } }
+      | _ -> None
+    and fs (s : Stat.t) =
+      match s with
+      | Stat.Return value -> (
+          match moved all value with Some value -> Some [ Stat.Return value ] | None -> None)
+      | _ -> None
+    in
+    { f with Func.body = map_stats fe fs f.Func.body }
+
 (* Every hold, reservation and spawn is inside the arena it names, which
    the pass relies on when it takes an arena away. *)
 let checked (f : Func.t) =
@@ -586,9 +716,22 @@ let checked (f : Func.t) =
   f
 
 let run ~wants (p : Nodes.Program.t) =
-  let funcs = p.Nodes.Program.funcs in
+  let funcs = List.map returned_moves p.Nodes.Program.funcs in
   let keeps = keeping funcs in
-  let funcs = take_params funcs (taken_params funcs ~keeps) in
+  let funcs, origin = take_params funcs (taken_params funcs ~keeps) in
+  let keeps fn j = keeps (origin fn) j in
+  List.iter
+    (fun (f : Func.t) ->
+      let s = f.Func.symbol in
+      if origin s <> s then
+        walk_stats
+          (fun _ -> ())
+          (function
+            | Stat.Scope { id; _ } ->
+                Option.iter (Hashtbl.replace wants (s, id)) (Hashtbl.find_opt wants (origin s, id))
+            | _ -> ())
+          f.Func.body)
+    funcs;
   let funcs = List.map (prune ~wants ~keeps) funcs in
   let rec folding funcs =
     let arenaless = arenaless_of funcs in

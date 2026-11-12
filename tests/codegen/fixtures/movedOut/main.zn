@@ -1,0 +1,86 @@
+/// A value that owns a block, moved out of a local of the function's own
+/// by a `return`, an `abort` and a return to an expansion, instead of
+/// copied: the exit ends the local, so nothing reads it again
+/// (memory.md §2.3). A function that spawns keeps its copy, since the
+/// spawned call may still read the local until the drain joins it. A
+/// checked drain stops the program if a moved local's blocks are ended
+/// twice or left out. Each check prints `yes` when it holds and `no` when
+/// it does not.
+package movedOut;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+type Text = struct {
+	value String;
+}
+
+Text(v String) => init{ value = v; }
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+/// A local returned: moved out.
+Text named(n Int) {
+	t Text = Text(@operators$concat(String.escaped("n"), String(n)));
+	return t;
+}
+
+/// A local aborted with, or returned: moved out either way.
+Text?Text bounded(n Int) {
+	t Text = Text(String(n));
+	@controlflow$branch(@operators$lessThan(n, Int(5)), {
+		abort t;
+	});
+	return t;
+}
+
+/// A return to the expansion of a block-taking verb, from a local the
+/// expansion's own block holds.
+Text pick(n Int, body @concepts$Block) {
+	@controlflow$branch(true, body);
+	t Text = Text(@operators$concat(String.escaped("p"), String(n)));
+	return t;
+}
+
+String greet(who String) => @operators$concat(String.escaped("hi "), who);
+
+/// A local lent to a spawned call and then returned: copied, since the
+/// call may still be reading it.
+String greeted(n Int) {
+	who String = String(n);
+	s String = spawn greet(who);
+	@program$console!print(String.escaped(""));
+	return who;
+}
+
+Unit main() {
+	a Text = named(Int(7));
+	check(@operators$equal(a.value, String.escaped("n7")));
+
+	b Text = bounded(Int(3)) ? e {
+		resolve e;
+	}
+	check(@operators$equal(b.value, String.escaped("3")));
+	c Text = bounded(Int(9)) ? e {
+		resolve Text(String.escaped("no"));
+	}
+	check(@operators$equal(c.value, String.escaped("9")));
+
+	d Text = pick(Int(4), {});
+	check(@operators$equal(d.value, String.escaped("p4")));
+
+	check(@operators$equal(greeted(Int(5)), String.escaped("5")));
+	return Unit();
+}
