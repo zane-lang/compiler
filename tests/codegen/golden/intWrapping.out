@@ -1,0 +1,12 @@
+max + 1 = -9223372036854775808
+max < max + 1: no
+max * 2 = -2
+max * 2 / 2 = -1
+max * 2 / 2 = max: no
+steps that grew, of 6: 5
+counter after 6 steps: -9223372036854775805
+-min = -9223372036854775808
+-min = min: yes
+root * root = -9223372036709301616
+root * root < 0: yes
+max + 2 - 2 = max: yes

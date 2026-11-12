@@ -285,7 +285,10 @@ became of each:
   `nbody` lost 6.8% at a partial budget of 150, so the budget is 100.
   Measurements are in `docs/perf-unroll/`.
 - Item 3: being audited on branch `perf/runtime-attrs`.
-- Item 4: open.
+- Item 4: done: `tests/codegen/fixtures/intWrapping` wraps at the type's limits
+  and is held to its golden output in the plain, optimized and tiered builds.
+  Built on the last commit with `ZANE_NSW=1` (`4d7dc33`), it prints different
+  text, optimized and plain alike.
 
 
 1. **Full unrolling of short constant-count loops, per loop.** Mark a
@@ -309,8 +312,8 @@ became of each:
    the barrier step 2 found in the hot loops. Each needs a check of the
    runtime's C (`runtime/*.c`) that it touches nothing else, e.g. the
    region and scope bookkeeping it reaches through globals.
-4. **A test that an optimized build wraps** (step 3): the suite passes
-   with `nsw` on the program's arithmetic, so nothing but perf's golden
-   output guards Zane's wrapping rule against a future codegen change.
+4. **A test that an optimized build wraps** (step 3): done, see above.
+   Before it, the suite passed with `nsw` on the program's arithmetic and
+   only perf's golden output guarded Zane's wrapping rule.
 5. Not worth pursuing: finer TBAA (step 2, sound or not), `nounwind`
    alone (step 4), `nsw` (a miscompile; step 3).
