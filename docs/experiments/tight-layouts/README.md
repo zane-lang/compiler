@@ -17,13 +17,16 @@ at all and alignment 1. The switch `ZANE_PACK` turns it on:
 Since step 13 the `niche` layout is the compiler's only one, and the
 switches are gone: the scripts here that set `ZANE_PACK` or `ZANE_UNSWITCH`
 now measure the same build in every mode, and reproduce the numbers below
-only on the commits that recorded them. They were removed in `2baf718`
-(PR 353); `5c97994` is the last commit where they work. `programs.py`,
+only on the commits that recorded them. The squash merge of PR 353 (`2baf718`
+on `main`) left out the branch's history: `506bb97` on the PR branch is the
+last commit that reads the switches, and `0b88f63` removed them. Get it with
+`git fetch origin pull/353/head` and `git checkout 506bb97`. `programs.py`,
 `platform.sh`, `aligned.sh`, `arm64.sh`, `compile.py` and `langbench.py` exit
 unless `ZANE_TIGHT_LAYOUTS_HISTORICAL=1` is set. To compare layouts on
-current `main`, build two compilers and use `wall14.py`. Until then, the switch was read
-where a layout is made, so a build with it and one
-without are different programs. The default build and the test suite are
+current `main`, build two compilers and use `wall14.py`.
+
+Before step 13, the switch was read where a layout is made, so a build with
+it and one without are different programs. The default build and the test suite are
 unchanged with it unset. Measured on `main` at `7e7c3ca` plus this
 experiment, built with the pixi environment (LLVM 21).
 

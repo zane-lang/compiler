@@ -7,10 +7,11 @@
 #
 # The ZANE_PACK and ZANE_UNSWITCH switches this script sets were removed in
 # 2baf718 (PR 353); the compiler no longer reads them, so every mode builds
-# the same program. To reproduce, check out 5c97994 (the last commit where
-# they worked) and set ZANE_TIGHT_LAYOUTS_HISTORICAL=1. To compare layouts
-# on current main, build two compilers and use wall14.py.
-[ "${ZANE_TIGHT_LAYOUTS_HISTORICAL:-}" = 1 ] || { echo "error: The ZANE_PACK and ZANE_UNSWITCH switches this script sets were removed in 2baf718 (PR 353); the compiler no longer reads them, so every mode builds the same program. To reproduce, check out 5c97994 (the last commit where they worked) and set ZANE_TIGHT_LAYOUTS_HISTORICAL=1. To compare layouts on current main, build two compilers and use wall14.py." >&2; exit 1; }
+# the same program. To reproduce, fetch the PR 353 branch (git fetch origin
+# pull/353/head) and check out 506bb97, the last commit that reads them
+# (0b88f63 removed them), and set ZANE_TIGHT_LAYOUTS_HISTORICAL=1. To compare
+# layouts on current main, build two compilers and use wall14.py.
+[ "${ZANE_TIGHT_LAYOUTS_HISTORICAL:-}" = 1 ] || { echo "error: The ZANE_PACK and ZANE_UNSWITCH switches this script sets were removed in 2baf718 (PR 353); the compiler no longer reads them, so every mode builds the same program. To reproduce, fetch the PR 353 branch (git fetch origin pull/353/head) and check out 506bb97, the last commit that reads them (0b88f63 removed them), and set ZANE_TIGHT_LAYOUTS_HISTORICAL=1. To compare layouts on current main, build two compilers and use wall14.py." >&2; exit 1; }
 set -euo pipefail
 uname -a
 sysctl -n machdep.cpu.brand_string 2>/dev/null || grep -m1 "model name" /proc/cpuinfo 2>/dev/null || true
