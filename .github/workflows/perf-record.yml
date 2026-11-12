@@ -1,0 +1,47 @@
+name: Perf record
+
+# The perf programs' estimated cycles on each push to main
+# (tests/perf/README.md): every program's rows go over latest.tsv on the
+# `perf-log` branch, and the stress program's are appended to its
+# histories. perf.yml checks pull requests and the merge queue against
+# these rows.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Every push's run goes ahead on its own, and the script keeps the branch in
+# commit order however their pushes land.
+concurrency:
+  group: perf-record-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  # Writing the branch needs a token that can push, so only code already on
+  # main runs here, never a pull request's.
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # vendor/coda, which lib/coda/ builds.
+          submodules: true
+          # The script compares its commit with the branch's by ancestry.
+          fetch-depth: 0
+
+      - name: Set up toolchain
+        uses: ./.github/actions/setup-ci
+
+      - name: Build
+        run: pixi run dune build bin/zanec/zanec.exe
+
+      - name: Measure and record
+        env:
+          EVENT_NAME: push
+        run: pixi run .github/scripts/perf

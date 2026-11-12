@@ -50,7 +50,9 @@ The `perf-log` branch holds three files, all written by CI:
   tiered builds. Each starts at the first commit whose push measured that
   build.
 
-`.github/workflows/perf.yml` runs `.github/scripts/perf`:
+`.github/workflows/perf.yml` runs `.github/scripts/perf` on pull requests,
+in the merge queue and by hand, and `.github/workflows/perf-record.yml` runs
+it on each push to `main`:
 
 - on a pull request, it builds every build of every program, measures each
   one whose key is not its row's (below), and fails when one prints the

@@ -1,37 +1,32 @@
 name: Perf
 
 # The perf programs' estimated cycles, optimized and plain
-# (tests/perf/README.md): each push to main writes every program's rows over
-# latest.tsv on the `perf-log` branch and appends the stress program's to
-# stress.tsv and stress-plain.tsv, and each pull request fails when a build
-# is more than the tolerance slower than its row. A pull
-# request labelled `perf-accepted` passes with a warning, and any label
-# change runs the check again.
+# (tests/perf/README.md), checked against main's rows on the `perf-log`
+# branch: a pull request fails when a build is more than the tolerance
+# slower than its row. A pull request labelled `perf-accepted` passes with a
+# warning, and any label change runs the check again. The merge queue checks
+# again, and a manual run measures and compares. perf-record.yml writes the
+# branch on each push to main.
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
   merge_group:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 # A pull request's newest event replaces its run in progress, a label change
-# included, so the check it reports is for its newest state.
-# Every other run goes ahead on its own, and the script keeps the branch in
-# commit order however their pushes land.
+# included, so the check it reports is for its newest state. Every other run
+# goes ahead on its own.
 concurrency:
   group: perf-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Pull requests, the merge queue and manual runs: measure and compare,
-  # with a read-only token, since a pull request's own code runs here. It
-  # reads the `perf-log` branch with that token.
+  # Measure and compare, with a read-only token, since a pull request's own
+  # code runs here. It reads the `perf-log` branch with that token.
   perf:
-    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Reading the labels of a pull request in the merge queue.
@@ -70,32 +65,4 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           ACCEPTED: ${{ github.event_name == 'merge_group' && steps.queued.outputs.accepted || contains(github.event.pull_request.labels.*.name, 'perf-accepted') }}
-        run: pixi run .github/scripts/perf
-
-  # A push to main: measure and write the `perf-log` branch, which needs a
-  # token that can push. Only code already on main runs here.
-  record:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # vendor/coda, which lib/coda/ builds.
-          submodules: true
-          # The script compares its commit with the branch's by ancestry.
-          fetch-depth: 0
-
-      - name: Set up toolchain
-        uses: ./.github/actions/setup-ci
-
-      - name: Build
-        run: pixi run dune build bin/zanec/zanec.exe
-
-      - name: Measure and record
-        env:
-          EVENT_NAME: push
         run: pixi run .github/scripts/perf
