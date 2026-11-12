@@ -952,10 +952,16 @@ let convert env b (from : Ty.t) (into : Ty.t) v =
       in
       Llvm.build_call fty f [| v |] "" b)
 
+(* Experiment (docs/experiments/llvm-facts, step 3): `ZANE_NSW=1` marks the
+   program's integer additions, multiplications and negations `nsw`. Zane's
+   integers wrap (spec operators.md), so this is a miscompile of any program
+   that overflows: it measures an upper bound, never a change to keep. *)
+let nsw = Sys.getenv_opt "ZANE_NSW" = Some "1"
+
 let binary env fr b (op : Expr.binop) (t : Ty.t) l r =
   match (t, op) with
-  | (Ty.I64 | Ty.I32), Expr.Add -> Llvm.build_add l r "" b
-  | (Ty.I64 | Ty.I32), Expr.Mul -> Llvm.build_mul l r "" b
+  | (Ty.I64 | Ty.I32), Expr.Add -> (if nsw then Llvm.build_nsw_add else Llvm.build_add) l r "" b
+  | (Ty.I64 | Ty.I32), Expr.Mul -> (if nsw then Llvm.build_nsw_mul else Llvm.build_mul) l r "" b
   | (Ty.I64 | Ty.I32), Expr.Div -> divide env fr b l r
   | (Ty.I64 | Ty.I32 | Ty.I1), Expr.Eq -> Llvm.build_icmp Llvm.Icmp.Eq l r "" b
   | (Ty.I64 | Ty.I32), Expr.Less -> Llvm.build_icmp Llvm.Icmp.Slt l r "" b
@@ -1264,7 +1270,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       | _ -> Diagnostic.bug "codegen: an operand has no value")
   | Expr.Flip value -> (
       match (value.Expr.ty, expr env fr b value) with
-      | (Ty.I64 | Ty.I32), Some v -> Some (Llvm.build_neg v "" b)
+      | (Ty.I64 | Ty.I32), Some v -> Some ((if nsw then Llvm.build_nsw_neg else Llvm.build_neg) v "" b)
       | (Ty.F64 | Ty.F32), Some v -> Some (Llvm.build_fneg v "" b)
       | Ty.I1, Some v -> Some (Llvm.build_not v "" b)
       | _ -> Diagnostic.bug "codegen: `~` on a value it does not flip")

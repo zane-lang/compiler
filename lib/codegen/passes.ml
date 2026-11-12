@@ -85,7 +85,17 @@ let nontrivial triple pipeline =
    which case a value holds follows no pattern. Left beside the tag's load,
    the room is read either way and the case's work becomes a select
    (docs/optimizations.md, "A sum's case picked without a branch"). *)
-let llvm_options = [ "-align-all-functions=6"; "-instcombine-code-sinking=false" ]
+let llvm_options =
+  [ "-align-all-functions=6"; "-instcombine-code-sinking=false" ]
+  (* Experiment (docs/experiments/llvm-facts): LLVM's unroll budgets, set
+     from the environment. Off unless the variable is set. *)
+  @ List.filter_map
+      (fun (var, flag) -> Option.map (fun n -> flag ^ "=" ^ n) (Sys.getenv_opt var))
+      [
+        ("ZANE_UNROLL_PARTIAL", "-unroll-partial-threshold");
+        ("ZANE_UNROLL_THRESHOLD", "-unroll-threshold");
+        ("ZANE_UNROLL_RUNTIME_COUNT", "-unroll-max-count");
+      ]
 
 (* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*,
    for [triple]. *)
