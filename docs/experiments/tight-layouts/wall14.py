@@ -35,18 +35,21 @@ for label, zanec in (("before", before), ("after", after)):
 times = {k: [] for k in builds}
 outputs = {}
 # Each sample runs the four builds in its own shuffled order (fixed seed), so
-# no build always runs first or last, and the order is recorded with it.
+# no build always runs first or last; each sample's raw times are printed in
+# the order they ran.
 shuffler = random.Random(14)
 for sample in range(runs):
     order = list(builds)
     shuffler.shuffle(order)
-    print(f"sample {sample + 1:2} order: " + ", ".join(f"{label}-{build}" for label, build in order))
+    ran_in_order = []
     for k in order:
         command, env = builds[k]
         start = time.perf_counter()
         ran = subprocess.run(command, env=env, capture_output=True, check=True)
         times[k].append(time.perf_counter() - start)
         outputs.setdefault(k[1], set()).add(ran.stdout)
+        ran_in_order.append(f"{k[0]}/{k[1]} {times[k][-1] * 1000:.1f} ms")
+    print(f"sample {sample + 1}: " + ", ".join(ran_in_order))
 for build in ("optimized", "tiered"):
     if len(outputs[build]) != 1:
         sys.exit(f"{name} {build}: the two compilers' builds printed different output")
