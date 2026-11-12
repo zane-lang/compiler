@@ -116,7 +116,9 @@ other function stays a call into tier 0's runtime: one that reads a
 the address of a function of the runtime's own, which a copy would not
 share. A function marked cold, and one that calls a function of the
 runtime's own marked cold or never inlined, stays a call too, as in any
-build that takes bodies. A body inlined into tier 1 reads a thread's variable, such as
+build that takes bodies, and keeps the attributes the runtime's
+declarations carry ([`lowering.md`](lowering.md) §9, "What LLVM is told"),
+which are put back once the bodies are linked. A body inlined into tier 1 reads a thread's variable, such as
 `zane_self`, through tier 0's function for it (T5), a call where an
 optimized executable reads it at its offset.
 

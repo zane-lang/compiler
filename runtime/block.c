@@ -97,7 +97,8 @@ void zane_copy(char *value, const zane_type *type) {
 	zane_work_run(&w);
 }
 
-/* A boxed member's block (memory.md §3.6): exactly one payload's size. */
+/* A boxed member's block (memory.md §3.6): exactly one payload's size. Told
+   to LLVM as zane_alloc_held is (lib/codegen/runtime_facts.ml). */
 void *zane_box(int64_t size, int64_t align) { return zane_alloc(zane_here(), size, align); }
 
 /* A scalar's String constructor. Floats use compact decimal text that
@@ -213,6 +214,8 @@ static int zane_format_float(char *buffer, size_t room, double value, int single
 	return best;
 }
 
+/* These four, zane_text_join and zane_text_taken only write `out`, and keep
+   no pointer to it or to what they read (lib/codegen/runtime_facts.ml). */
 void zane_text_i32(zane_text *out, int32_t value) {
 	char buffer[32];
 	int length = snprintf(buffer, sizeof buffer, "%" PRId32, value);
@@ -238,7 +241,8 @@ void zane_text_f64(zane_text *out, double value) {
 }
 
 /* `@runtime$Console`'s `print` (effects.md §6.6): exactly the string's
-   length in bytes, with no terminator and nothing added. */
+   length in bytes, with no terminator and nothing added. LLVM is told it only
+   reads `text` and keeps no pointer to it (lib/codegen/runtime_facts.ml). */
 void zane_print(const zane_text *text) {
 	zane_output(text->bytes, (size_t)text->length);
 }
@@ -300,7 +304,8 @@ uint8_t *zane_bytes_alloc(size_t size) {
 
 /* Before a foreign call that returns a string: the mark its blocks begin
    at. It changes nothing, so a call whose result a fold made a constant
-   leaves no state behind. */
+   leaves no state behind. LLVM is told it only reads memory, returns, and
+   frees and waits for nothing (lib/codegen/runtime_facts.ml). */
 int64_t zane_text_expect(void) { return zane_given.count; }
 
 /* A string C returned, as the view it gave: the call's last block taken
@@ -326,7 +331,9 @@ void zane_text_taken(zane_text *out, const zane_text *view, int64_t mark) {
 	zane_given.count = mark;
 }
 
-/* `==` on `@primitives$String`: the same bytes. */
+/* `==` on `@primitives$String`: the same bytes. LLVM is told it only reads
+   memory, keeps no pointer to either side, returns, and frees and waits for
+   nothing (lib/codegen/runtime_facts.ml). */
 int64_t zane_text_equal(const zane_text *left, const zane_text *right) {
 	return left->length == right->length &&
 	       (left->length == 0 || memcmp(left->bytes, right->bytes, (size_t)left->length) == 0);
@@ -359,7 +366,9 @@ static char *zane_terminated(const zane_text *text) {
 }
 
 /* `parseI64` on `@primitives$String`: 1 with the value at `out`, or 0 when
-   the text spells no integer or one outside an I64's range. */
+   the text spells no integer or one outside an I64's range. This and
+   zane_parse_f64 only read `text` and write `out`, and keep no pointer to
+   either (lib/codegen/runtime_facts.ml). */
 int64_t zane_parse_i64(const zane_text *text, int64_t *out) {
 	if (!zane_numeric_text(text, 0)) return 0;
 	char *s = zane_terminated(text);
@@ -399,7 +408,8 @@ int64_t zane_parse_f64(const zane_text *text, double *out) {
    program's arguments, each a string that owns a copy of its bytes. The
    list's block is as big as `zane_list_push` would have grown it to, and
    it and the strings' bytes are in the current scope's region, where the
-   list then arrives in its place as any made value does. */
+   list then arrives in its place as any made value does. LLVM is told it only
+   writes `out` and keeps no pointer to it (lib/codegen/runtime_facts.ml). */
 void zane_arguments(zane_list *out) {
 	*out = ZL_MAKE(NULL, 0, 0);
 	if (zane_argc == 0) return;

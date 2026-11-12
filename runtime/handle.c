@@ -16,13 +16,16 @@
    another has the larger stamp wherever each was made. 0 is no stamp. */
 static int64_t zane_stamps;
 
+/* Told to LLVM: it returns, and frees nothing (lib/codegen/runtime_facts.ml). */
 int64_t zane_handle_made(void *object) {
 	if (!object) return 0;
 	return __atomic_add_fetch(&zane_stamps, 1, __ATOMIC_RELAXED);
 }
 
 /* A foreign verb that gives a handle and declares no abort found C
-   returning no object (spec ffi.md §3.5). */
+   returning no object (spec ffi.md §3.5).
+
+   LLVM is told it never returns (lib/codegen/runtime_facts.ml). */
 void zane_no_object(void) {
 	zane_flush_output();
 	fputs("a foreign function returned no object\n", stderr);
