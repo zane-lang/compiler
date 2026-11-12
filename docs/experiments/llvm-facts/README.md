@@ -24,6 +24,8 @@ Run in a cloud container with the pixi environment (LLVM 21.1.8), from
 | `ZANE_UNROLL_PARTIAL=n` | passes `-unroll-partial-threshold=n` to LLVM |
 | `ZANE_UNROLL_THRESHOLD=n` | passes `-unroll-threshold=n` |
 | `ZANE_UNROLL_RUNTIME_COUNT=n` | passes `-unroll-max-count=n` |
+| `ZANE_TBAA_FINE=1` | struct-path TBAA tags on member accesses (step 2) |
+| `ZANE_TBAA_TYPED=1` | one alias class per scalar type (**unsound**: an upper bound) |
 | `ZANE_NSW=1` | `nsw` on the program's integer add/mul/negate (**unsound**: an upper bound) |
 
 ## Step 1: unroll budgets
@@ -112,6 +114,63 @@ marks short early-exit loops. (2) A bigger partial budget is worth 3–12% on
 five programs for 6–24% more `.text` (up to +118% on tier 1 of repeats), and
 it costs removal 1%. 150 takes most of it; 300 adds about 1% more on entities,
 particles and division.
+
+## Step 2: finer alias classes (TBAA)
+
+**Design.** Two switches in `lib/codegen/emit.ml`.
+
+- `ZANE_TBAA_FINE=1` (meant to be sound): a scalar read or written at an
+  address made by `Offset` through struct members only (`Deref`, `Store`,
+  `Assign` with a path, and the member-wise stores of `place`) gets a
+  struct-path tag: the outermost struct type (one type node per structural
+  `Ty`, named by `Ty.to_string`, listing each scalar, handle or struct
+  member at its offset from the data layout), the scalar type and the
+  offset. Every scalar is still the one "zane scalar" type node, so the
+  snapshot rule in `Emit.tags` is kept. Why it is true for every program:
+  two struct-path tags say "no alias" only for different members, or for
+  struct types neither of which holds the other at that offset. Storage
+  that can hold two struct types is a sum's room or a block freed and
+  reused. A path through a sum's room never gets a struct-path tag (it
+  falls back to "zane scalar", which LLVM takes to overlap any scalar
+  member), whole aggregates are loaded and stored untagged, and freeing
+  goes through a runtime call or untagged pool-cache stores, so every
+  change of what a place holds is ordered against accesses of both types.
+- `ZANE_TBAA_TYPED=1` (**unsound**, an upper bound): each scalar type is
+  its own type node, a child of "zane scalar", so an `I64` access and an
+  `F64` access never alias while a "zane scalar" access (the elements a
+  removal moves) still overlaps both. It breaks the snapshot rule.
+
+**Results.** `measure.py` with each switch, against `base2` (the same build,
+no switch). Only `particles`' optimized executable changed at all, by
+−9,367 instructions (−0.04%); every other build's instruction count moved
+by +600 to +1,100, the same for every program, which is the extra
+environment variable at process start (the C library's and `ld.so`'s
+counts depend on the environment's size), and `.text` did not change by a
+byte in any build. Typed and typed + fine are the same: nothing above
++0.3%, that on `kept`, whose 454 k instructions make the startup noise
+0.14% by itself. Every build printed its golden output.
+
+| program | build | fine | typed (upper bound) | typed + fine |
+| --- | --- | ---: | ---: | ---: |
+| every program | both | ±0.0% | ±0.0% | ±0.0% |
+| kept | optimized | +0.1% | +0.1% | +0.2% (startup noise) |
+
+**Tests.** `just test-compiler` passes with `ZANE_TBAA_FINE=1` and with
+both switches on (the typed classes' unsoundness is not exercised by the
+suite).
+
+**Why nothing moves.** The alias questions that matter in these loops are
+already answered. A list's header and its elements are in separate classes
+(`docs/optimizations.md`, "List headers and scalars in separate alias
+classes"); two members of
+one element are at constant offsets from one base, which BasicAA resolves
+without tags; and the same member of two elements of one list (`e[i].x`
+against `e[j].x`) has one tag under any scheme, since nothing distinguishes
+them. Loops reading two lists of the same element type (borrows' `xs` and
+`ys`, both `F64`) only load, so aliasing does not constrain them. What does
+stop LLVM in the hot loops are runtime calls (`zane_list_push`,
+`zane_alloc_held`, `zane_free`, declared with no memory effects at all),
+which no TBAA tag affects; step 4 looks at those.
 
 ## What remains
 
