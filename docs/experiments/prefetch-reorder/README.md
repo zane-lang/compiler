@@ -148,6 +148,57 @@ The three ways of fetching the record early are within 10% of each other;
 making it a step of the walk (`staged`) needs no distance to tune. In cache
 the combined form is ×1.26 faster, not slower.
 
+## Round 4: where an arena puts the nodes
+
+Rounds 1 to 3 put every node at a random place, the worst case. A scope's
+dynamic region hands out addresses in the order they are asked for, and
+gives a freed block to the next request of its size, so a structure built
+in one pass lies in the order it was built. `run.py round4 tree.rand
+tree.pre tree.post tree.bfs tree.pre+10 tree.pre+50 chains.rand chains.seq
+chains.arrival chains.seq+10 chains.seq+50` runs `tree` and `chains` again
+with the nodes placed as a build would place them:
+
+- `tree.pre`, `tree.post`, `tree.bfs`: built parent first, children first,
+  and a level at a time.
+- `chains.seq`: each list built whole before the next. `chains.arrival`:
+  the lists grown a link at a time in turn, as a table of buckets fills.
+- `+10`, `+50`: that share of the nodes then freed and allocated again in
+  an unrelated order.
+- `rand`: as before.
+
+At 2 GiB, plain time and the better of `group` and `amac`:
+
+| placement | plain, 4 KiB | interleaved, 4 KiB | plain, huge | interleaved, huge |
+| --- | ---: | --- | ---: | --- |
+| `tree.rand` | 1940 ns | 293 ns, ×6.63 | 1322 ns | 123 ns, ×10.74 |
+| `tree.pre` | 1014 ns | 234 ns, ×4.33 | 831 ns | 183 ns, ×4.55 |
+| `tree.post` | 961 ns | 199 ns, ×4.84 | 868 ns | 187 ns, ×4.65 |
+| `tree.bfs` | 1348 ns | 177 ns, ×7.60 | 988 ns | 102 ns, ×9.68 |
+| `tree.pre+10` | 1018 ns | 203 ns, ×5.01 | 920 ns | 191 ns, ×4.83 |
+| `tree.pre+50` | 1553 ns | 254 ns, ×6.11 | 1216 ns | 168 ns, ×7.26 |
+| `chains.rand` | 664 ns | 175 ns, ×3.80 | 458 ns | 74 ns, ×6.23 |
+| `chains.arrival` | 696 ns | 159 ns, ×4.37 | 466 ns | 71 ns, ×6.54 |
+| `chains.seq` | 31 ns | 22 ns, ×1.42 | 29 ns | 22 ns, ×1.33 |
+| `chains.seq+10` | 119 ns | 45 ns, ×2.62 | 95 ns | 29 ns, ×3.28 |
+| `chains.seq+50` | 387 ns | 95 ns, ×4.06 | 269 ns | 61 ns, ×4.45 |
+
+**What it shows.**
+
+- Build order does not rescue a tree. Depth-first order halves the plain
+  lookup (the last few levels of a subtree share a page), and the upper
+  levels still miss at every step: interleaving is ×4.3 to ×4.8 there, and
+  ×6 to ×7 once half the nodes have been replaced.
+- Lists built whole are the one case that is already fast: 31 ns against
+  664 ns, since the walk is a forward scan the hardware follows.
+  Interleaving still gains ×1.3 to ×1.4 with `amac`; `group` loses 16% to
+  18%.
+- That does not survive use. With a tenth of the links replaced the plain
+  walk is 3 to 4 times slower and interleaving gains ×2.6 to ×3.3; with
+  half replaced, ×4 to ×4.5. Lists grown in turn are as slow as random
+  placement from the start.
+- `amac` was never slower than plain in any placement at these sizes;
+  `group` was. Refilling a finished place at once is the form to build.
+
 ## Where this points
 
 Worth building, in the order the measurements rank them:
@@ -165,6 +216,7 @@ Not worth building: prefetching right before the access, batching in place
 of a sliding distance, loading early without a prefetch, the non-temporal
 hint, a helper thread, and prefetching a chain's head alone.
 
-**Not yet tried.** Any of this in `zanec`; a body between `gather` and
+**Not yet tried.** Any of this in `zanec`; nodes with several children to a
+cache line; interleaved batches on several cores; a body between `gather` and
 `heavy` in weight, to find where a prefetch starts to pay; a processor other
 than this one.
