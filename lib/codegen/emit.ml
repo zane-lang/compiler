@@ -343,8 +343,13 @@ let versioned ~symbol body =
 
 (* Whether a counted loop with [body] is asked to be unrolled twice
    (Stat.Repeat): it can leave before its count runs out, holds no loop,
-   spawn or join, and calls no function. Every build marks it; only the
-   optimized passes and tier 1's act on the mark. LLVM 21's `-O2` leaves such a loop
+   spawn or join, and calls nothing: no function, by name, through a value
+   or in C, and none of the runtime's functions. An element's index check
+   counts as no call, since codegen emits it in line as a compare and an
+   address, and its failure stops the program; every other runtime
+   operation is a call into the runtime, which the optimized passes inline
+   only sometimes. Every build marks it; only the optimized passes and
+   tier 1's act on the mark. LLVM 21's `-O2` leaves such a loop
    rolled on x86-64 even when its body is a dozen arithmetic operations,
    since the target's cost model allows partial unrolling only of smaller
    loops, and in a copy whose two exits lead to the same place the passes
@@ -355,10 +360,16 @@ let versioned ~symbol body =
    checks, which calls, is 2.5% slower in `depths` unrolled
    (docs/design/lowering.md, "The passes"). *)
 let unrolled body =
+  let calls (e : Expr.t) =
+    match e.Expr.node with
+    | Expr.Call _ | Expr.Call_value _ | Expr.Foreign_call _ -> true
+    | Expr.Runtime { fn = Cgt.Runtime.List_at | Cgt.Runtime.Array_at | Cgt.Runtime.Out_of_range; _ } -> false
+    | Expr.Runtime _ -> true
+    | _ -> false
+  in
   leaves_early body
   && not
-       (Cgt.Traverse.exists_in body
-          ~expr:(fun e -> match e.Expr.node with Expr.Call _ -> true | _ -> false)
+       (Cgt.Traverse.exists_in body ~expr:calls
           ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ -> true | _ -> false))
 
 (* The `llvm.loop` node that asks for a loop unrolled twice. *)
