@@ -39,7 +39,7 @@ then run it again, read the golden diff and promote that.
   optimizer would exploit overflow being impossible: `max + 1`, a doubling
   that halves back, a counter that passes the maximum, `-min`, a square. Its
   operands come from the `arguments` file, so no build folds them. Built with
-  `nsw` on the program's arithmetic it prints different text.
+  `nsw` on the program's arithmetic, it prints different text.
 - `scalarTexts` exercises the four scalar String constructors end to end,
   including I32 wrapping, compact float notation, negative zero and special
   values. Optimized and unoptimized builds must print the same text.

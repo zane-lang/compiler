@@ -13,16 +13,6 @@ alias Bool = @primitives$Bool;
 alias Unit = @primitives$Unit;
 alias String = @primitives$String;
 
-/// Advances the counter through the inclusive range, running the block once
-/// per step.
-Unit to(this Int, end Int, body @concepts$Block) mut {
-	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
-		@controlflow$branch(true, body);
-		this = @operators$add(this, Int(1));
-	});
-	return Unit();
-}
-
 Unit show(label String, value String) {
 	@program$console!print(@operators$concat(@operators$concat(label, value), String.escaped("\n")));
 	return Unit();
@@ -68,14 +58,13 @@ Unit main() {
 	// step and wraps; the steps that did not wrap are the ones that grew.
 	grew Int(0);
 	i Int = @operators$add(max, @operators$negate(two));
-	k Int(1);
-	k!to(Int(6)) {
+	@controlflow$repeat(Int(6), {
 		next Int = @operators$add(i, one);
 		@controlflow$branch(@operators$lessThan(i, next), {
 			grew = @operators$add(grew, one);
 		});
 		i = next;
-	}
+	});
 	show(String("steps that grew, of 6: "), String(grew));
 	show(String("counter after 6 steps: "), String(i));
 
