@@ -20,7 +20,9 @@ for k in sorted(base):
     cells = []
     for c in cols:
         r = c.get(k)
+        if base[k][2] == "ERROR": cells.append("BASE ERROR"); continue
         if not r or r[2] == "ERROR": cells.append("ERROR"); continue
         bad = "" if r[6] == "True" else " **WRONG OUTPUT**"
+        if base[k][6] != "True": bad += " **WRONG BASE OUTPUT**"
         cells.append(f"{pct(base[k][2], r[2])} / {pct(base[k][3], r[3])} / {pct(base[k][5], r[5])}{bad}")
     print(f"| {k[0]} | {k[1]} | " + " | ".join(cells) + " |")
