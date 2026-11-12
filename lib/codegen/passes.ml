@@ -79,8 +79,18 @@ let nontrivial triple pipeline =
    function lies within its line, and so which branches share a
    predictor's entries, does not move when the code before it changes
    size: a change elsewhere once cost an unchanged loop of `copies` 40%
-   more mispredicted branches (tests/perf). *)
-let llvm_options = [ "-irce-min-runtime-iterations=64"; "-align-all-functions=6" ]
+   more mispredicted branches (tests/perf).
+
+   Instruction combining sinks no instruction into the block that uses it.
+   It splits the load of a struct with no padding into a load of each
+   member, so a packed sum read whole is read as its tag and its room, and
+   with sinking on it moves the room's load into the case that reads the
+   payload. Nothing tells LLVM that load is safe to make before the tag is
+   tested, so the case stays a branch, one the predictor cannot learn when
+   which case a value holds follows no pattern. Left beside the tag's load,
+   the room is read either way and the case's work becomes a select
+   (docs/optimizations.md, "A sum's case picked without a branch"). *)
+let llvm_options = [ "-irce-min-runtime-iterations=64"; "-align-all-functions=6"; "-instcombine-code-sinking=false" ]
 
 (* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*,
    for [triple]. *)

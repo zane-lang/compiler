@@ -238,6 +238,32 @@ class FactsTests(unittest.TestCase):
             ir = run(ZANEC, "--ll", *optimize, *packages("bounce"))
             self.assertNotRegex(ir, r"select i1 [^,]*, double", optimize)
 
+    def test_a_packed_sums_case_is_picked_without_a_branch(self):
+        # Each health is packed as a one-byte tag and eight bytes. Its
+        # payload is read beside its tag, so testing the case and the
+        # payload is a select, with no branch on the tag around a load of
+        # the payload (Passes.llvm_options). Tier 1 runs the optimized
+        # build's passes with the same options (tiers.md T2).
+        ir = run(ZANEC, "--ll", "--optimize", *packages("cases"))
+        # The counting loop is inlined into `zane_main`.
+        main = re.search(r"^define [^\n]*@zane_main\(.*?^}$", ir, re.S | re.M).group()
+        self.assertRegex(main, r"select i1 %[\w.]+, i1 %[\w.]+, i1 false")
+        # No branch may test a tag, whatever sits between its load and the
+        # branch: follow the comparisons and bit operations computed from a
+        # tag's load (the count the cases add up is rightly tested later).
+        defs = re.findall(r"^\s*(%[\w.$]+) = (.*)$", main, re.M)
+        tags = {name for name, rest in defs if rest.startswith("load i8,")}
+        while grown := {name for name, rest in defs
+                        if name not in tags and re.match(r"(icmp|zext|trunc|and|or|xor|freeze) ", rest)
+                        and tags.intersection(re.findall(r"%[\w.$]+", rest))}:
+            tags |= grown
+        branches = set(re.findall(r"^\s*br i1 (%[\w.$]+),", main, re.M))
+        self.assertEqual(branches & tags, set())
+        with tempfile.TemporaryDirectory() as work:
+            exe = Path(work) / "cases"
+            run(ZANEC, "--build", exe, "--optimize", *packages("cases"))
+            self.assertEqual(run_program(exe, 1000), "234\n234\n")
+
     def test_places_and_frames_may_be_read_ahead(self):
         # The method's subject is the whole of the caller's slot, two list
         # handles, and `main`'s frame is all there once its scope is open,

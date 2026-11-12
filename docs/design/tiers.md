@@ -27,8 +27,9 @@ takes no `--link`, since it links nothing of the program's (T4).
 
 **T2. Tier 1 is a lighter optimized build than `--optimize`.** It skips
 stage 5, runs the optimized build's passes ([`lowering.md`](lowering.md)
-§9, "The passes") with runtime loop unrolling off, and generates optimized
-machine code (`Passes.tier1`). Runtime unrolling is what made `-O2` take 16 s
+§9, "The passes") with runtime loop unrolling off, under the options LLVM
+is started with for that build (`Passes.llvm_options`), and generates
+optimized machine code (`Passes.tier1`). Runtime unrolling is what made `-O2` take 16 s
 of a 400-function program's 25 s build, against 2 s without it, for code
 about 5% slower; stage 5 takes seconds on programs that compute much ahead of
 time. A tier 1 that arrives late gains the program nothing, so it is built
@@ -167,7 +168,7 @@ in the cache directory ([`lowering.md`](lowering.md) §7) under `tier/`, named
 by a hash of the module's fingerprint, the target, the C compiler and what
 it says it is, the runtime's bitcode compiler and what it says it is when
 that is another one (`ZANE_BITCODE_CC`), this compiler's file, and T2's
-pipeline. A later `--tier-up`
+pipeline and the options LLVM is started with (`Passes.llvm_options`). A later `--tier-up`
 of the same module copies it after lowering and emitting, without running
 LLVM or the linker, so a program run again unchanged moves to tier 1 within
 its first moments. Taking one marks it newest; keeping one past 32 removes

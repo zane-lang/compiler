@@ -1507,6 +1507,27 @@ test passing.
   `copies` mispredicted 40% more after an edit to other functions, and 64-byte
   starts made both layouts mispredict as the first had.
 
+  The same options keep instruction combining from sinking an instruction
+  into the one block that uses it (`-instcombine-code-sinking=false`). It
+  splits the load of a struct with no padding into a load of each member,
+  so a packed sum (L5) read whole is read as its tag and its room. With
+  sinking on, it then moves the room's load into the case that reads the
+  payload, and the CFG simplifier, which cannot tell that the load is safe
+  to make before the tag is tested, leaves the case a branch on the tag.
+  When which case a value holds follows no pattern, the predictor misses
+  that branch about half the time. With the room's load left beside the
+  tag's, the case's work becomes a `select`. A sum whose tag is a 4-byte
+  word has padding after it, so its load was never split; the packed
+  layout is what exposed the sinking. An optimized build often recovered
+  the `select` anyway, where `main` inlined into the start function
+  (L16) runs the function passes over its loops a second time, but tier 1
+  runs them once, and `tests/perf` `entities` mispredicted 2.4 times as
+  often there. With sinking off it runs 24% fewer estimated cycles tiered
+  and 7.5% fewer optimized, `floats` 4.7% fewer, and `growth`, whose push
+  loop gains an instruction from a different exit test, 2.5% more
+  ([`experiments/tight-layouts`](../experiments/tight-layouts/README.md)
+  step 14).
+
   For an AArch64 target, `-O2`'s loop unswitching also copies a loop whose
   body branches on a condition the loop does not change, once for each
   way it goes (`Passes.unswitch`); `-O2` itself copies only a loop the
