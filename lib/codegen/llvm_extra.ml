@@ -3,6 +3,9 @@
 
 external set_ordering : Llvm.llvalue -> bool -> unit = "zane_set_ordering"
 
+(* Whether a load or store is atomic (llvm_stubs.c). *)
+external is_atomic : Llvm.llvalue -> bool = "zane_is_atomic"
+
 (* An array type and its length with all 64 bits of the count, where the
    bindings' own truncate it to 32 (llvm_stubs.c). *)
 external array_type : Llvm.lltype -> int -> Llvm.lltype = "zane_array_type"
@@ -14,6 +17,12 @@ external type_attr : Llvm.llcontext -> string -> Llvm.lltype -> Llvm.llattribute
 
 (* A function's own type (llvm_stubs.c). *)
 external value_type : Llvm.llvalue -> Llvm.lltype = "zane_global_value_type"
+
+(* The `align` attribute on a function's parameter, 1 for none (llvm_stubs.c). *)
+external param_align : Llvm.llvalue -> int -> int = "zane_param_align"
+
+(* The type a getelementptr steps through (llvm_stubs.c). *)
+external gep_source_type : Llvm.llvalue -> Llvm.lltype = "zane_gep_source_type"
 
 (* `llvm.assume` with `dereferenceable` and `align` bundles on an address,
    at the end of a block, which the bindings cannot build (llvm_stubs.c):

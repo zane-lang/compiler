@@ -6,242 +6,7 @@ open Cgt.Nodes
 open Loop_shapes
 open Call_pieces
 open Llvm_extra
-
-(* How a value of a type crosses a call (docs/design/lowering.md §9): as
-   itself, in as many registers as it has pieces; as the address of a slot
-   that holds it; or, with packing, as that many 8-byte words. *)
-type passing = Itself | Address | Words of int
-
-(* A function's signature as it crosses: how each parameter that is not
-   `Unit` passes, in order, and how the result comes back. *)
-type abi = { params : (Ty.t * passing) list; ret : Ty.t * passing }
-
-type env = {
-  ctx : Llvm.llcontext;
-  m : Llvm.llmodule;
-  ptr : Llvm.lltype;
-  i64 : Llvm.lltype;
-  funcs : (string, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
-  (* How each of the program's functions is called, by symbol. *)
-  abis : (string, abi) Hashtbl.t;
-  (* The thunks of calls into C, by symbol, with whether each argument is
-     a function value, which C takes as its lambda's C entry
-     (docs/design/ffi.md F11). *)
-  entries : (string, bool list) Hashtbl.t;
-  (* How many registers a value may take and still pass as itself, from
-     the target (see [registers]), whether small aggregates are packed into
-     words, and how each type passes, worked out once per type. *)
-  registers : int;
-  pack : bool;
-  passings : (Ty.t, passing) Hashtbl.t;
-  (* The same for a result (see [results]). *)
-  results : int * int;
-  returnings : (Ty.t, passing) Hashtbl.t;
-  globals : (string, Llvm.llvalue) Hashtbl.t;
-  (* The walks of each layout the program names that lists a position. *)
-  mutable walks : Walks.known option;
-  (* The type-based alias tags of a handle's fields and of any other
-     scalar (see [access]). *)
-  handle_tag : Llvm.llvalue;
-  value_tag : Llvm.llvalue;
-  (* Whether a loop over elements is emitted twice (see [versioned]), which
-     only the passes of an optimized build use. *)
-  version : bool;
-}
-
-(* ---------------------------------------------------------------------- *)
-(* Types                                                                  *)
-(* ---------------------------------------------------------------------- *)
-
-(* A value this many bytes or larger is moved as memory (Big_moves). *)
-let large = 4096
-
-let size_align = Ty.size_align
-let words = Ty.words
-
-(* Experimental packed nodes (Ty.Packed): the address of a place inside a
-   packed type is named [unaligned_name], and so is one inside such a
-   place, so that once a function is emitted every load and store through
-   one is marked as at any byte. *)
-let unaligned_name = "packed"
-
-let is_unaligned v =
-  match Llvm.classify_value v with
-  | Llvm.ValueKind.Instruction Llvm.Opcode.GetElementPtr -> String.starts_with ~prefix:unaligned_name (Llvm.value_name v)
-  | _ -> false
-
-let unaligned fn =
-  Llvm.iter_blocks
-    (Llvm.iter_instrs (fun i ->
-         match Llvm.instr_opcode i with
-         | Llvm.Opcode.Load when is_unaligned (Llvm.operand i 0) -> Llvm.set_alignment 1 i
-         | Llvm.Opcode.Store when is_unaligned (Llvm.operand i 1) -> Llvm.set_alignment 1 i
-         | _ -> ()))
-    fn
-
-let rec lltype env (t : Ty.t) =
-  match t with
-  | Ty.Void -> Llvm.void_type env.ctx
-  | Ty.I1 -> Llvm.i1_type env.ctx
-  | Ty.I32 -> Llvm.i32_type env.ctx
-  | Ty.I64 -> env.i64
-  | Ty.F32 -> Llvm.float_type env.ctx
-  | Ty.F64 -> Llvm.double_type env.ctx
-  | Ty.Handle -> Llvm.struct_type env.ctx [| env.ptr; env.i64; env.i64 |]
-  | Ty.Handle16 -> List_handle.header env.ctx
-  | Ty.Ptr -> env.ptr
-  | Ty.Ref | Ty.Box32 -> Llvm.i32_type env.ctx
-  | Ty.Struct ts -> Llvm.struct_type env.ctx (Array.of_list (List.map (stored env) ts))
-  | Ty.Sum ts when Ty.niche ts -> Llvm.struct_type env.ctx [| Llvm.i32_type env.ctx |]
-  | Ty.Sum ts -> (
-      let tag = Llvm.i32_type env.ctx in
-      match words ts with
-      | 0 -> Llvm.struct_type env.ctx [| tag |]
-      | n -> Llvm.struct_type env.ctx [| tag; array_type env.i64 n |])
-  | Ty.Array (t, n) -> array_type (stored env t) n
-  | Ty.Packed (Ty.Struct ts) -> Llvm.packed_struct_type env.ctx (Array.of_list (List.map (stored env) ts))
-  | Ty.Packed (Ty.Sum ts) -> (
-      let tag = Llvm.i8_type env.ctx in
-      match Ty.room ts with
-      | 0 -> Llvm.packed_struct_type env.ctx [| tag |]
-      | n -> Llvm.packed_struct_type env.ctx [| tag; array_type (Llvm.i8_type env.ctx) n |])
-  | Ty.Packed t -> lltype env t
-
-(* A `Unit` member takes no room, but keeps its index. *)
-and stored env t = if t = Ty.Void then Llvm.struct_type env.ctx [||] else lltype env t
-
-(* ---------------------------------------------------------------------- *)
-(* How a value crosses a call                                             *)
-(* ---------------------------------------------------------------------- *)
-
-(* How a value of type [t] crosses a call: as itself when it takes no more
-   registers than [env.registers], and by the address of a slot otherwise.
-   With [env.pack], an aggregate that fits in that many 8-byte words passes
-   as them instead, every word an integer, as clang passes a small C
-   struct. Fixed by the type, so every call site and every callee agree,
-   and a function value's call too. *)
-let passing env (t : Ty.t) =
-  match Hashtbl.find_opt env.passings t with
-  | Some p -> p
-  | None ->
-      let p =
-        let size = fst (size_align t) in
-        let words = (size + 7) / 8 in
-        if env.pack && aggregate t && size > 0 then if words <= env.registers then Words words else Address
-        else if pieces t <= env.registers then Itself
-        else Address
-      in
-      Hashtbl.replace env.passings t p;
-      p
-
-(* How a result of type [t] comes back from a call: as [passing] decides
-   for an argument, but within [env.results], so a result may take more
-   registers than an argument. A larger one is written through an `sret`
-   pointer to a slot of the caller's. *)
-let returning env (t : Ty.t) =
-  match Hashtbl.find_opt env.returnings t with
-  | Some p -> p
-  | None ->
-      let most, most_floats = env.results in
-      let p =
-        let size = fst (size_align t) in
-        let words = (size + 7) / 8 in
-        if env.pack && aggregate t && size > 0 then if words <= most then Words words else Address
-        else if pieces t <= most && floats t <= most_floats then Itself
-        else Address
-      in
-      Hashtbl.replace env.returnings t p;
-      p
-
-(* The LLVM type [n] words travel as: one `i64`, or a struct of them. *)
-let words_type env n = if n = 1 then env.i64 else Llvm.struct_type env.ctx (Array.make n env.i64)
-
-(* A signature as it crosses (see [passing]). `Unit` has no storage, so a
-   `Unit` parameter passes nothing. *)
-let abi env params ret =
-  let kept = List.filter (fun t -> t <> Ty.Void) params in
-  let crossing t = if t = Ty.Void then Itself else returning env t in
-  { params = List.map (fun t -> (t, passing env t)) kept; ret = (ret, crossing ret) }
-
-(* The LLVM function type of [a]: a result passed by address is written
-   through a leading pointer, and returns nothing. *)
-let abi_type env a =
-  let ret, ret_passing = a.ret in
-  let result, leading =
-    match ret_passing with
-    | Itself -> (lltype env ret, [])
-    | Address -> (Llvm.void_type env.ctx, [ env.ptr ])
-    | Words n -> (words_type env n, [])
-  in
-  let param (t, p) =
-    match p with Itself -> [ lltype env t ] | Address -> [ env.ptr ] | Words n -> List.init n (fun _ -> env.i64)
-  in
-  Llvm.function_type result (Array.of_list (leading @ List.concat_map param a.params))
-
-let fn_type env params ret = abi_type env (abi env params ret)
-
-(* What a signature tells LLVM, as attributes on each LLVM parameter, by
-   index. A parameter passed by address is a borrow (memory.md §2.9), and
-   nothing in the call writes what it borrows (§2.9.1), so it is `readonly`
-   and `noalias`, aligned and dereferenceable for its whole size: the
-   optimizer may take the value behind it for a private copy. It is not
-   `nocapture`, since a call the callee spawns may hold the address for as
-   long as it runs. A result passed by address is written through an
-   `sret` pointer to a fresh slot of the caller's, which nothing else
-   names, so that one is `noalias` too. *)
-let abi_attrs env a =
-  let enum name v = Llvm.create_enum_attr env.ctx name v in
-  let aligned t = enum "align" (Int64.of_int (snd (size_align t))) in
-  let ret, ret_passing = a.ret in
-  let leading =
-    match ret_passing with
-    | Address -> [ [ type_attr env.ctx "sret" (lltype env ret); enum "noalias" 0L; aligned ret ] ]
-    | Itself | Words _ -> []
-  in
-  let param (t, p) =
-    match p with
-    | Itself -> [ [] ]
-    | Words n -> List.init n (fun _ -> [])
-    | Address ->
-        [
-          [
-            enum "readonly" 0L;
-            enum "noalias" 0L;
-            aligned t;
-            enum "dereferenceable" (Int64.of_int (fst (size_align t)));
-          ];
-        ]
-  in
-  List.mapi (fun i attrs -> (i, attrs)) (leading @ List.concat_map param a.params)
-
-let declare_abi env f a =
-  List.iter
-    (fun (i, attrs) -> List.iter (fun at -> Llvm.add_function_attr f at (Llvm.AttrIndex.Param i)) attrs)
-    (abi_attrs env a)
-
-(* What a function's [places] (Func) tell LLVM: each is the address of a
-   whole slot that outlives the call, so it is `nonnull`, aligned and
-   dereferenceable for the slot's size. That lets the optimizer read
-   through it ahead of a branch, as it hoists a list's length and storage
-   out of a loop that checks its indices. Nothing more is promised: the
-   function may write the slot, and another parameter may name it too. *)
-let declare_places env fn (f : Func.t) a =
-  let enum name v = Llvm.create_enum_attr env.ctx name v in
-  let kept = List.filter (fun (_, t) -> t <> Ty.Void) f.Func.params in
-  let width = function Itself | Address -> 1 | Words n -> n in
-  let first = if snd a.ret = Address then 1 else 0 in
-  ignore
-    (List.fold_left2
-       (fun i (id, _) (_, passing) ->
-         (match List.assoc_opt id f.Func.places with
-         | Some t when passing = Itself && fst (size_align t) > 0 ->
-             let size, align = size_align t in
-             List.iter
-               (fun at -> Llvm.add_function_attr fn at (Llvm.AttrIndex.Param i))
-               [ enum "nonnull" 0L; enum "align" (Int64.of_int align); enum "dereferenceable" (Int64.of_int size) ]
-         | _ -> ());
-         i + width passing)
-       first kept a.params)
+include Emit_types
 
 (* ---------------------------------------------------------------------- *)
 (* The runtime and its layouts                                            *)
@@ -507,7 +272,11 @@ let byte_at env b p offset =
   if offset = 0 then p
   else Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) p [| Llvm.const_int env.i64 offset |] "" b
 
-let field env b t p offset = Llvm.build_load t (byte_at env b p offset) "" b
+(* A runtime record's field. A pointer one names a record, a context or a
+   block, each aligned to a word at least. *)
+let field env b t p offset =
+  let v = Llvm.build_load t (byte_at env b p offset) "" b in
+  if t == env.ptr then List_handle.aligned env.ctx 8 v else v
 let set_field env b v p offset = ignore (Llvm.build_store v (byte_at env b p offset) b)
 
 let zero env b p size =
@@ -599,7 +368,7 @@ and context_limit = Abi.context_limit
    indices (docs/optimizations.md). *)
 let enter env fr b size =
   let ptr = env.ptr and i64 = env.i64 in
-  let outer = Llvm.build_load ptr (open_scope env) "" b in
+  let outer = List_handle.aligned env.ctx 8 (Llvm.build_load ptr (open_scope env) "" b) in
   let inline = block env fr and shared = block env fr and opened = block env fr in
   ignore
     (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Ne outer (Llvm.const_null ptr) "" b) inline shared b);
@@ -665,7 +434,9 @@ let enter env fr b size =
 let drain_scope env fr b m =
   let ptr = env.ptr in
   let null = Llvm.const_null ptr in
-  let innermost = Llvm.build_icmp Llvm.Icmp.Eq (Llvm.build_load ptr (open_scope env) "" b) m "" b in
+  let innermost =
+    Llvm.build_icmp Llvm.Icmp.Eq (List_handle.aligned env.ctx 8 (Llvm.build_load ptr (open_scope env) "" b)) m "" b
+  in
   let look = block env fr and inline = block env fr and runtime_ = block env fr and drained = block env fr in
   ignore (Llvm.build_cond_br innermost look runtime_ b);
   Llvm.position_at_end look b;
@@ -745,12 +516,13 @@ let place env b t p v l =
      by member, each tagged as a scalar, so that LLVM knows the stores never
      touch a list's handle and can keep its count in a register through a
      loop of pushes. *)
-  | Ty.Struct ts
+  | (Ty.Struct ts | Ty.Packed (Ty.Struct ts))
     when Sys.getenv_opt "ZANE_LOOP_PUSHES" <> Some "0"
          && List.for_all (function Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true | _ -> false) ts ->
+      let name = match t with Ty.Packed _ -> unaligned_name | _ -> "" in
       List.iteri
         (fun i m ->
-          let at = Llvm.build_struct_gep (lltype env t) p i "" b in
+          let at = Llvm.build_struct_gep (lltype env t) p i name b in
           ignore (access env m (Llvm.build_store (Llvm.build_extractvalue v i "" b) at b)))
         ts
   | _ -> ignore (access env t (Llvm.build_store v p b)));
@@ -875,7 +647,7 @@ let first_block env fr b ~header ~list ~fail ~first ~stride =
   ignore header;
   let room = List_handle.room ~tag:(handle_field env) env.ctx b list in
   check (Llvm.build_icmp Llvm.Icmp.Eq room (n 0) "" b);
-  let m = Llvm.build_load ptr (open_scope env) "" b in
+  let m = List_handle.aligned env.ctx 8 (Llvm.build_load ptr (open_scope env) "" b) in
   check (Llvm.build_icmp Llvm.Icmp.Ne m (Llvm.const_null ptr) "" b);
   let c = field env b ptr m record_context in
   let record = address m in
@@ -889,12 +661,12 @@ let first_block env fr b ~header ~list ~fail ~first ~stride =
          "" b)
   end;
   let class_at = byte_at env b m (8 * ((first / 8) - 1)) in
-  let top = Llvm.build_load ptr class_at "" b in
+  let top = List_handle.aligned env.ctx 8 (Llvm.build_load ptr class_at "" b) in
   let pop = block env fr and look = block env fr in
   let fresh = block env fr and used = block env fr and taken = block env fr and bumped = block env fr in
   ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Ne top (Llvm.const_null ptr) "" b) pop look b);
   Llvm.position_at_end pop b;
-  ignore (Llvm.build_store (Llvm.build_load ptr top "" b) class_at b);
+  ignore (Llvm.build_store (List_handle.aligned env.ctx 8 (Llvm.build_load ptr top "" b)) class_at b);
   ignore (Llvm.build_br taken b);
   Llvm.position_at_end look b;
   let bump = field env b ptr m Walks.frontier in
@@ -1175,6 +947,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
             | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> (gep t p i, List.nth ts i)
             (* A sum's payload room holds case [i]'s payload. *)
             | (Ty.Sum ts | Ty.Packed (Ty.Sum ts)) when List.nth ts i = Ty.Void -> (p, Ty.Void)
+            | Ty.Sum ts when Option.is_some (Ty.byte_niche ts) -> (p, List.nth ts i)
             | Ty.Sum ts when Ty.niche ts -> (gep t p 0, List.nth ts i)
             | Ty.Sum ts | Ty.Packed (Ty.Sum ts) -> (gep t p 1, List.nth ts i)
             | _ -> Diagnostic.bug "codegen: an offset through something not a struct")
@@ -1222,7 +995,12 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           let lt = lltype env t in
           let out = alloca env fr lt in
           let size = fst (size_align t) in
-          (match snapshot_read t with
+          (* A place inside a packed type may be at any byte, where a load
+             is not atomic, so the runtime reads one not known to be
+             aligned to its size (Alignment.known). *)
+          let dl = Llvm_target.DataLayout.of_string (Llvm.data_layout env.m) in
+          let aligned = Alignment.known ~slots:false dl env.ctx 0 p >= size in
+          (match if aligned then snapshot_read t else `Runtime with
           | (`Unordered | `Acquire) as order ->
               let word = Llvm.build_load (Llvm.integer_type env.ctx (8 * size)) p "" b in
               Llvm.set_alignment size word;
@@ -1270,6 +1048,35 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       match (e.Expr.ty, expr env fr b value) with
       | Ty.Void, _ | _, None -> None
       | _, Some v -> Some (Llvm.build_extractvalue v index "" b))
+  | Expr.Case { index; payload } when (match e.Expr.ty with Ty.Sum ts -> Option.is_some (Ty.byte_niche ts) | _ -> false) -> (
+      let ts = match e.Expr.ty with Ty.Sum ts -> ts | _ -> [] in
+      let n = Option.get (Ty.byte_niche ts) in
+      let t = lltype env e.Expr.ty in
+      let tmp = alloca env fr t in
+      if index = n.case then (
+        (* The payload's bytes are the sum's. *)
+        match expr env fr b payload with
+        | Some p ->
+            ignore (Llvm.build_store p tmp b);
+            (* An [i1] stored leaves its byte's other bits unspecified, so
+               the spare [Bool] is stored again as the byte a test reads. *)
+            Option.iter
+              (fun path ->
+                let bool = List.fold_left (fun v i -> Llvm.build_extractvalue v i "" b) p path in
+                let byte = Llvm.build_zext bool (Llvm.i8_type env.ctx) "" b in
+                ignore (Llvm.build_store byte (byte_at env b tmp n.at) b))
+              n.path;
+            Some (Llvm.build_load t tmp "" b)
+        | None -> None)
+      else begin
+        (* Another case is the value its rank among them names, at the
+           spare byte, the payload's other bytes zero. *)
+        let rank = if index < n.case then index else index - 1 in
+        ignore (Llvm.build_store (Llvm.const_null t) tmp b);
+        let i8 = Llvm.i8_type env.ctx in
+        ignore (Llvm.build_store (Llvm.const_int i8 (n.first + rank)) (byte_at env b tmp n.at) b);
+        Some (Llvm.build_load t tmp "" b)
+      end)
   | Expr.Case { index; payload } when (match e.Expr.ty with Ty.Sum ts -> Ty.niche ts | _ -> false) ->
       let t = lltype env e.Expr.ty in
       let word =
@@ -1291,6 +1098,13 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           ignore (Llvm.build_store p at b)
       | None -> ());
       Some (Llvm.build_load t tmp "" b)
+  | Expr.Payload { value; _ } when (match value.Expr.ty with Ty.Sum ts -> Option.is_some (Ty.byte_niche ts) | _ -> false) -> (
+      match (e.Expr.ty, expr env fr b value) with
+      | Ty.Void, _ | _, None -> None
+      | t, Some v ->
+          let tmp = alloca env fr (Llvm.type_of v) in
+          ignore (Llvm.build_store v tmp b);
+          Some (Llvm.build_load (lltype env t) tmp "" b))
   | Expr.Payload { value; _ } when (match value.Expr.ty with Ty.Sum ts -> Ty.niche ts | _ -> false) -> (
       match (e.Expr.ty, expr env fr b value) with
       | Ty.Void, _ | _, None -> None
@@ -1602,7 +1416,8 @@ and stat env fr b (s : Stat.t) =
             List.fold_left
               (fun (p, t) i ->
                 match t with
-                | Ty.Struct ts -> (Llvm.build_struct_gep (lltype env t) p i "" b, List.nth ts i)
+                | Ty.Struct ts -> (Llvm.build_struct_gep (lltype env t) p i (if is_unaligned p then unaligned_name else "") b, List.nth ts i)
+                | Ty.Packed (Ty.Struct ts) -> (Llvm.build_struct_gep (lltype env t) p i unaligned_name b, List.nth ts i)
                 | _ -> Diagnostic.bug "codegen: a member path through something not a struct")
               (base, place.Expr.ty) place.Expr.path
           in
@@ -1612,7 +1427,22 @@ and stat env fr b (s : Stat.t) =
       | _ -> ())
   | Stat.Switch { value; cases } ->
       let v = value_of env fr b value in
-      let tag = Llvm.build_extractvalue v 0 "" b in
+      let tag =
+        match value.Expr.ty with
+        | Ty.Sum ts when Option.is_some (Ty.byte_niche ts) ->
+            (* The case a byte-niche sum holds: another case's when its spare
+               byte holds one of their values, else the one with a payload. *)
+            let n = Option.get (Ty.byte_niche ts) in
+            let i32 = Llvm.i32_type env.ctx and i8 = Llvm.i8_type env.ctx in
+            let tmp = alloca env fr (Llvm.type_of v) in
+            ignore (Llvm.build_store v tmp b);
+            let byte = Llvm.build_load i8 (byte_at env b tmp n.at) "" b in
+            let rank = Llvm.build_zext (Llvm.build_sub byte (Llvm.const_int i8 n.first) "" b) i32 "" b in
+            let other = Llvm.build_icmp Llvm.Icmp.Ult rank (Llvm.const_int i32 n.count) "" b in
+            let past = Llvm.build_zext (Llvm.build_icmp Llvm.Icmp.Uge rank (Llvm.const_int i32 n.case) "" b) i32 "" b in
+            Llvm.build_select other (Llvm.build_add rank past "" b) (Llvm.const_int i32 n.case) "" b
+        | _ -> Llvm.build_extractvalue v 0 "" b
+      in
       let tag =
         match value.Expr.ty with
         | Ty.Sum ts when Ty.niche ts ->

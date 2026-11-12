@@ -1,0 +1,13 @@
+N=10000000 PASSES=10 RUNS=5
+| shape | default time | default peak | ZANE_PACK=all time | ZANE_PACK=all peak | ZANE_PACK=niche time | ZANE_PACK=niche peak |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 Pair | 0.341 s | 155 MiB | 0.294 s | 117 MiB | 0.284 s | 117 MiB |
+| 2 Flagged | 0.340 s | 155 MiB | 0.213 s | 89 MiB | 0.223 s | 88 MiB |
+| 3 Trio | 0.431 s | 155 MiB | 0.377 s | 127 MiB | 0.378 s | 127 MiB |
+| 4 Outer | 0.496 s | 232 MiB | 0.374 s | 155 MiB | 0.362 s | 155 MiB |
+| 5 Maybe | 0.326 s | 155 MiB | 0.161 s | 88 MiB | 0.198 s | 88 MiB |
+| 6 Wide | 0.363 s | 155 MiB | 0.375 s | 155 MiB | 0.377 s | 155 MiB |
+| 7 Trio scattered | 1.065 s | 155 MiB | 1.101 s | 127 MiB | 1.121 s | 127 MiB |
+| 8 Wide scattered | 1.495 s | 155 MiB | 1.467 s | 155 MiB | 1.512 s | 155 MiB |
+| 9 Chosen | 0.474 s | 231 MiB | 0.239 s | 97 MiB | 0.193 s | 88 MiB |
+| 10 Nested | 0.610 s | 308 MiB | 0.539 s | 108 MiB | 0.246 s | 88 MiB |

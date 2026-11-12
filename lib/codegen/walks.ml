@@ -155,12 +155,17 @@ let each c count body =
 (* Whether a position is there in the value at [base]: every variant tag
    it lies under is live. *)
 let present c base (p : Layout.position) =
-  let i32 = Llvm.i32_type c.env.ctx in
+  let i32 = Llvm.i32_type c.env.ctx and i8 = Llvm.i8_type c.env.ctx in
   List.fold_left
     (fun cond (o, tag) ->
       let live =
-        if tag < 0 then Llvm.build_icmp Llvm.Icmp.Ne (load c i32 (offset c base o)) (Llvm.const_int i32 0) "" c.b
-        else Llvm.build_icmp Llvm.Icmp.Eq (load c i32 (offset c base o)) (Llvm.const_int i32 tag) "" c.b
+        match (Layout.byte_niche tag, Layout.packed_case tag) with
+        | Some (_, at, first, count), _ ->
+            let byte = load c i8 (offset c base (o + at)) in
+            Llvm.build_icmp Llvm.Icmp.Uge (Llvm.build_sub byte (Llvm.const_int i8 first) "" c.b) (Llvm.const_int i8 count) "" c.b
+        | None, Some case -> Llvm.build_icmp Llvm.Icmp.Eq (load c i8 (offset c base o)) (Llvm.const_int i8 case) "" c.b
+        | None, None when tag < 0 -> Llvm.build_icmp Llvm.Icmp.Ne (load c i32 (offset c base o)) (Llvm.const_int i32 0) "" c.b
+        | None, None -> Llvm.build_icmp Llvm.Icmp.Eq (load c i32 (offset c base o)) (Llvm.const_int i32 tag) "" c.b
       in
       match cond with None -> Some live | Some cond -> Some (Llvm.build_and cond live "" c.b))
     None p.tags
@@ -187,7 +192,7 @@ let take ?(bump_only = false) c region size =
   let words = max 1 ((size + 7) / 8) in
   if words > classes then runtime c Cgt.Runtime.Alloc_held [| region; int env size; int env 8 |]
   else if bump_only then begin
-    let at = load c env.ptr (offset c region frontier) in
+    let at = List_handle.aligned env.ctx 8 (load c env.ptr (offset c region frontier)) in
     let ends = load c env.ptr (offset c region frontier_end) in
     let next = offset c at (8 * words) in
     let fits = block c and slow = block c and done_ = block c in
@@ -211,7 +216,7 @@ let take ?(bump_only = false) c region size =
       store c (Llvm.build_add (load c env.i64 count) (int env 1) "" c.b) count
     in
     let stack = offset c region (8 * (words - 1)) in
-    let top = load c env.ptr stack in
+    let top = List_handle.aligned env.ctx 8 (load c env.ptr stack) in
     let pop = block c
     and bump = block c
     and fits = block c
@@ -219,11 +224,11 @@ let take ?(bump_only = false) c region size =
     and done_ = block c in
     ignore (Llvm.build_cond_br (nonzero c top) pop bump c.b);
     Llvm.position_at_end pop c.b;
-    store c (load c env.ptr top) stack;
+    store c (List_handle.aligned env.ctx 8 (load c env.ptr top)) stack;
     counted ();
     ignore (Llvm.build_br done_ c.b);
     Llvm.position_at_end bump c.b;
-    let at = load c env.ptr (offset c region frontier) in
+    let at = List_handle.aligned env.ctx 8 (load c env.ptr (offset c region frontier)) in
     let ends = load c env.ptr (offset c region frontier_end) in
     let left =
       Llvm.build_sub
@@ -275,7 +280,7 @@ let box env f b size align =
       let none = Llvm.const_null env.ptr in
       { env; f; b; at = none; with_ = none; extra = n 0; work = none; depth = n 0 }
     in
-    let region = load c env.ptr (zane_open env.m env.ptr) in
+    let region = List_handle.aligned env.ctx 8 (load c env.ptr (zane_open env.m env.ptr)) in
     take ~bump_only:(Cgt.Ref32.bump ()) c region size
   end
 
@@ -296,7 +301,7 @@ let zero_list c h =
 let load_box c h =
   if Cgt.Ref32.image_boxes () then
     List_handle.decode_box ~nullable:true c.env.ctx c.b (load c (Llvm.i32_type c.env.ctx) h)
-  else load c c.env.ptr h
+  else List_handle.aligned c.env.ctx 8 (load c c.env.ptr h)
 
 let store_box c v h =
   store c

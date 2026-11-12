@@ -1189,6 +1189,120 @@ let backstop () =
   Llvm.dispose_module m;
   Llvm.dispose_context ctx
 
+(* Each load and store is as aligned as its address is known to be
+   (Codegen.Alignment): every rule of it, on one module, read back by the
+   name each access's value or address carries. *)
+let alignment () =
+  let ctx = Llvm.create_context () in
+  let ir =
+    {|target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+@g = external global i32
+declare ptr @zane_scope_enter(i64)
+declare ptr @zane_list_push(ptr, i64)
+declare ptr @zane_alloc(ptr, i64, i64)
+declare ptr @other()
+define void @f(ptr align 16 %arg, ptr %bare, i64 %i, i1 %c) {
+entry:
+  %slot = alloca i64, align 8
+  store i64 1, ptr %slot, align 8
+  %local = load i64, ptr %slot, align 8
+  %glob = load i32, ptr @g, align 4
+  %at4 = getelementptr i8, ptr %slot, i64 4
+  %odd = load i32, ptr %at4, align 4
+  %fromarg = load i64, ptr %arg, align 8
+  %frombare = load i64, ptr %bare, align 8
+  %blk = load ptr, ptr %arg, align 8, !align !0
+  %viamd = load i64, ptr %blk, align 8
+  %i8 = mul i64 %i, 8
+  %scaled = getelementptr i8, ptr %blk, i64 %i8
+  %stride8 = load i64, ptr %scaled, align 8
+  %i3 = mul i64 %i, 3
+  %scaled3 = getelementptr i8, ptr %blk, i64 %i3
+  %stride3 = load i64, ptr %scaled3, align 8
+  %sl = getelementptr <{ i8, i64 }>, ptr %blk, i64 0, i32 1
+  %packed = load i64, ptr %sl, align 8
+  %frame = call ptr @zane_scope_enter(i64 64)
+  %inframe = load i64, ptr %frame, align 8
+  %pushed = call ptr @zane_list_push(ptr %bare, i64 12)
+  %inslot = load i64, ptr %pushed, align 8
+  %alloced = call ptr @zane_alloc(ptr %bare, i64 32, i64 16)
+  %inblock = load i64, ptr %alloced, align 8
+  %unknown = call ptr @other()
+  %inunknown = load i64, ptr %unknown, align 8
+  %either = select i1 %c, ptr %slot, ptr %bare
+  %inselect = load i64, ptr %either, align 8
+  %held = alloca ptr, align 8
+  store ptr %blk, ptr %held, align 8
+  %back = load ptr, ptr %held, align 8
+  %readback = load i64, ptr %back, align 8
+  %atomic = load atomic i64, ptr %bare unordered, align 8
+  store i64 %atomic, ptr %bare, align 8
+  ret void
+}
+!0 = !{i64 8}
+|}
+  in
+  let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string ir) in
+  Codegen__Alignment.mark m;
+  let f = Option.get (Llvm.lookup_function "f" m) in
+  let loads = Hashtbl.create 16 and stores = Hashtbl.create 4 in
+  Llvm.iter_blocks
+    (Llvm.iter_instrs (fun i ->
+         match Llvm.instr_opcode i with
+         | Llvm.Opcode.Load -> Hashtbl.replace loads (Llvm.value_name i) (Llvm.alignment i)
+         | Llvm.Opcode.Store -> Hashtbl.replace stores (Llvm.value_name (Llvm.operand i 1)) (Llvm.alignment i)
+         | _ -> ()))
+    f;
+  let at name = Hashtbl.find loads name in
+  check "a read from a stack slot keeps the slot's alignment" (at "local" = 8);
+  check "a global declared without one is at its type's alignment" (at "glob" = 4);
+  check "a constant offset keeps what divides it" (at "odd" = 4);
+  check "a parameter is as aligned as its attribute says" (at "fromarg" = 8);
+  check "a parameter with no attribute is at any byte" (at "frombare" = 1);
+  check "a pointer read with !align is that aligned" (at "viamd" = 8);
+  check "an index times 8 keeps 8" (at "stride8" = 8);
+  check "an index times 3 is at any byte" (at "stride3" = 1);
+  check "a member of a packed struct is at its byte" (at "packed" = 1);
+  check "a frame is on 16 bytes, a type's 8 at most" (at "inframe" = 8);
+  check "a pushed slot of a 12-byte stride is on 4" (at "inslot" = 4);
+  check "a block is on its alignment" (at "inblock" = 8);
+  check "another call's result is at any byte" (at "inunknown" = 1);
+  check "a select is the least of its two" (at "inselect" = 1);
+  check "a pointer read back from a slot is as aligned as what was stored" (at "readback" = 8);
+  check "an atomic access keeps its alignment" (at "atomic" = 8);
+  check "a store follows the same rules" (Hashtbl.find stores "slot" = 8 && Hashtbl.find stores "bare" = 1);
+  let open Codegen__Alignment in
+  check "a negative number's low bit is its magnitude's" (low_bit (-24L) = 8);
+  check "a wrapped 2^63 is past the cap" (low_bit Int64.min_int = most);
+  check "a greatest common divisor is never negative" (gcd (-12L) 8L = 4L && gcd 12L (-8L) = 4L);
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx
+
+(* Non-trivial loop unswitching runs for AArch64 alone (Passes.unswitch). *)
+let unswitching () =
+  let on = "simple-loop-unswitch<nontrivial;trivial>" in
+  let has triple =
+    let p = Codegen__Passes.pipeline ~triple ~optimize:true ~tier1:false in
+    let n = String.length on in
+    let rec go i = i + n <= String.length p && (String.sub p i n = on || go (i + 1)) in
+    go 0
+  in
+  check "the optimized pipeline names the pass it replaces"
+    (let off = "simple-loop-unswitch<no-nontrivial;trivial>" in
+     let p = Codegen__Passes.optimized in
+     let n = String.length off in
+     let rec go i = i + n <= String.length p && (String.sub p i n = off || go (i + 1)) in
+     go 0);
+  check "an AArch64 target unswitches loops"
+    (has "aarch64-unknown-linux-gnu" && has "arm64-apple-macosx14.0.0" && has "arm64e-apple-macosx14.0.0");
+  check "an x86-64 target does not" (not (has "x86_64-unknown-linux-gnu") && not (has "x86_64-pc-windows-gnu"));
+  check "an unoptimized build does not"
+    (not
+       (let p = Codegen__Passes.pipeline ~triple:"aarch64-unknown-linux-gnu" ~optimize:false ~tier1:false in
+        let n = String.length on in
+        let rec go i = i + n <= String.length p && (String.sub p i n = on || go (i + 1)) in
+        go 0))
+
 (* A target is refused unless its pointers are 8 bytes and it aligns `i64`
    and `double` to 8 (docs/design/platforms.md). No 64-bit LLVM target
    aligns either below that, so the layouts are written out here. *)
@@ -1543,6 +1657,8 @@ let () =
   string_constructors ();
   type_layout ();
   Member_order.run ();
+  alignment ();
+  unswitching ();
   growing_types ();
   fixpoint_chain ();
   runtime_abi ();

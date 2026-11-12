@@ -1,0 +1,13 @@
+plain      Vec3 (no padding)   default 1.945s  niche 1.969s  +1.2%
+plain      Tagged (reordered)  default 0.304s  niche 0.293s  -3.7%
+plain      Nested (reordered)  default 2.059s  niche 1.981s  -3.8%
+plain      Ordered (C order)   default 0.290s  niche 0.326s  +12.4%
+--optimize Vec3 (no padding)   default 0.978s  niche 0.971s  -0.7%
+--optimize Tagged (reordered)  default 0.105s  niche 0.112s  +6.0%
+--optimize Nested (reordered)  default 1.037s  niche 0.989s  -4.6%
+--optimize Ordered (C order)   default 0.116s  niche 0.114s  -1.8%
+repeat, best of 15, interleaved:
+plain      Tagged (reordered)  default 0.300s  niche 0.299s  -0.3%
+plain      Ordered (C order)   default 0.277s  niche 0.315s  +13.6%
+--optimize Tagged (reordered)  default 0.107s  niche 0.120s  +12.1%
+--optimize Ordered (C order)   default 0.114s  niche 0.113s  -1.1%

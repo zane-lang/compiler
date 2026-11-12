@@ -38,6 +38,37 @@ let optimized = O2_pipeline.optimized
    (docs/design/tiers.md T2). *)
 let tier1 = O2_pipeline.tier1
 
+(* A packed value's stride is rarely a power of two (lowering.md L5), and
+   a loop whose index a loop-invariant condition picks multiplies it by
+   the stride on every element rather than stepping a pointer by it.
+   Non-trivial unswitching, which `-O3` runs and `-O2` does not, copies
+   such a loop once for each way the condition goes, each with an index
+   LLVM steps. It runs for AArch64 alone: there the multiplying loop is
+   up to 28% slower, while on x86-64 it costs less than the copies do
+   (docs/experiments/tight-layouts, steps 6, 11 and 12). *)
+let unswitch triple =
+  match String.split_on_char '-' triple with
+  | arch :: _ -> String.starts_with ~prefix:"aarch64" arch || String.starts_with ~prefix:"arm64" arch
+  | [] -> false
+
+let nontrivial triple pipeline =
+  let off = "simple-loop-unswitch<no-nontrivial;trivial>" and on = "simple-loop-unswitch<nontrivial;trivial>" in
+  if not (unswitch triple) then pipeline
+  else
+    let n = String.length off in
+    let b = Buffer.create (String.length pipeline) in
+    let rec go i =
+      if i > String.length pipeline - n then Buffer.add_string b (String.sub pipeline i (String.length pipeline - i))
+      else if String.sub pipeline i n = off then (
+        Buffer.add_string b on;
+        go (i + n))
+      else (
+        Buffer.add_char b pipeline.[i];
+        go (i + 1))
+    in
+    go 0;
+    Buffer.contents b
+
 (* The options LLVM is started with for [optimized] and [tier1], the same
    for both, since LLVM reads them once for the whole process. IRCE splits a
    loop only when its header runs at least this many times for each entry
@@ -51,5 +82,7 @@ let tier1 = O2_pipeline.tier1
    more mispredicted branches (tests/perf). *)
 let llvm_options = [ "-irce-min-runtime-iterations=64"; "-align-all-functions=6" ]
 
-(* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*. *)
-let pipeline ~optimize ~tier1:is_tier1 = if is_tier1 then tier1 else if optimize then optimized else unoptimized
+(* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*,
+   for [triple]. *)
+let pipeline ~triple ~optimize ~tier1:is_tier1 =
+  if is_tier1 then nontrivial triple tier1 else if optimize then nontrivial triple optimized else unoptimized

@@ -154,6 +154,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
         Llvm.set_global_constant true g)
       [ ("zane_fixed_region", fixed_region); ("zane_spawned_fixed_region", spawned_fixed_region) ];
   Walks.finish (walks env);
+  Alignment.mark m;
   match Llvm_analysis.verify_module m with
   | Some problem -> Diagnostic.bug ("codegen built an invalid module: " ^ problem)
   | None -> ()

@@ -159,8 +159,8 @@ let locate (t : Ty.t) (v : v) (p : Layout.position) =
   let rec go t v off base path =
     match t with
     | (Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Box32) when off = 0 -> Some (List.rev path)
-    | Ty.Struct ts ->
-        let offsets = Ty.offsets ts in
+    | Ty.Struct _ | Ty.Packed (Ty.Struct _) ->
+        let ts = Ty.members t and offsets = Ty.member_offsets t in
         let rec find i ts offsets =
           match (ts, offsets) with
           | t :: ts, o :: offsets ->
@@ -176,7 +176,7 @@ let locate (t : Ty.t) (v : v) (p : Layout.position) =
     (* An array whose elements own blocks is one position (Layout.Array),
        and what its elements hold is found by their own layout. *)
     | Ty.Array _ when off = 0 -> Some (List.rev path)
-    | Ty.Sum ts when off >= Ty.payload_at t -> (
+    | (Ty.Sum ts | Ty.Packed (Ty.Sum ts)) when off >= Ty.payload_at t -> (
         let at = Ty.payload_at t in
         match v with
         | VCase (tag, payload) ->

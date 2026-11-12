@@ -1,0 +1,12 @@
+Shell workflow run 43101092430, ubuntu-latest, the four realistic programs scaled up, best of 15, run twice
+model name	: AMD EPYC 9V45 96-Core Processor
+program                        default          default+unswitch                     niche
+particles               0.227s   +0.0%            0.229s   +1.3%            0.215s   -5.0%
+tokens                  0.246s   +0.0%            0.247s   +0.4%            0.237s   -3.5%
+entities                0.163s   +0.0%            0.178s   +9.2%            0.185s  +13.6%
+paths                   0.384s   +0.0%            0.352s   -8.4%            0.337s  -12.4%
+program                        default          default+unswitch                     niche
+particles               0.225s   +0.0%            0.231s   +2.4%            0.212s   -5.8%
+tokens                  0.244s   +0.0%            0.243s   -0.2%            0.236s   -3.3%
+entities                0.161s   +0.0%            0.178s  +10.9%            0.184s  +14.2%
+paths                   0.342s   +0.0%            0.344s   +0.8%            0.333s   -2.4%

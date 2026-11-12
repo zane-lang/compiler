@@ -226,10 +226,10 @@ let rec shape st span (t : Tty.t) : Nodes.Ty.t =
       | None -> unhandled span t)
   | Tty.Named _ -> (
       let member = member_shape st span t in
-      let sum ts = Nodes.Ty.Sum ts in
+      let sum ts = Nodes.Ty.tight (Nodes.Ty.Sum ts) in
       let fields ms =
         let ts = List.map (fun (_, m) -> member m) ms in
-        Nodes.Ty.Struct (Nodes.Ty.placed ts ts)
+        Nodes.Ty.tight (Nodes.Ty.Struct (Nodes.Ty.placed ts ts))
       in
       match definition st t with
       | Some (T.Decl.Struct [], false) -> Nodes.Ty.Void
@@ -351,6 +351,19 @@ let handle_thunks st (t : Tty.t) ((h : T.Handle.t), kind) =
       Some (free, set)
   | _ -> None
 
+(* The tag a position under case [i] of the lowered sum [lowered] names:
+   as its 4-byte tag, its packed tag's byte, its niche or its byte niche
+   holds the case. *)
+let case_tag lowered i =
+  match lowered with
+  | Nodes.Ty.Sum ts when Nodes.Ty.niche ts -> Layout.niche_tag i
+  | Nodes.Ty.Sum ts -> (
+      match Nodes.Ty.byte_niche ts with
+      | Some n -> Layout.byte_niche_tag ~case:i ~at:n.at ~first:n.first ~count:n.count
+      | None -> i)
+  | Nodes.Ty.Packed (Nodes.Ty.Sum _) -> Layout.packed_tag i
+  | _ -> i
+
 (* Where a type's owned blocks are (memory.md §3.6): each handle and each
    boxed member, down through variant payloads under the tag that makes each
    live, and each foreign handle that owns its C object. An array whose
@@ -409,15 +422,14 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
             List.concat
               (List.mapi
                  (fun i (_, c) ->
-                   let tag = match lowered with Nodes.Ty.Sum ts when Nodes.Ty.niche ts -> Layout.niche_tag i | _ -> i in
-                   member c (sum + Nodes.Ty.payload_at lowered) (tags @ [ (sum, tag) ]))
+                   member c (sum + Nodes.Ty.payload_at lowered) (tags @ [ (sum, case_tag lowered i) ]))
                  cs)
           in
           match (definition, lowered) with
-          | T.Decl.Struct ms, Nodes.Ty.Struct ts ->
+          | T.Decl.Struct ms, ((Nodes.Ty.Struct _ | Nodes.Ty.Packed (Nodes.Ty.Struct _)) as l) ->
               List.concat
-                (List.map2 (fun (_, m) at -> member m (base + at) tags) (placed_members st t ms) (Nodes.Ty.offsets ts))
-          | T.Decl.Variant cs, Nodes.Ty.Sum _ -> variant cs base
+                (List.map2 (fun (_, m) at -> member m (base + at) tags) (placed_members st t ms) (Nodes.Ty.member_offsets l))
+          | T.Decl.Variant cs, (Nodes.Ty.Sum _ | Nodes.Ty.Packed (Nodes.Ty.Sum _)) -> variant cs base
           | _ -> [])
       | None -> [])
 

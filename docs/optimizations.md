@@ -214,12 +214,36 @@ memory the system backs only where an entry has been written.
   34.1 MB instead of 49.8 MB, each element 16 bytes instead of 24
 
 A struct's members are placed in decreasing order of alignment, those of
-one alignment in declaration order. Every layout's size is a multiple of
-its alignment, so no padding falls between members, and a struct is as
-small as its members allow. Every list element, array element, owner slot
-and box of the type shrinks with it. Placement is not visible to a Zane
-program (spec `memory.md` §3.3, §3.5). C sees a struct only as a copy,
-rebuilt in its declaration order as it crosses.
+one alignment in declaration order, so the only padding C's layout would
+leave is at the tail, which the next entry removes. Every list element,
+array element, owner slot and box of the type shrinks with it. Placement
+is not visible to a Zane program (spec `memory.md` §3.3, §3.5). C sees a
+struct only as a copy, rebuilt in its declaration order as it crosses.
+
+### Padded values packed, and a sum's tag in a spare byte
+
+- **Builds:** every build
+- **Where:** `lib/cgt/nodes.ml` (`Ty.tight`, `Ty.byte_niche`, `Ty.spare`),
+  `lib/cgt/type_layout.ml`, `lib/codegen/emit.ml`, `lib/codegen/walks.ml`,
+  `lib/codegen/alignment.ml`
+- **Design:** [`design/lowering.md`](design/lowering.md) L5;
+  [`experiments/tight-layouts/README.md`](experiments/tight-layouts/README.md)
+- **Effect:** a list of padded values peaks at 25–71% less memory
+  (`experiments/tight-layouts` `bench/layouts`); `entities` runs
+  10.5%, `paths` 6.5%, `copies` 4.8%, `particles` 4.9% and `tokens` 3.3%
+  fewer estimated cycles optimized (`tests/perf`)
+
+A struct that C's layout would pad is packed: its members follow one
+another with no padding and its alignment is 1. A sum whose one case
+carrying data has a byte with values it never holds, a `Bool` or a packed
+sum's tag, keeps the other cases' tags in that byte and is no larger than
+its payload; any other sum is packed with a one-byte tag, unless it has
+more than 256 cases. A value of a
+packed type may begin at any byte, so each load and store is as aligned as
+its address is known to be, not as its type is. Placement is not visible
+to a Zane program (spec `memory.md` §3.3, §3.5), so the compiler is free
+to choose it; C sees
+a C-compatible type in its own layout, converted as it crosses.
 
 ### One box per cycle
 
@@ -618,6 +642,21 @@ and IRCE splits only the long one, since the split costs a short loop more
 than it saves. A loop that calls back into its own function is left as it
 is: the call costs far more than the check.
 
+### Loops unswitched on AArch64
+
+- **Builds:** optimized only (and tier 1), AArch64 targets
+- **Where:** `lib/codegen/passes.ml` (`unswitch`, `nontrivial`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
+- **Effect:** on Apple silicon, a loop over 13-byte packed values whose
+  field a loop-invariant condition picks runs 32% faster than over the
+  unpacked layout instead of 28% slower
+  ([`experiments/tight-layouts`](experiments/tight-layouts/README.md))
+
+A loop whose body branches on a condition the loop does not change is
+copied once for each way it goes, so each copy steps a pointer by a packed
+element's stride instead of multiplying the index by it on every pass. On
+x86-64 the copies cost more than they save, and the pass is left out.
+
 ### Code tuned for the processor clang would pick
 
 - **Builds:** every build (x86-64 targets)
@@ -679,15 +718,16 @@ to link.
   64.1M tiered (−12%); its plain build and every other perf program are
   unchanged
 
-A parameter passed by address is `readonly`, `noalias`, aligned and
+A parameter passed by address is `readonly`, `noalias` and
 `dereferenceable` for its size, so LLVM may treat the value behind it as a
-private copy. An `sret` result is `noalias`. Call sites carry the same
+private copy. An `sret` result is `noalias` and aligned. Call sites carry the same
 attributes. A parameter that is the address of a slot that outlives the call, a
-`mut` subject, an owned value passed by address or an `&T`, is `nonnull`,
-aligned and `dereferenceable` for the whole slot when the slot holds a
+`mut` subject, an owned value passed by address or an `&T`, is `nonnull`
+and `dereferenceable` for the whole slot when the slot holds a
 declared type, a list or a text, so a loop reads a list in it once rather
 than after every index check. A runtime value such as `Console` has no
-layout lowering knows, and gets none of these.
+layout lowering knows, and gets none of these. Neither kind claims an
+alignment: what it names may be a member at any byte of a packed value.
 
 ### List headers and scalars in separate alias classes
 

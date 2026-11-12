@@ -1,0 +1,63 @@
+Shell workflow run 43100234671, macos-latest, Apple M1 (Virtual)
+niches, default : same
+niches, default --optimize: same
+niches, ZANE_PACK=niche : same
+niches, ZANE_PACK=niche --optimize: same
+== measure.py
+N=10000000 PASSES=10 RUNS=5
+| shape | default time | default peak | ZANE_UNSWITCH=1 time | ZANE_UNSWITCH=1 peak | ZANE_PACK=niche time | ZANE_PACK=niche peak |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 Pair | 0.168 s | 154 MiB | 0.169 s | 155 MiB | 0.109 s | 117 MiB |
+| 2 Flagged | 0.169 s | 154 MiB | 0.168 s | 155 MiB | 0.112 s | 88 MiB |
+| 3 Trio | 0.192 s | 154 MiB | 0.143 s | 155 MiB | 0.131 s | 126 MiB |
+| 4 Outer | 0.155 s | 231 MiB | 0.157 s | 231 MiB | 0.107 s | 155 MiB |
+| 5 Maybe | 0.103 s | 154 MiB | 0.104 s | 155 MiB | 0.080 s | 88 MiB |
+| 6 Wide | 0.129 s | 154 MiB | 0.082 s | 155 MiB | 0.081 s | 155 MiB |
+| 7 Trio scattered | 1.078 s | 154 MiB | 0.984 s | 155 MiB | 0.997 s | 126 MiB |
+| 8 Wide scattered | 0.972 s | 154 MiB | 0.924 s | 155 MiB | 0.929 s | 155 MiB |
+| 9 Chosen | 0.132 s | 230 MiB | 0.144 s | 230 MiB | 0.082 s | 87 MiB |
+| 10 Nested | 0.209 s | 307 MiB | 0.237 s | 307 MiB | 0.201 s | 88 MiB |
+| 11 Quads | 0.169 s | 154 MiB | 0.157 s | 155 MiB | 0.112 s | 126 MiB |
+| 12 Trio plain loop | 0.128 s | 154 MiB | 0.126 s | 155 MiB | 0.103 s | 126 MiB |
+== programs.py
+program                        default          default+unswitch                     niche
+borrows                 0.008s   +0.0%            0.008s   -0.5%            0.008s   -1.1%
+copies                  0.006s   +0.0%            0.006s   +5.5%            0.006s   +3.0%
+depths                  0.004s   +0.0%            0.004s   +1.4%            0.004s   +1.5%
+division                0.007s   +0.0%            0.007s   -1.2%            0.007s   +2.1%
+flips                   0.023s   +0.0%            0.023s   -2.2%            0.023s   +1.0%
+floats                  0.011s   +0.0%            0.011s   -3.2%            0.012s   +2.0%
+growth                  0.011s   +0.0%            0.012s  +11.3%            0.012s  +11.9%
+kept                    0.004s   +0.0%            0.004s   -1.5%            0.004s   -0.6%
+leaves                  0.006s   +0.0%            0.006s   +1.3%            0.006s   -1.2%
+removal                 0.029s   +0.0%            0.029s   -0.2%            0.029s   +0.1%
+repeats                 0.004s   +0.0%            0.004s   -9.4%            0.004s   -8.9%
+returns                 0.010s   +0.0%            0.010s   -0.8%            0.010s   -2.1%
+scopes                  0.003s   +0.0%            0.003s   -2.1%            0.003s   -2.0%
+stress                  0.170s   +0.0%            0.169s   -0.6%            0.170s   +0.0%
+texts                   0.010s   +0.0%            0.010s   +3.4%            0.010s   -0.3%
+trees                   0.005s   +0.0%            0.005s   +4.3%            0.005s   -0.7%
+particles               0.112s   +0.0%            0.108s   -3.9%            0.104s   -7.1%
+tokens                  0.075s   +0.0%            0.075s   -0.1%            0.075s   +0.2%
+entities                0.079s   +0.0%            0.079s   -0.3%            0.072s   -8.3%
+paths                   0.032s   +0.0%            0.032s   +1.0%            0.031s   -1.6%
+== langbench.py
+test                             default          default+unswitch                     niche
+startup                   0.004s   +0.0%            0.003s   -1.6%            0.003s  -12.3%
+primes                    0.004s   +0.0%            0.003s   -9.6%            0.004s   -1.9%
+trialdiv                         refused                   refused                   refused
+binarytrees               0.033s   +0.0%            0.032s   -2.6%            0.031s   -6.4%
+mandelbrot                0.629s   +0.0%            0.636s   +1.2%            0.627s   -0.2%
+fannkuch                  0.204s   +0.0%            0.205s   +0.4%            0.204s   -0.1%
+entities                  0.258s   +0.0%            0.268s   +3.9%            0.239s   -7.5%
+listgrowth                0.111s   +0.0%            0.118s   +6.2%            0.115s   +3.4%
+ntree                            refused                   refused                   refused
+treecopy                  0.039s   +0.0%            0.038s   -2.6%            0.040s   +3.3%
+nbody                     0.292s   +0.0%            0.292s   -0.2%            0.314s   +7.4%
+
+spectralnorm                     refused                   refused                   refused
+
+allocfree                        refused                   refused                   refused
+gameloop                         refused                   refused                   refused
+particles                        refused                   refused                   refused
+concscan                  0.247s   +0.0%            0.227s   -8.2%            0.215s  -12.7%

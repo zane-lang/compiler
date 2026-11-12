@@ -804,7 +804,7 @@
     │       ├── body[52] > let:
     │       │   ├── local: #117
     │       │   └── value > case:
-    │       │       ├── type: <void | void>
+    │       │       ├── type: packed <void | void>
     │       │       ├── index: 1
     │       │       └── payload: unit : void
     │       ├── body[53] > let:
@@ -815,9 +815,9 @@
     │       │       ├── result: #119
     │       │       ├── body[0] > let:
     │       │       │   ├── local: #120
-    │       │       │   └── value: local #117 : <void | void>
+    │       │       │   └── value: local #117 : packed <void | void>
     │       │       └── body[1] > switch:
-    │       │           ├── value: local #120 : <void | void>
+    │       │           ├── value: local #120 : packed <void | void>
     │       │           ├── cases[0] > case 0[0] > assign:
     │       │           │   ├── place: #119
     │       │           │   └── value: function lambdas$Op.apply$lambda1
@@ -856,11 +856,11 @@
     │       │       │   │       ├── body[0] > let:
     │       │       │   │       │   ├── local: #124
     │       │       │   │       │   └── value > case:
-    │       │       │   │       │       ├── type: <void | void>
+    │       │       │   │       │       ├── type: packed <void | void>
     │       │       │   │       │       ├── index: 0
     │       │       │   │       │       └── payload: unit : void
     │       │       │   │       └── body[1] > switch:
-    │       │       │   │           ├── value: local #124 : <void | void>
+    │       │       │   │           ├── value: local #124 : packed <void | void>
     │       │       │   │           ├── cases[0] > case 0[0] > assign:
     │       │       │   │           │   ├── place: #123
     │       │       │   │           │   └── value: function lambdas$Op.apply$lambda1

@@ -5,33 +5,33 @@
     │   └── positions[0]: box @0 of boxes$Countdown (4 bytes) when [0]=-2
     ├── layouts[1] > layout:
     │   ├── type: boxes$Pair
-    │   ├── positions[0]: box @8 of boxes$Pair (32 bytes) when [0]=1
-    │   └── positions[1]: box @24 of boxes$Pair (32 bytes) when [16]=1
+    │   ├── positions[0]: box @1 of boxes$Pair (18 bytes) when [0]=1 (a byte)
+    │   └── positions[1]: box @10 of boxes$Pair (18 bytes) when [9]=1 (a byte)
     ├── layouts[2] > layout:
     │   ├── type: boxes$Tree
-    │   └── positions[0]: box @8 of boxes$Pair (32 bytes) when [0]=1
+    │   └── positions[0]: box @1 of boxes$Pair (18 bytes) when [0]=1 (a byte)
     ├── layouts[3] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
     ├── layouts[4] > layout:
     │   ├── type: boxes$Link
     │   ├── positions[0]: text @0
-    │   └── positions[1]: box @24 of boxes$Link (32 bytes) when [24]=-2
+    │   └── positions[1]: box @24 of boxes$Link (28 bytes) when [24]=-2
     ├── layouts[5] > layout:
     │   ├── type: ^boxes$Chain
-    │   └── positions[0]: box @0 of boxes$Link (32 bytes) when [0]=-2
+    │   └── positions[0]: box @0 of boxes$Link (28 bytes) when [0]=-2
     ├── layouts[6] > layout:
     │   ├── type: boxes$Chain
-    │   └── positions[0]: box @0 of boxes$Link (32 bytes) when [0]=-2
+    │   └── positions[0]: box @0 of boxes$Link (28 bytes) when [0]=-2
     ├── layouts[7] > layout:
     │   ├── type: boxes$Tower
-    │   └── positions[0]: box @8 of boxes$Tower (16 bytes) when [8]=-2
+    │   └── positions[0]: box @8 of boxes$Tower (12 bytes) when [8]=-2
     ├── layouts[8] > layout:
     │   ├── type: ^boxes$Storey
-    │   └── positions[0]: box @0 of boxes$Tower (16 bytes) when [0]=-2
+    │   └── positions[0]: box @0 of boxes$Tower (12 bytes) when [0]=-2
     ├── layouts[9] > layout:
     │   ├── type: boxes$Storey
-    │   └── positions[0]: box @0 of boxes$Tower (16 bytes) when [0]=-2
+    │   └── positions[0]: box @0 of boxes$Tower (12 bytes) when [0]=-2
     ├── layouts[10] > layout:
     │   ├── type: boxes$Solo
     │   └── positions[0]: box @0 of boxes$Solo (4 bytes) when [0]=-2
@@ -458,33 +458,33 @@
     │       │   ├── local: #61
     │       │   ├── scope: %2
     │       │   ├── value > case:
-    │       │   │   ├── type: <i64 | box32>
+    │       │   │   ├── type: packed <i64 | box32>
     │       │   │   ├── index: 1
     │       │   │   └── payload > convert:
     │       │   │       ├── type: box32
     │       │   │       └── value > box:
     │       │   │           ├── value > call:
-    │       │   │           │   ├── type: {<i64 | box32>, <i64 | box32>}
+    │       │   │           │   ├── type: {packed <i64 | box32>, packed <i64 | box32>}
     │       │   │           │   ├── fn: boxes$Pair(boxes$Tree, boxes$Tree)
     │       │   │           │   ├── args[0] > case:
-    │       │   │           │   │   ├── type: <i64 | box32>
+    │       │   │           │   │   ├── type: packed <i64 | box32>
     │       │   │           │   │   ├── index: 0
     │       │   │           │   │   └── payload: 1 : i64
     │       │   │           │   └── args[1] > case:
-    │       │   │           │       ├── type: <i64 | box32>
+    │       │   │           │       ├── type: packed <i64 | box32>
     │       │   │           │       ├── index: 1
     │       │   │           │       └── payload > convert:
     │       │   │           │           ├── type: box32
     │       │   │           │           └── value > box:
     │       │   │           │               ├── value > call:
-    │       │   │           │               │   ├── type: {<i64 | box32>, <i64 | box32>}
+    │       │   │           │               │   ├── type: {packed <i64 | box32>, packed <i64 | box32>}
     │       │   │           │               │   ├── fn: boxes$Pair(boxes$Tree, boxes$Tree)
     │       │   │           │               │   ├── args[0] > case:
-    │       │   │           │               │   │   ├── type: <i64 | box32>
+    │       │   │           │               │   │   ├── type: packed <i64 | box32>
     │       │   │           │               │   │   ├── index: 0
     │       │   │           │               │   │   └── payload: 2 : i64
     │       │   │           │               │   └── args[1] > case:
-    │       │   │           │               │       ├── type: <i64 | box32>
+    │       │   │           │               │       ├── type: packed <i64 | box32>
     │       │   │           │               │       ├── index: 0
     │       │   │           │               │       └── payload: 3 : i64
     │       │   │           │               └── layout: boxes$Pair
@@ -494,14 +494,14 @@
     │       │   ├── local: #62
     │       │   ├── scope: %2
     │       │   ├── value > copy:
-    │       │   │   ├── type: <i64 | box32>
-    │       │   │   ├── value: local #61 : <i64 | box32>
+    │       │   │   ├── type: packed <i64 | box32>
+    │       │   │   ├── value: local #61 : packed <i64 | box32>
     │       │   │   └── layout: boxes$Tree
     │       │   └── layout: boxes$Tree
     │       ├── body[11] > overwrite:
     │       │   ├── address: address of #61 : ptr
     │       │   ├── value > case:
-    │       │   │   ├── type: <i64 | box32>
+    │       │   │   ├── type: packed <i64 | box32>
     │       │   │   ├── index: 0
     │       │   │   └── payload: 0 : i64
     │       │   └── layout: boxes$Tree
@@ -520,12 +520,12 @@
     │       │       │   │   └── value: address of #62 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <i64 | box32>
+    │       │       │       │   ├── type: packed <i64 | box32>
     │       │       │       │   └── ptr: local #67 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #68
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <i64 | box32>
+    │       │       │       │       ├── within: packed <i64 | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #67 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -541,7 +541,7 @@
     │       │       │       │       └── value > deref:
     │       │       │       │           ├── type: box32
     │       │       │       │           └── ptr > offset:
-    │       │       │       │               ├── within: <i64 | box32>
+    │       │       │       │               ├── within: packed <i64 | box32>
     │       │       │       │               ├── path: 1
     │       │       │       │               └── base: local #67 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
@@ -553,19 +553,19 @@
     │       │       │       │       │   ├── type: i64
     │       │       │       │       │   ├── fn: boxes$total(boxes$Tree)
     │       │       │       │       │   └── args[0] > member:
-    │       │       │       │       │       ├── type: <i64 | box32>
+    │       │       │       │       │       ├── type: packed <i64 | box32>
     │       │       │       │       │       ├── index: 0
     │       │       │       │       │       └── value > deref:
-    │       │       │       │       │           ├── type: {<i64 | box32>, <i64 | box32>}
+    │       │       │       │       │           ├── type: {packed <i64 | box32>, packed <i64 | box32>}
     │       │       │       │       │           └── ptr: local #69 : ptr
     │       │       │       │       └── right > call:
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: boxes$total(boxes$Tree)
     │       │       │       │           └── args[0] > member:
-    │       │       │       │               ├── type: <i64 | box32>
+    │       │       │       │               ├── type: packed <i64 | box32>
     │       │       │       │               ├── index: 1
     │       │       │       │               └── value > deref:
-    │       │       │       │                   ├── type: {<i64 | box32>, <i64 | box32>}
+    │       │       │       │                   ├── type: {packed <i64 | box32>, packed <i64 | box32>}
     │       │       │       │                   └── ptr: local #69 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @65
     │       │       └── right: 6 : i64
@@ -584,12 +584,12 @@
     │       │       │   │   └── value: address of #61 : ptr
     │       │       │   └── body[1] > switch:
     │       │       │       ├── value > deref:
-    │       │       │       │   ├── type: <i64 | box32>
+    │       │       │       │   ├── type: packed <i64 | box32>
     │       │       │       │   └── ptr: local #74 : ptr
     │       │       │       ├── cases[0] > case 0[0] > let:
     │       │       │       │   ├── local: #75
     │       │       │       │   └── value > offset:
-    │       │       │       │       ├── within: <i64 | box32>
+    │       │       │       │       ├── within: packed <i64 | box32>
     │       │       │       │       ├── path: 0
     │       │       │       │       └── base: local #74 : ptr
     │       │       │       ├── cases[0] > case 0[1] > assign:
@@ -605,7 +605,7 @@
     │       │       │       │       └── value > deref:
     │       │       │       │           ├── type: box32
     │       │       │       │           └── ptr > offset:
-    │       │       │       │               ├── within: <i64 | box32>
+    │       │       │       │               ├── within: packed <i64 | box32>
     │       │       │       │               ├── path: 1
     │       │       │       │               └── base: local #74 : ptr
     │       │       │       ├── cases[1] > case 1[1] > assign:
@@ -617,19 +617,19 @@
     │       │       │       │       │   ├── type: i64
     │       │       │       │       │   ├── fn: boxes$total(boxes$Tree)
     │       │       │       │       │   └── args[0] > member:
-    │       │       │       │       │       ├── type: <i64 | box32>
+    │       │       │       │       │       ├── type: packed <i64 | box32>
     │       │       │       │       │       ├── index: 0
     │       │       │       │       │       └── value > deref:
-    │       │       │       │       │           ├── type: {<i64 | box32>, <i64 | box32>}
+    │       │       │       │       │           ├── type: {packed <i64 | box32>, packed <i64 | box32>}
     │       │       │       │       │           └── ptr: local #76 : ptr
     │       │       │       │       └── right > call:
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: boxes$total(boxes$Tree)
     │       │       │       │           └── args[0] > member:
-    │       │       │       │               ├── type: <i64 | box32>
+    │       │       │       │               ├── type: packed <i64 | box32>
     │       │       │       │               ├── index: 1
     │       │       │       │               └── value > deref:
-    │       │       │       │                   ├── type: {<i64 | box32>, <i64 | box32>}
+    │       │       │       │                   ├── type: {packed <i64 | box32>, packed <i64 | box32>}
     │       │       │       │                   └── ptr: local #76 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @72
     │       │       └── right: 0 : i64
@@ -643,7 +643,7 @@
     │       │   │       ├── type: box32
     │       │   │       └── value > box:
     │       │   │           ├── value > call:
-    │       │   │           │   ├── type: {handle, <void | box32>}
+    │       │   │           │   ├── type: packed {handle, <void | box32>}
     │       │   │           │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
     │       │   │           │   ├── args[0]: "a" : handle
     │       │   │           │   └── args[1] > case:
@@ -653,7 +653,7 @@
     │       │   │           │           ├── type: box32
     │       │   │           │           └── value > box:
     │       │   │           │               ├── value > call:
-    │       │   │           │               │   ├── type: {handle, <void | box32>}
+    │       │   │           │               │   ├── type: packed {handle, <void | box32>}
     │       │   │           │               │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
     │       │   │           │               │   ├── args[0]: "b" : handle
     │       │   │           │               │   └── args[1] > case:
@@ -710,7 +710,7 @@
     │       │       │       │           ├── type: i64
     │       │       │       │           ├── fn: boxes$length(this boxes$Chain)
     │       │       │       │           └── args[0] > offset:
-    │       │       │       │               ├── within: {handle, <void | box32>}
+    │       │       │       │               ├── within: packed {handle, <void | box32>}
     │       │       │       │               ├── path: 1
     │       │       │       │               └── base: local #90 : ptr
     │       │       │       └── cases[1] > case 1[2]: leave @86
@@ -782,7 +782,7 @@
     │       │       │   │           │           ├── type: i64
     │       │       │   │           │           ├── fn: boxes$length(this boxes$Chain)
     │       │       │   │           │           └── args[0] > offset:
-    │       │       │   │           │               ├── within: {handle, <void | box32>}
+    │       │       │   │           │               ├── within: packed {handle, <void | box32>}
     │       │       │   │           │               ├── path: 1
     │       │       │   │           │               └── base: local #100 : ptr
     │       │       │   │           └── cases[1] > case 1[2]: leave @96
@@ -800,7 +800,7 @@
     │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > offset:
-    │       │       │   │       ├── within: {handle, <void | box32>}
+    │       │       │   │       ├── within: packed {handle, <void | box32>}
     │       │       │   │       ├── path: 0
     │       │       │   │       └── base > expand:
     │       │       │   │           ├── type: ptr
@@ -809,7 +809,7 @@
     │       │       │   │           ├── body[0] > reserve:
     │       │       │   │           │   ├── local: #104
     │       │       │   │           │   ├── scope: %2
-    │       │       │   │           │   ├── type: {handle, <void | box32>}
+    │       │       │   │           │   ├── type: packed {handle, <void | box32>}
     │       │       │   │           │   └── layout: boxes$Link
     │       │       │   │           ├── body[1] > let:
     │       │       │   │           │   ├── local: #103
@@ -838,7 +838,7 @@
     │       │       │   │               ├── body[0] > place:
     │       │       │   │               │   ├── address: address of #104 : ptr
     │       │       │   │               │   ├── value > call:
-    │       │       │   │               │   │   ├── type: {handle, <void | box32>}
+    │       │       │   │               │   │   ├── type: packed {handle, <void | box32>}
     │       │       │   │               │   │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
     │       │       │   │               │   │   ├── args[0]: "none" : handle
     │       │       │   │               │   │   └── args[1] > case:
@@ -875,7 +875,7 @@
     │       │       │   ├── args[0] > deref:
     │       │       │   │   ├── type: handle
     │       │       │   │   └── ptr > offset:
-    │       │       │   │       ├── within: {handle, <void | box32>}
+    │       │       │   │       ├── within: packed {handle, <void | box32>}
     │       │       │   │       ├── path: 0
     │       │       │   │       └── base > expand:
     │       │       │   │           ├── type: ptr
@@ -884,7 +884,7 @@
     │       │       │   │           ├── body[0] > reserve:
     │       │       │   │           │   ├── local: #116
     │       │       │   │           │   ├── scope: %2
-    │       │       │   │           │   ├── type: {handle, <void | box32>}
+    │       │       │   │           │   ├── type: packed {handle, <void | box32>}
     │       │       │   │           │   └── layout: boxes$Link
     │       │       │   │           ├── body[1] > let:
     │       │       │   │           │   ├── local: #115
@@ -927,7 +927,7 @@
     │       │       │   │               ├── body[0] > place:
     │       │       │   │               │   ├── address: address of #116 : ptr
     │       │       │   │               │   ├── value > call:
-    │       │       │   │               │   │   ├── type: {handle, <void | box32>}
+    │       │       │   │               │   │   ├── type: packed {handle, <void | box32>}
     │       │       │   │               │   │   ├── fn: boxes$Link(%primitives$String, ^boxes$Chain)
     │       │       │   │               │   │   ├── args[0]: "none" : handle
     │       │       │   │               │   │   └── args[1] > case:
@@ -956,7 +956,7 @@
     │       │   ├── local: #136
     │       │   ├── scope: %2
     │       │   ├── value > expand:
-    │       │   │   ├── type: {i64, <void | box32>}
+    │       │   │   ├── type: packed {i64, <void | box32>}
     │       │   │   ├── label: @134
     │       │   │   ├── result: #135
     │       │   │   ├── body[0] > let:
@@ -972,7 +972,7 @@
     │       │   │   │   │       ├── type: box32
     │       │   │   │   │       └── value > box:
     │       │   │   │   │           ├── value > expand:
-    │       │   │   │   │           │   ├── type: {i64, <void | box32>}
+    │       │   │   │   │           │   ├── type: packed {i64, <void | box32>}
     │       │   │   │   │           │   ├── label: @131
     │       │   │   │   │           │   ├── result: #132
     │       │   │   │   │           │   ├── body[0] > let:
@@ -991,7 +991,7 @@
     │       │   │   │   │           │   │   └── value > escape:
     │       │   │   │   │           │   │       ├── exit: @131
     │       │   │   │   │           │   │       ├── value > record:
-    │       │   │   │   │           │   │       │   ├── type: {i64, <void | box32>}
+    │       │   │   │   │           │   │       │   ├── type: packed {i64, <void | box32>}
     │       │   │   │   │           │   │       │   ├── members[0] > member 0: local #129 : i64
     │       │   │   │   │           │   │       │   └── members[1] > member 1 > take:
     │       │   │   │   │           │   │       │       ├── type: <void | box32>
@@ -1006,7 +1006,7 @@
     │       │   │   │   └── value > escape:
     │       │   │   │       ├── exit: @134
     │       │   │   │       ├── value > record:
-    │       │   │   │       │   ├── type: {i64, <void | box32>}
+    │       │   │   │       │   ├── type: packed {i64, <void | box32>}
     │       │   │   │       │   ├── members[0] > member 0: local #128 : i64
     │       │   │   │       │   └── members[1] > member 1 > take:
     │       │   │   │       │       ├── type: <void | box32>
@@ -1018,7 +1018,7 @@
     │       ├── body[22] > let:
     │       │   ├── local: #137
     │       │   └── value > offset:
-    │       │       ├── within: {i64, <void | box32>}
+    │       │       ├── within: packed {i64, <void | box32>}
     │       │       ├── path: 1
     │       │       └── base: address of #136 : ptr
     │       ├── body[23] > eval > call:
@@ -1077,7 +1077,7 @@
     │       │       │   │           │           ├── type: i64
     │       │       │   │           │           ├── fn: boxes$levels(this boxes$Storey)
     │       │       │   │           │           └── args[0] > offset:
-    │       │       │   │           │               ├── within: {i64, <void | box32>}
+    │       │       │   │           │               ├── within: packed {i64, <void | box32>}
     │       │       │   │           │               ├── path: 1
     │       │       │   │           │               └── base: local #145 : ptr
     │       │       │   │           └── cases[1] > case 1[2]: leave @141
@@ -1086,7 +1086,7 @@
     │       ├── body[24] > overwrite:
     │       │   ├── address: address of #136 : ptr
     │       │   ├── value > expand:
-    │       │   │   ├── type: {i64, <void | box32>}
+    │       │   │   ├── type: packed {i64, <void | box32>}
     │       │   │   ├── label: @156
     │       │   │   ├── result: #157
     │       │   │   ├── body[0] > let:
@@ -1102,7 +1102,7 @@
     │       │   │   │   │       ├── type: box32
     │       │   │   │   │       └── value > box:
     │       │   │   │   │           ├── value > expand:
-    │       │   │   │   │           │   ├── type: {i64, <void | box32>}
+    │       │   │   │   │           │   ├── type: packed {i64, <void | box32>}
     │       │   │   │   │           │   ├── label: @153
     │       │   │   │   │           │   ├── result: #154
     │       │   │   │   │           │   ├── body[0] > let:
@@ -1118,7 +1118,7 @@
     │       │   │   │   │           │   │   │       ├── type: box32
     │       │   │   │   │           │   │   │       └── value > box:
     │       │   │   │   │           │   │   │           ├── value > expand:
-    │       │   │   │   │           │   │   │           │   ├── type: {i64, <void | box32>}
+    │       │   │   │   │           │   │   │           │   ├── type: packed {i64, <void | box32>}
     │       │   │   │   │           │   │   │           │   ├── label: @150
     │       │   │   │   │           │   │   │           │   ├── result: #151
     │       │   │   │   │           │   │   │           │   ├── body[0] > let:
@@ -1137,7 +1137,7 @@
     │       │   │   │   │           │   │   │           │   │   └── value > escape:
     │       │   │   │   │           │   │   │           │   │       ├── exit: @150
     │       │   │   │   │           │   │   │           │   │       ├── value > record:
-    │       │   │   │   │           │   │   │           │   │       │   ├── type: {i64, <void | box32>}
+    │       │   │   │   │           │   │   │           │   │       │   ├── type: packed {i64, <void | box32>}
     │       │   │   │   │           │   │   │           │   │       │   ├── members[0] > member 0: local #148 : i64
     │       │   │   │   │           │   │   │           │   │       │   └── members[1] > member 1 > take:
     │       │   │   │   │           │   │   │           │   │       │       ├── type: <void | box32>
@@ -1152,7 +1152,7 @@
     │       │   │   │   │           │   │   └── value > escape:
     │       │   │   │   │           │   │       ├── exit: @153
     │       │   │   │   │           │   │       ├── value > record:
-    │       │   │   │   │           │   │       │   ├── type: {i64, <void | box32>}
+    │       │   │   │   │           │   │       │   ├── type: packed {i64, <void | box32>}
     │       │   │   │   │           │   │       │   ├── members[0] > member 0: local #147 : i64
     │       │   │   │   │           │   │       │   └── members[1] > member 1 > take:
     │       │   │   │   │           │   │       │       ├── type: <void | box32>
@@ -1167,7 +1167,7 @@
     │       │   │   │   └── value > escape:
     │       │   │   │       ├── exit: @156
     │       │   │   │       ├── value > record:
-    │       │   │   │       │   ├── type: {i64, <void | box32>}
+    │       │   │   │       │   ├── type: packed {i64, <void | box32>}
     │       │   │   │       │   ├── members[0] > member 0: local #146 : i64
     │       │   │   │       │   └── members[1] > member 1 > take:
     │       │   │   │       │       ├── type: <void | box32>
@@ -1232,7 +1232,7 @@
     │       │       │   │           │           ├── type: i64
     │       │       │   │           │           ├── fn: boxes$levels(this boxes$Storey)
     │       │       │   │           │           └── args[0] > offset:
-    │       │       │   │           │               ├── within: {i64, <void | box32>}
+    │       │       │   │           │               ├── within: packed {i64, <void | box32>}
     │       │       │   │           │               ├── path: 1
     │       │       │   │           │               └── base: local #165 : ptr
     │       │       │   │           └── cases[1] > case 1[2]: leave @161
@@ -1247,7 +1247,7 @@
     │       │       ├── left > deref:
     │       │       │   ├── type: i64
     │       │       │   └── ptr > offset:
-    │       │       │       ├── within: {i64, <void | box32>}
+    │       │       │       ├── within: packed {i64, <void | box32>}
     │       │       │       ├── path: 0
     │       │       │       └── base: address of #136 : ptr
     │       │       └── right: 5 : i64
@@ -1651,19 +1651,19 @@
     │       └── body[4] > return: unit : void
     ├── funcs[4] > func:
     │   ├── symbol: boxes$Pair(boxes$Tree, boxes$Tree)
-    │   ├── params[0]: local #1 : <i64 | box32>
-    │   ├── params[1]: local #2 : <i64 | box32>
-    │   ├── ret: {<i64 | box32>, <i64 | box32>}
+    │   ├── params[0]: local #1 : packed <i64 | box32>
+    │   ├── params[1]: local #2 : packed <i64 | box32>
+    │   ├── ret: {packed <i64 | box32>, packed <i64 | box32>}
     │   └── body[0] > return > escape:
     │       ├── exit: function
     │       ├── value > record:
-    │       │   ├── type: {<i64 | box32>, <i64 | box32>}
-    │       │   ├── members[0] > member 0: local #1 : <i64 | box32>
-    │       │   └── members[1] > member 1: local #2 : <i64 | box32>
+    │       │   ├── type: {packed <i64 | box32>, packed <i64 | box32>}
+    │       │   ├── members[0] > member 0: local #1 : packed <i64 | box32>
+    │       │   └── members[1] > member 1: local #2 : packed <i64 | box32>
     │       └── layout: boxes$Pair
     ├── funcs[5] > func:
     │   ├── symbol: boxes$total(boxes$Tree)
-    │   ├── params[0]: local #1 : <i64 | box32>
+    │   ├── params[0]: local #1 : packed <i64 | box32>
     │   ├── ret: i64
     │   └── body[0] > return > expand:
     │       ├── type: i64
@@ -1674,12 +1674,12 @@
     │       │   └── value: address of #1 : ptr
     │       └── body[1] > switch:
     │           ├── value > deref:
-    │           │   ├── type: <i64 | box32>
+    │           │   ├── type: packed <i64 | box32>
     │           │   └── ptr: local #4 : ptr
     │           ├── cases[0] > case 0[0] > let:
     │           │   ├── local: #5
     │           │   └── value > offset:
-    │           │       ├── within: <i64 | box32>
+    │           │       ├── within: packed <i64 | box32>
     │           │       ├── path: 0
     │           │       └── base: local #4 : ptr
     │           ├── cases[0] > case 0[1] > assign:
@@ -1695,7 +1695,7 @@
     │           │       └── value > deref:
     │           │           ├── type: box32
     │           │           └── ptr > offset:
-    │           │               ├── within: <i64 | box32>
+    │           │               ├── within: packed <i64 | box32>
     │           │               ├── path: 1
     │           │               └── base: local #4 : ptr
     │           ├── cases[1] > case 1[1] > assign:
@@ -1710,10 +1710,10 @@
     │           │       │   ├── body[0] > let:
     │           │       │   │   ├── local: #7
     │           │       │   │   └── value > member:
-    │           │       │   │       ├── type: <i64 | box32>
+    │           │       │   │       ├── type: packed <i64 | box32>
     │           │       │   │       ├── index: 0
     │           │       │   │       └── value > deref:
-    │           │       │   │           ├── type: {<i64 | box32>, <i64 | box32>}
+    │           │       │   │           ├── type: {packed <i64 | box32>, packed <i64 | box32>}
     │           │       │   │           └── ptr: local #6 : ptr
     │           │       │   ├── body[1] > assign:
     │           │       │   │   ├── place: #9
@@ -1726,12 +1726,12 @@
     │           │       │   │       │   └── value: address of #7 : ptr
     │           │       │   │       └── body[1] > switch:
     │           │       │   │           ├── value > deref:
-    │           │       │   │           │   ├── type: <i64 | box32>
+    │           │       │   │           │   ├── type: packed <i64 | box32>
     │           │       │   │           │   └── ptr: local #12 : ptr
     │           │       │   │           ├── cases[0] > case 0[0] > let:
     │           │       │   │           │   ├── local: #13
     │           │       │   │           │   └── value > offset:
-    │           │       │   │           │       ├── within: <i64 | box32>
+    │           │       │   │           │       ├── within: packed <i64 | box32>
     │           │       │   │           │       ├── path: 0
     │           │       │   │           │       └── base: local #12 : ptr
     │           │       │   │           ├── cases[0] > case 0[1] > assign:
@@ -1747,7 +1747,7 @@
     │           │       │   │           │       └── value > deref:
     │           │       │   │           │           ├── type: box32
     │           │       │   │           │           └── ptr > offset:
-    │           │       │   │           │               ├── within: <i64 | box32>
+    │           │       │   │           │               ├── within: packed <i64 | box32>
     │           │       │   │           │               ├── path: 1
     │           │       │   │           │               └── base: local #12 : ptr
     │           │       │   │           ├── cases[1] > case 1[1] > assign:
@@ -1759,19 +1759,19 @@
     │           │       │   │           │       │   ├── type: i64
     │           │       │   │           │       │   ├── fn: boxes$total(boxes$Tree)
     │           │       │   │           │       │   └── args[0] > member:
-    │           │       │   │           │       │       ├── type: <i64 | box32>
+    │           │       │   │           │       │       ├── type: packed <i64 | box32>
     │           │       │   │           │       │       ├── index: 0
     │           │       │   │           │       │       └── value > deref:
-    │           │       │   │           │       │           ├── type: {<i64 | box32>, <i64 | box32>}
+    │           │       │   │           │       │           ├── type: {packed <i64 | box32>, packed <i64 | box32>}
     │           │       │   │           │       │           └── ptr: local #14 : ptr
     │           │       │   │           │       └── right > call:
     │           │       │   │           │           ├── type: i64
     │           │       │   │           │           ├── fn: boxes$total(boxes$Tree)
     │           │       │   │           │           └── args[0] > member:
-    │           │       │   │           │               ├── type: <i64 | box32>
+    │           │       │   │           │               ├── type: packed <i64 | box32>
     │           │       │   │           │               ├── index: 1
     │           │       │   │           │               └── value > deref:
-    │           │       │   │           │                   ├── type: {<i64 | box32>, <i64 | box32>}
+    │           │       │   │           │                   ├── type: {packed <i64 | box32>, packed <i64 | box32>}
     │           │       │   │           │                   └── ptr: local #14 : ptr
     │           │       │   │           └── cases[1] > case 1[2]: leave @10
     │           │       │   └── body[2]: leave @8
@@ -1782,10 +1782,10 @@
     │           │           ├── body[0] > let:
     │           │           │   ├── local: #15
     │           │           │   └── value > member:
-    │           │           │       ├── type: <i64 | box32>
+    │           │           │       ├── type: packed <i64 | box32>
     │           │           │       ├── index: 1
     │           │           │       └── value > deref:
-    │           │           │           ├── type: {<i64 | box32>, <i64 | box32>}
+    │           │           │           ├── type: {packed <i64 | box32>, packed <i64 | box32>}
     │           │           │           └── ptr: local #6 : ptr
     │           │           ├── body[1] > assign:
     │           │           │   ├── place: #17
@@ -1798,12 +1798,12 @@
     │           │           │       │   └── value: address of #15 : ptr
     │           │           │       └── body[1] > switch:
     │           │           │           ├── value > deref:
-    │           │           │           │   ├── type: <i64 | box32>
+    │           │           │           │   ├── type: packed <i64 | box32>
     │           │           │           │   └── ptr: local #20 : ptr
     │           │           │           ├── cases[0] > case 0[0] > let:
     │           │           │           │   ├── local: #21
     │           │           │           │   └── value > offset:
-    │           │           │           │       ├── within: <i64 | box32>
+    │           │           │           │       ├── within: packed <i64 | box32>
     │           │           │           │       ├── path: 0
     │           │           │           │       └── base: local #20 : ptr
     │           │           │           ├── cases[0] > case 0[1] > assign:
@@ -1819,7 +1819,7 @@
     │           │           │           │       └── value > deref:
     │           │           │           │           ├── type: box32
     │           │           │           │           └── ptr > offset:
-    │           │           │           │               ├── within: <i64 | box32>
+    │           │           │           │               ├── within: packed <i64 | box32>
     │           │           │           │               ├── path: 1
     │           │           │           │               └── base: local #20 : ptr
     │           │           │           ├── cases[1] > case 1[1] > assign:
@@ -1831,19 +1831,19 @@
     │           │           │           │       │   ├── type: i64
     │           │           │           │       │   ├── fn: boxes$total(boxes$Tree)
     │           │           │           │       │   └── args[0] > member:
-    │           │           │           │       │       ├── type: <i64 | box32>
+    │           │           │           │       │       ├── type: packed <i64 | box32>
     │           │           │           │       │       ├── index: 0
     │           │           │           │       │       └── value > deref:
-    │           │           │           │       │           ├── type: {<i64 | box32>, <i64 | box32>}
+    │           │           │           │       │           ├── type: {packed <i64 | box32>, packed <i64 | box32>}
     │           │           │           │       │           └── ptr: local #22 : ptr
     │           │           │           │       └── right > call:
     │           │           │           │           ├── type: i64
     │           │           │           │           ├── fn: boxes$total(boxes$Tree)
     │           │           │           │           └── args[0] > member:
-    │           │           │           │               ├── type: <i64 | box32>
+    │           │           │           │               ├── type: packed <i64 | box32>
     │           │           │           │               ├── index: 1
     │           │           │           │               └── value > deref:
-    │           │           │           │                   ├── type: {<i64 | box32>, <i64 | box32>}
+    │           │           │           │                   ├── type: {packed <i64 | box32>, packed <i64 | box32>}
     │           │           │           │                   └── ptr: local #22 : ptr
     │           │           │           └── cases[1] > case 1[2]: leave @18
     │           │           └── body[2]: leave @16
@@ -1852,14 +1852,14 @@
     │   ├── symbol: boxes$Link(%primitives$String, ^boxes$Chain)
     │   ├── params[0]: local #1 : handle
     │   ├── params[1]: local #2 : <void | box32>
-    │   ├── ret: {handle, <void | box32>}
+    │   ├── ret: packed {handle, <void | box32>}
     │   ├── body[0] > let:
     │   │   ├── local: #3
     │   │   └── value: local #2 : <void | box32>
     │   └── body[1] > return > escape:
     │       ├── exit: function
     │       ├── value > record:
-    │       │   ├── type: {handle, <void | box32>}
+    │       │   ├── type: packed {handle, <void | box32>}
     │       │   ├── members[0] > member 0: local #1 : handle
     │       │   └── members[1] > member 1: local #3 : <void | box32>
     │       └── layout: boxes$Link
@@ -1911,7 +1911,7 @@
     │           │           ├── body[0] > let:
     │           │           │   ├── local: #7
     │           │           │   └── value > offset:
-    │           │           │       ├── within: {handle, <void | box32>}
+    │           │           │       ├── within: packed {handle, <void | box32>}
     │           │           │       ├── path: 1
     │           │           │       └── base: local #6 : ptr
     │           │           ├── body[1] > assign:
@@ -1957,7 +1957,7 @@
     │           │           │           │           ├── type: i64
     │           │           │           │           ├── fn: boxes$length(this boxes$Chain)
     │           │           │           │           └── args[0] > offset:
-    │           │           │           │               ├── within: {handle, <void | box32>}
+    │           │           │           │               ├── within: packed {handle, <void | box32>}
     │           │           │           │               ├── path: 1
     │           │           │           │               └── base: local #14 : ptr
     │           │           │           └── cases[1] > case 1[2]: leave @10
@@ -2011,7 +2011,7 @@
     │           │           ├── body[0] > let:
     │           │           │   ├── local: #7
     │           │           │   └── value > offset:
-    │           │           │       ├── within: {i64, <void | box32>}
+    │           │           │       ├── within: packed {i64, <void | box32>}
     │           │           │       ├── path: 1
     │           │           │       └── base: local #6 : ptr
     │           │           ├── body[1] > assign:
@@ -2057,7 +2057,7 @@
     │           │           │           │           ├── type: i64
     │           │           │           │           ├── fn: boxes$levels(this boxes$Storey)
     │           │           │           │           └── args[0] > offset:
-    │           │           │           │               ├── within: {i64, <void | box32>}
+    │           │           │           │               ├── within: packed {i64, <void | box32>}
     │           │           │           │               ├── path: 1
     │           │           │           │               └── base: local #14 : ptr
     │           │           │           └── cases[1] > case 1[2]: leave @10

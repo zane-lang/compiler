@@ -8935,6 +8935,128 @@
   (diff golden/wideFrames.out wideFrames.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/wideSum))
+ (targets wideSum.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build wideSum.exe --package fixtures/wideSum)))
+
+(rule
+ (deps (source_tree fixtures/wideSum))
+ (targets wideSum.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build wideSum.optimized.exe --optimize --package fixtures/wideSum)))
+
+(rule
+ (deps (source_tree fixtures/wideSum))
+ (targets wideSum.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build wideSum.tiered.exe --tiered --package fixtures/wideSum)))
+
+(rule
+ (deps (source_tree fixtures/wideSum))
+ (targets wideSum.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up wideSum.tier1 --package fixtures/wideSum)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    wideSum.checked.out.actual
+    (run ./wideSum.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/wideSum.out wideSum.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    wideSum.unchecked.out.actual
+    (run ./wideSum.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/wideSum.out wideSum.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    wideSum.optimized.checked.out.actual
+    (run ./wideSum.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/wideSum.out wideSum.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    wideSum.optimized.unchecked.out.actual
+    (run ./wideSum.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/wideSum.out wideSum.optimized.unchecked.out.actual)))
+
+(rule
+ (deps wideSum.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./wideSum.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    wideSum.tiered.checked.out.actual
+    (run ./wideSum.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/wideSum.out wideSum.tiered.checked.out.actual)))
+
+(rule
+ (deps wideSum.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./wideSum.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    wideSum.tiered.unchecked.out.actual
+    (run ./wideSum.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/wideSum.out wideSum.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/beyondLimit))
  (action
   (with-stderr-to

@@ -1,0 +1,17 @@
+program      build             cycles   change   instructions   change      l1_misses   change      ll_misses   change    mispredicts   change
+borrows      optimized       53594418      new       26869428      new        1374037      new          17021      new         564126      new
+copies       optimized       41087694      new       27586704      new         642707      new          24295      new         232221      new
+depths       optimized        2774438      new        1946328      new          18975      new           4291      new          10463      new
+division     optimized       71792235      new       64285155      new           4946      new           4097      new         352396      new
+flips        optimized      204169532      new      155364302      new           4619      new           3798      new        2418962      new
+floats       optimized       47749355      new       45795335      new           5586      new           4649      new          71663      new
+growth       optimized       78728135      new       58995765      new        1334847      new          61997      new           9210      new
+kept         optimized        1043014      new         455894      new           4536      new           3724      new           8468      new
+leaves       optimized       48929917      new       42695007      new           5281      new           4366      new         287275      new
+removal      optimized      222360779      new      207959949      new           4655      new           3827      new         698579      new
+repeats      optimized        3673680      new        3051090      new           4615      new           3806      new           9792      new
+returns      optimized      137159108      new      107618148      new         443530      new          26173      new        1124418      new
+scopes       optimized       27044706      new       26454716      new           4565      new           3751      new           8462      new
+stress       optimized     1942263002      new     1210328442      new       16662518      new        3039587      new       13067534      new
+texts        optimized       55583462      new       49872342      new         106616      new           4562      new         209438      new
+trees        optimized       24474112      new       19588402      new          11957      new           5869      new         208962      new

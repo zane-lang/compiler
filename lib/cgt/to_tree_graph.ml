@@ -5,7 +5,7 @@ open Tree_graph
 open Nodes
 
 (* A layout, one position per line: a string's handle as `text @8 when
-   [0]=1`, a list's as `list @8 of T (16 bytes
+   [0]=1`, or `when [0]=1 (a byte)` under a packed sum's case, a list's as `list @8 of T (16 bytes
    apart)`, a boxed member as `box @8 of T (24 bytes)`, and a foreign
    handle as `handle @0 freed by T.free, set by T.set`. *)
 let positions (ps : Layout.position list) =
@@ -15,7 +15,11 @@ let positions (ps : Layout.position list) =
         match p.tags with
         | [] -> ""
         | ts ->
-            let tag (o, t) = Printf.sprintf "[%d]=%d" o t in
+            let tag (o, t) =
+              match Layout.packed_case t with
+              | Some case -> Printf.sprintf "[%d]=%d (a byte)" o case
+              | None -> Printf.sprintf "[%d]=%d" o t
+            in
             " when " ^ String.concat ", " (List.map tag ts)
       in
       match p.kind with

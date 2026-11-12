@@ -39,6 +39,11 @@ extern void LLVMSetComdat(LLVMValueRef V, LLVMComdatRef C);
 extern char *LLVMNormalizeTargetTriple(const char *triple);
 extern void LLVMDisposeMessage(char *message);
 extern void LLVMSetOrdering(LLVMValueRef access, int ordering);
+extern int LLVMGetOrdering(LLVMValueRef access);
+extern LLVMTypeRef LLVMGetGEPSourceElementType(LLVMValueRef gep);
+extern unsigned LLVMGetEnumAttributeKindForName(const char *name, size_t length);
+extern LLVMAttributeRef LLVMGetEnumAttributeAtIndex(LLVMValueRef f, unsigned index, unsigned kind);
+extern uint64_t LLVMGetEnumAttributeValue(LLVMAttributeRef a);
 extern LLVMTypeRef LLVMArrayType2(LLVMTypeRef element, uint64_t count);
 extern uint64_t LLVMGetArrayLength2(LLVMTypeRef array);
 extern LLVMTypeRef LLVMGlobalGetValueType(LLVMValueRef global);
@@ -132,6 +137,13 @@ value zane_set_atomic(value access, value ordering) {
   CAMLreturn(Val_unit);
 }
 
+/* Whether a load or store is atomic: its ordering is not
+   LLVMAtomicOrderingNotAtomic (0). */
+value zane_is_atomic(value access) {
+  CAMLparam1(access);
+  CAMLreturn(Val_bool(LLVMGetOrdering((LLVMValueRef)from_val(access)) != 0));
+}
+
 value zane_fence(value type, value block, value ordering) {
   CAMLparam3(type, block, ordering);
   LLVMBuilderRef b = LLVMCreateBuilderInContext(LLVMGetTypeContext((LLVMTypeRef)from_val(type)));
@@ -182,6 +194,21 @@ value zane_type_attr(value context, value name, value type) {
 value zane_global_value_type(value global) {
   CAMLparam1(global);
   CAMLreturn(to_val(LLVMGlobalGetValueType((LLVMValueRef)from_val(global))));
+}
+
+/* The `align` attribute on a function's parameter [index], or 1 for none:
+   the bindings' own attribute listing can return a broken array. */
+value zane_param_align(value fn, value index) {
+  CAMLparam2(fn, index);
+  LLVMAttributeRef a = LLVMGetEnumAttributeAtIndex((LLVMValueRef)from_val(fn), (unsigned)Int_val(index) + 1,
+                                                   LLVMGetEnumAttributeKindForName("align", 5));
+  CAMLreturn(Val_long(a ? (long)LLVMGetEnumAttributeValue(a) : 1));
+}
+
+/* The type a getelementptr, instruction or constant, steps through. */
+value zane_gep_source_type(value gep) {
+  CAMLparam1(gep);
+  CAMLreturn(to_val(LLVMGetGEPSourceElementType((LLVMValueRef)from_val(gep))));
 }
 
 value zane_allocated_type(value alloca) {

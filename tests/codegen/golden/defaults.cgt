@@ -206,7 +206,7 @@
     │       ├── body[7] > let:
     │       │   ├── local: #36
     │       │   └── value > expand:
-    │       │       ├── type: {i64, i1}
+    │       │       ├── type: packed {i64, i1}
     │       │       ├── label: @34
     │       │       ├── result: #35
     │       │       ├── body[0] > let:
@@ -218,7 +218,7 @@
     │       │       ├── body[2] > assign:
     │       │       │   ├── place: #35
     │       │       │   └── value > record:
-    │       │       │       ├── type: {i64, i1}
+    │       │       │       ├── type: packed {i64, i1}
     │       │       │       ├── members[0] > member 1: local #32 : i1
     │       │       │       └── members[1] > member 0: local #33 : i64
     │       │       └── body[3]: leave @34
@@ -231,14 +231,14 @@
     │       │       ├── left > member:
     │       │       │   ├── type: i1
     │       │       │   ├── index: 1
-    │       │       │   └── value: local #36 : {i64, i1}
+    │       │       │   └── value: local #36 : packed {i64, i1}
     │       │       └── right > binary:
     │       │           ├── type: i1
     │       │           ├── op: ==
     │       │           ├── left > member:
     │       │           │   ├── type: i64
     │       │           │   ├── index: 0
-    │       │           │   └── value: local #36 : {i64, i1}
+    │       │           │   └── value: local #36 : packed {i64, i1}
     │       │           └── right: 5 : i64
     │       ├── body[9] > let:
     │       │   ├── local: #43

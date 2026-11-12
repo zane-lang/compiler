@@ -70,17 +70,30 @@ one of:
 
 - a scalar: `i1`, `i8`, `i32`, `i64`, `f64`;
 - a struct of CGT types, in decreasing order of alignment, members of one
-  alignment in declaration order (`Nodes.Ty.order`). Every layout's size
-  is a multiple of its alignment, so no padding falls between members, and
-  only the tail is rounded up. The order is a function of the members'
-  layouts alone, so every object that lays a type out agrees on it, and
-  lowering reaches a member by its place in it (`Type_layout.member_index`).
+  alignment in declaration order (`Nodes.Ty.order`). A struct that C's
+  layout would pad, at its tail or between members, is **packed**: its
+  members follow one another with no padding and its alignment is 1, so
+  it is exactly as large as its members (`Nodes.Ty.tight`). A struct with
+  no padding keeps C's layout and its alignment. The order and the choice
+  are functions of the members' layouts alone, so every object that lays
+  a type out agrees on them, and lowering reaches a member by its place
+  in it (`Type_layout.member_index`).
   Placement is the compiler's ([`memory.md`](https://github.com/zane-lang/spec/blob/b8c2b0b7463372e7682cfb4474ce2cc715292108/spec/memory.md) §3.3). A
   reference type's instance carries nothing else. A pooled variant's node
   (experimental) places a struct it holds in the same order, so one index
   names a member in both. C sees a struct only as a copy in its own
   declaration order ([`ffi.md`](ffi.md) F10);
-- a sum: a tag and the widest case's bytes, aligned for every case;
+- a sum, in one of three forms (`Nodes.Ty.tight`). A sum whose one
+  case carrying data has a payload with a **spare byte**, a byte with
+  values it never holds, is that payload alone, and each other case is one
+  of those values at that byte (`Nodes.Ty.byte_niche`): a `Bool` holds 0
+  or 1, a packed sum's tag one value per case, and a sum with a spare byte
+  leaves the values its own cases do not take, so an optional optional
+  `Bool` is one byte. A sum of nothing or one box or reference, under 32-bit
+  boxes, is that word, 0 for nothing (`Nodes.Ty.niche`). Any other sum of
+  at most 256 cases is **packed**: a one-byte tag and then the widest
+  case's bytes, alignment 1. One of more cases than a byte tells apart
+  keeps a 4-byte tag and its payload room from offset 8;
 - a pointer: a reference, the address of the settled owner it names
   ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §4.1, and §9 below for the representation);
 - a fixed array: `@primitives$Array<T, n>`, and `@primitives$ArrayRef<T, n>`
@@ -1277,13 +1290,15 @@ test passing.
     parameter's own slot, a borrow being read-only and a `^T` parameter held
     in a slot of the body's own first, and codegen stops with an internal
     error if one does (`Emit.unwritten`).
-  - **What LLVM is told.** A parameter passed by address is `readonly` and
-    `noalias`, with its alignment and `dereferenceable` for its whole size:
-    nothing in the call writes what it borrows, so the optimizer may treat
-    the value behind it as a private copy. It is not `nocapture`, since a
-    call the callee spawns can hold the address for as long as it runs. An
-    `sret` result is `noalias` and aligned, its slot being one nothing else
-    names. Each call site carries the same attributes as the function.
+  - **What LLVM is told.** A parameter passed by address is `readonly`,
+    `noalias` and `dereferenceable` for its whole size: nothing in the call
+    writes what it borrows, so the optimizer may treat the value behind it
+    as a private copy. It claims no alignment, since what it borrows may
+    be a member at any byte of a packed value (L5). It is not `nocapture`,
+    since a call the callee spawns can hold the address for as long as it
+    runs. An `sret` result is `noalias` and aligned, its slot being the
+    caller's own, which nothing else names. Each call site carries the
+    same attributes as the function.
   - **Packing, an option.** `--pack-aggregates` passes an aggregate that fits
     in the registers a call gives it as that many 8-byte words, every word
     an integer, as clang passes a small C struct: the caller stores the value
@@ -1417,8 +1432,9 @@ test passing.
     Nothing references a list element or a variant payload (§2.1), so no
     `&T` names storage a push or a removal could move or free. Each such
     parameter whose slot has a layout lowering knows, a declared type, a
-    list or a text (the CGT `Func`'s `places`), is `nonnull`, aligned and
-    `dereferenceable` for the slot's size. It is not `readonly` or
+    list or a text (the CGT `Func`'s `places`), is `nonnull` and
+    `dereferenceable` for the slot's size, with no alignment, since the
+    slot may be a member at any byte of a packed value. It is not `readonly` or
     `noalias`, since the function may write the slot and another parameter
     may name it.
   - *An open scope's frame.* Once a scope is open, any slot of its frame
@@ -1490,6 +1506,19 @@ test passing.
   its branches into new conflicts: an unchanged loop of `tests/perf`
   `copies` mispredicted 40% more after an edit to other functions, and 64-byte
   starts made both layouts mispredict as the first had.
+
+  For an AArch64 target, `-O2`'s loop unswitching also copies a loop whose
+  body branches on a condition the loop does not change, once for each
+  way it goes (`Passes.unswitch`); `-O2` itself copies only a loop the
+  branch leaves. A packed element's stride is rarely a power of two (L5),
+  and a loop whose element a loop-invariant condition picks otherwise
+  multiplies the index by the stride on every pass rather than stepping
+  a pointer: on Apple silicon that made such a loop up to 28% slower
+  than over the unpacked layout, and the copies make it 32% faster. On
+  x86-64 the copies cost more than they save (`tests/perf` `entities`
+  7–11% slower), so they are left out there
+  ([`experiments/tight-layouts`](../experiments/tight-layouts/README.md),
+  steps 6, 11 and 12).
 - **A type argument passes nothing.** A generic verb is lowered once per
   instance the TST checked ([`semantics.md`](semantics.md) D12), with a
   symbol of its own, and a type written where a value goes, or a number

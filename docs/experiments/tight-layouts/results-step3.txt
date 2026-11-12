@@ -1,0 +1,11 @@
+N=10000000 PASSES=10 RUNS=5
+| shape | default time | default peak | ZANE_PACK=structs,ZANE_PACK_HINTS=0 time | ZANE_PACK=structs,ZANE_PACK_HINTS=0 peak | ZANE_PACK=structs time | ZANE_PACK=structs peak | ZANE_PACK=all,ZANE_PACK_HINTS=0 time | ZANE_PACK=all,ZANE_PACK_HINTS=0 peak | ZANE_PACK=all time | ZANE_PACK=all peak |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 Pair | 0.354 s | 155 MiB | 0.330 s | 117 MiB | 0.315 s | 117 MiB | 0.329 s | 117 MiB | 0.318 s | 117 MiB |
+| 2 Flagged | 0.353 s | 155 MiB | 0.268 s | 89 MiB | 0.273 s | 89 MiB | 0.253 s | 88 MiB | 0.247 s | 89 MiB |
+| 3 Trio | 0.439 s | 155 MiB | 0.403 s | 127 MiB | 0.409 s | 127 MiB | 0.391 s | 127 MiB | 0.408 s | 127 MiB |
+| 4 Outer | 0.515 s | 232 MiB | 0.378 s | 155 MiB | 0.384 s | 155 MiB | 0.369 s | 155 MiB | 0.385 s | 155 MiB |
+| 5 Maybe | 0.373 s | 155 MiB | 0.360 s | 155 MiB | 0.381 s | 155 MiB | 0.235 s | 89 MiB | 0.241 s | 89 MiB |
+| 6 Wide | 0.417 s | 155 MiB | 0.404 s | 155 MiB | 0.407 s | 155 MiB | 0.386 s | 155 MiB | 0.392 s | 155 MiB |
+| 7 Trio scattered | 1.104 s | 155 MiB | 1.135 s | 127 MiB | 1.128 s | 127 MiB | 1.187 s | 127 MiB | 1.120 s | 127 MiB |
+| 8 Wide scattered | 1.547 s | 155 MiB | 1.538 s | 155 MiB | 1.514 s | 155 MiB | 1.522 s | 155 MiB | 1.559 s | 155 MiB |

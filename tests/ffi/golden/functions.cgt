@@ -11,7 +11,7 @@
     │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
     ├── layouts[3] > layout:
     │   ├── type: functions$Chain
-    │   └── positions[0]: box @8 of functions$Chain (16 bytes)
+    │   └── positions[0]: box @8 of functions$Chain (12 bytes)
     ├── globals[0]: zane_self : i64, imported
     ├── thunks[0] > thunk:
     │   ├── symbol: functions$apply(%primitives$F64[%primitives$F64], %primitives$F64).ffi
@@ -741,11 +741,11 @@
     │       ├── body[29] > let:
     │       │   ├── local: #97
     │       │   └── value > call:
-    │       │       ├── type: {{i64, i32}, f32}
+    │       │       ├── type: {f32, packed {i64, i32}}
     │       │       ├── fn: functions$throughWrap(functions$Wrap[functions$Wrap], functions$Wrap)
     │       │       ├── args[0]: function functions$main()$lambda16
     │       │       └── args[1] > expand:
-    │       │           ├── type: {{i64, i32}, f32}
+    │       │           ├── type: {f32, packed {i64, i32}}
     │       │           ├── label: @95
     │       │           ├── result: #96
     │       │           ├── body[0] > let:
@@ -754,7 +754,7 @@
     │       │           ├── body[1] > let:
     │       │           │   ├── local: #94
     │       │           │   └── value > expand:
-    │       │           │       ├── type: {i64, i32}
+    │       │           │       ├── type: packed {i64, i32}
     │       │           │       ├── label: @92
     │       │           │       ├── result: #93
     │       │           │       ├── body[0] > let:
@@ -766,16 +766,16 @@
     │       │           │       ├── body[2] > assign:
     │       │           │       │   ├── place: #93
     │       │           │       │   └── value > record:
-    │       │           │       │       ├── type: {i64, i32}
+    │       │           │       │       ├── type: packed {i64, i32}
     │       │           │       │       ├── members[0] > member 1: local #90 : i32
     │       │           │       │       └── members[1] > member 0: local #91 : i64
     │       │           │       └── body[3]: leave @92
     │       │           ├── body[2] > assign:
     │       │           │   ├── place: #96
     │       │           │   └── value > record:
-    │       │           │       ├── type: {{i64, i32}, f32}
-    │       │           │       ├── members[0] > member 1: local #89 : f32
-    │       │           │       └── members[1] > member 0: local #94 : {i64, i32}
+    │       │           │       ├── type: {f32, packed {i64, i32}}
+    │       │           │       ├── members[0] > member 0: local #89 : f32
+    │       │           │       └── members[1] > member 1: local #94 : packed {i64, i32}
     │       │           └── body[3]: leave @95
     │       ├── body[30] > eval > call:
     │       │   ├── type: void
@@ -792,8 +792,8 @@
     │       │       │   │   ├── fn: zane_text_f32
     │       │       │   │   └── args[0] > member:
     │       │       │   │       ├── type: f32
-    │       │       │   │       ├── index: 1
-    │       │       │   │       └── value: local #97 : {{i64, i32}, f32}
+    │       │       │   │       ├── index: 0
+    │       │       │   │       └── value: local #97 : {f32, packed {i64, i32}}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #100
@@ -815,9 +815,9 @@
     │       │       │   │       ├── type: i32
     │       │       │   │       ├── index: 1
     │       │       │   │       └── value > member:
-    │       │       │   │           ├── type: {i64, i32}
-    │       │       │   │           ├── index: 0
-    │       │       │   │           └── value: local #97 : {{i64, i32}, f32}
+    │       │       │   │           ├── type: packed {i64, i32}
+    │       │       │   │           ├── index: 1
+    │       │       │   │           └── value: local #97 : {f32, packed {i64, i32}}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #103
@@ -839,9 +839,9 @@
     │       │       │   │       ├── type: i64
     │       │       │   │       ├── index: 0
     │       │       │   │       └── value > member:
-    │       │       │   │           ├── type: {i64, i32}
-    │       │       │   │           ├── index: 0
-    │       │       │   │           └── value: local #97 : {{i64, i32}, f32}
+    │       │       │   │           ├── type: packed {i64, i32}
+    │       │       │   │           ├── index: 1
+    │       │       │   │           └── value: local #97 : {f32, packed {i64, i32}}
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #106
@@ -1450,10 +1450,10 @@
     │           └── value: local #3 : {void, i32}
     ├── funcs[31] > func:
     │   ├── symbol: functions$main()$lambda16
-    │   ├── params[0]: local #1 : {{i64, i32}, f32}
-    │   ├── ret: {{i64, i32}, f32}
+    │   ├── params[0]: local #1 : {f32, packed {i64, i32}}
+    │   ├── ret: {f32, packed {i64, i32}}
     │   └── body[0] > return > expand:
-    │       ├── type: {{i64, i32}, f32}
+    │       ├── type: {f32, packed {i64, i32}}
     │       ├── label: @8
     │       ├── result: #9
     │       ├── body[0] > let:
@@ -1463,13 +1463,13 @@
     │       │       ├── op: *
     │       │       ├── left > member:
     │       │       │   ├── type: f32
-    │       │       │   ├── index: 1
-    │       │       │   └── value: local #1 : {{i64, i32}, f32}
+    │       │       │   ├── index: 0
+    │       │       │   └── value: local #1 : {f32, packed {i64, i32}}
     │       │       └── right: 0x1p+1 : f32
     │       ├── body[1] > let:
     │       │   ├── local: #7
     │       │   └── value > expand:
-    │       │       ├── type: {i64, i32}
+    │       │       ├── type: packed {i64, i32}
     │       │       ├── label: @5
     │       │       ├── result: #6
     │       │       ├── body[0] > let:
@@ -1481,9 +1481,9 @@
     │       │       │       │   ├── type: i32
     │       │       │       │   ├── index: 1
     │       │       │       │   └── value > member:
-    │       │       │       │       ├── type: {i64, i32}
-    │       │       │       │       ├── index: 0
-    │       │       │       │       └── value: local #1 : {{i64, i32}, f32}
+    │       │       │       │       ├── type: packed {i64, i32}
+    │       │       │       │       ├── index: 1
+    │       │       │       │       └── value: local #1 : {f32, packed {i64, i32}}
     │       │       │       └── right: 1 : i32
     │       │       ├── body[1] > let:
     │       │       │   ├── local: #4
@@ -1494,29 +1494,29 @@
     │       │       │       │   ├── type: i64
     │       │       │       │   ├── index: 0
     │       │       │       │   └── value > member:
-    │       │       │       │       ├── type: {i64, i32}
-    │       │       │       │       ├── index: 0
-    │       │       │       │       └── value: local #1 : {{i64, i32}, f32}
+    │       │       │       │       ├── type: packed {i64, i32}
+    │       │       │       │       ├── index: 1
+    │       │       │       │       └── value: local #1 : {f32, packed {i64, i32}}
     │       │       │       └── right: 3 : i64
     │       │       ├── body[2] > assign:
     │       │       │   ├── place: #6
     │       │       │   └── value > record:
-    │       │       │       ├── type: {i64, i32}
+    │       │       │       ├── type: packed {i64, i32}
     │       │       │       ├── members[0] > member 1: local #3 : i32
     │       │       │       └── members[1] > member 0: local #4 : i64
     │       │       └── body[3]: leave @5
     │       ├── body[2] > assign:
     │       │   ├── place: #9
     │       │   └── value > record:
-    │       │       ├── type: {{i64, i32}, f32}
-    │       │       ├── members[0] > member 1: local #2 : f32
-    │       │       └── members[1] > member 0: local #7 : {i64, i32}
+    │       │       ├── type: {f32, packed {i64, i32}}
+    │       │       ├── members[0] > member 0: local #2 : f32
+    │       │       └── members[1] > member 1: local #7 : packed {i64, i32}
     │       └── body[3]: leave @8
     ├── funcs[32] > func:
     │   ├── symbol: functions$throughWrap(functions$Wrap[functions$Wrap], functions$Wrap)
     │   ├── params[0]: local #1 : ptr
-    │   ├── params[1]: local #2 : {{i64, i32}, f32}
-    │   ├── ret: {{i64, i32}, f32}
+    │   ├── params[1]: local #2 : {f32, packed {i64, i32}}
+    │   ├── ret: {f32, packed {i64, i32}}
     │   ├── body[0] > let:
     │   │   ├── local: #3
     │   │   └── value > foreign call:
@@ -1527,32 +1527,32 @@
     │   │           ├── type: {f32, {i32, i64}}
     │   │           ├── members[0] > member 0 > member:
     │   │           │   ├── type: f32
-    │   │           │   ├── index: 1
-    │   │           │   └── value: local #2 : {{i64, i32}, f32}
+    │   │           │   ├── index: 0
+    │   │           │   └── value: local #2 : {f32, packed {i64, i32}}
     │   │           └── members[1] > member 1 > record:
     │   │               ├── type: {i32, i64}
     │   │               ├── members[0] > member 0 > member:
     │   │               │   ├── type: i32
     │   │               │   ├── index: 1
     │   │               │   └── value > member:
-    │   │               │       ├── type: {i64, i32}
-    │   │               │       ├── index: 0
-    │   │               │       └── value: local #2 : {{i64, i32}, f32}
+    │   │               │       ├── type: packed {i64, i32}
+    │   │               │       ├── index: 1
+    │   │               │       └── value: local #2 : {f32, packed {i64, i32}}
     │   │               └── members[1] > member 1 > member:
     │   │                   ├── type: i64
     │   │                   ├── index: 0
     │   │                   └── value > member:
-    │   │                       ├── type: {i64, i32}
-    │   │                       ├── index: 0
-    │   │                       └── value: local #2 : {{i64, i32}, f32}
+    │   │                       ├── type: packed {i64, i32}
+    │   │                       ├── index: 1
+    │   │                       └── value: local #2 : {f32, packed {i64, i32}}
     │   └── body[1] > return > record:
-    │       ├── type: {{i64, i32}, f32}
-    │       ├── members[0] > member 1 > member:
+    │       ├── type: {f32, packed {i64, i32}}
+    │       ├── members[0] > member 0 > member:
     │       │   ├── type: f32
     │       │   ├── index: 0
     │       │   └── value: local #3 : {f32, {i32, i64}}
-    │       └── members[1] > member 0 > record:
-    │           ├── type: {i64, i32}
+    │       └── members[1] > member 1 > record:
+    │           ├── type: packed {i64, i32}
     │           ├── members[0] > member 1 > member:
     │           │   ├── type: i32
     │           │   ├── index: 0
@@ -1579,12 +1579,12 @@
     │       └── right: 1 : i64
     ├── funcs[34] > func:
     │   ├── symbol: functions$main()$lambda18
-    │   ├── params[0]: local #1 : {i64, box32}
+    │   ├── params[0]: local #1 : packed {i64, box32}
     │   ├── ret: i64
     │   └── body[0] > return > member:
     │       ├── type: i64
     │       ├── index: 0
-    │       └── value: local #1 : {i64, box32}
+    │       └── value: local #1 : packed {i64, box32}
     ├── funcs[35] > func:
     │   ├── symbol: functions$main()$lambda7
     │   ├── params[0]: local #1 : i64
@@ -2372,11 +2372,11 @@
     │   ├── body[2] > let:
     │   │   ├── local: #4
     │   │   └── value > call:
-    │   │       ├── type: {{i64, i32}, f32}
+    │   │       ├── type: {f32, packed {i64, i32}}
     │   │       ├── fn: functions$main()$lambda16
     │   │       └── args[0] > record:
-    │   │           ├── type: {{i64, i32}, f32}
-    │   │           ├── members[0] > member 1 > member:
+    │   │           ├── type: {f32, packed {i64, i32}}
+    │   │           ├── members[0] > member 0 > member:
     │   │           │   ├── type: f32
     │   │           │   ├── index: 0
     │   │           │   └── value > deref:
@@ -2387,8 +2387,8 @@
     │   │           │               ├── within: {ptr}
     │   │           │               ├── path: 0
     │   │           │               └── base: local #0 : ptr
-    │   │           └── members[1] > member 0 > record:
-    │   │               ├── type: {i64, i32}
+    │   │           └── members[1] > member 1 > record:
+    │   │               ├── type: packed {i64, i32}
     │   │               ├── members[0] > member 1 > member:
     │   │               │   ├── type: i32
     │   │               │   ├── index: 0
@@ -2423,24 +2423,24 @@
     │   │       ├── type: {f32, {i32, i64}}
     │   │       ├── members[0] > member 0 > member:
     │   │       │   ├── type: f32
-    │   │       │   ├── index: 1
-    │   │       │   └── value: local #4 : {{i64, i32}, f32}
+    │   │       │   ├── index: 0
+    │   │       │   └── value: local #4 : {f32, packed {i64, i32}}
     │   │       └── members[1] > member 1 > record:
     │   │           ├── type: {i32, i64}
     │   │           ├── members[0] > member 0 > member:
     │   │           │   ├── type: i32
     │   │           │   ├── index: 1
     │   │           │   └── value > member:
-    │   │           │       ├── type: {i64, i32}
-    │   │           │       ├── index: 0
-    │   │           │       └── value: local #4 : {{i64, i32}, f32}
+    │   │           │       ├── type: packed {i64, i32}
+    │   │           │       ├── index: 1
+    │   │           │       └── value: local #4 : {f32, packed {i64, i32}}
     │   │           └── members[1] > member 1 > member:
     │   │               ├── type: i64
     │   │               ├── index: 0
     │   │               └── value > member:
-    │   │                   ├── type: {i64, i32}
-    │   │                   ├── index: 0
-    │   │                   └── value: local #4 : {{i64, i32}, f32}
+    │   │                   ├── type: packed {i64, i32}
+    │   │                   ├── index: 1
+    │   │                   └── value: local #4 : {f32, packed {i64, i32}}
     │   └── body[4] > if:
     │       ├── cond: local #2 : i1
     │       └── body[0] > eval > runtime:

@@ -28,7 +28,8 @@ type t = {
    it, whose value is more than its bytes. *)
 let rec fixed (t : Ty.t) =
   match t with
-  | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 | Ty.Packed _ -> false
+  | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> false
+  | Ty.Packed t -> fixed t
   | Ty.Struct ts | Ty.Sum ts -> List.for_all fixed ts
   | Ty.Array (t, _) -> fixed t
   | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
@@ -36,13 +37,13 @@ let rec fixed (t : Ty.t) =
 let rec scalars (t : Ty.t) =
   match t with
   | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
-  | Ty.Struct ts -> List.for_all scalars ts
+  | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> List.for_all scalars ts
   | _ -> false
 
 (* A value of scalars only takes a word for each; any other its bytes. *)
 let words (t : Ty.t) =
   if scalars t then
-    let rec count (t : Ty.t) = match t with Ty.Void -> 0 | Ty.Struct ts -> List.fold_left (fun n t -> n + count t) 0 ts | _ -> 1 in
+    let rec count (t : Ty.t) = match t with Ty.Void -> 0 | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> List.fold_left (fun n t -> n + count t) 0 ts | _ -> 1 in
     Some (count t)
   else if fixed t then Some ((fst (Ty.size_align t) + 7) / 8)
   else None

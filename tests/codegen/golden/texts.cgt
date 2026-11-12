@@ -8,13 +8,13 @@
     │   └── positions[0]: text @0
     ├── layouts[2] > layout:
     │   ├── type: texts$Tagged
-    │   └── positions[0]: text @8 when [0]=0
+    │   └── positions[0]: text @1 when [0]=0 (a byte)
     ├── layouts[3] > layout:
     │   ├── type: ^texts$Person
     │   └── positions[0]: text @0
     ├── layouts[4] > layout:
     │   ├── type: texts$Holder
-    │   └── positions[0]: text @8 when [0]=0
+    │   └── positions[0]: text @1 when [0]=0 (a byte)
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -450,7 +450,7 @@
     │       │   ├── local: #69
     │       │   ├── scope: %2
     │       │   ├── value > case:
-    │       │   │   ├── type: <handle | void>
+    │       │   │   ├── type: packed <handle | void>
     │       │   │   ├── index: 0
     │       │   │   └── payload: "abcd?" : handle
     │       │   └── layout: texts$Tagged
@@ -466,12 +466,12 @@
     │       │       │   └── value: address of #69 : ptr
     │       │       └── body[1] > switch:
     │       │           ├── value > deref:
-    │       │           │   ├── type: <handle | void>
+    │       │           │   ├── type: packed <handle | void>
     │       │           │   └── ptr: local #72 : ptr
     │       │           ├── cases[0] > case 0[0] > let:
     │       │           │   ├── local: #73
     │       │           │   └── value > offset:
-    │       │           │       ├── within: <handle | void>
+    │       │           │       ├── within: packed <handle | void>
     │       │           │       ├── path: 0
     │       │           │       └── base: local #72 : ptr
     │       │           ├── cases[0] > case 0[1] > scope:
@@ -504,7 +504,7 @@
     │       │           ├── cases[1] > case 1[0] > let:
     │       │           │   ├── local: #78
     │       │           │   └── value > offset:
-    │       │           │       ├── within: <handle | void>
+    │       │           │       ├── within: packed <handle | void>
     │       │           │       ├── path: 1
     │       │           │       └── base: local #72 : ptr
     │       │           ├── cases[1] > case 1[1] > assign:
@@ -514,7 +514,7 @@
     │       ├── body[20] > overwrite:
     │       │   ├── address: address of #69 : ptr
     │       │   ├── value > case:
-    │       │   │   ├── type: <handle | void>
+    │       │   │   ├── type: packed <handle | void>
     │       │   │   ├── index: 1
     │       │   │   └── payload: unit : void
     │       │   └── layout: texts$Tagged
@@ -550,7 +550,7 @@
     │       │   ├── local: #89
     │       │   ├── scope: %2
     │       │   ├── value > case:
-    │       │   │   ├── type: <{handle} | void>
+    │       │   │   ├── type: packed <{handle} | void>
     │       │   │   ├── index: 0
     │       │   │   └── payload > take:
     │       │   │       ├── type: {handle}
@@ -569,12 +569,12 @@
     │       │       │   └── value: address of #89 : ptr
     │       │       └── body[1] > switch:
     │       │           ├── value > deref:
-    │       │           │   ├── type: <{handle} | void>
+    │       │           │   ├── type: packed <{handle} | void>
     │       │           │   └── ptr: local #92 : ptr
     │       │           ├── cases[0] > case 0[0] > let:
     │       │           │   ├── local: #93
     │       │           │   └── value > offset:
-    │       │           │       ├── within: <{handle} | void>
+    │       │           │       ├── within: packed <{handle} | void>
     │       │           │       ├── path: 0
     │       │           │       └── base: local #92 : ptr
     │       │           ├── cases[0] > case 0[1] > scope:
@@ -648,7 +648,7 @@
     │       │           ├── cases[1] > case 1[0] > let:
     │       │           │   ├── local: #107
     │       │           │   └── value > offset:
-    │       │           │       ├── within: <{handle} | void>
+    │       │           │       ├── within: packed <{handle} | void>
     │       │           │       ├── path: 1
     │       │           │       └── base: local #92 : ptr
     │       │           ├── cases[1] > case 1[1] > assign:
@@ -658,7 +658,7 @@
     │       ├── body[25] > overwrite:
     │       │   ├── address: address of #89 : ptr
     │       │   ├── value > case:
-    │       │   │   ├── type: <{handle} | void>
+    │       │   │   ├── type: packed <{handle} | void>
     │       │   │   ├── index: 1
     │       │   │   └── payload: unit : void
     │       │   └── layout: texts$Holder

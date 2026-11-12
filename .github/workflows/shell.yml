@@ -35,6 +35,13 @@ on:
         required: true
         default: "30"
         type: string
+      runner:
+        # macos-latest is AArch64 (Apple silicon), the one other system
+        # pixi.toml's environment solves for that hosted runners offer.
+        description: The runner to run it on (ubuntu-latest, macos-latest, windows-latest, ...)
+        required: true
+        default: ubuntu-latest
+        type: string
 
 # The token this job carries is read-only. A command that runs here can read
 # it, so there is nothing to be gained by granting it more: anything that has
@@ -50,7 +57,7 @@ concurrency:
 
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: ${{ fromJSON(inputs.timeout) }}
 
     steps:
@@ -71,6 +78,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           ACTOR: ${{ github.actor }}
+        # Windows runners default to PowerShell, which cannot read this.
+        shell: bash
         run: |
           set -uo pipefail
           permission=$(gh api \
@@ -106,15 +115,28 @@ jobs:
       # command keeps its shell syntax: pipelines, redirects and quoting all
       # survive.
       - name: Run
-        if: ${{ inputs.toolchain }}
+        if: ${{ inputs.toolchain && runner.os == 'Linux' }}
         env:
           COMMAND: ${{ inputs.command }}
+        shell: bash
         run: |
           eval "$(pixi shell-hook)"
           bash -c "$COMMAND"
+
+      # macOS's bash 3.2 cannot read the environment's bash completions,
+      # which the shell hook sources, and on Windows the hook is written
+      # for cmd, so there the activation comes from `pixi run` instead and
+      # the command still runs in bash.
+      - name: Run (macOS, Windows)
+        if: ${{ inputs.toolchain && runner.os != 'Linux' }}
+        env:
+          COMMAND: ${{ inputs.command }}
+        shell: bash
+        run: pixi run -- bash -c "$COMMAND"
 
       - name: Run (no toolchain)
         if: ${{ !inputs.toolchain }}
         env:
           COMMAND: ${{ inputs.command }}
+        shell: bash
         run: bash -lc "$COMMAND"

@@ -1087,7 +1087,7 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       Result.bind (Big_moves.rewrite data_layout m) @@ fun () ->
       if not optimize then Wrappers.mark data_layout m;
       if optimize then llvm_options (Array.of_list ("zanec" :: Passes.llvm_options));
-      let pipeline = thread_sanitized m (Passes.pipeline ~optimize ~tier1:(tier = Tiers.Tier1)) in
+      let pipeline = thread_sanitized m (Passes.pipeline ~triple ~optimize ~tier1:(tier = Tiers.Tier1)) in
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
       |> Fun.flip Result.bind (fun () -> finish_tier m ~hash exports definitions)

@@ -179,7 +179,7 @@ let record w st ctx span t (fields : T.Field_value.t list) =
   in
   match (lowered, fields) with
   | Nodes.Ty.Void, [] -> { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
-  | Nodes.Ty.Struct ms, _ when List.length ms = List.length fields ->
+  | (Nodes.Ty.Struct ms | Nodes.Ty.Packed (Nodes.Ty.Struct ms)), _ when List.length ms = List.length fields ->
       { Expr.node = Expr.Record (members fields); ty = lowered }
   | _, [ f ] when collapsed st t -> { (value f) with ty = lowered }
   | _ -> Diagnostic.bug ~span "lowering expected a value for every member here"

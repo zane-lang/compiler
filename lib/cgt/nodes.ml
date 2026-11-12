@@ -50,6 +50,10 @@ module Ty = struct
     | Array of t * int
     | Packed of t
 
+  (* A value's spare byte ([spare]) and a sum's byte niche ([byte_niche]). *)
+  type spare = { path : int list option; at : int; first : int; free : int }
+  type byte_niche = { case : int; path : int list option; at : int; first : int; count : int; free : int }
+
   (* No type takes [limit] bytes or more: no such value can be placed, since
      the runtime's chunk map covers 48-bit addresses
      (docs/design/platforms.md, "Address range supported by the runtime").
@@ -66,10 +70,21 @@ module Ty = struct
 
   let below_limit size = if size >= limit then raise Too_large else size
 
-  (* Size and alignment in bytes on a 64-bit target, where a struct is laid
-     out as C lays it out, and a sum is its tag and then its payload room at
-     offset 8 (docs/design/lowering.md §9). [Too_large] when the type takes
-     [limit] bytes or more. *)
+  (* The offset a byte niche's spare byte must be below, which a layout's
+     tag holds in 24 bits (Layout.byte_niche_tag). *)
+  let max_niche_at = 1 lsl 24
+
+  (* Each sum's byte niche, found once, by whether niches are on and its
+     cases. *)
+  let byte_niches : (bool * t list, byte_niche option) Hashtbl.t = Hashtbl.create 64
+
+  (* Size and alignment in bytes on a 64-bit target. A bare [Struct] is laid
+     out as C lays it out, and a bare [Sum] is its tag and then its payload
+     room at offset 8, the form a runtime record such as an outcome keeps;
+     lowering gives a value's type through [tight], which keeps a [Struct]
+     only when it has no padding and a [Sum] only as a niche or byte niche,
+     and packs the rest (docs/design/lowering.md L5). [Too_large] when the
+     type takes [limit] bytes or more. *)
   let rec size_align = function
     | Void -> (0, 1)
     | I1 -> (1, 1)
@@ -87,6 +102,8 @@ module Ty = struct
             (0, 1) ts
         in
         (below_limit (round_up size align), align)
+    | Sum ts when Option.is_some (byte_niche ts) -> (
+        match byte_niche ts with Some { case; _ } -> size_align (List.nth ts case) | None -> (0, 1))
     | Sum ts when niche ts -> (4, 4)
     | Sum ts -> ( match words ts with 0 -> (4, 4) | n -> (below_limit (add 8 (times 8 n)), 8))
     | Array (t, n) ->
@@ -106,6 +123,63 @@ module Ty = struct
   (* Experimental (Ref32.niche): a sum of nothing or a box or reference is
      that word, 0 for nothing. *)
   and niche ts = Ref32.niche () && (ts = [ Void; Ref ] || ts = [ Void; Box32 ])
+
+  (* A sum of one case with a payload and others with none, whose payload has a byte with values
+     it never holds (a [spare] byte) for each of the others, is its
+     payload's bytes alone, each other case one of those values at that
+     byte: the first of them for the first such case, and so on. *)
+  and byte_niche ts =
+    let key = (Ref32.niche (), ts) in
+    match Hashtbl.find_opt byte_niches key with
+    | Some n -> n
+    | None ->
+        let n = find_byte_niche ts in
+        Hashtbl.replace byte_niches key n;
+        n
+
+  (* Found once for each sum (byte_niches): a sum nested in a member
+     asks again for each layer above it, which would double the work at
+     each. A spare byte past [Layout.byte_niche_tag]'s reach is not used. *)
+  and find_byte_niche ts =
+    if List.length ts < 2 then None
+    else
+      match List.filter (fun (_, t) -> t <> Void) (List.mapi (fun i t -> (i, t)) ts) with
+      | [ (case, t) ] -> (
+          let count = List.length ts - 1 in
+          match spare t with
+          | Some s when s.free >= count && s.at < max_niche_at ->
+              Some { case; path = s.path; at = s.at; first = s.first; count; free = s.free }
+          | _ -> None)
+      | _ -> None
+
+  (* A byte of a value of [t] with values it never holds: at [at], where
+     [free] values from [first] up are unused. A [Bool] holds 0 or 1, a
+     packed sum's tag one value for each case, and a sum with a byte niche
+     leaves the values its own cases do not take. [path] leads through
+     members and elements to a [Bool] whose byte it is, which a niche sum's
+     own layout holds as a byte (Emit.lltype); none for a tag. *)
+  and spare t : spare option =
+    let inside base i (s : spare) : spare = { s with at = base + s.at; path = Option.map (fun p -> i :: p) s.path } in
+    match t with
+    | I1 -> Some { path = Some []; at = 0; first = 2; free = 254 }
+    | Struct ts | Packed (Struct ts) ->
+        let packed = match t with Packed _ -> true | _ -> false in
+        let rec go i at = function
+          | [] -> None
+          | m :: rest -> (
+              let s, a = size_align m in
+              let at = if packed then at else round_up at a in
+              match spare m with Some sp -> Some (inside at i sp) | None -> go (i + 1) (at + s) rest)
+        in
+        go 0 0 ts
+    | Array (e, n) when n > 0 -> Option.map (inside 0 0) (spare e)
+    | Packed (Sum ts) when List.length ts < 256 ->
+        Some { path = None; at = 0; first = List.length ts; free = 256 - List.length ts }
+    | Sum ts -> (
+        match byte_niche ts with
+        | Some n when n.first + n.count < 256 -> Some { path = None; at = n.at; first = n.first + n.count; free = n.free - n.count }
+        | _ -> None)
+    | _ -> None
 
   (* Where a struct's members go, given their types in declaration order:
      the [i]th declared member is the [(order ts).(i)]th member of the
@@ -127,6 +201,21 @@ module Ty = struct
     let positions = Array.make (List.length ts) 0 in
     List.iteri (fun at (i, _) -> positions.(i) <- at) sorted;
     positions
+
+  (* The layout lowering gives a struct or sum of already-laid-out members
+     (docs/design/lowering.md L5). A struct that C's layout would pad is
+     packed: no padding, its tail included, and alignment 1; one with no
+     padding keeps its natural layout and alignment. A sum with a niche or
+     a byte niche is laid out as that; any other of at most 256 cases is
+     packed, its tag one byte and its payload room right after it, and
+     one of more keeps the 4-byte tag of a bare [Sum]. A type too large to
+     measure is left for the size check to refuse. *)
+  let tight t =
+    match t with
+    | Struct _ when (try fst (size_align (Packed t)) < fst (size_align t) with Too_large -> false) -> Packed t
+    | Sum ts when List.length ts <= 256 && not (niche ts) && (try Option.is_none (byte_niche ts) with Too_large -> false) ->
+        Packed t
+    | t -> t
 
   (* [xs], one for each of the members [ts] in declaration order, in their
      layout's order. *)
@@ -168,7 +257,8 @@ module Ty = struct
   (* A struct's members, packed or not. *)
   let members = function Struct ts | Packed (Struct ts) -> ts | _ -> []
 
-  (* A sum's payload starts after its tag. *)
+  (* A bare [Sum]'s payload starts after its tag (see [size_align]); a
+     value's sum keeps its payload at [payload_at]. *)
   let payload_offset = 8
 
   (* A list's handle: [Handle16] with frame references, else [Handle]. *)
@@ -177,7 +267,7 @@ module Ty = struct
   (* Where the sum [t]'s payload starts, packed or not. *)
   let payload_at = function
     | Packed _ -> 1
-    | Sum ts when niche ts -> 0
+    | Sum ts when niche ts || Option.is_some (byte_niche ts) -> 0
     | _ -> payload_offset
 
   (* Whether a value of the type has a handle among its bytes: is one, or
@@ -283,7 +373,34 @@ module Layout = struct
      [i] names, which a walk tests as a nonzero word, and the case a tag
      names either way. *)
   let niche_tag i = -i - 1
-  let tag_case t = if t < 0 then -t - 1 else t
+
+  (* The tag a position under a packed sum's case [i] names, which a walk
+     tests as the byte at the sum's start; a bare sum's case [i] is [i]
+     itself, tested as a 4-byte word. *)
+  let packed_base = 1 lsl 48
+
+  let packed_tag i = packed_base + i
+  let packed_case t = if t >= packed_base then Some (t - packed_base) else None
+
+  (* The tag a position under a byte-niche sum's case [case] names, which
+     a walk tests as the byte at [at] past the sum holding none of the
+     [count] values from [first] up. [at] is below Ty.max_niche_at. *)
+  let byte_niche_base = 1 lsl 50
+
+  let byte_niche_tag ~case ~at ~first ~count =
+    -byte_niche_base - ((case lsl 40) lor (at lsl 16) lor (first lsl 8) lor count)
+
+  let byte_niche t =
+    if t > -byte_niche_base then None
+    else
+      let v = -t - byte_niche_base in
+      Some (v lsr 40, (v lsr 16) land 0xffffff, (v lsr 8) land 0xff, v land 0xff)
+
+  let tag_case t =
+    match (byte_niche t, packed_case t) with
+    | Some (case, _, _, _), _ -> case
+    | None, Some case -> case
+    | None, None -> if t < 0 then -t - 1 else t
   (* Whether a value of layout [l], whose positions [find] gives, holds a
      foreign handle: anywhere, or with [settled] only where a settled
      overwrite replaces it through its setter, in no variant's payload and
@@ -677,7 +794,7 @@ module Callback = struct
         match List.map (field ~c) fs with
         | [] -> Ty.Void
         | [ t ] -> t
-        | ts -> Ty.Struct (if c then ts else Ty.placed ts ts))
+        | ts -> if c then Ty.Struct ts else Ty.tight (Ty.Struct (Ty.placed ts ts)))
     (* A view, an array's pointer and a C object hold no struct either
        language reorders, so both layouts are the same. *)
     | View _ | Object _ -> Ty.Ptr
@@ -721,7 +838,7 @@ module Callback = struct
           | Some 0 -> (into, { Expr.node = Expr.Record []; ty = into_ty })
           | Some _ -> (into, read)
         in
-        { Expr.node = Expr.Record (List.mapi member fs); ty = (if to_c then Ty.Struct cs else Ty.Struct (Ty.placed zs zs)) }
+        { Expr.node = Expr.Record (List.mapi member fs); ty = (if to_c then Ty.Struct cs else Ty.tight (Ty.Struct (Ty.placed zs zs))) }
     | _ -> v
 
   let to_c = rebuild ~to_c:true

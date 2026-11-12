@@ -1,0 +1,362 @@
+/// Lists of value types with and without tail padding, for the tight
+/// layouts experiment: `layouts SHAPE N PASSES` builds a list of N values
+/// of the shape, pushed one at a time, then reads every value PASSES times,
+/// in order or, for the scattered shapes, by a stride that visits every
+/// index once a pass in no useful order. Prints a checksum.
+///
+/// | shape | value | default bytes | packed bytes |
+/// | 1 | Pair { a Int; b I32 } | 16 | 12 |
+/// | 2 | Flagged { a Int; f Bool } | 16 | 9 |
+/// | 3 | Trio { f Bool; a Int; b I32 } | 16 | 13 |
+/// | 4 | Outer { inner Pair; c I32 } | 24 | 16 |
+/// | 5 | Maybe variant { some Int; none Unit } | 16 | 9 (sums packed) |
+/// | 6 | Wide { a Int; b Int }, no padding | 16 | 16 |
+/// | 7 | Trio, scattered reads | 16 | 13 |
+/// | 8 | Wide, scattered reads | 16 | 16 |
+/// | 9 | Chosen variant { some Flagged; none Unit } | 24 | 10, 9 with a byte niche |
+/// | 10 | Nested variant { inner Chosen; outer Unit } | 32 | 11, 9 with a byte niche |
+/// | 11 | Quads { I32; I32; I32; Bool }, Trio's stride without an Int | 16 | 13 |
+/// | 12 | Trio, in a loop of its own with no scattered branch | 16 | 13 |
+package layouts;
+
+alias Int = @primitives$I64;
+alias I32 = @primitives$I32;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Int argument(at Int, fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), at), {
+		return fallback;
+	});
+	return args[at]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+/// The remainder of [x] divided by [n], for [x] and [n] above zero.
+Int modulo(x Int, n Int) => @operators$add(x, @operators$negate(@operators$multiply(@operators$divide(x, n), n)));
+
+/// The [i]th index a scattered pass visits, counted from 1: a stride
+/// coprime with [n] whenever [n] is a power of ten.
+Int scattered(i Int, n Int) => @operators$add(modulo(@operators$multiply(i, Int(7919)), n), Int(1));
+
+Bool odd(i Int) => @operators$equal(modulo(i, Int(2)), Int(1));
+
+type Pair = struct {
+	a Int;
+	b I32;
+}
+
+Pair(a Int, b I32) => init{ a; b; }
+
+type Flagged = struct {
+	a Int;
+	f Bool;
+}
+
+Flagged(a Int, f Bool) => init{ a; f; }
+
+type Trio = struct {
+	f Bool;
+	a Int;
+	b I32;
+}
+
+Trio(f Bool, a Int, b I32) => init{ f; a; b; }
+
+type Outer = struct {
+	inner Pair;
+	c I32;
+}
+
+Outer(inner Pair, c I32) => init{ inner; c; }
+
+type Maybe = variant {
+	some Int;
+	none Unit;
+}
+
+type Chosen = variant {
+	some Flagged;
+	none Unit;
+}
+
+type Nested = variant {
+	inner Chosen;
+	outer Unit;
+}
+
+type Quads = struct {
+	a I32;
+	b I32;
+	c I32;
+	f Bool;
+}
+
+Quads(a I32, b I32, c I32, f Bool) => init{ a; b; c; f; }
+
+type Wide = struct {
+	a Int;
+	b Int;
+}
+
+Wide(a Int, b Int) => init{ a; b; }
+
+Int one(f Bool) {
+	@controlflow$branch(f, {
+		return Int(1);
+	});
+	return Int(0);
+}
+
+Int value(m Maybe) => match (m) {
+	x some => x;
+	none => Int(0);
+}
+
+Int chosen(c Chosen) => match (c) {
+	x some => @operators$add(x.a, one(x.f));
+	none => Int(0);
+}
+
+Int nested(t Nested) => match (t) {
+	c inner => chosen(c);
+	outer => Int(7);
+}
+
+/// A value of [i]: none for every third, else some.
+Chosen choice(i Int) {
+	@controlflow$branch(@operators$equal(modulo(i, Int(3)), Int(0)), {
+		return Chosen.none(Unit());
+	});
+	return Chosen.some(Flagged(i, odd(i)));
+}
+
+Int chosens(n Int, passes Int) {
+	list ListRef<Chosen> = @primitives$ListRef(Chosen);
+	i Int(1);
+	i!to(n) {
+		list!push(choice(i));
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			total = @operators$add(total, chosen(list[j]));
+		}
+	}
+	return total;
+}
+
+Int nesteds(n Int, passes Int) {
+	list ListRef<Nested> = @primitives$ListRef(Nested);
+	i Int(1);
+	i!to(n) {
+		t Nested = Nested.inner(choice(i));
+		@controlflow$branch(@operators$equal(modulo(i, Int(5)), Int(0)), {
+			t = Nested.outer(Unit());
+		});
+		list!push(t);
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			total = @operators$add(total, nested(list[j]));
+		}
+	}
+	return total;
+}
+
+Int triosPlain(n Int, passes Int) {
+	list ListRef<Trio> = @primitives$ListRef(Trio);
+	i Int(1);
+	i!to(n) {
+		list!push(Trio(odd(i), i, I32.wrap(i)));
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			e Trio = list[j];
+			total = @operators$add(total, @operators$add(@operators$add(e.a, Int(e.b)), one(e.f)));
+		}
+	}
+	return total;
+}
+
+Int quads(n Int, passes Int) {
+	list ListRef<Quads> = @primitives$ListRef(Quads);
+	i Int(1);
+	i!to(n) {
+		w I32 = I32.wrap(i);
+		list!push(Quads(w, w, I32(3), odd(i)));
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			e Quads = list[j];
+			total = @operators$add(total, @operators$add(@operators$add(Int(e.a), Int(e.b)), @operators$add(Int(e.c), one(e.f))));
+		}
+	}
+	return total;
+}
+
+Int pairs(n Int, passes Int) {
+	list ListRef<Pair> = @primitives$ListRef(Pair);
+	i Int(1);
+	i!to(n) {
+		list!push(Pair(i, I32.wrap(i)));
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			e Pair = list[j];
+			total = @operators$add(total, @operators$add(e.a, Int(e.b)));
+		}
+	}
+	return total;
+}
+
+Int flagged(n Int, passes Int) {
+	list ListRef<Flagged> = @primitives$ListRef(Flagged);
+	i Int(1);
+	i!to(n) {
+		list!push(Flagged(i, odd(i)));
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			e Flagged = list[j];
+			total = @operators$add(total, @operators$add(e.a, one(e.f)));
+		}
+	}
+	return total;
+}
+
+Int trios(n Int, passes Int, spread Bool) {
+	list ListRef<Trio> = @primitives$ListRef(Trio);
+	i Int(1);
+	i!to(n) {
+		list!push(Trio(odd(i), i, I32.wrap(i)));
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			k Int = j;
+			@controlflow$branch(spread, {
+				k = scattered(j, n);
+			});
+			e Trio = list[k];
+			total = @operators$add(total, @operators$add(@operators$add(e.a, Int(e.b)), one(e.f)));
+		}
+	}
+	return total;
+}
+
+Int outers(n Int, passes Int) {
+	list ListRef<Outer> = @primitives$ListRef(Outer);
+	i Int(1);
+	i!to(n) {
+		list!push(Outer(Pair(i, I32.wrap(i)), I32(3)));
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			e Outer = list[j];
+			total = @operators$add(total, @operators$add(@operators$add(e.inner.a, Int(e.inner.b)), Int(e.c)));
+		}
+	}
+	return total;
+}
+
+Int maybes(n Int, passes Int) {
+	list ListRef<Maybe> = @primitives$ListRef(Maybe);
+	i Int(1);
+	i!to(n) {
+		m Maybe = Maybe.some(i);
+		@controlflow$branch(odd(i), {
+			m = Maybe.none(Unit());
+		});
+		list!push(m);
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			total = @operators$add(total, value(list[j]));
+		}
+	}
+	return total;
+}
+
+Int wides(n Int, passes Int, spread Bool) {
+	list ListRef<Wide> = @primitives$ListRef(Wide);
+	i Int(1);
+	i!to(n) {
+		list!push(Wide(i, @operators$multiply(i, Int(3))));
+	}
+	total Int(0);
+	p Int(1);
+	p!to(passes) {
+		j Int(1);
+		j!to(n) {
+			k Int = j;
+			@controlflow$branch(spread, {
+				k = scattered(j, n);
+			});
+			e Wide = list[k];
+			total = @operators$add(total, @operators$add(e.a, e.b));
+		}
+	}
+	return total;
+}
+
+Unit main() {
+	shape Int = argument(Int(1), Int(1));
+	n Int = argument(Int(2), Int(1000));
+	passes Int = argument(Int(3), Int(1));
+	total Int(0);
+	@controlflow$branch(@operators$equal(shape, Int(1)), { total = pairs(n, passes); });
+	@controlflow$branch(@operators$equal(shape, Int(2)), { total = flagged(n, passes); });
+	@controlflow$branch(@operators$equal(shape, Int(3)), { total = trios(n, passes, false); });
+	@controlflow$branch(@operators$equal(shape, Int(4)), { total = outers(n, passes); });
+	@controlflow$branch(@operators$equal(shape, Int(5)), { total = maybes(n, passes); });
+	@controlflow$branch(@operators$equal(shape, Int(6)), { total = wides(n, passes, false); });
+	@controlflow$branch(@operators$equal(shape, Int(7)), { total = trios(n, passes, true); });
+	@controlflow$branch(@operators$equal(shape, Int(8)), { total = wides(n, passes, true); });
+	@controlflow$branch(@operators$equal(shape, Int(9)), { total = chosens(n, passes); });
+	@controlflow$branch(@operators$equal(shape, Int(10)), { total = nesteds(n, passes); });
+	@controlflow$branch(@operators$equal(shape, Int(11)), { total = quads(n, passes); });
+	@controlflow$branch(@operators$equal(shape, Int(12)), { total = triosPlain(n, passes); });
+	say(String(total));
+	return Unit();
+}
