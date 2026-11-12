@@ -285,7 +285,7 @@ class FactsTests(unittest.TestCase):
             bodies[m.group(1) + m.group(2)] = m.group(3)
         hint = re.search(r'(?m)^(![0-9]+) = !\{!"llvm\.loop\.unroll\.count", i32 2\}$', ir)
         self.assertIsNotNone(hint, "no unroll count in the plain build")
-        loops = {m.group(1) for m in re.finditer(rf'(?m)^(![0-9]+) = (?:distinct )?!\{{\1, {hint.group(1)}\}}$', ir)}
+        loops = {m.group(1) for m in re.finditer(rf'(?m)^(![0-9]+) = distinct !\{{\1, {hint.group(1)}\}}$', ir)}
         for name in ("escapes.memo", "escapes.plain"):
             self.assertRegex(bodies[name], r"br label %\w+, !llvm\.loop !\d+", name)
             named = set(re.findall(r"!llvm\.loop (![0-9]+)", bodies[name]))

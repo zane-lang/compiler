@@ -107,8 +107,9 @@ build, its loop keeps the count in a register, and the string list's moves
 carry none. `pushes` is a program whose `gather` pushes four
 scalars in a row onto a list of its own: each element it moves in carries
 the scalar tag. `escapes` is a program with two counted loops that return
-early: its arithmetic escape test is marked to be unrolled twice and, in
-the optimized build, is, while `first`'s loop, which calls, is not marked.
+early: every build marks its arithmetic escape test to be unrolled twice,
+and the optimized build unrolls it, while `first`'s loop, which calls, is
+not marked.
 
 `options_test.py` checks what `zanec` accepts for the options that name and
 stamp packages. A package name in `--package NAME=DIR` or an `--import` key

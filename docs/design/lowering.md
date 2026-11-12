@@ -1457,6 +1457,8 @@ test passing.
     the count, in the function that removes. LLVM then sees exactly which
     bytes change, as it sees an element's address and a push's
     (`runtime/list.c` keeps the runtime's own forms of all three).
+  A short counted loop that leaves early also carries a mark asking for it
+  to be unrolled twice (`llvm.loop.unroll.count` 2; "The passes" below).
 - **The passes.** `lib/codegen/passes.ml` names what LLVM runs over the
   module. An unoptimized build and tier 0 run `Passes.unoptimized`
   ([`optimization.md`](optimization.md) O12). An optimized build and tier 1
@@ -1500,14 +1502,15 @@ test passing.
   need.
 
   A `repeat` that can leave before its count runs out, through a `return`
-  or a block it is in, and that holds no loop, spawn or call, has its back
+  or a block it is in, and that holds no loop, spawn, join or call, has its back
   edge marked to be unrolled twice (`llvm.loop.unroll.count` 2,
   `Emit.unrolled`), in every build; only the optimized passes and tier 1's
   act on it. On x86-64 `-O2`'s cost model allows partial unrolling only of
   loops smaller than a dozen arithmetic operations, and in a copy whose
   exits lead to the same place it merges the two exit tests, after which the
   trips cannot be counted at all, so such a loop otherwise stays rolled:
-  `tests/perf` `floats`' escape test runs 17% fewer instructions unrolled. A
+  unrolled, `tests/perf` `floats`' escape test takes 16.5% fewer estimated
+  cycles. A
   loop that calls is left as it is, since its call costs far more than the
   test unrolling saves: unrolled, the loop the memo pass checks made
   `depths` 2.5% slower.

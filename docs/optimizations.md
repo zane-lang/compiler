@@ -644,7 +644,8 @@ is: the call costs far more than the check.
 
 ### Short loops that leave early unrolled twice
 
-- **Builds:** optimized only (and tier 1); every build marks the loops
+- **Builds:** every build marks the loops; optimized builds and tier 1
+  act on the mark
 - **Where:** `lib/codegen/emit.ml` (`unrolled`, `unroll_twice`),
   `lib/codegen/llvm_stubs.c` (`zane_loop_id`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
@@ -653,7 +654,7 @@ is: the call costs far more than the check.
   1.0% fewer; every other program unchanged
 
 A counted loop that can return or leave a block before its count runs out,
-and holds no loop, spawn or call, has its back edge marked
+and holds no loop, spawn, join or call, has its back edge marked
 `llvm.loop.unroll.count` 2. Such a loop has two exits, which `-O2` merges
 into one test where both lead to the same place, and its cost model on
 x86-64 leaves even a dozen arithmetic operations rolled, so without the

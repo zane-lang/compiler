@@ -342,8 +342,9 @@ let versioned ~symbol body =
        ~stat:(fun _ -> false)
 
 (* Whether a counted loop with [body] is asked to be unrolled twice
-   (Stat.Repeat): it can leave before its count runs out, holds no loop, and
-   calls no function and spawns none. LLVM 21's `-O2` leaves such a loop
+   (Stat.Repeat): it can leave before its count runs out, holds no loop,
+   spawn or join, and calls no function. Every build marks it; only the
+   optimized passes and tier 1's act on the mark. LLVM 21's `-O2` leaves such a loop
    rolled on x86-64 even when its body is a dozen arithmetic operations,
    since the target's cost model allows partial unrolling only of smaller
    loops, and in a copy whose two exits lead to the same place the passes
@@ -358,7 +359,7 @@ let unrolled body =
   && not
        (Cgt.Traverse.exists_in body
           ~expr:(fun e -> match e.Expr.node with Expr.Call _ -> true | _ -> false)
-          ~stat:(function Stat.Repeat _ | Stat.Spawn _ -> true | _ -> false))
+          ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ -> true | _ -> false))
 
 (* The `llvm.loop` node that asks for a loop unrolled twice. *)
 let unroll_twice env =

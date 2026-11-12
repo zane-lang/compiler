@@ -1,7 +1,7 @@
 /* What LLVM's C API offers and its OCaml bindings do not: a function or a
    variable placed in a COMDAT of its own name
-   (docs/design/separate-compilation.md C4), an assumption that carries
-   operand bundles, a target triple in LLVM's
+   (docs/design/separate-compilation.md C4), a loop's `llvm.loop` node,
+   which names itself, an assumption that carries operand bundles, a target triple in LLVM's
    normal form, an access made atomic at any ordering, a fence, an array type whose length takes more
    than 32 bits, an attribute that carries a type, such as `sret`, a
    function's own type, and the type an `alloca` makes room for. And arrays
@@ -198,12 +198,14 @@ value zane_type_attr(value context, value name, value type) {
 /* A loop's `llvm.loop` node: itself first, as LLVM finds a loop's
    options only in a node that names itself, then [options], each a node
    such as `!{!"llvm.loop.unroll.count", i32 2}`. A temporary node stands
-   in for the node until it exists. */
+   in for the node until it exists; replacing its uses deletes it, and
+   leaves the node naming itself, which LLVM prints as `distinct`. */
 value zane_loop_id(value context, value options) {
   CAMLparam2(context, options);
   LLVMContextRef c = (LLVMContextRef)from_val(context);
   size_t n = Wosize_val(options);
   LLVMMetadataRef *operands = malloc(sizeof *operands * (n + 1));
+  if (operands == NULL) caml_raise_out_of_memory();
   LLVMMetadataRef self = LLVMTemporaryMDNode(c, NULL, 0);
   operands[0] = self;
   for (size_t i = 0; i < n; i++) operands[i + 1] = LLVMValueAsMetadata((LLVMValueRef)from_val(Field(options, i)));
