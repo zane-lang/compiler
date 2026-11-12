@@ -5,6 +5,8 @@
 #include <string.h>
 #include <time.h>
 #include <sys/mman.h>
+#include <pthread.h>
+#include <sched.h>
 
 #define PF(p) __builtin_prefetch((p), 0, 3)
 #define PFW(p) __builtin_prefetch((p), 1, 3)
@@ -168,6 +170,72 @@ static uint64_t NOINLINE tree_amac(int W) { uint64_t s = 0, next = 0; uint64_t k
     if (next < m) { keys[k] = hq[next++]; cur[k] = troot; } else { cur[k] = 0; live--; } }
   return s; }
 
+/* ---------- round 2 ---------- */
+static uint64_t NOINLINE heavy_nta(int D) { uint64_t s = 0, i = 0;
+  for (; i + D < m; i++) { __builtin_prefetch(&ha[gidx[i + D]], 0, 0); uint32_t j = gidx[i]; CHECK(j, n); s = body(&ha[j], s); }
+  for (; i < m; i++) { uint32_t j = gidx[i]; CHECK(j, n); s = body(&ha[j], s); } return s; }
+
+/* a second thread that loads ahead of the first */
+static volatile uint64_t prog; static volatile int stop; static int hdist, hkind, hcpu;
+static void *helper(void *arg) { uint64_t c = 0, sink = 0;
+  cpu_set_t set; CPU_ZERO(&set); CPU_SET(hcpu, &set); pthread_setaffinity_np(pthread_self(), sizeof set, &set);
+  while (!stop) { uint64_t p = prog, lim = p + hdist; if (lim > m) lim = m; if (c < p) c = p;
+    if (c >= lim) { __builtin_ia32_pause(); continue; }
+    if (hkind) for (; c < lim; c++) sink += ha[gidx[c]].key; else for (; c < lim; c++) sink += ga[gidx[c]]; }
+  return (void *)sink; }
+static uint64_t with_helper(int K, int kind, uint64_t (*fn)(void)) { pthread_t t;
+  hdist = K; hkind = kind; prog = 0; stop = 0; pthread_create(&t, 0, helper, 0);
+  uint64_t s = fn(); stop = 1; pthread_join(t, 0); return s; }
+static uint64_t heavy_pub(void) { uint64_t s = 0;
+  for (uint64_t i = 0; i < m; i++) { if (!(i & 15)) prog = i; uint32_t j = gidx[i]; CHECK(j, n); s = body(&ha[j], s); } return s; }
+static uint64_t gather_pub(void) { uint64_t s = 0;
+  for (uint64_t i = 0; i < m; i++) { if (!(i & 15)) prog = i; uint32_t j = gidx[i]; CHECK(j, n); s += ga[j]; } return s; }
+static uint64_t NOINLINE heavy_helper(int K) { return with_helper(K, 1, heavy_pub); }
+static uint64_t NOINLINE gather_helper(int K) { return with_helper(K, 0, gather_pub); }
+
+/* two hops: s += a[b[idx[i]]] */
+static uint32_t *tb; static uint64_t nb;
+static uint64_t NOINLINE two_base(int p) { uint64_t s = 0;
+  for (uint64_t i = 0; i < m; i++) { uint32_t j = gidx[i]; CHECK(j, nb); uint32_t k = tb[j]; CHECK(k, n); s += ga[k]; } return s; }
+static uint64_t NOINLINE two_ahead(int D) { uint64_t s = 0, i = 0;
+  for (; i + D < m; i++) { PF(&tb[gidx[i + D]]); uint32_t j = gidx[i]; CHECK(j, nb); uint32_t k = tb[j]; CHECK(k, n); s += ga[k]; }
+  for (; i < m; i++) { uint32_t j = gidx[i]; CHECK(j, nb); uint32_t k = tb[j]; CHECK(k, n); s += ga[k]; } return s; }
+static uint64_t NOINLINE two_staged(int D) { uint64_t s = 0, i = 0;
+  for (; i + 2 * D < m; i++) { PF(&tb[gidx[i + 2 * D]]); uint32_t e = gidx[i + D]; if (e < nb) PF(&ga[tb[e]]);
+    uint32_t j = gidx[i]; CHECK(j, nb); uint32_t k = tb[j]; CHECK(k, n); s += ga[k]; }
+  for (; i < m; i++) { uint32_t j = gidx[i]; CHECK(j, nb); uint32_t k = tb[j]; CHECK(k, n); s += ga[k]; } return s; }
+
+/* a list of short lists: handles in order, payloads at random places */
+typedef struct { uint64_t *ptr; uint32_t len, cap; } Row;
+static Row *rows;
+static uint64_t NOINLINE nested_base(int p) { uint64_t s = 0;
+  for (uint64_t i = 0; i < m; i++) { Row r = rows[i]; for (uint32_t k = 0; k < r.len; k++) s += r.ptr[k]; } return s; }
+static uint64_t NOINLINE nested_ahead(int D) { uint64_t s = 0, i = 0;
+  for (; i + D < m; i++) { PF(rows[i + D].ptr); Row r = rows[i]; for (uint32_t k = 0; k < r.len; k++) s += r.ptr[k]; }
+  for (; i < m; i++) { Row r = rows[i]; for (uint32_t k = 0; k < r.len; k++) s += r.ptr[k]; } return s; }
+
+/* many short chains: for each list, walk it */
+typedef struct { uint64_t val; uint32_t next, pad; } Link;
+static Link *ln; static uint32_t *heads;
+static uint64_t NOINLINE chains_base(int p) { uint64_t s = 0;
+  for (uint64_t i = 0; i < m; i++) for (uint32_t c = heads[i]; c; c = ln[c].next) s += ln[c].val; return s; }
+static uint64_t NOINLINE chains_ahead(int D) { uint64_t s = 0, i = 0;
+  for (; i + D < m; i++) { PF(&ln[heads[i + D]]); for (uint32_t c = heads[i]; c; c = ln[c].next) s += ln[c].val; }
+  for (; i < m; i++) for (uint32_t c = heads[i]; c; c = ln[c].next) s += ln[c].val; return s; }
+static uint64_t NOINLINE chains_group(int W) { uint64_t s = 0, i = 0; uint32_t cur[MAXG];
+  for (; i + W <= m; i += W) { int live = W;
+    for (int k = 0; k < W; k++) { cur[k] = heads[i + k]; PF(&ln[cur[k]]); }
+    while (live) for (int k = 0; k < W; k++) { uint32_t c = cur[k]; if (!c) continue;
+      s += ln[c].val; c = ln[c].next; cur[k] = c; if (c) PF(&ln[c]); else live--; } }
+  for (; i < m; i++) for (uint32_t c = heads[i]; c; c = ln[c].next) s += ln[c].val; return s; }
+static uint64_t NOINLINE chains_amac(int W) { uint64_t s = 0, next = 0; uint32_t cur[MAXG]; int live = 0;
+  for (int k = 0; k < W; k++) { cur[k] = 0; if (next < m) { cur[k] = heads[next++]; PF(&ln[cur[k]]); live++; } }
+  for (int k = 0; live; k = k + 1 == W ? 0 : k + 1) { uint32_t c = cur[k]; if (!c) continue;
+    s += ln[c].val; c = ln[c].next;
+    if (c) { PF(&ln[c]); cur[k] = c; continue; }
+    if (next < m) { cur[k] = heads[next++]; PF(&ln[cur[k]]); } else { cur[k] = 0; live--; } }
+  return s; }
+
 typedef struct { const char *name; uint64_t (*fn)(int); int np; int p[10]; } Variant;
 static const char *kname; static int logbytes;
 static void run(Variant *v, int nv) {
@@ -178,20 +246,21 @@ static void run(Variant *v, int nv) {
     fflush(stdout); } }
 #define RUN(v) run(v, sizeof v / sizeof *v)
 #define DS 7, {1, 2, 4, 8, 16, 32, 64}
+#define HS 4, {64, 256, 1024, 4096}
 #define GS 6, {4, 8, 16, 32, 64, 128}
 
 int main(int argc, char **argv) {
   if (argc < 5) { fprintf(stderr, "model KERNEL LOG2BYTES LOG2OPS HUGE\n"); return 2; }
-  kname = argv[1]; logbytes = atoi(argv[2]); m = 1ull << atoi(argv[3]); g_huge = atoi(argv[4]);
+  kname = argv[1]; hcpu = sched_getcpu() ? sched_getcpu() - 1 : 1; logbytes = atoi(argv[2]); m = 1ull << atoi(argv[3]); g_huge = atoi(argv[4]);
   uint64_t bytes = 1ull << logbytes;
   if (!strcmp(kname, "gather") || !strcmp(kname, "scatter") || !strcmp(kname, "heavy")) {
     int heavy = !strcmp(kname, "heavy"); n = bytes / (heavy ? 64 : 8);
     gidx = alloc(m * 4); gtmp = alloc(m * 4);
     for (uint64_t i = 0; i < m; i++) { gidx[i] = rnd() % n; gtmp[i] = 0; }
     if (heavy) { ha = alloc(bytes); for (uint64_t i = 0; i < n; i++) for (int k = 0; k < 8; k++) (&ha[i].key)[k] = rnd();
-      Variant v[] = {{"base", heavy_base}, {"naive", heavy_naive}, {"ahead", heavy_ahead, DS}, {"group", heavy_group, GS}, {"earlyload", heavy_earlyload, GS}}; RUN(v); }
+      Variant v[] = {{"base", heavy_base}, {"naive", heavy_naive}, {"ahead", heavy_ahead, DS}, {"group", heavy_group, GS}, {"earlyload", heavy_earlyload, GS}, {"nta", heavy_nta, 3, {16, 32, 64}}, {"helper", heavy_helper, HS}}; RUN(v); }
     else { ga = alloc(bytes); for (uint64_t i = 0; i < n; i++) ga[i] = rnd();
-      if (!strcmp(kname, "gather")) { Variant v[] = {{"base", gather_base}, {"naive", gather_naive}, {"ahead", gather_ahead, DS}, {"group", gather_group, GS}, {"sorted", gather_sorted, 3, {18, 20, 22}}}; RUN(v); }
+      if (!strcmp(kname, "gather")) { Variant v[] = {{"base", gather_base}, {"naive", gather_naive}, {"ahead", gather_ahead, DS}, {"group", gather_group, GS}, {"sorted", gather_sorted, 3, {18, 20, 22}}, {"helper", gather_helper, HS}}; RUN(v); }
       else { Variant v[] = {{"base", scatter_base}, {"ahead", scatter_ahead, DS}, {"group", scatter_group, GS}}; RUN(v); } }
   } else if (!strcmp(kname, "hash")) {
     uint64_t cap = bytes / 16, nk = cap / 2; hmask = cap - 1; hshift = 64 - (logbytes - 4);
@@ -214,6 +283,36 @@ int main(int argc, char **argv) {
     troot = tbuild(0, n);
     for (uint64_t i = 0; i < m; i++) hq[i] = rnd() % (2 * n);
     Variant v[] = {{"base", tree_base}, {"group", tree_group, GS}, {"amac", tree_amac, GS}}; RUN(v);
+  } else if (!strcmp(kname, "gatherx") || !strcmp(kname, "heavyx")) {
+    int heavy = !strcmp(kname, "heavyx"); n = bytes / (heavy ? 64 : 8); gidx = alloc(m * 4);
+    for (uint64_t i = 0; i < m; i++) gidx[i] = rnd() % n;
+    if (heavy) { ha = alloc(bytes); for (uint64_t i = 0; i < n; i++) for (int k = 0; k < 8; k++) (&ha[i].key)[k] = rnd();
+      Variant v[] = {{"base", heavy_base}, {"ahead", heavy_ahead, 2, {16, 32}}}; RUN(v); }
+    else { ga = alloc(bytes); for (uint64_t i = 0; i < n; i++) ga[i] = rnd();
+      Variant v[] = {{"base", gather_base}, {"ahead", gather_ahead, 2, {16, 32}}}; RUN(v); }
+  } else if (!strcmp(kname, "twohop")) {
+    nb = bytes / 8; n = bytes / 16; tb = alloc(nb * 4); ga = alloc(n * 8); gidx = alloc(m * 4);
+    for (uint64_t i = 0; i < nb; i++) tb[i] = rnd() % n;
+    for (uint64_t i = 0; i < n; i++) ga[i] = rnd();
+    for (uint64_t i = 0; i < m; i++) gidx[i] = rnd() % nb;
+    Variant v[] = {{"base", two_base}, {"ahead", two_ahead, DS}, {"staged", two_staged, DS}}; RUN(v);
+  } else if (!strcmp(kname, "nested")) {
+    n = bytes / 64; uint64_t *pool = alloc(bytes); rows = alloc(m * sizeof(Row)); uint32_t *perm = alloc(n * 4);
+    for (uint64_t i = 0; i < bytes / 8; i++) pool[i] = rnd();
+    for (uint64_t i = 0; i < n; i++) perm[i] = i;
+    for (uint64_t i = n - 1; i > 0; i--) { uint64_t j = rnd() % (i + 1); uint32_t t = perm[i]; perm[i] = perm[j]; perm[j] = t; }
+    for (uint64_t i = 0; i < m; i++) { uint32_t b = perm[i % n]; rows[i].ptr = pool + 8ull * b; rows[i].len = 1 + mix(b) % 8; rows[i].cap = 8; }
+    Variant v[] = {{"base", nested_base}, {"ahead", nested_ahead, DS}}; RUN(v);
+  } else if (!strcmp(kname, "chains")) {
+    n = bytes / 16 - 1; ln = alloc(bytes); heads = alloc(m * 4); uint32_t *perm = alloc(n * 4), *hd = alloc(n * 4);
+    for (uint64_t i = 0; i < n; i++) perm[i] = i + 1;
+    for (uint64_t i = n - 1; i > 0; i--) { uint64_t j = rnd() % (i + 1); uint32_t t = perm[i]; perm[i] = perm[j]; perm[j] = t; }
+    uint64_t nl = 0;
+    for (uint64_t i = 0; i < n;) { uint64_t len = 1 + rnd() % 15; if (i + len > n) len = n - i; hd[nl++] = perm[i];
+      for (uint64_t k = 0; k < len; k++) { Link *l = &ln[perm[i + k]]; l->val = rnd(); l->next = k + 1 < len ? perm[i + k + 1] : 0; } i += len; }
+    ln[0].val = 0; ln[0].next = 0;
+    for (uint64_t i = 0; i < m; i++) heads[i] = hd[i % nl];
+    Variant v[] = {{"base", chains_base}, {"ahead", chains_ahead, DS}, {"group", chains_group, GS}, {"amac", chains_amac, GS}}; RUN(v);
   } else return 2;
   return 0;
 }

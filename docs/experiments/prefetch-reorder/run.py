@@ -11,17 +11,19 @@ on the checksum; the run stops if they do not.
 import os, subprocess, sys, tempfile, collections
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-KERNELS = {"gather": 23, "heavy": 23, "scatter": 23, "hash": 23, "bsearch": 21, "tree": 21}
+KERNELS = {"gather": 23, "heavy": 23, "scatter": 23, "hash": 23, "bsearch": 21, "tree": 21,
+           "twohop": 23, "nested": 23, "chains": 21, "gatherx": 23, "heavyx": 23}
 SIZES = [18, 25, 31]
+SWEEP = list(range(16, 29))
 
 def measure(label, kernels):
     exe = os.path.join(tempfile.mkdtemp(), "model")
-    subprocess.check_call(["clang", "-O2", "-o", exe, os.path.join(HERE, "model.c")])
+    subprocess.check_call(["clang", "-O2", "-pthread", "-o", exe, os.path.join(HERE, "model.c")])
     cpu = str(os.cpu_count() - 1)
     out = os.path.join(HERE, "results", label + ".tsv")
     with open(out, "a") as f:
         for k in kernels:
-            for size in SIZES:
+            for size in (SWEEP if k.endswith('x') else SIZES):
                 for huge in (0, 1):
                     text = subprocess.check_output(["taskset", "-c", cpu, exe, k, str(size), str(KERNELS[k]), str(huge)], text=True)
                     sums = {l.split("\t")[6] for l in text.splitlines()}
