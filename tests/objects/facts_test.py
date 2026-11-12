@@ -245,9 +245,20 @@ class FactsTests(unittest.TestCase):
         # the payload (Passes.llvm_options). Tier 1 runs the optimized
         # build's passes with the same options (tiers.md T2).
         ir = run(ZANEC, "--ll", "--optimize", *packages("cases"))
-        self.assertRegex(ir, r"select i1 %[\w.]+, i1 %[\w.]+, i1 false")
-        self.assertNotRegex(ir, r"load i64, ptr [^\n]*\n  %[\w.]+ = icmp slt i64 %[\w.]+, 1\n"
-                                r"  %[\w.]+ = zext i1 %[\w.]+ to i64\n  br label")
+        # The counting loop is inlined into `zane_main`.
+        main = re.search(r"^define [^\n]*@zane_main\(.*?^}$", ir, re.S | re.M).group()
+        self.assertRegex(main, r"select i1 %[\w.]+, i1 %[\w.]+, i1 false")
+        # No branch may test a tag, whatever sits between its load and the
+        # branch: follow the comparisons and bit operations computed from a
+        # tag's load (the count the cases add up is rightly tested later).
+        defs = re.findall(r"^\s*(%[\w.$]+) = (.*)$", main, re.M)
+        tags = {name for name, rest in defs if rest.startswith("load i8,")}
+        while grown := {name for name, rest in defs
+                        if name not in tags and re.match(r"(icmp|zext|trunc|and|or|xor|freeze) ", rest)
+                        and tags.intersection(re.findall(r"%[\w.$]+", rest))}:
+            tags |= grown
+        branches = set(re.findall(r"^\s*br i1 (%[\w.$]+),", main, re.M))
+        self.assertEqual(branches & tags, set())
         with tempfile.TemporaryDirectory() as work:
             exe = Path(work) / "cases"
             run(ZANEC, "--build", exe, "--optimize", *packages("cases"))
