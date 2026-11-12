@@ -78,6 +78,27 @@ written out only while it stays 40 nodes, a recursive one is called inside
 itself, and a call that hands a fresh owner of blocks to a value parameter
 calls the function, which takes the value rather than copying it.
 
+### Conversions lent rather than copied
+
+- **Builds:** every build
+- **Where:** `lib/cgt/lower_calls.ml` (`lent`, `lent_arguments`)
+- **Design:** [`design/lowering.md`](design/lowering.md) L11, "Lent
+  conversions"
+- **Effect:** a loop reading every byte of a string through a wrapper's
+  implicit conversion into a foreign verb, as LangArena's `byte(text, i)`
+  does, goes from quadratic to linear: at 64 KiB, 4.32 billion
+  instructions to 0.73 million; at 512 KiB, 6.4 s to 2 ms, optimized and
+  plain alike. No perf program or golden tree changes
+
+A call whose argument is a verb returning one of its parameters' members,
+such as `core`'s `implicit @primitives$String(v String) => v._value`, is
+given the member where the caller keeps it rather than a copy, when the
+argument only lends it to a borrow parameter and nothing in the call can
+write the source: the call is direct and unspawned, the callee writes
+none of its parameters, and every other argument is a plain read.
+A value has no identity and a borrow is read-only, so only time and
+allocation change.
+
 ### Arenas only for blocks that need one
 
 - **Builds:** every build

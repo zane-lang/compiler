@@ -1,0 +1,78 @@
+/// Conversions to `@primitives$String` that stay copies (docs/design/lowering.md
+/// L11, "lent conversions"): in each call something may write the source
+/// while the call reads the converted string, so the call is given a copy
+/// and reads the text as it was converted. Each line prints 97, the byte of
+/// `a`, and 122, that of `z`, where the source was overwritten.
+package keptStrings;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+type Text = struct { _value String; }
+
+Text(value String) => init{ _value = value; }
+implicit String(text Text) => text._value;
+
+I64 _byte(text String, index I64) foreign "text_byte";
+
+/// Overwrites the text, and gives the index of its first byte.
+I64 overwrite(this Text) mut {
+	this._value = String.escaped("zzzzzzzz");
+	return I64(0);
+}
+
+/// Overwrites the text, then reads the first byte of what it was given.
+I64 absorb(this Text, other String) mut {
+	this._value = String.escaped("zzzzzzzz");
+	return _byte(other, I64(0));
+}
+
+/// Runs the block, then reads the first byte of what it was given.
+I64 after(text String, body @concepts$Block) {
+	@controlflow$branch(true, body);
+	return _byte(text, I64(0));
+}
+
+I64 first(text String) => _byte(text, I64(0));
+
+/// Aborts, so a spawned call of it settles through its handler.
+I64?Unit refused() {
+	abort Unit();
+}
+
+Unit show(before I64, now I64) {
+	@program$console!print(String(before));
+	@program$console!print(String.escaped(" "));
+	@program$console!print(String(now));
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+Text fresh() => Text(String.escaped("abcdefgh"));
+
+Unit main() {
+	// A later argument writes the source.
+	a Text = fresh();
+	show(_byte(a, a!overwrite()), _byte(a, I64(0)));
+	// The call's own `mut` subject is the source.
+	b Text = fresh();
+	show(b!absorb(b), _byte(b, I64(0)));
+	// A block argument writes the source before the body reads it.
+	c Text = fresh();
+	show(after(c, { c = Text(String.escaped("zzzzzzzz")); }), _byte(c, I64(0)));
+	// A spawned call reads its argument while the source is overwritten.
+	d Text = fresh();
+	n I64 = spawn first(d);
+	d = Text(String.escaped("zzzzzzzz"));
+	show(n, _byte(d, I64(0)));
+	// A later argument is a spawned call's result, whose handler, run where
+	// the result is read, writes the source.
+	e Text = fresh();
+	at I64 = spawn refused() ? u {
+		e = Text(String.escaped("zzzzzzzz"));
+		resolve I64(0);
+	}
+	show(_byte(e, at), _byte(e, I64(0)));
+	return Unit();
+}

@@ -657,7 +657,10 @@ its C layout, and the node passes the slots' addresses:
 
 A string, array or list is passed where it is, never copied going in:
 `ffi.md` §3.4 and `memory.md` §2.9.1 together mean nothing writes it during
-the call.
+the call. So is one a conversion such as `core`'s `implicit
+@primitives$String(v String) => v._value` gives, when nothing else in the
+call can write the source: the call reads the member where the source keeps
+it ([`lowering.md`](lowering.md) L11, "Lent conversions").
 
 A C-compatible value type crosses as a copy, and its two layouts differ:
 Zane places a struct's fields by alignment

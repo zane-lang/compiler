@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Builds bench/ with the zanec given (default: this tree's), optimized and
+# plain, and times a per-byte loop over strings of 2^N bytes for each N.
+#   docs/experiments/lent-conversions/run [ZANEC] [N ...]
+set -euo pipefail
+here=$(cd "$(dirname "$0")" && pwd)
+zanec=${1:-$here/../../../_build/default/bin/zanec/zanec.exe}
+shift || true
+sizes=${*:-14 15 16 17 18 19}
+out=$(mktemp -d)
+trap 'rm -rf "$out"' EXIT
+"$zanec" --optimize --build "$out/optimized" --package "$here/bench"
+"$zanec" --build "$out/plain" --package "$here/bench"
+TIMEFORMAT=%3R
+for n in $sizes; do
+	for b in optimized plain; do
+		printf '%-9s 2^%-3s ' "$b" "$n"
+		{ time "$out/$b" "$n" >/dev/null; } 2>&1
+	done
+done

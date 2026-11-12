@@ -253,6 +253,46 @@ parameter that owns blocks calls the function: written out, the value would
 be held in a slot of the caller's and copied wherever the body keeps it,
 where the function takes it as it is (`Regions.taken_params`).
 
+**Lent conversions.** A verb whose body returns a member of one of its
+value parameters, such as `core`'s `implicit @primitives$String(v String)
+=> v._value`, copies that member: a return through a borrow binds into
+fresh storage
+([`memory.md`](https://github.com/zane-lang/spec/blob/71f5a27/spec/memory.md)
+§2.9). Where such a call's result is only lent to a borrow parameter of a
+direct call and dies with it, nothing can tell the copy from the member
+itself, so lowering rewrites the argument as the member path, `f(conv(x))`
+as `f(x._value)`, and the call reads the member where `x` keeps it
+(`Lower_calls.lent`). A value has no identity and the member is only read,
+never stored, returned or minted into a reference; what the call lends a
+foreign verb, C may not keep past it ([`ffi.md`](ffi.md) F10). So only
+time and allocation change, and only where nothing could write `x` while
+it is lent. The checker's rule against writing what a call borrows
+(§2.9.1) sees a temporary here, not `x`, so lowering checks what it would
+have checked for `f(x._value)`:
+
+- the call is a direct call that is not spawned: a spawned call reads its
+  arguments while the caller goes on, and may write `x` (concurrency.md
+  §4.4);
+- the callee is no `mut` method, so its subject cannot be `x`, and takes
+  only value parameters, none an `&T`, `^T`, reference-type borrow or
+  pooled variant, so it writes nothing it was given;
+- every other argument of the call, and of the conversion, is inert: a
+  read of a local or a constant and its members, a literal with nothing
+  interpolated, or an operator, math intrinsic, primitive constructor or
+  lent conversion of inert operands. A block argument, a `!` call or any
+  other call may write `x`, so a call with one keeps the copy, and so does
+  one reading a local bound to a spawned call: the read settles the call,
+  which runs the handler written at the spawn;
+- the conversion is no `mut` method, declares no abort, takes only value
+  parameters, and its body is one `return` of a parameter's member path;
+- `x` is no such local, and it and every member on the path are value
+  types reached through no reference, owner, `^T`, subscript or case read,
+  so nothing outside the caller's own slot can reach them. A conversion of a conversion is taken
+  apart the same way, the inner one's path becoming the outer's root.
+
+A verb written out where it is called is left as it is: its argument
+binds a slot of its own, whose body the rules above do not cover.
+
 **L12. A verb has up to three outcomes, and a call checks for them.** A
 function returns a small outcome tag when it can end in more than one way:
 
