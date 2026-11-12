@@ -394,7 +394,8 @@ class FactsTests(unittest.TestCase):
             library = Path(temp) / "taking.o"
             run(ZANEC, "--no-root", "--object", library, *packages("taking", stamped=["taking"]))
             defined = run("llvm-nm", "--defined-only", library)
-            self.assertRegex(defined, r"(?m) T " + re.escape(text) + "$")
+            # A host object's names may carry Mach-O's `_`.
+            self.assertRegex(defined, r"(?m) T _?" + re.escape(text) + "$")
             self.assertNotRegex(defined, r"(?m) [A-Z] .*\.taken$")
             for optimize in [[], ["--optimize"]]:
                 exe = Path(temp) / "takes"

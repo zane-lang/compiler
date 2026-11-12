@@ -49,6 +49,18 @@ Text?Text bounded(n Int) {
 	return t;
 }
 
+/// The same with an arena nested in the body, which keeps the function's
+/// own arena, so the abort moves out of a held slot.
+Text?Text checked(n Int) {
+	t Text = Text(String(n));
+	@controlflow$branch(@operators$lessThan(n, Int(5)), {
+		u Text = Text(@operators$concat(String.escaped("u"), String(n)));
+		check(@operators$equal(u.value, @operators$concat(String.escaped("u"), String(n))));
+		abort t;
+	});
+	return t;
+}
+
 /// A return to the expansion of a block-taking verb, from a local the
 /// expansion's own block holds.
 Text pick(n Int, body @concepts$Block) {
@@ -114,6 +126,11 @@ Unit main() {
 		resolve Text(String.escaped("no"));
 	}
 	check(@operators$equal(c.value, String.escaped("9")));
+
+	e2 Text = checked(Int(2)) ? e {
+		resolve e;
+	}
+	check(@operators$equal(e2.value, String.escaped("2")));
 
 	d Text = pick(Int(4), {});
 	check(@operators$equal(d.value, String.escaped("p4")));
