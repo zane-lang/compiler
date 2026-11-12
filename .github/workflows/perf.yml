@@ -2,31 +2,28 @@ name: Perf
 
 # The perf programs' estimated cycles, optimized and plain
 # (tests/perf/README.md), checked against main's rows on the `perf-log`
-# branch: a pull request fails when a build is more than the tolerance
-# slower than its row. A pull request labelled `perf-accepted` passes with a
-# warning, and any label change runs the check again. The merge queue checks
-# again, and a manual run measures and compares. perf-record.yml writes the
-# branch on each push to main.
+# branch in the merge queue: a merge group fails when a build is more than
+# the tolerance slower than its row, unless the last pull request queued in
+# it is labelled `perf-accepted`, which passes it with a warning. A manual
+# run measures and compares. perf-record.yml writes the branch on each push
+# to main.
+#
+# On a pull request the job skips itself, which counts as passing for the
+# required check, so the pull request can enter the queue; the queue measures
+# the commit main will become.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
   merge_group:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# A pull request's newest event replaces its run in progress, a label change
-# included, so the check it reports is for its newest state. Every other run
-# goes ahead on its own.
-concurrency:
-  group: perf-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   # Measure and compare, with a read-only token, since a pull request's own
   # code runs here. It reads the `perf-log` branch with that token.
   perf:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Reading the labels of a pull request in the merge queue.
@@ -64,5 +61,5 @@ jobs:
       - name: Measure
         env:
           EVENT_NAME: ${{ github.event_name }}
-          ACCEPTED: ${{ github.event_name == 'merge_group' && steps.queued.outputs.accepted || contains(github.event.pull_request.labels.*.name, 'perf-accepted') }}
+          ACCEPTED: ${{ github.event_name == 'merge_group' && steps.queued.outputs.accepted || 'false' }}
         run: pixi run .github/scripts/perf

@@ -46,7 +46,10 @@ jobs:
           title: 'chore: update development tools'
           body: |
             Refresh the development toolchain: pixi.lock and the pinned tools.
-            Review the version changes and run CI before merging.
+            Review the version changes and run CI before merging. A pull
+            request runs the Linux checks; Windows, macOS and perf run in the
+            merge queue, or start CI and Perf by hand on this branch to see
+            them before queueing.
             Dependabot maintains GitHub Action pins separately.
             This workflow uses GITHUB_TOKEN: a maintainer must trigger CI for
             this PR, because token-created PRs do not start other workflows.

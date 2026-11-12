@@ -436,8 +436,8 @@ simulated cycle is the same on every run of one build, so a change to
 codegen, to the pipeline LLVM runs, to what plain builds inline (O12) or to
 what LLVM is told shows as a moved number rather than as noise in a timing.
 CI keeps both numbers of each program for the last commit on `main`, and
-one large program's for every commit, and fails a pull request that makes
-either build of a program more than 1% slower
+one large program's for every commit, and the merge queue fails a pull
+request that makes either build of a program more than 1% slower
 ([`tests/perf/README.md`](../../tests/perf/README.md)).
 
 `tests/unit/` checks the evaluator's arithmetic against codegen's, its math

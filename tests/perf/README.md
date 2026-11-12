@@ -7,8 +7,8 @@ build. Each program is measured in three builds: `optimized`, built with
 run with tier 1 in place before `main` runs; and `plain`, the program
 unoptimized, as `zane run` built it before tiers. CI keeps every build's
 numbers of every program for the last commit on `main`, and the history of
-one of them, `stress`, for every commit, and fails a pull request that
-makes any build of a program slower.
+one of them, `stress`, for every commit, and the merge queue fails a pull
+request that makes any build of a program slower.
 
 ## The number
 
@@ -50,24 +50,26 @@ The `perf-log` branch holds three files, all written by CI:
   tiered builds. Each starts at the first commit whose push measured that
   build.
 
-`.github/workflows/perf.yml` runs `.github/scripts/perf` on pull requests,
-in the merge queue and by hand, and `.github/workflows/perf-record.yml` runs
-it on each push to `main`:
+`.github/workflows/perf.yml` runs `.github/scripts/perf` in the merge queue
+and by hand, and `.github/workflows/perf-record.yml` runs it on each push to
+`main`. On a pull request the check skips itself and passes, so the queue is
+where a slowdown is caught:
 
-- on a pull request, it builds every build of every program, measures each
+- in the merge queue, it builds every build of every program, measures each
   one whose key is not its row's (below), and fails when one prints the
   wrong output, or when its estimated cycles are more than 1% above its row
-  in `latest.tsv`; a build with no row passes. Labelling the pull request `perf-accepted` turns a
-  slowdown into a warning, for a change that is slower on purpose, and the
-  push to `main` then records the new numbers. Any label change runs the
-  check again;
+  in `latest.tsv`; a build with no row passes. The queue measures the commit
+  `main` will become, so pull requests queued together are checked
+  together. When the last pull request queued in the group is labelled
+  `perf-accepted`, a slowdown is a warning instead, for a change that is
+  slower on purpose, and the push to `main` then records the new numbers. A
+  pull request the queue removes for a slowdown can be labelled and queued
+  again;
 - on a push to `main`, it measures every build, writes `latest.tsv` and
   appends to the histories;
-- in the merge queue, it checks again as for a pull request, since pull
-  requests that each pass can together be slower; the label of the last
-  pull request queued in the group decides whether a slowdown is accepted;
 - on a manual run, it measures and compares, and fails only on a wrong
-  output.
+  output. Starting Perf by hand on a pull request's branch shows its numbers
+  before it is queued.
 
 A build's key hashes what its counts follow from: the executable
 built, and a tiered build's tier-1 library, its `arguments`, what it printed, `run` itself, and Valgrind's
@@ -75,7 +77,7 @@ version and resolved path, which under Nix names the store path it was built
 as. The executable holds the compiler's code and the runtime as clang built
 and linked them, and names the C library it loads by its Nix store path, so
 every input the build scripts use is in it without being listed.
-On a pull request, in the merge queue and in `just test-perf`, a build is
+In the merge queue, on a manual run and in `just test-perf`, a build is
 not run again when it, taken with its golden output, has its row's key: it
 reports its row's counts, since the same build run the same way counts the
 same, and `run --fresh` measures it anyway. A push to `main` always measures
@@ -97,8 +99,8 @@ the columns `run` prints, then build the program as the slower build was
 built, with or without `--optimize`, and run
 `valgrind --tool=callgrind --cache-sim=yes --branch-sim=yes --dump-instr=yes`
 on it. A change to a program here changes what its row measures, so say so
-in its pull request, label it `perf-accepted` if the number rises, and
-promote its output if that changed.
+in its pull request, label it `perf-accepted` before queueing it if the
+number rises, and promote its output if that changed.
 
 ## Programs
 

@@ -3,8 +3,7 @@ name: Perf record
 # The perf programs' estimated cycles on each push to main
 # (tests/perf/README.md): every program's rows go over latest.tsv on the
 # `perf-log` branch, and the stress program's are appended to its
-# histories. perf.yml checks pull requests and the merge queue against
-# these rows.
+# histories. perf.yml checks the merge queue against these rows.
 on:
   push:
     branches: [main]

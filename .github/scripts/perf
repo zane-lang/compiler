@@ -6,13 +6,14 @@
 # inside the pixi environment, with the event in EVENT_NAME: by perf.yml and perf-record.yml, and by
 # `just test-perf`, which names none of the events below.
 #
-# - pull_request and merge_group: measure every program and fail when one
-#   prints the wrong output, or when its estimated cycles are more than the
-#   tolerance above its row in latest.tsv, a build with no row passing, unless ACCEPTED is `true` (the
-#   pull request, or the last one queued in the merge group, carries the
-#   `perf-accepted` label), which turns that second failure into a warning.
-#   The merge queue checks again because the pull requests it combines can
-#   together be slower than each was alone. A build whose key is its row's
+# - merge_group (and pull_request, which perf.yml does not run it for): measure
+#   every program and fail when one prints the wrong output, or when its
+#   estimated cycles are more than the tolerance above its row in latest.tsv,
+#   a build with no row passing, unless ACCEPTED is `true` (the last pull
+#   request queued in the merge group carries the `perf-accepted` label),
+#   which turns that second failure into a warning. The queue measures the
+#   commit main will become, so the pull requests it combines are checked
+#   together. A build whose key is its row's
 #   is not run again, since its counts are the row's, so a change that
 #   builds every program as main does runs none of them.
 # - push to main: measure every build, even one whose key is its row's, so
@@ -88,7 +89,7 @@ pull_request | merge_group)
 		echo "::warning::slower than main, accepted by the perf-accepted label"
 		exit 0
 	fi
-	echo "::error::slower than main; label the pull request perf-accepted if that is intended"
+	echo "::error::slower than main; label the pull request perf-accepted and queue it again if that is intended"
 	exit 1
 	;;
 push)
