@@ -6,6 +6,18 @@
     ├── layouts[1] > layout:
     │   ├── type: %primitives$String
     │   └── positions[0]: text @0
+    ├── layouts[2] > layout:
+    │   ├── type: ^movedOut$Box
+    │   └── positions[0]: text @0
+    ├── layouts[3] > layout:
+    │   ├── type: movedOut$Rec
+    │   └── positions[0]: text @0
+    ├── layouts[4] > layout:
+    │   ├── type: ^movedOut$Rec
+    │   └── positions[0]: text @0
+    ├── layouts[5] > layout:
+    │   ├── type: movedOut$Box
+    │   └── positions[0]: text @0
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -309,51 +321,40 @@
     │       ├── body[9] > hold:
     │       │   ├── local: #62
     │       │   ├── scope: %2
-    │       │   ├── value > call value:
-    │       │   │   ├── type: handle
-    │       │   │   ├── fn: function movedOut$wrapped
-    │       │   │   └── args[0] > expand:
+    │       │   ├── value > call:
+    │       │   │   ├── type: {{handle}}
+    │       │   │   ├── fn: movedOut$boxed(%primitives$String)
+    │       │   │   └── args[0] > runtime:
     │       │   │       ├── type: handle
-    │       │   │       ├── label: @60
-    │       │   │       ├── result: #61
-    │       │   │       ├── body[0] > hold:
-    │       │   │       │   ├── local: #59
-    │       │   │       │   ├── scope: %2
-    │       │   │       │   ├── value > runtime:
-    │       │   │       │   │   ├── type: handle
-    │       │   │       │   │   ├── fn: zane_text_join
-    │       │   │       │   │   ├── args[0] > expand:
-    │       │   │       │   │   │   ├── type: handle
-    │       │   │       │   │   │   ├── label: @54
-    │       │   │       │   │   │   ├── result: #55
-    │       │   │       │   │   │   ├── body[0] > hold:
-    │       │   │       │   │   │   │   ├── local: #53
-    │       │   │       │   │   │   │   ├── scope: %2
-    │       │   │       │   │   │   │   ├── value: "w" : handle
-    │       │   │       │   │   │   │   └── layout: %primitives$String
-    │       │   │       │   │   │   └── body[1] > assign:
-    │       │   │       │   │   │       ├── place: #55
-    │       │   │       │   │   │       └── value: local #53 : handle
-    │       │   │       │   │   └── args[1] > expand:
-    │       │   │       │   │       ├── type: handle
-    │       │   │       │   │       ├── label: @57
-    │       │   │       │   │       ├── result: #58
-    │       │   │       │   │       ├── body[0] > hold:
-    │       │   │       │   │       │   ├── local: #56
-    │       │   │       │   │       │   ├── scope: %2
-    │       │   │       │   │       │   ├── value > runtime:
-    │       │   │       │   │       │   │   ├── type: handle
-    │       │   │       │   │       │   │   ├── fn: zane_text_i64
-    │       │   │       │   │       │   │   └── args[0]: 1 : i64
-    │       │   │       │   │       │   └── layout: %primitives$String
-    │       │   │       │   │       └── body[1] > assign:
-    │       │   │       │   │           ├── place: #58
-    │       │   │       │   │           └── value: local #56 : handle
-    │       │   │       │   └── layout: %primitives$String
-    │       │   │       └── body[1] > assign:
-    │       │   │           ├── place: #61
-    │       │   │           └── value: local #59 : handle
-    │       │   └── layout: movedOut$Text
+    │       │   │       ├── fn: zane_text_join
+    │       │   │       ├── args[0] > expand:
+    │       │   │       │   ├── type: handle
+    │       │   │       │   ├── label: @54
+    │       │   │       │   ├── result: #55
+    │       │   │       │   ├── body[0] > hold:
+    │       │   │       │   │   ├── local: #53
+    │       │   │       │   │   ├── scope: %2
+    │       │   │       │   │   ├── value: "b" : handle
+    │       │   │       │   │   └── layout: %primitives$String
+    │       │   │       │   └── body[1] > assign:
+    │       │   │       │       ├── place: #55
+    │       │   │       │       └── value: local #53 : handle
+    │       │   │       └── args[1] > expand:
+    │       │   │           ├── type: handle
+    │       │   │           ├── label: @57
+    │       │   │           ├── result: #58
+    │       │   │           ├── body[0] > hold:
+    │       │   │           │   ├── local: #56
+    │       │   │           │   ├── scope: %2
+    │       │   │           │   ├── value > runtime:
+    │       │   │           │   │   ├── type: handle
+    │       │   │           │   │   ├── fn: zane_text_i64
+    │       │   │           │   │   └── args[0]: 3 : i64
+    │       │   │           │   └── layout: %primitives$String
+    │       │   │           └── body[1] > assign:
+    │       │   │               ├── place: #58
+    │       │   │               └── value: local #56 : handle
+    │       │   └── layout: ^movedOut$Box
     │       ├── body[10] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: movedOut$check(%primitives$Bool)
@@ -363,7 +364,15 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0]: local #62 : handle
+    │       │       │   ├── args[0] > deref:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   └── ptr > offset:
+    │       │       │   │       ├── within: {handle}
+    │       │       │   │       ├── path: 0
+    │       │       │   │       └── base > offset:
+    │       │       │   │           ├── within: {{handle}}
+    │       │       │   │           ├── path: 0
+    │       │       │   │           └── base: address of #62 : ptr
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
     │       │       │       ├── label: @64
@@ -371,32 +380,61 @@
     │       │       │       ├── body[0] > hold:
     │       │       │       │   ├── local: #63
     │       │       │       │   ├── scope: %2
-    │       │       │       │   ├── value: "w1" : handle
+    │       │       │       │   ├── value: "b3" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
     │       │       │           ├── place: #65
     │       │       │           └── value: local #63 : handle
     │       │       └── right: 1 : i64
-    │       ├── body[11] > let:
-    │       │   ├── local: #68
-    │       │   └── value: function movedOut$wrapped
-    │       ├── body[12] > hold:
-    │       │   ├── local: #69
-    │       │   ├── scope: %2
-    │       │   ├── value > runtime:
-    │       │   │   ├── type: handle
-    │       │   │   ├── fn: zane_text_i64
-    │       │   │   └── args[0]: 2 : i64
-    │       │   └── layout: %primitives$String
-    │       ├── body[13] > hold:
-    │       │   ├── local: #70
+    │       ├── body[11] > hold:
+    │       │   ├── local: #75
     │       │   ├── scope: %2
     │       │   ├── value > call value:
     │       │   │   ├── type: handle
-    │       │   │   ├── fn: local #68 : ptr
-    │       │   │   └── args[0]: local #69 : handle
+    │       │   │   ├── fn: function movedOut$wrapped
+    │       │   │   └── args[0] > expand:
+    │       │   │       ├── type: handle
+    │       │   │       ├── label: @73
+    │       │   │       ├── result: #74
+    │       │   │       ├── body[0] > hold:
+    │       │   │       │   ├── local: #72
+    │       │   │       │   ├── scope: %2
+    │       │   │       │   ├── value > runtime:
+    │       │   │       │   │   ├── type: handle
+    │       │   │       │   │   ├── fn: zane_text_join
+    │       │   │       │   │   ├── args[0] > expand:
+    │       │   │       │   │   │   ├── type: handle
+    │       │   │       │   │   │   ├── label: @67
+    │       │   │       │   │   │   ├── result: #68
+    │       │   │       │   │   │   ├── body[0] > hold:
+    │       │   │       │   │   │   │   ├── local: #66
+    │       │   │       │   │   │   │   ├── scope: %2
+    │       │   │       │   │   │   │   ├── value: "w" : handle
+    │       │   │       │   │   │   │   └── layout: %primitives$String
+    │       │   │       │   │   │   └── body[1] > assign:
+    │       │   │       │   │   │       ├── place: #68
+    │       │   │       │   │   │       └── value: local #66 : handle
+    │       │   │       │   │   └── args[1] > expand:
+    │       │   │       │   │       ├── type: handle
+    │       │   │       │   │       ├── label: @70
+    │       │   │       │   │       ├── result: #71
+    │       │   │       │   │       ├── body[0] > hold:
+    │       │   │       │   │       │   ├── local: #69
+    │       │   │       │   │       │   ├── scope: %2
+    │       │   │       │   │       │   ├── value > runtime:
+    │       │   │       │   │       │   │   ├── type: handle
+    │       │   │       │   │       │   │   ├── fn: zane_text_i64
+    │       │   │       │   │       │   │   └── args[0]: 1 : i64
+    │       │   │       │   │       │   └── layout: %primitives$String
+    │       │   │       │   │       └── body[1] > assign:
+    │       │   │       │   │           ├── place: #71
+    │       │   │       │   │           └── value: local #69 : handle
+    │       │   │       │   └── layout: %primitives$String
+    │       │   │       └── body[1] > assign:
+    │       │   │           ├── place: #74
+    │       │   │           └── value: local #72 : handle
     │       │   └── layout: movedOut$Text
-    │       ├── body[14] > eval > call:
+    │       ├── body[12] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: movedOut$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -405,10 +443,52 @@
     │       │       ├── left > runtime:
     │       │       │   ├── type: i64
     │       │       │   ├── fn: zane_text_equal
-    │       │       │   ├── args[0]: local #70 : handle
-    │       │       │   └── args[1]: local #69 : handle
+    │       │       │   ├── args[0]: local #75 : handle
+    │       │       │   └── args[1] > expand:
+    │       │       │       ├── type: handle
+    │       │       │       ├── label: @77
+    │       │       │       ├── result: #78
+    │       │       │       ├── body[0] > hold:
+    │       │       │       │   ├── local: #76
+    │       │       │       │   ├── scope: %2
+    │       │       │       │   ├── value: "w1" : handle
+    │       │       │       │   └── layout: %primitives$String
+    │       │       │       └── body[1] > assign:
+    │       │       │           ├── place: #78
+    │       │       │           └── value: local #76 : handle
     │       │       └── right: 1 : i64
-    │       └── body[15] > return: unit : void
+    │       ├── body[13] > let:
+    │       │   ├── local: #81
+    │       │   └── value: function movedOut$wrapped
+    │       ├── body[14] > hold:
+    │       │   ├── local: #82
+    │       │   ├── scope: %2
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: zane_text_i64
+    │       │   │   └── args[0]: 2 : i64
+    │       │   └── layout: %primitives$String
+    │       ├── body[15] > hold:
+    │       │   ├── local: #83
+    │       │   ├── scope: %2
+    │       │   ├── value > call value:
+    │       │   │   ├── type: handle
+    │       │   │   ├── fn: local #81 : ptr
+    │       │   │   └── args[0]: local #82 : handle
+    │       │   └── layout: movedOut$Text
+    │       ├── body[16] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: movedOut$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > runtime:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: zane_text_equal
+    │       │       │   ├── args[0]: local #83 : handle
+    │       │       │   └── args[1]: local #82 : handle
+    │       │       └── right: 1 : i64
+    │       └── body[17] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: movedOut$named(%primitives$I64)
     │   ├── params[0]: local #1 : i64
@@ -579,6 +659,29 @@
     │           │   └── layout: %primitives$String
     │           └── layout: %primitives$String
     ├── funcs[7] > func:
+    │   ├── symbol: movedOut$boxed(%primitives$String)
+    │   ├── params[0]: local #1 : handle
+    │   ├── ret: {{handle}}
+    │   └── body[0] > return > escape:
+    │       ├── exit: function
+    │       ├── value > call:
+    │       │   ├── type: {{handle}}
+    │       │   ├── fn: movedOut$keepBox(^movedOut$Rec)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: {handle}
+    │       │       ├── label: @2
+    │       │       ├── result: #3
+    │       │       ├── body[0] > assign:
+    │       │       │   ├── place: #3
+    │       │       │   └── value > escape:
+    │       │       │       ├── exit: @2
+    │       │       │       ├── value > record:
+    │       │       │       │   ├── type: {handle}
+    │       │       │       │   └── members[0] > member 0: local #1 : handle
+    │       │       │       └── layout: movedOut$Rec
+    │       │       └── body[1]: leave @2
+    │       └── layout: ^movedOut$Box
+    ├── funcs[8] > func:
     │   ├── symbol: movedOut$wrapped
     │   ├── params[0]: local #1 : handle
     │   ├── ret: handle
@@ -599,7 +702,7 @@
     │       │   │       └── layout: movedOut$Text
     │       │   └── body[1]: leave @2
     │       └── layout: movedOut$Text
-    ├── funcs[8] > func:
+    ├── funcs[9] > func:
     │   ├── symbol: movedOut$greet(%primitives$String)
     │   ├── params[0]: local #1 : handle
     │   ├── ret: handle
@@ -624,7 +727,39 @@
     │           │   │       └── value: local #2 : handle
     │           │   └── args[1]: local #1 : handle
     │           └── layout: %primitives$String
-    └── funcs[9] > func:
+    ├── funcs[10] > func:
+    │   ├── symbol: movedOut$keepBox(^movedOut$Rec)
+    │   ├── params[0]: local #1 : {handle}
+    │   ├── ret: {{handle}}
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value: local #1 : {handle}
+    │   ├── body[1] > let:
+    │   │   ├── local: #4
+    │   │   └── value: 1 : i64
+    │   ├── body[2] > let:
+    │   │   ├── local: #8
+    │   │   └── value > expand:
+    │   │       ├── type: {{handle}}
+    │   │       ├── label: @6
+    │   │       ├── result: #7
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #5
+    │   │       │   └── value: local #2 : {handle}
+    │   │       ├── body[1] > assign:
+    │   │       │   ├── place: #7
+    │   │       │   └── value > escape:
+    │   │       │       ├── exit: @6
+    │   │       │       ├── value > record:
+    │   │       │       │   ├── type: {{handle}}
+    │   │       │       │   └── members[0] > member 0: local #5 : {handle}
+    │   │       │       └── layout: movedOut$Box
+    │   │       └── body[2]: leave @6
+    │   └── body[3] > return > escape:
+    │       ├── exit: function
+    │       ├── value: local #8 : {{handle}}
+    │       └── layout: ^movedOut$Box
+    └── funcs[11] > func:
         ├── symbol: zane.spawn.1
         ├── params[0]: local #4 : ptr
         ├── ret: void

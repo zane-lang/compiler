@@ -442,7 +442,7 @@ let take_params funcs (table, cloned) =
     let rec call_site ~own (e : Expr.t) =
       match e.Expr.node with
       | Expr.Call { fn; args } ->
-          let args = List.map (map_expr (call_site ~own:false) (fun _ -> None)) args in
+          let args = List.map (map_expr (call_site ~own) (fun _ -> None)) args in
           let taken j = Hashtbl.find_opt table (fn, j) in
           let fresh =
             List.mapi (fun j x -> Option.is_some (taken j) && Option.is_some (borrowed x)) args

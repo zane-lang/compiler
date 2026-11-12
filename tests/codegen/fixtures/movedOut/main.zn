@@ -4,6 +4,8 @@
 /// (memory.md §2.3). A function that spawns keeps its copy, since the
 /// spawned call may still read the local until the drain joins it. A
 /// package lambda, called through its address, keeps its signature. A
+/// taken parameter copied inside another call's argument is taken there
+/// too. A
 /// checked drain stops the program if a moved local's blocks are ended
 /// twice or left out. Each check prints `yes` when it holds and `no` when
 /// it does not.
@@ -64,6 +66,31 @@ wrapped Text(v String) {
 
 Text[String] wrapper() => wrapped;
 
+/// An owner holding a string, made from a value parameter inside the
+/// argument of a call that keeps it: the parameter is taken, so the copy
+/// made for the owner, nested in that argument, is the parameter itself.
+type Rec = #struct {
+	s String;
+}
+
+Rec(s String) => init{ s; }
+
+type Box = #struct {
+	r Rec;
+}
+
+Box(r ^Rec) => init{ r; }
+
+^Box keepBox(r ^Rec) {
+	n Int = Int(1);
+	b ^Box = Box(r);
+	return b;
+}
+
+^Box boxed(v String) {
+	return keepBox(Rec(v));
+}
+
 String greet(who String) => @operators$concat(String.escaped("hi "), who);
 
 /// A local lent to a spawned call and then returned: copied, since the
@@ -92,6 +119,9 @@ Unit main() {
 	check(@operators$equal(d.value, String.escaped("p4")));
 
 	check(@operators$equal(greeted(Int(5)), String.escaped("5")));
+
+	box ^Box = boxed(@operators$concat(String.escaped("b"), String(Int(3))));
+	check(@operators$equal(box.r.s, String.escaped("b3")));
 
 	w Text = wrapped(@operators$concat(String.escaped("w"), String(Int(1))));
 	check(@operators$equal(w.value, String.escaped("w1")));
