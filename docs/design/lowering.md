@@ -1602,6 +1602,32 @@ test passing.
   ([`experiments/tight-layouts`](../experiments/tight-layouts/README.md)
   step 14).
 
+  The same options raise LLVM's unrolling budgets above `-O2`'s. Full
+  unrolling (`-unroll-threshold`) is 250, where `-O2` allows 150. A loop of
+  a few constant iterations whose body tests the counter, as `d!to(Int(4))`
+  does over four `branch(d == k, ...)`, stays a loop at 150, with the four
+  tests one `switch` on the counter that a predictor without history cannot
+  learn; unrolled, each copy knows the counter and the tests are gone.
+  The budget is a step: 150 and below leave
+  `tests/perf` `paths` and `returns` as they were, 200 takes `returns`, 250
+  takes `paths`, and nothing up to 1000 moves another program. Partial
+  unrolling (`-unroll-partial-threshold`) is 150 (the experiment's baseline, with no option
+  given, was beaten by every setting from 100 up): a counted loop over a
+  list unrolls, sharing its copies' index arithmetic and bounds checks, and
+  `borrows` runs 28% fewer instructions. 300 gives about 1% more on
+  `entities`, `particles` and `division`, at more code. In estimated
+  cycles against the options without them: `paths` 42.8% fewer, `borrows`
+  11.9%, `returns` 10.0%, `kept` tiered 6.1%, `entities` 4.0%, `division`
+  3.8%, `particles` 3.5%, `repeats` 3.3%; `removal` 1.1% more, where the
+  cold loop's copies leave the hot loop beside it a register and it reloads
+  its items pointer on every iteration, and `floats` 0.5% more, whose
+  unrolled loops mispredict 20% more. The price is code: a `tests/perf`
+  executable's `.text` grows 3–15%, tier 1 of `kept` 17% and of `repeats`
+  56%. The langbench programs that build (`docs/perf-unroll`) grow 2–16% and
+  run within 0.5% of before in all but `entities` (8.6% fewer) and `nbody`
+  (6.8% more), and a compile takes as long
+  ([`perf-unroll`](../perf-unroll/README.md)).
+
   For an AArch64 target, `-O2`'s loop unswitching also copies a loop whose
   body branches on a condition the loop does not change, once for each
   way it goes (`Passes.unswitch`); `-O2` itself copies only a loop the
