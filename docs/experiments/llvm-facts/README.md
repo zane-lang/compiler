@@ -172,6 +172,56 @@ stop LLVM in the hot loops are runtime calls (`zane_list_push`,
 `zane_alloc_held`, `zane_free`, declared with no memory effects at all),
 which no TBAA tag affects; step 4 looks at those.
 
+## Step 3: `nsw` on arithmetic — an upper bound only
+
+**What Zane's integers do.** They wrap. `spec/operators.md` §2.6: "On
+`@primitives$I32` and `@primitives$I64`, an arithmetic operation whose exact
+result the type cannot hold wraps: the result is the exact one reduced to
+the type's width in two's complement", and `negate`/`abs` of the most
+negative value give it back (`spec/math.md`). Codegen matches:
+`Emit.binary` emits plain `add`/`mul` and `Expr.Flip` a plain `neg`; the
+`nsw` already in `emit.ml` is only on the compiler's own arithmetic (a
+list's count plus one, an index times the stride, the `repeat` counter),
+where the operands are bounded by an allocation's size. So `nsw` on the
+program's arithmetic is a miscompile of every program that overflows, and
+the perf programs include one: under `ZANE_NSW=1` `depths` prints
+`443827713` instead of `-276673336`, because its hash multiplies by
+`6364136223846793005` and relies on the product wrapping.
+
+**Design.** `ZANE_NSW=1` makes `Emit.binary`'s integer `Add`/`Mul` and the
+integer `Flip` `nsw`. Not a candidate for a real change.
+
+**Results (upper bound, unsound).** Against `base2`; rows not shown moved
+less than 0.2%.
+
+| program | build | cycles | instructions | .text |
+| --- | --- | ---: | ---: | ---: |
+| paths | optimized | −8.3% | −1.2% | −0.2% |
+| paths | tiered | −8.7% | −1.8% | −1.9% |
+| flips | optimized | +1.1% | +1.4% | 0 |
+| flips | tiered | +0.9% | +1.2% | 0 |
+| removal | optimized | −0.3% | −0.4% | −0.3% |
+| depths | both | **wrong output** | | |
+
+paths' gain is mostly mispredicts (1.10 M → 0.90 M) in the same
+neighbour loop step 1 unrolls; with step 1's full unroll the loop no longer
+has that switch, so the two overlap. flips gets *slower*: same `.text`
+size, 2.2 M more instructions, a different but worse loop shape (not
+examined further). So even ignoring soundness, `nsw` is worth one program
+and costs another.
+
+**Tests.** `just test-compiler` *passes* with `ZANE_NSW=1`: no test in the
+suite checks an optimized build's wrapping, so only `depths`' golden
+output catches this miscompile. A test of `I64` overflow in an optimized
+build (e.g. the LCG multiply) would guard the rule.
+
+**What could be kept soundly.** Only arithmetic the compiler can bound
+itself, which is where `nsw` already is. A counter of a `to` loop
+(`this = this + 1` in `core`'s `to`) cannot overflow before the loop ends
+unless `end` is the type's maximum, so it is not `nsw` either; LLVM's
+IndVarSimplify already proves `nsw` on such counters when the trip count
+allows it.
+
 ## What remains
 
 - Steps 1–5 as planned.
