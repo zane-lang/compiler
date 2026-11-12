@@ -216,13 +216,16 @@ Same machine type as rounds 1 to 4 (Xeon at 2.1 GHz, 2 MiB of L2 per core,
 260 MiB L3 shared with other tenants), pinned to the last CPU, 15 GiB of
 memory.
 
-Two of the programs need a loop that stops early, which Zane writes as a
-`return` inside a counted loop. A function with one is called, and a call
-in a loop's body keeps the codegen's loop analyses off it, so `probe`,
-`find` and `walk` each take a block they never run: a verb that takes a
-block is written out where it is called, and its `return` then leaves only
-the walk. `@controlflow$exitFromCall` does not do this: in a block, it ends
-that block's run, not the loop.
+Three of the programs need a loop that stops early. Zane has no `break`: a
+search `return`s from inside its loop, from a verb of its own
+([spec `control-flow.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/control-flow.md)
+§3.5). A function with one is called, and a call in a loop's body keeps the
+codegen's loop analyses off it, so `probe`, `find` and `walk` each take a
+block they never run: a verb that takes a block is written out where it is
+called, and its `return` then leaves only the walk.
+`@controlflow$exitFromCall` is no substitute: the compiler ends the run of
+the block it is called in, so in a loop it skips to the next pass
+([`spec-divergences.md`](../../spec-divergences.md) §6).
 
 **Plain `zanec`** (`results/zane-baseline.tsv`, the compiler at `9536bf4`,
 best of 3, one run of the sweep), against the plain C of rounds 1 and 2 at

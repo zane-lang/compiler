@@ -44,7 +44,10 @@ interleaved computes what running them in turn does.
   from interleaving that the lookahead prefetch does not already give it,
   and is left to that.
 - The walk runs in the loop's own body, or in a verb written out there
-  (L11). A walk in a function the body calls is out of reach until the
+  (L11). Zane has no `break`: a search `return`s from inside its loop, and
+  work after it sits after a call to the verb that performs it
+  ([`control-flow.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/control-flow.md)
+  §3.5), so a walk is ordinarily its own verb. A walk in a function the body calls is out of reach until the
   compiler writes such functions out; the benchmarks put it in a verb that
   takes an unused block for that reason (I8).
 - The lists the walk reads have handles the top of the loop can read, as
@@ -53,11 +56,20 @@ interleaved computes what running them in turn does.
 
 **Independence.** Iteration *k* may not read anything iteration *j < k*
 writes, nor write anything *j* reads or writes, except through the forms
-below that are combined afterwards.
+below that are combined afterwards. The standard is the one the spec sets
+for the compiler's own parallelism: work the effect system proves
+non-conflicting may be rescheduled, and doing so "must not change output,
+only timing"
+([`concurrency.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/concurrency.md)
+§2.1). A call that writes nothing and touches no capability-backed state is
+one "the compiler may reorder"
+([`effects.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/effects.md)
+§8.1); interleaving reorders the parts of iterations, which the conditions
+below make such work.
 
 - *What a call writes.* A call in the body is to a function or a method
   without `mut`, which writes nothing its caller can see
-  ([`effects.md`](https://github.com/zane-lang/spec/blob/main/spec/effects.md)
+  ([`effects.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/effects.md)
   §3, §8.1), and whose body, and every body it calls, touches no
   capability-backed state (§5.2): the conditions memoization already
   checks for a table (`docs/design/memoization.md` M1), whose analysis is
@@ -79,17 +91,25 @@ below that are combined afterwards.
 - *Floats.* A float accumulator is not associative, so it is combined in
   iteration order (I4) rather than ruled out.
 - *Aliasing of the written list and the walked ones.* Two element places
-  of one list overlap whatever their indices, and a place reached through a
-  reference may be any object of its type
-  ([`memory.md`](https://github.com/zane-lang/spec/blob/main/spec/memory.md)
+  of one list overlap whatever their indices, and a place reached through an
+  `&` field, an `&` element or a returned reference may be any object of its
+  type
+  ([`memory.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/memory.md)
   §2.9.1). The written list therefore has to be provably not one the walk
-  reads: a different element type, or both reached from distinct settled
-  slots of the function's own with no reference between them. Value types
-  hold no references (§2.10), so a value-typed list in a slot of its own
-  is the plain case.
+  reads. §2.9.1 gives the cases that need no analysis: a place the function
+  owns lies inside no object a reference reaches, and the subject and the
+  bare parameters of a call are kept apart from what the call writes by the
+  call's own check. So a list the function owns, or its `mut` subject, is
+  apart from a list a bare parameter or another owned slot names; an `&T`
+  parameter is apart from the subject when the signature records the pair.
+  Two lists reached through `&` fields of one object may be one list
+  (`this.left!push(this.right[Int(1)])` is refused for that reason) and
+  rule the loop out unless their element types differ. Value types hold no
+  references (§2.10), so a value-typed list in a slot of its own is the
+  plain case.
 - *Other threads.* While a spawned call holds a mutable borrow of a place,
   the spawning scope may not touch it
-  ([`concurrency.md`](https://github.com/zane-lang/spec/blob/main/spec/concurrency.md)
+  ([`concurrency.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/concurrency.md)
   §4.3), and a spawned call writes only through a value-typed subject
   (§4.2). So nothing the loop reads changes under it while it runs, and
   reading a node earlier than the plain loop would read it sees the same
@@ -153,8 +173,11 @@ its expansion (a written-out verb's `return`). Either moves the slot to
 finish. A leave out of the loop itself rules the loop out (I1), so no
 walk can end the whole loop early.
 
-**A failed index check.** An index outside its list stops the program
-(`zane_out_of_range`, "index out of range", exit 1), as in the plain loop.
+**A failed index check.** The spec leaves what an index outside its list
+does to the implementation
+([`control-flow.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/control-flow.md)
+§5.2); this compiler stops the program (`zane_out_of_range`, "index out of
+range", exit 1), and the interleaved loop does the same.
 Interleaved, iteration *k+3* may take a step before iteration *k* takes
 the step that fails, and so may be the one that stops the program instead.
 That is not observable: the body writes nothing outside the loop's own
@@ -170,7 +193,7 @@ from ending.
 **An abort.** A call with an abort that leaves the loop, as a `?`
 handler's `abort` or `return` does, ends the function at iteration *k*
 with the writes of every iteration before *k* made and none after
-([`error-handling.md`](https://github.com/zane-lang/spec/blob/main/spec/error-handling.md)
+([`error-handling.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/error-handling.md)
 §4). Interleaved, later iterations may already have added to an
 accumulator. The first version rules out a body with any abort that can
 leave the loop; an abort a handler `resolve`s inside the body is a value
@@ -254,15 +277,15 @@ experimental passes beside it are turned off.
   are written out today (L11), so the benchmarks pass `find` an unused
   block. Interleaving walks in ordinary functions needs those functions
   written out first, at least when the call is in a loop body and the
-  callee is small and does not recurse. Is that worth doing for this, or
-  should the pass first cover only loops whose walks are already in the
+  callee is small and does not recurse. Since the spec makes a search its
+  own verb by design (`control-flow.md` §3.5), a pass that covers only
+  walks already in the loop's body would miss most idiomatic code, so this
+  is likely a prerequisite rather than an extension. Is it worth doing
+  for this pass, or should the pass land first on walks already in the
   body?
 - **Ordered effects.** Should the first version build retirement (I4) for
   pushes and aborts too, which would let loops that build a result list
   in order qualify, or wait until a program needs it?
-- **The written list's alias proof** (I1) asks for distinct slots or
-  types. Is there a rule in the spec that gives more, such as a list
-  reached through `this` being distinct from one passed as a parameter?
 - **Huge pages.** The model found them worth ×2 to ×2.7 on light loops by
   themselves, which no transformation here gives. They are a runtime
   change (`madvise` on large blocks) and independent of this pass, but
