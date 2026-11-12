@@ -22,11 +22,15 @@ def text_size(path):
 
 def main():
     if os.environ.get("ZANE_LLVM_FACTS_HISTORICAL") != "1":
-        sys.exit("measure.py: the switches it measures are gone from main; check out 4d7dc33 "
-                 "(see README.md) and set ZANE_LLVM_FACTS_HISTORICAL=1 to run it")
+        sys.exit("measure.py: needs 4d7dc33 and ZANE_LLVM_FACTS_HISTORICAL=1 (see README.md)")
+    if len(sys.argv) < 2:
+        sys.exit("usage: measure.py LABEL [program ...]")
     label, names = sys.argv[1], sys.argv[2:] or run.programs()
     zanec = os.environ.get("ZANEC") or ROOT / "_build/default/bin/zanec/zanec.exe"
-    valgrind = str(Path(shutil.which("valgrind")).resolve()).encode()
+    found = shutil.which("valgrind")
+    if not found:
+        sys.exit("measure.py: valgrind is not on PATH")
+    valgrind = str(Path(found).resolve()).encode()
     jobs = [(n, b) for n in names for b in ("optimized", "tiered")]
     rows = []
     with tempfile.TemporaryDirectory() as work, ThreadPoolExecutor(os.cpu_count() or 1) as pool:

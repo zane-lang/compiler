@@ -7,6 +7,8 @@ R = Path(__file__).resolve().parent / "results"
 def load(l):
     lines = (R / f"{l}.tsv").read_text().splitlines()[1:]
     return {(c[0], c[1]): c for c in (x.split("\t") for x in lines)}
+if len(sys.argv) < 3:
+    sys.exit("usage: compare.py BASE LABEL [LABEL ...]")
 base, labels = load(sys.argv[1]), sys.argv[2:]
 cols = [load(l) for l in labels]
 def pct(a, b):
