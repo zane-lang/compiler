@@ -987,7 +987,8 @@ reaches.
 A counted loop that cannot leave early and pushes once each time round onto
 a list nothing else in the loop can change gets room for every push from
 one `zane_list_room` before it, and each push is a store with no check of
-the room. A loop leaves early when it returns or leaves an expansion around
+the room. A count whose bytes no block could hold stops the program there,
+out of memory, before any of those pushes. A loop leaves early when it returns or leaves an expansion around
 it (`Cgt.Traverse.leaves`); a verb expanded inside it, a written-out push
 or the counter step of `core`'s `to`, ends with a leave of its own
 expansion, which keeps the loop running. Nothing in such a loop pushes to, makes room in or removes from

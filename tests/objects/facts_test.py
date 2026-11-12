@@ -202,6 +202,14 @@ class FactsTests(unittest.TestCase):
                 run(ZANEC, "--build", exe, *optimize, *packages("fills"))
                 self.assertEqual(run_program(exe, 10), "13\n", optimize)
                 self.assertEqual(run_program(exe, 1), "2\n", optimize)
+            # A count whose bytes wrap stops the program before any push:
+            # room too small for it would leave the unchecked pushes
+            # writing past the block (zane_list_needed).
+            exe = Path(temp) / "fills"
+            run(ZANEC, "--build", exe, "--optimize", *packages("fills"))
+            result = subprocess.run([str(exe), str(2**61)], capture_output=True, text=True, timeout=60)
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("out of memory for a list's elements", result.stderr)
 
     def test_runs_of_pushes_make_room_once(self):
         # A new list pushed to four times in a row makes room for all four
