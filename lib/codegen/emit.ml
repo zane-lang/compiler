@@ -309,7 +309,7 @@ let weigh env br trips =
 
 (* The count from which a [versioned] loop runs its long copy, and how often
    each copy is said to go round: the long one as a hot loop, the short one
-   fewer times than IRCE splits a loop's checks for (Passes.llvm_options). *)
+   too few times for IRCE to expect its split to pay. *)
 let long_loop = 16
 let long_trips = 1000
 let short_trips = 4

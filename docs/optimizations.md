@@ -639,7 +639,11 @@ program as the spec says. It runs inside `-O2` once each loop is rotated.
 An optimized build emits each loop it could help twice, with branch
 weights saying the long copy goes round 1,000 times and the short one 4,
 and IRCE splits only the long one, since the split costs a short loop more
-than it saves. A loop that calls back into its own function is left as it
+than it saves. A loop emitted once, with no weights, is split too, and loop
+idiom recognition may then make its main loop a `memmove` call: in `flips`
+that call, about 12 bytes, costs fewer estimated cycles than either way of
+keeping the loop ([`design/lowering.md`](design/lowering.md) §9, "The
+passes", has the measurements). A loop that calls back into its own function is left as it
 is: the call costs far more than the check.
 
 ### Short loops that leave early unrolled twice
