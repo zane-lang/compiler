@@ -20,6 +20,14 @@ Run in a cloud container with the pixi environment (LLVM 21.1.8), from
 `main` at 90ebb2b. `just test-compiler` passes on the final branch with no
 switch set, and with each switch on as reported in its step.
 
+The switches are gone from `main`: the unroll budgets became defaults in PR
+359, and the rest measured too little, or are unsound. `4d7dc33` is the last
+commit that reads them. The PR that brought this log to `main` keeps it in
+its history: get it with `git fetch origin pull/PR/head` (the PR's number) and
+`git checkout 4d7dc33`. `measure.py` exits unless
+`ZANE_LLVM_FACTS_HISTORICAL=1` is set, because on `main` every switch is
+ignored and every label measures the same build.
+
 | switch | what it does |
 | --- | --- |
 | `ZANE_UNROLL_PARTIAL=n` | passes `-unroll-partial-threshold=n` to LLVM |
@@ -270,7 +278,16 @@ program beyond noise).
 
 ## What remains
 
-Ranked by expected value for a real (non-experimental) change:
+Ranked by expected value for a real (non-experimental) change. What
+became of each:
+
+- Items 1 and 2: taken in PR 359 as two global budgets, not a per-loop mark:
+  `-unroll-threshold=250` and `-unroll-partial-threshold=100`. Langbench's
+  `nbody` lost 6.8% at a partial budget of 150, so the budget is 100.
+  Measurements are in `docs/perf-unroll/`.
+- Item 3: being audited on branch `perf/runtime-attrs`.
+- Item 4: open.
+
 
 1. **Full unrolling of short constant-count loops, per loop.** Mark a
    counted loop (`repeat`/`to`) whose trip count is a literal ≤ 8 (say)

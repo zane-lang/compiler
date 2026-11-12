@@ -4,7 +4,7 @@
 `Passes.llvm_options` (the decision and the loops it wins on are in
 [`design/lowering.md`](../design/lowering.md) §9, "The passes", and
 [`optimizations.md`](../optimizations.md)). The choice came from
-[`experiments/llvm-facts`](https://github.com/zane-lang/compiler/tree/experiment/llvm-facts/docs/experiments/llvm-facts)
+[`experiments/llvm-facts`](../experiments/llvm-facts/README.md)
 (step 1 and step 5), which swept the budgets, and from the langbench `nbody`
 loss at a partial budget of 150 ([`nbody.md`](nbody.md)).
 

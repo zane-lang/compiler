@@ -21,6 +21,9 @@ def text_size(path):
     return sum(int(l.split()[1]) for l in out.splitlines() if l.startswith(".text"))
 
 def main():
+    if os.environ.get("ZANE_LLVM_FACTS_HISTORICAL") != "1":
+        sys.exit("measure.py: the switches it measures are gone from main; check out 4d7dc33 "
+                 "(see README.md) and set ZANE_LLVM_FACTS_HISTORICAL=1 to run it")
     label, names = sys.argv[1], sys.argv[2:] or run.programs()
     zanec = os.environ.get("ZANEC") or ROOT / "_build/default/bin/zanec/zanec.exe"
     valgrind = str(Path(shutil.which("valgrind")).resolve()).encode()

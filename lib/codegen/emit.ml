@@ -91,99 +91,15 @@ let tags ctx =
   in
   (tag "zane handle", tag "zane scalar")
 
-(* Experiment (docs/experiments/llvm-facts, step 2): with `ZANE_TBAA_TYPED=1`
-   each scalar type is its own alias class, a child of "zane scalar", so an
-   access tagged "zane scalar" still overlaps all of them. Not sound in
-   general (a snapshot or a sum's room reads storage as another type than
-   it was written as): an upper bound, never a change to keep. *)
-let typed_tbaa = Sys.getenv_opt "ZANE_TBAA_TYPED" = Some "1"
-
-let typed_node ctx (t : Ty.t) =
-  let root = Llvm.mdnode ctx [| Llvm.mdstring ctx "zane" |] in
-  let zero = Llvm.const_int (Llvm.i64_type ctx) 0 in
-  let scalar = Llvm.mdnode ctx [| Llvm.mdstring ctx "zane scalar"; root; zero |] in
-  if typed_tbaa then Llvm.mdnode ctx [| Llvm.mdstring ctx ("zane scalar " ^ Ty.to_string t); scalar; zero |] else scalar
-
 let access env (t : Ty.t) instr =
   let tag =
     match t with
     | Ty.Handle | Ty.Handle16 -> Some env.handle_tag
-    | (Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32) when typed_tbaa ->
-        let n = typed_node env.ctx t in
-        Some (Llvm.mdnode env.ctx [| n; n; Llvm.const_int (Llvm.i64_type env.ctx) 0 |])
     | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> Some env.value_tag
     | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Packed _ -> None
   in
   Option.iter (Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "tbaa")) tag;
   instr
-
-(* Experiment (docs/experiments/llvm-facts, step 2): with `ZANE_TBAA_FINE=1`
-   a scalar read or written as a member of a struct, at an address that
-   reaches it through struct members only, carries a struct-path tag: the
-   outermost struct type, the scalar type and the member's offset in it.
-   LLVM then knows that two such accesses to different members, or to
-   members of struct types neither of which holds the other, touch
-   different bytes. Every scalar is still the one "zane scalar" type, and an
-   access tagged only that (a deref of an address not made by [Offset], a
-   path through a sum's room) is one LLVM takes to overlap any member, so
-   the only storage that can hold two struct types, a sum's room or a block
-   freed and reused, is always written through an access that orders it
-   against both. *)
-let fine_tbaa = Sys.getenv_opt "ZANE_TBAA_FINE" = Some "1"
-
-let scalar_ty = function Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> true | _ -> false
-
-let tbaa_layout env = Llvm_target.DataLayout.of_string (Llvm.data_layout env.m)
-
-let rec type_node env (t : Ty.t) =
-  let root = Llvm.mdnode env.ctx [| Llvm.mdstring env.ctx "zane" |] in
-  let i64 n = Llvm.const_of_int64 (Llvm.i64_type env.ctx) n false in
-  let scalar name = Llvm.mdnode env.ctx [| Llvm.mdstring env.ctx name; root; i64 0L |] in
-  match t with
-  | _ when scalar_ty t -> Some (typed_node env.ctx t)
-  | Ty.Handle | Ty.Handle16 -> Some (scalar "zane handle")
-  | Ty.Struct ts | Ty.Packed (Ty.Struct ts) ->
-      let dl = tbaa_layout env and lt = lltype env t in
-      let fields =
-        List.concat
-          (List.mapi
-             (fun i m ->
-               match type_node env m with
-               | Some n -> [ n; i64 (Llvm_target.DataLayout.offset_of_element lt i dl) ]
-               | None -> [])
-             ts)
-      in
-      Some (Llvm.mdnode env.ctx (Array.of_list (Llvm.mdstring env.ctx ("zane struct " ^ Ty.to_string t) :: fields)))
-  | _ -> None
-
-(* The struct-path tag of a scalar of type [t] at [path] down from a place
-   of struct type [within], when every step is a struct's member. *)
-let path_tag env within path (t : Ty.t) =
-  if not (fine_tbaa && scalar_ty t) then None
-  else
-    let dl = tbaa_layout env in
-    let rec walk ty path offset =
-      match (ty, path) with
-      | _, [] -> if ty = t then Some offset else None
-      | (Ty.Struct ts | Ty.Packed (Ty.Struct ts)), i :: rest ->
-          walk (List.nth ts i) rest (Int64.add offset (Llvm_target.DataLayout.offset_of_element (lltype env ty) i dl))
-      | _ -> None
-    in
-    match (walk within path 0L, type_node env within, type_node env t) with
-    | Some offset, Some base, Some access when path <> [] ->
-        Some (Llvm.mdnode env.ctx [| base; access; Llvm.const_of_int64 (Llvm.i64_type env.ctx) offset false |])
-    | _ -> None
-
-(* [access], or the struct-path tag of an access through [address]. *)
-let access_at env (address : Expr.t) (t : Ty.t) instr =
-  match address.Expr.node with
-  | Expr.Offset { within; path; _ } -> (
-      match path_tag env within path t with
-      | Some tag ->
-          Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "tbaa") tag;
-          instr
-      | None -> access env t instr)
-  | _ -> access env t instr
 
 (* A handle's field: what [element], [push] and [remove] read and write. *)
 let handle_field env instr =
@@ -662,10 +578,7 @@ let place env b t p v l =
       List.iteri
         (fun i m ->
           let at = Llvm.build_struct_gep (lltype env t) p i name b in
-          let store = Llvm.build_store (Llvm.build_extractvalue v i "" b) at b in
-          match path_tag env t [ i ] m with
-          | Some tag -> Llvm.set_metadata store (Llvm.mdkind_id env.ctx "tbaa") tag
-          | None -> ignore (access env m store))
+          ignore (access env m (Llvm.build_store (Llvm.build_extractvalue v i "" b) at b)))
         ts
   | _ -> ignore (access env t (Llvm.build_store v p b)));
   if listed env l then ignore (call_runtime env b Cgt.Runtime.Arrive [| p; layout env l |])
@@ -1039,16 +952,10 @@ let convert env b (from : Ty.t) (into : Ty.t) v =
       in
       Llvm.build_call fty f [| v |] "" b)
 
-(* Experiment (docs/experiments/llvm-facts, step 3): `ZANE_NSW=1` marks the
-   program's integer additions, multiplications and negations `nsw`. Zane's
-   integers wrap (spec operators.md), so this is a miscompile of any program
-   that overflows: it measures an upper bound, never a change to keep. *)
-let nsw = Sys.getenv_opt "ZANE_NSW" = Some "1"
-
 let binary env fr b (op : Expr.binop) (t : Ty.t) l r =
   match (t, op) with
-  | (Ty.I64 | Ty.I32), Expr.Add -> (if nsw then Llvm.build_nsw_add else Llvm.build_add) l r "" b
-  | (Ty.I64 | Ty.I32), Expr.Mul -> (if nsw then Llvm.build_nsw_mul else Llvm.build_mul) l r "" b
+  | (Ty.I64 | Ty.I32), Expr.Add -> Llvm.build_add l r "" b
+  | (Ty.I64 | Ty.I32), Expr.Mul -> Llvm.build_mul l r "" b
   | (Ty.I64 | Ty.I32), Expr.Div -> divide env fr b l r
   | (Ty.I64 | Ty.I32 | Ty.I1), Expr.Eq -> Llvm.build_icmp Llvm.Icmp.Eq l r "" b
   | (Ty.I64 | Ty.I32), Expr.Less -> Llvm.build_icmp Llvm.Icmp.Slt l r "" b
@@ -1180,11 +1087,11 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       match Hashtbl.find_opt fr.locals id with
       | Some (slot, _) -> Some slot
       | None -> Some (Llvm.const_null env.ptr))
-  | Expr.Deref address -> (
-      let p = expr env fr b address in
+  | Expr.Deref p -> (
+      let p = expr env fr b p in
       match (e.Expr.ty, p) with
       | Ty.Void, _ | _, None -> None
-      | t, Some p -> Some (access_at env address t (Llvm.build_load (lltype env t) p "" b)))
+      | t, Some p -> Some (access env t (Llvm.build_load (lltype env t) p "" b)))
   | Expr.Record members ->
       Some
         (List.fold_left
@@ -1357,7 +1264,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       | _ -> Diagnostic.bug "codegen: an operand has no value")
   | Expr.Flip value -> (
       match (value.Expr.ty, expr env fr b value) with
-      | (Ty.I64 | Ty.I32), Some v -> Some ((if nsw then Llvm.build_nsw_neg else Llvm.build_neg) v "" b)
+      | (Ty.I64 | Ty.I32), Some v -> Some (Llvm.build_neg v "" b)
       | (Ty.F64 | Ty.F32), Some v -> Some (Llvm.build_fneg v "" b)
       | Ty.I1, Some v -> Some (Llvm.build_not v "" b)
       | _ -> Diagnostic.bug "codegen: `~` on a value it does not flip")
@@ -1571,10 +1478,7 @@ and stat env fr b (s : Stat.t) =
           in
           let store = Llvm.build_store v target b in
           (* A store into a local's own slot is the frame's. *)
-          if place.Expr.deref || place.Expr.path <> [] then (
-            match path_tag env place.Expr.ty place.Expr.path value.Expr.ty with
-            | Some tag -> Llvm.set_metadata store (Llvm.mdkind_id env.ctx "tbaa") tag
-            | None -> ignore (access env value.Expr.ty store))
+          if place.Expr.deref || place.Expr.path <> [] then ignore (access env value.Expr.ty store)
       | _ -> ())
   | Stat.Switch { value; cases } ->
       let v = value_of env fr b value in
@@ -1689,7 +1593,7 @@ and stat env fr b (s : Stat.t) =
   | Stat.Store { address; value } -> (
       let p = value_of env fr b address in
       match expr env fr b value with
-      | Some v -> ignore (access_at env address value.Expr.ty (Llvm.build_store v p b))
+      | Some v -> ignore (access env value.Expr.ty (Llvm.build_store v p b))
       | None -> ())
   | Stat.Overwrite { address; value; layout = l; setters } -> (
       let p = value_of env fr b address in
