@@ -213,7 +213,10 @@ static zane_mark *zane_scope_holding(zane_context *c, const char *at) {
    else, such as a value on the machine stack, is the innermost scope's
    here. Most slots asked about are the innermost scope's own, so the
    search tries that one first. Only this thread searches its context's
-   scopes, which a checked drain's run stops the program on otherwise. */
+   scopes, which a checked drain's run stops the program on otherwise.
+
+   It keeps no pointer to `at`: a list's push looks its handle up here, and
+   LLVM is told the push keeps none (lib/codegen/runtime_facts.ml). */
 zane_mark *zane_region_at(const void *at) {
 	uintptr_t entry = zane_page_entry(at);
 	if (entry == 0) return zane_self->top;

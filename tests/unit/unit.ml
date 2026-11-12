@@ -349,6 +349,40 @@ let runtime_abi () =
         (name = "zane_main" || name = "zane_tier_up" || List.exists (fun fn -> R.name fn = name) R.all))
     declared
 
+(* What LLVM is told about each runtime function (Codegen__Runtime_facts):
+   every function's attributes are ones LLVM's parser reads for its
+   signature, none names a parameter it lacks, and the facts the optimized
+   builds lean on are there. A declaration given them prints them. *)
+let runtime_facts () =
+  let module R = Cgt.Runtime in
+  let module F = Codegen__Runtime_facts in
+  let contains text part =
+    let n = String.length part in
+    let rec at i = i + n <= String.length text && (String.sub text i n = part || at (i + 1)) in
+    at 0
+  in
+  let ctx = Llvm.create_context () in
+  let printed fn =
+    let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string (F.text fn)) in
+    let text = Llvm.string_of_llvalue (Option.get (Llvm.lookup_function "f" m)) in
+    Llvm.dispose_module m;
+    text
+  in
+  List.iter
+    (fun fn ->
+      let f = F.facts fn in
+      check (R.name fn ^ "'s facts name no parameter it lacks")
+        (List.length f.F.params <= List.length (snd (R.signature fn)));
+      check (R.name fn ^ "'s facts parse") (try ignore (F.parsed ctx fn); true with _ -> false))
+    R.all;
+  let has fn part = check (R.name fn ^ " says " ^ part) (contains (printed fn) part) in
+  let handle = "@f(ptr captures(address), i64" in
+  List.iter (fun fn -> has fn handle) [ R.List_push; R.List_reserve; R.List_room ];
+  let read = "ptr readonly captures(none)" in
+  has R.Text_equal ("@f(" ^ read ^ ", " ^ read ^ ")");
+  List.iter (fun fn -> has fn "noreturn") [ R.Out_of_range; R.Too_deep ];
+  Llvm.dispose_context ctx
+
 (* What the runtime's structs measure, as tests/runtime/abi/probe.c prints
    it on this platform, against the numbers the compiler emits code with,
    which Abi reads from runtime/zane_abi.h. Every number is measured but the
@@ -1700,6 +1734,7 @@ let () =
   growing_types ();
   fixpoint_chain ();
   runtime_abi ();
+  runtime_facts ();
   probed_abi ();
   single_literals ();
   folded_arithmetic ();

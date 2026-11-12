@@ -12,22 +12,6 @@ include Emit_types
 (* The runtime and its layouts                                            *)
 (* ---------------------------------------------------------------------- *)
 
-(* LLVM's attributes of a function that reads any memory and writes none,
-   and of a pointer parameter it only reads through and keeps no copy of.
-   How each is spelled inside LLVM changes between releases, so LLVM's
-   parser makes them rather than this file. *)
-let reads_only ctx =
-  let source =
-    "declare void @f(ptr nocapture readonly) memory(read) nounwind willreturn nosync nofree"
-  in
-  let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string source) in
-  let f = Option.get (Llvm.lookup_function "f" m) in
-  let attrs =
-    (function_attrs f Llvm.AttrIndex.Function, function_attrs f (Llvm.AttrIndex.Param 0))
-  in
-  Llvm.dispose_module m;
-  attrs
-
 (* The runtime's functions, declared the first time a call needs one, with
    the signature [Cgt.Runtime] gives each. *)
 let runtime env fn =
@@ -46,22 +30,8 @@ let runtime env fn =
       let ret, params = Cgt.Runtime.signature fn in
       let fty = Llvm.function_type (abi ret) (Array.of_list (List.map abi params)) in
       let f = Llvm.declare_function name fty env.m in
-      (* What the runtime's body is known to do, as LLVM attributes, which
-         are a contract on it rather than a hint. An index out of range and
-         a nest of scopes too deep stop the program, so the path to either
-         is cold and nothing follows it. Comparing two strings only reads
-         them, and what their handles point to. *)
-      let attr index a = Llvm.add_function_attr f (Llvm.create_enum_attr env.ctx a 0L) index in
-      (match fn with
-      | Cgt.Runtime.Out_of_range | Cgt.Runtime.Too_deep ->
-          List.iter (attr Llvm.AttrIndex.Function) [ "noreturn"; "cold"; "nounwind" ]
-      | Cgt.Runtime.Text_equal ->
-          let fn_attrs, param = reads_only env.ctx in
-          Array.iter (fun a -> Llvm.add_function_attr f a Llvm.AttrIndex.Function) fn_attrs;
-          List.iter
-            (fun i -> Array.iter (fun a -> Llvm.add_function_attr f a (Llvm.AttrIndex.Param i)) param)
-            [ 0; 1 ]
-      | _ -> ());
+      (* What the runtime's body is known to do (Runtime_facts). *)
+      Runtime_facts.apply f fn;
       Hashtbl.replace env.funcs name (f, fty);
       (f, fty)
 

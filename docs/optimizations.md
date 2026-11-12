@@ -840,14 +840,22 @@ frames.
 ### Runtime functions described to LLVM
 
 - **Builds:** every build
-- **Where:** `lib/codegen/emit.ml`
+- **Where:** `lib/codegen/runtime_facts.ml`
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "What LLVM is
   told"
-- **Effect:** not measured
+- **Effect:** `tests/perf/returns` −1.4% estimated cycles optimized and
+  tiered; nothing else in `tests/perf` or langbench moves
+  ([`perf-runtime-attrs/`](perf-runtime-attrs/README.md))
 
 `zane_out_of_range` and `zane_too_deep` are `noreturn`, `cold` and
 `nounwind`, so the paths to them are laid out of the way. `zane_text_equal`
 only reads memory, so loads before it stay valid after it.
+`zane_list_push`, `zane_list_reserve` and `zane_list_room` keep no pointer
+to the list's handle (`captures(address)`): a handle in a local slot stays
+the function's own across other calls, so LLVM knows a fresh list is still
+empty at its first push after a call, as in `returns`' `grow`, and drops the
+check for room. An optimized or tiered build puts these back after it links
+the runtime's bodies, which replace the declarations.
 
 ### Inline index checks
 

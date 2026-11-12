@@ -200,6 +200,7 @@ let add ~tiered path m =
       Llvm.set_target_triple (Llvm.target_triple m) rt;
       Llvm.set_data_layout (Llvm.data_layout m) rt;
       Llvm_linker.link_modules m rt;
+      Runtime_facts.mark m;
       true
 
 (* Whether this LLVM reads the bitcode at [path]. *)
@@ -229,6 +230,7 @@ let whole ~exported path m =
       Llvm.set_target_triple (Llvm.target_triple m) rt;
       Llvm.set_data_layout (Llvm.data_layout m) rt;
       Llvm_linker.link_modules m rt;
+      Runtime_facts.mark m;
       let keep v =
         if exported then Llvm.set_visibility Llvm.Visibility.Hidden v else Llvm.set_linkage Llvm.Linkage.Internal v
       in

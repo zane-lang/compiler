@@ -183,7 +183,11 @@ static void *zane_list_push_grown(zane_list *list, int64_t stride) {
    while the block has room, and calls this only when it is full
    (docs/design/lowering.md §9). An empty list's first block is taken here
    without a call, and anything else grows the list out of line, so this
-   needs no frame of its own. */
+   needs no frame of its own.
+
+   This, zane_list_reserve and zane_list_room may look at the address of
+   `list`, but keep no pointer to it, or anything made from one, past the
+   call: LLVM is told `captures(address)` (lib/codegen/runtime_facts.ml). */
 void *zane_list_push(zane_list *list, int64_t stride) {
 	if (__builtin_expect(ZL_FITS(list, 1, stride), 1)) return ZL_ITEMS(list) + list->count++ * stride;
 	if (!ZL_ROOM(list) && stride <= ZANE_LIST_FIRST) {

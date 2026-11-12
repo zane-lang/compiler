@@ -209,6 +209,24 @@ class FactsTests(unittest.TestCase):
         self.assertRegex(optimized, call("zane_hold"))
         self.assertNotIn("available_externally", optimized)
 
+    def test_runtime_functions_keep_their_facts(self):
+        # What the runtime's C bodies are known to do is on their
+        # declarations (lib/codegen/runtime_facts.ml), in a plain build and
+        # in an optimized one, where a body linked from the runtime's
+        # bitcode replaces the declaration and its attributes are put back
+        # (lib/codegen/runtime_bodies.ml).
+        declared = {
+            "zane_list_push": r"declare ptr @zane_list_push\(ptr captures\(address\), i64\)",
+            "zane_list_reserve": r"declare ptr @zane_list_reserve\(ptr captures\(address\), i64, i64\)",
+            "zane_out_of_range": r"declare void @zane_out_of_range\(\)[^\n]*#(\d+)",
+        }
+        for optimize in [[], ["--optimize"]]:
+            ir = run(ZANEC, "--ll", *optimize, *packages("pushes"))
+            for name, pattern in declared.items():
+                self.assertRegex(ir, pattern, (name, optimize))
+            group = re.search(declared["zane_out_of_range"], ir).group(1)
+            self.assertRegex(ir, r"attributes #" + group + r" = \{[^}]*\bnoreturn\b", optimize)
+
     @unittest.skipIf(sys.platform == "win32", "the wrapper is a shell script")
     def test_runtime_bodies_inline_whatever_processor_the_c_compiler_targets(self):
         # The runtime's bitcode is stamped with the C compiler's own
