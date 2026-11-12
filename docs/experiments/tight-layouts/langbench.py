@@ -10,8 +10,16 @@ LANGBENCH is the spec repository's langbench/ directory and CORE a
 checkout of zane-lang/core. Each program is built with --optimize, as
 `zane build` builds it, and run RUNS times (default 5) at langbench's
 size; the best wall time is reported against the default build.
+
+The ZANE_PACK and ZANE_UNSWITCH switches this script sets were removed in
+2baf718 (PR 353); the compiler no longer reads them, so every mode builds
+the same program. To reproduce, check out 5c97994 (the last commit where
+they worked) and set ZANE_TIGHT_LAYOUTS_HISTORICAL=1. To compare layouts on
+current main, build two compilers and use wall14.py.
 """
 import importlib.util, os, subprocess, sys, tempfile, time
+if os.environ.get("ZANE_TIGHT_LAYOUTS_HISTORICAL") != "1":
+    sys.exit('error: The ZANE_PACK and ZANE_UNSWITCH switches this script sets were removed in 2baf718 (PR 353); the compiler no longer reads them, so every mode builds the same program. To reproduce, check out 5c97994 (the last commit where they worked) and set ZANE_TIGHT_LAYOUTS_HISTORICAL=1. To compare layouts on current main, build two compilers and use wall14.py.')
 
 bench, core = (os.path.abspath(a) for a in sys.argv[1:3])
 runs = int(sys.argv[3]) if len(sys.argv) > 3 else 5

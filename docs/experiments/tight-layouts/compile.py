@@ -9,11 +9,15 @@ Each program is built RUNS times (default 3) with and without --optimize
 in each mode; the best wall time and the size of the stripped executable
 are reported, summed over the programs, against the default build.
 
-The modes set ZANE_PACK and ZANE_UNSWITCH, which the compiler read until
-step 13 made the niche layout its default and unswitching a choice of the
-target and removed both; run at that commit's parent to compare them again.
+The ZANE_PACK and ZANE_UNSWITCH switches this script sets were removed in
+2baf718 (PR 353); the compiler no longer reads them, so every mode builds
+the same program. To reproduce, check out 5c97994 (the last commit where
+they worked) and set ZANE_TIGHT_LAYOUTS_HISTORICAL=1. To compare layouts on
+current main, build two compilers and use wall14.py.
 """
 import os, subprocess, sys, tempfile, time
+if os.environ.get("ZANE_TIGHT_LAYOUTS_HISTORICAL") != "1":
+    sys.exit('error: The ZANE_PACK and ZANE_UNSWITCH switches this script sets were removed in 2baf718 (PR 353); the compiler no longer reads them, so every mode builds the same program. To reproduce, check out 5c97994 (the last commit where they worked) and set ZANE_TIGHT_LAYOUTS_HISTORICAL=1. To compare layouts on current main, build two compilers and use wall14.py.')
 
 RUNS = int(sys.argv[1]) if len(sys.argv) > 1 else 3
 ZANEC = os.path.abspath("_build/default/bin/zanec/zanec.exe")
