@@ -12,7 +12,7 @@ by SCALE (default 10), and each build is run RUNS times (default 15). A
 tiered build runs as tests/perf runs it, with tier 1 loaded before `main`.
 Run from the repository root.
 """
-import os, subprocess, sys, tempfile, time
+import atexit, os, shutil, subprocess, sys, tempfile, time
 
 before, after = sys.argv[1], sys.argv[2]
 name = sys.argv[3] if len(sys.argv) > 3 else "entities"
@@ -22,6 +22,7 @@ args = open(f"tests/perf/{name}/arguments").read().split()
 if args:
     args[0] = str(int(args[0]) * scale)
 work = tempfile.mkdtemp()
+atexit.register(shutil.rmtree, work, ignore_errors=True)
 package = ["--package", f"tests/perf/{name}"]
 builds = {}
 for label, zanec in (("before", before), ("after", after)):
