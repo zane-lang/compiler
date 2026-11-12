@@ -16,8 +16,9 @@ b8de490, `after.tsv` this change; `only-*.tsv` turn on one group of
 attributes alone over `nounwind` on every function: `ret` the allocators'
 results, `param` the parameters', `fn` the function attributes past
 `nounwind` (memory effects, `willreturn`, `nosync`, `nofree`, `noreturn` and
-`cold` on `zane_no_object` and `zane_hold`), and `nounwind` that alone. Counts
-measure work, not time (see `perf-unroll/`).
+`cold` on `zane_no_object`, `cold` on `zane_hold`; `zane_out_of_range` and
+`zane_too_deep` keep `main`'s `noreturn cold` in every group), and `nounwind`
+that alone. Counts measure work, not time (see `perf-unroll/`).
 
 ## tests/perf (rows moving at least 0.3%)
 

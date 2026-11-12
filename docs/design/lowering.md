@@ -494,7 +494,9 @@ object's: tier 0's, or the program's that links them ([`tiers.md`](tiers.md)
 T5 says what that leaves tier 1). Before the passes
 they link into the module the bodies of the runtime's functions it
 calls, and of the functions those call, as
-`available_externally` (`lib/codegen/runtime_bodies.ml`). LLVM inlines them
+`available_externally` (`lib/codegen/runtime_bodies.ml`); a body linked in
+replaces the function's declaration and its attributes, which are then put
+back (§9, "What LLVM is told"). LLVM inlines them
 where it judges a call worth it, and every call it leaves still goes to the
 runtime the program links, so nothing the runtime keeps is copied: each of
 its variables comes in as a declaration of the runtime's own, a thread's
