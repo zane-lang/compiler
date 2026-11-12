@@ -36,6 +36,11 @@ I64 after(text String, body @concepts$Block) {
 
 I64 first(text String) => _byte(text, I64(0));
 
+/// Aborts, so a spawned call of it settles through its handler.
+I64?Unit refused() {
+	abort Unit();
+}
+
 Unit show(before I64, now I64) {
 	@program$console!print(String(before));
 	@program$console!print(String.escaped(" "));
@@ -61,5 +66,13 @@ Unit main() {
 	n I64 = spawn first(d);
 	d = Text(String.escaped("zzzzzzzz"));
 	show(n, _byte(d, I64(0)));
+	// A later argument is a spawned call's result, whose handler, run where
+	// the result is read, writes the source.
+	e Text = fresh();
+	at I64 = spawn refused() ? u {
+		e = Text(String.escaped("zzzzzzzz"));
+		resolve I64(0);
+	}
+	show(_byte(e, at), _byte(e, I64(0)));
 	return Unit();
 }

@@ -135,33 +135,39 @@ let returns_path st (v : verb) =
       path e []
   | _ -> None
 
+(* Whether reading a local runs nothing: one bound to a spawned call
+   settles the call where it is read, which runs the handler written at the
+   spawn, and that may write anything (Lower_spawn.spawn_call). *)
+let settled ctx (l : T.Local.t) =
+  match Hashtbl.find_opt ctx.env l.T.Local.id with Some (Future _) | None -> false | Some _ -> true
+
 (* An expression that writes nothing and runs nothing that could: a read
-   of a local or a constant and its members, a literal with nothing
-   interpolated, an operator or math intrinsic of such operands, a
+   of a [settled] local or a constant and its members, a literal with
+   nothing interpolated, an operator or math intrinsic of such operands, a
    primitive made or converted from them, or a conversion [lent] takes
    apart. *)
-let rec inert st (e : T.Expr.t) =
+let rec inert st ctx (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) -> (
-      match l.T.Local.ty with Tty.Concept _ -> false | _ -> true)
+      match l.T.Local.ty with Tty.Concept _ -> false | _ -> settled ctx l)
   | T.Expr.Var (T.Name_ref.Global _) -> true
-  | T.Expr.Field { target; _ } -> inert st target
+  | T.Expr.Field { target; _ } -> inert st ctx target
   | T.Expr.Integer_lit _ | T.Expr.Decimal_lit _ | T.Expr.Bool_lit _ | T.Expr.Type_arg _ -> true
   | T.Expr.Text_lit pieces ->
       List.for_all (function T.Expr.Fragment _ -> true | T.Expr.Interpolation _ -> false) pieces
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; args; handler = None }
     when String.starts_with ~prefix:"@operators$" spelling
          || String.starts_with ~prefix:"@math$" spelling ->
-      inert_args st args
+      inert_args st ctx args
   | T.Expr.Construct { ctor = { owner = S.Intrinsic _; _ }; args; handler = None } ->
-      inert_args st args
-  | T.Expr.Coerce { ctor = { owner = S.Intrinsic _; _ }; value = a } -> inert st a
-  | _ -> Option.is_some (lent st e)
+      inert_args st ctx args
+  | T.Expr.Coerce { ctor = { owner = S.Intrinsic _; _ }; value = a } -> inert st ctx a
+  | _ -> Option.is_some (lent st ctx e)
 
 (* Whether every argument is [inert]: a block argument runs code that may
    write anything it reaches. *)
-and inert_args st args =
-  List.for_all (function T.Arg.Value a -> inert st a | T.Arg.Block _ -> false) args
+and inert_args st ctx args =
+  List.for_all (function T.Arg.Value a -> inert st ctx a | T.Arg.Block _ -> false) args
 
 (* L11. A call of a verb [returns_path] picks, rewritten as the member
    path it returns, rooted at the argument it was given: `f(conv(x))`
@@ -170,7 +176,7 @@ and inert_args st args =
    a call itself, and every other argument is [inert], so dropping the call
    leaves out nothing it would have done. [None] when it is not such a
    call. *)
-and lent st (e : T.Expr.t) : T.Expr.t option =
+and lent st ctx (e : T.Expr.t) : T.Expr.t option =
   let ( let* ) = Option.bind in
   let* id, instance, args =
     match e.T.Expr.node with
@@ -191,8 +197,8 @@ and lent st (e : T.Expr.t) : T.Expr.t option =
     | T.Arg.Value a
       when plain_value st a.T.Expr.ty
            && Tty.strip_mode a.T.Expr.ty = Tty.strip_mode (List.nth v.params index).T.Local.ty
-           && inert_args st others -> (
-        match place_path st a with Some _ as p -> p | None -> lent st a)
+           && inert_args st ctx others -> (
+        match place_path st ctx a with Some _ as p -> p | None -> lent st ctx a)
     | _ -> None
   in
   Some
@@ -203,12 +209,13 @@ and lent st (e : T.Expr.t) : T.Expr.t option =
 
 (* A value place lent conversions start from: a local or constant, and the
    value members below it. *)
-and place_path st (e : T.Expr.t) =
+and place_path st ctx (e : T.Expr.t) =
   if not (plain_value st e.T.Expr.ty) then None
   else
     match e.T.Expr.node with
-    | T.Expr.Var (T.Name_ref.Local _ | T.Name_ref.Global _) -> Some e
-    | T.Expr.Field { target; _ } -> Option.map (fun _ -> e) (place_path st target)
+    | T.Expr.Var (T.Name_ref.Local l) -> if settled ctx l then Some e else None
+    | T.Expr.Var (T.Name_ref.Global _) -> Some e
+    | T.Expr.Field { target; _ } -> Option.map (fun _ -> e) (place_path st ctx target)
     | _ -> None
 
 (* The arguments of a direct, unspawned call to [v], each a lent
@@ -217,13 +224,14 @@ and place_path st (e : T.Expr.t) =
    and taking only value parameters, and every other argument is [inert],
    so nothing in the call writes the place while it is lent (memory.md
    §2.9.1). *)
-let lent_arguments st (v : verb) args =
+let lent_arguments st ctx (v : verb) args =
   let lendable (p : T.Local.t) = plain_value st p.T.Local.ty && not (by_address st v p) in
   let lent_at i a =
     match a with
     | T.Arg.Value e -> (
-        match lent st e with
-        | Some path when inert_args st (List.filteri (fun j _ -> j <> i) args) -> T.Arg.Value path
+        match lent st ctx e with
+        | Some path when inert_args st ctx (List.filteri (fun j _ -> j <> i) args) ->
+            T.Arg.Value path
         | _ -> a)
     | T.Arg.Block _ -> a
   in
@@ -245,7 +253,7 @@ let rec call w st ctx span verb args handler ret : Expr.t =
 
 and plain_call w st ctx span v args handler ret =
   if writes_out w st ctx span v args then expand w st ctx span v args handler ret
-  else invoke w st ctx span v (arguments w st ctx span v (lent_arguments st v args)) handler
+  else invoke w st ctx span v (arguments w st ctx span v (lent_arguments st ctx v args)) handler
 
 (* Whether this call to [v] is replaced by its body (L11). An expression
    verb's call is not when it gives a fresh value to a value parameter that

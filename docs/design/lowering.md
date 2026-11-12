@@ -280,12 +280,14 @@ have checked for `f(x._value)`:
   read of a local or a constant and its members, a literal with nothing
   interpolated, or an operator, math intrinsic, primitive constructor or
   lent conversion of inert operands. A block argument, a `!` call or any
-  other call may write `x`, so a call with one keeps the copy;
+  other call may write `x`, so a call with one keeps the copy, and so does
+  one reading a local bound to a spawned call: the read settles the call,
+  which runs the handler written at the spawn;
 - the conversion is no `mut` method, declares no abort, takes only value
   parameters, and its body is one `return` of a parameter's member path;
-- `x` and every member on the path are value types reached through no
-  reference, owner, `^T`, subscript or case read, so nothing outside the
-  caller's own slot can reach them. A conversion of a conversion is taken
+- `x` is no such local, and it and every member on the path are value
+  types reached through no reference, owner, `^T`, subscript or case read,
+  so nothing outside the caller's own slot can reach them. A conversion of a conversion is taken
   apart the same way, the inner one's path becoming the outer's root.
 
 A verb written out where it is called is left as it is: its argument
