@@ -184,6 +184,33 @@ class FactsTests(unittest.TestCase):
         self.assertNotRegex(body("fill"), FIRST_ROOM)
         self.assertIn("@zane_list_push", body("fill"))
 
+    @unittest.skipIf(os.environ.get("ZANE_LOOP_PUSHES") == "0", "Loop_pushes is switched off")
+    def test_counted_push_loops_make_room_once(self):
+        # A counted loop that pushes once each time round through a verb
+        # whose body is that push, as `core`'s `push` is, makes room for
+        # every time round before the loop, so no push in it calls the
+        # runtime. The verb is written out with a leave of its own
+        # expansion, which leaves nothing around the loop
+        # (Cgt.Traverse.leaves). A loop that may return keeps its pushes.
+        ir = run(ZANEC, "--ll", "--optimize", *packages("fills"))
+        start = re.search(r"(?ms)^define [^\n]*@zane_main\(.*?^}", ir).group(0)
+        self.assertEqual(start.count("@zane_list_room("), 1, start)
+        self.assertEqual(start.count("@zane_list_push("), 1, start)
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "fills"
+                run(ZANEC, "--build", exe, *optimize, *packages("fills"))
+                self.assertEqual(run_program(exe, 10), "13\n", optimize)
+                self.assertEqual(run_program(exe, 1), "2\n", optimize)
+            # A count whose bytes wrap stops the program before any push:
+            # room too small for it would leave the unchecked pushes
+            # writing past the block (zane_list_needed).
+            exe = Path(temp) / "fills"
+            run(ZANEC, "--build", exe, "--optimize", *packages("fills"))
+            result = subprocess.run([str(exe), str(2**61)], capture_output=True, text=True, timeout=60)
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("out of memory for a list's elements", result.stderr)
+
     def test_runs_of_pushes_make_room_once(self):
         # A new list pushed to four times in a row makes room for all four
         # at its first push, so the room is compared once, and the other

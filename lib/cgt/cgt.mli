@@ -10,7 +10,8 @@ module Runtime = Runtime
 module Math = Math
 
 (** What each node is made of, a walk over every node, and a rewrite, for
-    every pass over the tree. *)
+    every pass over the tree, and whether statements can end other than
+    after their last ([leaves]). *)
 module Traverse = Traverse
 
 (** The functions remembered while the program runs, with `--memoize`. *)

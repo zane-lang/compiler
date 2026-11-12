@@ -288,14 +288,7 @@ let short_trips = 4
 
 (* Whether a loop with [body] can leave before its count runs out: it
    returns, or leaves a block that holds it. *)
-let leaves_early body =
-  let inside = Hashtbl.create 8 in
-  Cgt.Traverse.walk_stats
-    (fun e -> match e.Expr.node with Expr.Expand { label; _ } -> Hashtbl.replace inside label () | _ -> ())
-    ignore body;
-  Cgt.Traverse.exists_in body
-    ~expr:(fun _ -> false)
-    ~stat:(function Stat.Return _ -> true | Stat.Leave label -> not (Hashtbl.mem inside label) | _ -> false)
+let leaves_early = Cgt.Traverse.leaves
 
 (* Whether a loop with [body] in the function [symbol] is emitted twice
    (Stat.Repeat): it holds no loop, no spawned call and no call back into

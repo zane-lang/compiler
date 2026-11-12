@@ -1620,6 +1620,12 @@ the body names: it calls `zane_list_room(list, stride, n)` with the loop's
 count before the loop, which grows the block once to hold every push, and
 emits the push as a plain store (the run planner's `Room`).
 
+(2026-11, LangArena perf issue R2: the emitter's test for a loop that may
+leave counted every `leave` in the body, so the `leave` that ends each
+written-out push's own expansion kept it from making room in any loop. It
+now counts only a `leave` of an expansion around the loop, as `Emit` and
+`Fold` already did, through one `Cgt.Traverse.leaves`.)
+
 **The count in a register.** With the check and its runtime call gone, the
 handle's items and count were still loaded from the frame and the count
 stored back each time round: the element's store, an aggregate with no

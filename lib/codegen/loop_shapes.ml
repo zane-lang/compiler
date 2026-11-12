@@ -261,14 +261,13 @@ let ranged_accesses body lists names =
 let ranged body lists names =
   if Sys.getenv_opt "ZANE_LOOP_RANGES" <> Some "1" || lists = [] then [] else ranged_accesses body lists names
 
+(* Whether statements can end other than after their last, an expansion's
+   own [Leave] inside them not counting (Cgt.Traverse.leaves). *)
+let leaving = Cgt.Traverse.leaves
+
 (* The stride of [s] when it is one push onto the list in [id]: an
    expansion whose own body makes the push, after nothing that may leave
    it, and names the list nowhere else. *)
-let leaving ss =
-  Cgt.Traverse.exists_in ss ~expr:(fun _ -> false) ~stat:(function
-    | Stat.Leave _ | Stat.Return _ -> true
-    | _ -> false)
-
 let push_of id (s : Stat.t) =
   match s with
   | Stat.Eval { Expr.node = Expr.Expand { body; _ }; _ } ->

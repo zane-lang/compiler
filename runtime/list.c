@@ -201,6 +201,18 @@ void *zane_list_push(zane_list *list, int64_t stride) {
 	return zane_list_push_grown(list, stride);
 }
 
+/* The bytes a list holds with `n` more elements, `stride` bytes wide. A
+   count no block could hold, past half the address space or wrapping, stops
+   the program here, before ZL_FITS wraps too and takes a block too small for
+   room that the pushes after it no longer check (zane_list_room). */
+static int64_t zane_list_needed(zane_list *list, int64_t n, int64_t stride) {
+	int64_t count = 0, bytes = 0;
+	if (__builtin_add_overflow(ZL_COUNT(list), n, &count) || __builtin_mul_overflow(count, stride, &bytes) ||
+	    bytes > INT64_MAX / 2)
+		zane_broken("out of memory for a list's elements");
+	return bytes;
+}
+
 /* As `zane_list_push`, with room made for `n` elements, this push's and
    the `n - 1` after it, which emitted code then makes as plain stores with
    no check of their own (docs/design/lowering.md §9). Emitted code calls
@@ -214,7 +226,8 @@ void *zane_list_reserve(zane_list *list, int64_t stride, int64_t n) {
 			return block;
 		}
 	}
-	if (!ZL_FITS(list, n, stride)) zane_list_grow(list, (ZL_COUNT(list) + n) * stride, stride);
+	int64_t bytes = zane_list_needed(list, n, stride);
+	if (!ZL_FITS(list, n, stride)) zane_list_grow(list, bytes, stride);
 	return ZL_ITEMS(list) + list->count++ * stride;
 }
 
@@ -222,7 +235,9 @@ void *zane_list_reserve(zane_list *list, int64_t stride, int64_t n) {
    elements, which a loop that pushes once each time round then pushes as
    plain stores with no check of their own. */
 void zane_list_room(zane_list *list, int64_t stride, int64_t n) {
-	if (n > 0 && !ZL_FITS(list, n, stride)) zane_list_grow(list, (ZL_COUNT(list) + n) * stride, stride);
+	if (n <= 0) return;
+	int64_t bytes = zane_list_needed(list, n, stride);
+	if (!ZL_FITS(list, n, stride)) zane_list_grow(list, bytes, stride);
 }
 
 /* The element at `index`, counted from 1 (control-flow.md §3.4). */

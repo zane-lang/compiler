@@ -978,12 +978,20 @@ reaches.
 - **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),
   "listgrowth: where the push's instructions go"
 - **Effect:** listgrowth's push runs 16 instructions instead of 25, and the
-  program takes 0.174 s instead of 0.216 s (medians), level with Goose
+  program takes 0.174 s instead of 0.216 s (medians), level with Goose.
+  LangArena's `repros/list-fill` (ten fills of a million `I32`s through
+  `core`'s `push`) runs 6.66 M instructions instead of 115.7 M, a vector
+  store loop; Graph::AStar 8.61 G instead of 22.79 G, Maze::AStar 5.75 G
+  instead of 10.53 G
 
 A counted loop that cannot leave early and pushes once each time round onto
 a list nothing else in the loop can change gets room for every push from
 one `zane_list_room` before it, and each push is a store with no check of
-the room. Nothing in such a loop pushes to, makes room in or removes from
+the room. A count whose bytes no block could hold stops the program there,
+out of memory, before any of those pushes. A loop leaves early when it returns or leaves an expansion around
+it (`Cgt.Traverse.leaves`); a verb expanded inside it, a written-out push
+or the counter step of `core`'s `to`, ends with a leave of its own
+expansion, which keeps the loop running. Nothing in such a loop pushes to, makes room in or removes from
 another list, spawns, or calls a function that could, which a
 whole-program analysis tells. A struct of scalars is stored member by
 member with the scalar alias tag, so LLVM keeps the count and the
