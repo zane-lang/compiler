@@ -236,6 +236,47 @@ static uint64_t NOINLINE chains_amac(int W) { uint64_t s = 0, next = 0; uint32_t
     if (next < m) { cur[k] = heads[next++]; PF(&ln[cur[k]]); } else { cur[k] = 0; live--; } }
   return s; }
 
+/* ---------- round 3: one loop with both kinds of miss ---------- */
+/* for each i: load a record at a random place, work on it, look its key up in the tree */
+static uint64_t cmask;
+static inline uint64_t work(const E *e) {
+  if (e->key & 1) { uint64_t h = e->w[0]; h ^= h >> 33; h *= 0xff51afd7ed558ccdULL; h ^= h >> 33;
+    h *= 0xc4ceb9fe1a85ec53ULL; h ^= h >> 33; h += e->w[1] * e->w[2]; hist[h & 15]++; return h; }
+  return e->w[4] + (e->w[5] >> 3); }
+static inline uint32_t walk(uint64_t key) { uint32_t c = troot;
+  while (c) { Node *d = &tn[c]; if (d->key == key) break; c = key < d->key ? d->l : d->r; } return c; }
+static uint64_t NOINLINE combo_base(int p) { uint64_t s = 0;
+  for (uint64_t i = 0; i < m; i++) { uint32_t j = gidx[i]; CHECK(j, n); const E *e = &ha[j]; s += work(e) + walk(e->w[6] & cmask); } return s; }
+static uint64_t NOINLINE combo_ahead(int D) { uint64_t s = 0, i = 0;
+  for (; i + D < m; i++) { PF(&ha[gidx[i + D]]); uint32_t j = gidx[i]; CHECK(j, n); const E *e = &ha[j]; s += work(e) + walk(e->w[6] & cmask); }
+  for (; i < m; i++) { uint32_t j = gidx[i]; CHECK(j, n); const E *e = &ha[j]; s += work(e) + walk(e->w[6] & cmask); } return s; }
+/* D = 0: interleave the walks only; D > 0: also prefetch the record D refills ahead */
+static inline uint64_t combo_amac(int W, int D) { uint64_t s = 0, next = 0; uint64_t keys[MAXG]; uint32_t cur[MAXG]; int live = 0;
+  for (int k = 0; k < W; k++) cur[k] = 0;
+  for (int k = 0; k < W && next < m; k++) { uint32_t j = gidx[next++]; CHECK(j, n); const E *e = &ha[j];
+    s += work(e); keys[k] = e->w[6] & cmask; cur[k] = troot; live++; }
+  for (int k = 0; live; k = k + 1 == W ? 0 : k + 1) { uint32_t c = cur[k]; if (!c) continue;
+    Node *d = &tn[c]; uint64_t key = keys[k];
+    if (d->key == key) s += c; else { c = key < d->key ? d->l : d->r; if (c) { PF(&tn[c]); cur[k] = c; continue; } }
+    if (next < m) { if (D && next + D < m) PF(&ha[gidx[next + D]]);
+      uint32_t j = gidx[next++]; CHECK(j, n); const E *e = &ha[j]; s += work(e); keys[k] = e->w[6] & cmask; cur[k] = troot; }
+    else { cur[k] = 0; live--; } }
+  return s; }
+static uint64_t NOINLINE combo_inter(int W) { return combo_amac(W, 0); }
+static uint64_t NOINLINE combo_both(int W) { return combo_amac(W, W); }
+static uint64_t NOINLINE combo_both32(int W) { return combo_amac(W, 32); }
+/* every miss a stage: a refill only prefetches the record, the next visit reads it */
+static uint64_t NOINLINE combo_staged(int W) { uint64_t s = 0, next = 0; uint64_t keys[MAXG]; uint32_t cur[MAXG], rec[MAXG]; int live = 0;
+  for (int k = 0; k < W; k++) { cur[k] = 0; rec[k] = ~0u; }
+  for (int k = 0; k < W && next < m; k++) { uint32_t j = gidx[next++]; CHECK(j, n); PF(&ha[j]); rec[k] = j; cur[k] = 1; live++; }
+  for (int k = 0; live; k = k + 1 == W ? 0 : k + 1) { uint32_t c = cur[k]; if (!c) continue;
+    if (rec[k] != ~0u) { const E *e = &ha[rec[k]]; s += work(e); keys[k] = e->w[6] & cmask; rec[k] = ~0u; cur[k] = troot; continue; }
+    Node *d = &tn[c]; uint64_t key = keys[k];
+    if (d->key == key) s += c; else { c = key < d->key ? d->l : d->r; if (c) { PF(&tn[c]); cur[k] = c; continue; } }
+    if (next < m) { uint32_t j = gidx[next++]; CHECK(j, n); PF(&ha[j]); rec[k] = j; cur[k] = 1; }
+    else { cur[k] = 0; live--; } }
+  return s; }
+
 typedef struct { const char *name; uint64_t (*fn)(int); int np; int p[10]; } Variant;
 static const char *kname; static int logbytes;
 static void run(Variant *v, int nv) {
@@ -313,6 +354,16 @@ int main(int argc, char **argv) {
     ln[0].val = 0; ln[0].next = 0;
     for (uint64_t i = 0; i < m; i++) heads[i] = hd[i % nl];
     Variant v[] = {{"base", chains_base}, {"ahead", chains_ahead, DS}, {"group", chains_group, GS}, {"amac", chains_amac, GS}}; RUN(v);
+  } else if (!strcmp(kname, "combo")) {
+    n = bytes / 128; uint64_t nt = bytes / 32 - 1; cmask = bytes / 16 - 1;
+    ha = alloc(bytes / 2); tn = alloc(bytes / 2); tperm = alloc(nt * 4); gidx = alloc(m * 4);
+    for (uint64_t i = 0; i < n; i++) for (int k = 0; k < 8; k++) (&ha[i].key)[k] = rnd();
+    for (uint64_t i = 0; i < m; i++) gidx[i] = rnd() % n;
+    for (uint64_t i = 0; i < nt; i++) tperm[i] = i + 1;
+    for (uint64_t i = nt - 1; i > 0; i--) { uint64_t j = rnd() % (i + 1); uint32_t t = tperm[i]; tperm[i] = tperm[j]; tperm[j] = t; }
+    troot = tbuild(0, nt);
+    Variant v[] = {{"base", combo_base}, {"ahead", combo_ahead, 3, {8, 32, 64}}, {"inter", combo_inter, GS},
+                   {"both", combo_both, GS}, {"both32", combo_both32, GS}, {"staged", combo_staged, GS}}; RUN(v);
   } else return 2;
   return 0;
 }

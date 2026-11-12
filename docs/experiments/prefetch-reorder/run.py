@@ -12,7 +12,7 @@ import os, subprocess, sys, tempfile, collections
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KERNELS = {"gather": 23, "heavy": 23, "scatter": 23, "hash": 23, "bsearch": 21, "tree": 21,
-           "twohop": 23, "nested": 23, "chains": 21, "gatherx": 23, "heavyx": 23}
+           "twohop": 23, "nested": 23, "chains": 21, "combo": 21, "gatherx": 23, "heavyx": 23}
 SIZES = [18, 25, 31]
 SWEEP = list(range(16, 29))
 

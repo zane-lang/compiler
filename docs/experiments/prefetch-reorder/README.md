@@ -112,13 +112,50 @@ At 2 GiB, best parameter:
   below 64 MiB (×0.82 to ×1.29 on times under 5 ns) and gains ×1.1 to ×1.3
   above it.
 
+## Round 3: both strategies in one loop
+
+`run.py round3 combo`. `combo` is one loop with both kinds of miss: each
+iteration loads a 64-byte record at a random place, does `heavy`'s work on
+it, and looks a key from the record up in the tree. Half the data is
+records and half is tree.
+
+- `ahead`: prefetch the record `D` iterations on; the walks stay one at a
+  time.
+- `inter`: `W` walks a step at a time (`amac`); a record is loaded when its
+  walk starts, with no prefetch.
+- `both`, `both32`: `inter`, and the record prefetched `W` or 32 walks
+  before it is needed.
+- `staged`: `inter`, with the record's load made a step of its own: starting
+  a walk only prefetches the record, and the next visit reads it.
+
+Speed against the plain form, best parameter:
+
+| data | plain | `ahead` | `inter` | `both` | `both32` | `staged` |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 256 KiB | 51.3 ns | ×1.05 | ×1.20 | ×1.26 | ×1.27 | ×1.15 |
+| 32 MiB | 397.5 ns | ×0.90 | ×3.03 | ×5.29 | ×5.79 | ×5.00 |
+| 32 MiB, huge pages | 306.6 ns | ×0.87 | ×2.46 | ×5.20 | ×5.37 | ×4.59 |
+| 2 GiB | 1954 ns | ×0.93 | ×4.88 | ×6.46 | ×6.87 | ×6.62 |
+| 2 GiB, huge pages | 1334 ns | ×0.93 | ×5.80 | ×8.44 | ×8.35 | ×8.26 |
+
+**What it shows.** The two are worth more together than apart. Prefetching
+the record alone does nothing here (×0.87 to ×1.05): the walk that follows
+is far longer than the record's miss, so the loop still waits. Interleaving
+alone leaves the record's miss in the way of every walk that starts. With
+both, the gain over interleaving alone is ×1.3 to ×1.45 at 2 GiB and ×1.8
+to ×2.1 at 32 MiB, and the loop is 5 to 8 times faster than the plain form.
+The three ways of fetching the record early are within 10% of each other;
+making it a step of the walk (`staged`) needs no distance to tune. In cache
+the combined form is ×1.26 faster, not slower.
+
 ## Where this points
 
 Worth building, in the order the measurements rank them:
 
 1. Interleaving a loop over independent chains (tree lookups, chains,
    binary searches): ×3 to ×10, gated on the data's size where the chain is
-   short.
+   short. Every miss in the iteration should be a step, the ones before the
+   chain included (round 3).
 2. A prefetch `D` = 32 iterations ahead in a loop whose body branches on or
    works on what it loads (`heavy`, `hash`): ×1.6 to ×2.8, no gate.
 3. Huge pages for large backing stores: ×2 to ×2.7 on the light loops by
