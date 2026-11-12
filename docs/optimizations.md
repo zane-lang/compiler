@@ -664,17 +664,18 @@ that the predictor cannot learn.
 - **Where:** `lib/codegen/passes.ml` (`llvm_options`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
 - **Effect:** `tests/perf` estimated cycles: `paths` 42.8% fewer,
-  `borrows` 11.9%, `returns` 10.0%, `kept` tiered 6.1%, `entities` 4.0%,
-  `division` 3.8%, `particles` 3.5%, `repeats` 3.3% fewer; `removal` 1.1%
-  and `floats` 0.5% more; `.text` 1–15% more, tier 1 of `repeats` 56%
-  ([`perf-unroll`](perf-unroll/README.md))
+  `borrows` 11.9%, `returns` 10.0%, `kept` tiered 5.2%, `particles` 3.6%,
+  `entities` 3.4%, `repeats` 3.1% fewer; `removal` 1.1% more; langbench
+  `entities` 8.6% fewer, `nbody` 3.0% more; `.text` up to 10.5% more, tier 1
+  of `repeats` 25% ([`perf-unroll`](perf-unroll/README.md))
 
 LLVM is given a full-unroll budget of 250, against `-O2`'s 150, and a
-partial-unroll budget of 150. A loop of a few constant iterations whose
+partial-unroll budget of 100. A loop of a few constant iterations whose
 body tests the counter becomes straight-line code with each test decided,
 and a counted loop over a list shares its copies' index arithmetic and
 bounds checks. Unrolling never changes what a program means. A cold loop's
-copies can cost a hot loop in the same function a register.
+copies can cost a hot loop in the same function a register, and a loop that
+runs only one to four times is unrolled four times for nothing.
 
 ### Index checks taken out of long loops
 

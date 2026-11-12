@@ -13,7 +13,7 @@ zanec, label, names = sys.argv[1], sys.argv[2], sys.argv[3:] or run.programs()
 found = shutil.which("valgrind")
 if not found: sys.exit("perf.py: valgrind is not on PATH")
 valgrind = str(Path(found).resolve()).encode()
-jobs = [(n,b) for n in names for b in ("optimized","tiered","plain")]
+jobs = [(n,b) for n in names for b in (("optimized","tiered") if os.environ.get("ZANE_SKIP_PLAIN") else ("optimized","tiered","plain"))]
 rows=[]
 with tempfile.TemporaryDirectory() as work, ThreadPoolExecutor(3) as pool:
     work=Path(work)

@@ -1607,26 +1607,30 @@ test passing.
   a few constant iterations whose body tests the counter, as `d!to(Int(4))`
   does over four `branch(d == k, ...)`, stays a loop at 150, with the four
   tests one `switch` on the counter that a predictor without history cannot
-  learn; unrolled, each copy knows the counter and the tests are gone.
-  The budget is a step: 150 and below leave
-  `tests/perf` `paths` and `returns` as they were, 200 takes `returns`, 250
-  takes `paths`, and nothing up to 1000 moves another program. Partial
-  unrolling (`-unroll-partial-threshold`) is 150 (the experiment's baseline, with no option
-  given, was beaten by every setting from 100 up): a counted loop over a
-  list unrolls, sharing its copies' index arithmetic and bounds checks, and
-  `borrows` runs 28% fewer instructions. 300 gives about 1% more on
-  `entities`, `particles` and `division`, at more code. In estimated
-  cycles against the options without them: `paths` 42.8% fewer, `borrows`
-  11.9%, `returns` 10.0%, `kept` tiered 6.1%, `entities` 4.0%, `division`
-  3.8%, `particles` 3.5%, `repeats` 3.3%; `removal` 1.1% more, where the
-  cold loop's copies leave the hot loop beside it a register and it reloads
-  its items pointer on every iteration, and `floats` 0.5% more, whose
-  unrolled loops mispredict 20% more. The price is code: a `tests/perf`
-  executable's `.text` grows 1–15%, tier 1 of `kept` 17% and of `repeats`
-  56%. The langbench programs that build (`docs/perf-unroll`) grow 2–16% and
-  run within 0.5% of before in all but `entities` (8.6% fewer) and `nbody`
-  (6.8% more), and a compile takes as long
-  ([`perf-unroll`](../perf-unroll/README.md)).
+  learn; unrolled, each copy knows the counter and the tests are gone. The
+  budget is a step: 150 and below leave `tests/perf` `paths` and `returns`
+  as they were, 200 takes `returns`, 250 takes `paths`, and nothing up to
+  1000 moves another program. Partial unrolling
+  (`-unroll-partial-threshold`) is 100: a counted loop over a list unrolls,
+  sharing its copies' index arithmetic and bounds checks, and `borrows` runs
+  28% fewer instructions. A budget of 150 also takes `division` (3.8%) and a
+  point more on `entities` and `repeats`, at 6% to 56% more `.text` and a
+  worse result on langbench `nbody`, whose pair loop `j!to(n)` runs one to
+  four times: the runtime unroller makes it a four-wide copy behind a
+  prologue and guards that the loop's few iterations never reach, so each
+  step runs 63 more instructions (+10.4%, +6.8% cycles; at 100, +6.4% and
+  +3.0%). Turning runtime unrolling off, or capping the factor at 2, loses
+  `borrows`' gain ([`perf-unroll/nbody.md`](../perf-unroll/nbody.md)). In
+  estimated cycles against the options without them: `paths` 42.8% fewer,
+  `borrows` 11.9%, `returns` 10.0%, `kept` tiered 5.2%, `particles` 3.6%,
+  `entities` 3.4%, `repeats` 3.1%; `removal` 1.1% more, where the cold
+  loop's copies leave the hot loop beside it a register and it reloads its
+  items pointer on every iteration, and `nbody` 3.0% more. The price is
+  code: a `tests/perf` executable's `.text` grows up to 10.5%, tier 1 of
+  `kept` 8% and of `repeats` 25%. The langbench programs that build
+  (`perf-unroll`) grow 2% to 14% (11% for the two tiny ones) and run within
+  0.2% of before except `entities` (8.6% fewer) and `nbody`, and compiling
+  takes as long ([`perf-unroll`](../perf-unroll/README.md)).
 
   For an AArch64 target, `-O2`'s loop unswitching also copies a loop whose
   body branches on a condition the loop does not change, once for each

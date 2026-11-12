@@ -92,19 +92,21 @@ let nontrivial triple pipeline =
    `branch(d == k, ...)`, becomes straight-line code with each test decided,
    where at 150 it stays a loop around a `switch` the predictor cannot learn
    (tests/perf: paths -43%, returns -10%). The partial-unroll budget
-   (-unroll-partial-threshold) is 150: a counted loop over a list, such as
+   (-unroll-partial-threshold) is 100: a counted loop over a list, such as
    the sum of `ys[j]` where `xs[j] < wall`, is unrolled by a factor that
-   shares its index arithmetic and bounds checks (borrows -12%, kept -6%,
-   entities, particles, repeats, division -3% to -4%). The price is code
-   size, 1% to 15% more `.text` in a perf program and 56% more in tier 1 of
-   `repeats`, and a cold loop's copies can cost a hot loop in the same
-   function a register (removal +1%, floats +0.5%). *)
+   shares its index arithmetic and bounds checks (borrows -12%, kept -5%,
+   entities, particles, repeats -3% to -4%). The price is code size, up to
+   11% more `.text` in a perf program and 25% more in tier 1 of `repeats`;
+   a cold loop's copies can cost a hot loop in the same function a register
+   (removal +1%); and a loop that runs one to four times is unrolled four
+   times for nothing (langbench nbody +3%, whose pair loop runs 1 to 4
+   times; a budget of 150 made it +6.8%). *)
 let llvm_options =
   [
     "-align-all-functions=6";
     "-instcombine-code-sinking=false";
     "-unroll-threshold=250";
-    "-unroll-partial-threshold=150";
+    "-unroll-partial-threshold=100";
   ]
 
 (* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*,
