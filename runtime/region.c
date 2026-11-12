@@ -405,9 +405,7 @@ _Noreturn void zane_too_deep_in(zane_context *c) {
 }
 
 /* A frame larger than the guard, which emitted code checks before it
-   places it, does not fit.
-
-   LLVM is told it never returns (lib/codegen/runtime_facts.ml). */
+   places it, does not fit. */
 void zane_too_deep(void) { zane_too_deep_in(zane_self); }
 
 /* What a fault at `at` is to the runtime: 1 when the access can run again,

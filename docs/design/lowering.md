@@ -1489,27 +1489,20 @@ test passing.
     Both let LLVM read a slot ahead of a branch: a list reached through
     `this` or kept in `main`'s frame has its count and block loaded once
     before a loop that checks its indices, rather than after each check.
-  - *What the runtime's functions do.* Each is declared with the
-    attributes its C body keeps (`lib/codegen/runtime_facts.ml`, one table
-    for every function `Cgt.Runtime` names), and the C notes each beside
-    the function as a constraint on changing it. Every one is `nounwind`.
-    Those that stop the program (`zane_out_of_range`, `zane_too_deep`,
-    `zane_no_object`) are cold and do not return. A block from
-    `zane_alloc`, `zane_alloc_held` or `zane_box` is fresh, never null and
-    word-aligned: the region hands out no bytes a live object holds, and
-    keeps no pointer into a block while it is out. Functions that read or
-    write only through a pointer and keep no copy of it say so per
-    parameter (strings, numbers, `zane_arguments`, `zane_list_new`); a
-    list's push, reserve and room may look at the handle's address, which
-    the region lookup does, but keep nothing (`captures(address)`), so a
-    handle in a slot of the caller's own does not escape to them.
-    `zane_text_equal` and `zane_text_expect` only read memory, so what LLVM
-    read before a call to either still holds after. A function whose body
-    may stop the program on a broken invariant claims no memory effects
-    and no `willreturn`, and one that calls a walk or a C thunk claims
-    nothing past `nounwind`. A body linked in from the runtime's bitcode
-    replaces its declaration, attributes included, so the attributes are
-    added again once the bodies are linked (`Runtime_bodies`).
+  - *What some runtime functions do.* `zane_out_of_range` and
+    `zane_too_deep` stop the program, so they are cold and do not return;
+    `zane_text_equal` only reads memory, so what LLVM read before a call to
+    it still holds after. A list's push, reserve and room look the handle's
+    address up to find its region but keep no pointer to it
+    (`captures(address)`), so a handle in a slot of the caller's own does
+    not escape to them: a fresh list is still empty at its first push after
+    another call, and that push needs no check for room. One table holds
+    them (`lib/codegen/runtime_facts.ml`), and the C notes the push's beside
+    it. A body linked in from the runtime's bitcode replaces its declaration,
+    attributes included, so they are added again once the bodies are linked
+    (`Runtime_bodies`). Further attributes the C would justify were
+    measured and left out, gaining nothing
+    ([`perf-runtime-attrs`](../perf-runtime-attrs/README.md)).
   - *The list operations small enough to see.* A new list is the constant
     empty handle, and a `remove` or `swapRemove` moves the elements with
     LLVM's `memmove` or `memcpy` of the element's own stride, and lowers

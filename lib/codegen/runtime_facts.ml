@@ -1,13 +1,9 @@
 (* What the runtime's functions do, as LLVM attributes on their
-   declarations (docs/design/lowering.md §9, "What LLVM is told about the
-   runtime"). An attribute is a contract on the C body, not a hint: one the
-   body breaks is a miscompile, so each below is one the body in runtime/*.c
-   is known to keep, and the C says so beside the function, as a constraint
-   on changing it. A function whose body may stop the program (zane_broken,
-   exit) says nothing of what memory it touches and is not `willreturn`;
-   one that calls a walk or a thunk, code of the program's or of C, says
-   nothing at all. Every function is `nounwind`: the runtime is C, which
-   clang compiles so, and nothing it calls unwinds through it.
+   declarations (docs/design/lowering.md §9, "What LLVM is told"). An
+   attribute is a contract on the C body, not a hint: one the body breaks is
+   a miscompile, so each below is one the body in runtime/*.c is known to
+   keep. Only those that change what LLVM makes of a program are given;
+   docs/perf-runtime-attrs/ records the ones measured and left out.
 
    How each attribute is spelled inside LLVM changes between releases, so
    LLVM's parser makes them, from a declaration written as text ([text]).
@@ -24,63 +20,24 @@ module R = Cgt.Runtime
    each parameter, in order; a shorter list leaves the rest bare. *)
 type facts = { fn : string; ret : string; params : string list }
 
-let none = { fn = "nounwind"; ret = ""; params = [] }
-
-(* A fresh block of a region (arena.c): no other object the caller can
-   reach shares its bytes, it is never null, and it is aligned to a word. *)
-let fresh = "noalias nonnull align 8"
-
-(* A pointer the function reads through or writes through, and keeps no
-   copy of. *)
-let reads = "readonly captures(none)"
-let writes = "writeonly captures(none)"
-let kept_not = "captures(none)"
-
-(* A function that returns, stops nothing, waits for no thread and frees
-   nothing: what LLVM may assume of a call it can move or delete. *)
-let simple = "nounwind willreturn nosync nofree"
+let none = { fn = ""; ret = ""; params = [] }
 
 let facts = function
-  (* Stop the program, off the hot path (list.c, region.c, handle.c). *)
-  | R.Out_of_range | R.Too_deep | R.No_object -> { none with fn = "noreturn cold nounwind" }
-  (* Allocators (arena.c, block.c). *)
-  | R.Alloc | R.Alloc_held | R.Box -> { none with ret = fresh }
-  (* Strings (block.c). *)
-  | R.Text_equal -> { fn = "memory(read) " ^ simple; ret = ""; params = [ reads; reads ] }
-  | R.Text_join -> { none with params = [ writes; reads; reads ] }
-  | R.Text_taken -> { none with params = [ writes; reads ] }
-  | R.Text_i32 | R.Text_i64 | R.Text_f32 | R.Text_f64 -> { none with params = [ writes ] }
-  | R.Text_expect -> { none with fn = "memory(read) " ^ simple }
-  | R.Print -> { none with params = [ reads ] }
-  | R.Parse_i64 | R.Parse_f64 -> { none with params = [ reads; writes ] }
-  | R.Arguments -> { none with params = [ writes ] }
-  (* Lists (list.c). A push looks the handle's address up to find its
-     region, which tells the caller something of the address, but keeps no
-     pointer to the handle. A removal moves its elements in pieces, in a
-     loop LLVM's own look at the body does not find returns, so it is not
-     said to return here either. *)
-  | R.List_new -> { fn = "memory(argmem: write) " ^ simple; ret = ""; params = [ writes ] }
+  (* An index out of range and a nest of scopes too deep stop the program
+     (list.c, region.c), so the path to either is cold and nothing follows
+     it. *)
+  | R.Out_of_range | R.Too_deep -> { none with fn = "noreturn cold nounwind" }
+  (* Comparing two strings only reads them, and what their handles point
+     to (block.c). *)
+  | R.Text_equal ->
+      let reads = "readonly captures(none)" in
+      { fn = "memory(read) nounwind willreturn nosync nofree"; ret = ""; params = [ reads; reads ] }
+  (* A push, a reserve and a room look the handle's address up to find its
+     region (list.c, arena.c), which tells the caller something of the
+     address, but keep no pointer to the handle: a handle in a slot of the
+     caller's own stays the caller's across other calls. *)
   | R.List_push | R.List_reserve | R.List_room -> { none with params = [ "captures(address)" ] }
-  | R.List_remove _ -> { fn = "nounwind nosync nofree"; ret = ""; params = [ kept_not ] }
-  | R.List_swap_remove _ -> { fn = simple; ret = ""; params = [ kept_not ] }
-  | R.Pool_root -> { fn = "memory(argmem: read) " ^ simple; ret = ""; params = [ reads ] }
-  | R.Link ->
-      (* The node it returns is the link moved by what it reads there. *)
-      let param = "readonly captures(ret: address, provenance)" in
-      { fn = "memory(argmem: read) " ^ simple; ret = ""; params = [ param ] }
-  (* Regions (arena.c, value.c): an address is looked up, never read. *)
-  | R.Region_at -> { none with params = [ "readnone captures(address)" ] }
-  | R.Leaves -> { none with params = [ "readnone captures(address)"; "captures(address)" ] }
-  (* Slots (slot.c): cold in its C as well. *)
-  | R.Hold -> { none with fn = "cold nounwind" }
-  | R.Handle_made -> { none with fn = "nounwind willreturn nofree" }
-  | R.Scope_enter | R.Promote | R.Arrive | R.Copy | R.Overwrite | R.Array_at | R.List_at
-  | R.Scope_drain | R.Spawn | R.Join | R.Set_threads | R.Set_threads_auto | R.Snapshot
-  | R.Constant_begin | R.Constant_end | R.Writeback | R.Free | R.Defer | R.Defer_return
-  | R.Pool_new | R.Pool_push | R.Pool_append | R.Pool_copy | R.Pool_reserve
-  | R.Pool_new_unbounded | R.Overwrite_handles | R.Overwrite_settled | R.Handle_end
-  | R.Handle_set | R.Callback_attach | R.Callback_detach | R.Island ->
-      none
+  | _ -> none
 
 let ir_type = function
   | R.Void -> "void"

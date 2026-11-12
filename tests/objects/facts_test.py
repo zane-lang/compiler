@@ -216,9 +216,8 @@ class FactsTests(unittest.TestCase):
         # bitcode replaces the declaration and its attributes are put back
         # (lib/codegen/runtime_bodies.ml).
         declared = {
-            "zane_alloc_held": r"declare noalias nonnull align 8 ptr @zane_alloc_held\(",
             "zane_list_push": r"declare ptr @zane_list_push\(ptr captures\(address\), i64\)",
-            "zane_text_f64": r"declare void @zane_text_f64\(ptr writeonly captures\(none\)",
+            "zane_list_reserve": r"declare ptr @zane_list_reserve\(ptr captures\(address\), i64, i64\)",
             "zane_out_of_range": r"declare void @zane_out_of_range\(\)[^\n]*#(\d+)",
         }
         for optimize in [[], ["--optimize"]]:

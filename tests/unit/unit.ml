@@ -373,18 +373,14 @@ let runtime_facts () =
       let f = F.facts fn in
       check (R.name fn ^ "'s facts name no parameter it lacks")
         (List.length f.F.params <= List.length (snd (R.signature fn)));
-      check (R.name fn ^ "'s facts parse") (try ignore (F.parsed ctx fn); true with _ -> false);
-      check (R.name fn ^ " is nounwind") (contains f.F.fn "nounwind"))
+      check (R.name fn ^ "'s facts parse") (try ignore (F.parsed ctx fn); true with _ -> false))
     R.all;
   let has fn part = check (R.name fn ^ " says " ^ part) (contains (printed fn) part) in
-  let fresh = "declare noalias nonnull align 8 ptr @f(" in
-  List.iter (fun fn -> has fn fresh) [ R.Alloc; R.Alloc_held; R.Box ];
   let handle = "@f(ptr captures(address), i64" in
   List.iter (fun fn -> has fn handle) [ R.List_push; R.List_reserve; R.List_room ];
-  has R.Region_at "@f(ptr readnone captures(address))";
   let read = "ptr readonly captures(none)" in
-  has R.Text_join ("@f(ptr writeonly captures(none), " ^ read ^ ", " ^ read ^ ")");
-  List.iter (fun fn -> has fn "noreturn") [ R.Out_of_range; R.Too_deep; R.No_object ];
+  has R.Text_equal ("@f(" ^ read ^ ", " ^ read ^ ")");
+  List.iter (fun fn -> has fn "noreturn") [ R.Out_of_range; R.Too_deep ];
   Llvm.dispose_context ctx
 
 (* What the runtime's structs measure, as tests/runtime/abi/probe.c prints

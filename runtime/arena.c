@@ -213,9 +213,10 @@ static zane_mark *zane_scope_holding(zane_context *c, const char *at) {
    else, such as a value on the machine stack, is the innermost scope's
    here. Most slots asked about are the innermost scope's own, so the
    search tries that one first. Only this thread searches its context's
-   scopes, which a checked drain's run stops the program on otherwise. LLVM is
-   told it never reads through `at` and keeps no pointer to it, only facts
-   about its address (lib/codegen/runtime_facts.ml). */
+   scopes, which a checked drain's run stops the program on otherwise.
+
+   It keeps no pointer to `at`: a list's push looks its handle up here, and
+   LLVM is told the push keeps none (lib/codegen/runtime_facts.ml). */
 zane_mark *zane_region_at(const void *at) {
 	uintptr_t entry = zane_page_entry(at);
 	if (entry == 0) return zane_self->top;
@@ -718,10 +719,7 @@ zane_stack *zane_stack_of(zane_mark *m, int64_t size, int64_t align) {
 
 /* A block in a region: one returned there of the same size and alignment,
    or else new bytes from its frontier (§3.2). Emitted code calls this when
-   its own inline path finds neither (docs/design/lowering.md §9). LLVM is
-   told (lib/codegen/runtime_facts.ml) that the block is fresh, never null and
-   aligned to a word: it must not overlap any live object, and the runtime
-   must keep no pointer into it while it is out. */
+   its own inline path finds neither (docs/design/lowering.md §9). */
 char *zane_alloc_held(zane_mark *region, int64_t size, int64_t align) {
 	size = zane_word(size);
 	if (align < 8) align = 8;
@@ -744,7 +742,6 @@ char *zane_alloc_held(zane_mark *region, int64_t size, int64_t align) {
 	return block;
 }
 
-/* Told to LLVM as zane_alloc_held is (lib/codegen/runtime_facts.ml). */
 char *zane_alloc(zane_mark *region, int64_t size, int64_t align) {
 	zane_check_region(region);
 	char *block = zane_alloc_held(region, size, align);

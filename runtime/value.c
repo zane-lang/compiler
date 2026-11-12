@@ -32,9 +32,7 @@ static int zane_outlives(const zane_mark *r, const zane_mark *s) {
    `from` is set the blocks are leaving this context's scopes from `from`
    in, which drain first. A type's move walk asks this of each block it
    owns: one that must move goes into an equal block in `region`, and the
-   old one is returned. LLVM is told it never reads through `block` and keeps
-   no pointer to it or to `region`, only facts about their addresses
-   (lib/codegen/runtime_facts.ml). */
+   old one is returned. */
 int64_t zane_leaves(const char *block, zane_mark *region, int64_t from) {
 	zane_mark *r = zane_region_at(block);
 	if (r == zane_constants_region) return 0;

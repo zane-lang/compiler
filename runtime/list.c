@@ -13,9 +13,7 @@
 
 /* An index outside a list or an array (docs/design/lowering.md §9): what the program wrote so
    far is kept, and it stops with a failing status. Emitted code checks an
-   index itself and calls this only when the index is outside.
-
-   LLVM is told it never returns (lib/codegen/runtime_facts.ml). */
+   index itself and calls this only when the index is outside. */
 void zane_out_of_range(void) {
 	zane_flush_output();
 	fputs("index out of range\n", stderr);
@@ -23,10 +21,7 @@ void zane_out_of_range(void) {
 }
 
 /* `@primitives$List(T)` and `@primitives$ListRef(T)`: empty, owning no block. Emitted code makes the
-   same empty handle itself (docs/design/lowering.md §9).
-
-   LLVM is told it writes only `out`, keeps no pointer to it, returns, and
-   frees and waits for nothing (lib/codegen/runtime_facts.ml). */
+   same empty handle itself (docs/design/lowering.md §9). */
 void zane_list_new(zane_list *out) { *out = ZL_MAKE(NULL, 0, 0); }
 
 /* The list's block made at least `needed` bytes. A full list's block
@@ -257,10 +252,7 @@ static void zane_shift_down(char *to, const char *from, int64_t n) {
    caller has already moved out: the later elements move down one place,
    keeping their order, and the list keeps its block. Nothing references an
    element, so moving their bytes moves them. Emitted code makes the same
-   removal itself, with the stride a constant (docs/design/lowering.md §9).
-
-   This and zane_list_swap_remove keep no pointer to `list`, and free and wait
-   for nothing; the swap returns, too (lib/codegen/runtime_facts.ml). */
+   removal itself, with the stride a constant (docs/design/lowering.md §9). */
 void zane_list_remove(zane_list *list, int64_t index, int64_t stride) {
 	char *at = ZL_ITEMS(list) + (index - 1) * stride;
 	zane_shift_down(at, at + stride, (ZL_COUNT(list) - index) * stride);
@@ -293,10 +285,7 @@ void *zane_array_at(char *array, int64_t index, int64_t count, int64_t stride) {
    keeps them. A function that returns a pooled variant is given the pool
    to build it in, and builds every node there (lower.ml, `into`). */
 
-/* The root's node.
-
-   This and zane_link only read memory through their argument, return, and
-   free and wait for nothing (lib/codegen/runtime_facts.ml). */
+/* The root's node. */
 char *zane_pool_root(zane_list *pool, int64_t size) { return ZL_ITEMS(pool) + pool->count - size; }
 
 /* The node a link names. A link may be at any byte of a packed node. */

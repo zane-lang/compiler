@@ -847,20 +847,15 @@ frames.
   tiered; nothing else in `tests/perf` or langbench moves
   ([`perf-runtime-attrs/`](perf-runtime-attrs/README.md))
 
-Each runtime function emitted code calls is declared with the attributes
-its C body keeps, and an optimized build puts them back after it links the
-runtime's bodies, which replace the declarations. All are `nounwind`.
-`zane_out_of_range`, `zane_too_deep` and `zane_no_object` are `noreturn`
-and `cold`, so the paths to them are laid out of the way, and `zane_hold`
-is `cold`. `zane_alloc`, `zane_alloc_held` and `zane_box` return a fresh
-block (`noalias nonnull align 8`). The string, number and argument
-functions only read or only write through their pointers and keep no copy
-of them; `zane_text_equal` and `zane_text_expect` only read memory, so
-loads before them stay valid after. `zane_list_push`, `zane_list_reserve`
-and `zane_list_room` keep no pointer to the list's handle
-(`captures(address)`): a handle in a local slot stays the function's own
-across other calls, so LLVM knows a fresh list is still empty at its first
-push after a call, as in `returns`' `grow`, and drops the check for room.
+`zane_out_of_range` and `zane_too_deep` are `noreturn`, `cold` and
+`nounwind`, so the paths to them are laid out of the way. `zane_text_equal`
+only reads memory, so loads before it stay valid after it.
+`zane_list_push`, `zane_list_reserve` and `zane_list_room` keep no pointer
+to the list's handle (`captures(address)`): a handle in a local slot stays
+the function's own across other calls, so LLVM knows a fresh list is still
+empty at its first push after a call, as in `returns`' `grow`, and drops the
+check for room. An optimized or tiered build puts these back after it links
+the runtime's bodies, which replace the declarations.
 
 ### Inline index checks
 
