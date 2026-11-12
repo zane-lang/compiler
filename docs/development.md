@@ -82,8 +82,9 @@ it links through the C compiler instead.
 ## What each OS runs
 
 `just test` passes on all three. CI runs `just test-compiler` natively on
-each, Windows and macOS on `main`, in the merge queue and on manual runs but
-not on a pull request, and the rest of `just test` on Linux, since what those suites check does not
+each (on Windows and macOS only on `main`, in the merge queue and on manual
+runs, since a pull request runs the Linux checks alone), and the rest of
+`just test` on Linux, since what those suites check does not
 depend on the host. CI also runs the test programs built on Linux for
 Windows and macOS on those systems.
 The highlighting consumers (`just test-highlighting`) and `just test-perf`
