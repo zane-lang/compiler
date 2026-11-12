@@ -78,6 +78,27 @@ written out only while it stays 40 nodes, a recursive one is called inside
 itself, and a call that hands a fresh owner of blocks to a value parameter
 calls the function, which takes the value rather than copying it.
 
+### Conversions lent rather than copied
+
+- **Builds:** every build
+- **Where:** `lib/cgt/lower_calls.ml` (`lent`, `lent_arguments`)
+- **Design:** [`design/lowering.md`](design/lowering.md) L11, "Lent
+  conversions"
+- **Effect:** a loop reading every byte of a string through a wrapper's
+  implicit conversion into a foreign verb, as LangArena's `byte(text, i)`
+  does, goes from quadratic to linear: at 64 KiB, 4.32 billion
+  instructions to 0.73 million; at 512 KiB, 6.4 s to 2 ms, optimized and
+  plain alike. No perf program or golden tree changes
+
+A call whose argument is a verb returning one of its parameters' members,
+such as `core`'s `implicit @primitives$String(v String) => v._value`, is
+given the member where the caller keeps it rather than a copy, when the
+argument only lends it to a borrow parameter and nothing in the call can
+write the source: the call is direct and unspawned, the callee writes
+none of its parameters, and every other argument is a plain read.
+A value has no identity and a borrow is read-only, so only time and
+allocation change.
+
 ### Arenas only for blocks that need one
 
 - **Builds:** every build
@@ -636,6 +657,25 @@ payload, where nothing tells LLVM the load is safe to make before the tag
 is tested. Left beside the tag's load, the room is read either way, and a
 case's test and payload become a select instead of a branch on the tag
 that the predictor cannot learn.
+
+### Loops unrolled past `-O2`'s budgets
+
+- **Builds:** optimized only, and tier 1
+- **Where:** `lib/codegen/passes.ml` (`llvm_options`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
+- **Effect:** `tests/perf` estimated cycles: `paths` 42.8% fewer,
+  `borrows` 11.9%, `returns` 10.0%, `kept` tiered 5.2%, `particles` 3.6%,
+  `entities` 3.4%, `repeats` 3.1% fewer; `removal` 1.1% more; langbench
+  `entities` 8.6% fewer, `nbody` 3.0% more; `.text` up to 10.5% more, tier 1
+  of `repeats` 25% ([`perf-unroll`](perf-unroll/README.md))
+
+LLVM is given a full-unroll budget of 250, against `-O2`'s 150, and a
+partial-unroll budget of 100. A loop of a few constant iterations whose
+body tests the counter becomes straight-line code with each test decided,
+and a counted loop over a list shares its copies' index arithmetic and
+bounds checks. Unrolling never changes what a program means. A cold loop's
+copies can cost a hot loop in the same function a register, and a loop that
+runs only one to four times is unrolled four times for nothing.
 
 ### Index checks taken out of long loops
 

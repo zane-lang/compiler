@@ -1689,6 +1689,262 @@
   (diff golden/hazard.out hazard.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/keptStrings))
+ (targets keptStrings.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build keptStrings.exe --package fixtures/keptStrings)))
+
+(rule
+ (deps (source_tree fixtures/keptStrings))
+ (targets keptStrings.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build keptStrings.optimized.exe --optimize --package fixtures/keptStrings)))
+
+(rule
+ (deps (source_tree fixtures/keptStrings))
+ (targets keptStrings.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build keptStrings.tiered.exe --tiered --package fixtures/keptStrings)))
+
+(rule
+ (deps (source_tree fixtures/keptStrings))
+ (targets keptStrings.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up keptStrings.tier1 --package fixtures/keptStrings)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    keptStrings.checked.out.actual
+    (run ./keptStrings.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/keptStrings.out keptStrings.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    keptStrings.unchecked.out.actual
+    (run ./keptStrings.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/keptStrings.out keptStrings.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    keptStrings.optimized.checked.out.actual
+    (run ./keptStrings.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/keptStrings.out keptStrings.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    keptStrings.optimized.unchecked.out.actual
+    (run ./keptStrings.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/keptStrings.out keptStrings.optimized.unchecked.out.actual)))
+
+(rule
+ (deps keptStrings.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./keptStrings.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    keptStrings.tiered.checked.out.actual
+    (run ./keptStrings.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/keptStrings.out keptStrings.tiered.checked.out.actual)))
+
+(rule
+ (deps keptStrings.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./keptStrings.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    keptStrings.tiered.unchecked.out.actual
+    (run ./keptStrings.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/keptStrings.out keptStrings.tiered.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/lentStrings))
+ (action
+  (with-stdout-to
+   lentStrings.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/lentStrings))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lentStrings.cgt lentStrings.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/lentStrings))
+ (targets lentStrings.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build lentStrings.exe --package fixtures/lentStrings)))
+
+(rule
+ (deps (source_tree fixtures/lentStrings))
+ (targets lentStrings.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build lentStrings.optimized.exe --optimize --package fixtures/lentStrings)))
+
+(rule
+ (deps (source_tree fixtures/lentStrings))
+ (targets lentStrings.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build lentStrings.tiered.exe --tiered --package fixtures/lentStrings)))
+
+(rule
+ (deps (source_tree fixtures/lentStrings))
+ (targets lentStrings.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up lentStrings.tier1 --package fixtures/lentStrings)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    lentStrings.checked.out.actual
+    (run ./lentStrings.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lentStrings.out lentStrings.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    lentStrings.unchecked.out.actual
+    (run ./lentStrings.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lentStrings.out lentStrings.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    lentStrings.optimized.checked.out.actual
+    (run ./lentStrings.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lentStrings.out lentStrings.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    lentStrings.optimized.unchecked.out.actual
+    (run ./lentStrings.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lentStrings.out lentStrings.optimized.unchecked.out.actual)))
+
+(rule
+ (deps lentStrings.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./lentStrings.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    lentStrings.tiered.checked.out.actual
+    (run ./lentStrings.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lentStrings.out lentStrings.tiered.checked.out.actual)))
+
+(rule
+ (deps lentStrings.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./lentStrings.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    lentStrings.tiered.unchecked.out.actual
+    (run ./lentStrings.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/lentStrings.out lentStrings.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/noObject))
  (targets noObject.exe)
  (action

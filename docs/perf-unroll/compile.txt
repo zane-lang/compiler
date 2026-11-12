@@ -1,0 +1,9 @@
+program                 build        main      new     change
+stress                  --optimize   13.89s   13.93s   +0.3%
+stress                  --tier-up     0.19s    0.21s  +10.6%   (noise: 0.02 s)
+longChain               --optimize    1.71s    1.68s   -1.6%
+longChain               --tier-up     1.61s    1.64s   +1.7%
+wideSum                 --optimize    0.33s    0.33s   +1.2%
+wideSum                 --tier-up     0.18s    0.21s  +12.8%   (noise: 0.03 s)
+binarytrees (langbench) --optimize    0.64s    0.68s   +5.9%
+binarytrees (langbench) --tier-up     0.07s    0.06s  -15.3%   (noise)

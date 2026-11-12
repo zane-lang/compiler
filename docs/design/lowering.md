@@ -253,6 +253,46 @@ parameter that owns blocks calls the function: written out, the value would
 be held in a slot of the caller's and copied wherever the body keeps it,
 where the function takes it as it is (`Regions.taken_params`).
 
+**Lent conversions.** A verb whose body returns a member of one of its
+value parameters, such as `core`'s `implicit @primitives$String(v String)
+=> v._value`, copies that member: a return through a borrow binds into
+fresh storage
+([`memory.md`](https://github.com/zane-lang/spec/blob/71f5a27/spec/memory.md)
+§2.9). Where such a call's result is only lent to a borrow parameter of a
+direct call and dies with it, nothing can tell the copy from the member
+itself, so lowering rewrites the argument as the member path, `f(conv(x))`
+as `f(x._value)`, and the call reads the member where `x` keeps it
+(`Lower_calls.lent`). A value has no identity and the member is only read,
+never stored, returned or minted into a reference; what the call lends a
+foreign verb, C may not keep past it ([`ffi.md`](ffi.md) F10). So only
+time and allocation change, and only where nothing could write `x` while
+it is lent. The checker's rule against writing what a call borrows
+(§2.9.1) sees a temporary here, not `x`, so lowering checks what it would
+have checked for `f(x._value)`:
+
+- the call is a direct call that is not spawned: a spawned call reads its
+  arguments while the caller goes on, and may write `x` (concurrency.md
+  §4.4);
+- the callee is no `mut` method, so its subject cannot be `x`, and takes
+  only value parameters, none an `&T`, `^T`, reference-type borrow or
+  pooled variant, so it writes nothing it was given;
+- every other argument of the call, and of the conversion, is inert: a
+  read of a local or a constant and its members, a literal with nothing
+  interpolated, or an operator, math intrinsic, primitive constructor or
+  lent conversion of inert operands. A block argument, a `!` call or any
+  other call may write `x`, so a call with one keeps the copy, and so does
+  one reading a local bound to a spawned call: the read settles the call,
+  which runs the handler written at the spawn;
+- the conversion is no `mut` method, declares no abort, takes only value
+  parameters, and its body is one `return` of a parameter's member path;
+- `x` is no such local, and it and every member on the path are value
+  types reached through no reference, owner, `^T`, subscript or case read,
+  so nothing outside the caller's own slot can reach them. A conversion of a conversion is taken
+  apart the same way, the inner one's path becoming the outer's root.
+
+A verb written out where it is called is left as it is: its argument
+binds a slot of its own, whose body the rules above do not cover.
+
 **L12. A verb has up to three outcomes, and a call checks for them.** A
 function returns a small outcome tag when it can end in more than one way:
 
@@ -1561,6 +1601,36 @@ test passing.
   loop gains an instruction from a different exit test, 2.5% more
   ([`experiments/tight-layouts`](../experiments/tight-layouts/README.md)
   step 14).
+
+  The same options raise LLVM's unrolling budgets above `-O2`'s. Full
+  unrolling (`-unroll-threshold`) is 250, where `-O2` allows 150. A loop of
+  a few constant iterations whose body tests the counter, as `d!to(Int(4))`
+  does over four `branch(d == k, ...)`, stays a loop at 150, with the four
+  tests one `switch` on the counter that a predictor without history cannot
+  learn; unrolled, each copy knows the counter and the tests are gone. The
+  budget is a step: 150 and below leave `tests/perf` `paths` and `returns`
+  as they were, 200 takes `returns`, 250 takes `paths`, and nothing up to
+  1000 moves another program. Partial unrolling
+  (`-unroll-partial-threshold`) is 100: a counted loop over a list unrolls,
+  sharing its copies' index arithmetic and bounds checks, and `borrows` runs
+  28% fewer instructions. A budget of 150 also takes `division` (3.8%) and a
+  point more on `entities` and `repeats`, at 6% to 56% more `.text` and a
+  worse result on langbench `nbody`, whose pair loop `j!to(n)` runs one to
+  four times: the runtime unroller makes it a four-wide copy behind a
+  prologue and guards that the loop's few iterations never reach, so each
+  step runs 63 more instructions (+10.4%, +6.8% cycles; at 100, +6.4% and
+  +3.0%). Turning runtime unrolling off, or capping the factor at 2, loses
+  `borrows`' gain ([`perf-unroll/nbody.md`](../perf-unroll/nbody.md)). In
+  estimated cycles against the options without them: `paths` 42.8% fewer,
+  `borrows` 11.9%, `returns` 10.0%, `kept` tiered 5.2%, `particles` 3.6%,
+  `entities` 3.4%, `repeats` 3.1%; `removal` 1.1% more, where the cold
+  loop's copies leave the hot loop beside it a register and it reloads its
+  items pointer on every iteration, and `nbody` 3.0% more. The price is
+  code: a `tests/perf` executable's `.text` grows up to 10.5%, tier 1 of
+  `kept` 8% and of `repeats` 25%. The langbench programs that build
+  (`perf-unroll`) grow 2% to 14% (11% for the two tiny ones) and run within
+  0.2% of before except `entities` (8.6% fewer) and `nbody`, and compiling
+  takes as long ([`perf-unroll`](../perf-unroll/README.md)).
 
   For an AArch64 target, `-O2`'s loop unswitching also copies a loop whose
   body branches on a condition the loop does not change, once for each
