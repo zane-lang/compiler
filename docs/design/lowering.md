@@ -1457,6 +1457,8 @@ test passing.
     the count, in the function that removes. LLVM then sees exactly which
     bytes change, as it sees an element's address and a push's
     (`runtime/list.c` keeps the runtime's own forms of all three).
+  A short counted loop that leaves early also carries a mark asking for it
+  to be unrolled twice (`llvm.loop.unroll.count` 2; "The passes" below).
 - **The passes.** `lib/codegen/passes.ml` names what LLVM runs over the
   module. An unoptimized build and tier 0 run `Passes.unoptimized`
   ([`optimization.md`](optimization.md) O12). An optimized build and tier 1
@@ -1486,11 +1488,14 @@ test passing.
   writes are checked into the iterations its checks may fail on and a main
   loop between them that it has proved needs none. The split costs each
   entry to the loop a few dozen instructions, which a short loop does not
-  earn back, so IRCE runs only on a loop LLVM is told goes round at least
-  64 times for each entry (`Passes.llvm_options`). Codegen says which loops
-  those are: a `repeat` that no other loop holds, that holds no loop, spawn,
-  join, `return` or call back into its own function, that nothing leaves
-  early, and that reads or writes an element, is emitted twice (`Emit.versioned`) in an optimized build and in
+  earn back, so IRCE splits a loop only when it expects the split to remove
+  enough checks for each entry, which it reckons from the loop's branch
+  weights, or from LLVM's guess where there are none
+  (`-irce-min-eliminated-checks`, left at its default of 10). Codegen says
+  which loops are long: a `repeat` that no other loop holds, that holds no
+  loop, spawn, join, `return` or call back into its own function, that
+  nothing leaves early, and that reads or writes an element, is emitted
+  twice (`Emit.versioned`) in an optimized build and in
   both tiers of a tiered one, which emit the same module
   ([`tiers.md`](tiers.md) T3); a plain build, whose passes have no use for the
   copies, emits it once. A count of at least 16 runs
@@ -1498,6 +1503,35 @@ test passing.
   one runs the copy said to go round 4 times, which IRCE leaves alone. A
   list's count is loaded with the range `[0, 2^63)`, which IRCE's bounds
   need.
+
+  A loop codegen emits once has no branch weights, and LLVM guesses it goes
+  round often enough for IRCE to split it. In `tests/perf` `flips`,
+  `advance` moves its first few elements down one place in such a loop,
+  nested in another, usually over one or two elements; IRCE splits it, and
+  loop idiom recognition then makes the split's main loop a `memmove` call
+  of about 12 bytes. The call is kept, since each way of keeping the loop
+  measured slower in estimated cycles, all programs measured: turning
+  `memmove` and `memcpy` formation off (`-disable-loop-idiom-memcpy`) moves
+  only `flips`, by 4.8% fewer instructions but 19% more mispredicted
+  branches, 0.84% more cycles; asking IRCE for 64 removed checks per entry
+  (`-irce-min-eliminated-checks=64`) leaves the loop unsplit, at 1.06% more
+  cycles for `flips` and 11.3% for `particles`, 7.4% for `entities` and
+  1.7% for `stress`. The loop's exit, taken after one or two elements,
+  is what mispredicts; the call's own branches predict better.
+
+  A `repeat` that can leave before its count runs out, through a `return`
+  or a block it is in, and that holds no loop, spawn, join or call, has its back
+  edge marked to be unrolled twice (`llvm.loop.unroll.count` 2,
+  `Emit.unrolled`), in every build; only the optimized passes and tier 1's
+  act on it. On x86-64 `-O2`'s cost model allows partial unrolling only of
+  loops smaller than a dozen arithmetic operations, and in a copy whose
+  exits lead to the same place it merges the two exit tests, after which the
+  trips cannot be counted at all, so such a loop otherwise stays rolled:
+  unrolled, `tests/perf` `floats`' escape test takes 16.5% fewer estimated
+  cycles. A
+  loop that calls is left as it is, since its call costs far more than the
+  test unrolling saves: unrolled, the loop the memo pass checks made
+  `depths` 2.5% slower.
 
   The same options start every function on a 64-byte line
   (`-align-all-functions=6`), where LLVM would start it on 16 bytes. Which

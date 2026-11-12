@@ -1,0 +1,82 @@
+/// Two counted loops that return early: `escapes`, whose body is arithmetic
+/// alone and is asked to be unrolled twice, and `first`, whose body calls a
+/// function and is not. Its first argument is how many points along a line
+/// `escapes` tests, the second how far `first` looks. Spawns nothing.
+package escapes;
+
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The `n`th argument, or `fallback` when there is none or it spells no
+/// integer.
+Int argument(n Int, fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), n), {
+		return fallback;
+	});
+	return args[n]:parseI64() ?? fallback;
+}
+
+/// Whether the point leaves the circle of radius 2 within 50 squarings.
+Bool escapes(cr Float, ci Float) {
+	zr Float(0.0);
+	zi Float(0.0);
+	i Int(1);
+	i!to(Int(50)) {
+		tr Float = @operators$add(@operators$add(@operators$multiply(zr, zr), @operators$negate(@operators$multiply(zi, zi))), cr);
+		zi = @operators$add(@operators$multiply(@operators$multiply(Float(2.0), zr), zi), ci);
+		zr = tr;
+		@controlflow$branch(@operators$lessThan(Float(4.0), @operators$add(@operators$multiply(zr, zr), @operators$multiply(zi, zi))), {
+			return true;
+		});
+	}
+	return false;
+}
+
+/// Whether `k` is a positive multiple of 7. Two statements, so the call
+/// stays a call in the code-generation tree.
+Bool sevenfold(k Int) {
+	@controlflow$branch(@operators$lessThan(k, Int(1)), {
+		return false;
+	});
+	return @operators$equal(@operators$add(k, @operators$negate(@operators$multiply(@operators$divide(k, Int(7)), Int(7)))), Int(0));
+}
+
+/// The first multiple of 7 from `from` to `to`, or 0.
+Int first(from Int, until Int) {
+	i Int = from;
+	i!to(until) {
+		@controlflow$branch(sevenfold(i), {
+			return i;
+		});
+	}
+	return Int(0);
+}
+
+Unit main() {
+	n Int = argument(Int(1), Int(40));
+	escaped Int(0);
+	x Int(0);
+	x!to(@operators$add(n, @operators$negate(Int(1)))) {
+		cr Float = @operators$add(@operators$divide(@operators$multiply(Float(3.0), @primitives$F64.round(x)), @primitives$F64.round(n)), @operators$negate(Float(2.0)));
+		@controlflow$branch(escapes(cr, Float(0.5)), {
+			escaped = @operators$add(escaped, Int(1));
+		});
+	}
+	@program$console!print(@operators$concat(@operators$concat(String(escaped), String(" ")), @operators$concat(String(first(Int(8), argument(Int(2), Int(20)))), String.escaped("\n"))));
+	return Unit();
+}

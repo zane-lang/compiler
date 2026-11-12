@@ -70,16 +70,11 @@ let nontrivial triple pipeline =
     Buffer.contents b
 
 (* The options LLVM is started with for [optimized] and [tier1], the same
-   for both, since LLVM reads them once for the whole process. IRCE splits a
-   loop only when its header runs at least this many times for each entry
-   to it, since the split costs each entry more than a short loop saves:
-   more than LLVM guesses for a loop it knows nothing of, and fewer than
-   codegen says the long copy of a loop it emits twice goes round
-   (Emit.versioned). Every function starts on a 64-byte line, so where a
-   function lies within its line, and so which branches share a
-   predictor's entries, does not move when the code before it changes
-   size: a change elsewhere once cost an unchanged loop of `copies` 40%
-   more mispredicted branches (tests/perf).
+   for both, since LLVM reads them once for the whole process. Every
+   function starts on a 64-byte line, so where a function lies within its
+   line, and so which branches share a predictor's entries, does not move
+   when the code before it changes size: a change elsewhere once cost an
+   unchanged loop of `copies` 40% more mispredicted branches (tests/perf).
 
    Instruction combining sinks no instruction into the block that uses it.
    It splits the load of a struct with no padding into a load of each
@@ -90,7 +85,7 @@ let nontrivial triple pipeline =
    which case a value holds follows no pattern. Left beside the tag's load,
    the room is read either way and the case's work becomes a select
    (docs/optimizations.md, "A sum's case picked without a branch"). *)
-let llvm_options = [ "-irce-min-runtime-iterations=64"; "-align-all-functions=6"; "-instcombine-code-sinking=false" ]
+let llvm_options = [ "-align-all-functions=6"; "-instcombine-code-sinking=false" ]
 
 (* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*,
    for [triple]. *)

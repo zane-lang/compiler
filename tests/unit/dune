@@ -2,7 +2,7 @@
 ; the CGT (traversals.ml), types and their substitution, signatures, overload
 ; ranking, lowering's type layouts, the runtime's ABI and what its structs
 ; measure (tests/runtime/abi), what stage 5's evaluator makes of the tree,
-; how codegen reads a snapshot, the processor codegen tunes for and which targets it accepts, and
+; how codegen reads a snapshot, which loops it marks to be unrolled, the processor codegen tunes for and which targets it accepts, and
 ; how a build keeps its compiled runtime and links. The golden suites test the
 ; same code end to end; these say which helper broke, rather than where in a
 ; golden file the difference surfaced. They also check that semantics run twice in one process gives the

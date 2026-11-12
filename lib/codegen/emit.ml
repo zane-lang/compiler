@@ -124,6 +124,12 @@ let count_field env instr =
    to the C math library's function of that name, `f`-suffixed for an
    `F32`, marked `nobuiltin` so that LLVM neither computes it nor rewrites
    it: its result is the library's where the program runs (math.md §2.6). *)
+let library_math = function
+  | Cgt.Math.Cbrt | Cgt.Math.Sin | Cgt.Math.Cos | Cgt.Math.Tan | Cgt.Math.Asin | Cgt.Math.Acos | Cgt.Math.Atan
+  | Cgt.Math.Atan2 | Cgt.Math.Exp | Cgt.Math.Log | Cgt.Math.Pow | Cgt.Math.Hypot ->
+      true
+  | _ -> false
+
 let math env b (fn : Cgt.Math.fn) (t : Ty.t) args =
   let lt = lltype env t in
   let declare name params ret =
@@ -190,11 +196,7 @@ let math env b (fn : Cgt.Math.fn) (t : Ty.t) args =
          sign operand counts as positive. *)
       let nan = Llvm.build_fcmp Llvm.Fcmp.Uno s s "" b in
       Llvm.build_select nan (intrinsic "fabs" [ m ]) (intrinsic "copysign" [ m; s ]) "" b
-  | ( ( Cgt.Math.Cbrt | Cgt.Math.Sin | Cgt.Math.Cos | Cgt.Math.Tan | Cgt.Math.Asin | Cgt.Math.Acos
-      | Cgt.Math.Atan | Cgt.Math.Atan2 | Cgt.Math.Exp | Cgt.Math.Log | Cgt.Math.Pow
-      | Cgt.Math.Hypot ) as fn ),
-    _ ->
-      library (Cgt.Math.name fn)
+  | fn, _ when library_math fn -> library (Cgt.Math.name fn)
   | _ -> Diagnostic.bug ("codegen: `@math$" ^ Cgt.Math.name fn ^ "` with the wrong operands")
 
 
@@ -309,10 +311,21 @@ let weigh env br trips =
 
 (* The count from which a [versioned] loop runs its long copy, and how often
    each copy is said to go round: the long one as a hot loop, the short one
-   fewer times than IRCE splits a loop's checks for (Passes.llvm_options). *)
+   too few times for IRCE to expect its split to pay. *)
 let long_loop = 16
 let long_trips = 1000
 let short_trips = 4
+
+(* Whether a loop with [body] can leave before its count runs out: it
+   returns, or leaves a block that holds it. *)
+let leaves_early body =
+  let inside = Hashtbl.create 8 in
+  Cgt.Traverse.walk_stats
+    (fun e -> match e.Expr.node with Expr.Expand { label; _ } -> Hashtbl.replace inside label () | _ -> ())
+    ignore body;
+  Cgt.Traverse.exists_in body
+    ~expr:(fun _ -> false)
+    ~stat:(function Stat.Return _ -> true | Stat.Leave label -> not (Hashtbl.mem inside label) | _ -> false)
 
 (* Whether a loop with [body] in the function [symbol] is emitted twice
    (Stat.Repeat): it holds no loop, no spawned call and no call back into
@@ -320,21 +333,63 @@ let short_trips = 4
    count runs out, and it reads or writes a list's element, whose check IRCE
    may take out of it. *)
 let versioned ~symbol body =
-  let inside = Hashtbl.create 8 in
-  Cgt.Traverse.walk_stats
-    (fun e -> match e.Expr.node with Expr.Expand { label; _ } -> Hashtbl.replace inside label () | _ -> ())
-    ignore body;
   let indexes = function Cgt.Runtime.List_at | Cgt.Runtime.Array_at -> true | _ -> false in
-  (not
-     (Cgt.Traverse.exists_in body
-        ~expr:(fun e -> match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol | _ -> false)
-        ~stat:(function
-          | Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ | Stat.Return _ -> true
-          | Stat.Leave label -> not (Hashtbl.mem inside label)
-          | _ -> false)))
+  (not (leaves_early body))
+  && (not
+        (Cgt.Traverse.exists_in body
+           ~expr:(fun e -> match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol | _ -> false)
+           ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ -> true | _ -> false)))
   && Cgt.Traverse.exists_in body
        ~expr:(fun e -> match e.Expr.node with Expr.Runtime { fn; _ } -> indexes fn | _ -> false)
        ~stat:(fun _ -> false)
+
+(* Whether a counted loop with [body] is asked to be unrolled twice
+   (Stat.Repeat): it can leave before its count runs out, holds no loop,
+   spawn or join, and calls nothing: no function, by name, through a value
+   or in C, and none of the runtime's functions. An element's index check
+   counts as no call, since codegen emits it in line as a compare and an
+   address, and its failure stops the program; every other runtime
+   operation is a call into the runtime, which the optimized passes inline
+   only sometimes. The same goes for an approximate math function, a C
+   library call ([library_math]); for a box, which allocates; for a
+   snapshot, an overwrite and a value taken out of an arena, which the
+   runtime makes; for a scope that opens a region ([Loop_shapes.light],
+   which leaves out only that a frame of more than 4 KiB opens one too);
+   and for a copy, a hold, a reservation or a placement of a value whose
+   layout lists anything ([listed]), whose blocks the runtime copies,
+   lists or settles. Every build marks it; only the optimized passes and
+   tier 1's act on the mark. LLVM 21's `-O2` leaves such a loop
+   rolled on x86-64 even when its body is a dozen arithmetic operations,
+   since the target's cost model allows partial unrolling only of smaller
+   loops, and in a copy whose two exits lead to the same place the passes
+   merge the exit tests, after which its trips cannot be counted at all.
+   Asked for two, it unrolls a short loop of arithmetic such as `floats`'
+   escape test. A loop that calls is left alone:
+   its call dwarfs the test unrolling saves, and the loop the memo pass
+   checks, which calls, is 2.5% slower in `depths` unrolled
+   (docs/design/lowering.md, "The passes"). *)
+let unrolled ~listed body =
+  let calls (e : Expr.t) =
+    match e.Expr.node with
+    | Expr.Call _ | Expr.Call_value _ | Expr.Foreign_call _ | Expr.Box _ | Expr.Snapshot _ | Expr.Escape _ -> true
+    | Expr.Runtime { fn = Cgt.Runtime.List_at | Cgt.Runtime.Array_at | Cgt.Runtime.Out_of_range; _ } -> false
+    | Expr.Runtime _ -> true
+    | Expr.Math { fn; _ } -> library_math fn
+    | Expr.Take { layout; _ } | Expr.Copy { layout; _ } -> listed layout
+    | _ -> false
+  in
+  let stops = function
+    | Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ | Stat.Overwrite _ -> true
+    | Stat.Scope { id; body } -> not (light id body)
+    | Stat.Hold { layout; _ } | Stat.Reserve { layout; _ } | Stat.Place { layout; _ } -> listed layout
+    | _ -> false
+  in
+  leaves_early body && not (Cgt.Traverse.exists_in body ~expr:calls ~stat:stops)
+
+(* The `llvm.loop` node that asks for a loop unrolled twice. *)
+let unroll_twice env =
+  let i32 = Llvm.i32_type env.ctx in
+  Llvm_extra.loop_id env.ctx [| Llvm.mdnode env.ctx [| Llvm.mdstring env.ctx "llvm.loop.unroll.count"; Llvm.const_int i32 2 |] |]
 
 (* Offsets into a scope's record and a context (runtime/zane_abi.h). *)
 let record_context = Abi.mark_context
@@ -1576,6 +1631,7 @@ and stat env fr b (s : Stat.t) =
       Fun.protect ~finally:(fun () -> List.iter (fun (id, _) -> Hashtbl.remove fr.runs id) looped) @@ fun () ->
       let lists, names = invariant_lists body in
       let ranges = ranged body lists names in
+      let twice = unrolled ~listed:(listed env) body in
       let counted trips =
         let saved = fr.hoisted in
         let hoisted =
@@ -1606,7 +1662,8 @@ and stat env fr b (s : Stat.t) =
           (* Below the count, so it cannot wrap. *)
           let next = Llvm.build_nsw_add current (Llvm.const_int env.i64 1) "" b in
           ignore (Llvm.build_store next i b);
-          ignore (Llvm.build_br head b)
+          let back = Llvm.build_br head b in
+          if twice then Llvm.set_metadata back (Llvm.mdkind_id env.ctx "llvm.loop") (unroll_twice env)
         end;
         Llvm.position_at_end after b
         in

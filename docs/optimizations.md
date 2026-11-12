@@ -640,7 +640,7 @@ that the predictor cannot learn.
 ### Index checks taken out of long loops
 
 - **Builds:** optimized only (and tier 1)
-- **Where:** `lib/codegen/passes.ml` (`optimized`, `llvm_options`),
+- **Where:** `lib/codegen/passes.ml` (`optimized`),
   `lib/llvm/config/discover.ml`, `lib/codegen/emit.ml` (`versioned`,
   `count_field`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
@@ -657,9 +657,34 @@ iterations around it that might fail one, which still check and stop the
 program as the spec says. It runs inside `-O2` once each loop is rotated.
 An optimized build emits each loop it could help twice, with branch
 weights saying the long copy goes round 1,000 times and the short one 4,
-and IRCE splits only the long one, since the split costs a short loop more
-than it saves. A loop that calls back into its own function is left as it
-is: the call costs far more than the check.
+and IRCE splits the long copy and not the short one, since the split costs
+a short loop more than it saves. A loop that calls back into its own
+function is left as it is: the call costs far more than the check. A loop
+emitted once has no weights, and IRCE splits it on LLVM's guess; loop idiom
+recognition may then make its main loop a `memmove` call. In `flips` that
+call, about 12 bytes, costs fewer estimated cycles than either way of
+keeping the loop ([`design/lowering.md`](design/lowering.md) §9, "The
+passes", has the measurements).
+
+### Short loops that leave early unrolled twice
+
+- **Builds:** every build marks the loops; optimized builds and tier 1
+  act on the mark
+- **Where:** `lib/codegen/emit.ml` (`unrolled`, `unroll_twice`),
+  `lib/codegen/llvm_stubs.c` (`zane_loop_id`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
+- **Effect:** `tests/perf` `floats` 16.5% fewer estimated cycles, optimized
+  and tiered; `stress` 0.6% (optimized) and 1.1% (tiered) and `division`
+  1.0% fewer; every other program unchanged
+
+A counted loop that can return or leave a block before its count runs out,
+and holds no loop, spawn, join or call, has its back edge marked
+`llvm.loop.unroll.count` 2. Such a loop has two exits, which `-O2` merges
+into one test where both lead to the same place, and its cost model on
+x86-64 leaves even a dozen arithmetic operations rolled, so without the
+mark Mandelbrot's escape test runs one step per trip. A loop that calls is
+left alone: the call costs more than the test unrolling saves, and
+unrolling the loop the memo pass checks made `depths` 2.5% slower.
 
 ### Loops unswitched on AArch64
 

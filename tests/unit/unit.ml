@@ -990,6 +990,44 @@ let snapshot_reads () =
   check "a handle is read by the runtime" (read T.Handle = `Runtime);
   check "two I64s are read by the runtime" (read (T.Struct [ T.I64; T.I64 ]) = `Runtime)
 
+(* A counted loop that returns early is marked to be unrolled twice only
+   when it calls nothing (Emit.unrolled): a call by name, through a value,
+   into C or into the runtime keeps it unmarked, and so do an approximate
+   math function, a box, a snapshot, an overwrite and a hold of a value
+   whose layout lists anything, each of which emits a call; an element's
+   index check, emitted in line, an LLVM intrinsic such as `sqrt` and a
+   hold of a layout that lists nothing do not; a loop that never leaves
+   early is not marked. *)
+let unroll_marks () =
+  let open Cgt.Nodes in
+  let unrolled = Codegen__Emit.unrolled ~listed:(fun l -> l = "Listed") in
+  let e node ty = { Expr.node; ty } in
+  let int n = e (Expr.Int (Int64.of_int n)) Ty.I64 in
+  let leave = Stat.If { cond = e (Expr.Bool true) Ty.I1; body = [ Stat.Return (int 0) ] } in
+  let with_ node = [ Stat.Eval (e node Ty.I64); leave ] in
+  check "a loop of arithmetic that returns early is marked" (unrolled [ leave ]);
+  check "a loop that never leaves early is not marked" (not (unrolled [ Stat.Eval (int 1) ]));
+  check "a call by name keeps it unmarked" (not (unrolled (with_ (Expr.Call { fn = "f"; args = [] }))));
+  check "a call through a value keeps it unmarked"
+    (not (unrolled (with_ (Expr.Call_value { fn = e (Expr.Local 1) Ty.Ptr; args = [] }))));
+  check "a call into C keeps it unmarked" (not (unrolled (with_ (Expr.Foreign_call { thunk = "t"; args = [] }))));
+  check "a call into the runtime keeps it unmarked"
+    (not (unrolled (with_ (Expr.Runtime { fn = Cgt.Runtime.Text_i64; args = [ int 1 ] }))));
+  let float = e (Expr.Float 1.0) Ty.F64 in
+  check "an approximate math function keeps it unmarked"
+    (not (unrolled (with_ (Expr.Math { fn = Cgt.Math.Sin; args = [ float ] }))));
+  check "an intrinsic math function leaves it marked" (unrolled (with_ (Expr.Math { fn = Cgt.Math.Sqrt; args = [ float ] })));
+  check "a box keeps it unmarked" (not (unrolled (with_ (Expr.Box { value = int 1; layout = "Plain" }))));
+  check "a snapshot keeps it unmarked" (not (unrolled (with_ (Expr.Snapshot (e (Expr.Local 1) Ty.Ptr)))));
+  let at = e (Expr.Local 1) Ty.Ptr in
+  check "an overwrite keeps it unmarked"
+    (not (unrolled [ Stat.Overwrite { address = at; value = int 1; layout = "Plain"; setters = false }; leave ]));
+  let hold layout = [ Stat.Hold { id = 2; scope = 3; value = int 1; layout }; leave ] in
+  check "a hold of a listed layout keeps it unmarked" (not (unrolled (hold "Listed")));
+  check "a hold of a layout that lists nothing leaves it marked" (unrolled (hold "Plain"));
+  check "an element's index check leaves it marked"
+    (unrolled (with_ (Expr.Runtime { fn = Cgt.Runtime.List_at; args = [ e (Expr.Local 1) Ty.Ptr; int 1; int 8 ] })))
+
 (* Layouts share their walks when their positions are alike and what each
    nests is walked alike: two lists of strings under different names, and
    two boxed lists that name themselves, share; a list of a differently
@@ -1684,6 +1722,7 @@ let () =
   twice ();
   at_once ();
   snapshot_reads ();
+  unroll_marks ();
   shared_walks ();
   target_cpus ();
   sixty_four_bit ();

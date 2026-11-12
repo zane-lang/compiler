@@ -29,7 +29,9 @@ takes no `--link`, since it links nothing of the program's (T4).
 stage 5, runs the optimized build's passes ([`lowering.md`](lowering.md)
 §9, "The passes") with runtime loop unrolling off, under the options LLVM
 is started with for that build (`Passes.llvm_options`), and generates
-optimized machine code (`Passes.tier1`). Runtime unrolling is what made `-O2` take 16 s
+optimized machine code (`Passes.tier1`). The one exception is a short loop
+codegen marks to be unrolled twice (`Emit.unrolled`): it holds no call, so
+it is small, and unrolling it costs little time. Runtime unrolling is what made `-O2` take 16 s
 of a 400-function program's 25 s build, against 2 s without it, for code
 about 5% slower; stage 5 takes seconds on programs that compute much ahead of
 time. A tier 1 that arrives late gains the program nothing, so it is built

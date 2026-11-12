@@ -297,6 +297,38 @@ class FactsTests(unittest.TestCase):
         self.assertGreaterEqual(len(selectors), 2, selectors)
         self.assertRegex(ir, r"\npostloop[.\w]*:")
 
+    def test_short_loops_that_leave_early_are_unrolled_twice(self):
+        # A counted loop that can return early and holds only arithmetic is
+        # asked to be unrolled twice (Emit.unrolled): its back edge names a
+        # loop node that holds `llvm.loop.unroll.count` 2, in each of
+        # `escapes`' copies, the memo pass's and the plain one. `first`'s
+        # loop, which calls `sevenfold`, carries none. Optimized, LLVM
+        # unrolls each copy of `escapes`' loop, so its escape test is there
+        # twice as often.
+        ir = run(ZANEC, "--ll", *packages("escapes"))
+        bodies = {}
+        for m in re.finditer(r'(?ms)^define [^\n]*@"escapes\$(\w+)\([^"]*\)([.\w]*)"[^\n]*\n(.*?)^\}', ir):
+            bodies[m.group(1) + m.group(2)] = m.group(3)
+        hint = re.search(r'(?m)^(![0-9]+) = !\{!"llvm\.loop\.unroll\.count", i32 2\}$', ir)
+        self.assertIsNotNone(hint, "no unroll count in the plain build")
+        loops = {m.group(1) for m in re.finditer(rf'(?m)^(![0-9]+) = distinct !\{{\1, {hint.group(1)}\}}$', ir)}
+        for name in ("escapes.memo", "escapes.plain"):
+            self.assertRegex(bodies[name], r"br label %\w+, !llvm\.loop !\d+", name)
+            named = set(re.findall(r"!llvm\.loop (![0-9]+)", bodies[name]))
+            self.assertTrue(named and named <= loops, (name, named, loops))
+        self.assertNotIn("!llvm.loop", bodies["first"])
+        tests = lambda ir: len(re.findall(r"fcmp \w+ double [^\n]*4\.000000e\+00", ir))
+        optimized = run(ZANEC, "--ll", "--optimize", *packages("escapes"))
+        self.assertEqual(tests(optimized), 2 * tests(ir))
+
+    def test_escapes_runs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "escapes"
+                run(ZANEC, "--build", exe, *optimize, *packages("escapes"))
+                self.assertEqual(run_program(exe, 40, 20), "29 14\n", optimize)
+                self.assertEqual(run_program(exe, 100, 10), "71 0\n", optimize)
+
     def test_bounce_runs_and_stops_out_of_range(self):
         with tempfile.TemporaryDirectory() as temp:
             for optimize in [[], ["--optimize"]]:
