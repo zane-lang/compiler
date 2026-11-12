@@ -237,6 +237,10 @@ known inputs. Codegen gives LLVM these definitions with
 `available_externally` linkage, which permits inlining and analysis but emits
 no function definition in the caller's object. A call LLVM leaves behind uses
 the original stamped symbol, and the dependency object resolves it as before.
+A call that passes a fresh argument to a value parameter the function only
+copies calls a local copy of it, `<symbol>.taken`, defined in the caller's own
+object ([`lowering.md`](lowering.md) §9), so the dependency object needs no
+symbol for it.
 Named lambda-variables use the same linkage; generic
 instances and package constants retain C4's shared definitions. The original
 object may be optimized or unoptimized. Symbols still contain their full

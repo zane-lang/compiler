@@ -1264,7 +1264,9 @@ test passing.
   whole where it is stored from a place ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.3), and passed
   as it is where it is only read: a value parameter is read-only (§2.9), so
   the caller keeps it, and a fresh one is held in the caller's scope first.
-  A callee that stores its parameter copies it.
+  A callee that stores its parameter copies it, except where it copies the
+  parameter once into what it keeps: then a fresh argument is moved in,
+  into the callee or its local copy, and not held (§9).
 - **A case read of an owner.** What a case read gives is its payload, which
   the variant keeps, or what its handler resolves, which is fresh. So a read
   whose type is a reference type, or a value that owns a block, gives an address: the
