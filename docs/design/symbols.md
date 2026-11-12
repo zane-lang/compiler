@@ -97,6 +97,17 @@ which is called by its enum and its property:
 pkg$Op.apply$lambda1
 ```
 
+## A verb's local copies
+
+A pass that gives a verb a second body, local to the object, calls it by the
+verb's name with a suffix:
+
+- `.taken`: the copy that takes a value parameter's fresh argument, for a
+  verb whose own calls keep their signature ([`lowering.md`](lowering.md)
+  §9);
+- `.memo` and `.plain`: a memoized verb's two bodies
+  ([`memoization.md`](memoization.md)).
+
 ## Walk tables
 
 The table of walks over the blocks a type's values own, which the runtime is

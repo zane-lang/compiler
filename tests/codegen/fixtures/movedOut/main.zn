@@ -1,0 +1,150 @@
+/// A value that owns a block, moved out of a local of the function's own
+/// by a `return`, an `abort` and a return to an expansion, instead of
+/// copied: the exit ends the local, so nothing reads it again
+/// (memory.md §2.3). A function that spawns keeps its copy, since the
+/// spawned call may still read the local until the drain joins it. A
+/// package lambda, called through its address, keeps its signature. A
+/// taken parameter copied inside another call's argument is taken there
+/// too. A
+/// checked drain stops the program if a moved local's blocks are ended
+/// twice or left out. Each check prints `yes` when it holds and `no` when
+/// it does not.
+package movedOut;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+type Text = struct {
+	value String;
+}
+
+Text(v String) => init{ value = v; }
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+/// A local returned: moved out.
+Text named(n Int) {
+	t Text = Text(@operators$concat(String.escaped("n"), String(n)));
+	return t;
+}
+
+/// A local aborted with, or returned: moved out either way.
+Text?Text bounded(n Int) {
+	t Text = Text(String(n));
+	@controlflow$branch(@operators$lessThan(n, Int(5)), {
+		abort t;
+	});
+	return t;
+}
+
+/// The same with an arena nested in the body, which keeps the function's
+/// own arena, so the abort moves out of a held slot.
+Text?Text checked(n Int) {
+	t Text = Text(String(n));
+	@controlflow$branch(@operators$lessThan(n, Int(5)), {
+		u Text = Text(@operators$concat(String.escaped("u"), String(n)));
+		check(@operators$equal(u.value, @operators$concat(String.escaped("u"), String(n))));
+		abort t;
+	});
+	return t;
+}
+
+/// A return to the expansion of a block-taking verb, from a local the
+/// expansion's own block holds.
+Text pick(n Int, body @concepts$Block) {
+	@controlflow$branch(true, body);
+	t Text = Text(@operators$concat(String.escaped("p"), String(n)));
+	return t;
+}
+
+/// A package lambda that keeps its argument. It is called through its
+/// address, by name or as a value, so it keeps the signature it was made
+/// with and copies what it is given.
+wrapped Text(v String) {
+	return Text(v);
+}
+
+Text[String] wrapper() => wrapped;
+
+/// An owner holding a string, made from a value parameter inside the
+/// argument of a call that keeps it: the parameter is taken, so the copy
+/// made for the owner, nested in that argument, is the parameter itself.
+type Rec = #struct {
+	s String;
+}
+
+Rec(s String) => init{ s; }
+
+type Box = #struct {
+	r Rec;
+}
+
+Box(r ^Rec) => init{ r; }
+
+^Box keepBox(r ^Rec) {
+	n Int = Int(1);
+	b ^Box = Box(r);
+	return b;
+}
+
+^Box boxed(v String) {
+	return keepBox(Rec(v));
+}
+
+String greet(who String) => @operators$concat(String.escaped("hi "), who);
+
+/// A local lent to a spawned call and then returned: copied, since the
+/// call may still be reading it.
+String greeted(n Int) {
+	who String = String(n);
+	s String = spawn greet(who);
+	@program$console!print(String.escaped(""));
+	return who;
+}
+
+Unit main() {
+	a Text = named(Int(7));
+	check(@operators$equal(a.value, String.escaped("n7")));
+
+	b Text = bounded(Int(3)) ? e {
+		resolve e;
+	}
+	check(@operators$equal(b.value, String.escaped("3")));
+	c Text = bounded(Int(9)) ? e {
+		resolve Text(String.escaped("no"));
+	}
+	check(@operators$equal(c.value, String.escaped("9")));
+
+	e2 Text = checked(Int(2)) ? e {
+		resolve e;
+	}
+	check(@operators$equal(e2.value, String.escaped("2")));
+
+	d Text = pick(Int(4), {});
+	check(@operators$equal(d.value, String.escaped("p4")));
+
+	check(@operators$equal(greeted(Int(5)), String.escaped("5")));
+
+	box ^Box = boxed(@operators$concat(String.escaped("b"), String(Int(3))));
+	check(@operators$equal(box.r.s, String.escaped("b3")));
+
+	w Text = wrapped(@operators$concat(String.escaped("w"), String(Int(1))));
+	check(@operators$equal(w.value, String.escaped("w1")));
+	f Text[String] = wrapper();
+	kept String = String(Int(2));
+	x Text = f(kept);
+	check(@operators$equal(x.value, kept));
+	return Unit();
+}

@@ -1098,9 +1098,9 @@
     │       │   └── body[3]: leave @7
     │       └── body[3] > return > escape:
     │           ├── exit: function
-    │           ├── value > copy:
+    │           ├── value > take:
     │           │   ├── type: handle
-    │           │   ├── value: local #3 : handle
+    │           │   ├── address: address of #3 : ptr
     │           │   └── layout: %primitives$String
     │           └── layout: %primitives$String
     ├── funcs[5] > func:
@@ -1724,9 +1724,9 @@
     │       │   └── body[3]: leave @6
     │       └── body[3] > return > escape:
     │           ├── exit: function
-    │           ├── value > copy:
+    │           ├── value > take:
     │           │   ├── type: <void | box32>
-    │           │   ├── value: local #2 : <void | box32>
+    │           │   ├── address: address of #2 : ptr
     │           │   └── layout: folding$Countdown
     │           └── layout: folding$Countdown
     ├── funcs[16] > func:

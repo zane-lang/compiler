@@ -76,7 +76,8 @@ every one of `core`'s wrappers, generic ones such as `size` included, which
 the unoptimized build's own inliner leaves as calls. A chain of them is
 written out only while it stays 40 nodes, a recursive one is called inside
 itself, and a call that hands a fresh owner of blocks to a value parameter
-calls the function, which takes the value rather than copying it.
+calls the function, or its local copy, which takes the value rather than
+copying it.
 
 ### Conversions lent rather than copied
 
@@ -129,7 +130,14 @@ nothing observes ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/s
   and makes its values directly in the caller's innermost region, so
   nothing is relocated on return;
 - a value parameter only read to be copied once takes its argument instead:
-  a fresh argument is moved in rather than held and copied;
+  a fresh argument is moved in rather than held and copied. A function whose
+  calls must keep their signature (one another package's object defines, one
+  this object exports, or one called through its address), such as core's
+  `String(@primitives$String)`, gets a local copy that takes it, which only
+  calls passing a fresh argument use;
+- a local returned, aborted with, or returned to an expansion is moved out of
+  its slot rather than copied, since the exit ends it, unless the function
+  spawns;
 - an arena left holding nothing is dropped.
 
 ### Value parameters are borrowed

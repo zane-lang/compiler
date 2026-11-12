@@ -363,6 +363,55 @@ class FactsTests(unittest.TestCase):
                 self.assertEqual((result.returncode, result.stdout, result.stderr),
                                  (1, "", "index out of range\n"), optimize)
 
+    def test_a_library_constructor_takes_a_fresh_argument(self):
+        # `taking$Text` copies its parameter once into the value it makes, so
+        # it takes its argument (lib/cgt/regions.ml, taken_params). Its body
+        # is another package's, so the program gives it a local copy that
+        # takes the parameter, and calls that where it passes a fresh
+        # string; a place it reads again is copied. The library object keeps
+        # `Text` as it was compiled for every other caller, and `named`
+        # returns its local by moving it out.
+        text = STAMP + "taking$Text(%primitives$String)"
+        cgt = run(ZANEC, "--cgt", *packages("takes", "taking", stamped=["taking"]))
+        # Split on the field names alone: the tree's box-drawing characters
+        # decode differently under Windows' code page.
+        funcs = {chunk.split("\n", 1)[0].strip(): chunk for chunk in cgt.split("symbol: ")[1:]}
+        self.assertIn("linkage: available", funcs[text])
+        self.assertIn("> copy:", funcs[text])
+        self.assertNotIn("linkage:", funcs[text + ".taken"])
+        self.assertNotIn("> copy:", funcs[text + ".taken"])
+        self.assertEqual(funcs["takes$main()"].count("fn: " + text + ".taken"), 1)
+        # A generic constructor's instance is shared, not imported, and its
+        # calls keep their signature too.
+        held = STAMP + "taking$Held<%primitives$String>(%primitives$String)"
+        self.assertIn("linkage: shared", funcs[held])
+        self.assertNotIn("> copy:", funcs[held + ".taken"])
+        self.assertIn("fn: " + held + ".taken", funcs["takes$main()"])
+        named = funcs[STAMP + "taking$named(%primitives$I64)"]
+        self.assertIn("fn: " + text + ".taken", named)
+        self.assertNotIn("> copy:", named)
+        self.assertIn("> take:", named)
+        with tempfile.TemporaryDirectory() as temp:
+            library = Path(temp) / "taking.o"
+            run(ZANEC, "--no-root", "--object", library, *packages("taking", stamped=["taking"]))
+            defined = run("llvm-nm", "--defined-only", library)
+            # A host object's names may carry Mach-O's `_`.
+            self.assertRegex(defined, r"(?m) T _?" + re.escape(text) + "$")
+            self.assertNotRegex(defined, r"(?m) [A-Z] .*\.taken$")
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "takes"
+                run(ZANEC, "--build", exe, *optimize, "--link", library,
+                    *packages("takes", "taking", stamped=["taking"]))
+                self.assertEqual(run_program(exe, 42), "42! 42 42 n42 h42\n", optimize)
+            # A tiered build's tier 1 defines its own local copy and calls it.
+            exe = Path(temp) / "takes.tiered"
+            flags = packages("takes", "taking", stamped=["taking"])
+            run(ZANEC, "--build", exe, "--tiered", "--link", library, *flags)
+            run(ZANEC, "--tier-up", f"{exe}.tier1", *flags)
+            result = subprocess.run([str(exe), "42"], capture_output=True, text=True, timeout=60,
+                                    env={**os.environ, "ZANE_TIER_UP": f"{exe}.tier1", "ZANE_TIER_WAIT": "1"})
+            self.assertEqual((result.returncode, result.stdout), (0, "42! 42 42 n42 h42\n"), result.stderr)
+
     def test_programs_run(self):
         with tempfile.TemporaryDirectory() as temp:
             pool = Path(temp) / "pool.o"

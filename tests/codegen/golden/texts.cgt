@@ -741,9 +741,9 @@
     │       │       │   │   │   │           │   ├── place: #115
     │       │       │   │   │   │           │   └── value > escape:
     │       │       │   │   │   │           │       ├── exit: @114
-    │       │       │   │   │   │           │       ├── value > copy:
+    │       │       │   │   │   │           │       ├── value > take:
     │       │       │   │   │   │           │       │   ├── type: handle
-    │       │       │   │   │   │           │       │   ├── value: local #117 : handle
+    │       │       │   │   │   │           │       │   ├── address: address of #117 : ptr
     │       │       │   │   │   │           │       │   └── layout: %primitives$String
     │       │       │   │   │   │           │       └── layout: %primitives$String
     │       │       │   │   │   │           └── body[2]: leave @114

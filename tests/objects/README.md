@@ -115,7 +115,14 @@ optimized build that test is a `select`, with no branch on the tag around
 the payload's load. `escapes` is a program with two counted loops that
 return early: every build marks its arithmetic escape test to be unrolled
 twice, and the optimized build unrolls it, while `first`'s loop, which
-calls, is not marked.
+calls, is not marked. `taking` is a library whose `Text` constructor copies
+the string it is given once into the value it makes, and `takes` a program
+over it, built against `taking`'s object: the fresh string it passes goes to
+a local copy of `Text` that takes it with no copy, the string it reads again
+is copied, the instance of its generic `Held` constructor, which the program
+shares, takes a fresh string the same way, `named` returns its local by moving
+it out, and the library's
+object still defines `Text` as compiled and exports no copy.
 
 `options_test.py` checks what `zanec` accepts for the options that name and
 stamp packages. A package name in `--package NAME=DIR` or an `--import` key

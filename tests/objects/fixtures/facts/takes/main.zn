@@ -1,0 +1,23 @@
+/// A program that gives a library's constructor a fresh string, which the
+/// constructor's local copy takes, and a string it goes on reading, which
+/// the constructor as compiled copies.
+package takes;
+
+import taking$;
+
+
+Unit main() {
+	args @primitives$List<String> = @program$runtime:arguments();
+	n Int = args[Int(1)]:parseI64() ?? Int(0);
+	kept String = String(n);
+	fresh Text = Text(@operators$concat(kept, String.escaped("!")));
+	copied Text = Text(kept);
+	made Text = named(n);
+	held Held<String> = Held(@operators$concat(String.escaped("h"), kept));
+	@program$console!print(@operators$concat(fresh.value, String.escaped(" ")));
+	@program$console!print(@operators$concat(copied.value, String.escaped(" ")));
+	@program$console!print(@operators$concat(kept, String.escaped(" ")));
+	@program$console!print(@operators$concat(made.value, String.escaped(" ")));
+	@program$console!print(@operators$concat(held.value, String.escaped("\n")));
+	return Unit();
+}

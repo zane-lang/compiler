@@ -872,9 +872,9 @@
     │       │   └── body[2]: leave @7
     │       └── body[3] > return > escape:
     │           ├── exit: function
-    │           ├── value > copy:
+    │           ├── value > take:
     │           │   ├── type: handle
-    │           │   ├── value: local #3 : handle
+    │           │   ├── address: address of #3 : ptr
     │           │   └── layout: %primitives$String
     │           └── layout: %primitives$String
     └── funcs[16] > func:
