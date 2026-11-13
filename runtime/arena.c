@@ -750,6 +750,7 @@ char *zane_alloc_unbounded(zane_mark *region) {
 		base = (char *)kept;
 		raw = kept->raw;
 		total = kept->reserved;
+		zane_huge(base, total, 0, 0);
 	}
 	if (!base && !(base = zane_reserve_for(c, total, &raw))) zane_broken("out of addresses for a pool");
 	/* A kept span was made usable only as far as its list grew. */

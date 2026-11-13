@@ -784,12 +784,16 @@ should be checked on a machine that is not a VM before it ships.
 
 **On `main`.** The runtime now asks by default for a list's block of 32 MiB
 or more, made or grown in place (`zane_huge` in `runtime/region.c`), and
-round 6's test on the reservation is not brought over. `ZANE_HUGE=0` still
-leaves the request out, and `ZANE_HUGE_MIN=N` moves the threshold, for
-measuring. Checked on running programs: `gather` with 16 MiB of data holds
-64 MiB of huge pages (its 64 MiB index list, not the data) and with 2 GiB
-2,112 MiB; 64 `sparse` lists of 1 and 12 MiB hold none and the same Rss as
-with `ZANE_HUGE=0`; 64 of 32 MiB hold 960 MiB of huge pages and 32 MiB more.
+round 6's test on the reservation is not brought over. A list's block never
+shrinks on `main`, so a kept reservation a list takes again needs nothing
+undone; one an unbounded pool takes, whose pages it touches only here and
+there, is told `MADV_NOHUGEPAGE`. No program in `tests/perf` makes either
+request. `ZANE_HUGE=0` still leaves the request out, and `ZANE_HUGE_MIN=N`
+moves the threshold, for measuring. Checked on running programs: `gather`
+with 16 MiB of data holds 64 MiB of huge pages (its 64 MiB index list, not
+the data) and with 2 GiB 2,112 MiB; 64 `sparse` lists of 1 and 12 MiB hold
+none and the same Rss as with `ZANE_HUGE=0`; 64 of 32 MiB hold 960 MiB of
+huge pages and 32 MiB more.
 
 ## Where this points
 

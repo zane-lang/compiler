@@ -115,21 +115,23 @@ int zane_decommit_range(char *at, size_t bytes) {
    gains a loop little and can cost a list up to half again its memory, in
    the part of its last 2 MiB page it has not touched; from 32 MiB it gains
    x1.2 to x2.1 and costs at most 2 MiB a list
-   (docs/experiments/prefetch-reorder, round 10). A kept reservation taken
-   again by a block under the threshold is told to leave huge pages out.
-   `ZANE_HUGE_MIN=N` moves the threshold to N bytes, for measuring. */
+   (docs/experiments/prefetch-reorder, round 10). A list's block never
+   shrinks, so a kept reservation a list takes again needs nothing undone;
+   one an unbounded pool takes, touched only here and there, is told to
+   leave huge pages out (`to` 0). `ZANE_HUGE_MIN=N` moves the threshold to
+   N bytes, for measuring. */
 void zane_huge(char *base, size_t reserved, size_t from, size_t to) {
 #if defined(__linux__) && defined(MADV_HUGEPAGE)
 	static int asked = -1;
 	static size_t least = (size_t)32 << 20;
 	if (asked < 0) {
 		const char *v = getenv("ZANE_HUGE"), *n = getenv("ZANE_HUGE_MIN");
-		if (n) least = (size_t)strtoull(n, NULL, 10);
+		if (n && strtoull(n, NULL, 10)) least = (size_t)strtoull(n, NULL, 10);
 		asked = !(v && v[0] == '0');
 	}
 	if (!asked) return;
 	if (from < least && to >= least) madvise(base, reserved, MADV_HUGEPAGE);
-	else if (!from && to < least) madvise(base, reserved, MADV_NOHUGEPAGE);
+	else if (!to) madvise(base, reserved, MADV_NOHUGEPAGE);
 #else
 	(void)base;
 	(void)reserved;
