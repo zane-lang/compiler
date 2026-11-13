@@ -98,7 +98,7 @@ void zane_copy(char *value, const zane_type *type) {
 }
 
 /* A boxed member's block (memory.md §3.6): exactly one payload's size. */
-void *zane_box(int64_t size, int64_t align) { return zane_alloc(zane_here(), size, align); }
+void *zane_box(int64_t size, int64_t align) { return zane_box_in(zane_here(), size, align); }
 
 /* A scalar's String constructor. Floats use compact decimal text that
    parses back to the same scalar; special floats have fixed spellings. */

@@ -453,6 +453,7 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 	m->size = size;
 	m->reserved = 0;
 	m->raw = NULL;
+	m->boxed = 0;
 	m->next = region->mappings;
 	region->mappings = m;
 	return m;
@@ -636,6 +637,7 @@ __attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t s
 	m->size = bytes;
 	m->reserved = reserved;
 	m->raw = raw;
+	m->boxed = 0;
 	m->next = region->mappings;
 	region->mappings = m;
 	region->heap.live++;
@@ -671,6 +673,7 @@ char *zane_alloc_unbounded(zane_mark *region) {
 	m->size = ZANE_CHUNK;
 	m->reserved = total;
 	m->raw = raw;
+	m->boxed = 0;
 	m->next = region->mappings;
 	region->mappings = m;
 	region->heap.live++;
@@ -748,6 +751,45 @@ char *zane_alloc(zane_mark *region, int64_t size, int64_t align) {
 	return block;
 }
 
+/* Every block past ZANE_CHUNK - ZANE_LINE bytes is the one block of its
+   mapping, a cache line in: no frame holds one, since a frame stretches to
+   at most a chunk with its record first, and no chunk's heap does. */
+_Static_assert(sizeof(zane_mark) >= ZANE_LINE, "no frame holds an oversized block");
+
+/* The stack a box's returned payload past 1 MiB goes to, apart from every
+   other block's of its size: only another box's payload reuses its chunks
+   (memory.md §3.6). Every other stack's alignment is a power of two. */
+static int64_t zane_box_key(int64_t align) { return align + 1; }
+
+/* A box's payload in a region (memory.md §3.6), as zane_alloc_held finds
+   any block, except past 1 MiB: there it is a box's payload of its size
+   returned there, or whole chunks of its own (zane_map), which lie within
+   the program image's reach like every chunk (§3.1), and never an
+   oversized span, which may lie anywhere and is a list's or a string's
+   alone. Emitted code calls this for a payload no size class holds
+   (lib/codegen/walks.ml, `take`). */
+char *zane_box_held(zane_mark *region, int64_t size, int64_t align) {
+	size = zane_word(size);
+	if (align < 8) align = 8;
+	if (size <= ZANE_CHUNK - ZANE_LINE || align > ZANE_LINE) return zane_alloc_held(region, size, align);
+	zane_stack *s = zane_find_stack(region, size, zane_box_key(align));
+	char *block = s ? s->top : NULL;
+	if (block) s->top = *(char **)block;
+	else {
+		zane_mapping *m = zane_map(region, zane_span_bytes(size));
+		m->boxed = 1;
+		block = (char *)m + ZANE_LINE;
+	}
+	region->heap.live++;
+	return block;
+}
+
+/* The same in a region checked first, as zane_alloc is. */
+char *zane_box_in(zane_mark *region, int64_t size, int64_t align) {
+	zane_check_region(region);
+	return zane_box_held(region, size, align);
+}
+
 /* A block returned to its region, for the next of its size and alignment. */
 void zane_free(char *block, int64_t size, int64_t align) {
 	zane_mark *region = zane_region_at(block);
@@ -755,6 +797,7 @@ void zane_free(char *block, int64_t size, int64_t align) {
 	if (align < 8) align = 8;
 	zane_check_region(region);
 	int64_t class = zane_class(size, align);
+	if (size > ZANE_CHUNK - ZANE_LINE && ((zane_mapping *)(block - ZANE_LINE))->boxed) align = zane_box_key(align);
 	char **top = class >= 0 ? &region->heap.classes[class] : &zane_stack_of(region, size, align)->top;
 	*(char **)block = *top;
 	*top = block;

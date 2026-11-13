@@ -85,7 +85,7 @@ static inline void list_move(zane_list *l, zane_mark *region, int64_t from, int6
 static inline void box_copy(char **box, zane_mark *region, int64_t size, const zane_type *payload,
                      zane_work *w, int64_t depth) {
 	if (!*box) return;
-	char *fresh = zane_alloc_held(region, size, 8);
+	char *fresh = zane_box_held(region, size, 8);
 	memcpy(fresh, *box, (size_t)size);
 	*box = fresh;
 	if (payload) visit(payload->copy, fresh, (char *)region, 0, w, depth);
@@ -109,7 +109,7 @@ static inline void box_end(char **box, int64_t size, const zane_type *payload, z
 static inline void box_move(char **box, zane_mark *region, int64_t from, int64_t size,
                      const zane_type *payload, zane_work *w, int64_t depth) {
 	if (!*box || !zane_leaves(*box, region, from)) return;
-	char *fresh = zane_alloc(region, size, 8);
+	char *fresh = zane_box_in(region, size, 8);
 	memcpy(fresh, *box, (size_t)size);
 	zane_free(*box, size, 8);
 	*box = fresh;

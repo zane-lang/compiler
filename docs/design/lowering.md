@@ -922,7 +922,13 @@ test passing.
   moves into a fresh one. The span it leaves gives its pages back to the
   system a chunk at a time as the elements are copied out, all but its
   first page, which holds its mapping's header, and goes to no stack; its
-  addresses stay with the region until it drains. A push is inline: while the block has room, the
+  addresses stay with the region until it drains. A box's payload past
+  1 MiB is never such a span, which may lie anywhere: it takes whole
+  chunks of its own, which lie within the image's reach as every chunk
+  does, so a 32-bit box reaches it ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §3.6). Returned, its
+  chunks go to a stack of their own, which only another box's payload of
+  its size takes from, and no list's or string's block is taken for it;
+  they go back to the system at the drain. A push is inline: while the block has room, the
   emitted code takes the element's address and counts it itself, and only a
   full block calls `zane_list_push`, which grows it. An empty list's first
   block, four elements' bytes kept between 32 and 128, is made inline too, in a function with a scope of its
@@ -1120,7 +1126,8 @@ test passing.
   runtime only when neither has one. A box takes its block the same way,
   in the region the runtime names `zane_open`: the innermost one of the
   context running on the thread. A payload larger than the largest size
-  class is left to the runtime.
+  class is left to the runtime, which past 1 MiB maps it whole chunks of
+  its own (`zane_box_held`), below.
   This makes binarytrees, which boxes every node, use a third of the
   instructions it did. A move, an end and an overwrite return
   blocks to other regions, so they call the runtime for each block. Walking
@@ -1405,8 +1412,13 @@ test passing.
   sees a module, `lib/codegen/big_moves.ml` turns each load of an aggregate of
   4 KiB or more whose only uses are stores into a copy per store (a
   `memmove` when it reads the source directly, since `xs[i] = xs[j]` may
-  name one element twice), and a value still too large to move whole inside
-  a function is reported as a limit rather than handed to LLVM.
+  name one element twice). A value of more than 65,535 parts read only for
+  its parts, as a match arm reads one field of a large payload, is read a
+  part at a time from its address, and one built a part at a time and only
+  stored, as a constructor builds its struct, is stored a part at a time;
+  so a struct past 1 MiB can be a variant's payload. A value still too
+  large to move whole inside a function is reported as a limit rather than
+  handed to LLVM.
 - **A type's size is limited.** A type takes fewer than `2^48` bytes, the
   addresses the runtime's chunk map covers ([`platforms.md`](platforms.md),
   "Address range supported by the runtime"), and no more than the main

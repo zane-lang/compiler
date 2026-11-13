@@ -118,8 +118,88 @@ let rewrite data_layout m =
       Llvm.delete_instruction load
     end
   in
+  (* A load of more parts than LLVM moves as one value whose every use
+     takes one part out of it, as a match arm reading one field of a large
+     payload does, becomes a load of each such part from its address,
+     where the whole was loaded, and so on into each part still too large. *)
+  let i32 = Llvm.i32_type ctx in
+  let rec split load =
+    let users = uses load in
+    if
+      parts (Llvm.type_of load) > most_parts
+      && users <> []
+      && List.for_all (fun u -> Llvm.instr_opcode u = Llvm.Opcode.ExtractValue) users
+    then begin
+      let t = Llvm.type_of load and src = Llvm.operand load 0 in
+      let b = Llvm.builder_before ctx load in
+      List.iter
+        (fun x ->
+          let path = Array.map (fun i -> Llvm.const_int i32 i) (Array.append [| 0 |] (Llvm.indices x)) in
+          let at = Llvm.build_in_bounds_gep t src path "" b in
+          let part = Llvm.build_load (Llvm.type_of x) at "" b in
+          Llvm.set_alignment (Llvm.alignment load) part;
+          Llvm.replace_all_uses_with x part;
+          Llvm.delete_instruction x;
+          split part)
+        users;
+      Llvm.delete_instruction load
+    end
+  in
+  (* A store of more parts than LLVM moves as one value, built by putting
+     parts into another value one by one, as a constructor builds its
+     struct, becomes a store of that other value, unless it is undefined,
+     and then a store of each part at its address, in the order they were
+     put in; and so on into each part still too large. *)
+  let rec scatter store =
+    let v = Llvm.operand store 0 and p = Llvm.operand store 1 in
+    let rec unchain v puts =
+      match Llvm.instr_opcode v with
+      | Llvm.Opcode.InsertValue when List.length (uses v) = 1 ->
+          unchain (Llvm.operand v 0) ((v, Llvm.indices v, Llvm.operand v 1) :: puts)
+      | _ | (exception _) -> (v, puts)
+    in
+    let base, puts = unchain v [] in
+    if parts (Llvm.type_of v) > most_parts && puts <> [] then begin
+      let t = Llvm.type_of v in
+      let b = Llvm.builder_before ctx store in
+      let put value at =
+        let s = Llvm.build_store value at b in
+        Llvm.set_alignment (Llvm.alignment store) s;
+        s
+      in
+      let whole = if Llvm.is_undef base || Llvm.is_poison base then None else Some (put base p) in
+      let stores =
+        List.map
+          (fun (_, path, part) ->
+            let path = Array.map (fun i -> Llvm.const_int i32 i) (Array.append [| 0 |] path) in
+            put part (Llvm.build_in_bounds_gep t p path "" b))
+          puts
+      in
+      Llvm.delete_instruction store;
+      List.iter (fun (x, _, _) -> Llvm.delete_instruction x) (List.rev puts);
+      Option.iter scatter whole;
+      List.iter scatter stores
+    end
+  in
+  let large_stores f =
+    let found = ref [] in
+    Llvm.iter_blocks
+      (Llvm.iter_instrs (fun i ->
+           if
+             Llvm.instr_opcode i = Llvm.Opcode.Store
+             && aggregate (Llvm.type_of (Llvm.operand i 0))
+             && parts (Llvm.type_of (Llvm.operand i 0)) > most_parts
+           then found := i :: !found))
+      f;
+    !found
+  in
   Llvm.iter_functions
-    (fun f -> if not (Llvm.is_declaration f) then List.iter (rewrite_load f) (large_loads f))
+    (fun f ->
+      if not (Llvm.is_declaration f) then begin
+        List.iter scatter (large_stores f);
+        List.iter split (large_loads f);
+        List.iter (rewrite_load f) (large_loads f)
+      end)
     m;
   (* A parameter or a result too large to move as one value: a signature
      passes such an aggregate by address (Emit.passing, Emit.returning), so
