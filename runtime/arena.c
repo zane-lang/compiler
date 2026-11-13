@@ -611,6 +611,23 @@ enum { ZANE_HEADROOM = 64 };
    reservation is the span alone. Kept out of
    zane_alloc_held, whose every call would otherwise save the registers
    this rare path uses. */
+/* Experimental (docs/experiments/prefetch-reorder, round 6): a list's
+   reservation of 2 MiB or more asks Linux for huge pages, unless
+   `ZANE_HUGE=0` is in the program's environment. */
+static void zane_huge(char *base, size_t reserved) {
+#if defined(__linux__) && defined(MADV_HUGEPAGE)
+	static int asked = -1;
+	if (asked < 0) {
+		const char *v = getenv("ZANE_HUGE");
+		asked = !(v && v[0] == '0');
+	}
+	if (asked && reserved >= ((size_t)2 << 20)) madvise(base, reserved, MADV_HUGEPAGE);
+#else
+	(void)base;
+	(void)reserved;
+#endif
+}
+
 __attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t size) {
 	size_t bytes = zane_span_bytes(size), reserved = bytes * ZANE_HEADROOM;
 	int fits = reserved / ZANE_HEADROOM == bytes;
@@ -630,6 +647,7 @@ __attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t s
 	if (!base && fits) base = zane_reserve_aligned(reserved, &raw);
 	if (!base) base = zane_reserve_aligned(reserved = bytes, &raw);
 	if (!base) zane_broken("out of addresses for a list's elements");
+	zane_huge(base, reserved);
 	if (!zane_commit_range(base, bytes)) zane_broken("out of memory for a list's elements");
 	zane_mapping *m = (zane_mapping *)base;
 	for (size_t at = 0; at < bytes; at += ZANE_CHUNK) zane_set_page(base + at, (uintptr_t)region);

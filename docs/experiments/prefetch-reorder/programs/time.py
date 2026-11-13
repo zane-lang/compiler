@@ -7,6 +7,10 @@
                                        build each program twice, as it is and
                                        with VAR=0 in zanec's environment, and
                                        time the two in turn, run by run
+  time.py --pair-run LABEL VAR [PROGRAM ...]
+                                       build each program once and time it
+                                       in turn as it is and with VAR=0 in
+                                       the program's own environment
   time.py --show LABEL [LABEL ...]     print each label's times side by side
 
 Run it in the pixi environment (`pixi run python3 ...`), which sets ZANE_CC.
@@ -42,11 +46,11 @@ def build(program, out, env=None):
                           env=env)
 
 
-def timed(exe, args):
+def timed(exe, args, env=None):
     """The seconds between `ready` and the checksum, and the checksum."""
     cpu = str(os.cpu_count() - 1)
     master, slave = pty.openpty()
-    proc = subprocess.Popen(["taskset", "-c", cpu, exe, *args], stdout=slave, stderr=subprocess.STDOUT)
+    proc = subprocess.Popen(["taskset", "-c", cpu, exe, *args], stdout=slave, stderr=subprocess.STDOUT, env=env)
     os.close(slave)
     text, ready, lines = b"", None, []
     while True:
@@ -72,7 +76,7 @@ def timed(exe, args):
     return lines[-1][0] - ready, lines[-1][1]
 
 
-def measure(labels, programs, variable=None):
+def measure(labels, programs, variable=None, at_run=False):
     """Time each program's builds, one per label, in turn run by run: the
     first as zanec builds it, the second with `variable`=0."""
     os.makedirs(RESULTS, exist_ok=True)
@@ -82,14 +86,16 @@ def measure(labels, programs, variable=None):
         exes = []
         for k, label in enumerate(labels):
             exe = os.path.join(work, f"{program}-{k}")
-            build(program, exe, None if k == 0 else {**os.environ, variable: "0"})
+            off = None if k == 0 else {**os.environ, variable: "0"}
+            build(program, exe, None if at_run else off)
             exes.append(exe)
         for size in SIZES:
             times = [[] for _ in exes]
             sums = [set() for _ in exes]
             for _ in range(RUNS):
                 for k, exe in enumerate(exes):
-                    seconds, checksum = timed(exe, [str(size), "1", str(OPS[program])])
+                    off = {**os.environ, variable: "0"} if at_run and k else None
+                    seconds, checksum = timed(exe, [str(size), "1", str(OPS[program])], off)
                     times[k].append(seconds)
                     sums[k].add(checksum)
             for k, f in enumerate(files):
@@ -130,8 +136,8 @@ def show(labels):
 if __name__ == "__main__":
     if sys.argv[1] == "--show":
         show(sys.argv[2:])
-    elif sys.argv[1] == "--pair":
+    elif sys.argv[1] in ("--pair", "--pair-run"):
         label, variable = sys.argv[2], sys.argv[3]
-        measure([label, label + "-off"], sys.argv[4:] or list(OPS), variable)
+        measure([label, label + "-off"], sys.argv[4:] or list(OPS), variable, sys.argv[1] == "--pair-run")
     else:
         measure([sys.argv[1]], sys.argv[2:] or list(OPS))
