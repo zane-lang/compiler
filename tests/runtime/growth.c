@@ -333,6 +333,24 @@ static void exercise_warm_pools(void) {
 	check(zane_blocks() == 0);
 }
 
+/* A list growing past 1 MiB takes no kept pool's reservation, though it
+   holds enough addresses: the pool's touched pages past the list would
+   then go uncounted. */
+static void exercise_pool_not_listed(void) {
+	zane_give_spares(zane_self);
+	zane_mark *scope = zane_scope_enter(0);
+	*zane_alloc_unbounded(scope) = 1;
+	zane_scope_drain(scope);
+	zane_context *c = zane_self;
+	scope = zane_scope_enter(0);
+	zane_list *list = new_list(scope);
+	fill(list, 2 * ZANE_CHUNK / (int64_t)sizeof(int64_t));
+	check(c->span_count == 1 && c->span_bytes == 0);
+	zane_scope_drain(scope);
+	zane_give_spares(c);
+	check(zane_blocks() == 0);
+}
+
 /* The reservations a context keeps hold at most ZANE_WARM_SPAN_BYTES
    usable bytes, the ones kept longest going back first: of three lists of
    32 MiB, only the one its scope gave back last stays, which is the first
@@ -436,6 +454,7 @@ void zane_main(void) {
 	exercise_warm_several();
 	exercise_warm_count();
 	exercise_warm_pools();
+	exercise_pool_not_listed();
 	exercise_warm_budget();
 #if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 	check(without_reservation());

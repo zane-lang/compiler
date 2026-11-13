@@ -401,12 +401,15 @@ static void zane_spans_give_back(zane_context *c) {
 }
 
 /* A kept reservation of at least `reserved` addresses, unlisted from its
-   context's, or null. Only the context's own thread takes one, so that a
-   subject region's call takes none of its spawner's. */
-static zane_mapping *zane_span_take(zane_context *c, size_t reserved) {
+   context's, or null; a list's alone where `lists` is set. A list takes no
+   pool's, whose pages may be resident far past where the list ends, which
+   neither its size nor ZANE_WARM_SPAN_BYTES would then count. Only the
+   context's own thread takes one, so that a subject region's call takes
+   none of its spawner's. */
+static zane_mapping *zane_span_take(zane_context *c, size_t reserved, int lists) {
 	for (zane_mapping **at = &c->spans; c == zane_self && *at; at = &(*at)->next) {
 		zane_mapping *m = *at;
-		if (m->reserved >= reserved) {
+		if (m->reserved >= reserved && !(lists && zane_span_pool(m))) {
 			*at = m->next;
 			c->span_count--;
 			c->span_bytes -= zane_span_charge(m);
@@ -665,14 +668,15 @@ enum { ZANE_HEADROOM = 64 };
    region is still open, so the next block past 1 MiB there takes its pages
    rather than mapping fresh ones. One of `size` bytes is taken first, and
    else the smallest that fits, so a small block leaves a larger one for a
-   later request that needs it. Only a block a reservation starts is looked
-   at: a boxed payload's chunks (zane_map) have none, and stay for another
-   boxed payload. */
+   later request that needs it. Only a block a list's reservation starts is
+   looked at: a boxed payload's chunks (zane_map) have none, and stay for
+   another boxed payload, and a pool's stays a pool's (zane_span_take). */
 static char *zane_returned_span(zane_mark *region, int64_t size, size_t reserved) {
 	zane_stack *best = NULL;
 	for (zane_stack *s = region->stacks; s; s = s->next) {
 		if (s->size <= ZANE_CHUNK - ZANE_LINE || s->align > ZANE_LINE || !s->top) continue;
-		if (((zane_mapping *)(s->top - ZANE_LINE))->reserved < reserved) continue;
+		zane_mapping *m = (zane_mapping *)(s->top - ZANE_LINE);
+		if (m->reserved < reserved || zane_span_pool(m)) continue;
 		if (s->size == size) {
 			best = s;
 			break;
@@ -708,7 +712,7 @@ __attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t s
 	}
 	zane_context *c = region->context;
 	char *raw = NULL, *base = NULL;
-	zane_mapping *kept = zane_span_take(c, wanted);
+	zane_mapping *kept = zane_span_take(c, wanted, 1);
 	if (kept) {
 		base = (char *)kept;
 		raw = kept->raw;
@@ -740,7 +744,7 @@ char *zane_alloc_unbounded(zane_mark *region) {
 	size_t total = (size_t)ZANE_UNBOUNDED + ZANE_CHUNK;
 	zane_context *c = region->context;
 	char *raw = NULL, *base = NULL;
-	zane_mapping *kept = zane_span_take(c, total);
+	zane_mapping *kept = zane_span_take(c, total, 0);
 	if (kept) {
 		base = (char *)kept;
 		raw = kept->raw;

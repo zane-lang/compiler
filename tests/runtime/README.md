@@ -63,7 +63,9 @@ of a 2 MiB and a 4 MiB block returned, a list growing to 2 MiB takes the
 one would is passed over. A scope that drains three such lists leaves its context
 keeping all three, the next three grow into them, and of three lists of
 32 MiB the context keeps only the one it was given back last, under
-`ZANE_WARM_SPAN_BYTES`. A second capped child holds a drained list's
+`ZANE_WARM_SPAN_BYTES`. Of three unbounded pools drained, the context
+keeps `ZANE_WARM_POOLS`, counted outside that budget, and a list growing
+past 1 MiB leaves a kept pool's reservation to the next pool. A second capped child holds a drained list's
 reservation and only 2 MiB more addresses, and still makes a 5 MiB copy,
 since the kept reservation goes back to the system first.
 

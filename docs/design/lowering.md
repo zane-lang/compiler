@@ -1042,7 +1042,9 @@ test passing.
       the budget goes back itself. An unbounded pool's reservation
       (experimental) lists one chunk however much of it was touched, so it
       counts nothing against the budget, and a context keeps at most
-      `ZANE_WARM_POOLS` (2) of them. Each stays until it has sat unused
+      `ZANE_WARM_POOLS` (2) of them, for its next pool alone: a list
+      taking one would leave the pool's touched pages past its own end
+      uncounted. Each stays until it has sat unused
       through `ZANE_COOLING` of its later drains, and all go back when its
       call is over, or when the system will not reserve addresses for a new
       chunk or span, which the kept reservations may be what used up. A
