@@ -266,6 +266,10 @@ class FactsTests(unittest.TestCase):
                 run(ZANEC, "--build", exe, *optimize, *packages("pending"))
                 self.assertEqual(run_program(exe, 1000), "2570\n", optimize)
                 self.assertEqual(run_program(exe, 0), "0\n", optimize)
+                # A size read through an out-of-range element still stops.
+                stopped = subprocess.run([str(exe), "3", "size"], capture_output=True, text=True, timeout=60)
+                self.assertNotEqual(stopped.returncode, 0, optimize)
+                self.assertIn("out of range", stopped.stderr, optimize)
 
     def test_runs_of_pushes_make_room_once(self):
         # A new list pushed to four times in a row makes room for all four

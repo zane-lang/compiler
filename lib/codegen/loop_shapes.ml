@@ -163,6 +163,19 @@ let own_lists params body =
   List.iter stat body;
   fun x -> Hashtbl.mem lists x && Hashtbl.mem seen x && not (Hashtbl.mem escaped x)
 
+(* How many elements deep the address [e] is: 0 for one made only of
+   addresses and offsets of slots. *)
+let rec depth (e : Expr.t) =
+  match e.Expr.node with
+  | Expr.Runtime { fn = Cgt.Runtime.List_at; args = l :: _ } -> 1 + depth l
+  | Expr.Offset { base; _ } -> depth base
+  | _ -> 0
+
+(* Whether the address [e] is reached through an element of a list. *)
+let through_element e = depth e > 0
+
+let element (a : Expr.t) = match a.Expr.node with Expr.Runtime _ -> true | _ -> false
+
 (* Experimental (docs/experiments/goose-comparison): unless
    ZANE_HOIST_HANDLES=0, the lists a loop's [body] indexes when nothing in
    it can change their handles, each by the expression of its address,
@@ -302,10 +315,16 @@ let invariant_lists ?(own = fun _ -> false) body =
               | _ -> ())
           | _ -> ())
         ignore body;
-      (* A list before the elements of it that are read. *)
-      let element (a : Expr.t) = match a.Expr.node with Expr.Runtime _ -> true | _ -> false in
+      (* A list before the elements of it that are read, and an element
+         before the members and elements of it; emitted before the loop
+         without a check (an index out of range gives an empty element). *)
       let lists = List.rev !lists in
-      (List.filter (fun a -> not (element a)) lists @ (if acts then List.filter element lists else []), names)
+      let plain = List.filter (fun a -> depth a = 0) lists in
+      let elements =
+        List.filter (fun a -> depth a > 0 && (acts || not (element a))) lists
+        |> List.stable_sort (fun a b -> compare (depth a) (depth b))
+      in
+      (plain @ elements, names)
     end
 
 (* What a loop's [body] binds, which an index is read through: each

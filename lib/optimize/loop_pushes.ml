@@ -188,6 +188,7 @@ let pure (p : Program.t) =
    loop facts read too (Loop_shapes.invariant_lists). *)
 let program (p : Program.t) =
   pure p;
+  Hashtbl.reset Cgt.List_pure.pushers;
   let pushes = Hashtbl.create 8 in
   List.iter
     (fun (f : Func.t) ->

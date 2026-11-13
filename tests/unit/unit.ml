@@ -1796,6 +1796,13 @@ let invariant_lists () =
     (lists [ C.Stat.Let { id = 43; value = int 2L }; read (row rows); push queue ] = if on then [ xs ] else []);
   check "nor in a loop that neither pushes nor calls, which LLVM reads once by itself"
     (lists [ read (row rows) ] = hoisted);
+  let cell index = at (row rows) index 8L in
+  let cols = e (C.Expr.Local 44) C.Ty.I64 in
+  check "an element of an element after the element it is in, whatever order they are met in"
+    (lists [ read (cell cols); read (row rows); push queue ] = if on then [ xs; row rows; cell cols ] else []);
+  let member = e (C.Expr.Offset { base = row rows; within = C.Ty.Struct [ C.Ty.I64; C.Ty.Ptr ]; path = [ 1 ] }) C.Ty.Ptr in
+  check "and a list in a member of an element after its list"
+    (lists [ read member; push queue ] = if on then [ xs; member ] else []);
   Cgt.List_pure.c_stays := false;
   Hashtbl.reset Cgt.List_pure.handles
 

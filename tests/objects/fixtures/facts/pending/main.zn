@@ -66,6 +66,44 @@ Int picked(this Graph, v Int, idx List<Int>) {
 	return @operators$add(total, sums:size());
 }
 
+/// The same through an element of an element, `cube[a][b]`, and through a
+/// member of an element, `rows[a].items`: neither is read before the loop
+/// in a way that stops the program when `a` is out of range.
+Int deep(cube List<List<List<Int>>>, rows List<Row>, a Int, idx List<Int>) {
+	sums List<Int> = @primitives$List(Int);
+	total Int(0);
+	j Int(1);
+	j!to(idx:size()) {
+		@controlflow$branch(@operators$lessThan(Int(0), idx[j]), {
+			total = @operators$add(total, cube[a][Int(1)][idx[j]]);
+			total = @operators$add(total, rows[a].items[idx[j]]);
+			sums!push(total);
+		});
+	}
+	return @operators$add(total, sums:size());
+}
+
+/// The size of `rows[a]`, read in a loop that pushes and indexes `rows[a]`
+/// (never, here): when `a` is out of range, the size read stops the
+/// program, as it does without the hoist.
+Int sized(rows List<List<Int>>, a Int, n Int) {
+	sums List<Int> = @primitives$List(Int);
+	j Int(1);
+	j!to(n) {
+		sums!push(rows[a]:size());
+		@controlflow$branch(@operators$lessThan(n, j), {
+			sums!push(rows[a][j]);
+		});
+	}
+	return sums:size();
+}
+
+type Row = struct {
+	items List<Int>;
+}
+
+Row(items List<Int>) => init{ items; }
+
 type Tape = struct {
 	cells List<Int>;
 	position Int;
@@ -126,7 +164,15 @@ Unit main() {
 	i3!to(n) {
 		zeros!push(Int(0));
 	}
+	cube List<List<List<Int>>> = @primitives$List(List<List<Int>>);
+	cube!push(adj);
+	rows List<Row> = @primitives$List(Row);
+	rows!push(Row(row));
 	total Int = @operators$add(@operators$add(g:below(Int(1), @operators$multiply(n, Int(4))), run(ops)), g:picked(Int(2), zeros));
+	total = @operators$add(total, deep(cube, rows, Int(2), zeros));
+	@controlflow$branch(@operators$lessThan(Int(1), args:size()), {
+		total = @operators$add(total, sized(adj, Int(2), n));
+	});
 	@program$console!print(String(total));
 	@program$console!print(String.escaped("\n"));
 	return Unit();

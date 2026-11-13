@@ -1063,10 +1063,10 @@ element's address in registers through the loop.
   "fannkuch: list handles read once a loop"
 - **Effect:** fannkuch at 9 runs 151.5 M instructions instead of 169.3 M,
   in the same time. LangArena, Callgrind instructions against `main`:
-  Graph::BFS 8.33 G instead of 12.87 G, Graph::DFS 5.90 G instead of
+  Graph::BFS 7.83 G instead of 12.87 G, Graph::DFS 5.90 G instead of
   7.77 G, Brainfuck::Recursion 35.59 G instead of 38.92 G,
   Brainfuck::Array 33.30 G instead of 35.47 G, Compress::HuffDecode
-  27.96 G instead of 29.38 G, Etc::NeuralNet 24.75 G instead of 25.41 G;
+  27.74 G instead of 29.38 G, Etc::NeuralNet 23.77 G instead of 25.41 G;
   `tests/perf` `returns` −9.7% and `particles` −6.5% estimated cycles
   optimized
 
@@ -1095,15 +1095,23 @@ program that gives C no function value and holds every function's body,
 so C cannot call back into Zane: C is lent a list's elements, never its
 handle ([`design/ffi.md`](design/ffi.md) F10).
 
-Where the body pushes or calls, a list that is an element of a list read
-before the loop, at an index the loop does not change, is read before it
-too, as `this.adj[vertex]` is in a breadth-first search over adjacency
-lists. When the index is out of range, the empty handle stands in, so
-every element of it is out of range and its check stops the program where
-the element's own read would have. A loop that neither pushes nor calls is
-left to LLVM, which reads such an element once by itself; there the extra
-check before every entry of a short loop costs more than it saves
-(LangArena Etc::NeuralNet was 5% slower).
+A list in an element of a list read before the loop, at an index the
+loop does not change, is read before it too: a member of such an element,
+as `this.neurons[i].incoming` is in a loop over one neuron's synapses, and,
+where the body pushes or calls, a list that is itself such an element, as
+`this.adj[vertex]` is in a breadth-first search over adjacency lists, or an
+element of one. Nothing is checked before the loop: when an index is out
+of range, a zeroed element stands in, whose every list is empty, so the
+first read through it in the loop stops the program where the element's
+own read would have, and a loop that never reads it does not stop. A list
+that is itself an element, in a loop that neither pushes nor calls, is left
+to LLVM, which reads it once by itself; there the extra test before every
+entry of a short loop costs more than it saves (LangArena Etc::NeuralNet
+was 5% slower).
+
+A list an enclosing loop read before itself is the one the inner loop
+uses: the enclosing loop's body, the inner loop included, cannot change
+its handle.
 
 ### Ordered removals moved in 2 KiB pieces
 
