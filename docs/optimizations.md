@@ -1224,10 +1224,33 @@ holds both copies of its elements for long.
   faults instead of 313 k; allocfree's faults 8 k instead of 78 k
 
 A drained list's oversized span keeps its reservation and pages: a context
-keeps up to `ZANE_WARM_SPANS` (2), each until it has sat unused through
-`ZANE_COOLING` of its later drains, and gives them back when its call is
-over. The next list to grow past 1 MiB takes one that holds what it would
-reserve, so a list built again each round grows into resident pages.
+keeps up to `ZANE_WARM_SPANS` (16) holding at most `ZANE_WARM_SPAN_BYTES`
+(64 MiB), the one kept longest going back first, each until it has sat
+unused through `ZANE_COOLING` of its later drains, and gives them back when
+its call is over or a reservation fails. The next list to grow past 1 MiB
+takes one that holds what it would reserve, so a list built again each
+round grows into resident pages. The cap was 2 spans until LangArena's
+Maze::BFS (three lists per search) and BWT encode (up to seven per round)
+showed every further one faulted in again each call: with the budget,
+Maze::BFS takes 13,388 minor faults instead of 53,146, Maze::AStar 18,005
+instead of 184,610, and Compress::BWTDecode 9,934 instead of 84,187 (C:
+29,477, 512,098 and 18,835).
+
+### A replaced list's span reused
+
+- **Builds:** every build
+- **Where:** `runtime/arena.c` (`zane_returned_span`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Each scope's
+  dynamic region"
+- **Effect:** LangArena's `repros/field-replace 3000000 40` peaks at 26 MB
+  instead of 919 MB, with 6,214 minor faults instead of 234,762
+
+A list's span that an end or an overwrite returns goes onto its size's
+stack with its pages resident. A block past 1 MiB first takes such a span,
+from the top of any of its region's stacks above 1 MiB, when its
+reservation holds the addresses a new one would get. Growth never read the
+stacks before, so a list a field assignment replaced each round stayed
+resident, unused, until its region drained.
 
 ### Arrivals in the innermost region return at once
 

@@ -1,5 +1,6 @@
 """Whether memory is reclaimed: each case runs a loop body 10,000 and
-1,000,000 times and prints the exit status and peak RSS (KiB) of both runs.
+1,000,000 times, or a case's own two counts for a body that does much work
+each time round, and prints the exit status and peak RSS (KiB) of both runs.
 A body that reclaims what it allocates shows the same peak at both sizes;
 `control_push_grows` keeps everything it makes, and shows the measurement
 can see growth.
@@ -59,6 +60,8 @@ type Count = variant { done Int; more Count; }
 	abort Engine(power, @operators$concat(String("aborted"), String("!")));
 }
 Int depth(c Count) => match (c) { n done => n; m more => @operators$add(depth(m), Int(1)); }
+type Bag = #struct { items @primitives$List<Int>; }
+Bag() => init{ items = @primitives$List(Int); }
 '''
 cases={
 "overwrite_settled": ("car Car(make(Int(0)));", "car = Car(make(i));"),
@@ -74,6 +77,9 @@ cases={
 "string_concat_reset": ("s String(\"\"); k Int(0);", "s = @operators$concat(s, String(\"a\")); k = @operators$add(k, Int(1)); if(@operators$equal(k, Int(64))) { s = String(\"\"); k = Int(0); }"),
 "value_list_rebuild": ("l ListRef<Int> = @primitives$ListRef(Int);", "l = @primitives$ListRef(Int); l!push(i); l!push(i);"),
 "list_copy": ("l @primitives$List<String> = @primitives$List(String); l!push(String(\"abc\")); m @primitives$List<String> = l;", "m = l; m!push(String(\"d\"));"),
+# A field's list past 1 MiB replaced by a fresh one each time round: the
+# next one grows into the block of the one it replaced (memory.md §3.6).
+"field_list_replace": ("bag Bag = Bag();", "bag.items = @primitives$List(Int); j Int(1); j!to(Int(300000)) { bag.items!push(j); }", (4, 40)),
 }
 args=sys.argv[1:]
 check=bool(args) and args[0]=="--check"
@@ -81,9 +87,9 @@ if check: args=args[1:]
 only=args or list(cases)
 failures=[]
 for name in only:
-    setup,body=cases[name]
+    setup,body,*sizes=cases[name]
     res=[]; peaks=[]
-    for n in (10000, 1000000):
+    for n in (sizes[0] if sizes else (10000, 1000000)):
         pkg=f"leak{name.replace('_','')}{n}"; d=work/pkg
         d.mkdir(parents=True,exist_ok=True)
         (d/"main.zn").write_text(f"package {pkg};\n{prelude}\n{types}\nUnit main() {{\n\t{setup}\n\ti Int(1);\n\ti!to(Int({n})) {{\n\t\t{body}\n\t}}\n\treturn Unit();\n}}\n")
