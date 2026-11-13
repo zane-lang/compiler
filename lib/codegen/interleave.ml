@@ -54,9 +54,12 @@
 
 open Cgt.Nodes
 
+(* The slots a loop runs at once: 32, or ZANE_INTERLEAVE_WAYS from 2 to 128,
+   the widest the model measured; each slot is a copy of the body, so a
+   wider setting is ignored rather than allowed to blow the build up. *)
 let ways () =
   match Option.bind (Sys.getenv_opt "ZANE_INTERLEAVE_WAYS") int_of_string_opt with
-  | Some w when w >= 2 -> w
+  | Some w when w >= 2 && w <= 128 -> w
   | _ -> 32
 
 (* The bytes of the lists a walk reads below which the loop runs plain:
