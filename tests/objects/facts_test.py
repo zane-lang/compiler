@@ -538,6 +538,8 @@ class FactsTests(unittest.TestCase):
                 # order need before they interleave.
                 outputs[name] = [run_program(exe, 300, m, 0) for m in (10, 63, 64, 200, 1000)]
                 outputs[name] += [run_program(exe, 33000, m, 0) for m in (63, 64, 3000)]
+                # No nodes: every walk has no trips; one or two: a trip or two.
+                outputs[name] += [run_program(exe, n, 1000, 0) for n in (0, 1, 2)]
                 for m in (30, 200):
                     result = subprocess.run([str(exe), "300", str(m), "1"], capture_output=True, text=True, timeout=60)
                     self.assertEqual((result.returncode, len(result.stdout.splitlines()), result.stderr),
