@@ -1,8 +1,11 @@
 # Interleaving independent walks
 
-**Status: proposed, not built.** This is the design for the maintainer's
-review. Interleaving itself is not in the compiler. Its prerequisite, writing
-out a search a loop calls (I8, "Walks in functions"), is: lowering.md L11.
+**Status: built, experimental (I9).** An optimized build interleaves the
+loops this document describes (`lib/codegen/interleave.ml`;
+`ZANE_INTERLEAVE=0` turns it off). I9 says what the first version builds,
+where it differs from the design below, and what it measured. Its
+prerequisite, writing out a search a loop calls (I8, "Walks in
+functions"), is lowering.md L11.
 
 A loop whose every iteration walks a chain (a tree lookup, a short linked
 list, a binary search, a hash probe that runs on) waits on one miss per
@@ -393,3 +396,59 @@ experimental passes beside it are turned off.
   themselves, which no transformation here gives. They are a runtime
   change (`madvise` on large blocks) and independent of this pass, but
   they multiply its gains; they could be the next step instead.
+
+## I9. What the first version builds
+
+The pass is a CGT-to-CGT rewrite of each function of an optimized build,
+run as `Emit` takes the function (`Interleave.func`), with one new node,
+`Runtime.Prefetch`, which `Emit` lowers in line to the lookahead's guarded
+prefetch: the element at an index of a list, made only when the index is
+inside it. `ZANE_INTERLEAVE_REPORT=1` names each loop holding a walk and
+whether it was interleaved, and for one left alone, which check refused
+it. Where it differs from I1 to I6:
+
+- **The slots are the ring (R = W).** Iteration *k* runs in slot *k* mod W,
+  and a slot is given iteration *k* + W only once *k* has retired, so the
+  iterations in flight are always the W after the oldest unretired one and
+  retirement needs no separate ring. A slow walk holds its slot, and slots
+  that finish after it wait. A retire half that skips the ring (I1) is
+  applied as soon as its walk ends and frees its slot at once, which is
+  the model's `amac`; sums of integers, the common case, take that path.
+- **A slot's state is locals, not an array.** Each slot gets its own copy
+  of the walk half and the retire half, with fresh locals for everything
+  more than one part of the body names (the cursor, the key, the walk's
+  count, the counter); a local only one part names stays a `let` of its
+  copy. The copies are small, since a walk is a written-out search of at
+  most 120 nodes. The loop's turn is unrolled over the W slots, so no
+  slot is reached through an index.
+- **What comes before the walk runs whole at start.** Round 3's per-miss
+  stages (every load before the walk a step of its own) are not built:
+  the statements before the walk run when the slot starts, and only the
+  walk's own reads are fetched ahead. `combo`'s shape gains less than it
+  would.
+- **No leave of the loop yet.** A body that can `return` or leave the loop
+  (an abort's handler that returns) is left alone, so the staged stop and
+  the ordered abort of I3 are designed and not built. A failed index
+  check in a walk half stops the program at once, which is unobservable
+  in a loop that cannot leave (I3).
+- **No calls.** Calls of any kind in the body rule the loop out rather
+  than being checked against memoization's facts: the walk is written out
+  by then, and a call in the retire half could print.
+- **Overlap.** Two lists are apart when they are two locals' own slots, or
+  one is a slot of this function and the other the list a parameter
+  points at, which was there before the slot; anything else is taken to
+  overlap.
+- **The gate** is in the CGT: at least 2W iterations, and walked lists
+  whose count times stride add up to 512 KiB (I5), or, for a loop that
+  retires in any order, a walk whose count is a constant of 32 or more.
+  A loop that retires in order took 17% longer in cache with a long walk
+  and no size gate (`found` in round 9), so it keeps the gate.
+
+Measured (round 9, paired, best of 5, 4 KiB pages): `tree` ×1.11 at
+256 KiB, ×5.10 at 32 MiB, ×4.53 at 2 GiB; `chains` plain at 256 KiB,
+×3.27 and ×4.68; `found`, which pushes in order, plain at 256 KiB, ×3.43
+and ×5.35. No `tests/perf` program is interleaved, and each builds the
+same IR as with the pass off.
+
+W stays 32: 8, 16 and 64 were tried on `tree` and `chains` and 32 was best
+at 32 MiB (prefetch-reorder round 9).

@@ -440,6 +440,56 @@ whose count is not a constant of 32 or more, and no size gate for one
 whose count is; both runs agree on each, and the run-to-run spread above
 2 MiB (×3.2 to ×9.8) is the host's, not the crossing's.
 
+## Round 9: interleaving in `zanec`
+
+The pass of [`design/interleaving.md`](../../design/interleaving.md) I9,
+`lib/codegen/interleave.ml`, on the round 8 host (4-core Xeon at 2.3 GHz,
+2 MiB of L2 per core, 4 KiB pages). `found` is new: `tree`'s lookups with
+each id pushed onto a list in order rather than summed, a retire half that
+runs in iteration order. Every build prints the same checksum as with
+`ZANE_INTERLEAVE=0` at every size.
+
+**Attempts on the way, 3 runs per size, best run.** The raw files of these
+were deleted by mistake before they were committed, so only the summaries
+printed at the time are left; they are kept here because they decided W
+and the retirement of sums. Speed over `ZANE_INTERLEAVE=0`:
+
+| version | `tree` 256 KiB | `tree` 32 MiB | `chains` 256 KiB | `chains` 32 MiB |
+|---|---|---|---|---|
+| in order, W = 8 | ×0.96 | ×2.27 | ×0.95 | ×1.83 |
+| in order, W = 16 | ×0.99 | ×2.40 | ×0.85 | ×1.57 |
+| in order, W = 32 | ×0.87 | ×4.35 | ×0.93 | ×1.96 |
+| in order, W = 64 | ×0.74 | ×3.97 | ×1.02 | ×1.44 |
+| sums in any order, W = 32 | ×1.13 | ×5.38 | ×1.03 | ×2.63 |
+
+Retiring every iteration in order, the slots being the ring, let a slot
+whose walk finished early sit idle until the ones before it retired, which
+cost `chains` most (its chains are 1 to 15 links). Sums retired as each
+walk ends, as I1 allows, freed the slots and recovered `tree` in cache.
+`chains` at 256 KiB runs plain behind the size gate in every row.
+
+**The pass as built,** `time.py --pair interleave ZANE_INTERLEAVE tree
+chains found`, each program built with and without `ZANE_INTERLEAVE=0`
+and the two timed in turn, 5 runs each per size
+(`results/zane-interleave*.tsv`). Speed interleaved over plain, best run
+and the median in brackets:
+
+| program | 256 KiB | 32 MiB | 2 GiB |
+|---|---|---|---|
+| `tree` | ×1.11 (×1.13) | ×5.10 (×6.17) | ×4.53 (×3.74) |
+| `chains` | ×1.01 (×1.02) | ×3.27 (×3.27) | ×4.68 (×4.45) |
+| `found` | ×0.83 (×0.82) | ×3.43 (×3.61) | ×5.35 (×4.50) |
+
+`found` lost 17% in cache, where its walk, a constant 64 trips, had taken
+no size gate. In-order retirement costs a check and a wait per iteration
+that a sum's does not, so the exemption for long walks was narrowed to
+loops that retire in any order. Measured again after that, 5 runs, `found`
+at 256 KiB runs plain: ×0.99, median ×0.95 (`results/zane-interleave-gated*.tsv`).
+`chains` at 256 KiB is below the gate and runs plain. The gains at 32 MiB
+and 2 GiB are short of the model's `amac` (×5 to ×11 for `tree`, ×3 to
+×7 for `chains` in round 8): the statements before the walk are not their
+own stages (I9), and in-order loops hold slots for the slow walks.
+
 ## Where this points
 
 Worth building, in the order the measurements rank them:

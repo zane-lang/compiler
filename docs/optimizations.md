@@ -1082,6 +1082,35 @@ when the source is less than 64 bytes past the destination; each piece is
 below that size, so it takes the vector loop. The pieces keep the scalar
 alias tag, so a loop of removals still keeps the count in a register.
 
+### Independent walks interleaved
+
+- **Builds:** optimized, and both tiers of a tiered build;
+  `ZANE_INTERLEAVE=0` turns it off, `ZANE_INTERLEAVE_REPORT=1` names the
+  loops it took and left
+- **Where:** `lib/codegen/interleave.ml`, `lib/codegen/emit.ml`
+  (`Runtime.Prefetch`, `func`)
+- **Design:** [`design/interleaving.md`](design/interleaving.md), I9;
+  [`experiments/prefetch-reorder`](experiments/prefetch-reorder/README.md),
+  rounds 8 and 9
+- **Effect:** wall clock, 4 KiB pages, paired runs on one cloud Xeon, best
+  of 5: `tree` ×1.11 at 256 KiB, ×5.10 at 32 MiB and ×4.53 at 2 GiB;
+  `chains` ×3.27 and ×4.68, plain at 256 KiB; `found`, whose pushes retire
+  in order, ×3.43 and ×5.35, plain at 256 KiB; no `tests/perf` program's
+  build changes
+
+A counted loop whose every iteration walks a chain, as a tree lookup or a
+linked list does, in a search written out where the loop calls it, runs 32
+iterations' walks at once: each takes one step, prefetches the node its
+next step reads, and gives way to the next, so the 32 chains' misses
+overlap. The walk half of each iteration writes only its own locals and
+runs out of order; what follows the walk runs in iteration order, or as
+each walk ends when it only adds integers into accumulators. A loop runs
+interleaved when it has at least 64 iterations and its walks read 512 KiB
+of lists or more, or, for one that retires in any order, when its walk is
+a constant 32 trips or more. A loop whose iterations depend on each other
+through what the walks read, that writes outside the iteration before its
+walk, calls anything, or can leave or return is left as it is.
+
 ### Emitted walks per type, shared between alike types
 
 - **Builds:** every build

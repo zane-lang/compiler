@@ -1,0 +1,244 @@
+/// Loops that look up keys in a binary search tree, one search an
+/// iteration, which an optimized build interleaves (lib/codegen/interleave.ml,
+/// docs/design/interleaving.md) when their iterations are independent: a sum,
+/// which retires in any order, and a push, a float sum and a store to
+/// `out[i]`, which retire in iteration order. The last three loops are not
+/// independent and are left alone. Arguments: the nodes, the lookups, and
+/// whether to walk a chain with a link out of range, which stops the program.
+package interleaves;
+
+alias Int = @primitives$I64;
+alias I32 = @primitives$I32;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias Float = @primitives$F64;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Int argument(args @primitives$List<String>, at Int) => args[at]:parseI64() ?? Int(0);
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+Bool below(a Int, b Int) => @operators$lessThan(a, b);
+Bool same(a Int, b Int) => @operators$equal(a, b);
+
+type Node = struct {
+	key Int;
+	left I32;
+	right I32;
+}
+
+Node(key Int, left I32, right I32) => init{ key; left; right; }
+
+/// Places the keys `lo` to `hi` - 1, each twice its place plus one, as a
+/// subtree whose root is the node at the middle place plus one, and returns
+/// that node's id, 0 for none.
+Int build(this ListRef<Node>, lo Int, hi Int) mut {
+	@controlflow$branch(@operators$not(below(lo, hi)), {
+		return Int(0);
+	});
+	mid Int = @math$shiftRightLogical(plus(lo, hi), Int(1));
+	left Int = this!build(lo, mid);
+	right Int = this!build(plus(mid, Int(1)), hi);
+	this[plus(mid, Int(1))] = Node(plus(@operators$multiply(mid, Int(2)), Int(1)), I32.wrap(left), I32.wrap(right));
+	return plus(mid, Int(1));
+}
+
+/// The id of the node holding `key`, or 0.
+Int find(nodes ListRef<Node>, root Int, key Int) {
+	c Int = root;
+	d Int(1);
+	d!to(Int(64)) {
+		@controlflow$branch(same(c, Int(0)), {
+			return Int(0);
+		});
+		@controlflow$branch(same(nodes[c].key, key), {
+			return c;
+		});
+		next Int = Int(nodes[c].right);
+		@controlflow$branch(below(key, nodes[c].key), {
+			next = Int(nodes[c].left);
+		});
+		c = next;
+	}
+	return Int(0);
+}
+
+/// The ids found for the first `reach` keys, summed: retired in any order.
+Int count(nodes ListRef<Node>, root Int, keys ListRef<Int>, reach Int) {
+	sum Int(0);
+	i Int(1);
+	i!to(reach) {
+		sum = plus(sum, find(nodes, root, keys[i]));
+	}
+	return sum;
+}
+
+/// The ids found, pushed in order, and each weighed by its place.
+Int pushed(nodes ListRef<Node>, root Int, keys ListRef<Int>, reach Int) {
+	found ListRef<Int> = @primitives$ListRef(Int);
+	i Int(1);
+	i!to(reach) {
+		found!push(find(nodes, root, keys[i]));
+	}
+	sum Int(0);
+	j Int(1);
+	j!to(found:size()) {
+		sum = plus(sum, @operators$multiply(found[j], j));
+	}
+	return sum;
+}
+
+/// A float sum halved before each term is added, whose bits depend on the
+/// order the terms come in.
+Float weighed(nodes ListRef<Node>, root Int, keys ListRef<Int>, reach Int) {
+	sum Float(0.0);
+	i Int(1);
+	i!to(reach) {
+		sum = @operators$add(@operators$multiply(sum, Float(0.5)), Float.round(find(nodes, root, keys[i])));
+	}
+	return sum;
+}
+
+/// The ids found, stored at the key's place in a list of the loop's own.
+Int stored(nodes ListRef<Node>, root Int, keys ListRef<Int>, reach Int) {
+	out ListRef<Int> = @primitives$ListRef(Int);
+	k Int(1);
+	k!to(reach) {
+		out!push(Int(0));
+	}
+	i Int(1);
+	i!to(reach) {
+		out[i] = find(nodes, root, keys[i]);
+	}
+	sum Int(0);
+	j Int(1);
+	j!to(reach) {
+		sum = plus(sum, @operators$multiply(out[j], j));
+	}
+	return sum;
+}
+
+/// A search bounded by a running total: each iteration's key is what the
+/// ones before it found, so the iterations are not independent.
+Int chained(nodes ListRef<Node>, root Int, reach Int) {
+	sum Int(1);
+	i Int(1);
+	i!to(reach) {
+		sum = plus(sum, find(nodes, root, @math$bitAnd(sum, Int(255))));
+	}
+	return sum;
+}
+
+/// A walk of the list the loop pushes onto.
+Int grows(this ListRef<Node>, root Int, keys ListRef<Int>, reach Int) mut {
+	sum Int(0);
+	i Int(1);
+	i!to(reach) {
+		sum = plus(sum, find(this, root, keys[i]));
+		this!push(Node(Int(0), I32(0), I32(0)));
+	}
+	return sum;
+}
+
+/// A write to a local outside the iteration before the walk.
+Int early(nodes ListRef<Node>, root Int, keys ListRef<Int>, reach Int) {
+	seen Int(0);
+	sum Int(0);
+	i Int(1);
+	i!to(reach) {
+		seen = plus(seen, Int(1));
+		sum = plus(sum, find(nodes, root, plus(keys[i], seen)));
+	}
+	return sum;
+}
+
+type Link = struct {
+	value Int;
+	next Int;
+}
+
+Link(value Int, next Int) => init{ value; next; }
+
+/// The sum along the chain from `head`, up to 32 links: a walk that long is
+/// interleaved at any size.
+Int walk(links ListRef<Link>, head Int) {
+	s Int(0);
+	c Int = head;
+	d Int(1);
+	d!to(Int(32)) {
+		@controlflow$branch(same(c, Int(0)), {
+			return s;
+		});
+		s = plus(s, links[c].value);
+		c = links[c].next;
+	}
+	return s;
+}
+
+/// The chains' sums from each of `heads`.
+Int chains(links ListRef<Link>, heads ListRef<Int>) {
+	sum Int(0);
+	i Int(1);
+	i!to(heads:size()) {
+		sum = plus(sum, walk(links, heads[i]));
+	}
+	return sum;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+Unit main() {
+	args @primitives$List<String> = @program$runtime:arguments();
+	n Int = argument(args, Int(1));
+	m Int = argument(args, Int(2));
+	broken Int = argument(args, Int(3));
+	nodes ListRef<Node> = @primitives$ListRef(Node);
+	z Int(1);
+	z!to(n) {
+		nodes!push(Node(Int(0), I32(0), I32(0)));
+	}
+	root Int = nodes!build(Int(0), n);
+	keys ListRef<Int> = @primitives$ListRef(Int);
+	q Int(1);
+	q!to(m) {
+		keys!push(@math$bitAnd(@operators$multiply(q, Int(7919)), Int(1023)));
+	}
+	links ListRef<Link> = @primitives$ListRef(Link);
+	heads ListRef<Int> = @primitives$ListRef(Int);
+	l Int(1);
+	l!to(m) {
+		next Int = @math$bitAnd(@operators$multiply(l, Int(31)), Int(7));
+		@controlflow$branch(@operators$not(below(next, l)), {
+			next = Int(0);
+		});
+		@controlflow$branch(@operators$not(below(broken, Int(1))), {
+			@controlflow$branch(same(l, @operators$add(m, @operators$negate(Int(3)))), {
+				next = @operators$add(m, Int(5));
+			});
+		});
+		links!push(Link(l, next));
+		heads!push(l);
+	}
+	say(String(count(nodes, root, keys, m)));
+	say(String(pushed(nodes, root, keys, m)));
+	say(String(weighed(nodes, root, keys, m)));
+	say(String(stored(nodes, root, keys, m)));
+	say(String(chained(nodes, root, m)));
+	say(String(early(nodes, root, keys, m)));
+	say(String(chains(links, heads)));
+	say(String(nodes!grows(root, keys, m)));
+	return Unit();
+}

@@ -37,9 +37,10 @@ One document per stage, in the order the compiler runs them.
   stops looking when looking does not pay (M1…).
 - [`design/memo-tables.md`](design/memo-tables.md): the table layouts
   measured against the one memoization uses, and why each lost.
-- [`design/interleaving.md`](design/interleaving.md): proposed, not built:
+- [`design/interleaving.md`](design/interleaving.md): built, experimental:
   running a loop's independent walks W at a time, which loops qualify and
-  why, and the size gate (I1…).
+  why, retirement in iteration order, the size gate, and what the first
+  version builds (I1…I9).
 - [`design/generics.md`](design/generics.md): which package a generic instance
   belongs to and what it is called. A follow-on to `semantics.md` D12 and
   `lowering.md` L4.
