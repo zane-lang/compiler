@@ -140,22 +140,22 @@ scope's frame, `Array_at` to reach one, a `Switch` on a slot's stage):
 
 ```text
 next = first index; live = 0
-for s in 0 .. W-1:                     -- fill
-  if next <= last: run start for next into slot s; next += 1
-                   if the walk has no trips: run finish; stage[s] = empty
-                   else: prefetch its first node
-                         stage[s] = walking; live += 1
-  else stage[s] = empty
+for s in 0 .. W-1: fill s              -- fill
 s = 0
 while live > 0:                        -- one step of one walk per turn
   if stage[s] == walking:
     run one trip of step on slot s's state
     if the walk left (I3):  run finish on slot s's state
-                            if next <= last: start next in slot s, prefetch
-                                             next += 1
-                            else stage[s] = empty; live -= 1
+                            live -= 1; fill s
     else: prefetch the element the next trip reads
   s = s + 1 == W ? 0 : s + 1
+
+fill s:                                -- start the next walk that has a trip
+  stage[s] = empty
+  while next <= last and stage[s] == empty:
+    run start for next into slot s; next += 1
+    if the walk has no trips: run finish on slot s's state
+    else: prefetch its first node; stage[s] = walking; live += 1
 ```
 
 Round 3 showed that every miss of an iteration should be a step, the

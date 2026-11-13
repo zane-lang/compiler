@@ -311,7 +311,7 @@ int main(int argc, char **argv) {
   static char kbuf[64]; strncpy(kbuf, argv[1], 63); const char *full = argv[1];
   char *dot = strchr(kbuf, '.');
   if (dot) { *dot = 0; place = dot + 1; char *plus = strchr(dot + 1, '+'); churn_pct = plus ? atoi(plus + 1) : place[0] == 'r' ? 100 : 0; }
-  kname = kbuf; fullname = full; hcpu = sched_getcpu() ? sched_getcpu() - 1 : 1; logbytes = atoi(argv[2]); m = 1ull << atoi(argv[3]); g_huge = atoi(argv[4]);
+  kname = kbuf; fullname = full; hcpu = getenv("HELPER_CPU") ? atoi(getenv("HELPER_CPU")) : sched_getcpu() ? sched_getcpu() - 1 : 1; logbytes = atoi(argv[2]); m = 1ull << atoi(argv[3]); g_huge = atoi(argv[4]);
   uint64_t bytes = 1ull << logbytes;
   if (!strcmp(kname, "gather") || !strcmp(kname, "scatter") || !strcmp(kname, "heavy")) {
     int heavy = !strcmp(kname, "heavy"); n = bytes / (heavy ? 64 : 8);

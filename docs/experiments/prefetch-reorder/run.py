@@ -19,13 +19,17 @@ SWEEP = list(range(16, 29))
 def measure(label, kernels):
     exe = os.path.join(tempfile.mkdtemp(), "model")
     subprocess.check_call(["clang", "-O2", "-pthread", "-o", exe, os.path.join(HERE, "model.c")])
-    cpu = str(max(os.sched_getaffinity(0)))
+    allowed = sorted(os.sched_getaffinity(0))
+    cpu = str(allowed[-1])
+    # The helper kernels pin a second thread: give it another allowed CPU,
+    # chosen here, before taskset narrows the main thread's set.
+    env = dict(os.environ, HELPER_CPU=str(allowed[-2] if len(allowed) > 1 else allowed[-1]))
     out = os.path.join(HERE, "results", label + ".tsv")
     with open(out, "a") as f:
         for k in kernels:
             for size in (SWEEP if k.endswith('x') else [25, 31] if '.' in k else SIZES):
                 for huge in (0, 1):
-                    text = subprocess.check_output(["taskset", "-c", cpu, exe, k, str(size), str(KERNELS[k.split('.')[0]]), str(huge)], text=True)
+                    text = subprocess.check_output(["taskset", "-c", cpu, exe, k, str(size), str(KERNELS[k.split('.')[0]]), str(huge)], text=True, env=env)
                     sums = {l.split("\t")[6] for l in text.splitlines()}
                     if len(sums) != 1:
                         sys.exit(f"checksums differ: {k} {size} {huge}")
