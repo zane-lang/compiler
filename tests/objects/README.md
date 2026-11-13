@@ -123,14 +123,21 @@ calls, is not marked. `walks` is a program whose loop calls `find`, a search
 through a table it is given that returns from inside its own loop, which
 the loop writes out while `main`'s call outside any loop calls it, and
 `depth`, which calls itself, `spin`, given only a number, and `weighed`,
-whose constructor's left-out default makes it too big, which stay calls; each build prints the same. `taking` is a library whose `Text` constructor copies
-the string it is given once into the value it makes, and `takes` a program
-over it, built against `taking`'s object: the fresh string it passes goes to
-a local copy of `Text` that takes it with no copy, the string it reads again
-is copied, the instance of its generic `Held` constructor, which the program
-shares, takes a fresh string the same way, `named` returns its local by moving
-it out, and the library's
-object still defines `Text` as compiled and exports no copy.
+whose constructor's left-out default makes it too big, which stay calls;
+each build prints the same. `taking` is a library whose `Text` constructor
+copies the string it is given once into the value it makes, and `takes` a
+program over it, built against `taking`'s object: the fresh string it
+passes goes to a local copy of `Text` that takes it with no copy, the string
+it reads again is copied, the instance of its generic `Held` constructor,
+which the program shares, takes a fresh string the same way, `named` returns
+its local by moving it out, and the library's object still defines `Text` as
+compiled and exports no copy. `lookahead` is a program whose `scan` reads
+records at indices loaded from another list and branches on each: its optimized
+build prefetches 32 iterations ahead and its plain one does not, nor does
+an optimized build with `ZANE_PREFETCH=0`; the early reads reach the index
+list's 40 entries past the records' end, and its own end, without stopping
+the program, while the loop's own read of a bad index still stops it.
+`gathers` is the same loop with no branch, which no build prefetches.
 
 `options_test.py` checks what `zanec` accepts for the options that name and
 stamp packages. A package name in `--package NAME=DIR` or an `--import` key

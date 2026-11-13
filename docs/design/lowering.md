@@ -1666,6 +1666,38 @@ test passing.
   test unrolling saves: unrolled, the loop the memo pass checks made
   `depths` 2.5% slower.
 
+  A `repeat` whose body branches, switches or loops, and that reads a
+  list at an index worked out from another list's element, prefetches at
+  the top of each time round the element it will read
+  `Lookahead.distance` (32) iterations on, in an optimized build
+  (`lib/codegen/lookahead.ml`, `Emit.prefetch`; `ZANE_PREFETCH=0` turns it
+  off), as in both tiers of a tiered build, which emit one module. The processor cannot see such a read coming, and the loop's own
+  work keeps it from having many of them in flight, so each time round
+  waits on a miss
+  ([`prefetch-reorder`](../experiments/prefetch-reorder/README.md)). The
+  address qualifies when it is made, through the body's `let`s and
+  expression verbs' results, of constants, the loop's counter (moved on by
+  its step times the distance), locals the body neither binds nor assigns,
+  integer arithmetic and bit operations that cannot fail, and element reads
+  of lists whose handle is reached from slots bound before the loop. A
+  local the body `let`s and assigns again only in a loop inside it, and
+  not from an element, is taken at its `let`'s value, which is the address
+  a probe's first time round reads; one assigned from an element walks a
+  chain, whose head is the least of its misses, and is left alone. The
+  element reads in the address run early, each only when its index is
+  inside its list as the list's handle stands at the top of the loop, read
+  then afresh unless the loop hoisted it; any that is not skips the
+  prefetch, so no early read reaches past an end or stops the program.
+  Nothing in the body is moved: its reads, their checks and where a check
+  stops the program stay as they were. A prefetch never faults, so its
+  own address needs no check, though one outside its list is skipped too.
+  The top of the loop reads a list's handle the body itself does not hand
+  it, so a body that spawns, joins or moves a value out of a place, which
+  could leave a slot holding a handle whose block is gone, fetches
+  nothing. A body that does not branch, such as `s += a[idx[i]]`, gains
+  nothing with 4 KiB pages in the model and is left alone too, as is the
+  short copy of a versioned loop.
+
   The same options start every function on a 64-byte line
   (`-align-all-functions=6`), where LLVM would start it on 16 bytes. Which
   branches share a predictor's entries depends on where they lie, so with

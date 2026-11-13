@@ -439,6 +439,34 @@ class FactsTests(unittest.TestCase):
                                     env={**os.environ, "ZANE_TIER_UP": f"{exe}.tier1", "ZANE_TIER_WAIT": "1"})
             self.assertEqual((result.returncode, result.stdout), (0, "42! 42 42 n42 h42\n"), result.stderr)
 
+    def test_loops_that_read_through_an_index_prefetch_ahead(self):
+        # An optimized build prefetches the record `lookahead`'s loop will
+        # read 32 iterations on (lib/codegen/lookahead.ml); a plain build,
+        # ZANE_PREFETCH=0, and `gathers`' loop, whose body does not branch,
+        # fetch nothing.
+        fetch = "call void @llvm.prefetch"
+        self.assertIn(fetch, run(ZANEC, "--ll", "--optimize", *packages("lookahead")))
+        self.assertNotIn(fetch, run(ZANEC, "--ll", *packages("lookahead")))
+        self.assertNotIn(fetch, run(ZANEC, "--ll", "--optimize", *packages("gathers")))
+        off = subprocess.run([ZANEC, "--ll", "--optimize", *packages("lookahead")], capture_output=True,
+                             text=True, timeout=60, env={**os.environ, "ZANE_PREFETCH": "0"})
+        self.assertEqual(off.returncode, 0, off.stderr)
+        self.assertNotIn(fetch, off.stdout)
+
+    def test_prefetches_read_early_without_stopping(self):
+        # The early reads of `idx` reach the 40 entries past the records'
+        # end, and its own end, and stop nothing; the loop's own read of one
+        # still stops the program, as the plain build's does.
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "lookahead"
+                run(ZANEC, "--build", exe, *optimize, *packages("lookahead"))
+                self.assertEqual(run_program(exe, 64, 64), "41280\n", optimize)
+                self.assertEqual(run_program(exe, 64, 10), "7530\n", optimize)
+                result = subprocess.run([str(exe), "64", "65"], capture_output=True, text=True, timeout=60)
+                self.assertEqual((result.returncode, result.stdout, result.stderr),
+                                 (1, "", "index out of range\n"), optimize)
+
     def test_programs_run(self):
         with tempfile.TemporaryDirectory() as temp:
             pool = Path(temp) / "pool.o"
