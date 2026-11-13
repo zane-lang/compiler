@@ -307,6 +307,71 @@ of five runs here: as much as 20% at 2 GiB and 27% on the median at
 - No program in `tests/perf` gets a prefetch, so the Callgrind numbers CI
   holds are unchanged by it.
 
+## Round 6: huge pages in the runtime
+
+`zane_huge` (`runtime/region.c`) asks Linux for huge pages
+(`madvise(MADV_HUGEPAGE)`) over a list's reservation when it is 2 MiB or
+more, where `zane_alloc_growable` makes it. `ZANE_HUGE=0` in the program's
+environment leaves it out. Only a list's block above 1 MiB is covered: the
+1 MiB chunks that hold smaller blocks and boxes are too small for a 2 MiB
+page. All five programs keep their data in such lists. Checked on a running
+`gather` at 2 GiB: 2,160,640 kB of its 2,166,424 kB resident were huge
+pages with the request, and 0 kB with `ZANE_HUGE=0`.
+
+`time.py --pair-run huge ZANE_HUGE` builds each program once and times it
+in turn with the request and with `ZANE_HUGE=0`, five runs each, on the
+branch's compiler (prefetch on). `ZANE_PREFETCH=0 time.py --pair-run
+huge-nopf ZANE_HUGE heavy hash` does the same for builds without the
+prefetch. Same machine as round 5. Speed with huge pages over without,
+best run and the median in brackets (`results/zane-huge*.tsv`):
+
+| program | 256 KiB | 32 MiB | 2 GiB |
+| --- | --- | --- | --- |
+| `gather` | ×1.08 (×1.08) | ×1.16 (×1.14) | ×2.61 (×2.56) |
+| `heavy` | ×1.03 (×1.03) | ×0.98 (×1.02) | ×1.63 (×2.44) |
+| `heavy`, no prefetch | ×1.06 (×1.02) | ×1.03 (×1.08) | ×1.16 (×1.18) |
+| `hash` | ×0.91 (×1.00) | ×1.01 (×1.02) | ×1.11 (×1.09) |
+| `hash`, no prefetch | ×1.01 (×0.98) | ×1.15 (×1.41) | ×1.43 (×1.27) |
+| `chains` | ×0.99 (×1.00) | ×1.15 (×1.22) | ×1.26 (×1.41) |
+| `tree` | ×1.00 (×1.00) | ×1.81 (×1.06) | ×1.39 (×1.28) |
+
+At 256 KiB no list reaches 2 MiB, so both runs are the same program and
+the column is the noise of five runs.
+
+`heavy` and `hash` at 2 GiB, each form's best time, the pairs with and
+without the prefetch being separate sweeps:
+
+| program | plain | huge pages | prefetch | both |
+| --- | ---: | ---: | ---: | ---: |
+| `heavy` | 39.4 ns | 34.0 ns, ×1.16 | 16.9 ns, ×2.33 | 10.4 ns, ×3.81 |
+| `hash` | 96.6 ns | 67.4 ns, ×1.43 | 36.1 ns, ×2.68 | 32.4 ns, ×2.98 |
+
+**What it shows.**
+
+- The light loop gains what the model said: `gather` ×2.6 at 2 GiB (model
+  ×2.7). Nothing else measured helps that loop.
+- Every program is faster at 2 GiB, by ×1.1 to ×1.6, and none is slower at
+  any size beyond the noise.
+- For `heavy` the two multiply, as in the model: ×1.16 from huge pages
+  alone, ×2.33 from the prefetch alone, ×3.81 from both. For `hash` they do
+  not: the prefetch already hides most of what huge pages save (×1.11 on
+  top of it, against ×1.43 without it).
+- `tree` at 32 MiB is ×1.81 on the best run and ×1.06 on the median: not
+  established.
+- The times above are the loop's alone. Getting the pages has a cost that
+  lands on building the data. Three whole runs of `gather` at 2 GiB each
+  way, a single pass, took 4.09 s, 2.19 s and 1.81 s with the request and
+  1.83 s, 1.80 s and 1.75 s without: the first run waited over 2 s for the
+  system to make huge pages free, and a loop of 0.07 s against 0.18 s does
+  not pay that back. A program that reads its data many times gains; one
+  that builds a large list and reads it once may lose.
+
+**Not measured.** A list that is reserved large and touched sparsely, where
+a huge page takes 2 MiB of memory for one touched byte; a system with
+transparent huge pages off, where the request does nothing, or set to
+`always`, where it is already made; macOS and Windows, where this is not
+the mechanism.
+
 ## Where this points
 
 Worth building, in the order the measurements rank them:
@@ -326,7 +391,7 @@ hint, a helper thread, and prefetching a chain's head alone.
 
 **Not yet tried.** Interleaving in `zanec` (designed in
 [`design/interleaving.md`](../../design/interleaving.md), not built); huge pages
-for `zanec`'s large blocks; nodes with several children to a
+for the 1 MiB chunks that hold boxes; nodes with several children to a
 cache line; interleaved batches on several cores; a body between `gather` and
 `heavy` in weight, to find where a prefetch starts to pay; a processor other
 than this one.
