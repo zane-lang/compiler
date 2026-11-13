@@ -120,17 +120,26 @@ int zane_decommit_range(char *at, size_t bytes) {
    one an unbounded pool takes, touched only here and there, is told to
    leave huge pages out (`to` 0). `ZANE_HUGE_MIN=N` moves the threshold to
    N bytes, for measuring. */
+#if defined(__linux__) && defined(MADV_HUGEPAGE)
+/* Whether to ask, and from what block size, read from the environment once
+   by whichever thread first makes a list's large block. */
+static int zane_huge_asked;
+static size_t zane_huge_least = (size_t)32 << 20;
+static pthread_once_t zane_huge_once = PTHREAD_ONCE_INIT;
+
+static void zane_huge_init(void) {
+	const char *off = getenv("ZANE_HUGE"), *least = getenv("ZANE_HUGE_MIN");
+	size_t n = least ? (size_t)strtoull(least, NULL, 10) : 0;
+	if (n) zane_huge_least = n;
+	zane_huge_asked = !(off && off[0] == '0');
+}
+#endif
+
 void zane_huge(char *base, size_t reserved, size_t from, size_t to) {
 #if defined(__linux__) && defined(MADV_HUGEPAGE)
-	static int asked = -1;
-	static size_t least = (size_t)32 << 20;
-	if (asked < 0) {
-		const char *v = getenv("ZANE_HUGE"), *n = getenv("ZANE_HUGE_MIN");
-		if (n && strtoull(n, NULL, 10)) least = (size_t)strtoull(n, NULL, 10);
-		asked = !(v && v[0] == '0');
-	}
-	if (!asked) return;
-	if (from < least && to >= least) madvise(base, reserved, MADV_HUGEPAGE);
+	if (pthread_once(&zane_huge_once, zane_huge_init)) zane_broken("reading the huge-page settings");
+	if (!zane_huge_asked) return;
+	if (from < zane_huge_least && to >= zane_huge_least) madvise(base, reserved, MADV_HUGEPAGE);
 	else if (!to) madvise(base, reserved, MADV_NOHUGEPAGE);
 #else
 	(void)base;

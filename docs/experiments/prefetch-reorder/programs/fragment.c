@@ -72,6 +72,11 @@ int main(int argc, char **argv) {
 		ballast[taken] = 1;
 		taken += huge;
 	}
+	if (free_huge() >= 16) {
+		fprintf(stderr, "fragment: %zu MiB of huge pages taken and %zu free 2 MiB blocks left\n", taken >> 20,
+		        free_huge());
+		return 1;
+	}
 	printf("fragmented %zu MiB, %zu MiB held, %zu MiB of free 2 MiB blocks taken, %zu left\n", bytes >> 20,
 	       (bytes / keep) >> 20, taken >> 20, free_huge());
 	fflush(stdout);

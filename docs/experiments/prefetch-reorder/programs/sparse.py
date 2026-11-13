@@ -32,10 +32,15 @@ def main(label, variable, lists, eaches):
     exe = os.path.join(tempfile.mkdtemp(), "sparse")
     subprocess.check_call([zanec, "--build", exe, "--optimize", "--package", os.path.join(HERE, "sparse")])
     os.makedirs(RESULTS, exist_ok=True)
+    # Each pass reads one of the first 1024 elements of every list.
+    if any(int(e) < 1024 for e in eaches):
+        sys.exit("sparse.py: each list needs at least 1024 elements")
     out = open(os.path.join(RESULTS, f"sparse-{label}.tsv"), "a")
     for each in eaches:
         for mode in ("on", "off"):
-            env = {**os.environ, variable: "0"} if mode == "off" else None
+            env = {k: v for k, v in os.environ.items() if k != variable}
+            if mode == "off":
+                env[variable] = "0"
             # Output is flushed per line only to a terminal, so the program
             # runs on one, as in time.py, and is stopped once read.
             master, slave = pty.openpty()

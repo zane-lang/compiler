@@ -807,8 +807,10 @@ Worth building, in the order the measurements rank them:
    works on what it loads (`heavy`, `hash`): ×1.6 to ×2.8, no gate.
 3. Huge pages for large backing stores: ×2 to ×2.7 on the light loops by
    itself, and what lets a prefetch help them at all.
-   Round 10 finds no cost in time to getting them and asks for them by
-   default for a list's block of 32 MiB or more.
+   Round 10 finds getting them costs little time: building is up to
+   0.27 s slower on the median at 2 GiB, and compacts on fragmented
+   memory, and the loop pays that back within three passes. It asks for
+   them by default for a list's block of 32 MiB or more.
 
 Not worth building: prefetching right before the access, batching in place
 of a sliding distance, loading early without a prefetch, the non-temporal

@@ -6,11 +6,11 @@ after the size.
 
   cold.py PROGRAM LOG2BYTES GAP RUNS   (from the repository root, in pixi)
 """
-import importlib.util, os, sys, time
+import importlib.util, os, sys, tempfile, time
 spec = importlib.util.spec_from_file_location("whole", "docs/experiments/prefetch-reorder/programs/whole.py")
 w = importlib.util.module_from_spec(spec); spec.loader.exec_module(w)
 program, size, gap, reps = sys.argv[1], sys.argv[2], float(sys.argv[3]), int(sys.argv[4])
-exe = f"/tmp/claude-0/b/{program}_w"
+exe = os.path.join(tempfile.mkdtemp(), program)
 w.build(program, exe)
 off = {**os.environ, "ZANE_HUGE": "0"}
 out = open("docs/experiments/prefetch-reorder/results/cold.tsv", "a")

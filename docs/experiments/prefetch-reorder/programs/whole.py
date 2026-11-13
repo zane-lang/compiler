@@ -28,7 +28,8 @@ run, building (start to `ready`), the loop (`ready` to the checksum) and
 the end (checksum to exit), the system CPU seconds and minor faults of the
 process, and the deltas of /proc/vmstat's thp_fault_alloc,
 thp_fault_fallback, compact_stall, compact_fail and compact_success over
-the run (the machine's, not only the process's), then the checksum.
+the run (the machine's, not only the process's), the checksum, and the
+passes (absent from rows written before it was added, which made one).
 """
 import collections, os, pty, select, statistics, subprocess, sys, tempfile, time
 
@@ -121,13 +122,15 @@ def measure(label, variable, programs):
                 for mode in (("on", "off") if r % 2 == 0 else ("off", "on")):
                     env = {**os.environ, variable: "0"} if mode == "off" else None
                     held = fragmented()
-                    times, stime, minflt, deltas, checksum = run(exe, [str(size), PASSES, str(OPS[program])], env)
-                    if held:
-                        held.kill()
-                        held.wait()
+                    try:
+                        times, stime, minflt, deltas, checksum = run(exe, [str(size), PASSES, str(OPS[program])], env)
+                    finally:
+                        if held:
+                            held.kill()
+                            held.wait()
                     sums.add(checksum)
                     row = [program, str(size), mode, str(r), *(f"{t:.4f}" for t in times), f"{stime:.3f}",
-                           str(minflt), *map(str, deltas), checksum]
+                           str(minflt), *map(str, deltas), checksum, PASSES]
                     out.write("\t".join(row) + "\n")
                     out.flush()
                     print(*row, flush=True)
@@ -142,7 +145,9 @@ def show(label):
     rows = collections.defaultdict(lambda: {"on": [], "off": []})
     for line in open(os.path.join(RESULTS, f"whole-{label}.tsv")):
         f = line.rstrip("\n").split("\t")
-        rows[(f[0], int(f[1]))][f[2]].append([float(x) for x in f[4:9]] + [int(x) for x in f[9:15]])
+        # Rows written before the pass count was a column made one pass.
+        passes = int(f[16]) if len(f) > 16 else 1
+        rows[(f[0], int(f[1]))][f[2]].append([float(x) for x in f[4:9]] + [int(x) for x in f[9:15]] + [passes])
     med = lambda xs: statistics.median(xs)
     print("program size    whole on/off median (best)        build on-off  loop on/off   stalls  passes to pay")
     for (program, size), got in sorted(rows.items()):
@@ -150,9 +155,12 @@ def show(label):
         col = lambda rs, i: [r[i] for r in rs]
         build = med(col(on, 1)) - med(col(off, 1))
         gain = med(col(off, 2)) - med(col(on, 2))
-        stalls = sum(1 for r in on if r[7] > 0)
+        stalls = sum(1 for r in on if r[8] > 0)
         worst = max(col(on, 1)) - med(col(off, 1))
-        pay = "now" if build <= 0 else (f"{build / gain:.1f}" if gain > 0 else "never")
+        # The loop's gain is over all of a run's passes; the break-even is
+        # counted in single passes.
+        passes = on[0][11]
+        pay = "now" if build <= 0 else (f"{build * passes / gain:.1f}" if gain > 0 else "never")
         print(f"{program:7} 2^{size}  {med(col(on, 0)):7.3f}/{med(col(off, 0)):7.3f} "
               f"({min(col(on, 0)):.3f}/{min(col(off, 0)):.3f})  {build:+7.3f}  "
               f"{med(col(on, 2)):.4f}/{med(col(off, 2)):.4f}  {stalls}/{len(on)} worst {worst:+.2f}  {pay}")
