@@ -147,6 +147,19 @@ let rewrite data_layout m =
     let rec fit a = if a <= 1 || Int64.rem offset (Int64.of_int a) = 0L then max a 1 else fit (a / 2) in
     fit whole
   in
+  (* The address of the part at [path] in a value of type [t] at [p]: a
+     struct's field is numbered in 32 bits, as LLVM requires, and an
+     array's element in 64, so an index of 2^31 or more stays whole. *)
+  let address b t p path =
+    let rec go t = function
+      | [] -> []
+      | i :: rest -> (
+          match Llvm.classify_type t with
+          | Llvm.TypeKind.Struct -> Llvm.const_int i32 i :: go (Llvm_extra.struct_element_types t).(i) rest
+          | _ -> Llvm.const_int i64 i :: go (Llvm.element_type t) rest)
+    in
+    Llvm.build_in_bounds_gep t p (Array.of_list (Llvm.const_int i64 0 :: go t (Array.to_list path))) "" b
+  in
   let rec split load =
     let users = uses load in
     if
@@ -158,8 +171,7 @@ let rewrite data_layout m =
       let b = Llvm.builder_before ctx load in
       List.iter
         (fun x ->
-          let path = Array.map (fun i -> Llvm.const_int i32 i) (Array.append [| 0 |] (Llvm.indices x)) in
-          let at = Llvm.build_in_bounds_gep t src path "" b in
+          let at = address b t src (Llvm.indices x) in
           let part = Llvm.build_load (Llvm.type_of x) at "" b in
           Llvm.set_alignment (aligned_at t (Llvm.indices x) (Llvm.alignment load)) part;
           Llvm.replace_all_uses_with x part;
@@ -169,11 +181,46 @@ let rewrite data_layout m =
       Llvm.delete_instruction load
     end
   in
+  let memset_type = Llvm.function_type (Llvm.void_type ctx) [| ptr; Llvm.i8_type ctx; i64; Llvm.i1_type ctx |] in
+  let memset =
+    lazy
+      (match Llvm.lookup_function "llvm.memset.p0.i64" m with
+      | Some f -> f
+      | None -> Llvm.declare_function "llvm.memset.p0.i64" memset_type m)
+  in
+  (* A constant [c] of type [t] stored [align]-aligned at [p] by [b]: whole
+     while LLVM can move it as one value, else nothing where it is
+     undefined, zeros where it is all zeros, and otherwise each part at
+     its address, and so on into each part still too large. A constant
+     part is what `insertvalue` folds to when the first part put in is a
+     constant. *)
+  let rec put_constant b c t p align =
+    if Llvm.is_undef c || Llvm.is_poison c then ()
+    else if parts t <= most_parts then Llvm.set_alignment align (Llvm.build_store c p b)
+    else if Llvm.is_null c then
+      ignore
+        (Llvm.build_call memset_type (Lazy.force memset)
+           [| p; Llvm.const_int (Llvm.i8_type ctx) 0; Llvm.const_of_int64 i64 (size t) false; Llvm.const_int (Llvm.i1_type ctx) 0 |]
+           "" b)
+    else
+      let n =
+        match Llvm.classify_type t with
+        | Llvm.TypeKind.Struct -> Array.length (Llvm_extra.struct_element_types t)
+        | _ -> Llvm_extra.array_length t
+      in
+      for i = 0 to n - 1 do
+        match Llvm.aggregate_element c i with
+        | None -> ()
+        | Some e ->
+            put_constant b e (Llvm.type_of e) (address b t p [| i |]) (aligned_at t [| i |] align)
+      done
+  in
   (* A store of more parts than LLVM moves as one value, built by putting
      parts into another value one by one, as a constructor builds its
-     struct, becomes a store of that other value, unless it is undefined,
-     and then a store of each part at its address, in the order they were
-     put in; and so on into each part still too large. *)
+     struct, becomes a store of that other value, a part at a time when it
+     is a constant, and then a store of each part at its address, in the
+     order they were put in; and so on into each part still too large. A
+     constant stored whole is put a part at a time too. *)
   let rec scatter store =
     let v = Llvm.operand store 0 and p = Llvm.operand store 1 in
     let rec unchain v puts =
@@ -183,7 +230,7 @@ let rewrite data_layout m =
       | _ | (exception _) -> (v, puts)
     in
     let base, puts = unchain v [] in
-    if parts (Llvm.type_of v) > most_parts && puts <> [] then begin
+    if parts (Llvm.type_of v) > most_parts && (puts <> [] || Llvm.is_constant base) then begin
       let t = Llvm.type_of v in
       let b = Llvm.builder_before ctx store in
       let put value at align =
@@ -192,13 +239,14 @@ let rewrite data_layout m =
         s
       in
       let align = Llvm.alignment store in
-      let whole = if Llvm.is_undef base || Llvm.is_poison base then None else Some (put base p align) in
-      let stores =
-        List.map
-          (fun (_, path, part) ->
-            let at = Array.map (fun i -> Llvm.const_int i32 i) (Array.append [| 0 |] path) in
-            put part (Llvm.build_in_bounds_gep t p at "" b) (aligned_at t path align))
-          puts
+      let whole =
+        if Llvm.is_constant base then begin
+          put_constant b base t p align;
+          None
+        end
+        else Some (put base p align)
+      in
+      let stores = List.map (fun (_, path, part) -> put part (address b t p path) (aligned_at t path align)) puts
       in
       Llvm.delete_instruction store;
       List.iter (fun (x, _, _) -> Llvm.delete_instruction x) (List.rev puts);
@@ -246,7 +294,8 @@ let rewrite data_layout m =
     (fun f ->
       Llvm.iter_blocks
         (Llvm.iter_instrs (fun i ->
-             let t = Llvm.type_of i in
+             (* A store's own type is void: what it moves is its value. *)
+             let t = if Llvm.instr_opcode i = Llvm.Opcode.Store then Llvm.type_of (Llvm.operand i 0) else Llvm.type_of i in
              if
                Option.is_none !too_large
                && Llvm.instr_opcode i <> Llvm.Opcode.Alloca

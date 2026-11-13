@@ -1311,6 +1311,48 @@ let parts_apart () =
   ignore (Llvm.build_ret_void b);
   check "a value shared before it is stored is still a limit" (Result.is_error (Codegen__Big_moves.rewrite layout m));
   Llvm.dispose_module m;
+  (* A constant put in first: the builder folds it into a constant base. *)
+  let m = Llvm.create_module ctx "parts" in
+  let f, b = fn m "constant" (Llvm.void_type ctx) [| ptr; i32 |] in
+  let v = Llvm.build_insertvalue (Llvm.undef big) (Llvm.const_int i32 1) 0 "" b in
+  check "the first constant part folds into a constant" (Llvm.is_constant v);
+  let v = Llvm.build_insertvalue v (Llvm.param f 1) 1 "" b in
+  Llvm.set_alignment 8 (Llvm.build_store v (Llvm.param f 0) b);
+  let g, b = fn m "zeros" (Llvm.void_type ctx) [| ptr |] in
+  ignore (Llvm.build_store (Llvm.const_null big) (Llvm.param g 0) b);
+  ignore (Llvm.build_ret_void b);
+  let b = Llvm.builder_at_end ctx (Llvm.entry_block f) in
+  ignore (Llvm.build_ret_void b);
+  check "a constant base moves apart" (Codegen__Big_moves.rewrite layout m = Ok ());
+  check "nor is the constant stored whole" (not (List.exists whole (instrs f @ instrs g)));
+  check "the constant's defined part and the part put in are stored, each as aligned as its offset"
+    (aligns f Llvm.Opcode.Store = [ 8; 4 ]);
+  check "a value of zeros is set to zeros" (List.exists (fun i -> Llvm.instr_opcode i = Llvm.Opcode.Call) (instrs g));
+  Llvm.dispose_module m;
+  (* An array index of 2^31 or more stays whole in its address. *)
+  let i8 = Llvm.i8_type ctx in
+  let far = (1 lsl 31) + 1 in
+  let bytes = Codegen__Llvm_extra.array_type i8 (far + 7) in
+  let m = Llvm.create_module ctx "parts" in
+  let f, b = fn m "read_far" i8 [| ptr |] in
+  let whole_bytes = Llvm.build_load bytes (Llvm.param f 0) "" b in
+  ignore (Llvm.build_ret (Llvm.build_extractvalue whole_bytes far "" b) b);
+  let g, b = fn m "write_far" (Llvm.void_type ctx) [| ptr; i8 |] in
+  ignore (Llvm.build_store (Llvm.build_insertvalue (Llvm.undef bytes) (Llvm.param g 1) far "" b) (Llvm.param g 0) b);
+  ignore (Llvm.build_ret_void b);
+  check "parts past 2^31 move apart" (Codegen__Big_moves.rewrite layout m = Ok ());
+  let indices f =
+    List.concat_map
+      (fun i ->
+        if Llvm.instr_opcode i = Llvm.Opcode.GetElementPtr then
+          List.init (Llvm.num_operands i - 1) (fun n -> Llvm.int64_of_const (Llvm.operand i (n + 1)))
+        else [])
+      (instrs f)
+  in
+  let reaches f = List.mem (Some (Int64.of_int far)) (indices f) in
+  check "the part read is found at index 2^31 + 1" (reaches f);
+  check "the part stored is put at index 2^31 + 1" (reaches g);
+  Llvm.dispose_module m;
   Llvm.dispose_context ctx
 
 (* Each load and store is as aligned as its address is known to be
