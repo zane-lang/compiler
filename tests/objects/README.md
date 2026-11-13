@@ -138,6 +138,18 @@ an optimized build with `ZANE_PREFETCH=0`; the early reads reach the index
 list's 40 entries past the records' end, and its own end, without stopping
 the program, while the loop's own read of a bad index still stops it.
 `gathers` is the same loop with no branch, which no build prefetches.
+`interleaves` looks keys up in a binary search tree, one search an
+iteration, in loops an optimized build interleaves
+(`lib/codegen/interleave.ml`): a sum, retired in any order, and a push, a
+float sum, a store to `out[i]`, a walk's result written over a local and a
+sum guarded by its own running value, retired in iteration order, and a
+walk whose prefetched index is a local of one step, while a
+search keyed by a running total, a write before the walk and a walk of the
+list the loop pushes onto are left alone (`ZANE_INTERLEAVE_REPORT=1` says
+which). Each build prints the same at counts below, at and above the 64
+that interleaving needs, the float sum's bits included, and a chain with a
+link out of range stops the program with the plain loop's message after
+the same output.
 `payloads` reads a list held in one case of a variant, only in that case's
 arm and beside a call; holding the other case, it runs to the plain
 build's answer, since no prefetch reads a list's handle through a variant's

@@ -35,7 +35,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 RESULTS = os.path.join(HERE, "..", "results")
 # log2 of the operations in a pass, as model.c's run.py has them.
-OPS = {"heavy": 23, "hash": 23, "gather": 23, "tree": 21, "chains": 21}
+OPS = {"heavy": 23, "hash": 23, "gather": 23, "tree": 21, "chains": 21, "found": 21}
 SIZES = [int(x) for x in os.environ.get("TIME_SIZES", "18,25,31").split(",")]
 RUNS = int(os.environ.get("TIME_RUNS", "5"))
 

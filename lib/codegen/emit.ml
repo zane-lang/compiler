@@ -1149,6 +1149,9 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       | `Value v -> Some v
       | `Stored p -> Some (Llvm.build_load (lltype env e.Expr.ty) p "" b)
       | `Nothing -> None)
+  | Expr.Runtime { fn = Cgt.Runtime.Prefetch; args = [ list; { Expr.node = Expr.Local i; ty }; { Expr.node = Expr.Int stride; _ } ] } ->
+      prefetch env fr b [ { Lookahead.list; index = Lookahead.Read (i, ty); stride = Int64.to_int stride } ];
+      None
   | Expr.Runtime { fn = (Cgt.Runtime.List_at | Cgt.Runtime.Array_at) as fn; args } ->
       let cached =
         match (fn, args) with
@@ -1836,6 +1839,8 @@ let unwritten env (f : Func.t) addressed =
   if addressed <> [] then List.iter stat f.Func.body
 
 let func env (f : Func.t) =
+  (* Experimental: an optimized build's loops over independent walks. *)
+  let f = if env.version then Interleave.func f else f in
   let fn, _ = Hashtbl.find env.funcs f.Func.symbol in
   let a = Hashtbl.find env.abis f.Func.symbol in
   (* `define_function` gives the function its entry block already. *)

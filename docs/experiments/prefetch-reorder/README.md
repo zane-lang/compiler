@@ -402,6 +402,94 @@ the same plain and optimized IR as on `main`, and the same tiered
 executable and tier 1 to the byte, so none of the Callgrind numbers CI
 holds moves.
 
+## Round 8: where interleaving starts to pay (the size gate)
+
+The sweep the design asks for before the pass lands
+([`design/interleaving.md`](../../design/interleaving.md) I5): `chains` and
+`tree` in the model, plain (`base`) against interleaved (`amac`, the best
+of W = 4 to 128), at every power of two from 64 KiB to 256 MiB, 4 KiB
+pages. `run.py --sweep LABEL chains tree`, each point the best of 3 runs
+of 2^21 operations, pinned to the last CPU. The whole sweep was run twice
+(`results/sweep-gate-a.tsv`, `results/sweep-gate-b.tsv`) on a 4-core Xeon
+at 2.3 GHz with 2 MiB of L2 per core (a different host from rounds 5 to 7,
+which ran at 2.1 GHz). Speed of `amac` over `base`, run A / run B:
+
+| bytes | `chains` | `tree` |
+|---|---|---|
+| 64 KiB | ×0.68 / ×0.69 | ×1.23 / ×1.21 |
+| 128 KiB | ×0.89 / ×0.87 | ×1.38 / ×1.45 |
+| 256 KiB | ×0.94 / ×0.97 | ×1.53 / ×1.50 |
+| 512 KiB | ×1.99 / ×1.85 | ×1.75 / ×1.67 |
+| 1 MiB | ×1.59 / ×1.74 | ×1.98 / ×1.70 |
+| 2 MiB | ×4.64 / ×3.22 | ×2.20 / ×2.61 |
+| 4 MiB | ×3.22 / ×3.97 | ×2.53 / ×4.73 |
+| 8 MiB | ×9.77 / ×7.16 | ×4.80 / ×6.74 |
+| 16 MiB | ×5.30 / ×5.47 | ×8.96 / ×8.89 |
+| 32 MiB | ×5.92 / ×3.38 | ×5.35 / ×7.86 |
+| 64 MiB | ×6.62 / ×4.81 | ×8.55 / ×11.14 |
+| 128 MiB | ×7.66 / ×3.95 | ×11.17 / ×7.50 |
+| 256 MiB | ×5.39 / ×6.97 | ×9.72 / ×9.79 |
+
+Both runs put the crossing for the short chains (1 to 15 links) between
+256 KiB and 512 KiB, below the L2's 2 MiB, not at it as I5 expected: the
+chains' nodes are 16 bytes in random places, so a 512 KiB list already
+misses the L1 and the L2's nearby lines on most links. `tree`, whose walk
+is up to 64 steps and branches on every key it reads, gains at every size,
+from ×1.2 at 64 KiB. So the gate is 512 KiB of walked lists for a walk
+whose count is not a constant of 32 or more, and no size gate for one
+whose count is; both runs agree on each, and the run-to-run spread above
+2 MiB (×3.2 to ×9.8) is the host's, not the crossing's.
+
+## Round 9: interleaving in `zanec`
+
+The pass of [`design/interleaving.md`](../../design/interleaving.md) I9,
+`lib/codegen/interleave.ml`, on the round 8 host (4-core Xeon at 2.3 GHz,
+2 MiB of L2 per core, 4 KiB pages). `found` is new: `tree`'s lookups with
+each id pushed onto a list in order rather than summed, a retire half that
+runs in iteration order. Every build prints the same checksum as with
+`ZANE_INTERLEAVE=0` at every size.
+
+**Attempts on the way, 3 runs per size, best run.** The raw files of these
+were deleted by mistake before they were committed, so only the summaries
+printed at the time are left; they are kept here because they decided W
+and the retirement of sums. Speed over `ZANE_INTERLEAVE=0`:
+
+| version | `tree` 256 KiB | `tree` 32 MiB | `chains` 256 KiB | `chains` 32 MiB |
+|---|---|---|---|---|
+| in order, W = 8 | ×0.96 | ×2.27 | ×0.95 | ×1.83 |
+| in order, W = 16 | ×0.99 | ×2.40 | ×0.85 | ×1.57 |
+| in order, W = 32 | ×0.87 | ×4.35 | ×0.93 | ×1.96 |
+| in order, W = 64 | ×0.74 | ×3.97 | ×1.02 | ×1.44 |
+| sums in any order, W = 32 | ×1.13 | ×5.38 | ×1.03 | ×2.63 |
+
+Retiring every iteration in order, the slots being the ring, let a slot
+whose walk finished early sit idle until the ones before it retired, which
+cost `chains` most (its chains are 1 to 15 links). Sums retired as each
+walk ends, as I1 allows, freed the slots and recovered `tree` in cache.
+`chains` at 256 KiB runs plain behind the size gate in every row.
+
+**The pass as built,** `time.py --pair interleave ZANE_INTERLEAVE tree
+chains found`, each program built with and without `ZANE_INTERLEAVE=0`
+and the two timed in turn, 5 runs each per size
+(`results/zane-interleave*.tsv`). Speed interleaved over plain, best run
+and the median in brackets:
+
+| program | 256 KiB | 32 MiB | 2 GiB |
+|---|---|---|---|
+| `tree` | ×1.11 (×1.13) | ×5.10 (×6.17) | ×4.53 (×3.74) |
+| `chains` | ×1.01 (×1.02) | ×3.27 (×3.27) | ×4.68 (×4.45) |
+| `found` | ×0.83 (×0.82) | ×3.43 (×3.61) | ×5.35 (×4.50) |
+
+`found` lost 17% in cache, where its walk, a constant 64 trips, had taken
+no size gate. In-order retirement costs a check and a wait per iteration
+that a sum's does not, so the exemption for long walks was narrowed to
+loops that retire in any order. Measured again after that, 5 runs, `found`
+at 256 KiB runs plain: ×0.99, median ×0.95 (`results/zane-interleave-gated*.tsv`).
+`chains` at 256 KiB is below the gate and runs plain. The gains at 32 MiB
+and 2 GiB are short of the model's `amac` (×5 to ×11 for `tree`, ×3 to
+×7 for `chains` in round 8): the statements before the walk are not their
+own stages (I9), and in-order loops hold slots for the slow walks.
+
 ## Where this points
 
 Worth building, in the order the measurements rank them:
@@ -419,8 +507,9 @@ Not worth building: prefetching right before the access, batching in place
 of a sliding distance, loading early without a prefetch, the non-temporal
 hint, a helper thread, and prefetching a chain's head alone.
 
-**Not yet tried.** Interleaving in `zanec` (designed in
-[`design/interleaving.md`](../../design/interleaving.md), not built); huge pages
+**Not yet tried.** Statements before a walk as their own stages, and
+calls and leaves in interleaved loops (the gaps of
+[`design/interleaving.md`](../../design/interleaving.md) I9); huge pages
 for the 1 MiB chunks that hold boxes; nodes with several children to a
 cache line; interleaved batches on several cores; a body between `gather` and
 `heavy` in weight, to find where a prefetch starts to pay; a processor other

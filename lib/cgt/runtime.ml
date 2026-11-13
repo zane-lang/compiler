@@ -38,6 +38,10 @@ type fn =
   | List_swap_remove of { scalars : bool }
   | Array_at
   | Out_of_range
+  (* Experimental (docs/design/interleaving.md): a hint that the element at
+     an index of a list will be read soon, made only when the index is
+     inside it. Emit makes it in line; there is no runtime function. *)
+  | Prefetch
   | Scope_drain
   | Spawn
   | Join
@@ -106,6 +110,7 @@ let name = function
   | List_swap_remove _ -> "zane_list_swap_remove"
   | Array_at -> "zane_array_at"
   | Out_of_range -> "zane_out_of_range"
+  | Prefetch -> "zane_prefetch"
   | Scope_drain -> "zane_scope_drain"
   | Spawn -> "zane_spawn"
   | Join -> "zane_join"
@@ -175,6 +180,7 @@ let signature = function
   | List_swap_remove _ -> (Void, [ Ptr; I64; I64 ])
   | Array_at -> (Ptr, [ Ptr; I64; I64; I64 ])
   | Out_of_range -> (Void, [  ])
+  | Prefetch -> (Void, [ Ptr; I64; I64 ])
   | Scope_drain -> (Void, [ Ptr ])
   | Spawn -> (Void, [ Ptr; Ptr; Ptr; Ptr; I64 ])
   | Join -> (Void, [ Ptr ])

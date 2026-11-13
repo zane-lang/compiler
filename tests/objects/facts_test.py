@@ -491,6 +491,72 @@ class FactsTests(unittest.TestCase):
                 self.assertEqual(run_program(exe, 1), "17800\n", optimize)
                 self.assertEqual(run_program(exe, 9), "10200\n", optimize)
 
+    def test_loops_over_independent_walks_interleave(self):
+        # Each loop of `interleaves` that looks a key up in a tree, one search
+        # an iteration, is interleaved in an optimized build when nothing
+        # ties its iterations together, retired in any order for a sum and in
+        # iteration order for a push, a float sum, a store to `out[i]` and a
+        # walk's result written over a local
+        # (lib/codegen/interleave.ml); the loops whose iterations depend on
+        # each other are left alone. ZANE_INTERLEAVE=0 interleaves nothing.
+        def report(env):
+            result = subprocess.run([ZANEC, "--ll", "--optimize", *packages("interleaves")], capture_output=True,
+                                    text=True, timeout=60, env={**os.environ, "ZANE_INTERLEAVE": "1", "ZANE_INTERLEAVE_REPORT": "1", **env})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            found = {}
+            for line in result.stderr.splitlines():
+                m = re.match(r"(interleaved|left alone) ([^(\s]+)", line)
+                if m:
+                    found[m[2]] = m[1] + (" in order" if line.endswith("retired in order") else "")
+            return found
+        self.assertEqual(report({}), {
+            "interleaves$count": "interleaved",
+            "interleaves$pushed": "interleaved in order",
+            "interleaves$weighed": "interleaved in order",
+            "interleaves$stored": "interleaved in order",
+            "interleaves$chains": "interleaved",
+            "interleaves$chained": "left alone",
+            "interleaves$early": "left alone",
+            "interleaves$grows": "left alone",
+            "interleaves$latest": "interleaved in order",
+            "interleaves$skips": "interleaved",
+            "interleaves$capped": "interleaved in order",
+        })
+        self.assertEqual(report({"ZANE_INTERLEAVE": "0"}), {})
+
+    def test_interleaved_loops_compute_what_plain_ones_do(self):
+        # Below 64 iterations a loop runs plain, at and above interleaved
+        # (with enough data for the loops that retire in order);
+        # each build prints the same, the float sum's bits included. A chain
+        # with a link out of range stops the program with the plain loop's
+        # message and status, after the same output.
+        with tempfile.TemporaryDirectory() as temp:
+            outputs = {}
+            failed = {}
+            for name, optimize, env in [("plain", [], {}), ("optimized", ["--optimize"], {"ZANE_INTERLEAVE": "1"}),
+                                        ("off", ["--optimize"], {"ZANE_INTERLEAVE": "0"})]:
+                exe = Path(temp) / name
+                built = subprocess.run([ZANEC, "--build", exe, *optimize, *packages("interleaves")], capture_output=True,
+                                       text=True, timeout=120, env={**os.environ, **env})
+                self.assertEqual(built.returncode, 0, built.stderr)
+                # 33,000 nodes are past the 512 KiB the loops that retire in
+                # order need before they interleave.
+                outputs[name] = [run_program(exe, 300, m, 0) for m in (10, 63, 64, 200, 1000)]
+                outputs[name] += [run_program(exe, 33000, m, 0) for m in (63, 64, 3000)]
+                # No nodes: every walk has no trips; one or two: a trip or two.
+                outputs[name] += [run_program(exe, n, 1000, 0) for n in (0, 1, 2)]
+                for m in (30, 200):
+                    result = subprocess.run([str(exe), "300", str(m), "1"], capture_output=True, text=True, timeout=60)
+                    self.assertEqual((result.returncode, len(result.stdout.splitlines()), result.stderr),
+                                     (1, 6, "index out of range\n"), (name, m))
+                    failed[name, m] = result.stdout
+            for m in (30, 200):
+                self.assertEqual(failed["optimized", m], failed["plain", m])
+                self.assertEqual(failed["off", m], failed["plain", m])
+            self.assertEqual(outputs["optimized"], outputs["plain"])
+            self.assertEqual(outputs["off"], outputs["plain"])
+            self.assertEqual(outputs["plain"][3], "8321\n848507\n33.2463888889926\n848507\n2\n0\n20922\n8321\n200\n678\n8321\n")
+
     def test_programs_run(self):
         with tempfile.TemporaryDirectory() as temp:
             pool = Path(temp) / "pool.o"
