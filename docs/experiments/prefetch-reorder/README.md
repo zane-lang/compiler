@@ -507,8 +507,9 @@ Not worth building: prefetching right before the access, batching in place
 of a sliding distance, loading early without a prefetch, the non-temporal
 hint, a helper thread, and prefetching a chain's head alone.
 
-**Not yet tried.** Interleaving in `zanec` (designed in
-[`design/interleaving.md`](../../design/interleaving.md), not built); huge pages
+**Not yet tried.** Statements before a walk as their own stages, and
+calls and leaves in interleaved loops (the gaps of
+[`design/interleaving.md`](../../design/interleaving.md) I9); huge pages
 for the 1 MiB chunks that hold boxes; nodes with several children to a
 cache line; interleaved batches on several cores; a body between `gather` and
 `heavy` in weight, to find where a prefetch starts to pay; a processor other
