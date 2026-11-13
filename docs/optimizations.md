@@ -91,7 +91,8 @@ copying it.
   same. A hash probe written as a plain function and called in a loop ran
   as fast as its call (×0.96 to ×1.00, best of 5 paired runs each, 256 KiB
   to 2 GiB tables, 4-core Xeon at 2.1 GHz): the gain is in what codegen's
-  loop analyses can then do with the walk
+  loop analyses can then do with the walk. The compiler runs 3.2% more
+  instructions building `stress` plain and 0.1% fewer optimized
 
 A function a loop's body calls is written out there when it is given a
 list or reference to read through, writes none of it (no `mut` method),
