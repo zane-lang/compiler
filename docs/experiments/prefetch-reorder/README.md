@@ -658,6 +658,15 @@ for a bound of 25%. Below 8 MiB do not ask. Nothing here argues for keeping
 it opt-in, but the evidence is one VM with `madvise` defrag, so the default
 should be checked on a machine that is not a VM before it ships.
 
+**Adopted.** The runtime now asks by default for a list's block of 32 MiB
+or more, made or grown in place (`zane_huge` in `runtime/region.c`), and
+round 6's test on the reservation is gone. `ZANE_HUGE=0` still leaves the
+request out, and `ZANE_HUGE_MIN=N` moves the threshold, for measuring.
+Checked on running programs: `gather` with 16 MiB of data holds 62 MiB of
+huge pages (its 64 MiB index list, not the data) and with 2 GiB 2,096 MiB;
+64 `sparse` lists of 1, 6 and 12 MiB hold none and the same Rss as with
+`ZANE_HUGE=0`; 64 of 32 MiB hold 960 MiB of huge pages and 32 MiB more.
+
 ## Where this points
 
 Worth building, in the order the measurements rank them:
@@ -672,7 +681,7 @@ Worth building, in the order the measurements rank them:
    itself, and what lets a prefetch help them at all. Round 7 finds no
    cost in time to getting them, and recommends asking by default for a
    list's block of 32 MiB or more, the test moved from the reservation to
-   the block.
+   the block, which the runtime now does.
 
 Not worth building: prefetching right before the access, batching in place
 of a sliding distance, loading early without a prefetch, the non-temporal
