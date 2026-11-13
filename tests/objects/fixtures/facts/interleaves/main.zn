@@ -1,9 +1,9 @@
 /// Loops that look up keys in a binary search tree, one search an
 /// iteration, which an optimized build interleaves (lib/codegen/interleave.ml,
 /// docs/design/interleaving.md) when their iterations are independent: a sum,
-/// which retires in any order, and a push, a float sum and a store to
-/// `out[i]`, which retire in iteration order. The last three loops are not
-/// independent and are left alone. Arguments: the nodes, the lookups, and
+/// which retires in any order, and a push, a float sum, a store to `out[i]`
+/// and an overwrite, which retire in iteration order. `chained`, `grows` and
+/// `early` are not independent and are left alone. Arguments: the nodes, the lookups, and
 /// whether to walk a chain with a link out of range, which stops the program.
 package interleaves;
 
@@ -195,6 +195,17 @@ Int chains(links ListRef<Link>, heads ListRef<Int>) {
 	return sum;
 }
 
+/// The last chain's sum: each iteration overwrites `last`, so the iterations
+/// retire in order, or a short chain's sum that finishes late would win.
+Int latest(links ListRef<Link>, heads ListRef<Int>) {
+	last Int(0);
+	i Int(1);
+	i!to(heads:size()) {
+		last = walk(links, heads[i]);
+	}
+	return last;
+}
+
 Unit say(text String) {
 	@program$console!print(@operators$concat(text, String.escaped("\n")));
 	return Unit();
@@ -240,5 +251,6 @@ Unit main() {
 	say(String(early(nodes, root, keys, m)));
 	say(String(chains(links, heads)));
 	say(String(nodes!grows(root, keys, m)));
+	say(String(latest(links, heads)));
 	return Unit();
 }

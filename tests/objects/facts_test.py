@@ -495,7 +495,8 @@ class FactsTests(unittest.TestCase):
         # Each loop of `interleaves` that looks a key up in a tree, one search
         # an iteration, is interleaved in an optimized build when nothing
         # ties its iterations together, retired in any order for a sum and in
-        # iteration order for a push, a float sum and a store to `out[i]`
+        # iteration order for a push, a float sum, a store to `out[i]` and a
+        # walk's result written over a local
         # (lib/codegen/interleave.ml); the loops whose iterations depend on
         # each other are left alone. ZANE_INTERLEAVE=0 interleaves nothing.
         def report(env):
@@ -517,6 +518,7 @@ class FactsTests(unittest.TestCase):
             "interleaves$chained": "left alone",
             "interleaves$early": "left alone",
             "interleaves$grows": "left alone",
+            "interleaves$latest": "interleaved in order",
         })
         self.assertEqual(report({"ZANE_INTERLEAVE": "0"}), {})
 
@@ -546,7 +548,7 @@ class FactsTests(unittest.TestCase):
                                      (1, 6, "index out of range\n"), (name, m))
             self.assertEqual(outputs["optimized"], outputs["plain"])
             self.assertEqual(outputs["off"], outputs["plain"])
-            self.assertEqual(outputs["plain"][3], "8321\n848507\n33.2463888889926\n848507\n2\n0\n20922\n8321\n")
+            self.assertEqual(outputs["plain"][3], "8321\n848507\n33.2463888889926\n848507\n2\n0\n20922\n8321\n200\n")
 
     def test_programs_run(self):
         with tempfile.TemporaryDirectory() as temp:

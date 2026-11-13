@@ -447,6 +447,15 @@ let plan ~symbol ~params ~fresh ~counter:(x, step) ~x_ty ~count original =
         | Stat.Assign { place = { Expr.local = a; _ }; _ } when not (mine a) -> ok := false
         | _ -> ())
       retire_all;
+    (* A local that holds `a + e` on its way to `a`, mapped to that `a`. It
+       must be read by nothing else, or it would show a running value. *)
+    let temps = Hashtbl.create 4 in
+    Cgt.Traverse.walk_stats ignore
+      (function
+        | Stat.Assign { place = { Expr.local = t; _ }; value } when mine t ->
+            Hashtbl.iter (fun a () -> if combining value a <> None then Hashtbl.replace temps t a) accumulators
+        | _ -> ())
+      retire_all;
     let rec visit (e : Expr.t) =
       let checked =
         Hashtbl.fold
@@ -475,7 +484,9 @@ let plan ~symbol ~params ~fresh ~counter:(x, step) ~x_ty ~count original =
       (match s with
       | Stat.Assign { place = { Expr.local = a; _ }; value } when Hashtbl.mem accumulators a -> (
           match value.Expr.node with
-          | Expr.Local t when mine t -> ()
+          (* Only through a temp that combines `a` itself: `a = t` with `t`
+             a walk's result is an overwrite, which needs iteration order. *)
+          | Expr.Local t when Hashtbl.find_opt temps t = Some a -> ()
           | _ -> if combining value a = None then ok := false)
       | _ -> ());
       let es, bodies = Cgt.Traverse.stat_parts s in
@@ -483,15 +494,6 @@ let plan ~symbol ~params ~fresh ~counter:(x, step) ~x_ty ~count original =
       List.iter (List.iter stat) bodies
     in
     List.iter stat retire_all;
-    (* A local that holds `a + e` on its way to `a` is read by nothing else,
-       or it would show a running value. *)
-    let temps = Hashtbl.create 4 in
-    Cgt.Traverse.walk_stats ignore
-      (function
-        | Stat.Assign { place = { Expr.local = t; _ }; value } when mine t ->
-            Hashtbl.iter (fun a () -> if combining value a <> None then Hashtbl.replace temps t ()) accumulators
-        | _ -> ())
-      retire_all;
     let rec reads_temp = function
       | [] -> ()
       | Stat.Assign { place = { Expr.local = a; _ }; value = { Expr.node = Expr.Local t; _ } } :: rest

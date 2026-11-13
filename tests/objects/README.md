@@ -141,7 +141,8 @@ the program, while the loop's own read of a bad index still stops it.
 `interleaves` looks keys up in a binary search tree, one search an
 iteration, in loops an optimized build interleaves
 (`lib/codegen/interleave.ml`): a sum, retired in any order, and a push, a
-float sum and a store to `out[i]`, retired in iteration order, while a
+float sum, a store to `out[i]` and a walk's result written over a local,
+retired in iteration order, while a
 search keyed by a running total, a write before the walk and a walk of the
 list the loop pushes onto are left alone (`ZANE_INTERLEAVE_REPORT=1` says
 which). Each build prints the same at counts below, at and above the 64
