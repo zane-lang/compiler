@@ -479,6 +479,7 @@ void zane_thread_start(void);
 void zane_thread_stop(void);
 char *zane_reserve_aligned(size_t bytes, char **raw);
 int zane_commit_range(char *at, size_t bytes);
+void zane_huge(char *base, size_t reserved, size_t from, size_t to);
 void zane_release_addresses(char *raw, char *base, size_t bytes);
 #ifdef ZANE_WINDOW
 /* Experimental: chunks within reach of the image (region.c). */
