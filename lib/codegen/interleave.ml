@@ -218,7 +218,7 @@ let rec path_of stats =
   | Stat.Repeat { count; body } when is_walk body -> { levels = [ level ]; opened = []; walk_count = count; trip = body }
   | Stat.Let { id; value } -> enter value (fun v -> [ Stat.Let { id; value = v } ])
   | Stat.Assign { place; value } -> enter value (fun v -> [ Stat.Assign { place; value = v } ])
-  | Stat.Eval value -> enter value (fun _ -> [])
+  | Stat.Eval value -> enter value (fun v -> [ Stat.Eval v ])
   | _ -> refuse __LOC__
 
 (* [stats] with each [Leave] of a label [exits] maps to an exit code
@@ -452,60 +452,76 @@ let plan ~symbol ~params ~fresh ~counter:(x, step) ~x_ty ~count original =
     let temps = Hashtbl.create 4 in
     Cgt.Traverse.walk_stats ignore
       (function
-        | Stat.Assign { place = { Expr.local = t; _ }; value } when mine t ->
+        | (Stat.Assign { place = { Expr.local = t; _ }; value } | Stat.Let { id = t; value }) when mine t ->
             Hashtbl.iter (fun a () -> if combining value a <> None then Hashtbl.replace temps t a) accumulators
         | _ -> ())
       retire_all;
+    (* An accumulator may be read only as the `a` of `a op e` written to `a`
+       itself or to a temp of `a`'s; a read anywhere else, a condition
+       included, would see a running value. *)
+    let note a op =
+      match Hashtbl.find_opt combined a with
+      | Some op' when op' <> op -> ok := false
+      | _ -> Hashtbl.replace combined a op
+    in
     let rec visit (e : Expr.t) =
-      let checked =
-        Hashtbl.fold
-          (fun a () found ->
-            match combining e a with
-            | Some op ->
-                (match Hashtbl.find_opt combined a with
-                | Some op' when op' <> op -> ok := false
-                | _ -> Hashtbl.replace combined a op);
-                Some a
-            | None -> found)
-          accumulators None
-      in
-      (match (checked, e.Expr.node) with
-      | None, (Expr.Local y | Expr.Address y) when Hashtbl.mem accumulators y -> ok := false
+      (match e.Expr.node with
+      | (Expr.Local y | Expr.Address y) when Hashtbl.mem accumulators y -> ok := false
       | _ -> ());
       let es, bodies = Cgt.Traverse.expr_parts e in
-      List.iter
-        (fun (x : Expr.t) ->
-          match (checked, x.Expr.node) with
-          | Some a, Expr.Local y when y = a -> ()
-          | _ -> visit x)
-        es;
-      List.iter (List.iter stat) bodies
-    and stat s =
-      (match s with
-      | Stat.Assign { place = { Expr.local = a; _ }; value } when Hashtbl.mem accumulators a -> (
-          match value.Expr.node with
-          (* Only through a temp that combines `a` itself: `a = t` with `t`
-             a walk's result is an overwrite, which needs iteration order. *)
-          | Expr.Local t when Hashtbl.find_opt temps t = Some a -> ()
-          | _ -> if combining value a = None then ok := false)
-      | _ -> ());
-      let es, bodies = Cgt.Traverse.stat_parts s in
       List.iter visit es;
       List.iter (List.iter stat) bodies
+    and update a (value : Expr.t) =
+      match combining value a with
+      | None -> ok := false
+      | Some op ->
+          note a op;
+          let es, bodies = Cgt.Traverse.expr_parts value in
+          List.iter (fun (x : Expr.t) -> match x.Expr.node with Expr.Local y when y = a -> () | _ -> visit x) es;
+          List.iter (List.iter stat) bodies
+    and stat s =
+      match s with
+      | Stat.Assign { place = { Expr.local = a; _ }; value } when Hashtbl.mem accumulators a -> (
+          (* Only through a temp that combines `a` itself: `a = t` with `t`
+             a walk's result is an overwrite, which needs iteration order. *)
+          match value.Expr.node with
+          | Expr.Local t when Hashtbl.find_opt temps t = Some a -> ()
+          | Expr.Expand { result = Some t; _ } when Hashtbl.find_opt temps t = Some a ->
+              let es, bodies = Cgt.Traverse.expr_parts value in
+              List.iter visit es;
+              List.iter (List.iter stat) bodies
+          | _ -> update a value)
+      | (Stat.Assign { place = { Expr.local = t; _ }; value } | Stat.Let { id = t; value }) when Hashtbl.mem temps t ->
+          update (Hashtbl.find temps t) value
+      | _ ->
+          let es, bodies = Cgt.Traverse.stat_parts s in
+          List.iter visit es;
+          List.iter (List.iter stat) bodies
     in
     List.iter stat retire_all;
-    let rec reads_temp = function
-      | [] -> ()
-      | Stat.Assign { place = { Expr.local = a; _ }; value = { Expr.node = Expr.Local t; _ } } :: rest
-        when Hashtbl.mem accumulators a && Hashtbl.mem temps t ->
-          reads_temp rest
-      | s :: rest ->
-          let es, bodies = Cgt.Traverse.stat_parts s in
-          List.iter (fun e -> if List.exists (fun t -> mentions t e) (List.of_seq (Hashtbl.to_seq_keys temps)) then ok := false) es;
-          List.iter reads_temp bodies;
-          reads_temp rest
+    (* A temp is read only by its accumulator's own `a = t`; an expansion
+       whose result is the temp reads it too, in a condition say. *)
+    let temp_of (e : Expr.t) =
+      match e.Expr.node with
+      | Expr.Local t | Expr.Address t | Expr.Expand { result = Some t; _ } -> Hashtbl.find_opt temps t
+      | _ -> None
     in
-    reads_temp retire_all;
+    let rec temp_expr (e : Expr.t) =
+      if temp_of e <> None then ok := false;
+      inside e
+    and inside e =
+      let es, bodies = Cgt.Traverse.expr_parts e in
+      List.iter temp_expr es;
+      List.iter (List.iter temp_stat) bodies
+    and temp_stat s =
+      match s with
+      | Stat.Assign { place = { Expr.local = a; _ }; value } when temp_of value = Some a -> inside value
+      | _ ->
+          let es, bodies = Cgt.Traverse.stat_parts s in
+          List.iter temp_expr es;
+          List.iter (List.iter temp_stat) bodies
+    in
+    List.iter temp_stat retire_all;
     !ok
   in
   (* What the walk reads at its cursor, fetched when it moves. *)
@@ -541,7 +557,9 @@ let plan ~symbol ~params ~fresh ~counter:(x, step) ~x_ty ~count original =
   Hashtbl.iter
     (fun y t ->
       let n = List.length (List.filter (fun part -> Hashtbl.mem part y) parts) in
-      if n > 1 || y = x || List.mem y [ exit; left; stage ] || List.exists (fun o -> o.result = Some y) p.opened then begin
+      (* So are the locals a prefetch names, which runs outside the trip. *)
+      if n > 1 || y = x || List.mem y [ exit; left; stage ] || List.exists (fun o -> o.result = Some y) p.opened
+         || List.exists (fun (l, i, _) -> mentions y l || mentions y i) fetched then begin
         ignore (zero t);
         Hashtbl.replace per_slot y t
       end)
@@ -688,7 +706,7 @@ let reporting () = Sys.getenv_opt "ZANE_INTERLEAVE_REPORT" = Some "1"
    were interleaved and, for the rest, which check refused them. *)
 let attempt (f : Func.t) ~fresh count body =
   match (Loop_shapes.counter (Loop_shapes.facts body) body, List.rev body) with
-  | Some counter, Stat.Assign { value; _ } :: _ -> (
+  | Some counter, Stat.Assign { value; _ } :: _ when value.Expr.ty = Ty.I64 -> (
       try Some (plan ~symbol:f.Func.symbol ~params:f.Func.params ~fresh ~counter ~x_ty:value.Expr.ty ~count body)
       with Refused at ->
         if reporting () && holds_walk body then prerr_endline (Printf.sprintf "left alone %s (%s)" f.Func.symbol at);

@@ -501,7 +501,7 @@ class FactsTests(unittest.TestCase):
         # each other are left alone. ZANE_INTERLEAVE=0 interleaves nothing.
         def report(env):
             result = subprocess.run([ZANEC, "--ll", "--optimize", *packages("interleaves")], capture_output=True,
-                                    text=True, timeout=60, env={**os.environ, "ZANE_INTERLEAVE_REPORT": "1", **env})
+                                    text=True, timeout=60, env={**os.environ, "ZANE_INTERLEAVE": "1", "ZANE_INTERLEAVE_REPORT": "1", **env})
             self.assertEqual(result.returncode, 0, result.stderr)
             found = {}
             for line in result.stderr.splitlines():
@@ -519,6 +519,8 @@ class FactsTests(unittest.TestCase):
             "interleaves$early": "left alone",
             "interleaves$grows": "left alone",
             "interleaves$latest": "interleaved in order",
+            "interleaves$skips": "interleaved",
+            "interleaves$capped": "interleaved in order",
         })
         self.assertEqual(report({"ZANE_INTERLEAVE": "0"}), {})
 
@@ -530,7 +532,8 @@ class FactsTests(unittest.TestCase):
         # message and status, after the same output.
         with tempfile.TemporaryDirectory() as temp:
             outputs = {}
-            for name, optimize, env in [("plain", [], {}), ("optimized", ["--optimize"], {}),
+            failed = {}
+            for name, optimize, env in [("plain", [], {}), ("optimized", ["--optimize"], {"ZANE_INTERLEAVE": "1"}),
                                         ("off", ["--optimize"], {"ZANE_INTERLEAVE": "0"})]:
                 exe = Path(temp) / name
                 built = subprocess.run([ZANEC, "--build", exe, *optimize, *packages("interleaves")], capture_output=True,
@@ -546,9 +549,13 @@ class FactsTests(unittest.TestCase):
                     result = subprocess.run([str(exe), "300", str(m), "1"], capture_output=True, text=True, timeout=60)
                     self.assertEqual((result.returncode, len(result.stdout.splitlines()), result.stderr),
                                      (1, 6, "index out of range\n"), (name, m))
+                    failed[name, m] = result.stdout
+            for m in (30, 200):
+                self.assertEqual(failed["optimized", m], failed["plain", m])
+                self.assertEqual(failed["off", m], failed["plain", m])
             self.assertEqual(outputs["optimized"], outputs["plain"])
             self.assertEqual(outputs["off"], outputs["plain"])
-            self.assertEqual(outputs["plain"][3], "8321\n848507\n33.2463888889926\n848507\n2\n0\n20922\n8321\n200\n")
+            self.assertEqual(outputs["plain"][3], "8321\n848507\n33.2463888889926\n848507\n2\n0\n20922\n8321\n200\n678\n8321\n")
 
     def test_programs_run(self):
         with tempfile.TemporaryDirectory() as temp:

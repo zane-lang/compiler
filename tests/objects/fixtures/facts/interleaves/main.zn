@@ -1,8 +1,9 @@
 /// Loops that look up keys in a binary search tree, one search an
 /// iteration, which an optimized build interleaves (lib/codegen/interleave.ml,
 /// docs/design/interleaving.md) when their iterations are independent: a sum,
-/// which retires in any order, and a push, a float sum, a store to `out[i]`
-/// and an overwrite, which retire in iteration order. `chained`, `grows` and
+/// which retires in any order, and a push, a float sum, a store to `out[i]`,
+/// an overwrite and a sum capped by its own running value, which retire in
+/// iteration order. `chained`, `grows` and
 /// `early` are not independent and are left alone. Arguments: the nodes, the lookups, and
 /// whether to walk a chain with a link out of range, which stops the program.
 package interleaves;
@@ -206,6 +207,50 @@ Int latest(links ListRef<Link>, heads ListRef<Int>) {
 	return last;
 }
 
+/// The sum along the chain from `head` two links at a time, the link
+/// between named only inside each step: what the walk prefetches is a
+/// local of one trip.
+Int skip(links ListRef<Link>, head Int) {
+	s Int(0);
+	c Int = head;
+	d Int(1);
+	d!to(Int(32)) {
+		@controlflow$branch(same(c, Int(0)), {
+			return s;
+		});
+		n Int = links[c].next;
+		@controlflow$branch(same(n, Int(0)), {
+			return s;
+		});
+		s = plus(s, links[n].value);
+		c = links[n].next;
+	}
+	return s;
+}
+
+Int skips(links ListRef<Link>, heads ListRef<Int>) {
+	sum Int(0);
+	i Int(1);
+	i!to(heads:size()) {
+		sum = plus(sum, skip(links, heads[i]));
+	}
+	return sum;
+}
+
+/// A sum that stops growing once it passes a cap: the condition reads the
+/// running sum, so the iterations retire in order.
+Int capped(nodes ListRef<Node>, root Int, keys ListRef<Int>, reach Int) {
+	sum Int(0);
+	i Int(1);
+	i!to(reach) {
+		r Int = find(nodes, root, keys[i]);
+		@controlflow$branch(below(plus(sum, Int(1)), Int(20000)), {
+			sum = plus(sum, r);
+		});
+	}
+	return sum;
+}
+
 Unit say(text String) {
 	@program$console!print(@operators$concat(text, String.escaped("\n")));
 	return Unit();
@@ -252,5 +297,7 @@ Unit main() {
 	say(String(chains(links, heads)));
 	say(String(nodes!grows(root, keys, m)));
 	say(String(latest(links, heads)));
+	say(String(skips(links, heads)));
+	say(String(capped(nodes, root, keys, m)));
 	return Unit();
 }
