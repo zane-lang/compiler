@@ -28,13 +28,13 @@ def rollup(pid):
 
 
 def main(label, variable, lists, eaches):
+    # Each pass reads one of the first 1024 elements of every list.
+    if any(int(e) < 1024 for e in eaches):
+        sys.exit("sparse.py: each list needs at least 1024 elements")
     zanec = os.environ.get("ZANEC", os.path.join(ROOT, "_build", "default", "bin", "zanec", "zanec.exe"))
     exe = os.path.join(tempfile.mkdtemp(), "sparse")
     subprocess.check_call([zanec, "--build", exe, "--optimize", "--package", os.path.join(HERE, "sparse")])
     os.makedirs(RESULTS, exist_ok=True)
-    # Each pass reads one of the first 1024 elements of every list.
-    if any(int(e) < 1024 for e in eaches):
-        sys.exit("sparse.py: each list needs at least 1024 elements")
     out = open(os.path.join(RESULTS, f"sparse-{label}.tsv"), "a")
     for each in eaches:
         for mode in ("on", "off"):

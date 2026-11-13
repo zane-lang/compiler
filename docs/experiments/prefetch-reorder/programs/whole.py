@@ -18,7 +18,8 @@ other's freeing of 2 GiB.
 WHOLE_FRAGMENT names a build of fragment.c beside this: before each run,
 the page cache is dropped and that program is started and left holding its
 scattered pages until the run has ended, so every run, with the switch and
-without, starts on free memory with almost no free 2 MiB block.
+without, starts on free memory with few free 2 MiB blocks (fragment.c says
+how few).
 TIME_SIZES (log2 bytes, by commas), TIME_RUNS,
 and WHOLE_PASSES (the program's passes argument, default 1) change what is
 run. Run it in the pixi environment, as time.py.
@@ -147,10 +148,11 @@ def show(label):
         f = line.rstrip("\n").split("\t")
         # Rows written before the pass count was a column made one pass.
         passes = int(f[16]) if len(f) > 16 else 1
-        rows[(f[0], int(f[1]))][f[2]].append([float(x) for x in f[4:9]] + [int(x) for x in f[9:15]] + [passes])
+        rows[(f[0], int(f[1]), passes)][f[2]].append([float(x) for x in f[4:9]] + [int(x) for x in f[9:15]])
     med = lambda xs: statistics.median(xs)
-    print("program size    whole on/off median (best)        build on-off  loop on/off   stalls  passes to pay")
-    for (program, size), got in sorted(rows.items()):
+    print("program size  passes  whole on/off median (best)        build on-off  loop on/off   stalls  passes to pay")
+    # Runs with different pass counts are kept apart, each with its own line.
+    for (program, size, passes), got in sorted(rows.items()):
         on, off = got["on"], got["off"]
         col = lambda rs, i: [r[i] for r in rs]
         build = med(col(on, 1)) - med(col(off, 1))
@@ -159,9 +161,8 @@ def show(label):
         worst = max(col(on, 1)) - med(col(off, 1))
         # The loop's gain is over all of a run's passes; the break-even is
         # counted in single passes.
-        passes = on[0][11]
         pay = "now" if build <= 0 else (f"{build * passes / gain:.1f}" if gain > 0 else "never")
-        print(f"{program:7} 2^{size}  {med(col(on, 0)):7.3f}/{med(col(off, 0)):7.3f} "
+        print(f"{program:7} 2^{size} x{passes} {med(col(on, 0)):7.3f}/{med(col(off, 0)):7.3f} "
               f"({min(col(on, 0)):.3f}/{min(col(off, 0)):.3f})  {build:+7.3f}  "
               f"{med(col(on, 2)):.4f}/{med(col(off, 2)):.4f}  {stalls}/{len(on)} worst {worst:+.2f}  {pay}")
 

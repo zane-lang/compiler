@@ -628,8 +628,9 @@ To make huge pages cost something to get, `whole.py` can run each run on
 fragmented memory (`WHOLE_FRAGMENT`, `programs/fragment.c`): before each
 run, with huge pages and without, the page cache is dropped, a process
 touches 12 GiB in 4 KiB pages and gives back 63 in 64 of them, then holds
-huge pages until fewer than 16 free 2 MiB blocks are left. About 7 GiB is
-then free, all in pieces of 128 KiB or less. Three runs each way at four
+8 GiB of huge pages, which left 33 to 35 free 2 MiB blocks (about 70 MiB).
+About 7 GiB was then free, almost all in pieces of 128 KiB or less, and
+every run with huge pages compacted. Three runs each way at four
 sizes (`results/whole-fragmented.tsv`):
 
 | program | size | whole run, with / without | building, with − without | loop, with / without | passes to pay |

@@ -11,7 +11,11 @@
    session's to about 13.3 GiB), which can leave whole 2 MiB blocks free
    outside what it touched. So once it has given its pages back, it takes
    those with huge pages, a 2 MiB block at a time, until /proc/buddyinfo
-   counts fewer than 16 free blocks of 2 MiB or more, and holds them too.
+   counts fewer than 16 free blocks of 2 MiB or more or it holds 8 GiB of
+   them, and holds them too. It gives up, printing why, if more than 64
+   blocks (128 MiB) are still free then. On the machine of round 10 it held
+   the 8 GiB with 33 to 35 blocks still free, too few for a list of 2 GiB,
+   and every run with huge pages compacted.
 
    cc -O2 -o fragment fragment.c && ./fragment [keep] [spare MiB] [most MiB] */
 #include <stdio.h>
@@ -76,7 +80,7 @@ int main(int argc, char **argv) {
 		ballast[taken] = 1;
 		taken += huge;
 	}
-	if (free_huge() >= 16) {
+	if (free_huge() > 64) {
 		fprintf(stderr, "fragment: %zu MiB of huge pages taken and %zu free 2 MiB blocks left\n", taken >> 20,
 		        free_huge());
 		return 1;
