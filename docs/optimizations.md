@@ -760,7 +760,10 @@ will read 32 iterations on. The address of that read is made of constants,
 the counter, locals the loop leaves alone, integer arithmetic that cannot
 fail, and element reads, each made early only when its index is inside its
 list, so nothing it reads early can stop the program; the body's own reads
-and their checks stay where they are. A loop that walks a chain is left
+and their checks stay where they are. Each list read early is in a slot or
+a struct's member reached from one, never in a variant's payload or an
+element of another list, whose read the top of the loop could not make
+without a check. A loop that walks a chain is left
 alone, as is a light body such as `s += a[idx[i]]`, which the model found
 nothing to gain on with 4 KiB pages.
 
@@ -1043,26 +1046,64 @@ it (`Cgt.Traverse.leaves`); a verb expanded inside it, a written-out push
 or the counter step of `core`'s `to`, ends with a leave of its own
 expansion, which keeps the loop running. Nothing in such a loop pushes to, makes room in or removes from
 another list, spawns, or calls a function that could, which a
-whole-program analysis tells. A struct of scalars is stored member by
+whole-program analysis tells in an optimized build. A call into C could
+only through a function value C was given, so it counts as one that could
+unless the program is a whole program that gives C none and holds every
+function's body ([`design/ffi.md`](design/ffi.md) F10). A struct of scalars is stored member by
 member with the scalar alias tag, so LLVM keeps the count and the
 element's address in registers through the loop.
 
 ### List handles read once before a loop
 
 - **Builds:** every build; `ZANE_HOIST_HANDLES=0` turns it off
-- **Where:** `lib/codegen/loop_shapes.ml` (`invariant_lists`),
+- **Where:** `lib/codegen/loop_shapes.ml` (`invariant_lists`, `own_lists`),
+  `lib/cgt/list_pure.ml`, `lib/optimize/loop_pushes.ml` (`pure`),
   `lib/codegen/emit.ml`
 - **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),
   "fannkuch: list handles read once a loop"
 - **Effect:** fannkuch at 9 runs 151.5 M instructions instead of 169.3 M,
-  in the same time
+  in the same time. LangArena, Callgrind instructions against `main`:
+  Graph::BFS 8.33 G instead of 12.87 G, Graph::DFS 5.90 G instead of
+  7.77 G, Brainfuck::Recursion 35.59 G instead of 38.92 G,
+  Brainfuck::Array 33.30 G instead of 35.47 G, Compress::HuffDecode
+  27.96 G instead of 29.38 G, Etc::NeuralNet 24.75 G instead of 25.41 G;
+  `tests/perf` `returns` −9.7% and `particles` −6.5% estimated cycles
+  optimized
 
-A counted loop whose body cannot change a list's handle reads each list it
-indexes, its items and count, once before the loop. Such a body calls no
-function, calls the runtime only to index, spawns nothing, and writes only
-scalars. The checks then compare with a count the loop does not change, so
-in an optimized build and tier 1, LLVM's IRCE takes them out of the loop
-and the loop can vectorize.
+A counted loop whose body cannot change the handle of a list it indexes
+reads that list's items and count once before the loop. The checks then
+compare with a count the loop does not change, so in an optimized build
+and tier 1, LLVM's IRCE takes them out of the loop and the loop can
+vectorize. A list's count read as its size in the loop is the one read
+before it too.
+
+Such a body spawns nothing, writes only scalars through an address, and
+calls the runtime only to index, or to push to, make room in or remove
+scalars from a list only its function reaches. That is a list in a slot of
+its own frame whose address is only indexed, read or written through, or
+given to such a runtime call or to a verb whose whole body is a push. No
+other address reaches that slot, so a push there,
+even one inside an `if` that only sometimes runs and whose slow path calls
+the runtime, changes no other list. The pushed list itself is not read
+before the loop.
+
+In an optimized build, which runs the whole-program analysis
+(`Cgt.List_pure`), the body may also call a function that changes no
+list's handle outside its own frame, or a verb whose whole body is a push,
+such as `core`'s `push`, onto a list only the loop's function reaches. It may call into C when the program is a whole
+program that gives C no function value and holds every function's body,
+so C cannot call back into Zane: C is lent a list's elements, never its
+handle ([`design/ffi.md`](design/ffi.md) F10).
+
+Where the body pushes or calls, a list that is an element of a list read
+before the loop, at an index the loop does not change, is read before it
+too, as `this.adj[vertex]` is in a breadth-first search over adjacency
+lists. When the index is out of range, the empty handle stands in, so
+every element of it is out of range and its check stops the program where
+the element's own read would have. A loop that neither pushes nor calls is
+left to LLVM, which reads such an element once by itself; there the extra
+check before every entry of a short loop costs more than it saves
+(LangArena Etc::NeuralNet was 5% slower).
 
 ### Ordered removals moved in 2 KiB pieces
 

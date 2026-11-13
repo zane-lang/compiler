@@ -1,0 +1,133 @@
+/// LangArena's R5 shapes: a loop that reads one list and pushes onto another
+/// only sometimes, as Graph::BFS's queue does, and a command dispatch whose
+/// one case pushes, called from a loop over a list of commands, as
+/// Brainfuck's interpreter does.
+package pending;
+
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias String = @primitives$String;
+alias List<T Type> = @primitives$List<T>;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+type Graph = struct {
+	adj List<List<Int>>;
+}
+
+Graph(adj List<List<Int>>) => init{ adj; }
+
+type Hit = struct {
+	w Int;
+	v Int;
+	j Int;
+}
+
+Hit(w Int, v Int, j Int) => init{ w; v; j; }
+
+/// How many neighbours of `v` are below `limit`: a loop over one list that
+/// pushes onto another inside an `if`, as Graph::BFS's queue does.
+Int below(this Graph, v Int, limit Int) {
+	out List<Hit> = @primitives$List(Hit);
+	j Int(1);
+	j!to(this.adj[v]:size()) {
+		w Int = this.adj[v][j];
+		@controlflow$branch(@operators$lessThan(w, limit), {
+			out!push(Hit(w, v, j));
+		});
+	}
+	return out:size();
+}
+
+/// The sum of `this.adj[v][idx[j]]` over the positive `idx[j]`, each
+/// partial sum pushed: a loop that pushes and reads an element of a list
+/// at an index it does not change, which is out of range when no `idx[j]`
+/// is positive, and then never read, so the program must not stop.
+Int picked(this Graph, v Int, idx List<Int>) {
+	sums List<Int> = @primitives$List(Int);
+	total Int(0);
+	j Int(1);
+	j!to(idx:size()) {
+		@controlflow$branch(@operators$lessThan(Int(0), idx[j]), {
+			total = @operators$add(total, this.adj[v][idx[j]]);
+			sums!push(total);
+		});
+	}
+	return @operators$add(total, sums:size());
+}
+
+type Tape = struct {
+	cells List<Int>;
+	position Int;
+	total Int;
+}
+
+Tape() => init{ cells=@primitives$List(Int); position=Int(0); total=Int(0); }
+
+/// One command: 1 moves right, growing the tape by a cell when it runs out,
+/// 2 adds one to the cell, 3 adds the cell to the total.
+Unit command(this Tape, op Int) mut {
+	@controlflow$branch(@operators$equal(op, Int(1)), {
+		this.position = @operators$add(this.position, Int(1));
+		@controlflow$branch(@operators$lessThan(this.cells:size(), this.position), {
+			this.cells!push(Int(0));
+		});
+	});
+	@controlflow$branch(@operators$equal(op, Int(2)), {
+		this.cells[this.position] = @operators$add(this.cells[this.position], Int(1));
+	});
+	@controlflow$branch(@operators$equal(op, Int(3)), {
+		this.total = @operators$add(this.total, this.cells[this.position]);
+	});
+	return Unit();
+}
+
+/// Runs the commands in order.
+Int run(ops List<Int>) {
+	tape Tape = Tape();
+	k Int(1);
+	k!to(ops:size()) {
+		tape!command(ops[k]);
+	}
+	return tape.total;
+}
+
+Unit main() {
+	args @primitives$List<String> = @program$runtime:arguments();
+	n Int = args[Int(1)]:parseI64() ?? Int(0);
+	adj List<List<Int>> = @primitives$List(List<Int>);
+	row List<Int> = @primitives$List(Int);
+	i Int(1);
+	i!to(n) {
+		row!push(@operators$add(@operators$multiply(i, Int(7)), Int(3)));
+	}
+	adj!push(row);
+	g Graph = Graph(adj);
+	ops List<Int> = @primitives$List(Int);
+	i2 Int(1);
+	i2!to(n) {
+		ops!push(Int(1));
+		ops!push(Int(2));
+		ops!push(Int(2));
+		ops!push(Int(3));
+	}
+	zeros List<Int> = @primitives$List(Int);
+	i3 Int(1);
+	i3!to(n) {
+		zeros!push(Int(0));
+	}
+	total Int = @operators$add(@operators$add(g:below(Int(1), @operators$multiply(n, Int(4))), run(ops)), g:picked(Int(2), zeros));
+	@program$console!print(String(total));
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}

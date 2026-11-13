@@ -662,6 +662,14 @@ the call. So is one a conversion such as `core`'s `implicit
 call can write the source: the call reads the member where the source keeps
 it ([`lowering.md`](lowering.md) L11, "Lent conversions").
 
+So C is given a list's block and count as values, never the address of
+the list's handle, and a call into C changes no Zane list's count or
+block unless C calls back into Zane (F11). An optimized build of a whole
+program that gives C no function value, and holds every function's body,
+counts on this: a loop that calls into C still reads the lists it indexes
+once before it ([`../optimizations.md`](../optimizations.md), "List
+handles read once before a loop").
+
 A C-compatible value type crosses as a copy, and its two layouts differ:
 Zane places a struct's fields by alignment
 ([`lowering.md`](lowering.md) L5), and C in declaration order. So the

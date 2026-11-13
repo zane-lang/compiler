@@ -1743,7 +1743,61 @@ let list_pure () =
   check "a function that changes no list is list-pure" (pure "app$quiet" && pure "app$calm");
   check "an imported function is not list-pure" (not (pure "dep$grow"));
   check "nor is one that calls it" (not (pure "app$caller"));
-  Hashtbl.reset Cgt.List_pure.functions
+  (* C cannot call back into a whole program that gives it no function
+     value and holds every function's body (Cgt.List_pure.c_stays). *)
+  check "C may call back into a program that imports a function" (not !Cgt.List_pure.c_stays);
+  let whole = func "app$quiet" C.Linkage.Local [] in
+  Optimize__Loop_pushes.pure { (program [ whole ]) with C.Program.entry = Some "app$main" };
+  check "but not into a whole program that gives it no function value" !Cgt.List_pure.c_stays;
+  Optimize__Loop_pushes.pure (program [ whole ]);
+  check "a library may be called back" (not !Cgt.List_pure.c_stays);
+  Cgt.List_pure.c_stays := false;
+  Hashtbl.reset Cgt.List_pure.functions;
+  Hashtbl.reset Cgt.List_pure.handles
+
+(* A loop's lists are read once before it when nothing in it can change
+   their handles (Loop_shapes.invariant_lists): it may push onto a list
+   only its function reaches, call a function that changes no handle, and
+   call into C when C cannot call back, and an element of a list read
+   before the loop, at an index the loop does not change, is read before it
+   too. *)
+let invariant_lists () =
+  let module C = Cgt.Nodes in
+  let e node ty = { C.Expr.node; ty } in
+  let int n = e (C.Expr.Int n) C.Ty.I64 in
+  let at list index stride = e (C.Expr.Runtime { fn = Cgt.Runtime.List_at; args = [ list; index; int stride ] }) C.Ty.Ptr in
+  let read list = C.Stat.Let { id = 40; value = e (C.Expr.Deref (at list (e (C.Expr.Local 41) C.Ty.I64) 8L)) C.Ty.I64 } in
+  let xs = e (C.Expr.Local 1) C.Ty.Ptr and queue = e (C.Expr.Address 5) C.Ty.Ptr in
+  let push list =
+    C.Stat.Let { id = 42; value = e (C.Expr.Runtime { fn = Cgt.Runtime.List_push; args = [ list; int 8L ] }) C.Ty.Ptr }
+  in
+  let call fn = C.Stat.Eval (e (C.Expr.Call { fn; args = [] }) C.Ty.Void) in
+  let foreign = C.Stat.Eval (e (C.Expr.Foreign_call { thunk = "c$put"; args = [] }) C.Ty.Void) in
+  let lists ?(own = fun x -> x = 5) body = fst (Codegen__Loop_shapes.invariant_lists ~own body) in
+  let on = Sys.getenv_opt "ZANE_HOIST_HANDLES" <> Some "0" in
+  let hoisted = if on then [ xs ] else [] in
+  check "a loop that only reads a list reads it once before" (lists [ read xs ] = hoisted);
+  check "and one that also pushes onto a list only its function reaches" (lists [ read xs; push queue ] = hoisted);
+  check "not one that pushes onto a list another address may reach" (lists ~own:(fun _ -> false) [ read xs; push queue ] = []);
+  check "nor the list it pushes onto" (lists [ read xs; read queue; push queue ] = hoisted);
+  check "not one that calls a function that may change a handle" (lists [ read xs; call "app$grow" ] = []);
+  Hashtbl.replace Cgt.List_pure.handles "app$calm" ();
+  check "but one that calls a function that cannot" (lists [ read xs; call "app$calm" ] = hoisted);
+  check "not one that calls into C that may call back" (lists [ read xs; foreign ] = []);
+  check "and C that may call back may grow a list" (Codegen__Loop_shapes.may_grow foreign);
+  Cgt.List_pure.c_stays := true;
+  check "but one that calls into C that cannot" (lists [ read xs; foreign ] = hoisted);
+  check "and C that cannot grows no list" (not (Codegen__Loop_shapes.may_grow foreign));
+  let row index = at xs index 16L in
+  let rows = e (C.Expr.Local 43) C.Ty.I64 in
+  check "in a loop that pushes, an element at an index the loop does not change is read after its list"
+    (lists [ read (row rows); push queue ] = if on then [ xs; row rows ] else []);
+  check "not one at an index the loop changes"
+    (lists [ C.Stat.Let { id = 43; value = int 2L }; read (row rows); push queue ] = if on then [ xs ] else []);
+  check "nor in a loop that neither pushes nor calls, which LLVM reads once by itself"
+    (lists [ read (row rows) ] = hoisted);
+  Cgt.List_pure.c_stays := false;
+  Hashtbl.reset Cgt.List_pure.handles
 
 (* Statements leave when one returns or leaves an expansion they are not
    inside (Cgt.Traverse.leaves). *)
@@ -1835,6 +1889,7 @@ let () =
   repeated_builds ();
   looped_pushes ();
   list_pure ();
+  invariant_lists ();
   traverse_leaves ();
   light_references ();
   if !failures > 0 then begin
