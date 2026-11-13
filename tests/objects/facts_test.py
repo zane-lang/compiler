@@ -467,6 +467,17 @@ class FactsTests(unittest.TestCase):
                 self.assertEqual((result.returncode, result.stdout, result.stderr),
                                  (1, "", "index out of range\n"), optimize)
 
+    def test_prefetches_read_no_list_in_a_variant_case(self):
+        # `payloads` reads a list held in one case of a variant only in that
+        # case's arm; holding the other case, the list's handle is that
+        # case's bytes, which a prefetch at the top of the loop would read.
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "payloads"
+                run(ZANEC, "--build", exe, *optimize, *packages("payloads"))
+                self.assertEqual(run_program(exe, 1), "17800\n", optimize)
+                self.assertEqual(run_program(exe, 9), "10200\n", optimize)
+
     def test_programs_run(self):
         with tempfile.TemporaryDirectory() as temp:
             pool = Path(temp) / "pool.o"

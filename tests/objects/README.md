@@ -138,6 +138,10 @@ an optimized build with `ZANE_PREFETCH=0`; the early reads reach the index
 list's 40 entries past the records' end, and its own end, without stopping
 the program, while the loop's own read of a bad index still stops it.
 `gathers` is the same loop with no branch, which no build prefetches.
+`payloads` reads a list held in one case of a variant, only in that case's
+arm and beside a call; holding the other case, it runs to the plain
+build's answer, since no prefetch reads a list's handle through a variant's
+payload.
 
 `options_test.py` checks what `zanec` accepts for the options that name and
 stamp packages. A package name in `--package NAME=DIR` or an `--import` key

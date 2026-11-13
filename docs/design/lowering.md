@@ -1679,7 +1679,10 @@ test passing.
   expression verbs' results, of constants, the loop's counter (moved on by
   its step times the distance), locals the body neither binds nor assigns,
   integer arithmetic and bit operations that cannot fail, and element reads
-  of lists whose handle is reached from slots bound before the loop. A
+  of lists whose handle is reached from slots bound before the loop
+  through struct members only: a list in a variant's payload is there
+  only while that case is held, which the top of the loop does not know,
+  and another case's bytes may read as a list with a count and no block. A
   local the body `let`s and assigns again only in a loop inside it, and
   not from an element, is taken at its `let`'s value, which is the address
   a probe's first time round reads; one assigned from an element walks a

@@ -221,16 +221,29 @@ let bound_in body =
     body;
   bound
 
+(* Whether every step of an address goes into a struct's member. A step
+   into a variant's case reaches a payload that is there only while that
+   case is the one held, which the top of the loop does not know: another
+   case's bytes may read as a list with a count and no block. *)
+let rec members_only (a : Expr.t) =
+  match a.Expr.node with
+  | Expr.Offset { base; within; path } -> Option.is_some (member_offset within path) && members_only base
+  | _ -> true
+
 (* The address of a list's handle, when it is made of slots bound before
-   the loop: none of [bound], or a local [names] gives the address of. *)
-let rec list_address bound names (l : Expr.t) =
-  let unbound y = if Hashtbl.mem bound y then None else Some l in
-  match l.Expr.node with
-  | Expr.Address y -> unbound y
-  | Expr.Local y -> ( match Hashtbl.find_opt names y with Some a -> Some a | None -> unbound y)
-  | Expr.Offset ({ base; _ } as o) ->
-      Option.map (fun base -> { l with Expr.node = Expr.Offset { o with base } }) (list_address bound names base)
-  | _ -> None
+   the loop, none of [bound] or a local [names] gives the address of, and
+   reaches no variant's payload. *)
+let list_address bound names (l : Expr.t) =
+  let rec address (l : Expr.t) =
+    let unbound y = if Hashtbl.mem bound y then None else Some l in
+    match l.Expr.node with
+    | Expr.Address y -> unbound y
+    | Expr.Local y -> ( match Hashtbl.find_opt names y with Some a -> Some a | None -> unbound y)
+    | Expr.Offset ({ base; _ } as o) ->
+        Option.map (fun base -> { l with Expr.node = Expr.Offset { o with base } }) (address base)
+    | _ -> None
+  in
+  Option.bind (address l) (fun a -> if members_only a then Some a else None)
 
 (* Unless ZANE_PREFETCH=0, what a counted loop with [body] fetches
    [distance] iterations ahead at the top of each time round: each element
