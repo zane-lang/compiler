@@ -159,6 +159,8 @@ let searches () =
   check "an index a scan steps up by one moves by a constant" (stepped [ read (local 5); up ]);
   check "and one it steps down" (stepped [ read (local 5); down ]);
   check "and an index a constant past it" (stepped [ read (add (local 5) (int 1L)); up ]);
+  check "with the constant on either side"
+    (stepped [ read (add (int 1L) (local 5)); set 5 (add (int 1L) (local 5)) ]);
   check "not one the loop halves"
     (not (stepped [ read (local 5); set 5 (e (C.Expr.Binary { op = C.Expr.Div; left = local 5; right = int 2L }) C.Ty.I64) ]));
   check "nor one it sets to another local" (not (stepped [ read (local 5); set 5 (local 6) ]));

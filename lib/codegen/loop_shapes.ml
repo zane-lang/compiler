@@ -489,26 +489,24 @@ let ranged body lists names =
 let scans body =
   let f = facts body in
   let counter = Option.map fst (counter f body) in
+  let constant (e : Expr.t) =
+    match e.Expr.node with Expr.Int _ | Expr.Flip { Expr.node = Expr.Int _; _ } -> true | _ -> false
+  in
+  (* [e] with a constant added on either side, as the other side. *)
+  let past (e : Expr.t) =
+    match e.Expr.node with
+    | Expr.Binary { op = Expr.Add; left; right } when constant right -> Some left
+    | Expr.Binary { op = Expr.Add; left; right } when constant left -> Some right
+    | _ -> None
+  in
   let steps y =
     Some y <> counter
     &&
     match Hashtbl.find_all f.assigns y with
     | [ ({ Expr.path = []; deref = false; _ }, value) ] when not (Hashtbl.mem f.defined y) -> (
         match affine f (Some (y, 0)) value with
-        | Some
-            ( 0,
-              {
-                Expr.node =
-                  Expr.Binary
-                    {
-                      op = Expr.Add;
-                      left = { Expr.node = Expr.Local x; _ };
-                      right = { Expr.node = Expr.Int _ | Expr.Flip { Expr.node = Expr.Int _; _ }; _ };
-                    };
-                _;
-              } )
-          when x = y ->
-            true
+        | Some (0, sum) -> (
+            match past sum with Some { Expr.node = Expr.Local x; _ } -> x = y | _ -> false)
         | _ -> false)
     | _ -> false
   in
@@ -520,9 +518,7 @@ let scans body =
         | [ _ ], None when Hashtbl.mem f.results y -> index (Hashtbl.find f.results y)
         | _ -> steps y)
     | Expr.Expand { result = Some r; _ } -> index { e with Expr.node = Expr.Local r }
-    | Expr.Binary { op = Expr.Add; left; right = { Expr.node = Expr.Int _ | Expr.Flip { Expr.node = Expr.Int _; _ }; _ } } ->
-        index left
-    | _ -> false
+    | _ -> ( match past e with Some e -> index e | None -> false)
   in
   Cgt.Traverse.exists_in body
     ~expr:(fun e ->
