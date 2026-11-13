@@ -722,8 +722,9 @@ runs only one to four times is unrolled four times for nothing.
   program in C at `-O2`. Langbench: `fannkuch` 1.6% more instructions,
   `nbody` 0.3% and `trialdiv` 0.2% fewer, the rest within 0.1%;
   `tests/perf` `flips`, tier 1 5% fewer estimated cycles. Leaving
-  searches whole: LangArena's Sort::Quick 11.58G → 8.63G instructions
-  (C: 4.96G), `tests/perf` within 0.4%
+  searches whole: LangArena's Sort::Quick 11.58G → 8.37G instructions
+  (C: 4.96G), every other LangArena test and `tests/perf` program within
+  0.1%
 
 LLVM's inductive range check elimination splits a loop that checks its
 element indices into a main loop it has proved needs no check and the few
@@ -735,7 +736,8 @@ and IRCE splits the long copy and not the short one, since the split costs
 a short loop more than it saves. A loop that calls back into its own
 function is left as it is: the call costs far more than the check. A loop
 that can leave before its count runs out, holds no loop and reads an
-element at an index that moves by a constant each time round is a search whose count is a
+element at an index it steps by a constant itself, apart from its counter,
+is a search whose count is a
 ceiling, so it is weighted as going round 4 times and left whole: a
 quicksort's partition scans stop after an element or two, and IRCE's split
 cost each one about 25 instructions of setup. Any other loop

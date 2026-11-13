@@ -433,10 +433,10 @@ class FactsTests(unittest.TestCase):
 
     def test_loops_that_leave_early_are_not_split(self):
         # A counted loop that can return early is weighted as going round a
-        # few times (Emit.leaves_early), so IRCE leaves it whole: `scans`'
+        # few times (Loop_shapes.searches), so IRCE leaves it whole: `scans`'
         # partition scans, which usually stop after an element or two, get
         # none of the clones IRCE makes when it splits a loop. Unweighted,
-        # IRCE split `scanUp`, and its setup cost Sort::Quick 25% more
+        # IRCE split `scanUp`, and its setup cost Sort::Quick 27% more
         # instructions. bounce's loops, which never leave early, are still
         # split (test_long_loops_lose_their_index_checks).
         # A plain build weights no loop.
