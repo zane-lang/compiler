@@ -108,6 +108,23 @@ int zane_decommit_range(char *at, size_t bytes) {
 #endif
 }
 
+/* Experimental (docs/experiments/prefetch-reorder, round 6): a
+   reservation of 2 MiB or more asks Linux for huge pages, unless
+   `ZANE_HUGE=0` is in the program's environment. */
+void zane_huge(char *base, size_t reserved) {
+#if defined(__linux__) && defined(MADV_HUGEPAGE)
+	static int asked = -1;
+	if (asked < 0) {
+		const char *v = getenv("ZANE_HUGE");
+		asked = !(v && v[0] == '0');
+	}
+	if (asked && reserved >= ((size_t)2 << 20)) madvise(base, reserved, MADV_HUGEPAGE);
+#else
+	(void)base;
+	(void)reserved;
+#endif
+}
+
 /* The system's page size, the unit memory is given back in. Any thread
    may be the first to ask, and each finds the same. */
 size_t zane_system_page;
