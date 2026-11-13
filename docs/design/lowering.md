@@ -925,8 +925,9 @@ test passing.
   addresses stay with the region until it drains. A span that is returned
   whole, by an end or an overwrite of its list, goes onto its size's stack
   with its pages, and a block past 1 MiB, grown into or copied, first takes
-  such a span from the top of any of the region's stacks above 1 MiB whose
-  reservation holds the addresses a new one would get. So a list a field
+  such a span whose reservation holds the addresses a new one would get:
+  one of its own size, else the smallest on top of the region's stacks
+  above 1 MiB, so a small block leaves a larger one for a larger request. So a list a field
   assignment replaced is where the next list grows, rather than resident
   memory nothing asks for until the region drains. A push is inline: while the block has room, the
   emitted code takes the element's address and counts it itself, and only a

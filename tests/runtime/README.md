@@ -57,9 +57,10 @@ addresses (`RLIMIT_AS`), a child process capped below what a reservation needs c
 the list still grows, by moving, and returns every block; AddressSanitizer
 builds skip that child, as they skip `scalar_lists.c`'s budget. A list's
 block past 1 MiB that is ended while its scope is open, as an overwrite
-ends the list it replaces, is where the next list there grows past 1 MiB,
-and a block whose reservation holds fewer addresses than a new one would is
-passed over. A scope that drains three such lists leaves its context
+ends the list it replaces, is where the next list there grows past 1 MiB:
+of a 2 MiB and a 4 MiB block returned, a list growing to 2 MiB takes the
+2 MiB one, and a block whose reservation holds fewer addresses than a new
+one would is passed over. A scope that drains three such lists leaves its context
 keeping all three, the next three grow into them, and of three lists of
 32 MiB the context keeps only the one it was given back last, under
 `ZANE_WARM_SPAN_BYTES`. A second capped child holds a drained list's

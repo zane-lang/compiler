@@ -1246,9 +1246,9 @@ instead of 184,610, and Compress::BWTDecode 9,934 instead of 84,187 (C:
   instead of 919 MB, with 6,214 minor faults instead of 234,762
 
 A list's span that an end or an overwrite returns goes onto its size's
-stack with its pages resident. A block past 1 MiB first takes such a span,
-from the top of any of its region's stacks above 1 MiB, when its
-reservation holds the addresses a new one would get. Growth never read the
+stack with its pages resident. A block past 1 MiB first takes such a span
+when its reservation holds the addresses a new one would get: one of its
+own size, else the smallest on top of its region's stacks above 1 MiB. Growth never read the
 stacks before, so a list a field assignment replaced each round stayed
 resident, unused, until its region drained.
 

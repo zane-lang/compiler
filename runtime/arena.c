@@ -648,23 +648,30 @@ static size_t zane_span_bytes(int64_t size) {
    the size it is first made at. */
 enum { ZANE_HEADROOM = 64 };
 
-/* An oversized block the region was given back, on the top of any of its
-   stacks, whose reservation holds `reserved` addresses, taken from there,
-   or null (memory.md §3.2): a list's block replaced by an overwrite, or
-   left by a list whose region is still open, so the next block past
-   1 MiB there takes its pages rather than mapping fresh ones. Only a
-   block a reservation starts is looked at; one from a region's chunks
-   (zane_map) has none. */
-static char *zane_returned_span(zane_mark *region, size_t reserved) {
+/* An oversized block the region was given back, whose reservation holds
+   `reserved` addresses, taken from the top of its stack, or null (memory.md
+   §3.2): a list's block replaced by an overwrite, or left by a list whose
+   region is still open, so the next block past 1 MiB there takes its pages
+   rather than mapping fresh ones. One of `size` bytes is taken first, and
+   else the smallest that fits, so a small block leaves a larger one for a
+   later request that needs it. Only a block a reservation starts is looked
+   at: a boxed payload's chunks (zane_map) have none, and stay for another
+   boxed payload. */
+static char *zane_returned_span(zane_mark *region, int64_t size, size_t reserved) {
+	zane_stack *best = NULL;
 	for (zane_stack *s = region->stacks; s; s = s->next) {
 		if (s->size <= ZANE_CHUNK - ZANE_LINE || s->align > ZANE_LINE || !s->top) continue;
-		zane_mapping *m = (zane_mapping *)(s->top - ZANE_LINE);
-		if (m->reserved < reserved) continue;
-		char *block = s->top;
-		s->top = *(char **)block;
-		return block;
+		if (((zane_mapping *)(s->top - ZANE_LINE))->reserved < reserved) continue;
+		if (s->size == size) {
+			best = s;
+			break;
+		}
+		if (!best || s->size < best->size) best = s;
 	}
-	return NULL;
+	if (!best) return NULL;
+	char *block = best->top;
+	best->top = *(char **)block;
+	return block;
 }
 
 /* A list's oversized block of `size` bytes in a region, at the start of a
@@ -682,7 +689,7 @@ __attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t s
 	size_t bytes = zane_span_bytes(size), reserved = bytes * ZANE_HEADROOM;
 	int fits = reserved / ZANE_HEADROOM == bytes;
 	size_t wanted = fits ? reserved : bytes;
-	char *block = zane_returned_span(region, wanted);
+	char *block = zane_returned_span(region, zane_word(size), wanted);
 	if (block) {
 		zane_extend(region, block, size);
 		region->heap.live++;

@@ -233,6 +233,26 @@ static void exercise_replaced(void) {
 	check(zane_blocks() == 0);
 }
 
+/* Of several returned blocks a growth could take, it takes the one of its
+   own size, so a small list leaves a larger block for a larger request:
+   with a 2 MiB block and a 4 MiB one returned, the 4 MiB stack the newer,
+   a list growing to 2 MiB takes the 2 MiB block. */
+static void exercise_exact_first(void) {
+	zane_mark *scope = zane_scope_enter(0);
+	zane_list *small = new_list(scope);
+	fill(small, 2 * SMALL);
+	zane_list *large = new_list(scope);
+	fill(large, 4 * SMALL);
+	char *wanted = small->items, *other = large->items;
+	zane_end((char *)small, &ints_type);
+	zane_end((char *)large, &ints_type);
+	zane_list *next = new_list(scope);
+	fill(next, 2 * SMALL);
+	check(next->items == wanted && next->items != other && intact(next, 2 * SMALL));
+	zane_scope_drain(scope);
+	check(zane_blocks() == 0);
+}
+
 /* A returned block whose reservation cannot hold what a new one would
    reserve is passed over: a copy of 32 MiB reserves more addresses than a
    block first made at 2 MiB has. */
@@ -396,6 +416,7 @@ void zane_main(void) {
 	exercise_move_out();
 	exercise_warm();
 	exercise_replaced();
+	exercise_exact_first();
 	exercise_too_small();
 	exercise_warm_several();
 	exercise_warm_count();
