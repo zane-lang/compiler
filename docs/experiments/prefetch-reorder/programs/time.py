@@ -48,7 +48,7 @@ def build(program, out, env=None):
 
 def timed(exe, args, env=None):
     """The seconds between `ready` and the checksum, and the checksum."""
-    cpu = str(os.cpu_count() - 1)
+    cpu = str(max(os.sched_getaffinity(0)))
     master, slave = pty.openpty()
     proc = subprocess.Popen(["taskset", "-c", cpu, exe, *args], stdout=slave, stderr=subprocess.STDOUT, env=env)
     os.close(slave)
@@ -73,6 +73,8 @@ def timed(exe, args, env=None):
     os.close(master)
     if proc.wait() != 0 or ready is None or not lines:
         sys.exit(f"{exe} {args}: exit {proc.returncode}, output {lines}")
+    if lines[-1][0] <= ready:
+        sys.exit(f"{exe} {args}: `ready` and the checksum came in one read, so the run has no time")
     return lines[-1][0] - ready, lines[-1][1]
 
 

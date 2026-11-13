@@ -6,6 +6,7 @@
 #include <time.h>
 #include <sys/mman.h>
 #include <pthread.h>
+#include <stdatomic.h>
 #include <sched.h>
 
 #define PF(p) __builtin_prefetch((p), 0, 3)
@@ -176,20 +177,21 @@ static uint64_t NOINLINE heavy_nta(int D) { uint64_t s = 0, i = 0;
   for (; i < m; i++) { uint32_t j = gidx[i]; CHECK(j, n); s = body(&ha[j], s); } return s; }
 
 /* a second thread that loads ahead of the first */
-static volatile uint64_t prog; static volatile int stop; static int hdist, hkind, hcpu;
+static _Atomic uint64_t prog; static atomic_int stop; static int hdist, hkind, hcpu;
 static void *helper(void *arg) { uint64_t c = 0, sink = 0;
-  cpu_set_t set; CPU_ZERO(&set); CPU_SET(hcpu, &set); pthread_setaffinity_np(pthread_self(), sizeof set, &set);
-  while (!stop) { uint64_t p = prog, lim = p + hdist; if (lim > m) lim = m; if (c < p) c = p;
+  cpu_set_t set; CPU_ZERO(&set); CPU_SET(hcpu, &set);
+  if (pthread_setaffinity_np(pthread_self(), sizeof set, &set)) { fprintf(stderr, "helper: cannot run on CPU %d\n", hcpu); exit(3); }
+  while (!atomic_load_explicit(&stop, memory_order_relaxed)) { uint64_t p = atomic_load_explicit(&prog, memory_order_relaxed), lim = p + hdist; if (lim > m) lim = m; if (c < p) c = p;
     if (c >= lim) { __builtin_ia32_pause(); continue; }
     if (hkind) for (; c < lim; c++) sink += ha[gidx[c]].key; else for (; c < lim; c++) sink += ga[gidx[c]]; }
   return (void *)sink; }
 static uint64_t with_helper(int K, int kind, uint64_t (*fn)(void)) { pthread_t t;
-  hdist = K; hkind = kind; prog = 0; stop = 0; pthread_create(&t, 0, helper, 0);
-  uint64_t s = fn(); stop = 1; pthread_join(t, 0); return s; }
+  hdist = K; hkind = kind; atomic_store_explicit(&prog, 0, memory_order_relaxed); atomic_store_explicit(&stop, 0, memory_order_relaxed); pthread_create(&t, 0, helper, 0);
+  uint64_t s = fn(); atomic_store_explicit(&stop, 1, memory_order_relaxed); pthread_join(t, 0); return s; }
 static uint64_t heavy_pub(void) { uint64_t s = 0;
-  for (uint64_t i = 0; i < m; i++) { if (!(i & 15)) prog = i; uint32_t j = gidx[i]; CHECK(j, n); s = body(&ha[j], s); } return s; }
+  for (uint64_t i = 0; i < m; i++) { if (!(i & 15)) atomic_store_explicit(&prog, i, memory_order_relaxed); uint32_t j = gidx[i]; CHECK(j, n); s = body(&ha[j], s); } return s; }
 static uint64_t gather_pub(void) { uint64_t s = 0;
-  for (uint64_t i = 0; i < m; i++) { if (!(i & 15)) prog = i; uint32_t j = gidx[i]; CHECK(j, n); s += ga[j]; } return s; }
+  for (uint64_t i = 0; i < m; i++) { if (!(i & 15)) atomic_store_explicit(&prog, i, memory_order_relaxed); uint32_t j = gidx[i]; CHECK(j, n); s += ga[j]; } return s; }
 static uint64_t NOINLINE heavy_helper(int K) { return with_helper(K, 1, heavy_pub); }
 static uint64_t NOINLINE gather_helper(int K) { return with_helper(K, 0, gather_pub); }
 
@@ -315,7 +317,7 @@ int main(int argc, char **argv) {
     int heavy = !strcmp(kname, "heavy"); n = bytes / (heavy ? 64 : 8);
     gidx = alloc(m * 4); gtmp = alloc(m * 4);
     for (uint64_t i = 0; i < m; i++) { gidx[i] = rnd() % n; gtmp[i] = 0; }
-    if (heavy) { ha = alloc(bytes); for (uint64_t i = 0; i < n; i++) for (int k = 0; k < 8; k++) (&ha[i].key)[k] = rnd();
+    if (heavy) { ha = alloc(bytes); for (uint64_t i = 0; i < n; i++) { ha[i].key = rnd(); for (int k = 0; k < 7; k++) ha[i].w[k] = rnd(); }
       Variant v[] = {{"base", heavy_base}, {"naive", heavy_naive}, {"ahead", heavy_ahead, DS}, {"group", heavy_group, GS}, {"earlyload", heavy_earlyload, GS}, {"nta", heavy_nta, 3, {16, 32, 64}}, {"helper", heavy_helper, HS}}; RUN(v); }
     else { ga = alloc(bytes); for (uint64_t i = 0; i < n; i++) ga[i] = rnd();
       if (!strcmp(kname, "gather")) { Variant v[] = {{"base", gather_base}, {"naive", gather_naive}, {"ahead", gather_ahead, DS}, {"group", gather_group, GS}, {"sorted", gather_sorted, 3, {18, 20, 22}}, {"helper", gather_helper, HS}}; RUN(v); }
@@ -344,7 +346,7 @@ int main(int argc, char **argv) {
   } else if (!strcmp(kname, "gatherx") || !strcmp(kname, "heavyx")) {
     int heavy = !strcmp(kname, "heavyx"); n = bytes / (heavy ? 64 : 8); gidx = alloc(m * 4);
     for (uint64_t i = 0; i < m; i++) gidx[i] = rnd() % n;
-    if (heavy) { ha = alloc(bytes); for (uint64_t i = 0; i < n; i++) for (int k = 0; k < 8; k++) (&ha[i].key)[k] = rnd();
+    if (heavy) { ha = alloc(bytes); for (uint64_t i = 0; i < n; i++) { ha[i].key = rnd(); for (int k = 0; k < 7; k++) ha[i].w[k] = rnd(); }
       Variant v[] = {{"base", heavy_base}, {"ahead", heavy_ahead, 2, {16, 32}}}; RUN(v); }
     else { ga = alloc(bytes); for (uint64_t i = 0; i < n; i++) ga[i] = rnd();
       Variant v[] = {{"base", gather_base}, {"ahead", gather_ahead, 2, {16, 32}}}; RUN(v); }
@@ -377,7 +379,7 @@ int main(int argc, char **argv) {
   } else if (!strcmp(kname, "combo")) {
     n = bytes / 128; uint64_t nt = bytes / 32 - 1; cmask = bytes / 16 - 1;
     ha = alloc(bytes / 2); tn = alloc(bytes / 2); tperm = alloc(nt * 4); gidx = alloc(m * 4);
-    for (uint64_t i = 0; i < n; i++) for (int k = 0; k < 8; k++) (&ha[i].key)[k] = rnd();
+    for (uint64_t i = 0; i < n; i++) { ha[i].key = rnd(); for (int k = 0; k < 7; k++) ha[i].w[k] = rnd(); }
     for (uint64_t i = 0; i < m; i++) gidx[i] = rnd() % n;
     for (uint64_t i = 0; i < nt; i++) tperm[i] = i + 1;
     for (uint64_t i = nt - 1; i > 0; i--) { uint64_t j = rnd() % (i + 1); uint32_t t = tperm[i]; tperm[i] = tperm[j]; tperm[j] = t; }

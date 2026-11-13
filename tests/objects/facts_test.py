@@ -467,6 +467,19 @@ class FactsTests(unittest.TestCase):
                 self.assertEqual((result.returncode, result.stdout, result.stderr),
                                  (1, "", "index out of range\n"), optimize)
 
+    def test_prefetch_addresses_stay_small(self):
+        # An index made through 30 `let`s that each double the one before
+        # is small as resolved and 2^30 nodes as emitted; the prefetch is
+        # given up, and the build takes no longer than any other.
+        source = (FACTS / "lookahead" / "main.zn").read_text().replace("package lookahead;", "package doubled;")
+        lets = "".join(f"\t\tj{k} Int = @math$bitAnd(@operators$add(j{k - 1}, j{k - 1}), Int(63));\n" for k in range(1, 31))
+        source = source.replace("\t\tj Int = idx[i];\n", "\t\tj0 Int = idx[i];\n" + lets + "\t\tj Int = @operators$add(j30, Int(1));\n", 1)
+        self.assertIn("j30", source)
+        with tempfile.TemporaryDirectory() as temp:
+            (Path(temp) / "main.zn").write_text(source)
+            ir = run(ZANEC, "--ll", "--optimize", "--package", f"doubled={temp}")
+        self.assertNotIn("call void @llvm.prefetch", ir)
+
     def test_prefetches_read_no_list_in_a_variant_case(self):
         # `payloads` reads a list held in one case of a variant only in that
         # case's arm; holding the other case, the list's handle is that

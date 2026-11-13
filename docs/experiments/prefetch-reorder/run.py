@@ -19,7 +19,7 @@ SWEEP = list(range(16, 29))
 def measure(label, kernels):
     exe = os.path.join(tempfile.mkdtemp(), "model")
     subprocess.check_call(["clang", "-O2", "-pthread", "-o", exe, os.path.join(HERE, "model.c")])
-    cpu = str(os.cpu_count() - 1)
+    cpu = str(max(os.sched_getaffinity(0)))
     out = os.path.join(HERE, "results", label + ".tsv")
     with open(out, "a") as f:
         for k in kernels:

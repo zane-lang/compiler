@@ -141,8 +141,10 @@ scope's frame, `Array_at` to reach one, a `Switch` on a slot's stage):
 ```text
 next = first index; live = 0
 for s in 0 .. W-1:                     -- fill
-  if next <= last: run start for next into slot s; prefetch its first node
-                   stage[s] = walking; live += 1; next += 1
+  if next <= last: run start for next into slot s; next += 1
+                   if the walk has no trips: run finish; stage[s] = empty
+                   else: prefetch its first node
+                         stage[s] = walking; live += 1
   else stage[s] = empty
 s = 0
 while live > 0:                        -- one step of one walk per turn
@@ -150,6 +152,7 @@ while live > 0:                        -- one step of one walk per turn
     run one trip of step on slot s's state
     if the walk left (I3):  run finish on slot s's state
                             if next <= last: start next in slot s, prefetch
+                                             next += 1
                             else stage[s] = empty; live -= 1
     else: prefetch the element the next trip reads
   s = s + 1 == W ? 0 : s + 1
@@ -210,8 +213,8 @@ that is. A float accumulator, and (later) an abort or an ordered write
 such as a push, has to be applied in iteration order. For those, finish
 writes its contribution into a ring of R entries indexed by iteration
 number modulo R, and the loop retires entries from the oldest unretired
-iteration onward as they fill. Start does not begin an iteration more than
-R past the oldest unretired one; with R = 4W a slow walk holds up at most
+iteration onward as they fill. Start begins iteration *i* only while
+*i − oldest < R*, *oldest* being the first unretired one; with R = 4W a slow walk holds up at most
 that much. Retiring costs a load, a compare and a store per iteration. The
 first version builds the ring only for float accumulators; whether the
 rest is worth it is open (I8).

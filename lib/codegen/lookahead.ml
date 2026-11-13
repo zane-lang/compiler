@@ -126,6 +126,27 @@ let assigned_outside_loops body =
   stats body;
   found
 
+(* Whether [v], counted as the tree [Emit.prefetch] emits it, has at most
+   [largest] nodes. Resolving shares a local's value between its uses, so
+   `j1 = j0 + j0`, `j2 = j1 + j1`, ... is small as resolved and doubles
+   with each `let` as emitted; the count stops as soon as it is over. *)
+let largest = 64
+
+let small v =
+  let left = ref largest in
+  let rec go v =
+    decr left;
+    !left >= 0
+    &&
+    match v with
+    | Const _ | Read _ -> true
+    | Add (a, b) | Mul (a, b) -> go a && go b
+    | Neg a | Convert (a, _) -> go a
+    | Math (_, _, vs) -> List.for_all go vs
+    | Load { index; _ } -> go index
+  in
+  go v
+
 (* [e] as a [value] the top of the loop can work out, [counter]'s local
    [x] moved on by [ahead]. [list] gives the address of the list an
    element read reads, when its handle can be read at the top of the
@@ -134,7 +155,7 @@ let assigned_outside_loops body =
 let resolve (f : Loop_shapes.facts) ~outside ~list (x, ahead) (e : Expr.t) =
   (* Locals already being resolved, so a local whose [let] names itself
      through another ends the search rather than looping. *)
-  let seen = Hashtbl.create 8 in
+  let seen = Hashtbl.create 8 and resolved = Hashtbl.create 8 in
   let rec go (e : Expr.t) =
     match e.Expr.node with
     | Expr.Int k when integer e.Expr.ty -> Some (Const (k, e.Expr.ty))
@@ -167,7 +188,15 @@ let resolve (f : Loop_shapes.facts) ~outside ~list (x, ahead) (e : Expr.t) =
      model's `chains`, `ahead`, README round 2). One the body neither binds nor
      assigns is read as it is; an expansion's result is the value its body
      gives it first. *)
+  (* Each local is resolved once, its value shared by every use. *)
   and local y ty =
+    match Hashtbl.find_opt resolved y with
+    | Some v -> v
+    | None ->
+        let v = resolve_local y ty in
+        if not (Hashtbl.mem seen y) then Hashtbl.replace resolved y v;
+        v
+  and resolve_local y ty =
     match (Hashtbl.find_all f.Loop_shapes.lets y, Hashtbl.find_all f.assigns y) with
     | [ v ], assigns when not (Hashtbl.mem outside y || List.exists (fun (_, a) -> reads_element f y a) assigns) ->
         through y v
@@ -262,7 +291,7 @@ let targets body names =
       (* The element read at [index] in [l], when its address qualifies. *)
       let target l index stride =
         match (list l, resolve f ~outside ~list (x, step * distance) index) with
-        | Some l, Some index when mentions_load index && mentions_read x index ->
+        | Some l, Some index when small index && mentions_load index && mentions_read x index ->
             let t = { list = l; index; stride = Int64.to_int stride } in
             if not (List.mem t !found) then found := t :: !found
         | _ -> ()

@@ -1471,7 +1471,10 @@ and prefetch env fr b (targets : Lookahead.target list) =
         else x
     | Load { list; index; stride; offset; ty } ->
         let index = value index in
-        Llvm.build_load (lltype env ty) (inside list index stride offset) "" b
+        (* Packed elements put a member at any byte (lowering.md L5). *)
+        let load = Llvm.build_load (lltype env ty) (inside list index stride offset) "" b in
+        Llvm.set_alignment 1 load;
+        load
   in
   let fetch = prefetch_intrinsic env in
   List.iter
