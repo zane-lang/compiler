@@ -253,6 +253,47 @@ parameter that owns blocks calls the function: written out, the value would
 be held in a slot of the caller's and copied wherever the body keeps it,
 where the function takes it as it is (`Regions.taken_params`).
 
+A **walk**, a function a loop's body calls, is written out there too: a
+search through a table or a tree written as a function, as
+`find(nodes, root, keys[i])`, becomes a loop inside the caller's loop,
+whose reads codegen's loop analyses see as the caller's own. The rules of an expression verb hold, and a `return`
+in it leaves only the copy, as for any verb written out: from inside the
+walk's own loop it ends that loop and the copy, and the caller's loop goes
+on, as a `break` would (Zane has none,
+[`control-flow.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/control-flow.md)
+§3.5). A function is a walk when:
+
+- the call is in a loop's body: a `repeat`'s block, a block a `repeat`
+  runs wherever it was written, and what those call while written out
+  (`State.loop`). A call outside every loop calls the function, which every
+  walk keeps, as an expression verb does;
+- it reads what it is given and writes none of it: no `mut` method is a
+  walk, since one that writes through the caller's place is an update, not
+  a search, and written out it measured slower (`flips`' `advance`, +1.3%
+  estimated cycles optimized);
+- it is given something to read memory through, a parameter that holds an
+  address (a list, a reference, a box) or an owner it borrows, and takes no
+  owner (`^T`). A function given only numbers computes rather than walks,
+  and is what memoization may give a table
+  ([`memoization.md`](memoization.md) M1), which a copy would not consult;
+  one that takes an owner it may drop keeps the arena Regions gives its
+  function (§9);
+- it calls itself nowhere, through any chain of the declared verbs it
+  calls: a tree's recursive `find` is not a walk, and a loop over its
+  levels is;
+- it declares no abort, is no foreign verb, and nothing it writes out spawns
+  or holds a lambda;
+- its body is at most 120 nodes, each statement counted with the verbs it
+  writes out, as an expression verb's size counts them.
+
+Nothing inside a walk is written out as a walk again, its own loops'
+bodies included, so a loop writes out one level of the functions it calls,
+each at most 120 nodes: a loop that calls k walks grows by at most 120k
+nodes, and compiling it by that much more. The searches this is for are
+52 nodes (a walk along a chain of links) to 84 (an open-addressed hash
+table's probe), a binary tree's search 70; 120 holds them with room for a
+few more tests, and keeps a body several times their size a call.
+
 **Lent conversions.** A verb whose body returns a member of one of its
 value parameters, such as `core`'s `implicit @primitives$String(v String)
 => v._value`, copies that member: a return through a borrow binds into

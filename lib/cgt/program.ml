@@ -108,6 +108,7 @@ let func st (v : verb) : Func.t =
         env;
         exit = Function;
         expanding = [];
+        loop = Outside;
         abort =
           (fun _ value ->
             let value =

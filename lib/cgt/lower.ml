@@ -639,7 +639,18 @@ and block ?(enter = fun _ -> []) st ctx (b : T.Block.t) =
 
 (* A block argument's code, where it was written. An exit ends this run of
    it (docs/spec-divergences.md §6). *)
-and code st ctx span (arg : T.Arg.t) =
+and code ?(looping = false) st ctx span (arg : T.Arg.t) =
+  (* A loop's body runs inside the loop, and so does a block it runs, wherever
+     the block was written; inside a walk is inside it still (State.loop). *)
+  let within (c : ctx) =
+    let loop =
+      match (c.loop, ctx.loop) with
+      | Walked, _ | _, Walked -> Walked
+      | Inside, _ | _, Inside -> Inside
+      | Outside, Outside -> if looping then Inside else Outside
+    in
+    { c with loop }
+  in
   let run ctx b =
     let label = fresh st in
     let left = ref false in
@@ -653,10 +664,10 @@ and code st ctx span (arg : T.Arg.t) =
     else body
   in
   match arg with
-  | T.Arg.Block b -> run ctx b
+  | T.Arg.Block b -> run (within ctx) b
   | T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); _ } -> (
       match lookup ctx span l with
-      | Code c -> run c.ctx c.block
+      | Code c -> run (within c.ctx) c.block
       | _ -> Diagnostic.bug ~span "lowering expected a block here")
   | T.Arg.Value _ -> Diagnostic.bug ~span "lowering expected a block here"
 
@@ -752,7 +763,7 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
           [ Stat.If { cond; body = code st ctx span body } ]
       | "@controlflow$repeat", [ T.Arg.Value count; body ] ->
           let count = expr st ctx count in
-          [ Stat.Repeat { count; body = code st ctx span body } ]
+          [ Stat.Repeat { count; body = code ~looping:true st ctx span body } ]
       | "@controlflow$exitFromCall", [] -> ctx.exit_call span
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling))
   (* A fresh value nothing keeps is held here, so the drain ends it. One

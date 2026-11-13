@@ -59,6 +59,9 @@ and ctx = {
   (* The verbs being expanded around this point, so one that would expand
      into itself is refused rather than expanded forever. *)
   expanding : int list;
+  (* Whether this point runs in a loop's body, so a small function called
+     here is written out where it is called (L11, Verbs.walks). *)
+  loop : loop;
   (* Where an `abort` goes (L12): out of the function by its aborted
      outcome, or into the handler of the call or `match` it belongs to. *)
   abort : Source.Span.t -> Expr.t -> Stat.t list;
@@ -84,6 +87,11 @@ and scope = {
   mutable settles : (unit -> Stat.t list) list;
   mutable wants : (string * int) list;
 }
+
+(* [Walked] is inside a function written out because a loop calls it:
+   nothing in it is written out that way again, so each loop writes out
+   one level of the functions it calls. *)
+and loop = Outside | Inside | Walked
 
 (* A `return` from an expansion stores into [result], which has the TST type
    [ret]: a value moves there, or a reference is minted, as into any storage. *)
@@ -205,6 +213,9 @@ type state = {
      key, or [None] for a verb not expanded where it is called (L11,
      Verbs.inlines). *)
   sizes : (string, int option) Hashtbl.t;
+  (* Each function's size where a loop's body writes it out, by verb key,
+     or [None] for one a loop calls (L11, Verbs.walks). *)
+  walks : (string, int option) Hashtbl.t;
   (* Each foreign verb's C function, by verb key, and each thunk the
      functions lowered so far call, latest first (docs/design/ffi.md F8). *)
   foreign_verbs : (string, T.Foreign.t) Hashtbl.t;
@@ -273,6 +284,7 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     boxes = Hashtbl.create 64;
     orders = Hashtbl.create 64;
     sizes = Hashtbl.create 64;
+    walks = Hashtbl.create 64;
     foreign_verbs = Hashtbl.create 8;
     thunks = [];
     places = None;

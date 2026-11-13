@@ -91,60 +91,66 @@ let called (e : T.Expr.t) =
 (* Raised while counting a body that is not written out. *)
 exception Kept
 
+(* The nodes a body adds where it is written out, counted by [go] with the
+   two counters it is given, one for an expression and one for a block:
+   each node once, and each verb it writes out with its own size. A spawn
+   or a lambda is not written out, and neither is anything over [limit].
+   [None] when it is not written out. *)
+let rec tally st limit go =
+  let total = ref 0 in
+  (* The verb [e] calls, if it has one, and whether it always expands. *)
+  let callee e =
+    let ( let* ) = Option.bind in
+    let* id, instance, always = called e in
+    let* c = verb_of st id instance in
+    Some (c, always)
+  in
+  let rec count (e : T.Expr.t) =
+    incr total;
+    (match e.T.Expr.node with T.Expr.Spawn _ | T.Expr.Lambda _ -> raise Kept | _ -> ());
+    (match callee e with
+    | Some (c, always) -> (
+        match size st c with
+        | Some m -> total := !total + m
+        | None -> if always || expands c then raise Kept)
+    | None -> ());
+    if !total > limit then raise Kept;
+    List.iter
+      (function
+        | Tst.Traverse.Same x -> count x
+        | Tst.Traverse.Arm b | Tst.Traverse.Handler b | Tst.Traverse.Block b -> block b
+        | Tst.Traverse.Lambda _ -> raise Kept)
+      (Tst.Traverse.parts e)
+  and block (b : T.Block.t) =
+    List.iter
+      (fun (s : T.Stat.t) ->
+        match s.T.Stat.node with
+        | T.Stat.Spawn _ -> raise Kept
+        | _ -> List.iter count (Tst.Traverse.stat_exprs s))
+      b.T.Block.stats
+  in
+  try
+    go count block;
+    Some !total
+  with Kept -> None
+
 (* The nodes [v] adds where it is written out: an expression verb's
    expression, or every statement of a verb that always expands, each with
    the verbs it writes out counted in. [None] when it is not written out
    that way, or not within [most_expanded]. *)
-let rec size st (v : verb) =
+and size st (v : verb) =
   match Hashtbl.find_opt st.sizes v.key with
   | Some n -> n
   | None ->
       (* A verb whose size is being counted is not written out in itself. *)
       Hashtbl.replace st.sizes v.key None;
-      let total = ref 0 in
-      (* The verb [e] calls, if it has one, and whether it always expands. *)
-      let callee e =
-        let ( let* ) = Option.bind in
-        let* id, instance, always = called e in
-        let* c = verb_of st id instance in
-        Some (c, always)
-      in
-      let rec count (e : T.Expr.t) =
-        incr total;
-        (match e.T.Expr.node with T.Expr.Spawn _ | T.Expr.Lambda _ -> raise Kept | _ -> ());
-        (match callee e with
-        | Some (c, always) -> (
-            match size st c with
-            | Some m -> total := !total + m
-            | None -> if always || expands c then raise Kept)
-        | None -> ());
-        if !total > most_expanded then raise Kept;
-        List.iter
-          (function
-            | Tst.Traverse.Same x -> count x
-            | Tst.Traverse.Arm b | Tst.Traverse.Handler b | Tst.Traverse.Block b -> block b
-            | Tst.Traverse.Lambda _ -> raise Kept)
-          (Tst.Traverse.parts e)
-      and block (b : T.Block.t) =
-        List.iter
-          (fun (s : T.Stat.t) ->
-            match s.T.Stat.node with
-            | T.Stat.Spawn _ -> raise Kept
-            | _ -> List.iter count (Tst.Traverse.stat_exprs s))
-          b.T.Block.stats
-      in
       let n =
-        try
-          match v.body.T.Block.stats with
-          | _ when v.decl < 0 -> None
-          | _ when expands v ->
-              block v.body;
-              Some !total
-          | [ { T.Stat.node = T.Stat.Return e; _ } ] when Option.is_none v.signature.S.abort ->
-              count e;
-              Some !total
-          | _ -> None
-        with Kept -> None
+        match v.body.T.Block.stats with
+        | _ when v.decl < 0 -> None
+        | _ when expands v -> tally st most_expanded (fun _ block -> block v.body)
+        | [ { T.Stat.node = T.Stat.Return e; _ } ] when Option.is_none v.signature.S.abort ->
+            tally st most_expanded (fun count _ -> count e)
+        | _ -> None
       in
       Hashtbl.replace st.sizes v.key n;
       n
@@ -152,8 +158,102 @@ let rec size st (v : verb) =
 let inlines st ctx (v : verb) =
   (not (expands v)) && (not (List.mem v.decl ctx.expanding)) && Option.is_some (size st v)
 
+(* L11: a function called in a loop's body is written out there too when
+   it is small and calls itself nowhere, so the loop's analyses see what it
+   runs: a search that walks a table or a tree, written as a function, is
+   then a loop inside the caller's loop, and a `return` in it leaves only
+   the copy, as a loop's `break` would. Such a function is a walk. It
+   reads what it is given and writes none of it, so no `mut` method is one;
+   it declares no abort, is no foreign verb, and nothing it writes out spawns
+   or holds a lambda, as for an expression verb; its size counts every
+   statement with the verbs it writes out, and is at most [most_walked]
+   nodes. Inside a walk, nothing is written out as a walk again (State.loop),
+   so a loop writes out one level of what it calls. *)
+let most_walked = 120
+
+(* Whether [v] reaches a call to itself through the declared verbs its body
+   calls, those they call, and so on. *)
+let recursive st (v : verb) =
+  let seen = Hashtbl.create 16 in
+  let rec visit (c : verb) =
+    if not (Hashtbl.mem seen c.key) then begin
+      Hashtbl.replace seen c.key ();
+      body c
+    end
+  and body (c : verb) =
+    let rec expr (e : T.Expr.t) =
+      (match called e with
+      | Some (id, instance, _) -> (
+          match verb_of st id instance with
+          | Some d when d.key = v.key -> raise Exit
+          | Some d -> visit d
+          | None -> ())
+      | None -> ());
+      List.iter
+        (function
+          | Tst.Traverse.Same x -> expr x
+          | Tst.Traverse.Arm b | Tst.Traverse.Handler b | Tst.Traverse.Block b -> block b
+          | Tst.Traverse.Lambda _ -> ())
+        (Tst.Traverse.parts e)
+    and block (b : T.Block.t) =
+      List.iter (fun s -> List.iter expr (Tst.Traverse.stat_exprs s)) b.T.Block.stats
+    in
+    block c.body
+  in
+  try
+    body v;
+    false
+  with Exit -> true
+
+(* Whether a value of [t] holds an address anywhere in it: a list's
+   handle, a reference, a box. *)
+let rec holds_address (t : Nodes.Ty.t) =
+  match t with
+  | Nodes.Ty.Handle | Nodes.Ty.Handle16 | Nodes.Ty.Ptr | Nodes.Ty.Ref | Nodes.Ty.Box32 -> true
+  | Nodes.Ty.Packed t | Nodes.Ty.Array (t, _) -> holds_address t
+  | Nodes.Ty.Struct ts | Nodes.Ty.Sum ts -> List.exists holds_address ts
+  | Nodes.Ty.Void | Nodes.Ty.I1 | Nodes.Ty.I32 | Nodes.Ty.I64 | Nodes.Ty.F32 | Nodes.Ty.F64 -> false
+
+(* Whether [v] is given anything it can read memory through, a parameter
+   that holds an address or an owner it borrows, and takes no owner. A function that is given
+   only numbers computes rather than walks, and is what memoization may
+   give a table (docs/design/memoization.md M1), which a copy written out
+   would not consult. *)
+let reads_through st (v : verb) =
+  (* A walk takes nothing: a callee given an owner it may drop keeps its
+     function, whose arena Regions decides (lowering.md §9). *)
+  (not (List.exists (fun (p : T.Local.t) -> roaming st p.T.Local.ty) v.params))
+  && List.exists
+    (fun (p : T.Local.t) ->
+      owned st p.T.Local.ty || Tty.is_ref p.T.Local.ty
+      || holds_address (ty st p.T.Local.span p.T.Local.ty))
+    v.params
+
+(* [v]'s size where a loop's body writes it out as a walk, or [None]. *)
+let walk_size st (v : verb) =
+  match Hashtbl.find_opt st.walks v.key with
+  | Some n -> n
+  | None ->
+      let n =
+        if
+          v.decl < 0 || expands v || v.signature.S.is_mut
+          || Option.is_some v.signature.S.abort
+          || Hashtbl.mem st.foreign_verbs v.key
+          || Option.is_some (size st v)
+          || (not (reads_through st v))
+          || recursive st v
+        then None
+        else tally st most_walked (fun _ block -> block v.body)
+      in
+      Hashtbl.replace st.walks v.key n;
+      n
+
+(* Whether a direct call to [v] here writes it out as a walk. *)
+let walks st ctx (v : verb) =
+  ctx.loop = Inside && (not (List.mem v.decl ctx.expanding)) && Option.is_some (walk_size st v)
+
 (* Whether a direct call to [v] is replaced by its body (L11). *)
-let written_out st ctx v = expands v || inlines st ctx v
+let written_out st ctx v = expands v || inlines st ctx v || walks st ctx v
 
 (* L6: a `mut` method's subject, a reference-type subject, and a borrowed
    reference-type argument are passed as the address of the caller's place;

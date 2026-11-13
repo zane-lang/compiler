@@ -115,7 +115,11 @@ optimized build that test is a `select`, with no branch on the tag around
 the payload's load. `escapes` is a program with two counted loops that
 return early: every build marks its arithmetic escape test to be unrolled
 twice, and the optimized build unrolls it, while `first`'s loop, which
-calls, is not marked. `taking` is a library whose `Text` constructor copies
+calls, is not marked. `walks` is a program whose loop calls `find`, a search
+through a table it is given that returns from inside its own loop, which
+the loop writes out while `main`'s call outside any loop calls it, and
+`depth`, which calls itself, and `spin`, given only a number, which stay
+calls; each build prints the same. `taking` is a library whose `Text` constructor copies
 the string it is given once into the value it makes, and `takes` a program
 over it, built against `taking`'s object: the fresh string it passes goes to
 a local copy of `Text` that takes it with no copy, the string it reads again

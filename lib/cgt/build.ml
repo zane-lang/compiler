@@ -32,6 +32,7 @@ let constant_ctx () =
     env = Hashtbl.create 1;
     exit = Function;
     expanding = [];
+    loop = Outside;
     abort = (fun span _ -> nowhere span);
     resolve = None;
     finish = nowhere;

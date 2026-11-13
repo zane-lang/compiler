@@ -262,7 +262,7 @@ and plain_call w st ctx span v args handler ret =
    takes it instead (Regions.taken_params). *)
 and writes_out w st ctx span v args =
   expands v
-  || inlines st ctx v
+  || (inlines st ctx v || walks st ctx v)
      && List.length args = List.length v.params
      && not
           (List.exists2
@@ -650,6 +650,9 @@ and expand w st ctx span v args handler ret =
       env;
       exit = Leave { label; result; ret };
       expanding = v.decl :: ctx.expanding;
+      (* A verb written out that neither always expands nor is an
+         expression verb is a walk. *)
+      loop = (if (not (expands v)) && Option.is_none (size st v) then Walked else ctx.loop);
       abort =
         (match handler with
         | Some h -> Lower_match.handle w ?dropped:v.signature.S.abort st ctx h label result
