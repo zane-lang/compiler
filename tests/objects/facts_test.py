@@ -433,8 +433,10 @@ class FactsTests(unittest.TestCase):
         # `find` reads a table it is given and returns from inside its own
         # loop: the loop in `main` writes it out (lib/cgt/verbs.ml, walks),
         # so `main` calls it once, outside the loop, and its function stays
-        # for that call. `depth` calls itself and `spin` is given only a
-        # number, which memoization may give a table, so both stay calls.
+        # for that call. `depth` calls itself, `spin` is given only a number,
+        # which memoization may give a table, and `weighed` leaves out a
+        # field whose default is long, which counts towards its size, so all
+        # three stay calls.
         cgt = run(ZANEC, "--cgt", *packages("walks"))
         funcs = {chunk.split("\n", 1)[0].strip(): chunk for chunk in cgt.split("symbol: ")[1:]}
         main = funcs["walks$main()"]
@@ -442,12 +444,13 @@ class FactsTests(unittest.TestCase):
         self.assertEqual(main.count("fn: walks$find("), 1)
         self.assertEqual(main.count("fn: walks$depth("), 1)
         self.assertEqual(main.count("fn: walks$spin("), 1)
+        self.assertEqual(main.count("fn: walks$weighed("), 1)
         with tempfile.TemporaryDirectory() as temp:
             for optimize in [[], ["--optimize"]]:
                 exe = Path(temp) / "walks"
                 run(ZANEC, "--build", exe, *optimize, *packages("walks"))
-                self.assertEqual(run_program(exe, 16), "44 4 3435 120\n", optimize)
-                self.assertEqual(run_program(exe, 64), "560 4 55251 2016\n", optimize)
+                self.assertEqual(run_program(exe, 16), "44 4 3435 120 936\n", optimize)
+                self.assertEqual(run_program(exe, 64), "560 4 55251 2016 4308\n", optimize)
 
 
 if __name__ == "__main__":

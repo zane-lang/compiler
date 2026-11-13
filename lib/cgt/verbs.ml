@@ -110,6 +110,7 @@ let rec tally st limit go =
     (match e.T.Expr.node with T.Expr.Spawn _ | T.Expr.Lambda _ -> raise Kept | _ -> ());
     (match callee e with
     | Some (c, always) -> (
+        left_out e c;
         match size st c with
         | Some m -> total := !total + m
         | None -> if always || expands c then raise Kept)
@@ -121,6 +122,15 @@ let rec tally st limit go =
         | Tst.Traverse.Arm b | Tst.Traverse.Handler b | Tst.Traverse.Block b -> block b
         | Tst.Traverse.Lambda _ -> raise Kept)
       (Tst.Traverse.parts e)
+  (* A field constructor's entries left out are given their defaults where
+     it is lowered (Lower_data.construct_fields), so they count too. *)
+  and left_out (e : T.Expr.t) (c : verb) =
+    match e.T.Expr.node with
+    | T.Expr.Construct_fields { fields; _ } ->
+        let written = List.map (fun (f : T.Field_value.t) -> f.T.Field_value.slot) fields in
+        Option.value ~default:[] (Hashtbl.find_opt st.defaults c.key)
+        |> List.iter (fun (slot, d) -> if not (List.mem slot written) then count d)
+    | _ -> ()
   and block (b : T.Block.t) =
     List.iter
       (fun (s : T.Stat.t) ->

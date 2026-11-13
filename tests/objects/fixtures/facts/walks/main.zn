@@ -1,8 +1,9 @@
 /// Functions called in a loop's body (docs/design/lowering.md L11): `find`,
 /// a search through a table it is given that returns from inside its own
 /// loop, is written out where the loop calls it and called where `main`
-/// calls it outside any loop; `depth`, which calls itself, and `spin`,
-/// given only a number, are called everywhere. Its argument, a power of
+/// calls it outside any loop; `depth`, which calls itself, `spin`, given
+/// only a number, and `weighed`, whose constructor's left-out default makes
+/// it too big, are called everywhere. Its argument, a power of
 /// two, is the table's size. Spawns nothing.
 package walks;
 
@@ -56,6 +57,24 @@ Int depth(links ListRef<Int>, at Int) {
 	return @operators$add(depth(links, links[at]), Int(1));
 }
 
+type Tagged = struct {
+	slot Int;
+	weight Int;
+}
+
+/// A slot and its weight, 60 unless given, by a default long enough that a
+/// function which leaves it out is too big to write out.
+Tagged{
+	slot Int;
+	weight Int = @operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(Int(0), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1));
+} => init{ slot; weight; }
+
+/// What slot `k` holds, with its default weight.
+Int weighed(table ListRef<Int>, k Int) {
+	t Tagged{slot = table[k];}
+	return @operators$add(t.slot, t.weight);
+}
+
 /// `k` through three steps of `3x + 1`.
 Int spin(k Int) {
 	x Int = k;
@@ -83,12 +102,14 @@ Unit main() {
 	found Int(0);
 	spun Int(0);
 	deep Int(0);
+	heavy Int(0);
 	k Int(1);
 	k!to(@operators$add(n, @operators$negate(Int(1)))) {
 		found = @operators$add(found, find(table, k));
 		spun = @operators$add(spun, spin(k));
 		deep = @operators$add(deep, depth(links, k));
+		heavy = @operators$add(heavy, weighed(table, k));
 	}
-	@program$console!print(@operators$concat(@operators$concat(@operators$concat(String(found), String(" ")), @operators$concat(String(find(table, Int(3))), String(" "))), @operators$concat(@operators$concat(String(spun), String(" ")), @operators$concat(String(deep), String.escaped("\n")))));
+	@program$console!print(@operators$concat(@operators$concat(@operators$concat(String(found), String(" ")), @operators$concat(String(find(table, Int(3))), String(" "))), @operators$concat(@operators$concat(String(spun), String(" ")), @operators$concat(@operators$concat(String(deep), String(" ")), @operators$concat(String(heavy), String.escaped("\n"))))));
 	return Unit();
 }
