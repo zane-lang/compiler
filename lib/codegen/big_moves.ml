@@ -5,8 +5,13 @@
    65,535 parts, though, and dies on a larger one, such as an
    `@primitives$ArrayRef<Int, 65536>` moved into its slot; well below that
    it still takes seconds per move. So a load of a large aggregate whose
-   only uses are stores becomes a `memcpy` per store, and a large aggregate
-   left anywhere else is reported as a limit rather than crashing LLVM. *)
+   only uses are stores becomes a `memcpy` per store. A value of more parts
+   than that read only for its parts, as a match arm reads one field of a
+   large payload, is read a part at a time, and one built a part at a time
+   and stored, as a constructor builds its struct, is stored a part at a
+   time, so a struct past 1 MiB can be a variant's payload. A large
+   aggregate left anywhere else is reported as a limit rather than
+   crashing LLVM. *)
 
 (* Aggregates of this many bytes or more are moved as memory. *)
 let large = Int64.of_int Emit.large
@@ -123,6 +128,25 @@ let rewrite data_layout m =
      payload does, becomes a load of each such part from its address,
      where the whole was loaded, and so on into each part still too large. *)
   let i32 = Llvm.i32_type ctx in
+  (* The alignment of the part at [path] in a value of type [t] that is
+     [whole]-aligned: the largest power of two dividing both [whole] and
+     the part's offset in bytes. *)
+  let aligned_at t path whole =
+    let offset, _ =
+      Array.fold_left
+        (fun (offset, t) i ->
+          match Llvm.classify_type t with
+          | Llvm.TypeKind.Struct ->
+              ( Int64.add offset (Llvm_target.DataLayout.offset_of_element t i data_layout),
+                (Llvm_extra.struct_element_types t).(i) )
+          | _ ->
+              let e = Llvm.element_type t in
+              (Int64.add offset (Int64.mul (Int64.of_int i) (Llvm_target.DataLayout.abi_size e data_layout)), e))
+        (0L, t) path
+    in
+    let rec fit a = if a <= 1 || Int64.rem offset (Int64.of_int a) = 0L then max a 1 else fit (a / 2) in
+    fit whole
+  in
   let rec split load =
     let users = uses load in
     if
@@ -137,7 +161,7 @@ let rewrite data_layout m =
           let path = Array.map (fun i -> Llvm.const_int i32 i) (Array.append [| 0 |] (Llvm.indices x)) in
           let at = Llvm.build_in_bounds_gep t src path "" b in
           let part = Llvm.build_load (Llvm.type_of x) at "" b in
-          Llvm.set_alignment (Llvm.alignment load) part;
+          Llvm.set_alignment (aligned_at t (Llvm.indices x) (Llvm.alignment load)) part;
           Llvm.replace_all_uses_with x part;
           Llvm.delete_instruction x;
           split part)
@@ -162,17 +186,18 @@ let rewrite data_layout m =
     if parts (Llvm.type_of v) > most_parts && puts <> [] then begin
       let t = Llvm.type_of v in
       let b = Llvm.builder_before ctx store in
-      let put value at =
+      let put value at align =
         let s = Llvm.build_store value at b in
-        Llvm.set_alignment (Llvm.alignment store) s;
+        Llvm.set_alignment align s;
         s
       in
-      let whole = if Llvm.is_undef base || Llvm.is_poison base then None else Some (put base p) in
+      let align = Llvm.alignment store in
+      let whole = if Llvm.is_undef base || Llvm.is_poison base then None else Some (put base p align) in
       let stores =
         List.map
           (fun (_, path, part) ->
-            let path = Array.map (fun i -> Llvm.const_int i32 i) (Array.append [| 0 |] path) in
-            put part (Llvm.build_in_bounds_gep t p path "" b))
+            let at = Array.map (fun i -> Llvm.const_int i32 i) (Array.append [| 0 |] path) in
+            put part (Llvm.build_in_bounds_gep t p at "" b) (aligned_at t path align))
           puts
       in
       Llvm.delete_instruction store;

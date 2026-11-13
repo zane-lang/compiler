@@ -1261,6 +1261,58 @@ let backstop () =
   Llvm.dispose_module m;
   Llvm.dispose_context ctx
 
+(* A value too large to move as one LLVM value is moved a part at a time
+   when it is only read for its parts or only built from them and stored,
+   each part as aligned as its offset allows. *)
+let parts_apart () =
+  let ctx = Llvm.create_context () in
+  let i32 = Llvm.i32_type ctx and i64 = Llvm.i64_type ctx and ptr = Llvm.pointer_type ctx in
+  let rooms = Codegen__Llvm_extra.array_type i64 65536 in
+  let big = Llvm.struct_type ctx [| i32; i32; rooms |] in
+  let layout = Llvm_target.DataLayout.of_string "e-m:e-i64:64-n8:16:32:64-S128" in
+  let instrs f =
+    let all = ref [] in
+    Llvm.iter_blocks (Llvm.iter_instrs (fun i -> all := i :: !all)) f;
+    List.rev !all
+  in
+  let whole i = List.exists (fun t -> t == big) (Llvm.type_of i :: Array.to_list (Array.init (Llvm.num_operands i) (fun n -> Llvm.type_of (Llvm.operand i n)))) in
+  let fn m name ret params =
+    let f = Llvm.define_function name (Llvm.function_type ret params) m in
+    (f, Llvm.builder_at_end ctx (Llvm.entry_block f))
+  in
+  (* Built from parts and stored. *)
+  let m = Llvm.create_module ctx "parts" in
+  let f, b = fn m "build" (Llvm.void_type ctx) [| ptr; ptr; i32; i32 |] in
+  let inner = Llvm.build_load rooms (Llvm.param f 1) "" b in
+  let v = Llvm.build_insertvalue (Llvm.undef big) (Llvm.param f 2) 0 "" b in
+  let v = Llvm.build_insertvalue v (Llvm.param f 3) 1 "" b in
+  let v = Llvm.build_insertvalue v inner 2 "" b in
+  Llvm.set_alignment 8 (Llvm.build_store v (Llvm.param f 0) b);
+  ignore (Llvm.build_ret_void b);
+  (* Read for one part. *)
+  let g, b = fn m "read" i32 [| ptr |] in
+  let whole_load = Llvm.build_load big (Llvm.param g 0) "" b in
+  Llvm.set_alignment 8 whole_load;
+  ignore (Llvm.build_ret (Llvm.build_extractvalue whole_load 1 "" b) b);
+  check "a value built of parts and one read for a part move apart" (Codegen__Big_moves.rewrite layout m = Ok ());
+  check "nothing moves the whole value" (not (List.exists whole (instrs f @ instrs g)));
+  let aligns f op = List.filter_map (fun i -> if Llvm.instr_opcode i = op then Some (Llvm.alignment i) else None) (instrs f) in
+  check "each part stored as aligned as its offset" (aligns f Llvm.Opcode.Store = [ 8; 4 ]);
+  check "the large part is copied" (List.exists (fun i -> Llvm.instr_opcode i = Llvm.Opcode.Call) (instrs f));
+  check "the part read is as aligned as its offset" (aligns g Llvm.Opcode.Load = [ 4 ]);
+  Llvm.dispose_module m;
+  (* A part put in that is also used elsewhere: the value is still whole. *)
+  let m = Llvm.create_module ctx "parts" in
+  let f, b = fn m "shared" (Llvm.void_type ctx) [| ptr; ptr; i32 |] in
+  let first = Llvm.build_insertvalue (Llvm.undef big) (Llvm.param f 2) 0 "" b in
+  ignore (Llvm.build_store first (Llvm.param f 1) b);
+  let v = Llvm.build_insertvalue first (Llvm.param f 2) 1 "" b in
+  ignore (Llvm.build_store v (Llvm.param f 0) b);
+  ignore (Llvm.build_ret_void b);
+  check "a value shared before it is stored is still a limit" (Result.is_error (Codegen__Big_moves.rewrite layout m));
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx
+
 (* Each load and store is as aligned as its address is known to be
    (Codegen.Alignment): every rule of it, on one module, read back by the
    name each access's value or address carries. *)
@@ -1786,6 +1838,7 @@ let () =
   passings ();
   returnings ();
   backstop ();
+  parts_apart ();
   fixture_pairing ();
   escaped_locations ();
   unstamped_messages ();
