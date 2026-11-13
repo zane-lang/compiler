@@ -44,6 +44,10 @@ int main(int argc, char **argv) {
 	size_t keep = argc > 1 ? strtoul(argv[1], NULL, 10) : 64;
 	size_t spare = (argc > 2 ? strtoul(argv[2], NULL, 10) : 1024) << 20;
 	size_t most = (argc > 3 ? strtoul(argv[3], NULL, 10) : 12288) << 20;
+	if (!keep) {
+		fprintf(stderr, "fragment: keep must be 1 or more\n");
+		return 1;
+	}
 	size_t avail = 0;
 	char line[256];
 	FILE *f = fopen("/proc/meminfo", "r");
