@@ -1650,15 +1650,22 @@ test passing.
   need.
 
   A `repeat` that can leave before its count runs out, through a `return`
-  or a block it is in, is a search: its count is a ceiling, which is how
-  the spec has a loop whose real stop is a test written
+  or a block it is in, that holds no loop, and that reads or writes an
+  element, is a search (`Emit.searches`). Its count is a ceiling, which is
+  how the spec has a loop whose real stop is a test written
   ([`control-flow.md`](https://github.com/zane-lang/spec/blob/43d1f65/spec/control-flow.md)
-  §3.5), and it usually stops long before. In an optimized build and both
-  tiers of a tiered one its test is weighted as going round 4 times, as
-  the short copy's is, so IRCE leaves it whole (`Emit.leaves_early`). Left
-  unweighted, IRCE split a partition scan that stops after one or two
-  elements, and the split's setup, about 25 instructions on each entry,
-  cost LangArena's Sort::Quick 25% more instructions.
+  §3.5), and it usually stops long before. Left unweighted, IRCE split a
+  partition scan that stops after one or two elements, and the split's
+  setup, about 25 instructions on each entry, cost LangArena's Sort::Quick
+  25% more instructions. So in an optimized build and both tiers of a
+  tiered one a search's test is weighted as going round 4 times, as the
+  short copy's is, and IRCE leaves it whole; unlike the short copy, it
+  still reads ahead. A loop around another is left unweighted, since it
+  may go round many times between the inner loop's exits, and so is one of
+  arithmetic alone, which IRCE has nothing to split in: weighted,
+  `tests/perf` `floats`' escape test took 10.5% more estimated cycles and
+  `paths` 6.3%. With the rule as it stands, no `tests/perf` program moves
+  by more than 0.4%.
 
   Any other loop codegen emits once has no branch weights, and LLVM guesses it goes
   round often enough for IRCE to split it. In `tests/perf` `flips`,

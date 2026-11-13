@@ -289,14 +289,33 @@ let long_trips = 1000
 let short_trips = 4
 
 (* Whether a loop with [body] can leave before its count runs out: it
-   returns, or leaves a block that holds it. Such a loop is a search whose
-   count is a ceiling, as `core`'s `to` with a `return` or `guard` in it is
-   (spec control-flow.md §3.5), so an optimized build weights its test as
-   going round [short_trips] times. Unweighted, IRCE splits it on LLVM's
-   guess, and the split's setup, about 25 instructions on every entry,
-   costs a scan that stops after an element or two more than the checks
-   it takes out: LangArena's quicksort partition 25% more instructions. *)
+   returns, or leaves a block that holds it. *)
 let leaves_early = Cgt.Traverse.leaves
+
+(* Whether [e] reads or writes a list's or an array's element, whose
+   check IRCE may take out of a loop. *)
+let indexes (e : Expr.t) =
+  match e.Expr.node with
+  | Expr.Runtime { fn = Cgt.Runtime.List_at | Cgt.Runtime.Array_at; _ } -> true
+  | _ -> false
+
+(* Whether a loop with [body] is a search, which an optimized build weights
+   as going round [short_trips] times so IRCE leaves it whole: it can leave
+   early, holds no loop, and reads or writes an element. Its count is a
+   ceiling, as `core`'s `to` with a `return` or `guard` in it has (spec
+   control-flow.md §3.5), and it usually stops long before. Unweighted,
+   IRCE split it on LLVM's guess, and the split's setup, about 25
+   instructions on each entry, cost LangArena's quicksort, whose partition
+   scans stop after an element or two, 25% more instructions. A loop
+   around another is left unweighted, since it may go round many times
+   between the inner loop's exits, and so is one of arithmetic alone, which
+   IRCE has nothing to split in: weighted, `tests/perf` `floats`' escape
+   test took 10.5% more estimated cycles. Unlike a versioned loop's short
+   copy, a search still reads ahead (Lookahead). *)
+let searches body =
+  leaves_early body
+  && (not (Cgt.Traverse.exists_in body ~expr:(fun _ -> false) ~stat:(function Stat.Repeat _ -> true | _ -> false)))
+  && Cgt.Traverse.exists_in body ~expr:indexes ~stat:(fun _ -> false)
 
 (* Whether a loop with [body] in the function [symbol] is emitted twice
    (Stat.Repeat): it holds no loop, no spawned call and no call back into
@@ -304,15 +323,13 @@ let leaves_early = Cgt.Traverse.leaves
    count runs out, and it reads or writes a list's element, whose check IRCE
    may take out of it. *)
 let versioned ~symbol body =
-  let indexes = function Cgt.Runtime.List_at | Cgt.Runtime.Array_at -> true | _ -> false in
   (not (leaves_early body))
   && (not
         (Cgt.Traverse.exists_in body
            ~expr:(fun e -> match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol | _ -> false)
            ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ -> true | _ -> false)))
   && Cgt.Traverse.exists_in body
-       ~expr:(fun e -> match e.Expr.node with Expr.Runtime { fn; _ } -> indexes fn | _ -> false)
-       ~stat:(fun _ -> false)
+       ~expr:indexes ~stat:(fun _ -> false)
 
 (* Whether a counted loop with [body] is asked to be unrolled twice
    (Stat.Repeat): it can leave before its count runs out, holds no loop,
@@ -1697,7 +1714,7 @@ and stat env fr b (s : Stat.t) =
       let twice = unrolled ~listed:(listed env) body in
       (* Experimental (Lookahead): what an optimized build fetches ahead. *)
       let fetched = if env.version then Lookahead.targets body names else [] in
-      let counted trips =
+      let counted ?(fetch = true) trips =
         let saved = fr.hoisted in
         let hoisted =
           List.fold_left
@@ -1762,7 +1779,7 @@ and stat env fr b (s : Stat.t) =
         let test = Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Slt current n "" b) step after b in
         Option.iter (weigh env test) trips;
         Llvm.position_at_end step b;
-        if fetched <> [] && trips <> Some short_trips then prefetch env fr b fetched;
+        if fetch && fetched <> [] then prefetch env fr b fetched;
         fr.loops <- fr.loops + 1;
         stats env fr b body;
         fr.loops <- fr.loops - 1;
@@ -1811,7 +1828,7 @@ and stat env fr b (s : Stat.t) =
       (* A loop that can leave early is a search: its count is a ceiling
          it seldom reaches, so it is weighted as going round a few times,
          and IRCE leaves it whole (docs/design/lowering.md, "The passes"). *)
-      if env.version && leaves_early body then counted (Some short_trips)
+      if env.version && searches body then counted (Some short_trips)
       else if (not env.version) || fr.loops > 0 || not (versioned ~symbol:fr.symbol body) then counted None
       else begin
         (* A loop no other loop holds is emitted twice, for a count of at
@@ -1827,7 +1844,7 @@ and stat env fr b (s : Stat.t) =
         List.iter
           (fun (start, trips) ->
             Llvm.position_at_end start b;
-            counted (Some trips);
+            counted ~fetch:(trips <> short_trips) (Some trips);
             ignore (Llvm.build_br joined b))
           [ (long, long_trips); (short, short_trips) ];
         Llvm.position_at_end joined b

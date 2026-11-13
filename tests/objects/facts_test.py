@@ -439,6 +439,8 @@ class FactsTests(unittest.TestCase):
         # IRCE split `scanUp`, and its setup cost Sort::Quick 25% more
         # instructions. bounce's loops, which never leave early, are still
         # split (test_long_loops_lose_their_index_checks).
+        # A plain build weights no loop.
+        self.assertNotIn('!{!"branch_weights", i32 4, i32 1}', run(ZANEC, "--ll", *packages("scans")))
         ir = run(ZANEC, "--ll", "--optimize", *packages("scans"))
         self.assertRegex(ir, r"define [^\n]*@\"scans\$quick\(")
         self.assertNotIn("loop_constrainer", ir)

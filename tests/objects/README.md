@@ -154,6 +154,9 @@ the same output.
 arm and beside a call; holding the other case, it runs to the plain
 build's answer, since no prefetch reads a list's handle through a variant's
 payload.
+`scans` is LangArena's Sort::Quick partition, whose scans are counted
+loops that return after an element or two: optimized, IRCE splits none of
+them, and every build sorts the same.
 `pending` is LangArena's R5 shapes: a loop reading `this.adj[v]` that
 pushes onto a list of its own only inside an `if`, as Graph::BFS's queue
 does, which reads that list's items and count once before it in an

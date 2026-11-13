@@ -3,8 +3,9 @@
 /// and the scan usually stops after an element or two. Its first argument
 /// is how many pseudo-random values it sorts, the second how many times.
 /// It prints the middle and last value of the last sort. The list is
-/// filled by pushes, so the only loops that read elements are the scans,
-/// the partition's swap loop and the order check. Spawns nothing.
+/// filled by pushes, so the only loops that read elements are the scans
+/// and the partition's loop, all of which can return early. Spawns
+/// nothing.
 package scans;
 
 alias Int = @primitives$I64;
@@ -98,7 +99,6 @@ Unit main() {
 	n Int = argument(args, Int(1));
 	rounds Int = argument(args, Int(2));
 	seed Int(42);
-	sorted Int(0);
 	middle Int(0);
 	last Int(0);
 	r Int(1);
