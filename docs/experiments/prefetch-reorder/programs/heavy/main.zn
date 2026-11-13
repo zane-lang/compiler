@@ -1,0 +1,130 @@
+/// The model's `heavy`: a loop that reads a 64-byte record at an index
+/// loaded from another list, branches on the record's key and does real
+/// work on one side. Arguments: log2 of the data's bytes, how many passes
+/// to make (0 builds the data and stops) and log2 of the operations in a
+/// pass. It prints `ready` once the data is built and a checksum when the
+/// passes end, which time.py beside it times between.
+package heavy;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The program's `at`th argument, or `fallback` when it has none or the
+/// argument spells no integer.
+Int arg(at Int, fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), at), {
+		return fallback;
+	});
+	return args[at]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+Int minus(a Int, b Int) => @operators$add(a, @operators$negate(b));
+Int times(a Int, b Int) => @operators$multiply(a, b);
+Int xor(a Int, b Int) => @math$bitXor(a, b);
+Int down(a Int, by Int) => @math$shiftRightLogical(a, by);
+Bool same(a Int, b Int) => @operators$equal(a, b);
+
+/// xorshift64, as the model's `rnd`.
+type Rng = #struct {
+	state Int;
+}
+
+Rng(seed Int) => init{ state = seed; }
+
+Int next(this Rng) mut {
+	s Int = this.state;
+	s = xor(s, @math$shiftLeft(s, Int(13)));
+	s = xor(s, down(s, Int(7)));
+	s = xor(s, @math$shiftLeft(s, Int(17)));
+	this.state = s;
+	return s;
+}
+
+type Rec = struct {
+	key Int;
+	w0 Int;
+	w1 Int;
+	w2 Int;
+	w3 Int;
+	w4 Int;
+	w5 Int;
+	w6 Int;
+}
+
+Rec(key Int, w0 Int, w1 Int, w2 Int, w3 Int, w4 Int, w5 Int, w6 Int) => init{ key; w0; w1; w2; w3; w4; w5; w6; }
+
+Unit main() {
+	logBytes Int = arg(Int(1), Int(25));
+	passes Int = arg(Int(2), Int(1));
+	logOps Int = arg(Int(3), Int(23));
+	n Int = @math$shiftLeft(Int(1), minus(logBytes, Int(6)));
+	m Int = @math$shiftLeft(Int(1), logOps);
+	rng Rng = Rng(@operators$negate(Int(7046029254386353131)));
+	idx ListRef<Int> = @primitives$ListRef(Int);
+	q Int(1);
+	q!to(m) {
+		idx!push(plus(@math$bitAnd(rng!next(), minus(n, Int(1))), Int(1)));
+	}
+	recs ListRef<Rec> = @primitives$ListRef(Rec);
+	r Int(1);
+	r!to(n) {
+		recs!push(Rec(rng!next(), rng!next(), rng!next(), rng!next(), rng!next(), rng!next(), rng!next(), rng!next()));
+	}
+	hist ListRef<Int> = @primitives$ListRef(Int);
+	b Int(1);
+	b!to(Int(16)) {
+		hist!push(Int(0));
+	}
+	acc Int(0);
+	say(String("ready"));
+	p Int(1);
+	p!to(passes) {
+		i Int(1);
+		i!to(m) {
+			j Int = idx[i];
+			odd Bool = same(@math$bitAnd(recs[j].key, Int(1)), Int(1));
+			@controlflow$branch(odd, {
+				h Int = recs[j].w0;
+				h = xor(h, down(h, Int(33)));
+				h = times(h, @operators$negate(Int(49064778989728563)));
+				h = xor(h, down(h, Int(33)));
+				h = times(h, @operators$negate(Int(4265267296055464877)));
+				h = xor(h, down(h, Int(33)));
+				h = plus(h, times(recs[j].w1, recs[j].w2));
+				slot Int = plus(@math$bitAnd(h, Int(15)), Int(1));
+				hist[slot] = plus(hist[slot], Int(1));
+				acc = plus(times(acc, Int(31)), h);
+			});
+			@controlflow$branch(@operators$not(odd), {
+				acc = xor(acc, plus(recs[j].w4, down(recs[j].w5, Int(3))));
+			});
+		}
+	}
+	total Int(0);
+	t Int(1);
+	t!to(Int(16)) {
+		total = plus(total, hist[t]);
+	}
+	say(@operators$concat(@operators$concat(String(acc), String(" ")), String(total)));
+	return Unit();
+}

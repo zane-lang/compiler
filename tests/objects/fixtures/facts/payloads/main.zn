@@ -1,0 +1,70 @@
+/// A loop that reads a list held in one case of a variant, and only in that
+/// case's arm, beside a call that keeps the list's handle from being read
+/// once before the loop. The prefetch must not read the handle at the top
+/// of the loop, where the other case's bytes may be there instead
+/// (lib/codegen/lookahead.ml, `members_only`).
+package payloads;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// A list of indices or a single value.
+type Source = variant {
+	many @primitives$List<Int>;
+	one Int;
+}
+
+Int twice(x Int) => @operators$multiply(x, Int(2));
+
+/// Twice the sum of 1 to `reach`, plus one for each index of `src` whose
+/// record is below 5, or its value for each step.
+Int scan(recs ListRef<Int>, src Source, reach Int) {
+	sum Int(0);
+	i Int(1);
+	i!to(reach) {
+		sum = @operators$add(sum, twice(i));
+		sum = @operators$add(sum, match (src) {
+			p many {
+				j Int = p[i];
+				@controlflow$branch(@operators$lessThan(recs[j], Int(5)), {
+					return Int(1);
+				});
+				return Int(2);
+			}
+			v one => v;
+		});
+	}
+	return sum;
+}
+
+Source pick(n Int) {
+	@controlflow$branch(@operators$lessThan(n, Int(5)), {
+		return Source.one(Int(77));
+	});
+	xs @primitives$List<Int> = @primitives$List(Int);
+	k Int(1);
+	k!to(Int(100)) {
+		xs!push(Int(1));
+	}
+	return Source.many(xs);
+}
+
+Unit main() {
+	args @primitives$List<String> = @program$runtime:arguments();
+	n Int = args[Int(1)]:parseI64() ?? Int(0);
+	recs ListRef<Int> = @primitives$ListRef(Int);
+	recs!push(Int(3));
+	@program$console!print(@operators$concat(String(scan(recs, pick(n), Int(100))), String.escaped("\n")));
+	return Unit();
+}

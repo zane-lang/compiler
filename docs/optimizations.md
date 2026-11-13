@@ -737,6 +737,33 @@ call, about 12 bytes, costs fewer estimated cycles than either way of
 keeping the loop ([`design/lowering.md`](design/lowering.md) §9, "The
 passes", has the measurements).
 
+### Reads through a loaded index prefetched ahead
+
+- **Builds:** optimized, and both tiers of a tiered build, which emit one
+  module; `ZANE_PREFETCH=0` turns it off
+- **Where:** `lib/codegen/lookahead.ml`, `lib/codegen/emit.ml`
+  (`prefetch`), `lib/codegen/loop_shapes.ml` (`facts`, `counter`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes";
+  [`experiments/prefetch-reorder`](experiments/prefetch-reorder/README.md),
+  round 5
+- **Effect:** wall clock, 4 KiB pages, paired runs on one cloud Xeon, best
+  of 5: the model's `heavy` ×2.12 at 32 MiB and ×1.96 at 2 GiB, `hash`
+  written as a plain function ×1.89 and ×2.68, neither slower at 256 KiB
+  ([`prefetch-reorder`](experiments/prefetch-reorder/README.md), rounds 5
+  and 7); `gather`, `tree` and `chains` unchanged in round 5; no
+  `tests/perf` program's build changes
+
+A counted loop whose body branches, switches or loops, and reads a list at
+an index worked out from another list's element, as `recs[idx[i]]` or a hash
+probe's home slot is, prefetches at the top of each time round the element it
+will read 32 iterations on. The address of that read is made of constants,
+the counter, locals the loop leaves alone, integer arithmetic that cannot
+fail, and element reads, each made early only when its index is inside its
+list, so nothing it reads early can stop the program; the body's own reads
+and their checks stay where they are. A loop that walks a chain is left
+alone, as is a light body such as `s += a[idx[i]]`, which the model found
+nothing to gain on with 4 KiB pages.
+
 ### Short loops that leave early unrolled twice
 
 - **Builds:** every build marks the loops; optimized builds and tier 1
