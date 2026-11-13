@@ -732,6 +732,10 @@ weights saying the long copy goes round 1,000 times and the short one 4,
 and IRCE splits the long copy and not the short one, since the split costs
 a short loop more than it saves. A loop that calls back into its own
 function is left as it is: the call costs far more than the check. A loop
+that can leave before its count runs out is a search whose count is a
+ceiling, so it is weighted as going round 4 times and left whole: a
+quicksort's partition scans stop after an element or two, and IRCE's split
+cost each one about 25 instructions of setup. Any other loop
 emitted once has no weights, and IRCE splits it on LLVM's guess; loop idiom
 recognition may then make its main loop a `memmove` call. In `flips` that
 call, about 12 bytes, costs fewer estimated cycles than either way of

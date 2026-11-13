@@ -1649,7 +1649,18 @@ test passing.
   list's count is loaded with the range `[0, 2^63)`, which IRCE's bounds
   need.
 
-  A loop codegen emits once has no branch weights, and LLVM guesses it goes
+  A `repeat` that can leave before its count runs out, through a `return`
+  or a block it is in, is a search: its count is a ceiling, which is how
+  the spec has a loop whose real stop is a test written
+  ([`control-flow.md`](https://github.com/zane-lang/spec/blob/43d1f65/spec/control-flow.md)
+  §3.5), and it usually stops long before. In an optimized build and both
+  tiers of a tiered one its test is weighted as going round 4 times, as
+  the short copy's is, so IRCE leaves it whole (`Emit.leaves_early`). Left
+  unweighted, IRCE split a partition scan that stops after one or two
+  elements, and the split's setup, about 25 instructions on each entry,
+  cost LangArena's Sort::Quick 25% more instructions.
+
+  Any other loop codegen emits once has no branch weights, and LLVM guesses it goes
   round often enough for IRCE to split it. In `tests/perf` `flips`,
   `advance` moves its first few elements down one place in such a loop,
   nested in another, usually over one or two elements; IRCE splits it, and

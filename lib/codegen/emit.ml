@@ -289,7 +289,13 @@ let long_trips = 1000
 let short_trips = 4
 
 (* Whether a loop with [body] can leave before its count runs out: it
-   returns, or leaves a block that holds it. *)
+   returns, or leaves a block that holds it. Such a loop is a search whose
+   count is a ceiling, as `core`'s `to` with a `return` or `guard` in it is
+   (spec control-flow.md §3.5), so an optimized build weights its test as
+   going round [short_trips] times. Unweighted, IRCE splits it on LLVM's
+   guess, and the split's setup, about 25 instructions on every entry,
+   costs a scan that stops after an element or two more than the checks
+   it takes out: LangArena's quicksort partition 25% more instructions. *)
 let leaves_early = Cgt.Traverse.leaves
 
 (* Whether a loop with [body] in the function [symbol] is emitted twice
@@ -1802,7 +1808,11 @@ and stat env fr b (s : Stat.t) =
          end);
         fr.hoisted <- saved
       in
-      if (not env.version) || fr.loops > 0 || not (versioned ~symbol:fr.symbol body) then counted None
+      (* A loop that can leave early is a search: its count is a ceiling
+         it seldom reaches, so it is weighted as going round a few times,
+         and IRCE leaves it whole (docs/design/lowering.md, "The passes"). *)
+      if env.version && leaves_early body then counted (Some short_trips)
+      else if (not env.version) || fr.loops > 0 || not (versioned ~symbol:fr.symbol body) then counted None
       else begin
         (* A loop no other loop holds is emitted twice, for a count of at
            least [long_loop] and for a smaller one, each saying how often it

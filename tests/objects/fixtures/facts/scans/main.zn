@@ -1,0 +1,120 @@
+/// A quicksort whose partition scans are counted loops that return early,
+/// as LangArena's Sort::Quick writes them: each scan's count is a ceiling,
+/// and the scan usually stops after an element or two. Its first argument
+/// is how many pseudo-random values it sorts, the second how many times.
+/// It prints the middle and last value of the last sort. The list is
+/// filled by pushes, so the only loops that read elements are the scans,
+/// the partition's swap loop and the order check. Spawns nothing.
+package scans;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Int argument(args @primitives$List<String>, at Int) => args[at]:parseI64() ?? Int(0);
+
+Int below(value Int, bound Int) => @operators$add(value, @operators$negate(@operators$multiply(@operators$divide(value, bound), bound)));
+
+type Sorter = #struct {
+	work ListRef<Int>;
+}
+
+Sorter(work ^ListRef<Int>) => init{ work; }
+
+/// The first position from `start` up to `high` whose value is at least
+/// `pivot`, or one past `high`.
+Int scanUp(this Sorter, start Int, pivot Int, high Int) {
+	i Int = start;
+	k Int(1);
+	k!to(@operators$add(@operators$add(high, @operators$negate(start)), Int(1))) {
+		if(@operators$not(@operators$lessThan(this.work[i], pivot))) {
+			return i;
+		}
+		i = @operators$add(i, Int(1));
+	}
+	return i;
+}
+
+/// The first position from `start` down to `low` whose value is at most
+/// `pivot`, or one before `low`.
+Int scanDown(this Sorter, start Int, pivot Int, low Int) {
+	i Int = start;
+	k Int(1);
+	k!to(@operators$add(@operators$add(start, @operators$negate(low)), Int(1))) {
+		if(@operators$not(@operators$lessThan(pivot, this.work[i]))) {
+			return i;
+		}
+		i = @operators$add(i, @operators$negate(Int(1)));
+	}
+	return i;
+}
+
+Unit quick(this Sorter, low Int, high Int) mut {
+	if(@operators$not(@operators$lessThan(low, high))) {
+		return Unit();
+	}
+	pivot Int = this.work[@operators$divide(@operators$add(low, high), Int(2))];
+	i Int = low;
+	j Int = high;
+	k Int(1);
+	k!to(@operators$add(@operators$add(high, @operators$negate(low)), Int(1))) {
+		if(@operators$lessThan(j, i)) {
+			this!quick(low, j);
+			this!quick(i, high);
+			return Unit();
+		}
+		i = this:scanUp(i, pivot, high);
+		j = this:scanDown(j, pivot, low);
+		if(@operators$not(@operators$lessThan(j, i))) {
+			v Int = this.work[i];
+			this.work[i] = this.work[j];
+			this.work[j] = v;
+			i = @operators$add(i, Int(1));
+			j = @operators$add(j, @operators$negate(Int(1)));
+		}
+	}
+	this!quick(low, j);
+	this!quick(i, high);
+	return Unit();
+}
+
+Unit main() {
+	args @primitives$List<String> = @program$runtime:arguments();
+	n Int = argument(args, Int(1));
+	rounds Int = argument(args, Int(2));
+	seed Int(42);
+	sorted Int(0);
+	middle Int(0);
+	last Int(0);
+	r Int(1);
+	r!to(rounds) {
+		work ^ListRef<Int> = @primitives$ListRef(Int);
+		i Int(1);
+		i!to(n) {
+			seed = below(@operators$add(@operators$multiply(seed, Int(1103515245)), Int(12345)), Int(2147483648));
+			work!push(below(seed, Int(1000000)));
+		}
+		sorter Sorter(work);
+		sorter!quick(Int(1), n);
+		middle = sorter.work[@operators$divide(n, Int(2))];
+		last = sorter.work[n];
+	}
+	@program$console!print(@operators$concat(String(middle), String(" ")));
+	@program$console!print(@operators$concat(String(last), String.escaped("\n")));
+	return Unit();
+}
