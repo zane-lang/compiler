@@ -134,3 +134,50 @@ let invariant_lists () =
     (lists [ read payload; push queue ] = if on then [ xs ] else []);
   Cgt.List_pure.c_stays := false;
   Hashtbl.reset Cgt.List_pure.handles
+
+(* A loop is a search that IRCE is kept out of ([searches]) when it can
+   leave early, holds no loop, and reads an element at an index that moves
+   by a constant each time round (Loop_shapes.scans): a quicksort's
+   partition scan, not a heap's sift, whose index halves or jumps. *)
+let searches () =
+  let module C = Cgt.Nodes in
+  let e node ty = { C.Expr.node; ty } in
+  let int n = e (C.Expr.Int n) C.Ty.I64 in
+  let local x = e (C.Expr.Local x) C.Ty.I64 in
+  let read index =
+    C.Stat.Let
+      { id = 40; value = e (C.Expr.Deref (e (C.Expr.Runtime { fn = Cgt.Runtime.List_at; args = [ local 1; index; int 8L ] }) C.Ty.Ptr)) C.Ty.I64 }
+  in
+  let set x value = C.Stat.Assign { place = { C.Expr.local = x; deref = false; ty = C.Ty.I64; path = [] }; value } in
+  let add a b = e (C.Expr.Binary { op = C.Expr.Add; left = a; right = b }) C.Ty.I64 in
+  let up = set 5 (add (local 5) (int 1L)) and down = set 5 (add (local 5) (e (C.Expr.Flip (int 1L)) C.Ty.I64)) in
+  let leave = C.Stat.If { cond = e (C.Expr.Bool true) C.Ty.I1; body = [ C.Stat.Return (local 5) ] } in
+  (* A `to` loop's body ends with its counter's step. *)
+  let count = set 7 (add (local 7) (int 1L)) in
+  let stepped body = Codegen__Loop_shapes.scans (body @ [ count ])
+  and searches body = Codegen__Loop_shapes.searches (body @ [ count ]) in
+  check "an index a scan steps up by one moves by a constant" (stepped [ read (local 5); up ]);
+  check "and one it steps down" (stepped [ read (local 5); down ]);
+  check "and an index a constant past it" (stepped [ read (add (local 5) (int 1L)); up ]);
+  check "with the constant on either side"
+    (stepped [ read (add (int 1L) (local 5)); set 5 (add (int 1L) (local 5)) ]);
+  check "not one the loop halves"
+    (not (stepped [ read (local 5); set 5 (e (C.Expr.Binary { op = C.Expr.Div; left = local 5; right = int 2L }) C.Ty.I64) ]));
+  check "nor one it sets to another local" (not (stepped [ read (local 5); set 5 (local 6) ]));
+  check "nor one it assigns twice" (not (stepped [ read (local 5); up; up ]));
+  check "nor the counter, which walks the range its count names"
+    (not (stepped [ read (local 7); leave ]));
+  check "but an index it steps beside the counter" (stepped [ read (local 5); leave; up ]);
+  (* a1 = a0 + a0, a2 = a1 + a1, ..., i = i + a30: a recogniser that
+     substitutes both sides of every sum expands 2^30 nodes. *)
+  let doublings =
+    C.Stat.Let { id = 100; value = local 6 }
+    :: List.init 30 (fun k -> C.Stat.Let { id = 101 + k; value = add (local (100 + k)) (local (100 + k)) })
+  in
+  check "a step through a chain of sums is turned down at once"
+    (not (stepped ((read (local 5) :: doublings) @ [ set 5 (add (local 5) (local 130)) ])));
+  check "a scan that returns is a search" (searches [ read (local 5); leave; up ]);
+  check "not one that never leaves" (not (searches [ read (local 5); up ]));
+  check "nor one that holds a loop"
+    (not (searches [ read (local 5); leave; C.Stat.Repeat { count = int 4L; body = [] }; up ]));
+  check "nor one whose index jumps" (not (searches [ read (local 5); leave; set 5 (local 6) ]))

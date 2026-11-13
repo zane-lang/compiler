@@ -721,7 +721,10 @@ runs only one to four times is unrolled four times for nothing.
   12.1G → 8.89G instructions under Valgrind, against 8.88G for the same
   program in C at `-O2`. Langbench: `fannkuch` 1.6% more instructions,
   `nbody` 0.3% and `trialdiv` 0.2% fewer, the rest within 0.1%;
-  `tests/perf` `flips`, tier 1 5% fewer estimated cycles
+  `tests/perf` `flips`, tier 1 5% fewer estimated cycles. Leaving
+  searches whole: LangArena's Sort::Quick 11.58G → 8.37G instructions
+  (C: 4.96G), every other LangArena test and `tests/perf` program within
+  0.1%
 
 LLVM's inductive range check elimination splits a loop that checks its
 element indices into a main loop it has proved needs no check and the few
@@ -732,6 +735,12 @@ weights saying the long copy goes round 1,000 times and the short one 4,
 and IRCE splits the long copy and not the short one, since the split costs
 a short loop more than it saves. A loop that calls back into its own
 function is left as it is: the call costs far more than the check. A loop
+that can leave before its count runs out, holds no loop and reads an
+element at an index it steps by a constant itself, apart from its counter,
+is a search whose count is a
+ceiling, so it is weighted as going round 4 times and left whole: a
+quicksort's partition scans stop after an element or two, and IRCE's split
+cost each one about 25 instructions of setup. Any other loop
 emitted once has no weights, and IRCE splits it on LLVM's guess; loop idiom
 recognition may then make its main loop a `memmove` call. In `flips` that
 call, about 12 bytes, costs fewer estimated cycles than either way of

@@ -477,6 +477,93 @@ let ranged_accesses body lists names =
 let ranged body lists names =
   if Sys.getenv_opt "ZANE_LOOP_RANGES" <> Some "1" || lists = [] then [] else ranged_accesses body lists names
 
+(* Whether a loop's [body] reads or writes an element at an index it steps
+   itself, apart from the loop's counter: a local the body assigns once, to
+   itself plus a constant, with a constant added or not. Such an index
+   moves by a constant each time round, which IRCE needs to take a check
+   out of a loop, while the counter only bounds the loop, the shape a scan
+   whose real stop is a test has ([searches]). An index that halves or
+   jumps, as a heap's sift moves, IRCE cannot use; one that is the counter
+   walks the range the count names, where IRCE's split pays when the loop
+   runs long. *)
+let scans body =
+  let f = facts body in
+  let counter = Option.map fst (counter f body) in
+  (* [e] followed through the locals it names: one bound once by a [let],
+     or an expansion's result, stands for its value. Each step follows one
+     local, never both sides of a sum, so this takes time in proportion to
+     the chain; and it stops after [16] steps. *)
+  let rec atom depth (e : Expr.t) =
+    if depth = 16 then e
+    else
+      match e.Expr.node with
+      | Expr.Local y -> (
+          match (Hashtbl.find_all f.assigns y, Hashtbl.find_opt f.lets y) with
+          | [], Some v -> atom (depth + 1) v
+          | [ _ ], None when Hashtbl.mem f.results y -> atom (depth + 1) (Hashtbl.find f.results y)
+          | _ -> e)
+      | Expr.Expand { result = Some r; _ } -> atom (depth + 1) { e with Expr.node = Expr.Local r }
+      | _ -> e
+  in
+  let constant (e : Expr.t) =
+    match (atom 0 e).Expr.node with
+    | Expr.Int _ -> true
+    | Expr.Flip v -> ( match (atom 0 v).Expr.node with Expr.Int _ -> true | _ -> false)
+    | _ -> false
+  in
+  (* [e] with a constant added on either side, as the other side. *)
+  let past (e : Expr.t) =
+    match (atom 0 e).Expr.node with
+    | Expr.Binary { op = Expr.Add; left; right } when constant right -> Some (atom 0 left)
+    | Expr.Binary { op = Expr.Add; left; right } when constant left -> Some (atom 0 right)
+    | _ -> None
+  in
+  let steps y =
+    Some y <> counter
+    &&
+    match Hashtbl.find_all f.assigns y with
+    | [ ({ Expr.path = []; deref = false; _ }, value) ] when not (Hashtbl.mem f.defined y) -> (
+        match past value with Some { Expr.node = Expr.Local x; _ } -> x = y | _ -> false)
+    | _ -> false
+  in
+  (* The index, a constant added to it or not, is a local [steps] holds. *)
+  let index (e : Expr.t) =
+    let e = atom 0 e in
+    match e.Expr.node with
+    | Expr.Local y -> steps y
+    | _ -> ( match past e with Some { Expr.node = Expr.Local y; _ } -> steps y | _ -> false)
+  in
+  Cgt.Traverse.exists_in body
+    ~expr:(fun e ->
+      match e.Expr.node with
+      | Expr.Runtime { fn = Cgt.Runtime.List_at | Cgt.Runtime.Array_at; args = _ :: i :: _ } -> index i
+      | _ -> false)
+    ~stat:(fun _ -> false)
+
+(* Whether a loop with [body] is a search, which an optimized build weights
+   as going round 4 times (Emit.short_trips) so IRCE leaves it whole: it
+   can leave early, holds no loop, and reads or writes an element at an
+   index it steps by a constant itself, apart from its counter ([scans]).
+   Its count is then only a ceiling, as `core`'s `to` with a `return` or
+   `guard` in it has (spec control-flow.md §3.5), and it usually stops long
+   before. Unweighted, IRCE split it on LLVM's guess, and the split's
+   setup, about 25 instructions on each entry, cost LangArena's
+   Sort::Quick, whose partition scans stop after an element or two, 27%
+   more instructions. Every other loop keeps its old shape. Weighting a
+   loop IRCE cannot split only changes how LLVM lays it out: `tests/perf`
+   `floats`' escape test, arithmetic alone, took 10.5% more estimated
+   cycles, and LangArena's Graph::AStar, whose heap sift halves its index,
+   4.3% more instructions. A loop indexed by its counter walks the range
+   its count names, and IRCE's split pays when it runs long: weighted,
+   Distance::Jaro's match-window search ran 2% more instructions. A loop
+   around another may go round many times between the inner loop's exits.
+   Unlike a versioned loop's short copy, a search still reads ahead
+   (Lookahead). *)
+let searches body =
+  Cgt.Traverse.leaves body
+  && (not (Cgt.Traverse.exists_in body ~expr:(fun _ -> false) ~stat:(function Stat.Repeat _ -> true | _ -> false)))
+  && scans body
+
 (* Whether statements can end other than after their last, an expansion's
    own [Leave] inside them not counting (Cgt.Traverse.leaves). *)
 let leaving = Cgt.Traverse.leaves

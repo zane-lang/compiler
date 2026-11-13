@@ -1649,7 +1649,32 @@ test passing.
   list's count is loaded with the range `[0, 2^63)`, which IRCE's bounds
   need.
 
-  A loop codegen emits once has no branch weights, and LLVM guesses it goes
+  A `repeat` that can leave before its count runs out, through a `return`
+  or a block it is in, that holds no loop, and that reads or writes an
+  element at an index it steps by a constant itself, apart from its
+  counter, is a search (`Loop_shapes.searches`). Its count is only a
+  ceiling, which is how the spec has a loop whose real stop is a test
+  written
+  ([`control-flow.md`](https://github.com/zane-lang/spec/blob/43d1f65/spec/control-flow.md)
+  §3.5), and it usually stops long before. Left unweighted, IRCE split a
+  partition scan that stops after one or two elements, and the split's
+  setup, about 25 instructions on each entry, cost LangArena's Sort::Quick
+  27% more instructions. So in an optimized build and both tiers of a
+  tiered one a search's test is weighted as going round 4 times, as the
+  short copy's is, and IRCE leaves it whole; unlike the short copy, it
+  still reads ahead. Every other loop keeps its old shape. IRCE splits only
+  at an index that moves by a constant, so weighting another loop only
+  changes how LLVM lays it out: weighted, `tests/perf` `floats`' escape
+  test, arithmetic alone, took 10.5% more estimated cycles and `paths`
+  6.3%, and LangArena's Graph::AStar, whose heap sift halves its index,
+  4.3% more instructions. A loop indexed by its counter walks the range its
+  count names, and IRCE's split pays when it runs long: weighted,
+  Distance::Jaro's match-window search ran 2% more instructions. A loop
+  around another may go round many times between the inner loop's exits.
+  With the rule as it stands, Sort::Quick is the only LangArena test that
+  moves, and every `tests/perf` program stays within 0.1%.
+
+  Any other loop codegen emits once has no branch weights, and LLVM guesses it goes
   round often enough for IRCE to split it. In `tests/perf` `flips`,
   `advance` moves its first few elements down one place in such a loop,
   nested in another, usually over one or two elements; IRCE splits it, and

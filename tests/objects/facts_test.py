@@ -431,6 +431,30 @@ class FactsTests(unittest.TestCase):
         lookup = re.search(r'(?ms)^define [^\n]*@"escapes\$escapes\([^"]*\)\.lookup"[^\n]*\n(.*?)^\}', optimized).group(1)
         self.assertEqual(tests(lookup), 2 * tests(bodies["escapes.memo"]))
 
+    def test_loops_that_leave_early_are_not_split(self):
+        # A counted loop that can return early is weighted as going round a
+        # few times (Loop_shapes.searches), so IRCE leaves it whole: `scans`'
+        # partition scans, which usually stop after an element or two, get
+        # none of the clones IRCE makes when it splits a loop. Unweighted,
+        # IRCE split `scanUp`, and its setup cost Sort::Quick 27% more
+        # instructions. bounce's loops, which never leave early, are still
+        # split (test_long_loops_lose_their_index_checks).
+        # A plain build weights no loop.
+        self.assertNotIn('!{!"branch_weights", i32 4, i32 1}', run(ZANEC, "--ll", *packages("scans")))
+        ir = run(ZANEC, "--ll", "--optimize", *packages("scans"))
+        self.assertRegex(ir, r"define [^\n]*@\"scans\$quick\(")
+        self.assertNotIn("loop_constrainer", ir)
+        self.assertNotRegex(ir, r"\npostloop[.\w]*:")
+
+    def test_scans_runs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "scans"
+                run(ZANEC, "--build", exe, *optimize, *packages("scans"))
+                self.assertEqual(run_program(exe, 1000, 3), "489875 999084\n", optimize)
+                self.assertEqual(run_program(exe, 37, 1), "504434 995559\n", optimize)
+                self.assertEqual(run_program(exe, 2, 1), "302264 496027\n", optimize)
+
     def test_escapes_runs(self):
         with tempfile.TemporaryDirectory() as temp:
             for optimize in [[], ["--optimize"]]:

@@ -1870,6 +1870,7 @@ let () =
   Loops.looped_pushes ();
   Loops.list_pure ();
   Loops.invariant_lists ();
+  Loops.searches ();
   traverse_leaves ();
   light_references ();
   if !failures > 0 then begin
