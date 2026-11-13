@@ -91,6 +91,8 @@ def run(exe, args, env):
     os.close(master)
     if proc.returncode != 0 or ready is None or last is None:
         sys.exit(f"{exe} {args}: exit {proc.returncode}, output {last}")
+    if last[0] <= ready:
+        sys.exit(f"{exe} {args}: `ready` and the checksum came in one read, so the loop has no time")
     times = [end - start, ready - start, last[0] - ready, end - last[0]]
     return times, usage.ru_stime, usage.ru_minflt, [a - b for a, b in zip(after, before)], last[1]
 
