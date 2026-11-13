@@ -490,6 +490,312 @@ and 2 GiB are short of the model's `amac` (×5 to ×11 for `tree`, ×3 to
 ×7 for `chains` in round 8): the statements before the walk are not their
 own stages (I9), and in-order loops hold slots for the slow walks.
 
+## Round 10: whether to ask for huge pages by default, and from what size
+
+Measured on the `prefetch-reorder-experiment` branch, whose compiler has
+round 5's prefetch but not rounds 7 to 9, with round 6's request built in.
+What it concludes is what this round brings to `main`: `zane_huge` in
+`runtime/region.c`, asking for a list's block of 32 MiB or more.
+
+**What the 2 MiB test tests.** `zane_huge` compares its 2 MiB with the
+list's *reservation*, and `zane_alloc_growable` reserves 64 times the
+block's span (`ZANE_HEADROOM`), so the reservation is at least 64 MiB for
+any block it makes. The test is always true: every list whose block passes 1
+MiB asks for huge pages, as it did in round 6. Huge pages also come only
+where a 2 MiB-aligned range is wholly inside the part of the reservation
+made usable (`mprotect` splits the mapping), and the block starts at a 1 MiB
+boundary, so a 3 MiB block holds one huge page, not one and a half. Two
+things follow for round 6. Its 256 KiB column was not the same program both
+ways: the indices or keys every program reads in its loop (2^23 of them, 64
+MiB, in `gather`, `heavy` and `hash`; 2^21, 16 MiB, in `chains` and `tree`)
+are in huge pages at every size. And its loops' data lists are built by
+`zane_list_room` at their full size at once, while a list a loop does not
+fill that way doubles its room in place as it grows (`sparse` below).
+
+For the threshold, this round adds `ZANE_HUGE_MIN=N` (bytes, read once from
+the program's environment): the request is made when the list's *block*
+reaches N bytes, when it is made or as it grows in place (`zane_extend`),
+and a kept reservation taken again by a block under N is told
+`MADV_NOHUGEPAGE`. While this round measured, unset, `zane_huge` did what
+round 6 built; on `main` it stays, over a default of 32 MiB, for measuring.
+
+**Machine.** A different cloud machine from rounds 5 and 6: a Firecracker
+VM, 4 vCPUs of a Xeon at 2.3 GHz, 504 MiB of L3 reported, 16 GiB of memory
+with the session's processes held to 13.35 GiB by a cgroup, no swap, Linux
+6.18. Transparent huge pages `enabled` `[madvise]`, `defrag` `[madvise]`,
+khugepaged `defrag` 1, `max_ptes_none` 511. The VM gives free memory back to
+its host (`virtio_balloon`, `page_reporting_order=11`), which turns out to
+matter. When this round started 7 GiB of the memory was page cache from
+setting up the toolchain. Same compiler as round 6, prefetch on.
+
+**1. The loop.** `TIME_SIZES=21,...,31 TIME_RUNS=7 time.py --pair-run huge7
+ZANE_HUGE`: each program built once and timed with huge pages and with
+`ZANE_HUGE=0` in turn, seven runs each, at every power of two from 2 MiB to
+2 GiB. Speed with huge pages over without, best run and median in brackets
+(`results/zane-huge7*.tsv`):
+
+| size | `gather` | `heavy` | `hash` | `chains` | `tree` |
+| --- | --- | --- | --- | --- | --- |
+| 2 MiB | ×1.12 (×1.11) | ×1.09 (×1.11) | ×1.07 (×1.06) | ×1.24 (×1.22) | ×1.12 (×1.08) |
+| 4 MiB | ×1.03 (×1.06) | ×1.08 (×1.06) | ×1.04 (×1.03) | ×1.15 (×1.14) | ×1.09 (×1.09) |
+| 8 MiB | ×0.93 (×1.06) | ×1.05 (×1.04) | ×1.04 (×1.04) | ×1.10 (×1.11) | ×1.10 (×1.02) |
+| 16 MiB | ×1.15 (×1.21) | ×1.04 (×1.02) | ×1.04 (×1.04) | ×1.22 (×1.21) | ×0.97 (×1.27) |
+| 32 MiB | ×1.33 (×1.19) | ×0.96 (×1.00) | ×1.03 (×1.01) | ×1.30 (×1.31) | ×1.33 (×1.08) |
+| 64 MiB | ×1.40 (×1.14) | ×1.18 (×1.19) | ×0.98 (×0.96) | ×1.39 (×1.24) | ×1.39 (×1.17) |
+| 128 MiB | ×1.69 (×1.64) | ×1.16 (×1.11) | ×0.97 (×1.04) | ×1.47 (×1.48) | ×1.21 (×1.17) |
+| 256 MiB | ×1.75 (×1.58) | ×1.34 (×1.34) | ×1.04 (×1.01) | ×1.14 (×1.17) | ×1.51 (×1.29) |
+| 512 MiB | ×1.87 (×1.76) | ×1.62 (×1.59) | ×1.05 (×0.96) | ×1.24 (×1.28) | ×1.31 (×1.11) |
+| 1 GiB | ×2.14 (×2.05) | ×1.85 (×1.92) | ×1.02 (×1.28) | ×1.21 (×1.23) | ×1.18 (×1.31) |
+| 2 GiB | ×2.14 (×1.65) | ×1.45 (×1.88) | ×1.06 (×1.18) | ×1.28 (×1.16) | ×1.44 (×1.46) |
+
+There is no size in the range below which nothing is gained. From 2 MiB to
+16 MiB the gain is ×0.93 to ×1.24 on the best run and ×1.02 to ×1.27 on the
+median, small but not noise (`chains` ×1.22 and `gather` ×1.11 at 2 MiB). It
+grows from 32 MiB: `gather` ×1.3 at 32 MiB and ×2.1 at 1 GiB, `heavy` ×1.2
+at 64 MiB and ×1.9 at 1 GiB, `chains` and `tree` ×1.2 to ×1.5 from 32 MiB.
+`hash` gains ×1.0 to ×1.07 at every size (round 6: ×1.11 at 2 GiB): the
+prefetch hides what huge pages would save. Nothing is slower beyond noise;
+the cells under ×1.0 have medians of ×0.96 to ×1.06 or best runs above ×1.
+
+**2. The whole run.** `whole.py` (new) times a run from before the process
+is made to after it has exited, and splits it at `ready` into building the
+data and the loop. One pass (`WHOLE_PASSES=1`), the two ways in turn with
+the one that goes first alternating, and `/proc/vmstat`'s compaction and
+huge-page counters read around each run. On the machine as the loop sweep
+left it (`whole.py settled`, seven runs each way, every size;
+`results/whole-settled.tsv`), medians:
+
+| program | size | whole run, with / without | building, with − without | loop, with / without | passes to pay |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `gather` | 2 MiB | 0.041 / 0.053 s | -12 ms | 13 / 12 ms | 0 |
+| `gather` | 16 MiB | 0.079 / 0.110 s | -16 ms | 43 / 52 ms | 0 |
+| `gather` | 128 MiB | 0.122 / 0.195 s | -40 ms | 50 / 80 ms | 0 |
+| `gather` | 512 MiB | 0.452 / 0.522 s | +25 ms | 66 / 137 ms | 0.4 |
+| `gather` | 1 GiB | 0.906 / 0.944 s | +107 ms | 81 / 190 ms | 1.0 |
+| `gather` | 2 GiB | 1.453 / 1.507 s | +106 ms | 79 / 183 ms | 1.0 |
+| `heavy` | 2 MiB | 0.086 / 0.105 s | -13 ms | 55 / 58 ms | 0 |
+| `heavy` | 16 MiB | 0.102 / 0.124 s | -16 ms | 66 / 70 ms | 0 |
+| `heavy` | 128 MiB | 0.165 / 0.230 s | -49 ms | 75 / 90 ms | 0 |
+| `heavy` | 512 MiB | 0.358 / 0.533 s | -128 ms | 95 / 128 ms | 0 |
+| `heavy` | 1 GiB | 0.812 / 0.957 s | -9 ms | 111 / 186 ms | 0 |
+| `heavy` | 2 GiB | 1.679 / 1.600 s | +270 ms | 120 / 213 ms | 2.9 |
+| `hash` | 2 MiB | 0.178 / 0.191 s | -8 ms | 112 / 116 ms | 0 |
+| `hash` | 16 MiB | 0.201 / 0.223 s | -14 ms | 132 / 137 ms | 0 |
+| `hash` | 128 MiB | 0.441 / 0.549 s | -68 ms | 234 / 264 ms | 0 |
+| `hash` | 512 MiB | 1.131 / 1.279 s | -88 ms | 267 / 304 ms | 0 |
+| `hash` | 1 GiB | 1.951 / 2.203 s | -168 ms | 257 / 296 ms | 0 |
+| `hash` | 2 GiB | 4.172 / 4.311 s | +109 ms | 288 / 344 ms | 1.9 |
+| `chains` | 2 MiB | 0.088 / 0.104 s | -2 ms | 72 / 86 ms | 0 |
+| `chains` | 16 MiB | 0.418 / 0.471 s | -8 ms | 376 / 420 ms | 0 |
+| `chains` | 128 MiB | 1.260 / 1.253 s | -52 ms | 1006 / 947 ms | 0 |
+| `chains` | 512 MiB | 2.990 / 3.200 s | -242 ms | 1246 / 1284 ms | 0 |
+| `chains` | 1 GiB | 5.578 / 5.880 s | +202 ms | 1332 / 1642 ms | 0.7 |
+| `chains` | 2 GiB | 10.663 / 12.661 s | -964 ms | 1256 / 1967 ms | 0 |
+| `tree` | 2 MiB | 0.171 / 0.195 s | -4 ms | 153 / 174 ms | 0 |
+| `tree` | 16 MiB | 0.550 / 0.691 s | -8 ms | 498 / 622 ms | 0 |
+| `tree` | 128 MiB | 2.522 / 3.333 s | -61 ms | 1850 / 2597 ms | 0 |
+| `tree` | 512 MiB | 5.560 / 6.570 s | -143 ms | 2494 / 3029 ms | 0 |
+| `tree` | 1 GiB | 7.853 / 9.654 s | -709 ms | 2319 / 3541 ms | 0 |
+| `tree` | 2 GiB | 15.895 / 17.648 s | -1193 ms | 3380 / 3628 ms | 0 |
+
+"Passes to pay" is the building's extra time over the loop's gain per pass,
+from the medians; 0 where building is no slower. Under 512 MiB building is
+faster with huge pages for every program, and from 512 MiB in 9 of 15 cases,
+up to 0.27 s slower in the other 6, on the median. A 2 GiB list takes 2,000
+page faults instead of 540,000, and the faults are what building spends its
+system time on. Not one of the 385 runs with huge pages stalled in
+compaction (`compact_stall` 0).
+
+But at 512 MiB and up the runs with huge pages are bimodal: system time 0.2
+to 0.4 s or 1.0 to 1.8 s for `gather`, with no compaction in either. The
+slow ones are, in every case at 1 and 2 GiB, the runs that came straight
+after a run without huge pages; whole.py makes no pause. In
+`results/order.txt`, `gather` at 2 GiB builds in 0.8 s with huge pages
+straight after another run with huge pages, in 0.95 to 1.26 s straight after
+one without, and in 2.5 to 3.0 s after the machine sat idle for 10 s,
+whatever ran before. Run after a 10 s pause each time, the two ways in turn
+(`cold.py gather 31 10 8`, `results/cold.tsv`, eight runs each), both pay
+it: whole runs of 4.18 s with huge pages (2.92 to 4.75) against 5.08 s
+without (3.16 to 6.13), the build 4.06 s against 4.73 s. The large cost
+after a pause fits memory the VM gave back to its host coming back, which a
+program touching that much fresh memory pays either way, and huge pages do
+not make it worse. Why a run with huge pages is slower straight after one
+without is not established. Round 6's first run of 4.09 s against 1.83 s may
+be the pause, with the run without huge pages going second, on memory still
+warm.
+
+To make huge pages cost something to get, `whole.py` can run each run on
+fragmented memory (`WHOLE_FRAGMENT`, `programs/fragment.c`): before each
+run, with huge pages and without, the page cache is dropped, a process
+touches 12 GiB in 4 KiB pages and gives back 63 in 64 of them, then holds
+8 GiB of huge pages, which left 33 to 35 free 2 MiB blocks (about 70 MiB).
+About 7 GiB was then free, almost all in pieces of 128 KiB or less, and
+every run with huge pages compacted. Three runs each way at four
+sizes (`results/whole-fragmented.tsv`):
+
+| program | size | whole run, with / without | building, with − without | loop, with / without | passes to pay |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `gather` | 8 MiB | 0.086 / 0.149 s | -22 ms | 42 / 73 ms | 0 |
+| `gather` | 64 MiB | 0.128 / 0.234 s | -39 ms | 64 / 123 ms | 0 |
+| `gather` | 512 MiB | 0.329 / 0.512 s | -106 ms | 78 / 132 ms | 0 |
+| `gather` | 2 GiB | 0.899 / 1.754 s | -586 ms | 69 / 238 ms | 0 |
+| `heavy` | 8 MiB | 0.112 / 0.145 s | -16 ms | 68 / 80 ms | 0 |
+| `heavy` | 64 MiB | 0.163 / 0.201 s | -21 ms | 89 / 100 ms | 0 |
+| `heavy` | 512 MiB | 0.351 / 0.537 s | -125 ms | 87 / 124 ms | 0 |
+| `heavy` | 2 GiB | 0.992 / 1.608 s | -464 ms | 106 / 182 ms | 0 |
+| `hash` | 8 MiB | 0.294 / 0.298 s | +42 ms | 159 / 182 ms | 1.8 |
+| `hash` | 64 MiB | 0.297 / 0.514 s | -57 ms | 152 / 304 ms | 0 |
+| `hash` | 512 MiB | 1.079 / 1.208 s | -118 ms | 264 / 301 ms | 0 |
+| `hash` | 2 GiB | 3.333 / 4.272 s | -853 ms | 267 / 391 ms | 0 |
+| `chains` | 8 MiB | 0.385 / 0.850 s | -10 ms | 347 / 805 ms | 0 |
+| `chains` | 64 MiB | 1.019 / 1.466 s | +28 ms | 748 / 1209 ms | 0.1 |
+| `chains` | 512 MiB | 2.937 / 3.623 s | -462 ms | 1141 / 1430 ms | 0 |
+| `chains` | 2 GiB | 7.410 / 11.035 s | -3063 ms | 1253 / 1469 ms | 0 |
+| `tree` | 8 MiB | 0.491 / 1.144 s | -22 ms | 448 / 1078 ms | 0 |
+| `tree` | 64 MiB | 1.473 / 2.795 s | -97 ms | 1189 / 2377 ms | 0 |
+| `tree` | 512 MiB | 4.563 / 6.468 s | -957 ms | 2188 / 2947 ms | 0 |
+| `tree` | 2 GiB | 12.509 / 17.769 s | -3760 ms | 3134 / 3898 ms | 0 |
+
+Every run with huge pages compacted: 700 to 1,150 compactions at 2 GiB, 3 to
+43 at 8 to 64 MiB, at 0.3 to 0.7 s of system time for 2 GiB. Nearly all
+succeeded. The first run at 2 GiB of each program had 140 fail and 45 pages
+fall back to 4 KiB, and one `chains` run at 64 MiB had all 122 fail and 40
+fall back. Even so, building was faster with huge pages than without except
+for `hash` at 8 MiB (+42 ms, 3 runs) and `chains` at 64 MiB (+28 ms), and
+the whole runs at 2 GiB were 0.6 to 5.3 s shorter on the median. Without
+huge pages the loop was slower here than on the settled machine (`tree` at 8
+MiB 1.08 s against 0.45 s with them), which is not explained.
+
+**3. Break-even.** On the medians, a program pays nothing at any size:
+building is faster or at most 0.27 s slower, and one pass of the loop gains
+that back, except for `heavy` (2.9 passes at 2 GiB) and `hash` (1.9). The
+worst case is the slowest of the seven builds with huge pages against the
+median without, on the settled machine. That needs up to 5.5 passes at 512
+MiB to 2 GiB for `gather`, `heavy` and `tree`, 4 to 9 for `hash`, and 4 to
+10 for `chains` at 512 MiB and 1 GiB. A pass here is the program's 2^23 or
+2^21 operations, not a read of every element. Under 512 MiB the slowest
+build with huge pages was at most 0.2 s over the median without (`tree` at
+256 MiB), and for `gather`, `heavy` and `hash` 10 ms or less. What cost time
+was not compaction. It was the runs that came after a run without huge pages
+or after a pause.
+
+**4. The sparse case.** A list's block can only be touched from its start:
+Zane fills a list by pushing. So the most a huge page can waste is the part
+of the last 2 MiB page past the last element, at most 2 MiB a list, and it
+is wasted only where a list has room it has not used. `sparse` (new) builds
+64 lists of the same number of 8-byte elements, by doubling, and `sparse.py`
+reads `/proc/PID/smaps_rollup` once it prints `ready`. Memory each list
+holds beyond what it holds without huge pages, the share that is of the
+whole, and the huge pages held, by the size of one list
+(`results/sparse-lists*.tsv`):
+
+| one list | Rss without, 64 lists | as built | `ZANE_HUGE_MIN` 8 MiB | `ZANE_HUGE_MIN` 32 MiB |
+| ---: | ---: | ---: | ---: | ---: |
+| 1.00 MiB | 67 MiB | +0.50 MiB (+47%), 64 MiB huge | 0, 0 MiB huge | 0, 0 MiB huge |
+| 1.01 MiB | 68 MiB | +0.49 MiB (+47%), 64 MiB huge | – | – |
+| 1.50 MiB | 99 MiB | +0.25 MiB (+16%), 64 MiB huge | 0, 0 MiB huge | 0, 0 MiB huge |
+| 2.01 MiB | 132 MiB | 0, 64 MiB huge | – | – |
+| 3.00 MiB | 195 MiB | +1.00 MiB (+33%), 128 MiB huge | 0, 0 MiB huge | 0, 0 MiB huge |
+| 4.01 MiB | 260 MiB | +0.49 MiB (+12%), 128 MiB huge | – | – |
+| 6.00 MiB | 387 MiB | +1.50 MiB (+25%), 256 MiB huge | +1.50 MiB (+25%), 130 MiB huge | 0, 0 MiB huge |
+| 8.01 MiB | 516 MiB | +0.49 MiB (+6%), 320 MiB huge | – | – |
+| 12.00 MiB | 771 MiB | +1.50 MiB (+12%), 576 MiB huge | +1.50 MiB (+12%), 448 MiB huge | 0, 0 MiB huge |
+| 16.01 MiB | 1028 MiB | +0.49 MiB (+3%), 768 MiB huge | +0.49 MiB (+3%), 640 MiB huge | 0, 4 MiB huge |
+| 32.01 MiB | 2052 MiB | +0.49 MiB (+2%), 1728 MiB huge | +0.49 MiB (+2%), 1600 MiB huge | +0.49 MiB (+2%), 960 MiB huge |
+
+As built, a list of 1 MiB holds 1.5 MiB (+47%), of 3 MiB 4 MiB (+33%), of 6
+MiB 7.5 MiB (+25%), and one just past a power of two nothing more: its room
+has just doubled, and the new half is not yet touched. The waste is always
+less than 2 MiB a list, so over the list's size it falls as the list grows:
++12% at 12 MiB, +2% at 32 MiB. The request at a threshold removes it below
+the threshold. At 8 MiB the waste starts with 6 MiB lists, whose room is 8
+MiB. At 32 MiB lists up to 16 MiB hold nothing more, and a 32 MiB list holds
++0.49 MiB, as without the threshold. Under a threshold the part of a list
+filled before its block reached N stays in 4 KiB pages (960 MiB of 2 GiB in
+huge pages at 32 MiB, against 1,728 MiB).
+
+**5. The threshold.** `ZANE_HUGE_MIN=33554432 time.py --pair-run min32m
+ZANE_HUGE` at 2 MiB to 128 MiB, seven runs each. With it, `AnonHugePages` of
+`gather` at 2 MiB is 48 MiB (the index list), against 64 MiB without it and
+0 with `ZANE_HUGE=0` (`results/zane-min32m*.tsv`):
+
+| size | `gather` | `heavy` | `hash` | `chains` | `tree` |
+| --- | --- | --- | --- | --- | --- |
+| 2 MiB | ×0.99 (×0.89) | ×1.02 (×1.04) | ×0.99 (×1.00) | ×1.00 (×1.01) | ×0.99 (×1.00) |
+| 4 MiB | ×0.97 (×1.03) | ×1.02 (×1.02) | ×0.94 (×1.00) | ×1.00 (×1.10) | ×1.00 (×1.01) |
+| 8 MiB | ×1.01 (×0.98) | ×1.00 (×1.02) | ×0.99 (×1.00) | ×1.01 (×0.99) | ×1.01 (×1.01) |
+| 16 MiB | ×1.00 (×1.00) | ×1.01 (×1.02) | ×1.02 (×1.04) | ×1.02 (×0.71) | ×0.99 (×0.95) |
+| 32 MiB | ×1.21 (×1.20) | ×1.06 (×1.01) | ×1.03 (×1.03) | ×0.96 (×1.02) | ×0.95 (×1.01) |
+| 64 MiB | ×1.20 (×1.21) | ×1.04 (×1.04) | ×1.02 (×1.03) | ×1.40 (×1.23) | ×1.04 (×1.05) |
+| 128 MiB | ×1.48 (×1.57) | ×1.10 (×1.14) | ×0.95 (×0.95) | ×0.89 (×1.06) | ×1.29 (×1.15) |
+
+As predicted, the gain at 2 to 16 MiB is gone: ×0.94 to ×1.02 on the best
+run, and medians of ×0.71 to ×1.10, the spread of seven runs. With it goes
+the guess that it came from the index lists, which are still in huge pages
+here. It came from the small data list itself. From 32 MiB `gather` gains
+×1.2 to ×1.5 as without the threshold. `chains` and `tree` gain less than
+without it at 32 to 128 MiB (×0.89 to ×1.40, against ×1.2 to ×1.5). Their 16
+MiB key and head lists are now under the threshold, and the seven runs'
+spread is as large as the difference.
+
+**What it shows.**
+
+- Every program measured is faster with huge pages at every size from 2 MiB
+  except `hash`, which gains ×1.0 to ×1.07: by ×1.02 to ×1.27 on the median
+  under 32 MiB, and by ×1.2 to ×2.1 from 128 MiB. None is slower beyond
+  noise. The whole run is shorter on the median at 53 of 55 size and program
+  pairs (`heavy` at 2 GiB +79 ms, `chains` at 128 MiB +7 ms), by up to 2 s
+  at 2 GiB.
+- Getting the pages cost little that was found here. Compaction ran only on
+  deliberately fragmented memory, and cost less than the faults it saved. A
+  run after a pause pays seconds at 2 GiB, and a run without huge pages pays
+  the same. A run with them straight after one without can build up to 0.5 s
+  slower at 2 GiB, for a reason not established, which 1 to 10 passes pay
+  back.
+- The cost is memory: under 2 MiB a list, which is up to +47% for lists of 1
+  to 2 MiB and +25% to +33% for lists of 3 to 6 MiB. A threshold on the
+  block's size bounds it at 2 MiB over the threshold, and gives up exactly
+  the gain below it.
+- Round 6's 2 MiB test does nothing, because it tests the reservation, 64
+  times the block.
+
+**Not measured.** A machine that is not a VM giving memory back to its host;
+memory nearly full, where the request must reclaim (the cgroup leaves about
+2 GiB of room past the largest program here); `defrag` set to `always`,
+`defer` or `never`; khugepaged over a long run, which with `max_ptes_none`
+511 can turn a 2 MiB range with one touched page into a whole huge page (a
+list's touched part is its start, so this may add nothing to the waste
+above, but it was not watched); many threads making lists at once; the 1 MiB
+chunks that hold boxes; macOS and Windows.
+
+**Recommendation.** Ask by default, for a list's block of 32 MiB or more,
+checked when the block is made and as it grows in place, with `ZANE_HUGE=0`
+kept as the way out. Fix the test so that it is on the block, not the
+reservation. From 32 MiB the loop's gain rises to ×1.2 to ×2.1 at 128 MiB
+and up for every program but `hash`, and the whole run was shorter on the
+median at 53 of 55 sizes and programs. The memory it can cost is under 2 MiB
+a list, at most 6% of a list that size. Under 32 MiB the gain is ×1.02 to
+×1.27, and a program holding many lists of 1 to 6 MiB could pay 25% to 47%
+more memory for it. A runtime that makes every program's memory larger by up
+to half, for a tenth of speed, is worse than one that leaves it alone. 8 MiB
+is the other defensible choice: it keeps the ×1.02 to ×1.27 of 8 to 16 MiB
+for a bound of 25%. Below 8 MiB do not ask. Nothing here argues for keeping
+it opt-in, but the evidence is one VM with `madvise` defrag, so the default
+should be checked on a machine that is not a VM before it ships.
+
+**On `main`.** The runtime now asks by default for a list's block of 32 MiB
+or more, made or grown in place (`zane_huge` in `runtime/region.c`), and
+round 6's test on the reservation is not brought over. A list's block never
+shrinks on `main`, so a kept reservation a list takes again needs nothing
+undone; one an unbounded pool takes, whose pages it touches only here and
+there, is told `MADV_NOHUGEPAGE`. No program in `tests/perf` makes either
+request. `ZANE_HUGE=0` still leaves the request out, and `ZANE_HUGE_MIN=N`
+moves the threshold, for measuring. Checked on running programs: `gather`
+with 16 MiB of data holds 64 MiB of huge pages (its 64 MiB index list, not
+the data) and with 2 GiB 2,112 MiB; 64 `sparse` lists of 1 and 12 MiB hold
+none and the same Rss as with `ZANE_HUGE=0`; 64 of 32 MiB hold 960 MiB of
+huge pages and 32 MiB more.
+
 ## Where this points
 
 Worth building, in the order the measurements rank them:
@@ -502,6 +808,10 @@ Worth building, in the order the measurements rank them:
    works on what it loads (`heavy`, `hash`): ×1.6 to ×2.8, no gate.
 3. Huge pages for large backing stores: ×2 to ×2.7 on the light loops by
    itself, and what lets a prefetch help them at all.
+   Round 10 finds getting them costs little time: building is up to
+   0.27 s slower on the median at 2 GiB, and compacts on fragmented
+   memory, and the loop pays that back within three passes. It asks for
+   them by default for a list's block of 32 MiB or more.
 
 Not worth building: prefetching right before the access, batching in place
 of a sliding distance, loading early without a prefetch, the non-temporal

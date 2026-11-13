@@ -1,0 +1,13 @@
+# Round 7: gather at 2 GiB, each line one run then a huge-page run, right after it or 10 s later (/tmp script, as cold.py but in pairs).
+rep 0 prev off gap  0s | off: build 3.669 sys 3.13 | then on: build 1.259 sys 0.66
+rep 0 prev on gap  0s | on: build 0.815 sys 0.32 | then on: build 0.819 sys 0.35
+rep 0 prev off gap 10s | off: build 2.023 sys 1.49 | then on: build 2.786 sys 2.35
+rep 0 prev on gap 10s | on: build 0.790 sys 0.28 | then on: build 3.042 sys 2.54
+rep 1 prev off gap  0s | off: build 1.273 sys 0.80 | then on: build 0.954 sys 0.46
+rep 1 prev on gap  0s | on: build 0.802 sys 0.32 | then on: build 1.068 sys 0.59
+rep 1 prev off gap 10s | off: build 1.288 sys 0.79 | then on: build 2.614 sys 2.10
+rep 1 prev on gap 10s | on: build 0.797 sys 0.32 | then on: build 2.712 sys 2.25
+rep 2 prev off gap  0s | off: build 1.327 sys 0.83 | then on: build 1.254 sys 0.69
+rep 2 prev on gap  0s | on: build 0.894 sys 0.37 | then on: build 1.269 sys 0.75
+rep 2 prev off gap 10s | off: build 1.585 sys 0.97 | then on: build 3.030 sys 2.53
+rep 2 prev on gap 10s | on: build 0.825 sys 0.33 | then on: build 2.521 sys 2.04

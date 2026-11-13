@@ -722,6 +722,7 @@ __attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t s
 	if (!base && fits) base = zane_reserve_for(c, reserved, &raw);
 	if (!base) base = zane_reserve_for(c, reserved = bytes, &raw);
 	if (!base) zane_broken("out of addresses for a list's elements");
+	zane_huge(base, reserved, 0, bytes);
 	if (!zane_commit_range(base, bytes)) zane_broken("out of memory for a list's elements");
 	zane_mapping *m = (zane_mapping *)base;
 	for (size_t at = 0; at < bytes; at += ZANE_CHUNK) zane_set_page(base + at, (uintptr_t)region);
@@ -749,6 +750,7 @@ char *zane_alloc_unbounded(zane_mark *region) {
 		base = (char *)kept;
 		raw = kept->raw;
 		total = kept->reserved;
+		zane_huge(base, total, 0, 0);
 	}
 	if (!base && !(base = zane_reserve_for(c, total, &raw))) zane_broken("out of addresses for a pool");
 	/* A kept span was made usable only as far as its list grew. */
@@ -772,6 +774,7 @@ int zane_extend(zane_mark *region, char *block, int64_t size) {
 	size_t bytes = zane_span_bytes(size);
 	if (bytes > m->reserved) return 0;
 	if (bytes > m->size) {
+		zane_huge((char *)m, m->reserved, m->size, bytes);
 		if (!zane_commit_range((char *)m + m->size, bytes - m->size))
 			zane_broken("out of memory for a list's elements");
 		for (size_t at = m->size; at < bytes; at += ZANE_CHUNK) zane_set_page((char *)m + at, (uintptr_t)region);
