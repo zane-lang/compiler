@@ -4,7 +4,9 @@
 ; strings, the lists, arrays, boxes, in-place overwrites and dynamic regions
 ; and their spare chunks, package constants and the cycles of waits between
 ; them, spawned calls, and the program's output directly, and the golden
-; files hold what each printed.
+; files hold what each printed. `faults.c` stores where the runtime's fault
+; handler must first make the range usable, and valgrind_test.py runs it
+; under Valgrind too.
 
 ; The rules themselves are written from the golden files by
 ; tests/gen/gen_rules.ml, into dune.inc. A fixture added without its rules

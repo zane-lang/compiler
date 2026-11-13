@@ -23,6 +23,9 @@ The compiler itself.
   - `nesting/` holds `just check-nesting`'s count to small fixtures.
   - `ffi/` holds packages with C code ([`docs/design/ffi.md`](../docs/design/ffi.md)).
 - `parser/syntax_test.py` checks parser acceptance.
+- `runtime/valgrind_test.py` runs `runtime/faults.c` under Valgrind, which
+  `dune runtest` built, and holds it to the same golden file; skipped
+  where Valgrind is not installed.
 - `dev/wrapper_test.py` checks which arguments the `zanec` command of the pixi
   environment (`dev/bin/zanec`) expands as paths and which it passes as written.
   It runs on Linux and macOS, where that command exists.

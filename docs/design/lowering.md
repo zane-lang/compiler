@@ -870,7 +870,10 @@ test passing.
     1 MiB. The first touch of each further MiB faults, and the fault handler
     makes it usable and lets the access run again (`mprotect` on POSIX,
     `VirtualAlloc(MEM_COMMIT)` on Windows), so a system with strict
-    overcommit charges only what is used. If the system cannot commit a
+    overcommit charges only what is used. Under Valgrind the whole range
+    is usable from the start instead: Valgrind gives a fault handler stale
+    registers, so an access run again could land at an older address
+    (`tests/runtime/faults.c`). If the system cannot commit a
     step, the program reports "out of memory: cannot commit a context's
     fixed-size region" and exits with status 1. A frame of up to 1 MiB that does
     not fit faults in the guard; a larger one is checked against the

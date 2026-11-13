@@ -55,6 +55,24 @@
   (diff golden/cycles.out cycles.out.actual)))
 
 (rule
+ (deps faults.c walks.h scopes.h system.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
+ (targets faults.exe)
+ (action
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o faults.exe faults.c
+   ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)))
+
+(rule
+ (action
+  (with-stdout-to
+   faults.out.actual
+   (run ./faults.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/faults.out faults.out.actual)))
+
+(rule
  (deps growth.c walks.h scopes.h system.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets growth.exe)
  (action

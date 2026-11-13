@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""run EXE CONFIG OUT.tsv [NAME...]: each LangArena test in CONFIG (run.js,
+test.js or a config of your own), or each one named, run alone under
+Callgrind by EXE, the Zane port's built runner (`zane/out/host/zane`), from
+the current directory. Writes OUT.tsv: test, instructions, status.
+
+A test counts only when it printed `NAME: OK` and exited 0. Any other run
+-- a crash, a wrong checksum, `index out of range` -- is listed as FAILED
+with no count, and the sweep exits 1, so a number from a run that went
+wrong is never mistaken for a measurement. README.md says why."""
+import json, os, subprocess, sys, tempfile
+from pathlib import Path
+
+if len(sys.argv) < 4:
+    sys.exit(__doc__)
+exe, config, out = Path(sys.argv[1]).resolve(), sys.argv[2], Path(sys.argv[3])
+names = sys.argv[4:] or [t["name"] for t in json.loads(Path(config).read_text())]
+
+
+def totals(profile):
+    events = None
+    for line in profile.read_text().splitlines():
+        if line.startswith("events:"):
+            events = line.split()[1:]
+        elif line.startswith("summary:"):
+            return dict(zip(events, map(int, line.split()[1:])))
+    return None
+
+
+def one(name, work):
+    profile = work / "profile"
+    # The runner matches its filter as a substring, so a name may select
+    # others besides itself: only this test's own line counts.
+    r = subprocess.run(["valgrind", "-q", "--tool=callgrind", f"--callgrind-out-file={profile}",
+                        str(exe), config, name], capture_output=True, text=True)
+    lines = [l for l in r.stdout.splitlines() if l.startswith(f"{name}: ")]
+    if r.returncode or not any(l.startswith(f"{name}: OK") for l in lines):
+        said = (lines or r.stdout.splitlines()[-1:] or [""])[0]
+        error = (r.stderr.strip().splitlines() or [""])[-1]
+        return None, f"FAILED exit {r.returncode}: {said} {error}".strip()
+    counts = profile.exists() and totals(profile)
+    if not counts:
+        return None, "FAILED: no Callgrind profile"
+    return counts["Ir"], "OK"
+
+
+rows, failed = [], []
+with tempfile.TemporaryDirectory() as w:
+    for name in names:
+        count, status = one(name, Path(w))
+        print(name, count if count is not None else "-", status, flush=True)
+        rows.append(f"{name}\t{'' if count is None else count}\t{status}\n")
+        if count is None:
+            failed.append(name)
+out.write_text("test\tinstructions\tstatus\n" + "".join(rows))
+if failed:
+    print(f"{len(failed)} of {len(names)} did not print OK, so have no count: {', '.join(failed)}", file=sys.stderr)
+    sys.exit(1)
