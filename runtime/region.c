@@ -108,20 +108,38 @@ int zane_decommit_range(char *at, size_t bytes) {
 #endif
 }
 
-/* Experimental (docs/experiments/prefetch-reorder, round 6): a
-   reservation of 2 MiB or more asks Linux for huge pages, unless
-   `ZANE_HUGE=0` is in the program's environment. */
-void zane_huge(char *base, size_t reserved) {
+/* Experimental (docs/experiments/prefetch-reorder, rounds 6 and 7): a
+   list's reservation of `reserved` bytes from `base`, whose usable block
+   grows from `from` bytes to `to`, asks Linux for huge pages, unless
+   `ZANE_HUGE=0` is in the program's environment. As round 6 built it, the
+   request is made when the block is first made (`from` 0) and the
+   reservation is 2 MiB or more, which, the reservation being 64 times the
+   block, is every list past 1 MiB. `ZANE_HUGE_MIN=N` in the environment,
+   for round 7 only, makes it once the block reaches N bytes instead, when
+   it is made or as it grows in place; a kept reservation taken again by a
+   block below N is told to leave huge pages out. */
+void zane_huge(char *base, size_t reserved, size_t from, size_t to) {
 #if defined(__linux__) && defined(MADV_HUGEPAGE)
 	static int asked = -1;
+	static size_t least;
 	if (asked < 0) {
-		const char *v = getenv("ZANE_HUGE");
+		const char *v = getenv("ZANE_HUGE"), *n = getenv("ZANE_HUGE_MIN");
+		least = n ? (size_t)strtoull(n, NULL, 10) : 0;
 		asked = !(v && v[0] == '0');
 	}
-	if (asked && reserved >= ((size_t)2 << 20)) madvise(base, reserved, MADV_HUGEPAGE);
+	if (!asked) return;
+	if (!least) {
+		if (!from && reserved >= ((size_t)2 << 20)) madvise(base, reserved, MADV_HUGEPAGE);
+	} else if (from < least && to >= least) {
+		madvise(base, reserved, MADV_HUGEPAGE);
+	} else if (!from && to < least) {
+		madvise(base, reserved, MADV_NOHUGEPAGE);
+	}
 #else
 	(void)base;
 	(void)reserved;
+	(void)from;
+	(void)to;
 #endif
 }
 
