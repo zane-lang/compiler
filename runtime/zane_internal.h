@@ -157,10 +157,17 @@ char *zane_alloc_unbounded(zane_mark *region);
 enum { ZANE_WARM_KEPT = 4, ZANE_POOL_WARM = 16, ZANE_COOLING = 8, ZANE_COLD_KEPT = 256 };
 
 /* How many drained lists' reservations a context keeps mapped, their pages
-   resident, for its next lists to grow into. One it has not reused through
-   ZANE_COOLING of its later drains goes back, and so do all of them when
-   it goes idle. */
-enum { ZANE_WARM_SPANS = 2 };
+   resident, for its next lists to grow into, and how many of their usable
+   bytes at most: 64 MiB, the most glibc's `malloc` keeps of what a program
+   frees before it trims its heap. Past either, the reservation kept
+   longest goes back first. One it has not reused through ZANE_COOLING of
+   its later drains goes back, and so do all of them when it goes idle, or
+   when the system will not reserve addresses for a new one (arena.c). */
+enum { ZANE_WARM_SPANS = 16 };
+/* Of those, how many unbounded pools' reservations (experimental), whose
+   touched pages the budget cannot count (arena.c, zane_span_charge). */
+enum { ZANE_WARM_POOLS = 2 };
+#define ZANE_WARM_SPAN_BYTES ((size_t)64 << 20)
 
 typedef struct zane_task zane_task;
 typedef struct zane_context zane_context;
@@ -250,11 +257,12 @@ struct zane_context {
 	zane_mapping *spare, *spare_last;
 	int64_t warm, drains;
 	/* The reservations of lists' oversized spans its drained regions gave
-	   back, kept mapped for the next list that grows past 1 MiB, and how
-	   many (arena.c). An unbounded pool's reservation (experimental) is
-	   kept here too, under the same ZANE_WARM_SPANS cap. */
+	   back, kept mapped for the next list that grows past 1 MiB, how many,
+	   and their usable bytes (arena.c). An unbounded pool's reservation
+	   (experimental) is kept here too, under the same caps. */
 	zane_mapping *spans;
 	int64_t span_count;
+	size_t span_bytes;
 	zane_context *next;
 	/* What it waits for, as an edge of the graph of waits (value.c): the
 	   state of a package constant another context is making, or a call it

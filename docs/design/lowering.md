@@ -922,7 +922,14 @@ test passing.
   moves into a fresh one. The span it leaves gives its pages back to the
   system a chunk at a time as the elements are copied out, all but its
   first page, which holds its mapping's header, and goes to no stack; its
-  addresses stay with the region until it drains. A push is inline: while the block has room, the
+  addresses stay with the region until it drains. A span that is returned
+  whole, by an end or an overwrite of its list, goes onto its size's stack
+  with its pages, and a block past 1 MiB, grown into or copied, first takes
+  such a span whose reservation holds the addresses a new one would get:
+  one of its own size, else the smallest on top of the region's stacks
+  above 1 MiB, so a small block leaves a larger one for a larger request. So a list a field
+  assignment replaced is where the next list grows, rather than resident
+  memory nothing asks for until the region drains. A push is inline: while the block has room, the
   emitted code takes the element's address and counts it itself, and only a
   full block calls `zane_list_push`, which grows it. An empty list's first
   block, four elements' bytes kept between 32 and 128, is made inline too, in a function with a scope of its
@@ -1028,11 +1035,25 @@ test passing.
       list keep every limit O(1).
     - **Lists' reservations.** A drained list's oversized span keeps its
       reservation and its pages: a context keeps up to `ZANE_WARM_SPANS`
-      (2) of them, each until it has sat unused through `ZANE_COOLING` of
-      its later drains, and gives them all back when its call is over. The
-      next list to grow past 1 MiB takes one whose reservation holds what
-      it would reserve, so a list built again each round grows into pages
-      already resident rather than faulting fresh ones in.
+      (16) of them holding at most `ZANE_WARM_SPAN_BYTES` (64 MiB) of
+      usable bytes, the most glibc's `malloc` keeps of what a program frees
+      before trimming its heap (twice its largest mmap threshold). Past
+      either, the one kept longest goes back first, and a span larger than
+      the budget goes back itself. An unbounded pool's reservation
+      (experimental) lists one chunk however much of it was touched, so it
+      counts nothing against the budget, and a context keeps at most
+      `ZANE_WARM_POOLS` (2) of them, for its next pool alone: a list
+      taking one would leave the pool's touched pages past its own end
+      uncounted. Each stays until it has sat unused
+      through `ZANE_COOLING` of its later drains, and all go back when its
+      call is over, or when the system will not reserve addresses for a new
+      chunk or span, which the kept reservations may be what used up. A
+      block past 1 MiB that no stack of its region holds takes one whose
+      reservation holds what it would reserve, so a call that builds
+      several big lists each time round grows them into pages already
+      resident rather than faulting fresh ones in. Two kept reservations
+      were too few: a search that drains three (LangArena's Maze::BFS)
+      faulted one in every call.
     - **Windows.** A 1 MiB-aligned reservation costs an extra MiB of
       addresses there, and `VirtualFree(MEM_RELEASE)` frees only a whole
       reservation, so chunks are carved from slabs of 64 MiB, or one of

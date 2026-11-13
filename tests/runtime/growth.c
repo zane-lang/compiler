@@ -5,8 +5,10 @@
    doubling. Where the reservation cannot be made, the block is reserved
    alone and each doubling moves it, as a smaller block's does. A block
    moved out of gives its memory back, so a list never holds its old
-   elements' bytes beside its new ones, and a drained list's reservation
-   stays mapped for the next list to grow into. */
+   elements' bytes beside its new ones. A list's block that is ended, as
+   an overwrite ends the list it replaces, waits on its scope's stack, and
+   the next block past 1 MiB there grows into it, as a drained list's
+   reservation waits for the next list of its context, up to a budget. */
 
 #include "walks.h"
 
@@ -215,6 +217,160 @@ static void exercise_warm(void) {
 	check(zane_blocks() == 0);
 }
 
+/* A list's block past 1 MiB that is ended while its scope is open, as an
+   overwrite ends the list it replaces, is where the next list there to
+   grow past 1 MiB grows: its pages are still the scope's. */
+static void exercise_replaced(void) {
+	zane_mark *scope = zane_scope_enter(0);
+	zane_list *list = new_list(scope);
+	fill(list, 4 * SMALL);
+	char *block = list->items;
+	zane_end((char *)list, &ints_type);
+	zane_list *next = new_list(scope);
+	fill(next, 2 * SMALL);
+	check(next->items == block && intact(next, 2 * SMALL));
+	zane_scope_drain(scope);
+	check(zane_blocks() == 0);
+}
+
+/* Of several returned blocks a growth could take, it takes the one of its
+   own size, so a small list leaves a larger block for a larger request:
+   with a 2 MiB block and a 4 MiB one returned, the 4 MiB stack the newer,
+   a list growing to 2 MiB takes the 2 MiB block. */
+static void exercise_exact_first(void) {
+	zane_mark *scope = zane_scope_enter(0);
+	zane_list *small = new_list(scope);
+	fill(small, 2 * SMALL);
+	zane_list *large = new_list(scope);
+	fill(large, 4 * SMALL);
+	char *wanted = small->items, *other = large->items;
+	zane_end((char *)small, &ints_type);
+	zane_end((char *)large, &ints_type);
+	zane_list *next = new_list(scope);
+	fill(next, 2 * SMALL);
+	check(next->items == wanted && next->items != other && intact(next, 2 * SMALL));
+	zane_scope_drain(scope);
+	check(zane_blocks() == 0);
+}
+
+/* A returned block whose reservation cannot hold what a new one would
+   reserve is passed over: a copy of 32 MiB reserves more addresses than a
+   block first made at 2 MiB has. */
+static void exercise_too_small(void) {
+	zane_mark *scope = zane_scope_enter(0);
+	zane_list *large = new_list(scope);
+	fill(large, LARGE);
+	zane_list *small = new_list(scope);
+	fill(small, 2 * SMALL);
+	char *block = small->items;
+	zane_end((char *)small, &ints_type);
+	zane_list *copy = new_list(scope);
+	*copy = *large;
+	zane_copy((char *)copy, &ints_type);
+	check(copy->items != block && intact(copy, LARGE));
+	zane_scope_drain(scope);
+	check(zane_blocks() == 0);
+}
+
+/* A context keeps the reservations of as many lists as one scope drains
+   at once, here three, and the next three lists grow into them. */
+static void exercise_warm_several(void) {
+	zane_mark *scope = zane_scope_enter(0);
+	char *blocks[3];
+	for (int i = 0; i < 3; i++) {
+		zane_list *list = new_list(scope);
+		fill(list, 2 * SMALL);
+		blocks[i] = list->items;
+	}
+	zane_scope_drain(scope);
+	check(zane_self->span_count >= 3);
+	scope = zane_scope_enter(0);
+	int reused = 0;
+	for (int i = 0; i < 3; i++) {
+		zane_list *list = new_list(scope);
+		fill(list, 2 * SMALL);
+		for (int j = 0; j < 3; j++) reused += list->items == blocks[j];
+	}
+	check(reused == 3);
+	zane_scope_drain(scope);
+	check(zane_blocks() == 0);
+}
+
+/* A context keeps at most ZANE_WARM_SPANS reservations, however small:
+   of one more lists than that, drained at once, the one its scope gave
+   back first, the newest, goes back to make room. The context gives back
+   what earlier exercises left it first, so every list starts a span of
+   3 MiB and the byte budget never binds. */
+static void exercise_warm_count(void) {
+	zane_give_spares(zane_self);
+	zane_mark *scope = zane_scope_enter(0);
+	char *newest = NULL;
+	for (int i = 0; i <= ZANE_WARM_SPANS; i++) {
+		zane_list *list = new_list(scope);
+		fill(list, 2 * SMALL);
+		newest = list->items;
+	}
+	zane_scope_drain(scope);
+	zane_context *c = zane_self;
+	int kept = 0;
+	for (zane_mapping *m = c->spans; m; m = m->next) kept += (char *)m == newest - ZANE_LINE;
+	check(c->span_count == ZANE_WARM_SPANS && kept == 0);
+	check(zane_blocks() == 0);
+}
+
+/* An unbounded pool's reservation lists one chunk however much of it was
+   touched, so the byte budget cannot count it: a context keeps at most
+   ZANE_WARM_POOLS of them, charged nothing. Of three drained at once, two
+   stay. */
+static void exercise_warm_pools(void) {
+	zane_give_spares(zane_self);
+	zane_mark *scope = zane_scope_enter(0);
+	for (int i = 0; i < 3; i++) *zane_alloc_unbounded(scope) = 1;
+	zane_scope_drain(scope);
+	zane_context *c = zane_self;
+	check(c->span_count == ZANE_WARM_POOLS && c->span_bytes == 0);
+	zane_give_spares(c);
+	check(zane_blocks() == 0);
+}
+
+/* A list growing past 1 MiB takes no kept pool's reservation, though it
+   holds enough addresses: the pool's touched pages past the list would
+   then go uncounted. */
+static void exercise_pool_not_listed(void) {
+	zane_give_spares(zane_self);
+	zane_mark *scope = zane_scope_enter(0);
+	*zane_alloc_unbounded(scope) = 1;
+	zane_scope_drain(scope);
+	zane_context *c = zane_self;
+	scope = zane_scope_enter(0);
+	zane_list *list = new_list(scope);
+	fill(list, 2 * ZANE_CHUNK / (int64_t)sizeof(int64_t));
+	check(c->span_count == 1 && c->span_bytes == 0);
+	zane_scope_drain(scope);
+	zane_give_spares(c);
+	check(zane_blocks() == 0);
+}
+
+/* The reservations a context keeps hold at most ZANE_WARM_SPAN_BYTES
+   usable bytes, the ones kept longest going back first: of three lists of
+   32 MiB, only the one its scope gave back last stays, which is the first
+   made, since a scope gives its blocks back newest first. Whether a later
+   list lands at an old address says nothing, as the system may map a
+   released range there again. */
+static void exercise_warm_budget(void) {
+	zane_mark *scope = zane_scope_enter(0);
+	char *first = NULL;
+	for (int i = 0; i < 3; i++) {
+		zane_list *list = new_list(scope);
+		fill(list, LARGE);
+		if (!first) first = list->items;
+	}
+	zane_scope_drain(scope);
+	zane_context *c = zane_self;
+	check(c->span_count == 1 && c->span_bytes <= ZANE_WARM_SPAN_BYTES && (char *)c->spans == first - ZANE_LINE);
+	check(zane_blocks() == 0);
+}
+
 #if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 /* With too few addresses for a reservation, the block still grows, by
    moving. The child's limit leaves room for the main context's range and
@@ -241,6 +397,50 @@ static int without_reservation(void) {
 	int status;
 	return child > 0 && waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
+
+/* The addresses the process holds now, as RLIMIT_AS counts them. */
+static rlim_t addresses_held(void) {
+	FILE *f = fopen("/proc/self/statm", "r");
+	unsigned long pages = 0;
+	if (!f) return 0;
+	if (fscanf(f, "%lu", &pages) != 1) pages = 0;
+	fclose(f);
+	return (rlim_t)pages * zane_page_bytes();
+}
+
+/* With the addresses a drained list's kept reservation holds all that is
+   left, a block that reservation cannot hold is still made: the kept one
+   goes back to the system first. The child may take 2 MiB more addresses
+   than it holds, less than the 5 MiB copy needs. */
+static int reserving_gives_back(void) {
+	fflush(stdout);
+	pid_t child = fork();
+	if (child == 0) {
+		zane_give_spares(zane_self);
+		zane_mark *outer = zane_scope_enter(0);
+		zane_list *source = new_list(outer);
+		fill(source, 4 * SMALL);
+		zane_mark *inner = zane_scope_enter(0);
+		fill(new_list(inner), 2 * SMALL);
+		zane_scope_drain(inner);
+		struct rlimit limit;
+		if (getrlimit(RLIMIT_AS, &limit) != 0) _exit(2);
+		rlim_t held = addresses_held();
+		if (!held) _exit(2);
+		if (limit.rlim_cur > held + ((rlim_t)2 << 20)) limit.rlim_cur = held + ((rlim_t)2 << 20);
+		if (setrlimit(RLIMIT_AS, &limit) != 0) _exit(2);
+		zane_mark *scope = zane_scope_enter(0);
+		zane_list *copy = new_list(scope);
+		*copy = *source;
+		zane_copy((char *)copy, &ints_type);
+		int ok = intact(copy, 4 * SMALL);
+		zane_scope_drain(scope);
+		zane_scope_drain(outer);
+		_exit(ok && zane_blocks() == 0 ? 0 : 1);
+	}
+	int status;
+	return child > 0 && waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
 #endif
 
 void zane_main(void) {
@@ -248,9 +448,19 @@ void zane_main(void) {
 	exercise_copy();
 	exercise_move_out();
 	exercise_warm();
+	exercise_replaced();
+	exercise_exact_first();
+	exercise_too_small();
+	exercise_warm_several();
+	exercise_warm_count();
+	exercise_warm_pools();
+	exercise_pool_not_listed();
+	exercise_warm_budget();
 #if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 	check(without_reservation());
+	check(reserving_gives_back());
 #else
+	check(1);
 	check(1);
 #endif
 }

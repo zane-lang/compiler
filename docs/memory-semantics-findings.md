@@ -20,7 +20,8 @@ build differs, unless the probe's directory holds an `EXPECTED` file whose
 first line names that outcome and whose remaining lines say why; the file
 only permits the outcome, and the output must still match. The same recipe
 runs `tests/memory-probes/reclaim.py --check`, which fails when an allocating
-loop's peak RSS grows by more than 1 MiB from 10,000 to 1,000,000 iterations,
+loop's peak RSS grows by more than 1 MiB from 10,000 to 1,000,000 iterations
+(or between a case's own two counts),
 or when the leaking control grows by less than 16 MiB. It compares each case's
 two runs with each other, because peak RSS differs between machines;
 `reclaim.out` records one machine's numbers.
@@ -142,11 +143,12 @@ and the optimized build alike, and still does.
   aborted with, yielded from a match arm — arrive with their data intact,
   and the runtime finds no block left out at any drain.
 - **Reclamation** (`reclaim.py`, `reclaim.out`; memory.md §3.2, lifetimes.md
-  §2.1). Eleven allocating loop bodies — settled and element overwrites, string
+  §2.1). Twelve allocating loop bodies — settled and element overwrites, string
   copies and concatenation, ignored `^T` results, block-local owners, refilled
-  roaming owners, deep copies, rebuilt lists, owners resolved out of a
+  roaming owners, deep copies, rebuilt and copied lists, owners resolved out of a
   handler — keep the same peak RSS (about
-  13 MB) at 10,000 and at 1,000,000 iterations. The control, which keeps one
+  13 MB) at 10,000 and at 1,000,000 iterations, and a struct field's list
+  past 1 MiB replaced each time round keeps it at 4 and at 40 iterations. The control, which keeps one
   owner per iteration in a list, grows to 42 MB, so the measurement can see
   growth.
 - **The store rule** (`launder`; lifetimes.md §1.1, §1.10, §1.11). Twenty

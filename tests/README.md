@@ -35,7 +35,8 @@ The compiler itself.
   accept an intended change, run `tests/memory-probes/run` without `--check`
   and read the `git diff`.
 - `memory-probes/reclaim.py --check` holds each allocating loop to the same
-  peak RSS at 10,000 and 1,000,000 iterations, and its leaking control to
+  peak RSS at 10,000 and 1,000,000 iterations, or at a case's own two
+  counts where each iteration does much work, and its leaking control to
   clear growth.
 
 ## `just test-grammar`
