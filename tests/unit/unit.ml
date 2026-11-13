@@ -1803,6 +1803,15 @@ let invariant_lists () =
   let member = e (C.Expr.Offset { base = row rows; within = C.Ty.Struct [ C.Ty.I64; C.Ty.Ptr ]; path = [ 1 ] }) C.Ty.Ptr in
   check "and a list in a member of an element after its list"
     (lists [ read member; push queue ] = if on then [ xs; member ] else []);
+  let calm args = C.Stat.Eval (e (C.Expr.Call { fn = "app$calm"; args }) C.Ty.Void) in
+  check "not an element at an index whose slot a call may write"
+    (lists [ read (row rows); calm [ e (C.Expr.Address 43) C.Ty.Ptr ] ] = if on then [ xs ] else []);
+  check "but one at an index a call only reads"
+    (lists [ read (row rows); calm [ e (C.Expr.Deref (e (C.Expr.Address 43) C.Ty.Ptr)) C.Ty.I64 ] ]
+    = if on then [ xs; row rows ] else []);
+  let payload = e (C.Expr.Offset { base = row rows; within = C.Ty.Sum [ C.Ty.I64; C.Ty.Struct [ C.Ty.Ptr ] ]; path = [ 1 ] }) C.Ty.Ptr in
+  check "not a list in a variant's payload in an element, which may be another case's bytes"
+    (lists [ read payload; push queue ] = if on then [ xs ] else []);
   Cgt.List_pure.c_stays := false;
   Hashtbl.reset Cgt.List_pure.handles
 

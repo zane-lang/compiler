@@ -176,6 +176,23 @@ let through_element e = depth e > 0
 
 let element (a : Expr.t) = match a.Expr.node with Expr.Runtime _ -> true | _ -> false
 
+(* Whether the address [a] reaches no variant's payload: each offset in it
+   goes through struct members only. A payload of a case that is not the
+   variant's holds other bytes, so an element read through it before the
+   loop would follow a pointer that is not one. *)
+let rec members_only (a : Expr.t) =
+  let rec path (t : Ty.t) = function
+    | [] -> true
+    | i :: rest -> (
+        match t with
+        | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> ( match List.nth_opt ts i with Some t -> path t rest | None -> false)
+        | _ -> false)
+  in
+  match a.Expr.node with
+  | Expr.Offset { base; within; path = p } -> path within p && members_only base
+  | Expr.Runtime { fn = Cgt.Runtime.List_at; args = l :: _ } -> members_only l
+  | _ -> true
+
 (* Experimental (docs/experiments/goose-comparison): unless
    ZANE_HOIST_HANDLES=0, the lists a loop's [body] indexes when nothing in
    it can change their handles, each by the expression of its address,
@@ -200,6 +217,25 @@ let invariant_lists ?(own = fun _ -> false) body =
         | Stat.Assign { place; _ } -> Hashtbl.replace bound place.Expr.local ()
         | _ -> ())
       body;
+    (* The locals whose slot's address the body uses other than to read
+       it, as a call of a verb that changes its subject does: the body may
+       change them, so an index they hold may change too. *)
+    let addressed = Hashtbl.create 8 in
+    let rec expr ~read (e : Expr.t) =
+      match e.Expr.node with
+      | Expr.Address x -> if not read then Hashtbl.replace addressed x ()
+      | Expr.Deref a -> expr ~read:true a
+      | _ ->
+          let es, bodies = Cgt.Traverse.expr_parts e in
+          List.iter (expr ~read:false) es;
+          List.iter (List.iter stat) bodies
+    and stat (s : Stat.t) =
+      let es, bodies = Cgt.Traverse.stat_parts s in
+      List.iter (expr ~read:false) es;
+      List.iter (List.iter stat) bodies
+    in
+    List.iter stat body;
+    let fixed x = not (Hashtbl.mem bound x || Hashtbl.mem addressed x) in
     let names = Hashtbl.create 8 in
     let rec address (e : Expr.t) =
       match e.Expr.node with
@@ -216,9 +252,9 @@ let invariant_lists ?(own = fun _ -> false) body =
             | Expr.Int _ -> Some index
             | Expr.Local x -> (
                 match Hashtbl.find_opt names x with
-                | Some ({ Expr.node = Expr.Local y; _ } as a) when not (Hashtbl.mem bound y) -> Some a
+                | Some ({ Expr.node = Expr.Local y; _ } as a) when fixed y -> Some a
                 | Some _ -> None
-                | None -> if Hashtbl.mem bound x then None else Some index)
+                | None -> if fixed x then Some index else None)
             | _ -> None
           in
           match (address list, invariant) with
@@ -321,7 +357,7 @@ let invariant_lists ?(own = fun _ -> false) body =
       let lists = List.rev !lists in
       let plain = List.filter (fun a -> depth a = 0) lists in
       let elements =
-        List.filter (fun a -> depth a > 0 && (acts || not (element a))) lists
+        List.filter (fun a -> depth a > 0 && members_only a && (acts || not (element a))) lists
         |> List.stable_sort (fun a b -> compare (depth a) (depth b))
       in
       (plain @ elements, names)

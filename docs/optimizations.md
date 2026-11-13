@@ -1100,7 +1100,11 @@ loop does not change, is read before it too: a member of such an element,
 as `this.neurons[i].incoming` is in a loop over one neuron's synapses, and,
 where the body pushes or calls, a list that is itself such an element, as
 `this.adj[vertex]` is in a breadth-first search over adjacency lists, or an
-element of one. Nothing is checked before the loop: when an index is out
+element of one. The loop does not change the index: nothing in it binds or
+assigns the index's local, or uses its slot's address other than to read
+it, as a call of a verb that changes its subject does. Nothing through a
+variant's payload is read this way: the payload may be another case's
+bytes. Nothing is checked before the loop: when an index is out
 of range, a zeroed element stands in, whose every list is empty, so the
 first read through it in the loop stops the program where the element's
 own read would have, and a loop that never reads it does not stop. A list
