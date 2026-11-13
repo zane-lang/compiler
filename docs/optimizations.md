@@ -1113,9 +1113,12 @@ to LLVM, which reads it once by itself; there the extra test before every
 entry of a short loop costs more than it saves (LangArena Etc::NeuralNet
 was 5% slower).
 
-A list an enclosing loop read before itself is the one the inner loop
-uses: the enclosing loop's body, the inner loop included, cannot change
-its handle.
+In an optimized build, a list an enclosing loop read before itself is
+the one the inner loop uses: the enclosing loop's body, the inner loop
+included, cannot change its handle. LLVM then sees the inner loop's bound
+and the count read before it as one value. A plain build reads it again
+before each inner loop instead, which is cheaper there (`tests/perf`
+`entities` was 2.9% slower holding it).
 
 ### Ordered removals moved in 2 KiB pieces
 

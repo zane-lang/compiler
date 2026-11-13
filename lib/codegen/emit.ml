@@ -1732,8 +1732,12 @@ and stat env fr b (s : Stat.t) =
                     v
                 | _ -> value_of env fr b a
               in
-              (* A list an enclosing loop read before it is that read. *)
-              match List.assoc_opt a saved with
+              (* In an optimized build, a list an enclosing loop read before
+                 it is that read, which lets LLVM see an inner loop's bound
+                 and the count read before it are one value. Elsewhere,
+                 holding it across the inner loops costs more than reading
+                 it again (tests/perf entities, plain: +2.9%). *)
+              match (if env.version then List.assoc_opt a saved else None) with
               | Some c -> hoisted @ [ (a, c) ]
               | None ->
                   let list = address a in
