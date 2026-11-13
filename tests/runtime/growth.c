@@ -318,6 +318,21 @@ static void exercise_warm_count(void) {
 	check(zane_blocks() == 0);
 }
 
+/* An unbounded pool's reservation lists one chunk however much of it was
+   touched, so the byte budget cannot count it: a context keeps at most
+   ZANE_WARM_POOLS of them, charged nothing. Of three drained at once, two
+   stay. */
+static void exercise_warm_pools(void) {
+	zane_give_spares(zane_self);
+	zane_mark *scope = zane_scope_enter(0);
+	for (int i = 0; i < 3; i++) *zane_alloc_unbounded(scope) = 1;
+	zane_scope_drain(scope);
+	zane_context *c = zane_self;
+	check(c->span_count == ZANE_WARM_POOLS && c->span_bytes == 0);
+	zane_give_spares(c);
+	check(zane_blocks() == 0);
+}
+
 /* The reservations a context keeps hold at most ZANE_WARM_SPAN_BYTES
    usable bytes, the ones kept longest going back first: of three lists of
    32 MiB, only the one its scope gave back last stays, which is the first
@@ -420,6 +435,7 @@ void zane_main(void) {
 	exercise_too_small();
 	exercise_warm_several();
 	exercise_warm_count();
+	exercise_warm_pools();
 	exercise_warm_budget();
 #if defined(__linux__) && !defined(ZANE_TEST_ASAN)
 	check(without_reservation());

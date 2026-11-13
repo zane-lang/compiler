@@ -148,7 +148,7 @@ and the optimized build alike, and still does.
   roaming owners, deep copies, rebuilt and copied lists, owners resolved out of a
   handler — keep the same peak RSS (about
   13 MB) at 10,000 and at 1,000,000 iterations, and a struct field's list
-  past 1 MiB replaced each time round keeps it at 4 and at 40. The control, which keeps one
+  past 1 MiB replaced each time round keeps it at 4 and at 40 iterations. The control, which keeps one
   owner per iteration in a list, grows to 42 MB, so the measurement can see
   growth.
 - **The store rule** (`launder`; lifetimes.md §1.1, §1.10, §1.11). Twenty

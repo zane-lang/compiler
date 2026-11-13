@@ -1039,7 +1039,10 @@ test passing.
       usable bytes, the most glibc's `malloc` keeps of what a program frees
       before trimming its heap (twice its largest mmap threshold). Past
       either, the one kept longest goes back first, and a span larger than
-      the budget goes back itself. Each stays until it has sat unused
+      the budget goes back itself. An unbounded pool's reservation
+      (experimental) lists one chunk however much of it was touched, so it
+      counts nothing against the budget, and a context keeps at most
+      `ZANE_WARM_POOLS` (2) of them. Each stays until it has sat unused
       through `ZANE_COOLING` of its later drains, and all go back when its
       call is over, or when the system will not reserve addresses for a new
       chunk or span, which the kept reservations may be what used up. A

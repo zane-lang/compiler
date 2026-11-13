@@ -164,6 +164,9 @@ enum { ZANE_WARM_KEPT = 4, ZANE_POOL_WARM = 16, ZANE_COOLING = 8, ZANE_COLD_KEPT
    its later drains goes back, and so do all of them when it goes idle, or
    when the system will not reserve addresses for a new one (arena.c). */
 enum { ZANE_WARM_SPANS = 16 };
+/* Of those, how many unbounded pools' reservations (experimental), whose
+   touched pages the budget cannot count (arena.c, zane_span_charge). */
+enum { ZANE_WARM_POOLS = 2 };
 #define ZANE_WARM_SPAN_BYTES ((size_t)64 << 20)
 
 typedef struct zane_task zane_task;

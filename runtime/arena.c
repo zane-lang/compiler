@@ -375,13 +375,21 @@ static void zane_chill(zane_mapping *m) {
 	zane_chunks_drop(m, ZANE_CHUNK);
 }
 
+/* What a kept reservation counts against ZANE_WARM_SPAN_BYTES: a list's
+   usable bytes. An unbounded pool's (zane_alloc_unbounded) lists one chunk
+   however much of it was touched, so it counts nothing and the context
+   keeps at most ZANE_WARM_POOLS of them instead. A list's span is never a
+   single chunk, since it is larger than one. */
+static int zane_span_pool(const zane_mapping *m) { return m->size == ZANE_CHUNK; }
+static size_t zane_span_charge(const zane_mapping *m) { return zane_span_pool(m) ? 0 : m->size; }
+
 /* A kept reservation unlisted from its context's, at `at`, and given
    back to the system whole. */
 static void zane_span_drop(zane_context *c, zane_mapping **at) {
 	zane_mapping *m = *at;
 	*at = m->next;
 	c->span_count--;
-	c->span_bytes -= m->size;
+	c->span_bytes -= zane_span_charge(m);
 	zane_release_addresses(m->raw, (char *)m, m->reserved);
 }
 
@@ -401,7 +409,7 @@ static zane_mapping *zane_span_take(zane_context *c, size_t reserved) {
 		if (m->reserved >= reserved) {
 			*at = m->next;
 			c->span_count--;
-			c->span_bytes -= m->size;
+			c->span_bytes -= zane_span_charge(m);
 			return m;
 		}
 	}
@@ -506,13 +514,16 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
    context keeps at most ZANE_WARM_SPANS of them, holding at most
    ZANE_WARM_SPAN_BYTES usable bytes: the ones it has kept longest go back
    to the system to make room, and one larger than all of that goes back
-   itself. */
+   itself. An unbounded pool's is kept only while fewer than
+   ZANE_WARM_POOLS are (zane_span_charge). */
 static void zane_keep_span(zane_context *c, zane_mapping *m) {
-	if (m->size > ZANE_WARM_SPAN_BYTES) {
+	int pools = 0;
+	for (zane_mapping *k = c->spans; k; k = k->next) pools += zane_span_pool(k);
+	if (zane_span_charge(m) > ZANE_WARM_SPAN_BYTES || (zane_span_pool(m) && pools >= ZANE_WARM_POOLS)) {
 		zane_release_addresses(m->raw, (char *)m, m->reserved);
 		return;
 	}
-	while (c->spans && (c->span_count >= ZANE_WARM_SPANS || c->span_bytes + m->size > ZANE_WARM_SPAN_BYTES)) {
+	while (c->spans && (c->span_count >= ZANE_WARM_SPANS || c->span_bytes + zane_span_charge(m) > ZANE_WARM_SPAN_BYTES)) {
 		zane_mapping **oldest = &c->spans;
 		while ((*oldest)->next) oldest = &(*oldest)->next;
 		zane_span_drop(c, oldest);
@@ -521,7 +532,7 @@ static void zane_keep_span(zane_context *c, zane_mapping *m) {
 	m->next = c->spans;
 	c->spans = m;
 	c->span_count++;
-	c->span_bytes += m->size;
+	c->span_bytes += zane_span_charge(m);
 }
 
 /* A region's chunks given back, whatever is still in them (memory.md
