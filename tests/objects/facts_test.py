@@ -211,6 +211,66 @@ class FactsTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0, result.stdout)
             self.assertIn("out of memory for a list's elements", result.stderr)
 
+    def test_lists_read_before_a_loop_that_pushes_to_another(self):
+        # A loop that reads a list's elements and pushes onto a list of its
+        # function's own inside an `if`, as LangArena's Graph::BFS does,
+        # reads the first list's items and count once before it
+        # (Loop_shapes.invariant_lists): the push, and the runtime call its
+        # slow path makes, reach no other list. Here the list read is an
+        # element of another (`this.adj[v]`) at an index the loop does not
+        # change. So the only handle the loop loads is the pushed list's
+        # own, in `main`, where `below` is inlined; its pushes alone move
+        # 24 bytes.
+        ir = run(ZANEC, "--ll", "--optimize", *packages("pending"))
+        start = re.search(r"(?ms)^define [^\n]*@zane_main\(.*?^}", ir).group(0)
+        handle = re.search(r'(?m)^(![0-9]+) = !\{!"zane handle"', ir).group(1)
+        tag = re.search(rf"(?m)^(![0-9]+) = !\{{{handle}, {handle}, i64 0\}}", ir).group(1)
+        blocks, label = {}, "entry"
+        for line in start.split("\n")[1:]:
+            found = re.match(r'^("[^"]+"|[\w.$-]+):', line)
+            if found:
+                label = found.group(1).strip('"')
+            blocks.setdefault(label, []).append(line)
+        def successors(name):
+            return {t.strip('"') for line in blocks[name] for t in re.findall(r'label %("[^"]+"|[\w.$-]+)', line)}
+        def reach(name):
+            seen, todo = set(), [name]
+            while todo:
+                for s in successors(todo.pop()) - seen:
+                    seen.add(s)
+                    todo.append(s)
+            return seen
+        pushes = [(name, re.search(r"@zane_list_push\(ptr [^%]*(%[\w.]+), i64 24\)", line).group(1))
+                  for name, lines in blocks.items() for line in lines if re.search(r"@zane_list_push\(.*i64 24\)", line)]
+        # An optimized build emits the loop twice (Emit.versioned); each
+        # copy is checked.
+        self.assertTrue(pushes)
+        for pushed, slot in pushes:
+            loop = {name for name in reach(pushed) if pushed in reach(name)}
+            # The pushed list's handle: its slot, at an offset into its
+            # frame, and each of its fields, which LLVM may address from
+            # the frame.
+            frame, at = re.search(
+                rf"(?m)^\s*{re.escape(slot)} = getelementptr [^\n]*ptr (%[\w.]+), i64 (\d+)$", start).groups()
+            fields = range(int(at), int(at) + TWO_HANDLES // 2)
+            own = {slot} | {name for name, offset in re.findall(
+                rf"(?m)^\s*(%[\w.]+) = getelementptr [^\n]*ptr {re.escape(frame)}, i64 (\d+)$", start)
+                if int(offset) in fields}
+            loads = [line for name in loop for line in blocks[name] if " = load " in line and f"!tbaa {tag}" in line]
+            self.assertTrue(loads)
+            for line in loads:
+                self.assertIn(re.search(r"load [^,]+, ptr (%[\w.]+)", line).group(1), own, line)
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "pending"
+                run(ZANEC, "--build", exe, *optimize, *packages("pending"))
+                self.assertEqual(run_program(exe, 1000), "2570\n", optimize)
+                self.assertEqual(run_program(exe, 0), "0\n", optimize)
+                # A size read through an out-of-range element still stops.
+                stopped = subprocess.run([str(exe), "3", "size"], capture_output=True, text=True, timeout=60)
+                self.assertNotEqual(stopped.returncode, 0, optimize)
+                self.assertIn("out of range", stopped.stderr, optimize)
+
     def test_runs_of_pushes_make_room_once(self):
         # A new list pushed to four times in a row makes room for all four
         # at its first push, so the room is compared once, and the other

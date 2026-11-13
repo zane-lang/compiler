@@ -1778,67 +1778,6 @@ let fixture_pairing () =
     ~fixtures:[] ~goldens:[ "project.app.check"; "project.app.chek" ]
     [ "no rule makes golden/project.app.chek" ]
 
-(* A loop's lone push onto a list has its room made before the loop
-   (Loop_shapes.looped_pushes), unless something else in the loop may grow
-   the list through a reference, the pushed value's own call included. *)
-let looped_pushes () =
-  let module C = Cgt.Nodes in
-  let e node ty = { C.Expr.node; ty } in
-  let push =
-    C.Stat.Let
-      {
-        id = 11;
-        value =
-          e
-            (C.Expr.Runtime
-               { fn = Cgt.Runtime.List_push; args = [ e (C.Expr.Address 1) C.Ty.Ptr; e (C.Expr.Int 8L) C.Ty.I64 ] })
-            C.Ty.Ptr;
-      }
-  in
-  let grow = C.Stat.Let { id = 10; value = e (C.Expr.Call { fn = "app$grow"; args = [ e (C.Expr.Local 2) C.Ty.Ptr ] }) C.Ty.I64 } in
-  let expand body = C.Stat.Eval (e (C.Expr.Expand { label = 20; body; result = None }) C.Ty.Void) in
-  let on = Sys.getenv_opt "ZANE_LOOP_PUSHES" <> Some "0" in
-  check "a loop's lone push has its room made ahead, unless switched off"
-    (Codegen__Loop_shapes.looped_pushes [ expand [ push ] ] = if on then [ (1, 8L) ] else []);
-  check "not when the pushed value's call may grow a list"
-    (Codegen__Loop_shapes.looped_pushes [ expand [ grow; push ] ] = []);
-  (* A written-out push ends by leaving its own expansion (Loop_pushes),
-     which leaves nothing around the loop. *)
-  check "a push that leaves its own expansion has its room made ahead, unless switched off"
-    (Codegen__Loop_shapes.looped_pushes [ expand [ push; C.Stat.Leave 20 ] ] = if on then [ (1, 8L) ] else []);
-  check "not when the loop leaves an expansion around it"
-    (Codegen__Loop_shapes.looped_pushes [ expand [ push; C.Stat.Leave 20 ]; C.Stat.Leave 30 ] = []);
-  check "not when the loop may return"
-    (Codegen__Loop_shapes.looped_pushes [ expand [ push ]; C.Stat.Return (e C.Expr.Unit C.Ty.Void) ] = [])
-
-(* A function cannot change a list's count when nothing it runs can
-   (Loop_pushes.pure). An imported function's body is another object's, so
-   its empty body says nothing, and it is never taken to be one; nor is a
-   function that calls it. *)
-let list_pure () =
-  let module C = Cgt.Nodes in
-  let e node ty = { C.Expr.node; ty } in
-  let func symbol linkage body =
-    { C.Func.symbol; linkage; params = []; places = []; ret = C.Ty.Void; body; values = [] }
-  in
-  let call fn = C.Stat.Eval (e (C.Expr.Call { fn; args = [] }) C.Ty.Void) in
-  let program funcs =
-    { C.Program.funcs; entry = None; layouts = []; globals = []; foreign = []; callbacks = []; exclusive = true }
-  in
-  Optimize__Loop_pushes.pure
-    (program
-       [
-         func "app$quiet" C.Linkage.Local [];
-         func "dep$grow" C.Linkage.Imported [];
-         func "app$caller" C.Linkage.Local [ call "dep$grow" ];
-         func "app$calm" C.Linkage.Local [ call "app$quiet" ];
-       ]);
-  let pure fn = Hashtbl.mem Cgt.List_pure.functions fn in
-  check "a function that changes no list is list-pure" (pure "app$quiet" && pure "app$calm");
-  check "an imported function is not list-pure" (not (pure "dep$grow"));
-  check "nor is one that calls it" (not (pure "app$caller"));
-  Hashtbl.reset Cgt.List_pure.functions
-
 (* Statements leave when one returns or leaves an expansion they are not
    inside (Cgt.Traverse.leaves). *)
 let traverse_leaves () =
@@ -1928,8 +1867,9 @@ let () =
   stamps_are_checked ();
   disposed_modules ();
   repeated_builds ();
-  looped_pushes ();
-  list_pure ();
+  Loops.looped_pushes ();
+  Loops.list_pure ();
+  Loops.invariant_lists ();
   traverse_leaves ();
   light_references ();
   if !failures > 0 then begin

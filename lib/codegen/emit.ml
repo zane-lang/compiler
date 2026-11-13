@@ -221,6 +221,8 @@ type frame = {
      loop being emitted read once before it ([invariant_lists]), each by the
      expression of its address, and how a local of the loop's body names one. *)
   mutable hoisted : (Expr.t * (Llvm.llvalue * Llvm.llvalue)) list;
+  (* The function's lists only it reaches (Loop_shapes.own_lists). *)
+  own : int -> bool;
   names : (int, Expr.t) Hashtbl.t;
   (* The element addresses the loop being emitted checks before it ([ranged]). *)
   mutable unchecked : Expr.t list;
@@ -1070,6 +1072,16 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
              match expr env fr b m with Some x -> Llvm.build_insertvalue v x i "" b | None -> v)
            (Llvm.undef (lltype env e.Expr.ty))
            members)
+  (* The count of a list the loop read before it ([invariant_lists]). *)
+  | Expr.Member { value = { Expr.node = Expr.Local x | Expr.Deref { Expr.node = Expr.Address x; _ }; ty = Ty.Handle | Ty.Handle16 }; index = 1 }
+    when List.mem_assoc { Expr.node = Expr.Address x; ty = Ty.Ptr } fr.hoisted ->
+      let count = snd (List.assoc { Expr.node = Expr.Address x; ty = Ty.Ptr } fr.hoisted) in
+      Some (if e.Expr.ty = Ty.I32 then Llvm.build_trunc count (Llvm.i32_type env.ctx) "" b else count)
+  (* Not one through an element, whose own read checks its index. *)
+  | Expr.Member { value = { Expr.node = Expr.Deref a; ty = Ty.Handle | Ty.Handle16 }; index = 1 }
+    when List.mem_assoc a fr.hoisted && not (Loop_shapes.through_element a) ->
+      let count = snd (List.assoc a fr.hoisted) in
+      Some (if e.Expr.ty = Ty.I32 then Llvm.build_trunc count (Llvm.i32_type env.ctx) "" b else count)
   | Expr.Member { value; index } -> (
       match (e.Expr.ty, expr env fr b value) with
       | Ty.Void, _ | _, None -> None
@@ -1156,8 +1168,17 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       let cached =
         match (fn, args) with
         | Cgt.Runtime.List_at, l :: _ when fr.hoisted <> [] ->
-            let key = match l.Expr.node with Expr.Local x -> Option.value ~default:l (Hashtbl.find_opt fr.names x) | _ -> l in
-            List.assoc_opt key fr.hoisted
+            (* The address as [invariant_lists] named it: each local the
+               loop's body binds to part of it replaced by what it names. *)
+            let rec key (e : Expr.t) =
+              match e.Expr.node with
+              | Expr.Local x -> Option.value ~default:e (Hashtbl.find_opt fr.names x)
+              | Expr.Offset o -> { e with Expr.node = Expr.Offset { o with base = key o.base } }
+              | Expr.Runtime { fn = Cgt.Runtime.List_at; args = [ list; index; stride ] } ->
+                  { e with Expr.node = Expr.Runtime { fn = Cgt.Runtime.List_at; args = [ key list; key index; stride ] } }
+              | _ -> e
+            in
+            List.assoc_opt (key l) fr.hoisted
         | _ -> None
       in
       let unchecked = cached <> None && List.memq e fr.unchecked in
@@ -1665,7 +1686,7 @@ and stat env fr b (s : Stat.t) =
           Hashtbl.replace fr.runs id (Room max_int))
         looped;
       Fun.protect ~finally:(fun () -> List.iter (fun (id, _) -> Hashtbl.remove fr.runs id) looped) @@ fun () ->
-      let lists, names = invariant_lists body in
+      let lists, names = invariant_lists ~own:fr.own body in
       let ranges = ranged body lists names in
       let twice = unrolled ~listed:(listed env) body in
       (* Experimental (Lookahead): what an optimized build fetches ahead. *)
@@ -1673,12 +1694,55 @@ and stat env fr b (s : Stat.t) =
       let counted trips =
         let saved = fr.hoisted in
         let hoisted =
-          List.map
-            (fun a ->
-              let list = value_of env fr b a in
+          List.fold_left
+            (fun hoisted (a : Expr.t) ->
               let tag = handle_field env and count_tag = if List_handle.on () then handle_field env else count_field env in
-              (a, (List_handle.items ~tag env.ctx b list, List_handle.count ~tag:count_tag env.ctx b list)))
-            lists
+              (* The address [a] names before the loop, never checked: an
+                 element of a list read before the loop, at an index the
+                 loop does not change, is the element when the index is in
+                 range, else a zeroed one, whose every list's checks stop
+                 the program where the element's own would; a member of an
+                 element is the member of that. *)
+              let rec address (a : Expr.t) =
+                match a.Expr.node with
+                | Expr.Runtime { fn = Cgt.Runtime.List_at; args = [ outer; index; ({ Expr.node = Expr.Int bytes; _ } as stride) ] } ->
+                    let items, count =
+                      (* This loop's lists, then an enclosing loop's. *)
+                      match List.assoc_opt outer (hoisted @ saved) with
+                      | Some c -> c
+                      | None ->
+                          let l = address outer in
+                          (List_handle.items ~tag env.ctx b l, List_handle.count ~tag:count_tag env.ctx b l)
+                    in
+                    let index = value_of env fr b index and stride = value_of env fr b stride in
+                    let offset = Llvm.build_sub index (Llvm.const_int env.i64 1) "" b in
+                    let inside = Llvm.build_icmp Llvm.Icmp.Ult offset count "" b in
+                    let room = Llvm.array_type env.i64 ((max (Int64.to_int bytes) 24 + 7) / 8) in
+                    let empty = alloca env fr room in
+                    ignore (Llvm.build_store (Llvm.const_null room) empty b);
+                    let at = Llvm.build_gep (Llvm.i8_type env.ctx) items [| Llvm.build_mul offset stride "" b |] "" b in
+                    Llvm.build_select inside at empty "" b
+                | Expr.Offset ({ base; _ } as o) when Loop_shapes.through_element base ->
+                    let p = address base in
+                    let id = min_int + Hashtbl.length fr.locals in
+                    let s = slot env fr id env.ptr in
+                    ignore (Llvm.build_store p s b);
+                    let v = value_of env fr b { a with Expr.node = Expr.Offset { o with base = { base with Expr.node = Expr.Local id } } } in
+                    Hashtbl.remove fr.locals id;
+                    v
+                | _ -> value_of env fr b a
+              in
+              (* In an optimized build, a list an enclosing loop read before
+                 it is that read, which lets LLVM see an inner loop's bound
+                 and the count read before it are one value. Elsewhere,
+                 holding it across the inner loops costs more than reading
+                 it again (tests/perf entities, plain: +2.9%). *)
+              match (if env.version then List.assoc_opt a saved else None) with
+              | Some c -> hoisted @ [ (a, c) ]
+              | None ->
+                  let list = address a in
+                  hoisted @ [ (a, (List_handle.items ~tag env.ctx b list, List_handle.count ~tag:count_tag env.ctx b list)) ])
+            [] lists
         in
         fr.hoisted <- hoisted @ saved;
         Hashtbl.iter (Hashtbl.replace fr.names) names;
@@ -1861,6 +1925,7 @@ let func env (f : Func.t) =
       loops = 0;
       runs = Hashtbl.create 4;
       hoisted = [];
+      own = own_lists f.Func.params f.Func.body;
       names = Hashtbl.create 8;
       unchecked = [];
     }

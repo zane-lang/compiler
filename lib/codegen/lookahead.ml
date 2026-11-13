@@ -250,14 +250,17 @@ let bound_in body =
     body;
   bound
 
-(* Whether every step of an address goes into a struct's member. A step
-   into a variant's case reaches a payload that is there only while that
-   case is the one held, which the top of the loop does not know: another
-   case's bytes may read as a list with a count and no block. *)
+(* Whether every step of an address goes into a struct's member, from a
+   slot or a pointer. A step into a variant's case reaches a payload that is
+   there only while that case is the one held, which the top of the loop
+   does not know: another case's bytes may read as a list with a count and
+   no block. An element of another list ([invariant_lists] names one) is
+   read with a check, which could stop the program here. *)
 let rec members_only (a : Expr.t) =
   match a.Expr.node with
   | Expr.Offset { base; within; path } -> Option.is_some (member_offset within path) && members_only base
-  | _ -> true
+  | Expr.Address _ | Expr.Local _ -> true
+  | _ -> false
 
 (* The address of a list's handle, when it is made of slots bound before
    the loop, none of [bound] or a local [names] gives the address of, and

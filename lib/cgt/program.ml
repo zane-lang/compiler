@@ -382,6 +382,9 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
   (* A table filled for a program built earlier in this process says
      nothing about this one; only the optimizer refills it. *)
   Hashtbl.reset List_pure.functions;
+  Hashtbl.reset List_pure.handles;
+  Hashtbl.reset List_pure.pushers;
+  List_pure.c_stays := false;
   let exclusive = (not library) && calls = [] in
   let st = create ~region:fixed_region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
   st.places <- Some (Tst.States.of_program p);

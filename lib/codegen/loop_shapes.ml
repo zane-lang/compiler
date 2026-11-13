@@ -86,25 +86,130 @@ let light id body =
          | Stat.Reserve { scope; ty; _ } -> scope = id && not (scalar ty)
          | _ -> false))
 
+(* The local whose slot [e], an address made of offsets into a slot, is in. *)
+let rec slot_of (e : Expr.t) =
+  match e.Expr.node with
+  | Expr.Address x -> Some x
+  | Expr.Offset { base; _ } -> slot_of base
+  | _ -> None
+
+(* The locals of [body], a function's, that are lists only it reaches: no
+   parameter's, and their address is never given a call, bound, stored,
+   converted, spawned or returned, only read through, indexed, or pushed
+   to, made room in or removed from. So no address but one made from the
+   local's own reaches its slot, and changing it changes no other list
+   (Loop_shapes.invariant_lists). *)
+let own_lists params body =
+  let escaped = Hashtbl.create 8 and seen = Hashtbl.create 8 and lists = Hashtbl.create 8 in
+  List.iter (fun (id, _) -> Hashtbl.replace escaped id ()) params;
+  (* Only a slot a scope holds a list's handle in itself: a reference
+     reaches a list other references may reach too. *)
+  Cgt.Traverse.walk_stats ignore
+    (function
+      | Stat.Hold { id; value = { Expr.ty = Ty.Handle | Ty.Handle16; _ }; _ } | Stat.Reserve { id; ty = Ty.Handle | Ty.Handle16; _ } ->
+          Hashtbl.replace lists id ()
+      | _ -> ())
+    body;
+  (* A local bound once to the address of a slot or of a member in it, as
+     an inlined verb binds its subject: each use of it is a use of the
+     slot's address. *)
+  let assigned = Hashtbl.create 8 and aliases = Hashtbl.create 8 in
+  Cgt.Traverse.walk_stats ignore
+    (function Stat.Assign { place; _ } -> Hashtbl.replace assigned place.Expr.local () | _ -> ())
+    body;
+  Cgt.Traverse.walk_stats ignore
+    (function
+      | Stat.Let { id; value } when not (Hashtbl.mem assigned id) ->
+          Option.iter (Hashtbl.replace aliases id) (slot_of value)
+      | _ -> ())
+    body;
+  let rec expr ~safe (e : Expr.t) =
+    match e.Expr.node with
+    | Expr.Address x ->
+        Hashtbl.replace seen x ();
+        if not safe then Hashtbl.replace escaped x ()
+    | Expr.Local a when Hashtbl.mem aliases a ->
+        let x = Hashtbl.find aliases a in
+        Hashtbl.replace seen x ();
+        if not safe then Hashtbl.replace escaped x ()
+    | Expr.Offset { base; _ } -> expr ~safe base
+    | Expr.Deref a -> expr ~safe:true a
+    | Expr.Call { fn; args = list :: rest } when Hashtbl.mem Cgt.List_pure.pushers fn ->
+        expr ~safe:true list;
+        List.iter (expr ~safe:false) rest
+    | Expr.Runtime
+        {
+          fn =
+            ( Cgt.Runtime.List_at | List_push | List_room | List_reserve | List_remove _ | List_swap_remove _ ) as fn;
+          args = list :: rest;
+        } ->
+        ignore fn;
+        expr ~safe:true list;
+        List.iter (expr ~safe:false) rest
+    | _ ->
+        let es, bodies = Cgt.Traverse.expr_parts e in
+        List.iter (expr ~safe:false) es;
+        List.iter (List.iter stat) bodies
+  and stat (s : Stat.t) =
+    let es, bodies = Cgt.Traverse.stat_parts s in
+    (match s with
+    | Stat.Store { address; value } | Stat.Place { address; value; _ } | Stat.Overwrite { address; value; _ } ->
+        expr ~safe:true address;
+        expr ~safe:false value
+    | Stat.Let { id; value } when Hashtbl.mem aliases id -> expr ~safe:true value
+    | _ -> List.iter (expr ~safe:false) es);
+    List.iter (List.iter stat) bodies
+  in
+  List.iter stat body;
+  fun x -> Hashtbl.mem lists x && Hashtbl.mem seen x && not (Hashtbl.mem escaped x)
+
+(* How many elements deep the address [e] is: 0 for one made only of
+   addresses and offsets of slots. *)
+let rec depth (e : Expr.t) =
+  match e.Expr.node with
+  | Expr.Runtime { fn = Cgt.Runtime.List_at; args = l :: _ } -> 1 + depth l
+  | Expr.Offset { base; _ } -> depth base
+  | _ -> 0
+
+(* Whether the address [e] is reached through an element of a list. *)
+let through_element e = depth e > 0
+
+let element (a : Expr.t) = match a.Expr.node with Expr.Runtime _ -> true | _ -> false
+
+(* Whether the address [a] reaches no variant's payload: each offset in it
+   goes through struct members only. A payload of a case that is not the
+   variant's holds other bytes, so an element read through it before the
+   loop would follow a pointer that is not one. *)
+let rec members_only (a : Expr.t) =
+  let rec path (t : Ty.t) = function
+    | [] -> true
+    | i :: rest -> (
+        match t with
+        | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> ( match List.nth_opt ts i with Some t -> path t rest | None -> false)
+        | _ -> false)
+  in
+  match a.Expr.node with
+  | Expr.Offset { base; within; path = p } -> path within p && members_only base
+  | Expr.Runtime { fn = Cgt.Runtime.List_at; args = l :: _ } -> members_only l
+  | _ -> true
+
 (* Experimental (docs/experiments/goose-comparison): unless
    ZANE_HOIST_HANDLES=0, the lists a loop's [body] indexes when nothing in
-   it can change a list's handle -- it calls no function, calls the runtime
-   only to index, spawns nothing, and writes only scalars -- each by the
-   expression of its address, with the locals the body binds to such an
-   expression. Each address is made of addresses and offsets of slots made
-   before the loop, so it can be computed, and the list's items and count
-   read, before the loop: its checks then compare with a count the loop does
-   not change, which IRCE needs. *)
-let invariant_lists body =
+   it can change their handles, each by the expression of its address,
+   with the locals the body binds to such an expression. Nothing in the
+   body changes a handle (Cgt.List_pure.changes): it calls only functions
+   that cannot, calls into C only where C cannot call back, spawns
+   nothing, writes only scalars through addresses, and calls the runtime
+   only to index, or to push to, make room in or remove from a list of
+   [own]'s, which reaches no other list's slot; such a list is not among
+   those read. Each address is made of addresses and offsets of slots made
+   before the loop, or, where the body pushes or calls, is an element of
+   such a list at an index the loop does not change, so it can be computed,
+   and the list's items and count read, before the loop: its checks then compare with a count the loop
+   does not change, which IRCE needs. *)
+let invariant_lists ?(own = fun _ -> false) body =
   if Sys.getenv_opt "ZANE_HOIST_HANDLES" = Some "0" then ([], Hashtbl.create 1)
   else
-    let rec scalar (t : Ty.t) =
-      match t with
-      | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
-      | Ty.Struct ts | Ty.Sum ts -> List.for_all scalar ts
-      | Ty.Array (t, _) | Ty.Packed t -> scalar t
-      | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> false
-    in
     let bound = Hashtbl.create 16 in
     Cgt.Traverse.walk_stats ignore
       (function
@@ -112,6 +217,25 @@ let invariant_lists body =
         | Stat.Assign { place; _ } -> Hashtbl.replace bound place.Expr.local ()
         | _ -> ())
       body;
+    (* The locals whose slot's address the body uses other than to read
+       it, as a call of a verb that changes its subject does: the body may
+       change them, so an index they hold may change too. *)
+    let addressed = Hashtbl.create 8 in
+    let rec expr ~read (e : Expr.t) =
+      match e.Expr.node with
+      | Expr.Address x -> if not read then Hashtbl.replace addressed x ()
+      | Expr.Deref a -> expr ~read:true a
+      | _ ->
+          let es, bodies = Cgt.Traverse.expr_parts e in
+          List.iter (expr ~read:false) es;
+          List.iter (List.iter stat) bodies
+    and stat (s : Stat.t) =
+      let es, bodies = Cgt.Traverse.stat_parts s in
+      List.iter (expr ~read:false) es;
+      List.iter (List.iter stat) bodies
+    in
+    List.iter stat body;
+    let fixed x = not (Hashtbl.mem bound x || Hashtbl.mem addressed x) in
     let names = Hashtbl.create 8 in
     let rec address (e : Expr.t) =
       match e.Expr.node with
@@ -122,46 +246,121 @@ let invariant_lists body =
           | None -> if Hashtbl.mem bound x then None else Some e)
       | Expr.Offset ({ base; _ } as o) ->
           Option.map (fun base -> { e with Expr.node = Expr.Offset { o with base } }) (address base)
+      | Expr.Runtime { fn = Cgt.Runtime.List_at; args = [ list; index; ({ Expr.node = Expr.Int _; _ } as stride) ] } -> (
+          let invariant =
+            match index.Expr.node with
+            | Expr.Int _ -> Some index
+            | Expr.Local x -> (
+                match Hashtbl.find_opt names x with
+                | Some ({ Expr.node = Expr.Local y; _ } as a) when fixed y -> Some a
+                | Some _ -> None
+                | None -> if fixed x then Some index else None)
+            | _ -> None
+          in
+          match (address list, invariant) with
+          | Some list, Some index -> Some { e with Expr.node = Expr.Runtime { fn = Cgt.Runtime.List_at; args = [ list; index; stride ] } }
+          | _ -> None)
+      (* An expansion that computes an address, as an inlined indexing
+         verb does, and assigns it to its result. *)
+      | Expr.Expand { body; result = Some r; _ } ->
+          List.find_map
+            (function
+              | Stat.Assign { place; value } when place.Expr.local = r && not place.Expr.deref -> Some value
+              | _ -> None)
+            body
+          |> Fun.flip Option.bind address
       | _ -> None
     in
     let assigned = Hashtbl.create 8 in
     Cgt.Traverse.walk_stats ignore
       (function Stat.Assign { place; _ } -> Hashtbl.replace assigned place.Expr.local () | _ -> ())
       body;
-    Cgt.Traverse.walk_stats ignore
-      (function
-        | Stat.Let { id; value } when not (Hashtbl.mem assigned id) ->
-            Option.iter (Hashtbl.replace names id) (address value)
-        | _ -> ())
-      body;
+    (* A local can name an address made from locals bound inside its own
+       value, so the names are gathered until none is added. *)
+    let rec gather () =
+      let before = Hashtbl.length names in
+      Cgt.Traverse.walk_stats ignore
+        (function
+          | Stat.Let { id; value } when not (Hashtbl.mem assigned id || Hashtbl.mem names id) ->
+              Option.iter (Hashtbl.replace names id) (address value)
+          | _ -> ())
+        body;
+      if Hashtbl.length names > before then gather ()
+    in
+    gather ();
+    let changed = Hashtbl.create 4 in
+    let slot_of (e : Expr.t) =
+      match e.Expr.node with
+      | Expr.Local x -> Option.bind (Hashtbl.find_opt names x) slot_of
+      | _ -> slot_of e
+    in
+    let allowed fn (args : Expr.t list) =
+      match (fn, args) with
+      | (Cgt.Runtime.List_push | List_room | List_reserve | List_remove { scalars = true } | List_swap_remove { scalars = true }), list :: _ -> (
+          match slot_of list with
+          | Some x when own x ->
+              Hashtbl.replace changed x ();
+              true
+          | _ -> false)
+      | _ -> false
+    in
+    let pushes_own (e : Expr.t) =
+      match e.Expr.node with
+      | Expr.Call { fn; args = list :: _ } when Hashtbl.mem Cgt.List_pure.pushers fn -> (
+          match slot_of list with
+          | Some x when own x ->
+              Hashtbl.replace changed x ();
+              true
+          | _ -> false)
+      | _ -> false
+    in
     let changes =
+      Cgt.Traverse.exists_in body
+        ~expr:(fun e -> (not (pushes_own e)) && Cgt.List_pure.changes_expr ~allowed e)
+        ~stat:Cgt.List_pure.changes_stat
+    in
+    (* Whether the body pushes or calls at all: where it does not, LLVM sees
+       for itself that an element's handle stays, and reads it once. *)
+    let acts =
       Cgt.Traverse.exists_in body
         ~expr:(fun e ->
           match e.Expr.node with
-          | Expr.Call _ | Expr.Call_value _ | Expr.Box _ | Expr.Escape _ | Expr.Take _ | Expr.Copy _ -> true
-          | Expr.Runtime { fn; _ } -> (
-              match fn with Cgt.Runtime.List_at | Array_at | Out_of_range -> false | _ -> true)
+          | Expr.Call _ | Expr.Foreign_call _ -> true
+          | Expr.Runtime { fn = Cgt.Runtime.List_at | Array_at | Out_of_range; _ } -> false
+          | Expr.Runtime _ -> true
           | _ -> false)
-        ~stat:(function
-          | Stat.Spawn _ | Stat.Join _ -> true
-          (* A local assigned is never part of a hoisted address ([bound]). *)
-          | Stat.Assign { place; value } -> place.Expr.deref && not (scalar value.Expr.ty)
-          | Stat.Store { value; _ } | Stat.Place { value; _ } | Stat.Overwrite { value; _ } -> not (scalar value.Expr.ty)
-          | Stat.Hold { value; _ } -> not (scalar value.Expr.ty)
-          | Stat.Reserve { ty; _ } -> not (scalar ty)
-          | _ -> false)
+        ~stat:(fun _ -> false)
     in
     if changes then ([], names)
     else begin
+      let rec root (e : Expr.t) =
+        match e.Expr.node with
+        | Expr.Address x | Expr.Local x -> Some x
+        | Expr.Offset { base; _ } -> root base
+        | Expr.Runtime { fn = Cgt.Runtime.List_at; args = list :: _ } -> root list
+        | _ -> None
+      in
       let lists = ref [] in
       Cgt.Traverse.walk_stats
         (fun e ->
           match e.Expr.node with
           | Expr.Runtime { fn = Cgt.Runtime.List_at; args = l :: _ } -> (
-              match address l with Some a when not (List.mem a !lists) -> lists := a :: !lists | _ -> ())
+              match address l with
+              | Some a when not (List.mem a !lists || match root a with Some x -> Hashtbl.mem changed x | None -> true) ->
+                  lists := a :: !lists
+              | _ -> ())
           | _ -> ())
         ignore body;
-      (List.rev !lists, names)
+      (* A list before the elements of it that are read, and an element
+         before the members and elements of it; emitted before the loop
+         without a check (an index out of range gives an empty element). *)
+      let lists = List.rev !lists in
+      let plain = List.filter (fun a -> depth a = 0) lists in
+      let elements =
+        List.filter (fun a -> depth a > 0 && members_only a && (acts || not (element a))) lists
+        |> List.stable_sort (fun a b -> compare (depth a) (depth b))
+      in
+      (plain @ elements, names)
     end
 
 (* What a loop's [body] binds, which an index is read through: each
@@ -350,7 +549,8 @@ let may_grow s =
     ~expr:(fun e ->
       match e.Expr.node with
       | Expr.Call { fn; _ } -> not (Hashtbl.mem Cgt.List_pure.functions fn)
-      | Expr.Call_value _ | Expr.Foreign_call _ -> true
+      | Expr.Call_value _ -> true
+      | Expr.Foreign_call _ -> not !Cgt.List_pure.c_stays
       | Expr.Runtime { fn; _ } -> (
           match fn with
           | Cgt.Runtime.List_push | List_room | List_reserve | List_remove _ | List_swap_remove _ | Overwrite | Copy

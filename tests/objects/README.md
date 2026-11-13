@@ -154,6 +154,13 @@ the same output.
 arm and beside a call; holding the other case, it runs to the plain
 build's answer, since no prefetch reads a list's handle through a variant's
 payload.
+`pending` is LangArena's R5 shapes: a loop reading `this.adj[v]` that
+pushes onto a list of its own only inside an `if`, as Graph::BFS's queue
+does, which reads that list's items and count once before it in an
+optimized build; a command dispatch whose one case pushes, called from a
+loop over the commands; and a loop that pushes and could read an element
+of `this.adj` at an index out of range, which it never reads, so the
+program must not stop. Each build prints the same total.
 
 `options_test.py` checks what `zanec` accepts for the options that name and
 stamp packages. A package name in `--package NAME=DIR` or an `--import` key

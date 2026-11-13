@@ -133,11 +133,12 @@ let func pushes (f : Func.t) =
   { f with Func.body = stats f.Func.body }
 
 (* Whether [e] or [s] changes a list's count itself, or calls a function
-   through a value. *)
+   through a value or into C that may call back into Zane, through a lambda
+   it was given (Cgt.List_pure.c_stays). *)
 let grows_expr (e : Expr.t) =
   match e.Expr.node with
-  (* C may call back into Zane, through a lambda it was given. *)
-  | Expr.Call_value _ | Expr.Foreign_call _ -> true
+  | Expr.Call_value _ -> true
+  | Expr.Foreign_call _ -> not !Cgt.List_pure.c_stays
   | Expr.Runtime { fn; _ } -> (
       match fn with
       | Cgt.Runtime.List_push | List_room | List_reserve | List_remove _ | List_swap_remove _ | Overwrite | Copy
@@ -148,39 +149,53 @@ let grows_expr (e : Expr.t) =
 
 let grows_stat = function Stat.Spawn _ | Stat.Join _ | Stat.Overwrite _ -> true | _ -> false
 
-(* The functions that cannot change a list's count (Cgt.List_pure): every
-   function with a body is taken to be one, then each that changes a count
-   itself or calls one that is not is dropped, until none changes. An
-   imported function's body is another object's, so it is never one. *)
-let pure (p : Program.t) =
-  let table = Cgt.List_pure.functions in
+(* The functions with a body for which [bad] finds nothing, calling only
+   functions [table] keeps: every one is taken to be such a function, then
+   each that is not is dropped, until none changes. An imported function's
+   body is another object's, so it is never one. *)
+let settle table (p : Program.t) bad =
   Hashtbl.reset table;
   List.iter
     (fun (f : Func.t) -> if f.Func.linkage <> Linkage.Imported then Hashtbl.replace table f.Func.symbol ())
     p.Program.funcs;
-  let impure (f : Func.t) =
-    Cgt.Traverse.exists_in f.Func.body
-      ~expr:(fun e ->
-        grows_expr e || match e.Expr.node with Expr.Call { fn; _ } -> not (Hashtbl.mem table fn) | _ -> false)
-      ~stat:grows_stat
-  in
-  let rec settle () =
-    let dropped =
-      List.filter (fun (f : Func.t) -> Hashtbl.mem table f.Func.symbol && impure f) p.Program.funcs
-    in
+  let rec go () =
+    let dropped = List.filter (fun (f : Func.t) -> Hashtbl.mem table f.Func.symbol && bad f) p.Program.funcs in
     if dropped <> [] then begin
       List.iter (fun (f : Func.t) -> Hashtbl.remove table f.Func.symbol) dropped;
-      settle ()
+      go ()
     end
   in
-  settle ()
+  go ()
 
+(* Cgt.List_pure's facts about [p]: whether C stays out of Zane, which
+   functions cannot change a list's count, and which cannot change a
+   list's handle. *)
+let pure (p : Program.t) =
+  Cgt.List_pure.c_stays :=
+    p.Program.entry <> None
+    && p.Program.callbacks = []
+    && List.for_all (fun (f : Func.t) -> f.Func.linkage <> Linkage.Imported) p.Program.funcs;
+  let functions = Cgt.List_pure.functions and handles = Cgt.List_pure.handles in
+  settle functions p (fun f ->
+      Cgt.Traverse.exists_in f.Func.body
+        ~expr:(fun e ->
+          grows_expr e || match e.Expr.node with Expr.Call { fn; _ } -> not (Hashtbl.mem functions fn) | _ -> false)
+        ~stat:grows_stat);
+  settle handles p (fun f -> Cgt.List_pure.changes f.Func.body)
+
+(* [p] with its loops' calls of push verbs written out, unless switched
+   off; Cgt.List_pure's facts about it either way, which codegen's other
+   loop facts read too (Loop_shapes.invariant_lists). *)
 let program (p : Program.t) =
-  if not (on ()) then p
-  else
-    let () = pure p in
-    let pushes = Hashtbl.create 8 in
-    List.iter
-      (fun (f : Func.t) -> Option.iter (Hashtbl.replace pushes f.Func.symbol) (push_function f))
-      p.Program.funcs;
-    { p with Program.funcs = List.map (func pushes) p.Program.funcs }
+  pure p;
+  Hashtbl.reset Cgt.List_pure.pushers;
+  let pushes = Hashtbl.create 8 in
+  List.iter
+    (fun (f : Func.t) ->
+      Option.iter
+        (fun push ->
+          Hashtbl.replace pushes f.Func.symbol push;
+          if f.Func.linkage <> Linkage.Imported then Hashtbl.replace Cgt.List_pure.pushers f.Func.symbol ())
+        (push_function f))
+    p.Program.funcs;
+  if not (on ()) then p else { p with Program.funcs = List.map (func pushes) p.Program.funcs }
