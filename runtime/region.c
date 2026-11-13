@@ -19,7 +19,8 @@
    touched. So scope entry checks nothing, and neither a system that counts
    every writable mapping against a fixed budget (Linux's strict
    overcommit) nor one that wants pages committed before use (Windows)
-   charges the program for what it reserved.
+   charges the program for what it reserved. Under Valgrind the whole range
+   is usable from the start instead (zane_reserve says why).
 
    After the range comes a guard of `ZANE_GUARD` unmapped addresses. A
    frame no larger than the guard always starts below the range's end, so
@@ -351,9 +352,54 @@ void zane_window_give(char *base, size_t bytes) {
 }
 #endif
 
+_Noreturn static void zane_commit_failed(void);
+
+/* Whether the program runs under Valgrind, asked with Valgrind's client
+   request RUNNING_ON_VALGRIND (valgrind.h, request 0x1001): a sequence of
+   rotations that leaves its register as it was, then a no-op that Valgrind
+   recognizes and answers in place of the default, 0. Run natively, it is
+   those no-ops and answers 0. Only the processors Valgrind runs Zane's
+   targets on ask; elsewhere the answer is 0. */
+static int zane_under_valgrind(void) {
+	volatile unsigned long request[6] = { 0x1001, 0, 0, 0, 0, 0 };
+	unsigned long answer = 0;
+#if defined(__linux__) && defined(__x86_64__)
+	__asm__ volatile("rolq $3, %%rdi; rolq $13, %%rdi\n\t"
+	                 "rolq $61, %%rdi; rolq $51, %%rdi\n\t"
+	                 "xchgq %%rbx, %%rbx"
+	                 : "=d"(answer)
+	                 : "a"(&request[0]), "0"(answer)
+	                 : "cc", "memory");
+#elif defined(__linux__) && defined(__aarch64__)
+	__asm__ volatile("mov x3, %1\n\t"
+	                 "mov x4, %2\n\t"
+	                 "ror x12, x12, #3; ror x12, x12, #13\n\t"
+	                 "ror x12, x12, #51; ror x12, x12, #61\n\t"
+	                 "orr x10, x10, x10\n\t"
+	                 "mov %0, x3"
+	                 : "=r"(answer)
+	                 : "r"(answer), "r"(&request[0])
+	                 : "cc", "memory", "x3", "x4");
+#else
+	(void)request;
+#endif
+	return answer != 0;
+}
+
 /* `size` bytes of the range, and its guard, so each MiB of it is the
    context's alone in the chunk map. With the window, the first context
-   reserves that too. */
+   reserves that too.
+
+   Under Valgrind the whole range is usable from the start, and no access
+   to it faults. A fault the handler makes good runs its access again with
+   the registers the handler was given, and Valgrind gives a handler only
+   the registers its translated code last wrote back: an address computed
+   just before the access may be an older value, and the access runs again
+   at that address instead. So the program would write where it never
+   meant to (LangArena's Maze tests crashed, and its Graph::BFS summed
+   wrong). The guard still faults, to stop the program, which never runs
+   an access again. The pages still take memory only where touched; only
+   a system with strict overcommit charges the run for the whole range. */
 void zane_reserve(zane_context *c, int64_t size) {
 	size_t total = (size_t)size + ZANE_GUARD;
 #if defined(ZANE_FRAME_REFS)
@@ -367,6 +413,10 @@ void zane_reserve(zane_context *c, int64_t size) {
 #endif
 	if (!base) zane_broken("out of addresses for a context's frames");
 	c->base = c->frontier = c->committed = base;
+	if (zane_under_valgrind()) {
+		if (!zane_commit_range(base, (size_t)size)) zane_commit_failed();
+		c->committed = base + size;
+	}
 	c->limit = base + size;
 	c->size = size;
 	c->top = NULL;

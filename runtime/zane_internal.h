@@ -52,7 +52,8 @@
    manifest. Scopes nest last-in-first-out, so a scope's frame starts where
    the scope around it ended, and draining it returns everything after that
    point at once. The range is reserved with no access and becomes usable a
-   step at a time, when the program first touches it, and a guard of
+   step at a time, when the program first touches it (all at once under
+   Valgrind, region.c, zane_reserve), and a guard of
    unmapped addresses follows it, so a frame running past its end faults
    instead of being checked (region.c). Its dynamic region is where the
    blocks its values own are, with a bump frontier and a stack of returned

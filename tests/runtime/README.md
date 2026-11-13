@@ -34,6 +34,17 @@ commit-failure diagnostic, rather than passing its fault on as a raw
 segmentation fault or access violation. This check needs no particular
 memory budget or overcommit setting.
 
+`faults.c` stores into a step of the main context's range that is not
+usable yet, so the store faults and the runtime's handler makes it usable;
+the store must land where it was meant to and nowhere else.
+`valgrind_test.py` runs it under `valgrind --tool=none` as well, skipped
+where Valgrind is not installed. Valgrind hands a fault handler only the
+registers its translated code last wrote back, so on x86-64 the store is
+written in assembly in the shape that loses its address there; the runtime
+makes the whole range usable up front under Valgrind, so the store never
+faults (runtime/region.c, `zane_reserve`). Before it did, LangArena's Maze
+tests crashed under Valgrind and its Graph::BFS summed wrong.
+
 `scalar_lists.c` covers issue [#191](https://github.com/zane-lang/compiler/issues/191):
 a list whose elements own no blocks, and a box whose payload owns none,
 have walks for their own block alone. List backing blocks and scalar box

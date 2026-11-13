@@ -1441,7 +1441,9 @@ in again each time.
 
 Each context's frame range is reserved without access and committed a MiB
 at a time on first touch, so the program is charged only for the frames it
-uses.
+uses. Under Valgrind, which hands a fault handler stale registers, the
+whole range is committed when it is reserved, so no access faults and runs
+again (`zane_reserve`).
 
 ### Buffered output
 
