@@ -134,3 +134,34 @@ let invariant_lists () =
     (lists [ read payload; push queue ] = if on then [ xs ] else []);
   Cgt.List_pure.c_stays := false;
   Hashtbl.reset Cgt.List_pure.handles
+
+(* A loop is a search that IRCE is kept out of (Emit.searches) when it can
+   leave early, holds no loop, and reads an element at an index that moves
+   by a constant each time round (Loop_shapes.stepped): a quicksort's
+   partition scan, not a heap's sift, whose index halves or jumps. *)
+let searches () =
+  let module C = Cgt.Nodes in
+  let e node ty = { C.Expr.node; ty } in
+  let int n = e (C.Expr.Int n) C.Ty.I64 in
+  let local x = e (C.Expr.Local x) C.Ty.I64 in
+  let read index =
+    C.Stat.Let
+      { id = 40; value = e (C.Expr.Deref (e (C.Expr.Runtime { fn = Cgt.Runtime.List_at; args = [ local 1; index; int 8L ] }) C.Ty.Ptr)) C.Ty.I64 }
+  in
+  let set x value = C.Stat.Assign { place = { C.Expr.local = x; deref = false; ty = C.Ty.I64; path = [] }; value } in
+  let add a b = e (C.Expr.Binary { op = C.Expr.Add; left = a; right = b }) C.Ty.I64 in
+  let up = set 5 (add (local 5) (int 1L)) and down = set 5 (add (local 5) (e (C.Expr.Flip (int 1L)) C.Ty.I64)) in
+  let leave = C.Stat.If { cond = e (C.Expr.Bool true) C.Ty.I1; body = [ C.Stat.Return (local 5) ] } in
+  let stepped = Codegen__Loop_shapes.stepped and searches = Codegen__Emit.searches in
+  check "an index a scan steps up by one moves by a constant" (stepped [ read (local 5); up ]);
+  check "and one it steps down" (stepped [ read (local 5); down ]);
+  check "and an index a constant past it" (stepped [ read (add (local 5) (int 1L)); up ]);
+  check "not one the loop halves"
+    (not (stepped [ read (local 5); set 5 (e (C.Expr.Binary { op = C.Expr.Div; left = local 5; right = int 2L }) C.Ty.I64) ]));
+  check "nor one it sets to another local" (not (stepped [ read (local 5); set 5 (local 6) ]));
+  check "nor one it assigns twice" (not (stepped [ read (local 5); up; up ]));
+  check "a scan that returns is a search" (searches [ read (local 5); leave; up ]);
+  check "not one that never leaves" (not (searches [ read (local 5); up ]));
+  check "nor one that holds a loop"
+    (not (searches [ read (local 5); leave; C.Stat.Repeat { count = int 4L; body = [] }; up ]));
+  check "nor one whose index halves" (not (searches [ read (local 5); leave; set 5 (local 6) ]))

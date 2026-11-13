@@ -477,6 +477,56 @@ let ranged_accesses body lists names =
 let ranged body lists names =
   if Sys.getenv_opt "ZANE_LOOP_RANGES" <> Some "1" || lists = [] then [] else ranged_accesses body lists names
 
+(* Whether a loop's [body] reads or writes an element at an index that
+   moves by a constant each time round: the loop's counter, or a local the
+   body assigns once, to itself plus a constant, with a constant added or
+   not. That is the index IRCE can take a check out of a loop for; one that
+   halves or jumps, as a heap's sift moves, it cannot (Emit.searches). *)
+let stepped body =
+  let f = facts body in
+  let counter = Option.map fst (counter f body) in
+  let steps y =
+    Some y = counter
+    ||
+    match Hashtbl.find_all f.assigns y with
+    | [ ({ Expr.path = []; deref = false; _ }, value) ] when not (Hashtbl.mem f.defined y) -> (
+        match affine f (Some (y, 0)) value with
+        | Some
+            ( 0,
+              {
+                Expr.node =
+                  Expr.Binary
+                    {
+                      op = Expr.Add;
+                      left = { Expr.node = Expr.Local x; _ };
+                      right = { Expr.node = Expr.Int _ | Expr.Flip { Expr.node = Expr.Int _; _ }; _ };
+                    };
+                _;
+              } )
+          when x = y ->
+            true
+        | _ -> false)
+    | _ -> false
+  in
+  let rec index (e : Expr.t) =
+    match e.Expr.node with
+    | Expr.Local y -> (
+        match (Hashtbl.find_all f.assigns y, Hashtbl.find_opt f.lets y) with
+        | [], Some v -> index v
+        | [ _ ], None when Hashtbl.mem f.results y -> index (Hashtbl.find f.results y)
+        | _ -> steps y)
+    | Expr.Expand { result = Some r; _ } -> index { e with Expr.node = Expr.Local r }
+    | Expr.Binary { op = Expr.Add; left; right = { Expr.node = Expr.Int _ | Expr.Flip { Expr.node = Expr.Int _; _ }; _ } } ->
+        index left
+    | _ -> false
+  in
+  Cgt.Traverse.exists_in body
+    ~expr:(fun e ->
+      match e.Expr.node with
+      | Expr.Runtime { fn = Cgt.Runtime.List_at | Cgt.Runtime.Array_at; args = _ :: i :: _ } -> index i
+      | _ -> false)
+    ~stat:(fun _ -> false)
+
 (* Whether statements can end other than after their last, an expansion's
    own [Leave] inside them not counting (Cgt.Traverse.leaves). *)
 let leaving = Cgt.Traverse.leaves

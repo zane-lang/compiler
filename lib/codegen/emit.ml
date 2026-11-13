@@ -301,21 +301,25 @@ let indexes (e : Expr.t) =
 
 (* Whether a loop with [body] is a search, which an optimized build weights
    as going round [short_trips] times so IRCE leaves it whole: it can leave
-   early, holds no loop, and reads or writes an element. Its count is a
+   early, holds no loop, and reads or writes an element at an index that
+   moves by a constant each time round (Loop_shapes.stepped), the only
+   index IRCE can take a check out of a loop for. Its count is a
    ceiling, as `core`'s `to` with a `return` or `guard` in it has (spec
    control-flow.md §3.5), and it usually stops long before. Unweighted,
    IRCE split it on LLVM's guess, and the split's setup, about 25
    instructions on each entry, cost LangArena's quicksort, whose partition
    scans stop after an element or two, 25% more instructions. A loop
    around another is left unweighted, since it may go round many times
-   between the inner loop's exits, and so is one of arithmetic alone, which
-   IRCE has nothing to split in: weighted, `tests/perf` `floats`' escape
-   test took 10.5% more estimated cycles. Unlike a versioned loop's short
+   between the inner loop's exits, and so is one IRCE could not split
+   anyway, whose weights would only change how LLVM lays it out: weighted,
+   `tests/perf` `floats`' escape test, arithmetic alone, took 10.5% more
+   estimated cycles, and LangArena's Graph::AStar, whose heap sift moves
+   its index by halving it, 4.3% more instructions. Unlike a versioned loop's short
    copy, a search still reads ahead (Lookahead). *)
 let searches body =
   leaves_early body
   && (not (Cgt.Traverse.exists_in body ~expr:(fun _ -> false) ~stat:(function Stat.Repeat _ -> true | _ -> false)))
-  && Cgt.Traverse.exists_in body ~expr:indexes ~stat:(fun _ -> false)
+  && Loop_shapes.stepped body
 
 (* Whether a loop with [body] in the function [symbol] is emitted twice
    (Stat.Repeat): it holds no loop, no spawned call and no call back into
