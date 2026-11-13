@@ -23,7 +23,9 @@ def measure(label, kernels):
     cpu = str(allowed[-1])
     # The helper kernels pin a second thread: give it another allowed CPU,
     # chosen here, before taskset narrows the main thread's set.
-    env = dict(os.environ, HELPER_CPU=str(allowed[-2] if len(allowed) > 1 else allowed[-1]))
+    if len(allowed) < 2:
+        sys.exit("run.py needs two CPUs: the helper variants run a second thread on its own CPU")
+    env = dict(os.environ, HELPER_CPU=str(allowed[-2]))
     out = os.path.join(HERE, "results", label + ".tsv")
     with open(out, "a") as f:
         for k in kernels:
