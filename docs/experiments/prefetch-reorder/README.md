@@ -402,6 +402,44 @@ the same plain and optimized IR as on `main`, and the same tiered
 executable and tier 1 to the byte, so none of the Callgrind numbers CI
 holds moves.
 
+## Round 8: where interleaving starts to pay (the size gate)
+
+The sweep the design asks for before the pass lands
+([`design/interleaving.md`](../../design/interleaving.md) I5): `chains` and
+`tree` in the model, plain (`base`) against interleaved (`amac`, the best
+of W = 4 to 128), at every power of two from 64 KiB to 256 MiB, 4 KiB
+pages. `run.py --sweep LABEL chains tree`, each point the best of 3 runs
+of 2^21 operations, pinned to the last CPU. The whole sweep was run twice
+(`results/sweep-gate-a.tsv`, `results/sweep-gate-b.tsv`) on a 4-core Xeon
+at 2.3 GHz with 2 MiB of L2 per core (a different host from rounds 5 to 7,
+which ran at 2.1 GHz). Speed of `amac` over `base`, run A / run B:
+
+| bytes | `chains` | `tree` |
+|---|---|---|
+| 64 KiB | ×0.68 / ×0.69 | ×1.23 / ×1.21 |
+| 128 KiB | ×0.89 / ×0.87 | ×1.38 / ×1.45 |
+| 256 KiB | ×0.94 / ×0.97 | ×1.53 / ×1.50 |
+| 512 KiB | ×1.99 / ×1.85 | ×1.75 / ×1.67 |
+| 1 MiB | ×1.59 / ×1.74 | ×1.98 / ×1.70 |
+| 2 MiB | ×4.64 / ×3.22 | ×2.20 / ×2.61 |
+| 4 MiB | ×3.22 / ×3.97 | ×2.53 / ×4.73 |
+| 8 MiB | ×9.77 / ×7.16 | ×4.80 / ×6.74 |
+| 16 MiB | ×5.30 / ×5.47 | ×8.96 / ×8.89 |
+| 32 MiB | ×5.92 / ×3.38 | ×5.35 / ×7.86 |
+| 64 MiB | ×6.62 / ×4.81 | ×8.55 / ×11.14 |
+| 128 MiB | ×7.66 / ×3.95 | ×11.17 / ×7.50 |
+| 256 MiB | ×5.39 / ×6.97 | ×9.72 / ×9.79 |
+
+Both runs put the crossing for the short chains (1 to 15 links) between
+256 KiB and 512 KiB, below the L2's 2 MiB, not at it as I5 expected: the
+chains' nodes are 16 bytes in random places, so a 512 KiB list already
+misses the L1 and the L2's nearby lines on most links. `tree`, whose walk
+is up to 64 steps and branches on every key it reads, gains at every size,
+from ×1.2 at 64 KiB. So the gate is 512 KiB of walked lists for a walk
+whose count is not a constant of 32 or more, and no size gate for one
+whose count is; both runs agree on each, and the run-to-run spread above
+2 MiB (×3.2 to ×9.8) is the host's, not the crossing's.
+
 ## Where this points
 
 Worth building, in the order the measurements rank them:

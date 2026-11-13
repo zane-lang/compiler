@@ -320,14 +320,13 @@ emitted beside the interleaved one as a versioned loop's copies are:
 - it runs plain when the bytes of the lists its walks read, count times
   stride summed over them, are below a threshold, and interleaved above.
 
-The threshold is not known yet: the model measured 256 KiB and 32 MiB and
-nothing between. Before the pass lands, the sweep the model ran for
-`heavyx` (64 KiB to 256 MiB in powers of two) is run for `chains` and
-`tree`, and the threshold is set where the plain and interleaved times
-cross, with the L2 size (2 MiB per core here) as the expected answer. Long
-walks may need no gate at all; a walk is long when its count is above 16
-and it branches on what it reads, as `tree`'s does, and whether that
-earns it its own rule is for the sweep to say.
+The sweep (prefetch-reorder round 8, run twice, 64 KiB to 256 MiB) sets
+the threshold at 512 KiB: `chains` runs ×0.94 to ×0.97 interleaved at
+256 KiB and ×1.85 to ×1.99 at 512 KiB, below the 2 MiB L2 rather than at
+it, since 16-byte nodes in random places miss the near caches well before
+the L2 fills. `tree` gains at every size swept, ×1.2 at 64 KiB, so a walk
+whose count is a constant of 32 or more takes no size gate: a long walk
+that branches on what it reads overlaps its mispredictions too.
 
 W is 32 by default: the model's best is 32 to 128 with little between
 them, and 32 states of 64 bytes are 2 KiB of frame.
