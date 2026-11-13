@@ -119,14 +119,41 @@ optimized build that test is a `select`, with no branch on the tag around
 the payload's load. `escapes` is a program with two counted loops that
 return early: every build marks its arithmetic escape test to be unrolled
 twice, and the optimized build unrolls it, while `first`'s loop, which
-calls, is not marked. `taking` is a library whose `Text` constructor copies
-the string it is given once into the value it makes, and `takes` a program
-over it, built against `taking`'s object: the fresh string it passes goes to
-a local copy of `Text` that takes it with no copy, the string it reads again
-is copied, the instance of its generic `Held` constructor, which the program
-shares, takes a fresh string the same way, `named` returns its local by moving
-it out, and the library's
-object still defines `Text` as compiled and exports no copy.
+calls, is not marked. `walks` is a program whose loop calls `find`, a search
+through a table it is given that returns from inside its own loop, which
+the loop writes out while `main`'s call outside any loop calls it, and
+`depth`, which calls itself, `spin`, given only a number, and `weighed`,
+whose constructor's left-out default makes it too big, which stay calls;
+each build prints the same. `taking` is a library whose `Text` constructor
+copies the string it is given once into the value it makes, and `takes` a
+program over it, built against `taking`'s object: the fresh string it
+passes goes to a local copy of `Text` that takes it with no copy, the string
+it reads again is copied, the instance of its generic `Held` constructor,
+which the program shares, takes a fresh string the same way, `named` returns
+its local by moving it out, and the library's object still defines `Text` as
+compiled and exports no copy. `lookahead` is a program whose `scan` reads
+records at indices loaded from another list and branches on each: its optimized
+build prefetches 32 iterations ahead and its plain one does not, nor does
+an optimized build with `ZANE_PREFETCH=0`; the early reads reach the index
+list's 40 entries past the records' end, and its own end, without stopping
+the program, while the loop's own read of a bad index still stops it.
+`gathers` is the same loop with no branch, which no build prefetches.
+`interleaves` looks keys up in a binary search tree, one search an
+iteration, in loops an optimized build interleaves
+(`lib/codegen/interleave.ml`): a sum, retired in any order, and a push, a
+float sum, a store to `out[i]`, a walk's result written over a local and a
+sum guarded by its own running value, retired in iteration order, and a
+walk whose prefetched index is a local of one step, while a
+search keyed by a running total, a write before the walk and a walk of the
+list the loop pushes onto are left alone (`ZANE_INTERLEAVE_REPORT=1` says
+which). Each build prints the same at counts below, at and above the 64
+that interleaving needs, the float sum's bits included, and a chain with a
+link out of range stops the program with the plain loop's message after
+the same output.
+`payloads` reads a list held in one case of a variant, only in that case's
+arm and beside a call; holding the other case, it runs to the plain
+build's answer, since no prefetch reads a list's handle through a variant's
+payload.
 
 `options_test.py` checks what `zanec` accepts for the options that name and
 stamp packages. A package name in `--package NAME=DIR` or an `--import` key

@@ -439,6 +439,124 @@ class FactsTests(unittest.TestCase):
                                     env={**os.environ, "ZANE_TIER_UP": f"{exe}.tier1", "ZANE_TIER_WAIT": "1"})
             self.assertEqual((result.returncode, result.stdout), (0, "42! 42 42 n42 h42\n"), result.stderr)
 
+    def test_loops_that_read_through_an_index_prefetch_ahead(self):
+        # An optimized build prefetches the record `lookahead`'s loop will
+        # read 32 iterations on (lib/codegen/lookahead.ml); a plain build,
+        # ZANE_PREFETCH=0, and `gathers`' loop, whose body does not branch,
+        # fetch nothing.
+        fetch = "call void @llvm.prefetch"
+        self.assertIn(fetch, run(ZANEC, "--ll", "--optimize", *packages("lookahead")))
+        self.assertNotIn(fetch, run(ZANEC, "--ll", *packages("lookahead")))
+        self.assertNotIn(fetch, run(ZANEC, "--ll", "--optimize", *packages("gathers")))
+        off = subprocess.run([ZANEC, "--ll", "--optimize", *packages("lookahead")], capture_output=True,
+                             text=True, timeout=60, env={**os.environ, "ZANE_PREFETCH": "0"})
+        self.assertEqual(off.returncode, 0, off.stderr)
+        self.assertNotIn(fetch, off.stdout)
+
+    def test_prefetches_read_early_without_stopping(self):
+        # The early reads of `idx` reach the 40 entries past the records'
+        # end, and its own end, and stop nothing; the loop's own read of one
+        # still stops the program, as the plain build's does.
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "lookahead"
+                run(ZANEC, "--build", exe, *optimize, *packages("lookahead"))
+                self.assertEqual(run_program(exe, 64, 64), "41280\n", optimize)
+                self.assertEqual(run_program(exe, 64, 10), "7530\n", optimize)
+                result = subprocess.run([str(exe), "64", "65"], capture_output=True, text=True, timeout=60)
+                self.assertEqual((result.returncode, result.stdout, result.stderr),
+                                 (1, "", "index out of range\n"), optimize)
+
+    def test_prefetch_addresses_stay_small(self):
+        # An index made through 30 `let`s that each double the one before
+        # is small as resolved and 2^30 nodes as emitted; the prefetch is
+        # given up, and the build takes no longer than any other.
+        source = (FACTS / "lookahead" / "main.zn").read_text().replace("package lookahead;", "package doubled;")
+        lets = "".join(f"\t\tj{k} Int = @math$bitAnd(@operators$add(j{k - 1}, j{k - 1}), Int(63));\n" for k in range(1, 31))
+        source = source.replace("\t\tj Int = idx[i];\n", "\t\tj0 Int = idx[i];\n" + lets + "\t\tj Int = @operators$add(j30, Int(1));\n", 1)
+        self.assertIn("j30", source)
+        with tempfile.TemporaryDirectory() as temp:
+            (Path(temp) / "main.zn").write_text(source)
+            ir = run(ZANEC, "--ll", "--optimize", "--package", f"doubled={temp}")
+        self.assertNotIn("call void @llvm.prefetch", ir)
+
+    def test_prefetches_read_no_list_in_a_variant_case(self):
+        # `payloads` reads a list held in one case of a variant only in that
+        # case's arm; holding the other case, the list's handle is that
+        # case's bytes, which a prefetch at the top of the loop would read.
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "payloads"
+                run(ZANEC, "--build", exe, *optimize, *packages("payloads"))
+                self.assertEqual(run_program(exe, 1), "17800\n", optimize)
+                self.assertEqual(run_program(exe, 9), "10200\n", optimize)
+
+    def test_loops_over_independent_walks_interleave(self):
+        # Each loop of `interleaves` that looks a key up in a tree, one search
+        # an iteration, is interleaved in an optimized build when nothing
+        # ties its iterations together, retired in any order for a sum and in
+        # iteration order for a push, a float sum, a store to `out[i]` and a
+        # walk's result written over a local
+        # (lib/codegen/interleave.ml); the loops whose iterations depend on
+        # each other are left alone. ZANE_INTERLEAVE=0 interleaves nothing.
+        def report(env):
+            result = subprocess.run([ZANEC, "--ll", "--optimize", *packages("interleaves")], capture_output=True,
+                                    text=True, timeout=60, env={**os.environ, "ZANE_INTERLEAVE": "1", "ZANE_INTERLEAVE_REPORT": "1", **env})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            found = {}
+            for line in result.stderr.splitlines():
+                m = re.match(r"(interleaved|left alone) ([^(\s]+)", line)
+                if m:
+                    found[m[2]] = m[1] + (" in order" if line.endswith("retired in order") else "")
+            return found
+        self.assertEqual(report({}), {
+            "interleaves$count": "interleaved",
+            "interleaves$pushed": "interleaved in order",
+            "interleaves$weighed": "interleaved in order",
+            "interleaves$stored": "interleaved in order",
+            "interleaves$chains": "interleaved",
+            "interleaves$chained": "left alone",
+            "interleaves$early": "left alone",
+            "interleaves$grows": "left alone",
+            "interleaves$latest": "interleaved in order",
+            "interleaves$skips": "interleaved",
+            "interleaves$capped": "interleaved in order",
+        })
+        self.assertEqual(report({"ZANE_INTERLEAVE": "0"}), {})
+
+    def test_interleaved_loops_compute_what_plain_ones_do(self):
+        # Below 64 iterations a loop runs plain, at and above interleaved
+        # (with enough data for the loops that retire in order);
+        # each build prints the same, the float sum's bits included. A chain
+        # with a link out of range stops the program with the plain loop's
+        # message and status, after the same output.
+        with tempfile.TemporaryDirectory() as temp:
+            outputs = {}
+            failed = {}
+            for name, optimize, env in [("plain", [], {}), ("optimized", ["--optimize"], {"ZANE_INTERLEAVE": "1"}),
+                                        ("off", ["--optimize"], {"ZANE_INTERLEAVE": "0"})]:
+                exe = Path(temp) / name
+                built = subprocess.run([ZANEC, "--build", exe, *optimize, *packages("interleaves")], capture_output=True,
+                                       text=True, timeout=120, env={**os.environ, **env})
+                self.assertEqual(built.returncode, 0, built.stderr)
+                # 33,000 nodes are past the 512 KiB the loops that retire in
+                # order need before they interleave.
+                outputs[name] = [run_program(exe, 300, m, 0) for m in (10, 63, 64, 200, 1000)]
+                outputs[name] += [run_program(exe, 33000, m, 0) for m in (63, 64, 3000)]
+                # No nodes: every walk has no trips; one or two: a trip or two.
+                outputs[name] += [run_program(exe, n, 1000, 0) for n in (0, 1, 2)]
+                for m in (30, 200):
+                    result = subprocess.run([str(exe), "300", str(m), "1"], capture_output=True, text=True, timeout=60)
+                    self.assertEqual((result.returncode, len(result.stdout.splitlines()), result.stderr),
+                                     (1, 6, "index out of range\n"), (name, m))
+                    failed[name, m] = result.stdout
+            for m in (30, 200):
+                self.assertEqual(failed["optimized", m], failed["plain", m])
+                self.assertEqual(failed["off", m], failed["plain", m])
+            self.assertEqual(outputs["optimized"], outputs["plain"])
+            self.assertEqual(outputs["off"], outputs["plain"])
+            self.assertEqual(outputs["plain"][3], "8321\n848507\n33.2463888889926\n848507\n2\n0\n20922\n8321\n200\n678\n8321\n")
+
     def test_programs_run(self):
         with tempfile.TemporaryDirectory() as temp:
             pool = Path(temp) / "pool.o"
@@ -455,6 +573,29 @@ class FactsTests(unittest.TestCase):
                     run(ZANEC, "--build", exe, *optimize, *link,
                         *packages(program, *deps, stamped=["pool"]))
                     self.assertEqual(run_program(exe, "4"), expected, (program, optimize))
+
+    def test_a_loop_writes_out_a_small_search_it_calls(self):
+        # `find` reads a table it is given and returns from inside its own
+        # loop: the loop in `main` writes it out (lib/cgt/verbs.ml, walks),
+        # so `main` calls it once, outside the loop, and its function stays
+        # for that call. `depth` calls itself, `spin` is given only a number,
+        # which memoization may give a table, and `weighed` leaves out a
+        # field whose default is long, which counts towards its size, so all
+        # three stay calls.
+        cgt = run(ZANEC, "--cgt", *packages("walks"))
+        funcs = {chunk.split("\n", 1)[0].strip(): chunk for chunk in cgt.split("symbol: ")[1:]}
+        main = funcs["walks$main()"]
+        self.assertIn("walks$find(%primitives$ListRef<%primitives$I64>, %primitives$I64)", funcs)
+        self.assertEqual(main.count("fn: walks$find("), 1)
+        self.assertEqual(main.count("fn: walks$depth("), 1)
+        self.assertEqual(main.count("fn: walks$spin("), 1)
+        self.assertEqual(main.count("fn: walks$weighed("), 1)
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "walks"
+                run(ZANEC, "--build", exe, *optimize, *packages("walks"))
+                self.assertEqual(run_program(exe, 16), "44 4 3435 120 936\n", optimize)
+                self.assertEqual(run_program(exe, 64), "560 4 55251 2016 4308\n", optimize)
 
 
 if __name__ == "__main__":

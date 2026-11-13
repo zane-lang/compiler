@@ -57,7 +57,19 @@ reports it: `/proc/self/pagemap` on Linux, `mincore` on macOS, and
 `VirtualQuery` on Windows. On Linux, the one system that caps a process's
 addresses (`RLIMIT_AS`), a child process capped below what a reservation needs checks that
 the list still grows, by moving, and returns every block; AddressSanitizer
-builds skip that child, as they skip `scalar_lists.c`'s budget.
+builds skip that child, as they skip `scalar_lists.c`'s budget. A list's
+block past 1 MiB that is ended while its scope is open, as an overwrite
+ends the list it replaces, is where the next list there grows past 1 MiB:
+of a 2 MiB and a 4 MiB block returned, a list growing to 2 MiB takes the
+2 MiB one, and a block whose reservation holds fewer addresses than a new
+one would is passed over. A scope that drains three such lists leaves its context
+keeping all three, the next three grow into them, and of three lists of
+32 MiB the context keeps only the one it was given back last, under
+`ZANE_WARM_SPAN_BYTES`. Of three unbounded pools drained, the context
+keeps `ZANE_WARM_POOLS`, counted outside that budget, and a list growing
+past 1 MiB leaves a kept pool's reservation to the next pool. A second capped child holds a drained list's
+reservation and only 2 MiB more addresses, and still makes a 5 MiB copy,
+since the kept reservation goes back to the system first.
 
 `numbers.c` holds `zane_parse_i64` and `zane_parse_f64` to the cases
 `tests/unit/` holds the compile-time evaluator's reads to, so a number reads

@@ -31,8 +31,9 @@ void zane_list_new(zane_list *out) { *out = ZL_MAKE(NULL, 0, 0); }
    it, in its chunk or in the scope's frame stretched to hold it, to at
    most a chunk's size (arena.c), or else into new bytes there. Past that it is oversized:
    it grows in place while its reservation holds the doubled size, and
-   otherwise moves into an oversized block of its own with a reservation
-   that does. Nothing references an element, which is roaming (memory.md
+   otherwise moves into an oversized block with a reservation that does: one
+   its region was given back, then one its context kept from a drained
+   region, else a new one (zane_alloc_growable). Nothing references an element, which is roaming (memory.md
    §2.8.1), and the blocks the elements own stay where they are, so a move
    copies their bytes and nothing else. An oversized block moved out of
    gives its memory back as the move goes (zane_list_move_out), so the

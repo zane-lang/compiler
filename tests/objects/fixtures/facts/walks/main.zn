@@ -1,0 +1,115 @@
+/// Functions called in a loop's body (docs/design/lowering.md L11): `find`,
+/// a search through a table it is given that returns from inside its own
+/// loop, is written out where the loop calls it and called where `main`
+/// calls it outside any loop; `depth`, which calls itself, `spin`, given
+/// only a number, and `weighed`, whose constructor's left-out default makes
+/// it too big, are called everywhere. Its argument, a power of
+/// two, is the table's size. Spawns nothing.
+package walks;
+
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The `n`th argument, or `fallback` when there is none or it spells no
+/// integer.
+Int argument(n Int, fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), n), {
+		return fallback;
+	});
+	return args[n]:parseI64() ?? fallback;
+}
+
+/// The slot holding `key`, probing on from its home, or 0 at an empty one.
+Int find(table ListRef<Int>, key Int) {
+	mask Int = @operators$add(table:size(), @operators$negate(Int(1)));
+	h Int = @operators$add(@math$bitAnd(key, mask), Int(1));
+	d Int(1);
+	d!to(table:size()) {
+		@controlflow$branch(@operators$equal(table[h], key), {
+			return h;
+		});
+		@controlflow$branch(@operators$equal(table[h], Int(0)), {
+			return Int(0);
+		});
+		h = @operators$add(@math$bitAnd(h, mask), Int(1));
+	}
+	return Int(0);
+}
+
+/// How many links lead from `at` to 0.
+Int depth(links ListRef<Int>, at Int) {
+	@controlflow$branch(@operators$equal(at, Int(0)), {
+		return Int(0);
+	});
+	return @operators$add(depth(links, links[at]), Int(1));
+}
+
+type Tagged = struct {
+	slot Int;
+	weight Int;
+}
+
+/// A slot and its weight, 60 unless given, by a default long enough that a
+/// function which leaves it out is too big to write out.
+Tagged{
+	slot Int;
+	weight Int = @operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(@operators$add(Int(0), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1)), Int(1));
+} => init{ slot; weight; }
+
+/// What slot `k` holds, with its default weight.
+Int weighed(table ListRef<Int>, k Int) {
+	t Tagged{slot = table[k];}
+	return @operators$add(t.slot, t.weight);
+}
+
+/// `k` through three steps of `3x + 1`.
+Int spin(k Int) {
+	x Int = k;
+	i Int(1);
+	i!to(Int(3)) {
+		x = @operators$add(@operators$multiply(x, Int(3)), Int(1));
+	}
+	return x;
+}
+
+Unit main() {
+	n Int = argument(Int(1), Int(16));
+	table ListRef<Int> = @primitives$ListRef(Int);
+	links ListRef<Int> = @primitives$ListRef(Int);
+	i Int(1);
+	i!to(n) {
+		@controlflow$branch(@operators$lessThan(i, @operators$add(@operators$divide(n, Int(2)), Int(2))), {
+			table!push(@operators$add(i, @operators$negate(Int(1))));
+		});
+		@controlflow$branch(@operators$not(@operators$lessThan(i, @operators$add(@operators$divide(n, Int(2)), Int(2)))), {
+			table!push(Int(0));
+		});
+		links!push(@operators$add(i, @operators$negate(Int(1))));
+	}
+	found Int(0);
+	spun Int(0);
+	deep Int(0);
+	heavy Int(0);
+	k Int(1);
+	k!to(@operators$add(n, @operators$negate(Int(1)))) {
+		found = @operators$add(found, find(table, k));
+		spun = @operators$add(spun, spin(k));
+		deep = @operators$add(deep, depth(links, k));
+		heavy = @operators$add(heavy, weighed(table, k));
+	}
+	@program$console!print(@operators$concat(@operators$concat(@operators$concat(String(found), String(" ")), @operators$concat(String(find(table, Int(3))), String(" "))), @operators$concat(@operators$concat(String(spun), String(" ")), @operators$concat(@operators$concat(String(deep), String(" ")), @operators$concat(String(heavy), String.escaped("\n"))))));
+	return Unit();
+}

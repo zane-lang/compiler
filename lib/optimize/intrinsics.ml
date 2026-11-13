@@ -34,7 +34,7 @@ let classify : Cgt.Runtime.fn -> t = function
      the walks it emits for each type. The evaluator gives each node its
      meaning directly. *)
   | List_reserve | List_room | Scope_enter | Scope_drain | Hold | Too_deep | Promote | Arrive | Copy
-  | Overwrite | Box | Spawn | Join | Snapshot | Out_of_range | Island
+  | Overwrite | Box | Spawn | Join | Snapshot | Out_of_range | Prefetch | Island
   | Region_at | Alloc | Alloc_held | Box_held | Box_in | Free | Leaves | Defer | Defer_return
   | Overwrite_handles | Overwrite_settled | Handle_end | Handle_set ->
       Computed

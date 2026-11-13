@@ -1811,6 +1811,34 @@ let looped_pushes () =
   check "not when the loop may return"
     (Codegen__Loop_shapes.looped_pushes [ expand [ push ]; C.Stat.Return (e C.Expr.Unit C.Ty.Void) ] = [])
 
+(* A function cannot change a list's count when nothing it runs can
+   (Loop_pushes.pure). An imported function's body is another object's, so
+   its empty body says nothing, and it is never taken to be one; nor is a
+   function that calls it. *)
+let list_pure () =
+  let module C = Cgt.Nodes in
+  let e node ty = { C.Expr.node; ty } in
+  let func symbol linkage body =
+    { C.Func.symbol; linkage; params = []; places = []; ret = C.Ty.Void; body; values = [] }
+  in
+  let call fn = C.Stat.Eval (e (C.Expr.Call { fn; args = [] }) C.Ty.Void) in
+  let program funcs =
+    { C.Program.funcs; entry = None; layouts = []; globals = []; foreign = []; callbacks = []; exclusive = true }
+  in
+  Optimize__Loop_pushes.pure
+    (program
+       [
+         func "app$quiet" C.Linkage.Local [];
+         func "dep$grow" C.Linkage.Imported [];
+         func "app$caller" C.Linkage.Local [ call "dep$grow" ];
+         func "app$calm" C.Linkage.Local [ call "app$quiet" ];
+       ]);
+  let pure fn = Hashtbl.mem Cgt.List_pure.functions fn in
+  check "a function that changes no list is list-pure" (pure "app$quiet" && pure "app$calm");
+  check "an imported function is not list-pure" (not (pure "dep$grow"));
+  check "nor is one that calls it" (not (pure "app$caller"));
+  Hashtbl.reset Cgt.List_pure.functions
+
 (* Statements leave when one returns or leaves an expansion they are not
    inside (Cgt.Traverse.leaves). *)
 let traverse_leaves () =
@@ -1901,6 +1929,7 @@ let () =
   disposed_modules ();
   repeated_builds ();
   looped_pushes ();
+  list_pure ();
   traverse_leaves ();
   light_references ();
   if !failures > 0 then begin

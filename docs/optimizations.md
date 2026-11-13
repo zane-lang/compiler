@@ -79,6 +79,29 @@ itself, and a call that hands a fresh owner of blocks to a value parameter
 calls the function, or its local copy, which takes the value rather than
 copying it.
 
+### Walks written out where a loop calls them
+
+- **Builds:** every build
+- **Where:** `lib/cgt/verbs.ml` (`walk_size`, `walks`), `lib/cgt/lower.ml`
+  (`code`), `lib/cgt/lower_calls.ml` (`writes_out`, `expand`)
+- **Design:** [`design/lowering.md`](design/lowering.md) L11
+- **Effect:** estimated cycles of the perf programs it changes, plain,
+  optimized and tiered: `division` −10.0%, 0.0% and −0.4%, `paths` 0.0%,
+  −0.6% and 0.0%, `stress` −0.2%, −0.4% and −0.3%; the rest are built the
+  same. A hash probe written as a plain function and called in a loop ran
+  as fast as its call (×0.96 to ×1.00, best of 5 paired runs each, 256 KiB
+  to 2 GiB tables, 4-core Xeon at 2.1 GHz): the gain is in what codegen's
+  loop analyses can then do with the walk. The compiler runs 3.2% more
+  instructions building `stress` plain and 0.1% fewer optimized
+
+A function a loop's body calls is written out there when it is given a
+list or reference to read through, writes none of it (no `mut` method),
+takes no owner, calls itself nowhere, declares no abort and is at most 120
+nodes. A search written as a function becomes a loop inside the caller's,
+so codegen's loop analyses see its reads, and a `return` from inside its
+loop leaves only the copy. Nothing inside a walk is written out as one
+again, and the function stays for every call outside a loop.
+
 ### Conversions lent rather than copied
 
 - **Builds:** every build
@@ -715,6 +738,33 @@ call, about 12 bytes, costs fewer estimated cycles than either way of
 keeping the loop ([`design/lowering.md`](design/lowering.md) §9, "The
 passes", has the measurements).
 
+### Reads through a loaded index prefetched ahead
+
+- **Builds:** optimized, and both tiers of a tiered build, which emit one
+  module; `ZANE_PREFETCH=0` turns it off
+- **Where:** `lib/codegen/lookahead.ml`, `lib/codegen/emit.ml`
+  (`prefetch`), `lib/codegen/loop_shapes.ml` (`facts`, `counter`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes";
+  [`experiments/prefetch-reorder`](experiments/prefetch-reorder/README.md),
+  round 5
+- **Effect:** wall clock, 4 KiB pages, paired runs on one cloud Xeon, best
+  of 5: the model's `heavy` ×2.12 at 32 MiB and ×1.96 at 2 GiB, `hash`
+  written as a plain function ×1.89 and ×2.68, neither slower at 256 KiB
+  ([`prefetch-reorder`](experiments/prefetch-reorder/README.md), rounds 5
+  and 7); `gather`, `tree` and `chains` unchanged in round 5; no
+  `tests/perf` program's build changes
+
+A counted loop whose body branches, switches or loops, and reads a list at
+an index worked out from another list's element, as `recs[idx[i]]` or a hash
+probe's home slot is, prefetches at the top of each time round the element it
+will read 32 iterations on. The address of that read is made of constants,
+the counter, locals the loop leaves alone, integer arithmetic that cannot
+fail, and element reads, each made early only when its index is inside its
+list, so nothing it reads early can stop the program; the body's own reads
+and their checks stay where they are. A loop that walks a chain is left
+alone, as is a light body such as `s += a[idx[i]]`, which the model found
+nothing to gain on with 4 KiB pages.
+
 ### Short loops that leave early unrolled twice
 
 - **Builds:** every build marks the loops; optimized builds and tier 1
@@ -1033,6 +1083,35 @@ when the source is less than 64 bytes past the destination; each piece is
 below that size, so it takes the vector loop. The pieces keep the scalar
 alias tag, so a loop of removals still keeps the count in a register.
 
+### Independent walks interleaved
+
+- **Builds:** optimized, and both tiers of a tiered build;
+  `ZANE_INTERLEAVE=0` turns it off, `ZANE_INTERLEAVE_REPORT=1` names the
+  loops it took and left
+- **Where:** `lib/codegen/interleave.ml`, `lib/codegen/emit.ml`
+  (`Runtime.Prefetch`, `func`)
+- **Design:** [`design/interleaving.md`](design/interleaving.md), I9;
+  [`experiments/prefetch-reorder`](experiments/prefetch-reorder/README.md),
+  rounds 8 and 9
+- **Effect:** wall clock, 4 KiB pages, paired runs on one cloud Xeon, best
+  of 5: `tree` ×1.11 at 256 KiB, ×5.10 at 32 MiB and ×4.53 at 2 GiB;
+  `chains` ×3.27 and ×4.68, plain at 256 KiB; `found`, whose pushes retire
+  in order, ×3.43 and ×5.35, plain at 256 KiB; no `tests/perf` program's
+  build changes
+
+A counted loop whose every iteration walks a chain, as a tree lookup or a
+linked list does, in a search written out where the loop calls it, runs 32
+iterations' walks at once: each takes one step, prefetches the node its
+next step reads, and gives way to the next, so the 32 chains' misses
+overlap. The walk half of each iteration writes only its own locals and
+runs out of order; what follows the walk runs in iteration order, or as
+each walk ends when it only adds integers into accumulators. A loop runs
+interleaved when it has at least 64 iterations and its walks read 512 KiB
+of lists or more, or, for one that retires in any order, when its walk is
+a constant 32 trips or more. A loop whose iterations depend on each other
+through what the walks read, that writes outside the iteration before its
+walk, calls anything, or can leave or return is left as it is.
+
 ### Emitted walks per type, shared between alike types
 
 - **Builds:** every build
@@ -1229,10 +1308,33 @@ holds both copies of its elements for long.
   faults instead of 313 k; allocfree's faults 8 k instead of 78 k
 
 A drained list's oversized span keeps its reservation and pages: a context
-keeps up to `ZANE_WARM_SPANS` (2), each until it has sat unused through
-`ZANE_COOLING` of its later drains, and gives them back when its call is
-over. The next list to grow past 1 MiB takes one that holds what it would
-reserve, so a list built again each round grows into resident pages.
+keeps up to `ZANE_WARM_SPANS` (16) holding at most `ZANE_WARM_SPAN_BYTES`
+(64 MiB), the one kept longest going back first, each until it has sat
+unused through `ZANE_COOLING` of its later drains, and gives them back when
+its call is over or a reservation fails. The next list to grow past 1 MiB
+takes one that holds what it would reserve, so a list built again each
+round grows into resident pages. The cap was 2 spans until LangArena's
+Maze::BFS (three lists per search) and BWT encode (up to seven per round)
+showed every further one faulted in again each call: with the budget,
+Maze::BFS takes 13,388 minor faults instead of 53,146, Maze::AStar 18,005
+instead of 184,610, and Compress::BWTDecode 9,934 instead of 84,187 (C:
+29,477, 512,098 and 18,835).
+
+### A replaced list's span reused
+
+- **Builds:** every build
+- **Where:** `runtime/arena.c` (`zane_returned_span`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Each scope's
+  dynamic region"
+- **Effect:** LangArena's `repros/field-replace 3000000 40` peaks at 26 MB
+  instead of 919 MB, with 6,214 minor faults instead of 234,762
+
+A list's span that an end or an overwrite returns goes onto its size's
+stack with its pages resident. A block past 1 MiB first takes such a span
+when its reservation holds the addresses a new one would get: one of its
+own size, else the smallest on top of its region's stacks above 1 MiB. Growth never read the
+stacks before, so a list a field assignment replaced each round stayed
+resident, unused, until its region drained.
 
 ### Arrivals in the innermost region return at once
 

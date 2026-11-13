@@ -253,6 +253,47 @@ parameter that owns blocks calls the function: written out, the value would
 be held in a slot of the caller's and copied wherever the body keeps it,
 where the function takes it as it is (`Regions.taken_params`).
 
+A **walk**, a function a loop's body calls, is written out there too: a
+search through a table or a tree written as a function, as
+`find(nodes, root, keys[i])`, becomes a loop inside the caller's loop,
+whose reads codegen's loop analyses see as the caller's own. The rules of an expression verb hold, and a `return`
+in it leaves only the copy, as for any verb written out: from inside the
+walk's own loop it ends that loop and the copy, and the caller's loop goes
+on, as a `break` would (Zane has none,
+[`control-flow.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/control-flow.md)
+§3.5). A function is a walk when:
+
+- the call is in a loop's body: a `repeat`'s block, a block a `repeat`
+  runs wherever it was written, and what those call while written out
+  (`State.loop`). A call outside every loop calls the function, which every
+  walk keeps, as an expression verb does;
+- it reads what it is given and writes none of it: no `mut` method is a
+  walk, since one that writes through the caller's place is an update, not
+  a search, and written out it measured slower (`flips`' `advance`, +1.3%
+  estimated cycles optimized);
+- it is given something to read memory through, a parameter that holds an
+  address (a list, a reference, a box) or an owner it borrows, and takes no
+  owner (`^T`). A function given only numbers computes rather than walks,
+  and is what memoization may give a table
+  ([`memoization.md`](memoization.md) M1), which a copy would not consult;
+  one that takes an owner it may drop keeps the arena Regions gives its
+  function (§9);
+- it calls itself nowhere, through any chain of the declared verbs it
+  calls: a tree's recursive `find` is not a walk, and a loop over its
+  levels is;
+- it declares no abort, is no foreign verb, and nothing it writes out spawns
+  or holds a lambda;
+- its body is at most 120 nodes, each statement counted with the verbs it
+  writes out, as an expression verb's size counts them.
+
+Nothing inside a walk is written out as a walk again, its own loops'
+bodies included, so a loop writes out one level of the functions it calls,
+each at most 120 nodes: a loop that calls k walks grows by at most 120k
+nodes, and compiling it by that much more. The searches this is for are
+52 nodes (a walk along a chain of links) to 84 (an open-addressed hash
+table's probe), a binary tree's search 70; 120 holds them with room for a
+few more tests, and keeps a body several times their size a call.
+
 **Lent conversions.** A verb whose body returns a member of one of its
 value parameters, such as `core`'s `implicit @primitives$String(v String)
 => v._value`, copies that member: a return through a borrow binds into
@@ -922,7 +963,14 @@ test passing.
   moves into a fresh one. The span it leaves gives its pages back to the
   system a chunk at a time as the elements are copied out, all but its
   first page, which holds its mapping's header, and goes to no stack; its
-  addresses stay with the region until it drains. A box's payload past
+  addresses stay with the region until it drains. A span that is returned
+  whole, by an end or an overwrite of its list, goes onto its size's stack
+  with its pages, and a block past 1 MiB, grown into or copied, first takes
+  such a span whose reservation holds the addresses a new one would get:
+  one of its own size, else the smallest on top of the region's stacks
+  above 1 MiB, so a small block leaves a larger one for a larger request. So a list a field
+  assignment replaced is where the next list grows, rather than resident
+  memory nothing asks for until the region drains. A box's payload past
   1 MiB is never such a span, which may lie anywhere: it takes whole
   chunks of its own, which lie within the image's reach as every chunk
   does, so a 32-bit box reaches it ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §3.6). Returned, its
@@ -1034,11 +1082,25 @@ test passing.
       list keep every limit O(1).
     - **Lists' reservations.** A drained list's oversized span keeps its
       reservation and its pages: a context keeps up to `ZANE_WARM_SPANS`
-      (2) of them, each until it has sat unused through `ZANE_COOLING` of
-      its later drains, and gives them all back when its call is over. The
-      next list to grow past 1 MiB takes one whose reservation holds what
-      it would reserve, so a list built again each round grows into pages
-      already resident rather than faulting fresh ones in.
+      (16) of them holding at most `ZANE_WARM_SPAN_BYTES` (64 MiB) of
+      usable bytes, the most glibc's `malloc` keeps of what a program frees
+      before trimming its heap (twice its largest mmap threshold). Past
+      either, the one kept longest goes back first, and a span larger than
+      the budget goes back itself. An unbounded pool's reservation
+      (experimental) lists one chunk however much of it was touched, so it
+      counts nothing against the budget, and a context keeps at most
+      `ZANE_WARM_POOLS` (2) of them, for its next pool alone: a list
+      taking one would leave the pool's touched pages past its own end
+      uncounted. Each stays until it has sat unused
+      through `ZANE_COOLING` of its later drains, and all go back when its
+      call is over, or when the system will not reserve addresses for a new
+      chunk or span, which the kept reservations may be what used up. A
+      block past 1 MiB that no stack of its region holds takes one whose
+      reservation holds what it would reserve, so a call that builds
+      several big lists each time round grows them into pages already
+      resident rather than faulting fresh ones in. Two kept reservations
+      were too few: a search that drains three (LangArena's Maze::BFS)
+      faulted one in every call.
     - **Windows.** A 1 MiB-aligned reservation costs an extra MiB of
       addresses there, and `VirtualFree(MEM_RELEASE)` frees only a whole
       reservation, so chunks are carved from slabs of 64 MiB, or one of
@@ -1615,6 +1677,41 @@ test passing.
   loop that calls is left as it is, since its call costs far more than the
   test unrolling saves: unrolled, the loop the memo pass checks made
   `depths` 2.5% slower.
+
+  A `repeat` whose body branches, switches or loops, and that reads a
+  list at an index worked out from another list's element, prefetches at
+  the top of each time round the element it will read
+  `Lookahead.distance` (32) iterations on, in an optimized build
+  (`lib/codegen/lookahead.ml`, `Emit.prefetch`; `ZANE_PREFETCH=0` turns it
+  off), as in both tiers of a tiered build, which emit one module. The processor cannot see such a read coming, and the loop's own
+  work keeps it from having many of them in flight, so each time round
+  waits on a miss
+  ([`prefetch-reorder`](../experiments/prefetch-reorder/README.md)). The
+  address qualifies when it is made, through the body's `let`s and
+  expression verbs' results, of constants, the loop's counter (moved on by
+  its step times the distance), locals the body neither binds nor assigns,
+  integer arithmetic and bit operations that cannot fail, and element reads
+  of lists whose handle is reached from slots bound before the loop
+  through struct members only: a list in a variant's payload is there
+  only while that case is held, which the top of the loop does not know,
+  and another case's bytes may read as a list with a count and no block. A
+  local the body `let`s and assigns again only in a loop inside it, and
+  not from an element, is taken at its `let`'s value, which is the address
+  a probe's first time round reads; one assigned from an element walks a
+  chain, whose head is the least of its misses, and is left alone. The
+  element reads in the address run early, each only when its index is
+  inside its list as the list's handle stands at the top of the loop, read
+  then afresh unless the loop hoisted it; any that is not skips the
+  prefetch, so no early read reaches past an end or stops the program.
+  Nothing in the body is moved: its reads, their checks and where a check
+  stops the program stay as they were. A prefetch never faults, so its
+  own address needs no check, though one outside its list is skipped too.
+  The top of the loop reads a list's handle the body itself does not hand
+  it, so a body that spawns, joins or moves a value out of a place, which
+  could leave a slot holding a handle whose block is gone, fetches
+  nothing. A body that does not branch, such as `s += a[idx[i]]`, gains
+  nothing with 4 KiB pages in the model and is left alone too, as is the
+  short copy of a versioned loop.
 
   The same options start every function on a 64-byte line
   (`-align-all-functions=6`), where LLVM would start it on 16 bytes. Which

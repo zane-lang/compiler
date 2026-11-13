@@ -149,12 +149,15 @@ let grows_expr (e : Expr.t) =
 let grows_stat = function Stat.Spawn _ | Stat.Join _ | Stat.Overwrite _ -> true | _ -> false
 
 (* The functions that cannot change a list's count (Cgt.List_pure): every
-   function is taken to be one, then each that changes a count itself or
-   calls one that is not is dropped, until none changes. *)
+   function with a body is taken to be one, then each that changes a count
+   itself or calls one that is not is dropped, until none changes. An
+   imported function's body is another object's, so it is never one. *)
 let pure (p : Program.t) =
   let table = Cgt.List_pure.functions in
   Hashtbl.reset table;
-  List.iter (fun (f : Func.t) -> Hashtbl.replace table f.Func.symbol ()) p.Program.funcs;
+  List.iter
+    (fun (f : Func.t) -> if f.Func.linkage <> Linkage.Imported then Hashtbl.replace table f.Func.symbol ())
+    p.Program.funcs;
   let impure (f : Func.t) =
     Cgt.Traverse.exists_in f.Func.body
       ~expr:(fun e ->
