@@ -89,7 +89,7 @@ copying it.
   optimized and tiered: `division` −10.0%, 0.0% and −0.4%, `paths` 0.0%,
   −0.6% and 0.0%, `stress` −0.2%, −0.4% and −0.3%; the rest are built the
   same. A hash probe written as a plain function and called in a loop ran
-  within noise of its call (×0.96 to ×1.20 best of 5 paired runs, 256 KiB
+  as fast as its call (×0.96 to ×1.00, best of 5 paired runs each, 256 KiB
   to 2 GiB tables, 4-core Xeon at 2.1 GHz): the gain is in what codegen's
   loop analyses can then do with the walk
 
