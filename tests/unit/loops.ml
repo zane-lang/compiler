@@ -168,6 +168,14 @@ let searches () =
   check "nor the counter, which walks the range its count names"
     (not (stepped [ read (local 7); leave ]));
   check "but an index it steps beside the counter" (stepped [ read (local 5); leave; up ]);
+  (* a1 = a0 + a0, a2 = a1 + a1, ..., i = i + a30: a recogniser that
+     substitutes both sides of every sum expands 2^30 nodes. *)
+  let doublings =
+    C.Stat.Let { id = 100; value = local 6 }
+    :: List.init 30 (fun k -> C.Stat.Let { id = 101 + k; value = add (local (100 + k)) (local (100 + k)) })
+  in
+  check "a step through a chain of sums is turned down at once"
+    (not (stepped ((read (local 5) :: doublings) @ [ set 5 (add (local 5) (local 130)) ])));
   check "a scan that returns is a search" (searches [ read (local 5); leave; up ]);
   check "not one that never leaves" (not (searches [ read (local 5); up ]));
   check "nor one that holds a loop"

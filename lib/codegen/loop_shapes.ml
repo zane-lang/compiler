@@ -489,14 +489,33 @@ let ranged body lists names =
 let scans body =
   let f = facts body in
   let counter = Option.map fst (counter f body) in
+  (* [e] followed through the locals it names: one bound once by a [let],
+     or an expansion's result, stands for its value. Each step follows one
+     local, never both sides of a sum, so this takes time in proportion to
+     the chain; and it stops after [16] steps. *)
+  let rec atom depth (e : Expr.t) =
+    if depth = 16 then e
+    else
+      match e.Expr.node with
+      | Expr.Local y -> (
+          match (Hashtbl.find_all f.assigns y, Hashtbl.find_opt f.lets y) with
+          | [], Some v -> atom (depth + 1) v
+          | [ _ ], None when Hashtbl.mem f.results y -> atom (depth + 1) (Hashtbl.find f.results y)
+          | _ -> e)
+      | Expr.Expand { result = Some r; _ } -> atom (depth + 1) { e with Expr.node = Expr.Local r }
+      | _ -> e
+  in
   let constant (e : Expr.t) =
-    match e.Expr.node with Expr.Int _ | Expr.Flip { Expr.node = Expr.Int _; _ } -> true | _ -> false
+    match (atom 0 e).Expr.node with
+    | Expr.Int _ -> true
+    | Expr.Flip v -> ( match (atom 0 v).Expr.node with Expr.Int _ -> true | _ -> false)
+    | _ -> false
   in
   (* [e] with a constant added on either side, as the other side. *)
   let past (e : Expr.t) =
-    match e.Expr.node with
-    | Expr.Binary { op = Expr.Add; left; right } when constant right -> Some left
-    | Expr.Binary { op = Expr.Add; left; right } when constant left -> Some right
+    match (atom 0 e).Expr.node with
+    | Expr.Binary { op = Expr.Add; left; right } when constant right -> Some (atom 0 left)
+    | Expr.Binary { op = Expr.Add; left; right } when constant left -> Some (atom 0 right)
     | _ -> None
   in
   let steps y =
@@ -504,21 +523,15 @@ let scans body =
     &&
     match Hashtbl.find_all f.assigns y with
     | [ ({ Expr.path = []; deref = false; _ }, value) ] when not (Hashtbl.mem f.defined y) -> (
-        match affine f (Some (y, 0)) value with
-        | Some (0, sum) -> (
-            match past sum with Some { Expr.node = Expr.Local x; _ } -> x = y | _ -> false)
-        | _ -> false)
+        match past value with Some { Expr.node = Expr.Local x; _ } -> x = y | _ -> false)
     | _ -> false
   in
-  let rec index (e : Expr.t) =
+  (* The index, a constant added to it or not, is a local [steps] holds. *)
+  let index (e : Expr.t) =
+    let e = atom 0 e in
     match e.Expr.node with
-    | Expr.Local y -> (
-        match (Hashtbl.find_all f.assigns y, Hashtbl.find_opt f.lets y) with
-        | [], Some v -> index v
-        | [ _ ], None when Hashtbl.mem f.results y -> index (Hashtbl.find f.results y)
-        | _ -> steps y)
-    | Expr.Expand { result = Some r; _ } -> index { e with Expr.node = Expr.Local r }
-    | _ -> ( match past e with Some e -> index e | None -> false)
+    | Expr.Local y -> steps y
+    | _ -> ( match past e with Some { Expr.node = Expr.Local y; _ } -> steps y | _ -> false)
   in
   Cgt.Traverse.exists_in body
     ~expr:(fun e ->
