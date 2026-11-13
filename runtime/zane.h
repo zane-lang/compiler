@@ -110,6 +110,8 @@ zane_mark *zane_scope_enter(int64_t size);
 zane_mark *zane_region_at(const void *at);
 char *zane_alloc(zane_mark *region, int64_t size, int64_t align);
 char *zane_alloc_held(zane_mark *region, int64_t size, int64_t align);
+char *zane_box_held(zane_mark *region, int64_t size, int64_t align);
+char *zane_box_in(zane_mark *region, int64_t size, int64_t align);
 void zane_free(char *block, int64_t size, int64_t align);
 
 /* block.c */

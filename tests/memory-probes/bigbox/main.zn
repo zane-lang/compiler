@@ -1,0 +1,130 @@
+/// A boxed member's payload larger than 1 MiB (memory.md §3.6): a struct of
+/// 1.1 MB in a recursive variant, so each link's box takes whole chunks of
+/// its own. Values several links deep are built, copied, moved out of the
+/// scope that made them, overwritten in place and destroyed, while a list
+/// grows past 1 MiB beside them in its own span.
+package bigbox;
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Unit say(text String) {
+	@program$console!print(text);
+	return Unit();
+}
+
+/// Prints the label and `yes` when the condition holds, `no` when not.
+Unit check(label String, ok Bool) {
+	say(label);
+	@controlflow$branch(ok, { say(String.escaped(" yes\n")); });
+	@controlflow$branch(@operators$not(ok), { say(String.escaped(" NO\n")); });
+	return Unit();
+}
+
+alias Block = @concepts$Block;
+Unit inner(body Block) {
+	@controlflow$branch(true, body);
+	return Unit();
+}
+
+alias Array<T Type, n @concepts$Int> = @primitives$Array<T, n>;
+alias Row = Array<Int, 16>;
+/// 16 x 16 rows, 32 KiB.
+alias Plane = Array<Array<Row, 16>, 16>;
+
+Array<R, 16> sixteen(x R Type) => @primitives$Array([x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x]);
+
+/// 34 planes of rooms and a tag, 1.06 MiB: past 1 MiB, so `Tower.up`'s
+/// box holds more than any chunk does. Each plane is a part LLVM moves as
+/// one value; the floor, of more parts than that, is moved as memory.
+type Floor = struct {
+	tag Int;
+	r1 Plane; r2 Plane; r3 Plane; r4 Plane; r5 Plane; r6 Plane; r7 Plane; r8 Plane;
+	r9 Plane; r10 Plane; r11 Plane; r12 Plane; r13 Plane; r14 Plane; r15 Plane; r16 Plane;
+	r17 Plane; r18 Plane; r19 Plane; r20 Plane; r21 Plane; r22 Plane; r23 Plane; r24 Plane;
+	r25 Plane; r26 Plane; r27 Plane; r28 Plane; r29 Plane; r30 Plane; r31 Plane; r32 Plane;
+	r33 Plane; r34 Plane;
+	next Tower;
+}
+type Tower = variant { top Int; up Floor; }
+
+/// A floor whose every room plane is `plane`.
+Floor(tag Int, plane Plane, next Tower) => init{
+	tag;
+	r1 = plane; r2 = plane; r3 = plane; r4 = plane; r5 = plane; r6 = plane; r7 = plane; r8 = plane;
+	r9 = plane; r10 = plane; r11 = plane; r12 = plane; r13 = plane; r14 = plane; r15 = plane; r16 = plane;
+	r17 = plane; r18 = plane; r19 = plane; r20 = plane; r21 = plane; r22 = plane; r23 = plane; r24 = plane;
+	r25 = plane; r26 = plane; r27 = plane; r28 = plane; r29 = plane; r30 = plane; r31 = plane; r32 = plane;
+	r33 = plane; r34 = plane;
+	next;
+}
+
+/// `n` floors over the top, each tagged with its height and its rooms
+/// copied from `seed`'s first plane. A plane read from a list is one the
+/// optimizer cannot see the contents of, so each floor's 34 copies of it
+/// stay copies of memory rather than 139,264 stores of one room each.
+Tower build(n Int, seed ListRef<Plane>) {
+	if(@operators$equal(n, Int(0))) {
+		return Tower.top(Int(0));
+	}
+	return Tower.up(Floor(n, seed[Int(1)], build(@operators$add(n, @operators$negate(Int(1))), seed)));
+}
+
+/// The floors counted, each checked at its first and last room and at
+/// the tag it was built with, one more than the floors under it.
+Int height(t Tower) => match (t) {
+	n top => Int(0);
+	f up => counted(f, height(f.next));
+}
+
+Int counted(f Floor, below Int) {
+	rooms Bool = @operators$conjoin(@operators$equal(f.r1[Int(1)][Int(1)][Int(1)], Int(7)), @operators$equal(f.r34[Int(16)][Int(16)][Int(16)], Int(7)));
+	return @operators$add(below, (@operators$conjoin(rooms, @operators$equal(f.tag, @operators$add(below, Int(1))))):count());
+}
+
+Int count(this Bool) {
+	n Int(0);
+	if(this) { n = Int(1); }
+	return n;
+}
+
+Unit main() {
+	seed ListRef<Plane> = @primitives$ListRef(Plane);
+	seed!push(sixteen(sixteen(sixteen(Int(7)))));
+	a Tower = build(Int(5), seed);
+	check(String("five floors of 1.1 MB"), @operators$equal(height(a), Int(5)));
+	b Tower = a;
+	check(String("their copy"), @operators$equal(height(b), Int(5)));
+	far Tower = Tower.top(Int(0));
+	inner({
+		local Tower = build(Int(3), seed);
+		far = local;
+	});
+	check(String("three floors moved out of an inner block"), @operators$equal(height(far), Int(3)));
+	k Int(1);
+	k!to(Int(10)) {
+		a = build(Int(4), seed);
+	}
+	check(String("overwritten in place ten times"), @operators$equal(height(a), Int(4)));
+	items ListRef<Int> = @primitives$ListRef(Int);
+	i Int(1);
+	i!to(Int(400000)) { items!push(i); }
+	b = build(Int(2), seed);
+	check(String("a big list beside them"), @operators$conjoin(@operators$equal(items[Int(400000)], Int(400000)), @operators$equal(height(b), Int(2))));
+	return Unit();
+}

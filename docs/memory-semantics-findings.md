@@ -210,6 +210,13 @@ and the optimized build alike, and still does.
 - **Oversized blocks** (`oversized`; memory.md §3.1, §3.6). A 3.2 MB list
   returned out of its scope, a 2 MiB string copied out of an inner block, a
   list of 100,000 strings, and a big list overwritten 20 times.
+- **Boxes past 1 MiB** (`bigbox`; memory.md §3.6). Added after the findings
+  were closed. A 1.06 MiB struct as a recursive variant's payload, five
+  floors deep: built, copied, moved out of an inner block, overwritten in
+  place ten times, and built again beside a list grown past 1 MiB. Each
+  payload takes whole chunks of its own, within reach of a 32-bit box;
+  in a list's span, which may lie anywhere, the box could not name it and
+  the program crashed.
 - **References to growing lists** (`listref`; memory.md §3.6, §4.2). Added
   after the findings were closed. A reference to a settled list, and one to
   a list in a field of a settled owner, read and push through 300,000

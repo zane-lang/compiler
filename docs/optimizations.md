@@ -356,7 +356,8 @@ every 1 MiB chunk from a window it reserves once, from 16 GiB to 2 GiB
 below the image, or the largest of 12, 8, 4 or 2 GiB free from 4 GiB above
 it when the program is loaded too low for that, so every box fits. A
 list's growing span and a pool lie outside the window, since their handles
-hold 8-byte pointers.
+hold 8-byte pointers. A box's payload past 1 MiB takes whole chunks of
+its own from the window too, never a list's span, so it fits as well.
 
 ### A sum of nothing or one box is one word
 
@@ -1192,7 +1193,11 @@ bytes. LLVM may merge identical literals.
 
 A load of an aggregate of 4 KiB or more used only by stores becomes a
 `memcpy` (or `memmove`, when source and destination may overlap) per store,
-rather than a value of thousands of parts.
+rather than a value of thousands of parts. A value of more than 65,535
+parts, which LLVM cannot move as one, is moved a part at a time when it is
+read only for its parts, as a match arm reads one field of a large payload,
+or built from parts and only stored, as a constructor builds its struct;
+each part is as aligned as its offset allows.
 
 ### `main` inlined into the start function
 

@@ -183,14 +183,15 @@ let visit c walk at with_ extra =
       ignore (Llvm.build_call (walk_type c.env) walk [| at; with_; extra; c.work; next |] "" c.b))
     (fun () -> ignore (runtime c Cgt.Runtime.Defer [| c.work; walk; at; with_; extra |]))
 
-(* A block of [size] bytes, aligned to a word, in the region a copy works
-   with, whose lock the copy holds: the top of its size class's stack, or
-   the next bytes at its frontier, or what the runtime finds when neither
-   has one. *)
+(* A box's payload of [size] bytes, aligned to a word, in the region a copy
+   works with, whose lock the copy holds: the top of its size class's
+   stack, or the next bytes at its frontier, or what the runtime finds when
+   neither has one, which past 1 MiB is whole chunks of its own and never a
+   list's span (runtime/arena.c, `zane_box_held`). *)
 let take ?(bump_only = false) c region size =
   let env = c.env in
   let words = max 1 ((size + 7) / 8) in
-  if words > classes then runtime c Cgt.Runtime.Alloc_held [| region; int env size; int env 8 |]
+  if words > classes then runtime c Cgt.Runtime.Box_held [| region; int env size; int env 8 |]
   else if bump_only then begin
     let at = List_handle.aligned env.ctx 8 (load c env.ptr (offset c region frontier)) in
     let ends = load c env.ptr (offset c region frontier_end) in
@@ -204,7 +205,7 @@ let take ?(bump_only = false) c region size =
     store c next (offset c region frontier);
     ignore (Llvm.build_br done_ c.b);
     Llvm.position_at_end slow c.b;
-    let found = runtime c Cgt.Runtime.Alloc_held [| region; int env size; int env 8 |] in
+    let found = runtime c Cgt.Runtime.Box_held [| region; int env size; int env 8 |] in
     let slow_end = Llvm.insertion_block c.b in
     ignore (Llvm.build_br done_ c.b);
     Llvm.position_at_end done_ c.b;
@@ -245,7 +246,7 @@ let take ?(bump_only = false) c region size =
     counted ();
     ignore (Llvm.build_br done_ c.b);
     Llvm.position_at_end slow c.b;
-    let found = runtime c Cgt.Runtime.Alloc_held [| region; int env size; int env 8 |] in
+    let found = runtime c Cgt.Runtime.Box_held [| region; int env size; int env 8 |] in
     let slow_end = Llvm.insertion_block c.b in
     ignore (Llvm.build_br done_ c.b);
     Llvm.position_at_end done_ c.b;
@@ -514,8 +515,8 @@ let move known c (p : Layout.position) =
   let env = c.env in
   let h = offset c c.at p.offset in
   let leaves block = nonzero c (runtime c Cgt.Runtime.Leaves [| block; c.with_; c.extra |]) in
-  let relocate ?(set = fun v -> store c v h) old size align copied =
-    let fresh = runtime c Cgt.Runtime.Alloc [| c.with_; size; int env align |] in
+  let relocate ?(alloc = Cgt.Runtime.Alloc) ?(set = fun v -> store c v h) old size align copied =
+    let fresh = runtime c alloc [| c.with_; size; int env align |] in
     memcpy c fresh old copied;
     ignore (runtime c Cgt.Runtime.Free [| old; size; int env align |]);
     set fresh;
@@ -554,7 +555,7 @@ let move known c (p : Layout.position) =
       let old = load_box c h in
       when_ c (nonzero c old) (fun () ->
           when_ c (leaves old) (fun () ->
-              let fresh = relocate ~set:(fun v -> store_box c v h) old (int env size) 8 (int env size) in
+              let fresh = relocate ~alloc:Cgt.Runtime.Box_in ~set:(fun v -> store_box c v h) old (int env size) 8 (int env size) in
               Option.iter (fun w -> visit c w.move fresh c.with_ c.extra) (inner known payload)))
   | Layout.Array { count; stride; elements } ->
       each_element c h ~count ~stride (walks known elements).move c.with_ c.extra

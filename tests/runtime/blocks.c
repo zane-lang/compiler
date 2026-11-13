@@ -253,6 +253,28 @@ void zane_main(void) {
 	zane_scope_drain(wide);
 	check(zane_blocks() == 0);
 
+	/* A box's payload past 1 MiB takes whole chunks of its own, listed in
+	   the chunk map as its region's, with no reservation (memory.md §3.6):
+	   only another box's payload of its size reuses them, and a string's
+	   block of that size, a span, is never one. */
+	zane_mark *boxes = zane_scope_enter(0);
+	int64_t huge = ZANE_CHUNK + ZANE_CHUNK / 2;
+	char *payload = zane_box(huge, 8);
+	zane_mapping *chunks = (zane_mapping *)(payload - ZANE_LINE);
+	int listed = 1;
+	for (size_t at = 0; at < chunks->size; at += ZANE_CHUNK)
+		listed &= zane_page_entry((char *)chunks + at) == (uintptr_t)boxes;
+	check(listed && chunks->reserved == 0 && chunks->raw == NULL && chunks->size == 2 * ZANE_CHUNK &&
+	      ((uintptr_t)chunks & (ZANE_CHUNK - 1)) == 0 && zane_region_of(payload + huge - 1) == boxes);
+	zane_free(payload, huge, 8);
+	char *span = zane_alloc(boxes, huge, 8);
+	check(span != payload && ((zane_mapping *)(span - ZANE_LINE))->reserved != 0);
+	zane_free(span, huge, 8);
+	char *again = zane_box(huge, 8);
+	check(again == payload && zane_blocks() == 1);
+	zane_scope_drain(boxes);
+	check(zane_blocks() == 0);
+
 	/* A type that owns no blocks has no walks, and is passed as none. */
 	int64_t plain = 1, replacing_plain = 2;
 	zane_arrive((char *)&plain, NULL);

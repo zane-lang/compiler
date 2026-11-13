@@ -123,7 +123,7 @@ let rec known ?(slots = true) dl ctx depth v =
         let argument n = Option.map Int64.to_int (Llvm.int64_of_const (Llvm.operand v n)) in
         match Llvm.value_name callee with
         | "zane_scope_enter" -> 16
-        | "zane_alloc" | "zane_alloc_held" -> ( match argument 2 with Some a -> max a 8 | None -> 8)
+        | "zane_alloc" | "zane_alloc_held" | "zane_box_held" | "zane_box_in" -> ( match argument 2 with Some a -> max a 8 | None -> 8)
         | "zane_list_push" -> ( match argument 1 with Some stride -> min 8 (low_bit (Int64.of_int stride)) | None -> 1)
         | _ -> 1)
     | Llvm.ValueKind.Instruction Llvm.Opcode.GetElementPtr -> gep ()

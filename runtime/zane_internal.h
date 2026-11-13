@@ -130,12 +130,14 @@ typedef struct zane_stack {
    list's oversized block lies at the start of `reserved` bytes of addresses
    that `raw` begins, so it can grow in place (list.c), and an unbounded
    pool's block (experimental, `zane_alloc_unbounded`) at the start of its
-   own; any other mapping reserves none. */
+   own; any other mapping reserves none. A box's payload past 1 MiB
+   (`zane_box_held`) is the one block of a `boxed` mapping. */
 typedef struct zane_mapping {
 	struct zane_mapping *next;
 	size_t size, reserved;
 	char *raw;
 	struct zane_slab *slab; /* with slabs, the reservation it was carved from */
+	int boxed;
 	/* While a context keeps it warm: the one given back after it, and the
 	   context's drain it was given back at (arena.c). */
 	struct zane_mapping *prev;

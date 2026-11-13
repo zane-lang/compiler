@@ -42,7 +42,9 @@ must preserve a box's address while updating its payload. It also holds
 removal to keeping the order or moving the last element in, and the list to
 keeping its block once emptied. The `blocks.c`
 fixture covers values that own more, including lists of owned strings and
-recursively boxed values.
+recursively boxed values, and a box's payload past 1 MiB: whole chunks of
+its own, listed as its scope's, with no reservation, reused by the next
+box of its size and never by a string's block of that size.
 
 `growth.c` holds a list's oversized block to growing in place
 (docs/design/lowering.md §9): pushed from empty to 32 MiB, the list keeps

@@ -35,7 +35,7 @@ let classify : Cgt.Runtime.fn -> t = function
      meaning directly. *)
   | List_reserve | List_room | Scope_enter | Scope_drain | Hold | Too_deep | Promote | Arrive | Copy
   | Overwrite | Box | Spawn | Join | Snapshot | Out_of_range | Prefetch | Island
-  | Region_at | Alloc | Alloc_held | Free | Leaves | Defer | Defer_return
+  | Region_at | Alloc | Alloc_held | Box_held | Box_in | Free | Leaves | Defer | Defer_return
   | Overwrite_handles | Overwrite_settled | Handle_end | Handle_set ->
       Computed
 

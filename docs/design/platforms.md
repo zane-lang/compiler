@@ -161,7 +161,8 @@ newer LLVM is bitcode the compiler cannot read. The runtime differs there in fiv
 places, each marked `_WIN32`: a dynamic chunk is carved from a 64 MiB
 reservation, decommitted with `VirtualFree(MEM_DECOMMIT)` when it turns
 cold, and released with its whole reservation
-([`lowering.md`](lowering.md) §9), a context's range of frames and a list's
+([`lowering.md`](lowering.md) §9), as are the chunks of a box's payload
+past 1 MiB, a context's range of frames and a list's
 growing oversized span are reserved with
 `VirtualAlloc(MEM_RESERVE)` and made usable with `MEM_COMMIT`, a span a
 list has moved out of is decommitted with `MEM_DECOMMIT`, the range
