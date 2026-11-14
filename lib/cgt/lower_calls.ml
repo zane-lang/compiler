@@ -103,6 +103,8 @@ let passed (v : verb) args =
 (* Lent conversions (docs/design/lowering.md L11). A value only looked
    at, owned by nothing that could write it: no reference, owner, `^T` or
    pooled variant, and no literal or block standing for itself. *)
+let lent_owners () = Sys.getenv_opt "ZANE_LENT_OWNERS" = Some "1"
+
 let plain_value st t =
   (not (Tty.is_ref t))
   && (not (Tty.is_roaming t))
@@ -215,7 +217,24 @@ and place_path st ctx (e : T.Expr.t) =
     match e.T.Expr.node with
     | T.Expr.Var (T.Name_ref.Local l) -> if settled ctx l then Some e else None
     | T.Expr.Var (T.Name_ref.Global _) -> Some e
+    | T.Expr.Field { target; _ } when lent_owners () && not (snapshots st e) ->
+        Option.map (fun _ -> e) (owner_path st ctx target)
     | T.Expr.Field { target; _ } -> Option.map (fun _ -> e) (place_path st ctx target)
+    | _ -> None
+
+(* EXPERIMENT (LangArena zane-vs-c; on with ZANE_LENT_OWNERS=1): a lent
+   conversion's place may also be a member of an owner (a reference-type
+   instance) a local holds, as `jsonParse(this.text)` reads `this.text`'s
+   String where it is rather than copying it. The call [lent_arguments]
+   lends it to writes nothing through its parameters and its other
+   arguments are [inert], so nothing reaches the owner while it runs; a
+   place a spawned call may write back ([snapshots]) is still copied. *)
+and owner_path st ctx (e : T.Expr.t) =
+  if Tty.is_ref e.T.Expr.ty || Tty.is_roaming e.T.Expr.ty || pooled st e.T.Expr.ty then None
+  else
+    match e.T.Expr.node with
+    | T.Expr.Var (T.Name_ref.Local l) -> if settled ctx l then Some e else None
+    | T.Expr.Field { target; _ } -> Option.map (fun _ -> e) (owner_path st ctx target)
     | _ -> None
 
 (* The arguments of a direct, unspawned call to [v], each a lent

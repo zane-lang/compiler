@@ -1098,7 +1098,9 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
                match Llvm_passbuilder.run_passes m Frame_scopes.again tm (Llvm_passbuilder.create_passbuilder_options ()) with
                | Ok () -> ()
                | Error e -> prerr_endline ("frame scopes: " ^ e)
-             end)
+             end;
+             (* EXPERIMENT: the optimized module, for reading. *)
+             Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_OPT"))
       |> Fun.flip Result.bind (fun () -> finish_tier m ~hash exports definitions)
       |> Result.map (fun () -> (triple, tm, whole, apart)))
 
