@@ -812,7 +812,7 @@ let assigned_moves (f : Func.t) =
                 let addressed_before =
                   exists_in inner ~expr:(fun e -> match e.Expr.node with Expr.Address x -> x = h | _ -> false) ~stat:(fun _ -> false)
                 in
-                let after = if addressed_before && false then inner else last h inner in
+                let after = if addressed_before then inner else last h inner in
                 (* Only a hold this pass gave its move: one a return
                    already moved is left to fold. *)
                 let moved_here = after != inner && after <> inner in
