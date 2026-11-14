@@ -110,7 +110,12 @@ let func ctx f =
   let fold c0 index c bound t passes_true =
     if Sys.getenv_opt "ZANE_MERGE_CHECKS_DEBUG" = Some "2" then
       Printf.eprintf "  pair in %s: above=%b same=%b\n" (Llvm.value_name f) (above bound c0) (c == c0);
-    if above bound c0 && c != c0 then begin
+    (* Only the branch may read [c0]: a changed bound would change what
+       any other user sees. *)
+    let only_branch =
+      match Llvm.use_begin c0 with Some u -> Llvm.use_succ u = None | None -> false
+    in
+    if above bound c0 && c != c0 && only_branch then begin
       let ty = Llvm.type_of bound in
       (* c0 compares index with its bound in one of four forms; its bound
          operand is replaced. *)

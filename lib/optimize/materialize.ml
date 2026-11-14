@@ -15,7 +15,7 @@ let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Ty.I64 }
 let rec expr ?fresh (t : Ty.t) (c : V.const) : Expr.t option =
   let made node = Some { Expr.node; ty = t } in
   match (t, c) with
-  | (Ty.I64 | Ty.I32), V.Int i -> made (Expr.Int i)
+  | (Ty.I64 | Ty.I32 | Ty.I8), V.Int i -> made (Expr.Int i)
   | (Ty.F64 | Ty.F32), V.Float f -> made (Expr.Float f)
   | Ty.I1, V.Bool b -> made (Expr.Bool b)
   | Ty.Void, V.Unit -> made Expr.Unit

@@ -1562,6 +1562,10 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
           String.concat "\000"
             ([ fingerprint; triple; cc; identity; compiler_identity (); Passes.tier1 ]
             @ (if thread_sanitizing () then [ "tsan" ] else [])
+            (* The experiments that rewrite tier 1 as it is prepared. *)
+            @ List.filter_map
+                (fun (name, on) -> if on () then Some name else None)
+                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on) ]
             @ Passes.llvm_options)
         in
         Filename.concat (Filename.concat cache "tier")

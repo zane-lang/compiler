@@ -71,7 +71,9 @@ let rec offset_from dl seen base p =
         | Llvm.ValueKind.Instruction Llvm.Opcode.GetElementPtr -> (
             match (gep_offset dl p, offset_from dl seen base (Llvm.operand p 0)) with
             | Some d, Some (Some o) -> Some (Some (Int64.add d o))
-            | _, Some None -> Some None
+            (* Only a step of zero agrees with the offset a loop back to
+               an unresolved merge is given. *)
+            | Some 0L, Some None -> Some None
             | _ -> None)
         | Llvm.ValueKind.Instruction (Llvm.Opcode.PHI | Llvm.Opcode.Select as op) -> (
             seen := (p, None) :: !seen;
@@ -211,6 +213,8 @@ let func ctx dl (f : Llvm.llvalue) =
                       visited := i :: !visited;
                       visit i (at i)
                     end
+                (* An ordered or volatile read must stay a read of the frame. *)
+                | Llvm.Opcode.Load when Llvm.is_volatile i || Llvm_extra.is_atomic i -> raise (Escapes_at i)
                 | Llvm.Opcode.Load -> loads := (i, off) :: !loads
                 | Llvm.Opcode.Store when Llvm.operand i 1 == p && Llvm.operand i 0 != p -> stores := (i, off) :: !stores
                 (* The frame's record names it in the scope chain. *)

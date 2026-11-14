@@ -632,6 +632,10 @@ let materialized () =
   check "a variant of a struct is code and back"
     (Option.bind (Materialize.expr t c) Materialize.const = Some c);
   check "a string is no function's address" (Materialize.expr C.Ty.Ptr (Value.Text "x") = None)
+  ;
+  let bytes = C.Ty.Struct [ C.Ty.I8; C.Ty.I64 ] in
+  let b = Value.Record [| Value.Int 200L; Value.Int 7L |] in
+  check "a struct holding a byte is code and back" (Option.bind (Materialize.expr bytes b) Materialize.const = Some b)
 
 (* Calls run, outputs are kept in order, a call made again is remembered
    when a loop or work that grows with a value is reachable from it, and a budget spent or a constant made where it is read stops the run. *)

@@ -732,10 +732,12 @@ let assigned_moves (f : Func.t) =
     (* [stats], after which nothing reads [h], with the last read of [h]
        in them a move when it is a copy. *)
     let rec last h stats =
-      let rec split before = function
+      (* From the end: the first statement that mentions [h] is its last. *)
+      let rec split after = function
         | [] -> None
-        | s :: rest -> if mentions h (s :: rest) && not (mentions h rest) then Some (List.rev before, s, rest) else split (s :: before) rest
+        | s :: earlier -> if mentions h [ s ] then Some (List.rev earlier, s, after) else split (s :: after) earlier
       in
+      let split before stats = split before (List.rev stats) in
       match split [] stats with
       | None -> stats
       | Some (before, s, rest) -> exclusive h before s @ (stat h s :: rest)
@@ -845,7 +847,17 @@ let assigned_moves (f : Func.t) =
                      a return there would leave with the block unmoved. *)
                   let rec reached = function
                     | [] -> false
-                    | s :: rest -> if takes_h [ s ] then true else (not (leaves [ s ])) && reached rest
+                    | s :: rest -> if takes_h [ s ] then reaches s else (not (leaves [ s ])) && reached rest
+                  (* The statement that moves it: a block's body is followed
+                     inside, and any other statement holds no way out. *)
+                  and reaches (s : Stat.t) =
+                    match s with
+                    | Stat.Scope { body; _ } | Stat.Eval { Expr.node = Expr.Expand { body; _ }; _ } -> reached body
+                    | _ ->
+                        not
+                          (exists_in [ s ] ~expr:(fun _ -> false) ~stat:(function
+                            | Stat.Return _ | Stat.Leave _ -> true
+                            | _ -> false))
                   in
                   reached after
                 in
