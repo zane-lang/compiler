@@ -1049,6 +1049,128 @@
   (diff golden/bracePostfix.out bracePostfix.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/byteMemo))
+ (targets byteMemo.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build byteMemo.exe --package fixtures/byteMemo)))
+
+(rule
+ (deps (source_tree fixtures/byteMemo))
+ (targets byteMemo.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build byteMemo.optimized.exe --optimize --package fixtures/byteMemo)))
+
+(rule
+ (deps (source_tree fixtures/byteMemo))
+ (targets byteMemo.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build byteMemo.tiered.exe --tiered --package fixtures/byteMemo)))
+
+(rule
+ (deps (source_tree fixtures/byteMemo))
+ (targets byteMemo.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up byteMemo.tier1 --package fixtures/byteMemo)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    byteMemo.checked.out.actual
+    (run ./byteMemo.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/byteMemo.out byteMemo.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    byteMemo.unchecked.out.actual
+    (run ./byteMemo.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/byteMemo.out byteMemo.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    byteMemo.optimized.checked.out.actual
+    (run ./byteMemo.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/byteMemo.out byteMemo.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    byteMemo.optimized.unchecked.out.actual
+    (run ./byteMemo.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/byteMemo.out byteMemo.optimized.unchecked.out.actual)))
+
+(rule
+ (deps byteMemo.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./byteMemo.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    byteMemo.tiered.checked.out.actual
+    (run ./byteMemo.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/byteMemo.out byteMemo.tiered.checked.out.actual)))
+
+(rule
+ (deps byteMemo.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./byteMemo.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    byteMemo.tiered.unchecked.out.actual
+    (run ./byteMemo.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/byteMemo.out byteMemo.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/constantCycle))
  (targets constantCycle.exe)
  (action
@@ -9381,6 +9503,20 @@
  (alias runtest)
  (action
   (diff golden/reject.nestedArray.err reject.nestedArray.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/textOfInts))
+ (action
+  (with-stderr-to
+   reject.textOfInts.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/textOfInts)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.textOfInts.err reject.textOfInts.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/unitFuture))

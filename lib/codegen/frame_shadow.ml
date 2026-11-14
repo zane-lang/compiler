@@ -108,10 +108,9 @@ let dominators f =
   dfs entry;
   let rpo = Array.of_list !order in
   let n = Array.length rpo in
-  let index b =
-    let rec go i = if i >= n then -1 else if rpo.(i) == b then i else go (i + 1) in
-    go 0
-  in
+  let indexes = Hashtbl.create n in
+  Array.iteri (fun i b -> Hashtbl.replace indexes b i) rpo;
+  let index b = Option.value ~default:(-1) (Hashtbl.find_opt indexes b) in
   let preds = Array.make n [] in
   Array.iteri
     (fun i b ->

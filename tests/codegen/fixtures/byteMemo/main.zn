@@ -1,0 +1,33 @@
+/// A recursion over a `U8` argument with a `U8` result gets a table
+/// (docs/design/memoization.md M1), whose key and result are one-byte
+/// scalars, each widened to a word and narrowed back (`Memos.memo`).
+package byteMemo;
+
+alias I64 = @primitives$I64;
+alias U8 = @primitives$U8;
+alias Bool = @primitives$Bool;
+alias String = @primitives$String;
+alias Unit = @primitives$Unit;
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+/// The n-th Fibonacci number, wrapped to a byte, by the doubly recursive
+/// definition the table makes linear.
+U8 fib(n U8) {
+	if(@operators$lessThan(n, U8(2))) {
+		return n;
+	}
+	k I64 = I64(n);
+	a I64 = I64(fib(U8.wrap(@operators$add(k, @operators$negate(I64(1))))));
+	b I64 = I64(fib(U8.wrap(@operators$add(k, @operators$negate(I64(2))))));
+	return U8.wrap(@operators$add(a, b));
+}
+
+Unit main() {
+	@program$console!print(String(I64(fib(U8(90)))));
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}

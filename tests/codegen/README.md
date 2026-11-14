@@ -304,6 +304,10 @@ makes of them.
   the range and its manifest field.
 - `recursion` nests calls without end, and stops with status 1 when the
   machine stack is full, rather than crashing.
+- `byteMemo` is a doubly recursive function of a `U8` with a `U8` result,
+  which gets a table (docs/design/memoization.md M1) whose key and result
+  are one-byte scalars widened to a word and narrowed back. Without the
+  table, `fib(90)` would not finish.
 
 ## Rejects
 
@@ -319,6 +323,11 @@ stops firing by mistake:
 `literalRange` is a refusal of the program itself: a literal too large for
 its primitive, which reaches the primitive through a verb's literal parameter
 and so is found only where the verb is written out.
+
+`textOfInts` is a refusal of the program itself too: `@primitives$text` on a
+`List<I64>`. The intrinsic is generic, so that `core`'s `List<U8>` passes,
+but it copies the list's storage as the string's bytes, so lowering takes
+only a list whose elements are each one byte.
 
 `hugeArray`, `nestedArray`, `beyondLimit` and `beyondLimitField` are refusals of a type too
 large to hold (docs/design/lowering.md §9): an `Array<I64, 4294967296>` and

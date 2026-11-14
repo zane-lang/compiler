@@ -237,6 +237,17 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       in
       { Expr.node = Expr.Expand { label; body; result = Some v }; ty = Nodes.Ty.I8 }
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$text"; _ }; args = [ T.Arg.Value bytes ]; handler = None } ->
+      (* The runtime copies the list's storage as the text's bytes, so its
+         elements must each be one byte: `U8`, or a struct of one. *)
+      let rec byte (t : Nodes.Ty.t) =
+        match t with
+        | Nodes.Ty.I8 -> true
+        | Nodes.Ty.Struct [ t ] | Nodes.Ty.Packed (Nodes.Ty.Struct [ t ]) -> byte t
+        | _ -> false
+      in
+      (match element (Tty.strip_mode bytes.T.Expr.ty) with
+      | Some t when byte (ty st span t) -> ()
+      | _ -> refuse span "`@primitives$text` makes a string only from a list of bytes");
       { Expr.node = Expr.Runtime { fn = Runtime.Text_bytes; args = [ w.borrow st ctx span bytes ] }; ty = Nodes.Ty.Handle }
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$size"; _ }; args; handler = None }
     -> (
