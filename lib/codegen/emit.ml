@@ -314,12 +314,35 @@ let indexes (e : Expr.t) =
    both (Brainfuck's `command`: cost 315 against a threshold of 225). *)
 let calls_stay_single () = Sys.getenv_opt "ZANE_VERSION_CALLS" = Some "0"
 
+(* EXPERIMENT: how many call sites each function has in the program being
+   emitted ([count_call_sites]). With ZANE_VERSION_CALLS=1, only a loop
+   that calls a function with one call site is emitted once: two copies
+   would cost LLVM's single-caller inline bonus there, while a callee with
+   other callers has none to lose. *)
+let call_sites : (string, int) Hashtbl.t = Hashtbl.create 64
+
+let count_call_sites (funcs : Func.t list) =
+  Hashtbl.reset call_sites;
+  List.iter
+    (fun (f : Func.t) ->
+      Cgt.Traverse.walk_stats
+        (fun e ->
+          match e.Expr.node with
+          | Expr.Call { fn; _ } -> Hashtbl.replace call_sites fn (1 + Option.value ~default:0 (Hashtbl.find_opt call_sites fn))
+          | _ -> ())
+        (fun _ -> ())
+        f.Func.body)
+    funcs
+
+let single_caller fn =
+  Sys.getenv_opt "ZANE_VERSION_CALLS" = Some "1" && Hashtbl.find_opt call_sites fn = Some 1
+
 let versioned ~symbol body =
   (not (leaves_early body))
   && (not
         (Cgt.Traverse.exists_in body
            ~expr:(fun e ->
-             match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol || calls_stay_single () | _ -> false)
+             match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol || calls_stay_single () || single_caller fn | _ -> false)
            ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ -> true | _ -> false)))
   && Cgt.Traverse.exists_in body
        ~expr:indexes ~stat:(fun _ -> false)

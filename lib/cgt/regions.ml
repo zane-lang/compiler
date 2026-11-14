@@ -800,7 +800,11 @@ let assigned_moves (f : Func.t) =
       | Stat.Scope ({ id; body } as sc) :: rest ->
           let rec within = function
             | (Stat.Hold { id = h; scope; value; _ } as hold) :: after when scope = id ->
-                let after = last h (within after) in
+                let inner = within after in
+                let after = last h inner in
+                (* Only a hold this pass gave its move: one a return
+                   already moved is left to fold. *)
+                let moved_here = after != inner && after <> inner in
                 (* Taken once and otherwise only read: no slot is needed,
                    as fold finds for a returned owner. *)
                 let takes = ref 0 and addressed = ref 0 in
@@ -812,7 +816,7 @@ let assigned_moves (f : Func.t) =
                     | _ -> ())
                   (fun _ -> ())
                   after;
-                if !takes = 1 && !addressed = 1 && Sys.getenv_opt "ZANE_ASSIGN_LET" <> Some "0" then
+                if moved_here && !takes = 1 && !addressed = 1 && Sys.getenv_opt "ZANE_ASSIGN_LET" <> Some "0" then
                   let fe (e : Expr.t) =
                     match e.Expr.node with
                     | Expr.Take { address = { Expr.node = Expr.Address x; _ }; _ } when x = h ->
