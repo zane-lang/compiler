@@ -112,9 +112,15 @@ let llvm_options =
       "-unroll-partial-threshold=100";
     ]
   in
-  match Sys.getenv_opt "ZANE_LLVM_OPTIONS" with
-  | None -> all
-  | Some keep -> List.filteri (fun i _ -> String.contains keep (Char.chr (48 + i))) all
+  let kept =
+    match Sys.getenv_opt "ZANE_LLVM_OPTIONS" with
+    | None -> all
+    | Some keep -> List.filteri (fun i _ -> String.contains keep (Char.chr (48 + i))) all
+  in
+  (* EXPERIMENT: ZANE_LLVM_EXTRA adds options, separated by spaces. *)
+  match Sys.getenv_opt "ZANE_LLVM_EXTRA" with
+  | None -> kept
+  | Some extra -> kept @ List.filter (( <> ) "") (String.split_on_char ' ' extra)
 
 (* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*,
    for [triple]. *)

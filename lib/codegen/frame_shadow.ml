@@ -242,6 +242,33 @@ let func ctx dl (f : Llvm.llvalue) =
                    in
                    if scalar t && List.for_all (fun (o', t') -> o' = o && t' == t) overlapping then Some (o, t) else None)
           in
+          (* ZANE_FRAME_SHADOW_OFFSETS: only these slot offsets (decimal,
+             comma-separated), for finding which slot's copy changes a time. *)
+          let slots =
+            match Sys.getenv_opt "ZANE_FRAME_SHADOW_OFFSETS" with
+            | None -> slots
+            | Some l ->
+                let keep = List.filter_map Int64.of_string_opt (String.split_on_char ',' l) in
+                List.filter (fun (o, _) -> List.mem o keep) slots
+          in
+          let stored o = List.length (List.filter (fun (_, o') -> o' = o) !stores) in
+          (* EXPERIMENT (ZANE_FRAME_SHADOW_WRITTEN=1): only a slot stored more
+             than once gets a copy. One written once, where its value is made,
+             and then only read is left a load: the copy keeps its value in a
+             register across every loop that reads it, and HuffDecode's tree
+             root, read once per symbol, got 25% slower for it (step 16). *)
+          let slots =
+            match Sys.getenv_opt "ZANE_FRAME_SHADOW_WRITTEN" with
+            | Some "1" -> List.filter (fun (o, _) -> stored o > 1) slots
+            | Some "2" -> List.filter (fun (o, _) -> stored o > 0) slots
+            | _ -> slots
+          in
+          if debug () then
+            List.iter
+              (fun (o, t) ->
+                Printf.eprintf "frame shadow: %s: slot %Ld %s, %d stores\n" (Llvm.value_name f) o (Llvm.string_of_lltype t)
+                  (stored o))
+              slots;
           if slots <> [] then begin
             let entry = Llvm.entry_block f in
             let at_entry = Llvm.builder_at ctx (Llvm.instr_begin entry) in
@@ -318,7 +345,22 @@ let run m =
   if on () then begin
     let ctx = Llvm.module_context m in
     let dl = Llvm_target.DataLayout.of_string (Llvm.data_layout m) in
-    Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then func ctx dl f) m
+    (* ZANE_FRAME_SHADOW_ONLY / _SKIP: comma-separated substrings of the
+       functions that get copies, or that do not ("" in SKIP matches every
+       function, leaving only the passes run again). For finding which
+       function's copies change a test's time. *)
+    let names v = Option.map (String.split_on_char ',') (Sys.getenv_opt v) in
+    let has s sub =
+      let n = String.length sub and m = String.length s in
+      let rec go i = i + n <= m && (String.sub s i n = sub || go (i + 1)) in
+      go 0
+    in
+    let picked f =
+      let name = Llvm.value_name f in
+      (match names "ZANE_FRAME_SHADOW_ONLY" with None -> true | Some l -> List.exists (has name) l)
+      && match names "ZANE_FRAME_SHADOW_SKIP" with None -> true | Some l -> not (List.exists (has name) l)
+    in
+    Llvm.iter_functions (fun f -> if (not (Llvm.is_declaration f)) && picked f then func ctx dl f) m
   end
 
 (* The passes run again once the copies are in. *)
