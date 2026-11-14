@@ -654,6 +654,8 @@ let snapshot_read t =
    the index and the address the way it sees any arithmetic. Only an index
    outside calls the runtime, which stops the program (§9). One unsigned
    compare of the index less one covers both ends. *)
+let one_stop : (Llvm.llvalue, Llvm.llbasicblock) Hashtbl.t = Hashtbl.create 64
+
 let element ?cached ?(unchecked = false) env fr b fn args =
   let base, index, count, stride =
     match (fn, args, cached) with
@@ -668,12 +670,28 @@ let element ?cached ?(unchecked = false) env fr b fn args =
   if unchecked then Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| Llvm.build_nsw_mul offset stride "" b |] "" b
   else
   let outside = Llvm.build_icmp Llvm.Icmp.Uge offset count "" b in
-  let stop = block env fr and inside = block env fr in
+  let inside = block env fr in
+  let made_stop () =
+    let stop = block env fr in
+    let sb = Llvm.builder_at_end env.ctx stop in
+    let f, fty = runtime env Cgt.Runtime.Out_of_range in
+    ignore (Llvm.build_call fty f [||] "" sb);
+    ignore (Llvm.build_unreachable sb);
+    stop
+  in
+  (* EXPERIMENT (ZANE_ONE_STOP=1): every check of a function stops in one
+     block, so two checks that differ only in their address are one. *)
+  let stop =
+    if Sys.getenv_opt "ZANE_ONE_STOP" = Some "1" then (
+      match Hashtbl.find_opt one_stop fr.fn with
+      | Some s -> s
+      | None ->
+          let s = made_stop () in
+          Hashtbl.replace one_stop fr.fn s;
+          s)
+    else made_stop ()
+  in
   ignore (Llvm.build_cond_br outside stop inside b);
-  Llvm.position_at_end stop b;
-  let f, fty = runtime env Cgt.Runtime.Out_of_range in
-  ignore (Llvm.build_call fty f [||] "" b);
-  ignore (Llvm.build_unreachable b);
   Llvm.position_at_end inside b;
   let bytes = Llvm.build_nsw_mul offset stride "" b in
   Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| bytes |] "" b
