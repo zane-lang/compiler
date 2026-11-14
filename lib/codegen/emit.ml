@@ -557,13 +557,12 @@ let element ?cached ?(unchecked = false) env fr b fn args =
   if unchecked then Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| Llvm.build_nsw_mul offset stride "" b |] "" b
   else
   let outside = Llvm.build_icmp Llvm.Icmp.Uge offset count "" b in
-  let inside = block env fr in
-  let stop = block env fr in
-  let sb = Llvm.builder_at_end env.ctx stop in
-  let f, fty = runtime env Cgt.Runtime.Out_of_range in
-  ignore (Llvm.build_call fty f [||] "" sb);
-  ignore (Llvm.build_unreachable sb);
+  let stop = block env fr and inside = block env fr in
   ignore (Llvm.build_cond_br outside stop inside b);
+  Llvm.position_at_end stop b;
+  let f, fty = runtime env Cgt.Runtime.Out_of_range in
+  ignore (Llvm.build_call fty f [||] "" b);
+  ignore (Llvm.build_unreachable b);
   Llvm.position_at_end inside b;
   let bytes = Llvm.build_nsw_mul offset stride "" b in
   Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| bytes |] "" b
