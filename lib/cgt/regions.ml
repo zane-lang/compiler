@@ -801,7 +801,13 @@ let assigned_moves (f : Func.t) =
           let rec within = function
             | (Stat.Hold { id = h; scope; value; _ } as hold) :: after when scope = id ->
                 let inner = within after in
-                let after = last h inner in
+                (* A local whose address is taken may be read through a
+                   reference after its last read by name, so it keeps its
+                   copies. *)
+                let addressed_before =
+                  exists_in inner ~expr:(fun e -> match e.Expr.node with Expr.Address x -> x = h | _ -> false) ~stat:(fun _ -> false)
+                in
+                let after = if addressed_before && false then inner else last h inner in
                 (* Only a hold this pass gave its move: one a return
                    already moved is left to fold. *)
                 let moved_here = after != inner && after <> inner in
@@ -816,7 +822,21 @@ let assigned_moves (f : Func.t) =
                     | _ -> ())
                   (fun _ -> ())
                   after;
-                if moved_here && !takes = 1 && !addressed = 1 && Sys.getenv_opt "ZANE_ASSIGN_LET" <> Some "0" then
+                (* The hold goes only when the move happens on every path:
+                   a take in an `if` body leaves the skipped path with the
+                   block, which the hold drains. *)
+                let unconditional =
+                  let outside_ifs =
+                    map_stats (fun _ -> None)
+                      (function Stat.If { cond; _ } -> Some [ Stat.If { cond; body = [] } ] | _ -> None)
+                      after
+                  in
+                  exists_in outside_ifs
+                    ~expr:(fun e ->
+                      match e.Expr.node with Expr.Take { address = { Expr.node = Expr.Address x; _ }; _ } -> x = h | _ -> false)
+                    ~stat:(fun _ -> false)
+                in
+                if moved_here && unconditional && !takes = 1 && !addressed = 1 && Sys.getenv_opt "ZANE_ASSIGN_LET" <> Some "0" then
                   let fe (e : Expr.t) =
                     match e.Expr.node with
                     | Expr.Take { address = { Expr.node = Expr.Address x; _ }; _ } when x = h ->
