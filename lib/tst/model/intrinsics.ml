@@ -338,7 +338,7 @@ let methods =
        let element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
        (element, prim "List" ~args:[ Ty.Type (Ty.Param element) ])
      in
-     let range, ranged = list () and own, owned = list () in
+     let range, ranged = list () and own, owned = list () and sorts, sorted = list () in
      [
        meth ~generics:[ range ] ~is_mut:true "primitives" "appendRange"
          [ param "this" ranged; param "from" ranged; param "start" (prim "I64"); param "count" (prim "I64") ]
@@ -346,6 +346,8 @@ let methods =
        meth ~generics:[ own ] ~is_mut:true "primitives" "appendOwn"
          [ param "this" owned; param "start" (prim "I64"); param "count" (prim "I64") ]
          (prim "Unit");
+       (* A list of integers sorted in place, ascending. *)
+       meth ~generics:[ sorts ] ~is_mut:true "primitives" "sort" [ param "this" sorted ] (prim "Unit");
      ])
   (* A list's own methods, the same on `List` and `ListRef`, one overload
      per subject. *)

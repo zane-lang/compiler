@@ -4877,6 +4877,128 @@
   (diff golden/listAppend.out listAppend.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/listSort))
+ (targets listSort.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build listSort.exe --package fixtures/listSort)))
+
+(rule
+ (deps (source_tree fixtures/listSort))
+ (targets listSort.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build listSort.optimized.exe --optimize --package fixtures/listSort)))
+
+(rule
+ (deps (source_tree fixtures/listSort))
+ (targets listSort.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build listSort.tiered.exe --tiered --package fixtures/listSort)))
+
+(rule
+ (deps (source_tree fixtures/listSort))
+ (targets listSort.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up listSort.tier1 --package fixtures/listSort)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    listSort.checked.out.actual
+    (run ./listSort.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listSort.out listSort.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    listSort.unchecked.out.actual
+    (run ./listSort.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listSort.out listSort.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    listSort.optimized.checked.out.actual
+    (run ./listSort.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listSort.out listSort.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    listSort.optimized.unchecked.out.actual
+    (run ./listSort.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listSort.out listSort.optimized.unchecked.out.actual)))
+
+(rule
+ (deps listSort.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./listSort.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    listSort.tiered.checked.out.actual
+    (run ./listSort.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listSort.out listSort.tiered.checked.out.actual)))
+
+(rule
+ (deps listSort.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./listSort.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    listSort.tiered.unchecked.out.actual
+    (run ./listSort.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listSort.out listSort.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/lists))
  (action
   (with-stdout-to
@@ -9639,6 +9761,20 @@
  (alias runtest)
  (action
   (diff golden/reject.nestedArray.err reject.nestedArray.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/sortFloats))
+ (action
+  (with-stderr-to
+   reject.sortFloats.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/sortFloats)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.sortFloats.err reject.sortFloats.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/textOfInts))

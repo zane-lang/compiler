@@ -68,6 +68,7 @@ let runs spelling =
       "@primitives$text";
       "@primitives$appendRange";
       "@primitives$appendOwn";
+      "@primitives$sort";
     ]
 
 (* A call to what the runtime does for the program, or to a list's own
@@ -285,6 +286,27 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       | [ T.Arg.Value list; T.Arg.Value from; T.Arg.Value start; T.Arg.Value count ] -> append list (Some from) start count
       | [ T.Arg.Value list; T.Arg.Value start; T.Arg.Value count ] -> append list None start count
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" name))
+  | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$sort"; _ }; args = [ T.Arg.Value list ]; handler = None } ->
+      (* EXPERIMENT (LangArena zane-vs-goose): the runtime sorts the
+         elements as integers of their width: `I32`, `I64` and `U8`, or a
+         struct of one. *)
+      let rec kind (t : Nodes.Ty.t) =
+        match t with
+        | Nodes.Ty.I32 -> Some 0L
+        | Nodes.Ty.I64 -> Some 1L
+        | Nodes.Ty.I8 -> Some 2L
+        | Nodes.Ty.Struct [ t ] | Nodes.Ty.Packed (Nodes.Ty.Struct [ t ]) -> kind t
+        | _ -> None
+      in
+      let k =
+        match Option.bind (element (Tty.strip_mode list.T.Expr.ty)) (fun t -> kind (ty st span t)) with
+        | Some k -> k
+        | None -> refuse span "`@primitives$sort` sorts only a list of integers"
+      in
+      {
+        Expr.node = Expr.Runtime { fn = Runtime.List_sort; args = [ w.lend st ctx span list; { Expr.node = Expr.Int k; ty = Nodes.Ty.I64 } ] };
+        ty = Nodes.Ty.Void;
+      }
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$size"; _ }; args; handler = None }
     -> (
       match args with

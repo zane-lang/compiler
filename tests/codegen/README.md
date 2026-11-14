@@ -311,6 +311,9 @@ makes of them.
 - `listAppend` copies a range of a list onto the end of another
   (`appendRange`) and of itself (`appendOwn`), doubling a list past its
   first block's room so a list's own range is read after the block grows.
+- `listSort` sorts lists of integers in place: a thousand 32-bit ones over
+  eight keys, past the sizes insertion sort and the pivot's medians of
+  medians take, and 64-bit ones in descending order, which one pass sorts.
 
 ## Rejects
 
@@ -335,6 +338,10 @@ only a list whose elements are each one byte.
 `appendOwners` is one too: `@primitives$appendRange` on a `List<String>`.
 The runtime copies the range's bytes, so lowering takes only elements that
 own no blocks.
+
+`sortFloats` is one too: `@primitives$sort` on a `List<F64>`. The runtime
+sorts the elements as integers of their width, so lowering takes only lists
+of integers.
 
 `hugeArray`, `nestedArray`, `beyondLimit` and `beyondLimitField` are refusals of a type too
 large to hold (docs/design/lowering.md §9): an `Array<I64, 4294967296>` and

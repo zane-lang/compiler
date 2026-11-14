@@ -253,6 +253,160 @@ void zane_list_append(zane_list *list, const zane_list *from, int64_t start, int
 	list->count += count;
 }
 
+/* EXPERIMENT (LangArena zane-vs-goose): a list of integers sorted in
+   place, ascending, as a standard library's sort is, written out for each
+   element type so every comparison is an inline compare. A pattern-
+   defeating quicksort: input already in order, or in strictly descending
+   order, takes one pass; otherwise each round partitions a range around a
+   median pivot (of three, or of three medians of three from 128 elements
+   on) with a Lomuto partition that does not branch on the data, defers
+   the larger side and goes on with the smaller. A range whose pivot is no
+   greater than the element just before it holds nothing less than the
+   pivot, so one partition moves the elements equal to it to the front,
+   where they are done, and many equal keys cost linear passes. A range
+   still being partitioned 2 log2(n) rounds deep is heapsorted; ranges of
+   10 or fewer are insertion sorted. `kind` is what the elements are: 0 a
+   signed 32-bit integer, 1 a signed 64-bit one, 2 an unsigned byte. */
+#define ZANE_SORT(NAME, T)                                                             \
+	static void NAME##_insert(T *a, int64_t n) {                                     \
+		for (int64_t i = 1; i < n; i++) {                                            \
+			T v = a[i];                                                              \
+			int64_t j = i;                                                           \
+			while (j > 0 && v < a[j - 1]) {                                          \
+				a[j] = a[j - 1];                                                     \
+				j--;                                                                 \
+			}                                                                        \
+			a[j] = v;                                                                \
+		}                                                                            \
+	}                                                                                \
+	static void NAME##_sift(T *a, int64_t i, int64_t n) {                            \
+		T v = a[i];                                                                  \
+		for (int64_t c; (c = 2 * i + 1) < n; i = c) {                                \
+			if (c + 1 < n && a[c] < a[c + 1]) c++;                                   \
+			if (!(v < a[c])) break;                                                  \
+			a[i] = a[c];                                                             \
+		}                                                                            \
+		a[i] = v;                                                                    \
+	}                                                                                \
+	static void NAME##_heap(T *a, int64_t n) {                                       \
+		for (int64_t i = n / 2; i-- > 0;) NAME##_sift(a, i, n);                      \
+		for (int64_t m = n - 1; m > 0; m--) {                                        \
+			T t = a[0];                                                              \
+			a[0] = a[m];                                                             \
+			a[m] = t;                                                                \
+			NAME##_sift(a, 0, m);                                                    \
+		}                                                                            \
+	}                                                                                \
+	static int64_t NAME##_median(const T *a, int64_t x, int64_t y, int64_t z) {      \
+		int l = a[x] < a[y];                                                         \
+		if (l != (a[x] < a[z])) return x;                                            \
+		return (a[y] < a[z]) != l ? z : y;                                           \
+	}                                                                                \
+	static int64_t NAME##_pivot(const T *a, int64_t n) {                             \
+		int64_t n8 = n / 8, x = 0, y = n8 * 4, z = n8 * 7;                           \
+		if (n < 128) return NAME##_median(a, x, y, z);                               \
+		int64_t m8 = n8 / 8;                                                         \
+		return NAME##_median(a, NAME##_median(a, x, x + m8 * 4, x + m8 * 7),         \
+		                     NAME##_median(a, y, y + m8 * 4, y + m8 * 7),            \
+		                     NAME##_median(a, z, z + m8 * 4, z + m8 * 7));           \
+	}                                                                                \
+	/* a[0] is the pivot: the elements after it that go before it (less,        \
+	   or no greater when `equal`) moved to the front of a[1..], how many. */   \
+	static int64_t NAME##_partition(T *a, int64_t n, int equal) {                    \
+		T p = a[0];                                                                  \
+		int64_t lt = 1;                                                              \
+		if (equal)                                                                   \
+			for (int64_t i = 1; i < n; i++) {                                        \
+				T x = a[i];                                                          \
+				a[i] = a[lt];                                                        \
+				a[lt] = x;                                                           \
+				lt += !(p < x);                                                      \
+			}                                                                        \
+		else                                                                         \
+			for (int64_t i = 1; i < n; i++) {                                        \
+				T x = a[i];                                                          \
+				a[i] = a[lt];                                                        \
+				a[lt] = x;                                                           \
+				lt += x < p;                                                         \
+			}                                                                        \
+		return lt - 1;                                                               \
+	}                                                                                \
+	static void NAME##_sort(T *xs, int64_t n) {                                      \
+		if (n <= 10) {                                                               \
+			NAME##_insert(xs, n);                                                    \
+			return;                                                                  \
+		}                                                                            \
+		int64_t r = 2;                                                               \
+		if (xs[1] < xs[0]) {                                                         \
+			while (r < n && xs[r] < xs[r - 1]) r++;                                  \
+			if (r == n)                                                              \
+				for (int64_t i = 0, j = n - 1; i < j; i++, j--) {                    \
+					T t = xs[i];                                                     \
+					xs[i] = xs[j];                                                   \
+					xs[j] = t;                                                       \
+				}                                                                    \
+		} else                                                                       \
+			while (r < n && !(xs[r] < xs[r - 1])) r++;                               \
+		if (r == n) return;                                                          \
+		int limit = 0;                                                               \
+		for (int64_t m = n; m > 1; m >>= 1) limit += 2;                              \
+		int64_t stack[3 * 64], top = 0, lo = 0, hi = n;                              \
+		for (;;) {                                                                   \
+			T *v = xs + lo;                                                          \
+			int64_t len = hi - lo;                                                   \
+			if (len > 10 && limit > 0) {                                             \
+				limit--;                                                             \
+				int64_t q = NAME##_pivot(v, len);                                    \
+				T t = v[0];                                                          \
+				v[0] = v[q];                                                         \
+				v[q] = t;                                                            \
+				if (lo > 0 && !(xs[lo - 1] < v[0])) {                                \
+					int64_t m = NAME##_partition(v, len, 1);                         \
+					t = v[0];                                                        \
+					v[0] = v[m];                                                     \
+					v[m] = t;                                                        \
+					lo += m + 1;                                                     \
+					continue;                                                        \
+				}                                                                    \
+				int64_t m = NAME##_partition(v, len, 0);                             \
+				t = v[0];                                                            \
+				v[0] = v[m];                                                         \
+				v[m] = t;                                                            \
+				if (m < len - 1 - m) {                                               \
+					stack[top++] = lo + m + 1;                                       \
+					stack[top++] = hi;                                               \
+					stack[top++] = limit;                                            \
+					hi = lo + m;                                                     \
+				} else {                                                             \
+					stack[top++] = lo;                                               \
+					stack[top++] = lo + m;                                           \
+					stack[top++] = limit;                                            \
+					lo += m + 1;                                                     \
+				}                                                                    \
+				continue;                                                            \
+			}                                                                        \
+			if (len > 10) NAME##_heap(v, len);                                       \
+			else NAME##_insert(v, len);                                              \
+			if (top == 0) return;                                                    \
+			limit = (int)stack[--top];                                               \
+			hi = stack[--top];                                                       \
+			lo = stack[--top];                                                       \
+		}                                                                            \
+	}
+ZANE_SORT(zane_sort_i32, int32_t)
+ZANE_SORT(zane_sort_i64, int64_t)
+ZANE_SORT(zane_sort_u8, uint8_t)
+#undef ZANE_SORT
+
+void zane_list_sort(zane_list *list, int64_t kind) {
+	int64_t n = ZL_COUNT(list);
+	switch (kind) {
+	case 0: zane_sort_i32_sort((int32_t *)ZL_ITEMS(list), n); break;
+	case 1: zane_sort_i64_sort((int64_t *)ZL_ITEMS(list), n); break;
+	default: zane_sort_u8_sort((uint8_t *)ZL_ITEMS(list), n); break;
+	}
+}
+
 /* The element at `index`, counted from 1 (control-flow.md §3.4). */
 void *zane_list_at(zane_list *list, int64_t index, int64_t stride) {
 	if (index < 1 || index > ZL_COUNT(list)) zane_out_of_range();

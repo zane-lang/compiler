@@ -1,0 +1,34 @@
+/// `sort` sorts a list of integers in place, ascending: 32-bit integers
+/// past the sizes insertion sort and the pivot's medians of medians take,
+/// with many equal keys, and 64-bit integers already in descending order.
+package listSort;
+
+alias I64 = @primitives$I64;
+alias I32 = @primitives$I32;
+alias Bool = @primitives$Bool;
+alias String = @primitives$String;
+alias Unit = @primitives$Unit;
+
+Unit main() {
+	small @primitives$List<I32> = @primitives$List(I32);
+	seed I64 = I64(7);
+	@controlflow$repeat(I64(1000)) {
+		seed = @operators$add(@operators$multiply(seed, I64(1103515245)), I64(12345));
+		small!push(I32.wrap(@operators$divide(seed, I64(2305843009213693952))));
+	}
+	small!sort();
+	@program$console!print(String(I64(small[I64(1)])));
+	@program$console!print(String(I64(small[I64(500)])));
+	@program$console!print(String(I64(small[I64(1000)])));
+	big @primitives$List<I64> = @primitives$List(I64);
+	n I64 = I64(300);
+	@controlflow$repeat(I64(300)) {
+		big!push(n);
+		n = @operators$add(n, @operators$negate(I64(1)));
+	}
+	big!sort();
+	@program$console!print(String(big[I64(1)]));
+	@program$console!print(String(big[I64(150)]));
+	@program$console!print(String(big[I64(300)]));
+	return Unit();
+}
