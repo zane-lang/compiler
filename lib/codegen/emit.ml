@@ -65,7 +65,7 @@ let access env (t : Ty.t) instr =
   let tag =
     match t with
     | Ty.Handle | Ty.Handle16 -> Some env.handle_tag
-    | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> Some env.value_tag
+    | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> Some env.value_tag
     | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Packed _ -> None
   in
   Option.iter (Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "tbaa")) tag;
@@ -551,7 +551,7 @@ let place env b t p v l =
      loop of pushes. *)
   | (Ty.Struct ts | Ty.Packed (Ty.Struct ts))
     when Sys.getenv_opt "ZANE_LOOP_PUSHES" <> Some "0"
-         && List.for_all (function Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true | _ -> false) ts ->
+         && List.for_all (function Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true | _ -> false) ts ->
       let name = match t with Ty.Packed _ -> unaligned_name | _ -> "" in
       List.iteri
         (fun i m ->
@@ -601,7 +601,7 @@ let snapshot_read t =
     | Ty.Ptr | Ty.Ref | Ty.Box32 | Ty.Handle | Ty.Handle16 -> true
     | Ty.Struct ts | Ty.Sum ts -> List.exists names_block ts
     | Ty.Array (t, _) | Ty.Packed t -> names_block t
-    | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
+    | Ty.Void | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
   in
   if size_align t <> (8, 8) then `Runtime
   else if names_block t then `Acquire
@@ -910,7 +910,9 @@ let convert env b (from : Ty.t) (into : Ty.t) v =
   | _ -> (
   match (is_float from, is_float into) with
   | false, false ->
-      if Scalar.bits from < Scalar.bits into then Llvm.build_sext v target "" b
+      (* A byte is unsigned: it widens by zero-extension. *)
+      if from = Ty.I8 && Scalar.bits from < Scalar.bits into then Llvm.build_zext v target "" b
+      else if Scalar.bits from < Scalar.bits into then Llvm.build_sext v target "" b
       else if Scalar.bits from > Scalar.bits into then Llvm.build_trunc v target "" b
       else v
   | false, true -> Llvm.build_sitofp v target "" b
@@ -935,7 +937,8 @@ let binary env fr b (op : Expr.binop) (t : Ty.t) l r =
   | (Ty.I64 | Ty.I32), Expr.Add -> Llvm.build_add l r "" b
   | (Ty.I64 | Ty.I32), Expr.Mul -> Llvm.build_mul l r "" b
   | (Ty.I64 | Ty.I32), Expr.Div -> divide env fr b l r
-  | (Ty.I64 | Ty.I32 | Ty.I1), Expr.Eq -> Llvm.build_icmp Llvm.Icmp.Eq l r "" b
+  | (Ty.I64 | Ty.I32 | Ty.I8 | Ty.I1), Expr.Eq -> Llvm.build_icmp Llvm.Icmp.Eq l r "" b
+  | Ty.I8, Expr.Less -> Llvm.build_icmp Llvm.Icmp.Ult l r "" b
   | (Ty.I64 | Ty.I32), Expr.Less -> Llvm.build_icmp Llvm.Icmp.Slt l r "" b
   | (Ty.F64 | Ty.F32), Expr.Add -> Llvm.build_fadd l r "" b
   | (Ty.F64 | Ty.F32), Expr.Mul -> Llvm.build_fmul l r "" b

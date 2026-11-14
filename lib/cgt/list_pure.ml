@@ -33,7 +33,7 @@ let c_stays = ref false
 
 let rec scalar (t : Ty.t) =
   match t with
-  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
+  | Ty.Void | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
   | Ty.Struct ts | Ty.Sum ts -> List.for_all scalar ts
   | Ty.Array (t, _) | Ty.Packed t -> scalar t
   | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> false

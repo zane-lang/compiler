@@ -15,7 +15,7 @@ let words = Ty.words
 let rec pieces (t : Ty.t) =
   match t with
   | Ty.Void -> 0
-  | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> 1
+  | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> 1
   | Ty.Handle | Ty.Handle16 -> 3
   | Ty.Struct ts -> List.fold_left (fun n t -> n + pieces t) 0 ts
   | Ty.Sum ts when Ty.niche ts -> 1

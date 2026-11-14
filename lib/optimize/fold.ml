@@ -127,7 +127,7 @@ let rec addresses (t : Ty.t) =
   | Ty.Ptr | Ty.Ref | Ty.Box32 -> true
   | Ty.Struct ts | Ty.Sum ts -> List.exists addresses ts
   | Ty.Array (t, _) | Ty.Packed t -> addresses t
-  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle | Ty.Handle16 -> false
+  | Ty.Void | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle | Ty.Handle16 -> false
 
 let reach (f : Func.t) =
   let values = Hashtbl.create 16 in
@@ -488,7 +488,7 @@ let rec holds_ref (t : Ty.t) =
   | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> true
   | Ty.Struct ts | Ty.Sum ts -> List.exists holds_ref ts
   | Ty.Array (t, _) | Ty.Packed t -> holds_ref t
-  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
+  | Ty.Void | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
 
 (* Whether a run of statements binds a local of such a type. *)
 let binds_ref stats =

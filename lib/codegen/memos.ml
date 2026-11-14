@@ -102,7 +102,7 @@ let memo env (m : Cgt.Memo.t) =
      words directly, one word to each scalar, and needs no buffer. *)
   let rec scalars (t : Ty.t) =
     match t with
-    | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
+    | Ty.Void | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
     | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> List.for_all scalars ts
     | _ -> false
   in
