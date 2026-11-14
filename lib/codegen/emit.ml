@@ -667,6 +667,20 @@ let element ?cached ?(unchecked = false) env fr b fn args =
     | _ -> Diagnostic.bug "codegen: an element address with the wrong arguments"
   in
   let offset = Llvm.build_sub index (Llvm.const_int env.i64 1) "" b in
+  (* EXPERIMENT (ZANE_NO_CHECKS=1): no index is checked. Unsound: only to
+     price the checks by wall time, never to run a program on. *)
+  let unchecked =
+    unchecked
+    ||
+    match Sys.getenv_opt "ZANE_NO_CHECKS" with
+    | Some "1" -> true
+    | Some s when String.starts_with ~prefix:"stride:" s -> (
+        (* Only the elements of this many bytes. *)
+        match Llvm.int64_of_const stride with
+        | Some v -> Int64.to_string v = String.sub s 7 (String.length s - 7)
+        | None -> false)
+    | _ -> false
+  in
   if unchecked then Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| Llvm.build_nsw_mul offset stride "" b |] "" b
   else
   let outside = Llvm.build_icmp Llvm.Icmp.Uge offset count "" b in
@@ -1850,8 +1864,20 @@ and stat env fr b (s : Stat.t) =
         ignore (Llvm.build_br head b);
         Llvm.position_at_end head b;
         let current = Llvm.build_load env.i64 i "" b in
+        (* EXPERIMENT (LangArena zane-vs-c, ZANE_ENDLESS=1): a count of at
+           least 2^62, a constant, is not tested. Going round that often
+           takes centuries, so only a loop that leaves by its body ends:
+           core has no conditional loop, and `i!to(Int(9223372036854775807))`
+           is how a port writes C's `while`. Departs from the spec, which
+           stops such a loop after its count. *)
+        let huge = match Llvm.int64_of_const n with Some v -> Int64.compare v (Int64.shift_left 1L 62) >= 0 | None -> false in
+        let endless = Sys.getenv_opt "ZANE_ENDLESS" in
+        if huge && endless = Some "1" then ignore (Llvm.build_br step b)
+        else begin
         let test = Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Slt current n "" b) step after b in
-        Option.iter (weigh env test) trips;
+        (* ZANE_ENDLESS=2: the test kept, without the weight. *)
+        if not (huge && endless = Some "2") then Option.iter (weigh env test) trips
+        end;
         Llvm.position_at_end step b;
         if fetch && fetched <> [] then prefetch env fr b fetched;
         fr.loops <- fr.loops + 1;
