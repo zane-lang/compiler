@@ -1090,6 +1090,15 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       let pipeline = thread_sanitized m (Passes.pipeline ~triple ~optimize ~tier1:(tier = Tiers.Tier1)) in
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
+      |> Result.map (fun () ->
+             (* EXPERIMENT (Frame_scopes): scopes for the frames as inlining
+                left them, then the loop passes again to use them. *)
+             if optimize && Frame_scopes.on () then begin
+               Frame_scopes.run m;
+               match Llvm_passbuilder.run_passes m Frame_scopes.again tm (Llvm_passbuilder.create_passbuilder_options ()) with
+               | Ok () -> ()
+               | Error e -> prerr_endline ("frame scopes: " ^ e)
+             end)
       |> Fun.flip Result.bind (fun () -> finish_tier m ~hash exports definitions)
       |> Result.map (fun () -> (triple, tm, whole, apart)))
 
