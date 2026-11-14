@@ -61,10 +61,26 @@ let tags ctx =
   in
   (tag "zane handle", tag "zane scalar")
 
+(* EXPERIMENT (ZANE_SIZED_TBAA=1): a scalar's tag by its size, a child of
+   the scalar tag, which every scalar access still aliases: one byte
+   (Bool, U8) apart from the wider ones, since storage is only read back as
+   a type of the size it was written as. *)
+let sized_tbaa = Sys.getenv_opt "ZANE_SIZED_TBAA" = Some "1"
+
+let sized_tag ctx name =
+  let zero = Llvm.const_int (Llvm.i64_type ctx) 0 in
+  let root = Llvm.mdnode ctx [| Llvm.mdstring ctx "zane" |] in
+  let scalar = Llvm.mdnode ctx [| Llvm.mdstring ctx "zane scalar"; root; zero |] in
+  let node = Llvm.mdnode ctx [| Llvm.mdstring ctx name; scalar; zero |] in
+  Llvm.mdnode ctx [| node; node; zero |]
+
 let access env (t : Ty.t) instr =
   let tag =
     match t with
     | Ty.Handle | Ty.Handle16 -> Some env.handle_tag
+    | (Ty.I1 | Ty.I8) when sized_tbaa -> Some (sized_tag env.ctx "zane byte")
+    | (Ty.I32 | Ty.F32) when sized_tbaa -> Some (sized_tag env.ctx "zane word4")
+    | (Ty.I64 | Ty.F64 | Ty.Ptr) when sized_tbaa -> Some (sized_tag env.ctx "zane word8")
     | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> Some env.value_tag
     | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Packed _ -> None
   in
