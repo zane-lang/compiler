@@ -1099,6 +1099,13 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
                | Ok () -> ()
                | Error e -> prerr_endline ("frame scopes: " ^ e)
              end;
+             (* EXPERIMENT (Frame_shadow): frame slots in registers. *)
+             if optimize && Frame_shadow.on () then begin
+               Frame_shadow.run m;
+               match Llvm_passbuilder.run_passes m Frame_shadow.again tm (Llvm_passbuilder.create_passbuilder_options ()) with
+               | Ok () -> ()
+               | Error e -> prerr_endline ("frame shadow: " ^ e)
+             end;
              (* EXPERIMENT: the optimized module, for reading. *)
              Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_OPT"))
       |> Fun.flip Result.bind (fun () -> finish_tier m ~hash exports definitions)
