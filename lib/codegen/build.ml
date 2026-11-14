@@ -1106,6 +1106,13 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
                | Ok () -> ()
                | Error e -> prerr_endline ("frame shadow: " ^ e)
              end;
+             (* EXPERIMENT (Merged_checks): one check per index. *)
+             if optimize && Merged_checks.on () then begin
+               Merged_checks.run m;
+               match Llvm_passbuilder.run_passes m Merged_checks.again tm (Llvm_passbuilder.create_passbuilder_options ()) with
+               | Ok () -> ()
+               | Error e -> prerr_endline ("merged checks: " ^ e)
+             end;
              (* EXPERIMENT: the optimized module, for reading. *)
              Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_OPT"))
       |> Fun.flip Result.bind (fun () -> finish_tier m ~hash exports definitions)

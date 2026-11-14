@@ -1766,16 +1766,21 @@ and stat env fr b (s : Stat.t) =
       List.iter
         (fun (id, stride) ->
           let list = value_of env fr b { Expr.node = Expr.Address id; ty = Ty.Ptr } in
+          let regs = Sys.getenv_opt "ZANE_LOOP_REGS" = Some "1" in
+          let tag = handle_field env in
+          (* Making room keeps the count (runtime/list.c), so it is read
+             before, where LLVM knows it, as after a list is made. *)
+          let count = if regs then Some (List_handle.count ~tag env.ctx b list) else None in
           let f, fty = runtime env Cgt.Runtime.List_room in
           ignore (Llvm.build_call fty f [| list; Llvm.const_int env.i64 (Int64.to_int stride); n |] "" b);
           Hashtbl.replace fr.runs id (Room max_int);
-          if Sys.getenv_opt "ZANE_LOOP_REGS" = Some "1" then begin
-            let tag = handle_field env in
-            let items = List_handle.items ~tag env.ctx b list in
-            let counter = alloca env fr env.i64 in
-            ignore (Llvm.build_store (List_handle.count ~tag env.ctx b list) counter b);
-            Hashtbl.replace fr.kept id (items, counter)
-          end)
+          Option.iter
+            (fun count ->
+              let items = List_handle.items ~tag env.ctx b list in
+              let counter = alloca env fr env.i64 in
+              ignore (Llvm.build_store count counter b);
+              Hashtbl.replace fr.kept id (items, counter))
+            count)
         looped;
       Fun.protect ~finally:(fun () -> List.iter (fun (id, _) -> Hashtbl.remove fr.runs id; Hashtbl.remove fr.kept id) looped) @@ fun () ->
       let lists, names = invariant_lists ~own:fr.own body in
