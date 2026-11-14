@@ -304,11 +304,19 @@ let indexes (e : Expr.t) =
    [symbol], whose cost would dwarf a check, nothing leaves it before its
    count runs out, and it reads or writes a list's element, whose check IRCE
    may take out of it. *)
+(* EXPERIMENT (LangArena zane-vs-c, R8): with ZANE_VERSION_CALLS=0 a loop
+   that calls any function is emitted once. Its two copies would give the
+   callee two call sites, and LLVM's inliner, which gives a function with
+   one caller a large bonus, then leaves a mid-sized callee out of line in
+   both (Brainfuck's `command`: cost 315 against a threshold of 225). *)
+let calls_stay_single () = Sys.getenv_opt "ZANE_VERSION_CALLS" = Some "0"
+
 let versioned ~symbol body =
   (not (leaves_early body))
   && (not
         (Cgt.Traverse.exists_in body
-           ~expr:(fun e -> match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol | _ -> false)
+           ~expr:(fun e ->
+             match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol || calls_stay_single () | _ -> false)
            ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ -> true | _ -> false)))
   && Cgt.Traverse.exists_in body
        ~expr:indexes ~stat:(fun _ -> false)

@@ -707,6 +707,129 @@ let returned_moves (f : Func.t) =
     in
     { f with Func.body = stats [] f.Func.body }
 
+(* EXPERIMENT (LangArena zane-vs-c, R7; on with ZANE_ASSIGN_MOVES=1): a held local whose last read in its
+   scope copies it into another place is moved there instead, as a return
+   moves it (returned_moves): nothing reads the slot again before the scope
+   drains it, and the move leaves it vacant. Only straight-line code, `if`
+   bodies and expansions are looked into; a copy inside a loop is left. *)
+let assigned_moves (f : Func.t) =
+  let spawns =
+    exists_in f.Func.body ~expr:(fun _ -> false) ~stat:(function Stat.Spawn _ -> true | _ -> false)
+  in
+  if spawns then f
+  else
+    let mentions h stats =
+      exists_in stats
+        ~expr:(fun e -> match e.Expr.node with Expr.Local x | Expr.Address x -> x = h | _ -> false)
+        ~stat:(function Stat.Assign { place = { Expr.local; _ }; _ } -> local = h | _ -> false)
+    in
+    let take h (value : Expr.t) =
+      match value.Expr.node with
+      | Expr.Copy { value = { Expr.node = Expr.Local x; _ }; layout } when x = h ->
+          Some { value with Expr.node = Expr.Take { address = { Expr.node = Expr.Address h; ty = Ty.Ptr }; layout } }
+      | _ -> None
+    in
+    (* [stats], after which nothing reads [h], with the last read of [h]
+       in them a move when it is a copy. *)
+    let rec last h stats =
+      let rec split before = function
+        | [] -> None
+        | s :: rest -> if mentions h (s :: rest) && not (mentions h rest) then Some (List.rev before, s, rest) else split (s :: before) rest
+      in
+      match split [] stats with
+      | None -> stats
+      | Some (before, s, rest) -> exclusive h before s @ (stat h s :: rest)
+    (* [before] with the `then` branch of [s]'s `if` moving [h] too, when
+       [s] is the `else` of a flag: `let f = { …; if(c) { T }; f := c }`
+       somewhere in [before], nothing after it mentions [h] but [s], and [s]
+       is `{ if(~f) { E }; … }`. `else` runs only when `then` did not, so a
+       copy that is last in T is the last read on its path. *)
+    and exclusive h before (s : Stat.t) =
+      let flag =
+        match s with
+        | Stat.Eval
+            {
+              Expr.node =
+                Expr.Expand
+                  { body = Stat.If { cond = { Expr.node = Expr.Flip { Expr.node = Expr.Local f; _ }; _ }; _ } :: _; _ };
+              _;
+            } ->
+            Some f
+        | _ -> None
+      in
+      match flag with
+      | None -> before
+      | Some f ->
+          let rec then_ r = function
+            | Stat.If { cond = { Expr.node = Expr.Local c; _ } as cond; body = t }
+              :: (Stat.Assign { place = { Expr.local = r'; _ }; value = { Expr.node = Expr.Local c'; _ } } :: _ as tail)
+              when r' = r && c' = c && not (mentions h tail) ->
+                Some (Stat.If { cond; body = last h t } :: tail)
+            (* Reads of [h] before the `if`, such as its condition's, come
+               before the move. *)
+            | s :: tail -> Option.map (fun tail -> s :: tail) (then_ r tail)
+            | _ -> None
+          in
+          let rec back after = function
+            | [] -> None
+            | Stat.Let { id; value = { Expr.node = Expr.Expand ({ body; result = Some r; _ } as x); _ } as v } :: earlier
+              when id = f ->
+                if mentions h after then None
+                else
+                  Option.map
+                    (fun body ->
+                      List.rev_append earlier
+                        (Stat.Let { id; value = { v with Expr.node = Expr.Expand { x with body } } } :: after))
+                    (then_ r body)
+            | s :: earlier -> back (s :: after) earlier
+          in
+          Option.value (back [] (List.rev before)) ~default:before
+    and stat h (s : Stat.t) =
+      match s with
+      | Stat.Overwrite ({ address; value; _ } as o) when not (mentions h [ Stat.Eval address ]) -> (
+          match take h value with Some value -> Stat.Overwrite { o with value } | None -> s)
+      | Stat.Assign ({ place; value } as a) when place.Expr.local <> h -> (
+          match take h value with Some value -> Stat.Assign { a with value } | None -> s)
+      | Stat.If { cond; body } when not (mentions h [ Stat.Eval cond ]) -> Stat.If { cond; body = last h body }
+      | Stat.Scope ({ body; _ } as sc) -> Stat.Scope { sc with body = last h body }
+      | Stat.Eval ({ Expr.node = Expr.Expand ({ body; _ } as x); _ } as e) ->
+          Stat.Eval { e with Expr.node = Expr.Expand { x with body = last h body } }
+      | _ -> s
+    in
+    let rec stats = function
+      | Stat.Scope ({ id; body } as sc) :: rest ->
+          let rec within = function
+            | (Stat.Hold { id = h; scope; value; _ } as hold) :: after when scope = id ->
+                let after = last h (within after) in
+                (* Taken once and otherwise only read: no slot is needed,
+                   as fold finds for a returned owner. *)
+                let takes = ref 0 and addressed = ref 0 in
+                walk_stats
+                  (fun e ->
+                    match e.Expr.node with
+                    | Expr.Take { address = { Expr.node = Expr.Address x; _ }; _ } when x = h -> incr takes
+                    | Expr.Address x when x = h -> incr addressed
+                    | _ -> ())
+                  (fun _ -> ())
+                  after;
+                if !takes = 1 && !addressed = 1 && Sys.getenv_opt "ZANE_ASSIGN_LET" <> Some "0" then
+                  let fe (e : Expr.t) =
+                    match e.Expr.node with
+                    | Expr.Take { address = { Expr.node = Expr.Address x; _ }; _ } when x = h ->
+                        Some { e with Expr.node = Expr.Local h }
+                    | _ -> None
+                  in
+                  Stat.Let { id = h; value } :: map_stats fe (fun _ -> None) after
+                else hold :: after
+            | s :: after -> map_stat_parts expr stats s :: within after
+            | [] -> []
+          in
+          Stat.Scope { sc with body = within body } :: stats rest
+      | s :: rest -> map_stat_parts expr stats s :: stats rest
+      | [] -> []
+    and expr e = map_expr_parts expr stats e in
+    if Sys.getenv_opt "ZANE_ASSIGN_MOVES" <> Some "1" then f else { f with Func.body = stats f.Func.body }
+
 (* Every hold, reservation and spawn is inside the arena it names, which
    the pass relies on when it takes an arena away. *)
 let checked (f : Func.t) =
@@ -730,7 +853,7 @@ let checked (f : Func.t) =
   f
 
 let run ~wants (p : Nodes.Program.t) =
-  let funcs = List.map returned_moves p.Nodes.Program.funcs in
+  let funcs = List.map (fun f -> assigned_moves (returned_moves f)) p.Nodes.Program.funcs in
   let keeps = keeping funcs in
   let funcs, origin = take_params funcs (taken_params funcs ~keeps) in
   let keeps fn j = keeps (origin fn) j in
