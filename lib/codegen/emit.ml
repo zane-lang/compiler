@@ -226,6 +226,9 @@ type frame = {
   names : (int, Expr.t) Hashtbl.t;
   (* The element addresses the loop being emitted checks before it ([ranged]). *)
   mutable unchecked : Expr.t list;
+  (* EXPERIMENT (ZANE_LOOP_REGS=1): each list a loop made room for, with
+     its block read once before the loop and its count kept in a local. *)
+  kept : (int, Llvm.llvalue * Llvm.llvalue) Hashtbl.t;
 }
 
 let call_runtime env b name args =
@@ -1219,6 +1222,15 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           | Some (id, Ahead n) ->
               Hashtbl.replace fr.runs id (Room (n - 1));
               Some (push env fr b ~ahead:n list stride)
+          | Some (id, Room _) when Hashtbl.mem fr.kept id ->
+              let items, counter = Hashtbl.find fr.kept id in
+              let count = Llvm.build_load env.i64 counter "" b in
+              let at = Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) items [| Llvm.build_nsw_mul count stride "" b |] "" b in
+              let next = Llvm.build_nsw_add count (Llvm.const_int env.i64 1) "" b in
+              ignore (Llvm.build_store next counter b);
+              let stored = if List_handle.on () then List_handle.narrow env.ctx b next else next in
+              List_handle.set_count ~tag:(handle_field env) env.ctx b stored list;
+              Some at
           | Some (id, Room n) ->
               if n = 1 then Hashtbl.remove fr.runs id else Hashtbl.replace fr.runs id (Room (n - 1));
               Some (push env fr b ~unchecked:true list stride)
@@ -1699,9 +1711,16 @@ and stat env fr b (s : Stat.t) =
           let list = value_of env fr b { Expr.node = Expr.Address id; ty = Ty.Ptr } in
           let f, fty = runtime env Cgt.Runtime.List_room in
           ignore (Llvm.build_call fty f [| list; Llvm.const_int env.i64 (Int64.to_int stride); n |] "" b);
-          Hashtbl.replace fr.runs id (Room max_int))
+          Hashtbl.replace fr.runs id (Room max_int);
+          if Sys.getenv_opt "ZANE_LOOP_REGS" = Some "1" then begin
+            let tag = handle_field env in
+            let items = List_handle.items ~tag env.ctx b list in
+            let counter = alloca env fr env.i64 in
+            ignore (Llvm.build_store (List_handle.count ~tag env.ctx b list) counter b);
+            Hashtbl.replace fr.kept id (items, counter)
+          end)
         looped;
-      Fun.protect ~finally:(fun () -> List.iter (fun (id, _) -> Hashtbl.remove fr.runs id) looped) @@ fun () ->
+      Fun.protect ~finally:(fun () -> List.iter (fun (id, _) -> Hashtbl.remove fr.runs id; Hashtbl.remove fr.kept id) looped) @@ fun () ->
       let lists, names = invariant_lists ~own:fr.own body in
       let ranges = ranged body lists names in
       let twice = unrolled ~listed:(listed env) body in
@@ -1948,6 +1967,7 @@ let func env (f : Func.t) =
       own = own_lists f.Func.params f.Func.body;
       names = Hashtbl.create 8;
       unchecked = [];
+      kept = Hashtbl.create 4;
     }
   in
   (* A parameter passed as itself is stored into a slot like any other
