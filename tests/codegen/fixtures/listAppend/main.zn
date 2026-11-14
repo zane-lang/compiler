@@ -1,0 +1,32 @@
+/// `appendRange` copies a range of one list onto the end of another, and
+/// `appendOwn` a range of the list itself, each as one copy of the
+/// elements' bytes; a list's own range is read after its block has grown.
+package listAppend;
+
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+alias Unit = @primitives$Unit;
+
+Unit main() {
+	numbers @primitives$List<I64> = @primitives$List(I64);
+	numbers!push(I64(1));
+	numbers!push(I64(2));
+	numbers!push(I64(3));
+	// 1 2 3 2 3, then doubled past the first block's room.
+	numbers!appendOwn(I64(2), I64(2));
+	numbers!appendOwn(I64(1), numbers:size());
+	numbers!appendOwn(I64(1), numbers:size());
+	numbers!appendOwn(I64(1), numbers:size());
+	numbers!appendOwn(I64(1), numbers:size());
+	@program$console!print(String(numbers:size()));
+	@program$console!print(String(numbers[I64(4)]));
+	@program$console!print(String(numbers[I64(80)]));
+	other @primitives$List<I64> = @primitives$List(I64);
+	other!push(I64(9));
+	other!appendRange(numbers, I64(3), I64(3));
+	other!appendRange(numbers, I64(1), I64(0));
+	@program$console!print(String(other:size()));
+	@program$console!print(String(other[I64(2)]));
+	@program$console!print(String(other[I64(4)]));
+	return Unit();
+}

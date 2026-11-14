@@ -308,6 +308,9 @@ makes of them.
   which gets a table (docs/design/memoization.md M1) whose key and result
   are one-byte scalars widened to a word and narrowed back. Without the
   table, `fib(90)` would not finish.
+- `listAppend` copies a range of a list onto the end of another
+  (`appendRange`) and of itself (`appendOwn`), doubling a list past its
+  first block's room so a list's own range is read after the block grows.
 
 ## Rejects
 
@@ -328,6 +331,10 @@ and so is found only where the verb is written out.
 `List<I64>`. The intrinsic is generic, so that `core`'s `List<U8>` passes,
 but it copies the list's storage as the string's bytes, so lowering takes
 only a list whose elements are each one byte.
+
+`appendOwners` is one too: `@primitives$appendRange` on a `List<String>`.
+The runtime copies the range's bytes, so lowering takes only elements that
+own no blocks.
 
 `hugeArray`, `nestedArray`, `beyondLimit` and `beyondLimitField` are refusals of a type too
 large to hold (docs/design/lowering.md §9): an `Array<I64, 4294967296>` and

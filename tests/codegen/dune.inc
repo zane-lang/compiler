@@ -4755,6 +4755,128 @@
   (diff golden/lightReferences.out lightReferences.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/listAppend))
+ (targets listAppend.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build listAppend.exe --package fixtures/listAppend)))
+
+(rule
+ (deps (source_tree fixtures/listAppend))
+ (targets listAppend.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build listAppend.optimized.exe --optimize --package fixtures/listAppend)))
+
+(rule
+ (deps (source_tree fixtures/listAppend))
+ (targets listAppend.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build listAppend.tiered.exe --tiered --package fixtures/listAppend)))
+
+(rule
+ (deps (source_tree fixtures/listAppend))
+ (targets listAppend.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up listAppend.tier1 --package fixtures/listAppend)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    listAppend.checked.out.actual
+    (run ./listAppend.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listAppend.out listAppend.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    listAppend.unchecked.out.actual
+    (run ./listAppend.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listAppend.out listAppend.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    listAppend.optimized.checked.out.actual
+    (run ./listAppend.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listAppend.out listAppend.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    listAppend.optimized.unchecked.out.actual
+    (run ./listAppend.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listAppend.out listAppend.optimized.unchecked.out.actual)))
+
+(rule
+ (deps listAppend.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./listAppend.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    listAppend.tiered.checked.out.actual
+    (run ./listAppend.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listAppend.out listAppend.tiered.checked.out.actual)))
+
+(rule
+ (deps listAppend.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./listAppend.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    listAppend.tiered.unchecked.out.actual
+    (run ./listAppend.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listAppend.out listAppend.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/lists))
  (action
   (with-stdout-to
@@ -9433,6 +9555,20 @@
  (alias runtest)
  (action
   (diff golden/wideSum.out wideSum.tiered.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/appendOwners))
+ (action
+  (with-stderr-to
+   reject.appendOwners.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/appendOwners)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.appendOwners.err reject.appendOwners.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/beyondLimit))

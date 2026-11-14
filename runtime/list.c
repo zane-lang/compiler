@@ -241,6 +241,18 @@ void zane_list_room(zane_list *list, int64_t stride, int64_t n) {
 	if (!ZL_FITS(list, n, stride)) zane_list_grow(list, bytes, stride);
 }
 
+/* EXPERIMENT (LangArena zane-vs-goose): `count` elements of `from`, from
+   its element `start` (counted from 1), copied onto the end of `list`, as
+   one copy. `from` may be `list` itself: its range is read after the block
+   has grown. The elements own no blocks, so their bytes are all of them. */
+void zane_list_append(zane_list *list, const zane_list *from, int64_t start, int64_t count, int64_t stride) {
+	if (count < 0 || start < 1 || start - 1 > ZL_COUNT(from) - count) zane_out_of_range();
+	if (count == 0) return;
+	if (!ZL_FITS(list, count, stride)) zane_list_grow(list, zane_list_needed(list, count, stride), stride);
+	memcpy(ZL_ITEMS(list) + ZL_COUNT(list) * stride, ZL_ITEMS(from) + (start - 1) * stride, (size_t)(count * stride));
+	list->count += count;
+}
+
 /* The element at `index`, counted from 1 (control-flow.md §3.4). */
 void *zane_list_at(zane_list *list, int64_t index, int64_t stride) {
 	if (index < 1 || index > ZL_COUNT(list)) zane_out_of_range();

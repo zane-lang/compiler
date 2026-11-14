@@ -66,6 +66,8 @@ let runs spelling =
       "@primitives$byteCount";
       "@primitives$byteAt";
       "@primitives$text";
+      "@primitives$appendRange";
+      "@primitives$appendOwn";
     ]
 
 (* A call to what the runtime does for the program, or to a list's own
@@ -249,6 +251,40 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       | Some t when byte (ty st span t) -> ()
       | _ -> refuse span "`@primitives$text` makes a string only from a list of bytes");
       { Expr.node = Expr.Runtime { fn = Runtime.Text_bytes; args = [ w.borrow st ctx span bytes ] }; ty = Nodes.Ty.Handle }
+  | T.Expr.Call { callee = { owner = S.Intrinsic ("@primitives$appendRange" | "@primitives$appendOwn" as name); _ }; args; handler = None }
+    -> (
+      (* EXPERIMENT (LangArena zane-vs-goose): the runtime copies the
+         range's bytes, so the elements must own no blocks. *)
+      let rec plain (t : Nodes.Ty.t) =
+        match t with
+        | Nodes.Ty.I1 | Nodes.Ty.I8 | Nodes.Ty.I32 | Nodes.Ty.I64 | Nodes.Ty.F32 | Nodes.Ty.F64 -> true
+        | Nodes.Ty.Struct ts | Nodes.Ty.Sum ts -> List.for_all plain ts
+        | Nodes.Ty.Array (t, _) | Nodes.Ty.Packed t -> plain t
+        | _ -> false
+      in
+      let append list from start count =
+        let t =
+          match element (Tty.strip_mode list.T.Expr.ty) with
+          | Some t when plain (ty st span t) -> t
+          | _ -> refuse span (Printf.sprintf "`%s` copies only elements that own no blocks" name)
+        in
+        let l = w.lend st ctx span list in
+        let from = match from with Some f -> w.lend st ctx span f | None -> l in
+        let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
+        {
+          Expr.node =
+            Expr.Runtime
+              {
+                fn = Runtime.List_append;
+                args = [ l; from; w.borrow st ctx span start; w.borrow st ctx span count; int (stride st span t) ];
+              };
+          ty = Nodes.Ty.Void;
+        }
+      in
+      match args with
+      | [ T.Arg.Value list; T.Arg.Value from; T.Arg.Value start; T.Arg.Value count ] -> append list (Some from) start count
+      | [ T.Arg.Value list; T.Arg.Value start; T.Arg.Value count ] -> append list None start count
+      | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" name))
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$size"; _ }; args; handler = None }
     -> (
       match args with

@@ -150,6 +150,7 @@ void zane_list_new(zane_list *out);
 void *zane_list_push(zane_list *list, int64_t stride);
 void *zane_list_reserve(zane_list *list, int64_t stride, int64_t n);
 void zane_list_room(zane_list *list, int64_t stride, int64_t n);
+void zane_list_append(zane_list *list, const zane_list *from, int64_t start, int64_t count, int64_t stride);
 void *zane_list_at(zane_list *list, int64_t index, int64_t stride);
 void zane_list_remove(zane_list *list, int64_t index, int64_t stride);
 void zane_list_swap_remove(zane_list *list, int64_t index, int64_t stride);

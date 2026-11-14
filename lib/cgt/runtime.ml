@@ -23,6 +23,9 @@ type fn =
   | Text_f64
   (* EXPERIMENT (LangArena zane-vs-c): a String made from a List<U8>'s bytes. *)
   | Text_bytes
+  (* EXPERIMENT (LangArena zane-vs-goose): a range of a list's elements
+     copied onto the end of a list. *)
+  | List_append
   | Scope_enter
   | Hold
   | Too_deep
@@ -86,7 +89,7 @@ type fn =
   (* A spawned call's subject into a region of its own (runtime/spawn.c). *)
   | Island
 
-let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island ]
+let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Region_at; Alloc; Alloc_held; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island ]
 
 let name = function
   | Print -> "zane_print"
@@ -99,6 +102,7 @@ let name = function
   | Text_f32 -> "zane_text_f32"
   | Text_f64 -> "zane_text_f64"
   | Text_bytes -> "zane_text_bytes"
+  | List_append -> "zane_list_append"
   | Scope_enter -> "zane_scope_enter"
   | Hold -> "zane_hold"
   | Too_deep -> "zane_too_deep"
@@ -172,6 +176,7 @@ let signature = function
   | Text_f32 -> (Void, [ Ptr; F32 ])
   | Text_f64 -> (Void, [ Ptr; F64 ])
   | Text_bytes -> (Void, [ Ptr; Ptr ])
+  | List_append -> (Void, [ Ptr; Ptr; I64; I64; I64 ])
   | Scope_enter -> (Ptr, [ I64 ])
   | Hold -> (Void, [ Ptr; Ptr ])
   | Too_deep -> (Void, [  ])

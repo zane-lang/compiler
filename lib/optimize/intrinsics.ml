@@ -16,6 +16,7 @@ let classify : Cgt.Runtime.fn -> t = function
   | Arguments -> Input
   (* EXPERIMENT: a String from a byte list, which the evaluator does not model. *)
   | Text_bytes -> Input
+  | List_append -> Input
   (* Experimental pooled variants, which the evaluator does not model. *)
   | Pool_new | Pool_push | Pool_append | Pool_root | Pool_copy | Link | Pool_reserve | Pool_new_unbounded -> Input
   (* A handle's stamp is the next of a counter the running program keeps:
