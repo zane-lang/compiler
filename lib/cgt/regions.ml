@@ -774,7 +774,12 @@ let assigned_moves (f : Func.t) =
             | [] -> None
             | Stat.Let { id; value = { Expr.node = Expr.Expand ({ body; result = Some r; _ } as x); _ } as v } :: earlier
               when id = f ->
-                if mentions h after then None
+                (* A write to the flag between them could run both. *)
+                let flag_written =
+                  exists_in after ~expr:(fun _ -> false)
+                    ~stat:(function Stat.Assign { place = { Expr.local; _ }; _ } -> local = f | _ -> false)
+                in
+                if mentions h after || flag_written then None
                 else
                   Option.map
                     (fun body ->
