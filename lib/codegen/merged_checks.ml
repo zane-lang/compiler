@@ -71,6 +71,28 @@ let single_pred b =
   Llvm.iter_uses (fun _ -> incr n) (Llvm.value_of_block b);
   !n = 1
 
+(* Whether block [b] runs nothing but inert calls before its terminator. *)
+let quiet b =
+  let rec scan = function
+    | Llvm.Before i when Llvm.instr_opcode i = Llvm.Opcode.Call -> (
+        match callee i with Some n when inert n -> scan (Llvm.instr_succ i) | _ -> false)
+    | Llvm.Before i when i == Option.get (Llvm.block_terminator b) -> true
+    | Llvm.Before i -> scan (Llvm.instr_succ i)
+    | Llvm.At_end _ -> false
+  in
+  scan (Llvm.instr_begin b)
+
+(* [x] umin [y], built with [builder] in [f]'s module, for [ty]. *)
+let umin f builder ty x y =
+  let name = Printf.sprintf "llvm.umin.i%d" (Llvm.integer_bitwidth ty) in
+  let fty = Llvm.function_type ty [| ty; ty |] in
+  let fn =
+    match Llvm.lookup_function name (Llvm.global_parent f) with
+    | Some fn -> fn
+    | None -> Llvm.declare_function name fty (Llvm.global_parent f)
+  in
+  Llvm.build_call fty fn [| x; y |] "" builder
+
 let func ctx f =
   let dom = lazy (Frame_shadow.dominators f) in
   let merged = ref 0 in
@@ -82,62 +104,43 @@ let func ctx f =
         if vb == ab then Frame_shadow.before v at else (Lazy.force dom) vb ab
     | _ -> true
   in
+  (* Folds the check [t] (compare [c] against [bound]) into the first
+     check [c0] of the same index: [c0] takes the smaller bound and [t]
+     always passes. *)
+  let fold c0 index c bound t passes_true =
+    if Sys.getenv_opt "ZANE_MERGE_CHECKS_DEBUG" = Some "2" then
+      Printf.eprintf "  pair in %s: above=%b same=%b\n" (Llvm.value_name f) (above bound c0) (c == c0);
+    if above bound c0 && c != c0 then begin
+      let ty = Llvm.type_of bound in
+      (* c0 compares index with its bound in one of four forms; its bound
+         operand is replaced. *)
+      let k = if Llvm.operand c0 0 == index then 1 else 0 in
+      let old = Llvm.operand c0 k in
+      if Llvm.type_of old == ty then begin
+        Llvm.set_operand c0 k (umin f (Llvm.builder_before ctx c0) ty old bound);
+        Llvm.set_operand t 0 (Llvm.const_int (Llvm.i1_type ctx) (if passes_true then 1 else 0));
+        incr merged
+      end
+    end
+  in
+  let rec follow c0 index b =
+    if single_pred b && quiet b then
+      let t = Option.get (Llvm.block_terminator b) in
+      match check t with
+      | Some (c, i, bound, cont, passes_true) ->
+          if i == index then fold c0 index c bound t passes_true;
+          follow c0 index cont
+      | None -> (
+          match Llvm.instr_opcode t with
+          | Llvm.Opcode.Br when Llvm.num_operands t = 1 -> follow c0 index (Llvm.block_of_value (Llvm.operand t 0))
+          | _ -> ())
+  in
   let blocks = Llvm.fold_left_blocks (fun acc b -> b :: acc) [] f |> List.rev in
   List.iter
     (fun b0 ->
-      match Llvm.block_terminator b0 with
+      match Option.bind (Llvm.block_terminator b0) check with
       | None -> ()
-      | Some t0 -> (
-          match check t0 with
-          | None -> ()
-          | Some (c0, index, _, next, _) ->
-              let rec follow b =
-                if not (single_pred b) then ()
-                else
-                  let rec scan = function
-                    | Llvm.Before i when Llvm.instr_opcode i = Llvm.Opcode.Call -> (
-                        match callee i with Some n when inert n -> scan (Llvm.instr_succ i) | _ -> false)
-                    | Llvm.Before i when i == Option.get (Llvm.block_terminator b) -> true
-                    | Llvm.Before i -> scan (Llvm.instr_succ i)
-                    | Llvm.At_end _ -> false
-                  in
-                  if scan (Llvm.instr_begin b) then
-                    let t = Option.get (Llvm.block_terminator b) in
-                    match check t with
-                    | Some (c, i, bound, cont, passes_true) ->
-                        if Sys.getenv_opt "ZANE_MERGE_CHECKS_DEBUG" = Some "2" && i == index then
-                          Printf.eprintf "  pair in %s: above=%b same=%b\n" (Llvm.value_name f) (above bound c0) (c == c0);
-                        if i == index && above bound c0 && c != c0 then begin
-                          (* The first check takes the smaller bound. *)
-                          let builder = Llvm.builder_before ctx c0 in
-                          let ty = Llvm.type_of bound in
-                          let umin =
-                            let name = Printf.sprintf "llvm.umin.i%d" (Llvm.integer_bitwidth ty) in
-                            let fty = Llvm.function_type ty [| ty; ty |] in
-                            let fn =
-                              match Llvm.lookup_function name (Llvm.global_parent f) with
-                              | Some fn -> fn
-                              | None -> Llvm.declare_function name fty (Llvm.global_parent f)
-                            in
-                            fun x y -> Llvm.build_call fty fn [| x; y |] "" builder
-                          in
-                          (* c0 compares index with its bound in one of four
-                             forms; its bound operand is replaced. *)
-                          let k = if Llvm.operand c0 0 == index then 1 else 0 in
-                          let old = Llvm.operand c0 k in
-                          if Llvm.type_of old == ty then begin
-                            Llvm.set_operand c0 k (umin old bound);
-                            Llvm.set_operand t 0 (Llvm.const_int (Llvm.i1_type ctx) (if passes_true then 1 else 0));
-                            incr merged
-                          end
-                        end;
-                        follow cont
-                    | None -> (
-                        match Llvm.instr_opcode t with
-                        | Llvm.Opcode.Br when Llvm.num_operands t = 1 -> follow (Llvm.block_of_value (Llvm.operand t 0))
-                        | _ -> ())
-              in
-              follow next))
+      | Some (c0, index, _, next, _) -> follow c0 index next)
     blocks;
   if Sys.getenv_opt "ZANE_MERGE_CHECKS_DEBUG" = Some "1" && !merged > 0 then
     Printf.eprintf "merged checks: %s: %d\n" (Llvm.value_name f) !merged

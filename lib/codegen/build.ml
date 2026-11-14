@@ -1036,6 +1036,17 @@ let finish_tier m ~hash exports definitions =
           | Some why -> Error (Printf.sprintf "tier 1 is not a valid module: %s" why))
   | None, None -> Ok ()
 
+(* EXPERIMENT: when [on ()], [run] rewrites the optimized module [m] and
+   the passes [again] run over it once more; a pass that fails is reported
+   under [name] and the module kept. *)
+let experiment tm m name on run again =
+  if on () then begin
+    run m;
+    match Llvm_passbuilder.run_passes m again tm (Llvm_passbuilder.create_passbuilder_options ()) with
+    | Ok () -> ()
+    | Error e -> prerr_endline (name ^ ": " ^ e)
+  end
+
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and its passes run, the optimized
    ones when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A program means the same either way
@@ -1091,27 +1102,14 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
       |> Result.map (fun () ->
-             (* EXPERIMENT (Frame_scopes): scopes for the frames as inlining
-                left them, then the loop passes again to use them. *)
-             if optimize && Frame_scopes.on () then begin
-               Frame_scopes.run m;
-               match Llvm_passbuilder.run_passes m Frame_scopes.again tm (Llvm_passbuilder.create_passbuilder_options ()) with
-               | Ok () -> ()
-               | Error e -> prerr_endline ("frame scopes: " ^ e)
-             end;
-             (* EXPERIMENT (Frame_shadow): frame slots in registers. *)
-             if optimize && Frame_shadow.on () then begin
-               Frame_shadow.run m;
-               match Llvm_passbuilder.run_passes m Frame_shadow.again tm (Llvm_passbuilder.create_passbuilder_options ()) with
-               | Ok () -> ()
-               | Error e -> prerr_endline ("frame shadow: " ^ e)
-             end;
-             (* EXPERIMENT (Merged_checks): one check per index. *)
-             if optimize && Merged_checks.on () then begin
-               Merged_checks.run m;
-               match Llvm_passbuilder.run_passes m Merged_checks.again tm (Llvm_passbuilder.create_passbuilder_options ()) with
-               | Ok () -> ()
-               | Error e -> prerr_endline ("merged checks: " ^ e)
+             if optimize then begin
+               (* EXPERIMENT (Frame_scopes): scopes for the frames as inlining
+                  left them, then the loop passes again to use them. *)
+               experiment tm m "frame scopes" Frame_scopes.on Frame_scopes.run Frame_scopes.again;
+               (* EXPERIMENT (Frame_shadow): frame slots in registers. *)
+               experiment tm m "frame shadow" Frame_shadow.on Frame_shadow.run Frame_shadow.again;
+               (* EXPERIMENT (Merged_checks): one check per index. *)
+               experiment tm m "merged checks" Merged_checks.on Merged_checks.run Merged_checks.again
              end;
              (* EXPERIMENT: the optimized module, for reading. *)
              Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_OPT"))

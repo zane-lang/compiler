@@ -713,8 +713,8 @@ runs only one to four times is unrolled four times for nothing.
 
 - **Builds:** optimized only (and tier 1)
 - **Where:** `lib/codegen/passes.ml` (`optimized`),
-  `lib/llvm/config/discover.ml`, `lib/codegen/emit.ml` (`versioned`,
-  `count_field`)
+  `lib/llvm/config/discover.ml`, `lib/codegen/loop_copies.ml`
+  (`versioned`), `lib/codegen/emit.ml` (`count_field`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
 - **Effect:** the particle simulation of
   [zane-lang/compiler#292](https://github.com/zane-lang/compiler/issues/292):
@@ -781,7 +781,8 @@ nothing to gain on with 4 KiB pages.
 
 - **Builds:** every build marks the loops; optimized builds and tier 1
   act on the mark
-- **Where:** `lib/codegen/emit.ml` (`unrolled`, `unroll_twice`),
+- **Where:** `lib/codegen/loop_copies.ml` (`unrolled`),
+  `lib/codegen/emit.ml` (`unroll_twice`),
   `lib/codegen/llvm_stubs.c` (`zane_loop_id`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
 - **Effect:** `tests/perf` `floats` 16.5% fewer estimated cycles, optimized
