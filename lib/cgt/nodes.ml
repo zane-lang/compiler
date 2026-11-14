@@ -28,6 +28,9 @@ module Ty = struct
   type t =
     | Void
     | I1
+    (* EXPERIMENT (LangArena zane-vs-c): `@primitives$U8`, an unsigned
+       byte, widened by zero-extension. *)
+    | I8
     | I32
     | I64
     | F32
@@ -87,7 +90,7 @@ module Ty = struct
      type takes [limit] bytes or more. *)
   let rec size_align = function
     | Void -> (0, 1)
-    | I1 -> (1, 1)
+    | I1 | I8 -> (1, 1)
     | I32 | F32 -> (4, 4)
     | I64 | F64 | Ptr -> (8, 8)
     | Handle -> (24, 8)
@@ -278,11 +281,12 @@ module Ty = struct
     | Handle | Handle16 -> true
     | Struct ts | Sum ts -> List.exists holds_handle ts
     | Array (t, _) | Packed t -> holds_handle t
-    | Void | I1 | I32 | I64 | F32 | F64 | Ptr | Ref | Box32 -> false
+    | Void | I1 | I8 | I32 | I64 | F32 | F64 | Ptr | Ref | Box32 -> false
 
   let rec to_string = function
     | Void -> "void"
     | I1 -> "i1"
+    | I8 -> "i8"
     | I32 -> "i32"
     | I64 -> "i64"
     | F32 -> "f32"
@@ -305,7 +309,7 @@ module Scalar = struct
   let single f = Int32.float_of_bits (Int32.bits_of_float f)
 
   (* The bits of an integer type. *)
-  let bits = function Ty.I32 -> 32 | _ -> 64
+  let bits = function Ty.I8 -> 8 | Ty.I32 -> 32 | _ -> 64
 
   (* The floats of type [from] that truncate toward zero into the integer
      type [t]: those above [lower], or at it when [inclusive], and below

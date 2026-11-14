@@ -20,6 +20,8 @@ let fits name (literal : T.Expr.node) =
   | "I32", T.Expr.Integer_lit s -> Option.is_some (Int32.of_string_opt (digits s))
   | "I32", T.Expr.Var (T.Name_ref.Number_param { value = Ty.Known n; _ }) ->
       Int64.of_int n >= Int64.of_int32 Int32.min_int && Int64.of_int n <= Int64.of_int32 Int32.max_int
+  | "U8", T.Expr.Integer_lit s -> (
+      match Int64.of_string_opt (digits s) with Some i -> i >= 0L && i <= 255L | None -> false)
   | "F64", T.Expr.Decimal_lit s -> Float.is_finite (float_of_string (digits s))
   | "F32", T.Expr.Decimal_lit s -> Float.is_finite (Decimal.to_single (digits s))
   | _ -> true

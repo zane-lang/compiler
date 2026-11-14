@@ -222,7 +222,7 @@ let rec holds_address (t : Nodes.Ty.t) =
   | Nodes.Ty.Handle | Nodes.Ty.Handle16 | Nodes.Ty.Ptr | Nodes.Ty.Ref | Nodes.Ty.Box32 -> true
   | Nodes.Ty.Packed t | Nodes.Ty.Array (t, _) -> holds_address t
   | Nodes.Ty.Struct ts | Nodes.Ty.Sum ts -> List.exists holds_address ts
-  | Nodes.Ty.Void | Nodes.Ty.I1 | Nodes.Ty.I32 | Nodes.Ty.I64 | Nodes.Ty.F32 | Nodes.Ty.F64 -> false
+  | Nodes.Ty.Void | Nodes.Ty.I1 | Nodes.Ty.I8 | Nodes.Ty.I32 | Nodes.Ty.I64 | Nodes.Ty.F32 | Nodes.Ty.F64 -> false
 
 (* Whether [v] is given anything it can read memory through, a parameter
    that holds an address or an owner it borrows, and takes no owner. A function that is given

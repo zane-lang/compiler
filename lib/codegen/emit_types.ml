@@ -83,6 +83,7 @@ let rec lltype env (t : Ty.t) =
   match t with
   | Ty.Void -> Llvm.void_type env.ctx
   | Ty.I1 -> Llvm.i1_type env.ctx
+  | Ty.I8 -> Llvm.i8_type env.ctx
   | Ty.I32 -> Llvm.i32_type env.ctx
   | Ty.I64 -> env.i64
   | Ty.F32 -> Llvm.float_type env.ctx

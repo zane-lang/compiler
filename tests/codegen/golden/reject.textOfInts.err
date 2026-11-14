@@ -1,0 +1,4 @@
+File "fixtures/reject/textOfInts/main.zn", line 12, characters 28-42:
+12 |     @program$console!print(numbers:text());
+   |                            ^^^^^^^^^^^^^^
+Error: `@primitives$text` makes a string only from a list of bytes

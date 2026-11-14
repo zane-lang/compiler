@@ -1036,6 +1036,17 @@ let finish_tier m ~hash exports definitions =
           | Some why -> Error (Printf.sprintf "tier 1 is not a valid module: %s" why))
   | None, None -> Ok ()
 
+(* EXPERIMENT: when [on ()], [run] rewrites the optimized module [m] and
+   the passes [again] run over it once more; a pass that fails is reported
+   under [name] and the module kept. *)
+let experiment tm m name on run again =
+  if on () then begin
+    run m;
+    match Llvm_passbuilder.run_passes m again tm (Llvm_passbuilder.create_passbuilder_options ()) with
+    | Ok () -> ()
+    | Error e -> prerr_endline (name ^ ": " ^ e)
+  end
+
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and its passes run, the optimized
    ones when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A program means the same either way
@@ -1090,6 +1101,18 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       let pipeline = thread_sanitized m (Passes.pipeline ~triple ~optimize ~tier1:(tier = Tiers.Tier1)) in
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
+      |> Result.map (fun () ->
+             if optimize then begin
+               (* EXPERIMENT (Frame_scopes): scopes for the frames as inlining
+                  left them, then the loop passes again to use them. *)
+               experiment tm m "frame scopes" Frame_scopes.on Frame_scopes.run Frame_scopes.again;
+               (* EXPERIMENT (Frame_shadow): frame slots in registers. *)
+               experiment tm m "frame shadow" Frame_shadow.on Frame_shadow.run Frame_shadow.again;
+               (* EXPERIMENT (Merged_checks): one check per index. *)
+               experiment tm m "merged checks" Merged_checks.on Merged_checks.run Merged_checks.again
+             end;
+             (* EXPERIMENT: the optimized module, for reading. *)
+             Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_OPT"))
       |> Fun.flip Result.bind (fun () -> finish_tier m ~hash exports definitions)
       |> Result.map (fun () -> (triple, tm, whole, apart)))
 
@@ -1539,6 +1562,10 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
           String.concat "\000"
             ([ fingerprint; triple; cc; identity; compiler_identity (); Passes.tier1 ]
             @ (if thread_sanitizing () then [ "tsan" ] else [])
+            (* The experiments that rewrite tier 1 as it is prepared. *)
+            @ List.filter_map
+                (fun (name, on) -> if on () then Some name else None)
+                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on) ]
             @ Passes.llvm_options)
         in
         Filename.concat (Filename.concat cache "tier")

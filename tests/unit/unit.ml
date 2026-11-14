@@ -523,7 +523,7 @@ let intrinsic_classes () =
     = List.sort compare Cgt.Runtime.[ Print; Set_threads; Set_threads_auto ]);
   check "the program's arguments, a null foreign handle, a callback's context and the experimental pooled variants are the inputs"
     (List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all
-    = Cgt.Runtime.[ Arguments; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; No_object; Callback_attach; Callback_detach ])
+    = Cgt.Runtime.[ Text_bytes; Arguments; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; No_object; Callback_attach; Callback_detach ])
 
 (* The math functions of `@math$` as the evaluator folds them (math.md §2),
    which the math codegen fixture holds both builds to as well, and which
@@ -632,6 +632,10 @@ let materialized () =
   check "a variant of a struct is code and back"
     (Option.bind (Materialize.expr t c) Materialize.const = Some c);
   check "a string is no function's address" (Materialize.expr C.Ty.Ptr (Value.Text "x") = None)
+  ;
+  let bytes = C.Ty.Struct [ C.Ty.I8; C.Ty.I64 ] in
+  let b = Value.Record [| Value.Int 200L; Value.Int 7L |] in
+  check "a struct holding a byte is code and back" (Option.bind (Materialize.expr bytes b) Materialize.const = Some b)
 
 (* Calls run, outputs are kept in order, a call made again is remembered
    when a loop or work that grows with a value is reachable from it, and a budget spent or a constant made where it is read stops the run. *)

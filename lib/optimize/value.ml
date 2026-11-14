@@ -86,7 +86,7 @@ let rec zero (t : Ty.t) =
   match t with
   | Ty.Void -> VUnit
   | Ty.I1 -> VBool false
-  | Ty.I32 | Ty.I64 -> VInt 0L
+  | Ty.I8 | Ty.I32 | Ty.I64 -> VInt 0L
   | Ty.F32 | Ty.F64 -> VFloat 0.
   | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> VNull
   | Ty.Struct ts -> VRecord (Array.of_list (List.map zero ts))
@@ -97,7 +97,8 @@ let rec zero (t : Ty.t) =
 
 (* An integer as a type holds it: an [I32] wraps at 32 bits, sign
    extended. *)
-let int (t : Ty.t) i = match t with Ty.I32 -> Int64.of_int32 (Int64.to_int32 i) | _ -> i
+let int (t : Ty.t) i =
+  match t with Ty.I8 -> Int64.logand i 0xffL | Ty.I32 -> Int64.of_int32 (Int64.to_int32 i) | _ -> i
 
 (* ---------------------------------------------------------------------- *)
 (* Paths                                                                  *)

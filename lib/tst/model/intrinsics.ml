@@ -31,6 +31,10 @@ let types =
     { namespace; name; params; reference }
   in
   [
+    (* EXPERIMENT (LangArena zane-vs-c): an unsigned byte, a storage type
+       with no arithmetic of its own: it converts to and from the integers,
+       and compares. *)
+    t "primitives" "U8";
     t "primitives" "I32";
     t "primitives" "I64";
     t "primitives" "F32";
@@ -140,6 +144,8 @@ let operator_functions =
       binary "disjoin" "Bool" (prim "Bool");
       f "not" [ param "value" (prim "Bool") ] (prim "Bool");
       binary "equal" "Bool" (prim "Bool");
+      binary "equal" "U8" (prim "Bool");
+      binary "lessThan" "U8" (prim "Bool");
       binary "concat" "String" (prim "String");
       binary "equal" "String" (prim "Bool");
     ]
@@ -153,6 +159,10 @@ let operator_functions =
 let conversions =
   [
     ("I64", None, "I32");
+    ("I64", None, "U8");
+    ("I32", None, "U8");
+    ("U8", Some "wrap", "I64");
+    ("U8", Some "wrap", "I32");
     ("F64", None, "F32");
     ("F64", None, "I32");
     ("I32", Some "wrap", "I64");
@@ -196,7 +206,7 @@ let constructors =
   let moded mode e n = Ty.Concept (Ty.Array_lit (mode (Ty.Param e), Ty.Number_param n)) in
   let fill_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let fill_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
-  List.map (fun s -> ctor s [ param "value" (Ty.Concept (concept s)) ] (prim s)) scalars
+  List.map (fun s -> ctor s [ param "value" (Ty.Concept (concept s)) ] (prim s)) ("U8" :: scalars)
   @ List.map
       (fun (target, member, source) -> ctor ?member target [ param "value" (prim source) ] (prim target))
       conversions
@@ -307,7 +317,19 @@ let methods =
     meth ~abort:(Some (prim "Unit")) "primitives" "parseF64"
       [ param "this" (prim "String") ]
       (prim "F64");
+    (* EXPERIMENT (LangArena zane-vs-c): a string's length in bytes, the
+       byte at an index counted from 1, and a string made from bytes. *)
+    meth "primitives" "byteCount" [ param "this" (prim "String") ] (prim "I64");
+    meth "primitives" "byteAt" [ param "this" (prim "String"); param "index" (prim "I64") ] (prim "U8");
   ]
+  @ (let bytes_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+     (* Generic so `core`'s `List<U8>`, a list of its own `U8`, passes;
+        `core` names it for that list alone, whose elements are one byte. *)
+     [
+       meth ~generics:[ bytes_element ] "primitives" "text"
+         [ param "this" (prim "List" ~args:[ Ty.Type (Ty.Param bytes_element) ]) ]
+         (prim "String");
+     ])
   (* A list's own methods, the same on `List` and `ListRef`, one overload
      per subject. *)
   @ List.concat_map

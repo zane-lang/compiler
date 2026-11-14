@@ -413,7 +413,7 @@ Error: no `measure` accepts (@primitives$Array<@primitives$I64, 3>); the candida
 File "fixtures/typing/reject/bad/literals.zn", line 29, characters 17-25:
 29 |     whole Int = Int(2.5);
    |                 ^^^^^^^^
-Error: no `@primitives$I64` accepts (@concepts$Float); the candidates are `@primitives$I64(@concepts$Int)`; `@primitives$I64(@primitives$I32)`; `implicit @primitives$I64(bad$Engine)`
+Error: no `@primitives$I64` accepts (@concepts$Float); the candidates are `@primitives$I64(@concepts$Int)`; `@primitives$I64(@primitives$I32)`; `@primitives$I64(@primitives$U8)`; `implicit @primitives$I64(bad$Engine)`
 File "fixtures/typing/reject/bad/literals.zn", line 30, characters 22-30:
 30 |     fraction Float = Float(2);
    |                      ^^^^^^^^

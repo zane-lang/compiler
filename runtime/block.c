@@ -227,6 +227,17 @@ void zane_text_i64(zane_text *out, int64_t value) {
 	zane_text_from_buffer(out, buffer, length);
 }
 
+void zane_text_bytes(zane_text *out, const zane_list *bytes) {
+	int64_t n = ZL_COUNT(bytes);
+	if (n <= 0) {
+		*out = (zane_text){ "", 0, 0 };
+		return;
+	}
+	char *copy = zane_alloc(zane_here(), n, 8);
+	memcpy(copy, ZL_ITEMS(bytes), (size_t)n);
+	*out = (zane_text){ copy, n, n };
+}
+
 void zane_text_f32(zane_text *out, float value) {
 	char buffer[64];
 	zane_text_from_buffer(out, buffer, zane_format_float(buffer, sizeof buffer, value, 1));

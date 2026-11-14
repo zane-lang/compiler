@@ -95,6 +95,10 @@ let literal ctx span name (arg : T.Expr.t) : Expr.t =
       match Int32.of_string_opt (digits s) with
       | Some i -> { Expr.node = Expr.Int (Int64.of_int32 i); ty = Nodes.Ty.I32 }
       | None -> refuse span (Printf.sprintf "`%s` is out of range for `@primitives$I32`" s))
+  | "U8", T.Expr.Integer_lit s -> (
+      match Int64.of_string_opt (digits s) with
+      | Some i when i >= 0L && i <= 255L -> { Expr.node = Expr.Int i; ty = Nodes.Ty.I8 }
+      | _ -> refuse span (Printf.sprintf "`%s` is out of range for `@primitives$U8`" s))
   | ("F64" | "F32"), T.Expr.Decimal_lit s ->
       let ty = if name = "F32" then Nodes.Ty.F32 else Nodes.Ty.F64 in
       let value =

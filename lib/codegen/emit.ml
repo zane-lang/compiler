@@ -7,6 +7,7 @@ open Loop_shapes
 open Call_pieces
 open Llvm_extra
 include Emit_types
+include Loop_copies
 
 (* ---------------------------------------------------------------------- *)
 (* The runtime and its layouts                                            *)
@@ -61,11 +62,27 @@ let tags ctx =
   in
   (tag "zane handle", tag "zane scalar")
 
+(* EXPERIMENT (ZANE_SIZED_TBAA=1): a scalar's tag by its size, a child of
+   the scalar tag, which every scalar access still aliases: one byte
+   (Bool, U8) apart from the wider ones, since storage is only read back as
+   a type of the size it was written as. *)
+let sized_tbaa = Sys.getenv_opt "ZANE_SIZED_TBAA" = Some "1"
+
+let sized_tag ctx name =
+  let zero = Llvm.const_int (Llvm.i64_type ctx) 0 in
+  let root = Llvm.mdnode ctx [| Llvm.mdstring ctx "zane" |] in
+  let scalar = Llvm.mdnode ctx [| Llvm.mdstring ctx "zane scalar"; root; zero |] in
+  let node = Llvm.mdnode ctx [| Llvm.mdstring ctx name; scalar; zero |] in
+  Llvm.mdnode ctx [| node; node; zero |]
+
 let access env (t : Ty.t) instr =
   let tag =
     match t with
     | Ty.Handle | Ty.Handle16 -> Some env.handle_tag
-    | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> Some env.value_tag
+    | (Ty.I1 | Ty.I8) when sized_tbaa -> Some (sized_tag env.ctx "zane byte")
+    | (Ty.I32 | Ty.F32) when sized_tbaa -> Some (sized_tag env.ctx "zane word4")
+    | (Ty.I64 | Ty.F64 | Ty.Ptr) when sized_tbaa -> Some (sized_tag env.ctx "zane word8")
+    | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> Some env.value_tag
     | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Packed _ -> None
   in
   Option.iter (Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "tbaa")) tag;
@@ -94,12 +111,6 @@ let count_field env instr =
    to the C math library's function of that name, `f`-suffixed for an
    `F32`, marked `nobuiltin` so that LLVM neither computes it nor rewrites
    it: its result is the library's where the program runs (math.md §2.6). *)
-let library_math = function
-  | Cgt.Math.Cbrt | Cgt.Math.Sin | Cgt.Math.Cos | Cgt.Math.Tan | Cgt.Math.Asin | Cgt.Math.Acos | Cgt.Math.Atan
-  | Cgt.Math.Atan2 | Cgt.Math.Exp | Cgt.Math.Log | Cgt.Math.Pow | Cgt.Math.Hypot ->
-      true
-  | _ -> false
-
 let math env b (fn : Cgt.Math.fn) (t : Ty.t) args =
   let lt = lltype env t in
   let declare name params ret =
@@ -226,6 +237,9 @@ type frame = {
   names : (int, Expr.t) Hashtbl.t;
   (* The element addresses the loop being emitted checks before it ([ranged]). *)
   mutable unchecked : Expr.t list;
+  (* EXPERIMENT (ZANE_LOOP_REGS=1): each list a loop made room for, with
+     its block read once before the loop and its count kept in a local. *)
+  kept : (int, Llvm.llvalue * Llvm.llvalue) Hashtbl.t;
 }
 
 let call_runtime env b name args =
@@ -280,81 +294,6 @@ let weigh env br trips =
     Llvm.mdnode env.ctx [| Llvm.mdstring env.ctx "branch_weights"; Llvm.const_int i32 trips; Llvm.const_int i32 1 |]
   in
   Llvm.set_metadata br (Llvm.mdkind_id env.ctx "prof") weights
-
-(* The count from which a [versioned] loop runs its long copy, and how often
-   each copy is said to go round: the long one as a hot loop, the short one
-   too few times for IRCE to expect its split to pay. *)
-let long_loop = 16
-let long_trips = 1000
-let short_trips = 4
-
-(* Whether a loop with [body] can leave before its count runs out: it
-   returns, or leaves a block that holds it. *)
-let leaves_early = Cgt.Traverse.leaves
-
-(* Whether [e] reads or writes a list's or an array's element, whose
-   check IRCE may take out of a loop. *)
-let indexes (e : Expr.t) =
-  match e.Expr.node with
-  | Expr.Runtime { fn = Cgt.Runtime.List_at | Cgt.Runtime.Array_at; _ } -> true
-  | _ -> false
-
-(* Whether a loop with [body] in the function [symbol] is emitted twice
-   (Stat.Repeat): it holds no loop, no spawned call and no call back into
-   [symbol], whose cost would dwarf a check, nothing leaves it before its
-   count runs out, and it reads or writes a list's element, whose check IRCE
-   may take out of it. *)
-let versioned ~symbol body =
-  (not (leaves_early body))
-  && (not
-        (Cgt.Traverse.exists_in body
-           ~expr:(fun e -> match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol | _ -> false)
-           ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ -> true | _ -> false)))
-  && Cgt.Traverse.exists_in body
-       ~expr:indexes ~stat:(fun _ -> false)
-
-(* Whether a counted loop with [body] is asked to be unrolled twice
-   (Stat.Repeat): it can leave before its count runs out, holds no loop,
-   spawn or join, and calls nothing: no function, by name, through a value
-   or in C, and none of the runtime's functions. An element's index check
-   counts as no call, since codegen emits it in line as a compare and an
-   address, and its failure stops the program; every other runtime
-   operation is a call into the runtime, which the optimized passes inline
-   only sometimes. The same goes for an approximate math function, a C
-   library call ([library_math]); for a box, which allocates; for a
-   snapshot, an overwrite and a value taken out of an arena, which the
-   runtime makes; for a scope that opens a region ([Loop_shapes.light],
-   which leaves out only that a frame of more than 4 KiB opens one too);
-   and for a copy, a hold, a reservation or a placement of a value whose
-   layout lists anything ([listed]), whose blocks the runtime copies,
-   lists or settles. Every build marks it; only the optimized passes and
-   tier 1's act on the mark. LLVM 21's `-O2` leaves such a loop
-   rolled on x86-64 even when its body is a dozen arithmetic operations,
-   since the target's cost model allows partial unrolling only of smaller
-   loops, and in a copy whose two exits lead to the same place the passes
-   merge the exit tests, after which its trips cannot be counted at all.
-   Asked for two, it unrolls a short loop of arithmetic such as `floats`'
-   escape test. A loop that calls is left alone:
-   its call dwarfs the test unrolling saves, and the loop the memo pass
-   checks, which calls, is 2.5% slower in `depths` unrolled
-   (docs/design/lowering.md, "The passes"). *)
-let unrolled ~listed body =
-  let calls (e : Expr.t) =
-    match e.Expr.node with
-    | Expr.Call _ | Expr.Call_value _ | Expr.Foreign_call _ | Expr.Box _ | Expr.Snapshot _ | Expr.Escape _ -> true
-    | Expr.Runtime { fn = Cgt.Runtime.List_at | Cgt.Runtime.Array_at | Cgt.Runtime.Out_of_range; _ } -> false
-    | Expr.Runtime _ -> true
-    | Expr.Math { fn; _ } -> library_math fn
-    | Expr.Take { layout; _ } | Expr.Copy { layout; _ } -> listed layout
-    | _ -> false
-  in
-  let stops = function
-    | Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ | Stat.Overwrite _ -> true
-    | Stat.Scope { id; body } -> not (light id body)
-    | Stat.Hold { layout; _ } | Stat.Reserve { layout; _ } | Stat.Place { layout; _ } -> listed layout
-    | _ -> false
-  in
-  leaves_early body && not (Cgt.Traverse.exists_in body ~expr:calls ~stat:stops)
 
 (* The `llvm.loop` node that asks for a loop unrolled twice. *)
 let unroll_twice env =
@@ -543,7 +482,7 @@ let place env b t p v l =
      loop of pushes. *)
   | (Ty.Struct ts | Ty.Packed (Ty.Struct ts))
     when Sys.getenv_opt "ZANE_LOOP_PUSHES" <> Some "0"
-         && List.for_all (function Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true | _ -> false) ts ->
+         && List.for_all (function Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true | _ -> false) ts ->
       let name = match t with Ty.Packed _ -> unaligned_name | _ -> "" in
       List.iteri
         (fun i m ->
@@ -593,7 +532,7 @@ let snapshot_read t =
     | Ty.Ptr | Ty.Ref | Ty.Box32 | Ty.Handle | Ty.Handle16 -> true
     | Ty.Struct ts | Ty.Sum ts -> List.exists names_block ts
     | Ty.Array (t, _) | Ty.Packed t -> names_block t
-    | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
+    | Ty.Void | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> false
   in
   if size_align t <> (8, 8) then `Runtime
   else if names_block t then `Acquire
@@ -902,7 +841,9 @@ let convert env b (from : Ty.t) (into : Ty.t) v =
   | _ -> (
   match (is_float from, is_float into) with
   | false, false ->
-      if Scalar.bits from < Scalar.bits into then Llvm.build_sext v target "" b
+      (* A byte is unsigned: it widens by zero-extension. *)
+      if from = Ty.I8 && Scalar.bits from < Scalar.bits into then Llvm.build_zext v target "" b
+      else if Scalar.bits from < Scalar.bits into then Llvm.build_sext v target "" b
       else if Scalar.bits from > Scalar.bits into then Llvm.build_trunc v target "" b
       else v
   | false, true -> Llvm.build_sitofp v target "" b
@@ -927,7 +868,8 @@ let binary env fr b (op : Expr.binop) (t : Ty.t) l r =
   | (Ty.I64 | Ty.I32), Expr.Add -> Llvm.build_add l r "" b
   | (Ty.I64 | Ty.I32), Expr.Mul -> Llvm.build_mul l r "" b
   | (Ty.I64 | Ty.I32), Expr.Div -> divide env fr b l r
-  | (Ty.I64 | Ty.I32 | Ty.I1), Expr.Eq -> Llvm.build_icmp Llvm.Icmp.Eq l r "" b
+  | (Ty.I64 | Ty.I32 | Ty.I8 | Ty.I1), Expr.Eq -> Llvm.build_icmp Llvm.Icmp.Eq l r "" b
+  | Ty.I8, Expr.Less -> Llvm.build_icmp Llvm.Icmp.Ult l r "" b
   | (Ty.I64 | Ty.I32), Expr.Less -> Llvm.build_icmp Llvm.Icmp.Slt l r "" b
   | (Ty.F64 | Ty.F32), Expr.Add -> Llvm.build_fadd l r "" b
   | (Ty.F64 | Ty.F32), Expr.Mul -> Llvm.build_fmul l r "" b
@@ -1208,6 +1150,15 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
           | Some (id, Ahead n) ->
               Hashtbl.replace fr.runs id (Room (n - 1));
               Some (push env fr b ~ahead:n list stride)
+          | Some (id, Room _) when Hashtbl.mem fr.kept id ->
+              let items, counter = Hashtbl.find fr.kept id in
+              let count = Llvm.build_load env.i64 counter "" b in
+              let at = Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) items [| Llvm.build_nsw_mul count stride "" b |] "" b in
+              let next = Llvm.build_nsw_add count (Llvm.const_int env.i64 1) "" b in
+              ignore (Llvm.build_store next counter b);
+              let stored = if List_handle.on () then List_handle.narrow env.ctx b next else next in
+              List_handle.set_count ~tag:(handle_field env) env.ctx b stored list;
+              Some at
           | Some (id, Room n) ->
               if n = 1 then Hashtbl.remove fr.runs id else Hashtbl.replace fr.runs id (Room (n - 1));
               Some (push env fr b ~unchecked:true list stride)
@@ -1686,11 +1637,23 @@ and stat env fr b (s : Stat.t) =
       List.iter
         (fun (id, stride) ->
           let list = value_of env fr b { Expr.node = Expr.Address id; ty = Ty.Ptr } in
+          let regs = Sys.getenv_opt "ZANE_LOOP_REGS" = Some "1" in
+          let tag = handle_field env in
+          (* Making room keeps the count (runtime/list.c), so it is read
+             before, where LLVM knows it, as after a list is made. *)
+          let count = if regs then Some (List_handle.count ~tag env.ctx b list) else None in
           let f, fty = runtime env Cgt.Runtime.List_room in
           ignore (Llvm.build_call fty f [| list; Llvm.const_int env.i64 (Int64.to_int stride); n |] "" b);
-          Hashtbl.replace fr.runs id (Room max_int))
+          Hashtbl.replace fr.runs id (Room max_int);
+          Option.iter
+            (fun count ->
+              let items = List_handle.items ~tag env.ctx b list in
+              let counter = alloca env fr env.i64 in
+              ignore (Llvm.build_store count counter b);
+              Hashtbl.replace fr.kept id (items, counter))
+            count)
         looped;
-      Fun.protect ~finally:(fun () -> List.iter (fun (id, _) -> Hashtbl.remove fr.runs id) looped) @@ fun () ->
+      Fun.protect ~finally:(fun () -> List.iter (fun (id, _) -> Hashtbl.remove fr.runs id; Hashtbl.remove fr.kept id) looped) @@ fun () ->
       let lists, names = invariant_lists ~own:fr.own body in
       let ranges = ranged body lists names in
       let twice = unrolled ~listed:(listed env) body in
@@ -1758,8 +1721,20 @@ and stat env fr b (s : Stat.t) =
         ignore (Llvm.build_br head b);
         Llvm.position_at_end head b;
         let current = Llvm.build_load env.i64 i "" b in
+        (* EXPERIMENT (LangArena zane-vs-c, ZANE_ENDLESS=1): a count of at
+           least 2^62, a constant, is not tested. Going round that often
+           takes centuries, so only a loop that leaves by its body ends:
+           core has no conditional loop, and `i!to(Int(9223372036854775807))`
+           is how a port writes C's `while`. Departs from the spec, which
+           stops such a loop after its count. *)
+        let huge = match Llvm.int64_of_const n with Some v -> Int64.compare v (Int64.shift_left 1L 62) >= 0 | None -> false in
+        let endless = Sys.getenv_opt "ZANE_ENDLESS" in
+        if huge && endless = Some "1" then ignore (Llvm.build_br step b)
+        else begin
         let test = Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Slt current n "" b) step after b in
-        Option.iter (weigh env test) trips;
+        (* ZANE_ENDLESS=2: the test kept, without the weight. *)
+        if not (huge && endless = Some "2") then Option.iter (weigh env test) trips
+        end;
         Llvm.position_at_end step b;
         if fetch && fetched <> [] then prefetch env fr b fetched;
         fr.loops <- fr.loops + 1;
@@ -1937,6 +1912,7 @@ let func env (f : Func.t) =
       own = own_lists f.Func.params f.Func.body;
       names = Hashtbl.create 8;
       unchecked = [];
+      kept = Hashtbl.create 4;
     }
   in
   (* A parameter passed as itself is stored into a slot like any other

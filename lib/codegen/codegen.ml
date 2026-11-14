@@ -141,6 +141,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
         let at v = Llvm.const_ptrtoint v env.i64 in
         set_prefix_data fn (Llvm.const_trunc (Llvm.const_sub (at held) (at fn)) (Llvm.i32_type ctx)))
     p.Program.callbacks;
+  count_call_sites p.Program.funcs;
   List.iter
     (fun (f : Func.t) -> if f.Func.linkage <> Cgt.Nodes.Linkage.Imported then func env f)
     p.Program.funcs;

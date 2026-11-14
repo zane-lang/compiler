@@ -54,7 +54,7 @@ let functions fs =
 let size_steps (t : Ty.t) =
   match t with
   (* Scalars are smaller than a step's worth of bytes. *)
-  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> 0
+  | Ty.Void | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> 0
   | Ty.Struct _ | Ty.Array _ | Ty.Sum _ | Ty.Packed _ -> fst (Ty.size_align t) / 64
 
 (* The weight a body may have and still be run again rather than
@@ -446,8 +446,8 @@ let binary (op : Expr.binop) (t : Ty.t) l r =
   | (Ty.I64 | Ty.I32), Expr.Div, VInt _, VInt 0L -> VInt 0L
   | (Ty.I64 | Ty.I32), Expr.Div, VInt a, VInt -1L -> VInt (int t (Int64.neg a))
   | (Ty.I64 | Ty.I32), Expr.Div, VInt a, VInt b -> VInt (int t (Int64.div a b))
-  | (Ty.I64 | Ty.I32), Expr.Eq, VInt a, VInt b -> VBool (Int64.equal a b)
-  | (Ty.I64 | Ty.I32), Expr.Less, VInt a, VInt b -> VBool (Int64.compare a b < 0)
+  | (Ty.I64 | Ty.I32 | Ty.I8), Expr.Eq, VInt a, VInt b -> VBool (Int64.equal a b)
+  | (Ty.I64 | Ty.I32 | Ty.I8), Expr.Less, VInt a, VInt b -> VBool (Int64.compare a b < 0)
   | (Ty.F64 | Ty.F32), Expr.Add, VFloat a, VFloat b -> VFloat (float t (a +. b))
   | (Ty.F64 | Ty.F32), Expr.Mul, VFloat a, VFloat b -> VFloat (float t (a *. b))
   | (Ty.F64 | Ty.F32), Expr.Div, VFloat a, VFloat b -> VFloat (float t (a /. b))
@@ -540,7 +540,7 @@ let math (fn : Cgt.Math.fn) (t : Ty.t) args =
 (* A scalar converted from [from] to [into], as emit.ml's [convert]. *)
 let convert (from : Ty.t) (into : Ty.t) v =
   match (from, into, v) with
-  | (Ty.I32 | Ty.I64), (Ty.I32 | Ty.I64), VInt a -> VInt (int into a)
+  | (Ty.I8 | Ty.I32 | Ty.I64), (Ty.I8 | Ty.I32 | Ty.I64), VInt a -> VInt (int into a)
   | (Ty.I32 | Ty.I64), (Ty.F32 | Ty.F64), VInt a -> VFloat (Scalar.to_float into a)
   | (Ty.F32 | Ty.F64), (Ty.F32 | Ty.F64), VFloat a -> VFloat (float into a)
   | (Ty.F32 | Ty.F64), (Ty.I32 | Ty.I64), VFloat a ->

@@ -63,6 +63,9 @@ let runs spelling =
       "@primitives$size";
       "@primitives$remove";
       "@primitives$swapRemove";
+      "@primitives$byteCount";
+      "@primitives$byteAt";
+      "@primitives$text";
     ]
 
 (* A call to what the runtime does for the program, or to a list's own
@@ -202,6 +205,50 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
           in
           { Expr.node = Expr.Expand { label; body; result = None }; ty = Nodes.Ty.Void }
       | _ -> Diagnostic.bug ~span "lowering: `push` with the wrong arguments")
+  (* EXPERIMENT (LangArena zane-vs-c): a string's bytes. *)
+  | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$byteCount"; _ }; args = [ T.Arg.Value text ]; handler = None }
+    ->
+      { Expr.node = Expr.Member { value = w.borrow st ctx span text; index = 1 }; ty = Nodes.Ty.I64 }
+  | T.Expr.Call
+      { callee = { owner = S.Intrinsic "@primitives$byteAt"; _ }; args = [ T.Arg.Value text; T.Arg.Value index ]; handler = None }
+    ->
+      let s = fresh st and i = fresh st and v = fresh st and label = fresh st in
+      let the_text = { Expr.node = Expr.Local s; ty = Nodes.Ty.Handle } in
+      let at =
+        ptr
+          (Expr.Runtime
+             {
+               fn = Runtime.Array_at;
+               args =
+                 [
+                   { Expr.node = Expr.Member { value = the_text; index = 0 }; ty = Nodes.Ty.Ptr };
+                   { Expr.node = Expr.Local i; ty = Nodes.Ty.I64 };
+                   { Expr.node = Expr.Member { value = the_text; index = 1 }; ty = Nodes.Ty.I64 };
+                   { Expr.node = Expr.Int 1L; ty = Nodes.Ty.I64 };
+                 ];
+             })
+      in
+      let body =
+        [
+          Stat.Let { id = s; value = w.borrow st ctx span text };
+          Stat.Let { id = i; value = w.borrow st ctx span index };
+          Stat.Let { id = v; value = { Expr.node = Expr.Deref at; ty = Nodes.Ty.I8 } };
+        ]
+      in
+      { Expr.node = Expr.Expand { label; body; result = Some v }; ty = Nodes.Ty.I8 }
+  | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$text"; _ }; args = [ T.Arg.Value bytes ]; handler = None } ->
+      (* The runtime copies the list's storage as the text's bytes, so its
+         elements must each be one byte: `U8`, or a struct of one. *)
+      let rec byte (t : Nodes.Ty.t) =
+        match t with
+        | Nodes.Ty.I8 -> true
+        | Nodes.Ty.Struct [ t ] | Nodes.Ty.Packed (Nodes.Ty.Struct [ t ]) -> byte t
+        | _ -> false
+      in
+      (match element (Tty.strip_mode bytes.T.Expr.ty) with
+      | Some t when byte (ty st span t) -> ()
+      | _ -> refuse span "`@primitives$text` makes a string only from a list of bytes");
+      { Expr.node = Expr.Runtime { fn = Runtime.Text_bytes; args = [ w.borrow st ctx span bytes ] }; ty = Nodes.Ty.Handle }
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$size"; _ }; args; handler = None }
     -> (
       match args with

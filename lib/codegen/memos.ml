@@ -102,7 +102,7 @@ let memo env (m : Cgt.Memo.t) =
      words directly, one word to each scalar, and needs no buffer. *)
   let rec scalars (t : Ty.t) =
     match t with
-    | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
+    | Ty.Void | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
     | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> List.for_all scalars ts
     | _ -> false
   in
@@ -110,7 +110,7 @@ let memo env (m : Cgt.Memo.t) =
     match t with
     | Ty.Void -> []
     | Ty.I64 -> [ Llvm.build_freeze v "" b ]
-    | Ty.I32 | Ty.I1 -> [ Llvm.build_zext (Llvm.build_freeze v "" b) i64 "" b ]
+    | Ty.I32 | Ty.I8 | Ty.I1 -> [ Llvm.build_zext (Llvm.build_freeze v "" b) i64 "" b ]
     | Ty.F64 -> [ Llvm.build_bitcast (Llvm.build_freeze v "" b) i64 "" b ]
     | Ty.F32 -> [ Llvm.build_zext (Llvm.build_bitcast (Llvm.build_freeze v "" b) (Llvm.i32_type ctx) "" b) i64 "" b ]
     | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> List.concat (List.mapi (fun i t -> flatten t (Llvm.build_extractvalue v i "" b)) ts)
@@ -121,7 +121,7 @@ let memo env (m : Cgt.Memo.t) =
     match (t, ws) with
     | Ty.Void, ws -> (Llvm.undef (stored env t), ws)
     | Ty.I64, w :: ws -> (w, ws)
-    | (Ty.I32 | Ty.I1), w :: ws -> (Llvm.build_trunc w (lltype env t) "" b, ws)
+    | (Ty.I32 | Ty.I8 | Ty.I1), w :: ws -> (Llvm.build_trunc w (lltype env t) "" b, ws)
     | Ty.F64, w :: ws -> (Llvm.build_bitcast w (lltype env t) "" b, ws)
     | Ty.F32, w :: ws -> (Llvm.build_bitcast (Llvm.build_trunc w (Llvm.i32_type ctx) "" b) (lltype env t) "" b, ws)
     | (Ty.Struct ts | Ty.Packed (Ty.Struct ts)), ws ->

@@ -1,0 +1,14 @@
+/// `@primitives$text` copies a list's storage as a string's bytes, so
+/// lowering takes only a list whose elements are each one byte.
+package textOfInts;
+
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+alias Unit = @primitives$Unit;
+
+Unit main() {
+	numbers @primitives$List<I64> = @primitives$List(I64);
+	numbers!push(I64(65));
+	@program$console!print(numbers:text());
+	return Unit();
+}

@@ -32,11 +32,11 @@ let rec fixed (t : Ty.t) =
   | Ty.Packed t -> fixed t
   | Ty.Struct ts | Ty.Sum ts -> List.for_all fixed ts
   | Ty.Array (t, _) -> fixed t
-  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
+  | Ty.Void | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
 
 let rec scalars (t : Ty.t) =
   match t with
-  | Ty.Void | Ty.I1 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
+  | Ty.Void | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 -> true
   | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> List.for_all scalars ts
   | _ -> false
 
