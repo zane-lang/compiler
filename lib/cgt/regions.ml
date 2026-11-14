@@ -834,12 +834,20 @@ let assigned_moves (f : Func.t) =
                   let outside_ifs =
                     map_stats (fun _ -> None)
                       (function Stat.If { cond; _ } -> Some [ Stat.If { cond; body = [] } ] | _ -> None)
-                      after
                   in
-                  exists_in outside_ifs
-                    ~expr:(fun e ->
-                      match e.Expr.node with Expr.Take { address = { Expr.node = Expr.Address x; _ }; _ } -> x = h | _ -> false)
-                    ~stat:(fun _ -> false)
+                  let takes_h stats =
+                    exists_in (outside_ifs stats)
+                      ~expr:(fun e ->
+                        match e.Expr.node with Expr.Take { address = { Expr.node = Expr.Address x; _ }; _ } -> x = h | _ -> false)
+                      ~stat:(fun _ -> false)
+                  in
+                  (* Nothing before the statement that moves it may leave:
+                     a return there would leave with the block unmoved. *)
+                  let rec reached = function
+                    | [] -> false
+                    | s :: rest -> if takes_h [ s ] then true else (not (leaves [ s ])) && reached rest
+                  in
+                  reached after
                 in
                 if moved_here && unconditional && !takes = 1 && !addressed = 1 && Sys.getenv_opt "ZANE_ASSIGN_LET" <> Some "0" then
                   let fe (e : Expr.t) =
