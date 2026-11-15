@@ -1,0 +1,16 @@
+/// `appendRange` copies elements' bytes, so lowering takes only elements
+/// that own no blocks: strings own theirs.
+package appendOwners;
+
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+alias Unit = @primitives$Unit;
+
+Unit main() {
+	words @primitives$List<String> = @primitives$List(String);
+	words!push(String("a"));
+	more @primitives$List<String> = @primitives$List(String);
+	more!appendRange(words, I64(1), I64(1));
+	@program$console!print(String(more:size()));
+	return Unit();
+}

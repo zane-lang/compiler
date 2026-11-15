@@ -1,0 +1,4 @@
+File "fixtures/reject/appendOwners/main.zn", line 13, characters 5-44:
+13 |     more!appendRange(words, I64(1), I64(1));
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `@primitives$appendRange` copies only elements that own no blocks
