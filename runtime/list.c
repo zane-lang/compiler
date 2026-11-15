@@ -253,6 +253,74 @@ void zane_list_append(zane_list *list, const zane_list *from, int64_t start, int
 	list->count += count;
 }
 
+/* EXPERIMENT (LangArena zane-vs-goose): whether `count` elements of
+   `list` from its element `start` and of `other` from `other_start`
+   (counted from 1) are the same bytes, 1 or 0, as one comparison. The
+   elements own no blocks, so their bytes are all of them. */
+int64_t zane_list_same(const zane_list *list, int64_t start, const zane_list *other, int64_t other_start, int64_t count,
+                       int64_t stride) {
+	if (count < 0 || start < 1 || start - 1 > ZL_COUNT(list) - count || other_start < 1 ||
+	    other_start - 1 > ZL_COUNT(other) - count)
+		zane_out_of_range();
+	return memcmp(ZL_ITEMS(list) + (start - 1) * stride, ZL_ITEMS(other) + (other_start - 1) * stride,
+	              (size_t)(count * stride)) == 0;
+}
+
+/* EXPERIMENT (LangArena zane-vs-goose): a hash of the bytes of `count`
+   elements of `list` from its element `start` (counted from 1). Blocks of
+   32 bytes go to four lanes mixed independently, so the multiplies overlap
+   rather than wait on each other; the words after them go to the first
+   lane, and the tail and the length close it. Equal ranges hash alike
+   within one run of a program; the value is not specified beyond that. */
+static inline uint64_t zane_hash_mix(uint64_t h, uint64_t w) {
+	h = (h ^ w) * UINT64_C(0x9E3779B97F4A7C15);
+	return h ^ (h >> 29);
+}
+
+int64_t zane_list_hash(const zane_list *list, int64_t start, int64_t count, int64_t stride) {
+	if (count < 0 || start < 1 || start - 1 > ZL_COUNT(list) - count) zane_out_of_range();
+	const unsigned char *p = (const unsigned char *)ZL_ITEMS(list) + (start - 1) * stride;
+	size_t n = (size_t)(count * stride);
+	uint64_t h = (uint64_t)n * UINT64_C(0x9E3779B97F4A7C15);
+	if (n >= 32) {
+		uint64_t a = h, b = h + 1, c = h + 2, d = h + 3;
+		for (; n >= 32; n -= 32, p += 32) {
+			uint64_t w[4];
+			memcpy(w, p, 32);
+			a = zane_hash_mix(a, w[0]);
+			b = zane_hash_mix(b, w[1]);
+			c = zane_hash_mix(c, w[2]);
+			d = zane_hash_mix(d, w[3]);
+		}
+		h = zane_hash_mix(zane_hash_mix(zane_hash_mix(a, b), c), d);
+	}
+	size_t total = (size_t)(count * stride);
+	for (; n >= 8; n -= 8, p += 8) {
+		uint64_t w;
+		memcpy(&w, p, 8);
+		h = zane_hash_mix(h, w);
+	}
+	/* The last 1 to 7 bytes, read as fixed-size loads that may overlap
+	   bytes already mixed: the 8 that end the range when it has 8, else
+	   two 4-byte words or three single bytes. */
+	uint64_t w = 0;
+	if (n > 0) {
+		if (total >= 8) {
+			memcpy(&w, p + n - 8, 8);
+			w >>= 8 * (8 - n);
+		} else if (n >= 4) {
+			uint32_t lo, hi;
+			memcpy(&lo, p, 4);
+			memcpy(&hi, p + n - 4, 4);
+			w = lo | (uint64_t)hi << 32;
+		} else
+			w = p[0] | (uint64_t)p[n / 2] << 8 | (uint64_t)p[n - 1] << 16;
+	}
+	h = zane_hash_mix(h, w ^ n);
+	h ^= h >> 32;
+	return (int64_t)(h >> 1);
+}
+
 /* EXPERIMENT (LangArena zane-vs-goose): a list of integers sorted in
    place, ascending, as a standard library's sort is, written out for each
    element type so every comparison is an inline compare. A pattern-

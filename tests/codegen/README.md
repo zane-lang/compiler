@@ -317,6 +317,10 @@ makes of them.
 - `parseRange` reads numbers from ranges of an argument's bytes with
   `parseF64At`: ones the quick path rounds, ones past 2^53 or 19 digits
   the C library rounds, and ranges that spell no number.
+- `listRanges` compares ranges of a list with `sameRange`, against its own
+  later range and another list's, and hashes them with `hashRange`: equal
+  ranges of every length up to past a 32-byte block hash alike, and a
+  range's last element counts.
 
 ## Rejects
 
@@ -345,6 +349,10 @@ own no blocks.
 `sortFloats` is one too: `@primitives$sort` on a `List<F64>`. The runtime
 sorts the elements as integers of their width, so lowering takes only lists
 of integers.
+
+`rangeFloats` is one too: `@primitives$hashRange` on a `List<F64>`. The
+runtime reads the range's bytes, and equal floats need not be equal bytes,
+so lowering takes only lists of integers.
 
 `hugeArray`, `nestedArray`, `beyondLimit` and `beyondLimitField` are refusals of a type too
 large to hold (docs/design/lowering.md §9): an `Array<I64, 4294967296>` and

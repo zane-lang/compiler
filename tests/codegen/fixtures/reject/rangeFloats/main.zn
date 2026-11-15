@@ -1,0 +1,14 @@
+/// `@primitives$hashRange` reads integers only, whose equal values are
+/// equal bytes, so lowering takes no list of floats.
+package rangeFloats;
+
+alias F64 = @primitives$F64;
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+Unit main() {
+	values @primitives$List<F64> = @primitives$List(F64);
+	values!push(F64(2.5));
+	h I64 = values:hashRange(I64(1), I64(1));
+	return Unit();
+}

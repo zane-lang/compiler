@@ -60,6 +60,8 @@ let runs spelling =
       "@primitives$parseI64";
       "@primitives$parseF64";
       "@primitives$parseF64At";
+      "@primitives$sameRange";
+      "@primitives$hashRange";
       "@primitives$push";
       "@primitives$size";
       "@primitives$remove";
@@ -297,6 +299,43 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       match args with
       | [ T.Arg.Value list; T.Arg.Value from; T.Arg.Value start; T.Arg.Value count ] -> append list (Some from) start count
       | [ T.Arg.Value list; T.Arg.Value start; T.Arg.Value count ] -> append list None start count
+      | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" name))
+  | T.Expr.Call { callee = { owner = S.Intrinsic ("@primitives$sameRange" | "@primitives$hashRange" as name); _ }; args; handler = None }
+    -> (
+      (* EXPERIMENT (LangArena zane-vs-goose): the runtime reads the
+         ranges' bytes, so the elements must own no blocks, and equal
+         elements must be equal bytes: no floats, whose zeros differ. *)
+      let rec plain (t : Nodes.Ty.t) =
+        match t with
+        | Nodes.Ty.I1 | Nodes.Ty.I8 | Nodes.Ty.I32 | Nodes.Ty.I64 -> true
+        | Nodes.Ty.Struct [ t ] | Nodes.Ty.Packed (Nodes.Ty.Struct [ t ]) -> plain t
+        | _ -> false
+      in
+      let stride_of list =
+        match element (Tty.strip_mode list.T.Expr.ty) with
+        | Some t when plain (ty st span t) -> stride st span t
+        | _ -> refuse span (Printf.sprintf "`%s` reads only lists of integers" name)
+      in
+      let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
+      let b = w.borrow st ctx span in
+      match args with
+      | [ T.Arg.Value list; T.Arg.Value start; T.Arg.Value other; T.Arg.Value other_start; T.Arg.Value count ] ->
+          let s = stride_of list in
+          {
+            Expr.node =
+              Expr.Runtime
+                {
+                  fn = Runtime.List_same;
+                  args = [ w.lend st ctx span list; b start; w.lend st ctx span other; b other_start; b count; int s ];
+                };
+            ty = Nodes.Ty.I64;
+          }
+      | [ T.Arg.Value list; T.Arg.Value start; T.Arg.Value count ] ->
+          let s = stride_of list in
+          {
+            Expr.node = Expr.Runtime { fn = Runtime.List_hash; args = [ w.lend st ctx span list; b start; b count; int s ] };
+            ty = Nodes.Ty.I64;
+          }
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" name))
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$sort"; _ }; args = [ T.Arg.Value list ]; handler = None } ->
       (* EXPERIMENT (LangArena zane-vs-goose): the runtime sorts the

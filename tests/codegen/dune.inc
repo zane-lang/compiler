@@ -4877,6 +4877,128 @@
   (diff golden/listAppend.out listAppend.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/listRanges))
+ (targets listRanges.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build listRanges.exe --package fixtures/listRanges)))
+
+(rule
+ (deps (source_tree fixtures/listRanges))
+ (targets listRanges.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build listRanges.optimized.exe --optimize --package fixtures/listRanges)))
+
+(rule
+ (deps (source_tree fixtures/listRanges))
+ (targets listRanges.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build listRanges.tiered.exe --tiered --package fixtures/listRanges)))
+
+(rule
+ (deps (source_tree fixtures/listRanges))
+ (targets listRanges.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up listRanges.tier1 --package fixtures/listRanges)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    listRanges.checked.out.actual
+    (run ./listRanges.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listRanges.out listRanges.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    listRanges.unchecked.out.actual
+    (run ./listRanges.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listRanges.out listRanges.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    listRanges.optimized.checked.out.actual
+    (run ./listRanges.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listRanges.out listRanges.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    listRanges.optimized.unchecked.out.actual
+    (run ./listRanges.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listRanges.out listRanges.optimized.unchecked.out.actual)))
+
+(rule
+ (deps listRanges.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./listRanges.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    listRanges.tiered.checked.out.actual
+    (run ./listRanges.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listRanges.out listRanges.tiered.checked.out.actual)))
+
+(rule
+ (deps listRanges.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./listRanges.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    listRanges.tiered.unchecked.out.actual
+    (run ./listRanges.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listRanges.out listRanges.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/listSort))
  (targets listSort.exe)
  (action
@@ -9883,6 +10005,20 @@
  (alias runtest)
  (action
   (diff golden/reject.nestedArray.err reject.nestedArray.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/rangeFloats))
+ (action
+  (with-stderr-to
+   reject.rangeFloats.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/rangeFloats)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.rangeFloats.err reject.rangeFloats.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/sortFloats))

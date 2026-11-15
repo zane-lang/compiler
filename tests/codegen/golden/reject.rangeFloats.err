@@ -1,0 +1,4 @@
+File "fixtures/reject/rangeFloats/main.zn", line 12, characters 13-45:
+12 |     h I64 = values:hashRange(I64(1), I64(1));
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `@primitives$hashRange` reads only lists of integers
