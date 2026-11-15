@@ -317,6 +317,11 @@ let methods =
     meth ~abort:(Some (prim "Unit")) "primitives" "parseF64"
       [ param "this" (prim "String") ]
       (prim "F64");
+    (* EXPERIMENT (LangArena zane-vs-goose): `parseF64` on the [count]
+       bytes from byte [start], counted from 1 as `byteAt` counts. *)
+    meth ~abort:(Some (prim "Unit")) "primitives" "parseF64At"
+      [ param "this" (prim "String"); param "start" (prim "I64"); param "count" (prim "I64") ]
+      (prim "F64");
     (* EXPERIMENT (LangArena zane-vs-c): a string's length in bytes, the
        byte at an index counted from 1, and a string made from bytes. *)
     meth "primitives" "byteCount" [ param "this" (prim "String") ] (prim "I64");
@@ -329,6 +334,41 @@ let methods =
        meth ~generics:[ bytes_element ] "primitives" "text"
          [ param "this" (prim "List" ~args:[ Ty.Type (Ty.Param bytes_element) ]) ]
          (prim "String");
+     ])
+  (* EXPERIMENT (LangArena zane-vs-goose): `count` elements of a list, from
+     its element `start`, copied onto the end of a list, as one copy: of
+     another list, or of the list itself. Only for elements that own no
+     blocks, which lowering checks. *)
+  @ (let list () =
+       let element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+       (element, prim "List" ~args:[ Ty.Type (Ty.Param element) ])
+     in
+     let range, ranged = list () and own, owned = list () and sorts, sorted = list () in
+     let compared, compares = list () and hashed, hashes = list () in
+     [
+       meth ~generics:[ range ] ~is_mut:true "primitives" "appendRange"
+         [ param "this" ranged; param "from" ranged; param "start" (prim "I64"); param "count" (prim "I64") ]
+         (prim "Unit");
+       meth ~generics:[ own ] ~is_mut:true "primitives" "appendOwn"
+         [ param "this" owned; param "start" (prim "I64"); param "count" (prim "I64") ]
+         (prim "Unit");
+       (* A list of integers sorted in place, ascending. *)
+       meth ~generics:[ sorts ] ~is_mut:true "primitives" "sort" [ param "this" sorted ] (prim "Unit");
+       (* 1 when a range of the list holds the same elements as a range
+          of another, else 0; and a hash of a range, the same for equal
+          ranges within one run. *)
+       meth ~generics:[ compared ] "primitives" "sameRange"
+         [
+           param "this" compares;
+           param "start" (prim "I64");
+           param "other" compares;
+           param "otherStart" (prim "I64");
+           param "count" (prim "I64");
+         ]
+         (prim "I64");
+       meth ~generics:[ hashed ] "primitives" "hashRange"
+         [ param "this" hashes; param "start" (prim "I64"); param "count" (prim "I64") ]
+         (prim "I64");
      ])
   (* A list's own methods, the same on `List` and `ListRef`, one overload
      per subject. *)

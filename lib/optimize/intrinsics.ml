@@ -16,6 +16,9 @@ let classify : Cgt.Runtime.fn -> t = function
   | Arguments -> Input
   (* EXPERIMENT: a String from a byte list, which the evaluator does not model. *)
   | Text_bytes -> Input
+  (* EXPERIMENT: list range copies, sorts, comparisons and hashes, which
+     the evaluator does not model. *)
+  | List_append | List_same | List_hash | List_sort -> Input
   (* Experimental pooled variants, which the evaluator does not model. *)
   | Pool_new | Pool_push | Pool_append | Pool_root | Pool_copy | Link | Pool_reserve | Pool_new_unbounded -> Input
   (* A handle's stamp is the next of a counter the running program keeps:
@@ -29,7 +32,7 @@ let classify : Cgt.Runtime.fn -> t = function
   | Text_join | Text_expect | Text_taken | Text_equal | Text_i32 | Text_i64 | Text_f32 | Text_f64
   | List_new | List_push | List_at | List_remove _ | List_swap_remove _ | Array_at | Constant_begin
   | Constant_end | Writeback
-  | Parse_i64 | Parse_f64 ->
+  | Parse_i64 | Parse_f64 | Parse_f64_at ->
       Computed
   (* Codegen calls these for nodes of the tree rather than the tree naming
      them: a scope, a held slot, a copy, a box, a spawn, a run of pushes, and

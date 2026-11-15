@@ -365,7 +365,8 @@ let taken_params funcs ~keeps =
       f.Func.body;
     List.rev !reads
   in
-  let take (f : Func.t) held j (p, t) =
+  let moves_in = Sys.getenv_opt "ZANE_ASSIGN_MOVES" = Some "1" in
+  let rec take (f : Func.t) held j (p, t) =
     if t <> Ty.Ptr then
       (* The copy is found before the read inside it. *)
       match reads_of f p with
@@ -375,23 +376,30 @@ let taken_params funcs ~keeps =
               ~start:(fun _ -> false)
               ~event:(fun e -> e == copy)
               ~refills:(fun _ -> false)
-              ~keeps
+              ~keeps:taken_keeps
           then Hashtbl.replace table (f.Func.symbol, j) (copy, layout)
       | _ -> ()
+  (* A taken parameter keeps a fresh argument too: the callee, or its
+     taking copy, is given the value itself. *)
+  and taken_keeps fn j = keeps fn j || (moves_in && Hashtbl.mem table (fn, j)) in
+  (* Each parameter found taken can let its callers' parameters be taken
+     too, so the search runs until it finds no more. *)
+  let rec search () =
+    let before = Hashtbl.length table in
+    List.iter
+      (fun (f : Func.t) -> if has_body f then List.iteri (take f (List.map fst (held_params f))) f.Func.params)
+      funcs;
+    if moves_in && Hashtbl.length table > before then search ()
   in
+  search ();
   let cloned = Hashtbl.create 16 in
   List.iter
     (fun (f : Func.t) ->
-      if has_body f then begin
-        let held = List.map fst (held_params f) in
-        List.iteri (take f held) f.Func.params;
-        if
-          (f.Func.linkage <> Linkage.Local || Hashtbl.mem addressed f.Func.symbol)
-          && List.exists
-               (fun j -> Hashtbl.mem table (f.Func.symbol, j))
-               (List.mapi (fun j _ -> j) f.Func.params)
-        then Hashtbl.replace cloned f.Func.symbol ()
-      end)
+      if
+        has_body f
+        && (f.Func.linkage <> Linkage.Local || Hashtbl.mem addressed f.Func.symbol)
+        && List.exists (fun j -> Hashtbl.mem table (f.Func.symbol, j)) (List.mapi (fun j _ -> j) f.Func.params)
+      then Hashtbl.replace cloned f.Func.symbol ())
     funcs;
   (table, cloned)
 
@@ -712,7 +720,105 @@ let returned_moves (f : Func.t) =
    moves it (returned_moves): nothing reads the slot again before the scope
    drains it, and the move leaves it vacant. Only straight-line code, `if`
    bodies and expansions are looked into; a copy inside a loop is left. *)
-let assigned_moves (f : Func.t) =
+(* A hold read once, as an argument of the call the next statement makes,
+   held in that argument instead, as lowering holds a fresh argument
+   (Lower.borrow): then a callee that takes the parameter is given the value
+   itself. Only arguments that read no memory and no local the hold's value
+   mentions and no local whose address the function takes run before it, so
+   the copy running later sees what it saw: an initializer can write any
+   memory, and a local through any pointer to it. *)
+let sink_holds (f : Func.t) =
+  let top = ref 0 in
+  let see i = if i > !top then top := i in
+  List.iter (fun (i, _) -> see i) f.Func.params;
+  walk_stats
+    (fun e ->
+      match e.Expr.node with
+      | Expr.Local i | Expr.Address i -> see i
+      | Expr.Expand { label; result; _ } ->
+          see label;
+          Option.iter see result
+      | _ -> ())
+    (function
+      | Stat.Let { id; _ } | Stat.Hold { id; _ } | Stat.Scope { id; _ } -> see id
+      | Stat.Assign { place; _ } -> see place.Expr.local
+      | _ -> ())
+    f.Func.body;
+  let fresh () =
+    incr top;
+    !top
+  in
+  let mentions (e : Expr.t) =
+    let seen = ref [] in
+    walk_stats
+      (fun e -> match e.Expr.node with Expr.Local x | Expr.Address x -> seen := x :: !seen | _ -> ())
+      (fun _ -> ())
+      [ Stat.Eval e ];
+    !seen
+  in
+  let addressed = Hashtbl.create 16 in
+  walk_stats
+    (fun e -> match e.Expr.node with Expr.Address x -> Hashtbl.replace addressed x () | _ -> ())
+    (fun _ -> ())
+    f.Func.body;
+  let rec simple held (e : Expr.t) =
+    match e.Expr.node with
+    | Expr.Int _ | Expr.Float _ | Expr.Bool _ | Expr.Unit | Expr.Address _ -> true
+    | Expr.Local x -> not (List.mem x held || Hashtbl.mem addressed x)
+    | Expr.Offset { base; _ } -> simple held base
+    | _ -> false
+  in
+  let count h stats =
+    let n = ref 0 in
+    walk_stats
+      (fun e -> match e.Expr.node with Expr.Local x | Expr.Address x when x = h -> incr n | _ -> ())
+      (function Stat.Assign { place; _ } when place.Expr.local = h -> n := !n + 2 | _ -> ())
+      stats;
+    !n
+  in
+  let sink (hold : Stat.t) (s : Stat.t) =
+    match hold with
+    | Stat.Hold { id = h; value = held; _ } -> (
+        let into (call : Expr.t) =
+          match call.Expr.node with
+          | Expr.Call { fn; args } ->
+              let rec go = function
+                | ({ Expr.node = Expr.Local x; ty } : Expr.t) :: rest when x = h ->
+                    let label = fresh () and result = fresh () in
+                    let body = [ hold; Stat.assign result { Expr.node = Expr.Local h; ty = held.Expr.ty } ] in
+                    Some ({ Expr.node = Expr.Expand { label; body; result = Some result }; ty } :: rest)
+                | a :: rest when simple (mentions held) a -> Option.map (fun rest -> a :: rest) (go rest)
+                | _ -> None
+              in
+              Option.map (fun args -> { call with Expr.node = Expr.Call { fn; args } }) (go args)
+          | _ -> None
+        in
+        match s with
+        | Stat.Eval c -> Option.map (fun c -> Stat.Eval c) (into c)
+        | Stat.Let ({ value; _ } as l) -> Option.map (fun value -> Stat.Let { l with value }) (into value)
+        | Stat.Return c -> Option.map (fun c -> Stat.Return c) (into c)
+        | _ -> None)
+    | _ -> None
+  in
+  let rec stats = function
+    | Stat.Scope ({ id; body } as sc) :: rest ->
+        let rec within = function
+          | (Stat.Hold { id = h; scope; _ } as hold) :: s :: after
+            when scope = id && count h [ s ] = 1 && count h after = 0 -> (
+              match sink hold s with
+              | Some s -> within (s :: after)
+              | None -> hold :: within (s :: after))
+          | s :: after -> map_stat_parts expr stats s :: within after
+          | [] -> []
+        in
+        Stat.Scope { sc with body = within body } :: stats rest
+    | s :: rest -> map_stat_parts expr stats s :: stats rest
+    | [] -> []
+  and expr e = map_expr_parts expr stats e in
+  if Sys.getenv_opt "ZANE_ASSIGN_MOVES" <> Some "1" then f
+  else { f with Func.body = stats f.Func.body }
+
+let assigned_moves ?(owned = fun _ _ -> false) (f : Func.t) =
   let spawns =
     exists_in f.Func.body ~expr:(fun _ -> false) ~stat:(function Stat.Spawn _ -> true | _ -> false)
   in
@@ -723,10 +829,29 @@ let assigned_moves (f : Func.t) =
         ~expr:(fun e -> match e.Expr.node with Expr.Local x | Expr.Address x -> x = h | _ -> false)
         ~stat:(function Stat.Assign { place = { Expr.local; _ }; _ } -> local = h | _ -> false)
     in
-    let take h (value : Expr.t) =
+    let take_whole h (value : Expr.t) =
       match value.Expr.node with
       | Expr.Copy { value = { Expr.node = Expr.Local x; _ }; layout } when x = h ->
           Some { value with Expr.node = Expr.Take { address = { Expr.node = Expr.Address h; ty = Ty.Ptr }; layout } }
+      | _ -> None
+    in
+    let take h (value : Expr.t) =
+      match value.Expr.node with
+      | Expr.Copy _ -> take_whole h value
+      | Expr.Call ({ fn; args } as c) -> (
+          (* A copy passed to a parameter its callee owns is a fresh owner
+             the callee receives, so a last read passed as one moves, when
+             no other argument reads it. *)
+          let reads a = mentions h [ Stat.Eval a ] in
+          match List.partition reads args with
+          | [ _ ], _ -> (
+              let moved = List.mapi (fun j a -> if reads a && owned fn j then take_whole h a else None) args in
+              match List.exists Option.is_some moved with
+              | true ->
+                  Some
+                    { value with Expr.node = Expr.Call { c with args = List.map2 (fun a m -> Option.value m ~default:a) args moved } }
+              | false -> None)
+          | _ -> None)
       | _ -> None
     in
     (* [stats], after which nothing reads [h], with the last read of [h]
@@ -797,10 +922,15 @@ let assigned_moves (f : Func.t) =
           match take h value with Some value -> Stat.Overwrite { o with value } | None -> s)
       | Stat.Assign ({ place; value } as a) when place.Expr.local <> h -> (
           match take h value with Some value -> Stat.Assign { a with value } | None -> s)
+      (* A copy bound to a fresh local, as a call's argument is before the
+         callee places it, moves the same way. *)
+      | Stat.Let ({ value; _ } as l) -> ( match take h value with Some value -> Stat.Let { l with value } | None -> s)
       | Stat.If { cond; body } when not (mentions h [ Stat.Eval cond ]) -> Stat.If { cond; body = last h body }
       | Stat.Scope ({ body; _ } as sc) -> Stat.Scope { sc with body = last h body }
       | Stat.Eval ({ Expr.node = Expr.Expand ({ body; _ } as x); _ } as e) ->
           Stat.Eval { e with Expr.node = Expr.Expand { x with body = last h body } }
+      | Stat.Eval value -> ( match take h value with Some value -> Stat.Eval value | None -> s)
+      | Stat.Return value -> ( match take h value with Some value -> Stat.Return value | None -> s)
       | _ -> s
     in
     let rec stats = function
@@ -902,9 +1032,15 @@ let checked (f : Func.t) =
   f
 
 let run ~wants (p : Nodes.Program.t) =
-  let funcs = List.map (fun f -> assigned_moves (returned_moves f)) p.Nodes.Program.funcs in
+  let funcs = List.map (fun f -> assigned_moves (sink_holds (returned_moves f))) p.Nodes.Program.funcs in
   let keeps = keeping funcs in
-  let funcs, origin = take_params funcs (taken_params funcs ~keeps) in
+  let ((table, cloned) as taken) = taken_params funcs ~keeps in
+  let funcs, origin = take_params funcs taken in
+  (* A parameter its callee owns: one a function rewritten in place takes,
+     or one its taking copy does. A cloned function, called as it is,
+     borrows. *)
+  let owned fn j = (not (Hashtbl.mem cloned fn)) && Hashtbl.mem table (origin fn, j) in
+  let funcs = List.map (assigned_moves ~owned) funcs in
   let keeps fn j = keeps (origin fn) j in
   List.iter
     (fun (f : Func.t) ->

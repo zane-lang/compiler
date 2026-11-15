@@ -1,0 +1,46 @@
+/// `parseF64At` reads a number from a range of a string's bytes, counted
+/// from 1 as `byteAt` counts, by the rules `parseF64` reads a whole string
+/// by (types.md §2.10): the nearest double, half to even, whether the
+/// digits take the quick path (at most 19 digits, a value up to 2^53 and at
+/// most 22 after the point) or the C library's. The text is an argument, so
+/// the runtime reads it in both builds. Each check prints `yes` when it
+/// holds and `no` when it does not.
+package parseRange;
+
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Float field(text String, start Int, count Int) => text:parseF64At(start, count) ? e {
+	resolve @operators$negate(Float(1.0));
+}
+
+Unit main() {
+	row String = @program$runtime:arguments()[Int(1)];
+	// The quick path: a fraction, and a negative one.
+	check(@operators$equal(field(row, Int(5), Int(4)), Float(4.35)));
+	check(@operators$equal(field(row, Int(10), Int(6)), @operators$negate(Float(0.125))));
+	// Past 2^53 and past 19 digits: rounded by the C library.
+	check(@operators$equal(field(row, Int(17), Int(16)), Float(9007199254740992.0)));
+	check(@operators$equal(field(row, Int(34), Int(21)), Float(1234567890.123456789)));
+	// A range that spells no number, and an empty one.
+	check(@operators$equal(field(row, Int(56), Int(1)), @operators$negate(Float(1.0))));
+	check(@operators$equal(field(row, Int(4), Int(0)), @operators$negate(Float(1.0))));
+	// A range across a separator.
+	check(@operators$equal(field(row, Int(5), Int(5)), @operators$negate(Float(1.0))));
+	return Unit();
+}

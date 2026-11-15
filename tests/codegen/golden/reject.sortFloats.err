@@ -1,0 +1,4 @@
+File "fixtures/reject/sortFloats/main.zn", line 12, characters 5-18:
+12 |     values!sort();
+   |     ^^^^^^^^^^^^^
+Error: `@primitives$sort` sorts only a list of integers

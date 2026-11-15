@@ -62,6 +62,48 @@ void zane_main(void) {
 	huge[401] = '\0';
 	check(f64_fails(huge));
 
+	/* The one-pass read, against the C library: decimals of 1 to 20 digits
+	   with 0 to 23 after the point, on both sides of the quick path's
+	   limits (19 digits, 2^53, 22 after the point), each the same double
+	   strtod reads. */
+	{
+		uint64_t seed = 0x9E3779B97F4A7C15u;
+		int same = 1;
+		char buffer[64];
+		for (int k = 0; k < 200000 && same; k++) {
+			seed ^= seed << 13;
+			seed ^= seed >> 7;
+			seed ^= seed << 17;
+			int digits = 1 + (int)(seed % 20), point = (int)((seed >> 8) % 24);
+			if (point >= digits) point = digits - 1;
+			int n = 0;
+			if ((seed >> 16) & 1) buffer[n++] = '-';
+			uint64_t r = seed;
+			for (int d = 0; d < digits; d++) {
+				if (point > 0 && d == digits - point) buffer[n++] = '.';
+				r = r * 6364136223846793005u + 1442695040888963407u;
+				buffer[n++] = (char)('0' + (r >> 60) % 10);
+			}
+			buffer[n] = '\0';
+			same = f64_is(buffer, strtod(buffer, NULL));
+		}
+		check(same);
+	}
+	check(f64_is("9007199254740992", 9007199254740992.0) && f64_is("9007199254740993.0", 9007199254740992.0));
+	check(f64_is("0.1", 0.1) && f64_is("123456789.0123456789", 123456789.0123456789));
+	check(f64_is("1.0000000000000000000000", 1.0));
+	check(f64_fails("-") && f64_fails("-.5") && f64_fails("1.2.3") && f64_fails("1-"));
+
+	/* A range of a string's bytes, counted from 1, read as the whole of a
+	   string; a range past the text is out of range. */
+	{
+		zane_text row = { "x,4.35,-0.125,", 14, 0 };
+		double a = 0, b = 0, c = 5;
+		check(zane_parse_f64_at(&row, &a, 3, 4) == 1 && a == 4.35);
+		check(zane_parse_f64_at(&row, &b, 8, 6) == 1 && b == -0.125);
+		check(zane_parse_f64_at(&row, &c, 1, 1) == 0 && zane_parse_f64_at(&row, &c, 3, 0) == 0 && c == 5);
+	}
+
 	/* The arguments, each a string owning a copy of its bytes in the
 	   current scope's region, and an empty list when there are none. */
 	int saved_count = zane_argc;

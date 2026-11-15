@@ -84,7 +84,10 @@ since the kept reservation goes back to the system first.
 
 `numbers.c` holds `zane_parse_i64` and `zane_parse_f64` to the cases
 `tests/unit/` holds the compile-time evaluator's reads to, so a number reads
-the same whether the program or the compiler reads it, and checks that
+the same whether the program or the compiler reads it. It holds
+`zane_parse_f64`'s quick path to `strtod` on 200,000 generated decimals on
+both sides of its limits, checks `zane_parse_f64_at` on ranges of a text,
+and checks that
 `zane_arguments` copies each argument into a string of its own and that the
 list returns every block when its scope drains.
 

@@ -313,6 +313,22 @@ makes of them.
   which gets a table (docs/design/memoization.md M1) whose key and result
   are one-byte scalars widened to a word and narrowed back. Without the
   table, `fib(90)` would not finish.
+- `listAppend` copies a range of a list onto the end of another
+  (`appendRange`) and of itself (`appendOwn`), doubling a list past its
+  first block's room so a list's own range is read after the block grows;
+  then appends in a loop, and onto a list that is an element, located once
+  and only after a start that grows the list holding it.
+- `listSort` sorts lists of integers in place: a thousand 32-bit ones over
+  eight keys, past the sizes insertion sort and the pivot's medians of
+  medians take, and 64-bit ones in descending order, which one pass sorts;
+  each result is checked whole, every neighbour in order and every key kept.
+- `parseRange` reads numbers from ranges of an argument's bytes with
+  `parseF64At`: ones the quick path rounds, ones past 2^53 or 19 digits
+  the C library rounds, and ranges that spell no number.
+- `listRanges` compares ranges of a list with `sameRange`, against its own
+  later range and another list's, and hashes them with `hashRange`: equal
+  ranges of every length up to past a 32-byte block hash alike, and a
+  range's last element counts.
 
 ## Rejects
 
@@ -333,6 +349,18 @@ and so is found only where the verb is written out.
 `List<I64>`. The intrinsic is generic, so that `core`'s `List<U8>` passes,
 but it copies the list's storage as the string's bytes, so lowering takes
 only a list whose elements are each one byte.
+
+`appendOwners` is one too: `@primitives$appendRange` on a `List<String>`.
+The runtime copies the range's bytes, so lowering takes only elements that
+own no blocks.
+
+`sortFloats` is one too: `@primitives$sort` on a `List<F64>`. The runtime
+sorts the elements as integers of their width, so lowering takes only lists
+of integers.
+
+`rangeFloats` is one too: `@primitives$hashRange` on a `List<F64>`. The
+runtime reads the range's bytes, and equal floats need not be equal bytes,
+so lowering takes only lists of integers.
 
 `hugeArray`, `nestedArray`, `beyondLimit` and `beyondLimitField` are refusals of a type too
 large to hold (docs/design/lowering.md §9): an `Array<I64, 4294967296>` and

@@ -1,0 +1,67 @@
+/// `sameRange` compares a range of a list with a range of another, or of
+/// itself, as one comparison of their bytes, and `hashRange` hashes a
+/// range a word at a time: equal ranges hash alike whatever their length,
+/// and a range's last bytes count, its last element alone included. Each check prints `yes` when it holds
+/// and `no` when it does not.
+package listRanges;
+
+alias I64 = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias String = @primitives$String;
+alias Unit = @primitives$Unit;
+
+Unit to(this I64, end I64, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), I64(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, I64(1));
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Unit main() {
+	// 1..50 twice over, so a range and the same one 50 on are equal.
+	bytes @primitives$List<I64> = @primitives$List(I64);
+	j I64(1);
+	j!to(I64(100)) {
+		back I64 = @operators$multiply(I64(50), @operators$divide(@operators$add(j, @operators$negate(I64(1))), I64(50)));
+		bytes!push(@operators$add(j, @operators$negate(back)));
+	}
+	check(@operators$equal(bytes:sameRange(I64(1), bytes, I64(51), I64(50)), I64(1)));
+	check(@operators$equal(bytes:sameRange(I64(3), bytes, I64(53), I64(7)), I64(1)));
+	check(@operators$equal(bytes:sameRange(I64(1), bytes, I64(52), I64(49)), I64(0)));
+	check(@operators$equal(bytes:sameRange(I64(5), bytes, I64(5), I64(0)), I64(1)));
+	other @primitives$List<I64> = @primitives$List(I64);
+	other!push(I64(10));
+	other!push(I64(11));
+	check(@operators$equal(bytes:sameRange(I64(10), other, I64(1), I64(2)), I64(1)));
+	// Equal ranges of each length up to past a 32-byte block hash alike.
+	n I64(0);
+	n!to(I64(45)) {
+		check(@operators$equal(bytes:hashRange(I64(2), n), bytes:hashRange(I64(52), n)));
+	}
+	// A range's last element changes its hash.
+	check(@operators$not(@operators$equal(bytes:hashRange(I64(1), I64(5)), bytes:hashRange(I64(2), I64(5)))));
+	check(@operators$not(@operators$equal(bytes:hashRange(I64(1), I64(40)), bytes:hashRange(I64(1), I64(41)))));
+	// So does its last element alone, at each length up to past a 32-byte
+	// block: a copy with only that element changed hashes differently.
+	m I64(1);
+	m!to(I64(45)) {
+		alt @primitives$List<I64> = @primitives$List(I64);
+		alt!appendRange(bytes, I64(2), m);
+		alt[m] = @operators$add(alt[m], I64(1000));
+		check(@operators$not(@operators$equal(alt:hashRange(I64(1), m), bytes:hashRange(I64(2), m))));
+	}
+	return Unit();
+}
