@@ -36,6 +36,10 @@ type fn =
   (* EXPERIMENT (LangArena zane-vs-goose): a list of indices sorted
      stably by the keys they name. *)
   | List_sort_by
+  (* EXPERIMENT (LangArena zane-vs-goose): `findPair` over a string's bytes. *)
+  | Text_find_pair
+  | Text_find_any
+  | Text_hash
   | Scope_enter
   | Hold
   | Too_deep
@@ -103,7 +107,7 @@ type fn =
   (* A spawned call's subject into a region of its own (runtime/spawn.c). *)
   | Island
 
-let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Relocate; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island ]
+let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Text_find_pair; Text_find_any; Text_hash; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Relocate; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island ]
 
 let name = function
   | Print -> "zane_print"
@@ -122,6 +126,9 @@ let name = function
   | List_hash -> "zane_list_hash"
   | List_sort -> "zane_list_sort"
   | List_sort_by -> "zane_list_sort_by"
+  | Text_find_pair -> "zane_text_find_pair"
+  | Text_find_any -> "zane_text_find_any"
+  | Text_hash -> "zane_text_hash"
   | Scope_enter -> "zane_scope_enter"
   | Hold -> "zane_hold"
   | Too_deep -> "zane_too_deep"
@@ -203,6 +210,9 @@ let signature = function
   | List_hash -> (I64, [ Ptr; I64; I64; I64 ])
   | List_sort -> (Void, [ Ptr; I64 ])
   | List_sort_by -> (Void, [ Ptr; Ptr ])
+  | Text_find_pair -> (I64, [ Ptr; I64; I64; Ptr; I64; Ptr ])
+  | Text_find_any -> (I64, [ Ptr; I64; I64; Ptr ])
+  | Text_hash -> (I64, [ Ptr ])
   | Scope_enter -> (Ptr, [ I64 ])
   | Hold -> (Void, [ Ptr; Ptr ])
   | Too_deep -> (Void, [  ])

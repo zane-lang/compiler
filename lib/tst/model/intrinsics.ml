@@ -326,6 +326,9 @@ let methods =
        byte at an index counted from 1, and a string made from bytes. *)
     meth "primitives" "byteCount" [ param "this" (prim "String") ] (prim "I64");
     meth "primitives" "byteAt" [ param "this" (prim "String"); param "index" (prim "I64") ] (prim "U8");
+    (* EXPERIMENT (LangArena zane-vs-goose): a hash of a string's bytes,
+       eight at a time, the same for equal strings within one run. *)
+    meth "primitives" "hashBytes" [ param "this" (prim "String") ] (prim "I64");
   ]
   @ (let bytes_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
      (* Generic so `core`'s `List<U8>`, a list of its own `U8`, passes;
@@ -334,7 +337,35 @@ let methods =
        meth ~generics:[ bytes_element ] "primitives" "text"
          [ param "this" (prim "List" ~args:[ Ty.Type (Ty.Param bytes_element) ]) ]
          (prim "String");
-     ])
+     ]
+     @ (let set_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+        [
+    (* EXPERIMENT (LangArena zane-vs-goose): the first of the [count]
+       positions from [from] (counted from 0) whose byte is in the set
+       [first] and the byte [gap] after it in [second], or -1; each set a
+       byte table prepared as the runtime reads it (runtime/block.c,
+       `zane_text_find_pair`). *)
+    meth ~generics:[ set_element ] "primitives" "findPair"
+      [
+        param "this" (prim "String");
+        param "from" (prim "I64");
+        param "count" (prim "I64");
+        param "first" (prim "List" ~args:[ Ty.Type (Ty.Param set_element) ]);
+        param "gap" (prim "I64");
+        param "second" (prim "List" ~args:[ Ty.Type (Ty.Param set_element) ]);
+      ]
+      (prim "I64");
+    (* The same for one set: the first of the [count] positions from
+       [from] whose byte is in [set], or -1. *)
+    meth ~generics:[ set_element ] "primitives" "findAny"
+      [
+        param "this" (prim "String");
+        param "from" (prim "I64");
+        param "count" (prim "I64");
+        param "set" (prim "List" ~args:[ Ty.Type (Ty.Param set_element) ]);
+      ]
+      (prim "I64");
+        ]))
   (* EXPERIMENT (LangArena zane-vs-goose): `count` elements of a list, from
      its element `start`, copied onto the end of a list, as one copy: of
      another list, or of the list itself. Only for elements that own no

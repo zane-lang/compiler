@@ -469,3 +469,96 @@ void zane_arguments(zane_list *out) {
 	}
 	*out = ZL_MAKE((char *)items, zane_argc, units);
 }
+
+/* EXPERIMENT (LangArena zane-vs-goose): the first of `count` positions
+   from `from` (counted from 0) of a string's bytes whose byte is in the
+   set `first` and the byte `gap` after it in `second`, or -1, as Goose's
+   gs_scan_pair. A set is a list of 288 bytes: whether each byte is in it,
+   then tables of 16 where bit k of the j-th of the first stands for the
+   byte k * 16 + j, and of the second for 128 + k * 16 + j, by which 16
+   positions are tested at once with SSSE3's byte shuffle. */
+#if defined(__x86_64__)
+#include <cpuid.h>
+#include <immintrin.h>
+
+/* Whether the processor has SSSE3, asked once (CPUID leaf 1, ECX bit 9). */
+static int zane_ssse3 = -1;
+static int zane_has_ssse3(void) {
+	if (zane_ssse3 < 0) {
+		unsigned a, b, c, d;
+		zane_ssse3 = __get_cpuid(1, &a, &b, &c, &d) && (c & bit_SSSE3) ? 1 : 0;
+	}
+	return zane_ssse3;
+}
+
+__attribute__((target("ssse3"))) static inline __m128i zane_set_test(__m128i x, __m128i lo, __m128i hi) {
+	const __m128i nibble = _mm_set1_epi8(15);
+	const __m128i bits = _mm_setr_epi8(1, 2, 4, 8, 16, 32, 64, -128, 1, 2, 4, 8, 16, 32, 64, -128);
+	__m128i j = _mm_and_si128(x, nibble);
+	__m128i high = _mm_cmplt_epi8(x, _mm_setzero_si128());
+	__m128i t = _mm_or_si128(_mm_andnot_si128(high, _mm_shuffle_epi8(lo, j)), _mm_and_si128(high, _mm_shuffle_epi8(hi, j)));
+	__m128i bit = _mm_shuffle_epi8(bits, _mm_and_si128(_mm_srli_epi16(x, 4), nibble));
+	return _mm_cmpeq_epi8(_mm_and_si128(t, bit), bit);
+}
+
+__attribute__((target("ssse3"))) static int64_t zane_pair_blocks(const uint8_t *p, int64_t n, const uint8_t *a, int64_t d, const uint8_t *b) {
+	__m128i alo = _mm_loadu_si128((const __m128i *)(a + 256)), ahi = _mm_loadu_si128((const __m128i *)(a + 272));
+	__m128i blo = _mm_loadu_si128((const __m128i *)(b + 256)), bhi = _mm_loadu_si128((const __m128i *)(b + 272));
+	int64_t i = 0;
+	for (; i + 16 <= n; i += 16) {
+		__m128i x = _mm_loadu_si128((const __m128i *)(p + i)), y = _mm_loadu_si128((const __m128i *)(p + i + d));
+		unsigned k = (unsigned)_mm_movemask_epi8(_mm_and_si128(zane_set_test(x, alo, ahi), zane_set_test(y, blo, bhi)));
+		if (k) return i + __builtin_ctz(k);
+	}
+	for (; i < n; i++)
+		if (a[p[i]] && b[p[i + d]]) return i;
+	return -1;
+}
+__attribute__((target("ssse3"))) static int64_t zane_any_blocks(const uint8_t *p, int64_t n, const uint8_t *a) {
+	__m128i alo = _mm_loadu_si128((const __m128i *)(a + 256)), ahi = _mm_loadu_si128((const __m128i *)(a + 272));
+	int64_t i = 0;
+	for (; i + 16 <= n; i += 16) {
+		unsigned k = (unsigned)_mm_movemask_epi8(zane_set_test(_mm_loadu_si128((const __m128i *)(p + i)), alo, ahi));
+		if (k) return i + __builtin_ctz(k);
+	}
+	for (; i < n; i++)
+		if (a[p[i]]) return i;
+	return -1;
+}
+#endif
+
+/* The same for one set (Goose's gs_scan_any). */
+int64_t zane_text_find_any(const zane_text *text, int64_t from, int64_t count, const zane_list *set) {
+	if (count <= 0) return -1;
+	if (from < 0 || from + count > text->length || ZL_COUNT(set) < 288) zane_out_of_range();
+	const uint8_t *p = (const uint8_t *)text->bytes + from, *a = (const uint8_t *)ZL_ITEMS(set);
+	int64_t r;
+#if defined(__x86_64__)
+	if (zane_has_ssse3()) {
+		r = zane_any_blocks(p, count, a);
+		return r < 0 ? -1 : from + r;
+	}
+#endif
+	for (int64_t i = 0; i < count; i++)
+		if (a[p[i]]) return from + i;
+	return -1;
+}
+
+int64_t zane_text_find_pair(const zane_text *text, int64_t from, int64_t count, const zane_list *first, int64_t gap,
+                            const zane_list *second) {
+	if (count <= 0) return -1;
+	if (from < 0 || gap < 0 || from + count + gap > text->length || ZL_COUNT(first) < 288 || ZL_COUNT(second) < 288)
+		zane_out_of_range();
+	const uint8_t *p = (const uint8_t *)text->bytes + from;
+	const uint8_t *a = (const uint8_t *)ZL_ITEMS(first), *b = (const uint8_t *)ZL_ITEMS(second);
+	int64_t r;
+#if defined(__x86_64__)
+	if (zane_has_ssse3()) {
+		r = zane_pair_blocks(p, count, a, gap, b);
+		return r < 0 ? -1 : from + r;
+	}
+#endif
+	for (int64_t i = 0; i < count; i++)
+		if (a[p[i]] && b[p[i + gap]]) return from + i;
+	return -1;
+}

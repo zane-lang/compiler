@@ -300,10 +300,20 @@ static inline uint64_t zane_hash_mix(uint64_t h, uint64_t w) {
 	return h ^ (h >> 29);
 }
 
+static int64_t zane_bytes_hash(const unsigned char *p, size_t n);
+
 int64_t zane_list_hash(const zane_list *list, int64_t start, int64_t count, int64_t stride) {
 	if (count < 0 || start < 1 || start - 1 > ZL_COUNT(list) - count) zane_out_of_range();
-	const unsigned char *p = (const unsigned char *)ZL_ITEMS(list) + (start - 1) * stride;
-	size_t n = (size_t)(count * stride);
+	return zane_bytes_hash((const unsigned char *)ZL_ITEMS(list) + (start - 1) * stride, (size_t)(count * stride));
+}
+
+/* EXPERIMENT (LangArena zane-vs-goose): the same hash of a string's bytes,
+   for a hash table's slots. */
+int64_t zane_text_hash(const zane_text *text) {
+	return zane_bytes_hash((const unsigned char *)text->bytes, (size_t)text->length);
+}
+
+static int64_t zane_bytes_hash(const unsigned char *p, size_t n) {
 	uint64_t h = (uint64_t)n * UINT64_C(0x9E3779B97F4A7C15);
 	if (n >= 32) {
 		uint64_t a = h, b = h + 1, c = h + 2, d = h + 3;
@@ -317,7 +327,7 @@ int64_t zane_list_hash(const zane_list *list, int64_t start, int64_t count, int6
 		}
 		h = zane_hash_mix(zane_hash_mix(zane_hash_mix(a, b), c), d);
 	}
-	size_t total = (size_t)(count * stride);
+	size_t total = n;
 	for (; n >= 8; n -= 8, p += 8) {
 		uint64_t w;
 		memcpy(&w, p, 8);

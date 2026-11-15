@@ -74,6 +74,9 @@ let runs spelling =
       "@primitives$copyRange";
       "@primitives$sort";
       "@primitives$sortBy";
+      "@primitives$findPair";
+      "@primitives$findAny";
+      "@primitives$hashBytes";
     ]
 
 (* A call to what the runtime does for the program, or to a list's own
@@ -366,6 +369,35 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
             ty = Nodes.Ty.I64;
           }
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" name))
+  | T.Expr.Call
+      {
+        callee = { owner = S.Intrinsic "@primitives$findPair"; _ };
+        args = [ T.Arg.Value text; T.Arg.Value from; T.Arg.Value count; T.Arg.Value first; T.Arg.Value gap; T.Arg.Value second ];
+        handler = None;
+      } ->
+      let b = w.borrow st ctx span in
+      {
+        Expr.node =
+          Expr.Runtime
+            {
+              fn = Runtime.Text_find_pair;
+              args = [ b text; b from; b count; w.lend st ctx span first; b gap; w.lend st ctx span second ];
+            };
+        ty = Nodes.Ty.I64;
+      }
+  | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$hashBytes"; _ }; args = [ T.Arg.Value text ]; handler = None } ->
+      { Expr.node = Expr.Runtime { fn = Runtime.Text_hash; args = [ w.borrow st ctx span text ] }; ty = Nodes.Ty.I64 }
+  | T.Expr.Call
+      {
+        callee = { owner = S.Intrinsic "@primitives$findAny"; _ };
+        args = [ T.Arg.Value text; T.Arg.Value from; T.Arg.Value count; T.Arg.Value set ];
+        handler = None;
+      } ->
+      let b = w.borrow st ctx span in
+      {
+        Expr.node = Expr.Runtime { fn = Runtime.Text_find_any; args = [ b text; b from; b count; w.lend st ctx span set ] };
+        ty = Nodes.Ty.I64;
+      }
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$sortBy"; _ }; args = [ T.Arg.Value list; T.Arg.Value keys ]; handler = None } ->
       (* EXPERIMENT (LangArena zane-vs-goose): the runtime sorts a list of
          `I32` indices stably by the `I64` keys they name. *)

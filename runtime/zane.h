@@ -135,6 +135,9 @@ void zane_text_f64(zane_text *out, double value);
 int64_t zane_parse_i64(const zane_text *text, int64_t *out);
 int64_t zane_parse_f64(const zane_text *text, double *out);
 int64_t zane_parse_f64_at(const zane_text *text, double *out, int64_t start, int64_t count);
+int64_t zane_text_hash(const zane_text *text);
+int64_t zane_text_find_any(const zane_text *text, int64_t from, int64_t count, const zane_list *set);
+int64_t zane_text_find_pair(const zane_text *text, int64_t from, int64_t count, const zane_list *first, int64_t gap, const zane_list *second);
 void zane_arguments(zane_list *out);
 
 /* value.c */
