@@ -133,6 +133,7 @@ void zane_text_f32(zane_text *out, float value);
 void zane_text_f64(zane_text *out, double value);
 int64_t zane_parse_i64(const zane_text *text, int64_t *out);
 int64_t zane_parse_f64(const zane_text *text, double *out);
+int64_t zane_parse_f64_at(const zane_text *text, double *out, int64_t start, int64_t count);
 void zane_arguments(zane_list *out);
 
 /* value.c */

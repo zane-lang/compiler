@@ -59,6 +59,7 @@ let runs spelling =
       "@runtime$arguments";
       "@primitives$parseI64";
       "@primitives$parseF64";
+      "@primitives$parseF64At";
       "@primitives$push";
       "@primitives$size";
       "@primitives$remove";
@@ -133,24 +134,35 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       {
         callee =
           {
-            owner = S.Intrinsic (("@primitives$parseI64" | "@primitives$parseF64") as spelling);
+            owner =
+              S.Intrinsic
+                (("@primitives$parseI64" | "@primitives$parseF64" | "@primitives$parseF64At") as
+                 spelling);
             _;
           };
         args;
         handler;
       } -> (
-      match args with
-      | [ T.Arg.Value text ] ->
+      let range =
+        List.filter_map (function T.Arg.Value a -> Some a | _ -> None) (List.tl args)
+      in
+      match (args, range) with
+      | T.Arg.Value text :: _, range
+        when List.length range = List.length args - 1
+             && List.length range = if spelling = "@primitives$parseF64At" then 2 else 0 ->
           let fn, t, zero =
-            if spelling = "@primitives$parseI64" then (Runtime.Parse_i64, Nodes.Ty.I64, Expr.Int 0L)
-            else (Runtime.Parse_f64, Nodes.Ty.F64, Expr.Float 0.)
+            match spelling with
+            | "@primitives$parseI64" -> (Runtime.Parse_i64, Nodes.Ty.I64, Expr.Int 0L)
+            | "@primitives$parseF64" -> (Runtime.Parse_f64, Nodes.Ty.F64, Expr.Float 0.)
+            | _ -> (Runtime.Parse_f64_at, Nodes.Ty.F64, Expr.Float 0.)
           in
           let text = w.borrow st ctx span text in
+          let range = List.map (w.borrow st ctx span) range in
           let label = fresh st in
           let value = fresh st in
           let parsed = fresh st in
           let result = fresh st in
-          let read = Expr.Runtime { fn; args = [ text; ptr (Expr.Address value) ] } in
+          let read = Expr.Runtime { fn; args = [ text; ptr (Expr.Address value) ] @ range } in
           let i64 node = { Expr.node; ty = Nodes.Ty.I64 } in
           let failed =
             Expr.Binary { op = Expr.Eq; left = i64 (Expr.Local parsed); right = i64 (Expr.Int 0L) }

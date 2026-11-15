@@ -955,6 +955,21 @@ and runtime run (fn : Cgt.Runtime.fn) args =
           store (ptr_of out) Ty.F64 (VFloat f);
           VInt 1L
       | None -> VInt 0L)
+  | _, Cgt.Runtime.Parse_f64_at, [ text; out; start; count ] -> (
+      let text = text_of text in
+      let start = int_of start and count = int_of count in
+      if
+        Int64.compare start 1L < 0
+        || Int64.compare count 0L < 0
+        || Int64.compare count (Int64.sub (Int64.of_int (String.length text)) (Int64.pred start)) > 0
+      then stop "a range out of the text";
+      let text = String.sub text (Int64.to_int start - 1) (Int64.to_int count) in
+      bytes run (String.length text);
+      match parse_f64 text with
+      | Some f ->
+          store (ptr_of out) Ty.F64 (VFloat f);
+          VInt 1L
+      | None -> VInt 0L)
   | _, Cgt.Runtime.List_new, [] -> empty ()
   | _, Cgt.Runtime.List_push, [ list; stride ] -> (
       match load (ptr_of list) with

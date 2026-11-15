@@ -317,6 +317,11 @@ let methods =
     meth ~abort:(Some (prim "Unit")) "primitives" "parseF64"
       [ param "this" (prim "String") ]
       (prim "F64");
+    (* EXPERIMENT (LangArena zane-vs-goose): `parseF64` on the [count]
+       bytes from byte [start], counted from 1 as `byteAt` counts. *)
+    meth ~abort:(Some (prim "Unit")) "primitives" "parseF64At"
+      [ param "this" (prim "String"); param "start" (prim "I64"); param "count" (prim "I64") ]
+      (prim "F64");
     (* EXPERIMENT (LangArena zane-vs-c): a string's length in bytes, the
        byte at an index counted from 1, and a string made from bytes. *)
     meth "primitives" "byteCount" [ param "this" (prim "String") ] (prim "I64");

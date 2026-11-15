@@ -388,7 +388,36 @@ int64_t zane_parse_i64(const zane_text *text, int64_t *out) {
    large to round to a finite double. Read in the C numeric locale, as
    floats are formatted. */
 int64_t zane_parse_f64(const zane_text *text, double *out) {
-	if (!zane_numeric_text(text, 1)) return 0;
+	/* EXPERIMENT (LangArena zane-vs-goose): Clinger's fast path, read in
+	   the same pass that checks the text. With at most 19 digits the
+	   digits fold into a u64 exactly; up to 2^53 that integer is an exact
+	   double (converted as an i64, one instruction on x86-64), and so is
+	   10^k for k <= 22, so the one division is the one rounding and gives
+	   the nearest double. Anything else is read by the C library. */
+	static const double pow10[] = {1e0,  1e1,  1e2,  1e3,  1e4,  1e5,  1e6,  1e7,
+	                               1e8,  1e9,  1e10, 1e11, 1e12, 1e13, 1e14, 1e15,
+	                               1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22};
+	{
+		const unsigned char *b = (const unsigned char *)text->bytes;
+		int64_t n = text->length, i = n > 0 && b[0] == '-';
+		int negative = (int)i;
+		int64_t start = i;
+		uint64_t mantissa = 0;
+		while (i < n && (unsigned)(b[i] - '0') < 10) mantissa = mantissa * 10 + (b[i++] - '0');
+		int64_t whole = i - start, fraction = 0;
+		if (whole > 0 && i < n && b[i] == '.') {
+			int64_t point = ++i;
+			while (i < n && (unsigned)(b[i] - '0') < 10) mantissa = mantissa * 10 + (b[i++] - '0');
+			fraction = i - point;
+			if (fraction == 0) return 0;
+		}
+		if (whole == 0 || i != n) return 0;
+		if (whole + fraction <= 19 && fraction <= 22 && mantissa <= (UINT64_C(1) << 53)) {
+			double value = (double)(int64_t)mantissa / pow10[fraction];
+			*out = negative ? -value : value;
+			return 1;
+		}
+	}
 	if (pthread_once(&zane_numeric_once, zane_numeric_init))
 		zane_broken("initializing the numeric locale");
 	char *s = zane_terminated(text);
@@ -404,6 +433,16 @@ int64_t zane_parse_f64(const zane_text *text, double *out) {
 	if (!isfinite(value)) return 0;
 	*out = value;
 	return 1;
+}
+
+/* EXPERIMENT (LangArena zane-vs-goose): `parseF64At` on
+   `@primitives$String`: `parseF64` on the `count` bytes from byte `start`,
+   counted from 1 as `byteAt` counts; a range outside the text is out of
+   range. */
+int64_t zane_parse_f64_at(const zane_text *text, double *out, int64_t start, int64_t count) {
+	if (start < 1 || count < 0 || count > text->length - (start - 1)) zane_out_of_range();
+	zane_text view = {text->bytes + (start - 1), count, 0};
+	return zane_parse_f64(&view, out);
 }
 
 /* `@runtime$Runtime`'s `arguments` (effects.md §6.6): a new list of the

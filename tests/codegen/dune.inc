@@ -6047,6 +6047,128 @@
   (diff golden/owners.out owners.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/parseRange))
+ (targets parseRange.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build parseRange.exe --package fixtures/parseRange)))
+
+(rule
+ (deps (source_tree fixtures/parseRange))
+ (targets parseRange.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build parseRange.optimized.exe --optimize --package fixtures/parseRange)))
+
+(rule
+ (deps (source_tree fixtures/parseRange))
+ (targets parseRange.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build parseRange.tiered.exe --tiered --package fixtures/parseRange)))
+
+(rule
+ (deps (source_tree fixtures/parseRange))
+ (targets parseRange.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up parseRange.tier1 --package fixtures/parseRange)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    parseRange.checked.out.actual
+    (run ./parseRange.exe "row,4.35,-0.125,9007199254740993,1234567890.1234567890,x")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/parseRange.out parseRange.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    parseRange.unchecked.out.actual
+    (run ./parseRange.exe "row,4.35,-0.125,9007199254740993,1234567890.1234567890,x")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/parseRange.out parseRange.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    parseRange.optimized.checked.out.actual
+    (run ./parseRange.optimized.exe "row,4.35,-0.125,9007199254740993,1234567890.1234567890,x")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/parseRange.out parseRange.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    parseRange.optimized.unchecked.out.actual
+    (run ./parseRange.optimized.exe "row,4.35,-0.125,9007199254740993,1234567890.1234567890,x")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/parseRange.out parseRange.optimized.unchecked.out.actual)))
+
+(rule
+ (deps parseRange.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./parseRange.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    parseRange.tiered.checked.out.actual
+    (run ./parseRange.tiered.exe "row,4.35,-0.125,9007199254740993,1234567890.1234567890,x")))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/parseRange.out parseRange.tiered.checked.out.actual)))
+
+(rule
+ (deps parseRange.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./parseRange.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    parseRange.tiered.unchecked.out.actual
+    (run ./parseRange.tiered.exe "row,4.35,-0.125,9007199254740993,1234567890.1234567890,x")))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/parseRange.out parseRange.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/peeledEffects))
  (targets peeledEffects.exe)
  (action
