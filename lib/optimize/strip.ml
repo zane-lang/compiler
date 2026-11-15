@@ -1,0 +1,167 @@
+(* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_STRIP=1): a counted
+   loop that indexes a small array with its counter, strip-mined, as
+   Goose's compiler strip-mines a loop indexed `i % 8`.
+
+   Hash::SHA256 keeps eight hashes in an `Array<I32, 8>` and updates the one
+   at `bitAnd(i-1, 7)+1` for each byte. LLVM unrolls the loop by four from
+   wherever its range-check split leaves it, so the index is never a
+   constant and the eight hashes stay in memory, each update a store and a
+   load. Goose's loop is cut into runs of eight whose index is the run's
+   own counter, so the eight hashes are eight registers.
+
+   A loop fits when its body ends by stepping a local counter `x` by one
+   (`x = x + 1`, as `to` does), assigns `x` nowhere else, indexes an array
+   of N elements, N a power of two from 2 to 16, uses `bitAnd`, and holds
+   no loop, scope, call or spawn, in at most [budget] nodes. It becomes
+
+     c = count; start = x; blocks = c / N; b = 0
+     repeat blocks { x = start + b*N; body (N copies); b = b + 1 }
+     repeat c - blocks*N { body }
+
+   Every copy steps `x` as the body did, so each runs as the iteration it
+   stands for. Where `start` is known, LLVM then sees each copy's
+   `bitAnd(x + k, N-1)` as a constant, as `start + b*N` has no low bits but
+   `start`'s. Each copy's own locals and labels are renamed. *)
+
+open Cgt.Nodes
+
+let on () = Sys.getenv_opt "ZANE_STRIP" = Some "1"
+
+let budget = 400
+
+let size ss =
+  let n = ref 0 in
+  Cgt.Traverse.walk_stats (fun _ -> incr n) (fun _ -> incr n) ss;
+  !n
+
+(* The ids [ss] defines: its lets, and its expansions' labels and results. *)
+let defined ss =
+  let t = Hashtbl.create 16 in
+  Cgt.Traverse.walk_stats
+    (fun e ->
+      match e.Expr.node with
+      | Expr.Expand { label; result; _ } ->
+          Hashtbl.replace t label ();
+          Option.iter (fun r -> Hashtbl.replace t r ()) result
+      | _ -> ())
+    (function Stat.Let { id; _ } -> Hashtbl.replace t id () | _ -> ())
+    ss;
+  t
+
+(* [ss] with every id in [own] renamed by [rename]. *)
+let copy own rename ss =
+  let r i = if Hashtbl.mem own i then rename i else i in
+  let rec stats ss = List.concat_map stat ss
+  and stat (s : Stat.t) : Stat.t list =
+    match s with
+    | Stat.Let { id; value } -> [ Stat.Let { id = r id; value = expr value } ]
+    | Stat.Assign { place; value } -> [ Stat.Assign { place = { place with local = r place.local }; value = expr value } ]
+    | Stat.Leave l -> [ Stat.Leave (r l) ]
+    | s -> [ Cgt.Traverse.map_stat_parts expr stats s ]
+  and expr (e : Expr.t) : Expr.t =
+    match e.Expr.node with
+    | Expr.Local i -> { e with node = Expr.Local (r i) }
+    | Expr.Address i -> { e with node = Expr.Address (r i) }
+    | Expr.Expand { label; body; result } ->
+        { e with node = Expr.Expand { label = r label; body = stats body; result = Option.map r result } }
+    | _ -> Cgt.Traverse.map_expr_parts expr stats e
+  in
+  stats ss
+
+(* The counter the body steps last, if the loop fits, and N. *)
+let fits (body : Stat.t list) =
+  match List.rev body with
+  | Stat.Assign { place = { local = x; deref = false; path = []; ty = Ty.I64 }; value } :: before ->
+      (* The step is x plus one, however lowering wrapped it. *)
+      let steps =
+        let ones = Hashtbl.create 4 in
+        let ok = ref false in
+        Cgt.Traverse.walk_stats
+          (fun e ->
+            match e.Expr.node with
+            | Expr.Binary { op = Expr.Add; left = { node = Expr.Local l; _ }; right = { node = Expr.Local k; _ }; _ }
+              when (l = x && Hashtbl.mem ones k) || (k = x && Hashtbl.mem ones l) ->
+                ok := true
+            | Expr.Binary { op = Expr.Add; left = { node = Expr.Local l; _ }; right = { node = Expr.Int 1L; _ }; _ }
+              when l = x ->
+                ok := true
+            | _ -> ())
+          (function Stat.Let { id; value = { node = Expr.Int 1L; _ } } -> Hashtbl.replace ones id () | _ -> ())
+          [ Stat.Eval value ];
+        !ok
+      in
+      let n = ref None and masks = ref false and unfit = ref false in
+      Cgt.Traverse.walk_stats
+        (fun e ->
+          match e.Expr.node with
+          | Expr.Runtime { fn = Cgt.Runtime.Array_at; args = [ _; _; { node = Expr.Int len; _ }; _ ] }
+            when List.mem len [ 2L; 4L; 8L; 16L ] ->
+              n := Some (Int64.to_int len)
+          | Expr.Math { fn = Cgt.Math.Bit_and; _ } -> masks := true
+          | Expr.Call _ | Expr.Call_value _ | Expr.Foreign_call _ | Expr.Box _ | Expr.Snapshot _ | Expr.Escape _ ->
+              unfit := true
+          | Expr.Address i when i = x -> unfit := true
+          | _ -> ())
+        (function
+          | Stat.Repeat _ | Stat.Scope _ | Stat.Hold _ | Stat.Reserve _ | Stat.Spawn _ | Stat.Join _ -> unfit := true
+          | Stat.Assign { place; _ } when place.local = x -> unfit := true
+          | _ -> ())
+        (List.rev before);
+      if steps && !masks && (not !unfit) && size body <= budget then Option.map (fun n -> (x, n)) !n else None
+  | _ -> None
+
+let largest = Peel.largest
+
+let func (f : Func.t) : Func.t =
+  let next = ref (largest f) in
+  let fresh () = incr next; !next in
+  let added = ref [] in
+  let stripped = ref 0 in
+  let i64 n = { Expr.node = Expr.Int (Int64.of_int n); ty = Ty.I64 } in
+  let local i = { Expr.node = Expr.Local i; ty = Ty.I64 } in
+  let bin op l r = { Expr.node = Expr.Binary { op; left = l; right = r }; ty = Ty.I64 } in
+  let fs (s : Stat.t) =
+    match s with
+    | Stat.Repeat { count; body } -> (
+        match fits body with
+        | None -> None
+        | Some (x, n) ->
+            incr stripped;
+            let own = defined body in
+            let instance () =
+              let table = Hashtbl.create 16 in
+              let rename i =
+                match Hashtbl.find_opt table i with
+                | Some j -> j
+                | None ->
+                    let j = fresh () in
+                    Hashtbl.replace table i j;
+                    if List.mem i f.Func.values then added := j :: !added;
+                    j
+              in
+              copy own rename body
+            in
+            let c = fresh () and start = fresh () and blocks = fresh () and b = fresh () in
+            let block =
+              [ Stat.assign x (bin Expr.Add (local start) (bin Expr.Mul (local b) (i64 n))) ]
+              @ List.concat (List.init n (fun _ -> instance ()))
+              @ [ Stat.assign b (bin Expr.Add (local b) (i64 1)) ]
+            in
+            Some
+              [
+                Stat.Let { id = c; value = count };
+                Stat.Let { id = start; value = local x };
+                Stat.Let { id = blocks; value = bin Expr.Div (local c) (i64 n) };
+                Stat.Let { id = b; value = i64 0 };
+                Stat.Repeat { count = local blocks; body = block };
+                Stat.Repeat { count = bin Expr.Add (local c) (bin Expr.Mul (local blocks) (i64 (-n))); body };
+              ])
+    | _ -> None
+  in
+  let body = Cgt.Traverse.map_stats (fun _ -> None) fs f.Func.body in
+  if !stripped > 0 && Sys.getenv_opt "ZANE_STRIP_DEBUG" = Some "1" then
+    Printf.eprintf "strip: %s: %d\n" f.Func.symbol !stripped;
+  { f with body; values = f.Func.values @ !added }
+
+let program (p : Program.t) : Program.t =
+  if on () then { p with Program.funcs = List.map func p.Program.funcs } else p
