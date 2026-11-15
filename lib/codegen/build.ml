@@ -1099,6 +1099,8 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       if not optimize then Wrappers.mark data_layout m;
       if optimize then llvm_options (Array.of_list ("zanec" :: Passes.llvm_options));
       let pipeline = thread_sanitized m (Passes.pipeline ~triple ~optimize ~tier1:(tier = Tiers.Tier1)) in
+      (* EXPERIMENT: the module as the passes take it, for reading. *)
+      Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_PRE");
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
       |> Result.map (fun () ->

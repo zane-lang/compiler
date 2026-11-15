@@ -344,6 +344,8 @@ let methods =
        (element, prim "List" ~args:[ Ty.Type (Ty.Param element) ])
      in
      let range, ranged = list () and own, owned = list () and sorts, sorted = list () in
+     let copied, copies = list () in
+     let ordered, orders = list () and keyed, keys = list () in
      let compared, compares = list () and hashed, hashes = list () in
      [
        meth ~generics:[ range ] ~is_mut:true "primitives" "appendRange"
@@ -351,6 +353,16 @@ let methods =
          (prim "Unit");
        meth ~generics:[ own ] ~is_mut:true "primitives" "appendOwn"
          [ param "this" owned; param "start" (prim "I64"); param "count" (prim "I64") ]
+         (prim "Unit");
+       (* `count` elements of a list from its element `start` copied over
+          the list's own from its element `at`, as one copy. *)
+       meth ~generics:[ copied ] ~is_mut:true "primitives" "copyRange"
+         [ param "this" copies; param "at" (prim "I64"); param "from" copies; param "start" (prim "I64"); param "count" (prim "I64") ]
+         (prim "Unit");
+       (* A list of `I32` indices into a list of `I64` keys, sorted
+          stably by the key each names. *)
+       meth ~generics:[ ordered; keyed ] ~is_mut:true "primitives" "sortBy"
+         [ param "this" orders; param "keys" keys ]
          (prim "Unit");
        (* A list of integers sorted in place, ascending. *)
        meth ~generics:[ sorts ] ~is_mut:true "primitives" "sort" [ param "this" sorted ] (prim "Unit");

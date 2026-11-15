@@ -640,7 +640,7 @@ let may_grow s =
       | Expr.Foreign_call _ -> not !Cgt.List_pure.c_stays
       | Expr.Runtime { fn; _ } -> (
           match fn with
-          | Cgt.Runtime.List_push | List_room | List_reserve | List_append | List_remove _ | List_swap_remove _
+          | Cgt.Runtime.List_push | List_room | List_reserve | List_append | List_copy | List_remove _ | List_swap_remove _
           | Overwrite | Copy | Promote | Arrive ->
               true
           | _ -> false)

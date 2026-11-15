@@ -253,6 +253,18 @@ void zane_list_append(zane_list *list, const zane_list *from, int64_t start, int
 	list->count += count;
 }
 
+/* EXPERIMENT (LangArena zane-vs-goose): `count` elements of `from`, from
+   its element `start`, copied over `list`'s own from its element `at`
+   (both counted from 1), as one copy. `from` may be `list` itself, and the
+   ranges may overlap. Both ranges lie within their lists. The elements own
+   no blocks, so their bytes are all of them. */
+void zane_list_copy(zane_list *list, int64_t at, const zane_list *from, int64_t start, int64_t count, int64_t stride) {
+	if (count < 0 || start < 1 || start - 1 > ZL_COUNT(from) - count || at < 1 || at - 1 > ZL_COUNT(list) - count)
+		zane_out_of_range();
+	if (count == 0) return;
+	memmove(ZL_ITEMS(list) + (at - 1) * stride, ZL_ITEMS(from) + (start - 1) * stride, (size_t)(count * stride));
+}
+
 /* EXPERIMENT (LangArena zane-vs-goose): whether `count` elements of
    `list` from its element `start` and of `other` from `other_start`
    (counted from 1) are the same bytes, 1 or 0, as one comparison. The
@@ -473,6 +485,110 @@ void zane_list_sort(zane_list *list, int64_t kind) {
 	case 1: zane_sort_i64_sort((int64_t *)ZL_ITEMS(list), n); break;
 	default: zane_sort_u8_sort((uint8_t *)ZL_ITEMS(list), n); break;
 	}
+}
+
+/* EXPERIMENT (LangArena zane-vs-goose): a list of `I32`s, each an index
+   into `keys` (a list of `I64`s, counted from 1), sorted stably by the key
+   each names: a natural merge sort over (key, value) pairs, as Goose's std
+   `stable_sort` is one. Runs, ascending or strictly descending (reversed),
+   are found first, those shorter than 16 made 16 long by insertion; a pass
+   then merges neighbouring runs, copying a pair whose halves are already in
+   order as they are, until one run is left. */
+typedef struct {
+	int64_t key;
+	int32_t value;
+} zane_keyed;
+
+static void zane_keyed_insert(zane_keyed *v, int64_t n, int64_t from) {
+	for (int64_t i = from; i < n; i++) {
+		zane_keyed x = v[i];
+		int64_t j = i;
+		while (j > 0 && x.key < v[j - 1].key) {
+			v[j] = v[j - 1];
+			j--;
+		}
+		v[j] = x;
+	}
+}
+
+static void zane_keyed_merge(const zane_keyed *l, int64_t nl, const zane_keyed *r, int64_t nr, zane_keyed *d) {
+	if (l[nl - 1].key <= r[0].key) {
+		memcpy(d, l, (size_t)nl * sizeof *d);
+		memcpy(d + nl, r, (size_t)nr * sizeof *d);
+		return;
+	}
+	int64_t a = 0, b = 0, k = 0;
+	while (a < nl && b < nr) {
+		int take_r = r[b].key < l[a].key;
+		d[k++] = take_r ? r[b] : l[a];
+		b += take_r;
+		a += !take_r;
+	}
+	if (a < nl) memcpy(d + k, l + a, (size_t)(nl - a) * sizeof *d);
+	else memcpy(d + k, r + b, (size_t)(nr - b) * sizeof *d);
+}
+
+void zane_list_sort_by(zane_list *list, const zane_list *keys) {
+	int64_t n = ZL_COUNT(list), nk = ZL_COUNT(keys);
+	if (n < 2) return;
+	int32_t *values = (int32_t *)ZL_ITEMS(list);
+	const int64_t *key = (const int64_t *)ZL_ITEMS(keys);
+	zane_keyed *v = malloc((size_t)n * 2 * sizeof *v);
+	if (!v) zane_broken("out of memory for a sort");
+	zane_keyed *tmp = v + n;
+	for (int64_t i = 0; i < n; i++) {
+		int32_t x = values[i];
+		if (x < 1 || x > nk) zane_out_of_range();
+		v[i].key = key[x - 1];
+		v[i].value = x;
+	}
+	/* The runs' ends, in order. */
+	int64_t *ends = malloc((size_t)(n / 16 + 2) * sizeof *ends);
+	if (!ends) zane_broken("out of memory for a sort");
+	int64_t runs = 0;
+	for (int64_t lo = 0; lo < n;) {
+		int64_t e = lo + 1;
+		if (e < n && v[e].key < v[lo].key) {
+			while (e + 1 < n && v[e + 1].key < v[e].key) e++;
+			e++;
+			for (int64_t a = lo, b = e - 1; a < b; a++, b--) {
+				zane_keyed t = v[a];
+				v[a] = v[b];
+				v[b] = t;
+			}
+		} else {
+			while (e < n && v[e].key >= v[e - 1].key) e++;
+		}
+		if (e - lo < 16) {
+			int64_t to = lo + 16 < n ? lo + 16 : n;
+			zane_keyed_insert(v + lo, to - lo, e - lo);
+			e = to;
+		}
+		ends[runs++] = e;
+		lo = e;
+	}
+	zane_keyed *src = v, *dst = tmp;
+	while (runs > 1) {
+		int64_t start = 0, w = 0;
+		for (int64_t i = 0; i < runs; i += 2) {
+			int64_t mid = ends[i], end = mid;
+			if (i + 1 < runs) {
+				end = ends[i + 1];
+				zane_keyed_merge(src + start, mid - start, src + mid, end - mid, dst + start);
+			} else {
+				memcpy(dst + start, src + start, (size_t)(end - start) * sizeof *dst);
+			}
+			ends[w++] = end;
+			start = end;
+		}
+		runs = w;
+		zane_keyed *t = src;
+		src = dst;
+		dst = t;
+	}
+	for (int64_t i = 0; i < n; i++) values[i] = src[i].value;
+	free(ends);
+	free(v);
 }
 
 /* The element at `index`, counted from 1 (control-flow.md §3.4). */

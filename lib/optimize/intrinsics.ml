@@ -18,7 +18,7 @@ let classify : Cgt.Runtime.fn -> t = function
   | Text_bytes -> Input
   (* EXPERIMENT: list range copies, sorts, comparisons and hashes, which
      the evaluator does not model. *)
-  | List_append | List_same | List_hash | List_sort -> Input
+  | List_append | List_copy | List_same | List_hash | List_sort | List_sort_by -> Input
   (* Experimental pooled variants, which the evaluator does not model. *)
   | Pool_new | Pool_push | Pool_append | Pool_root | Pool_copy | Link | Pool_reserve | Pool_new_unbounded -> Input
   (* A handle's stamp is the next of a counter the running program keeps:

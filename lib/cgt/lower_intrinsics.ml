@@ -71,7 +71,9 @@ let runs spelling =
       "@primitives$text";
       "@primitives$appendRange";
       "@primitives$appendOwn";
+      "@primitives$copyRange";
       "@primitives$sort";
+      "@primitives$sortBy";
     ]
 
 (* A call to what the runtime does for the program, or to a list's own
@@ -268,7 +270,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       | Some t when byte (ty st span t) -> ()
       | _ -> refuse span "`@primitives$text` makes a string only from a list of bytes");
       { Expr.node = Expr.Runtime { fn = Runtime.Text_bytes; args = [ w.borrow st ctx span bytes ] }; ty = Nodes.Ty.Handle }
-  | T.Expr.Call { callee = { owner = S.Intrinsic ("@primitives$appendRange" | "@primitives$appendOwn" as name); _ }; args; handler = None }
+  | T.Expr.Call { callee = { owner = S.Intrinsic ("@primitives$appendRange" | "@primitives$appendOwn" | "@primitives$copyRange" as name); _ }; args; handler = None }
     -> (
       (* EXPERIMENT (LangArena zane-vs-goose): the runtime copies the
          range's bytes, so the elements must own no blocks. *)
@@ -279,7 +281,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
         | Nodes.Ty.Array (t, _) | Nodes.Ty.Packed t -> plain t
         | _ -> false
       in
-      let append list from start count =
+      let append ?at list from start count =
         let t =
           match element (Tty.strip_mode list.T.Expr.ty) with
           | Some t when plain (ty st span t) -> t
@@ -301,13 +303,19 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
         let f, f_pins, f_now, f_last =
           match from with Some e -> place e | None -> (l, [], [], [])
         in
-        let s = fresh st and c = fresh st in
+        let s = fresh st and c = fresh st and a = fresh st in
         let range =
-          [ Stat.Let { id = s; value = w.borrow st ctx span start }; Stat.Let { id = c; value = w.borrow st ctx span count } ]
+          (match at with Some at -> [ Stat.Let { id = a; value = w.borrow st ctx span at } ] | None -> [])
+          @ [ Stat.Let { id = s; value = w.borrow st ctx span start }; Stat.Let { id = c; value = w.borrow st ctx span count } ]
         in
         let local i = { Expr.node = Expr.Local i; ty = Nodes.Ty.I64 } in
         let call =
-          Expr.Runtime { fn = Runtime.List_append; args = [ local_ptr l; local_ptr f; local s; local c; int (stride st span t) ] }
+          match at with
+          | Some _ ->
+              Expr.Runtime
+                { fn = Runtime.List_copy; args = [ local_ptr l; local a; local_ptr f; local s; local c; int (stride st span t) ] }
+          | None ->
+              Expr.Runtime { fn = Runtime.List_append; args = [ local_ptr l; local_ptr f; local s; local c; int (stride st span t) ] }
         in
         let body =
           l_pins @ l_now @ f_pins @ f_now @ range @ f_last @ l_last @ [ Stat.Eval { Expr.node = call; ty = Nodes.Ty.Void } ]
@@ -315,6 +323,9 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
         { Expr.node = Expr.Expand { label = fresh st; body; result = None }; ty = Nodes.Ty.Void }
       in
       match args with
+      | [ T.Arg.Value list; T.Arg.Value at; T.Arg.Value from; T.Arg.Value start; T.Arg.Value count ]
+        when name = "@primitives$copyRange" ->
+          append ~at list (Some from) start count
       | [ T.Arg.Value list; T.Arg.Value from; T.Arg.Value start; T.Arg.Value count ] -> append list (Some from) start count
       | [ T.Arg.Value list; T.Arg.Value start; T.Arg.Value count ] -> append list None start count
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" name))
@@ -355,6 +366,23 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
             ty = Nodes.Ty.I64;
           }
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" name))
+  | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$sortBy"; _ }; args = [ T.Arg.Value list; T.Arg.Value keys ]; handler = None } ->
+      (* EXPERIMENT (LangArena zane-vs-goose): the runtime sorts a list of
+         `I32` indices stably by the `I64` keys they name. *)
+      let rec width (t : Nodes.Ty.t) =
+        match t with
+        | Nodes.Ty.I32 -> Some 32
+        | Nodes.Ty.I64 -> Some 64
+        | Nodes.Ty.Struct [ t ] | Nodes.Ty.Packed (Nodes.Ty.Struct [ t ]) -> width t
+        | _ -> None
+      in
+      let of_list (l : T.Expr.t) = Option.bind (element (Tty.strip_mode l.T.Expr.ty)) (fun t -> width (ty st span t)) in
+      if of_list list <> Some 32 || of_list keys <> Some 64 then
+        refuse span "`@primitives$sortBy` sorts a list of `I32` by a list of `I64` keys";
+      {
+        Expr.node = Expr.Runtime { fn = Runtime.List_sort_by; args = [ w.lend st ctx span list; w.lend st ctx span keys ] };
+        ty = Nodes.Ty.Void;
+      }
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$sort"; _ }; args = [ T.Arg.Value list ]; handler = None } ->
       (* EXPERIMENT (LangArena zane-vs-goose): the runtime sorts the
          elements as integers of their width: `I32`, `I64` and `U8`, or a
