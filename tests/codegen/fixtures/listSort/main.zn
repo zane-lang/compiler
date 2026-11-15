@@ -1,6 +1,9 @@
 /// `sort` sorts a list of integers in place, ascending: 32-bit integers
 /// past the sizes insertion sort and the pivot's medians of medians take,
 /// with many equal keys, and 64-bit integers already in descending order.
+/// Each list is checked whole: the count of out-of-order neighbours (or, for
+/// the descending one, of elements off their place) is 0, and the 32-bit
+/// list's keys sum as before.
 package listSort;
 
 alias I64 = @primitives$I64;
@@ -16,7 +19,27 @@ Unit main() {
 		seed = @operators$add(@operators$multiply(seed, I64(1103515245)), I64(12345));
 		small!push(I32.wrap(@operators$divide(seed, I64(2305843009213693952))));
 	}
+	before I64 = I64(0);
+	i I64 = I64(1);
+	@controlflow$repeat(I64(1000)) {
+		before = @operators$add(before, I64(small[i]));
+		i = @operators$add(i, I64(1));
+	}
 	small!sort();
+	after I64 = I64(0);
+	bad I64 = I64(0);
+	i = I64(1);
+	@controlflow$repeat(I64(1000)) {
+		after = @operators$add(after, I64(small[i]));
+		@controlflow$branch(@operators$lessThan(I64(1), i), {
+			@controlflow$branch(@operators$lessThan(small[i], small[@operators$add(i, @operators$negate(I64(1)))]), {
+				bad = @operators$add(bad, I64(1));
+			});
+		});
+		i = @operators$add(i, I64(1));
+	}
+	@program$console!print(String(bad));
+	@program$console!print(String(@operators$add(after, @operators$negate(before))));
 	@program$console!print(String(I64(small[I64(1)])));
 	@program$console!print(String(I64(small[I64(500)])));
 	@program$console!print(String(I64(small[I64(1000)])));
@@ -27,6 +50,15 @@ Unit main() {
 		n = @operators$add(n, @operators$negate(I64(1)));
 	}
 	big!sort();
+	off I64 = I64(0);
+	i = I64(1);
+	@controlflow$repeat(I64(300)) {
+		@controlflow$branch(@operators$not(@operators$equal(big[i], i)), {
+			off = @operators$add(off, I64(1));
+		});
+		i = @operators$add(i, I64(1));
+	}
+	@program$console!print(String(off));
 	@program$console!print(String(big[I64(1)]));
 	@program$console!print(String(big[I64(150)]));
 	@program$console!print(String(big[I64(300)]));

@@ -723,8 +723,9 @@ let returned_moves (f : Func.t) =
 (* A hold read once, as an argument of the call the next statement makes,
    held in that argument instead, as lowering holds a fresh argument
    (Lower.borrow): then a callee that takes the parameter is given the value
-   itself. Only arguments that read no more than locals run before it, so
-   the copy running later sees what it saw. *)
+   itself. Only arguments that read no memory and no local the hold's value
+   mentions run before it, so the copy running later sees what it saw: an
+   initializer can write any memory, but a local only through its address. *)
 let sink_holds (f : Func.t) =
   let top = ref 0 in
   let see i = if i > !top then top := i in
@@ -746,11 +747,19 @@ let sink_holds (f : Func.t) =
     incr top;
     !top
   in
-  let rec simple (e : Expr.t) =
+  let mentions (e : Expr.t) =
+    let seen = ref [] in
+    walk_stats
+      (fun e -> match e.Expr.node with Expr.Local x | Expr.Address x -> seen := x :: !seen | _ -> ())
+      (fun _ -> ())
+      [ Stat.Eval e ];
+    !seen
+  in
+  let rec simple held (e : Expr.t) =
     match e.Expr.node with
-    | Expr.Int _ | Expr.Float _ | Expr.Bool _ | Expr.Unit | Expr.Local _ | Expr.Address _ -> true
-    | Expr.Offset { base; _ } -> simple base
-    | Expr.Member { value; _ } | Expr.Deref value -> simple value
+    | Expr.Int _ | Expr.Float _ | Expr.Bool _ | Expr.Unit | Expr.Address _ -> true
+    | Expr.Local x -> not (List.mem x held)
+    | Expr.Offset { base; _ } -> simple held base
     | _ -> false
   in
   let count h stats =
@@ -772,7 +781,7 @@ let sink_holds (f : Func.t) =
                     let label = fresh () and result = fresh () in
                     let body = [ hold; Stat.assign result { Expr.node = Expr.Local h; ty = held.Expr.ty } ] in
                     Some ({ Expr.node = Expr.Expand { label; body; result = Some result }; ty } :: rest)
-                | a :: rest when simple a -> Option.map (fun rest -> a :: rest) (go rest)
+                | a :: rest when simple (mentions held) a -> Option.map (fun rest -> a :: rest) (go rest)
                 | _ -> None
               in
               Option.map (fun args -> { call with Expr.node = Expr.Call { fn; args } }) (go args)

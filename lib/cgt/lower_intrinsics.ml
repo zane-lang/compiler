@@ -283,18 +283,34 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
           | Some t when plain (ty st span t) -> t
           | _ -> refuse span (Printf.sprintf "`%s` copies only elements that own no blocks" name)
         in
-        let l = w.lend st ctx span list in
-        let from = match from with Some f -> w.lend st ctx span f | None -> l in
+        (* Each operand runs once, in written order, as for `remove`: a
+           list that is an element has its own operands run first and is
+           located only after the range's start and count, so one that
+           grows the list holding it moves it before the call finds it. *)
         let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
-        {
-          Expr.node =
-            Expr.Runtime
-              {
-                fn = Runtime.List_append;
-                args = [ l; from; w.borrow st ctx span start; w.borrow st ctx span count; int (stride st span t) ];
-              };
-          ty = Nodes.Ty.Void;
-        }
+        let place e =
+          let id = fresh st in
+          if Lower_calls.subscripted e then
+            let pins, e = Lower_calls.pinned w st ctx span e in
+            (id, pins, [], [ Stat.Let { id; value = w.lend st ctx span e } ])
+          else (id, [], [ Stat.Let { id; value = w.lend st ctx span e } ], [])
+        in
+        let l, l_pins, l_now, l_last = place list in
+        let f, f_pins, f_now, f_last =
+          match from with Some e -> place e | None -> (l, [], [], [])
+        in
+        let s = fresh st and c = fresh st in
+        let range =
+          [ Stat.Let { id = s; value = w.borrow st ctx span start }; Stat.Let { id = c; value = w.borrow st ctx span count } ]
+        in
+        let local i = { Expr.node = Expr.Local i; ty = Nodes.Ty.I64 } in
+        let call =
+          Expr.Runtime { fn = Runtime.List_append; args = [ local_ptr l; local_ptr f; local s; local c; int (stride st span t) ] }
+        in
+        let body =
+          l_pins @ l_now @ f_pins @ f_now @ range @ f_last @ l_last @ [ Stat.Eval { Expr.node = call; ty = Nodes.Ty.Void } ]
+        in
+        { Expr.node = Expr.Expand { label = fresh st; body; result = None }; ty = Nodes.Ty.Void }
       in
       match args with
       | [ T.Arg.Value list; T.Arg.Value from; T.Arg.Value start; T.Arg.Value count ] -> append list (Some from) start count

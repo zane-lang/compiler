@@ -2,12 +2,15 @@
 /// `appendOwn` a range of the list itself, each as one copy of the
 /// elements' bytes; a list's own range is read after its block has grown.
 /// In a loop, a list that grows by an append is read again after it, as
-/// after a push: its block moves as it grows.
+/// after a push: its block moves as it grows. A list that is an element is
+/// found once, after the range's start runs, so a start that grows the list
+/// holding it moves it first.
 package listAppend;
 
 alias I64 = @primitives$I64;
 alias String = @primitives$String;
 alias Unit = @primitives$Unit;
+alias Row = @primitives$List<I64>;
 
 Unit to(this I64, end I64, body @concepts$Block) mut {
 	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), I64(1)), {
@@ -15,6 +18,24 @@ Unit to(this I64, end I64, body @concepts$Block) mut {
 		this = @operators$add(this, I64(1));
 	});
 	return Unit();
+}
+
+/// Grows the list by `n` rows, which moves its elements into a new block,
+/// and gives 1.
+I64 growAndGive(this @primitives$List<Row>, n I64) mut {
+	i I64(1);
+	i!to(n) {
+		row Row = @primitives$List(I64);
+		row!push(i);
+		this!push(row);
+	}
+	return I64(1);
+}
+
+/// The first index, which says each time it runs.
+I64 pick() {
+	@program$console!print(String(" pick "));
+	return I64(1);
 }
 
 Unit main() {
@@ -50,5 +71,16 @@ Unit main() {
 	}
 	@program$console!print(String(grown:size()));
 	@program$console!print(String(total));
+	// A row found after its start grows the rows, then a row found by a
+	// call, which runs once: 7 7 7, and ` pick ` printed once.
+	rows @primitives$List<Row> = @primitives$List(Row);
+	first Row = @primitives$List(I64);
+	first!push(I64(7));
+	rows!push(first);
+	rows[I64(1)]!appendOwn(rows!growAndGive(I64(1000)), I64(1));
+	rows[pick()]!appendOwn(I64(1), I64(1));
+	@program$console!print(String(rows:size()));
+	@program$console!print(String(rows[I64(1)]:size()));
+	@program$console!print(String(rows[I64(1)][I64(3)]));
 	return Unit();
 }
