@@ -7,8 +7,9 @@
    ArithEncode's `total` is read again from its frame after each call the
    loop makes. So each division keeps, in three allocas the passes after
    make registers, the divisor it last saw and that divisor's multiplier
-   and shift (runtime/block.c, `zane_div_magic`); a different divisor
-   computes them again. The quotient of |x| by |d| is then libdivide's
+   and shift (runtime/block.c, `zane_div_magic`); a different divisor is
+   noted and divided the plain way, and its multiplier made when it comes
+   again. The quotient of |x| by |d| is then libdivide's
    unsigned one, and takes the sign of x * d. A divisor of 0, 1 or -1
    (`more` 255) divides the plain way, so the division keeps what it did
    for those, the wrap of the least integer by -1 included. */
@@ -68,23 +69,34 @@ extern "C" value zane_div_cache(value fv) {
     entry.CreateStore(llvm::ConstantInt::get(i64, 0), seen);
     entry.CreateStore(llvm::ConstantInt::get(i64, 0), mul);
     entry.CreateStore(llvm::ConstantInt::get(i64, 255), more);
-    /* A divisor other than the last: its multiplier and shift. */
+    /* A divisor other than the last is only noted, and divides the plain
+       way: a loop whose divisor changes each time pays one compare. The
+       second division by the same one makes its multiplier and shift
+       (`more` 254 until then). */
     llvm::IRBuilder<> b(op);
     auto *same = b.CreateICmpEQ(d, b.CreateLoad(i64, seen));
-    llvm::Instruction *fresh = llvm::SplitBlockAndInsertIfThen(b.CreateNot(same), op->getIterator(), false);
+    llvm::Instruction *sameT = nullptr, *newT = nullptr;
+    llvm::SplitBlockAndInsertIfThenElse(same, op->getIterator(), &sameT, &newT);
     {
+      llvm::IRBuilder<> n(newT);
+      n.CreateStore(d, seen);
+      n.CreateStore(llvm::ConstantInt::get(i64, 254), more);
+    }
+    {
+      llvm::IRBuilder<> s(sameT);
+      auto *pending = s.CreateICmpEQ(s.CreateLoad(i64, more), llvm::ConstantInt::get(i64, 254));
+      llvm::Instruction *fresh = llvm::SplitBlockAndInsertIfThen(pending, sameT->getIterator(), false);
       llvm::IRBuilder<> g(fresh);
       auto *neg = g.CreateICmpSLT(d, llvm::ConstantInt::get(i64, 0));
       auto *ad = g.CreateSelect(neg, g.CreateNeg(d), d);
       auto *r = g.CreateCall(magic, {ad});
-      g.CreateStore(d, seen);
       g.CreateStore(g.CreateExtractValue(r, 0), mul);
       g.CreateStore(g.CreateExtractValue(r, 1), more);
     }
     b.SetInsertPoint(op);
     auto *mo = b.CreateLoad(i64, more);
     auto *mu = b.CreateLoad(i64, mul);
-    auto *plain = b.CreateICmpEQ(mo, llvm::ConstantInt::get(i64, 255));
+    auto *plain = b.CreateICmpUGE(mo, llvm::ConstantInt::get(i64, 254));
     llvm::Instruction *thenT = nullptr, *elseT = nullptr;
     llvm::SplitBlockAndInsertIfThenElse(plain, op->getIterator(), &thenT, &elseT);
     llvm::BasicBlock *tail = op->getParent();
