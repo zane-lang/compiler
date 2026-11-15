@@ -146,7 +146,9 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
         handler;
       } -> (
       let range =
-        List.filter_map (function T.Arg.Value a -> Some a | _ -> None) (List.tl args)
+        match args with
+        | [] -> []
+        | _ :: rest -> List.filter_map (function T.Arg.Value a -> Some a | _ -> None) rest
       in
       match (args, range) with
       | T.Arg.Value text :: _, range
