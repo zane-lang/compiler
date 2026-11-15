@@ -365,7 +365,7 @@ let taken_params funcs ~keeps =
       f.Func.body;
     List.rev !reads
   in
-  let moves_in = Sys.getenv_opt "ZANE_ASSIGN_MOVES" = Some "1" && Sys.getenv_opt "ZANE_SINK_HOLDS" <> Some "0" in
+  let moves_in = Sys.getenv_opt "ZANE_ASSIGN_MOVES" = Some "1" in
   let rec take (f : Func.t) held j (p, t) =
     if t <> Ty.Ptr then
       (* The copy is found before the read inside it. *)
@@ -800,7 +800,7 @@ let sink_holds (f : Func.t) =
     | s :: rest -> map_stat_parts expr stats s :: stats rest
     | [] -> []
   and expr e = map_expr_parts expr stats e in
-  if Sys.getenv_opt "ZANE_ASSIGN_MOVES" <> Some "1" || Sys.getenv_opt "ZANE_SINK_HOLDS" = Some "0" then f
+  if Sys.getenv_opt "ZANE_ASSIGN_MOVES" <> Some "1" then f
   else { f with Func.body = stats f.Func.body }
 
 let assigned_moves ?(owned = fun _ _ -> false) (f : Func.t) =
