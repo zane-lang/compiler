@@ -1115,6 +1115,14 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
               Llvm.set_linkage Llvm.Linkage.External g
           | None -> ignore (Llvm.define_global "zane_list_span_from" v m))
         (Sys.getenv_opt "ZANE_LIST_SPANS");
+      (* EXPERIMENT (LangArena zane-vs-goose): a recursion's peeled copy
+         (Optimize.Recursion_peel) inlined at each of its calls. *)
+      Llvm.iter_functions
+        (fun f ->
+          let n = Llvm.value_name f in
+          if String.ends_with ~suffix:"$peel" n && not (Llvm.is_declaration f) then
+            Llvm.add_function_attr f (Llvm.create_enum_attr (Llvm.module_context m) "alwaysinline" 0L) Llvm.AttrIndex.Function)
+        m;
       (* EXPERIMENT: the module as the passes take it, for reading. *)
       Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_PRE");
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
@@ -1588,7 +1596,7 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
             (* The experiments that rewrite tier 1 as it is prepared. *)
             @ List.filter_map
                 (fun (name, on) -> if on () then Some name else None)
-                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on); ("arm-checks", Arm_checks.on); ("range-checks", Range_checks.on); ("rehome", fun () -> Sys.getenv_opt "ZANE_REHOME" = Some "1"); ("idle-search", Loop_shapes.idle_on) ]
+                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on); ("arm-checks", Arm_checks.on); ("range-checks", Range_checks.on); ("rehome", fun () -> Sys.getenv_opt "ZANE_REHOME" = Some "1"); ("idle-search", Loop_shapes.idle_on); ("peel-recursion", fun () -> Sys.getenv_opt "ZANE_PEEL_RECURSION" = Some "1") ]
             @ (match Sys.getenv_opt "ZANE_LIST_SPANS" with Some n -> [ "list-spans-" ^ n ] | None -> [])
             @ Passes.llvm_options)
         in
