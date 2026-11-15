@@ -491,39 +491,117 @@ static int zane_has_ssse3(void) {
 	return zane_ssse3;
 }
 
+/* The members among x's 16 bytes, by a set's tables, as Goose's
+   gs_bsm_tables: pshufb gives 0 for an index with its top bit set, so lo
+   answers for x < 128 and hi, indexed by x ^ 0x80, for the rest; then the
+   bit for x's bits 4 to 6. */
 __attribute__((target("ssse3"))) static inline __m128i zane_set_test(__m128i x, __m128i lo, __m128i hi) {
-	const __m128i nibble = _mm_set1_epi8(15);
 	const __m128i bits = _mm_setr_epi8(1, 2, 4, 8, 16, 32, 64, -128, 1, 2, 4, 8, 16, 32, 64, -128);
-	__m128i j = _mm_and_si128(x, nibble);
-	__m128i high = _mm_cmplt_epi8(x, _mm_setzero_si128());
-	__m128i t = _mm_or_si128(_mm_andnot_si128(high, _mm_shuffle_epi8(lo, j)), _mm_and_si128(high, _mm_shuffle_epi8(hi, j)));
-	__m128i bit = _mm_shuffle_epi8(bits, _mm_and_si128(_mm_srli_epi16(x, 4), nibble));
+	__m128i t = _mm_or_si128(_mm_shuffle_epi8(lo, x), _mm_shuffle_epi8(hi, _mm_xor_si128(x, _mm_set1_epi8((char)0x80))));
+	__m128i bit = _mm_shuffle_epi8(bits, _mm_and_si128(_mm_srli_epi16(x, 4), _mm_set1_epi8(7)));
 	return _mm_cmpeq_epi8(_mm_and_si128(t, bit), bit);
 }
 
-__attribute__((target("ssse3"))) static int64_t zane_pair_blocks(const uint8_t *p, int64_t n, const uint8_t *a, int64_t d, const uint8_t *b) {
-	__m128i alo = _mm_loadu_si128((const __m128i *)(a + 256)), ahi = _mm_loadu_si128((const __m128i *)(a + 272));
-	__m128i blo = _mm_loadu_si128((const __m128i *)(b + 256)), bhi = _mm_loadu_si128((const __m128i *)(b + 272));
+/* A set's block test as Goose's gs_bsm: a set of 1 to 3 bytes (kind 1 to
+   3) compares with each, a run (4) by its first byte and width, others (5)
+   by the tables; `flip` complements. rx.zn's rxTable writes the kind at
+   byte 289 of the set, after its tables; a shorter set is kind 5. */
+typedef struct {
+	__m128i a, b, c, flip;
+} zane_bsm;
+
+static inline int zane_set_kind(const uint8_t *s, int64_t size) { return size >= 294 ? s[289] : 5; }
+
+static inline zane_bsm zane_bsm_init(const uint8_t *s, int kind) {
+	zane_bsm m;
+	if (kind == 5) {
+		m.a = _mm_loadu_si128((const __m128i *)(s + 256));
+		m.b = _mm_loadu_si128((const __m128i *)(s + 272));
+		m.c = m.flip = _mm_setzero_si128();
+	} else {
+		m.a = _mm_set1_epi8((char)s[291]);
+		m.b = _mm_set1_epi8((char)s[292]);
+		m.c = _mm_set1_epi8((char)s[293]);
+		m.flip = s[290] ? _mm_set1_epi8(-1) : _mm_setzero_si128();
+	}
+	return m;
+}
+
+__attribute__((target("ssse3"), always_inline)) static inline __m128i zane_bsm_test(const zane_bsm *m, int k, __m128i x) {
+	__m128i r;
+	if (k == 5) return zane_set_test(x, m->a, m->b);
+	if (k == 1) r = _mm_cmpeq_epi8(x, m->a);
+	else if (k == 2) r = _mm_or_si128(_mm_cmpeq_epi8(x, m->a), _mm_cmpeq_epi8(x, m->b));
+	else if (k == 3) r = _mm_or_si128(_mm_or_si128(_mm_cmpeq_epi8(x, m->a), _mm_cmpeq_epi8(x, m->b)), _mm_cmpeq_epi8(x, m->c));
+	else {
+		__m128i t = _mm_sub_epi8(x, m->a);
+		r = _mm_cmpeq_epi8(_mm_min_epu8(t, m->b), t);
+	}
+	return _mm_xor_si128(r, m->flip);
+}
+
+__attribute__((target("ssse3"), always_inline)) static inline int64_t zane_pair_k(const uint8_t *p, int64_t n, const uint8_t *a, int64_t d,
+                                                                                  const uint8_t *b, int ka, int kb) {
+	zane_bsm ma = zane_bsm_init(a, ka), mb = zane_bsm_init(b, kb);
 	int64_t i = 0;
 	for (; i + 16 <= n; i += 16) {
 		__m128i x = _mm_loadu_si128((const __m128i *)(p + i)), y = _mm_loadu_si128((const __m128i *)(p + i + d));
-		unsigned k = (unsigned)_mm_movemask_epi8(_mm_and_si128(zane_set_test(x, alo, ahi), zane_set_test(y, blo, bhi)));
+		unsigned k = (unsigned)_mm_movemask_epi8(_mm_and_si128(zane_bsm_test(&ma, ka, x), zane_bsm_test(&mb, kb, y)));
 		if (k) return i + __builtin_ctz(k);
+	}
+	if (i == n) return -1;
+	/* The last positions, as Goose's: one block ending at the last,
+	   its positions already searched shifted out. */
+	if (n >= 16) {
+		__m128i x = _mm_loadu_si128((const __m128i *)(p + n - 16)), y = _mm_loadu_si128((const __m128i *)(p + n - 16 + d));
+		unsigned k = (unsigned)_mm_movemask_epi8(_mm_and_si128(zane_bsm_test(&ma, ka, x), zane_bsm_test(&mb, kb, y))) >> (16 - (n - i));
+		return k ? i + __builtin_ctz(k) : -1;
 	}
 	for (; i < n; i++)
 		if (a[p[i]] && b[p[i + d]]) return i;
 	return -1;
 }
-__attribute__((target("ssse3"))) static int64_t zane_any_blocks(const uint8_t *p, int64_t n, const uint8_t *a) {
-	__m128i alo = _mm_loadu_si128((const __m128i *)(a + 256)), ahi = _mm_loadu_si128((const __m128i *)(a + 272));
+
+__attribute__((target("ssse3"), always_inline)) static inline int64_t zane_any_k(const uint8_t *p, int64_t n, const uint8_t *a, int ka) {
+	zane_bsm ma = zane_bsm_init(a, ka);
 	int64_t i = 0;
 	for (; i + 16 <= n; i += 16) {
-		unsigned k = (unsigned)_mm_movemask_epi8(zane_set_test(_mm_loadu_si128((const __m128i *)(p + i)), alo, ahi));
+		unsigned k = (unsigned)_mm_movemask_epi8(zane_bsm_test(&ma, ka, _mm_loadu_si128((const __m128i *)(p + i))));
 		if (k) return i + __builtin_ctz(k);
+	}
+	if (i == n) return -1;
+	if (n >= 16) {
+		unsigned k = (unsigned)_mm_movemask_epi8(zane_bsm_test(&ma, ka, _mm_loadu_si128((const __m128i *)(p + n - 16)))) >> (16 - (n - i));
+		return k ? i + __builtin_ctz(k) : -1;
 	}
 	for (; i < n; i++)
 		if (a[p[i]]) return i;
 	return -1;
+}
+
+#define ZANE_PAIR_ROW(ka) \
+	case (ka) * 8 + 1: return zane_pair_k(p, n, a, d, b, ka, 1); \
+	case (ka) * 8 + 2: return zane_pair_k(p, n, a, d, b, ka, 2); \
+	case (ka) * 8 + 3: return zane_pair_k(p, n, a, d, b, ka, 3); \
+	case (ka) * 8 + 4: return zane_pair_k(p, n, a, d, b, ka, 4); \
+	case (ka) * 8 + 5: return zane_pair_k(p, n, a, d, b, ka, 5);
+
+__attribute__((target("ssse3"))) static int64_t zane_pair_blocks(const uint8_t *p, int64_t n, const uint8_t *a, int ka, int64_t d,
+                                                                 const uint8_t *b, int kb) {
+	switch (ka * 8 + kb) {
+		ZANE_PAIR_ROW(1) ZANE_PAIR_ROW(2) ZANE_PAIR_ROW(3) ZANE_PAIR_ROW(4)
+		default: return zane_pair_k(p, n, a, d, b, 5, 5);
+	}
+}
+
+__attribute__((target("ssse3"))) static int64_t zane_any_blocks(const uint8_t *p, int64_t n, const uint8_t *a, int ka) {
+	switch (ka) {
+		case 1: return zane_any_k(p, n, a, 1);
+		case 2: return zane_any_k(p, n, a, 2);
+		case 3: return zane_any_k(p, n, a, 3);
+		case 4: return zane_any_k(p, n, a, 4);
+		default: return zane_any_k(p, n, a, 5);
+	}
 }
 #endif
 
@@ -535,7 +613,7 @@ int64_t zane_text_find_any(const zane_text *text, int64_t from, int64_t count, c
 	int64_t r;
 #if defined(__x86_64__)
 	if (zane_has_ssse3()) {
-		r = zane_any_blocks(p, count, a);
+		r = zane_any_blocks(p, count, a, zane_set_kind(a, ZL_COUNT(set)));
 		return r < 0 ? -1 : from + r;
 	}
 #endif
@@ -554,7 +632,7 @@ int64_t zane_text_find_pair(const zane_text *text, int64_t from, int64_t count, 
 	int64_t r;
 #if defined(__x86_64__)
 	if (zane_has_ssse3()) {
-		r = zane_pair_blocks(p, count, a, gap, b);
+		r = zane_pair_blocks(p, count, a, zane_set_kind(a, ZL_COUNT(first)), gap, b, zane_set_kind(b, ZL_COUNT(second)));
 		return r < 0 ? -1 : from + r;
 	}
 #endif
