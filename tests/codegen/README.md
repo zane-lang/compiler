@@ -264,6 +264,11 @@ then run it again, read the golden diff and promote that.
   in place and reads it, and the optimized build keeps only what it printed.
   A list still named after the arguments are read stays for the program.
   Every check prints `yes` when it holds.
+- `heldFolds` is a value folded where a scope held it (docs/design/
+  optimization.md O7): a list a call makes, held as the argument of a call
+  that copies it, folds to its pushes and is held by the same scope again,
+  so the checked optimized build ends its block at the drain. The program's
+  arguments keep the rest of `main` from folding.
 - `replayed` is what stage 5 keeps: output made while a value is computed,
   replayed in order; calls past the step budget, the depth and the size cap,
   left to run; a slot read when the program runs, after a store made by

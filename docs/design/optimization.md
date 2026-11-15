@@ -335,7 +335,11 @@ A list made this way gets its block in the region of the innermost scope,
 where a call's result arrives too, and then arrives or escapes from there like
 any other value. Its handle sits in the expansion's own slot, which is in no
 scope's chunks, and the runtime places the block of such a list in the
-innermost scope's region. An `Escape` stays
+innermost scope's region. An expansion that gives back what a `Hold` in it
+made is replaced by one that holds the value made again in the same scope,
+with the same layout, so the scope's drain still ends its block; an
+expansion with any other hold in it whose value owns a block is left as it
+is, since the hold may end a block the value shares. An `Escape` stays
 where it is, with its value folded inside it, so a value leaving arenas still
 leaves them. A read, of a local, a member or what an address names, is not
 replaced by a list or a box made again, since the read is the cheaper of the

@@ -403,6 +403,53 @@ let commit (env : known) assigns =
 let frame (env : known) =
   { Eval.locals = Eval.Locals.create (); outer = Some (fun id -> Hashtbl.find_opt env id) }
 
+(* Where an expansion gives back the value a hold in it made, the hold's
+   scope and layout: that scope ends the block, so whatever replaces the
+   expansion holds what it makes there too. *)
+let held_result (e : Expr.t) =
+  match e.Expr.node with
+  | Expr.Expand { body; result = Some r; _ } ->
+      let gives h = function
+        | Stat.Assign { place = { local; path = []; deref = false; _ }; value = { Expr.node = Expr.Local x; _ } } ->
+            local = r && x = h
+        | _ -> false
+      in
+      List.find_map
+        (function
+          | Stat.Hold { id; scope; layout; _ } when List.exists (gives id) body -> Some (scope, layout)
+          | _ -> None)
+        body
+  | _ -> None
+
+let holds_any (e : Expr.t) =
+  let found = ref false in
+  iter_stats [ Stat.Eval e ] ~expr:nothing ~stat:(function Stat.Hold _ -> found := true | _ -> ());
+  !found
+
+(* A value that owns a block, made again in place of [e]: held as [e] held
+   it, or not made at all when a hold in [e] would end a block the
+   replacement cannot say which. *)
+let kept_held fn (e : Expr.t) c (value : Expr.t) =
+  if not (V.owns_block c) then value
+  else
+    match held_result e with
+    | Some (scope, layout) ->
+        let h = fresh fn and r = fresh fn and label = fresh fn in
+        Hashtbl.replace fn.holds h (scope, layout);
+        let ty = value.Expr.ty in
+        {
+          Expr.node =
+            Expr.Expand
+              {
+                label;
+                body = [ Stat.Hold { id = h; scope; value; layout }; Stat.assign r { Expr.node = Expr.Local h; ty } ];
+                result = Some r;
+              };
+          ty;
+        }
+    | None when holds_any e -> V.stop "a block a hold in the expression ends"
+    | None -> value
+
 (* An expression evaluated where it is, and what replaces it. *)
 let attempt fn (env : known) (e : Expr.t) : Expr.t option =
   let run = Eval.start fn.prog in
@@ -420,7 +467,7 @@ let attempt fn (env : known) (e : Expr.t) : Expr.t option =
     | _ -> ());
     let value =
       match Materialize.expr ~fresh:(fun () -> fresh fn) e.Expr.ty c with
-      | Some value -> value
+      | Some value -> kept_held fn e c value
       | None -> V.stop "a value that cannot be written as code"
     in
     let outputs, assigns = effects ~value:size fn env run fr in
