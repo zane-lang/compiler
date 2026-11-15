@@ -1760,6 +1760,17 @@ and stat env fr b (s : Stat.t) =
           ignore (Llvm.build_store next i b);
           let back = Llvm.build_br head b in
           if twice then Llvm.set_metadata back (Llvm.mdkind_id env.ctx "llvm.loop") (unroll_twice env)
+          else
+            (* EXPERIMENT (LangArena zane-vs-goose; ZANE_UNROLL_SMALL=N): a
+               loop of a constant count from 2 to N unrolled whole, as
+               Goose's compiler unrolls `for j in 8`, and as C's `#pragma
+               unroll` asks: LLVM's own threshold leaves a body with a
+               branch in it, such as a Huffman decoder's leaf test, a loop. *)
+            match (Option.bind (Sys.getenv_opt "ZANE_UNROLL_SMALL") int_of_string_opt, Llvm.int64_of_const n) with
+            | Some most, Some c when Int64.compare c 2L >= 0 && Int64.compare c (Int64.of_int most) <= 0 ->
+                Llvm.set_metadata back (Llvm.mdkind_id env.ctx "llvm.loop")
+                  (Llvm_extra.loop_id env.ctx [| Llvm.mdnode env.ctx [| Llvm.mdstring env.ctx "llvm.loop.unroll.full" |] |])
+            | _ -> ()
         end;
         Llvm.position_at_end after b
         in
