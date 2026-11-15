@@ -1139,8 +1139,6 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
         m;
       (* EXPERIMENT (Elem_tbaa): list elements' scalars tagged by stride. *)
       Elem_tbaa.run m;
-      (* EXPERIMENT (Loop_inline): small leaves called in loops inlined. *)
-      Loop_inline.run m;
       (* EXPERIMENT: the module as the passes take it, for reading. *)
       Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_PRE");
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
@@ -1149,6 +1147,8 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
              if optimize then begin
                (* EXPERIMENT (Const_arrays): constant locals made globals. *)
                experiment tm m "const arrays" Const_arrays.on Const_arrays.run Const_arrays.again;
+               (* EXPERIMENT (Loop_inline): small leaves called in loops inlined. *)
+               experiment tm m "loop inline" Loop_inline.on Loop_inline.run Loop_inline.again;
                (* EXPERIMENT (Frame_scopes): scopes for the frames as inlining
                   left them, then the loop passes again to use them. *)
                experiment tm m "frame scopes" Frame_scopes.on Frame_scopes.run Frame_scopes.again;

@@ -10,11 +10,14 @@
    construction. Raising the threshold for the whole program moves other
    tests both ways (Graph::BFS +15%, GameOfLife +20%).
 
-   So a call is marked `alwaysinline` when it is in a cycle of its
-   function's blocks and the callee is a leaf: defined here, and calling
-   only functions that do not return (the out-of-range stop), LLVM's
-   intrinsics, and other such leaves, with at most N instructions in all,
-   as emitted (before any pass). Runs on the module as emitted. *)
+   So, after LLVM's passes, a call is marked `alwaysinline` when it is in
+   a cycle of its function's blocks and the callee is a leaf with no cycle
+   of its own: a function of the program (not the runtime's or a foreign
+   C function), whose calls are only to functions that do not return (the
+   out-of-range stop) and LLVM's intrinsics, of at most N instructions;
+   then the inliner and a cleanup run again. A callee that keeps a loop is
+   left: inlining SliceMap's byte compare `same` into its probe loop made
+   Words 12% slower. *)
 
 let limit () =
   match Sys.getenv_opt "ZANE_LOOP_INLINE" with Some n -> int_of_string_opt n | None -> None
@@ -75,21 +78,24 @@ let cyclic f =
   Llvm.iter_blocks (fun bb -> if not (Hashtbl.mem index bb) then visit bb) f;
   inside
 
+(* A function the compiler made from the program. *)
+let ours f =
+  let n = Llvm.value_name f in
+  let rec has i = i + 3 <= String.length n && (String.sub n i 3 = "%c$" || has (i + 1)) in
+  String.contains n '$' && not (has 0)
+
 let run m =
   match limit () with
   | None -> ()
   | Some n ->
-      let ctx = Llvm.module_context m in
-      (* A defined function's size with every callee it would take, or None
-         when it is not a leaf. *)
+      (* A defined function's size, when it is a leaf with no cycle. *)
       let sizes = Hashtbl.create 64 in
-      let rec size f =
+      let size f =
         match Hashtbl.find_opt sizes f with
         | Some s -> s
         | None ->
-            Hashtbl.replace sizes f None;
             let s =
-              if Llvm.is_declaration f then None
+              if Llvm.is_declaration f || not (ours f) || Hashtbl.length (cyclic f) > 0 then None
               else
                 try
                   Some
@@ -101,8 +107,7 @@ let run m =
                                match callee i with
                                | Some c when String.starts_with ~prefix:"llvm." (Llvm.value_name c) -> acc + 1
                                | Some c when noreturn c -> acc + 1
-                               | Some c -> ( match size c with Some s -> acc + s | None -> raise Exit)
-                               | None -> raise Exit
+                               | _ -> raise Exit
                              else acc + 1)
                            acc bb)
                        0 f)
@@ -111,10 +116,12 @@ let run m =
             Hashtbl.replace sizes f s;
             s
       in
+      let ctx = Llvm.module_context m in
       let always = Llvm.create_enum_attr ctx "alwaysinline" 0L in
+      let debug = Sys.getenv_opt "ZANE_LOOP_INLINE_DEBUG" = Some "1" in
       Llvm.iter_functions
         (fun f ->
-          if not (Llvm.is_declaration f) then begin
+          if (not (Llvm.is_declaration f)) && ours f then begin
             let inside = cyclic f in
             Llvm.iter_blocks
               (fun bb ->
@@ -123,17 +130,27 @@ let run m =
                     (fun i ->
                       if is_call i then
                         match callee i with
-                        | Some c when c != f && not (Llvm.is_declaration c) -> (
-                            let s = size c in
-                            if Sys.getenv_opt "ZANE_LOOP_INLINE_DEBUG" = Some "1" then
-                              prerr_endline
-                                (Printf.sprintf "loop-inline: %s -> %s: %s" (Llvm.value_name f) (Llvm.value_name c)
-                                   (match s with Some s -> string_of_int s | None -> "not a leaf"));
-                            match s with
-                            | Some s when s <= n -> Llvm.add_call_site_attr i always Llvm.AttrIndex.Function
-                            | _ -> ())
+                        | Some c when c != f -> (
+                            match size c with
+                            | Some s when s <= n ->
+                                if debug then
+                                  prerr_endline (Printf.sprintf "loop-inline: %s -> %s: %d" (Llvm.value_name f) (Llvm.value_name c) s);
+                                Llvm.add_call_site_attr i always Llvm.AttrIndex.Function
+                            | s ->
+                                if debug then
+                                  prerr_endline
+                                    (Printf.sprintf "loop-inline left: %s -> %s: %s" (Llvm.value_name f) (Llvm.value_name c)
+                                       (match s with
+                                       | Some s -> string_of_int s
+                                       | None when Llvm.is_declaration c -> "declared"
+                                       | None when not (ours c) -> "not ours"
+                                       | None when Hashtbl.length (cyclic c) > 0 -> "loops"
+                                       | None -> "calls")))
                         | _ -> ())
                     bb)
               f
           end)
         m
+
+let again =
+  "always-inline,function(sroa,early-cse<memssa>,instcombine<no-verify-fixpoint>,simplifycfg,gvn,loop-mssa(licm<allowspeculation>),simplifycfg)"
