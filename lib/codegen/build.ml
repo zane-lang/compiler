@@ -1111,7 +1111,10 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
                (* EXPERIMENT (Frame_shadow): frame slots in registers. *)
                experiment tm m "frame shadow" Frame_shadow.on Frame_shadow.run Frame_shadow.again;
                (* EXPERIMENT (Merged_checks): one check per index. *)
-               experiment tm m "merged checks" Merged_checks.on Merged_checks.run Merged_checks.again
+               experiment tm m "merged checks" Merged_checks.on Merged_checks.run Merged_checks.again;
+               (* EXPERIMENT (Arm_checks): a check both arms make, made above them. *)
+               experiment tm m "arm checks" Arm_checks.on Arm_checks.run Arm_checks.again;
+               experiment tm m "arm stores" Arm_checks.stores_on Arm_checks.stores_run Arm_checks.stores_again
              end;
              (* EXPERIMENT: the optimized module, for reading. *)
              Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_OPT"))
@@ -1567,7 +1570,7 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
             (* The experiments that rewrite tier 1 as it is prepared. *)
             @ List.filter_map
                 (fun (name, on) -> if on () then Some name else None)
-                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on) ]
+                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on); ("arm-checks", Arm_checks.on) ]
             @ Passes.llvm_options)
         in
         Filename.concat (Filename.concat cache "tier")

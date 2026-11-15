@@ -489,21 +489,17 @@ void zane_list_sort(zane_list *list, int64_t kind) {
 
 /* EXPERIMENT (LangArena zane-vs-goose): a list of `I32`s, each an index
    into `keys` (a list of `I64`s, counted from 1), sorted stably by the key
-   each names: a natural merge sort over (key, value) pairs, as Goose's std
-   `stable_sort` is one. Runs, ascending or strictly descending (reversed),
-   are found first, those shorter than 16 made 16 long by insertion; a pass
-   then merges neighbouring runs, copying a pair whose halves are already in
-   order as they are, until one run is left. */
-typedef struct {
-	int64_t key;
-	int32_t value;
-} zane_keyed;
-
-static void zane_keyed_insert(zane_keyed *v, int64_t n, int64_t from) {
+   each names: a natural merge sort of the indices, comparing the keys they
+   name, as Goose's std `stable_sort` is one with its comparator. Runs,
+   ascending or strictly descending (reversed), are found first, those
+   shorter than 16 made 16 long by insertion; a pass then merges
+   neighbouring runs, copying a pair whose halves are already in order as
+   they are, until one run is left. */
+static void zane_keyed_insert(int32_t *v, const int64_t *key, int64_t n, int64_t from) {
 	for (int64_t i = from; i < n; i++) {
-		zane_keyed x = v[i];
-		int64_t j = i;
-		while (j > 0 && x.key < v[j - 1].key) {
+		int32_t x = v[i];
+		int64_t kx = key[x], j = i;
+		while (j > 0 && kx < key[v[j - 1]]) {
 			v[j] = v[j - 1];
 			j--;
 		}
@@ -511,19 +507,50 @@ static void zane_keyed_insert(zane_keyed *v, int64_t n, int64_t from) {
 	}
 }
 
-static void zane_keyed_merge(const zane_keyed *l, int64_t nl, const zane_keyed *r, int64_t nr, zane_keyed *d) {
-	if (l[nl - 1].key <= r[0].key) {
+/* Two runs merged into `d`. Where the merge before it alternated sides
+   often (`*chaotic`), each pick is a select, which no misprediction costs;
+   where it did not, a branch, which the processor runs ahead of. */
+static void zane_keyed_merge(const int32_t *l, int64_t nl, const int32_t *r, int64_t nr, int32_t *d, const int64_t *key,
+                             int *chaotic) {
+	if (key[l[nl - 1]] <= key[r[0]]) {
 		memcpy(d, l, (size_t)nl * sizeof *d);
 		memcpy(d + nl, r, (size_t)nr * sizeof *d);
 		return;
 	}
-	int64_t a = 0, b = 0, k = 0;
-	while (a < nl && b < nr) {
-		int take_r = r[b].key < l[a].key;
-		d[k++] = take_r ? r[b] : l[a];
-		b += take_r;
-		a += !take_r;
+	int64_t a = 0, b = 0, k = 0, switches = 0;
+	int last_r = 0;
+	if (*chaotic) {
+		while (a < nl && b < nr) {
+			int32_t x = l[a], y = r[b];
+			int take_r = key[y] < key[x];
+			d[k++] = take_r ? y : x;
+			b += take_r;
+			a += !take_r;
+			switches += take_r != last_r;
+			last_r = take_r;
+		}
+	} else {
+		int32_t x = l[0], y = r[0];
+		int64_t kx = key[x], ky = key[y];
+		for (;;) {
+			if (ky < kx) {
+				d[k++] = y;
+				switches += !last_r;
+				last_r = 1;
+				if (++b == nr) break;
+				y = r[b];
+				ky = key[y];
+			} else {
+				d[k++] = x;
+				switches += last_r;
+				last_r = 0;
+				if (++a == nl) break;
+				x = l[a];
+				kx = key[x];
+			}
+		}
 	}
+	*chaotic = switches * 4 > k;
 	if (a < nl) memcpy(d + k, l + a, (size_t)(nl - a) * sizeof *d);
 	else memcpy(d + k, r + b, (size_t)(nr - b) * sizeof *d);
 }
@@ -532,49 +559,45 @@ void zane_list_sort_by(zane_list *list, const zane_list *keys) {
 	int64_t n = ZL_COUNT(list), nk = ZL_COUNT(keys);
 	if (n < 2) return;
 	int32_t *values = (int32_t *)ZL_ITEMS(list);
-	const int64_t *key = (const int64_t *)ZL_ITEMS(keys);
-	zane_keyed *v = malloc((size_t)n * 2 * sizeof *v);
-	if (!v) zane_broken("out of memory for a sort");
-	zane_keyed *tmp = v + n;
-	for (int64_t i = 0; i < n; i++) {
-		int32_t x = values[i];
-		if (x < 1 || x > nk) zane_out_of_range();
-		v[i].key = key[x - 1];
-		v[i].value = x;
-	}
+	for (int64_t i = 0; i < n; i++)
+		if (values[i] < 1 || values[i] > nk) zane_out_of_range();
+	/* Indices from 1: the key of index x is key[x]. */
+	const int64_t *key = (const int64_t *)ZL_ITEMS(keys) - 1;
+	int32_t *v = values, *tmp = malloc((size_t)n * sizeof *tmp);
 	/* The runs' ends, in order. */
 	int64_t *ends = malloc((size_t)(n / 16 + 2) * sizeof *ends);
-	if (!ends) zane_broken("out of memory for a sort");
+	if (!tmp || !ends) zane_broken("out of memory for a sort");
 	int64_t runs = 0;
 	for (int64_t lo = 0; lo < n;) {
 		int64_t e = lo + 1;
-		if (e < n && v[e].key < v[lo].key) {
-			while (e + 1 < n && v[e + 1].key < v[e].key) e++;
+		if (e < n && key[v[e]] < key[v[lo]]) {
+			while (e + 1 < n && key[v[e + 1]] < key[v[e]]) e++;
 			e++;
 			for (int64_t a = lo, b = e - 1; a < b; a++, b--) {
-				zane_keyed t = v[a];
+				int32_t t = v[a];
 				v[a] = v[b];
 				v[b] = t;
 			}
 		} else {
-			while (e < n && v[e].key >= v[e - 1].key) e++;
+			while (e < n && key[v[e]] >= key[v[e - 1]]) e++;
 		}
 		if (e - lo < 16) {
 			int64_t to = lo + 16 < n ? lo + 16 : n;
-			zane_keyed_insert(v + lo, to - lo, e - lo);
+			zane_keyed_insert(v + lo, key, to - lo, e - lo);
 			e = to;
 		}
 		ends[runs++] = e;
 		lo = e;
 	}
-	zane_keyed *src = v, *dst = tmp;
+	int32_t *src = v, *dst = tmp;
+	int chaotic = 1;
 	while (runs > 1) {
 		int64_t start = 0, w = 0;
 		for (int64_t i = 0; i < runs; i += 2) {
 			int64_t mid = ends[i], end = mid;
 			if (i + 1 < runs) {
 				end = ends[i + 1];
-				zane_keyed_merge(src + start, mid - start, src + mid, end - mid, dst + start);
+				zane_keyed_merge(src + start, mid - start, src + mid, end - mid, dst + start, key, &chaotic);
 			} else {
 				memcpy(dst + start, src + start, (size_t)(end - start) * sizeof *dst);
 			}
@@ -582,13 +605,13 @@ void zane_list_sort_by(zane_list *list, const zane_list *keys) {
 			start = end;
 		}
 		runs = w;
-		zane_keyed *t = src;
+		int32_t *t = src;
 		src = dst;
 		dst = t;
 	}
-	for (int64_t i = 0; i < n; i++) values[i] = src[i].value;
+	if (src != values) memcpy(values, src, (size_t)n * sizeof *values);
 	free(ends);
-	free(v);
+	free(tmp);
 }
 
 /* The element at `index`, counted from 1 (control-flow.md §3.4). */
