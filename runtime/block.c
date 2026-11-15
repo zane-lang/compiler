@@ -562,3 +562,36 @@ int64_t zane_text_find_pair(const zane_text *text, int64_t from, int64_t count, 
 		if (a[p[i]] && b[p[i + gap]]) return from + i;
 	return -1;
 }
+
+/* EXPERIMENT (LangArena zane-vs-goose; emitted with ZANE_DIV_CACHE=1): the
+   multiplier and shift that divide an unsigned 64-bit value by `d`, in
+   libdivide's form (as Goose's gs_divu_gen), for a division a loop repeats
+   by a divisor it seldom changes (lib/codegen/div_cache_stubs.cpp):
+   x / d is mulhi(m, x), adjusted where ZANE_DIV_ADD is in `more`, and
+   shifted. A power of two 2^k takes m = 2^(64-k) and no shift. `more` is
+   255 for a `d` below 2, which the caller divides the plain way. */
+enum { ZANE_DIV_ADD = 64, ZANE_DIV_NONE = 255 };
+
+zane_div_gen zane_div_magic(uint64_t d) {
+	if (d < 2) return (zane_div_gen){ 0, ZANE_DIV_NONE };
+	int k = 63 - __builtin_clzll(d);
+	if (!(d & (d - 1))) return (zane_div_gen){ (uint64_t)1 << (64 - k), 0 };
+	uint64_t m, rem;
+#if defined(__x86_64__)
+	__asm__("divq %[d]" : "=a"(m), "=d"(rem) : [d] "r"(d), "a"((uint64_t)0), "d"((uint64_t)1 << k));
+#else
+	unsigned __int128 n = (unsigned __int128)((uint64_t)1 << k) << 64;
+	m = (uint64_t)(n / d);
+	rem = (uint64_t)(n % d);
+#endif
+	int64_t more;
+	if (d - rem < ((uint64_t)1 << k)) {
+		more = k;
+	} else {
+		uint64_t twice = rem + rem;
+		m += m;
+		if (twice >= d || twice < rem) m++;
+		more = k | ZANE_DIV_ADD;
+	}
+	return (zane_div_gen){ m + 1, more };
+}
