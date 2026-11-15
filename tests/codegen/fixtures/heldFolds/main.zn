@@ -1,0 +1,48 @@
+/// A value folded where it is made again as code: a list a call makes and
+/// a scope holds, folded inside the expression that holds it, is held by
+/// the scope again, which ends its block. Here the inner list the outer
+/// one copies is folded to pushes, and the program's arguments keep the
+/// rest from folding.
+package heldFolds;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+type Row<T Type> = struct {
+	_value @primitives$List<T>;
+}
+Row<T>(T Type) => init{
+	_value = @primitives$List(T);
+}
+/// `n` copies of `value`.
+Row<T>(n I64, value T Type) {
+	values @primitives$List<T> = @primitives$List(T);
+	@controlflow$repeat(n, {
+		copy T = value;
+		values!push(copy);
+	});
+	return init{ _value = values; }
+}
+I64 size(this Row<T Type>) => this._value:size();
+(this Row<T Type>)[index I64] => this._value[index];
+
+type Out = #struct {
+	_console &@runtime$Console;
+}
+Out(console &@runtime$Console) => init{
+	_console = console;
+}
+Unit say(this Out, text String) mut {
+	this._console!print(text);
+	return Unit();
+}
+
+Unit main() {
+	out Out(@program$console);
+	args @primitives$List<String> = @program$runtime:arguments();
+	nested Row<Row<I64>> = Row(I64(2), Row(I64(2), I64(1)));
+	out!say(String(nested[I64(1)]:size()));
+	out!say(String(args:size()));
+	return Unit();
+}

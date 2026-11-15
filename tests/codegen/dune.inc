@@ -3987,6 +3987,140 @@
   (diff golden/headers.out headers.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/heldFolds))
+ (action
+  (with-stdout-to
+   heldFolds.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/heldFolds))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/heldFolds.optimized.cgt heldFolds.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/heldFolds))
+ (targets heldFolds.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build heldFolds.exe --package fixtures/heldFolds)))
+
+(rule
+ (deps (source_tree fixtures/heldFolds))
+ (targets heldFolds.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build heldFolds.optimized.exe --optimize --package fixtures/heldFolds)))
+
+(rule
+ (deps (source_tree fixtures/heldFolds))
+ (targets heldFolds.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build heldFolds.tiered.exe --tiered --package fixtures/heldFolds)))
+
+(rule
+ (deps (source_tree fixtures/heldFolds))
+ (targets heldFolds.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up heldFolds.tier1 --package fixtures/heldFolds)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    heldFolds.checked.out.actual
+    (run ./heldFolds.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/heldFolds.out heldFolds.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    heldFolds.unchecked.out.actual
+    (run ./heldFolds.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/heldFolds.out heldFolds.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    heldFolds.optimized.checked.out.actual
+    (run ./heldFolds.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/heldFolds.out heldFolds.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    heldFolds.optimized.unchecked.out.actual
+    (run ./heldFolds.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/heldFolds.out heldFolds.optimized.unchecked.out.actual)))
+
+(rule
+ (deps heldFolds.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./heldFolds.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    heldFolds.tiered.checked.out.actual
+    (run ./heldFolds.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/heldFolds.out heldFolds.tiered.checked.out.actual)))
+
+(rule
+ (deps heldFolds.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./heldFolds.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    heldFolds.tiered.unchecked.out.actual
+    (run ./heldFolds.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/heldFolds.out heldFolds.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/hello))
  (action
   (with-stdout-to

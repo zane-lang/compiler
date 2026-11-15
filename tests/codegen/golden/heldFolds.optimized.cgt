@@ -1,0 +1,313 @@
+└── program:
+    ├── entry: zane.start
+    ├── layouts[0] > layout:
+    │   ├── type: heldFolds$Out
+    │   └── positions:
+    ├── layouts[1] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── layouts[2] > layout:
+    │   ├── type: %primitives$List<%primitives$String>
+    │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
+    ├── layouts[3] > layout:
+    │   ├── type: %primitives$I64
+    │   └── positions:
+    ├── layouts[4] > layout:
+    │   ├── type: heldFolds$Row<%primitives$I64>
+    │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
+    ├── layouts[5] > layout:
+    │   ├── type: heldFolds$Row<heldFolds$Row<%primitives$I64>>
+    │   └── positions[0]: list @0 of heldFolds$Row<%primitives$I64> (16 bytes apart)
+    ├── layouts[6] > layout:
+    │   ├── type: %primitives$List<%primitives$I64>
+    │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
+    ├── layouts[7] > layout:
+    │   ├── type: %primitives$List<heldFolds$Row<%primitives$I64>>
+    │   └── positions[0]: list @0 of heldFolds$Row<%primitives$I64> (16 bytes apart)
+    ├── globals[0]: zane.value.@program$console : i64
+    ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: heldFolds$main()
+    │       └── args:
+    ├── funcs[1] > func:
+    │   ├── symbol: heldFolds$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       ├── body[0] > hold:
+    │       │   ├── local: #4
+    │       │   ├── scope: %5
+    │       │   ├── value > expand:
+    │       │   │   ├── type: {ref}
+    │       │   │   ├── label: @2
+    │       │   │   ├── result: #3
+    │       │   │   ├── body[0] > let:
+    │       │   │   │   ├── local: #1
+    │       │   │   │   └── value: global zane.value.@program$console
+    │       │   │   ├── body[1] > assign:
+    │       │   │   │   ├── place: #3
+    │       │   │   │   └── value > escape:
+    │       │   │   │       ├── exit: @2
+    │       │   │   │       ├── value > record:
+    │       │   │   │       │   ├── type: {ref}
+    │       │   │   │       │   └── members[0] > member 0 > convert:
+    │       │   │   │       │       ├── type: ref
+    │       │   │   │       │       └── value: local #1 : ptr
+    │       │   │   │       └── layout: heldFolds$Out
+    │       │   │   └── body[2]: leave @2
+    │       │   └── layout: heldFolds$Out
+    │       ├── body[1] > hold:
+    │       │   ├── local: #6
+    │       │   ├── scope: %5
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle16
+    │       │   │   ├── fn: zane_arguments
+    │       │   │   └── args:
+    │       │   └── layout: %primitives$List<%primitives$String>
+    │       ├── body[2] > hold:
+    │       │   ├── local: #10
+    │       │   ├── scope: %5
+    │       │   ├── value > call:
+    │       │   │   ├── type: handle16
+    │       │   │   ├── fn: heldFolds$Row<heldFolds$Row<%primitives$I64>>(%primitives$I64, heldFolds$Row<%primitives$I64>)
+    │       │   │   ├── args[0]: 2 : i64
+    │       │   │   └── args[1] > expand:
+    │       │   │       ├── type: handle16
+    │       │   │       ├── label: @34
+    │       │   │       ├── result: #33
+    │       │   │       ├── body[0] > hold:
+    │       │   │       │   ├── local: #32
+    │       │   │       │   ├── scope: %5
+    │       │   │       │   ├── value > expand:
+    │       │   │       │   │   ├── type: handle16
+    │       │   │       │   │   ├── label: @28
+    │       │   │       │   │   ├── result: #29
+    │       │   │       │   │   ├── body[0] > assign:
+    │       │   │       │   │   │   ├── place: #29
+    │       │   │       │   │   │   └── value > runtime:
+    │       │   │       │   │   │       ├── type: handle16
+    │       │   │       │   │   │       ├── fn: zane_list_new
+    │       │   │       │   │   │       └── args:
+    │       │   │       │   │   ├── body[1] > let:
+    │       │   │       │   │   │   ├── local: #30
+    │       │   │       │   │   │   └── value > runtime:
+    │       │   │       │   │   │       ├── type: ptr
+    │       │   │       │   │   │       ├── fn: zane_list_push
+    │       │   │       │   │   │       ├── args[0]: address of #29 : ptr
+    │       │   │       │   │   │       └── args[1]: 8 : i64
+    │       │   │       │   │   ├── body[2] > place:
+    │       │   │       │   │   │   ├── address: local #30 : ptr
+    │       │   │       │   │   │   ├── value: 1 : i64
+    │       │   │       │   │   │   └── layout: %primitives$I64
+    │       │   │       │   │   ├── body[3] > let:
+    │       │   │       │   │   │   ├── local: #31
+    │       │   │       │   │   │   └── value > runtime:
+    │       │   │       │   │   │       ├── type: ptr
+    │       │   │       │   │   │       ├── fn: zane_list_push
+    │       │   │       │   │   │       ├── args[0]: address of #29 : ptr
+    │       │   │       │   │   │       └── args[1]: 8 : i64
+    │       │   │       │   │   └── body[4] > place:
+    │       │   │       │   │       ├── address: local #31 : ptr
+    │       │   │       │   │       ├── value: 1 : i64
+    │       │   │       │   │       └── layout: %primitives$I64
+    │       │   │       │   └── layout: heldFolds$Row<%primitives$I64>
+    │       │   │       └── body[1] > assign:
+    │       │   │           ├── place: #33
+    │       │   │           └── value: local #32 : handle16
+    │       │   └── layout: heldFolds$Row<heldFolds$Row<%primitives$I64>>
+    │       ├── body[3] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: heldFolds$say(this heldFolds$Out, %primitives$String)
+    │       │   ├── args[0]: address of #4 : ptr
+    │       │   └── args[1] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @19
+    │       │       ├── result: #20
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #18
+    │       │       │   ├── scope: %5
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > expand:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── label: @16
+    │       │       │   │       ├── result: #17
+    │       │       │   │       ├── body[0] > let:
+    │       │       │   │       │   ├── local: #15
+    │       │       │   │       │   └── value > expand:
+    │       │       │   │       │       ├── type: ptr
+    │       │       │   │       │       ├── label: @13
+    │       │       │   │       │       ├── result: #14
+    │       │       │   │       │       ├── body[0] > let:
+    │       │       │   │       │       │   ├── local: #11
+    │       │       │   │       │       │   └── value: address of #10 : ptr
+    │       │       │   │       │       ├── body[1] > let:
+    │       │       │   │       │       │   ├── local: #12
+    │       │       │   │       │       │   └── value: 1 : i64
+    │       │       │   │       │       └── body[2] > assign:
+    │       │       │   │       │           ├── place: #14
+    │       │       │   │       │           └── value > runtime:
+    │       │       │   │       │               ├── type: ptr
+    │       │       │   │       │               ├── fn: zane_list_at
+    │       │       │   │       │               ├── args[0]: local #11 : ptr
+    │       │       │   │       │               ├── args[1]: 1 : i64
+    │       │       │   │       │               └── args[2]: 16 : i64
+    │       │       │   │       ├── body[1] > assign:
+    │       │       │   │       │   ├── place: #17
+    │       │       │   │       │   └── value > convert:
+    │       │       │   │       │       ├── type: i64
+    │       │       │   │       │       └── value > member:
+    │       │       │   │       │           ├── type: i32
+    │       │       │   │       │           ├── index: 1
+    │       │       │   │       │           └── value > deref:
+    │       │       │   │       │               ├── type: handle16
+    │       │       │   │       │               └── ptr: local #15 : ptr
+    │       │       │   │       └── body[2]: leave @16
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #20
+    │       │           └── value: local #18 : handle
+    │       ├── body[4] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: heldFolds$say(this heldFolds$Out, %primitives$String)
+    │       │   ├── args[0]: address of #4 : ptr
+    │       │   └── args[1] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @22
+    │       │       ├── result: #23
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #21
+    │       │       │   ├── scope: %5
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > convert:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       └── value > member:
+    │       │       │   │           ├── type: i32
+    │       │       │   │           ├── index: 1
+    │       │       │   │           └── value: local #6 : handle16
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #23
+    │       │           └── value: local #21 : handle
+    │       └── body[5] > return: unit : void
+    ├── funcs[2] > func:
+    │   ├── symbol: heldFolds$Row<%primitives$I64>(%primitives$I64, %primitives$I64)
+    │   ├── params[0]: local #1 : i64
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: handle16
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > expand:
+    │   │       ├── type: handle16
+    │   │       ├── label: @10
+    │   │       ├── result: #11
+    │   │       └── body[0] > assign:
+    │   │           ├── place: #11
+    │   │           └── value > runtime:
+    │   │               ├── type: handle16
+    │   │               ├── fn: zane_list_new
+    │   │               └── args:
+    │   ├── body[1] > repeat:
+    │   │   ├── count: local #1 : i64
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #6
+    │   │   │   └── value: local #2 : i64
+    │   │   └── body[1] > eval > expand:
+    │   │       ├── type: void
+    │   │       ├── label: @9
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #7
+    │   │       │   └── value: local #6 : i64
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #8
+    │   │       │   └── value > runtime:
+    │   │       │       ├── type: ptr
+    │   │       │       ├── fn: zane_list_push
+    │   │       │       ├── args[0]: address of #3 : ptr
+    │   │       │       └── args[1]: 8 : i64
+    │   │       └── body[2] > place:
+    │   │           ├── address: local #8 : ptr
+    │   │           ├── value: local #7 : i64
+    │   │           └── layout: %primitives$I64
+    │   └── body[2] > return > escape:
+    │       ├── exit: function
+    │       ├── value: local #3 : handle16
+    │       └── layout: heldFolds$Row<%primitives$I64>
+    ├── funcs[3] > func:
+    │   ├── symbol: heldFolds$Row<heldFolds$Row<%primitives$I64>>(%primitives$I64, heldFolds$Row<%primitives$I64>)
+    │   ├── params[0]: local #1 : i64
+    │   ├── params[1]: local #2 : handle16
+    │   ├── ret: handle16
+    │   └── body[0] > scope:
+    │       ├── id: %4
+    │       ├── body[0] > hold:
+    │       │   ├── local: #3
+    │       │   ├── scope: %4
+    │       │   ├── value > expand:
+    │       │   │   ├── type: handle16
+    │       │   │   ├── label: @11
+    │       │   │   ├── result: #12
+    │       │   │   └── body[0] > assign:
+    │       │   │       ├── place: #12
+    │       │   │       └── value > runtime:
+    │       │   │           ├── type: handle16
+    │       │   │           ├── fn: zane_list_new
+    │       │   │           └── args:
+    │       │   └── layout: %primitives$List<heldFolds$Row<%primitives$I64>>
+    │       ├── body[1] > repeat:
+    │       │   ├── count: local #1 : i64
+    │       │   └── body[0] > scope:
+    │       │       ├── id: %7
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #6
+    │       │       │   ├── scope: %7
+    │       │       │   ├── value > copy:
+    │       │       │   │   ├── type: handle16
+    │       │       │   │   ├── value: local #2 : handle16
+    │       │       │   │   └── layout: heldFolds$Row<%primitives$I64>
+    │       │       │   └── layout: heldFolds$Row<%primitives$I64>
+    │       │       └── body[1] > eval > expand:
+    │       │           ├── type: void
+    │       │           ├── label: @10
+    │       │           ├── body[0] > let:
+    │       │           │   ├── local: #8
+    │       │           │   └── value > copy:
+    │       │           │       ├── type: handle16
+    │       │           │       ├── value: local #6 : handle16
+    │       │           │       └── layout: heldFolds$Row<%primitives$I64>
+    │       │           ├── body[1] > let:
+    │       │           │   ├── local: #9
+    │       │           │   └── value > runtime:
+    │       │           │       ├── type: ptr
+    │       │           │       ├── fn: zane_list_push
+    │       │           │       ├── args[0]: address of #3 : ptr
+    │       │           │       └── args[1]: 16 : i64
+    │       │           └── body[2] > place:
+    │       │               ├── address: local #9 : ptr
+    │       │               ├── value: local #8 : handle16
+    │       │               └── layout: heldFolds$Row<%primitives$I64>
+    │       └── body[2] > return > escape:
+    │           ├── exit: function
+    │           ├── value > take:
+    │           │   ├── type: handle16
+    │           │   ├── address: address of #3 : ptr
+    │           │   └── layout: %primitives$List<heldFolds$Row<%primitives$I64>>
+    │           └── layout: heldFolds$Row<heldFolds$Row<%primitives$I64>>
+    └── funcs[4] > func:
+        ├── symbol: heldFolds$say(this heldFolds$Out, %primitives$String)
+        ├── params[0]: local #1 : ptr
+        ├── params[1]: local #2 : handle
+        ├── ret: void
+        ├── body[0] > eval > runtime:
+        │   ├── type: void
+        │   ├── fn: zane_print
+        │   └── args[0]: local #2 : handle
+        └── body[1] > return: unit : void
