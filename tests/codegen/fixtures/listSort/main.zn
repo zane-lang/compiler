@@ -3,7 +3,7 @@
 /// with many equal keys, and 64-bit integers already in descending order.
 /// Each list is checked whole: the count of out-of-order neighbours (or, for
 /// the descending one, of elements off their place) is 0, and the 32-bit
-/// list's keys sum as before.
+/// list's keys sum as before, each key as often as before.
 package listSort;
 
 alias I64 = @primitives$I64;
@@ -25,6 +25,7 @@ Unit main() {
 		before = @operators$add(before, I64(small[i]));
 		i = @operators$add(i, I64(1));
 	}
+	unsorted @primitives$List<I32> = small;
 	small!sort();
 	after I64 = I64(0);
 	bad I64 = I64(0);
@@ -40,6 +41,28 @@ Unit main() {
 	}
 	@program$console!print(String(bad));
 	@program$console!print(String(@operators$add(after, @operators$negate(before))));
+	// Each of the eight keys, -4 to 3, is there as often as before.
+	moved I64 = I64(0);
+	key I64 = @operators$negate(I64(4));
+	@controlflow$repeat(I64(8)) {
+		was I64 = I64(0);
+		now I64 = I64(0);
+		i = I64(1);
+		@controlflow$repeat(I64(1000)) {
+			@controlflow$branch(@operators$equal(I64(unsorted[i]), key), {
+				was = @operators$add(was, I64(1));
+			});
+			@controlflow$branch(@operators$equal(I64(small[i]), key), {
+				now = @operators$add(now, I64(1));
+			});
+			i = @operators$add(i, I64(1));
+		}
+		@controlflow$branch(@operators$not(@operators$equal(was, now)), {
+			moved = @operators$add(moved, I64(1));
+		});
+		key = @operators$add(key, I64(1));
+	}
+	@program$console!print(String(moved));
 	@program$console!print(String(I64(small[I64(1)])));
 	@program$console!print(String(I64(small[I64(500)])));
 	@program$console!print(String(I64(small[I64(1000)])));
