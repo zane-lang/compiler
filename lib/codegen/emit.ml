@@ -554,7 +554,21 @@ let element ?cached ?(unchecked = false) env fr b fn args =
     | _ -> Diagnostic.bug "codegen: an element address with the wrong arguments"
   in
   let offset = Llvm.build_sub index (Llvm.const_int env.i64 1) "" b in
-  if unchecked then Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| Llvm.build_nsw_mul offset stride "" b |] "" b
+  (* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_BIASED_BASE=1): the
+     address taken from a base biased one element down, [(base - stride) +
+     index * stride], so the index less one that the check compares is not
+     on the way to the address: an index loaded from memory (a tree's
+     child, a graph's neighbor) is scaled and added to a base the loop does
+     not change, and LLVM folds the bias into the load's displacement. The
+     biased base is outside the block, so neither GEP is in bounds. *)
+  let address () =
+    if Sys.getenv_opt "ZANE_BIASED_BASE" = Some "1" then
+      let i8 = Llvm.i8_type env.ctx in
+      let biased = Llvm.build_gep i8 base [| Llvm.build_neg stride "" b |] "" b in
+      Llvm.build_gep i8 biased [| Llvm.build_nsw_mul index stride "" b |] "" b
+    else Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| Llvm.build_nsw_mul offset stride "" b |] "" b
+  in
+  if unchecked then address ()
   else
   let outside = Llvm.build_icmp Llvm.Icmp.Uge offset count "" b in
   let stop = block env fr and inside = block env fr in
@@ -564,8 +578,7 @@ let element ?cached ?(unchecked = false) env fr b fn args =
   ignore (Llvm.build_call fty f [||] "" b);
   ignore (Llvm.build_unreachable b);
   Llvm.position_at_end inside b;
-  let bytes = Llvm.build_nsw_mul offset stride "" b in
-  Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| bytes |] "" b
+  address ()
 
 (* Whether the address [p] is, by how it was made, in the innermost scope's
    region while that scope is open: a slot of the function's innermost
