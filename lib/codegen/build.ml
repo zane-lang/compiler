@@ -1143,6 +1143,8 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
       |> Result.map (fun () ->
              if optimize then begin
+               (* EXPERIMENT (Const_arrays): constant locals made globals. *)
+               experiment tm m "const arrays" Const_arrays.on Const_arrays.run Const_arrays.again;
                (* EXPERIMENT (Frame_scopes): scopes for the frames as inlining
                   left them, then the loop passes again to use them. *)
                experiment tm m "frame scopes" Frame_scopes.on Frame_scopes.run Frame_scopes.again;
@@ -1612,7 +1614,7 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
             (* The experiments that rewrite tier 1 as it is prepared. *)
             @ List.filter_map
                 (fun (name, on) -> if on () then Some name else None)
-                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on); ("arm-checks", Arm_checks.on); ("range-checks", Range_checks.on); ("rehome", fun () -> Sys.getenv_opt "ZANE_REHOME" = Some "1"); ("idle-search", Loop_shapes.idle_on); ("peel-recursion", fun () -> Sys.getenv_opt "ZANE_PEEL_RECURSION" = Some "1"); ("div-cache", Div_cache.on) ]
+                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on); ("arm-checks", Arm_checks.on); ("range-checks", Range_checks.on); ("rehome", fun () -> Sys.getenv_opt "ZANE_REHOME" = Some "1"); ("idle-search", Loop_shapes.idle_on); ("peel-recursion", fun () -> Sys.getenv_opt "ZANE_PEEL_RECURSION" = Some "1"); ("div-cache", Div_cache.on); ("const-arrays", Const_arrays.on) ]
             @ (match Sys.getenv_opt "ZANE_LIST_SPANS" with Some n -> [ "list-spans-" ^ n ] | None -> [])
             @ (match Sys.getenv_opt "ZANE_LLVM_OPTS" with Some o -> [ "llvm-opts-" ^ o ] | None -> [])
             @ (match Sys.getenv_opt "ZANE_FRAME_SHADOW_ONLY" with Some o -> [ "shadow-only-" ^ o ] | None -> [])
