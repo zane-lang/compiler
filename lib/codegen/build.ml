@@ -1099,6 +1099,22 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       if not optimize then Wrappers.mark data_layout m;
       if optimize then llvm_options (Array.of_list ("zanec" :: Passes.llvm_options));
       let pipeline = thread_sanitized m (Passes.pipeline ~triple ~optimize ~tier1:(tier = Tiers.Tier1)) in
+      (* EXPERIMENT (LangArena zane-vs-goose): with ZANE_LIST_SPANS=N, a
+         list growing past N bytes takes a growable span at once
+         (runtime/list.c, `zane_list_span_from`). *)
+      Option.iter
+        (fun n ->
+          let ctx = Llvm.module_context m in
+          let v = Llvm.const_of_int64 (Llvm.i64_type ctx) (Int64.of_string n) true in
+          match Llvm.lookup_global "zane_list_span_from" m with
+          | Some g when not (Llvm.is_declaration g) ->
+              Llvm.set_initializer v g;
+              Llvm.set_linkage Llvm.Linkage.Internal g
+          | Some g ->
+              Llvm.set_initializer v g;
+              Llvm.set_linkage Llvm.Linkage.External g
+          | None -> ignore (Llvm.define_global "zane_list_span_from" v m))
+        (Sys.getenv_opt "ZANE_LIST_SPANS");
       (* EXPERIMENT: the module as the passes take it, for reading. *)
       Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_PRE");
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
@@ -1572,7 +1588,8 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
             (* The experiments that rewrite tier 1 as it is prepared. *)
             @ List.filter_map
                 (fun (name, on) -> if on () then Some name else None)
-                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on); ("arm-checks", Arm_checks.on); ("range-checks", Range_checks.on) ]
+                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on); ("arm-checks", Arm_checks.on); ("range-checks", Range_checks.on); ("rehome", fun () -> Sys.getenv_opt "ZANE_REHOME" = Some "1") ]
+            @ (match Sys.getenv_opt "ZANE_LIST_SPANS" with Some n -> [ "list-spans-" ^ n ] | None -> [])
             @ Passes.llvm_options)
         in
         Filename.concat (Filename.concat cache "tier")

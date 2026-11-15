@@ -516,9 +516,16 @@ let move known c (p : Layout.position) =
   let h = offset c c.at p.offset in
   let leaves block = nonzero c (runtime c Cgt.Runtime.Leaves [| block; c.with_; c.extra |]) in
   let relocate ?(alloc = Cgt.Runtime.Alloc) ?(set = fun v -> store c v h) old size align copied =
-    let fresh = runtime c alloc [| c.with_; size; int env align |] in
-    memcpy c fresh old copied;
-    ignore (runtime c Cgt.Runtime.Free [| old; size; int env align |]);
+    let fresh =
+      if alloc = Cgt.Runtime.Alloc && Sys.getenv_opt "ZANE_REHOME" = Some "1" then
+        runtime c Cgt.Runtime.Relocate [| c.with_; old; size; int env align; copied |]
+      else begin
+        let fresh = runtime c alloc [| c.with_; size; int env align |] in
+        memcpy c fresh old copied;
+        ignore (runtime c Cgt.Runtime.Free [| old; size; int env align |]);
+        fresh
+      end
+    in
     set fresh;
     fresh
   in

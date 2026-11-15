@@ -841,6 +841,43 @@ char *zane_alloc(zane_mark *region, int64_t size, int64_t align) {
 	return block;
 }
 
+/* EXPERIMENT (LangArena zane-vs-goose; emitted with ZANE_REHOME=1): a
+   list's or a string's block of `size` bytes that must move into `region`
+   (a type's move walk, lib/codegen/walks.ml), copied there as `copied`
+   bytes and the old one returned, except a list's growable span (an
+   oversized block with a reservation, zane_alloc_growable) in a region of
+   the same context: that is the one block of its mapping, so the mapping
+   itself leaves the old region's list for the new one's, and its chunks
+   are the new region's in the chunk map, with no byte copied. */
+enum { ZANE_REHOMED = 2 };
+
+char *zane_relocate(zane_mark *region, char *old, int64_t size, int64_t align, int64_t copied) {
+	int64_t words = zane_word(size);
+	if (words > ZANE_CHUNK - ZANE_LINE && align <= ZANE_LINE) {
+		zane_mapping *m = (zane_mapping *)(old - ZANE_LINE);
+		zane_mark *from = zane_region_at(old);
+		if (m->reserved && m->boxed != 1 && !zane_span_pool(m) && from != region && from->context == region->context &&
+		    !zane_is_island(from) && !zane_is_island(region)) {
+			zane_check_region(region);
+			for (zane_mapping **at = &from->mappings; *at; at = &(*at)->next)
+				if (*at == m) {
+					*at = m->next;
+					m->next = region->mappings;
+					region->mappings = m;
+					m->boxed = ZANE_REHOMED;
+					for (size_t b = 0; b < m->size; b += ZANE_CHUNK) zane_set_page((char *)m + b, (uintptr_t)region);
+					from->heap.live--;
+					region->heap.live++;
+					return old;
+				}
+		}
+	}
+	char *fresh = zane_alloc(region, size, align);
+	memcpy(fresh, old, (size_t)copied);
+	zane_free(old, size, align);
+	return fresh;
+}
+
 /* Every block past ZANE_CHUNK - ZANE_LINE bytes is the one block of its
    mapping, a cache line in: no frame holds one, since a frame stretches to
    at most a chunk with its record first, and no chunk's heap does. */
@@ -886,8 +923,26 @@ void zane_free(char *block, int64_t size, int64_t align) {
 	size = zane_word(size);
 	if (align < 8) align = 8;
 	zane_check_region(region);
+	/* EXPERIMENT (ZANE_REHOME=1): a span zane_relocate handed over goes
+	   back to its context's kept ones, where the next list past 1 MiB in
+	   any of its regions takes it with its pages resident, rather than
+	   to this region's stack, which only this region's next block of its
+	   size would take. */
+	if (size > ZANE_CHUNK - ZANE_LINE && ((zane_mapping *)(block - ZANE_LINE))->boxed == ZANE_REHOMED &&
+	    region->context == zane_self) {
+		zane_mapping *m = (zane_mapping *)(block - ZANE_LINE);
+		for (zane_mapping **at = &region->mappings; *at; at = &(*at)->next)
+			if (*at == m) {
+				*at = m->next;
+				for (size_t b = 0; b < m->size; b += ZANE_CHUNK) zane_set_page((char *)m + b, 0);
+				m->boxed = 0;
+				zane_keep_span(region->context, m);
+				region->heap.live--;
+				return;
+			}
+	}
 	int64_t class = zane_class(size, align);
-	if (size > ZANE_CHUNK - ZANE_LINE && ((zane_mapping *)(block - ZANE_LINE))->boxed) align = zane_box_key(align);
+	if (size > ZANE_CHUNK - ZANE_LINE && ((zane_mapping *)(block - ZANE_LINE))->boxed == 1) align = zane_box_key(align);
 	char **top = class >= 0 ? &region->heap.classes[class] : &zane_stack_of(region, size, align)->top;
 	*(char **)block = *top;
 	*top = block;

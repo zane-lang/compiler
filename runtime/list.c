@@ -85,11 +85,22 @@ static inline int zane_list_returned(zane_mark *region, int64_t room) {
 	return s && s->top;
 }
 
+/* EXPERIMENT (LangArena zane-vs-goose; set by zanec with
+   ZANE_LIST_SPANS=N): a list whose block grows past this many bytes takes
+   a growable span (arena.c, zane_alloc_growable) at once, its room
+   doubled past ZANE_CHUNK - ZANE_LINE, so that it grows in place from
+   there rather than being copied at each doubling to 1 MiB, as glibc's
+   realloc moves a large block's pages rather than its bytes. By default,
+   no list does before it is past 1 MiB anyway. */
+__attribute__((weak)) int64_t zane_list_span_from = ZANE_CHUNK - ZANE_LINE;
+
 static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 	/* The room in the list's unit (ZL_ELEMENTS), and the block's bytes. */
 	int64_t unit = zl_unit(stride), old = ZL_ROOM_BYTES(list, stride);
 	int64_t units = ZL_ROOM(list) ? ZL_ROOM(list) * 2 : zane_list_first_room(stride, stride) / unit;
 	while (units * unit < needed) units *= 2;
+	if (zl_block_bytes(units, stride) > zane_list_span_from)
+		while (zl_block_bytes(units, stride) <= ZANE_CHUNK - ZANE_LINE) units *= 2;
 #if defined(ZANE_FRAME_REFS)
 	if (units > (int64_t)UINT32_MAX) zane_broken("a list past 2^32 - 1 elements");
 #endif
