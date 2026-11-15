@@ -1041,7 +1041,21 @@ let finish_tier m ~hash exports definitions =
    under [name] and the module kept. *)
 let experiment tm m name on run again =
   if on () then begin
+    (* EXPERIMENT: ZANE_DUMP_BEFORE=<name>=<path>, the module just before
+       experiment <name> runs, for reading. *)
+    (match Sys.getenv_opt "ZANE_DUMP_BEFORE" with
+    | Some v -> (
+        match String.index_opt v '=' with
+        | Some i when String.sub v 0 i = name -> Llvm.print_module (String.sub v (i + 1) (String.length v - i - 1)) m
+        | _ -> ())
+    | None -> ());
     run m;
+    (match Sys.getenv_opt "ZANE_DUMP_AFTER" with
+    | Some v -> (
+        match String.index_opt v '=' with
+        | Some i when String.sub v 0 i = name -> Llvm.print_module (String.sub v (i + 1) (String.length v - i - 1)) m
+        | _ -> ())
+    | None -> ());
     match Llvm_passbuilder.run_passes m again tm (Llvm_passbuilder.create_passbuilder_options ()) with
     | Ok () -> ()
     | Error e -> prerr_endline (name ^ ": " ^ e)
@@ -1598,6 +1612,10 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
                 (fun (name, on) -> if on () then Some name else None)
                 [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on); ("arm-checks", Arm_checks.on); ("range-checks", Range_checks.on); ("rehome", fun () -> Sys.getenv_opt "ZANE_REHOME" = Some "1"); ("idle-search", Loop_shapes.idle_on); ("peel-recursion", fun () -> Sys.getenv_opt "ZANE_PEEL_RECURSION" = Some "1") ]
             @ (match Sys.getenv_opt "ZANE_LIST_SPANS" with Some n -> [ "list-spans-" ^ n ] | None -> [])
+            @ (match Sys.getenv_opt "ZANE_LLVM_OPTS" with Some o -> [ "llvm-opts-" ^ o ] | None -> [])
+            @ (match Sys.getenv_opt "ZANE_FRAME_SHADOW_ONLY" with Some o -> [ "shadow-only-" ^ o ] | None -> [])
+            @ (match Sys.getenv_opt "ZANE_FRAME_SHADOW_SLOTS" with Some o -> [ "shadow-slots-" ^ o ] | None -> [])
+            @ (match Sys.getenv_opt "ZANE_SHADOW_AGAIN" with Some o -> [ "shadow-again-" ^ o ] | None -> [])
             @ Passes.llvm_options)
         in
         Filename.concat (Filename.concat cache "tier")

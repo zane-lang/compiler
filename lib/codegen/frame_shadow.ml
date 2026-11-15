@@ -175,6 +175,29 @@ let calls_after f dom base calls =
   in
   Llvm.iter_blocks (fun b -> Llvm.iter_instrs (add b) b) f
 
+(* Whether call [i] keeps none of the addresses [p] it is given: each
+   operand that is [p] is a parameter of a known callee marked
+   `captures(none)`, or the call is to an intrinsic. *)
+let keeps_none i p =
+  let n = Llvm.num_operands i in
+  let f = Llvm.operand i (n - 1) in
+  if Llvm.classify_value f <> Llvm.ValueKind.Function then false
+  else if starts "llvm." (Llvm.value_name f) then true
+  else
+    let captures = Llvm.enum_attr_kind "captures" in
+    let none_at k =
+      Array.exists
+        (fun a ->
+          (* A type attribute, as `sret(T)`, has no representation. *)
+          match Llvm.repr_of_attr a with
+          | Llvm.AttrRepr.Enum (kind, v) -> kind = captures && v = 0L
+          | _ -> false
+          | exception Assert_failure _ -> false)
+        (Llvm.function_attrs f (Llvm.AttrIndex.Param k))
+    in
+    let rec go k = k >= n - 1 || ((Llvm.operand i k != p || none_at k) && go (k + 1)) in
+    go 0
+
 let func ctx dl (f : Llvm.llvalue) =
   (* The frames: what an `llvm.assume` names. *)
   let frames = ref [] in
@@ -223,6 +246,10 @@ let func ctx dl (f : Llvm.llvalue) =
                    does: any call may then write the slot. *)
                 | Llvm.Opcode.Store when Llvm.operand i 0 == p && Llvm.operand i 1 != p -> escaped := true
                 | Llvm.Opcode.Call -> (
+                    (* A callee that may keep the address, as `overwrite`
+                       does in a deferred job a later call runs, may have
+                       any later call write the slot: the frame escaped. *)
+                    if not (keeps_none i p) then escaped := true;
                     match callee i with
                     | Some n when inert n -> ()
                     | _ when List.memq i !calls -> ()
@@ -252,6 +279,17 @@ let func ctx dl (f : Llvm.llvalue) =
                    in
                    if scalar t && List.for_all (fun (o', t') -> o' = o && t' == t) overlapping then Some (o, t) else None)
           in
+          (* ZANE_FRAME_SHADOW_SLOTS=a,b: only these offsets, for bisecting. *)
+          let slots =
+            match Sys.getenv_opt "ZANE_FRAME_SHADOW_SLOTS" with
+            | Some l ->
+                let keep = List.map Int64.of_string (String.split_on_char ',' l) in
+                List.filter (fun (o, _) -> List.mem o keep) slots
+            | None -> slots
+          in
+          if Sys.getenv_opt "ZANE_FRAME_SHADOW_DEBUG" = Some "1" then
+            prerr_endline (Printf.sprintf "shadow %s: frame %s slots %s" (Llvm.value_name f) (Llvm.value_name base)
+              (String.concat "," (List.map (fun (o, _) -> Int64.to_string o) slots)));
           if slots <> [] then begin
             let entry = Llvm.entry_block f in
             let at_entry = Llvm.builder_at ctx (Llvm.instr_begin entry) in
@@ -311,9 +349,21 @@ let run m =
   if on () then begin
     let ctx = Llvm.module_context m in
     let dl = Llvm_target.DataLayout.of_string (Llvm.data_layout m) in
-    Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then func ctx dl f) m
+    (* ZANE_FRAME_SHADOW_ONLY=s: only functions whose name contains s, for
+       bisecting. *)
+    let only =
+      match Sys.getenv_opt "ZANE_FRAME_SHADOW_ONLY" with
+      | None -> fun _ -> true
+      | Some s ->
+          fun n ->
+            let ls = String.length s and ln = String.length n in
+            let rec at i = i + ls <= ln && (String.sub n i ls = s || at (i + 1)) in
+            at 0
+    in
+    Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) && only (Llvm.value_name f) then func ctx dl f) m
   end
 
 (* The passes run again once the copies are in. *)
 let again =
+  match Sys.getenv_opt "ZANE_SHADOW_AGAIN" with Some p -> p | None ->
   "function(sroa,early-cse<memssa>,loop-mssa(licm<allowspeculation>),gvn<pre;load-pre>,instcombine<no-verify-fixpoint>,simplifycfg,dse,loop-mssa(licm<allowspeculation>))"

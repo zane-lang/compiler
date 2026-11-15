@@ -108,6 +108,11 @@ let llvm_options =
     "-unroll-threshold=250";
     "-unroll-partial-threshold=100";
   ]
+  (* EXPERIMENT (LangArena zane-vs-goose): ZANE_LLVM_OPTS, space-separated
+     LLVM options added after these, for trying a threshold. *)
+  @ (match Sys.getenv_opt "ZANE_LLVM_OPTS" with
+    | Some s -> List.filter (fun o -> o <> "") (String.split_on_char ' ' s)
+    | None -> [])
 
 (* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*,
    for [triple]. *)
