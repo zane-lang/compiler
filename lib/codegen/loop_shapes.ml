@@ -559,10 +559,31 @@ let scans body =
    around another may go round many times between the inner loop's exits.
    Unlike a versioned loop's short copy, a search still reads ahead
    (Lookahead). *)
+(* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_IDLE_SEARCH=1):
+   whether the loop's counter is read nowhere in [body] but by its own
+   step, as in a `to` that stands for a `while` (`i!to(bound) { ... }`
+   whose exit is a `return` on what it reads). Its index, if any, steps
+   elsewhere (a field a called method moves, as Calculator::Ast's
+   `whitespace` does with `advance()`), which [scans] cannot see, and its
+   count is only a ceiling: IRCE's split of it costs its setup on every
+   entry for a loop that usually runs once or twice. *)
+let idle_on () = Sys.getenv_opt "ZANE_IDLE_SEARCH" = Some "1"
+
+let idle_counter body =
+  let f = facts body in
+  match counter f body with
+  | Some (x, _) ->
+      let uses = ref 0 in
+      Cgt.Traverse.walk_stats
+        (fun e -> match e.Expr.node with Expr.Local y | Expr.Address y when y = x -> incr uses | _ -> ())
+        ignore body;
+      !uses <= 1
+  | None -> false
+
 let searches body =
   Cgt.Traverse.leaves body
   && (not (Cgt.Traverse.exists_in body ~expr:(fun _ -> false) ~stat:(function Stat.Repeat _ -> true | _ -> false)))
-  && scans body
+  && (scans body || (idle_on () && idle_counter body))
 
 (* Whether statements can end other than after their last, an expansion's
    own [Leave] inside them not counting (Cgt.Traverse.leaves). *)

@@ -1588,7 +1588,7 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
             (* The experiments that rewrite tier 1 as it is prepared. *)
             @ List.filter_map
                 (fun (name, on) -> if on () then Some name else None)
-                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on); ("arm-checks", Arm_checks.on); ("range-checks", Range_checks.on); ("rehome", fun () -> Sys.getenv_opt "ZANE_REHOME" = Some "1") ]
+                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on); ("arm-checks", Arm_checks.on); ("range-checks", Range_checks.on); ("rehome", fun () -> Sys.getenv_opt "ZANE_REHOME" = Some "1"); ("idle-search", Loop_shapes.idle_on) ]
             @ (match Sys.getenv_opt "ZANE_LIST_SPANS" with Some n -> [ "list-spans-" ^ n ] | None -> [])
             @ Passes.llvm_options)
         in
