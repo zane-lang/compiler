@@ -1,11 +1,21 @@
 /// `appendRange` copies a range of one list onto the end of another, and
 /// `appendOwn` a range of the list itself, each as one copy of the
 /// elements' bytes; a list's own range is read after its block has grown.
+/// In a loop, a list that grows by an append is read again after it, as
+/// after a push: its block moves as it grows.
 package listAppend;
 
 alias I64 = @primitives$I64;
 alias String = @primitives$String;
 alias Unit = @primitives$Unit;
+
+Unit to(this I64, end I64, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), I64(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, I64(1));
+	});
+	return Unit();
+}
 
 Unit main() {
 	numbers @primitives$List<I64> = @primitives$List(I64);
@@ -28,5 +38,17 @@ Unit main() {
 	@program$console!print(String(other:size()));
 	@program$console!print(String(other[I64(2)]));
 	@program$console!print(String(other[I64(4)]));
+	// Each round appends the list's first element and adds the last: 1 per
+	// round, read from a block that has moved under the loop.
+	grown @primitives$List<I64> = @primitives$List(I64);
+	grown!push(I64(1));
+	total I64(0);
+	k I64(1);
+	k!to(I64(5000)) {
+		grown!appendOwn(I64(1), I64(1));
+		total = @operators$add(total, grown[grown:size()]);
+	}
+	@program$console!print(String(grown:size()));
+	@program$console!print(String(total));
 	return Unit();
 }

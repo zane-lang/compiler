@@ -343,21 +343,15 @@ int64_t zane_text_equal(const zane_text *left, const zane_text *right) {
 	       (left->length == 0 || memcmp(left->bytes, right->bytes, (size_t)left->length) == 0);
 }
 
-/* Whether a string spells a number as `parseI64` and `parseF64` read one
-   (types.md §2.10): a literal's digits with an optional `-` first and, when
-   `fraction` is set, an optional `.` with digits on both sides. */
-static int zane_numeric_text(const zane_text *text, int fraction) {
+/* Whether a string spells an integer as `parseI64` reads one (types.md
+   §2.10): a literal's digits with an optional `-` first. */
+static int zane_integer_text(const zane_text *text) {
 	int64_t n = text->length, i = 0;
 	const char *b = text->bytes;
 	if (n > 0 && b[0] == '-') i++;
 	int64_t start = i;
 	while (i < n && b[i] >= '0' && b[i] <= '9') i++;
-	if (i == start) return 0;
-	if (i == n) return 1;
-	if (!fraction || b[i] != '.') return 0;
-	int64_t point = ++i;
-	while (i < n && b[i] >= '0' && b[i] <= '9') i++;
-	return i > point && i == n;
+	return i > start && i == n;
 }
 
 /* The text with a terminator, for the C library to read. */
@@ -372,7 +366,7 @@ static char *zane_terminated(const zane_text *text) {
 /* `parseI64` on `@primitives$String`: 1 with the value at `out`, or 0 when
    the text spells no integer or one outside an I64's range. */
 int64_t zane_parse_i64(const zane_text *text, int64_t *out) {
-	if (!zane_numeric_text(text, 0)) return 0;
+	if (!zane_integer_text(text)) return 0;
 	char *s = zane_terminated(text);
 	errno = 0;
 	long long value = strtoll(s, NULL, 10);
@@ -385,11 +379,14 @@ int64_t zane_parse_i64(const zane_text *text, int64_t *out) {
 
 /* `parseF64` on `@primitives$String`: 1 with the nearest double at `out`,
    rounding half to even, or 0 when the text spells no number or one too
-   large to round to a finite double. Read in the C numeric locale, as
-   floats are formatted. */
+   large to round to a finite double. A number is a literal's digits with
+   an optional `-` first and an optional `.` with digits on both sides
+   (types.md §2.10). Read in the C numeric locale, as floats are
+   formatted. */
 int64_t zane_parse_f64(const zane_text *text, double *out) {
-	/* EXPERIMENT (LangArena zane-vs-goose): Clinger's fast path, read in
-	   the same pass that checks the text. With at most 19 digits the
+	/* EXPERIMENT (LangArena zane-vs-goose): the text is checked and its
+	   digits folded in one pass, then Clinger's fast path. With at most 19
+	   digits the
 	   digits fold into a u64 exactly; up to 2^53 that integer is an exact
 	   double (converted as an i64, one instruction on x86-64), and so is
 	   10^k for k <= 22, so the one division is the one rounding and gives

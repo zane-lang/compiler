@@ -521,7 +521,7 @@ let intrinsic_classes () =
   check "print and the thread count are the outputs"
     (List.sort compare outputs
     = List.sort compare Cgt.Runtime.[ Print; Set_threads; Set_threads_auto ]);
-  check "the program's arguments, a null foreign handle, a callback's context and the experimental pooled variants are the inputs"
+  check "the program's arguments, a null foreign handle, a callback's context, the experimental pooled variants and the experimental byte and range list operations are the inputs"
     (List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all
     = Cgt.Runtime.[ Text_bytes; List_append; List_same; List_hash; List_sort; Arguments; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; No_object; Callback_attach; Callback_detach ])
 

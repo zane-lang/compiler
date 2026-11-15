@@ -16,6 +16,8 @@ let classify : Cgt.Runtime.fn -> t = function
   | Arguments -> Input
   (* EXPERIMENT: a String from a byte list, which the evaluator does not model. *)
   | Text_bytes -> Input
+  (* EXPERIMENT: list range copies, sorts, comparisons and hashes, which
+     the evaluator does not model. *)
   | List_append | List_same | List_hash | List_sort -> Input
   (* Experimental pooled variants, which the evaluator does not model. *)
   | Pool_new | Pool_push | Pool_append | Pool_root | Pool_copy | Link | Pool_reserve | Pool_new_unbounded -> Input

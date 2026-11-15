@@ -174,8 +174,10 @@ as it does everywhere else, and the program's arguments are read from
 UTF-8 (effects.md §6.6), which links the program with shell32. The program
 is linked with `--stack` for an 8 MiB main thread, where the linker would
 give it 1 MiB. Scalar float
-formatting and `parseF64` also use explicit C numeric-locale CRT calls; POSIX
-temporarily selects that locale on the calling thread. Both leave the host's
+formatting and `parseF64` also use explicit C numeric-locale CRT calls (a
+`parseF64` of at most 19 digits that rounds exactly with one division is read
+by the runtime itself, with no CRT call); POSIX temporarily selects that
+locale on the calling thread. Both leave the host's
 locale intact.
 
 A target is spelled as `zig cc` reads it, such as `x86_64-windows-gnu`. The
