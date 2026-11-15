@@ -724,8 +724,9 @@ let returned_moves (f : Func.t) =
    held in that argument instead, as lowering holds a fresh argument
    (Lower.borrow): then a callee that takes the parameter is given the value
    itself. Only arguments that read no memory and no local the hold's value
-   mentions run before it, so the copy running later sees what it saw: an
-   initializer can write any memory, but a local only through its address. *)
+   mentions and no local whose address the function takes run before it, so
+   the copy running later sees what it saw: an initializer can write any
+   memory, and a local through any pointer to it. *)
 let sink_holds (f : Func.t) =
   let top = ref 0 in
   let see i = if i > !top then top := i in
@@ -755,10 +756,15 @@ let sink_holds (f : Func.t) =
       [ Stat.Eval e ];
     !seen
   in
+  let addressed = Hashtbl.create 16 in
+  walk_stats
+    (fun e -> match e.Expr.node with Expr.Address x -> Hashtbl.replace addressed x () | _ -> ())
+    (fun _ -> ())
+    f.Func.body;
   let rec simple held (e : Expr.t) =
     match e.Expr.node with
     | Expr.Int _ | Expr.Float _ | Expr.Bool _ | Expr.Unit | Expr.Address _ -> true
-    | Expr.Local x -> not (List.mem x held)
+    | Expr.Local x -> not (List.mem x held || Hashtbl.mem addressed x)
     | Expr.Offset { base; _ } -> simple held base
     | _ -> false
   in
