@@ -1142,7 +1142,11 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
         | _ -> None
       in
       let unchecked = cached <> None && List.memq e fr.unchecked in
-      Some (element ?cached ~unchecked env fr b fn (List.filter_map (expr env fr b) args))
+      let args = List.filter_map (expr env fr b) args in
+      let at = element ?cached ~unchecked env fr b fn args in
+      (* EXPERIMENT (Elem_tbaa): a list element's address, by its stride. *)
+      (match (fn, List.rev args) with Cgt.Runtime.List_at, stride :: _ -> Elem_tbaa.mark env.ctx at stride | _ -> ());
+      Some at
   | Expr.Runtime { fn = (Cgt.Runtime.List_remove _ | Cgt.Runtime.List_swap_remove _) as fn; args } -> (
       match List.filter_map (expr env fr b) args with
       | [ list; index; stride ] ->
@@ -1159,6 +1163,8 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       in
       match List.filter_map (expr env fr b) args with
       | [ list; stride ] -> (
+          (* EXPERIMENT (Elem_tbaa): the pushed element's address, by its stride. *)
+          Option.map (fun at -> Elem_tbaa.mark env.ctx at stride; at) @@
           match run with
           | Some (id, Ahead n) ->
               Hashtbl.replace fr.runs id (Room (n - 1));

@@ -1137,6 +1137,10 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
           if String.ends_with ~suffix:"$peel" n && not (Llvm.is_declaration f) then
             Llvm.add_function_attr f (Llvm.create_enum_attr (Llvm.module_context m) "alwaysinline" 0L) Llvm.AttrIndex.Function)
         m;
+      (* EXPERIMENT (Elem_tbaa): list elements' scalars tagged by stride. *)
+      Elem_tbaa.run m;
+      (* EXPERIMENT (Loop_inline): small leaves called in loops inlined. *)
+      Loop_inline.run m;
       (* EXPERIMENT: the module as the passes take it, for reading. *)
       Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_PRE");
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
@@ -1614,7 +1618,8 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
             (* The experiments that rewrite tier 1 as it is prepared. *)
             @ List.filter_map
                 (fun (name, on) -> if on () then Some name else None)
-                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on); ("arm-checks", Arm_checks.on); ("range-checks", Range_checks.on); ("rehome", fun () -> Sys.getenv_opt "ZANE_REHOME" = Some "1"); ("idle-search", Loop_shapes.idle_on); ("peel-recursion", fun () -> Sys.getenv_opt "ZANE_PEEL_RECURSION" = Some "1"); ("div-cache", Div_cache.on); ("const-arrays", Const_arrays.on); ("unroll-small", fun () -> Option.value ~default:"" (Sys.getenv_opt "ZANE_UNROLL_SMALL") <> ""); ("biased-base", fun () -> Sys.getenv_opt "ZANE_BIASED_BASE" = Some "1"); ("literal-locals", fun () -> Sys.getenv_opt "ZANE_LITERAL_LOCALS" = Some "1") ]
+                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on); ("arm-checks", Arm_checks.on); ("range-checks", Range_checks.on); ("rehome", fun () -> Sys.getenv_opt "ZANE_REHOME" = Some "1"); ("idle-search", Loop_shapes.idle_on); ("peel-recursion", fun () -> Sys.getenv_opt "ZANE_PEEL_RECURSION" = Some "1"); ("div-cache", Div_cache.on); ("const-arrays", Const_arrays.on); ("unroll-small", fun () -> Option.value ~default:"" (Sys.getenv_opt "ZANE_UNROLL_SMALL") <> ""); ("biased-base", fun () -> Sys.getenv_opt "ZANE_BIASED_BASE" = Some "1"); ("literal-locals", fun () -> Sys.getenv_opt "ZANE_LITERAL_LOCALS" = Some "1"); ("elem-tbaa", Elem_tbaa.on) ]
+            @ (match Sys.getenv_opt "ZANE_LOOP_INLINE" with Some n -> [ "loop-inline-" ^ n ] | None -> [])
             @ (match Sys.getenv_opt "ZANE_LIST_SPANS" with Some n -> [ "list-spans-" ^ n ] | None -> [])
             @ (match Sys.getenv_opt "ZANE_LLVM_OPTS" with Some o -> [ "llvm-opts-" ^ o ] | None -> [])
             @ (match Sys.getenv_opt "ZANE_FRAME_SHADOW_ONLY" with Some o -> [ "shadow-only-" ^ o ] | None -> [])
