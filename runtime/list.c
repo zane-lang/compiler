@@ -293,11 +293,19 @@ int64_t zane_list_same(const zane_list *list, int64_t start, const zane_list *ot
    elements of `list` from its element `start` (counted from 1). Blocks of
    32 bytes go to four lanes mixed independently, so the multiplies overlap
    rather than wait on each other; the words after them go to the first
-   lane, and the tail and the length close it. Equal ranges hash alike
+   lane, and the tail and the length close it. A word is mixed as Goose's
+   standard library mixes one: xored in, multiplied by 2^64 / phi and
+   rotated, and the close is its two multiply-xorshift rounds. Equal ranges hash alike
    within one run of a program; the value is not specified beyond that. */
 static inline uint64_t zane_hash_mix(uint64_t h, uint64_t w) {
 	h = (h ^ w) * UINT64_C(0x9E3779B97F4A7C15);
-	return h ^ (h >> 29);
+	/* A rotate written as shifts, LLVM turns into a second multiply by the
+	   constant shifted; the builtin stays one `rol`. */
+#if defined(__clang__)
+	return __builtin_rotateleft64(h, 29);
+#else
+	return (h << 29) | (h >> 35);
+#endif
 }
 
 static int64_t zane_bytes_hash(const unsigned char *p, size_t n);
@@ -349,7 +357,8 @@ static int64_t zane_bytes_hash(const unsigned char *p, size_t n) {
 		} else
 			w = p[0] | (uint64_t)p[n / 2] << 8 | (uint64_t)p[n - 1] << 16;
 	}
-	h = zane_hash_mix(h, w ^ n);
+	h = (h ^ w ^ n) * UINT64_C(0x9E3779B97F4A7C15);
+	h = (h ^ (h >> 32)) * UINT64_C(0xD6E8FEB86659FD93);
 	h ^= h >> 32;
 	return (int64_t)(h >> 1);
 }
