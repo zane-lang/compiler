@@ -482,14 +482,18 @@ void zane_arguments(zane_list *out) {
 #include <cpuid.h>
 #include <immintrin.h>
 
-/* Whether the processor has SSSE3, asked once (CPUID leaf 1, ECX bit 9). */
+/* Whether the processor has SSSE3, asked once (CPUID leaf 1, ECX bit 9).
+   Threads that ask first at once each ask and store the same answer, so
+   the flag is read and written atomically. */
 static int zane_ssse3 = -1;
 static int zane_has_ssse3(void) {
-	if (zane_ssse3 < 0) {
+	int known = __atomic_load_n(&zane_ssse3, __ATOMIC_RELAXED);
+	if (known < 0) {
 		unsigned a, b, c, d;
-		zane_ssse3 = __get_cpuid(1, &a, &b, &c, &d) && (c & bit_SSSE3) ? 1 : 0;
+		known = __get_cpuid(1, &a, &b, &c, &d) && (c & bit_SSSE3) ? 1 : 0;
+		__atomic_store_n(&zane_ssse3, known, __ATOMIC_RELAXED);
 	}
-	return zane_ssse3;
+	return known;
 }
 
 /* The members among x's 16 bytes, by a set's tables: pshufb gives 0 for an index with its top bit set, so lo
@@ -649,8 +653,10 @@ void zane_byte_set(zane_list *out, const zane_list *members) {
 /* The same for one set. */
 int64_t zane_text_find_any(const zane_text *text, int64_t at, int64_t count, const zane_list *set) {
 	if (count <= 0) return 0;
+	/* Each bound compared with what is left, so no sum overflows. */
+	if (at < 1 || at - 1 > text->length || count > text->length - (at - 1) || ZL_COUNT(set) != ZANE_BYTE_SET)
+		zane_out_of_range();
 	int64_t from = at - 1;
-	if (from < 0 || from + count > text->length || ZL_COUNT(set) != ZANE_BYTE_SET) zane_out_of_range();
 	const uint8_t *p = (const uint8_t *)text->bytes + from, *a = (const uint8_t *)ZL_ITEMS(set);
 	int64_t r;
 #if defined(__x86_64__)
@@ -667,9 +673,10 @@ int64_t zane_text_find_any(const zane_text *text, int64_t at, int64_t count, con
 int64_t zane_text_find_pair(const zane_text *text, int64_t at, int64_t count, const zane_list *first, int64_t gap,
                             const zane_list *second) {
 	if (count <= 0) return 0;
-	int64_t from = at - 1;
-	if (from < 0 || gap < 0 || from + count + gap > text->length || ZL_COUNT(first) != ZANE_BYTE_SET || ZL_COUNT(second) != ZANE_BYTE_SET)
+	if (at < 1 || gap < 0 || at - 1 > text->length || gap > text->length - (at - 1) ||
+	    count > text->length - (at - 1) - gap || ZL_COUNT(first) != ZANE_BYTE_SET || ZL_COUNT(second) != ZANE_BYTE_SET)
 		zane_out_of_range();
+	int64_t from = at - 1;
 	const uint8_t *p = (const uint8_t *)text->bytes + from;
 	const uint8_t *a = (const uint8_t *)ZL_ITEMS(first), *b = (const uint8_t *)ZL_ITEMS(second);
 	int64_t r;
