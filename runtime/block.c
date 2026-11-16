@@ -658,10 +658,9 @@ int64_t zane_text_find_any(const zane_text *text, int64_t at, int64_t count, con
 		zane_out_of_range();
 	int64_t from = at - 1;
 	const uint8_t *p = (const uint8_t *)text->bytes + from, *a = (const uint8_t *)ZL_ITEMS(set);
-	int64_t r;
 #if defined(__x86_64__)
 	if (zane_has_ssse3()) {
-		r = zane_any_blocks(p, count, a, zane_set_kind(a));
+		int64_t r = zane_any_blocks(p, count, a, zane_set_kind(a));
 		return r < 0 ? 0 : at + r;
 	}
 #endif
@@ -679,10 +678,9 @@ int64_t zane_text_find_pair(const zane_text *text, int64_t at, int64_t count, co
 	int64_t from = at - 1;
 	const uint8_t *p = (const uint8_t *)text->bytes + from;
 	const uint8_t *a = (const uint8_t *)ZL_ITEMS(first), *b = (const uint8_t *)ZL_ITEMS(second);
-	int64_t r;
 #if defined(__x86_64__)
 	if (zane_has_ssse3()) {
-		r = zane_pair_blocks(p, count, a, zane_set_kind(a), gap, b, zane_set_kind(b));
+		int64_t r = zane_pair_blocks(p, count, a, zane_set_kind(a), gap, b, zane_set_kind(b));
 		return r < 0 ? 0 : at + r;
 	}
 #endif
