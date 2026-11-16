@@ -49,8 +49,9 @@ let calls_stay_single () = Sys.getenv_opt "ZANE_VERSION_CALLS" = Some "0"
    other callers has none to lose. *)
 let call_sites : (string, int) Hashtbl.t = Hashtbl.create 64
 
-let count_call_sites (funcs : Func.t list) =
+let count_call_sites ~tiered (funcs : Func.t list) =
   Hashtbl.reset call_sites;
+  if not tiered then
   List.iter
     (fun (f : Func.t) ->
       Cgt.Traverse.walk_stats

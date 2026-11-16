@@ -99,6 +99,33 @@ Unit step(this Machine, op Int, arg Int) mut {
 	@controlflow$branch(same(op, Int(7)), {
 		this.acc = @math$bitXor(this.acc, @math$shiftLeft(this.other, Int(3)));
 	});
+	@controlflow$branch(same(op, Int(8)), {
+		this.acc = plus(this.acc, times(this.other, Int(5)));
+	});
+	@controlflow$branch(same(op, Int(9)), {
+		slot Int = plus(@math$bitAnd(plus(this.acc, arg), Int(15)), Int(1));
+		this.tape[slot] = @math$bitXor(this.tape[slot], this.acc);
+	});
+	@controlflow$branch(same(op, Int(10)), {
+		this.other = minus(this.other, @math$bitAnd(this.acc, Int(255)));
+	});
+	@controlflow$branch(same(op, Int(11)), {
+		slot Int = plus(@math$bitAnd(this.other, Int(15)), Int(1));
+		this.other = plus(this.other, this.tape[slot]);
+	});
+	@controlflow$branch(same(op, Int(12)), {
+		this.acc = @math$shiftRight(times(this.acc, Int(13)), Int(2));
+	});
+	@controlflow$branch(same(op, Int(13)), {
+		this.acc = @math$bitAnd(plus(this.acc, times(arg, arg)), Int(16777215));
+	});
+	@controlflow$branch(same(op, Int(14)), {
+		slot Int = plus(@math$bitAnd(arg, Int(15)), Int(1));
+		this.tape[slot] = minus(this.tape[slot], this.other);
+	});
+	@controlflow$branch(same(op, Int(15)), {
+		this.other = @math$bitXor(this.other, times(this.acc, Int(3)));
+	});
 	return Unit();
 }
 
@@ -117,7 +144,7 @@ Unit main() {
 	rng Rng(Int(31));
 	n Int(1);
 	n!to(Int(1000)) {
-		ops!push(rng!pick(Int(8)));
+		ops!push(rng!pick(Int(16)));
 		args!push(rng!pick(Int(100)));
 	}
 	machine Machine();

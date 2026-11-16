@@ -1749,20 +1749,8 @@ and stat env fr b (s : Stat.t) =
         ignore (Llvm.build_br head b);
         Llvm.position_at_end head b;
         let current = Llvm.build_load env.i64 i "" b in
-        (* EXPERIMENT (LangArena zane-vs-c, ZANE_ENDLESS=1): a count of at
-           least 2^62, a constant, is not tested. Going round that often
-           takes centuries, so only a loop that leaves by its body ends:
-           core has no conditional loop, and `i!to(Int(9223372036854775807))`
-           is how a port writes C's `while`. Departs from the spec, which
-           stops such a loop after its count. *)
-        let huge = match Llvm.int64_of_const n with Some v -> Int64.compare v (Int64.shift_left 1L 62) >= 0 | None -> false in
-        let endless = Sys.getenv_opt "ZANE_ENDLESS" in
-        if huge && endless = Some "1" then ignore (Llvm.build_br step b)
-        else begin
         let test = Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Slt current n "" b) step after b in
-        (* ZANE_ENDLESS=2: the test kept, without the weight. *)
-        if not (huge && endless = Some "2") then Option.iter (weigh env test) trips
-        end;
+        Option.iter (weigh env test) trips;
         Llvm.position_at_end step b;
         if fetch && fetched <> [] then prefetch env fr b fetched;
         fr.loops <- fr.loops + 1;
