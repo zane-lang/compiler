@@ -12,9 +12,15 @@
    As [Merged_checks] argues, a failed check stops the program, so where a
    later check on the path would fail, stopping at the first is the same to
    everything outside it (no call between them writes output). The indices
-   between the lowest and the highest pass when both do: they are within an
-   unsigned range below a bound that is a count, so below 2^63, and adding
-   a constant within it does not wrap. *)
+   between the lowest and the highest pass when both do: the lowest is
+   below a bound that is a count, so below 2^63, and every offset is
+   within [near] of 0, so going from the lowest up to any other index adds
+   less than 2^63 and does not wrap. *)
+
+(* The largest offset, either way, of a check a run takes in. *)
+let near = Int64.shift_left 1L 31
+
+let small k = Int64.compare (Int64.abs k) near <= 0 && k <> Int64.min_int
 
 
 (* [v] as a base and a constant offset: `add base, c` or `base`. *)
@@ -72,7 +78,7 @@ let func ctx f =
                 match Merged_checks.check t with
                 | Some (c, i, bound, cont, passes) ->
                     let bi, k = split i in
-                    if bi == base && bound == bound0 && c != c0 then begin
+                    if bi == base && bound == bound0 && c != c0 && small k then begin
                       lo := min !lo k;
                       hi := max !hi k;
                       later := (t, passes) :: !later
@@ -86,7 +92,7 @@ let func ctx f =
           in
           follow next 64;
           let only_branch = match Llvm.use_begin c0 with Some u -> Llvm.use_succ u = None | None -> false in
-          if !later <> [] && above base t0 && above bound0 c0 && only_branch && Llvm.type_of base == Llvm.type_of bound0 then begin
+          if !later <> [] && small k0 && above base t0 && above bound0 c0 && only_branch && Llvm.type_of base == Llvm.type_of bound0 then begin
             Hashtbl.replace done_ c0 ();
             let ty = Llvm.type_of base in
             let at = Llvm.builder_before ctx t0 in
