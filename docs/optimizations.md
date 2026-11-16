@@ -1556,9 +1556,10 @@ executable, whatever the C compiler adds by default.
 
 A list's block doubles from its first block (four elements' bytes, kept
 between 32 and 128), in place when it is last at the frontier, stretching
-its scope's frame for it up to 1 MiB. Past 1 MiB it moves once into a
-reservation 64 times its size, and each later doubling commits more of it
-instead of moving the elements.
+its scope's frame for it up to 16 KiB. Past 16 KiB it moves once into a
+reservation 64 times the chunk its room is doubled to, and each later
+doubling commits more of it instead of moving the elements (the next
+entry).
 
 ### Growing lists take a growable span early
 
