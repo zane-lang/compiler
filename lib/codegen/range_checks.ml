@@ -35,16 +35,15 @@ let split v =
   | _ -> (v, 0L)
 
 (* Whether block [b], ending in [t], runs nothing but inert calls, pure
-   arithmetic, loads and stores. *)
+   arithmetic, and loads and stores that are neither volatile nor atomic
+   ([Merged_checks.ordered]), so a check after it may be made before it. *)
 let calm b t =
   let rec scan = function
     | Llvm.Before i when i == t -> true
     | Llvm.Before i when Llvm.instr_opcode i = Llvm.Opcode.Call -> (
         match Merged_checks.callee i with Some n when Merged_checks.inert n -> scan (Llvm.instr_succ i) | _ -> false)
-    | Llvm.Before i -> (
-        match Llvm.instr_opcode i with
-        | Llvm.Opcode.Invoke | Llvm.Opcode.Fence | Llvm.Opcode.AtomicCmpXchg | Llvm.Opcode.AtomicRMW -> false
-        | _ -> scan (Llvm.instr_succ i))
+    | Llvm.Before i when Merged_checks.ordered i || Llvm.instr_opcode i = Llvm.Opcode.Invoke -> false
+    | Llvm.Before i -> scan (Llvm.instr_succ i)
     | Llvm.At_end _ -> false
   in
   scan (Llvm.instr_begin b)
