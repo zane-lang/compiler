@@ -1,11 +1,9 @@
-(* EXPERIMENT (LangArena zane-vs-c; on with ZANE_FRAME_SHADOW=1): frame
-   slots kept in registers.
+(* Frame slots kept in registers.
 
    A held local lives in its scope's frame, which the runtime places, so
    LLVM keeps every slot in memory: a list's count and block are loaded
    and stored each time round a loop wherever the loop holds a call that
-   may grow the list, even on a path the loop seldom takes, where C keeps
-   its locals in registers.
+   may grow the list, even on a path the loop seldom takes.
 
    After the O2 passes, each slot of a frame (a base an `llvm.assume`
    names, as every placed frame has) past the frame's record
@@ -18,23 +16,6 @@
    then makes a register. A frame whose address escapes any other way (a
    pointer stored, an offset that is not a constant, a merge with another
    pointer) is left alone. *)
-
-let on () = Sys.getenv_opt "ZANE_FRAME_SHADOW" = Some "1"
-
-(* EXPERIMENT (LangArena zane-vs-goose; ZANE_SHADOW_REFILL=1): after a
-   call given an address in the frame, only the slots it may write filled
-   again, not all of them: after a `memset`, `memcpy` or `memmove` of a
-   constant length, those its destination covers (none when that is
-   outside a frame whose address went nowhere else); after the runtime's
-   list growth (Frame_scopes.list_calls), which writes the list's header
-   at its first argument and nothing else the frame holds past its record,
-   those of the header (whether or not a slot's address went elsewhere:
-   the runtime's growth writes through no address it was given before). ArithEncode's bit writer clears its byte and its
-   count with one `memset` once per byte written, and the list's push
-   follows; each filled every slot again, the table's lists and the
-   coder's bounds among them, and their values in registers joined with
-   the loads at the merge. *)
-let refill_on () = Sys.getenv_opt "ZANE_SHADOW_REFILL" = Some "1"
 
 let callee i =
   let n = Llvm.num_operands i in
@@ -213,73 +194,6 @@ let keeps_none i p =
     let rec go k = k >= n - 1 || ((Llvm.operand i k != p || none_at k) && go (k + 1)) in
     go 0
 
-(* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_SHADOW_SPLIT=1): each
-   load or store of a vector of scalars at an address in the frame [base]
-   made one of each element, so a slot the vectorizer wrote together with
-   its neighbour (a list header's count and room stored as one `<2 x
-   i32>`) is still a slot of one offset and type. *)
-let split_on () = Sys.getenv_opt "ZANE_SHADOW_SPLIT" = Some "1"
-
-let split_vectors ctx dl base =
-  let i8 = Llvm.i8_type ctx and i32 = Llvm.i32_type ctx and i64 = Llvm.i64_type ctx in
-  let vector t =
-    Llvm.classify_type t = Llvm.TypeKind.Vector
-    && Llvm.vector_size t <= 8
-    && scalar (Llvm.element_type t)
-    && Llvm_target.DataLayout.store_size (Llvm.element_type t) dl
-       = Llvm_target.DataLayout.abi_size (Llvm.element_type t) dl
-  in
-  let todo = ref [] and seen = ref [] in
-  let rec walk p =
-    Llvm.iter_uses
-      (fun u ->
-        let i = Llvm.user u in
-        match Llvm.classify_value i with
-        | Llvm.ValueKind.Instruction Llvm.Opcode.GetElementPtr when Llvm.operand i 0 == p ->
-            if not (List.memq i !seen) then begin
-              seen := i :: !seen;
-              walk i
-            end
-        | Llvm.ValueKind.Instruction Llvm.Opcode.Load
-          when Llvm.operand i 0 == p && vector (Llvm.type_of i) && not (Llvm.is_volatile i || Llvm_extra.is_atomic i) ->
-            if not (List.memq i !todo) then todo := i :: !todo
-        | Llvm.ValueKind.Instruction Llvm.Opcode.Store
-          when Llvm.operand i 1 == p
-               && Llvm.operand i 0 != p
-               && vector (Llvm.type_of (Llvm.operand i 0))
-               && not (Llvm.is_volatile i || Llvm_extra.is_atomic i) ->
-            if not (List.memq i !todo) then todo := i :: !todo
-        | _ -> ())
-      p
-  in
-  walk base;
-  List.iter
-    (fun i ->
-      let b = Llvm.builder_before ctx i in
-      let load = Llvm.instr_opcode i = Llvm.Opcode.Load in
-      let t = if load then Llvm.type_of i else Llvm.type_of (Llvm.operand i 0) in
-      let p = if load then Llvm.operand i 0 else Llvm.operand i 1 in
-      let et = Llvm.element_type t and n = Llvm.vector_size t in
-      let es = Llvm_target.DataLayout.abi_size et dl in
-      let align = min (Llvm.alignment i) (Int64.to_int es) in
-      let at k = Llvm.build_gep i8 p [| Llvm.const_of_int64 i64 (Int64.mul es (Int64.of_int k)) true |] "" b in
-      if load then begin
-        let v = ref (Llvm.undef t) in
-        for k = 0 to n - 1 do
-          let l = Llvm.build_load et (at k) "" b in
-          Llvm.set_alignment align l;
-          v := Llvm.build_insertelement !v l (Llvm.const_int i32 k) "" b
-        done;
-        Llvm.replace_all_uses_with i !v
-      end
-      else
-        for k = 0 to n - 1 do
-          let e = Llvm.build_extractelement (Llvm.operand i 0) (Llvm.const_int i32 k) "" b in
-          Llvm.set_alignment align (Llvm.build_store e (at k) b)
-        done;
-      Llvm.delete_instruction i)
-    !todo
-
 let func ctx dl (f : Llvm.llvalue) =
   (* The frames: what an `llvm.assume` names. *)
   let frames = ref [] in
@@ -301,7 +215,6 @@ let func ctx dl (f : Llvm.llvalue) =
     (fun base ->
       (* Every use of an address in the frame: loads and stores at their
          offsets, and calls given one. *)
-      if split_on () then split_vectors ctx dl base;
       let loads = ref [] and stores = ref [] and calls = ref [] and escaped = ref false in
       let seen = ref [] and visited = ref [] in
       let at i = match offset_from dl seen base i with Some (Some o) -> o | _ -> raise (Escapes_at i) in
@@ -361,22 +274,8 @@ let func ctx dl (f : Llvm.llvalue) =
                      List.filter (fun (o', t') -> o' < hi && Int64.add o' (size t') > o) accesses
                    in
                    let ok = scalar t && List.for_all (fun (o', t') -> o' = o && t' == t) overlapping in
-                   if (not ok) && Sys.getenv_opt "ZANE_FRAME_SHADOW_WHY" = Some "1" then
-                     prerr_endline (Printf.sprintf "  no slot %Ld %s: %s" o (Llvm.string_of_lltype t)
-                       (String.concat " " (List.map (fun (o', t') -> Printf.sprintf "%Ld:%s" o' (Llvm.string_of_lltype t')) overlapping)));
                    if ok then Some (o, t) else None)
           in
-          (* ZANE_FRAME_SHADOW_SLOTS=a,b: only these offsets, for bisecting. *)
-          let slots =
-            match Sys.getenv_opt "ZANE_FRAME_SHADOW_SLOTS" with
-            | Some l ->
-                let keep = List.map Int64.of_string (String.split_on_char ',' l) in
-                List.filter (fun (o, _) -> List.mem o keep) slots
-            | None -> slots
-          in
-          if Sys.getenv_opt "ZANE_FRAME_SHADOW_DEBUG" = Some "1" then
-            prerr_endline (Printf.sprintf "shadow %s: frame %s slots %s" (Llvm.value_name f) (Llvm.value_name base)
-              (String.concat "," (List.map (fun (o, _) -> Int64.to_string o) slots)));
           if slots <> [] then begin
             let entry = Llvm.entry_block f in
             let at_entry = Llvm.builder_at ctx (Llvm.instr_begin entry) in
@@ -423,27 +322,6 @@ let func ctx dl (f : Llvm.llvalue) =
             (* A frame a slot's address escaped from is filled again after
                every call it is placed before. *)
             if !escaped then calls_after f (Lazy.force dom) base calls;
-            let header = Llvm_target.DataLayout.abi_size (List_handle.header ctx) dl in
-            let refilled c =
-              if not (refill_on ()) then copies
-              else
-                let within lo len =
-                  List.filter (fun (o, t, _) -> o < Int64.add lo len && Int64.add o (size t) > lo) copies
-                in
-                let in_frame p = match offset_from dl (ref []) base p with Some (Some o) -> Some o | _ -> None in
-                match callee c with
-                | Some n when starts "llvm.memset" n || starts "llvm.memcpy" n || starts "llvm.memmove" n -> (
-                    match (in_frame (Llvm.operand c 0), Llvm.int64_of_const (Llvm.operand c 2)) with
-                    | Some o, Some len -> within o len
-                    | None, _ when not !escaped -> []
-                    | _ -> copies)
-                | Some n when List.mem n Frame_scopes.list_calls -> (
-                    match in_frame (Llvm.operand c 0) with
-                    | Some o -> within o header
-                    | None when not !escaped -> []
-                    | None -> copies)
-                | _ -> copies
-            in
             List.iter
               (fun c ->
                 match Llvm.instr_succ c with
@@ -453,31 +331,17 @@ let func ctx dl (f : Llvm.llvalue) =
                       (fun (o, t, a) ->
                         let p = Llvm.build_in_bounds_gep i8 base [| Llvm.const_of_int64 i64 o true |] "" b in
                         ignore (Llvm.build_store (Llvm.build_load t p "" b) a b))
-                      (refilled c)
+                      copies
                 | Llvm.At_end _ -> ())
               !calls
           end)
     !frames
 
 let run m =
-  if on () then begin
-    let ctx = Llvm.module_context m in
-    let dl = Llvm_target.DataLayout.of_string (Llvm.data_layout m) in
-    (* ZANE_FRAME_SHADOW_ONLY=s: only functions whose name contains s, for
-       bisecting. *)
-    let only =
-      match Sys.getenv_opt "ZANE_FRAME_SHADOW_ONLY" with
-      | None -> fun _ -> true
-      | Some s ->
-          fun n ->
-            let ls = String.length s and ln = String.length n in
-            let rec at i = i + ls <= ln && (String.sub n i ls = s || at (i + 1)) in
-            at 0
-    in
-    Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) && only (Llvm.value_name f) then func ctx dl f) m
-  end
+  let ctx = Llvm.module_context m in
+  let dl = Llvm_target.DataLayout.of_string (Llvm.data_layout m) in
+  Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then func ctx dl f) m
 
 (* The passes run again once the copies are in. *)
 let again =
-  match Sys.getenv_opt "ZANE_SHADOW_AGAIN" with Some p -> p | None ->
   "function(sroa,early-cse<memssa>,loop-mssa(licm<allowspeculation>),gvn<pre;load-pre>,instcombine<no-verify-fixpoint>,simplifycfg,dse,loop-mssa(licm<allowspeculation>))"

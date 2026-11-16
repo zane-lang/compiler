@@ -1,7 +1,6 @@
-/* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_LEAF_PEEL=1): a
-   recursive function's base case made at each of its self-calls with no
-   call, as Goose's compiler emits Binarytrees::Arena's `build_tree`: at a
-   call `build(item - delta, depth - 1)` it tests `depth - 1 > 0` itself,
+/* A recursive function's base case made at each of its self-calls with no
+   call, as for binary-trees' `build`: at a call
+   `build(item - delta, depth - 1)` it tests `depth - 1 > 0` itself,
    calls when it holds and writes the leaf node in place when it does not,
    so half of all nodes (the leaves) take no call.
 

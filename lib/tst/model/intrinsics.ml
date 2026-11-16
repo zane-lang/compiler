@@ -317,7 +317,7 @@ let methods =
     meth ~abort:(Some (prim "Unit")) "primitives" "parseF64"
       [ param "this" (prim "String") ]
       (prim "F64");
-    (* EXPERIMENT (LangArena zane-vs-goose): `parseF64` on the [count]
+    (* `parseF64` on the [count]
        bytes from byte [start], counted from 1 as `byteAt` counts. *)
     meth ~abort:(Some (prim "Unit")) "primitives" "parseF64At"
       [ param "this" (prim "String"); param "start" (prim "I64"); param "count" (prim "I64") ]
@@ -372,7 +372,7 @@ let methods =
       ]
       (prim "I64");
         ]))
-  (* EXPERIMENT (LangArena zane-vs-goose): `count` elements of a list, from
+  (* `count` elements of a list, from
      its element `start`, copied onto the end of a list, as one copy: of
      another list, or of the list itself. Only for elements that own no
      blocks, which lowering checks. *)

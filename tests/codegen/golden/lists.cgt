@@ -215,20 +215,15 @@
     │       │       ├── address: local #18 : ptr
     │       │       ├── value: local #17 : handle
     │       │       └── layout: %primitives$String
-    │       ├── body[12] > hold:
+    │       ├── body[12] > let:
     │       │   ├── local: #20
-    │       │   ├── scope: %2
-    │       │   ├── value: "be" : handle
-    │       │   └── layout: %primitives$String
+    │       │   └── value: "be" : handle
     │       ├── body[13] > eval > expand:
     │       │   ├── type: void
     │       │   ├── label: @23
     │       │   ├── body[0] > let:
     │       │   │   ├── local: #21
-    │       │   │   └── value > copy:
-    │       │   │       ├── type: handle
-    │       │   │       ├── value: local #20 : handle
-    │       │   │       └── layout: %primitives$String
+    │       │   │   └── value: local #20 : handle
     │       │   ├── body[1] > let:
     │       │   │   ├── local: #22
     │       │   │   └── value > runtime:

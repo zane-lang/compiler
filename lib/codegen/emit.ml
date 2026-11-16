@@ -62,12 +62,13 @@ let tags ctx =
   in
   (tag "zane handle", tag "zane scalar")
 
-(* EXPERIMENT (ZANE_SIZED_TBAA=1): a scalar's tag by its size, a child of
-   the scalar tag, which every scalar access still aliases: one byte
-   (Bool, U8) apart from the wider ones, since storage is only read back as
-   a type of the size it was written as. *)
-let sized_tbaa = Sys.getenv_opt "ZANE_SIZED_TBAA" = Some "1"
+(* The most passes of a constant-count loop unrolled whole. *)
+let unrolled_whole = 8
 
+(* A scalar's tag by its size, a child of the scalar tag: one byte (Bool,
+   U8), four and eight apart, since a place is only read back as a type of
+   the size it was written as. A one-byte store then leaves the wider
+   scalars read around it where they are. *)
 let sized_tag ctx name =
   let zero = Llvm.const_int (Llvm.i64_type ctx) 0 in
   let root = Llvm.mdnode ctx [| Llvm.mdstring ctx "zane" |] in
@@ -79,10 +80,10 @@ let access env (t : Ty.t) instr =
   let tag =
     match t with
     | Ty.Handle | Ty.Handle16 -> Some env.handle_tag
-    | (Ty.I1 | Ty.I8) when sized_tbaa -> Some (sized_tag env.ctx "zane byte")
-    | (Ty.I32 | Ty.F32) when sized_tbaa -> Some (sized_tag env.ctx "zane word4")
-    | (Ty.I64 | Ty.F64 | Ty.Ptr) when sized_tbaa -> Some (sized_tag env.ctx "zane word8")
-    | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> Some env.value_tag
+    | Ty.I1 | Ty.I8 -> Some (sized_tag env.ctx "zane byte")
+    | Ty.I32 | Ty.F32 -> Some (sized_tag env.ctx "zane word4")
+    | Ty.I64 | Ty.F64 | Ty.Ptr -> Some (sized_tag env.ctx "zane word8")
+    | Ty.Ref | Ty.Box32 -> Some env.value_tag
     | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Packed _ -> None
   in
   Option.iter (Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "tbaa")) tag;
@@ -237,8 +238,8 @@ type frame = {
   names : (int, Expr.t) Hashtbl.t;
   (* The element addresses the loop being emitted checks before it ([ranged]). *)
   mutable unchecked : Expr.t list;
-  (* EXPERIMENT (ZANE_LOOP_REGS=1): each list a loop made room for, with
-     its block read once before the loop and its count kept in a local. *)
+  (* Each list an optimized build's loop made room for, with its block read
+     once before the loop and its count kept in a local. *)
   kept : (int, Llvm.llvalue * Llvm.llvalue) Hashtbl.t;
 }
 
@@ -554,34 +555,21 @@ let element ?cached ?(unchecked = false) env fr b fn args =
     | _ -> Diagnostic.bug "codegen: an element address with the wrong arguments"
   in
   let offset = Llvm.build_sub index (Llvm.const_int env.i64 1) "" b in
-  (* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_BIASED_BASE=1): the
-     address taken from a base biased one element down, [(base - stride) +
-     index * stride], so the index less one that the check compares is not
-     on the way to the address: an index loaded from memory (a tree's
-     child, a graph's neighbor) is scaled and added to a base the loop does
-     not change, and LLVM folds the bias into the load's displacement. The
-     biased base is outside the block, so neither GEP is in bounds. *)
+  (* The address is [base + index * stride] less one element, so the
+     index less one that the check compares is not on the way to the
+     address: an index loaded from memory (a tree's child, a graph's
+     neighbor) is scaled and added to a base the loop does not change, and
+     LLVM folds the element back into the load's displacement. The first
+     step reaches at most one past the block's end, so both are in bounds. *)
   let address () =
-    if Sys.getenv_opt "ZANE_BIASED_BASE" = Some "1" then
-      let i8 = Llvm.i8_type env.ctx in
-      let past = Llvm.build_in_bounds_gep i8 base [| Llvm.build_nsw_mul index stride "" b |] "" b in
-      Llvm.build_in_bounds_gep i8 past [| Llvm.build_neg stride "" b |] "" b
-    else Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| Llvm.build_nsw_mul offset stride "" b |] "" b
+    let i8 = Llvm.i8_type env.ctx in
+    let past = Llvm.build_in_bounds_gep i8 base [| Llvm.build_nsw_mul index stride "" b |] "" b in
+    Llvm.build_in_bounds_gep i8 past [| Llvm.build_neg stride "" b |] "" b
   in
   if unchecked then address ()
   else
   let stop = block env fr and inside = block env fr in
-  (* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_INSIDE_FIRST=1): the
-     check made as `offset <u count` branching to the element when true.
-     Against a constant count (an `Array<T, n>`), instruction combining
-     folds `offset >=u n` taken to the stop into `index - (n + 1) <u -n`,
-     still taken to the stop, which inductive range check elimination does
-     not read as a range check, so a loop indexing an array by its counter
-     up to a bound it reads (NeuralNet's synapses, `j!to(ins)` over an
-     `Array<I32, 10>`) kept the check on every iteration. *)
-  if Sys.getenv_opt "ZANE_INSIDE_FIRST" = Some "1" then
-    ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Ult offset count "" b) inside stop b)
-  else ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Uge offset count "" b) stop inside b);
+  ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Uge offset count "" b) stop inside b);
   Llvm.position_at_end stop b;
   let f, fty = runtime env Cgt.Runtime.Out_of_range in
   ignore (Llvm.build_call fty f [||] "" b);
@@ -1151,11 +1139,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
         | _ -> None
       in
       let unchecked = cached <> None && List.memq e fr.unchecked in
-      let args = List.filter_map (expr env fr b) args in
-      let at = element ?cached ~unchecked env fr b fn args in
-      (* EXPERIMENT (Elem_tbaa): a list element's address, by its stride. *)
-      (match (fn, List.rev args) with Cgt.Runtime.List_at, stride :: _ -> Elem_tbaa.mark env.ctx at stride | _ -> ());
-      Some at
+      Some (element ?cached ~unchecked env fr b fn (List.filter_map (expr env fr b) args))
   | Expr.Runtime { fn = (Cgt.Runtime.List_remove _ | Cgt.Runtime.List_swap_remove _) as fn; args } -> (
       match List.filter_map (expr env fr b) args with
       | [ list; index; stride ] ->
@@ -1172,8 +1156,6 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       in
       match List.filter_map (expr env fr b) args with
       | [ list; stride ] -> (
-          (* EXPERIMENT (Elem_tbaa): the pushed element's address, by its stride. *)
-          Option.map (fun at -> Elem_tbaa.mark env.ctx at stride; at) @@
           match run with
           | Some (id, Ahead n) ->
               Hashtbl.replace fr.runs id (Room (n - 1));
@@ -1665,11 +1647,14 @@ and stat env fr b (s : Stat.t) =
       List.iter
         (fun (id, stride) ->
           let list = value_of env fr b { Expr.node = Expr.Address id; ty = Ty.Ptr } in
-          let regs = env.version && Sys.getenv_opt "ZANE_LOOP_REGS" = Some "1" in
           let tag = handle_field env in
-          (* Making room keeps the count (runtime/list.c), so it is read
-             before, where LLVM knows it, as after a list is made. *)
-          let count = if regs then Some (List_handle.count ~tag env.ctx b list) else None in
+          (* Making room keeps the count (runtime/list.c), so an optimized
+             build reads it before, where LLVM knows it, as after a list is
+             made, and keeps it in a local the loop's pushes step: the
+             loop's checks make each push conditional, which keeps LICM
+             from promoting the count itself. A plain build reads it again
+             at each push. *)
+          let count = if env.version then Some (List_handle.count ~tag env.ctx b list) else None in
           let f, fty = runtime env Cgt.Runtime.List_room in
           ignore (Llvm.build_call fty f [| list; Llvm.const_int env.i64 (Int64.to_int stride); n |] "" b);
           Hashtbl.replace fr.runs id (Room max_int);
@@ -1764,13 +1749,12 @@ and stat env fr b (s : Stat.t) =
           let back = Llvm.build_br head b in
           if twice then Llvm.set_metadata back (Llvm.mdkind_id env.ctx "llvm.loop") (unroll_twice env)
           else
-            (* EXPERIMENT (LangArena zane-vs-goose; ZANE_UNROLL_SMALL=N): a
-               loop of a constant count from 2 to N unrolled whole, as
-               Goose's compiler unrolls `for j in 8`, and as C's `#pragma
-               unroll` asks: LLVM's own threshold leaves a body with a
-               branch in it, such as a Huffman decoder's leaf test, a loop. *)
-            match (Option.bind (Sys.getenv_opt "ZANE_UNROLL_SMALL") int_of_string_opt, Llvm.int64_of_const n) with
-            | Some most, Some c when Int64.compare c 2L >= 0 && Int64.compare c (Int64.of_int most) <= 0 ->
+            (* A loop of a constant count from 2 to [unrolled_whole] is
+               unrolled whole, as C's `#pragma unroll` asks: LLVM's own
+               threshold leaves a body with a branch in it, such as a
+               Huffman decoder's leaf test, a loop. *)
+            match Llvm.int64_of_const n with
+            | Some c when Int64.compare c 2L >= 0 && Int64.compare c (Int64.of_int unrolled_whole) <= 0 ->
                 Llvm.set_metadata back (Llvm.mdkind_id env.ctx "llvm.loop")
                   (Llvm_extra.loop_id env.ctx [| Llvm.mdnode env.ctx [| Llvm.mdstring env.ctx "llvm.loop.unroll.full" |] |])
             | _ -> ()

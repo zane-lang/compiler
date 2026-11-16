@@ -110,7 +110,6 @@ zane_mark *zane_scope_enter(int64_t size);
 zane_mark *zane_region_at(const void *at);
 char *zane_alloc(zane_mark *region, int64_t size, int64_t align);
 char *zane_alloc_held(zane_mark *region, int64_t size, int64_t align);
-char *zane_relocate(zane_mark *region, char *old, int64_t size, int64_t align, int64_t copied);
 char *zane_box_held(zane_mark *region, int64_t size, int64_t align);
 char *zane_box_in(zane_mark *region, int64_t size, int64_t align);
 void zane_free(char *block, int64_t size, int64_t align);
@@ -138,11 +137,6 @@ int64_t zane_parse_f64_at(const zane_text *text, double *out, int64_t start, int
 int64_t zane_text_hash(const zane_text *text);
 void zane_byte_set(zane_list *out, const zane_list *members);
 int64_t zane_text_find_any(const zane_text *text, int64_t at, int64_t count, const zane_list *set);
-typedef struct {
-	uint64_t magic;
-	int64_t more;
-} zane_div_gen;
-zane_div_gen zane_div_magic(uint64_t d);
 int64_t zane_text_find_pair(const zane_text *text, int64_t at, int64_t count, const zane_list *first, int64_t gap, const zane_list *second);
 void zane_arguments(zane_list *out);
 

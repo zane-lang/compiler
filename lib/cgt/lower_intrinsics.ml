@@ -279,7 +279,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       { Expr.node = Expr.Runtime { fn = Runtime.Text_bytes; args = [ w.borrow st ctx span bytes ] }; ty = Nodes.Ty.Handle }
   | T.Expr.Call { callee = { owner = S.Intrinsic ("@primitives$appendRange" | "@primitives$appendOwn" | "@primitives$copyRange" as name); _ }; args; handler = None }
     -> (
-      (* EXPERIMENT (LangArena zane-vs-goose): the runtime copies the
+      (* The runtime copies the
          range's bytes, so the elements must own no blocks. *)
       let rec plain (t : Nodes.Ty.t) =
         match t with
@@ -338,7 +338,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" name))
   | T.Expr.Call { callee = { owner = S.Intrinsic ("@primitives$sameRange" | "@primitives$hashRange" as name); _ }; args; handler = None }
     -> (
-      (* EXPERIMENT (LangArena zane-vs-goose): the runtime reads the
+      (* The runtime reads the
          ranges' bytes, so the elements must own no blocks, and equal
          elements must be equal bytes: no floats, whose zeros differ. *)
       let rec plain (t : Nodes.Ty.t) =
@@ -405,7 +405,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$hashBytes"; _ }; args = [ T.Arg.Value text ]; handler = None } ->
       { Expr.node = Expr.Runtime { fn = Runtime.Text_hash; args = [ w.borrow st ctx span text ] }; ty = Nodes.Ty.I64 }
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$sortBy"; _ }; args = [ T.Arg.Value list; T.Arg.Value keys ]; handler = None } ->
-      (* EXPERIMENT (LangArena zane-vs-goose): the runtime sorts a list of
+      (* The runtime sorts a list of
          `I32` indices stably by the `I64` keys they name. *)
       let rec width (t : Nodes.Ty.t) =
         match t with
@@ -422,7 +422,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
         ty = Nodes.Ty.Void;
       }
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$sort"; _ }; args = [ T.Arg.Value list ]; handler = None } ->
-      (* EXPERIMENT (LangArena zane-vs-goose): the runtime sorts the
+      (* The runtime sorts the
          elements as integers of their width: `I32`, `I64` and `U8`, or a
          struct of one. *)
       let rec kind (t : Nodes.Ty.t) =

@@ -384,7 +384,7 @@ int64_t zane_parse_i64(const zane_text *text, int64_t *out) {
    (types.md §2.10). Read in the C numeric locale, as floats are
    formatted. */
 int64_t zane_parse_f64(const zane_text *text, double *out) {
-	/* EXPERIMENT (LangArena zane-vs-goose): the text is checked and its
+	/* The text is checked and its
 	   digits folded in one pass, then Clinger's fast path. With at most 19
 	   digits the
 	   digits fold into a u64 exactly; up to 2^53 that integer is an exact
@@ -432,7 +432,7 @@ int64_t zane_parse_f64(const zane_text *text, double *out) {
 	return 1;
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): `parseF64At` on
+/* `parseF64At` on
    `@primitives$String`: `parseF64` on the `count` bytes from byte `start`,
    counted from 1 as `byteAt` counts; a range outside the text is out of
    range. */
@@ -492,8 +492,7 @@ static int zane_has_ssse3(void) {
 	return zane_ssse3;
 }
 
-/* The members among x's 16 bytes, by a set's tables, as Goose's
-   gs_bsm_tables: pshufb gives 0 for an index with its top bit set, so lo
+/* The members among x's 16 bytes, by a set's tables: pshufb gives 0 for an index with its top bit set, so lo
    answers for x < 128 and hi, indexed by x ^ 0x80, for the rest; then the
    bit for x's bits 4 to 6. */
 __attribute__((target("ssse3"))) static inline __m128i zane_set_test(__m128i x, __m128i lo, __m128i hi) {
@@ -503,10 +502,9 @@ __attribute__((target("ssse3"))) static inline __m128i zane_set_test(__m128i x, 
 	return _mm_cmpeq_epi8(_mm_and_si128(t, bit), bit);
 }
 
-/* A set's block test as Goose's gs_bsm: a set of 1 to 3 bytes (kind 1 to
-   3) compares with each, a run (4) by its first byte and width, others (5)
-   by the tables; `flip` complements. rx.zn's rxTable writes the kind at
-   byte 289 of the set, after its tables; a shorter set is kind 5. */
+/* A set's block test, by its kind (zane_byte_set): a set of 1 to 3 bytes
+   (kind 1 to 3) compares with each, a run (4) by its first byte and
+   width, others (5) by the tables; `flip` complements. */
 typedef struct {
 	__m128i a, b, c, flip;
 } zane_bsm;
@@ -551,7 +549,7 @@ __attribute__((target("ssse3"), always_inline)) static inline int64_t zane_pair_
 		if (k) return i + __builtin_ctz(k);
 	}
 	if (i == n) return -1;
-	/* The last positions, as Goose's: one block ending at the last,
+	/* The last positions: one block ending at the last,
 	   its positions already searched shifted out. */
 	if (n >= 16) {
 		__m128i x = _mm_loadu_si128((const __m128i *)(p + n - 16)), y = _mm_loadu_si128((const __m128i *)(p + n - 16 + d));
@@ -686,35 +684,3 @@ int64_t zane_text_find_pair(const zane_text *text, int64_t at, int64_t count, co
 	return 0;
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose; emitted with ZANE_DIV_CACHE=1): the
-   multiplier and shift that divide an unsigned 64-bit value by `d`, in
-   libdivide's form (as Goose's gs_divu_gen), for a division a loop repeats
-   by a divisor it seldom changes (lib/codegen/div_cache_stubs.cpp):
-   x / d is mulhi(m, x), adjusted where ZANE_DIV_ADD is in `more`, and
-   shifted. A power of two 2^k takes m = 2^(64-k) and no shift. `more` is
-   255 for a `d` below 2, which the caller divides the plain way. */
-enum { ZANE_DIV_ADD = 64, ZANE_DIV_NONE = 255 };
-
-zane_div_gen zane_div_magic(uint64_t d) {
-	if (d < 2) return (zane_div_gen){ 0, ZANE_DIV_NONE };
-	int k = 63 - __builtin_clzll(d);
-	if (!(d & (d - 1))) return (zane_div_gen){ (uint64_t)1 << (64 - k), 0 };
-	uint64_t m, rem;
-#if defined(__x86_64__)
-	__asm__("divq %[d]" : "=a"(m), "=d"(rem) : [d] "r"(d), "a"((uint64_t)0), "d"((uint64_t)1 << k));
-#else
-	unsigned __int128 n = (unsigned __int128)((uint64_t)1 << k) << 64;
-	m = (uint64_t)(n / d);
-	rem = (uint64_t)(n % d);
-#endif
-	int64_t more;
-	if (d - rem < ((uint64_t)1 << k)) {
-		more = k;
-	} else {
-		uint64_t twice = rem + rem;
-		m += m;
-		if (twice >= d || twice < rem) m++;
-		more = k | ZANE_DIV_ADD;
-	}
-	return (zane_div_gen){ m + 1, more };
-}

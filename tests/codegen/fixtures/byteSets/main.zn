@@ -62,7 +62,7 @@ Unit main() {
 	short String = String("hello");
 	long String = String("the quick brown fox jumps over the lazy dog, then naps; z!");
 	// One member: `o`.
-	o @primitives$List<U8> = flags(I64(111), I64(111), I64(-1)):byteSet();
+	o @primitives$List<U8> = flags(I64(111), I64(111), @operators$negate(I64(1))):byteSet();
 	check(same(short:findAny(I64(1), short:byteCount(), o), I64(5)));
 	check(same(long:findAny(I64(1), long:byteCount(), o), I64(13)));
 	check(same(long:findAny(I64(14), I64(4), o), I64(0)));
@@ -71,12 +71,12 @@ Unit main() {
 	three[I64(60)] = true;
 	marks @primitives$List<U8> = three:byteSet();
 	check(same(long:findAny(I64(1), long:byteCount(), marks), I64(38)));
-	check(same(long:findAny(I64(39), @operators$add(long:byteCount(), I64(-38)), marks), I64(55)));
+	check(same(long:findAny(I64(39), @operators$add(long:byteCount(), @operators$negate(I64(38))), marks), I64(55)));
 	// Two non-members, so every byte but those.
 	other @primitives$List<U8> = allBut(I64(104), I64(101)):byteSet();
 	check(same(short:findAny(I64(1), short:byteCount(), other), I64(3)));
 	// A run: the digits.
-	digits @primitives$List<U8> = flags(I64(48), I64(57), I64(-1)):byteSet();
+	digits @primitives$List<U8> = flags(I64(48), I64(57), @operators$negate(I64(1))):byteSet();
 	numbered String = String("no digits until the very end of this text 7");
 	check(same(numbered:findAny(I64(1), numbered:byteCount(), digits), numbered:byteCount()));
 	check(same(long:findAny(I64(1), long:byteCount(), digits), I64(0)));
@@ -89,9 +89,9 @@ Unit main() {
 	check(same(long:findAny(I64(1), long:byteCount(), vowel), I64(3)));
 	check(same(short:findAny(I64(1), short:byteCount(), vowel), I64(2)));
 	// A pair: a space and then `l` two bytes on, past the first blocks.
-	space @primitives$List<U8> = flags(I64(32), I64(32), I64(-1)):byteSet();
-	ell @primitives$List<U8> = flags(I64(108), I64(108), I64(-1)):byteSet();
-	check(same(long:findPair(I64(1), @operators$add(long:byteCount(), I64(-1)), space, I64(1), ell), I64(35)));
+	space @primitives$List<U8> = flags(I64(32), I64(32), @operators$negate(I64(1))):byteSet();
+	ell @primitives$List<U8> = flags(I64(108), I64(108), @operators$negate(I64(1))):byteSet();
+	check(same(long:findPair(I64(1), @operators$add(long:byteCount(), @operators$negate(I64(1))), space, I64(1), ell), I64(35)));
 	check(same(short:findPair(I64(1), I64(3), ell, I64(1), ell), I64(3)));
 	check(same(short:findPair(I64(1), I64(2), ell, I64(1), ell), I64(0)));
 	// Equal strings hash alike, made apart.

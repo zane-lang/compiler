@@ -1,12 +1,12 @@
-(* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_ARM_CHECKS=1): a
-   check that both arms of a branch begin with, made once above the branch.
+(* A check that both arms of a branch begin with, made once above the
+   branch.
 
    A merge's `fromLeft Bool=if(a<=b) { work[k]=a; ... } :else() {
    work[k]=b; ... }` checks `k` against `work`'s count in each arm before
    its store. The two checks are the same, but each arm's stop sits between
    the branch and the arm's store, so LLVM cannot sink the two stores into
    one store of a select, and the merge's pick stays a branch that a random
-   input mispredicts half the time (Goose's, with no check, is a `cmov`).
+   input mispredicts half the time, where with no check it is a `cmov`.
 
    A check is what [Merged_checks.check] finds: a conditional branch on an
    unsigned compare of an index against a bound, one of whose targets only
@@ -18,7 +18,6 @@
    so stopping before the branch rather than in an arm is the same to
    everything outside it: neither arm runs anything first. *)
 
-let on () = Sys.getenv_opt "ZANE_ARM_CHECKS" = Some "1"
 
 (* Whether block [b] holds nothing but its terminator and the compare that
    terminator branches on. *)
@@ -82,12 +81,9 @@ let func ctx f =
               incr hoisted
           | _ -> ())
       | _ -> ())
-    blocks;
-  if Sys.getenv_opt "ZANE_ARM_CHECKS_DEBUG" = Some "1" && !hoisted > 0 then
-    Printf.eprintf "arm checks: %s: %d\n" (Llvm.value_name f) !hoisted
+    blocks
 
 let run m =
-  if on () then
     let ctx = Llvm.module_context m in
     Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then func ctx f) m
 
@@ -102,7 +98,6 @@ let again =
    different counter stepped) below its store stops it before it reaches
    the stores; at the ends, it sinks them into one store of a phi, and the
    arms left with only arithmetic become selects. *)
-let stores_on () = on ()
 
 let pure i =
   match Llvm.instr_opcode i with
@@ -161,12 +156,9 @@ let stores_func ctx f =
                 incr moved
             | _ -> ())
       | _ -> ())
-    f;
-  if Sys.getenv_opt "ZANE_ARM_CHECKS_DEBUG" = Some "1" && !moved > 0 then
-    Printf.eprintf "arm stores: %s: %d\n" (Llvm.value_name f) !moved
+    f
 
 let stores_run m =
-  if on () then
     let ctx = Llvm.module_context m in
     Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then stores_func ctx f) m
 

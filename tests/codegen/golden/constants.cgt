@@ -68,16 +68,22 @@
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %2
-    │       ├── body[0] > hold:
-    │       │   ├── local: #1
-    │       │   ├── scope: %2
-    │       │   ├── value: "main\n" : handle
-    │       │   └── layout: %primitives$String
-    │       ├── body[1] > eval > call:
+    │       ├── body[0] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$say(%primitives$String)
-    │       │   └── args[0]: local #1 : handle
-    │       ├── body[2] > eval > call:
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @20
+    │       │       ├── result: #21
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #1
+    │       │       │   ├── scope: %2
+    │       │       │   ├── value: "main\n" : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #21
+    │       │           └── value: local #1 : handle
+    │       ├── body[1] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -94,7 +100,7 @@
     │       │       │   │       └── args:
     │       │       │   └── right: 1 : i64
     │       │       └── right: 43 : i64
-    │       ├── body[3] > eval > call:
+    │       ├── body[2] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -116,7 +122,7 @@
     │       │       │           ├── fn: constants$early
     │       │       │           └── args:
     │       │       └── right: 94 : i64
-    │       ├── body[4] > eval > call:
+    │       ├── body[3] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$say(%primitives$String)
     │       │   └── args[0] > deref:
@@ -125,7 +131,7 @@
     │       │           ├── type: ptr
     │       │           ├── fn: constants$greeting
     │       │           └── args:
-    │       ├── body[5] > eval > call:
+    │       ├── body[4] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -153,13 +159,13 @@
     │       │       │           ├── place: #7
     │       │       │           └── value: local #5 : handle
     │       │       └── right: 1 : i64
-    │       ├── body[6] > let:
+    │       ├── body[5] > let:
     │       │   ├── local: #8
     │       │   └── value > call:
     │       │       ├── type: ptr
     │       │       ├── fn: constants$ada
     │       │       └── args:
-    │       ├── body[7] > eval > call:
+    │       ├── body[6] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -172,7 +178,7 @@
     │       │       │       ├── path: 1
     │       │       │       └── base: local #8 : ptr
     │       │       └── right: 36 : i64
-    │       ├── body[8] > eval > call:
+    │       ├── body[7] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -198,7 +204,7 @@
     │       │       │   │           └── base: local #9 : ptr
     │       │       │   └── body[2]: leave @10
     │       │       └── right: 36 : i64
-    │       ├── body[9] > eval > call:
+    │       ├── body[8] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -229,7 +235,7 @@
     │       │       │           ├── place: #14
     │       │       │           └── value: local #12 : handle
     │       │       └── right: 1 : i64
-    │       ├── body[10] > eval > call:
+    │       ├── body[9] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -257,7 +263,7 @@
     │       │       │               ├── fn: constants$origin
     │       │       │               └── args:
     │       │       └── right: 0 : i64
-    │       ├── body[11] > spawn:
+    │       ├── body[10] > spawn:
     │       │   ├── task: #16
     │       │   ├── scope: %2
     │       │   ├── thunk: zane.spawn.1
@@ -265,7 +271,7 @@
     │       │   ├── args:
     │       │   ├── dest: #17
     │       │   └── layout: %primitives$I64
-    │       ├── body[12] > eval > call:
+    │       ├── body[11] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -282,7 +288,7 @@
     │       │       │           ├── type: i64
     │       │       │           └── ptr: address of #17 : ptr
     │       │       └── right: 94 : i64
-    │       └── body[13] > return: unit : void
+    │       └── body[12] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: constants$say(%primitives$String)
     │   ├── params[0]: local #1 : handle
@@ -461,16 +467,22 @@
     │   ├── ret: i64
     │   └── body[0] > scope:
     │       ├── id: %3
-    │       ├── body[0] > hold:
-    │       │   ├── local: #2
-    │       │   ├── scope: %3
-    │       │   ├── value: "made\n" : handle
-    │       │   └── layout: %primitives$String
-    │       ├── body[1] > eval > call:
+    │       ├── body[0] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$say(%primitives$String)
-    │       │   └── args[0]: local #2 : handle
-    │       └── body[2] > return: local #1 : i64
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @4
+    │       │       ├── result: #5
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #2
+    │       │       │   ├── scope: %3
+    │       │       │   ├── value: "made\n" : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #5
+    │       │           └── value: local #2 : handle
+    │       └── body[1] > return: local #1 : i64
     ├── funcs[10] > func:
     │   ├── symbol: constants$greeting
     │   ├── params:

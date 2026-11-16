@@ -1,9 +1,6 @@
-(* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_LEAF_PEEL=1): a
-   recursive function's base case made at each of its self-calls with no
-   call (leaf_peel_stubs.cpp), as Goose's compiler emits a recursion's
-   leaves in place. *)
+(* A recursive function's base case made at each of its self-calls with no
+   call (leaf_peel_stubs.cpp), so a recursion's leaves take no call. *)
 
-let on () = Sys.getenv_opt "ZANE_LEAF_PEEL" = Some "1"
 
 external func : Llvm.llvalue -> int -> int = "zane_leaf_peel"
 
@@ -17,11 +14,7 @@ let run m =
      the calls it saves (tests/perf `leaves`). *)
   let remembered f = String.ends_with ~suffix:Cgt.Memo.suffix_plain (Llvm.value_name f) in
   Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f || remembered f) then fs := f :: !fs) m;
-  List.iter
-    (fun f ->
-      if func f budget = 1 && Sys.getenv_opt "ZANE_LEAF_PEEL_DEBUG" = Some "1" then
-        prerr_endline ("leaf peel: " ^ Llvm.value_name f))
-    !fs
+  List.iter (fun f -> ignore (func f budget)) !fs
 
 (* The test and the base case inlined at each call, then folded. *)
 let again =

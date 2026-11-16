@@ -384,29 +384,41 @@
     │   ├── ret: {handle, i64}
     │   └── body[0] > scope:
     │       ├── id: %4
-    │       ├── body[0] > hold:
-    │       │   ├── local: #3
-    │       │   ├── scope: %4
-    │       │   ├── value: "made " : handle
-    │       │   └── layout: %primitives$String
+    │       ├── body[0] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: defaults$say(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @6
+    │       │       ├── result: #7
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #3
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value: "made " : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #7
+    │       │           └── value: local #3 : handle
     │       ├── body[1] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: defaults$say(%primitives$String)
-    │       │   └── args[0]: local #3 : handle
+    │       │   └── args[0]: local #1 : handle
     │       ├── body[2] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: defaults$say(%primitives$String)
-    │       │   └── args[0]: local #1 : handle
-    │       ├── body[3] > hold:
-    │       │   ├── local: #5
-    │       │   ├── scope: %4
-    │       │   ├── value: "\n" : handle
-    │       │   └── layout: %primitives$String
-    │       ├── body[4] > eval > call:
-    │       │   ├── type: void
-    │       │   ├── fn: defaults$say(%primitives$String)
-    │       │   └── args[0]: local #5 : handle
-    │       └── body[5] > return > escape:
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @8
+    │       │       ├── result: #9
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #5
+    │       │       │   ├── scope: %4
+    │       │       │   ├── value: "\n" : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #9
+    │       │           └── value: local #5 : handle
+    │       └── body[3] > return > escape:
     │           ├── exit: function
     │           ├── value > record:
     │           │   ├── type: {handle, i64}

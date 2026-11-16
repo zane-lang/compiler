@@ -1507,20 +1507,15 @@
     │       │   │   │       │   │           │           └── layout: boxes$Countdown
     │       │   │   │       │   │           └── layout: boxes$Countdown
     │       │   │   │       │   └── layout: boxes$Countdown
-    │       │   │   │       ├── body[1] > hold:
+    │       │   │   │       ├── body[1] > let:
     │       │   │   │       │   ├── local: #208
-    │       │   │   │       │   ├── scope: %207
-    │       │   │   │       │   ├── value > copy:
-    │       │   │   │       │   │   ├── type: <void | box32>
-    │       │   │   │       │   │   ├── value: local #206 : <void | box32>
-    │       │   │   │       │   │   └── layout: boxes$Countdown
-    │       │   │   │       │   └── layout: boxes$Countdown
+    │       │   │   │       │   └── value > copy:
+    │       │   │   │       │       ├── type: <void | box32>
+    │       │   │   │       │       ├── value: local #206 : <void | box32>
+    │       │   │   │       │       └── layout: boxes$Countdown
     │       │   │   │       └── body[2] > overwrite:
     │       │   │   │           ├── address: address of #206 : ptr
-    │       │   │   │           ├── value > copy:
-    │       │   │   │           │   ├── type: <void | box32>
-    │       │   │   │           │   ├── value: local #208 : <void | box32>
-    │       │   │   │           │   └── layout: boxes$Countdown
+    │       │   │   │           ├── value: local #208 : <void | box32>
     │       │   │   │           └── layout: boxes$Countdown
     │       │   │   └── body[1] > assign:
     │       │   │       ├── place: #201

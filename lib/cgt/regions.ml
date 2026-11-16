@@ -365,7 +365,6 @@ let taken_params funcs ~keeps =
       f.Func.body;
     List.rev !reads
   in
-  let moves_in = Sys.getenv_opt "ZANE_ASSIGN_MOVES" = Some "1" in
   let rec take (f : Func.t) held j (p, t) =
     if t <> Ty.Ptr then
       (* The copy is found before the read inside it. *)
@@ -381,7 +380,7 @@ let taken_params funcs ~keeps =
       | _ -> ()
   (* A taken parameter keeps a fresh argument too: the callee, or its
      taking copy, is given the value itself. *)
-  and taken_keeps fn j = keeps fn j || (moves_in && Hashtbl.mem table (fn, j)) in
+  and taken_keeps fn j = keeps fn j || Hashtbl.mem table (fn, j) in
   (* Each parameter found taken can let its callers' parameters be taken
      too, so the search runs until it finds no more. *)
   let rec search () =
@@ -389,7 +388,7 @@ let taken_params funcs ~keeps =
     List.iter
       (fun (f : Func.t) -> if has_body f then List.iteri (take f (List.map fst (held_params f))) f.Func.params)
       funcs;
-    if moves_in && Hashtbl.length table > before then search ()
+    if Hashtbl.length table > before then search ()
   in
   search ();
   let cloned = Hashtbl.create 16 in
@@ -715,8 +714,8 @@ let returned_moves (f : Func.t) =
     in
     { f with Func.body = stats [] f.Func.body }
 
-(* EXPERIMENT (LangArena zane-vs-c, R7; on with ZANE_ASSIGN_MOVES=1): a held local whose last read in its
-   scope copies it into another place is moved there instead, as a return
+(* A held local whose last read in its scope copies it into another place
+   is moved there instead, as a return
    moves it (returned_moves): nothing reads the slot again before the scope
    drains it, and the move leaves it vacant. Only straight-line code, `if`
    bodies and expansions are looked into; a copy inside a loop is left. *)
@@ -815,8 +814,7 @@ let sink_holds (f : Func.t) =
     | s :: rest -> map_stat_parts expr stats s :: stats rest
     | [] -> []
   and expr e = map_expr_parts expr stats e in
-  if Sys.getenv_opt "ZANE_ASSIGN_MOVES" <> Some "1" then f
-  else { f with Func.body = stats f.Func.body }
+  { f with Func.body = stats f.Func.body }
 
 let assigned_moves ?(owned = fun _ _ -> false) (f : Func.t) =
   let spawns =
@@ -1007,7 +1005,7 @@ let assigned_moves ?(owned = fun _ _ -> false) (f : Func.t) =
       | s :: rest -> map_stat_parts expr stats s :: stats rest
       | [] -> []
     and expr e = map_expr_parts expr stats e in
-    if Sys.getenv_opt "ZANE_ASSIGN_MOVES" <> Some "1" then f else { f with Func.body = stats f.Func.body }
+    { f with Func.body = stats f.Func.body }
 
 (* Every hold, reservation and spawn is inside the arena it names, which
    the pass relies on when it takes an arena away. *)

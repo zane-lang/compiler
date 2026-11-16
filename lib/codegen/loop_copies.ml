@@ -35,18 +35,15 @@ let indexes (e : Expr.t) =
    [symbol], whose cost would dwarf a check, nothing leaves it before its
    count runs out, and it reads or writes a list's element, whose check IRCE
    may take out of it. *)
-(* EXPERIMENT (LangArena zane-vs-c, R8): with ZANE_VERSION_CALLS=0 a loop
-   that calls any function is emitted once. Its two copies would give the
-   callee two call sites, and LLVM's inliner, which gives a function with
-   one caller a large bonus, then leaves a mid-sized callee out of line in
-   both (Brainfuck's `command`: cost 315 against a threshold of 225). *)
-let calls_stay_single () = Sys.getenv_opt "ZANE_VERSION_CALLS" = Some "0"
-
-(* EXPERIMENT: how many call sites each function has in the program being
-   emitted ([count_call_sites]). With ZANE_VERSION_CALLS=1, only a loop
-   that calls a function with one call site is emitted once: two copies
-   would cost LLVM's single-caller inline bonus there, while a callee with
-   other callers has none to lose. *)
+(* How many call sites each function has in the program being emitted
+   ([count_call_sites]). A loop that calls a function with one call site
+   is emitted once: its two copies would give the callee two call sites,
+   and LLVM's inliner, which gives a function with one caller a large
+   bonus, then leaves a mid-sized callee out of line in both (an
+   interpreter's step: cost 315 against a threshold of 225). A callee
+   with other callers has no such bonus to lose. A tiered build counts
+   none: tier 1's table names every function, so none has a single caller
+   there. *)
 let call_sites : (string, int) Hashtbl.t = Hashtbl.create 64
 
 let count_call_sites ~tiered (funcs : Func.t list) =
@@ -63,15 +60,14 @@ let count_call_sites ~tiered (funcs : Func.t list) =
         f.Func.body)
     funcs
 
-let single_caller fn =
-  Sys.getenv_opt "ZANE_VERSION_CALLS" = Some "1" && Hashtbl.find_opt call_sites fn = Some 1
+let single_caller fn = Hashtbl.find_opt call_sites fn = Some 1
 
 let versioned ~symbol body =
   (not (leaves_early body))
   && (not
         (Cgt.Traverse.exists_in body
            ~expr:(fun e ->
-             match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol || calls_stay_single () || single_caller fn | _ -> false)
+             match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol || single_caller fn | _ -> false)
            ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ -> true | _ -> false)))
   && Cgt.Traverse.exists_in body
        ~expr:indexes ~stat:(fun _ -> false)

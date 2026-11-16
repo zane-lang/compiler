@@ -246,61 +246,47 @@
     │   ├── params[0]: local #1 : i64
     │   ├── params[1]: local #2 : handle16
     │   ├── ret: handle16
-    │   └── body[0] > scope:
-    │       ├── id: %4
-    │       ├── body[0] > hold:
-    │       │   ├── local: #3
-    │       │   ├── scope: %4
-    │       │   ├── value > expand:
-    │       │   │   ├── type: handle16
-    │       │   │   ├── label: @11
-    │       │   │   ├── result: #12
-    │       │   │   └── body[0] > assign:
-    │       │   │       ├── place: #12
-    │       │   │       └── value > runtime:
-    │       │   │           ├── type: handle16
-    │       │   │           ├── fn: zane_list_new
-    │       │   │           └── args:
-    │       │   └── layout: %primitives$List<heldFolds$Row<%primitives$I64>>
-    │       ├── body[1] > repeat:
-    │       │   ├── count: local #1 : i64
-    │       │   └── body[0] > scope:
-    │       │       ├── id: %7
-    │       │       ├── body[0] > hold:
-    │       │       │   ├── local: #6
-    │       │       │   ├── scope: %7
-    │       │       │   ├── value > copy:
-    │       │       │   │   ├── type: handle16
-    │       │       │   │   ├── value: local #2 : handle16
-    │       │       │   │   └── layout: heldFolds$Row<%primitives$I64>
-    │       │       │   └── layout: heldFolds$Row<%primitives$I64>
-    │       │       └── body[1] > eval > expand:
-    │       │           ├── type: void
-    │       │           ├── label: @10
-    │       │           ├── body[0] > let:
-    │       │           │   ├── local: #8
-    │       │           │   └── value > copy:
-    │       │           │       ├── type: handle16
-    │       │           │       ├── value: local #6 : handle16
-    │       │           │       └── layout: heldFolds$Row<%primitives$I64>
-    │       │           ├── body[1] > let:
-    │       │           │   ├── local: #9
-    │       │           │   └── value > runtime:
-    │       │           │       ├── type: ptr
-    │       │           │       ├── fn: zane_list_push
-    │       │           │       ├── args[0]: address of #3 : ptr
-    │       │           │       └── args[1]: 16 : i64
-    │       │           └── body[2] > place:
-    │       │               ├── address: local #9 : ptr
-    │       │               ├── value: local #8 : handle16
-    │       │               └── layout: heldFolds$Row<%primitives$I64>
-    │       └── body[2] > return > escape:
-    │           ├── exit: function
-    │           ├── value > take:
-    │           │   ├── type: handle16
-    │           │   ├── address: address of #3 : ptr
-    │           │   └── layout: %primitives$List<heldFolds$Row<%primitives$I64>>
-    │           └── layout: heldFolds$Row<heldFolds$Row<%primitives$I64>>
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > expand:
+    │   │       ├── type: handle16
+    │   │       ├── label: @11
+    │   │       ├── result: #12
+    │   │       └── body[0] > assign:
+    │   │           ├── place: #12
+    │   │           └── value > runtime:
+    │   │               ├── type: handle16
+    │   │               ├── fn: zane_list_new
+    │   │               └── args:
+    │   ├── body[1] > repeat:
+    │   │   ├── count: local #1 : i64
+    │   │   ├── body[0] > let:
+    │   │   │   ├── local: #6
+    │   │   │   └── value > copy:
+    │   │   │       ├── type: handle16
+    │   │   │       ├── value: local #2 : handle16
+    │   │   │       └── layout: heldFolds$Row<%primitives$I64>
+    │   │   └── body[1] > eval > expand:
+    │   │       ├── type: void
+    │   │       ├── label: @10
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #8
+    │   │       │   └── value: local #6 : handle16
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #9
+    │   │       │   └── value > runtime:
+    │   │       │       ├── type: ptr
+    │   │       │       ├── fn: zane_list_push
+    │   │       │       ├── args[0]: address of #3 : ptr
+    │   │       │       └── args[1]: 16 : i64
+    │   │       └── body[2] > place:
+    │   │           ├── address: local #9 : ptr
+    │   │           ├── value: local #8 : handle16
+    │   │           └── layout: heldFolds$Row<%primitives$I64>
+    │   └── body[2] > return > escape:
+    │       ├── exit: function
+    │       ├── value: local #3 : handle16
+    │       └── layout: heldFolds$Row<heldFolds$Row<%primitives$I64>>
     └── funcs[4] > func:
         ├── symbol: heldFolds$say(this heldFolds$Out, %primitives$String)
         ├── params[0]: local #1 : ptr

@@ -1,0 +1,4 @@
+File "fixtures/reject/byteSetFlags/main.zn", line 12, characters 44-59:
+12 |     set @primitives$List<@primitives$U8> = flags:byteSet();
+   |                                            ^^^^^^^^^^^^^^^
+Error: `@primitives$byteSet` makes a set from a list of one-byte flags

@@ -1,4 +1,4 @@
-(* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_RANGE_CHECKS=1): the
+(* The
    checks of `x + 0`, `x + 1`, ... `x + k` against one bound, made on one
    straight path, made as one check of the lowest and one of the highest
    at the first of them.
@@ -7,7 +7,7 @@
    in its copies of the body, each checked on its own, so the block of
    copies is cut into as many blocks as checks and the SLP vectorizer,
    which works within a block, cannot make the copies' independent
-   arithmetic one vector operation, as clang does for Goose's run of eight.
+   arithmetic one vector operation.
 
    As [Merged_checks] argues, a failed check stops the program, so where a
    later check on the path would fail, stopping at the first is the same to
@@ -16,7 +16,6 @@
    unsigned range below a bound that is a count, so below 2^63, and adding
    a constant within it does not wrap. *)
 
-let on () = Sys.getenv_opt "ZANE_RANGE_CHECKS" = Some "1"
 
 (* [v] as a base and a constant offset: `add base, c` or `base`. *)
 let split v =
@@ -102,9 +101,7 @@ let func ctx f =
             incr folded
           end)
       | _ -> ())
-    blocks;
-  if Sys.getenv_opt "ZANE_RANGE_CHECKS_DEBUG" = Some "1" && !folded > 0 then
-    Printf.eprintf "range checks: %s: %d\n" (Llvm.value_name f) !folded
+    blocks
 
 (* The second form, as LLVM leaves a strip-mined loop's checks: a check
    made an exit test `icmp eq b, (n + k) >> s` by the loop passes, where
@@ -171,12 +168,9 @@ let exits ctx f =
               | _ -> ())
           | _ -> ())
       | _ -> ())
-    f;
-  if Sys.getenv_opt "ZANE_RANGE_CHECKS_DEBUG" = Some "1" && !folded > 0 then
-    Printf.eprintf "range exits: %s: %d\n" (Llvm.value_name f) !folded
+    f
 
 let run m =
-  if on () then
     let ctx = Llvm.module_context m in
     Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then (func ctx f; exits ctx f)) m
 

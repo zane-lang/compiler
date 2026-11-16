@@ -108,19 +108,12 @@ let llvm_options =
     "-unroll-threshold=250";
     "-unroll-partial-threshold=100";
   ]
-  (* EXPERIMENT (LangArena zane-vs-goose; ZANE_NO_COPY_IDIOM=1): a loop
-     that copies elements one by one stays a loop rather than becoming a
-     `memmove`/`memcpy` call. The copies such loops make in these programs
-     are short and of a length known only at run time: Fannkuchredux's
-     rotation of the first r + 1 of 7 to 12 elements, r mostly 1 or 2,
-     made a call into libc per permutation (9% of its samples), where
-     Goose's port rotates by swaps, which the idiom does not take. *)
-  @ (if Sys.getenv_opt "ZANE_NO_COPY_IDIOM" = Some "1" then [ "-disable-loop-idiom-memcpy" ] else [])
-  (* EXPERIMENT (LangArena zane-vs-goose): ZANE_LLVM_OPTS, space-separated
-     LLVM options added after these, for trying a threshold. *)
-  @ (match Sys.getenv_opt "ZANE_LLVM_OPTS" with
-    | Some s -> List.filter (fun o -> o <> "") (String.split_on_char ' ' s)
-    | None -> [])
+  (* A loop that copies elements one by one stays a loop rather than
+     becoming a `memmove`/`memcpy` call. The copies such loops make are
+     mostly short, of a length known only at run time: fannkuch's rotation
+     of the first r + 1 of 7 to 12 elements, r mostly 1 or 2, made a call
+     into the C library per permutation. *)
+  @ [ "-disable-loop-idiom-memcpy" ]
 
 (* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*,
    for [triple]. *)

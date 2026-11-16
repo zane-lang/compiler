@@ -1,9 +1,9 @@
-(* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_CONST_ARRAYS=1): a
+(* A
    local whose every write is a constant, the same at each offset each
    time, made a constant global.
 
-   An `Array` literal of constants, as TextRaytracer's scene or a lookup
-   table (Goose's `const SCENE`, `const LUT`), is a stack slot its elements
+   An `Array` literal of constants, as a scene or a lookup table, is a
+   stack slot its elements
    are stored to each time the code that makes it runs, inside the loop
    that reads it. Where the slot is indexed by a value LLVM does not know,
    the stores stay. A slot that nothing writes but those constants holds
@@ -16,7 +16,6 @@
    a lifetime marker. Constants are integers, floats, and vectors and
    arrays of them; the target is little-endian. *)
 
-let on () = Sys.getenv_opt "ZANE_CONST_ARRAYS" = Some "1"
 
 exception No
 
@@ -114,7 +113,7 @@ let func m dl f =
     !allocas
 
 let run m =
-  if on () then begin
+  begin
     let dl = Llvm_target.DataLayout.of_string (Llvm.data_layout m) in
     if Llvm_target.DataLayout.byte_order dl = Llvm_target.Endian.Little then
       Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then func m dl f) m

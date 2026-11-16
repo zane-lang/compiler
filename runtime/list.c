@@ -85,21 +85,12 @@ static inline int zane_list_returned(zane_mark *region, int64_t room) {
 	return s && s->top;
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose; set by zanec with
-   ZANE_LIST_SPANS=N): a list whose block grows past this many bytes takes
-   a growable span (arena.c, zane_alloc_growable) at once, its room
-   doubled past ZANE_CHUNK - ZANE_LINE, so that it grows in place from
-   there rather than being copied at each doubling to 1 MiB, as glibc's
-   realloc moves a large block's pages rather than its bytes. By default,
-   no list does before it is past 1 MiB anyway. */
-__attribute__((weak)) int64_t zane_list_span_from = ZANE_CHUNK - ZANE_LINE;
-
 static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 	/* The room in the list's unit (ZL_ELEMENTS), and the block's bytes. */
 	int64_t unit = zl_unit(stride), old = ZL_ROOM_BYTES(list, stride);
 	int64_t units = ZL_ROOM(list) ? ZL_ROOM(list) * 2 : zane_list_first_room(stride, stride) / unit;
 	while (units * unit < needed) units *= 2;
-	if (zl_block_bytes(units, stride) > zane_list_span_from)
+	if (zl_block_bytes(units, stride) > ZANE_LIST_SPAN_FROM)
 		while (zl_block_bytes(units, stride) <= ZANE_CHUNK - ZANE_LINE) units *= 2;
 #if defined(ZANE_FRAME_REFS)
 	if (units > (int64_t)UINT32_MAX) zane_broken("a list past 2^32 - 1 elements");
@@ -252,7 +243,7 @@ void zane_list_room(zane_list *list, int64_t stride, int64_t n) {
 	if (!ZL_FITS(list, n, stride)) zane_list_grow(list, bytes, stride);
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): `count` elements of `from`, from
+/* `count` elements of `from`, from
    its element `start` (counted from 1), copied onto the end of `list`, as
    one copy. `from` may be `list` itself: its range is read after the block
    has grown. The elements own no blocks, so their bytes are all of them. */
@@ -264,11 +255,11 @@ void zane_list_append(zane_list *list, const zane_list *from, int64_t start, int
 	list->count += count;
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): `count` elements of `from`, from
-   its element `start`, copied over `list`'s own from its element `at`
-   (both counted from 1), as one copy. `from` may be `list` itself, and the
-   ranges may overlap. Both ranges lie within their lists. The elements own
-   no blocks, so their bytes are all of them. */
+/* `copyRange`: `count` elements of `from`, from its element `start`,
+   copied over `list`'s own from its element `at` (both counted from 1), as
+   one copy. A call cannot pass a list it writes as one it reads, so the
+   two are different lists. Either range out of its list stops the
+   program. The elements own no blocks, so their bytes are all of them. */
 void zane_list_copy(zane_list *list, int64_t at, const zane_list *from, int64_t start, int64_t count, int64_t stride) {
 	if (count < 0 || start < 1 || start - 1 > ZL_COUNT(from) - count || at < 1 || at - 1 > ZL_COUNT(list) - count)
 		zane_out_of_range();
@@ -276,7 +267,7 @@ void zane_list_copy(zane_list *list, int64_t at, const zane_list *from, int64_t 
 	memmove(ZL_ITEMS(list) + (at - 1) * stride, ZL_ITEMS(from) + (start - 1) * stride, (size_t)(count * stride));
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): whether `count` elements of
+/* Whether `count` elements of
    `list` from its element `start` and of `other` from `other_start`
    (counted from 1) are the same bytes, 1 or 0, as one comparison. The
    elements own no blocks, so their bytes are all of them. */
@@ -289,14 +280,14 @@ int64_t zane_list_same(const zane_list *list, int64_t start, const zane_list *ot
 	              (size_t)(count * stride)) == 0;
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): a hash of the bytes of `count`
-   elements of `list` from its element `start` (counted from 1). Blocks of
+/* `hashRange`: a hash of the bytes of `count` elements of `list` from
+   its element `start` (counted from 1). Blocks of
    32 bytes go to four lanes mixed independently, so the multiplies overlap
    rather than wait on each other; the words after them go to the first
-   lane, and the tail and the length close it. A word is mixed as Goose's
-   standard library mixes one: xored in, multiplied by 2^64 / phi and
-   rotated, and the close is its two multiply-xorshift rounds. Equal ranges hash alike
-   within one run of a program; the value is not specified beyond that. */
+   lane, and the tail and the length close it. A word is mixed in by
+   xoring, a multiply by 2^64 / phi and a rotate, and the close is two
+   multiply-xorshift rounds. Equal ranges hash alike within one run of a
+   program; the value is not specified beyond that. */
 static inline uint64_t zane_hash_mix(uint64_t h, uint64_t w) {
 	h = (h ^ w) * UINT64_C(0x9E3779B97F4A7C15);
 	/* A rotate written as shifts, LLVM turns into a second multiply by the
@@ -315,7 +306,7 @@ int64_t zane_list_hash(const zane_list *list, int64_t start, int64_t count, int6
 	return zane_bytes_hash((const unsigned char *)ZL_ITEMS(list) + (start - 1) * stride, (size_t)(count * stride));
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): the same hash of a string's bytes,
+/* The same hash of a string's bytes,
    for a hash table's slots. */
 int64_t zane_text_hash(const zane_text *text) {
 	return zane_bytes_hash((const unsigned char *)text->bytes, (size_t)text->length);
@@ -335,7 +326,7 @@ static int64_t zane_bytes_hash(const unsigned char *p, size_t n) {
 		}
 		h = zane_hash_mix(zane_hash_mix(zane_hash_mix(a, b), c), d);
 	}
-	/* The bytes left, as Goose's standard library takes a short key's: the
+	/* The bytes left: the
 	   words before the last 8 bytes, then the last 8 as one load that may
 	   overlap the word before, so a key of 8 bytes or more takes no branch
 	   on its length but the loop's; else two 4-byte words or three single
@@ -362,7 +353,7 @@ static int64_t zane_bytes_hash(const unsigned char *p, size_t n) {
 	return (int64_t)(h >> 1);
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): a list of integers sorted in
+/* A list of integers sorted in
    place, ascending, as a standard library's sort is, written out for each
    element type so every comparison is an inline compare. A pattern-
    defeating quicksort: input already in order, or in strictly descending
@@ -516,10 +507,9 @@ void zane_list_sort(zane_list *list, int64_t kind) {
 	}
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): a list of `I32`s, each an index
-   into `keys` (a list of `I64`s, counted from 1), sorted stably by the key
+/* `sortBy`: a list of `I32`s, each an index into `keys` (a list of `I64`s, counted from 1), sorted stably by the key
    each names: a natural merge sort of the indices, comparing the keys they
-   name, as Goose's std `stable_sort` is one with its comparator. Runs,
+   name. Runs,
    ascending or strictly descending (reversed), are found first, those
    shorter than 16 made 16 long by insertion; a pass then merges
    neighbouring runs, copying a pair whose halves are already in order as

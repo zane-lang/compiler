@@ -1036,30 +1036,14 @@ let finish_tier m ~hash exports definitions =
           | Some why -> Error (Printf.sprintf "tier 1 is not a valid module: %s" why))
   | None, None -> Ok ()
 
-(* EXPERIMENT: when [on ()], [run] rewrites the optimized module [m] and
-   the passes [again] run over it once more; a pass that fails is reported
+(* [run] rewrites the optimized module [m] after LLVM's passes, and the
+   passes [again] run over it once more; a pass that fails is reported
    under [name] and the module kept. *)
-let experiment tm m name on run again =
-  if on () then begin
-    (* EXPERIMENT: ZANE_DUMP_BEFORE=<name>=<path>, the module just before
-       experiment <name> runs, for reading. *)
-    (match Sys.getenv_opt "ZANE_DUMP_BEFORE" with
-    | Some v -> (
-        match String.index_opt v '=' with
-        | Some i when String.sub v 0 i = name -> Llvm.print_module (String.sub v (i + 1) (String.length v - i - 1)) m
-        | _ -> ())
-    | None -> ());
-    run m;
-    (match Sys.getenv_opt "ZANE_DUMP_AFTER" with
-    | Some v -> (
-        match String.index_opt v '=' with
-        | Some i when String.sub v 0 i = name -> Llvm.print_module (String.sub v (i + 1) (String.length v - i - 1)) m
-        | _ -> ())
-    | None -> ());
-    match Llvm_passbuilder.run_passes m again tm (Llvm_passbuilder.create_passbuilder_options ()) with
-    | Ok () -> ()
-    | Error e -> prerr_endline (name ^ ": " ^ e)
-  end
+let rewrite tm m name run again =
+  run m;
+  match Llvm_passbuilder.run_passes m again tm (Llvm_passbuilder.create_passbuilder_options ()) with
+  | Ok () -> ()
+  | Error e -> prerr_endline (name ^ ": " ^ e)
 
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and its passes run, the optimized
@@ -1104,7 +1088,6 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       if (optimize || tier = Tiers.Tier0) && not whole then
         with_runtime_bitcode ?bundled ?cache ~cc:(bitcode_cc ()) ~triple ?target
           (Option.iter (fun path -> ignore (Runtime_bodies.add ~tiered:(tier <> Tiers.Plain) path m)));
-      if tier <> Tiers.Plain then Div_cache.declare m;
       let exports = if tier = Tiers.Tier0 then Some (Tiers.exports m) else None in
       let definitions = if tier = Tiers.Tier1 then Some (Tiers.tier1_definitions m) else None in
       shared_in_comdats triple m;
@@ -1114,58 +1097,26 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       if not optimize then Wrappers.mark data_layout m;
       if optimize then llvm_options (Array.of_list ("zanec" :: Passes.llvm_options));
       let pipeline = thread_sanitized m (Passes.pipeline ~triple ~optimize ~tier1:(tier = Tiers.Tier1)) in
-      (* EXPERIMENT (LangArena zane-vs-goose): with ZANE_LIST_SPANS=N, a
-         list growing past N bytes takes a growable span at once
-         (runtime/list.c, `zane_list_span_from`). *)
-      Option.iter
-        (fun n ->
-          let ctx = Llvm.module_context m in
-          let v = Llvm.const_of_int64 (Llvm.i64_type ctx) (Int64.of_string n) true in
-          match Llvm.lookup_global "zane_list_span_from" m with
-          | Some g when not (Llvm.is_declaration g) ->
-              Llvm.set_initializer v g;
-              Llvm.set_linkage Llvm.Linkage.Internal g
-          | Some g ->
-              Llvm.set_initializer v g;
-              Llvm.set_linkage Llvm.Linkage.External g
-          | None -> ignore (Llvm.define_global "zane_list_span_from" v m))
-        (Sys.getenv_opt "ZANE_LIST_SPANS");
-      (* EXPERIMENT (LangArena zane-vs-goose): a recursion's peeled copy
-         (Optimize.Recursion_peel) inlined at each of its calls. *)
-      Llvm.iter_functions
-        (fun f ->
-          let n = Llvm.value_name f in
-          if String.ends_with ~suffix:"$peel" n && not (Llvm.is_declaration f) then
-            Llvm.add_function_attr f (Llvm.create_enum_attr (Llvm.module_context m) "alwaysinline" 0L) Llvm.AttrIndex.Function)
-        m;
-      (* EXPERIMENT (Elem_tbaa): list elements' scalars tagged by stride. *)
-      Elem_tbaa.run m;
-      (* EXPERIMENT: the module as the passes take it, for reading. *)
-      Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_PRE");
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
       |> Result.map (fun () ->
              if optimize then begin
-               (* EXPERIMENT (Const_arrays): constant locals made globals. *)
-               experiment tm m "const arrays" Const_arrays.on Const_arrays.run Const_arrays.again;
-               (* EXPERIMENT (Leaf_peel): a recursion's base case made at its calls. *)
-               experiment tm m "leaf peel" Leaf_peel.on Leaf_peel.run Leaf_peel.again;
-               (* EXPERIMENT (Loop_inline): small leaves called in loops inlined. *)
-               experiment tm m "loop inline" Loop_inline.on Loop_inline.run Loop_inline.again;
-               (* EXPERIMENT (Frame_scopes): scopes for the frames as inlining
-                  left them, then the loop passes again to use them. *)
-               experiment tm m "frame scopes" Frame_scopes.on Frame_scopes.run Frame_scopes.again;
-               (* EXPERIMENT (Frame_shadow): frame slots in registers. *)
-               experiment tm m "frame shadow" Frame_shadow.on Frame_shadow.run Frame_shadow.again;
-               (* EXPERIMENT (Merged_checks): one check per index. *)
-               experiment tm m "merged checks" Merged_checks.on Merged_checks.run Merged_checks.again;
-               (* EXPERIMENT (Arm_checks): a check both arms make, made above them. *)
-               experiment tm m "arm checks" Arm_checks.on Arm_checks.run Arm_checks.again;
-               experiment tm m "arm stores" Arm_checks.stores_on Arm_checks.stores_run Arm_checks.stores_again;
-               (* EXPERIMENT (Range_checks): one check of a run of offsets. *)
-               experiment tm m "range checks" Range_checks.on Range_checks.run Range_checks.again;
-               (* EXPERIMENT (Div_cache): a loop's division by a reciprocal. *)
-               experiment tm m "div cache" Div_cache.on Div_cache.run Div_cache.again
+               (* The rewrites that read the module as LLVM's passes left it
+                  (docs/optimizations.md): constant locals made constant
+                  globals, a recursion's base case made at its self-calls,
+                  small leaves a loop calls inlined, then the frames' alias
+                  scopes (when on) and slots in registers, and the index
+                  checks merged, raised above a branch and joined over a run
+                  of offsets. *)
+               rewrite tm m "const arrays" Const_arrays.run Const_arrays.again;
+               rewrite tm m "leaf peel" Leaf_peel.run Leaf_peel.again;
+               rewrite tm m "loop inline" Loop_inline.run Loop_inline.again;
+               if Frame_scopes.on () then rewrite tm m "frame scopes" Frame_scopes.run Frame_scopes.again;
+               rewrite tm m "frame shadow" Frame_shadow.run Frame_shadow.again;
+               rewrite tm m "merged checks" Merged_checks.run Merged_checks.again;
+               rewrite tm m "arm checks" Arm_checks.run Arm_checks.again;
+               rewrite tm m "arm stores" Arm_checks.stores_run Arm_checks.stores_again;
+               rewrite tm m "range checks" Range_checks.run Range_checks.again
              end;
              (* EXPERIMENT: the optimized module, for reading. *)
              Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_OPT"))
@@ -1618,17 +1569,8 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
           String.concat "\000"
             ([ fingerprint; triple; cc; identity; compiler_identity (); Passes.tier1 ]
             @ (if thread_sanitizing () then [ "tsan" ] else [])
-            (* The experiments that rewrite tier 1 as it is prepared. *)
-            @ List.filter_map
-                (fun (name, on) -> if on () then Some name else None)
-                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on); ("arm-checks", Arm_checks.on); ("range-checks", Range_checks.on); ("rehome", fun () -> Sys.getenv_opt "ZANE_REHOME" = Some "1"); ("idle-search", Loop_shapes.idle_on); ("peel-recursion", fun () -> Sys.getenv_opt "ZANE_PEEL_RECURSION" = Some "1"); ("div-cache", Div_cache.on); ("const-arrays", Const_arrays.on); ("unroll-small", fun () -> Option.value ~default:"" (Sys.getenv_opt "ZANE_UNROLL_SMALL") <> ""); ("biased-base", fun () -> Sys.getenv_opt "ZANE_BIASED_BASE" = Some "1"); ("literal-locals", fun () -> Sys.getenv_opt "ZANE_LITERAL_LOCALS" = Some "1"); ("elem-tbaa", Elem_tbaa.on); ("leaf-peel", Leaf_peel.on); ("shadow-refill", Frame_shadow.refill_on); ("no-copy-idiom", fun () -> Sys.getenv_opt "ZANE_NO_COPY_IDIOM" = Some "1"); ("div-hoist", fun () -> Sys.getenv_opt "ZANE_DIV_HOIST" = Some "1"); ("inside-first", fun () -> Sys.getenv_opt "ZANE_INSIDE_FIRST" = Some "1"); ("shadow-split", Frame_shadow.split_on) ]
-            @ (match Sys.getenv_opt "ZANE_LOOP_INLINE" with Some n -> [ "loop-inline-" ^ n ] | None -> [])
-            @ (match Sys.getenv_opt "ZANE_LOOP_INLINE_LOOPS" with Some n -> [ "loop-inline-loops-" ^ n ] | None -> [])
-            @ (match Sys.getenv_opt "ZANE_LIST_SPANS" with Some n -> [ "list-spans-" ^ n ] | None -> [])
-            @ (match Sys.getenv_opt "ZANE_LLVM_OPTS" with Some o -> [ "llvm-opts-" ^ o ] | None -> [])
-            @ (match Sys.getenv_opt "ZANE_FRAME_SHADOW_ONLY" with Some o -> [ "shadow-only-" ^ o ] | None -> [])
-            @ (match Sys.getenv_opt "ZANE_FRAME_SHADOW_SLOTS" with Some o -> [ "shadow-slots-" ^ o ] | None -> [])
-            @ (match Sys.getenv_opt "ZANE_SHADOW_AGAIN" with Some o -> [ "shadow-again-" ^ o ] | None -> [])
+            (* The switch that rewrites tier 1 as it is prepared. *)
+            @ (if Frame_scopes.on () then [ "frame-scopes" ] else [])
             @ Passes.llvm_options)
         in
         Filename.concat (Filename.concat cache "tier")

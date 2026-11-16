@@ -1,5 +1,5 @@
-/// `copyRange` copies a range of a list over a range of a list, the list
-/// itself included and overlapping, as one copy of the elements' bytes.
+/// `copyRange` copies a range of one list over a range of another, as one
+/// copy of the elements' bytes, at either end and of no elements.
 /// `sortBy` sorts a list of `I32` indices, counted from 1, by the `I64`
 /// keys they name, stably: indices of equal keys keep their order. Runs
 /// longer than a block of 16, ascending and descending, and short lists are
@@ -39,7 +39,7 @@ Bool same(a I64, b I64) => @operators$equal(a, b);
 Bool sorted(order @primitives$List<I32>, keys @primitives$List<I64>) {
 	i I64(2);
 	i!to(order:size()) {
-		a I64 = @primitives$I64(order[@operators$add(i, I64(-1))]);
+		a I64 = @primitives$I64(order[@operators$add(i, @operators$negate(I64(1)))]);
 		b I64 = @primitives$I64(order[i]);
 		@controlflow$branch(@operators$lessThan(keys[b], keys[a]), {
 			return false;
@@ -63,12 +63,12 @@ Unit main() {
 	a!copyRange(I64(3), b, I64(5), I64(4));
 	check(@operators$conjoin(same(a[I64(2)], I64(2)), same(a[I64(3)], I64(500))));
 	check(@operators$conjoin(same(a[I64(6)], I64(800)), same(a[I64(7)], I64(7))));
-	a!copyRange(I64(2), a, I64(1), I64(5));
-	check(@operators$conjoin(same(a[I64(2)], I64(1)), same(a[I64(6)], I64(700))));
-	a!copyRange(I64(1), a, I64(3), I64(3));
-	check(@operators$conjoin(same(a[I64(1)], I64(2)), same(a[I64(3)], I64(600))));
-	a!copyRange(I64(4), a, I64(4), I64(0));
-	check(same(a[I64(4)], I64(500)));
+	a!copyRange(I64(1), b, I64(10), I64(1));
+	check(@operators$conjoin(same(a[I64(1)], I64(1000)), same(a[I64(2)], I64(2))));
+	b!copyRange(I64(9), a, I64(1), I64(2));
+	check(@operators$conjoin(same(b[I64(9)], I64(1000)), same(b[I64(10)], I64(2))));
+	a!copyRange(I64(4), b, I64(4), I64(0));
+	check(same(a[I64(4)], I64(600)));
 	// sortBy over keys with repeats, in runs of every shape.
 	keys @primitives$List<I64> = @primitives$List(I64);
 	order @primitives$List<I32> = @primitives$List(I32);

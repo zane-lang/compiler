@@ -1,9 +1,7 @@
-(* EXPERIMENT (LangArena zane-vs-c; on with ZANE_MERGE_CHECKS=1): one
-   check of an index against every list it is about to index.
+(* One check of an index against every list it is about to index.
 
    `ranks[prior]~=ranks[index] or second[prior]~=second[index]` checks
-   `prior` against `ranks`'s count and then against `second`'s, where C
-   indexes both with no check at all. A failed check stops the program
+   `prior` against `ranks`'s count and then against `second`'s. A failed check stops the program
    (`zane_out_of_range` flushes the output and exits), so where a later
    check of the same index follows an earlier one on every path, with no
    call between them that could write output, stopping at the earlier
@@ -18,7 +16,6 @@
    other branch, or the end; each check of the same index on it whose
    bound is defined above the first check is folded into the first. *)
 
-let on () = Sys.getenv_opt "ZANE_MERGE_CHECKS" = Some "1"
 
 let callee i =
   let n = Llvm.num_operands i in
@@ -108,8 +105,6 @@ let func ctx f =
      check [c0] of the same index: [c0] takes the smaller bound and [t]
      always passes. *)
   let fold c0 index c bound t passes_true =
-    if Sys.getenv_opt "ZANE_MERGE_CHECKS_DEBUG" = Some "2" then
-      Printf.eprintf "  pair in %s: above=%b same=%b\n" (Llvm.value_name f) (above bound c0) (c == c0);
     (* Only the branch may read [c0]: a changed bound would change what
        any other user sees. *)
     let only_branch =
@@ -146,12 +141,9 @@ let func ctx f =
       match Option.bind (Llvm.block_terminator b0) check with
       | None -> ()
       | Some (c0, index, _, next, _) -> follow c0 index next)
-    blocks;
-  if Sys.getenv_opt "ZANE_MERGE_CHECKS_DEBUG" = Some "1" && !merged > 0 then
-    Printf.eprintf "merged checks: %s: %d\n" (Llvm.value_name f) !merged
+    blocks
 
 let run m =
-  if on () then
     let ctx = Llvm.module_context m in
     Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then func ctx f) m
 

@@ -1,13 +1,12 @@
-(* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_STRIP=1): a counted
-   loop that indexes a small array with its counter, strip-mined, as
-   Goose's compiler strip-mines a loop indexed `i % 8`.
+(* A counted loop that indexes a small array with its counter,
+   strip-mined.
 
-   Hash::SHA256 keeps eight hashes in an `Array<I32, 8>` and updates the one
-   at `bitAnd(i-1, 7)+1` for each byte. LLVM unrolls the loop by four from
-   wherever its range-check split leaves it, so the index is never a
-   constant and the eight hashes stay in memory, each update a store and a
-   load. Goose's loop is cut into runs of eight whose index is the run's
-   own counter, so the eight hashes are eight registers.
+   A hash of eight lanes keeps them in an `Array<I32, 8>` and updates the
+   one at `bitAnd(i-1, 7)+1` for each byte (tests/perf `lanes`). LLVM
+   unrolls the loop by four from wherever its range-check split leaves it,
+   so the index is never a constant and the eight lanes stay in memory,
+   each update a store and a load. Cut into runs of eight whose index is
+   the run's own counter, the eight lanes are eight registers.
 
    A loop fits when its body ends by stepping a local counter `x` by one
    (`x = x + 1`, as `to` does), assigns `x` nowhere else, indexes an array
@@ -25,7 +24,6 @@
 
 open Cgt.Nodes
 
-let on () = Sys.getenv_opt "ZANE_STRIP" = Some "1"
 
 let budget = 400
 
@@ -159,9 +157,7 @@ let func (f : Func.t) : Func.t =
     | _ -> None
   in
   let body = Cgt.Traverse.map_stats (fun _ -> None) fs f.Func.body in
-  if !stripped > 0 && Sys.getenv_opt "ZANE_STRIP_DEBUG" = Some "1" then
-    Printf.eprintf "strip: %s: %d\n" f.Func.symbol !stripped;
   { f with body; values = f.Func.values @ !added }
 
 let program (p : Program.t) : Program.t =
-  if on () then { p with Program.funcs = List.map func p.Program.funcs } else p
+  { p with Program.funcs = List.map func p.Program.funcs }

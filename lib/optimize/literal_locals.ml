@@ -1,4 +1,4 @@
-(* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_LITERAL_LOCALS=1): a
+(* A
    local held in a scope's arena whose value folded to a string literal
    bound by a plain [Let], and the scope it leaves empty dropped.
 
@@ -19,7 +19,6 @@
 open Cgt.Nodes
 open Cgt.Traverse
 
-let on () = Sys.getenv_opt "ZANE_LITERAL_LOCALS" = Some "1"
 
 (* Runtime functions that read and check, and take or drop no owner. *)
 let reads =
@@ -77,21 +76,8 @@ let func (f : Func.t) =
       match s with
       | Stat.Scope { id; body } when Hashtbl.mem freed id && (not (holds id body)) && not (calls body) ->
           Some (map_stats (fun _ -> None) drop body)
-      | Stat.Scope { id; body } when Hashtbl.mem freed id && Sys.getenv_opt "ZANE_LITERAL_LOCALS_DEBUG" = Some "1" ->
-          let what = ref [] in
-          walk_stats
-            (fun e ->
-              match e.Expr.node with
-              | Expr.Runtime { fn; _ } when not (List.mem fn reads) -> what := Cgt.Runtime.name fn :: !what
-              | Expr.Call { fn; args } when List.exists (fun (a : Expr.t) -> owns a.Expr.ty) args -> what := fn :: !what
-              | Expr.Call_value _ | Expr.Foreign_call _ -> what := "indirect" :: !what
-              | _ -> ())
-            (function Stat.Hold { scope; _ } when scope = id -> what := "hold" :: !what | _ -> ())
-            body;
-          Printf.eprintf "literal-locals: %s scope %d kept: %s\n%!" f.Func.symbol id (String.concat ", " (List.sort_uniq compare !what));
-          None
       | _ -> None
     in
     { f with Func.body = map_stats (fun _ -> None) drop body }
 
-let program (p : Program.t) = if on () then { p with Program.funcs = List.map func p.Program.funcs } else p
+let program (p : Program.t) = { p with Program.funcs = List.map func p.Program.funcs }
