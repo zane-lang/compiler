@@ -1045,6 +1045,23 @@ let rewrite tm m name run again =
   | Ok () -> ()
   | Error e -> prerr_endline (name ^ ": " ^ e)
 
+(* The rewrites that read the optimized module as LLVM's passes left it
+   (docs/design/lowering.md, "After the passes"): constant locals made
+   constant globals, a recursion's base case made at its self-calls, small
+   leaves a loop calls inlined, then the frames' alias scopes (when on) and
+   slots in registers, and the index checks merged, raised above a branch
+   and joined over a run of offsets. *)
+let rewrites tm m =
+  rewrite tm m "const arrays" Const_arrays.run Const_arrays.again;
+  rewrite tm m "leaf peel" Leaf_peel.run Leaf_peel.again;
+  rewrite tm m "loop inline" Loop_inline.run Loop_inline.again;
+  if Frame_scopes.on () then rewrite tm m "frame scopes" Frame_scopes.run Frame_scopes.again;
+  rewrite tm m "frame shadow" Frame_shadow.run Frame_shadow.again;
+  rewrite tm m "merged checks" Merged_checks.run Merged_checks.again;
+  rewrite tm m "arm checks" Arm_checks.run Arm_checks.again;
+  rewrite tm m "arm stores" Arm_checks.stores_run Arm_checks.stores_again;
+  rewrite tm m "range checks" Range_checks.run Range_checks.again
+
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and its passes run, the optimized
    ones when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A program means the same either way
@@ -1100,24 +1117,7 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
       |> Result.map (fun () ->
-             if optimize then begin
-               (* The rewrites that read the module as LLVM's passes left it
-                  (docs/optimizations.md): constant locals made constant
-                  globals, a recursion's base case made at its self-calls,
-                  small leaves a loop calls inlined, then the frames' alias
-                  scopes (when on) and slots in registers, and the index
-                  checks merged, raised above a branch and joined over a run
-                  of offsets. *)
-               rewrite tm m "const arrays" Const_arrays.run Const_arrays.again;
-               rewrite tm m "leaf peel" Leaf_peel.run Leaf_peel.again;
-               rewrite tm m "loop inline" Loop_inline.run Loop_inline.again;
-               if Frame_scopes.on () then rewrite tm m "frame scopes" Frame_scopes.run Frame_scopes.again;
-               rewrite tm m "frame shadow" Frame_shadow.run Frame_shadow.again;
-               rewrite tm m "merged checks" Merged_checks.run Merged_checks.again;
-               rewrite tm m "arm checks" Arm_checks.run Arm_checks.again;
-               rewrite tm m "arm stores" Arm_checks.stores_run Arm_checks.stores_again;
-               rewrite tm m "range checks" Range_checks.run Range_checks.again
-             end;
+             if optimize then rewrites tm m;
              (* EXPERIMENT: the optimized module, for reading. *)
              Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_OPT"))
       |> Fun.flip Result.bind (fun () -> finish_tier m ~hash exports definitions)

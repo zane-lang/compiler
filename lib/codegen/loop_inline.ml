@@ -81,56 +81,43 @@ let ours f =
   let rec has i = i + 3 <= String.length n && (String.sub n i 3 = "%c$" || has (i + 1)) in
   String.contains n '$' && not (has 0)
 
+(* A defined function's size, when it is a leaf of the program with no
+   cycle of its own: every call it makes is to one of LLVM's intrinsics or
+   to a function that does not return. *)
+let leaf_size f =
+  let counted acc i =
+    if not (is_call i) then acc + 1
+    else
+      match callee i with
+      | Some c when String.starts_with ~prefix:"llvm." (Llvm.value_name c) || noreturn c -> acc + 1
+      | _ -> raise Exit
+  in
+  if Llvm.is_declaration f || (not (ours f)) || Hashtbl.length (cyclic f) > 0 then None
+  else try Some (Llvm.fold_left_blocks (fun acc bb -> Llvm.fold_left_instrs counted acc bb) 0 f) with Exit -> None
+
 let run m =
-  (* A defined function's size, when it is a leaf of the program with no
-     cycle of its own. *)
   let sizes = Hashtbl.create 64 in
   let size f =
     match Hashtbl.find_opt sizes f with
     | Some s -> s
     | None ->
-        let s =
-          if Llvm.is_declaration f || (not (ours f)) || Hashtbl.length (cyclic f) > 0 then None
-          else
-            try
-              Some
-                (Llvm.fold_left_blocks
-                   (fun acc bb ->
-                     Llvm.fold_left_instrs
-                       (fun acc i ->
-                         if is_call i then
-                           match callee i with
-                           | Some c when String.starts_with ~prefix:"llvm." (Llvm.value_name c) -> acc + 1
-                           | Some c when noreturn c -> acc + 1
-                           | _ -> raise Exit
-                         else acc + 1)
-                       acc bb)
-                   0 f)
-            with Exit -> None
-        in
+        let s = leaf_size f in
         Hashtbl.replace sizes f s;
         s
   in
   let always = Llvm.create_enum_attr (Llvm.module_context m) "alwaysinline" 0L in
+  (* A call [i] in [f] to a small leaf made always inlined. *)
+  let mark f i =
+    match if is_call i then callee i else None with
+    | Some c when c != f -> (
+        match size c with Some s when s <= budget -> Llvm.add_call_site_attr i always Llvm.AttrIndex.Function | _ -> ())
+    | _ -> ()
+  in
   Llvm.iter_functions
     (fun f ->
-      if (not (Llvm.is_declaration f)) && ours f then begin
+      if (not (Llvm.is_declaration f)) && ours f then
         let inside = cyclic f in
-        Llvm.iter_blocks
-          (fun bb ->
-            if Hashtbl.mem inside bb then
-              Llvm.iter_instrs
-                (fun i ->
-                  if is_call i then
-                    match callee i with
-                    | Some c when c != f -> (
-                        match size c with
-                        | Some s when s <= budget -> Llvm.add_call_site_attr i always Llvm.AttrIndex.Function
-                        | _ -> ())
-                    | _ -> ())
-                bb)
-          f
-      end)
+        Llvm.iter_blocks (fun bb -> if Hashtbl.mem inside bb then Llvm.iter_instrs (mark f) bb) f)
     m
 
 let again =

@@ -28,6 +28,21 @@ let split v =
       | None, None -> (v, 0L))
   | _ -> (v, 0L)
 
+(* Whether block [b], ending in [t], runs nothing but inert calls, pure
+   arithmetic, loads and stores. *)
+let calm b t =
+  let rec scan = function
+    | Llvm.Before i when i == t -> true
+    | Llvm.Before i when Llvm.instr_opcode i = Llvm.Opcode.Call -> (
+        match Merged_checks.callee i with Some n when Merged_checks.inert n -> scan (Llvm.instr_succ i) | _ -> false)
+    | Llvm.Before i -> (
+        match Llvm.instr_opcode i with
+        | Llvm.Opcode.Invoke | Llvm.Opcode.Fence | Llvm.Opcode.AtomicCmpXchg | Llvm.Opcode.AtomicRMW -> false
+        | _ -> scan (Llvm.instr_succ i))
+    | Llvm.At_end _ -> false
+  in
+  scan (Llvm.instr_begin b)
+
 let func ctx f =
   let dom = lazy (Frame_shadow.dominators f) in
   let above v at =
@@ -37,7 +52,6 @@ let func ctx f =
         if vb == ab then Frame_shadow.before v at else (Lazy.force dom) vb ab
     | _ -> true
   in
-  let folded = ref 0 in
   let done_ = Hashtbl.create 16 in
   let blocks = Llvm.fold_left_blocks (fun acc b -> b :: acc) [] f |> List.rev in
   List.iter
@@ -53,28 +67,14 @@ let func ctx f =
           let rec follow b steps =
             if steps > 0 && Merged_checks.single_pred b then
               let t = Option.get (Llvm.block_terminator b) in
-              let calm =
-                let rec scan = function
-                  | Llvm.Before i when i == t -> true
-                  | Llvm.Before i when Llvm.instr_opcode i = Llvm.Opcode.Call -> (
-                      match Merged_checks.callee i with
-                      | Some n when Merged_checks.inert n -> scan (Llvm.instr_succ i)
-                      | _ -> false)
-                  | Llvm.Before i -> (
-                      match Llvm.instr_opcode i with
-                      | Llvm.Opcode.Invoke | Llvm.Opcode.Fence | Llvm.Opcode.AtomicCmpXchg | Llvm.Opcode.AtomicRMW -> false
-                      | _ -> scan (Llvm.instr_succ i))
-                  | Llvm.At_end _ -> false
-                in
-                scan (Llvm.instr_begin b)
-              in
+              let calm = calm b t in
               if calm then
                 match Merged_checks.check t with
                 | Some (c, i, bound, cont, passes) ->
                     let bi, k = split i in
                     if bi == base && bound == bound0 && c != c0 then begin
-                      if k < !lo then lo := k;
-                      if k > !hi then hi := k;
+                      lo := min !lo k;
+                      hi := max !hi k;
                       later := (t, passes) :: !later
                     end;
                     follow cont (steps - 1)
@@ -98,7 +98,6 @@ let func ctx f =
             List.iter
               (fun (t, passes) -> Llvm.set_operand t 0 (Llvm.const_int (Llvm.i1_type ctx) (if passes then 1 else 0)))
               !later;
-            incr folded
           end)
       | _ -> ())
     blocks
@@ -126,31 +125,31 @@ let shifted v =
       | None -> None)
   | _ -> None
 
+(* For an exit test `icmp eq (add phi, 1), e`, where the phi starts at 0
+   and steps by one, the phi and [e] as [shifted] reads it. *)
+let counter_end i =
+  if Llvm.instr_opcode i <> Llvm.Opcode.ICmp || Llvm.icmp_predicate i <> Some Llvm.Icmp.Eq then None
+  else
+    let x = Llvm.operand i 0 and e = Llvm.operand i 1 in
+    match Llvm.classify_value x with
+    | Llvm.ValueKind.Instruction Llvm.Opcode.Add when Llvm.int64_of_const (Llvm.operand x 1) = Some 1L ->
+        let phi = Llvm.operand x 0 in
+        let starts_and_steps () =
+          let inc = Llvm.incoming phi in
+          List.length inc = 2
+          && List.exists (fun (v, _) -> Llvm.int64_of_const v = Some 0L) inc
+          && List.for_all (fun (v, _) -> Llvm.int64_of_const v = Some 0L || v == x) inc
+        in
+        if Llvm.classify_value phi = Llvm.ValueKind.Instruction Llvm.Opcode.PHI && starts_and_steps () then
+          Option.map (fun sh -> (phi, sh)) (shifted e)
+        else None
+    | _ -> None
+
 let exits ctx f =
-  let folded = ref 0 in
   (* Each counter: a phi of 0 and its own plus one, and the end its latch
      leaves at. *)
   let ends = Hashtbl.create 8 in
-  Llvm.iter_blocks
-    (fun b ->
-      Llvm.iter_instrs
-        (fun i ->
-          if Llvm.instr_opcode i = Llvm.Opcode.ICmp && Llvm.icmp_predicate i = Some Llvm.Icmp.Eq then
-            let x = Llvm.operand i 0 and e = Llvm.operand i 1 in
-            match Llvm.classify_value x with
-            | Llvm.ValueKind.Instruction Llvm.Opcode.Add when Llvm.int64_of_const (Llvm.operand x 1) = Some 1L -> (
-                let phi = Llvm.operand x 0 in
-                match Llvm.classify_value phi with
-                | Llvm.ValueKind.Instruction Llvm.Opcode.PHI ->
-                    let inc = Llvm.incoming phi in
-                    let from_zero = List.exists (fun (v, _) -> Llvm.int64_of_const v = Some 0L) inc in
-                    let steps = List.for_all (fun (v, _) -> Llvm.int64_of_const v = Some 0L || v == x) inc in
-                    if from_zero && steps && List.length inc = 2 then
-                      Option.iter (fun sh -> Hashtbl.replace ends phi sh) (shifted e)
-                | _ -> ())
-            | _ -> ())
-        b)
-    f;
+  Llvm.iter_blocks (fun b -> Llvm.iter_instrs (fun i -> Option.iter (fun (phi, sh) -> Hashtbl.replace ends phi sh) (counter_end i)) b) f;
   Llvm.iter_blocks
     (fun b ->
       match Llvm.block_terminator b with
@@ -163,16 +162,15 @@ let exits ctx f =
               let if_true = Llvm.block_of_value (Llvm.operand t 2) in
               match (Hashtbl.find_opt ends x, shifted a) with
               | Some (n, j, s), Some (n', k, s') when n == n' && s = s' && j <= k && Merged_checks.stops if_true ->
-                  Llvm.set_operand t 0 (Llvm.const_int (Llvm.i1_type ctx) 0);
-                  incr folded
+                  Llvm.set_operand t 0 (Llvm.const_int (Llvm.i1_type ctx) 0)
               | _ -> ())
           | _ -> ())
       | _ -> ())
     f
 
 let run m =
-    let ctx = Llvm.module_context m in
-    Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then (func ctx f; exits ctx f)) m
+  let ctx = Llvm.module_context m in
+  Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then (func ctx f; exits ctx f)) m
 
 let again =
   "function(instcombine<no-verify-fixpoint>,simplifycfg,slp-vectorizer,vector-combine,instcombine<no-verify-fixpoint>,simplifycfg)"

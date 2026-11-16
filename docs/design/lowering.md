@@ -1839,9 +1839,8 @@ test passing.
   a stop earlier on a path where no call writes output in between is not
   seen outside the program (§10 of
   [`spec-divergences.md`](../spec-divergences.md) says what a stop is).
-  The emitted code itself also takes, in every build: an element's
-  address from `base + index * stride` back one element, so the index's
-  `- 1` is off the address chain; a scalar's alias tag by its size, so a
+  The emitted code itself also takes, in every build: a scalar's alias
+  tag by its size, so a
   one-byte store leaves the wider scalars read around it in registers; and
   a constant count from 2 to 8 marked to be unrolled whole. An optimized
   build's loop whose pushes were given their room before it reads the

@@ -47,6 +47,17 @@ let rec bytes_of dl c =
       Bytes.to_string b
   | _ -> raise No
 
+(* The bytes [b] written into [image] at [o], whose [written] bytes must
+   already hold them, within [size] bytes. *)
+let paint image written size o b =
+  if o < 0 || o + String.length b > size then raise No;
+  String.iteri
+    (fun k ch ->
+      if written.(o + k) && Bytes.get image (o + k) <> ch then raise No;
+      written.(o + k) <- true;
+      Bytes.set image (o + k) ch)
+    b
+
 let callee i =
   let n = Llvm.num_operands i in
   let f = Llvm.operand i (n - 1) in
@@ -75,15 +86,7 @@ let func m dl f =
                 let v = Llvm.operand i 0 in
                 match off with
                 | Some o when Llvm.is_constant v && not (Llvm.is_volatile i) ->
-                    let b = bytes_of dl v in
-                    let o = Int64.to_int o in
-                    if o < 0 || o + String.length b > size then raise No;
-                    String.iteri
-                      (fun k ch ->
-                        if written.(o + k) && Bytes.get image (o + k) <> ch then raise No;
-                        written.(o + k) <- true;
-                        Bytes.set image (o + k) ch)
-                      b;
+                    paint image written size (Int64.to_int o) (bytes_of dl v);
                     stores := i :: !stores
                 | _ -> raise No)
             | Llvm.ValueKind.Instruction Llvm.Opcode.Call -> (

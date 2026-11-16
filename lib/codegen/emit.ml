@@ -555,16 +555,7 @@ let element ?cached ?(unchecked = false) env fr b fn args =
     | _ -> Diagnostic.bug "codegen: an element address with the wrong arguments"
   in
   let offset = Llvm.build_sub index (Llvm.const_int env.i64 1) "" b in
-  (* The address is [base + index * stride] less one element, so the
-     index less one that the check compares is not on the way to the
-     address: an index loaded from memory (a tree's child, a graph's
-     neighbor) is scaled and added to a base the loop does not change, and
-     LLVM folds the element back into the load's displacement. The first
-     step reaches at most one past the block's end, so both are in bounds. *)
-  let address () =
-    let i8 = Llvm.i8_type env.ctx in
-    let past = Llvm.build_in_bounds_gep i8 base [| Llvm.build_nsw_mul index stride "" b |] "" b in
-    Llvm.build_in_bounds_gep i8 past [| Llvm.build_neg stride "" b |] "" b
+  let address () = Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| Llvm.build_nsw_mul offset stride "" b |] "" b
   in
   if unchecked then address ()
   else
@@ -1654,7 +1645,8 @@ and stat env fr b (s : Stat.t) =
              loop's checks make each push conditional, which keeps LICM
              from promoting the count itself. A plain build reads it again
              at each push. *)
-          let count = if env.version then Some (List_handle.count ~tag env.ctx b list) else None in
+          let short = match Llvm.int64_of_const n with Some c -> Int64.compare c 64L <= 0 | None -> false in
+          let count = if env.version && not short then Some (List_handle.count ~tag env.ctx b list) else None in
           let f, fty = runtime env Cgt.Runtime.List_room in
           ignore (Llvm.build_call fty f [| list; Llvm.const_int env.i64 (Int64.to_int stride); n |] "" b);
           Hashtbl.replace fr.runs id (Room max_int);
