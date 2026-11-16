@@ -105,51 +105,106 @@ let func ctx f =
 (* The second form, as LLVM leaves a strip-mined loop's checks: a check
    made an exit test `icmp eq b, (n + k) >> s` by the loop passes, where
    the loop's counter `b` starts at 0, steps by one and leaves the loop
-   when `b + 1 == n >> s` (or `(n + j) >> s`, j <= k). Inside the loop `b`
-   is below the loop's end, which is no more than the tested value, so the
-   test never holds and the stop is never reached. *)
+   when `b + 1 == (n + j) >> s`, j <= k, and is entered only when
+   `n >= 2^s`, so that end is at least one. Every use of `b` is in the loop
+   or after it, where `b` is below that end, which is no more than the
+   tested value since neither sum wraps (`nuw`); so the test never holds
+   and the stop is never reached. *)
 let shifted v =
   (* [v] as (n, k, s) for `lshr (add nuw n, k), s` or `lshr n, s`. *)
   match Llvm.classify_value v with
   | Llvm.ValueKind.Instruction Llvm.Opcode.LShr -> (
       match Llvm.int64_of_const (Llvm.operand v 1) with
-      | Some sh ->
+      | Some sh when sh >= 0L && sh < 63L ->
           let x = Llvm.operand v 0 in
           let n, k =
             match Llvm.classify_value x with
-            | Llvm.ValueKind.Instruction Llvm.Opcode.Add -> (
+            | Llvm.ValueKind.Instruction Llvm.Opcode.Add when Llvm_extra.has_nuw x -> (
                 match Llvm.int64_of_const (Llvm.operand x 1) with Some k when k >= 0L -> (Llvm.operand x 0, k) | _ -> (x, 0L))
             | _ -> (x, 0L)
           in
           Some (n, k, sh)
-      | None -> None)
+      | _ -> None)
   | _ -> None
 
-(* For an exit test `icmp eq (add phi, 1), e`, where the phi starts at 0
-   and steps by one, the phi and [e] as [shifted] reads it. *)
+(* Whether the branch [t] leads to [into] only when [n] is at least [low]:
+   it tests [n], or a value [n] widens with `zext`, against a constant, on
+   the edge to [into]. *)
+let at_least t into n low =
+  Llvm.num_operands t = 3
+  &&
+  let c = Llvm.operand t 0 in
+  let taken = Llvm.block_of_value (Llvm.operand t 2) == into in
+  let not_taken = Llvm.block_of_value (Llvm.operand t 1) == into in
+  match (Llvm.classify_value c, Llvm.icmp_predicate c) with
+  | Llvm.ValueKind.Instruction Llvm.Opcode.ICmp, Some p when taken <> not_taken -> (
+      let a = Llvm.operand c 0 in
+      let names_n =
+        a == n
+        || (Llvm.classify_value n = Llvm.ValueKind.Instruction Llvm.Opcode.ZExt && Llvm.operand n 0 == a)
+      in
+      match Llvm.int64_of_const (Llvm.operand c 1) with
+      | Some k when names_n && k >= 0L -> (
+          (* The smallest [a] the edge allows. *)
+          let least =
+            match (p, taken) with
+            | Llvm.Icmp.Uge, true | Llvm.Icmp.Ult, false -> Some k
+            | Llvm.Icmp.Ugt, true | Llvm.Icmp.Ule, false -> Some (Int64.add k 1L)
+            | Llvm.Icmp.Ne, true | Llvm.Icmp.Eq, false when k = 0L -> Some 1L
+            | _ -> None
+          in
+          match least with Some l -> Int64.compare l low >= 0 | None -> false)
+      | _ -> false)
+  | _ -> false
+
+(* For the exit test `icmp eq (add phi, 1), e` of a loop: the test's only
+   use is the branch ending the latch, whose other edge goes back to the
+   phi's block; the phi starts at 0 from a block that enters the loop only
+   when [e]'s `n` is at least 2^s, and steps by one from the latch. The
+   phi and [e] as [shifted] reads it. *)
 let counter_end i =
   if Llvm.instr_opcode i <> Llvm.Opcode.ICmp || Llvm.icmp_predicate i <> Some Llvm.Icmp.Eq then None
   else
     let x = Llvm.operand i 0 and e = Llvm.operand i 1 in
-    match Llvm.classify_value x with
-    | Llvm.ValueKind.Instruction Llvm.Opcode.Add when Llvm.int64_of_const (Llvm.operand x 1) = Some 1L ->
+    let latch_branch =
+      match Llvm.use_begin i with
+      | Some u when Llvm.use_succ u = None ->
+          let t = Llvm.user u in
+          if Llvm.instr_opcode t = Llvm.Opcode.Br && Llvm.num_operands t = 3 && Llvm.operand t 0 == i then Some t else None
+      | _ -> None
+    in
+    match (Llvm.classify_value x, latch_branch, shifted e) with
+    | Llvm.ValueKind.Instruction Llvm.Opcode.Add, Some t, Some ((n, _, sh) as ends)
+      when Llvm.int64_of_const (Llvm.operand x 1) = Some 1L ->
         let phi = Llvm.operand x 0 in
-        let starts_and_steps () =
-          let inc = Llvm.incoming phi in
-          List.length inc = 2
-          && List.exists (fun (v, _) -> Llvm.int64_of_const v = Some 0L) inc
-          && List.for_all (fun (v, _) -> Llvm.int64_of_const v = Some 0L || v == x) inc
+        let latch = Llvm.instr_parent t in
+        let is_phi = Llvm.classify_value phi = Llvm.ValueKind.Instruction Llvm.Opcode.PHI in
+        let header = if is_phi then Some (Llvm.instr_parent phi) else None in
+        let entered =
+          match (header, Llvm.incoming phi) with
+          | Some h, [ (v0, p0); (v1, p1) ] ->
+              let from_entry, from_latch =
+                if Llvm.int64_of_const v0 = Some 0L then ((v0, p0), (v1, p1)) else ((v1, p1), (v0, p0))
+              in
+              let (start, entry), (step, back) = (from_entry, from_latch) in
+              Llvm.int64_of_const start = Some 0L
+              && step == x && back == latch && entry != latch
+              && Llvm.block_of_value (Llvm.operand t 1) == h
+              && Llvm.block_of_value (Llvm.operand t 2) != h
+              && (match Llvm.block_terminator entry with Some g -> at_least g h n (Int64.shift_left 1L (Int64.to_int sh)) | None -> false)
+          | _ -> false
         in
-        if Llvm.classify_value phi = Llvm.ValueKind.Instruction Llvm.Opcode.PHI && starts_and_steps () then
-          Option.map (fun sh -> (phi, sh)) (shifted e)
-        else None
+        if entered then Some (phi, ends) else None
     | _ -> None
 
 let exits ctx f =
-  (* Each counter: a phi of 0 and its own plus one, and the end its latch
-     leaves at. *)
+  (* Each counter with its one exit test: the end its latch leaves at.
+     A counter with two such tests is left alone. *)
   let ends = Hashtbl.create 8 in
-  Llvm.iter_blocks (fun b -> Llvm.iter_instrs (fun i -> Option.iter (fun (phi, sh) -> Hashtbl.replace ends phi sh) (counter_end i)) b) f;
+  let record (phi, sh) =
+    Hashtbl.replace ends phi (if Hashtbl.mem ends phi then None else Some sh)
+  in
+  Llvm.iter_blocks (fun b -> Llvm.iter_instrs (fun i -> Option.iter record (counter_end i)) b) f;
   Llvm.iter_blocks
     (fun b ->
       match Llvm.block_terminator b with
@@ -161,7 +216,7 @@ let exits ctx f =
               (* The stop is where the test holding leads. *)
               let if_true = Llvm.block_of_value (Llvm.operand t 2) in
               match (Hashtbl.find_opt ends x, shifted a) with
-              | Some (n, j, s), Some (n', k, s') when n == n' && s = s' && j <= k && Merged_checks.stops if_true ->
+              | Some (Some (n, j, s)), Some (n', k, s') when n == n' && s = s' && j <= k && Merged_checks.stops if_true ->
                   Llvm.set_operand t 0 (Llvm.const_int (Llvm.i1_type ctx) 0)
               | _ -> ())
           | _ -> ())

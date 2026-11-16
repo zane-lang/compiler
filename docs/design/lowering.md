@@ -42,12 +42,7 @@ The bindings are LLVM's own, a copy of LLVM 21.1.8's `llvm/bindings/ocaml`
 at `vendor/llvm-ocaml`, built with the compiler (`lib/llvm`) against the
 environment's LLVM 21 on every platform (`pixi.toml`). The build refuses any
 other LLVM (`lib/llvm/config/discover.ml`), since the bindings and the
-compiler's C++ stubs are written against LLVM 21's interfaces. The copy
-differs from LLVM's in one place: `caml_alloc_tuple_uninit` in
-`llvm/llvm_ocaml.c`, which makes the arrays the bindings return, gives
-the shared empty block for an empty array. OCaml 5 has no zero-sized young
-block, and one made anyway is moved by the next minor collection as if it
-had a field, which overwrites the word after it.
+compiler's C++ stubs are written against LLVM 21's interfaces.
 
 The module's text is LLVM's to print and changes between releases, so the
 tests read the CGT and what a built program writes instead (§7).
@@ -1838,8 +1833,9 @@ test passing.
     (`Merged_checks`); a check both arms of a branch begin with is made
     once above the branch, and the arms' stores of one address are sunk
     into one store (`Arm_checks`); the checks of `x`, `x + 1`, … `x + k`
-    on one path become one check of the lowest and one of the highest
-    (`Range_checks`).
+    on one path become one check of the lowest and one of the highest,
+    and in a strip-mined loop an exit test the loop's own counter can
+    never meet is removed (`Range_checks`).
 
   A failed check stops the program after flushing its output, so moving
   a stop earlier on a path where no call writes output in between is not

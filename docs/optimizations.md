@@ -654,9 +654,10 @@ nowhere else), and the list header the runtime's growth writes.
 - **Effect:** `tests/perf` `pairs` (one index into two parallel lists)
   takes 4.3% more estimated cycles optimized without the merge, `merges`
   (a merge step storing to `work[k]` in either arm) 11% more tiered
-  without the check raised above the branch, and `windows` (four
+  without the check raised above the branch, `windows` (four
   neighbouring elements read at once) 2.7% more tiered without the run's
-  checks joined
+  checks joined, and `digest` (a strip-mined hash of eight lanes) 71% more
+  optimized with its copies' exit tests left in
 
 A failed check stops the program after flushing its output, so where a
 later check of the same index follows an earlier one on a straight path
@@ -664,7 +665,11 @@ with no call that could write output between, the earlier one takes the
 smaller of the two bounds and the later one goes. A check both arms of a
 branch begin with is made once above it, after which LLVM makes the arms'
 stores one store of a select. The checks of `x`, `x + 1`, ... `x + k` on
-one path become one check of the lowest and one of the highest.
+one path become one check of the lowest and one of the highest. In a
+strip-mined loop, an index check LLVM has made the exit test
+`b == (n + k) >> s`, against a counter that starts at 0, steps by one,
+leaves at `b + 1 == (n + j) >> s` with `j <= k` and is entered only when
+that end is at least one, can never hold and is removed.
 
 ### LLVM's `-O2` pipeline
 

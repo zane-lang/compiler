@@ -2,7 +2,8 @@
    variable placed in a COMDAT of its own name
    (docs/design/separate-compilation.md C4), a loop's `llvm.loop` node,
    which names itself, an assumption that carries operand bundles, a target triple in LLVM's
-   normal form, an access made atomic at any ordering, a fence, an array type whose length takes more
+   normal form, an access made atomic at any ordering, whether arithmetic
+   is marked `nuw`, a fence, an array type whose length takes more
    than 32 bits, an attribute that carries a type, such as `sret`, a
    function's own type, and the type an `alloca` makes room for. And arrays
    the bindings do give, but wrongly when empty: their `param_types`,
@@ -41,6 +42,7 @@ extern char *LLVMNormalizeTargetTriple(const char *triple);
 extern void LLVMDisposeMessage(char *message);
 extern void LLVMSetOrdering(LLVMValueRef access, int ordering);
 extern int LLVMGetOrdering(LLVMValueRef access);
+extern int LLVMGetNUW(LLVMValueRef arith);
 extern LLVMTypeRef LLVMGetGEPSourceElementType(LLVMValueRef gep);
 extern unsigned LLVMGetEnumAttributeKindForName(const char *name, size_t length);
 extern LLVMAttributeRef LLVMGetEnumAttributeAtIndex(LLVMValueRef f, unsigned index, unsigned kind);
@@ -148,6 +150,11 @@ value zane_set_atomic(value access, value ordering) {
 value zane_is_atomic(value access) {
   CAMLparam1(access);
   CAMLreturn(Val_bool(LLVMGetOrdering((LLVMValueRef)from_val(access)) != 0));
+}
+
+value zane_has_nuw(value arith) {
+  CAMLparam1(arith);
+  CAMLreturn(Val_bool(LLVMGetNUW((LLVMValueRef)from_val(arith)) != 0));
 }
 
 value zane_fence(value type, value block, value ordering) {
