@@ -1804,6 +1804,34 @@ let light_references () =
   check "a scope of scalars is light, unless switched off" (Codegen__Loop_shapes.light 1 [ scalar ] = on);
   check "not when it stores a reference" (Codegen__Loop_shapes.light 1 [ stored ] = (on && not (Cgt.Ref32.frames ())))
 
+(* An empty array the LLVM bindings return (a function's attributes at a
+   parameter that has none, an empty struct's element types) is the shared
+   empty block, so a minor collection, which moves young blocks, leaves it
+   and the blocks made around it as they were. A zero-sized young block
+   made each collection overwrite the word after it: `keeps_none` in
+   Frame_shadow asks for every call's parameters' attributes, and tier 1
+   of `byteSets` crashed. *)
+let empty_binding_arrays () =
+  let ctx = Llvm.create_context () in
+  let m = Llvm.create_module ctx "empty" in
+  let i64 = Llvm.i64_type ctx in
+  let f = Llvm.define_function "f" (Llvm.function_type (Llvm.void_type ctx) [| i64; i64 |]) m in
+  let empty = Llvm.struct_type ctx [||] in
+  let made = ref [] in
+  for k = 1 to 20_000 do
+    let attrs = Llvm.function_attrs f (Llvm.AttrIndex.Param (k mod 2)) in
+    let types = Llvm.struct_element_types empty in
+    made := (attrs, types, ref k) :: !made
+  done;
+  Gc.minor ();
+  Gc.full_major ();
+  let intact =
+    List.for_all (fun (attrs, types, k) -> Array.length attrs = 0 && Array.length types = 0 && !k >= 1 && !k <= 20_000) !made
+  in
+  check "empty arrays from the LLVM bindings survive a collection" intact;
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx
+
 let () =
   ty ();
   Traversals.run check;
@@ -1877,6 +1905,7 @@ let () =
   Loops.searches ();
   traverse_leaves ();
   light_references ();
+  empty_binding_arrays ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1

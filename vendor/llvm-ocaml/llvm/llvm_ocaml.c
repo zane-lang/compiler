@@ -36,7 +36,13 @@ value caml_alloc_some(value v) {
 #endif
 
 value caml_alloc_tuple_uninit(mlsize_t wosize) {
-  if (wosize <= Max_young_wosize) {
+  /* Zane: an empty tuple is the shared empty block. OCaml 5 has no
+     zero-sized young block: one made by caml_alloc_small is moved by the
+     next minor collection as if it had a field, which overwrites the word
+     after it (docs/design/lowering.md, L2). */
+  if (wosize == 0) {
+    return Atom(0);
+  } else if (wosize <= Max_young_wosize) {
     return caml_alloc_small(wosize, 0);
   } else {
     return caml_alloc_shr(wosize, 0);
