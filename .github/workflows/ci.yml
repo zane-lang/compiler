@@ -93,9 +93,7 @@ jobs:
         continue-on-error: true
         run: |
           pixi run dune build bin/zanec/zanec.exe 2>&1 | tail -3
-          lscpu | head -20 || true
-          pixi run gdb -batch -ex run -ex bt -ex 'info registers rip' --args _build/default/bin/zanec/zanec.exe --tier-up /tmp/b.tier1 --package tests/codegen/fixtures/byteSets 2>&1 | tail -60 \
-            || gdb -batch -ex run -ex bt --args _build/default/bin/zanec/zanec.exe --tier-up /tmp/b.tier1 --package tests/codegen/fixtures/byteSets 2>&1 | tail -60
+          pixi run valgrind --error-limit=no _build/default/bin/zanec/zanec.exe --tier-up /tmp/b.tier1 --package tests/codegen/fixtures/byteSets 2>&1 | grep -v 'set address range' | tail -80
 
       # Preserve the full build and generated-file freshness check.
       - name: Build
