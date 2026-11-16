@@ -407,6 +407,14 @@ map_lit:
   | args=positional_constructor_args { args }
   | args=field_constructor_args { args }
 
+(* A method's subject: its type, or `this S Type`, which introduces the type
+   parameter `S` as the subject's whole type (spec generics.md §3.7). Two
+   productions rather than an optional `Type`, whose empty match would meet
+   the empty parameter list in one state. *)
+%inline method_subject:
+  | THIS this_type=type_expr { (this_type, false) }
+  | THIS this_type=type_expr UTYPE { (this_type, true) }
+
 (* A named type after the binder either is the field's own type or introduces an
    inferred type parameter. Constructor fields and parameters spell that pair the
    same way, so both take it from here. *)
@@ -577,7 +585,7 @@ body_decl(body_form):
            (verb_decl $loc
               (Nodes.Verb_decl.Func { name; params; ret_type; body })))
     }
-  | ret_type=ret_type name=lname LPAREN THIS this_type=type_expr this_introduces=boption(UTYPE)
+  | ret_type=ret_type name=lname LPAREN subject=method_subject
     params=loption(preceded(COMMA, separated_nonempty_list(COMMA, param)))
     RPAREN is_mut=boption(MUT) body=body_form {
       decl $loc
@@ -585,8 +593,8 @@ body_decl(body_form):
            (verb_decl $loc
               (Nodes.Verb_decl.Meth {
                 name;
-                this_type;
-                this_introduces;
+                this_type = fst subject;
+                this_introduces = snd subject;
                 params;
                 ret_type;
                 is_mut;
