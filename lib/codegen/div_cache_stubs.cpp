@@ -71,8 +71,8 @@ extern "C" value zane_div_cache(value fv) {
     bool rem = op->getOpcode() == llvm::Instruction::SRem;
     llvm::Value *x = op->getOperand(0), *d = op->getOperand(1);
     /* EXPERIMENT (ZANE_DIV_HOIST=1): a divisor the loop does not change
-       has its multiplier and shift made once, before the outermost loop
-       that does not change it, and no cache: ArithEncode's `total`, once
+       is looked up in its cache once, before the outermost loop that does
+       not change it, rather than at each division: ArithEncode's `total`, once
        the frame's slots stay in registers across the bit writer's push
        (ZANE_SHADOW_REFILL). `zane_div_magic` gives `more` 255 for 0 and 1,
        as for -1 after the absolute value, which then divide the plain way. */
@@ -89,11 +89,38 @@ extern "C" value zane_div_cache(value fv) {
       fprintf(stderr, "div cache: %s: %s\n", f->getName().str().c_str(),
               !outer ? "cached" : preheader ? "hoisted" : "no preheader");
     if (preheader) {
-      llvm::IRBuilder<> pre(preheader->getTerminator());
-      auto *neg = pre.CreateICmpSLT(d, llvm::ConstantInt::get(i64, 0));
-      auto *ad = pre.CreateSelect(neg, pre.CreateNeg(d), d);
-      auto *r = pre.CreateCall(magic, {ad});
-      llvm::Value *mu = pre.CreateExtractValue(r, 0), *mo = pre.CreateExtractValue(r, 1);
+      /* The cache's protocol, made once per entry to the loop rather than
+         at each division: making the multiplier is itself a division, and
+         a loop entered often for few passes would pay it at each entry. */
+      auto *seen = entry.CreateAlloca(i64, nullptr, "div.d");
+      auto *mul = entry.CreateAlloca(i64, nullptr, "div.m");
+      auto *more = entry.CreateAlloca(i64, nullptr, "div.more");
+      entry.CreateStore(llvm::ConstantInt::get(i64, 0), seen);
+      entry.CreateStore(llvm::ConstantInt::get(i64, 0), mul);
+      entry.CreateStore(llvm::ConstantInt::get(i64, 255), more);
+      llvm::Instruction *at = preheader->getTerminator();
+      llvm::IRBuilder<> pre(at);
+      auto *same = pre.CreateICmpEQ(d, pre.CreateLoad(i64, seen));
+      llvm::Instruction *sameT = nullptr, *newT = nullptr;
+      llvm::SplitBlockAndInsertIfThenElse(same, at->getIterator(), &sameT, &newT);
+      {
+        llvm::IRBuilder<> n(newT);
+        n.CreateStore(d, seen);
+        n.CreateStore(llvm::ConstantInt::get(i64, 254), more);
+      }
+      {
+        llvm::IRBuilder<> s(sameT);
+        auto *pending = s.CreateICmpEQ(s.CreateLoad(i64, more), llvm::ConstantInt::get(i64, 254));
+        llvm::Instruction *fresh = llvm::SplitBlockAndInsertIfThen(pending, sameT->getIterator(), false);
+        llvm::IRBuilder<> g(fresh);
+        auto *neg = g.CreateICmpSLT(d, llvm::ConstantInt::get(i64, 0));
+        auto *ad = g.CreateSelect(neg, g.CreateNeg(d), d);
+        auto *r = g.CreateCall(magic, {ad});
+        g.CreateStore(g.CreateExtractValue(r, 0), mul);
+        g.CreateStore(g.CreateExtractValue(r, 1), more);
+      }
+      pre.SetInsertPoint(at);
+      llvm::Value *mu = pre.CreateLoad(i64, mul), *mo = pre.CreateLoad(i64, more);
       llvm::IRBuilder<> b(op);
       auto *plain = b.CreateICmpUGE(mo, llvm::ConstantInt::get(i64, 254));
       llvm::Instruction *thenT = nullptr, *elseT = nullptr;
