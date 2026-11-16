@@ -587,7 +587,7 @@ let idle_counter body =
 
 let searches body =
   Cgt.Traverse.leaves body
-  && (not (Cgt.Traverse.exists_in body ~expr:(fun _ -> false) ~stat:(function Stat.Repeat _ -> true | _ -> false)))
+  && (not (Cgt.Traverse.exists_in body ~expr:(fun _ -> false) ~stat:(function Stat.Repeat _ | Stat.While _ -> true | _ -> false)))
   && (scans body || idle_counter body)
 
 (* Whether statements can end other than after their last, an expansion's

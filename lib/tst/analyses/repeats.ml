@@ -30,6 +30,10 @@ let passed env callee args =
 let runs_often_by declared (r : T.Verb_ref.t) i =
   match r.T.Verb_ref.owner with
   | S.Intrinsic "@controlflow$repeat" -> i = 1
+  (* A worker's step runs again and again, but it is a function value and
+     never a block (control-flow.md §4.1); were it one, it would run so. *)
+  | S.Intrinsic "@controlflow$work" -> i = 1
+  | S.Intrinsic "@controlflow$workEvery" -> i = 2
   | S.Declared id -> declared id i
   | S.Intrinsic _ -> false
 

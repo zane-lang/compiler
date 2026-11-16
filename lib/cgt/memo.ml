@@ -64,7 +64,7 @@ let fits (f : Func.t) =
    arguments, nor spawns. A constant is made by its first read, so the miss
    that computes a result has made every constant the result depends on. *)
 let computes : Runtime.fn -> bool = function
-  | Runtime.Print | Runtime.Set_threads | Runtime.Set_threads_auto | Runtime.Arguments
+  | Runtime.Print | Runtime.Set_threads | Runtime.Set_threads_auto | Runtime.Sleep | Runtime.Arguments
   | Runtime.Writeback | Runtime.Spawn | Runtime.Island | Runtime.Join | Runtime.Defer | Runtime.Defer_return ->
       false
   | _ -> true
@@ -98,11 +98,12 @@ let calls (f : Func.t) =
   let rec stats looped ss = List.iter (stat looped) ss
   and stat looped (s : Stat.t) =
     let es, bodies = Traverse.stat_parts s in
-    List.iter (expr looped) es;
+    (* A worker's condition calls its step on every pass. *)
+    List.iter (expr (match s with Stat.While _ -> true | _ -> looped)) es;
     let inner =
       match s with
       | Stat.Repeat { count = { Expr.node = Expr.Int n; _ }; _ } -> Int64.compare n 0L > 0
-      | Stat.Repeat _ -> true
+      | Stat.Repeat _ | Stat.While _ -> true
       | _ -> looped
     in
     List.iter (stats inner) bodies
@@ -182,7 +183,7 @@ let weight funcs remembered =
   and stats times ss = List.fold_left (fun n st -> n + stat times st) 0 ss
   and stat times (st : Stat.t) =
     let es, bodies = Traverse.stat_parts st in
-    let inner = match st with Stat.Repeat _ -> min 100_000 (times * 8) | _ -> times in
+    let inner = match st with Stat.Repeat _ | Stat.While _ -> min 100_000 (times * 8) | _ -> times in
     times + List.fold_left (fun n e -> n + expr times e) 0 es + List.fold_left (fun n b -> n + stats inner b) 0 bodies
   and expr times (e : Expr.t) =
     let own =
@@ -222,7 +223,7 @@ let operations funcs =
     let inner =
       match st with
       | Stat.Repeat { count = { Expr.node = Expr.Int n; _ }; _ } -> cap (times * Int64.to_int (Int64.max 0L (Int64.min n 100_000L)))
-      | Stat.Repeat _ -> cap (times * 8)
+      | Stat.Repeat _ | Stat.While _ -> cap (times * 8)
       | _ -> times
     in
     let own =
@@ -306,7 +307,7 @@ let least funcs remembered =
         let n = Int64.to_int (Int64.min n 100_000L) in
         let all = if f >= inf / n then inf else n * f in
         (1 +. c +. all, join cx (after (1 +. c) x))
-    | Stat.If { cond; body } | Stat.Repeat { count = cond; body } ->
+    | Stat.If { cond; body } | Stat.Repeat { count = cond; body } | Stat.While { cond; body } ->
         let c, cx = expr cond in
         let _, x = stats body in
         (1 +. c, join cx (after (1 +. c) x))

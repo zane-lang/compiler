@@ -89,6 +89,10 @@ type package = {
   (* Names reached only by method lookup, kept so an import of one can be
      told apart from an import of nothing (§3.6). *)
   method_names : (string, unit) Hashtbl.t;
+  (* The methods whose subject is a type parameter (generics.md §3.7). No
+     subject type reaches one, so it is reached by its name, as a function
+     is, and an import may bring it (packages.md §3.6). *)
+  any_methods : (string, unit) Hashtbl.t;
 }
 
 let decl_name d =

@@ -1,0 +1,71 @@
+/// A fetch loop written as a worker (control-flow.md §3.7): a machine that
+/// runs a short program of operations from a list, one operation a step,
+/// until it has run as many as the size asks for. The step is a lambda
+/// written where the worker runs, so the optimized build makes one loop of
+/// it, with no call through the function value; the plain build calls the
+/// step each pass.
+package workers;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias List<T Type> = @primitives$List<T>;
+
+Unit work(this S Type, step Bool[this S] mut) mut {
+	@controlflow$work(this, step);
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+Bool same(a Int, b Int) => @operators$equal(a, b);
+
+type Machine = struct {
+	ops List<Int>;
+	pc Int;
+	acc Int;
+	other Int;
+	ran Int;
+	limit Int;
+}
+
+Machine(limit Int) {
+	ops List<Int> = @primitives$List(Int);
+	ops!push(Int(0)); ops!push(Int(1)); ops!push(Int(2)); ops!push(Int(0));
+	ops!push(Int(3)); ops!push(Int(1)); ops!push(Int(2)); ops!push(Int(3));
+	return init{ ops; pc = Int(1); acc = Int(1); other = Int(7); ran = Int(0); limit; }
+}
+
+Unit main() {
+	m Machine = Machine(size(Int(1000)));
+	m!work(Bool(this Machine) mut {
+		op Int = this.ops[this.pc];
+		@controlflow$branch(same(op, Int(0)), {
+			this.acc = @math$bitAnd(plus(this.acc, this.other), Int(1048575));
+		});
+		@controlflow$branch(same(op, Int(1)), {
+			this.other = @math$bitXor(this.other, @math$shiftLeft(this.acc, Int(1)));
+		});
+		@controlflow$branch(same(op, Int(2)), {
+			this.acc = @math$bitAnd(@operators$multiply(this.acc, Int(33)), Int(1048575));
+		});
+		@controlflow$branch(same(op, Int(3)), {
+			this.other = @math$bitAnd(plus(this.other, this.acc), Int(65535));
+		});
+		this.pc = plus(@math$bitAnd(this.pc, Int(7)), Int(1));
+		this.ran = plus(this.ran, Int(1));
+		return @operators$lessThan(this.ran, this.limit);
+	});
+	@program$console!print(@operators$concat(String(plus(m.acc, m.other)), String.escaped("\n")));
+	return Unit();
+}

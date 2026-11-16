@@ -31,7 +31,7 @@ let stat_parts (s : Stat.t) : Expr.t list * Stat.t list list =
   | Stat.Let { value; _ } | Stat.Hold { value; _ } | Stat.Assign { value; _ } -> ([ value ], [])
   | Stat.Eval e | Stat.Return e -> ([ e ], [])
   | Stat.Scope { body; _ } -> ([], [ body ])
-  | Stat.If { cond; body } -> ([ cond ], [ body ])
+  | Stat.If { cond; body } | Stat.While { cond; body } -> ([ cond ], [ body ])
   | Stat.Repeat { count; body } -> ([ count ], [ body ])
   | Stat.Switch { value; cases } -> ([ value ], List.map snd cases)
   | Stat.Store { address; value } | Stat.Overwrite { address; value; _ }
@@ -121,6 +121,9 @@ let map_stat_parts me ms (s : Stat.t) : Stat.t =
   | Stat.If { cond; body } ->
       let cond = me cond in
       Stat.If { cond; body = ms body }
+  | Stat.While { cond; body } ->
+      let cond = me cond in
+      Stat.While { cond; body = ms body }
   | Stat.Repeat { count; body } ->
       let count = me count in
       Stat.Repeat { count; body = ms body }

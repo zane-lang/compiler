@@ -127,6 +127,7 @@ classified:
 | `hashBytes`, `byteSet`, `findAny`, `findPair` | `Text_hash`, `Byte_set`, `Text_find_any`, `Text_find_pair` | input |
 | `Array`, `ArrayRef`, `fill`, `[]` | `Record`, a counted loop, `Array_at` | computed |
 | `@controlflow$branch`, `repeat` | `If`, `Repeat` | computed |
+| `@controlflow$work`, `workEvery` | `While`, and `Sleep` between `workEvery`'s steps | computed; `Sleep` input |
 | storage: slots, boxes, copies, moves, overwrites, scopes | the nodes and the runtime calls codegen makes for them | computed (O5) |
 | `spawn` | `Spawn`, `Join`, `Snapshot`, `Writeback` | computed (O8) |
 | package constants | `Constant_begin`, `Constant_end` | computed (O9) |
@@ -144,6 +145,10 @@ fold stops where it is reached, and everything computed before it still
 folds. `setThreadsAuto` reads the processor count, but gives nothing back, so
 no value of the program depends on it. An intrinsic added later that reads
 input, a console read or the time, joins `arguments` in the input class.
+`workEvery`'s wait is one too: it reads nothing, but when the program does
+what follows it is what the wait is for, and no replay could keep that, so a
+fold stops there. A `work` loop folds like a `repeat` that leaves early: the
+evaluator runs its step until it returns false, within the fold's budget.
 A foreign handle's stamp is the next of a count the running program keeps
 ([`ffi.md`](ffi.md) F12); a fold that makes one keeps a count of its own,
 so the handles it makes are ordered as the running program orders them,

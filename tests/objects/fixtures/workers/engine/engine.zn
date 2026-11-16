@@ -1,0 +1,11 @@
+/// A worker's runner in a package of its own, as `core` declares one: a
+/// method for a subject of any type (generics.md §3.7) over
+/// `@controlflow$work`.
+package engine;
+
+alias Unit = @primitives$Unit;
+
+Unit work(this S Type, step @primitives$Bool[this S] mut) mut {
+	@controlflow$work(this, step);
+	return Unit();
+}

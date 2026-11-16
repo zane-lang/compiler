@@ -173,6 +173,11 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       | None -> Diagnostic.bug ~span "lowering found no package constant here")
   | T.Expr.Call_value { callee; args; handler } ->
       Lower_calls.call_value walk st ctx span callee args handler
+  (* A worker's `Unit` as a value, as a spawned call's frame reads it: the
+     loop, then nothing. *)
+  | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; _ } when Tst.Intrinsics.is_worker spelling ->
+      let body = stat st ctx { T.Stat.node = T.Stat.Expr e; span } in
+      { Expr.node = Expr.Expand { label = fresh st; body; result = None }; ty = Nodes.Ty.Void }
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; _ }
     when String.starts_with ~prefix:"@controlflow$" spelling ->
       refuse span (Printf.sprintf "lowering does not handle `%s` used as a value yet" spelling)
@@ -765,6 +770,23 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
           let count = expr st ctx count in
           [ Stat.Repeat { count; body = code ~looping:true st ctx span body } ]
       | "@controlflow$exitFromCall", [] -> ctx.exit_call span
+      | "@controlflow$work", [ T.Arg.Value subject; T.Arg.Value step; T.Arg.Value test ] ->
+          let pins, subject = worker_subject st ctx span subject in
+          let held, step = worker_held st ctx span step in
+          pins @ held @ [ Stat.While { cond = worker_step st ctx span subject step test; body = [] } ]
+      | "@controlflow$workEvery", [ T.Arg.Value subject; T.Arg.Value interval; T.Arg.Value step; T.Arg.Value test ] ->
+          (* The subject, the interval and the step, each once, before
+             the first step, in written order. *)
+          let pins, subject = worker_subject st ctx span subject in
+          let id = fresh st in
+          let interval = expr st ctx interval in
+          let held, step = worker_held st ctx span step in
+          let wait = { Expr.node = Expr.Runtime { fn = Runtime.Sleep; args = [ { Expr.node = Expr.Local id; ty = interval.Expr.ty } ] }; ty = Nodes.Ty.Void } in
+          pins
+          @ (Stat.Let { id; value = interval } :: held)
+          @ [
+              Stat.While { cond = worker_step st ctx span subject step test; body = [ Stat.Eval wait ] };
+            ]
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling))
   (* A fresh value nothing keeps is held here, so the drain ends it. One
      that owns no block has nothing to end, so nothing holds it: such as
@@ -788,6 +810,51 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       match ctx.resolve with
       | Some resolve -> resolve e.T.Expr.ty (moved st ctx span e.T.Expr.ty e)
       | None -> Diagnostic.bug ~span "lowering: a `resolve` outside a handler")
+
+(* A worker's subject, settled once before the first step, so every step
+   runs on the place the call named (control-flow.md §4.1): a place's
+   subscript indices are pinned (Lower_calls.pinned), and a temporary is
+   held in a slot of this scope, which the drain ends. *)
+and worker_subject st ctx span (subject : T.Expr.t) : Stat.t list * T.Expr.t =
+  if is_place subject then Lower_calls.pinned walk st ctx span subject
+  else worker_held st ctx span subject
+
+(* A worker's operand that is neither a variable nor a lambda written in
+   place, run once into a slot of this scope before the first step: so a
+   step made by a call is made once, and a written lambda stays where it
+   is, which lets a step's body be written out in the loop. *)
+and worker_held st ctx span (e : T.Expr.t) : Stat.t list * T.Expr.t =
+  match e.T.Expr.node with
+  | T.Expr.Var _ | T.Expr.Lambda _ -> ([], e)
+  | _ ->
+      let t = e.T.Expr.ty in
+      let id = fresh st in
+      let l = { T.Local.id = -id; name = "worker"; ty = t; span = e.T.Expr.span } in
+      Hashtbl.replace ctx.env l.T.Local.id (slot st t id);
+      ([ bind st ctx.scope span t id (expr st ctx e) ], { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l) })
+
+(* A worker's condition (control-flow.md §4.1): `test(step(subject))`,
+   the step called with the subject as its `this`, as `subject!step()`
+   is, and its result read as `@primitives$Bool` by the checker's `test`.
+   It runs on every pass, so it is lowered as a loop body is (State.loop),
+   and a small function it calls is written out where it is called. What
+   a pass holds, such as a step's result that owns a block, is in an arena
+   of the pass's own, which drains before the next. *)
+and worker_step st ctx span (subject : T.Expr.t) (step : T.Expr.t) (test : T.Expr.t) =
+  let ret = match Tty.strip_mode step.T.Expr.ty with Tty.Verb v -> v.Tty.ret | _ -> Tty.Error in
+  let called = { T.Expr.node = T.Expr.Call_value { callee = step; args = [ T.Arg.Value subject ]; handler = None }; ty = ret; span } in
+  let tested =
+    { T.Expr.node = T.Expr.Call_value { callee = test; args = [ T.Arg.Value called ]; handler = None }; ty = Tty.bool_primitive; span }
+  in
+  let loop = match ctx.loop with Outside -> Inside | l -> l in
+  let scope = { arena = None; settles = []; wants = [] } in
+  let cond = expr st { ctx with loop; scope } tested in
+  let settles = List.concat_map (fun settle -> settle ()) (List.rev scope.settles) in
+  if scope.arena = None && scope.wants = [] && settles = [] then cond
+  else
+    let label = fresh st and result = fresh st in
+    let body = close st scope ([ Stat.assign result cond ] @ settles) in
+    { Expr.node = Expr.Expand { label; body; result = Some result }; ty = cond.Expr.ty }
 
 (* Where an assignment stores: a local, or the place a `mut` subject points
    at, and the members below it. A struct of one member adds no step. A

@@ -650,6 +650,7 @@ and intrinsic_call env ~flow ctx span name cands actuals handle =
   if any_error actuals then (
     skip_handler env ctx handle;
     (invalid span, None))
+  else if Intrinsics.is_worker name then worker_call env ~flow ctx span name cands actuals handle
   else
     match
       report_resolution env ~span ~what:(quote name) ~args:(describe_args actuals)
@@ -662,6 +663,69 @@ and intrinsic_call env ~flow ctx span name cands actuals handle =
     | Some o ->
         finish_call env ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
             T.Expr.Call { callee; args; handler })
+
+(* `@controlflow$work` and `@controlflow$workEvery` (control-flow.md §4.1).
+   The call writes its subject as a `!` call does, so that argument is a
+   subject: never converted, and checked writable. The step's result type
+   `R` is read off the step, and the last parameter, `test`, is the
+   checker's: a lambda converting an `R` to `@primitives$Bool` by the
+   implicit constructor that applies, as a condition reaches `branch`. A
+   call cannot write that conversion itself, since it would convert a
+   function value's result rather than a value. *)
+and worker_call env ~flow ctx span name cands actuals handle =
+  let actuals = match actuals with a :: rest -> { a with subject = true } :: rest | [] -> [] in
+  let written (s : S.t) = { s with S.params = List.filteri (fun i _ -> i < List.length s.S.params - 1) s.S.params } in
+  let views = List.map written cands in
+  match
+    report_resolution env ~span ~what:(quote name) ~args:(describe_args actuals)
+      (resolve env views (positional actuals))
+      views
+  with
+  | None ->
+      skip_handler env ctx handle;
+      (invalid span, None)
+  | Some o ->
+      write_subject env ctx (List.hd actuals);
+      let full = List.find (fun (s : S.t) -> s.S.owner = o.sig_.S.owner) cands in
+      let step = List.nth o.sig_.S.params (List.length o.sig_.S.params - 1) in
+      let result =
+        match Ty.subst o.subst step.S.ty with Ty.Verb v -> v.Ty.ret | _ -> Ty.Error
+      in
+      let test = worker_test env span result in
+      let o = { o with sig_ = full; converted = o.converted @ [ Some (T.Arg.Value test) ] } in
+      finish_call env ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
+          T.Expr.Call { callee; args; handler })
+
+(* The `test` of a worker call: `@primitives$Bool(result R) { return result; }`,
+   its return converting by the one implicit constructor from `R`. *)
+and worker_test env span result =
+  let dst = Intrinsics.prim "Bool" in
+  let local = fresh_local env "result" result span in
+  let read = mk (T.Expr.Var (T.Name_ref.Local local)) result span in
+  let converted =
+    if Ty.assignable ~dst ~src:result || result = Ty.Error then read
+    else
+      match implicit_constructors env ~src:result ~dst with
+      | [ ((s, subst) as found) ] ->
+          request env s subst span;
+          coerce_value read found
+      | [] ->
+          error env span
+            (Printf.sprintf
+               "a worker's step returns %s, and it must convert to %s, as a condition does, with no \
+                implicit constructor between them (control-flow.md §4.1)"
+               (quote (Ty.to_string result)) (quote (Ty.to_string dst)));
+          read
+      | several ->
+          error env span
+            (Printf.sprintf "more than one implicit constructor converts %s to %s: %s"
+               (quote (Ty.to_string result)) (quote (Ty.to_string dst))
+               (String.concat ", " (List.map (fun ((s : S.t), _) -> quote (S.to_string s)) several)));
+          read
+  in
+  let body = { T.Block.stats = [ { T.Stat.node = T.Stat.Return converted; span } ]; span } in
+  let v = { Ty.this_ = None; params = [ result ]; ret = dst; abort = None; is_mut = false } in
+  mk (T.Expr.Lambda { params = [ local ]; body }) (Ty.Verb v) span
 
 (* Calling a function value. It is one value with one type, so there is one
    candidate; its arguments are still coercion sites. *)
@@ -726,14 +790,31 @@ and write_subject env ctx (subject : actual) =
   | T.Arg.Value e -> check_writable env ctx e ~bang:true
   | T.Arg.Block _ -> ()
 
+(* The methods named [text] whose subject is a type parameter
+   (generics.md §3.7) that the file writes bare: its own package's, and
+   those an import spells [text] (functions.md §6.1, step 3). *)
+and any_type (s : S.t) = match s.S.params with { S.ty = Ty.Param _; _ } :: _ -> true | _ -> false
+
+and any_subject env ctx text =
+  let generic (s : S.t) = any_type s && accessible_sig ctx s in
+  let declared pkg name =
+    Verbs.methods env.verbs name |> List.filter (fun (s : S.t) -> s.home = S.Package pkg && generic s)
+  in
+  (declared ctx.package text
+  @ List.concat_map (fun (b : Env.bare) -> declared b.Env.from b.Env.member) (Hashtbl.find_all ctx.file.Env.bare text))
+  |> List.rev
+
 (* functions.md §6.1: the subject type's home package first, then the
-   current one; a qualified call names its package instead. *)
+   current one, then a method declared for every type; a qualified call
+   names its package instead. *)
 and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
   let actuals = match actuals with a :: rest -> { a with subject = true } :: rest | [] -> [] in
   let subject = List.hd actuals in
-  let named_in home name =
+  (* A method declared for every type is no type's own, so only step 3
+     and a qualified call reach it. *)
+  let named_in ?(any = false) home name =
     Verbs.methods env.verbs name
-    |> List.filter (fun (s : S.t) -> s.home = home && accessible_sig ctx s)
+    |> List.filter (fun (s : S.t) -> s.home = home && accessible_sig ctx s && (any || not (any_type s)))
     |> List.rev
   in
   let check_marker (s : S.t) =
@@ -762,8 +843,27 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
           | Some h -> Printf.sprintf " in %s, the home of %s," (quote (S.home_to_string h)) (quote (Ty.to_string subject.aty))
           | None -> ""
         in
+        (* A method for every type that the file's spelling does not reach
+           bare is written with its package's qualifier (functions.md §6.1). *)
+        let elsewhere =
+          Verbs.methods env.verbs name
+          |> List.filter_map (fun (s : S.t) ->
+                 match s.home with
+                 | S.Package p when any_type s && accessible_sig ctx s && p <> ctx.package -> Some p
+                 | _ -> None)
+          |> List.sort_uniq String.compare
+        in
+        let hint =
+          match elsewhere with
+          | [] -> ""
+          | p :: _ ->
+              Printf.sprintf
+                "; %s declares one for a subject of any type, which a call reaches through the \
+                 qualifier this file gives %s, or bare once an import spells it bare"
+                (quote p) (quote p)
+        in
         error env span
-          (Printf.sprintf "no method named %s is declared%s or in this package" (quote name) home);
+          (Printf.sprintf "no method named %s is declared%s or in this package%s" (quote name) home hint);
         skip_handler env ctx handle;
         (invalid span, None)
       end
@@ -807,14 +907,14 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
             if Verb_signatures.home subject.aty = Some (S.Package ctx.package) then []
             else named_in (S.Package ctx.package) text
           in
-          resolve_in [ home_stage; current ] text)
+          resolve_in [ home_stage; current; any_subject env ctx text ] text)
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Qualified { package = q; ident }; _ } -> (
       match qualified_package env ctx.file q.N.Name.text with
       | Error message ->
           error env q.N.Name.span message;
           skip_handler env ctx handle;
           (invalid span, None)
-      | Ok pkg -> resolve_in [ named_in (S.Package pkg) ident.N.Name.text ] ident.N.Name.text)
+      | Ok pkg -> resolve_in [ named_in ~any:true (S.Package pkg) ident.N.Name.text ] ident.N.Name.text)
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Intrinsic { package = ns; ident }; _ } ->
       resolve_in [ named_in (S.Namespace ns.N.Name.text) ident.N.Name.text ] ident.N.Name.text
   | _ ->

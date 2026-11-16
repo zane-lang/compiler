@@ -432,14 +432,15 @@ and verb_decl_to_node (x: Nodes.Verb_decl.t) = match x.Nodes.Verb_decl.node with
         ("body",     body_to_node x.body);
       ])
   | Meth x ->
-      group "meth_decl" (fields [
+      group "meth_decl" (fields ([
         ("name",      Leaf (text x.name));
         ("this_type", type_to_node x.this_type);
+      ] @ (if x.this_introduces then [ ("this_introduces", Leaf "true") ] else []) @ [
         ("param",     params_to_node x.params);
         ("ret_type",  ret_to_node x.ret_type);
         ("body",      body_to_node x.body);
         ("is_mut",    Leaf (string_of_bool x.is_mut));
-      ])
+      ]))
   | Constructor x ->
       (* A constructor declaration carries a full type expression because it may
          introduce generics, so its "type" renders like every other Type_expr

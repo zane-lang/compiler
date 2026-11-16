@@ -551,13 +551,14 @@ and verb_decl (x : C.Verb_decl.t) : S.Verb_decl.t =
             body;
             foreign;
           }
-    | C.Verb_decl.Meth { name = n; this_type; params; ret_type = r; is_mut;
+    | C.Verb_decl.Meth { name = n; this_type; this_introduces; params; ret_type = r; is_mut;
                          body = b } ->
         let body, foreign = verb_body b in
         S.Verb_decl.Meth
           {
             name = name n;
             this_type = type_expr this_type;
+            this_introduces;
             params = List.map param params;
             ret_type = ret_type r;
             is_mut;

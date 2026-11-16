@@ -477,6 +477,28 @@ let math_functions =
   in
   List.concat_map (over integer) integers @ List.concat_map (over float) floats
 
+(* The two that run a worker (control-flow.md §4.1): `step` is called with
+   `subject` as its `this` until its result, converted to
+   `@primitives$Bool`, is false; `workEvery` sleeps `interval` nanoseconds
+   between one call and the next. Each is called like a function, and it
+   writes `subject` as a `mut` method writes its own, so it is a `mut`
+   method here, its subject first: every check and analysis that follows a
+   `!` call's write then follows this one's. The step's result `R` reaches
+   `@primitives$Bool` through the implicit constructor its package
+   declares, as a condition reaches `branch`; a call cannot write a
+   conversion of a function value's result, so the checker supplies it as
+   a last argument, `test`, a lambda that converts (Check.worker_test). *)
+let worker (name, leading) =
+  let s = Ty.fresh_param ~name:"S" ~kind:Ty.Type_kind in
+  let r = Ty.fresh_param ~name:"R" ~kind:Ty.Type_kind in
+  let step = Ty.Verb { this_ = Some (Ty.Param s); params = []; ret = Ty.Param r; abort = None; is_mut = true } in
+  let test = Ty.Verb { this_ = None; params = [ Ty.Param r ]; ret = prim "Bool"; abort = None; is_mut = false } in
+  ( ("controlflow", name),
+    verb ~generics:[ s; r ] ~is_mut:true ~namespace:"controlflow" ~kind:S.Method
+      ~name:("@controlflow$" ^ name) ~spelling:("@controlflow$" ^ name)
+      ((param "subject" (Ty.Param s) :: leading) @ [ param "step" step; param "test" test ])
+      (prim "Unit") )
+
 (* The control-flow intrinsics (syntax.md §5.1). *)
 let control_functions =
   let f name params =
@@ -489,6 +511,10 @@ let control_functions =
     f "repeat" [ param "count" (prim "I64"); param "body" (Ty.Concept Ty.Block) ];
     f "exitFromCall" [];
   ]
+  @ List.map worker [ ("work", []); ("workEvery", [ param "interval" (prim "I64") ]) ]
+
+(* Whether [spelling] runs a worker, so its call takes the checker's [test]. *)
+let is_worker spelling = spelling = "@controlflow$work" || spelling = "@controlflow$workEvery"
 
 (* Every intrinsic function, keyed by namespace and name. A key the
    operators share holds one entry per overload. *)

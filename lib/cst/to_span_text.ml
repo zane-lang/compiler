@@ -332,9 +332,10 @@ and verb_decl d (x : Verb_decl.t) =
       each d param params;
       ret_type_ d ret_type;
       body d b
-  | Verb_decl.Meth { name = n; this_type; params; ret_type; body = b; _ } ->
+  | Verb_decl.Meth { name = n; this_type; this_introduces; params; ret_type; body = b; _ } ->
       name d "name" n;
       type_expr d this_type;
+      if this_introduces then line d "this_introduces" this_type.Type_expr.span;
       each d param params;
       ret_type_ d ret_type;
       body d b

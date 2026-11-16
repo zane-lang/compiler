@@ -218,6 +218,29 @@ the parameter, and so is every call that body passes the block on to
 still leaves the function it was written in, because after expansion that is
 the function it is in.
 
+A worker is a loop, and no expansion. `@controlflow$work` and
+`@controlflow$workEvery` take a function value rather than a block
+(spec control-flow.md §3.7, §4.1), so the verb that calls one keeps its
+function, and the call becomes a CGT `while`. Its condition calls the step
+with the subject's place as its `this`, as `subject!step()` would, and reads
+the result through the `test` lambda the checker supplies, which converts it
+to `@primitives$Bool` by the implicit constructor that applies
+(`Check.worker_test`). The step runs on every pass, so the condition is
+lowered as a loop body is, and a small function it calls is written out
+there (`Lower.worker_step`, State.loop); what a pass holds is in an arena
+of the pass's own, which drains before the next. Before the first step the
+call settles its operands once, in written order (`Lower.worker_subject`,
+`Lower.worker_held`): a subject place's subscript indices are pinned, and a
+temporary subject, or a step that is neither a variable nor a lambda
+written in place, runs into a slot of the call's scope, so every pass
+works on the place and step the call named. `workEvery` reads its interval
+once too, and its loop's body waits that long through `zane_sleep`, so a step
+that returns false leaves at once without a last wait. The step's value is
+a lifted lambda's address, a constant LLVM sees, so a step written where
+the worker runs is inlined, and an optimized build makes one loop of it
+with no call through the function value (`tests/objects`, the `workers`
+perf program).
+
 The same holds for a verb with any other concept parameter, such as an
 `implicit Int(value @concepts$Int)`: a literal has no storage, so the verb is
 expanded and the literal is embedded where the body uses the parameter. In an
@@ -644,8 +667,9 @@ node, never by lowering it wrongly.
 
 Lowering does not handle these yet, and refuses each where it is written:
 
-- a control-flow intrinsic, such as `@controlflow$branch`, used as a value
-  rather than as a statement;
+- a control-flow intrinsic that takes a block, such as `@controlflow$branch`,
+  used as a value rather than as a statement (a worker used as one is its
+  `Unit`, after the loop);
 - a store into the result of a spawned call that returns `Unit`, which has no
   storage.
 

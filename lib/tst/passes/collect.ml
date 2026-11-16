@@ -60,8 +60,9 @@ let file_under_names env (pkg : package) (decl : decl) =
       match List.find_opt (fun d -> not (is_function d)) existing with
       | Some constant -> report_twice constant name.N.Name.span "the name"
       | None -> Hashtbl.replace pkg.values (name_of name) (existing @ [ decl ]))
-  | Verb { N.Verb_decl.node = N.Verb_decl.Meth { name; _ }; _ } ->
-      Hashtbl.replace pkg.method_names (name_of name) ()
+  | Verb { N.Verb_decl.node = N.Verb_decl.Meth { name; this_introduces; _ }; _ } ->
+      Hashtbl.replace pkg.method_names (name_of name) ();
+      if this_introduces then Hashtbl.replace pkg.any_methods (name_of name) ()
   | Verb _ | Enum_map _ -> ()
 
 let new_file ~package path =
@@ -127,7 +128,8 @@ let import_file env (file : file) (decls : N.Decl.t list) =
   in
   let bring pkg (member : N.Import_member.t) (spelling : N.Import_member.t) at =
     let found = members_of env pkg member.N.Import_member.name in
-    if found = [] then
+    let any_method = Hashtbl.mem (package env pkg).any_methods member.N.Import_member.name in
+    if found = [] && not any_method then
       if Hashtbl.mem (package env pkg).method_names member.N.Import_member.name then
         error env member.N.Import_member.span
           (Printf.sprintf
@@ -187,6 +189,10 @@ let import_file env (file : file) (decls : N.Decl.t list) =
         let names =
           Hashtbl.fold (fun n _ acc -> n :: acc) target.types []
           @ Hashtbl.fold (fun n _ acc -> n :: acc) target.values []
+          (* A method is reached through its subject's type, except one whose
+             subject is a type parameter, which is reached by its name
+             (functions.md §6.1). *)
+          @ Hashtbl.fold (fun n () acc -> n :: acc) target.any_methods []
           |> List.filter (fun n -> not (is_private n))
           |> List.sort_uniq String.compare
         in
@@ -373,6 +379,7 @@ let run env (tables : names) (assembled : Assembly.package list) =
             types = Hashtbl.create 16;
             values = Hashtbl.create 16;
             method_names = Hashtbl.create 16;
+            any_methods = Hashtbl.create 4;
           }
         in
         Hashtbl.replace tables.packages p.id pkg;

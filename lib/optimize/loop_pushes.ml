@@ -125,6 +125,9 @@ let func pushes (f : Func.t) =
     | Stat.Repeat { count; body } -> Stat.Repeat { count; body = List.concat_map written_out (stats body) }
     | Stat.Scope { id; body } -> Stat.Scope { id; body = stats body }
     | Stat.If { cond; body } -> Stat.If { cond; body = stats body }
+    (* A worker's loop counts nothing, so no room is made ahead for it;
+       a loop inside its body may still have some. *)
+    | Stat.While { cond; body } -> Stat.While { cond; body = stats body }
     | Stat.Switch { value; cases } -> Stat.Switch { value; cases = List.map (fun (i, b) -> (i, stats b)) cases }
     | Stat.Eval ({ Expr.node = Expr.Expand e; _ } as x) ->
         Stat.Eval { x with Expr.node = Expr.Expand { e with body = stats e.body } }

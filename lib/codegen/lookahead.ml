@@ -113,7 +113,7 @@ let assigned_outside_loops body =
   and stat (s : Stat.t) =
     (match s with Stat.Assign { place; _ } -> Hashtbl.replace found place.Expr.local () | _ -> ());
     match s with
-    | Stat.Repeat _ -> ()
+    | Stat.Repeat _ | Stat.While _ -> ()
     | _ ->
         let es, bodies = Cgt.Traverse.stat_parts s in
         List.iter expr es;
@@ -224,7 +224,7 @@ let resolve (f : Loop_shapes.facts) ~outside ~list (x, ahead) (e : Expr.t) =
    found nothing to gain there with 4 KiB pages (README, round 2). *)
 let heavy body =
   Cgt.Traverse.exists_in body ~expr:(fun _ -> false) ~stat:(function
-    | Stat.If _ | Stat.Switch _ | Stat.Repeat _ -> true
+    | Stat.If _ | Stat.Switch _ | Stat.Repeat _ | Stat.While _ -> true
     | _ -> false)
 
 (* Whether the top of a loop with [body] may read a list's handle that the

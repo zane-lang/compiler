@@ -494,6 +494,9 @@ and Verb_decl : sig
     | Meth of {
         name : Name.t;
         this_type : Type_expr.t;
+        (* `this S Type` (generics.md §3.7): [this_type] names the type
+           parameter the subject introduces. *)
+        this_introduces : bool;
         params : Param.t list;
         ret_type : Ret_type.t;
         is_mut : bool;

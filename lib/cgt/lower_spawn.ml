@@ -98,7 +98,12 @@ let specialized st ctx span (v : verb) args =
    place. *)
 let wrapped st span (callee : T.Verb_ref.t) args ret =
   let spelling = match callee.owner with S.Intrinsic s -> s | S.Declared _ -> "" in
-  let found = List.find_opt (fun (_, (s : S.t)) -> s.S.owner = callee.owner) Tst.Intrinsics.methods in
+  (* A worker is a `mut` method in the function table, called by name
+     (Intrinsics.worker). *)
+  let found =
+    List.find_opt (fun (_, (s : S.t)) -> s.S.owner = callee.owner)
+      (Tst.Intrinsics.methods @ List.map (fun ((_, n), s) -> (n, s)) Tst.Intrinsics.functions)
+  in
   let abort =
     Option.bind found (fun (_, (s : S.t)) -> s.S.abort)
     |> Option.map (Tty.subst (List.map (fun ((p : Tty.param), a) -> (p.Tty.id, a)) callee.instance))

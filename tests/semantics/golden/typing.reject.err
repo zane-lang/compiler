@@ -1182,6 +1182,26 @@ File "fixtures/typing/reject/bad/unimported.zn", line 5, characters 21-27:
 5 | Int unimported() => helper(Int(1));
   |                     ^^^^^^
 Error: no function named `helper` is in scope; the package `lib` declares one, and like every package it needs an import
+File "fixtures/typing/reject/bad/workers.zn", line 8, characters 18-30:
+8 | Unit nested(this List<T Type> Type) => Unit();
+  |                  ^^^^^^^^^^^^
+Error: a subject that introduces a type parameter is written `this S Type`, with the parameter's bare name (generics.md §3.7)
+File "fixtures/typing/reject/bad/workers.zn", line 15, characters 5-15:
+15 |     s!settle();
+   |     ^^^^^^^^^^
+Error: no method named `settle` is declared in `bad`, the home of `bad$Steps`, or in this package; `lib` declares one for a subject of any type, which a call reaches through the qualifier this file gives `lib`, or bare once an import spells it bare
+File "fixtures/typing/reject/bad/workers.zn", line 18, characters 5-56:
+18 |     @controlflow$work(s, Int(this Steps) mut => this.n);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a worker's step returns `@primitives$I64`, and it must convert to `@primitives$Bool`, as a condition does, with no implicit constructor between them (control-flow.md §4.1)
+File "fixtures/typing/reject/bad/workers.zn", line 20, characters 23-28:
+20 |     @controlflow$work(fixed, Bool(this Steps) mut => false);
+   |                       ^^^^^
+Error: a `!` call writes its subject, and `fixed` is a parameter, which is read-only
+File "fixtures/typing/reject/bad/workers.zn", line 22, characters 5-75:
+22 |     @controlflow$work(s, Bool(this Steps) mut => false, Bool(b Bool) => b);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no `@controlflow$work` accepts (bad$Steps, @primitives$Bool[this bad$Steps] mut, @primitives$Bool[@primitives$Bool]); the candidate is `@primitives$Unit @controlflow$work(S, R[this S] mut) mut`
 File "fixtures/typing/reject/bad/writes.zn", line 15, characters 5-12:
 15 |     counter!tick();
    |     ^^^^^^^

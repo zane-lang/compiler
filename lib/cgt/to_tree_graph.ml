@@ -217,6 +217,8 @@ and stat = function
       group "if" (fields [ ("cond", expr cond); ("body", map_seq stat body) ])
   | Stat.Repeat { count; body } ->
       group "repeat" (fields [ ("count", expr count); ("body", map_seq stat body) ])
+  | Stat.While { cond; body } ->
+      group "while" (fields [ ("cond", expr cond); ("body", map_seq stat body) ])
   | Stat.Switch { value; cases } ->
       group "switch"
         (fields

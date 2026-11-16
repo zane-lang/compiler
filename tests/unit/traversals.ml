@@ -225,8 +225,9 @@ let cgt_stat_tag : C.Stat.t -> int = function
   | C.Stat.Reserve _ -> 13
   | C.Stat.Spawn _ -> 14
   | C.Stat.Join _ -> 15
+  | C.Stat.While _ -> 16
 
-let cgt_stat_count = 16
+let cgt_stat_count = 17
 
 let cleaf () =
   incr fresh;
@@ -285,6 +286,7 @@ let cgt_stat_samples () =
     (C.Stat.Return a, ([ a ], []));
     (C.Stat.If { cond = a; body = b1 }, ([ a ], [ b1 ]));
     (C.Stat.Repeat { count = a; body = b1 }, ([ a ], [ b1 ]));
+    (C.Stat.While { cond = a; body = b1 }, ([ a ], [ b1 ]));
     (C.Stat.Switch { value = a; cases = [ (0, b1); (1, b2) ] }, ([ a ], [ b1; b2 ]));
     none (C.Stat.Leave 1);
     (C.Stat.Store { address = a; value = c }, ([ a; c ], []));

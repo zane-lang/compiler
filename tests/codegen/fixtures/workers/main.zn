@@ -1,0 +1,203 @@
+/// Workers (control-flow.md §3.7): a subject and a step run by
+/// `@controlflow$work` until the step returns false, and by
+/// `@controlflow$workEvery`, which waits between steps. The methods that
+/// run them take a subject of any type (generics.md §3.7). A step returns a
+/// `Bool` of this package's, which reaches `@primitives$Bool` through its
+/// implicit constructor, or `@primitives$Bool` itself. A worker runs its
+/// step once when it returns false at once, takes its limit from the
+/// program's arguments so that no build folds it, keeps state in a subject
+/// that owns a block, and runs spawned, beside its caller, the scope it is
+/// spawned in waiting for it, through a method and as the intrinsic. It
+/// settles its subject, and a step made by a call, once, before the
+/// first step. Used
+/// as a value, a worker is its `Unit`. Each check prints `yes` when it holds and `no`
+/// when it does not.
+package workers;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+type Bool = struct {
+	_value @primitives$Bool;
+}
+implicit Bool(v @primitives$Bool) => init{ _value = v; }
+implicit @primitives$Bool(v Bool) => v._value;
+
+Unit check(ok @primitives$Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+Unit work(this S Type, step Bool[this S] mut) mut {
+	@controlflow$work(this, step);
+	return Unit();
+}
+
+Unit workPlain(this S Type, step @primitives$Bool[this S] mut) mut {
+	@controlflow$work(this, step);
+	return Unit();
+}
+
+Unit setInterval(this S Type, every I64, step Bool[this S] mut) mut {
+	@controlflow$workEvery(this, every, step);
+	return Unit();
+}
+
+type Counter = struct {
+	steps I64;
+	limit I64;
+}
+Counter(limit I64) => init{ steps = I64(0); limit; }
+
+/// A worker's state with a block of its own: a log of every step.
+type Log = struct {
+	lines @primitives$List<I64>;
+	limit I64;
+}
+Log(limit I64) => init{ lines = @primitives$List(I64); limit; }
+
+/// Hands out the next index each time it is asked.
+type Picker = struct {
+	at I64;
+}
+Picker() => init{ at = I64(0); }
+I64 next(this Picker) mut {
+	this.at = @operators$add(this.at, I64(1));
+	return this.at;
+}
+
+/// A step that counts to the subject's limit, whatever it is made from.
+Bool[this Counter] mut counting(seed I64) {
+	return Bool(this Counter) mut {
+		this.steps = @operators$add(this.steps, I64(1));
+		return Bool(@operators$lessThan(this.steps, this.limit));
+	}
+}
+
+/// A subject's own method is preferred to the one for every type.
+type Own = struct {
+	ran I64;
+}
+Own() => init{ ran = I64(0); }
+Unit work(this Own, step Bool[this Own] mut) mut {
+	this.ran = @operators$negate(I64(1));
+	return Unit();
+}
+
+Unit main() {
+	limit I64 = @program$runtime:arguments()[I64(1)]:parseI64() ?? I64(0);
+
+	c Counter = Counter(limit);
+	c!work(Bool(this Counter) mut {
+		this.steps = @operators$add(this.steps, I64(1));
+		return Bool(@operators$lessThan(this.steps, this.limit));
+	});
+	check(@operators$equal(c.steps, limit));
+
+	once Counter = Counter(I64(0));
+	once!work(Bool(this Counter) mut {
+		this.steps = @operators$add(this.steps, I64(1));
+		return Bool(false);
+	});
+	check(@operators$equal(once.steps, I64(1)));
+
+	plain Counter = Counter(I64(3));
+	plain!workPlain(@primitives$Bool(this Counter) mut {
+		this.steps = @operators$add(this.steps, I64(1));
+		return @operators$lessThan(this.steps, this.limit);
+	});
+	check(@operators$equal(plain.steps, I64(3)));
+
+	log Log = Log(I64(4));
+	log!work(Bool(this Log) mut {
+		this.lines!push(@operators$multiply(this.lines:size(), I64(10)));
+		return Bool(@operators$lessThan(this.lines:size(), this.limit));
+	});
+	check(@operators$equal(log.lines:size(), I64(4)));
+	check(@operators$equal(log.lines[I64(4)], I64(30)));
+
+	ticks Counter = Counter(I64(3));
+	ticks!setInterval(I64(1000000), Bool(this Counter) mut {
+		this.steps = @operators$add(this.steps, I64(1));
+		return Bool(@operators$lessThan(this.steps, this.limit));
+	});
+	check(@operators$equal(ticks.steps, I64(3)));
+
+	quick Counter = Counter(I64(5));
+	quick!setInterval(@operators$negate(I64(1)), Bool(this Counter) mut {
+		this.steps = @operators$add(this.steps, I64(1));
+		return Bool(@operators$lessThan(this.steps, this.limit));
+	});
+	check(@operators$equal(quick.steps, I64(5)));
+
+	own Own = Own();
+	own!work(Bool(this Own) mut {
+		this.ran = I64(1);
+		return Bool(false);
+	});
+	check(@operators$equal(own.ran, @operators$negate(I64(1))));
+
+	done I64 = I64(0);
+	@controlflow$branch(true, {
+		spawned Counter = Counter(limit);
+		@controlflow$branch(true, {
+			spawn spawned!work(Bool(this Counter) mut {
+				this.steps = @operators$add(this.steps, I64(1));
+				return Bool(@operators$lessThan(this.steps, this.limit));
+			});
+		});
+		done = spawned.steps;
+	});
+	check(@operators$equal(done, limit));
+
+	direct I64 = I64(0);
+	@controlflow$branch(true, {
+		spawned Counter = Counter(I64(6));
+		@controlflow$branch(true, {
+			spawn @controlflow$work(spawned, Bool(this Counter) mut {
+				this.steps = @operators$add(this.steps, I64(1));
+				return Bool(@operators$lessThan(this.steps, this.limit));
+			});
+		});
+		direct = spawned.steps;
+	});
+	check(@operators$equal(direct, I64(6)));
+
+	valued Counter = Counter(I64(2));
+	finished Unit = @controlflow$work(valued, Bool(this Counter) mut {
+		this.steps = @operators$add(this.steps, I64(1));
+		return Bool(@operators$lessThan(this.steps, this.limit));
+	});
+	check(@operators$equal(valued.steps, I64(2)));
+
+	// The subject is settled once, before the first step: an element's
+	// index is read once, and a temporary is made once.
+	counters @primitives$List<Counter> = @primitives$List(Counter);
+	counters!push(Counter(I64(3)));
+	counters!push(Counter(I64(3)));
+	picker Picker = Picker();
+	@controlflow$work(counters[picker!next()], Bool(this Counter) mut {
+		this.steps = @operators$add(this.steps, I64(1));
+		return Bool(@operators$lessThan(this.steps, this.limit));
+	});
+	check(@operators$equal(counters[I64(1)].steps, I64(3)));
+	check(@operators$equal(picker.at, I64(1)));
+	check(@operators$equal(counters[I64(2)].steps, I64(0)));
+	@controlflow$work(Counter(I64(3)), Bool(this Counter) mut {
+		this.steps = @operators$add(this.steps, I64(1));
+		return Bool(@operators$lessThan(this.steps, this.limit));
+	});
+	check(true);
+
+	// A step made by a call is made once.
+	maker Picker = Picker();
+	made Counter = Counter(I64(4));
+	@controlflow$work(made, counting(maker!next()));
+	check(@operators$equal(made.steps, I64(4)));
+	check(@operators$equal(maker.at, I64(1)));
+	return Unit();
+}

@@ -318,6 +318,24 @@ abortable.
 
 ---
 
+## 11. A spawned worker's wait holds its pool thread
+
+**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
+§3.4: a stalling call made with `spawn` "is parked by the runtime so it does
+not consume a worker thread while waiting".
+
+**Compiler** — the runtime parks nothing. `@controlflow$workEvery` waits
+between steps with `zane_sleep`, which suspends the thread that runs the
+worker, so a spawned `setInterval` keeps its pool thread for every wait, and
+a pool of `n` threads runs at most `n` waiting workers at once; the rest
+wait for a thread. Unspawned, the wait is ordinary blocking, as §3.5 says.
+`runtime/spawn.c` (`zane_sleep`) is the decision.
+
+Reconciling means a runtime that parks a waiting task and resumes it on a
+timer, or the spec saying which calls stall.
+
+---
+
 ## Closed
 
 Kept briefly so a reader who remembers them can see they were closed on

@@ -7,6 +7,12 @@
 
 #include "zane_internal.h"
 
+#include <errno.h>
+#include <time.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 /* ---------------------------------------------------------------------- */
 /* Spawned calls (concurrency.md §3–4, docs/design/lowering.md §9)               */
 /* ---------------------------------------------------------------------- */
@@ -169,6 +175,46 @@ int64_t zane_set_threads(int64_t count) {
 }
 
 void zane_set_threads_auto(void) { zane_set_threads(zane_processors()); }
+
+/* What `@controlflow$workEvery` waits between one step and the next
+   (control-flow.md §4.1): the calling thread suspended for `nanoseconds`,
+   and not at all below one. A spawned worker waits on the pool thread
+   that runs it, which stays its own for the wait. On POSIX a signal that
+   wakes the thread early sends it back for what is left. Windows waits on
+   a high-resolution timer, in its steps of 100 nanoseconds rounded up, one
+   per thread; where it has none, before Windows 10 version 1803, it sleeps
+   whole milliseconds, rounded up. */
+#ifdef _WIN32
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+static _Thread_local HANDLE zane_sleep_timer;
+
+void zane_sleep(int64_t nanoseconds) {
+	if (nanoseconds < 1) return;
+	/* A Windows older than 10 1803 has no high-resolution timer: a plain
+	   waitable timer is made once instead, so no later sleep retries. */
+	if (!zane_sleep_timer)
+		zane_sleep_timer = CreateWaitableTimerExW(NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+		                                          TIMER_ALL_ACCESS);
+	if (!zane_sleep_timer) zane_sleep_timer = CreateWaitableTimerExW(NULL, NULL, 0, TIMER_ALL_ACCESS);
+	LARGE_INTEGER due;
+	due.QuadPart = -(nanoseconds / 100 + (nanoseconds % 100 != 0));
+	if (zane_sleep_timer && SetWaitableTimer(zane_sleep_timer, &due, 0, NULL, NULL, FALSE)) {
+		WaitForSingleObject(zane_sleep_timer, INFINITE);
+		return;
+	}
+	int64_t ms = nanoseconds / 1000000 + (nanoseconds % 1000000 != 0);
+	for (; ms > 0; ms -= 0x7fffffff) Sleep((DWORD)(ms < 0x7fffffff ? ms : 0x7fffffff));
+}
+#else
+void zane_sleep(int64_t nanoseconds) {
+	if (nanoseconds < 1) return;
+	struct timespec left = {(time_t)(nanoseconds / 1000000000), (long)(nanoseconds % 1000000000)};
+	while (nanosleep(&left, &left) == -1 && errno == EINTR) {
+	}
+}
+#endif
 
 /* The subject region made for the call about to be spawned on this
    thread, which zane_spawn hands it (zane_island). */
