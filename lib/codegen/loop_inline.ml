@@ -32,7 +32,7 @@ let noreturn f =
   let kind = Llvm.enum_attr_kind "noreturn" in
   Array.exists
     (fun a -> match Llvm.repr_of_attr a with Llvm.AttrRepr.Enum (k, _) -> k = kind | _ -> false)
-    (Llvm.function_attrs f Llvm.AttrIndex.Function)
+    (Llvm_extra.function_attrs f Llvm.AttrIndex.Function)
 
 (* Blocks of [f] in a cycle: those in a strongly connected component of
    more than one block, or with an edge to themselves (Tarjan). *)

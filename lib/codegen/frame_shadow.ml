@@ -42,7 +42,7 @@ let gep_offset dl p =
           match Llvm.classify_type t with
           | Llvm.TypeKind.Struct ->
               let k = Int64.to_int c in
-              walk (Llvm.struct_element_types t).(k) (i + 1)
+              walk (Llvm_extra.struct_element_types t).(k) (i + 1)
                 (Int64.add offset (Llvm_target.DataLayout.offset_of_element t k dl))
           | Llvm.TypeKind.Array ->
               let e = Llvm.element_type t in
@@ -189,7 +189,7 @@ let keeps_none i p =
           | Llvm.AttrRepr.Enum (kind, v) -> kind = captures && v = 0L
           | _ -> false
           | exception Assert_failure _ -> false)
-        (Llvm.function_attrs f (Llvm.AttrIndex.Param k))
+        (Llvm_extra.function_attrs f (Llvm.AttrIndex.Param k))
     in
     let rec go k = k >= n - 1 || ((Llvm.operand i k != p || none_at k) && go (k + 1)) in
     go 0

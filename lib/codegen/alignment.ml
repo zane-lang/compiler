@@ -85,7 +85,7 @@ let rec known ?(slots = true) dl ctx depth v =
           match Llvm.classify_type t with
           | Llvm.TypeKind.Struct ->
               let n = Option.value ~default:0L constant |> Int64.to_int in
-              walk (Llvm.struct_element_types t).(n) (i + 1)
+              walk (Llvm_extra.struct_element_types t).(n) (i + 1)
                 (Int64.add offset (Llvm_target.DataLayout.offset_of_element t n dl))
                 stride
           | Llvm.TypeKind.Array | Llvm.TypeKind.Vector ->

@@ -1804,13 +1804,15 @@ let light_references () =
   check "a scope of scalars is light, unless switched off" (Codegen__Loop_shapes.light 1 [ scalar ] = on);
   check "not when it stores a reference" (Codegen__Loop_shapes.light 1 [ stored ] = (on && not (Cgt.Ref32.frames ())))
 
-(* An empty array the LLVM bindings return (a function's attributes at a
-   parameter that has none, an empty struct's element types) is the shared
-   empty block, so a minor collection, which moves young blocks, leaves it
-   and the blocks made around it as they were. A zero-sized young block
-   made each collection overwrite the word after it: `keeps_none` in
-   Frame_shadow asks for every call's parameters' attributes, and tier 1
-   of `byteSets` crashed. *)
+(* An empty array codegen reads from LLVM (a function's attributes at a
+   parameter that has none, an empty struct's element types) is OCaml's
+   own empty array, so a minor collection, which moves young blocks, leaves
+   it and the blocks made around it as they were. The bindings' own
+   readers make a zero-sized young block, which each collection moves as
+   if it had a field, overwriting the word after it (llvm_stubs.c), so
+   codegen calls only Llvm_extra's: frame shadow once read every call's
+   parameters' attributes through the bindings, and tier 1 of `byteSets`
+   crashed in CI. *)
 let empty_binding_arrays () =
   let ctx = Llvm.create_context () in
   let m = Llvm.create_module ctx "empty" in
@@ -1819,18 +1821,47 @@ let empty_binding_arrays () =
   let empty = Llvm.struct_type ctx [||] in
   let made = ref [] in
   for k = 1 to 20_000 do
-    let attrs = Llvm.function_attrs f (Llvm.AttrIndex.Param (k mod 2)) in
-    let types = Llvm.struct_element_types empty in
-    made := (attrs, types, ref k) :: !made
+    let attrs = Codegen__Llvm_extra.function_attrs f (Llvm.AttrIndex.Param (k mod 2)) in
+    let types = Codegen__Llvm_extra.struct_element_types empty in
+    let params = Codegen__Llvm_extra.param_types (Llvm.function_type (Llvm.void_type ctx) [||]) in
+    made := (attrs, types, params, ref k) :: !made
   done;
   Gc.minor ();
   Gc.full_major ();
   let intact =
-    List.for_all (fun (attrs, types, k) -> Array.length attrs = 0 && Array.length types = 0 && !k >= 1 && !k <= 20_000) !made
+    List.for_all
+      (fun (attrs, types, params, k) ->
+        Array.length attrs = 0 && Array.length types = 0 && Array.length params = 0 && !k >= 1 && !k <= 20_000)
+      !made
   in
-  check "empty arrays from the LLVM bindings survive a collection" intact;
+  check "empty arrays read from LLVM survive a collection" intact;
   Llvm.dispose_module m;
-  Llvm.dispose_context ctx
+  Llvm.dispose_context ctx;
+  (* No compiler source reads them through the bindings. *)
+  let raw = [ "Llvm.function_attrs"; "Llvm.struct_element_types"; "Llvm.param_types" ] in
+  let rec sources dir =
+    Array.fold_left
+      (fun acc name ->
+        let path = Filename.concat dir name in
+        if Sys.is_directory path then sources path @ acc
+        else if Filename.check_suffix name ".ml" then path :: acc
+        else acc)
+      [] (Sys.readdir dir)
+  in
+  let contains text word =
+    let n = String.length word and l = String.length text in
+    let rec at i = i + n <= l && (String.sub text i n = word || at (i + 1)) in
+    at 0
+  in
+  List.iter
+    (fun path ->
+      match read_all path with
+      | Some text ->
+          List.iter
+            (fun word -> check (Printf.sprintf "%s calls %s, not Llvm_extra's" path word) (not (contains text word)))
+            raw
+      | None -> ())
+    (sources "../../lib")
 
 let () =
   ty ();
