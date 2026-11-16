@@ -570,9 +570,18 @@ let element ?cached ?(unchecked = false) env fr b fn args =
   in
   if unchecked then address ()
   else
-  let outside = Llvm.build_icmp Llvm.Icmp.Uge offset count "" b in
   let stop = block env fr and inside = block env fr in
-  ignore (Llvm.build_cond_br outside stop inside b);
+  (* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_INSIDE_FIRST=1): the
+     check made as `offset <u count` branching to the element when true.
+     Against a constant count (an `Array<T, n>`), instruction combining
+     folds `offset >=u n` taken to the stop into `index - (n + 1) <u -n`,
+     still taken to the stop, which inductive range check elimination does
+     not read as a range check, so a loop indexing an array by its counter
+     up to a bound it reads (NeuralNet's synapses, `j!to(ins)` over an
+     `Array<I32, 10>`) kept the check on every iteration. *)
+  if Sys.getenv_opt "ZANE_INSIDE_FIRST" = Some "1" then
+    ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Ult offset count "" b) inside stop b)
+  else ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Uge offset count "" b) stop inside b);
   Llvm.position_at_end stop b;
   let f, fty = runtime env Cgt.Runtime.Out_of_range in
   ignore (Llvm.build_call fty f [||] "" b);
