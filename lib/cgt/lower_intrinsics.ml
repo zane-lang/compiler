@@ -91,6 +91,18 @@ let rec one_byte ?(flags = false) (t : Nodes.Ty.t) =
   | Nodes.Ty.Struct [ t ] | Nodes.Ty.Packed (Nodes.Ty.Struct [ t ]) -> one_byte ~flags t
   | _ -> false
 
+(* A list operand lent to the runtime, as a local: its own operands' pins,
+   what runs now, and what runs last. A list that is an element has its
+   operands run first and is located only after the call's other operands,
+   so one of them that grows the list holding it moves it before the call
+   finds it. *)
+let placed w st ctx span e =
+  let id = fresh st in
+  if Lower_calls.subscripted e then
+    let pins, e = Lower_calls.pinned w st ctx span e in
+    (id, pins, [], [ Stat.Let { id; value = w.lend st ctx span e } ])
+  else (id, [], [ Stat.Let { id; value = w.lend st ctx span e } ], [])
+
 let call w st ctx span (e : T.Expr.t) : Expr.t =
   match e.T.Expr.node with
   | T.Expr.Call { callee = { owner = S.Intrinsic "@runtime$print"; _ }; args; handler = None }
@@ -299,13 +311,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
            located only after the range's start and count, so one that
            grows the list holding it moves it before the call finds it. *)
         let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
-        let place e =
-          let id = fresh st in
-          if Lower_calls.subscripted e then
-            let pins, e = Lower_calls.pinned w st ctx span e in
-            (id, pins, [], [ Stat.Let { id; value = w.lend st ctx span e } ])
-          else (id, [], [ Stat.Let { id; value = w.lend st ctx span e } ], [])
-        in
+        let place = placed w st ctx span in
         let l, l_pins, l_now, l_last = place list in
         let f, f_pins, f_now, f_last =
           match from with Some e -> place e | None -> (l, [], [], [])
@@ -416,10 +422,13 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       let of_list (l : T.Expr.t) = Option.bind (element (Tty.strip_mode l.T.Expr.ty)) (fun t -> width (ty st span t)) in
       if of_list list <> Some 32 || of_list keys <> Some 64 then
         refuse span "`@primitives$sortBy` sorts a list of `I32` by a list of `I64` keys";
-      {
-        Expr.node = Expr.Runtime { fn = Runtime.List_sort_by; args = [ w.lend st ctx span list; w.lend st ctx span keys ] };
-        ty = Nodes.Ty.Void;
-      }
+      (* Both lists in written order, each located after the other's
+         operands have run, as `copyRange` places its lists. *)
+      let l, l_pins, l_now, l_last = placed w st ctx span list in
+      let k, k_pins, k_now, k_last = placed w st ctx span keys in
+      let sort = Expr.Runtime { fn = Runtime.List_sort_by; args = [ local_ptr l; local_ptr k ] } in
+      let body = l_pins @ l_now @ k_pins @ k_now @ k_last @ l_last @ [ Stat.Eval { Expr.node = sort; ty = Nodes.Ty.Void } ] in
+      { Expr.node = Expr.Expand { label = fresh st; body; result = None }; ty = Nodes.Ty.Void }
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$sort"; _ }; args = [ T.Arg.Value list ]; handler = None } ->
       (* The runtime sorts the
          elements as integers of their width: `I32`, `I64` and `U8`, or a

@@ -35,6 +35,15 @@ Unit check(ok Bool) {
 
 Bool same(a I64, b I64) => @operators$equal(a, b);
 
+/// `keys`, once `orders` has grown by many lists, so that its block moves.
+@primitives$List<I64> grownFirst(this @primitives$List<@primitives$List<I32>>, keys @primitives$List<I64>) mut {
+	n I64(1);
+	n!to(I64(64)) {
+		this!push(@primitives$List(I32));
+	}
+	return keys;
+}
+
 /// The digits of the operands run so far, in the order they ran.
 type Order = #struct {
 	seen I64;
@@ -112,5 +121,16 @@ Unit main() {
 	few!push(I32.wrap(I64(1)));
 	few!sortBy(keys);
 	check(sorted(few, keys));
+	// A list that is an element is sorted where it is once the keys have
+	// run, though they grow the list holding it.
+	orders @primitives$List<@primitives$List<I32>> = @primitives$List(@primitives$List<I32>);
+	mixed @primitives$List<I32> = @primitives$List(I32);
+	m I64(1);
+	m!to(I64(100)) {
+		mixed!push(I32.wrap(m));
+	}
+	orders!push(mixed);
+	orders[I64(1)]!sortBy(orders!grownFirst(keys));
+	check(@operators$conjoin(sorted(orders[I64(1)], keys), same(orders:size(), I64(65))));
 	return Unit();
 }
