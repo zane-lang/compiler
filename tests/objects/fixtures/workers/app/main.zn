@@ -1,0 +1,28 @@
+/// A fetch loop written as a worker: a step lambda written where `work` is
+/// called, which an optimized build makes a plain loop of, with no call
+/// through the function value (control-flow.md §3.7).
+package app;
+
+import engine$work;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+type Machine = struct {
+	pc I64;
+	count I64;
+	acc I64;
+}
+Machine(count I64) => init{ pc = I64(1); count; acc = I64(0); }
+
+Unit main() {
+	count I64 = @program$runtime:arguments()[I64(1)]:parseI64() ?? I64(0);
+	m Machine = Machine(count);
+	m!work(@primitives$Bool(this Machine) mut {
+		this.acc = @operators$add(this.acc, @operators$multiply(this.pc, this.pc));
+		this.pc = @operators$add(this.pc, I64(1));
+		return @operators$not(@operators$lessThan(this.count, this.pc));
+	});
+	@program$console!print(@primitives$String(m.acc));
+	return Unit();
+}

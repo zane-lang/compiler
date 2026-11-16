@@ -176,6 +176,11 @@ repo's `langbench/` and print what it prints at the same size.
   each cell's predecessor held in a variant that is empty until the cell is
   reached. Each query walks the predecessors back from a target, and the
   path lengths are summed.
+- `workers` is a fetch loop written as a worker (spec control-flow.md
+  §3.7): a machine runs a short list of operations, one a step, until it
+  has run as many as the size asks for. The step is a lambda written where
+  the worker runs, so the optimized build makes one loop of it with no call
+  through the function value, and the plain build calls the step each pass.
 - The rest each hold one optimization to its effect: with it gone, the
   program's estimated cycles rise past the gate's 1% in at least one
   build ([`docs/optimizations.md`](../../docs/optimizations.md) names the

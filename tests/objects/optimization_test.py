@@ -92,6 +92,24 @@ class OptimizationTests(unittest.TestCase):
         self.assertRegex(run("llvm-nm", obj),
                          rf' U _?.*{re.escape(STAMP)}math\$fib\(')
 
+    def test_worker_step_inlines_into_a_plain_loop(self):
+        # A step lambda written where a worker runs, through a method for
+        # every type in another package (control-flow.md §3.7): an
+        # optimized build makes one loop of it, with no call through the
+        # function value and no call to the lifted lambda.
+        workers = FIXTURES / "workers"
+        flags = ["--package", f"app={workers / 'app'}", "--package", f"engine={workers / 'engine'}"]
+        ir = run(ZANEC, "--ll", "--optimize", *flags)
+        main = ir.split("define void @zane_main()", 1)[1].split("\ndefine ", 1)[0]
+        self.assertNotRegex(ir, r'call [^\n]*lambda')
+        self.assertNotRegex(main, r'call [^\n@]*%[\w.]+\(')
+        self.assertRegex(main, r'mul i64 (%\w+), \1')
+        for optimize in ([], ["--optimize"]):
+            exe = self.out / f"workers{len(optimize)}"
+            run(ZANEC, "--build", exe, *optimize, *flags)
+            # The sum of the squares of 1 to 10.
+            self.assertEqual(run_program(exe, 10), "385")
+
     def test_unoptimized_inlining_stays_bounded(self):
         # Each level calls the one below twice: writing out or inlining every
         # level would make 2^24 copies, so the upper levels stay calls.
