@@ -630,14 +630,19 @@ where a call is, leaves out of line.
 - **Design:** [`design/lowering.md`](design/lowering.md), "After the
   passes"
 - **Effect:** `tests/perf` `tape`, a tape machine whose loop may grow its
-  tape by a rare push, takes 1.5% more estimated cycles without it
+  tape by a rare push, takes 1.5% more estimated cycles without it;
+  `refills`, an arithmetic coder's bit writer, 2.7% more optimized and
+  13% more tiered when every slot is filled again after every call
 
 Each slot of a placed frame that is only loaded and stored whole, as one
 scalar type, gets a copy in an alloca, filled where the frame is placed and
 after each call given an address in the frame, and written through on
 every store; loads read the copy, which SROA makes a register. A frame
 whose address escapes any other way, including to a callee that may keep
-it, is left alone.
+it, is left alone. After a call, only the copies it may have written are
+filled again: those a `memset`, `memcpy` or `memmove` of a constant
+length covers (none when it writes outside a frame whose address went
+nowhere else), and the list header the runtime's growth writes.
 
 ### Index checks merged
 

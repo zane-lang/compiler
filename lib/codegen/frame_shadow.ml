@@ -11,7 +11,7 @@
    same scalar type, gets a copy in an alloca: the copy is filled from the
    slot where the frame is placed, every store also stores to it, every
    load reads it, and after a call given an address in the frame it is
-   filled again. The slot is still written each time, so the runtime and
+   filled again, only where that call may have written it. The slot is still written each time, so the runtime and
    every callee see it as before; only reads move to the copy, which SROA
    then makes a register. A frame whose address escapes any other way (a
    pointer stored, an offset that is not a constant, a merge with another
@@ -322,6 +322,34 @@ let func ctx dl (f : Llvm.llvalue) =
             (* A frame a slot's address escaped from is filled again after
                every call it is placed before. *)
             if !escaped then calls_after f (Lazy.force dom) base calls;
+            let header = Llvm_target.DataLayout.abi_size (List_handle.header ctx) dl in
+            let within lo len = List.filter (fun (o, t, _) -> o < Int64.add lo len && Int64.add o (size t) > lo) copies in
+            let in_frame p = match offset_from dl (ref []) base p with Some (Some o) -> Some o | _ -> None in
+            let elsewhere () = if !escaped then copies else [] in
+            (* The copies a call may have written, so filled again after
+               it: after a `memset`, `memcpy` or `memmove` of a constant
+               length, those its destination covers, and none when the
+               destination is outside a frame whose address went nowhere
+               else; after the runtime's list growth
+               ([Frame_scopes.list_calls]), which writes the list's header at
+               its first argument and nothing else the frame holds, those of
+               the header (whether or not a slot's address went elsewhere:
+               growth writes through no address it was given before); after
+               any other call, all. An arithmetic coder's bit writer clears
+               its byte and count with one `memset` per byte, and the push
+               that follows would otherwise load every slot again, the
+               coder's tables among them (tests/perf `refills`). *)
+            let refilled c =
+              match callee c with
+              | Some n when starts "llvm.memset" n || starts "llvm.memcpy" n || starts "llvm.memmove" n -> (
+                  match (in_frame (Llvm.operand c 0), Llvm.int64_of_const (Llvm.operand c 2)) with
+                  | Some o, Some len -> within o len
+                  | None, _ -> elsewhere ()
+                  | Some _, None -> copies)
+              | Some n when List.mem n Frame_scopes.list_calls -> (
+                  match in_frame (Llvm.operand c 0) with Some o -> within o header | None -> elsewhere ())
+              | _ -> copies
+            in
             List.iter
               (fun c ->
                 match Llvm.instr_succ c with
@@ -331,7 +359,7 @@ let func ctx dl (f : Llvm.llvalue) =
                       (fun (o, t, a) ->
                         let p = Llvm.build_in_bounds_gep i8 base [| Llvm.const_of_int64 i64 o true |] "" b in
                         ignore (Llvm.build_store (Llvm.build_load t p "" b) a b))
-                      copies
+                      (refilled c)
                 | Llvm.At_end _ -> ())
               !calls
           end)

@@ -198,6 +198,8 @@ repo's `langbench/` and print what it prints at the same size.
     copied.
   - `tape`: a tape machine's frame slots stay in registers across a rare
     push.
+  - `refills`: a bit writer's `memset` and push fill again only the frame
+    slots they write.
   - `cursor`: a whitespace skip whose counter only steps is weighted as a
     search.
   - `peeled`: a tree-building recursion's leaves take no call.
