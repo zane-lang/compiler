@@ -227,8 +227,14 @@ the result through the `test` lambda the checker supplies, which converts it
 to `@primitives$Bool` by the implicit constructor that applies
 (`Check.worker_test`). The step runs on every pass, so the condition is
 lowered as a loop body is, and a small function it calls is written out
-there (`Lower.worker_step`, State.loop). `workEvery` reads its interval once, before the first
-step, and its loop's body waits that long through `zane_sleep`, so a step
+there (`Lower.worker_step`, State.loop); what a pass holds is in an arena
+of the pass's own, which drains before the next. Before the first step the
+call settles its operands once, in written order (`Lower.worker_subject`,
+`Lower.worker_held`): a subject place's subscript indices are pinned, and a
+temporary subject, or a step that is neither a variable nor a lambda
+written in place, runs into a slot of the call's scope, so every pass
+works on the place and step the call named. `workEvery` reads its interval
+once too, and its loop's body waits that long through `zane_sleep`, so a step
 that returns false leaves at once without a last wait. The step's value is
 a lifted lambda's address, a constant LLVM sees, so a step written where
 the worker runs is inlined, and an optimized build makes one loop of it

@@ -202,14 +202,19 @@ void zane_main(void) {
 	check(zane_wanted == zane_processors());
 
 	/* A worker's wait between steps (control-flow.md §4.1): nothing below
-	   one nanosecond, and at least what it is asked for. */
+	   one nanosecond, and at least what it is asked for. A wait that did
+	   suspend takes tens of microseconds at the least, so 100000 of them
+	   would take seconds; the bound is loose enough that no scheduling
+	   delay reaches it. */
 	int64_t before = test_now();
-	zane_sleep(0);
-	zane_sleep(-5);
+	for (int i = 0; i < 50000; i++) {
+		zane_sleep(0);
+		zane_sleep(-5);
+	}
 	int64_t quick = test_now() - before;
 	before = test_now();
 	zane_sleep(3000000);
-	check(quick < 100000000 && test_now() - before >= 3000000);
+	check(quick < 2000000000 && test_now() - before >= 3000000);
 
 	/* A reader never sees a write-back half done. */
 	zane_set_threads(2);

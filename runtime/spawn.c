@@ -192,9 +192,12 @@ static _Thread_local HANDLE zane_sleep_timer;
 
 void zane_sleep(int64_t nanoseconds) {
 	if (nanoseconds < 1) return;
+	/* A Windows older than 10 1803 has no high-resolution timer: a plain
+	   waitable timer is made once instead, so no later sleep retries. */
 	if (!zane_sleep_timer)
 		zane_sleep_timer = CreateWaitableTimerExW(NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
 		                                          TIMER_ALL_ACCESS);
+	if (!zane_sleep_timer) zane_sleep_timer = CreateWaitableTimerExW(NULL, NULL, 0, TIMER_ALL_ACCESS);
 	LARGE_INTEGER due;
 	due.QuadPart = -(nanoseconds / 100 + (nanoseconds % 100 != 0));
 	if (zane_sleep_timer && SetWaitableTimer(zane_sleep_timer, &due, 0, NULL, NULL, FALSE)) {
