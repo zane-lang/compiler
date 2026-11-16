@@ -843,8 +843,27 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
           | Some h -> Printf.sprintf " in %s, the home of %s," (quote (S.home_to_string h)) (quote (Ty.to_string subject.aty))
           | None -> ""
         in
+        (* A method for every type that the file's spelling does not reach
+           bare is written with its package's qualifier (functions.md §6.1). *)
+        let elsewhere =
+          Verbs.methods env.verbs name
+          |> List.filter_map (fun (s : S.t) ->
+                 match s.home with
+                 | S.Package p when any_type s && accessible_sig ctx s && p <> ctx.package -> Some p
+                 | _ -> None)
+          |> List.sort_uniq String.compare
+        in
+        let hint =
+          match elsewhere with
+          | [] -> ""
+          | p :: _ ->
+              Printf.sprintf
+                "; %s declares one for a subject of any type, which a call reaches through the \
+                 qualifier this file gives %s, or bare once an import spells it bare"
+                (quote p) (quote p)
+        in
         error env span
-          (Printf.sprintf "no method named %s is declared%s or in this package" (quote name) home);
+          (Printf.sprintf "no method named %s is declared%s or in this package%s" (quote name) home hint);
         skip_handler env ctx handle;
         (invalid span, None)
       end

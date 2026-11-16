@@ -1,0 +1,4 @@
+File "fixtures/reject/workerValue/main.zn", line 15, characters 17-74:
+15 |     done Unit = @controlflow$work(c, @primitives$Bool(this Counter) mut {
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: lowering does not handle `@controlflow$work` used as a value yet

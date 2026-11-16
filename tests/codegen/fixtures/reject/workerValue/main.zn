@@ -1,0 +1,20 @@
+/// A worker used as a value: `@controlflow$work` returns `Unit`, and
+/// lowering writes it out only as a statement, as it does `branch`.
+package workerValue;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+type Counter = struct {
+	steps I64;
+}
+Counter() => init{ steps = I64(0); }
+
+Unit main() {
+	c Counter = Counter();
+	done Unit = @controlflow$work(c, @primitives$Bool(this Counter) mut {
+		this.steps = @operators$add(this.steps, I64(1));
+		return @operators$lessThan(this.steps, I64(3));
+	});
+	return done;
+}

@@ -27,3 +27,8 @@ Unit shout() {
 	@program$console!print(text);
 	return Unit();
 }
+
+/// A method for a subject of any type (generics.md §3.7), which a file
+/// reaches bare only through an import that spells this package's members
+/// bare.
+Unit settle(this S Type) mut => Unit();

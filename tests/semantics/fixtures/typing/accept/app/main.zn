@@ -1,6 +1,6 @@
 package app;
 
-import shapes$[Vec2, Corner, Shape, area];
+import shapes$[Vec2, Corner, Shape, area, drive];
 
 alias Int = @primitives$I64;
 alias Float = @primitives$F64;
@@ -286,5 +286,20 @@ Unit takers() {
 	zero Int = zeroOf(Int);
 	small @primitives$I32 = zeroOf(@primitives$I32);
 	read Int = Int(3):sized(Duo<Float>);
+	return Unit();
+}
+
+/// A worker run by `shapes`'s method for every type, on a type of this
+/// package, with the waiting form beside it.
+type Steps = struct { n Int; }
+Steps() => init{ n = Int(0); }
+
+Unit drives() {
+	s Steps = Steps();
+	s!drive(Bool(this Steps) mut {
+		this.n = @operators$add(this.n, Int(1));
+		return @operators$lessThan(this.n, Int(3));
+	});
+	@controlflow$workEvery(s, Int(1000), Bool(this Steps) mut => false);
 	return Unit();
 }

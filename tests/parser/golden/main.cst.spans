@@ -1,4 +1,4 @@
-package | package main; /// Every im … ettled"); return Unit(); }
+package | package main; /// Every im … s, step); return Unit(); }
   decl | package main
     name main | main
   decl | import core$
@@ -3423,6 +3423,53 @@ package | package main; /// Every im … ettled"); return Unit(); }
                   ident print | print
               call_arg | "unsettled"
                 expr | "unsettled"
+        statement | return Unit();
+          stat | return Unit();
+            expr | Unit()
+              verb_call | Unit()
+                constructor_name | Unit
+                  name_type | Unit
+                    ident Unit | Unit
+                constructor_args | ()
+  decl | Unit drive(this S Type, st … s, step); return Unit(); }
+    verb_decl | Unit drive(this S Type, st … s, step); return Unit(); }
+      name drive | drive
+      type_expr | S
+        name_type | S
+          ident S | S
+      this_introduces | S
+      param | step Bool[this S] mut
+        name step | step
+        param_type | Bool[this S] mut
+          type_expr | Bool[this S] mut
+            verb_type | Bool[this S] mut
+              type_expr | S
+                name_type | S
+                  ident S | S
+              ret_type | Bool
+                type_expr | Bool
+                  name_type | Bool
+                    ident Bool | Bool
+      ret_type | Unit
+        type_expr | Unit
+          name_type | Unit
+            ident Unit | Unit
+      body | { @controlflow$work(this, step); return Unit(); }
+        statement | @controlflow$work(this, step);
+          stat | @controlflow$work(this, step);
+            verb_call | @controlflow$work(this, step)
+              expr | @controlflow$work
+                name_expr | @controlflow$work
+                  package controlflow | controlflow
+                  ident work | work
+              call_arg | this
+                expr | this
+                  name_expr | this
+                    ident this | this
+              call_arg | step
+                expr | step
+                  name_expr | step
+                    ident step | step
         statement | return Unit();
           stat | return Unit();
             expr | Unit()

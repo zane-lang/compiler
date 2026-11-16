@@ -1,0 +1,24 @@
+package bad;
+
+/// `import lib` qualifies the package, so its method for every type is
+/// written `lib$settle` (functions.md §6.1).
+import lib;
+
+/// A subject that introduces a parameter names it bare (generics.md §3.7).
+Unit nested(this List<T Type> Type) => Unit();
+
+type Steps = struct { n Int; }
+Steps() => init{ n = Int(0); }
+
+Unit workers(fixed Steps) {
+	s Steps = Steps();
+	s!settle();
+	s!lib$settle();
+	// A step's result converts to `@primitives$Bool`; an `Int` does not.
+	@controlflow$work(s, Int(this Steps) mut => this.n);
+	// A worker writes its subject, so a read-only parameter is no subject.
+	@controlflow$work(fixed, Bool(this Steps) mut => false);
+	// The conversion is the checker's to supply.
+	@controlflow$work(s, Bool(this Steps) mut => false, Bool(b Bool) => b);
+	return Unit();
+}

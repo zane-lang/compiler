@@ -666,6 +666,56 @@ package app
           expr Type_arg app$Duo<@primitives$F64> | Duo<Float>
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()
+  decl Type Steps | type Steps = struct { n Int; }
+  decl Verb Steps | Steps() => init{ n = Int(0); }
+    block | => init{ n = Int(0); }
+      stat Return | => init{ n = Int(0); }
+        expr Init | init{ n = Int(0); }
+          field n | n = Int(0)
+            expr Construct @primitives$I64 | Int(0)
+              expr Integer_lit | 0
+  decl Verb drives | Unit drives() { s Steps =  … > false); return Unit(); }
+    block | { s Steps = Steps(); s!dri … > false); return Unit(); }
+      stat Let | s Steps = Steps();
+        local s | s
+        expr Construct Steps | Steps()
+      stat Expr | s!drive(Bool(this Steps) m … sThan(this.n, Int(3)); });
+        expr Call drive | s!drive(Bool(this Steps) m … ssThan(this.n, Int(3)); })
+          expr Var s | s
+          expr Lambda | Bool(this Steps) mut { thi … essThan(this.n, Int(3)); }
+            param this | Steps
+            block | { this.n = @operators$add( … essThan(this.n, Int(3)); }
+              stat Assign | this.n = @operators$add(this.n, Int(1));
+                expr Field n | this.n
+                  expr Var this | this
+                expr Call @operators$add | @operators$add(this.n, Int(1))
+                  expr Field n | this.n
+                    expr Var this | this
+                  expr Construct @primitives$I64 | Int(1)
+                    expr Integer_lit | 1
+              stat Return | return @operators$lessThan(this.n, Int(3));
+                expr Call @operators$lessThan | @operators$lessThan(this.n, Int(3))
+                  expr Field n | this.n
+                    expr Var this | this
+                  expr Construct @primitives$I64 | Int(3)
+                    expr Integer_lit | 3
+      stat Expr | @controlflow$workEvery(s,  … this Steps) mut => false);
+        expr Call @controlflow$workEvery | @controlflow$workEvery(s,  … (this Steps) mut => false)
+          expr Var s | s
+          expr Construct @primitives$I64 | Int(1000)
+            expr Integer_lit | 1000
+          expr Lambda | Bool(this Steps) mut => false
+            param this | Steps
+            block | => false
+              stat Return | => false
+                expr Bool_lit | false
+          expr Lambda | @controlflow$workEvery(s,  … (this Steps) mut => false)
+            param result | @controlflow$workEvery(s,  … (this Steps) mut => false)
+            block | @controlflow$workEvery(s,  … (this Steps) mut => false)
+              stat Return | @controlflow$workEvery(s,  … (this Steps) mut => false)
+                expr Var result | @controlflow$workEvery(s,  … (this Steps) mut => false)
+      stat Return | return Unit();
+        expr Construct @primitives$Unit | Unit()
 package shapes
   decl Alias Float | alias Float = @primitives$F64
   decl Alias Unit | alias Unit = @primitives$Unit
@@ -859,6 +909,7 @@ package shapes
               stat Return | => Float(0.0)
                 expr Construct @primitives$F64 | Float(0.0)
                   expr Decimal_lit | 0.0
+  decl Verb drive | Unit drive(this S Type, st … s, step); return Unit(); }
 instances
   instance pick with T = @primitives$F64 | T pick(first T Type, secon …  first; } return chosen; }
     param first | first T Type
@@ -1121,5 +1172,20 @@ instances
           expr Var this | this
           expr Construct @primitives$I64 | Int(1)
             expr Integer_lit | 1
+      stat Return | return Unit();
+        expr Construct @primitives$Unit | Unit()
+  instance drive with S = app$Steps | Unit drive(this S Type, st … s, step); return Unit(); }
+    param this | S
+    param step | step @primitives$Bool[this S] mut
+    block | { @controlflow$work(this, step); return Unit(); }
+      stat Expr | @controlflow$work(this, step);
+        expr Call @controlflow$work | @controlflow$work(this, step)
+          expr Var this | this
+          expr Var step | step
+          expr Lambda | @controlflow$work(this, step)
+            param result | @controlflow$work(this, step)
+            block | @controlflow$work(this, step)
+              stat Return | @controlflow$work(this, step)
+                expr Var result | @controlflow$work(this, step)
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()

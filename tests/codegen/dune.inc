@@ -10301,6 +10301,128 @@
   (diff golden/wideSum.out wideSum.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/workers))
+ (targets workers.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build workers.exe --package fixtures/workers)))
+
+(rule
+ (deps (source_tree fixtures/workers))
+ (targets workers.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build workers.optimized.exe --optimize --package fixtures/workers)))
+
+(rule
+ (deps (source_tree fixtures/workers))
+ (targets workers.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build workers.tiered.exe --tiered --package fixtures/workers)))
+
+(rule
+ (deps (source_tree fixtures/workers))
+ (targets workers.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up workers.tier1 --package fixtures/workers)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    workers.checked.out.actual
+    (run ./workers.exe "1000")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/workers.out workers.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    workers.unchecked.out.actual
+    (run ./workers.exe "1000")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/workers.out workers.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    workers.optimized.checked.out.actual
+    (run ./workers.optimized.exe "1000")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/workers.out workers.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    workers.optimized.unchecked.out.actual
+    (run ./workers.optimized.exe "1000")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/workers.out workers.optimized.unchecked.out.actual)))
+
+(rule
+ (deps workers.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./workers.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    workers.tiered.checked.out.actual
+    (run ./workers.tiered.exe "1000")))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/workers.out workers.tiered.checked.out.actual)))
+
+(rule
+ (deps workers.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./workers.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    workers.tiered.unchecked.out.actual
+    (run ./workers.tiered.exe "1000")))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/workers.out workers.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/appendOwners))
  (action
   (with-stderr-to
@@ -10467,4 +10589,18 @@
  (alias runtest)
  (action
   (diff golden/reject.valueFlow.err reject.valueFlow.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/workerValue))
+ (action
+  (with-stderr-to
+   reject.workerValue.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/workerValue)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.workerValue.err reject.workerValue.err.actual)))
 

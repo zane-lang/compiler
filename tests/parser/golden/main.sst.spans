@@ -1,4 +1,4 @@
-package | package main; /// Every im … ettled"); return Unit(); }
+package | package main; /// Every im … s, step); return Unit(); }
   decl Package | package main
     name main | main
   decl Import | import core$
@@ -3552,6 +3552,51 @@ package | package main; /// Every im … ettled"); return Unit(); }
                 ident print | print
             call_arg Value | "unsettled"
               expr StrLit | "unsettled"
+        stat Ret | return Unit();
+          expr VerbCall | Unit()
+            verb_call Constructor | Unit()
+              constructor_name | Unit
+                name_type | Unit
+                  ident Unit | Unit
+              constructor_args Positional | ()
+  decl Verb | Unit drive(this S Type, st … s, step); return Unit(); }
+    verb_decl Meth mut | Unit drive(this S Type, st … s, step); return Unit(); }
+      name drive | drive
+      type_expr Path | S
+        name_type | S
+          ident S | S
+      this_introduces | S
+      param | step Bool[this S] mut
+        name step | step
+        param_type Concrete | Bool[this S] mut
+          type_expr Verb | Bool[this S] mut
+            verb_type Meth mut | Bool[this S] mut
+              type_expr Path | S
+                name_type | S
+                  ident S | S
+              ret_type Safe | Bool
+                type_expr Path | Bool
+                  name_type | Bool
+                    ident Bool | Bool
+      ret_type Safe | Unit
+        type_expr Path | Unit
+          name_type | Unit
+            ident Unit | Unit
+      block | { @controlflow$work(this, step); return Unit(); }
+        stat VerbCall | @controlflow$work(this, step);
+          verb_call Call function | @controlflow$work(this, step)
+            expr NameExpr | @controlflow$work
+              name_expr | @controlflow$work
+                package controlflow | controlflow
+                ident work | work
+            call_arg Value | this
+              expr NameExpr | this
+                name_expr | this
+                  ident this | this
+            call_arg Value | step
+              expr NameExpr | step
+                name_expr | step
+                  ident step | step
         stat Ret | return Unit();
           expr VerbCall | Unit()
             verb_call Constructor | Unit()

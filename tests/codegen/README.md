@@ -339,6 +339,14 @@ makes of them.
   texts shorter than a block and longer than several, finding the first
   position counted from 1 or 0; and hashes equal strings made apart alike
   with `hashBytes`.
+- `workers` runs workers (control-flow.md §3.7) through methods on a
+  subject of any type: a step run until it returns false, with a limit
+  read from the arguments so that no build folds it, one that returns false
+  at once and runs once, one that returns `@primitives$Bool` itself, one
+  whose subject owns a block, `workEvery` waiting a millisecond between
+  steps and not at all for an interval below one, a subject's own `work`
+  preferred to the one for every type, and a spawned worker, which its
+  scope waits for before the subject is read.
 
 ## Rejects
 
@@ -348,7 +356,8 @@ one for each construct lowering does not handle yet (docs/design/lowering.md
 §7), so implementing one changes its golden file, and so does a refusal that
 stops firing by mistake:
 
-- `valueFlow` uses a control-flow intrinsic as a value;
+- `valueFlow` uses a control-flow intrinsic as a value, and `workerValue`
+  a worker;
 - `unitFuture` stores into a spawned call's `Unit` result.
 
 `literalRange` is a refusal of the program itself: a literal too large for
