@@ -55,5 +55,5 @@ let run ?(c = []) (p : Program.t) =
     end
   in
   List.iter visit p.Program.funcs;
-  Loop_pushes.program
+  Literal_locals.program @@ Strip.program @@ Loop_pushes.program
     { p with Program.funcs = List.map (fun (f : Func.t) -> Hashtbl.find folded f.Func.symbol) p.Program.funcs }

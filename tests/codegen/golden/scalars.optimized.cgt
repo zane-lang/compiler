@@ -484,16 +484,12 @@
         ├── ret: void
         └── body[0] > scope:
             ├── id: %3
-            ├── body[0] > hold:
+            ├── body[0] > let:
             │   ├── local: #2
-            │   ├── scope: %3
-            │   ├── value: "yes\n" : handle
-            │   └── layout: %primitives$String
-            ├── body[1] > hold:
+            │   └── value: "yes\n" : handle
+            ├── body[1] > let:
             │   ├── local: #4
-            │   ├── scope: %3
-            │   ├── value: "no\n" : handle
-            │   └── layout: %primitives$String
+            │   └── value: "no\n" : handle
             ├── body[2] > if:
             │   ├── cond: local #1 : i1
             │   └── body[0] > eval > runtime:

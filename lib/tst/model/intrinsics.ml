@@ -317,7 +317,7 @@ let methods =
     meth ~abort:(Some (prim "Unit")) "primitives" "parseF64"
       [ param "this" (prim "String") ]
       (prim "F64");
-    (* EXPERIMENT (LangArena zane-vs-goose): `parseF64` on the [count]
+    (* `parseF64` on the [count]
        bytes from byte [start], counted from 1 as `byteAt` counts. *)
     meth ~abort:(Some (prim "Unit")) "primitives" "parseF64At"
       [ param "this" (prim "String"); param "start" (prim "I64"); param "count" (prim "I64") ]
@@ -326,6 +326,9 @@ let methods =
        byte at an index counted from 1, and a string made from bytes. *)
     meth "primitives" "byteCount" [ param "this" (prim "String") ] (prim "I64");
     meth "primitives" "byteAt" [ param "this" (prim "String"); param "index" (prim "I64") ] (prim "U8");
+    (* A hash of a string's bytes, the same for equal strings within one
+       run of the program and not specified beyond that. *)
+    meth "primitives" "hashBytes" [ param "this" (prim "String") ] (prim "I64");
   ]
   @ (let bytes_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
      (* Generic so `core`'s `List<U8>`, a list of its own `U8`, passes;
@@ -334,8 +337,42 @@ let methods =
        meth ~generics:[ bytes_element ] "primitives" "text"
          [ param "this" (prim "List" ~args:[ Ty.Type (Ty.Param bytes_element) ]) ]
          (prim "String");
-     ])
-  (* EXPERIMENT (LangArena zane-vs-goose): `count` elements of a list, from
+     ]
+     @ (let set_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind
+        and flag = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+        [
+    (* A byte set made from 256 flags, byte b's at b + 1, prepared for
+       [findAny] and [findPair] to test 16 bytes at a time. Generic, as
+       [text] is, so `core`'s own `List<Bool>` passes; lowering checks
+       each flag is one byte. *)
+    meth ~generics:[ flag ] "primitives" "byteSet"
+      [ param "this" (prim "List" ~args:[ Ty.Type (Ty.Param flag) ]) ]
+      (prim "List" ~args:[ Ty.Type (prim "U8") ]);
+    (* The first of the [count] positions from [from], counted from 1,
+       whose byte is in the set [first] and the byte [gap] after it in
+       [second], or 0 when there is none; each set one [byteSet] made. *)
+    meth ~generics:[ set_element ] "primitives" "findPair"
+      [
+        param "this" (prim "String");
+        param "from" (prim "I64");
+        param "count" (prim "I64");
+        param "first" (prim "List" ~args:[ Ty.Type (Ty.Param set_element) ]);
+        param "gap" (prim "I64");
+        param "second" (prim "List" ~args:[ Ty.Type (Ty.Param set_element) ]);
+      ]
+      (prim "I64");
+    (* The same for one set: the first of the [count] positions from
+       [from] whose byte is in [set], or 0. *)
+    meth ~generics:[ set_element ] "primitives" "findAny"
+      [
+        param "this" (prim "String");
+        param "from" (prim "I64");
+        param "count" (prim "I64");
+        param "set" (prim "List" ~args:[ Ty.Type (Ty.Param set_element) ]);
+      ]
+      (prim "I64");
+        ]))
+  (* `count` elements of a list, from
      its element `start`, copied onto the end of a list, as one copy: of
      another list, or of the list itself. Only for elements that own no
      blocks, which lowering checks. *)
@@ -344,6 +381,8 @@ let methods =
        (element, prim "List" ~args:[ Ty.Type (Ty.Param element) ])
      in
      let range, ranged = list () and own, owned = list () and sorts, sorted = list () in
+     let copied, copies = list () in
+     let ordered, orders = list () and keyed, keys = list () in
      let compared, compares = list () and hashed, hashes = list () in
      [
        meth ~generics:[ range ] ~is_mut:true "primitives" "appendRange"
@@ -351,6 +390,16 @@ let methods =
          (prim "Unit");
        meth ~generics:[ own ] ~is_mut:true "primitives" "appendOwn"
          [ param "this" owned; param "start" (prim "I64"); param "count" (prim "I64") ]
+         (prim "Unit");
+       (* `count` elements of a list from its element `start` copied over
+          the list's own from its element `at`, as one copy. *)
+       meth ~generics:[ copied ] ~is_mut:true "primitives" "copyRange"
+         [ param "this" copies; param "at" (prim "I64"); param "from" copies; param "start" (prim "I64"); param "count" (prim "I64") ]
+         (prim "Unit");
+       (* A list of `I32` indices into a list of `I64` keys, sorted
+          stably by the key each names. *)
+       meth ~generics:[ ordered; keyed ] ~is_mut:true "primitives" "sortBy"
+         [ param "this" orders; param "keys" keys ]
          (prim "Unit");
        (* A list of integers sorted in place, ascending. *)
        meth ~generics:[ sorts ] ~is_mut:true "primitives" "sort" [ param "this" sorted ] (prim "Unit");

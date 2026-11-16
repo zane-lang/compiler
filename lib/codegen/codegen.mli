@@ -55,7 +55,10 @@ type c_package = {
     (docs/design/lowering.md §9); off when absent. With [version], each
     loop over elements that the optimized passes can split is emitted
     twice (Emit.versioned, docs/design/lowering.md §9, "The passes"); off
-    when absent. [c] is the packages' C code, which an optimized build, a
+    when absent. With [tiered], for both tiers of a tiered build, a loop
+    is versioned whatever function it calls (Loop_copies.count_call_sites):
+    tier 1's table of every function leaves no callee with a single caller
+    to inline. [c] is the packages' C code, which an optimized build, a
     tier and an object link into the module, and an unoptimized executable
     links as an object of its own (docs/design/ffi.md F13, F14). *)
 val with_program :
@@ -63,6 +66,7 @@ val with_program :
   ?pack:bool ->
   ?memoize:bool ->
   ?version:bool ->
+  ?tiered:bool ->
   ?fixed_region:int ->
   ?spawned_fixed_region:int ->
   ?c:c_package list ->

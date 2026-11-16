@@ -525,8 +525,8 @@ let built = function Ok v -> Ok v | Error message -> fail [ Diagnostic.about_inv
 
 (* The program's module exists only inside [f] (Codegen.with_program),
    emitted for the optimized passes when [version]. *)
-let emitted ?target ?pack ?memoize ?c ~version regions cgt f =
-  Codegen.with_program ?target ?pack ?memoize ~version ?fixed_region:regions.fixed
+let emitted ?target ?pack ?memoize ?c ?tiered ~version regions cgt f =
+  Codegen.with_program ?target ?pack ?memoize ~version ?tiered ?fixed_region:regions.fixed
     ?spawned_fixed_region:regions.spawned ?c cgt f
 
 let ir ?target ?pack ?memoize ?c ?(regions = no_regions) ~optimize cgt =
@@ -539,13 +539,13 @@ let ir ?target ?pack ?memoize ?c ?(regions = no_regions) ~optimize cgt =
 let executable ?target ?pack ?memoize ?c ?(regions = no_regions) ?(tiered = false) ~optimize ~link cgt output =
   let tier = if tiered then Codegen.Tier0 else Codegen.Plain in
   built
-    (emitted ?target ?pack ?memoize ?c ~version:(optimize || tiered) regions cgt (fun m ->
+    (emitted ?target ?pack ?memoize ?c ~tiered ~version:(optimize || tiered) regions cgt (fun m ->
          Codegen.executable ?target ~optimize ~tier ~link m output))
 
 (* Tier 1 of a tiered build, from the tree lowering made, without stage 5,
    so it emits the module tier 0 does. *)
 let tier_up ?target ?pack ?memoize ?c ?(regions = no_regions) cgt output =
-  built (emitted ?target ?pack ?memoize ?c ~version:true regions cgt (fun m -> Codegen.shared_library ?target m output))
+  built (emitted ?target ?pack ?memoize ?c ~tiered:true ~version:true regions cgt (fun m -> Codegen.shared_library ?target m output))
 
 let object_file ?target ?pack ?memoize ?c ?(regions = no_regions) ~optimize cgt output =
   built (emitted ?target ?pack ?memoize ?c ~version:optimize regions cgt (fun m -> Codegen.object_file ?target ~optimize m output))

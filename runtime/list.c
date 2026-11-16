@@ -90,6 +90,8 @@ static void zane_list_grow(zane_list *list, int64_t needed, int64_t stride) {
 	int64_t unit = zl_unit(stride), old = ZL_ROOM_BYTES(list, stride);
 	int64_t units = ZL_ROOM(list) ? ZL_ROOM(list) * 2 : zane_list_first_room(stride, stride) / unit;
 	while (units * unit < needed) units *= 2;
+	if (zl_block_bytes(units, stride) > ZANE_LIST_SPAN_FROM)
+		while (zl_block_bytes(units, stride) <= ZANE_CHUNK - ZANE_LINE) units *= 2;
 #if defined(ZANE_FRAME_REFS)
 	if (units > (int64_t)UINT32_MAX) zane_broken("a list past 2^32 - 1 elements");
 #endif
@@ -241,7 +243,7 @@ void zane_list_room(zane_list *list, int64_t stride, int64_t n) {
 	if (!ZL_FITS(list, n, stride)) zane_list_grow(list, bytes, stride);
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): `count` elements of `from`, from
+/* `count` elements of `from`, from
    its element `start` (counted from 1), copied onto the end of `list`, as
    one copy. `from` may be `list` itself: its range is read after the block
    has grown. The elements own no blocks, so their bytes are all of them. */
@@ -253,7 +255,19 @@ void zane_list_append(zane_list *list, const zane_list *from, int64_t start, int
 	list->count += count;
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): whether `count` elements of
+/* `copyRange`: `count` elements of `from`, from its element `start`,
+   copied over `list`'s own from its element `at` (both counted from 1), as
+   one copy. A call cannot pass a list it writes as one it reads, so the
+   two are different lists. Either range out of its list stops the
+   program. The elements own no blocks, so their bytes are all of them. */
+void zane_list_copy(zane_list *list, int64_t at, const zane_list *from, int64_t start, int64_t count, int64_t stride) {
+	if (count < 0 || start < 1 || start - 1 > ZL_COUNT(from) - count || at < 1 || at - 1 > ZL_COUNT(list) - count)
+		zane_out_of_range();
+	if (count == 0) return;
+	memmove(ZL_ITEMS(list) + (at - 1) * stride, ZL_ITEMS(from) + (start - 1) * stride, (size_t)(count * stride));
+}
+
+/* Whether `count` elements of
    `list` from its element `start` and of `other` from `other_start`
    (counted from 1) are the same bytes, 1 or 0, as one comparison. The
    elements own no blocks, so their bytes are all of them. */
@@ -266,21 +280,39 @@ int64_t zane_list_same(const zane_list *list, int64_t start, const zane_list *ot
 	              (size_t)(count * stride)) == 0;
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): a hash of the bytes of `count`
-   elements of `list` from its element `start` (counted from 1). Blocks of
+/* `hashRange`: a hash of the bytes of `count` elements of `list` from
+   its element `start` (counted from 1). Blocks of
    32 bytes go to four lanes mixed independently, so the multiplies overlap
    rather than wait on each other; the words after them go to the first
-   lane, and the tail and the length close it. Equal ranges hash alike
-   within one run of a program; the value is not specified beyond that. */
+   lane, and the tail and the length close it. A word is mixed in by
+   xoring, a multiply by 2^64 / phi and a rotate, and the close is two
+   multiply-xorshift rounds. Equal ranges hash alike within one run of a
+   program; the value is not specified beyond that. */
 static inline uint64_t zane_hash_mix(uint64_t h, uint64_t w) {
 	h = (h ^ w) * UINT64_C(0x9E3779B97F4A7C15);
-	return h ^ (h >> 29);
+	/* A rotate written as shifts, LLVM turns into a second multiply by the
+	   constant shifted; the builtin stays one `rol`. */
+#if defined(__clang__)
+	return __builtin_rotateleft64(h, 29);
+#else
+	return (h << 29) | (h >> 35);
+#endif
 }
+
+static int64_t zane_bytes_hash(const unsigned char *p, size_t n);
 
 int64_t zane_list_hash(const zane_list *list, int64_t start, int64_t count, int64_t stride) {
 	if (count < 0 || start < 1 || start - 1 > ZL_COUNT(list) - count) zane_out_of_range();
-	const unsigned char *p = (const unsigned char *)ZL_ITEMS(list) + (start - 1) * stride;
-	size_t n = (size_t)(count * stride);
+	return zane_bytes_hash((const unsigned char *)ZL_ITEMS(list) + (start - 1) * stride, (size_t)(count * stride));
+}
+
+/* The same hash of a string's bytes,
+   for a hash table's slots. */
+int64_t zane_text_hash(const zane_text *text) {
+	return zane_bytes_hash((const unsigned char *)text->bytes, (size_t)text->length);
+}
+
+static int64_t zane_bytes_hash(const unsigned char *p, size_t n) {
 	uint64_t h = (uint64_t)n * UINT64_C(0x9E3779B97F4A7C15);
 	if (n >= 32) {
 		uint64_t a = h, b = h + 1, c = h + 2, d = h + 3;
@@ -294,34 +326,34 @@ int64_t zane_list_hash(const zane_list *list, int64_t start, int64_t count, int6
 		}
 		h = zane_hash_mix(zane_hash_mix(zane_hash_mix(a, b), c), d);
 	}
-	size_t total = (size_t)(count * stride);
-	for (; n >= 8; n -= 8, p += 8) {
-		uint64_t w;
-		memcpy(&w, p, 8);
-		h = zane_hash_mix(h, w);
-	}
-	/* The last 1 to 7 bytes, read as fixed-size loads that may overlap
-	   bytes already mixed: the 8 that end the range when it has 8, else
-	   two 4-byte words or three single bytes. */
+	/* The bytes left: the
+	   words before the last 8 bytes, then the last 8 as one load that may
+	   overlap the word before, so a key of 8 bytes or more takes no branch
+	   on its length but the loop's; else two 4-byte words or three single
+	   bytes. */
+	size_t total = n;
 	uint64_t w = 0;
-	if (n > 0) {
-		if (total >= 8) {
-			memcpy(&w, p + n - 8, 8);
-			w >>= 8 * (8 - n);
-		} else if (n >= 4) {
-			uint32_t lo, hi;
-			memcpy(&lo, p, 4);
-			memcpy(&hi, p + n - 4, 4);
-			w = lo | (uint64_t)hi << 32;
-		} else
-			w = p[0] | (uint64_t)p[n / 2] << 8 | (uint64_t)p[n - 1] << 16;
-	}
-	h = zane_hash_mix(h, w ^ n);
+	if (n >= 8) {
+		for (; n > 8; n -= 8, p += 8) {
+			uint64_t v;
+			memcpy(&v, p, 8);
+			h = zane_hash_mix(h, v);
+		}
+		memcpy(&w, p + n - 8, 8);
+	} else if (n >= 4) {
+		uint32_t lo, hi;
+		memcpy(&lo, p, 4);
+		memcpy(&hi, p + n - 4, 4);
+		w = lo | (uint64_t)hi << 32;
+	} else if (n > 0)
+		w = p[0] | (uint64_t)p[n / 2] << 8 | (uint64_t)p[n - 1] << 16;
+	h = (h ^ w ^ total) * UINT64_C(0x9E3779B97F4A7C15);
+	h = (h ^ (h >> 32)) * UINT64_C(0xD6E8FEB86659FD93);
 	h ^= h >> 32;
 	return (int64_t)(h >> 1);
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): a list of integers sorted in
+/* A list of integers sorted in
    place, ascending, as a standard library's sort is, written out for each
    element type so every comparison is an inline compare. A pattern-
    defeating quicksort: input already in order, or in strictly descending
@@ -473,6 +505,132 @@ void zane_list_sort(zane_list *list, int64_t kind) {
 	case 1: zane_sort_i64_sort((int64_t *)ZL_ITEMS(list), n); break;
 	default: zane_sort_u8_sort((uint8_t *)ZL_ITEMS(list), n); break;
 	}
+}
+
+/* `sortBy`: a list of `I32`s, each an index into `keys` (a list of `I64`s, counted from 1), sorted stably by the key
+   each names: a natural merge sort of the indices, comparing the keys they
+   name. Runs,
+   ascending or strictly descending (reversed), are found first, those
+   shorter than 16 made 16 long by insertion; a pass then merges
+   neighbouring runs, copying a pair whose halves are already in order as
+   they are, until one run is left. */
+static void zane_keyed_insert(int32_t *v, const int64_t *key, int64_t n, int64_t from) {
+	for (int64_t i = from; i < n; i++) {
+		int32_t x = v[i];
+		int64_t kx = key[x], j = i;
+		while (j > 0 && kx < key[v[j - 1]]) {
+			v[j] = v[j - 1];
+			j--;
+		}
+		v[j] = x;
+	}
+}
+
+/* Two runs merged into `d`. Where the merge before it alternated sides
+   often (`*chaotic`), each pick is a select, which no misprediction costs;
+   where it did not, a branch, which the processor runs ahead of. */
+static void zane_keyed_merge(const int32_t *l, int64_t nl, const int32_t *r, int64_t nr, int32_t *d, const int64_t *key,
+                             int *chaotic) {
+	if (key[l[nl - 1]] <= key[r[0]]) {
+		memcpy(d, l, (size_t)nl * sizeof *d);
+		memcpy(d + nl, r, (size_t)nr * sizeof *d);
+		return;
+	}
+	int64_t a = 0, b = 0, k = 0, switches = 0;
+	int last_r = 0;
+	if (*chaotic) {
+		while (a < nl && b < nr) {
+			int32_t x = l[a], y = r[b];
+			int take_r = key[y] < key[x];
+			d[k++] = take_r ? y : x;
+			b += take_r;
+			a += !take_r;
+			switches += take_r != last_r;
+			last_r = take_r;
+		}
+	} else {
+		int32_t x = l[0], y = r[0];
+		int64_t kx = key[x], ky = key[y];
+		for (;;) {
+			if (ky < kx) {
+				d[k++] = y;
+				switches += !last_r;
+				last_r = 1;
+				if (++b == nr) break;
+				y = r[b];
+				ky = key[y];
+			} else {
+				d[k++] = x;
+				switches += last_r;
+				last_r = 0;
+				if (++a == nl) break;
+				x = l[a];
+				kx = key[x];
+			}
+		}
+	}
+	*chaotic = switches * 4 > k;
+	if (a < nl) memcpy(d + k, l + a, (size_t)(nl - a) * sizeof *d);
+	else memcpy(d + k, r + b, (size_t)(nr - b) * sizeof *d);
+}
+
+void zane_list_sort_by(zane_list *list, const zane_list *keys) {
+	int64_t n = ZL_COUNT(list), nk = ZL_COUNT(keys);
+	if (n < 2) return;
+	int32_t *values = (int32_t *)ZL_ITEMS(list);
+	for (int64_t i = 0; i < n; i++)
+		if (values[i] < 1 || values[i] > nk) zane_out_of_range();
+	/* Indices from 1: the key of index x is key[x]. */
+	const int64_t *key = (const int64_t *)ZL_ITEMS(keys) - 1;
+	int32_t *v = values, *tmp = malloc((size_t)n * sizeof *tmp);
+	/* The runs' ends, in order. */
+	int64_t *ends = malloc((size_t)(n / 16 + 2) * sizeof *ends);
+	if (!tmp || !ends) zane_broken("out of memory for a sort");
+	int64_t runs = 0;
+	for (int64_t lo = 0; lo < n;) {
+		int64_t e = lo + 1;
+		if (e < n && key[v[e]] < key[v[lo]]) {
+			while (e + 1 < n && key[v[e + 1]] < key[v[e]]) e++;
+			e++;
+			for (int64_t a = lo, b = e - 1; a < b; a++, b--) {
+				int32_t t = v[a];
+				v[a] = v[b];
+				v[b] = t;
+			}
+		} else {
+			while (e < n && key[v[e]] >= key[v[e - 1]]) e++;
+		}
+		if (e - lo < 16) {
+			int64_t to = lo + 16 < n ? lo + 16 : n;
+			zane_keyed_insert(v + lo, key, to - lo, e - lo);
+			e = to;
+		}
+		ends[runs++] = e;
+		lo = e;
+	}
+	int32_t *src = v, *dst = tmp;
+	int chaotic = 1;
+	while (runs > 1) {
+		int64_t start = 0, w = 0;
+		for (int64_t i = 0; i < runs; i += 2) {
+			int64_t mid = ends[i], end = mid;
+			if (i + 1 < runs) {
+				end = ends[i + 1];
+				zane_keyed_merge(src + start, mid - start, src + mid, end - mid, dst + start, key, &chaotic);
+			} else {
+				memcpy(dst + start, src + start, (size_t)(end - start) * sizeof *dst);
+			}
+			ends[w++] = end;
+			start = end;
+		}
+		runs = w;
+		int32_t *t = src;
+		src = dst;
+		dst = t;
+	}
+	if (src != values) memcpy(values, src, (size_t)n * sizeof *values);
+	free(ends);
+	free(tmp);
 }
 
 /* The element at `index`, counted from 1 (control-flow.md §3.4). */

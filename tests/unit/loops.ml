@@ -180,4 +180,9 @@ let searches () =
   check "not one that never leaves" (not (searches [ read (local 5); up ]));
   check "nor one that holds a loop"
     (not (searches [ read (local 5); leave; C.Stat.Repeat { count = int 4L; body = [] }; up ]));
-  check "nor one whose index jumps" (not (searches [ read (local 5); leave; set 5 (local 6) ]))
+  check "nor one whose index jumps while it reads its counter"
+    (not (searches [ read (local 5); read (local 7); leave; set 5 (local 6) ]));
+  check "a scan whose counter only steps is a search however its index moves"
+    (searches [ read (local 5); leave; set 5 (local 6) ]);
+  check "but not a loop whose counter only steps and that reads no element"
+    (not (searches [ leave; set 5 (local 6) ]))

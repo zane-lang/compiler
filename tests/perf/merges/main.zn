@@ -1,0 +1,124 @@
+/// Merges two sorted runs of random numbers into a third, as a merge sort's
+/// merge step does: each step stores the smaller head to `work[k]` in one
+/// arm of a branch or the other. Both arms check `k` before their store,
+/// and that check is made once above the branch.
+package merges;
+
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+Int minus(a Int, b Int) => @operators$add(a, @operators$negate(b));
+Int times(a Int, b Int) => @operators$multiply(a, b);
+Int over(a Int, b Int) => @operators$divide(a, b);
+Int modulo(a Int, b Int) => minus(a, times(over(a, b), b));
+Bool below(a Int, b Int) => @operators$lessThan(a, b);
+Bool same(a Int, b Int) => @operators$equal(a, b);
+
+/// The linear congruential generator langbench uses.
+type Rng = #struct {
+	state Int;
+}
+
+Rng(seed Int) => init{ state = seed; }
+
+Int next(this Rng) mut {
+	this.state = @math$bitAnd(plus(times(this.state, Int(1103515245)), Int(12345)), Int(2147483647));
+	return this.state;
+}
+
+/// A number below `bound`, from the generator's high bits.
+Int pick(this Rng, bound Int) mut => modulo(over(this!next(), Int(65536)), bound);
+
+type Merger = #struct {
+	a ListRef<Int>;
+	b ListRef<Int>;
+	work ListRef<Int>;
+}
+
+Merger() => init{
+	a = @primitives$ListRef(Int);
+	b = @primitives$ListRef(Int);
+	work = @primitives$ListRef(Int);
+}
+
+/// Merges `a` and `b`, each `n` long, into `work`, and returns `work`'s
+/// middle element.
+Int merge(this Merger, n Int) mut {
+	i Int(1);
+	j Int(1);
+	k Int(1);
+	k!to(times(minus(n, Int(1)), Int(2))) {
+		left Int = this.a[i];
+		right Int = this.b[j];
+		takeLeft Bool = below(left, plus(right, Int(1)));
+		@controlflow$branch(takeLeft, {
+			this.work[k] = left;
+			i = plus(i, Int(1));
+		});
+		@controlflow$branch(@operators$not(takeLeft), {
+			this.work[k] = right;
+			j = plus(j, Int(1));
+		});
+	}
+	return this.work[n];
+}
+
+Unit main() {
+	rounds Int = size(Int(10));
+	n Int(1000);
+	m Merger();
+	rng Rng(Int(17));
+	x Int(0);
+	y Int(0);
+	f Int(1);
+	f!to(n) {
+		x = plus(x, rng!pick(Int(8)));
+		y = plus(y, rng!pick(Int(8)));
+		m.a!push(x);
+		m.b!push(y);
+		@controlflow$branch(same(f, n), {
+			m.a[n] = Int(1000000000);
+			m.b[n] = Int(1000000000);
+		});
+		m.work!push(Int(0));
+		m.work!push(Int(0));
+	}
+	checksum Int(0);
+	round Int(1);
+	round!to(rounds) {
+		m.a[plus(modulo(round, n), Int(1))] = minus(m.a[plus(modulo(round, n), Int(1))], Int(1));
+		checksum = plus(checksum, m!merge(n));
+	}
+	say(String(checksum));
+	return Unit();
+}

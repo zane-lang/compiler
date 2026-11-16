@@ -1,0 +1,95 @@
+/// A decoder's output, built each step by a call into a list of more than
+/// a megabyte and moved into the state that keeps it, as LangArena's LZW
+/// decoder does. The list's block is a growable span, which the move hands
+/// to the state's region whole rather than copying.
+package handover;
+
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+Int minus(a Int, b Int) => @operators$add(a, @operators$negate(b));
+Int times(a Int, b Int) => @operators$multiply(a, b);
+Int over(a Int, b Int) => @operators$divide(a, b);
+Int modulo(a Int, b Int) => minus(a, times(over(a, b), b));
+Bool below(a Int, b Int) => @operators$lessThan(a, b);
+Bool same(a Int, b Int) => @operators$equal(a, b);
+
+/// The linear congruential generator langbench uses.
+type Rng = #struct {
+	state Int;
+}
+
+Rng(seed Int) => init{ state = seed; }
+
+Int next(this Rng) mut {
+	this.state = @math$bitAnd(plus(times(this.state, Int(1103515245)), Int(12345)), Int(2147483647));
+	return this.state;
+}
+
+/// A number below `bound`, from the generator's high bits.
+Int pick(this Rng, bound Int) mut => modulo(over(this!next(), Int(65536)), bound);
+
+type State = #struct {
+	decoded @primitives$List<Int>;
+	total Int;
+}
+
+State() => init{ decoded = @primitives$List(Int); total = Int(0); }
+
+/// A list of `n` numbers from `seed`.
+@primitives$List<Int> decode(n Int, seed Int) {
+	out @primitives$List<Int> = @primitives$List(Int);
+	rng Rng(seed);
+	i Int(1);
+	i!to(n) {
+		out!push(rng!next());
+	}
+	return out;
+}
+
+Unit step(this State, n Int, seed Int) mut {
+	this.decoded = decode(n, seed);
+	this.total = plus(this.total, this.decoded[plus(modulo(seed, n), Int(1))]);
+	return Unit();
+}
+
+Unit main() {
+	rounds Int = size(Int(10));
+	state State();
+	r Int(1);
+	r!to(rounds) {
+		state!step(Int(200000), r);
+	}
+	say(String(state.total));
+	return Unit();
+}

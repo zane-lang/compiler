@@ -1,0 +1,105 @@
+/// A tape machine, as a Brainfuck interpreter runs its program: a loop over
+/// a list of operations moves a position along a tape list and changes the
+/// cell there, and grows the tape by a push when the position passes its
+/// end, which is rare. The lists' counts and blocks live in the function's
+/// frame; they stay in registers across the loop rather than being loaded
+/// again after each pass, which the cold push could write.
+package tape;
+
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+Int minus(a Int, b Int) => @operators$add(a, @operators$negate(b));
+Int times(a Int, b Int) => @operators$multiply(a, b);
+Int over(a Int, b Int) => @operators$divide(a, b);
+Int modulo(a Int, b Int) => minus(a, times(over(a, b), b));
+Bool below(a Int, b Int) => @operators$lessThan(a, b);
+Bool same(a Int, b Int) => @operators$equal(a, b);
+
+/// The linear congruential generator langbench uses.
+type Rng = #struct {
+	state Int;
+}
+
+Rng(seed Int) => init{ state = seed; }
+
+Int next(this Rng) mut {
+	this.state = @math$bitAnd(plus(times(this.state, Int(1103515245)), Int(12345)), Int(2147483647));
+	return this.state;
+}
+
+/// A number below `bound`, from the generator's high bits.
+Int pick(this Rng, bound Int) mut => modulo(over(this!next(), Int(65536)), bound);
+
+Int execute(ops ListRef<Int>, rounds Int) {
+	tape ListRef<Int> = @primitives$ListRef(Int);
+	tape!push(Int(0));
+	at Int(1);
+	total Int(0);
+	@controlflow$repeat(rounds, {
+		i Int(1);
+		i!to(ops:size()) {
+			op Int = ops[i];
+			@controlflow$branch(same(op, Int(0)), {
+				at = plus(at, Int(1));
+				@controlflow$branch(below(tape:size(), at), {
+					tape!push(Int(0));
+				});
+			});
+			@controlflow$branch(same(op, Int(1)), {
+				@controlflow$branch(below(Int(1), at), {
+					at = minus(at, Int(1));
+				});
+			});
+			@controlflow$branch(same(op, Int(2)), {
+				tape[at] = @math$bitAnd(plus(tape[at], Int(1)), Int(255));
+			});
+			@controlflow$branch(same(op, Int(3)), {
+				total = plus(total, tape[at]);
+			});
+		}
+	});
+	return plus(total, tape:size());
+}
+
+Unit main() {
+	rounds Int = size(Int(10));
+	ops ListRef<Int> = @primitives$ListRef(Int);
+	rng Rng(Int(41));
+	n Int(1);
+	n!to(Int(4000)) {
+		ops!push(rng!pick(Int(4)));
+	}
+	say(String(execute(ops, rounds)));
+	return Unit();
+}

@@ -109,6 +109,7 @@ extern _Thread_local zane_mark *zane_open;
 zane_mark *zane_scope_enter(int64_t size);
 zane_mark *zane_region_at(const void *at);
 char *zane_alloc(zane_mark *region, int64_t size, int64_t align);
+char *zane_relocate(zane_mark *region, char *old, int64_t size, int64_t align, int64_t copied);
 char *zane_alloc_held(zane_mark *region, int64_t size, int64_t align);
 char *zane_box_held(zane_mark *region, int64_t size, int64_t align);
 char *zane_box_in(zane_mark *region, int64_t size, int64_t align);
@@ -126,7 +127,7 @@ int64_t zane_text_expect(void);
 void zane_text_taken(zane_text *out, const zane_text *view, int64_t mark);
 int64_t zane_text_equal(const zane_text *left, const zane_text *right);
 void zane_text_i32(zane_text *out, int32_t value);
-/* EXPERIMENT (LangArena zane-vs-c): a String holding a List<U8>'s bytes. */
+/* A String holding a List<U8>'s bytes. */
 void zane_text_bytes(zane_text *out, const zane_list *bytes);
 void zane_text_i64(zane_text *out, int64_t value);
 void zane_text_f32(zane_text *out, float value);
@@ -134,6 +135,10 @@ void zane_text_f64(zane_text *out, double value);
 int64_t zane_parse_i64(const zane_text *text, int64_t *out);
 int64_t zane_parse_f64(const zane_text *text, double *out);
 int64_t zane_parse_f64_at(const zane_text *text, double *out, int64_t start, int64_t count);
+int64_t zane_text_hash(const zane_text *text);
+void zane_byte_set(zane_list *out, const zane_list *members);
+int64_t zane_text_find_any(const zane_text *text, int64_t at, int64_t count, const zane_list *set);
+int64_t zane_text_find_pair(const zane_text *text, int64_t at, int64_t count, const zane_list *first, int64_t gap, const zane_list *second);
 void zane_arguments(zane_list *out);
 
 /* value.c */
@@ -152,7 +157,9 @@ void *zane_list_push(zane_list *list, int64_t stride);
 void *zane_list_reserve(zane_list *list, int64_t stride, int64_t n);
 void zane_list_room(zane_list *list, int64_t stride, int64_t n);
 void zane_list_sort(zane_list *list, int64_t kind);
+void zane_list_sort_by(zane_list *list, const zane_list *keys);
 void zane_list_append(zane_list *list, const zane_list *from, int64_t start, int64_t count, int64_t stride);
+void zane_list_copy(zane_list *list, int64_t at, const zane_list *from, int64_t start, int64_t count, int64_t stride);
 int64_t zane_list_same(const zane_list *list, int64_t start, const zane_list *other, int64_t other_start, int64_t count,
                        int64_t stride);
 int64_t zane_list_hash(const zane_list *list, int64_t start, int64_t count, int64_t stride);

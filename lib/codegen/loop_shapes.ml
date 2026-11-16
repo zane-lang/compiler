@@ -559,10 +559,36 @@ let scans body =
    around another may go round many times between the inner loop's exits.
    Unlike a versioned loop's short copy, a search still reads ahead
    (Lookahead). *)
+(* Whether the loop's counter is read nowhere in [body] but by its own
+   step, and [body] reads or writes an element, as in a `to` that stands
+   for a `while` (`i!to(bound) { ... }` whose exit is a `return` on what it
+   reads). Its index, if any, steps elsewhere (a field a called method
+   moves, as a tokenizer's `advance()` does), which [scans] cannot see, and
+   its count is only a ceiling: IRCE's split of it costs its setup on every
+   entry for a loop that usually runs once or twice. A loop that reads no
+   element has no check to split, and weighting it only moves its layout
+   (`floats`, above). *)
+let idle_counter body =
+  let f = facts body in
+  match counter f body with
+  | Some (x, _) ->
+      let uses = ref 0 in
+      Cgt.Traverse.walk_stats
+        (fun e -> match e.Expr.node with Expr.Local y | Expr.Address y when y = x -> incr uses | _ -> ())
+        ignore body;
+      !uses <= 1
+      && Cgt.Traverse.exists_in body
+           ~expr:(fun e ->
+             match e.Expr.node with
+             | Expr.Runtime { fn = Cgt.Runtime.List_at | Cgt.Runtime.Array_at; _ } -> true
+             | _ -> false)
+           ~stat:(fun _ -> false)
+  | None -> false
+
 let searches body =
   Cgt.Traverse.leaves body
   && (not (Cgt.Traverse.exists_in body ~expr:(fun _ -> false) ~stat:(function Stat.Repeat _ -> true | _ -> false)))
-  && scans body
+  && (scans body || idle_counter body)
 
 (* Whether statements can end other than after their last, an expansion's
    own [Leave] inside them not counting (Cgt.Traverse.leaves). *)
@@ -640,7 +666,7 @@ let may_grow s =
       | Expr.Foreign_call _ -> not !Cgt.List_pure.c_stays
       | Expr.Runtime { fn; _ } -> (
           match fn with
-          | Cgt.Runtime.List_push | List_room | List_reserve | List_append | List_remove _ | List_swap_remove _
+          | Cgt.Runtime.List_push | List_room | List_reserve | List_append | List_copy | List_remove _ | List_swap_remove _
           | Overwrite | Copy | Promote | Arrive ->
               true
           | _ -> false)

@@ -62,12 +62,13 @@ let tags ctx =
   in
   (tag "zane handle", tag "zane scalar")
 
-(* EXPERIMENT (ZANE_SIZED_TBAA=1): a scalar's tag by its size, a child of
-   the scalar tag, which every scalar access still aliases: one byte
-   (Bool, U8) apart from the wider ones, since storage is only read back as
-   a type of the size it was written as. *)
-let sized_tbaa = Sys.getenv_opt "ZANE_SIZED_TBAA" = Some "1"
+(* The most passes of a constant-count loop unrolled whole. *)
+let unrolled_whole = 8
 
+(* A scalar's tag by its size, a child of the scalar tag: one byte (Bool,
+   U8), four and eight apart, since a place is only read back as a type of
+   the size it was written as. A one-byte store then leaves the wider
+   scalars read around it where they are. *)
 let sized_tag ctx name =
   let zero = Llvm.const_int (Llvm.i64_type ctx) 0 in
   let root = Llvm.mdnode ctx [| Llvm.mdstring ctx "zane" |] in
@@ -79,10 +80,10 @@ let access env (t : Ty.t) instr =
   let tag =
     match t with
     | Ty.Handle | Ty.Handle16 -> Some env.handle_tag
-    | (Ty.I1 | Ty.I8) when sized_tbaa -> Some (sized_tag env.ctx "zane byte")
-    | (Ty.I32 | Ty.F32) when sized_tbaa -> Some (sized_tag env.ctx "zane word4")
-    | (Ty.I64 | Ty.F64 | Ty.Ptr) when sized_tbaa -> Some (sized_tag env.ctx "zane word8")
-    | Ty.I1 | Ty.I8 | Ty.I32 | Ty.I64 | Ty.F32 | Ty.F64 | Ty.Ptr | Ty.Ref | Ty.Box32 -> Some env.value_tag
+    | Ty.I1 | Ty.I8 -> Some (sized_tag env.ctx "zane byte")
+    | Ty.I32 | Ty.F32 -> Some (sized_tag env.ctx "zane word4")
+    | Ty.I64 | Ty.F64 | Ty.Ptr -> Some (sized_tag env.ctx "zane word8")
+    | Ty.Ref | Ty.Box32 -> Some env.value_tag
     | Ty.Void | Ty.Struct _ | Ty.Sum _ | Ty.Array _ | Ty.Packed _ -> None
   in
   Option.iter (Llvm.set_metadata instr (Llvm.mdkind_id env.ctx "tbaa")) tag;
@@ -237,8 +238,8 @@ type frame = {
   names : (int, Expr.t) Hashtbl.t;
   (* The element addresses the loop being emitted checks before it ([ranged]). *)
   mutable unchecked : Expr.t list;
-  (* EXPERIMENT (ZANE_LOOP_REGS=1): each list a loop made room for, with
-     its block read once before the loop and its count kept in a local. *)
+  (* Each list an optimized build's loop made room for, with its block read
+     once before the loop and its count kept in a local. *)
   kept : (int, Llvm.llvalue * Llvm.llvalue) Hashtbl.t;
 }
 
@@ -554,18 +555,28 @@ let element ?cached ?(unchecked = false) env fr b fn args =
     | _ -> Diagnostic.bug "codegen: an element address with the wrong arguments"
   in
   let offset = Llvm.build_sub index (Llvm.const_int env.i64 1) "" b in
-  if unchecked then Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| Llvm.build_nsw_mul offset stride "" b |] "" b
+  (* The address is taken from a base biased one element down,
+     [(base - stride) + index * stride], so the index less one that the
+     check compares is not on the way to the address: an index loaded from
+     memory (a tree's child, a graph's neighbour) is scaled and added to a
+     base the loop does not change, and LLVM folds the bias into the load's
+     displacement (tests/perf `nodes`). The biased base is outside the
+     block, so neither GEP is in bounds. *)
+  let address () =
+    let i8 = Llvm.i8_type env.ctx in
+    let biased = Llvm.build_gep i8 base [| Llvm.build_neg stride "" b |] "" b in
+    Llvm.build_gep i8 biased [| Llvm.build_nsw_mul index stride "" b |] "" b
+  in
+  if unchecked then address ()
   else
-  let outside = Llvm.build_icmp Llvm.Icmp.Uge offset count "" b in
   let stop = block env fr and inside = block env fr in
-  ignore (Llvm.build_cond_br outside stop inside b);
+  ignore (Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Uge offset count "" b) stop inside b);
   Llvm.position_at_end stop b;
   let f, fty = runtime env Cgt.Runtime.Out_of_range in
   ignore (Llvm.build_call fty f [||] "" b);
   ignore (Llvm.build_unreachable b);
   Llvm.position_at_end inside b;
-  let bytes = Llvm.build_nsw_mul offset stride "" b in
-  Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| bytes |] "" b
+  address ()
 
 (* Whether the address [p] is, by how it was made, in the innermost scope's
    region while that scope is open: a slot of the function's innermost
@@ -1637,11 +1648,15 @@ and stat env fr b (s : Stat.t) =
       List.iter
         (fun (id, stride) ->
           let list = value_of env fr b { Expr.node = Expr.Address id; ty = Ty.Ptr } in
-          let regs = Sys.getenv_opt "ZANE_LOOP_REGS" = Some "1" in
           let tag = handle_field env in
-          (* Making room keeps the count (runtime/list.c), so it is read
-             before, where LLVM knows it, as after a list is made. *)
-          let count = if regs then Some (List_handle.count ~tag env.ctx b list) else None in
+          (* Making room keeps the count (runtime/list.c), so an optimized
+             build reads it before, where LLVM knows it, as after a list is
+             made, and keeps it in a local the loop's pushes step: the
+             loop's checks make each push conditional, which keeps LICM
+             from promoting the count itself. A plain build reads it again
+             at each push. *)
+          let short = match Llvm.int64_of_const n with Some c -> Int64.compare c 64L <= 0 | None -> false in
+          let count = if env.version && not short then Some (List_handle.count ~tag env.ctx b list) else None in
           let f, fty = runtime env Cgt.Runtime.List_room in
           ignore (Llvm.build_call fty f [| list; Llvm.const_int env.i64 (Int64.to_int stride); n |] "" b);
           Hashtbl.replace fr.runs id (Room max_int);
@@ -1721,20 +1736,8 @@ and stat env fr b (s : Stat.t) =
         ignore (Llvm.build_br head b);
         Llvm.position_at_end head b;
         let current = Llvm.build_load env.i64 i "" b in
-        (* EXPERIMENT (LangArena zane-vs-c, ZANE_ENDLESS=1): a count of at
-           least 2^62, a constant, is not tested. Going round that often
-           takes centuries, so only a loop that leaves by its body ends:
-           core has no conditional loop, and `i!to(Int(9223372036854775807))`
-           is how a port writes C's `while`. Departs from the spec, which
-           stops such a loop after its count. *)
-        let huge = match Llvm.int64_of_const n with Some v -> Int64.compare v (Int64.shift_left 1L 62) >= 0 | None -> false in
-        let endless = Sys.getenv_opt "ZANE_ENDLESS" in
-        if huge && endless = Some "1" then ignore (Llvm.build_br step b)
-        else begin
         let test = Llvm.build_cond_br (Llvm.build_icmp Llvm.Icmp.Slt current n "" b) step after b in
-        (* ZANE_ENDLESS=2: the test kept, without the weight. *)
-        if not (huge && endless = Some "2") then Option.iter (weigh env test) trips
-        end;
+        Option.iter (weigh env test) trips;
         Llvm.position_at_end step b;
         if fetch && fetched <> [] then prefetch env fr b fetched;
         fr.loops <- fr.loops + 1;
@@ -1747,6 +1750,16 @@ and stat env fr b (s : Stat.t) =
           ignore (Llvm.build_store next i b);
           let back = Llvm.build_br head b in
           if twice then Llvm.set_metadata back (Llvm.mdkind_id env.ctx "llvm.loop") (unroll_twice env)
+          else
+            (* A loop of a constant count from 2 to [unrolled_whole] is
+               unrolled whole, as C's `#pragma unroll` asks: LLVM's own
+               threshold leaves a body with a branch in it, such as a
+               Huffman decoder's leaf test, a loop. *)
+            match Llvm.int64_of_const n with
+            | Some c when Int64.compare c 2L >= 0 && Int64.compare c (Int64.of_int unrolled_whole) <= 0 ->
+                Llvm.set_metadata back (Llvm.mdkind_id env.ctx "llvm.loop")
+                  (Llvm_extra.loop_id env.ctx [| Llvm.mdnode env.ctx [| Llvm.mdstring env.ctx "llvm.loop.unroll.full" |] |])
+            | _ -> ()
         end;
         Llvm.position_at_end after b
         in

@@ -1674,23 +1674,25 @@ test passing.
   count names, and IRCE's split pays when it runs long: weighted,
   Distance::Jaro's match-window search ran 2% more instructions. A loop
   around another may go round many times between the inner loop's exits.
-  With the rule as it stands, Sort::Quick is the only LangArena test that
-  moves, and every `tests/perf` program stays within 0.1%.
+  A loop whose counter is read nowhere but by its own step, and that reads
+  or writes an element, is a search too (`Loop_shapes.idle_counter`): a
+  `to` over a ceiling that stands for a `while`, whose index a method it
+  calls moves, as a tokenizer's whitespace skip does (`tests/perf`
+  `cursor`, 10% more estimated cycles unweighted). A loop that reads no
+  element has no check for IRCE to split, so `floats`' escape test stays
+  unweighted.
 
   Any other loop codegen emits once has no branch weights, and LLVM guesses it goes
   round often enough for IRCE to split it. In `tests/perf` `flips`,
   `advance` moves its first few elements down one place in such a loop,
   nested in another, usually over one or two elements; IRCE splits it, and
-  loop idiom recognition then makes the split's main loop a `memmove` call
-  of about 12 bytes. The call is kept, since each way of keeping the loop
-  measured slower in estimated cycles, all programs measured: turning
-  `memmove` and `memcpy` formation off (`-disable-loop-idiom-memcpy`) moves
-  only `flips`, by 4.8% fewer instructions but 19% more mispredicted
-  branches, 0.84% more cycles; asking IRCE for 64 removed checks per entry
-  (`-irce-min-eliminated-checks=64`) leaves the loop unsplit, at 1.06% more
-  cycles for `flips` and 11.3% for `particles`, 7.4% for `entities` and
-  1.7% for `stress`. The loop's exit, taken after one or two elements,
-  is what mispredicts; the call's own branches predict better.
+  loop idiom recognition would make the split's main loop a `memmove` call
+  of about 12 bytes. An optimized build turns `memmove` and `memcpy`
+  formation off (`-disable-loop-idiom-memcpy`, `Passes.llvm_options`): the
+  copies such loops make are mostly a few elements of a length known only
+  at run time, which a call into the C library costs more than it saves
+  (`tests/perf` `rotations`, 11% more estimated cycles in a tiered build
+  with the call).
 
   A `repeat` that can leave before its count runs out, through a `return`
   or a block it is in, and that holds no loop, spawn, join or call, has its back
@@ -1812,6 +1814,44 @@ test passing.
   7–11% slower), so they are left out there
   ([`experiments/tight-layouts`](../experiments/tight-layouts/README.md),
   steps 6, 11 and 12).
+- **After the passes.** An optimized build and tier 1 rewrite the module
+  once LLVM's passes are done, where inlining has put each loop's calls
+  and checks in front of them, and run a short cleanup after each rewrite
+  (`Build.rewrite`):
+
+  - a local array of constants, written only with the same constants each
+    time, becomes a constant global (`Const_arrays`);
+  - a recursion's base case is made at each of its self-calls, so a leaf
+    takes no call, in a function no memo table answers (`Leaf_peel`);
+  - a call in a loop to a leaf of the program of at most 128 instructions
+    is inlined there (`Loop_inline`);
+  - a frame's slots that are only loaded and stored whole get a copy in a
+    register, written through to the slot and filled again after a call
+    only where the call may write it (`Frame_shadow`);
+  - a check of an index that a later check of the same index follows on a
+    straight path takes the smaller bound, and the later one always passes
+    (`Merged_checks`); a check both arms of a branch begin with is made
+    once above the branch, and the arms' stores of one address are sunk
+    into one store (`Arm_checks`); the checks of `x`, `x + 1`, … `x + k`
+    on one path become one check of the lowest and one of the highest,
+    and in a strip-mined loop an exit test the loop's own counter can
+    never meet is removed (`Range_checks`).
+
+  A failed check stops the program after flushing its output, so moving
+  a stop earlier on a path where no call writes output in between is not
+  seen outside the program (§10 of
+  [`spec-divergences.md`](../spec-divergences.md) says what a stop is).
+  The emitted code itself also takes, in every build: a scalar's alias
+  tag by its size, so a
+  one-byte store leaves the wider scalars read around it in registers; and
+  a constant count from 2 to 8 marked to be unrolled whole. An optimized
+  build's loop whose pushes were given their room before it reads the
+  list's block once and keeps its count in a local the pushes step
+  (`Emit`, `Stat.Repeat`). A loop that calls a function with one call site
+  is emitted once rather than versioned, so the callee keeps LLVM's
+  single-caller inline bonus, except in a tiered build, whose tier 1
+  names every function in its table (`Loop_copies.single_caller`).
+
 - **A type argument passes nothing.** A generic verb is lowered once per
   instance the TST checked ([`semantics.md`](semantics.md) D12), with a
   symbol of its own, and a type written where a value goes, or a number

@@ -1,11 +1,9 @@
-(* EXPERIMENT (LangArena zane-vs-c; on with ZANE_FRAME_SHADOW=1): frame
-   slots kept in registers.
+(* Frame slots kept in registers.
 
    A held local lives in its scope's frame, which the runtime places, so
    LLVM keeps every slot in memory: a list's count and block are loaded
    and stored each time round a loop wherever the loop holds a call that
-   may grow the list, even on a path the loop seldom takes, where C keeps
-   its locals in registers.
+   may grow the list, even on a path the loop seldom takes.
 
    After the O2 passes, each slot of a frame (a base an `llvm.assume`
    names, as every placed frame has) past the frame's record
@@ -13,13 +11,11 @@
    same scalar type, gets a copy in an alloca: the copy is filled from the
    slot where the frame is placed, every store also stores to it, every
    load reads it, and after a call given an address in the frame it is
-   filled again. The slot is still written each time, so the runtime and
+   filled again, only where that call may have written it. The slot is still written each time, so the runtime and
    every callee see it as before; only reads move to the copy, which SROA
    then makes a register. A frame whose address escapes any other way (a
    pointer stored, an offset that is not a constant, a merge with another
    pointer) is left alone. *)
-
-let on () = Sys.getenv_opt "ZANE_FRAME_SHADOW" = Some "1"
 
 let callee i =
   let n = Llvm.num_operands i in
@@ -46,7 +42,7 @@ let gep_offset dl p =
           match Llvm.classify_type t with
           | Llvm.TypeKind.Struct ->
               let k = Int64.to_int c in
-              walk (Llvm.struct_element_types t).(k) (i + 1)
+              walk (Llvm_extra.struct_element_types t).(k) (i + 1)
                 (Int64.add offset (Llvm_target.DataLayout.offset_of_element t k dl))
           | Llvm.TypeKind.Array ->
               let e = Llvm.element_type t in
@@ -175,6 +171,29 @@ let calls_after f dom base calls =
   in
   Llvm.iter_blocks (fun b -> Llvm.iter_instrs (add b) b) f
 
+(* Whether call [i] keeps none of the addresses [p] it is given: each
+   operand that is [p] is a parameter of a known callee marked
+   `captures(none)`, or the call is to an intrinsic. *)
+let keeps_none i p =
+  let n = Llvm.num_operands i in
+  let f = Llvm.operand i (n - 1) in
+  if Llvm.classify_value f <> Llvm.ValueKind.Function then false
+  else if starts "llvm." (Llvm.value_name f) then true
+  else
+    let captures = Llvm.enum_attr_kind "captures" in
+    let none_at k =
+      Array.exists
+        (fun a ->
+          (* A type attribute, as `sret(T)`, has no representation. *)
+          match Llvm.repr_of_attr a with
+          | Llvm.AttrRepr.Enum (kind, v) -> kind = captures && v = 0L
+          | _ -> false
+          | exception Assert_failure _ -> false)
+        (Llvm_extra.function_attrs f (Llvm.AttrIndex.Param k))
+    in
+    let rec go k = k >= n - 1 || ((Llvm.operand i k != p || none_at k) && go (k + 1)) in
+    go 0
+
 let func ctx dl (f : Llvm.llvalue) =
   (* The frames: what an `llvm.assume` names. *)
   let frames = ref [] in
@@ -223,6 +242,10 @@ let func ctx dl (f : Llvm.llvalue) =
                    does: any call may then write the slot. *)
                 | Llvm.Opcode.Store when Llvm.operand i 0 == p && Llvm.operand i 1 != p -> escaped := true
                 | Llvm.Opcode.Call -> (
+                    (* A callee that may keep the address, as `overwrite`
+                       does in a deferred job a later call runs, may have
+                       any later call write the slot: the frame escaped. *)
+                    if not (keeps_none i p) then escaped := true;
                     match callee i with
                     | Some n when inert n -> ()
                     | _ when List.memq i !calls -> ()
@@ -250,7 +273,8 @@ let func ctx dl (f : Llvm.llvalue) =
                    let overlapping =
                      List.filter (fun (o', t') -> o' < hi && Int64.add o' (size t') > o) accesses
                    in
-                   if scalar t && List.for_all (fun (o', t') -> o' = o && t' == t) overlapping then Some (o, t) else None)
+                   let ok = scalar t && List.for_all (fun (o', t') -> o' = o && t' == t) overlapping in
+                   if ok then Some (o, t) else None)
           in
           if slots <> [] then begin
             let entry = Llvm.entry_block f in
@@ -298,21 +322,53 @@ let func ctx dl (f : Llvm.llvalue) =
             (* A frame a slot's address escaped from is filled again after
                every call it is placed before. *)
             if !escaped then calls_after f (Lazy.force dom) base calls;
+            let header = Llvm_target.DataLayout.abi_size (List_handle.header ctx) dl in
+            let within lo len = List.filter (fun (o, t, _) -> o < Int64.add lo len && Int64.add o (size t) > lo) copies in
+            let in_frame p = match offset_from dl (ref []) base p with Some (Some o) -> Some o | _ -> None in
+            let elsewhere () = if !escaped then copies else [] in
+            (* The copies a call may have written, so filled again after
+               it: after a `memset`, `memcpy` or `memmove` of a constant
+               length, those its destination covers, and none when the
+               destination is outside a frame whose address went nowhere
+               else; after the runtime's list growth
+               ([Frame_scopes.list_calls]), which writes the list's header at
+               its first argument and nothing else the frame holds, those of
+               the header (whether or not a slot's address went elsewhere:
+               growth writes through no address it was given before); after
+               any other call, all. An arithmetic coder's bit writer clears
+               its byte and count with one `memset` per byte, and the push
+               that follows would otherwise load every slot again, the
+               coder's tables among them (tests/perf `refills`). *)
+            let refilled c =
+              match callee c with
+              | Some n when starts "llvm.memset" n || starts "llvm.memcpy" n || starts "llvm.memmove" n -> (
+                  match (in_frame (Llvm.operand c 0), Llvm.int64_of_const (Llvm.operand c 2)) with
+                  | Some o, Some len -> within o len
+                  | None, _ -> elsewhere ()
+                  | Some _, None -> copies)
+              | Some n when List.mem n Frame_scopes.list_calls -> (
+                  match in_frame (Llvm.operand c 0) with Some o -> within o header | None -> elsewhere ())
+              | _ -> copies
+            in
             List.iter
               (fun c ->
                 match Llvm.instr_succ c with
-                | Llvm.Before _ as pos -> fill (Llvm.builder_at ctx pos)
+                | Llvm.Before _ as pos ->
+                    let b = Llvm.builder_at ctx pos in
+                    List.iter
+                      (fun (o, t, a) ->
+                        let p = Llvm.build_in_bounds_gep i8 base [| Llvm.const_of_int64 i64 o true |] "" b in
+                        ignore (Llvm.build_store (Llvm.build_load t p "" b) a b))
+                      (refilled c)
                 | Llvm.At_end _ -> ())
               !calls
           end)
     !frames
 
 let run m =
-  if on () then begin
-    let ctx = Llvm.module_context m in
-    let dl = Llvm_target.DataLayout.of_string (Llvm.data_layout m) in
-    Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then func ctx dl f) m
-  end
+  let ctx = Llvm.module_context m in
+  let dl = Llvm_target.DataLayout.of_string (Llvm.data_layout m) in
+  Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then func ctx dl f) m
 
 (* The passes run again once the copies are in. *)
 let again =

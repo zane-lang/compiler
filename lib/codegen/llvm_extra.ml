@@ -6,6 +6,10 @@ external set_ordering : Llvm.llvalue -> bool -> unit = "zane_set_ordering"
 (* Whether a load or store is atomic (llvm_stubs.c). *)
 external is_atomic : Llvm.llvalue -> bool = "zane_is_atomic"
 
+(* Whether an add, sub, mul or shl is marked `nuw`: its unsigned result
+   does not wrap (llvm_stubs.c). *)
+external has_nuw : Llvm.llvalue -> bool = "zane_has_nuw"
+
 (* An array type and its length with all 64 bits of the count, where the
    bindings' own truncate it to 32 (llvm_stubs.c). *)
 external array_type : Llvm.lltype -> int -> Llvm.lltype = "zane_array_type"

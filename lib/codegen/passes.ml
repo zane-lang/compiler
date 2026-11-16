@@ -108,6 +108,12 @@ let llvm_options =
     "-unroll-threshold=250";
     "-unroll-partial-threshold=100";
   ]
+  (* A loop that copies elements one by one stays a loop rather than
+     becoming a `memmove`/`memcpy` call. The copies such loops make are
+     mostly short, of a length known only at run time: fannkuch's rotation
+     of the first r + 1 of 7 to 12 elements, r mostly 1 or 2, made a call
+     into the C library per permutation. *)
+  @ [ "-disable-loop-idiom-memcpy" ]
 
 (* [unoptimized], [optimized] when *optimize*, or [tier1] for *tier1*,
    for [triple]. *)

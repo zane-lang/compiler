@@ -31,7 +31,7 @@ let packed = "~packed"
 external set_prefix_data : Llvm.llvalue -> Llvm.llvalue -> unit = "zane_set_prefix_data"
 
 let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
-    ?(spawned_fixed_region = Cgt.Runtime.default_spawned_fixed_region) ?(pack = false) ?(memos = []) ?(version = false)
+    ?(spawned_fixed_region = Cgt.Runtime.default_spawned_fixed_region) ?(pack = false) ?(memos = []) ?(version = false) ?(tiered = false)
     ~triple ~data_layout m (p : Cgt.Nodes.Program.t) =
   let open Cgt.Nodes in
   let open Emit in
@@ -141,7 +141,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
         let at v = Llvm.const_ptrtoint v env.i64 in
         set_prefix_data fn (Llvm.const_trunc (Llvm.const_sub (at held) (at fn)) (Llvm.i32_type ctx)))
     p.Program.callbacks;
-  count_call_sites p.Program.funcs;
+  count_call_sites ~tiered p.Program.funcs;
   List.iter
     (fun (f : Func.t) -> if f.Func.linkage <> Cgt.Nodes.Linkage.Imported then func env f)
     p.Program.funcs;
@@ -163,7 +163,7 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
 (* The program's module lives only while [f] runs: its context and the
    module are disposed however [f] or the emit ends, since LLVM's bindings
    free neither on their own. *)
-let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_region ?(c = []) p f =
+let with_module ?target ?pack ?memos ?version ?tiered ?fixed_region ?spawned_fixed_region ?(c = []) p f =
   Result.bind (Build.target_machine ?target ~optimize:false ()) (fun (triple, tm) ->
       let data_layout = Llvm_target.DataLayout.as_string (Llvm_target.TargetMachine.data_layout tm) in
       let ctx = Llvm.create_context () in
@@ -179,7 +179,7 @@ let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_regio
               Build.detach m;
               Llvm.dispose_module m)
             (fun () ->
-              match program ?fixed_region ?spawned_fixed_region ?pack ?memos ?version ~triple ~data_layout m p with
+              match program ?fixed_region ?spawned_fixed_region ?pack ?memos ?version ?tiered ~triple ~data_layout m p with
               | () ->
                   Build.attach m c;
                   f m
@@ -193,10 +193,10 @@ let with_module ?target ?pack ?memos ?version ?fixed_region ?spawned_fixed_regio
    tiers emit the same module (docs/design/tiers.md T3). With [version],
    each loop over elements the optimized passes can split is emitted twice
    for them to tell apart (Emit.versioned); a tiered build's two tiers
-   both take it. *)
-let with_program ?target ?pack ?(memoize = false) ?version ?fixed_region ?spawned_fixed_region ?c p f =
+   both take it, and both say [tiered] (Loop_copies.count_call_sites). *)
+let with_program ?target ?pack ?(memoize = false) ?version ?tiered ?fixed_region ?spawned_fixed_region ?c p f =
   let p, memos = if memoize then Cgt.Memo.plan p else (p, []) in
-  with_module ?target ?pack ~memos ?version ?fixed_region ?spawned_fixed_region ?c p f
+  with_module ?target ?pack ~memos ?version ?tiered ?fixed_region ?spawned_fixed_region ?c p f
 
 (* The packages' C as the program links it, for stage 5 to evaluate
    (docs/design/ffi.md F16): each package's module renamed and linked, and

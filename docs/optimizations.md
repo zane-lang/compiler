@@ -123,6 +123,37 @@ none of its parameters, and every other argument is a plain read.
 A value has no identity and a borrow is read-only, so only time and
 allocation change.
 
+### Conversions lent from an owner's member
+
+- **Builds:** every build
+- **Where:** `lib/cgt/lower_calls.ml` (`owner_path`)
+- **Design:** [`design/lowering.md`](design/lowering.md) L11, "Lent
+  conversions"
+- **Effect:** `tests/perf` `lent`, a byte loop through a wrapper's
+  conversion of a reference-type document's member, takes 10 times the
+  estimated cycles optimized, and 35 times plain, with the member copied
+
+A lent conversion's place may also be a member of an owner, a
+reference-type instance a local holds, as `parse(this.text)` reads
+`this.text`. The call it lends to writes nothing through its parameters
+and its other arguments read nothing that could reach the owner, so the
+member is read where it is; a place a spawned call may write back is
+still copied.
+
+### A held local moved at its last read
+
+- **Builds:** every build
+- **Where:** `lib/cgt/regions.ml` (`assigned_moves`, `taken_params`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9
+- **Effect:** `tests/perf` `phrases`, a string extended and assigned back
+  each round, takes 14% more estimated cycles plain and 7% more optimized
+  with the copy
+
+A held local whose last read in its scope copies it into another place,
+as `current = combined` does, is moved there instead, as a return moves
+it: nothing reads the slot again before the scope drains it. Only
+straight-line code, `if` bodies and expansions are looked into.
+
 ### Arenas only for blocks that need one
 
 - **Builds:** every build
@@ -516,7 +547,129 @@ function into itself, and runs no partial inliner at `-O2`.
 
 ---
 
+### Small-array loops strip-mined
+
+- **Builds:** every build; only an optimized build's passes gain from it
+- **Where:** `lib/optimize/strip.ml`
+- **Design:** the comment at the top of `strip.ml`
+- **Effect:** `tests/perf` `lanes`, eight hash lanes in an `Array<Int, 8>`
+  updated at `bitAnd(i - 1, 7) + 1`, takes 6% more estimated cycles
+  optimized without it
+
+A counted loop that steps a counter by one and indexes an array of 2 to 16
+elements, a power of two, through `bitAnd` is cut into runs of that many
+copies of its body, each run starting at a multiple of the size, so each
+copy's index is a constant and the array's elements become registers. The
+remaining iterations run as before.
+
+### String literals in locals bound, not held
+
+- **Builds:** every build
+- **Where:** `lib/optimize/literal_locals.ml`
+- **Design:** the comment at the top of `literal_locals.ml`
+- **Effect:** `tests/perf` `glyphs`, a shade picked from a local string
+  literal per call, takes 4.3 times the estimated cycles optimized with
+  the local held
+
+A local whose value folds to a string literal, never assigned, moved or
+lent by address, is bound to the constant rather than held in its scope's
+frame, and a scope it leaves empty is dropped, so the function places,
+zeroes and drains no frame on each call.
+
 ## Code generation (stage 6, `lib/codegen/`)
+
+### Constant local arrays made constant globals
+
+- **Builds:** optimized only, and tier 1
+- **Where:** `lib/codegen/const_arrays.ml`
+- **Design:** [`design/lowering.md`](design/lowering.md), "After the
+  passes"
+- **Effect:** `tests/perf` `tables`, a table of 16 squares written as an
+  `Array` literal in the function that reads it, takes 2.7 times the
+  estimated cycles with the literal's stores made on each call
+
+A stack slot whose every write is a constant, the same at each offset each
+time, and that is otherwise only loaded or copied from, is replaced by a
+constant global holding those bytes, and its stores go.
+
+### A recursion's base case made at its self-calls
+
+- **Builds:** optimized only, and tier 1
+- **Where:** `lib/codegen/leaf_peel.ml`, `lib/codegen/leaf_peel_stubs.cpp`
+- **Design:** [`design/lowering.md`](design/lowering.md), "After the
+  passes"
+- **Effect:** `tests/perf` `peeled`, binary trees built by recursion,
+  takes 17% more estimated cycles without it
+
+For a function of at most 200 instructions that calls itself, whose base
+case is a branch on a compare of its arguments, each self-call tests the
+condition on its own arguments and runs the base case inline, so the
+leaves take no call. A function a memo table answers is left alone: its
+table already answers the calls that repeat (`tests/perf` `leaves`).
+
+### Small leaves a loop calls inlined
+
+- **Builds:** optimized only, and tier 1
+- **Where:** `lib/codegen/loop_inline.ml`
+- **Design:** [`design/lowering.md`](design/lowering.md), "After the
+  passes"
+- **Effect:** `tests/perf` `neighbors`, a maze carver's eight-neighbour
+  count called from three loops, takes 11% more estimated cycles with the
+  calls
+
+A call made in a cycle of its function's blocks to a function of the
+program with no cycle of its own, whose calls are only to LLVM's
+intrinsics or to functions that do not return, of at most 128
+instructions, is inlined there, which LLVM's own cost model, blind to
+where a call is, leaves out of line.
+
+### Frame slots kept in registers
+
+- **Builds:** optimized only, and tier 1
+- **Where:** `lib/codegen/frame_shadow.ml`
+- **Design:** [`design/lowering.md`](design/lowering.md), "After the
+  passes"
+- **Effect:** `tests/perf` `tape`, a tape machine whose loop may grow its
+  tape by a rare push, takes 1.5% more estimated cycles without it;
+  `refills`, an arithmetic coder's bit writer, 2.7% more optimized and
+  13% more tiered when every slot is filled again after every call
+
+Each slot of a placed frame that is only loaded and stored whole, as one
+scalar type, gets a copy in an alloca, filled where the frame is placed and
+after each call given an address in the frame, and written through on
+every store; loads read the copy, which SROA makes a register. A frame
+whose address escapes any other way, including to a callee that may keep
+it, is left alone. After a call, only the copies it may have written are
+filled again: those a `memset`, `memcpy` or `memmove` of a constant
+length covers (none when it writes outside a frame whose address went
+nowhere else), and the list header the runtime's growth writes.
+
+### Index checks merged
+
+- **Builds:** optimized only, and tier 1
+- **Where:** `lib/codegen/merged_checks.ml`, `lib/codegen/arm_checks.ml`,
+  `lib/codegen/range_checks.ml`
+- **Design:** [`design/lowering.md`](design/lowering.md), "After the
+  passes"; [`spec-divergences.md`](spec-divergences.md) §10
+- **Effect:** `tests/perf` `pairs` (one index into two parallel lists)
+  takes 4.3% more estimated cycles optimized without the merge, `merges`
+  (a merge step storing to `work[k]` in either arm) 11% more tiered
+  without the check raised above the branch, `windows` (four
+  neighbouring elements read at once) 2.7% more tiered without the run's
+  checks joined, and `digest` (a strip-mined hash of eight lanes) 71% more
+  optimized with its copies' exit tests left in
+
+A failed check stops the program after flushing its output, so where a
+later check of the same index follows an earlier one on a straight path
+with no call that could write output between, the earlier one takes the
+smaller of the two bounds and the later one goes. A check both arms of a
+branch begin with is made once above it, after which LLVM makes the arms'
+stores one store of a select. The checks of `x`, `x + 1`, ... `x + k` on
+one path become one check of the lowest and one of the highest. In a
+strip-mined loop, an index check LLVM has made the exit test
+`b == (n + k) >> s`, against a counter that starts at 0, steps by one,
+leaves at `b + 1 == (n + j) >> s` with `j <= k` and is entered only when
+that end is at least one, can never hold and is removed.
 
 ### LLVM's `-O2` pipeline
 
@@ -740,11 +893,14 @@ element at an index it steps by a constant itself, apart from its counter,
 is a search whose count is a
 ceiling, so it is weighted as going round 4 times and left whole: a
 quicksort's partition scans stop after an element or two, and IRCE's split
-cost each one about 25 instructions of setup. Any other loop
-emitted once has no weights, and IRCE splits it on LLVM's guess; loop idiom
-recognition may then make its main loop a `memmove` call. In `flips` that
-call, about 12 bytes, costs fewer estimated cycles than either way of
-keeping the loop ([`design/lowering.md`](design/lowering.md) §9, "The
+cost each one about 25 instructions of setup. So is a loop whose counter
+is read nowhere but by its own step and that reads or writes an element, a
+`to` over a ceiling standing for a `while`, whose index a method it calls
+moves (`tests/perf` `cursor`, a whitespace skip, takes 10% more estimated
+cycles optimized split). Any other loop
+emitted once has no weights, and IRCE splits it on LLVM's guess; its main
+loop stays a loop rather than a `memmove` call (below, "Element copy loops
+kept as loops"; [`design/lowering.md`](design/lowering.md) §9, "The
 passes", has the measurements).
 
 ### Reads through a loaded index prefetched ahead
@@ -941,6 +1097,22 @@ A list or array index is checked where its address is made with one
 unsigned compare covering both ends; only a failure calls the runtime. LLVM
 sees plain arithmetic and can hoist or drop checks it proves redundant.
 
+### Element addresses from a biased base
+
+- **Builds:** every build
+- **Where:** `lib/codegen/emit.ml` (`element`)
+- **Design:** the comment on `address` in `element`
+- **Effect:** `tests/perf` `nodes`, a Huffman decoder over a tree of
+  16-byte nodes, takes 2% more estimated cycles plain without it and 8%
+  more wall time optimized; LangArena's HuffDecode, Brainfuck::Recursion,
+  NeuralNet and Words ran 8% to 12% faster with it
+
+An element's address is `(base - stride) + index * stride`, not
+`base + (index - 1) * stride`. The check keeps its own `index - 1`, so an
+index loaded from memory (a tree's child, a graph's neighbour) goes
+straight into the address, and the bias, loop-invariant, folds into the
+load's displacement.
+
 ### Inline list operations
 
 - **Builds:** every build
@@ -1130,6 +1302,76 @@ included, cannot change its handle. LLVM then sees the inner loop's bound
 and the count read before it as one value. A plain build reads it again
 before each inner loop instead, which is cheaper there (`tests/perf`
 `entities` was 2.9% slower holding it).
+
+### Scalars' alias tags by size
+
+- **Builds:** every build
+- **Where:** `lib/codegen/emit.ml` (`sized_tag`)
+- **Design:** [`design/lowering.md`](design/lowering.md), "After the
+  passes"
+- **Effect:** `tests/perf` `flags`, a `Bool` flag stored per element
+  while an `Int` field is read, takes 24% more estimated cycles optimized
+  without it
+
+A scalar's type-based alias tag is a child of the scalar tag by its size:
+one byte, four and eight. A place is read back only as a type of the size
+it was written as, so a one-byte store leaves the wider scalars read
+around it in registers.
+
+### A loop's pushes counted in a register
+
+- **Builds:** optimized only, and tier 1
+- **Where:** `lib/codegen/emit.ml` (`Stat.Repeat`, `kept`)
+- **Design:** [`design/lowering.md`](design/lowering.md), "After the
+  passes"
+- **Effect:** `tests/perf` `pushes`, a decode loop pushing one element per
+  step, takes 6.6% more estimated cycles without it
+
+A loop whose pushes were given their room before it, of a count not
+known to be 64 or fewer, reads the list's block once before the loop and
+keeps its count in a local that each push steps and stores back, so a push
+loads nothing. LICM cannot promote the count itself: the loop's checks make
+each push conditional.
+
+### Small constant loops unrolled whole
+
+- **Builds:** every build; only an optimized build's passes act on it
+- **Where:** `lib/codegen/emit.ml` (`unrolled_whole`)
+- **Design:** [`design/lowering.md`](design/lowering.md), "After the
+  passes"
+- **Effect:** `tests/perf` `bits`, a bit decoder's loop of eight with a
+  leaf test in it, takes 29% more estimated cycles optimized without it
+
+A `repeat` of a constant count from 2 to 8 has its back edge marked to be
+unrolled whole (`llvm.loop.unroll.full`), which LLVM's own threshold does
+not do for a body with a branch in it.
+
+### A loop that calls a single-caller function emitted once
+
+- **Builds:** optimized only; a tiered build versions every loop as before
+- **Where:** `lib/codegen/loop_copies.ml` (`single_caller`)
+- **Design:** [`design/lowering.md`](design/lowering.md), "After the
+  passes"
+- **Effect:** `tests/perf` `interp`, an interpreter whose loop calls its
+  step function, takes 15% more estimated cycles optimized versioned
+
+A loop that would be versioned for IRCE but calls a function with only one
+call site is emitted once, so the callee keeps LLVM's single-caller inline
+bonus; two copies would leave a mid-sized callee out of line in both.
+
+### Element copy loops kept as loops
+
+- **Builds:** optimized only, and tier 1
+- **Where:** `lib/codegen/passes.ml` (`-disable-loop-idiom-memcpy`)
+- **Design:** [`design/lowering.md`](design/lowering.md), "The passes"
+- **Effect:** `tests/perf` `rotations`, short rotations of a list's front,
+  takes 1.6% more estimated cycles optimized and 11% more tiered with the
+  loop made a `memmove` call
+
+LLVM's loop idiom recognition does not turn an element-by-element copy loop
+into a `memmove` or `memcpy` call: such loops copy a few elements of a
+length known only at run time, which a call into the C library costs more
+than it saves.
 
 ### Ordered removals moved in 2 KiB pieces
 
@@ -1335,9 +1577,43 @@ executable, whatever the C compiler adds by default.
 
 A list's block doubles from its first block (four elements' bytes, kept
 between 32 and 128), in place when it is last at the frontier, stretching
-its scope's frame for it up to 1 MiB. Past 1 MiB it moves once into a
-reservation 64 times its size, and each later doubling commits more of it
-instead of moving the elements.
+its scope's frame for it up to 16 KiB. Past 16 KiB it moves once into a
+reservation 64 times the chunk its room is doubled to, and each later
+doubling commits more of it instead of moving the elements (the next
+entry).
+
+### Growing lists take a growable span early
+
+- **Builds:** every build
+- **Where:** `runtime/list.c` (`zane_list_grow`), `runtime/zane_internal.h`
+  (`ZANE_LIST_SPAN_FROM`)
+- **Design:** the comment on `ZANE_LIST_SPAN_FROM`
+- **Effect:** `tests/perf` `spans`, a list of more than a megabyte built
+  one push at a time each round, takes 21% more estimated cycles plain and
+  59% more tiered with copies at each doubling; `growth` 23% more tiered
+
+A list whose block grows past 16 KiB takes a growable span at once, its
+room doubled past a chunk, and grows in place from there rather than being
+copied at each doubling to a megabyte. Only its touched pages use memory.
+
+### A moved list's span handed over
+
+- **Builds:** every build
+- **Where:** `lib/codegen/walks.ml` (`move`), `runtime/arena.c`
+  (`zane_relocate`, `zane_free`)
+- **Design:** the comment on `zane_relocate`
+- **Effect:** `tests/perf` `handover`, a decoder whose output of more than
+  a megabyte is moved into its state each step, takes 57% more estimated
+  cycles optimized, 23% more tiered and 8% more plain with the block
+  copied, and 45% more wall time optimized
+
+A list's or string's block past a chunk that a move takes into another
+region of the same context is a growable span, the one block of its
+mapping: the mapping leaves the old region for the new one, its chunks are
+the new region's in the chunk map, and no byte is copied. When the new
+region returns it, it goes to its context's kept spans, where the next
+list past a chunk takes it with its pages resident. A smaller block is
+still copied, inline.
 
 ### Every overwrite in place
 

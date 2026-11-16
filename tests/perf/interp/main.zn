@@ -1,0 +1,162 @@
+/// A small bytecode interpreter: a loop over a list of operations calls
+/// `step` for each, a mid-sized function with only that one call site. The
+/// loop is emitted once rather than as a long and a short copy, so `step`
+/// keeps a single caller and LLVM inlines it there.
+package interp;
+
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+Int minus(a Int, b Int) => @operators$add(a, @operators$negate(b));
+Int times(a Int, b Int) => @operators$multiply(a, b);
+Int over(a Int, b Int) => @operators$divide(a, b);
+Int modulo(a Int, b Int) => minus(a, times(over(a, b), b));
+Bool below(a Int, b Int) => @operators$lessThan(a, b);
+Bool same(a Int, b Int) => @operators$equal(a, b);
+
+/// The linear congruential generator langbench uses.
+type Rng = #struct {
+	state Int;
+}
+
+Rng(seed Int) => init{ state = seed; }
+
+Int next(this Rng) mut {
+	this.state = @math$bitAnd(plus(times(this.state, Int(1103515245)), Int(12345)), Int(2147483647));
+	return this.state;
+}
+
+/// A number below `bound`, from the generator's high bits.
+Int pick(this Rng, bound Int) mut => modulo(over(this!next(), Int(65536)), bound);
+
+type Machine = #struct {
+	acc Int;
+	other Int;
+	tape ListRef<Int>;
+}
+
+Machine() => init{
+	acc = Int(0);
+	other = Int(1);
+	tape = @primitives$ListRef(Int);
+}
+
+/// Runs operation `op` with argument `arg`.
+Unit step(this Machine, op Int, arg Int) mut {
+	@controlflow$branch(same(op, Int(0)), {
+		this.acc = plus(this.acc, arg);
+	});
+	@controlflow$branch(same(op, Int(1)), {
+		this.acc = minus(this.acc, times(arg, this.other));
+	});
+	@controlflow$branch(same(op, Int(2)), {
+		this.other = plus(@math$bitXor(this.other, this.acc), Int(1));
+	});
+	@controlflow$branch(same(op, Int(3)), {
+		slot Int = plus(@math$bitAnd(this.acc, Int(15)), Int(1));
+		this.tape[slot] = plus(this.tape[slot], arg);
+	});
+	@controlflow$branch(same(op, Int(4)), {
+		slot Int = plus(@math$bitAnd(arg, Int(15)), Int(1));
+		this.acc = plus(this.acc, this.tape[slot]);
+	});
+	@controlflow$branch(same(op, Int(5)), {
+		this.acc = @math$bitAnd(times(this.acc, Int(33)), Int(1048575));
+	});
+	@controlflow$branch(same(op, Int(6)), {
+		this.other = @math$bitAnd(plus(this.other, times(arg, Int(7))), Int(65535));
+	});
+	@controlflow$branch(same(op, Int(7)), {
+		this.acc = @math$bitXor(this.acc, @math$shiftLeft(this.other, Int(3)));
+	});
+	@controlflow$branch(same(op, Int(8)), {
+		this.acc = plus(this.acc, times(this.other, Int(5)));
+	});
+	@controlflow$branch(same(op, Int(9)), {
+		slot Int = plus(@math$bitAnd(plus(this.acc, arg), Int(15)), Int(1));
+		this.tape[slot] = @math$bitXor(this.tape[slot], this.acc);
+	});
+	@controlflow$branch(same(op, Int(10)), {
+		this.other = minus(this.other, @math$bitAnd(this.acc, Int(255)));
+	});
+	@controlflow$branch(same(op, Int(11)), {
+		slot Int = plus(@math$bitAnd(this.other, Int(15)), Int(1));
+		this.other = plus(this.other, this.tape[slot]);
+	});
+	@controlflow$branch(same(op, Int(12)), {
+		this.acc = @math$shiftRight(times(this.acc, Int(13)), Int(2));
+	});
+	@controlflow$branch(same(op, Int(13)), {
+		this.acc = @math$bitAnd(plus(this.acc, times(arg, arg)), Int(16777215));
+	});
+	@controlflow$branch(same(op, Int(14)), {
+		slot Int = plus(@math$bitAnd(arg, Int(15)), Int(1));
+		this.tape[slot] = minus(this.tape[slot], this.other);
+	});
+	@controlflow$branch(same(op, Int(15)), {
+		this.other = @math$bitXor(this.other, times(this.acc, Int(3)));
+	});
+	return Unit();
+}
+
+Unit run(this Machine, ops ListRef<Int>, args ListRef<Int>) mut {
+	i Int(1);
+	i!to(ops:size()) {
+		this!step(ops[i], args[i]);
+	}
+	return Unit();
+}
+
+Unit main() {
+	rounds Int = size(Int(10));
+	ops ListRef<Int> = @primitives$ListRef(Int);
+	args ListRef<Int> = @primitives$ListRef(Int);
+	rng Rng(Int(31));
+	n Int(1);
+	n!to(Int(1000)) {
+		ops!push(rng!pick(Int(16)));
+		args!push(rng!pick(Int(100)));
+	}
+	machine Machine();
+	t Int(1);
+	t!to(Int(16)) {
+		machine.tape!push(Int(0));
+	}
+	round Int(1);
+	round!to(rounds) {
+		args[plus(modulo(round, Int(1000)), Int(1))] = round;
+		machine!run(ops, args);
+	}
+	say(@operators$concat(@operators$concat(String(machine.acc), String(" ")), String(machine.other)));
+	return Unit();
+}

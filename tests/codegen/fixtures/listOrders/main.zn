@@ -1,0 +1,136 @@
+/// `copyRange` copies a range of one list over a range of another, as one
+/// copy of the elements' bytes, at either end and of no elements, its
+/// operands run in the order they are written.
+/// `sortBy` sorts a list of `I32` indices, counted from 1, by the `I64`
+/// keys they name, stably: indices of equal keys keep their order. Runs
+/// longer than a block of 16, ascending and descending, and short lists are
+/// sorted. Each check prints `yes` when it holds and `no` when it does not.
+package listOrders;
+
+alias I64 = @primitives$I64;
+alias I32 = @primitives$I32;
+alias Bool = @primitives$Bool;
+alias String = @primitives$String;
+alias Unit = @primitives$Unit;
+
+Unit to(this I64, end I64, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), I64(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, I64(1));
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Bool same(a I64, b I64) => @operators$equal(a, b);
+
+/// `keys`, once `orders` has grown by many lists, so that its block moves.
+@primitives$List<I64> grownFirst(this @primitives$List<@primitives$List<I32>>, keys @primitives$List<I64>) mut {
+	n I64(1);
+	n!to(I64(64)) {
+		this!push(@primitives$List(I32));
+	}
+	return keys;
+}
+
+/// The digits of the operands run so far, in the order they ran.
+type Order = #struct {
+	seen I64;
+}
+
+Order() => init{ seen = I64(0); }
+
+/// `value`, once `digit` is noted as run.
+I64 note(this Order, digit I64, value I64) mut {
+	this.seen = @operators$add(@operators$multiply(this.seen, I64(10)), digit);
+	return value;
+}
+
+/// Whether `order`'s indices name `keys` in ascending order, equal keys'
+/// indices ascending too.
+Bool sorted(order @primitives$List<I32>, keys @primitives$List<I64>) {
+	i I64(2);
+	i!to(order:size()) {
+		a I64 = @primitives$I64(order[@operators$add(i, @operators$negate(I64(1)))]);
+		b I64 = @primitives$I64(order[i]);
+		@controlflow$branch(@operators$lessThan(keys[b], keys[a]), {
+			return false;
+		});
+		@controlflow$branch(@operators$conjoin(same(keys[a], keys[b]), @operators$lessThan(b, a)), {
+			return false;
+		});
+	}
+	return true;
+}
+
+Unit main() {
+	// copyRange from another list, then within one list both ways.
+	a @primitives$List<I64> = @primitives$List(I64);
+	b @primitives$List<I64> = @primitives$List(I64);
+	i I64(1);
+	i!to(I64(10)) {
+		a!push(i);
+		b!push(@operators$multiply(i, I64(100)));
+	}
+	a!copyRange(I64(3), b, I64(5), I64(4));
+	check(@operators$conjoin(same(a[I64(2)], I64(2)), same(a[I64(3)], I64(500))));
+	check(@operators$conjoin(same(a[I64(6)], I64(800)), same(a[I64(7)], I64(7))));
+	a!copyRange(I64(1), b, I64(10), I64(1));
+	check(@operators$conjoin(same(a[I64(1)], I64(1000)), same(a[I64(2)], I64(2))));
+	b!copyRange(I64(9), a, I64(1), I64(2));
+	check(@operators$conjoin(same(b[I64(9)], I64(1000)), same(b[I64(10)], I64(2))));
+	a!copyRange(I64(4), b, I64(4), I64(0));
+	check(same(a[I64(4)], I64(600)));
+	// Operands run in written order: the position before the list copied from.
+	sources @primitives$List<@primitives$List<I64>> = @primitives$List(@primitives$List<I64>);
+	sources!push(b);
+	o Order();
+	a!copyRange(o!note(I64(1), I64(2)), sources[o!note(I64(2), I64(1))], o!note(I64(3), I64(1)), o!note(I64(4), I64(1)));
+	check(@operators$conjoin(same(o.seen, I64(1234)), same(a[I64(2)], I64(100))));
+	// sortBy over keys with repeats, in runs of every shape.
+	keys @primitives$List<I64> = @primitives$List(I64);
+	order @primitives$List<I32> = @primitives$List(I32);
+	k I64(1);
+	k!to(I64(100)) {
+		key I64 = @operators$add(@operators$multiply(@operators$divide(@operators$multiply(k, I64(37)), I64(11)), I64(3)), I64(0));
+		@controlflow$branch(@operators$lessThan(I64(40), k), {
+			key = @operators$add(I64(1000), @operators$negate(k));
+		});
+		@controlflow$branch(@operators$lessThan(I64(70), k), {
+			key = @operators$divide(k, I64(10));
+		});
+		keys!push(key);
+		order!push(I32.wrap(k));
+	}
+	order!sortBy(keys);
+	check(sorted(order, keys));
+	check(same(order:size(), I64(100)));
+	few @primitives$List<I32> = @primitives$List(I32);
+	few!push(I32.wrap(I64(3)));
+	few!push(I32.wrap(I64(1)));
+	few!sortBy(keys);
+	check(sorted(few, keys));
+	// A list that is an element is sorted where it is once the keys have
+	// run, though they grow the list holding it.
+	orders @primitives$List<@primitives$List<I32>> = @primitives$List(@primitives$List<I32>);
+	mixed @primitives$List<I32> = @primitives$List(I32);
+	m I64(1);
+	m!to(I64(100)) {
+		mixed!push(I32.wrap(m));
+	}
+	orders!push(mixed);
+	orders[I64(1)]!sortBy(orders!grownFirst(keys));
+	check(@operators$conjoin(sorted(orders[I64(1)], keys), same(orders:size(), I64(65))));
+	return Unit();
+}

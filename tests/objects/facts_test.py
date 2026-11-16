@@ -218,9 +218,9 @@ class FactsTests(unittest.TestCase):
         # (Loop_shapes.invariant_lists): the push, and the runtime call its
         # slow path makes, reach no other list. Here the list read is an
         # element of another (`this.adj[v]`) at an index the loop does not
-        # change. So the only handle the loop loads is the pushed list's
-        # own, in `main`, where `below` is inlined; its pushes alone move
-        # 24 bytes.
+        # change. So the only handle the loop may load is the pushed list's
+        # own, in `main`, where `below` is inlined, and frame shadowing
+        # keeps that in registers too; its pushes alone move 24 bytes.
         ir = run(ZANEC, "--ll", "--optimize", *packages("pending"))
         start = re.search(r"(?ms)^define [^\n]*@zane_main\(.*?^}", ir).group(0)
         handle = re.search(r'(?m)^(![0-9]+) = !\{!"zane handle"', ir).group(1)
@@ -257,7 +257,6 @@ class FactsTests(unittest.TestCase):
                 rf"(?m)^\s*(%[\w.]+) = getelementptr [^\n]*ptr {re.escape(frame)}, i64 (\d+)$", start)
                 if int(offset) in fields}
             loads = [line for name in loop for line in blocks[name] if " = load " in line and f"!tbaa {tag}" in line]
-            self.assertTrue(loads)
             for line in loads:
                 self.assertIn(re.search(r"load [^,]+, ptr (%[\w.]+)", line).group(1), own, line)
         with tempfile.TemporaryDirectory() as temp:

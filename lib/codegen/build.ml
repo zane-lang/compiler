@@ -1036,16 +1036,31 @@ let finish_tier m ~hash exports definitions =
           | Some why -> Error (Printf.sprintf "tier 1 is not a valid module: %s" why))
   | None, None -> Ok ()
 
-(* EXPERIMENT: when [on ()], [run] rewrites the optimized module [m] and
-   the passes [again] run over it once more; a pass that fails is reported
+(* [run] rewrites the optimized module [m] after LLVM's passes, and the
+   passes [again] run over it once more; a pass that fails is reported
    under [name] and the module kept. *)
-let experiment tm m name on run again =
-  if on () then begin
-    run m;
-    match Llvm_passbuilder.run_passes m again tm (Llvm_passbuilder.create_passbuilder_options ()) with
-    | Ok () -> ()
-    | Error e -> prerr_endline (name ^ ": " ^ e)
-  end
+let rewrite tm m name run again =
+  run m;
+  match Llvm_passbuilder.run_passes m again tm (Llvm_passbuilder.create_passbuilder_options ()) with
+  | Ok () -> ()
+  | Error e -> prerr_endline (name ^ ": " ^ e)
+
+(* The rewrites that read the optimized module as LLVM's passes left it
+   (docs/design/lowering.md, "After the passes"): constant locals made
+   constant globals, a recursion's base case made at its self-calls, small
+   leaves a loop calls inlined, then the frames' alias scopes (when on) and
+   slots in registers, and the index checks merged, raised above a branch
+   and joined over a run of offsets. *)
+let rewrites tm m =
+  rewrite tm m "const arrays" Const_arrays.run Const_arrays.again;
+  rewrite tm m "leaf peel" Leaf_peel.run Leaf_peel.again;
+  rewrite tm m "loop inline" Loop_inline.run Loop_inline.again;
+  if Frame_scopes.on () then rewrite tm m "frame scopes" Frame_scopes.run Frame_scopes.again;
+  rewrite tm m "frame shadow" Frame_shadow.run Frame_shadow.again;
+  rewrite tm m "merged checks" Merged_checks.run Merged_checks.again;
+  rewrite tm m "arm checks" Arm_checks.run Arm_checks.again;
+  rewrite tm m "arm stores" Arm_checks.stores_run Arm_checks.stores_again;
+  rewrite tm m "range checks" Range_checks.run Range_checks.again
 
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and its passes run, the optimized
@@ -1102,15 +1117,7 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
       |> Result.map (fun () ->
-             if optimize then begin
-               (* EXPERIMENT (Frame_scopes): scopes for the frames as inlining
-                  left them, then the loop passes again to use them. *)
-               experiment tm m "frame scopes" Frame_scopes.on Frame_scopes.run Frame_scopes.again;
-               (* EXPERIMENT (Frame_shadow): frame slots in registers. *)
-               experiment tm m "frame shadow" Frame_shadow.on Frame_shadow.run Frame_shadow.again;
-               (* EXPERIMENT (Merged_checks): one check per index. *)
-               experiment tm m "merged checks" Merged_checks.on Merged_checks.run Merged_checks.again
-             end;
+             if optimize then rewrites tm m;
              (* EXPERIMENT: the optimized module, for reading. *)
              Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_OPT"))
       |> Fun.flip Result.bind (fun () -> finish_tier m ~hash exports definitions)
@@ -1562,10 +1569,8 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
           String.concat "\000"
             ([ fingerprint; triple; cc; identity; compiler_identity (); Passes.tier1 ]
             @ (if thread_sanitizing () then [ "tsan" ] else [])
-            (* The experiments that rewrite tier 1 as it is prepared. *)
-            @ List.filter_map
-                (fun (name, on) -> if on () then Some name else None)
-                [ ("frame-scopes", Frame_scopes.on); ("frame-shadow", Frame_shadow.on); ("merged-checks", Merged_checks.on) ]
+            (* The switch that rewrites tier 1 as it is prepared. *)
+            @ (if Frame_scopes.on () then [ "frame-scopes" ] else [])
             @ Passes.llvm_options)
         in
         Filename.concat (Filename.concat cache "tier")

@@ -76,7 +76,15 @@
    The program's `main` runs in one context, and each spawned call in one of
    its own (concurrency.md §3): its own nest of scopes, and its own range,
    so a thread places frames only in its own (docs/design/lowering.md §9). */
-enum { ZANE_CHUNK = 1 << 20, ZANE_CONTEXTS = (1 << 16) - 1 };
+enum { ZANE_CONTEXTS = (1 << 16) - 1 };
+
+/* A list whose block grows past this many bytes takes a growable span
+   (arena.c, zane_alloc_growable) at once, its room doubled past
+   ZANE_CHUNK - ZANE_LINE, so that it grows in place from there rather than
+   being copied at each doubling to a megabyte, as glibc's realloc moves a
+   large block's pages rather than its bytes. Only its touched pages use
+   memory; a list from 16 KiB to a megabyte takes more address space. */
+enum { ZANE_LIST_SPAN_FROM = 16384 };
 
 /* The guard after a context's range (ZANE_GUARD, zane_abi.h), and the step
    the range becomes usable in: a frame no larger than the guard, placed

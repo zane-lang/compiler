@@ -402,10 +402,10 @@ let probed_abi () =
         (Printf.sprintf "%s is %d in the runtime and in Abi" name value)
         (List.assoc_opt name Abi.values = Some value))
     probed;
-  check "every number in Abi is measured but ZANE_LINE, the list block sizes, ZANE_STRETCH, ZANE_STRETCHED and ZANE_GUARD"
+  check "every number in Abi is measured but ZANE_CHUNK, ZANE_LINE, the list block sizes, ZANE_STRETCH, ZANE_STRETCHED and ZANE_GUARD"
     (List.sort compare
        (List.filter (fun (name, _) -> not (List.mem_assoc name probed)) Abi.values |> List.map fst)
-    = [ "ZANE_GUARD"; "ZANE_LINE"; "ZANE_LIST_ALIGN"; "ZANE_LIST_FIRST"; "ZANE_LIST_LEAST"; "ZANE_STRETCH"; "ZANE_STRETCHED" ]);
+    = [ "ZANE_CHUNK"; "ZANE_GUARD"; "ZANE_LINE"; "ZANE_LIST_ALIGN"; "ZANE_LIST_FIRST"; "ZANE_LIST_LEAST"; "ZANE_STRETCH"; "ZANE_STRETCHED" ]);
   check "lowering lays a handle out as the runtime does"
     (Cgt.Nodes.Ty.size_align Cgt.Nodes.Ty.Handle = (Abi.handle_size, 8))
 
@@ -523,7 +523,7 @@ let intrinsic_classes () =
     = List.sort compare Cgt.Runtime.[ Print; Set_threads; Set_threads_auto ]);
   check "the program's arguments, a null foreign handle, a callback's context, the experimental pooled variants and the experimental byte and range list operations are the inputs"
     (List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all
-    = Cgt.Runtime.[ Text_bytes; List_append; List_same; List_hash; List_sort; Arguments; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; No_object; Callback_attach; Callback_detach ])
+    = Cgt.Runtime.[ Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Arguments; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; No_object; Callback_attach; Callback_detach ])
 
 (* The math functions of `@math$` as the evaluator folds them (math.md §2),
    which the math codegen fixture holds both builds to as well, and which
@@ -1804,6 +1804,90 @@ let light_references () =
   check "a scope of scalars is light, unless switched off" (Codegen__Loop_shapes.light 1 [ scalar ] = on);
   check "not when it stores a reference" (Codegen__Loop_shapes.light 1 [ stored ] = (on && not (Cgt.Ref32.frames ())))
 
+(* Range checks' exit rule reads a counter's incoming values only once it
+   knows the counter is a phi: an exit-shaped test of a function's
+   argument, `(a + 1) == n >> 3` ending a block, is left as it is. *)
+let range_checks_non_phi () =
+  let ctx = Llvm.create_context () in
+  let m = Llvm.create_module ctx "exits" in
+  let i64 = Llvm.i64_type ctx in
+  let f = Llvm.define_function "f" (Llvm.function_type (Llvm.void_type ctx) [| i64; i64 |]) m in
+  let entry = Llvm.entry_block f in
+  let stop = Llvm.append_block ctx "stop" f and go = Llvm.append_block ctx "go" f in
+  let b = Llvm.builder_at_end ctx entry in
+  let x = Llvm.build_add (Llvm.param f 0) (Llvm.const_int i64 1) "" b in
+  let e = Llvm.build_lshr (Llvm.param f 1) (Llvm.const_int i64 3) "" b in
+  let c = Llvm.build_icmp Llvm.Icmp.Eq x e "" b in
+  ignore (Llvm.build_cond_br c stop go b);
+  Llvm.position_at_end stop b;
+  ignore (Llvm.build_ret_void b);
+  Llvm.position_at_end go b;
+  ignore (Llvm.build_ret_void b);
+  let ran = match Codegen__Range_checks.run m with () -> true | exception _ -> false in
+  check "range checks leave an exit-shaped test of an argument alone"
+    (ran && Llvm.operand (Option.get (Llvm.block_terminator entry)) 0 == c);
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx
+
+(* An empty array codegen reads from LLVM (a function's attributes at a
+   parameter that has none, an empty struct's element types) is OCaml's
+   own empty array, so a minor collection, which moves young blocks, leaves
+   it and the blocks made around it as they were. The bindings' own
+   readers make a zero-sized young block, which each collection moves as
+   if it had a field, overwriting the word after it (llvm_stubs.c), so
+   codegen calls only Llvm_extra's: frame shadow once read every call's
+   parameters' attributes through the bindings, and tier 1 of `byteSets`
+   crashed in CI. *)
+let empty_binding_arrays () =
+  let ctx = Llvm.create_context () in
+  let m = Llvm.create_module ctx "empty" in
+  let i64 = Llvm.i64_type ctx in
+  let f = Llvm.define_function "f" (Llvm.function_type (Llvm.void_type ctx) [| i64; i64 |]) m in
+  let empty = Llvm.struct_type ctx [||] in
+  let made = ref [] in
+  for k = 1 to 20_000 do
+    let attrs = Codegen__Llvm_extra.function_attrs f (Llvm.AttrIndex.Param (k mod 2)) in
+    let types = Codegen__Llvm_extra.struct_element_types empty in
+    let params = Codegen__Llvm_extra.param_types (Llvm.function_type (Llvm.void_type ctx) [||]) in
+    made := (attrs, types, params, ref k) :: !made
+  done;
+  Gc.minor ();
+  Gc.full_major ();
+  let intact =
+    List.for_all
+      (fun (attrs, types, params, k) ->
+        Array.length attrs = 0 && Array.length types = 0 && Array.length params = 0 && !k >= 1 && !k <= 20_000)
+      !made
+  in
+  check "empty arrays read from LLVM survive a collection" intact;
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx;
+  (* No compiler source reads them through the bindings. *)
+  let raw = [ "Llvm.function_attrs"; "Llvm.struct_element_types"; "Llvm.param_types" ] in
+  let rec sources dir =
+    Array.fold_left
+      (fun acc name ->
+        let path = Filename.concat dir name in
+        if Sys.is_directory path then sources path @ acc
+        else if Filename.check_suffix name ".ml" then path :: acc
+        else acc)
+      [] (Sys.readdir dir)
+  in
+  let contains text word =
+    let n = String.length word and l = String.length text in
+    let rec at i = i + n <= l && (String.sub text i n = word || at (i + 1)) in
+    at 0
+  in
+  List.iter
+    (fun path ->
+      match read_all path with
+      | Some text ->
+          List.iter
+            (fun word -> check (Printf.sprintf "%s calls %s, not Llvm_extra's" path word) (not (contains text word)))
+            raw
+      | None -> ())
+    (sources "../../lib")
+
 let () =
   ty ();
   Traversals.run check;
@@ -1877,6 +1961,8 @@ let () =
   Loops.searches ();
   traverse_leaves ();
   light_references ();
+  empty_binding_arrays ();
+  range_checks_non_phi ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1

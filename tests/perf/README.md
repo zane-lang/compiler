@@ -176,6 +176,44 @@ repo's `langbench/` and print what it prints at the same size.
   each cell's predecessor held in a variant that is empty until the cell is
   reached. Each query walks the predecessors back from a target, and the
   path lengths are summed.
+- The rest each hold one optimization to its effect: with it gone, the
+  program's estimated cycles rise past the gate's 1% in at least one
+  build ([`docs/optimizations.md`](../../docs/optimizations.md) names the
+  build and the size).
+  - `rotations`: short rotations of a list's front stay a loop rather
+    than a `memmove` call.
+  - `bits`: a bit decoder's loop of eight is unrolled whole.
+  - `tables`: an array literal of constants becomes a constant global.
+  - `glyphs`: a local string literal is bound rather than held in a frame.
+  - `lanes`: eight hash lanes in an `Array<Int, 8>` are strip-mined into
+    registers.
+  - `windows`: four neighbouring elements' checks become one range check.
+  - `merges`: a merge step's check is made once above its two arms.
+  - `pairs`: one index's checks against two lists are merged.
+  - `pushes`: a decode loop's pushes keep the list's count in a register.
+  - `neighbors`: a small neighbour count a loop calls is inlined there.
+  - `interp`: an interpreter's loop is emitted once so its step function
+    keeps a single caller.
+  - `phrases`: a string assigned back at its last read is moved, not
+    copied.
+  - `tape`: a tape machine's frame slots stay in registers across a rare
+    push.
+  - `nodes`: a Huffman decoder's loaded child index goes straight into the
+    element's address.
+  - `digest`: a strip-mined hash's eight lanes are one vector once its
+    copies' index checks, which can never fail, are gone.
+  - `refills`: a bit writer's `memset` and push fill again only the frame
+    slots they write.
+  - `cursor`: a whitespace skip whose counter only steps is weighted as a
+    search.
+  - `peeled`: a tree-building recursion's leaves take no call.
+  - `flags`: a one-byte flag's store leaves an integer field in a
+    register.
+  - `handover`: a list of more than a megabyte moved into another region
+    keeps its block.
+  - `spans`: a list past 16 KiB grows in place in a growable span.
+  - `lent`: a reference-type document's text is lent to a byte helper
+    rather than copied per call.
 - `stress` is the logged one, a large program of sixteen sections:
   fannkuch-redux over small lists, binary-trees of reference nodes, trial
   division, the Mandelbrot set, bodies in a list pulled together, a list

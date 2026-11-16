@@ -14,11 +14,11 @@ type t = Computed | Output | Input
 let classify : Cgt.Runtime.fn -> t = function
   | Print | Set_threads | Set_threads_auto -> Output
   | Arguments -> Input
-  (* EXPERIMENT: a String from a byte list, which the evaluator does not model. *)
+  (* A String from a byte list, which the evaluator does not model. *)
   | Text_bytes -> Input
-  (* EXPERIMENT: list range copies, sorts, comparisons and hashes, which
+  (* List range copies, sorts, comparisons, hashes and byte searches, which
      the evaluator does not model. *)
-  | List_append | List_same | List_hash | List_sort -> Input
+  | List_append | List_copy | List_same | List_hash | List_sort | List_sort_by | Byte_set | Text_find_pair | Text_find_any | Text_hash -> Input
   (* Experimental pooled variants, which the evaluator does not model. *)
   | Pool_new | Pool_push | Pool_append | Pool_root | Pool_copy | Link | Pool_reserve | Pool_new_unbounded -> Input
   (* A handle's stamp is the next of a counter the running program keeps:
@@ -40,7 +40,7 @@ let classify : Cgt.Runtime.fn -> t = function
      meaning directly. *)
   | List_reserve | List_room | Scope_enter | Scope_drain | Hold | Too_deep | Promote | Arrive | Copy
   | Overwrite | Box | Spawn | Join | Snapshot | Out_of_range | Prefetch | Island
-  | Region_at | Alloc | Alloc_held | Box_held | Box_in | Free | Leaves | Defer | Defer_return
+  | Region_at | Alloc | Alloc_held | Relocate | Box_held | Box_in | Free | Leaves | Defer | Defer_return
   | Overwrite_handles | Overwrite_settled | Handle_end | Handle_set ->
       Computed
 

@@ -384,7 +384,7 @@ int64_t zane_parse_i64(const zane_text *text, int64_t *out) {
    (types.md §2.10). Read in the C numeric locale, as floats are
    formatted. */
 int64_t zane_parse_f64(const zane_text *text, double *out) {
-	/* EXPERIMENT (LangArena zane-vs-goose): the text is checked and its
+	/* The text is checked and its
 	   digits folded in one pass, then Clinger's fast path. With at most 19
 	   digits the
 	   digits fold into a u64 exactly; up to 2^53 that integer is an exact
@@ -432,7 +432,7 @@ int64_t zane_parse_f64(const zane_text *text, double *out) {
 	return 1;
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): `parseF64At` on
+/* `parseF64At` on
    `@primitives$String`: `parseF64` on the `count` bytes from byte `start`,
    counted from 1 as `byteAt` counts; a range outside the text is out of
    range. */
@@ -469,3 +469,225 @@ void zane_arguments(zane_list *out) {
 	}
 	*out = ZL_MAKE((char *)items, zane_argc, units);
 }
+
+/* `findPair` and `findAny`: the first of `count` positions of a string's
+   bytes from `at`, counted from 1, whose byte is in the set `first` and
+   the byte `gap` after it in `second`, or 0 when there is none. A set is what
+   zane_byte_set makes, below: whether each byte is in it, then tables of
+   16 where bit k of the j-th of the first stands for the byte k * 16 + j,
+   and of the second for 128 + k * 16 + j, by which 16 positions are
+   tested at once with SSSE3's byte shuffle, and the cheaper test a set of
+   few members, few non-members or one run takes. */
+#if defined(__x86_64__)
+#include <cpuid.h>
+#include <immintrin.h>
+
+/* Whether the processor has SSSE3, asked once (CPUID leaf 1, ECX bit 9).
+   Threads that ask first at once each ask and store the same answer, so
+   the flag is read and written atomically. */
+static int zane_ssse3 = -1;
+static int zane_has_ssse3(void) {
+	int known = __atomic_load_n(&zane_ssse3, __ATOMIC_RELAXED);
+	if (known < 0) {
+		unsigned a, b, c, d;
+		known = __get_cpuid(1, &a, &b, &c, &d) && (c & bit_SSSE3) ? 1 : 0;
+		__atomic_store_n(&zane_ssse3, known, __ATOMIC_RELAXED);
+	}
+	return known;
+}
+
+/* The members among x's 16 bytes, by a set's tables: pshufb gives 0 for an index with its top bit set, so lo
+   answers for x < 128 and hi, indexed by x ^ 0x80, for the rest; then the
+   bit for x's bits 4 to 6. */
+__attribute__((target("ssse3"))) static inline __m128i zane_set_test(__m128i x, __m128i lo, __m128i hi) {
+	const __m128i bits = _mm_setr_epi8(1, 2, 4, 8, 16, 32, 64, -128, 1, 2, 4, 8, 16, 32, 64, -128);
+	__m128i t = _mm_or_si128(_mm_shuffle_epi8(lo, x), _mm_shuffle_epi8(hi, _mm_xor_si128(x, _mm_set1_epi8((char)0x80))));
+	__m128i bit = _mm_shuffle_epi8(bits, _mm_and_si128(_mm_srli_epi16(x, 4), _mm_set1_epi8(7)));
+	return _mm_cmpeq_epi8(_mm_and_si128(t, bit), bit);
+}
+
+/* A set's block test, by its kind (zane_byte_set): a set of 1 to 3 bytes
+   (kind 1 to 3) compares with each, a run (4) by its first byte and
+   width, others (5) by the tables; `flip` complements. */
+typedef struct {
+	__m128i a, b, c, flip;
+} zane_bsm;
+
+static inline int zane_set_kind(const uint8_t *s) { return s[289]; }
+
+static inline zane_bsm zane_bsm_init(const uint8_t *s, int kind) {
+	zane_bsm m;
+	if (kind == 5) {
+		m.a = _mm_loadu_si128((const __m128i *)(s + 256));
+		m.b = _mm_loadu_si128((const __m128i *)(s + 272));
+		m.c = m.flip = _mm_setzero_si128();
+	} else {
+		m.a = _mm_set1_epi8((char)s[291]);
+		m.b = _mm_set1_epi8((char)s[292]);
+		m.c = _mm_set1_epi8((char)s[293]);
+		m.flip = s[290] ? _mm_set1_epi8(-1) : _mm_setzero_si128();
+	}
+	return m;
+}
+
+__attribute__((target("ssse3"), always_inline)) static inline __m128i zane_bsm_test(const zane_bsm *m, int k, __m128i x) {
+	__m128i r;
+	if (k == 5) return zane_set_test(x, m->a, m->b);
+	if (k == 1) r = _mm_cmpeq_epi8(x, m->a);
+	else if (k == 2) r = _mm_or_si128(_mm_cmpeq_epi8(x, m->a), _mm_cmpeq_epi8(x, m->b));
+	else if (k == 3) r = _mm_or_si128(_mm_or_si128(_mm_cmpeq_epi8(x, m->a), _mm_cmpeq_epi8(x, m->b)), _mm_cmpeq_epi8(x, m->c));
+	else {
+		__m128i t = _mm_sub_epi8(x, m->a);
+		r = _mm_cmpeq_epi8(_mm_min_epu8(t, m->b), t);
+	}
+	return _mm_xor_si128(r, m->flip);
+}
+
+__attribute__((target("ssse3"), always_inline)) static inline int64_t zane_pair_k(const uint8_t *p, int64_t n, const uint8_t *a, int64_t d,
+                                                                                  const uint8_t *b, int ka, int kb) {
+	zane_bsm ma = zane_bsm_init(a, ka), mb = zane_bsm_init(b, kb);
+	int64_t i = 0;
+	for (; i + 16 <= n; i += 16) {
+		__m128i x = _mm_loadu_si128((const __m128i *)(p + i)), y = _mm_loadu_si128((const __m128i *)(p + i + d));
+		unsigned k = (unsigned)_mm_movemask_epi8(_mm_and_si128(zane_bsm_test(&ma, ka, x), zane_bsm_test(&mb, kb, y)));
+		if (k) return i + __builtin_ctz(k);
+	}
+	if (i == n) return -1;
+	/* The last positions: one block ending at the last,
+	   its positions already searched shifted out. */
+	if (n >= 16) {
+		__m128i x = _mm_loadu_si128((const __m128i *)(p + n - 16)), y = _mm_loadu_si128((const __m128i *)(p + n - 16 + d));
+		unsigned k = (unsigned)_mm_movemask_epi8(_mm_and_si128(zane_bsm_test(&ma, ka, x), zane_bsm_test(&mb, kb, y))) >> (16 - (n - i));
+		return k ? i + __builtin_ctz(k) : -1;
+	}
+	for (; i < n; i++)
+		if (a[p[i]] && b[p[i + d]]) return i;
+	return -1;
+}
+
+__attribute__((target("ssse3"), always_inline)) static inline int64_t zane_any_k(const uint8_t *p, int64_t n, const uint8_t *a, int ka) {
+	zane_bsm ma = zane_bsm_init(a, ka);
+	int64_t i = 0;
+	for (; i + 16 <= n; i += 16) {
+		unsigned k = (unsigned)_mm_movemask_epi8(zane_bsm_test(&ma, ka, _mm_loadu_si128((const __m128i *)(p + i))));
+		if (k) return i + __builtin_ctz(k);
+	}
+	if (i == n) return -1;
+	if (n >= 16) {
+		unsigned k = (unsigned)_mm_movemask_epi8(zane_bsm_test(&ma, ka, _mm_loadu_si128((const __m128i *)(p + n - 16)))) >> (16 - (n - i));
+		return k ? i + __builtin_ctz(k) : -1;
+	}
+	for (; i < n; i++)
+		if (a[p[i]]) return i;
+	return -1;
+}
+
+#define ZANE_PAIR_ROW(ka) \
+	case (ka) * 8 + 1: return zane_pair_k(p, n, a, d, b, ka, 1); \
+	case (ka) * 8 + 2: return zane_pair_k(p, n, a, d, b, ka, 2); \
+	case (ka) * 8 + 3: return zane_pair_k(p, n, a, d, b, ka, 3); \
+	case (ka) * 8 + 4: return zane_pair_k(p, n, a, d, b, ka, 4); \
+	case (ka) * 8 + 5: return zane_pair_k(p, n, a, d, b, ka, 5);
+
+__attribute__((target("ssse3"))) static int64_t zane_pair_blocks(const uint8_t *p, int64_t n, const uint8_t *a, int ka, int64_t d,
+                                                                 const uint8_t *b, int kb) {
+	switch (ka * 8 + kb) {
+		ZANE_PAIR_ROW(1) ZANE_PAIR_ROW(2) ZANE_PAIR_ROW(3) ZANE_PAIR_ROW(4)
+		default: return zane_pair_k(p, n, a, d, b, 5, 5);
+	}
+}
+
+__attribute__((target("ssse3"))) static int64_t zane_any_blocks(const uint8_t *p, int64_t n, const uint8_t *a, int ka) {
+	switch (ka) {
+		case 1: return zane_any_k(p, n, a, 1);
+		case 2: return zane_any_k(p, n, a, 2);
+		case 3: return zane_any_k(p, n, a, 3);
+		case 4: return zane_any_k(p, n, a, 4);
+		default: return zane_any_k(p, n, a, 5);
+	}
+}
+#endif
+
+/* A byte set as `findAny` and `findPair` read it, made from `members`, a
+   list of 256 flags, byte b's at b + 1. Its 294 bytes: whether each byte
+   is in it (0 to 255), the two shuffle tables (256 to 287), then how a
+   block of 16 is tested (289): 1 to 3 for that many members compared one
+   by one, or that many non-members with the result complemented (290 is
+   1), the bytes compared at 291 to 293; 4 for a run of members, its first
+   byte at 291 and its width less one at 292; 5 for the tables. */
+enum { ZANE_BYTE_SET = 294 };
+
+void zane_byte_set(zane_list *out, const zane_list *members) {
+	if (ZL_COUNT(members) != 256) zane_out_of_range();
+	const uint8_t *in = (const uint8_t *)ZL_ITEMS(members);
+	int64_t units = 512 / zl_unit(1);
+	uint8_t *s = (uint8_t *)zane_alloc(zane_here(), zl_block_bytes(units, 1), ZANE_LIST_ALIGN);
+	memset(s, 0, ZANE_BYTE_SET);
+	int count = 0, lowest = 256, highest = -1;
+	for (int b = 0; b < 256; b++) {
+		if (!in[b]) continue;
+		s[b] = 1;
+		s[(b < 128 ? 256 : 272) + (b & 15)] |= (uint8_t)(1 << ((b >> 4) & 7));
+		count++;
+		if (b < lowest) lowest = b;
+		highest = b;
+	}
+	s[289] = 5;
+	if (count > 0 && count < 256) {
+		int few = count <= 3, most = 256 - count <= 3;
+		if (few || most) {
+			int want = few ? 1 : 0, k = 0;
+			s[290] = !few;
+			for (int b = 0; b < 256; b++)
+				if (s[b] == want) s[291 + k++] = (uint8_t)b;
+			s[289] = (uint8_t)k;
+		} else if (highest - lowest + 1 == count) {
+			s[289] = 4;
+			s[291] = (uint8_t)lowest;
+			s[292] = (uint8_t)(highest - lowest);
+		}
+	}
+	*out = ZL_MAKE((char *)s, ZANE_BYTE_SET, units);
+}
+
+/* The same for one set. */
+int64_t zane_text_find_any(const zane_text *text, int64_t at, int64_t count, const zane_list *set) {
+	if (count <= 0) return 0;
+	/* Each bound compared with what is left, so no sum overflows. */
+	if (at < 1 || at - 1 > text->length || count > text->length - (at - 1) || ZL_COUNT(set) != ZANE_BYTE_SET)
+		zane_out_of_range();
+	int64_t from = at - 1;
+	const uint8_t *p = (const uint8_t *)text->bytes + from, *a = (const uint8_t *)ZL_ITEMS(set);
+	int64_t r;
+#if defined(__x86_64__)
+	if (zane_has_ssse3()) {
+		r = zane_any_blocks(p, count, a, zane_set_kind(a));
+		return r < 0 ? 0 : at + r;
+	}
+#endif
+	for (int64_t i = 0; i < count; i++)
+		if (a[p[i]]) return at + i;
+	return 0;
+}
+
+int64_t zane_text_find_pair(const zane_text *text, int64_t at, int64_t count, const zane_list *first, int64_t gap,
+                            const zane_list *second) {
+	if (count <= 0) return 0;
+	if (at < 1 || gap < 0 || at - 1 > text->length || gap > text->length - (at - 1) ||
+	    count > text->length - (at - 1) - gap || ZL_COUNT(first) != ZANE_BYTE_SET || ZL_COUNT(second) != ZANE_BYTE_SET)
+		zane_out_of_range();
+	int64_t from = at - 1;
+	const uint8_t *p = (const uint8_t *)text->bytes + from;
+	const uint8_t *a = (const uint8_t *)ZL_ITEMS(first), *b = (const uint8_t *)ZL_ITEMS(second);
+	int64_t r;
+#if defined(__x86_64__)
+	if (zane_has_ssse3()) {
+		r = zane_pair_blocks(p, count, a, zane_set_kind(a), gap, b, zane_set_kind(b));
+		return r < 0 ? 0 : at + r;
+	}
+#endif
+	for (int64_t i = 0; i < count; i++)
+		if (a[p[i]] && b[p[i + gap]]) return at + i;
+	return 0;
+}
+

@@ -23,13 +23,25 @@ type fn =
   | Text_f64
   (* EXPERIMENT (LangArena zane-vs-c): a String made from a List<U8>'s bytes. *)
   | Text_bytes
-  (* EXPERIMENT (LangArena zane-vs-goose): a range of a list's elements
+  (* A range of a list's elements
      copied onto the end of a list. *)
   | List_append
+  (* A range of a list's elements
+     copied over a range of a list. *)
+  | List_copy
   | List_same
   | List_hash
-  (* EXPERIMENT (LangArena zane-vs-goose): a list of integers sorted in place. *)
+  (* A list of integers sorted in place. *)
   | List_sort
+  (* A list of indices sorted
+     stably by the keys they name. *)
+  | List_sort_by
+  (* A byte set for [Text_find_any] and [Text_find_pair]. *)
+  | Byte_set
+  (* `findPair` and `findAny` over a string's bytes. *)
+  | Text_find_pair
+  | Text_find_any
+  | Text_hash
   | Scope_enter
   | Hold
   | Too_deep
@@ -67,6 +79,9 @@ type fn =
   | Region_at
   | Alloc
   | Alloc_held
+  (* A moved list's or string's block past a chunk, its growable span
+     handed over to the new region where it has one (runtime/arena.c). *)
+  | Relocate
   (* A box's payload (runtime/arena.c, `zane_box_held`), held and checked. *)
   | Box_held
   | Box_in
@@ -94,7 +109,7 @@ type fn =
   (* A spawned call's subject into a region of its own (runtime/spawn.c). *)
   | Island
 
-let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_same; List_hash; List_sort; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island ]
+let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Relocate; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island ]
 
 let name = function
   | Print -> "zane_print"
@@ -108,9 +123,15 @@ let name = function
   | Text_f64 -> "zane_text_f64"
   | Text_bytes -> "zane_text_bytes"
   | List_append -> "zane_list_append"
+  | List_copy -> "zane_list_copy"
   | List_same -> "zane_list_same"
   | List_hash -> "zane_list_hash"
   | List_sort -> "zane_list_sort"
+  | List_sort_by -> "zane_list_sort_by"
+  | Byte_set -> "zane_byte_set"
+  | Text_find_pair -> "zane_text_find_pair"
+  | Text_find_any -> "zane_text_find_any"
+  | Text_hash -> "zane_text_hash"
   | Scope_enter -> "zane_scope_enter"
   | Hold -> "zane_hold"
   | Too_deep -> "zane_too_deep"
@@ -145,6 +166,7 @@ let name = function
   | Region_at -> "zane_region_at"
   | Alloc -> "zane_alloc"
   | Alloc_held -> "zane_alloc_held"
+  | Relocate -> "zane_relocate"
   | Box_held -> "zane_box_held"
   | Box_in -> "zane_box_in"
   | Free -> "zane_free"
@@ -186,9 +208,15 @@ let signature = function
   | Text_f64 -> (Void, [ Ptr; F64 ])
   | Text_bytes -> (Void, [ Ptr; Ptr ])
   | List_append -> (Void, [ Ptr; Ptr; I64; I64; I64 ])
+  | List_copy -> (Void, [ Ptr; I64; Ptr; I64; I64; I64 ])
   | List_same -> (I64, [ Ptr; I64; Ptr; I64; I64; I64 ])
   | List_hash -> (I64, [ Ptr; I64; I64; I64 ])
   | List_sort -> (Void, [ Ptr; I64 ])
+  | List_sort_by -> (Void, [ Ptr; Ptr ])
+  | Byte_set -> (Void, [ Ptr; Ptr ])
+  | Text_find_pair -> (I64, [ Ptr; I64; I64; Ptr; I64; Ptr ])
+  | Text_find_any -> (I64, [ Ptr; I64; I64; Ptr ])
+  | Text_hash -> (I64, [ Ptr ])
   | Scope_enter -> (Ptr, [ I64 ])
   | Hold -> (Void, [ Ptr; Ptr ])
   | Too_deep -> (Void, [  ])
@@ -223,6 +251,7 @@ let signature = function
   | Region_at -> (Ptr, [ Ptr ])
   | Alloc -> (Ptr, [ Ptr; I64; I64 ])
   | Alloc_held | Box_held | Box_in -> (Ptr, [ Ptr; I64; I64 ])
+  | Relocate -> (Ptr, [ Ptr; Ptr; I64; I64; I64 ])
   | Free -> (Void, [ Ptr; I64; I64 ])
   | Leaves -> (I64, [ Ptr; Ptr; I64 ])
   | Defer -> (Void, [ Ptr; Ptr; Ptr; Ptr; I64 ])

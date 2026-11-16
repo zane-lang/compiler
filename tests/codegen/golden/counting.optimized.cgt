@@ -97,26 +97,18 @@
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %2
-    │       ├── body[0] > hold:
+    │       ├── body[0] > let:
     │       │   ├── local: #1
-    │       │   ├── scope: %2
-    │       │   ├── value: "yes\n" : handle
-    │       │   └── layout: %primitives$String
-    │       ├── body[1] > hold:
+    │       │   └── value: "yes\n" : handle
+    │       ├── body[1] > let:
     │       │   ├── local: #3
-    │       │   ├── scope: %2
-    │       │   ├── value: "no\n" : handle
-    │       │   └── layout: %primitives$String
-    │       ├── body[2] > hold:
+    │       │   └── value: "no\n" : handle
+    │       ├── body[2] > let:
     │       │   ├── local: #4
-    │       │   ├── scope: %2
-    │       │   ├── value: "." : handle
-    │       │   └── layout: %primitives$String
-    │       ├── body[3] > hold:
+    │       │   └── value: "." : handle
+    │       ├── body[3] > let:
     │       │   ├── local: #5
-    │       │   ├── scope: %2
-    │       │   ├── value: "\n" : handle
-    │       │   └── layout: %primitives$String
+    │       │   └── value: "\n" : handle
     │       ├── body[4] > let:
     │       │   ├── local: #10
     │       │   └── value > expand:

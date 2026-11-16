@@ -1,0 +1,108 @@
+/// Flags set by comparing each value of a list with a threshold kept in a
+/// struct's field, as a maze generator marks the cells it opens: a `Bool`
+/// written on every pass, an integer field read on every pass. A one-byte
+/// store is tagged apart from eight-byte ones, so the field is read once
+/// before the loop rather than after each store.
+package flags;
+
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+Int minus(a Int, b Int) => @operators$add(a, @operators$negate(b));
+Int times(a Int, b Int) => @operators$multiply(a, b);
+Int over(a Int, b Int) => @operators$divide(a, b);
+Int modulo(a Int, b Int) => minus(a, times(over(a, b), b));
+Bool below(a Int, b Int) => @operators$lessThan(a, b);
+Bool same(a Int, b Int) => @operators$equal(a, b);
+
+/// The linear congruential generator langbench uses.
+type Rng = #struct {
+	state Int;
+}
+
+Rng(seed Int) => init{ state = seed; }
+
+Int next(this Rng) mut {
+	this.state = @math$bitAnd(plus(times(this.state, Int(1103515245)), Int(12345)), Int(2147483647));
+	return this.state;
+}
+
+/// A number below `bound`, from the generator's high bits.
+Int pick(this Rng, bound Int) mut => modulo(over(this!next(), Int(65536)), bound);
+
+type Marker = #struct {
+	limit Int;
+	step Int;
+	seen ListRef<Bool>;
+	values ListRef<Int>;
+}
+
+Marker() => init{
+	limit = Int(0);
+	step = Int(3);
+	seen = @primitives$ListRef(Bool);
+	values = @primitives$ListRef(Int);
+}
+
+/// Marks each value past the limit, and says how many there were.
+Int mark(this Marker) mut {
+	marked Int(0);
+	i Int(1);
+	i!to(this.values:size()) {
+		past Bool = below(this.limit, plus(this.values[i], this.step));
+		this.seen[i] = past;
+		@controlflow$branch(past, {
+			marked = plus(marked, Int(1));
+		});
+	}
+	return marked;
+}
+
+Unit main() {
+	rounds Int = size(Int(10));
+	marker Marker();
+	rng Rng(Int(53));
+	n Int(1);
+	n!to(Int(4096)) {
+		marker.values!push(rng!pick(Int(1000)));
+		marker.seen!push(false);
+	}
+	checksum Int(0);
+	round Int(1);
+	round!to(rounds) {
+		marker.limit = modulo(times(round, Int(37)), Int(1000));
+		checksum = plus(checksum, marker!mark());
+	}
+	say(String(checksum));
+	return Unit();
+}

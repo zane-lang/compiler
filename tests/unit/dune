@@ -14,7 +14,9 @@
 ; clang, a global an `__asm__` label names read by its label, a Mach-O
 ; alias renamed with its target, a dependency's C module made a retained
 ; copy, the file of C module hashes beside an object and its rows, and the glue's
-; thunks in the order of their labels.
+; thunks in the order of their labels. It also checks that the arrays codegen
+; reads from LLVM survive a collection when empty, and that no compiler source
+; reads them through the bindings' own, which corrupt the heap then.
 ;
 ; Overloads, State, Type_layout, Emit, Build and stage 5's modules are not re-exported by their libraries'
 ; entry modules, so they are reached by the names dune gives them.
@@ -25,4 +27,5 @@
  (deps
   ../../runtime/zane.h
   ../runtime/abi/probe.out
-  (source_tree ../codegen/fixtures/lambdas)))
+  (source_tree ../codegen/fixtures/lambdas)
+  (source_tree ../../lib)))

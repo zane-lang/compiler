@@ -123,7 +123,8 @@ classified:
 | `parseI64`, `parseF64`, `parseF64At` | `Parse_i64`, `Parse_f64`, `Parse_f64_at` | computed |
 | `List(T)`, `ListRef(T)`, `push`, `size`, `[]` | `List_new`, `List_push`, `Member`, `List_at` | computed |
 | `remove`, `swapRemove` | `List_at` and a `Take`, then `List_remove` or `List_swap_remove` | computed |
-| `appendRange`, `appendOwn`, `sort`, `sameRange`, `hashRange` (experimental) | `List_append`, `List_sort`, `List_same`, `List_hash` | input |
+| `appendRange`, `appendOwn`, `copyRange`, `sort`, `sortBy`, `sameRange`, `hashRange` | `List_append`, `List_copy`, `List_sort`, `List_sort_by`, `List_same`, `List_hash` | input |
+| `hashBytes`, `byteSet`, `findAny`, `findPair` | `Text_hash`, `Byte_set`, `Text_find_any`, `Text_find_pair` | input |
 | `Array`, `ArrayRef`, `fill`, `[]` | `Record`, a counted loop, `Array_at` | computed |
 | `@controlflow$branch`, `repeat` | `If`, `Repeat` | computed |
 | storage: slots, boxes, copies, moves, overwrites, scopes | the nodes and the runtime calls codegen makes for them | computed (O5) |

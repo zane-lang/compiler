@@ -68,20 +68,15 @@
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %2
-    │       ├── body[0] > hold:
-    │       │   ├── local: #1
-    │       │   ├── scope: %2
-    │       │   ├── value: "main\n" : handle
-    │       │   └── layout: %primitives$String
-    │       ├── body[1] > eval > runtime:
+    │       ├── body[0] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "main\n" : handle
-    │       ├── body[2] > eval > runtime:
+    │       ├── body[1] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[3] > eval > call:
+    │       ├── body[2] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -98,21 +93,21 @@
     │       │       │           ├── fn: constants$early
     │       │       │           └── args:
     │       │       └── right: 94 : i64
-    │       ├── body[4] > eval > runtime:
+    │       ├── body[3] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "hello\n" : handle
-    │       ├── body[5] > eval > runtime:
+    │       ├── body[4] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[6] > let:
+    │       ├── body[5] > let:
     │       │   ├── local: #8
     │       │   └── value > call:
     │       │       ├── type: ptr
     │       │       ├── fn: constants$ada
     │       │       └── args:
-    │       ├── body[7] > eval > call:
+    │       ├── body[6] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -125,7 +120,7 @@
     │       │       │       ├── path: 1
     │       │       │       └── base: local #8 : ptr
     │       │       └── right: 36 : i64
-    │       ├── body[8] > eval > call:
+    │       ├── body[7] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -151,15 +146,15 @@
     │       │       │   │           └── base: local #9 : ptr
     │       │       │   └── body[2]: leave @10
     │       │       └── right: 36 : i64
+    │       ├── body[8] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "yes\n" : handle
     │       ├── body[9] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[10] > eval > runtime:
-    │       │   ├── type: void
-    │       │   ├── fn: zane_print
-    │       │   └── args[0]: "yes\n" : handle
-    │       ├── body[11] > spawn:
+    │       ├── body[10] > spawn:
     │       │   ├── task: #16
     │       │   ├── scope: %2
     │       │   ├── thunk: zane.spawn.1
@@ -167,7 +162,7 @@
     │       │   ├── args:
     │       │   ├── dest: #17
     │       │   └── layout: %primitives$I64
-    │       ├── body[12] > eval > call:
+    │       ├── body[11] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: constants$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -184,7 +179,7 @@
     │       │       │           ├── type: i64
     │       │       │           └── ptr: address of #17 : ptr
     │       │       └── right: 94 : i64
-    │       └── body[13] > return: unit : void
+    │       └── body[12] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: constants$say(%primitives$String)
     │   ├── params[0]: local #1 : handle
@@ -200,16 +195,12 @@
     │   ├── ret: void
     │   └── body[0] > scope:
     │       ├── id: %3
-    │       ├── body[0] > hold:
+    │       ├── body[0] > let:
     │       │   ├── local: #2
-    │       │   ├── scope: %3
-    │       │   ├── value: "yes\n" : handle
-    │       │   └── layout: %primitives$String
-    │       ├── body[1] > hold:
+    │       │   └── value: "yes\n" : handle
+    │       ├── body[1] > let:
     │       │   ├── local: #4
-    │       │   ├── scope: %3
-    │       │   ├── value: "no\n" : handle
-    │       │   └── layout: %primitives$String
+    │       │   └── value: "no\n" : handle
     │       ├── body[2] > if:
     │       │   ├── cond: local #1 : i1
     │       │   └── body[0] > eval > runtime:
@@ -356,16 +347,11 @@
     │   ├── ret: i64
     │   └── body[0] > scope:
     │       ├── id: %3
-    │       ├── body[0] > hold:
-    │       │   ├── local: #2
-    │       │   ├── scope: %3
-    │       │   ├── value: "made\n" : handle
-    │       │   └── layout: %primitives$String
-    │       ├── body[1] > eval > runtime:
+    │       ├── body[0] > eval > runtime:
     │       │   ├── type: void
     │       │   ├── fn: zane_print
     │       │   └── args[0]: "made\n" : handle
-    │       └── body[2] > return: local #1 : i64
+    │       └── body[1] > return: local #1 : i64
     ├── funcs[10] > func:
     │   ├── symbol: constants$greeting
     │   ├── params:

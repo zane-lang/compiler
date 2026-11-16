@@ -1171,6 +1171,128 @@
   (diff golden/byteMemo.out byteMemo.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/byteSets))
+ (targets byteSets.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build byteSets.exe --package fixtures/byteSets)))
+
+(rule
+ (deps (source_tree fixtures/byteSets))
+ (targets byteSets.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build byteSets.optimized.exe --optimize --package fixtures/byteSets)))
+
+(rule
+ (deps (source_tree fixtures/byteSets))
+ (targets byteSets.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build byteSets.tiered.exe --tiered --package fixtures/byteSets)))
+
+(rule
+ (deps (source_tree fixtures/byteSets))
+ (targets byteSets.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up byteSets.tier1 --package fixtures/byteSets)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    byteSets.checked.out.actual
+    (run ./byteSets.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/byteSets.out byteSets.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    byteSets.unchecked.out.actual
+    (run ./byteSets.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/byteSets.out byteSets.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    byteSets.optimized.checked.out.actual
+    (run ./byteSets.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/byteSets.out byteSets.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    byteSets.optimized.unchecked.out.actual
+    (run ./byteSets.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/byteSets.out byteSets.optimized.unchecked.out.actual)))
+
+(rule
+ (deps byteSets.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./byteSets.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    byteSets.tiered.checked.out.actual
+    (run ./byteSets.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/byteSets.out byteSets.tiered.checked.out.actual)))
+
+(rule
+ (deps byteSets.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./byteSets.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    byteSets.tiered.unchecked.out.actual
+    (run ./byteSets.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/byteSets.out byteSets.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/constantCycle))
  (targets constantCycle.exe)
  (action
@@ -5009,6 +5131,128 @@
  (alias runtest)
  (action
   (diff golden/listAppend.out listAppend.tiered.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/listOrders))
+ (targets listOrders.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build listOrders.exe --package fixtures/listOrders)))
+
+(rule
+ (deps (source_tree fixtures/listOrders))
+ (targets listOrders.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build listOrders.optimized.exe --optimize --package fixtures/listOrders)))
+
+(rule
+ (deps (source_tree fixtures/listOrders))
+ (targets listOrders.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build listOrders.tiered.exe --tiered --package fixtures/listOrders)))
+
+(rule
+ (deps (source_tree fixtures/listOrders))
+ (targets listOrders.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up listOrders.tier1 --package fixtures/listOrders)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    listOrders.checked.out.actual
+    (run ./listOrders.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listOrders.out listOrders.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    listOrders.unchecked.out.actual
+    (run ./listOrders.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listOrders.out listOrders.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    listOrders.optimized.checked.out.actual
+    (run ./listOrders.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listOrders.out listOrders.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    listOrders.optimized.unchecked.out.actual
+    (run ./listOrders.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listOrders.out listOrders.optimized.unchecked.out.actual)))
+
+(rule
+ (deps listOrders.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./listOrders.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    listOrders.tiered.checked.out.actual
+    (run ./listOrders.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listOrders.out listOrders.tiered.checked.out.actual)))
+
+(rule
+ (deps listOrders.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./listOrders.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    listOrders.tiered.unchecked.out.actual
+    (run ./listOrders.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/listOrders.out listOrders.tiered.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/listRanges))
@@ -10097,6 +10341,20 @@
  (alias runtest)
  (action
   (diff golden/reject.beyondLimitField.err reject.beyondLimitField.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/byteSetFlags))
+ (action
+  (with-stderr-to
+   reject.byteSetFlags.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/byteSetFlags)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.byteSetFlags.err reject.byteSetFlags.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/hugeArray))

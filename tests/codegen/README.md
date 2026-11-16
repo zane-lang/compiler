@@ -329,6 +329,16 @@ makes of them.
   later range and another list's, and hashes them with `hashRange`: equal
   ranges of every length up to past a 32-byte block hash alike, and a
   range's last element counts.
+- `listOrders` copies a range of one list over a range of another with
+  `copyRange`, at either end and of no elements, and sorts a hundred
+  `I32` indices by the `I64` keys they name with `sortBy`, keys repeating
+  in runs ascending, descending and flat, checking the order is stable.
+- `byteSets` makes byte sets with `byteSet` and searches strings with
+  `findAny` and `findPair`, one set of each kind the runtime tests a
+  block of 16 by (a few members, a few non-members, a run, any other), in
+  texts shorter than a block and longer than several, finding the first
+  position counted from 1 or 0; and hashes equal strings made apart alike
+  with `hashBytes`.
 
 ## Rejects
 
@@ -351,6 +361,8 @@ but it copies the list's storage as the string's bytes, so lowering takes
 only a list whose elements are each one byte.
 
 `appendOwners` is one too: `@primitives$appendRange` on a `List<String>`.
+`byteSetFlags` is one too: `@primitives$byteSet` on a `List<I64>`, whose
+flags are eight bytes each.
 The runtime copies the range's bytes, so lowering takes only elements that
 own no blocks.
 
