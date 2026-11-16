@@ -15,8 +15,15 @@
    it makes no call of F), and each call of F in F becomes a call of
    F$peel, which tests the condition on its arguments and calls F or
    F$leaf; F$peel and F$leaf are always inlined, by the passes run again
-   after this one. */
+   after this one.
 
+   A function whose entry block allocates more than a budget of bytes of
+   machine stack is left: the inlined leaf brings its own copies of those
+   allocations into F's frame, so each level of the recursion would take
+   twice the stack it did. Five levels of a function holding a 1.1 MB
+   value (tests/memory-probes `bigbox`) then pass macOS's 8 MiB. */
+
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
@@ -91,8 +98,18 @@ static llvm::Value *at_call(llvm::IRBuilder<> &b, llvm::Value *v, llvm::CallBase
   return b.Insert(i);
 }
 
-extern "C" value zane_leaf_peel(value fv, value budget) {
-  CAMLparam2(fv, budget);
+/* The bytes [f]'s entry block allocates, those of known size. */
+static uint64_t frame_bytes(llvm::Function *f) {
+  const llvm::DataLayout &layout = f->getParent()->getDataLayout();
+  uint64_t bytes = 0;
+  for (auto &i : f->getEntryBlock())
+    if (auto *a = llvm::dyn_cast<llvm::AllocaInst>(&i))
+      if (auto size = a->getAllocationSize(layout); size && !size->isScalable()) bytes += size->getFixedValue();
+  return bytes;
+}
+
+extern "C" value zane_leaf_peel(value fv, value budget, value frame) {
+  CAMLparam3(fv, budget, frame);
   auto *f = llvm::cast<llvm::Function>(from_val(fv));
   std::string name = f->getName().str();
   if (f->isDeclaration() || name.find('$') == std::string::npos || name.find("%c$") != std::string::npos ||
@@ -106,7 +123,8 @@ extern "C" value zane_leaf_peel(value fv, value budget) {
       if (auto *c = llvm::dyn_cast<llvm::CallBase>(&i))
         if (c->getCalledFunction() == f && llvm::isa<llvm::CallInst>(c)) self.push_back(c);
     }
-  if (self.empty() || size > (size_t)Long_val(budget)) CAMLreturn(Val_int(0));
+  if (self.empty() || size > (size_t)Long_val(budget) || frame_bytes(f) > (uint64_t)Long_val(frame))
+    CAMLreturn(Val_int(0));
   /* The base case's branch. */
   llvm::BranchInst *base = nullptr;
   unsigned side = 0;

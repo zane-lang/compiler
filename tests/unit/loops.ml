@@ -186,3 +186,41 @@ let searches () =
     (searches [ read (local 5); leave; set 5 (local 6) ]);
   check "but not a loop whose counter only steps and that reads no element"
     (not (searches [ leave; set 5 (local 6) ]))
+
+(* A recursion's base case is made at its self-calls (Leaf_peel) only in a
+   function whose frame is small: the leaf inlined there brings its own
+   copy of the frame's allocations to each level of the recursion. *)
+let leaf_peel () =
+  let peeled bytes =
+    let ctx = Llvm.create_context () in
+    let ir =
+      Printf.sprintf
+        {|define i64 @"app$depth"(i64 %%n) {
+entry:
+  %%room = alloca [%d x i8], align 8
+  %%done = icmp eq i64 %%n, 0
+  br i1 %%done, label %%base, label %%deep
+base:
+  ret i64 0
+deep:
+  store volatile i8 1, ptr %%room, align 8
+  %%less = sub i64 %%n, 1
+  %%below = call i64 @"app$depth"(i64 %%less)
+  %%seen = load volatile i8, ptr %%room, align 8
+  %%wide = zext i8 %%seen to i64
+  %%sum = add i64 %%below, %%wide
+  ret i64 %%sum
+}
+|}
+        bytes
+    in
+    let m = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string ir) in
+    let f = Option.get (Llvm.lookup_function "app$depth" m) in
+    let made = Codegen__Leaf_peel.func f Codegen__Leaf_peel.budget Codegen__Leaf_peel.frame in
+    Llvm.dispose_module m;
+    Llvm.dispose_context ctx;
+    made = 1
+  in
+  check "a recursion with a small frame has its base case made at its self-calls" (peeled 64);
+  check "one whose frame passes the bound is left"
+    (not (peeled (Codegen__Leaf_peel.frame + 8)))
