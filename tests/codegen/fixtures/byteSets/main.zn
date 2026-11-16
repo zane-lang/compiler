@@ -1,0 +1,102 @@
+/// `byteSet` makes a set from 256 flags, and `findAny` and `findPair` find
+/// the first position, counted from 1, whose byte is in a set, or whose
+/// byte is in one set and the byte a gap after it in another, 0 when none
+/// is. A set of one to three members, of one to three non-members, of one
+/// run and of any other bytes is each tested its own way, so each shape is
+/// searched here, in texts shorter than one block of 16 and longer than
+/// several, with a match in the last block and none at all. `hashBytes`
+/// hashes a string's bytes, alike for equal strings. Each check prints
+/// `yes` when it holds and `no` when it does not.
+package byteSets;
+
+alias I64 = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias String = @primitives$String;
+alias Unit = @primitives$Unit;
+alias U8 = @primitives$U8;
+
+Unit to(this I64, end I64, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), I64(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, I64(1));
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Bool same(a I64, b I64) => @operators$equal(a, b);
+
+/// The flags of the bytes from `low` to `high`, and of `extra`.
+@primitives$List<Bool> flags(low I64, high I64, extra I64) {
+	out @primitives$List<Bool> = @primitives$List(Bool);
+	b I64(0);
+	b!to(I64(255)) {
+		inside Bool = @operators$conjoin(@operators$not(@operators$lessThan(b, low)), @operators$not(@operators$lessThan(high, b)));
+		out!push(@operators$disjoin(inside, same(b, extra)));
+	}
+	return out;
+}
+
+/// The flags of every byte but `a` and `b`.
+@primitives$List<Bool> allBut(a I64, b I64) {
+	out @primitives$List<Bool> = @primitives$List(Bool);
+	c I64(0);
+	c!to(I64(255)) {
+		out!push(@operators$not(@operators$disjoin(same(c, a), same(c, b))));
+	}
+	return out;
+}
+
+Unit main() {
+	short String = String("hello");
+	long String = String("the quick brown fox jumps over the lazy dog, then naps; z!");
+	// One member: `o`.
+	o @primitives$List<U8> = flags(I64(111), I64(111), I64(-1)):byteSet();
+	check(same(short:findAny(I64(1), short:byteCount(), o), I64(5)));
+	check(same(long:findAny(I64(1), long:byteCount(), o), I64(13)));
+	check(same(long:findAny(I64(14), I64(4), o), I64(0)));
+	// Three members: `z`, `!` and `;`.
+	three @primitives$List<Bool> = flags(I64(122), I64(122), I64(33));
+	three[I64(60)] = true;
+	marks @primitives$List<U8> = three:byteSet();
+	check(same(long:findAny(I64(1), long:byteCount(), marks), I64(38)));
+	check(same(long:findAny(I64(39), @operators$add(long:byteCount(), I64(-38)), marks), I64(55)));
+	// Two non-members, so every byte but those.
+	other @primitives$List<U8> = allBut(I64(104), I64(101)):byteSet();
+	check(same(short:findAny(I64(1), short:byteCount(), other), I64(3)));
+	// A run: the digits.
+	digits @primitives$List<U8> = flags(I64(48), I64(57), I64(-1)):byteSet();
+	numbered String = String("no digits until the very end of this text 7");
+	check(same(numbered:findAny(I64(1), numbered:byteCount(), digits), numbered:byteCount()));
+	check(same(long:findAny(I64(1), long:byteCount(), digits), I64(0)));
+	// Any other set: the vowels, by the tables.
+	vowels @primitives$List<Bool> = flags(I64(97), I64(97), I64(101));
+	vowels[I64(106)] = true;
+	vowels[I64(112)] = true;
+	vowels[I64(118)] = true;
+	vowel @primitives$List<U8> = vowels:byteSet();
+	check(same(long:findAny(I64(1), long:byteCount(), vowel), I64(3)));
+	check(same(short:findAny(I64(1), short:byteCount(), vowel), I64(2)));
+	// A pair: a space and then `l` two bytes on, past the first blocks.
+	space @primitives$List<U8> = flags(I64(32), I64(32), I64(-1)):byteSet();
+	ell @primitives$List<U8> = flags(I64(108), I64(108), I64(-1)):byteSet();
+	check(same(long:findPair(I64(1), @operators$add(long:byteCount(), I64(-1)), space, I64(1), ell), I64(35)));
+	check(same(short:findPair(I64(1), I64(3), ell, I64(1), ell), I64(3)));
+	check(same(short:findPair(I64(1), I64(2), ell, I64(1), ell), I64(0)));
+	// Equal strings hash alike, made apart.
+	joined String = @operators$concat(String("the quick "), String("brown fox jumps over the lazy dog, then naps; z!"));
+	check(same(long:hashBytes(), joined:hashBytes()));
+	check(@operators$not(same(long:hashBytes(), short:hashBytes())));
+	return Unit();
+}

@@ -127,7 +127,7 @@ int64_t zane_text_expect(void);
 void zane_text_taken(zane_text *out, const zane_text *view, int64_t mark);
 int64_t zane_text_equal(const zane_text *left, const zane_text *right);
 void zane_text_i32(zane_text *out, int32_t value);
-/* EXPERIMENT (LangArena zane-vs-c): a String holding a List<U8>'s bytes. */
+/* A String holding a List<U8>'s bytes. */
 void zane_text_bytes(zane_text *out, const zane_list *bytes);
 void zane_text_i64(zane_text *out, int64_t value);
 void zane_text_f32(zane_text *out, float value);
@@ -136,13 +136,14 @@ int64_t zane_parse_i64(const zane_text *text, int64_t *out);
 int64_t zane_parse_f64(const zane_text *text, double *out);
 int64_t zane_parse_f64_at(const zane_text *text, double *out, int64_t start, int64_t count);
 int64_t zane_text_hash(const zane_text *text);
-int64_t zane_text_find_any(const zane_text *text, int64_t from, int64_t count, const zane_list *set);
+void zane_byte_set(zane_list *out, const zane_list *members);
+int64_t zane_text_find_any(const zane_text *text, int64_t at, int64_t count, const zane_list *set);
 typedef struct {
 	uint64_t magic;
 	int64_t more;
 } zane_div_gen;
 zane_div_gen zane_div_magic(uint64_t d);
-int64_t zane_text_find_pair(const zane_text *text, int64_t from, int64_t count, const zane_list *first, int64_t gap, const zane_list *second);
+int64_t zane_text_find_pair(const zane_text *text, int64_t at, int64_t count, const zane_list *first, int64_t gap, const zane_list *second);
 void zane_arguments(zane_list *out);
 
 /* value.c */

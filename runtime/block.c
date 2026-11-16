@@ -470,13 +470,14 @@ void zane_arguments(zane_list *out) {
 	*out = ZL_MAKE((char *)items, zane_argc, units);
 }
 
-/* EXPERIMENT (LangArena zane-vs-goose): the first of `count` positions
-   from `from` (counted from 0) of a string's bytes whose byte is in the
-   set `first` and the byte `gap` after it in `second`, or -1, as Goose's
-   gs_scan_pair. A set is a list of 288 bytes: whether each byte is in it,
-   then tables of 16 where bit k of the j-th of the first stands for the
-   byte k * 16 + j, and of the second for 128 + k * 16 + j, by which 16
-   positions are tested at once with SSSE3's byte shuffle. */
+/* `findPair` and `findAny`: the first of `count` positions of a string's
+   bytes from `at`, counted from 1, whose byte is in the set `first` and
+   the byte `gap` after it in `second`, or 0 when there is none. A set is what
+   zane_byte_set makes, below: whether each byte is in it, then tables of
+   16 where bit k of the j-th of the first stands for the byte k * 16 + j,
+   and of the second for 128 + k * 16 + j, by which 16 positions are
+   tested at once with SSSE3's byte shuffle, and the cheaper test a set of
+   few members, few non-members or one run takes. */
 #if defined(__x86_64__)
 #include <cpuid.h>
 #include <immintrin.h>
@@ -510,7 +511,7 @@ typedef struct {
 	__m128i a, b, c, flip;
 } zane_bsm;
 
-static inline int zane_set_kind(const uint8_t *s, int64_t size) { return size >= 294 ? s[289] : 5; }
+static inline int zane_set_kind(const uint8_t *s) { return s[289]; }
 
 static inline zane_bsm zane_bsm_init(const uint8_t *s, int kind) {
 	zane_bsm m;
@@ -605,40 +606,84 @@ __attribute__((target("ssse3"))) static int64_t zane_any_blocks(const uint8_t *p
 }
 #endif
 
-/* The same for one set (Goose's gs_scan_any). */
-int64_t zane_text_find_any(const zane_text *text, int64_t from, int64_t count, const zane_list *set) {
-	if (count <= 0) return -1;
-	if (from < 0 || from + count > text->length || ZL_COUNT(set) < 288) zane_out_of_range();
+/* A byte set as `findAny` and `findPair` read it, made from `members`, a
+   list of 256 flags, byte b's at b + 1. Its 294 bytes: whether each byte
+   is in it (0 to 255), the two shuffle tables (256 to 287), then how a
+   block of 16 is tested (289): 1 to 3 for that many members compared one
+   by one, or that many non-members with the result complemented (290 is
+   1), the bytes compared at 291 to 293; 4 for a run of members, its first
+   byte at 291 and its width less one at 292; 5 for the tables. */
+enum { ZANE_BYTE_SET = 294 };
+
+void zane_byte_set(zane_list *out, const zane_list *members) {
+	if (ZL_COUNT(members) != 256) zane_out_of_range();
+	const uint8_t *in = (const uint8_t *)ZL_ITEMS(members);
+	int64_t units = 512 / zl_unit(1);
+	uint8_t *s = (uint8_t *)zane_alloc(zane_here(), zl_block_bytes(units, 1), ZANE_LIST_ALIGN);
+	memset(s, 0, ZANE_BYTE_SET);
+	int count = 0, lowest = 256, highest = -1;
+	for (int b = 0; b < 256; b++) {
+		if (!in[b]) continue;
+		s[b] = 1;
+		s[(b < 128 ? 256 : 272) + (b & 15)] |= (uint8_t)(1 << ((b >> 4) & 7));
+		count++;
+		if (b < lowest) lowest = b;
+		highest = b;
+	}
+	s[289] = 5;
+	if (count > 0 && count < 256) {
+		int few = count <= 3, most = 256 - count <= 3;
+		if (few || most) {
+			int want = few ? 1 : 0, k = 0;
+			s[290] = !few;
+			for (int b = 0; b < 256; b++)
+				if (s[b] == want) s[291 + k++] = (uint8_t)b;
+			s[289] = (uint8_t)k;
+		} else if (highest - lowest + 1 == count) {
+			s[289] = 4;
+			s[291] = (uint8_t)lowest;
+			s[292] = (uint8_t)(highest - lowest);
+		}
+	}
+	*out = ZL_MAKE((char *)s, ZANE_BYTE_SET, units);
+}
+
+/* The same for one set. */
+int64_t zane_text_find_any(const zane_text *text, int64_t at, int64_t count, const zane_list *set) {
+	if (count <= 0) return 0;
+	int64_t from = at - 1;
+	if (from < 0 || from + count > text->length || ZL_COUNT(set) != ZANE_BYTE_SET) zane_out_of_range();
 	const uint8_t *p = (const uint8_t *)text->bytes + from, *a = (const uint8_t *)ZL_ITEMS(set);
 	int64_t r;
 #if defined(__x86_64__)
 	if (zane_has_ssse3()) {
-		r = zane_any_blocks(p, count, a, zane_set_kind(a, ZL_COUNT(set)));
-		return r < 0 ? -1 : from + r;
+		r = zane_any_blocks(p, count, a, zane_set_kind(a));
+		return r < 0 ? 0 : at + r;
 	}
 #endif
 	for (int64_t i = 0; i < count; i++)
-		if (a[p[i]]) return from + i;
-	return -1;
+		if (a[p[i]]) return at + i;
+	return 0;
 }
 
-int64_t zane_text_find_pair(const zane_text *text, int64_t from, int64_t count, const zane_list *first, int64_t gap,
+int64_t zane_text_find_pair(const zane_text *text, int64_t at, int64_t count, const zane_list *first, int64_t gap,
                             const zane_list *second) {
-	if (count <= 0) return -1;
-	if (from < 0 || gap < 0 || from + count + gap > text->length || ZL_COUNT(first) < 288 || ZL_COUNT(second) < 288)
+	if (count <= 0) return 0;
+	int64_t from = at - 1;
+	if (from < 0 || gap < 0 || from + count + gap > text->length || ZL_COUNT(first) != ZANE_BYTE_SET || ZL_COUNT(second) != ZANE_BYTE_SET)
 		zane_out_of_range();
 	const uint8_t *p = (const uint8_t *)text->bytes + from;
 	const uint8_t *a = (const uint8_t *)ZL_ITEMS(first), *b = (const uint8_t *)ZL_ITEMS(second);
 	int64_t r;
 #if defined(__x86_64__)
 	if (zane_has_ssse3()) {
-		r = zane_pair_blocks(p, count, a, zane_set_kind(a, ZL_COUNT(first)), gap, b, zane_set_kind(b, ZL_COUNT(second)));
-		return r < 0 ? -1 : from + r;
+		r = zane_pair_blocks(p, count, a, zane_set_kind(a), gap, b, zane_set_kind(b));
+		return r < 0 ? 0 : at + r;
 	}
 #endif
 	for (int64_t i = 0; i < count; i++)
-		if (a[p[i]] && b[p[i + gap]]) return from + i;
-	return -1;
+		if (a[p[i]] && b[p[i + gap]]) return at + i;
+	return 0;
 }
 
 /* EXPERIMENT (LangArena zane-vs-goose; emitted with ZANE_DIV_CACHE=1): the

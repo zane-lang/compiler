@@ -1,8 +1,9 @@
-/// A list of more than a megabyte built by a call and assigned to a field
-/// of a struct that outlives it, round after round, as a decoder keeps its
-/// latest output. The list's block is a growable span, and moving it into
-/// the struct's region hands the span over instead of copying its bytes.
-package rehome;
+/// Flags set by comparing each value of a list with a threshold kept in a
+/// struct's field, as a maze generator marks the cells it opens: a `Bool`
+/// written on every pass, an integer field read on every pass. A one-byte
+/// store is tagged apart from eight-byte ones, so the field is read once
+/// before the loop rather than after each store.
+package flags;
 
 alias Int = @primitives$I64;
 alias Float = @primitives$F64;
@@ -59,40 +60,48 @@ Int next(this Rng) mut {
 /// A number below `bound`, from the generator's high bits.
 Int pick(this Rng, bound Int) mut => modulo(over(this!next(), Int(65536)), bound);
 
-type State = #struct {
-	decoded ListRef<Int>;
+type Marker = #struct {
+	limit Int;
+	step Int;
+	seen ListRef<Bool>;
+	values ListRef<Int>;
 }
 
-State() => init{
-	decoded = @primitives$ListRef(Int);
+Marker() => init{
+	limit = Int(0);
+	step = Int(3);
+	seen = @primitives$ListRef(Bool);
+	values = @primitives$ListRef(Int);
 }
 
-^ListRef<Int> decode(count Int, seed Int) {
-	out ^ListRef<Int> = @primitives$ListRef(Int);
+/// Marks each value past the limit, and says how many there were.
+Int mark(this Marker) mut {
+	marked Int(0);
 	i Int(1);
-	i!to(count) {
-		out!push(plus(i, seed));
+	i!to(this.values:size()) {
+		past Bool = below(this.limit, plus(this.values[i], this.step));
+		this.seen[i] = past;
+		@controlflow$branch(past, {
+			marked = plus(marked, Int(1));
+		});
 	}
-	return out;
-}
-
-Int step(this State, round Int) mut {
-	fresh ^ListRef<Int> = @primitives$ListRef(Int);
-	i Int(1);
-	i!to(plus(Int(160000), round)) {
-		fresh!push(plus(i, round));
-	}
-	this.decoded = fresh;
-	return this.decoded[plus(Int(1000), round)];
+	return marked;
 }
 
 Unit main() {
 	rounds Int = size(Int(10));
-	state State();
+	marker Marker();
+	rng Rng(Int(53));
+	n Int(1);
+	n!to(Int(4096)) {
+		marker.values!push(rng!pick(Int(1000)));
+		marker.seen!push(false);
+	}
 	checksum Int(0);
 	round Int(1);
 	round!to(rounds) {
-		checksum = plus(checksum, state!step(round));
+		marker.limit = modulo(times(round, Int(37)), Int(1000));
+		checksum = plus(checksum, marker!mark());
 	}
 	say(String(checksum));
 	return Unit();

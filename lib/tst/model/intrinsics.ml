@@ -326,8 +326,8 @@ let methods =
        byte at an index counted from 1, and a string made from bytes. *)
     meth "primitives" "byteCount" [ param "this" (prim "String") ] (prim "I64");
     meth "primitives" "byteAt" [ param "this" (prim "String"); param "index" (prim "I64") ] (prim "U8");
-    (* EXPERIMENT (LangArena zane-vs-goose): a hash of a string's bytes,
-       eight at a time, the same for equal strings within one run. *)
+    (* A hash of a string's bytes, the same for equal strings within one
+       run of the program and not specified beyond that. *)
     meth "primitives" "hashBytes" [ param "this" (prim "String") ] (prim "I64");
   ]
   @ (let bytes_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
@@ -338,13 +338,19 @@ let methods =
          [ param "this" (prim "List" ~args:[ Ty.Type (Ty.Param bytes_element) ]) ]
          (prim "String");
      ]
-     @ (let set_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+     @ (let set_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind
+        and flag = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
         [
-    (* EXPERIMENT (LangArena zane-vs-goose): the first of the [count]
-       positions from [from] (counted from 0) whose byte is in the set
-       [first] and the byte [gap] after it in [second], or -1; each set a
-       byte table prepared as the runtime reads it (runtime/block.c,
-       `zane_text_find_pair`). *)
+    (* A byte set made from 256 flags, byte b's at b + 1, prepared for
+       [findAny] and [findPair] to test 16 bytes at a time. Generic, as
+       [text] is, so `core`'s own `List<Bool>` passes; lowering checks
+       each flag is one byte. *)
+    meth ~generics:[ flag ] "primitives" "byteSet"
+      [ param "this" (prim "List" ~args:[ Ty.Type (Ty.Param flag) ]) ]
+      (prim "List" ~args:[ Ty.Type (prim "U8") ]);
+    (* The first of the [count] positions from [from], counted from 1,
+       whose byte is in the set [first] and the byte [gap] after it in
+       [second], or 0 when there is none; each set one [byteSet] made. *)
     meth ~generics:[ set_element ] "primitives" "findPair"
       [
         param "this" (prim "String");
@@ -356,7 +362,7 @@ let methods =
       ]
       (prim "I64");
     (* The same for one set: the first of the [count] positions from
-       [from] whose byte is in [set], or -1. *)
+       [from] whose byte is in [set], or 0. *)
     meth ~generics:[ set_element ] "primitives" "findAny"
       [
         param "this" (prim "String");

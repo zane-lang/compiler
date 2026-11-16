@@ -74,23 +74,21 @@ type Doc = #struct {
 
 Doc(raw String) => init{ text = Text(raw); }
 
-/// The byte at `index` of `text`, counted from 1, or 0 past its end.
-Int byteOf(text String, index Int) {
-	@controlflow$branch(below(text:byteCount(), index), {
-		return Int(0);
-	});
-	return @primitives$I64(text:byteAt(index));
-}
-
-Int sum(this Doc, from Int, count Int) {
+/// The sum of `count` bytes of `text` from `index`, counted from 1, each
+/// past its end read as 0.
+Int bytesOf(text String, index Int, count Int) {
 	total Int(0);
 	i Int(0);
 	@controlflow$repeat(count, {
-		total = plus(total, byteOf(this.text, plus(from, i)));
+		at Int = plus(index, i);
+		@controlflow$branch(@operators$not(below(text:byteCount(), at)), {
+			total = plus(total, @primitives$I64(text:byteAt(at)));
+		});
 		i = plus(i, Int(1));
 	});
 	return total;
 }
+
 
 Unit main() {
 	rounds Int = size(Int(10));
@@ -103,11 +101,7 @@ Unit main() {
 	round Int(1);
 	round!to(rounds) {
 		from Int = plus(modulo(round, Int(64)), Int(1));
-		i Int(0);
-		@controlflow$repeat(Int(64), {
-			checksum = plus(checksum, byteOf(doc.text, plus(from, i)));
-			i = plus(i, Int(1));
-		});
+		checksum = plus(checksum, bytesOf(doc.text, from, Int(4)));
 	}
 	say(String(checksum));
 	return Unit();

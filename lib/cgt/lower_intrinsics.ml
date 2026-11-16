@@ -74,6 +74,7 @@ let runs spelling =
       "@primitives$copyRange";
       "@primitives$sort";
       "@primitives$sortBy";
+      "@primitives$byteSet";
       "@primitives$findPair";
       "@primitives$findAny";
       "@primitives$hashBytes";
@@ -81,6 +82,15 @@ let runs spelling =
 
 (* A call to what the runtime does for the program, or to a list's own
    operation. *)
+(* Whether an element type is a byte, `U8`, or with [flags] also a
+   `Bool`, or a struct of one, as `core`'s own are. *)
+let rec one_byte ?(flags = false) (t : Nodes.Ty.t) =
+  match t with
+  | Nodes.Ty.I8 -> true
+  | Nodes.Ty.I1 -> flags
+  | Nodes.Ty.Struct [ t ] | Nodes.Ty.Packed (Nodes.Ty.Struct [ t ]) -> one_byte ~flags t
+  | _ -> false
+
 let call w st ctx span (e : T.Expr.t) : Expr.t =
   match e.T.Expr.node with
   | T.Expr.Call { callee = { owner = S.Intrinsic "@runtime$print"; _ }; args; handler = None }
@@ -263,14 +273,8 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$text"; _ }; args = [ T.Arg.Value bytes ]; handler = None } ->
       (* The runtime copies the list's storage as the text's bytes, so its
          elements must each be one byte: `U8`, or a struct of one. *)
-      let rec byte (t : Nodes.Ty.t) =
-        match t with
-        | Nodes.Ty.I8 -> true
-        | Nodes.Ty.Struct [ t ] | Nodes.Ty.Packed (Nodes.Ty.Struct [ t ]) -> byte t
-        | _ -> false
-      in
       (match element (Tty.strip_mode bytes.T.Expr.ty) with
-      | Some t when byte (ty st span t) -> ()
+      | Some t when one_byte (ty st span t) -> ()
       | _ -> refuse span "`@primitives$text` makes a string only from a list of bytes");
       { Expr.node = Expr.Runtime { fn = Runtime.Text_bytes; args = [ w.borrow st ctx span bytes ] }; ty = Nodes.Ty.Handle }
   | T.Expr.Call { callee = { owner = S.Intrinsic ("@primitives$appendRange" | "@primitives$appendOwn" | "@primitives$copyRange" as name); _ }; args; handler = None }
@@ -369,35 +373,37 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
             ty = Nodes.Ty.I64;
           }
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" name))
+  | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$byteSet"; _ }; args = [ T.Arg.Value members ]; handler = None } ->
+      (* The runtime reads each flag as a byte. *)
+      (match element (Tty.strip_mode members.T.Expr.ty) with
+      | Some t when one_byte ~flags:true (ty st span t) -> ()
+      | _ -> refuse span "`@primitives$byteSet` makes a set from a list of one-byte flags");
+      { Expr.node = Expr.Runtime { fn = Runtime.Byte_set; args = [ w.borrow st ctx span members ] }; ty = Nodes.Ty.list_handle () }
   | T.Expr.Call
       {
-        callee = { owner = S.Intrinsic "@primitives$findPair"; _ };
-        args = [ T.Arg.Value text; T.Arg.Value from; T.Arg.Value count; T.Arg.Value first; T.Arg.Value gap; T.Arg.Value second ];
+        callee = { owner = S.Intrinsic ("@primitives$findPair" | "@primitives$findAny" as name); _ };
+        args = T.Arg.Value text :: T.Arg.Value from :: T.Arg.Value count :: sets;
         handler = None;
-      } ->
+      } -> (
       let b = w.borrow st ctx span in
-      {
-        Expr.node =
-          Expr.Runtime
-            {
-              fn = Runtime.Text_find_pair;
-              args = [ b text; b from; b count; w.lend st ctx span first; b gap; w.lend st ctx span second ];
-            };
-        ty = Nodes.Ty.I64;
-      }
+      let set (l : T.Expr.t) =
+        match element (Tty.strip_mode l.T.Expr.ty) with
+        | Some t when one_byte (ty st span t) -> w.lend st ctx span l
+        | _ -> refuse span (Printf.sprintf "`%s` takes byte sets, lists of bytes `@primitives$byteSet` makes" name)
+      in
+      match sets with
+      | [ T.Arg.Value first; T.Arg.Value gap; T.Arg.Value second ] when name = "@primitives$findPair" ->
+          let first = set first and second = set second in
+          {
+            Expr.node = Expr.Runtime { fn = Runtime.Text_find_pair; args = [ b text; b from; b count; first; b gap; second ] };
+            ty = Nodes.Ty.I64;
+          }
+      | [ T.Arg.Value one ] when name = "@primitives$findAny" ->
+          let one = set one in
+          { Expr.node = Expr.Runtime { fn = Runtime.Text_find_any; args = [ b text; b from; b count; one ] }; ty = Nodes.Ty.I64 }
+      | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" name))
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$hashBytes"; _ }; args = [ T.Arg.Value text ]; handler = None } ->
       { Expr.node = Expr.Runtime { fn = Runtime.Text_hash; args = [ w.borrow st ctx span text ] }; ty = Nodes.Ty.I64 }
-  | T.Expr.Call
-      {
-        callee = { owner = S.Intrinsic "@primitives$findAny"; _ };
-        args = [ T.Arg.Value text; T.Arg.Value from; T.Arg.Value count; T.Arg.Value set ];
-        handler = None;
-      } ->
-      let b = w.borrow st ctx span in
-      {
-        Expr.node = Expr.Runtime { fn = Runtime.Text_find_any; args = [ b text; b from; b count; w.lend st ctx span set ] };
-        ty = Nodes.Ty.I64;
-      }
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$sortBy"; _ }; args = [ T.Arg.Value list; T.Arg.Value keys ]; handler = None } ->
       (* EXPERIMENT (LangArena zane-vs-goose): the runtime sorts a list of
          `I32` indices stably by the `I64` keys they name. *)

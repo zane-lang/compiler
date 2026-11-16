@@ -1,6 +1,8 @@
-/// Lists grown one push at a time to half a megabyte and dropped, round
-/// after round. Past 16 KiB a list's block takes a growable span at once and
-/// grows in place from there, rather than being copied at each doubling.
+/// A list of more than a megabyte built one push at a time and kept in a
+/// struct's field, round after round, as a decoder keeps its latest
+/// output. Past 16 KiB the list's block takes a growable span at once and
+/// grows in place from there, rather than being copied at each doubling to
+/// a megabyte.
 package spans;
 
 alias Int = @primitives$I64;
@@ -58,21 +60,40 @@ Int next(this Rng) mut {
 /// A number below `bound`, from the generator's high bits.
 Int pick(this Rng, bound Int) mut => modulo(over(this!next(), Int(65536)), bound);
 
-Int fill(count Int, seed Int) {
-	items ListRef<Int> = @primitives$ListRef(Int);
+type State = #struct {
+	decoded ListRef<Int>;
+}
+
+State() => init{
+	decoded = @primitives$ListRef(Int);
+}
+
+^ListRef<Int> decode(count Int, seed Int) {
+	out ^ListRef<Int> = @primitives$ListRef(Int);
 	i Int(1);
 	i!to(count) {
-		items!push(plus(i, seed));
+		out!push(plus(i, seed));
 	}
-	return plus(items[count], items:size());
+	return out;
+}
+
+Int step(this State, round Int) mut {
+	fresh ^ListRef<Int> = @primitives$ListRef(Int);
+	i Int(1);
+	i!to(plus(Int(160000), round)) {
+		fresh!push(plus(i, round));
+	}
+	this.decoded = fresh;
+	return this.decoded[plus(Int(1000), round)];
 }
 
 Unit main() {
 	rounds Int = size(Int(10));
+	state State();
 	checksum Int(0);
 	round Int(1);
 	round!to(rounds) {
-		checksum = plus(checksum, fill(minus(Int(65536), round), round));
+		checksum = plus(checksum, state!step(round));
 	}
 	say(String(checksum));
 	return Unit();
