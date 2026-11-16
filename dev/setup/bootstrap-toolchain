@@ -14,7 +14,7 @@
 # generation. Bump these deliberately.
 set -euo pipefail
 
-DUNE_VERSION="3.24.2"
+DUNE_VERSION="3.25.0"
 MENHIR_VERSION="20260209"
 SEDLEX_VERSION="3.8.1"
 # Unicode properties and grapheme segmentation, which the diagnostic renderer
