@@ -68,11 +68,22 @@ let single_pred b =
   Llvm.iter_uses (fun _ -> incr n) (Llvm.value_of_block b);
   !n = 1
 
-(* Whether block [b] runs nothing but inert calls before its terminator. *)
+(* Whether [i] is a memory access another thread or a device may see in
+   order: a volatile or atomic load or store, a read-modify-write, an
+   exchange or a fence. *)
+let ordered i =
+  match Llvm.instr_opcode i with
+  | Llvm.Opcode.Load | Llvm.Opcode.Store -> Llvm.is_volatile i || Llvm_extra.is_atomic i
+  | Llvm.Opcode.AtomicRMW | Llvm.Opcode.AtomicCmpXchg | Llvm.Opcode.Fence -> true
+  | _ -> false
+
+(* Whether block [b] runs nothing but inert calls and unordered accesses
+   before its terminator, so a check after it may be made before it. *)
 let quiet b =
   let rec scan = function
     | Llvm.Before i when Llvm.instr_opcode i = Llvm.Opcode.Call -> (
         match callee i with Some n when inert n -> scan (Llvm.instr_succ i) | _ -> false)
+    | Llvm.Before i when ordered i -> false
     | Llvm.Before i when i == Option.get (Llvm.block_terminator b) -> true
     | Llvm.Before i -> scan (Llvm.instr_succ i)
     | Llvm.At_end _ -> false

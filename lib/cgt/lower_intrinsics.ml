@@ -311,10 +311,9 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
           match from with Some e -> place e | None -> (l, [], [], [])
         in
         let s = fresh st and c = fresh st and a = fresh st in
-        let range =
-          (match at with Some at -> [ Stat.Let { id = a; value = w.borrow st ctx span at } ] | None -> [])
-          @ [ Stat.Let { id = s; value = w.borrow st ctx span start }; Stat.Let { id = c; value = w.borrow st ctx span count } ]
-        in
+        (* `copyRange` names its position between the two lists. *)
+        let position = match at with Some at -> [ Stat.Let { id = a; value = w.borrow st ctx span at } ] | None -> [] in
+        let range = [ Stat.Let { id = s; value = w.borrow st ctx span start }; Stat.Let { id = c; value = w.borrow st ctx span count } ] in
         let local i = { Expr.node = Expr.Local i; ty = Nodes.Ty.I64 } in
         let call =
           match at with
@@ -325,7 +324,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
               Expr.Runtime { fn = Runtime.List_append; args = [ local_ptr l; local_ptr f; local s; local c; int (stride st span t) ] }
         in
         let body =
-          l_pins @ l_now @ f_pins @ f_now @ range @ f_last @ l_last @ [ Stat.Eval { Expr.node = call; ty = Nodes.Ty.Void } ]
+          l_pins @ l_now @ position @ f_pins @ f_now @ range @ f_last @ l_last @ [ Stat.Eval { Expr.node = call; ty = Nodes.Ty.Void } ]
         in
         { Expr.node = Expr.Expand { label = fresh st; body; result = None }; ty = Nodes.Ty.Void }
       in

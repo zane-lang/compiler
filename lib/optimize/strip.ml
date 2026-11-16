@@ -9,7 +9,9 @@
    the run's own counter, the eight lanes are eight registers.
 
    A loop fits when its body ends by stepping a local counter `x` by one
-   (`x = x + 1`, as `to` does), assigns `x` nowhere else, indexes an array
+   (`x = x + 1`, as `to` does), assigns `x` nowhere else, never has its
+   address taken anywhere in the function (so nothing writes it through a
+   pointer), indexes an array
    of N elements, N a power of two from 2 to 16, uses `bitAnd`, and holds
    no loop, scope, call or spawn, in at most [budget] nodes. It becomes
 
@@ -66,27 +68,49 @@ let copy own rename ss =
   in
   stats ss
 
-(* The counter the body steps last, if the loop fits, and N. *)
-let fits (body : Stat.t list) =
+(* The locals whose address [f] takes anywhere. *)
+let addressed (f : Func.t) =
+  let seen = Hashtbl.create 8 in
+  Cgt.Traverse.walk_stats
+    (fun e -> match e.Expr.node with Expr.Address i -> Hashtbl.replace seen i () | _ -> ())
+    (fun _ -> ())
+    f.Func.body;
+  seen
+
+(* The counter the body steps last, if the loop fits, and N. [taken] holds
+   the locals whose address the function takes. *)
+let fits taken (body : Stat.t list) =
   match List.rev body with
-  | Stat.Assign { place = { local = x; deref = false; path = []; ty = Ty.I64 }; value } :: before ->
-      (* The step is x plus one, however lowering wrapped it. *)
+  | Stat.Assign { place = { local = x; deref = false; path = []; ty = Ty.I64 }; value } :: before
+    when not (Hashtbl.mem taken x) ->
+      (* The step is x plus exactly one, however lowering wrapped it: the
+         value, read through the lets of its own expansions, is x plus a
+         constant, and that constant is one. *)
       let steps =
-        let ones = Hashtbl.create 4 in
-        let ok = ref false in
-        Cgt.Traverse.walk_stats
-          (fun e ->
-            match e.Expr.node with
-            | Expr.Binary { op = Expr.Add; left = { node = Expr.Local l; _ }; right = { node = Expr.Local k; _ }; _ }
-              when (l = x && Hashtbl.mem ones k) || (k = x && Hashtbl.mem ones l) ->
-                ok := true
-            | Expr.Binary { op = Expr.Add; left = { node = Expr.Local l; _ }; right = { node = Expr.Int 1L; _ }; _ }
-              when l = x ->
-                ok := true
-            | _ -> ())
-          (function Stat.Let { id; value = { node = Expr.Int 1L; _ } } -> Hashtbl.replace ones id () | _ -> ())
-          [ Stat.Eval value ];
-        !ok
+        let bound = Hashtbl.create 4 in
+        let rec constant (e : Expr.t) =
+          match e.Expr.node with
+          | Expr.Int c -> Some c
+          | Expr.Local l -> Option.bind (Hashtbl.find_opt bound l) constant
+          | _ -> None
+        and offset (e : Expr.t) =
+          match e.Expr.node with
+          | Expr.Local l when l = x -> Some 0L
+          | Expr.Local l -> Option.bind (Hashtbl.find_opt bound l) offset
+          | Expr.Binary { op = Expr.Add; left; right } -> (
+              match (offset left, constant right, constant left, offset right) with
+              | Some a, Some b, _, _ | _, _, Some b, Some a -> Some (Int64.add a b)
+              | _ -> None)
+          | Expr.Expand { body; result = Some r; _ } ->
+              let lets =
+                List.for_all
+                  (function Stat.Let { id; value } -> Hashtbl.replace bound id value; true | _ -> false)
+                  body
+              in
+              if lets then offset { e with node = Expr.Local r } else None
+          | _ -> None
+        in
+        offset value = Some 1L
       in
       let n = ref None and masks = ref false and unfit = ref false in
       Cgt.Traverse.walk_stats
@@ -98,7 +122,6 @@ let fits (body : Stat.t list) =
           | Expr.Math { fn = Cgt.Math.Bit_and; _ } -> masks := true
           | Expr.Call _ | Expr.Call_value _ | Expr.Foreign_call _ | Expr.Box _ | Expr.Snapshot _ | Expr.Escape _ ->
               unfit := true
-          | Expr.Address i when i = x -> unfit := true
           | _ -> ())
         (function
           | Stat.Repeat _ | Stat.Scope _ | Stat.Hold _ | Stat.Reserve _ | Stat.Spawn _ | Stat.Join _ -> unfit := true
@@ -111,6 +134,7 @@ let fits (body : Stat.t list) =
 let largest = Peel.largest
 
 let func (f : Func.t) : Func.t =
+  let taken = addressed f in
   let next = ref (largest f) in
   let fresh () = incr next; !next in
   let added = ref [] in
@@ -121,7 +145,7 @@ let func (f : Func.t) : Func.t =
   let fs (s : Stat.t) =
     match s with
     | Stat.Repeat { count; body } -> (
-        match fits body with
+        match fits taken body with
         | None -> None
         | Some (x, n) ->
             incr stripped;

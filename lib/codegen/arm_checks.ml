@@ -108,16 +108,16 @@ let pure i =
   | _ -> false
 
 (* The last store of block [x], if nothing after it but pure instructions
-   and an unconditional branch. *)
+   and an unconditional branch. A volatile or atomic store is never moved:
+   the plain store that replaces it would lose its ordering. *)
 let last_store x =
   let rec scan acc = function
-    | Llvm.Before i when Llvm.instr_opcode i = Llvm.Opcode.Store -> scan (Some i) (Llvm.instr_succ i)
+    | Llvm.Before i when Llvm.instr_opcode i = Llvm.Opcode.Store ->
+        let plain = not (Llvm.is_volatile i || Llvm_extra.is_atomic i) in
+        scan (if plain then Some i else None) (Llvm.instr_succ i)
     | Llvm.Before i when Llvm.instr_opcode i = Llvm.Opcode.Br && Llvm.num_operands i = 1 -> acc
     | Llvm.Before i when pure i -> scan acc (Llvm.instr_succ i)
-    | Llvm.Before i -> (
-        match Llvm.instr_opcode i with
-        | Llvm.Opcode.Load | Llvm.Opcode.Call -> scan None (Llvm.instr_succ i)
-        | _ -> scan None (Llvm.instr_succ i))
+    | Llvm.Before i -> scan None (Llvm.instr_succ i)
     | Llvm.At_end _ -> None
   in
   scan None (Llvm.instr_begin x)
