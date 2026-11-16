@@ -219,7 +219,7 @@ and stat a st (s : Stat.t) =
       | Stat.If { cond; body } ->
           let st = read st cond in
           merge st (run a st body)
-      | Stat.Repeat { count; body } ->
+      | Stat.Repeat { count; body } | Stat.While { cond = count; body } ->
           let st = read st count in
           let ended = run a st body in
           if exists_in body ~expr:(fun _ -> false) ~stat:a.start then check ended;

@@ -340,7 +340,7 @@ let costly stats =
   iter_stats stats
     ~expr:(fun e ->
       match e.Expr.node with Expr.Call _ | Expr.Call_value _ -> found := true | _ -> ())
-    ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ -> found := true | _ -> ());
+    ~stat:(function Stat.Repeat _ | Stat.While _ | Stat.Spawn _ | Stat.Join _ -> found := true | _ -> ());
   !found
 
 (* A known value stored back into a local that folded code wrote: assigned to
@@ -881,6 +881,16 @@ and stat fn (env : known) (s : Stat.t) : Stat.t list =
               let body = block fn (Hashtbl.copy env) body in
               forget env (writes ~reach:fn.reach body);
               [ Stat.If { cond; body } ]))
+  | Stat.While { cond; body } ->
+      let start = Hashtbl.copy env in
+      control start s (fun () ->
+          (* The condition runs again after the body, so nothing either
+             writes is known at the top of a pass. *)
+          forget env (writes ~reach:fn.reach (Stat.Eval cond :: body));
+          let cond = ex cond in
+          let body = block fn (Hashtbl.copy env) body in
+          forget env (writes ~reach:fn.reach (Stat.Eval cond :: body));
+          [ Stat.While { cond; body } ])
   | Stat.Repeat { count; body } -> (
       let start = Hashtbl.copy env in
       let count = ex count in

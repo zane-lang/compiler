@@ -14,6 +14,9 @@ type t = Computed | Output | Input
 let classify : Cgt.Runtime.fn -> t = function
   | Print | Set_threads | Set_threads_auto -> Output
   | Arguments -> Input
+  (* A wait is when the running program does what follows it, which no
+     replay could keep, so a fold stops there. *)
+  | Sleep -> Input
   (* A String from a byte list, which the evaluator does not model. *)
   | Text_bytes -> Input
   (* List range copies, sorts, comparisons, hashes and byte searches, which

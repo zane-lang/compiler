@@ -45,7 +45,7 @@ let template (f : Func.t) bail : Stat.t list option =
     Cgt.Traverse.exists_in ss
       ~expr:(fun e -> match e.Expr.node with Expr.Call _ | Expr.Call_value _ -> true | _ -> false)
       ~stat:(function
-        | Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ | Stat.Scope _ | Stat.Hold _ | Stat.Reserve _ -> true
+        | Stat.Repeat _ | Stat.While _ | Stat.Spawn _ | Stat.Join _ | Stat.Scope _ | Stat.Hold _ | Stat.Reserve _ -> true
         | _ -> false)
   in
   (* An arm that calls or loops leaves for the call. A list is cut at its
@@ -108,7 +108,7 @@ let template (f : Func.t) bail : Stat.t list option =
     | Stat.Return e ->
         returns := true;
         check_expr ~returned:true e
-    | Stat.Store _ | Stat.Overwrite _ | Stat.Place _ | Stat.Repeat _ | Stat.Spawn _ | Stat.Join _
+    | Stat.Store _ | Stat.Overwrite _ | Stat.Place _ | Stat.Repeat _ | Stat.While _ | Stat.Spawn _ | Stat.Join _
     | Stat.Scope _ | Stat.Hold _ | Stat.Reserve _ ->
         raise Unfit
     (* A write through a pointer reaches the caller's place, which the call

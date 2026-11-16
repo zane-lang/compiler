@@ -139,7 +139,7 @@ let mentions x e =
    that assigns a local from an element it reads and reads an element at
    an index made of that local. *)
 let is_walk body =
-  (not (Cgt.Traverse.exists_in body ~expr:(fun _ -> false) ~stat:(function Stat.Repeat _ -> true | _ -> false)))
+  (not (Cgt.Traverse.exists_in body ~expr:(fun _ -> false) ~stat:(function Stat.Repeat _ | Stat.While _ -> true | _ -> false)))
   &&
   let lets = Hashtbl.create 8 and cursors = ref [] in
   Cgt.Traverse.walk_stats ignore

@@ -432,11 +432,12 @@ and verb_decl d (x : Verb_decl.t) =
       ret_type (deeper d) r;
       block (deeper d) body;
       opt (deeper d) (fun d s -> name d "foreign" s) foreign
-  | Verb_decl.Meth { name = n; this_type; params; ret_type = r; is_mut; body; foreign }
+  | Verb_decl.Meth { name = n; this_type; this_introduces; params; ret_type = r; is_mut; body; foreign }
     ->
       line d (if is_mut then "verb_decl Meth mut" else "verb_decl Meth") at;
       name (deeper d) "name" n;
       type_expr (deeper d) this_type;
+      if this_introduces then line (deeper d) "this_introduces" this_type.Type_expr.span;
       each (deeper d) param params;
       ret_type (deeper d) r;
       block (deeper d) body;

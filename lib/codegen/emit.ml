@@ -1641,6 +1641,19 @@ and stat env fr b (s : Stat.t) =
       stats env fr b body;
       if not (has_terminator b) then ignore (Llvm.build_br after b);
       Llvm.position_at_end after b
+  | Stat.While { cond; body } ->
+      (* A worker (control-flow.md §3.7): the condition, which calls the
+         step, is read at the top of each pass, so a step that returns
+         false leaves at once and the body runs only between steps. *)
+      let top = block env fr and taken = block env fr and after = block env fr in
+      ignore (Llvm.build_br top b);
+      Llvm.position_at_end top b;
+      let c = value_of env fr b cond in
+      ignore (Llvm.build_cond_br c taken after b);
+      Llvm.position_at_end taken b;
+      stats env fr b body;
+      if not (has_terminator b) then ignore (Llvm.build_br top b);
+      Llvm.position_at_end after b
   | Stat.Repeat { count; body } ->
       (* The count is read once; a count below one runs the body no times. *)
       let n = value_of env fr b count in

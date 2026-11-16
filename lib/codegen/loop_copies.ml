@@ -68,7 +68,7 @@ let versioned ~symbol body =
         (Cgt.Traverse.exists_in body
            ~expr:(fun e ->
              match e.Expr.node with Expr.Call { fn; _ } -> fn = symbol || single_caller fn | _ -> false)
-           ~stat:(function Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ -> true | _ -> false)))
+           ~stat:(function Stat.Repeat _ | Stat.While _ | Stat.Spawn _ | Stat.Join _ -> true | _ -> false)))
   && Cgt.Traverse.exists_in body
        ~expr:indexes ~stat:(fun _ -> false)
 
@@ -108,7 +108,7 @@ let unrolled ~listed body =
     | _ -> false
   in
   let stops = function
-    | Stat.Repeat _ | Stat.Spawn _ | Stat.Join _ | Stat.Overwrite _ -> true
+    | Stat.Repeat _ | Stat.While _ | Stat.Spawn _ | Stat.Join _ | Stat.Overwrite _ -> true
     | Stat.Scope { id; body } -> not (light id body)
     | Stat.Hold { layout; _ } | Stat.Reserve { layout; _ } | Stat.Place { layout; _ } -> listed layout
     | _ -> false

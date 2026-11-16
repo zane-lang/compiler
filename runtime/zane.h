@@ -199,6 +199,7 @@ void zane_too_deep(void);
 /* spawn.c */
 int64_t zane_set_threads(int64_t count);
 void zane_set_threads_auto(void);
+void zane_sleep(int64_t nanoseconds);
 void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *type,
                 int64_t size);
 /* A spawned call's subject goes into a region of its own (docs/design/lowering.md §9). */

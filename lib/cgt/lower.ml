@@ -765,6 +765,17 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
           let count = expr st ctx count in
           [ Stat.Repeat { count; body = code ~looping:true st ctx span body } ]
       | "@controlflow$exitFromCall", [] -> ctx.exit_call span
+      | "@controlflow$work", [ T.Arg.Value subject; T.Arg.Value step; T.Arg.Value test ] ->
+          [ Stat.While { cond = worker_step st ctx span subject step test; body = [] } ]
+      | "@controlflow$workEvery", [ T.Arg.Value subject; T.Arg.Value interval; T.Arg.Value step; T.Arg.Value test ] ->
+          (* The interval is read once, before the first step. *)
+          let id = fresh st in
+          let interval = expr st ctx interval in
+          let wait = { Expr.node = Expr.Runtime { fn = Runtime.Sleep; args = [ { Expr.node = Expr.Local id; ty = interval.Expr.ty } ] }; ty = Nodes.Ty.Void } in
+          [
+            Stat.Let { id; value = interval };
+            Stat.While { cond = worker_step st ctx span subject step test; body = [ Stat.Eval wait ] };
+          ]
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling))
   (* A fresh value nothing keeps is held here, so the drain ends it. One
      that owns no block has nothing to end, so nothing holds it: such as
@@ -788,6 +799,20 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       match ctx.resolve with
       | Some resolve -> resolve e.T.Expr.ty (moved st ctx span e.T.Expr.ty e)
       | None -> Diagnostic.bug ~span "lowering: a `resolve` outside a handler")
+
+(* A worker's condition (control-flow.md §4.1): `test(step(subject))`,
+   the step called with the subject as its `this`, as `subject!step()`
+   is, and its result read as `@primitives$Bool` by the checker's `test`.
+   It runs on every pass, so it is lowered as a loop body is (State.loop),
+   and a small function it calls is written out where it is called. *)
+and worker_step st ctx span (subject : T.Expr.t) (step : T.Expr.t) (test : T.Expr.t) =
+  let ret = match Tty.strip_mode step.T.Expr.ty with Tty.Verb v -> v.Tty.ret | _ -> Tty.Error in
+  let called = { T.Expr.node = T.Expr.Call_value { callee = step; args = [ T.Arg.Value subject ]; handler = None }; ty = ret; span } in
+  let tested =
+    { T.Expr.node = T.Expr.Call_value { callee = test; args = [ T.Arg.Value called ]; handler = None }; ty = Tty.bool_primitive; span }
+  in
+  let loop = match ctx.loop with Outside -> Inside | l -> l in
+  expr st { ctx with loop } tested
 
 (* Where an assignment stores: a local, or the place a `mut` subject points
    at, and the members below it. A struct of one member adds no step. A

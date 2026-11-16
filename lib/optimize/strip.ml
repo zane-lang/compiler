@@ -124,7 +124,7 @@ let fits taken (body : Stat.t list) =
               unfit := true
           | _ -> ())
         (function
-          | Stat.Repeat _ | Stat.Scope _ | Stat.Hold _ | Stat.Reserve _ | Stat.Spawn _ | Stat.Join _ -> unfit := true
+          | Stat.Repeat _ | Stat.While _ | Stat.Scope _ | Stat.Hold _ | Stat.Reserve _ | Stat.Spawn _ | Stat.Join _ -> unfit := true
           | Stat.Assign { place; _ } when place.local = x -> unfit := true
           | _ -> ())
         (List.rev before);

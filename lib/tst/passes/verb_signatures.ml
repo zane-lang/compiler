@@ -417,7 +417,17 @@ let build env tables (d : decl) (v : N.Verb_decl.t) : S.t option =
       let sc = signature_scope d intro in
       let r, abort = ret env sc ret_type in
       make ~abort ~kind:S.Function ~name:name.N.Name.text (List.map (param env sc intro) params) r
-  | N.Verb_decl.Meth { name; this_type; params; ret_type; is_mut; _ } ->
+  | N.Verb_decl.Meth { name; this_type; this_introduces; params; ret_type; is_mut; _ } ->
+      (* `this S Type` introduces `S` as the subject's whole type
+         (generics.md §3.7): a bare name, before every other parameter. *)
+      (if this_introduces then
+         match this_type.N.Type_expr.node with
+         | N.Type_expr.Path { name = { N.Name_type.node = N.Name_type.Ident n; _ }; generics = [] } ->
+             ignore (introduce env intro this_type.N.Type_expr.span n.N.Name.text Ty.Type_kind)
+         | _ ->
+             error env this_type.N.Type_expr.span
+               "a subject that introduces a type parameter is written `this S Type`, with the \
+                parameter's bare name (generics.md §3.7)");
       scan_type env intro this_type;
       List.iter (scan_param env intro) params;
       scan_ret env intro ret_type;

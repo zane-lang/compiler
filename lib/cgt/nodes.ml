@@ -528,7 +528,8 @@ module Expr = struct
 
   (* A local is a slot the function owns (L3): [Let] fills a new one,
      [Assign] a place in an existing one, and [Expr.Local] reads it. [If] and
-     [Repeat] are `@controlflow$branch` and `@controlflow$repeat`, [Switch]
+     [Repeat] are `@controlflow$branch` and `@controlflow$repeat`, [While]
+     `@controlflow$work` and `@controlflow$workEvery`, [Switch]
      jumps on a sum's tag (L13), and [Leave] ends the [Expand] its label
      names. [Scope] is a block's arena (L8), entered before its body and
      drained on every way out of it, and [Hold] fills a new local whose slot
@@ -542,6 +543,12 @@ module Expr = struct
     | Return of t
     | If of { cond : t; body : stat list }
     | Repeat of { count : t; body : stat list }
+    (* A worker (control-flow.md §3.7): [cond] is read, and [body] runs
+       when it is true, for as long as it is: [cond] calls the step, and
+       [body] is what runs between one step and the next. Nothing counts
+       it, so it ends only when [cond] is false, or when a [Leave] or a
+       [Return] in [body] leaves it. *)
+    | While of { cond : t; body : stat list }
     | Switch of { value : t; cases : (int * stat list) list }
     | Leave of int
     (* A store through an address, and a value replaced there in place
@@ -634,6 +641,7 @@ module Stat = struct
     | Return of Expr.t
     | If of { cond : Expr.t; body : t list }
     | Repeat of { count : Expr.t; body : t list }
+    | While of { cond : Expr.t; body : t list }
     | Switch of { value : Expr.t; cases : (int * t list) list }
     | Leave of int
     | Store of { address : Expr.t; value : Expr.t }

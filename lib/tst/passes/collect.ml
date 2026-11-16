@@ -187,6 +187,11 @@ let import_file env (file : file) (decls : N.Decl.t list) =
         let names =
           Hashtbl.fold (fun n _ acc -> n :: acc) target.types []
           @ Hashtbl.fold (fun n _ acc -> n :: acc) target.values []
+          (* A method is reached through its subject's type, except one whose
+             subject is a type parameter, which the file's spelling of its
+             package reaches (functions.md §6.1): the bare names say what
+             that spelling is. *)
+          @ Hashtbl.fold (fun n () acc -> n :: acc) target.method_names []
           |> List.filter (fun n -> not (is_private n))
           |> List.sort_uniq String.compare
         in

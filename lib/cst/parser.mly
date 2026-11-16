@@ -577,7 +577,7 @@ body_decl(body_form):
            (verb_decl $loc
               (Nodes.Verb_decl.Func { name; params; ret_type; body })))
     }
-  | ret_type=ret_type name=lname LPAREN THIS this_type=type_expr
+  | ret_type=ret_type name=lname LPAREN THIS this_type=type_expr this_introduces=boption(UTYPE)
     params=loption(preceded(COMMA, separated_nonempty_list(COMMA, param)))
     RPAREN is_mut=boption(MUT) body=body_form {
       decl $loc
@@ -586,6 +586,7 @@ body_decl(body_form):
               (Nodes.Verb_decl.Meth {
                 name;
                 this_type;
+                this_introduces;
                 params;
                 ret_type;
                 is_mut;
@@ -669,6 +670,7 @@ foreign_decl:
               (Nodes.Verb_decl.Meth {
                 name;
                 this_type;
+                this_introduces = false;
                 params;
                 ret_type;
                 is_mut;

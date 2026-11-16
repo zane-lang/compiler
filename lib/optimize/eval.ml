@@ -103,7 +103,7 @@ let rec weigh funcs e =
             | _ -> false)
           ~stat:(fun st ->
             large (1 + match st with Stat.Reserve { ty; _ } -> size_steps ty | _ -> 0)
-            || match st with Stat.Repeat _ | Stat.Spawn _ | Stat.Overwrite _ -> true | _ -> false)
+            || match st with Stat.Repeat _ | Stat.While _ | Stat.Spawn _ | Stat.Overwrite _ -> true | _ -> false)
       in
       e.remembers <- Known (r, !nodes);
       (r, !nodes)
@@ -714,6 +714,11 @@ and stat run fr (s : Stat.t) =
   | Stat.Eval e -> ignore (expr run fr e)
   | Stat.Return e -> raise (Returned (expr run fr e))
   | Stat.If { cond; body } -> if bool_of (expr run fr cond) then stats run fr body
+  | Stat.While { cond; body } ->
+      while bool_of (expr run fr cond) do
+        tick run;
+        stats run fr body
+      done
   | Stat.Repeat { count; body } ->
       (* The count is read once; a count below one runs the body no times. *)
       let n = int_of (expr run fr count) in
