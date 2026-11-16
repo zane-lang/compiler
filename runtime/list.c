@@ -335,29 +335,28 @@ static int64_t zane_bytes_hash(const unsigned char *p, size_t n) {
 		}
 		h = zane_hash_mix(zane_hash_mix(zane_hash_mix(a, b), c), d);
 	}
+	/* The bytes left, as Goose's standard library takes a short key's: the
+	   words before the last 8 bytes, then the last 8 as one load that may
+	   overlap the word before, so a key of 8 bytes or more takes no branch
+	   on its length but the loop's; else two 4-byte words or three single
+	   bytes. */
 	size_t total = n;
-	for (; n >= 8; n -= 8, p += 8) {
-		uint64_t w;
-		memcpy(&w, p, 8);
-		h = zane_hash_mix(h, w);
-	}
-	/* The last 1 to 7 bytes, read as fixed-size loads that may overlap
-	   bytes already mixed: the 8 that end the range when it has 8, else
-	   two 4-byte words or three single bytes. */
 	uint64_t w = 0;
-	if (n > 0) {
-		if (total >= 8) {
-			memcpy(&w, p + n - 8, 8);
-			w >>= 8 * (8 - n);
-		} else if (n >= 4) {
-			uint32_t lo, hi;
-			memcpy(&lo, p, 4);
-			memcpy(&hi, p + n - 4, 4);
-			w = lo | (uint64_t)hi << 32;
-		} else
-			w = p[0] | (uint64_t)p[n / 2] << 8 | (uint64_t)p[n - 1] << 16;
-	}
-	h = (h ^ w ^ n) * UINT64_C(0x9E3779B97F4A7C15);
+	if (n >= 8) {
+		for (; n > 8; n -= 8, p += 8) {
+			uint64_t v;
+			memcpy(&v, p, 8);
+			h = zane_hash_mix(h, v);
+		}
+		memcpy(&w, p + n - 8, 8);
+	} else if (n >= 4) {
+		uint32_t lo, hi;
+		memcpy(&lo, p, 4);
+		memcpy(&hi, p + n - 4, 4);
+		w = lo | (uint64_t)hi << 32;
+	} else if (n > 0)
+		w = p[0] | (uint64_t)p[n / 2] << 8 | (uint64_t)p[n - 1] << 16;
+	h = (h ^ w ^ total) * UINT64_C(0x9E3779B97F4A7C15);
 	h = (h ^ (h >> 32)) * UINT64_C(0xD6E8FEB86659FD93);
 	h ^= h >> 32;
 	return (int64_t)(h >> 1);
