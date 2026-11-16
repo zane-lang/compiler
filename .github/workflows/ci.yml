@@ -92,12 +92,14 @@ jobs:
         if: matrix.suite == 'compiler'
         continue-on-error: true
         run: |
-          pixi run dune build bin/zanec/zanec.exe 2>&1 | tail -3
           sudo apt-get update -qq && sudo apt-get install -y -qq gdb 2>&1 | tail -2
-          for i in 1 2 3 4 5 6 7 8; do
-            pixi run bash -c 'cd tests/codegen && gdb -batch -ex "set disable-randomization off" -ex run -ex bt -ex "info registers" -ex "x/8i \$pc-16" --args ../../_build/default/bin/zanec/zanec.exe --tier-up /tmp/b.tier1 --package fixtures/byteSets' > /tmp/g.txt 2>&1 || true
-            if grep -q SIGSEGV /tmp/g.txt; then grep -v '^\[' /tmp/g.txt | tail -120; break; fi
-            echo "run $i clean"; tail -3 /tmp/g.txt
+          sudo sysctl -w kernel.core_pattern=/tmp/core.%e.%p
+          ulimit -c unlimited
+          pixi run dune build 2>&1 | grep -B3 -A3 SEGV || echo "no SEGV in the full build"
+          for c in /tmp/core.*; do
+            [ -e "$c" ] || continue
+            echo "== $c"
+            pixi run gdb -batch -ex bt -ex "info registers" -ex "x/8i \$pc-16" _build/default/bin/zanec/zanec.exe "$c" 2>&1 | grep -v '^\[' | tail -150
           done
 
       # Preserve the full build and generated-file freshness check.
