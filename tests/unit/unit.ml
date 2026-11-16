@@ -1960,6 +1960,7 @@ let () =
   Loops.list_pure ();
   Loops.invariant_lists ();
   Loops.searches ();
+  Loops.leaf_peel ();
   traverse_leaves ();
   light_references ();
   empty_binding_arrays ();

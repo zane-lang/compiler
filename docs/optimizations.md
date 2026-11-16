@@ -611,7 +611,11 @@ For a function of at most 200 instructions that calls itself, whose base
 case is a branch on a compare of its arguments, each self-call tests the
 condition on its own arguments and runs the base case inline, so the
 leaves take no call. A function a memo table answers is left alone: its
-table already answers the calls that repeat (`tests/perf` `leaves`).
+table already answers the calls that repeat (`tests/perf` `leaves`). So is
+one whose frame allocates more than 4 KiB of machine stack: the inlined
+leaf brings its own copy of those allocations, so each level of the
+recursion would take twice the stack (`tests/memory-probes` `bigbox`, a
+1.1 MB value five levels deep, which then overflows macOS's 8 MiB).
 
 ### Small leaves a loop calls inlined
 

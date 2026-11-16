@@ -1846,7 +1846,8 @@ test passing.
   - a local array of constants, written only with the same constants each
     time, becomes a constant global (`Const_arrays`);
   - a recursion's base case is made at each of its self-calls, so a leaf
-    takes no call, in a function no memo table answers (`Leaf_peel`);
+    takes no call, in a function no memo table answers and whose frame
+    allocates at most 4 KiB of machine stack (`Leaf_peel`);
   - a call in a loop to a leaf of the program of at most 128 instructions
     is inlined there (`Loop_inline`);
   - a frame's slots that are only loaded and stored whole get a copy in a
