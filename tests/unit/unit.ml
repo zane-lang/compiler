@@ -342,11 +342,13 @@ let runtime_abi () =
     R.all;
   (* `zane_main` is the one function the program defines rather than calls,
      and `zane_tier_up` the one codegen calls without a node of the tree:
-     tier 0 of a tiered build calls it first (docs/design/tiers.md). *)
+     tier 0 of a tiered build calls it first (docs/design/tiers.md).
+     `zane_div_magic` is called by name by the ZANE_DIV_CACHE experiment's
+     pass (lib/codegen/div_cache_stubs.cpp). *)
   List.iter
     (fun (name, _, _) ->
       check (name ^ " in zane.h is a function the compiler knows")
-        (name = "zane_main" || name = "zane_tier_up" || List.exists (fun fn -> R.name fn = name) R.all))
+        (name = "zane_main" || name = "zane_tier_up" || name = "zane_div_magic" || List.exists (fun fn -> R.name fn = name) R.all))
     declared
 
 (* What LLVM is told about each runtime function (Codegen__Runtime_facts):
