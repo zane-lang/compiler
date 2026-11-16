@@ -1804,6 +1804,31 @@ let light_references () =
   check "a scope of scalars is light, unless switched off" (Codegen__Loop_shapes.light 1 [ scalar ] = on);
   check "not when it stores a reference" (Codegen__Loop_shapes.light 1 [ stored ] = (on && not (Cgt.Ref32.frames ())))
 
+(* Range checks' exit rule reads a counter's incoming values only once it
+   knows the counter is a phi: an exit-shaped test of a function's
+   argument, `(a + 1) == n >> 3` ending a block, is left as it is. *)
+let range_checks_non_phi () =
+  let ctx = Llvm.create_context () in
+  let m = Llvm.create_module ctx "exits" in
+  let i64 = Llvm.i64_type ctx in
+  let f = Llvm.define_function "f" (Llvm.function_type (Llvm.void_type ctx) [| i64; i64 |]) m in
+  let entry = Llvm.entry_block f in
+  let stop = Llvm.append_block ctx "stop" f and go = Llvm.append_block ctx "go" f in
+  let b = Llvm.builder_at_end ctx entry in
+  let x = Llvm.build_add (Llvm.param f 0) (Llvm.const_int i64 1) "" b in
+  let e = Llvm.build_lshr (Llvm.param f 1) (Llvm.const_int i64 3) "" b in
+  let c = Llvm.build_icmp Llvm.Icmp.Eq x e "" b in
+  ignore (Llvm.build_cond_br c stop go b);
+  Llvm.position_at_end stop b;
+  ignore (Llvm.build_ret_void b);
+  Llvm.position_at_end go b;
+  ignore (Llvm.build_ret_void b);
+  let ran = match Codegen__Range_checks.run m with () -> true | exception _ -> false in
+  check "range checks leave an exit-shaped test of an argument alone"
+    (ran && Llvm.operand (Option.get (Llvm.block_terminator entry)) 0 == c);
+  Llvm.dispose_module m;
+  Llvm.dispose_context ctx
+
 (* An empty array codegen reads from LLVM (a function's attributes at a
    parameter that has none, an empty struct's element types) is OCaml's
    own empty array, so a minor collection, which moves young blocks, leaves
@@ -1937,6 +1962,7 @@ let () =
   traverse_leaves ();
   light_references ();
   empty_binding_arrays ();
+  range_checks_non_phi ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;
     exit 1

@@ -179,10 +179,11 @@ let counter_end i =
         let phi = Llvm.operand x 0 in
         let latch = Llvm.instr_parent t in
         let is_phi = Llvm.classify_value phi = Llvm.ValueKind.Instruction Llvm.Opcode.PHI in
-        let header = if is_phi then Some (Llvm.instr_parent phi) else None in
+        (* Only a phi has incoming values to read. *)
+        let incoming = if is_phi then Some (Llvm.instr_parent phi, Llvm.incoming phi) else None in
         let entered =
-          match (header, Llvm.incoming phi) with
-          | Some h, [ (v0, p0); (v1, p1) ] ->
+          match incoming with
+          | Some (h, [ (v0, p0); (v1, p1) ]) ->
               let from_entry, from_latch =
                 if Llvm.int64_of_const v0 = Some 0L then ((v0, p0), (v1, p1)) else ((v1, p1), (v0, p0))
               in
