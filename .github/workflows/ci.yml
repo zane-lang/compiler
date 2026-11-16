@@ -94,7 +94,11 @@ jobs:
         run: |
           pixi run dune build bin/zanec/zanec.exe 2>&1 | tail -3
           sudo apt-get update -qq && sudo apt-get install -y -qq gdb 2>&1 | tail -2
-          pixi run bash -c 'gdb -batch -ex run -ex bt -ex "info registers rip" -ex "x/6i \$pc" --args _build/default/bin/zanec/zanec.exe --tier-up /tmp/b.tier1 --package tests/codegen/fixtures/byteSets' 2>&1 | tail -80
+          for i in 1 2 3 4 5 6 7 8; do
+            pixi run bash -c 'cd _build/default/tests/codegen && gdb -batch -ex "set disable-randomization off" -ex run -ex bt -ex "info registers" -ex "x/8i \$pc-16" --args ../../bin/zanec/zanec.exe --tier-up /tmp/b.tier1 --package fixtures/byteSets' > /tmp/g.txt 2>&1 || true
+            if grep -q SIGSEGV /tmp/g.txt; then grep -v '^\[' /tmp/g.txt | tail -120; break; fi
+            echo "run $i clean"
+          done
 
       # Preserve the full build and generated-file freshness check.
       - name: Build
