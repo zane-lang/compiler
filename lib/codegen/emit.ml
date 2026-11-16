@@ -555,7 +555,17 @@ let element ?cached ?(unchecked = false) env fr b fn args =
     | _ -> Diagnostic.bug "codegen: an element address with the wrong arguments"
   in
   let offset = Llvm.build_sub index (Llvm.const_int env.i64 1) "" b in
-  let address () = Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| Llvm.build_nsw_mul offset stride "" b |] "" b
+  (* The address is taken from a base biased one element down,
+     [(base - stride) + index * stride], so the index less one that the
+     check compares is not on the way to the address: an index loaded from
+     memory (a tree's child, a graph's neighbour) is scaled and added to a
+     base the loop does not change, and LLVM folds the bias into the load's
+     displacement (tests/perf `nodes`). The biased base is outside the
+     block, so neither GEP is in bounds. *)
+  let address () =
+    let i8 = Llvm.i8_type env.ctx in
+    let biased = Llvm.build_gep i8 base [| Llvm.build_neg stride "" b |] "" b in
+    Llvm.build_gep i8 biased [| Llvm.build_nsw_mul index stride "" b |] "" b
   in
   if unchecked then address ()
   else
