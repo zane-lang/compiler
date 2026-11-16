@@ -12,4 +12,7 @@ let run m =
   if Sys.getenv_opt "ZANE_DIV_CACHE_DEBUG" = Some "1" then prerr_endline (Printf.sprintf "div cache: %d divisions" !n)
 
 (* The caches made registers, the reciprocal's arithmetic folded. *)
-let again = "function(sroa,instcombine<no-verify-fixpoint>,simplifycfg,early-cse<memssa>)"
+let again =
+  if Sys.getenv_opt "ZANE_DIV_HOIST" = Some "1" then
+    "function(sroa,instcombine<no-verify-fixpoint>,simplifycfg,early-cse<memssa>,loop-mssa(licm<allowspeculation>,simple-loop-unswitch),simplifycfg)"
+  else "function(sroa,instcombine<no-verify-fixpoint>,simplifycfg,early-cse<memssa>)"

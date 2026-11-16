@@ -21,6 +21,21 @@
 
 let on () = Sys.getenv_opt "ZANE_FRAME_SHADOW" = Some "1"
 
+(* EXPERIMENT (LangArena zane-vs-goose; ZANE_SHADOW_REFILL=1): after a
+   call given an address in the frame, only the slots it may write filled
+   again, not all of them: after a `memset`, `memcpy` or `memmove` of a
+   constant length, those its destination covers (none when that is
+   outside a frame whose address went nowhere else); after the runtime's
+   list growth (Frame_scopes.list_calls), which writes the list's header
+   at its first argument and nothing else the frame holds past its record,
+   those of the header (whether or not a slot's address went elsewhere:
+   the runtime's growth writes through no address it was given before). ArithEncode's bit writer clears its byte and its
+   count with one `memset` once per byte written, and the list's push
+   follows; each filled every slot again, the table's lists and the
+   coder's bounds among them, and their values in registers joined with
+   the loads at the merge. *)
+let refill_on () = Sys.getenv_opt "ZANE_SHADOW_REFILL" = Some "1"
+
 let callee i =
   let n = Llvm.num_operands i in
   let f = Llvm.operand i (n - 1) in
@@ -336,10 +351,37 @@ let func ctx dl (f : Llvm.llvalue) =
             (* A frame a slot's address escaped from is filled again after
                every call it is placed before. *)
             if !escaped then calls_after f (Lazy.force dom) base calls;
+            let header = Llvm_target.DataLayout.abi_size (List_handle.header ctx) dl in
+            let refilled c =
+              if not (refill_on ()) then copies
+              else
+                let within lo len =
+                  List.filter (fun (o, t, _) -> o < Int64.add lo len && Int64.add o (size t) > lo) copies
+                in
+                let in_frame p = match offset_from dl (ref []) base p with Some (Some o) -> Some o | _ -> None in
+                match callee c with
+                | Some n when starts "llvm.memset" n || starts "llvm.memcpy" n || starts "llvm.memmove" n -> (
+                    match (in_frame (Llvm.operand c 0), Llvm.int64_of_const (Llvm.operand c 2)) with
+                    | Some o, Some len -> within o len
+                    | None, _ when not !escaped -> []
+                    | _ -> copies)
+                | Some n when List.mem n Frame_scopes.list_calls -> (
+                    match in_frame (Llvm.operand c 0) with
+                    | Some o -> within o header
+                    | None when not !escaped -> []
+                    | None -> copies)
+                | _ -> copies
+            in
             List.iter
               (fun c ->
                 match Llvm.instr_succ c with
-                | Llvm.Before _ as pos -> fill (Llvm.builder_at ctx pos)
+                | Llvm.Before _ as pos ->
+                    let b = Llvm.builder_at ctx pos in
+                    List.iter
+                      (fun (o, t, a) ->
+                        let p = Llvm.build_in_bounds_gep i8 base [| Llvm.const_of_int64 i64 o true |] "" b in
+                        ignore (Llvm.build_store (Llvm.build_load t p "" b) a b))
+                      (refilled c)
                 | Llvm.At_end _ -> ())
               !calls
           end)

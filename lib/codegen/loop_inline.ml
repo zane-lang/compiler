@@ -24,6 +24,15 @@ let limit () =
 
 let on () = limit () <> None
 
+(* ZANE_LOOP_INLINE_LOOPS=M: a callee with a cycle of its own is taken too
+   when it has at most M instructions. *)
+(* With it, a callee may also call the runtime's push, the growth of a
+   full list, which is the cold side of a push. *)
+let pushes = [ "zane_list_push"; "zane_list_reserve" ]
+
+let loops () =
+  match Sys.getenv_opt "ZANE_LOOP_INLINE_LOOPS" with Some n -> int_of_string_opt n | None -> None
+
 let callee i =
   let c = Llvm.operand i (Llvm.num_operands i - 1) in
   match Llvm.classify_value c with Llvm.ValueKind.Function -> Some c | _ -> None
@@ -88,14 +97,17 @@ let run m =
   match limit () with
   | None -> ()
   | Some n ->
-      (* A defined function's size, when it is a leaf with no cycle. *)
+      let looped = Option.value (loops ()) ~default:(-1) in
+      (* A defined function's size, when it is a leaf with no cycle (or,
+         with ZANE_LOOP_INLINE_LOOPS, one with a cycle, negated). *)
       let sizes = Hashtbl.create 64 in
       let size f =
         match Hashtbl.find_opt sizes f with
         | Some s -> s
         | None ->
             let s =
-              if Llvm.is_declaration f || not (ours f) || Hashtbl.length (cyclic f) > 0 then None
+              let loops = Hashtbl.length (cyclic f) > 0 in
+              if Llvm.is_declaration f || not (ours f) || (loops && looped < 0) then None
               else
                 try
                   Some
@@ -107,10 +119,12 @@ let run m =
                                match callee i with
                                | Some c when String.starts_with ~prefix:"llvm." (Llvm.value_name c) -> acc + 1
                                | Some c when noreturn c -> acc + 1
+                               | Some c when looped >= 0 && List.mem (Llvm.value_name c) pushes -> acc + 1
                                | _ -> raise Exit
                              else acc + 1)
                            acc bb)
-                       0 f)
+                       0 f
+                    |> fun s -> if loops then -s else s)
                 with Exit -> None
             in
             Hashtbl.replace sizes f s;
@@ -132,7 +146,7 @@ let run m =
                         match callee i with
                         | Some c when c != f -> (
                             match size c with
-                            | Some s when s <= n ->
+                            | Some s when (s >= 0 && s <= n) || (s < 0 && -s <= looped) ->
                                 if debug then
                                   prerr_endline (Printf.sprintf "loop-inline: %s -> %s: %d" (Llvm.value_name f) (Llvm.value_name c) s);
                                 Llvm.add_call_site_attr i always Llvm.AttrIndex.Function
@@ -141,7 +155,8 @@ let run m =
                                   prerr_endline
                                     (Printf.sprintf "loop-inline left: %s -> %s: %s" (Llvm.value_name f) (Llvm.value_name c)
                                        (match s with
-                                       | Some s -> string_of_int s
+                                       | Some s when s < 0 -> "loops " ^ string_of_int (-s)
+                                | Some s -> string_of_int s
                                        | None when Llvm.is_declaration c -> "declared"
                                        | None when not (ours c) -> "not ours"
                                        | None when Hashtbl.length (cyclic c) > 0 -> "loops"

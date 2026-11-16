@@ -20,7 +20,12 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/LoopUtils.h"
 
+#include <cstdio>
+
+#include <cstdlib>
+#include <string>
 #include <vector>
 
 extern "C" {
@@ -60,9 +65,63 @@ extern "C" value zane_div_cache(value fv) {
     g->setDoesNotAccessMemory();
   }
   llvm::IRBuilder<> entry(&*f->getEntryBlock().getFirstInsertionPt());
+  const char *hoist_env = getenv("ZANE_DIV_HOIST");
+  bool hoist = hoist_env && std::string(hoist_env) == "1";
   for (auto *op : sites) {
     bool rem = op->getOpcode() == llvm::Instruction::SRem;
     llvm::Value *x = op->getOperand(0), *d = op->getOperand(1);
+    /* EXPERIMENT (ZANE_DIV_HOIST=1): a divisor the loop does not change
+       has its multiplier and shift made once, before the outermost loop
+       that does not change it, and no cache: ArithEncode's `total`, once
+       the frame's slots stay in registers across the bit writer's push
+       (ZANE_SHADOW_REFILL). `zane_div_magic` gives `more` 255 for 0 and 1,
+       as for -1 after the absolute value, which then divide the plain way. */
+    llvm::Loop *outer = nullptr;
+    if (hoist)
+      for (llvm::Loop *l = li.getLoopFor(op->getParent()); l && l->isLoopInvariant(d); l = l->getParentLoop())
+        outer = l;
+    llvm::BasicBlock *preheader = nullptr;
+    if (outer) {
+      preheader = outer->getLoopPreheader();
+      if (!preheader) preheader = llvm::InsertPreheaderForLoop(outer, &dt, &li, nullptr, false);
+    }
+    if (getenv("ZANE_DIV_CACHE_DEBUG"))
+      fprintf(stderr, "div cache: %s: %s\n", f->getName().str().c_str(),
+              !outer ? "cached" : preheader ? "hoisted" : "no preheader");
+    if (preheader) {
+      llvm::IRBuilder<> pre(preheader->getTerminator());
+      auto *neg = pre.CreateICmpSLT(d, llvm::ConstantInt::get(i64, 0));
+      auto *ad = pre.CreateSelect(neg, pre.CreateNeg(d), d);
+      auto *r = pre.CreateCall(magic, {ad});
+      llvm::Value *mu = pre.CreateExtractValue(r, 0), *mo = pre.CreateExtractValue(r, 1);
+      llvm::IRBuilder<> b(op);
+      auto *plain = b.CreateICmpUGE(mo, llvm::ConstantInt::get(i64, 254));
+      llvm::Instruction *thenT = nullptr, *elseT = nullptr;
+      llvm::SplitBlockAndInsertIfThenElse(plain, op->getIterator(), &thenT, &elseT);
+      llvm::BasicBlock *tail = op->getParent();
+      op->moveBefore(thenT->getIterator());
+      llvm::BasicBlock *plainB = thenT->getParent();
+      llvm::IRBuilder<> q(elseT);
+      auto *c63 = llvm::ConstantInt::get(i64, 63);
+      auto *sx = q.CreateAShr(x, c63);
+      auto *sd = q.CreateAShr(d, c63);
+      auto *ax = q.CreateSub(q.CreateXor(x, sx), sx);
+      auto *hi = q.CreateTrunc(
+          q.CreateLShr(q.CreateMul(q.CreateZExt(mu, i128), q.CreateZExt(ax, i128)), llvm::ConstantInt::get(i128, 64)), i64);
+      auto *add = q.CreateICmpNE(q.CreateAnd(mo, llvm::ConstantInt::get(i64, 64)), llvm::ConstantInt::get(i64, 0));
+      auto *t = q.CreateAdd(q.CreateLShr(q.CreateSub(ax, hi), llvm::ConstantInt::get(i64, 1)), hi);
+      auto *u = q.CreateLShr(q.CreateSelect(add, t, hi), q.CreateAnd(mo, c63));
+      auto *sq = q.CreateXor(sx, sd);
+      llvm::Value *res = q.CreateSub(q.CreateXor(u, sq), sq);
+      if (rem) res = q.CreateSub(x, q.CreateMul(res, d));
+      llvm::BasicBlock *fastB = elseT->getParent();
+      llvm::IRBuilder<> j(&*tail->begin());
+      auto *phi = j.CreatePHI(i64, 2);
+      op->replaceAllUsesWith(phi);
+      phi->addIncoming(op, plainB);
+      phi->addIncoming(res, fastB);
+      continue;
+    }
     auto *seen = entry.CreateAlloca(i64, nullptr, "div.d");
     auto *mul = entry.CreateAlloca(i64, nullptr, "div.m");
     auto *more = entry.CreateAlloca(i64, nullptr, "div.more");
