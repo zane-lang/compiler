@@ -220,6 +220,10 @@ let readable path =
    thread's variable is defined in the executable, so it is read at its
    fixed offset. False, and [m] untouched, when there is no bitcode this
    LLVM reads. *)
+(* The runtime functions a pass that runs after LLVM's calls by name: the
+   division cache's reciprocal (Div_cache, `zane_div_magic`). *)
+let called_late = [ "zane_div_magic" ]
+
 let whole ~exported path m =
   match read (Llvm.module_context m) path with
   | None -> false
@@ -234,7 +238,12 @@ let whole ~exported path m =
       let keep v =
         if exported then Llvm.set_visibility Llvm.Visibility.Hidden v else Llvm.set_linkage Llvm.Linkage.Internal v
       in
-      List.iter (fun n -> Option.iter keep (Llvm.lookup_function n m)) functions;
+      (* A function a pass after LLVM's calls by name stays hidden rather
+         than internal, so the passes before it do not drop it unused. *)
+      let late v = Llvm.set_visibility Llvm.Visibility.Hidden v in
+      List.iter
+        (fun n -> Option.iter (if List.mem n called_late then late else keep) (Llvm.lookup_function n m))
+        functions;
       List.iter
         (fun n ->
           Option.iter

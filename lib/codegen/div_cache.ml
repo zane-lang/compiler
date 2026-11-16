@@ -6,6 +6,14 @@ let on () = Sys.getenv_opt "ZANE_DIV_CACHE" = Some "1"
 
 external func : Llvm.llvalue -> int = "zane_div_cache"
 
+(* `zane_div_magic`, declared as the pass calls it. A tiered build declares
+   it in both tiers before either lists what tier 1 takes from tier 0
+   (Tiers.shared): tier 1's pass calls it after that list is made. *)
+let declare m =
+  let ctx = Llvm.module_context m in
+  let i64 = Llvm.i64_type ctx in
+  ignore (Llvm.declare_function "zane_div_magic" (Llvm.function_type (Llvm.struct_type ctx [| i64; i64 |]) [| i64 |]) m)
+
 let run m =
   let n = ref 0 in
   Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then n := !n + func f) m;
