@@ -87,6 +87,16 @@ jobs:
         with:
           grammar-dependencies: ${{ matrix.suite == 'compiler' || matrix.suite == 'highlighting' }}
 
+      # TEMPORARY (PR #380): a backtrace of the byteSets tier-up crash.
+      - name: Debug tier-up crash
+        if: matrix.suite == 'compiler'
+        continue-on-error: true
+        run: |
+          pixi run dune build bin/zanec/zanec.exe 2>&1 | tail -3
+          lscpu | head -20 || true
+          pixi run gdb -batch -ex run -ex bt -ex 'info registers rip' --args _build/default/bin/zanec/zanec.exe --tier-up /tmp/b.tier1 --package tests/codegen/fixtures/byteSets 2>&1 | tail -60 \
+            || gdb -batch -ex run -ex bt --args _build/default/bin/zanec/zanec.exe --tier-up /tmp/b.tier1 --package tests/codegen/fixtures/byteSets 2>&1 | tail -60
+
       # Preserve the full build and generated-file freshness check.
       - name: Build
         if: matrix.suite == 'compiler'
