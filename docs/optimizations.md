@@ -1097,6 +1097,22 @@ A list or array index is checked where its address is made with one
 unsigned compare covering both ends; only a failure calls the runtime. LLVM
 sees plain arithmetic and can hoist or drop checks it proves redundant.
 
+### Element addresses from a biased base
+
+- **Builds:** every build
+- **Where:** `lib/codegen/emit.ml` (`element`)
+- **Design:** the comment on `address` in `element`
+- **Effect:** `tests/perf` `nodes`, a Huffman decoder over a tree of
+  16-byte nodes, takes 2% more estimated cycles plain without it and 8%
+  more wall time optimized; LangArena's HuffDecode, Brainfuck::Recursion,
+  NeuralNet and Words ran 8% to 12% faster with it
+
+An element's address is `(base - stride) + index * stride`, not
+`base + (index - 1) * stride`. The check keeps its own `index - 1`, so an
+index loaded from memory (a tree's child, a graph's neighbour) goes
+straight into the address, and the bias, loop-invariant, folds into the
+load's displacement.
+
 ### Inline list operations
 
 - **Builds:** every build
@@ -1579,6 +1595,25 @@ entry).
 A list whose block grows past 16 KiB takes a growable span at once, its
 room doubled past a chunk, and grows in place from there rather than being
 copied at each doubling to a megabyte. Only its touched pages use memory.
+
+### A moved list's span handed over
+
+- **Builds:** every build
+- **Where:** `lib/codegen/walks.ml` (`move`), `runtime/arena.c`
+  (`zane_relocate`, `zane_free`)
+- **Design:** the comment on `zane_relocate`
+- **Effect:** `tests/perf` `handover`, a decoder whose output of more than
+  a megabyte is moved into its state each step, takes 57% more estimated
+  cycles optimized, 23% more tiered and 8% more plain with the block
+  copied, and 45% more wall time optimized
+
+A list's or string's block past a chunk that a move takes into another
+region of the same context is a growable span, the one block of its
+mapping: the mapping leaves the old region for the new one, its chunks are
+the new region's in the chunk map, and no byte is copied. When the new
+region returns it, it goes to its context's kept spans, where the next
+list past a chunk takes it with its pages resident. A smaller block is
+still copied, inline.
 
 ### Every overwrite in place
 

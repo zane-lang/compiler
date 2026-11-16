@@ -76,7 +76,7 @@
    The program's `main` runs in one context, and each spawned call in one of
    its own (concurrency.md §3): its own nest of scopes, and its own range,
    so a thread places frames only in its own (docs/design/lowering.md §9). */
-enum { ZANE_CHUNK = 1 << 20, ZANE_CONTEXTS = (1 << 16) - 1 };
+enum { ZANE_CONTEXTS = (1 << 16) - 1 };
 
 /* A list whose block grows past this many bytes takes a growable span
    (arena.c, zane_alloc_growable) at once, its room doubled past

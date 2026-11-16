@@ -198,6 +198,8 @@ repo's `langbench/` and print what it prints at the same size.
     copied.
   - `tape`: a tape machine's frame slots stay in registers across a rare
     push.
+  - `nodes`: a Huffman decoder's loaded child index goes straight into the
+    element's address.
   - `digest`: a strip-mined hash's eight lanes are one vector once its
     copies' index checks, which can never fail, are gone.
   - `refills`: a bit writer's `memset` and push fill again only the frame
@@ -207,6 +209,8 @@ repo's `langbench/` and print what it prints at the same size.
   - `peeled`: a tree-building recursion's leaves take no call.
   - `flags`: a one-byte flag's store leaves an integer field in a
     register.
+  - `handover`: a list of more than a megabyte moved into another region
+    keeps its block.
   - `spans`: a list past 16 KiB grows in place in a growable span.
   - `lent`: a reference-type document's text is lent to a byte helper
     rather than copied per call.

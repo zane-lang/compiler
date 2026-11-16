@@ -19,6 +19,7 @@ U zane_leaves
 U zane_open
 U zane_print
 U zane_region_at
+U zane_relocate
 U zane_scope_drain
 U zane_scope_enter
 U zane_self

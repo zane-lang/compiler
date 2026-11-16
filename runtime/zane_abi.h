@@ -52,6 +52,11 @@
 #define ZANE_HANDLE_ROOM 16
 #define ZANE_HANDLE_SIZE 24
 
+/* The size and alignment of a dynamic chunk (arena.c). A block past
+   ZANE_CHUNK - ZANE_LINE bytes is the one block of its mapping, which a
+   moved list's growable span hands over whole (arena.c, zane_relocate). */
+#define ZANE_CHUNK 1048576
+
 /* The alignment of an oversized block's start past its mapping's header
    (arena.c). */
 #define ZANE_LINE 64

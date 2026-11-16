@@ -515,10 +515,35 @@ let move known c (p : Layout.position) =
   let env = c.env in
   let h = offset c c.at p.offset in
   let leaves block = nonzero c (runtime c Cgt.Runtime.Leaves [| block; c.with_; c.extra |]) in
-  let relocate ?(alloc = Cgt.Runtime.Alloc) ?(set = fun v -> store c v h) old size align copied =
+  let copied_into alloc old size align copied =
     let fresh = runtime c alloc [| c.with_; size; int env align |] in
     memcpy c fresh old copied;
     ignore (runtime c Cgt.Runtime.Free [| old; size; int env align |]);
+    fresh
+  in
+  (* A list's or string's block past a chunk is handed to the runtime,
+     which gives a growable span to the new region whole rather than
+     copying it (runtime/arena.c, `zane_relocate`); a smaller one is copied
+     here, as a box's payload always is. *)
+  let relocate ?(alloc = Cgt.Runtime.Alloc) ?(set = fun v -> store c v h) old size align copied =
+    let fresh =
+      if alloc <> Cgt.Runtime.Alloc then copied_into alloc old size align copied
+      else begin
+        let big = Llvm.build_icmp Llvm.Icmp.Ugt size (int env (Abi.chunk - Abi.line)) "" c.b in
+        let span = block c and small = block c and after = block c in
+        ignore (Llvm.build_cond_br big span small c.b);
+        Llvm.position_at_end span c.b;
+        let handed = runtime c Cgt.Runtime.Relocate [| c.with_; old; size; int env align; copied |] in
+        let from_span = Llvm.insertion_block c.b in
+        ignore (Llvm.build_br after c.b);
+        Llvm.position_at_end small c.b;
+        let moved = copied_into alloc old size align copied in
+        let from_small = Llvm.insertion_block c.b in
+        ignore (Llvm.build_br after c.b);
+        Llvm.position_at_end after c.b;
+        Llvm.build_phi [ (handed, from_span); (moved, from_small) ] "" c.b
+      end
+    in
     set fresh;
     fresh
   in
