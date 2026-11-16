@@ -168,7 +168,10 @@ checks the generic verbs nothing instantiates, which ask for none.
    - functions, types and constants under their name;
    - constructors under their type;
    - methods under their name, in a table that plain-name lookup never reads —
-     methods are reached only by method lookup (`packages.md` §3.6);
+     methods are reached only by method lookup (`packages.md` §3.6). A
+     method whose subject is a type parameter (`this S Type`,
+     `generics.md` §3.7) is also noted by name, since an import may bring
+     it: no subject type reaches it, so it is reached by its name;
    - operators under their token.
 
    Check here: the `package` line matches the directory (§2.2); a non-verb name
@@ -501,7 +504,8 @@ Where the typing rules need care:
 | Construct | Rule |
 |---|---|
 | Name | Looked up in local scopes, then the file's import map and own package (§2–§3 of `packages.md`). A lambda body sees no enclosing locals: "Lambdas do not capture" (`functions.md` §7.4). A block argument does (`control-flow.md` §2.2). |
-| Method call | Candidates from the subject type's home package, then the current package (`functions.md` §6.1); a qualified callee names its package. The subject is never coerced (`types.md` §4.6). `:` must call a non-`mut` method and `!` a `mut` one (§2.5). |
+| Method call | Candidates from the subject type's home package, then the current package, then, when neither has one that applies, the methods for a subject of any type that the file writes bare: the current package's and those an import brings (`functions.md` §6.1, `generics.md` §3.7). A method for any type is in no type's home, so only that third stage and a qualified callee reach it; a qualified callee names its package. The subject is never coerced (`types.md` §4.6). `:` must call a non-`mut` method and `!` a `mut` one (§2.5). |
+| Worker | `@controlflow$work(subject, step)` and `@controlflow$workEvery(subject, interval, step)` are `mut` methods over a generic subject `S` in the intrinsic table, called with function syntax, so every check and analysis that follows a `!` call's write follows theirs: the subject is never coerced and must be writable. The step is `R[this S] mut`; the checker reads `R` off it and appends a last argument, `test`, a lambda `@primitives$Bool(result R)` returning `result` through the implicit constructor to `@primitives$Bool`, so the conversion a condition gets at `branch` is made of the step's result (`control-flow.md` §4.1). |
 | Operator | Candidates from the operand types' home packages only; imports add none (`operators.md` §2.2). An operand is passed as written, so resolution stops after the generic phase and a literal operand needs an overload declaring its concept type (§2.7). `~` on a numeric literal calls nothing: it is typed as the literal of the opposite sign, and on a literal parameter as an internal `@concepts$negate` call that lowering folds once the literal is known. A swapped `Op` is resolved as the primitive with operands in passed order (see D8). |
 | Abort handler | Required on every abortable call and on every member read of a variant, rejected on a total member read (D13); the handler's `resolve` values must have the handled operation's success type; every path ends in `resolve`, `return` or `abort` (`error-handling.md` §3.1–§3.2). |
 | `match` | Every case covered by exactly one arm; every arm yields the same type — no arm is a coercion site, so "the same" is exact (`adt.md` §5). |
