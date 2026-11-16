@@ -213,6 +213,73 @@ let keeps_none i p =
     let rec go k = k >= n - 1 || ((Llvm.operand i k != p || none_at k) && go (k + 1)) in
     go 0
 
+(* EXPERIMENT (LangArena zane-vs-goose; on with ZANE_SHADOW_SPLIT=1): each
+   load or store of a vector of scalars at an address in the frame [base]
+   made one of each element, so a slot the vectorizer wrote together with
+   its neighbour (a list header's count and room stored as one `<2 x
+   i32>`) is still a slot of one offset and type. *)
+let split_on () = Sys.getenv_opt "ZANE_SHADOW_SPLIT" = Some "1"
+
+let split_vectors ctx dl base =
+  let i8 = Llvm.i8_type ctx and i32 = Llvm.i32_type ctx and i64 = Llvm.i64_type ctx in
+  let vector t =
+    Llvm.classify_type t = Llvm.TypeKind.Vector
+    && Llvm.vector_size t <= 8
+    && scalar (Llvm.element_type t)
+    && Llvm_target.DataLayout.store_size (Llvm.element_type t) dl
+       = Llvm_target.DataLayout.abi_size (Llvm.element_type t) dl
+  in
+  let todo = ref [] and seen = ref [] in
+  let rec walk p =
+    Llvm.iter_uses
+      (fun u ->
+        let i = Llvm.user u in
+        match Llvm.classify_value i with
+        | Llvm.ValueKind.Instruction Llvm.Opcode.GetElementPtr when Llvm.operand i 0 == p ->
+            if not (List.memq i !seen) then begin
+              seen := i :: !seen;
+              walk i
+            end
+        | Llvm.ValueKind.Instruction Llvm.Opcode.Load
+          when Llvm.operand i 0 == p && vector (Llvm.type_of i) && not (Llvm.is_volatile i || Llvm_extra.is_atomic i) ->
+            if not (List.memq i !todo) then todo := i :: !todo
+        | Llvm.ValueKind.Instruction Llvm.Opcode.Store
+          when Llvm.operand i 1 == p
+               && Llvm.operand i 0 != p
+               && vector (Llvm.type_of (Llvm.operand i 0))
+               && not (Llvm.is_volatile i || Llvm_extra.is_atomic i) ->
+            if not (List.memq i !todo) then todo := i :: !todo
+        | _ -> ())
+      p
+  in
+  walk base;
+  List.iter
+    (fun i ->
+      let b = Llvm.builder_before ctx i in
+      let load = Llvm.instr_opcode i = Llvm.Opcode.Load in
+      let t = if load then Llvm.type_of i else Llvm.type_of (Llvm.operand i 0) in
+      let p = if load then Llvm.operand i 0 else Llvm.operand i 1 in
+      let et = Llvm.element_type t and n = Llvm.vector_size t in
+      let es = Llvm_target.DataLayout.abi_size et dl in
+      let align = min (Llvm.alignment i) (Int64.to_int es) in
+      let at k = Llvm.build_gep i8 p [| Llvm.const_of_int64 i64 (Int64.mul es (Int64.of_int k)) true |] "" b in
+      if load then begin
+        let v = ref (Llvm.undef t) in
+        for k = 0 to n - 1 do
+          let l = Llvm.build_load et (at k) "" b in
+          Llvm.set_alignment align l;
+          v := Llvm.build_insertelement !v l (Llvm.const_int i32 k) "" b
+        done;
+        Llvm.replace_all_uses_with i !v
+      end
+      else
+        for k = 0 to n - 1 do
+          let e = Llvm.build_extractelement (Llvm.operand i 0) (Llvm.const_int i32 k) "" b in
+          Llvm.set_alignment align (Llvm.build_store e (at k) b)
+        done;
+      Llvm.delete_instruction i)
+    !todo
+
 let func ctx dl (f : Llvm.llvalue) =
   (* The frames: what an `llvm.assume` names. *)
   let frames = ref [] in
@@ -234,6 +301,7 @@ let func ctx dl (f : Llvm.llvalue) =
     (fun base ->
       (* Every use of an address in the frame: loads and stores at their
          offsets, and calls given one. *)
+      if split_on () then split_vectors ctx dl base;
       let loads = ref [] and stores = ref [] and calls = ref [] and escaped = ref false in
       let seen = ref [] and visited = ref [] in
       let at i = match offset_from dl seen base i with Some (Some o) -> o | _ -> raise (Escapes_at i) in
@@ -292,7 +360,11 @@ let func ctx dl (f : Llvm.llvalue) =
                    let overlapping =
                      List.filter (fun (o', t') -> o' < hi && Int64.add o' (size t') > o) accesses
                    in
-                   if scalar t && List.for_all (fun (o', t') -> o' = o && t' == t) overlapping then Some (o, t) else None)
+                   let ok = scalar t && List.for_all (fun (o', t') -> o' = o && t' == t) overlapping in
+                   if (not ok) && Sys.getenv_opt "ZANE_FRAME_SHADOW_WHY" = Some "1" then
+                     prerr_endline (Printf.sprintf "  no slot %Ld %s: %s" o (Llvm.string_of_lltype t)
+                       (String.concat " " (List.map (fun (o', t') -> Printf.sprintf "%Ld:%s" o' (Llvm.string_of_lltype t')) overlapping)));
+                   if ok then Some (o, t) else None)
           in
           (* ZANE_FRAME_SHADOW_SLOTS=a,b: only these offsets, for bisecting. *)
           let slots =
