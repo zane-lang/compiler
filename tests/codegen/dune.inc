@@ -10590,17 +10590,3 @@
  (action
   (diff golden/reject.valueFlow.err reject.valueFlow.err.actual)))
 
-(rule
- (deps (source_tree fixtures/reject/workerValue))
- (action
-  (with-stderr-to
-   reject.workerValue.err.actual
-   (with-accepted-exit-codes
-    1
-    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/workerValue)))))
-
-(rule
- (alias runtest)
- (action
-  (diff golden/reject.workerValue.err reject.workerValue.err.actual)))
-

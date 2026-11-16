@@ -173,6 +173,11 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       | None -> Diagnostic.bug ~span "lowering found no package constant here")
   | T.Expr.Call_value { callee; args; handler } ->
       Lower_calls.call_value walk st ctx span callee args handler
+  (* A worker's `Unit` as a value, as a spawned call's frame reads it: the
+     loop, then nothing. *)
+  | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; _ } when Tst.Intrinsics.is_worker spelling ->
+      let body = stat st ctx { T.Stat.node = T.Stat.Expr e; span } in
+      { Expr.node = Expr.Expand { label = fresh st; body; result = None }; ty = Nodes.Ty.Void }
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; _ }
     when String.starts_with ~prefix:"@controlflow$" spelling ->
       refuse span (Printf.sprintf "lowering does not handle `%s` used as a value yet" spelling)

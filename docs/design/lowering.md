@@ -661,8 +661,9 @@ node, never by lowering it wrongly.
 
 Lowering does not handle these yet, and refuses each where it is written:
 
-- a control-flow intrinsic, such as `@controlflow$branch` or
-  `@controlflow$work`, used as a value rather than as a statement;
+- a control-flow intrinsic that takes a block, such as `@controlflow$branch`,
+  used as a value rather than as a statement (a worker used as one is its
+  `Unit`, after the loop);
 - a store into the result of a spawned call that returns `Unit`, which has no
   storage.
 

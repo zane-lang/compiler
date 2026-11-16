@@ -7,7 +7,8 @@
 /// step once when it returns false at once, takes its limit from the
 /// program's arguments so that no build folds it, keeps state in a subject
 /// that owns a block, and runs spawned, beside its caller, the scope it is
-/// spawned in waiting for it. Each check prints `yes` when it holds and `no`
+/// spawned in waiting for it, through a method and as the intrinsic. Used
+/// as a value, a worker is its `Unit`. Each check prints `yes` when it holds and `no`
 /// when it does not.
 package workers;
 
@@ -132,5 +133,25 @@ Unit main() {
 		done = spawned.steps;
 	});
 	check(@operators$equal(done, limit));
+
+	direct I64 = I64(0);
+	@controlflow$branch(true, {
+		spawned Counter = Counter(I64(6));
+		@controlflow$branch(true, {
+			spawn @controlflow$work(spawned, Bool(this Counter) mut {
+				this.steps = @operators$add(this.steps, I64(1));
+				return Bool(@operators$lessThan(this.steps, this.limit));
+			});
+		});
+		direct = spawned.steps;
+	});
+	check(@operators$equal(direct, I64(6)));
+
+	valued Counter = Counter(I64(2));
+	finished Unit = @controlflow$work(valued, Bool(this Counter) mut {
+		this.steps = @operators$add(this.steps, I64(1));
+		return Bool(@operators$lessThan(this.steps, this.limit));
+	});
+	check(@operators$equal(valued.steps, I64(2)));
 	return Unit();
 }

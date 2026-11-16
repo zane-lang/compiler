@@ -346,7 +346,8 @@ makes of them.
   whose subject owns a block, `workEvery` waiting a millisecond between
   steps and not at all for an interval below one, a subject's own `work`
   preferred to the one for every type, and a spawned worker, which its
-  scope waits for before the subject is read.
+  scope waits for before the subject is read, spawned through a method and
+  as the intrinsic itself. A worker used as a value is its `Unit`.
 
 ## Rejects
 
@@ -356,8 +357,7 @@ one for each construct lowering does not handle yet (docs/design/lowering.md
 §7), so implementing one changes its golden file, and so does a refusal that
 stops firing by mistake:
 
-- `valueFlow` uses a control-flow intrinsic as a value, and `workerValue`
-  a worker;
+- `valueFlow` uses a control-flow intrinsic as a value;
 - `unitFuture` stores into a spawned call's `Unit` result.
 
 `literalRange` is a refusal of the program itself: a literal too large for
