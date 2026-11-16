@@ -5,6 +5,25 @@
 
 #include "walks.h"
 
+#include <time.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+/* A monotonic clock, in nanoseconds. */
+static int64_t test_now(void) {
+#ifdef _WIN32
+	LARGE_INTEGER count, rate;
+	QueryPerformanceCounter(&count);
+	QueryPerformanceFrequency(&rate);
+	return (int64_t)((double)count.QuadPart * 1e9 / (double)rate.QuadPart);
+#else
+	struct timespec t;
+	clock_gettime(CLOCK_MONOTONIC, &t);
+	return (int64_t)t.tv_sec * 1000000000 + t.tv_nsec;
+#endif
+}
+
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
 /* A frame: room for the result, then the arguments. */
@@ -181,6 +200,16 @@ void zane_main(void) {
 	}
 	zane_set_threads_auto();
 	check(zane_wanted == zane_processors());
+
+	/* A worker's wait between steps (control-flow.md §4.1): nothing below
+	   one nanosecond, and at least what it is asked for. */
+	int64_t before = test_now();
+	zane_sleep(0);
+	zane_sleep(-5);
+	int64_t quick = test_now() - before;
+	before = test_now();
+	zane_sleep(3000000);
+	check(quick < 100000000 && test_now() - before >= 3000000);
 
 	/* A reader never sees a write-back half done. */
 	zane_set_threads(2);
