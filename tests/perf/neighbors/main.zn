@@ -1,0 +1,91 @@
+/// A maze carver's neighbour count: a small helper, four checked reads of a
+/// grid, called on every pass of a loop and from more than one place, so
+/// LLVM's inliner, which costs it as it stands, leaves it a call. A call in
+/// a loop to a small leaf of the program is inlined there.
+package neighbors;
+
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias ListRef<T Type> = @primitives$ListRef<T>;
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+Int minus(a Int, b Int) => @operators$add(a, @operators$negate(b));
+Int times(a Int, b Int) => @operators$multiply(a, b);
+Int over(a Int, b Int) => @operators$divide(a, b);
+Int modulo(a Int, b Int) => minus(a, times(over(a, b), b));
+Bool below(a Int, b Int) => @operators$lessThan(a, b);
+Bool same(a Int, b Int) => @operators$equal(a, b);
+
+/// The linear congruential generator langbench uses.
+type Rng = #struct {
+	state Int;
+}
+
+Rng(seed Int) => init{ state = seed; }
+
+Int next(this Rng) mut {
+	this.state = @math$bitAnd(plus(times(this.state, Int(1103515245)), Int(12345)), Int(2147483647));
+	return this.state;
+}
+
+/// A number below `bound`, from the generator's high bits.
+Int pick(this Rng, bound Int) mut => modulo(over(this!next(), Int(65536)), bound);
+
+/// How many of the four cells around `at` in a `width`-wide grid are open.
+Int open(grid ListRef<Int>, width Int, at Int) {
+	return plus(plus(grid[minus(at, Int(1))], grid[plus(at, Int(1))]), plus(grid[minus(at, width)], grid[plus(at, width)]));
+}
+
+Int carve(grid ListRef<Int>, width Int, steps Int) {
+	rng Rng(Int(23));
+	carved Int(0);
+	@controlflow$repeat(steps, {
+		at Int = plus(plus(rng!pick(minus(times(width, minus(width, Int(2))), Int(2))), width), Int(2));
+		@controlflow$branch(below(open(grid, width, at), Int(2)), {
+			grid[at] = Int(1);
+			carved = plus(carved, Int(1));
+		});
+	});
+	return carved;
+}
+
+Unit main() {
+	steps Int = size(Int(10));
+	width Int(64);
+	grid ListRef<Int> = @primitives$ListRef(Int);
+	i Int(1);
+	i!to(times(width, width)) {
+		grid!push(Int(0));
+	}
+	carved Int = carve(grid, width, steps);
+	say(@operators$concat(@operators$concat(String(carved), String(" ")), String(open(grid, width, plus(width, Int(2))))));
+	return Unit();
+}

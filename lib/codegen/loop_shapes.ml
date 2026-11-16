@@ -578,6 +578,12 @@ let idle_counter body =
         (fun e -> match e.Expr.node with Expr.Local y | Expr.Address y when y = x -> incr uses | _ -> ())
         ignore body;
       !uses <= 1
+      && Cgt.Traverse.exists_in body
+           ~expr:(fun e ->
+             match e.Expr.node with
+             | Expr.Runtime { fn = Cgt.Runtime.List_at | Cgt.Runtime.Array_at; _ } -> true
+             | _ -> false)
+           ~stat:(fun _ -> false)
   | None -> false
 
 let searches body =
