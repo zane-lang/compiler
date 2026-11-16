@@ -60,7 +60,8 @@ Int next(this Rng) mut {
 /// A number below `bound`, from the generator's high bits.
 Int pick(this Rng, bound Int) mut => modulo(over(this!next(), Int(65536)), bound);
 
-Int fill(walls ListRef<Int>, width Int, start Int) {
+Int fill(walls ListRef<Int>, width Int, from Int) {
+	start Int = plus(from, Int(0));
 	seen ListRef<Bool> = @primitives$ListRef(Bool);
 	queue ListRef<Int> = @primitives$ListRef(Int);
 	c Int(1);
@@ -120,11 +121,11 @@ Unit main() {
 	y!to(width) {
 		x Int(1);
 		x!to(width) {
-			edge Bool = @operators$or(@operators$or(same(x, Int(1)), same(x, width)), @operators$or(same(y, Int(1)), same(y, width)));
 			wall Int(0);
-			@controlflow$branch(edge, {
-				wall = Int(1);
-			});
+			@controlflow$branch(same(x, Int(1)), { wall = Int(1); });
+			@controlflow$branch(same(x, width), { wall = Int(1); });
+			@controlflow$branch(same(y, Int(1)), { wall = Int(1); });
+			@controlflow$branch(same(y, width), { wall = Int(1); });
 			@controlflow$branch(same(rng!pick(Int(4)), Int(0)), {
 				wall = Int(1);
 			});

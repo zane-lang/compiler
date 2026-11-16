@@ -67,13 +67,23 @@ State() => init{
 	decoded = @primitives$ListRef(Int);
 }
 
-ListRef<Int> decode(count Int, seed Int) {
-	out ListRef<Int> = @primitives$ListRef(Int);
+^ListRef<Int> decode(count Int, seed Int) {
+	out ^ListRef<Int> = @primitives$ListRef(Int);
 	i Int(1);
 	i!to(count) {
 		out!push(plus(i, seed));
 	}
 	return out;
+}
+
+Int step(this State, round Int) mut {
+	fresh ^ListRef<Int> = @primitives$ListRef(Int);
+	i Int(1);
+	i!to(plus(Int(160000), round)) {
+		fresh!push(plus(i, round));
+	}
+	this.decoded = fresh;
+	return this.decoded[plus(Int(1000), round)];
 }
 
 Unit main() {
@@ -82,8 +92,7 @@ Unit main() {
 	checksum Int(0);
 	round Int(1);
 	round!to(rounds) {
-		state.decoded = decode(plus(Int(160000), round), round);
-		checksum = plus(checksum, state.decoded[plus(Int(1000), round)]);
+		checksum = plus(checksum, state!step(round));
 	}
 	say(String(checksum));
 	return Unit();

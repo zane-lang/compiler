@@ -564,8 +564,8 @@ let element ?cached ?(unchecked = false) env fr b fn args =
   let address () =
     if Sys.getenv_opt "ZANE_BIASED_BASE" = Some "1" then
       let i8 = Llvm.i8_type env.ctx in
-      let biased = Llvm.build_gep i8 base [| Llvm.build_neg stride "" b |] "" b in
-      Llvm.build_gep i8 biased [| Llvm.build_nsw_mul index stride "" b |] "" b
+      let past = Llvm.build_in_bounds_gep i8 base [| Llvm.build_nsw_mul index stride "" b |] "" b in
+      Llvm.build_in_bounds_gep i8 past [| Llvm.build_neg stride "" b |] "" b
     else Llvm.build_in_bounds_gep (Llvm.i8_type env.ctx) base [| Llvm.build_nsw_mul offset stride "" b |] "" b
   in
   if unchecked then address ()
@@ -1665,7 +1665,7 @@ and stat env fr b (s : Stat.t) =
       List.iter
         (fun (id, stride) ->
           let list = value_of env fr b { Expr.node = Expr.Address id; ty = Ty.Ptr } in
-          let regs = Sys.getenv_opt "ZANE_LOOP_REGS" = Some "1" in
+          let regs = env.version && Sys.getenv_opt "ZANE_LOOP_REGS" = Some "1" in
           let tag = handle_field env in
           (* Making room keeps the count (runtime/list.c), so it is read
              before, where LLVM knows it, as after a list is made. *)

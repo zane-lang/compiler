@@ -60,7 +60,7 @@ Int next(this Rng) mut {
 /// A number below `bound`, from the generator's high bits.
 Int pick(this Rng, bound Int) mut => modulo(over(this!next(), Int(65536)), bound);
 
-type Text = #struct {
+type Text = struct {
 	_value String;
 }
 
@@ -68,11 +68,11 @@ Text(value String) => init{ _value = value; }
 
 implicit String(text Text) => text._value;
 
-type Doc = struct {
+type Doc = #struct {
 	text Text;
 }
 
-Doc(text Text) => init{ text; }
+Doc(raw String) => init{ text = Text(raw); }
 
 /// The byte at `index` of `text`, counted from 1, or 0 past its end.
 Int byteOf(text String, index Int) {
@@ -98,11 +98,16 @@ Unit main() {
 	@controlflow$repeat(Int(8), {
 		raw = @operators$concat(raw, raw);
 	});
-	doc Doc(Text(raw));
+	doc Doc(raw);
 	checksum Int(0);
 	round Int(1);
 	round!to(rounds) {
-		checksum = plus(checksum, doc.sum(plus(modulo(round, Int(64)), Int(1)), Int(64)));
+		from Int = plus(modulo(round, Int(64)), Int(1));
+		i Int(0);
+		@controlflow$repeat(Int(64), {
+			checksum = plus(checksum, byteOf(doc.text, plus(from, i)));
+			i = plus(i, Int(1));
+		});
 	}
 	say(String(checksum));
 	return Unit();

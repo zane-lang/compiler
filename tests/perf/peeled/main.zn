@@ -1,7 +1,7 @@
-/// Counts the nodes of complete binary trees by recursion, as
-/// binary-trees' `build` and `check` recurse: each call at depth 0 is a
-/// leaf. The base case is made at each self-call, so the calls that would
-/// only return 1 are not made.
+/// Builds complete binary trees by recursion, as binary-trees' `build`
+/// does: each call at depth 0 is a leaf, which adds its value to the
+/// tree's sum. The base case is made at each self-call, so the calls that
+/// would only make a leaf are not made.
 package peeled;
 
 alias Int = @primitives$I64;
@@ -59,11 +59,24 @@ Int next(this Rng) mut {
 /// A number below `bound`, from the generator's high bits.
 Int pick(this Rng, bound Int) mut => modulo(over(this!next(), Int(65536)), bound);
 
-Int nodes(depth Int) {
+type Tree = #struct {
+	sum Int;
+}
+
+Tree() => init{
+	sum = Int(0);
+}
+
+/// Builds a tree `depth` levels deep under `key`, and gives a checksum of
+/// its shape.
+Int build(this Tree, depth Int, key Int) mut {
 	@controlflow$branch(same(depth, Int(0)), {
+		this.sum = plus(this.sum, @math$bitAnd(key, Int(7)));
 		return Int(1);
 	});
-	return plus(Int(1), plus(nodes(minus(depth, Int(1))), nodes(minus(depth, Int(1)))));
+	left Int = this!build(minus(depth, Int(1)), times(key, Int(2)));
+	right Int = this!build(minus(depth, Int(1)), plus(times(key, Int(2)), Int(1)));
+	return minus(times(left, Int(3)), right);
 }
 
 Unit main() {
@@ -71,7 +84,9 @@ Unit main() {
 	checksum Int(0);
 	round Int(1);
 	round!to(rounds) {
-		checksum = plus(checksum, nodes(plus(Int(8), modulo(round, Int(4)))));
+		tree Tree();
+		checksum = plus(checksum, tree!build(plus(Int(8), modulo(round, Int(4))), round));
+		checksum = plus(checksum, tree.sum);
 	}
 	say(String(checksum));
 	return Unit();

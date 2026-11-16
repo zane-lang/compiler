@@ -12,7 +12,11 @@ let budget = 200
 
 let run m =
   let fs = ref [] in
-  Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f) then fs := f :: !fs) m;
+  (* A remembered function's own body (Cgt.Memo) is left: its table already
+     answers the calls that repeat, and a test at each call costs more than
+     the calls it saves (tests/perf `leaves`). *)
+  let remembered f = String.ends_with ~suffix:Cgt.Memo.suffix_plain (Llvm.value_name f) in
+  Llvm.iter_functions (fun f -> if not (Llvm.is_declaration f || remembered f) then fs := f :: !fs) m;
   List.iter
     (fun f ->
       if func f budget = 1 && Sys.getenv_opt "ZANE_LEAF_PEEL_DEBUG" = Some "1" then
@@ -21,4 +25,4 @@ let run m =
 
 (* The test and the base case inlined at each call, then folded. *)
 let again =
-  "always-inline,function(sroa,early-cse<memssa>,instcombine<no-verify-fixpoint>,simplifycfg,gvn,simplifycfg),globaldce"
+  "always-inline,function(sroa,early-cse<memssa>,instcombine<no-verify-fixpoint>,constraint-elimination,simplifycfg,gvn,simplifycfg),globaldce"
