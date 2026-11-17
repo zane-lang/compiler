@@ -7,7 +7,7 @@ Run from the compiler's root after `pixi run just build`:
     python3 docs/experiments/tight-layouts/langbench.py LANGBENCH CORE [RUNS] [TEST...]
 
 LANGBENCH is the spec repository's langbench/ directory and CORE a
-checkout of zane-lang/core. Each program is built with --optimize, as
+checkout of zane-lang/std. Each program is built with --optimize, as
 `zane build` builds it, and run RUNS times (default 5) at langbench's
 size; the best wall time is reported against the default build.
 

@@ -131,7 +131,7 @@ def main():
     langbench = spec.resolve() / "langbench"
     lock = (langbench / "zane-lock.coda").read_text()
     core_rev = next(line.split()[2] for line in lock.splitlines() if line.split()[:1] == ["core"])
-    core = (args.core or checkout("https://github.com/zane-lang/core", core_rev, WORK / "core")).resolve()
+    core = (args.core or checkout("https://github.com/zane-lang/std", core_rev, WORK / "core")).resolve()
 
     loader = importlib.util.spec_from_file_location("langbench_tests", langbench / "tests.py")
     tests = importlib.util.module_from_spec(loader)

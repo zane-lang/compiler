@@ -46,5 +46,5 @@ echo "== programs.py"
 "$PY" "$D/programs.py" 7 borrows copies depths division flips floats growth kept leaves removal repeats returns scopes stress texts trees 'particles*50' 'tokens*20' 'entities*20' 'paths*3'
 echo "== langbench.py"
 git clone -q --depth 1 https://github.com/zane-lang/spec "$W/spec"
-git clone -q --depth 1 https://github.com/zane-lang/core "$W/core"
+git clone -q --depth 1 https://github.com/zane-lang/std "$W/core"
 "$PY" "$D/langbench.py" "$W/spec/langbench" "$W/core" 5
