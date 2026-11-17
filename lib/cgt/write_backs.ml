@@ -48,10 +48,8 @@ let of_text text =
     | owner :: steps :: (_ :: _ as holding) when owner <> "-" && owner <> "" -> (
         let steps = if steps = "" then [] else String.split_on_char ' ' steps in
         let parsed = List.filter_map step_of_string steps in
-        match parsed with
-        | _ :: _ when List.length parsed = List.length steps ->
-            Some { owner_place = Some (owner, parsed); holding }
-        | _ -> None)
+        if List.length parsed = List.length steps then Some { owner_place = Some (owner, parsed); holding }
+        else None)
     | _ -> None
   in
   match List.filter (fun l -> l <> "") (String.split_on_char '\n' text) with

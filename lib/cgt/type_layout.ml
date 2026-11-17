@@ -654,17 +654,18 @@ and program_overlaps st t at =
     st.program_written
 
 (* Every type a value of type [t] holds, [t] itself first: what [holds]
-   walks. *)
+   walks, each with its mode looked through, which can only add to it. *)
 and held_types st t =
   let seen = Hashtbl.create 8 in
   let rec go acc t =
+    let t = Tty.strip_mode t in
     if Hashtbl.mem seen t then acc
     else begin
       Hashtbl.replace seen t ();
       List.fold_left go (t :: acc) (inline st t)
     end
   in
-  List.rev (go [] (Tty.strip_mode t))
+  List.rev (go [] t)
 
 (* Whether a value of this type owns a dynamic block (memory.md §3.6), which
    it returns when it dies and copies when it is copied. *)

@@ -177,6 +177,12 @@ class FactsTests(unittest.TestCase):
                                     capture_output=True, text=True, timeout=60)
             self.assertEqual(result.returncode, 1)
             self.assertIn("is not a file of a program's write-backs", result.stderr)
+            # A place written whole, with no steps down from its owner,
+            # overlaps every read through an owner of that type.
+            whole = Path(temp) / "whole"
+            whole.write_text(f"zanec write-backs 1\n{STAMP}cells$Cell\t\t{STAMP}cells$Cell\n")
+            ir = run(ZANEC, "--ll", "--no-root", "--program-write-backs", whole, *packages("cells", stamped=["cells"]))
+            self.assertRegex(ir, SNAPSHOT)
 
     def test_a_snapshot_inside_a_packed_value_stays_aligned(self):
         # The member read is 8 bytes at an offset of 8 in a packed value
