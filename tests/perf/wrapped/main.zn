@@ -1,0 +1,154 @@
+/// `digest`'s hash as LangArena's port writes it over the core package: the
+/// counter is an `Int` that wraps an `I64` in a struct and steps through
+/// that struct's `+`, and the hash is a method's loop, inlined into the
+/// caller that keeps the bytes in its state. Lowered, the step is an
+/// expansion that assigns its result; inlined, the loop is entered through
+/// a preheader below the guard on its length, and LLVM tests the stop
+/// before the latch, whose own test is a copy's index check.
+package wrapped;
+
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias U8 = @primitives$U8;
+alias I64 = @primitives$I64;
+alias I32 = @primitives$I32;
+
+type Int = struct {
+	_value I64;
+}
+Int(v I64) => init{
+	_value = v;
+}
+implicit Int(v @concepts$Int) => Int(I64(v));
+
+Int +(left Int, right Int) => Int(@operators$add(left._value, right._value));
+Int ~(v Int) => Int(@operators$negate(v._value));
+Int *(left Int, right Int) => Int(@operators$multiply(left._value, right._value));
+Int /(left Int, right Int) => Int(@operators$divide(left._value, right._value));
+Int +(left Int, right @concepts$Int) => left + Int(right);
+Int bitAnd(a Int, b Int) => Int(@math$bitAnd(a._value, b._value));
+Int bitXor(a Int, b Int) => Int(@math$bitXor(a._value, b._value));
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step, as core's `to` does.
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat((end - this + Int(1))._value, {
+		@controlflow$branch(true, body);
+		this = this + Int(1);
+	});
+	return Unit();
+}
+
+/// The size the program was started with: its first argument, or
+/// `fallback` when it has none or the first spells no integer.
+Int size(fallback Int) {
+	args @primitives$List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), I64(1)), {
+		return fallback;
+	});
+	return Int(args[I64(1)]:parseI64() ?? fallback._value);
+}
+
+Unit say(text String) {
+	@program$console!print(@operators$concat(text, String.escaped("\n")));
+	return Unit();
+}
+
+/// The linear congruential generator langbench uses.
+type Rng = #struct {
+	state Int;
+}
+
+Rng(seed Int) => init{ state = seed; }
+
+/// A number below `bound`, from the generator's high bits.
+Int pick(this Rng, bound Int) mut {
+	this.state = bitAnd(this.state * Int(1103515245) + Int(12345), Int(2147483647));
+	high Int = this.state / Int(65536);
+	return high - high / bound * bound;
+}
+
+I32 word(v Int) => I32.wrap(v._value);
+
+Int hash(data @primitives$List<U8>, seed Int) {
+	hashes @primitives$Array<I32, 8> = @primitives$Array([word(seed), word(Int(2)), word(Int(3)), word(Int(4)), word(Int(5)), word(Int(6)), word(Int(7)), word(Int(8))]);
+	i Int = Int(1);
+	i!to(Int(data:size())) {
+		lane Int = bitAnd(i - Int(1), Int(7)) + Int(1);
+		h I32 = hashes[lane._value];
+		h = @operators$add(@operators$add(@math$shiftLeft(h, I32(5)), h), word(Int(I64(data[i._value]))));
+		hashes[lane._value] = @math$bitXor(@operators$add(h, @math$shiftLeft(h, I32(10))), @math$shiftRightLogical(h, I32(6)));
+	}
+	return Int(I64(hashes[I64(1)]));
+}
+
+/// The CRC-32 of the bytes, bit by bit.
+Int crc32(data @primitives$List<U8>) {
+	crc Int = Int(4294967295);
+	i Int = Int(1);
+	i!to(Int(data:size())) {
+		crc = bitXor(crc, Int(I64(data[i._value])));
+		b Int = Int(1);
+		b!to(Int(8)) {
+			odd @primitives$Bool = @operators$equal(bitAnd(crc, Int(1))._value, I64(1));
+			crc = Int(@math$shiftRightLogical(crc._value, I64(1)));
+			@controlflow$branch(odd, {
+				crc = bitXor(crc, Int(3988292384));
+			});
+		}
+	}
+	return bitXor(crc, Int(4294967295));
+}
+
+/// The bytes and the running checksum, as the port's benchmark state, and
+/// whether its rounds take the CRC rather than the hash, as the port's
+/// state picks by the benchmark's name.
+type State = #struct {
+	data @primitives$List<U8>;
+	rng Rng;
+	checksum Int;
+	crc @primitives$Bool;
+}
+
+State(crc @primitives$Bool) => init{
+	data = @primitives$List(U8);
+	rng = Rng(Int(11));
+	checksum = Int(0);
+	crc = crc;
+}
+
+Unit fill(this State, bytes Int) mut {
+	d Int = Int(1);
+	d!to(bytes) {
+		this.data!push(U8.wrap(this.rng!pick(Int(256))._value));
+	}
+	return Unit();
+}
+
+/// One round: a byte changed at random, then the CRC or the hash of all.
+Unit round(this State, seed Int) mut {
+	value Int = this.rng!pick(Int(256));
+	index Int = this.rng!pick(Int(this.data:size())) + Int(1);
+	this.data[index._value] = U8.wrap(value._value);
+	sum Int = Int(0);
+	@controlflow$branch(this.crc, {
+		sum = crc32(this.data);
+	});
+	@controlflow$branch(@operators$not(this.crc), {
+		sum = hash(this.data, seed);
+	});
+	this.checksum = bitXor(this.checksum, sum);
+	return Unit();
+}
+
+Unit main() {
+	bytes Int = size(Int(1000)) / Int(20);
+	state State(@operators$lessThan(bytes._value, I64(0)));
+	state!fill(bytes);
+	r Int = Int(1);
+	r!to(Int(20)) {
+		state!round(r);
+	}
+	say(String(state.checksum._value));
+	return Unit();
+}
