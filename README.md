@@ -61,9 +61,9 @@ system runs, and the developer tools are in
 and every package it imports with `--package`; `zanec` loads nothing else:
 
 ```sh
-zanec --check --root --package app=path/to/project/bin/app --package core=path/to/core/lib/core
-zanec --build hello --root --package hello=path/to/hello --package core=path/to/core/lib/core
-zanec --target x86_64-windows-gnu --build hello.exe --root --package hello=path/to/hello --package core=path/to/core/lib/core
+zanec --check --root --package app=path/to/project/bin/app --package core=path/to/std/lib/core
+zanec --build hello --root --package hello=path/to/hello --package core=path/to/std/lib/core
+zanec --target x86_64-windows-gnu --build hello.exe --root --package hello=path/to/hello --package core=path/to/std/lib/core
 ```
 
 A released compiler is in `~/.zane/toolchains/<version>/bin/zanec`, where

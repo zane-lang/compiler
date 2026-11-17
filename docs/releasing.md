@@ -45,8 +45,8 @@ different extraction directory also works
 by setting `ZANE_COMPILER` to its `bin/zanec`.
 
 ```sh
-zanec --target x86_64-linux-gnu --build hello --root --package hello=path/to/hello --package core=path/to/core/lib/core
-zanec --target x86_64-windows-gnu --build hello.exe --root --package hello=path/to/hello --package core=path/to/core/lib/core
+zanec --target x86_64-linux-gnu --build hello --root --package hello=path/to/hello --package core=path/to/std/lib/core
+zanec --target x86_64-windows-gnu --build hello.exe --root --package hello=path/to/hello --package core=path/to/std/lib/core
 ```
 
 Name every package the program imports with its own `--package`, as `core`

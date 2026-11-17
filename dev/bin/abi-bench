@@ -118,7 +118,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--base", default=BASE, help="the compiler before the register rule")
     parser.add_argument("--spec", type=Path, help="a spec checkout (default: cloned at %s)" % SPEC[:7])
-    parser.add_argument("--core", type=Path, help="a core checkout (default: cloned at langbench's lock)")
+    parser.add_argument("--core", type=Path, help="a std checkout (default: cloned at langbench's lock)")
     parser.add_argument("--target", help="the LLVM target to build for (default: this machine)")
     parser.add_argument("--runner", default=os.environ.get("RUNNER", ""), help="what runs each program")
     parser.add_argument("--runs", type=int, default=5)
@@ -131,7 +131,7 @@ def main():
     langbench = spec.resolve() / "langbench"
     lock = (langbench / "zane-lock.coda").read_text()
     core_rev = next(line.split()[2] for line in lock.splitlines() if line.split()[:1] == ["core"])
-    core = (args.core or checkout("https://github.com/zane-lang/std", core_rev, WORK / "core")).resolve()
+    core = (args.core or checkout("https://github.com/zane-lang/std", core_rev, WORK / "std")).resolve()
 
     loader = importlib.util.spec_from_file_location("langbench_tests", langbench / "tests.py")
     tests = importlib.util.module_from_spec(loader)

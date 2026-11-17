@@ -92,7 +92,7 @@ that distinction rather than combining timings from different runs.
 - Baseline compiler: `fe056e2f11e5ed34c9e659dc2e31556b241bdb61`.
 - Changed compiler: `f8d5bc71c05c414874e5a0e8e1ad642bd950d287`.
 - Spec and langbench: `baa2afaeb77a4a9b97ac58e6a39d20e1aa4b4f3d`.
-- Core: `97beb743aa7e0cfec7b7b5afeb0df53fc97f9791`.
+- std (then named core): `97beb743aa7e0cfec7b7b5afeb0df53fc97f9791`.
 - The same core object used the stamp `v0.0%0123456789abcdef%` in both builds.
 
 The raw runtime samples are in
@@ -101,19 +101,19 @@ The raw runtime samples are in
 ## Reproduction
 
 Build the baseline compiler and the changed compiler with the same toolchain.
-Check out the spec and core at the pins above. First build core once with the
-baseline compiler, then link that exact object into both callers. For example,
-with `spec/` and `core/` in the current directory and `zanec` selecting one
-of the two compiler builds:
+Check out the spec and std at the pins above. First build the `core` package
+once with the baseline compiler, then link that exact object into both callers.
+For example, with `spec/` and `std/` in the current directory and `zanec`
+selecting one of the two compiler builds:
 
 ```sh
 zanec --kind library --optimize --object core.o \
-  --package 'v0.0%0123456789abcdef%core=core/lib/core'
+  --package 'v0.0%0123456789abcdef%core=std/lib/core'
 
 zanec --build mandelbrot --optimize --link core.o \
   --package mandelbrot=spec/langbench/bin/mandelbrot \
   --package bench=spec/langbench/lib/bench \
-  --package 'v0.0%0123456789abcdef%core=core/lib/core' \
+  --package 'v0.0%0123456789abcdef%core=std/lib/core' \
   --import 'mandelbrot:core=v0.0%0123456789abcdef%core' \
   --import mandelbrot:bench=bench \
   --import 'bench:core=v0.0%0123456789abcdef%core'
