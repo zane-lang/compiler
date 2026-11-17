@@ -210,6 +210,42 @@ let func ctx dl (f : Llvm.llvalue) =
             done)
         b)
     f;
+  (* A merge of frames is a frame: where LLVM threads a scope's entry into
+     its fast and slow paths, each path places the frame and names it, and
+     a phi at the join is the frame the scope's code uses. *)
+  let merges = ref [] in
+  let changed = ref true in
+  while !changed do
+    changed := false;
+    Llvm.iter_blocks
+      (fun b ->
+        Llvm.iter_instrs
+          (fun i ->
+            if
+              Llvm.instr_opcode i = Llvm.Opcode.PHI
+              && (not (List.memq i !frames))
+              && List.for_all (fun (v, _) -> List.memq v !frames) (Llvm.incoming i)
+            then begin
+              frames := i :: !frames;
+              merges := i :: !merges;
+              changed := true
+            end)
+          b)
+      f
+  done;
+  (* The runtime's view of the innermost scope, [Walks.zane_open], read
+     again on a path that placed a frame and merged with it: the code
+     through it reads and writes the scope's record and allocates past the
+     frame, as every other read of [zane_open] in the function does. *)
+  let open_scope v =
+    Llvm.classify_value v = Llvm.ValueKind.Instruction Llvm.Opcode.Load
+    &&
+    let p = Llvm.operand v 0 in
+    Llvm.classify_value p = Llvm.ValueKind.GlobalVariable && Llvm.value_name p = "zane_open"
+  in
+  let followed i =
+    (not (List.memq i !merges)) && not (List.exists (fun (v, _) -> open_scope v) (Llvm.incoming i))
+  in
   let dom = lazy (dominators f) in
   List.iter
     (fun base ->
@@ -227,6 +263,8 @@ let func ctx dl (f : Llvm.llvalue) =
             | Llvm.ValueKind.Instruction op -> (
                 match op with
                 | Llvm.Opcode.GetElementPtr when Llvm.operand i 0 == p -> visit i (at i)
+                (* A merge of frames is visited as its own frame. *)
+                | Llvm.Opcode.PHI when not (followed i) -> ()
                 | Llvm.Opcode.PHI | Llvm.Opcode.Select when Llvm.operand i 0 != p || op = Llvm.Opcode.PHI ->
                     if not (List.memq i !visited) then begin
                       visited := i :: !visited;

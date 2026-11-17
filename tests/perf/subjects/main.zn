@@ -75,10 +75,35 @@ Tape() {
 	return init{ cells; at = Int(1); total = Int(0); }
 }
 
-/// One operation: 0 moves right, growing the tape by a push past its end,
+/// The worker's copy of `run`, so each copy has one caller and is
+/// inlined into its loop, as LangArena's Brainfuck runners are. One operation: 0 moves right, growing the tape by a push past its end,
 /// which is rare; 1 moves left; 2 steps the cell; 3 adds the cell to the
 /// total.
-Unit run(this Tape, op Int) mut {
+Unit runWorked(this Tape, op Int) mut {
+	@controlflow$branch(same(op, Int(0)), {
+		this.at = plus(this.at, Int(1));
+		@controlflow$branch(below(this.cells:size(), this.at), {
+			this.cells!push(Int(0));
+		});
+	});
+	@controlflow$branch(same(op, Int(1)), {
+		@controlflow$branch(below(Int(1), this.at), {
+			this.at = minus(this.at, Int(1));
+		});
+	});
+	@controlflow$branch(same(op, Int(2)), {
+		this.cells[this.at] = @math$bitAnd(plus(this.cells[this.at], Int(1)), Int(255));
+	});
+	@controlflow$branch(same(op, Int(3)), {
+		this.total = @math$bitAnd(plus(this.total, this.cells[this.at]), Int(1048575));
+	});
+	return Unit();
+}
+
+/// The counted loop's copy. One operation: 0 moves right, growing the tape by a push past its end,
+/// which is rare; 1 moves left; 2 steps the cell; 3 adds the cell to the
+/// total.
+Unit runCounted(this Tape, op Int) mut {
 	@controlflow$branch(same(op, Int(0)), {
 		this.at = plus(this.at, Int(1));
 		@controlflow$branch(below(this.cells:size(), this.at), {
@@ -100,7 +125,7 @@ Unit run(this Tape, op Int) mut {
 }
 
 /// The machine: its tape, the program, where each skip lands, and the
-/// counter.
+/// counter. An operation 4 skips to its landing when the cell is odd.
 type Machine = #struct {
 	tape Tape;
 	ops List<Int>;
@@ -110,24 +135,18 @@ type Machine = #struct {
 
 Machine(ops List<Int>, jumps List<Int>) => init{ tape = Tape(); ops; jumps; pc = Int(1); }
 
-/// One step: an operation 4 skips to its landing when the cell is odd.
-Unit step(this Machine) mut {
-	op Int = this.ops[this.pc];
-	@controlflow$branch(same(op, Int(4)), {
-		@controlflow$branch(same(@math$bitAnd(this.tape.cells[this.tape.at], Int(1)), Int(1)), {
-			this.pc = this.jumps[this.pc];
-		});
-	});
-	this.tape!run(op);
-	this.pc = plus(this.pc, Int(1));
-	return Unit();
-}
-
 /// The program run as a worker, its machine a local of this function.
 Int worked(ops List<Int>, jumps List<Int>) {
 	m Machine = Machine(ops, jumps);
 	m!work(Bool(this Machine) mut {
-		this!step();
+		op Int = this.ops[this.pc];
+		@controlflow$branch(same(op, Int(4)), {
+			@controlflow$branch(same(@math$bitAnd(this.tape.cells[this.tape.at], Int(1)), Int(1)), {
+				this.pc = this.jumps[this.pc];
+			});
+		});
+		this.tape!runWorked(op);
+		this.pc = plus(this.pc, Int(1));
 		return atMost(this.pc, this.ops:size());
 	});
 	return plus(m.tape.total, m.tape.cells:size());
@@ -142,7 +161,14 @@ Int counted(ops List<Int>, jumps List<Int>) {
 		@controlflow$branch(below(m.ops:size(), m.pc), {
 			return plus(m.tape.total, m.tape.cells:size());
 		});
-		m!step();
+		op Int = m.ops[m.pc];
+		@controlflow$branch(same(op, Int(4)), {
+			@controlflow$branch(same(@math$bitAnd(m.tape.cells[m.tape.at], Int(1)), Int(1)), {
+				m.pc = m.jumps[m.pc];
+			});
+		});
+		m.tape!runCounted(op);
+		m.pc = plus(m.pc, Int(1));
 	}
 	return Int(0);
 }
