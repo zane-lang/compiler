@@ -34,7 +34,8 @@ __attribute__((noinline)) static double cget(size_t cnt,long index,long axis){st
   return yyjson_get_num(yyjson_obj_get(cur_v,keys[axis]));}
 static int cmp(const void*a,const void*b){double x=*(double*)a,y=*(double*)b;return x<y?-1:x>y;}
 int main(int argc,char**argv){
-  FILE*f=fopen(argv[1],"rb"); fseek(f,0,2); long n=ftell(f); rewind(f);
+  if(argc<2){fprintf(stderr,"usage: %s FILE [ITERATIONS]\n",argv[0]);return 2;}
+  FILE*f=fopen(argv[1],"rb"); if(!f){perror(argv[1]);return 1;} fseek(f,0,2); long n=ftell(f); rewind(f);
   char*text=malloc(n+1); fread(text,1,n,f); text[n]=0;
   int iters=argc>2?atoi(argv[2]):300; double *ts=malloc(iters*sizeof(double)); double acc=0;
   for(int it=0;it<iters;it++){

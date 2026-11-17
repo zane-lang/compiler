@@ -13,7 +13,8 @@ static uintptr_t pcs[N]; static volatile long n;
 static void h(int s, siginfo_t *i, void *c) { (void)s;(void)i; ucontext_t *u=c; long k=n; if(k<N){pcs[k]=u->uc_mcontext.gregs[REG_RIP]; n=k+1;} }
 static void done(void) {
   const char *o=getenv("SAMPLER_OUT"); if(!o) return; FILE *f=fopen(o,"w");
-  FILE *m=fopen("/proc/self/maps","r"); char line[512]; while(fgets(line,sizeof line,m)) fprintf(f,"#%s",line); fclose(m);
+  if(!f){perror(o);return;}
+  FILE *m=fopen("/proc/self/maps","r"); char line[512]; if(m){while(fgets(line,sizeof line,m)) fprintf(f,"#%s",line); fclose(m);}
   for(long k=0;k<n;k++) fprintf(f,"%lx\n",pcs[k]); fclose(f);
 }
 __attribute__((constructor)) static void start(void) {
