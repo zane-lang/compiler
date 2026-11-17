@@ -263,8 +263,17 @@ let func ctx dl (f : Llvm.llvalue) =
             List.map (fun (i, o) -> (o, Llvm.type_of i)) !loads
             @ List.map (fun (i, o) -> (o, Llvm.type_of (Llvm.operand i 0))) !stores
           in
+          (* Whether an access at [o'] of [t'] holds all of the slot at [o]
+             of [t], and more. *)
+          let covers (o', t') (o, t) =
+            o' <= o && Int64.add o' (size t') >= Int64.add o (size t) && size t' > size t
+          in
           (* A slot: an offset loaded at least once, where every access that
-             overlaps it is of the same offset and type. *)
+             overlaps it is of the same offset and type, or is wider and
+             holds the whole slot: a load of more than the slot reads the
+             frame, which every store still writes, and a store of more (a
+             list's count and room stored as one pair, as copying the list
+             into a struct does) fills the copy again. *)
           let slots =
             List.sort_uniq compare (List.map snd (List.filter (fun (_, o) -> o >= mark) !loads))
             |> List.filter_map (fun o ->
@@ -273,7 +282,10 @@ let func ctx dl (f : Llvm.llvalue) =
                    let overlapping =
                      List.filter (fun (o', t') -> o' < hi && Int64.add o' (size t') > o) accesses
                    in
-                   let ok = scalar t && List.for_all (fun (o', t') -> o' = o && t' == t) overlapping in
+                   let ok =
+                     scalar t
+                     && List.for_all (fun (o', t') -> (o' = o && t' == t) || covers (o', t') (o, t)) overlapping
+                   in
                    if ok then Some (o, t) else None)
           in
           if slots <> [] then begin
@@ -300,10 +312,11 @@ let func ctx dl (f : Llvm.llvalue) =
               | _ -> Llvm.instr_succ base
             in
             fill (Llvm.builder_at ctx placed);
-            let copy o = List.find_opt (fun (o', _, _) -> o' = o) copies in
+            (* The copy an access of exactly [t] at [o] reads or writes. *)
+            let copy o t = List.find_opt (fun (o', t', _) -> o' = o && t' == t) copies in
             List.iter
               (fun (i, o) ->
-                match copy o with
+                match copy o (Llvm.type_of i) with
                 | Some (_, t, a) ->
                     let b = Llvm.builder_before ctx i in
                     let v = Llvm.build_load t a "" b in
@@ -313,11 +326,24 @@ let func ctx dl (f : Llvm.llvalue) =
               !loads;
             List.iter
               (fun (i, o) ->
-                match copy o with
+                let t = Llvm.type_of (Llvm.operand i 0) in
+                match copy o t with
                 | Some (_, _, a) ->
                     let b = Llvm.builder_at ctx (Llvm.instr_succ i) in
                     ignore (Llvm.build_store (Llvm.operand i 0) a b)
-                | None -> ())
+                | None ->
+                    (* A wider store fills again the copies it holds, from
+                       the frame it has just written, which GVN then reads
+                       from the stored value. *)
+                    let held = List.filter (fun (o', t', _) -> covers (o, t) (o', t')) copies in
+                    if held <> [] then begin
+                      let b = Llvm.builder_at ctx (Llvm.instr_succ i) in
+                      List.iter
+                        (fun (o', t', a) ->
+                          let p = Llvm.build_in_bounds_gep i8 base [| Llvm.const_of_int64 i64 o' true |] "" b in
+                          ignore (Llvm.build_store (Llvm.build_load t' p "" b) a b))
+                        held
+                    end)
               !stores;
             (* A frame a slot's address escaped from is filled again after
                every call it is placed before. *)
