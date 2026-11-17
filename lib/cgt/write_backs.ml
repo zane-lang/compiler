@@ -55,7 +55,12 @@ let of_text text =
         else None)
     | _ -> None
   in
-  match List.filter (fun l -> l <> "") (String.split_on_char '\n' text) with
+  (* A line may end in `\r\n`, as a file written on Windows does. *)
+  let unreturned l =
+    let n = String.length l in
+    if n > 0 && l.[n - 1] = '\r' then String.sub l 0 (n - 1) else l
+  in
+  match List.filter (fun l -> l <> "") (List.map unreturned (String.split_on_char '\n' text)) with
   | h :: lines when h = header ->
       let parsed = List.map parse lines in
       if List.for_all Option.is_some parsed then Some (List.filter_map Fun.id parsed) else None

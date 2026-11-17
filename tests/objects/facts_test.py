@@ -183,9 +183,11 @@ class FactsTests(unittest.TestCase):
             # A place written whole, with no steps down from its owner,
             # overlaps every read through an owner of that type.
             whole = Path(temp) / "whole"
-            whole.write_text(f"zanec write-backs 1\n{STAMP}cells$Cell\t\t{STAMP}cells$Cell\n")
-            ir = run(ZANEC, "--ll", "--no-root", "--program-write-backs", whole, *packages("cells", stamped=["cells"]))
-            self.assertRegex(ir, SNAPSHOT)
+            # Each line may end in `\r\n`, as a file written on Windows does.
+            for end in ["\n", "\r\n"]:
+                whole.write_bytes(f"zanec write-backs 1{end}{STAMP}cells$Cell\t\t{STAMP}cells$Cell{end}".encode())
+                ir = run(ZANEC, "--ll", "--no-root", "--program-write-backs", whole, *packages("cells", stamped=["cells"]))
+                self.assertRegex(ir, SNAPSHOT, repr(end))
 
     def test_a_snapshot_inside_a_packed_value_stays_aligned(self):
         # The member read is 8 bytes at an offset of 8 in a packed value
