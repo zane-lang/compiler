@@ -87,7 +87,9 @@ lambda. It checks LLVM inlining and that imported ordinary functions have no
 definitions in the caller's object, then compares optimized and unoptimized
 program output while linking the same unoptimized dependency. It also runs
 `survey` optimized and builds the two-version, transitive `versions` graph
-with optimization enabled.
+with optimization enabled. Its `optimization/filled` program folds lists of
+one element, long and short, and a list of mixed elements: only the long
+one of one element is pushed by a loop.
 
 `facts_test.py` checks what codegen tells LLVM (docs/design/lowering.md §9,
 "What LLVM is told"). Its `facts` fixtures are `cells`, a library whose

@@ -92,6 +92,23 @@ class OptimizationTests(unittest.TestCase):
         self.assertRegex(run("llvm-nm", obj),
                          rf' U _?.*{re.escape(STAMP)}math\$fib\(')
 
+    def test_a_folded_list_of_one_element_is_made_by_a_loop(self):
+        # `flags(Int(256))` folds to 256 falses: they are pushed by a loop,
+        # one push inside it, while the 4 of `flags(Int(4))` and the 32
+        # mixed elements of `counting(Int(32))` are pushed one by one
+        # (lib/optimize/materialize.ml, `looped_from`). Written out push by
+        # push, a function making six such lists, as core's regex `finish`
+        # does, was 259,000 lines of IR that LLVM took 48 s to optimize.
+        fixture = ["--package", f"filled={FIXTURES / 'optimization/filled'}"]
+        folded = run(ZANEC, "--cgt", "--optimize", *fixture)
+        main = folded.split("symbol: filled$main()", 1)[1].split("symbol:", 1)[0]
+        self.assertEqual(main.count("zane_list_push"), 1 + 4 + 32)
+        self.assertRegex(main, r"repeat:\n.*count: 256 : i64")
+        exe = self.out / "filled"
+        for optimize in [[], ["--optimize"]]:
+            run(ZANEC, "--build", exe, *optimize, *fixture)
+            self.assertEqual(run_program(exe, 7), "256\n1\n1\n6\n", optimize)
+
     def test_worker_step_inlines_into_a_plain_loop(self):
         # A step lambda written where a worker runs, through a method for
         # every type in another package (control-flow.md §3.7): an
