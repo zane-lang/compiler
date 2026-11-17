@@ -886,8 +886,11 @@ test passing.
     the record and links it to the scope around it. A slot is the frame's
     start plus its offset. A drain that has no spawned call to wait for, no
     dynamic chunk to give back, no foreign handle to end and no check to
-    run moves the frontier back to the record; only a scope that places a
-    slot that may hold a handle looks for one. Otherwise both call the runtime, which does the same.
+    run moves the frontier back to the record. Only a scope that spawns a
+    call looks for one to wait for: a spawned call waits on the innermost
+    open scope where it starts, which is the scope its frame is placed in.
+    Only a scope that places a slot that may hold a handle looks for one.
+    Otherwise both call the runtime, which does the same.
     A reserved slot and a spawned call's header
     and result slot are zeroed where they are placed; a held slot is written
     at once.

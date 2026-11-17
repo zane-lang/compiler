@@ -220,6 +220,8 @@ type frame = {
   mutable open_ : Llvm.llvalue list;
   (* The open arenas that place a slot holding a foreign handle. *)
   mutable handled : Llvm.llvalue list;
+  (* The open arenas that spawn a call. *)
+  mutable spawning : Llvm.llvalue list;
   offsets : (int, int) Hashtbl.t;
   (* The function's result type and how it comes back, and the slot it is
      written to when that is by address. *)
@@ -394,8 +396,9 @@ let enter env fr b size =
    holds no foreign handle, while its context is this thread's alone and
    drains are not checked, has nothing to wait for, end or give back but its
    frame, so the code moves the frontier back to its record itself.
-   Otherwise the runtime drains it. Only a scope that places a slot holding
-   a handle can hold one, so no other scope looks. *)
+   Otherwise the runtime drains it. Only a scope that spawns a call can have
+   one to wait for, and only one that places a slot holding a handle can
+   hold one, so no other scope looks. *)
 let drain_scope env fr b m =
   let ptr = env.ptr in
   let null = Llvm.const_null ptr in
@@ -412,7 +415,10 @@ let drain_scope env fr b m =
       (Llvm.const_int (Llvm.i32_type env.ctx) 0)
       "" b
   in
-  let alone = Llvm.build_and (empty (field env b ptr m record_tasks)) (empty (field env b ptr m record_mappings)) "" b in
+  let alone = empty (field env b ptr m record_mappings) in
+  let alone =
+    if List.memq m fr.spawning then Llvm.build_and (empty (field env b ptr m record_tasks)) alone "" b else alone
+  in
   let alone =
     if List.memq m fr.handled then Llvm.build_and alone (empty (field env b ptr m record_held)) "" b else alone
   in
@@ -1578,6 +1584,7 @@ and stat env fr b (s : Stat.t) =
       Hashtbl.replace fr.arenas id arena;
       fr.open_ <- arena :: fr.open_;
       if frame.Frames.handles then fr.handled <- arena :: fr.handled;
+      if frame.Frames.spawns then fr.spawning <- arena :: fr.spawning;
       stats env fr b body;
       if not (has_terminator b) then drain_scope env fr b arena;
       fr.open_ <- List.tl fr.open_
@@ -1929,6 +1936,7 @@ let func env (f : Func.t) =
       arenas = Hashtbl.create 4;
       open_ = [];
       handled = [];
+      spawning = [];
       offsets = Hashtbl.create 8;
       ret = a.ret;
       sret;
