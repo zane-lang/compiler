@@ -1,0 +1,35 @@
+/// A program that runs a library's table-driven automaton (lib/dfa/) over
+/// input whose length comes from its argument. It spawns nothing, so the
+/// library's object, built for it, reads the table with plain loads rather
+/// than snapshots (docs/design/lowering.md §9, "Snapshots").
+package automaton;
+
+import dfa$;
+
+/// The size the program was started with: its first argument, or 1000.
+Int size() {
+	args @primitives$List<@primitives$String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), @primitives$I64(1)), {
+		return Int(@primitives$I64(1000));
+	});
+	return Int(args[@primitives$I64(1)]:parseI64() ?? @primitives$I64(1000));
+}
+
+@primitives$Unit main() {
+	n Int = size();
+	machine Machine(Int(@primitives$I64(64)), Int(@primitives$I64(16)));
+	input List<I32> = List(I32);
+	seed Int = Int(@primitives$I64(1));
+	i Int = Int(@primitives$I64(1));
+	i!to(n) {
+		seed = modulo(plus(times(seed, Int(@primitives$I64(1103515245))), Int(@primitives$I64(12345))), Int(@primitives$I64(2147483648)));
+		input!push(narrow(modulo(seed, Int(@primitives$I64(16)))));
+	}
+	total Int = Int(@primitives$I64(0));
+	k Int = Int(@primitives$I64(1));
+	k!to(Int(@primitives$I64(20))) {
+		total = plus(total, machine:run(input));
+	}
+	@program$console!print(@operators$concat(@primitives$String(raw(total)), @primitives$String.escaped("\n")));
+	return @primitives$Unit();
+}

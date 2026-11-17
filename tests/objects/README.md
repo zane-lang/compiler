@@ -94,8 +94,15 @@ with optimization enabled.
 verbs write list elements through an owner and read them again; `quiet`, a
 program over it that spawns nothing; `busy`, the same with one spawned
 call; `pool`, a library that spawns; and `relay`, a program that spawns
-nothing itself and calls `pool` as a stamped dependency. Only `quiet` reads
-without snapshots: `busy`, `relay` and `cells` built as a library keep them.
+nothing itself and calls `pool` as a stamped dependency; `warmer`, a
+program that writes back into a cell of a `cells` grid; and `packs`, a
+library whose owner holds a packed value with an 8-byte member in it. Only
+`quiet` reads without snapshots: `busy` and `relay` keep them where they
+write back, and `cells` built as a library for any program keeps them all.
+Built for one program, from the file `--write-backs` writes for it, `cells`
+keeps only the snapshots of what that program writes back into: none for
+`quiet`, `idle` and `busy`, the hits of a cell for `warmer`. A snapshot in
+`packs` is one load aligned to 8, not a call into libatomic.
 It also checks that the runtime's functions are declared with the
 attributes `lib/codegen/runtime_facts.ml` gives them, in a plain build and
 after an optimized one links the runtime's bodies, that the runtime's small

@@ -690,6 +690,8 @@ The binary takes the same `--package` flags as the semantic views:
 | `--object OUT` | writes the object file `OUT` of the project's own packages, with no runtime and no link ([`separate-compilation.md`](separate-compilation.md) C3), and beside it `STEM.c.N.o`, the objects of their C sources holding assembly ([`ffi.md`](ffi.md) F15) |
 | `--tiered` | with `--build`, makes tier 0 of a tiered build, whose calls go through slots tier 1 fills while it runs, linked with the runtime compiled with `-O2` ([`tiers.md`](tiers.md) T1, T4, T5) |
 | `--tier-up OUT` | makes tier 1 of a tiered build, the program optimized into the shared library `OUT` ([`tiers.md`](tiers.md) T1, T2) |
+| `--write-backs OUT` | writes `OUT`, the file of the places the program's spawned calls write back into, and builds nothing; with a root only (§9, "Snapshots") |
+| `--program-write-backs FILE` | with `--no-root` and `--cgt`, `--ll` or `--object`, lowers the library for the one program whose places `FILE` names, reading every other place plainly (§9, "Snapshots") |
 | `--stamp PATH=STAMP` | names the symbols of the package at `PATH` with `STAMP`, as `--package STAMPPATH=DIR` does; a dependency given one arrives as objects of its own, so its verbs are declared rather than lowered (C1, C6, C10) |
 | `--import PACKAGE:KEY=PACKAGE` | the package the first imports by `KEY`, each named by its identity (C10) |
 | `--link FILE` | links the object `FILE` into the program `--build` makes, as a stamped dependency's objects are (C7) |
@@ -1327,8 +1329,27 @@ test passing.
   anywhere counts, reached or not. A subject whose type, or whose owner's,
   names a type parameter is in a generic verb's body, which is lowered only as its
   instances, and they are collected too. A program that spawns nothing has
-  no such places, so every read is plain. A library's object keeps every
-  snapshot, since a program that spawns may write back any value into it.
+  no such places, so every read is plain.
+
+  A library's object built on its own keeps every snapshot, since a
+  program that spawns may write back any value into it. One built for a
+  single program reads plainly too: `zanec --write-backs FILE` writes the
+  program's places, and a library's build given that file with
+  `--program-write-backs FILE` takes them as its own, adding its own spawns'
+  places as any build does. Its packages know the program's types by name
+  alone, so the file spells each place out: the innermost owner's type and
+  the steps from it, or `-` when the place is not known, and the written
+  value's type with every type it holds, member by member, as `Ty.to_string`
+  spells each. Two places overlap as above, compared by those spellings; a
+  read whose place or the written one is not known takes a snapshot when
+  what its type holds, itself included, meets what the written value's
+  holds, which is every case above and more. The lines are sorted with
+  repeats dropped, so programs that write back into the same places write
+  the same bytes, which `zane` keys a dependency compiled from source on: an
+  object built for one program is linked only into a program that writes
+  back into the same places. Remapping moves what an object names after it
+  is built, which those places do not follow, so `zane` builds for any
+  program while it remaps.
   The plain load is what lets LLVM forward a value just written to the read
   after it, keep a field in a register across a loop and vectorize the
   loop, which no atomic load allows.

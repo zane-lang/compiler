@@ -54,14 +54,22 @@ type regions = { fixed : int option; spawned : int option }
     context's range of [regions] could hold is refused where it is named.
     With [compare_glue], every thunk of a stamped dependency's glue is
     lowered too, for [c_modules] to write that glue again and compare it
-    with its release's (docs/design/ffi.md F13). *)
+    with its release's (docs/design/ffi.md F13). A library given
+    [program_write_backs], the file [write_backs] wrote for a program, is
+    lowered for that program alone (docs/design/lowering.md §9,
+    "Snapshots"). *)
 val lower :
   ?regions:regions ->
   ?compare_glue:bool ->
+  ?program_write_backs:string ->
   root:bool ->
   Tst.Assembly.package list ->
   Tst.Nodes.Program.t ->
   (Cgt.Nodes.Program.t, failure) result
+
+(** The places the program writes back into, written to [output] as the
+    file a library built for it alone reads (`--write-backs`). *)
+val write_backs : Tst.Assembly.package list -> Tst.Nodes.Program.t -> output:string -> (unit, failure) result
 
 (** The C code each unstamped package of the build compiles into this
     object, with the glue for the thunks the tree's foreign calls go through

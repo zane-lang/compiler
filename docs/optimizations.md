@@ -214,15 +214,20 @@ copies it.
 
 ### Plain loads where nothing is written back
 
-- **Builds:** every build (programs, not libraries)
-- **Where:** `lib/cgt/program.ml` (`written_back`),
-  `lib/cgt/type_layout.ml` (`owned_place`, `snapshots`)
+- **Builds:** every program's build, and a library's built for one program
+  (`--program-write-backs`), as `zane` builds a dependency from source
+- **Where:** `lib/cgt/program.ml` (`written_back`, `write_backs`),
+  `lib/cgt/type_layout.ml` (`owned_place`, `snapshots`, `program_overlaps`),
+  `lib/cgt/write_backs.ml`
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "Snapshots"
 - **Effect:** lets LLVM forward stores to loads, keep fields in registers
   across loops and vectorize them, which no atomic load allows. Summing a
   `List<Int>` in a program that spawns a call writing nothing back: 6.00 G
   instructions as snapshots, 3.50 G as plain loads, what the program takes
-  without its spawn
+  without its spawn. A library's automaton reading a `List<I32>` table in
+  its own loop, as core's `regex` does (tests/perf `automaton`): 1.37 G
+  instructions in an object built for any program, 0.24 G in one built for
+  the program
 
 A value read through an owner may race a spawned write-back, the only write
 another thread makes to a place this thread can read. A write-back comes
@@ -232,7 +237,9 @@ build, each as the type of its innermost owner and the members, cases and
 elements down from it. A read takes a snapshot only when its place overlaps
 one of them; every other such read is a plain load, as is every read in a
 program that spawns nothing. Writing back `tally.n` leaves every other
-`Int` read plain.
+`Int` read plain. A library's object takes the places of the one program
+it is built for from the file that program's build writes, and keeps every
+snapshot when it is built for none.
 
 ### Cross-package bodies for the optimizer
 

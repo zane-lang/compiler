@@ -712,7 +712,8 @@
   (run python3 %{dep:optimization_test.py} %{exe:../../bin/zanec/zanec.exe})))
 
 ; What codegen tells LLVM: no snapshot in a program none of whose code
-; spawns, snapshots kept wherever a spawned call may write back, the
+; spawns, snapshots kept wherever a spawned call may write back (in a
+; library built for one program, where that program writes back), the
 ; runtime's small list operations made in line, and the type-based alias
 ; tags that let LLVM keep a list's header across writes of its elements.
 (rule

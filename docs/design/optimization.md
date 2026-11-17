@@ -435,7 +435,8 @@ optimized build makes, for the fixtures that show folding:
 
 `tests/objects/facts_test.py` checks what codegen tells LLVM, and what
 LLVM makes of it in an optimized build: no snapshot in a program that
-spawns nothing and every snapshot where something may write back, the
+spawns nothing, every snapshot where something may write back, and in a
+library built for one program only those of the places it writes back into, the
 runtime's small list operations in line, and a loop over a list's elements,
 each written and read again, with no index check left in it.
 

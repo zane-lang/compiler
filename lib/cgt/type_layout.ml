@@ -619,7 +619,7 @@ let written_into st (e : T.Expr.t) =
    while the read takes its bytes (concurrency.md §4.4). Where either
    place is not known, the read takes one when its type holds the written
    value's, or that holds its type. *)
-let snapshots st (e : T.Expr.t) =
+let rec snapshots st (e : T.Expr.t) =
   match st.written_back with
   | None -> true
   | Some ws ->
@@ -631,6 +631,40 @@ let snapshots st (e : T.Expr.t) =
           | Some a, Some b -> overlap a b
           | _ -> holds st t w.of_type || holds st w.of_type t)
         ws
+      || program_overlaps st t at
+
+(* The program a library's object is built for names its places by
+   spelling (Write_backs). Two places overlap as [overlap] says, compared
+   spelled out; otherwise [t] and the written value's type are one held by
+   the other when what [t] holds, itself included, meets what the written
+   value holds, itself included, which is that or more. *)
+and program_overlaps st t at =
+  st.program_written <> []
+  &&
+  let held = lazy (List.map Tty.to_string (held_types st t)) in
+  let prefix steps steps' =
+    let rec go = function [], _ | _, [] -> true | a :: r, b :: r' -> a = b && go (r, r') in
+    go (steps, steps')
+  in
+  List.exists
+    (fun (w : named_written) ->
+      match (at, w.owner_place) with
+      | Some (o, steps), Some (o', steps') -> String.equal (Tty.to_string o) o' && prefix steps steps'
+      | _ -> List.exists (fun h -> List.mem h w.holding) (Lazy.force held))
+    st.program_written
+
+(* Every type a value of type [t] holds, [t] itself first: what [holds]
+   walks. *)
+and held_types st t =
+  let seen = Hashtbl.create 8 in
+  let rec go acc t =
+    if Hashtbl.mem seen t then acc
+    else begin
+      Hashtbl.replace seen t ();
+      List.fold_left go (t :: acc) (inline st t)
+    end
+  in
+  List.rev (go [] (Tty.strip_mode t))
 
 (* Whether a value of this type owns a dynamic block (memory.md §3.6), which
    it returns when it dies and copies when it is copied. *)
