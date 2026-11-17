@@ -1050,7 +1050,8 @@ let rewrite tm m name run again =
    constant globals, a recursion's base case made at its self-calls, small
    leaves a loop calls inlined, then the frames' alias scopes (when on) and
    slots in registers, and the index checks merged, raised above a branch
-   and joined over a run of offsets. *)
+   and joined over a run of offsets, and in a strip-mined loop those its
+   counter can never meet removed. *)
 let rewrites tm m =
   rewrite tm m "const arrays" Const_arrays.run Const_arrays.again;
   rewrite tm m "leaf peel" Leaf_peel.run Leaf_peel.again;
