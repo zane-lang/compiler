@@ -5,6 +5,7 @@ package filled;
 
 alias Int = @primitives$I64;
 alias Bool = @primitives$Bool;
+alias Float = @primitives$F64;
 alias Unit = @primitives$Unit;
 alias String = @primitives$String;
 alias List<T Type> = @primitives$List<T>;
@@ -34,6 +35,17 @@ Unit print(n Int) {
 	return Unit();
 }
 
+/// 16 zeros, the last negative: a folded list whose elements compare
+/// equal but are two values.
+List<Float> zeros() {
+	made List<Float> = @primitives$List(Float);
+	@controlflow$repeat(Int(15), {
+		made!push(Float(0.0));
+	});
+	made!push(@operators$negate(Float(0.0)));
+	return made;
+}
+
 /// How many of `list`'s elements are true.
 Int trues(list List<Bool>) {
 	total Int = Int(0);
@@ -59,5 +71,7 @@ Unit main() {
 	print(trues(long));
 	print(trues(short));
 	print(mixed[at]);
+	signs List<Float> = zeros();
+	@program$console!print(@operators$concat(String(@operators$divide(Float(1.0), signs[@operators$add(at, Int(9))])), String.escaped("\n")));
 	return Unit();
 }

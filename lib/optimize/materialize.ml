@@ -10,7 +10,8 @@ let max_size = V.max_size
 let ptr node = { Expr.node; ty = Ty.Ptr }
 let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Ty.I64 }
 
-(* A list of at least this many elements, all one plain value, is made by
+(* A list of at least this many elements, all one plain value, the same to
+   the bit ([V.same]: `0.0` and `-0.0` are two values), is made by
    a loop that pushes it that many times, rather than by a push of each:
    `List(Int(256), Bool(false))` folded is a few statements, not 256. *)
 let looped_from = 16
@@ -73,7 +74,7 @@ let rec expr ?fresh (t : Ty.t) (c : V.const) : Expr.t option =
           in
           let looped =
             match items with
-            | first :: rest when List.length items >= looped_from && List.for_all (fun c -> c = first) rest -> (
+            | first :: rest when List.length items >= looped_from && List.for_all (V.same first) rest -> (
                 match push first with
                 | Some ([ _; (Stat.Place { value; _ } | Stat.Store { value; _ }) ] as body) when plain value ->
                     let count = int (List.length items) in
