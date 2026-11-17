@@ -1582,12 +1582,15 @@ and stat env fr b (s : Stat.t) =
       else
       let arena = enter env fr b frame.Frames.size in
       Hashtbl.replace fr.arenas id arena;
+      let handled = fr.handled and spawning = fr.spawning in
       fr.open_ <- arena :: fr.open_;
       if frame.Frames.handles then fr.handled <- arena :: fr.handled;
       if frame.Frames.spawns then fr.spawning <- arena :: fr.spawning;
       stats env fr b body;
       if not (has_terminator b) then drain_scope env fr b arena;
-      fr.open_ <- List.tl fr.open_
+      fr.open_ <- List.tl fr.open_;
+      fr.handled <- handled;
+      fr.spawning <- spawning
   | Stat.Hold { id; scope; value = { Expr.node = Expr.Call _ | Expr.Call_value _; ty } as value; layout = l }
     when returning env ty = Address ->
       let slot = frame_slot env fr b scope id in
