@@ -1,0 +1,27 @@
+/// A library whose owner holds a padded value, packed, with an 8-byte member
+/// at an offset of 8 in it: a read of that member through the owner is a
+/// snapshot, aligned to 8 though the value is packed.
+package packs;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+
+type Inner = struct {
+	n Int;
+	m Int;
+	on Bool;
+}
+
+type Box = #struct {
+	inner Inner;
+}
+
+Box(n Int) => init{ inner = Inner(n, n, true); }
+
+Inner(n Int, m Int, on Bool) => init{ n; m; on; }
+
+Int second(n Int) {
+	box Box(n);
+	return box.inner.m;
+}

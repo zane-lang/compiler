@@ -87,6 +87,120 @@ class FactsTests(unittest.TestCase):
         ]:
             self.assertRegex(run(ZANEC, "--ll", *flags), SNAPSHOT, flags)
 
+    def write_backs(self, temp, program, *deps, stamped=("cells",)):
+        """The file `--write-backs` writes for *program* over *deps*."""
+        path = Path(temp) / f"{program}.write-backs"
+        run(ZANEC, "--write-backs", path, *packages(program, *deps, stamped=stamped))
+        return path
+
+    def test_a_library_built_for_a_program_reads_plainly_what_it_writes_nothing_into(self):
+        # Built for a program that spawns nothing, or writes back into
+        # another package's type, a library's object reads every place
+        # plainly; built for none, it keeps every snapshot.
+        with tempfile.TemporaryDirectory() as temp:
+            library = packages("cells", stamped=["cells"])
+            self.assertRegex(run(ZANEC, "--ll", "--no-root", *library), SNAPSHOT)
+            for program in ["quiet", "idle", "busy"]:
+                file = self.write_backs(temp, program, "cells")
+                for optimize in [[], ["--optimize"]]:
+                    ir = run(ZANEC, "--ll", "--no-root", *optimize, "--program-write-backs", file, *library)
+                    self.assertNotRegex(ir, SNAPSHOT, (program, optimize))
+
+    def test_a_library_built_for_a_program_snapshots_what_it_writes_back_into(self):
+        # `warmer` writes back into a cell's hits: `sweep`'s reads of them
+        # are snapshots, and `drop`'s read of a cell's heat is not.
+        with tempfile.TemporaryDirectory() as temp:
+            file = self.write_backs(temp, "warmer", "cells")
+            ir = run(ZANEC, "--ll", "--no-root", "--program-write-backs", file,
+                     *packages("cells", stamped=["cells"]))
+
+            def body(name):
+                start = ir.index(f'@"{STAMP}cells${name}(')
+                return ir[start: ir.index("\n}\n", start)]
+
+            self.assertRegex(body("sweep"), SNAPSHOT)
+            self.assertNotRegex(body("drop"), SNAPSHOT)
+            # A library's own spawns are the program's too: `pool` writes
+            # back into its Tally, whose read stays a snapshot.
+            file = self.write_backs(temp, "relay", "cells", "pool", stamped=["pool"])
+            ir = run(ZANEC, "--ll", "--no-root", "--program-write-backs", file,
+                     *packages("pool", stamped=["pool"]))
+            self.assertRegex(ir, SNAPSHOT)
+
+    def test_write_backs_name_the_places_the_same_way_every_time(self):
+        # Programs that write back into the same places write the same
+        # bytes, which `zane` keys a dependency's object on.
+        with tempfile.TemporaryDirectory() as temp:
+            files = {p: self.write_backs(temp, p, "cells").read_text() for p in ["quiet", "idle", "busy", "warmer"]}
+            self.assertEqual(files["quiet"], "zanec write-backs 1\n")
+            self.assertEqual(files["idle"], files["quiet"])
+            self.assertEqual(files["busy"], "zanec write-backs 1\nbusy$Tally\t.n\t@primitives$I64\n")
+            self.assertEqual(files["warmer"],
+                             f"zanec write-backs 1\n{STAMP}cells$Cell\t.hits\t@primitives$I64\n")
+            self.assertEqual(self.write_backs(temp, "warmer", "cells").read_text(), files["warmer"])
+
+    def test_programs_run_with_libraries_built_for_them(self):
+        with tempfile.TemporaryDirectory() as temp:
+            for program, deps, library, expected in [
+                ("quiet", ["cells"], "cells", "14 1\n"),
+                ("warmer", ["cells"], "cells", "15 1\n"),
+                ("relay", ["cells", "pool"], "pool", "44\n"),
+            ]:
+                file = self.write_backs(temp, program, *deps, stamped=[library])
+                obj = Path(temp) / f"{library}-for-{program}.o"
+                run(ZANEC, "--no-root", "--object", obj, "--program-write-backs", file,
+                    *packages(library, stamped=[library]))
+                for optimize in [[], ["--optimize"]]:
+                    exe = Path(temp) / program
+                    run(ZANEC, "--build", exe, *optimize, "--link", obj, *packages(program, *deps, stamped=[library]))
+                    self.assertEqual(run_program(exe, "4"), expected, (program, optimize))
+
+    def test_write_backs_flags_take_their_builds(self):
+        # A program's places are its root's, and only a library's code
+        # reads another program's.
+        with tempfile.TemporaryDirectory() as temp:
+            file = self.write_backs(temp, "quiet", "cells")
+            for flags in [
+                ["--write-backs", Path(temp) / "x", "--no-root", *packages("cells")],
+                ["--ll", "--program-write-backs", file, *packages("quiet", "cells")],
+                ["--build", Path(temp) / "x", "--program-write-backs", file, *packages("quiet", "cells")],
+                ["--check", "--no-root", "--program-write-backs", file, *packages("cells")],
+                ["--ll", "--no-root", "--program-write-backs", file, "--program-write-backs", file,
+                 *packages("cells")],
+            ]:
+                result = subprocess.run([ZANEC, *map(str, flags)], capture_output=True, text=True, timeout=60)
+                self.assertEqual(result.returncode, 2, flags)
+                self.assertIn("usage: zanec", result.stderr, flags)
+            bad = Path(temp) / "bad"
+            for text in ["zanec write-backs 1\nnot a place\n",
+                         "zanec write-backs 1\n-\t\t\n",
+                         f"zanec write-backs 1\n{STAMP}cells$Cell\t.hits\t@primitives$I64\t\n"]:
+                bad.write_text(text)
+                result = subprocess.run([ZANEC, "--ll", "--no-root", "--program-write-backs", str(bad), *packages("cells")],
+                                        capture_output=True, text=True, timeout=60)
+                self.assertEqual(result.returncode, 1, text)
+                self.assertIn("is not a file of a program's write-backs", result.stderr)
+            # A place written whole, with no steps down from its owner,
+            # overlaps every read through an owner of that type.
+            whole = Path(temp) / "whole"
+            # Each line may end in `\r\n`, as a file written on Windows does.
+            for end in ["\n", "\r\n"]:
+                whole.write_bytes(f"zanec write-backs 1{end}{STAMP}cells$Cell\t\t{STAMP}cells$Cell{end}".encode())
+                ir = run(ZANEC, "--ll", "--no-root", "--program-write-backs", whole, *packages("cells", stamped=["cells"]))
+                self.assertRegex(ir, SNAPSHOT, repr(end))
+
+    def test_a_snapshot_inside_a_packed_value_stays_aligned(self):
+        # The member read is 8 bytes at an offset of 8 in a packed value
+        # whose address is aligned to 8: its snapshot is one load aligned to
+        # 8, which LLVM makes no call to libatomic for, a program without
+        # libatomic links (lib/codegen/emit_types.ml, `unaligned`).
+        for optimize in [[], ["--optimize"]]:
+            ir = run(ZANEC, "--ll", "--no-root", *optimize, *packages("packs", stamped=["packs"]))
+            if not optimize:
+                self.assertRegex(ir, r"load atomic i64, ptr %packed[0-9]* unordered, align 8")
+            self.assertNotRegex(ir, r"load atomic [^\n]*, align [124]\b")
+            self.assertNotIn("__atomic_load", ir)
+
     def test_runtime_helpers_made_in_line(self):
         ir = run(ZANEC, "--ll", *packages("quiet", "cells"))
         self.assertNotIn("@zane_list_new(", ir)

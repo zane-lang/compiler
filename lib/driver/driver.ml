@@ -207,10 +207,36 @@ let no_regions = { fixed = None; spawned = None }
 (* Every build takes in its stamped dependencies' bodies, which LLVM inlines
    and defines in no object (docs/design/separate-compilation.md C12): an
    unoptimized build's inlining needs them as much as an optimized one's. *)
-let lower ?(regions = no_regions) ?(compare_glue = false) ~root packages program =
-  match Cgt.lower ~library:(not root) ~import_bodies:true ~foreign_roots:compare_glue ?fixed_region:regions.fixed program with
+let lower ?(regions = no_regions) ?(compare_glue = false) ?program_write_backs ~root packages program =
+  let read path =
+    match In_channel.with_open_bin path In_channel.input_all with
+    | exception Sys_error why -> fail [ Diagnostic.about_invocation why ]
+    | text -> (
+        match Cgt.read_write_backs text with
+        | Some ws -> Ok ws
+        | None -> fail [ Diagnostic.about_invocation (Printf.sprintf "`%s` is not a file of a program's write-backs" path) ])
+  in
+  let ( let* ) = Result.bind in
+  let* program_write_backs =
+    match program_write_backs with Some path -> Result.map Option.some (read path) | None -> Ok None
+  in
+  match
+    Cgt.lower ~library:(not root) ~import_bodies:true ~foreign_roots:compare_glue ?fixed_region:regions.fixed
+      ?program_write_backs program
+  with
   | Ok cgt -> Ok cgt
   | Error d -> fail ~sources:(Assembly.sources packages) [ d ]
+
+(* The file is written whole or not at all, since `zane` keys a
+   dependency's object on its bytes. *)
+let write_backs packages program ~output =
+  match Cgt.write_backs program with
+  | Error d -> fail ~sources:(Assembly.sources packages) [ d ]
+  | Ok text -> (
+      let random = Random.State.make_self_init () in
+      match write_replacing ~random ~output text with
+      | Ok () -> Ok ()
+      | Error why -> fail [ Diagnostic.about_invocation ("cannot write the program's write-backs: " ^ why) ])
 
 (* The modules of the stamped dependency [p]'s C, [f], that an optimized
    build retains (docs/design/ffi.md F13): its sources' and its glue's whose

@@ -1,0 +1,95 @@
+/// A table-driven automaton, written as core writes its packages: its own
+/// `Int`, `I32` and `List` wrapping the primitives, and a loop that reads
+/// `trans[state * classes + class]` from a `List<I32>` member of an owner,
+/// as core's regex package runs its DFA. Built as a library's object, as
+/// `zane` compiles a dependency from source, for the program alone.
+package dfa;
+
+type Int = struct {
+	_value @primitives$I64;
+}
+Int(v @primitives$I64) => init{ _value = v; }
+
+type I32 = struct {
+	_value @primitives$I32;
+}
+I32(v @primitives$I32) => init{ _value = v; }
+
+/// The number, as the primitive the console prints.
+@primitives$I64 raw(v Int) => v._value;
+
+Int widen(v I32) => Int(@primitives$I64(v._value));
+I32 narrow(v Int) => I32(@primitives$I32.wrap(v._value));
+
+Int plus(a Int, b Int) => Int(@operators$add(a._value, b._value));
+Int times(a Int, b Int) => Int(@operators$multiply(a._value, b._value));
+Int modulo(a Int, b Int) => Int(@operators$add(a._value, @operators$negate(@operators$multiply(@operators$divide(a._value, b._value), b._value))));
+
+/// Advances the counter through the inclusive range, running the block once
+/// per step.
+@primitives$Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end._value, @operators$negate(this._value)), @primitives$I64(1)), {
+		@controlflow$branch(true, body);
+		this = plus(this, Int(@primitives$I64(1)));
+	});
+	return @primitives$Unit();
+}
+
+type List<T Type> = struct {
+	_value @primitives$List<T>;
+}
+List<T>(T Type) => init{ _value = @primitives$List(T); }
+@primitives$Unit push(this List<T Type>, value T) mut {
+	this._value!push(value);
+	return @primitives$Unit();
+}
+Int size(this List<T Type>) => Int(this._value:size());
+(this List<T Type>)[index Int] => this._value[index._value];
+
+/// `states` states over `classes` classes of input, each state's moves
+/// spread over the others.
+type Machine = #struct {
+	trans List<I32>;
+	classes Int;
+}
+
+Machine(states Int, classes Int) {
+	trans List<I32> = List(I32);
+	s Int = Int(@primitives$I64(1));
+	s!to(states) {
+		c Int = Int(@primitives$I64(1));
+		c!to(classes) {
+			trans!push(narrow(modulo(plus(times(s, Int(@primitives$I64(7))), times(c, Int(@primitives$I64(13)))), states)));
+		}
+	}
+	return init{ trans; classes; }
+}
+
+/// How many times the machine reaches its last state while reading `input`,
+/// each element a class, starting over after each, as a DFA counts
+/// matches: a search too large for its caller to take in, so the caller
+/// runs this object's code.
+Int run(this Machine, input List<I32>) {
+	n Int = input:size();
+	accept Int = Int(@primitives$I64(63));
+	found Int = Int(@primitives$I64(0));
+	s Int = Int(@primitives$I64(0));
+	i Int = Int(@primitives$I64(1));
+	i!to(n) {
+		s = widen(this.trans[plus(plus(times(s, this.classes), widen(input[i])), Int(@primitives$I64(1)))]);
+		@controlflow$branch(@operators$equal(s._value, accept._value), {
+			found = plus(found, Int(@primitives$I64(1)));
+			back Int = i;
+			t Int = Int(@primitives$I64(0));
+			@controlflow$repeat(@primitives$I64(3), {
+				@controlflow$branch(@operators$lessThan(@primitives$I64(1), back._value), {
+					t = widen(this.trans[plus(plus(times(t, this.classes), widen(input[back])), Int(@primitives$I64(1)))]);
+					back = Int(@operators$add(back._value, @operators$negate(@primitives$I64(1))));
+				});
+			});
+			found = plus(found, modulo(t, Int(@primitives$I64(2))));
+			s = Int(@primitives$I64(0));
+		});
+	}
+	return found;
+}

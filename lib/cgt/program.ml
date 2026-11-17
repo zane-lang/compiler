@@ -365,8 +365,11 @@ let start_function st main span entry makes (funcs : Func.t list) =
     values = [];
   }
 
-let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false) ?(fixed_region = Runtime.default_fixed_region)
-    (p : T.Program.t) =
+(* The state lowering [p] starts from: every declaration and instance
+   known, and the places spawned calls write back into, a library's given
+   by the program it is built for, [program_write_backs], when it has one.
+   Also which packages are the project's own and which stamped. *)
+let prepare ~library ~import_bodies ~fixed_region ~program_write_backs (p : T.Program.t) =
   let stamp_of id =
     match String.rindex_opt id '%' with Some i -> String.sub id 0 (i + 1) | None -> ""
   in
@@ -456,7 +459,31 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
       in
       add i.T.Instance.decl i.T.Instance.args signature i.T.Instance.params i.T.Instance.body)
     p.T.Program.instances;
-  if not library then st.written_back <- Some (written_back st calls);
+  if not library then st.written_back <- Some (written_back st calls)
+  else (
+    match program_write_backs with
+    | Some ws ->
+        (* The program's places are in hand, its spawns' and every
+           package's in its build, this library's among them. *)
+        st.written_back <- Some (written_back st calls);
+        st.program_written <- ws
+    | None -> ());
+  (st, own, stamped)
+
+(* The file of the places the program [p] writes back into (Write_backs),
+   for building a library's object for this program alone. *)
+let write_backs (p : T.Program.t) =
+  try
+    let st, _, _ =
+      prepare ~library:false ~import_bodies:false ~fixed_region:Runtime.default_fixed_region
+        ~program_write_backs:None p
+    in
+    Ok (Write_backs.to_text st (Option.value st.written_back ~default:[]))
+  with Refused d -> Error d
+
+let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false) ?(fixed_region = Runtime.default_fixed_region)
+    ?program_write_backs (p : T.Program.t) =
+  let st, own, stamped = prepare ~library ~import_bodies ~fixed_region ~program_write_backs p in
   try
     (* The root package is the first (docs/design/semantics.md §2), and its `main`
        is where the program starts (packages.md §6.2). *)

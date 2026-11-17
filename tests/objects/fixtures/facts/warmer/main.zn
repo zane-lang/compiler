@@ -1,0 +1,28 @@
+/// quiet, and one spawned call that writes an Int back into the hits of a
+/// cell in a grid of the cells library, so the library's reads of that
+/// place race a write-back while its reads of every other place do not.
+package warmer;
+
+import cells$;
+
+Unit twice(this Int) mut {
+	this = @operators$add(this, this);
+	return Unit();
+}
+
+Unit warm(this Grid) mut {
+	spawn this.cells[Int(1)].hits!twice();
+	return Unit();
+}
+
+Unit main() {
+	args @primitives$List<String> = @program$runtime:arguments();
+	n Int = args[Int(1)]:parseI64() ?? Int(0);
+	grid Grid();
+	grid!fill(n);
+	grid!warm();
+	total Int = grid!sweep();
+	@program$console!print(@operators$concat(String(total), String(" ")));
+	@program$console!print(@operators$concat(String(grid!drop()), String.escaped("\n")));
+	return Unit();
+}

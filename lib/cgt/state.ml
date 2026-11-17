@@ -113,6 +113,12 @@ type step = Member of string | Case | Elem
    steps from there. *)
 type written = { of_type : Tty.t; place : (Tty.t * step list) option }
 
+(* A place the program a library's object is built for writes back into, as
+   that program's build named it (Write_backs): where it is, when known, as
+   the innermost owner's type spelled out and the steps from there, and the
+   written value's type with every type it holds, spelled out too. *)
+type named_written = { owner_place : (string * step list) option; holding : string list }
+
 (* A package constant: its symbol, its package, its declared type and its
    value. *)
 type constant = { symbol : string; package : string; ty : Tty.t; value : T.Expr.t }
@@ -191,6 +197,9 @@ type state = {
      an owner (concurrency.md §4.4), or [None] for a library's, which a
      program that spawns may write back any value into (Type_layout.snapshots). *)
   mutable written_back : written list option;
+  (* The places written back by the program a library's object is built
+     for, when the build was given them (`--program-write-backs`). *)
+  mutable program_written : named_written list;
   exports : string -> bool;
   stamp : string -> string;
   stamped : string -> bool;
@@ -274,6 +283,7 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     import_bodies;
     exclusive;
     written_back = (if library then None else Some []);
+    program_written = [];
     exports;
     stamp;
     stamped;

@@ -32,6 +32,15 @@ code does more work, misses the cache more often or branches less
 predictably. Runs of one build in different environments differ by a few
 hundredths of a percent.
 
+A directory may hold library packages in `lib/`, which the program imports.
+They are built as `zane` builds a dependency compiled from source: into one
+object of their own, unoptimized, with a stamp, for the program alone from
+the file of the places it writes back into
+([`lowering.md`](../../docs/design/lowering.md) §9, "Snapshots"), and that
+object is linked into each build. `automaton` is one: its loop
+reads its table through an owner, in plainly loaded memory only when the
+library is built for the program.
+
 ## The log and the check
 
 The `perf-log` branch holds three files, all written by CI:

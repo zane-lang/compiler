@@ -62,7 +62,9 @@ let words = Ty.words
 (* Packed types (Ty.Packed): the address of a place inside a
    packed type is named [unaligned_name], and so is one inside such a
    place, so that once a function is emitted every load and store through
-   one is marked as at any byte. *)
+   one is marked as at any byte. An atomic access, such as a snapshot's
+   load, is emitted only where its address is known to be aligned to its
+   size (Emit), which it keeps: one at any byte is a call into libatomic. *)
 let unaligned_name = "packed"
 
 let is_unaligned v =
@@ -74,8 +76,10 @@ let unaligned fn =
   Llvm.iter_blocks
     (Llvm.iter_instrs (fun i ->
          match Llvm.instr_opcode i with
-         | Llvm.Opcode.Load when is_unaligned (Llvm.operand i 0) -> Llvm.set_alignment 1 i
-         | Llvm.Opcode.Store when is_unaligned (Llvm.operand i 1) -> Llvm.set_alignment 1 i
+         | Llvm.Opcode.Load when is_unaligned (Llvm.operand i 0) && not (Llvm_extra.is_atomic i) ->
+             Llvm.set_alignment 1 i
+         | Llvm.Opcode.Store when is_unaligned (Llvm.operand i 1) && not (Llvm_extra.is_atomic i) ->
+             Llvm.set_alignment 1 i
          | _ -> ()))
     fn
 

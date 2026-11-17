@@ -29,7 +29,11 @@ type stage = Cst | Sst
    among them (docs/design/ffi.md F3), so its exit status and diagnostics
    are the whole answer. `--compile-commands OUT` writes the compilation
    database of the C sources of the packages without a stamp, for an
-   editor's C language server, and checks nothing (docs/design/ffi.md F2). *)
+   editor's C language server, and checks nothing (docs/design/ffi.md F2).
+   `--write-backs OUT` writes the places a program's spawned calls write
+   back into, and `--program-write-backs FILE` gives a library's build the
+   file a program's wrote, so its object is lowered for that program alone
+   (docs/design/lowering.md §9, "Snapshots"). *)
 type view =
   | Assembled
   | Check
@@ -41,6 +45,7 @@ type view =
   | Object of string
   | Tier_up of string
   | Compile_commands of string
+  | Write_backs of string
 
 (* Whether the build has a root package (packages.md §6.1): `--root` makes
    the first package the root, which has a `main` to start from (§6.2), and
@@ -77,6 +82,9 @@ type build = {
   memoize : bool;
   (* Whether `--build` makes tier 0 of a tiered build. *)
   tiered : bool;
+  (* The places the program a library's object is built for writes back
+     into, as `--write-backs` wrote them. *)
+  program_write_backs : string option;
 }
 
 (* `--rewrite STAMP INPUT OUTPUT` is fetching's step, not a build's: a
@@ -108,8 +116,9 @@ let usage () = raise (Usage None)
 let print_usage () =
   prerr_endline "usage: zanec [--cst|--sst] (SOURCE|-)";
   prerr_endline
-    "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT [--tiered]|--object OUT|--tier-up OUT|--compile-commands OUT]";
-  prerr_endline "             [--root|--no-root]";
+    "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT [--tiered]|--object OUT|--tier-up OUT|--compile-commands OUT";
+  prerr_endline "              |--write-backs OUT]";
+  prerr_endline "             [--root|--no-root] [--program-write-backs FILE]";
   prerr_endline
     "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...] [--c-hashes FILE ...]";
   prerr_endline "             [--fixed-region BYTES] [--spawned-fixed-region BYTES] [--pack-aggregates] [--no-memoize]";
@@ -219,6 +228,12 @@ let arguments () =
            `--optimize`: tier 1 makes its own (docs/design/tiers.md). *)
         else if build.tiered && ((match view with Build _ -> false | _ -> true) || build.optimize) then usage ()
         else if (match view with Tier_up _ -> true | _ -> false) && build.optimize then usage ()
+        (* A program's places are its root's; a library built for one has
+           none, and only code from it reads them. *)
+        else if (match view with Write_backs _ -> true | _ -> false) && build.root = Some false then usage ()
+        else if build.program_write_backs <> None
+                && (build.root <> Some false || match view with Cgt | Ir | Object _ -> false | _ -> true)
+        then usage ()
         else
           Packages
             {
@@ -251,6 +266,10 @@ let arguments () =
         packages (Some (Object output)) build rest
     | "--compile-commands" :: output :: rest when view = None && is_value output ->
         packages (Some (Compile_commands output)) build rest
+    | "--write-backs" :: output :: rest when view = None && is_value output ->
+        packages (Some (Write_backs output)) build rest
+    | "--program-write-backs" :: file :: rest when build.program_write_backs = None && is_value file ->
+        packages view { build with program_write_backs = Some file } rest
     | "--stamp" :: stamp :: rest when is_value stamp -> (
         match String.index_opt stamp '=' with
         | Some i when i + 1 < String.length stamp ->
@@ -299,6 +318,7 @@ let arguments () =
       pack = false;
       memoize = true;
       tiered = false;
+      program_write_backs = None;
     }
   in
   match List.tl (Array.to_list Sys.argv) with
@@ -313,7 +333,7 @@ let arguments () =
       Bundle_runtime { dir; target; optimize = true }
   | ( "--package" | "--root" | "--no-root" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
     | "--link" | "--c-hashes" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--no-memoize" | "--check"
-    | "--compile-commands"
+    | "--compile-commands" | "--write-backs" | "--program-write-backs"
     | "--tiered" | "--tier-up"
     | "--decls" | "--tst" | "--cgt" | "--ll" )
     :: _ as rest ->
@@ -341,7 +361,10 @@ let generate packages c_code build program =
   (* Only an optimized build retains a dependency's C (docs/design/ffi.md
      F13), so only one given its hashes writes its glue again to compare. *)
   let compare_glue = optimize && build.c_hashes <> [] in
-  let* cgt = Driver.lower ~regions:build.regions ~compare_glue ~root packages program in
+  let* cgt =
+    Driver.lower ~regions:build.regions ~compare_glue ?program_write_backs:build.program_write_backs ~root packages
+      program
+  in
   (* The C is made from the lowered tree, whose thunks and function values
      stage 5 keeps, and an optimized build makes it first, since stage 5
      folds calls into it (docs/design/ffi.md F16). *)
@@ -373,13 +396,13 @@ let generate packages c_code build program =
       let* c = c () in
       let* () = Driver.object_file ?target ~pack ~memoize ~c ~regions:build.regions ~optimize cgt output in
       Driver.write_hashes ~output (Driver.hashes_of packages c_code c)
-  | Assembled | Check | Declarations | Typed | Compile_commands _ -> Ok ()
+  | Assembled | Check | Declarations | Typed | Compile_commands _ | Write_backs _ -> Ok ()
 
 (* Without `--root` or `--no-root`, the root needs its `main` once it is
    lowered, since lowering starts from it. *)
 let needs_main build =
   match (build.root, build.view) with
-  | Some true, _ | None, (Cgt | Ir | Build _ | Object _ | Tier_up _) -> true
+  | Some true, _ | None, (Cgt | Ir | Build _ | Object _ | Tier_up _ | Write_backs _) -> true
   | Some false, _ | None, (Assembled | Check | Declarations | Typed | Compile_commands _) -> false
 
 (* Semantics prints no tree when it found a problem, since a tree with holes
@@ -398,12 +421,13 @@ let run_packages build =
       print_string (Tree_graph.render (Tst.Assembly.to_node packages));
       Ok ()
   | Compile_commands output -> Driver.compile_commands ?target:build.target packages output
-  | Check | Declarations | Typed | Cgt | Ir | Build _ | Object _ | Tier_up _ -> (
+  | Check | Declarations | Typed | Cgt | Ir | Build _ | Object _ | Tier_up _ | Write_backs _ -> (
       let* c = Driver.c_code ?target:build.target packages in
       let* program = Driver.check ~c packages in
       let* () = if needs_main build then Driver.require_main program else Ok () in
       match build.view with
       | Check -> Ok ()
+      | Write_backs output -> Driver.write_backs packages program ~output
       | Declarations | Typed ->
           print_string (Tree_graph.render (Tst.to_node ~bodies:(build.view = Typed) program));
           Ok ()

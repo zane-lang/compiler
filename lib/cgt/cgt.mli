@@ -22,6 +22,12 @@ module Memo = Memo
 module Ref32 = Ref32
 module List_pure = List_pure
 
+(** The places a program writes back into, read from the file
+    [write_backs] writes (docs/design/lowering.md §9, "Snapshots"). A
+    [library] lowered with them, [program_write_backs], is for that program
+    alone: its reads of every other place are plain loads. *)
+type write_backs
+
 (** The program, from the root package's `main`, or from every function of
     the root when it is a [library]. A construct lowering does not handle
     yet is refused with a diagnostic at it, and so is a type no main
@@ -36,8 +42,15 @@ val lower :
   ?import_bodies:bool ->
   ?foreign_roots:bool ->
   ?fixed_region:int ->
+  ?program_write_backs:write_backs ->
   Tst.Nodes.Program.t ->
   (Nodes.Program.t, Diagnostic.t) result
+
+(** The file of the places the program writes back into. *)
+val write_backs : Tst.Nodes.Program.t -> (string, Diagnostic.t) result
+
+(** The places such a file names, or [None] when it is not one. *)
+val read_write_backs : string -> write_backs option
 
 (** The tree as `zanec --cgt` prints it. *)
 val to_node : Nodes.Program.t -> Tree_graph.node

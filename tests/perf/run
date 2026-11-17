@@ -2,7 +2,8 @@
 """Measure each perf program's three builds in estimated cycles.
 
 Each directory here is one package, a program that reads its size from the
-`arguments` file beside it. It is built three times: `optimized` with
+`arguments` file beside it, with its library packages, when it has any, in
+`lib/`. It is built three times: `optimized` with
 `--optimize`, `plain` without it, and `tiered` as `zane run` builds it, tier
 0 with tier 1 loaded before `main` runs (docs/design/tiers.md). Each build is
 run once under
@@ -27,6 +28,11 @@ time on any real one.
     tests/perf/run --record DIR --commit SHA  # and write DIR's log as SHA's
     tests/perf/run --against latest.tsv --fresh  # and run even the builds its rows hold
     tests/perf/run --promote                  # write golden/NAME.out from this build
+
+A program's library packages are a dependency compiled from source, as
+`zane` compiles one: into one object of their own, unoptimized and with a
+stamp, for the program alone, from the file of the places it writes back
+into (docs/design/lowering.md §9, "Snapshots"), and linked with each build.
 
 `--against` fails when a build's estimated cycles are more than
 `TOLERANCE` above its row; a build with no row passes. `--record` writes
@@ -73,6 +79,9 @@ LATEST = [*COLUMNS, "key", "build"]
 # so the same build counts the same; the plain one is the program
 # unoptimized, as `zane run` built it before tiers.
 BUILDS = {"optimized": ["--optimize"], "plain": [], "tiered": ["--tiered"]}
+# The stamp a program's library packages are built with, as `zane` gives a
+# dependency compiled from source one.
+STAMP = "v1.0%0123456789abcdef%"
 
 
 def history(build):
@@ -82,6 +91,32 @@ def history(build):
 
 def programs():
     return sorted(p.name for p in HERE.iterdir() if p.is_dir() and (p / "main.zn").exists())
+
+
+def libraries(name):
+    """The `--package` flags of program `name`'s library packages, stamped:
+    each directory under `lib/` holding a source file, named by its path
+    there with `.` between its parts, as a subpackage is."""
+    lib = HERE / name / "lib"
+    dirs = sorted(d for d in lib.rglob("*") if d.is_dir() and any(d.glob("*.zn"))) if lib.is_dir() else []
+    return [flag for d in dirs
+            for flag in ("--package", f"{STAMP}{'.'.join(d.relative_to(lib).parts)}={d}")]
+
+
+def library_object(zanec, name, work, build):
+    """The `--link` flags for program `name`'s library packages: their
+    object, built for the program as `zane` builds a dependency from source,
+    into *work* beside *build*'s, or why it could not be built."""
+    libs = libraries(name)
+    if not libs:
+        return [], None
+    places, obj = work / f"{name}.{build}.write-backs", work / f"{name}.{build}.lib.o"
+    for command in ([zanec, "--write-backs", places, "--package", HERE / name, *libs],
+                    [zanec, "--no-root", "--object", obj, "--program-write-backs", places, *libs]):
+        built = subprocess.run(command, capture_output=True, text=True)
+        if built.returncode:
+            return None, f"its library failed to build:\n{built.stdout}{built.stderr}"
+    return ["--link", obj], None
 
 
 def totals(profile):
@@ -113,15 +148,19 @@ def measure(zanec, name, build, work, valgrind, row):
     """What program `name`'s *build* printed and its counts, or why it has
     none. A *row* with the build's key gives its counts without running it."""
     exe, profile = work / f"{name}.{build}", work / f"{name}.{build}.callgrind"
+    link, failed = library_object(zanec, name, work, build)
+    if failed:
+        return name, build, None, failed
+    packages = ["--package", HERE / name, *libraries(name)]
     built = subprocess.run(
-        [zanec, "--build", exe, *BUILDS[build], "--package", HERE / name],
+        [zanec, "--build", exe, *BUILDS[build], *link, *packages],
         capture_output=True, text=True)
     if built.returncode:
         return name, build, None, f"build failed:\n{built.stdout}{built.stderr}"
     library, env = None, None
     if build == "tiered":
         library = work / f"{name}.tier1"
-        built = subprocess.run([zanec, "--tier-up", library, "--package", HERE / name],
+        built = subprocess.run([zanec, "--tier-up", library, *packages],
                                capture_output=True, text=True)
         if built.returncode:
             return name, build, None, f"tier 1 failed to build:\n{built.stdout}{built.stderr}"
