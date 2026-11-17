@@ -181,6 +181,21 @@ let rec guarded b into n low steps =
       | None -> false)
   | _ -> false
 
+(* Whether the branch [t] on a stop test leaves the loop whose header is
+   [h] and whose latch is [back]: it ends the latch and its false edge
+   goes back to [h], or it ends the one block leading to the latch, its
+   false edge to the latch, which then goes back to [h]. *)
+let leaves t h back =
+  let if_false = Llvm.block_of_value (Llvm.operand t 1)
+  and if_true = Llvm.block_of_value (Llvm.operand t 2) in
+  let goes_back b =
+    match Llvm.block_terminator b with
+    | Some g -> Array.exists (fun s -> s == h) (Llvm.successors g)
+    | None -> false
+  in
+  if back == Llvm.instr_parent t then if_false == h && if_true != h
+  else if_false == back && if_true != back && if_true != h && Merged_checks.single_pred back && goes_back back
+
 (* For the exit test `icmp eq (add phi, 1), e` of a loop: the test's only
    use is the branch ending the latch, whose other edge goes back to the
    phi's block, or the branch ending the one block that leads to the
@@ -203,7 +218,6 @@ let counter_end i =
     | Llvm.ValueKind.Instruction Llvm.Opcode.Add, Some t, Some ((n, _, sh) as ends)
       when Llvm.int64_of_const (Llvm.operand x 1) = Some 1L ->
         let phi = Llvm.operand x 0 in
-        let latch = Llvm.instr_parent t in
         let is_phi = Llvm.classify_value phi = Llvm.ValueKind.Instruction Llvm.Opcode.PHI in
         (* Only a phi has incoming values to read. *)
         let incoming = if is_phi then Some (Llvm.instr_parent phi, Llvm.incoming phi) else None in
@@ -214,21 +228,8 @@ let counter_end i =
                 if Llvm.int64_of_const v0 = Some 0L then ((v0, p0), (v1, p1)) else ((v1, p1), (v0, p0))
               in
               let (start, entry), (step, back) = (from_entry, from_latch) in
-              let if_false = Llvm.block_of_value (Llvm.operand t 1)
-              and if_true = Llvm.block_of_value (Llvm.operand t 2) in
-              (* The test ends the latch, or the one block that leads to
-                 the latch, which then goes back. *)
-              let leaves =
-                if back == latch then if_false == h && if_true != h
-                else
-                  if_false == back && if_true != back && if_true != h
-                  && Merged_checks.single_pred back
-                  && (match Llvm.block_terminator back with
-                     | Some g -> Array.exists (fun s -> s == h) (Llvm.successors g)
-                     | None -> false)
-              in
               Llvm.int64_of_const start = Some 0L
-              && step == x && entry != back && leaves
+              && step == x && entry != back && leaves t h back
               && guarded entry h n (Int64.shift_left 1L (Int64.to_int sh)) 4
           | _ -> false
         in
