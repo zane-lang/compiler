@@ -88,6 +88,10 @@ let fits taken (body : Stat.t list) =
          constant, and that constant is one. *)
       let steps =
         let bound = Hashtbl.create 4 in
+        (* Each bound local's offset, read once: a sum of a local with
+           itself, let over let, would otherwise be read 2^n times. A
+           local's binding never changes once made. *)
+        let known = Hashtbl.create 4 in
         let rec constant (e : Expr.t) =
           match e.Expr.node with
           | Expr.Int c -> Some c
@@ -96,7 +100,14 @@ let fits taken (body : Stat.t list) =
         and offset (e : Expr.t) =
           match e.Expr.node with
           | Expr.Local l when l = x -> Some 0L
-          | Expr.Local l -> Option.bind (Hashtbl.find_opt bound l) offset
+          | Expr.Local l -> (
+              match (Hashtbl.find_opt known l, Hashtbl.find_opt bound l) with
+              | Some o, _ -> o
+              | None, Some v ->
+                  let o = offset v in
+                  Hashtbl.replace known l o;
+                  o
+              | None, None -> None)
           | Expr.Binary { op = Expr.Add; left; right } -> (
               match (offset left, constant right, constant left, offset right) with
               | Some a, Some b, _, _ | _, _, Some b, Some a -> Some (Int64.add a b)

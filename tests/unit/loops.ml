@@ -254,4 +254,14 @@ let strip_steps () =
   check "not one that expansion steps by two" (not (fits (wrapped 2L)));
   check "nor one whose expansion leaves another's label" (not (fits (wrapped ~label:59 1L)));
   check "nor one whose expansion assigns its result twice"
-    (not (fits (wrapped ~extra:[ set 61 (add (local 5) (int 2L)) ] 1L)))
+    (not (fits (wrapped ~extra:[ set 61 (add (local 5) (int 2L)) ] 1L)));
+  (* a1 = a0 + a0, ..., a30 = a29 + a29, then x + a30: read once per let,
+     not 2^30 times. *)
+  let doublings =
+    C.Stat.Let { id = 100; value = local 6 }
+    :: List.init 30 (fun k -> C.Stat.Let { id = 101 + k; value = add (local (100 + k)) (local (100 + k)) })
+  in
+  let doubled =
+    e (C.Expr.Expand { label = 60; result = Some 61; body = doublings @ [ set 61 (add (local 5) (local 130)); C.Stat.Leave 60 ] }) C.Ty.I64
+  in
+  check "nor one stepped by a sum of lets, read in linear time" (not (fits doubled))

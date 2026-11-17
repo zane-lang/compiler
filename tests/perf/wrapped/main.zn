@@ -144,6 +144,9 @@ Unit round(this State, seed Int) mut {
 Unit main() {
 	bytes Int = size(Int(1000)) / Int(20);
 	state State(@operators$lessThan(bytes._value, I64(0)));
+	@controlflow$branch(@operators$lessThan(bytes._value, I64(1)), {
+		bytes = Int(1);
+	});
 	state!fill(bytes);
 	r Int = Int(1);
 	r!to(Int(20)) {
