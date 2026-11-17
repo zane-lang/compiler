@@ -172,11 +172,14 @@ class FactsTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 2, flags)
                 self.assertIn("usage: zanec", result.stderr, flags)
             bad = Path(temp) / "bad"
-            bad.write_text("zanec write-backs 1\nnot a place\n")
-            result = subprocess.run([ZANEC, "--ll", "--no-root", "--program-write-backs", str(bad), *packages("cells")],
-                                    capture_output=True, text=True, timeout=60)
-            self.assertEqual(result.returncode, 1)
-            self.assertIn("is not a file of a program's write-backs", result.stderr)
+            for text in ["zanec write-backs 1\nnot a place\n",
+                         "zanec write-backs 1\n-\t\t\n",
+                         f"zanec write-backs 1\n{STAMP}cells$Cell\t.hits\t@primitives$I64\t\n"]:
+                bad.write_text(text)
+                result = subprocess.run([ZANEC, "--ll", "--no-root", "--program-write-backs", str(bad), *packages("cells")],
+                                        capture_output=True, text=True, timeout=60)
+                self.assertEqual(result.returncode, 1, text)
+                self.assertIn("is not a file of a program's write-backs", result.stderr)
             # A place written whole, with no steps down from its owner,
             # overlaps every read through an owner of that type.
             whole = Path(temp) / "whole"

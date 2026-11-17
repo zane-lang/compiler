@@ -42,10 +42,13 @@ let to_text st ws = String.concat "\n" (header :: List.sort_uniq compare (List.m
 
 (* The places a file holds, or [None] when it is not one. *)
 let of_text text =
+  (* Every held type is spelled: an empty one would match no read, leaving
+     the place it guards unprotected. *)
+  let spelled = List.for_all (fun h -> h <> "") in
   let parse l =
     match String.split_on_char '\t' l with
-    | "-" :: "" :: (_ :: _ as holding) -> Some { owner_place = None; holding }
-    | owner :: steps :: (_ :: _ as holding) when owner <> "-" && owner <> "" -> (
+    | "-" :: "" :: (_ :: _ as holding) when spelled holding -> Some { owner_place = None; holding }
+    | owner :: steps :: (_ :: _ as holding) when owner <> "-" && owner <> "" && spelled holding -> (
         let steps = if steps = "" then [] else String.split_on_char ' ' steps in
         let parsed = List.filter_map step_of_string steps in
         if List.length parsed = List.length steps then Some { owner_place = Some (owner, parsed); holding }
