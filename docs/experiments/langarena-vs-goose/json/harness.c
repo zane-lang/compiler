@@ -46,6 +46,7 @@ int main(int argc,char**argv){
 #endif
     yyjson_doc*doc=RD(src,n);
     yyjson_val*c=yyjson_obj_get(yyjson_doc_get_root(doc),"coordinates");
+    if(!doc||!yyjson_is_arr(c)){fprintf(stderr,"%s: no coordinates array\n",argv[1]);return 1;}
     double x=0,y=0,z=0; size_t i,m; yyjson_val*v;
 #ifdef CURSOR
     size_t cnt=yyjson_arr_size(c); cur_v=NULL; cur_i=0; cur_arr=c;

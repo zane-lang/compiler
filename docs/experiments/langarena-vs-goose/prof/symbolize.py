@@ -4,7 +4,7 @@ import sys, subprocess, bisect, collections
 maps=[]; pcs=[]
 for l in open(sys.argv[1]):
     if l.startswith('#'):
-        p=l[1:].split()
+        p=l[1:].rstrip('\n').split(None,5)
         if len(p)>=6 and 'x' in p[1]:
             a,b=(int(x,16) for x in p[0].split('-')); maps.append((a,b,int(p[2],16),p[5]))
     else: pcs.append(int(l,16))

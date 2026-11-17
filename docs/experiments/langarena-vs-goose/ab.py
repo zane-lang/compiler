@@ -7,7 +7,7 @@ import argparse, math, re, subprocess, sys
 import os
 from pathlib import Path
 
-ROOT = Path(os.environ.get('LANGARENA') or sys.exit('set LANGARENA to a LangArena checkout'))
+ROOT = Path(os.environ.get('LANGARENA') or sys.exit('set LANGARENA to a LangArena checkout')).resolve()
 LINE = re.compile(r'^(\S+): (OK|ERR\[[^\]]*\]) in ([0-9.]+)s', re.M)
 
 def run(binary, flt):
@@ -26,6 +26,8 @@ p.add_argument('a'); p.add_argument('b')
 p.add_argument('--rounds', type=int, default=3)
 p.add_argument('--filter')
 a = p.parse_args()
+# A path is taken from the caller's directory; a bare name is looked up on PATH.
+a.a, a.b = (os.path.abspath(b) if os.sep in b else b for b in (a.a, a.b))
 t = {'a': {}, 'b': {}}
 for r in range(a.rounds):
     for k, b in (('a', a.a), ('b', a.b)) if r % 2 == 0 else (('b', a.b), ('a', a.a)):

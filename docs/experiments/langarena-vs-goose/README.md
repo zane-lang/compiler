@@ -19,12 +19,19 @@ The scripts take the LangArena checkout from `LANGARENA`: build its C
 `build.sh` for a compiler built from this repository), then, for example:
 
 ```
-LANGARENA=../LangArena python3 docs/experiments/langarena-vs-goose/tri.py 3 \
+LANGARENA=../LangArena TRI_OUT=/tmp/tri.json python3 docs/experiments/langarena-vs-goose/tri.py 3 \
   Zane=../LangArena/zane/out/host/zane C=../LangArena/c/target/prod/benchmark
 ```
 
 `tri.py` writes the times to `$TRI_OUT`, by default `tri.json` in the
-current directory, so a new run leaves this folder's `tri.json` as it is.
+current directory; run from this folder without `TRI_OUT`, it overwrites the
+recorded `tri.json`.
+
+`build.sh` runs inside a copy of the **v0.37** release toolchain, so
+`zane toolchain install v0.37` first. The steps before the second run in
+`goose-progress.md` (step 22) ran inside v0.36, as described below; to
+reproduce one, change `v0.37` to `v0.36` throughout `build.sh` and install
+that release.
 
 The paths in the steps below (`/home/user/…`, `docs/experiments/zane-vs-c/`)
 are where things were when each step ran.

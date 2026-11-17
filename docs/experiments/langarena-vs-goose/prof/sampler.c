@@ -9,13 +9,14 @@
 #include <ucontext.h>
 #include <stdint.h>
 #define N (1<<22)
-static uintptr_t pcs[N]; static volatile long n;
+static uintptr_t pcs[N]; static volatile long n; static timer_t id;
 static void h(int s, siginfo_t *i, void *c) { (void)s;(void)i; ucontext_t *u=c; long k=n; if(k<N){pcs[k]=u->uc_mcontext.gregs[REG_RIP]; n=k+1;} }
 static void done(void) {
+  timer_delete(id); long total=n;
   const char *o=getenv("SAMPLER_OUT"); if(!o) return; FILE *f=fopen(o,"w");
   if(!f){perror(o);return;}
   FILE *m=fopen("/proc/self/maps","r"); char line[512]; if(m){while(fgets(line,sizeof line,m)) fprintf(f,"#%s",line); fclose(m);}
-  for(long k=0;k<n;k++) fprintf(f,"%lx\n",pcs[k]); fclose(f);
+  for(long k=0;k<total;k++) fprintf(f,"%lx\n",pcs[k]); fclose(f);
 }
 __attribute__((constructor)) static void start(void) {
   if(!getenv("SAMPLER_OUT")) return;
@@ -26,7 +27,6 @@ __attribute__((constructor)) static void start(void) {
   long us = getenv("SAMPLER_US") ? atol(getenv("SAMPLER_US")) : 50;
   if (us <= 0) { fprintf(stderr, "sampler: SAMPLER_US must be positive\n"); return; }
   struct sigevent ev = {0}; ev.sigev_notify = SIGEV_SIGNAL; ev.sigev_signo = SIGPROF;
-  timer_t id;
   struct timespec p = {us / 1000000, (us % 1000000) * 1000};
   struct itimerspec t = {p, p};
   if (timer_create(CLOCK_MONOTONIC, &ev, &id) || timer_settime(id, 0, &t, 0)) {

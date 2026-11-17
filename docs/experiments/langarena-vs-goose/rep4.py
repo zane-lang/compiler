@@ -11,6 +11,7 @@ print('| Test | Zane (s) | Goose-clang (s) | Goose-gcc (s) | C (s) | Zane / clan
 print('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |')
 for a, b, c, n, z, gc, gg, cc in rows:
     print(f'| {n} | {z:.3f} | {gc:.3f} | {gg:.3f} | {cc:.3f} | {a:.2f} | {b:.2f} | {c:.2f} |')
+if not rows: sys.exit('no comparable tests')
 g = lambda i: math.exp(sum(math.log(r[i]) for r in rows) / len(rows))
 f = lambda i: sum(r[i] < 1 for r in rows)
 print(f'\ngeomean Zane / Goose-clang {g(0):.3f} (faster on {f(0)}), Zane / Goose-gcc {g(1):.3f} '

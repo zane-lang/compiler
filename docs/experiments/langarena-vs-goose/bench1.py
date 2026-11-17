@@ -12,11 +12,12 @@ import re, statistics, subprocess, sys
 import os
 from pathlib import Path
 
-ROOT = Path(os.environ.get('LANGARENA') or sys.exit('set LANGARENA to a LangArena checkout'))
+ROOT = Path(os.environ.get('LANGARENA') or sys.exit('set LANGARENA to a LangArena checkout')).resolve()
 rounds, test, bins = int(sys.argv[1]), sys.argv[2], sys.argv[3:]
 times = {b: [] for b in bins}
-for _ in range(rounds):
-    for b in bins:
+for r in range(rounds):
+    # The order rotates each round.
+    for b in bins[r % len(bins):] + bins[:r % len(bins)]:
         out = subprocess.run(['taskset', '-c', '2', b, str(ROOT / 'run.js'), test],
                              text=True, capture_output=True).stdout
         m = re.search(re.escape(test) + r': (.*?) in ([0-9.]+)s', out)

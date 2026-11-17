@@ -9,4 +9,6 @@ for _ in $(seq "$N"); do
     t=$(taskset -c 2 "$b" "$root/run.js" "$T" | grep -E ': OK in [0-9.]+s' | grep -o 'in [0-9.]*s' | tr -d 'ins ')
     [ -n "$t" ] && echo "$b $t"
   done
+  # The order rotates each round.
+  first=$1; shift; set -- "$@" "$first"
 done | python3 "$here/med.py"

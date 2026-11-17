@@ -8,7 +8,7 @@ import argparse, json, math, re, subprocess, sys
 import os
 from pathlib import Path
 
-ROOT = Path(os.environ.get('LANGARENA') or sys.exit('set LANGARENA to a LangArena checkout'))
+ROOT = Path(os.environ.get('LANGARENA') or sys.exit('set LANGARENA to a LangArena checkout')).resolve()
 LINE = re.compile(r'^(\S+): (OK|ERR\[[^\]]*\]) in ([0-9.]+)s', re.M)
 
 def run(binary, flt):
@@ -33,6 +33,8 @@ def main():
     p.add_argument('--zane', default=str(ROOT / 'zane/out/host/zane'))
     p.add_argument('--c', default=str(ROOT / 'c/target/prod/benchmark'))
     a = p.parse_args()
+    # A path is taken from the caller's directory; a bare name is looked up on PATH.
+    a.c, a.zane = (os.path.abspath(b) if os.sep in b else b for b in (a.c, a.zane))
     times = {'c': {}, 'zane': {}}
     orders = []
     for r in range(a.rounds):
