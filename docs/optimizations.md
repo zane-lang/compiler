@@ -658,15 +658,21 @@ where a call is, leaves out of line.
   `refills`, an arithmetic coder's bit writer, 2.7% more optimized and
   13% more tiered when every slot is filled again after every call
 
-Each slot of a placed frame that is only loaded and stored whole, as one
+Each slot of a placed frame that is loaded and stored whole, as one
 scalar type, gets a copy in an alloca, filled where the frame is placed and
 after each call given an address in the frame, and written through on
-every store; loads read the copy, which SROA makes a register. A frame
-whose address escapes any other way, including to a callee that may keep
-it, is left alone. After a call, only the copies it may have written are
-filled again: those a `memset`, `memcpy` or `memmove` of a constant
-length covers (none when it writes outside a frame whose address went
-nowhere else), and the list header the runtime's growth writes.
+every store; loads read the copy, which SROA makes a register. A wider
+access may hold the whole slot: a load of it reads the frame, and a store
+of it fills the copy again, which is how a list's count keeps its copy in
+a struct that a list was copied into, its count and room stored as one
+pair. A frame whose address escapes any other way, including to a callee
+that may keep it, is left alone. After a call, only the copies it may
+have written are filled again: those a `memset`, `memcpy` or `memmove` of
+a constant length covers (none when it writes outside a frame whose
+address went nowhere else), and the list header the runtime's growth
+writes. A frame placed on two paths, as LLVM leaves a scope's entry when it
+threads the fast and slow paths apart, is the phi that joins them, and the
+reread of the runtime's innermost scope merged with it is not followed.
 
 ### Index checks merged
 

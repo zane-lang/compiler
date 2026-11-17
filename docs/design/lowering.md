@@ -1874,9 +1874,11 @@ test passing.
     allocates at most 4 KiB of machine stack (`Leaf_peel`);
   - a call in a loop to a leaf of the program of at most 128 instructions
     is inlined there (`Loop_inline`);
-  - a frame's slots that are only loaded and stored whole get a copy in a
+  - a frame's slots that are loaded and stored whole get a copy in a
     register, written through to the slot and filled again after a call
-    only where the call may write it (`Frame_shadow`);
+    only where the call may write it, and after a wider store that holds
+    the slot; a frame placed on two paths is the phi that joins them
+    (`Frame_shadow`);
   - a check of an index that a later check of the same index follows on a
     straight path takes the smaller bound, and the later one always passes
     (`Merged_checks`); a check both arms of a branch begin with is made
