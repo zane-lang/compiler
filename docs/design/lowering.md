@@ -1860,7 +1860,8 @@ test passing.
     into one store (`Arm_checks`); the checks of `x`, `x + 1`, … `x + k`
     on one path become one check of the lowest and one of the highest,
     and in a strip-mined loop an exit test the loop's own counter can
-    never meet is removed (`Range_checks`).
+    never meet, below the lowest end the loop's stop tests give it, is
+    removed (`Range_checks`).
 
   A failed check stops the program after flushing its output, so moving
   a stop earlier on a path where no call writes output in between is not

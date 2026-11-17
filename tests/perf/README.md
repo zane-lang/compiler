@@ -207,6 +207,9 @@ repo's `langbench/` and print what it prints at the same size.
     element's address.
   - `digest`: a strip-mined hash's eight lanes are one vector once its
     copies' index checks, which can never fail, are gone.
+  - `wrapped`: `digest`'s hash over a core-style `Int`, inlined into a
+    caller as LangArena's port has it, is strip-mined and loses those
+    checks too.
   - `refills`: a bit writer's `memset` and push fill again only the frame
     slots they write.
   - `cursor`: a whitespace skip whose counter only steps is weighted as a

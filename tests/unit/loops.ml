@@ -224,3 +224,44 @@ deep:
   check "a recursion with a small frame has its base case made at its self-calls" (peeled 64);
   check "one whose frame passes the bound is left"
     (not (peeled (Codegen__Leaf_peel.frame + 8)))
+
+(* Which loops strip mining cuts into runs (Strip.fits): one whose body
+   indexes a small array through `bitAnd` and ends with its counter's step
+   by one, however lowering wrapped the step. *)
+let strip_steps () =
+  let module C = Cgt.Nodes in
+  let e node ty = { C.Expr.node; ty } in
+  let int n = e (C.Expr.Int n) C.Ty.I64 in
+  let local x = e (C.Expr.Local x) C.Ty.I64 in
+  let add a b = e (C.Expr.Binary { op = C.Expr.Add; left = a; right = b }) C.Ty.I64 in
+  let set x value = C.Stat.Assign { place = { C.Expr.local = x; deref = false; ty = C.Ty.I64; path = [] }; value } in
+  let lane = e (C.Expr.Math { fn = Cgt.Math.Bit_and; args = [ local 5; int 7L ] }) C.Ty.I64 in
+  let read =
+    C.Stat.Let
+      { id = 40; value = e (C.Expr.Runtime { fn = Cgt.Runtime.Array_at; args = [ local 1; lane; int 8L; int 4L ] }) C.Ty.Ptr }
+  in
+  (* core's `Int +`: an expansion that assigns its result, then leaves. *)
+  let wrapped ?(label = 60) ?(extra = []) by =
+    e
+      (C.Expr.Expand
+         { label = 60; result = Some 61;
+           body = [ C.Stat.Let { id = 62; value = int by }; set 61 (add (local 5) (local 62)) ] @ extra @ [ C.Stat.Leave label ] })
+      C.Ty.I64
+  in
+  let fits step = Optimize__Strip.fits (Hashtbl.create 1) [ read; set 5 step ] <> None in
+  check "a counter stepped by one fits" (fits (add (local 5) (int 1L)));
+  check "and one stepped through an operator's expansion" (fits (wrapped 1L));
+  check "not one that expansion steps by two" (not (fits (wrapped 2L)));
+  check "nor one whose expansion leaves another's label" (not (fits (wrapped ~label:59 1L)));
+  check "nor one whose expansion assigns its result twice"
+    (not (fits (wrapped ~extra:[ set 61 (add (local 5) (int 2L)) ] 1L)));
+  (* a1 = a0 + a0, ..., a30 = a29 + a29, then x + a30: read once per let,
+     not 2^30 times. *)
+  let doublings =
+    C.Stat.Let { id = 100; value = local 6 }
+    :: List.init 30 (fun k -> C.Stat.Let { id = 101 + k; value = add (local (100 + k)) (local (100 + k)) })
+  in
+  let doubled =
+    e (C.Expr.Expand { label = 60; result = Some 61; body = doublings @ [ set 61 (add (local 5) (local 130)); C.Stat.Leave 60 ] }) C.Ty.I64
+  in
+  check "nor one stepped by a sum of lets, read in linear time" (not (fits doubled))

@@ -560,9 +560,13 @@ function into itself, and runs no partial inliner at `-O2`.
 - **Design:** the comment at the top of `strip.ml`
 - **Effect:** `tests/perf` `lanes`, eight hash lanes in an `Array<Int, 8>`
   updated at `bitAnd(i - 1, 7) + 1`, takes 6% more estimated cycles
-  optimized without it
+  optimized without it; `wrapped`, `digest`'s hash over a core-style
+  `Int`, 3.3 times the estimated cycles when its step is not read through
+  the struct's `+`
 
-A counted loop that steps a counter by one and indexes an array of 2 to 16
+A counted loop that steps a counter by one (directly, or through an
+operator such as core's `Int +`, which lowers to an expansion assigning
+its result) and indexes an array of 2 to 16
 elements, a power of two, through `bitAnd` is cut into runs of that many
 copies of its body, each run starting at a multiple of the size, so each
 copy's index is a constant and the array's elements become registers. The
@@ -667,7 +671,11 @@ nowhere else), and the list header the runtime's growth writes.
   without the check raised above the branch, `windows` (four
   neighbouring elements read at once) 2.7% more tiered without the run's
   checks joined, and `digest` (a strip-mined hash of eight lanes) 71% more
-  optimized with its copies' exit tests left in
+  optimized with its copies' exit tests left in; `wrapped` (that hash
+  inlined into a caller, as LangArena's port has it) 2.9 times as many
+  when the loop's guard is not read through its preheader, when its stop
+  before the latch is not read, or when a test leading to a block that
+  writes state back before stopping is kept
 
 A failed check stops the program after flushing its output, so where a
 later check of the same index follows an earlier one on a straight path
@@ -678,8 +686,10 @@ stores one store of a select. The checks of `x`, `x + 1`, ... `x + k` on
 one path become one check of the lowest and one of the highest. In a
 strip-mined loop, an index check LLVM has made the exit test
 `b == (n + k) >> s`, against a counter that starts at 0, steps by one,
-leaves at `b + 1 == (n + j) >> s` with `j <= k` and is entered only when
-that end is at least one, can never hold and is removed.
+leaves at `b + 1 == (n + j) >> s` with `j <= k` (tested in the latch or
+in the one block leading to it) and is entered only when that end is at
+least one (a guard on the edge into the loop, or above a preheader), can
+never hold and is removed, wherever it would lead.
 
 ### LLVM's `-O2` pipeline
 
