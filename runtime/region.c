@@ -150,6 +150,39 @@ void zane_huge(char *base, size_t reserved, size_t from, size_t to) {
 #endif
 }
 
+/* Experimental (docs/experiments/page-prefault): `ZANE_PREFAULT=chunks`
+   has a fresh or cold dynamic chunk's pages faulted in with one
+   `MADV_POPULATE_WRITE` (Linux 5.14) when it is made usable, `spans` a
+   list span's new room, `all` both, instead of one fault a page as the
+   program first touches each. Read once, by whichever thread first makes
+   memory usable. Elsewhere, and on an older kernel, it does nothing. */
+#if defined(__linux__)
+#ifndef MADV_POPULATE_WRITE
+#define MADV_POPULATE_WRITE 23
+#endif
+static int zane_prefault_kinds;
+static pthread_once_t zane_prefault_once = PTHREAD_ONCE_INIT;
+
+static void zane_prefault_init(void) {
+	const char *v = getenv("ZANE_PREFAULT");
+	if (!v) return;
+	if (!strcmp(v, "chunks")) zane_prefault_kinds = ZANE_PREFAULT_CHUNKS;
+	else if (!strcmp(v, "spans")) zane_prefault_kinds = ZANE_PREFAULT_SPANS;
+	else if (!strcmp(v, "all")) zane_prefault_kinds = ZANE_PREFAULT_CHUNKS | ZANE_PREFAULT_SPANS;
+}
+#endif
+
+void zane_prefault(char *at, size_t bytes, int kind) {
+#if defined(__linux__)
+	if (pthread_once(&zane_prefault_once, zane_prefault_init)) zane_broken("reading the prefault setting");
+	if (zane_prefault_kinds & kind) (void)madvise(at, bytes, MADV_POPULATE_WRITE);
+#else
+	(void)at;
+	(void)bytes;
+	(void)kind;
+#endif
+}
+
 /* The system's page size, the unit memory is given back in. Any thread
    may be the first to ask, and each finds the same. */
 size_t zane_system_page;

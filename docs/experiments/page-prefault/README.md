@@ -61,10 +61,12 @@ at exit under `ZANE_FAULT_STATS=1`:
 - **Fresh chunks** (`zane_chunks_new`): `returns` 22 chunks, `copies` 4,
   `stress` 2. `returns`' extra faults, 5,522, are its 22 MiB at 4 KiB a
   page, every page touched.
-- **List spans** (`zane_alloc_growable` and its growth in place): every
-  other program's. A span commits its whole reservation at once (growth:
-  1.3 GB over 20 spans) and is touched as the list fills, so its faults are
-  its touched pages, 2 MiB at a time once huge pages apply.
+- **List spans** (`zane_alloc_growable` and its growth in place,
+  `zane_extend`): every other program's. A span commits its list's current
+  room, rounded up to a chunk, and each doubling in place commits the new
+  tail (growth: 1.3 GB over 20 lists of 64 MiB); the list touches it as it
+  fills, so a span's faults are its touched pages, 2 MiB at a time once
+  huge pages apply.
 - **Frames**: one 1 MiB step per program, part of the floor.
 - Cold chunk reuse and pools: none in these programs.
 
@@ -75,11 +77,69 @@ and only where the populated pages are all touched: a fresh chunk always is
 (a region fills it before taking the next), a span only up to its list's
 length.
 
+## Step 2: populate on commit, synchronously
+
+**Design.** `ZANE_PREFAULT` (`runtime/region.c`, `zane_prefault`), read
+once: `chunks` populates a dynamic chunk with one `MADV_POPULATE_WRITE`
+where it is made usable, fresh (`zane_chunks_new`) or cold (`zane_map`'s
+recommit); `spans` a list span's committed room (`zane_alloc_growable`) and
+each tail it grows by (`zane_extend`); `all` both. Unset, nothing changes
+but one `pthread_once` check per commit. Left lazy: the frame range, whose
+1 MiB steps a program touches 4 KiB at a time (populating one would cost
+the floor 256 pages a context), and the experimental unbounded pools
+(`zane_alloc_unbounded`), which commit 2 GiB. Linux only; elsewhere, and
+on a kernel before 5.14, the switch does nothing. `just test-compiler`
+passes with it unset and with `ZANE_PREFAULT=all`.
+
+**Measuring.** The kernel counts each page `MADV_POPULATE_WRITE` fills as a
+minor fault, and the program's later touch as none (checked with a 64 MiB
+mapping: 16,384 faults in the populate, 0 in the touch after), so the
+fault count no longer shows traps saved. `compare.py N [PROGRAMS [MODES]]`
+runs each setting N rounds, interleaved, and reports median and best wall
+and CPU time.
+
+**Results.** `compare.py 15`, all four settings (`step2.tsv`), median wall:
+
+| program | off | chunks | spans | all | RSS off → spans |
+| --- | --- | --- | --- | --- | --- |
+| growth ×20 | 0.173 s | 0.174 s | 0.139 s | 0.172 s | 66.6 → 68.7 MB |
+| tokens ×20 | 0.095 s | 0.095 s | 0.094 s | 0.094 s | 89 → 105 MB |
+| bits ×20 | 0.218 s | 0.215 s | 0.225 s | 0.224 s | 96 → 201 MB |
+| nodes ×20 | 0.112 s | 0.112 s | 0.113 s | 0.113 s | 14.8 → 19.7 MB |
+| stress ×10 | 1.589 s | 1.570 s | 1.661 s | 1.643 s | 20.9 → 24.3 MB |
+| paths ×5 | 0.094 s | 0.094 s | 0.094 s | 0.094 s | 34 → 41 MB |
+| returns ×1.25 | 0.111 s | 0.109 s | 0.108 s | 0.111 s | — |
+| handover ×20 | 0.136 s | 0.136 s | 0.163 s | 0.164 s | — |
+| spans ×20 | 0.056 s | 0.055 s | 0.058 s | 0.059 s | — |
+
+`spans` loses: it fills room the list never reaches (a list's room is up
+to twice its length, bits' RSS doubles), and on handover and spans, which
+reuse kept spans, it adds a populate per round that the reuse had made
+unnecessary (+19%, +4%). growth's 20% is not reproduced by `all`, and its
+times move by 30% between runs of one setting: noise. Dropped.
+
+`chunks` against off, 60 rounds (`step2-chunks.tsv`):
+
+| program | wall median | wall best | RSS |
+| --- | --- | --- | --- |
+| returns ×1.25 | 0.1100 → 0.1056 s (−4%) | 0.0887 → 0.0869 s | 24.2 → 25.0 MB |
+| stress ×10 | 1.4088 → 1.4009 s (−0.6%) | 1.2849 → 1.2575 s | 21.0 → 22.7 MB |
+| tokens ×20 (no chunks) | 0.0903 → 0.0891 s | 0.0846 → 0.0862 s | same |
+| copies ×1.15 | 0.0099 → 0.0107 s | 0.0092 → 0.0089 s | same |
+
+tokens takes no fresh chunk, so its ±1–2% is this machine's noise; copies
+runs 10 ms, too short to read. returns, whose extra faults are all fresh
+chunks, gains about 4%, matching step 1's estimate (a third of an 8% fault
+share). The cost is a chunk's untouched pages made resident: a region's
+last chunk is only partly filled (stress +1.7 MB).
+
 ## What remains
 
-- Step 2: populate a fresh chunk with `MADV_POPULATE_WRITE` when
-  `zane_chunks_new` makes one, and a span's next stretch when its list
-  grows into it, behind a switch; measure faults and wall time on the
-  programs above.
-- A helper thread keeping a populated spare chunk (step 3 of the plan):
-  only if step 2 leaves a measurable gap.
+- `chunks` is a small, real gain (up to ~4%) only on programs that take
+  many fresh chunks, at up to a chunk of RSS per region's last chunk. It
+  could go in by default with the populate limited to the chunk's first
+  part, or left as it is.
+- On returns the other two thirds of the fault share (~5% of its time)
+  are the kernel getting and zeroing pages, which only a helper thread
+  keeping a populated spare chunk could take off the program's thread
+  (step 3 of the plan, not started at the user's request).

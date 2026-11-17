@@ -325,6 +325,7 @@ static zane_mapping *zane_chunks_new(zane_context *c, size_t size) {
 	zane_ids_add(base, size);
 #endif
 	if (!zane_commit_range(base, size)) zane_broken("out of memory for a dynamic chunk");
+	zane_prefault(base, size, ZANE_PREFAULT_CHUNKS);
 	zane_mapping *m = (zane_mapping *)base;
 #ifdef ZANE_SLABS
 	m->slab = s;
@@ -500,6 +501,7 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 			size_t page = zane_page_bytes();
 			if (cold && !zane_commit_range((char *)m + page, ZANE_CHUNK - page))
 				zane_broken("out of memory for a dynamic chunk");
+			if (cold) zane_prefault((char *)m + page, ZANE_CHUNK - page, ZANE_PREFAULT_CHUNKS);
 		}
 	}
 	if (!m) m = zane_chunks_new(c, size);
@@ -725,6 +727,7 @@ __attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t s
 	if (!base) zane_broken("out of addresses for a list's elements");
 	zane_huge(base, reserved, 0, bytes);
 	if (!zane_commit_range(base, bytes)) zane_broken("out of memory for a list's elements");
+	zane_prefault(base, bytes, ZANE_PREFAULT_SPANS);
 	zane_mapping *m = (zane_mapping *)base;
 	for (size_t at = 0; at < bytes; at += ZANE_CHUNK) zane_set_page(base + at, (uintptr_t)region);
 	m->size = bytes;
@@ -780,6 +783,7 @@ int zane_extend(zane_mark *region, char *block, int64_t size) {
 		zane_huge((char *)m, m->reserved, m->size, bytes);
 		if (!zane_commit_range((char *)m + m->size, bytes - m->size))
 			zane_broken("out of memory for a list's elements");
+		zane_prefault((char *)m + m->size, bytes - m->size, ZANE_PREFAULT_SPANS);
 		for (size_t at = m->size; at < bytes; at += ZANE_CHUNK) zane_set_page((char *)m + at, (uintptr_t)region);
 		m->size = bytes;
 	}
