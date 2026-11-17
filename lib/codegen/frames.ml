@@ -24,6 +24,10 @@ type t = {
   (* Whether a slot the scope places has a layout [handles] holds: only
      such a slot is listed for the drain whether or not drains are checked. *)
   handles : bool;
+  (* Whether the scope spawns a call: only such a scope's drain may have a
+     call to wait for, since a spawned call waits on the scope it is placed
+     in, the innermost open one where it starts (runtime/spawn.c). *)
+  spawns : bool;
 }
 
 (* The frame of scope [id], whose statements are [body]. A slot the scope
@@ -34,7 +38,7 @@ type t = {
    Ty.Too_large. *)
 let layout ?(handles = fun _ -> false) symbol id body =
   let offsets = Hashtbl.create 8 in
-  let holds = ref false in
+  let holds = ref false and spawns = ref false in
   let size = ref record in
   let place key (bytes, align) =
     if align > 16 then Diagnostic.bug (Printf.sprintf "frames: `%s` has a slot aligned past 16" symbol);
@@ -60,6 +64,7 @@ let layout ?(handles = fun _ -> false) symbol id body =
         place local (Ty.size_align ty)
     | Stat.Spawn { task = t; scope; frame; dest; _ } when scope = id ->
         placed ~again;
+        spawns := true;
         let bytes, align = Ty.size_align frame in
         if align > 8 then
           Diagnostic.bug (Printf.sprintf "frames: `%s` spawns a call whose frame is aligned past a word" symbol);
@@ -77,4 +82,4 @@ let layout ?(handles = fun _ -> false) symbol id body =
     List.iter (List.iter (stat again)) bodies
   in
   List.iter (stat false) body;
-  { size = Ty.below_limit (Ty.round_up !size 16); offsets; handles = !holds }
+  { size = Ty.below_limit (Ty.round_up !size 16); offsets; handles = !holds; spawns = !spawns }

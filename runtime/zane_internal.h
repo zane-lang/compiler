@@ -62,8 +62,9 @@
    1 MiB chunks of its own, each made at a 1 MiB boundary, all given back
    at the drain with no walk of what its values own. A scope whose blocks
    all fit in its frame maps no chunk, so its drain stays inline, unless
-   it spawned a call, keeps a local's subject region, or drains are
-   checked. A value
+   it spawned a call, keeps a local's subject region, holds a foreign
+   handle, or drains are checked; emitted code tests for a spawned call
+   only in a scope that spawns one. A value
    may own blocks in an outer region, which a move into a deeper owner
    leaves where they are (§3.5); when the value dies with this scope they
    are dead space there, given back when that region drains in turn.

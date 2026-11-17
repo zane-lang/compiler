@@ -1214,6 +1214,25 @@ tells LLVM with `llvm.assume` that any slot of its frame may be read and
 that the frame is 16-byte aligned, so a loop reads a list kept in the
 frame once.
 
+### Drains that look for spawned calls only where a call is spawned
+
+- **Builds:** every build
+- **Where:** `lib/codegen/frames.ml` (`spawns`), `lib/codegen/emit.ml`
+  (`drain_scope`)
+- **Design:** [`design/lowering.md`](design/lowering.md) §9, "Entry and
+  drain are inline"
+- **Effect:** `tests/perf` instructions: `scopes` 0.79% fewer optimized,
+  0.41% plain; `glyphs` 2.05% fewer plain, 1.86% tiered; none more than
+  0.03% more.
+  Estimated cycles of `phrases` tiered rose 4.35% from simulated branch
+  mispredictions alone; its wall time was unchanged (medians of 150
+  alternating runs, -1.6% and +1.1%)
+
+A drain reads its scope's list of spawned calls only when the scope spawns
+one. A spawned call waits on the scope its frame is placed in, which lowering
+names, so a scope that places none has nothing to wait for, and its inline
+drain tests only for dynamic chunks, checks and handles.
+
 ### Scopes with no blocks on the machine stack
 
 - **Builds:** every build; `ZANE_LIGHT_SCOPES=0` turns it off
