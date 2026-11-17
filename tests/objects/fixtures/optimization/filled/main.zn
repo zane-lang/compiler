@@ -1,0 +1,77 @@
+/// Lists folded to one repeated element, as core's `List(Int(256), Bool(false))`
+/// folds: a long one is made by a loop, a short one push by push, and a long
+/// one of mixed elements push by push too.
+package filled;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Float = @primitives$F64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias List<T Type> = @primitives$List<T>;
+
+/// `n` falses, pushed one by one: a call the optimizer folds when `n` is known.
+List<Bool> flags(n Int) {
+	made List<Bool> = @primitives$List(Bool);
+	@controlflow$repeat(n, {
+		made!push(false);
+	});
+	return made;
+}
+
+/// 0, 1, 2 and on to `n - 1`: a folded list of mixed elements.
+List<Int> counting(n Int) {
+	made List<Int> = @primitives$List(Int);
+	i Int = Int(0);
+	@controlflow$repeat(n, {
+		made!push(i);
+		i = @operators$add(i, Int(1));
+	});
+	return made;
+}
+
+Unit print(n Int) {
+	@program$console!print(@operators$concat(String(n), String.escaped("\n")));
+	return Unit();
+}
+
+/// 16 zeros, the last negative: a folded list whose elements compare
+/// equal but are two values.
+List<Float> zeros() {
+	made List<Float> = @primitives$List(Float);
+	@controlflow$repeat(Int(15), {
+		made!push(Float(0.0));
+	});
+	made!push(@operators$negate(Float(0.0)));
+	return made;
+}
+
+/// How many of `list`'s elements are true.
+Int trues(list List<Bool>) {
+	total Int = Int(0);
+	i Int = Int(1);
+	@controlflow$repeat(list:size(), {
+		@controlflow$branch(list[i], {
+			total = @operators$add(total, Int(1));
+		});
+		i = @operators$add(i, Int(1));
+	});
+	return total;
+}
+
+Unit main() {
+	args List<String> = @program$runtime:arguments();
+	at Int = args[Int(1)]:parseI64() ?? Int(1);
+	long List<Bool> = flags(Int(256));
+	long[at] = true;
+	short List<Bool> = flags(Int(4));
+	short[Int(1)] = true;
+	mixed List<Int> = counting(Int(32));
+	print(long:size());
+	print(trues(long));
+	print(trues(short));
+	print(mixed[at]);
+	signs List<Float> = zeros();
+	@program$console!print(@operators$concat(String(@operators$divide(Float(1.0), signs[@operators$add(at, Int(9))])), String.escaped("\n")));
+	return Unit();
+}

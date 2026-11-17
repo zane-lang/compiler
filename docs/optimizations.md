@@ -450,8 +450,11 @@ division by zero giving zero, saturating truncation, single rounding of
 Calls, strings, lists, boxes, copies, moves and overwrites are evaluated
 when their inputs are known, including calls into the runtime that LLVM
 cannot see into. The result is written back as the code that builds it: a
-constant, a record, a box, or a list made and pushed in one expansion.
-Exact math folds; approximate math and `F32` `fma` stay calls, since their
+constant, a record, a box, or a list made and pushed in one expansion,
+pushed by a loop when it is 16 or more of one element built of scalars:
+core's regex package, whose `finish` makes six 256-entry byte tables,
+compiles optimized in 4.3 s rather than 50 s, its object 393 KB rather
+than 1.35 MB. Exact math folds; approximate math and `F32` `fma` stay calls, since their
 result is the target's C library's.
 
 ### Calls into C run at compile time

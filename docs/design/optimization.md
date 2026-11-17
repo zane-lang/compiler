@@ -335,8 +335,15 @@ budget.
 | string | `Text`: the program's own bytes, room 0 (`lowering.md` §9) |
 | struct, array, sum | `Record`, `Case` of folded members |
 | boxed member | `Box` of its folded payload |
-| list | an expansion that makes the list with `List_new` and pushes each folded element, placed with the element's layout |
+| list | an expansion that makes the list with `List_new` and pushes each folded element, placed with the element's layout; 16 or more elements that are all one value built of scalars are pushed by a loop, one push inside it |
 | function value | `Function` |
+
+A long list of one element is built by a loop because of its size: a run of
+pushes grows with every element, and a function that makes several such
+lists, as core's `regex` builds its 256-entry byte tables, became hundreds
+of thousands of instructions for LLVM to optimize, about 48 s of the 50 s
+its optimized object took, for a list made once per pattern. The loop makes
+the same list, and codegen reserves its room once ahead of it.
 
 A list made this way gets its block in the region of the innermost scope,
 where a call's result arrives too, and then arrives or escapes from there like

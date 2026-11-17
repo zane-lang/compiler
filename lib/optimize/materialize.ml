@@ -10,6 +10,22 @@ let max_size = V.max_size
 let ptr node = { Expr.node; ty = Ty.Ptr }
 let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Ty.I64 }
 
+(* A list of at least this many elements, all one plain value, the same to
+   the bit ([V.same]: `0.0` and `-0.0` are two values), is made by
+   a loop that pushes it that many times, rather than by a push of each:
+   `List(Int(256), Bool(false))` folded is a few statements, not 256. *)
+let looped_from = 16
+
+(* Whether [e], an element's value made again, is plain: built of scalars
+   alone, so making it again each time round a loop makes the same value
+   and owns no block. *)
+let rec plain (e : Expr.t) =
+  match e.Expr.node with
+  | Expr.Int _ | Expr.Float _ | Expr.Bool _ | Expr.Unit -> true
+  | Expr.Record ms -> List.for_all (fun (_, m) -> plain m) ms
+  | Expr.Case { payload; _ } -> plain payload
+  | _ -> false
+
 (* [fresh] gives a number for each new local and label a list needs, which
    the function the code goes into does not use yet. *)
 let rec expr ?fresh (t : Ty.t) (c : V.const) : Expr.t option =
@@ -32,7 +48,8 @@ let rec expr ?fresh (t : Ty.t) (c : V.const) : Expr.t option =
   | Ty.Box32, V.Box _ -> Option.bind (expr ?fresh Ty.Ptr c) (fun box -> made (Expr.Convert box))
   (* A list, made where it is used as a list is made anywhere: empty, then
      each element pushed in order, in the region of the scope the code is
-     in, as a call's result would be. *)
+     in, as a call's result would be. A long one of one plain element is
+     pushed by a loop ([looped_from]). *)
   | (Ty.Handle | Ty.Handle16), V.List { stride; element; layout; items } -> (
       match fresh with
       | None -> None
@@ -55,10 +72,23 @@ let rec expr ?fresh (t : Ty.t) (c : V.const) : Expr.t option =
                 ])
               (expr ~fresh element c)
           in
-          let pushes = List.map push items in
-          if List.for_all Option.is_some pushes then
-            made (Expr.Expand { label; body = make :: List.concat_map Option.get pushes; result = Some r })
-          else None)
+          let looped =
+            match items with
+            | first :: rest when List.length items >= looped_from && List.for_all (V.same first) rest -> (
+                match push first with
+                | Some ([ _; (Stat.Place { value; _ } | Stat.Store { value; _ }) ] as body) when plain value ->
+                    let count = int (List.length items) in
+                    Some (made (Expr.Expand { label; body = [ make; Stat.Repeat { count; body } ]; result = Some r }))
+                | _ -> None)
+            | _ -> None
+          in
+          match looped with
+          | Some e -> e
+          | None ->
+              let pushes = List.map push items in
+              if List.for_all Option.is_some pushes then
+                made (Expr.Expand { label; body = make :: List.concat_map Option.get pushes; result = Some r })
+              else None)
   | _ -> None
 
 (* A struct's members, or an array's elements, each at its index. *)
@@ -115,13 +145,21 @@ let rec const (e : Expr.t) : V.const option =
             | None -> None)
         | _ -> None
       in
+      let items =
+        match pushes with
+        | [ Stat.Repeat { count = { Expr.node = Expr.Int n; _ }; body } ] when Int64.compare n 0L > 0 ->
+            Option.map
+              (fun one -> List.concat (List.init (Int64.to_int n) (fun _ -> one)))
+              (items [] body)
+        | _ -> items [] pushes
+      in
       Option.map
         (fun items ->
           match items with
           | [] -> V.List { stride = 0; element = Ty.Void; layout = None; items = [] }
           | (stride, element, layout, _) :: _ ->
               V.List { stride; element; layout; items = List.map (fun (_, _, _, c) -> c) items })
-        (items [] pushes)
+        items
   | _ -> None
 
 let literal e = Option.is_some (const e)
