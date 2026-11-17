@@ -9,7 +9,13 @@ set -e
 COMPILER=${COMPILER:-$(cd "$(dirname "$(readlink -f "$0")")/../../.." && pwd)}
 : "${LANGARENA:?set LANGARENA to a LangArena checkout}"
 T=$HOME/.zane/toolchains
-[ -d "$T/dev" ] || cp -r "$T/v0.37" "$T/dev"
+# `dev` is a copy of the v0.37 release; one copied from another release is
+# replaced.
+if [ "$(cat "$T/dev/.release" 2>/dev/null)" != v0.37 ]; then
+  rm -rf "$T/dev"
+  cp -r "$T/v0.37" "$T/dev"
+  echo v0.37 > "$T/dev/.release"
+fi
 cp "$COMPILER/_build/default/bin/zanec/zanec.exe" "$T/dev/libexec/zanec"
 # A changed runtime is not in the release's bundle, and zanec would compile
 # it with `zig cc`, whose bitcode its LLVM cannot read, so no runtime body

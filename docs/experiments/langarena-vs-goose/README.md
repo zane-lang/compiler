@@ -23,6 +23,9 @@ LANGARENA=../LangArena python3 docs/experiments/langarena-vs-goose/tri.py 3 \
   Zane=../LangArena/zane/out/host/zane C=../LangArena/c/target/prod/benchmark
 ```
 
+`tri.py` writes the times to `$TRI_OUT`, by default `tri.json` in the
+current directory, so a new run leaves this folder's `tri.json` as it is.
+
 The paths in the steps below (`/home/user/…`, `docs/experiments/zane-vs-c/`)
 are where things were when each step ran.
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # tri.py ROUNDS NAME=BIN... : interleave binaries on run.js, rotating order each round; min time per test.
+# Writes the times to $TRI_OUT (default tri.json in the current directory) after each run.
 import sys, re, subprocess, json, math, os
 ROOT=os.environ.get('LANGARENA') or sys.exit('set LANGARENA to a LangArena checkout'); LINE=re.compile(r'^(\S+): (OK|ERR\[[^\]]*\]) in ([0-9.]+)s', re.M)
 rounds=int(sys.argv[1]); bins=[a.split('=',1) for a in sys.argv[2:]]
@@ -12,4 +13,4 @@ for r in range(rounds):
         out=p.stdout
         for k,s,v in LINE.findall(out): t[n].setdefault(k,[]).append(float(v) if s=='OK' else None)
         print(f'round {r} {n} done', flush=True)
-        json.dump(t,open(sys.argv[0].replace('tri.py','tri.json'),'w'))
+        json.dump(t,open(os.environ.get('TRI_OUT','tri.json'),'w'))
