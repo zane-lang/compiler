@@ -1,0 +1,101 @@
+diff --git a/runtime/arena.c b/runtime/arena.c
+index accba7d..84f0e85 100644
+--- a/runtime/arena.c
++++ b/runtime/arena.c
+@@ -324,6 +324,7 @@ static zane_mapping *zane_chunks_new(zane_context *c, size_t size) {
+ 	if (!(base = zane_reserve_for(c, size, &raw))) zane_broken("out of addresses for a dynamic chunk");
+ 	zane_ids_add(base, size);
+ #endif
++	zane_stat[0] += size; zane_statn[0]++;
+ 	if (!zane_commit_range(base, size)) zane_broken("out of memory for a dynamic chunk");
+ 	zane_mapping *m = (zane_mapping *)base;
+ #ifdef ZANE_SLABS
+@@ -498,6 +499,7 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
+ 			}
+ 			pthread_mutex_unlock(&zane_memory);
+ 			size_t page = zane_page_bytes();
++			if (cold) { zane_stat[1] += ZANE_CHUNK; zane_statn[1]++; }
+ 			if (cold && !zane_commit_range((char *)m + page, ZANE_CHUNK - page))
+ 				zane_broken("out of memory for a dynamic chunk");
+ 		}
+@@ -724,6 +726,7 @@ __attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t s
+ 	if (!base) base = zane_reserve_for(c, reserved = bytes, &raw);
+ 	if (!base) zane_broken("out of addresses for a list's elements");
+ 	zane_huge(base, reserved, 0, bytes);
++	zane_stat[2] += bytes; zane_statn[2]++;
+ 	if (!zane_commit_range(base, bytes)) zane_broken("out of memory for a list's elements");
+ 	zane_mapping *m = (zane_mapping *)base;
+ 	for (size_t at = 0; at < bytes; at += ZANE_CHUNK) zane_set_page(base + at, (uintptr_t)region);
+@@ -756,6 +759,7 @@ char *zane_alloc_unbounded(zane_mark *region) {
+ 	}
+ 	if (!base && !(base = zane_reserve_for(c, total, &raw))) zane_broken("out of addresses for a pool");
+ 	/* A kept span was made usable only as far as its list grew. */
++	zane_stat[3] += total; zane_statn[3]++;
+ 	if (!zane_commit_range(base, total)) zane_broken("out of memory for a pool");
+ 	zane_mapping *m = (zane_mapping *)base;
+ 	zane_set_page(base, (uintptr_t)region);
+@@ -778,6 +782,7 @@ int zane_extend(zane_mark *region, char *block, int64_t size) {
+ 	if (bytes > m->reserved) return 0;
+ 	if (bytes > m->size) {
+ 		zane_huge((char *)m, m->reserved, m->size, bytes);
++		zane_stat[4] += bytes - m->size; zane_statn[4]++;
+ 		if (!zane_commit_range((char *)m + m->size, bytes - m->size))
+ 			zane_broken("out of memory for a list's elements");
+ 		for (size_t at = m->size; at < bytes; at += ZANE_CHUNK) zane_set_page((char *)m + at, (uintptr_t)region);
+diff --git a/runtime/main.c b/runtime/main.c
+index 8996965..4b4435a 100644
+--- a/runtime/main.c
++++ b/runtime/main.c
+@@ -245,5 +245,6 @@ int main(int argc, char **argv) {
+ 	zane_constants_start();
+ 	zane_main();
+ 	if (zane_self->top != zane_program) zane_broken("a scope was left without draining");
++	if (getenv("ZANE_FAULT_STATS")) zane_stat_print();
+ 	return zane_flush_output() ? 0 : 1;
+ }
+diff --git a/runtime/region.c b/runtime/region.c
+index 206912a..ed133e3 100644
+--- a/runtime/region.c
++++ b/runtime/region.c
+@@ -6,6 +6,12 @@
+    in share/ of its releases, holds both. */
+ 
+ #include "zane_internal.h"
++#include <stdio.h>
++int64_t zane_stat[8], zane_statn[8];
++void zane_stat_print(void) {
++	static const char *n[] = {"new-chunk", "cold-reuse", "span-new", "pool", "span-grow", "frames-reserve", "frames-step"};
++	for (int i = 0; i < 7; i++) if (zane_statn[i]) fprintf(stderr, "STAT %s %lld calls %lld KiB\n", n[i], (long long)zane_statn[i], (long long)zane_stat[i] >> 10);
++}
+ 
+ /* ---------------------------------------------------------------------- */
+ /* Each context's range of frames (memory.md §3.1, docs/design/lowering.md §9) */
+@@ -414,6 +420,7 @@ void zane_reserve(zane_context *c, int64_t size) {
+ 	if (!base) zane_broken("out of addresses for a context's frames");
+ 	c->base = c->frontier = c->committed = base;
+ 	if (zane_under_valgrind()) {
++		zane_stat[5] += size; zane_statn[5]++;
+ 		if (!zane_commit_range(base, (size_t)size)) zane_commit_failed();
+ 		c->committed = base + size;
+ 	}
+@@ -434,6 +441,7 @@ static int zane_commit(zane_context *c, char *at) {
+ 	size_t steps = (size_t)(at - c->base) / ZANE_STEP + 1;
+ 	char *to = c->base + steps * ZANE_STEP;
+ 	if (to > c->limit) to = c->limit;
++	zane_stat[6] += to - from; zane_statn[6]++;
+ 	if (!zane_commit_range(from, (size_t)(to - from))) return 0;
+ 	char *seen = from;
+ 	while (seen < to &&
+diff --git a/runtime/zane_internal.h b/runtime/zane_internal.h
+index b652d2b..7884a32 100644
+--- a/runtime/zane_internal.h
++++ b/runtime/zane_internal.h
+@@ -34,6 +34,8 @@
+ #include <unistd.h>
+ 
+ #include "zane.h"
++extern int64_t zane_stat[8], zane_statn[8];
++void zane_stat_print(void);
+ #include "zane_abi.h"
+ 
+ /* What Windows does differently (docs/design/platforms.md). Its POSIX
