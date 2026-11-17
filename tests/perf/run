@@ -94,10 +94,13 @@ def programs():
 
 
 def libraries(name):
-    """The `--package` flags of program `name`'s library packages, stamped."""
+    """The `--package` flags of program `name`'s library packages, stamped:
+    each directory under `lib/` holding a source file, named by its path
+    there with `.` between its parts, as a subpackage is."""
     lib = HERE / name / "lib"
-    dirs = sorted(d for d in lib.iterdir() if d.is_dir()) if lib.is_dir() else []
-    return [flag for d in dirs for flag in ("--package", f"{STAMP}{d.name}={d}")]
+    dirs = sorted(d for d in lib.rglob("*") if d.is_dir() and any(d.glob("*.zn"))) if lib.is_dir() else []
+    return [flag for d in dirs
+            for flag in ("--package", f"{STAMP}{'.'.join(d.relative_to(lib).parts)}={d}")]
 
 
 def library_object(zanec, name, work, build):
