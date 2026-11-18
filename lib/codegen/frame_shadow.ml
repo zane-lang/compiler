@@ -245,9 +245,51 @@ let func ctx dl (f : Llvm.llvalue) =
     let p = Llvm.operand v 0 in
     Llvm.classify_value p = Llvm.ValueKind.GlobalVariable && Llvm.value_name p = "zane_open"
   in
+  (* A phi beside a merge whose every input is at one offset from the
+     frame the merge takes from the same block, as a slot's address LLVM
+     carries through the join apart from the frame, is the merge's frame at
+     that offset: [parallel] holds it with its merge and offset. *)
+  let parallel = ref [] in
+  let seeds b = List.filter_map (fun (q, (m, o)) -> if m == b then Some (q, Some o) else None) !parallel in
+  let changed = ref true in
+  while !changed do
+    changed := false;
+    List.iter
+      (fun m ->
+        let into = Llvm.incoming m in
+        Llvm.iter_instrs
+          (fun q ->
+            if
+              Llvm.instr_opcode q = Llvm.Opcode.PHI
+              && (not (List.memq q !frames))
+              && not (List.mem_assq q !parallel)
+            then
+              let offsets =
+                List.map
+                  (fun (v, pred) ->
+                    match List.find_opt (fun (_, p) -> p == pred) into with
+                    | None -> None
+                    | Some (b, _) -> (
+                        match offset_from dl (ref (seeds b)) b v with Some (Some o) -> Some o | _ -> None))
+                  (Llvm.incoming q)
+              in
+              match List.sort_uniq compare offsets with
+              | [ Some o ] ->
+                  parallel := (q, (m, o)) :: !parallel;
+                  changed := true
+              | _ -> ())
+          (Llvm.instr_parent m))
+      !merges
+  done;
   let followed i =
-    (not (List.memq i !merges)) && not (List.exists (fun (v, _) -> open_scope v) (Llvm.incoming i))
+    (not (List.memq i !merges))
+    && (not (List.mem_assq i !parallel))
+    && not (List.exists (fun (v, _) -> open_scope v) (Llvm.incoming i))
   in
+  (* A merge is shadowed only where each frame it joins was visited whole:
+     a use of one that is neither the merge nor beside it would reach the
+     merge's slots unseen. *)
+  let clean = ref [] in
   (* The frames a merge joins: each path's frame is written through, so
      that the merge, filled where it is placed, reads what the path
      stored. *)
@@ -261,15 +303,17 @@ let func ctx dl (f : Llvm.llvalue) =
         b)
     f;
   let dom = lazy (dominators f) in
+  let order = List.filter (fun b -> not (List.memq b !merges)) !frames @ List.rev !merges in
   List.iter
     (fun base ->
+     if (not (List.memq base !merges)) || List.for_all (fun (v, _) -> List.memq v !clean) (Llvm.incoming base) then begin
       (* Every use of an address in the frame: loads and stores at their
          offsets, and calls given one. [stored] is whether an address in
          it is stored as a value, past its record, and [kept] the callees
          that may keep one. *)
       let loads = ref [] and stores = ref [] and calls = ref [] and escaped = ref false in
       let stored = ref false and kept = ref [] in
-      let seen = ref [] and visited = ref [] in
+      let seen = ref (seeds base) and visited = ref [] in
       let at i = match offset_from dl seen base i with Some (Some o) -> o | _ -> raise (Escapes_at i) in
       let mark = Int64.of_int Abi.mark_size in
       let rec visit p off =
@@ -315,9 +359,14 @@ let func ctx dl (f : Llvm.llvalue) =
             | _ -> raise (Escapes_at i))
           p
       in
-      match visit base 0L with
+      let whole () =
+        visit base 0L;
+        List.iter (fun (q, (m, o)) -> if m == base then visit q o) !parallel
+      in
+      match whole () with
       | exception Escapes_at _ -> ()
       | () ->
+          clean := base :: !clean;
           let size t = Llvm_target.DataLayout.store_size t dl in
           let accesses =
             List.map (fun (i, o) -> (o, Llvm.type_of i)) !loads
@@ -511,8 +560,9 @@ let func ctx dl (f : Llvm.llvalue) =
                 | Llvm.Before _ as pos -> fill (Llvm.builder_at ctx pos) (refilled c)
                 | Llvm.At_end _ -> ())
               calls
-          end)
-    !frames
+          end
+     end)
+    order
 
 let run m =
   let ctx = Llvm.module_context m in

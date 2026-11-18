@@ -425,6 +425,13 @@ class FactsTests(unittest.TestCase):
                 self.assertEqual(run_program(exe, 100), "682\n", optimize)
                 self.assertEqual(run_program(exe, 1000), "6876\n", optimize)
                 self.assertEqual(run_program(exe, 0), "1\n", optimize)
+                # A frame placed on two paths, whose struct the worker's step
+                # writes through an address merged apart from the frame.
+                exe = Path(temp) / "worked"
+                run(ZANEC, "--build", exe, *optimize, *packages("worked"))
+                self.assertEqual(run_program(exe, 1000), "455494\n", optimize)
+                self.assertEqual(run_program(exe, 7), "10247\n", optimize)
+                self.assertEqual(run_program(exe, 1), "15\n", optimize)
 
     def test_runs_of_pushes_make_room_once(self):
         # A new list pushed to four times in a row makes room for all four
