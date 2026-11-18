@@ -660,19 +660,28 @@ where a call is, leaves out of line.
 
 Each slot of a placed frame that is loaded and stored whole, as one
 scalar type, gets a copy in an alloca, filled where the frame is placed and
-after each call given an address in the frame, and written through on
-every store; loads read the copy, which SROA makes a register. A wider
-access may hold the whole slot: a load of it reads the frame, and a store
-of it fills the copy again, which is how a list's count keeps its copy in
-a struct that a list was copied into, its count and room stored as one
-pair. A frame whose address escapes any other way, including to a callee
-that may keep it, is left alone. After a call, only the copies it may
-have written are filled again: those a `memset`, `memcpy` or `memmove` of
-a constant length covers (none when it writes outside a frame whose
-address went nowhere else), and the list header the runtime's growth
+after each call given an address in the frame; loads and stores use the
+copy, which SROA makes a register. A store reaches the slot just before
+something may read it there: a call given an address in the frame, any
+call once a runtime call has kept one (a drain reads the slots
+`zane_hold` lists), and a wider load that holds the slot. A call past the
+frame's last use, where it may have been drained, writes nothing back.
+Where an address in the frame is stored as a value, or kept by a callee
+other than the runtime's `zane_hold`, `zane_scope_drain` and list growth
+(a spawned call, whose thread may read the frame at any time), every store
+is written through to the slot as well. A wider access may hold the whole
+slot: a load of it reads the frame, and a store of it fills the copy
+again, which is how a list's count keeps its copy in a struct that a list
+was copied into, its count and room stored as one pair. A frame whose
+address escapes any other way is left alone. After a call, only the copies
+it may have written are filled again: those a `memset`, `memcpy` or
+`memmove` of a constant length covers (none when it writes outside a frame
+whose address went nowhere else), and the list header the runtime's growth
 writes. A frame placed on two paths, as LLVM leaves a scope's entry when it
-threads the fast and slow paths apart, is the phi that joins them, and the
-reread of the runtime's innermost scope merged with it is not followed.
+threads the fast and slow paths apart, is the phi that joins them, the
+paths' frames are written through so that the phi reads what they stored,
+and the reread of the runtime's innermost scope merged with it is not
+followed.
 
 ### Index checks merged
 

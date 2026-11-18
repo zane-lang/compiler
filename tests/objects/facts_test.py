@@ -384,6 +384,48 @@ class FactsTests(unittest.TestCase):
                 self.assertNotEqual(stopped.returncode, 0, optimize)
                 self.assertIn("out of range", stopped.stderr, optimize)
 
+    def test_struct_fields_stay_in_registers_across_a_loop(self):
+        # A struct local's counter and total, written on every pass of a
+        # loop whose rare push is a call given an address in the frame, are
+        # written to the frame only before a call (Frame_shadow): each store
+        # into a frame inside the loop is followed, in its block, by a call.
+        ir = run(ZANEC, "--ll", "--optimize", *packages("subjects"))
+        body = re.search(r"(?ms)^define [^\n]*@zane_main\(.*?^}", ir).group(0)
+        frames = set(re.findall(r'"dereferenceable"\(ptr (%[\w.]+), i64', body))
+        self.assertTrue(frames)
+        slots = {name for name, base in re.findall(
+            r"(?m)^\s*(%[\w.]+) = getelementptr [^\n]*ptr (%[\w.]+), i64 \d+$", body) if base in frames} | frames
+        blocks, label = {}, "entry"
+        for line in body.split("\n")[1:]:
+            found = re.match(r'^("[^"]+"|[\w.$-]+):', line)
+            if found:
+                label = found.group(1).strip('"')
+            blocks.setdefault(label, []).append(line)
+        def successors(name):
+            return {t.strip('"') for line in blocks[name] for t in re.findall(r'label %("[^"]+"|[\w.$-]+)', line)}
+        def reach(name):
+            seen, todo = set(), [name]
+            while todo:
+                for s in successors(todo.pop()) - seen:
+                    seen.add(s)
+                    todo.append(s)
+            return seen
+        looped = [name for name in blocks if name in reach(name)]
+        self.assertTrue(looped)
+        for name in looped:
+            lines = blocks[name]
+            for k, line in enumerate(lines):
+                stored = re.search(r"store [^,]+, ptr (%[\w.]+)", line)
+                if stored and stored.group(1) in slots:
+                    self.assertTrue(any(" call " in later for later in lines[k + 1:]), f"{name}: {line}")
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "subjects"
+                run(ZANEC, "--build", exe, *optimize, *packages("subjects"))
+                self.assertEqual(run_program(exe, 100), "682\n", optimize)
+                self.assertEqual(run_program(exe, 1000), "6876\n", optimize)
+                self.assertEqual(run_program(exe, 0), "1\n", optimize)
+
     def test_runs_of_pushes_make_room_once(self):
         # A new list pushed to four times in a row makes room for all four
         # at its first push, so the room is compared once, and the other

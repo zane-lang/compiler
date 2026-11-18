@@ -1,0 +1,53 @@
+/// A struct local whose fields a loop reads and writes, as a worker's
+/// subject is: a counter and a total kept in registers across the loop, and
+/// a list the loop grows by a rare push, a call given the list's address in
+/// the frame. What the loop stored reaches the frame before that call and
+/// before the drain that reads the lists, and only then.
+package subjects;
+
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+alias String = @primitives$String;
+alias List<T Type> = @primitives$List<T>;
+
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+Bool same(a Int, b Int) => @operators$equal(a, b);
+
+type Machine = #struct {
+	ops List<Int>;
+	seen List<Int>;
+	pc Int;
+	total Int;
+}
+
+Machine(ops List<Int>) => init{ ops; seen = @primitives$List(Int); pc = Int(1); total = Int(0); }
+
+Int run(ops List<Int>, steps Int) {
+	m Machine = Machine(ops);
+	@controlflow$repeat(steps, {
+		op Int = m.ops[m.pc];
+		@controlflow$branch(same(op, Int(0)), {
+			m.seen!push(m.total);
+		});
+		m.total = @math$bitAnd(plus(m.total, plus(op, m.pc)), Int(65535));
+		m.pc = plus(@math$bitAnd(m.pc, Int(7)), Int(1));
+	});
+	return plus(plus(m.total, m.pc), m.seen:size());
+}
+
+Unit main() {
+	ops List<Int> = @primitives$List(Int);
+	ops!push(Int(1)); ops!push(Int(2)); ops!push(Int(0)); ops!push(Int(3));
+	ops!push(Int(1)); ops!push(Int(4)); ops!push(Int(2)); ops!push(Int(5));
+	@program$console!print(@operators$concat(String(run(ops, size(Int(100)))), String.escaped("\n")));
+	return Unit();
+}
