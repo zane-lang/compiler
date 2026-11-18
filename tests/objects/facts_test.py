@@ -14,6 +14,9 @@ ZANEC = str(Path(sys.argv.pop(1)).resolve())
 FACTS = Path(__file__).resolve().parent / "fixtures/facts"
 STAMP = "v1.0%0123456789abcdef%"
 SNAPSHOT = re.compile(r"load atomic|@zane_snapshot\(")
+# A call that may read a frame: any but an LLVM intrinsic other than the
+# memory ones, as `Frame_shadow.inert` sorts them.
+OBSERVING = re.compile(r" call [^@]*@(?!llvm\.(?!memcpy|memmove|memset))")
 # A list handle's room and size: with frame references (experimental,
 # lib/cgt/ref32.ml), on by default on every target, the room counts elements
 # in 32 bits and the handle is 16 bytes; without, the room counts bytes and
@@ -417,7 +420,7 @@ class FactsTests(unittest.TestCase):
             for k, line in enumerate(lines):
                 stored = re.search(r"store [^,]+, ptr (%[\w.]+)", line)
                 if stored and stored.group(1) in slots:
-                    self.assertTrue(any(" call " in later for later in lines[k + 1:]), f"{name}: {line}")
+                    self.assertTrue(any(OBSERVING.search(later) for later in lines[k + 1:]), f"{name}: {line}")
         with tempfile.TemporaryDirectory() as temp:
             for optimize in [[], ["--optimize"]]:
                 exe = Path(temp) / "subjects"
