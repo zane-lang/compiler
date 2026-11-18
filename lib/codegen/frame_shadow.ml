@@ -354,6 +354,35 @@ let func ctx dl (f : Llvm.llvalue) =
         let seen = seeds base and visited = ref [] in
         let at i = match offset_from dl seen base i with Some (Some o) -> o | _ -> raise (Escapes_at i) in
         let mark = Int64.of_int Abi.mark_size in
+        (* Whether [i] is only ever stored, as a value. *)
+        let link i =
+          let only = ref true in
+          Llvm.iter_uses
+            (fun u ->
+              let s = Llvm.user u in
+              if
+                not
+                  (Llvm.classify_value s = Llvm.ValueKind.Instruction Llvm.Opcode.Store
+                  && Llvm.operand s 0 == i
+                  && Llvm.operand s 1 != i)
+              then only := false)
+            i;
+          !only
+        in
+        (* Whether [i] is only compared, directly or as a difference, as
+           entering a scope inline checks the room left past its frame. *)
+        let rec compared i =
+          let only = ref true in
+          Llvm.iter_uses
+            (fun u ->
+              let s = Llvm.user u in
+              match Llvm.classify_value s with
+              | Llvm.ValueKind.Instruction Llvm.Opcode.ICmp -> ()
+              | Llvm.ValueKind.Instruction Llvm.Opcode.Sub when compared s -> ()
+              | _ -> only := false)
+            i;
+          !only
+        in
         let rec visit p off =
           Llvm.iter_uses
             (fun u ->
@@ -364,6 +393,11 @@ let func ctx dl (f : Llvm.llvalue) =
                   | Llvm.Opcode.GetElementPtr when Llvm.operand i 0 == p -> visit i (at i)
                   (* A merge of frames is visited as its own frame. *)
                   | Llvm.Opcode.PHI when not (followed i) -> ()
+                  (* The scope chain's link, chosen between the frame and
+                     a scope it encloses, as entering a scope inline picks
+                     the record's skip ([ZANE_MARK_SKIP]): stored only as a
+                     value, as the frame itself is below. *)
+                  | (Llvm.Opcode.PHI | Llvm.Opcode.Select) when off < mark && link i -> ()
                   | Llvm.Opcode.PHI | Llvm.Opcode.Select when Llvm.operand i 0 != p || op = Llvm.Opcode.PHI ->
                       if not (List.memq i !visited) then begin
                         visited := i :: !visited;
@@ -393,6 +427,7 @@ let func ctx dl (f : Llvm.llvalue) =
                       | _ when List.memq i !calls -> ()
                       | _ -> calls := i :: !calls)
                   | Llvm.Opcode.ICmp -> ()
+                  | Llvm.Opcode.PtrToInt when compared i -> ()
                   | _ -> raise (Escapes_at i))
               | _ -> raise (Escapes_at i))
             p
@@ -510,39 +545,10 @@ let func ctx dl (f : Llvm.llvalue) =
                     past (Llvm.instr_begin (Llvm.instr_parent base))
                 | _ -> Llvm.instr_succ base
               in
-              fill (Llvm.builder_at ctx placed) copies;
               (* The copy an access of exactly [t] at [o] reads or writes, and
                  the copies a wider access at [o] of [t] holds. *)
               let copy o t = List.find_opt (fun (o', t', _) -> o' = o && t' == t) copies in
               let held o t = List.filter (fun (o', t', _) -> covers (o, t) (o', t')) copies in
-              List.iter
-                (fun (i, o) ->
-                  match copy o (Llvm.type_of i) with
-                  | Some (_, t, a) ->
-                      let b = Llvm.builder_before ctx i in
-                      let v = Llvm.build_load t a "" b in
-                      Llvm.replace_all_uses_with i v;
-                      Llvm.delete_instruction i
-                  | None ->
-                      (* A wider load reads the frame, so what it holds is
-                         written back first. *)
-                      if deferred then back (Llvm.builder_before ctx i) (held o (Llvm.type_of i)))
-                !loads;
-              List.iter
-                (fun (i, o) ->
-                  let t = Llvm.type_of (Llvm.operand i 0) in
-                  match copy o t with
-                  | Some (_, _, a) ->
-                      let b = Llvm.builder_at ctx (Llvm.instr_succ i) in
-                      ignore (Llvm.build_store (Llvm.operand i 0) a b);
-                      if deferred then Llvm.delete_instruction i
-                  | None ->
-                      (* A wider store fills again the copies it holds, from
-                         the frame it has just written, which GVN then reads
-                         from the stored value. *)
-                      let h = held o t in
-                      if h <> [] then fill (Llvm.builder_at ctx (Llvm.instr_succ i)) h)
-                !stores;
               let header = Llvm_target.DataLayout.abi_size (List_handle.header ctx) dl in
               let within lo len = List.filter (fun (o, t, _) -> o < Int64.add lo len && Int64.add o (size t) > lo) copies in
               let in_frame p = match offset_from dl (Hashtbl.create 16) base p with Some (Some o) -> Some o | _ -> None in
@@ -588,14 +594,327 @@ let func ctx dl (f : Llvm.llvalue) =
                     match in_frame (Llvm.operand c 0) with Some o -> within o header | None -> elsewhere ())
                 | _ -> copies
               in
+              (* The copies that may hold what their slots do not, at each
+                 call and wider load: stored since the frame was last filled
+                 into them or they were written back to it, on some path
+                 from where the frame is placed. Only those are written
+                 back, so a call a loop makes each pass writes back what the
+                 pass stored, not every copy. *)
+              let dirty_at = Hashtbl.create 16 and ending_at = Hashtbl.create 16 in
+              if deferred then begin
+                let minus d xs = List.filter (fun x -> not (List.memq x xs)) d in
+                let union a b = a @ minus b a in
+                let store_of = Hashtbl.create 16 and load_of = Hashtbl.create 16 and call_of = Hashtbl.create 16 in
+                List.iter
+                  (fun (i, o) ->
+                    let t = Llvm.type_of (Llvm.operand i 0) in
+                    Hashtbl.replace store_of i (match copy o t with Some x -> `Dirty x | None -> `Agree (held o t)))
+                  !stores;
+                List.iter
+                  (fun (i, o) ->
+                    match copy o (Llvm.type_of i) with
+                    | None -> Hashtbl.replace load_of i (`Wider (held o (Llvm.type_of i)))
+                    | Some _ -> Hashtbl.replace load_of i `Exact)
+                  !loads;
+                List.iter (fun c -> Hashtbl.replace call_of c (union (refilled c) (read c))) calls;
+                let step record d i =
+                  if i == base then []
+                  else
+                    match Hashtbl.find_opt store_of i with
+                    | Some (`Dirty x) -> if List.memq x d then d else x :: d
+                    | Some (`Agree h) -> minus d h
+                    | None -> (
+                        match Hashtbl.find_opt load_of i with
+                        | Some (`Wider h) ->
+                            if record then Hashtbl.replace dirty_at i d;
+                            minus d h
+                        | Some `Exact ->
+                            if record then Hashtbl.replace dirty_at i d;
+                            d
+                        | None -> (
+                            match Hashtbl.find_opt call_of i with
+                            | Some w ->
+                                if record then Hashtbl.replace dirty_at i d;
+                                minus d w
+                            | None -> d))
+                in
+                let preds = Hashtbl.create 16 in
+                Llvm.iter_blocks
+                  (fun b -> List.iter (fun s -> Hashtbl.add preds s b) (successors b))
+                  f;
+                (* What is written back at the end of a block, on its way
+                   into a loop (below). *)
+                let ending = Hashtbl.create 16 in
+                let ends b = Option.value ~default:[] (Hashtbl.find_opt ending b) in
+                let solve () =
+                  let out = Hashtbl.create 16 in
+                  let into b = List.fold_left (fun d p -> union d (Option.value ~default:[] (Hashtbl.find_opt out p))) [] (Hashtbl.find_all preds b) in
+                  let through record b = minus (Llvm.fold_left_instrs (step record) (into b) b) (ends b) in
+                  let grew = ref true in
+                  while !grew do
+                    grew := false;
+                    Llvm.iter_blocks
+                      (fun b ->
+                        let d = through false b in
+                        let old = Option.value ~default:[] (Hashtbl.find_opt out b) in
+                        if List.exists (fun x -> not (List.memq x old)) d then begin
+                          Hashtbl.replace out b (union old d);
+                          grew := true
+                        end)
+                      f
+                  done;
+                  (out, through)
+                in
+                (* A copy dirty on the way into a loop and clean on its way
+                   round is written back once, on the way in, rather than
+                   at each pass's call: as a list pushed to before a loop
+                   whose every pass calls a function given the frame. Only
+                   into a block the frame is live in, so its memory is
+                   still its own, and from one the frame's placement
+                   dominates. *)
+                let rec settle () =
+                  let out, _ = solve () in
+                  let at b = Option.value ~default:[] (Hashtbl.find_opt out b) in
+                  let added = ref false in
+                  Llvm.iter_blocks
+                    (fun b ->
+                      if live b then begin
+                        let ps = Hashtbl.find_all preds b in
+                        let round, entering = List.partition (fun p -> Lazy.force dom b p) ps in
+                        if round <> [] then
+                          let clean_round x = List.for_all (fun p -> not (List.memq x (at p))) round in
+                          List.iter
+                            (fun p ->
+                              let w = List.filter clean_round (at p) in
+                              if w <> [] && Lazy.force dom home p then begin
+                                Hashtbl.replace ending p (union (ends p) w);
+                                added := true
+                              end)
+                            entering
+                      end)
+                    f;
+                  if !added then settle ()
+                in
+                settle ();
+                Hashtbl.iter (fun b w -> Hashtbl.replace ending_at b w) ending;
+                let _, through = solve () in
+                Llvm.iter_blocks (fun b -> ignore (through true b)) f
+              end;
+              let dirty i = match Hashtbl.find_opt dirty_at i with Some d -> d | None -> [] in
+              (* The copies filled again only where they are next loaded,
+                 rather than right after each call that may write their
+                 slots: [lazy_] holds them, and [filled_at] the loads that
+                 fill one first. A copy is stale from such a call to its next
+                 load or store, which must find it stale on every path, or
+                 fresh on every path, and nothing may write it back while it
+                 may be stale; a copy for which that fails is filled after
+                 each call. A loop that calls a function given the frame on
+                 every pass then loads only the slots that pass reads, where
+                 it reads them, as it would with no copies; one that calls
+                 now and then keeps its copies filled. *)
+              let lazy_ = ref copies and filled_at = Hashtbl.create 16 and ends_filled = Hashtbl.create 16 in
+              (let minus d xs = List.filter (fun x -> not (List.memq x xs)) d in
+               let inter a b = List.filter (fun x -> List.memq x b) a in
+               let backs = Hashtbl.create 16 in
+               if deferred then begin
+                 List.iter
+                   (fun (i, o) ->
+                     if copy o (Llvm.type_of i) = None then
+                       Hashtbl.replace backs i (inter (dirty i) (held o (Llvm.type_of i))))
+                   !loads;
+                 List.iter (fun c -> Hashtbl.replace backs c (inter (dirty c) (refilled c @ read c))) calls
+               end;
+               let stores_at = Hashtbl.create 16 and loads_at = Hashtbl.create 16 and calls_at = Hashtbl.create 16 in
+               List.iter
+                 (fun (i, o) ->
+                   let t = Llvm.type_of (Llvm.operand i 0) in
+                   Hashtbl.replace stores_at i (match copy o t with Some x -> [ x ] | None -> held o t))
+                 !stores;
+               List.iter
+                 (fun (i, o) -> match copy o (Llvm.type_of i) with Some x -> Hashtbl.replace loads_at i x | None -> ())
+                 !loads;
+               List.iter (fun c -> Hashtbl.replace calls_at c (refilled c)) calls;
+               let preds = Hashtbl.create 16 in
+               Llvm.iter_blocks (fun b -> List.iter (fun s -> Hashtbl.add preds s b) (successors b)) f;
+               (* One instruction's effect on the copies that may be, and
+                  must be, stale, noting in [bad] those found stale where
+                  they must not be. *)
+               (* The loads that may find a copy stale and may find it
+                  fresh, with their blocks, gathered while [collecting]; and
+                  the copies filled at the end of a block, on the paths
+                  where they are stale into a block where one is loaded. *)
+               let collecting = ref false and mixed = ref [] and fills_at_end = Hashtbl.create 16 in
+               let step bad (may, must) i =
+                 let check xs = List.iter (fun x -> if List.memq x may then bad := x :: !bad) xs in
+                 (match Hashtbl.find_opt backs i with Some xs -> check xs | None -> ());
+                 if i == base then ([], [])
+                 else
+                   match Hashtbl.find_opt stores_at i with
+                   | Some xs -> (minus may xs, minus must xs)
+                   | None -> (
+                       match Hashtbl.find_opt loads_at i with
+                       | Some x ->
+                           if List.memq x may && not (List.memq x must) then
+                             if List.memq x (dirty i) then bad := x :: !bad
+                             else if !collecting then mixed := (x, Llvm.instr_parent i) :: !mixed;
+                           (minus may [ x ], minus must [ x ])
+                       | None -> (
+                           match Hashtbl.find_opt calls_at i with
+                           | Some w ->
+                               let w = inter w !lazy_ in
+                               (may @ minus w may, must @ minus w must)
+                           | None -> (may, must)))
+               in
+               let through bad s b =
+                 let s = Llvm.fold_left_instrs (step bad) s b in
+                 (match Hashtbl.find_opt ending_at b with
+                 | Some w -> List.iter (fun x -> if List.memq x (fst s) then bad := x :: !bad) w
+                 | None -> ());
+                 let w = Option.value ~default:[] (Hashtbl.find_opt fills_at_end b) in
+                 (minus (fst s) w, minus (snd s) w)
+               in
+               let rec settle () =
+                 let out = Hashtbl.create 16 in
+                 let into b =
+                   match Hashtbl.find_all preds b with
+                   | [] -> ([], [])
+                   | ps ->
+                       let seen = List.filter_map (Hashtbl.find_opt out) ps in
+                       let may = List.fold_left (fun d (m, _) -> d @ minus m d) [] seen in
+                       let must =
+                         match seen with [] -> [] | (_, m) :: rest -> List.fold_left (fun d (_, m) -> inter d m) m rest
+                       in
+                       (may, must)
+                 in
+                 let same a b = List.length a = List.length b && List.for_all (fun x -> List.memq x b) a in
+                 let grew = ref true and rounds = ref 0 in
+                 while !grew && !rounds < 64 do
+                   grew := false;
+                   incr rounds;
+                   Llvm.iter_blocks
+                     (fun b ->
+                       let s = through (ref []) (into b) b in
+                       match Hashtbl.find_opt out b with
+                       | Some (m, n) when same m (fst s) && same n (snd s) -> ()
+                       | _ ->
+                           Hashtbl.replace out b s;
+                           grew := true)
+                     f
+                 done;
+                 (* Past the bound, every copy is filled after each call. *)
+                 let bad = ref (if !grew then !lazy_ else []) in
+                 collecting := true;
+                 mixed := [];
+                 Llvm.iter_blocks (fun b -> ignore (through bad (into b) b)) f;
+                 collecting := false;
+                 (* A load that finds a copy stale on some paths only is
+                    found no state of it in its block before it: the copy is
+                    filled at the end of each block it is surely stale out
+                    of, on the way there, and the blocks it may be stale out
+                    of are followed back the same way. *)
+                 let added = ref false in
+                 List.iter
+                   (fun (x, b) ->
+                     let met = ref [] in
+                     let rec need b =
+                       List.iter
+                         (fun p ->
+                           match Hashtbl.find_opt out p with
+                           | Some (m, n) when List.memq x m ->
+                               if List.memq x n then begin
+                                 let w = Option.value ~default:[] (Hashtbl.find_opt fills_at_end p) in
+                                 if List.memq x w then bad := x :: !bad
+                                 else if Lazy.force dom home p then begin
+                                   Hashtbl.replace fills_at_end p (x :: w);
+                                   added := true
+                                 end
+                                 else bad := x :: !bad
+                               end
+                               else if not (List.memq p !met) then begin
+                                 met := p :: !met;
+                                 need p
+                               end
+                           | _ -> ())
+                         (Hashtbl.find_all preds b)
+                     in
+                     if List.memq x !lazy_ then need b)
+                   !mixed;
+                 let bad = inter !lazy_ !bad in
+                 if bad <> [] then begin
+                   lazy_ := minus !lazy_ bad;
+                   Hashtbl.reset fills_at_end;
+                   settle ()
+                 end
+                 else if !added then settle ()
+                 else
+                   Llvm.iter_blocks
+                     (fun b ->
+                       ignore
+                         (Llvm.fold_left_instrs
+                            (fun s i ->
+                              (match Hashtbl.find_opt loads_at i with
+                              | Some x when List.memq x (fst s) -> Hashtbl.replace filled_at i ()
+                              | _ -> ());
+                              step (ref []) s i)
+                            (into b) b))
+                     f;
+                 Hashtbl.iter (fun b w -> Hashtbl.replace ends_filled b w) fills_at_end
+               in
+               settle ());
+              fill (Llvm.builder_at ctx placed) copies;
+              Hashtbl.iter
+                (fun b w ->
+                  match Llvm.block_terminator b with
+                  | Some t -> fill (Llvm.builder_before ctx t) (List.filter (fun x -> List.memq x !lazy_) w)
+                  | None -> ())
+                ends_filled;
+              Hashtbl.iter
+                (fun b w ->
+                  match Llvm.block_terminator b with
+                  | Some t -> back (Llvm.builder_before ctx t) w
+                  | None -> ())
+                ending_at;
+              List.iter
+                (fun (i, o) ->
+                  match copy o (Llvm.type_of i) with
+                  | Some ((_, t, a) as x) ->
+                      let b = Llvm.builder_before ctx i in
+                      if Hashtbl.mem filled_at i then fill b [ x ];
+                      let v = Llvm.build_load t a "" b in
+                      Llvm.replace_all_uses_with i v;
+                      Llvm.delete_instruction i
+                  | None ->
+                      (* A wider load reads the frame, so what it holds is
+                         written back first. *)
+                      if deferred then
+                        back (Llvm.builder_before ctx i) (List.filter (fun x -> List.memq x (dirty i)) (held o (Llvm.type_of i))))
+                !loads;
+              List.iter
+                (fun (i, o) ->
+                  let t = Llvm.type_of (Llvm.operand i 0) in
+                  match copy o t with
+                  | Some (_, _, a) ->
+                      let b = Llvm.builder_at ctx (Llvm.instr_succ i) in
+                      ignore (Llvm.build_store (Llvm.operand i 0) a b);
+                      if deferred then Llvm.delete_instruction i
+                  | None ->
+                      (* A wider store fills again the copies it holds, from
+                         the frame it has just written, which GVN then reads
+                         from the stored value. *)
+                      let h = held o t in
+                      if h <> [] then fill (Llvm.builder_at ctx (Llvm.instr_succ i)) h)
+                !stores;
               List.iter
                 (fun c ->
                   if deferred then begin
-                    let w = refilled c in
-                    back (Llvm.builder_before ctx c) (List.filter (fun x -> List.memq x w || List.memq x (read c)) copies)
+                    let w = refilled c and d = dirty c in
+                    back
+                      (Llvm.builder_before ctx c)
+                      (List.filter (fun x -> List.memq x d && (List.memq x w || List.memq x (read c))) copies)
                   end;
                   match Llvm.instr_succ c with
-                  | Llvm.Before _ as pos -> fill (Llvm.builder_at ctx pos) (refilled c)
+                  | Llvm.Before _ as pos ->
+                      fill (Llvm.builder_at ctx pos) (List.filter (fun x -> not (List.memq x !lazy_)) (refilled c))
                   | Llvm.At_end _ -> ())
                 calls
             end
