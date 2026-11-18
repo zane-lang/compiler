@@ -1875,11 +1875,14 @@ test passing.
   - a call in a loop to a leaf of the program of at most 128 instructions
     is inlined there (`Loop_inline`);
   - a frame's slots that are loaded and stored whole get a copy in a
-    register, written back to the slot before a call that may read it,
-    filled again after a call only where the call may write it, and after
-    a wider store that holds the slot; a frame whose address a spawned
-    call or a stored pointer may reach is written through on every store
-    instead, and a frame placed on two paths is the phi that joins them
+    register, written back to the slot before a call that may read it
+    when stored since the two last agreed, filled again after a call only
+    where the call may write it (at the next load, where every path finds
+    it stale there), and after a wider store that holds the slot; a frame
+    whose address a spawned call or a stored pointer may reach is written
+    through on every store instead, a frame placed on two paths is the
+    phi that joins them, and a frame its scope enters inline, whose
+    record's skip and room check name its address, is a frame too
     (`Frame_shadow`);
   - a check of an index that a later check of the same index follows on a
     straight path takes the smaller bound, and the later one always passes

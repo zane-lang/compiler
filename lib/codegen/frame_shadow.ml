@@ -11,13 +11,16 @@
    one scalar type, gets a copy in an alloca: the copy is filled from the
    slot where the frame is placed, every load reads it and every store
    writes it, and after a call given an address in the frame it is filled
-   again, only where that call may have written it. SROA then makes it a
-   register. The slot is written back from the copy before each read of
-   it there: a call given an address in the frame, every call once the
-   runtime keeps one, and a wider load. Where another thread or a stored
-   pointer may reach the frame, every store writes the slot too. A frame
-   whose address escapes any other way (an offset that is not a constant,
-   a merge with another pointer) is left alone. *)
+   again, only where that call may have written it, and where its next
+   loads find it stale. SROA then makes it a register. The slot is
+   written back from the copy before each read of it there, when the copy
+   was stored since the two last agreed: a call given an address in the
+   frame, every call once the runtime keeps one, and a wider load. Where
+   another thread or a stored pointer may reach the frame, every store
+   writes the slot too. The record's skip and an inline scope entry's
+   room check name the frame without reaching its slots. A frame whose
+   address escapes any other way (an offset that is not a constant, a
+   merge with another pointer) is left alone. *)
 
 let callee i =
   let n = Llvm.num_operands i in

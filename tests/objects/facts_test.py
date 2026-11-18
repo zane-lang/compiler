@@ -432,6 +432,16 @@ class FactsTests(unittest.TestCase):
                 self.assertEqual(run_program(exe, 1000), "455494\n", optimize)
                 self.assertEqual(run_program(exe, 7), "10247\n", optimize)
                 self.assertEqual(run_program(exe, 1), "15\n", optimize)
+            # Tier 1 keeps calls in the loops that the optimized build
+            # inlines, so their copies are written back and filled again
+            # around each.
+            for name, size, printed in [("subjects", 1000, "6876\n"), ("worked", 1000, "455494\n")]:
+                exe = Path(temp) / f"{name}.tiered"
+                run(ZANEC, "--build", exe, "--tiered", *packages(name))
+                run(ZANEC, "--tier-up", f"{exe}.tier1", *packages(name))
+                result = subprocess.run([str(exe), str(size)], capture_output=True, text=True, timeout=60,
+                                        env={**os.environ, "ZANE_TIER_UP": f"{exe}.tier1", "ZANE_TIER_WAIT": "1"})
+                self.assertEqual((result.returncode, result.stdout), (0, printed), result.stderr)
 
     def test_runs_of_pushes_make_room_once(self):
         # A new list pushed to four times in a row makes room for all four
