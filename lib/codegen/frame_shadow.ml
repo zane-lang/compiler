@@ -57,13 +57,20 @@ let gep_offset dl p =
 
 (* [p]'s constant byte offset from [base], through constant GEPs and
    through phis and selects whose every input is at the same offset.
-   [seen] holds the merges already reached: their offset, or [None] while
-   one is being worked out, which a loop back to it agrees with. *)
+   [seen] holds the phis and selects already reached, with what this
+   returns for them: their offset, [Some None] while one is being worked
+   out, which a loop back to it agrees with, or [None] where one has none.
+   A failure is kept as well as an offset, or a web of phis that reach
+   each other by many paths would be walked again along each. A phi that
+   fails while one it reaches is still being worked out fails whatever
+   that one's offset turns out to be, since the loop back agreed with
+   every offset. *)
 let rec offset_from dl seen base p =
   if p == base then Some (Some 0L)
+  else if Llvm.classify_type (Llvm.type_of p) <> Llvm.TypeKind.Pointer then None
   else
-    match List.assq_opt p !seen with
-    | Some o -> Some o
+    match Hashtbl.find_opt seen p with
+    | Some r -> r
     | None -> (
         match Llvm.classify_value p with
         | Llvm.ValueKind.Instruction Llvm.Opcode.GetElementPtr -> (
@@ -74,20 +81,25 @@ let rec offset_from dl seen base p =
             | Some 0L, Some None -> Some None
             | _ -> None)
         | Llvm.ValueKind.Instruction (Llvm.Opcode.PHI | Llvm.Opcode.Select as op) -> (
-            seen := (p, None) :: !seen;
+            Hashtbl.replace seen p (Some None);
             let inputs =
               if op = Llvm.Opcode.PHI then List.map fst (Llvm.incoming p)
               else [ Llvm.operand p 1; Llvm.operand p 2 ]
             in
-            let offsets = List.map (offset_from dl seen base) inputs in
-            seen := List.filter (fun (q, _) -> q != p) !seen;
-            if List.exists Option.is_none offsets then None
-            else
-              match List.sort_uniq compare (List.filter_map Fun.id (List.map Option.get offsets)) with
-              | [ o ] ->
-                  seen := (p, Some o) :: !seen;
-                  Some (Some o)
-              | _ -> None)
+            (* The inputs' offsets, stopping at the first input with none or
+               with another offset than one before it. *)
+            let rec agree at = function
+              | [] -> Some at
+              | v :: rest -> (
+                  match (offset_from dl seen base v, at) with
+                  | None, _ -> None
+                  | Some None, _ -> agree at rest
+                  | Some (Some o), None -> agree (Some o) rest
+                  | Some (Some o), Some o' -> if o = o' then agree at rest else None)
+            in
+            let r = match agree None inputs with Some (Some o) -> Some (Some o) | _ -> None in
+            Hashtbl.replace seen p r;
+            r)
         | _ -> None)
 
 
@@ -197,8 +209,14 @@ let keeps_none i p =
     go 0
 
 let func ctx dl (f : Llvm.llvalue) =
-  (* The frames: what an `llvm.assume` names. *)
-  let frames = ref [] in
+  (* The frames: what an `llvm.assume` names. [framed] holds the same, to
+     look one up. *)
+  let frames = ref [] and framed = Hashtbl.create 16 in
+  let is_frame v = Hashtbl.mem framed v in
+  let add v =
+    frames := v :: !frames;
+    Hashtbl.replace framed v ()
+  in
   Llvm.iter_blocks
     (fun b ->
       Llvm.iter_instrs
@@ -207,7 +225,7 @@ let func ctx dl (f : Llvm.llvalue) =
             for k = 1 to Llvm.num_operands i - 2 do
               let v = Llvm.operand i k in
               match Llvm.classify_value v with
-              | Llvm.ValueKind.Instruction _ when not (List.memq v !frames) -> frames := v :: !frames
+              | Llvm.ValueKind.Instruction _ when not (is_frame v) -> add v
               | _ -> ()
             done)
         b)
@@ -225,10 +243,10 @@ let func ctx dl (f : Llvm.llvalue) =
           (fun i ->
             if
               Llvm.instr_opcode i = Llvm.Opcode.PHI
-              && (not (List.memq i !frames))
-              && List.for_all (fun (v, _) -> List.memq v !frames) (Llvm.incoming i)
+              && (not (is_frame i))
+              && List.for_all (fun (v, _) -> is_frame v) (Llvm.incoming i)
             then begin
-              frames := i :: !frames;
+              add i;
               merges := i :: !merges;
               changed := true
             end)
@@ -248,9 +266,30 @@ let func ctx dl (f : Llvm.llvalue) =
   (* A phi beside a merge whose every input is at one offset from the
      frame the merge takes from the same block, as a slot's address LLVM
      carries through the join apart from the frame, is the merge's frame at
-     that offset: [parallel] holds it with its merge and offset. *)
+     that offset: [parallel] holds it with its merge and offset. An input
+     is at an offset from a frame through constant GEPs, from the frame or
+     from a phi already found beside it: a slot's address, not one LLVM
+     loops through, which [offset_from] would walk back for every phi in
+     the block. *)
   let parallel = ref [] in
-  let seeds b = List.filter_map (fun (q, (m, o)) -> if m == b then Some (q, Some o) else None) !parallel in
+  let seeds b =
+    let t = Hashtbl.create 16 in
+    List.iter (fun (q, (m, o)) -> if m == b then Hashtbl.replace t q (Some (Some o))) !parallel;
+    t
+  in
+  let rec chain b v =
+    if v == b then Some 0L
+    else
+      match List.assq_opt v !parallel with
+      | Some (m, o) when m == b -> Some o
+      | _ -> (
+          match Llvm.classify_value v with
+          | Llvm.ValueKind.Instruction Llvm.Opcode.GetElementPtr -> (
+              match (gep_offset dl v, chain b (Llvm.operand v 0)) with
+              | Some d, Some o -> Some (Int64.add d o)
+              | _ -> None)
+          | _ -> None)
+  in
   let changed = ref true in
   while !changed do
     changed := false;
@@ -261,7 +300,7 @@ let func ctx dl (f : Llvm.llvalue) =
           (fun q ->
             if
               Llvm.instr_opcode q = Llvm.Opcode.PHI
-              && (not (List.memq q !frames))
+              && (not (is_frame q))
               && not (List.mem_assq q !parallel)
             then
               let offsets =
@@ -269,8 +308,7 @@ let func ctx dl (f : Llvm.llvalue) =
                   (fun (v, pred) ->
                     match List.find_opt (fun (_, p) -> p == pred) into with
                     | None -> None
-                    | Some (b, _) -> (
-                        match offset_from dl (ref (seeds b)) b v with Some (Some o) -> Some o | _ -> None))
+                    | Some (b, _) -> (                        chain b v))
                   (Llvm.incoming q)
               in
               match List.sort_uniq compare offsets with
@@ -313,7 +351,7 @@ let func ctx dl (f : Llvm.llvalue) =
            that may keep one. *)
         let loads = ref [] and stores = ref [] and calls = ref [] and escaped = ref false in
         let stored = ref false and kept = ref [] in
-        let seen = ref (seeds base) and visited = ref [] in
+        let seen = seeds base and visited = ref [] in
         let at i = match offset_from dl seen base i with Some (Some o) -> o | _ -> raise (Escapes_at i) in
         let mark = Int64.of_int Abi.mark_size in
         let rec visit p off =
@@ -507,7 +545,7 @@ let func ctx dl (f : Llvm.llvalue) =
                 !stores;
               let header = Llvm_target.DataLayout.abi_size (List_handle.header ctx) dl in
               let within lo len = List.filter (fun (o, t, _) -> o < Int64.add lo len && Int64.add o (size t) > lo) copies in
-              let in_frame p = match offset_from dl (ref []) base p with Some (Some o) -> Some o | _ -> None in
+              let in_frame p = match offset_from dl (Hashtbl.create 16) base p with Some (Some o) -> Some o | _ -> None in
               let elsewhere () = if !escaped then copies else [] in
               let mem n = starts "llvm.memset" n || starts "llvm.memcpy" n || starts "llvm.memmove" n in
               (* The copies a call may have written, so filled again after
