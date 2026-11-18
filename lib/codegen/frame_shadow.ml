@@ -306,262 +306,262 @@ let func ctx dl (f : Llvm.llvalue) =
   let order = List.filter (fun b -> not (List.memq b !merges)) !frames @ List.rev !merges in
   List.iter
     (fun base ->
-     if (not (List.memq base !merges)) || List.for_all (fun (v, _) -> List.memq v !clean) (Llvm.incoming base) then begin
-      (* Every use of an address in the frame: loads and stores at their
-         offsets, and calls given one. [stored] is whether an address in
-         it is stored as a value, past its record, and [kept] the callees
-         that may keep one. *)
-      let loads = ref [] and stores = ref [] and calls = ref [] and escaped = ref false in
-      let stored = ref false and kept = ref [] in
-      let seen = ref (seeds base) and visited = ref [] in
-      let at i = match offset_from dl seen base i with Some (Some o) -> o | _ -> raise (Escapes_at i) in
-      let mark = Int64.of_int Abi.mark_size in
-      let rec visit p off =
-        Llvm.iter_uses
-          (fun u ->
-            let i = Llvm.user u in
-            match Llvm.classify_value i with
-            | Llvm.ValueKind.Instruction op -> (
-                match op with
-                | Llvm.Opcode.GetElementPtr when Llvm.operand i 0 == p -> visit i (at i)
-                (* A merge of frames is visited as its own frame. *)
-                | Llvm.Opcode.PHI when not (followed i) -> ()
-                | Llvm.Opcode.PHI | Llvm.Opcode.Select when Llvm.operand i 0 != p || op = Llvm.Opcode.PHI ->
-                    if not (List.memq i !visited) then begin
-                      visited := i :: !visited;
-                      visit i (at i)
-                    end
-                (* An ordered or volatile read must stay a read of the frame. *)
-                | Llvm.Opcode.Load when Llvm.is_volatile i || Llvm_extra.is_atomic i -> raise (Escapes_at i)
-                | Llvm.Opcode.Load -> loads := (i, off) :: !loads
-                | Llvm.Opcode.Store when Llvm.operand i 1 == p && Llvm.operand i 0 != p -> stores := (i, off) :: !stores
-                (* The frame's record names it in the scope chain. *)
-                | Llvm.Opcode.Store when Llvm.operand i 0 == p && off < mark -> ()
-                (* A slot's address the runtime keeps, as a deferred job
-                   does: any call may then write the slot. *)
-                | Llvm.Opcode.Store when Llvm.operand i 0 == p && Llvm.operand i 1 != p ->
-                    escaped := true;
-                    stored := true
-                | Llvm.Opcode.Call -> (
-                    (* A callee that may keep the address, as `overwrite`
-                       does in a deferred job a later call runs, may have
-                       any later call write the slot: the frame escaped. *)
-                    if not (keeps_none i p) then begin
+      if (not (List.memq base !merges)) || List.for_all (fun (v, _) -> List.memq v !clean) (Llvm.incoming base) then begin
+        (* Every use of an address in the frame: loads and stores at their
+           offsets, and calls given one. [stored] is whether an address in
+           it is stored as a value, past its record, and [kept] the callees
+           that may keep one. *)
+        let loads = ref [] and stores = ref [] and calls = ref [] and escaped = ref false in
+        let stored = ref false and kept = ref [] in
+        let seen = ref (seeds base) and visited = ref [] in
+        let at i = match offset_from dl seen base i with Some (Some o) -> o | _ -> raise (Escapes_at i) in
+        let mark = Int64.of_int Abi.mark_size in
+        let rec visit p off =
+          Llvm.iter_uses
+            (fun u ->
+              let i = Llvm.user u in
+              match Llvm.classify_value i with
+              | Llvm.ValueKind.Instruction op -> (
+                  match op with
+                  | Llvm.Opcode.GetElementPtr when Llvm.operand i 0 == p -> visit i (at i)
+                  (* A merge of frames is visited as its own frame. *)
+                  | Llvm.Opcode.PHI when not (followed i) -> ()
+                  | Llvm.Opcode.PHI | Llvm.Opcode.Select when Llvm.operand i 0 != p || op = Llvm.Opcode.PHI ->
+                      if not (List.memq i !visited) then begin
+                        visited := i :: !visited;
+                        visit i (at i)
+                      end
+                  (* An ordered or volatile read must stay a read of the frame. *)
+                  | Llvm.Opcode.Load when Llvm.is_volatile i || Llvm_extra.is_atomic i -> raise (Escapes_at i)
+                  | Llvm.Opcode.Load -> loads := (i, off) :: !loads
+                  | Llvm.Opcode.Store when Llvm.operand i 1 == p && Llvm.operand i 0 != p -> stores := (i, off) :: !stores
+                  (* The frame's record names it in the scope chain. *)
+                  | Llvm.Opcode.Store when Llvm.operand i 0 == p && off < mark -> ()
+                  (* A slot's address the runtime keeps, as a deferred job
+                     does: any call may then write the slot. *)
+                  | Llvm.Opcode.Store when Llvm.operand i 0 == p && Llvm.operand i 1 != p ->
                       escaped := true;
-                      kept := callee i :: !kept
-                    end;
-                    match callee i with
-                    | Some n when inert n -> ()
-                    | _ when List.memq i !calls -> ()
-                    | _ -> calls := i :: !calls)
-                | Llvm.Opcode.ICmp -> ()
-                | _ -> raise (Escapes_at i))
-            | _ -> raise (Escapes_at i))
-          p
-      in
-      let whole () =
-        visit base 0L;
-        List.iter (fun (q, (m, o)) -> if m == base then visit q o) !parallel
-      in
-      match whole () with
-      | exception Escapes_at _ -> ()
-      | () ->
-          clean := base :: !clean;
-          let size t = Llvm_target.DataLayout.store_size t dl in
-          let accesses =
-            List.map (fun (i, o) -> (o, Llvm.type_of i)) !loads
-            @ List.map (fun (i, o) -> (o, Llvm.type_of (Llvm.operand i 0))) !stores
-          in
-          (* Whether an access at [o'] of [t'] holds all of the slot at [o]
-             of [t], and more. *)
-          let covers (o', t') (o, t) =
-            o' <= o && Int64.add o' (size t') >= Int64.add o (size t) && size t' > size t
-          in
-          (* A slot: an offset loaded at least once, where every access that
-             overlaps it is of the same offset and type, or is wider and
-             holds the whole slot: a load of more than the slot reads the
-             frame, which every store still writes, and a store of more (a
-             list's count and room stored as one pair, as copying the list
-             into a struct does) fills the copy again. *)
-          let slots =
-            List.sort_uniq compare (List.map snd (List.filter (fun (_, o) -> o >= mark) !loads))
-            |> List.filter_map (fun o ->
-                   let t = Llvm.type_of (fst (List.find (fun (_, o2) -> o2 = o) !loads)) in
-                   let hi = Int64.add o (size t) in
-                   let overlapping =
-                     List.filter (fun (o', t') -> o' < hi && Int64.add o' (size t') > o) accesses
-                   in
-                   let ok =
-                     scalar t
-                     && List.for_all (fun (o', t') -> (o' = o && t' == t) || covers (o', t') (o, t)) overlapping
-                   in
-                   if ok then Some (o, t) else None)
-          in
-          if slots <> [] then begin
-            (* A frame a slot's address escaped from is filled again after
-               every call it is placed before. *)
-            let addressed = !calls in
-            if !escaped then calls_after f (Lazy.force dom) base calls;
-            (* Whether the frame may still be used after call [c], or by it:
-               a load or store past its record, or a call given an address
-               in it, is reachable from [c] without placing the frame again.
-               Past its last use the frame may be drained, and its memory
-               another frame's. *)
-            let uses =
-              List.filter_map (fun (i, o) -> if o >= mark then Some i else None) (!loads @ !stores) @ addressed
+                      stored := true
+                  | Llvm.Opcode.Call -> (
+                      (* A callee that may keep the address, as `overwrite`
+                         does in a deferred job a later call runs, may have
+                         any later call write the slot: the frame escaped. *)
+                      if not (keeps_none i p) then begin
+                        escaped := true;
+                        kept := callee i :: !kept
+                      end;
+                      match callee i with
+                      | Some n when inert n -> ()
+                      | _ when List.memq i !calls -> ()
+                      | _ -> calls := i :: !calls)
+                  | Llvm.Opcode.ICmp -> ()
+                  | _ -> raise (Escapes_at i))
+              | _ -> raise (Escapes_at i))
+            p
+        in
+        let whole () =
+          visit base 0L;
+          List.iter (fun (q, (m, o)) -> if m == base then visit q o) !parallel
+        in
+        match whole () with
+        | exception Escapes_at _ -> ()
+        | () ->
+            clean := base :: !clean;
+            let size t = Llvm_target.DataLayout.store_size t dl in
+            let accesses =
+              List.map (fun (i, o) -> (o, Llvm.type_of i)) !loads
+              @ List.map (fun (i, o) -> (o, Llvm.type_of (Llvm.operand i 0))) !stores
             in
-            let home = Llvm.instr_parent base in
-            let used_in = Hashtbl.create 16 in
-            List.iter (fun i -> Hashtbl.replace used_in (Llvm.instr_parent i) ()) uses;
-            let live_in = Hashtbl.create 16 in
-            let live b = Hashtbl.mem live_in b in
-            let successors b = match Llvm.block_terminator b with Some t -> Array.to_list (Llvm.successors t) | None -> [] in
-            let grew = ref true in
-            while !grew do
-              grew := false;
-              Llvm.iter_blocks
-                (fun b ->
-                  if b != home && (not (live b)) && (Hashtbl.mem used_in b || List.exists live (successors b)) then begin
-                    Hashtbl.replace live_in b ();
-                    grew := true
-                  end)
-                f
-            done;
-            let used_after c =
-              List.memq c addressed
-              ||
-              let rec go = function
-                | Llvm.Before i -> List.memq i uses || go (Llvm.instr_succ i)
-                | Llvm.At_end b -> List.exists live (successors b)
+            (* Whether an access at [o'] of [t'] holds all of the slot at [o]
+               of [t], and more. *)
+            let covers (o', t') (o, t) =
+              o' <= o && Int64.add o' (size t') >= Int64.add o (size t) && size t' > size t
+            in
+            (* A slot: an offset loaded at least once, where every access that
+               overlaps it is of the same offset and type, or is wider and
+               holds the whole slot: a load of more than the slot reads the
+               frame, which every store still writes, and a store of more (a
+               list's count and room stored as one pair, as copying the list
+               into a struct does) fills the copy again. *)
+            let slots =
+              List.sort_uniq compare (List.map snd (List.filter (fun (_, o) -> o >= mark) !loads))
+              |> List.filter_map (fun o ->
+                     let t = Llvm.type_of (fst (List.find (fun (_, o2) -> o2 = o) !loads)) in
+                     let hi = Int64.add o (size t) in
+                     let overlapping =
+                       List.filter (fun (o', t') -> o' < hi && Int64.add o' (size t') > o) accesses
+                     in
+                     let ok =
+                       scalar t
+                       && List.for_all (fun (o', t') -> (o' = o && t' == t) || covers (o', t') (o, t)) overlapping
+                     in
+                     if ok then Some (o, t) else None)
+            in
+            if slots <> [] then begin
+              (* A frame a slot's address escaped from is filled again after
+                 every call it is placed before. *)
+              let addressed = !calls in
+              if !escaped then calls_after f (Lazy.force dom) base calls;
+              (* Whether the frame may still be used after call [c], or by it:
+                 a load or store past its record, or a call given an address
+                 in it, is reachable from [c] without placing the frame again.
+                 Past its last use the frame may be drained, and its memory
+                 another frame's. *)
+              let uses =
+                List.filter_map (fun (i, o) -> if o >= mark then Some i else None) (!loads @ !stores) @ addressed
               in
-              go (Llvm.instr_succ c)
-            in
-            let calls = List.filter used_after !calls in
-            (* Whether the copies' stores may wait for the next read of the
-               frame: no address in it is stored, the only callees that
-               keep one are the runtime's, which read it only inside a
-               later call (a drain reads what `zane_hold` lists, growth the
-               header it was given), and no merge reads the frame after
-               it. Then no other thread holds an address in it, so a slot
-               is read only by this function, through the frame, and by
-               the calls given an address in it or after one was kept; it
-               is written back before each. A frame placed on a path a
-               merge joins is written through. *)
-            let runtime_keeps = "zane_hold" :: "zane_scope_drain" :: Frame_scopes.list_calls in
-            let deferred =
-              (not !stored)
-              && (not (List.memq base !joined))
-              && List.for_all (function Some n -> List.mem n runtime_keeps | None -> false) !kept
-            in
-            let entry = Llvm.entry_block f in
-            let at_entry = Llvm.builder_at ctx (Llvm.instr_begin entry) in
-            let i8 = Llvm.i8_type ctx and i64 = Llvm.i64_type ctx in
-            let copies = List.map (fun (o, t) -> (o, t, Llvm.build_alloca t "shadow" at_entry)) slots in
-            let slot b o = Llvm.build_in_bounds_gep i8 base [| Llvm.const_of_int64 i64 o true |] "" b in
-            (* Filling a copy from its slot, and writing it back. *)
-            let fill b = List.iter (fun (o, t, a) -> ignore (Llvm.build_store (Llvm.build_load t (slot b o) "" b) a b)) in
-            let back b = List.iter (fun (o, t, a) -> ignore (Llvm.build_store (Llvm.build_load t a "" b) (slot b o) b)) in
-            (* Filled where the frame is placed: after it, past any phis. *)
-            let placed =
-              match Llvm.classify_value base with
-              | Llvm.ValueKind.Instruction Llvm.Opcode.PHI ->
-                  let rec past = function
-                    | Llvm.Before i when Llvm.instr_opcode i = Llvm.Opcode.PHI -> past (Llvm.instr_succ i)
-                    | pos -> pos
-                  in
-                  past (Llvm.instr_begin (Llvm.instr_parent base))
-              | _ -> Llvm.instr_succ base
-            in
-            fill (Llvm.builder_at ctx placed) copies;
-            (* The copy an access of exactly [t] at [o] reads or writes, and
-               the copies a wider access at [o] of [t] holds. *)
-            let copy o t = List.find_opt (fun (o', t', _) -> o' = o && t' == t) copies in
-            let held o t = List.filter (fun (o', t', _) -> covers (o, t) (o', t')) copies in
-            List.iter
-              (fun (i, o) ->
-                match copy o (Llvm.type_of i) with
-                | Some (_, t, a) ->
-                    let b = Llvm.builder_before ctx i in
-                    let v = Llvm.build_load t a "" b in
-                    Llvm.replace_all_uses_with i v;
-                    Llvm.delete_instruction i
-                | None ->
-                    (* A wider load reads the frame, so what it holds is
-                       written back first. *)
-                    if deferred then back (Llvm.builder_before ctx i) (held o (Llvm.type_of i)))
-              !loads;
-            List.iter
-              (fun (i, o) ->
-                let t = Llvm.type_of (Llvm.operand i 0) in
-                match copy o t with
-                | Some (_, _, a) ->
-                    let b = Llvm.builder_at ctx (Llvm.instr_succ i) in
-                    ignore (Llvm.build_store (Llvm.operand i 0) a b);
-                    if deferred then Llvm.delete_instruction i
-                | None ->
-                    (* A wider store fills again the copies it holds, from
-                       the frame it has just written, which GVN then reads
-                       from the stored value. *)
-                    let h = held o t in
-                    if h <> [] then fill (Llvm.builder_at ctx (Llvm.instr_succ i)) h)
-              !stores;
-            let header = Llvm_target.DataLayout.abi_size (List_handle.header ctx) dl in
-            let within lo len = List.filter (fun (o, t, _) -> o < Int64.add lo len && Int64.add o (size t) > lo) copies in
-            let in_frame p = match offset_from dl (ref []) base p with Some (Some o) -> Some o | _ -> None in
-            let elsewhere () = if !escaped then copies else [] in
-            let mem n = starts "llvm.memset" n || starts "llvm.memcpy" n || starts "llvm.memmove" n in
-            (* The copies a call may have written, so filled again after
-               it: after a `memset`, `memcpy` or `memmove` of a constant
-               length, those its destination covers, and none when the
-               destination is outside a frame whose address went nowhere
-               else; after the runtime's list growth
-               ([Frame_scopes.list_calls]), which writes the list's header at
-               its first argument and nothing else the frame holds, those of
-               the header (whether or not a slot's address went elsewhere:
-               growth writes through no address it was given before); after
-               any other call, all. An arithmetic coder's bit writer clears
-               its byte and count with one `memset` per byte, and the push
-               that follows would otherwise load every slot again, the
-               coder's tables among them (tests/perf `refills`). *)
-            let refilled c =
-              match callee c with
-              | Some n when mem n -> (
-                  match (in_frame (Llvm.operand c 0), Llvm.int64_of_const (Llvm.operand c 2)) with
-                  | Some o, Some len -> within o len
-                  | None, _ -> elsewhere ()
-                  | Some _, None -> copies)
-              | Some n when List.mem n Frame_scopes.list_calls -> (
-                  match in_frame (Llvm.operand c 0) with Some o -> within o header | None -> elsewhere ())
-              | _ -> copies
-            in
-            (* The copies a call may read, so written back before it, with
-               those it may write, which are filled again from the frame:
-               none for a `memset`, the source for a `memcpy` or `memmove`,
-               the header for growth, and all for any other call. *)
-            let read c =
-              match callee c with
-              | Some n when starts "llvm.memset" n -> []
-              | Some n when mem n -> (
-                  match (in_frame (Llvm.operand c 1), Llvm.int64_of_const (Llvm.operand c 2)) with
-                  | Some o, Some len -> within o len
-                  | None, _ -> elsewhere ()
-                  | Some _, None -> copies)
-              | Some n when List.mem n Frame_scopes.list_calls -> (
-                  match in_frame (Llvm.operand c 0) with Some o -> within o header | None -> elsewhere ())
-              | _ -> copies
-            in
-            List.iter
-              (fun c ->
-                if deferred then begin
-                  let w = refilled c in
-                  back (Llvm.builder_before ctx c) (List.filter (fun x -> List.memq x w || List.memq x (read c)) copies)
-                end;
-                match Llvm.instr_succ c with
-                | Llvm.Before _ as pos -> fill (Llvm.builder_at ctx pos) (refilled c)
-                | Llvm.At_end _ -> ())
-              calls
-          end
-     end)
+              let home = Llvm.instr_parent base in
+              let used_in = Hashtbl.create 16 in
+              List.iter (fun i -> Hashtbl.replace used_in (Llvm.instr_parent i) ()) uses;
+              let live_in = Hashtbl.create 16 in
+              let live b = Hashtbl.mem live_in b in
+              let successors b = match Llvm.block_terminator b with Some t -> Array.to_list (Llvm.successors t) | None -> [] in
+              let grew = ref true in
+              while !grew do
+                grew := false;
+                Llvm.iter_blocks
+                  (fun b ->
+                    if b != home && (not (live b)) && (Hashtbl.mem used_in b || List.exists live (successors b)) then begin
+                      Hashtbl.replace live_in b ();
+                      grew := true
+                    end)
+                  f
+              done;
+              let used_after c =
+                List.memq c addressed
+                ||
+                let rec go = function
+                  | Llvm.Before i -> List.memq i uses || go (Llvm.instr_succ i)
+                  | Llvm.At_end b -> List.exists live (successors b)
+                in
+                go (Llvm.instr_succ c)
+              in
+              let calls = List.filter used_after !calls in
+              (* Whether the copies' stores may wait for the next read of the
+                 frame: no address in it is stored, the only callees that
+                 keep one are the runtime's, which read it only inside a
+                 later call (a drain reads what `zane_hold` lists, growth the
+                 header it was given), and no merge reads the frame after
+                 it. Then no other thread holds an address in it, so a slot
+                 is read only by this function, through the frame, and by
+                 the calls given an address in it or after one was kept; it
+                 is written back before each. A frame placed on a path a
+                 merge joins is written through. *)
+              let runtime_keeps = "zane_hold" :: "zane_scope_drain" :: Frame_scopes.list_calls in
+              let deferred =
+                (not !stored)
+                && (not (List.memq base !joined))
+                && List.for_all (function Some n -> List.mem n runtime_keeps | None -> false) !kept
+              in
+              let entry = Llvm.entry_block f in
+              let at_entry = Llvm.builder_at ctx (Llvm.instr_begin entry) in
+              let i8 = Llvm.i8_type ctx and i64 = Llvm.i64_type ctx in
+              let copies = List.map (fun (o, t) -> (o, t, Llvm.build_alloca t "shadow" at_entry)) slots in
+              let slot b o = Llvm.build_in_bounds_gep i8 base [| Llvm.const_of_int64 i64 o true |] "" b in
+              (* Filling a copy from its slot, and writing it back. *)
+              let fill b = List.iter (fun (o, t, a) -> ignore (Llvm.build_store (Llvm.build_load t (slot b o) "" b) a b)) in
+              let back b = List.iter (fun (o, t, a) -> ignore (Llvm.build_store (Llvm.build_load t a "" b) (slot b o) b)) in
+              (* Filled where the frame is placed: after it, past any phis. *)
+              let placed =
+                match Llvm.classify_value base with
+                | Llvm.ValueKind.Instruction Llvm.Opcode.PHI ->
+                    let rec past = function
+                      | Llvm.Before i when Llvm.instr_opcode i = Llvm.Opcode.PHI -> past (Llvm.instr_succ i)
+                      | pos -> pos
+                    in
+                    past (Llvm.instr_begin (Llvm.instr_parent base))
+                | _ -> Llvm.instr_succ base
+              in
+              fill (Llvm.builder_at ctx placed) copies;
+              (* The copy an access of exactly [t] at [o] reads or writes, and
+                 the copies a wider access at [o] of [t] holds. *)
+              let copy o t = List.find_opt (fun (o', t', _) -> o' = o && t' == t) copies in
+              let held o t = List.filter (fun (o', t', _) -> covers (o, t) (o', t')) copies in
+              List.iter
+                (fun (i, o) ->
+                  match copy o (Llvm.type_of i) with
+                  | Some (_, t, a) ->
+                      let b = Llvm.builder_before ctx i in
+                      let v = Llvm.build_load t a "" b in
+                      Llvm.replace_all_uses_with i v;
+                      Llvm.delete_instruction i
+                  | None ->
+                      (* A wider load reads the frame, so what it holds is
+                         written back first. *)
+                      if deferred then back (Llvm.builder_before ctx i) (held o (Llvm.type_of i)))
+                !loads;
+              List.iter
+                (fun (i, o) ->
+                  let t = Llvm.type_of (Llvm.operand i 0) in
+                  match copy o t with
+                  | Some (_, _, a) ->
+                      let b = Llvm.builder_at ctx (Llvm.instr_succ i) in
+                      ignore (Llvm.build_store (Llvm.operand i 0) a b);
+                      if deferred then Llvm.delete_instruction i
+                  | None ->
+                      (* A wider store fills again the copies it holds, from
+                         the frame it has just written, which GVN then reads
+                         from the stored value. *)
+                      let h = held o t in
+                      if h <> [] then fill (Llvm.builder_at ctx (Llvm.instr_succ i)) h)
+                !stores;
+              let header = Llvm_target.DataLayout.abi_size (List_handle.header ctx) dl in
+              let within lo len = List.filter (fun (o, t, _) -> o < Int64.add lo len && Int64.add o (size t) > lo) copies in
+              let in_frame p = match offset_from dl (ref []) base p with Some (Some o) -> Some o | _ -> None in
+              let elsewhere () = if !escaped then copies else [] in
+              let mem n = starts "llvm.memset" n || starts "llvm.memcpy" n || starts "llvm.memmove" n in
+              (* The copies a call may have written, so filled again after
+                 it: after a `memset`, `memcpy` or `memmove` of a constant
+                 length, those its destination covers, and none when the
+                 destination is outside a frame whose address went nowhere
+                 else; after the runtime's list growth
+                 ([Frame_scopes.list_calls]), which writes the list's header at
+                 its first argument and nothing else the frame holds, those of
+                 the header (whether or not a slot's address went elsewhere:
+                 growth writes through no address it was given before); after
+                 any other call, all. An arithmetic coder's bit writer clears
+                 its byte and count with one `memset` per byte, and the push
+                 that follows would otherwise load every slot again, the
+                 coder's tables among them (tests/perf `refills`). *)
+              let refilled c =
+                match callee c with
+                | Some n when mem n -> (
+                    match (in_frame (Llvm.operand c 0), Llvm.int64_of_const (Llvm.operand c 2)) with
+                    | Some o, Some len -> within o len
+                    | None, _ -> elsewhere ()
+                    | Some _, None -> copies)
+                | Some n when List.mem n Frame_scopes.list_calls -> (
+                    match in_frame (Llvm.operand c 0) with Some o -> within o header | None -> elsewhere ())
+                | _ -> copies
+              in
+              (* The copies a call may read, so written back before it, with
+                 those it may write, which are filled again from the frame:
+                 none for a `memset`, the source for a `memcpy` or `memmove`,
+                 the header for growth, and all for any other call. *)
+              let read c =
+                match callee c with
+                | Some n when starts "llvm.memset" n -> []
+                | Some n when mem n -> (
+                    match (in_frame (Llvm.operand c 1), Llvm.int64_of_const (Llvm.operand c 2)) with
+                    | Some o, Some len -> within o len
+                    | None, _ -> elsewhere ()
+                    | Some _, None -> copies)
+                | Some n when List.mem n Frame_scopes.list_calls -> (
+                    match in_frame (Llvm.operand c 0) with Some o -> within o header | None -> elsewhere ())
+                | _ -> copies
+              in
+              List.iter
+                (fun c ->
+                  if deferred then begin
+                    let w = refilled c in
+                    back (Llvm.builder_before ctx c) (List.filter (fun x -> List.memq x w || List.memq x (read c)) copies)
+                  end;
+                  match Llvm.instr_succ c with
+                  | Llvm.Before _ as pos -> fill (Llvm.builder_at ctx pos) (refilled c)
+                  | Llvm.At_end _ -> ())
+                calls
+            end
+      end)
     order
 
 let run m =
