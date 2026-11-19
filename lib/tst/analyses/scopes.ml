@@ -233,7 +233,7 @@ let legal w dest n =
 
 (* §1.1: every scope a stored value names outlives the destination's. One
    parameter stored into another's place comes to rest there (§1.11), which
-   only a call can settle. [via] says which call stored it. *)
+   only a call can settle. [via] names the call that stored it. *)
 let check env ?(via = "") w (at : T.Expr.t) dest (what : string) n =
   Names.iter
     (fun (o, name) ->

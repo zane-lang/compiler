@@ -48,7 +48,7 @@ let enqueue t body =
   end
 
 (* A verb's summary so far: [empty] until a walk of its body adds to it.
-   [read_opt] tells a verb with a body, which [start] registered, from one
+   [read_opt] distinguishes a verb with a body, which [start] registered, from one
    without. Either notes the body being walked as a reader of the verb's
    summary, so that the body is walked again when the summary grows. *)
 let read_opt t id =

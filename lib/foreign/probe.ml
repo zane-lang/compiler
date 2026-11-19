@@ -39,7 +39,7 @@ let search_list output =
   in
   skip lines
 
-(* What [version] says the compiler is; [name] is the file it runs, since
+(* Which compiler [version] reports; [name] is the file it runs, since
    `clang-cl` answers `--version` as a clang does. *)
 let kind_of ~name version =
   let lower = String.lowercase_ascii version in

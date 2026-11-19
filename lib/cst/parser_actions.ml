@@ -115,7 +115,7 @@ let constructor_expr loc name args =
           (Nodes.Verb_call.Constructor
              { name; args; abort_handle = None; trailing = false })))
 
-(* An `as` alias renames one member, and casing is what says whether a name is
+(* An `as` alias renames one member, and casing is what marks an identifier as
    a type or a value, so a rename across the two classes would change what the
    name means rather than what it is spelled. The grammar admits either
    spelling on each side because both are ordinary names; only the pair is

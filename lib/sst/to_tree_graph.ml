@@ -126,7 +126,7 @@ and constructor_args_to_node (x : Nodes.Constructor_args.t) =
   | Positional args -> map_seq call_arg_to_node args
   | Fields args -> group "fields" (map_seq field_arg_to_node args)
 
-(* One call group where the CST has two. `form` says whether a subject was
+(* One call group where the CST has two. `form` records whether a subject was
    written and with which marker; when one was, it is the first entry of
    `args`, which is where the method desugaring puts it. *)
 and call_form_to_name (x : Nodes.Call_form.t) =

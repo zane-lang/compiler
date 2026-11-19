@@ -220,7 +220,7 @@ and Verb_call : sig
       }
     (* [left] and [right] are the operands in the order they were written,
        which is the order they are evaluated in (operators.md §2.3).
-       [swapped] says the operator receives them the other way round: `a > b`
+       [swapped] is set when the operator receives them the other way round: `a > b`
        is `b < a` (§2.3), so it is a [Less] with [left] `a`, [right] `b` and
        [swapped] set -- `a` is evaluated first and passed second. *)
     | Op of {

@@ -88,7 +88,7 @@ let declare env ctx role (name : N.Name.t) ty =
   bind ctx role local;
   local
 
-(* `^` says how a place holds its owner, not what the value is (memory.md
+(* `^` marks how a place holds its owner, not what type the value has (memory.md
    §2.1), so no expression's type carries it: a `^T` local read, and a call
    that returns `^T`, are values of type `T`. What the place holds is read
    from the local's or the signature's declared type. *)

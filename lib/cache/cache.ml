@@ -67,8 +67,8 @@ let located cc =
         else None)
       dirs
 
-(* What *cc* says it is, written to a file in [dir]; [None] when it will not
-   say, and then nothing it compiles is kept. Asking costs a run of the C
+(* The version string *cc* reports, written to a file in [dir]; [None] when it
+   reports none, and then nothing it compiles is kept. Asking costs a run of the C
    compiler, about as long as the rest of a small unoptimized build, so the
    answer is kept in [cache] under the file *cc* runs, its size, the time it
    was last changed and where it is on disk, and asked again only when one

@@ -1,7 +1,7 @@
 (* Resolving type expressions, and pass 3 (docs/design/semantics.md §3): every `type`
    and `alias` right-hand side resolved to a [Ty.t].
 
-   The resolver is shared by the later passes too. Its scope says which names
+   The resolver is shared by the later passes too. Its scope lists which identifiers
    are parameters: a type's header, a verb signature's inline introductions
    (generics.md §3.2), or -- inside a body checked for one instantiation --
    the concrete arguments those parameters stand for (D12). *)
@@ -88,7 +88,7 @@ let describe_concept (t : Ty.t) =
       Printf.sprintf "%s holds %s, a concept type" (quote (Ty.to_string t)) (quote (Ty.to_string c))
   | None -> quote (Ty.to_string t)
 
-(* [roaming] says whether the storage may be a roaming owner: a local may,
+(* [roaming] is true when the storage may be a roaming owner: a local may,
    and a field, a constant or a type's definition may not (syntax.md §2.3). *)
 let check_storage env ?(roaming = false) span what (t : Ty.t) =
   if mentions_concept t then

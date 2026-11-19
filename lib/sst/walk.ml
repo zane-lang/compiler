@@ -8,7 +8,7 @@
    declaration and in a lambda's signature, and calls anywhere an expression
    or a block can sit.
 
-   One fold serves both: [visitor] says what to do at a type expression and at
+   One fold serves both: [visitor] supplies the action to run at a type expression and at
    a call, and the walk reaches every one of each. *)
 
 open Nodes

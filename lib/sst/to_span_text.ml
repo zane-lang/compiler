@@ -268,7 +268,7 @@ and constructor_args d (x : Constructor_args.t) =
       line d "constructor_args Fields" x.Constructor_args.span;
       each (deeper d) field_arg fields
 
-(* One node for all three call spellings; the label says which was written and,
+(* One node for all three call spellings; the label shows which spelling was written and,
    for a method, with which marker. A method's subject is [args]'s first
    element, so it prints as the first `call_arg` under the call. *)
 and verb_call d (x : Verb_call.t) =

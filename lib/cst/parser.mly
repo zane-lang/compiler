@@ -339,8 +339,8 @@ type_expr:
 
 (* A `{ }` body of `;`-terminated `key, value` entries. It stands in a value
    position behind no introducing token, which is also true of a block
-   argument, so in argument position the two can meet. What tells them apart is
-   the mark after the first expression: a `,` opens an entry's value, a `;`
+   argument, so in argument position the two can meet. The mark
+   after the first expression distinguishes them: a `,` opens an entry's value, a `;`
    ends a statement. A literal is never empty, so a bare `{}` is a block. *)
 %inline map_entry:
   | key=expr COMMA value=expr {
@@ -854,7 +854,7 @@ enum_map_decl:
     }
   (* A foreign handle (syntax.md §2.16): named string entries, written like
      a field-constructor call. Semantics holds it to `type` and to `#`, and
-     says which entries it takes. *)
+     determines which entries it takes. *)
   | HANDLE LCURLY entries=list(handle_entry) RCURLY {
       mould $loc (Nodes.Mould.Handle entries)
     }
@@ -1406,7 +1406,7 @@ abort_handle_braced:
 
 (* A `;` terminates a statement, unless the statement ends in a `}` -- then that
    brace closes it and nothing else may (lexical.md §6.3). So every statement
-   is closed by exactly one of the two, and the grammar says which: each form
+   is closed by exactly one of the two, and the grammar determines which: each form
    below comes once with a `;` and, where its tail can close on a brace, once
    more ending in a [_braced] tail with none.
 

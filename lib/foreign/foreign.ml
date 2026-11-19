@@ -162,8 +162,8 @@ let assembly ~header (source : Compile.source) =
   else Ok source
 
 (* The sections of an object whose names are linker sets, each refused as
-   a module's are ([linker_sets]): [what] says what places something in
-   it, and [file] is the file the diagnostic names. *)
+   a module's are ([linker_sets]): [what] names the construct that places a section in
+   the object, and [file] is the file the diagnostic names. *)
 let object_linker_sets ~file ~what (contents : Objects.contents) =
   match List.sort_uniq compare (List.filter Settings.is_linker_set contents.Objects.sections) with
   | [] -> Ok contents

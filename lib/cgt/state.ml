@@ -13,7 +13,7 @@ exception Refused of Diagnostic.t
 let refuse span message = raise (Refused (Diagnostic.error span message))
 
 (* A verb to lower: a declaration, or a generic one's instance, which [key]
-   tells apart from its other instances by the arguments it was given.
+   distinguishes from its other instances by the arguments it was given.
    [literals] binds parameters the function does not take to the literals a
    spawned call gave them (docs/design/lowering.md §9). *)
 type verb = {
@@ -148,7 +148,7 @@ type state = {
   (* Each field constructor's defaults, by entry slot, by verb key. *)
   defaults : (string, (int * T.Expr.t) list) Hashtbl.t;
   (* Each lambda's symbol (docs/design/symbols.md), by its body, which is the
-     one thing that tells two lambdas apart: an instance's body has lambdas
+     only thing that distinguishes two lambdas: an instance's body has lambdas
      of its own. *)
   mutable lambdas : (T.Block.t * string) list;
   (* The lambdas whose type C can call, with the C types they cross as

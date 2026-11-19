@@ -8,7 +8,7 @@
    [names], [types], [verbs] and [instances], with the counters apart. A pass
    is given empty tables for its group, fills them, and hands on a view of
    them ([Names], [Types], [Verbs]) that has no way to write; [t] holds one
-   slot per group, so a pass's type says which groups it reads and that the
+   slot per group, so a pass's type lists which groups it reads and shows that the
    passes before it have run. The tables are mutable because a pass fills
    them as it runs, revising some entries on the way (a subscript's result is
    [None] while it is computed, and a verb's promoted parameters grow until a

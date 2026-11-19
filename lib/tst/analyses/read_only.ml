@@ -9,7 +9,7 @@
    call in it has a callee. So it runs after, over the whole program.
 
    What it tracks is a [taint]: for a value, the places in it that hold a reference
-   taken from a parameter. Each [elem] says that at [at] inside the value sits
+   taken from a parameter. Each [elem] records that at [at] inside the value sits
    something reached from parameter [origin] at [src]. A value type carries
    nothing, because a value is copied deep and holds no reference (memory.md
    §2.10), so storing one drops its taint.

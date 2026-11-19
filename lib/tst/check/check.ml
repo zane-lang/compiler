@@ -334,7 +334,7 @@ and type_member env ctx span (type_ : N.Name_type.t) (member : N.Name.t) =
       invalid span
 
 (* D10: a member read is a field read, a case read or an enum-map read, and
-   only the target's type says which. D13: a case read can fail, so it takes a
+   only the target's type determines which. D13: a case read can fail, so it takes a
    handler, and the others cannot, so they take none. *)
 and member env ~flow ctx span target (field : N.Name.t) handle =
   let target = expr env ctx target in
@@ -1602,7 +1602,7 @@ and place_root ?(cases = false) (e : T.Expr.t) =
 (* effects.md §4.1: a verb writes a place by assigning to it or by making it
    the subject of a `!` call, and a read-only binding admits neither. The
    read-only bindings are every parameter other than `this`, and `this` in a
-   method without `mut`. [bang] says the write is a `!` call. *)
+   method without `mut`. [bang] is true when the write is a `!` call. *)
 and check_writable env ctx (e : T.Expr.t) ~bang =
   let say plain because =
     error env e.T.Expr.span

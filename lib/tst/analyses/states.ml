@@ -21,7 +21,7 @@ module S = Signature
 
 type state = Settled | Roaming | Borrowed | Contingent | Fresh
 
-(* What an analysis tells the function about the body it is in: which
+(* What an analysis records about the body of the function it is in: which
    locals are the subject, ordinary parameters, and match binders. *)
 type t = {
   subjects : (int, unit) Hashtbl.t;
