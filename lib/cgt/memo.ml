@@ -384,8 +384,9 @@ let largest_id (f : Func.t) =
   !m
 
 (* [body] with every id it defines given a new number from [next], and every
-   use of one of them changed to match; ids defined outside it are kept. *)
-let renumber next body =
+   use of one of them changed to match; ids defined outside it are kept.
+   Also the old id each new one was given for. *)
+let renumbering next body =
   let map = Hashtbl.create 16 in
   let define i =
     let j = !next in
@@ -428,7 +429,9 @@ let renumber next body =
     | Stat.Spawn x -> Stat.Spawn { x with task = r x.task; scope = r x.scope; dest = Option.map r x.dest }
     | st -> st
   in
-  stats body
+  (map, stats body)
+
+let renumber next body = snd (renumbering next body)
 
 (* The functions remembered that [body] calls, by symbol, for which [outside]
    holds: those whose cycle the caller is not in. *)

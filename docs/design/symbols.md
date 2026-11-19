@@ -112,7 +112,10 @@ verb's name with a suffix:
 
 The table of walks over the blocks a type's values own, which the runtime is
 handed ([`lowering.md`](lowering.md) §9), is called by the type's name, or
-by the first by name of the types laid out alike that share it. An
+by the first by name of the types laid out alike that share it. A member
+of a struct split into its members (`lib/optimize/split_holds.ml`) that
+no type lays out alike is laid out as the struct's part `T#k`, the `k`th
+member counting from 0, and its table is called so. An
 outcome's table is called `outcome of T`, with ` ? A` added when the verb can
 abort with `A`. Each walk is called by the table's name and what it does:
 `.copy`, `.end`, `.move` and `.overwrite`, and `.vacate` for the one that

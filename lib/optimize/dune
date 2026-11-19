@@ -4,7 +4,9 @@
 ; computes with, [Eval] runs CGT at compile time, [Materialize] turns what it
 ; computed back into CGT, [Constants] finds the package constants that fold,
 ; [Fold] rewrites each function from the leaves up, and [Peel], an
-; experiment, tries a callee's cheap way out before calling it. A call into C is
+; experiment, tries a callee's cheap way out before calling it. Before Fold,
+; [Known_calls] writes out calls of known function values and calls given
+; one, and [Split_holds] splits a held struct into its members. A call into C is
 ; run by [C_eval] on the package's C module (docs/design/ffi.md F16), which
 ; [C_ir] reads through c_ir_stubs.cpp; [C_memory] is its memory,
 ; [C_library] the C library functions it models, and [C_cross] carries

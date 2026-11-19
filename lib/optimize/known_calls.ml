@@ -14,11 +14,12 @@
    A callee is written out as an expansion ([Expand]): its ids renumbered,
    each parameter given the argument's value, and each `return` assigning
    the expansion's result and leaving it, with a value on its way out of the
-   function's arenas leaving the expansion's instead ([Escape]). An argument
-   that is a function value, a local's address or a constant, given to a
-   parameter the callee neither assigns nor takes the address of, replaces
-   the parameter; any other is bound to a fresh local first, in the order
-   the arguments run. A callee that spawns, or returns through a result
+   function's arenas leaving the expansion's instead ([Escape]). The copy's
+   locals that hold a value type are listed with the caller's ([values]).
+   An argument that is a function value, a local's address or a constant,
+   given to a parameter the callee neither assigns nor takes the address
+   of, replaces the parameter; any other is bound to a fresh local first,
+   in the order the arguments run. A callee that spawns, or returns through a result
    slot it is given, is called as it was; so is one given a function value
    whose body is larger than [budget] nodes, or that calls itself. *)
 
@@ -58,7 +59,7 @@ let calls_itself (g : Func.t) =
 (* An argument that may stand for its parameter wherever the callee names it. *)
 let stable (e : Expr.t) =
   match e.Expr.node with
-  | Expr.Function _ | Expr.Address _ | Expr.Global _ | Expr.Int _ | Expr.Bool _ | Expr.Float _ | Expr.Unit -> true
+  | Expr.Function _ | Expr.Address _ | Expr.Int _ | Expr.Bool _ | Expr.Float _ | Expr.Unit -> true
   | _ -> false
 
 (* The parameters [body] assigns or takes the address of. *)
@@ -110,13 +111,16 @@ let returns label result (body : Stat.t list) =
       | _ -> None)
     body
 
-(* [f]'s body written out for [args], its ids taken from [next]. *)
-let expand next (f : Func.t) (args : Expr.t list) ty : Expr.t =
+(* [f]'s body written out for [args], its ids taken from [next]. Each local
+   of the copy that holds a value type, as [f] lists its own, is added to
+   [values]. *)
+let expand next values (f : Func.t) (args : Expr.t list) ty : Expr.t =
   (* Its own ids first, past both functions' so that none meets a
      parameter's. *)
   next := max !next (Cgt.Memo.largest_id f);
   let counter = ref (!next + 1) in
-  let body = Cgt.Memo.renumber counter f.Func.body in
+  let map, body = Cgt.Memo.renumbering counter f.Func.body in
+  List.iter (fun i -> Option.iter (fun j -> values := j :: !values) (Hashtbl.find_opt map i)) f.Func.values;
   next := !counter;
   let fresh () =
     incr next;
@@ -135,6 +139,7 @@ let expand next (f : Func.t) (args : Expr.t list) ty : Expr.t =
            else begin
              let id = fresh () in
              Hashtbl.replace moved p id;
+             if List.mem p f.Func.values then values := id :: !values;
              [ Stat.Let { id; value = a } ]
            end)
          f.Func.params args)
@@ -173,20 +178,20 @@ let func funcs (f : Func.t) : Func.t =
     match Hashtbl.find_opt funcs sym with Some g when fit g && g.Func.symbol <> f.Func.symbol && not (calls_itself g) -> Some g | _ -> None
   in
   let given_function args = List.exists (fun (a : Expr.t) -> match a.Expr.node with Expr.Function _ -> true | _ -> false) args in
-  let changed = ref false in
+  let changed = ref false and values = ref [] in
   let fe (e : Expr.t) =
     match e.Expr.node with
     | Expr.Call_value { fn = { Expr.node = Expr.Function sym; _ }; args } -> (
         match callee sym with
         | Some g when List.length g.Func.params = List.length args ->
             changed := true;
-            Some (expand next g args e.Expr.ty)
+            Some (expand next values g args e.Expr.ty)
         | _ -> None)
     | Expr.Call { fn; args } when given_function args -> (
         match callee fn with
         | Some g when List.length g.Func.params = List.length args && nodes g.Func.body <= budget ->
             changed := true;
-            Some (expand next g args e.Expr.ty)
+            Some (expand next values g args e.Expr.ty)
         | _ -> None)
     | _ -> None
   in
@@ -195,7 +200,8 @@ let func funcs (f : Func.t) : Func.t =
     let body = map_stats fe (fun _ -> None) (named body) in
     if !changed && n > 1 then go (n - 1) body else body
   in
-  { f with Func.body = go rounds f.Func.body }
+  let body = go rounds f.Func.body in
+  { f with Func.body = body; values = f.Func.values @ List.rev !values }
 
 let program (p : Program.t) =
   let funcs = Hashtbl.create 64 in

@@ -2,10 +2,12 @@
 /// they are made in an optimized build (docs/optimizations.md, "Known
 /// calls"): `twice` given a lambda, and the lambda's own calls in the copy;
 /// `bumped`, given a call, so its argument is bound to a local of its own
-/// first, run once; `countdown`, which calls itself, called as it was; and a
-/// worker over a struct that holds a list, whose step is written out in the
-/// loop and whose struct is then split into its members (Split_holds).
-/// Every build prints the same.
+/// first, run once; `countdown`, which calls itself, called as it was;
+/// `clamped`, which returns from inside a block, and `label`, which returns
+/// a string held in its own scope; and a worker over a struct that holds a
+/// list, whose step is written out in the loop and whose struct is then
+/// split into its members (Split_holds), beside one read whole, which is
+/// not. Every build prints the same.
 package knownCalls;
 
 alias Int = @primitives$I64;
@@ -37,6 +39,18 @@ Int countdown(f Int[Int], n Int) {
 	return plus(f(n), countdown(f, plus(n, @operators$negate(Int(1)))));
 }
 
+Int clamped(f Int[Int], x Int) {
+	@controlflow$branch(@operators$lessThan(Int(100), x), {
+		return Int(100);
+	});
+	return f(x);
+}
+
+String label(f Int[Int], x Int) {
+	s String = String(f(x));
+	return s;
+}
+
 Unit work(this S Type, step Bool[this S] mut) mut {
 	@controlflow$work(this, step);
 	return Unit();
@@ -50,6 +64,8 @@ type Tally = struct {
 }
 
 Tally(limit Int) => init{ seen = @primitives$List(Int); count = Int(0); sum = Int(0); limit; }
+
+Int whole(t Tally) => plus(t.count, t.limit);
 
 Unit show(n Int) {
 	@program$console!print(@operators$concat(String(n), String.escaped("\n")));
@@ -72,5 +88,11 @@ Unit main() {
 	});
 	show(plus(t.sum, t.seen:size()));
 	show(t.seen[Int(1)]);
+	show(clamped(Int(x Int) { return plus(x, Int(7)); }, n));
+	show(clamped(Int(x Int) { return plus(x, Int(7)); }, @operators$multiply(n, n)));
+	@program$console!print(@operators$concat(label(Int(x Int) { return @operators$multiply(x, Int(2)); }, n), String.escaped("\n")));
+	u Tally = Tally(n);
+	u.count = plus(u.count, Int(2));
+	show(whole(u));
 	return Unit();
 }

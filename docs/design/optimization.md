@@ -1,7 +1,8 @@
 # Optimization: folding at compile time
 
-> **Status: built.** Stage 5 runs one pass, compile-time evaluation, which
-> follows this design, and leaves to LLVM what LLVM does (O11). Each
+> **Status: built.** Stage 5's pass is compile-time evaluation, which
+> follows this design, with a few rewrites run before and after it (§1),
+> and leaves to LLVM what LLVM does (O11). Each
 > decision is numbered (**O1**…). §4 says how it follows the spec's rule,
 > and §6 what is left to measurement.
 
@@ -34,6 +35,8 @@ constants' makers and lifted lambdas.
 | `materialize.ml` | A computed value written back as CGT, and an output as the call that makes it (O4, O7) |
 | `constants.ml` | The package constants that fold (O9) |
 | `fold.ml` | The walk over each function (O6) |
+| `known_calls.ml` | Calls of known function values, and calls given one, written out before folding (O11) |
+| `split_holds.ml` | A held struct whose every use names a member split into its members (O11) |
 | `optimize.ml` | The entry: constants, then every function |
 
 **O2. Only an optimized build runs it.** The driver runs stage 5 between

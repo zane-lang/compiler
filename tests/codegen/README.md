@@ -208,8 +208,9 @@ then run it again, read the golden diff and promote that.
 - `knownCalls` is calls written out in an optimized build
   (`lib/optimize/known_calls.ml`): a function given a lambda, whose calls
   through it then name the lambda, one given a call, whose argument runs
-  once, one that calls itself and stays a call, and a worker over a struct
-  that holds a list. `knownCalls.optimized.cgt` shows the copies, and the
+  once, one that calls itself and stays a call, one that returns from
+  inside a block, one that returns a string it holds, and a worker over a
+  struct that holds a list, beside a struct read whole. `knownCalls.optimized.cgt` shows the copies, and the
   struct split into its members (`lib/optimize/split_holds.ml`).
 - `arrays` is step 10's fixed arrays: built from a literal, read and written
   at an index, copied whole, held in a struct, a host and a variant, and a
