@@ -1,12 +1,12 @@
 import re,sys,subprocess,collections
-cg,binary=sys.argv[1],sys.argv[2]
+cg,binary=sys.argv[1],sys.argv[2]; FN=sys.argv[3] if len(sys.argv)>3 else "runRecursive"
 counts=collections.Counter(); infn=False; last=0; names={}; skip=False
 pos_re=re.compile(r"^(0x[0-9a-f]+|[+-]\d+|\*)\s+\S+\s+(\d+)")
 for line in open(cg):
     if line.startswith(("fn=","cfn=")):
         m=re.match(r"c?fn=\((\d+)\)\s*(.*)",line)
         if m and m.group(2): names[m.group(1)]=m.group(2)
-        if line.startswith("fn="): infn="runRecursive" in names.get(m.group(1),"")
+        if line.startswith("fn="): infn=FN in names.get(m.group(1),"")
         continue
     if line.startswith("calls="):
         m=pos_re.match(line[6:]) ; skip=True

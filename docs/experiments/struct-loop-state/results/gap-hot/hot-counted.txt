@@ -1,0 +1,38 @@
+total 20985320141 instrs executed 332 hot 37
+1076e30    953734872 inc    %r13
+1076e33    953734872 dec    %r14
+1076e36    953734872 je     1076f8e <brainfuck$runArray(v0.14%1fc3f27f33b06851%core$String)+0x74e>
+1076e3c    953735873 cmp    %rbp,%r13
+1076e3f    953735873 jg     1076f8e <brainfuck$runArray(v0.14%1fc3f27f33b06851%core$String)+0x74e>
+1076e45    953734872 lea    -0x1(%r13),%rcx
+1076e49    953734872 cmp    %rbp,%rcx
+1076e4c    953734872 jae    1077246 <brainfuck$runArray(v0.14%1fc3f27f33b06851%core$String)+0xa06>
+1076e52    953734872 mov    -0x8(%r10,%r13,8),%rsi
+1076e57    953734872 add    $0xffffffffffffffd5,%rsi
+1076e5b    953734872 cmp    $0x32,%rsi
+1076e5f    953734872 ja     1076e30 <brainfuck$runArray(v0.14%1fc3f27f33b06851%core$String)+0x5f0>
+1076e61    953734872 movslq (%rbx,%rsi,4),%rsi
+1076e65    953734872 add    %rbx,%rsi
+1076e68    953734872 jmp    *%rsi
+1076e6a    289145823 mov    %edx,%ecx
+1076e6c    289145823 lea    -0x1(%r12),%rsi
+1076e71    289145823 cmp    %rcx,%rsi
+1076e74    289145823 jae    1077246 <brainfuck$runArray(v0.14%1fc3f27f33b06851%core$String)+0xa06>
+1076e7a    289145823 incb   -0x1(%r15,%r12,1)
+1076e7f    289145823 jmp    1076e30 <brainfuck$runArray(v0.14%1fc3f27f33b06851%core$String)+0x5f0>
+1076ea5    288915813 mov    %edx,%ecx
+1076ea7    288915813 lea    -0x1(%r12),%rsi
+1076eac    288915813 cmp    %rcx,%rsi
+1076eaf    288915813 jae    1077246 <brainfuck$runArray(v0.14%1fc3f27f33b06851%core$String)+0xa06>
+1076eb5    288915813 decb   -0x1(%r15,%r12,1)
+1076eba    288915813 jmp    1076e30 <brainfuck$runArray(v0.14%1fc3f27f33b06851%core$String)+0x5f0>
+1076ebf    288901813 mov    %edx,%esi
+1076ec1    288901813 lea    -0x1(%r12),%rdi
+1076ec6    288901813 cmp    %rsi,%rdi
+1076ec9    288901813 jae    1077246 <brainfuck$runArray(v0.14%1fc3f27f33b06851%core$String)+0xa06>
+1076ecf    288901813 cmpb   $0x0,-0x1(%r15,%r12,1)
+1076ed5    288901813 je     1076e30 <brainfuck$runArray(v0.14%1fc3f27f33b06851%core$String)+0x5f0>
+1076edb    260011821 cmp    0x18(%rsp),%rcx
+1076ee0    260011821 jae    1077246 <brainfuck$runArray(v0.14%1fc3f27f33b06851%core$String)+0xa06>
+1076ee6    260011821 mov    -0x8(%r9,%r13,8),%r13
+1076eeb    260011821 jmp    1076e30 <brainfuck$runArray(v0.14%1fc3f27f33b06851%core$String)+0x5f0>

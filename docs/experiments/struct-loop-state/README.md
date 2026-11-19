@@ -199,6 +199,51 @@ holds across runs: no program is slower over its whole spread, three
 arena benchmarks read 4-7% faster in one run, and the struct loops it was
 written for match #398's.
 
+## Step 6: why plain locals still run faster
+
+The struct versions trail plain locals by 18% (worker) to 28% (counted)
+with every compiler. The question: what the locals build has that the
+struct builds lack.
+
+**Work and prediction.** Callgrind with `--branch-sim=yes --dump-instr=yes`
+on the combination's builds (`results/gap-hot/`): locals 21.29G
+instructions, counted 21.03G, worker 19.09G, and the same simulated
+mispredicts in all three (725M, 693M of them on the dispatch's indirect
+jump). The counted and locals hot loops (`hot.py CG BINARY runArray`) are
+the same instructions, run the same number of times, in other registers;
+only which list's pointer is reloaded from the stack differs. So the gap
+is not work.
+
+**Data placement.** gdb at the dispatch load (`cmdbase.sh BINARY`): the tape
+is at the same address in both, `commands` at page offset `0x670` (locals)
+and `0xeb0` (counted). A list padding the arena before the struct copies
+its lists moved `commands` to `0x0c0`, `0x2c0` and `0x6c0`, all with the
+hot loop at one code address; those three ran alike, 1.20-1.23 of locals
+(`results/padding.csv`). 4K aliasing between the tape's stores and the
+command loads is not it.
+
+**Code placement.** The locals and counted variants built with #398 and
+`ZANE_LLVM_ARGS=-align-all-nofallthru-blocks=N` (the temporary hook, not
+committed), which starts every block not reached by falling through on a
+`2^N`-byte boundary; at `N=6` the dispatch load of both lands at the same
+address, `0x108b272`. 15 rounds (`results/alignment.csv`):
+
+| layout | counted / locals |
+| --- | --- |
+| default | 1.308 [1.191, 1.340] |
+| blocks on 32 bytes | 1.015 [1.001, 1.044] |
+| blocks on 64 bytes | 0.955 [0.920, 1.003] |
+
+and locals on 64 bytes ran 1.188 [1.132, 1.289] of locals by default.
+
+With their code placed alike, the struct version runs as fast as plain
+locals. The default locals build is the outlier: its placement happens to
+suit this dispatch loop about 20% better than the usual one, which is the
+speed the struct builds, and the locals build once moved, run at. Nothing
+in the struct versions is left to remove; matching the locals build's
+time means getting its lucky placement on purpose, a code-layout question
+about indirect-jump dispatch loops, not about structs.
+
 ## Reading so far
 
 The two changes look complementary rather than competing. The split helps
@@ -212,6 +257,11 @@ they tie. The full arena agrees: #398 is ahead overall (0.984 against
 which one.
 
 ## What remains
+
+- What about the default locals build's placement suits the dispatch loop
+  (where its jump targets fall, how its blocks share cache lines and
+  predictor entries), and whether a rule for laying out a dispatch loop's
+  targets would get it in every build.
 
 - Whether to land the split on top of #398 for no measured gain (about
   250 lines of `split_holds.ml`, with its tests and docs), or drop it: the

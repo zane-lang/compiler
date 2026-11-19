@@ -1,0 +1,12 @@
+locals Collected : 21290135953 5322883856 31495450 953739385 693484213
+locals Branches:       6,276,623,241  (5,322,883,856 cond + 953,739,385 ind)
+locals Mispredicts:      724,979,663  (   31,495,450 cond + 693,484,213 ind)
+locals Mispred rate:            11.6% (          0.6%     +        72.7%   )
+counted Collected : 21030642651 5322930911 31494542 953741385 693484216
+counted Branches:       6,276,672,296  (5,322,930,911 cond + 953,741,385 ind)
+counted Mispredicts:      724,978,758  (   31,494,542 cond + 693,484,216 ind)
+counted Mispred rate:            11.6% (          0.6%     +        72.7%   )
+worker Collected : 19094222598 4369192634 31496499 953741380 693484216
+worker Branches:       5,322,934,014  (4,369,192,634 cond + 953,741,380 ind)
+worker Mispredicts:      724,980,715  (   31,496,499 cond + 693,484,216 ind)
+worker Mispred rate:            13.6% (          0.7%     +        72.7%   )
