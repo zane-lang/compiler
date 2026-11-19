@@ -384,6 +384,77 @@ class FactsTests(unittest.TestCase):
                 self.assertNotEqual(stopped.returncode, 0, optimize)
                 self.assertIn("out of range", stopped.stderr, optimize)
 
+    def test_struct_fields_stay_in_registers_across_a_loop(self):
+        # A struct local's counter and total, written on every pass of a
+        # loop whose rare push is a call given the address of one of its
+        # lists, are locals of their own (Split_holds), under a counted loop
+        # and under a worker whose step is written out where it runs
+        # (Known_calls): no hold of the struct is left, and the only stores
+        # into a frame inside a loop are into the handle of a list some call
+        # is given, as they are with the same state in plain locals.
+        for name in ["subjects", "worked"]:
+            cgt = run(ZANEC, "--cgt", "--optimize", *packages(name))
+            held = re.search(r"hold:\n.*\n.*\n.*value(?: > [\w ]+:\n.*type:|: .* :) \{", cgt)
+            self.assertIsNone(held and held.group(0), name)
+            ir = run(ZANEC, "--ll", "--optimize", *packages(name))
+            body = re.search(r"(?ms)^define [^\n]*@zane_main\(.*?^}", ir).group(0)
+            frames = set(re.findall(r'"dereferenceable"\(ptr (%[\w.]+), i64', body))
+            self.assertTrue(frames, name)
+            # Each slot's frame and offset in it.
+            slots = {f: (f, 0) for f in frames} | {slot: (base, int(at)) for slot, base, at in re.findall(
+                r"(?m)^\s*(%[\w.]+) = getelementptr [^\n]*ptr (%[\w.]+), i64 (\d+)$", body) if base in frames}
+            given = {slots[a] for a in re.findall(r"call [^\n]*\(ptr [^\n]*?(%[\w.]+)", body) if a in slots}
+            handle = 16 if FRAME_REFS else 24
+            def in_given(slot):
+                base, at = slots[slot]
+                return any(base == b and g <= at < g + handle for b, g in given)
+            blocks, label = {}, "entry"
+            for line in body.split("\n")[1:]:
+                found = re.match(r'^("[^"]+"|[\w.$-]+):', line)
+                if found:
+                    label = found.group(1).strip('"')
+                blocks.setdefault(label, []).append(line)
+            def successors(block):
+                return {t.strip('"') for line in blocks[block] for t in re.findall(r'label %("[^"]+"|[\w.$-]+)', line)}
+            def reach(block):
+                seen, todo = set(), [block]
+                while todo:
+                    for s in successors(todo.pop()) - seen:
+                        seen.add(s)
+                        todo.append(s)
+                return seen
+            looped = [block for block in blocks if block in reach(block)]
+            self.assertTrue(looped, name)
+            for block in looped:
+                for line in blocks[block]:
+                    stored = re.search(r"store [^,]+, ptr (%[\w.]+)", line)
+                    if stored and stored.group(1) in slots:
+                        self.assertTrue(in_given(stored.group(1)), f"{name} {block}: {line}")
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "subjects"
+                run(ZANEC, "--build", exe, *optimize, *packages("subjects"))
+                self.assertEqual(run_program(exe, 100), "682\n", optimize)
+                self.assertEqual(run_program(exe, 1000), "6876\n", optimize)
+                self.assertEqual(run_program(exe, 0), "1\n", optimize)
+                # A frame placed on two paths, whose struct the worker's step
+                # writes through an address merged apart from the frame.
+                exe = Path(temp) / "worked"
+                run(ZANEC, "--build", exe, *optimize, *packages("worked"))
+                self.assertEqual(run_program(exe, 1000), "455494\n", optimize)
+                self.assertEqual(run_program(exe, 7), "10247\n", optimize)
+                self.assertEqual(run_program(exe, 1), "15\n", optimize)
+            # Tier 1 keeps calls in the loops that the optimized build
+            # inlines, so their copies are written back and filled again
+            # around each.
+            for name, size, printed in [("subjects", 1000, "6876\n"), ("worked", 1000, "455494\n")]:
+                exe = Path(temp) / f"{name}.tiered"
+                run(ZANEC, "--build", exe, "--tiered", *packages(name))
+                run(ZANEC, "--tier-up", f"{exe}.tier1", *packages(name))
+                result = subprocess.run([str(exe), str(size)], capture_output=True, text=True, timeout=60,
+                                        env={**os.environ, "ZANE_TIER_UP": f"{exe}.tier1", "ZANE_TIER_WAIT": "1"})
+                self.assertEqual((result.returncode, result.stdout), (0, printed), result.stderr)
+
     def test_runs_of_pushes_make_room_once(self):
         # A new list pushed to four times in a row makes room for all four
         # at its first push, so the room is compared once, and the other

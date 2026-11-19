@@ -1,0 +1,76 @@
+/// Calls of known function values, and calls given one, written out where
+/// they are made in an optimized build (docs/optimizations.md, "Known
+/// calls"): `twice` given a lambda, and the lambda's own calls in the copy;
+/// `bumped`, given a call, so its argument is bound to a local of its own
+/// first, run once; `countdown`, which calls itself, called as it was; and a
+/// worker over a struct that holds a list, whose step is written out in the
+/// loop and whose struct is then split into its members (Split_holds).
+/// Every build prints the same.
+package knownCalls;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias List<T Type> = @primitives$List<T>;
+
+/// The program's first argument, `fallback` without one, so that no build
+/// folds what is computed from it.
+Int size(fallback Int) {
+	args List<String> = @program$runtime:arguments();
+	@controlflow$branch(@operators$lessThan(args:size(), Int(1)), {
+		return fallback;
+	});
+	return args[Int(1)]:parseI64() ?? fallback;
+}
+
+Int plus(a Int, b Int) => @operators$add(a, b);
+
+Int twice(f Int[Int], x Int) => f(f(x));
+
+Int bumped(f Int[Int], x Int) => f(plus(x, Int(1)));
+
+Int countdown(f Int[Int], n Int) {
+	@controlflow$branch(@operators$lessThan(n, Int(1)), {
+		return Int(0);
+	});
+	return plus(f(n), countdown(f, plus(n, @operators$negate(Int(1)))));
+}
+
+Unit work(this S Type, step Bool[this S] mut) mut {
+	@controlflow$work(this, step);
+	return Unit();
+}
+
+type Tally = struct {
+	seen List<Int>;
+	count Int;
+	sum Int;
+	limit Int;
+}
+
+Tally(limit Int) => init{ seen = @primitives$List(Int); count = Int(0); sum = Int(0); limit; }
+
+Unit show(n Int) {
+	@program$console!print(@operators$concat(String(n), String.escaped("\n")));
+	return Unit();
+}
+
+Unit main() {
+	n Int = size(Int(10));
+	show(twice(Int(x Int) { return @operators$multiply(x, Int(3)); }, plus(n, @operators$negate(Int(5)))));
+	show(bumped(Int(x Int) { return @operators$multiply(x, x); }, plus(n, @operators$negate(Int(4)))));
+	show(countdown(Int(x Int) { return @operators$multiply(x, x); }, plus(n, @operators$negate(Int(6)))));
+	t Tally = Tally(n);
+	t!work(Bool(this Tally) mut {
+		this.count = plus(this.count, Int(1));
+		this.sum = plus(this.sum, this.count);
+		@controlflow$branch(@operators$equal(@math$bitAnd(this.count, Int(3)), Int(0)), {
+			this.seen!push(this.sum);
+		});
+		return @operators$lessThan(this.count, this.limit);
+	});
+	show(plus(t.sum, t.seen:size()));
+	show(t.seen[Int(1)]);
+	return Unit();
+}

@@ -99,7 +99,12 @@ program over it that spawns nothing; `busy`, the same with one spawned
 call; `pool`, a library that spawns; and `relay`, a program that spawns
 nothing itself and calls `pool` as a stamped dependency; `warmer`, a
 program that writes back into a cell of a `cells` grid; and `packs`, a
-library whose owner holds a packed value with an 8-byte member in it. Only
+library whose owner holds a packed value with an 8-byte member in it;
+`subjects`, a program whose counted loop reads and writes a struct local's
+fields and grows one of its lists now and then; and `worked`, a fetch loop
+run as a worker over a struct. The last two check that the struct is split
+into its members, its scalar fields kept out of the frame across the loop,
+and that every build prints what it should. Only
 `quiet` reads without snapshots: `busy` and `relay` keep them where they
 write back, and `cells` built as a library for any program keeps them all.
 Built for one program, from the file `--write-backs` writes for it, `cells`

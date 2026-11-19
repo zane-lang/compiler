@@ -101,8 +101,13 @@ let member_layout ls layout k at size =
   | ps -> (
       (* A layout the program already names with the same positions, such
          as the member type's own, is the member's; only a part no type
-         lays out alone gets a new name. *)
-      match Hashtbl.fold (fun n ps' found -> if found = None && ps' = ps then Some n else found) ls.known None with
+         lays out alone gets a new name. The struct's own layout, a
+         larger value's, is not one, and of several the first by name is
+         taken, so that a build names the same one each time. *)
+      let same n ps' found =
+        if n = layout || ps' <> ps then found else match found with Some m when m <= n -> found | _ -> Some n
+      in
+      match Hashtbl.fold same ls.known None with
       | Some n -> `Held n
       | None ->
           let name = Printf.sprintf "%s#%d" layout k in

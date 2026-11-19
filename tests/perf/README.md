@@ -212,6 +212,10 @@ repo's `langbench/` and print what it prints at the same size.
     copied.
   - `tape`: a tape machine's frame slots stay in registers across a rare
     push.
+  - `subjects`: a tape machine whose state is a struct local, run as a
+    worker and as a counted loop, keeps its counter and its program's
+    count in registers: the worker's step is written out in the loop, and
+    the struct is split into its members.
   - `nodes`: a Huffman decoder's loaded child index goes straight into the
     element's address.
   - `digest`: a strip-mined hash's eight lanes are one vector once its

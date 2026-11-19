@@ -20,8 +20,7 @@
    the parameter; any other is bound to a fresh local first, in the order
    the arguments run. A callee that spawns, or returns through a result
    slot it is given, is called as it was; so is one given a function value
-   whose body is larger than [budget] nodes, and nothing is written out
-   inside a copy of itself. *)
+   whose body is larger than [budget] nodes, or that calls itself. *)
 
 open Cgt.Nodes
 open Cgt.Traverse
@@ -48,6 +47,13 @@ let fit (f : Func.t) =
        (exists_in f.Func.body
           ~expr:(fun _ -> false)
           ~stat:(function Stat.Spawn _ | Stat.Join _ -> true | _ -> false))
+
+(* Whether [g] calls itself: written out, it would bring in a call to
+   write out again, each round. *)
+let calls_itself (g : Func.t) =
+  exists_in g.Func.body
+    ~expr:(fun (e : Expr.t) -> match e.Expr.node with Expr.Call { fn; _ } -> fn = g.Func.symbol | _ -> false)
+    ~stat:(fun _ -> false)
 
 (* An argument that may stand for its parameter wherever the callee names it. *)
 let stable (e : Expr.t) =
@@ -138,9 +144,34 @@ let expand next (f : Func.t) (args : Expr.t list) ty : Expr.t =
   let result = match ty with Ty.Void -> None | _ -> Some (fresh ()) in
   { Expr.node = Expr.Expand { label; body = binds @ returns label result body; result }; ty }
 
+(* [body] with each read of a local bound once to a function value, and
+   neither assigned nor addressed after, made that function value: an
+   expression verb written out by lowering (lowering.md L11) binds the
+   lambda it is given so, and its calls through that local then name the
+   function. *)
+let named (body : Stat.t list) =
+  let pinned = pinned body and known = Hashtbl.create 8 in
+  walk_stats
+    (fun _ -> ())
+    (function
+      | Stat.Let { id; value = { Expr.node = Expr.Function _; _ } as v } when not (Hashtbl.mem pinned id) -> Hashtbl.replace known id v
+      | _ -> ())
+    body;
+  if Hashtbl.length known = 0 then body
+  else
+    map_stats
+      (fun (e : Expr.t) ->
+        match e.Expr.node with
+        | Expr.Local i when Hashtbl.mem known i -> Some { (Hashtbl.find known i) with Expr.ty = e.Expr.ty }
+        | _ -> None)
+      (fun _ -> None)
+      body
+
 let func funcs (f : Func.t) : Func.t =
   let next = ref (Peel.largest f) in
-  let callee sym = match Hashtbl.find_opt funcs sym with Some g when fit g && g.Func.symbol <> f.Func.symbol -> Some g | _ -> None in
+  let callee sym =
+    match Hashtbl.find_opt funcs sym with Some g when fit g && g.Func.symbol <> f.Func.symbol && not (calls_itself g) -> Some g | _ -> None
+  in
   let given_function args = List.exists (fun (a : Expr.t) -> match a.Expr.node with Expr.Function _ -> true | _ -> false) args in
   let changed = ref false in
   let fe (e : Expr.t) =
@@ -161,7 +192,7 @@ let func funcs (f : Func.t) : Func.t =
   in
   let rec go n body =
     changed := false;
-    let body = map_stats fe (fun _ -> None) body in
+    let body = map_stats fe (fun _ -> None) (named body) in
     if !changed && n > 1 then go (n - 1) body else body
   in
   { f with Func.body = go rounds f.Func.body }

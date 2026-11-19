@@ -1,0 +1,963 @@
+└── program:
+    ├── entry: zane.start
+    ├── layouts[0] > layout:
+    │   ├── type: %primitives$I64
+    │   └── positions:
+    ├── layouts[1] > layout:
+    │   ├── type: knownCalls$Tally
+    │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
+    ├── layouts[2] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── layouts[3] > layout:
+    │   ├── type: %primitives$List<%primitives$String>
+    │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
+    ├── layouts[4] > layout:
+    │   ├── type: knownCalls$Tally#0
+    │   └── positions[0]: list @0 of %primitives$I64 (8 bytes apart)
+    ├── globals[0]: zane_self : i64, imported
+    ├── callbacks[0] > callback:
+    │   ├── symbol: knownCalls$main()$lambda1
+    │   ├── entry: knownCalls$entry knownCalls$main()$lambda1
+    │   ├── takes[0]: i64
+    │   └── gives: i64
+    ├── callbacks[1] > callback:
+    │   ├── symbol: knownCalls$main()$lambda2
+    │   ├── entry: knownCalls$entry knownCalls$main()$lambda2
+    │   ├── takes[0]: i64
+    │   └── gives: i64
+    ├── callbacks[2] > callback:
+    │   ├── symbol: knownCalls$main()$lambda3
+    │   ├── entry: knownCalls$entry knownCalls$main()$lambda3
+    │   ├── takes[0]: i64
+    │   └── gives: i64
+    ├── callbacks[3] > callback:
+    │   ├── symbol: knownCalls$work<knownCalls$Tally>(this knownCalls$Tally, %primitives$Bool[this knownCalls$Tally] mut)$lambda1
+    │   ├── entry: knownCalls$entry knownCalls$work<knownCalls$Tally>(this knownCalls$Tally, %primitives$Bool[this knownCalls$Tally] mut)$lambda1
+    │   ├── takes[0]: i1
+    │   └── gives: i1
+    ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: knownCalls$main()
+    │       └── args:
+    ├── funcs[1] > func:
+    │   ├── symbol: knownCalls$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %25
+    │       ├── body[0] > let:
+    │       │   ├── local: #1
+    │       │   └── value > call:
+    │       │       ├── type: i64
+    │       │       ├── fn: knownCalls$size(%primitives$I64)
+    │       │       └── args[0]: 10 : i64
+    │       ├── body[1] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: knownCalls$show(%primitives$I64)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: i64
+    │       │       ├── label: @7
+    │       │       ├── result: #8
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #2
+    │       │       │   └── value: function knownCalls$main()$lambda1
+    │       │       ├── body[1] > let:
+    │       │       │   ├── local: #6
+    │       │       │   └── value > expand:
+    │       │       │       ├── type: i64
+    │       │       │       ├── label: @4
+    │       │       │       ├── result: #5
+    │       │       │       ├── body[0] > let:
+    │       │       │       │   ├── local: #3
+    │       │       │       │   └── value: -5 : i64
+    │       │       │       ├── body[1] > assign:
+    │       │       │       │   ├── place: #5
+    │       │       │       │   └── value > binary:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── op: +
+    │       │       │       │       ├── left: local #1 : i64
+    │       │       │       │       └── right: -5 : i64
+    │       │       │       └── body[2]: leave @4
+    │       │       ├── body[2] > assign:
+    │       │       │   ├── place: #8
+    │       │       │   └── value > call value:
+    │       │       │       ├── type: i64
+    │       │       │       ├── fn: local #2 : ptr
+    │       │       │       └── args[0] > call value:
+    │       │       │           ├── type: i64
+    │       │       │           ├── fn: local #2 : ptr
+    │       │       │           └── args[0]: local #6 : i64
+    │       │       └── body[3]: leave @7
+    │       ├── body[2] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: knownCalls$show(%primitives$I64)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: i64
+    │       │       ├── label: @14
+    │       │       ├── result: #15
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #9
+    │       │       │   └── value: function knownCalls$main()$lambda2
+    │       │       ├── body[1] > let:
+    │       │       │   ├── local: #13
+    │       │       │   └── value > expand:
+    │       │       │       ├── type: i64
+    │       │       │       ├── label: @11
+    │       │       │       ├── result: #12
+    │       │       │       ├── body[0] > let:
+    │       │       │       │   ├── local: #10
+    │       │       │       │   └── value: -4 : i64
+    │       │       │       ├── body[1] > assign:
+    │       │       │       │   ├── place: #12
+    │       │       │       │   └── value > binary:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── op: +
+    │       │       │       │       ├── left: local #1 : i64
+    │       │       │       │       └── right: -4 : i64
+    │       │       │       └── body[2]: leave @11
+    │       │       ├── body[2] > assign:
+    │       │       │   ├── place: #15
+    │       │       │   └── value > call value:
+    │       │       │       ├── type: i64
+    │       │       │       ├── fn: local #9 : ptr
+    │       │       │       └── args[0] > expand:
+    │       │       │           ├── type: i64
+    │       │       │           ├── label: @17
+    │       │       │           ├── result: #18
+    │       │       │           ├── body[0] > let:
+    │       │       │           │   ├── local: #16
+    │       │       │           │   └── value: 1 : i64
+    │       │       │           ├── body[1] > assign:
+    │       │       │           │   ├── place: #18
+    │       │       │           │   └── value > binary:
+    │       │       │           │       ├── type: i64
+    │       │       │           │       ├── op: +
+    │       │       │           │       ├── left: local #13 : i64
+    │       │       │           │       └── right: 1 : i64
+    │       │       │           └── body[2]: leave @17
+    │       │       └── body[3]: leave @14
+    │       ├── body[3] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: knownCalls$show(%primitives$I64)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: i64
+    │       │       ├── label: @46
+    │       │       ├── result: #47
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #45
+    │       │       │   └── value > expand:
+    │       │       │       ├── type: i64
+    │       │       │       ├── label: @20
+    │       │       │       ├── result: #21
+    │       │       │       ├── body[0] > let:
+    │       │       │       │   ├── local: #19
+    │       │       │       │   └── value: -6 : i64
+    │       │       │       ├── body[1] > assign:
+    │       │       │       │   ├── place: #21
+    │       │       │       │   └── value > binary:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── op: +
+    │       │       │       │       ├── left: local #1 : i64
+    │       │       │       │       └── right: -6 : i64
+    │       │       │       └── body[2]: leave @20
+    │       │       ├── body[1] > if:
+    │       │       │   ├── cond > binary:
+    │       │       │   │   ├── type: i1
+    │       │       │   │   ├── op: <
+    │       │       │   │   ├── left: local #45 : i64
+    │       │       │   │   └── right: 1 : i64
+    │       │       │   ├── body[0] > assign:
+    │       │       │   │   ├── place: #47
+    │       │       │   │   └── value: 0 : i64
+    │       │       │   └── body[1]: leave @46
+    │       │       ├── body[2] > assign:
+    │       │       │   ├── place: #47
+    │       │       │   └── value > expand:
+    │       │       │       ├── type: i64
+    │       │       │       ├── label: @30
+    │       │       │       ├── result: #31
+    │       │       │       ├── body[0] > let:
+    │       │       │       │   ├── local: #32
+    │       │       │       │   └── value > expand:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── label: @52
+    │       │       │       │       ├── result: #53
+    │       │       │       │       ├── body[0] > let:
+    │       │       │       │       │   ├── local: #51
+    │       │       │       │       │   └── value: local #45 : i64
+    │       │       │       │       ├── body[1] > assign:
+    │       │       │       │       │   ├── place: #53
+    │       │       │       │       │   └── value > binary:
+    │       │       │       │       │       ├── type: i64
+    │       │       │       │       │       ├── op: *
+    │       │       │       │       │       ├── left: local #51 : i64
+    │       │       │       │       │       └── right: local #51 : i64
+    │       │       │       │       └── body[2]: leave @52
+    │       │       │       ├── body[1] > let:
+    │       │       │       │   ├── local: #33
+    │       │       │       │   └── value > expand:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── label: @34
+    │       │       │       │       ├── result: #35
+    │       │       │       │       ├── body[0] > let:
+    │       │       │       │       │   ├── local: #36
+    │       │       │       │       │   └── value: function knownCalls$main()$lambda3
+    │       │       │       │       ├── body[1] > let:
+    │       │       │       │       │   ├── local: #37
+    │       │       │       │       │   └── value > expand:
+    │       │       │       │       │       ├── type: i64
+    │       │       │       │       │       ├── label: @38
+    │       │       │       │       │       ├── result: #39
+    │       │       │       │       │       ├── body[0] > let:
+    │       │       │       │       │       │   ├── local: #40
+    │       │       │       │       │       │   └── value: -1 : i64
+    │       │       │       │       │       ├── body[1] > assign:
+    │       │       │       │       │       │   ├── place: #39
+    │       │       │       │       │       │   └── value > binary:
+    │       │       │       │       │       │       ├── type: i64
+    │       │       │       │       │       │       ├── op: +
+    │       │       │       │       │       │       ├── left: local #45 : i64
+    │       │       │       │       │       │       └── right: -1 : i64
+    │       │       │       │       │       └── body[2]: leave @38
+    │       │       │       │       ├── body[2] > eval > expand:
+    │       │       │       │       │   ├── type: void
+    │       │       │       │       │   ├── label: @41
+    │       │       │       │       │   ├── body[0] > if:
+    │       │       │       │       │   │   ├── cond > binary:
+    │       │       │       │       │   │   │   ├── type: i1
+    │       │       │       │       │   │   │   ├── op: <
+    │       │       │       │       │   │   │   ├── left: local #37 : i64
+    │       │       │       │       │   │   │   └── right: 1 : i64
+    │       │       │       │       │   │   ├── body[0] > assign:
+    │       │       │       │       │   │   │   ├── place: #35
+    │       │       │       │       │   │   │   └── value: 0 : i64
+    │       │       │       │       │   │   └── body[1]: leave @34
+    │       │       │       │       │   ├── body[1] > assign:
+    │       │       │       │       │   │   ├── place: #35
+    │       │       │       │       │   │   └── value > expand:
+    │       │       │       │       │   │       ├── type: i64
+    │       │       │       │       │   │       ├── label: @42
+    │       │       │       │       │   │       ├── result: #43
+    │       │       │       │       │   │       └── body[0]: leave @41
+    │       │       │       │       │   └── body[2]: leave @34
+    │       │       │       │       ├── body[3] > assign:
+    │       │       │       │       │   ├── place: #35
+    │       │       │       │       │   └── value > call:
+    │       │       │       │       │       ├── type: i64
+    │       │       │       │       │       ├── fn: knownCalls$countdown(%primitives$I64[%primitives$I64], %primitives$I64)
+    │       │       │       │       │       ├── args[0]: local #36 : ptr
+    │       │       │       │       │       └── args[1]: local #37 : i64
+    │       │       │       │       └── body[4]: leave @34
+    │       │       │       ├── body[2] > assign:
+    │       │       │       │   ├── place: #31
+    │       │       │       │   └── value > binary:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── op: +
+    │       │       │       │       ├── left: local #32 : i64
+    │       │       │       │       └── right: local #33 : i64
+    │       │       │       └── body[3]: leave @30
+    │       │       └── body[3]: leave @46
+    │       ├── body[4] > let:
+    │       │   ├── local: #76
+    │       │   └── value > expand:
+    │       │       ├── type: {handle16, i64, i64, i64}
+    │       │       ├── label: @22
+    │       │       ├── result: #23
+    │       │       ├── body[0] > assign:
+    │       │       │   ├── place: #23
+    │       │       │   └── value > escape:
+    │       │       │       ├── exit: @22
+    │       │       │       ├── value > record:
+    │       │       │       │   ├── type: {handle16, i64, i64, i64}
+    │       │       │       │   ├── members[0] > member 0 > expand:
+    │       │       │       │   │   ├── type: handle16
+    │       │       │       │   │   ├── label: @77
+    │       │       │       │   │   ├── result: #78
+    │       │       │       │   │   └── body[0] > assign:
+    │       │       │       │   │       ├── place: #78
+    │       │       │       │   │       └── value > runtime:
+    │       │       │       │   │           ├── type: handle16
+    │       │       │       │   │           ├── fn: zane_list_new
+    │       │       │       │   │           └── args:
+    │       │       │       │   ├── members[1] > member 1: 0 : i64
+    │       │       │       │   ├── members[2] > member 2: 0 : i64
+    │       │       │       │   └── members[3] > member 3: local #1 : i64
+    │       │       │       └── layout: knownCalls$Tally
+    │       │       └── body[1]: leave @22
+    │       ├── body[5] > hold:
+    │       │   ├── local: #72
+    │       │   ├── scope: %25
+    │       │   ├── value > member:
+    │       │   │   ├── type: handle16
+    │       │   │   ├── index: 0
+    │       │   │   └── value: local #76 : {handle16, i64, i64, i64}
+    │       │   └── layout: knownCalls$Tally#0
+    │       ├── body[6] > let:
+    │       │   ├── local: #73
+    │       │   └── value > member:
+    │       │       ├── type: i64
+    │       │       ├── index: 1
+    │       │       └── value: local #76 : {handle16, i64, i64, i64}
+    │       ├── body[7] > let:
+    │       │   ├── local: #74
+    │       │   └── value > member:
+    │       │       ├── type: i64
+    │       │       ├── index: 2
+    │       │       └── value: local #76 : {handle16, i64, i64, i64}
+    │       ├── body[8] > let:
+    │       │   ├── local: #75
+    │       │   └── value > member:
+    │       │       ├── type: i64
+    │       │       ├── index: 3
+    │       │       └── value: local #76 : {handle16, i64, i64, i64}
+    │       ├── body[9] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @49
+    │       │   ├── body[0] > while:
+    │       │   │   ├── cond > expand:
+    │       │   │   │   ├── type: i1
+    │       │   │   │   ├── label: @56
+    │       │   │   │   ├── result: #57
+    │       │   │   │   ├── body[0] > let:
+    │       │   │   │   │   ├── local: #55
+    │       │   │   │   │   └── value > expand:
+    │       │   │   │   │       ├── type: i1
+    │       │   │   │   │       ├── label: @70
+    │       │   │   │   │       ├── result: #71
+    │       │   │   │   │       ├── body[0] > assign:
+    │       │   │   │   │       │   ├── place: #73
+    │       │   │   │   │       │   └── value > expand:
+    │       │   │   │   │       │       ├── type: i64
+    │       │   │   │   │       │       ├── label: @58
+    │       │   │   │   │       │       ├── result: #59
+    │       │   │   │   │       │       ├── body[0] > let:
+    │       │   │   │   │       │       │   ├── local: #60
+    │       │   │   │   │       │       │   └── value: local #73 : i64
+    │       │   │   │   │       │       ├── body[1] > let:
+    │       │   │   │   │       │       │   ├── local: #61
+    │       │   │   │   │       │       │   └── value: 1 : i64
+    │       │   │   │   │       │       ├── body[2] > assign:
+    │       │   │   │   │       │       │   ├── place: #59
+    │       │   │   │   │       │       │   └── value > binary:
+    │       │   │   │   │       │       │       ├── type: i64
+    │       │   │   │   │       │       │       ├── op: +
+    │       │   │   │   │       │       │       ├── left: local #60 : i64
+    │       │   │   │   │       │       │       └── right: 1 : i64
+    │       │   │   │   │       │       └── body[3]: leave @58
+    │       │   │   │   │       ├── body[1] > assign:
+    │       │   │   │   │       │   ├── place: #74
+    │       │   │   │   │       │   └── value > expand:
+    │       │   │   │   │       │       ├── type: i64
+    │       │   │   │   │       │       ├── label: @62
+    │       │   │   │   │       │       ├── result: #63
+    │       │   │   │   │       │       ├── body[0] > let:
+    │       │   │   │   │       │       │   ├── local: #64
+    │       │   │   │   │       │       │   └── value: local #74 : i64
+    │       │   │   │   │       │       ├── body[1] > let:
+    │       │   │   │   │       │       │   ├── local: #65
+    │       │   │   │   │       │       │   └── value: local #73 : i64
+    │       │   │   │   │       │       ├── body[2] > assign:
+    │       │   │   │   │       │       │   ├── place: #63
+    │       │   │   │   │       │       │   └── value > binary:
+    │       │   │   │   │       │       │       ├── type: i64
+    │       │   │   │   │       │       │       ├── op: +
+    │       │   │   │   │       │       │       ├── left: local #64 : i64
+    │       │   │   │   │       │       │       └── right: local #65 : i64
+    │       │   │   │   │       │       └── body[3]: leave @62
+    │       │   │   │   │       ├── body[2] > if:
+    │       │   │   │   │       │   ├── cond > binary:
+    │       │   │   │   │       │   │   ├── type: i1
+    │       │   │   │   │       │   │   ├── op: ==
+    │       │   │   │   │       │   │   ├── left > math:
+    │       │   │   │   │       │   │   │   ├── type: i64
+    │       │   │   │   │       │   │   │   ├── fn: bitAnd
+    │       │   │   │   │       │   │   │   ├── args[0]: local #73 : i64
+    │       │   │   │   │       │   │   │   └── args[1]: 3 : i64
+    │       │   │   │   │       │   │   └── right: 0 : i64
+    │       │   │   │   │       │   └── body[0] > eval > expand:
+    │       │   │   │   │       │       ├── type: void
+    │       │   │   │   │       │       ├── label: @66
+    │       │   │   │   │       │       ├── body[0] > let:
+    │       │   │   │   │       │       │   ├── local: #67
+    │       │   │   │   │       │       │   └── value: local #74 : i64
+    │       │   │   │   │       │       ├── body[1] > let:
+    │       │   │   │   │       │       │   ├── local: #68
+    │       │   │   │   │       │       │   └── value > runtime:
+    │       │   │   │   │       │       │       ├── type: ptr
+    │       │   │   │   │       │       │       ├── fn: zane_list_push
+    │       │   │   │   │       │       │       ├── args[0]: address of #72 : ptr
+    │       │   │   │   │       │       │       └── args[1]: 8 : i64
+    │       │   │   │   │       │       └── body[2] > place:
+    │       │   │   │   │       │           ├── address: local #68 : ptr
+    │       │   │   │   │       │           ├── value: local #67 : i64
+    │       │   │   │   │       │           └── layout: %primitives$I64
+    │       │   │   │   │       ├── body[3] > assign:
+    │       │   │   │   │       │   ├── place: #71
+    │       │   │   │   │       │   └── value > binary:
+    │       │   │   │   │       │       ├── type: i1
+    │       │   │   │   │       │       ├── op: <
+    │       │   │   │   │       │       ├── left: local #73 : i64
+    │       │   │   │   │       │       └── right: local #75 : i64
+    │       │   │   │   │       └── body[4]: leave @70
+    │       │   │   │   ├── body[1] > assign:
+    │       │   │   │   │   ├── place: #57
+    │       │   │   │   │   └── value: local #55 : i1
+    │       │   │   │   └── body[2]: leave @56
+    │       │   │   └── body:
+    │       │   └── body[1]: leave @49
+    │       ├── body[10] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: knownCalls$show(%primitives$I64)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: i64
+    │       │       ├── label: @28
+    │       │       ├── result: #29
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #26
+    │       │       │   └── value: local #74 : i64
+    │       │       ├── body[1] > let:
+    │       │       │   ├── local: #27
+    │       │       │   └── value > convert:
+    │       │       │       ├── type: i64
+    │       │       │       └── value > member:
+    │       │       │           ├── type: i32
+    │       │       │           ├── index: 1
+    │       │       │           └── value: local #72 : handle16
+    │       │       ├── body[2] > assign:
+    │       │       │   ├── place: #29
+    │       │       │   └── value > binary:
+    │       │       │       ├── type: i64
+    │       │       │       ├── op: +
+    │       │       │       ├── left: local #26 : i64
+    │       │       │       └── right: local #27 : i64
+    │       │       └── body[3]: leave @28
+    │       ├── body[11] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: knownCalls$show(%primitives$I64)
+    │       │   └── args[0] > deref:
+    │       │       ├── type: i64
+    │       │       └── ptr > runtime:
+    │       │           ├── type: ptr
+    │       │           ├── fn: zane_list_at
+    │       │           ├── args[0]: address of #72 : ptr
+    │       │           ├── args[1]: 1 : i64
+    │       │           └── args[2]: 8 : i64
+    │       └── body[12] > return: unit : void
+    ├── funcs[2] > func:
+    │   ├── symbol: knownCalls$size(%primitives$I64)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle16
+    │       │   │   ├── fn: zane_arguments
+    │       │   │   └── args:
+    │       │   └── layout: %primitives$List<%primitives$String>
+    │       ├── body[1] > if:
+    │       │   ├── cond > binary:
+    │       │   │   ├── type: i1
+    │       │   │   ├── op: <
+    │       │   │   ├── left > convert:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   └── value > member:
+    │       │   │   │       ├── type: i32
+    │       │   │   │       ├── index: 1
+    │       │   │   │       └── value: local #2 : handle16
+    │       │   │   └── right: 1 : i64
+    │       │   └── body[0] > return: local #1 : i64
+    │       └── body[2] > return > expand:
+    │           ├── type: i64
+    │           ├── label: @5
+    │           ├── result: #8
+    │           ├── body[0] > let:
+    │           │   ├── local: #6
+    │           │   └── value: 0 : i64
+    │           ├── body[1] > let:
+    │           │   ├── local: #7
+    │           │   └── value > runtime:
+    │           │       ├── type: i64
+    │           │       ├── fn: zane_parse_i64
+    │           │       ├── args[0] > deref:
+    │           │       │   ├── type: handle
+    │           │       │   └── ptr > runtime:
+    │           │       │       ├── type: ptr
+    │           │       │       ├── fn: zane_list_at
+    │           │       │       ├── args[0]: address of #2 : ptr
+    │           │       │       ├── args[1]: 1 : i64
+    │           │       │       └── args[2]: 24 : i64
+    │           │       └── args[1]: address of #6 : ptr
+    │           ├── body[2] > if:
+    │           │   ├── cond > binary:
+    │           │   │   ├── type: i1
+    │           │   │   ├── op: ==
+    │           │   │   ├── left: local #7 : i64
+    │           │   │   └── right: 0 : i64
+    │           │   ├── body[0] > assign:
+    │           │   │   ├── place: #8
+    │           │   │   └── value: local #1 : i64
+    │           │   └── body[1]: leave @5
+    │           └── body[3] > assign:
+    │               ├── place: #8
+    │               └── value: local #6 : i64
+    ├── funcs[3] > func:
+    │   ├── symbol: knownCalls$main()$lambda1
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: *
+    │       ├── left: local #1 : i64
+    │       └── right: 3 : i64
+    ├── funcs[4] > func:
+    │   ├── symbol: knownCalls$show(%primitives$I64)
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       ├── body[0] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @10
+    │       │       ├── result: #11
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #9
+    │       │       │   ├── scope: %5
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_join
+    │       │       │   │   ├── args[0] > expand:
+    │       │       │   │   │   ├── type: handle
+    │       │       │   │   │   ├── label: @3
+    │       │       │   │   │   ├── result: #4
+    │       │       │   │   │   ├── body[0] > hold:
+    │       │       │   │   │   │   ├── local: #2
+    │       │       │   │   │   │   ├── scope: %5
+    │       │       │   │   │   │   ├── value > runtime:
+    │       │       │   │   │   │   │   ├── type: handle
+    │       │       │   │   │   │   │   ├── fn: zane_text_i64
+    │       │       │   │   │   │   │   └── args[0]: local #1 : i64
+    │       │       │   │   │   │   └── layout: %primitives$String
+    │       │       │   │   │   └── body[1] > assign:
+    │       │       │   │   │       ├── place: #4
+    │       │       │   │   │       └── value: local #2 : handle
+    │       │       │   │   └── args[1]: "\n" : handle
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #11
+    │       │           └── value: local #9 : handle
+    │       └── body[1] > return: unit : void
+    ├── funcs[5] > func:
+    │   ├── symbol: knownCalls$main()$lambda2
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: *
+    │       ├── left: local #1 : i64
+    │       └── right: local #1 : i64
+    ├── funcs[6] > func:
+    │   ├── symbol: knownCalls$main()$lambda3
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: *
+    │       ├── left: local #1 : i64
+    │       └── right: local #1 : i64
+    ├── funcs[7] > func:
+    │   ├── symbol: knownCalls$countdown(%primitives$I64[%primitives$I64], %primitives$I64)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i64
+    │   ├── ret: i64
+    │   ├── body[0] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: <
+    │   │   │   ├── left: local #2 : i64
+    │   │   │   └── right: 1 : i64
+    │   │   └── body[0] > return: 0 : i64
+    │   └── body[1] > return > expand:
+    │       ├── type: i64
+    │       ├── label: @9
+    │       ├── result: #10
+    │       ├── body[0] > let:
+    │       │   ├── local: #4
+    │       │   └── value > call value:
+    │       │       ├── type: i64
+    │       │       ├── fn: local #1 : ptr
+    │       │       └── args[0]: local #2 : i64
+    │       ├── body[1] > let:
+    │       │   ├── local: #8
+    │       │   └── value > expand:
+    │       │       ├── type: i64
+    │       │       ├── label: @11
+    │       │       ├── result: #15
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #13
+    │       │       │   └── value: local #1 : ptr
+    │       │       ├── body[1] > let:
+    │       │       │   ├── local: #14
+    │       │       │   └── value > expand:
+    │       │       │       ├── type: i64
+    │       │       │       ├── label: @6
+    │       │       │       ├── result: #7
+    │       │       │       ├── body[0] > let:
+    │       │       │       │   ├── local: #5
+    │       │       │       │   └── value: -1 : i64
+    │       │       │       ├── body[1] > assign:
+    │       │       │       │   ├── place: #7
+    │       │       │       │   └── value > binary:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       ├── op: +
+    │       │       │       │       ├── left: local #2 : i64
+    │       │       │       │       └── right: -1 : i64
+    │       │       │       └── body[2]: leave @6
+    │       │       ├── body[2] > eval > expand:
+    │       │       │   ├── type: void
+    │       │       │   ├── label: @12
+    │       │       │   ├── body[0] > if:
+    │       │       │   │   ├── cond > binary:
+    │       │       │   │   │   ├── type: i1
+    │       │       │   │   │   ├── op: <
+    │       │       │   │   │   ├── left: local #14 : i64
+    │       │       │   │   │   └── right: 1 : i64
+    │       │       │   │   ├── body[0] > assign:
+    │       │       │   │   │   ├── place: #15
+    │       │       │   │   │   └── value: 0 : i64
+    │       │       │   │   └── body[1]: leave @11
+    │       │       │   ├── body[1] > assign:
+    │       │       │   │   ├── place: #15
+    │       │       │   │   └── value > expand:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── label: @17
+    │       │       │   │       ├── result: #16
+    │       │       │   │       └── body[0]: leave @12
+    │       │       │   └── body[2]: leave @11
+    │       │       ├── body[3] > assign:
+    │       │       │   ├── place: #15
+    │       │       │   └── value > call:
+    │       │       │       ├── type: i64
+    │       │       │       ├── fn: knownCalls$countdown(%primitives$I64[%primitives$I64], %primitives$I64)
+    │       │       │       ├── args[0]: local #13 : ptr
+    │       │       │       └── args[1]: local #14 : i64
+    │       │       └── body[4]: leave @11
+    │       ├── body[2] > assign:
+    │       │   ├── place: #10
+    │       │   └── value > binary:
+    │       │       ├── type: i64
+    │       │       ├── op: +
+    │       │       ├── left: local #4 : i64
+    │       │       └── right: local #8 : i64
+    │       └── body[3]: leave @9
+    ├── funcs[8] > func:
+    │   ├── symbol: knownCalls$main()$lambda4
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i1
+    │   ├── body[0] > assign:
+    │   │   ├── place: *#1.1
+    │   │   └── value > expand:
+    │   │       ├── type: i64
+    │   │       ├── label: @4
+    │   │       ├── result: #5
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #2
+    │   │       │   └── value > member:
+    │   │       │       ├── type: i64
+    │   │       │       ├── index: 1
+    │   │       │       └── value > deref:
+    │   │       │           ├── type: {handle16, i64, i64, i64}
+    │   │       │           └── ptr: local #1 : ptr
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #3
+    │   │       │   └── value: 1 : i64
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #5
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i64
+    │   │       │       ├── op: +
+    │   │       │       ├── left: local #2 : i64
+    │   │       │       └── right: 1 : i64
+    │   │       └── body[3]: leave @4
+    │   ├── body[1] > assign:
+    │   │   ├── place: *#1.2
+    │   │   └── value > expand:
+    │   │       ├── type: i64
+    │   │       ├── label: @8
+    │   │       ├── result: #9
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #6
+    │   │       │   └── value > member:
+    │   │       │       ├── type: i64
+    │   │       │       ├── index: 2
+    │   │       │       └── value > deref:
+    │   │       │           ├── type: {handle16, i64, i64, i64}
+    │   │       │           └── ptr: local #1 : ptr
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #7
+    │   │       │   └── value > member:
+    │   │       │       ├── type: i64
+    │   │       │       ├── index: 1
+    │   │       │       └── value > deref:
+    │   │       │           ├── type: {handle16, i64, i64, i64}
+    │   │       │           └── ptr: local #1 : ptr
+    │   │       ├── body[2] > assign:
+    │   │       │   ├── place: #9
+    │   │       │   └── value > binary:
+    │   │       │       ├── type: i64
+    │   │       │       ├── op: +
+    │   │       │       ├── left: local #6 : i64
+    │   │       │       └── right: local #7 : i64
+    │   │       └── body[3]: leave @8
+    │   ├── body[2] > if:
+    │   │   ├── cond > binary:
+    │   │   │   ├── type: i1
+    │   │   │   ├── op: ==
+    │   │   │   ├── left > math:
+    │   │   │   │   ├── type: i64
+    │   │   │   │   ├── fn: bitAnd
+    │   │   │   │   ├── args[0] > member:
+    │   │   │   │   │   ├── type: i64
+    │   │   │   │   │   ├── index: 1
+    │   │   │   │   │   └── value > deref:
+    │   │   │   │   │       ├── type: {handle16, i64, i64, i64}
+    │   │   │   │   │       └── ptr: local #1 : ptr
+    │   │   │   │   └── args[1]: 3 : i64
+    │   │   │   └── right: 0 : i64
+    │   │   └── body[0] > eval > expand:
+    │   │       ├── type: void
+    │   │       ├── label: @13
+    │   │       ├── body[0] > let:
+    │   │       │   ├── local: #11
+    │   │       │   └── value > member:
+    │   │       │       ├── type: i64
+    │   │       │       ├── index: 2
+    │   │       │       └── value > deref:
+    │   │       │           ├── type: {handle16, i64, i64, i64}
+    │   │       │           └── ptr: local #1 : ptr
+    │   │       ├── body[1] > let:
+    │   │       │   ├── local: #12
+    │   │       │   └── value > runtime:
+    │   │       │       ├── type: ptr
+    │   │       │       ├── fn: zane_list_push
+    │   │       │       ├── args[0] > offset:
+    │   │       │       │   ├── within: {handle16, i64, i64, i64}
+    │   │       │       │   ├── path: 0
+    │   │       │       │   └── base: local #1 : ptr
+    │   │       │       └── args[1]: 8 : i64
+    │   │       └── body[2] > place:
+    │   │           ├── address: local #12 : ptr
+    │   │           ├── value: local #11 : i64
+    │   │           └── layout: %primitives$I64
+    │   └── body[3] > return > binary:
+    │       ├── type: i1
+    │       ├── op: <
+    │       ├── left > member:
+    │       │   ├── type: i64
+    │       │   ├── index: 1
+    │       │   └── value > deref:
+    │       │       ├── type: {handle16, i64, i64, i64}
+    │       │       └── ptr: local #1 : ptr
+    │       └── right > member:
+    │           ├── type: i64
+    │           ├── index: 3
+    │           └── value > deref:
+    │               ├── type: {handle16, i64, i64, i64}
+    │               └── ptr: local #1 : ptr
+    ├── funcs[9] > func:
+    │   ├── symbol: knownCalls$work<knownCalls$Tally>(this knownCalls$Tally, %primitives$Bool[this knownCalls$Tally] mut)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > while:
+    │   │   ├── cond > expand:
+    │   │   │   ├── type: i1
+    │   │   │   ├── label: @5
+    │   │   │   ├── result: #6
+    │   │   │   ├── body[0] > let:
+    │   │   │   │   ├── local: #4
+    │   │   │   │   └── value > call value:
+    │   │   │   │       ├── type: i1
+    │   │   │   │       ├── fn: local #2 : ptr
+    │   │   │   │       └── args[0]: local #1 : ptr
+    │   │   │   ├── body[1] > assign:
+    │   │   │   │   ├── place: #6
+    │   │   │   │   └── value: local #4 : i1
+    │   │   │   └── body[2]: leave @5
+    │   │   └── body:
+    │   └── body[1] > return: unit : void
+    ├── funcs[10] > func:
+    │   ├── symbol: knownCalls$work<knownCalls$Tally>(this knownCalls$Tally, %primitives$Bool[this knownCalls$Tally] mut)$lambda1
+    │   ├── params[0]: local #1 : i1
+    │   ├── ret: i1
+    │   └── body[0] > return: local #1 : i1
+    ├── funcs[11] > func:
+    │   ├── symbol: knownCalls$main()$lambda1.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: knownCalls$main()$lambda1
+    │   │       └── args[0] > deref:
+    │   │           ├── type: i64
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > offset:
+    │   │                   ├── within: {ptr}
+    │   │                   ├── path: 0
+    │   │                   └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    ├── funcs[12] > func:
+    │   ├── symbol: knownCalls$main()$lambda2.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: knownCalls$main()$lambda2
+    │   │       └── args[0] > deref:
+    │   │           ├── type: i64
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > offset:
+    │   │                   ├── within: {ptr}
+    │   │                   ├── path: 0
+    │   │                   └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    ├── funcs[13] > func:
+    │   ├── symbol: knownCalls$main()$lambda3.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: knownCalls$main()$lambda3
+    │   │       └── args[0] > deref:
+    │   │           ├── type: i64
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > offset:
+    │   │                   ├── within: {ptr}
+    │   │                   ├── path: 0
+    │   │                   └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    └── funcs[14] > func:
+        ├── symbol: knownCalls$work<knownCalls$Tally>(this knownCalls$Tally, %primitives$Bool[this knownCalls$Tally] mut)$lambda1.adapter
+        ├── linkage: shared
+        ├── params[0]: local #0 : ptr
+        ├── params[1]: local #1 : ptr
+        ├── ret: void
+        ├── body[0] > let:
+        │   ├── local: #2
+        │   └── value > binary:
+        │       ├── type: i1
+        │       ├── op: ==
+        │       ├── left > deref:
+        │       │   ├── type: i64
+        │       │   └── ptr: global zane_self
+        │       └── right: 0 : i64
+        ├── body[1] > if:
+        │   ├── cond: local #2 : i1
+        │   └── body[0] > eval > runtime:
+        │       ├── type: void
+        │       ├── fn: zane_callback_attach
+        │       └── args:
+        ├── body[2] > store:
+        │   ├── address: local #1 : ptr
+        │   └── value > call:
+        │       ├── type: i1
+        │       ├── fn: knownCalls$work<knownCalls$Tally>(this knownCalls$Tally, %primitives$Bool[this knownCalls$Tally] mut)$lambda1
+        │       └── args[0] > deref:
+        │           ├── type: i1
+        │           └── ptr > deref:
+        │               ├── type: ptr
+        │               └── ptr > offset:
+        │                   ├── within: {ptr}
+        │                   ├── path: 0
+        │                   └── base: local #0 : ptr
+        └── body[3] > if:
+            ├── cond: local #2 : i1
+            └── body[0] > eval > runtime:
+                ├── type: void
+                ├── fn: zane_callback_detach
+                └── args:

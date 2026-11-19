@@ -1159,7 +1159,11 @@ test passing.
     that is dropped or an operand, so its blocks are in a region that
     drains with it. A dropped result that owns no block has nothing for a
     drain to end, so nothing holds it: the element a discarded `swapRemove`
-    moves out needs no scope.
+    moves out needs no scope. In an optimized build, a held struct whose
+    every use names one of its members is held as its members instead
+    (`lib/optimize/split_holds.ml`): a member that owns a block is held
+    alone with the part of the struct's layout it covers, and any other is
+    a plain local, which LLVM keeps in a register rather than in the frame.
   - A drain walks none of its values but those that may hold a foreign
     handle, whose C object only its free function releases: a slot of one
     is listed as its value arrives whether or not drains are checked, and

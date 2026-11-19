@@ -563,6 +563,43 @@ function into itself, and runs no partial inliner at `-O2`.
 
 ---
 
+### Calls of known function values written out
+
+- **Builds:** optimized only
+- **Where:** `lib/optimize/known_calls.ml`
+- **Design:** the comment at the top of `known_calls.ml`
+- **Effect:** with the next entry, LangArena's Brainfuck::Array written as
+  a worker over a struct runs in 0.92 of the time (wall, pinned, median of
+  paired rounds)
+
+A call through a function value that names its function, such as a
+worker's step lambda inside `work`, and a call of a small function given
+one, are written out where they are made, so the step's body reads and
+writes the subject's place in the caller's own frame rather than through
+a pointer in a function of its own. A local bound once to a function
+value, as an expression verb written out by lowering binds the lambda it
+is given, counts as that function. A function that spawns, returns
+through a result slot or calls itself is called as it was.
+
+### A held struct split into its members
+
+- **Builds:** optimized only
+- **Where:** `lib/optimize/split_holds.ml`
+- **Design:** the comment at the top of `split_holds.ml`;
+  [`design/lowering.md`](design/lowering.md) §9
+- **Effect:** LangArena's Brainfuck::Array written as a counted loop over
+  a struct runs in 0.985 of the time (wall), and its instruction count is
+  within 1.1% of the same state in plain locals
+
+A struct that owns a block is held in its scope's frame, so a counter kept
+in one of its members is a frame word that a loop loads and stores on
+every pass. When every use of the struct names a member, its address or
+an assignment to it, the struct is made of its members: each scalar
+member becomes a local of its own, which LLVM keeps in a register, and
+each member that owns a block is held alone with the part of the struct's
+layout it covers. A struct read, moved or lent whole, read as a snapshot,
+or holding a foreign handle stays whole.
+
 ### Small-array loops strip-mined
 
 - **Builds:** every build; only an optimized build's passes gain from it

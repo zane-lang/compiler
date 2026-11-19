@@ -4755,6 +4755,140 @@
   (diff golden/keeping.out keeping.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/knownCalls))
+ (action
+  (with-stdout-to
+   knownCalls.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/knownCalls))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/knownCalls.optimized.cgt knownCalls.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/knownCalls))
+ (targets knownCalls.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build knownCalls.exe --package fixtures/knownCalls)))
+
+(rule
+ (deps (source_tree fixtures/knownCalls))
+ (targets knownCalls.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build knownCalls.optimized.exe --optimize --package fixtures/knownCalls)))
+
+(rule
+ (deps (source_tree fixtures/knownCalls))
+ (targets knownCalls.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build knownCalls.tiered.exe --tiered --package fixtures/knownCalls)))
+
+(rule
+ (deps (source_tree fixtures/knownCalls))
+ (targets knownCalls.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up knownCalls.tier1 --package fixtures/knownCalls)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    knownCalls.checked.out.actual
+    (run ./knownCalls.exe "10")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/knownCalls.out knownCalls.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    knownCalls.unchecked.out.actual
+    (run ./knownCalls.exe "10")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/knownCalls.out knownCalls.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    knownCalls.optimized.checked.out.actual
+    (run ./knownCalls.optimized.exe "10")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/knownCalls.out knownCalls.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    knownCalls.optimized.unchecked.out.actual
+    (run ./knownCalls.optimized.exe "10")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/knownCalls.out knownCalls.optimized.unchecked.out.actual)))
+
+(rule
+ (deps knownCalls.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./knownCalls.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    knownCalls.tiered.checked.out.actual
+    (run ./knownCalls.tiered.exe "10")))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/knownCalls.out knownCalls.tiered.checked.out.actual)))
+
+(rule
+ (deps knownCalls.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./knownCalls.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    knownCalls.tiered.unchecked.out.actual
+    (run ./knownCalls.tiered.exe "10")))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/knownCalls.out knownCalls.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/lambdas))
  (action
   (with-stdout-to
