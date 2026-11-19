@@ -159,7 +159,7 @@ against a callee. [`top_decl`](../../lib/cst/parser.mly) now takes the
 declaration forms of `stat`, each closed by a `;` or by the brace its tail ends
 in, so the value is closed before the `(` is read and all five went.
 
-**A statement is closed by its own terminator, and the grammar says which.**
+**A statement is closed by its own terminator, and the grammar determines which terminator it takes.**
 lexical.md §6.3 requires a `;` after every statement except one that ends in a
 `}`, where the brace closes it. [`stat`](../../lib/cst/parser.mly) writes each
 form twice: once followed by `";"`, and — where its tail can end in a brace —
@@ -222,7 +222,7 @@ became four: the fork is the one it always was, now counted once per closing
 bracket of the call.
 
 A `.` field access and a `:` or `!` method call open no statement, so after the
-brace the next token alone says which reading holds, and the member forms take
+brace the next token alone determines which reading holds, and the member forms take
 `member_target`: an `app` or `member_braced`, the `init`, `match` and
 constructor-by-fields values. That added no conflict state to either census.
 The map literal is the one braced value left out. A postfix base is the first
@@ -256,8 +256,8 @@ family — the optional statement terminator — and went with it.
 
 **`package` and `import` carry a `;`, and the grammar requires it.** They are
 the two declarations that end on a bare name — `import pkg$` ends just before
-one — so their own shape says nothing about where they stop, and the terminator
-says it instead. They required it before any other package-scope declaration
+one — so their own shape does not show where they stop, and the terminator
+shows it instead. They required it before any other package-scope declaration
 did, and they never end in a brace, so the rule lives in `header_decl` with no
 braced form, and applies inside a body too, where the same two forms are
 statements.
@@ -335,7 +335,7 @@ since `g();` is a statement. `Unit use() { f() { k, v; } }` reads the same
 brace as a map literal handed to `f`, because `k, v;` is an entry rather than a
 statement.
 
-What tells a block from a map literal is load-bearing on its own. A **map
+The rule that distinguishes a block from a map literal is load-bearing on its own. A **map
 literal** stands in a value position behind no introducing token, and so does a block argument, so in
 argument position the two can meet. They are told apart by the mark after the
 first expression — a `,` opens an entry's value, a `;` ends a statement — which
@@ -415,7 +415,7 @@ the count, and dropping generics from named types raises it too, both by
 trading shift/reduce states for reduce/reduce ones. What it stands in for is a
 genuine overlap in the surface syntax — `x Foo(…)` is either a constructor
 shorthand or a lambda declaration whose return type is `Foo`, and nothing
-before the closing bracket says which.
+before the closing bracket determines which.
 
 ## A type is never parenthesised
 

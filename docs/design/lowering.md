@@ -7,8 +7,8 @@
 > open.
 
 The **CGT** is the one input codegen reads ([`stages.md`](stages.md)). The TST
-says what a program means, in the language's own terms: calls to overloads,
-concepts, block arguments, handlers, owners and references. The CGT says what the
+represents what a program means, in the language's own terms: calls to overloads,
+concepts, block arguments, handlers, owners and references. The CGT represents what the
 machine does: functions over primitive storage, with every allocation, copy,
 move, reference and death written out. Lowering is the only stage that turns one
 into the other, so codegen never reads a type declaration, never resolves a
@@ -92,7 +92,7 @@ one of:
   `Bool` is one byte. A sum of nothing or one box or reference, under 32-bit
   boxes, is that word, 0 for nothing (`Nodes.Ty.niche`). Any other sum of
   at most 256 cases is **packed**: a one-byte tag and then the widest
-  case's bytes, alignment 1. One of more cases than a byte tells apart
+  case's bytes, alignment 1. A sum with more than 256 cases
   keeps a 4-byte tag and its payload room from offset 8;
 - a pointer: a reference, the address of the settled owner it names
   ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §4.1, and §9 below for the representation);
@@ -381,7 +381,7 @@ its handler is a one-arm `match` whose other cases run the handler.
 ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §5.2), so it is lifted out as-is, and its value
 is the function's address. A call through a function value is an indirect
 call with the same outcome convention, read from the value's type: the
-caller knows no body, so the type alone says how the call can end and how
+caller knows no body, so the type alone determines how the call can end and how
 each argument is passed. A lambda that does not declare `mut` may be held by
 a `mut` function type
 ([`functions.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/functions.md)
@@ -834,7 +834,7 @@ test passing.
 - **How many scopes get an arena.** L8 gives every block that declares a local
   its own. Lowering opens one only for a block that holds a reference-type
   local, and a value-type local stays an LLVM stack slot, since nothing
-  tells the two placements apart until a value owns dynamic storage, which
+  distinguishes the two placements until a value owns dynamic storage, which
   it does only through a boxed member; such a value is held in the arena
   too. Once every function is lowered, `lib/cgt/regions.ml` folds more of
   them away ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §3.1), from what it works out about every function at
@@ -1374,14 +1374,14 @@ test passing.
   `let` is waited for where its local is read ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §3.2). One
   read where it is written -- an operand, an argument, a value assigned to a
   local that already exists -- is waited for at once, so lowering calls it
-  there. Only timing tells the two apart.
+  there. Only timing distinguishes the two.
 - **A spawned call that can abort or exit.** Its frame holds the call's
   whole outcome (L12), which comes home into a slot laid out for it: the
   result's blocks under the done tag, the abort value's under the
   aborted one. The call settles once, on the spawning thread, where it is
   first read or where its block ends
   ([`spec-divergences.md`](../spec-divergences.md) §7). A flag the spawn sets
-  says whether it has. An abort takes the abort value out of the slot and
+  records whether it has. An abort takes the abort value out of the slot and
   runs the handler written at the spawn, lowered where it settles but in
   the context of the spawn, so its `abort`, `return` and exit go where they
   would from there; its `resolve` puts the result in the slot. An exit ends

@@ -300,7 +300,7 @@ An integer type's size is checked against its width in clang's target
 information, which counts value bits, so a type with padding bits, whose
 width is less than its size, matches no primitive, full-width or narrow
 (`ffi.md` §3.3).
-A type §3.3 refuses is reported with what it is on the target and a pointer
+A type §3.3 refuses is reported with its type on the target and a pointer
 to the converting C function §3.3 asks for. A C-compatible value type is compared field by field against the
 `struct`'s offsets and sizes, its fields laid out in declaration order as C
 lays a `struct` out ([`platforms.md`](platforms.md), "64-bit targets only"),
@@ -1093,7 +1093,7 @@ A write through a capability is not replayed the way a `print` is (O4): the
 evaluator cannot know what C would have written, so the call stays where it
 is, and nothing after it that depends on its result folds.
 
-Each thunk in the CGT (`Foreign.t`) says whether it reaches a capability:
+Each thunk in the CGT (`Foreign.t`) records whether it reaches a capability:
 a foreign verb's when its signature reads or writes one (F7), and a handle
 type's free and set thunks when the handle is an outside one. A fold
 reaching one stops. One whose C is in an archive or a system library

@@ -36,7 +36,7 @@ costs what an `i64` costs.
 ## Why the line is there
 
 Concepts let a literal or a block be checked before anything knows where it
-will be stored: `20` is an `Integer` until a parameter or a field says which
+will be stored: `20` is an `Integer` until a parameter or a field declares which
 integer type it becomes. Primitives are the opposite: they say exactly what
 the machine holds, and nothing about how the source spelled it. Keeping them
 apart means the front end reports errors in the terms the author wrote, and

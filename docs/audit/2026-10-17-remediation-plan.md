@@ -982,7 +982,7 @@ file-size warning (1,500 lines).
 
 ### F24: one mutable environment for every semantic phase
 
-**Fix.** Give each phase a type that says what it may read and write. Do
+**Fix.** Give each phase a type that limits what it may read and write. Do
 it in stages, each of them a PR:
 1. Group `Env.t`'s fields (`lib/tst/model/env.ml`) into sub-records by the
    pass that fills them:
