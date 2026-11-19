@@ -11,7 +11,7 @@ import csv, json, os, random, subprocess, sys, time
 
 S = os.environ.get("OUT", "out")  # where buildperf.sh put perf/<prog>.<compiler>
 PERF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../tests/perf")
-COMPILERS = ["main", "fs", "split"]
+COMPILERS = os.environ.get("COMPILERS", "main,fs,split").split(",")
 rounds, out = int(sys.argv[1]), sys.argv[2]
 
 
@@ -27,7 +27,7 @@ if os.path.exists(sizes_file):
 else:
     sizes = {}
     for prog in sorted(os.listdir(PERF)):
-        if not os.path.exists(f"{S}/perf/{prog}.main"):
+        if not os.path.exists(f"{S}/perf/{prog}.{COMPILERS[0]}"):
             continue
         a = open(f"{PERF}/{prog}/arguments").read().split() if os.path.exists(f"{PERF}/{prog}/arguments") else []
         # Doubled while under 0.2 s; a size whose run passes 30 s, or fails,
@@ -35,7 +35,7 @@ else:
         good = a
         while True:
             try:
-                t, code, _ = run(prog, "main", a, timeout=30)
+                t, code, _ = run(prog, COMPILERS[0], a, timeout=30)
             except subprocess.TimeoutExpired:
                 a = good
                 break
