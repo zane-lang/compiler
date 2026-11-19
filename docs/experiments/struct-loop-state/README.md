@@ -113,6 +113,31 @@ Brainfuck::Recursion is a regression of the split against `main` (+14%),
 not yet looked into: its interpreter is the likeliest place for a call
 written out by `Known_calls` to cost more than it saves.
 
+## Step 4: the Brainfuck::Recursion regression
+
+**Design.** Each pass switched off on its own, through temporary switches
+in `optimize.ml` that are not committed (`ZANE_TMP_NO_KNOWN=1` skips
+`Known_calls`, `ZANE_TMP_NO_SPLIT=1` skips `Split_holds`), each build of
+the worker arena timed on Brainfuck::Recursion alone (`BENCH=...
+measure.py`), 15 rounds (`results/recursion-passes.csv`).
+
+**Results.**
+
+| build | median | vs main |
+| --- | --- | --- |
+| main | 2.086 s | 1 |
+| #398 | 1.422 s | 0.694 [0.654, 0.767] |
+| split, both passes | 2.368 s | 1.126 [1.102, 1.200] |
+| split without `Known_calls` | 2.016 s | 0.990 [0.948, 1.037] |
+| `Known_calls` without `Split_holds` | 2.481 s | 1.207 [1.167, 1.285] |
+
+Writing the step out costs the 20%; the split wins part of it back. The
+interpreter's struct nests another (`tape`), and the split splits both.
+The optimized IR of a driver calling `runRecursive` alone has about the
+same loop with and without `Known_calls` (365 against 371 instructions in
+looping blocks, 79 loads each), so Callgrind is checking whether it is work
+or placement.
+
 ## Reading so far
 
 The two changes look complementary rather than competing. The split helps
