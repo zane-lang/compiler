@@ -60,8 +60,11 @@ let constructor_named built member =
     ((match built with Ty.Named (tid, _) -> tid.Ty.name | t -> Ty.to_string t)
     ^ Option.fold ~none:"" ~some:(fun m -> "." ^ m) member)
 
-(* The constructors of [built] named [member] that this call can reach:
-   declared in the home of the type or in this package, and accessible. *)
+(* The constructors of [built] named [member] that this call can reach, if
+   accessible: declared in the home of the type or in this package, or
+   implicit. An implicit constructor is declared in the home of one of its
+   two types (types.md §4.5), so one in the source type's home is reached
+   by an explicit call as a coercion site reaches it (§4.1). *)
 let constructor_candidates env ctx built member =
   let homes = List.filter_map Verb_signatures.home [ built ] @ [ S.Package ctx.package ] in
   let named_member (s : S.t) =
@@ -72,7 +75,7 @@ let constructor_candidates env ctx built member =
   | Some key ->
       Verbs.constructors env.verbs key |> List.rev
       |> List.filter (fun (s : S.t) ->
-          named_member s && List.mem s.home homes && accessible_sig ctx s)
+          named_member s && (List.mem s.home homes || S.is_implicit s) && accessible_sig ctx s)
 
 (* The position and type of the field [name] among [declared]. *)
 let field_slot name declared =

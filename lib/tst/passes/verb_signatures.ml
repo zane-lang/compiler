@@ -820,8 +820,9 @@ let run env (tables : verbs) =
       check_constructor_target env d s;
       check_modes env d s)
     built;
-  (* `main` takes no parameters and declares no abort type; it may return any
-     type (packages.md §6.2). *)
+  (* `main` takes no parameters, may return any type, and declares no abort
+     type or `@primitives$String`, which the program reports when `main`
+     aborts (packages.md §6.2, §6.3). *)
   List.iter
     (fun pkg_name ->
       let pkg = package env pkg_name in
@@ -831,8 +832,10 @@ let run env (tables : verbs) =
             match Verbs.signature env.verbs d.id with
             | Some ({ kind = S.Function; name = "main"; params = _ :: _; _ }) ->
                 error env d.span "`main` takes no parameters: the root package reaches the console and runtime through `@program$`"
-            | Some ({ kind = S.Function; name = "main"; abort = Some _; _ }) ->
-                error env d.span "`main` declares no abort type: no caller exists to handle an abort"
+            | Some ({ kind = S.Function; name = "main"; abort = Some a; _ })
+              when not (Ty.equal (Ty.strip_mode a) Ty.string_primitive) ->
+                error env d.span
+                  "`main`'s one abort type is `@primitives$String`, the message the program reports when `main` aborts"
             | _ -> ())
           (package_values env pkg_name "main"))
     (Names.package_order env.names);

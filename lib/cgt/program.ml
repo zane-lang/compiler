@@ -339,7 +339,10 @@ let constants_in_order (p : T.Program.t) =
     (List.rev p.T.Program.packages)
 
 (* The entry the runtime calls, `zane.start`: [makes], then a call to
-   [entry], `main`'s symbol among [funcs], whose result it drops. *)
+   [entry], `main`'s symbol among [funcs], whose result it drops. When
+   `main` declares its abort type, `@primitives$String`, the call is
+   switched on how it ended: an abort hands its message to the runtime,
+   which reports it and ends the program with status 1 (packages.md §6.3). *)
 let start_function st main span entry makes (funcs : Func.t list) =
   let ret =
     match List.find_opt (fun (f : Func.t) -> f.Func.symbol = entry) funcs with
@@ -348,12 +351,33 @@ let start_function st main span entry makes (funcs : Func.t list) =
   in
   let call = { Expr.node = Expr.Call { fn = entry; args = [] }; ty = ret } in
   let t = main.signature.S.ret in
-  let dropped =
+  let drop result =
     if held st span t then begin
       let scope = { arena = None; settles = []; wants = [] } in
-      close st scope [ bind st scope span t (fresh st) call ]
+      close st scope [ bind st scope span t (fresh st) result ]
     end
-    else [ Stat.Eval call ]
+    else [ Stat.Eval result ]
+  in
+  let dropped =
+    let o = outcome st span main in
+    match o.aborts with
+    | None -> drop call
+    | Some message ->
+        let id = fresh st and text = fresh st in
+        let source = { Expr.node = Expr.Local id; ty = ret } in
+        let payload index ty = { Expr.node = Expr.Payload { value = source; index }; ty } in
+        let finished = if o.ok = Nodes.Ty.Void then [] else drop (payload done_ o.ok) in
+        let report =
+          [
+            Stat.Let { id = text; value = payload aborted message };
+            Stat.Eval
+              {
+                Expr.node = Expr.Runtime { fn = Runtime.Main_aborted; args = [ ptr (Expr.Address text) ] };
+                ty = Nodes.Ty.Void;
+              };
+          ]
+        in
+        [ Stat.Let { id; value = call }; Stat.Switch { value = source; cases = [ (done_, finished); (aborted, report) ] } ]
   in
   {
     Func.symbol = "zane.start";
@@ -544,10 +568,11 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
             (Printf.sprintf "lowering: the root package `%s` declares no `main`"
                root.T.Package.name)
       | Some main ->
-          (* The runtime calls `main` and reads no outcome from it. *)
+          (* `main` ends by returning or, when it declares its abort type,
+             by aborting, which the start function reports; it never exits
+             (Tst.Exits). *)
           let span = main.body.T.Block.span in
-          if not (plain (outcome st span main)) then
-            Diagnostic.bug ~span "lowering: `main` can abort or exit";
+          if (outcome st span main).exit_ then Diagnostic.bug ~span "lowering: `main` can exit";
           (* L16: every package constant is made before `main` runs, the
              packages a package depends on first, and within a package in
              the order declared. One that reads another makes that one
@@ -556,7 +581,8 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
           (* The runtime calls `void zane_main(void)` (runtime/zane.h), so
              the entry is always a function of that type: one that makes the
              constants, if there are any, and then calls `main`, discarding
-             its result. Calling `main` itself would give the runtime a
+             its result, or reporting its abort when it declares one
+             ([start_function]). Calling `main` itself would give the runtime a
              function whose type depends on what `main` returns. A result
              that is an owner or owns a block is held in the start
              function's own arena, as any dropped result like it is, so a

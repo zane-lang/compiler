@@ -147,7 +147,7 @@ does not have, or lacks one of tier 0's functions leaves the program wholly
 in tier 0, and says so only when
 `ZANE_TIER_LOG` is set. The program removes the variables once read, so
 nothing it starts sees them. A program ending while tier 1 loads, by returning
-from `main` or by an `exit` such as a runtime error's, waits for
+from `main` or by an `exit` such as a runtime error's or an abort of `main`'s, waits for
 the load to finish, since a process that ends while another thread holds the
 loader's lock can hang.
 

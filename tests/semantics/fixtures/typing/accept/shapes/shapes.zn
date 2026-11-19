@@ -79,3 +79,7 @@ Unit drive(this S Type, step @primitives$Bool[this S] mut) mut {
 	@controlflow$work(this, step);
 	return Unit();
 }
+
+/// A conversion to a primitive, declared in the home of its source: an
+/// importer may also call it by name (types.md §4.1).
+implicit String(v Vec2) => String("vec2");

@@ -1,0 +1,28 @@
+/// An abort that reaches `main` from a call it makes, passed on by the
+/// handler, ends the program as an abort of `main`'s own does, and `main`
+/// that returns a value still ends that way (packages.md §6.3). The message
+/// is built at run time, from a join.
+package mainAbortForwarded;
+
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+Int?String check(name String, ok @primitives$Bool) {
+	@controlflow$branch(@operators$not(ok), {
+		abort @operators$concat(String("FAIL "), name);
+	});
+	return Int(1);
+}
+
+Int?String main() {
+	passed Int = check(String("first"), true) ? reason {
+		abort reason;
+	}
+	@program$console!print(String.escaped("first passed\n"));
+	failed Int = check(String("second"), false) ? reason {
+		abort reason;
+	}
+	@program$console!print(String.escaped("not reached\n"));
+	return failed;
+}

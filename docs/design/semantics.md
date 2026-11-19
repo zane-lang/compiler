@@ -790,7 +790,10 @@ only through the binder.
 ones declared in its home package and in the current package, the order
 `functions.md` §6.1 gives methods; an enum map is found the same way. An
 import brings a type's constructors with it (`packages.md` §3.5) because they
-live in its home.
+live in its home. An implicit constructor is found in the home package of
+either of its types, as at a coercion site, so a call that names one reaches
+it there too (`types.md` §4.1, §4.5): `@primitives$String(text)` reaches
+`core`'s conversion from its `String`.
 
 **A field constructor and a positional one are separate overload sets.** They
 are called with different brackets, so no call could confuse the two, and

@@ -197,7 +197,7 @@ package app
               stat Return | => String("bottom")
                 expr Construct @primitives$String | String("bottom")
                   expr Text_lit | "bottom"
-  decl Verb main | Unit main() { say(String(" … who\n")); return Unit(); }
+  decl Verb main | Unit?String main() { say(S … who\n")); return Unit(); }
     block | { say(String("hello")); or … who\n")); return Unit(); }
       stat Expr | say(String("hello"));
         expr Call say | say(String("hello"))
@@ -419,6 +419,18 @@ package app
         local label | label
         expr Map_read label | Corner.topLeft.label
           expr Enum_member topLeft | Corner.topLeft
+      stat Let | named String = String(moved);
+        local named | named
+        expr Construct @primitives$String | String(moved)
+          expr Var moved | moved
+      stat Let | stopped Bool = if(@operators$not(true)) { abort named; }
+        local stopped | stopped
+        expr Call if | if(@operators$not(true)) { abort named; }
+          expr Call @operators$not | @operators$not(true)
+            expr Bool_lit | true
+          block | { abort named; }
+            stat Abort | abort named;
+              expr Var named | named
       stat Let | side String = describe(Corner.bottomRight);
         local side | side
         expr Call describe | describe(Corner.bottomRight)
@@ -910,6 +922,12 @@ package shapes
                 expr Construct @primitives$F64 | Float(0.0)
                   expr Decimal_lit | 0.0
   decl Verb drive | Unit drive(this S Type, st … s, step); return Unit(); }
+  decl Verb @primitives$String | implicit String(v Vec2) => String("vec2")
+    param v | v Vec2
+    block | => String("vec2")
+      stat Return | => String("vec2")
+        expr Construct @primitives$String | String("vec2")
+          expr Text_lit | "vec2"
 instances
   instance pick with T = @primitives$F64 | T pick(first T Type, secon …  first; } return chosen; }
     param first | first T Type

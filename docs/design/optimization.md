@@ -139,6 +139,7 @@ classified:
 | a foreign call reading or writing a capability | `Foreign_call` | input, and left in place |
 | a foreign handle a call into C gives | `Handle_made` | computed |
 | a null handle a call into C gives | `No_object` | input |
+| an abort of `main`, which ends the program | `Main_aborted`, called only by the start function | input |
 
 `arguments` is the one intrinsic that reads input (effects.md §6.6), so a
 fold stops where it is reached, and everything computed before it still

@@ -137,7 +137,9 @@ String describe(corner Corner) => match (corner) {
 	[bottomLeft, bottomRight] => String("bottom");
 }
 
-Unit main() {
+/// `main` may declare `@primitives$String` as its abort type, the message
+/// the program reports (packages.md §6.2).
+Unit?String main() {
 	say(String("hello"));
 
 	origin Vec2.zero();
@@ -187,6 +189,10 @@ Unit main() {
 	decimals Pair<Float> = pairOf(2.5, 3.5);
 
 	label String = Corner.topLeft.label;
+	named String = String(moved);
+	stopped Bool = if(@operators$not(true)) {
+		abort named;
+	}
 	side String = describe(Corner.bottomRight);
 	say(side);
 

@@ -83,7 +83,7 @@
     │   ├── decls[31] > verb:
     │   │   └── signature: @primitives$String describe(shapes$Corner) #32
     │   ├── decls[32] > verb:
-    │   │   └── signature: @primitives$Unit main() #33
+    │   │   └── signature: @primitives$Unit?@primitives$String main() #33
     │   ├── decls[33] > verb:
     │   │   └── signature: T twice(T) #34
     │   ├── decls[34] > verb:
@@ -207,5 +207,7 @@
         │   └── signature: @primitives$F64 _half(@primitives$F64) #76
         ├── decls[21] > verb:
         │   └── signature: @primitives$F64 area(&shapes$Shape) #77
-        └── decls[22] > verb:
-            └── signature: @primitives$Unit drive(this S, @primitives$Bool[this S] mut) mut #78
+        ├── decls[22] > verb:
+        │   └── signature: @primitives$Unit drive(this S, @primitives$Bool[this S] mut) mut #78
+        └── decls[23] > verb:
+            └── signature: implicit @primitives$String(shapes$Vec2) #79

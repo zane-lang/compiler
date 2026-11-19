@@ -29,6 +29,9 @@ let classify : Cgt.Runtime.fn -> t = function
      (docs/design/ffi.md F18). A null handle stops the program. *)
   | Handle_made -> Computed
   | No_object -> Input
+  (* An abort of `main` ends the running program, and only the start
+     function, which no fold runs, calls it. *)
+  | Main_aborted -> Input
   (* Whether the thread has a context is a fact of the running program,
      and only a call from C, which no fold makes, runs either. *)
   | Callback_attach | Callback_detach -> Input
