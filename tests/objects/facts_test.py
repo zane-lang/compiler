@@ -33,7 +33,7 @@ def run(*args):
     return result.stdout
 
 
-def run_program(exe, *args):
+def run_program(exe, *args, env=None):
     """What a program wrote, run with its drains checked and unchecked
     (`ZANE_CHECK` 1 and 0), as every program in this directory is run. The
     two runs must agree, and a failure names the mode it came from."""
@@ -41,7 +41,7 @@ def run_program(exe, *args):
     for check in ("1", "0"):
         command = [str(exe), *map(str, args)]
         result = subprocess.run(command, capture_output=True, text=True, timeout=60,
-                                env={**os.environ, "ZANE_CHECK": check})
+                                env={**os.environ, **(env or {}), "ZANE_CHECK": check})
         if result.returncode:
             raise AssertionError(f"ZANE_CHECK={check} {command}\n{result.stdout}{result.stderr}")
         outputs[check] = result.stdout
@@ -49,6 +49,13 @@ def run_program(exe, *args):
         raise AssertionError(f"{exe}: checked and unchecked runs differ\n"
                              f"ZANE_CHECK=1:\n{outputs['1']}ZANE_CHECK=0:\n{outputs['0']}")
     return outputs["1"]
+
+
+def run_tiered(exe, *args):
+    """What a tiered build wrote once it moved to the tier 1 built beside it
+    (`ZANE_TIER_WAIT` makes it wait for the swap), run in both drain-check
+    modes as `run_program` runs any other build."""
+    return run_program(exe, *args, env={"ZANE_TIER_UP": f"{exe}.tier1", "ZANE_TIER_WAIT": "1"})
 
 
 def packages(*names, stamped=()):
@@ -442,9 +449,7 @@ class FactsTests(unittest.TestCase):
                 exe = Path(temp) / f"{name}.tiered"
                 run(ZANEC, "--build", exe, "--tiered", *packages(name))
                 run(ZANEC, "--tier-up", f"{exe}.tier1", *packages(name))
-                result = subprocess.run([str(exe), str(size)], capture_output=True, text=True, timeout=60,
-                                        env={**os.environ, "ZANE_TIER_UP": f"{exe}.tier1", "ZANE_TIER_WAIT": "1"})
-                self.assertEqual((result.returncode, result.stdout), (0, printed), result.stderr)
+                self.assertEqual(run_tiered(exe, size), printed)
 
     def test_runs_of_pushes_make_room_once(self):
         # A new list pushed to four times in a row makes room for all four
@@ -694,9 +699,7 @@ class FactsTests(unittest.TestCase):
             flags = packages("takes", "taking", stamped=["taking"])
             run(ZANEC, "--build", exe, "--tiered", "--link", library, *flags)
             run(ZANEC, "--tier-up", f"{exe}.tier1", *flags)
-            result = subprocess.run([str(exe), "42"], capture_output=True, text=True, timeout=60,
-                                    env={**os.environ, "ZANE_TIER_UP": f"{exe}.tier1", "ZANE_TIER_WAIT": "1"})
-            self.assertEqual((result.returncode, result.stdout), (0, "42! 42 42 n42 h42\n"), result.stderr)
+            self.assertEqual(run_tiered(exe, 42), "42! 42 42 n42 h42\n")
 
     def test_loops_that_read_through_an_index_prefetch_ahead(self):
         # An optimized build prefetches the record `lookahead`'s loop will
