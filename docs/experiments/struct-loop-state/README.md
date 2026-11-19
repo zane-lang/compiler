@@ -167,6 +167,38 @@ and splitting the struct afterwards trades that for register pressure.
 #398 keeps the step as LLVM inlines it and the slots in registers, and runs
 this benchmark in 0.694 of `main`'s time.
 
+## Step 5: #398 with the split, without `Known_calls`
+
+**Design.** Branch `perf/frame-shadow-split` (3fe93c6): #398 at 525512b
+with `split_holds.ml` added before folding, and no `Known_calls`, which
+step 4 showed costs Brainfuck::Recursion. Built in a worktree of its own;
+every `tests/perf` program prints what #398's build prints. Measured as
+before (`ratios.py` pairs any two binaries of a CSV).
+
+**Results.**
+
+| set | combination / #398 | outside ±2% over the whole spread |
+| --- | --- | --- |
+| Brainfuck::Array locals, 20 rounds | 1.010 [0.977, 1.017] | |
+| Brainfuck::Array worker | 1.001 [0.976, 1.023] | |
+| Brainfuck::Array counted | 0.975 [0.960, 1.015] | |
+| Brainfuck::Recursion alone, 15 rounds | 0.966 [0.948, 0.987] | |
+| `tests/perf`, 46 programs, 10 rounds | geometric mean 0.998 | none |
+| full LangArena, 50, 6 rounds | geometric mean 0.998 | faster: CSV::Parse 0.935, Json::ParseDom 0.931, Graph::BFS 0.956 |
+
+(`results/combo-*.csv`.) Every checksum passed. Against `main` in the same
+runs, #398 had a geometric mean of 0.988 on `tests/perf` and 1.002 on the
+arena, and the combination 0.982 and 1.008. The arena's own mean moved by
+about 2% between this run and step 3's, which bounds what a whole-set mean
+can tell apart. Recursion against `main` was 0.683 for #398 and 0.710 for
+the combination in the arena run, where alone it measured 0.966 of #398:
+inside the noise either way.
+
+On top of #398 the split costs nothing measurable and gains nothing that
+holds across runs: no program is slower over its whole spread, three
+arena benchmarks read 4-7% faster in one run, and the struct loops it was
+written for match #398's.
+
 ## Reading so far
 
 The two changes look complementary rather than competing. The split helps
@@ -180,6 +212,11 @@ they tie. The full arena agrees: #398 is ahead overall (0.984 against
 which one.
 
 ## What remains
+
+- Whether to land the split on top of #398 for no measured gain (about
+  250 lines of `split_holds.ml`, with its tests and docs), or drop it: the
+  user's call. Repeating the three faster arena benchmarks would tell
+  whether they hold.
 
 - Etc::Sieve +4% on the split: not looked into.
 - Brainfuck::Recursion: `Known_calls` causes it (step 4). Narrowing it (a
