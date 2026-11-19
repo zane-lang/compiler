@@ -656,17 +656,50 @@ where a call is, leaves out of line.
 - **Effect:** `tests/perf` `tape`, a tape machine whose loop may grow its
   tape by a rare push, takes 1.5% more estimated cycles without it;
   `refills`, an arithmetic coder's bit writer, 2.7% more optimized and
-  13% more tiered when every slot is filled again after every call
+  13% more tiered when every slot is filled again after every call;
+  `subjects`, a tape machine held in a struct local, 9.1% more optimized,
+  `workers` 6.4% more optimized and 8.4% more tiered, `bits` 21% and
+  `paths` 11% more optimized, with every store written through and a
+  frame its scope enters inline left in memory
 
-Each slot of a placed frame that is only loaded and stored whole, as one
-scalar type, gets a copy in an alloca, filled where the frame is placed and
-after each call given an address in the frame, and written through on
-every store; loads read the copy, which SROA makes a register. A frame
-whose address escapes any other way, including to a callee that may keep
-it, is left alone. After a call, only the copies it may have written are
-filled again: those a `memset`, `memcpy` or `memmove` of a constant
-length covers (none when it writes outside a frame whose address went
-nowhere else), and the list header the runtime's growth writes.
+Each slot of a placed frame that is loaded and stored whole, as one
+scalar type, gets a copy in an alloca, filled where the frame is placed;
+loads and stores use the copy, which SROA makes a register. A copy is
+written back to its slot just before something may read it there, and
+only when it was stored since the two last agreed: before a call given an
+address in the frame, any call once a runtime call has kept one (a drain
+reads the slots `zane_hold` lists), and a wider load that holds the slot.
+A copy stored to before a loop but not on its way round, as a list pushed
+to before a loop that calls a function given the frame on every pass, is
+written back once on the way in. A call past the frame's last use, where
+it may have been drained, writes nothing back. Where an address in the
+frame is stored as a value, or kept by a callee other than the runtime's
+`zane_hold`, `zane_scope_drain` and list growth (a spawned call, whose
+thread may read the frame at any time), every store is written through to
+the slot as well. A wider access may hold the whole slot: a load of it
+reads the frame, and a store of it fills the copy again, which is how a
+list's count keeps its copy in a struct that a list was copied into, its
+count and room stored as one pair.
+
+After a call, only the copies it may have written are filled again: those
+a `memset`, `memcpy` or `memmove` of a constant length covers (none when it
+writes outside a frame whose address went nowhere else), the list header
+the runtime's growth writes, and every copy after any other call. A copy
+that every path from the call finds stale where it is next loaded is
+filled there instead, and one stale on some paths only is filled at the
+ends of the blocks it is surely stale out of, on the way to that load, so
+a path that loads it no more never reads it.
+
+A frame its scope enters inline is still a frame: the record's skip, a
+phi between the frame and a scope it encloses, is stored only as a value,
+as the frame is, and the check of the room past the frame only compares
+its address. A frame whose address escapes any other way is left alone. A
+frame placed on two paths, as LLVM leaves a scope's entry when it threads
+the fast and slow paths apart, is the phi that joins them, along with a
+phi beside it that carries a slot's address on each path; the paths'
+frames are written through so that the phi reads what they stored, and
+the reread of the runtime's innermost scope merged with it is not
+followed.
 
 ### Index checks merged
 

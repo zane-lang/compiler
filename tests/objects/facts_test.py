@@ -14,6 +14,9 @@ ZANEC = str(Path(sys.argv.pop(1)).resolve())
 FACTS = Path(__file__).resolve().parent / "fixtures/facts"
 STAMP = "v1.0%0123456789abcdef%"
 SNAPSHOT = re.compile(r"load atomic|@zane_snapshot\(")
+# A call that may read a frame: any but an LLVM intrinsic other than the
+# memory ones, as `Frame_shadow.inert` sorts them.
+OBSERVING = re.compile(r" call [^@]*@(?!llvm\.(?!memcpy|memmove|memset))")
 # A list handle's room and size: with frame references (experimental,
 # lib/cgt/ref32.ml), on by default on every target, the room counts elements
 # in 32 bits and the handle is 16 bytes; without, the room counts bytes and
@@ -30,7 +33,7 @@ def run(*args):
     return result.stdout
 
 
-def run_program(exe, *args):
+def run_program(exe, *args, env=None):
     """What a program wrote, run with its drains checked and unchecked
     (`ZANE_CHECK` 1 and 0), as every program in this directory is run. The
     two runs must agree, and a failure names the mode it came from."""
@@ -38,7 +41,7 @@ def run_program(exe, *args):
     for check in ("1", "0"):
         command = [str(exe), *map(str, args)]
         result = subprocess.run(command, capture_output=True, text=True, timeout=60,
-                                env={**os.environ, "ZANE_CHECK": check})
+                                env={**os.environ, **(env or {}), "ZANE_CHECK": check})
         if result.returncode:
             raise AssertionError(f"ZANE_CHECK={check} {command}\n{result.stdout}{result.stderr}")
         outputs[check] = result.stdout
@@ -46,6 +49,13 @@ def run_program(exe, *args):
         raise AssertionError(f"{exe}: checked and unchecked runs differ\n"
                              f"ZANE_CHECK=1:\n{outputs['1']}ZANE_CHECK=0:\n{outputs['0']}")
     return outputs["1"]
+
+
+def run_tiered(exe, *args):
+    """What a tiered build wrote once it moved to the tier 1 built beside it
+    (`ZANE_TIER_WAIT` makes it wait for the swap), run in both drain-check
+    modes as `run_program` runs any other build."""
+    return run_program(exe, *args, env={"ZANE_TIER_UP": f"{exe}.tier1", "ZANE_TIER_WAIT": "1"})
 
 
 def packages(*names, stamped=()):
@@ -384,6 +394,63 @@ class FactsTests(unittest.TestCase):
                 self.assertNotEqual(stopped.returncode, 0, optimize)
                 self.assertIn("out of range", stopped.stderr, optimize)
 
+    def test_struct_fields_stay_in_registers_across_a_loop(self):
+        # A struct local's counter and total, written on every pass of a
+        # loop whose rare push is a call given an address in the frame, are
+        # written to the frame only before a call (Frame_shadow): each store
+        # into a frame inside the loop is followed, in its block, by a call.
+        ir = run(ZANEC, "--ll", "--optimize", *packages("subjects"))
+        body = re.search(r"(?ms)^define [^\n]*@zane_main\(.*?^}", ir).group(0)
+        frames = set(re.findall(r'"dereferenceable"\(ptr (%[\w.]+), i64', body))
+        self.assertTrue(frames)
+        slots = {name for name, base in re.findall(
+            r"(?m)^\s*(%[\w.]+) = getelementptr [^\n]*ptr (%[\w.]+), i64 \d+$", body) if base in frames} | frames
+        blocks, label = {}, "entry"
+        for line in body.split("\n")[1:]:
+            found = re.match(r'^("[^"]+"|[\w.$-]+):', line)
+            if found:
+                label = found.group(1).strip('"')
+            blocks.setdefault(label, []).append(line)
+        def successors(name):
+            return {t.strip('"') for line in blocks[name] for t in re.findall(r'label %("[^"]+"|[\w.$-]+)', line)}
+        def reach(name):
+            seen, todo = set(), [name]
+            while todo:
+                for s in successors(todo.pop()) - seen:
+                    seen.add(s)
+                    todo.append(s)
+            return seen
+        looped = [name for name in blocks if name in reach(name)]
+        self.assertTrue(looped)
+        for name in looped:
+            lines = blocks[name]
+            for k, line in enumerate(lines):
+                stored = re.search(r"store [^,]+, ptr (%[\w.]+)", line)
+                if stored and stored.group(1) in slots:
+                    self.assertTrue(any(OBSERVING.search(later) for later in lines[k + 1:]), f"{name}: {line}")
+        with tempfile.TemporaryDirectory() as temp:
+            for optimize in [[], ["--optimize"]]:
+                exe = Path(temp) / "subjects"
+                run(ZANEC, "--build", exe, *optimize, *packages("subjects"))
+                self.assertEqual(run_program(exe, 100), "682\n", optimize)
+                self.assertEqual(run_program(exe, 1000), "6876\n", optimize)
+                self.assertEqual(run_program(exe, 0), "1\n", optimize)
+                # A frame placed on two paths, whose struct the worker's step
+                # writes through an address merged apart from the frame.
+                exe = Path(temp) / "worked"
+                run(ZANEC, "--build", exe, *optimize, *packages("worked"))
+                self.assertEqual(run_program(exe, 1000), "455494\n", optimize)
+                self.assertEqual(run_program(exe, 7), "10247\n", optimize)
+                self.assertEqual(run_program(exe, 1), "15\n", optimize)
+            # Tier 1 keeps calls in the loops that the optimized build
+            # inlines, so their copies are written back and filled again
+            # around each.
+            for name, size, printed in [("subjects", 1000, "6876\n"), ("worked", 1000, "455494\n")]:
+                exe = Path(temp) / f"{name}.tiered"
+                run(ZANEC, "--build", exe, "--tiered", *packages(name))
+                run(ZANEC, "--tier-up", f"{exe}.tier1", *packages(name))
+                self.assertEqual(run_tiered(exe, size), printed)
+
     def test_runs_of_pushes_make_room_once(self):
         # A new list pushed to four times in a row makes room for all four
         # at its first push, so the room is compared once, and the other
@@ -632,9 +699,7 @@ class FactsTests(unittest.TestCase):
             flags = packages("takes", "taking", stamped=["taking"])
             run(ZANEC, "--build", exe, "--tiered", "--link", library, *flags)
             run(ZANEC, "--tier-up", f"{exe}.tier1", *flags)
-            result = subprocess.run([str(exe), "42"], capture_output=True, text=True, timeout=60,
-                                    env={**os.environ, "ZANE_TIER_UP": f"{exe}.tier1", "ZANE_TIER_WAIT": "1"})
-            self.assertEqual((result.returncode, result.stdout), (0, "42! 42 42 n42 h42\n"), result.stderr)
+            self.assertEqual(run_tiered(exe, 42), "42! 42 42 n42 h42\n")
 
     def test_loops_that_read_through_an_index_prefetch_ahead(self):
         # An optimized build prefetches the record `lookahead`'s loop will
