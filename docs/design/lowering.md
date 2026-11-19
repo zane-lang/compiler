@@ -435,7 +435,16 @@ one-step case of the same test.
 
 A program's entry is always a start function, `zane.start`, that calls each
 constant's function, the packages a package depends on first, and then
-`main`, discarding what `main` returns. The runtime calls the entry as
+`main`, discarding what `main` returns. A `main` that declares its abort
+type, `@primitives$String`, returns the sum of its outcomes (L12), and the
+start function switches on it: a return is dropped as above, and an abort
+passes the message's address to `zane_main_aborted` (`runtime/main.c`),
+which flushes the program's output, writes the message and a line feed to
+stderr, and ends the program with status 1 by `exit`, as an index out of
+range does
+([`packages.md`](https://github.com/zane-lang/spec/blob/3e008ca6fd3da6014c781022388ae76d2a408948/spec/packages.md)
+§6.3). `main` never exits (`Tst.Exits`), so the start function has no exit
+case. The runtime calls the entry as
 `void zane_main(void)` (`runtime/zane.h`), and `main` may return any type,
 so calling `main` itself would give the runtime a function of another type
 whenever `main` returns a value, and whether it did would depend on whether

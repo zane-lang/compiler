@@ -1,0 +1,12 @@
+/// An abort of `main` ends the program with status 1: what it wrote so far
+/// is kept, and the abort's message and a line feed go to stderr
+/// (packages.md §6.3).
+package mainAborts;
+
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+Unit?String main() {
+	@program$console!print(String.escaped("before\n"));
+	abort String("main gave up");
+}

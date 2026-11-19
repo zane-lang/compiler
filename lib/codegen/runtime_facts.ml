@@ -24,9 +24,9 @@ let none = { fn = ""; ret = ""; params = [] }
 
 let facts = function
   (* An index out of range and a nest of scopes too deep stop the program
-     (list.c, region.c), so the path to either is cold and nothing follows
-     it. *)
-  | R.Out_of_range | R.Too_deep -> { none with fn = "noreturn cold nounwind" }
+     (list.c, region.c), and an abort of `main` ends it (main.c), so the
+     path to any of them is cold and nothing follows it. *)
+  | R.Out_of_range | R.Too_deep | R.Main_aborted -> { none with fn = "noreturn cold nounwind" }
   (* Comparing two strings only reads them, and what their handles point
      to (block.c). *)
   | R.Text_equal ->

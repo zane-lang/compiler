@@ -1,0 +1,11 @@
+/// `main` that declares its abort type and returns ends the program with
+/// status 0, its result dropped like any `main`'s (packages.md §6.3). The
+/// result is a string, which owns a block the start function holds.
+package mainAbortTypeReturns;
+
+alias String = @primitives$String;
+
+String?String main() {
+	@program$console!print(String.escaped("returned\n"));
+	return String("kept until the program ends");
+}

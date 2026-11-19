@@ -59,6 +59,7 @@ type fn =
   | List_swap_remove of { scalars : bool }
   | Array_at
   | Out_of_range
+  | Main_aborted
   (* Experimental (docs/design/interleaving.md): a hint that the element at
      an index of a list will be read soon, made only when the index is
      inside it. Emit makes it in line; there is no runtime function. *)
@@ -113,7 +114,7 @@ type fn =
   (* A spawned call's subject into a region of its own (runtime/spawn.c). *)
   | Island
 
-let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Sleep; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Relocate; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island ]
+let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Main_aborted; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Sleep; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Relocate; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island ]
 
 let name = function
   | Print -> "zane_print"
@@ -153,6 +154,7 @@ let name = function
   | List_swap_remove _ -> "zane_list_swap_remove"
   | Array_at -> "zane_array_at"
   | Out_of_range -> "zane_out_of_range"
+  | Main_aborted -> "zane_main_aborted"
   | Prefetch -> "zane_prefetch"
   | Scope_drain -> "zane_scope_drain"
   | Spawn -> "zane_spawn"
@@ -239,6 +241,7 @@ let signature = function
   | List_swap_remove _ -> (Void, [ Ptr; I64; I64 ])
   | Array_at -> (Ptr, [ Ptr; I64; I64; I64 ])
   | Out_of_range -> (Void, [  ])
+  | Main_aborted -> (Void, [ Ptr ])
   | Prefetch -> (Void, [ Ptr; I64; I64 ])
   | Scope_drain -> (Void, [ Ptr ])
   | Spawn -> (Void, [ Ptr; Ptr; Ptr; Ptr; I64 ])

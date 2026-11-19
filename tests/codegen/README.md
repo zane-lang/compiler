@@ -213,6 +213,12 @@ then run it again, read the golden diff and promote that.
 - `bounds` indexes past an array's end: the program stops with status 1 after
   what it wrote so far, and says why on stderr. `boundsNegative` does the same
   with a negative index.
+- `mainAborts` aborts `main`, whose abort type is `@primitives$String`: the
+  program ends with status 1 after what it wrote so far, and writes the
+  message and a line feed to stderr (packages.md §6.3). `mainAbortForwarded`
+  passes on, from its handler, an abort with a message joined at run time, out
+  of a `main` that returns a value. `mainAbortTypeReturns` declares the abort
+  type and returns: status 0, its string result dropped by the start function.
 - `defaults` is step 10's field constructors: called as verbs whose bodies
   run, with an entry left out given its default, the entries run in the
   order written, a generic constructor's defaults per instance, and a

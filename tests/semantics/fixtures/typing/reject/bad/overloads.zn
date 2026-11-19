@@ -39,7 +39,8 @@ Engine.power Int {
 
 Unit main(argument Int) => Unit();
 
-/// `main` may return any type, but no caller exists to handle an abort.
+/// `main` may return any type, and its one abort type is
+/// `@primitives$String`, the message the program reports.
 Int?Unit main() {
 	abort Unit();
 }

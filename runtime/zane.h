@@ -103,6 +103,7 @@ extern const int64_t zane_fixed_region, zane_spawned_fixed_region;
 
 /* main.c */
 extern int zane_checking;
+void zane_main_aborted(const zane_text *message);
 
 /* arena.c */
 extern _Thread_local zane_mark *zane_open;

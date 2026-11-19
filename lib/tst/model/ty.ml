@@ -77,6 +77,7 @@ let fresh_param ~name ~kind =
 
 let unit_primitive = Intrinsic { namespace = "primitives"; name = "Unit"; args = [] }
 let bool_primitive = Intrinsic { namespace = "primitives"; name = "Bool"; args = [] }
+let string_primitive = Intrinsic { namespace = "primitives"; name = "String"; args = [] }
 
 let rec contains_error = function
   | Error -> true

@@ -186,6 +186,17 @@ void zane_broken(const char *what) {
 	abort();
 }
 
+/* `main` aborted (packages.md §6.3): what the program printed is written
+   first, then the abort's message and a line feed go to stderr, and the
+   program ends with status 1. `exit`, as an index out of range does, so a
+   tier 1 still loading is waited for (docs/design/tiers.md). */
+void zane_main_aborted(const zane_text *message) {
+	zane_flush_output();
+	if (message->length) fwrite(message->bytes, 1, (size_t)message->length, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
+
 /* The program's arguments after its own name (effects.md §6.6), as
    `zane_arguments` hands them out: on Windows the command line converted
    from UTF-16 to UTF-8, elsewhere the bytes the system passed. */
