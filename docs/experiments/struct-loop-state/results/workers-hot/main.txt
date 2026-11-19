@@ -1,0 +1,34 @@
+total 5312000579 instrs executed 518 hot 33
+3f2e     64000000 mov    %r10d,%r11d
+3f31     64000000 shl    $0x5,%r11d
+3f35     64000000 add    %r10d,%r11d
+3f38     64000000 and    $0xfffff,%r11d
+3f3f     64000000 mov    %r11,0x18(%r14)
+3f43     64000000 mov    %r11,%r10
+3f46    256000000 and    $0x7,%edx
+3f49    256000000 inc    %rdx
+3f4c    256000000 mov    %rdx,0x10(%r14)
+3f50    256000000 inc    %r8
+3f53    256000000 mov    %r8,0x28(%r14)
+3f57    256000000 cmp    %rsi,%r8
+3f5a    256000000 jge    3fa3 <zane_main+0xc23>
+3f5c    256000000 lea    -0x1(%rdx),%r11
+3f60    256000000 cmp    %rax,%r11
+3f63    256000000 jae    43a9 <zane_main+0x1029>
+3f69    256000000 mov    -0x8(%rcx,%rdx,8),%r11
+3f6e    256000000 cmp    $0x3,%r11
+3f72    256000000 ja     3f46 <zane_main+0xbc6>
+3f74    256000000 movslq (%r9,%r11,4),%r11
+3f78    256000000 add    %r9,%r11
+3f7b    256000000 jmp    *%r11
+3f7e     64000000 add    %edi,%r10d
+3f81     64000000 and    $0xfffff,%r10d
+3f88     64000000 mov    %r10,0x18(%r14)
+3f8c     64000000 jmp    3f46 <zane_main+0xbc6>
+3f8e     64000000 add    %r10d,%edi
+3f91     64000000 movzwl %di,%edi
+3f94     64000000 jmp    3f9d <zane_main+0xc1d>
+3f96     64000000 lea    (%r10,%r10,1),%r11
+3f9a     64000000 xor    %r11,%rdi
+3f9d    128000000 mov    %rdi,0x20(%r14)
+3fa1    128000000 jmp    3f46 <zane_main+0xbc6>

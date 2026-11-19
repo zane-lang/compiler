@@ -244,6 +244,38 @@ in the struct versions is left to remove; matching the locals build's
 time means getting its lucky placement on purpose, a code-layout question
 about indirect-jump dispatch loops, not about structs.
 
+## Step 7: #398's slowdowns against `main`
+
+Step 3 and step 5 had #398 slower than `main` on `workers` (1.125 and
+1.096), `entities` (1.128 once), and, in one arena run, Etc::Sieve,
+Calculator::Interpreter, Compress::LZWDecode, CLBG::Spectralnorm and
+Graph::DFS.
+
+**Which are real.** Repeated on their own, `main` against #398
+(`results/slow-*.csv`): `workers` 40 rounds, 1.102 [1.087, 1.122];
+`entities` 1.017 [0.926, 1.082]; the arena five, 15 rounds each: Sieve
+0.999, Calculator::Interpreter 1.023, LZWDecode 0.983, Spectralnorm
+0.992, DFS 1.046 [0.981, 1.083]. Only `workers` holds.
+
+**`workers`.** Callgrind: `main` 5.31G instructions, #398 4.67G (−12%).
+The hot loops (`results/workers-hot/`) are the same but for `main`'s four
+stores a pass into the frame (`pc`, `acc`, `ran`, `other`), which #398
+keeps in registers. Built by each compiler with
+`-align-all-nofallthru-blocks=N` (the temporary hook), 30 rounds
+(`results/workers-alignment.csv`):
+
+| layout | `main` | #398 | #398 / `main` |
+| --- | --- | --- | --- |
+| default | 0.380 s | 0.423 s | 1.107 [1.063, 1.158] |
+| blocks on 32 bytes | 0.416 s | 0.426 s | 1.023 [0.968, 1.060] |
+| blocks on 64 bytes | 0.421 s | 0.408 s | 0.969 [0.909, 1.044] |
+
+The same story as step 6: `main`'s default placement of this dispatch
+loop is the lucky one, about 10% better than what it gets once moved;
+#398's leaner loop runs alike in every placement. The repo's perf gate
+counts estimated cycles under Valgrind, where #398 runs fewer
+instructions, so it does not see this.
+
 ## Reading so far
 
 The two changes look complementary rather than competing. The split helps
