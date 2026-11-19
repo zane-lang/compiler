@@ -1138,8 +1138,8 @@ frames.
   tiered; nothing else in `tests/perf` or langbench moves
   ([`perf-runtime-attrs/`](perf-runtime-attrs/README.md))
 
-`zane_out_of_range` and `zane_too_deep` are `noreturn`, `cold` and
-`nounwind`, so the paths to them are laid out of the way. `zane_text_equal`
+`zane_out_of_range`, `zane_too_deep` and `zane_main_aborted` are
+`noreturn`, `cold` and `nounwind`, so the paths to them are laid out of the way. `zane_text_equal`
 only reads memory, so loads before it stay valid after it.
 `zane_list_push`, `zane_list_reserve` and `zane_list_room` keep no pointer
 to the list's handle (`captures(address)`): a handle in a local slot stays

@@ -6145,6 +6145,140 @@
   (diff golden/mainAborts.out mainAborts.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/mainAbortsEmpty))
+ (targets mainAbortsEmpty.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build mainAbortsEmpty.exe --package fixtures/mainAbortsEmpty)))
+
+(rule
+ (deps (source_tree fixtures/mainAbortsEmpty))
+ (targets mainAbortsEmpty.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build mainAbortsEmpty.optimized.exe --optimize --package fixtures/mainAbortsEmpty)))
+
+(rule
+ (deps (source_tree fixtures/mainAbortsEmpty))
+ (targets mainAbortsEmpty.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build mainAbortsEmpty.tiered.exe --tiered --package fixtures/mainAbortsEmpty)))
+
+(rule
+ (deps (source_tree fixtures/mainAbortsEmpty))
+ (targets mainAbortsEmpty.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up mainAbortsEmpty.tier1 --package fixtures/mainAbortsEmpty)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    mainAbortsEmpty.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./mainAbortsEmpty.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mainAbortsEmpty.out mainAbortsEmpty.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    mainAbortsEmpty.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./mainAbortsEmpty.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mainAbortsEmpty.out mainAbortsEmpty.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    mainAbortsEmpty.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./mainAbortsEmpty.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mainAbortsEmpty.out mainAbortsEmpty.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    mainAbortsEmpty.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./mainAbortsEmpty.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mainAbortsEmpty.out mainAbortsEmpty.optimized.unchecked.out.actual)))
+
+(rule
+ (deps mainAbortsEmpty.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./mainAbortsEmpty.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    mainAbortsEmpty.tiered.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./mainAbortsEmpty.tiered.exe))))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mainAbortsEmpty.out mainAbortsEmpty.tiered.checked.out.actual)))
+
+(rule
+ (deps mainAbortsEmpty.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./mainAbortsEmpty.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    mainAbortsEmpty.tiered.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./mainAbortsEmpty.tiered.exe))))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mainAbortsEmpty.out mainAbortsEmpty.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/math))
  (action
   (with-stdout-to

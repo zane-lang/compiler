@@ -581,7 +581,8 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
           (* The runtime calls `void zane_main(void)` (runtime/zane.h), so
              the entry is always a function of that type: one that makes the
              constants, if there are any, and then calls `main`, discarding
-             its result. Calling `main` itself would give the runtime a
+             its result, or reporting its abort when it declares one
+             ([start_function]). Calling `main` itself would give the runtime a
              function whose type depends on what `main` returns. A result
              that is an owner or owns a block is held in the start
              function's own arena, as any dropped result like it is, so a

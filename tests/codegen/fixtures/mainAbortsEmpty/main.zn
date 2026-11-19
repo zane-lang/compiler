@@ -1,0 +1,9 @@
+/// An abort of `main` with an empty message still ends the line on stderr
+/// and the program with status 1 (packages.md §6.3).
+package mainAbortsEmpty;
+
+alias String = @primitives$String;
+
+@primitives$Unit?String main() {
+	abort String("");
+}

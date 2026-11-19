@@ -61,11 +61,12 @@ let fits (f : Func.t) =
 
 (* A runtime function a remembered body may call: one that computes or
    makes a package constant, and neither outputs, reads the program's
-   arguments, nor spawns. A constant is made by its first read, so the miss
+   arguments, spawns, nor ends the program. A constant is made by its first read, so the miss
    that computes a result has made every constant the result depends on. *)
 let computes : Runtime.fn -> bool = function
   | Runtime.Print | Runtime.Set_threads | Runtime.Set_threads_auto | Runtime.Sleep | Runtime.Arguments
-  | Runtime.Writeback | Runtime.Spawn | Runtime.Island | Runtime.Join | Runtime.Defer | Runtime.Defer_return ->
+  | Runtime.Writeback | Runtime.Spawn | Runtime.Island | Runtime.Join | Runtime.Defer | Runtime.Defer_return
+  | Runtime.Main_aborted ->
       false
   | _ -> true
 

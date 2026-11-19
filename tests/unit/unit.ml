@@ -380,7 +380,7 @@ let runtime_facts () =
   List.iter (fun fn -> has fn handle) [ R.List_push; R.List_reserve; R.List_room ];
   let read = "ptr readonly captures(none)" in
   has R.Text_equal ("@f(" ^ read ^ ", " ^ read ^ ")");
-  List.iter (fun fn -> has fn "noreturn") [ R.Out_of_range; R.Too_deep ];
+  List.iter (fun fn -> has fn "noreturn") [ R.Out_of_range; R.Too_deep; R.Main_aborted ];
   Llvm.dispose_context ctx
 
 (* What the runtime's structs measure, as tests/runtime/abi/probe.c prints
