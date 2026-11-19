@@ -65,7 +65,12 @@ type Tally = struct {
 
 Tally(limit Int) => init{ seen = @primitives$List(Int); count = Int(0); sum = Int(0); limit; }
 
-Int whole(t Tally) => plus(t.count, t.limit);
+Int whole(t Tally) {
+	@controlflow$branch(@operators$lessThan(t.count, Int(0)), {
+		return Int(0);
+	});
+	return plus(t.count, t.limit);
+}
 
 Unit show(n Int) {
 	@program$console!print(@operators$concat(String(n), String.escaped("\n")));
