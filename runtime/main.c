@@ -192,7 +192,7 @@ void zane_broken(const char *what) {
    tier 1 still loading is waited for (docs/design/tiers.md). */
 void zane_main_aborted(const zane_text *message) {
 	zane_flush_output();
-	if (message->length) fwrite(message->bytes, 1, (size_t)message->length, stderr);
+	if (message->length > 0) fwrite(message->bytes, 1, (size_t)message->length, stderr);
 	fputc('\n', stderr);
 	exit(1);
 }
