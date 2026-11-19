@@ -99,7 +99,19 @@ On this benchmark the two are tied.
   [0.943, 1.031]; `workers` 1.046 [0.975, 1.064], slower than expected and
   not yet looked into.
 
-**Full LangArena**, 50 benchmarks, worker variant, 6 rounds: running.
+**Full LangArena**, 50 benchmarks, worker variant, 6 rounds
+(`results/arena-final.csv`, `fullarena.py`); every checksum passed in every
+run:
+
+| | geometric mean | outside ±2% over the whole spread |
+| --- | --- | --- |
+| #398 / main | 0.984 | faster: Brainfuck::Recursion 0.721, Base64::Decode 0.883, Distance::Jaro 0.900, Brainfuck::Array 0.923, Hash::SHA256 0.952, Json::ParseDom 0.958, Binarytrees::Arena 0.959 |
+| split / main | 1.004 | slower: Brainfuck::Recursion 1.141, Etc::Sieve 1.041 |
+| split / #398 | 1.009 | Brainfuck::Recursion 1.645, Etc::Words 1.155, Distance::Jaro 1.108, Matmul::T8 1.064, Etc::Sieve 1.036; Maze::AStar 0.919 |
+
+Brainfuck::Recursion is a regression of the split against `main` (+14%),
+not yet looked into: its interpreter is the likeliest place for a call
+written out by `Known_calls` to cost more than it saves.
 
 ## Reading so far
 
@@ -109,12 +121,14 @@ member. #398 keeps any frame slot in a register, including the count and
 room of a list held in the frame, which the split leaves there (why #398
 wins `subjects`), and slots of programs with no struct to split at all
 (`interp`, `rotations`, `paths`). On Brainfuck::Array, where both apply,
-they tie. The open question for the user is whether to land both, not
+they tie. The full arena agrees: #398 is ahead overall (0.984 against
+0.999-1.004 for the split), on benchmarks with no struct to split. The open question for the user is whether to land both, not
 which one.
 
 ## What remains
 
-- The full-arena result, and whether it agrees.
+- Brainfuck::Recursion +14% and Etc::Sieve +4% on the split: find which
+  pass costs it, and fix or narrow it.
 - Why the split reads slower on `workers`.
 - The repo's perf gate (`just test-perf`, Valgrind against `main`) on the
   split.
