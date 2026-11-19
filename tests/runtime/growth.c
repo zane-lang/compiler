@@ -115,7 +115,7 @@ static void smaps_around(uintptr_t lo, uintptr_t hi) {
    and one mapped to this process alone bit 56: a given-back page that is
    read again maps the system's shared zero page, present but not exclusive,
    and smaps' Rss does not count it; the runners' kernels show such pages,
-   so presence alone is not asked. On macOS `mincore` says whether a page is
+   so presence alone is not asked. On macOS `mincore` reports whether a page is
    in memory, and on Windows `VirtualQuery` whether it is committed. */
 static int given_back(char *at, size_t bytes) {
 	size_t page = zane_page_bytes(), pages = bytes / page;

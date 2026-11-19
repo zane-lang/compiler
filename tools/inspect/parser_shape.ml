@@ -1,6 +1,6 @@
 let parts name shapes = name ^ "(" ^ String.concat ", " shapes ^ ")"
 
-(* An operator call renders under its operator's own name, so a shape says both
+(* An operator call renders under its operator's own name, so a shape shows both
    how the expression grouped and which implementation each grouping calls. *)
 let operator_name (op : Cst.Nodes.Operator.t) =
   match op.Cst.Nodes.Operator.node with
@@ -17,7 +17,7 @@ let operator_name (op : Cst.Nodes.Operator.t) =
   | Cst.Nodes.Operator.And -> "and"
   | Cst.Nodes.Operator.Or -> "or"
 
-(* A block argument renders as [block] wherever it sits, so a shape says which
+(* A block argument renders as [block] wherever it sits, so a shape shows which
    call a block joined and in which position, which is the grouping question a
    trailing block raises. *)
 let rec arg_shape (arg : Cst.Nodes.Call_arg.t) =
@@ -33,7 +33,7 @@ and verb_call_shape (call : Cst.Nodes.Verb_call.t) =
       parts "meth" (expr_shape this :: expr_shape callee :: List.map arg_shape args)
   (* A constructor call renders its arguments for the same reason a function
      call does: a trailing block is the last of them, and the shape is what
-     says it joined this call rather than something inside it. *)
+     shows it joined this call rather than something inside it. *)
   | Cst.Nodes.Verb_call.Constructor { name; args; _ } ->
       let tag =
         match name.Cst.Nodes.Constructor_name.member with
@@ -54,8 +54,8 @@ and expr_shape (expr : Cst.Nodes.Expr.t) =
   | Cst.Nodes.Expr.BoolLit _ -> "bool"
   | Cst.Nodes.Expr.NameExpr _ -> "name"
   | Cst.Nodes.Expr.TypeMember _ -> "type_member"
-  (* A type passed as a value, told apart from a type member so a shape says
-     which of the two an uppercase name was read as. *)
+  (* A type passed as a value, told apart from a type member so a shape shows
+     which of the two an upper-case identifier was read as. *)
   | Cst.Nodes.Expr.TypeValue _ -> "type_value"
   | Cst.Nodes.Expr.DotAccess { target; _ } -> "dot(" ^ expr_shape target ^ ")"
   | Cst.Nodes.Expr.Parenthized inner -> "paren(" ^ expr_shape inner ^ ")"
@@ -67,14 +67,14 @@ and expr_shape (expr : Cst.Nodes.Expr.t) =
       "lambda(" ^ expr_shape body ^ ")"
   (* A `{ }`-bodied lambda renders as [block] for the same reason a block
      argument does: `Foo() { ... }` is one of these and not a constructor call
-     with a trailing block, and the shape is what says so. *)
+     with a trailing block, and the shape is what shows this. *)
   | Cst.Nodes.Expr.FuncLambda
       { body = { Cst.Nodes.Body.node = Cst.Nodes.Body.Longhand _; _ }; _ } ->
       "lambda(block)"
   | Cst.Nodes.Expr.Spawn call -> "spawn(" ^ verb_call_shape call ^ ")"
   | Cst.Nodes.Expr.Match { scrutinees; _ } ->
       parts "match" (List.map expr_shape scrutinees)
-  (* A map literal renders its entries in order, so a shape says whether a
+  (* A map literal renders its entries in order, so a shape shows whether a
      brace in argument position was read as a literal or as a block. *)
   | Cst.Nodes.Expr.MapLit entries ->
       parts "map"

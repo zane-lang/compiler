@@ -477,8 +477,8 @@ _Noreturn static void zane_stack_full(void) {
 	zane_stop(text, at);
 }
 
-/* The program's scopes nest deeper than its range holds: the error says
-   which range is full and the manifest field that sets its size. */
+/* The program's scopes nest deeper than its range holds: the error names
+   the range that is full and the manifest field that sets its size. */
 _Noreturn void zane_too_deep_in(zane_context *c) {
 	char text[256], digits[24], *at = text;
 	int main_context = c->id == 0;

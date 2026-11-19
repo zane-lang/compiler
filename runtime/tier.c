@@ -17,7 +17,7 @@
    module. It then fills tier 1's imports from tier 0's exports and points
    each slot at tier 1's function of the same key. A call already running
    finishes in tier 0; the next one runs tier 1. Anything that goes wrong
-   leaves the program in tier 0, which means the same, and says so only
+   leaves the program in tier 0, which behaves the same, and logs the failure only
    when `ZANE_TIER_LOG` is set. `ZANE_TIER_WAIT=1` loads tier 1 before
    `main` runs, for the tests. The variables are removed once read, so
    nothing the program starts sees them. */
