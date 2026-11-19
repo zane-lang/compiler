@@ -122,7 +122,7 @@ class OptimizationTests(unittest.TestCase):
         main = ir.split("define void @zane_main()", 1)[1].split("\ndefine ", 1)[0]
         self.assertNotRegex(ir, r'call [^\n]*lambda')
         self.assertNotRegex(main, r'call [^\n@]*%[\w.]+\(')
-        self.assertRegex(main, r'mul i64 (%\w+), \1')
+        self.assertRegex(main, r'mul i64 (%[\w.]+), \1')
         for optimize in ([], ["--optimize"]):
             exe = self.out / f"workers{len(optimize)}"
             run(ZANEC, "--build", exe, *optimize, *flags)

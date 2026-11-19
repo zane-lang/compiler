@@ -246,10 +246,10 @@
     │       │   ├── scope: %2
     │       │   ├── value > expand:
     │       │   │   ├── type: handle16
-    │       │   │   ├── label: @89
-    │       │   │   ├── result: #90
+    │       │   │   ├── label: @97
+    │       │   │   ├── result: #98
     │       │   │   └── body[0] > assign:
-    │       │   │       ├── place: #90
+    │       │   │       ├── place: #98
     │       │   │       └── value > runtime:
     │       │   │           ├── type: handle16
     │       │   │           ├── fn: zane_list_new
@@ -336,11 +336,21 @@
     │       │       │   ├── value > runtime:
     │       │       │   │   ├── type: handle
     │       │       │   │   ├── fn: zane_text_i64
-    │       │       │   │   └── args[0] > call:
+    │       │       │   │   └── args[0] > expand:
     │       │       │   │       ├── type: i64
-    │       │       │   │       ├── fn: folding$sorted(%primitives$Bool[%primitives$I64, %primitives$I64], %primitives$List<%primitives$I64>)
-    │       │       │   │       ├── args[0]: function folding$main()$lambda1
-    │       │       │   │       └── args[1]: local #24 : handle16
+    │       │       │   │       ├── label: @89
+    │       │       │   │       ├── result: #90
+    │       │       │   │       ├── body[0] > let:
+    │       │       │   │       │   ├── local: #88
+    │       │       │   │       │   └── value: local #24 : handle16
+    │       │       │   │       ├── body[1] > assign:
+    │       │       │   │       │   ├── place: #90
+    │       │       │   │       │   └── value > foreign call:
+    │       │       │   │       │       ├── type: i64
+    │       │       │   │       │       ├── fn: folding$sorted(%primitives$Bool[%primitives$I64, %primitives$I64], %primitives$List<%primitives$I64>).ffi
+    │       │       │   │       │       ├── args[0]: function folding$main()$lambda1
+    │       │       │   │       │       └── args[1]: local #88 : handle16
+    │       │       │   │       └── body[2]: leave @89
     │       │       │   └── layout: %primitives$String
     │       │       └── body[1] > assign:
     │       │           ├── place: #39

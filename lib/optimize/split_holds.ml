@@ -37,15 +37,23 @@ let candidates (f : Func.t) =
   (* Each [Address h] is a use; one that is the base of a member's address
      is counted off. *)
   let addressed = Hashtbl.create 8 and named = Hashtbl.create 8 in
+  let read = Hashtbl.create 8 and read_member = Hashtbl.create 8 in
   let count t i = Hashtbl.replace t i (1 + Option.value ~default:0 (Hashtbl.find_opt t i)) in
   let rec under_snapshot (e : Expr.t) =
     walk_expr (fun e -> match e.Expr.node with Expr.Address i | Expr.Local i -> bar i | _ -> ()) ignore e
   and see (e : Expr.t) =
     match e.Expr.node with
     | Expr.Address i -> count addressed i
-    | Expr.Local i -> bar i
+    | Expr.Local i -> count read i
+    (* A member read from the struct's value. *)
+    | Expr.Member { value = { Expr.node = Expr.Local i; ty }; _ } when Hashtbl.find_opt held i = Some ty -> count read_member i
     | Expr.Offset { base = { Expr.node = Expr.Address i; _ }; within; path = _ :: _ }
       when Hashtbl.find_opt held i = Some within ->
+        count named i
+    (* A member of the whole struct read through its address, as a `mut`
+       subject's member is read. *)
+    | Expr.Member { value = { Expr.node = Expr.Deref { Expr.node = Expr.Address i; _ }; ty }; _ }
+      when Hashtbl.find_opt held i = Some ty ->
         count named i
     | Expr.Snapshot x -> under_snapshot x
     | _ -> ()
@@ -64,7 +72,9 @@ let candidates (f : Func.t) =
     (fun i ms acc ->
       let a = Option.value ~default:0 (Hashtbl.find_opt addressed i)
       and n = Option.value ~default:0 (Hashtbl.find_opt named i) in
-      if Hashtbl.mem whole i || a <> n then acc else (i, ms) :: acc)
+      let l = Option.value ~default:0 (Hashtbl.find_opt read i)
+      and m = Option.value ~default:0 (Hashtbl.find_opt read_member i) in
+      if Hashtbl.mem whole i || a <> n || l <> m then acc else (i, ms) :: acc)
     held []
 
 (* The positions of [positions] within a member [at] bytes in and [size]
@@ -88,13 +98,17 @@ let member_layout ls layout k at size =
   match within (Option.value ~default:[] (Hashtbl.find_opt ls.known layout)) at size with
   | [] -> `Plain
   | ps when foreign ps -> `Foreign
-  | ps ->
-      let name = Printf.sprintf "%s#%d" layout k in
-      if not (Hashtbl.mem ls.known name) then begin
-        Hashtbl.replace ls.known name ps;
-        ls.added <- (name, ps) :: ls.added
-      end;
-      `Held name
+  | ps -> (
+      (* A layout the program already names with the same positions, such
+         as the member type's own, is the member's; only a part no type
+         lays out alone gets a new name. *)
+      match Hashtbl.fold (fun n ps' found -> if found = None && ps' = ps then Some n else found) ls.known None with
+      | Some n -> `Held n
+      | None ->
+          let name = Printf.sprintf "%s#%d" layout k in
+          Hashtbl.replace ls.known name ps;
+          ls.added <- (name, ps) :: ls.added;
+          `Held name)
 
 let local i ty = { Expr.node = Expr.Local i; ty }
 
@@ -153,6 +167,14 @@ let func ls (f : Func.t) : Func.t =
                 Some
                   (if rest = [] then address
                    else { e with Expr.node = Expr.Offset { base = address; within = m.ty; path = rest } }))
+        | Expr.Member { value = { Expr.node = Expr.Local h; _ }; index = k } when Hashtbl.mem splits h ->
+            Some (local (Hashtbl.find splits h).(k).id e.Expr.ty)
+        | Expr.Member { value = { Expr.node = Expr.Deref { Expr.node = Expr.Address h; _ }; _ }; index = k }
+          when Hashtbl.mem splits h ->
+            let m = (Hashtbl.find splits h).(k) in
+            Some
+              (if m.held = None then local m.id e.Expr.ty
+               else { e with Expr.node = Expr.Deref { Expr.node = Expr.Address m.id; ty = Ty.Ptr } })
         | Expr.Deref p -> (
             match map_expr fe fs p with
             (* A member's value read from its own local. *)
