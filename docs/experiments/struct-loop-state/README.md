@@ -135,8 +135,37 @@ Writing the step out costs the 20%; the split wins part of it back. The
 interpreter's struct nests another (`tape`), and the split splits both.
 The optimized IR of a driver calling `runRecursive` alone has about the
 same loop with and without `Known_calls` (365 against 371 instructions in
-looping blocks, 79 loads each), so Callgrind is checking whether it is work
-or placement.
+looping blocks, 79 loads each), so Callgrind (confirmation only) was run
+on each arena build, with `--dump-instr=yes`; `hot.py CG BINARY` lists the
+instructions of `runRecursive` that run most, beside their disassembly
+(`results/recursion-hot/`).
+
+| build | instructions |
+| --- | --- |
+| main | 29.21G |
+| split without `Known_calls` | 29.21G (the same: the step's struct is not split) |
+| `Known_calls` without `Split_holds` | 31.09G (+6.4%) |
+| split, both passes | 28.14G (−3.7%) |
+
+- **`Known_calls` alone.** On `main` the step is a function of its own until
+  LLVM inlines it, and it reaches the machine through `this` (`%r14`):
+  `index` and `block` stay in registers across passes, and only `index` is
+  stored. Written out in the CGT, the machine is a slot of `runRecursive`'s
+  own frame, and LLVM loads `index`, `block` and the program's header from
+  it (`0x100(%rbx)`-`0x118(%rbx)`) on every pass: through the parameter it
+  could tell them apart from the tape's bytes, written by `incb`/`decb`;
+  through the frame it cannot.
+- **Both passes.** The split takes those loads away (fewer instructions than
+  `main`), but the machine, the tape and their lists become a dozen locals
+  live across the loop, more than there are registers: `block` is spilled
+  to `(%rsp)`, and the tape's position is reached through a pointer spilled
+  to `0x10(%rsp)`, two dependent loads before each `+` and `-` where `main`
+  has one load off `%r14`. Fewer instructions, longer chains: 13% slower.
+
+So writing a large step out before LLVM loses what the parameter told LLVM,
+and splitting the struct afterwards trades that for register pressure.
+#398 keeps the step as LLVM inlines it and the slots in registers, and runs
+this benchmark in 0.694 of `main`'s time.
 
 ## Reading so far
 
@@ -152,8 +181,11 @@ which one.
 
 ## What remains
 
-- Brainfuck::Recursion +14% and Etc::Sieve +4% on the split: find which
-  pass costs it, and fix or narrow it.
+- Etc::Sieve +4% on the split: not looked into.
+- Brainfuck::Recursion: `Known_calls` causes it (step 4). Narrowing it (a
+  size budget for a step, or writing a step out only where its subject is
+  then split and the split leaves few enough locals) would trade away
+  Brainfuck::Array's worker gain, which #398 gets anyway.
 - Why the split reads slower on `workers`.
 - The repo's perf gate (`just test-perf`, Valgrind against `main`) on the
   split.

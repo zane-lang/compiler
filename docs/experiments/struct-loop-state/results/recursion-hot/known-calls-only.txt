@@ -1,0 +1,56 @@
+total 31044613016 instrs executed 528 hot 55
+10759b0    288901813 mov    %rax,0x118(%rbx)
+10759b7    953734872 mov    0x118(%rbx),%rax
+10759be    953734872 mov    0x110(%rbx),%r15
+10759c5    953734872 mov    0x108(%rbx),%edx
+10759cb    953734872 mov    0x100(%rbx),%rcx
+10759d2    953734872 lea    -0x1(%r15),%rsi
+10759d6    953734872 cmp    %rdx,%rsi
+10759d9    953734872 jae    1075d3a <brainfuck$runRecursive(v0.14%1fc3f27f33b06851%core$String)+0xfba>
+10759df    953735873 mov    %r15,%rdx
+10759e2    953735873 shl    $0x4,%rdx
+10759e6    953735873 mov    -0x8(%rcx,%rdx,1),%esi
+10759ea    953735873 cmp    %rsi,%rax
+10759ed    953735873 jle    1075a80 <brainfuck$runRecursive(v0.14%1fc3f27f33b06851%core$String)+0xd00>
+10759f3    288902814 cmp    $0x1,%r15
+10759f7    288902814 je     1075c86 <brainfuck$runRecursive(v0.14%1fc3f27f33b06851%core$String)+0xf06>
+10759fd    288901813 mov    0xf0(%rbx),%rcx
+1075a04    288901813 mov    0xe8(%rbx),%eax
+1075a0a    288901813 lea    -0x1(%rcx),%rdx
+1075a0e    288901813 cmp    %rax,%rdx
+1075a11    288901813 jae    1075d3a <brainfuck$runRecursive(v0.14%1fc3f27f33b06851%core$String)+0xfba>
+1075a17    288901813 mov    (%r14),%rdx
+1075a1a    288901813 mov    $0x1,%eax
+1075a1f    288901813 cmpb   $0x0,-0x1(%rdx,%rcx,1)
+1075a24    288901813 jne    10759b0 <brainfuck$runRecursive(v0.14%1fc3f27f33b06851%core$String)+0xc30>
+1075a80    664833059 lea    -0x1(%rax),%rdi
+1075a84    664833059 cmp    %rsi,%rdi
+1075a87    664833059 jae    1075d3a <brainfuck$runRecursive(v0.14%1fc3f27f33b06851%core$String)+0xfba>
+1075a8d    664833059 mov    -0x10(%rcx,%rdx,1),%rcx
+1075a92    664833059 mov    -0x8(%rcx,%rax,8),%r12
+1075a97    664833059 inc    %rax
+1075a9a    664833059 mov    %rax,0x118(%rbx)
+1075aa1    664833059 test   %r12,%r12
+1075aa4    664833059 js     1075adf <brainfuck$runRecursive(v0.14%1fc3f27f33b06851%core$String)+0xd5f>
+1075aa6    635943067 add    $0xffffffffffffffd5,%r12
+1075aaa    635943067 cmp    $0x13,%r12
+1075aae    635943067 ja     10759b7 <brainfuck$runRecursive(v0.14%1fc3f27f33b06851%core$String)+0xc37>
+1075ab4    635943067 movslq 0x0(%r13,%r12,4),%rax
+1075ab9    635943067 add    %r13,%rax
+1075abc    635943067 jmp    *%rax
+1075abe    289145823 mov    0x10(%r14),%rax
+1075ac2    289145823 mov    0x8(%r14),%ecx
+1075ac6    289145823 lea    -0x1(%rax),%rdx
+1075aca    289145823 cmp    %rcx,%rdx
+1075acd    289145823 jae    1075d3a <brainfuck$runRecursive(v0.14%1fc3f27f33b06851%core$String)+0xfba>
+1075ad3    289145823 mov    (%r14),%rcx
+1075ad6    289145823 incb   -0x1(%rcx,%rax,1)
+1075ada    289145823 jmp    10759b7 <brainfuck$runRecursive(v0.14%1fc3f27f33b06851%core$String)+0xc37>
+1075bae    288915813 mov    0x10(%r14),%rax
+1075bb2    288915813 mov    0x8(%r14),%ecx
+1075bb6    288915813 lea    -0x1(%rax),%rdx
+1075bba    288915813 cmp    %rcx,%rdx
+1075bbd    288915813 jae    1075d3a <brainfuck$runRecursive(v0.14%1fc3f27f33b06851%core$String)+0xfba>
+1075bc3    288915813 mov    (%r14),%rcx
+1075bc6    288915813 decb   -0x1(%rcx,%rax,1)
+1075bca    288915813 jmp    10759b7 <brainfuck$runRecursive(v0.14%1fc3f27f33b06851%core$String)+0xc37>
