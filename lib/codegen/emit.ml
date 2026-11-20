@@ -1127,6 +1127,7 @@ let unwritten env (f : Func.t) addressed =
   if addressed <> [] then List.iter stat f.Func.body
 
 let func env (f : Func.t) =
+  Held_spills.start ();
   (* Experimental: an optimized build's loops over independent walks. *)
   let f = if env.version then Interleave.func f else f in
   let fn, _ = Hashtbl.find env.funcs f.Func.symbol in

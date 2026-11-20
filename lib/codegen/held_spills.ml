@@ -35,16 +35,14 @@ type held = {
   layout : Cgt.Nodes.Layout.t;
 }
 
-(* Every held alloca of the function being emitted, and the same in the
-   order they were held. *)
-let table : (Llvm.llvalue, held) Hashtbl.t = Hashtbl.create 16
+(* Every held alloca of the function being emitted, the latest first.
+   LLVM values are found by [==] in lists, never hashed: a hash of one
+   follows its address, which would make the order of the rewrites, and so
+   the code, differ from one run of the compiler to the next. *)
 let order : (Llvm.llvalue * held) list ref = ref []
 
-let record alloca h =
-  Hashtbl.replace table alloca h;
-  order := (alloca, h) :: !order
-
-let find p = Hashtbl.find_opt table p
+let record alloca h = order := (alloca, h) :: !order
+let find p = Option.map snd (List.find_opt (fun (a, _) -> a == p) !order)
 
 (* The held allocas of the scope whose record is [arena], in the order
    they were held. *)
@@ -53,15 +51,20 @@ let of_arena arena = List.rev (List.filter (fun (_, h) -> h.arena == arena) !ord
 (* Where each scope's code starts, past its entry: the last instruction
    of its entry, or none when the entry's block is still the one being
    built and holds none. *)
-let entries : (Llvm.llvalue, Llvm.llvalue option) Hashtbl.t = Hashtbl.create 8
+let entries : (Llvm.llvalue * Llvm.llvalue option) list ref = ref []
 
-let entered arena last = Hashtbl.replace entries arena last
+let entered arena last = entries := (arena, last) :: !entries
+
+(* Forgets the function emitted before: [Emit.func] calls this first. *)
+let start () =
+  order := [];
+  entries := []
 
 (* A builder at the start of the scope whose record is [arena]'s code,
    or [b] when that is where [b] builds. *)
 let at_entry ctx arena b =
-  match Hashtbl.find_opt entries arena with
-  | Some (Some i) -> (
+  match List.find_opt (fun (a, _) -> a == arena) !entries with
+  | Some (_, Some i) -> (
       match Llvm.instr_succ i with Llvm.Before n -> Llvm.builder_before ctx n | Llvm.At_end _ -> b)
   | _ -> b
 
@@ -71,9 +74,17 @@ let callee i =
 
 let starts p s = String.length s >= String.length p && String.sub s 0 (String.length p) = p
 
-(* Calls that may keep the address past their return: the runtime lists a
-   held slot for its drain. *)
-let keeps = function Some "zane_hold" -> true | _ -> false
+(* Calls given the frame slot for good rather than around the call: one
+   that may keep the address past its return (the runtime lists a held slot
+   for its drain), and a call to a Zane function, which LLVM may inline, so
+   that the copies would go round code that then works on the frame slot,
+   or which a loop may make every time round. Only the runtime's calls,
+   mostly the slow paths of a push or a growth, are given the slot around
+   the call. *)
+let keeps = function
+  | Some "zane_hold" -> true
+  | Some n -> not (starts "zane_" n)
+  | None -> true
 
 (* Intrinsics SROA reads an alloca through. *)
 let through = function
@@ -148,12 +159,12 @@ let next_instr i =
 (* The held allocas of [fn], each kept, given its frame slot around the
    calls it reaches, or replaced by its frame slot. *)
 let run ctx fn =
-  if on && Hashtbl.length table > 0 then begin
+  if on && !order <> [] then begin
     let m = Llvm.global_parent fn in
     let dl = Llvm_target.DataLayout.of_string (Llvm.data_layout m) in
     let i8 = Llvm.i8_type ctx and i64 = Llvm.i64_type ctx in
-    Hashtbl.iter
-      (fun a h ->
+    List.iter
+      (fun (a, h) ->
         let verdict = uses dl a 0L [] in
         if debug then
           Printf.eprintf "held %s: %s\n" (Llvm.value_name fn)
@@ -165,14 +176,14 @@ let run ctx fn =
             Llvm.replace_all_uses_with a h.slot;
             Llvm.delete_instruction a
         | Some spills ->
-            let seen = Hashtbl.create 4 in
+            let seen = ref [] in
             List.iter
               (function
                 | Fine -> ()
                 | Spill (c, k, offset) ->
                     let b = Llvm.builder_before ctx c in
-                    if not (Hashtbl.mem seen c) then begin
-                      Hashtbl.replace seen c ();
+                    if not (List.memq c !seen) then begin
+                      seen := c :: !seen;
                       ignore (Llvm.build_store (Llvm.build_load h.ty a "" b) h.slot b);
                       let after = Llvm.builder_before ctx (next_instr c) in
                       ignore (Llvm.build_store (Llvm.build_load h.ty h.slot "" after) a after)
@@ -182,9 +193,7 @@ let run ctx fn =
                       else Llvm.build_in_bounds_gep i8 h.slot [| Llvm.const_of_int64 i64 offset true |] "" b
                     in
                     Llvm.set_operand c k at)
-              spills)
-      table;
-    Hashtbl.reset table;
-    Hashtbl.reset entries;
-    order := []
-  end
+              (List.rev spills))
+      (List.rev !order)
+  end;
+  start ()
