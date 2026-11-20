@@ -237,8 +237,32 @@ top_decl:
    return type written to its left, so neither the suffix's `$loc` nor the
    return type's span covers the node it builds. The span runs from the return
    type's start to the suffix's end, which is what [Span.join] is for. *)
+(* A function type's parameter slot: a type, a bare concept, or an
+   introduction written as a verb parameter's own is, `T Type`, `^T Type` or
+   `&T Type` (generics.md §3.2). *)
+%inline verb_type_param:
+  | type_=param_type { type_ }
+  | name=uname concept_=UTYPE {
+      ignore concept_;
+      param_type $loc
+        (Nodes.Param_type.InferredType
+           { name; concept = concept $loc(concept_) Nodes.Concept.Type; marker = Nodes.Marker.Bare })
+    }
+  | CARET name=uname concept_=UTYPE {
+      ignore concept_;
+      param_type $loc
+        (Nodes.Param_type.InferredType
+           { name; concept = concept $loc(concept_) Nodes.Concept.Type; marker = Nodes.Marker.Roaming })
+    }
+  | AMPERSAND name=uname concept_=UTYPE {
+      ignore concept_;
+      param_type $loc
+        (Nodes.Param_type.InferredType
+           { name; concept = concept $loc(concept_) Nodes.Concept.Type; marker = Nodes.Marker.Reference })
+    }
+
 %inline verb_type_suffix:
-  | LBRACKET params=separated_list(COMMA, param_type) RBRACKET {
+  | LBRACKET params=separated_list(COMMA, verb_type_param) RBRACKET {
       let suffix_span = Span.of_loc $loc in
       fun (ret_type : Nodes.Ret_type.t) ->
         let span = Span.join ret_type.Nodes.Ret_type.span suffix_span in
@@ -250,7 +274,7 @@ top_decl:
         } : Nodes.Type_expr.t)
     }
   | LBRACKET THIS this_type=type_expr
-    params=loption(preceded(COMMA, separated_nonempty_list(COMMA, param_type)))
+    params=loption(preceded(COMMA, separated_nonempty_list(COMMA, verb_type_param)))
     RBRACKET is_mut=boption(MUT) {
       let suffix_span = Span.of_loc $loc in
       fun (ret_type : Nodes.Ret_type.t) ->
@@ -421,6 +445,24 @@ map_lit:
 %inline field_type:
   | type_=type_expr {
       param_type $loc (Nodes.Param_type.Concrete type_)
+    }
+  (* A function type whose return introduces its type parameter, as
+     `make ^T Type[Int]` does (generics.md §3.2): the introduction is the
+     return slot's type, marked with its passing mode. *)
+  | name=uname concept_=UTYPE first=verb_type_suffix rest=list(verb_type_suffix) {
+      ignore concept_;
+      param_type $loc (Nodes.Param_type.Concrete
+        (introduced_verb_type ~loc:($startpos, $endpos(concept_)) name Nodes.Marker.Bare first rest))
+    }
+  | CARET name=uname concept_=UTYPE first=verb_type_suffix rest=list(verb_type_suffix) {
+      ignore concept_;
+      param_type $loc (Nodes.Param_type.Concrete
+        (introduced_verb_type ~loc:($startpos, $endpos(concept_)) name Nodes.Marker.Roaming first rest))
+    }
+  | AMPERSAND name=uname concept_=UTYPE first=verb_type_suffix rest=list(verb_type_suffix) {
+      ignore concept_;
+      param_type $loc (Nodes.Param_type.Concrete
+        (introduced_verb_type ~loc:($startpos, $endpos(concept_)) name Nodes.Marker.Reference first rest))
     }
   | name=uname concept_=UTYPE {
       ignore concept_;

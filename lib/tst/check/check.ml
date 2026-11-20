@@ -710,32 +710,49 @@ and worker_call env ~flow ctx span name cands actuals handle =
    whose return converts its value by the single implicit constructor from
    `R`. *)
 and worker_test env span result =
-  let dst = Intrinsics.prim "Bool" in
-  let local = fresh_local env "result" result span in
-  let read = mk (T.Expr.Var (T.Name_ref.Local local)) result span in
+  conversion_lambda env span ~name:"result" ~src:result ~dst:(Intrinsics.prim "Bool") ~missing:(fun () ->
+      Printf.sprintf
+        "a worker's step returns %s, and it must convert to %s, as a condition does, with no \
+         implicit constructor between them (control-flow.md §4.1)"
+        (quote (Ty.to_string result)) (quote (Ty.to_string (Intrinsics.prim "Bool"))))
+
+(* The `index` of `ArrayRef.fill`: `I(position @primitives$I64) { return
+   position; }`, its return converting by the one implicit constructor to
+   `I`, the type `make` takes its position as (generics.md §8.4). *)
+and fill_index env span index =
+  let src = Intrinsics.prim "I64" in
+  conversion_lambda env span ~name:"position" ~src ~dst:index ~missing:(fun () ->
+      Printf.sprintf
+        "`ArrayRef.fill`'s `make` takes its position as %s, and a position is %s, with no \
+         implicit constructor between them (generics.md §8.4)"
+        (quote (Ty.to_string index)) (quote (Ty.to_string src)))
+
+(* A lambda from [src] to [dst] that returns its parameter, converted by the
+   one implicit constructor between them when [src] is not already a [dst]:
+   a conversion a call cannot write itself, since it is of a function
+   value's parameter or result rather than of a value. *)
+and conversion_lambda env span ~name ~src ~dst ~missing =
+  let local = fresh_local env name src span in
+  let read = mk (T.Expr.Var (T.Name_ref.Local local)) src span in
   let converted =
-    if Ty.assignable ~dst ~src:result || result = Ty.Error then read
+    if Ty.assignable ~dst ~src || src = Ty.Error || dst = Ty.Error then read
     else
-      match implicit_constructors env ~src:result ~dst with
+      match implicit_constructors env ~src ~dst with
       | [ ((s, subst) as found) ] ->
           request env s subst span;
           coerce_value read found
       | [] ->
-          error env span
-            (Printf.sprintf
-               "a worker's step returns %s, and it must convert to %s, as a condition does, with no \
-                implicit constructor between them (control-flow.md §4.1)"
-               (quote (Ty.to_string result)) (quote (Ty.to_string dst)));
+          error env span (missing ());
           read
       | several ->
           error env span
             (Printf.sprintf "more than one implicit constructor converts %s to %s: %s"
-               (quote (Ty.to_string result)) (quote (Ty.to_string dst))
+               (quote (Ty.to_string src)) (quote (Ty.to_string dst))
                (String.concat ", " (List.map (fun ((s : S.t), _) -> quote (S.to_string s)) several)));
           read
   in
   let body = { T.Block.stats = [ { T.Stat.node = T.Stat.Return converted; span } ]; span } in
-  let v = { Ty.this_ = None; params = [ result ]; ret = dst; abort = None; is_mut = false } in
+  let v = { Ty.this_ = None; params = [ src ]; ret = dst; abort = None; is_mut = false } in
   mk (T.Expr.Lambda { params = [ local ]; body }) (Ty.Verb v) span
 
 (* Calling a function value. A function value is one value with one type, so
@@ -1032,15 +1049,32 @@ and positional_constructor_call env ctx span what cands ps =
   if any_error actuals then invalid span
   else
     let positional_cands = List.filter is_positional_constructor cands in
+    (* `ArrayRef.fill`'s last parameter, `index`, is the checker's, so it is
+       resolved without it (Check.fill_index). *)
+    let written (s : S.t) =
+      if Intrinsics.is_fill s then
+        { s with S.params = List.filteri (fun i _ -> i < List.length s.S.params - 1) s.S.params }
+      else s
+    in
     match
       report_resolution env
         ~literal:(literal_drives_inference cands actuals)
         ~span ~what ~args:(describe_args actuals)
-        (resolve env positional_cands (positional actuals))
+        (resolve env (List.map written positional_cands) (positional actuals))
         cands
     with
     | None -> invalid span
     | Some o ->
+        let o =
+          if Intrinsics.is_fill o.sig_ then
+            let full = List.find (fun (s : S.t) -> s.S.owner = o.sig_.S.owner) positional_cands in
+            let make = List.nth o.sig_.S.params (List.length o.sig_.S.params - 1) in
+            let index =
+              match Ty.subst o.subst make.S.ty with Ty.Verb { Ty.params = [ i ]; _ } -> i | _ -> Ty.Error
+            in
+            { o with sig_ = full; converted = o.converted @ [ Some (T.Arg.Value (fill_index env span index)) ] }
+          else o
+        in
         request env ~args:o.converted o.sig_ o.subst span;
         let ret = Ty.subst o.subst o.sig_.ret in
         mk

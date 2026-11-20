@@ -3719,6 +3719,128 @@
   (diff golden/expressions.out expressions.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/fillIndex))
+ (targets fillIndex.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build fillIndex.exe --package fixtures/fillIndex)))
+
+(rule
+ (deps (source_tree fixtures/fillIndex))
+ (targets fillIndex.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build fillIndex.optimized.exe --optimize --package fixtures/fillIndex)))
+
+(rule
+ (deps (source_tree fixtures/fillIndex))
+ (targets fillIndex.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build fillIndex.tiered.exe --tiered --package fixtures/fillIndex)))
+
+(rule
+ (deps (source_tree fixtures/fillIndex))
+ (targets fillIndex.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up fillIndex.tier1 --package fixtures/fillIndex)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    fillIndex.checked.out.actual
+    (run ./fillIndex.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/fillIndex.out fillIndex.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    fillIndex.unchecked.out.actual
+    (run ./fillIndex.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/fillIndex.out fillIndex.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    fillIndex.optimized.checked.out.actual
+    (run ./fillIndex.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/fillIndex.out fillIndex.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    fillIndex.optimized.unchecked.out.actual
+    (run ./fillIndex.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/fillIndex.out fillIndex.optimized.unchecked.out.actual)))
+
+(rule
+ (deps fillIndex.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./fillIndex.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    fillIndex.tiered.checked.out.actual
+    (run ./fillIndex.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/fillIndex.out fillIndex.tiered.checked.out.actual)))
+
+(rule
+ (deps fillIndex.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./fillIndex.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    fillIndex.tiered.unchecked.out.actual
+    (run ./fillIndex.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/fillIndex.out fillIndex.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/folding))
  (action
   (with-stdout-to

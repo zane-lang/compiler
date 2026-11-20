@@ -111,6 +111,11 @@ and ret_type (x : C.Ret_type.t) : S.Ret_type.t =
         S.Ret_type.span;
         node = S.Ret_type.Abort { ok = type_expr ok; abort = type_expr abort };
       }
+  | C.Ret_type.Introduced { name = n; concept = c; marker } ->
+      let marker : S.Marker.t =
+        match marker with Bare -> Bare | Roaming -> Roaming | Reference -> Reference
+      in
+      { S.Ret_type.span; node = S.Ret_type.Introduced { name = name n; concept = concept c; marker } }
 
 and param_type (x : C.Param_type.t) : S.Param_type.t =
   let span = x.C.Param_type.span in

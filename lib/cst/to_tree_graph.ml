@@ -292,6 +292,9 @@ and body_to_node (x: Nodes.Body.t) = match x.Nodes.Body.node with
 
 and ret_to_node (x: Nodes.Ret_type.t) = match x.Nodes.Ret_type.node with
   | Safe ret -> type_to_node ret
+  | Introduced { name; concept; marker } ->
+      param_type_to_node
+        { Nodes.Param_type.node = InferredType { name; concept; marker }; span = x.Nodes.Ret_type.span }
   | Abort { ok; abort } ->
       fields [
         ("safe_type",  type_to_node ok);

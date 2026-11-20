@@ -285,6 +285,9 @@ and block_to_node (x : Nodes.Block.t) =
 and ret_to_node (x : Nodes.Ret_type.t) =
   match x.Nodes.Ret_type.node with
   | Safe ret -> type_to_node ret
+  | Introduced { name; concept; marker } ->
+      param_type_to_node
+        { Nodes.Param_type.node = InferredType { name; concept; marker }; span = x.Nodes.Ret_type.span }
   | Abort { ok; abort } ->
       fields
         [ ("safe_type", type_to_node ok); ("abort_type", type_to_node abort) ]

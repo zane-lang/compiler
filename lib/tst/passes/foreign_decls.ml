@@ -553,7 +553,9 @@ and function_corresponds env iface v (f : Ty.verb) c =
              (quote (C.to_string c)))
 
 let ret_span (v : verb) =
-  match v.ret.N.Ret_type.node with N.Ret_type.Safe t | N.Ret_type.Abort { ok = t; _ } -> t.N.Type_expr.span
+  match v.ret.N.Ret_type.node with
+  | N.Ret_type.Safe t | N.Ret_type.Abort { ok = t; _ } -> t.N.Type_expr.span
+  | N.Ret_type.Introduced _ -> v.ret.N.Ret_type.span
 
 (* §3.1, §3.5: a foreign verb takes no type or number parameter, no
    concept-typed parameter and no block; a reference type may be a result

@@ -899,6 +899,7 @@ and walk =
     expr;
     value_of;
     addr;
+    storage;
     borrow;
     lend;
     reference_to;

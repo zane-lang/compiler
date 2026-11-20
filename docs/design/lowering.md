@@ -812,7 +812,10 @@ test passing.
     block, and a block relocates only when its owner escapes.
     `@primitives$ArrayRef<T, n>` lowers as `Array` does from any of its
     literal constructors, `.refs` and `.roaming` included, with `fill` a
-    counted loop over its lambda. `@primitives$String` is a value type. The runtime
+    counted loop that makes each element as `make(index(position))`: `index`
+    is the checker's conversion of a position to the type `make` takes it as
+    (`Check.fill_index`), and its body is written out in the loop rather than
+    called (`Lower_data.fill`). `@primitives$String` is a value type. The runtime
     is tested in C on its own: an overwrite keeps a boxed member's address,
     and arrival leaves blocks that outlive their destination where they are.
 12. **Where blocks are made.** Once every function is lowered, a pass over
