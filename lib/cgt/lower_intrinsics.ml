@@ -1,6 +1,6 @@
-(* Lowering's intrinsics (docs/design/lowering.md): what the runtime does
-   for a program, a list's own operations, `@operators$` operations and
-   `@math$` functions. The walk in [Lower] is [w]. *)
+(* Lowering's intrinsics (docs/design/lowering.md): the operations the
+   runtime performs for a program, a list's own operations, `@operators$`
+   operations and `@math$` functions. The walk in [Lower] is [w]. *)
 
 module T = Tst.Nodes
 module S = Tst.Signature
@@ -11,7 +11,7 @@ open Type_layout
 open Build
 
 (* An `@operators$` operation (syntax.md §2.7). Its operands run in the order
-   written, and are read where they are: an operation keeps none of them. *)
+   written, and are read in place: an operation keeps none of them. *)
 let operation w st ctx span spelling args (t : Tty.t) : Expr.t =
   let t = ty st span t in
   let value = function
@@ -37,7 +37,7 @@ let operation w st ctx span spelling args (t : Tty.t) : Expr.t =
   | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling)
 
 (* A math function of `@math$` (math.md §2). Its operands run in the order
-   written, and are read where they are, as an operation's are. *)
+   written, and are read in place, as an operation's operands are. *)
 let math w st ctx span spelling args (t : Tty.t) : Expr.t =
   let name = String.sub spelling 6 (String.length spelling - 6) in
   match Math.of_name name with
@@ -80,10 +80,10 @@ let runs spelling =
       "@primitives$hashBytes";
     ]
 
-(* A call to what the runtime does for the program, or to a list's own
-   operation. *)
+(* A call to an operation the runtime performs for the program, or to a
+   list's own operation. *)
 (* Whether an element type is a byte, `U8`, or with [flags] also a
-   `Bool`, or a struct of one, as `core`'s own are. *)
+   `Bool`, or a struct of one such field, as `core`'s own types are. *)
 let rec one_byte ?(flags = false) (t : Nodes.Ty.t) =
   match t with
   | Nodes.Ty.I8 -> true
@@ -91,11 +91,11 @@ let rec one_byte ?(flags = false) (t : Nodes.Ty.t) =
   | Nodes.Ty.Struct [ t ] | Nodes.Ty.Packed (Nodes.Ty.Struct [ t ]) -> one_byte ~flags t
   | _ -> false
 
-(* A list operand lent to the runtime, as a local: its own operands' pins,
-   what runs now, and what runs last. A list that is an element has its
-   operands run first and is located only after the call's other operands,
-   so one of them that grows the list holding it moves it before the call
-   finds it. *)
+(* A list operand lent to the runtime, as a local: returns the pins of its
+   own operands, the statements that run now, and the statements that run
+   last. A list that is an element has its operands run first and is
+   located only after the call's other operands, so an operand that grows
+   the list holding it moves it before the call finds it. *)
 let placed w st ctx span e =
   let id = fresh st in
   if Lower_calls.subscripted e then
@@ -107,9 +107,9 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
   match e.T.Expr.node with
   | T.Expr.Call { callee = { owner = S.Intrinsic "@runtime$print"; _ }; args; handler = None }
     -> (
-      (* The program has one console (effects.md §6.6), so the subject names
-         nothing the runtime needs. The text is a borrowed value, which the
-         runtime reads where it is (L6). *)
+      (* The program has one console (effects.md §6.6), so the runtime needs
+         nothing from the subject. The text is a borrowed value, which the
+         runtime reads in place (L6). *)
       match args with
       | [ T.Arg.Value _console; T.Arg.Value text ] ->
           {
@@ -121,7 +121,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
     -> (
       (* The pool is resized (concurrency.md §2.4), or, for a count below
          one, left as it was, and the call aborts with `Unit`. The program
-         has one runtime, so the subject names nothing the runtime needs. *)
+         has one runtime, so the runtime needs nothing from the subject. *)
       match args with
       | [ T.Arg.Value _runtime; T.Arg.Value count ] ->
           let count = w.borrow st ctx span count in
@@ -151,14 +151,14 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       } ->
       { Expr.node = Expr.Runtime { fn = Runtime.Set_threads_auto; args = [] }; ty = Nodes.Ty.Void }
   (* A new list of the program's arguments, each a string that owns its
-     bytes (effects.md §6.6). The program has one runtime, so the subject
-     names nothing the runtime needs. *)
+     bytes (effects.md §6.6). The program has one runtime, so the runtime
+     needs nothing from the subject. *)
   | T.Expr.Call
       { callee = { owner = S.Intrinsic "@runtime$arguments"; _ }; args = [ _ ]; handler = None } ->
       { Expr.node = Expr.Runtime { fn = Runtime.Arguments; args = [] }; ty = Nodes.Ty.list_handle () }
   (* A number read from a string's text (types.md §2.10). The runtime writes
-     it to [value]'s slot and says whether the text spelled one that fits;
-     when it did not, the call aborts with `Unit`. *)
+     the number to [value]'s slot and returns whether the text spelled a
+     number that fits; when it did not, the call aborts with `Unit`. *)
   | T.Expr.Call
       {
         callee =
@@ -284,7 +284,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       { Expr.node = Expr.Expand { label; body; result = Some v }; ty = Nodes.Ty.I8 }
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$text"; _ }; args = [ T.Arg.Value bytes ]; handler = None } ->
       (* The runtime copies the list's storage as the text's bytes, so its
-         elements must each be one byte: `U8`, or a struct of one. *)
+         elements must each be one byte: `U8`, or a struct of one `U8`. *)
       (match element (Tty.strip_mode bytes.T.Expr.ty) with
       | Some t when one_byte (ty st span t) -> ()
       | _ -> refuse span "`@primitives$text` makes a string only from a list of bytes");
@@ -308,8 +308,9 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
         in
         (* Each operand runs once, in written order, as for `remove`: a
            list that is an element has its own operands run first and is
-           located only after the range's start and count, so one that
-           grows the list holding it moves it before the call finds it. *)
+           located only after the range's start and count, so an operand
+           that grows the list holding it moves it before the call finds
+           it. *)
         let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
         let place = placed w st ctx span in
         let l, l_pins, l_now, l_last = place list in
@@ -432,7 +433,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$sort"; _ }; args = [ T.Arg.Value list ]; handler = None } ->
       (* The runtime sorts the
          elements as integers of their width: `I32`, `I64` and `U8`, or a
-         struct of one. *)
+         struct of one such field. *)
       let rec kind (t : Nodes.Ty.t) =
         match t with
         | Nodes.Ty.I32 -> Some 0L
@@ -469,12 +470,12 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       } -> (
       (* The list runs before the index, as a subject runs before its
          arguments. A list that is an element is the exception, as for any
-         `!` call on one ([located_last]): its own operands run first, then
-         the index, and only then is it located, so an index that grows the
-         list holding it moves it before the call finds it. The element's
-         place is checked against the count as a subscript's is, and the
-         element moves out of it; then the list closes over the place. An
-         element with no storage has nothing to move, so only the check
+         `!` call on an element ([located_last]): its own operands run first,
+         then the index, and only then is the list located, so an index that
+         grows the list holding it moves it before the call finds it. The
+         element's place is checked against the count as a subscript's is,
+         and the element moves out of it; then the list closes over the place.
+         An element with no storage has nothing to move, so only the check
          and the closing run. *)
       match args with
       | [ T.Arg.Value list; T.Arg.Value index ] ->

@@ -1,8 +1,8 @@
 (* Where a scope's blocks go, decided once every function is lowered
-   (docs/design/lowering.md L8, §9). Lowering gives a block an arena when it
-   holds something, and notes each fresh owner a block moves into a callee's
-   `^T` parameter. This pass sees every function at once, and so knows which
-   callees keep what they are given:
+   (docs/design/lowering.md L8, §9). Lowering gives a block an arena when the
+   block holds a value, and notes each fresh owner a block moves into a
+   callee's `^T` parameter. This pass sees every function at once, and so
+   knows which callees keep the values they are given:
 
    - A `^T` parameter is kept when every way out of its function has moved
      it on: into the result, into a place the caller lent, or into a callee
@@ -11,13 +11,13 @@
      taken instead: a fresh argument is moved in, and any other is copied
      where the call is.
    - A block keeps the arena lowering noted for a fresh owner only when the
-     callee can drop it, so the owner's blocks go when the block drains
-     rather than piling up in an enclosing region. An arena nothing is held
-     in any more goes.
+     callee can drop the owner, so the owner's blocks are freed when the
+     block drains rather than piling up in an enclosing region. An arena in
+     which nothing is held any more is removed.
    - A function whose arena holds only owners that every way out moves on
-     needs none: it holds them in slots of its own, and what it makes is
-     made in its caller's innermost region, where its result goes anyway
-     (memory.md §3.1, §3.5). *)
+     needs no arena: it holds those owners in slots of its own, and the
+     values it makes are made in its caller's innermost region, where its
+     result goes anyway (memory.md §3.1, §3.5). *)
 
 open Nodes
 open Traverse
@@ -26,12 +26,13 @@ open Traverse
 (* Where an owner goes                                                    *)
 (* ---------------------------------------------------------------------- *)
 
-(* Whether one owner the function has, from where it is first had, reaches
-   on every way out something that keeps it: the function's result, a place
-   the caller lent it, or a callee that keeps what it is given. On its way
-   there it may sit in locals of the function's own, its carriers. Anything
-   this does not follow, such as an owner dropped or given to a callee that
-   may drop it, makes the answer no. *)
+(* Whether one owner the function has, from the point where the function
+   first has it, reaches on every way out something that keeps it: the
+   function's result, a place the caller lent the function, or a callee that
+   keeps what it is given. On its way there the owner may sit in locals of
+   the function's own, its carriers. Any use this analysis does not follow,
+   such as an owner dropped or given to a callee that may drop it, makes the
+   answer no. *)
 
 exception Unknown
 
@@ -61,9 +62,9 @@ let carry id = function
 let carried id = function Live l -> List.mem id l.carriers | Dead -> false
 
 (* A place written whole with a new owner, which is followed from here on.
-   The owner it had must have gone on already: one still in the place is
-   dropped by the write, and one in a carrier would be a second owner to
-   follow at once. *)
+   The owner the place had must have moved on already: an owner still in the
+   place is dropped by the write, and an owner in a carrier would be a second
+   owner to follow at the same time. *)
 let refill = function
   | Live { started = true; consumed = false; _ } -> raise Unknown
   | Live _ -> Live { started = true; consumed = false; carriers = [] }
@@ -74,8 +75,9 @@ let drop id = function
   | Dead -> Dead
 
 type follow = {
-  (* The statement where the owner is first had, and the expression that
-     first gives it up: its move out of its slot, or its copy. *)
+  (* The statement where the function first has the owner, and the
+     expression that first gives it up: its move out of its slot, or its
+     copy. *)
   start : Stat.t -> bool;
   event : Expr.t -> bool;
   (* A place written whole with a new owner, which is then followed anew. *)
@@ -103,7 +105,7 @@ let rec lent_place a (e : Expr.t) =
 
 (* An expression evaluated in [st]: the state after it, and whether its value
    is the owner, or holds it. [moving] is whether the value goes somewhere,
-   rather than being read where it is. *)
+   rather than being read in place. *)
 let rec ex a st ~moving (e : Expr.t) =
   match st with
   | Dead -> (Dead, false)
@@ -119,7 +121,7 @@ let rec ex a st ~moving (e : Expr.t) =
           if moving then (drop c st, true) else raise Unknown
       | Expr.Take { address; _ } -> (read st address, false)
       (* A box's block on its way into its slot in 32 bits (Ref32) carries
-         what the block holds, as the box does. *)
+         the owner the block holds, as the box does. *)
       | Expr.Convert x when e.Expr.ty = Ty.Ref || e.Expr.ty = Ty.Box32 -> ex a st ~moving x
       | Expr.Deref x | Expr.Flip x | Expr.Convert x | Expr.Snapshot x
       | Expr.Offset { base = x; _ } | Expr.Member { value = x; _ } | Expr.Copy { value = x; _ } ->
@@ -145,10 +147,11 @@ let rec ex a st ~moving (e : Expr.t) =
               (st, false)
               (List.mapi (fun j x -> (j, x)) args)
           in
-          (* A callee that keeps the owner keeps it in its result, unless it
-             has none, or in a place its caller lent it, which must then be
-             one this function's caller lent in turn: an owner kept in a
-             local of this function goes when the local does. *)
+          (* A callee that keeps the owner keeps it in its result, unless the
+             callee has no result, or in a place its caller lent it, which
+             must then be a place this function's caller lent in turn: an
+             owner kept in a local of this function is freed with the
+             local. *)
           if
             given
             && List.exists
@@ -251,7 +254,7 @@ and stat a st (s : Stat.t) =
             st args)
 
 (* Whether the owner [follow] describes is moved on, on every way out of
-   [f]. [entry] is whether it is had from the function's start. *)
+   [f]. [entry] is whether [f] has the owner from its start. *)
 let followed (f : Func.t) ~entry ~start ~event ~refills ~keeps =
   let a =
     {
@@ -305,8 +308,9 @@ let holds_in body =
   List.rev !found
 
 (* Which callees keep which `^T` parameters: the greatest answer that holds
-   of every function, so that a recursive call keeps what it is given when
-   nothing else drops it. A callee without a body here can drop anything. *)
+   for every function, so that a recursive call keeps what it is given when
+   nothing else drops it. A callee without a body here can drop any
+   argument. *)
 let keeping funcs =
   let table = Hashtbl.create 64 in
   List.iter

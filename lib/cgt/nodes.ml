@@ -1,15 +1,15 @@
 (* The code-generation tree (docs/design/lowering.md): the one input codegen reads.
 
-   What it holds is what the machine does. A call names one function, every
-   type has a layout, and nothing in it needs a declaration or an overload to
-   be understood. It grows with each step of docs/design/lowering.md §8; what is here
-   is what lowering handles so far. *)
+   The tree describes the machine's operations. A call names one function,
+   every type has a layout, and no node needs a declaration or an overload to
+   be understood. The tree grows with each step of docs/design/lowering.md §8;
+   the nodes here are those that lowering handles so far. *)
 
 (* A CGT type is a machine layout (L5). [Handle] is `@primitives$String`
    (types.md §2.7), `@primitives$List<T>` and `@primitives$ListRef<T>`: a handle (memory.md §3.6), a
    pointer to the first byte or element, the length in bytes or elements,
    with no terminator, and the room in bytes of the block they are in, which
-   is 0 when the handle owns none: a literal's bytes are the module's own.
+   is 0 when the handle owns no block: a literal's bytes belong to the module.
    [Void] is `Unit`, which has no storage. [Array] is
    `@primitives$Array<T, n>`: [n] elements inline, each at the element's
    stride, its size rounded up to its alignment (L5).
@@ -62,7 +62,7 @@ module Ty = struct
      (docs/design/platforms.md, "Address range supported by the runtime").
      A size is built up by [add] and [times], which check each step against
      the limit before taking it, so none can overflow on the way, and raise
-     [Too_large] past it. *)
+     [Too_large] when a step would pass the limit. *)
   let limit = 1 lsl 48
 
   exception Too_large
@@ -73,12 +73,12 @@ module Ty = struct
 
   let below_limit size = if size >= limit then raise Too_large else size
 
-  (* The offset a byte niche's spare byte must be below, which a layout's
-     tag holds in 24 bits (Layout.byte_niche_tag). *)
+  (* The limit below which a byte niche's spare byte offset must lie, since
+     a layout's tag holds that offset in 24 bits (Layout.byte_niche_tag). *)
   let max_niche_at = 1 lsl 24
 
-  (* Each sum's byte niche, found once, by whether niches are on and its
-     cases. *)
+  (* Each sum's byte niche, found once, keyed by whether niches are on and
+     by the sum's cases. *)
   let byte_niches : (bool * t list, byte_niche option) Hashtbl.t = Hashtbl.create 64
 
   (* Size and alignment in bytes on a 64-bit target. A bare [Struct] is laid
@@ -116,21 +116,23 @@ module Ty = struct
     | Packed (Sum ts) -> (below_limit (add 1 (room ts)), 1)
     | Packed t -> size_align t
 
-  (* A packed sum's payload room in bytes: its widest case's. *)
+  (* A packed sum's payload room in bytes: the size of its widest case. *)
   and room ts = List.fold_left (fun n t -> max n (fst (size_align t))) 0 ts
 
   (* A sum's payload room, in 8-byte words: enough for its widest case, and
-     aligned for every one, since no layout here needs more than 8. *)
+     aligned for every case, since no layout here needs an alignment above
+     8. *)
   and words ts = List.fold_left (fun n t -> max n ((fst (size_align t) + 7) / 8)) 0 ts
 
-  (* Experimental (Ref32.niche): a sum of nothing or a box or reference is
-     that word, 0 for nothing. *)
+  (* Experimental (Ref32.niche): a sum of either no value or a box or
+     reference is laid out as that one word, with 0 for no value. *)
   and niche ts = Ref32.niche () && (ts = [ Void; Ref ] || ts = [ Void; Box32 ])
 
-  (* A sum of one case with a payload and others with none, whose payload has a byte with values
-     it never holds (a [spare] byte) for each of the others, is its
-     payload's bytes alone, each other case one of those values at that
-     byte: the first of them for the first such case, and so on. *)
+  (* A sum of one case with a payload and other cases with none, whose
+     payload has a byte with an unused value (a [spare] byte) for each of
+     the other cases, is laid out as the payload's bytes alone. Each other
+     case is one of those unused values at that byte: the first unused value
+     for the first such case, and so on. *)
   and byte_niche ts =
     let key = (Ref32.niche (), ts) in
     match Hashtbl.find_opt byte_niches key with
@@ -140,9 +142,10 @@ module Ty = struct
         Hashtbl.replace byte_niches key n;
         n
 
-  (* Found once for each sum (byte_niches): a sum nested in a member
-     asks again for each layer above it, which would double the work at
-     each. A spare byte past [Layout.byte_niche_tag]'s reach is not used. *)
+  (* Found once for each sum (byte_niches): a sum nested in a member would
+     otherwise be asked again for each layer above it, doubling the work at
+     each layer. A spare byte beyond the offset [Layout.byte_niche_tag] can
+     hold is not used. *)
   and find_byte_niche ts =
     if List.length ts < 2 then None
     else
@@ -155,12 +158,13 @@ module Ty = struct
           | _ -> None)
       | _ -> None
 
-  (* A byte of a value of [t] with values it never holds: at [at], where
+  (* A byte of a value of [t] that some values never occupy: at [at], where
      [free] values from [first] up are unused. A [Bool] holds 0 or 1, a
-     packed sum's tag one value for each case, and a sum with a byte niche
-     leaves the values its own cases do not take. [path] leads through
-     members and elements to a [Bool] whose byte it is, which a niche sum's
-     own layout holds as a byte (Emit.lltype); none for a tag. *)
+     packed sum's tag holds one value for each case, and a sum with a byte
+     niche leaves free the values its own cases do not take. [path] leads
+     through members and elements to the [Bool] that owns the byte, which a
+     niche sum's own layout holds as a byte (Emit.lltype); [path] is empty
+     for a tag. *)
   and spare t : spare option =
     let inside base i (s : spare) : spare = { s with at = base + s.at; path = Option.map (fun p -> i :: p) s.path } in
     match t with
@@ -189,15 +193,15 @@ module Ty = struct
      struct's layout. Members are placed in decreasing order of alignment,
      those of one alignment in declaration order. Every layout's size is a
      multiple of its alignment, so no padding falls between members: only
-     the tail is rounded up (docs/design/lowering.md L5). The order is a
-     function of the member types alone, so every object that lays out a
-     type lays it out alike, and the identity when the members are already
-     in that order. *)
+     the tail is rounded up (docs/design/lowering.md L5). The order depends
+     only on the member types, so every object that lays out a type lays it
+     out the same way, and the order is the identity when the members are
+     already sorted. *)
   let order ts =
-    (* A member past the limit makes its struct one no value can be of,
-       which is refused where it is named (Type_layout.ty), so the order
-       it is given until then matters to nothing; 8 is the most any
-       layout here needs. *)
+    (* A member past the limit makes its struct a type that no value can
+       have, which is refused where the type is named (Type_layout.ty), so
+       the order the member gets until then does not matter; 8 is the
+       largest alignment any layout here needs. *)
     let alignment t = match size_align t with _, a -> a | exception Too_large -> 8 in
     let indexed = List.mapi (fun i t -> (i, alignment t)) ts in
     let sorted = List.stable_sort (fun (_, a) (_, b) -> compare b a) indexed in
@@ -207,12 +211,12 @@ module Ty = struct
 
   (* The layout lowering gives a struct or sum of already-laid-out members
      (docs/design/lowering.md L5). A struct that C's layout would pad is
-     packed: no padding, its tail included, and alignment 1; one with no
-     padding keeps its natural layout and alignment. A sum with a niche or
-     a byte niche is laid out as that; any other of at most 256 cases is
-     packed, its tag one byte and its payload room right after it, and
-     one of more keeps the 4-byte tag of a bare [Sum]. A type too large to
-     measure is left for the size check to refuse. *)
+     packed: no padding, its tail included, and alignment 1; a struct with
+     no padding keeps its natural layout and alignment. A sum with a niche or
+     a byte niche is laid out as that niche; any other sum of at most 256
+     cases is packed, its tag one byte and its payload room right after it,
+     and a sum of more cases keeps the 4-byte tag of a bare [Sum]. A type too
+     large to measure is left for the size check to refuse. *)
   let tight t =
     match t with
     | Struct _ when (try fst (size_align (Packed t)) < fst (size_align t) with Too_large -> false) -> Packed t
@@ -220,8 +224,8 @@ module Ty = struct
         Packed t
     | t -> t
 
-  (* [xs], one for each of the members [ts] in declaration order, in their
-     layout's order. *)
+  (* [xs], given one for each of the members [ts] in declaration order,
+     reordered into the layout's order. *)
   let placed ts xs =
     let positions = order ts in
     let out = Array.make (List.length xs) None in
@@ -273,10 +277,10 @@ module Ty = struct
     | Sum ts when niche ts || Option.is_some (byte_niche ts) -> 0
     | _ -> payload_offset
 
-  (* Whether a value of the type has a handle among its bytes: is one, or
-     has one as a member, a case's payload or an element. A boxed member's
-     payload and a reference's owner are in storage of their own, which a
-     [Ptr] names. *)
+  (* Whether a value of the type has a handle among its bytes: the value is a
+     handle, or has a handle as a member, a case's payload or an element. A
+     boxed member's payload and a reference's owner are in storage of their
+     own, which a [Ptr] names. *)
   let rec holds_handle = function
     | Handle | Handle16 -> true
     | Struct ts | Sum ts -> List.exists holds_handle ts
@@ -302,9 +306,10 @@ module Ty = struct
     | Packed t -> "packed " ^ to_string t
 end
 
-(* What a scalar conversion means (types.md §2.9), which the optimizer
-   folds and codegen's `llvm.fptosi.sat` gives for a truncation. A float is
-   held as a double either way; an [F32] is one that [single] has rounded. *)
+(* The semantics of a scalar conversion (types.md §2.9), which the optimizer
+   uses to fold conversions and which codegen's `llvm.fptosi.sat` matches for
+   a truncation. A float is held as a double either way; an [F32] is a double
+   that [single] has rounded. *)
 module Scalar = struct
   let single f = Int32.float_of_bits (Int32.bits_of_float f)
 
@@ -332,8 +337,9 @@ module Scalar = struct
     (if inclusive then f >= lower else f > lower) && f < upper
 
   (* An integer to the nearest float of [t], rounded once. A double holds
-     every [I64] up to 2^53 exactly, and above that one rounded to odd first
-     keeps a later rounding to an [F32] from being rounded twice. *)
+     every [I64] up to 2^53 exactly; above that, an integer is first rounded
+     to odd, which keeps a later rounding to an [F32] from rounding
+     twice. *)
   let to_float t (i : int64) =
     match t with
     | Ty.F32 ->
@@ -362,7 +368,8 @@ module Layout = struct
     | Text
     | List of { stride : int; elements : string }
     (* An array's [count] elements inline, [stride] bytes apart from the
-       position's offset: one position for them all, however many. *)
+       position's offset: one position for all the elements, however many
+       there are. *)
     | Array of { count : int; stride : int; elements : string }
     | Box of { size : int; payload : string }
     (* A foreign handle that owns its C object (docs/design/ffi.md F12):
@@ -406,9 +413,9 @@ module Layout = struct
     | None, Some case -> case
     | None, None -> if t < 0 then -t - 1 else t
   (* Whether a value of layout [l], whose positions [find] gives, holds a
-     foreign handle: anywhere, or with [settled] only where a settled
-     overwrite replaces it through its setter, in no variant's payload and
-     no list (spec ffi.md §4.3). *)
+     foreign handle: anywhere, or, with [settled], only where a settled
+     overwrite replaces the handle through its setter, which is in no
+     variant's payload and in no list (spec ffi.md §4.3). *)
   let holds_handle ?(settled = false) find l =
     let seen = Hashtbl.create 8 in
     let rec go l =
@@ -432,9 +439,10 @@ end
 module Expr = struct
   (* A spawned call's subject that owns blocks goes into a region of its
      own before the call starts (runtime/spawn.c, docs/design/lowering.md
-     §9). The frame's member [field] holds the subject's address, which the
-     call reads it through; when the subject is copied into the frame, the
-     copy is member [copy], and [field] is set to it first. *)
+     §9). The frame's member [field] holds the subject's address, through
+     which the call reads the subject; when the subject is copied into the
+     frame, the copy is member [copy], and [field] is first set to point at
+     the copy. *)
   type island = { field : int; copy : int option; size : int; value_layout : Layout.t }
 
   type t = { node : node; ty : Ty.t }
@@ -456,7 +464,8 @@ module Expr = struct
        before [args] (L14). *)
     | Call_value of { fn : t; args : t list }
     (* A call into the C runtime (L17), by the runtime's symbol. A string
-       goes to it, and comes back from it, through the address of a copy. *)
+       is passed to the runtime, and returned from it, through the address
+       of a copy. *)
     | Runtime of { fn : Runtime.fn; args : t list }
     (* A call of a foreign verb's C function through the thunk the glue
        gives it (docs/design/ffi.md F8, F10): each argument, run in the
@@ -495,8 +504,8 @@ module Expr = struct
     (* The address of a member inside the place an address names, down
        [path] through the struct type [within]. *)
     | Offset of { base : t; within : Ty.t; path : int list }
-    (* A move out of the place an address names: its value, and the place
-       is spent (lifetimes.md §1.6). *)
+    (* A move out of the place an address names: the place's value, after
+       which the place is spent (lifetimes.md §1.6). *)
     | Take of { address : t; layout : Layout.t }
     (* A value copied whole: every block it owns is copied too, so the copy
        owns blocks of its own (memory.md §2.3). *)
@@ -516,8 +525,8 @@ module Expr = struct
     | Snapshot of t
     (* A value on its way out of the arenas an exit drains: the function's,
        when [exit] is [None], or those opened inside the expansion [exit]
-       names. Every block it owns in them moves into the arena the exit
-       returns to first (memory.md §3.1, §3.5). *)
+       names. Every block the value owns in those arenas first moves into
+       the arena the exit returns to (memory.md §3.1, §3.5). *)
     | Escape of { value : t; layout : Layout.t; exit : int option }
 
   and binop = Add | Mul | Div | Eq | Less
@@ -544,27 +553,27 @@ module Expr = struct
     | If of { cond : t; body : stat list }
     | Repeat of { count : t; body : stat list }
     (* A worker (control-flow.md §3.7): [cond] is read, and [body] runs
-       when it is true, for as long as it is: [cond] calls the step, and
-       [body] is what runs between one step and the next. Nothing counts
-       it, so it ends only when [cond] is false, or when a [Leave] or a
-       [Return] in [body] leaves it. *)
+       each time [cond] is true: [cond] calls the step, and [body] runs
+       between one step and the next. No counter limits the loop, so it
+       ends only when [cond] is false, or when a [Leave] or a [Return] in
+       [body] leaves it. *)
     | While of { cond : t; body : stat list }
     | Switch of { value : t; cases : (int * stat list) list }
     | Leave of int
     (* A store through an address, and a value replaced there in place
-       (memory.md §2.2): written at the occupant's address, each boxed
+       (memory.md §2.2): written at the occupant's address, with each boxed
        member's block kept, the other blocks the old value owned returned,
-       and the new one's arriving in the place's region. *)
+       and the new value's blocks arriving in the place's region. *)
     | Store of { address : t; value : t }
     (* With [setters], the place is settled or lent (memory.md §2.2) and
        the value holds a foreign handle that is no variant's payload nor a
        list's element: each such handle is replaced through its setter,
-       keeping its object's address (spec ffi.md §4.3). Without, it ends
-       as everything else the old value owns does. *)
+       keeping its object's address (spec ffi.md §4.3). Without [setters],
+       the handle ends as everything else the old value owns does. *)
     | Overwrite of { address : t; value : t; layout : Layout.t; setters : bool }
-    (* A value moved into a fresh place at an address: stored, and the
-       blocks it owns that the place's region outlives move into it, which is
-       an escape (memory.md §3.5). *)
+    (* A value moved into a fresh place at an address: the value is stored,
+       and the blocks it owns that the place's region outlives move into that
+       region, which is an escape (memory.md §3.5). *)
     | Place of { address : t; value : t; layout : Layout.t }
     (* A slot of type [ty] in a scope's arena, zeroed so that it holds
        nothing until a [Place] fills it, which the drain then ends. *)
@@ -572,11 +581,11 @@ module Expr = struct
     (* A spawned call (concurrency.md §3). [args] run here, in the order they
        were written, and are stored in a frame of type [frame] in a scope's
        arena, whose first member is room for the result; then the function
-       [thunk] runs on a thread of the pool, reads them, and calls. The
-       result comes home to the slot [dest], of that first member's type and
-       laid out as [layout] says, when the call is joined: at a read, or
-       when the scope drains, which waits for it first (§4.1). [task] holds
-       the frame's address. *)
+       [thunk] runs on a thread of the pool, reads the arguments, and makes
+       the call. The result is copied back to the slot [dest], of that first
+       member's type and laid out as [layout] describes, when the call is
+       joined: at a read, or when the scope drains, which first waits for the
+       call (§4.1). [task] holds the frame's address. *)
     | Spawn of {
         task : int;
         scope : int;
@@ -587,7 +596,8 @@ module Expr = struct
         layout : Layout.t;
         island : island option;
       }
-    (* Waiting for the call [task] names, whose result then comes home. *)
+    (* Waiting for the call [task] names, whose result is then copied
+       back. *)
     | Join of int
 
   (* A node's constructor, for a message about the node. *)
@@ -665,8 +675,8 @@ module Stat = struct
     Assign { place = { local = id; deref = false; ty = value.Expr.ty; path = [] }; value }
 end
 
-(* Who links against a function (docs/design/separate-compilation.md): only
-   its own object, every object, or every object that also makes it, with
+(* Which objects link against a function (docs/design/separate-compilation.md):
+   only its own object, every object, or every object that also makes it, with
    the linker keeping one copy, as a generic instance is (C4). An imported
    function is a stamped dependency's, defined in that dependency's objects,
    so this object declares it and has no body for it (C1). *)
@@ -678,19 +688,19 @@ end
 
 (* A variable of the program, zeroed until it is stored to: a package
    constant's value, and how far its making has got (L16). *)
-(* A variable of the program's. One [per_thread] has a copy on each thread,
-   which starts out zero there. *)
+(* A variable of the program's. A [per_thread] variable has a copy on each
+   thread, which starts out zero on that thread. *)
 module Global = struct
   type t = { symbol : string; linkage : Linkage.t; ty : Ty.t; per_thread : bool }
 end
 
-(* [values] is each local that holds a value type. No reference names one
-   (memory.md §2.4), so its slot is reached only through the addresses the
-   function itself takes of it. [places] is each [Ptr] parameter that is the
-   address of a slot that outlives the call, with the type that slot holds:
-   a `mut` subject or an owned value passed by address, a slot of the
-   caller's, and an `&T`, a settled owner's (memory.md §4.2). The whole slot
-   can be read wherever the function is. *)
+(* [values] is each local that holds a value type. No reference names such a
+   local (memory.md §2.4), so its slot is reached only through the addresses
+   the function itself takes of it. [places] is each [Ptr] parameter that is
+   the address of a slot that outlives the call, with the type that slot
+   holds: a `mut` subject or an owned value passed by address, which is a
+   slot of the caller's, and an `&T`, which is a settled owner's slot
+   (memory.md §4.2). The whole slot can be read anywhere in the function. *)
 module Func = struct
   type t = {
     symbol : string;
@@ -706,8 +716,8 @@ end
 (* A thunk for the glue to define (docs/design/ffi.md F8), a foreign
    verb's or a handle type's free or set thunk: its symbol, the package
    whose C code it calls, the C function, how each argument and the
-   result cross, as [Foreign_call] lays them out, and whether a call of it
-   reads or writes capability-backed state, as a method on a foreign
+   result are passed, as [Foreign_call] lays them out, and whether a call of
+   it reads or writes capability-backed state, as a method on a foreign
    capability and an outside handle's free or set thunk do: stage 5 never
    folds such a call (F17). *)
 module Foreign = struct
@@ -743,21 +753,22 @@ module Foreign = struct
 end
 
 (* A function value whose type C can call (docs/design/ffi.md F11; spec
-   ffi.md §3.6), and the C types it crosses as, read from its Zane type
-   when it is lowered: a scalar, a `Bool` as [Truth], `Unit` as [Nothing],
-   and a C-compatible value type as a [Record] of its fields, an array
-   field with its length. The Zane type, not the CGT one, gives them, since
-   a value type of one field has its field's CGT type and C passes the
-   two differently. Such a lambda's value is its Zane function's address,
-   as any lambda's is, and the function carries the offset of its C entry
-   in the word before its code: the entry, which the glue defines, calls
-   its adapter, a function of the program taking the addresses of slots
-   holding its arguments and of one for its result. [symbol] is the
-   lambda's, [here] whether this object defines the lambda, and so its
-   adapter and entry, and [entry] the symbol of the entry. A lambda other
-   objects define too, as each that makes a generic instance holding it
-   does, has an entry of each object's own, named by its package, and
-   their adapters merge into one. *)
+   ffi.md §3.6), and the C types its parameters and result are passed as,
+   read from its Zane type when it is lowered: a scalar, a `Bool` as
+   [Truth], `Unit` as [Nothing], and a C-compatible value type as a [Record]
+   of its fields, with an array field's length. The Zane type, not the CGT
+   type, determines these, since a value type of one field has its field's
+   CGT type and C passes the two differently. Such a lambda's value is its
+   Zane function's address, as for any lambda, and the function carries the
+   offset of its C entry in the word before its code. The entry, which the
+   glue defines, calls the lambda's adapter, a function of the program that
+   takes the addresses of slots holding its arguments and of a slot for its
+   result. [symbol] is the lambda's symbol, [here] whether this object
+   defines the lambda, and so its adapter and entry, and [entry] the
+   symbol of the entry. A lambda that other objects define too, as each
+   object that makes a generic instance holding the lambda does, has an
+   entry in each object, named after that object's package, and their
+   adapters merge into one. *)
 module Callback = struct
   type shape =
     | Scalar of Ty.t
@@ -768,8 +779,8 @@ module Callback = struct
        which the adapter copies with the layout into a value of the
        program's own before the lambda runs. *)
     | View of { layout : Layout.t; text : bool; stride : int }
-    (* An array C passes as a pointer to its elements, which the adapter
-       reads through it, [n] elements of the shape. *)
+    (* An array C passes as a pointer to its elements, through which the
+       adapter reads [n] elements of the shape. *)
     | Elements of shape * int
     (* A data handle's C object C passes as a pointer: a borrow, or, when
        [owned], a roaming owner the lambda's parameter takes. *)
@@ -791,13 +802,13 @@ module Callback = struct
     | Elements (s, n) -> Printf.sprintf "*[%d x %s]" n (spell s)
     | Object { owned } -> if owned then "^object" else "object"
 
-  (* A value of a C-compatible type crosses into C, and back, in C's
-     layout: its fields in declaration order (docs/design/ffi.md F10). In
-     Zane they are where Ty.order places them, and a struct of one field is
-     that field and one of none is nothing (docs/design/lowering.md L5). A
-     struct crosses as a copy, so its fields are moved between the two
-     orders as it is copied, and no struct lies in memory both languages
-     read. [zane] and [c] are the two layouts of a shape. *)
+  (* A value of a C-compatible type is passed to C, and back, in C's layout:
+     its fields in declaration order (docs/design/ffi.md F10). In Zane the
+     fields are where Ty.order places them, a struct of one field is that
+     field, and a struct of no fields is no value (docs/design/lowering.md
+     L5). A struct is passed as a copy, so its fields are moved between the
+     two orders as it is copied, and no struct lies in memory that both
+     languages read. [zane] and [c] are the two layouts of a shape. *)
   let rec layout ~c = function
     | Scalar t -> t
     | Truth -> Ty.I1
@@ -807,13 +818,14 @@ module Callback = struct
         | [] -> Ty.Void
         | [ t ] -> t
         | ts -> if c then Ty.Struct ts else Ty.tight (Ty.Struct (Ty.placed ts ts)))
-    (* A view, an array's pointer and a C object hold no struct either
+    (* A view, an array's pointer and a C object hold no struct that either
        language reorders, so both layouts are the same. *)
     | View _ | Object _ -> Ty.Ptr
     | Elements (s, n) -> Ty.Array (layout ~c s, n)
 
-  (* Zane lays out an array of none as holding nothing (Type_layout.shape),
-     so with alignment 1, where C keeps its element's. *)
+  (* Zane lays out an array of no elements as holding nothing
+     (Type_layout.shape), so with alignment 1, whereas C keeps its element's
+     alignment. *)
   and field ~c (s, n) =
     match n with
     | Some 0 when not c -> Ty.Array (Ty.Void, 0)
@@ -824,13 +836,13 @@ module Callback = struct
   let c = layout ~c:true
 
   (* Whether the two layouts of a shape differ: some struct in it, however
-     deep, has its fields out of declaration order or holds an array of
-     none. *)
+     deep, has its fields out of declaration order or holds an array of no
+     elements. *)
   let moved shape = zane shape <> c shape
 
   (* The value [v] rebuilt member by member: from its Zane layout into its
-     C one when [to_c], else back. [v] is read once for each member, so it
-     is a local or a load. *)
+     C one when [to_c], else back. [v] is read once for each member, so [v]
+     must be a local or a load. *)
   let rec rebuild ~to_c shape (v : Expr.t) : Expr.t =
     match shape with
     | _ when not (moved shape) -> v
@@ -842,8 +854,9 @@ module Callback = struct
         let member j (s, n) =
           let from, into, ty = if to_c then (positions.(j), j, zs'.(j)) else (j, positions.(j), cs'.(j)) in
           let read = { Expr.node = Expr.Member { value = v; index = from }; ty } in
-          (* An array of none holds nothing, and its two layouts are of
-             different types, so the other side's is made empty. *)
+          (* An array of no elements holds nothing, and its two layouts
+             are of different types, so the other side's array is made
+             empty. *)
           let into_ty = if to_c then cs'.(j) else zs'.(j) in
           match n with
           | None -> (into, rebuild ~to_c s read)
@@ -860,9 +873,9 @@ end
 (* One program is one module (L15). [entry] is the symbol of the function
    the runtime's C `main` calls (L16): always one that makes the package
    constants, if any, and then calls the root package's `main`. A library has
-   none. [layouts] is each layout the program names, [globals] each of
+   no entry. [layouts] is each layout the program names, [globals] each of
    its variables, and [foreign] each thunk of the glue it calls.
-   [exclusive] is whether it runs on one thread: it is not a
+   [exclusive] is whether the program runs on one thread: it is not a
    library, and no package of the build spawns. *)
 module Program = struct
   type t = {

@@ -1,4 +1,4 @@
-(* The math functions of `@math$` (math.md §2), as a call to one names it. A
+(* The math functions of `@math$` (math.md §2), as a call names them. A
    function keeps its name across the scalars it takes: `abs`, `min` and
    `max` are one variant each for integers and floats alike, and codegen
    picks the instruction by the operands' type. *)
@@ -86,8 +86,9 @@ let name = function
 
 let of_name n = List.find_opt (fun f -> String.equal (name f) n) all
 
-(* An approximate function's result is the C math library's where the
-   program runs (math.md §2.6), so nothing computes one ahead of time. *)
+(* An approximate function's result is whatever the C math library returns
+   where the program runs (math.md §2.6), so no such result is computed ahead
+   of time. *)
 let exact = function
   | Cbrt | Sin | Cos | Tan | Asin | Acos | Atan | Atan2 | Exp | Log | Pow | Hypot -> false
   | Bit_and | Bit_or | Bit_xor | Bit_not | Shift_left | Shift_right | Shift_right_logical

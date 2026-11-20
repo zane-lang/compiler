@@ -196,7 +196,7 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
           (st.returns (runtime Runtime.Text_taken [ call; { Expr.node = Expr.Local mark; ty = Nodes.Ty.I64 } ] Nodes.Ty.Handle));
       ]
   | Foreign.Handle -> made st ctx span v call
-  (* A struct comes back in C's layout and is rebuilt in its own. *)
+  (* A struct comes back in C's layout and is rebuilt in the Zane layout. *)
   | _ -> (
       match shape with
       | Some s when Callback.moved s ->
