@@ -234,6 +234,9 @@ void zane_block_end(int began) {
 	if (!began) return;
 	pthread_mutex_lock(&zane_pool);
 	zane_blocked--;
+	/* An idle stand-in sleeps on zane_waiting, so it rechecks the target
+	   and leaves only once something wakes it. */
+	if (zane_threads > zane_target()) pthread_cond_broadcast(&zane_waiting);
 	pthread_mutex_unlock(&zane_pool);
 }
 

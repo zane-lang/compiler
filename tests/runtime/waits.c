@@ -26,7 +26,7 @@ static int64_t test_now(void) {
 
 static void check(int ok) { puts(ok ? "yes" : "no"); }
 
-enum { MS = 1000000 };
+static const int64_t MS = 1000000, S = 1000000000;
 
 static int64_t started, set, done, saw;
 
@@ -59,11 +59,20 @@ void zane_main(void) {
 	check(after >= first && next > first && (next - first) % (3 * MS) == 0);
 
 	/* A deadline already past waits not at all, and missed ticks merge: the
-	   next deadline is the first after now. */
-	int64_t late = zane_tick_start(MS) - 10 * MS;
+	   next deadline is the first after now. The deadline is 21 s past on a
+	   10 s timer, so a wait for any deadline would last about 9 s. The
+	   check fails on a correct runtime only if the system keeps this thread
+	   from running for a whole second. */
+	int64_t late = zane_tick_start(10 * S) - 31 * S;
 	int64_t before = test_now();
-	next = zane_tick(MS, late);
-	check(test_now() - before < 5 * MS && next > before && (next - late) % MS == 0);
+	next = zane_tick(10 * S, late);
+	check(test_now() - before < S && next > before && (next - late) % (10 * S) == 0);
+
+	/* A deadline past the largest time an int64_t holds becomes that time,
+	   both as the first deadline and as the one after a tick. The tick's
+	   own deadline here is already past, so it waits not at all. */
+	check(zane_tick_start(INT64_MAX) == INT64_MAX);
+	check(zane_tick(INT64_MAX, 1) == INT64_MAX);
 
 	/* With one thread, a call spawned while the first waits still runs: the
 	   waiting thread has a stand-in. Nothing here joins either call before
